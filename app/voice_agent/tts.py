@@ -259,9 +259,133 @@ class TextToSpeech:
         voice_id: Optional[str] = None
     ):
         """
-        Stream audio for real-time playback
-        (Implementation depends on provider capabilities)
+        Stream audio for real-time playback with lower latency
+        
+        This is an async generator that yields audio chunks as they become available.
+        Useful for real-time voice calls where you want to start playing audio
+        before the full synthesis is complete.
+        
+        Args:
+            text: Text to convert to speech
+            voice_id: Voice ID for the TTS provider
+            
+        Yields:
+            bytes: Audio chunks as they become available
         """
-        # For now, return full audio
-        # TODO: Implement streaming for lower latency
-        return await self.synthesize(text, voice_id)
+        # Resolve voice preset if needed
+        if voice_id and voice_id in self.VOICE_PRESETS:
+            voice_id = self.VOICE_PRESETS[voice_id].get(self.provider_name)
+        
+        try:
+            if self.provider_name == "edge":
+                # Edge TTS supports native streaming
+                voice = voice_id or "en-IN-NeerjaNeural"
+                communicate = edge_tts.Communicate(text, voice)
+                
+                async for chunk in communicate.stream():
+                    if chunk["type"] == "audio":
+                        yield chunk["data"]
+                        
+            elif self.provider_name == "elevenlabs" and settings.elevenlabs_api_key:
+                # ElevenLabs streaming endpoint
+                voice = voice_id or settings.elevenlabs_voice_id
+                if not voice:
+                    # Fall back to full synthesis
+                    audio = await self.synthesize(text, voice_id)
+                    yield audio
+                    return
+                
+                url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice}/stream"
+                
+                headers = {
+                    "Accept": "audio/mpeg",
+                    "Content-Type": "application/json",
+                    "xi-api-key": settings.elevenlabs_api_key
+                }
+                
+                payload = {
+                    "text": text,
+                    "model_id": "eleven_multilingual_v2",
+                    "voice_settings": {
+                        "stability": 0.5,
+                        "similarity_boost": 0.8
+                    }
+                }
+                
+                async with httpx.AsyncClient() as client:
+                    async with client.stream(
+                        "POST",
+                        url,
+                        headers=headers,
+                        json=payload,
+                        timeout=30.0
+                    ) as response:
+                        response.raise_for_status()
+                        async for chunk in response.aiter_bytes(chunk_size=4096):
+                            yield chunk
+                            
+            elif self.provider_name == "azure" and settings.azure_speech_key:
+                # Azure doesn't have easy async streaming, fall back to full synthesis
+                # and yield in chunks
+                audio = await self.synthesize(text, voice_id)
+                
+                # Yield in 4KB chunks to simulate streaming
+                chunk_size = 4096
+                for i in range(0, len(audio), chunk_size):
+                    yield audio[i:i + chunk_size]
+                    await asyncio.sleep(0)  # Allow other tasks to run
+                    
+            else:
+                # Fallback: full synthesis then yield
+                audio = await self.synthesize(text, voice_id)
+                yield audio
+                
+        except Exception as e:
+            logger.error(f"TTS streaming failed: {e}")
+            # Fall back to non-streaming synthesis
+            try:
+                audio = await self.synthesize(text, voice_id)
+                yield audio
+            except Exception as fallback_error:
+                logger.error(f"TTS fallback also failed: {fallback_error}")
+                raise
+    
+    async def synthesize_to_file(
+        self,
+        text: str,
+        output_path: str,
+        voice_id: Optional[str] = None,
+        voice_preset: Optional[str] = None
+    ) -> str:
+        """
+        Synthesize text to speech and save to a file
+        
+        Args:
+            text: Text to convert
+            output_path: Path to save the audio file
+            voice_id: Specific voice ID (provider-dependent)
+            voice_preset: Named preset (hindi_female, english_indian_male, etc.)
+            
+        Returns:
+            Path to the saved audio file
+        """
+        audio_bytes = await self.synthesize(text, voice_id, voice_preset)
+        
+        with open(output_path, 'wb') as f:
+            f.write(audio_bytes)
+        
+        logger.debug(f"TTS audio saved to {output_path}")
+        return output_path
+    
+    def get_available_voices(self) -> dict:
+        """
+        Get available voice presets for the current provider
+        
+        Returns:
+            Dictionary of voice presets with their IDs
+        """
+        available = {}
+        for preset_name, provider_voices in self.VOICE_PRESETS.items():
+            if self.provider_name in provider_voices:
+                available[preset_name] = provider_voices[self.provider_name]
+        return available

@@ -1,0 +1,342 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Deploy to environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-south1
+  SERVICE_NAME: leadgen-ai-voice-agent
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ==========================================================================
+  # Lint and Type Check
+  # ==========================================================================
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install black isort mypy ruff
+
+      - name: Check formatting with Black
+        run: black --check app/ tests/
+
+      - name: Check import sorting with isort
+        run: isort --check-only app/ tests/
+
+      - name: Lint with Ruff
+        run: ruff check app/ tests/
+
+      - name: Type check with mypy
+        run: mypy app/ --ignore-missing-imports --no-error-summary
+        continue-on-error: true  # Allow to proceed even with type errors
+
+  # ==========================================================================
+  # Run Tests
+  # ==========================================================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://test:test@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: test-secret-key-for-ci-minimum-32-chars
+          APP_ENV: testing
+          DEBUG: false
+        run: |
+          pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  # ==========================================================================
+  # Security Scan
+  # ==========================================================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install safety
+        run: pip install safety bandit
+
+      - name: Check for vulnerabilities with Safety
+        run: safety check -r requirements.txt
+        continue-on-error: true
+
+      - name: Security lint with Bandit
+        run: bandit -r app/ -ll -ii
+        continue-on-error: true
+
+  # ==========================================================================
+  # Build Docker Image
+  # ==========================================================================
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/leadgen-ai/${{ env.SERVICE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            APP_VERSION=${{ github.sha }}
+
+  # ==========================================================================
+  # Deploy to Staging
+  # ==========================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/develop' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_environment == 'staging')
+    environment: staging
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to Cloud Run (Staging)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}-staging
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/leadgen-ai/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          env_vars: |
+            APP_ENV=staging
+            LOG_LEVEL=DEBUG
+          secrets: |
+            DATABASE_URL=staging-database-url:latest
+            REDIS_URL=staging-redis-url:latest
+            SECRET_KEY=staging-secret-key:latest
+            GEMINI_API_KEY=staging-gemini-api-key:latest
+            DEEPGRAM_API_KEY=staging-deepgram-api-key:latest
+            SENTRY_DSN=staging-sentry-dsn:latest
+
+      - name: Run smoke tests
+        run: |
+          STAGING_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }}-staging --region=${{ env.REGION }} --format='value(status.url)')
+          echo "Testing: $STAGING_URL"
+          curl -f "$STAGING_URL/health" || exit 1
+          echo "Smoke test passed!"
+
+  # ==========================================================================
+  # Deploy to Production
+  # ==========================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_environment == 'production')
+    environment: production
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Pre-deployment validation
+        run: |
+          pip install -r requirements.txt
+          python scripts/validate_deployment.py --env production --skip-tests
+
+      - name: Deploy to Cloud Run (Production)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/leadgen-ai/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          flags: '--min-instances=1 --max-instances=100 --cpu=2 --memory=2Gi --concurrency=80 --timeout=300'
+          env_vars: |
+            APP_ENV=production
+            LOG_LEVEL=INFO
+          secrets: |
+            DATABASE_URL=production-database-url:latest
+            REDIS_URL=production-redis-url:latest
+            SECRET_KEY=production-secret-key:latest
+            GEMINI_API_KEY=production-gemini-api-key:latest
+            DEEPGRAM_API_KEY=production-deepgram-api-key:latest
+            SENTRY_DSN=production-sentry-dsn:latest
+            TWILIO_ACCOUNT_SID=production-twilio-account-sid:latest
+            TWILIO_AUTH_TOKEN=production-twilio-auth-token:latest
+
+      - name: Run health check
+        run: |
+          PROD_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')
+          echo "Production URL: $PROD_URL"
+          
+          # Wait for service to be ready
+          for i in {1..10}; do
+            if curl -sf "$PROD_URL/health"; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Health check failed!"
+          exit 1
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "🚀 Production deployment successful!"
+          echo "Version: ${{ github.sha }}"
+          echo "URL: $(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')"
+
+  # ==========================================================================
+  # Run Database Migrations (Manual Trigger)
+  # ==========================================================================
+  migrate:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    environment: ${{ github.event.inputs.deploy_environment }}
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Get database URL from Secret Manager
+        id: secrets
+        run: |
+          DB_URL=$(gcloud secrets versions access latest --secret="${{ github.event.inputs.deploy_environment }}-database-url")
+          echo "::add-mask::$DB_URL"
+          echo "DATABASE_URL=$DB_URL" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          pip install alembic asyncpg sqlalchemy
+
+      - name: Run migrations
+        run: |
+          alembic upgrade head

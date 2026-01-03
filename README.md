@@ -373,7 +373,7 @@ Each client tenant automatically gets:
 
 For enterprise deployments and custom integrations, contact:
 - Email: support@leadgenai.com
-- WhatsApp: +91-XXXXXXXXXX
+- WhatsApp: Configure `SUPPORT_WHATSAPP_NUMBER` in your `.env` file
 
 ---
 

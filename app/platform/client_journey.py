@@ -351,7 +351,7 @@ Let's generate some leads! 🚀"""
             appointments=8,
             total_leads=150,
             total_calls=75,
-            support_number="+91-XXXXXXXXXX"
+            support_number=settings.support_phone_number or settings.support_whatsapp_number or "Contact Support"
         )
         
         # Send via WhatsApp
@@ -429,12 +429,13 @@ Reply UPGRADE to continue, or call us to discuss."""
             tracker.converted_at = datetime.now()
             
             # Send payment link
+            support_number = settings.support_phone_number or settings.support_whatsapp_number or "our support team"
             payment_message = f"""Great choice, {tracker.contact_name}! 🎉
 
 Complete your subscription here:
-https://app.leadgenai.com/subscribe/{lead_id}
+{settings.platform_website_url}/subscribe/{lead_id}
 
-Or call us: +91-XXXXXXXXXX
+Or call us: {support_number}
 
 We're excited to continue generating leads for you!"""
 

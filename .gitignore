@@ -128,3 +128,11 @@ test.db
 # Playwright
 playwright-report/
 test-results/
+
+# Visual Studio
+.vs/
+
+# Terraform
+infrastructure/terraform/.terraform/
+*.tfplan
+infrastructure/terraform/tfplan*

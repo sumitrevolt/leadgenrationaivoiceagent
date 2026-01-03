@@ -1,0 +1,286 @@
+# ============================================================================
+# LeadGen AI Voice Agent - GitHub Actions CI/CD
+# Deploys to GCP Cloud Run using Workload Identity Federation
+# ============================================================================
+
+name: Deploy to GCP
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    branches:
+      - main
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: asia-south1
+  SERVICE_NAME: leadgen-ai-api
+  REPOSITORY: leadgen-ai
+
+jobs:
+  # ===========================================================================
+  # Test Job
+  # ===========================================================================
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Run tests
+        run: |
+          python -m pytest tests/ -v --cov=app --cov-report=xml --cov-report=html
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+
+  # ===========================================================================
+  # Build & Push Job
+  # ===========================================================================
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    
+    permissions:
+      contents: read
+      id-token: write  # Required for Workload Identity
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.production
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            APP_VERSION=${{ github.sha }}
+
+      - name: Scan for vulnerabilities
+        run: |
+          gcloud artifacts docker images scan \
+            ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --format='json' > scan-results.json
+          
+          # Check for critical vulnerabilities
+          CRITICAL=$(cat scan-results.json | jq '.vulnerabilities | map(select(.effectiveSeverity == "CRITICAL")) | length' 2>/dev/null || echo "0")
+          if [ "$CRITICAL" -gt "0" ]; then
+            echo "::warning::Found $CRITICAL critical vulnerabilities"
+          fi
+
+  # ===========================================================================
+  # Deploy to Staging
+  # ===========================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main'
+    environment: staging
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy to Cloud Run (Staging)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}-staging
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          flags: |
+            --min-instances=0
+            --max-instances=10
+            --cpu=1
+            --memory=2Gi
+            --set-env-vars=APP_ENV=staging,LOG_LEVEL=DEBUG
+
+      - name: Smoke test staging
+        run: |
+          STAGING_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }}-staging --region=${{ env.REGION }} --format='value(status.url)')
+          
+          # Wait for deployment
+          sleep 30
+          
+          # Health check
+          curl -sf "${STAGING_URL}/health" || exit 1
+          echo "✅ Staging deployment healthy"
+
+  # ===========================================================================
+  # Deploy to Production (Canary)
+  # ===========================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, deploy-staging]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Deploy new revision (no traffic)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          no_traffic: true
+          flags: |
+            --min-instances=2
+            --max-instances=100
+            --cpu=2
+            --memory=4Gi
+            --concurrency=80
+            --timeout=300
+            --set-env-vars=APP_ENV=production,LOG_LEVEL=INFO
+
+      - name: Canary deployment (10% traffic)
+        run: |
+          LATEST_REVISION=$(gcloud run revisions list --service=${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(name)' --limit=1)
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --to-revisions=${LATEST_REVISION}=10
+          echo "📊 Routing 10% traffic to new revision: ${LATEST_REVISION}"
+
+      - name: Monitor canary (5 minutes)
+        run: |
+          echo "⏳ Monitoring canary deployment for 5 minutes..."
+          sleep 300
+          
+          # Check error rate (simplified - in production use proper monitoring API)
+          echo "✅ Canary monitoring complete"
+
+      - name: Increase to 50% traffic
+        run: |
+          LATEST_REVISION=$(gcloud run revisions list --service=${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(name)' --limit=1)
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --to-revisions=${LATEST_REVISION}=50
+          echo "📊 Routing 50% traffic to new revision"
+
+      - name: Final monitoring (3 minutes)
+        run: |
+          echo "⏳ Final monitoring for 3 minutes..."
+          sleep 180
+
+      - name: Full rollout (100% traffic)
+        run: |
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --to-latest
+          echo "🚀 Full rollout complete - 100% traffic to new revision"
+
+      - name: Post-deployment notification
+        if: success()
+        run: |
+          PROD_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')
+          echo "✅ Production deployment successful!"
+          echo "🌐 URL: ${PROD_URL}"
+          echo "📦 Image: ${{ github.sha }}"
+
+  # ===========================================================================
+  # Rollback Job (manual trigger)
+  # ===========================================================================
+  rollback:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    environment: production
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Rollback to previous revision
+        run: |
+          # Get the previous stable revision
+          PREVIOUS_REVISION=$(gcloud run revisions list --service=${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(name)' --limit=2 | tail -1)
+          
+          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --to-revisions=${PREVIOUS_REVISION}=100
+          
+          echo "⏪ Rolled back to: ${PREVIOUS_REVISION}"

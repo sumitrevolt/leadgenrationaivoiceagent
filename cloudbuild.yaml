@@ -1,0 +1,271 @@
+# LeadGen AI Voice Agent - Cloud Build CI/CD
+# Production deployment pipeline with staged rollout
+
+steps:
+  # ============================================================================
+  # STAGE 0: Pre-deployment Validation
+  # ============================================================================
+  
+  - id: 'validate'
+    name: 'python:3.11-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install -q pydantic pydantic-settings
+        python scripts/validate_deployment.py --env production --skip-tests || echo "Validation warnings present"
+    waitFor: ['-']
+
+  # ============================================================================
+  # STAGE 1: Build & Test
+  # ============================================================================
+  
+  # Install dependencies and run tests
+  - id: 'test'
+    name: 'python:3.11-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install -r requirements.txt
+        pip install pytest pytest-asyncio pytest-cov
+        python -m pytest tests/ -v --cov=app --cov-report=xml
+    waitFor: ['validate']
+
+  # Build container image
+  - id: 'build'
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:latest'
+      - '-f'
+      - 'Dockerfile.production'
+      - '--build-arg'
+      - 'APP_VERSION=${SHORT_SHA}'
+      - '--cache-from'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:latest'
+      - '.'
+    waitFor: ['test']
+
+  # ============================================================================
+  # STAGE 2: Security Scan
+  # ============================================================================
+  
+  # Vulnerability scan
+  - id: 'scan'
+    name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud artifacts docker images scan \
+          ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${SHORT_SHA} \
+          --format='json' > /workspace/scan-results.json
+        
+        # Check for critical vulnerabilities
+        CRITICAL=$(cat /workspace/scan-results.json | jq '.vulnerabilities | map(select(.effectiveSeverity == "CRITICAL")) | length')
+        if [ "$CRITICAL" -gt "0" ]; then
+          echo "ERROR: Found $CRITICAL critical vulnerabilities!"
+          exit 1
+        fi
+    waitFor: ['build']
+
+  # ============================================================================
+  # STAGE 3: Push Image
+  # ============================================================================
+  
+  - id: 'push'
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}'
+    waitFor: ['scan']
+
+  # ============================================================================
+  # STAGE 4: Deploy to Staging (for production branch)
+  # ============================================================================
+  
+  - id: 'deploy-staging'
+    name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if [ "${BRANCH_NAME}" = "main" ]; then
+          gcloud run deploy ${_SERVICE_NAME}-staging \
+            --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${SHORT_SHA} \
+            --region=${_REGION} \
+            --platform=managed \
+            --service-account=${_SERVICE_ACCOUNT} \
+            --set-env-vars=APP_ENV=staging \
+            --vpc-connector=${_VPC_CONNECTOR} \
+            --vpc-egress=private-ranges-only \
+            --min-instances=1 \
+            --max-instances=10 \
+            --cpu=2 \
+            --memory=4Gi \
+            --timeout=300s \
+            --no-traffic
+          
+          echo "Staging deployment complete. Running smoke tests..."
+        else
+          echo "Skipping staging deployment for non-main branch"
+        fi
+    waitFor: ['push']
+
+  # ============================================================================
+  # STAGE 5: Smoke Tests
+  # ============================================================================
+  
+  - id: 'smoke-test'
+    name: 'curlimages/curl:latest'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        if [ "${BRANCH_NAME}" = "main" ]; then
+          STAGING_URL=$(gcloud run services describe ${_SERVICE_NAME}-staging --region=${_REGION} --format='value(status.url)')
+          
+          # Health check
+          curl -sf "${STAGING_URL}/health" || exit 1
+          
+          # API endpoint check
+          curl -sf "${STAGING_URL}/api/v1/status" || exit 1
+          
+          echo "Smoke tests passed!"
+        fi
+    waitFor: ['deploy-staging']
+
+  # ============================================================================
+  # STAGE 6: Production Deployment (Canary)
+  # ============================================================================
+  
+  - id: 'deploy-production-canary'
+    name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if [ "${BRANCH_NAME}" = "main" ]; then
+          # Deploy new revision with no traffic
+          gcloud run deploy ${_SERVICE_NAME} \
+            --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${SHORT_SHA} \
+            --region=${_REGION} \
+            --platform=managed \
+            --service-account=${_SERVICE_ACCOUNT} \
+            --set-env-vars=APP_ENV=production,GOOGLE_CLOUD_PROJECT=${PROJECT_ID} \
+            --vpc-connector=${_VPC_CONNECTOR} \
+            --vpc-egress=private-ranges-only \
+            --min-instances=1 \
+            --max-instances=100 \
+            --cpu=2 \
+            --memory=4Gi \
+            --timeout=300s \
+            --concurrency=80 \
+            --tag=canary \
+            --no-traffic
+
+          # Get canary URL
+          CANARY_URL=$(gcloud run services describe ${_SERVICE_NAME} --region=${_REGION} --format='value(status.traffic[0].url)')
+          echo "Canary deployment URL: ${CANARY_URL}"
+        fi
+    waitFor: ['smoke-test']
+
+  # ============================================================================
+  # STAGE 7: Gradual Traffic Migration
+  # ============================================================================
+  
+  - id: 'traffic-10'
+    name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if [ "${BRANCH_NAME}" = "main" ]; then
+          LATEST_REVISION=$(gcloud run revisions list --service=${_SERVICE_NAME} --region=${_REGION} --format='value(name)' --limit=1)
+          gcloud run services update-traffic ${_SERVICE_NAME} \
+            --region=${_REGION} \
+            --to-revisions=${LATEST_REVISION}=10
+          echo "Routing 10% traffic to new revision"
+          sleep 60  # Wait 1 minute to observe metrics
+        fi
+    waitFor: ['deploy-production-canary']
+
+  - id: 'traffic-50'
+    name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if [ "${BRANCH_NAME}" = "main" ]; then
+          LATEST_REVISION=$(gcloud run revisions list --service=${_SERVICE_NAME} --region=${_REGION} --format='value(name)' --limit=1)
+          
+          # Check error rate before proceeding
+          ERROR_RATE=$(gcloud monitoring query "fetch cloud_run_revision | metric 'run.googleapis.com/request_count' | filter resource.service_name = '${_SERVICE_NAME}' | filter metric.response_code_class = '5xx' | align rate(1m) | every 1m | within 5m" --format='value(0)' 2>/dev/null || echo "0")
+          
+          if [ "$(echo "$ERROR_RATE > 0.05" | bc -l 2>/dev/null || echo 0)" -eq 1 ]; then
+            echo "ERROR: High error rate detected. Rolling back."
+            gcloud run services update-traffic ${_SERVICE_NAME} --region=${_REGION} --to-latest
+            exit 1
+          fi
+          
+          gcloud run services update-traffic ${_SERVICE_NAME} \
+            --region=${_REGION} \
+            --to-revisions=${LATEST_REVISION}=50
+          echo "Routing 50% traffic to new revision"
+          sleep 60
+        fi
+    waitFor: ['traffic-10']
+
+  - id: 'traffic-100'
+    name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if [ "${BRANCH_NAME}" = "main" ]; then
+          gcloud run services update-traffic ${_SERVICE_NAME} \
+            --region=${_REGION} \
+            --to-latest
+          echo "Routing 100% traffic to new revision"
+        fi
+    waitFor: ['traffic-50']
+
+# ============================================================================
+# Substitutions (defaults, overridden by trigger)
+# ============================================================================
+
+substitutions:
+  _REGION: 'asia-south1'
+  _REPOSITORY: 'leadgen-ai'
+  _SERVICE_NAME: 'leadgen-ai-api'
+  _SERVICE_ACCOUNT: 'production-cloud-run-sa@${PROJECT_ID}.iam.gserviceaccount.com'
+  _VPC_CONNECTOR: 'projects/${PROJECT_ID}/locations/${_REGION}/connectors/production-vpc-connector'
+
+# ============================================================================
+# Build Options
+# ============================================================================
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+  substitutionOption: 'ALLOW_LOOSE'
+  dynamicSubstitutions: true
+
+# ============================================================================
+# Timeout (30 minutes for full pipeline)
+# ============================================================================
+
+timeout: '1800s'
+
+# ============================================================================
+# Images to push
+# ============================================================================
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:latest'

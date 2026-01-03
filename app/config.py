@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     google_cloud_location: str = "us-central1"
     default_llm: str = "gemini-1.5-flash"  # gpt-4, gpt-4o, claude-3-opus, gemini-1.5-flash, vertex-gemini, local-llama
     local_llm_path: str = "models/llama-3-8b-instruct.Q4_K_M.gguf"
+    
+    # Speech-to-Text
+    deepgram_api_key: str = ""
+    google_speech_credentials: str = ""
     default_stt: str = "deepgram"  # deepgram, google
     
     # Text-to-Speech
@@ -94,8 +98,15 @@ class Settings(BaseSettings):
     working_hours_end: str = "18:00"
     timezone: str = "Asia/Kolkata"
     
+    # Support Contact Settings
+    support_phone_number: str = ""  # E.g., +919876543210
+    support_whatsapp_number: str = ""  # E.g., +919876543210
+    support_email: str = ""  # E.g., support@leadgenai.com
+    platform_website_url: str = "https://app.leadgenai.com"
+    
     # Monitoring
     sentry_dsn: Optional[str] = None
+    log_level: str = "INFO"  # DEBUG, INFO, WARNING, ERROR
     
     # Platform Settings (Multi-Tier Automation)
     auto_start_platform: bool = True  # Auto-start 24/7 automation on startup

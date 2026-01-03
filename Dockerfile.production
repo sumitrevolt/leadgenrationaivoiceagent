@@ -1,0 +1,139 @@
+# ============================================================================
+# LeadGen AI Voice Agent - Production Dockerfile
+# Multi-stage build with security hardening
+# ============================================================================
+
+# Stage 1: Build dependencies
+FROM python:3.11-slim as builder
+
+WORKDIR /build
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    libffi-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for layer caching
+COPY requirements.txt .
+
+# Create virtual environment and install dependencies
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN pip install --no-cache-dir --upgrade pip wheel && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ============================================================================
+# Stage 2: Production image
+# ============================================================================
+FROM python:3.11-slim as production
+
+# Build argument for version tracking
+ARG APP_VERSION=latest
+ENV APP_VERSION=${APP_VERSION}
+
+# Security: Run as non-root user
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Audio processing for voice
+    ffmpeg \
+    libsndfile1 \
+    # Health check
+    curl \
+    # CA certificates for HTTPS
+    ca-certificates \
+    # Timezone data
+    tzdata \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Set timezone to IST for Indian market
+ENV TZ=Asia/Kolkata
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Set working directory
+WORKDIR /app
+
+# Copy application code
+COPY --chown=appuser:appgroup app/ ./app/
+COPY --chown=appuser:appgroup data/ ./data/
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/data/conversations /app/data/feedback /app/data/vectorstore \
+    && chown -R appuser:appgroup /app
+
+# Security: Remove setuid/setgid binaries
+RUN find / -xdev -perm /6000 -type f -exec chmod a-s {} \; 2>/dev/null || true
+
+# Switch to non-root user
+USER appuser
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app \
+    PORT=8000 \
+    # Uvicorn workers (adjust based on CPU cores)
+    WEB_CONCURRENCY=4 \
+    # Graceful shutdown timeout
+    GRACEFUL_TIMEOUT=30
+
+# Health check configuration
+# - interval: Check every 30 seconds
+# - timeout: Fail if health check takes more than 10 seconds
+# - start-period: Give the app 60 seconds to start up
+# - retries: Mark unhealthy after 3 consecutive failures
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+# Expose port
+EXPOSE 8000
+
+# Labels for container metadata
+LABEL org.opencontainers.image.title="LeadGen AI Voice Agent" \
+      org.opencontainers.image.description="AI-powered voice agent for lead generation" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.vendor="LeadGen AI" \
+      org.opencontainers.image.source="https://github.com/your-org/leadgen-ai-voice-agent"
+
+# Run with uvicorn for production (multi-worker with uvloop for performance)
+# Workers are set via WEB_CONCURRENCY env var for Cloud Run compatibility
+CMD ["python", "-m", "uvicorn", "app.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "4", \
+     "--loop", "uvloop", \
+     "--http", "httptools", \
+     "--timeout-keep-alive", "30", \
+     "--timeout-graceful-shutdown", "30"]
+
+# ============================================================================
+# Stage 3: Development image (optional)
+# ============================================================================
+FROM production as development
+
+USER root
+
+# Install development dependencies
+RUN pip install --no-cache-dir \
+    pytest \
+    pytest-asyncio \
+    pytest-cov \
+    black \
+    isort \
+    mypy \
+    ipython
+
+USER appuser
+
+# Override CMD for development
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

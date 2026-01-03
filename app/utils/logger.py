@@ -1,13 +1,21 @@
 """
 Logger Utility
-Centralized logging configuration
+Production-ready centralized logging configuration
+Supports structured JSON logging for cloud environments
 """
 import logging
 import sys
-from typing import Optional
+import json
+from typing import Optional, Any, Dict
 from datetime import datetime
 import os
 
+from app.config import settings
+
+
+# =============================================================================
+# FORMATTERS
+# =============================================================================
 
 class ColoredFormatter(logging.Formatter):
     """Custom formatter with colors for console output"""
@@ -31,9 +39,65 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record)
 
 
+class JSONFormatter(logging.Formatter):
+    """
+    JSON formatter for structured logging in production
+    Compatible with Cloud Logging, ELK, etc.
+    """
+    
+    def format(self, record: logging.LogRecord) -> str:
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+        }
+        
+        # Add extra fields
+        if hasattr(record, "request_id"):
+            log_data["request_id"] = record.request_id
+        
+        if hasattr(record, "tenant_id"):
+            log_data["tenant_id"] = record.tenant_id
+        
+        if hasattr(record, "call_id"):
+            log_data["call_id"] = record.call_id
+        
+        if hasattr(record, "duration_ms"):
+            log_data["duration_ms"] = record.duration_ms
+        
+        if hasattr(record, "status_code"):
+            log_data["status_code"] = record.status_code
+        
+        # Add exception info if present
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+        
+        # Add any other extra fields
+        for key, value in record.__dict__.items():
+            if key not in [
+                "name", "msg", "args", "created", "filename", "funcName",
+                "levelname", "levelno", "lineno", "module", "msecs",
+                "pathname", "process", "processName", "relativeCreated",
+                "stack_info", "exc_info", "exc_text", "thread", "threadName",
+                "request_id", "tenant_id", "call_id", "duration_ms", "status_code",
+            ]:
+                if not key.startswith("_"):
+                    log_data[key] = value
+        
+        return json.dumps(log_data, default=str)
+
+
+# =============================================================================
+# LOGGER SETUP
+# =============================================================================
+
 def setup_logger(
     name: str,
-    level: int = logging.INFO,
+    level: Optional[int] = None,
     log_file: Optional[str] = None
 ) -> logging.Logger:
     """
@@ -41,7 +105,7 @@ def setup_logger(
     
     Args:
         name: Logger name (usually __name__)
-        level: Logging level
+        level: Logging level (defaults to config)
         log_file: Optional file path for file logging
     
     Returns:
@@ -53,17 +117,28 @@ def setup_logger(
     if logger.handlers:
         return logger
     
+    # Determine log level from settings
+    if level is None:
+        level_name = getattr(settings, "log_level", "INFO").upper()
+        level = getattr(logging, level_name, logging.INFO)
+    
     logger.setLevel(level)
     
-    # Console handler with colors
+    # Determine if we should use JSON logging (production)
+    use_json = settings.app_env == "production"
+    
+    # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
     
-    console_format = ColoredFormatter(
-        '%(asctime)s | %(levelname)s | %(name)s | %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    console_handler.setFormatter(console_format)
+    if use_json:
+        console_handler.setFormatter(JSONFormatter())
+    else:
+        console_handler.setFormatter(ColoredFormatter(
+            '%(asctime)s | %(levelname)s | %(name)s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        ))
+    
     logger.addHandler(console_handler)
     
     # File handler if specified
@@ -76,11 +151,8 @@ def setup_logger(
         file_handler = logging.FileHandler(log_file)
         file_handler.setLevel(level)
         
-        file_format = logging.Formatter(
-            '%(asctime)s | %(levelname)s | %(name)s | %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
-        )
-        file_handler.setFormatter(file_format)
+        # Always use JSON for file logs
+        file_handler.setFormatter(JSONFormatter())
         logger.addHandler(file_handler)
     
     return logger
