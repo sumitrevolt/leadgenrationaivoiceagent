@@ -1,86 +1,121 @@
-# AI Voice Agent - B2B Lead Generation
+# AI Voice Agent - B2B Lead Generation Platform
+# Production Dependencies
+
+# =============================================================================
 # Core Framework
+# =============================================================================
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
+email-validator==2.3.0
+python-multipart==0.0.7
 
+# =============================================================================
 # Database
+# =============================================================================
 sqlalchemy==2.0.25
 asyncpg==0.29.0
+aiosqlite==0.20.0
 alembic==1.13.1
 redis==5.0.1
 aioredis==2.0.1
 
-# AI/ML - Using cloud-based APIs for Cloud Run deployment
+# =============================================================================
+# AI/ML - Cloud-based APIs
+# =============================================================================
 openai==1.12.0
 anthropic==0.18.0
 langchain==0.1.6
 langchain-openai==0.0.5
-google-generativeai==0.3.2  # Gemini API
-google-cloud-aiplatform==1.42.1  # Vertex AI API
-# llama-cpp-python requires C++ compiler - removed for Cloud Run, use Vertex AI instead
+google-generativeai==0.3.2
+google-cloud-aiplatform==1.42.1
 
-# Speech-to-Text
+# =============================================================================
+# Speech Processing
+# =============================================================================
+# STT
 deepgram-sdk==3.0.0
 google-cloud-speech==2.24.0
 
-# Text-to-Speech
+# TTS
 elevenlabs==1.0.3
 azure-cognitiveservices-speech==1.35.0
-edge-tts==6.1.9  # Free high-quality TTS
+edge-tts==6.1.9
 
+# =============================================================================
 # Telephony
+# =============================================================================
 twilio==8.10.0
-# exotel - use requests for API calls
 
+# =============================================================================
 # Web Scraping
+# =============================================================================
 playwright==1.41.0
 beautifulsoup4==4.12.3
 selenium==4.17.0
 googlemaps==4.10.0
+
+# =============================================================================
+# HTTP Clients
+# =============================================================================
 requests==2.31.0
 aiohttp==3.9.3
 httpx==0.26.0
 
-# Integrations
+# =============================================================================
+# CRM Integrations
+# =============================================================================
 hubspot-api-client==8.2.1
 google-api-python-client==2.115.0
 google-auth-oauthlib==1.2.0
 gspread==6.0.0
 
-# WhatsApp - using httpx/aiohttp for Meta WhatsApp Business API calls
-# Removed: python-whatsapp-business (not available on PyPI)
-
+# =============================================================================
 # Utilities
+# =============================================================================
 python-dotenv==1.0.1
 pydub==0.25.1
 phonenumbers==8.13.28
-celery==5.3.6
 APScheduler==3.10.4
-python-multipart==0.0.7
+Pillow==10.2.0
 
+# =============================================================================
+# Background Tasks
+# =============================================================================
+celery==5.3.6
+
+# =============================================================================
 # Logging & Monitoring
+# =============================================================================
 loguru==0.7.2
 sentry-sdk==1.39.2
 
-# GCP Production Dependencies
-google-cloud-secret-manager>=2.18.0  # Secret Manager
-google-cloud-storage>=2.14.0        # Cloud Storage
-google-cloud-logging>=3.9.0         # Cloud Logging
-google-cloud-monitoring>=2.18.0     # Cloud Monitoring
-google-auth>=2.27.0                 # Authentication
+# =============================================================================
+# GCP Production
+# =============================================================================
+google-cloud-secret-manager>=2.18.0
+google-cloud-storage>=2.14.0
+google-cloud-logging>=3.9.0
+google-cloud-monitoring>=2.18.0
+google-auth>=2.27.0
 
-# Testing
-pytest==7.4.4
-pytest-asyncio==0.23.4
-httpx==0.26.0
+# =============================================================================
+# Authentication
+# =============================================================================
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
 
+# =============================================================================
 # Data Processing
+# =============================================================================
 pandas==2.2.0
 numpy==1.26.3
+scikit-learn>=1.3.2
 
-# ML for Cloud Run (lightweight - heavy ML runs on Vertex AI)
-scikit-learn>=1.3.2          # ML models for intent/lead scoring
-# sentence-transformers, torch, faiss, chromadb - too heavy for Cloud Run
-# Use Vertex AI Embeddings API and Matching Engine for production
+# =============================================================================
+# Testing (dev only - move to dev requirements for production)
+# =============================================================================
+pytest==7.4.4
+pytest-asyncio==0.23.4
+pytest-cov==4.1.0

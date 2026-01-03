@@ -90,10 +90,12 @@ class BrainOptimizer:
         self,
         data_dir: str = "data/optimizer",
         feedback_loop: FeedbackLoop = None,
-        vector_store: VectorStore = None
+        vector_store: VectorStore = None,
+        tenant_id: str = None
     ):
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.tenant_id = tenant_id
         
         self.feedback_loop = feedback_loop or FeedbackLoop()
         self._vector_store = vector_store

@@ -4,6 +4,7 @@ Test Configuration
 import pytest
 import asyncio
 from typing import Generator
+from datetime import datetime
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -11,6 +12,8 @@ from sqlalchemy.orm import sessionmaker
 
 from app.main import app
 from app.models.base import Base, get_db
+from app.models.user import User
+from app.api.auth_deps import get_current_user, require_agent, require_manager, require_admin, require_super_admin
 
 
 # Test database
@@ -28,7 +31,30 @@ def override_get_db():
         db.close()
 
 
+# Create a mock authenticated user for testing
+def get_mock_user():
+    """Return a mock authenticated user for tests"""
+    user = User(
+        id="test-user-id",
+        email="test@example.com",
+        first_name="Test",
+        last_name="User",
+        role="super_admin",  # Give full access for tests
+        status="active",
+        password_hash="mock_hash",
+        password_salt="mock_salt",
+        is_verified=True,
+        created_at=datetime.utcnow()
+    )
+    return user
+
+
 app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_current_user] = get_mock_user
+app.dependency_overrides[require_agent] = get_mock_user
+app.dependency_overrides[require_manager] = get_mock_user
+app.dependency_overrides[require_admin] = get_mock_user
+app.dependency_overrides[require_super_admin] = get_mock_user
 
 
 @pytest.fixture(scope="session")

@@ -4,13 +4,15 @@ Endpoints for platform administration and tenant management
 """
 from typing import Optional, List
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 
 from app.platform.tenant_manager import TenantManager, TenantStatus
 from app.platform.orchestrator import PlatformOrchestrator, start_platform, stop_platform
 from app.platform import SubscriptionTier, AutomationLevel
 from app.utils.logger import setup_logger
+from app.api.auth_deps import get_current_user, require_admin, require_super_admin
+from app.models.user import User
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/platform", tags=["Platform"])
@@ -62,9 +64,12 @@ orchestrator: Optional[PlatformOrchestrator] = None
 
 
 @router.post("/start")
-async def start_platform_api(background_tasks: BackgroundTasks):
+async def start_platform_api(
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_super_admin)
+):
     """
-    Start the entire platform automation
+    Start the entire platform automation (requires super admin)
     This starts all automated processes
     """
     global orchestrator
@@ -83,9 +88,9 @@ async def start_platform_api(background_tasks: BackgroundTasks):
 
 
 @router.post("/stop")
-async def stop_platform_api():
+async def stop_platform_api(current_user: User = Depends(require_super_admin)):
     """
-    Stop the platform automation gracefully
+    Stop the platform automation gracefully (requires super admin)
     """
     global orchestrator
     
@@ -97,9 +102,9 @@ async def stop_platform_api():
 
 
 @router.get("/stats", response_model=PlatformStatsResponse)
-async def get_platform_stats():
+async def get_platform_stats(current_user: User = Depends(require_admin)):
     """
-    Get platform-wide statistics
+    Get platform-wide statistics (requires admin)
     """
     stats = tenant_manager.get_platform_stats()
     
@@ -114,9 +119,9 @@ async def get_platform_stats():
 
 
 @router.get("/dashboard")
-async def get_dashboard():
+async def get_dashboard(current_user: User = Depends(require_admin)):
     """
-    Get dashboard data for admin panel
+    Get dashboard data for admin panel (requires admin)
     """
     if orchestrator:
         return orchestrator.get_dashboard_data()
@@ -137,10 +142,11 @@ async def get_dashboard():
 @router.get("/tenants", response_model=List[dict])
 async def list_tenants(
     status: Optional[str] = None,
-    tier: Optional[str] = None
+    tier: Optional[str] = None,
+    current_user: User = Depends(require_admin)
 ):
     """
-    List all tenants on the platform
+    List all tenants on the platform (requires admin)
     """
     tenants = tenant_manager.get_all_tenants()
     
@@ -153,9 +159,13 @@ async def list_tenants(
 
 
 @router.post("/tenants", response_model=dict)
-async def create_tenant(tenant: TenantCreate, background_tasks: BackgroundTasks):
+async def create_tenant(
+    tenant: TenantCreate, 
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_admin)
+):
     """
-    Manually onboard a new tenant/client
+    Manually onboard a new tenant/client (requires admin)
     """
     new_tenant = await tenant_manager.auto_onboard_tenant(
         company_name=tenant.company_name,

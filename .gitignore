@@ -80,6 +80,7 @@ celerybeat-schedule
 # Environments
 .env*
 !.env.example
+!.env.production.example
 .venv
 env/
 venv/
@@ -136,3 +137,14 @@ test-results/
 infrastructure/terraform/.terraform/
 *.tfplan
 infrastructure/terraform/tfplan*
+
+# Additional production ignores
+server.log
+*.log
+data/leadgen_dev.db
+data/*.db
+models/*.tmp
+revenue_pipeline/*.csv
+auraleads_extracted/
+.env.production
+.env.local

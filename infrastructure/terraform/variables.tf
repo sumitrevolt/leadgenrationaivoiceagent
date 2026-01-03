@@ -178,6 +178,20 @@ variable "exotel_api_token" {
   default     = ""
 }
 
+variable "deepgram_api_key" {
+  description = "Deepgram API Key for Speech-to-Text"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "sentry_dsn" {
+  description = "Sentry DSN for error monitoring"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # -----------------------------------------------------------------------------
 # Monitoring & Alerts
 # -----------------------------------------------------------------------------

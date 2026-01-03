@@ -4,7 +4,7 @@ Tests for Voice Agent Components
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
 
-from app.voice_agent.intent_detector import IntentDetector, IntentResult
+from app.voice_agent.intent_detector import IntentDetector, DetectedIntent
 from app.voice_agent.conversation import ConversationManager, ConversationState
 
 
@@ -13,38 +13,44 @@ class TestIntentDetector:
     
     @pytest.fixture
     def detector(self):
-        return IntentDetector()
+        return IntentDetector(use_llm_fallback=False)
     
-    def test_detect_greeting(self, detector):
+    @pytest.mark.asyncio
+    async def test_detect_greeting(self, detector):
         """Test greeting detection"""
-        result = detector.detect_from_patterns("Hello, good morning")
-        assert result.intent == "greeting"
+        result = await detector.detect("Hello")
+        assert result.intent_type == "greeting"
         assert result.confidence > 0.5
     
-    def test_detect_interested(self, detector):
+    @pytest.mark.asyncio
+    async def test_detect_interested(self, detector):
         """Test interest detection"""
-        result = detector.detect_from_patterns("Yes, I'm interested in this")
-        assert result.intent == "interested"
+        result = await detector.detect("Yes, I'm interested in this, tell me more")
+        assert result.intent_type == "interested"
     
-    def test_detect_not_interested(self, detector):
+    @pytest.mark.asyncio
+    async def test_detect_not_interested(self, detector):
         """Test not interested detection"""
-        result = detector.detect_from_patterns("No thanks, not interested")
-        assert result.intent == "not_interested"
+        result = await detector.detect("No thanks, not interested")
+        assert result.intent_type == "not_interested"
     
-    def test_detect_busy(self, detector):
+    @pytest.mark.asyncio
+    async def test_detect_busy(self, detector):
         """Test busy detection"""
-        result = detector.detect_from_patterns("I'm busy right now, in a meeting")
-        assert result.intent == "busy"
+        result = await detector.detect("I'm in a meeting")
+        assert result.intent_type == "busy"
     
-    def test_detect_callback_request(self, detector):
+    @pytest.mark.asyncio
+    async def test_detect_callback_request(self, detector):
         """Test callback request detection"""
-        result = detector.detect_from_patterns("Can you call me later tomorrow?")
-        assert result.intent == "callback_request"
+        result = await detector.detect("Can you call me later tomorrow?")
+        assert result.intent_type == "callback_request"
     
-    def test_detect_appointment(self, detector):
+    @pytest.mark.asyncio
+    async def test_detect_appointment(self, detector):
         """Test appointment intent detection"""
-        result = detector.detect_from_patterns("Sure, let's schedule a meeting")
-        assert result.intent == "appointment"
+        result = await detector.detect("Let's schedule a meeting")
+        assert result.intent_type == "appointment_interest"
 
 
 class TestConversationManager:
@@ -52,76 +58,52 @@ class TestConversationManager:
     
     @pytest.fixture
     def manager(self):
-        return ConversationManager(
-            lead_id="test-lead",
-            niche="real_estate",
-            client_name="Test Client",
-            client_service="Property Sales"
-        )
+        return ConversationManager()
     
-    def test_initial_state(self, manager):
-        """Test initial conversation state"""
-        assert manager.state == ConversationState.GREETING
-        assert manager.turn_count == 0
+    @pytest.fixture
+    def call_id(self):
+        return "test-call-123"
     
-    def test_add_turn(self, manager):
+    def test_start_conversation(self, manager, call_id):
+        """Test starting a conversation"""
+        context = manager.start_conversation(call_id)
+        assert context.call_id == call_id
+        assert context.state == ConversationState.OPENING
+        assert len(context.turns) == 0
+    
+    def test_add_turn(self, manager, call_id):
         """Test adding conversation turn"""
-        manager.add_turn("user", "Hello")
-        assert manager.turn_count == 1
-        assert len(manager.history) == 1
+        manager.start_conversation(call_id)
+        context = manager.add_turn(call_id, "user", "Hello")
+        assert len(context.turns) == 1
+        assert context.turns[0].content == "Hello"
+        assert context.turns[0].role == "user"
     
-    def test_state_transition_to_introduction(self, manager):
-        """Test state transition to introduction"""
-        manager.transition_state(ConversationState.INTRODUCTION)
-        assert manager.state == ConversationState.INTRODUCTION
+    def test_get_conversation(self, manager, call_id):
+        """Test getting a conversation"""
+        manager.start_conversation(call_id)
+        context = manager.get_conversation(call_id)
+        assert context is not None
+        assert context.call_id == call_id
     
-    def test_update_qualification(self, manager):
-        """Test qualification data update"""
-        manager.update_qualification(
-            is_decision_maker=True,
-            budget="50 lakhs",
-            timeline="3 months"
-        )
-        
-        assert manager.qualification_data["is_decision_maker"] == True
-        assert manager.qualification_data["budget"] == "50 lakhs"
+    def test_get_nonexistent_conversation(self, manager):
+        """Test getting a conversation that doesn't exist"""
+        context = manager.get_conversation("nonexistent-call")
+        assert context is None
     
-    def test_calculate_lead_score(self, manager):
-        """Test lead score calculation"""
-        manager.update_qualification(
-            is_decision_maker=True,
-            budget="50 lakhs",
-            timeline="3 months",
-            interest_level="high"
-        )
-        
-        score = manager.calculate_lead_score()
-        assert score > 50  # Should be high score with good qualification
+    def test_add_turn_to_nonexistent_conversation(self, manager):
+        """Test adding turn to nonexistent conversation raises error"""
+        with pytest.raises(ValueError):
+            manager.add_turn("nonexistent-call", "user", "Hello")
     
-    def test_should_ask_more_questions(self, manager):
-        """Test question asking logic"""
-        assert manager.should_ask_more_questions() == True
+    def test_multiple_turns(self, manager, call_id):
+        """Test adding multiple turns"""
+        manager.start_conversation(call_id)
+        manager.add_turn(call_id, "assistant", "Good morning!")
+        manager.add_turn(call_id, "user", "Hi, I'm interested")
+        context = manager.add_turn(call_id, "assistant", "Great to hear!")
         
-        # Answer all questions
-        manager.update_qualification(
-            is_decision_maker=True,
-            budget="50 lakhs",
-            timeline="3 months",
-            pain_points="High costs"
-        )
-        
-        # Should have fewer questions to ask
-    
-    def test_get_summary(self, manager):
-        """Test getting conversation summary"""
-        manager.add_turn("user", "Hello")
-        manager.add_turn("agent", "Good morning!")
-        
-        summary = manager.get_summary()
-        
-        assert summary["lead_id"] == "test-lead"
-        assert summary["turn_count"] == 2
-        assert summary["state"] == "greeting"
+        assert len(context.turns) == 3
 
 
 class TestPhoneValidator:

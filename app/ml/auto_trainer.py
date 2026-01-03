@@ -113,10 +113,12 @@ class AutoTrainer:
         self,
         models_dir: str = "models",
         data_pipeline: ConversationDataPipeline = None,
-        feedback_loop: FeedbackLoop = None
+        feedback_loop: FeedbackLoop = None,
+        tenant_id: str = None
     ):
         self.models_dir = Path(models_dir)
         self.models_dir.mkdir(parents=True, exist_ok=True)
+        self.tenant_id = tenant_id
         
         self.data_pipeline = data_pipeline or ConversationDataPipeline()
         self.feedback_loop = feedback_loop or FeedbackLoop()

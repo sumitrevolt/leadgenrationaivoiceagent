@@ -20,6 +20,8 @@ from app.api import leads, campaigns, analytics, webhooks
 from app.api.platform import router as platform_router
 from app.api.ml_training import router as ml_router
 from app.api.health import router as health_router
+from app.api.admin import router as admin_router
+from app.api.ai import router as ai_router
 from app.platform.orchestrator import PlatformOrchestrator
 from app.ml import get_training_scheduler, stop_training_scheduler
 from app.models.base import init_async_db, close_async_db
@@ -165,6 +167,8 @@ app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"]
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
 app.include_router(platform_router, prefix="/api", tags=["Platform"])
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
+app.include_router(admin_router, prefix="/api", tags=["Admin"])
+app.include_router(ai_router, prefix="/api", tags=["AI"])
 
 
 @app.get("/")

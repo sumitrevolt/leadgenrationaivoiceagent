@@ -25,8 +25,11 @@ terraform {
     }
   }
 
+  # Backend configuration - set bucket via -backend-config or backend.hcl
+  # Example: terraform init -backend-config="bucket=your-project-terraform-state"
   backend "gcs" {
-    bucket = "gen-lang-client-0363264165-terraform-state"
+    # bucket is configured via backend-config to avoid hardcoding project-specific values
+    # Run: terraform init -backend-config="bucket=YOUR_PROJECT_ID-terraform-state"
     prefix = "production"
   }
 }
@@ -182,6 +185,8 @@ module "secrets" {
   gemini_api_key     = var.gemini_api_key
   anthropic_api_key  = var.anthropic_api_key
   elevenlabs_api_key = var.elevenlabs_api_key
+  deepgram_api_key   = var.deepgram_api_key
+  sentry_dsn         = var.sentry_dsn
   twilio_account_sid = var.twilio_account_sid
   twilio_auth_token  = var.twilio_auth_token
   exotel_api_key     = var.exotel_api_key

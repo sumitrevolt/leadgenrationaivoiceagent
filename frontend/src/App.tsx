@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { DashboardIcon, MyCampaignIcon, ClientsIcon, VoiceAgentIcon, LogoIcon, SettingsIcon, ScriptIcon, TrainingIcon } from './components/ui/icons.tsx';
 import Dashboard from './components/Dashboard.tsx';
 import MyCampaign from './components/MyCampaign.tsx';
@@ -7,15 +7,70 @@ import Clients from './components/Clients.tsx';
 import VoiceAgents from './components/VoiceAgents.tsx';
 import Settings from './components/Settings.tsx';
 import TrainingHub from './components/TrainingHub.tsx';
+import AdminPanel from './components/AdminPanel.tsx';
+import LoginPage from './components/LoginPage.tsx';
 import AIAssistantModal from './components/AIAssistantModal.tsx';
 import { useMockData } from './hooks/useMockData.ts';
 import { AutomationSettings } from './types.ts';
+import { getTokens, clearTokens, authApi } from './services/api.ts';
 
-type View = 'dashboard' | 'voice-agents' | 'my-campaign' | 'clients' | 'settings' | 'training-hub';
+interface AuthUser {
+  email: string;
+  first_name: string;
+  last_name?: string;
+  role: string;
+  profile_picture_url?: string;
+}
+
+// Admin icon
+const AdminIcon = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+  </svg>
+);
+
+type View = 'dashboard' | 'voice-agents' | 'my-campaign' | 'clients' | 'settings' | 'training-hub' | 'admin';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { accessToken } = getTokens();
+      if (accessToken) {
+        try {
+          const user = await authApi.getCurrentUser();
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+        } catch {
+          clearTokens();
+        }
+      }
+      setAuthLoading(false);
+    };
+    checkAuth();
+  }, []);
+
+  const handleLogin = (user: AuthUser) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // Ignore logout errors
+    }
+    clearTokens();
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+  };
   
   const [settings, setSettings] = useState<AutomationSettings>({
     targetIndustries: ['Digital Agency', 'SaaS', 'E-commerce'],
@@ -31,13 +86,20 @@ export default function App() {
     setSettings(newSettings);
   }, []);
 
-  const navigationItems = useMemo(() => [
-    { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
-    { id: 'training-hub', label: 'Training Hub', icon: TrainingIcon },
-    { id: 'voice-agents', label: 'Voice Agents', icon: VoiceAgentIcon },
-    { id: 'my-campaign', label: 'My Campaign', icon: MyCampaignIcon },
-    { id: 'clients', label: 'Clients', icon: ClientsIcon },
-  ], []);
+  const navigationItems = useMemo(() => {
+    const items = [
+      { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon },
+      { id: 'training-hub', label: 'Training Hub', icon: TrainingIcon },
+      { id: 'voice-agents', label: 'Voice Agents', icon: VoiceAgentIcon },
+      { id: 'my-campaign', label: 'My Campaign', icon: MyCampaignIcon },
+      { id: 'clients', label: 'Clients', icon: ClientsIcon },
+    ];
+    // Only show admin panel for admins
+    if (currentUser?.role === 'super_admin' || currentUser?.role === 'admin') {
+      items.push({ id: 'admin', label: 'Admin Panel', icon: AdminIcon });
+    }
+    return items;
+  }, [currentUser?.role]);
 
   const renderView = () => {
     switch (currentView) {
@@ -53,10 +115,29 @@ export default function App() {
         return <Clients clients={clients} loading={loading} />;
       case 'settings':
         return <Settings settings={settings} onSettingsChange={handleSettingsChange} />;
+      case 'admin':
+        return <AdminPanel />;
       default:
         return <Dashboard stats={stats} activities={activities} chartData={chartData} loading={loading} />;
     }
   };
+
+  // Show loading state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={handleLogin} />;
+  }
 
   return (
     <div className="flex h-screen bg-black text-gray-300">
@@ -110,6 +191,28 @@ export default function App() {
         <header className="h-20 flex-shrink-0 flex items-center justify-between px-8 border-b border-gray-800 bg-[#0a0a0a]">
           <h2 className="text-2xl font-bold text-white capitalize">{currentView.replace('-', ' ')}</h2>
           <div className="flex items-center space-x-4">
+            {currentUser && (
+              <div className="flex items-center space-x-3">
+                {currentUser.profile_picture_url ? (
+                  <img 
+                    src={currentUser.profile_picture_url} 
+                    alt={currentUser.first_name}
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium">
+                    {currentUser.first_name?.[0]?.toUpperCase()}
+                  </div>
+                )}
+                <span className="text-sm text-gray-300">{currentUser.first_name}</span>
+                <button
+                  onClick={handleLogout}
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
             <div className="flex items-center space-x-2">
               <span className="relative flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>

@@ -90,7 +90,7 @@ leadgen = "app.cli:main"
 [project.urls]
 Homepage = "https://leadgenai.com"
 Documentation = "https://docs.leadgenai.com"
-Repository = "https://github.com/your-org/leadgen-ai-voice-agent"
+Repository = "https://github.com/sumitrevolt/leadgenrationaivoiceagent"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
@@ -153,7 +153,7 @@ exclude = ["alembic", "tests"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --cov=app --cov-report=term-missing"
+addopts = "-ra -q"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 filterwarnings = [

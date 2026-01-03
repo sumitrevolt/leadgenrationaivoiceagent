@@ -184,3 +184,5 @@ const LeadsChart: React.FC<LeadsChartProps> = ({ data, loading }) => {
     </Card>
   );
 };
+
+export default LeadsChart;

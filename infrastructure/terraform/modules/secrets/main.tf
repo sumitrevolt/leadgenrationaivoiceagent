@@ -232,6 +232,56 @@ resource "google_secret_manager_secret_version" "exotel_api_token" {
 }
 
 # -----------------------------------------------------------------------------
+# Speech-to-Text API Keys
+# -----------------------------------------------------------------------------
+
+resource "google_secret_manager_secret" "deepgram_api_key" {
+  secret_id = "${var.environment}-deepgram-api-key"
+  project   = var.project_id
+
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+
+  labels = var.labels
+}
+
+resource "google_secret_manager_secret_version" "deepgram_api_key" {
+  count       = var.deepgram_api_key != "" ? 1 : 0
+  secret      = google_secret_manager_secret.deepgram_api_key.id
+  secret_data = var.deepgram_api_key
+}
+
+# -----------------------------------------------------------------------------
+# Monitoring
+# -----------------------------------------------------------------------------
+
+resource "google_secret_manager_secret" "sentry_dsn" {
+  secret_id = "${var.environment}-sentry-dsn"
+  project   = var.project_id
+
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+
+  labels = var.labels
+}
+
+resource "google_secret_manager_secret_version" "sentry_dsn" {
+  count       = var.sentry_dsn != "" ? 1 : 0
+  secret      = google_secret_manager_secret.sentry_dsn.id
+  secret_data = var.sentry_dsn
+}
+
+# -----------------------------------------------------------------------------
 # IAM Bindings for Cloud Run
 # -----------------------------------------------------------------------------
 
@@ -243,6 +293,8 @@ resource "google_secret_manager_secret_iam_member" "cloud_run_access" {
     google_secret_manager_secret.gemini_api_key.secret_id,
     google_secret_manager_secret.anthropic_api_key.secret_id,
     google_secret_manager_secret.elevenlabs_api_key.secret_id,
+    google_secret_manager_secret.deepgram_api_key.secret_id,
+    google_secret_manager_secret.sentry_dsn.secret_id,
     google_secret_manager_secret.twilio_account_sid.secret_id,
     google_secret_manager_secret.twilio_auth_token.secret_id,
     google_secret_manager_secret.exotel_api_key.secret_id,
@@ -268,6 +320,8 @@ output "secret_refs" {
     GEMINI_API_KEY     = "${google_secret_manager_secret.gemini_api_key.secret_id}:latest"
     ANTHROPIC_API_KEY  = "${google_secret_manager_secret.anthropic_api_key.secret_id}:latest"
     ELEVENLABS_API_KEY = "${google_secret_manager_secret.elevenlabs_api_key.secret_id}:latest"
+    DEEPGRAM_API_KEY   = "${google_secret_manager_secret.deepgram_api_key.secret_id}:latest"
+    SENTRY_DSN         = "${google_secret_manager_secret.sentry_dsn.secret_id}:latest"
     TWILIO_ACCOUNT_SID = "${google_secret_manager_secret.twilio_account_sid.secret_id}:latest"
     TWILIO_AUTH_TOKEN  = "${google_secret_manager_secret.twilio_auth_token.secret_id}:latest"
     EXOTEL_API_KEY     = "${google_secret_manager_secret.exotel_api_key.secret_id}:latest"

@@ -107,14 +107,8 @@ LABEL org.opencontainers.image.title="LeadGen AI Voice Agent" \
 
 # Run with uvicorn for production (multi-worker with uvloop for performance)
 # Workers are set via WEB_CONCURRENCY env var for Cloud Run compatibility
-CMD ["python", "-m", "uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "4", \
-     "--loop", "uvloop", \
-     "--http", "httptools", \
-     "--timeout-keep-alive", "30", \
-     "--timeout-graceful-shutdown", "30"]
+# Cloud Run sets WEB_CONCURRENCY based on CPU allocation
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-4} --loop uvloop --http httptools --timeout-keep-alive 30 --timeout-graceful-shutdown 30"]
 
 # ============================================================================
 # Stage 3: Development image (optional)

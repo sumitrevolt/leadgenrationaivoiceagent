@@ -276,6 +276,37 @@ class TestProductionChecklist:
     def test_makefile_exists(self):
         import os
         assert os.path.exists("Makefile")
+    
+    def test_security_md_exists(self):
+        import os
+        assert os.path.exists("SECURITY.md")
+    
+    def test_contributing_md_exists(self):
+        import os
+        assert os.path.exists("CONTRIBUTING.md")
+    
+    def test_changelog_md_exists(self):
+        import os
+        assert os.path.exists("CHANGELOG.md")
+    
+    def test_license_exists(self):
+        import os
+        assert os.path.exists("LICENSE")
+    
+    def test_api_docs_exist(self):
+        import os
+        assert os.path.exists("docs/API.md")
+    
+    def test_github_templates_exist(self):
+        import os
+        assert os.path.exists(".github/PULL_REQUEST_TEMPLATE.md")
+        assert os.path.exists(".github/ISSUE_TEMPLATE/bug_report.md")
+        assert os.path.exists(".github/ISSUE_TEMPLATE/feature_request.md")
+    
+    def test_github_workflows_exist(self):
+        import os
+        assert os.path.exists(".github/workflows/deploy.yml")
+        assert os.path.exists(".github/workflows/test.yml")
 
 
 if __name__ == "__main__":

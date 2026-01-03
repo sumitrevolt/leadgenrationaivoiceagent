@@ -4,14 +4,16 @@ Endpoints for lead management
 """
 from typing import Optional, List
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
 from pydantic import BaseModel, Field
 
 from app.lead_scraper.scraper_manager import LeadScraperManager, UnifiedLead
 from app.utils.logger import setup_logger
+from app.api.auth_deps import get_current_user, require_agent, require_manager
+from app.models.user import User
 
 logger = setup_logger(__name__)
-router = APIRouter(prefix="/leads", tags=["Leads"])
+router = APIRouter()  # No prefix - main.py adds /api/leads
 
 # Pydantic Models
 class LeadCreate(BaseModel):
@@ -125,10 +127,11 @@ async def list_leads(
     category: Optional[str] = None,
     min_score: Optional[int] = None,
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=500)
+    limit: int = Query(50, ge=1, le=500),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    List all leads with optional filters
+    List all leads with optional filters (requires authentication)
     """
     # Auto-load leads if empty
     if not leads_storage:
@@ -149,9 +152,9 @@ async def list_leads(
 
 
 @router.get("/{lead_id}", response_model=LeadResponse)
-async def get_lead(lead_id: str):
+async def get_lead(lead_id: str, current_user: User = Depends(get_current_user)):
     """
-    Get a specific lead by ID
+    Get a specific lead by ID (requires authentication)
     """
     lead = leads_storage.get(lead_id)
     if not lead:
@@ -160,9 +163,9 @@ async def get_lead(lead_id: str):
 
 
 @router.post("/", response_model=LeadResponse)
-async def create_lead(lead: LeadCreate):
+async def create_lead(lead: LeadCreate, current_user: User = Depends(require_agent)):
     """
-    Create a new lead manually
+    Create a new lead manually (requires agent role)
     """
     import uuid
     
@@ -186,9 +189,9 @@ async def create_lead(lead: LeadCreate):
 
 
 @router.put("/{lead_id}", response_model=LeadResponse)
-async def update_lead(lead_id: str, update: LeadUpdate):
+async def update_lead(lead_id: str, update: LeadUpdate, current_user: User = Depends(require_agent)):
     """
-    Update an existing lead
+    Update an existing lead (requires agent role)
     """
     lead = leads_storage.get(lead_id)
     if not lead:
@@ -205,9 +208,9 @@ async def update_lead(lead_id: str, update: LeadUpdate):
 
 
 @router.delete("/{lead_id}")
-async def delete_lead(lead_id: str):
+async def delete_lead(lead_id: str, current_user: User = Depends(require_manager)):
     """
-    Delete a lead
+    Delete a lead (requires manager role)
     """
     if lead_id not in leads_storage:
         raise HTTPException(status_code=404, detail="Lead not found")
@@ -221,10 +224,11 @@ async def delete_lead(lead_id: str):
 @router.post("/scrape", response_model=ScrapeResponse)
 async def scrape_leads(
     request: ScrapeRequest,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_manager)
 ):
     """
-    Start a background scraping task
+    Start a background scraping task (requires manager role)
     """
     import uuid
     

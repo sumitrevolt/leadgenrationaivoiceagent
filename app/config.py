@@ -125,6 +125,22 @@ class Settings(BaseSettings):
     growth_monthly_price: int = 25000
     enterprise_monthly_price: int = 50000
     
+    # Google Cloud Storage (for profile pictures)
+    gcs_bucket_name: str = "auraleads-storage"
+    gcs_profile_pictures_bucket: str = "auraleads-profile-pictures"
+    
+    # JWT Settings
+    jwt_secret_key: str = "change-this-jwt-secret-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 60
+    jwt_refresh_token_expire_days: int = 7
+    
+    # Security
+    cors_origins: List[str] = Field(default=["http://localhost:3000", "http://localhost:5173"])
+    rate_limit_per_minute: int = 100
+    max_failed_login_attempts: int = 5
+    account_lockout_minutes: int = 30
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

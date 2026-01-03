@@ -105,7 +105,7 @@ const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onClose }) 
       >
         <header className="p-6 flex justify-between items-center border-b border-gray-800">
           <h2 id="ai-assistant-title" className="text-xl font-bold text-white">AI Script Assistant</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors" title="Close" aria-label="Close modal">
             <CloseIcon className="h-6 w-6" />
           </button>
         </header>

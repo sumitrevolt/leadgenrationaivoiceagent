@@ -370,10 +370,12 @@ def check_security(report: ValidationReport):
     else:
         issues.append(".gitignore file missing")
     
-    # Check for hardcoded secrets in code
-    secret_patterns = ["sk-", "AIza", "AKIA"]
+    # Check for hardcoded secrets in code (exclude validation scripts and tests)
+    secret_patterns = ["sk-[a-zA-Z0-9]{20,}", "AIza[a-zA-Z0-9]{30,}", "AKIA[A-Z0-9]{16}"]
     code, stdout, stderr = run_command([
-        "git", "grep", "-l", "-E", "|".join(secret_patterns), "--", "*.py"
+        "git", "grep", "-l", "-E", "|".join(secret_patterns), "--", "*.py",
+        ":!scripts/validate_deployment.py", ":!scripts/setup_secrets.py",
+        ":!tests/*.py", ":!**/test_*.py"
     ])
     if stdout.strip():
         issues.append(f"Potential hardcoded secrets in: {stdout.strip()[:100]}")

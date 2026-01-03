@@ -37,6 +37,8 @@ alert_notification_emails = [
 # TF_VAR_gemini_api_key
 # TF_VAR_anthropic_api_key
 # TF_VAR_elevenlabs_api_key
+# TF_VAR_deepgram_api_key
+# TF_VAR_sentry_dsn
 # TF_VAR_twilio_account_sid
 # TF_VAR_twilio_auth_token
 # TF_VAR_exotel_api_key
