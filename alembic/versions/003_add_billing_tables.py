@@ -6,6 +6,7 @@ Create Date: 2026-01-04
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 # revision identifiers
 revision = '003_add_billing_tables'
@@ -15,15 +16,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Create enum types
-    op.execute("CREATE TYPE paymentgateway AS ENUM ('stripe', 'razorpay')")
-    op.execute("CREATE TYPE subscriptionstatus AS ENUM ('trial', 'active', 'past_due', 'cancelled', 'paused', 'expired')")
-    op.execute("CREATE TYPE paymentstatus AS ENUM ('pending', 'processing', 'completed', 'failed', 'refunded', 'partially_refunded', 'cancelled')")
-    op.execute("CREATE TYPE invoicestatus AS ENUM ('draft', 'open', 'paid', 'void', 'uncollectible')")
-    op.execute("CREATE TYPE billingcycle AS ENUM ('monthly', 'quarterly', 'yearly')")
-    op.execute("CREATE TYPE pricingplanmodel AS ENUM ('subscription', 'per_lead', 'hybrid')")
-    
-    # Create subscriptions table
+    # Create subscriptions table (using String for enum columns to avoid type conflicts)
     op.create_table(
         'subscriptions',
         sa.Column('id', sa.String(36), primary_key=True),
@@ -33,17 +26,14 @@ def upgrade() -> None:
         # Plan details
         sa.Column('plan_id', sa.String(50), nullable=False, index=True),
         sa.Column('plan_name', sa.String(100), nullable=False),
-        sa.Column('pricing_model', sa.Enum('subscription', 'per_lead', 'hybrid', name='pricingplanmodel'), 
-                  default='subscription'),
+        sa.Column('pricing_model', sa.String(20), default='subscription'),
         
         # Status
-        sa.Column('status', sa.Enum('trial', 'active', 'past_due', 'cancelled', 'paused', 'expired', 
-                                    name='subscriptionstatus'), default='trial', nullable=False, index=True),
-        sa.Column('billing_cycle', sa.Enum('monthly', 'quarterly', 'yearly', name='billingcycle'), 
-                  default='monthly'),
+        sa.Column('status', sa.String(20), default='trial', nullable=False, index=True),
+        sa.Column('billing_cycle', sa.String(20), default='monthly'),
         
         # Gateway references
-        sa.Column('payment_gateway', sa.Enum('stripe', 'razorpay', name='paymentgateway'), nullable=True),
+        sa.Column('payment_gateway', sa.String(20), nullable=True),
         sa.Column('stripe_subscription_id', sa.String(255), unique=True, nullable=True, index=True),
         sa.Column('stripe_customer_id', sa.String(255), nullable=True, index=True),
         sa.Column('razorpay_subscription_id', sa.String(255), unique=True, nullable=True, index=True),
@@ -80,7 +70,7 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime, default=sa.func.now(), onupdate=sa.func.now()),
     )
     
-    # Create invoices table (before payments due to FK)
+    # Create invoices table
     op.create_table(
         'invoices',
         sa.Column('id', sa.String(36), primary_key=True),
@@ -95,8 +85,7 @@ def upgrade() -> None:
         sa.Column('razorpay_invoice_id', sa.String(255), unique=True, nullable=True),
         
         # Status
-        sa.Column('status', sa.Enum('draft', 'open', 'paid', 'void', 'uncollectible', name='invoicestatus'),
-                  default='draft', nullable=False, index=True),
+        sa.Column('status', sa.String(20), default='draft', nullable=False, index=True),
         
         # Billing period
         sa.Column('billing_period_start', sa.DateTime, nullable=True),
@@ -151,7 +140,7 @@ def upgrade() -> None:
         sa.Column('invoice_id', sa.String(36), sa.ForeignKey('invoices.id'), nullable=True),
         
         # Gateway info
-        sa.Column('payment_gateway', sa.Enum('stripe', 'razorpay', name='paymentgateway'), nullable=False),
+        sa.Column('payment_gateway', sa.String(20), nullable=False),
         sa.Column('gateway_payment_id', sa.String(255), unique=True, nullable=False, index=True),
         sa.Column('gateway_order_id', sa.String(255), nullable=True),
         
@@ -161,9 +150,7 @@ def upgrade() -> None:
         sa.Column('amount_refunded', sa.Numeric(12, 2), default=0),
         
         # Status
-        sa.Column('status', sa.Enum('pending', 'processing', 'completed', 'failed', 'refunded', 
-                                    'partially_refunded', 'cancelled', name='paymentstatus'),
-                  default='pending', nullable=False, index=True),
+        sa.Column('status', sa.String(30), default='pending', nullable=False, index=True),
         
         # Payment method
         sa.Column('payment_method_type', sa.String(50)),
@@ -199,7 +186,7 @@ def upgrade() -> None:
         sa.Column('client_id', sa.String(36), sa.ForeignKey('clients.id'), nullable=False, index=True),
         
         # Gateway references
-        sa.Column('payment_gateway', sa.Enum('stripe', 'razorpay', name='paymentgateway'), nullable=False),
+        sa.Column('payment_gateway', sa.String(20), nullable=False),
         sa.Column('gateway_payment_method_id', sa.String(255), unique=True, nullable=False),
         sa.Column('stripe_customer_id', sa.String(255), nullable=True),
         sa.Column('razorpay_customer_id', sa.String(255), nullable=True),
@@ -280,11 +267,3 @@ def downgrade() -> None:
     op.drop_table('payments')
     op.drop_table('invoices')
     op.drop_table('subscriptions')
-    
-    # Drop enum types
-    op.execute('DROP TYPE IF EXISTS pricingplanmodel')
-    op.execute('DROP TYPE IF EXISTS billingcycle')
-    op.execute('DROP TYPE IF EXISTS invoicestatus')
-    op.execute('DROP TYPE IF EXISTS paymentstatus')
-    op.execute('DROP TYPE IF EXISTS subscriptionstatus')
-    op.execute('DROP TYPE IF EXISTS paymentgateway')

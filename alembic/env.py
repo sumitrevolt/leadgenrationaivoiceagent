@@ -17,6 +17,10 @@ from app.models.lead import Lead
 from app.models.campaign import Campaign
 from app.models.call_log import CallLog
 from app.models.client import Client
+from app.models.user import User, UserSession, AuditLog
+from app.models.payment import (
+    Subscription, Payment, Invoice, PaymentMethod, UsageRecord
+)
 
 # this is the Alembic Config object
 config = context.config
