@@ -1,8 +1,39 @@
-# AuraLeads AI Voice Agent - Deployment Guide
+# LeadGen AI Voice Agent - Production Deployment Guide
 
 ## 🚀 Production Deployment to Google Cloud Platform
 
-This guide walks you through deploying the AuraLeads AI Voice Agent platform to production on Google Cloud Platform.
+This guide walks you through deploying the LeadGen AI Voice Agent platform to production on Google Cloud Platform with Cloud Run, Cloud SQL PostgreSQL, and Memorystore Redis.
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Google Cloud Platform                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│   ┌─────────────┐     ┌─────────────────┐     ┌─────────────────────┐   │
+│   │   Twilio    │────▶│    Cloud Run    │────▶│   Cloud SQL         │   │
+│   │  (Voice)    │     │   (FastAPI)     │     │   (PostgreSQL 15)   │   │
+│   └─────────────┘     └─────────────────┘     └─────────────────────┘   │
+│          │                     │                                         │
+│          │                     │              ┌─────────────────────┐   │
+│          │                     └─────────────▶│   Memorystore       │   │
+│          │                                    │   (Redis 7)         │   │
+│          ▼                                    └─────────────────────┘   │
+│   ┌─────────────┐     ┌─────────────────┐                               │
+│   │  Deepgram   │     │  Secret Manager │                               │
+│   │   (STT)     │     │   (API Keys)    │                               │
+│   └─────────────┘     └─────────────────┘                               │
+│                                                                           │
+│   ┌─────────────┐     ┌─────────────────┐     ┌─────────────────────┐   │
+│   │  Gemini AI  │     │   Edge TTS      │     │  Stripe/Razorpay    │   │
+│   │   (LLM)     │     │   (Voice)       │     │   (Payments)        │   │
+│   └─────────────┘     └─────────────────┘     └─────────────────────┘   │
+│                                                                           │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -11,21 +42,39 @@ This guide walks you through deploying the AuraLeads AI Voice Agent platform to 
 1. **Google Cloud Account** with billing enabled
 2. **gcloud CLI** installed and authenticated
 3. **Docker** installed locally
-4. **Terraform** (optional, for infrastructure as code)
-5. **Domain name** configured with DNS access
+4. **API Keys** for:
+   - Gemini AI (required) - [Get Key](https://aistudio.google.com/apikey)
+   - Twilio (required for voice) - [Sign Up](https://console.twilio.com)
+   - Deepgram (required for STT) - [Sign Up](https://console.deepgram.com)
+   - Stripe/Razorpay (for payments) - [Stripe](https://dashboard.stripe.com) | [Razorpay](https://dashboard.razorpay.com)
 
 ---
 
 ## Quick Start (One-Command Deploy)
 
+### Windows (PowerShell)
+```powershell
+$env:GCP_PROJECT_ID = "your-project-id"
+.\scripts\deploy_gcp_production.ps1 -ProjectId $env:GCP_PROJECT_ID
+```
+
+### Linux/macOS (Bash)
 ```bash
-# Set your GCP project
 export GCP_PROJECT_ID="your-project-id"
 export GCP_REGION="asia-south1"
-
-# Deploy
-bash scripts/deploy_production.sh
+bash scripts/deploy_gcp_production.sh
 ```
+
+This script will:
+1. Enable all required GCP APIs
+2. Create VPC network and connector
+3. Provision Cloud SQL PostgreSQL 15
+4. Provision Memorystore Redis 7
+5. Set up Secret Manager with placeholders
+6. Create Artifact Registry for Docker images
+7. Build and push the production Docker image
+8. Deploy to Cloud Run with auto-scaling
+9. Run database migrations
 
 ---
 
