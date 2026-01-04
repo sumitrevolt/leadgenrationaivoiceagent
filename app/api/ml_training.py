@@ -921,3 +921,190 @@ async def get_production_readiness():
     except Exception as e:
         logger.error(f"Failed to get production readiness: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# UNIFIED BRAIN + VERTEX AI TRAINING (All 13 Sub-Agents + 3 Brains)
+# ============================================================================
+
+@router.get("/unified/status")
+async def get_unified_training_status():
+    """
+    Get unified training status for ALL brains and sub-agents.
+    
+    BILLIONAIRE MINDSET: Complete visibility into the 16-brain system:
+    - 3 main brains (sub_agent, voice_agent, production)
+    - 13 specialized sub-agents
+    
+    All powered by Vertex AI for 10,000x scale.
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator
+        orchestrator = get_brain_orchestrator()
+        
+        status = await orchestrator.get_vertex_training_status()
+        
+        return {
+            "success": True,
+            "system": "16-brain-architecture",
+            "main_brains": 3,
+            "sub_agents": 13,
+            "total_brains": 16,
+            **status,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get unified status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/unified/train")
+async def unified_train_all(background_tasks: BackgroundTasks):
+    """
+    Train ALL 16 brains with Vertex AI (Async via Celery).
+    
+    BILLIONAIRE MODE: Complete brain training:
+    - 3 main brains trained with production-ready Vertex AI
+    - 13 sub-agents trained with domain-specific prompts
+    - Revenue-focused optimization
+    - 10,000x scale thinking
+    """
+    try:
+        from app.tasks.brain_training import vertex_train_all
+        
+        # Trigger async training
+        task = vertex_train_all.delay()
+        
+        return {
+            "success": True,
+            "message": "Unified training started for all 16 brains",
+            "task_id": task.id,
+            "brains_training": 16,
+            "billionaire_mode": True,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start unified training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/unified/train/now")
+async def unified_train_all_now():
+    """
+    Immediate training for ALL 16 brains (Synchronous).
+    
+    BILLIONAIRE MODE: Complete training pipeline:
+    1. Train sub_agent brain (powers 13 sub-agents)
+    2. Train voice_agent brain (real-time calls)
+    3. Train production brain (operational excellence)
+    4. Train all 13 specialized sub-agents individually
+    
+    Returns detailed results for each brain.
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator
+        orchestrator = get_brain_orchestrator()
+        
+        results = await orchestrator.vertex_train_all_brains()
+        
+        return {
+            "success": True,
+            "message": "All 16 brains trained with Vertex AI",
+            **results,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed immediate unified training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/unified/sub-agents")
+async def get_sub_agents_status():
+    """
+    Get status of all 13 specialized sub-agents.
+    
+    The 13 Sub-Agents (powered by Sub-Agent Brain + Vertex AI):
+    1. voice_ai - Real-time call optimization
+    2. leads - Lead generation and scraping
+    3. ml - ML/AI optimization
+    4. billing - Revenue engineering
+    5. pricing - Dynamic pricing
+    6. growth - Growth hacking
+    7. integrations - CRM and webhook integration
+    8. security - Security and auth
+    9. backend - FastAPI and database
+    10. frontend - React/TypeScript
+    11. infra - DevOps and Terraform
+    12. qa - Testing and quality
+    13. product - Documentation and strategy
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator, SUB_AGENTS
+        orchestrator = get_brain_orchestrator()
+        
+        sub_agent_descriptions = {
+            "voice_ai": "Voice AI Engineer - Real-time call optimization, ASR/TTS latency, LLM fallbacks",
+            "leads": "Lead Generation Architect - Web scraping, lead deduplication, DND compliance",
+            "ml": "ML/AI Optimizer - Intent classification, lead scoring, RAG, A/B testing",
+            "billing": "Revenue Engineer - Payment gateway, subscription management, webhooks",
+            "pricing": "Pricing Optimizer - Dynamic pricing, trial conversion, usage-based throttles",
+            "growth": "Growth Hacker - Tenant acquisition, activation loops, notifications",
+            "integrations": "Integration Master - CRM sync, OAuth2, webhook idempotency",
+            "security": "Security Guardian - JWT auth, RBAC, input validation, secrets",
+            "backend": "Backend Architect - FastAPI patterns, async SQLAlchemy, N+1 prevention",
+            "frontend": "Frontend Architect - React/TypeScript, Tailwind CSS, React Query",
+            "infra": "DevOps Specialist - Docker, Terraform, Cloud Run, CI/CD",
+            "qa": "QA Automator - Pytest fixtures, async tests, mock strategies",
+            "product": "Product Strategist - Documentation, API docs, feature narrative",
+        }
+        
+        return {
+            "success": True,
+            "total_sub_agents": 13,
+            "powered_by": "Sub-Agent Brain + Vertex AI",
+            "sub_agents": {
+                agent: {
+                    "name": agent.replace("_", " ").title(),
+                    "description": sub_agent_descriptions.get(agent, "Specialized sub-agent"),
+                    "metrics": orchestrator.sub_agent_metrics.get(agent, {}),
+                }
+                for agent in SUB_AGENTS
+            },
+            "billionaire_mode": True,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get sub-agents status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/unified/sub-agents/train")
+async def train_all_sub_agents():
+    """
+    Train all 13 sub-agents with Vertex AI.
+    
+    Each sub-agent receives domain-specific training:
+    - Billionaire mindset improvements
+    - Revenue/scale optimization
+    - Automation recommendations
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator
+        orchestrator = get_brain_orchestrator()
+        
+        results = await orchestrator._train_all_sub_agents_with_vertex()
+        
+        trained_count = len([r for r in results.values() if r.get("status") == "trained"])
+        
+        return {
+            "success": True,
+            "message": f"Trained {trained_count}/13 sub-agents with Vertex AI",
+            "trained": trained_count,
+            "total": 13,
+            "results": results,
+            "billionaire_mode": True,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to train sub-agents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

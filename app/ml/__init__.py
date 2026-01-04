@@ -66,6 +66,15 @@ from app.ml.vertex_continuous_trainer import (
     BILLIONAIRE_TRAINING_PRINCIPLES,
 )
 
+# Unified Brain + Vertex AI Training (Orchestrator)
+from app.ml.brain_orchestrator import (
+    vertex_train_all,
+    get_vertex_status,
+    train_sub_agents_with_vertex,
+    get_sub_agent_list,
+    SUB_AGENTS,
+)
+
 __all__ = [
     # Data Pipeline
     "ConversationDataPipeline",
@@ -136,4 +145,11 @@ __all__ = [
     "vertex_get_training_status",
     "record_brain_behavior",
     "BILLIONAIRE_TRAINING_PRINCIPLES",
+    
+    # Unified Brain + Vertex AI Training (All 13 sub-agents + 3 brains)
+    "vertex_train_all",
+    "get_vertex_status",
+    "train_sub_agents_with_vertex",
+    "get_sub_agent_list",
+    "SUB_AGENTS",
 ]
