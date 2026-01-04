@@ -5,7 +5,7 @@ Main Application Configuration
 import os
 from typing import Optional, List
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from functools import lru_cache
 
 
@@ -89,6 +89,21 @@ class Settings(BaseSettings):
     dnd_api_key: str = ""
     enable_dnd_check: bool = True
     
+    # Payment Gateways
+    # Stripe (International)
+    stripe_secret_key: str = ""
+    stripe_publishable_key: str = ""
+    stripe_webhook_secret: str = ""
+    
+    # Razorpay (India)
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+    
+    # Payment Settings
+    default_currency: str = "INR"  # INR for India, USD for international
+    auto_detect_payment_gateway: bool = True  # Auto-select based on currency/country
+    
     # Call Settings
     max_call_duration_seconds: int = 300
     max_concurrent_calls: int = 10
@@ -140,6 +155,71 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 100
     max_failed_login_attempts: int = 5
     account_lockout_minutes: int = 30
+    
+    # Validators
+    @field_validator('app_env')
+    @classmethod
+    def validate_app_env(cls, v: str) -> str:
+        """Validate app environment"""
+        allowed = ['development', 'staging', 'production', 'test']
+        if v.lower() not in allowed:
+            raise ValueError(f"app_env must be one of {allowed}")
+        return v.lower()
+    
+    @field_validator('log_level')
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        """Validate log level"""
+        allowed = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        if v.upper() not in allowed:
+            raise ValueError(f"log_level must be one of {allowed}")
+        return v.upper()
+    
+    @field_validator('max_call_duration_seconds')
+    @classmethod
+    def validate_call_duration(cls, v: int) -> int:
+        """Validate call duration is reasonable"""
+        if v < 30 or v > 3600:
+            raise ValueError("max_call_duration_seconds must be between 30 and 3600")
+        return v
+    
+    @field_validator('max_concurrent_calls')
+    @classmethod
+    def validate_concurrent_calls(cls, v: int) -> int:
+        """Validate concurrent calls limit"""
+        if v < 1 or v > 1000:
+            raise ValueError("max_concurrent_calls must be between 1 and 1000")
+        return v
+    
+    @field_validator('rate_limit_per_minute')
+    @classmethod
+    def validate_rate_limit(cls, v: int) -> int:
+        """Validate rate limit"""
+        if v < 1 or v > 10000:
+            raise ValueError("rate_limit_per_minute must be between 1 and 10000")
+        return v
+    
+    @model_validator(mode='after')
+    def validate_production_settings(self) -> 'Settings':
+        """Validate critical settings in production"""
+        if self.app_env == 'production':
+            if self.secret_key == "change-this-in-production":
+                raise ValueError("secret_key must be changed in production")
+            if self.jwt_secret_key == "change-this-jwt-secret-in-production":
+                raise ValueError("jwt_secret_key must be changed in production")
+            if self.debug:
+                raise ValueError("debug must be False in production")
+        return self
+    
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production"""
+        return self.app_env == "production"
+    
+    @property
+    def is_development(self) -> bool:
+        """Check if running in development"""
+        return self.app_env == "development"
     
     class Config:
         env_file = ".env"

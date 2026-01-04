@@ -91,7 +91,8 @@ def run_command(
             cmd,
             capture_output=capture_output,
             text=True,
-            check=check
+            check=check,
+            shell=True
         )
         return result.stdout.strip() if capture_output else None
     except subprocess.CalledProcessError as e:
@@ -106,7 +107,8 @@ def check_gcloud_installed() -> bool:
         subprocess.run(
             ["gcloud", "--version"],
             capture_output=True,
-            check=True
+            check=True,
+            shell=True
         )
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -120,7 +122,8 @@ def check_authenticated() -> bool:
             ["gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
+            shell=True
         )
         return bool(result.stdout.strip())
     except subprocess.CalledProcessError:

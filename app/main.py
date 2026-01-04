@@ -17,6 +17,7 @@ import asyncio
 
 from app.config import settings
 from app.api import leads, campaigns, analytics, webhooks
+from app.api.billing import router as billing_router
 from app.api.platform import router as platform_router
 from app.api.ml_training import router as ml_router
 from app.api.health import router as health_router
@@ -165,6 +166,7 @@ app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
 app.include_router(campaigns.router, prefix="/api/campaigns", tags=["Campaigns"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
+app.include_router(billing_router, prefix="/api", tags=["Billing"])
 app.include_router(platform_router, prefix="/api", tags=["Platform"])
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])

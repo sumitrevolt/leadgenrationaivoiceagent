@@ -21,8 +21,8 @@ tfplan*
 htmlcov
 *.log
 data/
-tests/
-docs/
+# tests/  <-- Allowing tests for Cloud Build
+# docs/
 *.md
 !README.md
 .DS_Store

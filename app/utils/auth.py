@@ -256,38 +256,78 @@ def require_role(*allowed_roles: str):
 
 def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
     """
-    Hash password with salt using SHA-256
+    Hash password using bcrypt (industry standard)
     
     Args:
         password: Plain text password
-        salt: Optional salt (generated if not provided)
+        salt: Optional salt (ignored for bcrypt, kept for API compatibility)
         
     Returns:
-        Tuple of (hash, salt)
+        Tuple of (hash, salt) - salt is empty string for bcrypt as it's embedded in hash
     """
-    if salt is None:
-        salt = secrets.token_hex(32)
-    
-    combined = f"{password}{salt}".encode('utf-8')
-    password_hash = hashlib.sha256(combined).hexdigest()
-    
-    return password_hash, salt
+    try:
+        from passlib.context import CryptContext
+        
+        pwd_context = CryptContext(
+            schemes=["bcrypt"],
+            deprecated="auto",
+            bcrypt__rounds=12  # Adjust for security/performance balance
+        )
+        
+        password_hash = pwd_context.hash(password)
+        return password_hash, ""  # bcrypt includes salt in hash
+        
+    except ImportError:
+        # Fallback to SHA-256 if passlib not available
+        logger.warning("passlib not installed, using SHA-256 fallback (not recommended for production)")
+        if salt is None:
+            salt = secrets.token_hex(32)
+        
+        combined = f"{password}{salt}".encode('utf-8')
+        password_hash = hashlib.sha256(combined).hexdigest()
+        
+        return password_hash, salt
 
 
-def verify_password(password: str, stored_hash: str, salt: str) -> bool:
+def verify_password(password: str, stored_hash: str, salt: str = "") -> bool:
     """
     Verify password against stored hash
     
     Args:
         password: Plain text password to verify
         stored_hash: Stored password hash
-        salt: Salt used for hashing
+        salt: Salt used for hashing (empty for bcrypt)
         
     Returns:
         True if password matches
     """
-    computed_hash, _ = hash_password(password, salt)
-    return secrets.compare_digest(computed_hash, stored_hash)
+    try:
+        from passlib.context import CryptContext
+        
+        pwd_context = CryptContext(
+            schemes=["bcrypt"],
+            deprecated="auto"
+        )
+        
+        # bcrypt verification
+        if stored_hash.startswith("$2"):
+            return pwd_context.verify(password, stored_hash)
+        
+        # Fallback for legacy SHA-256 hashes (migration support)
+        if salt:
+            combined = f"{password}{salt}".encode('utf-8')
+            computed_hash = hashlib.sha256(combined).hexdigest()
+            return secrets.compare_digest(computed_hash, stored_hash)
+        
+        return False
+        
+    except ImportError:
+        # Fallback to SHA-256 verification
+        if not salt:
+            return False
+        combined = f"{password}{salt}".encode('utf-8')
+        computed_hash = hashlib.sha256(combined).hexdigest()
+        return secrets.compare_digest(computed_hash, stored_hash)
 
 
 def generate_api_key() -> str:

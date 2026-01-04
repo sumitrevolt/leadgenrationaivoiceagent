@@ -495,6 +495,254 @@ export const analyticsApi = {
   },
 };
 
+// ============================================================================
+// Billing API
+// ============================================================================
+
+export interface PricingPlan {
+  id: string;
+  name: string;
+  pricing_model: string;
+  monthly_price: number;
+  calls_per_month: number | string;
+  leads_per_month: number | string;
+  concurrent_campaigns: number | string;
+  features: string[];
+  quarterly_discount: number;
+  yearly_discount: number;
+}
+
+export interface Subscription {
+  id: string;
+  plan_id: string;
+  plan_name: string;
+  status: string;
+  billing_cycle: string;
+  base_price: number;
+  currency: string;
+  current_period_start?: string;
+  current_period_end?: string;
+  trial_ends_at?: string;
+  usage: {
+    calls_used: number;
+    calls_limit: number | string;
+    leads_generated: number;
+    leads_limit: number | string;
+    appointments_booked: number;
+  };
+  payment_gateway?: string;
+}
+
+export interface Invoice {
+  id: string;
+  invoice_number: string;
+  status: string;
+  total: number;
+  amount_paid: number;
+  amount_due: number;
+  currency: string;
+  invoice_date: string;
+  due_date?: string;
+  pdf_url?: string;
+  hosted_url?: string;
+}
+
+export interface CheckoutSession {
+  checkout_url?: string;
+  order_id?: string;
+  session_id?: string;
+  key_id?: string;
+  amount: number;
+  currency: string;
+  gateway: string;
+}
+
+export interface UsageStats {
+  calls_used: number;
+  calls_limit: number | string;
+  calls_remaining: number | string;
+  leads_generated: number;
+  leads_limit: number | string;
+  leads_remaining: number | string;
+  appointments_booked: number;
+  period_start?: string;
+  period_end?: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  payment_gateway: string;
+  type: string;
+  is_default: boolean;
+  is_active: boolean;
+  created_at: string;
+  card?: {
+    brand?: string;
+    last4?: string;
+    exp_month?: number;
+    exp_year?: number;
+    funding?: string;
+  };
+  upi?: {
+    id_masked?: string;
+  };
+  bank?: {
+    name?: string;
+  };
+}
+
+export const billingApi = {
+  // Get all pricing plans
+  getPlans: async (): Promise<PricingPlan[]> => {
+    return apiRequest<PricingPlan[]>('/billing/plans');
+  },
+
+  // Get specific plan details
+  getPlan: async (planId: string): Promise<PricingPlan> => {
+    return apiRequest<PricingPlan>(`/billing/plans/${planId}`);
+  },
+
+  // Calculate plan pricing with discounts
+  calculatePricing: async (planId: string, billingCycle: string = 'monthly'): Promise<{
+    plan_id: string;
+    billing_cycle: string;
+    subtotal: number;
+    discount: number;
+    discount_percentage: number;
+    taxable: number;
+    tax: number;
+    tax_rate: number;
+    total: number;
+    per_month: number;
+    currency: string;
+  }> => {
+    return apiRequest(`/billing/plans/${planId}/pricing?billing_cycle=${billingCycle}`);
+  },
+
+  // Create checkout session
+  createCheckout: async (
+    clientId: string,
+    planId: string,
+    billingCycle: string = 'monthly',
+    successUrl: string,
+    cancelUrl: string,
+    currency?: string
+  ): Promise<CheckoutSession> => {
+    return apiRequest<CheckoutSession>(`/billing/checkout?client_id=${clientId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        plan_id: planId,
+        billing_cycle: billingCycle,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        currency,
+      }),
+    });
+  },
+
+  // Verify Razorpay payment (called after frontend payment)
+  verifyPayment: async (
+    clientId: string,
+    orderId: string,
+    paymentId: string,
+    signature: string
+  ): Promise<{ success: boolean; payment_id: string; message: string }> => {
+    return apiRequest(`/billing/verify-payment?client_id=${clientId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        order_id: orderId,
+        payment_id: paymentId,
+        signature,
+      }),
+    });
+  },
+
+  // Get current subscription
+  getSubscription: async (clientId: string): Promise<Subscription> => {
+    return apiRequest<Subscription>(`/billing/subscription?client_id=${clientId}`);
+  },
+
+  // Cancel subscription
+  cancelSubscription: async (
+    clientId: string,
+    reason?: string,
+    cancelImmediately: boolean = false
+  ): Promise<{ success: boolean; subscription_id: string; effective_until: string; message: string }> => {
+    return apiRequest(`/billing/subscription/cancel?client_id=${clientId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        reason,
+        cancel_immediately: cancelImmediately,
+      }),
+    });
+  },
+
+  // Get invoices
+  getInvoices: async (clientId: string, limit: number = 10, offset: number = 0): Promise<Invoice[]> => {
+    return apiRequest<Invoice[]>(`/billing/invoices?client_id=${clientId}&limit=${limit}&offset=${offset}`);
+  },
+
+  // Get invoice details
+  getInvoice: async (clientId: string, invoiceId: string): Promise<Invoice> => {
+    return apiRequest<Invoice>(`/billing/invoices/${invoiceId}?client_id=${clientId}`);
+  },
+
+  // Get current usage
+  getUsage: async (clientId: string): Promise<UsageStats> => {
+    return apiRequest<UsageStats>(`/billing/usage?client_id=${clientId}`);
+  },
+
+  // Get usage history
+  getUsageHistory: async (clientId: string, days: number = 30): Promise<Array<{
+    id: string;
+    usage_date: string;
+    calls_made: number;
+    calls_connected: number;
+    qualified_leads: number;
+    appointments_booked: number;
+    billable_amount: number;
+    billed: boolean;
+  }>> => {
+    return apiRequest(`/billing/usage/history?client_id=${clientId}&days=${days}`);
+  },
+
+  // Get saved payment methods
+  getPaymentMethods: async (clientId: string): Promise<PaymentMethod[]> => {
+    return apiRequest<PaymentMethod[]>(`/billing/payment-methods?client_id=${clientId}`);
+  },
+
+  // Get account balance (for per-lead model)
+  getBalance: async (clientId: string): Promise<{ balance: number; currency: string }> => {
+    return apiRequest(`/billing/balance?client_id=${clientId}`);
+  },
+
+  // Add balance
+  addBalance: async (
+    clientId: string,
+    amount: number,
+    successUrl: string,
+    cancelUrl: string,
+    currency: string = 'INR'
+  ): Promise<CheckoutSession> => {
+    return apiRequest(`/billing/balance/add?client_id=${clientId}&success_url=${encodeURIComponent(successUrl)}&cancel_url=${encodeURIComponent(cancelUrl)}`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, currency }),
+    });
+  },
+
+  // Upgrade subscription
+  upgradeSubscription: async (clientId: string, newPlanId: string): Promise<{
+    success: boolean;
+    subscription_id: string;
+    new_plan: string;
+    message: string;
+  }> => {
+    return apiRequest(`/billing/subscription/upgrade?client_id=${clientId}&new_plan_id=${newPlanId}`, {
+      method: 'POST',
+    });
+  },
+};
+
 // Export all APIs
 export default {
   auth: authApi,
@@ -504,4 +752,5 @@ export default {
   campaigns: campaignsApi,
   platform: platformApi,
   analytics: analyticsApi,
+  billing: billingApi,
 };

@@ -10,6 +10,11 @@ This module provides automatic learning and training capabilities:
 - A/B testing framework
 - Nightly/Weekly training scheduler
 
+THREE-BRAIN ARCHITECTURE (Vertex AI Powered):
+- Brain #1: Sub-Agent Brain - Powers 13 specialized development sub-agents
+- Brain #2: Voice Agent Brain - Handles real-time voice calls with lead generation
+- Brain #3: Production Brain - Ensures operational excellence and growth
+
 The system learns from every call and continuously improves the voice agent.
 """
 
@@ -24,6 +29,25 @@ from app.ml.training_scheduler import (
     TrainingReport,
     get_training_scheduler,
     stop_training_scheduler
+)
+
+# Three-Brain Architecture
+from app.ml.agent_brain import AgentBrain, AgentRole, get_agent_brain
+from app.ml.voice_agent_brain import VoiceAgentBrain, CallIntent, LeadTemperature, get_voice_agent_brain
+from app.ml.production_brain import ProductionBrain, HealthStatus, OptimizationType, get_production_brain
+from app.ml.brain_orchestrator import BrainOrchestrator, BrainType, get_brain_orchestrator
+from app.ml.codebase_indexer import CodebaseIndexer, get_codebase_indexer
+
+# Brain Auto-Trainer (Billionaire Mode)
+from app.ml.brain_auto_trainer import (
+    BrainAutoTrainer,
+    get_brain_auto_trainer,
+    train_brain_now,
+    train_all_now,
+    record_brain_action,
+    SkillCategory,
+    BILLIONAIRE_MINDSET,
+    BILLIONAIRE_SKILLS,
 )
 
 __all__ = [
@@ -53,5 +77,33 @@ __all__ = [
     "TrainingScheduleConfig",
     "TrainingReport",
     "get_training_scheduler",
-    "stop_training_scheduler"
+    "stop_training_scheduler",
+    
+    # Three-Brain Architecture
+    "AgentBrain",
+    "AgentRole",
+    "get_agent_brain",
+    "VoiceAgentBrain",
+    "CallIntent",
+    "LeadTemperature",
+    "get_voice_agent_brain",
+    "ProductionBrain",
+    "HealthStatus",
+    "OptimizationType",
+    "get_production_brain",
+    "BrainOrchestrator",
+    "BrainType",
+    "get_brain_orchestrator",
+    "CodebaseIndexer",
+    "get_codebase_indexer",
+    
+    # Brain Auto-Trainer (Billionaire Mode)
+    "BrainAutoTrainer",
+    "get_brain_auto_trainer",
+    "train_brain_now",
+    "train_all_now",
+    "record_brain_action",
+    "SkillCategory",
+    "BILLIONAIRE_MINDSET",
+    "BILLIONAIRE_SKILLS",
 ]

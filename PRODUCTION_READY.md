@@ -175,13 +175,49 @@
 
 ---
 
+## 🧠 Three-Brain Architecture (NEW)
+
+The platform now includes a **Vertex AI Powered Three-Brain System**:
+
+| Brain | File | Purpose |
+|-------|------|---------|
+| **Brain #1** | `app/ml/agent_brain.py` | Powers 13 specialized dev sub-agents for coding assistance |
+| **Brain #2** | `app/ml/voice_agent_brain.py` | Handles real-time voice calls with lead generation |
+| **Brain #3** | `app/ml/production_brain.py` | Ensures operational excellence, health monitoring, growth |
+| **Orchestrator** | `app/ml/brain_orchestrator.py` | Coordinates all three brains |
+
+### Quick Usage
+
+```python
+from app.ml import get_brain_orchestrator
+
+orchestrator = get_brain_orchestrator()
+
+# Health check
+health = await orchestrator.route_request("health_check", {})
+
+# Production readiness
+readiness = await orchestrator.route_request("production_readiness", {})
+print(f"Score: {readiness['overall_score']}%")
+
+# Growth insights
+insights = await orchestrator.route_request("growth_insights", {})
+```
+
+### Documentation
+
+See [docs/THREE_BRAIN_ARCHITECTURE.md](docs/THREE_BRAIN_ARCHITECTURE.md) for full details.
+
+---
+
 ## ✅ Verification Results
 
 - **Frontend Build**: ✅ Successful (288 KB gzipped)
 - **Backend Import**: ✅ All modules load correctly
 - **TypeScript Errors**: ✅ None
 - **Python Errors**: ✅ None
+- **Three-Brain System**: ✅ Integrated and operational
 
 ---
 
-*Generated: 2025-01-03*
+*Generated: 2025-01-04 (Updated with Three-Brain Architecture)*

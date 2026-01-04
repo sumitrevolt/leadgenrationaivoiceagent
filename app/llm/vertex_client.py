@@ -97,7 +97,7 @@ class VertexAIClient:
     # Model configurations
     MODELS = {
         "gemini-1.5-flash": {
-            "name": "gemini-1.5-flash-002",
+            "name": "models/gemini-2.0-flash",
             "context_window": 1000000,
             "input_price_per_1k": 0.00075,
             "output_price_per_1k": 0.003,
@@ -105,7 +105,7 @@ class VertexAIClient:
             "tpm_limit": 4000000,
         },
         "gemini-1.5-pro": {
-            "name": "gemini-1.5-pro-002",
+            "name": "models/gemini-2.5-pro",
             "context_window": 2000000,
             "input_price_per_1k": 0.00125,
             "output_price_per_1k": 0.005,
@@ -113,7 +113,7 @@ class VertexAIClient:
             "tpm_limit": 4000000,
         },
         "gemini-2.0-flash": {
-            "name": "gemini-2.0-flash-exp",
+            "name": "models/gemini-2.0-flash",
             "context_window": 1000000,
             "input_price_per_1k": 0.00075,
             "output_price_per_1k": 0.003,

@@ -1,0 +1,63 @@
+# =============================================================================
+# Development Dependencies
+# Install with: pip install -r requirements-dev.txt
+# =============================================================================
+
+# Include production requirements
+-r requirements.txt
+
+# =============================================================================
+# Testing
+# =============================================================================
+pytest==7.4.4
+pytest-asyncio==0.23.4
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+pytest-xdist==3.5.0  # Parallel test execution
+httpx==0.26.0  # For async test client
+factory-boy==3.3.0  # Test data factories
+faker==22.0.0  # Fake data generation
+
+# =============================================================================
+# Code Quality
+# =============================================================================
+black==24.1.1  # Code formatting
+isort==5.13.2  # Import sorting
+flake8==7.0.0  # Linting
+mypy==1.8.0  # Type checking
+pylint==3.0.3  # Additional linting
+bandit==1.7.7  # Security linting
+
+# =============================================================================
+# Type Stubs
+# =============================================================================
+types-redis==4.6.0.20240106
+types-requests==2.31.0.20240106
+sqlalchemy-stubs==0.4
+
+# =============================================================================
+# Documentation
+# =============================================================================
+mkdocs==1.5.3
+mkdocs-material==9.5.3
+mkdocstrings[python]==0.24.0
+
+# =============================================================================
+# Development Tools
+# =============================================================================
+pre-commit==3.6.0  # Git hooks
+ipython==8.20.0  # Enhanced Python shell
+ipdb==0.13.13  # Interactive debugger
+watchfiles==0.21.0  # File watching for hot reload
+
+# =============================================================================
+# Profiling & Performance
+# =============================================================================
+py-spy==0.3.14  # Sampling profiler
+memory-profiler==0.61.0  # Memory profiling
+line-profiler==4.1.2  # Line-by-line profiling
+
+# =============================================================================
+# Database Tools
+# =============================================================================
+aiosqlite==0.20.0  # SQLite async support for tests

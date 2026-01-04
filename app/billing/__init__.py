@@ -14,6 +14,14 @@ from app.billing.subscription import (
     SubscriptionStatus,
     PaymentStatus
 )
+from app.billing.payment_gateway import (
+    PaymentGatewayFactory,
+    StripeGateway,
+    RazorpayGateway,
+    get_payment_gateway,
+    get_stripe_gateway,
+    get_razorpay_gateway,
+)
 
 __all__ = [
     "billing_manager",
@@ -25,5 +33,12 @@ __all__ = [
     "PricingModel",
     "BillingCycle",
     "SubscriptionStatus",
-    "PaymentStatus"
+    "PaymentStatus",
+    # Payment Gateways
+    "PaymentGatewayFactory",
+    "StripeGateway",
+    "RazorpayGateway",
+    "get_payment_gateway",
+    "get_stripe_gateway",
+    "get_razorpay_gateway",
 ]

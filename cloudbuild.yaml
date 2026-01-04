@@ -14,8 +14,8 @@ steps:
       - |
         pip install -q pydantic pydantic-settings
         python scripts/validate_deployment.py --env production --skip-tests
-        if [ $? -ne 0 ]; then
-          echo "ERROR: Validation failed! Blocking deployment."
+        if [ $$? -ne 0 ]; then
+          echo "ERROR: Validation failed! Blocking deployment. Status: $$?"
           exit 1
         fi
     waitFor: ['-']
@@ -70,9 +70,9 @@ steps:
           --format='json' > /workspace/scan-results.json
         
         # Check for critical vulnerabilities
-        CRITICAL=$(cat /workspace/scan-results.json | jq '.vulnerabilities | map(select(.effectiveSeverity == "CRITICAL")) | length')
-        if [ "$CRITICAL" -gt "0" ]; then
-          echo "ERROR: Found $CRITICAL critical vulnerabilities!"
+        CRITICAL_COUNT=$$(cat /workspace/scan-results.json | jq '.vulnerabilities | map(select(.effectiveSeverity == "CRITICAL")) | length')
+        if [ "$$CRITICAL_COUNT" -gt "0" ]; then
+          echo "ERROR: Found $$CRITICAL_COUNT critical vulnerabilities!"
           exit 1
         fi
     waitFor: ['build']
@@ -209,9 +209,9 @@ steps:
           LATEST_REVISION=$(gcloud run revisions list --service=${_SERVICE_NAME} --region=${_REGION} --format='value(name)' --limit=1)
           
           # Check error rate before proceeding
-          ERROR_RATE=$(gcloud monitoring query "fetch cloud_run_revision | metric 'run.googleapis.com/request_count' | filter resource.service_name = '${_SERVICE_NAME}' | filter metric.response_code_class = '5xx' | align rate(1m) | every 1m | within 5m" --format='value(0)' 2>/dev/null || echo "0")
+          ERROR_RATE=$$(gcloud monitoring query "fetch cloud_run_revision | metric 'run.googleapis.com/request_count' | filter resource.service_name = '${_SERVICE_NAME}' | filter metric.response_code_class = '5xx' | align rate(1m) | every 1m | within 5m" --format='value(0)' 2>/dev/null || echo "0")
           
-          if [ "$(echo "$ERROR_RATE > 0.05" | bc -l 2>/dev/null || echo 0)" -eq 1 ]; then
+          if [ "$$(echo "$$ERROR_RATE > 0.05" | bc -l 2>/dev/null || echo 0)" -eq 1 ]; then
             echo "ERROR: High error rate detected. Rolling back."
             gcloud run services update-traffic ${_SERVICE_NAME} --region=${_REGION} --to-latest
             exit 1

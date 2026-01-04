@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+.eggs
+*.egg
+.venv
+venv
+env
+.env
+.env.*
+
+# IDE
+.vscode
+.vs
+.idea
+*.swp
+*.swo
+
+# Node/Frontend
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+# Terraform
+.terraform
+infrastructure
+*.tfstate
+*.tfstate.*
+tfplan*
+
+# Testing/Coverage
+.coverage
+htmlcov
+.pytest_cache
+tests
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Data
+data
+models/*.gguf
+
+# Misc
+.DS_Store
+*.log
+.mypy_cache
+.ruff_cache

@@ -2,7 +2,7 @@
 
 ## 🏗️ Architecture Overview
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           Google Cloud Platform                          │
 ├─────────────────────────────────────────────────────────────────────────┤
@@ -37,7 +37,7 @@
 
 ## 📁 Directory Structure
 
-```
+```text
 infrastructure/
 ├── terraform/
 │   ├── main.tf                 # Main configuration
@@ -62,6 +62,7 @@ infrastructure/
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - GCP Project with billing
 - Terraform >= 1.5.0
 - gcloud CLI authenticated
@@ -85,37 +86,37 @@ terraform apply -var-file="environments/production.tfvars"
 ## 🔒 Security Features
 
 | Feature | Implementation |
-|---------|---------------|
-| **Network Isolation** | Private VPC with 3-tier subnets |
-| **Database** | Private IP only, no public access |
-| **Secrets** | Google Secret Manager with rotation |
-| **Authentication** | Workload Identity for CI/CD |
-| **IAM** | Least privilege service accounts |
-| **Container Scanning** | Vulnerability scan before deploy |
-| **Audit Logging** | Cloud Audit Logs enabled |
+|---------|----------------|
+| **Network Isolation**  | Private VPC with 3-tier subnets        |
+| **Database**           | Private IP only, no public access      |
+| **Secrets**            | Google Secret Manager with rotation    |
+| **Authentication**     | Workload Identity for CI/CD            |
+| **IAM**                | Least privilege service accounts       |
+| **Container Scanning** | Vulnerability scan before deploy       |
+| **Audit Logging**      | Cloud Audit Logs enabled               |
 
 ## 📊 Monitoring & Alerts
 
-| Metric | Alert Threshold |
-|--------|----------------|
-| Error Rate | > 5% for 5 minutes |
-| P99 Latency | > 5 seconds |
-| Instance Count | > 80 instances |
-| Database CPU | > 80% |
-| LLM Token Usage | > 1M tokens/hour |
+| Metric           | Alert Threshold      |
+|------------------|----------------------|
+| Error Rate       | > 5% for 5 minutes   |
+| P99 Latency      | > 5 seconds          |
+| Instance Count   | > 80 instances       |
+| Database CPU     | > 80%                |
+| LLM Token Usage  | > 1M tokens/hour     |
 
 ## 💰 Cost Optimization
 
-| Service | Optimization |
-|---------|-------------|
-| Cloud Run | Min instances = 2 (prod), 0 (staging) |
-| Gemini | Flash model ($0.75/M tokens) vs Pro |
+| Service   | Optimization                            |
+|-----------|------------------------------------------|
+| Cloud Run | Min instances = 2 (prod), 0 (staging)  |
+| Gemini    | Flash model ($0.75/M tokens) vs Pro    |
 | Cloud SQL | Autoscale disk, shared CPU for staging |
-| Storage | Lifecycle policies for audio files |
+| Storage   | Lifecycle policies for audio files     |
 
 ## 🔄 CI/CD Pipeline
 
-```
+```text
 Push to main → Test → Build → Scan → Deploy Staging → Smoke Test → Production (Canary)
                                                                     ↓
                                                             10% → 50% → 100%

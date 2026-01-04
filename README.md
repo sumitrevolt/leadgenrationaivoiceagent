@@ -206,6 +206,43 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ---
 
+## 🧠 Three-Brain Architecture (Vertex AI Powered)
+
+The platform uses a revolutionary **Three-Brain System** for self-improving AI:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     BRAIN ORCHESTRATOR                               │
+├─────────────────┬─────────────────────┬─────────────────────────────┤
+│   BRAIN #1      │     BRAIN #2        │        BRAIN #3             │
+│  Sub-Agent      │   Voice Agent       │      Production             │
+│    Brain        │      Brain          │        Brain                │
+├─────────────────┼─────────────────────┼─────────────────────────────┤
+│ 13 dev agents   │ Real-time calls     │ Health & growth             │
+│ for coding      │ with lead gen       │ optimization                │
+└─────────────────┴─────────────────────┴─────────────────────────────┘
+```
+
+| Brain | Purpose |
+|-------|---------|
+| **Brain #1** | Powers 13 specialized dev sub-agents (Voice AI, Leads, ML, Billing, Security, etc.) |
+| **Brain #2** | Handles real-time voice calls with industry-specific scripts and intent detection |
+| **Brain #3** | Monitors health, provides scaling recommendations, and growth insights |
+
+```python
+from app.ml import get_brain_orchestrator
+
+# Quick health check
+health = await get_brain_orchestrator().route_request("health_check", {})
+
+# Production readiness score
+readiness = await get_brain_orchestrator().route_request("production_readiness", {})
+```
+
+📖 **Full Documentation**: [docs/THREE_BRAIN_ARCHITECTURE.md](docs/THREE_BRAIN_ARCHITECTURE.md)
+
+---
+
 ## ⚙️ Platform Controls
 
 ### Start/Stop Automation

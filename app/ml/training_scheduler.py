@@ -79,9 +79,9 @@ class MLTrainingScheduler:
         
         # Initialize ML components
         self.auto_trainer = AutoTrainer(tenant_id=tenant_id)
-        self.data_pipeline = ConversationDataPipeline(tenant_id=tenant_id)
-        self.feedback_loop = FeedbackLoop(tenant_id=tenant_id)
-        self.vector_store = VectorStore(tenant_id=tenant_id)
+        self.data_pipeline = ConversationDataPipeline()
+        self.feedback_loop = FeedbackLoop()
+        self.vector_store = VectorStore()
         
         # Training state
         self.is_running = False
@@ -207,6 +207,7 @@ class MLTrainingScheduler:
             # 2. Vector store optimization
             # 3. A/B test analysis
             # 4. Prompt optimization
+            # 5. Agent Brain self-training
             
             # Full intent classifier training
             intent_result = await self.auto_trainer.train_intent_classifier(force=True)
@@ -226,13 +227,64 @@ class MLTrainingScheduler:
             ab_results = await self._analyze_ab_tests()
             report.metrics["ab_tests"] = ab_results
             
+            # Train Agent Brain on accepted suggestions (Brain #1)
+            try:
+                from app.ml.agent_brain import get_agent_brain
+                agent_brain = get_agent_brain()
+                await agent_brain.train_on_accepted_suggestions()
+                report.models_trained.append("agent_brain")
+                report.metrics["agent_brain"] = agent_brain.get_agent_report()
+                logger.info("🧠 Brain #1 (Sub-Agent) self-training completed")
+            except Exception as ab_error:
+                logger.warning(f"Agent Brain training skipped: {ab_error}")
+            
+            # Index codebase for Agent RAG
+            try:
+                from app.ml.codebase_indexer import get_codebase_indexer
+                indexer = get_codebase_indexer()
+                index_stats = await indexer.index_codebase()
+                report.metrics["codebase_index"] = {
+                    "files_processed": index_stats.files_processed,
+                    "chunks_created": index_stats.chunks_created,
+                }
+                logger.info(f"📚 Codebase indexed: {index_stats.files_processed} files")
+            except Exception as idx_error:
+                logger.warning(f"Codebase indexing skipped: {idx_error}")
+            
+            # Train Voice Agent Brain on successful calls (Brain #2)
+            try:
+                from app.ml.voice_agent_brain import get_voice_agent_brain
+                voice_brain = get_voice_agent_brain()
+                voice_stats = await voice_brain.train_on_successful_calls()
+                report.models_trained.append("voice_agent_brain")
+                report.metrics["voice_agent_brain"] = voice_stats
+                logger.info("📞 Brain #2 (Voice Agent) training completed")
+            except Exception as vb_error:
+                logger.warning(f"Voice Agent Brain training skipped: {vb_error}")
+            
+            # Run Production Brain health & optimization check (Brain #3)
+            try:
+                from app.ml.production_brain import get_production_brain
+                prod_brain = get_production_brain()
+                readiness = await prod_brain.run_production_readiness_check()
+                growth = await prod_brain.get_growth_insights()
+                report.models_trained.append("production_brain")
+                report.metrics["production_brain"] = {
+                    "readiness_score": readiness.get("overall_score", 0),
+                    "growth_score": growth.get("growth_score", 0),
+                    "recommendations": len(prod_brain.recommendations),
+                }
+                logger.info(f"🏭 Brain #3 (Production) check completed: {readiness.get('overall_score', 0):.0f}% ready")
+            except Exception as pb_error:
+                logger.warning(f"Production Brain check skipped: {pb_error}")
+            
             # Cleanup old vector entries
             await self._cleanup_vector_store()
             
             report.status = "completed"
             report.completed_at = datetime.now()
             
-            logger.info(f"✅ Weekly training completed")
+            logger.info(f"✅ Weekly training completed - All 3 Brains processed")
             
         except Exception as e:
             report.status = "failed"
