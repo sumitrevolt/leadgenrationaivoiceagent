@@ -1,11 +1,17 @@
 """
 Celery Worker Configuration
-Background task processing
+Production-ready background task processing
 """
-from celery import Celery
+from celery import Celery, signals
 from celery.schedules import crontab
+import os
+import sys
+import logging
 
 from app.config import settings
+
+# Setup logging for Celery
+logger = logging.getLogger(__name__)
 
 # Create Celery app
 celery_app = Celery(
@@ -21,35 +27,124 @@ celery_app = Celery(
     ]
 )
 
-# Configuration
+# Production-ready configuration
 celery_app.conf.update(
+    # Serialization
     task_serializer="json",
     accept_content=["json"],
     result_serializer="json",
+    
+    # Timezone
     timezone="Asia/Kolkata",
     enable_utc=True,
     
-    # Task routing
+    # Task routing by queue
     task_routes={
         "app.tasks.scraping.*": {"queue": "scraping"},
         "app.tasks.calling.*": {"queue": "calling"},
         "app.tasks.reporting.*": {"queue": "reporting"},
         "app.tasks.sync.*": {"queue": "sync"},
+        "app.tasks.brain_training.*": {"queue": "training"},
     },
     
-    # Rate limits
+    # Rate limits per task type
     task_annotations={
         "app.tasks.calling.make_call": {"rate_limit": "20/m"},
         "app.tasks.scraping.scrape_leads": {"rate_limit": "5/m"},
+        "app.tasks.brain_training.*": {"rate_limit": "10/m"},
     },
     
-    # Retry policy
-    task_acks_late=True,
-    task_reject_on_worker_lost=True,
+    # Reliability settings
+    task_acks_late=True,  # Acknowledge after task completion
+    task_reject_on_worker_lost=True,  # Reject tasks if worker dies
+    task_acks_on_failure_or_timeout=True,
     
-    # Result expiration
+    # Result backend settings
     result_expires=86400,  # 24 hours
+    result_extended=True,  # Store task metadata
+    
+    # Worker settings
+    worker_prefetch_multiplier=1,  # Disable prefetch for fair scheduling
+    worker_max_tasks_per_child=1000,  # Restart worker after N tasks (memory leaks)
+    worker_max_memory_per_child=512000,  # 512MB memory limit
+    worker_disable_rate_limits=False,
+    
+    # Task execution limits
+    task_time_limit=600,  # Hard limit: 10 minutes
+    task_soft_time_limit=540,  # Soft limit: 9 minutes (allows cleanup)
+    
+    # Connection pooling
+    broker_pool_limit=10,
+    broker_connection_timeout=10,
+    broker_connection_retry=True,
+    broker_connection_retry_on_startup=True,
+    broker_connection_max_retries=10,
+    
+    # Result backend connection pooling
+    redis_max_connections=20,
+    
+    # Visibility timeout for long-running tasks
+    broker_transport_options={
+        "visibility_timeout": 3600,  # 1 hour
+        "socket_timeout": 30,
+        "socket_connect_timeout": 30,
+    },
+    
+    # Retry policy for broker connection
+    broker_connection_retry_on_startup=True,
+    
+    # Event monitoring
+    worker_send_task_events=True,
+    task_send_sent_event=True,
 )
+
+# ============================================
+# Celery Signals for Production Monitoring
+# ============================================
+
+@signals.worker_ready.connect
+def on_worker_ready(**kwargs):
+    """Called when worker is ready to accept tasks"""
+    logger.info("? Celery worker ready and accepting tasks")
+
+
+@signals.worker_shutting_down.connect
+def on_worker_shutdown(**kwargs):
+    """Called when worker is shutting down"""
+    logger.info("? Celery worker shutting down gracefully...")
+
+
+@signals.task_prerun.connect
+def on_task_prerun(task_id, task, args, kwargs, **kw):
+    """Called before a task starts"""
+    logger.debug(f"Starting task {task.name}[{task_id}]")
+
+
+@signals.task_postrun.connect
+def on_task_postrun(task_id, task, args, kwargs, retval, **kw):
+    """Called after a task completes"""
+    logger.debug(f"Completed task {task.name}[{task_id}]")
+
+
+@signals.task_failure.connect
+def on_task_failure(task_id, exception, args, kwargs, traceback, einfo, **kw):
+    """Called when a task fails"""
+    logger.error(f"Task failed: {task_id}, error: {exception}")
+    
+    # Send to Sentry if configured
+    if settings.sentry_dsn:
+        try:
+            import sentry_sdk
+            sentry_sdk.capture_exception(exception)
+        except Exception:
+            pass
+
+
+@signals.task_retry.connect
+def on_task_retry(request, reason, einfo, **kwargs):
+    """Called when a task is retried"""
+    logger.warning(f"Task {request.task} retrying: {reason}")
+
 
 # Scheduled tasks
 celery_app.conf.beat_schedule = {

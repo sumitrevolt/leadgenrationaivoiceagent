@@ -112,8 +112,8 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
-    Token bucket rate limiter
-    Limits requests per client IP and globally
+    Production-ready rate limiter using Redis
+    Falls back to in-memory if Redis is unavailable
     """
     
     def __init__(
@@ -125,26 +125,72 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
         self.requests_per_hour = requests_per_hour
-        self._request_counts: dict = {}  # In production, use Redis
+        self._redis_limiter = None
+        self._fallback_counts: dict = {}  # Fallback for when Redis unavailable
+    
+    async def _get_limiter(self):
+        """Get or create Redis rate limiter"""
+        if self._redis_limiter is None:
+            try:
+                from app.cache import RateLimiter
+                self._redis_limiter = RateLimiter(
+                    prefix="ratelimit:api",
+                    max_requests=self.requests_per_minute,
+                    window_seconds=60,
+                )
+            except Exception as e:
+                logger.warning(f"Could not initialize Redis rate limiter: {e}")
+        return self._redis_limiter
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Skip rate limiting for health checks
-        if request.url.path in ["/health", "/health/live", "/health/ready"]:
+        # Skip rate limiting for health checks and metrics
+        skip_paths = ["/health", "/health/live", "/health/ready", "/metrics"]
+        if request.url.path in skip_paths:
             return await call_next(request)
         
         client_ip = request.client.host if request.client else "unknown"
-        current_minute = int(time.time() / 60)
         
+        # Try Redis rate limiter first
+        limiter = await self._get_limiter()
+        if limiter:
+            try:
+                allowed, remaining = await limiter.is_allowed(client_ip)
+                
+                if not allowed:
+                    logger.warning(f"Rate limit exceeded for {client_ip}")
+                    return JSONResponse(
+                        status_code=429,
+                        content={
+                            "detail": "Rate limit exceeded. Please slow down.",
+                            "retry_after": 60,
+                        },
+                        headers={
+                            "Retry-After": "60",
+                            "X-RateLimit-Limit": str(self.requests_per_minute),
+                            "X-RateLimit-Remaining": "0",
+                        },
+                    )
+                
+                # Process request and add rate limit headers
+                response = await call_next(request)
+                response.headers["X-RateLimit-Limit"] = str(self.requests_per_minute)
+                response.headers["X-RateLimit-Remaining"] = str(remaining)
+                return response
+                
+            except Exception as e:
+                logger.warning(f"Redis rate limiter failed, using fallback: {e}")
+        
+        # Fallback to in-memory rate limiting
+        current_minute = int(time.time() / 60)
         key = f"{client_ip}:{current_minute}"
         
-        # Simple in-memory rate limiting (use Redis in production)
-        if key not in self._request_counts:
-            self._request_counts[key] = 0
+        if key not in self._fallback_counts:
+            self._fallback_counts[key] = 0
         
-        self._request_counts[key] += 1
+        self._fallback_counts[key] += 1
         
-        if self._request_counts[key] > self.requests_per_minute:
-            logger.warning(f"Rate limit exceeded for {client_ip}")
+        if self._fallback_counts[key] > self.requests_per_minute:
+            logger.warning(f"Rate limit exceeded for {client_ip} (fallback)")
             return JSONResponse(
                 status_code=429,
                 content={
@@ -154,13 +200,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 headers={"Retry-After": "60"},
             )
         
-        # Cleanup old entries (simple approach)
-        old_keys = [
-            k for k in self._request_counts.keys()
-            if int(k.split(":")[1]) < current_minute - 5
-        ]
-        for k in old_keys:
-            del self._request_counts[k]
+        # Cleanup old entries periodically
+        if len(self._fallback_counts) > 10000:
+            old_keys = [
+                k for k in self._fallback_counts.keys()
+                if int(k.split(":")[1]) < current_minute - 5
+            ]
+            for k in old_keys:
+                del self._fallback_counts[k]
         
         return await call_next(request)
 

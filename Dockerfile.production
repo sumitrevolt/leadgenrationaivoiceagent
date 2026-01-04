@@ -66,6 +66,9 @@ WORKDIR /app
 # Copy application code
 COPY --chown=appuser:appgroup app/ ./app/
 COPY --chown=appuser:appgroup data/ ./data/
+COPY --chown=appuser:appgroup scripts/ ./scripts/
+COPY --chown=appuser:appgroup alembic/ ./alembic/
+COPY --chown=appuser:appgroup alembic.ini ./
 
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data/conversations /app/data/feedback /app/data/vectorstore \
@@ -108,7 +111,7 @@ LABEL org.opencontainers.image.title="LeadGen AI Voice Agent" \
 # Run with uvicorn for production (multi-worker with uvloop for performance)
 # Workers are set via WEB_CONCURRENCY env var for Cloud Run compatibility
 # Cloud Run sets WEB_CONCURRENCY based on CPU allocation
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-4} --loop uvloop --http httptools --timeout-keep-alive 30 --timeout-graceful-shutdown 30"]
+CMD ["sh", "-c", "python scripts/startup_check.py && python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers ${WEB_CONCURRENCY:-4} --loop uvloop --http httptools --timeout-keep-alive 30 --timeout-graceful-shutdown 30"]
 
 # ============================================================================
 # Stage 3: Development image (optional)

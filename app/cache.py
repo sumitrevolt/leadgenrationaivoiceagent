@@ -5,6 +5,7 @@ Production-ready caching with Redis and in-memory fallback
 import json
 from typing import Any, Optional, Union
 from datetime import timedelta
+from functools import wraps
 import asyncio
 
 from app.config import settings
@@ -341,7 +342,7 @@ cache = CacheService()
 class RateLimiter:
     """
     Distributed rate limiter using Redis
-    Uses sliding window algorithm
+    Uses sliding window counter algorithm for accurate rate limiting
     """
     
     def __init__(
@@ -360,7 +361,7 @@ class RateLimiter:
     
     async def is_allowed(self, identifier: str) -> tuple[bool, int]:
         """
-        Check if request is allowed
+        Check if request is allowed using sliding window counter
         Returns (allowed, remaining_requests)
         """
         client = await get_redis_client()
@@ -394,6 +395,82 @@ class RateLimiter:
         client = await get_redis_client()
         key = self._key(identifier)
         return await client.delete(key) > 0
+    
+    async def get_info(self, identifier: str) -> dict:
+        """Get detailed rate limit info for an identifier"""
+        client = await get_redis_client()
+        key = self._key(identifier)
+        
+        current = await client.get(key)
+        ttl = await client.ttl(key)
+        
+        if current is None:
+            current = 0
+        else:
+            current = int(current)
+        
+        return {
+            "identifier": identifier,
+            "requests_made": current,
+            "requests_limit": self.max_requests,
+            "requests_remaining": max(0, self.max_requests - current),
+            "window_seconds": self.window_seconds,
+            "reset_in_seconds": max(0, ttl) if ttl > 0 else self.window_seconds,
+        }
+
+
+class RedisRateLimiter(RateLimiter):
+    """
+    Enhanced Redis rate limiter with sliding window log algorithm
+    More accurate but uses more memory
+    """
+    
+    def __init__(
+        self,
+        prefix: str = "ratelimit:sw",
+        requests_per_minute: int = 100,
+    ):
+        super().__init__(prefix, requests_per_minute, 60)
+    
+    async def is_allowed(self, identifier: str) -> tuple[bool, dict]:
+        """
+        Check if request is allowed using sliding window log
+        Returns (allowed, info_dict)
+        """
+        import time
+        
+        client = await get_redis_client()
+        key = self._key(identifier)
+        now = time.time()
+        window_start = now - self.window_seconds
+        
+        try:
+            # Use sorted set for sliding window log
+            # Remove old entries
+            await client.zremrangebyscore(key, 0, window_start)
+            
+            # Count current requests
+            current = await client.zcard(key)
+            
+            if current >= self.max_requests:
+                return False, {
+                    "remaining": 0,
+                    "reset": int(now + self.window_seconds),
+                    "limit": self.max_requests,
+                }
+            
+            # Add current request
+            await client.zadd(key, {str(now): now})
+            await client.expire(key, self.window_seconds + 1)
+            
+            return True, {
+                "remaining": self.max_requests - current - 1,
+                "reset": int(now + self.window_seconds),
+                "limit": self.max_requests,
+            }
+        except AttributeError:
+            # Fallback for in-memory cache
+            return await super().is_allowed(identifier)
 
 
 # =============================================================================
@@ -472,3 +549,173 @@ class SessionCache:
 # Default instances
 session_cache = SessionCache()
 rate_limiter = RateLimiter(max_requests=settings.rate_limit_per_minute)
+
+
+# =============================================================================
+# DISTRIBUTED LOCK (Production Critical)
+# =============================================================================
+
+class DistributedLock:
+    """
+    Redis-based distributed lock for critical sections
+    Prevents race conditions across multiple instances
+    """
+    
+    def __init__(
+        self,
+        name: str,
+        timeout: int = 10,
+        blocking: bool = True,
+        blocking_timeout: float = 5.0,
+    ):
+        self.name = f"lock:{name}"
+        self.timeout = timeout
+        self.blocking = blocking
+        self.blocking_timeout = blocking_timeout
+        self._token: Optional[str] = None
+    
+    async def acquire(self) -> bool:
+        """Acquire the lock"""
+        import secrets
+        import time
+        
+        client = await get_redis_client()
+        self._token = secrets.token_urlsafe(16)
+        
+        if self.blocking:
+            start_time = time.time()
+            while time.time() - start_time < self.blocking_timeout:
+                acquired = await client.set(
+                    self.name,
+                    self._token,
+                    ex=self.timeout,
+                    nx=True,
+                )
+                if acquired:
+                    return True
+                await asyncio.sleep(0.1)
+            return False
+        else:
+            acquired = await client.set(
+                self.name,
+                self._token,
+                ex=self.timeout,
+                nx=True,
+            )
+            return bool(acquired)
+    
+    async def release(self) -> bool:
+        """Release the lock (only if we own it)"""
+        if not self._token:
+            return False
+        
+        client = await get_redis_client()
+        
+        # Lua script for atomic check-and-delete
+        # This ensures we only delete if we own the lock
+        lua_script = """
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+            return redis.call("del", KEYS[1])
+        else
+            return 0
+        end
+        """
+        
+        try:
+            # Try to use eval for Redis
+            result = await client.eval(lua_script, 1, self.name, self._token)
+            return bool(result)
+        except AttributeError:
+            # Fallback for in-memory cache
+            current = await client.get(self.name)
+            if current == self._token:
+                await client.delete(self.name)
+                return True
+            return False
+    
+    async def extend(self, additional_time: int) -> bool:
+        """Extend the lock timeout"""
+        if not self._token:
+            return False
+        
+        client = await get_redis_client()
+        current = await client.get(self.name)
+        
+        if current == self._token:
+            await client.expire(self.name, additional_time)
+            return True
+        return False
+    
+    async def __aenter__(self):
+        """Context manager entry"""
+        acquired = await self.acquire()
+        if not acquired:
+            raise TimeoutError(f"Could not acquire lock: {self.name}")
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit"""
+        await self.release()
+        return False
+
+
+# =============================================================================
+# CACHE DECORATOR
+# =============================================================================
+
+def cache_response(ttl: int = 300, prefix: str = "response"):
+    """
+    Decorator to cache endpoint responses
+    
+    Usage:
+        @router.get("/data")
+        @cache_response(ttl=60)
+        async def get_data():
+            return {"data": "value"}
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Generate cache key from function name and arguments
+            import hashlib
+            
+            key_parts = [func.__name__]
+            key_parts.extend(str(a) for a in args)
+            key_parts.extend(f"{k}={v}" for k, v in sorted(kwargs.items()))
+            
+            key_str = ":".join(key_parts)
+            cache_key = f"{prefix}:{hashlib.sha256(key_str.encode()).hexdigest()[:16]}"
+            
+            # Try to get from cache
+            cached = await cache.get(cache_key)
+            if cached is not None:
+                return cached
+            
+            # Execute function and cache result
+            result = await func(*args, **kwargs)
+            await cache.set(cache_key, result, ttl=ttl)
+            
+            return result
+        return wrapper
+    return decorator
+
+
+# Export all classes and functions
+__all__ = [
+    "get_redis_client",
+    "close_redis_client",
+    "InMemoryCache",
+    "CacheService",
+    "cache",
+    "RateLimiter",
+    "RedisRateLimiter",
+    "rate_limiter",
+    "SessionCache",
+    "session_cache",
+    "DistributedLock",
+    "cache_response",
+    "Cache",
+]
+
+# Alias for backwards compatibility
+Cache = CacheService

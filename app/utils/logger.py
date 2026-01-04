@@ -2,6 +2,7 @@
 Logger Utility
 Production-ready centralized logging configuration
 Supports structured JSON logging for cloud environments
+Integrates with Google Cloud Logging in production
 """
 import logging
 import sys
@@ -11,6 +12,50 @@ from datetime import datetime
 import os
 
 from app.config import settings
+
+
+# =============================================================================
+# CLOUD LOGGING SETUP (Production)
+# =============================================================================
+
+_cloud_logging_initialized = False
+
+
+def setup_cloud_logging():
+    """
+    Initialize Google Cloud Logging for production
+    Automatically sends logs to Cloud Logging with proper severity levels
+    """
+    global _cloud_logging_initialized
+    
+    if _cloud_logging_initialized:
+        return
+    
+    if settings.app_env != "production":
+        return
+    
+    try:
+        import google.cloud.logging as cloud_logging
+        from google.cloud.logging_v2.handlers import CloudLoggingHandler
+        
+        # Initialize Cloud Logging client
+        client = cloud_logging.Client()
+        
+        # Create handler that writes to Cloud Logging
+        handler = CloudLoggingHandler(client, name="leadgen-ai")
+        
+        # Attach to root logger
+        root_logger = logging.getLogger()
+        root_logger.addHandler(handler)
+        
+        _cloud_logging_initialized = True
+        print("? Google Cloud Logging initialized")
+        
+    except ImportError:
+        # google-cloud-logging not installed, use standard logging
+        pass
+    except Exception as e:
+        print(f"?? Could not initialize Cloud Logging: {e}")
 
 
 # =============================================================================
@@ -123,6 +168,10 @@ def setup_logger(
         level = getattr(logging, level_name, logging.INFO)
     
     logger.setLevel(level)
+    
+    # Initialize Cloud Logging in production
+    if settings.app_env == "production":
+        setup_cloud_logging()
     
     # Determine if we should use JSON logging (production)
     use_json = settings.app_env == "production"
