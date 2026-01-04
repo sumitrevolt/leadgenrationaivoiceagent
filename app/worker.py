@@ -16,7 +16,8 @@ celery_app = Celery(
         "app.tasks.scraping",
         "app.tasks.calling",
         "app.tasks.reporting",
-        "app.tasks.sync"
+        "app.tasks.sync",
+        "app.tasks.brain_training",  # Brain training tasks
     ]
 )
 
@@ -92,6 +93,53 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.reporting.clean_old_logs",
         "schedule": crontab(hour=0, minute=0),
         "args": (),
+    },
+    
+    # ========================================
+    # BRAIN TRAINING - Billionaire Mode
+    # Continuous, automated brain improvement
+    # ========================================
+    
+    # Train all brains every 6 hours
+    "brain-training-all": {
+        "task": "app.tasks.brain_training.train_all_brains",
+        "schedule": crontab(hour="*/6", minute=30),  # Every 6 hours at :30
+        "args": (),
+    },
+    
+    # Continuous training health check (every hour)
+    "brain-training-check": {
+        "task": "app.tasks.brain_training.continuous_training_check",
+        "schedule": crontab(minute=45),  # Every hour at :45
+        "args": (),
+    },
+    
+    # Deep web knowledge update (daily at 4 AM)
+    "brain-web-knowledge": {
+        "task": "app.tasks.brain_training.web_knowledge_update",
+        "schedule": crontab(hour=4, minute=0),
+        "args": (),
+    },
+    
+    # Sub-Agent Brain training (every 6 hours, offset)
+    "brain-sub-agent": {
+        "task": "app.tasks.brain_training.train_brain",
+        "schedule": crontab(hour="2,8,14,20", minute=0),
+        "args": ("sub_agent", "scheduled"),
+    },
+    
+    # Voice Agent Brain training (every 6 hours, offset)
+    "brain-voice-agent": {
+        "task": "app.tasks.brain_training.train_brain",
+        "schedule": crontab(hour="2,8,14,20", minute=15),
+        "args": ("voice_agent", "scheduled"),
+    },
+    
+    # Production Brain training (every 6 hours, offset)
+    "brain-production": {
+        "task": "app.tasks.brain_training.train_brain",
+        "schedule": crontab(hour="2,8,14,20", minute=30),
+        "args": ("production", "scheduled"),
     },
 }
 

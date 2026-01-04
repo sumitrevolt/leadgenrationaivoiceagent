@@ -338,3 +338,292 @@ async def stop_scheduler():
     except Exception as e:
         logger.error(f"Failed to stop scheduler: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ========================================
+# BRAIN TRAINING API - Billionaire Mode
+# ========================================
+
+class BrainTrainingRequest(BaseModel):
+    brain_type: str = "all"  # "all", "sub_agent", "voice_agent", "production"
+    trigger: str = "scheduled"  # "scheduled", "behavior", "error_rate", "user_feedback"
+    force: bool = False
+
+
+class BrainFeedbackRequest(BaseModel):
+    brain_type: str
+    action: str
+    accepted: bool
+    feedback_score: Optional[float] = None
+
+
+@router.get("/brain/status")
+async def get_brain_training_status():
+    """
+    Get brain training status for all three brains
+    
+    Returns training history, behavior counts, and last training times.
+    """
+    try:
+        from app.ml.brain_auto_trainer import get_brain_auto_trainer
+        trainer = get_brain_auto_trainer()
+        
+        status = {
+            "billionaire_mode": True,
+            "last_training": {
+                k: v.isoformat() for k, v in trainer.last_training.items()
+            },
+            "behavior_counts": {
+                k: len(v) for k, v in trainer.behaviors.items()
+            },
+            "total_sessions": len(trainer.training_sessions),
+            "brains": ["sub_agent", "voice_agent", "production"],
+            "recent_sessions": [],
+        }
+        
+        # Add last 10 training sessions
+        for session in trainer.training_sessions[-10:]:
+            status["recent_sessions"].append({
+                "session_id": session.session_id,
+                "brain_type": session.brain_type,
+                "trigger": session.trigger.value,
+                "status": session.status,
+                "improvement": session.improvement,
+                "behaviors_analyzed": session.behaviors_analyzed,
+                "patterns_learned": session.patterns_learned,
+                "web_searches": session.web_searches,
+                "skills_enhanced": session.skills_enhanced,
+                "started_at": session.started_at.isoformat(),
+                "completed_at": session.completed_at.isoformat() if session.completed_at else None,
+            })
+        
+        return {"success": True, "status": status}
+        
+    except Exception as e:
+        logger.error(f"Failed to get brain training status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/brain/train")
+async def train_brains(
+    request: BrainTrainingRequest,
+    background_tasks: BackgroundTasks
+):
+    """
+    Trigger brain training manually
+    
+    Can train all brains or a specific brain.
+    """
+    try:
+        if request.brain_type == "all":
+            # Use Celery for all brains training
+            from app.tasks.brain_training import train_all_brains
+            task = train_all_brains.delay(force=request.force)
+            
+            return {
+                "success": True,
+                "message": "All brains training started",
+                "task_id": task.id,
+                "brain_type": "all",
+            }
+        else:
+            # Train specific brain
+            from app.tasks.brain_training import train_brain
+            task = train_brain.delay(request.brain_type, request.trigger)
+            
+            return {
+                "success": True,
+                "message": f"{request.brain_type} brain training started",
+                "task_id": task.id,
+                "brain_type": request.brain_type,
+            }
+            
+    except Exception as e:
+        logger.error(f"Failed to trigger brain training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/brain/train/now")
+async def train_brains_immediate(request: BrainTrainingRequest):
+    """
+    Train brains immediately (synchronous, for testing)
+    
+    WARNING: This blocks the request until training completes.
+    Use /brain/train for production workloads.
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator
+        orchestrator = get_brain_orchestrator()
+        
+        if not orchestrator.auto_trainer:
+            raise HTTPException(status_code=503, detail="Brain auto-trainer not available")
+        
+        from app.ml.brain_auto_trainer import TrainingTrigger
+        
+        trigger_map = {
+            "behavior": TrainingTrigger.BEHAVIOR,
+            "performance": TrainingTrigger.PERFORMANCE,
+            "scheduled": TrainingTrigger.SCHEDULED,
+            "web_update": TrainingTrigger.WEB_UPDATE,
+            "user_feedback": TrainingTrigger.USER_FEEDBACK,
+            "error_rate": TrainingTrigger.ERROR_RATE,
+        }
+        trigger_enum = trigger_map.get(request.trigger, TrainingTrigger.SCHEDULED)
+        
+        results = {}
+        
+        if request.brain_type == "all":
+            brain_types = ["sub_agent", "voice_agent", "production"]
+        else:
+            brain_types = [request.brain_type]
+        
+        for brain_type in brain_types:
+            session = await orchestrator.auto_trainer.train_brain(brain_type, trigger_enum)
+            results[brain_type] = {
+                "session_id": session.session_id,
+                "status": session.status,
+                "improvement": session.improvement,
+                "behaviors_analyzed": session.behaviors_analyzed,
+                "patterns_learned": session.patterns_learned,
+            }
+        
+        return {
+            "success": True,
+            "message": "Brain training completed",
+            "results": results,
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to train brains: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/brain/feedback")
+async def record_brain_feedback(request: BrainFeedbackRequest):
+    """
+    Record user feedback for brain actions
+    
+    Used to improve brain training based on what users accept/reject.
+    """
+    try:
+        from app.ml.brain_auto_trainer import get_brain_auto_trainer
+        trainer = get_brain_auto_trainer()
+        
+        # Find matching behavior and update
+        behaviors = trainer.behaviors.get(request.brain_type, [])
+        updated = False
+        
+        for behavior in reversed(behaviors):
+            if behavior.action == request.action and behavior.user_accepted is None:
+                behavior.user_accepted = request.accepted
+                behavior.feedback_score = request.feedback_score
+                updated = True
+                break
+        
+        if updated:
+            logger.info(f"📝 Recorded feedback for {request.brain_type}/{request.action}: accepted={request.accepted}")
+            return {
+                "success": True,
+                "message": "Feedback recorded",
+                "brain_type": request.brain_type,
+                "action": request.action,
+                "accepted": request.accepted,
+            }
+        else:
+            return {
+                "success": False,
+                "message": "No matching behavior found to update",
+            }
+            
+    except Exception as e:
+        logger.error(f"Failed to record feedback: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/brain/metrics")
+async def get_brain_metrics():
+    """
+    Get detailed brain training metrics
+    
+    Includes success rates, latency, and improvement trends.
+    """
+    try:
+        from app.ml.brain_auto_trainer import get_brain_auto_trainer
+        trainer = get_brain_auto_trainer()
+        
+        metrics = {
+            "brains": {},
+            "overall": {
+                "total_behaviors": 0,
+                "total_sessions": len(trainer.training_sessions),
+                "avg_improvement": 0,
+            }
+        }
+        
+        total_improvement = 0
+        completed_sessions = [s for s in trainer.training_sessions if s.status == "completed"]
+        
+        for brain_type in ["sub_agent", "voice_agent", "production"]:
+            behaviors = trainer.behaviors.get(brain_type, [])
+            sessions = [s for s in completed_sessions if s.brain_type == brain_type]
+            
+            # Calculate behavior metrics
+            successful = [b for b in behaviors if b.success]
+            accepted = [b for b in behaviors if b.user_accepted]
+            
+            brain_metrics = {
+                "total_behaviors": len(behaviors),
+                "success_rate": len(successful) / len(behaviors) if behaviors else 0,
+                "acceptance_rate": len(accepted) / len([b for b in behaviors if b.user_accepted is not None]) if any(b.user_accepted is not None for b in behaviors) else 0,
+                "avg_latency_ms": sum(b.latency_ms for b in behaviors) / len(behaviors) if behaviors else 0,
+                "total_sessions": len(sessions),
+                "avg_improvement": sum(s.improvement for s in sessions) / len(sessions) if sessions else 0,
+                "last_trained": trainer.last_training.get(brain_type, None),
+            }
+            
+            if brain_metrics["last_trained"]:
+                brain_metrics["last_trained"] = brain_metrics["last_trained"].isoformat()
+            
+            metrics["brains"][brain_type] = brain_metrics
+            metrics["overall"]["total_behaviors"] += len(behaviors)
+            total_improvement += brain_metrics["avg_improvement"]
+        
+        metrics["overall"]["avg_improvement"] = total_improvement / 3
+        
+        return {"success": True, "metrics": metrics}
+        
+    except Exception as e:
+        logger.error(f"Failed to get brain metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/brain/health")
+async def get_brain_health():
+    """
+    Get health status of all three brains
+    """
+    try:
+        from app.ml.brain_orchestrator import get_brain_orchestrator
+        orchestrator = get_brain_orchestrator()
+        
+        health = {}
+        for brain_type, brain_health in orchestrator.brain_health.items():
+            health[brain_type.value] = {
+                "status": brain_health.status.value,
+                "last_used": brain_health.last_used.isoformat(),
+                "requests_handled": brain_health.requests_handled,
+                "avg_response_ms": round(brain_health.avg_response_ms, 2),
+                "error_count": brain_health.error_count,
+                "billionaire_mode": brain_health.billionaire_mode,
+            }
+        
+        return {
+            "success": True,
+            "health": health,
+            "billionaire_mode": orchestrator.billionaire_mode,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get brain health: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
