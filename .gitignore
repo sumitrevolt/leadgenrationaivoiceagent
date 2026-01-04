@@ -87,7 +87,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-models/
+# Only exclude root-level models directory (ML models), NOT app/models
+/models
 *.gguf
 
 # Spyder project settings

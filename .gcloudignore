@@ -20,7 +20,12 @@ tfplan*
 .coverage
 htmlcov
 *.log
-data/
+# Include data directory but exclude large files
+!data
+!data/**
+data/leadgen_dev.db
+data/*.db
+data/*.sqlite
 # tests/  <-- Allowing tests for Cloud Build
 # docs/
 *.md
@@ -29,7 +34,8 @@ data/
 *.swp
 *.swo
 infrastructure/terraform/.terraform
-models/
+# Only exclude root-level models directory (ML models), NOT app/models
+/models
 auraleads_extracted/
 revenue_pipeline/
 frontend/
