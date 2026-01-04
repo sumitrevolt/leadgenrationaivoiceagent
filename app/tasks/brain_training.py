@@ -382,6 +382,8 @@ def record_feedback(
     """
     try:
         from app.ml.brain_auto_trainer import get_brain_auto_trainer
+        from app.ml.vertex_continuous_trainer import record_brain_behavior
+        
         trainer = get_brain_auto_trainer()
         
         # Find most recent behavior of this type and update
@@ -390,6 +392,15 @@ def record_feedback(
             if behavior.action == action and behavior.user_accepted is None:
                 behavior.user_accepted = accepted
                 behavior.feedback_score = feedback_score
+                
+                # Also record in Vertex trainer
+                record_brain_behavior(
+                    brain_type=brain_type,
+                    action=action,
+                    success=accepted,
+                    latency_ms=behavior.latency_ms,
+                    user_accepted=accepted,
+                )
                 
                 logger.info(f"📝 Recorded feedback for {brain_type}/{action}: accepted={accepted}")
                 
@@ -405,6 +416,280 @@ def record_feedback(
         
     except Exception as e:
         logger.error(f"Failed to record feedback: {e}")
+        return {"error": str(e)}
+
+
+# ============================================================================
+# PRODUCTION-READY VERTEX AI CONTINUOUS TRAINING TASKS
+# ============================================================================
+
+@celery_app.task(
+    bind=True,
+    name="app.tasks.brain_training.vertex_train_all",
+    max_retries=3,
+    default_retry_delay=300,
+    autoretry_for=(Exception,),
+    acks_late=True,
+)
+def vertex_train_all(self, force: bool = False) -> Dict[str, Any]:
+    """
+    PRODUCTION-READY: Train all brains using Vertex AI
+    
+    This is the billionaire-mode training that uses Vertex AI for:
+    - Intelligent behavior pattern analysis
+    - Improvement generation with billionaire mindset
+    - Knowledge updates from latest best practices
+    - Skill enhancement aligned with revenue goals
+    
+    Runs every 6 hours via Celery beat.
+    """
+    logger.info("🚀 VERTEX AI TRAINING: All brains (BILLIONAIRE MODE)")
+    
+    try:
+        from app.ml.vertex_continuous_trainer import get_vertex_continuous_trainer
+        trainer = get_vertex_continuous_trainer()
+        
+        results = run_async(trainer.train_all_brains_now())
+        
+        _save_training_report("vertex_all_brains", results)
+        
+        logger.info(f"✅ VERTEX AI training completed: {results}")
+        return results
+        
+    except Exception as e:
+        logger.error(f"❌ Vertex AI training failed: {e}")
+        raise self.retry(exc=e)
+
+
+@celery_app.task(
+    bind=True,
+    name="app.tasks.brain_training.vertex_continuous_check",
+    max_retries=1,
+    acks_late=True,
+)
+def vertex_continuous_check(self) -> Dict[str, Any]:
+    """
+    PRODUCTION-READY: Continuous health check with auto-training
+    
+    Runs every 15 minutes to check brain health and trigger
+    training if error rates or rejection rates exceed thresholds.
+    
+    Billionaire principle: Fix problems before they impact revenue
+    """
+    logger.info("🔍 VERTEX: Continuous health check...")
+    
+    try:
+        from app.ml.vertex_continuous_trainer import get_vertex_continuous_trainer
+        trainer = get_vertex_continuous_trainer()
+        
+        brains_trained = []
+        checks = {}
+        
+        for brain_type in ["sub_agent", "voice_agent", "production"]:
+            should_train, priority, reason = run_async(trainer._should_train(brain_type))
+            
+            checks[brain_type] = {
+                "should_train": should_train,
+                "priority": priority.name,
+                "reason": reason,
+                "behaviors_pending": len(trainer.behavior_buffer.get(brain_type, [])),
+            }
+            
+            if should_train:
+                # Trigger async training
+                vertex_train_brain.delay(brain_type, priority.value, reason)
+                brains_trained.append(brain_type)
+                logger.info(f"⚡ Triggered Vertex training for {brain_type}: {reason}")
+        
+        result = {
+            "checked_at": datetime.now().isoformat(),
+            "checks": checks,
+            "training_triggered": brains_trained,
+            "billionaire_mode": True,
+        }
+        
+        logger.info(f"✅ Continuous check completed. Triggered: {brains_trained}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ Continuous check failed: {e}")
+        return {"error": str(e), "checked_at": datetime.now().isoformat()}
+
+
+@celery_app.task(
+    bind=True,
+    name="app.tasks.brain_training.vertex_train_brain",
+    max_retries=3,
+    default_retry_delay=120,
+    autoretry_for=(Exception,),
+    acks_late=True,
+)
+def vertex_train_brain(
+    self,
+    brain_type: str,
+    priority: int = 3,
+    trigger_reason: str = "scheduled",
+) -> Dict[str, Any]:
+    """
+    PRODUCTION-READY: Train a specific brain with Vertex AI
+    
+    Args:
+        brain_type: 'sub_agent', 'voice_agent', or 'production'
+        priority: 1=CRITICAL, 2=HIGH, 3=NORMAL, 4=LOW, 5=MAINTENANCE
+        trigger_reason: What triggered this training
+    """
+    logger.info(f"🧠 VERTEX: Training {brain_type} (priority: {priority}, reason: {trigger_reason})")
+    
+    try:
+        from app.ml.vertex_continuous_trainer import (
+            get_vertex_continuous_trainer,
+            TrainingPriority,
+        )
+        trainer = get_vertex_continuous_trainer()
+        
+        # Map priority int to enum
+        priority_map = {
+            1: TrainingPriority.CRITICAL,
+            2: TrainingPriority.HIGH,
+            3: TrainingPriority.NORMAL,
+            4: TrainingPriority.LOW,
+            5: TrainingPriority.MAINTENANCE,
+        }
+        priority_enum = priority_map.get(priority, TrainingPriority.NORMAL)
+        
+        metrics = run_async(
+            trainer.train_brain_with_vertex(brain_type, priority_enum, trigger_reason)
+        )
+        
+        result = {
+            "brain_type": brain_type,
+            "status": "completed" if metrics.completed_at else "failed",
+            "improvement_percent": metrics.improvement_percent,
+            "training_duration_seconds": metrics.training_duration_seconds,
+            "vertex_calls": metrics.vertex_calls,
+            "behaviors_analyzed": metrics.behaviors_analyzed,
+            "patterns_discovered": metrics.patterns_discovered,
+            "improvements_generated": metrics.improvements_generated,
+            "skills_enhanced": metrics.skills_enhanced,
+            "revenue_impact_score": metrics.revenue_impact_score,
+            "scale_readiness_score": metrics.scale_readiness_score,
+            "automation_score": metrics.automation_score,
+        }
+        
+        _save_training_report(f"vertex_{brain_type}", result)
+        
+        logger.info(
+            f"✅ VERTEX: {brain_type} training done: "
+            f"{metrics.improvement_percent:.1f}% improvement, "
+            f"revenue impact: {metrics.revenue_impact_score:.2f}"
+        )
+        return result
+        
+    except Exception as e:
+        logger.error(f"❌ Vertex brain training failed: {e}")
+        raise self.retry(exc=e)
+
+
+@celery_app.task(
+    bind=True,
+    name="app.tasks.brain_training.vertex_knowledge_update",
+    max_retries=2,
+    default_retry_delay=600,
+    acks_late=True,
+)
+def vertex_knowledge_update(self) -> Dict[str, Any]:
+    """
+    PRODUCTION-READY: Update all brains with latest knowledge via Vertex AI
+    
+    Uses Vertex AI to:
+    - Search for latest best practices
+    - Update brain knowledge bases
+    - Apply billionaire mindset learnings
+    
+    Runs daily at 4 AM.
+    """
+    logger.info("🌐 VERTEX: Knowledge update for all brains...")
+    
+    try:
+        from app.ml.vertex_continuous_trainer import get_vertex_continuous_trainer
+        trainer = get_vertex_continuous_trainer()
+        
+        results = {}
+        for brain_type in ["sub_agent", "voice_agent", "production"]:
+            try:
+                knowledge = run_async(trainer._update_knowledge_vertex(brain_type))
+                results[brain_type] = {
+                    "status": "success",
+                    "knowledge_items": len(knowledge),
+                    "topics_updated": [k.get("topic", "unknown") for k in knowledge],
+                }
+            except Exception as e:
+                results[brain_type] = {"status": "failed", "error": str(e)}
+        
+        logger.info(f"✅ VERTEX: Knowledge update completed")
+        return {
+            "updated_at": datetime.now().isoformat(),
+            "results": results,
+            "billionaire_mode": True,
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Vertex knowledge update failed: {e}")
+        raise self.retry(exc=e)
+
+
+@celery_app.task(
+    name="app.tasks.brain_training.get_vertex_status",
+)
+def get_vertex_status() -> Dict[str, Any]:
+    """
+    Get Vertex AI continuous training status
+    
+    Returns comprehensive status including:
+    - Training configuration
+    - Per-brain status
+    - Recent training sessions
+    - Billionaire metrics
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import get_vertex_continuous_trainer
+        trainer = get_vertex_continuous_trainer()
+        
+        return run_async(trainer.get_training_status())
+        
+    except Exception as e:
+        logger.error(f"Failed to get Vertex status: {e}")
+        return {"error": str(e)}
+
+
+@celery_app.task(
+    name="app.tasks.brain_training.start_vertex_continuous",
+)
+def start_vertex_continuous() -> Dict[str, Any]:
+    """
+    Start Vertex AI continuous training loop
+    
+    This starts a background loop that continuously monitors
+    brain health and triggers training as needed.
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import start_continuous_training
+        return run_async(start_continuous_training())
+    except Exception as e:
+        logger.error(f"Failed to start continuous training: {e}")
+        return {"error": str(e)}
+
+
+@celery_app.task(
+    name="app.tasks.brain_training.stop_vertex_continuous",
+)
+def stop_vertex_continuous() -> Dict[str, Any]:
+    """Stop Vertex AI continuous training loop"""
+    try:
+        from app.ml.vertex_continuous_trainer import stop_continuous_training
+        return run_async(stop_continuous_training())
+    except Exception as e:
+        logger.error(f"Failed to stop continuous training: {e}")
         return {"error": str(e)}
 
 
@@ -426,10 +711,19 @@ def _save_training_report(brain_type: str, results: Dict[str, Any]):
 
 # Export task names for Celery beat schedule
 BRAIN_TRAINING_TASKS = [
+    # Original tasks
     "app.tasks.brain_training.train_all_brains",
     "app.tasks.brain_training.train_brain",
     "app.tasks.brain_training.continuous_training_check",
     "app.tasks.brain_training.web_knowledge_update",
     "app.tasks.brain_training.get_training_status",
     "app.tasks.brain_training.record_feedback",
+    # Vertex AI production-ready tasks
+    "app.tasks.brain_training.vertex_train_all",
+    "app.tasks.brain_training.vertex_continuous_check",
+    "app.tasks.brain_training.vertex_train_brain",
+    "app.tasks.brain_training.vertex_knowledge_update",
+    "app.tasks.brain_training.get_vertex_status",
+    "app.tasks.brain_training.start_vertex_continuous",
+    "app.tasks.brain_training.stop_vertex_continuous",
 ]

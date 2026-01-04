@@ -141,6 +141,32 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour="2,8,14,20", minute=30),
         "args": ("production", "scheduled"),
     },
+    
+    # ========================================
+    # VERTEX AI PRODUCTION-READY TRAINING
+    # Billionaire Mode - Maximum AI Leverage
+    # ========================================
+    
+    # Vertex AI: Train all brains (every 4 hours for production readiness)
+    "vertex-train-all": {
+        "task": "app.tasks.brain_training.vertex_train_all",
+        "schedule": crontab(hour="*/4", minute=0),  # Every 4 hours
+        "args": (),
+    },
+    
+    # Vertex AI: Continuous health check (every 15 minutes)
+    "vertex-continuous-check": {
+        "task": "app.tasks.brain_training.vertex_continuous_check",
+        "schedule": crontab(minute="*/15"),  # Every 15 minutes
+        "args": (),
+    },
+    
+    # Vertex AI: Knowledge update (twice daily)
+    "vertex-knowledge-update": {
+        "task": "app.tasks.brain_training.vertex_knowledge_update",
+        "schedule": crontab(hour="4,16", minute=30),  # 4:30 AM and 4:30 PM
+        "args": (),
+    },
 }
 
 

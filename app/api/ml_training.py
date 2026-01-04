@@ -627,3 +627,297 @@ async def get_brain_health():
     except Exception as e:
         logger.error(f"Failed to get brain health: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# VERTEX AI PRODUCTION-READY CONTINUOUS TRAINING ENDPOINTS
+# Billionaire Mode - Maximum AI Leverage for Project Readiness
+# ============================================================================
+
+
+class VertexTrainRequest(BaseModel):
+    brain_type: str = "all"  # "all", "sub_agent", "voice_agent", "production"
+    priority: int = 3  # 1=CRITICAL, 2=HIGH, 3=NORMAL, 4=LOW, 5=MAINTENANCE
+    trigger_reason: str = "manual"
+
+
+@router.get("/vertex/status")
+async def get_vertex_training_status():
+    """
+    Get Vertex AI continuous training status
+    
+    Returns comprehensive status for production readiness:
+    - Training configuration
+    - Per-brain training status
+    - Billionaire metrics (revenue impact, scale readiness)
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import get_vertex_continuous_trainer
+        trainer = get_vertex_continuous_trainer()
+        
+        status = await trainer.get_training_status()
+        return {
+            "success": True,
+            "production_ready": True,
+            "status": status,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get Vertex status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/vertex/train")
+async def trigger_vertex_training(
+    request: VertexTrainRequest,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Trigger Vertex AI training for brains (async via Celery)
+    
+    BILLIONAIRE MODE: Uses Vertex AI for intelligent training with:
+    - Behavior pattern analysis
+    - Improvement generation aligned with revenue goals
+    - Knowledge updates from latest best practices
+    """
+    try:
+        from app.tasks.brain_training import vertex_train_all, vertex_train_brain
+        
+        if request.brain_type == "all":
+            task = vertex_train_all.delay()
+            return {
+                "success": True,
+                "message": "Vertex AI training started for ALL brains",
+                "task_id": task.id,
+                "billionaire_mode": True,
+            }
+        else:
+            task = vertex_train_brain.delay(
+                request.brain_type,
+                request.priority,
+                request.trigger_reason,
+            )
+            return {
+                "success": True,
+                "message": f"Vertex AI training started for {request.brain_type}",
+                "task_id": task.id,
+                "priority": request.priority,
+            }
+            
+    except Exception as e:
+        logger.error(f"Failed to trigger Vertex training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/vertex/train/now")
+async def vertex_train_now(request: VertexTrainRequest):
+    """
+    Immediate Vertex AI training (synchronous)
+    
+    Use this for production-critical training needs.
+    Runs training immediately and returns results.
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import get_vertex_continuous_trainer
+        trainer = get_vertex_continuous_trainer()
+        
+        if request.brain_type == "all":
+            results = await trainer.train_all_brains_now()
+            return {
+                "success": True,
+                "message": "Vertex AI training completed for all brains",
+                "results": results,
+            }
+        else:
+            from app.ml.vertex_continuous_trainer import TrainingPriority
+            priority_map = {
+                1: TrainingPriority.CRITICAL,
+                2: TrainingPriority.HIGH,
+                3: TrainingPriority.NORMAL,
+                4: TrainingPriority.LOW,
+                5: TrainingPriority.MAINTENANCE,
+            }
+            priority = priority_map.get(request.priority, TrainingPriority.NORMAL)
+            
+            metrics = await trainer.train_brain_with_vertex(
+                request.brain_type,
+                priority,
+                request.trigger_reason,
+            )
+            
+            return {
+                "success": True,
+                "message": f"Vertex AI training completed for {request.brain_type}",
+                "results": {
+                    "brain_type": metrics.brain_type,
+                    "improvement_percent": metrics.improvement_percent,
+                    "training_duration_seconds": metrics.training_duration_seconds,
+                    "vertex_calls": metrics.vertex_calls,
+                    "behaviors_analyzed": metrics.behaviors_analyzed,
+                    "patterns_discovered": metrics.patterns_discovered,
+                    "skills_enhanced": metrics.skills_enhanced,
+                    "revenue_impact_score": metrics.revenue_impact_score,
+                    "scale_readiness_score": metrics.scale_readiness_score,
+                    "automation_score": metrics.automation_score,
+                },
+            }
+            
+    except Exception as e:
+        logger.error(f"Failed immediate Vertex training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/vertex/continuous/start")
+async def start_vertex_continuous():
+    """
+    Start Vertex AI continuous training loop
+    
+    This enables 24/7 automated training with:
+    - Health checks every 15 minutes
+    - Auto-training when issues detected
+    - Revenue-focused optimization
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import (
+            get_vertex_continuous_trainer,
+            start_continuous_training,
+        )
+        
+        result = await start_continuous_training()
+        return {
+            "success": True,
+            "message": "Vertex AI continuous training started",
+            "billionaire_mode": True,
+            "status": result,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to start continuous training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/vertex/continuous/stop")
+async def stop_vertex_continuous():
+    """Stop Vertex AI continuous training loop"""
+    try:
+        from app.ml.vertex_continuous_trainer import stop_continuous_training
+        
+        result = await stop_continuous_training()
+        return {
+            "success": True,
+            "message": "Vertex AI continuous training stopped",
+            "status": result,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to stop continuous training: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class VertexBehaviorRecord(BaseModel):
+    brain_type: str
+    action: str
+    success: bool
+    latency_ms: int
+    user_accepted: Optional[bool] = None
+
+
+@router.post("/vertex/behavior")
+async def record_vertex_behavior(behavior: VertexBehaviorRecord):
+    """
+    Record a brain behavior for Vertex AI training
+    
+    This feeds the continuous training system with data
+    to improve brain performance over time.
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import record_brain_behavior
+        
+        record_brain_behavior(
+            brain_type=behavior.brain_type,
+            action=behavior.action,
+            success=behavior.success,
+            latency_ms=behavior.latency_ms,
+            user_accepted=behavior.user_accepted,
+        )
+        
+        return {
+            "success": True,
+            "message": "Behavior recorded for training",
+            "brain_type": behavior.brain_type,
+            "action": behavior.action,
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to record behavior: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/vertex/production-readiness")
+async def get_production_readiness():
+    """
+    Get production readiness assessment for all brains
+    
+    BILLIONAIRE MINDSET: Ensure everything is ready for 10,000x scale
+    
+    Returns scores for:
+    - Scale readiness (can handle 10,000x load)
+    - Revenue impact (aligned with revenue goals)
+    - Automation level (minimal manual intervention)
+    - Training freshness (recently trained)
+    """
+    try:
+        from app.ml.vertex_continuous_trainer import get_vertex_continuous_trainer
+        trainer = get_vertex_continuous_trainer()
+        
+        status = await trainer.get_training_status()
+        
+        # Calculate overall production readiness
+        brains = status.get("brains", {})
+        total_ready = sum(1 for b in brains.values() if b.get("ready_for_production", False))
+        all_trained = all(b.get("last_trained") for b in brains.values())
+        
+        # Get latest training metrics
+        metrics = {}
+        for brain_type in ["sub_agent", "voice_agent", "production"]:
+            recent = [m for m in trainer.training_history if m.brain_type == brain_type][-1:]
+            if recent:
+                m = recent[0]
+                metrics[brain_type] = {
+                    "revenue_impact": m.revenue_impact_score,
+                    "scale_readiness": m.scale_readiness_score,
+                    "automation": m.automation_score,
+                    "last_improvement": f"{m.improvement_percent:.1f}%",
+                }
+            else:
+                metrics[brain_type] = {
+                    "revenue_impact": 0.5,
+                    "scale_readiness": 0.5,
+                    "automation": 0.5,
+                    "last_improvement": "N/A",
+                }
+        
+        overall_score = (
+            sum(m.get("revenue_impact", 0) for m in metrics.values()) +
+            sum(m.get("scale_readiness", 0) for m in metrics.values()) +
+            sum(m.get("automation", 0) for m in metrics.values())
+        ) / 9  # 3 metrics * 3 brains
+        
+        return {
+            "success": True,
+            "production_ready": overall_score > 0.6 and all_trained,
+            "overall_score": round(overall_score * 100, 1),
+            "brains_ready": f"{total_ready}/3",
+            "all_trained": all_trained,
+            "billionaire_mode": True,
+            "metrics": metrics,
+            "recommendations": [
+                "Run vertex/train/now to train all brains immediately" if not all_trained else None,
+                "Start continuous training for 24/7 optimization" if not status.get("is_running") else None,
+                "Scale readiness needs improvement" if overall_score < 0.7 else None,
+            ],
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get production readiness: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

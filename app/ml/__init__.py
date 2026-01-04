@@ -50,6 +50,22 @@ from app.ml.brain_auto_trainer import (
     BILLIONAIRE_SKILLS,
 )
 
+# Vertex AI Continuous Trainer (Production-Ready)
+from app.ml.vertex_continuous_trainer import (
+    VertexContinuousTrainer,
+    VertexTrainingConfig,
+    TrainingMetrics,
+    TrainingPhase,
+    TrainingPriority,
+    get_vertex_continuous_trainer,
+    start_continuous_training,
+    stop_continuous_training,
+    train_all_now as vertex_train_all_now,
+    get_training_status as vertex_get_training_status,
+    record_brain_behavior,
+    BILLIONAIRE_TRAINING_PRINCIPLES,
+)
+
 __all__ = [
     # Data Pipeline
     "ConversationDataPipeline",
@@ -106,4 +122,18 @@ __all__ = [
     "SkillCategory",
     "BILLIONAIRE_MINDSET",
     "BILLIONAIRE_SKILLS",
+    
+    # Vertex AI Continuous Trainer (Production-Ready)
+    "VertexContinuousTrainer",
+    "VertexTrainingConfig",
+    "TrainingMetrics",
+    "TrainingPhase",
+    "TrainingPriority",
+    "get_vertex_continuous_trainer",
+    "start_continuous_training",
+    "stop_continuous_training",
+    "vertex_train_all_now",
+    "vertex_get_training_status",
+    "record_brain_behavior",
+    "BILLIONAIRE_TRAINING_PRINCIPLES",
 ]
