@@ -55,6 +55,13 @@
 - **Decided stack (research-backed)**: LangGraph 1.x supervisor (multi-agent orchestration, "graph wala" — 126k stars) + Qdrant single-collection payload-partitioned per-niche RAG (collection-per-niche MAT — Qdrant official guidance) + multilingual-e5-small ONNX embeddings (Hinglish) + Pipecat (voice, Phase 3) + fastapi_mcp (platform ko MCP server banao). GraphRAG/CrewAI/AutoGen/ADK skip (reasons doc me). LightRAG sirf future bade client-docs ke liye.
 - Roadmap: P1 Qdrant RAG + fastapi_mcp → P2 LangGraph supervisor (data/leads agents as nodes) → P3 Pipecat telephony → P4 LightRAG.
 
+## P1+P2 IMPLEMENTED + LIVE (2026-06-06, commit 0d6ce9d) — VPS verified
+- **Qdrant RAG live**: `_QdrantIndex` in knowledge_base.py — single `kb_main` collection, payload `{namespace,text,source}`, fastembed multilingual-e5-small (e5 prefixes), backend chain Qdrant→Chroma→keyword (QDRANT_URL empty = disabled). VPS: docker container `qdrant` (port 127.0.0.1:6333, /opt/qdrant_storage), store+retrieve verified.
+- **LangGraph supervisor live**: app/agents/supervisor.py — rule-based supervisor → data_agent (KB-grounded via client:/niche ns) | leads_agent (NICHES pitch/questions se outreach plan), dono LLMBrain/Gemini call karte. `POST /api/agents/run` (admin), `GET /api/agents/status`. AsyncSqliteSaver checkpointer data/agent_graph.db. VPS pe dono routes Gemini results de rahe.
+- **fastapi_mcp live**: `/mcp` pe Platform/Data/Agents endpoints MCP tools — "MCP server mounted" log VPS pe. Claude ab platform-admin ban sakta hai.
+- Deploy gotcha: deploy_vps.sh ka pip fallback naye deps skip kar sakta hai — fix: `.venv/bin/pip install langgraph langgraph-checkpoint-sqlite langchain-core fastapi-mcp qdrant-client fastembed` explicitly + restart. Old langchain==0.1.6/langchain-openai pins VPS se uninstall kar diye (codebase me unused the). Windows venv pe bhi naye deps install needed for tests (scripts/p12_install_test.bat).
+- Smoke: scripts/vps_agents_test.py (VPS pe PYTHONPATH ke saath). DC long-installs ke liye: launcher bat pattern (`start /min cmd /c`) + log poll — DC ~60s pe process kill kar deta hai warna.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
