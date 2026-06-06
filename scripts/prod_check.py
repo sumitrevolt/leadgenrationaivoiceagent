@@ -43,8 +43,17 @@ def check_sources_parse() -> None:
 
 
 def check_stale_pycache() -> None:
-    """Detect .pyc files older than their source (stale bytecode hazard)."""
-    stale = 0
+    """
+    Remove .pyc files whose embedded source-mtime doesn't match the actual
+    source file. Python normally recompiles these automatically, but clock
+    skew (network mounts, VMs) can make a stale .pyc look "valid" and serve
+    OLD bytecode for NEW source — a phantom-bug generator. Deleting is the
+    only safe option; they cost nothing to rebuild.
+    """
+    import importlib.util
+    import struct
+
+    removed = 0
     for d in ("app", "tests", "scripts"):
         base = ROOT / d
         if not base.is_dir():
@@ -52,14 +61,28 @@ def check_stale_pycache() -> None:
         for pyc in base.rglob("*.pyc"):
             src_name = pyc.name.split(".")[0] + ".py"
             src = pyc.parent.parent / src_name
-            if src.exists() and src.stat().st_mtime > pyc.stat().st_mtime:
-                stale += 1
-    if stale:
-        PROBLEMS.append(
-            f"{stale} stale .pyc files — run: "
-            "python -c \"import pathlib,shutil; [shutil.rmtree(p) for p in pathlib.Path('.').rglob('__pycache__') if '.venv' not in str(p)]\""
-        )
-    print(f"[2/5] stale pycache check done ({stale} stale)")
+            if not src.exists():
+                continue  # orphan pyc, harmless
+            try:
+                header = pyc.read_bytes()[:16]
+                if header[:4] != importlib.util.MAGIC_NUMBER:
+                    pyc.unlink(); removed += 1; continue  # wrong interpreter version
+                flags = struct.unpack("<I", header[4:8])[0]
+                if flags & 0b11:
+                    continue  # hash-based pyc, mtime not used
+                pyc_mtime = struct.unpack("<I", header[8:12])[0]
+                pyc_size = struct.unpack("<I", header[12:16])[0]
+                st = src.stat()
+                # mtime mismatch → Python recompiles anyway; delete = hygiene.
+                # SIZE mismatch with MATCHING mtime → the dangerous case:
+                # source changed but clock skew kept mtime identical, Python
+                # would happily run the old bytecode.
+                if (pyc_mtime != int(st.st_mtime) & 0xFFFFFFFF
+                        or pyc_size != st.st_size & 0xFFFFFFFF):
+                    pyc.unlink(); removed += 1
+            except OSError:
+                PROBLEMS.append(f"PYCACHE: could not inspect/remove {pyc.relative_to(ROOT)}")
+    print(f"[2/5] pycache check done ({removed} stale .pyc removed)")
 
 
 def check_app_imports() -> None:
