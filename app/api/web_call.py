@@ -293,8 +293,9 @@ async def _respond(pipeline, brain, history, session, user_text):
                 ))
                 if text:
                     return str(text), None
+                logger.warning("web-call llm responder returned empty text — falling back to echo.")
             except Exception as e:
-                logger.debug(f"web-call llm responder error ({e}).")
+                logger.warning(f"web-call llm responder failed — falling back to echo: {type(e).__name__}: {e}")
 
     # 3) Echo fallback (always works).
     return (
