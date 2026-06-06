@@ -56,24 +56,26 @@ class GoogleSheetsIntegration:
     def _init_client(self):
         """Initialize Google Sheets client"""
         try:
+            import os
+            # Only attempt auth if a REAL credentials file exists. A placeholder
+            # path (e.g. "path/to/credentials.json") must not raise — just skip.
+            if not self.credentials_path or not os.path.isfile(self.credentials_path):
+                logger.info("Google Sheets not configured (no credentials file) — skipping.")
+                return
+
             import gspread
             from google.oauth2.service_account import Credentials
-            
-            if self.credentials_path:
-                scopes = [
-                    'https://www.googleapis.com/auth/spreadsheets',
-                    'https://www.googleapis.com/auth/drive'
-                ]
-                
-                credentials = Credentials.from_service_account_file(
-                    self.credentials_path,
-                    scopes=scopes
-                )
-                
-                self.client = gspread.authorize(credentials)
-                logger.info("📊 Google Sheets Integration initialized")
-            else:
-                logger.warning("Google Sheets credentials not configured")
+
+            scopes = [
+                'https://www.googleapis.com/auth/spreadsheets',
+                'https://www.googleapis.com/auth/drive'
+            ]
+            credentials = Credentials.from_service_account_file(
+                self.credentials_path,
+                scopes=scopes
+            )
+            self.client = gspread.authorize(credentials)
+            logger.info("📊 Google Sheets Integration initialized")
                 
         except ImportError:
             logger.error("gspread not installed. Run: pip install gspread")
