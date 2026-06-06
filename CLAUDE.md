@@ -31,6 +31,15 @@
 - Bot echo-mode bug ka root cause 3-layered tha: (1) VoicePipeline me text-respond method hi nahi — web_call ab pipeline tabhi use karta jab method ho, warna LLMBrain (runtime-fail pe bhi brain fallback); (2) **Gemini free-tier quota PER MODEL hoti hai** — gemini-2.5-flash sirf 20 req/day, khatam ho gayi thi → DEFAULT_LLM ab `gemini-2.5-flash-lite` (sabse zyada free quota); (3) llm_brain ka ML-optimization code BrainOptimizer/FeedbackLoop ke asli signatures se mismatch tha (ConversationContext fields, agent_type/industry args, sync get_best_response) — ab aligned, "ML-optimized prompt" path live chal raha hai.
 - Echo reply dikhe toh: `journalctl -u leadgen | grep -i ResourceExhausted` → quota issue = model switch in /opt/leadgen/.env. Per-model probe: `env PYTHONPATH=/opt/leadgen DEFAULT_LLM=<model> .venv/bin/python scripts/llm_probe.py`. Live ws test: `.venv/bin/python scripts/ws_test.py` (VPS pe).
 
+## Top 25 Niches + Pricing (2026-06-06, commit 845adb0 — research-finalized)
+- Deep web research (5 parallel agents + adversarial verification) se **top 25 niches final** — app/niches.py me tier (S/A/B), target_type (b2c/b2b/both), b2b_client, end_customer, avg_ticket_inr, pricing_inr (qualified_lead min-max, appointment min-max, monthly_starter) ke saath.
+- **Two-tier model ab explicit hai**: Tier-1 = hum niche ke businesses ko client banate hain (B2B); Tier-2 = client ka agent uske end-customers ko call karta hai (target_type batata hai B2C ya B2B). B2C-reachable niches: 19/25.
+- S-tier (pehle becho): real_estate, real_estate_luxury, studying_abroad, home_loans, solar_residential, solar_commercial, insurance, coaching. API: `/api/data/niches?tier=S` ya `?target_type=b2c`.
+- Pricing bands (research-backed): low-ticket ₹150–800/QL, mid ₹300–1,500/QL, high ₹800–6,000/QL; appointments 2–5x; RE site-visit benchmark ~₹7,500. Hamari cost ~₹120–270/QL → 60-80% margin. Monthly starters ₹8K–25K (agency retainers ₹15–50K se neeche).
+- Key market facts: Gemini-type AI call ₹14–18/contact vs human ₹55–70; India me koi bhi AI player "leads delivered" package nahi bechta (gap); TRAI: 140-series + DLT + DND scrub + 10am-7pm + AI disclosure mandatory, penalty ₹10L (CONFIRMED).
+- Full data: `Niche_Pricing_Research.xlsx` (4 sheets: niches, competitor pricing, India CPL benchmarks, strategy). Rebuild: `scripts/build_xlsx.bat`.
+- Dropped old niches (low suitability): financial_advisors, corporate_law (→ca_legal), event_management (→hotels_mice), architects, franchise_consultants, software_dev, gym_equipment, medical_equipment, packaging, logistics_3pl. KB/flow lookups `.get()` fallback se safe.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
