@@ -91,6 +91,9 @@ systemctl restart leadgen
 
 echo "===STEP 8: Caddy reverse proxy + auto HTTPS==="
 cat > /etc/caddy/Caddyfile <<EOF
+http://72.61.245.204 {
+    reverse_proxy 127.0.0.1:8000
+}
 $DOMAIN, www.$DOMAIN {
     reverse_proxy 127.0.0.1:8000
 }
