@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from app.models.base import get_async_session
+from app.models.base import get_async_db
 from app.models.data_credits import APIUsageType, CREDIT_COSTS
 from app.services.data_service import DataService
 from app.api.auth_deps import get_current_user, get_current_user_optional
@@ -110,7 +110,7 @@ class AddCreditsRequest(BaseModel):
 
 async def get_api_key_client(
     x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
-    db: AsyncSession = Depends(get_async_session)
+    db: AsyncSession = Depends(get_async_db)
 ) -> Optional[str]:
     """Validate API key and return client_id"""
     if not x_api_key:
@@ -155,7 +155,7 @@ async def search_companies(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(50, ge=1, le=200, description="Results per page"),
     client_id: str = Depends(get_client_id),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Search companies in the database.
@@ -193,7 +193,7 @@ async def search_companies(
 async def get_company_details(
     company_id: str,
     client_id: str = Depends(get_client_id),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get full company details including contact information.
@@ -220,7 +220,7 @@ async def get_company_details(
 async def export_companies(
     request: ExportRequest,
     client_id: str = Depends(get_client_id),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Export multiple companies with full contact details.
@@ -250,7 +250,7 @@ async def export_companies(
 async def generate_report(
     request: ReportRequest,
     client_id: str = Depends(get_client_id),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Generate a market intelligence report.
@@ -289,16 +289,16 @@ async def generate_report(
 @router.get("/niches")
 async def get_available_niches():
     """Get list of available industry niches"""
-    from app.niches import INDUSTRY_CONFIGS
-    
+    from app.niches import NICHES
+
     niches = [
         {
             "id": key,
-            "name": config.get("display_name", key.replace("_", " ").title()),
-            "description": config.get("description", ""),
+            "name": config.get("name", key.replace("_", " ").title()),
+            "description": config.get("pitch_hook", ""),
             "keywords": config.get("keywords", [])[:5],  # First 5 keywords
         }
-        for key, config in INDUSTRY_CONFIGS.items()
+        for key, config in NICHES.items()
     ]
     
     return {"niches": niches, "count": len(niches)}
@@ -306,7 +306,7 @@ async def get_available_niches():
 
 @router.get("/cities")
 async def get_available_cities(
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get list of cities with company counts"""
     from sqlalchemy import select, func
@@ -328,7 +328,7 @@ async def get_available_cities(
 @router.get("/credits", response_model=CreditBalanceResponse)
 async def get_credit_balance(
     client_id: str = Depends(get_client_id),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get current credit balance"""
     service = DataService(db)
@@ -374,7 +374,7 @@ def _get_usage_description(usage_type: APIUsageType) -> str:
 async def create_api_key(
     request: APIKeyCreateRequest,
     client_id: str = Depends(get_client_id),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Create a new API key for programmatic access"""
     service = DataService(db)
@@ -400,7 +400,7 @@ async def create_api_key(
 @router.get("/api-keys")
 async def list_api_keys(
     client_id: str = Depends(get_client_id),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """List all API keys"""
     service = DataService(db)
@@ -412,7 +412,7 @@ async def list_api_keys(
 async def revoke_api_key(
     key_id: str,
     client_id: str = Depends(get_client_id),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Revoke an API key"""
     service = DataService(db)
@@ -430,7 +430,7 @@ async def revoke_api_key(
 async def get_usage_stats(
     days: int = Query(30, ge=1, le=90),
     client_id: str = Depends(get_client_id),
-    db: AsyncSession = Depends(get_async_session),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get usage statistics for the past N days"""
     service = DataService(db)
