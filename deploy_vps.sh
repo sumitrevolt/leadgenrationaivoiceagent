@@ -63,6 +63,8 @@ set_env WORKING_HOURS_START 09:00
 set_env WORKING_HOURS_END 21:00
 set_env TELEPHONY_PROVIDER simulation
 if [ -n "$GEMINI_API_KEY" ]; then set_env GEMINI_API_KEY "$GEMINI_API_KEY"; fi
+# Strip inline comments (KEY=value  # note) — pydantic-settings can't parse them.
+sed -i 's/[[:space:]]\+#.*$//' .env
 
 echo "===STEP 6: seed demo database==="
 export DATABASE_URL="sqlite:///$APP_DIR/leadgen.db"
@@ -90,6 +92,9 @@ systemctl enable leadgen
 systemctl restart leadgen
 
 echo "===STEP 8: Caddy reverse proxy + auto HTTPS==="
+# Free ports 80/443 if the VPS template's Traefik is holding them.
+docker stop traefik-traefik-1 2>/dev/null || true
+docker update --restart=no traefik-traefik-1 2>/dev/null || true
 cat > /etc/caddy/Caddyfile <<EOF
 http://72.61.245.204 {
     reverse_proxy 127.0.0.1:8000
