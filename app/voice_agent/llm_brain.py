@@ -297,41 +297,38 @@ Just provide the opening line, no explanations."""
                     conversation_history=conversation_history,
                 )
                 
-                # Get optimized prompt with RAG context from similar successful calls
+                # Optimized prompt from learned patterns; the (already formatted)
+                # default prompt is the base/fallback.
+                default_prompt = self._get_default_prompt(client_name, client_service, niche)
+                agent_type = "sales_agent" if client_service != "AI Lead Gen SAAS" else "saas_sales_agent"
                 optimized_prompt = await self.brain_optimizer.get_optimized_system_prompt(
-                    base_prompt_type="sales_agent" if client_service != "AI Lead Gen SAAS" else "saas_sales_agent",
-                    context=context
-                )
-                
-                # Get RAG context from similar successful conversations
-                rag_context = await self.brain_optimizer.get_rag_context(
-                    query=last_user_message,
+                    agent_type=agent_type,
                     industry=niche,
-                    max_examples=3
+                    base_prompt=default_prompt,
                 )
-                
-                # Build enhanced system prompt
-                system_prompt = optimized_prompt.format(
-                    client_name=client_name,
-                    client_service=client_service,
-                    niche=niche
+                system_prompt = optimized_prompt or default_prompt
+
+                # RAG context from similar successful conversations.
+                rag_items = await self.brain_optimizer.get_rag_context(
+                    context=context,
+                    current_query=last_user_message,
+                    top_k=3,
                 )
-                
-                # Add RAG context if available
-                if rag_context:
-                    system_prompt += f"\n\n📚 SIMILAR SUCCESSFUL RESPONSES:\n{rag_context}"
-                
-                # Check if we have a proven best response for this situation
-                best_response = await self.feedback_loop.get_best_response(
-                    user_input=last_user_message,
-                    intent_type=detected_intent.intent_type if detected_intent else None,
-                    industry=niche
+                if rag_items:
+                    rag_text = "\n".join(str(item) for item in rag_items[:3])
+                    system_prompt += f"\n\n📚 SIMILAR SUCCESSFUL RESPONSES:\n{rag_text}"
+
+                # Proven best response template for this situation (sync, str).
+                best_response = self.feedback_loop.get_best_response(
+                    response_type=(detected_intent.intent_type if detected_intent else "general"),
+                    industry=niche,
                 )
-                
-                if best_response and best_response.get("success_rate", 0) > 0.7:
-                    # Use proven response template but still generate fresh
-                    system_prompt += f"\n\n✅ PROVEN RESPONSE STYLE (adapt but follow this pattern):\n{best_response.get('response_template', '')}"
-                
+                if best_response:
+                    system_prompt += (
+                        "\n\n✅ PROVEN RESPONSE STYLE (adapt but follow this pattern):\n"
+                        f"{best_response}"
+                    )
+
                 logger.info(f"🤖 Using ML-optimized prompt for {niche}")
                 
             except Exception as e:
