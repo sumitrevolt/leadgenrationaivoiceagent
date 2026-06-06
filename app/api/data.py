@@ -287,8 +287,11 @@ async def generate_report(
 # ==================== NICHES & CITIES ====================
 
 @router.get("/niches")
-async def get_available_niches():
-    """Get list of available industry niches"""
+async def get_available_niches(target_type: str = None, tier: str = None):
+    """
+    List available industry niches (research-finalized top 25).
+    Optional filters: target_type=b2c|b2b (end-customer audience), tier=S|A|B.
+    """
     from app.niches import NICHES
 
     niches = [
@@ -297,10 +300,18 @@ async def get_available_niches():
             "name": config.get("name", key.replace("_", " ").title()),
             "description": config.get("pitch_hook", ""),
             "keywords": config.get("keywords", [])[:5],  # First 5 keywords
+            "tier": config.get("tier"),
+            "target_type": config.get("target_type"),
+            "b2b_client": config.get("b2b_client"),
+            "end_customer": config.get("end_customer"),
+            "avg_ticket_inr": config.get("avg_ticket_inr", config.get("avg_deal_value")),
+            "pricing_inr": config.get("pricing_inr"),
         }
         for key, config in NICHES.items()
+        if (not target_type or config.get("target_type") in (target_type.lower(), "both"))
+        and (not tier or config.get("tier") == tier.upper())
     ]
-    
+
     return {"niches": niches, "count": len(niches)}
 
 
