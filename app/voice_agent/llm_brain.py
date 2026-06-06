@@ -288,11 +288,13 @@ Just provide the opening line, no explanations."""
         if self.ml_enabled and last_user_message:
             try:
                 context = ConversationContext(
-                    industry=niche,
-                    lead_stage="discovery",  # Can be enhanced based on conversation
-                    detected_intent=detected_intent.intent_type if detected_intent else None,
+                    call_id=self.current_conversation_id or "web-call",
+                    tenant_id=self.tenant_id,
+                    lead_industry=niche,
+                    lead_company=(lead_data or {}).get("company", client_name),
+                    lead_city=(lead_data or {}).get("city", ""),
+                    current_intent=(detected_intent.intent_type if detected_intent else "general"),
                     conversation_history=conversation_history,
-                    lead_data=lead_data or {}
                 )
                 
                 # Get optimized prompt with RAG context from similar successful calls

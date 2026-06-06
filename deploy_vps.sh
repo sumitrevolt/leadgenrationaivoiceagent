@@ -65,7 +65,7 @@ set_env DEBUG false
 set_env LOG_LEVEL INFO
 set_env DATABASE_URL "sqlite:///$APP_DIR/leadgen.db"
 set_env CORS_ORIGINS "[\"https://$DOMAIN\",\"https://www.$DOMAIN\"]"
-set_env DEFAULT_LLM gemini-2.5-flash
+set_env DEFAULT_LLM gemini-2.5-flash-lite
 set_env LLM_PROVIDER gemini
 set_env TIMEZONE Asia/Kolkata
 set_env WORKING_HOURS_START 09:00

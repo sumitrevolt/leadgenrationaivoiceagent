@@ -25,7 +25,9 @@ Live server facts (memorize):
 
 4. **Port 8000 is firewalled externally** on Hostinger (only 22/80/443 open). Never tell the user to use `:8000` from outside — always go through Caddy (80/443) / the domain.
 
-5. **Gemini model name**: `DEFAULT_LLM` must be a real model like `gemini-2.5-flash`, NOT just `gemini` (invalid model id -> LLM calls fail -> agent falls back to rule-based).
+5. **Gemini model name**: `DEFAULT_LLM` must be a real model like `gemini-2.5-flash-lite`, NOT just `gemini` (invalid model id -> LLM calls fail -> agent falls back to rule-based).
+
+6. **Free-tier daily quotas are PER MODEL and tiny** (e.g. gemini-2.5-flash = 20 req/day). When the bot suddenly answers with "[echo / test-mode] ... No live LLM configured", check `journalctl -u leadgen | grep -i ResourceExhausted` — if 429 quota, switch `DEFAULT_LLM` in `/opt/leadgen/.env` to a model with quota left (`gemini-2.5-flash-lite` has the largest free allowance) and `systemctl restart leadgen`. Quick per-model probe: `env PYTHONPATH=/opt/leadgen DEFAULT_LLM=<model> .venv/bin/python scripts/llm_probe.py`.
 
 ## Common ops (run via Git ssh in a .bat)
 
