@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql+asyncpg://user:password@localhost:5432/voice_agent_db"
     redis_url: str = "redis://localhost:6379/0"
+
+    # Vector RAG (Qdrant) — empty = disabled; KB falls back to Chroma/keyword
+    qdrant_url: str = ""
     
     # AI Models
     openai_api_key: str = ""

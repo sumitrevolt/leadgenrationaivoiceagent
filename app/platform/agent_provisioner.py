@@ -101,6 +101,13 @@ def _seed_client_knowledge(client: Any, niche_key: str) -> int:
             facts.append(f"Pitch angle for {client.business_name}: {cfg['pitch_hook']}")
         for q in cfg.get("qualification_questions", []):
             facts.append(f"Qualification question for {cfg.get('name', niche_key)} leads: {q}")
+    # Niche knowledge pack — data agent inhe client KB me seed karta hai taaki
+    # leads agent end-customer ke sawaalon ka grounded (sach) jawab de sake.
+    try:
+        from app.niche_knowledge import knowledge_facts
+        facts.extend(knowledge_facts(niche_key))
+    except Exception as e:  # pragma: no cover
+        logger.debug(f"niche knowledge seed skipped: {e}")
     try:
         added = kb.add_documents(facts, source=f"provisioner:{client.id}", namespace=ns)
         logger.info(f"KB seeded for client {client.id} ({added} facts, ns={ns})")

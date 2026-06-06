@@ -743,6 +743,85 @@ export const billingApi = {
   },
 };
 
+// ============================================================================
+// Dashboard API (aggregated — real DB with sample fallback)
+// Mirrors GET /api/admin/dashboard and GET /api/customer/dashboard.
+// ============================================================================
+
+export interface SeriesLV {
+  labels: string[];
+  values: number[];
+}
+
+export interface AdminDashboardKPIs {
+  total_clients: number;
+  active_campaigns: number;
+  calls_today: number;
+  qualified_leads_month: number;
+  revenue_month: number;        // ₹
+  telephony_cost_month: number; // ₹
+  net_margin_pct: number;       // %
+}
+
+export interface AdminDashboardClient {
+  company: string;
+  niche: string;
+  plan: string;
+  leads_delivered: number;
+  status: string;
+  mrr: number;
+}
+
+export interface AdminDashboardAgent {
+  id: string;
+  name: string;
+  current_client: string;
+  status: string;
+  calls_made: number;
+  leads_found: number;
+}
+
+export interface AdminDashboardCampaign {
+  campaign: string;
+  client: string;
+  niche: string;
+  sources: string[];
+  calls_done: number;
+  calls_target: number;
+  leads: number;
+  status: string;
+}
+
+export interface AdminDashboardHealth {
+  api: string;
+  db: string;
+  telephony: string;
+  scrapers: string;
+}
+
+export interface AdminDashboard {
+  is_sample_data: boolean;
+  generated_at: string;
+  kpis: AdminDashboardKPIs;
+  clients: AdminDashboardClient[];
+  agents: AdminDashboardAgent[];
+  campaigns: AdminDashboardCampaign[];
+  health: AdminDashboardHealth;
+  charts: {
+    revenue_cost: { labels: string[]; revenue: number[]; cost: number[] };
+    leads_by_niche: SeriesLV;
+    calls_per_day: SeriesLV;
+  };
+}
+
+export const dashboardApi = {
+  // Platform owner/operator overview. No auth requirement on the backend, but
+  // shares the same base URL + token handling as the rest of the client.
+  getAdmin: async (): Promise<AdminDashboard> => {
+    return apiRequest<AdminDashboard>('/admin/dashboard');
+  },
+};
+
 // Export all APIs
 export default {
   auth: authApi,
@@ -753,4 +832,5 @@ export default {
   platform: platformApi,
   analytics: analyticsApi,
   billing: billingApi,
+  dashboard: dashboardApi,
 };

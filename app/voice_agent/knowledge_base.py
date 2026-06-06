@@ -15,7 +15,10 @@ Design (Dograh / production voice-agent best practices):
      fallback do ("main team se confirm karwa deta hoon") — kabhi mat banao.
 
 Backends (auto-detect, zero-config):
-  - PEHLE app.ml.vector_store ki Chroma-based store reuse karne ki koshish
+  - SABSE PEHLE Qdrant (sirf jab QDRANT_URL set ho + qdrant-client/fastembed
+    installed + server reachable) — single "kb_main" collection, payload-
+    partitioned per-namespace multi-tenancy, multilingual-e5-small embeddings.
+  - PHIR app.ml.vector_store ki Chroma-based store reuse karne ki koshish
     (semantic embeddings). Agar woh / sentence-transformers / chromadb available
     nahi, ya mock par gir jaaye, to...
   - PURE-PYTHON TF-IDF / keyword-overlap retriever fallback — koi external
@@ -48,6 +51,7 @@ from __future__ import annotations
 import math
 import re
 import threading
+import uuid
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
@@ -292,6 +296,180 @@ def _safe_name(name: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# Qdrant-backed retriever (single payload-partitioned collection + fastembed)
+# --------------------------------------------------------------------------- #
+# Research-decided design (docs/Architecture_Research_RAG_Agents_MCP.md):
+#   - EK hi collection "kb_main" me SAB namespaces — payload-partitioned
+#     multi-tenancy (Qdrant official best practice; collection-per-tenant NAHI).
+#   - Point payload: {"namespace": ..., "text": ..., "source": ...} + keyword
+#     payload index on "namespace" for fast filtered search.
+#   - Embeddings: fastembed TextEmbedding("intfloat/multilingual-e5-small")
+#     (Hinglish-friendly, 384-dim, cosine). e5 models ko "query: " / "passage: "
+#     prefix CHAHIYE hota hai — yahan handle hota hai.
+#   - settings.qdrant_url empty => backend disabled (default; zero behavior change).
+_QDRANT_COLLECTION = "kb_main"
+_QDRANT_VECTOR_SIZE = 384  # intfloat/multilingual-e5-small output dim
+_E5_MODEL_NAME = "intfloat/multilingual-e5-small"
+
+_QDRANT_LOCK = threading.Lock()
+_QDRANT_CLIENT: Optional[Any] = None
+_QDRANT_EMBEDDER: Optional[Any] = None
+# Pehli hard-failure ke baad is process me dobara try mat karo (slow timeouts
+# har naye namespace par repeat na hon). Restart par phir se probe hoga.
+_QDRANT_DISABLED = False
+
+
+def _get_qdrant_url() -> str:
+    """settings.qdrant_url (empty string => Qdrant backend disabled)."""
+    try:
+        from app.config import settings
+        return (getattr(settings, "qdrant_url", "") or "").strip()
+    except Exception:
+        return ""
+
+
+def _get_qdrant_embedder():
+    """Lazy global fastembed TextEmbedding singleton (model load is heavy)."""
+    global _QDRANT_EMBEDDER
+    if _QDRANT_EMBEDDER is None:
+        with _QDRANT_LOCK:
+            if _QDRANT_EMBEDDER is None:
+                from fastembed import TextEmbedding  # may raise ImportError
+                _QDRANT_EMBEDDER = TextEmbedding(model_name=_E5_MODEL_NAME)
+    return _QDRANT_EMBEDDER
+
+
+def _get_qdrant_client():
+    """
+    Lazy global QdrantClient singleton. Connection ping + collection ensure +
+    namespace payload index — sab yahin, ek hi baar. Failure par raise karta
+    hai (caller/factory catch karke Chroma/keyword par fall back karta hai).
+    """
+    global _QDRANT_CLIENT
+    if _QDRANT_CLIENT is None:
+        with _QDRANT_LOCK:
+            if _QDRANT_CLIENT is None:
+                from qdrant_client import QdrantClient  # may raise ImportError
+                from qdrant_client import models as qmodels
+                url = _get_qdrant_url()
+                if not url:
+                    raise RuntimeError("QDRANT_URL not configured")
+                client = QdrantClient(url=url, timeout=5)
+                # ping — server unreachable ho to yahin raise ho jata hai
+                client.get_collections()
+                if not client.collection_exists(_QDRANT_COLLECTION):
+                    try:
+                        client.create_collection(
+                            collection_name=_QDRANT_COLLECTION,
+                            vectors_config=qmodels.VectorParams(
+                                size=_QDRANT_VECTOR_SIZE,
+                                distance=qmodels.Distance.COSINE,
+                            ),
+                        )
+                    except Exception:
+                        pass  # parallel-create race — collection ab exist karti hai
+                try:
+                    client.create_payload_index(
+                        collection_name=_QDRANT_COLLECTION,
+                        field_name="namespace",
+                        field_schema=qmodels.PayloadSchemaType.KEYWORD,
+                    )
+                except Exception:
+                    pass  # index already exists — ignore (idempotent)
+                _QDRANT_CLIENT = client
+    return _QDRANT_CLIENT
+
+
+class _QdrantIndex:
+    """
+    Qdrant retriever — same internal interface as _ChromaIndex/_KeywordIndex
+    (add / search / size). Sab namespaces EK shared "kb_main" collection me
+    jaate hain; isolation payload filter (namespace ==) se hota hai.
+
+    Namespace examples: "solar_residential", "client:abc123", "_global".
+    """
+
+    def __init__(self, namespace: str = "default") -> None:
+        # In dono me se koi bhi raise kare (deps missing / server down) to
+        # KnowledgeBase._build_index catch karke agle backend par chala jata hai.
+        self._client = _get_qdrant_client()
+        self._embedder = _get_qdrant_embedder()
+        self._namespace = namespace or "default"
+
+    # -- internals -- #
+    def _embed(self, text: str) -> List[float]:
+        vec = next(iter(self._embedder.embed([text])))
+        return [float(x) for x in vec]
+
+    def _ns_filter(self):
+        from qdrant_client import models as qmodels
+        return qmodels.Filter(
+            must=[
+                qmodels.FieldCondition(
+                    key="namespace",
+                    match=qmodels.MatchValue(value=self._namespace),
+                )
+            ]
+        )
+
+    # -- index interface -- #
+    @property
+    def size(self) -> int:
+        try:
+            res = self._client.count(
+                collection_name=_QDRANT_COLLECTION,
+                count_filter=self._ns_filter(),
+                exact=True,
+            )
+            return int(getattr(res, "count", 0) or 0)
+        except Exception:
+            return 0
+
+    def add(self, text: str, source: str = "") -> None:
+        # raise hone par KnowledgeBase.add_documents chunk skip kar deta hai
+        from qdrant_client import models as qmodels
+        self._client.upsert(
+            collection_name=_QDRANT_COLLECTION,
+            points=[
+                qmodels.PointStruct(
+                    id=str(uuid.uuid4()),
+                    # e5 requirement: documents ko "passage: " prefix
+                    vector=self._embed(f"passage: {text}"),
+                    payload={
+                        "namespace": self._namespace,
+                        "text": text,
+                        "source": source or "",
+                    },
+                )
+            ],
+        )
+
+    def search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
+        try:
+            res = self._client.query_points(
+                collection_name=_QDRANT_COLLECTION,
+                # e5 requirement: queries ko "query: " prefix
+                query=self._embed(f"query: {query}"),
+                query_filter=self._ns_filter(),
+                limit=max(1, k),
+                with_payload=True,
+            )
+            points = getattr(res, "points", None) or []
+        except Exception as e:  # pragma: no cover
+            logger.debug(f"qdrant query failed: {e}")
+            return []
+        out: List[Dict[str, Any]] = []
+        for p in points:
+            payload = getattr(p, "payload", None) or {}
+            out.append({
+                "text": str(payload.get("text", "") or ""),
+                "score": float(getattr(p, "score", 0.0) or 0.0),
+                "source": str(payload.get("source", "") or ""),
+            })
+        return out
+
+
+# --------------------------------------------------------------------------- #
 # KnowledgeBase — public API
 # --------------------------------------------------------------------------- #
 # safe fallback line jab kuch relevant na mile — kabhi hallucinate mat karo.
@@ -307,8 +485,9 @@ class KnowledgeBase:
     Per-namespace RAG knowledge base for the voice agent.
 
     Har namespace (client/niche) ka apna independent index hota hai. Internally
-    Chroma (agar real embeddings available) ya pure-python keyword index use
-    hota hai — caller ko farq nahi padta, API same rehti hai.
+    Qdrant (agar QDRANT_URL configured + reachable), warna Chroma (agar real
+    embeddings available), warna pure-python keyword index use hota hai —
+    caller ko farq nahi padta, API same rehti hai.
 
     Public API:
         add_documents(docs, source=None, namespace="default")
@@ -320,9 +499,9 @@ class KnowledgeBase:
     def __init__(self, prefer_chroma: bool = True) -> None:
         self._prefer_chroma = prefer_chroma
         self._lock = threading.RLock()
-        # namespace -> retriever (either _ChromaIndex or _KeywordIndex)
+        # namespace -> retriever (_QdrantIndex | _ChromaIndex | _KeywordIndex)
         self._indexes: Dict[str, Any] = {}
-        # namespace -> backend label ("chroma" | "keyword")
+        # namespace -> backend label ("qdrant" | "chroma" | "keyword")
         self._backends: Dict[str, str] = {}
 
     # ----------------------- index management ----------------------- #
@@ -338,7 +517,17 @@ class KnowledgeBase:
             return index
 
     def _build_index(self, namespace: str):
-        """Try Chroma w/ real embeddings; else pure-python keyword index."""
+        """
+        Backend selection order:
+          1. Qdrant — sirf jab settings.qdrant_url set ho AND qdrant-client +
+             fastembed import ho jayein AND server ping ok ho.
+          2. Chroma — agar real (non-mock) embeddings available hon.
+          3. Pure-python keyword index — hamesha kaam karta hai (final fallback).
+        Kabhi raise nahi karta — app crash nahi hota.
+        """
+        qi = self._try_qdrant(namespace)
+        if qi is not None:
+            return qi, "qdrant"
         if self._prefer_chroma:
             try:
                 ci = _ChromaIndex(namespace)
@@ -352,8 +541,22 @@ class KnowledgeBase:
                 logger.info(f"KB: Chroma unavailable ({e}); using keyword fallback.")
         return _KeywordIndex(), "keyword"
 
+    @staticmethod
+    def _try_qdrant(namespace: str):
+        """_QdrantIndex agar configured + reachable ho, warna None (no crash)."""
+        global _QDRANT_DISABLED
+        if _QDRANT_DISABLED or not _get_qdrant_url():
+            return None
+        try:
+            return _QdrantIndex(namespace)
+        except Exception as e:
+            # deps missing / server down — is process me dobara probe mat karo
+            _QDRANT_DISABLED = True
+            logger.info(f"KB: Qdrant unavailable ({e}); falling back to Chroma/keyword.")
+            return None
+
     def backend(self, namespace: str = "default") -> str:
-        """Which backend a namespace uses: 'chroma' or 'keyword'."""
+        """Which backend a namespace uses: 'qdrant', 'chroma' or 'keyword'."""
         self._get_index(namespace)
         return self._backends.get(namespace or "default", "keyword")
 

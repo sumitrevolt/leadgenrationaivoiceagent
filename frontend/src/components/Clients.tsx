@@ -1,49 +1,47 @@
-
 import React from 'react';
-import { Client, ClientStatus } from '../types.ts';
 import Card from './ui/Card.tsx';
+import { useDashboardData } from '../hooks/useDashboardData.ts';
+import type { AdminDashboardClient } from '../services/api.ts';
 
-interface ClientsProps {
-  clients: Client[];
-  loading: boolean;
-}
-
-const statusStyles: Record<ClientStatus, { bg: string; text: string; border: string }> = {
-  Active: { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/30' },
-  Trial: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/30' },
-  Paused: { bg: 'bg-gray-500/10', text: 'text-gray-400', border: 'border-gray-500/30' },
-  Churned: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30' },
+const statusStyles: Record<string, { bg: string; text: string; border: string }> = {
+  active: { bg: 'bg-green-500/10', text: 'text-green-400', border: 'border-green-500/30' },
+  trial: { bg: 'bg-yellow-500/10', text: 'text-yellow-400', border: 'border-yellow-500/30' },
+  paused: { bg: 'bg-gray-500/10', text: 'text-gray-400', border: 'border-gray-500/30' },
+  churned: { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/30' },
 };
 
-const ClientCard: React.FC<{ client: Client }> = ({ client }) => {
-  const styles = statusStyles[client.status];
+const fmtMRR = (n: number): string => {
+  if (n >= 1_00_000) return `₹${(n / 1_00_000).toFixed(2)} L`;
+  return `₹${new Intl.NumberFormat('en-IN').format(n)}`;
+};
+
+const ClientCard: React.FC<{ client: AdminDashboardClient }> = ({ client }) => {
+  const key = (client.status || 'active').toLowerCase();
+  const styles = statusStyles[key] || statusStyles.active;
   return (
     <Card className={`p-6 flex flex-col justify-between border-t-4 ${styles.border} hover:bg-[#181818] transition-all duration-200`}>
       <div>
         <div className="flex justify-between items-start">
-          <h4 className="font-bold text-lg text-white">{client.name}</h4>
-          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${styles.bg} ${styles.text}`}>
+          <h4 className="font-bold text-lg text-white">{client.company}</h4>
+          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full capitalize ${styles.bg} ${styles.text}`}>
             {client.status}
           </span>
         </div>
-        <p className="text-sm text-gray-400 mt-1">{client.industry}</p>
+        <p className="text-sm text-gray-400 mt-1 capitalize">{client.niche}</p>
       </div>
       <div className="mt-6 space-y-4">
         <div className="flex justify-between items-baseline">
-          <span className="text-sm text-gray-400">Leads Generated</span>
-          <span className="font-semibold text-white">{client.leadsGenerated.toLocaleString()}</span>
+          <span className="text-sm text-gray-400">Leads Delivered</span>
+          <span className="font-semibold text-white">{client.leads_delivered.toLocaleString('en-IN')}</span>
         </div>
         <div className="flex justify-between items-baseline">
-          <span className="text-sm text-gray-400">Appointments Booked</span>
-          <span className="font-semibold text-white">{client.appointmentsBooked.toLocaleString()}</span>
+          <span className="text-sm text-gray-400">MRR</span>
+          <span className="font-semibold text-white">{fmtMRR(client.mrr)}</span>
         </div>
         <div className="flex justify-between items-baseline">
-          <span className="text-sm text-gray-400">Subscription Tier</span>
-          <span className="font-semibold text-white">{client.tier}</span>
+          <span className="text-sm text-gray-400">Plan</span>
+          <span className="font-semibold text-white">{client.plan}</span>
         </div>
-      </div>
-      <div className="mt-6 pt-4 border-t border-gray-800 text-xs text-gray-500">
-        Campaign Started: {client.campaignStartDate.toLocaleDateString()}
       </div>
     </Card>
   );
@@ -66,27 +64,43 @@ const SkeletonCard: React.FC = () => (
         <div className="h-5 bg-gray-700/50 rounded w-1/6"></div>
       </div>
     </div>
-    <div className="mt-6 pt-4 border-t border-gray-800">
-      <div className="h-3 bg-gray-700/50 rounded w-1/3"></div>
-    </div>
   </Card>
 );
 
-const Clients: React.FC<ClientsProps> = ({ clients, loading }) => {
+const Clients: React.FC = () => {
+  const { data, loading, error } = useDashboardData(30000);
+  const clients = data?.clients ?? [];
+
   return (
     <div>
-      <h3 className="text-xl font-semibold text-white mb-6">Client Management</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {loading ? (
-          [...Array(8)].map((_, i) => <SkeletonCard key={i} />)
-        ) : (
-          clients.map(client => <ClientCard key={client.id} client={client} />)
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-xl font-semibold text-white">Client Management</h3>
+        {data?.is_sample_data && (
+          <span className="text-xs text-yellow-300/90 bg-yellow-900/10 border border-yellow-700/40 rounded-full px-3 py-1">
+            sample data
+          </span>
         )}
       </div>
-      {!loading && clients.length === 0 && (
-        <Card className="p-8 text-center col-span-full">
+
+      {error && !data ? (
+        <Card className="p-8 text-center">
+          <h4 className="text-lg font-medium text-red-400">Clients load nahi hue</h4>
+          <p className="text-gray-500 mt-2 text-sm">{error}</p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {loading ? (
+            [...Array(8)].map((_, i) => <SkeletonCard key={i} />)
+          ) : (
+            clients.map((client, i) => <ClientCard key={`${client.company}-${i}`} client={client} />)
+          )}
+        </div>
+      )}
+
+      {!loading && !error && clients.length === 0 && (
+        <Card className="p-8 text-center">
           <h4 className="text-lg font-medium text-white">No clients onboarded yet.</h4>
-          <p className="text-gray-400 mt-2">Once a lead converts to a trial, they will appear here.</p>
+          <p className="text-gray-400 mt-2">Client onboard hote hi yahan dikhenge.</p>
         </Card>
       )}
     </div>

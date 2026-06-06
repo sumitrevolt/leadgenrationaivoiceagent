@@ -342,7 +342,10 @@ class NaturalDialogManager:
             qtype = None
         if any(w in low for w in ["not interested", "nahi chahiye", "mat karo", "interested nahi", "no thanks", "remove"]):
             return UtteranceType.NOT_INTERESTED
-        if any(w in low for w in ["busy", "abhi nahi", "baad me", "call later", "mat call", "mehenga", "expensive", "already", "pehle se"]):
+        if any(w in low for w in ["busy", "abhi nahi", "baad me", "call later", "mat call",
+                                   "mehenga", "mehengi", "expensive", "already", "pehle se",
+                                   "bas dekh", "sirf dekh", "dekh raha", "dekh rahi",
+                                   "just looking", "browsing"]):
             return UtteranceType.OBJECTION
         if any(w in low for w in ["samajh nahi", "kaun bol", "who is this", "what is this", "repeat", "phir se", "matlab kya"]):
             return UtteranceType.CONFUSED
@@ -441,6 +444,15 @@ class NaturalDialogManager:
             nxt = self._next_goal_question(state)
             return f"{ans} {nxt}".strip()
         if utype == UtteranceType.OBJECTION:
+            # niche-specific, end-customer-appropriate rebuttal pehle (real niche pe).
+            try:
+                from app.niche_knowledge import NICHE_KNOWLEDGE, match_objection
+                if self.niche in NICHE_KNOWLEDGE:
+                    rebut = match_objection(self.niche, utterance)
+                    if rebut:
+                        return rebut
+            except Exception as e:
+                logger.debug(f"niche objection match skipped: {e}")
             if "mehenga" in utterance.lower() or "expensive" in utterance.lower():
                 return "Samajh sakti hoon — par aap sirf qualified lead ke paise dete ho, fixed kharcha nahi. Ek baar dekh lein?"
             if "busy" in utterance.lower() or "baad" in utterance.lower():
@@ -603,6 +615,15 @@ class NaturalDialogManager:
     def _load_knowledge(self, niche: str) -> List[str]:
         kb = list(DEFAULT_KNOWLEDGE.get("_global", []))
         kb += DEFAULT_KNOWLEDGE.get(niche, [])
+        # per-niche grounded knowledge pack (end-customer facts) — yahi se LEADS
+        # agent client ke offering ke baare me SAHI jawab deta hai (no hallucination).
+        # Sirf real niche pack ke liye (general/unknown ke liye behaviour unchanged).
+        try:
+            from app.niche_knowledge import NICHE_KNOWLEDGE, knowledge_facts
+            if niche in NICHE_KNOWLEDGE:
+                kb += knowledge_facts(niche)
+        except Exception as e:
+            logger.debug(f"niche knowledge load skipped: {e}")
         # niche-specific value prop from niches.py if available
         try:
             from app.niches import NICHES
@@ -612,7 +633,14 @@ class NaturalDialogManager:
                 kb.append(f"Hum {niche.replace('_',' ')} businesses ke liye: {hook}.")
         except Exception:
             pass
-        return kb
+        # dedupe preserving order (packs me _global se overlap ho sakta hai)
+        seen: set = set()
+        out: List[str] = []
+        for fact in kb:
+            if fact not in seen:
+                seen.add(fact)
+                out.append(fact)
+        return out
 
     def _load_goal_questions(self, niche: str) -> List[str]:
         try:

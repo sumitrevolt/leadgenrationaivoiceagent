@@ -139,6 +139,17 @@ def load_niche_faqs(kb: KnowledgeBase, namespace: str = "_global") -> int:
                 + "."
             )
 
+        # Rich end-customer domain facts (niche_knowledge pack) — yahi se agent
+        # client ke offering ka grounded jawab deta hai (subsidy, EMI, process,
+        # warranty...). Sirf builtin niches ke paas pack hota hai; custom niches
+        # apne thin SAAS facts ke saath rehte hain.
+        try:
+            from app.niche_knowledge import NICHE_KNOWLEDGE, knowledge_facts
+            if niche_key in NICHE_KNOWLEDGE:
+                facts.extend(knowledge_facts(niche_key))
+        except Exception as e:  # pragma: no cover
+            logger.debug(f"niche_knowledge facts skipped for {niche_key}: {e}")
+
         # niche-specific facts apne namespace me + global me bhi (taaki default
         # KB me sab niches ki value-prop available rahe).
         n1 = kb.add_documents(facts, source=f"niche:{niche_key}", namespace=niche_key)

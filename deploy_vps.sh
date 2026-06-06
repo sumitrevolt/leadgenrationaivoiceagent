@@ -71,6 +71,7 @@ set_env TIMEZONE Asia/Kolkata
 set_env WORKING_HOURS_START 09:00
 set_env WORKING_HOURS_END 21:00
 set_env TELEPHONY_PROVIDER simulation
+set_env QDRANT_URL "http://127.0.0.1:6333"
 if [ -n "$GEMINI_API_KEY" ]; then set_env GEMINI_API_KEY "$GEMINI_API_KEY"; fi
 # Strip inline comments (KEY=value  # note) — pydantic-settings can't parse them.
 sed -i 's/[[:space:]]\+#.*$//' .env
@@ -78,6 +79,18 @@ sed -i 's/[[:space:]]\+#.*$//' .env
 echo "===STEP 6: seed demo database==="
 export DATABASE_URL="sqlite:///$APP_DIR/leadgen.db"
 .venv/bin/python scripts/seed_demo_data.py --force || echo "(seed skipped/failed, continuing)"
+
+echo "===STEP 6b: Qdrant vector DB (Docker, idempotent — KB RAG backend)==="
+# App restart se PEHLE chalao taaki KB pehli build par hi Qdrant pakad le.
+# Fail ho to bhi theek hai — app gracefully Chroma/keyword par fall back karta hai.
+if command -v docker >/dev/null 2>&1; then
+  docker ps -q -f name=qdrant | grep -q . \
+    || docker start qdrant 2>/dev/null \
+    || docker run -d --name qdrant --restart unless-stopped -p 127.0.0.1:6333:6333 -v /opt/qdrant_storage:/qdrant/storage qdrant/qdrant \
+    || echo "(qdrant container start failed — app will use keyword KB fallback)"
+else
+  echo "(docker not found — skipping Qdrant; app will use keyword KB fallback)"
+fi
 
 echo "===STEP 7: systemd service (keeps app running 24/7)==="
 cat > /etc/systemd/system/leadgen.service <<EOF

@@ -80,7 +80,9 @@ export default function App() {
     autoOnboardTrials: true,
   });
 
-  const { stats, activities, leads, clients, agents, callLogs, loading, chartData, trainingData } = useMockData(settings);
+  // Dashboard + Clients ab apna real data khud fetch karte hain (/api/admin/dashboard).
+  // Baaki views (voice-agents, my-campaign, training-hub) abhi mock pe hain — next.
+  const { leads, agents, callLogs, loading, trainingData } = useMockData(settings);
 
   const handleSettingsChange = useCallback((newSettings: AutomationSettings) => {
     setSettings(newSettings);
@@ -104,7 +106,7 @@ export default function App() {
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard stats={stats} activities={activities} chartData={chartData} loading={loading} />;
+        return <Dashboard />;
       case 'training-hub':
         return <TrainingHub trainingData={trainingData} loading={loading} />;
       case 'voice-agents':
@@ -112,13 +114,13 @@ export default function App() {
       case 'my-campaign':
         return <MyCampaign leads={leads} onOpenScriptAssistant={() => setIsModalOpen(true)} loading={loading} />;
       case 'clients':
-        return <Clients clients={clients} loading={loading} />;
+        return <Clients />;
       case 'settings':
         return <Settings settings={settings} onSettingsChange={handleSettingsChange} />;
       case 'admin':
         return <AdminPanel />;
       default:
-        return <Dashboard stats={stats} activities={activities} chartData={chartData} loading={loading} />;
+        return <Dashboard />;
     }
   };
 

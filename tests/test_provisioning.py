@@ -44,6 +44,44 @@ class TestNicheRegistry:
             assert flow is not None, f"flow failed for {key}"
 
 
+class TestNicheKnowledge:
+    """Har builtin niche ka grounded knowledge + objection playbook complete ho."""
+
+    def test_every_builtin_niche_has_a_knowledge_pack(self):
+        from app.niches import _BUILTIN_KEYS
+        from app.niche_knowledge import NICHE_KNOWLEDGE
+        missing = [k for k in _BUILTIN_KEYS if k not in NICHE_KNOWLEDGE]
+        assert not missing, f"builtin niches missing knowledge pack: {missing}"
+
+    def test_packs_are_substantive(self):
+        from app.niche_knowledge import NICHE_KNOWLEDGE
+        for key, pack in NICHE_KNOWLEDGE.items():
+            assert len(pack.get("facts", [])) >= 3, f"{key}: <3 facts"
+            assert len(pack.get("benefits", [])) >= 2, f"{key}: <2 benefits"
+            assert len(pack.get("objections", {})) >= 2, f"{key}: <2 objections"
+            for f in pack["facts"] + pack["benefits"]:
+                assert isinstance(f, str) and f.strip(), f"{key}: empty fact/benefit"
+
+    def test_helpers_and_generic_fallback(self):
+        from app.niche_knowledge import (
+            knowledge_facts, niche_benefits, objection_response, match_objection,
+        )
+        assert knowledge_facts("solar_residential")
+        assert niche_benefits("solar_residential")
+        # unknown niche -> generic, never crashes
+        assert knowledge_facts("xyz-unknown-niche")
+        assert objection_response("xyz-unknown-niche", "busy")
+        # free-form utterance se rebuttal match ho
+        assert match_objection("solar_residential", "yeh to bahut mehenga hai")
+        assert match_objection("real_estate", "abhi bas dekh raha hoon") is not None
+
+    def test_common_objection_matches_for_every_builtin_niche(self):
+        from app.niches import _BUILTIN_KEYS
+        from app.niche_knowledge import match_objection
+        for key in _BUILTIN_KEYS:
+            assert match_objection(key, "thoda mehenga lag raha hai") is not None, key
+
+
 class TestNichesAPI:
     def test_niches_endpoint_returns_25_plus(self, client: TestClient):
         r = client.get("/api/data/niches")

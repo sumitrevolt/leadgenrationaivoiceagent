@@ -27,6 +27,7 @@ from app.api.data import router as data_router
 from app.api.customer_dashboard import router as customer_dashboard_router
 from app.api.admin_dashboard import router as admin_dashboard_router
 from app.api.web_call import router as web_call_router
+from app.api.agents import router as agents_router
 from fastapi import WebSocket
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -191,6 +192,27 @@ app.include_router(ai_router, prefix="/api", tags=["AI"])
 app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /api/customer/*
 app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])        # /api/admin/*
 app.include_router(web_call_router, prefix="/api", tags=["Web Call (Test Mode)"])  # /api/web-call/*
+app.include_router(agents_router, prefix="/api", tags=["Agents"])  # /api/agents/* (LangGraph supervisor)
+
+
+# ---------------------------------------------------------------------------
+# MCP server — platform admin endpoints as MCP tools (Claude platform-admin)
+# Optional dependency: app works fine without fastapi-mcp installed.
+# ---------------------------------------------------------------------------
+try:
+    from fastapi_mcp import FastApiMCP
+
+    _mcp = FastApiMCP(
+        app,
+        name="LeadGen AI Platform",
+        include_tags=["Platform", "Data Intelligence", "Agents"],
+    )
+    _mcp.mount()
+    logger.info("✅ MCP server mounted at /mcp (Platform/Data/Agents tools)")
+except ImportError:
+    logger.info("fastapi-mcp not installed — MCP exposure disabled")
+except Exception as e:
+    logger.warning(f"MCP mount failed (non-fatal): {e}")
 
 
 # ---------------------------------------------------------------------------

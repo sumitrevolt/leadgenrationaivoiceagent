@@ -30,11 +30,43 @@ from typing import Dict, List, Optional, Any
 
 # Common objection rebuttals jo har niche pe kaam aate hain (per-niche pack inhe
 # override kar sakta hai). End-customer ke saath warm, non-pushy tone.
+# NOTE: ye canonical CATEGORY keys hain — har category ka ek generic fallback hai
+# taaki koi bhi niche bina apne specific rebuttal ke bhi kuch sahi bol sake.
 _GENERIC_OBJECTIONS: Dict[str, str] = {
     "not_interested": "Bilkul samajhti hoon. Bas ek chhoti si baat — agar yeh aapke kaam ka na ho to main 1 minute me phone rakh deti hoon, par sun lijiye?",
     "busy": "Koi baat nahi, aap busy hain. Main aapko kis time call karoon jo aapke liye sahi rahe?",
     "send_details": "Zaroor, main WhatsApp pe detail bhej deti hoon. Bas 30 second me ek main baat bata doon taaki aapko pata ho kya bhej rahi hoon?",
     "think_about_it": "Bilkul, sochna chahiye. Main koi pressure nahi de rahi — ek choti detail bhej deti hoon, aap aaram se dekh lena.",
+    "too_expensive": "Samajhti hoon. Aap apna budget batayein to main usi me best option nikaal deti hoon — aur EMI/flexible options bhi aksar hote hain.",
+    "already_have": "Achhi baat hai! Ek baar free compare/review kar lijiye — ho sakta hai behtar option ya thodi bachat mil jaaye, koi commitment nahi.",
+    "just_browsing": "Bilkul, abhi dekh-dekh rahe hain — samajh gayi. Main 1-2 options bhej deti hoon, jab man kare tab aage badhna, koi jaldi nahi.",
+}
+
+# Canonical category -> niche pack me jo synonym keys ho sakti hain (preference
+# order). match_objection/objection_response pehle niche-specific wording dhoondte
+# hain, phir generic fallback.
+_OBJECTION_SYNONYMS: Dict[str, List[str]] = {
+    "too_expensive": [
+        "too_expensive", "expensive", "expensive_abroad", "expensive_amc",
+        "price", "price_high", "price_negotiable", "rate_high", "high_capex",
+        "fees", "fees_high", "budget", "budget_issue",
+    ],
+    "already_have": [
+        "already_have", "already_have_broker", "already_coaching",
+        "already_applying", "have_vendor", "have_supplier", "have_ca",
+        "have_team", "have_loan", "existing_partner", "local_carpenter",
+        "carpenter_cheaper",
+    ],
+    "just_browsing": [
+        "just_browsing", "just_looking", "just_planning", "comparing",
+    ],
+    "think_about_it": [
+        "think_about_it", "think", "need_to_discuss", "need_time",
+        "not_decided", "not_sure", "later", "not_now",
+    ],
+    "busy": ["busy", "no_time", "later", "not_now"],
+    "send_details": ["send_details", "send_quote", "send_proposal"],
+    "not_interested": ["not_interested"],
 }
 
 
@@ -594,32 +626,43 @@ def niche_benefits(niche_key: Optional[str]) -> List[str]:
 
 def objection_response(niche_key: Optional[str], objection_key: str) -> Optional[str]:
     """
-    Niche-specific objection rebuttal; falls back to a generic one if the niche
-    has no entry for that objection. Returns None if nothing fits.
+    Objection rebuttal for a niche. Resolution order:
+      1. niche pack me exact key ya uske synonyms (niche-specific wording).
+      2. generic category fallback.
+    Returns None only if category bilkul unknown ho.
     """
     pack = get_knowledge_pack(niche_key)
     obj = pack.get("objections", {})
+    for syn in _OBJECTION_SYNONYMS.get(objection_key, [objection_key]):
+        if syn in obj:
+            return obj[syn]
     if objection_key in obj:
         return obj[objection_key]
     return _GENERIC_OBJECTIONS.get(objection_key)
 
 
-# Keyword -> objection_key, taaki free-form customer utterance se sahi rebuttal
-# match kar saken (LEADS agent ka rule-based fallback isse richer ho jaata hai).
+# Free-form utterance keyword -> canonical objection category. Hindi + English
+# dono cover karte hain taaki LEADS agent ka rule-based fallback richer ho.
 _OBJECTION_KEYWORDS = [
-    (("mehenga", "expensive", "costly", "zyada paisa", "budget nahi", "afford"), "too_expensive"),
-    (("busy", "abhi nahi", "baad me", "call later", "time nahi"), "busy"),
-    (("soch", "think", "dekhungi", "dekhunga", "discuss"), "think_about_it"),
-    (("already", "pehle se", "have a", "humara already", "existing"), "already_have"),
-    (("whatsapp", "email", "detail bhej", "send"), "send_details"),
-    (("not interested", "nahi chahiye", "interested nahi"), "not_interested"),
+    (("mehenga", "mehengi", "expensive", "costly", "zyada paisa", "zyada paise",
+      "budget nahi", "afford", "paise nahi", "kitne ka", "kitna lagega"), "too_expensive"),
+    (("dekh raha", "dekh rahi", "bas dekh", "sirf dekh", "browse", "browsing",
+      "just looking", "abhi sirf", "compare", "compar"), "just_browsing"),
+    (("already", "pehle se", "humara already", "existing", "already have",
+      "ek aur", "lagaya hua", "pehle se hai"), "already_have"),
+    (("busy", "abhi nahi", "baad me", "call later", "time nahi", "kaam me"), "busy"),
+    (("soch", "think", "dekhungi", "dekhunga", "discuss", "ghar me baat",
+      "family se", "samay", "time chahiye"), "think_about_it"),
+    (("whatsapp", "email", "detail bhej", "bhej do", "send", "message kar"), "send_details"),
+    (("not interested", "nahi chahiye", "interested nahi", "mat karo"), "not_interested"),
 ]
 
 
 def match_objection(niche_key: Optional[str], utterance: str) -> Optional[str]:
     """
-    Free-form utterance se best niche objection rebuttal nikaalo (keyword match).
-    Pehle niche-specific keys try karta hai, phir generic. None = no clear match.
+    Free-form utterance se best niche objection rebuttal nikaalo. Pehle niche ke
+    apne objection key ka direct token match, phir keyword->category->synonym
+    resolution (niche-specific wording > generic). None = no clear match.
     """
     if not utterance:
         return None
@@ -627,15 +670,16 @@ def match_objection(niche_key: Optional[str], utterance: str) -> Optional[str]:
     pack = get_knowledge_pack(niche_key)
     niche_obj = pack.get("objections", {})
 
-    # Niche-specific objection keys ko direct keyword se bhi match karo
+    # 1) niche ki apni objection keys ka direct token match (e.g. "just looking")
     for key in niche_obj:
         token = key.replace("_", " ")
         if token in low:
             return niche_obj[key]
 
-    for words, key in _OBJECTION_KEYWORDS:
+    # 2) keyword -> category -> niche synonym / generic fallback
+    for words, category in _OBJECTION_KEYWORDS:
         if any(w in low for w in words):
-            hit = objection_response(niche_key, key)
+            hit = objection_response(niche_key, category)
             if hit:
                 return hit
     return None
