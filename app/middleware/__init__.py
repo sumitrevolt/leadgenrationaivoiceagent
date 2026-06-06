@@ -33,9 +33,22 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = "default-src 'self'"
+        # CSP: dashboards/web-call pages load Chart.js etc. from jsDelivr and
+        # Google Fonts, use inline <script>/<style>, talk to the API over
+        # fetch/WebSocket, and play mic-recorded audio from blobs.
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: blob:; "
+            "connect-src 'self' ws: wss:; "
+            "media-src 'self' blob: data:"
+        )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        # Microphone stays available to same-origin pages — the browser
+        # web-call demo (/app/test-call) records the caller's voice.
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(self), camera=()"
         
         # Remove server header
         if "server" in response.headers:

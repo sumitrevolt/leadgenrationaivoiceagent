@@ -177,6 +177,12 @@ def setup_logger(
     use_json = settings.app_env == "production"
     
     # Console handler
+    # On Windows the console is often cp1252 — emoji in log messages would
+    # raise UnicodeEncodeError and crash logging. Force UTF-8 with replacement.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass  # non-reconfigurable stream (e.g. pytest capture) — fine
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
     
@@ -197,9 +203,9 @@ def setup_logger(
         if log_dir and not os.path.exists(log_dir):
             os.makedirs(log_dir)
         
-        file_handler = logging.FileHandler(log_file)
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setLevel(level)
-        
+
         # Always use JSON for file logs
         file_handler.setFormatter(JSONFormatter())
         logger.addHandler(file_handler)
@@ -237,7 +243,7 @@ def get_call_logger(call_id: str) -> logging.Logger:
     
     # File handler for this call
     log_file = os.path.join(date_dir, f"{call_id}.log")
-    file_handler = logging.FileHandler(log_file)
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
     
     file_format = logging.Formatter(

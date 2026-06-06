@@ -149,3 +149,16 @@ revenue_pipeline/*.csv
 auraleads_extracted/
 .env.production
 .env.local
+
+# Local artifacts that must never ship
+source.tar.gz
+*.tar.gz
+*.db-journal
+pytest_run.log
+smoke_test.log
+uvicorn_smoke.log
+frontend_build.log
+git_check.log
+.fuse_hidden*
+_commit_out.txt
+_push_out.txt

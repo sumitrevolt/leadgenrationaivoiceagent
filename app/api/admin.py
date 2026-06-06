@@ -134,10 +134,13 @@ import os
 import secrets
 
 # JWT Configuration
-JWT_SECRET = os.environ.get("JWT_SECRET_KEY", settings.secret_key)
-JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+# settings.jwt_secret_key is loaded from env/.env by pydantic-settings —
+# os.environ.get() would miss values that only exist in the .env file.
+# Must match app.api.auth_deps.JWT_SECRET (token issue + verify).
+JWT_SECRET = settings.jwt_secret_key
+JWT_ALGORITHM = settings.jwt_algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.jwt_access_token_expire_minutes
+REFRESH_TOKEN_EXPIRE_DAYS = settings.jwt_refresh_token_expire_days
 
 
 def create_access_token(user_id: str, email: str, role: str) -> str:

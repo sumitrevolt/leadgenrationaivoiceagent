@@ -53,7 +53,7 @@ if settings.sentry_dsn and settings.app_env == "production":
         from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
         from sentry_sdk.integrations.redis import RedisIntegration
         from sentry_sdk.integrations.celery import CeleryIntegration
-        
+
         sentry_sdk.init(
             dsn=settings.sentry_dsn,
             environment=settings.app_env,
@@ -84,32 +84,55 @@ platform_orchestrator: PlatformOrchestrator = None
 ml_scheduler = None
 
 
+def _log_startup_banner():
+    """Display configuration banner on startup."""
+    logger.info("=" * 60)
+    logger.info("🤖 AI VOICE AGENT - MULTI-TIER B2B LEAD GENERATION PLATFORM")
+    logger.info("=" * 60)
+    logger.info("")
+    logger.info("📊 PLATFORM MODEL:")
+    logger.info("   ├── Tier 1: Platform finds B2B clients (businesses needing leads)")
+    logger.info("   └── Tier 2: Each client gets automated voice agent for their leads")
+    logger.info("")
+    logger.info("⚙️  CONFIGURATION:")
+    logger.info(f"   ├── Telephony: {settings.default_telephony}")
+    logger.info(f"   ├── LLM: {settings.default_llm}")
+    logger.info(f"   ├── STT: {settings.default_stt}")
+    logger.info(f"   ├── TTS: {settings.default_tts}")
+    logger.info("   └── ML Auto-Learning: ENABLED")
+    logger.info("")
+    logger.info(f"🚀 AUTO-START: {'ENABLED' if settings.auto_start_platform else 'DISABLED'}")
+    logger.info("🧠 ML TRAINING: Nightly at 2:00 AM, Weekly on Sunday")
+    logger.info("=" * 60)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     global platform_orchestrator, ml_scheduler
-    
+
     # Startup
     logger.info(f"🚀 Starting {settings.app_name}...")
     logger.info(f"Environment: {settings.app_env}")
     logger.info(f"Version: {os.environ.get('APP_VERSION', 'dev')}")
-    
+    _log_startup_banner()
+
     # Initialize database
     try:
         await init_async_db()
         logger.info("✅ Database initialized")
     except Exception as e:
         logger.warning(f"Database init failed (may not be configured): {e}")
-    
+
     # DISABLED: Redis and ML scheduler for initial production startup
     # Redis requires VPC connector which is not configured yet
     logger.info("⏭️ Redis disabled - requires VPC connector for internal network access")
     logger.info("⏭️ Platform orchestrator disabled for initial deployment")
     logger.info("⏭️ ML scheduler disabled for initial deployment")
     logger.info("✅ Startup complete - application ready")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down application...")
     if platform_orchestrator:
@@ -139,11 +162,9 @@ setup_middleware(app, production=is_production)
 setup_exception_handlers(app)
 
 # CORS Middleware (configured based on environment)
-allowed_origins = ["*"] if settings.app_env == "development" else [
-    "https://leadgenai.com",
-    "https://app.leadgenai.com",
-    "https://dashboard.leadgenai.com",
-]
+# In production the allowed origins come from settings.cors_origins
+# (CORS_ORIGINS env var, JSON list) so each deployment can set its own domains.
+allowed_origins = ["*"] if settings.app_env == "development" else settings.cors_origins
 
 app.add_middleware(
     CORSMiddleware,
@@ -246,7 +267,7 @@ async def pwa_service_worker():
 async def root():
     """Root endpoint - Platform status"""
     global platform_orchestrator
-    
+
     return {
         "status": "healthy",
         "app": settings.app_name,
@@ -268,7 +289,7 @@ async def root():
 async def health_check():
     """Detailed health check"""
     global platform_orchestrator, ml_scheduler
-    
+
     return {
         "status": "healthy",
         "platform": {
@@ -286,29 +307,6 @@ async def health_check():
             "telephony": "check_required"
         }
     }
-
-
-# Startup event to display configuration
-@app.on_event("startup")
-async def startup_event():
-    logger.info("=" * 60)
-    logger.info("🤖 AI VOICE AGENT - MULTI-TIER B2B LEAD GENERATION PLATFORM")
-    logger.info("=" * 60)
-    logger.info("")
-    logger.info("📊 PLATFORM MODEL:")
-    logger.info("   ├── Tier 1: Platform finds B2B clients (businesses needing leads)")
-    logger.info("   └── Tier 2: Each client gets automated voice agent for their leads")
-    logger.info("")
-    logger.info(f"⚙️  CONFIGURATION:")
-    logger.info(f"   ├── Telephony: {settings.default_telephony}")
-    logger.info(f"   ├── LLM: {settings.default_llm}")
-    logger.info(f"   ├── STT: {settings.default_stt}")
-    logger.info(f"   ├── TTS: {settings.default_tts}")
-    logger.info(f"   └── ML Auto-Learning: ENABLED")
-    logger.info("")
-    logger.info(f"🚀 AUTO-START: {'ENABLED' if settings.auto_start_platform else 'DISABLED'}")
-    logger.info(f"🧠 ML TRAINING: Nightly at 2:00 AM, Weekly on Sunday")
-    logger.info("=" * 60)
 
 
 if __name__ == "__main__":

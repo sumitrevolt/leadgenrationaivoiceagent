@@ -24,8 +24,12 @@ from app.api.auth_deps import get_current_user, require_agent, require_manager, 
 # =============================================================================
 
 # Use SQLite for tests (fast, no external dependencies)
-TEST_DATABASE_URL = "sqlite:///./test.db"
-TEST_ASYNC_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+# DB lives in the OS temp dir — avoids polluting the repo and works on
+# network/mounted filesystems where SQLite locking can fail with disk I/O errors.
+import tempfile
+_TEST_DB_PATH = os.path.join(tempfile.gettempdir(), "leadgen_test.db")
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", f"sqlite:///{_TEST_DB_PATH}")
+TEST_ASYNC_DATABASE_URL = TEST_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
 
 # Sync engine for test setup
 engine = create_engine(

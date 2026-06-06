@@ -78,6 +78,9 @@ COPY --chown=appuser:appgroup alembic.ini ./
 # Copy scripts directory
 COPY --chown=appuser:appgroup scripts/ ./scripts/
 
+# Copy frontend (dashboards + marketing website + PWA served by FastAPI)
+COPY --chown=appuser:appgroup frontend/ ./frontend/
+
 # Copy data directory structure (empty dirs ok, .dockerignore handles exclusions)
 COPY --chown=appuser:appgroup data/ ./data/
 

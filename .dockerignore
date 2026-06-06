@@ -26,9 +26,15 @@ env
 *.swp
 *.swo
 
-# Node/Frontend (not needed for API)
+# Node/Frontend build tooling (the built/static frontend IS served by the API)
 node_modules
-frontend
+frontend/node_modules
+frontend/src
+frontend/public
+frontend/*.json
+frontend/*.ts
+frontend/*.js
+frontend/.gitignore
 
 # Terraform/Infrastructure (not needed in container)
 .terraform

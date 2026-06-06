@@ -52,10 +52,19 @@ echo "===STEP 5: .env config==="
 if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || touch .env; fi
 SECRET=$(python3 -c "import secrets;print(secrets.token_urlsafe(48))")
 set_env() { local k="$1" v="$2"; if grep -q "^$k=" .env; then sed -i "s|^$k=.*|$k=$v|" .env; else echo "$k=$v" >> .env; fi; }
-set_env APP_ENV development
+# Keep existing secrets across re-deploys (a fresh secret on every deploy
+# would log everyone out / invalidate JWTs). Generate only when missing.
+if ! grep -qE "^SECRET_KEY=.{32,}" .env; then
+  set_env SECRET_KEY "$SECRET"
+fi
+if ! grep -qE "^JWT_SECRET_KEY=.{32,}" .env; then
+  set_env JWT_SECRET_KEY "$(python3 -c "import secrets;print(secrets.token_urlsafe(48))")"
+fi
+set_env APP_ENV production
 set_env DEBUG false
+set_env LOG_LEVEL INFO
 set_env DATABASE_URL "sqlite:///$APP_DIR/leadgen.db"
-set_env SECRET_KEY "$SECRET"
+set_env CORS_ORIGINS "[\"https://$DOMAIN\",\"https://www.$DOMAIN\"]"
 set_env DEFAULT_LLM gemini-2.5-flash
 set_env LLM_PROVIDER gemini
 set_env TIMEZONE Asia/Kolkata

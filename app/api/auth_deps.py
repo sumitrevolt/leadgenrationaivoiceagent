@@ -20,8 +20,10 @@ logger = setup_logger(__name__)
 security = HTTPBearer(auto_error=False)  # auto_error=False allows optional auth
 
 # JWT Configuration
-JWT_SECRET = os.environ.get("JWT_SECRET_KEY", settings.secret_key)
-JWT_ALGORITHM = "HS256"
+# settings.jwt_secret_key is loaded from env/.env by pydantic-settings —
+# os.environ.get() would miss values that only exist in the .env file.
+JWT_SECRET = settings.jwt_secret_key
+JWT_ALGORITHM = settings.jwt_algorithm
 
 
 def decode_token(token: str) -> dict:
@@ -138,29 +140,7 @@ def require_permission(permission: str):
     return permission_checker
 
 
-# Webhook authentication (for external services like Twilio)
-async def verify_twilio_signature(request_data: dict, signature: str) -> bool:
-    """Verify Twilio webhook signature"""
-    # In production, implement proper Twilio signature verification
-    # https://www.twilio.com/docs/usage/security#validating-requests
-    import hmac
-    import hashlib
-    
-    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
-    if not auth_token:
-        logger.warning("TWILIO_AUTH_TOKEN not set, skipping signature verification")
-        return True  # Allow in development
-    
-    # Implement actual verification here
-    return True
-
-
-async def verify_exotel_signature(request_data: dict, signature: str) -> bool:
-    """Verify Exotel webhook signature"""
-    # Implement Exotel signature verification
-    api_key = os.environ.get("EXOTEL_API_KEY", "")
-    if not api_key:
-        logger.warning("EXOTEL_API_KEY not set, skipping signature verification")
-        return True  # Allow in development
-    
-    return True
+# NOTE: Webhook signature verification lives in app.api.webhooks
+# (verify_twilio_signature / verify_exotel_signature with real HMAC checks).
+# The always-True stubs that used to live here were removed so nobody
+# accidentally imports a no-op verifier.
