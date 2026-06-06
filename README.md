@@ -1,62 +1,68 @@
-# 🤖 LeadGen AI - Multi-Tier B2B Lead Generation Platform
+# 🚀 LeadGen AI - B2B Intelligence Platform
 
-> **AI-Powered Voice Agent Platform for Automated Lead Generation**
+> **AI-Powered Business Data & Intelligence Platform**
 > 
-> A fully automated, multi-tenant SaaS platform that generates B2B leads using AI voice agents.
+> A zero-cost B2B data platform that provides company search, enrichment, and market intelligence APIs.
 
 ---
 
 ## 🎯 Business Model
 
-### Two-Tier Automation System
+### B2B Intelligence Platform (Zero Per-Interaction Cost)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        TIER 1: PLATFORM LEVEL                                │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  YOUR COMPANY uses the AI to find B2B clients (businesses that     │   │
-│  │  need lead generation services)                                      │   │
-│  │                                                                       │   │
-│  │  Scrape → Call → Pitch Service → Convert to Client                   │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        TIER 2: CLIENT LEVEL                                  │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  EACH CLIENT gets their own AI voice agent to generate leads       │   │
-│  │  for THEIR business                                                  │   │
-│  │                                                                       │   │
-│  │  Client's Niche → Scrape → Call → Book Appointments for Client      │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
+│                     B2B INTELLIGENCE PLATFORM                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                    │
+│   │   SCRAPE    │ →  │   ENRICH    │ →  │    SELL     │                    │
+│   │   Data      │    │   & Score   │    │   Access    │                    │
+│   └─────────────┘    └─────────────┘    └─────────────┘                    │
+│                                                                              │
+│   Cost: ₹0.10/lead    Cost: ₹0/lead     Revenue: ₹5+/lookup                │
+│   (one-time)          (AI scoring)       (per customer)                     │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   📊 REVENUE STREAMS:                                                        │
+│   • Company Search API (subscription)                                        │
+│   • Data Enrichment (per-credit)                                            │
+│   • Market Reports (per-report)                                             │
+│   • Bulk Export (per-record)                                                │
+│                                                                              │
+│   💰 MARGIN: 95%+ (scrape once, sell 100x)                                  │
+│                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Automation Flow
+### Platform Features
 
 ```
-    ┌────────────────────────────────────────────────────────────────────────┐
-    │                    24/7 AUTOMATED OPERATION                            │
-    │                                                                        │
-    │   1. Platform scrapes potential B2B clients                           │
-    │      (Digital agencies, Solar companies, Real estate, etc.)           │
-    │                               ↓                                        │
-    │   2. AI calls businesses to pitch lead gen service                    │
-    │      (Using Hinglish/English scripts)                                 │
-    │                               ↓                                        │
-    │   3. Interested lead? → AUTO-ONBOARD as trial client                  │
-    │      (7-day free trial, 100 calls)                                    │
-    │                               ↓                                        │
-    │   4. Client's own AI agent starts generating THEIR leads              │
-    │      (Scrape → Call → Qualify → Book appointments)                    │
-    │                               ↓                                        │
-    │   5. Nurturing sequence converts trial → paid subscription            │
-    │      (Automated WhatsApp follow-ups)                                  │
-    │                               ↓                                        │
-    │   6. Repeat forever with minimal human intervention                   │
-    │                                                                        │
-    └────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                         PLATFORM CAPABILITIES                               │
+│                                                                             │
+│   🔍 COMPANY SEARCH API                                                     │
+│      • Search across 20+ industries                                        │
+│      • Filter by city, rating, verification                                │
+│      • FREE searches (credits on export/enrich)                            │
+│                                                                             │
+│   📈 DATA ENRICHMENT                                                        │
+│      • Full contact details (phone, email)                                 │
+│      • Company metadata (size, industry)                                   │
+│      • 2 credits per enrichment                                            │
+│                                                                             │
+│   📊 MARKET REPORTS                                                         │
+│      • Industry analysis                                                   │
+│      • Competitive landscape                                               │
+│      • AI-generated insights                                               │
+│                                                                             │
+│   🔑 DEVELOPER API                                                          │
+│      • REST API with API key auth                                          │
+│      • Webhooks for real-time updates                                      │
+│      • CRM integrations (HubSpot, Zoho)                                    │
+│                                                                             │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -69,20 +75,19 @@ leadgenrationaivoiceagent/
 │   ├── main.py                      # FastAPI entry point
 │   ├── config.py                    # Application configuration
 │   │
-│   ├── platform/                    # 🌟 Multi-tenant platform core
-│   │   ├── __init__.py             # Platform config, tenant types
-│   │   ├── orchestrator.py         # 24/7 master automation controller
-│   │   ├── tenant_manager.py       # Manage all client tenants
-│   │   ├── client_journey.py       # Lead → Client conversion flow
-│   │   └── sales_scripts.py        # Scripts for selling YOUR service
+│   ├── api/                         # 🌐 API Endpoints
+│   │   ├── data.py                 # 🌟 Data Intelligence API
+│   │   ├── leads.py                # Lead management
+│   │   ├── campaigns.py            # Campaign management
+│   │   └── analytics.py            # Analytics endpoints
 │   │
-│   ├── voice_agent/                 # 🎤 AI Voice Agent Core
-│   │   ├── agent.py                # Main voice agent class
-│   │   ├── llm_brain.py            # LLM integration (Gemini/GPT/Claude)
-│   │   ├── stt_handler.py          # Speech-to-text (Deepgram/Google)
-│   │   ├── tts_handler.py          # Text-to-speech (Edge/ElevenLabs/Azure)
-│   │   ├── intent_detector.py      # Detect caller intent
-│   │   └── conversation.py         # Manage conversation state
+│   ├── services/                    # 💼 Business Logic
+│   │   └── data_service.py         # Data platform service
+│   │
+│   ├── models/                      # 📦 Database Models
+│   │   ├── lead.py                 # Lead/Company model
+│   │   ├── data_credits.py         # Credits & API keys
+│   │   └── payment.py              # Billing models
 │   │
 │   ├── lead_scraper/                # 🔍 Lead Scraping
 │   │   ├── google_maps.py          # Google Maps scraper
@@ -90,12 +95,6 @@ leadgenrationaivoiceagent/
 │   │   ├── justdial.py             # JustDial scraper
 │   │   ├── linkedin.py             # LinkedIn scraper
 │   │   └── scraper_manager.py      # Orchestrate all scrapers
-│   │
-│   ├── telephony/                   # 📞 Telephony Integration
-│   │   ├── twilio_handler.py       # Twilio for international
-│   │   ├── exotel_handler.py       # Exotel for India
-│   │   ├── call_manager.py         # Manage concurrent calls
-│   │   └── webhooks.py             # Handle call events
 │   │
 │   ├── integrations/                # 🔗 Third-party Integrations
 │   │   ├── whatsapp_handler.py     # WhatsApp Business API

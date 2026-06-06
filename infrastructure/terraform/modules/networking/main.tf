@@ -70,18 +70,20 @@ resource "google_compute_subnetwork" "ml_tier" {
 # -----------------------------------------------------------------------------
 # Serverless VPC Access Connector (for Cloud Run)
 # -----------------------------------------------------------------------------
+# TEMPORARILY DISABLED DUE TO GCP ERROR 13 - DEPLOY OTHER INFRA FIRST
+# We can add this later manually or via Terraform once GCP issue resolves
 
-resource "google_vpc_access_connector" "serverless" {
-  name          = "${var.environment}-vpc-connector"
-  project       = var.project_id
-  region        = var.region
-  network       = google_compute_network.main.id
-  ip_cidr_range = "10.8.0.0/28"
-  min_instances = 2
-  max_instances = 10
-
-  depends_on = [google_compute_network.main]
-}
+# resource "google_vpc_access_connector" "serverless" {
+#   name          = "${var.environment}-vpc-connector"
+#   project       = var.project_id
+#   region        = var.region
+#   network       = google_compute_network.main.id
+#   ip_cidr_range = "10.8.0.0/28"
+#   min_instances = 2
+#   max_instances = 10
+# 
+#   depends_on = [google_compute_network.main]
+# }
 
 # -----------------------------------------------------------------------------
 # Cloud NAT (for egress)
@@ -171,7 +173,9 @@ resource "google_compute_firewall" "allow_internal" {
     google_compute_subnetwork.app_tier.ip_cidr_range,
     google_compute_subnetwork.data_tier.ip_cidr_range,
     google_compute_subnetwork.ml_tier.ip_cidr_range,
-    google_vpc_access_connector.serverless.ip_cidr_range,
+    # VPC connector disabled temporarily
+    # google_vpc_access_connector.serverless.ip_cidr_range,
+    "10.8.0.0/28",  # Hardcoded connector range until connector is created
   ]
 }
 
@@ -241,7 +245,9 @@ output "ml_subnet_id" {
 }
 
 output "vpc_connector_id" {
-  value = google_vpc_access_connector.serverless.id
+  # Temporarily disabled - returning empty string
+  value = ""
+  # value = google_vpc_access_connector.serverless.id
 }
 
 output "private_services_address" {

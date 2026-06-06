@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LeadGen AI — Web Call (Test Mode)</title>
+<style>
+  :root{
+    --brand:#6d28d9;          /* violet-700 */
+    --brand-2:#4f46e5;        /* indigo-600 */
+    --brand-soft:#ede9fe;
+    --ink:#1e1b2e;
+    --muted:#6b7280;
+    --line:#e9e7f2;
+    --bg:#f6f5fb;
+    --card:#ffffff;
+    --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
+    --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
+    display:flex;align-items:center;justify-content:center;padding:18px;
+  }
+  .wrap{width:100%;max-width:760px;display:flex;flex-direction:column;gap:14px}
+
+  /* Banner */
+  .banner{
+    background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;border-radius:12px;
+    padding:12px 16px;font-weight:700;display:flex;align-items:center;gap:10px;
+    box-shadow:var(--shadow);font-size:13.5px;
+  }
+  .banner .dot{width:10px;height:10px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(255,255,255,.3)}
+
+  /* Header card */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .head{padding:16px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+  .logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:20px;color:#fff;box-shadow:0 4px 14px rgba(99,102,241,.5)}
+  .title h1{font-size:17px;margin:0}
+  .title p{margin:2px 0 0;color:var(--muted);font-size:12px}
+  .spacer{flex:1}
+  .status{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted)}
+  .status .led{width:9px;height:9px;border-radius:50%;background:#9ca3af}
+  .status.online .led{background:var(--ok)}
+  .status.offline .led{background:var(--err)}
+
+  /* Controls */
+  .controls{display:flex;gap:12px;flex-wrap:wrap;padding:12px 18px;border-bottom:1px solid var(--line)}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  select{
+    appearance:none;border:1px solid var(--line);background:#fff;border-radius:9px;
+    padding:8px 30px 8px 11px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;min-width:150px;
+  }
+
+  /* Chat */
+  .chat{height:46vh;min-height:300px;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px;background:#faf9fe}
+  .msg{display:flex;gap:9px;max-width:82%}
+  .msg .av{width:30px;height:30px;border-radius:9px;flex:0 0 30px;display:grid;place-items:center;font-size:15px;color:#fff}
+  .msg .bubble{padding:10px 13px;border-radius:13px;font-size:13.5px;white-space:pre-wrap;word-break:break-word}
+  .msg.bot{align-self:flex-start}
+  .msg.bot .av{background:linear-gradient(135deg,#7c3aed,#4f46e5)}
+  .msg.bot .bubble{background:#fff;border:1px solid var(--line);border-top-left-radius:4px;color:var(--ink)}
+  .msg.user{align-self:flex-end;flex-direction:row-reverse}
+  .msg.user .av{background:#1e293b}
+  .msg.user .bubble{background:linear-gradient(135deg,#6d28d9,#4f46e5);color:#fff;border-top-right-radius:4px}
+  .msg.sys{align-self:center;max-width:90%}
+  .msg.sys .bubble{background:var(--brand-soft);color:#5b21b6;font-size:12px;font-weight:600;border-radius:20px;padding:6px 14px}
+
+  /* Composer */
+  .composer{padding:12px 14px;display:flex;gap:9px;align-items:flex-end;border-top:1px solid var(--line)}
+  textarea{
+    flex:1;resize:none;border:1px solid var(--line);border-radius:11px;padding:11px 13px;
+    font-family:inherit;font-size:13.5px;color:var(--ink);max-height:110px;min-height:44px;line-height:1.4;
+  }
+  textarea:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .btn{border:none;border-radius:11px;cursor:pointer;font-weight:700;font-size:13.5px;
+    padding:0 16px;height:44px;display:inline-flex;align-items:center;gap:7px;transition:.15s}
+  .btn.send{background:linear-gradient(135deg,#6d28d9,#4f46e5);color:#fff}
+  .btn.send:hover{filter:brightness(1.07)}
+  .btn.mic{background:#fff;border:1px solid var(--line);color:var(--ink);width:48px;padding:0;justify-content:center}
+  .btn.mic.rec{background:var(--err);color:#fff;border-color:var(--err);animation:pulse 1s infinite}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.5)}50%{box-shadow:0 0 0 7px rgba(239,68,68,0)}}
+
+  .foot{padding:9px 18px;font-size:11px;color:var(--muted);text-align:center}
+  .typing{font-style:italic;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="banner">
+    <span class="dot"></span>
+    TEST MODE — no real phone call is placed. You are talking to the bot in your browser.
+  </div>
+
+  <div class="card">
+    <div class="head">
+      <div class="logo">📞</div>
+      <div class="title">
+        <h1>Web Call — Bot Test</h1>
+        <p>Dograh-style web call · try your flow before going live</p>
+      </div>
+      <div class="spacer"></div>
+      <div class="status" id="status"><span class="led"></span><span id="statusText">connecting…</span></div>
+    </div>
+
+    <div class="controls">
+      <div class="field">
+        <label>Niche</label>
+        <select id="niche">
+          <option value="solar">Solar</option>
+          <option value="real_estate">Real Estate</option>
+          <option value="dental">Dental</option>
+          <option value="hvac">HVAC</option>
+          <option value="interior">Interior Design</option>
+          <option value="study_abroad">Study Abroad</option>
+          <option value="insurance">Insurance</option>
+          <option value="general">General</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Flow</label>
+        <select id="flow">
+          <option value="qualify">Qualify Lead</option>
+          <option value="appointment">Book Appointment</option>
+          <option value="callback">Schedule Callback</option>
+          <option value="survey">Survey</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1;justify-content:flex-end;align-items:flex-end">
+        <button class="btn send" id="resetBtn" style="background:#fff;border:1px solid var(--line);color:var(--ink)">↻ Restart</button>
+      </div>
+    </div>
+
+    <div class="chat" id="chat"></div>
+
+    <div class="composer">
+      <button class="btn mic" id="micBtn" title="Hold to talk">🎤</button>
+      <textarea id="input" placeholder="Type a message to the bot…  (Enter to send)"></textarea>
+      <button class="btn send" id="sendBtn">Send ➤</button>
+    </div>
+
+    <div class="foot" id="foot">Indigo/violet brand · auto-detects host · degrades to text-chat if mic unsupported.</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Auto-detect host / websocket URL --------------------------------
+  var proto = location.protocol === "https:" ? "wss:" : "ws:";
+  var host  = location.host || "localhost:8000";
+  var WS_URL = proto + "//" + host + "/api/web-call/ws";
+
+  var chat = document.getElementById("chat");
+  var input = document.getElementById("input");
+  var sendBtn = document.getElementById("sendBtn");
+  var micBtn = document.getElementById("micBtn");
+  var resetBtn = document.getElementById("resetBtn");
+  var nicheSel = document.getElementById("niche");
+  var flowSel = document.getElementById("flow");
+  var statusEl = document.getElementById("status");
+  var statusText = document.getElementById("statusText");
+  var foot = document.getElementById("foot");
+
+  var ws = null;
+  var typingEl = null;
+
+  // ---- Chat rendering --------------------------------------------------
+  function addMsg(role, text){
+    var wrap = document.createElement("div");
+    wrap.className = "msg " + role;
+    if(role === "sys"){
+      wrap.innerHTML = '<div class="bubble"></div>';
+      wrap.querySelector(".bubble").textContent = text;
+    } else {
+      var av = role === "user" ? "🧑" : "🤖";
+      wrap.innerHTML = '<div class="av"></div><div class="bubble"></div>';
+      wrap.querySelector(".av").textContent = av;
+      wrap.querySelector(".bubble").textContent = text;
+    }
+    chat.appendChild(wrap);
+    chat.scrollTop = chat.scrollHeight;
+    return wrap;
+  }
+
+  function showTyping(){
+    if(typingEl) return;
+    typingEl = document.createElement("div");
+    typingEl.className = "msg bot";
+    typingEl.innerHTML = '<div class="av">🤖</div><div class="bubble typing">…typing</div>';
+    chat.appendChild(typingEl);
+    chat.scrollTop = chat.scrollHeight;
+  }
+  function hideTyping(){
+    if(typingEl){ typingEl.remove(); typingEl = null; }
+  }
+
+  // ---- Audio playback (if bot returns audio_b64) -----------------------
+  function playAudioB64(b64){
+    if(!b64) return false;
+    try{
+      var audio = new Audio("data:audio/mp3;base64," + b64);
+      audio.play().catch(function(){ /* autoplay blocked — ignore */ });
+      return true;
+    }catch(e){ return false; }
+  }
+
+  // ---- Browser TTS fallback (speak bot text) ---------------------------
+  function speak(text){
+    if(!("speechSynthesis" in window) || !text) return;
+    try{
+      var u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.0;
+      window.speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  // ---- WebSocket -------------------------------------------------------
+  function setStatus(state, text){
+    statusEl.className = "status " + state;
+    statusText.textContent = text;
+  }
+
+  function connect(){
+    setStatus("", "connecting…");
+    try{ ws = new WebSocket(WS_URL); }
+    catch(e){ setStatus("offline","offline"); addMsg("sys","Could not open WebSocket: "+e); return; }
+
+    ws.onopen = function(){
+      setStatus("online","connected");
+      // Send start with current niche/flow.
+      sendJSON({type:"start", niche:nicheSel.value, flow:flowSel.value});
+    };
+
+    ws.onmessage = function(ev){
+      var data;
+      try{ data = JSON.parse(ev.data); }catch(e){ return; }
+      if(data.type === "ready"){
+        var r = data.responder || "echo";
+        addMsg("sys","TEST MODE ready · responder: " + r + (data.pipeline ? " (full pipeline)" : ""));
+        if(data.note) foot.textContent = data.note;
+      } else if(data.type === "bot"){
+        hideTyping();
+        addMsg("bot", data.text || "(no response)");
+        if(!playAudioB64(data.audio_b64)) speak(data.text);
+      } else if(data.type === "info"){
+        addMsg("sys", data.text || "");
+      } else if(data.type === "error"){
+        hideTyping();
+        addMsg("sys", "⚠ " + (data.text || "error"));
+      } else if(data.type === "pong"){
+        /* keepalive */
+      }
+    };
+
+    ws.onclose = function(){ setStatus("offline","disconnected"); hideTyping(); };
+    ws.onerror = function(){ setStatus("offline","offline"); };
+  }
+
+  function sendJSON(obj){
+    if(ws && ws.readyState === WebSocket.OPEN){ ws.send(JSON.stringify(obj)); return true; }
+    return false;
+  }
+
+  function sendUserText(text){
+    text = (text||"").trim();
+    if(!text) return;
+    addMsg("user", text);
+    var ok = sendJSON({type:"user", text:text, niche:nicheSel.value, flow:flowSel.value});
+    if(ok){ showTyping(); }
+    else { addMsg("sys","⚠ Not connected — reconnecting…"); connect(); }
+  }
+
+  // ---- Composer events -------------------------------------------------
+  sendBtn.addEventListener("click", function(){
+    sendUserText(input.value);
+    input.value = "";
+    input.focus();
+  });
+  input.addEventListener("keydown", function(e){
+    if(e.key === "Enter" && !e.shiftKey){
+      e.preventDefault();
+      sendUserText(input.value);
+      input.value = "";
+    }
+  });
+  resetBtn.addEventListener("click", function(){
+    chat.innerHTML = "";
+    addMsg("sys","Session restarted — niche: "+nicheSel.value+", flow: "+flowSel.value);
+    sendJSON({type:"start", niche:nicheSel.value, flow:flowSel.value});
+  });
+
+  // ---- Speech recognition (Web Speech API) — hold to talk --------------
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var recog = null, recognizing = false;
+  if(SR){
+    recog = new SR();
+    recog.lang = "en-IN";
+    recog.interimResults = false;
+    recog.maxAlternatives = 1;
+    recog.onresult = function(ev){
+      var t = ev.results[0][0].transcript;
+      sendUserText(t);
+    };
+    recog.onend = function(){ recognizing = false; micBtn.classList.remove("rec"); };
+    recog.onerror = function(){ recognizing = false; micBtn.classList.remove("rec"); };
+
+    function startRec(){ if(recognizing) return; try{ recog.start(); recognizing = true; micBtn.classList.add("rec"); }catch(e){} }
+    function stopRec(){ if(!recognizing) return; try{ recog.stop(); }catch(e){} }
+
+    micBtn.addEventListener("mousedown", startRec);
+    micBtn.addEventListener("mouseup", stopRec);
+    micBtn.addEventListener("mouseleave", stopRec);
+    micBtn.addEventListener("touchstart", function(e){ e.preventDefault(); startRec(); });
+    micBtn.addEventListener("touchend", function(e){ e.preventDefault(); stopRec(); });
+    micBtn.title = "Hold to talk (speech-to-text)";
+  } else {
+    // Mic unsupported — degrade to text-chat only.
+    micBtn.disabled = true;
+    micBtn.title = "Speech recognition not supported in this browser — use text chat";
+    micBtn.style.opacity = ".5";
+  }
+
+  // ---- Keepalive -------------------------------------------------------
+  setInterval(function(){ sendJSON({type:"ping"}); }, 25000);
+
+  // ---- Boot ------------------------------------------------------------
+  addMsg("sys","Welcome! This is TEST MODE — chat with the bot, no real call. Pick a niche/flow and say hello.");
+  connect();
+})();
+</script>
+</body>
+</html>

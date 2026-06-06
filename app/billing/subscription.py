@@ -198,6 +198,91 @@ PRICING_PLANS = {
             "All Growth features"
         ]
     ),
+    
+    # =============================================================================
+    # B2B INTELLIGENCE PLATFORM - CREDIT-BASED PLANS
+    # =============================================================================
+    
+    "data_starter": PricingPlan(
+        id="data_starter",
+        name="Data Starter",
+        pricing_model=PricingModel.SUBSCRIPTION,
+        monthly_price=Decimal("5000"),  # ₹5,000/month
+        leads_per_month=1000,  # 1000 credits
+        concurrent_campaigns=1,
+        features=[
+            "1,000 Data Credits/month",
+            "Company Search API",
+            "Data Enrichment (2 credits/company)",
+            "CSV Export",
+            "1 API Key",
+            "Email Support",
+        ]
+    ),
+    
+    "data_growth": PricingPlan(
+        id="data_growth",
+        name="Data Growth",
+        pricing_model=PricingModel.SUBSCRIPTION,
+        monthly_price=Decimal("15000"),  # ₹15,000/month
+        leads_per_month=5000,  # 5000 credits
+        concurrent_campaigns=3,
+        features=[
+            "5,000 Data Credits/month",
+            "Everything in Starter",
+            "Market Reports (Basic)",
+            "CRM Integration",
+            "5 API Keys",
+            "Priority Support",
+        ]
+    ),
+    
+    "data_pro": PricingPlan(
+        id="data_pro",
+        name="Data Pro",
+        pricing_model=PricingModel.SUBSCRIPTION,
+        monthly_price=Decimal("35000"),  # ₹35,000/month
+        leads_per_month=15000,  # 15000 credits
+        concurrent_campaigns=10,
+        features=[
+            "15,000 Data Credits/month",
+            "Everything in Growth",
+            "Market Reports (Detailed)",
+            "Webhook Notifications",
+            "Unlimited API Keys",
+            "Dedicated Support",
+        ]
+    ),
+    
+    "data_enterprise": PricingPlan(
+        id="data_enterprise",
+        name="Data Enterprise",
+        pricing_model=PricingModel.SUBSCRIPTION,
+        monthly_price=Decimal("75000"),  # ₹75,000/month
+        leads_per_month=0,  # Unlimited
+        concurrent_campaigns=0,  # Unlimited
+        features=[
+            "Unlimited Data Credits",
+            "Everything in Pro",
+            "Custom Reports",
+            "White-Label API",
+            "SLA Guarantee",
+            "Dedicated Account Manager",
+        ]
+    ),
+    
+    "data_payg": PricingPlan(
+        id="data_payg",
+        name="Pay As You Go",
+        pricing_model=PricingModel.PER_LEAD,
+        price_per_qualified_lead=Decimal("5"),  # ₹5 per credit
+        features=[
+            "No Monthly Commitment",
+            "Buy Credits as Needed",
+            "All Features Included",
+            "Minimum ₹2,500 Top-up (500 credits)",
+        ]
+    ),
 }
 
 

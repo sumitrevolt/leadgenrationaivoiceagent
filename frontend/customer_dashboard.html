@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LeadGen AI — Aapka Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root{
+    --brand:#6d28d9;          /* violet-700 */
+    --brand-2:#4f46e5;        /* indigo-600 */
+    --brand-soft:#ede9fe;
+    --ink:#1e1b2e;
+    --muted:#6b7280;
+    --line:#e9e7f2;
+    --bg:#f6f5fb;
+    --card:#ffffff;
+    --hot:#ef4444; --warm:#f59e0b; --cold:#3b82f6;
+    --ok:#16a34a; --no:#9ca3af; --busy:#d97706;
+    --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
+  }
+  a{color:inherit}
+  .app{display:flex;min-height:100vh}
+
+  /* Sidebar */
+  .sidebar{
+    width:230px;flex:0 0 230px;background:linear-gradient(180deg,#2e1065,#4c1d95);
+    color:#ede9fe;padding:22px 16px;display:flex;flex-direction:column;gap:6px;
+    position:sticky;top:0;height:100vh;
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:17px;color:#fff;margin-bottom:22px;letter-spacing:.2px}
+  .brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:18px;box-shadow:0 4px 14px rgba(99,102,241,.5)}
+  .navlink{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
+    color:#d8d2f5;text-decoration:none;font-weight:500;cursor:pointer}
+  .navlink.active,.navlink:hover{background:rgba(255,255,255,.12);color:#fff}
+  .navlink .ic{width:18px;text-align:center}
+  .side-foot{margin-top:auto;font-size:11px;color:#b9add9;line-height:1.5}
+
+  /* Main */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{background:var(--card);border-bottom:1px solid var(--line);
+    padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+  .hi h1{font-size:18px;margin:0}
+  .hi p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+  .spacer{flex:1}
+  .ctl{display:flex;align-items:center;gap:8px}
+  .ctl label{font-size:12px;color:var(--muted);font-weight:600}
+  select{
+    appearance:none;border:1px solid var(--line);background:#fff;border-radius:9px;
+    padding:9px 32px 9px 12px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 11px center;
+  }
+  .badge-demo{font-size:11px;font-weight:700;color:#9333ea;background:var(--brand-soft);
+    padding:5px 10px;border-radius:999px;border:1px solid #ddd6fe}
+
+  .content{padding:22px 24px 40px;max-width:1320px;width:100%}
+
+  /* KPI cards */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--brand)}
+  .kpi .lab{font-size:11.5px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  .kpi .val{font-size:26px;font-weight:800;margin-top:7px;line-height:1}
+  .kpi .sub{font-size:11.5px;color:var(--muted);margin-top:6px}
+  .kpi.k2:before{background:#0ea5e9}.kpi.k3:before{background:#16a34a}
+  .kpi.k4:before{background:#f59e0b}.kpi.k5:before{background:#ec4899}
+
+  /* layout grids */
+  .grid-2{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:18px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .card-h{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--line)}
+  .card-h h2{font-size:14.5px;margin:0;font-weight:700}
+  .card-h .pill{font-size:11px;color:var(--muted);background:#f3f1fa;padding:3px 9px;border-radius:999px;font-weight:600}
+  .card-h .grow{flex:1}
+  .card-b{padding:16px 18px}
+  .chart-wrap{position:relative;height:240px}
+
+  /* buttons */
+  .btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 13px;font-size:12.5px;
+    font-weight:600;cursor:pointer;color:var(--ink);display:inline-flex;align-items:center;gap:7px;transition:.12s}
+  .btn:hover{border-color:#c4b5fd;background:#faf9ff}
+  .btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border:none;
+    box-shadow:0 4px 12px rgba(99,102,241,.32)}
+  .btn.primary:hover{filter:brightness(1.05)}
+
+  /* tables */
+  .tbl-scroll{overflow:auto;max-height:430px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{position:sticky;top:0;background:#faf9fe;text-align:left;font-size:11px;text-transform:uppercase;
+    letter-spacing:.4px;color:var(--muted);padding:11px 14px;border-bottom:1px solid var(--line);font-weight:700;z-index:1}
+  tbody td{padding:11px 14px;border-bottom:1px solid #f1eff8;vertical-align:top}
+  tbody tr:hover{background:#faf9ff}
+  td .biz{font-weight:600}
+  td .sm{color:var(--muted);font-size:12px}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+  .tag.connected{background:#dcfce7;color:#15803d}
+  .tag.no-answer{background:#f1f5f9;color:#64748b}
+  .tag.busy{background:#fef3c7;color:#b45309}
+  .score{display:inline-block;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;color:#fff}
+  .score.Hot{background:var(--hot)}.score.Warm{background:var(--warm)}.score.Cold{background:var(--cold)}
+  .niche{font-size:11px;color:var(--brand);background:var(--brand-soft);padding:2px 8px;border-radius:6px;font-weight:600;text-transform:capitalize}
+
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:18px 0 6px}
+  footer b{color:var(--brand)}
+
+  /* toast */
+  .toast{position:fixed;right:20px;bottom:20px;background:#111827;color:#fff;padding:13px 16px;border-radius:11px;
+    font-size:13px;box-shadow:0 12px 30px rgba(0,0,0,.28);opacity:0;transform:translateY(12px);
+    transition:.25s;z-index:100;max-width:320px}
+  .toast.show{opacity:1;transform:translateY(0)}
+  .toast .t{font-weight:700;margin-bottom:2px}
+
+  /* responsive */
+  @media (max-width:1080px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .grid-2,.grid-3{grid-template-columns:1fr}
+  }
+  @media (max-width:820px){
+    .sidebar{display:none}
+    .content{padding:16px}
+    .topbar{padding:12px 16px}
+  }
+  @media (max-width:560px){
+    .kpis{grid-template-columns:1fr 1fr}
+    .kpi .val{font-size:22px}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand"><span class="logo">🎙️</span> LeadGen AI</div>
+    <a class="navlink active"><span class="ic">📊</span> Dashboard</a>
+    <a class="navlink" onclick="scrollToId('callsCard')"><span class="ic">📞</span> Calls Kiye Gaye</a>
+    <a class="navlink" onclick="scrollToId('leadsCard')"><span class="ic">🔥</span> Aapke Leads</a>
+    <a class="navlink" onclick="toast('Reports','PDF report jald aa raha hai.')"><span class="ic">📁</span> Reports</a>
+    <a class="navlink" onclick="toast('Settings','Settings page coming soon.')"><span class="ic">⚙️</span> Settings</a>
+    <div class="side-foot">
+      Aapka AI voice agent<br>din-raat leads laa raha hai.<br><br>
+      <span id="sideClient">Client: demo</span>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="hi">
+        <h1>Namaste 👋 Aapka Lead Dashboard</h1>
+        <p id="genAt">AI voice agent ne aapke liye jo kaam kiya — ek nazar me.</p>
+      </div>
+      <div class="spacer"></div>
+      <span class="badge-demo" id="demoBadge">Demo Data</span>
+      <div class="ctl">
+        <label for="campaign">Campaign</label>
+        <select id="campaign"></select>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- KPIs -->
+      <div class="kpis">
+        <div class="kpi k1"><div class="lab">Calls Kiye Gaye</div><div class="val" id="kCalls">—</div><div class="sub">Total dial attempts</div></div>
+        <div class="kpi k2"><div class="lab">Connected Calls</div><div class="val" id="kConn">—</div><div class="sub" id="kConnSub">— connect rate</div></div>
+        <div class="kpi k3"><div class="lab">Qualified Leads</div><div class="val" id="kQual">—</div><div class="sub">Ready-to-talk customers</div></div>
+        <div class="kpi k4"><div class="lab">Conversion %</div><div class="val" id="kConv">—</div><div class="sub">Connected → Qualified</div></div>
+        <div class="kpi k5"><div class="lab">Est. Cost</div><div class="val" id="kCost">—</div><div class="sub">Telephony estimate</div></div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-h"><h2>Calls Per Day</h2><span class="pill">Last 7 days</span></div>
+          <div class="card-b"><div class="chart-wrap"><canvas id="chCalls"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Leads by Status</h2></div>
+          <div class="card-b"><div class="chart-wrap"><canvas id="chStatus"></canvas></div></div>
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-h"><h2>Leads by City</h2></div>
+          <div class="card-b"><div class="chart-wrap"><canvas id="chCity"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Aaj Ka Summary</h2></div>
+          <div class="card-b" id="summaryBox" style="display:flex;flex-direction:column;gap:12px"></div>
+        </div>
+      </div>
+
+      <!-- Calls table -->
+      <div class="card" id="callsCard" style="margin-bottom:18px">
+        <div class="card-h">
+          <h2>Calls Kiye Gaye</h2>
+          <span class="pill" id="callsCount">0 calls</span>
+          <div class="grow"></div>
+        </div>
+        <div class="tbl-scroll">
+          <table>
+            <thead><tr>
+              <th>Time</th><th>Business</th><th>Phone</th><th>City</th><th>Duration</th><th>Status</th><th>Outcome</th>
+            </tr></thead>
+            <tbody id="callsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Leads table -->
+      <div class="card" id="leadsCard">
+        <div class="card-h">
+          <h2>Final Qualified Leads — Aapke Leads</h2>
+          <span class="pill" id="leadsCount">0 leads</span>
+          <div class="grow"></div>
+          <button class="btn" onclick="downloadCSV()">⬇️ CSV Download</button>
+          <button class="btn primary" onclick="sendToCRM()">📲 Send to WhatsApp / CRM</button>
+        </div>
+        <div class="tbl-scroll">
+          <table>
+            <thead><tr>
+              <th>Business</th><th>Contact</th><th>Phone</th><th>City</th><th>Niche</th><th>Score</th><th>Qualification</th><th>Date</th>
+            </tr></thead>
+            <tbody id="leadsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <footer>Powered by <b>LeadGen AI</b> · Aapka apna AI voice agent · Made in India 🇮🇳</footer>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><div class="t" id="toastT"></div><div id="toastM"></div></div>
+
+<script>
+/* ============================================================
+   EMBEDDED DEMO DATA — shape matches /api/customer/dashboard
+   The page renders from this immediately, then tries live fetch.
+   ============================================================ */
+const CITIES = ["Mumbai","Pune","Delhi","Bangalore"];
+const NICHES = ["solar","dental","real-estate"];
+const BIZ = {
+  solar:["Sharma Solar Solutions","SunVolt Energy","GreenRay Solar","Aditya Solar Power","EcoSun Systems","Surya Renewables","BrightWatt Solar","Tejas Solar Hub"],
+  dental:["Smile Care Dental","Dr. Mehta Dental Clinic","Perfect Smile Studio","DentaWorld Clinic","City Dental Care","Bright Dental Hub","Oral Health Centre","Pearl Dental Clinic"],
+  "real-estate":["Gokhale Realty","Prime Properties","Skyline Estates","Urban Nest Realtors","Capital Homes","Greenfield Properties","Metro Realty Group","Anand Estate Agents"]
+};
+const CONTACTS=["Rajesh Sharma","Priya Mehta","Amit Gokhale","Sneha Iyer","Vikram Singh","Pooja Nair","Rahul Desai","Anita Rao","Suresh Patil","Kavya Reddy","Manish Joshi","Neha Kulkarni"];
+const OUTCOMES=["Interested - qualified","Interested - callback","Asked to call later","Wants quotation","Not interested","Already has vendor"];
+const QUAL={
+  solar:["Owns rooftop, bill > Rs.4000/mo, ready in 30 days","Bill ~Rs.6500/mo, wants subsidy info, hot","Rented place, low intent"],
+  dental:["Needs implants, budget ok, book this week","Routine cleaning, price sensitive","Enquiry for braces, teen patient, warm"],
+  "real-estate":["Budget Rs.80L-1Cr, 2BHK, ready to visit","Investment buyer, 3+ units, hot","Just browsing, no timeline"]
+};
+
+/* tiny seeded RNG so demo looks stable */
+let _s=42; function rnd(){_s=(_s*1103515245+12345)&0x7fffffff;return _s/0x7fffffff;}
+function pick(a){return a[Math.floor(rnd()*a.length)];}
+function ri(min,max){return Math.floor(rnd()*(max-min+1))+min;}
+function pad(n,l){n=""+n;while(n.length<l)n="0"+n;return n;}
+function maskPhone(d){return "+91 "+d.slice(0,2)+"XXXXXX"+d.slice(-2);}
+function genDigits(){return (""+ri(70,99)+pad(ri(0,99999999),8)).slice(0,10);}
+
+function buildDemo(){
+  _s=42;
+  const campaigns=[
+    {id:"all",name:"All Campaigns"},
+    {id:"solar-mum",name:"Solar - Mumbai (June)"},
+    {id:"dental-pune",name:"Dental - Pune Clinics"},
+    {id:"realty-blr",name:"Real Estate - Bangalore"}
+  ];
+  // calls
+  const calls=[];
+  let base=new Date(2026,5,5,18,0);
+  for(let i=0;i<40;i++){
+    const niche=pick(NICHES), biz=pick(BIZ[niche]), city=pick(CITIES);
+    const r=rnd(); const status = r<0.62?"connected":(r<0.88?"no-answer":"busy");
+    const t=new Date(base.getTime()-ri(5,60)*(i+1)*60000);
+    let duration="0m 00s", outcome=(status==="no-answer"?"No answer":"Line busy");
+    if(status==="connected"){const secs=ri(35,230);duration=Math.floor(secs/60)+"m "+pad(secs%60,2)+"s";outcome=pick(OUTCOMES);}
+    calls.push({time:fmtDT(t),business:biz,phone_masked:maskPhone(genDigits()),city,duration,status,outcome});
+  }
+  // leads
+  const leads=[];
+  for(let i=0;i<26;i++){
+    const niche=pick(NICHES), biz=pick(BIZ[niche]), city=pick(CITIES);
+    const r=rnd(); const score=r<0.34?"Hot":(r<0.78?"Warm":"Cold");
+    const d=new Date(2026,5,5); d.setDate(d.getDate()-ri(0,9));
+    leads.push({business:biz,contact:pick(CONTACTS),phone:"+91 "+genDigits(),city,niche,score,
+      qualification:pick(QUAL[niche]),date:fmtD(d)});
+  }
+  const total=calls.length, conn=calls.filter(c=>c.status==="connected").length, qual=leads.length;
+  const conv=conn?Math.round(qual/conn*1000)/10:0;
+  const kpis={total_calls:total,connected_calls:conn,qualified_leads:qual,conversion_pct:conv,
+    est_cost_inr:Math.round(conn*1.5*0.65)};
+  const days=["May 30","May 31","Jun 01","Jun 02","Jun 03","Jun 04","Jun 05"];
+  const charts={
+    calls_per_day:days.map(d=>({label:d,value:ri(28,72)})),
+    leads_by_status:[
+      {label:"Hot",value:leads.filter(l=>l.score==="Hot").length},
+      {label:"Warm",value:leads.filter(l=>l.score==="Warm").length},
+      {label:"Cold",value:leads.filter(l=>l.score==="Cold").length}],
+    leads_by_city:CITIES.map(c=>({label:c,value:leads.filter(l=>l.city===c).length}))
+  };
+  return {is_sample_data:true,client_id:"demo",generated_at:fmtDT(new Date()),campaigns,kpis,calls,leads,charts};
+}
+function fmtDT(d){return d.getFullYear()+"-"+pad(d.getMonth()+1,2)+"-"+pad(d.getDate(),2)+" "+pad(d.getHours(),2)+":"+pad(d.getMinutes(),2);}
+function fmtD(d){return d.getFullYear()+"-"+pad(d.getMonth()+1,2)+"-"+pad(d.getDate(),2);}
+
+/* ============================================================
+   STATE + RENDER
+   ============================================================ */
+let DATA=null, charts={};
+
+function fmtINR(n){return "₹"+Number(n).toLocaleString("en-IN");}
+
+function filterByCampaign(data, camp){
+  if(!camp||camp==="all") return data;
+  const map={"solar-mum":{niche:"solar",city:"Mumbai"},
+             "dental-pune":{niche:"dental",city:"Pune"},
+             "realty-blr":{niche:"real-estate",city:"Bangalore"}};
+  const f=map[camp]; if(!f) return data;
+  const calls=data.calls.filter(c=>c.city===f.city);
+  const leads=data.leads.filter(l=>l.niche===f.niche||l.city===f.city);
+  const conn=calls.filter(c=>c.status==="connected").length;
+  const qual=leads.length;
+  const kpis={total_calls:calls.length,connected_calls:conn,qualified_leads:qual,
+    conversion_pct:conn?Math.round(qual/conn*1000)/10:0,est_cost_inr:Math.round(conn*1.5*0.65)};
+  const charts={
+    calls_per_day:data.charts.calls_per_day.map(p=>({label:p.label,value:Math.round(p.value*0.45)})),
+    leads_by_status:[
+      {label:"Hot",value:leads.filter(l=>l.score==="Hot").length},
+      {label:"Warm",value:leads.filter(l=>l.score==="Warm").length},
+      {label:"Cold",value:leads.filter(l=>l.score==="Cold").length}],
+    leads_by_city:CITIES.map(c=>({label:c,value:leads.filter(l=>l.city===c).length}))
+  };
+  return Object.assign({},data,{calls,leads,kpis,charts});
+}
+
+function renderKPIs(d){
+  document.getElementById("kCalls").textContent=d.kpis.total_calls;
+  document.getElementById("kConn").textContent=d.kpis.connected_calls;
+  const cr=d.kpis.total_calls?Math.round(d.kpis.connected_calls/d.kpis.total_calls*100):0;
+  document.getElementById("kConnSub").textContent=cr+"% connect rate";
+  document.getElementById("kQual").textContent=d.kpis.qualified_leads;
+  document.getElementById("kConv").textContent=d.kpis.conversion_pct+"%";
+  document.getElementById("kCost").textContent=fmtINR(d.kpis.est_cost_inr);
+}
+
+function renderSummary(d){
+  const hot=d.leads.filter(l=>l.score==="Hot").length;
+  const topCity=[...d.charts.leads_by_city].sort((a,b)=>b.value-a.value)[0];
+  const box=document.getElementById("summaryBox");
+  const row=(ic,t,v)=>`<div style="display:flex;align-items:center;gap:12px">
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--brand-soft);display:grid;place-items:center;font-size:18px">${ic}</div>
+      <div><div style="font-weight:700">${v}</div><div class="sm" style="color:var(--muted)">${t}</div></div></div>`;
+  box.innerHTML =
+    row("🔥",`Hot leads aaj — turant call karein`,hot)+
+    row("📍",`Top city`,topCity?`${topCity.label} (${topCity.value} leads)`:"—")+
+    row("💸",`Est. cost saved vs manual calling`,fmtINR(d.kpis.total_calls*18))+
+    row("⏱️",`Aapka time bacha`,`~${Math.round(d.kpis.total_calls*4/60)} ghante`);
+}
+
+function renderCalls(d){
+  document.getElementById("callsCount").textContent=d.calls.length+" calls";
+  document.getElementById("callsBody").innerHTML=d.calls.map(c=>`
+    <tr>
+      <td class="sm">${c.time}</td>
+      <td><span class="biz">${c.business}</span></td>
+      <td class="sm">${c.phone_masked}</td>
+      <td>${c.city}</td>
+      <td class="sm">${c.duration}</td>
+      <td><span class="tag ${c.status}">${c.status}</span></td>
+      <td class="sm">${c.outcome}</td>
+    </tr>`).join("");
+}
+
+function renderLeads(d){
+  document.getElementById("leadsCount").textContent=d.leads.length+" leads";
+  document.getElementById("leadsBody").innerHTML=d.leads.map(l=>`
+    <tr>
+      <td><span class="biz">${l.business}</span></td>
+      <td>${l.contact}</td>
+      <td class="sm">${l.phone}</td>
+      <td>${l.city}</td>
+      <td><span class="niche">${l.niche}</span></td>
+      <td><span class="score ${l.score}">${l.score}</span></td>
+      <td class="sm">${l.qualification}</td>
+      <td class="sm">${l.date}</td>
+    </tr>`).join("");
+}
+
+function renderCharts(d){
+  const text="#6b7280", grid="rgba(109,40,217,.08)";
+  Chart.defaults.font.family="inherit"; Chart.defaults.color=text;
+  // line
+  drawChart("chCalls","line",{
+    labels:d.charts.calls_per_day.map(p=>p.label),
+    datasets:[{label:"Calls",data:d.charts.calls_per_day.map(p=>p.value),
+      borderColor:"#6d28d9",backgroundColor:"rgba(109,40,217,.12)",fill:true,tension:.35,
+      pointRadius:3,pointBackgroundColor:"#6d28d9",borderWidth:2.5}]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:grid}},x:{grid:{display:false}}}});
+  // doughnut
+  drawChart("chStatus","doughnut",{
+    labels:d.charts.leads_by_status.map(p=>p.label),
+    datasets:[{data:d.charts.leads_by_status.map(p=>p.value),
+      backgroundColor:["#ef4444","#f59e0b","#3b82f6"],borderWidth:0}]
+  },{cutout:"62%",plugins:{legend:{position:"bottom",labels:{usePointStyle:true,padding:14}}}});
+  // bar
+  drawChart("chCity","bar",{
+    labels:d.charts.leads_by_city.map(p=>p.label),
+    datasets:[{label:"Leads",data:d.charts.leads_by_city.map(p=>p.value),
+      backgroundColor:"#6d28d9",borderRadius:7,maxBarThickness:46}]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:grid}},x:{grid:{display:false}}}});
+}
+function drawChart(id,type,data,opts){
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(document.getElementById(id),{type,data,
+    options:Object.assign({responsive:true,maintainAspectRatio:false},opts)});
+}
+
+function renderAll(){
+  const camp=document.getElementById("campaign").value;
+  const view=filterByCampaign(DATA,camp);
+  renderKPIs(view);renderSummary(view);renderCalls(view);renderLeads(view);renderCharts(view);
+  window._VIEW=view;
+}
+
+function setMeta(d){
+  document.getElementById("genAt").textContent="Updated: "+(d.generated_at||"—")+" · "+(d.is_sample_data?"Sample data":"Live data");
+  document.getElementById("demoBadge").style.display=d.is_sample_data?"inline-block":"none";
+  document.getElementById("sideClient").textContent="Client: "+(d.client_id||"demo");
+}
+
+function initCampaigns(){
+  const sel=document.getElementById("campaign");
+  sel.innerHTML=DATA.campaigns.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+  sel.onchange=renderAll;
+}
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
+function downloadCSV(){
+  const rows=(window._VIEW||DATA).leads;
+  const head=["Business","Contact","Phone","City","Niche","Score","Qualification","Date"];
+  const esc=v=>`"${(""+v).replace(/"/g,'""')}"`;
+  const csv=[head.join(",")].concat(rows.map(l=>
+    [l.business,l.contact,l.phone,l.city,l.niche,l.score,l.qualification,l.date].map(esc).join(","))).join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="leadgen_qualified_leads.csv";a.click();URL.revokeObjectURL(a.href);
+  toast("CSV Ready ✅",rows.length+" leads download ho gaye.");
+}
+function sendToCRM(){
+  const n=(window._VIEW||DATA).leads.length;
+  toast("Bhej diya 🚀",n+" leads aapke WhatsApp/CRM par sync ho rahe hain. (Demo mode)");
+}
+function scrollToId(id){document.getElementById(id).scrollIntoView({behavior:"smooth",block:"start"});}
+
+let _tt;
+function toast(t,m){
+  document.getElementById("toastT").textContent=t;
+  document.getElementById("toastM").textContent=m;
+  const el=document.getElementById("toast");el.classList.add("show");
+  clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove("show"),3200);
+}
+
+/* ============================================================
+   BOOT: render demo instantly, then try live fetch (fallback safe)
+   ============================================================ */
+function boot(data){
+  DATA=data;setMeta(data);initCampaigns();renderAll();
+}
+boot(buildDemo());  // instant render, works offline
+
+(async function tryLive(){
+  try{
+    const res=await fetch("/api/customer/dashboard?client_id=demo",{headers:{Accept:"application/json"}});
+    if(!res.ok) throw new Error("bad status "+res.status);
+    const live=await res.json();
+    if(live&&live.kpis&&Array.isArray(live.calls)&&Array.isArray(live.leads)){
+      boot(live);
+      if(!live.is_sample_data) toast("Live data ✅","Server se aapka asli data load ho gaya.");
+    }
+  }catch(e){
+    /* offline / file:// — silently keep demo data */
+  }
+})();
+</script>
+</body>
+</html>

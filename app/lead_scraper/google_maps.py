@@ -146,7 +146,7 @@ class GoogleMapsScraper:
             return BusinessLead(
                 name=place.get("name", ""),
                 phone=details.get("formatted_phone_number") or details.get("international_phone_number"),
-                email=self._extract_email_from_website(details.get("website")),
+                email=await self._extract_email_from_website(details.get("website")),
                 address=place.get("formatted_address", ""),
                 city=city,
                 state=state,
@@ -205,10 +205,40 @@ class GoogleMapsScraper:
                 }
             return None
     
-    def _extract_email_from_website(self, website: Optional[str]) -> Optional[str]:
-        """Try to extract email from website (placeholder for actual implementation)"""
-        # This would require actually scraping the website
-        # For now, return None
+    # Regex for harvesting email addresses from page HTML
+    _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
+    _EMAIL_JUNK = ("example.com", "sentry", ".png", ".jpg", ".jpeg", ".gif", "wix.com")
+
+    async def _extract_email_from_website(self, website: Optional[str]) -> Optional[str]:
+        """
+        Fetch a business website and extract the first non-junk email address.
+
+        Uses a simple regex scrape over the raw HTML. Filters out placeholder
+        and asset-embedded addresses (example.com, image filenames, sentry, etc.).
+        Returns None if the site is unreachable or no usable email is found.
+        """
+        if not website:
+            return None
+
+        try:
+            async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
+                response = await client.get(website, headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+                    )
+                })
+                if response.status_code != 200:
+                    return None
+
+                for match in self._EMAIL_RE.findall(response.text):
+                    candidate = match.lower()
+                    if any(junk in candidate for junk in self._EMAIL_JUNK):
+                        continue
+                    return match
+        except Exception as e:
+            logger.debug(f"Email extraction failed for {website}: {e}")
+
         return None
     
     async def _search_with_scraping(

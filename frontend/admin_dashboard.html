@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Dashboard — LeadGen AI Voice Agent</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root{
+    --indigo:#4f46e5; --indigo-d:#4338ca; --indigo-l:#eef2ff;
+    --sidebar:#1e1b4b; --sidebar-2:#312e81; --ink:#0f172a; --muted:#64748b;
+    --line:#e2e8f0; --bg:#f1f5f9; --card:#ffffff;
+    --green:#16a34a; --amber:#d97706; --red:#dc2626; --blue:#2563eb; --slate:#475569;
+    --shadow:0 1px 3px rgba(15,23,42,.08),0 1px 2px rgba(15,23,42,.04);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  a{color:inherit;text-decoration:none}
+
+  /* layout */
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:248px;background:linear-gradient(180deg,var(--sidebar),var(--sidebar-2));color:#c7d2fe;display:flex;flex-direction:column;position:fixed;inset:0 auto 0 0;z-index:20}
+  .brand{padding:20px 22px;display:flex;align-items:center;gap:11px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .brand .logo{width:36px;height:36px;border-radius:10px;background:var(--indigo);display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px;box-shadow:0 4px 12px rgba(79,70,229,.5)}
+  .brand b{color:#fff;font-size:15px;display:block;line-height:1.2}
+  .brand small{color:#a5b4fc;font-size:11px}
+  .nav{padding:14px 12px;flex:1;overflow:auto}
+  .nav .sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;color:#818cf8;margin:14px 12px 6px}
+  .nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;color:#c7d2fe;font-weight:500;margin-bottom:2px}
+  .nav a:hover{background:rgba(255,255,255,.07);color:#fff}
+  .nav a.active{background:var(--indigo);color:#fff;box-shadow:0 4px 12px rgba(79,70,229,.4)}
+  .nav a .ic{width:18px;text-align:center;font-size:15px}
+  .nav .badge{margin-left:auto;background:rgba(255,255,255,.16);font-size:10.5px;padding:1px 7px;border-radius:20px}
+  .sb-foot{padding:14px 18px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:10px}
+  .sb-foot .av{width:34px;height:34px;border-radius:50%;background:#6366f1;display:grid;place-items:center;color:#fff;font-weight:700}
+  .sb-foot small{display:block;color:#a5b4fc;font-size:11px}
+
+  .main{margin-left:248px;flex:1;min-width:0}
+  .topbar{height:62px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 26px;position:sticky;top:0;z-index:10}
+  .topbar h1{font-size:18px;font-weight:700}
+  .topbar .sub{color:var(--muted);font-size:12px;margin-top:1px}
+  .top-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+  .pill{display:inline-flex;align-items:center;gap:7px;background:var(--indigo-l);color:var(--indigo-d);padding:7px 13px;border-radius:20px;font-weight:600;font-size:12.5px}
+  .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(22,163,74,.5);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+  .btn{background:var(--indigo);color:#fff;border:none;padding:9px 15px;border-radius:9px;font-weight:600;cursor:pointer;font-size:13px}
+  .btn:hover{background:var(--indigo-d)}
+
+  .content{padding:24px 26px 50px}
+
+  /* KPI cards */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:24px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--indigo)}
+  .kpi .lbl{color:var(--muted);font-size:12px;font-weight:600;display:flex;align-items:center;gap:7px}
+  .kpi .val{font-size:25px;font-weight:800;margin-top:8px;letter-spacing:-.5px}
+  .kpi .chg{font-size:11.5px;font-weight:600;margin-top:5px}
+  .up{color:var(--green)} .down{color:var(--red)}
+  .kpi.ok::before{background:var(--green)} .kpi.warn::before{background:var(--amber)} .kpi.rev::before{background:#7c3aed}
+
+  /* cards / grid */
+  .grid{display:grid;gap:18px}
+  .g-2{grid-template-columns:2fr 1fr}
+  .g-3{grid-template-columns:1fr 1fr 1fr}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
+  .card .hd{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .card .hd h3{font-size:14.5px;font-weight:700}
+  .card .hd .right{margin-left:auto;color:var(--muted);font-size:12px}
+  .card .bd{padding:16px 18px}
+  .card .bd.flush{padding:0}
+
+  /* table */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;padding:11px 18px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;background:#f8fafc;border-bottom:1px solid var(--line);font-weight:700}
+  tbody td{padding:12px 18px;border-bottom:1px solid #f1f5f9}
+  tbody tr:hover{background:#fafbff}
+  tbody tr:last-child td{border-bottom:none}
+  .co{font-weight:600}
+  .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--indigo-l);color:var(--indigo-d)}
+  .st{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12px}
+  .st .d{width:8px;height:8px;border-radius:50%}
+  .st.active .d,.st.up .d{background:var(--green)} .st.active,.st.up{color:var(--green)}
+  .st.paused .d{background:var(--amber)} .st.paused{color:var(--amber)}
+  .st.completed .d{background:var(--blue)} .st.completed{color:var(--blue)}
+  .st.down .d{background:var(--red)} .st.down{color:var(--red)}
+  .src{display:inline-block;background:#f1f5f9;color:var(--slate);padding:2px 7px;border-radius:6px;font-size:10.5px;font-weight:600;margin:1px 2px 1px 0}
+  .num{font-variant-numeric:tabular-nums;font-weight:600}
+
+  /* progress */
+  .pbar{height:7px;background:#e2e8f0;border-radius:20px;overflow:hidden;min-width:90px}
+  .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--indigo),#818cf8);border-radius:20px}
+  .pwrap{display:flex;align-items:center;gap:9px}
+  .pwrap small{color:var(--muted);font-weight:600;min-width:30px}
+
+  /* agents */
+  .agents{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:13px}
+  .agent{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fcfcff;transition:.15s}
+  .agent:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+  .agent .top{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+  .agent .av{width:38px;height:38px;border-radius:10px;background:var(--indigo-l);color:var(--indigo-d);display:grid;place-items:center;font-weight:800;font-size:15px}
+  .agent .id{font-size:11px;color:var(--muted)}
+  .agent .nm{font-weight:700;font-size:13.5px}
+  .agent .sdot{margin-left:auto;width:11px;height:11px;border-radius:50%;position:relative}
+  .agent .sdot.calling{background:var(--green);animation:pulse 1.6s infinite}
+  .agent .sdot.scraping{background:var(--blue)}
+  .agent .sdot.idle{background:var(--slate)}
+  .agent .sdot.error{background:var(--red);animation:pulse 1.2s infinite}
+  .agent .stl{font-size:11.5px;font-weight:700;text-transform:capitalize;margin-bottom:9px}
+  .agent .stl.calling{color:var(--green)} .agent .stl.scraping{color:var(--blue)}
+  .agent .stl.idle{color:var(--slate)} .agent .stl.error{color:var(--red)}
+  .agent .cl{font-size:11.5px;color:var(--muted);margin-bottom:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .agent .mx{display:flex;gap:10px;border-top:1px dashed var(--line);padding-top:10px}
+  .agent .mx div{flex:1}
+  .agent .mx b{display:block;font-size:16px;font-weight:800}
+  .agent .mx span{font-size:10.5px;color:var(--muted)}
+
+  /* health */
+  .hrow{display:flex;align-items:center;padding:11px 0;border-bottom:1px solid #f1f5f9}
+  .hrow:last-child{border-bottom:none}
+  .hrow .nm{font-weight:600}
+  .hrow .stt{margin-left:auto}
+
+  .chart-wrap{position:relative;height:240px}
+  .chart-wrap.sm{height:230px}
+
+  @media(max-width:1100px){ .g-2,.g-3{grid-template-columns:1fr} }
+  @media(max-width:860px){
+    .sidebar{transform:translateX(-100%);transition:.2s} .sidebar.open{transform:none}
+    .main{margin-left:0} .menu-btn{display:grid!important}
+  }
+  .menu-btn{display:none;width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:#fff;cursor:pointer;place-items:center;font-size:18px}
+  .tbl-scroll{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">L</div>
+      <div><b>LeadGen AI</b><small>Admin Console</small></div>
+    </div>
+    <nav class="nav">
+      <div class="sec">Overview</div>
+      <a class="active"><span class="ic">▦</span> Dashboard</a>
+      <a><span class="ic">★</span> Sabhi Clients <span class="badge" id="nav-clients">10</span></a>
+      <a><span class="ic">◎</span> Campaigns <span class="badge" id="nav-camp">8</span></a>
+      <a><span class="ic">⚙</span> AI Agents <span class="badge" id="nav-ag">6</span></a>
+      <div class="sec">Operations</div>
+      <a><span class="ic">☎</span> Call Logs</a>
+      <a><span class="ic">⊞</span> Leads</a>
+      <a><span class="ic">⌬</span> Scrapers</a>
+      <div class="sec">Business</div>
+      <a><span class="ic">₹</span> Billing & Revenue</a>
+      <a><span class="ic">◐</span> System Health</a>
+      <a><span class="ic">⚒</span> Settings</a>
+    </nav>
+    <div class="sb-foot">
+      <div class="av">S</div>
+      <div><b style="color:#fff">Sumit</b><small>Owner / Operator</small></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+      <div>
+        <h1>Admin Dashboard</h1>
+        <div class="sub">Saare clients ka overview &amp; control — ek hi jagah</div>
+      </div>
+      <div class="top-right">
+        <span class="pill"><span class="live-dot"></span> <span id="src-label">Live Demo</span></span>
+        <button class="btn" onclick="loadDashboard()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- KPIs -->
+      <div class="kpis" id="kpis"></div>
+
+      <!-- Charts row -->
+      <div class="grid g-2">
+        <div class="card">
+          <div class="hd"><h3>Revenue vs Telephony Cost</h3><span class="right">Last 6 months · ₹</span></div>
+          <div class="bd"><div class="chart-wrap"><canvas id="chRev"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="hd"><h3>Leads by Niche</h3><span class="right">This month</span></div>
+          <div class="bd"><div class="chart-wrap sm"><canvas id="chNiche"></canvas></div></div>
+        </div>
+      </div>
+
+      <!-- Calls line + Health -->
+      <div class="grid g-2">
+        <div class="card">
+          <div class="hd"><h3>Calls per Day</h3><span class="right">This week</span></div>
+          <div class="bd"><div class="chart-wrap"><canvas id="chCalls"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="hd"><h3>System Health</h3><span class="right" id="health-time">—</span></div>
+          <div class="bd" id="health"></div>
+        </div>
+      </div>
+
+      <!-- Agents -->
+      <div class="card">
+        <div class="hd"><h3>AI Agents / Workers</h3><span class="right" id="ag-summary">—</span></div>
+        <div class="bd"><div class="agents" id="agents"></div></div>
+      </div>
+
+      <!-- Clients -->
+      <div class="card">
+        <div class="hd"><h3>Sabhi Clients</h3><span class="right" id="cl-summary">—</span></div>
+        <div class="bd flush tbl-scroll">
+          <table>
+            <thead><tr><th>Company</th><th>Niche</th><th>Plan</th><th>Leads Delivered</th><th>Status</th><th>MRR (₹)</th></tr></thead>
+            <tbody id="clients"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Campaigns -->
+      <div class="card">
+        <div class="hd"><h3>Campaigns</h3><span class="right" id="cm-summary">—</span></div>
+        <div class="bd flush tbl-scroll">
+          <table>
+            <thead><tr><th>Campaign</th><th>Client</th><th>Niche</th><th>Sources</th><th>Progress</th><th>Leads</th><th>Status</th></tr></thead>
+            <tbody id="campaigns"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ----------------------------- DEMO DATA (offline-safe) ----------------------------- */
+const DEMO = {
+  generated_at: new Date().toISOString(),
+  kpis: {
+    total_clients: 10, active_campaigns: 8, calls_today: 1284,
+    qualified_leads_month: 742, revenue_month: 1865000,
+    telephony_cost_month: 312000, net_margin_pct: 83.3
+  },
+  clients: [
+    {company:"SunVolt Solar Pvt Ltd", niche:"Solar", plan:"Growth", leads_delivered:128, status:"active", mrr:45000},
+    {company:"Prestige Realty Group", niche:"Real Estate", plan:"Scale", leads_delivered:212, status:"active", mrr:85000},
+    {company:"SmileCare Dental", niche:"Dental", plan:"Starter", leads_delivered:64, status:"active", mrr:18000},
+    {company:"CoolBreeze HVAC", niche:"HVAC", plan:"Growth", leads_delivered:97, status:"paused", mrr:42000},
+    {company:"UrbanNest Interiors", niche:"Interior Design", plan:"Growth", leads_delivered:143, status:"active", mrr:48000},
+    {company:"GlobalEdu Abroad", niche:"Study Abroad", plan:"Scale", leads_delivered:305, status:"active", mrr:92000},
+    {company:"FitLife Gyms", niche:"Fitness", plan:"Starter", leads_delivered:51, status:"active", mrr:16000},
+    {company:"LegalEase Associates", niche:"Legal", plan:"Growth", leads_delivered:78, status:"paused", mrr:38000},
+    {company:"QuickLoan Finserv", niche:"Finance", plan:"Scale", leads_delivered:189, status:"active", mrr:78000},
+    {company:"GreenScape Landscaping", niche:"Landscaping", plan:"Starter", leads_delivered:44, status:"active", mrr:15000}
+  ],
+  agents: [
+    {id:"AG-01", name:"Aarav", current_client:"Prestige Realty Group", status:"calling", calls_made:342, leads_found:58},
+    {id:"AG-02", name:"Diya", current_client:"GlobalEdu Abroad", status:"calling", calls_made:298, leads_found:71},
+    {id:"AG-03", name:"Kabir", current_client:"SunVolt Solar Pvt Ltd", status:"scraping", calls_made:156, leads_found:33},
+    {id:"AG-04", name:"Anaya", current_client:"UrbanNest Interiors", status:"idle", calls_made:204, leads_found:41},
+    {id:"AG-05", name:"Vivaan", current_client:"QuickLoan Finserv", status:"calling", calls_made:271, leads_found:49},
+    {id:"AG-06", name:"Ishaan", current_client:"CoolBreeze HVAC", status:"error", calls_made:88, leads_found:12}
+  ],
+  campaigns: [
+    {campaign:"Solar Q2 Push", client:"SunVolt Solar Pvt Ltd", niche:"Solar", sources:["Google Maps","JustDial"], calls_done:620, calls_target:1000, leads:88, status:"active"},
+    {campaign:"Premium Homes Drive", client:"Prestige Realty Group", niche:"Real Estate", sources:["IndiaMart","LinkedIn"], calls_done:910, calls_target:1200, leads:142, status:"active"},
+    {campaign:"Smile Bookings", client:"SmileCare Dental", niche:"Dental", sources:["Google Maps"], calls_done:300, calls_target:300, leads:64, status:"completed"},
+    {campaign:"Cooling Season Leads", client:"CoolBreeze HVAC", niche:"HVAC", sources:["JustDial","Google Maps"], calls_done:410, calls_target:800, leads:53, status:"paused"},
+    {campaign:"Home Makeover", client:"UrbanNest Interiors", niche:"Interior Design", sources:["Instagram","Google Maps"], calls_done:560, calls_target:900, leads:97, status:"active"},
+    {campaign:"Study Abroad Intake", client:"GlobalEdu Abroad", niche:"Study Abroad", sources:["LinkedIn","Meta Ads"], calls_done:1180, calls_target:1500, leads:205, status:"active"},
+    {campaign:"Personal Loan Blitz", client:"QuickLoan Finserv", niche:"Finance", sources:["IndiaMart","JustDial"], calls_done:740, calls_target:1100, leads:121, status:"active"},
+    {campaign:"New Member Hunt", client:"FitLife Gyms", niche:"Fitness", sources:["Google Maps"], calls_done:180, calls_target:400, leads:29, status:"active"}
+  ],
+  health: {api:"up", db:"up", telephony:"up", scrapers:"down"},
+  charts: {
+    revenue_cost: {labels:["Jan","Feb","Mar","Apr","May","Jun"], revenue:[980000,1150000,1320000,1480000,1690000,1865000], cost:[210000,238000,256000,274000,298000,312000]},
+    leads_by_niche: {labels:["Solar","Real Estate","Dental","HVAC","Interior","Study Abroad","Finance","Other"], values:[128,212,64,97,143,305,189,95]},
+    calls_per_day: {labels:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], values:[1120,1340,1280,1410,1284,760,410]}
+  }
+};
+
+/* ----------------------------- helpers ----------------------------- */
+const $ = id => document.getElementById(id);
+const inr = n => "₹" + Number(n).toLocaleString("en-IN");
+const inrShort = n => {
+  if(n>=10000000) return "₹"+(n/10000000).toFixed(2)+" Cr";
+  if(n>=100000) return "₹"+(n/100000).toFixed(2)+" L";
+  if(n>=1000) return "₹"+(n/1000).toFixed(1)+"K";
+  return "₹"+n;
+};
+const initials = s => s.split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase();
+let charts = {};
+
+/* ----------------------------- render ----------------------------- */
+function renderKPIs(k){
+  const cards = [
+    {lbl:"Total Clients", val:k.total_clients, chg:"+2 this month", up:true, cls:""},
+    {lbl:"Active Campaigns", val:k.active_campaigns, chg:"6 niches running", up:true, cls:""},
+    {lbl:"Aaj ki Calls", val:Number(k.calls_today).toLocaleString("en-IN"), chg:"+12% vs kal", up:true, cls:"ok"},
+    {lbl:"Qualified Leads (month)", val:Number(k.qualified_leads_month).toLocaleString("en-IN"), chg:"+18% MoM", up:true, cls:"ok"},
+    {lbl:"Revenue (month)", val:inrShort(k.revenue_month), chg:"+10.4% MoM", up:true, cls:"rev"},
+    {lbl:"Est. Telephony Cost", val:inrShort(k.telephony_cost_month), chg:"+4.7% MoM", up:false, cls:"warn"},
+    {lbl:"Net Margin", val:k.net_margin_pct+"%", chg:"healthy", up:true, cls:"ok"}
+  ];
+  $("kpis").innerHTML = cards.map(c=>`
+    <div class="kpi ${c.cls}">
+      <div class="lbl">${c.lbl}</div>
+      <div class="val">${c.val}</div>
+      <div class="chg ${c.up?'up':'down'}">${c.up?'▲':'▼'} ${c.chg}</div>
+    </div>`).join("");
+}
+
+function renderClients(list){
+  $("clients").innerHTML = list.map(c=>`
+    <tr>
+      <td class="co">${c.company}</td>
+      <td><span class="tag">${c.niche}</span></td>
+      <td>${c.plan}</td>
+      <td class="num">${c.leads_delivered}</td>
+      <td><span class="st ${c.status}"><span class="d"></span>${c.status}</span></td>
+      <td class="num">${inr(c.mrr)}</td>
+    </tr>`).join("");
+  const mrr = list.reduce((s,c)=>s+c.mrr,0);
+  $("cl-summary").textContent = `${list.length} clients · Total MRR ${inrShort(mrr)}`;
+  $("nav-clients").textContent = list.length;
+}
+
+function renderAgents(list){
+  $("agents").innerHTML = list.map(a=>`
+    <div class="agent">
+      <div class="top">
+        <div class="av">${initials(a.name)}</div>
+        <div>
+          <div class="nm">${a.name}</div>
+          <div class="id">${a.id}</div>
+        </div>
+        <div class="sdot ${a.status}" title="${a.status}"></div>
+      </div>
+      <div class="stl ${a.status}">${a.status}</div>
+      <div class="cl">▸ ${a.current_client}</div>
+      <div class="mx">
+        <div><b>${a.calls_made}</b><span>Calls</span></div>
+        <div><b>${a.leads_found}</b><span>Leads</span></div>
+      </div>
+    </div>`).join("");
+  const active = list.filter(a=>a.status==='calling'||a.status==='scraping').length;
+  $("ag-summary").textContent = `${active}/${list.length} agents working`;
+  $("nav-ag").textContent = list.length;
+}
+
+function renderCampaigns(list){
+  $("campaigns").innerHTML = list.map(c=>{
+    const pct = Math.min(100, Math.round(c.calls_done/c.calls_target*100));
+    return `
+    <tr>
+      <td class="co">${c.campaign}</td>
+      <td>${c.client}</td>
+      <td><span class="tag">${c.niche}</span></td>
+      <td>${c.sources.map(s=>`<span class="src">${s}</span>`).join("")}</td>
+      <td><div class="pwrap"><div class="pbar"><i style="width:${pct}%"></i></div><small>${pct}%</small></div></td>
+      <td class="num">${c.leads}</td>
+      <td><span class="st ${c.status}"><span class="d"></span>${c.status}</span></td>
+    </tr>`;}).join("");
+  const active = list.filter(c=>c.status==='active').length;
+  $("cm-summary").textContent = `${active} active · ${list.length} total`;
+  $("nav-camp").textContent = list.length;
+}
+
+function renderHealth(h, ts){
+  const items = [
+    {nm:"API Server", k:"api"}, {nm:"Database", k:"db"},
+    {nm:"Telephony (Twilio/Exotel)", k:"telephony"}, {nm:"Scrapers (Maps/JustDial/IndiaMart)", k:"scrapers"}
+  ];
+  $("health").innerHTML = items.map(it=>{
+    const up = h[it.k]==="up";
+    return `<div class="hrow"><span class="nm">${it.nm}</span>
+      <span class="stt"><span class="st ${up?'up':'down'}"><span class="d"></span>${up?'Operational':'Down'}</span></span></div>`;
+  }).join("");
+  if(ts){ try{ $("health-time").textContent = "as of "+new Date(ts).toLocaleTimeString("en-IN"); }catch(e){} }
+}
+
+/* charts */
+function renderCharts(c){
+  Object.values(charts).forEach(ch=>ch && ch.destroy());
+  Chart.defaults.font.family = "'Segoe UI',system-ui,sans-serif";
+  Chart.defaults.color = "#64748b";
+
+  charts.rev = new Chart($("chRev"), {
+    type:"bar",
+    data:{ labels:c.revenue_cost.labels,
+      datasets:[
+        {label:"Revenue", data:c.revenue_cost.revenue, backgroundColor:"#4f46e5", borderRadius:6, maxBarThickness:26},
+        {label:"Telephony Cost", data:c.revenue_cost.cost, backgroundColor:"#f59e0b", borderRadius:6, maxBarThickness:26}
+      ]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:"bottom", labels:{boxWidth:12, usePointStyle:true}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+inrShort(ctx.raw)}}},
+      scales:{y:{ticks:{callback:v=>inrShort(v)}, grid:{color:"#f1f5f9"}}, x:{grid:{display:false}}}}
+  });
+
+  charts.niche = new Chart($("chNiche"), {
+    type:"doughnut",
+    data:{ labels:c.leads_by_niche.labels,
+      datasets:[{data:c.leads_by_niche.values,
+        backgroundColor:["#4f46e5","#7c3aed","#0ea5e9","#10b981","#f59e0b","#ef4444","#06b6d4","#94a3b8"],
+        borderWidth:2, borderColor:"#fff"}]},
+    options:{responsive:true, maintainAspectRatio:false, cutout:"58%",
+      plugins:{legend:{position:"right", labels:{boxWidth:11, usePointStyle:true, font:{size:11}}}}}
+  });
+
+  charts.calls = new Chart($("chCalls"), {
+    type:"line",
+    data:{ labels:c.calls_per_day.labels,
+      datasets:[{label:"Calls", data:c.calls_per_day.values, borderColor:"#4f46e5",
+        backgroundColor:"rgba(79,70,229,.12)", fill:true, tension:.4, pointBackgroundColor:"#4f46e5",
+        pointRadius:4, borderWidth:2.5}]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true, grid:{color:"#f1f5f9"}}, x:{grid:{display:false}}}}
+  });
+}
+
+/* ----------------------------- orchestration ----------------------------- */
+function renderAll(d){
+  renderKPIs(d.kpis);
+  renderClients(d.clients);
+  renderAgents(d.agents);
+  renderCampaigns(d.campaigns);
+  renderHealth(d.health, d.generated_at);
+  renderCharts(d.charts);
+}
+
+async function loadDashboard(){
+  // Render demo data immediately so the page is never blank
+  renderAll(DEMO);
+  $("src-label").textContent = "Live Demo";
+  try{
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), 2500);
+    const res = await fetch("/api/admin/dashboard", {signal:ctrl.signal});
+    clearTimeout(t);
+    if(!res.ok) throw new Error("bad status "+res.status);
+    const data = await res.json();
+    renderAll(data);
+    $("src-label").textContent = "Live · API";
+  }catch(e){
+    // stay on demo data silently
+    $("src-label").textContent = "Demo (offline)";
+  }
+}
+
+document.addEventListener("DOMContentLoaded", loadDashboard);
+
+/* gentle live feel: nudge agent counters every 5s (cosmetic only) */
+setInterval(()=>{
+  document.querySelectorAll(".agent").forEach((el,i)=>{
+    const a = DEMO.agents[i]; if(!a || a.status==='idle' || a.status==='error') return;
+    a.calls_made += Math.floor(Math.random()*3);
+    if(Math.random()>0.6) a.leads_found += 1;
+    const bs = el.querySelectorAll(".mx b");
+    if(bs[0]) bs[0].textContent = a.calls_made;
+    if(bs[1]) bs[1].textContent = a.leads_found;
+  });
+}, 5000);
+</script>
+</body>
+</html>

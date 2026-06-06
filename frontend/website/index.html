@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#4f46e5" />
+<title>LeadGen AI — AI Voice Agent jo Qualified Leads Laata Hai</title>
+<meta name="description" content="AI voice agent jo aapke potential customers ko Hindi/English me call karke qualified leads deliver karta hai — WhatsApp aur CRM par. Pay per qualified lead, ₹200–500/lead. 20+ niches." />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --indigo:#4f46e5;
+    --indigo-600:#4338ca;
+    --indigo-400:#818cf8;
+    --violet:#7c3aed;
+    --ink:#0f1024;
+    --ink-2:#1b1c3a;
+    --muted:#64647e;
+    --bg:#ffffff;
+    --bg-soft:#f6f6fb;
+    --line:#e8e8f2;
+    --white:#ffffff;
+    --radius:18px;
+    --shadow:0 20px 50px -20px rgba(79,70,229,.35);
+    --shadow-sm:0 8px 24px -12px rgba(15,16,36,.25);
+    --maxw:1140px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.6;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  h1,h2,h3,.brand{font-family:'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:-.02em;line-height:1.12}
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--indigo);background:#eef0ff;padding:7px 14px;border-radius:999px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-weight:600;font-family:'Plus Jakarta Sans',sans-serif;font-size:.98rem;padding:14px 24px;border-radius:12px;cursor:pointer;border:1.5px solid transparent;transition:transform .18s ease,box-shadow .25s ease,background .2s ease;white-space:nowrap}
+  .btn-primary{background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;box-shadow:var(--shadow)}
+  .btn-primary:hover{transform:translateY(-2px)}
+  .btn-ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+  .btn-ghost:hover{border-color:var(--indigo-400);color:var(--indigo)}
+  .btn-light{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.25)}
+  .btn-light:hover{background:rgba(255,255,255,.22)}
+
+  /* NAV */
+  header.nav{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(14px);background:rgba(255,255,255,.82);border-bottom:1px solid transparent;transition:border-color .3s,box-shadow .3s}
+  header.nav.scrolled{border-color:var(--line);box-shadow:0 6px 24px -16px rgba(15,16,36,.3)}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;height:72px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.22rem}
+  .brand .logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--indigo),var(--violet));display:grid;place-items:center;box-shadow:var(--shadow-sm)}
+  .brand .logo svg{width:20px;height:20px}
+  .nav-links{display:flex;align-items:center;gap:30px}
+  .nav-links a.link{font-size:.95rem;color:var(--muted);font-weight:500;transition:color .2s}
+  .nav-links a.link:hover{color:var(--ink)}
+  .nav-cta{display:flex;align-items:center;gap:12px}
+  .nav-cta a.login{font-size:.95rem;font-weight:600;color:var(--ink)}
+  .menu-btn{display:none;background:none;border:none;cursor:pointer;flex-direction:column;gap:5px;padding:8px}
+  .menu-btn span{width:24px;height:2px;background:var(--ink);border-radius:2px;transition:.3s}
+
+  /* HERO */
+  .hero{position:relative;padding:72px 0 90px;overflow:hidden}
+  .hero::before{content:"";position:absolute;inset:0;background:
+    radial-gradient(60% 60% at 80% 0%,rgba(124,58,237,.10),transparent 70%),
+    radial-gradient(50% 50% at 0% 30%,rgba(79,70,229,.10),transparent 70%);z-index:-1}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
+  .hero h1{font-size:clamp(2.2rem,5vw,3.5rem);font-weight:800;margin:20px 0 18px}
+  .hero h1 .grad{background:linear-gradient(120deg,var(--indigo),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p.sub{font-size:1.12rem;color:var(--muted);max-width:560px}
+  .hero-cta{display:flex;gap:14px;margin:30px 0 22px;flex-wrap:wrap}
+  .hero-mini{display:flex;gap:22px;flex-wrap:wrap;font-size:.9rem;color:var(--muted)}
+  .hero-mini b{color:var(--ink)}
+  .hero-mini .dot{color:var(--indigo);font-weight:800;margin-right:6px}
+
+  /* Phone mock card */
+  .hero-card{position:relative}
+  .callcard{background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow);padding:22px;max-width:380px;margin-left:auto}
+  .callcard .top{display:flex;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+  .callcard .av{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--indigo),var(--violet));display:grid;place-items:center;color:#fff;font-weight:700}
+  .callcard .top small{color:var(--muted);font-size:.8rem}
+  .callcard .live{margin-left:auto;font-size:.72rem;font-weight:700;color:#16a34a;background:#dcfce7;padding:4px 10px;border-radius:999px;display:flex;align-items:center;gap:6px}
+  .pulse{width:7px;height:7px;background:#16a34a;border-radius:50%;animation:pulse 1.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+  .bubble{margin:14px 0;max-width:84%;padding:11px 15px;border-radius:14px;font-size:.92rem}
+  .bubble.ai{background:#eef0ff;color:var(--ink-2);border-bottom-left-radius:4px}
+  .bubble.user{background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;margin-left:auto;border-bottom-right-radius:4px}
+  .callcard .result{margin-top:16px;padding:14px;border-radius:14px;background:#f0fdf4;border:1px solid #bbf7d0;font-size:.9rem;color:#166534;display:flex;gap:10px;align-items:flex-start}
+  .callcard .result b{color:#14532d}
+  .float-chip{position:absolute;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow-sm);border-radius:14px;padding:11px 14px;font-size:.82rem;font-weight:600;display:flex;align-items:center;gap:8px}
+  .float-chip .ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:1rem}
+  .chip-1{top:-18px;left:-22px;animation:floaty 4s ease-in-out infinite}
+  .chip-2{bottom:30px;left:-34px;animation:floaty 4.6s ease-in-out infinite .6s}
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+
+  /* TRUST */
+  .trust{padding:26px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg-soft)}
+  .trust .wrap{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap}
+  .trust .label{font-size:.82rem;font-weight:600;letter-spacing:.04em;color:var(--muted);text-transform:uppercase}
+  .trust .logos{display:flex;gap:30px;flex-wrap:wrap;align-items:center}
+  .trust .logos span{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:#a0a0bb;font-size:1.05rem;letter-spacing:-.01em}
+
+  /* SECTION shell */
+  section.block{padding:84px 0}
+  .head{text-align:center;max-width:640px;margin:0 auto 52px}
+  .head h2{font-size:clamp(1.7rem,3.6vw,2.5rem);font-weight:800;margin:14px 0 14px}
+  .head p{color:var(--muted);font-size:1.06rem}
+
+  /* HOW IT WORKS */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+  .step{position:relative;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px 22px;transition:transform .25s,box-shadow .25s,border-color .25s}
+  .step:hover{transform:translateY(-6px);box-shadow:var(--shadow-sm);border-color:var(--indigo-400)}
+  .step .num{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;display:grid;place-items:center;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;margin-bottom:16px}
+  .step h3{font-size:1.12rem;margin-bottom:8px}
+  .step p{color:var(--muted);font-size:.94rem}
+  .step .arrow{position:absolute;right:-15px;top:50%;transform:translateY(-50%);color:var(--indigo-400);font-size:1.3rem;font-weight:700}
+
+  /* FEATURES */
+  .features{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .feat{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:28px 24px;transition:transform .25s,box-shadow .25s}
+  .feat:hover{transform:translateY(-5px);box-shadow:var(--shadow-sm)}
+  .feat .ic{width:50px;height:50px;border-radius:14px;background:#eef0ff;display:grid;place-items:center;font-size:1.5rem;margin-bottom:16px}
+  .feat h3{font-size:1.14rem;margin-bottom:8px}
+  .feat p{color:var(--muted);font-size:.95rem}
+
+  /* NICHES */
+  .niches{background:linear-gradient(180deg,var(--bg-soft),#fff)}
+  .niche-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  .niche{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 16px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:.96rem;transition:transform .2s,border-color .2s,box-shadow .2s}
+  .niche:hover{transform:translateY(-3px);border-color:var(--indigo-400);box-shadow:var(--shadow-sm)}
+  .niche .e{font-size:1.4rem}
+  .niche-more{text-align:center;margin-top:26px;color:var(--muted);font-size:.95rem}
+
+  /* PRICING */
+  .pricing-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:900px;margin:0 auto}
+  .price{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:22px;padding:34px 30px;transition:transform .25s,box-shadow .25s}
+  .price.featured{border-color:var(--indigo);box-shadow:var(--shadow)}
+  .price .tag{position:absolute;top:-13px;left:30px;background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;font-size:.74rem;font-weight:700;letter-spacing:.04em;padding:6px 14px;border-radius:999px;text-transform:uppercase}
+  .price h3{font-size:1.25rem;margin-bottom:6px}
+  .price .desc{color:var(--muted);font-size:.92rem;margin-bottom:18px;min-height:42px}
+  .price .amt{font-size:2.6rem;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;color:var(--ink);display:flex;align-items:baseline;gap:6px}
+  .price .amt small{font-size:1rem;font-weight:600;color:var(--muted)}
+  .price ul{list-style:none;margin:22px 0 26px}
+  .price li{display:flex;gap:11px;align-items:flex-start;padding:7px 0;font-size:.95rem;color:var(--ink-2)}
+  .price li .ck{color:#16a34a;font-weight:800;flex-shrink:0}
+  .price .btn{width:100%}
+
+  /* TESTIMONIALS */
+  .tcards{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .tcard{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px 24px}
+  .tcard .stars{color:#f59e0b;letter-spacing:2px;margin-bottom:12px}
+  .tcard p{font-size:.97rem;color:var(--ink-2);margin-bottom:18px}
+  .tcard .who{display:flex;align-items:center;gap:12px}
+  .tcard .who .av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;display:grid;place-items:center;font-weight:700}
+  .tcard .who small{color:var(--muted);display:block;font-size:.82rem}
+  .tcard .who b{font-size:.95rem}
+
+  /* FAQ */
+  .faq-wrap{max-width:780px;margin:0 auto}
+  details.faq{background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px 22px;margin-bottom:12px;transition:box-shadow .2s}
+  details.faq[open]{box-shadow:var(--shadow-sm)}
+  details.faq summary{cursor:pointer;list-style:none;font-weight:600;font-size:1.02rem;padding:18px 0;display:flex;justify-content:space-between;align-items:center;gap:14px;font-family:'Plus Jakarta Sans',sans-serif}
+  details.faq summary::-webkit-details-marker{display:none}
+  details.faq summary .plus{flex-shrink:0;width:26px;height:26px;border-radius:8px;background:#eef0ff;color:var(--indigo);display:grid;place-items:center;font-size:1.1rem;transition:transform .25s}
+  details.faq[open] summary .plus{transform:rotate(45deg)}
+  details.faq .ans{color:var(--muted);font-size:.96rem;padding:0 0 20px}
+
+  /* FINAL CTA */
+  .finalcta{padding:84px 0}
+  .finalcta .box{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--ink),var(--ink-2));border-radius:30px;padding:64px 40px;text-align:center;color:#fff;box-shadow:var(--shadow)}
+  .finalcta .box::before{content:"";position:absolute;inset:0;background:radial-gradient(50% 80% at 50% 0%,rgba(124,58,237,.4),transparent 70%);z-index:0}
+  .finalcta .box>*{position:relative;z-index:1}
+  .finalcta h2{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;margin-bottom:14px}
+  .finalcta p{color:#c7c7e0;max-width:520px;margin:0 auto 28px;font-size:1.06rem}
+  .finalcta .row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+
+  /* FOOTER */
+  footer{background:var(--bg-soft);border-top:1px solid var(--line);padding:54px 0 30px}
+  .foot-grid{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:34px;margin-bottom:38px}
+  .foot-brand p{color:var(--muted);font-size:.92rem;margin:14px 0 0;max-width:280px}
+  .foot-col h4{font-size:.82rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:14px;font-family:'Plus Jakarta Sans',sans-serif}
+  .foot-col a{display:block;color:var(--ink-2);font-size:.94rem;padding:5px 0;transition:color .2s}
+  .foot-col a:hover{color:var(--indigo)}
+  .foot-bottom{border-top:1px solid var(--line);padding-top:22px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:.88rem}
+
+  /* Install banner */
+  #installBanner{position:fixed;left:50%;transform:translateX(-50%) translateY(120%);bottom:18px;z-index:80;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);border-radius:16px;padding:14px 16px;display:flex;align-items:center;gap:14px;max-width:380px;width:calc(100% - 32px);transition:transform .35s ease}
+  #installBanner.show{transform:translateX(-50%) translateY(0)}
+  #installBanner .ic{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--indigo),var(--violet));display:grid;place-items:center;flex-shrink:0}
+  #installBanner small{color:var(--muted);font-size:.8rem;display:block}
+  #installBanner b{font-size:.92rem}
+  #installBanner .x{background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;margin-left:4px}
+
+  /* Scroll reveal */
+  .reveal{opacity:0;transform:translateY(26px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+
+  /* RESPONSIVE */
+  @media(max-width:980px){
+    .hero-grid{grid-template-columns:1fr;gap:40px}
+    .hero-card{order:-1}
+    .callcard{margin:0 auto}
+    .steps{grid-template-columns:repeat(2,1fr)}
+    .step .arrow{display:none}
+    .features,.tcards{grid-template-columns:repeat(2,1fr)}
+    .foot-grid{grid-template-columns:1fr 1fr}
+  }
+  @media(max-width:720px){
+    .nav-links{display:none}
+    .nav-cta .login{display:none}
+    .menu-btn{display:flex}
+    .nav-links.open{display:flex;position:absolute;top:72px;left:0;right:0;flex-direction:column;background:#fff;padding:18px 22px;gap:14px;border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm)}
+    .nav-links.open a.link{color:var(--ink)}
+    .features,.tcards,.pricing-grid,.steps{grid-template-columns:1fr}
+    .foot-grid{grid-template-columns:1fr 1fr}
+    section.block{padding:60px 0}
+    .float-chip{display:none}
+  }
+  @media(max-width:480px){
+    .foot-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a href="#" class="brand" aria-label="LeadGen AI home">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M6.5 4.5c-.7-.7-1.8-.6-2.4.2L2.7 6.6c-.6.8-.5 1.9.1 2.6 3.2 3.9 6.9 7.6 10.8 10.8.7.6 1.8.7 2.6.1l1.9-1.4c.8-.6.9-1.7.2-2.4l-2.3-2.3c-.6-.6-1.5-.6-2.2-.2l-1.3.8c-.2.1-.5.1-.7-.1-1.5-1.4-2.9-2.8-4.3-4.3-.2-.2-.2-.5-.1-.7l.8-1.3c.4-.7.4-1.6-.2-2.2L6.5 4.5Z" fill="#fff"/><path d="M15 5c2.2 0 4 1.8 4 4" stroke="#fff" stroke-width="1.6" stroke-linecap="round" opacity=".6"/></svg>
+      </span>
+      LeadGen AI
+    </a>
+    <nav class="nav-links" id="navLinks">
+      <a class="link" href="#how">How it works</a>
+      <a class="link" href="#features">Features</a>
+      <a class="link" href="#niches">Niches</a>
+      <a class="link" href="#pricing">Pricing</a>
+      <a class="link" href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="login" href="/app/customer">Login</a>
+      <a class="btn btn-primary" href="#pricing">Get Leads</a>
+      <button class="menu-btn" id="menuBtn" aria-label="Menu"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">🎙️ AI Voice Agent · Hindi + English</span>
+      <h1>Qualified leads, <span class="grad">autopilot par</span>. AI khud call karke deta hai.</h1>
+      <p class="sub">Aapka AI voice agent potential customers ko Hindi/English me call karta hai, unki need samajhta hai, aur sirf <b>ready-to-buy qualified leads</b> aapke WhatsApp + CRM par bhej deta hai. Aap leads par focus karo — calling AI sambhalega.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary" href="#pricing">Get Leads →</a>
+        <a class="btn btn-ghost" href="#demo">▶ See Demo</a>
+      </div>
+      <div class="hero-mini">
+        <span><span class="dot">●</span> <b>Per qualified lead</b> pricing</span>
+        <span><span class="dot">●</span> <b>20+ niches</b> ready</span>
+        <span><span class="dot">●</span> Setup in <b>48 hours</b></span>
+      </div>
+    </div>
+
+    <div class="hero-card" id="demo">
+      <div class="float-chip chip-1"><span class="ic" style="background:#dcfce7">✅</span> Lead qualified</div>
+      <div class="float-chip chip-2"><span class="ic" style="background:#eef0ff">📲</span> Sent to WhatsApp</div>
+      <div class="callcard">
+        <div class="top">
+          <div class="av">AI</div>
+          <div>
+            <b>Aarav · AI Agent</b>
+            <small>Solar enquiry · Live call</small>
+          </div>
+          <span class="live"><span class="pulse"></span> LIVE</span>
+        </div>
+        <div class="bubble ai">Namaste! Main SunPower se Aarav. Aapne solar panels ke baare me enquiry ki thi — abhi 2 min baat kar sakte hain?</div>
+        <div class="bubble user">Haan boliye, ghar ke liye dekh raha tha.</div>
+        <div class="bubble ai">Great! Aapka monthly bijli bill approx kitna aata hai, aur chhat kitni square feet hai?</div>
+        <div class="bubble user">₹4,500 ke aaspaas, aur chhat kaafi badi hai.</div>
+        <div class="result"><span>✅</span><span><b>Qualified lead!</b> High bill + bada rooftop. Site visit ke liye interested — sales team ko forward kiya.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<div class="trust">
+  <div class="wrap">
+    <span class="label">Built for Indian small businesses</span>
+    <div class="logos">
+      <span>20+ Niches</span>
+      <span>Hindi · English</span>
+      <span>WhatsApp</span>
+      <span>HubSpot CRM</span>
+      <span>Google Sheets</span>
+    </div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="block" id="how">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">How it works</span>
+      <h2>4 steps me leads inbox tak</h2>
+      <p>Aap sirf apna niche aur target area batao. Baaki sab AImanage karta hai — scrape se delivery tak.</p>
+    </div>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="num">1</div>
+        <h3>Scrape</h3>
+        <p>Google Maps, IndiaMart, JustDial aur LinkedIn se aapke niche ke potential customers ka data nikalte hain.</p>
+        <span class="arrow">→</span>
+      </div>
+      <div class="step reveal">
+        <div class="num">2</div>
+        <h3>AI Calls</h3>
+        <p>AI voice agent natural Hindi/English me sabko call karta hai — bina thake, scale par, ek saath.</p>
+        <span class="arrow">→</span>
+      </div>
+      <div class="step reveal">
+        <div class="num">3</div>
+        <h3>Qualifies</h3>
+        <p>Budget, need aur intent check karke AI decide karta hai kaun real, ready-to-buy customer hai.</p>
+        <span class="arrow">→</span>
+      </div>
+      <div class="step reveal">
+        <div class="num">4</div>
+        <h3>Delivers</h3>
+        <p>Sirf qualified leads turant aapke WhatsApp, CRM ya Google Sheet par pohonch jaate hain.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="block" id="features" style="background:var(--bg-soft)">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Features</span>
+      <h2>Ek complete lead engine, ek jagah</h2>
+      <p>Calling, qualifying aur CRM delivery — sab kuch built-in. Koi alag tool ki zaroorat nahi.</p>
+    </div>
+    <div class="features">
+      <div class="feat reveal"><div class="ic">🗣️</div><h3>Natural AI Voice (Hindi/English)</h3><p>Insaan jaisi awaaz me bilingual conversations. Customer ko lagta hai real agent baat kar raha hai.</p></div>
+      <div class="feat reveal"><div class="ic">🔎</div><h3>Multi-source Lead Scraping</h3><p>Google Maps, IndiaMart, JustDial, LinkedIn — ek hi jagah se fresh, niche-targeted leads.</p></div>
+      <div class="feat reveal"><div class="ic">📲</div><h3>WhatsApp + CRM Delivery</h3><p>Qualified lead milte hi seedha WhatsApp, HubSpot, ya Google Sheets par — zero manual entry.</p></div>
+      <div class="feat reveal"><div class="ic">💸</div><h3>Per-Lead Pricing</h3><p>Aap sirf qualified leads ke paise dete ho. No wasted budget — har rupee result par.</p></div>
+      <div class="feat reveal"><div class="ic">📊</div><h3>Live Dashboard</h3><p>Calls, qualified leads, conversion aur cost — sab real-time apne dashboard par track karo.</p></div>
+      <div class="feat reveal"><div class="ic">⚡</div><h3>Scale on Autopilot</h3><p>10 ya 10,000 calls — AI ek saath, 24x7 chalta hai. Lunch break ya thakaan ka tension nahi.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- NICHES -->
+<section class="block niches" id="niches">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">20+ Niches</span>
+      <h2>Aapke industry ke liye ready</h2>
+      <p>Har niche ke liye custom scripts, qualifying questions aur tone — pehle se trained.</p>
+    </div>
+    <div class="niche-grid">
+      <div class="niche reveal"><span class="e">☀️</span> Solar</div>
+      <div class="niche reveal"><span class="e">🦷</span> Dental</div>
+      <div class="niche reveal"><span class="e">🏡</span> Real Estate</div>
+      <div class="niche reveal"><span class="e">❄️</span> HVAC / AC</div>
+      <div class="niche reveal"><span class="e">🛋️</span> Interior Design</div>
+      <div class="niche reveal"><span class="e">✈️</span> Study Abroad</div>
+      <div class="niche reveal"><span class="e">🏋️</span> Gym / Fitness</div>
+      <div class="niche reveal"><span class="e">🏥</span> Healthcare</div>
+      <div class="niche reveal"><span class="e">📐</span> Architecture</div>
+      <div class="niche reveal"><span class="e">🚗</span> Auto Dealers</div>
+      <div class="niche reveal"><span class="e">🎓</span> Coaching</div>
+      <div class="niche reveal"><span class="e">💼</span> Insurance</div>
+    </div>
+    <p class="niche-more">…aur 8+ niches. Aapka niche list me nahi? <a href="#pricing" style="color:var(--indigo);font-weight:600">Custom setup le lo →</a></p>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="block" id="pricing" style="background:var(--bg-soft)">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Pricing</span>
+      <h2>Sirf results ke paise — straight talk</h2>
+      <p>Hum "free calls" ka jhootha vaada nahi karte. Aap qualified leads ke liye pay karte ho — predictable aur fair.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="price featured reveal">
+        <span class="tag">Most Popular</span>
+        <h3>Pay Per Qualified Lead</h3>
+        <p class="desc">Sirf un leads ke paise jo AI ne qualify kiye. Risk kam, ROI clear.</p>
+        <div class="amt">₹200<small>–₹500 / qualified lead</small></div>
+        <ul>
+          <li><span class="ck">✓</span> Sirf qualified, intent-checked leads ka charge</li>
+          <li><span class="ck">✓</span> WhatsApp + CRM par instant delivery</li>
+          <li><span class="ck">✓</span> Hindi/English AI voice calling included</li>
+          <li><span class="ck">✓</span> Niche-specific scripts &amp; qualifying</li>
+          <li><span class="ck">✓</span> Live dashboard &amp; reporting</li>
+          <li><span class="ck">✓</span> No long-term lock-in</li>
+        </ul>
+        <a class="btn btn-primary" href="/app/customer">Start getting leads</a>
+      </div>
+      <div class="price reveal">
+        <h3>Monthly Retainer</h3>
+        <p class="desc">High-volume businesses ke liye fixed monthly — predictable cost, lower per-lead.</p>
+        <div class="amt">₹14,999<small>/month onwards</small></div>
+        <ul>
+          <li><span class="ck">✓</span> Fixed monthly volume of qualified leads</li>
+          <li><span class="ck">✓</span> Lower effective cost per lead at scale</li>
+          <li><span class="ck">✓</span> Dedicated campaign manager</li>
+          <li><span class="ck">✓</span> Priority calling capacity</li>
+          <li><span class="ck">✓</span> Custom niche &amp; multi-area targeting</li>
+          <li><span class="ck">✓</span> Weekly performance review</li>
+        </ul>
+        <a class="btn btn-ghost" href="/app/customer">Talk to sales</a>
+      </div>
+    </div>
+    <p class="niche-more" style="margin-top:24px">Note: telephony (real phone calls) ka minimal per-minute cost transparently include hota hai — koi hidden charge nahi.</p>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="block">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">Results</span>
+      <h2>Small businesses, real growth</h2>
+      <p>Solar se dental tak — owners apna time bacha rahe hain aur sirf hot leads handle kar rahe hain.</p>
+    </div>
+    <div class="tcards">
+      <div class="tcard reveal">
+        <div class="stars">★★★★★</div>
+        <p>"Pehle hum din bhar cold call karte the. Ab AI 200 logon ko call karta hai, aur mujhe sirf 15 ready customers milte hain. Site visits double ho gaye."</p>
+        <div class="who"><div class="av">RK</div><div><b>Rohan Kulkarni</b><small>Solar Installer · Pune</small></div></div>
+      </div>
+      <div class="tcard reveal">
+        <div class="stars">★★★★★</div>
+        <p>"Per-lead model ne budget clear kar diya. Jitne qualified appointments aaye utne ke paise diye — clinic ki new patient bookings 40% badh gayi."</p>
+        <div class="who"><div class="av">SD</div><div><b>Dr. Sneha Desai</b><small>Dental Clinic · Ahmedabad</small></div></div>
+      </div>
+      <div class="tcard reveal">
+        <div class="stars">★★★★★</div>
+        <p>"WhatsApp par seedha qualified buyers aate hain with budget &amp; location. Mera team ab sirf serious clients ke saath deal karta hai. Game changer."</p>
+        <div class="who"><div class="av">AM</div><div><b>Aman Mehta</b><small>Real Estate · Gurugram</small></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="block" id="faq" style="background:var(--bg-soft)">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">FAQ</span>
+      <h2>Common sawaal, honest jawaab</h2>
+    </div>
+    <div class="faq-wrap">
+      <details class="faq reveal" open>
+        <summary>Kya calls bilkul free hain? <span class="plus">+</span></summary>
+        <div class="ans">Honest jawaab: <b>AI ka "brain" (samajhna, baat karna, qualify karna) lagभग free chalता hai</b> — woh humne optimize kar diya hai. Lekin real phone ring (telephony/PSTN) ka ek <b>minimal per-minute cost</b> hota hai jo telecom charge karta hai, woh koi bhi platform free nahi kar sakta. Isliye hum "free calls" ka jhootha vaada nahi karte — aap <b>sirf qualified leads ke liye pay karते ho</b> (₹200–500/lead), aur telephony ka chhota cost usme transparently included hota hai.</div>
+      </details>
+      <details class="faq reveal">
+        <summary>"Qualified lead" ka matlab kya hai? <span class="plus">+</span></summary>
+        <div class="ans">Wahi lead jise AI ne call par budget, need aur buying intent ke basis par verify kiya ho. Random number nahi — ek aisa person jo genuinely interested hai aur aapke offer ke liye fit hai. Aap sirf inhi ke paise dete ho.</div>
+      </details>
+      <details class="faq reveal">
+        <summary>AI Hindi me theek se baat kar paata hai? <span class="plus">+</span></summary>
+        <div class="ans">Haan. AI voice agent natural Hinglish (Hindi + English mix) aur pure Hindi/English — dono me fluently baat karta hai. Local tone aur niche-specific scripts ke saath, taaki conversation real aur bharosemand lage.</div>
+      </details>
+      <details class="faq reveal">
+        <summary>Leads kahan deliver hote hain? <span class="plus">+</span></summary>
+        <div class="ans">Aapki pasand par — WhatsApp par instant message, HubSpot CRM me direct entry, ya Google Sheets me row. Real-time, zero manual data entry.</div>
+      </details>
+      <details class="faq reveal">
+        <summary>Setup me kitna time lagta hai? <span class="plus">+</span></summary>
+        <div class="ans">Zyaadातर niches ke liye 48 ghante ke andar campaign live ho jaata hai. Aap niche, target area aur offer batao — baaki scripts, scraping aur calling hum set kar dete hain.</div>
+      </details>
+      <details class="faq reveal">
+        <summary>Mera niche supported hai ya nahi? <span class="plus">+</span></summary>
+        <div class="ans">20+ niches pehle se ready hain (solar, dental, real estate, HVAC, interior, study abroad, etc.). Agar aapka niche list me nahi hai, hum custom setup kar dete hain — bas sales se baat karo.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="finalcta">
+  <div class="wrap">
+    <div class="box reveal">
+      <h2>Aaj se hot leads aapke inbox me</h2>
+      <p>Cold calling band karo. AI voice agent ko apne customers se baat karne do — aap sirf qualified leads close karo.</p>
+      <div class="row">
+        <a class="btn btn-primary" href="/app/customer">Get Leads →</a>
+        <a class="btn btn-light" href="#demo">See Demo</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <a href="#" class="brand">
+          <span class="logo" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M6.5 4.5c-.7-.7-1.8-.6-2.4.2L2.7 6.6c-.6.8-.5 1.9.1 2.6 3.2 3.9 6.9 7.6 10.8 10.8.7.6 1.8.7 2.6.1l1.9-1.4c.8-.6.9-1.7.2-2.4l-2.3-2.3c-.6-.6-1.5-.6-2.2-.2l-1.3.8c-.2.1-.5.1-.7-.1-1.5-1.4-2.9-2.8-4.3-4.3-.2-.2-.2-.5-.1-.7l.8-1.3c.4-.7.4-1.6-.2-2.2L6.5 4.5Z" fill="#fff"/></svg>
+          </span>
+          LeadGen AI
+        </a>
+        <p>AI voice agent jo aapke potential customers ko call karke qualified leads laata hai. Built for Indian small businesses.</p>
+      </div>
+      <div class="foot-col">
+        <h4>Product</h4>
+        <a href="#how">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#niches">Niches</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <div class="foot-col">
+        <h4>Company</h4>
+        <a href="#faq">FAQ</a>
+        <a href="mailto:hello@leadgenai.in">Contact</a>
+        <a href="#pricing">Book a demo</a>
+        <a href="#">Blog</a>
+      </div>
+      <div class="foot-col">
+        <h4>Login</h4>
+        <a href="/app/customer">Customer Dashboard</a>
+        <a href="/app/admin">Admin Dashboard</a>
+        <a href="/app/customer">Sign up</a>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© 2026 LeadGen AI. Made in India 🇮🇳 for small businesses.</span>
+      <span>Privacy · Terms · हम "free calls" ka vaada nahi karte — sirf qualified leads.</span>
+    </div>
+  </div>
+</footer>
+
+<!-- INSTALL BANNER -->
+<div id="installBanner">
+  <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M6.5 4.5c-.7-.7-1.8-.6-2.4.2L2.7 6.6c-.6.8-.5 1.9.1 2.6 3.2 3.9 6.9 7.6 10.8 10.8.7.6 1.8.7 2.6.1l1.9-1.4c.8-.6.9-1.7.2-2.4l-2.3-2.3c-.6-.6-1.5-.6-2.2-.2l-1.3.8c-.2.1-.5.1-.7-.1-1.5-1.4-2.9-2.8-4.3-4.3-.2-.2-.2-.5-.1-.7l.8-1.3c.4-.7.4-1.6-.2-2.2L6.5 4.5Z" fill="#fff"/></svg></span>
+  <div style="flex:1">
+    <b>Install LeadGen AI</b>
+    <small>App ki tarah — home screen par add karo</small>
+  </div>
+  <button class="btn btn-primary" id="installBtn" style="padding:9px 16px;font-size:.85rem">Install</button>
+  <button class="x" id="installClose" aria-label="Close">×</button>
+</div>
+
+<script>
+  // Nav scroll shadow
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 12);
+  });
+
+  // Mobile menu
+  const menuBtn = document.getElementById('menuBtn');
+  const navLinks = document.getElementById('navLinks');
+  menuBtn.addEventListener('click', () => navLinks.classList.toggle('open'));
+  navLinks.querySelectorAll('a').forEach(a =>
+    a.addEventListener('click', () => navLinks.classList.remove('open'))
+  );
+
+  // Scroll reveal
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // PWA: register service worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+
+  // PWA: install prompt
+  let deferredPrompt = null;
+  const banner = document.getElementById('installBanner');
+  const installBtn = document.getElementById('installBtn');
+  const installClose = document.getElementById('installClose');
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (!localStorage.getItem('lg_install_dismissed')) {
+      setTimeout(() => banner.classList.add('show'), 2200);
+    }
+  });
+  installBtn.addEventListener('click', async () => {
+    banner.classList.remove('show');
+    if (deferredPrompt) { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; }
+  });
+  installClose.addEventListener('click', () => {
+    banner.classList.remove('show');
+    localStorage.setItem('lg_install_dismissed', '1');
+  });
+  window.addEventListener('appinstalled', () => banner.classList.remove('show'));
+</script>
+</body>
+</html>

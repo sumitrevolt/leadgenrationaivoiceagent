@@ -23,6 +23,17 @@ from app.api.ml_training import router as ml_router
 from app.api.health import router as health_router
 from app.api.admin import router as admin_router
 from app.api.ai import router as ai_router
+from app.api.data import router as data_router
+from app.api.customer_dashboard import router as customer_dashboard_router
+from app.api.admin_dashboard import router as admin_dashboard_router
+from app.api.web_call import router as web_call_router
+from fastapi import WebSocket
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+
+# Frontend directory (dashboards + marketing website + PWA)
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 from app.platform.orchestrator import PlatformOrchestrator
 from app.ml import get_training_scheduler, stop_training_scheduler
 from app.models.base import init_async_db, close_async_db
@@ -90,28 +101,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Database init failed (may not be configured): {e}")
     
-    # Initialize Redis
-    try:
-        from app.cache import get_redis_client
-        await get_redis_client()
-        logger.info("✅ Redis initialized")
-    except Exception as e:
-        logger.warning(f"Redis init failed (using in-memory fallback): {e}")
-    
-    # AUTO-START: Platform automation (runs 24/7)
-    if settings.auto_start_platform and settings.app_env == "production":
-        platform_orchestrator = PlatformOrchestrator()
-        asyncio.create_task(platform_orchestrator.start())
-        logger.info("🤖 Platform orchestrator started - Full automation enabled")
-    elif settings.auto_start_platform:
-        logger.info("🔧 Platform auto-start disabled in non-production environment")
-    
-    # AUTO-START: ML Training Scheduler
-    try:
-        ml_scheduler = await get_training_scheduler()
-        logger.info("🧠 ML Training Scheduler started - Auto-learning enabled")
-    except Exception as e:
-        logger.warning(f"ML Scheduler failed to start: {e}")
+    # DISABLED: Redis and ML scheduler for initial production startup
+    # Redis requires VPC connector which is not configured yet
+    logger.info("⏭️ Redis disabled - requires VPC connector for internal network access")
+    logger.info("⏭️ Platform orchestrator disabled for initial deployment")
+    logger.info("⏭️ ML scheduler disabled for initial deployment")
+    logger.info("✅ Startup complete - application ready")
     
     yield
     
@@ -162,6 +157,7 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(health_router)  # Health checks at root level
+app.include_router(data_router, prefix="/api", tags=["Data Intelligence"])  # B2B Data Platform
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
 app.include_router(campaigns.router, prefix="/api/campaigns", tags=["Campaigns"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
@@ -171,6 +167,63 @@ app.include_router(platform_router, prefix="/api", tags=["Platform"])
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])
+app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /api/customer/*
+app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])        # /api/admin/*
+app.include_router(web_call_router, prefix="/api", tags=["Web Call (Test Mode)"])  # /api/web-call/*
+
+
+# ---------------------------------------------------------------------------
+# Frontend serving — dashboards (web app) + marketing website + PWA
+# ---------------------------------------------------------------------------
+# Marketing website + PWA assets (manifest.json, sw.js, icons) served at /site
+_website_dir = FRONTEND_DIR / "website"
+if _website_dir.is_dir():
+    app.mount("/site", StaticFiles(directory=str(_website_dir), html=True), name="website")
+
+
+@app.get("/app/customer", tags=["Frontend"])
+async def customer_dashboard_page():
+    """Customer dashboard (leads, calls, final qualified leads)."""
+    return FileResponse(str(FRONTEND_DIR / "customer_dashboard.html"))
+
+
+@app.get("/app/admin", tags=["Frontend"])
+async def admin_dashboard_page():
+    """Admin dashboard (clients, agents, campaigns, revenue, health)."""
+    return FileResponse(str(FRONTEND_DIR / "admin_dashboard.html"))
+
+
+@app.get("/app/test-call", tags=["Frontend"])
+async def web_call_test_page():
+    """Browser web-call test mode — talk to the bot, no real phone call."""
+    return FileResponse(str(FRONTEND_DIR / "web_call.html"))
+
+
+@app.websocket("/telephony/twilio/media-stream")
+async def twilio_media_stream(websocket: WebSocket):
+    """Twilio Media Streams websocket → live audio bridge to the voice pipeline."""
+    try:
+        from app.telephony.media_stream import TwilioMediaStreamBridge
+        bridge = TwilioMediaStreamBridge()
+        await bridge.handle(websocket)
+    except Exception as e:
+        logger.warning(f"Media-stream bridge error: {e}")
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
+@app.get("/manifest.json", tags=["Frontend"])
+async def pwa_manifest():
+    """PWA manifest at root scope so the app is installable."""
+    return FileResponse(str(_website_dir / "manifest.json"))
+
+
+@app.get("/sw.js", tags=["Frontend"])
+async def pwa_service_worker():
+    """PWA service worker at root scope for offline caching."""
+    return FileResponse(str(_website_dir / "sw.js"))
 
 
 @app.get("/")
@@ -183,10 +236,15 @@ async def root():
         "app": settings.app_name,
         "version": "1.0.0",
         "platform": {
-            "running": platform_orchestrator.is_running if platform_orchestrator else False,
-            "mode": "FULL_AUTO" if settings.auto_start_platform else "MANUAL"
+            "type": "B2B Intelligence Platform",
+            "features": [
+                "Company Search API",
+                "Data Enrichment",
+                "Market Reports",
+                "Lead Scoring",
+            ]
         },
-        "message": "🤖 Multi-Tier B2B Lead Generation Platform is running! 📞"
+        "message": "🚀 B2B Intelligence Platform - Data that drives revenue!"
     }
 
 

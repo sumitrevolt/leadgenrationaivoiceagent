@@ -1,0 +1,20 @@
+# Minimal deps for a FAST local test (Phase A of LAUNCH_GUIDE.md).
+# Full features: use requirements.txt instead.
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+email-validator==2.3.0
+python-multipart==0.0.7
+sqlalchemy==2.0.25
+aiosqlite==0.20.0
+httpx==0.26.0
+aiohttp==3.9.3
+requests==2.31.0
+beautifulsoup4==4.12.3
+python-dotenv==1.0.1
+loguru==0.7.2
+phonenumbers==8.13.28
+APScheduler==3.10.4
+edge-tts==6.1.9
+google-generativeai==0.3.2

@@ -1,6 +1,7 @@
 """
 Unified Lead Scraper Manager
-Coordinates multiple scraping sources
+Coordinates multiple scraping sources (Google Maps, IndiaMart, JustDial,
+LinkedIn, Web Search, Social Media).
 """
 import asyncio
 from typing import List, Dict, Any, Optional, Union
@@ -12,6 +13,8 @@ from app.lead_scraper.google_maps import GoogleMapsScraper, BusinessLead
 from app.lead_scraper.indiamart import IndiaMartScraper, IndiaMartLead
 from app.lead_scraper.justdial import JustDialScraper, JustDialLead
 from app.lead_scraper.linkedin import LinkedInScraper, LinkedInLead
+from app.lead_scraper.web_search import WebSearchScraper, WebSearchLead
+from app.lead_scraper.social_media import SocialMediaScraper, SocialMediaLead
 from app.utils.logger import setup_logger
 from app.utils.phone_validator import PhoneValidator
 
@@ -104,6 +107,8 @@ class LeadScraperManager:
         self.indiamart = IndiaMartScraper()
         self.justdial = JustDialScraper()
         self.linkedin = LinkedInScraper()
+        self.web_search = WebSearchScraper()
+        self.social_media = SocialMediaScraper()
         self.phone_validator = PhoneValidator()
         logger.info("🔍 Lead Scraper Manager initialized")
     
@@ -154,7 +159,18 @@ class LeadScraperManager:
             elif source == "justdial" and queries.get("justdial"):
                 for query in queries["justdial"]:
                     tasks.append(self._scrape_justdial(query, cities, leads_per_city))
-        
+
+            elif source == "web":
+                # web search ke liye specific queries na hon to google_maps wali reuse karo
+                web_queries = queries.get("web") or queries.get("google_maps") or [niche.replace("_", " ")]
+                for query in web_queries:
+                    tasks.append(self._scrape_web(query, cities, leads_per_city))
+
+            elif source == "social":
+                social_queries = queries.get("social") or queries.get("google_maps") or [niche.replace("_", " ")]
+                for query in social_queries:
+                    tasks.append(self._scrape_social(query, cities, leads_per_city))
+
         # Run scrapers concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
@@ -257,12 +273,102 @@ class LeadScraperManager:
                     leads.append(self._convert_justdial_lead(raw))
                     
                 await asyncio.sleep(3)
-                
+
             except Exception as e:
                 logger.error(f"JustDial error for {city}: {e}")
-        
+
         return leads
-    
+
+    async def _scrape_web(
+        self,
+        query: str,
+        cities: List[str],
+        max_per_city: int,
+    ) -> List[UnifiedLead]:
+        """Scrape from open web search (DuckDuckGo)."""
+        leads = []
+        for city in cities:
+            try:
+                raw_leads = await self.web_search.search_businesses(
+                    category=query,
+                    city=city,
+                    max_results=max_per_city,
+                )
+                for raw in raw_leads:
+                    leads.append(self._convert_web_lead(raw))
+                await asyncio.sleep(2)
+            except Exception as e:
+                logger.error(f"Web search error for {city}: {e}")
+        return leads
+
+    async def _scrape_social(
+        self,
+        query: str,
+        cities: List[str],
+        max_per_city: int,
+    ) -> List[UnifiedLead]:
+        """Scrape from public social media pages (Instagram/Facebook)."""
+        leads = []
+        for city in cities:
+            try:
+                raw_leads = await self.social_media.search_businesses(
+                    category=query,
+                    city=city,
+                    max_results=max_per_city,
+                )
+                for raw in raw_leads:
+                    leads.append(self._convert_social_lead(raw))
+                await asyncio.sleep(2)
+            except Exception as e:
+                logger.error(f"Social media error for {city}: {e}")
+        return leads
+
+    def _convert_web_lead(self, raw: WebSearchLead) -> UnifiedLead:
+        """Convert web search lead to unified format."""
+        import uuid
+        return UnifiedLead(
+            id=str(uuid.uuid4()),
+            company_name=raw.name,
+            contact_name=None,
+            phone=raw.phone,
+            phone_verified=False,
+            email=raw.email,
+            address="",
+            city=raw.city,
+            state="",
+            country="India",
+            category=raw.category,
+            source="web_search",
+            source_url=raw.source_url,
+            rating=None,
+            verified=False,
+            scraped_at=datetime.now(),
+            raw_data=asdict(raw),
+        )
+
+    def _convert_social_lead(self, raw: SocialMediaLead) -> UnifiedLead:
+        """Convert social media lead to unified format."""
+        import uuid
+        return UnifiedLead(
+            id=str(uuid.uuid4()),
+            company_name=raw.name,
+            contact_name=raw.handle,
+            phone=raw.phone,
+            phone_verified=False,
+            email=raw.email,
+            address="",
+            city=raw.city,
+            state="",
+            country="India",
+            category=raw.category,
+            source=f"social_{raw.platform}",
+            source_url=raw.profile_url,
+            rating=None,
+            verified=False,
+            scraped_at=datetime.now(),
+            raw_data=asdict(raw),
+        )
+
     def _convert_google_maps_lead(self, raw: BusinessLead) -> UnifiedLead:
         """Convert Google Maps lead to unified format"""
         import uuid

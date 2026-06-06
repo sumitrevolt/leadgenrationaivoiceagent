@@ -17,6 +17,7 @@ venv
 env
 .env
 .env.*
+!.env.example
 
 # IDE
 .vscode
@@ -25,13 +26,11 @@ env
 *.swp
 *.swo
 
-# Node/Frontend
+# Node/Frontend (not needed for API)
 node_modules
-frontend/node_modules
-frontend/dist
-frontend/.vite
+frontend
 
-# Terraform
+# Terraform/Infrastructure (not needed in container)
 .terraform
 infrastructure
 *.tfstate
@@ -49,12 +48,35 @@ docs
 *.md
 !README.md
 
-# Data
-data
-models/*.gguf
+# Include data directory but exclude large files
+!data
+!data/**
+data/leadgen_dev.db
+data/*.db
+data/*.sqlite
+*.gguf
+*.bin
+*.pkl
+
+# Exclude models directory at root (ML models) but keep app/models
+/models
 
 # Misc
 .DS_Store
 *.log
 .mypy_cache
 .ruff_cache
+.secrets.baseline
+.pre-commit-config.yaml
+*.tar.gz
+source.tar.gz
+server_*.log
+
+# Build artifacts
+Dockerfile.backup
+docker-compose*.yml
+cloudbuild*.yaml
+Makefile
+deploy*.sh
+deploy*.ps1
+*.template.md

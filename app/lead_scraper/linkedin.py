@@ -6,7 +6,14 @@ import asyncio
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 import re
+from urllib.parse import urlparse, parse_qs, unquote
+
 import httpx
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError:  # pragma: no cover - optional dependency
+    BeautifulSoup = None
 
 from app.config import settings
 from app.utils.logger import setup_logger
@@ -38,10 +45,17 @@ class LinkedInScraper:
     Use their official API when possible or ensure compliance.
     """
     
+    SEARCH_URL = "https://html.duckduckgo.com/html/"
+
     def __init__(self, use_sales_navigator: bool = False):
         self.use_sales_navigator = use_sales_navigator
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-IN,en;q=0.9",
         }
         logger.info("💼 LinkedIn Scraper initialized")
     
@@ -77,12 +91,105 @@ class LinkedInScraper:
                 max_results=max_results
             )
         else:
-            leads = await self._search_with_browser(
+            # Best-effort, key-less search via DuckDuckGo HTML endpoint.
+            # Avoids needing a logged-in LinkedIn session or browser automation.
+            leads = await self._search_via_duckduckgo(
                 industry=industry,
                 location=location,
                 max_results=max_results
             )
-        
+
+        return leads
+
+    @staticmethod
+    def _clean_ddg_link(href: str) -> str:
+        """Unwrap DuckDuckGo redirect links (//duckduckgo.com/l/?uddg=<real>)."""
+        if not href:
+            return ""
+        if "uddg=" in href:
+            try:
+                q = parse_qs(urlparse(href).query)
+                if "uddg" in q:
+                    return unquote(q["uddg"][0])
+            except Exception:
+                pass
+        if href.startswith("//"):
+            return "https:" + href
+        return href
+
+    async def _search_via_duckduckgo(
+        self,
+        industry: str,
+        location: str,
+        max_results: int
+    ) -> List[LinkedInLead]:
+        """
+        Best-effort LinkedIn company discovery using the free DuckDuckGo HTML
+        endpoint. Searches "site:linkedin.com/company <industry> <location>" and
+        parses organic results into LinkedInLead records.
+
+        No API key or login required. This will not return private profile data
+        (email/phone stay None) — only public company listing metadata.
+        """
+        if BeautifulSoup is None:
+            logger.error("beautifulsoup4 not installed; cannot run LinkedIn search")
+            return []
+
+        query = f"site:linkedin.com/company {industry} {location}".strip()
+        logger.info(f"LinkedIn DDG search: '{query}'")
+        leads: List[LinkedInLead] = []
+
+        try:
+            async with httpx.AsyncClient(
+                headers=self.headers,
+                timeout=20.0,
+                follow_redirects=True,
+            ) as client:
+                resp = await client.post(
+                    self.SEARCH_URL,
+                    data={"q": query, "kl": "in-en"},
+                )
+                resp.raise_for_status()
+                soup = BeautifulSoup(resp.text, "html.parser")
+                results = soup.select(".result")[:max_results]
+
+                for r in results:
+                    a = r.select_one(".result__a")
+                    if not a:
+                        continue
+                    title = a.get_text(strip=True)
+                    link = self._clean_ddg_link(a.get("href", ""))
+
+                    # Only keep genuine LinkedIn company links
+                    if "linkedin.com/company" not in link.lower():
+                        continue
+
+                    snip_el = r.select_one(".result__snippet")
+                    snippet = snip_el.get_text(" ", strip=True) if snip_el else ""
+
+                    # LinkedIn titles look like "Acme Solar | LinkedIn" — strip suffix
+                    company = re.split(r"\s*[|\-–]\s*LinkedIn", title, flags=re.I)[0].strip()
+                    company = company or title
+
+                    leads.append(LinkedInLead(
+                        name="",  # contact name not available without profile drill-down
+                        title="",
+                        company=company,
+                        company_size=None,
+                        industry=industry,
+                        location=location,
+                        linkedin_url=link,
+                        email=None,
+                        phone=None,
+                        connection_degree=None,
+                    ))
+
+        except httpx.HTTPError as e:
+            logger.error(f"LinkedIn DDG search HTTP error: {e}")
+        except Exception as e:
+            logger.error(f"LinkedIn DDG search failed: {e}")
+
+        logger.info(f"LinkedIn search found {len(leads)} companies for '{industry}' in {location}")
         return leads
     
     async def _search_sales_navigator(

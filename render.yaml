@@ -1,0 +1,74 @@
+# Render.com Blueprint — one-click deploy (web + worker + Postgres + Redis)
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  # ---- FastAPI web service (API + dashboards + websockets) ----
+  - type: web
+    name: leadgen-voice-web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    plan: starter            # free spins down; starter (~$7) for always-on telephony
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: leadgen-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: leadgen-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false          # dashboard me daalo (secret)
+      - key: DEFAULT_LLM
+        value: gemini-2.5-flash
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: TELEPHONY_PROVIDER
+        value: simulation     # SIP/exotel keys aane par badlo
+      - key: WORKING_HOURS_START
+        value: "09:00"
+      - key: WORKING_HOURS_END
+        value: "21:00"
+      - key: TIMEZONE
+        value: Asia/Kolkata
+
+  # ---- Celery background worker (scraping + calling jobs) ----
+  - type: worker
+    name: leadgen-voice-worker
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: celery -A app.worker worker --loglevel=info --concurrency=2
+    plan: starter
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: leadgen-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: leadgen-redis
+          property: connectionString
+      - key: GEMINI_API_KEY
+        sync: false
+
+  # ---- Redis (Celery broker + cache) ----
+  - type: redis
+    name: leadgen-redis
+    plan: starter
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+databases:
+  - name: leadgen-db
+    plan: basic-256mb        # Postgres; upgrade as data grows
+    databaseName: voice_agent

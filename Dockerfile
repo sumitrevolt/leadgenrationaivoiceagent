@@ -1,107 +1,113 @@
-# =============================================================================
-# MULTI-STAGE BUILD FOR PRODUCTION
-# =============================================================================
+# ============================================================================
+# LeadGen AI Voice Agent - Production Dockerfile
+# Minimal build for Cloud Run deployment (NO Playwright/Browser dependencies)
+# ============================================================================
 
-# Stage 1: Builder
+# Stage 1: Build dependencies
 FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     gcc \
-    g++ \
-    libpq-dev \
+    libffi-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create virtual environment
+# Copy requirements and filter out browser-based packages
+COPY requirements.txt .
+
+# Create filtered requirements without playwright/selenium
+RUN grep -v -E "^(playwright|selenium)" requirements.txt > requirements-filtered.txt
+
+# Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy and install requirements
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip wheel && \
+    pip install --no-cache-dir -r requirements-filtered.txt
 
-
-# Stage 2: Production Runtime
+# ============================================================================
+# Stage 2: Production image
+# ============================================================================
 FROM python:3.11-slim AS production
+
+# Build argument for version tracking
+ARG APP_VERSION=latest
+ENV APP_VERSION=${APP_VERSION}
+
+# Security: Run as non-root user
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+# Install runtime dependencies only (minimal set)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libsndfile1 \
+    curl \
+    ca-certificates \
+    tzdata \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Set timezone to IST for Indian market
+ENV TZ=Asia/Kolkata
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
-    PATH="/opt/venv/bin:$PATH"
+# Create necessary directories FIRST (before copying)
+RUN mkdir -p /app/logs /app/data/conversations /app/data/feedback \
+    /app/data/vectorstore /app/data/agent_brain /app/data/voice_brain \
+    /app/data/production_brain /app/data/brain_training /app/data/training_reports \
+    /app/data/optimizer /app/scripts /app/alembic
 
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
-    # Playwright dependencies
-    libnss3 \
-    libnspr4 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+# Copy application code (app/ is required)
+COPY --chown=appuser:appgroup app/ ./app/
 
-# Copy virtual environment from builder
-COPY --from=builder /opt/venv /opt/venv
+# Copy alembic configuration
+COPY --chown=appuser:appgroup alembic/ ./alembic/
+COPY --chown=appuser:appgroup alembic.ini ./
 
-# Install Playwright browsers (after copying venv)
-RUN playwright install chromium --with-deps
+# Copy scripts directory
+COPY --chown=appuser:appgroup scripts/ ./scripts/
 
-# Create non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Copy data directory structure (empty dirs ok, .dockerignore handles exclusions)
+COPY --chown=appuser:appgroup data/ ./data/
 
-# Copy application code
-COPY --chown=appuser:appuser . .
+# Ensure proper ownership
+RUN chown -R appuser:appgroup /app
 
-# Create necessary directories with proper permissions
-RUN mkdir -p logs/calls data/leads data/recordings && \
-    chown -R appuser:appuser logs data
+# Security: Remove setuid/setgid binaries
+RUN find / -xdev -perm /6000 -type f -exec chmod a-s {} \; 2>/dev/null || true
 
 # Switch to non-root user
 USER appuser
 
-# Expose port
-EXPOSE 8000
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app \
+    PORT=8080 \
+    WEB_CONCURRENCY=2 \
+    GRACEFUL_TIMEOUT=30
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Run the application with proper settings
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Expose Cloud Run default port
+EXPOSE 8080
 
+# Labels
+LABEL org.opencontainers.image.title="LeadGen AI Voice Agent" \
+      org.opencontainers.image.version="${APP_VERSION}"
 
-# Stage 3: Development (optional, for local development)
-FROM production AS development
-
-USER root
-
-# Install development dependencies
-RUN pip install --no-cache-dir \
-    pytest \
-    pytest-asyncio \
-    pytest-cov \
-    black \
-    flake8 \
-    mypy
-
-USER appuser
-
-# Override CMD for development with hot reload
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Simplified startup - skip startup_check.py if it fails, uvicorn handles health
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers ${WEB_CONCURRENCY:-2} --timeout-keep-alive 30"]

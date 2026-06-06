@@ -22,10 +22,13 @@ resource "google_cloud_run_v2_service" "main" {
       max_instance_count = var.max_instances
     }
 
-    # VPC Access
-    vpc_access {
-      connector = var.vpc_connector_id
-      egress    = "PRIVATE_RANGES_ONLY"
+    # VPC Access (optional - only if connector exists)
+    dynamic "vpc_access" {
+      for_each = var.vpc_connector_id != "" ? [1] : []
+      content {
+        connector = var.vpc_connector_id
+        egress    = "PRIVATE_RANGES_ONLY"
+      }
     }
 
     # Request timeout for voice calls

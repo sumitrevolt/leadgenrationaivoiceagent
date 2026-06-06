@@ -285,26 +285,45 @@ resource "google_secret_manager_secret_version" "sentry_dsn" {
 # IAM Bindings for Cloud Run
 # -----------------------------------------------------------------------------
 
+locals {
+  secret_ids = {
+    "database_url"       = "${var.environment}-database-url"
+    "redis_url"          = "${var.environment}-redis-url"
+    "openai_api_key"     = "${var.environment}-openai-api-key"
+    "gemini_api_key"     = "${var.environment}-gemini-api-key"
+    "anthropic_api_key"  = "${var.environment}-anthropic-api-key"
+    "elevenlabs_api_key" = "${var.environment}-elevenlabs-api-key"
+    "deepgram_api_key"   = "${var.environment}-deepgram-api-key"
+    "sentry_dsn"         = "${var.environment}-sentry-dsn"
+    "twilio_account_sid" = "${var.environment}-twilio-account-sid"
+    "twilio_auth_token"  = "${var.environment}-twilio-auth-token"
+    "exotel_api_key"     = "${var.environment}-exotel-api-key"
+    "exotel_api_token"   = "${var.environment}-exotel-api-token"
+  }
+}
+
 resource "google_secret_manager_secret_iam_member" "cloud_run_access" {
-  for_each = toset([
-    google_secret_manager_secret.database_url.secret_id,
-    google_secret_manager_secret.redis_url.secret_id,
-    google_secret_manager_secret.openai_api_key.secret_id,
-    google_secret_manager_secret.gemini_api_key.secret_id,
-    google_secret_manager_secret.anthropic_api_key.secret_id,
-    google_secret_manager_secret.elevenlabs_api_key.secret_id,
-    google_secret_manager_secret.deepgram_api_key.secret_id,
-    google_secret_manager_secret.sentry_dsn.secret_id,
-    google_secret_manager_secret.twilio_account_sid.secret_id,
-    google_secret_manager_secret.twilio_auth_token.secret_id,
-    google_secret_manager_secret.exotel_api_key.secret_id,
-    google_secret_manager_secret.exotel_api_token.secret_id,
-  ])
+  for_each = local.secret_ids
 
   project   = var.project_id
   secret_id = each.value
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${var.cloud_run_sa_email}"
+
+  depends_on = [
+    google_secret_manager_secret.database_url,
+    google_secret_manager_secret.redis_url,
+    google_secret_manager_secret.openai_api_key,
+    google_secret_manager_secret.gemini_api_key,
+    google_secret_manager_secret.anthropic_api_key,
+    google_secret_manager_secret.elevenlabs_api_key,
+    google_secret_manager_secret.deepgram_api_key,
+    google_secret_manager_secret.sentry_dsn,
+    google_secret_manager_secret.twilio_account_sid,
+    google_secret_manager_secret.twilio_auth_token,
+    google_secret_manager_secret.exotel_api_key,
+    google_secret_manager_secret.exotel_api_token,
+  ]
 }
 
 # -----------------------------------------------------------------------------
