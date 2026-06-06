@@ -159,8 +159,8 @@ app.add_middleware(
 app.include_router(health_router)  # Health checks at root level
 app.include_router(data_router, prefix="/api", tags=["Data Intelligence"])  # B2B Data Platform
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
-app.include_router(campaigns.router, prefix="/api/campaigns", tags=["Campaigns"])
-app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(campaigns.router, prefix="/api", tags=["Campaigns"])  # router self-prefixes /campaigns
+app.include_router(analytics.router, prefix="/api", tags=["Analytics"])  # router self-prefixes /analytics
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
 app.include_router(billing_router, prefix="/api", tags=["Billing"])
 app.include_router(platform_router, prefix="/api", tags=["Platform"])
@@ -216,14 +216,30 @@ async def twilio_media_stream(websocket: WebSocket):
 
 @app.get("/manifest.json", tags=["Frontend"])
 async def pwa_manifest():
-    """PWA manifest at root scope so the app is installable."""
-    return FileResponse(str(_website_dir / "manifest.json"))
+    """PWA manifest at root scope so the app is installable (inline fallback if file missing)."""
+    mf = _website_dir / "manifest.json"
+    if mf.is_file():
+        return FileResponse(str(mf))
+    return JSONResponse({
+        "name": "LeadGen AI", "short_name": "LeadGen AI",
+        "start_url": "/site/", "display": "standalone",
+        "background_color": "#4f46e5", "theme_color": "#4f46e5",
+        "description": "AI Voice Agent for B2B Lead Generation",
+        "icons": [
+            {"src": "/site/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/site/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+        ],
+    })
 
 
 @app.get("/sw.js", tags=["Frontend"])
 async def pwa_service_worker():
     """PWA service worker at root scope for offline caching."""
-    return FileResponse(str(_website_dir / "sw.js"))
+    sw = _website_dir / "sw.js"
+    if sw.is_file():
+        return FileResponse(str(sw))
+    from fastapi.responses import Response
+    return Response("/* no service worker */", media_type="application/javascript")
 
 
 @app.get("/")

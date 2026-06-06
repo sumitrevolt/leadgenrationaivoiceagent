@@ -1,0 +1,33 @@
+{
+  "name": "LeadGen AI — Voice Agent for Qualified Leads",
+  "short_name": "LeadGen AI",
+  "description": "AI voice agent jo aapke potential customers ko call karke qualified leads laata hai. Pay per qualified lead.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#4f46e5",
+  "background_color": "#0f0f23",
+  "lang": "en-IN",
+  "categories": ["business", "productivity", "marketing"],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

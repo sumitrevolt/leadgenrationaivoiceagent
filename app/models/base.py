@@ -64,21 +64,27 @@ def _get_async_engine():
     if _async_engine is None:
         try:
             from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-            
-            _async_engine = create_async_engine(
-                settings.database_url,
-                pool_size=20,
-                max_overflow=30,
-                pool_pre_ping=True,
-                echo=settings.debug,
-            )
+
+            # Normalize DATABASE_URL to an ASYNC driver URL.
+            url = settings.database_url
+            if url.startswith("sqlite") and "+aiosqlite" not in url:
+                url = url.replace("sqlite+pysqlite://", "sqlite://").replace("sqlite://", "sqlite+aiosqlite://")
+            elif url.startswith("postgresql") and "+asyncpg" not in url:
+                url = url.replace("postgresql+psycopg2://", "postgresql://").replace("postgresql://", "postgresql+asyncpg://")
+
+            kwargs = dict(pool_pre_ping=True, echo=settings.debug)
+            # SQLite does not support pool_size/max_overflow.
+            if not url.startswith("sqlite"):
+                kwargs.update(pool_size=20, max_overflow=30)
+
+            _async_engine = create_async_engine(url, **kwargs)
             _async_session = async_sessionmaker(
                 _async_engine,
                 class_=AsyncSession,
                 expire_on_commit=False,
                 autoflush=False,
             )
-            logger.info("? Async database engine initialized")
+            logger.info(f"✅ Async database engine initialized ({url.split('://')[0]})")
         except Exception as e:
             logger.warning(f"Could not initialize async engine: {e}")
             return None
