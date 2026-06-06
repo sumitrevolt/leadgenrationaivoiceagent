@@ -27,13 +27,23 @@ def setup_cloud_logging():
     Automatically sends logs to Cloud Logging with proper severity levels
     """
     global _cloud_logging_initialized
-    
+
     if _cloud_logging_initialized:
         return
-    
+
     if settings.app_env != "production":
         return
-    
+
+    # Mark as attempted up-front: a FAILED attempt must not be retried by
+    # every setup_logger() call — google-cloud's internal retries can block
+    # app startup for minutes (seen on VPS deploys without GCP credentials).
+    _cloud_logging_initialized = True
+
+    # Only attempt when credentials are plausibly available: explicit
+    # service-account file, or running on GCP (Cloud Run/GCE metadata).
+    if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") and not os.environ.get("K_SERVICE"):
+        return
+
     try:
         import google.cloud.logging as cloud_logging
         from google.cloud.logging_v2.handlers import CloudLoggingHandler
@@ -47,10 +57,9 @@ def setup_cloud_logging():
         # Attach to root logger
         root_logger = logging.getLogger()
         root_logger.addHandler(handler)
-        
-        _cloud_logging_initialized = True
-        print("? Google Cloud Logging initialized")
-        
+
+        print("Google Cloud Logging initialized")
+
     except ImportError:
         # google-cloud-logging not installed, use standard logging
         pass
