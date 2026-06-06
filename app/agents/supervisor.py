@@ -74,15 +74,25 @@ class AgentState(TypedDict, total=False):
 # --------------------------------------------------------------------------- #
 # Nodes
 # --------------------------------------------------------------------------- #
+def route_for_task(task: str) -> str:
+    """
+    Pure rule-based router — NO LLM call, NO langgraph dependency.
+
+    Data keywords pehle check hote hain, phir leads keywords; kuch match na ho
+    to default "leads_agent". Substring match on the lowercased task —
+    behavior exactly the same as the original inline supervisor logic.
+    """
+    task = (task or "").lower()
+    if any(k in task for k in _DATA_KEYWORDS):
+        return "data_agent"
+    if any(k in task for k in _LEADS_KEYWORDS):
+        return "leads_agent"
+    return "leads_agent"  # default
+
+
 def supervisor_node(state: AgentState) -> Dict[str, Any]:
     """Rule-based router — NO LLM call. Sets state['route']."""
-    task = (state.get("task") or "").lower()
-    if any(k in task for k in _DATA_KEYWORDS):
-        route = "data_agent"
-    elif any(k in task for k in _LEADS_KEYWORDS):
-        route = "leads_agent"
-    else:
-        route = "leads_agent"  # default
+    route = route_for_task(state.get("task") or "")
     logger.debug(f"supervisor routed task to {route}")
     return {"route": route}
 

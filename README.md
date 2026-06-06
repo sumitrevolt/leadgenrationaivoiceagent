@@ -3,6 +3,8 @@
 > **AI-Powered Business Data & Intelligence Platform**
 > 
 > A zero-cost B2B data platform that provides company search, enrichment, and market intelligence APIs.
+>
+> **Live in production**: https://leadsgenai.in
 
 ---
 
@@ -43,7 +45,7 @@
 │                         PLATFORM CAPABILITIES                               │
 │                                                                             │
 │   🔍 COMPANY SEARCH API                                                     │
-│      • Search across 20+ industries                                        │
+│      • Search across 25+ niches                                            │
 │      • Filter by city, rating, verification                                │
 │      • FREE searches (credits on export/enrich)                            │
 │                                                                             │
@@ -342,7 +344,7 @@ Each client tenant automatically gets:
 ### AI Models
 | Purpose | Default | Alternatives |
 |---------|---------|--------------|
-| LLM | Gemini 1.5 Flash | GPT-4o, Claude 3 |
+| LLM | Gemini 2.5 Flash Lite | Other Gemini models, GPT-4o, Claude |
 | TTS | Edge TTS (FREE) | ElevenLabs, Azure |
 | STT | Deepgram | Google Cloud Speech |
 
@@ -397,11 +399,24 @@ Each client tenant automatically gets:
 | Backend | FastAPI + Python 3.10+ |
 | Database | PostgreSQL + Redis |
 | Task Queue | Celery + Redis |
-| AI/LLM | Gemini 1.5 Flash (default) |
+| AI/LLM | Gemini 2.5 Flash Lite (default) |
+| Agent Orchestration | LangGraph supervisor (`/api/agents/run`) |
+| RAG / Vector Store | Qdrant (payload-partitioned) + fastembed multilingual-e5-small |
+| MCP | fastapi_mcp — platform exposed as MCP tools at `/mcp` |
 | Voice | Deepgram STT + Edge TTS |
 | Telephony | Twilio + Exotel |
 | Messaging | WhatsApp Business API |
 | Containers | Docker + Docker Compose |
+
+### Agentic Stack (2026)
+
+Live in production at **https://leadsgenai.in**:
+
+- **25 research-finalized niches** (S/A/B tiers, B2C/B2B target types, per-niche pricing bands) in `app/niches.py`, plus a **custom niches API** — `POST /api/data/niches` adds a new niche at runtime with flows, knowledge base, and provisioning auto-wired (the 25 built-ins are delete-protected).
+- **Per-client 2-agent auto-provisioning** — every new client (`POST /api/platform/clients`) automatically gets a DATA agent (business profile + niche knowledge, namespace `client:<id>`) and a LEADS agent (end-customer outreach calling per the niche's target type).
+- **Qdrant payload-partitioned RAG** — single `kb_main` collection partitioned by namespace, fastembed `multilingual-e5-small` embeddings (Hinglish-capable), with fallback chain Qdrant → Chroma → keyword.
+- **LangGraph supervisor** — routes requests to data/leads agent nodes with SQLite checkpointing; run via `POST /api/agents/run`, status at `GET /api/agents/status`.
+- **MCP server** — Platform/Data/Agents endpoints exposed as MCP tools at `/mcp` via fastapi_mcp, so AI clients can administer the platform directly.
 
 ---
 
