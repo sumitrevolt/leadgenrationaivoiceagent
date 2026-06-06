@@ -45,6 +45,8 @@ class Agent(Base):
     status = Column(Enum(AgentStatus), default=AgentStatus.IDLE)
 
     # Capabilities / config
+    # role: "data" (client business data/KB) | "leads" (end-customer calling)
+    role = Column(String(20), default="leads", index=True)
     niche = Column(String(50))  # specialization niche, if any
     voice = Column(String(50), default="EdgeTTS")
     language = Column(String(20), default="hinglish")

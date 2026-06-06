@@ -115,12 +115,11 @@
       <div class="field">
         <label>Niche</label>
         <select id="niche">
-          <option value="solar">Solar</option>
+          <!-- Populated dynamically from /api/data/niches (all 25); static fallback below -->
           <option value="real_estate">Real Estate</option>
-          <option value="dental">Dental</option>
-          <option value="hvac">HVAC</option>
-          <option value="interior">Interior Design</option>
-          <option value="study_abroad">Study Abroad</option>
+          <option value="solar_residential">Solar (Residential)</option>
+          <option value="dental_implants">Dental</option>
+          <option value="studying_abroad">Study Abroad</option>
           <option value="insurance">Insurance</option>
           <option value="general">General</option>
         </select>
@@ -173,6 +172,39 @@
 
   var ws = null;
   var typingEl = null;
+
+  // ---- Niche dropdown: load all 25 research-finalized niches ------------
+  (function loadNiches(){
+    fetch("/api/data/niches")
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){
+        if (!data || !data.niches || !data.niches.length) return;
+        var current = nicheSel.value;
+        nicheSel.innerHTML = "";
+        // S-tier pehle, phir A, B — same order me dikhao
+        var tiers = {"S": [], "A": [], "B": [], "": []};
+        data.niches.forEach(function(n){
+          (tiers[n.tier] || tiers[""]).push(n);
+        });
+        ["S","A","B",""].forEach(function(t){
+          tiers[t].forEach(function(n){
+            var opt = document.createElement("option");
+            opt.value = n.id;
+            var tag = n.target_type ? " · " + n.target_type.toUpperCase() : "";
+            opt.textContent = n.name + (t ? " ["+t+"]" : "") + tag;
+            nicheSel.appendChild(opt);
+          });
+        });
+        var gen = document.createElement("option");
+        gen.value = "general"; gen.textContent = "General";
+        nicheSel.appendChild(gen);
+        // pehle wali selection preserve karo agar ab bhi available hai
+        for (var i = 0; i < nicheSel.options.length; i++){
+          if (nicheSel.options[i].value === current){ nicheSel.selectedIndex = i; break; }
+        }
+      })
+      .catch(function(){ /* static fallback options hi rahenge */ });
+  })();
 
   // ---- Chat rendering --------------------------------------------------
   function addMsg(role, text){

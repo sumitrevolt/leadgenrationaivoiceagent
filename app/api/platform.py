@@ -12,6 +12,7 @@ from app.platform.orchestrator import PlatformOrchestrator, start_platform, stop
 from app.platform import SubscriptionTier, AutomationLevel
 from app.utils.logger import setup_logger
 from app.api.auth_deps import get_current_user, require_admin, require_super_admin
+from app.models.base import get_async_db
 from app.models.user import User
 
 logger = setup_logger(__name__)
@@ -160,7 +161,7 @@ async def list_tenants(
 
 @router.post("/tenants", response_model=dict)
 async def create_tenant(
-    tenant: TenantCreate, 
+    tenant: TenantCreate,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(require_admin)
 ):
@@ -176,13 +177,127 @@ async def create_tenant(
         target_niches=tenant.target_niches or ["general"],
         target_cities=tenant.target_cities or ["Mumbai", "Delhi", "Bangalore"]
     )
-    
+
     return {
         "id": new_tenant.id,
         "company_name": new_tenant.company_name,
         "status": new_tenant.status.value,
         "message": "Tenant created and automation started"
     }
+
+
+# ============================================================================
+# CLIENTS (DB-backed) — onboarding with auto-provisioned agents
+# ============================================================================
+
+class ClientCreate(BaseModel):
+    """Create a DB client; system auto-provisions its 2 agents (data+leads)."""
+    business_name: str
+    contact_name: str
+    contact_email: str
+    contact_phone: str
+    industry: str = ""           # free text ya NICHES key — resolve ho jata hai
+    niche: Optional[str] = None  # explicit NICHES key (industry se priority)
+    city: Optional[str] = None
+
+
+@router.post("/clients", response_model=dict)
+async def create_client(
+    payload: ClientCreate,
+    db=Depends(get_async_db),
+    current_user: User = Depends(require_admin),
+):
+    """
+    New client onboarding: DB record + uske business ke hisab se 2 agents —
+    ek DATA agent (business data/KB) aur ek LEADS agent (end-customer calling).
+    """
+    import secrets as _secrets
+    import uuid as _uuid
+
+    from sqlalchemy import select as _select
+    from app.models.client import Client, ClientStatus
+    from app.platform.agent_provisioner import provision_agents_for_client
+
+    existing = await db.execute(
+        _select(Client).where(Client.contact_email == payload.contact_email)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Client with this email already exists")
+
+    client = Client(
+        id=str(_uuid.uuid4()),
+        business_name=payload.business_name,
+        contact_name=payload.contact_name,
+        contact_email=payload.contact_email,
+        contact_phone=payload.contact_phone,
+        industry=payload.niche or payload.industry,
+        city=payload.city,
+        status=ClientStatus.TRIAL,
+        api_key=_secrets.token_urlsafe(32),
+    )
+    db.add(client)
+    await db.flush()
+
+    agents = await provision_agents_for_client(db, client, niche=payload.niche)
+
+    return {
+        "client": {
+            "id": client.id,
+            "business_name": client.business_name,
+            "status": client.status.value,
+            "niche": agents["niche_key"],
+            "target_type": agents["target_type"],
+        },
+        "agents": agents["created"] + agents["existing"],
+        "message": "Client created — data agent + leads agent provisioned",
+    }
+
+
+@router.post("/clients/{client_id}/provision-agents", response_model=dict)
+async def provision_client_agents(
+    client_id: str,
+    niche: Optional[str] = None,
+    db=Depends(get_async_db),
+    current_user: User = Depends(require_admin),
+):
+    """
+    Existing client ke liye 2 agents ensure karo (idempotent) — purane
+    (seeded) clients ko backfill karne ke liye.
+    """
+    from sqlalchemy import select as _select
+    from app.models.client import Client
+    from app.platform.agent_provisioner import provision_agents_for_client
+
+    result = await db.execute(_select(Client).where(Client.id == client_id))
+    client = result.scalar_one_or_none()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    agents = await provision_agents_for_client(db, client, niche=niche)
+    return {
+        "client_id": client_id,
+        "niche": agents["niche_key"],
+        "created": agents["created"],
+        "existing": agents["existing"],
+    }
+
+
+@router.get("/clients/{client_id}/agents", response_model=dict)
+async def list_client_agents(
+    client_id: str,
+    db=Depends(get_async_db),
+    current_user: User = Depends(require_admin),
+):
+    """Client ke dedicated agents (data + leads) ki list."""
+    from sqlalchemy import select as _select
+    from app.models.agent import Agent
+    from app.platform.agent_provisioner import _agent_dict
+
+    result = await db.execute(
+        _select(Agent).where(Agent.current_client_id == client_id)
+    )
+    agents = [_agent_dict(a) for a in result.scalars().all()]
+    return {"client_id": client_id, "agents": agents, "count": len(agents)}
 
 
 @router.get("/tenants/{tenant_id}")

@@ -205,12 +205,39 @@ def init_db():
         logger.info("? Database tables created (sync)")
 
 
+def _apply_schema_upgrades(sync_conn) -> None:
+    """
+    Lightweight, idempotent in-place migrations for columns added after the
+    first release. create_all() only creates NEW tables — existing tables
+    need explicit ALTERs. Safe on SQLite and Postgres.
+    """
+    from sqlalchemy import inspect, text
+
+    upgrades = {
+        # table: [(column, DDL type + default clause)]
+        "agents": [("role", "VARCHAR(20) DEFAULT 'leads'")],
+    }
+    inspector = inspect(sync_conn)
+    for table, cols in upgrades.items():
+        try:
+            if table not in inspector.get_table_names():
+                continue
+            existing = {c["name"] for c in inspector.get_columns(table)}
+            for col, ddl in cols:
+                if col not in existing:
+                    sync_conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+                    logger.info(f"Schema upgrade: {table}.{col} added")
+        except Exception as e:
+            logger.warning(f"Schema upgrade check failed for {table}: {e}")
+
+
 async def init_async_db():
     """Initialize database tables (async)"""
     engine = _get_async_engine()
     if engine:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(_apply_schema_upgrades)
         logger.info("? Database tables created (async)")
 
 
