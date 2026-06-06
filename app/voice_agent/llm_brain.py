@@ -115,14 +115,20 @@ OBJECTION HANDLING:
         self.provider = "unknown"
         self.tenant_id = tenant_id or "default"
         
-        # Initialize ML components for auto-learning
+        # Initialize ML components for auto-learning.
+        # These classes take data/persist directories (not tenant_id) — scope
+        # each tenant to its own subdirectory for isolation.
         self.ml_enabled = ML_ENABLED
         if self.ml_enabled:
             try:
-                self.brain_optimizer = BrainOptimizer(tenant_id=self.tenant_id)
-                self.feedback_loop = FeedbackLoop(tenant_id=self.tenant_id)
-                self.data_pipeline = ConversationDataPipeline(tenant_id=self.tenant_id)
-                self.vector_store = VectorStore(tenant_id=self.tenant_id)
+                t = self.tenant_id
+                self.feedback_loop = FeedbackLoop(data_dir=f"data/feedback/{t}")
+                self.brain_optimizer = BrainOptimizer(
+                    data_dir=f"data/optimizer/{t}",
+                    feedback_loop=self.feedback_loop,
+                )
+                self.data_pipeline = ConversationDataPipeline(data_dir=f"data/conversations/{t}")
+                self.vector_store = VectorStore(persist_directory=f"data/vectorstore/{t}")
                 logger.info("🤖 ML Auto-Learning enabled")
             except Exception as e:
                 logger.warning(f"ML initialization failed: {e}. Running without ML.")

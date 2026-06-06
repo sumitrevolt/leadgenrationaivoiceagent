@@ -83,6 +83,22 @@ async def _maybe_await(value: Any) -> Any:
     return value
 
 
+def _pipeline_text_method(pipeline: Any) -> Optional[Any]:
+    """
+    Return the pipeline's text-responder method, or None.
+    VoicePipeline is built for live audio streaming and may expose NO text
+    method at all — in that case the web-call demo must use the LLM brain,
+    not claim "pipeline" and then silently fall through to echo.
+    """
+    if pipeline is None:
+        return None
+    for name in ("respond", "process_text", "handle_text", "chat"):
+        fn = getattr(pipeline, name, None)
+        if callable(fn):
+            return fn
+    return None
+
+
 # ---------------------------------------------------------------------------- #
 # Config endpoint
 # ---------------------------------------------------------------------------- #
@@ -93,6 +109,7 @@ async def web_call_config() -> Dict[str, Any]:
     names. Always returns 200 — degrades gracefully.
     """
     pipeline = _get_pipeline()
+    pipeline_can_text = _pipeline_text_method(pipeline) is not None
     registry = _get_registry_describe()
     brain_available = _get_llm_brain() is not None
 
@@ -112,7 +129,7 @@ async def web_call_config() -> Dict[str, Any]:
         "providers": registry or {"detail": "No provider registry; using fallback responder."},
         "telephony": telephony or {"detail": "Telephony info unavailable."},
         "responder": (
-            "pipeline" if pipeline is not None
+            "pipeline" if pipeline_can_text
             else ("llm" if brain_available else "echo")
         ),
     }
@@ -131,7 +148,11 @@ async def web_call_ws(websocket: WebSocket) -> None:
     await websocket.accept()
 
     pipeline = _get_pipeline()
-    brain = None if pipeline is not None else _get_llm_brain()
+    # Only treat the pipeline as the responder when it can actually answer
+    # text. Otherwise load the LLM brain right away.
+    if _pipeline_text_method(pipeline) is None:
+        pipeline = None
+    brain = _get_llm_brain() if pipeline is None else None
 
     responder = "pipeline" if pipeline is not None else ("llm" if brain else "echo")
 
@@ -249,18 +270,17 @@ async def _respond(pipeline, brain, history, session, user_text):
     Order: VoicePipeline -> LLMBrain -> echo. Never raises.
     """
     # 1) Full pipeline (preferred).
-    if pipeline is not None:
-        for name in ("respond", "process_text", "handle_text", "chat"):
-            fn = getattr(pipeline, name, None)
-            if callable(fn):
-                try:
-                    result = await _maybe_await(fn(user_text))
-                    return _unpack_pipeline_result(result)
-                except Exception as e:
-                    logger.debug(f"web-call pipeline responder error ({e}).")
-                    break
+    fn = _pipeline_text_method(pipeline)
+    if fn is not None:
+        try:
+            result = await _maybe_await(fn(user_text))
+            return _unpack_pipeline_result(result)
+        except Exception as e:
+            logger.warning(f"web-call pipeline responder failed, trying LLM brain: {e}")
 
-    # 2) LLM brain fallback.
+    # 2) LLM brain fallback (load lazily if the pipeline just failed).
+    if brain is None:
+        brain = _get_llm_brain()
     if brain is not None:
         fn = getattr(brain, "generate_response", None)
         if callable(fn):
