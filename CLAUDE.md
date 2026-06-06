@@ -40,6 +40,12 @@
 - Full data: `Niche_Pricing_Research.xlsx` (4 sheets: niches, competitor pricing, India CPL benchmarks, strategy). Rebuild: `scripts/build_xlsx.bat`.
 - Dropped old niches (low suitability): financial_advisors, corporate_law (→ca_legal), event_management (→hotels_mice), architects, franchise_consultants, software_dev, gym_equipment, medical_equipment, packaging, logistics_3pl. KB/flow lookups `.get()` fallback se safe.
 
+## Per-Client 2-Agent Auto-Provisioning (2026-06-06, commit 0187a69)
+- **Har naya client bante hi system 2 agents auto-create karta hai**: DATA agent (role="data" — business profile + niche facts KB me seed, namespace `client:<id>`) + LEADS agent (role="leads" — end-customer calling, niche ke target_type ke hisab se). Code: `app/platform/agent_provisioner.py` (idempotent; `resolve_niche_key` loose industry strings ko NICHES key me map karta hai, fallback "general").
+- API (admin auth): `POST /api/platform/clients` (create+provision), `POST /api/platform/clients/{id}/provision-agents` (backfill, idempotent), `GET /api/platform/clients/{id}/agents`. Agent model me `role` column — `_apply_schema_upgrades()` in models/base.py startup pe ALTER karta hai (SQLite/PG safe).
+- Web-call dropdown ab `/api/data/niches` se 25 niches dynamically load karta hai (S/A/B grouped, static fallback). Flows/KB pehle se NICHES-generic the — sab 25 auto-supported (VPS verified: 25 namespaces, 8 chunks each).
+- Tests 76/76 (15 naye: niche registry/flows/API filters/provisioning/idempotency/niche-resolution). VPS live-verified: seeded client pe 2 agents + KB seed + idempotent re-run.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
