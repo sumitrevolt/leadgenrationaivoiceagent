@@ -51,6 +51,10 @@
 - Custom niche turant SAB jagah kaam karta hai: flows (generic builder), KB (auto-seed on create), agent provisioning (`resolve_niche_key` loose match), web-call dropdown ([custom] tag, tier "C"). VPS-verified e2e: add → flow 7 nodes → resolve "ev charging" → remove.
 - `app/niches.py` API: `add_custom_niche(name, ...)`, `remove_custom_niche(key)`, `refresh_custom_niches()`, `_BUILTIN_KEYS` frozen. Tests 80/80 (4 naye custom-niche tests).
 
+## Architecture Stack Research (2026-06-06) — docs/Architecture_Research_RAG_Agents_MCP.md
+- **Decided stack (research-backed)**: LangGraph 1.x supervisor (multi-agent orchestration, "graph wala" — 126k stars) + Qdrant single-collection payload-partitioned per-niche RAG (collection-per-niche MAT — Qdrant official guidance) + multilingual-e5-small ONNX embeddings (Hinglish) + Pipecat (voice, Phase 3) + fastapi_mcp (platform ko MCP server banao). GraphRAG/CrewAI/AutoGen/ADK skip (reasons doc me). LightRAG sirf future bade client-docs ke liye.
+- Roadmap: P1 Qdrant RAG + fastapi_mcp → P2 LangGraph supervisor (data/leads agents as nodes) → P3 Pipecat telephony → P4 LightRAG.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
