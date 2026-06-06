@@ -46,6 +46,11 @@
 - Web-call dropdown ab `/api/data/niches` se 25 niches dynamically load karta hai (S/A/B grouped, static fallback). Flows/KB pehle se NICHES-generic the — sab 25 auto-supported (VPS verified: 25 namespaces, 8 chunks each).
 - Tests 76/76 (15 naye: niche registry/flows/API filters/provisioning/idempotency/niche-resolution). VPS live-verified: seeded client pe 2 agents + KB seed + idempotent re-run.
 
+## Custom Niches Runtime Support (2026-06-06, commit 5641405)
+- **Koi bhi NAYA niche runtime pe add ho sakta hai** — `POST /api/data/niches` (admin; sirf `name` zaroori, baki defaults), `DELETE /api/data/niches/{key}` (builtin 25 protected, 403). Persistence: `data/custom_niches.json` (gitignored, VPS-local), mtime-based auto-reload (multi-worker safe).
+- Custom niche turant SAB jagah kaam karta hai: flows (generic builder), KB (auto-seed on create), agent provisioning (`resolve_niche_key` loose match), web-call dropdown ([custom] tag, tier "C"). VPS-verified e2e: add → flow 7 nodes → resolve "ev charging" → remove.
+- `app/niches.py` API: `add_custom_niche(name, ...)`, `remove_custom_niche(key)`, `refresh_custom_niches()`, `_BUILTIN_KEYS` frozen. Tests 80/80 (4 naye custom-niche tests).
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
