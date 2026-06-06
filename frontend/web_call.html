@@ -181,17 +181,18 @@
         if (!data || !data.niches || !data.niches.length) return;
         var current = nicheSel.value;
         nicheSel.innerHTML = "";
-        // S-tier pehle, phir A, B — same order me dikhao
-        var tiers = {"S": [], "A": [], "B": [], "": []};
+        // S-tier pehle, phir A, B, custom (C) — same order me dikhao
+        var tiers = {"S": [], "A": [], "B": [], "C": [], "": []};
         data.niches.forEach(function(n){
           (tiers[n.tier] || tiers[""]).push(n);
         });
-        ["S","A","B",""].forEach(function(t){
+        ["S","A","B","C",""].forEach(function(t){
           tiers[t].forEach(function(n){
             var opt = document.createElement("option");
             opt.value = n.id;
             var tag = n.target_type ? " · " + n.target_type.toUpperCase() : "";
-            opt.textContent = n.name + (t ? " ["+t+"]" : "") + tag;
+            var label = t === "C" ? " [custom]" : (t ? " ["+t+"]" : "");
+            opt.textContent = n.name + label + tag;
             nicheSel.appendChild(opt);
           });
         });

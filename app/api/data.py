@@ -12,7 +12,7 @@ from datetime import datetime
 from app.models.base import get_async_db
 from app.models.data_credits import APIUsageType, CREDIT_COSTS
 from app.services.data_service import DataService
-from app.api.auth_deps import get_current_user, get_current_user_optional
+from app.api.auth_deps import get_current_user, get_current_user_optional, require_admin
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -289,10 +289,11 @@ async def generate_report(
 @router.get("/niches")
 async def get_available_niches(target_type: str = None, tier: str = None):
     """
-    List available industry niches (research-finalized top 25).
-    Optional filters: target_type=b2c|b2b (end-customer audience), tier=S|A|B.
+    List available industry niches (research-finalized top 25 + custom).
+    Optional filters: target_type=b2c|b2b (end-customer audience), tier=S|A|B|C.
     """
-    from app.niches import NICHES
+    from app.niches import NICHES, refresh_custom_niches
+    refresh_custom_niches()
 
     niches = [
         {
@@ -301,6 +302,7 @@ async def get_available_niches(target_type: str = None, tier: str = None):
             "description": config.get("pitch_hook", ""),
             "keywords": config.get("keywords", [])[:5],  # First 5 keywords
             "tier": config.get("tier"),
+            "custom": bool(config.get("custom")),
             "target_type": config.get("target_type"),
             "b2b_client": config.get("b2b_client"),
             "end_customer": config.get("end_customer"),
@@ -313,6 +315,81 @@ async def get_available_niches(target_type: str = None, tier: str = None):
     ]
 
     return {"niches": niches, "count": len(niches)}
+
+
+class NicheCreate(BaseModel):
+    """Custom niche — sirf name zaroori, baaki optional (defaults sensible)."""
+    name: str
+    key: Optional[str] = None
+    target_type: str = "b2c"          # b2c | b2b | both
+    b2b_client: str = ""
+    end_customer: str = ""
+    avg_ticket_inr: str = ""
+    pitch_hook: str = ""
+    keywords: Optional[List[str]] = None
+    qualification_questions: Optional[List[str]] = None
+    pricing_inr: Optional[dict] = None  # {qualified_lead:[min,max], appointment:[min,max], monthly_starter:int}
+
+
+@router.post("/niches")
+async def create_custom_niche(
+    payload: NicheCreate,
+    current_user=Depends(require_admin),
+):
+    """
+    Naya custom niche add karo — turant flows/KB/agents/web-call sab me
+    kaam karta hai. data/custom_niches.json me persist hota hai.
+    """
+    from app.niches import add_custom_niche
+
+    try:
+        key, cfg = add_custom_niche(
+            name=payload.name,
+            key=payload.key,
+            target_type=payload.target_type.lower(),
+            b2b_client=payload.b2b_client,
+            end_customer=payload.end_customer,
+            avg_ticket_inr=payload.avg_ticket_inr,
+            pitch_hook=payload.pitch_hook,
+            keywords=payload.keywords,
+            qualification_questions=payload.qualification_questions,
+            pricing_inr=payload.pricing_inr,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+    # KB seed (best-effort) — naya niche turant grounded-answers de sake.
+    try:
+        from app.voice_agent.kb_loader import bootstrap_default_kb
+        kb = bootstrap_default_kb()
+        facts = [
+            f"Niche: {cfg['name']}. Typical deal value: {cfg['avg_ticket_inr']}.",
+            f"Pitch: {cfg['pitch_hook']}",
+            f"End customers: {cfg['end_customer']}",
+        ] + [f"Qualification question: {q}" for q in cfg["qualification_questions"]]
+        kb.add_documents(facts, source=f"niche:{key}", namespace=key)
+        kb.add_documents(facts, source=f"niche:{key}", namespace="_global")
+    except Exception:
+        pass
+
+    return {"id": key, "niche": cfg, "message": "Custom niche added — agents/flows/KB sab me live"}
+
+
+@router.delete("/niches/{niche_key}")
+async def delete_custom_niche(
+    niche_key: str,
+    current_user=Depends(require_admin),
+):
+    """Custom niche remove karo (built-in 25 protected hain)."""
+    from app.niches import remove_custom_niche
+
+    try:
+        removed = remove_custom_niche(niche_key)
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    if not removed:
+        raise HTTPException(status_code=404, detail="Custom niche not found")
+    return {"id": niche_key, "message": "Custom niche removed"}
 
 
 @router.get("/cities")

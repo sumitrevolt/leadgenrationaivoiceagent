@@ -9,8 +9,9 @@ from app.niches import NICHES, niches_by_tier, niches_by_target
 
 
 class TestNicheRegistry:
-    def test_exactly_25_niches(self):
-        assert len(NICHES) == 25
+    def test_exactly_25_builtin_niches(self):
+        from app.niches import _BUILTIN_KEYS
+        assert len(_BUILTIN_KEYS) == 25
 
     def test_every_niche_has_required_fields(self):
         required = [
@@ -25,13 +26,13 @@ class TestNicheRegistry:
             assert p["qualified_lead"][0] < p["qualified_lead"][1], key
             assert p["appointment"][0] < p["appointment"][1], key
             assert p["monthly_starter"] > 0, key
-            assert cfg["tier"] in ("S", "A", "B"), key
+            assert cfg["tier"] in ("S", "A", "B", "C"), key
             assert cfg["target_type"] in ("b2c", "b2b", "both"), key
 
     def test_tier_and_target_views(self):
         assert len(niches_by_tier("S")) == 8
         total = sum(len(niches_by_tier(t)) for t in ("S", "A", "B"))
-        assert total == 25
+        assert total == 25  # builtin tiers; custom niches tier "C" me hote hain
         # b2c view includes 'both'
         b2c = niches_by_target("b2c")
         assert "real_estate" in b2c and "wedding_venues" in b2c
@@ -44,10 +45,10 @@ class TestNicheRegistry:
 
 
 class TestNichesAPI:
-    def test_niches_endpoint_returns_25(self, client: TestClient):
+    def test_niches_endpoint_returns_25_plus(self, client: TestClient):
         r = client.get("/api/data/niches")
         assert r.status_code == 200
-        assert r.json()["count"] == 25
+        assert r.json()["count"] >= 25  # builtin 25 + koi bhi custom
 
     def test_tier_filter(self, client: TestClient):
         r = client.get("/api/data/niches?tier=S")
@@ -103,6 +104,75 @@ class TestClientAgentProvisioning:
         payload = dict(self.payload, contact_email="dup@sungrow.example")
         assert client.post("/api/platform/clients", json=payload).status_code == 200
         assert client.post("/api/platform/clients", json=payload).status_code == 409
+
+
+class TestCustomNiches:
+    def _cleanup(self, key):
+        from app.niches import remove_custom_niche
+        try:
+            remove_custom_niche(key)
+        except Exception:
+            pass
+
+    def test_add_custom_niche_via_api_and_use_everywhere(self, client: TestClient, db):
+        payload = {
+            "name": "Pet Grooming Studios",
+            "target_type": "b2c",
+            "avg_ticket_inr": "₹2,000–8,000",
+        }
+        r = client.post("/api/data/niches", json=payload)
+        assert r.status_code == 200, r.text
+        key = r.json()["id"]
+        try:
+            assert key == "pet_grooming_studios"
+            cfg = r.json()["niche"]
+            assert cfg["tier"] == "C" and cfg["custom"] is True
+            assert cfg["pricing_inr"]["monthly_starter"] > 0
+
+            # appears in listing with custom flag
+            listing = client.get("/api/data/niches").json()
+            ids = {n["id"]: n for n in listing["niches"]}
+            assert key in ids and ids[key]["custom"] is True
+
+            # flow builds for the new niche (voice agent kaam karega)
+            from app.voice_agent.flow_builder import build_flow_for_niche
+            assert build_flow_for_niche(key) is not None
+
+            # client onboarding on the custom niche → 2 agents on that niche
+            cr = client.post("/api/platform/clients", json={
+                "business_name": "FurryCare Pets",
+                "contact_name": "Ravi",
+                "contact_email": "ravi@furrycare.example",
+                "contact_phone": "+919810000099",
+                "niche": key,
+            })
+            assert cr.status_code == 200, cr.text
+            assert cr.json()["client"]["niche"] == key
+            roles = sorted(a["role"] for a in cr.json()["agents"])
+            assert roles == ["data", "leads"]
+        finally:
+            self._cleanup(key)
+
+    def test_duplicate_custom_niche_409(self, client: TestClient):
+        r1 = client.post("/api/data/niches", json={"name": "Drone Photography"})
+        key = r1.json()["id"]
+        try:
+            r2 = client.post("/api/data/niches", json={"name": "Drone Photography"})
+            assert r2.status_code == 409
+        finally:
+            self._cleanup(key)
+
+    def test_builtin_niche_delete_protected(self, client: TestClient):
+        r = client.delete("/api/data/niches/real_estate")
+        assert r.status_code == 403
+
+    def test_delete_custom_niche(self, client: TestClient):
+        r1 = client.post("/api/data/niches", json={"name": "Yacht Charters"})
+        key = r1.json()["id"]
+        r2 = client.delete(f"/api/data/niches/{key}")
+        assert r2.status_code == 200
+        from app.niches import NICHES as live
+        assert key not in live
 
 
 class TestNicheResolution:
