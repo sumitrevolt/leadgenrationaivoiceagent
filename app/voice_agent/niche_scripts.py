@@ -198,6 +198,28 @@ NICHE_SCRIPTS: dict[str, dict] = {
         ],
         "closing": "Toh sir, ek free consultation fix kar dein — kal subah ya shaam, doctor ke paas aapka slot reserve kar doon?",
     },
+    "ai_marketing": {
+        "opening": "Namaste sir, main LeadGen AI se [Name] bol rahi hoon — local businesses ki marketing AI se automate karte hain, bas 30 second baat kar sakti hoon?",
+        "discovery": [
+            "Abhi aap apni marketing kaise karte ho — khud post dalte ho, staff hai, ya agency?",
+            "Google pe aapka business search karne par upar dikhta hai kya?",
+            "Website ya Google se jo inquiries aati hain, unka follow-up kaun karta hai?",
+            "Mahine me marketing pe approx kitna kharcha ho jaata hai?",
+        ],
+        "objections": {
+            "mehenga": "Sir ek customer ki value socho — ₹100/din me poora marketing department mil jaata hai; ek bhi extra customer aaye to paisa vasool.",
+            "abhi_nahi": "Koi baat nahi sir, tab tak ek FREE Google Business audit karwa lijiye — aapka score aur fixes saamne aa jayenge, koi charge nahi.",
+            "soch_ke": "Bilkul sochiye sir — main aapka FREE GBP audit bhej deti hoon, score dekh ke aaram se decide kar lena, koi obligation nahi.",
+            "pehle_se_hai": "Achha sir, agency to ₹15-25K/mahina leti hai — hum ₹3K se shuru karte hain, aur AI aapki inquiries ko CALL bhi karta hai jo agency nahi karti.",
+            "bharosa": "Sahi sawaal hai sir — pehle FREE audit aur live AI demo call dekh lijiye, kaam pasand aaye tabhi aage badhna.",
+        },
+        "value_lines": [
+            "Dhanda-type apps sirf content dete hain — hum content ke saath aapki har inquiry ko AI se CALL bhi karwate hain, India me sirf hamare paas.",
+            "Shuru karne ke liye 10 FREE leads ka trial milta hai — risk zero.",
+            "Festival posts, Google ranking aur AI receptionist — teeno ek hi price me.",
+        ],
+        "closing": "Toh sir, main aapka FREE Google Business audit aur ek AI demo call book kar deti hoon — aaj shaam ya kal subah, kaunsa time theek rahega?",
+    },
 
     # ====================================================================== #
     # GENERAL FALLBACK — baaki saare niches (real_estate_luxury, modular_kitchen,
@@ -239,6 +261,7 @@ _NICHE_LABELS: dict[str, str] = {
     "home_loans": "home loan / balance transfer",
     "interior_designers": "interior design",
     "dental_implants": "dental implants",
+    "ai_marketing": "AI marketing services (B2B, business owners)",
     "general": "general sales call",
 }
 

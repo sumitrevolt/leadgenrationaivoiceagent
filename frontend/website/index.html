@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#4f46e5" />
-<title>LeadGen AI — AI Voice Agent jo aapke business ke liye LEADS laata hai</title>
-<meta name="description" content="Insaan jaisi Hindi awaaz me AI calls — aap sirf qualified leads pe baat karo. 25+ niches, ₹0 setup, pay per lead. FREE live demo + 10 FREE demo leads. WhatsApp pe instant delivery." />
+<title>LeadGen AI — AI Marketing + AI Voice Agent, Dono Ek Saath</title>
+<meta name="description" content="AI Automated Marketing for local businesses — posts, Google ranking, festival posters, WhatsApp content. AUR ek AI voice agent jo aapke har inquiry ko khud call kare (Hindi, insaan jaisi awaaz). India me sirf yahan. ₹2,999/mo se shuru." />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -138,7 +138,8 @@
   .niche-more{text-align:center;margin-top:26px;color:var(--muted);font-size:.95rem}
 
   /* PRICING */
-  .pricing-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:900px;margin:0 auto}
+  .pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1080px;margin:0 auto}
+  .price .pnote{font-size:.82rem;color:var(--muted);margin-top:6px}
   .price{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:22px;padding:34px 30px;transition:transform .25s,box-shadow .25s}
   .price.featured{border-color:var(--indigo);box-shadow:var(--shadow)}
   .price .tag{position:absolute;top:-13px;left:30px;background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;font-size:.74rem;font-weight:700;letter-spacing:.04em;padding:6px 14px;border-radius:999px;text-transform:uppercase}
@@ -241,6 +242,7 @@
     .steps{grid-template-columns:repeat(2,1fr)}
     .step .arrow{display:none}
     .features,.tcards{grid-template-columns:repeat(2,1fr)}
+    .pricing-grid{grid-template-columns:1fr;max-width:560px}
     .foot-grid{grid-template-columns:1fr 1fr}
   }
   @media(max-width:720px){
@@ -289,18 +291,18 @@
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
-      <span class="eyebrow">🎙️ AI Voice Agent · Hindi + English</span>
-      <h1>AI Voice Agent jo aapke business ke liye <span class="grad">LEADS laata hai</span></h1>
-      <p class="sub">Insaan jaisi Hindi awaaz me calls — aap sirf <b>qualified leads</b> pe baat karo. Scraping se calling tak sab AI sambhalta hai; aapke WhatsApp pe sirf ready-to-buy customers aate hain.</p>
+      <span class="eyebrow">📣 AI Marketing + 🎙️ AI Voice Agent</span>
+      <h1>AI Marketing + AI Voice Agent — <span class="grad">Dono Ek Saath</span></h1>
+      <p class="sub">Posts, Google ranking, festival posters — <b>AUR ek AI jo aapke har inquiry ko khud call kare</b>. India me sirf yahan.</p>
       <div class="hero-cta">
         <a class="btn btn-primary" href="#lead-form">📞 10 FREE leads chahiye?</a>
         <a class="btn btn-ghost" href="/app/test-call">🎧 Live Demo suno (FREE)</a>
         <a class="btn btn-wa" href="https://wa.me/918459012607?text=Hi!%20Mujhe%20AI%20voice%20agent%20se%20apne%20business%20ke%20liye%20leads%20chahiye." target="_blank" rel="noopener">💬 WhatsApp pe baat karo</a>
       </div>
       <div class="hero-mini">
-        <span><span class="dot">●</span> <b>25+ niches</b> ready</span>
-        <span><span class="dot">●</span> <b>₹0 setup</b> — pay per lead</span>
-        <span><span class="dot">●</span> Live in <b>48 hours</b></span>
+        <span><span class="dot">●</span> <b>Posts + posters + Google ranking</b> auto</span>
+        <span><span class="dot">●</span> Har inquiry ko <b>AI call in 2 min</b></span>
+        <span><span class="dot">●</span> <b>₹2,999/mo</b> se shuru</span>
       </div>
     </div>
 
@@ -465,46 +467,62 @@
   </div>
 </section>
 
-<!-- PRICING -->
+<!-- PRICING (marketing-first packages — live from /api/marketing/packages, static fallback below) -->
 <section class="block" id="pricing" style="background:var(--bg-soft)">
   <div class="wrap">
     <div class="head reveal">
       <span class="eyebrow">Pricing</span>
-      <h2>Sirf results ke paise — straight talk</h2>
-      <p>Hum "free calls" ka jhootha vaada nahi karte. Aap qualified leads ke liye pay karte ho — predictable aur fair.</p>
+      <h2>Marketing-first plans — seedha hisaab</h2>
+      <p>AI marketing ₹2,999/mo se shuru. Advanced me <b>AI Voice Agent</b> bhi — jo aapke har inquiry ko khud call kare. India me yeh combo sirf yahan.</p>
     </div>
-    <div class="pricing-grid">
-      <div class="price featured reveal">
-        <span class="tag">Most Popular</span>
-        <h3>Pay Per Qualified Lead</h3>
-        <p class="desc">Sirf un leads ke paise jo AI ne qualify kiye. Risk kam, ROI clear.</p>
-        <div class="amt">₹200<small>–₹500 / qualified lead</small></div>
+    <div class="pricing-grid" id="pricingGrid">
+      <div class="price reveal">
+        <h3>Marketing Starter</h3>
+        <p class="desc">Roz ka content + Google presence — sab AI se, aapka time zero.</p>
+        <div class="amt">₹2,999<small>/month</small></div>
+        <p class="pnote">agency retainers ₹15-25K/mo se kaafi neeche</p>
         <ul>
-          <li><span class="ck">✓</span> Sirf qualified, intent-checked leads ka charge</li>
-          <li><span class="ck">✓</span> WhatsApp + CRM par instant delivery</li>
-          <li><span class="ck">✓</span> Hindi/English AI voice calling included</li>
-          <li><span class="ck">✓</span> Niche-specific scripts &amp; qualifying</li>
-          <li><span class="ck">✓</span> Live dashboard &amp; reporting</li>
-          <li><span class="ck">✓</span> No long-term lock-in</li>
+          <li><span class="ck">✓</span> AI social media posts + festival calendar (Diwali, Holi, sab covered)</li>
+          <li><span class="ck">✓</span> Google Business Profile audit + top fixes (0-100 score)</li>
+          <li><span class="ck">✓</span> Reviews ke ready Hinglish replies — copy-paste karo</li>
+          <li><span class="ck">✓</span> 4 festival/offer posters har mahine (aapke naam + number ke saath)</li>
+          <li><span class="ck">✓</span> WhatsApp content pack — broadcast + status messages ready</li>
         </ul>
-        <a class="btn btn-primary" href="#lead-form">10 FREE leads se shuru karo</a>
+        <a class="btn btn-ghost" href="#lead-form">FREE trial se shuru karo</a>
       </div>
       <div class="price reveal">
-        <h3>Monthly Retainer</h3>
-        <p class="desc">High-volume businesses ke liye fixed monthly — predictable cost, lower per-lead.</p>
-        <div class="amt">₹14,999<small>/month onwards</small></div>
+        <h3>Growth</h3>
+        <p class="desc">Poora marketing engine — content, competitor aur leads sab automatic.</p>
+        <div class="amt">₹5,999<small>/month</small></div>
+        <p class="pnote">sab kuch Starter ka + growth tools</p>
         <ul>
-          <li><span class="ck">✓</span> Fixed monthly volume of qualified leads</li>
-          <li><span class="ck">✓</span> Lower effective cost per lead at scale</li>
-          <li><span class="ck">✓</span> Dedicated campaign manager</li>
-          <li><span class="ck">✓</span> Priority calling capacity</li>
-          <li><span class="ck">✓</span> Custom niche &amp; multi-area targeting</li>
-          <li><span class="ck">✓</span> Weekly performance review</li>
+          <li><span class="ck">✓</span> Starter ke saare features included</li>
+          <li><span class="ck">✓</span> Unlimited posters — jitne chahiye utne banao</li>
+          <li><span class="ck">✓</span> Content calendar auto — mahine bhar ka plan ready</li>
+          <li><span class="ck">✓</span> Competitor analysis — unki strengths copy, gaps exploit</li>
+          <li><span class="ck">✓</span> Website lead-capture form setup (inquiries seedha dashboard me)</li>
+          <li><span class="ck">✓</span> Monthly marketing report — kya chala, kya nahi</li>
         </ul>
-        <a class="btn btn-ghost" href="https://wa.me/918459012607?text=Hi!%20Monthly%20retainer%20ke%20baare%20me%20baat%20karni%20hai." target="_blank" rel="noopener">WhatsApp pe baat karo</a>
+        <a class="btn btn-ghost" href="#lead-form">FREE trial se shuru karo</a>
+      </div>
+      <div class="price featured reveal">
+        <span class="tag">🚀 India me sirf hamare paas</span>
+        <h3>Advanced AI Agent</h3>
+        <p class="desc">Marketing + ek AI jo aapke har inquiry ko KHUD call kare — India me sirf yahan.</p>
+        <div class="amt">₹11,999<small>/month</small></div>
+        <p class="pnote">telephony usage included up to 500 min/mo</p>
+        <ul>
+          <li><span class="ck">✓</span> Growth ke saare features included</li>
+          <li><span class="ck">✓</span> AI Voice Agent — har website/GBP inquiry ko 2-minute me AI call (Hindi, insaan jaisi awaaz)</li>
+          <li><span class="ck">✓</span> Lead qualification + appointment booking — AI khud karta hai</li>
+          <li><span class="ck">✓</span> Missed-call auto-callback — koi customer chhoot-ta nahi</li>
+          <li><span class="ck">✓</span> Weekly 50 follow-up calls — purani leads bhi garam rehti hain</li>
+          <li><span class="ck">✓</span> Sab call transcripts aapke dashboard me</li>
+        </ul>
+        <a class="btn btn-primary" href="#lead-form">🚀 FREE demo + audit se shuru karo</a>
       </div>
     </div>
-    <p class="niche-more" style="margin-top:24px">Note: telephony (real phone calls) ka minimal per-minute cost transparently include hota hai — koi hidden charge nahi.</p>
+    <p class="niche-more" style="margin-top:24px">Note: Advanced plan me 500 min/mo tak telephony included — uske upar transparent per-minute, koi hidden charge nahi. Per-lead pricing bhi available — <a href="https://wa.me/918459012607?text=Hi!%20Pricing%20ke%20baare%20me%20baat%20karni%20hai." target="_blank" rel="noopener" style="color:var(--indigo);font-weight:600">WhatsApp pe poochho</a>.</p>
   </div>
 </section>
 
@@ -747,6 +765,55 @@
       }
     });
   }
+
+  // ---------- Pricing cards ← GET /api/marketing/packages (public) ----------
+  // API se live packages render hote hain; fail ho to upar wala static HTML
+  // (same data) waise hi dikhta rehta hai.
+  (async () => {
+    const grid = document.getElementById('pricingGrid');
+    if (!grid || !window.fetch) return;
+    try {
+      const res = await fetch('/api/marketing/packages');
+      if (!res.ok) return;
+      const data = await res.json();
+      const pkgs = (data && data.packages) || [];
+      if (!pkgs.length) return;
+      grid.innerHTML = '';
+      pkgs.forEach((p) => {
+        const card = document.createElement('div');
+        card.className = 'price reveal in' + (p.highlight ? ' featured' : '');
+        if (p.badge) {
+          const tag = document.createElement('span');
+          tag.className = 'tag'; tag.textContent = p.badge;
+          card.appendChild(tag);
+        }
+        const h3 = document.createElement('h3'); h3.textContent = p.name || ''; card.appendChild(h3);
+        const desc = document.createElement('p'); desc.className = 'desc'; desc.textContent = p.tagline || ''; card.appendChild(desc);
+        const amt = document.createElement('div'); amt.className = 'amt';
+        amt.textContent = '₹' + Number(p.price_inr_month || 0).toLocaleString('en-IN');
+        const small = document.createElement('small'); small.textContent = '/month'; amt.appendChild(small);
+        card.appendChild(amt);
+        if (p.price_note) {
+          const note = document.createElement('p'); note.className = 'pnote'; note.textContent = p.price_note;
+          card.appendChild(note);
+        }
+        const ul = document.createElement('ul');
+        (p.features || []).forEach((f) => {
+          const li = document.createElement('li');
+          const ck = document.createElement('span'); ck.className = 'ck'; ck.textContent = '✓';
+          li.appendChild(ck); li.appendChild(document.createTextNode(' ' + f));
+          ul.appendChild(li);
+        });
+        card.appendChild(ul);
+        const a = document.createElement('a');
+        a.className = 'btn ' + (p.highlight ? 'btn-primary' : 'btn-ghost');
+        a.href = '#lead-form';
+        a.textContent = p.highlight ? '🚀 FREE demo + audit se shuru karo' : 'FREE trial se shuru karo';
+        card.appendChild(a);
+        grid.appendChild(card);
+      });
+    } catch (e) { /* static fallback stays */ }
+  })();
 </script>
 </body>
 </html>

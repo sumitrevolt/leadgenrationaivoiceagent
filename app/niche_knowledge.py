@@ -74,6 +74,26 @@ NICHE_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
     # ====================================================================== #
     # S-TIER
     # ====================================================================== #
+    "ai_marketing": {
+        "facts": [
+            "Package me AI social media posts, festival posters, Google Business Profile optimization aur WhatsApp content sab included hai.",
+            "Advanced plan me AI voice agent har website/Google inquiry ko 2 minute ke andar khud call karta hai — Hindi me, insaan jaisi awaaz.",
+            "Dhanda jaise apps sirf content dete hain; hum content + AI calling dono ek package me dete hain — India me aur koi nahi deta.",
+            "Plans ₹2,999/mahina se shuru hote hain — agency retainers (₹15-25K/mo) se kaafi kam.",
+            "FREE Google Business Profile audit milta hai — 0-100 score aur top fixes ke saath, bina koi charge.",
+        ],
+        "benefits": [
+            "Roz ka content + festival posts automatic — aapka time zero lagta hai",
+            "Har inquiry ko AI turant call karta hai — koi lead thandi nahi padti",
+            "Google pe ranking improve hoti hai — naye customers khud aate hain",
+            "₹100/din se kam me poora marketing department",
+        ],
+        "objections": {
+            "too_expensive": "Sir ek customer ki value socho — ₹100/din me poora marketing department mil raha hai; ek bhi extra customer aaye to paisa vasool.",
+            "already_have": "Agency ₹15-25K/mahina leti hai, hum ₹3K se shuru — aur AI inquiry calls bhi karta hai jo agency nahi karti. Free GBP audit se compare kar lijiye.",
+            "think_about_it": "Bilkul sochiye sir — tab tak main aapka FREE Google Business audit karwa deti hoon, score saamne dekh ke aaram se decide kar lena.",
+        },
+    },
     "real_estate": {
         "facts": [
             "Hum RERA-registered projects aur verified resale properties dono dikhate hain.",

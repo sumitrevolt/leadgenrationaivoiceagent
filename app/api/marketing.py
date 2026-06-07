@@ -2,6 +2,7 @@
 Marketing API — Dhanda.app-style AI marketing tools (FREE stack).
 =================================================================
 
+  GET  /api/marketing/packages         — pricing packages (PUBLIC — landing page)
   POST /api/marketing/post             — AI social post (caption+hashtags+image idea)
   GET  /api/marketing/gbp-tips         — Google Business Profile checklist (static)
   POST /api/marketing/calendar         — N-din content calendar
@@ -15,7 +16,8 @@ Marketing API — Dhanda.app-style AI marketing tools (FREE stack).
   POST /api/marketing/whatsapp-pack    — broadcast + status + reply pack
   POST /api/marketing/competitor       — competitor notes → copy/exploit/action tips
 
-Sab admin-auth. Generator functions kabhi raise nahi karte (template
+Sab admin-auth (sirf /packages public hai — static pricing data, koi secret
+nahi). Generator functions kabhi raise nahi karte (template
 fallback built-in) — phir bhi unexpected par 500 + detail dete hain.
 Har generation team-log me jaata hai (isha) — import-safe, best-effort.
 """
@@ -29,6 +31,7 @@ from app.marketing import (
     competitor,
     festivals,
     gbp_audit,
+    packages,
     post_generator,
     posters,
     review_replies,
@@ -119,6 +122,16 @@ class CompetitorRequest(BaseModel):
 # --------------------------------------------------------------------------- #
 # Endpoints
 # --------------------------------------------------------------------------- #
+
+@router.get("/packages")
+async def get_marketing_packages():
+    """Pricing packages (PUBLIC — NO auth; landing page isse fetch karta hai)."""
+    try:
+        return {"packages": packages.get_packages()}
+    except Exception as e:
+        logger.error(f"Packages lookup failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Packages lookup failed: {e}")
+
 
 @router.post("/post")
 async def generate_marketing_post(

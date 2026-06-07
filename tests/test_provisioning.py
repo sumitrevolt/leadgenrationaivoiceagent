@@ -1,6 +1,6 @@
 """
 Tests: client onboarding auto-provisions 2 agents (data + leads),
-and the 25-niche registry powers flows + API correctly.
+and the 26-niche registry (25 research + ai_marketing) powers flows + API correctly.
 """
 import pytest
 from fastapi.testclient import TestClient
@@ -9,9 +9,10 @@ from app.niches import NICHES, niches_by_tier, niches_by_target
 
 
 class TestNicheRegistry:
-    def test_exactly_25_builtin_niches(self):
+    def test_exactly_26_builtin_niches(self):
+        # 25 research-finalized + ai_marketing (hamari apni service ka niche)
         from app.niches import _BUILTIN_KEYS
-        assert len(_BUILTIN_KEYS) == 25
+        assert len(_BUILTIN_KEYS) == 26
 
     def test_every_niche_has_required_fields(self):
         required = [
@@ -30,9 +31,9 @@ class TestNicheRegistry:
             assert cfg["target_type"] in ("b2c", "b2b", "both"), key
 
     def test_tier_and_target_views(self):
-        assert len(niches_by_tier("S")) == 8
+        assert len(niches_by_tier("S")) == 9  # 8 research + ai_marketing
         total = sum(len(niches_by_tier(t)) for t in ("S", "A", "B"))
-        assert total == 25  # builtin tiers; custom niches tier "C" me hote hain
+        assert total == 26  # builtin tiers; custom niches tier "C" me hote hain
         # b2c view includes 'both'
         b2c = niches_by_target("b2c")
         assert "real_estate" in b2c and "wedding_venues" in b2c
@@ -91,13 +92,13 @@ class TestNichesAPI:
     def test_tier_filter(self, client: TestClient):
         r = client.get("/api/data/niches?tier=S")
         assert r.status_code == 200
-        assert r.json()["count"] == 8
+        assert r.json()["count"] == 9  # 8 research + ai_marketing
 
     def test_target_type_filter(self, client: TestClient):
         r = client.get("/api/data/niches?target_type=b2c")
         assert r.status_code == 200
         data = r.json()
-        assert 0 < data["count"] <= 25
+        assert 0 < data["count"] <= 26
         for n in data["niches"]:
             assert n["target_type"] in ("b2c", "both")
 

@@ -25,6 +25,23 @@ NICHES = {
     # ====================================================================== #
     # S-TIER — flagship niches: sell these first
     # ====================================================================== #
+    "ai_marketing": {
+        "name": "AI Marketing Services",
+        "tier": "S",
+        "target_type": "b2b",
+        "b2b_client": "local businesses needing marketing",
+        "end_customer": "business owners",
+        "keywords": ["local business marketing", "ai marketing services", "digital marketing for small business", "google business profile optimization"],
+        "avg_deal_value": "₹36,000–1,44,000/yr",
+        "avg_ticket_inr": "₹3–12K/mo subscription (₹36K–1.44L/yr LTV)",
+        "pitch_hook": "posts, Google ranking, festival posters — plus an AI that calls every inquiry in 2 minutes; no Indian competitor bundles both",
+        "pricing_inr": {"qualified_lead": (300, 1000), "appointment": (800, 2000), "monthly_starter": 2999},
+        "qualification_questions": [
+            "Abhi aap apni marketing kaise karte ho — khud, staff, ya agency?",
+            "Google pe aapka business search karne par dikhta hai kya?",
+            "Website ya Google se aayi inquiries ka follow-up kaun karta hai?",
+        ],
+    },
     "real_estate": {
         "name": "Real Estate (Resale & New Projects)",
         "tier": "S",
