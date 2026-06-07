@@ -149,7 +149,9 @@ def _get_stt() -> Optional[tuple]:
         try:
             from faster_whisper import WhisperModel  # type: ignore
 
-            model_size = os.environ.get("FWHISPER_MODEL", "tiny")
+            # base >> tiny for Hindi (tiny Hindi pe bahut weak hai); CPU pe
+            # short utterances ~1-2.5s — acceptable. Env: FWHISPER_MODEL.
+            model_size = os.environ.get("FWHISPER_MODEL", "base")
             _STT_ENGINE = ("whisper", WhisperModel(model_size, device="cpu", compute_type="int8"))
             logger.info(f"[vobiz-stream] STT engine: faster-whisper ({model_size})")
             return _STT_ENGINE
@@ -175,7 +177,19 @@ def _stt_sync(kind: str, model: Any, pcm16: bytes) -> str:
             import numpy as np  # numpy is a core dep
 
             audio = np.frombuffer(pcm16, dtype=np.int16).astype(np.float32) / 32768.0
-            segments, _ = model.transcribe(audio, beam_size=1)
+            # LANGUAGE FORCE (live-call lesson 2026-06-07): bina language ke
+            # whisper Hindi speech ko English samajh ke garbage deta tha
+            # ("Bory", "You have to call it a group here") → LLM bhi bhatak
+            # jata tha. hi = Hindi/Hinglish dono ke liye sahi (Devanagari out,
+            # Gemini handle karta hai). Env override: FWHISPER_LANG (e.g. en).
+            lang = os.environ.get("FWHISPER_LANG", "hi")
+            segments, _ = model.transcribe(
+                audio,
+                beam_size=1,
+                language=lang,
+                vad_filter=True,  # whisper-side VAD trims noise/silence edges
+                condition_on_previous_text=False,  # short utterances — no drift
+            )
             return " ".join(seg.text for seg in segments).strip()
     except Exception as e:
         logger.warning(f"[vobiz-stream] STT failed: {e}")

@@ -52,7 +52,7 @@ faster-whisper>=1.0.0
 # TTS
 elevenlabs==1.0.3
 azure-cognitiveservices-speech==1.35.0
-edge-tts==6.1.9
+edge-tts>=7.2.0  # 6.1.9 gets HTTP 403 from MS endpoint (Sec-MS-GEC token) — must be 7.x
 
 # =============================================================================
 # Telephony
