@@ -10,7 +10,10 @@
       <param name="realm" value="$${vobiz_realm}"/>
       <!-- Outbound INVITEs trunk domain pe jaate hain (1a7ce9d9.sip.vobiz.ai). -->
       <param name="proxy" value="$${vobiz_proxy}"/>
-      <param name="register" value="true"/>
+      <!-- Vobiz outbound trunks REGISTER support nahi karte — per-call digest
+           auth hota hai (INVITE pe 401 challenge → creds). register=false se
+           gateway NOREG/UP rahega aur outbound INVITE auth se jayega. -->
+      <param name="register" value="false"/>
       <param name="register-transport" value="udp"/>
       <param name="from-user" value="$${vobiz_user}"/>
       <param name="from-domain" value="$${vobiz_realm}"/>
