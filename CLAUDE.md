@@ -176,6 +176,12 @@
 - **Self-marketing kit** `docs/Marketing_Kit_LeadGenAI.md`: WhatsApp universal pitch + 5 niche openers + 3-msg follow-up sequence + 3 social posts + 7-din outreach plan (50 pitches→1 client funnel math) + demo script + pricing lines (₹8K starter / ₹300-800 per lead / 10 free).
 - **User ka agla kaam (machine ready, ab fuel)**: kit se roz 10 WhatsApp pitches bhejna, replies pe web-call demo, inquiries /api/public/inquiries ya data/inquiries.jsonl me dikhengi (rohan ke events team dashboard pe).
 
+## FULL-AUTO GROWTH ENGINE (2026-06-07, last commit of day) — "leads bhi tum lao"
+- User demand: sab automated + leads bhi system laye. **Built: Rohan auto-prospecting** `app/platform/prospector.py` — roz 09:30 IST (team_scheduler job "prospect"): Google Maps scraper se 4 niches × Pune/Mumbai/Nagpur businesses → phone-dedupe → data/prospects.jsonl (gitignored) → har prospect ka personalized Hinglish pitch + ready wa.me link (status ready/sent/replied/client/dead). PROSPECT_TARGETS env-overridable.
+- **Outreach dashboard /app/outreach** (frontend/outreach.html): prospect cards + "📲 WhatsApp bhejo" (wa.me prefilled new tab + auto mark sent) + Reply-aaya/Dead buttons + filter tabs + "Abhi prospects dhundo" run button. API: /api/platform/team/prospects (GET/run/status, admin).
+- **Inquiry auto-callback**: public_site.py inquiry save ke baad AUTO_CALLBACK_INQUIRY!=0 → `start_stream_call()` (naya internal helper in telephony_vobiz.py, no-auth-layer) → Swara turant unhe AI call karti (consent: unhone form bhara). Telephony unfunded ho to graceful error event. 
+- **HONEST LIMITS user ko bataye**: WhatsApp bulk auto-send = number ban (isliye one-click human send); cold auto-calls bina DLT/140 = ₹10L TRAI risk (isliye sirf inbound auto-callback). **GOOGLE_MAPS_API_KEY .env me placeholder hai — real key (ya playwright phones nahi deta) chahiye warna scraper empty/limited.** VPS verified: outreach page 200, tests green.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
