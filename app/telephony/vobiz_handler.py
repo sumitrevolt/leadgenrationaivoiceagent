@@ -117,3 +117,23 @@ def build_speak_xml(text: str, voice: str = "female", language: str = "en-IN") -
         f"{escape(text or '')}"
         "</Speak><Hangup/></Response>"
     )
+
+
+def build_stream_xml(ws_url: str, greeting: str = "") -> str:
+    """
+    VobizXML that bridges the live call to a WebSocket for two-way streaming
+    (conversational AI). Vobiz opens ``ws_url`` and streams caller audio as
+    base64 µ-law; we stream synthesized audio back.
+
+    Format (NO attributes — same hard-won lesson as build_speak_xml: Vobiz
+    silently drops verbs with unsupported attrs):
+        <Response>[<Speak>greeting</Speak>]<Stream>wss://...</Stream></Response>
+
+    The optional leading <Speak> plays a one-shot greeting BEFORE the stream
+    opens; normally left empty because the bot greets over the socket itself.
+    """
+    speak = f"<Speak>{escape(greeting.strip())}</Speak>" if (greeting and greeting.strip()) else ""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f"<Response>{speak}<Stream>{escape(ws_url or '')}</Stream></Response>"
+    )

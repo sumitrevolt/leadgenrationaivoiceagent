@@ -141,6 +141,14 @@ fastapi-mcp>=0.3  # platform endpoints as MCP tools (/mcp)
 # =============================================================================
 # pipecat-ai>=0.0.60  # P3 voice pipeline — install when wiring audio (heavy)
 
+# Vobiz WebSocket streaming STT (app/telephony/vobiz_stream.py) — pick ONE.
+# Both heavy + optional; the WS degrades gracefully (deaf) if neither present.
+# vosk>=0.3.45            # offline STT; set VOSK_MODEL_PATH to a model dir
+# faster-whisper>=1.0.0   # alt offline STT ("tiny" model, CPU int8)
+# TTS uses edge-tts (above) + pydub (below); both need ffmpeg on the host.
+# NOTE: ffmpeg is already installed on the VPS (deploy_vps.sh STEP 1) —
+#       pydub shells out to it to decode EdgeTTS MP3 -> PCM for µ-law.
+
 # =============================================================================
 # Testing (dev only - move to dev requirements for production)
 # =============================================================================

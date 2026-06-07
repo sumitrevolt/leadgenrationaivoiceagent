@@ -14,14 +14,15 @@ promo cold-calls 140-DID + DLT ke baad hi.
 """
 import uuid
 from typing import Any, Dict, Optional
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
 from app.config import settings
 from app.models.user import User
-from app.telephony.vobiz_handler import VobizClient, build_speak_xml
+from app.telephony.vobiz_handler import VobizClient, build_speak_xml, build_stream_xml
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -31,6 +32,8 @@ router = APIRouter(prefix="/telephony/vobiz", tags=["Telephony"])
 # In-memory message store: token -> Speak text. Single-process best-effort —
 # fine for admin test calls (Vobiz fetches the answer_url within seconds).
 _PENDING_MESSAGES: Dict[str, str] = {}
+# Streaming calls: token -> {"niche", "client_id"} (answer-stream + WS read it).
+_PENDING_STREAMS: Dict[str, Dict[str, Any]] = {}
 _MAX_PENDING = 200
 
 _FALLBACK_GREETING = (
@@ -118,6 +121,88 @@ async def answer_xml(token: str) -> Response:
     return Response(content=build_speak_xml(text), media_type="application/xml")
 
 
+# --------------------------------------------------------------------------- #
+# Conversational streaming (two-way WebSocket audio) — P3.
+# --------------------------------------------------------------------------- #
+class StreamCallRequest(BaseModel):
+    """Outbound conversational (WebSocket-streamed) call request."""
+    to: str = Field(..., min_length=8, max_length=20, description="Destination number, E.164")
+    niche: str = Field("general", max_length=100, description="Niche key for the bot")
+    client_id: Optional[str] = Field(None, max_length=100, description="Client id for the bot")
+
+
+def _wss_host() -> str:
+    """Derive the wss host from public_base_url (fallback leadsgenai.in)."""
+    base = (settings.public_base_url or "https://leadsgenai.in").strip()
+    return base.split("://", 1)[-1].rstrip("/") or "leadsgenai.in"
+
+
+@router.post("/stream-call")
+async def place_stream_call(
+    request: StreamCallRequest,
+    user: User = Depends(require_admin),
+) -> Dict[str, Any]:
+    """Place an outbound call that streams two-way audio to our WS for a full
+    conversation (vs. /test-call which speaks one line and hangs up)."""
+    client = VobizClient()
+    if not client.available():
+        raise HTTPException(
+            status_code=503,
+            detail="Vobiz not configured (VOBIZ_AUTH_ID / VOBIZ_AUTH_TOKEN missing)",
+        )
+
+    token = uuid.uuid4().hex[:10]
+    if len(_PENDING_STREAMS) >= _MAX_PENDING:  # bounded memory
+        _PENDING_STREAMS.clear()
+    _PENDING_STREAMS[token] = {"niche": request.niche, "client_id": request.client_id}
+
+    answer_url = f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
+    result = await client.place_call(to=request.to, answer_url=answer_url)
+    placed = 200 <= int(result.get("status_code") or 0) < 300
+    if not placed:
+        logger.warning(f"Vobiz stream-call not placed: {result}")
+    return {
+        "placed": placed,
+        "vobiz_response": result,
+        "answer_url": answer_url,
+        "stream_token": token,
+    }
+
+
+@router.api_route("/answer-stream/{token}", methods=["GET", "POST"])
+async def answer_stream_xml(token: str) -> Response:
+    """Answer-URL webhook for streamed calls (NO auth). Returns VobizXML that
+    bridges the call to our WebSocket. Unknown tokens still get a valid stream
+    (niche=general) — the call is already live when Vobiz fetches this."""
+    pend = _PENDING_STREAMS.get(token) or {}
+    qs = {"niche": pend.get("niche") or "general"}
+    if pend.get("client_id"):
+        qs["client_id"] = pend["client_id"]
+    ws_url = f"wss://{_wss_host()}/api/telephony/vobiz/stream/{token}?{urlencode(qs)}"
+    return Response(content=build_stream_xml(ws_url), media_type="application/xml")
+
+
+@router.websocket("/stream/{token}")
+async def vobiz_stream_ws(
+    websocket: WebSocket,
+    token: str,
+    niche: str = "general",
+    client_id: Optional[str] = None,
+) -> None:
+    """Two-way media WebSocket Vobiz connects to. Runs a full STT->LLM->TTS
+    conversation loop. niche/client come from query params or the pending
+    store (filled by /stream-call); customParameters in the start event win."""
+    from app.telephony.vobiz_stream import VobizStreamSession
+
+    pend = _PENDING_STREAMS.pop(token, None)
+    if pend:
+        niche = pend.get("niche") or niche
+        client_id = pend.get("client_id") or client_id
+
+    session = VobizStreamSession(websocket, niche=niche, client_id=client_id)
+    await session.handle()
+
+
 @router.get("/status")
 async def vobiz_status(user: User = Depends(require_admin)) -> Dict[str, Any]:
     """Vobiz config snapshot + best-effort balance (admin)."""
@@ -129,6 +214,17 @@ async def vobiz_status(user: User = Depends(require_admin)) -> Dict[str, Any]:
         "caller_id_set": bool(settings.vobiz_caller_id),
         "balance": None,
     }
+    # Streaming (conversational) capability snapshot — verify VPS deps are live.
+    try:
+        from app.telephony import vobiz_stream as _vs
+
+        out["streaming"] = {
+            "stt_available": _vs.STT_AVAILABLE,
+            "tts_available": _vs.TTS_AVAILABLE,
+            "audioop": _vs._AUDIOOP_OK,
+        }
+    except Exception as e:
+        out["streaming"] = {"error": str(e)}
     if client.available():
         try:
             out["balance"] = await client.get_balance()
