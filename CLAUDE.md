@@ -98,6 +98,12 @@
 - **(Purana failed attempt note (2026-06-07, user number +918459012607)**: Call API ne reject kiya — `"from parameter leadgenfs is not a valid number"`; FreeSWITCH originate (caller-id spoof try) → `RECOVERY_ON_TIMER_EXPIRE` (Vobiz INVITE drop — unverified caller-id). **BLOCKER: Vobiz DID + KYC chahiye.** User actions: (1) console.vobiz.ai → KYC complete (GST/PAN), (2) balance recharge, (3) DID section se Indian number kharido. Phir: `VOBIZ_CALLER_ID=+91<DID>` .env me (VPS+local) + systemctl restart leadgen → POST /api/telephony/vobiz/test-call {"to": "+918459012607"} — code 100% ready hai, sirf DID ka wait. Test scripts: scripts/first_call.py (VPS), scripts/fs_call_try.bat.
 - Tests green; sab GitHub pe. Next: pipecat-ai install + ESL audio bridge (full conversational PSTN calls), DID+140 jab DLT clear.
 
+## 🎉 FIRST AI CALL SUCCESS + Next: Conversational (2026-06-07)
+- **AI PHONE PE BOLA — end-to-end proven** (commit 489c825 fix ke baad): Vobiz Speak XML me voice/language ATTRIBUTES support nahi — minimal `<Speak>text</Speak>` hi chalta hai. Call flow: place_call(trial DID +911171366938) → answer webhook (2 hits aate hain, dono 200) → Speak → Hangup.
+- **User feedback (dono fix karne hain)**: (1) "khud phone kat diya" — greeting ke baad Hangup expected tha, ab FULL CONVERSATION chahiye; (2) "100% lag raha tha bot bol raha hai" — Vobiz default Speak TTS robotic hai, natural Indian voice chahiye.
+- **NEXT SESSION PLAN (conversational pipeline)**: Route A = Vobiz WebSocket streaming (₹0.65/min, docs.vobiz.ai/concepts/streaming-websockets) — VobizXML Stream verb → FastAPI WS endpoint → STT (whisper-tiny/vosk CPU) → LLMBrain (niche flows) → **EdgeTTS hi-IN (SwaraNeural/MadhurNeural — bahut natural)** → audio wapas stream. Pipecat WebsocketServerTransport isi pattern ka hai. Route B (baad me, ₹0.45): FreeSWITCH mod_audio_fork → same pipeline. Naturalness: natural_dialog module + fillers + barge-in support. Latency target <1.5s turn.
+- Web-call page ka voice bhi同 pipeline pe migrate karna (browser-TTS → EdgeTTS server-side) for consistent demo quality.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
