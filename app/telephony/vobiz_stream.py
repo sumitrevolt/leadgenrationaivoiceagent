@@ -70,6 +70,7 @@ import io
 import json
 import os
 import random
+import re
 import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -145,9 +146,9 @@ def _env_num(name: str, default: float) -> float:
 
 
 _VAD_RMS = int(_env_num("VOBIZ_VAD_RMS", 300))            # PCM16 RMS speech gate
-SILENCE_MS = _env_num("VOBIZ_SILENCE_MS", 550.0)          # trailing silence that ends an utterance
-MIN_SPEECH_MS = _env_num("VOBIZ_MIN_SPEECH_MS", 250.0)    # ignore sub-250ms blips (coughs/clicks)
-MIN_STT_MS = _env_num("VOBIZ_MIN_STT_MS", 350.0)          # drop sub-350ms utterances (STT unreliable)
+SILENCE_MS = _env_num("VOBIZ_SILENCE_MS", 850.0)          # trailing silence that ends an utterance (longer = capture full sentences, fewer mid-sentence fragments)
+MIN_SPEECH_MS = _env_num("VOBIZ_MIN_SPEECH_MS", 300.0)    # ignore sub-300ms blips (coughs/clicks)
+MIN_STT_MS = _env_num("VOBIZ_MIN_STT_MS", 400.0)          # drop sub-400ms utterances (STT unreliable)
 MAX_UTTER_MS = 15000.0  # hard cap so a long monologue still gets processed
 BARGE_MIN_FRAMES = 5    # ~100 ms of speech while we talk = barge-in
 
@@ -455,6 +456,7 @@ class VobizStreamSession:
         self._speech_ms = 0.0
         self._silence_ms = 0.0
         self._had_speech = False
+        self._speech_segments = 0   # rising-edge count (post-speech grace)
         self._vad_rms = _VAD_RMS
 
         # playback / barge-in state
@@ -632,6 +634,9 @@ class VobizStreamSession:
             return
 
         if is_speech:
+            # Rising edge (silence→speech, or first speech) = a new speech segment.
+            if self._silence_ms > 0 or not self._had_speech:
+                self._speech_segments += 1
             self._speech_buf.append(pcm16)
             self._speech_ms += dur_ms
             self._silence_ms = 0.0
@@ -640,7 +645,17 @@ class VobizStreamSession:
             self._speech_buf.append(pcm16)  # keep a little trailing silence
             self._silence_ms += dur_ms
 
-        ended = self._had_speech and self._silence_ms >= SILENCE_MS and self._speech_ms >= MIN_SPEECH_MS
+        # POST-SPEECH GRACE: beyond the silence + MIN_SPEECH_MS gates, require the
+        # utterance to be "substantial" — ≥2 speech segments OR ≥400ms cumulative
+        # speech — so a tiny 1-word blip doesn't finalize mid-sentence. A genuine
+        # lone short word still goes through once the caller clearly stops
+        # (≥2× SILENCE_MS) so "haan"/"ji" are never permanently dropped.
+        substantial = self._speech_segments >= 2 or self._speech_ms >= 400.0
+        ended = (self._had_speech and self._silence_ms >= SILENCE_MS
+                 and self._speech_ms >= MIN_SPEECH_MS and substantial)
+        if (not ended and self._had_speech and self._speech_ms >= MIN_SPEECH_MS
+                and self._silence_ms >= SILENCE_MS * 2):
+            ended = True
         too_long = self._speech_ms >= MAX_UTTER_MS
         if ended or too_long:
             utt = b"".join(self._speech_buf)
@@ -658,14 +673,38 @@ class VobizStreamSession:
         self._speech_ms = 0.0
         self._silence_ms = 0.0
         self._had_speech = False
+        self._speech_segments = 0
+
+    @staticmethod
+    def _is_junk(text: str) -> bool:
+        """True if STT text is junk — too short (<3 chars) or no alphanumeric/
+        Devanagari word char (punctuation/noise only). Dropped before any LLM
+        call so we never think (or spend) on garbage."""
+        t = (text or "").strip()
+        if len(t) < 3:
+            return True
+        return re.search(r"[0-9A-Za-zऀ-ॿ]", t) is None
 
     async def _on_utterance(self, pcm16: bytes) -> None:
         if self._thinking:
             return
         self._thinking = True
         try:
-            text = await self._stt(pcm16)
+            text = (await self._stt(pcm16) or "").strip()
             if not text:
+                return
+            # JUNK GUARD — don't spend an LLM call (or speak) on garbage STT.
+            # Too-short / punctuation-only / noise → drop silently, keep listening.
+            if self._is_junk(text):
+                logger.debug(f"[vobiz-stream] dropped junk STT: {text!r}")
+                return
+            # Skip an exact repeat of the last user turn (STT echo / duplicate).
+            last_user = next(
+                (m.get("content", "") for m in reversed(self.hist)
+                 if m.get("role") == "user"), ""
+            )
+            if text == (last_user or "").strip():
+                logger.debug(f"[vobiz-stream] dropped duplicate STT: {text!r}")
                 return
             logger.info(f"[vobiz-stream {self.stream_sid}] user: {text}")
             self.hist.append({"role": "user", "content": text})
