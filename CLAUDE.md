@@ -170,6 +170,12 @@
 - API: 9 naye /api/marketing/* endpoints (admin, isha events). **Frontend: marketing.html ab 7-tab suite** (Posts/Audit/Review/Festivals/Poster/WhatsApp/Competitor) — score circle animated, SVG poster inline + client-side canvas PNG download. Tests +8 (free_ai mocked). VPS verified: audit best=100/A worst=0/D fixes=5, poster escape ok, page 200.
 - Gotcha repeat: Windows bat me VPS-ssh command ke andar `&`/`<`/escaped-quotes quoting todte hain (DEPLOY_EXIT_9009) — complex smoke hamesha .py file me likho, ssh se sirf `python scripts/x.py` chalao.
 
+## GROWTH FUNNEL LIVE (2026-06-07, commit 47725af) — self-marketing
+- **Landing page** (leadsgenai.in root, frontend/website/index.html): hero "AI Voice Agent jo LEADS laata hai", CTAs (live demo /app/test-call, 10 FREE leads form, WhatsApp wa.me/918459012607), GBP-audit hook section, 8 S-tier niches, 3-step explainer.
+- **Public inquiry API** `app/api/public_site.py`: POST /api/public/inquiry (NO auth; honeypot field "website", 5/min/IP rate-limit, phone validation) → **jsonl-first** data/inquiries.jsonl (kabhi lost nahi) + best-effort DB Lead(source=WEBSITE) + rohan inquiry_received event. GET /api/public/inquiries (admin, merged last 100). VPS smoke: form→API→jsonl verified live.
+- **Self-marketing kit** `docs/Marketing_Kit_LeadGenAI.md`: WhatsApp universal pitch + 5 niche openers + 3-msg follow-up sequence + 3 social posts + 7-din outreach plan (50 pitches→1 client funnel math) + demo script + pricing lines (₹8K starter / ₹300-800 per lead / 10 free).
+- **User ka agla kaam (machine ready, ab fuel)**: kit se roz 10 WhatsApp pitches bhejna, replies pe web-call demo, inquiries /api/public/inquiries ya data/inquiries.jsonl me dikhengi (rohan ke events team dashboard pe).
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
