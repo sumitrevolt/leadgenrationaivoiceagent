@@ -182,6 +182,13 @@
 - **Inquiry auto-callback**: public_site.py inquiry save ke baad AUTO_CALLBACK_INQUIRY!=0 → `start_stream_call()` (naya internal helper in telephony_vobiz.py, no-auth-layer) → Swara turant unhe AI call karti (consent: unhone form bhara). Telephony unfunded ho to graceful error event. 
 - **HONEST LIMITS user ko bataye**: WhatsApp bulk auto-send = number ban (isliye one-click human send); cold auto-calls bina DLT/140 = ₹10L TRAI risk (isliye sirf inbound auto-callback). **GOOGLE_MAPS_API_KEY .env me placeholder hai — real key (ya playwright phones nahi deta) chahiye warna scraper empty/limited.** VPS verified: outreach page 200, tests green.
 
+## 🔄 PIVOT: MARKETING-FIRST (2026-06-07, commit 6a423f6) — USER FINAL DIRECTION
+- **User decision: product ab "AI Automated Marketing" hai (Dhanda-jaisa core), voice agent uska HELPER** (inquiry auto-callback, marketing-leads qualification, follow-ups) — voice agent ka telephony sirf leads-gen/marketing ke kaam me.
+- **3 packages live** (`app/marketing/packages.py`, public GET /api/marketing/packages): Starter ₹2,999/mo (posts/GBP/reviews/posters/WA), Growth ₹5,999 (+unlimited posters, calendar, competitor, lead-form, report), **Advanced AI Agent ₹11,999 (badge "India me sirf hamare paas"): Growth + AI voice — har inquiry ko 2-min me AI call, qualification, appointments, missed-call callback, 50 weekly follow-ups, 500 min/mo incl.** — yahi unique tier hai jo Dhanda/AdBanao/Predis kisi ke paas nahi.
+- **ai_marketing niche builtin** (niches.py first entry, S-tier, b2b; tests 25→26) + niche_knowledge pack + Swara sales script (niche_scripts.py — discovery: marketing kaise karte/Google pe dikhte/follow-up kaun; objections: ₹100/din vs agency ₹15-25K; closing: free GBP audit). web_call default = ai_marketing — Swara ab khud ki marketing services bechti hai.
+- Landing hero ab "AI Marketing + AI Voice Agent — Dono Ek Saath" + pricing cards (live fetch + static fallback). VPS verified: packages API public 200, root 200, tests green.
+- **Aage ka kaam isi positioning pe**: marketing features deepen karo (auto-posting jab APIs feasible, GBP API approval try, poster templates badhao), voice flows marketing-outcome focused raho (callback/qualification/appointment), packages me jo promise hai use deliver karne wale features pe focus.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
