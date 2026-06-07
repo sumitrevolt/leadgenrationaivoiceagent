@@ -47,7 +47,8 @@ _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 _XAI_BASE = "https://api.x.ai/v1"  # xAI Grok (NOTE: Groq se alag company!)
 
 # Models.
-_GROQ_STT_MODEL = "whisper-large-v3"
+# turbo = faster decode, same free tier + comparable Hindi quality → lower STT latency.
+_GROQ_STT_MODEL = "whisper-large-v3-turbo"
 _CEREBRAS_LLM_MODEL = "gpt-oss-120b"  # is account pe available (models API se confirmed): gpt-oss-120b + zai-glm-4.7
 _GROQ_LLM_MODEL = "llama-3.3-70b-versatile"
 _OPENROUTER_LLM_MODEL = "deepseek/deepseek-chat:free"
@@ -211,7 +212,7 @@ def describe() -> Dict[str, Any]:
     return {
         "openai_sdk": _OPENAI_OK,
         "providers": _provider_flags(),
-        "stt_chain": ["groq:whisper-large-v3", "gemini-audio", "local:faster-whisper"],
+        "stt_chain": [f"groq:{_GROQ_STT_MODEL}", "gemini-audio", "local:faster-whisper"],
         "llm_chain": [
             f"cerebras:{_CEREBRAS_LLM_MODEL}",
             f"groq:{_GROQ_LLM_MODEL}",

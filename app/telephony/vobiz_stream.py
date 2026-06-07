@@ -146,7 +146,7 @@ def _env_num(name: str, default: float) -> float:
 
 
 _VAD_RMS = int(_env_num("VOBIZ_VAD_RMS", 300))            # PCM16 RMS speech gate
-SILENCE_MS = _env_num("VOBIZ_SILENCE_MS", 850.0)          # trailing silence that ends an utterance (longer = capture full sentences, fewer mid-sentence fragments)
+SILENCE_MS = _env_num("VOBIZ_SILENCE_MS", 650.0)          # trailing silence that ends an utterance (650ms = snappier turn-taking; env VOBIZ_SILENCE_MS overrides)
 MIN_SPEECH_MS = _env_num("VOBIZ_MIN_SPEECH_MS", 300.0)    # ignore sub-300ms blips (coughs/clicks)
 MIN_STT_MS = _env_num("VOBIZ_MIN_STT_MS", 400.0)          # drop sub-400ms utterances (STT unreliable)
 MAX_UTTER_MS = 15000.0  # hard cap so a long monologue still gets processed
@@ -414,6 +414,26 @@ def _pcm_rms(pcm16: bytes) -> int:
         return int((sum(s * s for s in samples) / n) ** 0.5)
     except Exception:
         return 32767  # last resort: treat as speech (never permanently deaf)
+
+
+# --------------------------------------------------------------------------- #
+# Sentence splitter — for STREAMING TTS. Split a reply into sentences so we can
+# synth + play sentence-by-sentence: the first audio starts after only the FIRST
+# short sentence synthesizes, not the whole reply. Splits AFTER danda ।/./?/!
+# that is FOLLOWED BY whitespace (so decimals like "10.5" and abbreviations stay
+# intact); punctuation stays attached to its sentence (natural intonation). No
+# delimiter / empty => the whole text as a single-element list (fast 1-sentence
+# path, no regression — most brevity-prompt replies are one sentence).
+# --------------------------------------------------------------------------- #
+_SENT_SPLIT_RE = re.compile(r"(?<=[।.?!])\s+")
+
+
+def _split_sentences(text: str) -> List[str]:
+    t = (text or "").strip()
+    if not t:
+        return []
+    parts = [p.strip() for p in _SENT_SPLIT_RE.split(t) if p and p.strip()]
+    return parts or [t]
 
 
 # --------------------------------------------------------------------------- #
@@ -1034,31 +1054,88 @@ class VobizStreamSession:
         await self._say(line)   # fallback: synth now (pregen failed/missing)
 
     async def _say(self, text: str) -> None:
+        """Speak a reply via SENTENCE-CHUNKED STREAMING TTS (see _say_streaming):
+        first audio starts after only the first short sentence (~300-500 ms), not
+        after the whole reply is synthesized. The orchestrator IS self._play_task,
+        so _stop_play()/_barge_in() cancel synth + playback together."""
         if not text or not text.strip():
             return
         if not TTS_AVAILABLE:
             logger.warning("[vobiz-stream] TTS unavailable (edge-tts/pydub) — skipping speak")
             return
         self._stop_play()
-        self._speaking = True       # set early so synth window also detects barge-in
+        self._speaking = True       # set early so the synth window also detects barge-in
         self._barge_frames = 0
+        self._play_task = asyncio.create_task(self._say_streaming(text))
+
+    async def _say_streaming(self, text: str) -> None:
+        """SENTENCE-CHUNKED STREAMING TTS — the low-latency speak path.
+
+        Split the reply into sentences and run a 1-sentence-lookahead pipeline:
+        synthesize sentence N+1 WHILE sentence N plays, so the first audio starts
+        after only the FIRST short sentence synthesizes (~300-500 ms) instead of
+        after the whole reply. Single-sentence replies (the common case under the
+        brevity prompt) just synth+play that one sentence — no regression.
+
+        This coroutine IS self._play_task, so _stop_play()/_barge_in() cancel it
+        as a unit: the in-flight AND pending sentence synths are cancelled and
+        playback stops. _speaking is owned by the canceller on barge-in (it
+        already set it False); only NORMAL completion clears it here."""
+        sentences = _split_sentences(text)
+        cur_synth: Optional[asyncio.Task] = None
+        next_synth: Optional[asyncio.Task] = None
+        cancelled = False
         try:
-            pcm = await self._synth_pcm(text)
+            if not sentences:
+                return
+            # Prime the pump — start synthesizing the first sentence.
+            next_synth = asyncio.create_task(self._synth_pcm(sentences[0]))
+            for i in range(len(sentences)):
+                cur_synth, next_synth = next_synth, None
+                # Synthesize the NEXT sentence in parallel with THIS one's playback.
+                if i + 1 < len(sentences):
+                    next_synth = asyncio.create_task(self._synth_pcm(sentences[i + 1]))
+                try:
+                    pcm = await cur_synth
+                except asyncio.CancelledError:
+                    cancelled = True
+                    raise
+                except Exception as e:
+                    logger.warning(f"[vobiz-stream] sentence synth failed: {e}")
+                    pcm = b""
+                cur_synth = None
+                if not self._speaking:      # barged-in during synth
+                    break
+                if pcm:
+                    await self._play_frames(pcm)   # raises CancelledError on barge-in
+                if not self._speaking:      # barged-in during playback
+                    break
+        except asyncio.CancelledError:
+            cancelled = True
         except Exception as e:
-            logger.warning(f"[vobiz-stream] TTS synth failed: {e}")
-            self._speaking = False
-            return
-        if not pcm or not self._speaking:   # barged-in during synthesis
-            self._speaking = False
-            return
-        self._play_task = asyncio.create_task(self._run_play(pcm))
+            logger.debug(f"[vobiz-stream] streaming speak error: {e}")
+        finally:
+            # Always cancel any still-pending synth so a barge-in leaves NOTHING
+            # running (no wasted CPU/network, no late audio after clearAudio).
+            for t in (cur_synth, next_synth):
+                if t is not None and not t.done():
+                    t.cancel()
+            # On cancellation the canceller owns _speaking (barge-in set it False,
+            # a superseding _say set it True). Only clear it on normal completion.
+            if not cancelled:
+                self._speaking = False
 
     async def _synth_pcm(self, text: str) -> bytes:
         """EdgeTTS MP3 -> raw PCM16 16k mono (L16) bytes. Heavy decode in executor.
         NO µ-law, NO 8k — Vobiz playAudio takes L16 @16 kHz directly."""
         import edge_tts  # lazy
 
-        communicate = edge_tts.Communicate(text, self.voice)
+        # rate="+8%" = snappier delivery (lower perceived latency, still natural).
+        # Guarded: an edge-tts build lacking the kwarg must NOT break synthesis.
+        try:
+            communicate = edge_tts.Communicate(text, self.voice, rate="+8%")
+        except TypeError:
+            communicate = edge_tts.Communicate(text, self.voice)
         mp3 = io.BytesIO()
         async for chunk in communicate.stream():
             if chunk.get("type") == "audio":
@@ -1077,29 +1154,38 @@ class VobizStreamSession:
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, _decode, data)
 
+    async def _play_frames(self, pcm: bytes) -> None:
+        """Send PCM16 @16 kHz as 20 ms L16 playAudio frames, paced ~real-time.
+        Stops early if _speaking goes False (barge-in flag). Does NOT manage the
+        _speaking flag — callers (_run_play / _say_streaming) own its lifecycle."""
+        for i in range(0, len(pcm), FRAME_PCM):
+            if not self._speaking:
+                break   # barge-in flipped the flag (covers inline filler play too)
+            frame = pcm[i:i + FRAME_PCM]
+            if len(frame) < FRAME_PCM:
+                frame = frame + PCM_SILENCE * (FRAME_PCM - len(frame))
+            # Vobiz playAudio: L16 @16k, base64 payload, NO streamSid field.
+            await self._send({
+                "event": "playAudio",
+                "media": {
+                    "contentType": "audio/x-l16",
+                    "sampleRate": SAMPLE_RATE,
+                    "payload": base64.b64encode(frame).decode("ascii"),
+                },
+            })
+            await asyncio.sleep(0.02)  # pace at ~real-time (20 ms/frame)
+
     async def _run_play(self, pcm: bytes) -> None:
+        """Play a single pre-synthesized clip (greeting / filler). On NORMAL
+        completion clears _speaking; on cancellation the canceller owns the flag
+        (barge-in already set it False), so we leave it untouched."""
         try:
-            for i in range(0, len(pcm), FRAME_PCM):
-                if not self._speaking:
-                    break   # barge-in flipped the flag (covers inline filler play too)
-                frame = pcm[i:i + FRAME_PCM]
-                if len(frame) < FRAME_PCM:
-                    frame = frame + PCM_SILENCE * (FRAME_PCM - len(frame))
-                # Vobiz playAudio: L16 @16k, base64 payload, NO streamSid field.
-                await self._send({
-                    "event": "playAudio",
-                    "media": {
-                        "contentType": "audio/x-l16",
-                        "sampleRate": SAMPLE_RATE,
-                        "payload": base64.b64encode(frame).decode("ascii"),
-                    },
-                })
-                await asyncio.sleep(0.02)  # pace at ~real-time (20 ms/frame)
+            await self._play_frames(pcm)
+            self._speaking = False
         except asyncio.CancelledError:
-            pass  # barge-in
+            pass  # barge-in / superseded — canceller owns _speaking
         except Exception as e:
             logger.debug(f"[vobiz-stream] playback error: {e}")
-        finally:
             self._speaking = False
 
     def _stop_play(self) -> None:
