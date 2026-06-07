@@ -30,6 +30,7 @@ Marketing API — Dhanda.app-style AI marketing tools (FREE stack).
   POST /api/marketing/reels            — n Reels scripts (hook/body/cta/tags)
   GET  /api/marketing/lead-scores      — inquiries ka hot/warm/cold scoring
   POST /api/marketing/gbp-texts        — GBP description + services + posts
+  POST /api/marketing/content-pack     — 1-click monthly client deliverable pack
 
 Sab admin-auth (sirf /packages public hai — static pricing data, koi secret
 nahi). Generator functions kabhi raise nahi karte (template
@@ -47,6 +48,7 @@ from app.marketing import (
     brand_kit,
     catalog,
     competitor,
+    content_pack,
     crm_lite,
     drip,
     festivals,
@@ -252,6 +254,15 @@ class GbpTextsRequest(BaseModel):
     niche: str = Field("general", max_length=80)
     city: str = Field("", max_length=80)
     services: List[str] = Field(default_factory=list, max_length=12)
+
+
+class ContentPackRequest(BaseModel):
+    """Monthly client content pack request (client_id => saved brand auto-apply)."""
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    client_id: str = Field("", max_length=64)
+    offer: str = Field("", max_length=200)
+    phone: str = Field("", max_length=40)
 
 
 # --------------------------------------------------------------------------- #
@@ -852,3 +863,32 @@ async def generate_gbp_texts(
     except Exception as e:
         logger.error(f"GBP texts generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"GBP texts failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Client content pack (1-click monthly deliverable bundle)
+# --------------------------------------------------------------------------- #
+
+@router.post("/content-pack")
+async def generate_client_content_pack(
+    req: ContentPackRequest,
+    current_user: User = Depends(require_admin),
+):
+    """Monthly deliverable pack: calendar + 3 posts + 2 posters + GBP +
+    WhatsApp + festival plan — ek self-contained HTML me (client ko bhejne layak)."""
+    try:
+        result = await content_pack.build_client_pack(
+            business_name=req.business_name,
+            niche=req.niche,
+            client_id=req.client_id,
+            offer=req.offer,
+            phone=req.phone,
+        )
+        counts = result.get("counts") or {}
+        _log_isha("content_pack",
+                  f"{req.business_name} ({req.niche or 'general'}, "
+                  f"{counts.get('posts', 0)} posts + {counts.get('posters', 0)} posters)")
+        return result
+    except Exception as e:
+        logger.error(f"Content pack generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Content pack failed: {e}")

@@ -293,6 +293,42 @@ async def outreach_page():
     return FileResponse(str(FRONTEND_DIR / "outreach.html"))
 
 
+@app.get("/audit", tags=["Frontend"])
+async def public_audit_page():
+    """PUBLIC lead-magnet: FREE GBP audit funnel (questions → score → inquiry)."""
+    return FileResponse(str(_website_dir / "audit.html"))
+
+
+@app.get("/privacy", tags=["Frontend"])
+async def privacy_page():
+    """Privacy policy (static legal page)."""
+    return FileResponse(str(_website_dir / "privacy.html"))
+
+
+@app.get("/terms", tags=["Frontend"])
+async def terms_page():
+    """Terms of service (static legal page)."""
+    return FileResponse(str(_website_dir / "terms.html"))
+
+
+@app.get("/refund", tags=["Frontend"])
+async def refund_page():
+    """Refund policy (static legal page)."""
+    return FileResponse(str(_website_dir / "refund.html"))
+
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots_txt():
+    """SEO: robots.txt at root with explicit text/plain media type."""
+    return FileResponse(str(_website_dir / "robots.txt"), media_type="text/plain")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap_xml():
+    """SEO: sitemap.xml at root with explicit application/xml media type."""
+    return FileResponse(str(_website_dir / "sitemap.xml"), media_type="application/xml")
+
+
 @app.websocket("/telephony/twilio/media-stream")
 async def twilio_media_stream(websocket: WebSocket):
     """Twilio Media Streams websocket → live audio bridge to the voice pipeline."""

@@ -298,6 +298,7 @@
     <button class="tab" data-tab="ads">📢 <span>Ads</span></button>
     <button class="tab" data-tab="reels">🎬 <span>Reels</span></button>
     <button class="tab" data-tab="hotleads">🔥 <span>Hot Leads</span></button>
+    <button class="tab" data-tab="pack">📦 <span>Client Pack</span></button>
   </div>
 </div>
 
@@ -843,6 +844,34 @@
     </div>
   </section>
 
+  <!-- ================= TAB 18: Client Pack (monthly deliverable) ================= -->
+  <section class="tabpane hidden" id="pane-pack">
+    <div class="card">
+      <h3>📦 Client Pack <span class="tag">monthly deliverable</span></h3>
+      <div class="hint">Ek click me poora monthly pack — 7-din calendar + 3 posts + 2 posters + GBP texts + WhatsApp messages + festival plan. Download karke client ko bhejo.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="packOffer">Offer (optional)</label>
+          <input id="packOffer" type="text" placeholder="e.g. 10% off is mahine" maxlength="200" />
+        </div>
+        <div class="fld">
+          <label for="packPhone">Phone (posters pe)</label>
+          <input id="packPhone" type="tel" placeholder="98765 43210" maxlength="40" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnPack">📦 Pack banao (1-click monthly deliverable)</button>
+      </div>
+    </div>
+    <div class="card hidden" id="packCard">
+      <h3>📦 Pack preview <span class="prov" id="packCounts"></span></h3>
+      <iframe id="packFrame" class="repframe" style="height:650px" sandbox="" title="Client pack preview"></iframe>
+      <div class="btns">
+        <button class="btn" id="btnPackDl">⬇ HTML Download</button>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <div id="toasts"></div>
@@ -919,7 +948,7 @@
   setHeadH();
 
   // ---- Tabs: switch + lazy init (data fetch sirf first open pe) ----------------
-  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads"];
+  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack"];
   var inited = {};
   var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit, hotleads: loadLeadScores };
   document.getElementById("tabbar").addEventListener("click", function(ev){
@@ -2453,6 +2482,47 @@
 
   document.getElementById("btnHlRefresh").onclick = function(){
     loadLeadScores();
+  };
+
+  // ============================================================================
+  // TAB 18: Client Pack (1-click monthly deliverable)
+  // ============================================================================
+  var packHtmlStr = "";
+  var btnPack = document.getElementById("btnPack");
+  btnPack.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnPack, true);
+    try{
+      var res = await callApi("/api/marketing/content-pack", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          offer: document.getElementById("packOffer").value.trim(),
+          phone: document.getElementById("packPhone").value.trim(),
+        }),
+      });
+      packHtmlStr = (res && typeof res.html === "string") ? res.html : "";
+      if(!packHtmlStr) throw new Error("pack HTML khali aaya");
+      var counts = (res && res.counts) || {};
+      document.getElementById("packCounts").textContent = Object.keys(counts).map(function(k){
+        return k.replace(/_/g, " ") + ": " + counts[k];
+      }).join(" · ");
+      document.getElementById("packFrame").srcdoc = packHtmlStr; /* sandboxed iframe */
+      document.getElementById("packCard").classList.remove("hidden");
+      document.getElementById("packCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Client pack ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Pack nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnPack, false, "📦 Pack banao (1-click monthly deliverable)");
+    }
+  };
+  document.getElementById("btnPackDl").onclick = function(){
+    if(!packHtmlStr){ toast("Pehle pack banao", "err"); return; }
+    var blob = new Blob([packHtmlStr], {type: "text/html;charset=utf-8"});
+    triggerDl(URL.createObjectURL(blob), bizSlugPrefix() + "pack.html", true);
   };
 
 })();

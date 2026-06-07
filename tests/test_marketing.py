@@ -3,11 +3,13 @@ Tests: marketing module (Dhanda-style posts + GBP tips + content calendar
 + GBP audit + review replies + festivals + SVG posters + WhatsApp pack
 + competitor tips + growth v3: review kit/QR, monthly report, reactivation,
 drip, brand kit, CRM-lite + v4: UPI kit, catalog, ads copy, reels,
-lead scoring, GBP texts).
+lead scoring, GBP texts + v5: client content pack, data retention).
 No network — free_ai.chat is monkeypatched to return ("","") so every path
 exercises the TEMPLATE fallback (the never-empty guarantee).
 """
 import json
+import os
+import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -17,6 +19,7 @@ from app.marketing import (
     brand_kit,
     catalog,
     competitor,
+    content_pack,
     crm_lite,
     drip,
     festivals,
@@ -715,3 +718,59 @@ class TestGbpText:
         assert len(result["description"]) <= 750
         assert result["services"] == []
         assert len(result["posts"]) == 3
+
+
+class TestContentPack:
+    @pytest.mark.asyncio
+    async def test_pack_html_and_counts(self, no_llm):
+        result = await content_pack.build_client_pack(
+            "Sharma Solar", "solar_residential",
+            offer="10% off is mahine", phone="9876543210",
+        )
+        html = result["html"]
+        assert "Sharma Solar" in html
+        assert "Monthly Marketing Pack" in html
+        # saare deliverable sections maujood
+        for section in ("Content Calendar", "Ready Posts", "Posters",
+                        "Google Business Profile", "WhatsApp Messages",
+                        "Festival Plan"):
+            assert section in html
+        assert "<svg" in html            # inline posters
+        assert "9876543210" in html      # phone poster pe
+        counts = result["counts"]
+        assert counts["posts"] == 3
+        assert counts["posters"] == 2
+        assert counts["calendar_days"] == 7
+        assert counts["whatsapp_msgs"] == 7  # 2 broadcast + 3 status + 2 reply
+        assert "gbp_services" in counts and "festivals" in counts
+        assert result["month"].strip() and result["month"] in html
+
+    @pytest.mark.asyncio
+    async def test_pack_escapes_inputs_never_raises(self, no_llm):
+        result = await content_pack.build_client_pack("R&D <Solar>", "general")
+        html = result["html"]
+        assert "R&amp;D" in html
+        assert "<Solar>" not in html  # raw injection nahi
+        assert isinstance(result["counts"], dict)
+
+
+class TestDataRetention:
+    def test_old_transcripts_pruned_new_kept(self, tmp_path, monkeypatch):
+        from app.agents import staff
+
+        old_f = tmp_path / "call_old.jsonl"
+        new_f = tmp_path / "call_new.jsonl"
+        old_f.write_text("{}\n", encoding="utf-8")
+        new_f.write_text("{}\n", encoding="utf-8")
+        old_ts = time.time() - 100 * 86400  # 100 din purani (>90 cutoff)
+        os.utime(str(old_f), (old_ts, old_ts))
+
+        monkeypatch.setattr(staff, "_TRANSCRIPTS_DIR", str(tmp_path))
+        assert staff._prune_old_transcripts() == 1
+        assert not old_f.exists()
+        assert new_f.exists()
+        # dobara chalao => ab kuch nahi bacha prune karne ko
+        assert staff._prune_old_transcripts() == 0
+        # missing dir => 0, KABHI raise nahi
+        monkeypatch.setattr(staff, "_TRANSCRIPTS_DIR", str(tmp_path / "nahi-hai"))
+        assert staff._prune_old_transcripts() == 0

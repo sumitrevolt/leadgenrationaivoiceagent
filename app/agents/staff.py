@@ -257,11 +257,70 @@ async def run_trainer() -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# kavya — ops health snapshot
+# kavya — ops health snapshot + data retention
 # --------------------------------------------------------------------------- #
+_TRANSCRIPTS_DIR = os.path.join("data", "call_transcripts")
+_EVENT_RETENTION_DAYS = 60
+_TRANSCRIPT_RETENTION_DAYS = 90
+
+
+def _prune_old_events(days: int = _EVENT_RETENTION_DAYS) -> int:
+    """agent_events me `days` se purane rows delete karo (best-effort).
+
+    Deleted count lautata hai; DB na ho ya kuch bhi fail ho to 0 — KABHI raise nahi.
+    """
+    try:
+        from datetime import datetime, timedelta
+
+        from app.models.agent_event import AgentEvent
+        from app.platform import team
+
+        db = team._db()
+        if db is None:
+            return 0
+        try:
+            cutoff = datetime.utcnow() - timedelta(days=max(1, int(days)))
+            n = int(
+                db.query(AgentEvent)
+                .filter(AgentEvent.created_at < cutoff)
+                .delete(synchronize_session=False)
+                or 0
+            )
+            db.commit()
+            return n
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug(f"[staff] event pruning skipped: {e}")
+        return 0
+
+
+def _prune_old_transcripts(days: int = _TRANSCRIPT_RETENTION_DAYS) -> int:
+    """data/call_transcripts me `days` se purani files (mtime) delete karo.
+
+    Removed count lautata hai; dir missing/locked files par bhi KABHI raise nahi.
+    """
+    removed = 0
+    try:
+        cutoff_ts = time.time() - max(1, int(days)) * 86400
+        for fname in os.listdir(_TRANSCRIPTS_DIR):
+            fpath = os.path.join(_TRANSCRIPTS_DIR, fname)
+            try:
+                if os.path.isfile(fpath) and os.path.getmtime(fpath) < cutoff_ts:
+                    os.remove(fpath)
+                    removed += 1
+            except Exception:
+                continue  # ek file fail => baki phir bhi prune hon
+    except Exception as e:
+        logger.debug(f"[staff] transcript pruning skipped: {e}")
+    return removed
+
+
 async def run_ops() -> Dict[str, Any]:
     """Health snapshot: free-AI provider flags + DB reachability + disk free %.
-    status="warn" agar koi provider off, DB down ya disk <10% free."""
+    status="warn" agar koi provider off, DB down ya disk <10% free.
+    Saath me data retention (best-effort): agent_events >60 din delete,
+    call transcripts >90 din delete — pruned counts result me."""
     from app.platform import team
 
     try:
@@ -292,6 +351,10 @@ async def run_ops() -> Dict[str, Any]:
         except Exception:
             pass
 
+        # Data retention (best-effort pruning — har piece apne andar guarded)
+        pruned_events = _prune_old_events()
+        pruned_transcripts = _prune_old_transcripts()
+
         providers_on = sum(1 for v in providers.values() if v)
         warn = (
             (providers and providers_on < len(providers))
@@ -304,6 +367,9 @@ async def run_ops() -> Dict[str, Any]:
             f"providers {providers_on}/{len(providers)} on, "
             f"db {'ok' if db_ok else 'DOWN'}, disk {disk_txt}"
         )
+        if pruned_events or pruned_transcripts:
+            summary += (f", pruned {pruned_events} old events"
+                        f" + {pruned_transcripts} old transcripts")
 
         result: Dict[str, Any] = {
             "status": status,
@@ -311,6 +377,8 @@ async def run_ops() -> Dict[str, Any]:
             "db_ok": db_ok,
             "disk_free_pct": disk_free_pct,
             "uptime": "n/a",
+            "pruned_events_60d": pruned_events,
+            "pruned_transcripts_90d": pruned_transcripts,
         }
         team.log_event("kavya", "health_check", summary, status=status, meta=result)
         return result

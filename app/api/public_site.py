@@ -12,6 +12,11 @@ Final paths (main.py prefix="/api" ke saath):
   GET  /api/public/pay-info   -> NO AUTH — UPI payment info (QR + VPA + plans)
                                  for the landing "Shuru karo" modal. UPI_VPA
                                  env empty ho to {"enabled": false}.
+  GET  /api/public/audit/questions -> NO AUTH — GBP self-audit ke 16 sawaal
+                                 (gbp_audit.AUDIT_QUESTIONS — safe static).
+  POST /api/public/audit/score -> NO AUTH — {answers} → TEASER result only:
+                                 score/grade/top-3 fixes/impact. Full
+                                 breakdown sirf paid/admin ke liye (lead-magnet).
 
 Import-safe: DB/team modules lazy-import hote hain; kuch bhi missing ho to
 form submit phir bhi jsonl me save hota hai aur user ko ok milta hai.
@@ -46,6 +51,7 @@ _OK_MESSAGE = "Dhanyawad! 24 ghante me call aayega."
 # In-memory rate limit — max 5 inquiries / minute / IP (simple timestamp list)
 # --------------------------------------------------------------------------- #
 _RL: Dict[str, List[float]] = {}
+_RL_AUDIT: Dict[str, List[float]] = {}  # /audit/score ka alag bucket — inquiry quota nahi khaata
 _RL_MAX = 5
 _RL_WINDOW_S = 60.0
 
@@ -66,20 +72,24 @@ def _client_ip(request: Optional[Request]) -> str:
     return "unknown"
 
 
-def _rate_limited(ip: str) -> bool:
-    """True = is IP ne 1 min me 5+ inquiries bheji (block karo)."""
+def _rate_limited(ip: str, store: Optional[Dict[str, List[float]]] = None) -> bool:
+    """True = is IP ne 1 min me 5+ requests bheji (block karo).
+
+    `store` se alag bucket de sakte ho (audit vs inquiry) — default _RL.
+    """
+    rl = _RL if store is None else store
     now = time.time()
-    fresh = [t for t in _RL.get(ip, []) if now - t < _RL_WINDOW_S]
+    fresh = [t for t in rl.get(ip, []) if now - t < _RL_WINDOW_S]
     if len(fresh) >= _RL_MAX:
-        _RL[ip] = fresh
+        rl[ip] = fresh
         return True
     fresh.append(now)
-    _RL[ip] = fresh
+    rl[ip] = fresh
     # Opportunistic cleanup taaki dict unbounded na badhe.
-    if len(_RL) > 5000:
-        for k in list(_RL.keys()):
-            if not any(now - t < _RL_WINDOW_S for t in _RL[k]):
-                _RL.pop(k, None)
+    if len(rl) > 5000:
+        for k in list(rl.keys()):
+            if not any(now - t < _RL_WINDOW_S for t in rl[k]):
+                rl.pop(k, None)
     return False
 
 
@@ -275,6 +285,11 @@ class InquiryIn(BaseModel):
     website: Optional[str] = ""  # honeypot — insaan ise kabhi nahi bharta
 
 
+class AuditIn(BaseModel):
+    """GBP self-audit answers — {question_id: option_index}. Missing = worst case."""
+    answers: Dict[str, Any] = {}
+
+
 # --------------------------------------------------------------------------- #
 # Routes
 # --------------------------------------------------------------------------- #
@@ -398,6 +413,51 @@ async def pay_info():
     except Exception:
         out["packages"] = []
     return out
+
+
+# --------------------------------------------------------------------------- #
+# FREE public GBP audit — lead-magnet funnel (/audit page isi par chalta hai)
+# --------------------------------------------------------------------------- #
+@router.get("/audit/questions")
+async def audit_questions():
+    """GBP self-audit ke 16 sawaal — NO AUTH (safe static data, koi secret nahi)."""
+    from app.marketing.gbp_audit import AUDIT_QUESTIONS
+
+    return {"questions": AUDIT_QUESTIONS}
+
+
+@router.post("/audit/score")
+async def audit_score(body: AuditIn, request: Request):
+    """Audit answers → TEASER result — NO AUTH.
+
+    Sirf {score, grade, top_fixes[:3], locked_fixes, impact} return hota hai —
+    full breakdown + saare fixes paid/admin flow me milte hain (yahi hook hai).
+    Rate-limit alag bucket me taaki audit ke baad inquiry block na ho.
+    """
+    ip = _client_ip(request)
+    if _rate_limited(ip, _RL_AUDIT):
+        raise HTTPException(status_code=429, detail="Thoda ruk ke dobara try karo.")
+
+    from app.marketing.gbp_audit import score_audit
+
+    result = score_audit(body.answers if isinstance(body.answers, dict) else {})
+
+    # Team activity (Isha — Marketing) — kabhi raise nahi karta.
+    try:
+        from app.platform.team import log_event
+
+        log_event("isha", "public_audit", f"score {result.get('score')}")
+    except Exception:
+        pass
+
+    all_fixes = result.get("top_fixes") or []
+    return {
+        "score": result.get("score", 0),
+        "grade": result.get("grade", "D"),
+        "top_fixes": all_fixes[:3],
+        "locked_fixes": max(0, len(all_fixes) - 3),  # teaser count — content locked
+        "impact": result.get("impact", ""),
+    }
 
 
 @router.get("/inquiries")
