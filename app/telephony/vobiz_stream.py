@@ -928,10 +928,29 @@ class VobizStreamSession:
     # Outbound speech — EdgeTTS -> µ-law -> 20 ms frames
     # ------------------------------------------------------------------ #
     def _opening_line(self) -> str:
-        """PURELY STATIC permission-based opener (Gong: ~11% vs 2.3% generic) —
-        NICHES pitch_hook template only. NO TelecallerBrain/LLM/genai-import
-        here: opener instant + WS-open par pre-synthesizable hona chahiye.
-        (TelecallerBrain sirf _think replies ke liye hai.)"""
+        """PURELY STATIC permission-based opener (Gong: ~11% vs 2.3% generic).
+        PREFERS the professional niche-script opening (researched, niche-specific)
+        with placeholders filled; falls back to the NICHES pitch_hook template.
+        NO TelecallerBrain/LLM/genai-import here: opener instant + WS-open par
+        pre-synthesizable hona chahiye. (TelecallerBrain sirf _think replies ke
+        liye hai.)"""
+        # 1) Professional script opening (best — niche-specific permission opener).
+        try:
+            from app.voice_agent.niche_scripts import get_script
+
+            opening = (get_script(self.niche).get("opening") or "").strip()
+            if opening:
+                # Fill placeholders + align to the female Swara TTS voice.
+                opening = (opening
+                           .replace("[Company]", self.client_name)
+                           .replace("[Name]", "Swara")
+                           .replace("[Project]", "hamare project")
+                           .replace("[project]", "hamare project")
+                           .replace("raha hoon", "rahi hoon"))
+                return opening
+        except Exception:
+            pass
+        # 2) Fallback: NICHES pitch_hook template (previous behavior).
         hook = ""
         try:
             from app.niches import NICHES

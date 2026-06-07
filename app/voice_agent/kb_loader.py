@@ -113,6 +113,16 @@ def load_niche_faqs(kb: KnowledgeBase, namespace: str = "_global") -> int:
         logger.warning(f"NICHES import failed, only common FAQs loaded: {e}")
         return total
 
+    # Professional telecaller script dataset (pure-data, import-safe) — har niche
+    # ke researched opening / discovery / objection-rebuttals / value-lines /
+    # closing ko KB me seed karte hain taaki retrieval pe salesperson-grade
+    # language surface ho (TelecallerBrain._kb_facts inhe pick karta hai).
+    try:
+        from app.voice_agent.niche_scripts import kb_documents as _script_docs
+    except Exception as e:  # pragma: no cover
+        logger.debug(f"niche_scripts kb_documents unavailable: {e}")
+        _script_docs = None
+
     for niche_key, cfg in (NICHES or {}).items():
         facts: List[str] = []
         name = cfg.get("name", niche_key.replace("_", " ").title())
@@ -155,6 +165,19 @@ def load_niche_faqs(kb: KnowledgeBase, namespace: str = "_global") -> int:
         n1 = kb.add_documents(facts, source=f"niche:{niche_key}", namespace=niche_key)
         n2 = kb.add_documents(facts, source=f"niche:{niche_key}", namespace=namespace)
         total += n1 + n2
+
+        # Professional script lines -> SAME per-niche namespace, taaki retrieval
+        # pe opening/objection/closing/value surface ho. Covered niche apna
+        # script deta hai; uncovered (custom incl.) "general" script pe map.
+        if _script_docs is not None:
+            try:
+                sdocs = _script_docs(niche_key)
+                if sdocs:
+                    total += kb.add_documents(
+                        sdocs, source=f"script:{niche_key}", namespace=niche_key
+                    )
+            except Exception as e:  # pragma: no cover
+                logger.debug(f"script docs skipped for {niche_key}: {e}")
 
     logger.info(f"KB: loaded niche FAQs — {total} chunk(s) total.")
     return total

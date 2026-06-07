@@ -34,6 +34,27 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# Professional telecaller script dataset (pure-data, import-safe). Guarded so a
+# missing/broken module can never stop the brain from initializing — get_script
+# then degrades to {} and the prompt falls back to niche-data questions.
+try:
+    from app.voice_agent.niche_scripts import get_script, NICHE_SCRIPTS
+except Exception:  # pragma: no cover - pure-data module, but never break the brain
+    NICHE_SCRIPTS: Dict[str, dict] = {}
+
+    def get_script(_niche: str) -> dict:  # type: ignore[misc]
+        return {}
+
+# Readable Hinglish customer-phrase hints for objection keys (prompt me clear
+# dikhe ki customer kya bolega) — niche_scripts ke objection dict keys ke liye.
+_OBJ_HINT = {
+    "mehenga": "mehnga hai / budget zyada",
+    "abhi_nahi": "abhi nahi / baad me dekhte hain",
+    "soch_ke": "soch ke batata hoon",
+    "pehle_se_hai": "pehle se hai / le rakha hai",
+    "bharosa": "bharosa nahi / genuine ho kya",
+}
+
 # Default qualification flow when the niche is unknown/missing.
 _GENERIC_QUESTIONS = [
     "Aap apne business ke liye naye customers abhi kahan se laate hain?",
@@ -42,7 +63,7 @@ _GENERIC_QUESTIONS = [
 ]
 
 _MAX_HISTORY_TURNS = 8          # last ~8 turns to keep prompt (and latency) small
-_GEN_CONFIG = {"temperature": 0.5, "max_output_tokens": 50}  # force brevity (phone)
+_GEN_CONFIG = {"temperature": 0.5, "max_output_tokens": 60}  # brevity (phone) — 60 so closes don't truncate
 _REPLY_TIMEOUT_S = 6.0          # Gemini se itne me jawab nahi => "" (fallback chain)
 
 # KB-grounding (Qdrant niche + client KB) — phone hot path, so keep it tight:
@@ -192,17 +213,50 @@ class TelecallerBrain:
     # System prompt — research-distilled rules + 3 few-shot exchanges
     # ------------------------------------------------------------------ #
     def _build_system_prompt(self) -> str:
-        q_block = "\n".join(f"{i + 1}. {q}" for i, q in enumerate(self.questions))
+        # Professional researched script for this niche (opening/discovery/
+        # objections/value/closing). Covered niche => apna; uncovered => general.
+        s = get_script(self.niche) or {}
+
+        # Discovery flow that DRIVES the call: covered niche ke liye script ke
+        # professional questions; uncovered (incl. custom) ke liye niche-data
+        # qualification questions (general script se zyada specific). Hamesha
+        # ek non-empty ordered list milti hai.
+        script_disc = [str(q).strip() for q in (s.get("discovery") or []) if str(q).strip()]
+        disc = (script_disc if self.niche in NICHE_SCRIPTS else self.questions) or self.questions
+        q_block = "\n".join(f"{i + 1}. {q}" for i, q in enumerate(disc))
+        first_q = disc[0] if disc else "Aap exactly kis cheez ki talaash me hain?"
+
         hook = self.pitch_hook or "businesses ko ready qualified leads dilana"
         hook_short = _short_hook(hook) or "qualified leads"
         numbers_line = self.allowed_numbers or "(koi nahi — matlab tum KOI number/price quote nahi kar sakti)"
 
-        return f"""Tum "Swara" ho — {self.client_name} ki professional Indian female telecaller. Tum ek LIVE PHONE CALL par ho (text chat nahi). Awaaz warm, confident, bilkul insaan jaisi; bhasha natural Hinglish (Hindi-English mix).
+        # Compact professional-script reference blocks (style guide — copy-paste nahi).
+        opening = (s.get("opening") or "").strip()
+        closing = (s.get("closing") or "").strip()
+        value_lines = [str(v).strip() for v in (s.get("value_lines") or []) if str(v).strip()]
+        value_block = "\n".join(f"- {v}" for v in value_lines) or "- (niche ke hisaab se ek crisp value-line)"
+        obj_block = "\n".join(
+            f'- Customer: "{_OBJ_HINT.get(k, k)}" -> Tum: {v}'
+            for k, v in (s.get("objections") or {}).items() if str(v).strip()
+        ) or "- (empathize karo, ek chhoti value-line do, phir aage badho)"
+        script_block = (
+            (f"Opening (permission-based): {opening}\n" if opening else "")
+            + f"Discovery questions (ISI ORDER me, ek turn me sirf EK; jo customer PEHLE bata chuka woh SKIP):\n{q_block}\n"
+            + f"Value lines (jab pitch karni ho):\n{value_block}"
+            + (f"\nClosing (interest dikhe to appointment/visit/callback BOOK karo): {closing}" if closing else "")
+        )
+
+        return f"""Tum "Swara" ho — {self.client_name} ki professional Indian female telecaller. Tum ek TOP professional Indian telecaller ho (noob nahi). Confident, warm, crisp. Customer ke har jawab ko sun ke uske hisab se aage badho — ratta-maar nahi. Tum ek LIVE PHONE CALL par ho (text chat nahi); bhasha natural Hinglish (Hindi-English mix), awaaz bilkul insaan jaisi.
 
 CLIENT: {self.client_name} | NICHE: {self.niche_name}
 VALUE LINE (pitch hook): {hook}
-QUALIFICATION QUESTIONS (ISI ORDER me, ek turn me sirf EK, baat-cheet me naturally piro ke — survey/interrogation jaisa nahi):
-{q_block}
+
+PROFESSIONAL SCRIPT (inhi lines/style me baat karo, copy-paste mat karo, natural raho):
+{script_block}
+
+OBJECTION HANDLING (agar customer aise bole to aise jawab do, phir aage badho):
+{obj_block}
+
 ALLOWED NUMBERS/PRICES (sirf yehi bol sakti ho): {numbers_line}
 
 HARD RULES (har turn, bina exception):
@@ -210,7 +264,7 @@ HARD RULES (har turn, bina exception):
 2. KABHI apne baare me meta baat mat karo — "maine pehle poocha", "yeh maine nahi suna", "yeh detail nahi suni", "unclear hai", "thoda unclear", "maaf kijiye" jaisi cheezein BANNED. Bas aage badho.
 3. User ka jawab unclear/aadha lage to sirf chhota sa poocho: "ji, zara dobara boliye?" — bas. Lamba explanation kabhi nahi.
 4. Ek baar me EK hi sawaal. Jo user ne bola usko 2-3 shabd me acknowledge karke turant agla chhota sawaal. Sawaal reply ke END me.
-5. Qualification questions diye order me, ek-ek. Jo user PEHLE bata chuka (history padho) woh sawaal dobara mat poocho.
+5. Discovery questions UPAR diye order me, ek-ek. Jo user PEHLE bata chuka (history padho) woh sawaal dobara mat poocho — agle pe badho.
 6. "Busy hoon" → ek line + do callback time options (jaise "shaam paanch ya kal subah gyarah?").
 7. "Interest nahi" → ek chhoti value-line, shukriya, call khatam. Manana/pushy BANNED.
 8. Numbers/prices SIRF ALLOWED list ya neeche FACTS se. Apne se koi figure/discount/promise kabhi nahi.
@@ -221,7 +275,7 @@ GOOD vs BAD (hamesha GOOD jaisa — chhota, human, ek sawaal):
 
 User: Haan leads aati hain par conversion bahut kam hai.
 BAD: Yeh detail maine abhi tak nahi suni thi, lekin aapne conversion ki baat ki jo thodi unclear hai, toh maaf kijiye main phir se poochti hoon...
-GOOD: Samajh gayi, conversion gap. {self.questions[0]}
+GOOD: Samajh gayi, conversion gap. {first_q}
 
 User: वटाने (aadha/unclear)
 BAD: Yeh thoda unclear hai, aapne वटाने kaha jo main samajh nahi payi, maaf kijiye.
