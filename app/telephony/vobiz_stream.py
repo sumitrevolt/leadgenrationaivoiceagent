@@ -18,7 +18,8 @@ We run a full conversational loop per call:
 
     caller audio (PCM16 16k — already STT-ready, NO conversion needed)
         → energy/silence VAD          -> utterance boundary
-        → STT (vosk | faster-whisper) -> user text
+        → STT: Gemini audio-in (PRIMARY — multimodal, best Hinglish)
+               | vosk | faster-whisper (local fallback) -> user text
         → TelecallerBrain (lean phone prompt; fallback LLMBrain) -> reply text
         → EdgeTTS (hi-IN-SwaraNeural) -> MP3 bytes
         → pydub decode + resample     -> PCM16 16k mono
@@ -37,7 +38,8 @@ Everything is guarded; the socket NEVER crashes. Capability flags decide what
 runs, and a missing capability is logged + skipped (the call still connects):
 
   * TTS_AVAILABLE  -> needs ``edge-tts`` AND ``pydub`` importable.
-  * STT_AVAILABLE  -> needs ``vosk`` OR ``faster-whisper`` importable.
+  * STT_AVAILABLE  -> ``google-genai`` (Gemini audio-in, primary) OR
+                      ``vosk``/``faster-whisper`` (local fallback) importable.
   * audioop        -> stdlib (Python ≤3.12); on 3.13 falls back to audioop-lts.
                       Only RMS is used now; a manual int loop covers its absence.
 
@@ -68,6 +70,7 @@ import json
 import os
 import random
 import threading
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from app.utils.logger import setup_logger
@@ -87,7 +90,9 @@ def _have(name: str) -> bool:
 
 _VOSK_OK = _have("vosk")
 _FWHISPER_OK = _have("faster_whisper")
-STT_AVAILABLE = _VOSK_OK or _FWHISPER_OK
+_GENAI_OK = _have("google.genai")          # NEW google-genai SDK (Gemini audio-in STT)
+_LOCAL_STT_OK = _VOSK_OK or _FWHISPER_OK   # local engines (whisper fallback chain)
+STT_AVAILABLE = _LOCAL_STT_OK or _GENAI_OK
 TTS_AVAILABLE = _have("edge_tts") and _have("pydub")
 
 # audioop is stdlib on Python ≤3.12; removed in 3.13 (use audioop-lts backport).
@@ -217,6 +222,120 @@ def _stt_sync(kind: str, model: Any, pcm16: bytes) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# Gemini audio-in STT (PRIMARY hearing, 2026-06-07) — whisper-base Hindi phone
+# audio pe weak tha; Gemini multimodal audio ko DIRECT sunta hai (no ASR layer)
+# aur Hinglish far better nikalta hai. NEW google-genai SDK (google.genai —
+# old google.generativeai se alag namespace, dono coexist). Free tier audio
+# input supported (flash-lite 30 RPM). Inline limit 20MB/request — hamare
+# utterances ≤15s = ~480KB WAV, comfortably under. Failure of ANY kind => ""
+# => caller whisper/vosk pe fall back karta hai (deafness impossible-by-design).
+# Env: VOBIZ_STT=gemini|whisper (default gemini if SDK+key), STT_GEMINI_MODEL.
+# --------------------------------------------------------------------------- #
+_GEMINI_STT_PROMPT = (
+    "Transcribe this Indian phone-call audio EXACTLY as spoken (Hinglish — "
+    "Hindi in Devanagari, English words in English). Output ONLY the "
+    "transcription, nothing else. If silence/noise, output nothing."
+)
+_GEMINI_STT_TIMEOUT = _env_num("VOBIZ_STT_TIMEOUT_S", 8.0)
+
+_GENAI_CLIENT: Optional[Any] = None
+_GENAI_INIT = False
+_GENAI_LOCK = threading.Lock()
+
+
+def _get_genai_client() -> Optional[Any]:
+    """Lazy module-level google-genai Client singleton (thread-safe, like
+    _get_stt). None = SDK missing ya API key absent — caller falls back."""
+    global _GENAI_CLIENT, _GENAI_INIT
+    if _GENAI_INIT:
+        return _GENAI_CLIENT
+    with _GENAI_LOCK:
+        if _GENAI_INIT:
+            return _GENAI_CLIENT
+        try:
+            from google import genai  # type: ignore
+
+            key = ""
+            try:
+                from app.config import settings
+
+                key = (getattr(settings, "gemini_api_key", "") or "").strip()
+            except Exception:
+                pass
+            key = key or (os.environ.get("GEMINI_API_KEY", "") or "").strip()
+            if key:
+                _GENAI_CLIENT = genai.Client(api_key=key)
+                logger.info("[vobiz-stream] Gemini STT ready (google-genai client)")
+            else:
+                logger.info("[vobiz-stream] Gemini STT off: no gemini_api_key — whisper only")
+        except Exception as e:
+            logger.warning(f"[vobiz-stream] google-genai init failed: {e}")
+            _GENAI_CLIENT = None
+        finally:
+            _GENAI_INIT = True
+        return _GENAI_CLIENT
+
+
+def _gemini_stt_model() -> str:
+    """STT_GEMINI_MODEL env > settings.default_llm; non-gemini value (e.g.
+    gpt-4) audio-in pe hamesha fail hota — flash-lite pe clamp (max free quota)."""
+    m = (os.environ.get("STT_GEMINI_MODEL", "") or "").strip()
+    if not m:
+        try:
+            from app.config import settings
+
+            m = (getattr(settings, "default_llm", "") or "").strip()
+        except Exception:
+            m = ""
+    return m if m.startswith("gemini") else "gemini-2.5-flash-lite"
+
+
+def _stt_provider() -> str:
+    """'gemini' | 'whisper'. Env VOBIZ_STT force karta hai; warna gemini jab
+    SDK importable ho (aur, ek baar init ho jaye, client sach me bana ho)."""
+    p = (os.environ.get("VOBIZ_STT", "") or "").strip().lower()
+    if p in ("gemini", "whisper"):
+        return p
+    if not _GENAI_OK:
+        return "whisper"
+    if _GENAI_INIT and _GENAI_CLIENT is None:  # init ho chuka, key nahi thi
+        return "whisper"
+    return "gemini"
+
+
+def _pcm_to_wav(pcm16: bytes, rate: int = SAMPLE_RATE) -> bytes:
+    """PCM16 mono ko in-memory WAV container me wrap karo (stdlib wave) —
+    Gemini ko self-describing audio chahiye (raw PCM inline reliable nahi)."""
+    import wave
+
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)      # 16-bit
+        wf.setframerate(rate)   # 16000 Hz
+        wf.writeframes(pcm16)
+    return buf.getvalue()
+
+
+def _gemini_stt_sync(client: Any, model: str, wav_bytes: bytes) -> str:
+    """Blocking Gemini audio transcription (runs in executor). Raises on API
+    error — async caller catch karke "" return karta hai (whisper fallback)."""
+    from google.genai import types  # type: ignore
+
+    resp = client.models.generate_content(
+        model=model,
+        contents=[
+            types.Part.from_bytes(data=wav_bytes, mime_type="audio/wav"),
+            _GEMINI_STT_PROMPT,
+        ],
+        config=types.GenerateContentConfig(temperature=0.0),
+    )
+    text = (getattr(resp, "text", None) or "").strip()
+    # Model kabhi-kabhi quotes/backticks me wrap kar deta hai — unwrap.
+    return text.strip("\"'` ").strip()
+
+
+# --------------------------------------------------------------------------- #
 # VAD helper — RMS of signed-16-bit LE PCM. Prefers audioop; never raises.
 # --------------------------------------------------------------------------- #
 def _pcm_rms(pcm16: bytes) -> int:
@@ -276,6 +395,8 @@ class VobizStreamSession:
         self.stream_sid: Optional[str] = None
         self.hist: List[Dict[str, str]] = []   # {role: user|assistant, content}
         self._closed = False
+        self._started_at = datetime.now(timezone.utc)          # transcript meta
+        self._stt_counts: Dict[str, int] = {"gemini": 0, "whisper": 0}
 
         # turn-taking / VAD state
         self._speech_buf: List[bytes] = []
@@ -331,7 +452,7 @@ class VobizStreamSession:
         # ke dauran) executor me load karo taaki FIRST user turn slow na ho.
         # (Module import par bhi ek warmup thread chalta hai — yeh tab no-op hai.)
         try:
-            if STT_AVAILABLE:
+            if _LOCAL_STT_OK:
                 async def _warm_stt() -> None:
                     try:
                         loop = asyncio.get_event_loop()
@@ -526,6 +647,14 @@ class VobizStreamSession:
                 return ""
         except Exception:
             pass
+        # PROVIDER CHAIN (2026-06-07): gemini (audio-in, best Hindi) → whisper/
+        # vosk (local fallback) → "". Gemini fail/empty/timeout = silent demote.
+        if _stt_provider() == "gemini":
+            text = await self._gemini_transcribe(pcm16)
+            if text:
+                self._stt_counts["gemini"] += 1
+                logger.debug(f"[vobiz-stream] stt=gemini: {text[:80]!r}")
+                return text
         loop = asyncio.get_event_loop()
         try:
             # _get_stt bhi executor me: warmup in-flight ho to model-load ka
@@ -534,9 +663,36 @@ class VobizStreamSession:
             if not eng:
                 return ""
             kind, model = eng
-            return await loop.run_in_executor(None, _stt_sync, kind, model, pcm16)
+            text = await loop.run_in_executor(None, _stt_sync, kind, model, pcm16)
+            if text:
+                self._stt_counts["whisper"] += 1
+            return text
         except Exception as e:
             logger.warning(f"[vobiz-stream] STT executor failed: {e}")
+            return ""
+
+    async def _gemini_transcribe(self, pcm16: bytes) -> str:
+        """Gemini multimodal audio-in STT: PCM16 16k → in-memory WAV →
+        google-genai generate_content (executor, hard timeout). Returns "" on
+        ANY failure — caller whisper pe fall back karta hai. Cost: free-tier
+        tokens (~32/sec audio); 15s utterance ≈ 480KB WAV, 20MB limit se door."""
+        try:
+            loop = asyncio.get_event_loop()
+            client = await loop.run_in_executor(None, _get_genai_client)
+            if client is None:
+                return ""
+            wav = _pcm_to_wav(pcm16)
+            model = _gemini_stt_model()
+            text = await asyncio.wait_for(
+                loop.run_in_executor(None, _gemini_stt_sync, client, model, wav),
+                timeout=_GEMINI_STT_TIMEOUT,
+            )
+            return (text or "").strip()
+        except asyncio.TimeoutError:
+            logger.warning("[vobiz-stream] Gemini STT timeout — whisper fallback")
+            return ""
+        except Exception as e:
+            logger.warning(f"[vobiz-stream] Gemini STT failed ({e}) — whisper fallback")
             return ""
 
     # ------------------------------------------------------------------ #
@@ -816,7 +972,44 @@ class VobizStreamSession:
         self._closed = True
         self._stop_play()
         turns = len([m for m in self.hist if m.get("role") == "user"])
-        logger.info(f"[vobiz-stream] WS closed sid={self.stream_sid} user_turns={turns}")
+        ended = datetime.now(timezone.utc)
+        dur = max(0.0, (ended - self._started_at).total_seconds())
+        logger.info(
+            f"[vobiz-stream] call summary sid={self.stream_sid} niche={self.niche} "
+            f"client={self.client_id} dur={dur:.0f}s user_turns={turns} "
+            f"msgs={len(self.hist)} stt={self._stt_counts}"
+        )
+        self._persist_transcript(ended, dur, turns)
+
+    def _persist_transcript(self, ended: datetime, dur_s: float, user_turns: int) -> None:
+        """Har call ka full transcript + meta ek JSON line me append karo —
+        data/call_transcripts/YYYY-MM-DD.jsonl. Yeh continuous-training fuel
+        hai (STT/prompt tuning, few-shot mining, QA). Fully guarded — persist
+        failure call teardown ko kabhi nahi todti."""
+        if not self.hist:
+            return
+        try:
+            rec = {
+                "ts": ended.isoformat(timespec="seconds"),
+                "started_at": self._started_at.isoformat(timespec="seconds"),
+                "duration_s": round(dur_s, 1),
+                "stream_sid": self.stream_sid,
+                "niche": self.niche,
+                "client_id": self.client_id,
+                "client_name": self.client_name,
+                "voice": self.voice,
+                "user_turns": user_turns,
+                "stt_counts": dict(self._stt_counts),
+                "messages": self.hist,
+            }
+            out_dir = os.path.join("data", "call_transcripts")
+            os.makedirs(out_dir, exist_ok=True)
+            path = os.path.join(out_dir, ended.strftime("%Y-%m-%d") + ".jsonl")
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            logger.info(f"[vobiz-stream] transcript saved -> {path} ({len(self.hist)} msgs)")
+        except Exception as e:
+            logger.warning(f"[vobiz-stream] transcript persist failed: {e}")
 
 
 # --------------------------------------------------------------------------- #
@@ -825,7 +1018,7 @@ class VobizStreamSession:
 # hota); _get_stt lock-protected hai so per-WS warmup/first call safely wait
 # karte hain. Opt-out: VOBIZ_STT_WARMUP=0 (e.g. tests/CI).
 # --------------------------------------------------------------------------- #
-if STT_AVAILABLE and os.environ.get("VOBIZ_STT_WARMUP", "1") != "0":
+if _LOCAL_STT_OK and os.environ.get("VOBIZ_STT_WARMUP", "1") != "0":
     try:  # pragma: no cover - environment dependent
         threading.Thread(target=_get_stt, daemon=True, name="vobiz-stt-warmup").start()
     except Exception:

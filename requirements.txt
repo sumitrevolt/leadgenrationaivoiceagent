@@ -30,6 +30,7 @@ anthropic==0.18.0
 # langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=0.3 (langgraph)
 # langchain-openai==0.0.5 # unused in codebase; same conflict
 google-generativeai==0.3.2
+google-genai>=1.0  # Gemini audio-in STT (phone hearing) — NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
 google-cloud-aiplatform==1.42.1
 
 # =============================================================================
