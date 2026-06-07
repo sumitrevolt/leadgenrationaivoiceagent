@@ -286,6 +286,12 @@ async def marketing_page():
     return FileResponse(str(FRONTEND_DIR / "marketing.html"))
 
 
+@app.get("/app/outreach", tags=["Frontend"])
+async def outreach_page():
+    """Rohan ka outreach queue — Tier-1 client prospects (WhatsApp pitch)."""
+    return FileResponse(str(FRONTEND_DIR / "outreach.html"))
+
+
 @app.websocket("/telephony/twilio/media-stream")
 async def twilio_media_stream(websocket: WebSocket):
     """Twilio Media Streams websocket → live audio bridge to the voice pipeline."""

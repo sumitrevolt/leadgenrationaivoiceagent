@@ -154,6 +154,45 @@ def _wss_host() -> str:
     return base.split("://", 1)[-1].rstrip("/") or "leadsgenai.in"
 
 
+async def start_stream_call(
+    to: str,
+    niche: str = "general",
+    client_id: Optional[str] = None,
+    call_type: str = "transactional",
+) -> Dict[str, Any]:
+    """INTERNAL helper — conversational stream call lagao (no HTTP/auth layer).
+
+    Wahi token + _PENDING_STREAMS + answer-stream URL flow jo POST /stream-call
+    use karta hai; auto-callback (inquiry → AI call) jaise internal callers ke
+    liye. NEVER raises — fail pe {"placed": False, "error": ...} return.
+    """
+    try:
+        client = VobizClient()
+        if not client.available():
+            return {"placed": False, "error": "vobiz_not_configured"}
+
+        token = uuid.uuid4().hex[:10]
+        if len(_PENDING_STREAMS) >= _MAX_PENDING:  # bounded memory
+            _PENDING_STREAMS.clear()
+        _PENDING_STREAMS[token] = {"niche": niche or "general", "client_id": client_id}
+
+        answer_url = f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
+        result = await client.place_call(to=to, answer_url=answer_url, call_type=call_type)
+        if result.get("blocked"):
+            _PENDING_STREAMS.pop(token, None)
+            return {"placed": False, "error": "compliance_blocked", "vobiz_response": result}
+        placed = 200 <= int(result.get("status_code") or 0) < 300
+        return {
+            "placed": placed,
+            "vobiz_response": result,
+            "answer_url": answer_url,
+            "stream_token": token,
+        }
+    except Exception as e:
+        logger.warning(f"Vobiz start_stream_call failed: {e}")
+        return {"placed": False, "error": str(e)}
+
+
 @router.post("/stream-call")
 async def place_stream_call(
     request: StreamCallRequest,

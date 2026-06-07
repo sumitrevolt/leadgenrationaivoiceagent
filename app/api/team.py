@@ -6,6 +6,9 @@ Final paths (main.py prefix="/api" ke saath, platform.py jaise):
   GET  /api/platform/team               -> roster + per-member live state
   GET  /api/platform/team/events        -> recent activity feed (?limit=&member=)
   POST /api/platform/team/run/{member}  -> staff job manually chalao (arjun/meera/kavya)
+  GET  /api/platform/team/prospects             -> outreach queue (?status=&limit=)
+  POST /api/platform/team/prospects/run         -> abhi prospecting chalao (Rohan)
+  POST /api/platform/team/prospects/{pid}/status -> {status} ready→sent/replied/client/dead
 
 Auth: wahi admin dependency pattern jo platform.py use karta hai
 (require_admin). Handlers ke andar lazy imports — import-safe.
@@ -15,6 +18,7 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
 from app.models.user import User
@@ -63,6 +67,60 @@ async def run_team_member(member: str, current_user: User = Depends(require_admi
     except Exception as e:
         logger.warning(f"[team-api] run {member} failed: {e}")
         return {"error": str(e)}
+
+
+# --------------------------------------------------------------------------- #
+# Prospects — Rohan ka Tier-1 client-hunting queue (data/prospects.jsonl)
+# --------------------------------------------------------------------------- #
+class ProspectStatusIn(BaseModel):
+    status: str = Field(..., max_length=20, description="ready|sent|replied|client|dead")
+
+
+@router.get("/prospects")
+async def get_prospects(
+    status: Optional[str] = None,
+    limit: int = 100,
+    current_user: User = Depends(require_admin),
+):
+    """Outreach queue — prospects newest-first (?status= filter) (requires admin)."""
+    try:
+        from app.platform import prospector
+
+        return {"prospects": prospector.list_prospects(status=status, limit=limit)}
+    except Exception as e:
+        logger.warning(f"[team-api] prospects list failed: {e}")
+        return {"prospects": [], "error": str(e)}
+
+
+@router.post("/prospects/run")
+async def run_prospecting_now(current_user: User = Depends(require_admin)):
+    """Abhi prospects dhundo — Google Maps scraper se Tier-1 client hunting
+    (requires admin). Summary return karta hai; kabhi raise nahi karta."""
+    try:
+        from app.platform import prospector, team
+
+        team.log_event("manager", "task_assigned", "manual run: prospecting (rohan)")
+        return await prospector.run_prospecting()
+    except Exception as e:
+        logger.warning(f"[team-api] prospects run failed: {e}")
+        return {"ok": False, "error": str(e)}
+
+
+@router.post("/prospects/{pid}/status")
+async def set_prospect_status(
+    pid: str,
+    body: ProspectStatusIn,
+    current_user: User = Depends(require_admin),
+):
+    """Prospect ka pipeline status update karo (requires admin)."""
+    try:
+        from app.platform import prospector
+
+        ok = prospector.mark_prospect(pid, body.status)
+        return {"ok": ok, "id": pid, "status": body.status if ok else None}
+    except Exception as e:
+        logger.warning(f"[team-api] prospect status failed: {e}")
+        return {"ok": False, "error": str(e)}
 
 
 __all__ = ["router"]

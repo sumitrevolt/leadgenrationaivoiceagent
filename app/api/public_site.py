@@ -14,6 +14,7 @@ form submit phir bhi jsonl me save hota hai aur user ko ok milta hai.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import time
@@ -185,6 +186,48 @@ def _read_jsonl(limit: int = 300) -> List[Dict[str, Any]]:
 
 
 # --------------------------------------------------------------------------- #
+# Auto-callback — inquiry aate hi AI (Swara) us number pe call kare.
+# Env AUTO_CALLBACK_INQUIRY=0 se off. Telephony unfunded ho to bhi sirf
+# error log hota hai — inquiry flow kabhi affect nahi hota.
+# --------------------------------------------------------------------------- #
+# Fire-and-forget tasks ka strong reference (warna GC pending task gira sakta).
+_BG_TASKS: set = set()
+async def _auto_callback(phone: str, niche: str, business: str) -> None:
+    """Fire-and-forget: inquiry phone pe conversational AI call try karo."""
+    try:
+        from app.api.telephony_vobiz import start_stream_call
+
+        result = await start_stream_call(to=phone, niche=niche or "general")
+        placed = bool(result.get("placed"))
+        try:
+            from app.platform.team import log_event
+
+            log_event(
+                "swara",
+                "auto_callback",
+                f"Inquiry callback → {phone} ({business})"
+                + ("" if placed else f" — fail: {result.get('error') or 'not placed'}"),
+                status="ok" if placed else "error",
+                meta={"niche": niche, "placed": placed,
+                      "error": result.get("error"),
+                      "stream_token": result.get("stream_token")},
+            )
+        except Exception:
+            pass
+        if not placed:
+            logger.info(f"[public] auto-callback not placed for {phone}: {result.get('error')}")
+    except Exception as e:  # absolute guard — task me unhandled exception nahi
+        logger.warning(f"[public] auto-callback failed for {phone}: {e}")
+        try:
+            from app.platform.team import log_event
+
+            log_event("swara", "auto_callback", f"Inquiry callback → {phone} — crash: {e}",
+                      status="error")
+        except Exception:
+            pass
+
+
+# --------------------------------------------------------------------------- #
 # Schemas
 # --------------------------------------------------------------------------- #
 class InquiryIn(BaseModel):
@@ -255,6 +298,18 @@ async def submit_inquiry(body: InquiryIn, request: Request):
         )
     except Exception:
         pass
+
+    # 6) Auto-callback (Swara) — fire-and-forget AI call on the inquiry number.
+    #    AUTO_CALLBACK_INQUIRY=0 se off; telephony na ho to bas error log hota.
+    try:
+        if os.environ.get("AUTO_CALLBACK_INQUIRY", "1").strip() != "0":
+            task = asyncio.create_task(
+                _auto_callback(rec["phone"], rec.get("niche") or "general", rec["business_name"])
+            )
+            _BG_TASKS.add(task)
+            task.add_done_callback(_BG_TASKS.discard)
+    except Exception as e:
+        logger.debug(f"[public] auto-callback task spawn failed: {e}")
 
     return {"ok": True, "message": _OK_MESSAGE}
 
