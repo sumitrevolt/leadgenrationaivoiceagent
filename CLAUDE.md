@@ -70,6 +70,10 @@
 - **AVOID (illegal)**: SIM box/GSM gateway (criminal, raids), personal unlimited SIM + auto-dialer (FUP: >300min/day ya 100 unique nos/week = disconnect + blacklist).
 - **FreJun vs Smartflo verdict (2026-06-07)**: FreJun "unlimited" ₹1,349-1,699/user = sirf HUMAN dialer seats, AI bot allowed NAHI (unka AI product = Teler: ₹800/channel × min 10 = ₹8K/mo fixed + ₹0.30/min — sirf >26K min/mo pe sasta). **Pilot winner: Plivo Zentrunk** (self-serve, ₹0.60/min, ₹250/number, NO minimums, media-streams AI-friendly). **Scale winner: Tata Smartflo** ₹700/channel + ₹0.30/min (sales-route, SIP, DLT-native). @2K min/mo: Smartflo ~₹1.1-1.6K, Plivo ~₹1.45K, Teler ₹8.6K. Exotel Voicebot Applet (websocket) proven but retail ₹0.80-1/min.
 
+## P3 DECISION (2026-06-07): Khud ka telephony stack + service resell
+- **User ne decide kiya: khud ka stack banayenge AUR white-label service bhi bechenge.** Full plan: `docs/P3_Own_Telephony_Stack_Plan.md` — FreeSWITCH (Docker) + Pipecat + Plivo Zentrunk trunk (pilot ₹0.60/min) → operator direct (₹0.30-0.40 @scale). White-label ₹10-25K/mo positioning (Synthflow $2K/mo gap). Minutes-resale ka legal check (VNO/OSP) pending.
+- **User action items (blockers): Plivo account, DLT ₹5,900, 140-number, WhatsApp Business app.** Implementation next session: FreeSWITCH compose → pipecat module → web-call transport proof → Plivo e2e.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
