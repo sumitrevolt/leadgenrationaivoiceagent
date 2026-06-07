@@ -121,7 +121,7 @@ Notes:
 Call Time: {lead_data.get('call_time', 'N/A')}
 
 ---
-AI Voice Agent - B2B Lead Generation
+LeadGen AI - AI Automated Marketing + Voice Agent
         """
         
         html_body = f"""
@@ -158,7 +158,7 @@ AI Voice Agent - B2B Lead Generation
     </div>
     
     <div style="padding: 15px; text-align: center; color: #666; font-size: 12px;">
-        AI Voice Agent - B2B Lead Generation
+        LeadGen AI - AI Automated Marketing + Voice Agent
     </div>
 </body>
 </html>
@@ -194,7 +194,7 @@ HOT LEADS: {stats.get('hot_leads', 0)}
 ESTIMATED VALUE: ₹{stats.get('estimated_value', 0):,.0f}
 
 ---
-AI Voice Agent - B2B Lead Generation
+LeadGen AI - AI Automated Marketing + Voice Agent
         """
         
         return await self.send_email(to_emails, subject, body)

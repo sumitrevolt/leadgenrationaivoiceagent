@@ -80,7 +80,7 @@ class TenantConfig(BaseModel):
 # Platform Owner Configuration
 PLATFORM_CONFIG = {
     "company_name": "LeadGen AI Solutions",  # Your Company Name
-    "tagline": "Automated B2B Lead Generation Voice Agents",
+    "tagline": "AI Automated Marketing + Voice Agent for Indian Businesses",
     
     # What your company sells
     "services": [

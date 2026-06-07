@@ -11,6 +11,7 @@ direct render hota hai aur PNG me convert bhi kar sakte ho (client-side).
 """
 from __future__ import annotations
 
+import re
 from html import escape
 from typing import Any, Dict, List
 
@@ -216,6 +217,34 @@ TEMPLATES: Dict[str, Dict[str, str]] = {
 
 _DEFAULT_TEMPLATE = "clean-pro"
 
+# Brand-color slots (brand_kit integration): per-template kaunse default colors
+# brand primary/accent se REPLACE hote hain. Params na milein to default unchanged.
+_BRAND_SLOTS: Dict[str, Dict[str, List[str]]] = {
+    "festival-glow": {"primary": ["#43240a", "#23130a"], "accent": ["#ffd56b"]},
+    "offer-burst": {"primary": ["#c4150c", "#8e0d06"], "accent": ["#ffce00"]},
+    "clean-pro": {"primary": ["#0b5fff"], "accent": []},
+    "diwali-special": {"primary": ["#3d1059", "#6b1782"], "accent": ["#ffd56b"]},
+    "new-year": {"primary": ["#13235b", "#060b1f"], "accent": ["#ffd56b"]},
+    "generic-sale": {"primary": ["#00838f", "#006064"], "accent": ["#ff8f00"]},
+}
+
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _apply_brand_colors(svg: str, template_id: str,
+                        brand_primary: str, brand_accent: str) -> str:
+    """Valid #RRGGBB brand colors ko template ke slot-colors par replace karo.
+
+    Invalid/khali color = no-op (injection-safe — sirf strict hex pass hota hai).
+    """
+    slots = _BRAND_SLOTS.get(template_id, {})
+    for color, slot in ((brand_primary, "primary"), (brand_accent, "accent")):
+        c = (color or "").strip()
+        if c and _HEX_COLOR_RE.match(c):
+            for old in slots.get(slot, []):
+                svg = svg.replace(old, c)
+    return svg
+
 
 def list_templates() -> List[Dict[str, str]]:
     """Available poster templates: [{"id","name","best_for"}]."""
@@ -236,9 +265,13 @@ def generate_poster(
     offer: str = "",
     phone: str = "",
     festival: str = "",
+    brand_primary: str = "",
+    brand_accent: str = "",
 ) -> Dict[str, Any]:
     """1080x1080 SVG poster banao. Unknown template => clean-pro. Kabhi raise nahi.
 
+    brand_primary/brand_accent (#RRGGBB, optional — brand_kit se) template ke
+    default gradient/accent colors replace karte hain; khali = default look.
     Returns: {"svg": str, "template": id, "width": 1080, "height": 1080}.
     """
     tid = (template_id or "").strip().lower()
@@ -253,6 +286,7 @@ def generate_poster(
             phone=_esc(phone, "Call / WhatsApp karein"),
             festival=_esc(festival, "Shubh Avsar"),
         )
+        svg = _apply_brand_colors(svg, tid, brand_primary, brand_accent)
     except Exception as e:  # pragma: no cover - format keys fixed hain
         logger.error(f"generate_poster format failed ({tid}): {e}")
         name = _esc(business_name, "Aapka Business")

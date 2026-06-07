@@ -1,10 +1,11 @@
 """
-AI Voice Agent - B2B Lead Generation Platform
+LeadGen AI - AI Automated Marketing + Voice Agent Platform
 FastAPI Main Application - PRODUCTION READY
 
-MULTI-TIER AUTOMATED PLATFORM:
-1. Platform finds B2B clients (businesses needing lead generation)
-2. Clients get their own automated voice agent for lead generation
+MULTI-TIER AUTOMATED PLATFORM (marketing-first):
+1. Platform finds marketing clients (Indian local businesses)
+2. Clients get AI automated marketing (posts/GBP/festivals/posters/reviews/WhatsApp);
+   Advanced tier adds an AI voice agent that calls their inquiries
 3. Everything runs 24/7 with minimal human intervention
 """
 import os
@@ -89,12 +90,12 @@ ml_scheduler = None
 def _log_startup_banner():
     """Display configuration banner on startup."""
     logger.info("=" * 60)
-    logger.info("🤖 AI VOICE AGENT - MULTI-TIER B2B LEAD GENERATION PLATFORM")
+    logger.info("🤖 LEADGEN AI - AI AUTOMATED MARKETING + VOICE AGENT PLATFORM")
     logger.info("=" * 60)
     logger.info("")
-    logger.info("📊 PLATFORM MODEL:")
-    logger.info("   ├── Tier 1: Platform finds B2B clients (businesses needing leads)")
-    logger.info("   └── Tier 2: Each client gets automated voice agent for their leads")
+    logger.info("📊 PLATFORM MODEL (marketing-first):")
+    logger.info("   ├── Tier 1: Platform finds marketing clients (local businesses)")
+    logger.info("   └── Tier 2: Unka AI marketing + (Advanced) voice-agent inquiry callbacks")
     logger.info("")
     logger.info("⚙️  CONFIGURATION:")
     logger.info(f"   ├── Telephony: {settings.default_telephony}")
@@ -159,7 +160,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI application
 app = FastAPI(
     title=settings.app_name,
-    description="AI Voice Agent for B2B Lead Generation - Automated calling, qualification, and CRM integration",
+    description="LeadGen AI — AI Automated Marketing + Voice Agent platform for Indian businesses (posts, GBP, posters, reviews, WhatsApp; Advanced tier me AI voice agent jo inquiries ko call kare)",
     version=os.environ.get("APP_VERSION", "1.0.0"),
     lifespan=lifespan,
     docs_url="/docs" if settings.app_env != "production" else None,  # Disable in production
@@ -317,7 +318,7 @@ async def pwa_manifest():
         "name": "LeadGen AI", "short_name": "LeadGen AI",
         "start_url": "/site/", "display": "standalone",
         "background_color": "#4f46e5", "theme_color": "#4f46e5",
-        "description": "AI Voice Agent for B2B Lead Generation",
+        "description": "AI Automated Marketing + Voice Agent for Indian businesses",
         "icons": [
             {"src": "/site/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
             {"src": "/site/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},

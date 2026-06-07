@@ -1,5 +1,6 @@
 # 📣 LeadGen AI — Self-Marketing Kit (Ready-to-Send)
 > Sumit ke liye: copy-paste karke bhejo. Har message tested structure pe hai (hook → value → proof → CTA). Roz 10 bhejo, 7 din me pehla client target.
+> **Positioning: pehle MARKETING becho (₹2,999 entry), AI voice agent = Advanced-tier upsell.**
 
 ---
 
@@ -8,40 +9,41 @@
 ```
 Namaste {naam} ji 🙏
 
-Main Sumit, LeadGen AI se. Ek sawaal — agar aapke business ko har hafte 10-15 NAYE interested customers ke calls milein, bina aapke ek bhi call kiye, to kaisa rahega?
+Main Sumit, LeadGen AI se. Ek sawaal — aapki marketing kaun karta hai? Agency ₹15-25K/mahina leti hai, aur khud karne ka time milta nahi.
 
-Humara AI voice agent (insaan jaisi Hindi awaaz) aapke potential customers ko call karta hai, unko qualify karta hai, aur sirf GARAM leads aapko deta hai — naam, number, requirement ke saath.
+Humara AI sirf ₹100/din me aapki POORI marketing sambhal leta hai — roz ke social media posts, festival posters (aapke naam+number ke saath), Google Business profile ki ranking, reviews ke replies, WhatsApp content. Sab automatic.
 
-🎁 Shuruaat me 10 leads bilkul FREE — risk zero.
-🎧 2-minute ka live demo yahin sun lijiye: https://leadsgenai.in/app/test-call
+🎁 Shuruaat me FREE: aapke Google profile ka audit (score /100) + 3 sample posters — bina charge, bina card.
 
-Interested ho to bas "DEMO" reply kar dijiye.
+Aur ek baat: upar wala plan lo to ek AI voice agent aapke har inquiry ko 2 minute me KHUD call karega — India me yeh sirf hamare paas hai.
+
+Interested ho to bas "AUDIT" reply kar dijiye.
 ```
 
 ## 2) Niche-Specific Openers (pehli line badlo, baaki same)
 
-- **Real Estate**: "Aapke naye project ke liye site-visit ready buyers chahiye? Hamara AI agent inquiry walon ko call karke sirf VISIT-READY log aapko deta hai."
-- **Solar**: "PM Surya Ghar subsidy ki wajah se solar inquiries boom pe hain — par unhe call kaun kare? Hamara AI agent karta hai, aap sirf survey book karo."
-- **Coaching/Study Abroad**: "Admission season me 100 inquiries aati hain, 90 thande pad jaate hain follow-up na hone se. Hamara AI agent har inquiry ko 2 minute me call karta hai."
-- **Insurance/Loans**: "Aapki leads ka 80% kabhi connect hi nahi hota. Hamara AI agent unlimited follow-up calls karta hai — thakta nahi, bhoolta nahi."
-- **Dental/Clinic**: "Appointment no-shows aur missed inquiries = lakhs ka loss. Hamara AI receptionist har inquiry call karta hai aur appointment book karta hai."
+- **Real Estate**: "Aapke project ke posts/posters roz daalne ka time kis ke paas hai? Hamara AI roz ka content + Google ranking sambhalta hai — aur Advanced plan me har inquiry ko AI khud call karke site-visit book karta hai."
+- **Solar**: "PM Surya Ghar ki wajah se log solar Google pe dhundh rahe hain — aapka profile top pe dikhta hai kya? FREE audit kara lo. Posts/posters/reviews sab AI sambhalega."
+- **Coaching/Study Abroad**: "Admission season me parents Google + Insta pe dekhte hain. Hamara AI roz ka content + festival posters banata hai — aur upar wale plan me har inquiry ko 2 minute me AI call bhi karta hai."
+- **Insurance/Loans**: "Bharosa Google reviews se banta hai. Hamara AI aapke reviews ke professional replies, roz ke posts aur WhatsApp content sambhalta hai — ₹100/din me."
+- **Dental/Clinic**: "Patients pehle Google pe dekhte hain, phir call karte hain. Hamara AI aapka Google profile strong karta hai — aur Advanced plan me missed inquiries ko AI receptionist khud call-back karta hai."
 
 ## 3) Follow-up Sequence (reply na aaye to)
 
-- **Day 2**: "{naam} ji, kal wala message dekha? 30 second ka voice note bhej raha hoon — hamare AI ki awaaz khud sun lijiye 👇" (web-call demo ki recording bhejo)
-- **Day 4**: "Ek aur cheez FREE me — aapka Google Business profile ka audit kar diya maine. Score: __/100. 3 cheezein theek karo to calls badh jayengi. Report chahiye?"
-- **Day 7**: "Theek hai, last message 🙂 Jab bhi leads ki zaroorat ho, ek msg kar dena. 10 free leads ka offer khula hai. All the best {naam} ji!"
+- **Day 2**: "{naam} ji, kal wala message dekha? Maine aapke Google Business profile ka FREE audit kar diya hai. Score: __/100. 3 cheezein theek karo to calls badh jayengi. Report bhej doon?"
+- **Day 4**: "Ek sample dekhiye — yeh poster hamare AI ne 30 second me banaya hai (aapke business naam ke saath bana ke bheja). Aise 4 har mahine, plus roz ke posts — sirf ₹2,999/mahina. Agency isi kaam ke ₹15-25K leti hai."
+- **Day 7**: "Theek hai, last message 🙂 Jab bhi marketing ki zaroorat ho, ek msg kar dena. FREE audit ka offer khula hai. All the best {naam} ji!"
 
 ## 4) Social Posts (FB/Insta/LinkedIn/Status)
 
 **Post 1 (problem-agitate):**
-"Aapki sales team din me 30 calls karti hai. Hamara AI agent 300 karta hai — Hindi me, insaan jaisi awaaz me, bina chhutti ke. Aur aapko sirf INTERESTED log milte hain. Pehli 10 leads FREE. 🎧 Demo: leadsgenai.in"
+"Agency ko ₹20,000 dete ho mahine ke 8 posts ke liye? Hamara AI ₹2,999 me roz ka content, festival posters, Google ranking aur review replies — sab karta hai. FREE Google audit se shuru karo. 🎁 leadsgenai.in"
 
 **Post 2 (proof-style):**
-"Ek solar company ko maine poochha: 'Aapki 100 inquiries me se kitno ko call lagta hai?' Jawab: '20-25 ko, time nahi milta.' Matlab 75% paisa kachre me. Isliye banaya LeadGen AI — har inquiry ko 2 minute me AI call. leadsgenai.in"
+"Ek dukandar se poochha: 'Diwali ka poster kab banaya tha?' Jawab: 'Designer ne 3 din lagaye, ₹500 liye.' Hamara AI 30 second me banata hai — aapke naam, offer aur number ke saath. Aur poori marketing bhi. leadsgenai.in"
 
 **Post 3 (WhatsApp Status):**
-"🤖📞 AI jo aapke liye customers se baat kare — Hindi me! Live demo suno (free): leadsgenai.in/app/test-call | 10 leads FREE trial 🎁"
+"🤖📣 AI jo aapki marketing kare — posts, posters, Google ranking! Aur Advanced me AI aapke inquiries ko khud CALL bhi karta hai 📞 (India me sirf yahan). FREE audit: leadsgenai.in"
 
 ## 5) 7-Din Outreach Plan (roz 30 min)
 
@@ -49,24 +51,26 @@ Interested ho to bas "DEMO" reply kar dijiye.
 |---|---|---|
 | 1 | Apne phone ke contacts me se 10 business-walon ko Universal pitch | 10 msgs |
 | 2 | Google Maps pe "solar installer {tumhara sheher}" → top 10 ko WhatsApp (number listing me hota hai) | 10 msgs |
-| 3 | Same — "real estate agent {sheher}" + Day-2 follow-ups | 10 + f/u |
-| 4 | "coaching institute {sheher}" + GBP-audit hook follow-ups | 10 + f/u |
-| 5 | "dental clinic / interior designer {sheher}" + Day-4 follow-ups | 10 + f/u |
+| 3 | Same — "real estate agent {sheher}" + Day-2 follow-ups (GBP audit score bhejo) | 10 + f/u |
+| 4 | "coaching institute {sheher}" + Day-4 follow-ups (sample poster bhejo) | 10 + f/u |
+| 5 | "dental clinic / interior designer {sheher}" + pending follow-ups | 10 + f/u |
 | 6 | 3 social posts daalo (upar wale) + sab pending follow-ups | posts + f/u |
-| 7 | Jisne bhi reply kiya — demo call schedule karo (web-call screen share ya phone demo) | demos |
+| 7 | Jisne bhi reply kiya — demo schedule karo (marketing suite + voice demo screen share) | demos |
 
-**Math:** 50 pitches → 5-8 replies → 2-3 demos → 1 client (₹8-15K/mahina). Yahi funnel har hafte repeat.
+**Math:** 50 pitches → 5-8 replies → 2-3 demos → 1 client (₹2,999-11,999/mahina). Yahi funnel har hafte repeat.
 
-## 6) Demo Script (jab koi "DEMO" bole)
+## 6) Demo Script (jab koi "AUDIT" ya "DEMO" bole)
 
-1. "Kaunsa business hai aapka?" → unka niche web-call dropdown me chuno
-2. Screen share / speaker pe leadsgenai.in/app/test-call chalao — unke niche ki baat karo
-3. Closing line: "Yeh agent aapke customers ko aise hi call karega. Pehli 10 leads free — aapka sirf business profile chahiye setup ke liye. Shuru karein?"
-4. Haan bole → advance link / UPI + onboarding form (business name, niche, area, offer)
+1. "Kaunsa business hai aapka?" → unka Google Business profile kholo, audit score nikaalo (leadsgenai.in/app/marketing → Audit tab)
+2. Screen share pe dikhao: unke naam ka poster 30 second me bana ke, ek post generate karke, review reply karke — "yeh sab roz automatic hoga"
+3. **Upsell line**: "Aur agar aap Advanced plan lo, to ek AI voice agent aapke har inquiry ko 2 minute me khud call karega — suniye" → leadsgenai.in/app/test-call pe unke niche ki demo call
+4. Closing line: "Agency ₹15-25K leti hai, hum ₹100/din se shuru. FREE audit + sample posters aaj hi de deta hoon. Shuru karein?"
+5. Haan bole → advance link / UPI + onboarding form (business name, niche, area, offer)
 
-## 7) Pricing (confident bolo, jhijhak nahi)
+## 7) Pricing — 3 Packages (confident bolo, jhijhak nahi)
 
-- **Starter**: ₹8,000/mahina — 50 AI calls/din tak + qualified leads dashboard
-- **Per-lead**: ₹300-800/qualified lead (niche pe depend — S-tier me upar)
-- **Free trial**: 10 leads — "agar kaam na kare, ek rupaya mat dena"
-- Line: "Ek salesperson ₹25K+ leta hai aur 30 calls karta hai. Yeh ₹8K me 10x calls — aur kabhi chhutti nahi leta."
+- **Marketing Starter — ₹2,999/mahina**: roz ke AI posts + festival calendar, GBP audit + fixes, review replies, 4 posters/mahina, WhatsApp content pack. **100% marketing-only — koi calling charge nahi.**
+- **Growth — ₹5,999/mahina**: Starter ka sab + unlimited posters, content calendar, competitor analysis, lead-capture form, monthly report. **100% marketing-only.**
+- **Advanced AI Agent — ₹11,999/mahina** (🚀 India me sirf hamare paas): Growth ka sab + **AI voice agent** — har inquiry ko 2-min me AI call, qualification, appointment booking, missed-call callback, 50 weekly follow-ups, 500 min/mo included.
+- **Free hook**: FREE GBP audit + sample posters — "pasand na aaye, ek rupaya mat dena."
+- **Killer line**: "Agency ₹15-25K/mahina leti hai sirf posts ke liye. Hum ₹100/din me poori marketing — aur upar wala plan lo to AI aapke inquiries ko khud call bhi karega. Yeh combo India me kisi ke paas nahi."

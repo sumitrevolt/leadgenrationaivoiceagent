@@ -23,9 +23,10 @@ PACKAGES: list[dict] = [
     {
         "key": "starter",
         "name": "Marketing Starter",
-        "tagline": "Roz ka content + Google presence — sab AI se, aapka time zero.",
+        "tagline": "Roz ka content + Google presence — sab AI se, aapka time zero. 100% marketing-only plan.",
         "price_inr_month": 2999,
-        "price_note": "agency retainers ₹15-25K/mo se kaafi neeche",
+        "price_note": "100% marketing-only — koi calling charge nahi · agency retainers ₹15-25K/mo se kaafi neeche",
+        "marketing_only": True,
         "features": [
             "AI social media posts + festival calendar (Diwali, Holi, sab covered)",
             "Google Business Profile audit + top fixes (0-100 score)",
@@ -39,9 +40,10 @@ PACKAGES: list[dict] = [
     {
         "key": "growth",
         "name": "Growth",
-        "tagline": "Poora marketing engine — content, competitor aur leads sab automatic.",
+        "tagline": "Poora marketing engine — content, competitor aur leads sab automatic. 100% marketing-only plan.",
         "price_inr_month": 5999,
-        "price_note": "sab kuch Starter ka + growth tools",
+        "price_note": "100% marketing-only — koi calling charge nahi · sab kuch Starter ka + growth tools",
+        "marketing_only": True,
         "features": [
             "Starter ke saare features included",
             "Unlimited posters — jitne chahiye utne banao",
@@ -59,6 +61,7 @@ PACKAGES: list[dict] = [
         "tagline": "Marketing + ek AI jo aapke har inquiry ko KHUD call kare — India me sirf yahan.",
         "price_inr_month": 11999,
         "price_note": "telephony usage included up to 500 min/mo",
+        "marketing_only": False,
         "features": [
             "Growth ke saare features included",
             "AI Voice Agent — har website/GBP inquiry ko 2-minute me AI call (Hindi, insaan jaisi awaaz)",

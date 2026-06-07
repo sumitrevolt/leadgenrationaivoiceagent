@@ -223,6 +223,24 @@
   #posterBox{margin-top:2px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg)}
   #posterBox svg{display:block;width:100%;height:auto}
 
+  /* ---- New tabs: review kit / report / reactivation / drip / crm ---- */
+  .svgshow{border:1px solid var(--line);border-radius:14px;background:#fff;padding:10px;
+    display:flex;justify-content:center;margin-top:8px;overflow:hidden}
+  .svgshow svg{display:block;width:100%;max-width:340px;height:auto}
+  .svgshow.qr svg{max-width:300px}
+  .repframe{width:100%;height:600px;border:1px solid var(--line);border-radius:12px;background:#fff;margin-top:4px}
+  .daychip{background:linear-gradient(135deg,#6d28d9,#4f46e5);color:#fff;font-weight:800;
+    font-size:11px;border-radius:999px;padding:4px 11px;flex:0 0 auto}
+  .wabtn{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#16a34a,#15803d);
+    color:#fff;font-weight:700;font-size:12px;border-radius:9px;padding:8px 13px;text-decoration:none}
+  .wabtn:hover{filter:brightness(1.07)}
+  .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  .tbl th{text-align:left;font-size:11px;color:var(--muted);font-weight:800;padding:7px 8px;
+    border-bottom:1px solid var(--line);white-space:nowrap}
+  .tbl td{padding:8px;border-bottom:1px solid var(--line);word-break:break-word;vertical-align:top}
+  .tbl tr:last-child td{border-bottom:none}
+  .fld input[type="color"]{padding:4px 6px;height:42px;cursor:pointer}
+
   /* ---- Toasts ---- */
   #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;
     display:flex;flex-direction:column;gap:8px;width:min(92vw,420px)}
@@ -256,6 +274,11 @@
     <button class="tab" data-tab="poster">🖼️ <span>Poster</span></button>
     <button class="tab" data-tab="wa">💬 <span>WhatsApp</span></button>
     <button class="tab" data-tab="comp">🥊 <span>Competitor</span></button>
+    <button class="tab" data-tab="rkit">⭐ <span>Review Kit</span></button>
+    <button class="tab" data-tab="report">📈 <span>Report</span></button>
+    <button class="tab" data-tab="react">🔁 <span>Reactivation</span></button>
+    <button class="tab" data-tab="drip">💧 <span>Drip</span></button>
+    <button class="tab" data-tab="crm">👥 <span>CRM + Wishes</span></button>
   </div>
 </div>
 
@@ -524,6 +547,167 @@
     </div>
   </section>
 
+  <!-- ================= TAB 8: Review Kit ================= -->
+  <section class="tabpane hidden" id="pane-rkit">
+    <div class="card">
+      <h3>⭐ Review Kit <span class="tag">QR + Card</span></h3>
+      <div class="hint">Google review maangne ka poora kit — QR poster, counter card, WhatsApp/SMS messages. Print karke counter pe rakho.</div>
+      <div class="fld">
+        <label for="rkitQuery">Google Maps pe business ka naam + sheher</label>
+        <input id="rkitQuery" type="text" placeholder="e.g. Sharma Solar Solutions Pune" maxlength="200" />
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnRkit">⭐ Kit banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="rkitCard">
+      <h3>⭐ Aapka review kit</h3>
+      <div id="rkitRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 9: Monthly Report ================= -->
+  <section class="tabpane hidden" id="pane-report">
+    <div class="card">
+      <h3>📈 Monthly Report</h3>
+      <div class="hint">Is mahine kya-kya kaam hua — ready client report. Download karke WhatsApp/email pe bhejo.</div>
+      <div class="btns">
+        <button class="btn" id="btnReport">📈 Is mahine ki report banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="reportCard">
+      <h3>📈 Report preview</h3>
+      <div id="repStats"></div>
+      <iframe id="repFrame" class="repframe" sandbox="" title="Monthly report preview"></iframe>
+      <div class="btns">
+        <button class="btn" id="btnRepDl">⬇ HTML download</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 10: Reactivation ================= -->
+  <section class="tabpane hidden" id="pane-react">
+    <div class="card">
+      <h3>🔁 Purane customers wapas lao</h3>
+      <div class="hint">Har line me ek customer — personalized win-back WhatsApp message banega (max 50).</div>
+      <div class="fld">
+        <label for="reactList">Purane customers paste karo (har line: Naam, 98xxxxxxxx, last visit?)</label>
+        <textarea id="reactList" placeholder="Ramesh, 9876543210, 3 mahine pehle&#10;Suresh bhai, 9123456780"></textarea>
+      </div>
+      <div class="fld" style="margin-top:12px">
+        <label for="reactOffer">Comeback offer (optional)</label>
+        <input id="reactOffer" type="text" placeholder="e.g. 15% off agle visit pe" maxlength="200" />
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnReact">🔁 Messages banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="reactCard">
+      <h3>🔁 Win-back messages</h3>
+      <div id="reactRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 11: Drip sequence ================= -->
+  <section class="tabpane hidden" id="pane-drip">
+    <div class="card">
+      <h3>💧 Follow-up Drip (4 steps)</h3>
+      <div class="hint">Lead type choose karo — Day 0/2/5/9 ka ready WhatsApp follow-up sequence milega.</div>
+      <div class="fld">
+        <label for="dripType">Lead type</label>
+        <select id="dripType">
+          <option value="new_inquiry">Nayi inquiry</option>
+          <option value="no_reply">Reply nahi aaya</option>
+          <option value="post_purchase">Customer ban gaya</option>
+        </select>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnDrip">💧 Sequence banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="dripCard">
+      <h3>💧 4-step follow-up sequence</h3>
+      <div id="dripRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 12: CRM + Wishes ================= -->
+  <section class="tabpane hidden" id="pane-crm">
+    <div class="card">
+      <h3>👥 CRM-lite <span class="tag">🎂 Wishes</span></h3>
+      <div class="hint">Customers save karo — birthday/anniversary pe ready wish messages, ek click me WhatsApp.</div>
+      <div class="fld">
+        <label for="crmClient">Client ID</label>
+        <input id="crmClient" type="text" value="default" maxlength="64" />
+      </div>
+      <div class="fld" style="margin-top:12px">
+        <label for="crmAdd">Naye customers (har line: Naam, phone, birthday DD-MM?, anniversary DD-MM?)</label>
+        <textarea id="crmAdd" placeholder="Ramesh, 9876543210, 14-02&#10;Suresh, 9123456780, 05-09, 20-11"></textarea>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnCrmSave">💾 Customers save karo</button>
+        <button class="btn sec" id="btnCrmWishes">🎂 Aaj ke wishes</button>
+      </div>
+    </div>
+    <div class="card hidden" id="crmListCard">
+      <h3>👥 Saved customers <span class="prov" id="crmTotal"></span></h3>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th>Naam</th><th>Phone</th><th>🎂 / 💍</th><th>Tags</th></tr></thead>
+          <tbody id="crmTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card hidden" id="wishCard">
+      <h3>🎂 Aaj ke wishes</h3>
+      <div id="wishRows"></div>
+    </div>
+    <div class="card">
+      <h3>🎨 Brand profile <span class="tag">posters me auto-apply</span></h3>
+      <div class="hint">Isi Client ID ka brand save karo — poster/post banate waqt colors + phone auto lagenge.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="brandBiz">Business naam</label>
+          <input id="brandBiz" type="text" placeholder="khali = upar wala naam" maxlength="120" />
+        </div>
+        <div class="fld">
+          <label for="brandTagline">Tagline</label>
+          <input id="brandTagline" type="text" placeholder="e.g. Roshni bhi, bachat bhi" maxlength="160" />
+        </div>
+        <div class="fld">
+          <label for="brandPhone">Phone</label>
+          <input id="brandPhone" type="tel" placeholder="98765 43210" maxlength="40" />
+        </div>
+        <div class="fld">
+          <label for="brandTone">Tone</label>
+          <select id="brandTone">
+            <option value="">Default</option>
+            <option value="professional">Professional</option>
+            <option value="friendly">Friendly</option>
+            <option value="premium">Premium</option>
+            <option value="energetic">Energetic</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label for="brandPrimary">Primary color</label>
+          <input id="brandPrimary" type="color" value="#6d28d9" />
+        </div>
+        <div class="fld">
+          <label for="brandAccent">Accent color</label>
+          <input id="brandAccent" type="color" value="#f59e0b" />
+        </div>
+        <div class="fld" style="grid-column:1/-1">
+          <label for="brandLogo">Logo text (short)</label>
+          <input id="brandLogo" type="text" placeholder="e.g. SSS" maxlength="40" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnBrandSave">💾 Brand save</button>
+        <button class="btn sec" id="btnBrandLoad">↻ Saved brand load</button>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <div id="toasts"></div>
@@ -600,9 +784,9 @@
   setHeadH();
 
   // ---- Tabs: switch + lazy init (data fetch sirf first open pe) ----------------
-  var paneIds = ["posts","audit","review","festivals","poster","wa","comp"];
+  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm"];
   var inited = {};
-  var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates };
+  var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit };
   document.getElementById("tabbar").addEventListener("click", function(ev){
     var t = ev.target.closest(".tab");
     if(!t) return;
@@ -1353,6 +1537,495 @@
     }finally{
       setBusy(btnComp, false, "🥊 Analysis karo");
     }
+  };
+
+  // ============================================================================
+  // TAB 8: Review Kit (QR + counter card + ask messages)
+  // ============================================================================
+  var rkitSvgs = [];
+
+  function svgSizeOf(svg){
+    var w = 0, h = 0;
+    var m = /viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/i.exec(svg);
+    if(m){ w = parseFloat(m[1]); h = parseFloat(m[2]); }
+    if(!w || !h){
+      var mw = /<svg[^>]*\swidth\s*=\s*["']?([\d.]+)/i.exec(svg);
+      var mh = /<svg[^>]*\sheight\s*=\s*["']?([\d.]+)/i.exec(svg);
+      if(mw) w = parseFloat(mw[1]);
+      if(mh) h = parseFloat(mh[1]);
+    }
+    if(!w || !h){ w = 1080; h = 1080; }
+    return {w: w, h: h};
+  }
+
+  // Generic SVG → PNG download (poster tab wale pattern ka reusable version)
+  function dlSvgPng(svg, name, scale){
+    if(!svg){ toast("Pehle generate karo", "err"); return; }
+    if(!/xmlns=/.test(svg)) svg = svg.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+    var sz = svgSizeOf(svg);
+    var W = Math.max(1, Math.round(sz.w * (scale || 1)));
+    var H = Math.max(1, Math.round(sz.h * (scale || 1)));
+    var url = URL.createObjectURL(new Blob([svg], {type: "image/svg+xml;charset=utf-8"}));
+    var img = new Image();
+    img.onload = function(){
+      try{
+        var c = document.createElement("canvas");
+        c.width = W; c.height = H;
+        var ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, W, H);
+        ctx.drawImage(img, 0, 0, W, H);
+        URL.revokeObjectURL(url);
+        if(c.toBlob){
+          c.toBlob(function(b){
+            if(!b){ toast("PNG nahi bana", "err"); return; }
+            triggerDl(URL.createObjectURL(b), name, true);
+            toast("PNG download ✓", "ok");
+          }, "image/png");
+        }else{
+          triggerDl(c.toDataURL("image/png"), name, false);
+        }
+      }catch(err){
+        URL.revokeObjectURL(url);
+        toast("PNG export fail", "err");
+      }
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); toast("PNG nahi bana", "err"); };
+    img.src = url;
+  }
+
+  function bizSlugPrefix(){
+    var nm = document.getElementById("bizName").value.trim();
+    return nm ? slug(nm) + "_" : "";
+  }
+
+  var RKIT_LABELS = {
+    qr_svg: "📱 QR code (scan → review page)",
+    counter_card_svg: "🪧 Counter card (print karke rakho)",
+    wa_message: "💬 WhatsApp ask-message",
+    sms_line: "📩 SMS line",
+    review_url: "🔗 Review link",
+    maps_url: "🗺️ Maps link",
+    maps_search_url: "🗺️ Maps link",
+    direct_review_note: "ℹ️ Direct review link",
+    direct_review_url_prefix: "🔗 Direct link prefix",
+    how_to_get_place_id: "🧭 Place ID kaise nikale",
+    tip: "💡 Tip"
+  };
+  var RKIT_ORDER = ["qr_svg","counter_card_svg","wa_message","sms_line","review_url","maps_url","maps_search_url"];
+
+  // Defensive flatten: field naam thode alag ho sakte hain — strings (top-level +
+  // 1-level nested object + string-arrays) sab render; "<svg" = inline, baki copy rows.
+  function rkitFlat(res){
+    var flat = [];
+    function add(k, v){
+      if(typeof v === "string"){
+        if(v.trim()) flat.push([k, v]);
+      }else if(Array.isArray(v)){
+        var strs = v.filter(function(x){ return typeof x === "string" && x.trim(); });
+        if(strs.length) flat.push([k, "• " + strs.join("\n• ")]);
+      }
+    }
+    Object.keys(res || {}).forEach(function(k){
+      if(k === "provider" || k === "business_name") return;
+      var v = res[k];
+      if(v && typeof v === "object" && !Array.isArray(v)){
+        Object.keys(v).forEach(function(k2){ add(k2, v[k2]); });
+      }else{
+        add(k, v);
+      }
+    });
+    flat.sort(function(a, b){
+      var ia = RKIT_ORDER.indexOf(a[0]), ib = RKIT_ORDER.indexOf(b[0]);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+    return flat;
+  }
+
+  var btnRkit = document.getElementById("btnRkit");
+  btnRkit.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnRkit, true);
+    try{
+      var res = await callApi("/api/marketing/review-kit", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          place_query: document.getElementById("rkitQuery").value.trim(),
+        }),
+      });
+      rkitSvgs = [];
+      var html = rkitFlat(res || {}).map(function(pair){
+        var k = pair[0], v = pair[1];
+        var label = RKIT_LABELS[k] || ("📄 " + esc(k.replace(/_/g, " ")));
+        if(/^\s*<svg/i.test(v)){
+          var idx = rkitSvgs.length;
+          rkitSvgs.push(v);
+          var isQr = /qr/i.test(k);
+          return '<div class="sect"><div class="sh">' + label + '</div>' +
+            '<div class="svgshow' + (isQr ? ' qr' : '') + '">' + v + '</div>' + /* trusted — apna hi backend */
+            '<div class="btns" style="margin-top:9px"><button class="btn sec" data-rkpng="' + idx +
+              '" data-rkname="' + (isQr ? 'review_qr' : 'counter_card') + '">⬇ PNG Download</button></div></div>';
+        }
+        return '<div class="sect"><div class="sh">' + label + '</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(v) + '</div>' + copyBtnHtml(v) + '</div></div>';
+      }).join("");
+      document.getElementById("rkitRows").innerHTML = html || '<div class="empty">Kit nahi bana — dobara try karo.</div>';
+      document.getElementById("rkitCard").classList.remove("hidden");
+      document.getElementById("rkitCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Review kit ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Kit nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnRkit, false, "⭐ Kit banao");
+    }
+  };
+
+  document.getElementById("rkitRows").addEventListener("click", function(ev){
+    var b = ev.target && ev.target.closest ? ev.target.closest("[data-rkpng]") : null;
+    if(!b) return;
+    dlSvgPng(rkitSvgs[parseInt(b.getAttribute("data-rkpng"), 10)] || "",
+      bizSlugPrefix() + (b.getAttribute("data-rkname") || "image") + ".png", 2);
+  });
+
+  // ============================================================================
+  // TAB 9: Monthly Report
+  // ============================================================================
+  var reportHtmlStr = "";
+  var btnReport = document.getElementById("btnReport");
+  btnReport.onclick = async function(){
+    setBusy(btnReport, true);
+    try{
+      var cn = document.getElementById("bizName").value.trim();
+      var res = await callApi("/api/marketing/report?client_name=" + encodeURIComponent(cn), {headers: hdrs()});
+      var html = res && (res.html || res.report_html || res.report);
+      reportHtmlStr = (typeof html === "string") ? html : "";
+      if(!reportHtmlStr) throw new Error("report HTML khali aaya");
+      var chips = "";
+      if(res && res.month) chips += '<span class="tag">📆 ' + esc(String(res.month)) + '</span>';
+      var stats = (res && res.stats) || {};
+      Object.keys(stats).forEach(function(k){
+        if(typeof stats[k] === "number"){
+          chips += '<span class="tag">' + esc(k.replace(/_/g, " ")) + ': ' + esc(String(stats[k])) + '</span>';
+        }
+      });
+      document.getElementById("repStats").innerHTML = chips ? '<div class="tags" style="margin:0 0 10px">' + chips + '</div>' : "";
+      document.getElementById("repFrame").srcdoc = reportHtmlStr; /* sandboxed iframe */
+      document.getElementById("reportCard").classList.remove("hidden");
+      document.getElementById("reportCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Report ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Report nahi bani: " + e.message, "err");
+    }finally{
+      setBusy(btnReport, false, "📈 Is mahine ki report banao");
+    }
+  };
+  document.getElementById("btnRepDl").onclick = function(){
+    if(!reportHtmlStr){ toast("Pehle report banao", "err"); return; }
+    var blob = new Blob([reportHtmlStr], {type: "text/html;charset=utf-8"});
+    triggerDl(URL.createObjectURL(blob), bizSlugPrefix() + "report.html", true);
+  };
+
+  // ============================================================================
+  // TAB 10: Reactivation (win-back)
+  // ============================================================================
+  function waLinkFor(phone, text){
+    var d = String(phone || "").replace(/\D/g, "");
+    if(d.length === 12 && d.indexOf("91") === 0) d = d.slice(2);
+    if(d.length === 11 && d.charAt(0) === "0") d = d.slice(1);
+    return d.length === 10 ? ("https://wa.me/91" + d + "?text=" + encodeURIComponent(text || "")) : "";
+  }
+  function tipsSectionHtml(tips){
+    tips = normList(tips);
+    if(!tips.length) return "";
+    return '<div class="sect"><div class="sh">💡 Tips</div>' +
+      tips.map(function(t){
+        return '<div class="copyitem"><div class="tx">' + esc(t.text) + '</div></div>';
+      }).join("") + '</div>';
+  }
+
+  function parseReactLines(raw){
+    var out = [];
+    String(raw || "").split(/\r?\n/).forEach(function(line){
+      line = line.trim();
+      if(!line) return;
+      var parts = line.split(/[,;|\t]/).map(function(p){ return p.trim(); }).filter(Boolean);
+      var name = "", phone = "", rest = [];
+      parts.forEach(function(p){
+        var digits = p.replace(/\D/g, "");
+        if(!phone && digits.length >= 7 && !/[a-zA-Z]{3,}/.test(p)){ phone = p; }
+        else if(!name){ name = p; }
+        else{ rest.push(p); }
+      });
+      if(!name && !phone) return;
+      out.push({name: name, phone: phone, last_visit: rest.join(", "), note: ""});
+    });
+    return out.slice(0, 50);
+  }
+
+  var btnReact = document.getElementById("btnReact");
+  btnReact.onclick = async function(){
+    if(!requireName()) return;
+    var customers = parseReactLines(document.getElementById("reactList").value);
+    if(!customers.length){
+      toast("Customers paste karo pehle (har line: Naam, phone)", "err");
+      document.getElementById("reactList").focus();
+      return;
+    }
+    setBusy(btnReact, true);
+    try{
+      var res = await callApi("/api/marketing/reactivation", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          offer: document.getElementById("reactOffer").value.trim(),
+          customers: customers,
+        }),
+      });
+      var msgs = (res && (res.messages || res.campaign || res.results)) || [];
+      var html = tipsSectionHtml(res && res.tips) + msgs.map(function(m){
+        m = m || {};
+        var text = m.text || m.message || "";
+        var link = m.wa_link || m.link || waLinkFor(m.phone, text);
+        return '<div class="sect"><div class="sh">👤 ' + esc(m.name || "Customer") +
+            (m.phone ? ' <span class="prov">' + esc(m.phone) + '</span>' : '') + '</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(text) + '</div>' + copyBtnHtml(text) + '</div>' +
+          (link ? '<div style="margin-top:8px"><a class="wabtn" href="' + esc(link) + '" target="_blank" rel="noopener">📲 WhatsApp bhejo</a></div>' : '') +
+          '</div>';
+      }).join("");
+      document.getElementById("reactRows").innerHTML = (msgs.length || html)
+        ? html : '<div class="empty">Messages nahi bane — dobara try karo.</div>';
+      document.getElementById("reactCard").classList.remove("hidden");
+      document.getElementById("reactCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast(msgs.length + " win-back messages ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Messages nahi bane: " + e.message, "err");
+    }finally{
+      setBusy(btnReact, false, "🔁 Messages banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 11: Drip sequence
+  // ============================================================================
+  var btnDrip = document.getElementById("btnDrip");
+  btnDrip.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnDrip, true);
+    try{
+      var res = await callApi("/api/marketing/drip", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          lead_type: document.getElementById("dripType").value,
+        }),
+      });
+      var steps = (res && (res.steps || res.sequence)) || [];
+      var html = steps.map(function(s, i){
+        if(typeof s === "string") s = {message: s};
+        s = s || {};
+        var day = (s.day != null) ? s.day : (s.when != null ? s.when : i);
+        var msg = s.message || s.text || "";
+        return '<div class="sect"><div class="sh"><span class="daychip">Day ' + esc(String(day)) + '</span> ' +
+            esc(s.goal || s.title || "") + '</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(msg) + '</div>' + copyBtnHtml(msg) + '</div></div>';
+      }).join("") + tipsSectionHtml(res && res.tips);
+      document.getElementById("dripRows").innerHTML = steps.length
+        ? html : '<div class="empty">Sequence nahi bana — dobara try karo.</div>';
+      document.getElementById("dripCard").classList.remove("hidden");
+      document.getElementById("dripCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Drip sequence ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Sequence nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnDrip, false, "💧 Sequence banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 12: CRM-lite + Wishes (+ brand profile, same Client ID)
+  // ============================================================================
+  function crmClientId(){
+    return document.getElementById("crmClient").value.trim() || "default";
+  }
+  function crmInit(){
+    crmLoadList(true);
+    brandLoad(true);
+  }
+  document.getElementById("crmClient").addEventListener("change", function(){
+    crmLoadList(true);
+  });
+
+  function mmddHuman(s){
+    var m = /^(\d{1,2})-(\d{1,2})$/.exec(String(s || ""));
+    if(!m) return String(s || "");
+    var M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return parseInt(m[2], 10) + " " + (M[parseInt(m[1], 10) - 1] || m[1]);
+  }
+
+  // Backend bare dates ko MM-DD samajhta hai; UI DD-MM promise karta hai → yahan swap
+  function parseCrmLines(raw){
+    var out = [];
+    String(raw || "").split(/\r?\n/).forEach(function(line){
+      line = line.trim();
+      if(!line) return;
+      var parts = line.split(/[,;|\t]/).map(function(p){ return p.trim(); }).filter(Boolean);
+      var name = "", phone = "", dates = [];
+      parts.forEach(function(p){
+        var digits = p.replace(/\D/g, "");
+        if(/^\d{4}[-\/.]\d{1,2}[-\/.]\d{1,2}$/.test(p)){
+          dates.push(p.replace(/[\/.]/g, "-"));                 /* YYYY-MM-DD as-is */
+        }else if(/^\d{1,2}[-\/.]\d{1,2}$/.test(p)){
+          var dm = p.replace(/[\/.]/g, "-").split("-");
+          dates.push(dm[1] + "-" + dm[0]);                      /* DD-MM → MM-DD */
+        }else if(!phone && digits.length >= 7 && !/[a-zA-Z]{3,}/.test(p)){
+          phone = p;
+        }else if(!name){
+          name = p;
+        }
+      });
+      if(!phone) return; /* phone required — backend dedupe key */
+      out.push({name: name, phone: phone, birthday: dates[0] || "", anniversary: dates[1] || "", tags: []});
+    });
+    return out.slice(0, 500);
+  }
+
+  async function crmLoadList(quiet){
+    try{
+      var res = await callApi("/api/marketing/crm/" + encodeURIComponent(crmClientId()) + "/customers", {headers: hdrs()});
+      var rows = (res && res.customers) || [];
+      document.getElementById("crmTotal").textContent = rows.length + " customers";
+      document.getElementById("crmTbody").innerHTML = rows.length
+        ? rows.map(function(c){
+            c = c || {};
+            var dates = [];
+            if(c.birthday) dates.push("🎂 " + mmddHuman(c.birthday));
+            if(c.anniversary) dates.push("💍 " + mmddHuman(c.anniversary));
+            var tags = (c.tags || []).map(function(t){ return '<span class="tag">' + esc(t) + '</span>'; }).join(" ");
+            return '<tr><td>' + esc(c.name || "—") + '</td><td>' + esc(c.phone || "") + '</td>' +
+              '<td>' + esc(dates.join("  ") || "—") + '</td><td>' + (tags || "—") + '</td></tr>';
+          }).join("")
+        : '<tr><td colspan="4"><div class="empty">Abhi koi customer saved nahi — upar paste karke save karo.</div></td></tr>';
+      document.getElementById("crmListCard").classList.remove("hidden");
+    }catch(e){
+      if(!quiet && e.message !== "auth") toast("Customers load nahi hue: " + e.message, "err");
+    }
+  }
+
+  var btnCrmSave = document.getElementById("btnCrmSave");
+  btnCrmSave.onclick = async function(){
+    var customers = parseCrmLines(document.getElementById("crmAdd").value);
+    if(!customers.length){
+      toast("Har line me phone zaroori hai (Naam, 98xxxxxxxx, 14-02)", "err");
+      document.getElementById("crmAdd").focus();
+      return;
+    }
+    setBusy(btnCrmSave, true);
+    try{
+      var res = await callApi("/api/marketing/crm/" + encodeURIComponent(crmClientId()) + "/customers", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({customers: customers}),
+      });
+      toast(((res && res.added) || 0) + " add hue, " + ((res && res.skipped) || 0) + " skip (duplicate/invalid) ✓", "ok");
+      document.getElementById("crmAdd").value = "";
+      crmLoadList(true);
+    }catch(e){
+      if(e.message !== "auth") toast("Save nahi hua: " + e.message, "err");
+    }finally{
+      setBusy(btnCrmSave, false, "💾 Customers save karo");
+    }
+  };
+
+  var btnCrmWishes = document.getElementById("btnCrmWishes");
+  btnCrmWishes.onclick = async function(){
+    setBusy(btnCrmWishes, true);
+    try{
+      var bn = document.getElementById("bizName").value.trim();
+      var res = await callApi("/api/marketing/crm/" + encodeURIComponent(crmClientId()) +
+        "/wishes?business_name=" + encodeURIComponent(bn), {headers: hdrs()});
+      var ws = (res && res.wishes) || [];
+      var html = ws.map(function(w){
+        w = w || {};
+        var occ = String(w.occasion || "") === "anniversary" ? "💍 Anniversary" : "🎂 Birthday";
+        var msg = w.message || w.text || "";
+        var link = w.wa_link || waLinkFor(w.phone, msg);
+        return '<div class="sect"><div class="sh">' + occ + ' — ' + esc(w.name || "") +
+            (w.phone ? ' <span class="prov">' + esc(w.phone) + '</span>' : '') + '</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(msg) + '</div>' + copyBtnHtml(msg) + '</div>' +
+          (link ? '<div style="margin-top:8px"><a class="wabtn" href="' + esc(link) + '" target="_blank" rel="noopener">📲 WhatsApp bhejo</a></div>' : '') +
+          '</div>';
+      }).join("");
+      document.getElementById("wishRows").innerHTML = html ||
+        '<div class="empty">Aaj' + (res && res.date ? ' (' + esc(mmddHuman(res.date)) + ')' : '') +
+        ' kisi ka birthday/anniversary nahi — customers me DD-MM dates add karo.</div>';
+      document.getElementById("wishCard").classList.remove("hidden");
+      document.getElementById("wishCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      if(ws.length) toast(ws.length + " wishes ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Wishes load nahi hue: " + e.message, "err");
+    }finally{
+      setBusy(btnCrmWishes, false, "🎂 Aaj ke wishes");
+    }
+  };
+
+  // Brand profile (same Client ID; posters/posts me auto-apply hota hai)
+  async function brandLoad(quiet){
+    try{
+      var res = await callApi("/api/marketing/brand/" + encodeURIComponent(crmClientId()), {headers: hdrs()});
+      var b = (res && res.brand) || {};
+      if(b.business_name) document.getElementById("brandBiz").value = b.business_name;
+      if(b.tagline) document.getElementById("brandTagline").value = b.tagline;
+      if(b.phone) document.getElementById("brandPhone").value = b.phone;
+      var cols = b.colors || {};
+      if(/^#[0-9a-fA-F]{6}$/.test(String(cols.primary || ""))) document.getElementById("brandPrimary").value = cols.primary;
+      if(/^#[0-9a-fA-F]{6}$/.test(String(cols.accent || ""))) document.getElementById("brandAccent").value = cols.accent;
+      if(b.tone) document.getElementById("brandTone").value = b.tone;
+      if(b.logo_text) document.getElementById("brandLogo").value = b.logo_text;
+      if(!quiet) toast("Saved brand load ho gaya ✓", "ok");
+    }catch(e){
+      /* 404 = abhi brand saved nahi — quiet init pe chup raho */
+      if(!quiet && e.message !== "auth") toast("Brand load nahi hua: " + e.message, "err");
+    }
+  }
+
+  var btnBrandSave = document.getElementById("btnBrandSave");
+  btnBrandSave.onclick = async function(){
+    setBusy(btnBrandSave, true);
+    try{
+      await callApi("/api/marketing/brand/" + encodeURIComponent(crmClientId()), {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("brandBiz").value.trim() || document.getElementById("bizName").value.trim(),
+          tagline: document.getElementById("brandTagline").value.trim(),
+          phone: document.getElementById("brandPhone").value.trim(),
+          colors: {
+            primary: document.getElementById("brandPrimary").value,
+            accent: document.getElementById("brandAccent").value,
+          },
+          tone: document.getElementById("brandTone").value,
+          logo_text: document.getElementById("brandLogo").value.trim(),
+        }),
+      });
+      toast("Brand saved ✓ — posters/posts me auto-apply hoga", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Brand save nahi hua: " + e.message, "err");
+    }finally{
+      setBusy(btnBrandSave, false, "💾 Brand save");
+    }
+  };
+
+  var btnBrandLoad = document.getElementById("btnBrandLoad");
+  btnBrandLoad.onclick = async function(){
+    setBusy(btnBrandLoad, true);
+    try{ await brandLoad(false); }
+    finally{ setBusy(btnBrandLoad, false, "↻ Saved brand load"); }
   };
 
 })();

@@ -14,7 +14,7 @@ def main():
     """Main CLI entrypoint"""
     parser = argparse.ArgumentParser(
         prog="leadgen",
-        description="LeadGen AI Voice Agent - B2B Lead Generation Platform",
+        description="LeadGen AI - AI Automated Marketing + Voice Agent Platform",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:

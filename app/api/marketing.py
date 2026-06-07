@@ -15,25 +15,40 @@ Marketing API — Dhanda.app-style AI marketing tools (FREE stack).
   POST /api/marketing/poster           — 1080x1080 SVG poster generate
   POST /api/marketing/whatsapp-pack    — broadcast + status + reply pack
   POST /api/marketing/competitor       — competitor notes → copy/exploit/action tips
+  POST /api/marketing/review-kit       — review-collection kit (QR + card + messages)
+  GET  /api/marketing/report           — monthly HTML marketing report
+  POST /api/marketing/reactivation     — purane customers ke win-back WA messages
+  POST /api/marketing/drip             — 4-step WhatsApp nurture sequence
+  POST /api/marketing/brand/{id}       — per-client brand profile save
+  GET  /api/marketing/brand/{id}       — saved brand profile
+  POST /api/marketing/crm/{id}/customers — customers add (phone dedupe)
+  GET  /api/marketing/crm/{id}/customers — customers list (?tag=)
+  GET  /api/marketing/crm/{id}/wishes  — aaj ke birthday/anniversary wishes
 
 Sab admin-auth (sirf /packages public hai — static pricing data, koi secret
 nahi). Generator functions kabhi raise nahi karte (template
 fallback built-in) — phir bhi unexpected par 500 + detail dete hain.
 Har generation team-log me jaata hai (isha) — import-safe, best-effort.
 """
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
 from app.marketing import (
+    brand_kit,
     competitor,
+    crm_lite,
+    drip,
     festivals,
     gbp_audit,
+    monthly_report,
     packages,
     post_generator,
     posters,
+    reactivation,
+    review_kit,
     review_replies,
     whatsapp_pack,
 )
@@ -95,13 +110,16 @@ class FestivalPostsRequest(BaseModel):
 
 
 class PosterRequest(BaseModel):
-    """SVG poster generation request."""
+    """SVG poster generation request (brand colors optional — brand_kit se)."""
     template_id: str = Field(..., min_length=1, max_length=60)
     business_name: str = Field(..., min_length=1, max_length=120)
     tagline: str = Field("", max_length=160)
     offer: str = Field("", max_length=160)
     phone: str = Field("", max_length=40)
     festival: str = Field("", max_length=80)
+    client_id: str = Field("", max_length=64)        # set => saved brand auto-apply
+    brand_primary: str = Field("", max_length=10)    # #RRGGBB
+    brand_accent: str = Field("", max_length=10)     # #RRGGBB
 
 
 class WhatsAppPackRequest(BaseModel):
@@ -117,6 +135,65 @@ class CompetitorRequest(BaseModel):
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     competitor_notes: str = Field(..., min_length=1, max_length=4000)
+
+
+class ReviewKitRequest(BaseModel):
+    """Review-collection kit request."""
+    business_name: str = Field(..., min_length=1, max_length=120)
+    place_query: str = Field("", max_length=200)
+
+
+class ReactivationCustomer(BaseModel):
+    """Ek purana customer (win-back ke liye)."""
+    name: str = Field("", max_length=80)
+    phone: str = Field("", max_length=20)
+    last_visit: str = Field("", max_length=40)
+    note: str = Field("", max_length=200)
+
+
+class ReactivationRequest(BaseModel):
+    """Database-reactivation campaign request (cap 50 customers)."""
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    offer: str = Field("", max_length=200)
+    customers: List[ReactivationCustomer] = Field(default_factory=list, max_length=50)
+
+
+class DripRequest(BaseModel):
+    """WhatsApp nurture sequence request."""
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    lead_type: str = Field("new_inquiry", max_length=30)
+
+
+class BrandColors(BaseModel):
+    """Brand colors (#RRGGBB; invalid => ignore)."""
+    primary: str = Field("", max_length=10)
+    accent: str = Field("", max_length=10)
+
+
+class BrandRequest(BaseModel):
+    """Per-client brand profile."""
+    business_name: str = Field("", max_length=120)
+    tagline: str = Field("", max_length=160)
+    phone: str = Field("", max_length=40)
+    colors: BrandColors = Field(default_factory=BrandColors)
+    tone: str = Field("", max_length=40)
+    logo_text: str = Field("", max_length=40)
+
+
+class CrmCustomer(BaseModel):
+    """CRM-lite customer row."""
+    name: str = Field("", max_length=80)
+    phone: str = Field(..., min_length=5, max_length=20)
+    birthday: str = Field("", max_length=20)     # YYYY-MM-DD ya MM-DD
+    anniversary: str = Field("", max_length=20)  # YYYY-MM-DD ya MM-DD
+    tags: List[str] = Field(default_factory=list, max_length=10)
+
+
+class CrmCustomersRequest(BaseModel):
+    """CRM customers add request."""
+    customers: List[CrmCustomer] = Field(default_factory=list, max_length=500)
 
 
 # --------------------------------------------------------------------------- #
@@ -309,16 +386,25 @@ async def generate_svg_poster(
     req: PosterRequest,
     current_user: User = Depends(require_admin),
 ):
-    """Inline SVG poster banao (browser render / PNG convert ready)."""
+    """Inline SVG poster banao (browser render / PNG convert ready).
+
+    client_id set ho to saved brand (naam/tagline/phone/colors) auto-merge
+    hota hai; explicit request values hamesha jeet-ti hain.
+    """
     try:
-        result = posters.generate_poster(
-            template_id=req.template_id,
-            business_name=req.business_name,
-            tagline=req.tagline,
-            offer=req.offer,
-            phone=req.phone,
-            festival=req.festival,
-        )
+        args = {
+            "template_id": req.template_id,
+            "business_name": req.business_name,
+            "tagline": req.tagline,
+            "offer": req.offer,
+            "phone": req.phone,
+            "festival": req.festival,
+            "brand_primary": req.brand_primary,
+            "brand_accent": req.brand_accent,
+        }
+        if req.client_id.strip():
+            args = brand_kit.apply_brand_to_poster_args(req.client_id, args)
+        result = posters.generate_poster(**args)
         _log_isha("poster_generated",
                   f"{req.business_name} (template={result.get('template')})")
         return result
@@ -374,3 +460,193 @@ async def generate_competitor_tips(
     except Exception as e:
         logger.error(f"Competitor tips generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Competitor tips failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Review-collection kit (Birdeye-lite: QR + counter card + ask messages)
+# --------------------------------------------------------------------------- #
+
+@router.post("/review-kit")
+async def generate_review_kit(
+    req: ReviewKitRequest,
+    current_user: User = Depends(require_admin),
+):
+    """Review maangne ka poora kit: links + QR SVG + counter card + WA/SMS lines."""
+    try:
+        result = await review_kit.full_kit(
+            business_name=req.business_name,
+            place_query=req.place_query,
+        )
+        _log_isha("review_kit_generated", f"{req.business_name}")
+        return result
+    except Exception as e:
+        logger.error(f"Review kit generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Review kit failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Monthly report
+# --------------------------------------------------------------------------- #
+
+@router.get("/report")
+async def get_monthly_report(
+    client_name: str = "",
+    month: str = "",
+    current_user: User = Depends(require_admin),
+):
+    """Monthly marketing report (self-contained HTML + stats) — team events se."""
+    try:
+        result = await monthly_report.build_report(
+            client_name=client_name, month=month or None,
+        )
+        _log_isha("monthly_report_generated",
+                  f"{client_name or 'business'} ({result.get('month')}, "
+                  f"{result.get('stats', {}).get('total_actions', 0)} actions)")
+        return result
+    except Exception as e:
+        logger.error(f"Monthly report failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Monthly report failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Database reactivation (win-back campaign — manual one-click send)
+# --------------------------------------------------------------------------- #
+
+@router.post("/reactivation")
+async def generate_reactivation_campaign(
+    req: ReactivationRequest,
+    current_user: User = Depends(require_admin),
+):
+    """Purane customers ke personalized win-back WA messages + wa.me links (cap 50)."""
+    try:
+        result = await reactivation.reactivation_campaign(
+            business_name=req.business_name,
+            niche=req.niche,
+            customers=[c.model_dump() for c in req.customers],
+            offer=req.offer,
+        )
+        _log_isha("reactivation_generated",
+                  f"{req.business_name} ({result.get('count', 0)} customers)")
+        return result
+    except Exception as e:
+        logger.error(f"Reactivation campaign failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Reactivation failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Drip / nurture sequences
+# --------------------------------------------------------------------------- #
+
+@router.post("/drip")
+async def generate_drip_sequence(
+    req: DripRequest,
+    current_user: User = Depends(require_admin),
+):
+    """4-step WhatsApp nurture sequence (Day 0/2/5/9) lead_type ke hisab se."""
+    try:
+        result = await drip.drip_sequence(
+            business_name=req.business_name,
+            niche=req.niche,
+            lead_type=req.lead_type,
+        )
+        _log_isha("drip_generated",
+                  f"{req.business_name} ({result.get('lead_type')})")
+        return result
+    except Exception as e:
+        logger.error(f"Drip sequence failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Drip sequence failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Brand kit (per-client brand profile)
+# --------------------------------------------------------------------------- #
+
+@router.post("/brand/{client_id}")
+async def save_client_brand(
+    client_id: str,
+    req: BrandRequest,
+    current_user: User = Depends(require_admin),
+):
+    """Client ka brand profile save karo (posters/posts me auto-apply hota hai)."""
+    try:
+        brand = brand_kit.save_brand(client_id, req.model_dump())
+        _log_isha("brand_saved",
+                  f"{brand.get('business_name') or client_id} "
+                  f"(primary={brand.get('colors', {}).get('primary') or '-'})")
+        return {"saved": True, "brand": brand}
+    except Exception as e:
+        logger.error(f"Brand save failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Brand save failed: {e}")
+
+
+@router.get("/brand/{client_id}")
+async def get_client_brand(
+    client_id: str,
+    current_user: User = Depends(require_admin),
+):
+    """Saved brand profile (404 agar abhi save nahi hua)."""
+    try:
+        brand = brand_kit.get_brand(client_id)
+    except Exception as e:
+        logger.error(f"Brand lookup failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Brand lookup failed: {e}")
+    if brand is None:
+        raise HTTPException(status_code=404, detail="Brand kit not found")
+    return {"brand": brand}
+
+
+# --------------------------------------------------------------------------- #
+# CRM-lite (customers store + birthday/anniversary wishes)
+# --------------------------------------------------------------------------- #
+
+@router.post("/crm/{client_id}/customers")
+async def add_crm_customers(
+    client_id: str,
+    req: CrmCustomersRequest,
+    current_user: User = Depends(require_admin),
+):
+    """Customers add karo (10-digit phone dedupe — existing + same batch)."""
+    try:
+        result = crm_lite.add_customers(
+            client_id, [c.model_dump() for c in req.customers],
+        )
+        _log_isha("crm_customers_added",
+                  f"client={client_id} (+{result.get('added', 0)}, "
+                  f"total {result.get('total', 0)})")
+        return result
+    except Exception as e:
+        logger.error(f"CRM add failed: {e}")
+        raise HTTPException(status_code=500, detail=f"CRM add failed: {e}")
+
+
+@router.get("/crm/{client_id}/customers")
+async def list_crm_customers(
+    client_id: str,
+    tag: Optional[str] = None,
+    current_user: User = Depends(require_admin),
+):
+    """Saved customers list (optional ?tag= filter)."""
+    try:
+        rows = crm_lite.list_customers(client_id, tag=tag)
+        return {"customers": rows, "total": len(rows)}
+    except Exception as e:
+        logger.error(f"CRM list failed: {e}")
+        raise HTTPException(status_code=500, detail=f"CRM list failed: {e}")
+
+
+@router.get("/crm/{client_id}/wishes")
+async def get_todays_wishes(
+    client_id: str,
+    business_name: str = "",
+    current_user: User = Depends(require_admin),
+):
+    """Aaj ke birthday/anniversary customers ke ready wish messages + wa.me links."""
+    try:
+        result = await crm_lite.todays_wishes(client_id, business_name)
+        if result.get("count"):
+            _log_isha("wishes_generated",
+                      f"client={client_id} ({result['count']} wishes aaj)")
+        return result
+    except Exception as e:
+        logger.error(f"Wishes lookup failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Wishes lookup failed: {e}")
