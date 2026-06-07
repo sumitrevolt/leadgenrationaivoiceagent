@@ -68,6 +68,7 @@
 - DLT setup: ₹5,900 one-time (kisi ek operator DLT portal pe) + 140-number ~₹1-3K/mo (Exotel etc.). TCCCPR: violations = 2-saal blacklist tak.
 - Phases: Demo ₹0-500/mo (web-call + WA inbound) → First clients ₹4-8K/mo (Smartflo/FreJun + DLT + WA) → Scale ₹20-40K/mo (Exotel volume ₹0.30-0.40/min).
 - **AVOID (illegal)**: SIM box/GSM gateway (criminal, raids), personal unlimited SIM + auto-dialer (FUP: >300min/day ya 100 unique nos/week = disconnect + blacklist).
+- **FreJun vs Smartflo verdict (2026-06-07)**: FreJun "unlimited" ₹1,349-1,699/user = sirf HUMAN dialer seats, AI bot allowed NAHI (unka AI product = Teler: ₹800/channel × min 10 = ₹8K/mo fixed + ₹0.30/min — sirf >26K min/mo pe sasta). **Pilot winner: Plivo Zentrunk** (self-serve, ₹0.60/min, ₹250/number, NO minimums, media-streams AI-friendly). **Scale winner: Tata Smartflo** ₹700/channel + ₹0.30/min (sales-route, SIP, DLT-native). @2K min/mo: Smartflo ~₹1.1-1.6K, Plivo ~₹1.45K, Teler ₹8.6K. Exotel Voicebot Applet (websocket) proven but retail ₹0.80-1/min.
 
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
