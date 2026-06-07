@@ -196,6 +196,12 @@
 - **Consistency sweep done**: main.py banner/description, manifest.json, admin/customer dashboards, Marketing_Kit (ab marketing-first pitches, ₹2,999 entry, voice=Advanced upsell), packages.py marketing_only flags. Landing pe "Starter & Growth 100% marketing-only — koi calling charge nahi" line.
 - Pending future: missed-call auto-callback (Vobiz DID inbound webhook ke baad), mini landing pages /b/{slug}, referral/punch-card, evergreen recycling, GBP API approval.
 
+## GROWTH R3 — UPI/Catalog/Ads/Reels/Scoring/GBP-text (2026-06-08, commit r3)
+- **Research round-3 (10 searches, unexplored angles)**: UPI deep links (upilink.in jaisa free), WhatsApp catalog (StitchMagic ₹79/mo), RSA ads copy, Reels = local-biz #1 discovery, Calendly-lite (future, mini-landing ke saath), lead scoring. **GBP Q&A API Nov-2025 me BAND ho gaya** — Q&A seeding obsolete, GBP description/services text hi lever hai. SKIP: AI avatar/video (paid GPU), Meta auto-posting (app-review locked).
+- **6 naye modules LIVE** (app/marketing/*): (1) `upi_kit.py` — upi://pay deep link + QR (review_kit QR reuse) + payment-slip SVG + WA msg (pure logic); (2) `catalog.py` — price-list SVG 1080x1350 + WA catalog text + AI item descs; (3) `ads_copy.py` — Google RSA 15 headlines (HARD ≤30 chars) + 4 desc (≤90) + Meta 3 primaries; (4) `reels.py` — 3 scripts (hook/body/cta/caption/hashtags ≤120w); (5) `lead_scoring.py` — rules 0-100 (recency/niche/msg-len/phone) hot≥70/warm 40-69/cold, inquiries.jsonl se, `_INQUIRIES_FILE` monkeypatch-able; (6) `gbp_text.py` — GBP description ≤750 + services ≤300 + 3 Google posts.
+- API: +6 endpoints; **marketing.html ab 17 tabs** (naye: 💳 UPI/📋 Catalog/📢 Ads char-badges/🎬 Reels/🔥 Hot Leads wa.me table). Tests +12 green. VPS smoke: UPI link+QR, catalog svg, 15 headlines sab ≤30, 3 reels, scoring counts, GBP desc — sab pass.
+- Future ab bhi pending: missed-call callback (DID), mini landing+booking page /b/{slug}, referral kit, evergreen recycling.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
