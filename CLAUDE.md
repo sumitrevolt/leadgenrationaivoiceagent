@@ -129,6 +129,12 @@
 - **USER ACTION (free, no card)**: GROQ_API_KEY (console.groq.com) + CEREBRAS_API_KEY (cloud.cerebras.ai) [+ optional OPENROUTER_API_KEY] → /opt/leadgen/.env me + local .env → restart. Keys bina app boots fine (chain skip). describe() me providers:false jab tak keys na ho.
 - VPS verified: free_ai imports, 80 tests green, providers wired (false until keys). Add keys → instant STT+LLM unlock, koi code change nahi.
 
+## Keys Live + Cerebras Brain Working (2026-06-07, commit → cb_final)
+- **User ne diye: Cerebras key (csk-...) + xAI/Grok keys (xai-...) + Hostinger token.** Sab VPS .env me (gitignored). **GOTCHA: user ne "Grok" (xAI/Elon, x.ai) diya, "Groq" (console.groq.com) NAHI — DO ALAG companies.** xAI LLM chain me add kiya (grok-3-mini) par team me credits nahi (403) → skip.
+- **LLM BRAIN ab WORKING + FREE-unlimited**: Cerebras `gpt-oss-120b` (is account pe sirf `gpt-oss-120b` + `zai-glm-4.7` available — llama NAHI; models API se confirm; `llama-3.3-70b`/`llama3.3-70b` dono 404). VPS test: PROVIDER_USED=cerebras, real Hinglish reply. LLM chain: cerebras gpt-oss-120b → groq(no key) → xai(no credits) → openrouter(no key) → Gemini-direct.
+- **STT (hearing) abhi bhi weak link**: GROQ_API_KEY nahi hai (user ne xAI diya tha galti se) → STT chain Gemini-audio (quota) → local faster-whisper (Hindi weak). **HEARING fix ke liye asli Groq key chahiye: console.groq.com (free, no card) → GROQ_API_KEY .env me.** Yahi ek cheez "samajhna" ke liye baki hai. Cerebras audio-STT nahi deta (sirf text LLM).
+- Secrets git me block hue (GitHub push-protection) — keys_deploy.bat se literal keys hata ke `git reset --soft origin/main` + clean recommit kiya. Scripts me kabhi literal key mat likho.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
