@@ -54,10 +54,11 @@ _GROQ_LLM_MODEL = "llama-3.3-70b-versatile"
 _OPENROUTER_LLM_MODEL = "deepseek/deepseek-chat:free"
 _XAI_LLM_MODEL = "grok-3-mini"  # fast/cheap Grok; credits-based (user ke paas keys)
 
-# Hard per-call latency cap (phone par lambi wait = dead air). 6s: slow provider
-# (free-tier load spike) par jaldi next provider pe failover ho — QA-tester ne
-# kabhi-kabhi 11-12s turns pakde the (Cerebras slow → Groq). 6s tail kaatega.
-_CALL_TIMEOUT_S = 6.0
+# Hard per-call latency cap. 8s: Cerebras normally 4-5s; 6s ne use beech me
+# kaat ke weak generic fallback ("samajh gayi, aur bataiye") + repeats paida
+# kiye (QA-tester proven). 8s = professional replies, no repeats; occasional
+# spike phone par cached filler ("hmm/achha ji") se mask hota hai.
+_CALL_TIMEOUT_S = 8.0
 
 # provider -> (settings attr, base_url)
 _PROVIDER_CFG: Dict[str, Tuple[str, str]] = {
