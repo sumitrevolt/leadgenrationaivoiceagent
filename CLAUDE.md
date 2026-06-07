@@ -189,6 +189,13 @@
 - Landing hero ab "AI Marketing + AI Voice Agent — Dono Ek Saath" + pricing cards (live fetch + static fallback). VPS verified: packages API public 200, root 200, tests green.
 - **Aage ka kaam isi positioning pe**: marketing features deepen karo (auto-posting jab APIs feasible, GBP API approval try, poster templates badhao), voice flows marketing-outcome focused raho (callback/qualification/appointment), packages me jo promise hai use deliver karne wale features pe focus.
 
+## GROWTH V3 — Create→Send→Track Loop (2026-06-07, commit ac4c12a)
+- **Research (18 searches: GHL/Vendasta/Birdeye/AiSensy/NowFloats/Durable/Marky...)**: core insight — competitors poora "create→SEND→track" loop bechte hain, hum sirf "create" pe the. Missed-call callback (DID chahiye) + auto-posting APIs future me.
+- **6 naye modules LIVE** (app/marketing/*, LLM-first + never-empty fallback): (1) `review_kit.py` — review COLLECTION: **pure-stdlib QR encoder** (ISO 18004, byte mode v1-5 ECC-L, 8 masks + penalty, BCH — koi lib nahi) + counter-card SVG + WA ask msg; (2) `monthly_report.py` — agent_events se Hinglish HTML report (agency-retention staple); (3) `reactivation.py` — purane customers CSV → personalized win-back + wa.me (GHL DBR-style, manual-send ban-safe); (4) `drip.py` — 4-step WA nurture (new_inquiry/no_reply/post_purchase); (5) `brand_kit.py` — data/brand_kits/*.json, poster gradient brand colors (posters.py additive params); (6) `crm_lite.py` — data/crm/*.jsonl dedupe + birthday/anniversary wishes (**_mmdd = MM-DD internally; UI DD-MM input ko swap karta hai**).
+- API: +9 /api/marketing/* endpoints; **marketing.html ab 12 tabs** (naye: Review Kit/Report iframe-srcdoc/Reactivation/Drip/CRM+Wishes+Brand). Tests +13 (sab green). VPS smoke: QR>100 rects, report html, 2 wa_links, drip 4 steps, brand+crm roundtrip — sab pass.
+- **Consistency sweep done**: main.py banner/description, manifest.json, admin/customer dashboards, Marketing_Kit (ab marketing-first pitches, ₹2,999 entry, voice=Advanced upsell), packages.py marketing_only flags. Landing pe "Starter & Growth 100% marketing-only — koi calling charge nahi" line.
+- Pending future: missed-call auto-callback (Vobiz DID inbound webhook ke baad), mini landing pages /b/{slug}, referral/punch-card, evergreen recycling, GBP API approval.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
