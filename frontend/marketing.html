@@ -928,7 +928,7 @@
       '</div>';
     }).join("");
 
-    var fixes = (res.fixes || []).slice(0, 5);
+    var fixes = (res.fixes || res.top_fixes || []).slice(0, 5);
     document.getElementById("fixWrap").classList.toggle("hidden", !fixes.length);
     document.getElementById("fixRows").innerHTML = fixes.map(function(f, i){
       var t = (typeof f === "string") ? f : (f.fix || f.tip || f.text || f.title || "");
