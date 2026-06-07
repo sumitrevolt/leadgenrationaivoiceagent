@@ -19,7 +19,7 @@ We run a full conversational loop per call:
     caller audio (PCM16 16k — already STT-ready, NO conversion needed)
         → energy/silence VAD          -> utterance boundary
         → STT (vosk | faster-whisper) -> user text
-        → LLMBrain.generate_response  -> reply text  (niche-aware, Hinglish)
+        → TelecallerBrain (lean phone prompt; fallback LLMBrain) -> reply text
         → EdgeTTS (hi-IN-SwaraNeural) -> MP3 bytes
         → pydub decode + resample     -> PCM16 16k mono
         → base64, 640-byte/20ms chunks -> {"event":"playAudio", ...} to Vobiz
@@ -259,6 +259,8 @@ class VobizStreamSession:
         self._bg_tasks: set = set()   # keep refs so tasks aren't GC'd mid-run
 
         # lazy helpers
+        self._telecaller = None   # TelecallerBrain — lean phone-tuned (primary)
+        self._telecaller_tried = False
         self._brain = None
         self._brain_tried = False
         self._ndm = None          # NaturalDialogManager fallback (cached — heavy)
@@ -277,6 +279,21 @@ class VobizStreamSession:
             f"[vobiz-stream] WS open niche={self.niche} client={self.client_id} "
             f"(STT={STT_AVAILABLE} TTS={TTS_AVAILABLE} audioop={_AUDIOOP_OK})"
         )
+        # STT WARMUP — whisper/vosk model load 10-30s le sakta hai; abhi (greeting
+        # ke dauran) executor me load karo taaki FIRST user turn slow na ho.
+        try:
+            if STT_AVAILABLE:
+                async def _warm_stt() -> None:
+                    try:
+                        loop = asyncio.get_event_loop()
+                        await loop.run_in_executor(None, _get_stt)
+                        logger.info("[vobiz-stream] STT warmup done")
+                    except Exception as we:
+                        logger.debug(f"[vobiz-stream] STT warmup failed: {we}")
+
+                self._spawn(_warm_stt())
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] STT warmup spawn failed: {e}")
         try:
             while not self._closed:
                 try:
@@ -456,6 +473,18 @@ class VobizStreamSession:
     # Thinking (LLM) — niche-aware Hinglish reply, defensive fallbacks.
     # ------------------------------------------------------------------ #
     async def _think(self, text: str) -> str:
+        # 1) TelecallerBrain — lean phone-tuned prompt (max 2 sentences, one
+        #    question/turn, niche qualification flow). Empty reply => fall through.
+        tc = self._get_telecaller()
+        if tc is not None:
+            try:
+                reply = await tc.reply(self.hist, text)
+                if reply and reply.strip():
+                    return reply.strip()
+            except Exception as e:
+                logger.warning(f"[vobiz-stream] TelecallerBrain failed: {e}")
+
+        # 2) LLMBrain — heavier generic brain (ML/RAG path).
         brain = self._get_brain()
         if brain is not None:
             try:
@@ -470,7 +499,7 @@ class VobizStreamSession:
             except Exception as e:
                 logger.warning(f"[vobiz-stream] LLM failed: {e}")
 
-        # Fallback: NaturalDialogManager (rule-based reply, degrades w/o LLM).
+        # 3) Fallback: NaturalDialogManager (rule-based reply, degrades w/o LLM).
         ndm = self._get_ndm()
         if ndm is not None:
             try:
@@ -501,6 +530,23 @@ class VobizStreamSession:
             self._ndm = None
         return self._ndm
 
+    def _get_telecaller(self):
+        """Lazy per-session TelecallerBrain (built at first use, AFTER 'start'
+        event — so niche/client from customParameters are already final)."""
+        if self._telecaller_tried:
+            return self._telecaller
+        self._telecaller_tried = True
+        try:
+            from app.voice_agent.telecaller_brain import TelecallerBrain
+
+            self._telecaller = TelecallerBrain(
+                niche=self.niche, client_name=self.client_name
+            )
+        except Exception as e:
+            logger.warning(f"[vobiz-stream] TelecallerBrain unavailable: {e}")
+            self._telecaller = None
+        return self._telecaller
+
     def _get_brain(self):
         if self._brain_tried:
             return self._brain
@@ -518,6 +564,17 @@ class VobizStreamSession:
     # Outbound speech — EdgeTTS -> µ-law -> 20 ms frames
     # ------------------------------------------------------------------ #
     def _opening_line(self) -> str:
+        # Permission-based opener (Gong research: ~11% success vs 2.3% generic):
+        # intro + ONE short hook + yes/no permission ask, max 2 sentences.
+        try:
+            tc = self._get_telecaller()
+            if tc is not None:
+                line = tc.opening_line()
+                if line and line.strip():
+                    return line.strip()
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] telecaller opener failed: {e}")
+        # Fallback (TelecallerBrain unavailable — e.g. no Gemini key).
         hook = ""
         try:
             from app.niches import NICHES
@@ -526,10 +583,10 @@ class VobizStreamSession:
         except Exception:
             pass
         if hook:
-            return (f"Namaste! Main {self.client_name} ki taraf se baat kar rahi hoon. "
-                    f"Hum {hook}. Do minute baat kar sakte hain?")
-        return ("Namaste! Main LeadGen AI ki taraf se ek demo call kar rahi hoon. "
-                "Do minute baat kar sakte hain?")
+            return (f"Namaste! Main Swara bol rahi hoon {self.client_name} ki taraf se — "
+                    f"{hook}. Kya main do minute le sakti hoon?")
+        return ("Namaste! Main Swara bol rahi hoon LeadGen AI ki taraf se. "
+                "Kya main do minute le sakti hoon?")
 
     async def _greet(self) -> None:
         line = self._opening_line()
