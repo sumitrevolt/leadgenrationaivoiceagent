@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     # OpenAI-compatible LLM fallbacks in the free_ai chain. Both OPTIONAL.
     cerebras_api_key: str = ""    # cloud.cerebras.ai — llama-3.3-70b
     openrouter_api_key: str = ""  # openrouter.ai — deepseek/deepseek-chat:free
+    xai_api_key: str = ""         # x.ai (Grok — Groq se ALAG company; credits-based)
     google_cloud_project_id: str = ""
     google_cloud_location: str = "us-central1"
     default_llm: str = "gemini-1.5-flash"  # gpt-4, gpt-4o, claude-3-opus, gemini-1.5-flash, vertex-gemini, local-llama

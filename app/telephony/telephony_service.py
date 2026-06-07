@@ -143,6 +143,7 @@ class TelephonyService:
         to_number: str,
         from_number: Optional[str] = None,
         script_callback: Optional[ScriptCallback] = None,
+        call_type: str = "promotional",
     ) -> CallResult:
         """
         Place an outbound call via the active provider.
@@ -155,9 +156,33 @@ class TelephonyService:
             script_callback: Optional async callback to drive the conversation
                              once answered (passed through to SIP; for
                              Twilio/Exotel the conversation is webhook-driven).
+            call_type:       'promotional' (strict TCCCPR gate) or 'transactional'
+                             (consented/known — lenient). REAL provider calls pass
+                             the ComplianceGate; simulation is exempt (dev).
         """
         if self.provider == "simulation":
             return await self._simulate_call(to_number, from_number)
+
+        # COMPLIANCE GATE (real providers only) — DND + calling hours + DLT/140.
+        # A non-compliant promotional call is never dialled (TCCCPR; ₹10L risk).
+        try:
+            from app.telephony.compliance import get_compliance_gate, CallType
+
+            ct = CallType(call_type) if call_type in (c.value for c in CallType) else CallType.PROMOTIONAL
+            decision = await get_compliance_gate().check(to_number, ct)
+            if not decision.allowed:
+                logger.warning(f"place_call blocked by compliance: {decision.reasons}")
+                return CallResult(
+                    call_id=str(uuid.uuid4()), status="blocked_compliance",
+                    duration=0, provider=self.provider, error="; ".join(decision.reasons),
+                )
+        except Exception as e:
+            if (call_type or "").lower() == "promotional":
+                logger.error(f"compliance gate error ({e}) — blocking promo call.")
+                return CallResult(
+                    call_id=str(uuid.uuid4()), status="blocked_compliance",
+                    duration=0, provider=self.provider, error=f"gate_error:{e}",
+                )
 
         try:
             if self.provider == "sip":

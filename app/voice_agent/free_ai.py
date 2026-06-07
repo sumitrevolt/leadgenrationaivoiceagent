@@ -44,12 +44,14 @@ except Exception:  # pragma: no cover - SDK missing
 _GROQ_BASE = "https://api.groq.com/openai/v1"
 _CEREBRAS_BASE = "https://api.cerebras.ai/v1"
 _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+_XAI_BASE = "https://api.x.ai/v1"  # xAI Grok (NOTE: Groq se alag company!)
 
 # Models.
 _GROQ_STT_MODEL = "whisper-large-v3"
 _CEREBRAS_LLM_MODEL = "llama-3.3-70b"
 _GROQ_LLM_MODEL = "llama-3.3-70b-versatile"
 _OPENROUTER_LLM_MODEL = "deepseek/deepseek-chat:free"
+_XAI_LLM_MODEL = "grok-3-mini"  # fast/cheap Grok; credits-based (user ke paas keys)
 
 # Hard per-call latency cap (phone par lambi wait = dead air).
 _CALL_TIMEOUT_S = 8.0
@@ -59,6 +61,7 @@ _PROVIDER_CFG: Dict[str, Tuple[str, str]] = {
     "groq": ("groq_api_key", _GROQ_BASE),
     "cerebras": ("cerebras_api_key", _CEREBRAS_BASE),
     "openrouter": ("openrouter_api_key", _OPENROUTER_BASE),
+    "xai": ("xai_api_key", _XAI_BASE),
 }
 
 
@@ -173,6 +176,7 @@ async def chat(
     chain = [
         ("cerebras", _CEREBRAS_LLM_MODEL),
         ("groq", _GROQ_LLM_MODEL),
+        ("xai", _XAI_LLM_MODEL),
         ("openrouter", _OPENROUTER_LLM_MODEL),
     ]
     for provider, model in chain:
@@ -211,6 +215,7 @@ def describe() -> Dict[str, Any]:
         "llm_chain": [
             f"cerebras:{_CEREBRAS_LLM_MODEL}",
             f"groq:{_GROQ_LLM_MODEL}",
+            f"xai:{_XAI_LLM_MODEL}",
             f"openrouter:{_OPENROUTER_LLM_MODEL}",
         ],
     }

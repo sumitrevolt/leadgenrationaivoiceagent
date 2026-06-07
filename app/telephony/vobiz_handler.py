@@ -62,14 +62,40 @@ class VobizClient:
         to: str,
         answer_url: str,
         from_: Optional[str] = None,
+        call_type: str = "transactional",
+        skip_compliance: bool = False,
         **extra: Any,
     ) -> Dict[str, Any]:
         """POST {base}/Call/ — place an outbound call (capital C + trailing slash).
+
+        COMPLIANCE: every call first passes the ComplianceGate (DND + calling
+        hours + DLT/140 for promotional; lenient for transactional). A blocked
+        call is NEVER dialled — it returns ``{"status_code": 0, "blocked": True,
+        "compliance": {...}}`` so the caller can surface the reason. Pass
+        ``skip_compliance=True`` only for internal/non-dialing flows.
 
         ``from_`` defaults to vobiz_caller_id, then vobiz_sip_user. Extra
         kwargs are merged into the JSON body (future-proofing for field-name
         changes). Never raises.
         """
+        if not skip_compliance:
+            try:
+                from app.telephony.compliance import get_compliance_gate, CallType
+
+                ct = CallType(call_type) if call_type in (c.value for c in CallType) else CallType.TRANSACTIONAL
+                decision = await get_compliance_gate().check(to, ct)
+                if not decision.allowed:
+                    logger.warning(f"Vobiz place_call blocked by compliance: {decision.reasons}")
+                    return {"status_code": 0, "blocked": True,
+                            "compliance": decision.as_dict(),
+                            "body": {"error": "blocked_by_compliance", "reasons": decision.reasons}}
+            except Exception as e:
+                # Gate failure must not silently allow promo dialing.
+                if (call_type or "").lower() == "promotional":
+                    logger.error(f"Vobiz place_call: compliance gate error on promo call ({e}) — blocking.")
+                    return {"status_code": 0, "blocked": True,
+                            "body": {"error": "compliance_gate_error", "detail": str(e)}}
+                logger.debug(f"Vobiz place_call: compliance gate skipped ({e}).")
         payload: Dict[str, Any] = {
             "from": from_ or settings.vobiz_caller_id or settings.vobiz_sip_user,
             "to": to,

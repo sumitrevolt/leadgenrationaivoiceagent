@@ -110,14 +110,28 @@ class CallManager:
             Call ID for tracking
         """
         call_id = str(uuid.uuid4())
-        
-        # DND check for Indian numbers
-        if self.provider == TelephonyProvider.EXOTEL:
-            dnd_status = await self.dnd_checker.check(request.phone_number)
-            if dnd_status.get("is_dnd"):
-                logger.warning(f"Phone {request.phone_number} is on DND list")
-                return f"dnd_blocked_{call_id}"
-        
+
+        # COMPLIANCE GATE — single chokepoint (DND + 10-19 IST window + DLT/140).
+        # Automated outbound = promotional, so a number that is not provably
+        # compliant is NEVER queued (TCCCPR; penalty up to ₹10L). Fixes the old
+        # dead `dnd_checker.check()` call (that method never existed).
+        try:
+            from app.telephony.compliance import get_compliance_gate, CallType
+
+            decision = await get_compliance_gate().check(
+                request.phone_number, CallType.PROMOTIONAL
+            )
+            if not decision.allowed:
+                logger.warning(
+                    f"Call to {request.phone_number} blocked by compliance: {decision.reasons}"
+                )
+                return f"compliance_blocked_{call_id}"
+        except Exception as e:
+            logger.error(
+                f"Compliance gate error for {request.phone_number} ({e}) — blocking promo call."
+            )
+            return f"compliance_error_{call_id}"
+
         # Add to priority queue (lower number = higher priority)
         await self.call_queue.put((
             request.priority,

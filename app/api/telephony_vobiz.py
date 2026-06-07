@@ -50,6 +50,11 @@ class TestCallRequest(BaseModel):
     message: Optional[str] = Field(
         None, max_length=1000, description="Exact text to speak (skips LLM generation)"
     )
+    call_type: str = Field(
+        "transactional",
+        description="'transactional' (consented/known, lenient) or 'promotional' "
+                    "(cold outreach — DND + 10-19 IST window + DLT/140 enforced)",
+    )
 
 
 async def _generate_message(niche: str) -> str:
@@ -98,7 +103,14 @@ async def place_test_call(
     _PENDING_MESSAGES[token] = message
 
     answer_url = f"{settings.public_base_url}/api/telephony/vobiz/answer/{token}"
-    result = await client.place_call(to=request.to, answer_url=answer_url)
+    result = await client.place_call(to=request.to, answer_url=answer_url, call_type=request.call_type)
+    if result.get("blocked"):
+        _PENDING_MESSAGES.pop(token, None)
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "Call blocked by compliance gate (TCCCPR/TRAI).",
+                    "compliance": result.get("compliance") or result.get("body")},
+        )
     placed = 200 <= int(result.get("status_code") or 0) < 300
     if not placed:
         logger.warning(f"Vobiz test-call not placed: {result}")
@@ -129,6 +141,11 @@ class StreamCallRequest(BaseModel):
     to: str = Field(..., min_length=8, max_length=20, description="Destination number, E.164")
     niche: str = Field("general", max_length=100, description="Niche key for the bot")
     client_id: Optional[str] = Field(None, max_length=100, description="Client id for the bot")
+    call_type: str = Field(
+        "transactional",
+        description="'transactional' (consented/known) or 'promotional' (cold — "
+                    "DND + 10-19 IST window + DLT/140 enforced)",
+    )
 
 
 def _wss_host() -> str:
@@ -157,7 +174,14 @@ async def place_stream_call(
     _PENDING_STREAMS[token] = {"niche": request.niche, "client_id": request.client_id}
 
     answer_url = f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
-    result = await client.place_call(to=request.to, answer_url=answer_url)
+    result = await client.place_call(to=request.to, answer_url=answer_url, call_type=request.call_type)
+    if result.get("blocked"):
+        _PENDING_STREAMS.pop(token, None)
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "Call blocked by compliance gate (TCCCPR/TRAI).",
+                    "compliance": result.get("compliance") or result.get("body")},
+        )
     placed = 200 <= int(result.get("status_code") or 0) < 300
     if not placed:
         logger.warning(f"Vobiz stream-call not placed: {result}")
