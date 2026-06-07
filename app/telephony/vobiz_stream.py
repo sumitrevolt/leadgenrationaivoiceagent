@@ -302,26 +302,29 @@ class VobizStreamSession:
             logger.info(f"[vobiz-stream] raw#{self._event_count} media keys: {list(data.keys())}")
 
         event = data.get("event")
-        # streamSid kabhi top-level hota hai (Twilio-style) — jahan mile capture.
-        sid = data.get("streamSid") or data.get("stream_sid")
+        # Vobiz stream id field = "streamId" (NOT Twilio's streamSid). Capture
+        # any known variant, top-level or inside start{}. playAudio doesn't even
+        # need it — we only keep it for logging/checkpoints.
+        start = data.get("start") or {}
+        sid = (
+            data.get("streamId") or data.get("streamSid") or data.get("stream_sid")
+            or start.get("streamId") or start.get("streamSid") or start.get("stream_sid")
+        )
         if sid and not self.stream_sid:
             self.stream_sid = sid
 
         if event == "media":
             payload = (data.get("media") or {}).get("payload")
-            if payload and self.stream_sid:
-                # sid mil chuka lekin start kabhi nahi aaya → greet yahin se.
+            if payload:
+                # Greet on first audio too (in case start was missed); NOT gated
+                # on sid — Vobiz playAudio carries no stream id.
                 await self._maybe_greet()
                 await self._on_media(payload)
         elif event == "start":
-            start = data.get("start") or {}
-            self.stream_sid = (
-                start.get("streamSid") or start.get("stream_sid") or self.stream_sid
-            )
             params = start.get("customParameters") or {}
             self.niche = (params.get("niche") or self.niche).strip() or "general"
             self.client_id = params.get("client_id") or self.client_id
-            logger.info(f"[vobiz-stream] start sid={self.stream_sid} niche={self.niche}")
+            logger.info(f"[vobiz-stream] start streamId={self.stream_sid} niche={self.niche}")
             await self._maybe_greet()
         elif event == "dtmf":
             digit = (data.get("dtmf") or {}).get("digit")
@@ -337,8 +340,9 @@ class VobizStreamSession:
             logger.info("[vobiz-stream] connected event")
 
     async def _maybe_greet(self) -> None:
-        """Greet exactly once, as soon as we have a streamSid to address."""
-        if getattr(self, "_greeted", False) or not self.stream_sid:
+        """Greet exactly once. NOT gated on stream id — Vobiz playAudio needs
+        no sid, so we can (and must) speak as soon as the stream starts."""
+        if getattr(self, "_greeted", False):
             return
         self._greeted = True
         await self._greet()
