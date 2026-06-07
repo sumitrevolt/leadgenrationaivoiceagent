@@ -328,12 +328,39 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
                     text, prov = t2, p2
 
             text = self._clean(text)   # HARD brevity cap on the final reply
+            # SCRIPT FALLBACK: agar LLM throttled/slow/empty (free quota spike),
+            # generic "samajh gayi" ki jagah niche-script ka agla PROFESSIONAL
+            # sawaal do — instant (0 LLM), niche-specific, kabhi repeat nahi.
+            if not text or (prev and self._too_similar(text, prev)):
+                sc = self._script_fallback(history)
+                if sc:
+                    return sc
             if text:
                 logger.debug(f"[telecaller-brain] reply via {prov}")
             return text or ""
         except Exception as e:
             logger.warning(f"[telecaller-brain] reply failed: {e}")
+            return self._script_fallback(history) or ""
+
+    def _script_fallback(self, history: List[Dict[str, str]]) -> str:
+        """Deterministic professional line from the niche script (no LLM).
+        Rotates through discovery questions by how many bot turns happened,
+        then a value line, then the close — so it advances + never repeats."""
+        try:
+            from app.voice_agent.niche_scripts import get_script
+            s = get_script(self.niche) or {}
+        except Exception:
             return ""
+        disc = [d for d in (s.get("discovery") or []) if d]
+        vals = [v for v in (s.get("value_lines") or []) if v]
+        closing = (s.get("closing") or "").strip()
+        # how many times bot already spoke = our position in the flow
+        spoken = sum(1 for m in (history or []) if m.get("role") == "assistant")
+        seq = disc + vals + ([closing] if closing else [])
+        if not seq:
+            return ""
+        line = seq[spoken % len(seq)] if spoken < len(seq) else closing or seq[-1]
+        return self._clean(line)
 
     async def _generate(self, prompt: str) -> tuple:
         """(reply_text, provider). free_ai.chat (Cerebras->Groq->OpenRouter) pehle
