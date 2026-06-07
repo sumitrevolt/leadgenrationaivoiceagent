@@ -218,11 +218,31 @@ async def vobiz_status(user: User = Depends(require_admin)) -> Dict[str, Any]:
     try:
         from app.telephony import vobiz_stream as _vs
 
-        out["streaming"] = {
+        streaming: Dict[str, Any] = {
             "stt_available": _vs.STT_AVAILABLE,
             "tts_available": _vs.TTS_AVAILABLE,
             "audioop": _vs._AUDIOOP_OK,
         }
+        # STT provider chain this worker would try (groq -> gemini -> whisper).
+        try:
+            streaming["stt_chain"] = _vs._stt_chain()
+        except Exception:
+            pass
+        # Free-AI resilience snapshot — confirm keys are picked up WITHOUT a
+        # paid call: Gemini multi-key count + free LLM/STT provider availability.
+        try:
+            from app.voice_agent.gemini_keys import key_count
+
+            streaming["gemini_keys"] = key_count()
+        except Exception:
+            pass
+        try:
+            from app.voice_agent import free_ai
+
+            streaming["free_ai"] = free_ai.describe()
+        except Exception:
+            pass
+        out["streaming"] = streaming
     except Exception as e:
         out["streaming"] = {"error": str(e)}
     if client.available():

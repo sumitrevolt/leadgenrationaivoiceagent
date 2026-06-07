@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
+    # Multi-key rotation (comma/space/newline separated) — STT + LLM share a
+    # Gemini free-tier quota PER KEY, so 2-3 keys here keep the phone agent alive
+    # when one key exhausts. Falls back to gemini_api_key when empty.
+    gemini_api_keys: str = ""
+    # Groq (free, fast) — Whisper-large-v3 STT + LLM (OpenAI-compatible REST).
+    # Primary STT when set; LLM fallback when Gemini quota is exhausted.
+    groq_api_key: str = ""
+    # Cerebras (free, fastest llama-3.3-70b) + OpenRouter (free deepseek) —
+    # OpenAI-compatible LLM fallbacks in the free_ai chain. Both OPTIONAL.
+    cerebras_api_key: str = ""    # cloud.cerebras.ai — llama-3.3-70b
+    openrouter_api_key: str = ""  # openrouter.ai — deepseek/deepseek-chat:free
     google_cloud_project_id: str = ""
     google_cloud_location: str = "us-central1"
     default_llm: str = "gemini-1.5-flash"  # gpt-4, gpt-4o, claude-3-opus, gemini-1.5-flash, vertex-gemini, local-llama

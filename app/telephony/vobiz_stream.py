@@ -18,9 +18,10 @@ We run a full conversational loop per call:
 
     caller audio (PCM16 16k — already STT-ready, NO conversion needed)
         → energy/silence VAD          -> utterance boundary
-        → STT: Gemini audio-in (PRIMARY — multimodal, best Hinglish)
-               | vosk | faster-whisper (local fallback) -> user text
-        → TelecallerBrain (lean phone prompt; fallback LLMBrain) -> reply text
+        → STT chain: Groq Whisper-large-v3 (free, fast, PRIMARY when key set)
+               → Gemini audio-in (multimodal, multi-key rotation)
+               → vosk | faster-whisper (local, always-on fallback) -> user text
+        → TelecallerBrain (lean phone prompt, KB-grounded; fallback LLMBrain) -> reply
         → EdgeTTS (hi-IN-SwaraNeural) -> MP3 bytes
         → pydub decode + resample     -> PCM16 16k mono
         → base64, 640-byte/20ms chunks -> {"event":"playAudio", ...} to Vobiz
@@ -88,11 +89,28 @@ def _have(name: str) -> bool:
         return False
 
 
+def _groq_key() -> str:
+    """GROQ_API_KEY from env first, then settings.groq_api_key (.env). "" = off."""
+    k = (os.environ.get("GROQ_API_KEY", "") or "").strip()
+    if not k:
+        try:
+            from app.config import settings
+
+            k = (getattr(settings, "groq_api_key", "") or "").strip()
+        except Exception:
+            pass
+    return k
+
+
 _VOSK_OK = _have("vosk")
 _FWHISPER_OK = _have("faster_whisper")
 _GENAI_OK = _have("google.genai")          # NEW google-genai SDK (Gemini audio-in STT)
+_OPENAI_SDK_OK = _have("openai")           # Groq STT via shared free_ai layer (OpenAI-compatible)
 _LOCAL_STT_OK = _VOSK_OK or _FWHISPER_OK   # local engines (whisper fallback chain)
-STT_AVAILABLE = _LOCAL_STT_OK or _GENAI_OK
+# STT chain (auto): groq (free, fast Whisper-large-v3) -> gemini (multimodal,
+# multi-key) -> whisper (local, always works). Groq counts as available only
+# when the openai SDK is importable AND a GROQ_API_KEY is configured.
+STT_AVAILABLE = _LOCAL_STT_OK or _GENAI_OK or (_OPENAI_SDK_OK and bool(_groq_key()))
 TTS_AVAILABLE = _have("edge_tts") and _have("pydub")
 
 # audioop is stdlib on Python ≤3.12; removed in 3.13 (use audioop-lts backport).
@@ -229,7 +247,8 @@ def _stt_sync(kind: str, model: Any, pcm16: bytes) -> str:
 # input supported (flash-lite 30 RPM). Inline limit 20MB/request — hamare
 # utterances ≤15s = ~480KB WAV, comfortably under. Failure of ANY kind => ""
 # => caller whisper/vosk pe fall back karta hai (deafness impossible-by-design).
-# Env: VOBIZ_STT=gemini|whisper (default gemini if SDK+key), STT_GEMINI_MODEL.
+# Env: VOBIZ_STT=groq|gemini|whisper (default 'auto' = groq->gemini->whisper),
+# STT_GEMINI_MODEL. Multi-key: app.voice_agent.gemini_keys (shared with LLM).
 # --------------------------------------------------------------------------- #
 _GEMINI_STT_PROMPT = (
     "Transcribe this Indian phone-call audio EXACTLY as spoken (Hinglish — "
@@ -238,42 +257,52 @@ _GEMINI_STT_PROMPT = (
 )
 _GEMINI_STT_TIMEOUT = _env_num("VOBIZ_STT_TIMEOUT_S", 8.0)
 
-_GENAI_CLIENT: Optional[Any] = None
-_GENAI_INIT = False
+# Per-key google-genai Client cache (multi-key rotation, 2026-06-07). STT shares
+# the SAME process-wide active key as the LLM (app.voice_agent.gemini_keys) — so
+# when STT exhausts key A's free quota, the LLM stops using A too, and the next
+# audio turn rotates to key B. Each key gets its own cached Client (thread-safe).
+_GENAI_CLIENTS: Dict[str, Any] = {}
 _GENAI_LOCK = threading.Lock()
 
 
-def _get_genai_client() -> Optional[Any]:
-    """Lazy module-level google-genai Client singleton (thread-safe, like
-    _get_stt). None = SDK missing ya API key absent — caller falls back."""
-    global _GENAI_CLIENT, _GENAI_INIT
-    if _GENAI_INIT:
-        return _GENAI_CLIENT
-    with _GENAI_LOCK:
-        if _GENAI_INIT:
-            return _GENAI_CLIENT
+def _get_genai_client(key: str = "") -> Optional[Any]:
+    """google-genai Client for ``key`` (defaults to the rotation pool's active
+    key, else legacy single settings/env key). Cached per-key. None = SDK
+    missing OR no key — caller falls back to whisper."""
+    key = (key or "").strip()
+    if not key:
         try:
-            from google import genai  # type: ignore
+            from app.voice_agent.gemini_keys import active_key
 
+            key = (active_key() or "").strip()
+        except Exception:
             key = ""
-            try:
-                from app.config import settings
+    if not key:  # legacy single-key fallback (pool import failed)
+        try:
+            from app.config import settings
 
-                key = (getattr(settings, "gemini_api_key", "") or "").strip()
-            except Exception:
-                pass
-            key = key or (os.environ.get("GEMINI_API_KEY", "") or "").strip()
-            if key:
-                _GENAI_CLIENT = genai.Client(api_key=key)
-                logger.info("[vobiz-stream] Gemini STT ready (google-genai client)")
-            else:
-                logger.info("[vobiz-stream] Gemini STT off: no gemini_api_key — whisper only")
-        except Exception as e:
-            logger.warning(f"[vobiz-stream] google-genai init failed: {e}")
-            _GENAI_CLIENT = None
-        finally:
-            _GENAI_INIT = True
-        return _GENAI_CLIENT
+            key = (getattr(settings, "gemini_api_key", "") or "").strip()
+        except Exception:
+            key = ""
+        key = key or (os.environ.get("GEMINI_API_KEY", "") or "").strip()
+    if not key:
+        return None
+    client = _GENAI_CLIENTS.get(key)
+    if client is not None:
+        return client
+    with _GENAI_LOCK:
+        client = _GENAI_CLIENTS.get(key)
+        if client is None:
+            try:
+                from google import genai  # type: ignore
+
+                client = genai.Client(api_key=key)
+                _GENAI_CLIENTS[key] = client
+                logger.info("[vobiz-stream] Gemini STT client ready (multi-key pool)")
+            except Exception as e:
+                logger.warning(f"[vobiz-stream] google-genai init failed: {e}")
+                return None
+    return client
 
 
 def _gemini_stt_model() -> str:
@@ -290,17 +319,40 @@ def _gemini_stt_model() -> str:
     return m if m.startswith("gemini") else "gemini-2.5-flash-lite"
 
 
-def _stt_provider() -> str:
-    """'gemini' | 'whisper'. Env VOBIZ_STT force karta hai; warna gemini jab
-    SDK importable ho (aur, ek baar init ho jaye, client sach me bana ho)."""
-    p = (os.environ.get("VOBIZ_STT", "") or "").strip().lower()
-    if p in ("gemini", "whisper"):
-        return p
-    if not _GENAI_OK:
-        return "whisper"
-    if _GENAI_INIT and _GENAI_CLIENT is None:  # init ho chuka, key nahi thi
-        return "whisper"
-    return "gemini"
+def _gemini_has_key() -> bool:
+    """Any Gemini key configured (pool, then settings/env fallback)?"""
+    try:
+        from app.voice_agent.gemini_keys import gemini_keys
+
+        if gemini_keys():
+            return True
+    except Exception:
+        pass
+    try:
+        from app.config import settings
+
+        if (getattr(settings, "gemini_api_key", "") or "").strip():
+            return True
+    except Exception:
+        pass
+    return bool((os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEYS", "")).strip())
+
+
+def _stt_chain() -> List[str]:
+    """Ordered STT providers to try this turn. ``VOBIZ_STT`` forces exactly ONE
+    (groq|gemini|whisper). Default ('auto'/empty) = groq (key set) -> gemini
+    (SDK+key) -> whisper. The chain ALWAYS ends with whisper so a missing or
+    quota-exhausted cloud key can never make the call permanently deaf."""
+    forced = (os.environ.get("VOBIZ_STT", "") or "").strip().lower()
+    if forced in ("groq", "gemini", "whisper"):
+        return [forced]
+    chain: List[str] = []
+    if _OPENAI_SDK_OK and _groq_key():
+        chain.append("groq")
+    if _GENAI_OK and _gemini_has_key():
+        chain.append("gemini")
+    chain.append("whisper")  # local fallback — always present in auto mode
+    return chain
 
 
 def _pcm_to_wav(pcm16: bytes, rate: int = SAMPLE_RATE) -> bytes:
@@ -396,7 +448,7 @@ class VobizStreamSession:
         self.hist: List[Dict[str, str]] = []   # {role: user|assistant, content}
         self._closed = False
         self._started_at = datetime.now(timezone.utc)          # transcript meta
-        self._stt_counts: Dict[str, int] = {"gemini": 0, "whisper": 0}
+        self._stt_counts: Dict[str, int] = {"groq": 0, "gemini": 0, "whisper": 0}
 
         # turn-taking / VAD state
         self._speech_buf: List[bytes] = []
@@ -647,52 +699,98 @@ class VobizStreamSession:
                 return ""
         except Exception:
             pass
-        # PROVIDER CHAIN (2026-06-07): gemini (audio-in, best Hindi) → whisper/
-        # vosk (local fallback) → "". Gemini fail/empty/timeout = silent demote.
-        if _stt_provider() == "gemini":
-            text = await self._gemini_transcribe(pcm16)
+        # PROVIDER CHAIN (2026-06-07): groq (free Whisper-large-v3, fast LPU) →
+        # gemini (multimodal audio-in, multi-key) → whisper/vosk (local) → "".
+        # Har provider fail/empty pe agla try hota hai — quota khatam ho jaaye
+        # to bhi call deaf nahi hoti (chain hamesha local whisper pe khatam).
+        for provider in _stt_chain():
+            try:
+                if provider == "groq":
+                    text = await self._groq_transcribe(pcm16)
+                elif provider == "gemini":
+                    text = await self._gemini_transcribe(pcm16)
+                else:
+                    text = await self._whisper_transcribe(pcm16)
+            except Exception as e:
+                logger.warning(f"[vobiz-stream] STT provider {provider} errored: {e}")
+                continue
             if text:
-                self._stt_counts["gemini"] += 1
-                logger.debug(f"[vobiz-stream] stt=gemini: {text[:80]!r}")
+                self._stt_counts[provider] = self._stt_counts.get(provider, 0) + 1
+                logger.debug(f"[vobiz-stream] stt={provider}: {text[:80]!r}")
                 return text
-        loop = asyncio.get_event_loop()
+        return ""
+
+    async def _groq_transcribe(self, pcm16: bytes) -> str:
+        """Groq Whisper-large-v3 STT (PRIMARY when GROQ_API_KEY set), via the
+        shared free_ai layer (OpenAI-compatible audio.transcriptions). PCM16 16k
+        → in-memory WAV → text. Returns "" on ANY failure (caller falls to
+        gemini → local whisper). Free tier + Groq LPU = fast, strong on Hindi."""
+        if not _groq_key():
+            return ""
         try:
-            # _get_stt bhi executor me: warmup in-flight ho to model-load ka
-            # wait WORKER THREAD me ho, event loop kabhi block na ho.
-            eng = await loop.run_in_executor(None, _get_stt)
-            if not eng:
-                return ""
-            kind, model = eng
-            text = await loop.run_in_executor(None, _stt_sync, kind, model, pcm16)
-            if text:
-                self._stt_counts["whisper"] += 1
-            return text
+            from app.voice_agent.free_ai import transcribe_audio
+
+            wav = _pcm_to_wav(pcm16)
+            lang = (os.environ.get("GROQ_STT_LANG", "") or "hi").strip()
+            text, _provider = await transcribe_audio(wav, language=lang)
+            return (text or "").strip().strip("\"'` ").strip()
         except Exception as e:
-            logger.warning(f"[vobiz-stream] STT executor failed: {e}")
+            logger.warning(f"[vobiz-stream] Groq STT failed ({e}) — fallback")
             return ""
 
     async def _gemini_transcribe(self, pcm16: bytes) -> str:
         """Gemini multimodal audio-in STT: PCM16 16k → in-memory WAV →
-        google-genai generate_content (executor, hard timeout). Returns "" on
-        ANY failure — caller whisper pe fall back karta hai. Cost: free-tier
-        tokens (~32/sec audio); 15s utterance ≈ 480KB WAV, 20MB limit se door."""
+        google-genai generate_content (executor, hard timeout). MULTI-KEY: uses
+        the rotation pool's active key; on a quota/429 error it rotates to the
+        next key and retries ONCE. Returns "" on any other failure — caller
+        falls to whisper. Free-tier tokens (~32/sec audio); 15s ≈ 480KB WAV."""
         try:
-            loop = asyncio.get_event_loop()
-            client = await loop.run_in_executor(None, _get_genai_client)
-            if client is None:
+            from app.voice_agent.gemini_keys import active_key, advance_key, is_quota_error, key_count
+        except Exception:  # pool unavailable — single-key, no rotation
+            active_key = lambda: ""            # noqa: E731
+            advance_key = lambda bad="": ""    # noqa: E731
+            is_quota_error = lambda e: False   # noqa: E731
+            key_count = lambda: 1              # noqa: E731
+
+        loop = asyncio.get_event_loop()
+        wav = _pcm_to_wav(pcm16)
+        model = _gemini_stt_model()
+        for attempt in range(2):
+            key = active_key()
+            try:
+                client = await loop.run_in_executor(None, _get_genai_client, key)
+                if client is None:
+                    return ""
+                text = await asyncio.wait_for(
+                    loop.run_in_executor(None, _gemini_stt_sync, client, model, wav),
+                    timeout=_GEMINI_STT_TIMEOUT,
+                )
+                return (text or "").strip()
+            except asyncio.TimeoutError:
+                logger.warning("[vobiz-stream] Gemini STT timeout — whisper fallback")
                 return ""
-            wav = _pcm_to_wav(pcm16)
-            model = _gemini_stt_model()
-            text = await asyncio.wait_for(
-                loop.run_in_executor(None, _gemini_stt_sync, client, model, wav),
-                timeout=_GEMINI_STT_TIMEOUT,
-            )
-            return (text or "").strip()
-        except asyncio.TimeoutError:
-            logger.warning("[vobiz-stream] Gemini STT timeout — whisper fallback")
-            return ""
+            except Exception as e:
+                if attempt == 0 and is_quota_error(e) and key_count() > 1:
+                    advance_key(key)
+                    logger.warning("[vobiz-stream] Gemini STT quota — rotated key, retrying")
+                    continue
+                logger.warning(f"[vobiz-stream] Gemini STT failed ({e}) — whisper fallback")
+                return ""
+        return ""
+
+    async def _whisper_transcribe(self, pcm16: bytes) -> str:
+        """Local STT (faster-whisper / vosk) — always-available final fallback.
+        Model load + transcription both in the executor so the event loop never
+        blocks (warmup in-flight => the wait happens on a worker thread)."""
+        loop = asyncio.get_event_loop()
+        try:
+            eng = await loop.run_in_executor(None, _get_stt)
+            if not eng:
+                return ""
+            kind, model = eng
+            return (await loop.run_in_executor(None, _stt_sync, kind, model, pcm16)) or ""
         except Exception as e:
-            logger.warning(f"[vobiz-stream] Gemini STT failed ({e}) — whisper fallback")
+            logger.warning(f"[vobiz-stream] local STT executor failed: {e}")
             return ""
 
     # ------------------------------------------------------------------ #
@@ -766,7 +864,8 @@ class VobizStreamSession:
             from app.voice_agent.telecaller_brain import TelecallerBrain
 
             self._telecaller = TelecallerBrain(
-                niche=self.niche, client_name=self.client_name
+                niche=self.niche, client_name=self.client_name,
+                client_id=self.client_id,
             )
         except Exception as e:
             logger.warning(f"[vobiz-stream] TelecallerBrain unavailable: {e}")
