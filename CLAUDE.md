@@ -135,6 +135,12 @@
 - **STT (hearing) abhi bhi weak link**: GROQ_API_KEY nahi hai (user ne xAI diya tha galti se) → STT chain Gemini-audio (quota) → local faster-whisper (Hindi weak). **HEARING fix ke liye asli Groq key chahiye: console.groq.com (free, no card) → GROQ_API_KEY .env me.** Yahi ek cheez "samajhna" ke liye baki hai. Cerebras audio-STT nahi deta (sirf text LLM).
 - Secrets git me block hue (GitHub push-protection) — keys_deploy.bat se literal keys hata ke `git reset --soft origin/main` + clean recommit kiya. Scripts me kabhi literal key mat likho.
 
+## Voice Quality Tuning + Honest Ceiling (2026-06-07, commit a9fb85f)
+- **Transcript-proven progress**: Groq STT ab asli Hindi sunta hai (Devanagari, "Adiós" garbage gaya). stt_counts {groq:4}. Cerebras gpt-oss-120b brain replies de raha. ROOT issues us call me: (1) VAD aadha vakya kaat raha tha (fragments "वटाने"), (2) LLM lamba+meta+robotic ("yeh maine pehle poocha", "unclear hai, Maaf").
+- **Fixes deployed**: VAD SILENCE_MS 850 (full sentence capture) + speech-segment gate; JUNK-GUARD (`_is_junk` — <3char/punct-only/dup STT pe LLM call hi nahi = paisa bachta); brutal-brevity prompt (1 vakya, ≤15 shabd, meta-talk BANNED, max_tokens 50, temp 0.5, GOOD/BAD few-shots).
+- **CRITICAL ADVICE for user (paisa bachao)**: phone-call har baar Vobiz balance khaata hai. **Tuning web-call page pe karo — leadsgenai.in/app/test-call — wahi brain/STT/prompt, ₹0 cost.** Phone sirf FINAL acceptance test.
+- **Honest ceiling**: real-time human-like turn-taking sabse mushkil AI problem hai. Free stack ne hearing(Groq)+thinking(Cerebras)+speaking(EdgeTTS) de diya, par sub-1.5s human latency + barge-in polish iterative hai. Agar premium chahiye: Sarvam/Deepgram STT (₹0.30-0.50/min) + streaming TTS — margin me fit, env-switch.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
