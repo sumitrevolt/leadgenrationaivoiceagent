@@ -256,7 +256,7 @@ class VobizStreamSession:
                 try:
                     await self._on_event(raw)
                 except Exception as e:
-                    logger.debug(f"[vobiz-stream] event error: {e}")
+                    logger.warning(f"[vobiz-stream] event error: {e}")
         finally:
             await self._cleanup()
 
@@ -264,20 +264,38 @@ class VobizStreamSession:
         try:
             data = json.loads(raw)
         except Exception:
+            logger.warning(f"[vobiz-stream] non-JSON frame: {raw[:120]!r}")
             return
+        # Protocol visibility: pehle kuch raw events INFO me — Vobiz ke exact
+        # field names/shape capture karne ke liye (media payload truncate).
+        self._event_count = getattr(self, "_event_count", 0) + 1
+        if self._event_count <= 6 and data.get("event") != "media":
+            logger.info(f"[vobiz-stream] raw#{self._event_count}: {str(data)[:300]}")
+        elif self._event_count <= 3:
+            logger.info(f"[vobiz-stream] raw#{self._event_count} media keys: {list(data.keys())}")
+
         event = data.get("event")
+        # streamSid kabhi top-level hota hai (Twilio-style) — jahan mile capture.
+        sid = data.get("streamSid") or data.get("stream_sid")
+        if sid and not self.stream_sid:
+            self.stream_sid = sid
+
         if event == "media":
             payload = (data.get("media") or {}).get("payload")
             if payload and self.stream_sid:
+                # sid mil chuka lekin start kabhi nahi aaya → greet yahin se.
+                await self._maybe_greet()
                 await self._on_media(payload)
         elif event == "start":
             start = data.get("start") or {}
-            self.stream_sid = start.get("streamSid") or start.get("stream_sid") or self.stream_sid
+            self.stream_sid = (
+                start.get("streamSid") or start.get("stream_sid") or self.stream_sid
+            )
             params = start.get("customParameters") or {}
             self.niche = (params.get("niche") or self.niche).strip() or "general"
             self.client_id = params.get("client_id") or self.client_id
             logger.info(f"[vobiz-stream] start sid={self.stream_sid} niche={self.niche}")
-            await self._greet()
+            await self._maybe_greet()
         elif event == "dtmf":
             digit = (data.get("dtmf") or {}).get("digit")
             logger.info(f"[vobiz-stream] dtmf={digit}")
@@ -285,7 +303,14 @@ class VobizStreamSession:
             logger.info(f"[vobiz-stream] stop sid={self.stream_sid}")
             self._closed = True
         elif event == "connected":
-            logger.debug("[vobiz-stream] connected")
+            logger.info("[vobiz-stream] connected event")
+
+    async def _maybe_greet(self) -> None:
+        """Greet exactly once, as soon as we have a streamSid to address."""
+        if getattr(self, "_greeted", False) or not self.stream_sid:
+            return
+        self._greeted = True
+        await self._greet()
 
     # ------------------------------------------------------------------ #
     # Inbound audio -> VAD -> utterance
