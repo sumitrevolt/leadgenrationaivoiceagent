@@ -230,6 +230,16 @@
   #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(160%);background:var(--ink);color:#fff;padding:13px 20px;border-radius:12px;font-size:.92rem;z-index:90;transition:transform .3s ease;box-shadow:var(--shadow);max-width:calc(100% - 32px);text-align:center}
   #toast.show{transform:translateX(-50%) translateY(0)}
 
+  /* UPI pay modal */
+  #payModal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(15,16,36,.62);padding:18px}
+  #payModal.open{display:flex}
+  #payModal .pm-card{background:#fff;border-radius:20px;max-width:390px;width:100%;padding:28px 24px;text-align:center;position:relative;box-shadow:var(--shadow);max-height:92vh;overflow:auto}
+  #payModal .pm-x{position:absolute;top:10px;right:14px;background:none;border:none;font-size:1.5rem;color:var(--muted);cursor:pointer;line-height:1}
+  #payModal .pm-qr{display:flex;justify-content:center;margin-top:14px}
+  #payModal .pm-qr svg{width:220px;height:220px;max-width:100%}
+  #payModal .pm-vpa{font-weight:700;font-size:1.05rem;margin:12px 0 2px;word-break:break-all}
+  #payModal .pm-note{font-size:.86rem;color:var(--muted);margin-top:12px}
+
   /* Scroll reveal */
   .reveal{opacity:0;transform:translateY(26px);transition:opacity .6s ease,transform .6s ease}
   .reveal.in{opacity:1;transform:none}
@@ -456,6 +466,14 @@
             </select>
           </div>
           <div class="fld"><label for="f-city">City</label><input id="f-city" name="city" type="text" placeholder="e.g. Pune" autocomplete="address-level2" /></div>
+          <div class="fld"><label for="f-package">Kaunsa plan interest hai? (optional)</label>
+            <select id="f-package" name="package">
+              <option value="">— Abhi decide nahi —</option>
+              <option value="Starter">Marketing Starter (₹2,999/mo)</option>
+              <option value="Growth">Growth (₹5,999/mo)</option>
+              <option value="Advanced">Advanced AI Agent (₹11,999/mo)</option>
+            </select>
+          </div>
           <div class="fld full"><label for="f-msg">Kuch aur batana chahte ho? (optional)</label><textarea id="f-msg" name="message" placeholder="e.g. Mahine me kitne leads chahiye, kaunsa area target hai…"></textarea></div>
           <!-- honeypot: bots fill this, humans never see it -->
           <input type="text" name="website" id="f-website" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true" />
@@ -489,6 +507,7 @@
           <li><span class="ck">✓</span> WhatsApp content pack — broadcast + status messages ready</li>
         </ul>
         <a class="btn btn-ghost" href="#lead-form">FREE trial se shuru karo</a>
+        <button type="button" class="btn btn-primary paynow" data-pkg="Starter" style="margin-top:10px">🚀 Shuru karo</button>
       </div>
       <div class="price reveal">
         <h3>Growth</h3>
@@ -504,6 +523,7 @@
           <li><span class="ck">✓</span> Monthly marketing report — kya chala, kya nahi</li>
         </ul>
         <a class="btn btn-ghost" href="#lead-form">FREE trial se shuru karo</a>
+        <button type="button" class="btn btn-primary paynow" data-pkg="Growth" style="margin-top:10px">🚀 Shuru karo</button>
       </div>
       <div class="price featured reveal">
         <span class="tag">🚀 India me sirf hamare paas</span>
@@ -520,6 +540,7 @@
           <li><span class="ck">✓</span> Sab call transcripts aapke dashboard me</li>
         </ul>
         <a class="btn btn-primary" href="#lead-form">🚀 FREE demo + audit se shuru karo</a>
+        <button type="button" class="btn btn-ghost paynow" data-pkg="Advanced" style="margin-top:10px">🚀 Shuru karo</button>
       </div>
     </div>
     <p class="niche-more" style="margin-top:24px">Voice agent nahi chahiye? <b>Starter &amp; Growth 100% marketing-only plans hain — koi calling charge nahi.</b></p>
@@ -658,6 +679,19 @@
   <button class="x" id="installClose" aria-label="Close">×</button>
 </div>
 
+<!-- UPI PAY MODAL ("Shuru karo" → /api/public/pay-info) -->
+<div id="payModal" role="dialog" aria-modal="true" aria-label="UPI payment">
+  <div class="pm-card">
+    <button class="pm-x" id="payClose" aria-label="Close">×</button>
+    <h3 id="payPkg" style="margin-bottom:4px">Plan</h3>
+    <p style="font-size:.9rem;color:var(--muted)">Kisi bhi UPI app se QR scan karke pay karein — GPay/PhonePe/Paytm sab chalega</p>
+    <div class="pm-qr" id="payQr"></div>
+    <div class="pm-vpa" id="payVpa"></div>
+    <p class="pm-note">Payment ke baad WhatsApp pe screenshot bhejo: <a href="https://wa.me/918459012607" target="_blank" rel="noopener" style="color:var(--indigo);font-weight:600">wa.me/918459012607</a> — hum turant aapka plan activate kar denge.</p>
+    <a class="btn btn-wa" id="payWa" href="https://wa.me/918459012607" target="_blank" rel="noopener" style="margin-top:14px;width:100%">💬 Screenshot WhatsApp karo</a>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast" role="status" aria-live="polite"></div>
 
@@ -744,6 +778,7 @@
             niche:   document.getElementById('f-niche').value || null,
             city:    document.getElementById('f-city').value.trim() || null,
             message: document.getElementById('f-msg').value.trim() || null,
+            package: (document.getElementById('f-package') || {}).value || null,
             website: document.getElementById('f-website').value || ''
           })
         });
@@ -811,10 +846,51 @@
         a.href = '#lead-form';
         a.textContent = p.highlight ? '🚀 FREE demo + audit se shuru karo' : 'FREE trial se shuru karo';
         card.appendChild(a);
+        const payBtn = document.createElement('button');
+        payBtn.type = 'button';
+        payBtn.className = 'btn paynow ' + (p.highlight ? 'btn-ghost' : 'btn-primary');
+        payBtn.style.marginTop = '10px';
+        const pkgNames = { starter: 'Starter', growth: 'Growth', advanced: 'Advanced' };
+        payBtn.dataset.pkg = pkgNames[p.key] || p.name || 'Starter';
+        payBtn.textContent = '🚀 Shuru karo';
+        card.appendChild(payBtn);
         grid.appendChild(card);
       });
     } catch (e) { /* static fallback stays */ }
   })();
+
+  // ---------- "🚀 Shuru karo" → UPI pay modal (UPI_VPA set) ya WhatsApp ----------
+  const payModal = document.getElementById('payModal');
+  function openPayModal(info, pkg){
+    document.getElementById('payPkg').textContent = pkg + ' plan — payment';
+    // qr_svg hamara hi backend banata hai (pure-python encoder) — trusted markup
+    document.getElementById('payQr').innerHTML = info.qr_svg || '';
+    document.getElementById('payVpa').textContent = 'UPI ID: ' + (info.vpa || '');
+    const waMsg = 'Maine ' + pkg + ' plan ki payment ki hai — screenshot bhej raha hoon. Plan activate kar dijiye.';
+    document.getElementById('payWa').href = 'https://wa.me/918459012607?text=' + encodeURIComponent(waMsg);
+    payModal.classList.add('open');
+  }
+  document.getElementById('payClose').addEventListener('click', () => payModal.classList.remove('open'));
+  payModal.addEventListener('click', (e) => { if (e.target === payModal) payModal.classList.remove('open'); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') payModal.classList.remove('open'); });
+  // Delegated — static + dynamically-rendered dono pricing cards cover hote hain.
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.paynow');
+    if (!btn) return;
+    e.preventDefault();
+    const pkg = btn.dataset.pkg || 'Starter';
+    const old = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Ek second…';
+    let info = null;
+    try {
+      const res = await fetch('/api/public/pay-info');
+      if (res.ok) info = await res.json();
+    } catch (err) { info = null; }
+    btn.disabled = false; btn.textContent = old;
+    if (info && info.enabled && info.vpa) { openPayModal(info, pkg); return; }
+    // UPI configured nahi — WhatsApp pe baat shuru karo.
+    window.open('https://wa.me/918459012607?text=' + encodeURIComponent('Mujhe ' + pkg + ' plan chahiye'), '_blank', 'noopener');
+  });
 </script>
 </body>
 </html>

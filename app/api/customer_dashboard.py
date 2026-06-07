@@ -431,6 +431,58 @@ def _build_from_db(client_id: str, campaign: Optional[str]) -> Optional[Dashboar
 
 
 # --------------------------------------------------------------------------- #
+# Real top-line counts (cheap overlay for the sample fallback)                 #
+# --------------------------------------------------------------------------- #
+def _real_topline_counts(client_id: str) -> dict:
+    """
+    Cheapest real bindings when the per-client rows are missing:
+      - leads:     Lead count for this client (assigned_to); falls back to the
+                   platform-wide Lead total if the client has none.
+      - inquiries: line count of data/inquiries.jsonl (no client mapping yet,
+                   so platform totals — used as a leads fallback).
+      - calls:     agent_events count for swara (every placed/finished call +
+                   web demo is logged there).
+    All best-effort; returns {} when nothing real is available. Never raises.
+    """
+    out: dict = {}
+    try:
+        from app.models.base import get_db_session
+        from app.models.lead import Lead
+        from app.models.agent_event import AgentEvent
+
+        with get_db_session() as db:
+            try:
+                n = db.query(Lead).filter(Lead.assigned_to == client_id).count()
+                if not n:
+                    n = db.query(Lead).count()
+                if n:
+                    out["leads"] = int(n)
+            except Exception:
+                pass
+            try:
+                c = db.query(AgentEvent).filter(AgentEvent.member == "swara").count()
+                if c:
+                    out["calls"] = int(c)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.debug("customer_dashboard: topline DB counts unavailable (%s)", e)
+
+    try:
+        import os
+
+        path = os.path.join("data", "inquiries.jsonl")
+        if os.path.isfile(path):
+            with open(path, "r", encoding="utf-8") as f:
+                n = sum(1 for ln in f if ln.strip())
+            if n:
+                out["inquiries"] = n
+    except Exception:
+        pass
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Routes                                                                       #
 # --------------------------------------------------------------------------- #
 @router.get("/dashboard", response_model=DashboardResponse)
@@ -445,12 +497,37 @@ def get_customer_dashboard(
 
     Sources data from the real DB (Lead, CallLog, Campaign) keyed by
     client_id + campaign. Falls back to clearly-marked SAMPLE data
-    (is_sample_data=True) when the DB is unavailable or has no rows.
+    (is_sample_data=True) when the DB is unavailable or has no rows — but the
+    top-level KPI counts get overlaid with real platform numbers (leads /
+    inquiries / swara calls) whenever those exist, so the headline figures are
+    never pure fiction.
     """
     real = _build_from_db(client_id=client_id, campaign=campaign)
     if real is not None:
         return real
-    return _build_sample(client_id=client_id, campaign=campaign)
+
+    sample = _build_sample(client_id=client_id, campaign=campaign)
+    # SURGICAL real-count overlay: sirf top-level KPIs bind hote hain; detail
+    # rows sample hi rehti hain (is_sample_data=True flag waisa hi).
+    try:
+        topline = _real_topline_counts(client_id)
+        if topline:
+            k = sample.kpis
+            if topline.get("calls"):
+                k.total_calls = topline["calls"]
+                k.connected_calls = min(k.connected_calls, k.total_calls)
+            real_leads = topline.get("leads") or topline.get("inquiries")
+            if real_leads:
+                k.qualified_leads = real_leads
+            if topline.get("calls") or real_leads:
+                k.conversion_pct = (
+                    min(round((k.qualified_leads / k.connected_calls) * 100, 1), 100.0)
+                    if k.connected_calls
+                    else 0.0
+                )
+    except Exception as e:
+        logger.debug("customer_dashboard: topline overlay skipped (%s)", e)
+    return sample
 
 
 @router.get("/health")

@@ -111,6 +111,9 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     email_from: str = ""
+    # Owner alert inbox (env NOTIFY_EMAIL) — nayi inquiry / daily digest yahan
+    # email hote hain. Empty = notifications off (SMTP creds bhi chahiye).
+    notify_email: str = ""
     
     # Compliance
     dnd_api_url: str = ""
@@ -131,6 +134,9 @@ class Settings(BaseSettings):
     # Payment Settings
     default_currency: str = "INR"  # INR for India, USD for international
     auto_detect_payment_gateway: bool = True  # Auto-select based on currency/country
+    # Apna UPI VPA (env UPI_VPA, e.g. 9876543210@ybl) — landing page ka
+    # "Shuru karo" payment modal isi se QR banata hai. Empty = path disabled.
+    upi_vpa: str = ""
     
     # Call Settings
     max_call_duration_seconds: int = 300

@@ -7,7 +7,11 @@ Final paths (main.py prefix="/api" ke saath):
                                  Honeypot + per-IP rate limit + phone validation.
                                  DB Lead save best-effort; data/inquiries.jsonl
                                  me HAMESHA append (koi inquiry kabhi lost nahi).
+                                 NOTIFY_EMAIL + SMTP set ho to owner ko email.
   GET  /api/public/inquiries  -> ADMIN — last 100 inquiries (jsonl + DB merged).
+  GET  /api/public/pay-info   -> NO AUTH — UPI payment info (QR + VPA + plans)
+                                 for the landing "Shuru karo" modal. UPI_VPA
+                                 env empty ho to {"enabled": false}.
 
 Import-safe: DB/team modules lazy-import hote hain; kuch bhi missing ho to
 form submit phir bhi jsonl me save hota hai aur user ko ok milta hai.
@@ -142,6 +146,8 @@ def _save_lead_db(rec: Dict[str, Any]) -> Optional[str]:
                 notes_parts.append(f"City: {rec['city']}")
             if rec.get("niche"):
                 notes_parts.append(f"Niche: {rec['niche']}")
+            if rec.get("package"):
+                notes_parts.append(f"Package: {rec['package']}")
             notes_parts.append("[Website inquiry form]")
 
             lead = Lead(
@@ -228,6 +234,34 @@ async def _auto_callback(phone: str, niche: str, business: str) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Owner email notification — best-effort, fire-and-forget.
+# NOTIFY_EMAIL + SMTP_USER/SMTP_PASSWORD .env me ho tabhi bhejta hai; kuch bhi
+# missing/fail ho to silent skip (inquiry flow kabhi affect nahi hota).
+# --------------------------------------------------------------------------- #
+async def _notify_inquiry_email(rec: Dict[str, Any]) -> None:
+    try:
+        from app.config import settings
+
+        to = (getattr(settings, "notify_email", "") or "").strip()
+        if not to or not settings.smtp_user or not settings.smtp_password:
+            return  # not configured — silent skip
+        from app.integrations.email_sender import EmailSender
+
+        body = (
+            f"Nayi inquiry: {rec.get('business_name') or 'Unknown'} "
+            f"({rec.get('niche') or 'unknown'}) {rec.get('phone') or '-'}"
+            f" — {rec.get('message') or 'no message'}"
+        )
+        if rec.get("package"):
+            body += f"\nPackage: {rec['package']}"
+        if rec.get("city"):
+            body += f"\nCity: {rec['city']}"
+        await EmailSender().send_email([to], "🔔 LeadGen AI inquiry", body)
+    except Exception as e:  # absolute guard — notification kabhi flow nahi todti
+        logger.debug(f"[public] inquiry email notify skipped: {e}")
+
+
+# --------------------------------------------------------------------------- #
 # Schemas
 # --------------------------------------------------------------------------- #
 class InquiryIn(BaseModel):
@@ -237,6 +271,7 @@ class InquiryIn(BaseModel):
     niche: Optional[str] = None
     city: Optional[str] = None
     message: Optional[str] = None
+    package: Optional[str] = None  # Starter/Growth/Advanced (pricing card se)
     website: Optional[str] = ""  # honeypot — insaan ise kabhi nahi bharta
 
 
@@ -273,6 +308,7 @@ async def submit_inquiry(body: InquiryIn, request: Request):
         "niche": ((body.niche or "").strip()[:50] or None),
         "city": ((body.city or "").strip()[:100] or None),
         "message": ((body.message or "").strip()[:1000] or None),
+        "package": ((body.package or "").strip()[:40] or None),
         "source": "website",
         "ip": ip,
     }
@@ -311,7 +347,57 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     except Exception as e:
         logger.debug(f"[public] auto-callback task spawn failed: {e}")
 
+    # 7) Owner email alert — fire-and-forget; NOTIFY_EMAIL+SMTP unset = silent skip.
+    try:
+        ntask = asyncio.create_task(_notify_inquiry_email(dict(rec)))
+        _BG_TASKS.add(ntask)
+        ntask.add_done_callback(_BG_TASKS.discard)
+    except Exception as e:
+        logger.debug(f"[public] notify-email task spawn failed: {e}")
+
     return {"ok": True, "message": _OK_MESSAGE}
+
+
+@router.get("/pay-info")
+async def pay_info():
+    """Landing page ka payment modal — NO AUTH. UPI_VPA env set ho tabhi
+    enabled; QR upi_kit (pure-python encoder) se banta hai, packages
+    app.marketing.packages se (key/name/price only). Kabhi raise nahi karta."""
+    vpa = ""
+    try:
+        from app.config import settings
+
+        vpa = (getattr(settings, "upi_vpa", "") or "").strip()
+    except Exception:
+        vpa = ""
+    if not vpa:
+        return {"enabled": False}
+
+    out: Dict[str, Any] = {"enabled": True, "vpa": vpa}
+    try:
+        from app.marketing.upi_kit import payment_kit
+
+        kit = payment_kit("LeadGen AI", vpa)
+        out["upi_link"] = kit.get("upi_link") or ""
+        out["qr_svg"] = kit.get("qr_svg") or ""
+    except Exception as e:
+        logger.debug(f"[public] pay-info QR build failed: {e}")
+        out["upi_link"] = ""
+        out["qr_svg"] = ""
+    try:
+        from app.marketing.packages import get_packages
+
+        out["packages"] = [
+            {
+                "key": p.get("key"),
+                "name": p.get("name"),
+                "price_inr_month": p.get("price_inr_month"),
+            }
+            for p in (get_packages() or [])
+        ]
+    except Exception:
+        out["packages"] = []
+    return out
 
 
 @router.get("/inquiries")

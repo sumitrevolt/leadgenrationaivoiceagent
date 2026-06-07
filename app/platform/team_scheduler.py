@@ -6,6 +6,7 @@ Schedule (IST):
   - kavya  (ops health check) : har ghante, minute :05 pe
   - arjun  (QA run)           : roz 02:30
   - meera  (trainer analysis) : roz 03:00
+  - manager (daily digest)    : roz 08:30 (inquiries/prospects/QA/health → txt+email)
   - rohan  (client prospecting): roz 09:30 (Tier-1 prospects → outreach queue)
 
 Loop har 60s tick karta hai; per-job "last ran" markers se har job apne
@@ -31,7 +32,7 @@ _TICK_S = 60
 
 # Per-job "last ran" markers: ops -> "YYYY-MM-DD HH", baki -> "YYYY-MM-DD".
 _last_ran: Dict[str, Optional[str]] = {
-    "ops": None, "qa": None, "trainer": None, "prospect": None,
+    "ops": None, "qa": None, "trainer": None, "prospect": None, "digest": None,
 }
 
 
@@ -47,6 +48,8 @@ async def _run_job(job: str) -> None:
             await staff.run_qa()
         elif job == "trainer":
             await staff.run_trainer()
+        elif job == "digest":
+            await staff.run_digest()
         elif job == "prospect":
             from app.platform import prospector
 
@@ -59,7 +62,7 @@ async def scheduler_loop() -> None:
     """Infinite loop: 60s tick; IST schedule ke hisab se staff jobs fire karo."""
     logger.info(
         "[team-scheduler] loop started — ops hourly :05, QA daily 02:30, "
-        "trainer daily 03:00, prospecting daily 09:30 (IST)"
+        "trainer daily 03:00, digest daily 08:30, prospecting daily 09:30 (IST)"
     )
     while True:
         try:
@@ -82,6 +85,11 @@ async def scheduler_loop() -> None:
             if (3, 0) <= hm < (4, 30) and _last_ran["trainer"] != day_key:
                 _last_ran["trainer"] = day_key
                 await _run_job("trainer")
+
+            # manager — daily 08:30 digest (catch-up window 08:30–10:30)
+            if (8, 30) <= hm < (10, 30) and _last_ran["digest"] != day_key:
+                _last_ran["digest"] = day_key
+                await _run_job("digest")
 
             # rohan — daily 09:30 client prospecting (catch-up window 09:30–11:30)
             if (9, 30) <= hm < (11, 30) and _last_ran["prospect"] != day_key:
@@ -118,7 +126,7 @@ def start_scheduler() -> Optional["asyncio.Task[Any]"]:
             team.log_event(
                 "manager",
                 "automation_started",
-                "Team scheduler on: ops hourly, QA 02:30, trainer 03:00, prospecting 09:30",
+                "Team scheduler on: ops hourly, QA 02:30, trainer 03:00, digest 08:30, prospecting 09:30",
             )
         except Exception:
             pass

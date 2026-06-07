@@ -324,12 +324,151 @@ async def run_ops() -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# manager — daily digest (subah 08:30 IST scheduler se; on-demand bhi)
+# --------------------------------------------------------------------------- #
+def _count_recent_inquiries(hours: float = 24.0) -> int:
+    """data/inquiries.jsonl me last-`hours` ki entries count karo (parse-safe)."""
+    from datetime import datetime, timedelta
+
+    count = 0
+    path = os.path.join("data", "inquiries.jsonl")
+    try:
+        if not os.path.isfile(path):
+            return 0
+        cutoff = datetime.utcnow() - timedelta(hours=hours)
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                    at = str(rec.get("at") or "").replace("Z", "")
+                    if at and datetime.fromisoformat(at) >= cutoff:
+                        count += 1
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.debug(f"[staff] digest: inquiries count failed: {e}")
+    return count
+
+
+async def run_digest() -> Dict[str, Any]:
+    """Roz subah ka 4-5 line Hinglish digest: last-24h inquiries + ready
+    prospects + Arjun ke recent QA issues + AI-provider health. Text
+    data/daily_digest.txt me likhta hai, manager event log hota hai, aur
+    NOTIFY_EMAIL configured ho to best-effort email bhi. KABHI raise nahi."""
+    from datetime import datetime, timedelta
+
+    from app.platform import team
+
+    try:
+        # 1) Inquiries (last 24h, jsonl)
+        inquiries_24h = _count_recent_inquiries(24.0)
+
+        # 2) Prospects ready (outreach queue)
+        prospects_ready = 0
+        try:
+            from app.platform import prospector
+
+            prospects_ready = len(prospector.list_prospects(status="ready", limit=500))
+        except Exception as e:
+            logger.debug(f"[staff] digest: prospects count failed: {e}")
+
+        # 3) Recent QA issues (arjun ke warn/error events, last 24h)
+        qa_issues = 0
+        try:
+            cutoff = datetime.utcnow() - timedelta(hours=24)
+            for ev in team.recent_events(limit=50, member="arjun"):
+                if (ev.get("status") or "ok") not in ("warn", "error"):
+                    continue
+                try:
+                    at = datetime.fromisoformat(str(ev.get("at") or "")).replace(tzinfo=None)
+                    if at >= cutoff:
+                        qa_issues += 1
+                except Exception:
+                    qa_issues += 1  # timestamp parse fail — count it anyway
+        except Exception as e:
+            logger.debug(f"[staff] digest: qa events failed: {e}")
+
+        # 4) Health snapshot (free-AI provider flags)
+        providers: Dict[str, bool] = {}
+        try:
+            from app.voice_agent import free_ai
+
+            providers = dict((free_ai.describe() or {}).get("providers") or {})
+        except Exception as e:
+            logger.debug(f"[staff] digest: free_ai describe failed: {e}")
+        providers_on = sum(1 for v in providers.values() if v)
+
+        # ---- 4-5 line Hinglish digest text ----
+        today = datetime.now().strftime("%d-%m-%Y")
+        lines = [
+            f"📊 LeadGen AI — Daily Digest ({today})",
+            f"1) Inquiries (24h): {inquiries_24h} nayi inquiry aayi"
+            + ("" if inquiries_24h else " — landing/WhatsApp push badhao"),
+            f"2) Outreach: {prospects_ready} prospects ready hain — aaj pitch bhejo",
+            f"3) QA: {qa_issues} issue events (Arjun, 24h)"
+            + (" — transcripts check karo" if qa_issues else " — voice agent healthy"),
+            f"4) AI providers: {providers_on}/{len(providers) or 0} on"
+            + ("" if providers and providers_on == len(providers) else " — keys/quota check karo"),
+        ]
+        text = "\n".join(lines)
+
+        # ---- persist to data/daily_digest.txt (best-effort) ----
+        try:
+            os.makedirs("data", exist_ok=True)
+            with open(os.path.join("data", "daily_digest.txt"), "w", encoding="utf-8") as f:
+                f.write(text + "\n")
+        except Exception as e:
+            logger.debug(f"[staff] digest: file write failed: {e}")
+
+        summary: Dict[str, Any] = {
+            "text": text,
+            "inquiries_24h": inquiries_24h,
+            "prospects_ready": prospects_ready,
+            "qa_issues_24h": qa_issues,
+            "providers": providers,
+        }
+        team.log_event("manager", "daily_digest", text[:200], meta=summary)
+
+        # ---- best-effort email (same notify path as inquiries) ----
+        try:
+            from app.config import settings
+
+            to = (getattr(settings, "notify_email", "") or "").strip()
+            if to and settings.smtp_user and settings.smtp_password:
+                from app.integrations.email_sender import EmailSender
+
+                await EmailSender().send_email(
+                    [to], f"📊 LeadGen AI daily digest — {today}", text
+                )
+        except Exception as e:
+            logger.debug(f"[staff] digest: email skipped: {e}")
+
+        return summary
+    except Exception as e:
+        logger.warning(f"[staff] run_digest failed: {e}")
+        try:
+            team.log_event("manager", "daily_digest", f"digest crash: {e}", status="error")
+        except Exception:
+            pass
+        return {"error": str(e)}
+
+
+# --------------------------------------------------------------------------- #
 # Dispatcher
 # --------------------------------------------------------------------------- #
 async def run_member(key: str) -> Dict[str, Any]:
-    """Staff member ka job manually chalao — {"arjun","meera","kavya"} supported."""
+    """Staff member ka job manually chalao — arjun/meera/kavya/manager(digest)."""
     try:
-        jobs = {"arjun": run_qa, "meera": run_trainer, "kavya": run_ops}
+        jobs = {
+            "arjun": run_qa,
+            "meera": run_trainer,
+            "kavya": run_ops,
+            "manager": run_digest,
+            "digest": run_digest,
+        }
         fn = jobs.get((key or "").strip().lower())
         if fn is None:
             return {"error": "unknown member"}
@@ -338,4 +477,4 @@ async def run_member(key: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 
-__all__ = ["SCRIPTS", "BANNED", "run_qa", "run_trainer", "run_ops", "run_member"]
+__all__ = ["SCRIPTS", "BANNED", "run_qa", "run_trainer", "run_ops", "run_digest", "run_member"]
