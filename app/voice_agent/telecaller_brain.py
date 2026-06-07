@@ -327,6 +327,7 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
                 if t2 and not self._too_similar(t2, prev):
                     text, prov = t2, p2
 
+            text = self._clean(text)   # HARD brevity cap on the final reply
             if text:
                 logger.debug(f"[telecaller-brain] reply via {prov}")
             return text or ""
@@ -504,11 +505,26 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
 
     @staticmethod
     def _clean(text: str) -> str:
-        """TTS-safe: strip role prefixes, markdown junk, collapse whitespace."""
+        """TTS-safe + HARD BREVITY: strip role prefixes/markdown, collapse
+        whitespace, AND cap to ~2 sentences / 28 words (phone par lambi reply =
+        bura UX; QA-tester ne 36-word replies pakdi thi). Last reliable safety
+        net even if the model ignores the prompt's length rule."""
         t = (text or "").strip()
         t = re.sub(r"^(swara|agent|assistant)\s*:\s*", "", t, flags=re.IGNORECASE)
         t = t.replace("*", "").replace("`", "").replace("#", "")
         t = re.sub(r"\s+", " ", t).strip()
+        if not t:
+            return t
+        # 1-2 sentences max (Hindi danda + . ? !)
+        parts = re.split(r"(?<=[।.?!])\s+", t)
+        if len(parts) > 2:
+            t = " ".join(parts[:2]).strip()
+        # hard word cap (~28) — trim at a clause boundary if possible
+        words = t.split()
+        if len(words) > 28:
+            t = " ".join(words[:28]).rstrip(" ,;—-")
+            if not re.search(r"[।.?!]$", t):
+                t += "?"
         return t
 
 

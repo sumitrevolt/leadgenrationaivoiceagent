@@ -47,7 +47,9 @@ async def run_niche(session, niche, turns, report):
         for turn in turns:
             await ws.send_json({"type": "user", "text": turn, "niche": niche})
             t0 = time.time()
-            bots = await _collect_bots(ws, settle=4.0)
+            # Realistic: wait up to 12s for the FIRST reply, then 2.5s settle to
+            # catch any (buggy) second reply — matches phone's turn-based pacing.
+            bots = await _collect_bots(ws, first_timeout=12.0, settle=2.5)
             dt = time.time() - t0
             n = len(bots)
             reply = (bots[0] if bots else "").strip()
@@ -72,12 +74,13 @@ async def run_niche(session, niche, turns, report):
             print(f"  [{niche}] U: {turn}\n           B({n}, {dt:.1f}s): {reply[:90]}")
 
 
-async def _collect_bots(ws, settle=4.0):
-    """Collect all 'bot' messages until `settle` seconds of silence."""
+async def _collect_bots(ws, first_timeout=12.0, settle=2.5):
+    """Wait up to first_timeout for the FIRST bot msg, then settle for extras."""
     bots = []
     while True:
+        timeout = first_timeout if not bots else settle
         try:
-            msg = await asyncio.wait_for(ws.receive(), timeout=settle)
+            msg = await asyncio.wait_for(ws.receive(), timeout=timeout)
         except asyncio.TimeoutError:
             break
         if msg.type != aiohttp.WSMsgType.TEXT:
