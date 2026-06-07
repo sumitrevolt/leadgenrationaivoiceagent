@@ -104,6 +104,12 @@
 - **NEXT SESSION PLAN (conversational pipeline)**: Route A = Vobiz WebSocket streaming (₹0.65/min, docs.vobiz.ai/concepts/streaming-websockets) — VobizXML Stream verb → FastAPI WS endpoint → STT (whisper-tiny/vosk CPU) → LLMBrain (niche flows) → **EdgeTTS hi-IN (SwaraNeural/MadhurNeural — bahut natural)** → audio wapas stream. Pipecat WebsocketServerTransport isi pattern ka hai. Route B (baad me, ₹0.45): FreeSWITCH mod_audio_fork → same pipeline. Naturalness: natural_dialog module + fillers + barge-in support. Latency target <1.5s turn.
 - Web-call page ka voice bhi同 pipeline pe migrate karna (browser-TTS → EdgeTTS server-side) for consistent demo quality.
 
+## CONVERSATIONAL PIPELINE BUILT + LIVE (2026-06-07) — two-way phone AI
+- **app/telephony/vobiz_stream.py** — VobizStreamSession: Vobiz WS streaming (base64 µ-law 8k events connected/start/media/dtmf/stop), audioop µ-law↔PCM + 8k↔16k resample, energy+silence VAD turn-taking (~700ms trailing silence), barge-in (clear event), per-call hist. Pipeline: STT (faster-whisper tiny, CPU) → LLMBrain.generate_response(niche flows) → EdgeTTS hi-IN-SwaraNeural → pydub MP3→PCM→µ-law→160-byte/20ms frames. Sab try/except — STT/TTS missing pe socket crash nahi (graceful deaf/mute).
+- Routes (app/api/telephony_vobiz.py): WS `/api/telephony/vobiz/stream/{token}?niche=&client_id=`, POST `/stream-call` {to,niche?,client_id?} (admin), GET|POST `/answer-stream/{token}` (returns build_stream_xml Stream verb).
+- **VPS verified: STT_AVAILABLE=True (faster-whisper installed), TTS_AVAILABLE=True (edge-tts+pydub+ffmpeg). Conversational stream-call queued 201 to +918459012607.** Streaming rate ₹0.65/min (vs one-shot ₹0.45). `.venv/bin/pip install faster-whisper` VPS pe done — deploy_vps.sh me add karna pending (abhi manual).
+- Next polish: latency tuning (<1.5s turn), VAD threshold, web-call page ko isi server-TTS pe migrate, transcript persistence to call_logs.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
