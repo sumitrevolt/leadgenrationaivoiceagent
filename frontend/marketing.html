@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>LeadGen AI — AI Marketing (Isha)</title>
+<style>
+  :root{
+    --brand:#6d28d9;          /* violet-700 */
+    --brand-2:#4f46e5;        /* indigo-600 */
+    --brand-soft:#ede9fe;
+    --ink:#1e1b2e;
+    --muted:#6b7280;
+    --line:#e9e7f2;
+    --bg:#f6f5fb;
+    --card:#ffffff;
+    --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
+    --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
+  }
+
+  /* ---- Header ---- */
+  .topbar{
+    position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);
+    padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:16px;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.45)}
+  .brand .sub{font-size:11.5px;color:var(--muted);font-weight:600}
+  .spacer{flex:1}
+  .kbd{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;
+    display:grid;place-items:center;font-size:15px;cursor:pointer;color:var(--muted)}
+  .kbd.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
+
+  /* Token row */
+  .tokrow{display:none;width:100%;gap:8px;padding-top:8px}
+  .tokrow.show{display:flex}
+  .tokrow input{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit}
+  .tokrow input:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .tokrow button{border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:0 14px;cursor:pointer;font-size:12.5px}
+
+  /* ---- Layout ---- */
+  .wrap{max-width:760px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:16px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);padding:16px}
+  .card h3{margin:0 0 12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:7px}
+
+  /* ---- Form ---- */
+  .frm{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:560px){.frm{grid-template-columns:1fr 1fr}}
+  .fld{display:flex;flex-direction:column;gap:5px}
+  .fld label{font-size:12px;font-weight:700;color:var(--muted)}
+  .fld input,.fld select{
+    border:1px solid var(--line);background:#fff;border-radius:10px;
+    padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--ink);width:100%;
+  }
+  .fld select{appearance:none;cursor:pointer;font-weight:600;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+  .fld input:focus,.fld select:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  #occasionCustom{display:none;margin-top:6px}
+  #occasionCustom.show{display:block}
+
+  .btns{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+  .btn{border:none;border-radius:11px;font-weight:700;padding:11px 15px;cursor:pointer;
+    font-size:13px;display:flex;align-items:center;gap:7px;transition:filter .12s;color:#fff;
+    background:linear-gradient(135deg,#6d28d9,#4f46e5);flex:1;justify-content:center;min-width:140px}
+  .btn.sec{background:#fff;color:var(--brand);border:1.5px solid var(--brand-soft)}
+  .btn:hover{filter:brightness(1.07)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+    border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
+  .btn.sec .spin{border-color:rgba(109,40,217,.25);border-top-color:var(--brand)}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  /* ---- Post result ---- */
+  .hidden{display:none!important}
+  .caption{white-space:pre-wrap;font-size:14px;background:var(--bg);border:1px solid var(--line);
+    border-radius:12px;padding:13px;word-break:break-word}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .tag{font-size:11.5px;font-weight:700;background:var(--brand-soft);color:var(--brand);
+    border-radius:999px;padding:4px 10px}
+  .imgidea{font-style:italic;color:var(--muted);font-size:12.5px;margin-top:10px;display:flex;gap:6px}
+  .meta{display:flex;align-items:center;gap:8px;margin-top:12px}
+  .prov{font-size:10.5px;font-weight:700;color:var(--muted);background:var(--bg);
+    border:1px solid var(--line);border-radius:999px;padding:3px 9px}
+  .copybtn{margin-left:auto;border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:8px 13px;cursor:pointer;font-size:12.5px}
+  .copybtn.done{background:linear-gradient(135deg,#16a34a,#15803d)}
+
+  /* ---- Calendar rows ---- */
+  .calrow{display:flex;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);align-items:baseline}
+  .calrow:last-child{border-bottom:none}
+  .calday{flex:0 0 96px;font-weight:800;font-size:12px;color:var(--brand)}
+  .caltheme{flex:0 0 auto;font-size:10.5px;font-weight:700;background:var(--brand-soft);
+    color:var(--brand);border-radius:999px;padding:3px 9px;white-space:nowrap}
+  .calcap{flex:1;font-size:12.5px;color:var(--ink);word-break:break-word}
+  @media(max-width:520px){
+    .calrow{flex-wrap:wrap}
+    .calday{flex-basis:auto}
+    .calcap{flex-basis:100%}
+  }
+
+  /* ---- GBP tips ---- */
+  .tiprow{display:flex;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line)}
+  .tiprow:last-child{border-bottom:none}
+  .tiprow .ck{flex:0 0 auto;font-size:14px}
+  .tipbody{flex:1}
+  .tipbody .t{font-weight:700;font-size:13px}
+  .tipbody .w{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .impact{flex:0 0 auto;align-self:flex-start;font-size:10px;font-weight:800;border-radius:999px;
+    padding:3px 9px;text-transform:uppercase;letter-spacing:.4px}
+  .impact.high{background:#fef2f2;color:var(--err)}
+  .impact.med{background:#fffbeb;color:#b45309}
+
+  .empty{padding:18px;text-align:center;color:var(--muted);font-size:13px}
+
+  /* ---- Toasts ---- */
+  #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;
+    display:flex;flex-direction:column;gap:8px;width:min(92vw,420px)}
+  .toast{background:#1e293b;color:#fff;border-radius:12px;padding:11px 14px;font-size:12.5px;
+    box-shadow:0 10px 26px rgba(0,0,0,.25);animation:up .25s ease}
+  .toast.err{background:#b91c1c}
+  .toast.ok{background:#15803d}
+  @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="logo">📣</span>
+    <span>AI Marketing <span class="sub">— Isha, Marketing Executive</span></span>
+  </div>
+  <div class="spacer"></div>
+  <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
+  <div class="tokrow" id="tokRow">
+    <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
+    <button id="tokSave">Save</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ===== Form ===== -->
+  <div class="card">
+    <h3>✍️ Business details</h3>
+    <div class="frm">
+      <div class="fld">
+        <label for="bizName">Business ka naam *</label>
+        <input id="bizName" type="text" placeholder="e.g. Sharma Solar Solutions" maxlength="120" />
+      </div>
+      <div class="fld">
+        <label for="niche">Niche / Category</label>
+        <select id="niche">
+          <!-- Populated from /api/data/niches; static fallback below -->
+          <option value="general">General</option>
+          <option value="real_estate">Real Estate</option>
+          <option value="solar_residential">Solar (Residential)</option>
+          <option value="dental_implants">Dental</option>
+          <option value="studying_abroad">Study Abroad</option>
+          <option value="insurance">Insurance</option>
+          <option value="coaching">Coaching</option>
+          <option value="home_loans">Home Loans</option>
+          <option value="interior_designers">Interior Designers</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label for="occasion">Occasion / Festival</label>
+        <select id="occasion">
+          <option value="">None (normal post)</option>
+          <option value="Diwali">Diwali</option>
+          <option value="Holi">Holi</option>
+          <option value="Eid">Eid</option>
+          <option value="Christmas">Christmas</option>
+          <option value="New Year">New Year</option>
+          <option value="Independence Day">Independence Day</option>
+          <option value="__custom__">Custom likho…</option>
+        </select>
+        <input id="occasionCustom" type="text" placeholder="Custom occasion (e.g. Anniversary Sale)" maxlength="80" />
+      </div>
+      <div class="fld">
+        <label for="offer">Offer (optional)</label>
+        <input id="offer" type="text" placeholder="e.g. 10% off is hafte" maxlength="200" />
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="btn" id="btnPost">✨ Post banao</button>
+      <button class="btn sec" id="btnCal">📅 7-din calendar</button>
+      <button class="btn sec" id="btnTips">📍 Google Profile tips</button>
+    </div>
+  </div>
+
+  <!-- ===== Post result ===== -->
+  <div class="card hidden" id="postCard">
+    <h3>📝 Post preview</h3>
+    <div class="caption" id="postCaption"></div>
+    <div class="tags" id="postTags"></div>
+    <div class="imgidea" id="postImg"></div>
+    <div class="meta">
+      <span class="prov" id="postProv"></span>
+      <button class="copybtn" id="btnCopy">📋 Copy</button>
+    </div>
+  </div>
+
+  <!-- ===== Calendar result ===== -->
+  <div class="card hidden" id="calCard">
+    <h3>📅 7-din content calendar</h3>
+    <div id="calRows"></div>
+  </div>
+
+  <!-- ===== GBP tips result ===== -->
+  <div class="card hidden" id="tipsCard">
+    <h3>📍 Google Business Profile checklist</h3>
+    <div id="tipRows"></div>
+  </div>
+
+</div>
+
+<div id="toasts"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Auth: Bearer token from localStorage (same key as main app) --------
+  function token(){ return localStorage.getItem("accessToken") || ""; }
+  function hdrs(extra){
+    var h = extra || {};
+    var t = token();
+    if(t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+  var tokRow = document.getElementById("tokRow");
+  document.getElementById("tokToggle").onclick = function(){
+    tokRow.classList.toggle("show");
+    this.classList.toggle("on");
+    document.getElementById("tokInput").value = token();
+  };
+  document.getElementById("tokSave").onclick = function(){
+    var v = document.getElementById("tokInput").value.trim();
+    if(v) localStorage.setItem("accessToken", v); else localStorage.removeItem("accessToken");
+    toast(v ? "Token saved ✓" : "Token cleared", "ok");
+    tokRow.classList.remove("show");
+  };
+  function needAuth(){
+    tokRow.classList.add("show");
+    document.getElementById("tokToggle").classList.add("on");
+    toast("Admin token chahiye — 🔑 me paste karo", "err");
+  }
+
+  // ---- Helpers ---------------------------------------------------------------
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function toast(msg, kind){
+    var el = document.createElement("div");
+    el.className = "toast" + (kind ? " " + kind : "");
+    el.textContent = msg;
+    document.getElementById("toasts").appendChild(el);
+    setTimeout(function(){ el.style.opacity = "0"; el.style.transition = "opacity .4s"; }, 4200);
+    setTimeout(function(){ el.remove(); }, 4700);
+  }
+  function setBusy(btn, busy, label){
+    btn.disabled = busy;
+    btn.innerHTML = busy ? '<span class="spin"></span> Ban raha hai…' : label;
+  }
+
+  // ---- Niche dropdown: load research-finalized niches (web_call pattern) -------
+  var nicheSel = document.getElementById("niche");
+  (function loadNiches(){
+    fetch("/api/data/niches")
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(data){
+        if(!data || !data.niches || !data.niches.length) return;
+        nicheSel.innerHTML = '<option value="general">General</option>';
+        var tiers = {"S":[],"A":[],"B":[],"C":[],"":[]};
+        data.niches.forEach(function(n){ (tiers[n.tier]||tiers[""]).push(n); });
+        ["S","A","B","C",""].forEach(function(t){
+          tiers[t].forEach(function(n){
+            var opt = document.createElement("option");
+            opt.value = n.id;
+            var label = t === "C" ? " [custom]" : (t ? " ["+t+"]" : "");
+            opt.textContent = n.name + label;
+            nicheSel.appendChild(opt);
+          });
+        });
+      })
+      .catch(function(){ /* static fallback already in markup */ });
+  })();
+
+  // ---- Occasion custom toggle ---------------------------------------------------
+  var occSel = document.getElementById("occasion");
+  var occCustom = document.getElementById("occasionCustom");
+  occSel.onchange = function(){
+    occCustom.classList.toggle("show", occSel.value === "__custom__");
+    if(occSel.value === "__custom__") occCustom.focus();
+  };
+  function occasionValue(){
+    return occSel.value === "__custom__" ? occCustom.value.trim() : occSel.value;
+  }
+
+  function formData(){
+    return {
+      business_name: document.getElementById("bizName").value.trim(),
+      niche: nicheSel.value || "general",
+      occasion: occasionValue(),
+      offer: document.getElementById("offer").value.trim(),
+    };
+  }
+  function requireName(){
+    var n = document.getElementById("bizName").value.trim();
+    if(!n){ toast("Business ka naam likho pehle", "err"); document.getElementById("bizName").focus(); }
+    return n;
+  }
+
+  async function callApi(url, opts){
+    var r = await fetch(url, opts);
+    if(r.status === 401 || r.status === 403){ needAuth(); throw new Error("auth"); }
+    var data = null;
+    try{ data = await r.json(); }catch(_e){}
+    if(!r.ok){
+      throw new Error((data && (data.detail || data.error)) || ("HTTP " + r.status));
+    }
+    return data;
+  }
+
+  // ---- 1) Post banao ---------------------------------------------------------
+  var lastPostText = "";
+  var btnPost = document.getElementById("btnPost");
+  btnPost.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnPost, true);
+    try{
+      var d = formData();
+      var res = await callApi("/api/marketing/post", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify(d),
+      });
+      lastPostText = res.post_text || res.caption || "";
+      document.getElementById("postCaption").textContent = res.caption || "";
+      document.getElementById("postTags").innerHTML = (res.hashtags || []).map(function(h){
+        return '<span class="tag">' + esc(h) + '</span>';
+      }).join("");
+      document.getElementById("postImg").innerHTML = res.image_idea
+        ? '🖼️ <span>' + esc(res.image_idea) + '</span>' : "";
+      document.getElementById("postProv").textContent = "via " + (res.provider || "ai");
+      var copyBtn = document.getElementById("btnCopy");
+      copyBtn.classList.remove("done"); copyBtn.textContent = "📋 Copy";
+      document.getElementById("postCard").classList.remove("hidden");
+      document.getElementById("postCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Post ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Post nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnPost, false, "✨ Post banao");
+    }
+  };
+
+  // Copy post_text
+  document.getElementById("btnCopy").onclick = function(){
+    var btn = this;
+    function done(){
+      btn.classList.add("done"); btn.textContent = "✓ Copied!";
+      setTimeout(function(){ btn.classList.remove("done"); btn.textContent = "📋 Copy"; }, 1800);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(lastPostText).then(done).catch(function(){ fallbackCopy(); });
+    }else{ fallbackCopy(); }
+    function fallbackCopy(){
+      var ta = document.createElement("textarea");
+      ta.value = lastPostText; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); done(); }catch(_e){ toast("Copy nahi hua — manually select karo", "err"); }
+      ta.remove();
+    }
+  };
+
+  // ---- 2) 7-din calendar --------------------------------------------------------
+  var btnCal = document.getElementById("btnCal");
+  btnCal.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnCal, true);
+    try{
+      var d = formData();
+      var res = await callApi("/api/marketing/calendar", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({business_name: d.business_name, niche: d.niche, days: 7}),
+      });
+      var rows = (res && res.calendar) || [];
+      document.getElementById("calRows").innerHTML = rows.length
+        ? rows.map(function(c){
+            return '<div class="calrow">' +
+              '<div class="calday">' + esc(c.day) + '</div>' +
+              '<div class="caltheme">' + esc(c.theme) + '</div>' +
+              '<div class="calcap">' + esc(c.caption_short || c.caption || "") + '</div>' +
+            '</div>';
+          }).join("")
+        : '<div class="empty">Calendar nahi bana — dobara try karo.</div>';
+      document.getElementById("calCard").classList.remove("hidden");
+      document.getElementById("calCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Calendar ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Calendar nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnCal, false, "📅 7-din calendar");
+    }
+  };
+
+  // ---- 3) GBP tips ------------------------------------------------------------
+  var btnTips = document.getElementById("btnTips");
+  btnTips.onclick = async function(){
+    setBusy(btnTips, true);
+    try{
+      var res = await callApi("/api/marketing/gbp-tips?niche=" + encodeURIComponent(nicheSel.value || "general"),
+        {headers: hdrs()});
+      var tips = (res && res.tips) || [];
+      document.getElementById("tipRows").innerHTML = tips.length
+        ? tips.map(function(t){
+            var imp = (t.impact === "high") ? "high" : "med";
+            return '<div class="tiprow">' +
+              '<div class="ck">☑️</div>' +
+              '<div class="tipbody"><div class="t">' + esc(t.tip) + '</div>' +
+                (t.why ? '<div class="w">' + esc(t.why) + '</div>' : '') + '</div>' +
+              '<span class="impact ' + imp + '">' + imp + '</span>' +
+            '</div>';
+          }).join("")
+        : '<div class="empty">Tips nahi mile.</div>';
+      document.getElementById("tipsCard").classList.remove("hidden");
+      document.getElementById("tipsCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+    }catch(e){
+      if(e.message !== "auth") toast("Tips nahi mile: " + e.message, "err");
+    }finally{
+      setBusy(btnTips, false, "📍 Google Profile tips");
+    }
+  };
+})();
+</script>
+</body>
+</html>

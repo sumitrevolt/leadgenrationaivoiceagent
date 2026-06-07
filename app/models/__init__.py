@@ -18,6 +18,7 @@ from app.models.campaign import Campaign, CampaignStatus, CampaignType
 from app.models.call_log import CallLog, CallOutcome, CallDirection
 from app.models.client import Client, ClientStatus, SubscriptionPlan
 from app.models.agent import Agent, AgentStatus
+from app.models.agent_event import AgentEvent
 from app.models.billing_record import (
     BillingRecord,
     BillingRecordType,
@@ -74,6 +75,7 @@ __all__ = [
     # Agent / worker models
     "Agent",
     "AgentStatus",
+    "AgentEvent",
     # Billing record models
     "BillingRecord",
     "BillingRecordType",

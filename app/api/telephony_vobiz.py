@@ -185,6 +185,17 @@ async def place_stream_call(
     placed = 200 <= int(result.get("status_code") or 0) < 300
     if not placed:
         logger.warning(f"Vobiz stream-call not placed: {result}")
+    try:  # Team activity: Swara ne call lagayi
+        from app.platform.team import log_event
+
+        log_event(
+            "swara",
+            "call_placed",
+            f"Conversational call → {request.to} (niche: {getattr(request, 'niche', '') or 'general'})",
+            status="ok" if placed else "error",
+        )
+    except Exception:
+        pass
     return {
         "placed": placed,
         "vobiz_response": result,

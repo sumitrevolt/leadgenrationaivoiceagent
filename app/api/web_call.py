@@ -375,6 +375,12 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 continue
 
             if mtype == "start":
+                try:  # Team activity: Swara web-demo session
+                    from app.platform.team import log_event
+
+                    log_event("swara", "web_demo", f"Web-call demo started (niche: {session.get('niche', 'general')})")
+                except Exception:
+                    pass
                 # Fresh conversation for the chosen niche + a natural opening
                 # line so the bot greets FIRST (proves it's alive and human).
                 dialog = None            # force rebuild with fresh state

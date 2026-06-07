@@ -264,6 +264,15 @@ async def run_supervisor_task(
     config = {"configurable": {"thread_id": thread_id}}
 
     out = await _execute(initial, config)
+    try:  # Team activity: Manager ne task route kiya
+        from app.platform.team import log_event
+
+        route = out.get("route") or "?"
+        worker = "dev" if route == "data_agent" else "rohan"
+        log_event("manager", "task_routed", f"Task '{task[:60]}' → {route} ({niche_key})")
+        log_event(worker, "task_done", f"{('KB/data kaam' if worker == 'dev' else 'Outreach plan')}: {task[:60]}")
+    except Exception:
+        pass
     return {
         "route": out.get("route"),
         "result": out.get("result"),

@@ -131,6 +131,16 @@ async def lifespan(app: FastAPI):
     logger.info("⏭️ Redis disabled - requires VPC connector for internal network access")
     logger.info("⏭️ Platform orchestrator disabled for initial deployment")
     logger.info("⏭️ ML scheduler disabled for initial deployment")
+
+    # AI Staff Team automation (Arjun QA 02:30, Meera trainer 03:00, Kavya ops hourly)
+    try:
+        from app.platform.team_scheduler import start_scheduler
+
+        start_scheduler()
+        logger.info("✅ AI Staff Team scheduler started (TEAM_AUTOMATION)")
+    except Exception as e:
+        logger.warning(f"Team scheduler not started: {e}")
+
     logger.info("✅ Startup complete - application ready")
 
     yield
@@ -187,6 +197,20 @@ app.include_router(analytics.router, prefix="/api", tags=["Analytics"])  # route
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
 app.include_router(billing_router, prefix="/api", tags=["Billing"])
 app.include_router(platform_router, prefix="/api", tags=["Platform"])
+
+# AI Staff Team (roster + activity + manual runs) and Marketing (Isha)
+try:
+    from app.api.team import router as team_router
+
+    app.include_router(team_router, prefix="/api")  # /api/platform/team/*
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Team router not mounted: {_e}")
+try:
+    from app.api.marketing import router as marketing_router
+
+    app.include_router(marketing_router, prefix="/api", tags=["Marketing"])  # /api/marketing/*
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Marketing router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])
@@ -242,6 +266,18 @@ async def admin_dashboard_page():
 async def web_call_test_page():
     """Browser web-call test mode — talk to the bot, no real phone call."""
     return FileResponse(str(FRONTEND_DIR / "web_call.html"))
+
+
+@app.get("/app/team", tags=["Frontend"])
+async def team_dashboard_page():
+    """AI Staff / Team dashboard (roster, live activity, manual runs)."""
+    return FileResponse(str(FRONTEND_DIR / "team_dashboard.html"))
+
+
+@app.get("/app/marketing", tags=["Frontend"])
+async def marketing_page():
+    """AI Marketing (Isha) — social posts, content calendar, GBP tips."""
+    return FileResponse(str(FRONTEND_DIR / "marketing.html"))
 
 
 @app.websocket("/telephony/twilio/media-stream")

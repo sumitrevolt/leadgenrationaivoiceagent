@@ -1223,6 +1223,18 @@ class VobizStreamSession:
             f"msgs={len(self.hist)} stt={self._stt_counts}"
         )
         self._persist_transcript(ended, dur, turns)
+        try:  # Team activity: Swara ki call khatam — dashboard feed ke liye
+            from app.platform.team import log_event
+
+            log_event(
+                "swara",
+                "call_finished",
+                f"Call done ({dur:.0f}s, {turns} user turns, niche {self.niche})",
+                status="ok" if turns > 0 else "warn",
+                meta={"stt_counts": dict(self._stt_counts), "duration_s": round(dur, 1)},
+            )
+        except Exception:
+            pass
 
     def _persist_transcript(self, ended: datetime, dur_s: float, user_turns: int) -> None:
         """Har call ka full transcript + meta ek JSON line me append karo —

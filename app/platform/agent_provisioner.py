@@ -174,6 +174,19 @@ async def provision_agents_for_client(
     # Data agent ka pehla kaam: client knowledge seed (best-effort).
     _seed_client_knowledge(client, niche_key)
 
+    try:  # Team activity: Dev (KB seed) + Rohan (leads agent ready)
+        from app.platform.team import log_event
+
+        log_event("dev", "kb_seeded", f"{client.business_name}: business profile + {niche_key} facts KB me seeded")
+        if created:
+            log_event(
+                "rohan",
+                "agents_provisioned",
+                f"{client.business_name}: {len(created)} agent(s) ready ({niche_key}, {target_type})",
+            )
+    except Exception:
+        pass
+
     logger.info(
         f"Agents provisioned for client {client.id}: "
         f"created={[a.agent_code for a in created]}, existing={len(existing)}"
