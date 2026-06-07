@@ -202,6 +202,11 @@
 - API: +6 endpoints; **marketing.html ab 17 tabs** (naye: 💳 UPI/📋 Catalog/📢 Ads char-badges/🎬 Reels/🔥 Hot Leads wa.me table). Tests +12 green. VPS smoke: UPI link+QR, catalog svg, 15 headlines sab ≤30, 3 reels, scoring counts, GBP desc — sab pass.
 - Future ab bhi pending: missed-call callback (DID), mini landing+booking page /b/{slug}, referral kit, evergreen recycling.
 
+## GODMODE GAP-FIX (2026-06-08) — production kamiyan band
+- **Audit se mili kamiyan → FIXED**: (1) **VPS backups** — scripts/vps_backup.sh → /root/vps_backup.sh, cron 22:30 UTC (04:00 IST) daily, data/+.env+*.db+qdrant tgz, keep-7 (first run verified: 52K+154K); (2) **inquiry email notify** — NOTIFY_EMAIL+SMTP_* env-gated, fire-and-forget (unset=silent skip); (3) **daily digest** — staff.run_digest() (inquiries-24h/prospects/QA/health Hinglish text → data/daily_digest.txt + manager event), team_scheduler 08:30 IST + **Cowork scheduled task "leadgen-morning-digest" 09:05 local** (ssh→digest→Sumit ko Hinglish report, phone-number highlight); (4) **landing payment path** — UPI_VPA env-gated public GET /api/public/pay-info (QR via upi_kit) + pricing cards "🚀 Shuru karo" → UPI modal ya wa.me fallback + inquiry form me package field; (5) customer_dashboard real KPI binding (is_sample_data pattern kayam).
+- **USER-ACTION pending (env unset hone tak features dormant, sab graceful)**: UPI_VPA (apna UPI ID — payment modal), NOTIFY_EMAIL+SMTP_USER/PASSWORD (Hostinger email creds — inquiry alerts), GOOGLE_MAPS_API_KEY (prospector phones), Vobiz recharge+DID (auto-callback+calls; trial number recharge pe udd jayega), DLT approval wait (cold-calling legal).
+- Remaining future builds: mini landing/booking /b/{slug}, missed-call callback (DID webhook), referral kit, GBP API approval, auto-posting APIs.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
