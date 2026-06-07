@@ -59,7 +59,20 @@ class Settings(BaseSettings):
     exotel_subdomain: str = ""
     exotel_caller_id: str = ""
     default_telephony: str = "twilio"  # twilio, exotel
-    
+
+    # Vobiz (India-native SIP trunk + voice API — primary trunk for P3)
+    vobiz_auth_id: str = ""
+    vobiz_auth_token: str = ""
+    vobiz_trunk_id: str = ""
+    vobiz_trunk_domain: str = ""
+    vobiz_sip_user: str = ""
+    vobiz_sip_pass: str = ""
+    vobiz_sip_realm: str = ""
+    vobiz_caller_id: str = ""
+
+    # Public base URL — webhooks (e.g. Vobiz answer_url) isi pe bante hain
+    public_base_url: str = "https://leadsgenai.in"
+
     # Lead Scraping
     google_maps_api_key: str = ""
     proxy_url: Optional[str] = None

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- Core settings — RTP port range 10000-20000 (firewall/ufw isi range ko allow karta hai). -->
+<configuration name="switch.conf" description="Core Configuration">
+  <settings>
+    <param name="rtp-start-port" value="10000"/>
+    <param name="rtp-end-port" value="20000"/>
+    <param name="loglevel" value="info"/>
+    <param name="dump-cores" value="no"/>
+  </settings>
+</configuration>

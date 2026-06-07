@@ -76,6 +76,28 @@ def _get_llm_brain() -> Optional[Any]:
         return None
 
 
+def _get_natural_dialog(niche: str, client_name: str, client_service: str) -> Optional[Any]:
+    """
+    Build the NaturalDialogManager — the human-like "listen -> understand ->
+    answer" brain. THIS is what makes the bot reply like a person: short,
+    Hinglish, acknowledges what the customer said, answers their QUESTION first,
+    asks ONE thing at a time — instead of monologuing a sales script and never
+    listening. It internally uses the LLM brain (Gemini) when a key is present,
+    else clean rule-based replies. Returns None on any failure (caller degrades).
+    """
+    try:
+        from app.voice_agent.natural_dialog import NaturalDialogManager  # type: ignore
+        niche = niche or "general"
+        return NaturalDialogManager(
+            niche=niche,
+            client_name=client_name or "Demo Co",
+            client_service=client_service or niche.replace("_", " "),
+        )
+    except Exception as e:
+        logger.debug(f"web-call: NaturalDialogManager unavailable ({e}).")
+        return None
+
+
 async def _maybe_await(value: Any) -> Any:
     import asyncio
     if asyncio.iscoroutine(value) or isinstance(value, asyncio.Future):
@@ -112,6 +134,7 @@ async def web_call_config() -> Dict[str, Any]:
     pipeline_can_text = _pipeline_text_method(pipeline) is not None
     registry = _get_registry_describe()
     brain_available = _get_llm_brain() is not None
+    natural_available = _get_natural_dialog("general", "Demo Co", "") is not None
 
     # Telephony providers (for the dashboard's awareness) — best-effort.
     telephony: Dict[str, Any] = {}
@@ -124,13 +147,15 @@ async def web_call_config() -> Dict[str, Any]:
     return {
         "test_mode": True,
         "note": "Web Call is TEST MODE — talk to the bot in the browser, no real phone call is placed.",
+        "natural_dialog_available": natural_available,
         "pipeline_available": pipeline is not None,
         "llm_fallback_available": brain_available,
         "providers": registry or {"detail": "No provider registry; using fallback responder."},
         "telephony": telephony or {"detail": "Telephony info unavailable."},
         "responder": (
-            "pipeline" if pipeline_can_text
-            else ("llm" if brain_available else "echo")
+            "natural" if natural_available
+            else ("pipeline" if pipeline_can_text
+                  else ("llm" if brain_available else "echo"))
         ),
     }
 
@@ -147,18 +172,51 @@ async def web_call_ws(websocket: WebSocket) -> None:
     """
     await websocket.accept()
 
+    # Per-session conversation context. Defaults until the client tells us the
+    # niche/flow (via 'start' or the first 'user' message).
+    session: Dict[str, Any] = {
+        "niche": "general", "flow": "qualify",
+        "client_name": "Demo Co", "client_service": "",
+    }
+
+    # PRIMARY responder: the human-like NaturalDialogManager. It LISTENS,
+    # understands, answers the customer's question, and keeps replies short —
+    # the whole point of this fix. Built lazily once we know the niche; rebuilt
+    # (with a fresh conversation) if the niche changes mid-session.
+    dialog: Any = None
+    dstate: Any = None
+    dialog_niche: Optional[str] = None
+
+    # Fallbacks (used ONLY if the natural-dialog brain can't be built).
     pipeline = _get_pipeline()
-    # Only treat the pipeline as the responder when it can actually answer
-    # text. Otherwise load the LLM brain right away.
     if _pipeline_text_method(pipeline) is None:
         pipeline = None
-    brain = _get_llm_brain() if pipeline is None else None
-
-    responder = "pipeline" if pipeline is not None else ("llm" if brain else "echo")
-
-    # Per-session conversation state (used by the LLM fallback).
+    brain: Any = None
     history: list = []
-    session: Dict[str, Any] = {"niche": "general", "flow": "qualify", "client_name": "Demo Co"}
+
+    def _ensure_dialog() -> None:
+        """(Re)build the per-session dialog manager when the niche changes."""
+        nonlocal dialog, dstate, dialog_niche
+        niche = session.get("niche", "general")
+        if dialog is not None and dialog_niche == niche:
+            return
+        mgr = _get_natural_dialog(
+            niche, session.get("client_name", "Demo Co"),
+            session.get("client_service", ""),
+        )
+        if mgr is not None:
+            dialog = mgr
+            dstate = mgr.new_conversation()
+            dialog_niche = niche
+
+    _ensure_dialog()
+    if dialog is not None:
+        responder = "natural"
+    elif pipeline is not None:
+        responder = "pipeline"
+    else:
+        brain = _get_llm_brain()
+        responder = "llm" if brain is not None else "echo"
 
     try:
         await websocket.send_json({
@@ -167,7 +225,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
             "responder": responder,
             "pipeline": pipeline is not None,
             "providers": _get_registry_describe() or {},
-            "note": "TEST MODE — no real call. Type a message to talk to the bot.",
+            "note": "TEST MODE — no real call. Say hello to talk to the bot.",
         })
     except Exception:
         return
@@ -204,6 +262,21 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 continue
 
             if mtype == "start":
+                # Fresh conversation for the chosen niche + a natural opening
+                # line so the bot greets FIRST (proves it's alive and human).
+                dialog = None            # force rebuild with fresh state
+                history = []
+                _ensure_dialog()
+                if dialog is not None and dstate is not None:
+                    try:
+                        opening = await dialog.opening_line(dstate)
+                        await websocket.send_json({
+                            "type": "bot", "text": opening,
+                            "audio_b64": None, "test_mode": True,
+                        })
+                        continue
+                    except Exception as e:
+                        logger.debug(f"web-call: opening line skipped ({e}).")
                 await websocket.send_json({
                     "type": "info",
                     "text": f"TEST MODE started — niche='{session['niche']}', flow='{session['flow']}'.",
@@ -219,12 +292,26 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 await websocket.send_json({"type": "error", "text": "Empty message — nothing to process."})
                 continue
 
-            history.append({"role": "user", "content": user_text})
+            # PRIMARY: human-like natural dialog (listen -> understand -> answer).
+            _ensure_dialog()
+            if dialog is not None and dstate is not None:
+                try:
+                    reply = await dialog.respond(user_text, dstate)
+                    await websocket.send_json({
+                        "type": "bot",
+                        "text": reply.text,
+                        "audio_b64": None,  # browser TTS speaks it
+                        "test_mode": True,
+                        "should_end": bool(getattr(reply, "should_end", False)),
+                    })
+                    continue
+                except Exception as e:
+                    logger.warning(f"web-call: natural dialog failed, using fallback: {e}")
 
-            # Generate the bot reply via pipeline -> llm -> echo.
+            # FALLBACK: pipeline -> llm -> echo (only if natural dialog absent).
+            history.append({"role": "user", "content": user_text})
             bot_text, audio_b64 = await _respond(pipeline, brain, history, session, user_text)
             history.append({"role": "assistant", "content": bot_text})
-
             await websocket.send_json({
                 "type": "bot",
                 "text": bot_text,

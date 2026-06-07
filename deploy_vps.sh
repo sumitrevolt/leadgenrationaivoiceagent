@@ -92,6 +92,15 @@ else
   echo "(docker not found — skipping Qdrant; app will use keyword KB fallback)"
 fi
 
+echo "===STEP 6c: FreeSWITCH telephony (Docker, Vobiz SIP trunk — P3)==="
+# Optional — dir + docker dono hon tabhi. Fail ho to bhi deploy aage badhta hai
+# (app simulation-mode telephony pe chalta rehta hai). Creds .env me VOBIZ_*.
+if [ -d "$APP_DIR/app/telephony/freeswitch" ] && command -v docker >/dev/null 2>&1; then
+  bash "$APP_DIR/scripts/fs_deploy.sh" || echo "(freeswitch deploy skipped)"
+else
+  echo "(freeswitch dir ya docker missing — skipping)"
+fi
+
 echo "===STEP 7: systemd service (keeps app running 24/7)==="
 cat > /etc/systemd/system/leadgen.service <<EOF
 [Unit]

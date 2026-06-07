@@ -28,6 +28,7 @@ from app.api.customer_dashboard import router as customer_dashboard_router
 from app.api.admin_dashboard import router as admin_dashboard_router
 from app.api.web_call import router as web_call_router
 from app.api.agents import router as agents_router
+from app.api.telephony_vobiz import router as telephony_vobiz_router
 from fastapi import WebSocket
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -193,6 +194,7 @@ app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /a
 app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])        # /api/admin/*
 app.include_router(web_call_router, prefix="/api", tags=["Web Call (Test Mode)"])  # /api/web-call/*
 app.include_router(agents_router, prefix="/api", tags=["Agents"])  # /api/agents/* (LangGraph supervisor)
+app.include_router(telephony_vobiz_router, prefix="/api", tags=["Telephony"])  # /api/telephony/vobiz/*
 
 
 # ---------------------------------------------------------------------------

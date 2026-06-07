@@ -137,6 +137,11 @@ langchain-core>=0.3
 fastapi-mcp>=0.3  # platform endpoints as MCP tools (/mcp)
 
 # =============================================================================
+# Voice Pipeline (P3 — FreeSWITCH + Pipecat, optional/heavy)
+# =============================================================================
+# pipecat-ai>=0.0.60  # P3 voice pipeline — install when wiring audio (heavy)
+
+# =============================================================================
 # Testing (dev only - move to dev requirements for production)
 # =============================================================================
 pytest==7.4.4
