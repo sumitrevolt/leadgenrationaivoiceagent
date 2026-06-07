@@ -619,3 +619,6 @@ class PhoneCallSession:
         if self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
         logger.info("phone_stream: session ended (callSid=%s)", self.call_sid)
+
+
+__all__ = ["PhoneCallSession", "STT_AVAILABLE", "TTS_AVAILABLE"]

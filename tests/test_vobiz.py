@@ -17,7 +17,11 @@ class TestBuildSpeakXml:
         assert "<Speak" in xml
         assert "<Hangup/>" in xml
         assert "Namaste from LeadGen AI" in xml
-        assert 'language="en-IN"' in xml
+        # NOTE: voice/language attributes intentionally REMOVED (2026-06-07) —
+        # Vobiz silently drops Speak verbs carrying unsupported attrs (caused
+        # "call connects then instantly hangs up"). Minimal <Speak>text</Speak>.
+        assert "<Speak>" in xml
+        assert 'language=' not in xml
 
     def test_escapes_special_chars(self):
         xml = build_speak_xml('R&D <test> calls')
