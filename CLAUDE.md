@@ -121,6 +121,14 @@
 - **NEXT SESSION (priority order)**: (1) **Gemini BILLING enable ya 2-3 extra API keys** (.env GEMINI_API_KEYS rotation) — STT+LLM ke liye; yahi single unlock hai, sab kuch iske peeche atka hai; (2) **KB-grounding in TelecallerBrain** (user demand "knowledge base badi"): Qdrant niche-KB retrieve(user_text, ns=niche + client:id) → top-2 facts prompt me inject; (3) transcript-driven tuning loop: call_transcripts padho → prompt fixes; nightly auto-analysis (ML feedback modules); (4) **TESTING FREE ME**: web-call page (leadsgenai.in/app/test-call) same brain use karta hai — tuning rounds wahan karo, phone-call sirf final verify (trial balance bachao); (5) repeated-question guard: agar wahi reply dobara ban raha to vary/advance flow.
 - User costs: Vobiz trial ~₹25 lagbhag khatam — recharge se pehle yaad: trial number auto-remove hoga, DID kharidna + VOBIZ_CALLER_ID update.
 
+## FREE Multi-Provider AI + Advanced Training (2026-06-07, commit ffa70e2)
+- **Gemini quota-choke solved**: `app/voice_agent/free_ai.py` — multi-PROVIDER fallback (alag companies = ToS-safe, multi-key rotation nahi). All OpenAI-SDK compatible.
+  - **STT chain**: Groq `whisper-large-v3` (language=hi; 8hr/day free, ~200ms, Hindi-strong) → Gemini audio (multi-key) → local faster-whisper. (Groq large-v3 = local whisper-base se bahut behtar, "Hindi→English garbage" fix.)
+  - **LLM chain**: Cerebras `llama-3.3-70b` (1M tokens/DAY free = ~unlimited for voice, 2600 tok/s) → Groq llama-3.3-70b-versatile → OpenRouter deepseek:free → Gemini-direct.
+- **Advanced training**: TelecallerBrain ab KB-grounded — har turn pe Qdrant se niche + client:id facts retrieve (k=2) karke prompt me inject; repeated-answer guard (same reply 2x → "advance/next question" instruction + retry). Transcript persistence (data/call_transcripts) continuous-training fuel.
+- **USER ACTION (free, no card)**: GROQ_API_KEY (console.groq.com) + CEREBRAS_API_KEY (cloud.cerebras.ai) [+ optional OPENROUTER_API_KEY] → /opt/leadgen/.env me + local .env → restart. Keys bina app boots fine (chain skip). describe() me providers:false jab tak keys na ho.
+- VPS verified: free_ai imports, 80 tests green, providers wired (false until keys). Add keys → instant STT+LLM unlock, koi code change nahi.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
