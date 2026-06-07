@@ -122,12 +122,25 @@ def build_speak_xml(text: str, voice: str = "female", language: str = "en-IN") -
 def build_stream_xml(ws_url: str, greeting: str = "") -> str:
     """
     VobizXML that bridges the live call to a WebSocket for two-way streaming
-    (conversational AI). Vobiz opens ``ws_url`` and streams caller audio as
-    base64 µ-law; we stream synthesized audio back.
+    (conversational AI). Vobiz opens ``ws_url``, streams the caller's audio to
+    us and plays back the audio we stream over the same socket.
 
-    Format (NO attributes — same hard-won lesson as build_speak_xml: Vobiz
-    silently drops verbs with unsupported attrs):
-        <Response>[<Speak>greeting</Speak>]<Stream>wss://...</Stream></Response>
+    Format (per docs.vobiz.ai/xml/stream + /xml/stream/play-audio):
+        <Response>[<Speak>greeting</Speak>]<Stream bidirectional="true"
+            keepCallAlive="true" audioTrack="inbound"
+            contentType="audio/x-l16;rate=16000">wss://...</Stream></Response>
+
+    CRITICAL <Stream> attributes (root cause of the old "call connects then
+    instantly hangs up" bug — a bare <Stream> defaults to keepCallAlive=false
+    and bidirectional=false):
+      * keepCallAlive="true"  — KEEPS THE CALL ALIVE while we stream. Without
+        it Vobiz tears the PSTN call down the moment the verb is set up
+        (this is the instant-hangup fix).
+      * bidirectional="true"  — lets us send audio BACK (playAudio) over the WS.
+      * audioTrack="inbound"   — stream the caller's audio to us.
+      * contentType="audio/x-l16;rate=16000" — Linear PCM 16-bit LE @16 kHz,
+        chosen so NO µ-law conversion is needed on EITHER leg (STT already
+        wants 16 kHz, and we send L16 straight back).
 
     The optional leading <Speak> plays a one-shot greeting BEFORE the stream
     opens; normally left empty because the bot greets over the socket itself.
@@ -135,5 +148,8 @@ def build_stream_xml(ws_url: str, greeting: str = "") -> str:
     speak = f"<Speak>{escape(greeting.strip())}</Speak>" if (greeting and greeting.strip()) else ""
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
-        f"<Response>{speak}<Stream>{escape(ws_url or '')}</Stream></Response>"
+        f"<Response>{speak}"
+        '<Stream bidirectional="true" keepCallAlive="true" '
+        'audioTrack="inbound" contentType="audio/x-l16;rate=16000">'
+        f"{escape(ws_url or '')}</Stream></Response>"
     )

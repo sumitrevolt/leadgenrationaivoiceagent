@@ -4,33 +4,32 @@ Vobiz WebSocket Streaming — conversational phone AI (bare-metal, no Pipecat).
 
 WHAT THIS IS
 ------------
-Vobiz can stream a live PSTN call to our server over a WebSocket (Twilio-Media-
-Streams-style protocol). For each call Vobiz opens ONE WS to
+Vobiz can stream a live PSTN call to our server over a WebSocket. For each call
+Vobiz opens ONE WS to
 ``wss://<host>/api/telephony/vobiz/stream/<token>?niche=...&client_id=...`` and:
 
-  * sends us the caller's microphone audio as base64 **G.711 µ-law (PCMU),
-    8 kHz, mono, ~20 ms (160-byte) frames** wrapped in JSON events;
-  * plays back any ``media`` JSON we send (same µ-law/8 kHz/base64 format).
+  * sends us the caller's audio as base64 **Linear PCM 16-bit little-endian,
+    16 kHz, mono, ~20 ms (640-byte) frames** wrapped in JSON events — because
+    our <Stream> verb requests ``contentType="audio/x-l16;rate=16000"`` (see
+    vobiz_handler.build_stream_xml);
+  * plays back the ``playAudio`` JSON we send (same L16/16 kHz/base64 format).
 
 We run a full conversational loop per call:
 
-    caller audio (µ-law 8k)
-        → audioop.ulaw2lin            -> PCM16 8k
-        → audioop.ratecv 8k→16k       -> PCM16 16k   (STT wants 16 kHz)
+    caller audio (PCM16 16k — already STT-ready, NO conversion needed)
         → energy/silence VAD          -> utterance boundary
         → STT (vosk | faster-whisper) -> user text
         → LLMBrain.generate_response  -> reply text  (niche-aware, Hinglish)
         → EdgeTTS (hi-IN-SwaraNeural) -> MP3 bytes
-        → pydub decode + resample     -> PCM16 8k mono
-        → audioop.lin2ulaw            -> µ-law 8k
-        → base64, 160-byte/20ms frames -> {"event":"media", ...}  back to Vobiz
+        → pydub decode + resample     -> PCM16 16k mono
+        → base64, 640-byte/20ms chunks -> {"event":"playAudio", ...} to Vobiz
 
-µ-LAW CONVERSION CHAIN (the load-bearing bit)
----------------------------------------------
-Inbound : b64decode -> ulaw2lin(_,2) -> ratecv(_,2,1,8000,16000,st) -> STT
-Outbound: edge_tts MP3 -> AudioSegment.set_frame_rate(8000).set_channels(1)
-          .set_sample_width(2).raw_data -> lin2ulaw(_,2) -> 160-byte frames
-          -> b64encode -> send every ~20 ms.
+NO µ-LAW / NO 8k RESAMPLE (the load-bearing simplification)
+-----------------------------------------------------------
+contentType=audio/x-l16;rate=16000 means inbound bytes ARE already PCM16 @16 kHz
+(exactly what STT wants) and we send PCM16 @16 kHz straight back. audioop is now
+used ONLY for RMS in the VAD, with a pure-Python fallback (_pcm_rms) so the call
+keeps working even if audioop is unimportable.
 
 GRACEFUL DEGRADATION (robustness > completeness)
 ------------------------------------------------
@@ -40,6 +39,7 @@ runs, and a missing capability is logged + skipped (the call still connects):
   * TTS_AVAILABLE  -> needs ``edge-tts`` AND ``pydub`` importable.
   * STT_AVAILABLE  -> needs ``vosk`` OR ``faster-whisper`` importable.
   * audioop        -> stdlib (Python ≤3.12); on 3.13 falls back to audioop-lts.
+                      Only RMS is used now; a manual int loop covers its absence.
 
 TO GO LIVE ON THE VPS (Mumbai) you must install the heavy, optional deps:
     .venv/bin/pip install vosk            # or: faster-whisper
@@ -49,14 +49,14 @@ For vosk set ``VOSK_MODEL_PATH`` to a downloaded model dir (e.g. the small
 hi/en model). Without these the WS still accepts + reads events, but cannot
 hear or speak (logs "STT/TTS unavailable").
 
-Protocol events (EXACT, per docs.vobiz.ai/concepts/streaming-websockets):
-  recv: {"event":"connected"}
-        {"event":"start","start":{"streamSid":..,"callSid":..,"customParameters":{..}}}
-        {"event":"media","media":{"payload":"<b64 ulaw>"}}
-        {"event":"dtmf","dtmf":{"digit":"1"}}
+Protocol events (EXACT, per docs.vobiz.ai/xml/stream + /xml/stream/play-audio):
+  recv: {"event":"start","start":{"streamSid":..,"callSid":..,"customParameters":{..}}}
+        {"event":"media","media":{"payload":"<b64 PCM16 16k>"}}
         {"event":"stop"}
-  send: {"event":"media","streamSid":sid,"media":{"payload":"<b64 ulaw 8k>"}}
-        {"event":"clear","streamSid":sid}   # flush playback on barge-in
+        {"event":"playedStream"}    # ack: our playAudio finished (no-op)
+        {"event":"clearedAudio"}    # ack: clearAudio flushed buffer (no-op)
+  send: {"event":"playAudio","media":{"contentType":"audio/x-l16","sampleRate":16000,"payload":"<b64 PCM16 16k>"}}
+        {"event":"clearAudio"}      # flush playback on barge-in (no sid)
 """
 from __future__ import annotations
 
@@ -106,10 +106,10 @@ except Exception:  # pragma: no cover
 # --------------------------------------------------------------------------- #
 # Tunables (env-overridable) — phone audio, so frames are 20 ms / 160 µ-law B.
 # --------------------------------------------------------------------------- #
-IN_RATE = 8000          # Vobiz µ-law sample rate
-STT_RATE = 16000        # STT models want 16 kHz PCM16
-FRAME_ULAW = 160        # 20 ms of µ-law @ 8 kHz
-ULAW_SILENCE = b"\xff"  # µ-law encodes digital zero as 0xFF
+SAMPLE_RATE = 16000     # Vobiz L16 stream rate (contentType audio/x-l16;rate=16000)
+STT_RATE = 16000        # STT models want 16 kHz PCM16 (== SAMPLE_RATE: no resample)
+FRAME_PCM = 640         # 20 ms of PCM16 @ 16 kHz (16000 * 0.02 * 2 bytes)
+PCM_SILENCE = b"\x00"   # PCM16 silence == zero bytes
 
 _VAD_RMS = int(os.environ.get("VOBIZ_VAD_RMS", "300"))   # PCM16 RMS speech gate
 SILENCE_MS = 700.0      # trailing silence that ends an utterance
@@ -183,6 +183,34 @@ def _stt_sync(kind: str, model: Any, pcm16: bytes) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# VAD helper — RMS of signed-16-bit LE PCM. Prefers audioop; never raises.
+# --------------------------------------------------------------------------- #
+def _pcm_rms(pcm16: bytes) -> int:
+    """RMS amplitude of PCM16 (little-endian) bytes for energy VAD.
+
+    Uses audioop.rms when available; falls back to a pure-Python loop so VAD
+    keeps working even if audioop could not be imported. If both fail, returns
+    a high value so we err on the side of 'speech' rather than going deaf."""
+    if not pcm16:
+        return 0
+    if _AUDIOOP_OK:
+        try:
+            return audioop.rms(pcm16, 2)
+        except Exception:
+            pass
+    try:
+        import struct
+
+        n = len(pcm16) // 2
+        if n == 0:
+            return 0
+        samples = struct.unpack("<%dh" % n, pcm16[: n * 2])
+        return int((sum(s * s for s in samples) / n) ** 0.5)
+    except Exception:
+        return 32767  # last resort: treat as speech (never permanently deaf)
+
+
+# --------------------------------------------------------------------------- #
 # Per-call session — one instance per WebSocket (per Vobiz docs).
 # --------------------------------------------------------------------------- #
 class VobizStreamSession:
@@ -203,7 +231,6 @@ class VobizStreamSession:
         self._closed = False
 
         # turn-taking / VAD state
-        self._rs_state = None                  # audioop.ratecv carry state
         self._speech_buf: List[bytes] = []
         self._speech_ms = 0.0
         self._silence_ms = 0.0
@@ -302,6 +329,10 @@ class VobizStreamSession:
         elif event == "stop":
             logger.info(f"[vobiz-stream] stop sid={self.stream_sid}")
             self._closed = True
+        elif event == "playedStream":
+            logger.debug("[vobiz-stream] playedStream (playAudio finished) — no-op")
+        elif event == "clearedAudio":
+            logger.debug("[vobiz-stream] clearedAudio (buffer flushed) — no-op")
         elif event == "connected":
             logger.info("[vobiz-stream] connected event")
 
@@ -316,16 +347,17 @@ class VobizStreamSession:
     # Inbound audio -> VAD -> utterance
     # ------------------------------------------------------------------ #
     async def _on_media(self, payload: str) -> None:
-        if not _AUDIOOP_OK:
-            return
+        # L16: the base64 payload IS raw PCM16 @16 kHz already — NO µ-law decode
+        # and NO 8k->16k resample. Decoded bytes go straight to VAD + STT buffer.
         try:
-            ulaw = base64.b64decode(payload)
-            pcm8 = audioop.ulaw2lin(ulaw, 2)
-            rms = audioop.rms(pcm8, 2)
+            pcm16 = base64.b64decode(payload)
         except Exception:
             return
+        if not pcm16:
+            return
+        rms = _pcm_rms(pcm16)
         is_speech = rms >= self._vad_rms
-        dur_ms = len(ulaw) / 8.0  # 8 µ-law bytes == 1 ms @ 8 kHz
+        dur_ms = (len(pcm16) / 2) / SAMPLE_RATE * 1000.0  # 640 bytes == 20 ms
 
         # While we're speaking: only watch for barge-in.
         if self._speaking:
@@ -333,19 +365,13 @@ class VobizStreamSession:
                 self._barge_frames += 1
                 if self._barge_frames < BARGE_MIN_FRAMES:
                     return
-                await self._barge_in()  # cancels playback, sends clear, falls through
+                await self._barge_in()  # cancels playback, sends clearAudio, falls through
             else:
                 self._barge_frames = 0
                 return
 
         # While thinking (STT+LLM+synth in flight): drop input to avoid pile-up.
         if self._thinking:
-            return
-
-        # Accumulate for STT (resample 8k -> 16k, keeping ratecv carry state).
-        try:
-            pcm16, self._rs_state = audioop.ratecv(pcm8, 2, 1, IN_RATE, STT_RATE, self._rs_state)
-        except Exception:
             return
 
         if is_speech:
@@ -495,25 +521,26 @@ class VobizStreamSession:
     async def _say(self, text: str) -> None:
         if not text or not text.strip():
             return
-        if not (TTS_AVAILABLE and _AUDIOOP_OK):
-            logger.warning("[vobiz-stream] TTS unavailable (edge-tts/pydub/audioop) — skipping speak")
+        if not TTS_AVAILABLE:
+            logger.warning("[vobiz-stream] TTS unavailable (edge-tts/pydub) — skipping speak")
             return
         self._stop_play()
         self._speaking = True       # set early so synth window also detects barge-in
         self._barge_frames = 0
         try:
-            ulaw = await self._synth_ulaw(text)
+            pcm = await self._synth_pcm(text)
         except Exception as e:
             logger.warning(f"[vobiz-stream] TTS synth failed: {e}")
             self._speaking = False
             return
-        if not ulaw or not self._speaking:   # barged-in during synthesis
+        if not pcm or not self._speaking:   # barged-in during synthesis
             self._speaking = False
             return
-        self._play_task = asyncio.create_task(self._run_play(ulaw))
+        self._play_task = asyncio.create_task(self._run_play(pcm))
 
-    async def _synth_ulaw(self, text: str) -> bytes:
-        """EdgeTTS MP3 -> PCM16 8k mono -> µ-law bytes. Heavy decode in executor."""
+    async def _synth_pcm(self, text: str) -> bytes:
+        """EdgeTTS MP3 -> raw PCM16 16k mono (L16) bytes. Heavy decode in executor.
+        NO µ-law, NO 8k — Vobiz playAudio takes L16 @16 kHz directly."""
         import edge_tts  # lazy
 
         communicate = edge_tts.Communicate(text, self.voice)
@@ -529,22 +556,26 @@ class VobizStreamSession:
             from pydub import AudioSegment  # needs ffmpeg at runtime
 
             seg = AudioSegment.from_file(io.BytesIO(mp3_bytes), format="mp3")
-            seg = seg.set_frame_rate(IN_RATE).set_channels(1).set_sample_width(2)
-            return audioop.lin2ulaw(seg.raw_data, 2)
+            seg = seg.set_frame_rate(SAMPLE_RATE).set_channels(1).set_sample_width(2)
+            return seg.raw_data
 
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, _decode, data)
 
-    async def _run_play(self, ulaw: bytes) -> None:
+    async def _run_play(self, pcm: bytes) -> None:
         try:
-            for i in range(0, len(ulaw), FRAME_ULAW):
-                frame = ulaw[i:i + FRAME_ULAW]
-                if len(frame) < FRAME_ULAW:
-                    frame = frame + ULAW_SILENCE * (FRAME_ULAW - len(frame))
+            for i in range(0, len(pcm), FRAME_PCM):
+                frame = pcm[i:i + FRAME_PCM]
+                if len(frame) < FRAME_PCM:
+                    frame = frame + PCM_SILENCE * (FRAME_PCM - len(frame))
+                # Vobiz playAudio: L16 @16k, base64 payload, NO streamSid field.
                 await self._send({
-                    "event": "media",
-                    "streamSid": self.stream_sid,
-                    "media": {"payload": base64.b64encode(frame).decode("ascii")},
+                    "event": "playAudio",
+                    "media": {
+                        "contentType": "audio/x-l16",
+                        "sampleRate": SAMPLE_RATE,
+                        "payload": base64.b64encode(frame).decode("ascii"),
+                    },
                 })
                 await asyncio.sleep(0.02)  # pace at ~real-time (20 ms/frame)
         except asyncio.CancelledError:
@@ -564,8 +595,8 @@ class VobizStreamSession:
         self._barge_frames = 0
         self._stop_play()
         self._speaking = False
-        await self._send({"event": "clear", "streamSid": self.stream_sid})
-        logger.debug("[vobiz-stream] barge-in: playback cleared")
+        await self._send({"event": "clearAudio"})
+        logger.debug("[vobiz-stream] barge-in: playback cleared (clearAudio)")
 
     # ------------------------------------------------------------------ #
     async def _send(self, obj: Dict[str, Any]) -> None:
