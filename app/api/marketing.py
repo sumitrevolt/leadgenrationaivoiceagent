@@ -24,6 +24,12 @@ Marketing API — Dhanda.app-style AI marketing tools (FREE stack).
   POST /api/marketing/crm/{id}/customers — customers add (phone dedupe)
   GET  /api/marketing/crm/{id}/customers — customers list (?tag=)
   GET  /api/marketing/crm/{id}/wishes  — aaj ke birthday/anniversary wishes
+  POST /api/marketing/upi-kit          — UPI QR + payment slip + WA message
+  POST /api/marketing/catalog          — price-list SVG + WA catalog text
+  POST /api/marketing/ads-pack         — Google RSA + Meta ad copy pack
+  POST /api/marketing/reels            — n Reels scripts (hook/body/cta/tags)
+  GET  /api/marketing/lead-scores      — inquiries ka hot/warm/cold scoring
+  POST /api/marketing/gbp-texts        — GBP description + services + posts
 
 Sab admin-auth (sirf /packages public hai — static pricing data, koi secret
 nahi). Generator functions kabhi raise nahi karte (template
@@ -37,19 +43,25 @@ from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
 from app.marketing import (
+    ads_copy,
     brand_kit,
+    catalog,
     competitor,
     crm_lite,
     drip,
     festivals,
     gbp_audit,
+    gbp_text,
+    lead_scoring,
     monthly_report,
     packages,
     post_generator,
     posters,
     reactivation,
+    reels,
     review_kit,
     review_replies,
+    upi_kit,
     whatsapp_pack,
 )
 from app.models.user import User
@@ -194,6 +206,52 @@ class CrmCustomer(BaseModel):
 class CrmCustomersRequest(BaseModel):
     """CRM customers add request."""
     customers: List[CrmCustomer] = Field(default_factory=list, max_length=500)
+
+
+class UpiKitRequest(BaseModel):
+    """UPI payment kit request (vpa = naam@bank)."""
+    business_name: str = Field(..., min_length=1, max_length=120)
+    vpa: str = Field(..., min_length=3, max_length=100)
+    amount: Optional[float] = Field(None, ge=0, le=10_000_000)
+    note: str = Field("", max_length=100)
+
+
+class CatalogItem(BaseModel):
+    """Catalog ka ek item (price string flexible: '249' / '₹249')."""
+    name: str = Field(..., min_length=1, max_length=80)
+    price: str = Field("", max_length=20)
+    desc: str = Field("", max_length=160)
+
+
+class CatalogRequest(BaseModel):
+    """Price-list catalog request (12 se zyada items trim ho jaate hain)."""
+    business_name: str = Field(..., min_length=1, max_length=120)
+    items: List[CatalogItem] = Field(default_factory=list, max_length=24)
+    style: str = Field("price_list", max_length=30)
+
+
+class AdsPackRequest(BaseModel):
+    """Google RSA + Meta ads copy request."""
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    offer: str = Field("", max_length=200)
+    city: str = Field("", max_length=80)
+
+
+class ReelsRequest(BaseModel):
+    """Reels scripts request."""
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    topic: str = Field("", max_length=120)
+    n: int = Field(3, ge=1, le=6)
+
+
+class GbpTextsRequest(BaseModel):
+    """GBP description + services + posts request."""
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    city: str = Field("", max_length=80)
+    services: List[str] = Field(default_factory=list, max_length=12)
 
 
 # --------------------------------------------------------------------------- #
@@ -650,3 +708,147 @@ async def get_todays_wishes(
     except Exception as e:
         logger.error(f"Wishes lookup failed: {e}")
         raise HTTPException(status_code=500, detail=f"Wishes lookup failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# UPI payment kit (QR + slip + WA message — pure logic)
+# --------------------------------------------------------------------------- #
+
+@router.post("/upi-kit")
+async def generate_upi_kit(
+    req: UpiKitRequest,
+    current_user: User = Depends(require_admin),
+):
+    """UPI scan-and-pay kit: upi:// link + QR SVG + payment slip + WA message."""
+    try:
+        result = upi_kit.payment_kit(
+            business_name=req.business_name,
+            vpa=req.vpa,
+            amount=req.amount,
+            note=req.note,
+        )
+        _log_isha("upi_kit_generated",
+                  f"{req.business_name} (vpa_valid={result.get('vpa_valid')}, "
+                  f"amount={result.get('amount') or '-'})")
+        return result
+    except Exception as e:
+        logger.error(f"UPI kit generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"UPI kit failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Catalog (price-list SVG + WhatsApp catalog text)
+# --------------------------------------------------------------------------- #
+
+@router.post("/catalog")
+async def generate_catalog(
+    req: CatalogRequest,
+    current_user: User = Depends(require_admin),
+):
+    """1080x1350 price-list card + WA catalog text + AI item descriptions."""
+    try:
+        result = await catalog.build_catalog(
+            business_name=req.business_name,
+            items=[i.model_dump() for i in req.items],
+            style=req.style,
+        )
+        _log_isha("catalog_generated",
+                  f"{req.business_name} ({result.get('count', 0)} items)")
+        return result
+    except Exception as e:
+        logger.error(f"Catalog generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Catalog failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Ads copy pack (Google RSA + Meta)
+# --------------------------------------------------------------------------- #
+
+@router.post("/ads-pack")
+async def generate_ads_pack(
+    req: AdsPackRequest,
+    current_user: User = Depends(require_admin),
+):
+    """15 Google headlines (≤30 chars) + 4 descriptions + 3 Meta texts + 2 CTAs."""
+    try:
+        result = await ads_copy.ads_pack(
+            business_name=req.business_name,
+            niche=req.niche,
+            offer=req.offer,
+            city=req.city,
+        )
+        _log_isha("ads_pack_generated",
+                  f"{req.business_name} ({req.niche or 'general'})")
+        return result
+    except Exception as e:
+        logger.error(f"Ads pack generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Ads pack failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Reels scripts
+# --------------------------------------------------------------------------- #
+
+@router.post("/reels")
+async def generate_reels_scripts(
+    req: ReelsRequest,
+    current_user: User = Depends(require_admin),
+):
+    """n Reels scripts: hook/body/cta/caption/hashtags — 30s ready-to-shoot."""
+    try:
+        result = await reels.reels_scripts(
+            business_name=req.business_name,
+            niche=req.niche,
+            topic=req.topic,
+            n=req.n,
+        )
+        _log_isha("reels_generated",
+                  f"{req.business_name} ({result.get('count', 0)} scripts)")
+        return result
+    except Exception as e:
+        logger.error(f"Reels generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Reels failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Lead scoring (website inquiries -> hot/warm/cold)
+# --------------------------------------------------------------------------- #
+
+@router.get("/lead-scores")
+async def get_lead_scores(current_user: User = Depends(require_admin)):
+    """Website inquiries ka rule-based scoring — hot pehle, wa.me ready."""
+    try:
+        result = lead_scoring.score_leads()
+        _log_isha("lead_scores_viewed",
+                  f"{result.get('total', 0)} leads "
+                  f"(hot={result.get('counts', {}).get('hot', 0)})")
+        return result
+    except Exception as e:
+        logger.error(f"Lead scoring failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Lead scoring failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# GBP texts (description + services + Google posts)
+# --------------------------------------------------------------------------- #
+
+@router.post("/gbp-texts")
+async def generate_gbp_texts(
+    req: GbpTextsRequest,
+    current_user: User = Depends(require_admin),
+):
+    """GBP description (≤750) + services texts (≤300) + 3 Google post updates."""
+    try:
+        result = await gbp_text.gbp_texts(
+            business_name=req.business_name,
+            niche=req.niche,
+            city=req.city,
+            services=req.services,
+        )
+        _log_isha("gbp_texts_generated",
+                  f"{req.business_name} ({len(result.get('services', []))} services, "
+                  f"desc {result.get('description_chars', 0)} chars)")
+        return result
+    except Exception as e:
+        logger.error(f"GBP texts generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"GBP texts failed: {e}")

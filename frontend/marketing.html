@@ -241,6 +241,20 @@
   .tbl tr:last-child td{border-bottom:none}
   .fld input[type="color"]{padding:4px 6px;height:42px;cursor:pointer}
 
+  /* ---- v4 tabs: UPI / Catalog / Ads / Reels / Hot Leads ---- */
+  .scorebadge{display:inline-block;min-width:36px;text-align:center;font-weight:800;
+    font-size:11.5px;border-radius:999px;padding:4px 9px;color:#fff}
+  .scorebadge.hot{background:#ef4444}
+  .scorebadge.warm{background:#f59e0b}
+  .scorebadge.cold{background:#9ca3af}
+  .cntchip{font-size:11.5px;font-weight:800;border-radius:999px;padding:4px 11px}
+  .cntchip.hot{background:#fef2f2;color:#ef4444}
+  .cntchip.warm{background:#fffbeb;color:#b45309}
+  .cntchip.cold{background:#f3f4f6;color:#6b7280}
+  .chipchar{font-weight:700;opacity:.6;margin-left:4px;font-size:10px}
+  .chipwrap{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .chipwrap .tag.over{background:#fef2f2;color:#ef4444}
+
   /* ---- Toasts ---- */
   #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;
     display:flex;flex-direction:column;gap:8px;width:min(92vw,420px)}
@@ -279,6 +293,11 @@
     <button class="tab" data-tab="react">🔁 <span>Reactivation</span></button>
     <button class="tab" data-tab="drip">💧 <span>Drip</span></button>
     <button class="tab" data-tab="crm">👥 <span>CRM + Wishes</span></button>
+    <button class="tab" data-tab="upi">💳 <span>UPI Pay</span></button>
+    <button class="tab" data-tab="catalog">📋 <span>Catalog</span></button>
+    <button class="tab" data-tab="ads">📢 <span>Ads</span></button>
+    <button class="tab" data-tab="reels">🎬 <span>Reels</span></button>
+    <button class="tab" data-tab="hotleads">🔥 <span>Hot Leads</span></button>
   </div>
 </div>
 
@@ -708,6 +727,122 @@
     </div>
   </section>
 
+  <!-- ================= TAB 13: UPI Payment Kit ================= -->
+  <section class="tabpane hidden" id="pane-upi">
+    <div class="card">
+      <h3>💳 UPI Payment Kit <span class="tag">QR + Slip</span></h3>
+      <div class="hint">Apna UPI ID daalo — scan-and-pay QR, branded payment slip aur WhatsApp payment message ready.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="upiVpa">UPI ID (VPA) *</label>
+          <input id="upiVpa" type="text" placeholder="e.g. 9876543210@ybl" maxlength="100" />
+        </div>
+        <div class="fld">
+          <label for="upiAmt">Amount ₹ (optional)</label>
+          <input id="upiAmt" type="number" min="0" step="0.01" placeholder="khali = customer khud bharega" />
+        </div>
+        <div class="fld" style="grid-column:1/-1">
+          <label for="upiNote">Note (optional)</label>
+          <input id="upiNote" type="text" placeholder="e.g. Order #123 / Advance" maxlength="100" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnUpi">💳 Payment kit banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="upiCard">
+      <h3>💳 Aapka payment kit</h3>
+      <div id="upiRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 14: Catalog ================= -->
+  <section class="tabpane hidden" id="pane-catalog">
+    <div class="card">
+      <h3>📋 Catalog / Price List</h3>
+      <div class="hint">Har line me ek item: "Naam, 999, chhota description (optional)" — max 12 items ka ready card banega.</div>
+      <div class="fld">
+        <label for="catItems">Items</label>
+        <textarea id="catItems" placeholder="Paneer Tikka, 249, creamy tandoori flavour&#10;Veg Biryani, 199&#10;Family Thali, 399, 4 logon ke liye"></textarea>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnCatalog">📋 Catalog banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="catCard">
+      <h3>📋 Catalog preview <span class="prov" id="catProv"></span></h3>
+      <div id="catBox" class="svgshow"></div>
+      <div class="btns">
+        <button class="btn" id="btnCatPng">⬇ PNG Download</button>
+        <button class="btn sec" id="btnCatSvg">⬇ SVG</button>
+      </div>
+      <h4>💬 WhatsApp catalog text</h4>
+      <div id="catTextRow"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 15: Ads Copy ================= -->
+  <section class="tabpane hidden" id="pane-ads">
+    <div class="card">
+      <h3>📢 Ads Copy <span class="tag">Google + Meta</span></h3>
+      <div class="hint">Google ke 15 headlines (30-char safe) + 4 descriptions, aur Meta ke 3 ad texts + CTAs — copy-paste ready.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="adsOffer">Offer (optional)</label>
+          <input id="adsOffer" type="text" placeholder="e.g. Flat 20% off" maxlength="200" />
+        </div>
+        <div class="fld">
+          <label for="adsCity">City (optional)</label>
+          <input id="adsCity" type="text" placeholder="e.g. Pune" maxlength="80" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnAds">📢 Ads pack banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="adsCard">
+      <h3>📢 Aapka ads pack <span class="prov" id="adsProv"></span></h3>
+      <div id="adsRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 16: Reels ================= -->
+  <section class="tabpane hidden" id="pane-reels">
+    <div class="card">
+      <h3>🎬 Reels Scripts <span class="tag">30s ready</span></h3>
+      <div class="hint">Topic do (ya khali chhodo) — 3 ready-to-shoot Reel scripts: hook, bolne ka script, CTA, caption, hashtags.</div>
+      <div class="fld">
+        <label for="reelTopic">Topic (optional)</label>
+        <input id="reelTopic" type="text" placeholder="e.g. Diwali offer / bijli bachat tips" maxlength="120" />
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnReels">🎬 Scripts banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="reelCard">
+      <h3>🎬 Aapke Reel scripts <span class="prov" id="reelProv"></span></h3>
+      <div id="reelRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 17: Hot Leads ================= -->
+  <section class="tabpane hidden" id="pane-hotleads">
+    <div class="card">
+      <h3>🔥 Hot Leads <span class="tag">auto-scored</span></h3>
+      <div class="hint">Website inquiries ka automatic score — sabse garam lead sabse upar. Hot ko 5 min me WhatsApp karo!</div>
+      <div class="tags" id="hlCounts"></div>
+      <div style="overflow-x:auto;margin-top:10px">
+        <table class="tbl">
+          <thead><tr><th>Score</th><th>Naam / Business</th><th>Niche</th><th>Phone</th><th></th></tr></thead>
+          <tbody id="hlTbody"></tbody>
+        </table>
+      </div>
+      <div class="btns">
+        <button class="btn sec" id="btnHlRefresh">↻ Refresh</button>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <div id="toasts"></div>
@@ -784,9 +919,9 @@
   setHeadH();
 
   // ---- Tabs: switch + lazy init (data fetch sirf first open pe) ----------------
-  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm"];
+  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads"];
   var inited = {};
-  var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit };
+  var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit, hotleads: loadLeadScores };
   document.getElementById("tabbar").addEventListener("click", function(ev){
     var t = ev.target.closest(".tab");
     if(!t) return;
@@ -2026,6 +2161,298 @@
     setBusy(btnBrandLoad, true);
     try{ await brandLoad(false); }
     finally{ setBusy(btnBrandLoad, false, "↻ Saved brand load"); }
+  };
+
+  // ============================================================================
+  // TAB 13: UPI Payment Kit
+  // ============================================================================
+  var upiSvgs = [];
+
+  var btnUpi = document.getElementById("btnUpi");
+  btnUpi.onclick = async function(){
+    if(!requireName()) return;
+    var vpa = document.getElementById("upiVpa").value.trim();
+    if(!vpa){ toast("UPI ID likho pehle (naam@bank)", "err"); document.getElementById("upiVpa").focus(); return; }
+    var amtRaw = document.getElementById("upiAmt").value.trim();
+    var amt = amtRaw ? parseFloat(amtRaw) : null;
+    if(amtRaw && (isNaN(amt) || amt < 0)) amt = null;
+    setBusy(btnUpi, true);
+    try{
+      var res = await callApi("/api/marketing/upi-kit", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          vpa: vpa,
+          amount: amt,
+          note: document.getElementById("upiNote").value.trim(),
+        }),
+      });
+      upiSvgs = [];
+      var html = "";
+      if(res && res.vpa_valid === false){
+        html += '<div class="sect"><div class="copyitem"><div class="tx">⚠️ <b>UPI ID format sahi nahi lag raha</b> — sahi format: naam@bank (jaise 9876543210@ybl). Apni UPI app me "My UPI ID" check karo.</div></div></div>';
+      }
+      function svgSect(label, svg, fname, isQr){
+        if(!svg) return "";
+        var idx = upiSvgs.length;
+        upiSvgs.push(svg);
+        return '<div class="sect"><div class="sh">' + label + '</div>' +
+          '<div class="svgshow' + (isQr ? ' qr' : '') + '">' + svg + '</div>' + /* trusted — apna hi backend */
+          '<div class="btns" style="margin-top:9px"><button class="btn sec" data-upipng="' + idx +
+            '" data-upiname="' + fname + '">⬇ PNG Download</button></div></div>';
+      }
+      html += svgSect("📱 Payment QR (scan → pay)", res && res.qr_svg, "upi_qr", true);
+      html += svgSect("🪧 Payment slip (print / WhatsApp bhejo)", res && res.slip_svg, "payment_slip", false);
+      if(res && res.upi_link){
+        html += '<div class="sect"><div class="sh">🔗 UPI link (tap-to-pay)</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(res.upi_link) + '</div>' + copyBtnHtml(res.upi_link) + '</div></div>';
+      }
+      if(res && res.wa_payment_msg){
+        html += '<div class="sect"><div class="sh">💬 WhatsApp payment message</div>' +
+          '<div class="copyitem"><div class="tx">' + esc(res.wa_payment_msg) + '</div>' + copyBtnHtml(res.wa_payment_msg) + '</div></div>';
+      }
+      html += sectionHtml("💡 Kaise use karein", res && res.instructions);
+      document.getElementById("upiRows").innerHTML = html || '<div class="empty">Kit nahi bana — dobara try karo.</div>';
+      document.getElementById("upiCard").classList.remove("hidden");
+      document.getElementById("upiCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Payment kit ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Kit nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnUpi, false, "💳 Payment kit banao");
+    }
+  };
+
+  document.getElementById("upiRows").addEventListener("click", function(ev){
+    var b = ev.target && ev.target.closest ? ev.target.closest("[data-upipng]") : null;
+    if(!b) return;
+    dlSvgPng(upiSvgs[parseInt(b.getAttribute("data-upipng"), 10)] || "",
+      bizSlugPrefix() + (b.getAttribute("data-upiname") || "upi") + ".png", 2);
+  });
+
+  // ============================================================================
+  // TAB 14: Catalog
+  // ============================================================================
+  var catState = { svg: "", text: "" };
+
+  function parseCatalogLines(raw){
+    var out = [];
+    String(raw || "").split(/\r?\n/).forEach(function(line){
+      line = line.trim();
+      if(!line) return;
+      var parts = line.split(",");
+      var name = (parts[0] || "").trim();
+      if(!name) return;
+      out.push({
+        name: name.slice(0, 80),
+        price: (parts[1] || "").trim().slice(0, 20),
+        desc: parts.slice(2).join(",").trim().slice(0, 160),
+      });
+    });
+    return out.slice(0, 24);
+  }
+
+  var btnCatalog = document.getElementById("btnCatalog");
+  btnCatalog.onclick = async function(){
+    if(!requireName()) return;
+    var items = parseCatalogLines(document.getElementById("catItems").value);
+    if(!items.length){
+      toast("Items likho pehle (har line: Naam, 999, desc)", "err");
+      document.getElementById("catItems").focus();
+      return;
+    }
+    setBusy(btnCatalog, true);
+    try{
+      var res = await callApi("/api/marketing/catalog", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          items: items,
+        }),
+      });
+      catState.svg = (res && res.svg) || "";
+      catState.text = (res && res.wa_catalog_text) || "";
+      if(!catState.svg) throw new Error("empty svg");
+      document.getElementById("catProv").textContent = "via " + ((res && res.provider) || "ai");
+      document.getElementById("catBox").innerHTML = catState.svg; /* trusted — apna hi backend */
+      document.getElementById("catTextRow").innerHTML = catState.text
+        ? '<div class="copyitem"><div class="tx">' + esc(catState.text) + '</div>' + copyBtnHtml(catState.text) + '</div>'
+        : "";
+      document.getElementById("catCard").classList.remove("hidden");
+      document.getElementById("catCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Catalog ready ✓ (" + ((res && res.count) || items.length) + " items)", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Catalog nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnCatalog, false, "📋 Catalog banao");
+    }
+  };
+
+  document.getElementById("btnCatPng").onclick = function(){
+    dlSvgPng(catState.svg, bizSlugPrefix() + "catalog.png", 1);
+  };
+  document.getElementById("btnCatSvg").onclick = function(){
+    if(!catState.svg){ toast("Pehle catalog banao", "err"); return; }
+    var blob = new Blob([catState.svg], {type: "image/svg+xml;charset=utf-8"});
+    triggerDl(URL.createObjectURL(blob), bizSlugPrefix() + "catalog.svg", true);
+  };
+
+  // ============================================================================
+  // TAB 15: Ads Copy (Google + Meta)
+  // ============================================================================
+  function chipListHtml(items, maxLen){
+    return '<div class="chipwrap">' + (items || []).map(function(t){
+      t = String(t == null ? "" : t);
+      var over = maxLen && t.length > maxLen;
+      return '<span class="tag' + (over ? ' over' : '') + '">' + esc(t) +
+        '<span class="chipchar">(' + t.length + ')</span></span>';
+    }).join("") + '</div>';
+  }
+
+  var btnAds = document.getElementById("btnAds");
+  btnAds.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnAds, true);
+    try{
+      var res = await callApi("/api/marketing/ads-pack", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          offer: document.getElementById("adsOffer").value.trim(),
+          city: document.getElementById("adsCity").value.trim(),
+        }),
+      });
+      var g = (res && res.google) || {};
+      var m = (res && res.meta) || {};
+      var heads = g.headlines || [];
+      var descs = g.descriptions || [];
+      var prims = (m.primaries || []);
+      var ctas = (m.ctas || []);
+      document.getElementById("adsProv").textContent = "via " + ((res && res.provider) || "ai");
+      var html = "";
+      if(heads.length){
+        html += '<div class="sect"><div class="sh">🔍 Google headlines (' + heads.length + ' — har ek ≤30 chars) ' +
+          copyBtnHtml(heads.join("\n")).replace('📋 Copy', '📋 Copy all') + '</div>' +
+          chipListHtml(heads, 30) + '</div>';
+      }
+      if(descs.length){
+        html += '<div class="sect"><div class="sh">📝 Google descriptions (≤90 chars) ' +
+          copyBtnHtml(descs.join("\n")).replace('📋 Copy', '📋 Copy all') + '</div>' +
+          descs.map(function(d){
+            return '<div class="copyitem"><div class="tx">' + esc(d) +
+              ' <span class="chipchar">(' + String(d).length + ')</span></div>' + copyBtnHtml(d) + '</div>';
+          }).join("") + '</div>';
+      }
+      if(prims.length){
+        html += '<div class="sect"><div class="sh">📣 Meta / Instagram primary texts ' +
+          copyBtnHtml(prims.join("\n\n---\n\n")).replace('📋 Copy', '📋 Copy all') + '</div>' +
+          prims.map(function(p, i){
+            return '<div class="copyitem"><div class="tx"><b>Ad ' + (i + 1) + ':</b> ' + esc(p) + '</div>' + copyBtnHtml(p) + '</div>';
+          }).join("") + '</div>';
+      }
+      if(ctas.length){
+        html += '<div class="sect"><div class="sh">👆 CTA buttons</div>' + chipListHtml(ctas) + '</div>';
+      }
+      document.getElementById("adsRows").innerHTML = html || '<div class="empty">Ads pack nahi bana — dobara try karo.</div>';
+      document.getElementById("adsCard").classList.remove("hidden");
+      document.getElementById("adsCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Ads pack ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Ads pack nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnAds, false, "📢 Ads pack banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 16: Reels scripts
+  // ============================================================================
+  var btnReels = document.getElementById("btnReels");
+  btnReels.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnReels, true);
+    try{
+      var res = await callApi("/api/marketing/reels", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          topic: document.getElementById("reelTopic").value.trim(),
+          n: 3,
+        }),
+      });
+      var scripts = (res && res.scripts) || [];
+      document.getElementById("reelProv").textContent = "via " + ((res && res.provider) || "ai");
+      var html = scripts.map(function(s, i){
+        s = s || {};
+        var tags = (s.hashtags || []).join(" ");
+        var full = "HOOK: " + (s.hook || "") + "\n\nSCRIPT: " + (s.body || "") +
+          "\n\nCTA: " + (s.cta || "") + "\n\nCAPTION: " + (s.caption || "") + "\n" + tags;
+        return '<div class="sect"><div class="sh"><span class="daychip">🎬 Script ' + (i + 1) +
+            '</span> <span class="prov">' + esc(s.duration || "30s") + '</span> ' + copyBtnHtml(full) + '</div>' +
+          '<div class="copyitem"><div class="tx"><b>🪝 Hook (3s):</b> ' + esc(s.hook || "") + '</div></div>' +
+          '<div class="copyitem"><div class="tx"><b>🗣️ Script (15s):</b> ' + esc(s.body || "") + '</div></div>' +
+          '<div class="copyitem"><div class="tx"><b>👉 CTA:</b> ' + esc(s.cta || "") + '</div></div>' +
+          '<div class="copyitem"><div class="tx"><b>✍️ Caption:</b> ' + esc(s.caption || "") + '</div>' + copyBtnHtml((s.caption || "") + "\n" + tags) + '</div>' +
+          (tags ? '<div class="tags">' + (s.hashtags || []).map(function(h){ return '<span class="tag">' + esc(h) + '</span>'; }).join("") + '</div>' : '') +
+          '</div>';
+      }).join("");
+      document.getElementById("reelRows").innerHTML = html || '<div class="empty">Scripts nahi bane — dobara try karo.</div>';
+      document.getElementById("reelCard").classList.remove("hidden");
+      document.getElementById("reelCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast(scripts.length + " Reel scripts ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Scripts nahi bane: " + e.message, "err");
+    }finally{
+      setBusy(btnReels, false, "🎬 Scripts banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 17: Hot Leads (auto-fetch on first open)
+  // ============================================================================
+  async function loadLeadScores(){
+    var tb = document.getElementById("hlTbody");
+    tb.innerHTML = '<tr><td colspan="5">' + loadingHtml("Leads score ho rahe hain…") + '</td></tr>';
+    try{
+      var res = await callApi("/api/marketing/lead-scores", {headers: hdrs()});
+      var counts = (res && res.counts) || {};
+      document.getElementById("hlCounts").innerHTML =
+        '<span class="cntchip hot">🔥 Hot: ' + (counts.hot || 0) + '</span>' +
+        '<span class="cntchip warm">🌤️ Warm: ' + (counts.warm || 0) + '</span>' +
+        '<span class="cntchip cold">🧊 Cold: ' + (counts.cold || 0) + '</span>';
+      var leads = (res && res.leads) || [];
+      tb.innerHTML = leads.length
+        ? leads.map(function(l){
+            l = l || {};
+            var label = (l.label === "hot" || l.label === "warm") ? l.label : "cold";
+            var who = esc(l.name || "—") + (l.business_name ? '<div style="font-size:11px;color:var(--muted)">' + esc(l.business_name) + '</div>' : '');
+            var link = l.wa_link || waLinkFor(l.phone, "Namaste! Aapki website inquiry mili — kab baat kar sakte hain?");
+            return '<tr>' +
+              '<td><span class="scorebadge ' + label + '">' + (Math.round(l.score) || 0) + '</span></td>' +
+              '<td>' + who + '</td>' +
+              '<td>' + esc(l.niche || "—") + '</td>' +
+              '<td>' + esc(l.phone || "—") + '</td>' +
+              '<td>' + (link ? '<a class="wabtn" href="' + esc(link) + '" target="_blank" rel="noopener">📲 WhatsApp</a>' : '—') + '</td>' +
+            '</tr>';
+          }).join("")
+        : '<tr><td colspan="5"><div class="empty">Abhi koi inquiry nahi aayi — landing page ka form share karo, leads yahan score ho kar dikhengi.</div></td></tr>';
+    }catch(e){
+      inited.hotleads = false;
+      tb.innerHTML = '<tr><td colspan="5"><div class="empty">Leads load nahi hue — <button class="linkbtn" id="hlRetry">dobara try karo</button></div></td></tr>';
+      var rb = document.getElementById("hlRetry");
+      if(rb) rb.onclick = function(){ inited.hotleads = true; loadLeadScores(); };
+      if(e.message !== "auth") toast("Leads load nahi hue: " + e.message, "err");
+    }
+  }
+
+  document.getElementById("btnHlRefresh").onclick = function(){
+    loadLeadScores();
   };
 
 })();

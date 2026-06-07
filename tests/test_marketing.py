@@ -2,27 +2,35 @@
 Tests: marketing module (Dhanda-style posts + GBP tips + content calendar
 + GBP audit + review replies + festivals + SVG posters + WhatsApp pack
 + competitor tips + growth v3: review kit/QR, monthly report, reactivation,
-drip, brand kit, CRM-lite).
+drip, brand kit, CRM-lite + v4: UPI kit, catalog, ads copy, reels,
+lead scoring, GBP texts).
 No network — free_ai.chat is monkeypatched to return ("","") so every path
 exercises the TEMPLATE fallback (the never-empty guarantee).
 """
-from datetime import datetime
+import json
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from app.marketing import (
+    ads_copy,
     brand_kit,
+    catalog,
     competitor,
     crm_lite,
     drip,
     festivals,
     gbp_audit,
+    gbp_text,
+    lead_scoring,
     monthly_report,
     post_generator,
     posters,
     reactivation,
+    reels,
     review_kit,
     review_replies,
+    upi_kit,
     whatsapp_pack,
 )
 
@@ -456,3 +464,254 @@ class TestCrmLite:
         # unknown client => empty store, kabhi raise nahi
         empty = await crm_lite.todays_wishes("ghost-client", "X")
         assert empty["count"] == 0 and empty["wishes"] == []
+
+
+class TestUpiKit:
+    def test_link_format_qr_and_slip(self):
+        kit = upi_kit.payment_kit("Sharma Solar", "sharma@upi",
+                                  amount=499, note="Order 12")
+        link = kit["upi_link"]
+        assert link.startswith("upi://pay?pa=sharma@upi&pn=Sharma%20Solar")
+        assert "&am=499" in link
+        assert "&tn=Order%2012" in link
+        assert kit["vpa_valid"] is True
+        # QR (review_kit encoder reuse) — dark modules as rects
+        assert kit["qr_svg"].startswith("<svg")
+        assert kit["qr_svg"].count("<rect") > 100
+        # slip: QR embedded (nested svg), slot replaced, vpa + amount dikhte
+        slip = kit["slip_svg"]
+        assert "{qr}" not in slip
+        assert slip.count("<svg") >= 2
+        assert "sharma@upi" in slip
+        assert "₹ 499" in slip
+        assert "Sharma Solar" in slip
+        # WA message me link + 2 instructions
+        assert link in kit["wa_payment_msg"]
+        assert len(kit["instructions"]) == 2
+        assert all(i.strip() for i in kit["instructions"])
+        # deterministic (pure logic)
+        assert kit["qr_svg"] == upi_kit.payment_kit(
+            "Sharma Solar", "sharma@upi", amount=499, note="Order 12")["qr_svg"]
+
+    def test_no_amount_invalid_vpa_and_escape(self):
+        plain = upi_kit.payment_kit("Test Biz", "9876543210@ybl")
+        assert "&am=" not in plain["upi_link"]
+        assert plain["vpa_valid"] is True
+        # invalid VPA => flag False, kit phir bhi never-empty
+        bad = upi_kit.payment_kit("Test Biz", "notavpa")
+        assert bad["vpa_valid"] is False
+        assert bad["qr_svg"].count("<rect") > 100
+        assert len(bad["instructions"]) == 2
+        # XML-escape (injection-safe slip)
+        esc_kit = upi_kit.payment_kit("R&D <Solar>", "rd@upi")
+        assert "R&amp;D &lt;Solar&gt;" in esc_kit["slip_svg"]
+        assert "<Solar>" not in esc_kit["slip_svg"]
+
+
+class TestCatalog:
+    @pytest.mark.asyncio
+    async def test_svg_items_escaped_and_wa_text(self, no_llm):
+        result = await catalog.build_catalog("Gupta Sweets", [
+            {"name": "Paneer & Tikka", "price": "249", "desc": "creamy <fresh>"},
+            {"name": "Veg Biryani", "price": 199},
+        ])
+        svg = result["svg"]
+        assert svg.startswith("<svg")
+        assert "Paneer &amp; Tikka" in svg          # XML-escaped
+        assert "<fresh>" not in svg                  # raw injection nahi
+        assert "₹249" in svg and "₹199" in svg
+        assert "Gupta Sweets" in svg
+        assert result["width"] == 1080 and result["height"] == 1350
+        # WA catalog text: numbered + CTA
+        txt = result["wa_catalog_text"]
+        assert "1. Paneer & Tikka" in txt
+        assert "2. Veg Biryani" in txt
+        assert "Order" in txt
+        assert result["provider"] == "template"
+
+    @pytest.mark.asyncio
+    async def test_desc_fallback_and_12_cap(self, no_llm):
+        # LLM ("","") => desc fallback: apna desc, warna NAAM as-is
+        result = await catalog.build_catalog("Biz", [
+            {"name": "Masala Chai", "price": 20},
+            {"name": "Samosa", "price": 15, "desc": "garma garam"},
+        ])
+        items = result["items"]
+        assert items[0]["desc"] == "Masala Chai"   # name as-is fallback
+        assert items[1]["desc"] == "garma garam"   # apna desc jeet-ta hai
+        # 12-item cap + khali naam skip
+        many = [{"name": f"Item {i}", "price": i * 10} for i in range(1, 20)]
+        many.insert(0, {"name": "", "price": 5})
+        capped = await catalog.build_catalog("Biz", many)
+        assert capped["count"] == 12
+        assert len(capped["items"]) == 12
+
+
+class TestAdsCopy:
+    @pytest.mark.asyncio
+    async def test_fallback_counts_and_hard_limits(self, no_llm):
+        result = await ads_copy.ads_pack(
+            "Sharma Solar Solutions Private Limited", "solar_residential",
+            offer="Flat 20% off is mahine", city="Pune",
+        )
+        heads = result["google"]["headlines"]
+        descs = result["google"]["descriptions"]
+        assert len(heads) == 15
+        for h in heads:
+            assert h.strip()
+            assert len(h) <= 30, f"headline >30 chars: {h!r}"
+        # dedupe (case-insensitive)
+        assert len({h.lower() for h in heads}) == 15
+        assert len(descs) == 4
+        for d in descs:
+            assert d.strip()
+            assert len(d) <= 90
+        prims = result["meta"]["primaries"]
+        ctas = result["meta"]["ctas"]
+        assert len(prims) == 3
+        for p in prims:
+            assert p.strip()
+            assert len(p.split()) <= 125
+        assert len(ctas) == 2
+        assert all(c.strip() for c in ctas)
+        assert result["provider"] == "template"
+
+    @pytest.mark.asyncio
+    async def test_empty_inputs_still_full_pack(self, no_llm):
+        result = await ads_copy.ads_pack("", "")
+        assert len(result["google"]["headlines"]) == 15
+        assert all(len(h) <= 30 for h in result["google"]["headlines"])
+        assert len(result["google"]["descriptions"]) == 4
+        assert len(result["meta"]["primaries"]) == 3
+
+
+class TestReels:
+    @pytest.mark.asyncio
+    async def test_fallback_three_scripts_complete(self, no_llm):
+        result = await reels.reels_scripts(
+            "Sharma Solar", "solar_residential", topic="bijli bachat")
+        scripts = result["scripts"]
+        assert len(scripts) == 3
+        for s in scripts:
+            assert s["hook"].strip()
+            assert s["body"].strip()
+            assert s["cta"].strip()
+            assert s["caption"].strip()
+            assert len(s["hashtags"]) == 5
+            assert all(t.startswith("#") for t in s["hashtags"])
+            assert s["duration"] == "30s"
+            total_words = sum(len(str(s[k]).split())
+                              for k in ("hook", "body", "cta", "caption"))
+            assert total_words <= 120, f"script >120 words: {total_words}"
+        assert result["provider"] == "template"
+
+    @pytest.mark.asyncio
+    async def test_n_clamp_and_cycle(self, no_llm):
+        one = await reels.reels_scripts("Biz", "general", n=1)
+        assert len(one["scripts"]) == 1
+        five = await reels.reels_scripts("Biz", "general", n=5)
+        assert len(five["scripts"]) == 5  # 3 templates cycle hote hain
+        weird = await reels.reels_scripts("Biz", "general", n=999)
+        assert len(weird["scripts"]) == 6  # clamp 6
+
+
+class TestLeadScoring:
+    def _write(self, path, recs):
+        with open(path, "w", encoding="utf-8") as f:
+            for r in recs:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+
+    def test_hot_warm_cold_classification(self, tmp_path, monkeypatch):
+        inq = tmp_path / "inquiries.jsonl"
+        monkeypatch.setattr(lead_scoring, "_INQUIRIES_FILE", str(inq))
+        now = datetime.now(timezone.utc)
+        self._write(str(inq), [
+            {   # HOT: sab points => 100
+                "name": "Ramesh", "business_name": "Ramesh Homes",
+                "phone": "+919876543210", "niche": "real_estate",
+                "city": "Pune", "message": "Mujhe 3BHK project ke liye "
+                "leads chahiye urgent", "source": "website",
+                "at": now.isoformat(),
+            },
+            {   # WARM: valid phone(20) + 3-din recency(15) + website(10) = 45
+                "name": "Suresh", "business_name": "Suresh Dental",
+                "phone": "+919812345678", "niche": "dental_implants",
+                "city": "", "message": "info", "source": "website",
+                "at": (now - timedelta(days=3)).isoformat(),
+            },
+            {   # COLD: bad phone, purana, non-S niche, no city/msg = 5
+                "name": "Ghost", "business_name": "Ghost Co",
+                "phone": "12345", "niche": "packaging",
+                "source": "referral",
+                "at": (now - timedelta(days=40)).isoformat(),
+            },
+        ])
+        result = lead_scoring.score_leads()
+        assert result["total"] == 3
+        assert result["counts"] == {"hot": 1, "warm": 1, "cold": 1}
+        leads = result["leads"]
+        # sorted desc by score
+        assert [l["name"] for l in leads] == ["Ramesh", "Suresh", "Ghost"]
+        assert leads[0]["score"] >= 70 and leads[0]["label"] == "hot"
+        assert leads[0]["score"] == 100
+        assert 40 <= leads[1]["score"] < 70 and leads[1]["label"] == "warm"
+        assert leads[2]["score"] < 40 and leads[2]["label"] == "cold"
+        # wa.me link valid phone par hi
+        assert leads[0]["wa_link"].startswith("https://wa.me/919876543210")
+        assert leads[2]["wa_link"] == ""
+
+    def test_missing_file_and_corrupt_lines(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(lead_scoring, "_INQUIRIES_FILE",
+                            str(tmp_path / "nahi-hai.jsonl"))
+        empty = lead_scoring.score_leads()
+        assert empty["total"] == 0
+        assert empty["counts"] == {"hot": 0, "warm": 0, "cold": 0}
+        assert empty["leads"] == []
+        # corrupt lines skip, valid bach jaati
+        inq = tmp_path / "mix.jsonl"
+        with open(str(inq), "w", encoding="utf-8") as f:
+            f.write("not-json{{{\n")
+            f.write(json.dumps({"name": "OK", "phone": "+919876543210",
+                                "source": "website",
+                                "at": datetime.now(timezone.utc).isoformat()}) + "\n")
+        monkeypatch.setattr(lead_scoring, "_INQUIRIES_FILE", str(inq))
+        mixed = lead_scoring.score_leads()
+        assert mixed["total"] == 1
+        assert mixed["leads"][0]["name"] == "OK"
+
+
+class TestGbpText:
+    @pytest.mark.asyncio
+    async def test_fallback_description_limits(self, no_llm):
+        result = await gbp_text.gbp_texts(
+            "Sharma Solar", "solar_residential", city="Pune",
+            services=["Rooftop Solar", "AMC", "Subsidy Filing"],
+        )
+        desc = result["description"]
+        assert desc.strip()
+        assert len(desc) <= 750
+        assert result["description_chars"] == len(desc)
+        assert "Sharma Solar" in desc
+        assert "Pune" in desc
+        # services: har ek {name, desc<=300}
+        svcs = result["services"]
+        assert len(svcs) == 3
+        for s in svcs:
+            assert s["name"].strip()
+            assert s["desc"].strip()
+            assert len(s["desc"]) <= 300
+            assert "Sharma Solar" in s["desc"]
+        # 3 Google posts
+        posts = result["posts"]
+        assert len(posts) == 3
+        assert all(p.strip() for p in posts)
+        assert "Sharma Solar" in posts[0]
+        assert result["provider"] == "template"
+
+    @pytest.mark.asyncio
+    async def test_no_services_no_city_still_complete(self, no_llm):
+        result = await gbp_text.gbp_texts("Test Biz", "general")
+        assert result["description"].strip()
+        assert len(result["description"]) <= 750
+        assert result["services"] == []
+        assert len(result["posts"]) == 3
