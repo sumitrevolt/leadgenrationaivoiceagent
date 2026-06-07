@@ -98,6 +98,71 @@ def _get_natural_dialog(niche: str, client_name: str, client_service: str) -> Op
         return None
 
 
+async def _edge_tts_mp3_b64(text: str) -> Optional[str]:
+    """
+    Synthesize `text` to the SAME natural Hindi voice as the phone agent
+    (EdgeTTS hi-IN-SwaraNeural, slightly brisk) and return a base64-encoded mp3
+    string — or None on any failure / missing edge-tts. When None, the browser
+    falls back to its own speechSynthesis (existing behavior). Time-capped (<6s)
+    so a slow/blocked TTS never stalls the chat turn. Import-safe — never raises.
+    """
+    import asyncio
+    import base64
+
+    text = (text or "").strip()[:800]
+    if not text:
+        return None
+
+    async def _synth() -> Optional[str]:
+        try:
+            import edge_tts  # type: ignore
+        except Exception:
+            return None
+        try:
+            try:
+                comm = edge_tts.Communicate(text, "hi-IN-SwaraNeural", rate="+8%")
+            except TypeError:
+                # edge-tts build without the `rate` kwarg — synth at default rate.
+                comm = edge_tts.Communicate(text, "hi-IN-SwaraNeural")
+            audio = bytearray()
+            async for chunk in comm.stream():
+                if chunk.get("type") == "audio" and chunk.get("data"):
+                    audio.extend(chunk["data"])
+            if not audio:
+                return None
+            return base64.b64encode(bytes(audio)).decode("ascii")
+        except Exception as e:
+            logger.debug(f"web-call: EdgeTTS synth failed ({e}).")
+            return None
+
+    try:
+        return await asyncio.wait_for(_synth(), timeout=6.0)
+    except Exception:
+        return None
+
+
+def _script_opening(niche: str, client_name: str = "Demo Co") -> str:
+    """
+    Professional niche-script opening (get_script(niche)["opening"]) with the
+    [Company]/[Name]/[Project] placeholders filled so nothing leaks into speech.
+    Falls back to a generic Hinglish greeting. Import-safe — never raises.
+    """
+    opening = ""
+    try:
+        from app.voice_agent.niche_scripts import get_script  # type: ignore
+        opening = (get_script(niche) or {}).get("opening", "") or ""
+    except Exception:
+        opening = ""
+    if opening:
+        opening = (opening
+                   .replace("[Company]", client_name or "hamari company")
+                   .replace("[Name]", "Swara")
+                   .replace("[Project]", "hamare project"))
+        return opening.strip()
+    return (f"Namaste! Main Swara bol rahi hoon {client_name or 'hamari company'} ki taraf se — "
+            "bas ek minute baat kar sakti hoon?")
+
+
 async def _maybe_await(value: Any) -> Any:
     import asyncio
     if asyncio.iscoroutine(value) or isinstance(value, asyncio.Future):
@@ -144,18 +209,39 @@ async def web_call_config() -> Dict[str, Any]:
     except Exception as e:
         logger.debug(f"web-call: telephony info unavailable ({e}).")
 
+    # Professional phone-agent brain availability (the SAME brain web-call uses).
+    telecaller_available = False
+    try:
+        from app.voice_agent.telecaller_brain import TelecallerBrain  # type: ignore
+        TelecallerBrain(niche="general", client_name="Demo Co")
+        telecaller_available = True
+    except Exception as e:
+        logger.debug(f"web-call: TelecallerBrain unavailable ({e}).")
+
+    # Natural Swara voice (EdgeTTS) availability — when True the bot returns mp3
+    # audio_b64; else the browser uses its own speechSynthesis.
+    try:
+        import edge_tts  # type: ignore  # noqa: F401
+        natural_voice_available = True
+    except Exception:
+        natural_voice_available = False
+
     return {
         "test_mode": True,
         "note": "Web Call is TEST MODE — talk to the bot in the browser, no real phone call is placed.",
+        "telecaller_available": telecaller_available,
+        "natural_voice_available": natural_voice_available,
+        "voice": "hi-IN-SwaraNeural" if natural_voice_available else None,
         "natural_dialog_available": natural_available,
         "pipeline_available": pipeline is not None,
         "llm_fallback_available": brain_available,
         "providers": registry or {"detail": "No provider registry; using fallback responder."},
         "telephony": telephony or {"detail": "Telephony info unavailable."},
         "responder": (
-            "natural" if natural_available
-            else ("pipeline" if pipeline_can_text
-                  else ("llm" if brain_available else "echo"))
+            "telecaller" if telecaller_available
+            else ("natural" if natural_available
+                  else ("pipeline" if pipeline_can_text
+                        else ("llm" if brain_available else "echo")))
         ),
     }
 
@@ -209,8 +295,35 @@ async def web_call_ws(websocket: WebSocket) -> None:
             dstate = mgr.new_conversation()
             dialog_niche = niche
 
+    def _get_tcbrain(niche: str) -> Optional[Any]:
+        """
+        Lazy, per-session TelecallerBrain — the SAME professional brain the phone
+        agent uses (researched niche scripts + free_ai Cerebras/Groq/Gemini,
+        KB-grounded). Cached per niche on the session so each niche builds once;
+        a failed build is cached as None (no AI key / import error) so the caller
+        degrades to the natural-dialog/_respond chain without retrying. Never raises.
+        """
+        niche = niche or "general"
+        cache = session.setdefault("tcbrains", {})
+        if niche in cache:
+            return cache[niche]
+        tcb = None
+        try:
+            from app.voice_agent.telecaller_brain import TelecallerBrain  # type: ignore
+            tcb = TelecallerBrain(
+                niche=niche,
+                client_name=session.get("client_name", "Demo Co"),
+            )
+        except Exception as e:
+            logger.debug(f"web-call: TelecallerBrain unavailable for '{niche}' ({e}).")
+            tcb = None
+        cache[niche] = tcb
+        return tcb
+
     _ensure_dialog()
-    if dialog is not None:
+    if _get_tcbrain(session.get("niche", "general")) is not None:
+        responder = "telecaller"
+    elif dialog is not None:
         responder = "natural"
     elif pipeline is not None:
         responder = "pipeline"
@@ -266,6 +379,28 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 # line so the bot greets FIRST (proves it's alive and human).
                 dialog = None            # force rebuild with fresh state
                 history = []
+
+                # PRIMARY: professional TelecallerBrain opener (same as the phone
+                # agent), spoken in the natural Swara voice (EdgeTTS mp3 b64).
+                niche = session.get("niche", "general")
+                tcbrain = _get_tcbrain(niche)
+                if tcbrain is not None:
+                    try:
+                        opening = (tcbrain.opening_line() or "").strip()
+                    except Exception:
+                        opening = ""
+                    if not opening:
+                        opening = _script_opening(niche, session.get("client_name", "Demo Co"))
+                    if opening:
+                        history.append({"role": "assistant", "content": opening})
+                        audio_b64 = await _edge_tts_mp3_b64(opening)
+                        await websocket.send_json({
+                            "type": "bot", "text": opening,
+                            "audio_b64": audio_b64, "test_mode": True,
+                        })
+                        continue
+
+                # FALLBACK: natural-dialog opening (browser TTS), then info.
                 _ensure_dialog()
                 if dialog is not None and dstate is not None:
                     try:
@@ -292,7 +427,30 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 await websocket.send_json({"type": "error", "text": "Empty message — nothing to process."})
                 continue
 
-            # PRIMARY: human-like natural dialog (listen -> understand -> answer).
+            # PRIMARY: professional TelecallerBrain (the SAME brain as the phone
+            # agent — researched niche scripts + free_ai/Gemini, KB-grounded),
+            # spoken in the natural Swara voice (EdgeTTS mp3 b64). On empty/fail
+            # we drop through to the existing natural-dialog/_respond chain.
+            tcbrain = _get_tcbrain(session.get("niche", "general"))
+            if tcbrain is not None:
+                try:
+                    tc_reply = await tcbrain.reply(history, user_text)
+                except Exception as e:
+                    tc_reply = ""
+                    logger.warning(f"web-call: TelecallerBrain reply failed, using fallback: {e}")
+                if tc_reply:
+                    history.append({"role": "user", "content": user_text})
+                    history.append({"role": "assistant", "content": tc_reply})
+                    audio_b64 = await _edge_tts_mp3_b64(tc_reply)
+                    await websocket.send_json({
+                        "type": "bot",
+                        "text": tc_reply,
+                        "audio_b64": audio_b64,  # mp3 (Swara) or None -> browser TTS
+                        "test_mode": True,
+                    })
+                    continue
+
+            # FALLBACK: human-like natural dialog (listen -> understand -> answer).
             _ensure_dialog()
             if dialog is not None and dstate is not None:
                 try:
