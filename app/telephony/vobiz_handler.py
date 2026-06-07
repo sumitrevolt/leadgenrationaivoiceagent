@@ -104,10 +104,16 @@ class VobizClient:
 
 
 def build_speak_xml(text: str, voice: str = "female", language: str = "en-IN") -> str:
-    """Minimal VobizXML (Plivo-like): speak the text, then hang up."""
+    """
+    Minimal VobizXML: speak the text, then hang up.
+    NOTE (live-call debug 2026-06-07): voice/language ATTRIBUTES hatane pade —
+    unsupported attribute values par Vobiz Speak silently skip karke Hangup
+    chala deta tha ("call aayi aur turant kat gayi"). Docs ka minimal format:
+    <Response><Speak>text</Speak><Hangup/></Response>
+    """
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
-        f'<Response><Speak voice="{escape(voice)}" language="{escape(language)}">'
+        "<Response><Speak>"
         f"{escape(text or '')}"
         "</Speak><Hangup/></Response>"
     )
