@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#4f46e5" />
-<title>LeadGen AI — AI Voice Agent jo Qualified Leads Laata Hai</title>
-<meta name="description" content="AI voice agent jo aapke potential customers ko Hindi/English me call karke qualified leads deliver karta hai — WhatsApp aur CRM par. Pay per qualified lead, ₹200–500/lead. 20+ niches." />
+<title>LeadGen AI — AI Voice Agent jo aapke business ke liye LEADS laata hai</title>
+<meta name="description" content="Insaan jaisi Hindi awaaz me AI calls — aap sirf qualified leads pe baat karo. 25+ niches, ₹0 setup, pay per lead. FREE live demo + 10 FREE demo leads. WhatsApp pe instant delivery." />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -113,7 +113,7 @@
   .head p{color:var(--muted);font-size:1.06rem}
 
   /* HOW IT WORKS */
-  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
   .step{position:relative;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:26px 22px;transition:transform .25s,box-shadow .25s,border-color .25s}
   .step:hover{transform:translateY(-6px);box-shadow:var(--shadow-sm);border-color:var(--indigo-400)}
   .step .num{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;display:grid;place-items:center;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;margin-bottom:16px}
@@ -197,6 +197,38 @@
   #installBanner b{font-size:.92rem}
   #installBanner .x{background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;margin-left:4px}
 
+  /* WhatsApp button */
+  .btn-wa{background:#1fa855;color:#fff;box-shadow:0 14px 30px -14px rgba(31,168,85,.55)}
+  .btn-wa:hover{transform:translateY(-2px);background:#188f47}
+
+  /* GBP FREE AUDIT HOOK */
+  .gbp .box{position:relative;overflow:hidden;display:grid;grid-template-columns:auto 1fr auto;gap:30px;align-items:center;background:linear-gradient(135deg,var(--ink),var(--ink-2));border-radius:26px;padding:44px 38px;color:#fff;box-shadow:var(--shadow)}
+  .gbp .box::before{content:"";position:absolute;inset:0;background:radial-gradient(60% 90% at 85% 10%,rgba(124,58,237,.38),transparent 70%);pointer-events:none}
+  .gbp .box>*{position:relative;z-index:1}
+  .gbp .score{width:112px;height:112px;border-radius:50%;border:7px solid rgba(255,255,255,.16);border-top-color:#34d399;border-right-color:#34d399;display:grid;place-items:center;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.7rem;flex-shrink:0}
+  .gbp .score small{font-size:.7rem;font-weight:600;color:#c7c7e0;display:block;text-align:center}
+  .gbp h2{font-size:clamp(1.4rem,3vw,2rem);margin-bottom:10px}
+  .gbp p{color:#c7c7e0;font-size:1rem;max-width:560px}
+  @media(max-width:860px){.gbp .box{grid-template-columns:1fr;text-align:center;justify-items:center;padding:36px 24px}}
+
+  /* LEAD INQUIRY FORM */
+  #lead-form,#gbp{scroll-margin-top:84px}
+  .formwrap{max-width:660px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:24px;padding:34px 30px;box-shadow:var(--shadow-sm)}
+  .formgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .formgrid .full{grid-column:1/-1}
+  .fld label{display:block;font-size:.85rem;font-weight:600;margin-bottom:6px;color:var(--ink-2)}
+  .fld input,.fld select,.fld textarea{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;font:inherit;font-size:.95rem;background:#fff;color:var(--ink);transition:border-color .2s,box-shadow .2s}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .fld textarea{resize:vertical;min-height:84px}
+  .form-note{font-size:.82rem;color:var(--muted);text-align:center;margin-top:14px}
+  .form-success{text-align:center;padding:30px 10px}
+  .form-success .big{font-size:2.6rem;margin-bottom:10px}
+  @media(max-width:560px){.formgrid{grid-template-columns:1fr}.formwrap{padding:26px 18px}}
+
+  /* Toast */
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(160%);background:var(--ink);color:#fff;padding:13px 20px;border-radius:12px;font-size:.92rem;z-index:90;transition:transform .3s ease;box-shadow:var(--shadow);max-width:calc(100% - 32px);text-align:center}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+
   /* Scroll reveal */
   .reveal{opacity:0;transform:translateY(26px);transition:opacity .6s ease,transform .6s ease}
   .reveal.in{opacity:1;transform:none}
@@ -247,7 +279,7 @@
     </nav>
     <div class="nav-cta">
       <a class="login" href="/app/customer">Login</a>
-      <a class="btn btn-primary" href="#pricing">Get Leads</a>
+      <a class="btn btn-primary" href="#lead-form">10 FREE Leads</a>
       <button class="menu-btn" id="menuBtn" aria-label="Menu"><span></span><span></span><span></span></button>
     </div>
   </div>
@@ -258,16 +290,17 @@
   <div class="wrap hero-grid">
     <div>
       <span class="eyebrow">🎙️ AI Voice Agent · Hindi + English</span>
-      <h1>Qualified leads, <span class="grad">autopilot par</span>. AI khud call karke deta hai.</h1>
-      <p class="sub">Aapka AI voice agent potential customers ko Hindi/English me call karta hai, unki need samajhta hai, aur sirf <b>ready-to-buy qualified leads</b> aapke WhatsApp + CRM par bhej deta hai. Aap leads par focus karo — calling AI sambhalega.</p>
+      <h1>AI Voice Agent jo aapke business ke liye <span class="grad">LEADS laata hai</span></h1>
+      <p class="sub">Insaan jaisi Hindi awaaz me calls — aap sirf <b>qualified leads</b> pe baat karo. Scraping se calling tak sab AI sambhalta hai; aapke WhatsApp pe sirf ready-to-buy customers aate hain.</p>
       <div class="hero-cta">
-        <a class="btn btn-primary" href="#pricing">Get Leads →</a>
-        <a class="btn btn-ghost" href="#demo">▶ See Demo</a>
+        <a class="btn btn-primary" href="#lead-form">📞 10 FREE leads chahiye?</a>
+        <a class="btn btn-ghost" href="/app/test-call">🎧 Live Demo suno (FREE)</a>
+        <a class="btn btn-wa" href="https://wa.me/918459012607?text=Hi!%20Mujhe%20AI%20voice%20agent%20se%20apne%20business%20ke%20liye%20leads%20chahiye." target="_blank" rel="noopener">💬 WhatsApp pe baat karo</a>
       </div>
       <div class="hero-mini">
-        <span><span class="dot">●</span> <b>Per qualified lead</b> pricing</span>
-        <span><span class="dot">●</span> <b>20+ niches</b> ready</span>
-        <span><span class="dot">●</span> Setup in <b>48 hours</b></span>
+        <span><span class="dot">●</span> <b>25+ niches</b> ready</span>
+        <span><span class="dot">●</span> <b>₹0 setup</b> — pay per lead</span>
+        <span><span class="dot">●</span> Live in <b>48 hours</b></span>
       </div>
     </div>
 
@@ -298,11 +331,11 @@
   <div class="wrap">
     <span class="label">Built for Indian small businesses</span>
     <div class="logos">
-      <span>20+ Niches</span>
+      <span>25+ Niches</span>
+      <span>₹0 Setup</span>
+      <span>Pay Per Lead</span>
       <span>Hindi · English</span>
-      <span>WhatsApp</span>
-      <span>HubSpot CRM</span>
-      <span>Google Sheets</span>
+      <span>WhatsApp Delivery</span>
     </div>
   </div>
 </div>
@@ -311,33 +344,27 @@
 <section class="block" id="how">
   <div class="wrap">
     <div class="head reveal">
-      <span class="eyebrow">How it works</span>
-      <h2>4 steps me leads inbox tak</h2>
-      <p>Aap sirf apna niche aur target area batao. Baaki sab AImanage karta hai — scrape se delivery tak.</p>
+      <span class="eyebrow">Kaise kaam karta hai</span>
+      <h2>Sirf 3 steps — baaki AI pe chhod do</h2>
+      <p>Aap apna business batao. Scraping, calling aur qualifying — sab AI karta hai. Aap sirf hot leads close karo.</p>
     </div>
     <div class="steps">
       <div class="step reveal">
         <div class="num">1</div>
-        <h3>Scrape</h3>
-        <p>Google Maps, IndiaMart, JustDial aur LinkedIn se aapke niche ke potential customers ka data nikalte hain.</p>
+        <h3>Aap business batao</h3>
+        <p>Apna niche, city aur offer batao — 2 minute ka setup, ₹0 charge. Hum aapke liye AI agent ready kar dete hain.</p>
         <span class="arrow">→</span>
       </div>
       <div class="step reveal">
         <div class="num">2</div>
-        <h3>AI Calls</h3>
-        <p>AI voice agent natural Hindi/English me sabko call karta hai — bina thake, scale par, ek saath.</p>
+        <h3>AI call karke qualify karta hai</h3>
+        <p>AI agent insaan jaisi Hindi awaaz me potential customers se baat karke budget, need aur intent check karta hai.</p>
         <span class="arrow">→</span>
       </div>
       <div class="step reveal">
         <div class="num">3</div>
-        <h3>Qualifies</h3>
-        <p>Budget, need aur intent check karke AI decide karta hai kaun real, ready-to-buy customer hai.</p>
-        <span class="arrow">→</span>
-      </div>
-      <div class="step reveal">
-        <div class="num">4</div>
-        <h3>Delivers</h3>
-        <p>Sirf qualified leads turant aapke WhatsApp, CRM ya Google Sheet par pohonch jaate hain.</p>
+        <h3>Aapko sirf HOT leads</h3>
+        <p>Qualified leads turant aapke WhatsApp, CRM ya Google Sheet par — aap sirf ready-to-buy customers se baat karo.</p>
       </div>
     </div>
   </div>
@@ -366,25 +393,75 @@
 <section class="block niches" id="niches">
   <div class="wrap">
     <div class="head reveal">
-      <span class="eyebrow">20+ Niches</span>
+      <span class="eyebrow">25+ Niches</span>
       <h2>Aapke industry ke liye ready</h2>
       <p>Har niche ke liye custom scripts, qualifying questions aur tone — pehle se trained.</p>
     </div>
     <div class="niche-grid">
-      <div class="niche reveal"><span class="e">☀️</span> Solar</div>
-      <div class="niche reveal"><span class="e">🦷</span> Dental</div>
       <div class="niche reveal"><span class="e">🏡</span> Real Estate</div>
-      <div class="niche reveal"><span class="e">❄️</span> HVAC / AC</div>
-      <div class="niche reveal"><span class="e">🛋️</span> Interior Design</div>
+      <div class="niche reveal"><span class="e">☀️</span> Solar</div>
       <div class="niche reveal"><span class="e">✈️</span> Study Abroad</div>
-      <div class="niche reveal"><span class="e">🏋️</span> Gym / Fitness</div>
-      <div class="niche reveal"><span class="e">🏥</span> Healthcare</div>
-      <div class="niche reveal"><span class="e">📐</span> Architecture</div>
-      <div class="niche reveal"><span class="e">🚗</span> Auto Dealers</div>
-      <div class="niche reveal"><span class="e">🎓</span> Coaching</div>
+      <div class="niche reveal"><span class="e">🏦</span> Home Loans</div>
       <div class="niche reveal"><span class="e">💼</span> Insurance</div>
+      <div class="niche reveal"><span class="e">🎓</span> Coaching</div>
+      <div class="niche reveal"><span class="e">🛋️</span> Interior Design</div>
+      <div class="niche reveal"><span class="e">🦷</span> Dental</div>
     </div>
-    <p class="niche-more">…aur 8+ niches. Aapka niche list me nahi? <a href="#pricing" style="color:var(--indigo);font-weight:600">Custom setup le lo →</a></p>
+    <p class="niche-more">…aur 17+ niches ready. Aapka niche list me nahi? <a href="#lead-form" style="color:var(--indigo);font-weight:600">Form me "Other" choose karo →</a></p>
+  </div>
+</section>
+
+<!-- GBP FREE AUDIT HOOK -->
+<section class="block gbp" id="gbp" style="padding-top:0">
+  <div class="wrap">
+    <div class="box reveal">
+      <div class="score">?<small>/100</small></div>
+      <div>
+        <h2>Aapka Google profile kitna strong hai?</h2>
+        <p>Zyaadatar local businesses ka Google Business Profile 60/100 se neeche hota hai — isliye customers competitor ko call kar lete hain. Hum <b style="color:#fff">FREE audit + 10 demo leads</b> dete hain — bina koi charge, bina card.</p>
+      </div>
+      <a class="btn btn-primary" href="#lead-form">FREE audit + 10 leads →</a>
+    </div>
+  </div>
+</section>
+
+<!-- INQUIRY FORM -->
+<section class="block" id="lead-form" style="background:var(--bg-soft)">
+  <div class="wrap">
+    <div class="head reveal">
+      <span class="eyebrow">🎁 FREE Trial</span>
+      <h2>10 FREE leads + FREE Google audit</h2>
+      <p>Form bharo — 24 ghante me hamari team aapko call karegi. Koi charge nahi, koi card nahi.</p>
+    </div>
+    <div class="formwrap reveal">
+      <form id="leadForm" novalidate>
+        <div class="formgrid">
+          <div class="fld"><label for="f-name">Aapka naam *</label><input id="f-name" name="name" type="text" required placeholder="e.g. Rohan Sharma" autocomplete="name" /></div>
+          <div class="fld"><label for="f-biz">Business ka naam *</label><input id="f-biz" name="business_name" type="text" required placeholder="e.g. Sharma Solar Solutions" autocomplete="organization" /></div>
+          <div class="fld"><label for="f-phone">Phone / WhatsApp number *</label><input id="f-phone" name="phone" type="tel" required placeholder="98765 43210" autocomplete="tel" /></div>
+          <div class="fld"><label for="f-niche">Business kis niche me hai?</label>
+            <select id="f-niche" name="niche">
+              <option value="">— Choose karo —</option>
+              <option value="real_estate">Real Estate</option>
+              <option value="solar_residential">Solar</option>
+              <option value="studying_abroad">Study Abroad</option>
+              <option value="home_loans">Home Loans</option>
+              <option value="insurance">Insurance</option>
+              <option value="coaching">Coaching</option>
+              <option value="interior_designers">Interior Design</option>
+              <option value="dental_implants">Dental</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="fld"><label for="f-city">City</label><input id="f-city" name="city" type="text" placeholder="e.g. Pune" autocomplete="address-level2" /></div>
+          <div class="fld full"><label for="f-msg">Kuch aur batana chahte ho? (optional)</label><textarea id="f-msg" name="message" placeholder="e.g. Mahine me kitne leads chahiye, kaunsa area target hai…"></textarea></div>
+          <!-- honeypot: bots fill this, humans never see it -->
+          <input type="text" name="website" id="f-website" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <div class="fld full"><button type="submit" class="btn btn-primary" id="leadSubmit" style="width:100%">📞 10 FREE leads ke liye apply karo</button></div>
+        </div>
+        <p class="form-note">✅ No spam · 24 ghante me call · Details sirf aapse contact ke liye</p>
+      </form>
+    </div>
   </div>
 </section>
 
@@ -410,7 +487,7 @@
           <li><span class="ck">✓</span> Live dashboard &amp; reporting</li>
           <li><span class="ck">✓</span> No long-term lock-in</li>
         </ul>
-        <a class="btn btn-primary" href="/app/customer">Start getting leads</a>
+        <a class="btn btn-primary" href="#lead-form">10 FREE leads se shuru karo</a>
       </div>
       <div class="price reveal">
         <h3>Monthly Retainer</h3>
@@ -424,7 +501,7 @@
           <li><span class="ck">✓</span> Custom niche &amp; multi-area targeting</li>
           <li><span class="ck">✓</span> Weekly performance review</li>
         </ul>
-        <a class="btn btn-ghost" href="/app/customer">Talk to sales</a>
+        <a class="btn btn-ghost" href="https://wa.me/918459012607?text=Hi!%20Monthly%20retainer%20ke%20baare%20me%20baat%20karni%20hai." target="_blank" rel="noopener">WhatsApp pe baat karo</a>
       </div>
     </div>
     <p class="niche-more" style="margin-top:24px">Note: telephony (real phone calls) ka minimal per-minute cost transparently include hota hai — koi hidden charge nahi.</p>
@@ -489,7 +566,7 @@
       </details>
       <details class="faq reveal">
         <summary>Mera niche supported hai ya nahi? <span class="plus">+</span></summary>
-        <div class="ans">20+ niches pehle se ready hain (solar, dental, real estate, HVAC, interior, study abroad, etc.). Agar aapka niche list me nahi hai, hum custom setup kar dete hain — bas sales se baat karo.</div>
+        <div class="ans">25+ niches pehle se ready hain (real estate, solar, study abroad, home loans, insurance, coaching, interior, dental, etc.). Agar aapka niche list me nahi hai, form me "Other" choose karo — hum custom setup kar dete hain.</div>
       </details>
     </div>
   </div>
@@ -502,8 +579,8 @@
       <h2>Aaj se hot leads aapke inbox me</h2>
       <p>Cold calling band karo. AI voice agent ko apne customers se baat karne do — aap sirf qualified leads close karo.</p>
       <div class="row">
-        <a class="btn btn-primary" href="/app/customer">Get Leads →</a>
-        <a class="btn btn-light" href="#demo">See Demo</a>
+        <a class="btn btn-primary" href="#lead-form">📞 10 FREE leads lo →</a>
+        <a class="btn btn-light" href="/app/test-call">🎧 Live demo suno</a>
       </div>
     </div>
   </div>
@@ -530,11 +607,12 @@
         <a href="#pricing">Pricing</a>
       </div>
       <div class="foot-col">
-        <h4>Company</h4>
+        <h4>Contact</h4>
+        <a href="https://wa.me/918459012607" target="_blank" rel="noopener">💬 WhatsApp pe baat karo</a>
+        <a href="mailto:hello@leadsgenai.in">hello@leadsgenai.in</a>
+        <a href="https://leadsgenai.in">leadsgenai.in</a>
+        <a href="/app/test-call">🎧 Live demo</a>
         <a href="#faq">FAQ</a>
-        <a href="mailto:hello@leadgenai.in">Contact</a>
-        <a href="#pricing">Book a demo</a>
-        <a href="#">Blog</a>
       </div>
       <div class="foot-col">
         <h4>Login</h4>
@@ -560,6 +638,9 @@
   <button class="btn btn-primary" id="installBtn" style="padding:9px 16px;font-size:.85rem">Install</button>
   <button class="x" id="installClose" aria-label="Close">×</button>
 </div>
+
+<!-- TOAST -->
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
   // Nav scroll shadow
@@ -610,6 +691,62 @@
     localStorage.setItem('lg_install_dismissed', '1');
   });
   window.addEventListener('appinstalled', () => banner.classList.remove('show'));
+
+  // ---------- Lead inquiry form → POST /api/public/inquiry ----------
+  const toastEl = document.getElementById('toast');
+  let toastTimer = null;
+  function showToast(msg){
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 4500);
+  }
+
+  const leadForm = document.getElementById('leadForm');
+  if (leadForm) {
+    const SUBMIT_LABEL = '📞 10 FREE leads ke liye apply karo';
+    leadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name  = document.getElementById('f-name').value.trim();
+      const biz   = document.getElementById('f-biz').value.trim();
+      const phone = document.getElementById('f-phone').value.trim();
+      if (!name || !biz) { showToast('Naam aur business ka naam dono bharo 🙏'); return; }
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length < 10 || digits.length > 12) { showToast('Sahi 10-digit phone number daalo 📞'); return; }
+      const btn = document.getElementById('leadSubmit');
+      btn.disabled = true; btn.textContent = 'Bhej rahe hain…';
+      try {
+        const res = await fetch('/api/public/inquiry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name, business_name: biz, phone,
+            niche:   document.getElementById('f-niche').value || null,
+            city:    document.getElementById('f-city').value.trim() || null,
+            message: document.getElementById('f-msg').value.trim() || null,
+            website: document.getElementById('f-website').value || ''
+          })
+        });
+        if (res.status === 429) { showToast('Thoda ruk ke dobara try karo ⏳'); btn.disabled = false; btn.textContent = SUBMIT_LABEL; return; }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.message || 'fail');
+        const safeName = name.replace(/[<>&"']/g, '');
+        const wrap = leadForm.parentElement;
+        wrap.innerHTML =
+          '<div class="form-success">' +
+            '<div class="big">✅</div>' +
+            '<h3 style="font-size:1.4rem;margin-bottom:8px">Dhanyawad ' + safeName + '!</h3>' +
+            '<p style="color:var(--muted)">24 ghante me aapko call aayega. Tab tak <a href="/app/test-call" style="color:var(--indigo);font-weight:600">🎧 live demo</a> try karo.</p>' +
+          '</div>';
+        wrap.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (err) {
+        showToast('Kuch problem aayi — dobara try karo ya WhatsApp karo 💬');
+        btn.disabled = false; btn.textContent = SUBMIT_LABEL;
+      }
+    });
+  }
 </script>
 </body>
 </html>

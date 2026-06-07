@@ -211,6 +211,12 @@ try:
     app.include_router(marketing_router, prefix="/api", tags=["Marketing"])  # /api/marketing/*
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Marketing router not mounted: {_e}")
+try:
+    from app.api.public_site import router as public_site_router
+
+    app.include_router(public_site_router, prefix="/api")  # /api/public/* (website inquiry form)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Public site router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])
