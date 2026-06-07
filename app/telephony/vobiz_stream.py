@@ -66,6 +66,8 @@ import importlib.util
 import io
 import json
 import os
+import random
+import threading
 from typing import Any, Dict, List, Optional
 
 from app.utils.logger import setup_logger
@@ -111,9 +113,18 @@ STT_RATE = 16000        # STT models want 16 kHz PCM16 (== SAMPLE_RATE: no resam
 FRAME_PCM = 640         # 20 ms of PCM16 @ 16 kHz (16000 * 0.02 * 2 bytes)
 PCM_SILENCE = b"\x00"   # PCM16 silence == zero bytes
 
-_VAD_RMS = int(os.environ.get("VOBIZ_VAD_RMS", "300"))   # PCM16 RMS speech gate
-SILENCE_MS = 700.0      # trailing silence that ends an utterance
-MIN_SPEECH_MS = 200.0   # ignore sub-200ms blips (coughs/clicks)
+def _env_num(name: str, default: float) -> float:
+    """float(env) with safe fallback — bad env value must never kill import."""
+    try:
+        return float(os.environ.get(name, "") or default)
+    except Exception:
+        return default
+
+
+_VAD_RMS = int(_env_num("VOBIZ_VAD_RMS", 300))            # PCM16 RMS speech gate
+SILENCE_MS = _env_num("VOBIZ_SILENCE_MS", 550.0)          # trailing silence that ends an utterance
+MIN_SPEECH_MS = _env_num("VOBIZ_MIN_SPEECH_MS", 250.0)    # ignore sub-250ms blips (coughs/clicks)
+MIN_STT_MS = _env_num("VOBIZ_MIN_STT_MS", 350.0)          # drop sub-350ms utterances (STT unreliable)
 MAX_UTTER_MS = 15000.0  # hard cap so a long monologue still gets processed
 BARGE_MIN_FRAMES = 5    # ~100 ms of speech while we talk = barge-in
 
@@ -123,44 +134,51 @@ BARGE_MIN_FRAMES = 5    # ~100 ms of speech while we talk = barge-in
 # --------------------------------------------------------------------------- #
 _STT_ENGINE: Optional[tuple] = None   # ("vosk", model) | ("whisper", model)
 _STT_INIT = False
+_STT_LOCK = threading.Lock()          # module warmup thread vs executor threads
 
 
 def _get_stt() -> Optional[tuple]:
     """Load (once) the best available STT model. vosk if VOSK_MODEL_PATH set,
-    else faster-whisper 'tiny'. Returns None if neither usable."""
+    else faster-whisper. Returns None if neither usable. THREAD-SAFE: module
+    warmup thread + per-call executor threads race here; the lock makes late
+    callers WAIT for the in-flight load instead of seeing a half-init None."""
     global _STT_ENGINE, _STT_INIT
     if _STT_INIT:
         return _STT_ENGINE
-    _STT_INIT = True
-
-    vosk_path = os.environ.get("VOSK_MODEL_PATH")
-    if _VOSK_OK and vosk_path and os.path.isdir(vosk_path):
-        try:
-            import vosk  # type: ignore
-
-            vosk.SetLogLevel(-1)
-            _STT_ENGINE = ("vosk", vosk.Model(vosk_path))
-            logger.info(f"[vobiz-stream] STT engine: vosk ({vosk_path})")
+    with _STT_LOCK:
+        if _STT_INIT:
             return _STT_ENGINE
-        except Exception as e:
-            logger.warning(f"[vobiz-stream] vosk load failed: {e}")
-
-    if _FWHISPER_OK:
         try:
-            from faster_whisper import WhisperModel  # type: ignore
+            vosk_path = os.environ.get("VOSK_MODEL_PATH")
+            if _VOSK_OK and vosk_path and os.path.isdir(vosk_path):
+                try:
+                    import vosk  # type: ignore
 
-            # base >> tiny for Hindi (tiny Hindi pe bahut weak hai); CPU pe
-            # short utterances ~1-2.5s — acceptable. Env: FWHISPER_MODEL.
-            model_size = os.environ.get("FWHISPER_MODEL", "base")
-            _STT_ENGINE = ("whisper", WhisperModel(model_size, device="cpu", compute_type="int8"))
-            logger.info(f"[vobiz-stream] STT engine: faster-whisper ({model_size})")
-            return _STT_ENGINE
-        except Exception as e:
-            logger.warning(f"[vobiz-stream] faster-whisper load failed: {e}")
+                    vosk.SetLogLevel(-1)
+                    _STT_ENGINE = ("vosk", vosk.Model(vosk_path))
+                    logger.info(f"[vobiz-stream] STT engine: vosk ({vosk_path})")
+                    return _STT_ENGINE
+                except Exception as e:
+                    logger.warning(f"[vobiz-stream] vosk load failed: {e}")
 
-    logger.warning("[vobiz-stream] no STT engine available — call will be deaf")
-    _STT_ENGINE = None
-    return None
+            if _FWHISPER_OK:
+                try:
+                    from faster_whisper import WhisperModel  # type: ignore
+
+                    # base >> tiny for Hindi (tiny Hindi pe bahut weak hai); CPU pe
+                    # short utterances ~1-2.5s — acceptable. Env: FWHISPER_MODEL.
+                    model_size = os.environ.get("FWHISPER_MODEL", "base")
+                    _STT_ENGINE = ("whisper", WhisperModel(model_size, device="cpu", compute_type="int8"))
+                    logger.info(f"[vobiz-stream] STT engine: faster-whisper ({model_size})")
+                    return _STT_ENGINE
+                except Exception as e:
+                    logger.warning(f"[vobiz-stream] faster-whisper load failed: {e}")
+
+            logger.warning("[vobiz-stream] no STT engine available — call will be deaf")
+            _STT_ENGINE = None
+            return None
+        finally:
+            _STT_INIT = True
 
 
 def _stt_sync(kind: str, model: Any, pcm16: bytes) -> str:
@@ -189,6 +207,8 @@ def _stt_sync(kind: str, model: Any, pcm16: bytes) -> str:
                 language=lang,
                 vad_filter=True,  # whisper-side VAD trims noise/silence edges
                 condition_on_previous_text=False,  # short utterances — no drift
+                # Domain prime: telephony audio me in words ki accuracy badhti hai.
+                initial_prompt="Hinglish sales call: solar, real estate, insurance, leads, business, appointment.",
             )
             return " ".join(seg.text for seg in segments).strip()
     except Exception as e:
@@ -225,6 +245,19 @@ def _pcm_rms(pcm16: bytes) -> int:
 
 
 # --------------------------------------------------------------------------- #
+# Pre-synthesized audio caches (PCM16 @16 kHz) — shared across calls per worker.
+# Greeting: keyed by exact opener text+voice (niche/client embedded in text, so
+# a stale entry can never play the WRONG greeting). Fillers: short "Hmm/Achha"
+# acknowledgments played the instant STT text aata hai (perceived-latency fix).
+# --------------------------------------------------------------------------- #
+_GREET_CACHE: Dict[str, bytes] = {}
+_GREET_CACHE_MAX = 64
+_FILLER_TEXTS = ("Hmm...", "Achha...", "Ji...")
+_FILLER_PCM: List[bytes] = []
+_FILLER_STARTED = False   # synth fillers once per worker (first session does it)
+
+
+# --------------------------------------------------------------------------- #
 # Per-call session — one instance per WebSocket (per Vobiz docs).
 # --------------------------------------------------------------------------- #
 class VobizStreamSession:
@@ -258,6 +291,10 @@ class VobizStreamSession:
         self._thinking = False
         self._bg_tasks: set = set()   # keep refs so tasks aren't GC'd mid-run
 
+        # instant-greeting state (pre-synthesized at WS open, before 'start')
+        self._greet_pcm: Optional[bytes] = None
+        self._pregen_task: Optional[asyncio.Task] = None
+
         # lazy helpers
         self._telecaller = None   # TelecallerBrain — lean phone-tuned (primary)
         self._telecaller_tried = False
@@ -279,8 +316,20 @@ class VobizStreamSession:
             f"[vobiz-stream] WS open niche={self.niche} client={self.client_id} "
             f"(STT={STT_AVAILABLE} TTS={TTS_AVAILABLE} audioop={_AUDIOOP_OK})"
         )
+        # INSTANT GREETING — niche WS open par hi pata hai (query param), 'start'
+        # event ka wait kyon karein? Opener PCM ABHI synth karo; _greet() phir
+        # cache se turant bajata hai (repeat calls: 0ms synth). Fillers bhi.
+        try:
+            if TTS_AVAILABLE:
+                self._pregen_task = asyncio.create_task(self._pregen_greeting())
+                self._bg_tasks.add(self._pregen_task)
+                self._pregen_task.add_done_callback(self._bg_tasks.discard)
+                self._spawn(self._pregen_fillers())
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] pregen spawn failed: {e}")
         # STT WARMUP — whisper/vosk model load 10-30s le sakta hai; abhi (greeting
         # ke dauran) executor me load karo taaki FIRST user turn slow na ho.
+        # (Module import par bhi ek warmup thread chalta hai — yeh tab no-op hai.)
         try:
             if STT_AVAILABLE:
                 async def _warm_stt() -> None:
@@ -447,6 +496,18 @@ class VobizStreamSession:
                 return
             logger.info(f"[vobiz-stream {self.stream_sid}] user: {text}")
             self.hist.append({"role": "user", "content": text})
+            # SPONTANEITY: LLM+TTS se pehle turant cached "Hmm/Achha" filler
+            # bajao — 1-3s ki think-window me line dead na lage. Inline await
+            # (~0.5s, acceptable); _run_play har frame pe _speaking check karta
+            # hai, isliye barge-in (jo flag girata hai) filler ko bhi kaat deta.
+            try:
+                if _FILLER_PCM and TTS_AVAILABLE and not self._speaking:
+                    self._stop_play()
+                    self._speaking = True
+                    self._barge_frames = 0
+                    await self._run_play(random.choice(_FILLER_PCM))
+            except Exception as e:
+                logger.debug(f"[vobiz-stream] filler play failed: {e}")
             reply = await self._think(text)
             if reply:
                 logger.info(f"[vobiz-stream {self.stream_sid}] bot: {reply}")
@@ -458,12 +519,21 @@ class VobizStreamSession:
             self._thinking = False
 
     async def _stt(self, pcm16: bytes) -> str:
-        eng = _get_stt()
-        if not eng:
-            return ""
-        kind, model = eng
+        # Sub-350ms audio reliably transcribe NAHI hota (whisper blips pe
+        # hallucinate karta hai — mishearing source) — drop early.
+        try:
+            if not pcm16 or (len(pcm16) / 2) / SAMPLE_RATE * 1000.0 < MIN_STT_MS:
+                return ""
+        except Exception:
+            pass
         loop = asyncio.get_event_loop()
         try:
+            # _get_stt bhi executor me: warmup in-flight ho to model-load ka
+            # wait WORKER THREAD me ho, event loop kabhi block na ho.
+            eng = await loop.run_in_executor(None, _get_stt)
+            if not eng:
+                return ""
+            kind, model = eng
             return await loop.run_in_executor(None, _stt_sync, kind, model, pcm16)
         except Exception as e:
             logger.warning(f"[vobiz-stream] STT executor failed: {e}")
@@ -564,17 +634,10 @@ class VobizStreamSession:
     # Outbound speech — EdgeTTS -> µ-law -> 20 ms frames
     # ------------------------------------------------------------------ #
     def _opening_line(self) -> str:
-        # Permission-based opener (Gong research: ~11% success vs 2.3% generic):
-        # intro + ONE short hook + yes/no permission ask, max 2 sentences.
-        try:
-            tc = self._get_telecaller()
-            if tc is not None:
-                line = tc.opening_line()
-                if line and line.strip():
-                    return line.strip()
-        except Exception as e:
-            logger.debug(f"[vobiz-stream] telecaller opener failed: {e}")
-        # Fallback (TelecallerBrain unavailable — e.g. no Gemini key).
+        """PURELY STATIC permission-based opener (Gong: ~11% vs 2.3% generic) —
+        NICHES pitch_hook template only. NO TelecallerBrain/LLM/genai-import
+        here: opener instant + WS-open par pre-synthesizable hona chahiye.
+        (TelecallerBrain sirf _think replies ke liye hai.)"""
         hook = ""
         try:
             from app.niches import NICHES
@@ -582,16 +645,80 @@ class VobizStreamSession:
             hook = (NICHES.get(self.niche, {}).get("pitch_hook") or "").strip()
         except Exception:
             pass
+        try:  # same shortening as TelecallerBrain (module fn — no LLM/genai)
+            from app.voice_agent.telecaller_brain import _short_hook
+
+            hook = _short_hook(hook)
+        except Exception:
+            hook = hook[:90].rstrip(" ,.-")
         if hook:
-            return (f"Namaste! Main Swara bol rahi hoon {self.client_name} ki taraf se — "
-                    f"{hook}. Kya main do minute le sakti hoon?")
-        return ("Namaste! Main Swara bol rahi hoon LeadGen AI ki taraf se. "
+            return (f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
+                    f"Aapke kaam ki ek choti si baat hai — {hook} — kya main tees second me bata doon?")
+        return (f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
                 "Kya main do minute le sakti hoon?")
+
+    def _greet_key(self) -> str:
+        """Cache key = voice + exact opener text (niche/client embedded) —
+        wrong-greeting collisions impossible by construction."""
+        return f"{self.voice}|{self._opening_line()}"
+
+    async def _pregen_greeting(self) -> None:
+        """Synthesize the opener PCM at WS open (Vobiz 'start' se PEHLE) so
+        _greet() can play it instantly. Cache hit (same niche+client+voice on a
+        later call) => zero synth at all."""
+        if not TTS_AVAILABLE:
+            return
+        try:
+            key = self._greet_key()
+            pcm = _GREET_CACHE.get(key)
+            if not pcm:
+                pcm = await self._synth_pcm(self._opening_line())
+                if pcm:
+                    if len(_GREET_CACHE) >= _GREET_CACHE_MAX:
+                        _GREET_CACHE.clear()
+                    _GREET_CACHE[key] = pcm
+            self._greet_pcm = pcm or None
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] greeting pregen failed: {e}")
+
+    async def _pregen_fillers(self) -> None:
+        """Pre-synthesize short acknowledgment fillers ONCE per worker."""
+        global _FILLER_STARTED
+        if _FILLER_STARTED or not TTS_AVAILABLE:
+            return
+        _FILLER_STARTED = True   # set first — concurrent sessions double-synth na karein
+        for t in _FILLER_TEXTS:
+            try:
+                pcm = await self._synth_pcm(t)
+                if pcm:
+                    _FILLER_PCM.append(pcm)
+            except Exception as e:
+                logger.debug(f"[vobiz-stream] filler synth failed ({t!r}): {e}")
 
     async def _greet(self) -> None:
         line = self._opening_line()
         self.hist.append({"role": "assistant", "content": line})
-        await self._say(line)
+        if TTS_AVAILABLE:
+            try:
+                pcm = self._greet_pcm or _GREET_CACHE.get(self._greet_key())
+                if not pcm and self._pregen_task is not None and not self._pregen_task.done():
+                    # pregen in flight — uske finish ka wait fresh-synth se
+                    # kabhi slow nahi (same synth); shield: greet timeout par
+                    # bhi pregen cache ke liye complete ho.
+                    try:
+                        await asyncio.wait_for(asyncio.shield(self._pregen_task), timeout=5.0)
+                    except Exception:
+                        pass
+                    pcm = self._greet_pcm or _GREET_CACHE.get(self._greet_key())
+                if pcm:
+                    self._stop_play()
+                    self._speaking = True
+                    self._barge_frames = 0
+                    self._play_task = asyncio.create_task(self._run_play(pcm))
+                    return
+            except Exception as e:
+                logger.debug(f"[vobiz-stream] cached greet failed: {e}")
+        await self._say(line)   # fallback: synth now (pregen failed/missing)
 
     async def _say(self, text: str) -> None:
         if not text or not text.strip():
@@ -640,6 +767,8 @@ class VobizStreamSession:
     async def _run_play(self, pcm: bytes) -> None:
         try:
             for i in range(0, len(pcm), FRAME_PCM):
+                if not self._speaking:
+                    break   # barge-in flipped the flag (covers inline filler play too)
                 frame = pcm[i:i + FRAME_PCM]
                 if len(frame) < FRAME_PCM:
                     frame = frame + PCM_SILENCE * (FRAME_PCM - len(frame))
@@ -688,6 +817,19 @@ class VobizStreamSession:
         self._stop_play()
         turns = len([m for m in self.hist if m.get("role") == "user"])
         logger.info(f"[vobiz-stream] WS closed sid={self.stream_sid} user_turns={turns}")
+
+
+# --------------------------------------------------------------------------- #
+# Module-level STT warmup — model load (10-30s) WORKER START par hi shuru ho,
+# pehli call ke dauran nahi. Plain daemon thread (import par event loop nahi
+# hota); _get_stt lock-protected hai so per-WS warmup/first call safely wait
+# karte hain. Opt-out: VOBIZ_STT_WARMUP=0 (e.g. tests/CI).
+# --------------------------------------------------------------------------- #
+if STT_AVAILABLE and os.environ.get("VOBIZ_STT_WARMUP", "1") != "0":
+    try:  # pragma: no cover - environment dependent
+        threading.Thread(target=_get_stt, daemon=True, name="vobiz-stt-warmup").start()
+    except Exception:
+        pass
 
 
 __all__ = ["VobizStreamSession", "STT_AVAILABLE", "TTS_AVAILABLE"]

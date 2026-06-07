@@ -25,6 +25,7 @@ Usage:
 """
 from __future__ import annotations
 
+import asyncio
 import re
 from typing import Dict, List
 
@@ -41,7 +42,8 @@ _GENERIC_QUESTIONS = [
 ]
 
 _MAX_HISTORY_TURNS = 8          # last ~8 turns to keep prompt (and latency) small
-_GEN_CONFIG = {"temperature": 0.6, "max_output_tokens": 90}
+_GEN_CONFIG = {"temperature": 0.6, "max_output_tokens": 80}
+_REPLY_TIMEOUT_S = 6.0          # Gemini se itne me jawab nahi => "" (fallback chain)
 
 
 def _short_hook(hook: str, max_len: int = 90) -> str:
@@ -178,8 +180,13 @@ Swara: Koi baat nahi, zabardasti bilkul nahi — bas itna ki hamare clients ko "
             lines.append("Swara:")
 
             model = self._genai.GenerativeModel(self.model)
-            response = await model.generate_content_async(
-                "\n".join(lines), generation_config=dict(_GEN_CONFIG)
+            # Hard latency cap: phone par 6s+ ka silence = dead call. Timeout
+            # => TimeoutError => except => "" => caller fallback chain.
+            response = await asyncio.wait_for(
+                model.generate_content_async(
+                    "\n".join(lines), generation_config=dict(_GEN_CONFIG)
+                ),
+                timeout=_REPLY_TIMEOUT_S,
             )
             text = (getattr(response, "text", "") or "").strip()
             return self._clean(text)
