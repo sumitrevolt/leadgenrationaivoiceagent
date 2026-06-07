@@ -48,7 +48,7 @@ _XAI_BASE = "https://api.x.ai/v1"  # xAI Grok (NOTE: Groq se alag company!)
 
 # Models.
 _GROQ_STT_MODEL = "whisper-large-v3"
-_CEREBRAS_LLM_MODEL = "llama-3.3-70b"
+_CEREBRAS_LLM_MODEL = "llama3.3-70b"  # Cerebras id: NO hyphen after 'llama' (llama-3.3-70b = 404)
 _GROQ_LLM_MODEL = "llama-3.3-70b-versatile"
 _OPENROUTER_LLM_MODEL = "deepseek/deepseek-chat:free"
 _XAI_LLM_MODEL = "grok-3-mini"  # fast/cheap Grok; credits-based (user ke paas keys)
