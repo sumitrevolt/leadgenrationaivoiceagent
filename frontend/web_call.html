@@ -392,6 +392,13 @@
 
   function playBotTurn(text, b64){
     stopListening();              // ECHO GUARD: mic OFF before the bot speaks
+    // DOUBLE-VOICE GUARD: naya turn shuru hone se pehle purana audio/TTS
+    // poora band karo — warna do awaazein overlap ho jaati hain.
+    if(currentAudio){
+      try{ currentAudio.onended = null; currentAudio.onerror = null; currentAudio.pause(); }catch(e){}
+      currentAudio = null;
+    }
+    try{ window.speechSynthesis && window.speechSynthesis.cancel(); }catch(e){}
     botSpeaking = true;
     var myTurn = ++botTurnId;
     setState("speaking");
@@ -480,6 +487,9 @@
   function sendUserText(text){
     text = (text || "").trim();
     if(!text || !callActive) return;
+    // DUP GUARD: jab tak bot ka jawab pending hai ya bot bol raha hai,
+    // dusra user-turn mat bhejo (SR ke double-final se double replies aati thin).
+    if(pendingBot || botSpeaking) return;
     showUserCaption(text, false);
     if(sendJSON({type:"user", text:text, niche:nicheSel.value, flow:flowSel.value})){
       stopListening();            // turn-based: mic OFF until the bot replies
