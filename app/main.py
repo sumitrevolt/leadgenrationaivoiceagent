@@ -285,11 +285,9 @@ async def pwa_service_worker():
     return Response("/* no service worker */", media_type="application/javascript")
 
 
-@app.get("/")
-async def root():
-    """Root endpoint - Platform status"""
-    global platform_orchestrator
-
+@app.get("/api/status")
+async def api_status():
+    """Platform status (JSON) — root ab marketing website serve karta hai."""
     return {
         "status": "healthy",
         "app": settings.app_name,
@@ -329,6 +327,15 @@ async def health_check():
             "telephony": "check_required"
         }
     }
+
+
+# ---------------------------------------------------------------------------
+# Root website mount — LAST so all API/app routes match first; everything
+# else (/, /styles.css, /images/...) serves the marketing site (html=True
+# makes "/" return index.html). /site mount upar bhi rehta hai (old links).
+# ---------------------------------------------------------------------------
+if _website_dir.is_dir():
+    app.mount("/", StaticFiles(directory=str(_website_dir), html=True), name="root_website")
 
 
 if __name__ == "__main__":
