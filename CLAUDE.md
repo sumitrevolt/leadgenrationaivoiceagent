@@ -62,6 +62,13 @@
 - Deploy gotcha: deploy_vps.sh ka pip fallback naye deps skip kar sakta hai — fix: `.venv/bin/pip install langgraph langgraph-checkpoint-sqlite langchain-core fastapi-mcp qdrant-client fastembed` explicitly + restart. Old langchain==0.1.6/langchain-openai pins VPS se uninstall kar diye (codebase me unused the). Windows venv pe bhi naye deps install needed for tests (scripts/p12_install_test.bat).
 - Smoke: scripts/vps_agents_test.py (VPS pe PYTHONPATH ke saath). DC long-installs ke liye: launcher bat pattern (`start /min cmd /c`) + log poll — DC ~60s pe process kill kar deta hai warna.
 
+## Telephony Cheapest-Legal Research (2026-06-07)
+- **Free+unlimited+legal PSTN exist nahi karta.** Best discovery: **WhatsApp Business Calling API** — India me business-initiated voice calls GA, ~₹0.40–0.60/min sirf ANSWERED calls, inbound FREE, **NO DLT/140 needed** (data call), connect rate ~78% vs PSTN ~22%. Consent template zaroori (1 req/24h, 2/week) — warm leads ke liye, cold-calling nahi.
+- Sasta "unlimited": FreJun ₹1,149–1,699/user/mo unlimited India (FUP, sales-dialer); Smartflo ₹500-700/channel + ₹0.30-0.50/min; Exotel ₹0.30-0.50/min volume pe; Twilio ~₹0.63/min.
+- DLT setup: ₹5,900 one-time (kisi ek operator DLT portal pe) + 140-number ~₹1-3K/mo (Exotel etc.). TCCCPR: violations = 2-saal blacklist tak.
+- Phases: Demo ₹0-500/mo (web-call + WA inbound) → First clients ₹4-8K/mo (Smartflo/FreJun + DLT + WA) → Scale ₹20-40K/mo (Exotel volume ₹0.30-0.40/min).
+- **AVOID (illegal)**: SIM box/GSM gateway (criminal, raids), personal unlimited SIM + auto-dialer (FUP: >300min/day ya 100 unique nos/week = disconnect + blacklist).
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
