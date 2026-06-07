@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>LeadGen AI — AI Marketing (Isha)</title>
+<title>LeadGen AI — AI Marketing Suite (Isha)</title>
 <style>
   :root{
     --brand:#6d28d9;          /* violet-700 */
@@ -16,6 +16,7 @@
     --card:#ffffff;
     --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
     --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+    --headH:97px;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -24,9 +25,10 @@
     background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
   }
 
-  /* ---- Header ---- */
+  /* ---- Sticky head (topbar + tabbar) ---- */
+  .stickyhead{position:sticky;top:0;z-index:30;background:#fff}
   .topbar{
-    position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);
+    background:#fff;border-bottom:1px solid var(--line);
     padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   }
   .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
@@ -46,26 +48,45 @@
   .tokrow button{border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
     color:#fff;font-weight:700;padding:0 14px;cursor:pointer;font-size:12.5px}
 
+  /* Tab bar */
+  .tabbar{display:flex;gap:2px;overflow-x:auto;background:#fff;border-bottom:1px solid var(--line);
+    padding:0 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .tabbar::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto;border:none;background:none;cursor:pointer;font-family:inherit;
+    font-size:12.5px;font-weight:700;color:var(--muted);padding:11px 12px 9px;
+    border-bottom:2.5px solid transparent;display:flex;gap:5px;align-items:center;white-space:nowrap}
+  .tab.on{color:var(--brand);border-bottom-color:var(--brand)}
+
   /* ---- Layout ---- */
-  .wrap{max-width:760px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:16px}
+  .wrap{max-width:760px;margin:0 auto;padding:16px 16px 56px;display:flex;flex-direction:column;gap:16px}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
     box-shadow:var(--shadow);padding:16px}
-  .card h3{margin:0 0 12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:7px}
+  .card h3{margin:0 0 12px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .card h4{margin:16px 0 8px;font-size:13px;font-weight:800}
+  .hint{font-size:12px;color:var(--muted);margin:-6px 0 10px}
+
+  /* Shared sticky header card */
+  .card.shared{position:sticky;top:var(--headH);z-index:15;padding:12px 14px}
+  .frm2{display:grid;gap:10px;grid-template-columns:1fr}
+  @media(min-width:520px){.frm2{grid-template-columns:1fr 1fr}}
+
+  .tabpane{display:flex;flex-direction:column;gap:16px}
 
   /* ---- Form ---- */
   .frm{display:grid;gap:12px;grid-template-columns:1fr}
   @media(min-width:560px){.frm{grid-template-columns:1fr 1fr}}
   .fld{display:flex;flex-direction:column;gap:5px}
   .fld label{font-size:12px;font-weight:700;color:var(--muted)}
-  .fld input,.fld select{
+  .fld input,.fld select,.fld textarea{
     border:1px solid var(--line);background:#fff;border-radius:10px;
     padding:10px 12px;font-size:13.5px;font-family:inherit;color:var(--ink);width:100%;
   }
+  .fld textarea{min-height:96px;resize:vertical}
   .fld select{appearance:none;cursor:pointer;font-weight:600;
     background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
-  .fld input:focus,.fld select:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
   #occasionCustom{display:none;margin-top:6px}
   #occasionCustom.show{display:block}
 
@@ -78,8 +99,10 @@
   .btn:disabled{opacity:.55;cursor:not-allowed}
   .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
     border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
-  .btn.sec .spin{border-color:rgba(109,40,217,.25);border-top-color:var(--brand)}
+  .btn.sec .spin,.spin.dark{border-color:rgba(109,40,217,.25);border-top-color:var(--brand)}
   @keyframes rot{to{transform:rotate(360deg)}}
+  .linkbtn{border:none;background:none;color:var(--brand);font-weight:800;cursor:pointer;
+    font-size:inherit;text-decoration:underline;padding:0;font-family:inherit}
 
   /* ---- Post result ---- */
   .hidden{display:none!important}
@@ -93,8 +116,9 @@
   .prov{font-size:10.5px;font-weight:700;color:var(--muted);background:var(--bg);
     border:1px solid var(--line);border-radius:999px;padding:3px 9px}
   .copybtn{margin-left:auto;border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
-    color:#fff;font-weight:700;padding:8px 13px;cursor:pointer;font-size:12.5px}
+    color:#fff;font-weight:700;padding:8px 13px;cursor:pointer;font-size:12.5px;flex:0 0 auto}
   .copybtn.done{background:linear-gradient(135deg,#16a34a,#15803d)}
+  .copybtn.mini{padding:6px 11px;font-size:11.5px;margin-left:0}
 
   /* ---- Calendar rows ---- */
   .calrow{display:flex;gap:10px;padding:10px 2px;border-bottom:1px solid var(--line);align-items:baseline}
@@ -122,6 +146,82 @@
   .impact.med{background:#fffbeb;color:#b45309}
 
   .empty{padding:18px;text-align:center;color:var(--muted);font-size:13px}
+  .empty .spin{vertical-align:-2px;margin-right:7px}
+
+  /* ---- Audit (questions + score) ---- */
+  .psticky{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .pbar{flex:1;height:8px;background:var(--line);border-radius:999px;overflow:hidden}
+  .pfill{height:100%;width:0;background:linear-gradient(90deg,#6d28d9,#4f46e5);transition:width .3s;border-radius:999px}
+  .ptext{font-size:11.5px;font-weight:800;color:var(--muted);white-space:nowrap}
+  .qcard{border:1px solid var(--line);border-radius:14px;padding:13px;margin-top:10px;background:#fff}
+  .qcard.done{border-color:#c4b5fd;background:#fbfaff}
+  .qhead{font-weight:700;font-size:13.5px;display:flex;gap:8px;align-items:flex-start}
+  .qnum{flex:0 0 auto;background:var(--brand-soft);color:var(--brand);font-weight:800;font-size:11px;
+    border-radius:8px;padding:2px 8px;margin-top:1px}
+  .qopts{display:flex;flex-direction:column;gap:7px;margin-top:10px}
+  .qopt{display:flex;gap:9px;align-items:center;border:1px solid var(--line);border-radius:10px;
+    padding:9px 11px;cursor:pointer;font-size:12.5px;background:#fff}
+  .qopt:hover{border-color:#c4b5fd}
+  .qopt input{accent-color:var(--brand);flex:0 0 auto;margin:0}
+  .qopt.sel{border-color:var(--brand);background:var(--brand-soft);font-weight:700}
+
+  .scorewrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .circlebox{position:relative;width:128px;height:128px;flex:0 0 auto;margin:0 auto}
+  .circlebox svg{width:128px;height:128px;transform:rotate(-90deg)}
+  .circlebox .track{fill:none;stroke:var(--line);stroke-width:10}
+  .circlebox .prog{fill:none;stroke:var(--ok);stroke-width:10;stroke-linecap:round;
+    transition:stroke-dashoffset 1.1s ease}
+  .scorenum{position:absolute;inset:0;display:grid;place-items:center;font-size:30px;font-weight:900}
+  .scorenum small{font-size:11px;font-weight:800;color:var(--muted);margin-top:-4px}
+  .scoreside{flex:1;min-width:200px;display:flex;flex-direction:column;gap:9px}
+  .gradebadge{align-self:flex-start;font-weight:900;font-size:13px;border-radius:999px;
+    padding:5px 13px;background:var(--brand-soft);color:var(--brand)}
+  .impactline{font-size:12.5px;background:var(--brand-soft);border-radius:10px;padding:9px 11px}
+  .bdrow{display:flex;align-items:center;gap:10px;padding:6px 0}
+  .bdlabel{flex:0 0 42%;font-size:12px;font-weight:700;color:var(--muted);text-transform:capitalize;word-break:break-word}
+  .bdbar{flex:1;height:8px;background:var(--line);border-radius:999px;overflow:hidden}
+  .bdfill{height:100%;border-radius:999px;background:var(--brand);transition:width .8s ease}
+  .bdpct{flex:0 0 38px;text-align:right;font-size:11.5px;font-weight:800}
+  .fixcard{display:flex;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:12px;
+    padding:11px 12px;margin-top:8px}
+  .fixcard .fi{flex:0 0 auto}
+  .fixcard .fb{flex:1}
+  .fixcard .fb .t{font-weight:700;font-size:13px}
+  .fixcard .fb .w{font-size:11.5px;color:var(--muted);margin-top:2px}
+
+  /* ---- Review stars ---- */
+  .stars{display:flex;gap:4px;font-size:26px;cursor:pointer;user-select:none;line-height:1}
+  .stars span{color:#d1d5db;transition:transform .1s}
+  .stars span.on{color:#f59e0b}
+  .stars span:active{transform:scale(1.18)}
+
+  /* ---- Generic copy items + sections ---- */
+  .copyitem{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border:1px solid var(--line);
+    border-radius:12px;padding:11px 12px;margin-top:8px}
+  .copyitem .tx{flex:1;white-space:pre-wrap;word-break:break-word;font-size:13px}
+  .copyitem .tx b{font-weight:800}
+  .sect{margin-top:14px}
+  .sect:first-child{margin-top:0}
+  .sect .sh{font-weight:800;font-size:13px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+  /* ---- Festivals timeline ---- */
+  .festrow{display:flex;gap:11px;padding:11px 2px;border-bottom:1px solid var(--line);align-items:flex-start}
+  .festrow:last-child{border-bottom:none}
+  .fdate{flex:0 0 64px;text-align:center;background:var(--brand-soft);color:var(--brand);
+    border-radius:10px;padding:6px 4px;font-weight:800;font-size:11.5px;line-height:1.25}
+  .fbody{flex:1}
+  .fname{font-weight:800;font-size:13.5px}
+  .fangle{font-size:12px;color:var(--muted);margin-top:2px}
+
+  /* ---- Poster ---- */
+  .tplgrid{display:grid;gap:9px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .tplcard{border:1.5px solid var(--line);border-radius:12px;padding:11px;cursor:pointer;background:#fff}
+  .tplcard:hover{border-color:#c4b5fd}
+  .tplcard.sel{border-color:var(--brand);background:var(--brand-soft);box-shadow:0 0 0 3px rgba(109,40,217,.10)}
+  .tplcard .tn{font-weight:800;font-size:12.5px}
+  .tplcard .tb{font-size:11px;color:var(--muted);margin-top:3px}
+  #posterBox{margin-top:2px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--bg)}
+  #posterBox svg{display:block;width:100%;height:auto}
 
   /* ---- Toasts ---- */
   #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;
@@ -135,25 +235,35 @@
 </head>
 <body>
 
-<div class="topbar">
-  <div class="brand">
-    <span class="logo">📣</span>
-    <span>AI Marketing <span class="sub">— Isha, Marketing Executive</span></span>
+<div class="stickyhead" id="stickyHead">
+  <div class="topbar">
+    <div class="brand">
+      <span class="logo">📣</span>
+      <span>AI Marketing <span class="sub">— Isha, Marketing Executive</span></span>
+    </div>
+    <div class="spacer"></div>
+    <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
+    <div class="tokrow" id="tokRow">
+      <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
+      <button id="tokSave">Save</button>
+    </div>
   </div>
-  <div class="spacer"></div>
-  <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
-  <div class="tokrow" id="tokRow">
-    <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
-    <button id="tokSave">Save</button>
+  <div class="tabbar" id="tabbar">
+    <button class="tab on" data-tab="posts">✨ <span>Posts</span></button>
+    <button class="tab" data-tab="audit">📊 <span>GBP Audit</span></button>
+    <button class="tab" data-tab="review">⭐ <span>Review Reply</span></button>
+    <button class="tab" data-tab="festivals">🎉 <span>Festivals</span></button>
+    <button class="tab" data-tab="poster">🖼️ <span>Poster</span></button>
+    <button class="tab" data-tab="wa">💬 <span>WhatsApp</span></button>
+    <button class="tab" data-tab="comp">🥊 <span>Competitor</span></button>
   </div>
 </div>
 
 <div class="wrap">
 
-  <!-- ===== Form ===== -->
-  <div class="card">
-    <h3>✍️ Business details</h3>
-    <div class="frm">
+  <!-- ===== Shared sticky header: business + niche (sab tabs use karte) ===== -->
+  <div class="card shared">
+    <div class="frm2">
       <div class="fld">
         <label for="bizName">Business ka naam *</label>
         <input id="bizName" type="text" placeholder="e.g. Sharma Solar Solutions" maxlength="120" />
@@ -173,56 +283,246 @@
           <option value="interior_designers">Interior Designers</option>
         </select>
       </div>
-      <div class="fld">
-        <label for="occasion">Occasion / Festival</label>
-        <select id="occasion">
-          <option value="">None (normal post)</option>
-          <option value="Diwali">Diwali</option>
-          <option value="Holi">Holi</option>
-          <option value="Eid">Eid</option>
-          <option value="Christmas">Christmas</option>
-          <option value="New Year">New Year</option>
-          <option value="Independence Day">Independence Day</option>
-          <option value="__custom__">Custom likho…</option>
-        </select>
-        <input id="occasionCustom" type="text" placeholder="Custom occasion (e.g. Anniversary Sale)" maxlength="80" />
+    </div>
+  </div>
+
+  <!-- ================= TAB 1: Posts (existing post + calendar) ================= -->
+  <section class="tabpane" id="pane-posts">
+    <div class="card">
+      <h3>✍️ Post details</h3>
+      <div class="frm">
+        <div class="fld">
+          <label for="occasion">Occasion / Festival</label>
+          <select id="occasion">
+            <option value="">None (normal post)</option>
+            <option value="Diwali">Diwali</option>
+            <option value="Holi">Holi</option>
+            <option value="Eid">Eid</option>
+            <option value="Christmas">Christmas</option>
+            <option value="New Year">New Year</option>
+            <option value="Independence Day">Independence Day</option>
+            <option value="__custom__">Custom likho…</option>
+          </select>
+          <input id="occasionCustom" type="text" placeholder="Custom occasion (e.g. Anniversary Sale)" maxlength="80" />
+        </div>
+        <div class="fld">
+          <label for="offer">Offer (optional)</label>
+          <input id="offer" type="text" placeholder="e.g. 10% off is hafte" maxlength="200" />
+        </div>
       </div>
-      <div class="fld">
-        <label for="offer">Offer (optional)</label>
-        <input id="offer" type="text" placeholder="e.g. 10% off is hafte" maxlength="200" />
+      <div class="btns">
+        <button class="btn" id="btnPost">✨ Post banao</button>
+        <button class="btn sec" id="btnCal">📅 7-din calendar</button>
       </div>
     </div>
 
-    <div class="btns">
-      <button class="btn" id="btnPost">✨ Post banao</button>
-      <button class="btn sec" id="btnCal">📅 7-din calendar</button>
-      <button class="btn sec" id="btnTips">📍 Google Profile tips</button>
+    <!-- Post result -->
+    <div class="card hidden" id="postCard">
+      <h3>📝 Post preview</h3>
+      <div class="caption" id="postCaption"></div>
+      <div class="tags" id="postTags"></div>
+      <div class="imgidea" id="postImg"></div>
+      <div class="meta">
+        <span class="prov" id="postProv"></span>
+        <button class="copybtn" id="btnCopy">📋 Copy</button>
+      </div>
     </div>
-  </div>
 
-  <!-- ===== Post result ===== -->
-  <div class="card hidden" id="postCard">
-    <h3>📝 Post preview</h3>
-    <div class="caption" id="postCaption"></div>
-    <div class="tags" id="postTags"></div>
-    <div class="imgidea" id="postImg"></div>
-    <div class="meta">
-      <span class="prov" id="postProv"></span>
-      <button class="copybtn" id="btnCopy">📋 Copy</button>
+    <!-- Calendar result -->
+    <div class="card hidden" id="calCard">
+      <h3>📅 7-din content calendar</h3>
+      <div id="calRows"></div>
     </div>
-  </div>
+  </section>
 
-  <!-- ===== Calendar result ===== -->
-  <div class="card hidden" id="calCard">
-    <h3>📅 7-din content calendar</h3>
-    <div id="calRows"></div>
-  </div>
+  <!-- ================= TAB 2: GBP Audit ================= -->
+  <section class="tabpane hidden" id="pane-audit">
+    <div class="card" id="auditQWrap">
+      <h3>📊 GBP Audit <span class="tag">FREE</span></h3>
+      <div class="hint">Apna Google Business Profile score nikalo — niche ke sawaalon ka jawab do, turant score + fixes milenge.</div>
+      <div class="psticky">
+        <div class="pbar"><div class="pfill" id="auditFill"></div></div>
+        <div class="ptext" id="auditPText">0/0 jawab</div>
+      </div>
+      <div id="auditQs"></div>
+      <div class="btns">
+        <button class="btn" id="btnAuditScore" disabled>🎯 Score nikalo</button>
+      </div>
+    </div>
 
-  <!-- ===== GBP tips result ===== -->
-  <div class="card hidden" id="tipsCard">
-    <h3>📍 Google Business Profile checklist</h3>
-    <div id="tipRows"></div>
-  </div>
+    <div class="card hidden" id="auditResult">
+      <h3>📈 Aapka GBP Score</h3>
+      <div class="scorewrap">
+        <div class="circlebox">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="track" cx="60" cy="60" r="52"></circle>
+            <circle class="prog" id="scoreArc" cx="60" cy="60" r="52"></circle>
+          </svg>
+          <div class="scorenum"><span id="scoreNum">0</span></div>
+        </div>
+        <div class="scoreside">
+          <span class="gradebadge" id="gradeBadge">Grade —</span>
+          <div class="impactline" id="impactLine"></div>
+        </div>
+      </div>
+      <div id="bdWrap" class="hidden">
+        <h4>📐 Area breakdown</h4>
+        <div id="bdRows"></div>
+      </div>
+      <div id="fixWrap" class="hidden">
+        <h4>🔧 Top 5 fixes</h4>
+        <div id="fixRows"></div>
+      </div>
+      <div class="btns">
+        <button class="btn sec" id="btnRetake">🔁 Dobara test do</button>
+      </div>
+    </div>
+
+    <!-- Existing GBP tips (quick checklist) -->
+    <div class="card">
+      <h3>📍 Quick tips (bina audit ke)</h3>
+      <div class="btns" style="margin-top:2px">
+        <button class="btn sec" id="btnTips">📍 Google Profile tips</button>
+      </div>
+    </div>
+    <div class="card hidden" id="tipsCard">
+      <h3>📍 Google Business Profile checklist</h3>
+      <div id="tipRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 3: Review Reply ================= -->
+  <section class="tabpane hidden" id="pane-review">
+    <div class="card">
+      <h3>⭐ Review Reply</h3>
+      <div class="hint">Customer ka Google/JustDial review paste karo — 3 ready replies milenge.</div>
+      <div class="fld">
+        <label for="revText">Review text</label>
+        <textarea id="revText" placeholder="Customer ka review yahan paste karo…" maxlength="2000"></textarea>
+      </div>
+      <div class="frm" style="margin-top:12px">
+        <div class="fld">
+          <label>Rating</label>
+          <div class="stars" id="revStars" title="Rating choose karo"></div>
+        </div>
+        <div class="fld">
+          <label for="revTone">Tone</label>
+          <select id="revTone">
+            <option value="professional">Professional</option>
+            <option value="friendly">Friendly (dostana)</option>
+            <option value="apologetic">Apologetic (maafi-style)</option>
+          </select>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnReview">💬 Replies banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="revCard">
+      <h3>💬 Ready replies</h3>
+      <div id="revRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 4: Festivals ================= -->
+  <section class="tabpane hidden" id="pane-festivals">
+    <div class="card">
+      <h3>🎉 Aane wale festivals (60 din)</h3>
+      <div class="hint">Har festival ke saath marketing angle — post ideas ek click me.</div>
+      <div id="festList"></div>
+      <div class="btns">
+        <button class="btn" id="btnFestPosts">✨ Post ideas banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="festPostsCard">
+      <h3>📝 Festival post ideas</h3>
+      <div id="festPostRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 5: Poster ================= -->
+  <section class="tabpane hidden" id="pane-poster">
+    <div class="card">
+      <h3>🖼️ Poster banao</h3>
+      <div class="hint">Template choose karo, details bharo — ready 1080×1080 poster download karo.</div>
+      <h4 style="margin-top:4px">1) Template</h4>
+      <div class="tplgrid" id="posterTpls"></div>
+      <h4>2) Details</h4>
+      <div class="frm">
+        <div class="fld">
+          <label for="posterTagline">Tagline</label>
+          <input id="posterTagline" type="text" placeholder="e.g. Roshni bhi, bachat bhi" maxlength="120" />
+        </div>
+        <div class="fld">
+          <label for="posterOffer">Offer</label>
+          <input id="posterOffer" type="text" placeholder="e.g. Flat 10% off" maxlength="120" />
+        </div>
+        <div class="fld">
+          <label for="posterPhone">Phone</label>
+          <input id="posterPhone" type="tel" placeholder="e.g. 98765 43210" maxlength="20" />
+        </div>
+        <div class="fld">
+          <label for="posterFestival">Festival / Occasion (optional)</label>
+          <input id="posterFestival" type="text" placeholder="e.g. Diwali" maxlength="60" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnPoster">🖼️ Poster banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="posterCard">
+      <h3>🖼️ Poster preview</h3>
+      <div id="posterBox"></div>
+      <div class="btns">
+        <button class="btn" id="btnPng">⬇ PNG Download</button>
+        <button class="btn sec" id="btnSvg">⬇ SVG</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 6: WhatsApp ================= -->
+  <section class="tabpane hidden" id="pane-wa">
+    <div class="card">
+      <h3>💬 WhatsApp pack</h3>
+      <div class="hint">Broadcast messages + status lines + reply templates — sab copy-ready.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="waOcc">Occasion</label>
+          <input id="waOcc" type="text" placeholder="e.g. Diwali / Weekend Sale" maxlength="80" />
+        </div>
+        <div class="fld">
+          <label for="waOffer">Offer</label>
+          <input id="waOffer" type="text" placeholder="e.g. 10% off is hafte" maxlength="200" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnWa">💬 Pack banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="waCard">
+      <h3>💬 WhatsApp content</h3>
+      <div id="waRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 7: Competitor ================= -->
+  <section class="tabpane hidden" id="pane-comp">
+    <div class="card">
+      <h3>🥊 Competitor analysis</h3>
+      <div class="hint">Competitor ke baare me jo pata hai paste karo — kya copy karna hai, unke gaps, aur 3-step plan milega.</div>
+      <div class="fld">
+        <label for="compText">Competitor notes</label>
+        <textarea id="compText" placeholder="Competitor ke baare me jo pata hai paste karo — naam, offers, reviews, prices, ads…" maxlength="4000"></textarea>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnComp">🥊 Analysis karo</button>
+      </div>
+    </div>
+    <div class="card hidden" id="compCard">
+      <h3>🥊 Aapka battle plan</h3>
+      <div id="compRows"></div>
+    </div>
+  </section>
 
 </div>
 
@@ -276,6 +576,48 @@
     btn.disabled = busy;
     btn.innerHTML = busy ? '<span class="spin"></span> Ban raha hai…' : label;
   }
+  function loadingHtml(msg){
+    return '<div class="empty"><span class="spin dark"></span> ' + esc(msg) + '</div>';
+  }
+  async function callApi(url, opts){
+    var r = await fetch(url, opts);
+    if(r.status === 401 || r.status === 403){ needAuth(); throw new Error("auth"); }
+    var data = null;
+    try{ data = await r.json(); }catch(_e){}
+    if(!r.ok){
+      throw new Error((data && (data.detail || data.error)) || ("HTTP " + r.status));
+    }
+    return data;
+  }
+
+  // ---- Sticky head height → CSS var (shared card sticky offset) ---------------
+  var stickyHead = document.getElementById("stickyHead");
+  function setHeadH(){
+    document.documentElement.style.setProperty("--headH", stickyHead.offsetHeight + "px");
+  }
+  if(window.ResizeObserver){ new ResizeObserver(setHeadH).observe(stickyHead); }
+  window.addEventListener("resize", setHeadH);
+  setHeadH();
+
+  // ---- Tabs: switch + lazy init (data fetch sirf first open pe) ----------------
+  var paneIds = ["posts","audit","review","festivals","poster","wa","comp"];
+  var inited = {};
+  var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates };
+  document.getElementById("tabbar").addEventListener("click", function(ev){
+    var t = ev.target.closest(".tab");
+    if(!t) return;
+    switchTab(t.getAttribute("data-tab"));
+  });
+  function switchTab(name){
+    document.querySelectorAll("#tabbar .tab").forEach(function(t){
+      t.classList.toggle("on", t.getAttribute("data-tab") === name);
+    });
+    paneIds.forEach(function(k){
+      document.getElementById("pane-" + k).classList.toggle("hidden", k !== name);
+    });
+    window.scrollTo(0, 0);
+    if(!inited[name] && lazyInit[name]){ inited[name] = true; lazyInit[name](); }
+  }
 
   // ---- Niche dropdown: load research-finalized niches (web_call pattern) -------
   var nicheSel = document.getElementById("niche");
@@ -321,22 +663,41 @@
   }
   function requireName(){
     var n = document.getElementById("bizName").value.trim();
-    if(!n){ toast("Business ka naam likho pehle", "err"); document.getElementById("bizName").focus(); }
+    if(!n){ toast("Business ka naam likho pehle (upar wale box me)", "err"); document.getElementById("bizName").focus(); }
     return n;
   }
 
-  async function callApi(url, opts){
-    var r = await fetch(url, opts);
-    if(r.status === 401 || r.status === 403){ needAuth(); throw new Error("auth"); }
-    var data = null;
-    try{ data = await r.json(); }catch(_e){}
-    if(!r.ok){
-      throw new Error((data && (data.detail || data.error)) || ("HTTP " + r.status));
-    }
-    return data;
+  // ---- Generic copy buttons (delegated; text copyStore me, attr-escape issues nahi)
+  var copyStore = [];
+  function copyBtnHtml(text){
+    copyStore.push(String(text == null ? "" : text));
+    return '<button class="copybtn mini" data-ci="' + (copyStore.length - 1) + '">📋 Copy</button>';
   }
+  function doCopy(text, btn, restoreLabel){
+    function done(){
+      if(!btn) return;
+      btn.classList.add("done"); btn.textContent = "✓ Copied!";
+      setTimeout(function(){ btn.classList.remove("done"); btn.textContent = restoreLabel || "📋 Copy"; }, 1600);
+    }
+    function fb(){
+      var ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand("copy"); done(); }catch(_e){ toast("Copy nahi hua — manually select karo", "err"); }
+      ta.remove();
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done).catch(fb);
+    }else{ fb(); }
+  }
+  document.addEventListener("click", function(ev){
+    var b = ev.target && ev.target.closest ? ev.target.closest(".copybtn[data-ci]") : null;
+    if(!b) return;
+    doCopy(copyStore[parseInt(b.getAttribute("data-ci"), 10)] || "", b);
+  });
 
-  // ---- 1) Post banao ---------------------------------------------------------
+  // ============================================================================
+  // TAB 1: Posts (existing functionality — unchanged)
+  // ============================================================================
   var lastPostText = "";
   var btnPost = document.getElementById("btnPost");
   btnPost.onclick = async function(){
@@ -371,23 +732,10 @@
 
   // Copy post_text
   document.getElementById("btnCopy").onclick = function(){
-    var btn = this;
-    function done(){
-      btn.classList.add("done"); btn.textContent = "✓ Copied!";
-      setTimeout(function(){ btn.classList.remove("done"); btn.textContent = "📋 Copy"; }, 1800);
-    }
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(lastPostText).then(done).catch(function(){ fallbackCopy(); });
-    }else{ fallbackCopy(); }
-    function fallbackCopy(){
-      var ta = document.createElement("textarea");
-      ta.value = lastPostText; document.body.appendChild(ta); ta.select();
-      try{ document.execCommand("copy"); done(); }catch(_e){ toast("Copy nahi hua — manually select karo", "err"); }
-      ta.remove();
-    }
+    doCopy(lastPostText, this);
   };
 
-  // ---- 2) 7-din calendar --------------------------------------------------------
+  // 7-din calendar
   var btnCal = document.getElementById("btnCal");
   btnCal.onclick = async function(){
     if(!requireName()) return;
@@ -419,7 +767,208 @@
     }
   };
 
-  // ---- 3) GBP tips ------------------------------------------------------------
+  // ============================================================================
+  // TAB 2: GBP Audit
+  // ============================================================================
+  var auditState = { questions: [], answers: {} };
+
+  async function loadAuditQuestions(){
+    var box = document.getElementById("auditQs");
+    box.innerHTML = loadingHtml("Sawaal load ho rahe hain…");
+    try{
+      var res = await callApi("/api/marketing/audit/questions", {headers: hdrs()});
+      auditState.questions = (res && res.questions) || [];
+      renderAuditQuestions();
+    }catch(e){
+      inited.audit = false;
+      box.innerHTML = '<div class="empty">Sawaal load nahi hue — <button class="linkbtn" id="auditRetry">dobara try karo</button></div>';
+      var rb = document.getElementById("auditRetry");
+      if(rb) rb.onclick = function(){ inited.audit = true; loadAuditQuestions(); };
+      if(e.message !== "auth") toast("Audit questions load nahi hue: " + e.message, "err");
+    }
+  }
+
+  function renderAuditQuestions(){
+    auditState.answers = {};
+    var qs = auditState.questions;
+    var box = document.getElementById("auditQs");
+    if(!qs.length){
+      box.innerHTML = '<div class="empty">Koi sawaal nahi mila.</div>';
+      updateAuditProgress();
+      return;
+    }
+    box.innerHTML = qs.map(function(q, i){
+      var opts = (q.options || []).map(function(o, j){
+        return '<label class="qopt"><input type="radio" name="aq_' + esc(String(q.id)) + '" value="' + j + '" />' +
+          '<span>' + esc(o.label) + '</span></label>';
+      }).join("");
+      return '<div class="qcard" data-qid="' + esc(String(q.id)) + '">' +
+        '<div class="qhead"><span class="qnum">Q' + (i + 1) + '</span><span>' + esc(q.q) + '</span></div>' +
+        '<div class="qopts">' + opts + '</div></div>';
+    }).join("");
+    updateAuditProgress();
+    box.querySelectorAll('input[type="radio"]').forEach(function(r){
+      r.addEventListener("change", function(){
+        var card = r.closest(".qcard");
+        auditState.answers[card.getAttribute("data-qid")] = parseInt(r.value, 10);
+        card.classList.add("done");
+        card.querySelectorAll(".qopt").forEach(function(l){
+          l.classList.toggle("sel", l.querySelector("input") === r);
+        });
+        updateAuditProgress();
+        var next = box.querySelector(".qcard:not(.done)");
+        if(next) next.scrollIntoView({behavior:"smooth", block:"center"});
+      });
+    });
+  }
+
+  function updateAuditProgress(){
+    var total = auditState.questions.length;
+    var done = Object.keys(auditState.answers).length;
+    document.getElementById("auditFill").style.width = (total ? Math.round(100 * done / total) : 0) + "%";
+    document.getElementById("auditPText").textContent = done + "/" + total + " jawab";
+    document.getElementById("btnAuditScore").disabled = !total || done < total;
+  }
+
+  function scoreColor(score){
+    return score < 50 ? "var(--err)" : score < 75 ? "var(--warn)" : "var(--ok)";
+  }
+  function scoreBg(score){
+    return score < 50 ? "#fef2f2" : score < 75 ? "#fffbeb" : "#f0fdf4";
+  }
+
+  function animateScore(score, col){
+    var arc = document.getElementById("scoreArc");
+    var num = document.getElementById("scoreNum");
+    var C = 2 * Math.PI * 52;
+    arc.style.strokeDasharray = C;
+    arc.style.transition = "none";
+    arc.style.strokeDashoffset = C;
+    arc.style.stroke = col;
+    num.parentNode.style.color = col;
+    void arc.getBoundingClientRect(); /* reflow — restart animation */
+    arc.style.transition = "stroke-dashoffset 1.1s ease";
+    arc.style.strokeDashoffset = C * (1 - score / 100);
+    var t0 = null;
+    function step(ts){
+      if(t0 === null) t0 = ts;
+      var p = Math.min(1, (ts - t0) / 1100);
+      num.textContent = Math.round(score * p);
+      if(p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function pct100(v){
+    v = Number(v);
+    if(isNaN(v)) return null;
+    if(v <= 1) v = v * 100; else if(v <= 10) v = v * 10;
+    return Math.max(0, Math.min(100, Math.round(v)));
+  }
+  function normBreakdown(b){
+    var out = [];
+    function push(label, pct){
+      if(label) out.push({label: String(label).replace(/_/g, " "), pct: pct});
+    }
+    if(Array.isArray(b)){
+      b.forEach(function(x){
+        if(x == null) return;
+        if(typeof x === "string"){ push(x, null); return; }
+        var label = x.area || x.name || x.label || x.category || x.section || "";
+        var pct = null;
+        if(typeof x.pct === "number") pct = Math.round(x.pct);
+        else if(typeof x.percent === "number") pct = Math.round(x.percent);
+        else if(typeof x.score === "number"){
+          var mx = Number(x.max || x.max_score || x.out_of || 0);
+          pct = mx > 0 ? Math.round(100 * x.score / mx) : pct100(x.score);
+        }
+        if(pct != null) pct = Math.max(0, Math.min(100, pct));
+        push(label, pct);
+      });
+    }else if(b && typeof b === "object"){
+      Object.keys(b).forEach(function(k){
+        var v = b[k];
+        if(typeof v === "number"){ push(k, pct100(v)); }
+        else if(v && typeof v === "object"){
+          var mx = Number(v.max || v.max_score || v.out_of || 0);
+          var sc = Number(v.score != null ? v.score : v.pct);
+          if(mx > 0 && !isNaN(sc)) push(k, Math.max(0, Math.min(100, Math.round(100 * sc / mx))));
+          else push(k, isNaN(sc) ? null : pct100(sc));
+        }else push(k, null);
+      });
+    }
+    return out;
+  }
+
+  function renderAuditResult(res){
+    var score = Math.max(0, Math.min(100, Math.round(Number(res.score) || 0)));
+    var col = scoreColor(score);
+    document.getElementById("auditQWrap").classList.add("hidden");
+    var rc = document.getElementById("auditResult");
+    rc.classList.remove("hidden");
+
+    var gb = document.getElementById("gradeBadge");
+    gb.textContent = "Grade " + (res.grade || "—");
+    gb.style.background = scoreBg(score);
+    gb.style.color = col;
+
+    var il = document.getElementById("impactLine");
+    if(res.impact){ il.innerHTML = "💡 " + esc(res.impact); il.classList.remove("hidden"); }
+    else{ il.classList.add("hidden"); }
+
+    var rows = normBreakdown(res.breakdown);
+    document.getElementById("bdWrap").classList.toggle("hidden", !rows.length);
+    document.getElementById("bdRows").innerHTML = rows.map(function(r){
+      var pct = r.pct == null ? null : r.pct;
+      var bcol = pct == null ? "var(--brand)" : scoreColor(pct);
+      return '<div class="bdrow">' +
+        '<div class="bdlabel">' + esc(r.label) + '</div>' +
+        '<div class="bdbar"><div class="bdfill" style="width:' + (pct == null ? 0 : pct) + '%;background:' + bcol + '"></div></div>' +
+        '<div class="bdpct">' + (pct == null ? "—" : pct + "%") + '</div>' +
+      '</div>';
+    }).join("");
+
+    var fixes = (res.fixes || []).slice(0, 5);
+    document.getElementById("fixWrap").classList.toggle("hidden", !fixes.length);
+    document.getElementById("fixRows").innerHTML = fixes.map(function(f, i){
+      var t = (typeof f === "string") ? f : (f.fix || f.tip || f.text || f.title || "");
+      var w = (typeof f === "string") ? "" : (f.why || f.detail || f.impact || "");
+      return '<div class="fixcard"><div class="fi">' + (i + 1) + '️⃣</div>' +
+        '<div class="fb"><div class="t">' + esc(t) + '</div>' +
+        (w ? '<div class="w">' + esc(w) + '</div>' : '') + '</div></div>';
+    }).join("");
+
+    animateScore(score, col);
+    rc.scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+
+  var btnAuditScore = document.getElementById("btnAuditScore");
+  btnAuditScore.onclick = async function(){
+    setBusy(btnAuditScore, true);
+    try{
+      var res = await callApi("/api/marketing/audit/score", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({answers: auditState.answers}),
+      });
+      renderAuditResult(res || {});
+      toast("Score ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Score nahi nikla: " + e.message, "err");
+    }finally{
+      setBusy(btnAuditScore, false, "🎯 Score nikalo");
+      updateAuditProgress();
+    }
+  };
+
+  document.getElementById("btnRetake").onclick = function(){
+    document.getElementById("auditResult").classList.add("hidden");
+    document.getElementById("auditQWrap").classList.remove("hidden");
+    renderAuditQuestions();
+    document.getElementById("auditQWrap").scrollIntoView({behavior:"smooth", block:"nearest"});
+  };
+
+  // GBP tips (existing functionality — unchanged)
   var btnTips = document.getElementById("btnTips");
   btnTips.onclick = async function(){
     setBusy(btnTips, true);
@@ -446,6 +995,366 @@
       setBusy(btnTips, false, "📍 Google Profile tips");
     }
   };
+
+  // ============================================================================
+  // TAB 3: Review Reply
+  // ============================================================================
+  var revRating = 5;
+  var revStars = document.getElementById("revStars");
+  revStars.innerHTML = [1,2,3,4,5].map(function(i){
+    return '<span data-s="' + i + '">★</span>';
+  }).join("");
+  function paintStars(){
+    revStars.querySelectorAll("span").forEach(function(s, i){
+      s.classList.toggle("on", i < revRating);
+    });
+  }
+  paintStars();
+  revStars.addEventListener("click", function(ev){
+    var s = ev.target.closest("span[data-s]");
+    if(!s) return;
+    revRating = parseInt(s.getAttribute("data-s"), 10);
+    paintStars();
+  });
+
+  var btnReview = document.getElementById("btnReview");
+  btnReview.onclick = async function(){
+    var txt = document.getElementById("revText").value.trim();
+    if(!txt){ toast("Review paste karo pehle", "err"); document.getElementById("revText").focus(); return; }
+    if(!requireName()) return;
+    setBusy(btnReview, true);
+    try{
+      var res = await callApi("/api/marketing/review-reply", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          review_text: txt,
+          rating: revRating,
+          business_name: document.getElementById("bizName").value.trim(),
+          tone: document.getElementById("revTone").value,
+        }),
+      });
+      var reps = (res && res.replies) || [];
+      document.getElementById("revRows").innerHTML = reps.length
+        ? reps.map(function(r, i){
+            var label = (typeof r === "string") ? ("Reply " + (i + 1)) : (r.label || ("Reply " + (i + 1)));
+            var text = (typeof r === "string") ? r : (r.text || "");
+            return '<div class="sect"><div class="sh"><span class="tag">' + esc(label) + '</span></div>' +
+              '<div class="copyitem"><div class="tx">' + esc(text) + '</div>' + copyBtnHtml(text) + '</div></div>';
+          }).join("")
+        : '<div class="empty">Reply nahi bana — dobara try karo.</div>';
+      document.getElementById("revCard").classList.remove("hidden");
+      document.getElementById("revCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Replies ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Reply nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnReview, false, "💬 Replies banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 4: Festivals
+  // ============================================================================
+  function typeEmoji(t){
+    t = String(t || "").toLowerCase();
+    if(/relig|hindu|muslim|islam|sikh|christ|jain|buddh/.test(t)) return "🪔";
+    if(/national|patriot/.test(t)) return "🇮🇳";
+    if(/season|harvest|monsoon|winter|summer/.test(t)) return "🌾";
+    if(/shop|sale|commerc|retail/.test(t)) return "🛍️";
+    if(/inter|global|world/.test(t)) return "🌍";
+    return "🎉";
+  }
+  function fmtDate(d){
+    var dt = new Date(d);
+    if(isNaN(dt)) dt = new Date(String(d) + "T00:00:00");
+    if(isNaN(dt)) return String(d || "");
+    var M = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return dt.getDate() + " " + M[dt.getMonth()];
+  }
+
+  async function loadFestivals(){
+    var box = document.getElementById("festList");
+    box.innerHTML = loadingHtml("Festivals load ho rahe hain…");
+    try{
+      var res = await callApi("/api/marketing/festivals?days=60", {headers: hdrs()});
+      var list = (res && res.festivals) || [];
+      box.innerHTML = list.length
+        ? list.map(function(f){
+            return '<div class="festrow">' +
+              '<div class="fdate">' + esc(fmtDate(f.date)) + '</div>' +
+              '<div class="fbody"><div class="fname">' + typeEmoji(f.type) + ' ' + esc(f.name) + '</div>' +
+              (f.marketing_angle ? '<div class="fangle">' + esc(f.marketing_angle) + '</div>' : '') +
+              '</div></div>';
+          }).join("")
+        : '<div class="empty">Agle 60 din me koi festival nahi mila.</div>';
+    }catch(e){
+      inited.festivals = false;
+      box.innerHTML = '<div class="empty">Festivals load nahi hue — <button class="linkbtn" id="festRetry">dobara try karo</button></div>';
+      var rb = document.getElementById("festRetry");
+      if(rb) rb.onclick = function(){ inited.festivals = true; loadFestivals(); };
+      if(e.message !== "auth") toast("Festivals load nahi hue: " + e.message, "err");
+    }
+  }
+
+  var btnFestPosts = document.getElementById("btnFestPosts");
+  btnFestPosts.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnFestPosts, true);
+    try{
+      var res = await callApi("/api/marketing/festival-posts", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          days: 60,
+        }),
+      });
+      var posts = (res && res.posts) || [];
+      document.getElementById("festPostRows").innerHTML = posts.length
+        ? posts.map(function(p){
+            var cap = p.caption || "";
+            return '<div class="sect"><div class="sh">🎉 ' + esc(p.festival || "") + '</div>' +
+              '<div class="copyitem"><div class="tx">' + esc(cap) + '</div>' + copyBtnHtml(cap) + '</div></div>';
+          }).join("")
+        : '<div class="empty">Post ideas nahi bane — dobara try karo.</div>';
+      document.getElementById("festPostsCard").classList.remove("hidden");
+      document.getElementById("festPostsCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Festival posts ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Post ideas nahi bane: " + e.message, "err");
+    }finally{
+      setBusy(btnFestPosts, false, "✨ Post ideas banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 5: Poster
+  // ============================================================================
+  var posterState = { sel: null, svg: "" };
+
+  async function loadPosterTemplates(){
+    var grid = document.getElementById("posterTpls");
+    grid.innerHTML = loadingHtml("Templates load ho rahe hain…");
+    try{
+      var res = await callApi("/api/marketing/poster/templates", {headers: hdrs()});
+      var tpls = (res && res.templates) || [];
+      grid.innerHTML = tpls.length
+        ? tpls.map(function(t){
+            return '<div class="tplcard" data-tid="' + esc(String(t.id)) + '">' +
+              '<div class="tn">' + esc(t.name) + '</div>' +
+              (t.best_for ? '<div class="tb">' + esc(t.best_for) + '</div>' : '') +
+            '</div>';
+          }).join("")
+        : '<div class="empty">Templates nahi mile.</div>';
+    }catch(e){
+      inited.poster = false;
+      grid.innerHTML = '<div class="empty">Templates load nahi hue — <button class="linkbtn" id="tplRetry">dobara try karo</button></div>';
+      var rb = document.getElementById("tplRetry");
+      if(rb) rb.onclick = function(){ inited.poster = true; loadPosterTemplates(); };
+      if(e.message !== "auth") toast("Templates load nahi hue: " + e.message, "err");
+    }
+  }
+
+  document.getElementById("posterTpls").addEventListener("click", function(ev){
+    var c = ev.target.closest(".tplcard");
+    if(!c) return;
+    posterState.sel = c.getAttribute("data-tid");
+    this.querySelectorAll(".tplcard").forEach(function(x){
+      x.classList.toggle("sel", x === c);
+    });
+  });
+
+  function slug(s){
+    return (String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")) || "poster";
+  }
+  function triggerDl(href, name, revoke){
+    var a = document.createElement("a");
+    a.href = href; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    if(revoke) setTimeout(function(){ URL.revokeObjectURL(href); }, 4000);
+  }
+
+  var btnPoster = document.getElementById("btnPoster");
+  btnPoster.onclick = async function(){
+    if(!requireName()) return;
+    if(!posterState.sel){ toast("Pehle template choose karo", "err"); return; }
+    setBusy(btnPoster, true);
+    try{
+      var res = await callApi("/api/marketing/poster", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          template_id: posterState.sel,
+          business_name: document.getElementById("bizName").value.trim(),
+          tagline: document.getElementById("posterTagline").value.trim(),
+          offer: document.getElementById("posterOffer").value.trim(),
+          phone: document.getElementById("posterPhone").value.trim(),
+          festival: document.getElementById("posterFestival").value.trim(),
+        }),
+      });
+      var svg = (res && res.svg) || "";
+      if(!svg) throw new Error("empty svg");
+      posterState.svg = svg;
+      document.getElementById("posterBox").innerHTML = svg; /* trusted — apna hi backend */
+      document.getElementById("posterCard").classList.remove("hidden");
+      document.getElementById("posterCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Poster ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Poster nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnPoster, false, "🖼️ Poster banao");
+    }
+  };
+
+  // PNG download: SVG → Image (blob URL) → canvas 1080×1080 → toBlob PNG
+  document.getElementById("btnPng").onclick = function(){
+    if(!posterState.svg){ toast("Pehle poster banao", "err"); return; }
+    var svg = posterState.svg;
+    if(!/xmlns=/.test(svg)) svg = svg.replace(/<svg/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+    var blob = new Blob([svg], {type: "image/svg+xml;charset=utf-8"});
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    var name = slug(document.getElementById("bizName").value) + "_poster.png";
+    img.onload = function(){
+      try{
+        var c = document.createElement("canvas");
+        c.width = 1080; c.height = 1080;
+        var ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, 1080, 1080);
+        ctx.drawImage(img, 0, 0, 1080, 1080);
+        URL.revokeObjectURL(url);
+        if(c.toBlob){
+          c.toBlob(function(b){
+            if(!b){ toast("PNG nahi bana — ⬇ SVG use karo", "err"); return; }
+            triggerDl(URL.createObjectURL(b), name, true);
+            toast("PNG download ✓", "ok");
+          }, "image/png");
+        }else{
+          triggerDl(c.toDataURL("image/png"), name, false);
+        }
+      }catch(err){
+        URL.revokeObjectURL(url);
+        toast("PNG export fail — ⬇ SVG use karo", "err");
+      }
+    };
+    img.onerror = function(){
+      URL.revokeObjectURL(url);
+      toast("PNG nahi bana — ⬇ SVG use karo", "err");
+    };
+    img.src = url;
+  };
+
+  // SVG download (fallback)
+  document.getElementById("btnSvg").onclick = function(){
+    if(!posterState.svg){ toast("Pehle poster banao", "err"); return; }
+    var blob = new Blob([posterState.svg], {type: "image/svg+xml;charset=utf-8"});
+    triggerDl(URL.createObjectURL(blob), slug(document.getElementById("bizName").value) + "_poster.svg", true);
+  };
+
+  // ============================================================================
+  // TAB 6: WhatsApp pack
+  // ============================================================================
+  function normList(x){
+    var out = [];
+    if(x == null) return out;
+    if(typeof x === "string") x = [x];
+    if(!Array.isArray(x)){
+      if(typeof x === "object") x = Object.keys(x).map(function(k){ return x[k]; });
+      else return out;
+    }
+    x.forEach(function(it){
+      if(it == null) return;
+      if(typeof it === "string"){
+        if(it.trim()) out.push({label: "", text: it});
+      }else if(typeof it === "object"){
+        var t = it.text || it.message || it.line || it.body || it.template || it.caption || it.tip || it.point || "";
+        if(!t){ try{ t = JSON.stringify(it); }catch(_e){ t = String(it); } }
+        out.push({label: it.label || it.title || "", text: String(t)});
+      }else{
+        out.push({label: "", text: String(it)});
+      }
+    });
+    return out;
+  }
+  function sectionHtml(title, items, numbered){
+    items = normList(items);
+    if(!items.length) return "";
+    return '<div class="sect"><div class="sh">' + title + '</div>' +
+      items.map(function(it, i){
+        var pre = "";
+        if(numbered) pre = '<b>Step ' + (i + 1) + ':</b> ';
+        else if(it.label) pre = '<b>' + esc(it.label) + ':</b> ';
+        return '<div class="copyitem"><div class="tx">' + pre + esc(it.text) + '</div>' + copyBtnHtml(it.text) + '</div>';
+      }).join("") + '</div>';
+  }
+
+  var btnWa = document.getElementById("btnWa");
+  btnWa.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnWa, true);
+    try{
+      var res = await callApi("/api/marketing/whatsapp-pack", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          occasion: document.getElementById("waOcc").value.trim(),
+          offer: document.getElementById("waOffer").value.trim(),
+        }),
+      });
+      var html =
+        sectionHtml("📢 Broadcast messages", res && res.broadcast) +
+        sectionHtml("📱 Status lines", res && res.status_lines) +
+        sectionHtml("💬 Reply templates", res && res.reply_templates);
+      document.getElementById("waRows").innerHTML = html || '<div class="empty">Content nahi bana — dobara try karo.</div>';
+      document.getElementById("waCard").classList.remove("hidden");
+      document.getElementById("waCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("WhatsApp pack ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Pack nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnWa, false, "💬 Pack banao");
+    }
+  };
+
+  // ============================================================================
+  // TAB 7: Competitor analysis
+  // ============================================================================
+  var btnComp = document.getElementById("btnComp");
+  btnComp.onclick = async function(){
+    var notes = document.getElementById("compText").value.trim();
+    if(!notes){ toast("Competitor ke baare me kuch likho pehle", "err"); document.getElementById("compText").focus(); return; }
+    if(!requireName()) return;
+    setBusy(btnComp, true);
+    try{
+      var res = await callApi("/api/marketing/competitor", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          niche: nicheSel.value || "general",
+          competitor_notes: notes,
+        }),
+      });
+      var html =
+        sectionHtml("✅ Copy-worthy strengths (inse seekho)", res && res.strengths_to_copy) +
+        sectionHtml("🕳️ Unke gaps (aapka mauka)", res && res.gaps_to_exploit) +
+        sectionHtml("🪜 3-step action plan", res && res.action_plan, true);
+      document.getElementById("compRows").innerHTML = html || '<div class="empty">Analysis nahi bana — dobara try karo.</div>';
+      document.getElementById("compCard").classList.remove("hidden");
+      document.getElementById("compCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Analysis ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Analysis nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnComp, false, "🥊 Analysis karo");
+    }
+  };
+
 })();
 </script>
 </body>
