@@ -143,6 +143,10 @@ langchain-core>=0.3
 # (USE_LANGGRAPH_SUPERVISOR=1). Official LangChain supervisor pattern; reads STAFF roster.
 langgraph-supervisor>=0.0.27
 langchain-openai>=0.2  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
+# Knowledge-graph RAG (app/voice_agent/graph_rag.py) — opt-in USE_LIGHTRAG=1.
+# Lightweight entity/relation graph; uses free_ai LLM + the KB's fastembed embeddings.
+# (Agentic RAG, app/agents/agentic_rag.py, needs NO new dep — reuses KB + free_ai.)
+lightrag-hku>=1.0
 fastapi-mcp>=0.3  # platform endpoints as MCP tools (/mcp)
 
 # =============================================================================
