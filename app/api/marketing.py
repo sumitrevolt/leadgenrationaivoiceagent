@@ -623,6 +623,40 @@ async def run_schedule(current_user: User = Depends(require_admin)):
         raise HTTPException(status_code=500, detail=f"Schedule run failed: {e}")
 
 
+class FestivalScheduleRequest(BaseModel):
+    """Upcoming Indian festivals ko content scheduler me auto-queue karna."""
+
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    months_ahead: int = Field(3, ge=1, le=12)
+    client_id: str = Field("", max_length=64)
+
+
+@router.get("/festivals")
+async def list_festivals(months_ahead: int = 6, current_user: User = Depends(require_admin)):
+    """Upcoming Indian festivals (auto-marketing calendar — Diwali/Holi/Rakhi…)."""
+    try:
+        from app.marketing import festival_calendar
+
+        return {"festivals": festival_calendar.upcoming(months_ahead=months_ahead)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Festivals failed: {e}")
+
+
+@router.post("/festival-autoschedule")
+async def festival_autoschedule(req: FestivalScheduleRequest, current_user: User = Depends(require_admin)):
+    """Upcoming festivals ko content scheduler me ek-click auto-queue (dup-safe)."""
+    try:
+        from app.marketing import festival_calendar
+
+        res = festival_calendar.autoschedule(req.business_name, req.niche, req.months_ahead, req.client_id)
+        _log_isha("festival_autoschedule", f"{req.business_name}: {res.get('scheduled')} queued")
+        return res
+    except Exception as e:
+        logger.error(f"Festival autoschedule failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Festival autoschedule failed: {e}")
+
+
 @router.get("/gbp-tips")
 async def get_gbp_tips(
     niche: str = "general",
