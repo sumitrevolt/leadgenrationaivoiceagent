@@ -307,6 +307,7 @@
     <button class="tab" data-tab="sentiment">😊 <span>Sentiment</span></button>
     <button class="tab" data-tab="hashtags">🔖 <span>Hashtags</span></button>
     <button class="tab" data-tab="logo">🏷️ <span>AI Logo</span></button>
+    <button class="tab" data-tab="scheduler">📅 <span>Scheduler</span></button>
   </div>
 </div>
 
@@ -488,6 +489,41 @@
     <div class="card hidden" id="festPostsCard">
       <h3>📝 Festival post ideas</h3>
       <div id="festPostRows"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: Scheduler ================= -->
+  <section class="tabpane hidden" id="pane-scheduler">
+    <div class="card">
+      <h3>📅 Content Scheduler</h3>
+      <div class="hint">Kisi khaas date ke liye post queue karo, ya festivals ek-click auto-schedule. Due posts roz auto-ready ho jaate (1-click human post).</div>
+      <div class="btns">
+        <button class="btn" id="btnFestAuto">🎉 Festivals auto-schedule (90 din)</button>
+        <button class="btn ghost" id="btnSchedRun">⚡ Due abhi prepare karo</button>
+        <button class="btn ghost" id="btnSchedReload">🔄 Refresh</button>
+      </div>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">➕ Manual schedule</h4>
+      <div class="frm">
+        <div class="fld">
+          <label for="schDate">Date</label>
+          <input id="schDate" type="date" />
+        </div>
+        <div class="fld">
+          <label for="schOccasion">Occasion / Theme</label>
+          <input id="schOccasion" type="text" placeholder="e.g. Diwali sale" maxlength="120" />
+        </div>
+        <div class="fld">
+          <label for="schOffer">Offer (optional)</label>
+          <input id="schOffer" type="text" placeholder="e.g. Flat 20% off" maxlength="200" />
+        </div>
+      </div>
+      <div class="btns"><button class="btn" id="btnSchedAdd">➕ Schedule karo</button></div>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0">🗓️ Scheduled posts</h4>
+      <div id="schedList"><div class="empty">Abhi tak kuch schedule nahi hua.</div></div>
     </div>
   </section>
 
@@ -1088,9 +1124,9 @@
   setHeadH();
 
   // ---- Tabs: switch + lazy init (data fetch sirf first open pe) ----------------
-  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack","referral","aiimage","complete","variations","chatbot","sentiment","hashtags","logo"];
+  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack","referral","aiimage","complete","variations","chatbot","sentiment","hashtags","logo","scheduler"];
   var inited = {};
-  var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit, hotleads: loadLeadScores };
+  var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit, hotleads: loadLeadScores, scheduler: loadScheduler };
   document.getElementById("tabbar").addEventListener("click", function(ev){
     var t = ev.target.closest(".tab");
     if(!t) return;
@@ -2824,6 +2860,85 @@
     }catch(e){ if(e.message!=="auth") toast("Logo fail: "+e.message,"err"); }
     finally{ setBusy(btnLogo, false, "🏷️ Logo banao"); }
   };
+
+  // ============================================================================
+  // TAB: Scheduler (content_schedule + festival auto-schedule)
+  // ============================================================================
+  function schedStatusTag(s){
+    s = String(s||"");
+    if(s === "ready") return '<span class="tag" style="background:#1f7a3d">ready ✓</span>';
+    if(s === "posted") return '<span class="tag" style="background:#555">posted</span>';
+    return '<span class="tag">scheduled</span>';
+  }
+  async function loadScheduler(){
+    var box = document.getElementById("schedList");
+    if(!box) return;
+    box.innerHTML = loadingHtml("Schedule load ho raha hai…");
+    try{
+      var res = await callApi("/api/marketing/schedule", {headers: hdrs()});
+      var items = (res && res.items) || [];
+      items.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+      box.innerHTML = items.length
+        ? items.map(function(it){
+            var cap = (it.content && it.content.caption) ? it.content.caption : "";
+            return '<div class="sect"><div class="sh"><span class="fdate">' + esc(fmtDate(it.date)) + '</span> ' +
+              '<b>' + esc(it.occasion || it.business_name || "Post") + '</b> ' + schedStatusTag(it.status) + '</div>' +
+              (cap ? '<div class="copyitem"><div class="tx">' + esc(cap) + '</div>' + copyBtnHtml(cap) + '</div>' : '') +
+              '</div>';
+          }).join("")
+        : '<div class="empty">Abhi tak kuch schedule nahi hua. Upar se festivals auto-schedule karo ya manual add karo.</div>';
+    }catch(e){
+      inited.scheduler = false;
+      box.innerHTML = '<div class="empty">List load nahi hui — <button class="linkbtn" id="schRetry">dobara try</button></div>';
+      var rb = document.getElementById("schRetry");
+      if(rb) rb.onclick = function(){ inited.scheduler = true; loadScheduler(); };
+      if(e.message !== "auth") toast("Schedule load nahi hua: " + e.message, "err");
+    }
+  }
+  var btnFestAuto = document.getElementById("btnFestAuto");
+  if(btnFestAuto) btnFestAuto.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnFestAuto, true);
+    try{
+      var res = await callApi("/api/marketing/festival-autoschedule", {
+        method: "POST", headers: hdrs({"Content-Type":"application/json"}),
+        body: JSON.stringify({ business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value || "general", days: 90 }),
+      });
+      toast(((res && res.scheduled) || 0) + " festivals queued ✓", "ok");
+      loadScheduler();
+    }catch(e){ if(e.message !== "auth") toast("Auto-schedule fail: " + e.message, "err"); }
+    finally{ setBusy(btnFestAuto, false, "🎉 Festivals auto-schedule (90 din)"); }
+  };
+  var btnSchedAdd = document.getElementById("btnSchedAdd");
+  if(btnSchedAdd) btnSchedAdd.onclick = async function(){
+    if(!requireName()) return;
+    var d = document.getElementById("schDate").value;
+    if(!d){ toast("Date chuno pehle", "err"); return; }
+    setBusy(btnSchedAdd, true);
+    try{
+      await callApi("/api/marketing/schedule", {
+        method: "POST", headers: hdrs({"Content-Type":"application/json"}),
+        body: JSON.stringify({ business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value || "general",
+          date: d, occasion: document.getElementById("schOccasion").value.trim(), offer: document.getElementById("schOffer").value.trim() }),
+      });
+      toast("Scheduled ✓", "ok");
+      document.getElementById("schOccasion").value = ""; document.getElementById("schOffer").value = "";
+      loadScheduler();
+    }catch(e){ if(e.message !== "auth") toast("Schedule fail: " + e.message, "err"); }
+    finally{ setBusy(btnSchedAdd, false, "➕ Schedule karo"); }
+  };
+  var btnSchedRun = document.getElementById("btnSchedRun");
+  if(btnSchedRun) btnSchedRun.onclick = async function(){
+    setBusy(btnSchedRun, true);
+    try{
+      var res = await callApi("/api/marketing/schedule/run", { method: "POST", headers: hdrs({"Content-Type":"application/json"}), body: "{}" });
+      toast("Prepared: " + ((res && res.prepared) || 0) + " / due " + ((res && res.due) || 0), "ok");
+      loadScheduler();
+    }catch(e){ if(e.message !== "auth") toast("Run fail: " + e.message, "err"); }
+    finally{ setBusy(btnSchedRun, false, "⚡ Due abhi prepare karo"); }
+  };
+  var btnSchedReload = document.getElementById("btnSchedReload");
+  if(btnSchedReload) btnSchedReload.onclick = function(){ loadScheduler(); };
 
 })();
 </script>
