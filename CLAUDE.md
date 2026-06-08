@@ -15,6 +15,7 @@
 - **AI image generation (NEW)**: `app/marketing/ai_image.py` — Pollinations Flux. **GOTCHA: Pollinations ab anonymous pe 402 Payment Required** — `POLLINATIONS_TOKEN` env chahiye (auth.pollinations.ai free signup); bina token frontend graceful msg dikhata (`__imgErr`). `POST /api/marketing/ai-image` → image URL. SVG posters = reliable fallback. (Caption/hashtags bina token chalte.)
 - **Predis-style combos (NEW)**: `POST /api/marketing/complete-post` (ek phrase → caption+hashtags+AI image one-shot, asyncio.gather) + `POST /api/marketing/post-variations` (N=2-4 variants, A/B). generate_post+ai_image compose karte.
 - **Godmode marketing batch (NEW, WIRED in marketing.html)**: `/api/marketing/chatbot` (client-KB FAQ + lead-capture bot — `chatbot.py`, website/WA widget brain) · `/sentiment` (`sentiment.py` — reviews mood+themes) · `/hashtags` (`hashtags.py` — trending + best-time) · `/brand-logo` (AI logo, `ai_image.logo_url`). **Routes 229; marketing.html ab 26 tabs** (7 naye: AI Image/Complete-Post/Variations/Chatbot/Sentiment/Hashtags/Logo — JS `node --check` verified). VPS pe ab node v18 installed (`scripts/check_marketing_js.py`).
+- **Content scheduler (NEW, Buffer-style)**: `app/marketing/content_schedule.py` — kisi khaas DATE ke liye post queue karo (Diwali/sale day). `POST /api/marketing/schedule` (add) · `GET /schedule` (list) · `POST /schedule/run` (manual prepare). Daily `content` job (07:00 IST) me `run_due()` wired → due items auto content-generate hoke `status=ready` (1-click human post; auto-publish Meta-blocked). Store `data/content_schedule.jsonl`. Verified: schedule→due→prepared real caption.
 
 ## Paid Tiers (`app/marketing/packages.py`, public `/api/marketing/packages`)
 - **Starter ₹999/mo** — marketing only (posts, GBP audit, reviews, posters, WhatsApp). No calling.
@@ -29,7 +30,7 @@
 - `/mcp` MCP server mounted (Platform/Data/Agents tools).
 
 ## AI Stack (all free, `app/voice_agent/free_ai.py` multi-provider chain)
-- **LLM**: Cerebras `gpt-oss-120b` (WORKING, free-unlimited) → groq → xai(no credits) → openrouter → Gemini. (Gemini quota PER MODEL.)
+- **LLM**: Cerebras `gpt-oss-120b` (WORKING, free-unlimited) → groq → xai(no credits) → openrouter → Gemini. (Gemini quota PER MODEL.) **Circuit-breaker (NEW)**: provider 429/quota/queue pe 60s cooldown (`_LLM_COOLDOWN_UNTIL` in `free_ai.py`) → burst me dead provider skip, auto-reopen. Verified: Cerebras 429 burst → Groq instant fallback, chat 'OK'.
 - **STT**: Groq `whisper-large-v3` (**needs GROQ_API_KEY — abhi MISSING = weak link**) → Gemini audio → local faster-whisper (Hindi weak).
 - **TTS**: EdgeTTS `hi-IN-SwaraNeural` (`edge-tts>=7.2.0` zaroori, warna 403).
 - **RAG**: Qdrant single `kb_main` collection, per-niche namespaces (`niche:` + `client:<id>`). Embedder **multi-model fallback** `_EMBED_CANDIDATES` (e5-small unsupported tha → `paraphrase-multilingual-MiniLM-L12-v2` dim-384; fastembed version-proof, REAL dim auto-detect, collection recreate on mismatch). backend=qdrant semantic verified (`scripts/check_rag.py`).
