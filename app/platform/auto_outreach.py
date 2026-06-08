@@ -193,9 +193,16 @@ async def run_email_outreach(limit: Optional[int] = None) -> Dict[str, Any]:
         if not bool(getattr(settings, "auto_email_outreach", False)):
             return {"skipped": "AUTO_EMAIL_OUTREACH off"}
 
-        if not (getattr(settings, "smtp_user", "") or "").strip():
-            logger.warning("[auto_outreach] SMTP not configured — outreach skipped")
-            return {"skipped": "smtp_unset"}
+        # API key (Resend/Brevo) ya SMTP — koi bhi ek configured ho to chalega.
+        _api = False
+        try:
+            from app.integrations.email_api import api_available
+            _api = api_available()
+        except Exception:
+            _api = False
+        if not _api and not (getattr(settings, "smtp_user", "") or "").strip():
+            logger.warning("[auto_outreach] na API key na SMTP — outreach skipped")
+            return {"skipped": "email_unconfigured"}
 
         from app.platform import prospector
 

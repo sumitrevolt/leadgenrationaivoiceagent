@@ -122,6 +122,10 @@ class Settings(BaseSettings):
     outreach_daily_cap: int = 25
     # From-name jo cold email me dikhta hai (footer/sender).
     outreach_from_name: str = "Sumit — LeadGen AI"
+    # Email API providers (SMTP se zyada reliable; key ho to API se bhejta hai).
+    # Resend: console resend.com (3000/mo free). Brevo: brevo.com (300/day free).
+    resend_api_key: str = ""        # env RESEND_API_KEY
+    brevo_api_key: str = ""         # env BREVO_API_KEY
     
     # Compliance
     dnd_api_url: str = ""

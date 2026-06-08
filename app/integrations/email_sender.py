@@ -57,10 +57,26 @@ class EmailSender:
             cc: CC recipients
             reply_to: Reply-to address
         """
+        # PREFER email API (Resend/Brevo) — SMTP se zyada reliable, koi mailbox
+        # password jhanjhat nahi. Agar key set hai to API se bhejo; warna SMTP.
+        try:
+            from app.integrations.email_api import api_available, send_email_api
+
+            if api_available():
+                ok, info = await send_email_api(
+                    to_emails, subject, body, html_body=html_body, reply_to=reply_to
+                )
+                if ok:
+                    logger.info(f"Email sent via API ({info}) to {', '.join(to_emails)}")
+                    return True
+                logger.warning(f"Email API failed ({info}); trying SMTP fallback")
+        except Exception as e:
+            logger.warning(f"Email API path error ({e}); SMTP fallback")
+
         if not self.user or not self.password:
-            logger.warning("Email not configured, skipping send")
+            logger.warning("Email not configured (no API key + no SMTP), skipping send")
             return False
-        
+
         # Create message
         msg = MIMEMultipart('alternative')
         msg['From'] = self.from_email
