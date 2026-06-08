@@ -14,7 +14,7 @@
 - **42 niches** (`app/niches.py`), categories: marketing / leadgen / both. API `/api/data/niches?tier=S|A|B`.
 - **AI image generation (NEW)**: `app/marketing/ai_image.py` — Pollinations free Flux (no API key), `POST /api/marketing/ai-image` → phrase se asli marketing image URL (Predis/AdBanao ka #1 feature). SVG posters ke saath, URL-based (light).
 - **Predis-style combos (NEW)**: `POST /api/marketing/complete-post` (ek phrase → caption+hashtags+AI image one-shot, asyncio.gather) + `POST /api/marketing/post-variations` (N=2-4 variants, A/B). generate_post+ai_image compose karte.
-- **Godmode marketing batch (NEW, backend done, frontend wiring pending)**: `/api/marketing/chatbot` (client-KB FAQ + lead-capture bot — `chatbot.py`, future website/WA widget brain) · `/sentiment` (`sentiment.py` — reviews mood+themes) · `/hashtags` (`hashtags.py` — trending + best-time) · `/brand-logo` (AI logo, `ai_image.logo_url`). **Routes ab 229.**
+- **Godmode marketing batch (NEW, WIRED in marketing.html)**: `/api/marketing/chatbot` (client-KB FAQ + lead-capture bot — `chatbot.py`, website/WA widget brain) · `/sentiment` (`sentiment.py` — reviews mood+themes) · `/hashtags` (`hashtags.py` — trending + best-time) · `/brand-logo` (AI logo, `ai_image.logo_url`). **Routes 229; marketing.html ab 26 tabs** (7 naye: AI Image/Complete-Post/Variations/Chatbot/Sentiment/Hashtags/Logo — JS `node --check` verified). VPS pe ab node v18 installed (`scripts/check_marketing_js.py`).
 
 ## Paid Tiers (`app/marketing/packages.py`, public `/api/marketing/packages`)
 - **Starter ₹999/mo** — marketing only (posts, GBP audit, reviews, posters, WhatsApp). No calling.
@@ -25,7 +25,7 @@
 
 ## Live Infra
 - VPS **72.61.245.204** (Mumbai, Ubuntu 24.04, Docker). App `/opt/leadgen`, systemd `leadgen` (uvicorn :8000). Caddy proxy (Traefik conflict — hostinger-deploy skill dekho). DB SQLite `/opt/leadgen/leadgen.db`. Qdrant docker `127.0.0.1:6333`.
-- Key pages: `/` landing · `/audit` (public GBP-audit = **#1 lead magnet**) · `/blog` (programmatic SEO) · `/b/{slug}` (per-client mini-site+booking) · `/app/marketing` (19 tabs) · `/app/clients` · `/app/outreach` · `/app/team` · `/app/test-call` (FREE voice tuning) · `/app/admin` · `/app/customer`. Legal: `/privacy /terms /refund`. SEO: `/robots.txt /sitemap.xml` (dynamic).
+- Key pages: `/` landing · `/audit` (public GBP-audit = **#1 lead magnet**) · `/blog` (programmatic SEO) · `/b/{slug}` (per-client mini-site+booking) · `/app/marketing` (26 tabs) · `/app/clients` · `/app/outreach` · `/app/team` · `/app/test-call` (FREE voice tuning) · `/app/admin` · `/app/customer`. Legal: `/privacy /terms /refund`. SEO: `/robots.txt /sitemap.xml` (dynamic).
 - `/mcp` MCP server mounted (Platform/Data/Agents tools).
 
 ## AI Stack (all free, `app/voice_agent/free_ai.py` multi-provider chain)

@@ -450,3 +450,10 @@
   - `ai_image.logo_url()` + `/brand-logo` — AI logo (Pollinations free).
 - **DEPLOYED LIVE (7b1159d)**: routes 225→**229**, prod_check [OK] ALL PASSED, health prod uptime 8s. Sandbox-verified (chatbot/sentiment/hashtags graceful; logo stale-mount false-positive → py_compile ne real file confirm kiya).
 - **WIRING PENDING (user plan)**: frontend marketing.html me ye + ai-image/complete-post/variations ke tabs/widgets EK SAATH wire karenge. Backend ab complete (7 naye endpoints is session me: ai-image, complete-post, post-variations, chatbot, sentiment, hashtags, brand-logo).
+
+## FRONTEND WIRING — 7 new marketing tabs (2026-06-08, commit 4c36288)
+- **User: "sabhi cheezze wire up systematically without mistakes".** marketing.html (19→**26 tabs**) me 7 naye tabs add — EXACT existing pattern mirror: tab button (`data-tab`) + `paneIds` array + `.tabpane hidden` panel + handler (`callApi` POST + `hdrs(token)` + `requireName` + `setBusy` + `doCopy`). Shared bizName+niche header reuse.
+- **Tabs**: AI Image · Complete Post (caption+hashtags+image) · Variations (A/B) · Chatbot (client-KB lead bot) · Sentiment · Hashtags · AI Logo.
+- **2-pass safe edit** (distinct unique anchors): HTML (tabbar + paneIds + 7 panels) → JS (7 handlers before IIFE `})();`).
+- **"Without mistakes" VERIFY**: page serves all 7 panes (grep count=7); **VPS pe node v18 install karke `node --check` se REAL deployed marketing.html ka poora inline JS validate → OK (valid syntax)** — koi JS syntax error nahi (warna saare 26 tabs toot jaate). is-active=active, /health prod. (Sandbox mount stale tha → check VPS real file pe kiya, definitive. Tool: `scripts/check_marketing_js.py`.)
+- **Ab har naya backend feature (7 endpoints) UI me usable** — admin token paste karke `/app/marketing` pe.
