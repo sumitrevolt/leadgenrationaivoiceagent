@@ -213,6 +213,13 @@
 - **Demo flow update**: prospect ko ab bolo "leadsgenai.in/audit pe 2-min me apna score nikalo" — khud try karega, inquiry me convert hoga.
 - Remaining future: client login portal (real per-client auth), mini landing /b/{slug}, missed-call callback (DID), referral kit, auto-posting APIs, GBP API approval.
 
+## MARKETING-FIRST NICHES (2026-06-08) — niche reframe done
+- **User: "focus ab AI marketing hai, niches change karo".** Research (9 searches: AdBanao/Brands.live/Dhanda target verticals) se best local-business marketing niches finalize. **NICHES ab 26→42** (app/niches.py). Sab niches me naye fields: `category` ("marketing"|"leadgen"|"both") + `content_focus` [list].
+- **16 naye marketing niches** (category marketing, monthly_starter ₹2999 retainer pricing): restaurant_cafe(S), jewellery_store(S), salon_spa(S), boutique_fashion(S), gym_fitness(A), bakery_sweets(A), mobile_electronics(A), hotel_resort(A), automobile_service(B), photography_studio(B), pharmacy_medical(B), furniture_decor(B), kirana_supermarket(B), travel_agency(B), gift_stationery(B), hardware_paint(B). Har ek ka niche_knowledge pack bhi (42 KB packs).
+- **Category tags**: marketing:19, both:9 (ai_marketing/real_estate/solar etc — marketing AUR voice dono), leadgen:14 (home_loans/insurance/studying_abroad = leads chahiye, posters nahi → Advanced voice-tier clients). Tiers ab S:13/A:14/B:15.
+- Counts: tests test_provisioning 26→42, S-tier 9→13 (4 asserts fix). VPS verified: /api/data/niches count=42, ?tier=S=13. Marketing.html niche dropdown dynamic hai → auto 42 dikhayega. Voice niche_scripts.py untouched (get_script fallback to general/ai_marketing — voice helper hai ab).
+- **GOTCHA**: bada niches.py edit karte time implementation-agent ka socket gira (34 edits ho chuke the) — niches.py + niche_knowledge.py complete the, sirf tests reh gaye the. Sandbox python ne stale-mount se "unterminated string" diya tha (jhootha) — Windows venv se parse OK (42). Bade multi-file edits chhote agents me todo.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
