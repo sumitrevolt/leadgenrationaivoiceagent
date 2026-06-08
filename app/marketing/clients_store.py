@@ -9,8 +9,13 @@ hota hai taaki posters/posts auto-brand ho jaayein.
   add_client(business_name, niche, ...) -> dict   (uuid id, dedupe by phone/name)
   list_clients(status=None)             -> list
   get_client(cid)                       -> dict | None
+  get_by_slug(slug)                     -> dict | None   (mini-site /b/{slug})
   set_status(cid, status)               -> bool
   update_client(cid, **fields)          -> dict | None
+
+Har client ka ek unique `slug` (kebab-case business_name + 4-char id suffix)
+hota hai — mini-site /b/{slug} ke liye. Slug idempotently backfill hota hai jab
+client list/fetch hota hai (purane records bhi turant slug pa jaate hain).
 
 Pure stdlib, file-based, KABHI raise nahi karta. Module-level path const
 `_CLIENTS_FILE` test-monkeypatch ke liye exposed hai.
@@ -75,8 +80,32 @@ def _norm_socials(socials: dict[str, Any] | None) -> dict[str, str]:
     }
 
 
+_SLUG_STRIP_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _slugify(text: Any) -> str:
+    """business_name → kebab-case slug base ('Sharma Solar!!' → 'sharma-solar')."""
+    s = _SLUG_STRIP_RE.sub("-", str(text or "").strip().lower()).strip("-")
+    return s[:48] or "business"
+
+
+def _make_slug(business_name: Any, cid: Any) -> str:
+    """Unique slug = kebab(business_name) + '-' + first 4 chars of id.
+
+    id suffix se collision safe rehta hai (do same-naam businesses bhi alag).
+    """
+    base = _slugify(business_name)
+    suffix = re.sub(r"[^a-z0-9]", "", str(cid or "").lower())[:4] or "x"
+    return f"{base}-{suffix}"
+
+
 def _read_all() -> list[dict[str, Any]]:
-    """Saare client records (parse-safe; corrupt lines skip)."""
+    """Saare client records (parse-safe; corrupt lines skip).
+
+    Side-effect: slug missing ho to backfill karke file rewrite karta hai
+    (idempotent — ek baar likhne ke baad dobara nahi). Backfill fail ho to bhi
+    in-memory records me slug set ho jaata hai (read kabhi raise nahi).
+    """
     rows: list[dict[str, Any]] = []
     path = _CLIENTS_FILE
     try:
@@ -95,6 +124,28 @@ def _read_all() -> list[dict[str, Any]]:
                     continue
     except Exception as e:  # pragma: no cover
         logger.warning(f"[clients_store] read failed: {e}")
+        return rows
+
+    # --- slug backfill (idempotent) --- #
+    changed = False
+    seen: set[str] = set()
+    for r in rows:
+        slug = str(r.get("slug") or "").strip()
+        if not slug:
+            slug = _make_slug(r.get("business_name"), r.get("id"))
+            r["slug"] = slug
+            changed = True
+        # de-dup safety: agar do records ka slug same nikla (legacy), suffix lamba karo
+        if slug in seen:
+            slug = _make_slug(r.get("business_name"), str(r.get("id") or "")[:8])
+            r["slug"] = slug
+            changed = True
+        seen.add(slug)
+    if changed:
+        try:
+            _rewrite(rows)
+        except Exception as e:  # pragma: no cover - file lock etc.; in-mem slug kaafi hai
+            logger.debug(f"[clients_store] slug backfill rewrite skip: {e}")
     return rows
 
 
@@ -146,6 +197,7 @@ def add_client(
         rec: dict[str, Any] = {
             "id": cid,
             "business_name": name,
+            "slug": _make_slug(name, cid),  # mini-site /b/{slug}
             "niche": niche_k,
             "city": (city or "").strip()[:80],
             "phone": str(phone or "").strip()[:40],
@@ -204,6 +256,23 @@ def get_client(cid: str) -> dict[str, Any] | None:
                 return r
     except Exception as e:  # pragma: no cover
         logger.warning(f"[clients_store] get_client failed: {e}")
+    return None
+
+
+def get_by_slug(slug: str) -> dict[str, Any] | None:
+    """Ek client by slug — mini-site /b/{slug} ke liye. None agar na mile.
+
+    _read_all() pehle missing slugs backfill karta hai, isliye purane records
+    bhi match ho jaate hain. Case-insensitive. Kabhi raise nahi."""
+    try:
+        key = (slug or "").strip().lower()
+        if not key:
+            return None
+        for r in _read_all():
+            if str(r.get("slug") or "").strip().lower() == key:
+                return r
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"[clients_store] get_by_slug failed: {e}")
     return None
 
 
@@ -280,6 +349,7 @@ __all__ = [
     "add_client",
     "list_clients",
     "get_client",
+    "get_by_slug",
     "set_status",
     "update_client",
 ]

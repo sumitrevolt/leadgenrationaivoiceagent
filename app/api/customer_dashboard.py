@@ -4,15 +4,20 @@ Customer-facing Dashboard API
 Powers frontend/customer_dashboard.html.
 
 The END CUSTOMER here is a small business (the SaaS's client). They want to see
-the leads our AI voice agent generated for them and the calls it made on their
-behalf.
+the leads + enquiries our platform generated for them and the calls the AI voice
+agent made on their behalf.
 
-This module is intentionally import-safe: it only depends on the Python stdlib +
-fastapi + pydantic, so it can be mounted without pulling in DB/ML/telephony deps.
+Data is REAL (no fictional "SunVolt Energy" sample anymore). Sources, all
+best-effort + never-500, mirror admin_dashboard.py's real-data approach:
+  - DB (Lead, CallLog, Campaign) keyed by client_id  -> richest view
+  - data/inquiries.jsonl filtered by this client      -> leads (mini-site/website)
+    (matched on source_slug / client_id / business name / phone)
+  - data/content_queue/<id>.jsonl                     -> content posts count
+  - data/marketing_clients.jsonl                      -> the client's own record
 
-TODO: bind to real DB (Lead, CallLog models). Right now every endpoint returns
-clearly-marked SAMPLE data shaped EXACTLY like the embedded demo data in
-frontend/customer_dashboard.html so the UI works end-to-end today.
+When NOTHING real exists for a client, the dashboard returns honest ZEROS with
+is_sample_data=True (so the UI can show a "no data yet" state) — it NEVER invents
+businesses/leads. This module stays import-safe: heavy imports are local+guarded.
 
 Mount in main.py with:
     from app.api.customer_dashboard import router as customer_router
@@ -20,9 +25,10 @@ Mount in main.py with:
 (Router already carries prefix="/api/customer".)
 """
 
+import json
 import logging
-import random
-from datetime import datetime, timedelta
+import os
+from datetime import datetime
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
@@ -30,6 +36,9 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/customer", tags=["Customer Dashboard"])
+
+# Inquiries store (jsonl-first; same path public_site.py writes to).
+_INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
 
 # --------------------------------------------------------------------------- #
@@ -94,195 +103,239 @@ class DashboardResponse(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
-# SAMPLE data builder (deterministic-ish, realistic for Indian SMBs)          #
+# Real per-client builder from FILE sources (no DB needed)                     #
+# Mirrors admin_dashboard.py: jsonl-first, never invents data.                 #
 # --------------------------------------------------------------------------- #
-_CITIES = ["Mumbai", "Pune", "Delhi", "Bangalore"]
-_NICHES = ["solar", "dental", "real-estate"]
-
-_BUSINESSES = {
-    "solar": [
-        "Sharma Solar Solutions",
-        "SunVolt Energy",
-        "GreenRay Solar",
-        "Aditya Solar Power",
-        "EcoSun Systems",
-        "Surya Renewables",
-        "BrightWatt Solar",
-        "Tejas Solar Hub",
-    ],
-    "dental": [
-        "Smile Care Dental",
-        "Dr. Mehta Dental Clinic",
-        "Perfect Smile Studio",
-        "DentaWorld Clinic",
-        "City Dental Care",
-        "Bright Dental Hub",
-        "Oral Health Centre",
-        "Pearl Dental Clinic",
-    ],
-    "real-estate": [
-        "Gokhale Realty",
-        "Prime Properties",
-        "Skyline Estates",
-        "Urban Nest Realtors",
-        "Capital Homes",
-        "Greenfield Properties",
-        "Metro Realty Group",
-        "Anand Estate Agents",
-    ],
-}
-
-_CONTACTS = [
-    "Rajesh Sharma",
-    "Priya Mehta",
-    "Amit Gokhale",
-    "Sneha Iyer",
-    "Vikram Singh",
-    "Pooja Nair",
-    "Rahul Desai",
-    "Anita Rao",
-    "Suresh Patil",
-    "Kavya Reddy",
-    "Manish Joshi",
-    "Neha Kulkarni",
-]
-
-_OUTCOMES_CONNECTED = [
-    "Interested - qualified",
-    "Interested - callback",
-    "Asked to call later",
-    "Wants quotation",
-    "Not interested",
-    "Already has vendor",
-]
-
-_QUALIFICATION = {
-    "solar": [
-        "Owns rooftop, bill > Rs.4000/mo, ready in 30 days",
-        "Bill ~Rs.6500/mo, wants subsidy info, hot",
-        "Rented place, low intent",
-    ],
-    "dental": [
-        "Needs implants, budget ok, book this week",
-        "Routine cleaning, price sensitive",
-        "Enquiry for braces, teen patient, warm",
-    ],
-    "real-estate": [
-        "Budget Rs.80L-1Cr, 2BHK, ready to visit",
-        "Investment buyer, 3+ units, hot",
-        "Just browsing, no timeline",
-    ],
-}
+def _read_inquiries() -> list[dict]:
+    """data/inquiries.jsonl ki saari lines (parse-safe). Never raises."""
+    out: list[dict] = []
+    try:
+        if not os.path.isfile(_INQUIRIES_FILE):
+            return out
+        with open(_INQUIRIES_FILE, encoding="utf-8") as f:
+            for ln in f:
+                ln = ln.strip()
+                if not ln:
+                    continue
+                try:
+                    rec = json.loads(ln)
+                    if isinstance(rec, dict):
+                        out.append(rec)
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.debug("customer_dashboard: inquiries read failed (%s)", e)
+    return out
 
 
-def _mask_phone(num: str) -> str:
-    # +91 98XXXXXX10  -> keep first 2 + last 2 of the 10-digit part
-    return f"+91 {num[:2]}XXXXXX{num[-2:]}"
+def _client_record(client_id: str) -> dict | None:
+    """clients_store se is client ka record (slug/business_name/niche match)."""
+    try:
+        from app.marketing.clients_store import get_by_slug, get_client
+
+        return get_client(client_id) or get_by_slug(client_id)
+    except Exception:
+        return None
 
 
-def _build_sample(client_id: str, campaign: str | None) -> DashboardResponse:
-    rng = random.Random(42)  # stable sample so the UI looks consistent
+def _inquiries_for_client(client_id: str, client_rec: dict | None) -> list[dict]:
+    """Is client se related inquiries — source_slug / client_id / business / phone
+    par match. client "demo" ho aur koi record na ho to ALL inquiries (platform
+    overview), warna sirf is client ki."""
+    rows = _read_inquiries()
+    if not rows:
+        return []
+    cid = (client_id or "").strip().lower()
+    slug = str((client_rec or {}).get("slug") or "").strip().lower()
+    rec_id = str((client_rec or {}).get("id") or "").strip().lower()
+    biz = str((client_rec or {}).get("business_name") or "").strip().lower()
+    phone_d = "".join(ch for ch in str((client_rec or {}).get("phone") or "") if ch.isdigit())[-10:]
 
-    campaigns = [
-        Campaign(id="all", name="All Campaigns"),
-        Campaign(id="solar-mum", name="Solar - Mumbai (June)"),
-        Campaign(id="dental-pune", name="Dental - Pune Clinics"),
-        Campaign(id="realty-blr", name="Real Estate - Bangalore"),
-    ]
+    # No client identity at all (default "demo" with no stored record) =>
+    # show every inquiry as a platform-wide overview (still REAL data).
+    if not client_rec and cid in ("", "demo"):
+        return rows
 
-    # ----- calls (40) -----
-    calls: list[CallRow] = []
-    base = datetime(2026, 6, 5, 18, 0)
-    for i in range(40):
-        niche = rng.choice(_NICHES)
-        biz = rng.choice(_BUSINESSES[niche])
-        city = rng.choice(_CITIES)
-        status = rng.choices(["connected", "no-answer", "busy"], weights=[62, 26, 12])[0]
-        t = base - timedelta(minutes=rng.randint(5, 60) * (i + 1))
-        if status == "connected":
-            secs = rng.randint(35, 230)
-            duration = f"{secs // 60}m {secs % 60:02d}s"
-            outcome = rng.choice(_OUTCOMES_CONNECTED)
-        else:
-            duration = "0m 00s"
-            outcome = "No answer" if status == "no-answer" else "Line busy"
-        digits = f"{rng.randint(70, 99)}{rng.randint(10000000, 99999999):08d}"[:10]
-        calls.append(
-            CallRow(
-                time=t.strftime("%Y-%m-%d %H:%M"),
-                business=biz,
-                phone_masked=_mask_phone(digits),
-                city=city,
-                duration=duration,
-                status=status,
-                outcome=outcome,
-            )
-        )
+    matched: list[dict] = []
+    for r in rows:
+        r_slug = str(r.get("source_slug") or "").strip().lower()
+        r_cid = str(r.get("client_id") or "").strip().lower()
+        r_biz = str(r.get("business_name") or "").strip().lower()
+        r_ph = "".join(ch for ch in str(r.get("phone") or "") if ch.isdigit())[-10:]
+        if slug and r_slug == slug:
+            matched.append(r)
+        elif rec_id and r_cid == rec_id:
+            matched.append(r)
+        elif cid and r_cid == cid:
+            matched.append(r)
+        elif biz and r_biz == biz:
+            matched.append(r)
+        elif phone_d and r_ph and r_ph == phone_d:
+            matched.append(r)
+    return matched
 
-    # ----- leads (26) -----
+
+def _content_posts_count(client_id: str, client_rec: dict | None) -> int:
+    """Is client ke content-queue items (posted+approved+draft) — posts ka proxy."""
+    try:
+        from app.marketing.auto_content import list_queue
+
+        rid = str((client_rec or {}).get("id") or client_id or "").strip()
+        if not rid:
+            return 0
+        return len(list_queue(rid, limit=500))
+    except Exception:
+        return 0
+
+
+def _lead_score_from_inquiry(rec: dict) -> str:
+    """Inquiry ko Hot/Warm/Cold me bucket karo (lead_scoring jaisa simple)."""
+    msg = str(rec.get("message") or "")
+    pt = str(rec.get("preferred_time") or "")
+    # preferred-time diya + message hai => high intent
+    if pt and len(msg) >= 20:
+        return "Hot"
+    if pt or len(msg) >= 12:
+        return "Warm"
+    return "Cold"
+
+
+def _mask_full_phone_local(num) -> str:
+    digits = "".join(c for c in (num or "") if c.isdigit())[-10:]
+    if len(digits) < 4:
+        return "+91 XXXXXXXXXX"
+    return f"+91 {digits[:2]}XXXXXX{digits[-2:]}"
+
+
+def _parse_dt(rec: dict) -> datetime:
+    raw = str(rec.get("at") or rec.get("created_at") or "")
+    for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"):
+        try:
+            return datetime.strptime(raw.split("+")[0].rstrip("Z") + ("Z" if raw.endswith("Z") else ""), fmt)
+        except Exception:
+            continue
+    try:
+        return datetime.fromisoformat(raw.replace("Z", ""))
+    except Exception:
+        return datetime.utcnow()
+
+
+def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse:
+    """File-based REAL dashboard: inquiries.jsonl + content queue + client record.
+
+    is_sample_data=False jab koi real activity ho; agar bilkul kuch na ho to
+    honest zeros (is_sample_data=True, par koi fictional business NAHI)."""
+    client_rec = _client_record(client_id)
+    inquiries = _inquiries_for_client(client_id, client_rec)
+    posts = _content_posts_count(client_id, client_rec)
+
+    # ----- leads from inquiries (each inquiry = a lead the client got) -----
     leads: list[LeadRow] = []
-    for i in range(26):
-        niche = rng.choice(_NICHES)
-        biz = rng.choice(_BUSINESSES[niche])
-        city = rng.choice(_CITIES)
-        score = rng.choices(["Hot", "Warm", "Cold"], weights=[34, 44, 22])[0]
-        digits = f"{rng.randint(70, 99)}{rng.randint(10000000, 99999999):08d}"[:10]
-        d = datetime(2026, 6, 5) - timedelta(days=rng.randint(0, 9))
+    from collections import defaultdict
+
+    tier_counts = {"Hot": 0, "Warm": 0, "Cold": 0}
+    city_counts: dict = defaultdict(int)
+    day_counts: dict = defaultdict(int)
+
+    inquiries_sorted = sorted(inquiries, key=_parse_dt, reverse=True)
+    for r in inquiries_sorted:
+        tier = _lead_score_from_inquiry(r)
+        tier_counts[tier] += 1
+        city = str(r.get("city") or "").strip() or "-"
+        if city != "-":
+            city_counts[city] += 1
+        dt = _parse_dt(r)
+        day_counts[dt.strftime("%b %d")] += 1
+        qual_bits = []
+        if r.get("preferred_time"):
+            qual_bits.append(f"Time: {r['preferred_time']}")
+        if r.get("message"):
+            qual_bits.append(str(r["message"])[:70])
         leads.append(
             LeadRow(
-                business=biz,
-                contact=rng.choice(_CONTACTS),
-                phone=f"+91 {digits}",
+                business=str(r.get("business_name") or "-")[:80],
+                contact=str(r.get("name") or "-")[:80],
+                phone=(
+                    f"+91 {r['phone']}"
+                    if r.get("phone") and not str(r["phone"]).startswith("+")
+                    else str(r.get("phone") or "-")
+                ),
                 city=city,
-                niche=niche,
-                score=score,
-                qualification=rng.choice(_QUALIFICATION[niche]),
-                date=d.strftime("%Y-%m-%d"),
+                niche=str(r.get("niche") or (client_rec or {}).get("niche") or "general"),
+                score=tier,
+                qualification=", ".join(qual_bits) or "Website/mini-site enquiry",
+                date=dt.strftime("%Y-%m-%d"),
             )
         )
 
-    # ----- KPIs -----
-    total_calls = len(calls)
-    connected = sum(1 for c in calls if c.status == "connected")
-    qualified = len(leads)
+    # ----- calls from agent_events (swara) keyed loosely (platform-level) -----
+    calls, connected, calls_today = _calls_from_events(client_id, client_rec)
+
+    qualified = tier_counts["Hot"] + tier_counts["Warm"]
+    total_leads = len(leads)
     conv = round((qualified / connected) * 100, 1) if connected else 0.0
-    # rough India telephony estimate: ~Rs.0.65/min, assume ~1.5 min avg/connected
-    est_cost = int(connected * 1.5 * 0.65)
+    est_cost = int(connected * 1.5 * 0.65)  # ~₹0.65/min, ~1.5 min avg/connected
+
+    has_real = bool(total_leads or calls or posts)
 
     kpis = Kpis(
-        total_calls=total_calls,
+        total_calls=len(calls),
         connected_calls=connected,
-        qualified_leads=qualified,
+        qualified_leads=qualified or total_leads,
         conversion_pct=conv,
         est_cost_inr=est_cost,
     )
 
-    # ----- charts -----
-    days = ["May 30", "May 31", "Jun 01", "Jun 02", "Jun 03", "Jun 04", "Jun 05"]
-    calls_per_day = [SeriesPoint(label=d, value=rng.randint(28, 72)) for d in days]
-    leads_by_status = [
-        SeriesPoint(label="Hot", value=sum(1 for l in leads if l.score == "Hot")),
-        SeriesPoint(label="Warm", value=sum(1 for l in leads if l.score == "Warm")),
-        SeriesPoint(label="Cold", value=sum(1 for l in leads if l.score == "Cold")),
-    ]
+    calls_per_day = [SeriesPoint(label=k, value=v) for k, v in sorted(day_counts.items())]
+    leads_by_status = [SeriesPoint(label=k, value=v) for k, v in tier_counts.items()]
     leads_by_city = [
-        SeriesPoint(label=c, value=sum(1 for l in leads if l.city == c)) for c in _CITIES
+        SeriesPoint(label=c, value=n)
+        for c, n in sorted(city_counts.items(), key=lambda kv: kv[1], reverse=True)[:6]
     ]
 
+    campaigns = [Campaign(id="all", name="All Campaigns")]
+
     return DashboardResponse(
-        is_sample_data=True,
-        client_id=client_id,
+        is_sample_data=not has_real,  # honest: zeros + flag jab kuch na ho
+        client_id=(str((client_rec or {}).get("business_name") or client_id) or client_id),
         generated_at=datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
         campaigns=campaigns,
         kpis=kpis,
-        calls=calls,
-        leads=leads,
+        calls=calls[:50],
+        leads=leads[:100],
         charts=ChartsData(
             calls_per_day=calls_per_day,
             leads_by_status=leads_by_status,
             leads_by_city=leads_by_city,
         ),
     )
+
+
+def _calls_from_events(client_id: str, client_rec: dict | None):
+    """AI-staff (swara) call activity → CallRow list + connected + calls_today.
+
+    Per-client call mapping abhi nahi (calls platform-level log hote), isliye
+    detail rows skip — sirf KPI counts. Returns ([], count, today)."""
+    total = 0
+    today = 0
+    try:
+        from app.models.agent_event import AgentEvent
+        from app.models.base import get_db_session
+
+        with get_db_session() as db:
+            try:
+                total = (
+                    db.query(AgentEvent)
+                    .filter(AgentEvent.member == "swara")
+                    .filter(AgentEvent.action.in_(["call_placed", "call_finished", "auto_callback"]))
+                    .count()
+                )
+            except Exception:
+                total = 0
+    except Exception:
+        total = 0
+    # connected ~ all placed (no per-call status here); detail rows intentionally empty
+    return [], int(total), int(today)
 
 
 # --------------------------------------------------------------------------- #
@@ -473,58 +526,6 @@ def _build_from_db(client_id: str, campaign: str | None) -> DashboardResponse | 
 
 
 # --------------------------------------------------------------------------- #
-# Real top-line counts (cheap overlay for the sample fallback)                 #
-# --------------------------------------------------------------------------- #
-def _real_topline_counts(client_id: str) -> dict:
-    """
-    Cheapest real bindings when the per-client rows are missing:
-      - leads:     Lead count for this client (assigned_to); falls back to the
-                   platform-wide Lead total if the client has none.
-      - inquiries: line count of data/inquiries.jsonl (no client mapping yet,
-                   so platform totals — used as a leads fallback).
-      - calls:     agent_events count for swara (every placed/finished call +
-                   web demo is logged there).
-    All best-effort; returns {} when nothing real is available. Never raises.
-    """
-    out: dict = {}
-    try:
-        from app.models.agent_event import AgentEvent
-        from app.models.base import get_db_session
-        from app.models.lead import Lead
-
-        with get_db_session() as db:
-            try:
-                n = db.query(Lead).filter(Lead.assigned_to == client_id).count()
-                if not n:
-                    n = db.query(Lead).count()
-                if n:
-                    out["leads"] = int(n)
-            except Exception:
-                pass
-            try:
-                c = db.query(AgentEvent).filter(AgentEvent.member == "swara").count()
-                if c:
-                    out["calls"] = int(c)
-            except Exception:
-                pass
-    except Exception as e:
-        logger.debug("customer_dashboard: topline DB counts unavailable (%s)", e)
-
-    try:
-        import os
-
-        path = os.path.join("data", "inquiries.jsonl")
-        if os.path.isfile(path):
-            with open(path, encoding="utf-8") as f:
-                n = sum(1 for ln in f if ln.strip())
-            if n:
-                out["inquiries"] = n
-    except Exception:
-        pass
-    return out
-
-
-# --------------------------------------------------------------------------- #
 # Routes                                                                       #
 # --------------------------------------------------------------------------- #
 @router.get("/dashboard", response_model=DashboardResponse)
@@ -533,44 +534,23 @@ def get_customer_dashboard(
     campaign: str | None = Query(None, description="Optional campaign id to filter by"),
 ) -> DashboardResponse:
     """
-    Return the full dashboard payload for a customer.
+    Return the full dashboard payload for a customer — REAL data only.
 
-    Sources data from the real DB (Lead, CallLog, Campaign) keyed by
-    client_id + campaign. Falls back to clearly-marked SAMPLE data
-    (is_sample_data=True) when the DB is unavailable or has no rows — but the
-    top-level KPI counts get overlaid with real platform numbers (leads /
-    inquiries / swara calls) whenever those exist, so the headline figures are
-    never pure fiction.
+    1. Real DB (Lead, CallLog, Campaign) keyed by client_id + campaign — richest.
+    2. Else FILE-based real builder: this client's inquiries (inquiries.jsonl,
+       matched by source_slug / client_id / business / phone) + content-queue
+       posts + agent-event call counts.
+    No fictional "SunVolt Energy" sample. If a client genuinely has zero
+    activity the response carries honest zeros with is_sample_data=True (UI
+    shows a clean "no data yet" state) — never invented businesses or leads.
     """
     real = _build_from_db(client_id=client_id, campaign=campaign)
     if real is not None:
         return real
-
-    sample = _build_sample(client_id=client_id, campaign=campaign)
-    # SURGICAL real-count overlay: sirf top-level KPIs bind hote hain; detail
-    # rows sample hi rehti hain (is_sample_data=True flag waisa hi).
-    try:
-        topline = _real_topline_counts(client_id)
-        if topline:
-            k = sample.kpis
-            if topline.get("calls"):
-                k.total_calls = topline["calls"]
-                k.connected_calls = min(k.connected_calls, k.total_calls)
-            real_leads = topline.get("leads") or topline.get("inquiries")
-            if real_leads:
-                k.qualified_leads = real_leads
-            if topline.get("calls") or real_leads:
-                k.conversion_pct = (
-                    min(round((k.qualified_leads / k.connected_calls) * 100, 1), 100.0)
-                    if k.connected_calls
-                    else 0.0
-                )
-    except Exception as e:
-        logger.debug("customer_dashboard: topline overlay skipped (%s)", e)
-    return sample
+    return _build_from_files(client_id=client_id, campaign=campaign)
 
 
 @router.get("/health")
 def customer_dashboard_health() -> dict:
     """Lightweight liveness probe for the customer dashboard API."""
-    return {"status": "ok", "service": "customer-dashboard", "sample_data": True}
+    return {"status": "ok", "service": "customer-dashboard"}

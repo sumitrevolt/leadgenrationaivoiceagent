@@ -116,8 +116,11 @@
   .dot{width:8px;height:8px;border-radius:50%;background:#9ca3af}
   .cst.active{color:var(--ok)} .cst.active .dot{background:var(--ok)}
   .cst.paused{color:var(--muted)} .cst.paused .dot{background:#9ca3af}
-  .cfoot{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:11.5px;color:var(--muted)}
+  .cfoot{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
   .cfoot .ph{font-weight:700;color:var(--ink)}
+  .cfoot .sitelink{font-weight:800;color:#0f766e;background:#ccfbf1;border-radius:999px;
+    padding:3px 9px;text-decoration:none;white-space:nowrap}
+  .cfoot .sitelink:hover{filter:brightness(.97)}
   .cfoot .open{margin-left:auto;font-weight:800;color:var(--brand)}
 
   /* ---- Content panel ---- */
@@ -551,6 +554,7 @@
         '</div>' +
         '<div class="cfoot">' +
           (c.phone ? '<span class="ph">📞 ' + esc(c.phone) + '</span>' : '<span>📞 —</span>') +
+          (c.slug ? '<a class="sitelink" href="/b/' + esc(c.slug) + '" target="_blank" rel="noopener" data-nosel="1" title="Client ka mini-website">🌐 Site dekho</a>' : '') +
           '<span class="open">Content →</span>' +
         '</div>' +
       '</div>';
@@ -560,6 +564,7 @@
     list.querySelectorAll(".ccard").forEach(function(card){
       card.onclick = function(ev){
         if(ev.target.closest("[data-toggle]")) return;
+        if(ev.target.closest("[data-nosel]")) return;  // site link → naya tab, card select nahi
         selectClient(card.getAttribute("data-cid"));
       };
     });

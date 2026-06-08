@@ -3,8 +3,11 @@ Public Site API — website inquiry form (lead capture) + admin inquiries view.
 ==============================================================================
 
 Final paths (main.py prefix="/api" ke saath):
-  POST /api/public/inquiry    -> NO AUTH — landing page ka form submit.
+  POST /api/public/inquiry    -> NO AUTH — landing page YA mini-site ka form.
                                  Honeypot + per-IP rate limit + phone validation.
+                                 source_slug (mini-site /b/{slug}) + preferred_time
+                                 optional — slug se client resolve hota (business/
+                                 niche/city auto-fill), record me bhi store hote.
                                  DB Lead save best-effort; data/inquiries.jsonl
                                  me HAMESHA append (koi inquiry kabhi lost nahi).
                                  NOTIFY_EMAIL + SMTP set ho to owner ko email.
@@ -153,13 +156,18 @@ def _save_lead_db(rec: dict[str, Any]) -> str | None:
             notes_parts: list[str] = []
             if rec.get("message"):
                 notes_parts.append(f"Message: {rec['message']}")
+            if rec.get("preferred_time"):
+                notes_parts.append(f"Preferred time: {rec['preferred_time']}")
             if rec.get("city"):
                 notes_parts.append(f"City: {rec['city']}")
             if rec.get("niche"):
                 notes_parts.append(f"Niche: {rec['niche']}")
             if rec.get("package"):
                 notes_parts.append(f"Package: {rec['package']}")
-            notes_parts.append("[Website inquiry form]")
+            if rec.get("source_slug"):
+                notes_parts.append(f"[Mini-site: /b/{rec['source_slug']}]")
+            else:
+                notes_parts.append("[Website inquiry form]")
 
             lead = Lead(
                 id=str(uuid.uuid4()),
@@ -289,6 +297,8 @@ class InquiryIn(BaseModel):
     city: str | None = None
     message: str | None = None
     package: str | None = None  # Starter/Growth/Advanced (pricing card se)
+    source_slug: str | None = None  # mini-site /b/{slug} se aayi inquiry
+    preferred_time: str | None = None  # booking form ka "pasand ka time"
     website: str | None = ""  # honeypot — insaan ise kabhi nahi bharta
 
 
@@ -316,6 +326,30 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     # 3) Validation
     name = (body.name or "").strip()
     business = (body.business_name or "").strip()
+    source_slug = (body.source_slug or "").strip()[:80] or None
+
+    # Mini-site (/b/{slug}) se aayi inquiry: business/niche/city us client se
+    # resolve karo (end-customer ko ye fields fill nahi karne padte).
+    mini_client_id: str | None = None
+    if source_slug:
+        try:
+            from app.marketing.clients_store import get_by_slug
+
+            mc = get_by_slug(source_slug)
+            if mc:
+                mini_client_id = str(mc.get("id") or "") or None
+                if not business:
+                    business = str(mc.get("business_name") or "").strip()
+                if not (body.niche or "").strip() and mc.get("niche"):
+                    body.niche = str(mc.get("niche"))
+                if not (body.city or "").strip() and mc.get("city"):
+                    body.city = str(mc.get("city"))
+        except Exception as e:
+            logger.debug(f"[public] source_slug resolve skipped: {e}")
+        # Mini-site form sirf naam+phone maangta hai — business na ho to slug-base hi rakho.
+        if not business:
+            business = source_slug.replace("-", " ").title()
+
     if not name or not business:
         raise HTTPException(status_code=422, detail="Naam aur business ka naam dono zaroori hain.")
     phone = _clean_phone(body.phone or "")
@@ -334,7 +368,10 @@ async def submit_inquiry(body: InquiryIn, request: Request):
         "city": ((body.city or "").strip()[:100] or None),
         "message": ((body.message or "").strip()[:1000] or None),
         "package": ((body.package or "").strip()[:40] or None),
-        "source": "website",
+        "preferred_time": ((body.preferred_time or "").strip()[:80] or None),
+        "source_slug": source_slug,
+        "client_id": mini_client_id,
+        "source": "mini_site" if source_slug else "website",
         "ip": ip,
     }
 
@@ -348,15 +385,31 @@ async def submit_inquiry(body: InquiryIn, request: Request):
         logger.error(f"[public] INQUIRY STORE FAILED — raw: {json.dumps(rec, ensure_ascii=False)}")
 
     # 5) Team activity (Rohan — Leads Manager) — kabhi raise nahi karta.
+    #    Mini-site se aayi ho to dedicated "mini_site_inquiry" event log hota.
     try:
         from app.platform.team import log_event
 
-        log_event(
-            "rohan",
-            "inquiry_received",
-            f"{rec['business_name']} ({rec['niche'] or 'unknown'}) - {rec['phone']}",
-            meta={"lead_id": lead_id, "city": rec.get("city"), "via": "website_form"},
-        )
+        if rec.get("source_slug"):
+            log_event(
+                "rohan",
+                "mini_site_inquiry",
+                f"{rec['business_name']} (/b/{rec['source_slug']}) - {rec['phone']}"
+                + (f" · {rec['preferred_time']}" if rec.get("preferred_time") else ""),
+                meta={
+                    "lead_id": lead_id,
+                    "source_slug": rec["source_slug"],
+                    "client_id": rec.get("client_id"),
+                    "preferred_time": rec.get("preferred_time"),
+                    "via": "mini_site",
+                },
+            )
+        else:
+            log_event(
+                "rohan",
+                "inquiry_received",
+                f"{rec['business_name']} ({rec['niche'] or 'unknown'}) - {rec['phone']}",
+                meta={"lead_id": lead_id, "city": rec.get("city"), "via": "website_form"},
+            )
     except Exception:
         pass
 

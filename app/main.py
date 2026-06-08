@@ -380,6 +380,17 @@ async def sitemap_xml():
     except Exception as e:  # blog module missing => sirf static pages
         logger.debug(f"sitemap blog slugs skipped: {e}")
 
+    # Per-client mini-sites (/b/{slug}) — active clients hi (paused/dead skip).
+    try:
+        from app.marketing.clients_store import list_clients
+
+        for c in list_clients(status="active"):
+            slug = str(c.get("slug") or "").strip()
+            if slug:
+                urls.append(f"/b/{slug}")
+    except Exception as e:  # clients_store missing => skip
+        logger.debug(f"sitemap mini-site slugs skipped: {e}")
+
     items = "\n".join(f"  <url><loc>{_xesc(base + p)}</loc></url>" for p in urls)
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -572,6 +583,38 @@ async def blog_article(slug: str):
         f"<article>{body_html}</article>"
         f"{_cta_box()}</div>{_blog_footer()}</body></html>"
     )
+    return HTMLResponse(content=html)
+
+
+# ---------------------------------------------------------------------------
+# Per-client MINI WEBSITE + booking page — /b/{slug} (free deliverable)
+# ---------------------------------------------------------------------------
+@app.get("/b/{slug}", tags=["Frontend"], include_in_schema=False)
+async def mini_site_page(slug: str):
+    """Ek marketing client ka mini-site render karo (404-safe → / redirect).
+
+    Page brand-colored hota hai + enquiry/booking form POST /api/public/inquiry
+    par jata hai (hidden source_slug se lead funnel me capture). Kabhi 500 nahi.
+    """
+    from fastapi.responses import HTMLResponse, RedirectResponse
+
+    client = None
+    try:
+        from app.marketing.clients_store import get_by_slug
+
+        client = get_by_slug(slug)
+    except Exception as e:
+        logger.warning(f"mini-site lookup failed for {slug!r}: {e}")
+    if not client:
+        return RedirectResponse(url="/", status_code=302)
+
+    try:
+        from app.marketing.mini_site import render_site
+
+        html = render_site(client)
+    except Exception as e:  # render_site khud never-raise hai, par double-guard
+        logger.warning(f"mini-site render failed for {slug!r}: {e}")
+        return RedirectResponse(url="/", status_code=302)
     return HTMLResponse(content=html)
 
 
