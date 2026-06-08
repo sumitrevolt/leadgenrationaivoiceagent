@@ -151,6 +151,9 @@ lightrag-hku>=1.0
 instructor>=1.0     # validated/typed LLM outputs over free providers (app/llm/structured.py)
 advertools>=0.16    # SEM keyword + RSA ad generation (app/marketing/seo_tools.py)
 trafilatura>=2.0    # high-accuracy web text + contact extraction (app/lead_scraper/web_extract.py)
+markitdown>=0.1     # any file/URL -> LLM-ready markdown (app/lead_scraper/to_markdown.py)
+# crawl4ai>=0.4     # deep LLM-friendly web crawl -> clean markdown (app/lead_scraper/deep_extract.py)
+#                     OPTIONAL/heavy: needs `crawl4ai-setup` (Chromium). Falls back to trafilatura.
 fastapi-mcp>=0.3  # platform endpoints as MCP tools (/mcp)
 
 # =============================================================================

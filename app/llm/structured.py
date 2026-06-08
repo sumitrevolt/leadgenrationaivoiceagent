@@ -92,4 +92,43 @@ def extract(
         return None
 
 
-__all__ = ["available", "extract"]
+async def aextract(
+    response_model: Type[T],
+    system: str,
+    user: str,
+    max_tokens: int = 800,
+    max_retries: int = 2,
+    temperature: float = 0.4,
+) -> Optional[T]:
+    """Async variant of extract() for async flows (e.g. marketing generators).
+
+    Returns a validated `response_model` instance or None. Never raises.
+    """
+    prov = _provider()
+    if prov is None:
+        return None
+    base_url, api_key, model = prov
+    try:
+        import instructor
+        from openai import AsyncOpenAI
+
+        client = instructor.from_openai(
+            AsyncOpenAI(base_url=base_url, api_key=api_key), mode=instructor.Mode.JSON
+        )
+        return await client.chat.completions.create(
+            model=model,
+            response_model=response_model,
+            max_retries=max_retries,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            messages=[
+                {"role": "system", "content": system or ""},
+                {"role": "user", "content": user},
+            ],
+        )
+    except Exception as exc:
+        logger.info("structured.aextract failed (%s) — caller should use fallback", exc)
+        return None
+
+
+__all__ = ["available", "extract", "aextract"]

@@ -379,7 +379,42 @@ async def generate_post(
 
     caption, hashtags, image_idea, provider = "", [], "", ""
 
-    if free_ai is not None:
+    # Optional: typed/validated output via Instructor (USE_STRUCTURED_CONTENT=1).
+    # No fragile text-parsing; falls through to the free_ai + template path below.
+    try:
+        import os
+
+        if os.getenv("USE_STRUCTURED_CONTENT", "").strip().lower() in {"1", "true", "yes", "on"}:
+            from pydantic import BaseModel
+
+            from app.llm.structured import aextract
+
+            class _Post(BaseModel):
+                caption: str
+                hashtags: list[str]
+                image_idea: str
+
+            _sys = (
+                f"Tu ek expert Indian social-media marketer hai jo chhote local businesses ke liye "
+                f"catchy {language} promotional posts likhta hai."
+            )
+            _usr = (
+                f"Business: {business_name}\nCategory: {_niche_name(niche)}\n"
+                f"USP/angle: {_niche_pitch(niche)}\nOccasion: {occasion or 'koi nahi'}\n"
+                f"Offer: {offer or 'koi nahi'}\n"
+                "Fields: caption (2-3 chhoti lines + emojis), hashtags (8-12, har ek '#' ke saath), "
+                "image_idea (1-line creative)."
+            )
+            _obj = await aextract(_Post, _sys, _usr, max_tokens=400)
+            if _obj is not None and (_obj.caption or "").strip():
+                caption = _obj.caption.strip()
+                hashtags = [h for h in (_obj.hashtags or []) if h]
+                image_idea = (_obj.image_idea or "").strip()
+                provider = "instructor"
+    except Exception as e:  # never let the optional path break generation
+        logger.warning(f"generate_post structured step skipped: {e}")
+
+    if not caption.strip() and free_ai is not None:
         try:
             system = (
                 "Tu ek expert Indian social-media marketer hai jo chhote local "
