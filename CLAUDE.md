@@ -30,6 +30,7 @@
 - **STT**: Groq `whisper-large-v3` (**needs GROQ_API_KEY — abhi MISSING = weak link**) → Gemini audio → local faster-whisper (Hindi weak).
 - **TTS**: EdgeTTS `hi-IN-SwaraNeural` (`edge-tts>=7.2.0` zaroori, warna 403).
 - **RAG**: Qdrant single `kb_main` collection, per-niche namespaces (`niche:` + `client:<id>`).
+- **RAG upgrades (optional, OFF default)**: `agentic_rag.py` (CRAG self-correct retrieve→grade→rewrite→generate over KB, NO new dep, `USE_AGENTIC_RAG=1`) + `graph_rag.py` (LightRAG knowledge-graph, `USE_LIGHTRAG=1`, lightrag-hku installed on VPS). Both opt-in/defensive, vector KB ke SAATH. Doc: `docs/RAG_KnowledgeGraph_Agentic.md`.
 - **Voice brain**: `telecaller_brain.py` (KB-grounded, ACP pattern, ≤2 sentences/1 question) + `niche_scripts.py`. Tuning FREE web-call pe; phone = final verify only.
 - **Turn-taking upgrade (optional, OFF default)**: `turn_detector.py` — Silero VAD gate READY (`USE_SILERO_VAD=1` + `pip install silero-vad` + 5-line wire in `vobiz_stream.py`), Smart Turn v3 = NEXT (semantic end-of-turn, via pipecat). Plan: `docs/Efficiency_Repos_Integration.md`.
 - **QA**: koi bhi voice change ke baad `scripts/agent_tester.py` chalao (free scorecard: double/empty/repeat/long/slow).

@@ -330,3 +330,12 @@
 - **Website SEO LIVE-verified**: served HTML me og:title + application/ld+json + lucide (count 3) + FAQPage (1). Google Rich Results + WhatsApp link-preview ab active.
 - **Deploy helpers (reusable, Cowork-friendly)**: `scripts/cowork_deploy.bat` (push) + `cowork_vps.bat` (VPS pull/restart/verify/install) + `cowork_seo.bat` (live SEO check). cowork_*.log transient (gitignore karna better; deploy.bat commit ho gaya).
 - **NEXT (opt-in test)**: web-call jaise FREE text-mode pe staff_supervisor try karo (LLM quota khaata) → phir scheduled automation/`/api/agents/run` me wire karna ho to alag chat. Abhi OFF = zero runtime change.
+
+## KNOWLEDGE-GRAPH RAG + AGENTIC RAG (2026-06-08, commit 7e966f4)
+- **User: "knowledge graph and agentic rags best for project repo add karo".** Research (2 searches) → free/CPU/Hindi-fit picks chune.
+- **Knowledge graph = LightRAG (HKUDS)** `app/voice_agent/graph_rag.py`: lightweight entity/relation graph, **incremental append**, free_ai LLM + KB ka fastembed (384-dim), per-namespace `data/lightrag/<ns>`. GraphRAG rejected (hundreds LLM calls = free quota udao), Graphiti = Neo4j infra chahiye → skip. Opt-in `USE_LIGHTRAG=1`, never-crash → vector KB fallback. requirements: lightrag-hku.
+- **Agentic RAG = CRAG loop** `app/agents/agentic_rag.py`: retrieve→grade(relevance)→(weak ho to rewrite+retry)→grounded generate, over Qdrant KB. **No new dep** (knowledge_base.retrieve + free_ai.chat, sab async/defensive). Opt-in `USE_AGENTIC_RAG=1`.
+- Dono EXISTING vector KB ke SAATH (replace nahi). Doc: `docs/RAG_KnowledgeGraph_Agentic.md` (enable order, wiring).
+- **DEPLOYED LIVE (7e966f4)** via Cowork DC: py_compile OK → push (550f3d5..7e966f4) → VPS reset+restart → is-active=active, /health prod uptime 6s → **lightrag-hku install EXIT_PIP=0 + import EXIT_IMPORT=0** → health again OK (18s). Safe ordering: restart pehle (safe code, modules opt-in import nahi hote), install baad → running app untouched.
+- Sandbox-verified graceful: dono OFF + deps-missing → safe dict, no crash.
+- **NEXT (opt-in, FREE test pehle)**: `USE_AGENTIC_RAG=1` → `agent_tester.py` compare → telecaller_brain KB-grounding me wire (better answers on vague/misspelled queries, kam hallucination). LightRAG → ek client/niche seed→`aquery` test → provisioning me graph-seed.
