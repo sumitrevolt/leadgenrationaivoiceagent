@@ -378,6 +378,37 @@ async def generate_marketing_post(
         raise HTTPException(status_code=500, detail=f"Post generation failed: {e}")
 
 
+class AiImageRequest(BaseModel):
+    """AI image (Pollinations free) — phrase se asli marketing image."""
+
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    occasion: str = Field("", max_length=120)
+    offer: str = Field("", max_length=200)
+    style: str = Field("vibrant professional", max_length=80)
+    width: int = Field(1024, ge=256, le=1536)
+    height: int = Field(1024, ge=256, le=1536)
+
+
+@router.post("/ai-image")
+async def generate_ai_image(
+    req: AiImageRequest,
+    current_user: User = Depends(require_admin),
+):
+    """AI image generation (Pollinations Flux, FREE) — real marketing-image URL from a prompt."""
+    try:
+        from app.marketing import ai_image
+
+        result = await ai_image.marketing_image(
+            req.business_name, req.niche, req.occasion, req.offer, req.style, req.width, req.height
+        )
+        _log_isha("ai_image", f"{req.business_name} ({req.occasion or req.niche})")
+        return result
+    except Exception as e:
+        logger.error(f"AI image generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"AI image failed: {e}")
+
+
 @router.get("/gbp-tips")
 async def get_gbp_tips(
     niche: str = "general",
