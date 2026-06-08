@@ -279,6 +279,13 @@
 - **TOKEN/LIMIT note**: user weekly limit hit kar raha tha (bahut saare heavy sub-agents + lambi conversation). Aage: kam agents, naya chat per task (CLAUDE.md memory persist karti hai).
 - Ab bhi future: referral kit, evergreen recycling, missed-call callback (DID), GBP/Meta API approvals (external-blocked).
 
+## LAST FREE FEATURES DONE (2026-06-08, commit f0c122f) — referral + evergreen
+- **Referral kit** `app/marketing/referral_kit.py`: make_referral(business, reward) → unique code (initials+4 alnum) + Hinglish WhatsApp share msg + /b/{slug}?ref= link + "Refer & Earn" SVG card (review_kit QR embedded) + record_referral/referral_stats (data/referrals.jsonl). API POST /api/marketing/referral, GET /referral/stats. marketing.html 19th tab "🎁 Referral".
+- **Evergreen recycling** `app/marketing/evergreen.py`: recyclable_items (posted/approved 21+ din purane) + recycle_for_client (caption freshen via free_ai → re-queue as type "recycle"). auto_content.run_daily_content me wired — client ko 0 naye items mile to recycle fallback → content queue KABHI khaali nahi.
+- Tests +12 green. VPS verified: referral code+svg, evergreen present, saare pages 200 (/app/marketing, /, /audit, /blog, /b/{slug}, /app/clients).
+- **AB SAB FREE-BUILDABLE FEATURES DONE.** Jo bacha woh EXTERNAL-BLOCKED hai (Claude complete nahi kar sakta): missed-call callback (Vobiz DID + recharge chahiye), GBP API auto (Google 60-din approval), Meta auto-posting (FB/IG app-review). Ye sab user ke paperwork/approval pe depend.
+- **DEPLOY GOTCHA confirm**: VPS restart sequence (stop;pkill -9 uvicorn;rm pycache;start) ke baad SSH command DEPLOY_EXIT_255 deta hai (pkill connection blip) PAR service aa jaati hai — alag SSH call se `systemctl is-active || start` + verify karo. Reliable.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
