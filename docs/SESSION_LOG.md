@@ -424,3 +424,11 @@
 - **Cerebras 429 NOTE**: smoke me onboarding(content_pack many parallel calls)+watchdog+post ek saath fire → Cerebras queue_exceeded → Groq fallback ne sambhala. Normal scheduled ops spread-out = no burst.
 - **REPLY_AGENT smoke skip** (inbox seen-mark side effect) — scheduler minute≥20 pe chalega; pehla run current unread inbox classify + drafts (`data/reply_drafts.jsonl`), auto-send OFF.
 - **OFF rakhe (reason)**: USE_LIGHTRAG (LLM-heavy graph), USE_SILERO_VAD/SMART_TURN (deps+voice-wiring), USE_LANGGRAPH_SUPERVISOR/USE_AGENTIC_RAG (live path me wired nahi = no-op). Rollback: `/opt/leadgen/.env.bak`.
+
+## AI IMAGE GENERATION — competitor feature (2026-06-08, commit 848dd3e)
+- **User: "dusre marketing AI agents ke features check karke add karo".** Research (Predis.ai/AdBanao/Ocoya/Dhanda): #1 feature = phrase→asli image/creative (static ads, captions, hashtags one-shot). Hum sirf SVG templates the — yeh bada visible gap tha. Predis multilingual + stock-assets bhi karta.
+- **Free image gen = Pollinations.ai** (open-source, **NO API key**, unlimited **Flux**) — perfect free-stack, no GPU/cost.
+- **Built `app/marketing/ai_image.py`**: `image_url(prompt,w,h,seed,model)` → Pollinations URL (on-load render, server pe fetch/store NAHI = light/fast); `marketing_image(business,niche,occasion,offer,style)` → free_ai se vivid prompt craft (template fallback) + ready URL. Never-raise. + endpoint `POST /api/marketing/ai-image` (admin, /post pattern mirror, isha event).
+- **DEPLOYED LIVE (848dd3e)**: routes 222→**223** (endpoint registered), prod_check [OK] ALL PASSED, health prod uptime 6s. Sandbox-verified (URL build + prompt-craft template fallback).
+- Sample: `https://image.pollinations.ai/prompt/<encoded-prompt>?width=1024&height=1024&nologo=true&model=flux`.
+- Future: marketing.html "AI Image" tab (POST→<img>+download), generate_post/content_pack me image auto-attach, regional-language captions (generate_post `language` param already supports — frontend pass kare).
