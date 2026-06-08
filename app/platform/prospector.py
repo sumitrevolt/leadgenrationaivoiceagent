@@ -131,6 +131,70 @@ def build_pitch(business_name: str, niche: str, city: str = "") -> str:
     )
 
 
+def build_personalized_pitch(
+    business_name: str,
+    niche: str,
+    city: str = "",
+    rating: Optional[float] = None,
+    reviews_count: Optional[int] = None,
+    has_website: Optional[bool] = None,
+) -> str:
+    """Real Google data (rating/reviews/website) se personalized Hinglish pitch.
+
+    Diagnosis-line REAL signal pe choose hoti hai:
+      - low/no reviews (<20)  -> reviews badhane ka offer
+      - decent rating, no website / kam presence -> regular posts/photos line
+      - no website            -> mini page + Google profile setup
+    Hamesha FREE audit + 3 poster CTA pe khatam. NEVER raises (caller fallback).
+    """
+    try:
+        nd = _niche_display(niche)
+        try:
+            rv = int(reviews_count) if reviews_count is not None else None
+        except Exception:
+            rv = None
+        try:
+            rt = float(rating) if rating is not None else None
+        except Exception:
+            rt = None
+
+        diag: str
+        if rv is not None and rv < 20:
+            cnt = "ek bhi" if rv == 0 else f"sirf {rv}"
+            diag = (
+                f"aapke Google pe {cnt} review{'s' if rv != 1 else ''} hain — "
+                f"main reviews badhane ka system de dunga"
+            )
+        elif rt is not None and rt > 0:
+            diag = (
+                f"aapki rating {rt}⭐ achhi hai par Google pe regular "
+                f"posts/photos nahi dikhe — top pe aane ke liye wahi chahiye"
+            )
+        elif has_website is False:
+            diag = (
+                "aapki website bhi nahi dikhi — ek mini page + Google "
+                "profile dono set kar dunga"
+            )
+        else:
+            diag = (
+                "Google pe aapki online presence aur strong ki ja sakti hai — "
+                "regular posts, reviews aur profile sab handle kar dunga"
+            )
+
+        # website-missing ko piggyback karo (agar review/rating line bani ho).
+        if has_website is False and "website" not in diag:
+            diag += " (website bhi nahi dikhi — wo bhi set kar dunga)"
+
+        return (
+            f"Namaste {business_name} ji 🙏 Main Sumit, LeadGen AI se. "
+            f"{nd} ke liye — {diag}. "
+            f"FREE audit + 3 sample posters bhej doon? — leadsgenai.in/audit"
+        )
+    except Exception:
+        # Kabhi raise nahi — generic pitch pe fall back.
+        return build_pitch(business_name, niche, city)
+
+
 def _wa_link(phone10: str, pitch: str) -> str:
     return f"https://wa.me/91{phone10}?text={urllib.parse.quote(pitch)}"
 
@@ -394,6 +458,17 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
         if use_osm:
             summary["scraper"] = "osm_overpass"
 
+        # Cost-safety: Google Maps Place Details lookups are billed. Cap total
+        # per run so the $200/mo free credit never blows up. OSM is free → no
+        # cap there. Env PROSPECT_MAX_LOOKUPS (default 60).
+        try:
+            max_lookups = int(os.environ.get("PROSPECT_MAX_LOOKUPS", "60"))
+        except Exception:
+            max_lookups = 60
+        max_lookups = max(0, max_lookups)
+        summary["lookups_used"] = 0
+        summary["lookups_capped"] = False
+
         targets = _targets()
         pairs: List[Tuple[Dict[str, Any], str]] = [
             (t, city) for t in targets for city in (t.get("cities") or [])
@@ -405,6 +480,12 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
             query = target.get("query") or ""
             if not query:
                 summary["queries_failed"] += 1
+                continue
+
+            # Cost-safety: Maps Details budget khatam → aur API queries skip
+            # (OSM free hai, uspe cap nahi).
+            if not use_osm and max_lookups and summary["lookups_used"] >= max_lookups:
+                summary["lookups_capped"] = True
                 continue
 
             # Fetch from chosen source -> normalize to list of dicts with
@@ -421,6 +502,7 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                             "phone": r.get("phone", ""),
                             "address": r.get("address", ""),
                             "rating": None,
+                            "reviews_count": None,
                             "website": r.get("website", ""),
                         })
                 else:
@@ -428,11 +510,19 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                         query=query, location=city, max_results=max_per,
                     )
                     for biz in biz_list or []:
+                        # Place Details lookup hua hai (scraper internally karta).
+                        # Cost-safety: budget khatam ho gaya to aur fetch na ho.
+                        if max_lookups and summary["lookups_used"] >= max_lookups:
+                            summary["lookups_capped"] = True
+                            break
+                        summary["lookups_used"] += 1
+                        rc = getattr(biz, "reviews_count", None)
                         rows.append({
                             "name": str(getattr(biz, "name", "") or ""),
                             "phone": getattr(biz, "phone", None),
                             "address": str(getattr(biz, "address", "") or ""),
                             "rating": getattr(biz, "rating", None),
+                            "reviews_count": rc if rc is not None else 0,
                             "website": str(getattr(biz, "website", "") or ""),
                         })
                 summary["queries_run"] += 1
@@ -455,7 +545,22 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                         summary["duplicates"] += 1
                         continue
 
-                    pitch = build_pitch(name, niche, city)
+                    rating = biz.get("rating")
+                    reviews_count = biz.get("reviews_count")
+                    website = str(biz.get("website") or "").strip()
+                    has_website = bool(website)
+
+                    # Real Google data ho (rating ya reviews) to personalized
+                    # pitch; warna generic (OSM path me yeh None hote hain).
+                    if rating is not None or reviews_count is not None:
+                        pitch = build_personalized_pitch(
+                            name, niche, city,
+                            rating=rating,
+                            reviews_count=reviews_count,
+                            has_website=has_website,
+                        )
+                    else:
+                        pitch = build_pitch(name, niche, city)
                     rec: Dict[str, Any] = {
                         "id": str(uuid.uuid4()),
                         "found_at": datetime.utcnow().isoformat() + "Z",
@@ -464,8 +569,10 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                         "address": str(biz.get("address") or "")[:300],
                         "city": city,
                         "niche": niche,
-                        "rating": biz.get("rating"),
-                        "website": str(biz.get("website") or "")[:300],
+                        "rating": rating,
+                        "reviews_count": reviews_count,
+                        "website": website[:300],
+                        "has_website": has_website,
                         "source_query": query,
                         "pitch": pitch,
                         # Phone ho to WA link; warna manual Google lookup link.
@@ -494,9 +601,10 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                 f"{summary['new']} naye prospects ({summary['queries_run']} queries; "
                 f"{summary['duplicates']} dup, {summary['no_phone']} bina-phone)",
                 status="ok" if summary["queries_failed"] == 0 else "warn",
-                meta={k: summary[k] for k in
+                meta={k: summary.get(k) for k in
                       ("new", "duplicates", "no_phone", "queries_run",
-                       "queries_failed", "queries_empty", "by_niche", "scraper")},
+                       "queries_failed", "queries_empty", "by_niche", "scraper",
+                       "lookups_used", "lookups_capped")},
             )
         except Exception:
             pass
@@ -512,5 +620,5 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
 
 __all__ = [
     "run_prospecting", "list_prospects", "mark_prospect",
-    "build_pitch", "VALID_STATUSES",
+    "build_pitch", "build_personalized_pitch", "VALID_STATUSES",
 ]

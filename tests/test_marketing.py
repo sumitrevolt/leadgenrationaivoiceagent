@@ -34,6 +34,8 @@ from app.marketing import (
     review_kit,
     review_replies,
     upi_kit,
+    upi_qr,
+    missed_call,
     whatsapp_pack,
 )
 
@@ -774,3 +776,83 @@ class TestDataRetention:
         # missing dir => 0, KABHI raise nahi
         monkeypatch.setattr(staff, "_TRANSCRIPTS_DIR", str(tmp_path / "nahi-hai"))
         assert staff._prune_old_transcripts() == 0
+
+
+class TestUpiQr:
+    def test_upi_link_format(self):
+        link = upi_qr.upi_link("sharma@upi", "Sharma Solar", 499)
+        assert link.startswith("upi://pay?pa=sharma%40upi&pn=Sharma%20Solar")
+        assert "&am=499.00" in link
+
+    def test_generate_upi_poster(self):
+        result = upi_qr.generate_upi_poster(
+            vpa="sharma@upi",
+            business_name="Sharma Solar",
+            amount=499,
+            brand_primary="#059669",
+            brand_accent="#047857"
+        )
+        assert result["vpa"] == "sharma@upi"
+        assert result["business_name"] == "Sharma Solar"
+        assert result["amount"] == 499
+        assert "upi://pay?pa=sharma%40upi&pn=Sharma%20Solar" in result["payment_url"]
+        svg = result["poster_svg"]
+        assert svg.startswith("<svg")
+        assert "sharma@upi" in svg
+        assert "Sharma Solar" in svg
+        assert "Amount: ₹499.00" in svg
+        assert "#059669" in svg
+
+
+class TestMissedCall:
+    @pytest.mark.asyncio
+    async def test_missed_call_reply_fallback(self, no_llm):
+        result = await missed_call.generate_missed_call_reply(
+            business_name="Sharma Solar",
+            niche="solar_residential",
+            callback_url="http://solar.in"
+        )
+        assert result["business_name"] == "Sharma Solar"
+        assert result["niche"] == "solar_residential"
+        assert result["callback_url"] == "http://solar.in"
+        assert "Sharma Solar" in result["message"]
+        assert "http://solar.in" in result["message"]
+        assert result["provider"] == "template"
+
+
+class TestMarketingAPIExtensions:
+    def test_upi_qr_api(self, client):
+        payload = {
+            "vpa": "test@upi",
+            "business_name": "Test UPI QR Shop",
+            "amount": 199.50,
+            "brand_primary": "#112233",
+            "brand_accent": "#445566"
+        }
+        response = client.post("/api/marketing/upi-qr", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["vpa"] == "test@upi"
+        assert data["business_name"] == "Test UPI QR Shop"
+        assert data["amount"] == 199.50
+        assert "poster_svg" in data
+        assert "<svg" in data["poster_svg"]
+
+    def test_missed_call_reply_api(self, client, monkeypatch):
+        # mock free_ai.chat to be empty for template path
+        async def _empty(*args, **kwargs):
+            return "", ""
+        if post_generator.free_ai is not None:
+            monkeypatch.setattr(post_generator.free_ai, "chat", _empty)
+
+        payload = {
+            "business_name": "Test Missed Call Shop",
+            "niche": "general",
+            "callback_url": "https://callback.link"
+        }
+        response = client.post("/api/marketing/missed-call-reply", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["business_name"] == "Test Missed Call Shop"
+        assert "Test Missed Call Shop" in data["message"]
+        assert "https://callback.link" in data["message"]

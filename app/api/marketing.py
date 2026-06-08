@@ -25,6 +25,8 @@ Marketing API — Dhanda.app-style AI marketing tools (FREE stack).
   GET  /api/marketing/crm/{id}/customers — customers list (?tag=)
   GET  /api/marketing/crm/{id}/wishes  — aaj ke birthday/anniversary wishes
   POST /api/marketing/upi-kit          — UPI QR + payment slip + WA message
+  POST /api/marketing/upi-qr           — UPI payment QR poster SVG
+  POST /api/marketing/missed-call-reply — missed-call auto-reply message
   POST /api/marketing/catalog          — price-list SVG + WA catalog text
   POST /api/marketing/ads-pack         — Google RSA + Meta ad copy pack
   POST /api/marketing/reels            — n Reels scripts (hook/body/cta/tags)
@@ -55,6 +57,7 @@ from app.marketing import (
     gbp_audit,
     gbp_text,
     lead_scoring,
+    missed_call,
     monthly_report,
     packages,
     post_generator,
@@ -64,6 +67,7 @@ from app.marketing import (
     review_kit,
     review_replies,
     upi_kit,
+    upi_qr,
     whatsapp_pack,
 )
 from app.models.user import User
@@ -178,6 +182,22 @@ class DripRequest(BaseModel):
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     lead_type: str = Field("new_inquiry", max_length=30)
+
+
+class UPIQRRequest(BaseModel):
+    """UPI QR Code poster request."""
+    vpa: str = Field(..., min_length=3, max_length=120)
+    business_name: str = Field(..., min_length=1, max_length=120)
+    amount: float = Field(0.0, ge=0.0, le=100000.0)
+    brand_primary: str = Field("", max_length=10)
+    brand_accent: str = Field("", max_length=10)
+
+
+class MissedCallRequest(BaseModel):
+    """Missed call auto-reply request."""
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    callback_url: str = Field("", max_length=200)
 
 
 class BrandColors(BaseModel):
@@ -745,6 +765,54 @@ async def generate_upi_kit(
     except Exception as e:
         logger.error(f"UPI kit generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"UPI kit failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# UPI QR Poster (printable counter-stand poster)
+# --------------------------------------------------------------------------- #
+
+@router.post("/upi-qr")
+async def generate_upi_qr(
+    req: UPIQRRequest,
+    current_user: User = Depends(require_admin),
+):
+    """UPI payment QR poster SVG generator (counter-stand design)."""
+    try:
+        result = upi_qr.generate_upi_poster(
+            vpa=req.vpa,
+            business_name=req.business_name,
+            amount=req.amount,
+            brand_primary=req.brand_primary,
+            brand_accent=req.brand_accent,
+        )
+        _log_isha("upi_qr_poster_generated", f"{req.business_name}")
+        return result
+    except Exception as e:
+        logger.error(f"UPI QR poster generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"UPI QR poster generation failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Missed Call WhatsApp auto-reply
+# --------------------------------------------------------------------------- #
+
+@router.post("/missed-call-reply")
+async def generate_missed_call_reply(
+    req: MissedCallRequest,
+    current_user: User = Depends(require_admin),
+):
+    """Missed call WhatsApp auto-reply message generator (Hinglish/Roman script)."""
+    try:
+        result = await missed_call.generate_missed_call_reply(
+            business_name=req.business_name,
+            niche=req.niche,
+            callback_url=req.callback_url,
+        )
+        _log_isha("missed_call_reply_generated", f"{req.business_name} ({req.niche})")
+        return result
+    except Exception as e:
+        logger.error(f"Missed call reply generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Missed call reply generation failed: {e}")
 
 
 # --------------------------------------------------------------------------- #

@@ -142,7 +142,16 @@ class GoogleMapsScraper:
             
             # Clean state (remove postal code)
             state = re.sub(r'\d+', '', state).strip()
-            
+
+            # Rating/reviews: textsearch `place` usually has them; fall back to
+            # Place Details if missing.
+            rating = place.get("rating")
+            if rating is None:
+                rating = details.get("rating")
+            reviews_count = place.get("user_ratings_total")
+            if reviews_count is None:
+                reviews_count = details.get("user_ratings_total", 0)
+
             return BusinessLead(
                 name=place.get("name", ""),
                 phone=details.get("formatted_phone_number") or details.get("international_phone_number"),
@@ -151,8 +160,8 @@ class GoogleMapsScraper:
                 city=city,
                 state=state,
                 category=", ".join(place.get("types", [])[:3]),
-                rating=place.get("rating"),
-                reviews_count=place.get("user_ratings_total", 0),
+                rating=rating,
+                reviews_count=reviews_count or 0,
                 website=details.get("website"),
                 google_maps_url=f"https://www.google.com/maps/place/?q=place_id:{place_id}",
                 place_id=place_id,
@@ -173,7 +182,10 @@ class GoogleMapsScraper:
                 f"{self.base_url}/details/json",
                 params={
                     "place_id": place_id,
-                    "fields": "formatted_phone_number,international_phone_number,website,email",
+                    "fields": (
+                        "formatted_phone_number,international_phone_number,"
+                        "website,email,rating,user_ratings_total"
+                    ),
                     "key": self.api_key
                 },
                 timeout=15.0
