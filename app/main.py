@@ -202,6 +202,16 @@ app.include_router(
     analytics.router, prefix="/api", tags=["Analytics"]
 )  # router self-prefixes /analytics
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
+# Telephony provider callbacks (Twilio/Exotel voice + status). Routes are
+# signature-verified; Sentry's FastApiIntegration auto-captures their errors.
+try:
+    from app.telephony.webhooks import router as telephony_webhooks_router
+
+    app.include_router(
+        telephony_webhooks_router, prefix="/api/webhooks", tags=["Telephony Webhooks"]
+    )
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Telephony webhooks router not mounted: {_e}")
 app.include_router(billing_router, prefix="/api", tags=["Billing"])
 app.include_router(platform_router, prefix="/api", tags=["Platform"])
 

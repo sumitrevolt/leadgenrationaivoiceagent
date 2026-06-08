@@ -364,51 +364,61 @@ async def prometheus_metrics():
     except Exception:
         pass
 
-    # Database metrics
+    # Database metrics — counts are cached in Redis for 60s so Prometheus scrapes
+    # don't fire 4x COUNT() against the DB on every poll (cheap, scrape-safe).
     try:
-        from sqlalchemy import func, select
+        from app.cache import cache
 
-        from app.models.base import get_async_session
-        from app.models.call_log import CallLog, CallOutcome
-        from app.models.campaign import Campaign, CampaignStatus
-        from app.models.lead import Lead
+        async def _compute_db_counts() -> dict:
+            from sqlalchemy import func, select
 
-        async with get_async_session() as session:
-            # Total leads
-            total_leads = await session.scalar(select(func.count()).select_from(Lead))
-            metrics.append("")
-            metrics.append("# HELP leadgen_leads_total Total number of leads in database")
-            metrics.append("# TYPE leadgen_leads_total gauge")
-            metrics.append(f"leadgen_leads_total {total_leads or 0}")
+            from app.models.base import get_async_session
+            from app.models.call_log import CallLog, CallOutcome
+            from app.models.campaign import Campaign, CampaignStatus
+            from app.models.lead import Lead
 
-            # Total calls
-            total_calls = await session.scalar(select(func.count()).select_from(CallLog))
-            metrics.append("")
-            metrics.append("# HELP leadgen_calls_total Total number of calls made")
-            metrics.append("# TYPE leadgen_calls_total gauge")
-            metrics.append(f"leadgen_calls_total {total_calls or 0}")
+            async with get_async_session() as session:
+                total_leads = await session.scalar(select(func.count()).select_from(Lead))
+                total_calls = await session.scalar(select(func.count()).select_from(CallLog))
+                active_campaigns = await session.scalar(
+                    select(func.count())
+                    .select_from(Campaign)
+                    .where(Campaign.status == CampaignStatus.RUNNING)
+                )
+                appointments = await session.scalar(
+                    select(func.count())
+                    .select_from(CallLog)
+                    .where(CallLog.outcome == CallOutcome.APPOINTMENT)
+                )
+            return {
+                "leads": int(total_leads or 0),
+                "calls": int(total_calls or 0),
+                "campaigns_active": int(active_campaigns or 0),
+                "appointments": int(appointments or 0),
+            }
 
-            # Active campaigns
-            active_campaigns = await session.scalar(
-                select(func.count())
-                .select_from(Campaign)
-                .where(Campaign.status == CampaignStatus.RUNNING)
-            )
-            metrics.append("")
-            metrics.append("# HELP leadgen_campaigns_active Number of active campaigns")
-            metrics.append("# TYPE leadgen_campaigns_active gauge")
-            metrics.append(f"leadgen_campaigns_active {active_campaigns or 0}")
+        counts = await cache.get_or_set("metrics:db_counts", _compute_db_counts, ttl=60)
+        counts = counts or {}
 
-            # Appointments booked (total)
-            appointments = await session.scalar(
-                select(func.count())
-                .select_from(CallLog)
-                .where(CallLog.outcome == CallOutcome.APPOINTMENT)
-            )
-            metrics.append("")
-            metrics.append("# HELP leadgen_appointments_total Total appointments booked")
-            metrics.append("# TYPE leadgen_appointments_total counter")
-            metrics.append(f"leadgen_appointments_total {appointments or 0}")
+        metrics.append("")
+        metrics.append("# HELP leadgen_leads_total Total number of leads in database")
+        metrics.append("# TYPE leadgen_leads_total gauge")
+        metrics.append(f"leadgen_leads_total {counts.get('leads', 0)}")
+
+        metrics.append("")
+        metrics.append("# HELP leadgen_calls_total Total number of calls made")
+        metrics.append("# TYPE leadgen_calls_total gauge")
+        metrics.append(f"leadgen_calls_total {counts.get('calls', 0)}")
+
+        metrics.append("")
+        metrics.append("# HELP leadgen_campaigns_active Number of active campaigns")
+        metrics.append("# TYPE leadgen_campaigns_active gauge")
+        metrics.append(f"leadgen_campaigns_active {counts.get('campaigns_active', 0)}")
+
+        metrics.append("")
+        metrics.append("# HELP leadgen_appointments_total Total appointments booked")
+        metrics.append("# TYPE leadgen_appointments_total counter")
+        metrics.append(f"leadgen_appointments_total {counts.get('appointments', 0)}")
     except Exception:
         # Database metrics not available
         pass

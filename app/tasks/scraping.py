@@ -242,45 +242,66 @@ def verify_phone_numbers(lead_ids: list[str] = None, limit: int = 100):
 @shared_task
 def enrich_lead_data(lead_ids: list[str] = None, limit: int = 50):
     """
-    Enrich lead data with additional information
+    Enrich leads (no email, has website) by scraping a contact email off their site.
+
+    All website fetches run concurrently via ``httpx.AsyncClient`` + ``asyncio.gather``
+    with a strict 3-second per-request timeout, so one slow site never blocks the
+    Celery worker thread (the old code fetched sequentially with a 10s timeout each).
     """
     logger.info("Enriching lead data")
 
     enriched_count = 0
 
     try:
+        import asyncio
+        import re
+
+        import httpx
+
+        email_re = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+
         with get_db_session() as db:
-            query = db.query(Lead).filter(
-                Lead.email is None,
-                Lead.website is not None,  # Leads without email  # But with website
-            )
+            # NOTE: use .is_(None)/.isnot(None) — `Lead.email is None` is a Python
+            # identity check that SQLAlchemy turns into a constant-False filter.
+            query = db.query(Lead).filter(Lead.email.is_(None), Lead.website.isnot(None))
 
             if lead_ids:
                 query = query.filter(Lead.id.in_(lead_ids))
 
             leads = query.limit(limit).all()
+            targets = [(lead, lead.website) for lead in leads if lead.website]
 
-            for lead in leads:
-                # Try to extract email from website
-                if lead.website:
-                    try:
-                        import re
+            if not targets:
+                return {"status": "completed", "enriched_count": 0}
 
-                        import httpx
+            async def _fetch_all() -> list:
+                # One shared client; timeout=3.0 applies strictly per request.
+                async with httpx.AsyncClient(timeout=3.0, follow_redirects=True) as client:
 
-                        # Fetch website and look for email
-                        response = httpx.get(lead.website, timeout=10, follow_redirects=True)
-                        if response.status_code == 200:
-                            # Find email patterns
-                            emails = re.findall(
-                                r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", response.text
-                            )
-                            if emails:
-                                lead.email = emails[0]
-                                lead.email_verified = False
-                                enriched_count += 1
-                    except Exception as e:
-                        logger.debug(f"Could not enrich lead {lead.id}: {e}")
+                    async def _one(url: str):
+                        try:
+                            resp = await client.get(url)
+                            if resp.status_code == 200:
+                                found = email_re.findall(resp.text)
+                                return found[0] if found else None
+                        except Exception as e:  # timeout / DNS / TLS — skip this lead
+                            logger.debug(f"enrich fetch failed for {url}: {e}")
+                        return None
+
+                    return await asyncio.gather(*[_one(u) for _, u in targets])
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                results = loop.run_until_complete(_fetch_all())
+            finally:
+                loop.close()
+
+            for (lead, _url), email in zip(targets, results, strict=False):
+                if email:
+                    lead.email = email
+                    lead.email_verified = False
+                    enriched_count += 1
 
             db.commit()
 

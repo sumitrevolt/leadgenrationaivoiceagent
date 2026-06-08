@@ -4,13 +4,15 @@ Unified call orchestration for Twilio and Exotel
 """
 
 import asyncio
+import os
 import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from app.config import settings
+from app.telephony.call_state import get_call_store
 from app.telephony.exotel_handler import ExotelHandler
 from app.telephony.twilio_handler import TwilioHandler
 from app.utils.dnd_checker import DNDChecker
@@ -68,7 +70,7 @@ class CallManager:
     Unified Call Manager
 
     Handles:
-    - Call queue management
+    - Call queue management (Redis-backed for multi-worker scaling)
     - Provider selection (Twilio/Exotel)
     - Concurrent call limiting
     - DND checking
@@ -90,9 +92,12 @@ class CallManager:
         self.voice_agent = VoiceAgent()
         self.dnd_checker = DNDChecker()
 
-        # Call queue
-        self.call_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
-        self.active_calls: dict[str, CallContext] = {}
+        # Distributed call state — the priority queue + an active-call REGISTRY live
+        # in Redis (when available) so multiple workers share them (stateless scaling).
+        # Live VoiceAgent CallContext objects can't be serialized, so they stay
+        # worker-local in self.active_calls.
+        self.call_state = get_call_store()
+        self.active_calls: dict[str, CallContext] = {}  # local live contexts
         self.completed_calls: list[CallResult] = []
 
         # Concurrency control
@@ -105,6 +110,37 @@ class CallManager:
         self.calls_failed = 0
 
         logger.info(f"📞 Call Manager initialized with {provider}")
+
+    # ----------------------------------------------------------------- #
+    # CallRequest <-> serializable payload (for the Redis-backed queue)
+    # ----------------------------------------------------------------- #
+    @staticmethod
+    def _request_to_payload(request: CallRequest) -> dict:
+        """Serialize a CallRequest to a JSON-safe dict (datetime -> isoformat)."""
+        d = asdict(request)
+        st = d.get("scheduled_time")
+        d["scheduled_time"] = st.isoformat() if isinstance(st, datetime) else None
+        return d
+
+    @staticmethod
+    def _payload_to_request(payload: dict) -> CallRequest:
+        """Rebuild a CallRequest from a queue payload (isoformat -> datetime)."""
+        p = dict(payload)
+        st = p.get("scheduled_time")
+        if isinstance(st, str):
+            try:
+                p["scheduled_time"] = datetime.fromisoformat(st)
+            except Exception:
+                p["scheduled_time"] = None
+        return CallRequest(**p)
+
+    @staticmethod
+    def _status_webhook_url() -> str | None:
+        """Public Exotel status-callback URL (so connect.json has a destination)."""
+        base = (os.getenv("PUBLIC_BASE_URL") or os.getenv("SITE_BASE") or "").rstrip("/")
+        if not base:
+            return None
+        return f"{base}/api/webhooks/exotel/status"
 
     async def queue_call(self, request: CallRequest) -> str:
         """
@@ -134,8 +170,8 @@ class CallManager:
             )
             return f"compliance_error_{call_id}"
 
-        # Add to priority queue (lower number = higher priority)
-        await self.call_queue.put((request.priority, datetime.now().timestamp(), call_id, request))
+        # Add to the (Redis-backed) priority queue (lower number = higher priority).
+        await self.call_state.enqueue(request.priority, call_id, self._request_to_payload(request))
 
         logger.info(f"Call queued: {call_id} to {request.phone_number}")
         return call_id
@@ -149,13 +185,18 @@ class CallManager:
 
         while True:
             try:
-                # Get next call from queue
-                priority, timestamp, call_id, request = await self.call_queue.get()
+                # Pull next call from the (Redis-backed) queue — non-blocking poll.
+                item = await self.call_state.dequeue()
+                if item is None:
+                    await asyncio.sleep(1)
+                    continue
+                priority, call_id, payload = item
+                request = self._payload_to_request(payload)
 
                 # Check if scheduled for later
                 if request.scheduled_time and datetime.now() < request.scheduled_time:
                     # Re-queue for later
-                    await self.call_queue.put((priority, timestamp, call_id, request))
+                    await self.call_state.enqueue(priority, call_id, payload)
                     await asyncio.sleep(60)  # Check again in 1 minute
                     continue
 
@@ -188,16 +229,32 @@ class CallManager:
                     lead_data=request.lead_data,
                 )
 
-                self.active_calls[call_id] = context
+                self.active_calls[call_id] = context  # local live context
+                # Mirror a serializable snapshot into the shared registry (Redis).
+                await self.call_state.register(
+                    call_id,
+                    {
+                        "call_id": call_id,
+                        "lead_id": request.lead_id,
+                        "phone": request.phone_number,
+                        "campaign_id": request.campaign_id,
+                        "status": "dialing",
+                        "started_at": datetime.now().isoformat(),
+                    },
+                )
 
                 # Make the actual call
                 if self.provider == TelephonyProvider.TWILIO:
                     call_sid = await self.handler.make_call(
                         to_number=request.phone_number, call_id=call_id
                     )
-                else:  # Exotel
+                else:  # Exotel — pass app_id + status webhook so connect.json has a
+                    # valid destination Url (otherwise Exotel returns a connect error).
                     call_sid = await self.handler.make_call(
-                        to_number=request.phone_number, call_id=call_id
+                        to_number=request.phone_number,
+                        call_id=call_id,
+                        app_id=getattr(settings, "exotel_app_id", None),
+                        webhook_url=self._status_webhook_url(),
                     )
 
                 if call_sid:
@@ -223,13 +280,10 @@ class CallManager:
                 minutes=settings.call_retry_delay_minutes * request.retry_count
             )
 
-            await self.call_queue.put(
-                (
-                    request.priority,
-                    datetime.now().timestamp(),
-                    f"{call_id}_retry{request.retry_count}",
-                    request,
-                )
+            await self.call_state.enqueue(
+                request.priority,
+                f"{call_id}_retry{request.retry_count}",
+                self._request_to_payload(request),
             )
 
             logger.info(f"Call {call_id} scheduled for retry #{request.retry_count}")
@@ -254,6 +308,8 @@ class CallManager:
                     completed_at=datetime.now(),
                 )
             )
+            # Clear any registry snapshot for this call.
+            await self.call_state.unregister(call_id)
 
     async def handle_call_completed(
         self, call_id: str, duration: int, recording_url: str | None = None
@@ -265,6 +321,8 @@ class CallManager:
         context = self.active_calls.get(call_id)
         if not context:
             logger.warning(f"No context found for call {call_id}")
+            # Still clear any shared-registry snapshot (may live on another worker).
+            await self.call_state.unregister(call_id)
             return None
 
         # End call in voice agent
@@ -290,7 +348,8 @@ class CallManager:
         )
 
         self.completed_calls.append(result)
-        del self.active_calls[call_id]
+        self.active_calls.pop(call_id, None)
+        await self.call_state.unregister(call_id)
 
         logger.info(f"✅ Call {call_id} completed. Outcome: {outcome}, Score: {result.lead_score}")
 
@@ -318,7 +377,7 @@ class CallManager:
             "calls_connected": self.calls_connected,
             "calls_failed": self.calls_failed,
             "active_calls": len(self.active_calls),
-            "queued_calls": self.call_queue.qsize(),
+            "queued_calls": self.call_state.local_qsize(),  # local approx (use Redis for total)
             "completed_calls": len(self.completed_calls),
             "connection_rate": self.calls_connected / self.calls_made if self.calls_made > 0 else 0,
             "outcomes": self._get_outcome_stats(),

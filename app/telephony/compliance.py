@@ -172,6 +172,10 @@ class ComplianceGate:
             return None
         try:
             res = await checker.check_single(phone)
+            # FAIL-CLOSED: an unverified lookup (Exotel down / non-200) must NOT be
+            # treated as "clean". Surface it as None so promotional calls get blocked.
+            if not getattr(res, "verified", True):
+                return None
             return bool(getattr(res, "is_dnd", False))
         except Exception as e:
             logger.debug(f"compliance: DND check failed for {phone} ({e}).")
@@ -232,7 +236,11 @@ class ComplianceGate:
                 if dnd is True:
                     reasons.append("on_dnd_registry")
                 elif dnd is None:
-                    checks["dnd_note"] = "unverified"  # allowed, but recorded
+                    # FAIL-CLOSED (TCCCPR): we could NOT prove the number is off the
+                    # DND registry -> block the promotional call rather than risk a
+                    # penalty (up to ₹10L). Configure Exotel creds to verify + allow.
+                    checks["dnd_note"] = "lookup_failed"
+                    reasons.append("dnd_lookup_failed")
 
                 if not self._dlt_approved():
                     reasons.append("dlt_not_approved[set DLT_APPROVED=1 after approval]")

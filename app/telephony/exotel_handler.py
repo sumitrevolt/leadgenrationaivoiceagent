@@ -88,11 +88,28 @@ class ExotelHandler:
             "Record": "true",
         }
 
+        # Exotel /Calls/connect.json needs a destination — an ExoML applet `Url`
+        # (App Bazaar flow). Without it the API returns a connect-validation error.
+        # Fall back to the configured default app id when the caller didn't pass
+        # one (e.g. CallManager calls make_call without app_id).
+        app_id = app_id or getattr(settings, "exotel_app_id", "") or getattr(
+            settings, "exotel_flow_app_id", ""
+        )
         if app_id:
             data["Url"] = f"http://my.exotel.com/{self.sid}/exoml/start_voice/{app_id}"
+        elif webhook_url:
+            # No applet configured — hand the call to the status webhook host so
+            # Exotel has a valid destination instead of failing validation.
+            data["Url"] = webhook_url
 
         if webhook_url:
             data["StatusCallback"] = webhook_url
+
+        if "Url" not in data:
+            raise ValueError(
+                "Exotel make_call needs an app_id or webhook_url (set EXOTEL_APP_ID) — "
+                "refusing to send a connect request with no destination Url."
+            )
 
         async with httpx.AsyncClient() as client:
             try:

@@ -24,6 +24,7 @@ class DNDCheckResult:
     checked_at: datetime
     source: str
     category: str | None = None  # Full DND, Partial DND category
+    verified: bool = True  # False = lookup failed/unverified -> compliance gate fails CLOSED
 
 
 class DNDChecker:
@@ -120,6 +121,7 @@ class DNDChecker:
                         is_dnd=False,
                         checked_at=datetime.now(),
                         source="error_fallback",
+                        verified=False,
                     )
                 results[phone] = result
 
@@ -174,9 +176,10 @@ class DNDChecker:
         except Exception as e:
             logger.error(f"Exotel DND check error for {phone}: {e}")
 
-        # Fallback: Assume not DND
+        # Lookup did NOT succeed (exception / non-200). Mark unverified so the
+        # compliance gate fails CLOSED for promotional calls (verified=False).
         return DNDCheckResult(
-            phone=phone, is_dnd=False, checked_at=datetime.now(), source="fallback"
+            phone=phone, is_dnd=False, checked_at=datetime.now(), source="fallback", verified=False
         )
 
     def _get_from_cache(self, phone: str) -> DNDCheckResult | None:
