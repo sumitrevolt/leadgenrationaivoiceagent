@@ -313,12 +313,14 @@ def _osm_search(query: str, city: str, limit: int) -> List[Dict[str, Any]]:
                          tags.get("addr:suburb"), tags.get("addr:city") or city]
                 addr = ", ".join(p for p in (str(x).strip() for x in parts if x) if p)
             website = str(tags.get("website") or tags.get("contact:website") or "").strip()
+            email = str(tags.get("email") or tags.get("contact:email") or "").strip()
             out.append({
                 "business_name": name,
                 "phone": phone,
                 "address": addr or city,
                 "city": city,
                 "website": website,
+                "email": email,
             })
             if len(out) >= cap:
                 break
@@ -372,6 +374,35 @@ def list_prospects(status: Optional[str] = None, limit: int = 100) -> List[Dict[
     except Exception as e:
         logger.warning(f"[prospector] list_prospects failed: {e}")
         return []
+
+
+def set_prospect_fields(pid: str, fields: Dict[str, Any]) -> bool:
+    """Ek prospect par arbitrary fields set karo (e.g. emailed_at) — poora file
+    rewrite (chhota hai). status VALID_STATUSES wala constraint yahan NAHI lagta
+    (auto-outreach `emailed_at` jaisa custom marker set kar sake). KABHI raise
+    nahi karta. True = mila + likha; missing id / write-fail = False."""
+    try:
+        if not isinstance(fields, dict) or not fields:
+            return False
+        rows = _read_all()
+        found = False
+        for r in rows:
+            if r.get("id") == pid:
+                r.update(fields)
+                found = True
+                break
+        if not found:
+            return False
+        os.makedirs(os.path.dirname(_PROSPECTS_FILE) or ".", exist_ok=True)
+        tmp = _PROSPECTS_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
+        os.replace(tmp, _PROSPECTS_FILE)
+        return True
+    except Exception as e:
+        logger.warning(f"[prospector] set_prospect_fields failed: {e}")
+        return False
 
 
 def mark_prospect(pid: str, status: str) -> bool:
@@ -469,6 +500,20 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
         summary["lookups_used"] = 0
         summary["lookups_capped"] = False
 
+        # Email-extraction budget (auto-email outreach ke liye). Har prospect
+        # ki website se email scrape karna network-slow hai → per-run cap.
+        # Env PROSPECT_MAX_EMAIL_FETCH (default 20). OSM path pe websites kam
+        # hoti hain → mostly skip. Scraper pe `_extract_email_from_website` ho
+        # tabhi try hota hai. Kabhi run ko block/raise nahi karta.
+        try:
+            max_email_fetch = int(os.environ.get("PROSPECT_MAX_EMAIL_FETCH", "20"))
+        except Exception:
+            max_email_fetch = 20
+        max_email_fetch = max(0, max_email_fetch)
+        summary["emails_found"] = 0
+        email_fetches = 0
+        _email_fn = getattr(scraper, "_extract_email_from_website", None) if scraper else None
+
         targets = _targets()
         pairs: List[Tuple[Dict[str, Any], str]] = [
             (t, city) for t in targets for city in (t.get("cities") or [])
@@ -504,6 +549,7 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                             "rating": None,
                             "reviews_count": None,
                             "website": r.get("website", ""),
+                            "email": str(r.get("email") or "").strip(),
                         })
                 else:
                     biz_list = await scraper.search_businesses(
@@ -524,6 +570,9 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                             "rating": getattr(biz, "rating", None),
                             "reviews_count": rc if rc is not None else 0,
                             "website": str(getattr(biz, "website", "") or ""),
+                            # Scraper already may carry an email (Places details
+                            # path runs _extract_email_from_website internally).
+                            "email": str(getattr(biz, "email", "") or "").strip(),
                         })
                 summary["queries_run"] += 1
                 if not rows:
@@ -550,6 +599,27 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                     website = str(biz.get("website") or "").strip()
                     has_website = bool(website)
 
+                    # Email: row me ho to wahi; warna website se best-effort
+                    # scrape (budget ke andar, async scraper helper ho to).
+                    # Slow/missing par chup-chaap "" — kabhi crash nahi.
+                    email = str(biz.get("email") or "").strip()
+                    if (
+                        not email
+                        and website
+                        and _email_fn is not None
+                        and max_email_fetch
+                        and email_fetches < max_email_fetch
+                    ):
+                        email_fetches += 1
+                        try:
+                            found = await _email_fn(website)
+                            email = str(found or "").strip()
+                        except Exception as e:
+                            logger.debug(f"[prospector] email extract failed for {website}: {e}")
+                            email = ""
+                    if email:
+                        summary["emails_found"] += 1
+
                     # Real Google data ho (rating ya reviews) to personalized
                     # pitch; warna generic (OSM path me yeh None hote hain).
                     if rating is not None or reviews_count is not None:
@@ -573,6 +643,7 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                         "reviews_count": reviews_count,
                         "website": website[:300],
                         "has_website": has_website,
+                        "email": email[:200],
                         "source_query": query,
                         "pitch": pitch,
                         # Phone ho to WA link; warna manual Google lookup link.
@@ -604,7 +675,7 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                 meta={k: summary.get(k) for k in
                       ("new", "duplicates", "no_phone", "queries_run",
                        "queries_failed", "queries_empty", "by_niche", "scraper",
-                       "lookups_used", "lookups_capped")},
+                       "lookups_used", "lookups_capped", "emails_found")},
             )
         except Exception:
             pass
@@ -619,6 +690,6 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
 
 
 __all__ = [
-    "run_prospecting", "list_prospects", "mark_prospect",
+    "run_prospecting", "list_prospects", "mark_prospect", "set_prospect_fields",
     "build_pitch", "build_personalized_pitch", "VALID_STATUSES",
 ]

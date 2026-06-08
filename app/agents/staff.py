@@ -540,10 +540,25 @@ async def run_content() -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# rohan — automated email outreach (run_email_outreach wrapper)
+# --------------------------------------------------------------------------- #
+async def run_email_outreach() -> Dict[str, Any]:
+    """Ready prospects ko auto cold email bhejo (auto_outreach engine).
+    Flag/SMTP off ho to skip. Import-safe, KABHI raise nahi."""
+    try:
+        from app.platform import auto_outreach
+
+        return await auto_outreach.run_email_outreach()
+    except Exception as e:
+        logger.warning(f"[staff] run_email_outreach failed: {e}")
+        return {"error": str(e)}
+
+
+# --------------------------------------------------------------------------- #
 # Dispatcher
 # --------------------------------------------------------------------------- #
 async def run_member(key: str) -> Dict[str, Any]:
-    """Staff member ka job manually chalao — arjun/meera/kavya/manager(digest)/isha(content)."""
+    """Staff member ka job manually chalao — arjun/meera/kavya/manager(digest)/isha(content)/email_outreach."""
     try:
         jobs = {
             "arjun": run_qa,
@@ -553,6 +568,7 @@ async def run_member(key: str) -> Dict[str, Any]:
             "digest": run_digest,
             "isha": run_content,
             "content": run_content,
+            "email_outreach": run_email_outreach,
         }
         fn = jobs.get((key or "").strip().lower())
         if fn is None:
@@ -563,4 +579,4 @@ async def run_member(key: str) -> Dict[str, Any]:
 
 
 __all__ = ["SCRIPTS", "BANNED", "run_qa", "run_trainer", "run_ops", "run_digest",
-           "run_content", "run_member"]
+           "run_content", "run_email_outreach", "run_member"]

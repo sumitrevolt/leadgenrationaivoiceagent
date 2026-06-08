@@ -9,6 +9,7 @@ Schedule (IST):
   - isha   (auto content)     : roz 07:00 (per-client social posts/posters → queue)
   - manager (daily digest)    : roz 08:30 (inquiries/prospects/QA/health → txt+email)
   - rohan  (client prospecting): roz 09:30 (Tier-1 prospects → outreach queue)
+  - rohan  (email outreach)    : roz 10:30 (ready prospects ko auto cold email)
 
 Loop har 60s tick karta hai; per-job "last ran" markers se har job apne
 window me sirf EK baar fire hota hai (QA/trainer ke liye chhota catch-up
@@ -34,7 +35,7 @@ _TICK_S = 60
 # Per-job "last ran" markers: ops -> "YYYY-MM-DD HH", baki -> "YYYY-MM-DD".
 _last_ran: Dict[str, Optional[str]] = {
     "ops": None, "qa": None, "trainer": None, "prospect": None, "digest": None,
-    "content": None,
+    "content": None, "email_outreach": None,
 }
 
 
@@ -60,6 +61,10 @@ async def _run_job(job: str) -> None:
             from app.platform import prospector
 
             await prospector.run_prospecting()
+        elif job == "email_outreach":
+            from app.platform import auto_outreach
+
+            await auto_outreach.run_email_outreach()
     except Exception as e:
         logger.warning(f"[team-scheduler] job {job} failed: {e}")
 
@@ -69,7 +74,7 @@ async def scheduler_loop() -> None:
     logger.info(
         "[team-scheduler] loop started — ops hourly :05, QA daily 02:30, "
         "trainer daily 03:00, content daily 07:00, digest daily 08:30, "
-        "prospecting daily 09:30 (IST)"
+        "prospecting daily 09:30, email-outreach daily 10:30 (IST)"
     )
     while True:
         try:
@@ -107,6 +112,12 @@ async def scheduler_loop() -> None:
             if (9, 30) <= hm < (11, 30) and _last_ran["prospect"] != day_key:
                 _last_ran["prospect"] = day_key
                 await _run_job("prospect")
+
+            # rohan — daily 10:30 auto email outreach (catch-up 10:30–12:30).
+            # Flag/SMTP off ho to no-op (auto_outreach khud skip karta hai).
+            if (10, 30) <= hm < (12, 30) and _last_ran["email_outreach"] != day_key:
+                _last_ran["email_outreach"] = day_key
+                await _run_job("email_outreach")
         except asyncio.CancelledError:  # graceful shutdown
             logger.info("[team-scheduler] loop cancelled")
             raise
@@ -138,7 +149,7 @@ def start_scheduler() -> Optional["asyncio.Task[Any]"]:
             team.log_event(
                 "manager",
                 "automation_started",
-                "Team scheduler on: ops hourly, QA 02:30, trainer 03:00, content 07:00, digest 08:30, prospecting 09:30",
+                "Team scheduler on: ops hourly, QA 02:30, trainer 03:00, content 07:00, digest 08:30, prospecting 09:30, email-outreach 10:30",
             )
         except Exception:
             pass

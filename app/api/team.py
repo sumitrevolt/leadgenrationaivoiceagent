@@ -123,4 +123,34 @@ async def set_prospect_status(
         return {"ok": False, "error": str(e)}
 
 
+# --------------------------------------------------------------------------- #
+# Email outreach — system KHUD prospects ko cold email bhejta hai (Rohan)
+# --------------------------------------------------------------------------- #
+@router.post("/email-outreach/run")
+async def run_email_outreach_now(current_user: User = Depends(require_admin)):
+    """Abhi email outreach chalao — ready prospects (jinka email hai) ko
+    personalized cold email bhejo (requires admin). Flag/SMTP off ho to
+    skipped dict aata hai; kabhi raise nahi karta."""
+    try:
+        from app.platform import auto_outreach, team
+
+        team.log_event("manager", "task_assigned", "manual run: email outreach (rohan)")
+        return await auto_outreach.run_email_outreach()
+    except Exception as e:
+        logger.warning(f"[team-api] email-outreach run failed: {e}")
+        return {"error": str(e)}
+
+
+@router.get("/email-outreach/stats")
+async def get_email_outreach_stats(current_user: User = Depends(require_admin)):
+    """Email-outreach counts: total / with_email / emailed / pending (requires admin)."""
+    try:
+        from app.platform import auto_outreach
+
+        return auto_outreach.outreach_stats()
+    except Exception as e:
+        logger.warning(f"[team-api] email-outreach stats failed: {e}")
+        return {"error": str(e)}
+
+
 __all__ = ["router"]

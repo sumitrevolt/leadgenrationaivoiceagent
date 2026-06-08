@@ -114,6 +114,14 @@ class Settings(BaseSettings):
     # Owner alert inbox (env NOTIFY_EMAIL) — nayi inquiry / daily digest yahan
     # email hote hain. Empty = notifications off (SMTP creds bhi chahiye).
     notify_email: str = ""
+    # Automated cold-email outreach (env AUTO_EMAIL_OUTREACH) — scraped
+    # prospects ko system KHUD email karta hai (Rohan). Default OFF — SMTP
+    # creds + yeh flag dono on hone par hi emails jaate hain.
+    auto_email_outreach: bool = False
+    # Roz max kitne prospects ko email kare (domain reputation safety).
+    outreach_daily_cap: int = 25
+    # From-name jo cold email me dikhta hai (footer/sender).
+    outreach_from_name: str = "Sumit — LeadGen AI"
     
     # Compliance
     dnd_api_url: str = ""

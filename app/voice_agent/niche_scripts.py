@@ -127,8 +127,8 @@ NICHE_SCRIPTS: dict[str, dict] = {
         ],
         "objections": {
             "mehenga": "Samajhta hoon sir, par yeh poore saal ki tayari ka investment hai — hum EMI aur scholarship test dono dete hain fees aasaan karne ke liye.",
-            "abhi_nahi": "Theek hai sir, par batches jaldi bhar jaate hain — ek free demo class aur counselling le lijiye, decision aaram se kar lena.",
-            "soch_ke": "Zaroor sir, bachche ko ek free demo class dilwa dijiye — faculty aur padhai dekh ke aap dono saath me decide kar lena.",
+            "abhi_nahi": "Theek hai sir, par batches jaldi bhar jaate hain — ek free demo class aur counselling le lijiye, decision aaram se kar lijiye.",
+            "soch_ke": "Zaroor sir, bachche ko ek free demo class dilwa dijiye — faculty aur padhai dekh ke aap dono saath me decide kar lijiye.",
             "pehle_se_hai": "Achhi baat hai sir, par ek free assessment test karwa lein — pata chal jayega bachcha sahi track pe hai ya improvement chahiye.",
             "bharosa": "Bilkul sir, hamare is saal ke results aur selections aap dekh sakte hain — ek baar center visit karke faculty se mil lijiye.",
         },
@@ -148,7 +148,7 @@ NICHE_SCRIPTS: dict[str, dict] = {
         "objections": {
             "mehenga": "Sir hum processing fee minimum rakhte hain aur 15+ banks ke rate compare karke sabse sasti EMI nikaalte hain — aapko mehnga nahi padega.",
             "abhi_nahi": "Koi baat nahi sir, bas ek free eligibility check karwa lein — kitna loan kis rate pe milega abhi pata chal jayega, bina kisi commitment.",
-            "soch_ke": "Zaroor sochiye sir, main aapki eligibility aur EMI ka number WhatsApp pe bhej deta hoon — dekh ke aaram se decide kar lena.",
+            "soch_ke": "Zaroor sochiye sir, main aapki eligibility aur EMI ka number WhatsApp pe bhej deta hoon — dekh ke aaram se decide kar lijiye.",
             "pehle_se_hai": "Achhi baat hai sir, agar pehle se loan chal raha hai toh balance transfer pe EMI kam ho sakti hai — aapka current rate kya hai?",
             "bharosa": "Bilkul sir, hum banks aur NBFC ke authorised partner hain — saari processing bank ke through legal aur transparent hoti hai.",
         },
@@ -207,11 +207,11 @@ NICHE_SCRIPTS: dict[str, dict] = {
             "Mahine me marketing pe approx kitna kharcha ho jaata hai?",
         ],
         "objections": {
-            "mehenga": "Sir ek customer ki value socho — ₹100/din me poora marketing department mil jaata hai; ek bhi extra customer aaye to paisa vasool.",
+            "mehenga": "Sir, ek customer ki value sochiye — ₹100/din me poora marketing department mil jaata hai; ek bhi extra customer aaye toh investment cover ho jaata hai.",
             "abhi_nahi": "Koi baat nahi sir, tab tak ek FREE Google Business audit karwa lijiye — aapka score aur fixes saamne aa jayenge, koi charge nahi.",
-            "soch_ke": "Bilkul sochiye sir — main aapka FREE GBP audit bhej deti hoon, score dekh ke aaram se decide kar lena, koi obligation nahi.",
+            "soch_ke": "Bilkul sochiye sir — main aapka FREE GBP audit bhej deti hoon, score dekh ke aap aaram se decide kar lijiye, koi obligation nahi.",
             "pehle_se_hai": "Achha sir, agency to ₹15-25K/mahina leti hai — hum ₹3K se shuru karte hain, aur AI aapki inquiries ko CALL bhi karta hai jo agency nahi karti.",
-            "bharosa": "Sahi sawaal hai sir — pehle FREE audit aur live AI demo call dekh lijiye, kaam pasand aaye tabhi aage badhna.",
+            "bharosa": "Sahi sawaal hai sir — pehle FREE audit aur live AI demo call dekh lijiye, kaam pasand aaye tabhi aage badhiye.",
         },
         "value_lines": [
             "Dhanda-type apps sirf content dete hain — hum content ke saath aapki har inquiry ko AI se CALL bhi karwate hain, India me sirf hamare paas.",

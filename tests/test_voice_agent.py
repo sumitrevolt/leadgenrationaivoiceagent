@@ -6,6 +6,8 @@ from unittest.mock import Mock, patch, AsyncMock
 
 from app.voice_agent.intent_detector import IntentDetector, DetectedIntent
 from app.voice_agent.conversation import ConversationManager, ConversationState
+from app.voice_agent.telecaller_brain import TelecallerBrain
+from app.voice_agent.natural_dialog import NaturalDialogManager
 
 
 class TestIntentDetector:
@@ -142,3 +144,38 @@ class TestPhoneValidator:
         masked = PhoneValidator.mask_phone("9876543210")
         assert "****" in masked
         assert "9876543210" not in masked
+
+
+class TestTelecallerBrainProfessionalism:
+    """Test professionalism guidelines in telecalling prompts and scripts"""
+
+    def test_telecaller_brain_system_prompt_contains_professionalism_rule(self):
+        brain = TelecallerBrain(niche="solar_residential", client_name="Sharma Solar")
+        assert "aap" in brain.system_prompt.lower()
+        assert "sir/madam" in brain.system_prompt.lower()
+        assert "professional" in brain.system_prompt.lower()
+        assert "respectful" in brain.system_prompt.lower()
+        assert "slang" in brain.system_prompt.lower()
+
+    def test_niche_script_objections_are_polite(self):
+        from app.voice_agent.niche_scripts import get_script
+        coaching = get_script("coaching")
+        assert "kar lena" not in coaching["objections"]["soch_ke"]
+        assert "kar lijiye" in coaching["objections"]["soch_ke"]
+        
+        ai_marketing = get_script("ai_marketing")
+        assert "paisa vasool" not in ai_marketing["objections"]["mehenga"]
+        assert "aage badhna" not in ai_marketing["objections"]["bharosa"]
+        assert "aage badhiye" in ai_marketing["objections"]["bharosa"]
+
+
+class TestNaturalDialogManagerProfessionalism:
+    """Test professionalism in natural dialog manager prompts"""
+
+    def test_voice_system_prompt_contains_professionalism_rule(self):
+        # VOICE_SYSTEM_PROMPT is exported by the module
+        from app.voice_agent.natural_dialog import VOICE_SYSTEM_PROMPT
+        assert "aap" in VOICE_SYSTEM_PROMPT.lower()
+        assert "sir/madam" in VOICE_SYSTEM_PROMPT.lower()
+        assert "professional" in VOICE_SYSTEM_PROMPT.lower()
+        assert "slang" in VOICE_SYSTEM_PROMPT.lower()
