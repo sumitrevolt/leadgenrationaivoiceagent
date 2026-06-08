@@ -69,6 +69,13 @@
 - **UPI_VPA** (payment modal dormant tak set na ho). **NOTIFY_EMAIL** (inquiry alerts).
 - **Future (EXTERNAL-BLOCKED — user paperwork/approval, Claude build nahi kar sakta)**: missed-call callback (Vobiz DID + inbound webhook), GBP API auto-post (Google 60-din approval), Meta/FB-IG auto-posting (app-review). In par token mat jalao jab tak unlock na ho.
 
+## Telephony (production-hardened, commit 310e141, 2026-06-09)
+- `telephony/webhooks.py` ab `/api/webhooks` pe MOUNTED (main.py) — Twilio/Exotel voice+status callbacks. POST routes signature-verified (Depends `verify_twilio_signature`/`verify_exotel_signature` from `app/api/webhooks.py`). Module **lazy-init** (VoiceAgent/CallManager import pe instantiate nahi → mount se startup crash nahi). Sentry FastApiIntegration global = errors auto-capture.
+- **AMD**: Twilio `AnsweredBy` machine/voicemail/fax → `AnsweringMachineDetector` se voicemail-drop (`AMD_LEAVE_VOICEMAIL=1`, sirf `machine_end_beep`) ya seedha hangup (credit bachao).
+- **DND fail-CLOSED (TRAI)**: `dnd_checker` me `verified` flag (lookup fail/non-200 = `verified=False`); `compliance.py` promotional call ko `dnd_lookup_failed` reason se **BLOCK** karta jab DND verify na ho (₹10L safe). Transactional unaffected (DND skip).
+- **Exotel make_call**: ab hamesha valid destination `Url` (app_id→Url, warna webhook_url, warna ValueError) — connect-validation error fix; CallManager `exotel_app_id`+status-webhook pass karta.
+- **Distributed call state** (`telephony/call_state.py` RedisCallStore): call_queue + active-call registry Redis me (multi-worker stateless scaling); Redis na ho to **local in-memory fallback** (single-worker unchanged). Live `CallContext` worker-local (serialize nahi hota). **Async enrich** (`tasks/scraping.py` httpx.AsyncClient+gather, strict 3s) + `/metrics` DB counts ab Redis me **60s cached**. Tests 8/8 (`tests/test_telephony_upgrades.py`), import OK (257 routes, no circular). `/api/webhooks/health` live = provider twilio.
+
 ## Legal (CONFIRMED)
 - TRAI: 140-series + DLT + DND scrub + 10am-7pm + AI disclosure mandatory, penalty ₹10L. Foreign trunks (Twilio/Telnyx/Vonage) India-domestic = ILLEGAL.
 - Pure minutes-resale bina license = Telegraph Act violation. Legal resale = **SaaS bundle** (DLT/140 CLIENT ke naam) — industry standard.
