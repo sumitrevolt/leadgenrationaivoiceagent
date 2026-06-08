@@ -624,34 +624,38 @@ async def run_schedule(current_user: User = Depends(require_admin)):
 
 
 class FestivalScheduleRequest(BaseModel):
-    """Upcoming Indian festivals ko content scheduler me auto-queue karna."""
+    """Upcoming festivals (existing calendar) ko content scheduler me auto-queue."""
 
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
-    months_ahead: int = Field(3, ge=1, le=12)
+    days: int = Field(90, ge=7, le=400)
     client_id: str = Field("", max_length=64)
-
-
-@router.get("/festivals")
-async def list_festivals(months_ahead: int = 6, current_user: User = Depends(require_admin)):
-    """Upcoming Indian festivals (auto-marketing calendar — Diwali/Holi/Rakhi…)."""
-    try:
-        from app.marketing import festival_calendar
-
-        return {"festivals": festival_calendar.upcoming(months_ahead=months_ahead)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Festivals failed: {e}")
 
 
 @router.post("/festival-autoschedule")
 async def festival_autoschedule(req: FestivalScheduleRequest, current_user: User = Depends(require_admin)):
-    """Upcoming festivals ko content scheduler me ek-click auto-queue (dup-safe)."""
+    """Existing festival calendar ke upcoming festivals ko content scheduler me dup-safe queue."""
     try:
-        from app.marketing import festival_calendar
+        from app.marketing import content_schedule
 
-        res = festival_calendar.autoschedule(req.business_name, req.niche, req.months_ahead, req.client_id)
-        _log_isha("festival_autoschedule", f"{req.business_name}: {res.get('scheduled')} queued")
-        return res
+        bn = (req.business_name or "").strip() or "Aapka Business"
+        fests = festivals.upcoming(req.days) or []
+        existing = {
+            (i.get("business_name"), i.get("date"), i.get("occasion"))
+            for i in content_schedule.list_scheduled()
+        }
+        scheduled, skipped, items = 0, 0, []
+        for f in fests:
+            d = (f.get("date") or "").strip()
+            occ = (f.get("name") or "").strip()
+            if not d or (bn, d, occ) in existing:
+                skipped += 1
+                continue
+            it = content_schedule.schedule(bn, req.niche, d, occ, "", "instagram", req.client_id)
+            items.append({"date": d, "name": occ, "id": it.get("id")})
+            scheduled += 1
+        _log_isha("festival_autoschedule", f"{bn}: {scheduled} queued")
+        return {"scheduled": scheduled, "skipped": skipped, "items": items}
     except Exception as e:
         logger.error(f"Festival autoschedule failed: {e}")
         raise HTTPException(status_code=500, detail=f"Festival autoschedule failed: {e}")
