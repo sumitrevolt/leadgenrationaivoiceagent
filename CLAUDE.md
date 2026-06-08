@@ -38,7 +38,7 @@
 
 ## AI Staff Team (product framing) — `app/platform/team.py` + `team_scheduler.py`
 8 staff: Boss(Manager) · Swara(Telecaller) · Dev(Data) · Rohan(Leads) · Arjun(QA) · Meera(Trainer) · Kavya(Ops) · Isha(Marketing). Events → `agent_events` table. Dashboard `/app/team`.
-**Auto-schedule (IST)**: 06:30 blog · 07:00 content(self+clients) · 08:30 digest · 09:30 scrape/prospect · 10:30 email outreach+followups · hourly Kavya health · 02:30 Arjun QA · 03:00 Meera trainer · 15-min growth-pulse (`growth_engine.py`) · hourly reply-triage (`reply_agent.py`, REPLY_AGENT) · hourly ops-watchdog (`ops_watchdog.py`, OPS_WATCHDOG → email-alert Sumit on critical) · ~04:00 backups.
+**Auto-schedule (IST)**: 06:30 blog · 07:00 content(self+clients) · 08:30 digest · 09:30 scrape/prospect · 10:30 email outreach+followups · hourly Kavya health · 02:30 Arjun QA · 03:00 Meera trainer · 15-min growth-pulse (`growth_engine.py`) · hourly reply-triage (`reply_agent.py`, REPLY_AGENT) · hourly ops-watchdog (`ops_watchdog.py`, OPS_WATCHDOG → email-alert Sumit on critical) · hourly auto-onboard sweep (`onboarding.py`, AUTO_ONBOARD) · ~04:00 backups.
 **Scalable multi-agent (optional, OFF default)**: `app/agents/staff_supervisor.py` — langgraph-supervisor over STAFF roster (auto-scales, dynamic). Deps VPS pe installed. Enable: `USE_LANGGRAPH_SUPERVISOR=1` + CEREBRAS/GROQ key. Existing rule-based `supervisor.py` + scheduler untouched. Detail: SESSION_LOG.
 
 ## Outbound/Growth (working)
@@ -49,6 +49,7 @@
 - **AI reply triage (closes the outreach loop, NEW)**: `app/platform/reply_agent.py` — IMAP (`imap.hostinger.com`, SMTP creds reuse) se replies → free_ai intent classify (interested/objection/unsubscribe/…) → prospect status (interested→hot, unsub→dead) → Hinglish draft (`data/reply_drafts.jsonl`, 1-click send) + Rohan/Swara event. Hourly scheduled, **gated `REPLY_AGENT=1`**, auto-send OFF (ban-safe). Smartlead SmartAgents ka free equivalent.
 - **WhatsApp = 1-click human send** (bulk auto = ban). Inbound funnel auto (`/audit`, landing form → `data/inquiries.jsonl`).
 - Per-client: `clients_store.py` (onboard) + `auto_content.py` (daily content queue, 1-click copy/PNG/wa-send; auto-publish needs Meta API — blocked) + `mini_site.py` (`/b/{slug}`) + referral/evergreen.
+- **Auto client onboarding (done-for-you, NEW)**: `app/marketing/onboarding.py` — client add hote hi auto-setup: **website → KB seed** (`deep_extract`→`KnowledgeBase` + LightRAG, ns `client:<id>`, dormant tools ab live) + first content pack (`data/client_packs/<id>.html`) + `setup_done`. Hourly sweep, **gated `AUTO_ONBOARD=1`**, defensive.
 
 ## Active Blockers / USER-ACTION pending (env-unset = dormant, graceful skip)
 - **DLT**: individual request REJECTED → user ko **Udyam (MSME, FREE, udyamregistration.gov.in)** cert se Proprietorship re-apply. (Udyam cert ready hai.) DLT sirf cold-calling (Advanced) ke liye.

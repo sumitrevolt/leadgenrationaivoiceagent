@@ -87,6 +87,7 @@ _last_ran: dict[str, str | None] = {
     "blog": None,
     "reply_triage": None,
     "watchdog": None,
+    "onboard": None,
 }
 
 
@@ -132,6 +133,10 @@ async def _run_job(job: str) -> None:
             from app.platform import ops_watchdog
 
             await ops_watchdog.run_watchdog()
+        elif job == "onboard":
+            from app.marketing import onboarding
+
+            await onboarding.run_onboarding_sweep()
     except Exception as e:
         logger.warning(f"[team-scheduler] job {job} failed: {e}")
 
@@ -184,6 +189,10 @@ async def scheduler_loop() -> None:
             if now.minute >= 35 and _last_ran["watchdog"] != hour_key:
                 _last_ran["watchdog"] = hour_key
                 await _run_job("watchdog")
+            # Auto client onboarding — hourly sweep (un-setup active clients). Gated AUTO_ONBOARD.
+            if now.minute >= 50 and _last_ran["onboard"] != hour_key:
+                _last_ran["onboard"] = hour_key
+                await _run_job("onboard")
         except asyncio.CancelledError:
             logger.info("[team-scheduler] loop cancelled")
             raise

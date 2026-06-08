@@ -400,3 +400,11 @@
 - Sandbox-verified: off→skipped; on→report (sandbox me llm_down detect kiya kyunki keys nahi, alert skip kyunki notify unset); no crash.
 - **ENABLE**: `.env OPS_WATCHDOG=1` + `NOTIFY_EMAIL=<email>` + restart → har ghante system khud monitor; critical (scheduler stall/LLM down) pe Sumit ko email alert (AI diagnosis ke saath). Datadog/AIOps-style autonomous ops, free-stack.
 - Future: external offsite uptime ping, WhatsApp alert, auto-remediation (missed job auto-rerun).
+
+## AUTO CLIENT ONBOARDING — done-for-you setup (2026-06-08)
+- **User: "automated SETUP ke liye aur kamiya dhundo + feature add".** Research: manual agency onboarding 5-7 din, AI minutes me (10-20-70 rule). GAP: pieces (clients_store/content_pack/mini-site) the par ek AUTO-FLOW me chained nahi; aur client ki ASLI website se KB-seed missing tha (added web-extraction/RAG tools dormant).
+- **Built `app/marketing/onboarding.py`**: `auto_onboard(cid)` — (1) **client website → KB auto-seed**: `deep_extract.extract_url` (trafilatura) → `KnowledgeBase.add_documents(ns=client:<id>)` + LightRAG `graph_rag.ainsert` → client ka AI agent uske APNE business (services/USP/area) ko jaane, generic niche nahi; (2) first content pack (`content_pack.build_client_pack` → `data/client_packs/<id>.html`); (3) `clients_store.update_client(setup_done=True)`; (4) Dev welcome event. `run_onboarding_sweep()` active+un-setup clients sweep. Defensive/never-crash.
+- **Scheduled**: team_scheduler hourly "onboard" (minute≥50), **gated AUTO_ONBOARD=1** → off tak no-op (3 surgical edits).
+- Dormant tools (deep_extract/to_markdown/graph_rag/LightRAG) ko asli value me convert kiya + "apne liye jaise waise client ke liye" automate.
+- Sandbox: off→skipped; on→graceful error (clients_store **sandbox-mount stale** "unterminated string" FALSE-positive — Windows file intact, grep ne 170-296 functions confirm kiye; module ne error gracefully handle kiya, no crash). VPS prod_check real validate.
+- **ENABLE**: `.env AUTO_ONBOARD=1` + restart → naya marketing client minutes me KB+content auto-ready. Future: onboard pe Swara welcome call + WhatsApp welcome.
