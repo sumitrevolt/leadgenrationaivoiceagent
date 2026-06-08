@@ -13,6 +13,7 @@
 - FastAPI platform, **LIVE: https://leadsgenai.in** (Hostinger VPS Mumbai). Repo: github.com/sumitrevolt/leadgenrationaivoiceagent (main).
 - **42 niches** (`app/niches.py`), categories: marketing / leadgen / both. API `/api/data/niches?tier=S|A|B`.
 - **AI image generation (NEW)**: `app/marketing/ai_image.py` — Pollinations free Flux (no API key), `POST /api/marketing/ai-image` → phrase se asli marketing image URL (Predis/AdBanao ka #1 feature). SVG posters ke saath, URL-based (light).
+- **Predis-style combos (NEW)**: `POST /api/marketing/complete-post` (ek phrase → caption+hashtags+AI image one-shot, asyncio.gather) + `POST /api/marketing/post-variations` (N=2-4 variants, A/B). generate_post+ai_image compose karte. Routes ab 225.
 
 ## Paid Tiers (`app/marketing/packages.py`, public `/api/marketing/packages`)
 - **Starter ₹999/mo** — marketing only (posts, GBP audit, reviews, posters, WhatsApp). No calling.

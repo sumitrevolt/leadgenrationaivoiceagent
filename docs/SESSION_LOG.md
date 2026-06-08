@@ -432,3 +432,11 @@
 - **DEPLOYED LIVE (848dd3e)**: routes 222→**223** (endpoint registered), prod_check [OK] ALL PASSED, health prod uptime 6s. Sandbox-verified (URL build + prompt-craft template fallback).
 - Sample: `https://image.pollinations.ai/prompt/<encoded-prompt>?width=1024&height=1024&nologo=true&model=flux`.
 - Future: marketing.html "AI Image" tab (POST→<img>+download), generate_post/content_pack me image auto-attach, regional-language captions (generate_post `language` param already supports — frontend pass kare).
+
+## COMPLETE-POST + VARIATIONS — Predis-style combos (2026-06-08, commit 87010b7)
+- **User: "jo best ho wo karo + new features parallel".** Best move: abhi-add kiye AI image ko asli value me lao (compose) — naya isolated module nahi.
+- **`POST /api/marketing/complete-post`**: ek phrase → caption + hashtags + **asli AI image** ek shot me (`asyncio.gather(generate_post, ai_image.marketing_image)`). Predis ka #1 "everything from a phrase".
+- **`POST /api/marketing/post-variations`**: N (2-4) post variations ek saath (A/B testing — Predis feature; gather over generate_post).
+- Dono EXISTING functions compose karte (generate_post + ai_image) — additive, safe, koi risky internal edit nahi.
+- **DEPLOYED LIVE (87010b7)**: routes 223→**225** (dono registered), prod_check [OK] ALL PASSED, health prod uptime 8s.
+- Frontend next: marketing.html Posts tab `/complete-post` call kare (har post ke saath image), aur ek Variations/A-B tab.
