@@ -571,6 +571,58 @@ async def marketing_brand_logo(req: LogoRequest, current_user: User = Depends(re
         raise HTTPException(status_code=500, detail=f"Logo failed: {e}")
 
 
+class ScheduleRequest(BaseModel):
+    """Content ko ek date ke liye schedule karna (Buffer-style)."""
+
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    date: str = Field("", max_length=10)  # YYYY-MM-DD
+    occasion: str = Field("", max_length=120)
+    offer: str = Field("", max_length=200)
+    channel: str = Field("instagram", max_length=40)
+    client_id: str = Field("", max_length=64)
+
+
+@router.post("/schedule")
+async def schedule_content(req: ScheduleRequest, current_user: User = Depends(require_admin)):
+    """Content ko ek future date ke liye schedule karo."""
+    try:
+        from app.marketing import content_schedule
+
+        item = content_schedule.schedule(
+            req.business_name, req.niche, req.date, req.occasion, req.offer, req.channel, req.client_id
+        )
+        _log_isha("schedule_add", f"{req.business_name} @ {item.get('date')}")
+        return item
+    except Exception as e:
+        logger.error(f"Schedule failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Schedule failed: {e}")
+
+
+@router.get("/schedule")
+async def get_scheduled(status: str = "", current_user: User = Depends(require_admin)):
+    """Scheduled/ready content ki list."""
+    try:
+        from app.marketing import content_schedule
+
+        return {"items": content_schedule.list_scheduled(status or None)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Schedule list failed: {e}")
+
+
+@router.post("/schedule/run")
+async def run_schedule(current_user: User = Depends(require_admin)):
+    """Due scheduled content abhi prepare karo (manual trigger)."""
+    try:
+        from app.marketing import content_schedule
+
+        res = await content_schedule.run_due()
+        _log_isha("schedule_run", str(res))
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Schedule run failed: {e}")
+
+
 @router.get("/gbp-tips")
 async def get_gbp_tips(
     niche: str = "general",

@@ -112,6 +112,9 @@ async def _run_job(job: str) -> None:
             from app.marketing import auto_content
 
             await auto_content.run_daily_content()
+            from app.marketing import content_schedule
+
+            await content_schedule.run_due()  # date-scheduled posts auto-prepare
         elif job == "blog":
             from app.marketing import seo_blog
 

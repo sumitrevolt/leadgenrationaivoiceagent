@@ -25,6 +25,7 @@ fall back kar leta hai).
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -62,6 +63,22 @@ _XAI_LLM_MODEL = "grok-3-mini"  # fast/cheap Grok; credits-based (user ke paas k
 # kiye (QA-tester proven). 8s = professional replies, no repeats; occasional
 # spike phone par cached filler ("hmm/achha ji") se mask hota hai.
 _CALL_TIMEOUT_S = 8.0
+
+# Circuit-breaker: jab koi provider 429/rate-limit de, use ~60s skip karo (har call pe
+# wasted retry-latency na ho). Research-backed; auto-reopen. Cerebras burst-429 ka asar khatam.
+_LLM_COOLDOWN_UNTIL: dict[str, float] = {}
+_LLM_COOLDOWN_S = 60.0
+
+
+def _provider_down(p: str) -> bool:
+    return _LLM_COOLDOWN_UNTIL.get(p, 0.0) > time.time()
+
+
+def _trip_cooldown(p: str, err: str) -> None:
+    e = (err or "").lower()
+    if any(k in e for k in ("429", "rate", "quota", "queue", "too_many", "exhaust")):
+        _LLM_COOLDOWN_UNTIL[p] = time.time() + _LLM_COOLDOWN_S
+
 
 # provider -> (settings attr, base_url)
 _PROVIDER_CFG: dict[str, tuple[str, str]] = {
@@ -187,6 +204,8 @@ async def chat(
         ("openrouter", _OPENROUTER_LLM_MODEL),
     ]
     for provider, model in chain:
+        if _provider_down(provider):
+            continue  # circuit-breaker: provider abhi cooldown me hai
         client = _client(provider)
         if client is None:
             continue
@@ -208,6 +227,7 @@ async def chat(
             if text:
                 return text, provider
         except Exception as e:
+            _trip_cooldown(provider, str(e))
             logger.warning(f"[free_ai] {provider} chat failed: {e}")
             continue
     return "", ""
