@@ -2712,13 +2712,14 @@
   // ============================================================================
   // NEW TABS: AI Image / Complete Post / Variations / Chatbot / Sentiment / Hashtags / Logo
   // ============================================================================
+  window.__imgErr = function(el){ try{ el.parentNode.innerHTML = '<div class="empty">⚠️ AI image load nahi hui — Pollinations ab free token maangta hai. .env me POLLINATIONS_TOKEN daalo (auth.pollinations.ai se free), ya 🖼️ Poster tab use karo.</div>'; }catch(e){} };
   var btnAiImg = document.getElementById("btnAiImg");
   if(btnAiImg) btnAiImg.onclick = async function(){
     if(!requireName()) return;
     setBusy(btnAiImg, true);
     try{
       var res = await callApi("/api/marketing/ai-image", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", style: document.getElementById("aiImgStyle").value.trim(), width:1024, height:1024})});
-      document.getElementById("aiImgBox").innerHTML = res.url ? '<img src="'+esc(res.url)+'" alt="AI image" loading="lazy" style="max-width:100%;border-radius:12px"/>' : '<div class="empty">Image nahi bani</div>';
+      document.getElementById("aiImgBox").innerHTML = res.url ? '<img src="'+esc(res.url)+'" alt="AI image" loading="lazy" onerror="__imgErr(this)" style="max-width:100%;border-radius:12px"/>' : '<div class="empty">Image nahi bani</div>';
       document.getElementById("aiImgPrompt").textContent = res.prompt ? ("prompt: "+res.prompt) : "";
       document.getElementById("aiImgDl").href = res.url || "#";
       var c=document.getElementById("aiImgCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -2735,7 +2736,7 @@
     try{
       var res = await callApi("/api/marketing/complete-post", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", offer: document.getElementById("cmpOffer").value.trim(), language:"hinglish", width:1024, height:1024})});
       lastCompleteText = res.post_text || res.caption || "";
-      document.getElementById("completeImg").innerHTML = res.image_url ? '<img src="'+esc(res.image_url)+'" alt="AI image" loading="lazy" style="max-width:100%;border-radius:12px"/>' : '';
+      document.getElementById("completeImg").innerHTML = res.image_url ? '<img src="'+esc(res.image_url)+'" alt="AI image" loading="lazy" onerror="__imgErr(this)" style="max-width:100%;border-radius:12px"/>' : '';
       document.getElementById("completeCap").textContent = res.caption || "";
       document.getElementById("completeTags").innerHTML = (res.hashtags||[]).map(function(h){return '<span class="tag">'+esc(h)+'</span>';}).join("");
       document.getElementById("completeProv").textContent = "via " + (res.provider||"ai");
@@ -2816,7 +2817,7 @@
     setBusy(btnLogo, true);
     try{
       var res = await callApi("/api/marketing/brand-logo", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", style: document.getElementById("logoStyle").value.trim()})});
-      document.getElementById("logoBox").innerHTML = res.url ? '<img src="'+esc(res.url)+'" alt="logo" loading="lazy" style="max-width:320px;border-radius:12px"/>' : '<div class="empty">Logo nahi bana</div>';
+      document.getElementById("logoBox").innerHTML = res.url ? '<img src="'+esc(res.url)+'" alt="logo" loading="lazy" onerror="__imgErr(this)" style="max-width:320px;border-radius:12px"/>' : '<div class="empty">Logo nahi bana</div>';
       document.getElementById("logoDl").href = res.url || "#";
       var c=document.getElementById("logoCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
       toast("Logo ready ✓","ok");

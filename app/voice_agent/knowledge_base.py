@@ -372,8 +372,17 @@ def _safe_name(name: str) -> str:
 #     prefix CHAHIYE hota hai — yahan handle hota hai.
 #   - settings.qdrant_url empty => backend disabled (default; zero behavior change).
 _QDRANT_COLLECTION = "kb_main"
-_QDRANT_VECTOR_SIZE = 384  # intfloat/multilingual-e5-small output dim
-_E5_MODEL_NAME = "intfloat/multilingual-e5-small"
+_QDRANT_VECTOR_SIZE = 384  # default; auto-updated to the chosen model's REAL dim
+# fastembed versions drop/rename models — try several, first that initializes wins.
+# Prefer 384-dim multilingual (matches existing collection); e5-large is last resort.
+_EMBED_CANDIDATES = [
+    "intfloat/multilingual-e5-small",
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "BAAI/bge-small-en-v1.5",
+    "intfloat/multilingual-e5-large",
+    "BAAI/bge-base-en-v1.5",
+]
+_E5_MODEL_NAME = _EMBED_CANDIDATES[0]
 
 _QDRANT_LOCK = threading.Lock()
 _QDRANT_CLIENT: Any | None = None
@@ -395,13 +404,27 @@ def _get_qdrant_url() -> str:
 
 def _get_qdrant_embedder():
     """Lazy global fastembed TextEmbedding singleton (model load is heavy)."""
-    global _QDRANT_EMBEDDER
+    global _QDRANT_EMBEDDER, _QDRANT_VECTOR_SIZE, _E5_MODEL_NAME
     if _QDRANT_EMBEDDER is None:
         with _QDRANT_LOCK:
             if _QDRANT_EMBEDDER is None:
                 from fastembed import TextEmbedding  # may raise ImportError
 
-                _QDRANT_EMBEDDER = TextEmbedding(model_name=_E5_MODEL_NAME)
+                last_err = None
+                for _name in _EMBED_CANDIDATES:
+                    try:
+                        emb = TextEmbedding(model_name=_name)
+                        dim = len(list(emb.embed(["test"]))[0])  # verify + real dim
+                        _QDRANT_EMBEDDER = emb
+                        _QDRANT_VECTOR_SIZE = dim
+                        _E5_MODEL_NAME = _name
+                        logger.info("fastembed model loaded: %s (dim=%d)", _name, dim)
+                        break
+                    except Exception as _e:
+                        last_err = _e
+                        continue
+                if _QDRANT_EMBEDDER is None:
+                    raise RuntimeError("no supported fastembed model: " + str(last_err))
     return _QDRANT_EMBEDDER
 
 
@@ -418,13 +441,24 @@ def _get_qdrant_client():
                 from qdrant_client import QdrantClient  # may raise ImportError
                 from qdrant_client import models as qmodels
 
+                _get_qdrant_embedder()  # sets _QDRANT_VECTOR_SIZE to the real model dim
                 url = _get_qdrant_url()
                 if not url:
                     raise RuntimeError("QDRANT_URL not configured")
                 client = QdrantClient(url=url, timeout=5)
                 # ping — server unreachable ho to yahin raise ho jata hai
                 client.get_collections()
-                if not client.collection_exists(_QDRANT_COLLECTION):
+                _exists = client.collection_exists(_QDRANT_COLLECTION)
+                if _exists:
+                    # dim mismatch (embedding model changed) -> recreate fresh
+                    try:
+                        _cur = client.get_collection(_QDRANT_COLLECTION).config.params.vectors.size
+                        if _cur != _QDRANT_VECTOR_SIZE:
+                            client.delete_collection(_QDRANT_COLLECTION)
+                            _exists = False
+                    except Exception:
+                        pass
+                if not _exists:
                     try:
                         client.create_collection(
                             collection_name=_QDRANT_COLLECTION,

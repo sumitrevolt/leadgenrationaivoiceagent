@@ -28,10 +28,17 @@ _BASE = "https://image.pollinations.ai/prompt/"
 def image_url(prompt: str, width: int = 1024, height: int = 1024, seed: int | None = None, model: str = "flux") -> str:
     """Build a Pollinations image URL (renders a real AI image on load). Never raises."""
     try:
+        import os
+
         p = urllib.parse.quote((prompt or "marketing poster").strip()[:480], safe="")
         q = f"width={int(width)}&height={int(height)}&nologo=true&model={model}"
         if seed is not None:
             q += f"&seed={int(seed)}"
+        # Pollinations ab anonymous pe 402 deta hai — free token (auth.pollinations.ai)
+        # POLLINATIONS_TOKEN env me daalo to images chalu ho jaayenge.
+        tok = os.getenv("POLLINATIONS_TOKEN", "").strip()
+        if tok:
+            q += "&token=" + urllib.parse.quote(tok, safe="")
         return f"{_BASE}{p}?{q}"
     except Exception:
         return f"{_BASE}marketing%20poster?width=1024&height=1024&nologo=true&model=flux"
