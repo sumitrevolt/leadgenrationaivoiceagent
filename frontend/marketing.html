@@ -300,6 +300,13 @@
     <button class="tab" data-tab="hotleads">🔥 <span>Hot Leads</span></button>
     <button class="tab" data-tab="pack">📦 <span>Client Pack</span></button>
     <button class="tab" data-tab="referral">🎁 <span>Referral</span></button>
+    <button class="tab" data-tab="aiimage">🎨 <span>AI Image</span></button>
+    <button class="tab" data-tab="complete">🚀 <span>Complete Post</span></button>
+    <button class="tab" data-tab="variations">🔀 <span>Variations</span></button>
+    <button class="tab" data-tab="chatbot">🤖 <span>Chatbot</span></button>
+    <button class="tab" data-tab="sentiment">😊 <span>Sentiment</span></button>
+    <button class="tab" data-tab="hashtags">🔖 <span>Hashtags</span></button>
+    <button class="tab" data-tab="logo">🏷️ <span>AI Logo</span></button>
   </div>
 </div>
 
@@ -908,6 +915,103 @@
     </div>
   </section>
 
+  <!-- ===== AI Image ===== -->
+  <section class="tabpane hidden" id="pane-aiimage">
+    <div class="card">
+      <h3>🎨 AI Image <span class="tag">FREE · Flux</span></h3>
+      <div class="hint">Business + niche (upar) se asli AI marketing image (Pollinations). Style optional.</div>
+      <div class="frm"><div class="fld"><label for="aiImgStyle">Style</label><input id="aiImgStyle" type="text" value="vibrant professional" maxlength="80" /></div></div>
+      <div class="btns"><button class="btn" id="btnAiImg">🎨 Image banao</button></div>
+    </div>
+    <div class="card hidden" id="aiImgCard">
+      <h3>🖼️ AI Image</h3>
+      <div id="aiImgBox" class="svgshow"></div>
+      <div class="meta"><span class="prov" id="aiImgPrompt"></span></div>
+      <div class="btns"><a class="btn sec" id="aiImgDl" target="_blank" rel="noopener" href="#">⬇ Open / Download</a></div>
+    </div>
+  </section>
+
+  <!-- ===== Complete Post ===== -->
+  <section class="tabpane hidden" id="pane-complete">
+    <div class="card">
+      <h3>🚀 Complete Post <span class="tag">caption + hashtags + image</span></h3>
+      <div class="hint">Ek click — caption, hashtags AUR asli AI image saath me (Predis-style).</div>
+      <div class="frm"><div class="fld"><label for="cmpOffer">Offer (optional)</label><input id="cmpOffer" type="text" placeholder="e.g. 20% off is hafte" maxlength="200" /></div></div>
+      <div class="btns"><button class="btn" id="btnComplete">🚀 Complete post banao</button></div>
+    </div>
+    <div class="card hidden" id="completeCard">
+      <h3>📝 Complete Post</h3>
+      <div id="completeImg" class="svgshow"></div>
+      <div class="caption" id="completeCap"></div>
+      <div class="tags" id="completeTags"></div>
+      <div class="meta"><span class="prov" id="completeProv"></span><button class="copybtn" id="btnCompleteCopy">📋 Copy</button></div>
+    </div>
+  </section>
+
+  <!-- ===== Variations (A/B) ===== -->
+  <section class="tabpane hidden" id="pane-variations">
+    <div class="card">
+      <h3>🔀 Post Variations <span class="tag">A/B</span></h3>
+      <div class="hint">Ek hi business ke 2-4 alag posts — A/B test ke liye.</div>
+      <div class="frm">
+        <div class="fld"><label for="varOffer">Offer (optional)</label><input id="varOffer" type="text" placeholder="e.g. 10% off" maxlength="200" /></div>
+        <div class="fld"><label for="varCount">Kitne (2-4)</label><select id="varCount"><option>2</option><option selected>3</option><option>4</option></select></div>
+      </div>
+      <div class="btns"><button class="btn" id="btnVariations">🔀 Variations banao</button></div>
+    </div>
+    <div class="card hidden" id="variationsCard"><h3>🔀 Variations</h3><div id="variationsRows"></div></div>
+  </section>
+
+  <!-- ===== Chatbot ===== -->
+  <section class="tabpane hidden" id="pane-chatbot">
+    <div class="card">
+      <h3>🤖 AI Chatbot <span class="tag">client KB + lead capture</span></h3>
+      <div class="hint">Client ka FAQ + lead bot — customer ka sawaal poochho, KB se jawab; interested lage to number maangta hai.</div>
+      <div class="frm">
+        <div class="fld"><label for="chatClient">Client ID (optional)</label><input id="chatClient" type="text" placeholder="client ka id (KB namespace)" maxlength="64" /></div>
+        <div class="fld"><label for="chatQ">Customer ka sawaal</label><input id="chatQ" type="text" placeholder="e.g. home delivery karte ho?" maxlength="500" /></div>
+      </div>
+      <div class="btns"><button class="btn" id="btnChat">🤖 Jawab do</button></div>
+    </div>
+    <div class="card hidden" id="chatCard"><h3>💬 Bot ka jawab</h3><div class="caption" id="chatAns"></div><div class="meta"><span class="prov" id="chatMeta"></span></div></div>
+  </section>
+
+  <!-- ===== Sentiment ===== -->
+  <section class="tabpane hidden" id="pane-sentiment">
+    <div class="card">
+      <h3>😊 Sentiment Analysis</h3>
+      <div class="hint">Reviews/feedback paste karo (ek line me ek) — mood + themes + action.</div>
+      <div class="fld"><textarea id="sentText" rows="6" placeholder="bahut accha service tha&#10;delivery thodi slow thi&#10;staff helpful hai"></textarea></div>
+      <div class="btns"><button class="btn" id="btnSent">😊 Analyse karo</button></div>
+    </div>
+    <div class="card hidden" id="sentCard"><h3>📊 Sentiment</h3><div id="sentBreak" class="tags"></div><div class="caption" id="sentSummary"></div></div>
+  </section>
+
+  <!-- ===== Hashtags ===== -->
+  <section class="tabpane hidden" id="pane-hashtags">
+    <div class="card">
+      <h3>🔖 Trending Hashtags + Best Time</h3>
+      <div class="hint">Niche (upar) + city ke hisaab se trending hashtags aur best posting time.</div>
+      <div class="frm">
+        <div class="fld"><label for="htCity">City (optional)</label><input id="htCity" type="text" placeholder="e.g. Pune" maxlength="80" /></div>
+        <div class="fld"><label for="htCount">Kitne (5-30)</label><input id="htCount" type="number" value="15" min="5" max="30" /></div>
+      </div>
+      <div class="btns"><button class="btn" id="btnHash">🔖 Hashtags lao</button></div>
+    </div>
+    <div class="card hidden" id="hashCard"><h3>🔖 Hashtags</h3><div class="tags" id="hashTags"></div><div class="meta"><button class="copybtn" id="btnHashCopy">📋 Copy all</button></div><h4>⏰ Best time</h4><div id="hashTimes"></div></div>
+  </section>
+
+  <!-- ===== AI Logo ===== -->
+  <section class="tabpane hidden" id="pane-logo">
+    <div class="card">
+      <h3>🏷️ AI Logo <span class="tag">FREE</span></h3>
+      <div class="hint">Business + niche (upar) se AI logo. Style optional.</div>
+      <div class="frm"><div class="fld"><label for="logoStyle">Style</label><input id="logoStyle" type="text" value="modern minimalist" maxlength="80" /></div></div>
+      <div class="btns"><button class="btn" id="btnLogo">🏷️ Logo banao</button></div>
+    </div>
+    <div class="card hidden" id="logoCard"><h3>🖼️ Logo</h3><div id="logoBox" class="svgshow"></div><div class="btns"><a class="btn sec" id="logoDl" target="_blank" rel="noopener" href="#">⬇ Open / Download</a></div></div>
+  </section>
+
 </div>
 
 <div id="toasts"></div>
@@ -984,7 +1088,7 @@
   setHeadH();
 
   // ---- Tabs: switch + lazy init (data fetch sirf first open pe) ----------------
-  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack","referral"];
+  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack","referral","aiimage","complete","variations","chatbot","sentiment","hashtags","logo"];
   var inited = {};
   var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit, hotleads: loadLeadScores };
   document.getElementById("tabbar").addEventListener("click", function(ev){
@@ -2603,6 +2707,121 @@
     if(!refSvg){ toast("Pehle referral kit banao", "err"); return; }
     var blob = new Blob([refSvg], {type: "image/svg+xml;charset=utf-8"});
     triggerDl(URL.createObjectURL(blob), bizSlugPrefix() + "referral.svg", true);
+  };
+
+  // ============================================================================
+  // NEW TABS: AI Image / Complete Post / Variations / Chatbot / Sentiment / Hashtags / Logo
+  // ============================================================================
+  var btnAiImg = document.getElementById("btnAiImg");
+  if(btnAiImg) btnAiImg.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnAiImg, true);
+    try{
+      var res = await callApi("/api/marketing/ai-image", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", style: document.getElementById("aiImgStyle").value.trim(), width:1024, height:1024})});
+      document.getElementById("aiImgBox").innerHTML = res.url ? '<img src="'+esc(res.url)+'" alt="AI image" loading="lazy" style="max-width:100%;border-radius:12px"/>' : '<div class="empty">Image nahi bani</div>';
+      document.getElementById("aiImgPrompt").textContent = res.prompt ? ("prompt: "+res.prompt) : "";
+      document.getElementById("aiImgDl").href = res.url || "#";
+      var c=document.getElementById("aiImgCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast("AI image ready ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Image nahi bani: "+e.message,"err"); }
+    finally{ setBusy(btnAiImg, false, "🎨 Image banao"); }
+  };
+
+  var lastCompleteText = "";
+  var btnComplete = document.getElementById("btnComplete");
+  if(btnComplete) btnComplete.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnComplete, true);
+    try{
+      var res = await callApi("/api/marketing/complete-post", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", offer: document.getElementById("cmpOffer").value.trim(), language:"hinglish", width:1024, height:1024})});
+      lastCompleteText = res.post_text || res.caption || "";
+      document.getElementById("completeImg").innerHTML = res.image_url ? '<img src="'+esc(res.image_url)+'" alt="AI image" loading="lazy" style="max-width:100%;border-radius:12px"/>' : '';
+      document.getElementById("completeCap").textContent = res.caption || "";
+      document.getElementById("completeTags").innerHTML = (res.hashtags||[]).map(function(h){return '<span class="tag">'+esc(h)+'</span>';}).join("");
+      document.getElementById("completeProv").textContent = "via " + (res.provider||"ai");
+      var c=document.getElementById("completeCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast("Complete post ready ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Post nahi bana: "+e.message,"err"); }
+    finally{ setBusy(btnComplete, false, "🚀 Complete post banao"); }
+  };
+  var bcc = document.getElementById("btnCompleteCopy"); if(bcc) bcc.onclick = function(){ doCopy(lastCompleteText, this); };
+
+  var btnVariations = document.getElementById("btnVariations");
+  if(btnVariations) btnVariations.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnVariations, true);
+    try{
+      var res = await callApi("/api/marketing/post-variations", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", offer: document.getElementById("varOffer").value.trim(), language:"hinglish", count: parseInt(document.getElementById("varCount").value,10)||3})});
+      var vs = (res && res.variations) || [];
+      document.getElementById("variationsRows").innerHTML = vs.length ? vs.map(function(p,i){
+        p=p||{}; var tags=(p.hashtags||[]).map(function(h){return '<span class="tag">'+esc(h)+'</span>';}).join("");
+        return '<div class="sect"><div class="sh"><span class="daychip">Variation '+(i+1)+'</span></div><div class="copyitem"><div class="tx">'+esc(p.caption||"")+'</div></div><div class="tags">'+tags+'</div></div>';
+      }).join("") : '<div class="empty">Variations nahi bane</div>';
+      var c=document.getElementById("variationsCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast(vs.length+" variations ready ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Variations nahi bane: "+e.message,"err"); }
+    finally{ setBusy(btnVariations, false, "🔀 Variations banao"); }
+  };
+
+  var btnChat = document.getElementById("btnChat");
+  if(btnChat) btnChat.onclick = async function(){
+    var q = document.getElementById("chatQ").value.trim();
+    if(!q){ toast("Sawaal likho","err"); return; }
+    setBusy(btnChat, true);
+    try{
+      var res = await callApi("/api/marketing/chatbot", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({question: q, client_id: document.getElementById("chatClient").value.trim(), niche: nicheSel.value||"general"})});
+      document.getElementById("chatAns").textContent = res.answer || "";
+      document.getElementById("chatMeta").innerHTML = (res.ask_contact ? '<span class="tag">📲 lead-capture</span> ' : '') + 'sources: ' + (res.sources||0);
+      var c=document.getElementById("chatCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+    }catch(e){ if(e.message!=="auth") toast("Bot fail: "+e.message,"err"); }
+    finally{ setBusy(btnChat, false, "🤖 Jawab do"); }
+  };
+
+  var btnSent = document.getElementById("btnSent");
+  if(btnSent) btnSent.onclick = async function(){
+    var texts = document.getElementById("sentText").value.split("\n").map(function(s){return s.trim();}).filter(Boolean);
+    if(!texts.length){ toast("Reviews paste karo","err"); return; }
+    setBusy(btnSent, true);
+    try{
+      var res = await callApi("/api/marketing/sentiment", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({texts: texts})});
+      var bd = res.breakdown || {};
+      document.getElementById("sentBreak").innerHTML = '<span class="tag">😊 +'+(bd.positive||0)+'</span> <span class="tag">😐 '+(bd.neutral||0)+'</span> <span class="tag">☹️ '+(bd.negative||0)+'</span> <span class="tag">score '+(res.score!=null?res.score:0)+'</span>';
+      document.getElementById("sentSummary").textContent = res.summary || "";
+      var c=document.getElementById("sentCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast(res.count+" reviews analysed ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Analyse fail: "+e.message,"err"); }
+    finally{ setBusy(btnSent, false, "😊 Analyse karo"); }
+  };
+
+  var lastHashStr = "";
+  var btnHash = document.getElementById("btnHash");
+  if(btnHash) btnHash.onclick = async function(){
+    setBusy(btnHash, true);
+    try{
+      var res = await callApi("/api/marketing/hashtags", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({niche: nicheSel.value||"general", city: document.getElementById("htCity").value.trim(), count: parseInt(document.getElementById("htCount").value,10)||15})});
+      var tags = res.hashtags || [];
+      lastHashStr = tags.join(" ");
+      document.getElementById("hashTags").innerHTML = tags.map(function(h){return '<span class="tag">'+esc(h)+'</span>';}).join("");
+      document.getElementById("hashTimes").innerHTML = (res.best_times||[]).map(function(t){return '<div class="copyitem"><div class="tx">⏰ '+esc(t)+'</div></div>';}).join("");
+      var c=document.getElementById("hashCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast(tags.length+" hashtags ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Hashtags fail: "+e.message,"err"); }
+    finally{ setBusy(btnHash, false, "🔖 Hashtags lao"); }
+  };
+  var bhc = document.getElementById("btnHashCopy"); if(bhc) bhc.onclick = function(){ doCopy(lastHashStr, this); };
+
+  var btnLogo = document.getElementById("btnLogo");
+  if(btnLogo) btnLogo.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnLogo, true);
+    try{
+      var res = await callApi("/api/marketing/brand-logo", {method:"POST", headers: hdrs({"Content-Type":"application/json"}), body: JSON.stringify({business_name: document.getElementById("bizName").value.trim(), niche: nicheSel.value||"general", style: document.getElementById("logoStyle").value.trim()})});
+      document.getElementById("logoBox").innerHTML = res.url ? '<img src="'+esc(res.url)+'" alt="logo" loading="lazy" style="max-width:320px;border-radius:12px"/>' : '<div class="empty">Logo nahi bana</div>';
+      document.getElementById("logoDl").href = res.url || "#";
+      var c=document.getElementById("logoCard"); c.classList.remove("hidden"); c.scrollIntoView({behavior:"smooth",block:"nearest"});
+      toast("Logo ready ✓","ok");
+    }catch(e){ if(e.message!=="auth") toast("Logo fail: "+e.message,"err"); }
+    finally{ setBusy(btnLogo, false, "🏷️ Logo banao"); }
   };
 
 })();
