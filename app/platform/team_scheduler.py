@@ -12,6 +12,69 @@ logger = setup_logger(__name__)
 _IST = timezone(timedelta(hours=5, minutes=30))
 _TICK_S = 60
 
+# --------------------------------------------------------------------------- #
+# Single-instance lock — uvicorn --workers 2 dono workers scheduler start karte
+# the → har job 2 baar chalta tha (double emails/content!). Lock file se sirf
+# EK worker scheduler chalata hai. Heartbeat (mtime) + dead-PID reclaim:
+# - lock free/stale (>180s) ya PID dead → acquire karo
+# - warna skip (dusra worker owner hai)
+# Loop har tick lock ka mtime refresh karta hai (heartbeat).
+# --------------------------------------------------------------------------- #
+_LOCK_PATH = os.path.join("data", ".scheduler.lock")
+_LOCK_STALE_S = 180
+_have_lock = False
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except Exception:
+        return False
+
+
+def _acquire_lock() -> bool:
+    """True agar is process ne scheduler-lock le liya. Atomic + stale-reclaim."""
+    global _have_lock
+    try:
+        os.makedirs(os.path.dirname(_LOCK_PATH) or ".", exist_ok=True)
+        try:
+            fd = os.open(_LOCK_PATH, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            _have_lock = True
+            return True
+        except FileExistsError:
+            # exists — stale ya dead-pid ho to steal karo
+            try:
+                age = datetime.now().timestamp() - os.path.getmtime(_LOCK_PATH)
+                pid = int((open(_LOCK_PATH).read().strip() or "0") or 0)
+            except Exception:
+                age, pid = 9999, 0
+            if age > _LOCK_STALE_S or (pid and not _pid_alive(pid)) or pid == 0:
+                try:
+                    with open(_LOCK_PATH, "w") as f:
+                        f.write(str(os.getpid()))
+                    _have_lock = True
+                    return True
+                except Exception:
+                    return False
+            return False
+    except Exception:
+        # lock-fs issue — fail-open (chalne do; single-worker dev me theek)
+        _have_lock = True
+        return True
+
+
+def _refresh_lock() -> None:
+    """Heartbeat — lock file ka mtime update (owner zinda hai)."""
+    if not _have_lock:
+        return
+    try:
+        os.utime(_LOCK_PATH, None)
+    except Exception:
+        pass
+
 _last_ran: dict[str, str | None] = {
     "growth": None,
     "ops": None,
@@ -67,6 +130,7 @@ async def scheduler_loop() -> None:
     logger.info("[team-scheduler] loop started (growth 15min + dailies)")
     while True:
         try:
+            _refresh_lock()  # heartbeat — owner zinda hai
             now = datetime.now(_IST)
             hour_key = now.strftime("%Y-%m-%d %H")
             day_key = now.strftime("%Y-%m-%d")
@@ -121,6 +185,10 @@ def start_scheduler() -> asyncio.Task[Any] | None:
             flag = os.environ.get("TEAM_AUTOMATION", "1")
         if flag.strip() == "0":
             logger.info("[team-scheduler] TEAM_AUTOMATION=0 — scheduler OFF")
+            return None
+        # Single-instance: sirf EK worker scheduler chalaye (warna double jobs).
+        if not _acquire_lock():
+            logger.info("[team-scheduler] another worker owns the scheduler — skip (single-instance)")
             return None
         task = asyncio.create_task(scheduler_loop(), name="team-scheduler")
         try:
