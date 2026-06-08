@@ -38,7 +38,7 @@
 
 ## AI Staff Team (product framing) — `app/platform/team.py` + `team_scheduler.py`
 8 staff: Boss(Manager) · Swara(Telecaller) · Dev(Data) · Rohan(Leads) · Arjun(QA) · Meera(Trainer) · Kavya(Ops) · Isha(Marketing). Events → `agent_events` table. Dashboard `/app/team`.
-**Auto-schedule (IST)**: 06:30 blog · 07:00 content(self+clients) · 08:30 digest · 09:30 scrape/prospect · 10:30 email outreach+followups · hourly Kavya health · 02:30 Arjun QA · 03:00 Meera trainer · 15-min growth-pulse (`growth_engine.py`) · ~04:00 backups.
+**Auto-schedule (IST)**: 06:30 blog · 07:00 content(self+clients) · 08:30 digest · 09:30 scrape/prospect · 10:30 email outreach+followups · hourly Kavya health · 02:30 Arjun QA · 03:00 Meera trainer · 15-min growth-pulse (`growth_engine.py`) · hourly reply-triage (`reply_agent.py`, REPLY_AGENT) · ~04:00 backups.
 **Scalable multi-agent (optional, OFF default)**: `app/agents/staff_supervisor.py` — langgraph-supervisor over STAFF roster (auto-scales, dynamic). Deps VPS pe installed. Enable: `USE_LANGGRAPH_SUPERVISOR=1` + CEREBRAS/GROQ key. Existing rule-based `supervisor.py` + scheduler untouched. Detail: SESSION_LOG.
 
 ## Outbound/Growth (working)
@@ -46,6 +46,7 @@
 - **Google Maps API LIVE** (Places API New; legacy textsearch DENIED). Prospector real phones+reviews (cap `PROSPECT_MAX_LOOKUPS=60`/run). OSM Overpass fallback (no key).
 - **Lead-gen quality (competitor-grade, LIVE)**: `email_verify.py` (email-validator syntax+**MX**) **WIRED into `auto_outreach._valid_email`** → sirf deliverable emails bhejte (bounce<2%, sender-rep safe; `OUTREACH_VERIFY_MX=1`). `phone_validate.py` (phonenumbers E.164/mobile). Self + client campaigns. **Email auth (SPF/DKIM/DMARC) ALL SET + verified** (Hostinger auto; DMARC `rua` reporting added via Hostinger DNS API). Doc: `docs/LeadGen_Competitor_Repos.md`.
 - **DNS via Hostinger API**: `scripts/hostinger_dns.py` (get/validate/put/delete/fix; `HOSTINGER_API_TOKEN` in .env, DNS-scoped; **browser UA header zaroori warna Cloudflare err-1010**). GOTCHA: Hostinger PUT `overwrite=false` = ADD (not replace) → duplicate ban sakta; single record ke liye `fix` (delete+put). `overwrite=true` KABHI nahi (zone me A/NS/www bhi — partial overwrite = site down).
+- **AI reply triage (closes the outreach loop, NEW)**: `app/platform/reply_agent.py` — IMAP (`imap.hostinger.com`, SMTP creds reuse) se replies → free_ai intent classify (interested/objection/unsubscribe/…) → prospect status (interested→hot, unsub→dead) → Hinglish draft (`data/reply_drafts.jsonl`, 1-click send) + Rohan/Swara event. Hourly scheduled, **gated `REPLY_AGENT=1`**, auto-send OFF (ban-safe). Smartlead SmartAgents ka free equivalent.
 - **WhatsApp = 1-click human send** (bulk auto = ban). Inbound funnel auto (`/audit`, landing form → `data/inquiries.jsonl`).
 - Per-client: `clients_store.py` (onboard) + `auto_content.py` (daily content queue, 1-click copy/PNG/wa-send; auto-publish needs Meta API — blocked) + `mini_site.py` (`/b/{slug}`) + referral/evergreen.
 

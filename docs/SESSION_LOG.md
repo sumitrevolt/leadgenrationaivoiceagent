@@ -382,3 +382,12 @@
 - **GOTCHA hit+fixed**: Hostinger PUT `overwrite=false` REPLACE nahi ADD karta → _dmarc pe 2 TXT ban gaye (RFC 7489: multiple DMARC = DMARC IGNORED!). Fix = `fix` cmd: DELETE filters[{name:_dmarc,type:TXT}] (dono hata) + PUT (ek correct). GET confirm: _dmarc ab ONE record, SPF/DKIM/MX untouched. **`overwrite=true` KABHI mat use karo** — zone me A/NS/www/etc bhi hain, partial overwrite = site down.
 - Propagation: TTL 3600 (~1hr world tak); authoritative abhi correct.
 - **Next deliverability (USER/infra, code nahi)**: dedicated cold-email domain + warmup (primary domain mat jalao). Auth ab done.
+
+## AI REPLY TRIAGE — the missing automation (2026-06-08)
+- **User: "AI automation me abhi bhi kami hai — deep research + best feature add karo".** Research: AI SDR (Smartlead SmartAgents/11x/Instantly unibox) + IMAP reply-handling.
+- **GAP found**: outreach ONE-directional tha — cold emails jaate, par REPLY aane pe kuch auto nahi hota (replies unread sit). Har modern AI SDR ka headline feature = reply triage / unified inbox. Yeh THE missing piece.
+- **Built `app/platform/reply_agent.py`**: IMAP (`imap.hostinger.com`, SMTP creds reuse) se UNSEEN replies → free_ai intent classify (interested/question/objection/not_interested/unsubscribe/ooo) → matching prospect status (interested→replied_hot, unsubscribe→dead) → Hinglish reply DRAFT (`data/reply_drafts.jsonl`, 1-click human send) → Rohan/Swara event. Auto-send OFF (ban-safe); unsubscribe auto-honored. `list_drafts()` for future dashboard. Defensive/never-crash.
+- **Scheduled (automated)**: `team_scheduler` me hourly job "reply_triage" (minute≥20, hour_key) — 3 surgical edits (_last_ran key + _run_job branch + loop trigger). **Gated `REPLY_AGENT=1`** → off tak no-op (scheduling 100% safe).
+- Sandbox-verified: off→skipped, on+no-creds→imap_unconfigured, no crash.
+- **ENABLE**: `.env REPLY_AGENT=1` + restart (SMTP creds already live) → har ghante replies auto-triage, hot leads minutes me surface. Free-stack self-hosted (imaplib stdlib + free_ai + prospector) — Smartlead SmartAgents ($39/mo) ka free equivalent.
+- Future: drafts dashboard tab + 1-click send; interested → Swara voice auto-callback.

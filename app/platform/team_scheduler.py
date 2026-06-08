@@ -85,6 +85,7 @@ _last_ran: dict[str, str | None] = {
     "content": None,
     "email_outreach": None,
     "blog": None,
+    "reply_triage": None,
 }
 
 
@@ -122,6 +123,10 @@ async def _run_job(job: str) -> None:
 
             await auto_outreach.run_email_outreach()
             await auto_outreach.run_email_followups()
+        elif job == "reply_triage":
+            from app.platform import reply_agent
+
+            await reply_agent.run_reply_triage()
     except Exception as e:
         logger.warning(f"[team-scheduler] job {job} failed: {e}")
 
@@ -166,6 +171,10 @@ async def scheduler_loop() -> None:
             if (10, 30) <= hm < (12, 30) and _last_ran["email_outreach"] != day_key:
                 _last_ran["email_outreach"] = day_key
                 await _run_job("email_outreach")
+            # AI reply triage — hourly (read inbox replies, classify, draft). Gated by REPLY_AGENT.
+            if now.minute >= 20 and _last_ran["reply_triage"] != hour_key:
+                _last_ran["reply_triage"] = hour_key
+                await _run_job("reply_triage")
         except asyncio.CancelledError:
             logger.info("[team-scheduler] loop cancelled")
             raise
