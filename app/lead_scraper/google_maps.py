@@ -67,9 +67,87 @@ class GoogleMapsScraper:
         logger.info(f"Searching: '{query}' in '{location}'")
         
         if self.api_key:
-            return await self._search_with_api(query, location, radius_km, max_results)
+            # Places API (New) pehle — legacy textsearch ab REQUEST_DENIED deta hai
+            # (Google ne naye projects pe legacy band kar di). New fail ho to
+            # legacy try, phir scraping.
+            leads = await self._search_with_places_new(query, location, max_results)
+            if leads:
+                return leads
+            try:
+                return await self._search_with_api(query, location, radius_km, max_results)
+            except Exception as e:
+                logger.warning(f"legacy Places API failed ({e}); scraping fallback")
+                return await self._search_with_scraping(query, location, max_results)
         else:
             return await self._search_with_scraping(query, location, max_results)
+
+    async def _search_with_places_new(
+        self, query: str, location: str, max_results: int
+    ) -> List[BusinessLead]:
+        """Google Places API (New) — POST places:searchText. Returns phone +
+        rating + reviews + website + address in ONE call (no separate details).
+        Never raises — [] on any failure (caller falls back)."""
+        url = "https://places.googleapis.com/v1/places:searchText"
+        field_mask = (
+            "places.displayName,places.nationalPhoneNumber,"
+            "places.internationalPhoneNumber,places.rating,places.userRatingCount,"
+            "places.formattedAddress,places.websiteUri,places.id"
+        )
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": self.api_key,
+            "X-Goog-FieldMask": field_mask,
+        }
+        leads: List[BusinessLead] = []
+        try:
+            async with httpx.AsyncClient() as client:
+                page_token = None
+                while len(leads) < max_results:
+                    body: Dict[str, Any] = {
+                        "textQuery": f"{query} in {location}",
+                        "maxResultCount": min(20, max_results - len(leads)),
+                        "regionCode": "IN",
+                    }
+                    if page_token:
+                        body["pageToken"] = page_token
+                    resp = await client.post(url, headers=headers, json=body, timeout=30.0)
+                    if resp.status_code != 200:
+                        logger.warning(f"Places(New) HTTP {resp.status_code}: {resp.text[:160]}")
+                        break
+                    data = resp.json()
+                    places = data.get("places", []) or []
+                    for p in places:
+                        try:
+                            name = (p.get("displayName") or {}).get("text", "").strip()
+                            if not name:
+                                continue
+                            leads.append(BusinessLead(
+                                name=name,
+                                phone=p.get("nationalPhoneNumber") or p.get("internationalPhoneNumber"),
+                                email=None,
+                                address=p.get("formattedAddress", ""),
+                                city=location,
+                                state="",
+                                category=query,
+                                rating=p.get("rating"),
+                                reviews_count=p.get("userRatingCount") or 0,
+                                website=p.get("websiteUri"),
+                                google_maps_url=f"https://www.google.com/maps/place/?q=place_id:{p.get('id','')}",
+                                place_id=p.get("id", ""),
+                                latitude=0.0,
+                                longitude=0.0,
+                            ))
+                        except Exception:
+                            continue
+                    page_token = data.get("nextPageToken")
+                    if not page_token:
+                        break
+                    await asyncio.sleep(2)  # token activation delay
+        except Exception as e:
+            logger.warning(f"Places(New) search failed: {e}")
+            return []
+        logger.info(f"Found {len(leads)} businesses via Places API (New)")
+        return leads[:max_results]
     
     async def _search_with_api(
         self,
