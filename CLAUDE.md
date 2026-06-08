@@ -225,6 +225,17 @@
 - **FIX = Udyam (MSME) registration** (FREE, instant, udyamregistration.gov.in — official, fake ₹999 sites avoid): Aadhaar+PAN se proprietorship firm banti hai, koi GST nahi chahiye (threshold tak). Accepted DLT entity-proofs: GST cert / Udyam-MSME cert / Shop&Establishment / CIN. Ek operator pe PE register → Jio/Airtel/VI sab pe share.
 - **KEY**: DLT sirf cold-calling (voice/SMS promo) ke liye — Advanced ₹11,999 tier ka wo part. **Marketing business (₹2,999-5,999) + inbound callbacks ko DLT NAHI chahiye → business abhi launch ho sakta, DLT parallel.** User ko Udyam banana hai phir DLT re-apply (entity type Proprietorship, Udyam cert proof).
 
+## CUSTOMER-READY SETUP (2026-06-08) — free scraper + auto per-client social handling
+- **FREE prospect scraper (no paid key)**: prospector.py ab **OpenStreetMap Overpass API** use karta hai (stdlib urllib, no key, legal) jab GOOGLE_MAPS_API_KEY na ho. `_osm_search(query,city,limit)` — area-name scoping, OSM tag map (restaurant→amenity, salon→shop=hairdresser/beauty, gym→leisure=fitness_centre, jewellery→shop=jewelry, etc.), parse name/phone/addr/website. No-phone prospects bhi save hote (wa_link="" + `google_search_link`). VPS verified: "restaurant Pune" → 5 results (McDonald's...). Dedupe phone-OR-name|city. summary scraper="osm_overpass".
+- **Automated per-client social media handling (asli product)**: 
+  - `app/marketing/clients_store.py` — marketing CLIENT onboarding (data/marketing_clients.jsonl): add/list/get/set_status/update; brand brand_kit me mirror (poster auto-brand). `_CLIENTS_FILE` const.
+  - `app/marketing/auto_content.py` — **har active client ka content KHUD banta hai**: weekly plan (Mon tip/Tue offer/Wed brand-poster/Thu reel/Fri festival-fun/Sat product/Sun engagement) + festival ≤2 din me to festival post+poster. `run_daily_content()` → per-client queue data/content_queue/<id>.jsonl (date+type dedupe). list_queue/mark_item (draft→approved→posted/skipped). `_QUEUE_DIR` const.
+  - **Scheduler**: team_scheduler.py me "content" job **roz 07:00 IST** → run_daily_content (Isha). staff.run_member dispatch bhi.
+  - `app/api/clients.py` — /api/clients/* (admin): onboard, list, status, content/run, content list, item status. Mounted main.py.
+  - **Portal** /app/clients (frontend/clients.html): naya client form (niche/plan/brand colors/socials) + client cards (status toggle) + content panel (Aaj ka content banao + approve/copy/PNG/posted). 
+- **HONEST LIMIT user ko bataya**: auto-POSTING Insta/FB pe Meta Graph API + app-review (hafte, locked) chahiye — abhi auto-GENERATION + queue + 1-click copy/download/wa-send. True auto-publish future.
+- VPS verified: clients page 200, onboard→generate→queue working, tests green. Tasks 37-39 done.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
