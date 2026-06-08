@@ -44,6 +44,7 @@
 ## Outbound/Growth (working)
 - **Email outreach LIVE**: Hostinger SMTP `admin@leadsgenai.in` (`smtp.hostinger.com:465`). `AUTO_EMAIL_OUTREACH=true` → Rohan roz 10:30 auto-sends personalized Hinglish cold-emails + Day-3/Day-7 followups. Cap 25/day. (`app/platform/auto_outreach.py`; Resend/Brevo API fallback in `email_api.py`.)
 - **Google Maps API LIVE** (Places API New; legacy textsearch DENIED). Prospector real phones+reviews (cap `PROSPECT_MAX_LOOKUPS=60`/run). OSM Overpass fallback (no key).
+- **Lead-gen quality (competitor-grade, LIVE)**: `email_verify.py` (email-validator syntax+**MX**) **WIRED into `auto_outreach._valid_email`** → sirf deliverable emails bhejte (bounce<2%, sender-rep safe; `OUTREACH_VERIFY_MX=1`). `phone_validate.py` (phonenumbers E.164/mobile). Self + client campaigns. **USER next (highest ROI): SPF/DKIM/DMARC on leadsgenai.in DNS.** Doc: `docs/LeadGen_Competitor_Repos.md`.
 - **WhatsApp = 1-click human send** (bulk auto = ban). Inbound funnel auto (`/audit`, landing form → `data/inquiries.jsonl`).
 - Per-client: `clients_store.py` (onboard) + `auto_content.py` (daily content queue, 1-click copy/PNG/wa-send; auto-publish needs Meta API — blocked) + `mini_site.py` (`/b/{slug}`) + referral/evergreen.
 
