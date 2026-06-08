@@ -303,3 +303,22 @@
 ## 2026-06-08 Scheduler single-instance fix (commit 8311372)  
 - uvicorn --workers 2 dono scheduler chala rahe the = double jobs (double email/content). Fix: data/.scheduler.lock (O_EXCL + heartbeat + dead-pid reclaim) in team_scheduler.py. VPS verified: loop-started=1, skip=1. Duplicate jobs khatam.  
 - Remaining = EXTERNAL-blocked only: Insta/FB auto-post (Meta app-review), GBP auto (Google approval), cold-calls (DLT+DID). Code se complete nahi ho sakte.  
+
+## EFFICIENCY REPOS — open-source integrations (2026-06-08)
+- **User: "github repos add karo to increase efficiency".** Research (5 searches) → best free/CPU/Hindi open-source repos for the voice+AI pipeline. Full prioritized map: `docs/Efficiency_Repos_Integration.md`.
+- **DONE (added, OFF by default, sandbox-verified graceful)**: `app/voice_agent/turn_detector.py` — `SileroSpeechGate` (snakers4/silero-vad, MIT, 2MB ONNX, <1ms CPU) robust speech gate + `SmartTurnDetector` scaffold (pipecat-ai/smart-turn-v3 `LocalSmartTurnAnalyzerV3`, bundled `smart-turn-v3.2-cpu`, ~12ms CPU, Hindi). Defensive lazy-load: dep/load/inference fail → `None` → existing RMS/silence-timer fallback. Zero behaviour change until enabled. requirements.txt me optional deps commented.
+- **ENABLE Silero (test web-call pehle)**: `pip install silero-vad` (VPS+Windows) + `.env USE_SILERO_VAD=1` + 5-line wire in `vobiz_stream.py` (doc me snippet) → `scripts/agent_tester.py` compare.
+- **NEXT (alag chat)**: Smart Turn v3 — pipecat install + `pipecat_pipeline.py` skeleton ke saath wire, `is_endpoint()` finalize, web-call pe tune. Yeh "mid-sentence cut" ka asli fix.
+- **OPTIONAL (doc me)**: LiteLLM (free_ai chain replace, dev-efficiency), Piper TTS (offline Hindi fallback, GPL), RealtimeSTT (streaming STT wrapper).
+- Live system untouched — sirf naya additive module + requirements comment + doc. Koi deploy nahi (user apne loop me enable+test karega).
+
+## WEBSITE BEST-IFY — SEO schema + social previews + icon lib (2026-06-08)
+- **User: "website ko best bano repos add karke".** Landing (`frontend/website/index.html`) pehle se polished tha (custom CSS, scroll-reveal, PWA, live pricing) — heavy JS libs add karna ULTA slow karta. Isliye real gaps bhare:
+  - **SEO structured data (JSON-LD)** — Organization + WebSite + Service(OfferCatalog 3 plans) + **FAQPage (6 Q&A)** → Google rich results (FAQ accordions, business info). SEO-bechne-wali company ka apna site ab perfect schema deta hai. JSON validated.
+  - **Open Graph + Twitter card + canonical** — ab WhatsApp/FB/LinkedIn pe link share karne pe proper title+image+desc preview (pehle blank tha). og:image self-hosted icon-512.png (CSP img-src 'self' safe).
+  - **Lucide icons** (jsDelivr — CSP `script-src` me allowed) — 6 feature cards ab crisp line-icons (emoji→mic/search/send/indian-rupee/layout-dashboard/zap). Graceful: lib fail → `.ic` khaali, koi crash nahi. CSP confirm kiya: `app/middleware/__init__.py` jsDelivr allow karta.
+- Sab functional JS (form→/api/public/inquiry, pricing fetch, UPI modal, PWA SW) untouched.
+- **PRICING FIX**: CLAUDE.md me purana ₹2,999/5,999/11,999 tha — LIVE `packages.py` = **999/2499/5999** (hero+cards+API+ab schema sab match). CLAUDE.md theek kiya.
+- **GOTCHA repeat**: `frontend/website/index.html` ka sandbox mount STALE tha (bash ne 538-line truncated + ld+json:0 dikhaya jabki Windows file 987 lines correct) — Windows Read/Edit = source of truth, bash se verify mat karo. JSON-LD alag se validate kiya.
+- **Deploy pending (user loop)**: ye sirf static frontend change hai → `git add/commit/push` + VPS `git pull` (Caddy static serve, restart bhi nahi chahiye agar static). Verify: view-source pe og:/ld+json, Google Rich Results Test, WhatsApp pe link bhej ke preview.
+- Optional next: audit.html/privacy/terms/refund pe bhi og+canonical; proper 1200x630 og-image.png; testimonials ko Swiper carousel (jsDelivr).

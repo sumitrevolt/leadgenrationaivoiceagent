@@ -139,12 +139,22 @@ scikit-learn>=1.3.2
 langgraph>=1.0
 langgraph-checkpoint-sqlite>=2.0
 langchain-core>=0.3
+# Multi-agent supervisor over MANY agents (app/agents/staff_supervisor.py) — opt-in
+# (USE_LANGGRAPH_SUPERVISOR=1). Official LangChain supervisor pattern; reads STAFF roster.
+langgraph-supervisor>=0.0.27
+langchain-openai>=0.2  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
 fastapi-mcp>=0.3  # platform endpoints as MCP tools (/mcp)
 
 # =============================================================================
 # Voice Pipeline (P3 — FreeSWITCH + Pipecat, optional/heavy)
 # =============================================================================
 # pipecat-ai>=0.0.60  # P3 voice pipeline — install when wiring audio (heavy)
+
+# Turn-taking upgrades (app/voice_agent/turn_detector.py) — optional, OFF by
+# default, enable per detector AFTER testing on the FREE web-call:
+# silero-vad>=5.1   # robust speech gate (MIT, ~2MB ONNX, pulls torch). env USE_SILERO_VAD=1
+# smart-turn-v3 ships INSIDE pipecat-ai (LocalSmartTurnAnalyzerV3 + bundled
+#   smart-turn-v3.2-cpu ONNX) — semantic end-of-turn, ~12ms CPU. env USE_SMART_TURN=1
 
 # Vobiz WebSocket streaming STT (app/telephony/vobiz_stream.py) — pick ONE.
 # Both heavy + optional; the WS degrades gracefully (deaf) if neither present.
