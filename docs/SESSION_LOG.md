@@ -349,3 +349,11 @@
 - **DEPLOYED LIVE (ec2b888)**: push → VPS restart (active, /health prod uptime 6s) → pip install 3 EXIT_PIP=0 + import EXIT_IMPORT=0 → health again 27s OK.
 - **Harmless warning**: stale UNUSED `langchain-community 0.0.20` ne langchain-core 1.4.1 ke saath version-conflict warning diya (install phir bhi success; app langchain-core directly via langgraph use karta, community import nahi hota). Optional cleanup: `.venv/bin/pip uninstall -y langchain-community`.
 - Sandbox-verified: teeno graceful (split_ad/tag-strip/contact-regex bina lib kaam karte).
+
+## "BEST FOR PROJECT" — wire trafilatura + cleanup + QA (2026-06-08, commits f9d4463, 65f55d5)
+- **User: "do what's best for the project".** 7 naye modules dormant the → naya add karne ke bajaye VALUE deliver + QA pe focus.
+- **WIRED (live)**: `google_maps._extract_email_from_website` ab `web_extract.find_contacts` (trafilatura-backed, dedup+validated) use karta, fallback inline regex → prospector→email-outreach funnel better lead capture. Same signature, zero caller change, defensive.
+- **CLEANUP**: stale UNUSED `langchain-community 0.0.20` VPS se uninstall (grep: app me koi import nahi) → dep-conflict warning gaya. prod_check ne confirm kiya uninstall safe (app.main imports OK).
+- **QA pass (prod_check on VPS)**: app.main imports OK, 222 routes, env=production. Ne ek REAL pre-existing bug pakda: `scripts/webcall_tester.py` line 53 TRUNCATED (purana truncation incident) → poora valid WS QA-tester reconstruct kiya → **prod_check ab [OK] ALL CHECKS PASSED (EXIT 0)**.
+- Live throughout: is-active=active, /health production. Site kabhi down nahi.
+- **Bigger wirings available (opt-in, FREE web-call test pehle, user choose)**: agentic_rag/structured → telecaller_brain KB-grounding; structured → post_generator reliable content; web_extract.clean_text+structured → personalized prospect pitches; LightRAG → client website se graph auto-seed.
