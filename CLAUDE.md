@@ -248,6 +248,12 @@
 - **USER ACTION to activate**: Hostinger email + app-password .env me (VPS+local) + AUTO_EMAIL_OUTREACH=true → restart → system roz khud emails bhejega. Email coverage partial (har business ka public email nahi milta → moderate volume). WhatsApp abhi bhi 1-click (ban-safety) — nagging band, batch-open future.
 - Current: 58 prospects scraped (pre-email-capture code, with_email=0); agla scrape run emails bhi capture karega.
 
+## EMAIL via API (2026-06-08) — SMTP fail, API path built
+- **Hostinger SMTP (admin@leadsgenai.in) 535 auth-failed** dono passwords pe (suit1234@Sjiya, sumit1234@S) + dono hosts (smtp.hostinger.com, smtp.titan.email) — mailbox shayad bana nahi ya password galat. User ne kaha "API ke through karo".
+- **BUILT `app/integrations/email_api.py`**: Resend (Bearer, api.resend.com/emails) + Brevo (api-key header, api.brevo.com/v3/smtp/email) — `send_email_api()` + `api_available()`. EmailSender.send_email ab API-FIRST (key ho to), phir SMTP fallback. auto_outreach gate ab API-key YA SMTP koi bhi pe chalta hai (skip reason "email_unconfigured"). config: resend_api_key/brevo_api_key (env RESEND_API_KEY/BREVO_API_KEY). Tests green, VPS live (api_available=False until key).
+- **USER ACTION (account Claude nahi bana sakta — prohibited)**: Brevo recommended (300/din free, sender-verify link, no DNS) → API key `xkeysib-...` → Claude .env me daale (VPS+local) → test email → Rohan 10:30 auto-send. Resend alt (3000/mo, par domain DNS verify chahiye external recipients ke liye).
+- Maps key + auto-content + scraper sab pehle se live; email send yahi ek credential pe atka.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
