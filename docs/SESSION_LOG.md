@@ -457,3 +457,11 @@
 - **2-pass safe edit** (distinct unique anchors): HTML (tabbar + paneIds + 7 panels) → JS (7 handlers before IIFE `})();`).
 - **"Without mistakes" VERIFY**: page serves all 7 panes (grep count=7); **VPS pe node v18 install karke `node --check` se REAL deployed marketing.html ka poora inline JS validate → OK (valid syntax)** — koi JS syntax error nahi (warna saare 26 tabs toot jaate). is-active=active, /health prod. (Sandbox mount stale tha → check VPS real file pe kiya, definitive. Tool: `scripts/check_marketing_js.py`.)
 - **Ab har naya backend feature (7 endpoints) UI me usable** — admin token paste karke `/app/marketing` pe.
+
+## FIXES — Vector RAG restored + AI-image token (2026-06-08, commit 9c0282a)
+- **User: "tum hi test karo / jo best hai project ke liye wo karo".** Self-test (`scripts/test_features.py`) ne 3 problems diye → fix kiye.
+- **#2 Vector RAG FIXED + LIVE-VERIFIED**: fastembed `intfloat/multilingual-e5-small` ab us version me unsupported → KB chup-chaap keyword-fallback pe chal raha tha (semantic search band). Fix: `_EMBED_CANDIDATES` multi-model fallback in `_get_qdrant_embedder` (try-list, REAL dim auto-detect via embed) + `_get_qdrant_client` dim-mismatch pe collection recreate. Verify (`check_rag.py`): `paraphrase-multilingual-MiniLM-L12-v2` (dim 384) loaded, **backend=qdrant** (keyword nahi), semantic hit (query "electricity bill kaise kam karu" → "bijli ka bill kam" doc, score 0.385 cross-word). Chatbot/LightRAG/agentic-RAG ab real semantic.
+- **#1 AI Image graceful + token-ready**: Pollinations ab anonymous pe **402 Payment Required** (test-confirmed: flux/turbo/default sab). Fix: `image_url` ab `POLLINATIONS_TOKEN` append (auth.pollinations.ai free token → chalu); marketing.html `__imgErr` onerror → broken-image ki jagah Hinglish msg (Poster tab suggest). Caption/hashtags bina token chalte.
+- **#3 Cerebras 429**: chhoda (Groq fallback resilient; har LLM call Cerebras-429 → Groq). Optional: chain reorder/backoff.
+- **DEPLOYED LIVE (9c0282a)**: prod_check [OK], JS `node --check` OK, RAG semantic verified, health prod. (node v18 VPS pe installed; tools: check_rag.py, check_marketing_js.py.)
+- **USER ACTION (images chalu karne ko)**: auth.pollinations.ai → free token → `.env POLLINATIONS_TOKEN=` → restart. (2026 me truly free no-key image-gen khatam — sabko token chahiye.)
