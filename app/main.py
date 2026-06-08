@@ -241,6 +241,12 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Booking router not mounted: {_e}")
 try:
+    from app.api.customer_auth import router as customer_auth_router
+
+    app.include_router(customer_auth_router, prefix="/api")  # /api/customer/auth/* (client login portal)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Customer auth router not mounted: {_e}")
+try:
     from app.api.clients import router as clients_router
 
     app.include_router(
@@ -289,6 +295,12 @@ except Exception as e:
 _website_dir = FRONTEND_DIR / "website"
 if _website_dir.is_dir():
     app.mount("/site", StaticFiles(directory=str(_website_dir), html=True), name="website")
+
+
+@app.get("/app/login", tags=["Frontend"])
+async def customer_login_page():
+    """Customer (client) login portal — leads/calls/content for their account."""
+    return FileResponse(str(FRONTEND_DIR / "login.html"))
 
 
 @app.get("/app/customer", tags=["Frontend"])

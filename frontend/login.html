@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Client Login — LeadsGenAI</title>
+<style>
+  :root { --pri:#2563eb; --bg:#0b1020; --card:#fff; --ink:#0f172a; --mut:#64748b; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+         background:linear-gradient(135deg,#0b1020,#1e293b); display:flex; align-items:center; justify-content:center; padding:18px; }
+  .card { background:var(--card); width:100%; max-width:400px; border-radius:18px; padding:26px 24px; box-shadow:0 24px 60px rgba(0,0,0,.4); }
+  h1 { margin:0 0 2px; font-size:21px; color:var(--ink); }
+  .sub { color:var(--mut); font-size:13px; margin-bottom:18px; }
+  label { display:block; font-size:13px; font-weight:600; color:var(--ink); margin:12px 0 5px; }
+  input { width:100%; padding:11px 12px; border:1px solid #d4d4d8; border-radius:10px; font-size:15px; }
+  input:focus { outline:none; border-color:var(--pri); box-shadow:0 0 0 3px #2563eb22; }
+  button { width:100%; margin-top:18px; padding:12px; border:0; border-radius:10px; background:var(--pri); color:#fff; font-size:16px; font-weight:700; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:default; }
+  .err { color:#b91c1c; font-size:13px; min-height:16px; margin-top:8px; }
+  .acct { display:none; }
+  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0; }
+  .kpi { background:#f1f5f9; border-radius:12px; padding:12px; text-align:center; }
+  .kpi b { display:block; font-size:22px; color:var(--ink); }
+  .kpi span { font-size:12px; color:var(--mut); }
+  .row { display:flex; gap:10px; }
+  .ghost { background:#f1f5f9; color:var(--ink); }
+  .foot { text-align:center; color:var(--mut); font-size:11px; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="loginView">
+    <h1>Client Login</h1>
+    <div class="sub">Apne LeadsGenAI account me login karein — apni leads, calls aur content dekhein.</div>
+    <form id="loginForm" autocomplete="on">
+      <label for="email">Email</label>
+      <input id="email" type="email" required placeholder="you@business.com" />
+      <label for="password">Password</label>
+      <input id="password" type="password" required placeholder="••••••••" />
+      <div class="err" id="err"></div>
+      <button type="submit" id="btn">Login</button>
+    </form>
+  </div>
+
+  <div class="acct" id="acctView">
+    <h1 id="bizName">Welcome</h1>
+    <div class="sub" id="acctSub">Aapka account overview</div>
+    <div class="kpis" id="kpis"></div>
+    <div class="row">
+      <button class="ghost" onclick="window.location.href='/app/customer?client_id='+encodeURIComponent(localStorage.getItem('lgai_cid')||'')">Full dashboard ↗</button>
+      <button class="ghost" id="logout">Logout</button>
+    </div>
+  </div>
+  <div class="foot">Powered by LeadsGenAI</div>
+</div>
+
+<script>
+(function(){
+  var f=document.getElementById("loginForm"), btn=document.getElementById("btn"), err=document.getElementById("err");
+  function show(view){ document.getElementById("loginView").style.display = view==="login"?"block":"none";
+    document.getElementById("acctView").style.display = view==="acct"?"block":"none"; }
+  function authHdr(){ return {"Authorization":"Bearer "+(localStorage.getItem("lgai_token")||"")}; }
+
+  async function loadAccount(){
+    try{
+      var me = await fetch("/api/customer/auth/me",{headers:authHdr()});
+      if(!me.ok) throw new Error("session");
+      var mj = await me.json();
+      document.getElementById("bizName").textContent = mj.business_name || "My Account";
+      var d = await fetch("/api/customer/auth/portal/dashboard",{headers:authHdr()});
+      var dj = d.ok ? await d.json() : {};
+      var k = dj.kpis || {};
+      var cards = [
+        ["Leads", (dj.leads||[]).length],
+        ["Calls", (dj.calls||[]).length],
+        ["Campaigns", (dj.campaigns||[]).length],
+        ["Hot leads", (k.hot_leads!=null?k.hot_leads:((dj.charts&&dj.charts.leads_by_status||[]).find(function(x){return (x.label||"")==="Hot";})||{}).value||0)]
+      ];
+      document.getElementById("kpis").innerHTML = cards.map(function(c){
+        return '<div class="kpi"><b>'+(c[1]||0)+'</b><span>'+c[0]+'</span></div>'; }).join("");
+      show("acct");
+    }catch(e){ localStorage.removeItem("lgai_token"); show("login"); }
+  }
+
+  f.addEventListener("submit", async function(ev){
+    ev.preventDefault(); err.textContent=""; btn.disabled=true; btn.textContent="Logging in…";
+    try{
+      var r = await fetch("/api/customer/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({email:document.getElementById("email").value.trim(), password:document.getElementById("password").value})});
+      var j = await r.json().catch(function(){return{};});
+      if(!r.ok) throw new Error(j.detail||"Login failed");
+      localStorage.setItem("lgai_token", j.access_token);
+      localStorage.setItem("lgai_cid", j.client_id||"");
+      await loadAccount();
+    }catch(e){ err.textContent = e.message; }
+    finally{ btn.disabled=false; btn.textContent="Login"; }
+  });
+
+  document.getElementById("logout").addEventListener("click", function(){
+    localStorage.removeItem("lgai_token"); localStorage.removeItem("lgai_cid"); show("login"); });
+
+  if(localStorage.getItem("lgai_token")){ loadAccount(); } else { show("login"); }
+})();
+</script>
+</body>
+</html>
