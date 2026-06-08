@@ -57,6 +57,9 @@ def _req(method: str, url: str, body=None):
             "Authorization": "Bearer " + tok,
             "Content-Type": "application/json",
             "Accept": "application/json",
+            # Cloudflare on developers.hostinger.com bans default python-urllib UA (err 1010)
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         },
     )
     try:
