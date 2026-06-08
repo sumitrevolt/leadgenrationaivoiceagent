@@ -81,11 +81,14 @@ class TestGuards:
         assert out == {"skipped": "AUTO_EMAIL_OUTREACH off"}
 
     @pytest.mark.asyncio
-    async def test_smtp_unset_skips(self, monkeypatch):
+    async def test_email_unconfigured_skips(self, monkeypatch):
         monkeypatch.setattr(app_settings, "auto_email_outreach", True, raising=False)
         monkeypatch.setattr(app_settings, "smtp_user", "", raising=False)
+        # neither SMTP nor an email API key configured
+        monkeypatch.setattr(app_settings, "resend_api_key", "", raising=False)
+        monkeypatch.setattr(app_settings, "brevo_api_key", "", raising=False)
         out = await auto_outreach.run_email_outreach()
-        assert out == {"skipped": "smtp_unset"}
+        assert out == {"skipped": "email_unconfigured"}
 
 
 # --------------------------------------------------------------------------- #
