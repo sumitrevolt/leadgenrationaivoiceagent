@@ -409,6 +409,82 @@ async def generate_ai_image(
         raise HTTPException(status_code=500, detail=f"AI image failed: {e}")
 
 
+class CompletePostRequest(BaseModel):
+    """Predis-style: ek phrase se complete post (caption + hashtags + AI image)."""
+
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    occasion: str = Field("", max_length=120)
+    offer: str = Field("", max_length=200)
+    language: str = Field("hinglish", max_length=40)
+    width: int = Field(1024, ge=256, le=1536)
+    height: int = Field(1024, ge=256, le=1536)
+
+
+@router.post("/complete-post")
+async def generate_complete_post(
+    req: CompletePostRequest,
+    current_user: User = Depends(require_admin),
+):
+    """COMPLETE post ek phrase se — caption + hashtags + asli AI image (free), one shot."""
+    try:
+        import asyncio
+
+        from app.marketing import ai_image
+
+        post, img = await asyncio.gather(
+            post_generator.generate_post(
+                business_name=req.business_name, niche=req.niche,
+                occasion=req.occasion, offer=req.offer, language=req.language,
+            ),
+            ai_image.marketing_image(
+                req.business_name, req.niche, req.occasion, req.offer,
+                width=req.width, height=req.height,
+            ),
+        )
+        _log_isha("complete_post", f"{req.business_name} ({req.occasion or req.niche})")
+        return {**post, "image_url": img.get("url", ""), "image_prompt": img.get("prompt", "")}
+    except Exception as e:
+        logger.error(f"Complete post failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Complete post failed: {e}")
+
+
+class VariationsRequest(BaseModel):
+    """A/B testing ke liye N caption variations."""
+
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    occasion: str = Field("", max_length=120)
+    offer: str = Field("", max_length=200)
+    language: str = Field("hinglish", max_length=40)
+    count: int = Field(3, ge=2, le=4)
+
+
+@router.post("/post-variations")
+async def generate_post_variations(
+    req: VariationsRequest,
+    current_user: User = Depends(require_admin),
+):
+    """N alag-alag post variations (A/B test) — ek saath generate."""
+    try:
+        import asyncio
+
+        posts = await asyncio.gather(
+            *[
+                post_generator.generate_post(
+                    business_name=req.business_name, niche=req.niche,
+                    occasion=req.occasion, offer=req.offer, language=req.language,
+                )
+                for _ in range(req.count)
+            ]
+        )
+        _log_isha("post_variations", f"{req.business_name} x{req.count}")
+        return {"count": len(posts), "variations": posts}
+    except Exception as e:
+        logger.error(f"Post variations failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Variations failed: {e}")
+
+
 @router.get("/gbp-tips")
 async def get_gbp_tips(
     niche: str = "general",
