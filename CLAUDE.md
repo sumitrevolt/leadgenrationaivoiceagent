@@ -65,7 +65,9 @@
 
 ## LIVE-ENABLED flags (2026-06-08, smoke-verified)
 - **REPLY_AGENT · OPS_WATCHDOG · AUTO_ONBOARD · USE_STRUCTURED_CONTENT** = sab ON in `/opt/leadgen/.env` (systemd `EnvironmentFile` → os.getenv lagta hai). Smoke: watchdog ok, onboard 1 real client (website→KB), structured post (Cerebras 429 burst → Groq fallback worked). `.env.bak` backup. Status: `python scripts/setup_status.py`. Rollback: restore `.env.bak`.
-- Still OFF (reason): USE_LIGHTRAG (LLM-heavy), USE_SILERO_VAD/SMART_TURN (deps+wiring), USE_LANGGRAPH_SUPERVISOR/USE_AGENTIC_RAG (not wired = no-op).
+- **Now ALSO ON (2026-06-09, env_set.py)**: `NOTIFY_EMAIL=admin@leadsgenai.in`, `AUTO_EMAIL_OUTREACH=true` (Rohan daily cold-email, cap 25/day), `USE_AGENTIC_RAG=1`, `USE_LANGGRAPH_SUPERVISOR=1` (deps installed, defensive). Restart-verified: health=production, check_rag semantic OK (backend=qdrant, score 0.385).
+- **USER-PENDING env (main fabricate nahi kar sakta)**: `UPI_VPA=<apna UPI ID>` (payment modal — abhi `/api/public/pay-info` `enabled:false`), `POLLINATIONS_TOKEN=<auth.pollinations.ai free token>` (AI images). Set karte hi restart → live.
+- Still OFF: USE_LIGHTRAG (LLM-heavy), USE_SILERO_VAD/SMART_TURN (heavy torch/pipecat deps not installed — Priority-4 careful install pending).
 
 ## Active Blockers / USER-ACTION pending (env-unset = dormant, graceful skip)
 - **DLT**: individual request REJECTED → user ko **Udyam (MSME, FREE, udyamregistration.gov.in)** cert se Proprietorship re-apply. (Udyam cert ready hai.) DLT sirf cold-calling (Advanced) ke liye.
