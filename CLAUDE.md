@@ -220,6 +220,11 @@
 - Counts: tests test_provisioning 26→42, S-tier 9→13 (4 asserts fix). VPS verified: /api/data/niches count=42, ?tier=S=13. Marketing.html niche dropdown dynamic hai → auto 42 dikhayega. Voice niche_scripts.py untouched (get_script fallback to general/ai_marketing — voice helper hai ab).
 - **GOTCHA**: bada niches.py edit karte time implementation-agent ka socket gira (34 edits ho chuke the) — niches.py + niche_knowledge.py complete the, sirf tests reh gaye the. Sandbox python ne stale-mount se "unterminated string" diya tha (jhootha) — Windows venv se parse OK (42). Bade multi-file edits chhote agents me todo.
 
+## DLT REJECTED → Udyam path (2026-06-08)
+- **Tata DLT Principal Entity request (Ref 100000000046604) REJECTED**: reason "Request cannot be raised by Individuals". User ne individual (personal PAN BONPD6321P) se apply kiya tha — DLT PE ke liye registered business entity proof chahiye.
+- **FIX = Udyam (MSME) registration** (FREE, instant, udyamregistration.gov.in — official, fake ₹999 sites avoid): Aadhaar+PAN se proprietorship firm banti hai, koi GST nahi chahiye (threshold tak). Accepted DLT entity-proofs: GST cert / Udyam-MSME cert / Shop&Establishment / CIN. Ek operator pe PE register → Jio/Airtel/VI sab pe share.
+- **KEY**: DLT sirf cold-calling (voice/SMS promo) ke liye — Advanced ₹11,999 tier ka wo part. **Marketing business (₹2,999-5,999) + inbound callbacks ko DLT NAHI chahiye → business abhi launch ho sakta, DLT parallel.** User ko Udyam banana hai phir DLT re-apply (entity type Proprietorship, Udyam cert proof).
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
