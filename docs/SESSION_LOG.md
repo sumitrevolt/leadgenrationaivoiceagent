@@ -416,3 +416,11 @@
 - **BIG FINDING — memory GALAT thi**: **GROQ_API_KEY actually SET hai** → STT "hearing" weak-link jo CLAUDE.md mahino se 'missing' bata raha tha, woh ACTUALLY RESOLVED. NOTIFY_EMAIL bhi SET (ops-watchdog alert ready). GOOGLE_MAPS/VOBIZ_AUTH_ID/HOSTINGER/SMTP/CEREBRAS sab SET. CLAUDE.md Groq blocker corrected.
 - **Bottleneck ab CRYSTAL clear**: 9 naye automation features OFF (deps+keys ready, sirf env flags chahiye). Go-live = flags on + restart + test. UPI_VPA + dedicated email-domain + DLT(Udyam) baaki user-actions.
 - Yeh tool = "automated setup" ka meta-layer; future sessions + user kabhi bhi readiness dekh sakte.
+
+## ACTIVATION — safe automation flags LIVE-ENABLED (2026-06-08)
+- **User: "sab kuch karo in parallel".** Verified systemd `EnvironmentFile=/opt/leadgen/.env` → os.getenv flags lagte hain (config.py pydantic env_file=.env bhi, WorkingDir /opt/leadgen). `scripts/enable_flags.py` (idempotent + `.env.bak` backup) se 4 ready+safe flags ON → restart.
+- **Confirmed**: setup_status Flags ON 3→**7/12**; is-active=active, /health production.
+- **Smoke (scripts/smoke_features.py)**: WATCHDOG=ok (healthy); ONBOARD sweep=**onboarded:1** (ek real active client website→KB seed + content pack LIVE ho gaya); STRUCTURED post=generated (provider groq — Cerebras burst-429 `queue_exceeded` pe multi-provider chain Groq pe gira, post bana → resilient design validated).
+- **Cerebras 429 NOTE**: smoke me onboarding(content_pack many parallel calls)+watchdog+post ek saath fire → Cerebras queue_exceeded → Groq fallback ne sambhala. Normal scheduled ops spread-out = no burst.
+- **REPLY_AGENT smoke skip** (inbox seen-mark side effect) — scheduler minute≥20 pe chalega; pehla run current unread inbox classify + drafts (`data/reply_drafts.jsonl`), auto-send OFF.
+- **OFF rakhe (reason)**: USE_LIGHTRAG (LLM-heavy graph), USE_SILERO_VAD/SMART_TURN (deps+voice-wiring), USE_LANGGRAPH_SUPERVISOR/USE_AGENTIC_RAG (live path me wired nahi = no-op). Rollback: `/opt/leadgen/.env.bak`.

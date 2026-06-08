@@ -51,6 +51,10 @@
 - Per-client: `clients_store.py` (onboard) + `auto_content.py` (daily content queue, 1-click copy/PNG/wa-send; auto-publish needs Meta API — blocked) + `mini_site.py` (`/b/{slug}`) + referral/evergreen.
 - **Auto client onboarding (done-for-you, NEW)**: `app/marketing/onboarding.py` — client add hote hi auto-setup: **website → KB seed** (`deep_extract`→`KnowledgeBase` + LightRAG, ns `client:<id>`, dormant tools ab live) + first content pack (`data/client_packs/<id>.html`) + `setup_done`. Hourly sweep, **gated `AUTO_ONBOARD=1`**, defensive.
 
+## LIVE-ENABLED flags (2026-06-08, smoke-verified)
+- **REPLY_AGENT · OPS_WATCHDOG · AUTO_ONBOARD · USE_STRUCTURED_CONTENT** = sab ON in `/opt/leadgen/.env` (systemd `EnvironmentFile` → os.getenv lagta hai). Smoke: watchdog ok, onboard 1 real client (website→KB), structured post (Cerebras 429 burst → Groq fallback worked). `.env.bak` backup. Status: `python scripts/setup_status.py`. Rollback: restore `.env.bak`.
+- Still OFF (reason): USE_LIGHTRAG (LLM-heavy), USE_SILERO_VAD/SMART_TURN (deps+wiring), USE_LANGGRAPH_SUPERVISOR/USE_AGENTIC_RAG (not wired = no-op).
+
 ## Active Blockers / USER-ACTION pending (env-unset = dormant, graceful skip)
 - **DLT**: individual request REJECTED → user ko **Udyam (MSME, FREE, udyamregistration.gov.in)** cert se Proprietorship re-apply. (Udyam cert ready hai.) DLT sirf cold-calling (Advanced) ke liye.
 - **GROQ_API_KEY**: ✅ **SET** (live setup-audit confirmed) → STT "hearing" weak-link **RESOLVED**. (Memory pehle galti se 'missing' kehti thi; `scripts/setup_status.py` ne pakda.)
