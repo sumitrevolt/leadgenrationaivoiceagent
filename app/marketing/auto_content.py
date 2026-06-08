@@ -297,6 +297,20 @@ def _append_items(client_id: str, items: list[dict[str, Any]]) -> int:
     return added
 
 
+async def _recycle_fallback(client: dict[str, Any]) -> int:
+    """Aaj naye items 0 bane to evergreen recycling se queue bharo (best-effort).
+
+    Optional import — evergreen module na ho to 0 (no-op). KABHI raise nahi."""
+    try:
+        from app.marketing import evergreen  # local import (optional dep)
+
+        appended = await evergreen.recycle_for_client(client)
+        return len(appended or [])
+    except Exception as e:  # pragma: no cover
+        logger.debug(f"[auto_content] recycle fallback skip: {e}")
+        return 0
+
+
 # Built-in "self" client — LeadGen AI apni hi social media bhi roz banata hai
 # (Sumit 1-click post karke brand grow karta hai). Fixed id = idempotent seed.
 _SELF_CLIENT_ID = "leadgenai-self"
@@ -404,6 +418,10 @@ async def run_daily_content() -> dict[str, Any]:
             try:
                 items = await generate_for_client(client)
                 added = _append_items(cid, items)
+                if not added:
+                    # Aaj ke sab items dedupe ne block kiye (queue dry-ish) —
+                    # evergreen recycling se purana top content re-share karo.
+                    added = await _recycle_fallback(client)
                 if added:
                     n_clients += 1
                     total_items += added

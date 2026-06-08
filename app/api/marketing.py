@@ -36,6 +36,9 @@ Marketing API — Dhanda.app-style AI marketing tools (FREE stack).
   GET  /api/marketing/blog             — published SEO articles list
   POST /api/marketing/blog/run         — publish n new niche×city articles
   GET  /api/marketing/blog/{slug}      — one article (full content)
+  POST /api/marketing/referral         — Refer & Earn kit (code + WA + link + card)
+  GET  /api/marketing/referral/stats   — referral usage counts (?code=)
+  POST /api/marketing/evergreen/{id}   — recycle old top posts into queue
 
 Sab admin-auth (sirf /packages public hai — static pricing data, koi secret
 nahi). Generator functions kabhi raise nahi karte (template
@@ -55,6 +58,7 @@ from app.marketing import (
     content_pack,
     crm_lite,
     drip,
+    evergreen,
     festivals,
     gbp_audit,
     gbp_text,
@@ -66,6 +70,7 @@ from app.marketing import (
     posters,
     reactivation,
     reels,
+    referral_kit,
     review_kit,
     review_replies,
     seo_blog,
@@ -318,6 +323,23 @@ class BlogRunRequest(BaseModel):
     """Programmatic SEO blog — kitne naye articles publish karne hain."""
 
     n: int = Field(3, ge=1, le=25)
+
+
+class ReferralRequest(BaseModel):
+    """Refer & Earn kit request (brand colors optional — card gradient)."""
+
+    business_name: str = Field(..., min_length=1, max_length=120)
+    reward: str = Field("10% off", max_length=80)
+    referrer_name: str = Field("", max_length=80)
+    brand_primary: str = Field("", max_length=10)  # #RRGGBB
+    brand_accent: str = Field("", max_length=10)  # #RRGGBB
+
+
+class EvergreenRequest(BaseModel):
+    """Evergreen recycle request (client_id path se aata hai)."""
+
+    business_name: str = Field("", max_length=120)
+    niche: str = Field("", max_length=80)
 
 
 # --------------------------------------------------------------------------- #
@@ -1079,3 +1101,68 @@ async def get_blog_article(
     if article is None:
         raise HTTPException(status_code=404, detail="Article not found")
     return article
+
+
+# --------------------------------------------------------------------------- #
+# Referral kit (Refer & Earn — code + WA message + link + card SVG)
+# --------------------------------------------------------------------------- #
+
+
+@router.post("/referral")
+async def generate_referral_kit(
+    req: ReferralRequest,
+    current_user: User = Depends(require_admin),
+):
+    """Refer & Earn kit: referral code + WhatsApp share message + link + 1080 card."""
+    try:
+        result = referral_kit.make_referral(
+            business_name=req.business_name,
+            reward=req.reward,
+            referrer_name=req.referrer_name,
+            brand_primary=req.brand_primary,
+            brand_accent=req.brand_accent,
+        )
+        _log_isha("referral_kit_generated", f"{req.business_name} (code={result.get('code')})")
+        return result
+    except Exception as e:
+        logger.error(f"Referral kit generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Referral kit failed: {e}")
+
+
+@router.get("/referral/stats")
+async def get_referral_stats(
+    code: str = "",
+    current_user: User = Depends(require_admin),
+):
+    """Referral usage counts (code diya to us code ka, warna sab ka breakdown)."""
+    try:
+        return referral_kit.referral_stats(code or None)
+    except Exception as e:
+        logger.error(f"Referral stats failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Referral stats failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Evergreen recycling (purane top posts ko freshen karke queue me wapas)
+# --------------------------------------------------------------------------- #
+
+
+@router.post("/evergreen/{client_id}")
+async def recycle_evergreen_content(
+    client_id: str,
+    req: EvergreenRequest,
+    current_user: User = Depends(require_admin),
+):
+    """Client ke purane (21+ din) top posts ko freshen karke naye drafts queue me."""
+    try:
+        client = {
+            "id": client_id,
+            "business_name": req.business_name,
+            "niche": req.niche,
+        }
+        appended = await evergreen.recycle_for_client(client)
+        _log_isha("evergreen_recycle", f"client={client_id} ({len(appended)} re-shared)")
+        return {"recycled": len(appended), "items": appended}
+    except Exception as e:
+        logger.error(f"Evergreen recycle failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Evergreen recycle failed: {e}")

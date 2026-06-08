@@ -299,6 +299,7 @@
     <button class="tab" data-tab="reels">🎬 <span>Reels</span></button>
     <button class="tab" data-tab="hotleads">🔥 <span>Hot Leads</span></button>
     <button class="tab" data-tab="pack">📦 <span>Client Pack</span></button>
+    <button class="tab" data-tab="referral">🎁 <span>Referral</span></button>
   </div>
 </div>
 
@@ -872,6 +873,41 @@
     </div>
   </section>
 
+  <!-- ================= TAB 19: Referral (Refer & Earn) ================= -->
+  <section class="tabpane hidden" id="pane-referral">
+    <div class="card">
+      <h3>🎁 Refer &amp; Earn <span class="tag">code + card</span></h3>
+      <div class="hint">Customer apne dost ko bheje — dono ko reward. Ready referral code, WhatsApp share message, link aur ek printable card milta hai.</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="refReward">Reward (dost + referrer dono ko)</label>
+          <input id="refReward" type="text" value="10% off" placeholder="e.g. 10% off / ₹200 cashback" maxlength="80" />
+        </div>
+        <div class="fld">
+          <label for="refName">Referrer ka naam (optional)</label>
+          <input id="refName" type="text" placeholder="e.g. Ramesh" maxlength="80" />
+        </div>
+      </div>
+      <div class="btns">
+        <button class="btn" id="btnRef">🎁 Referral kit banao</button>
+      </div>
+    </div>
+    <div class="card hidden" id="refCard">
+      <h3>🎁 Aapka referral kit</h3>
+      <div class="sect">
+        <div class="sh">🔑 Referral code</div>
+        <div class="copyitem"><div class="tx" style="font-size:22px;font-weight:900;letter-spacing:2px" id="refCodeTx"></div><span id="refCodeCopy"></span></div>
+      </div>
+      <div id="refRows"></div>
+      <h4>🖼️ Referral card</h4>
+      <div id="refBox" class="svgshow"></div>
+      <div class="btns">
+        <button class="btn" id="btnRefPng">⬇ PNG Download</button>
+        <button class="btn sec" id="btnRefSvg">⬇ SVG</button>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <div id="toasts"></div>
@@ -948,7 +984,7 @@
   setHeadH();
 
   // ---- Tabs: switch + lazy init (data fetch sirf first open pe) ----------------
-  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack"];
+  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack","referral"];
   var inited = {};
   var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit, hotleads: loadLeadScores };
   document.getElementById("tabbar").addEventListener("click", function(ev){
@@ -2523,6 +2559,50 @@
     if(!packHtmlStr){ toast("Pehle pack banao", "err"); return; }
     var blob = new Blob([packHtmlStr], {type: "text/html;charset=utf-8"});
     triggerDl(URL.createObjectURL(blob), bizSlugPrefix() + "pack.html", true);
+  };
+
+  // ============================================================================
+  // TAB 19: Referral (Refer & Earn)
+  // ============================================================================
+  var refSvg = "";
+  var btnRef = document.getElementById("btnRef");
+  btnRef.onclick = async function(){
+    if(!requireName()) return;
+    setBusy(btnRef, true);
+    try{
+      var res = await callApi("/api/marketing/referral", {
+        method: "POST",
+        headers: hdrs({"Content-Type": "application/json"}),
+        body: JSON.stringify({
+          business_name: document.getElementById("bizName").value.trim(),
+          reward: document.getElementById("refReward").value.trim() || "10% off",
+          referrer_name: document.getElementById("refName").value.trim(),
+        }),
+      });
+      var code = (res && res.code) || "";
+      document.getElementById("refCodeTx").textContent = code;
+      document.getElementById("refCodeCopy").innerHTML = copyBtnHtml(code);
+      document.getElementById("refRows").innerHTML =
+        sectionHtml("💬 WhatsApp share message", res && res.wa_message) +
+        sectionHtml("🔗 Referral link", res && res.link);
+      refSvg = (res && res.card_svg) || "";
+      document.getElementById("refBox").innerHTML = refSvg; /* trusted — apna hi backend */
+      document.getElementById("refCard").classList.remove("hidden");
+      document.getElementById("refCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Referral kit ready ✓", "ok");
+    }catch(e){
+      if(e.message !== "auth") toast("Referral kit nahi bana: " + e.message, "err");
+    }finally{
+      setBusy(btnRef, false, "🎁 Referral kit banao");
+    }
+  };
+  document.getElementById("btnRefPng").onclick = function(){
+    dlSvgPng(refSvg, bizSlugPrefix() + "referral.png", 1);
+  };
+  document.getElementById("btnRefSvg").onclick = function(){
+    if(!refSvg){ toast("Pehle referral kit banao", "err"); return; }
+    var blob = new Blob([refSvg], {type: "image/svg+xml;charset=utf-8"});
+    triggerDl(URL.createObjectURL(blob), bizSlugPrefix() + "referral.svg", true);
   };
 
 })();
