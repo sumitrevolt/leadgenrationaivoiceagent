@@ -271,6 +271,14 @@
 - **GOTCHA repeat**: VPS `systemctl restart leadgen` kabhi-kabhi naya code load nahi karta (purana worker memory me) — pakka reload: `systemctl stop; pkill -9 -f uvicorn; rm -rf __pycache__; systemctl start`. Aur 2 parallel agents ne staff.py same-time edit kiya → file TRUNCATE ho gayi (run_member/run_growth gayab) → restore karna pada. Bade parallel edits same file pe mat do.
 - MCP `/mcp` intact (200). Tests green (run_member dispatch + AUTO_SEED_SELF flag fixes).
 
+## PER-CLIENT MINI-SITE /b/{slug} (2026-06-08) — research-backed upgrade
+- **Biggest pending research item built** (NowFloats/Durable style): har marketing client ka FREE mini-website + booking page. `app/marketing/mini_site.py` render_site(client) — brand-colored mobile HTML: hero(name/tagline/niche) + Call(tel:)/WhatsApp(wa.me) + About + services(niche content_focus) + **booking/enquiry form → POST /api/public/inquiry (hidden source_slug)** + Google-review QR + GBP map + socials + footer. Pure-sync, never-raise.
+- clients_store.py: unique `slug` (kebab+4char id) on add + idempotent backfill on read + `get_by_slug()`. main.py route GET /b/{slug} (render ya 404→/), sitemap me /b/{slug} URLs. public_site InquiryIn me source_slug+preferred_time (slug se client auto-resolve, jsonl+Lead notes me; rohan mini_site_inquiry event). clients.html me "🌐 Site dekho" link.
+- **customer_dashboard.py FIX**: "SunVolt Energy" sample HATA — ab real per-client data (is client ki inquiries by slug/phone + content-queue posts + swara calls) ya honest zeros (is_sample_data correct).
+- VPS verified: /b/sharma-solar-7b6f → 200, HTML me business name + wa.me + inquiry form. Tests +8 (mini_site) green.
+- **TOKEN/LIMIT note**: user weekly limit hit kar raha tha (bahut saare heavy sub-agents + lambi conversation). Aage: kam agents, naya chat per task (CLAUDE.md memory persist karti hai).
+- Ab bhi future: referral kit, evergreen recycling, missed-call callback (DID), GBP/Meta API approvals (external-blocked).
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
