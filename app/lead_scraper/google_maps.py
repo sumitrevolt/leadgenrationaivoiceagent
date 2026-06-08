@@ -293,9 +293,10 @@ class GoogleMapsScraper:
         """
         Fetch a business website and extract the first non-junk email address.
 
-        Uses a simple regex scrape over the raw HTML. Filters out placeholder
-        and asset-embedded addresses (example.com, image filenames, sentry, etc.).
-        Returns None if the site is unreachable or no usable email is found.
+        Prefers the centralized extractor (app.lead_scraper.web_extract —
+        trafilatura-backed, de-duplicated + validated); falls back to the inline
+        regex. Filters out placeholder/asset-embedded addresses. Returns None if
+        the site is unreachable or no usable email is found.
         """
         if not website:
             return None
@@ -314,7 +315,20 @@ class GoogleMapsScraper:
                 if response.status_code != 200:
                     return None
 
-                for match in self._EMAIL_RE.findall(response.text):
+                html = response.text
+
+                # Preferred: centralized extractor (dedup + validation, never raises).
+                try:
+                    from app.lead_scraper.web_extract import find_contacts
+
+                    for candidate in find_contacts(html).get("emails", []):
+                        if not any(junk in candidate for junk in self._EMAIL_JUNK):
+                            return candidate
+                except Exception:
+                    pass
+
+                # Fallback: inline regex.
+                for match in self._EMAIL_RE.findall(html):
                     candidate = match.lower()
                     if any(junk in candidate for junk in self._EMAIL_JUNK):
                         continue
