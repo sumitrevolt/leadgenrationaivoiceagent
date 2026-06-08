@@ -1,0 +1,95 @@
+"""Structured, validated LLM outputs via **Instructor** over the free providers.
+
+The marketing/automation code asks the LLM for JSON and then parses it by hand —
+which breaks when a free model adds prose or drops a field. Instructor pins the
+output to a Pydantic model and **auto-retries** until it validates, so callers get a
+typed object instead of fragile text. Works over our free OpenAI-compatible providers
+(Cerebras → Groq) via JSON mode.
+
+No env flag — it's a utility: if `instructor`/`openai` or a provider key is missing,
+``extract`` returns ``None`` and the caller keeps its existing template fallback.
+Never raises.
+
+Use:
+  from pydantic import BaseModel
+  from app.llm.structured import extract
+  class Post(BaseModel):
+      caption: str
+      hashtags: list[str]
+  post = extract(Post, system="You are a marketing writer.", user="Diwali offer post for a salon")
+  if post is None:   # deps/key missing -> fall back to existing template path
+      ...
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+from typing import Optional, Type, TypeVar
+
+logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+def _provider() -> Optional[tuple]:
+    cb = os.getenv("CEREBRAS_API_KEY")
+    if cb:
+        return "https://api.cerebras.ai/v1", cb, os.getenv("DEFAULT_LLM", "gpt-oss-120b")
+    gq = os.getenv("GROQ_API_KEY")
+    if gq:
+        return "https://api.groq.com/openai/v1", gq, "llama-3.3-70b-versatile"
+    return None
+
+
+def available() -> bool:
+    try:
+        import instructor  # noqa: F401
+        import openai  # noqa: F401
+
+        return _provider() is not None
+    except Exception:
+        return False
+
+
+def extract(
+    response_model: Type[T],
+    system: str,
+    user: str,
+    max_tokens: int = 800,
+    max_retries: int = 2,
+    temperature: float = 0.4,
+) -> Optional[T]:
+    """Return a validated `response_model` instance from a free LLM, or None.
+
+    Never raises. Caller should treat None as "use the existing template fallback".
+    """
+    prov = _provider()
+    if prov is None:
+        return None
+    base_url, api_key, model = prov
+    try:
+        import instructor
+        from openai import OpenAI
+
+        # JSON mode = works with Cerebras/Groq (they lack OpenAI tool-calling mode).
+        client = instructor.from_openai(
+            OpenAI(base_url=base_url, api_key=api_key), mode=instructor.Mode.JSON
+        )
+        return client.chat.completions.create(
+            model=model,
+            response_model=response_model,
+            max_retries=max_retries,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            messages=[
+                {"role": "system", "content": system or ""},
+                {"role": "user", "content": user},
+            ],
+        )
+    except Exception as exc:
+        logger.info("structured.extract failed (%s) — caller should use fallback", exc)
+        return None
+
+
+__all__ = ["available", "extract"]

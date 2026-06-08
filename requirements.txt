@@ -147,6 +147,10 @@ langchain-openai>=0.2  # ChatOpenAI over free OpenAI-compatible providers (Cereb
 # Lightweight entity/relation graph; uses free_ai LLM + the KB's fastembed embeddings.
 # (Agentic RAG, app/agents/agentic_rag.py, needs NO new dep — reuses KB + free_ai.)
 lightrag-hku>=1.0
+# AI-automation + marketing helpers (opt-in, defensive — graceful fallback if absent):
+instructor>=1.0     # validated/typed LLM outputs over free providers (app/llm/structured.py)
+advertools>=0.16    # SEM keyword + RSA ad generation (app/marketing/seo_tools.py)
+trafilatura>=2.0    # high-accuracy web text + contact extraction (app/lead_scraper/web_extract.py)
 fastapi-mcp>=0.3  # platform endpoints as MCP tools (/mcp)
 
 # =============================================================================
