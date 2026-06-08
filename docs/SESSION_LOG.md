@@ -299,3 +299,7 @@
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
 - .bat files me npm/git jaise .cmd tools ko `call` ke saath invoke karo warna batch wahi terminate ho jata hai. `timeout /t` non-interactive me fail hota hai — `ping -n N 127.0.0.1` use karo.
 - Desktop Commander one-liner quoting mangle karta hai — complex commands .bat file me likh ke chalao, output log file me redirect karke Read karo.
+  
+## 2026-06-08 Scheduler single-instance fix (commit 8311372)  
+- uvicorn --workers 2 dono scheduler chala rahe the = double jobs (double email/content). Fix: data/.scheduler.lock (O_EXCL + heartbeat + dead-pid reclaim) in team_scheduler.py. VPS verified: loop-started=1, skip=1. Duplicate jobs khatam.  
+- Remaining = EXTERNAL-blocked only: Insta/FB auto-post (Meta app-review), GBP auto (Google approval), cold-calls (DLT+DID). Code se complete nahi ho sakte.  
