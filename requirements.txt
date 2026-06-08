@@ -154,6 +154,9 @@ trafilatura>=2.0    # high-accuracy web text + contact extraction (app/lead_scra
 markitdown>=0.1     # any file/URL -> LLM-ready markdown (app/lead_scraper/to_markdown.py)
 # crawl4ai>=0.4     # deep LLM-friendly web crawl -> clean markdown (app/lead_scraper/deep_extract.py)
 #                     OPTIONAL/heavy: needs `crawl4ai-setup` (Chromium). Falls back to trafilatura.
+# Lead-gen data quality (competitor-grade — Hunter/Instantly verify before sending):
+email-validator>=2.0  # syntax + MX deliverability (app/lead_scraper/email_verify.py) — WIRED into auto_outreach
+phonenumbers>=8.13    # validate/format Indian mobiles (app/lead_scraper/phone_validate.py)
 fastapi-mcp>=0.3  # platform endpoints as MCP tools (/mcp)
 
 # =============================================================================

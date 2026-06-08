@@ -296,7 +296,23 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
 
 def _valid_email(addr: str) -> bool:
     a = (addr or "").strip()
-    return "@" in a and "." in a.split("@")[-1] and len(a) >= 6
+    if not ("@" in a and "." in a.split("@")[-1] and len(a) >= 6):
+        return False
+    # Deliverability gate (syntax + MX) — keeps bounce rate <2% so Gmail/Outlook don't
+    # reject our bulk mail and the sending domain stays clean. Defensive: if
+    # email-validator isn't installed, the basic check above is enough.
+    try:
+        import os
+
+        from app.lead_scraper.email_verify import verify
+
+        check_mx = os.getenv("OUTREACH_VERIFY_MX", "1").strip().lower() not in {"0", "false", "no", "off"}
+        r = verify(a, check_mx=check_mx)
+        if "absent" not in r.get("reason", ""):  # verifier actually ran -> trust it
+            return bool(r.get("ok"))
+    except Exception:
+        pass
+    return True
 
 
 # Follow-up timing: din-gaps + max touches.
