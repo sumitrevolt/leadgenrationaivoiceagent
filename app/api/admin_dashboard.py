@@ -728,19 +728,13 @@ async def get_admin_dashboard() -> DashboardResponse:
             live={},
         )
 
-    # If the relational DB has real clients/campaigns/billing, merge that richer
-    # detail (real, not sample) so DB-backed deployments still get full panels.
-    try:
-        db_view = _build_from_db()
-        if db_view is not None:
-            db_view.live = resp.live
-            db_view.is_sample_data = False
-            # Prefer DB campaigns/agents/clients when present; keep real aggregate
-            # KPIs that the file-based pipeline computed where DB has none.
-            return db_view
-    except Exception:
-        pass
-
+    # NOTE: relational clients/campaigns tables me PURANA seeded DEMO data hai
+    # (SunVolt Solar Pvt Ltd, ₹2.3L revenue) — woh override "purana data dikha
+    # raha" wali bug ki jad thi. Marketing business ka source-of-truth ab
+    # file-based aggregates (prospects/inquiries/clients_store/blog/emails) hai,
+    # isliye _build_real() ka result HI return hota hai — DB demo-seed se override
+    # NAHI. (Future: jab relational tables me asli clients aayein, _build_from_db
+    # ko sirf empty panels bharne ke liye merge karna, KPIs replace karne ke liye nahi.)
     return resp
 
 
