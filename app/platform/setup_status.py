@@ -98,6 +98,20 @@ def _has_key(name: str) -> bool:
     return bool(str(v).strip())
 
 
+def pending_actions() -> list[str]:
+    """Only the user-actions that are ACTUALLY still pending (key-based, dynamic)."""
+    out: list[str] = []
+    if not _has_key("GROQ_API_KEY"):
+        out.append("GROQ_API_KEY (console.groq.com, free) — STT hearing fix")
+    out.append("Udyam (MSME, free) cert -> DLT re-apply (cold-calling legal)")
+    if not _has_key("VOBIZ_CALLER_ID"):
+        out.append("Vobiz recharge + DID -> VOBIZ_CALLER_ID (voice cold-calls)")
+    if not _has_key("UPI_VPA"):
+        out.append("UPI_VPA (apna UPI ID) — payment modal")
+    out.append("Dedicated cold-email domain + warmup (deliverability)")
+    return out
+
+
 def audit() -> dict[str, Any]:
     flags = {k: {"on": _flag(k, dflt), "desc": desc, "default_on": dflt} for k, (desc, dflt) in FLAGS.items()}
     deps = {k: {"installed": _has_dep(k), "feature": v} for k, v in DEPS.items()}
@@ -109,7 +123,7 @@ def audit() -> dict[str, Any]:
         "flags": flags,
         "deps": deps,
         "keys": keys,
-        "user_actions": USER_ACTIONS,
+        "user_actions": pending_actions(),
         "summary": {
             "flags_on": f"{flags_on}/{len(flags)}",
             "deps_installed": f"{deps_in}/{len(deps)}",

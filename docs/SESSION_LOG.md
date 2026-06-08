@@ -408,3 +408,11 @@
 - Dormant tools (deep_extract/to_markdown/graph_rag/LightRAG) ko asli value me convert kiya + "apne liye jaise waise client ke liye" automate.
 - Sandbox: off→skipped; on→graceful error (clients_store **sandbox-mount stale** "unterminated string" FALSE-positive — Windows file intact, grep ne 170-296 functions confirm kiye; module ne error gracefully handle kiya, no crash). VPS prod_check real validate.
 - **ENABLE**: `.env AUTO_ONBOARD=1` + restart → naya marketing client minutes me KB+content auto-ready. Future: onboard pe Swara welcome call + WhatsApp welcome.
+
+## SETUP & READINESS AUDIT TOOL + live findings (2026-06-08, commit 19970b3)
+- **User: "automated SETUP ke liye aur kamiya".** Honest gap: suite complete hai par sab opt-in — kaunsa on/off/installed/set dekhne ka tareeka nahi tha. Visibility = zero.
+- **Built `app/platform/setup_status.py` + `scripts/setup_status.py`**: poora stack auto-scan → feature flags (on/off), optional deps (installed?), keys/config (set? presence-only, value kabhi print nahi), pending user-actions (dynamic) → readiness report. Read-only/never-crash. CLI: `.venv/bin/python scripts/setup_status.py`.
+- **LIVE AUDIT (VPS)**: Flags ON 3/12 (TEAM_AUTOMATION, AUTO_EMAIL_OUTREACH, OUTREACH_VERIFY_MX) · Deps 13/15 (sab installed except crawl4ai+silero_vad = intentionally optional) · Keys 7/8 (sirf UPI_VPA unset).
+- **BIG FINDING — memory GALAT thi**: **GROQ_API_KEY actually SET hai** → STT "hearing" weak-link jo CLAUDE.md mahino se 'missing' bata raha tha, woh ACTUALLY RESOLVED. NOTIFY_EMAIL bhi SET (ops-watchdog alert ready). GOOGLE_MAPS/VOBIZ_AUTH_ID/HOSTINGER/SMTP/CEREBRAS sab SET. CLAUDE.md Groq blocker corrected.
+- **Bottleneck ab CRYSTAL clear**: 9 naye automation features OFF (deps+keys ready, sirf env flags chahiye). Go-live = flags on + restart + test. UPI_VPA + dedicated email-domain + DLT(Udyam) baaki user-actions.
+- Yeh tool = "automated setup" ka meta-layer; future sessions + user kabhi bhi readiness dekh sakte.

@@ -53,7 +53,7 @@
 
 ## Active Blockers / USER-ACTION pending (env-unset = dormant, graceful skip)
 - **DLT**: individual request REJECTED → user ko **Udyam (MSME, FREE, udyamregistration.gov.in)** cert se Proprietorship re-apply. (Udyam cert ready hai.) DLT sirf cold-calling (Advanced) ke liye.
-- **GROQ_API_KEY** (console.groq.com, free no-card) → STT "hearing" fix, yahi ek cheez baki. (User ne pehle xAI/Grok diya tha galti se — DO ALAG companies.)
+- **GROQ_API_KEY**: ✅ **SET** (live setup-audit confirmed) → STT "hearing" weak-link **RESOLVED**. (Memory pehle galti se 'missing' kehti thi; `scripts/setup_status.py` ne pakda.)
 - **Vobiz telephony**: trial ~khatam. Recharge → trial number auto-remove → DID kharido → `VOBIZ_CALLER_ID=+91<DID>` (.env VPS+local) + restart. Streaming ₹0.65/min, raw-SIP ₹0.45. Cost ladder: Plivo ₹0.60 → Vobiz ₹0.45 → operator-direct ₹0.30-0.40 → VNO.
 - **UPI_VPA** (payment modal dormant tak set na ho). **NOTIFY_EMAIL** (inquiry alerts).
 - **Future (EXTERNAL-BLOCKED — user paperwork/approval, Claude build nahi kar sakta)**: missed-call callback (Vobiz DID + inbound webhook), GBP API auto-post (Google 60-din approval), Meta/FB-IG auto-posting (app-review). In par token mat jalao jab tak unlock na ho.
