@@ -42,6 +42,7 @@ class CallRequest:
     script_name: str
     lead_data: dict[str, Any]
     client_id: str = ""  # marketing client (prepaid minute metering/enforcement)
+    call_type: str = "promotional"  # "transactional" for consented inbound callbacks
     priority: int = 5  # 1 = highest, 10 = lowest
     retry_count: int = 0
     scheduled_time: datetime | None = None
@@ -159,7 +160,14 @@ class CallManager:
         try:
             from app.telephony.compliance import CallType, get_compliance_gate
 
-            decision = await get_compliance_gate().check(request.phone_number, CallType.PROMOTIONAL)
+            # Consented inbound callbacks are transactional (looser gate: window only);
+            # everything else is promotional (DND + DLT/140 + window).
+            ct = (
+                CallType.TRANSACTIONAL
+                if str(getattr(request, "call_type", "")).lower() == "transactional"
+                else CallType.PROMOTIONAL
+            )
+            decision = await get_compliance_gate().check(request.phone_number, ct)
             if not decision.allowed:
                 logger.warning(
                     f"Call to {request.phone_number} blocked by compliance: {decision.reasons}"

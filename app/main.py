@@ -235,6 +235,12 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Public site router not mounted: {_e}")
 try:
+    from app.api.booking import router as booking_router
+
+    app.include_router(booking_router, prefix="/api")  # /api/booking/* (Calendly-lite slots+book)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Booking router not mounted: {_e}")
+try:
     from app.api.clients import router as clients_router
 
     app.include_router(

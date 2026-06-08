@@ -1,0 +1,87 @@
+"""Booking API — Calendly-lite slots + booking over the existing calendar_booking engine.
+
+Thin, defensive REST surface over `app/integrations/calendar_booking.py` (Google Calendar
+when configured, else in-memory business-hours simulation). Public-friendly: a client's
+website/mini-site can list free slots and book. Never crashes (serializes whatever the
+engine returns).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
+router = APIRouter(prefix="/booking", tags=["Booking"])
+
+
+def _ser(obj: Any) -> Any:
+    """Best-effort serialize a slot / BookingResult (dataclass / .as_dict / dict / str)."""
+    try:
+        if obj is None or isinstance(obj, (str, int, float, bool, dict)):
+            return obj
+        for meth in ("as_dict", "to_dict", "dict"):
+            fn = getattr(obj, meth, None)
+            if callable(fn):
+                return fn()
+        if hasattr(obj, "__dict__"):
+            return {k: v for k, v in vars(obj).items() if not k.startswith("_")}
+        return str(obj)
+    except Exception:
+        return str(obj)
+
+
+@router.get("/slots")
+async def get_slots(date: str = "", duration_min: int = 15):
+    """Free appointment slots for a date (YYYY-MM-DD; empty = next working day)."""
+    try:
+        from app.integrations.calendar_booking import get_calendar
+
+        cal = get_calendar()
+        slots = await cal.check_availability(date or None, duration_min=max(5, min(int(duration_min), 120)))
+        return {"date": date, "slots": [_ser(s) for s in (slots or [])]}
+    except Exception as e:
+        logger.error(f"booking slots failed: {e}")
+        raise HTTPException(status_code=500, detail=f"slots failed: {e}")
+
+
+class BookIn(BaseModel):
+    slot: Any  # the slot object/dict returned by /slots (passed back as-is)
+    name: str = Field(..., min_length=1, max_length=120)
+    phone: str = Field(..., min_length=6, max_length=20)
+    notes: str = Field("", max_length=400)
+
+
+@router.post("/book")
+async def book_slot(req: BookIn):
+    """Book a slot returned by /slots. Returns the booking confirmation."""
+    try:
+        from app.integrations.calendar_booking import get_calendar
+
+        cal = get_calendar()
+        res = await cal.book_slot(req.slot, name=req.name, phone=req.phone, notes=req.notes)
+        return _ser(res)
+    except Exception as e:
+        logger.error(f"booking book failed: {e}")
+        raise HTTPException(status_code=500, detail=f"book failed: {e}")
+
+
+class CancelIn(BaseModel):
+    booking_id: str = Field(..., min_length=1, max_length=80)
+
+
+@router.post("/cancel")
+async def cancel_booking(req: CancelIn):
+    try:
+        from app.integrations.calendar_booking import get_calendar
+
+        cal = get_calendar()
+        ok = await cal.cancel(req.booking_id)
+        return {"ok": bool(ok), "booking_id": req.booking_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"cancel failed: {e}")
