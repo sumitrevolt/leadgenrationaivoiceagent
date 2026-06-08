@@ -200,7 +200,9 @@ def verify_phone_numbers(lead_ids: list[str] = None, limit: int = 100):
         import phonenumbers
 
         with get_db_session() as db:
-            query = db.query(Lead).filter(not Lead.phone_verified)
+            # `not Lead.phone_verified` is a Python bool op on a column (raises
+            # TypeError at query build). Use .is_(False) for "not yet verified".
+            query = db.query(Lead).filter(Lead.phone_verified.is_(False))
 
             if lead_ids:
                 query = query.filter(Lead.id.in_(lead_ids))

@@ -271,7 +271,14 @@ class VoicePipeline:
             return False
         if (now - self._silence_started) >= self.silence_timeout_s:
             self._silence_started = None
-            return True
+            # Combine silence-timer with Smart Turn v3 (USE_SMART_TURN=1): don't end
+            # the turn if the model says the caller only paused mid-sentence to think.
+            try:
+                from app.voice_agent.turn_detector import confirm_end_of_turn
+
+                return confirm_end_of_turn(True, item if isinstance(item, bytes) else b"")
+            except Exception:
+                return True
         return False
 
     # -- barge-in ----------------------------------------------------------

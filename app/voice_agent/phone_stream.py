@@ -343,6 +343,17 @@ class PhoneCallSession:
         except Exception:
             return
         is_speech = rms >= VAD_RMS_THRESHOLD
+        # Silero VAD gate (USE_SILERO_VAD=1): pcm8k is 8kHz PCM (Silero supports 8k/16k),
+        # so pass sample_rate=8000 to filter ambient noise/echo. None when disabled
+        # /unavailable -> keep the RMS decision.
+        try:
+            from app.voice_agent.turn_detector import get_speech_gate
+
+            _sil = get_speech_gate().is_speech(pcm8k, sample_rate=8000)
+            if _sil is not None:
+                is_speech = _sil
+        except Exception:
+            pass
 
         # Pre-roll buffer (jab tak speech officially shuru nahi hui)
         if not self._in_speech:

@@ -193,9 +193,29 @@ def get_smart_turn() -> SmartTurnDetector:
     return _smart_turn
 
 
+def confirm_end_of_turn(silence_ended: bool, pcm16: bytes = b"", sample_rate: int = 16000) -> bool:
+    """Combine the silence-timer end-of-turn with the Smart Turn v3 semantic check.
+
+    ``silence_ended=False`` -> caller still talking, return False. ``silence_ended=True``
+    -> Smart Turn (USE_SMART_TURN=1) se poochho: agar woh kahe turn ABHI complete nahi
+    (caller ne sochne ko pause liya) to False (sun-te raho, beech me mat toko); complete
+    ya uncertain/disabled (None) to silence-timer honor karo -> True. Never raises.
+    """
+    if not silence_ended:
+        return False
+    try:
+        ep = get_smart_turn().is_endpoint(pcm16, sample_rate=sample_rate)
+        if ep is False:
+            return False  # semantic: mid-sentence pause -> keep listening
+    except Exception:
+        pass
+    return True
+
+
 __all__ = [
     "SileroSpeechGate",
     "SmartTurnDetector",
     "get_speech_gate",
     "get_smart_turn",
+    "confirm_end_of_turn",
 ]

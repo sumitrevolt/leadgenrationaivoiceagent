@@ -655,6 +655,17 @@ class VobizStreamSession:
             return
         rms = _pcm_rms(pcm16)
         is_speech = rms >= self._vad_rms
+        # Silero VAD gate (USE_SILERO_VAD=1): pcm16 is raw 16kHz PCM here, so pass it
+        # straight to the gate to filter ambient noise/echo from false speech states.
+        # Returns None when disabled/unavailable -> keep the RMS decision.
+        try:
+            from app.voice_agent.turn_detector import get_speech_gate
+
+            _sil = get_speech_gate().is_speech(pcm16)
+            if _sil is not None:
+                is_speech = _sil
+        except Exception:
+            pass
         dur_ms = (len(pcm16) / 2) / SAMPLE_RATE * 1000.0  # 640 bytes == 20 ms
 
         # While we're speaking: only watch for barge-in.
