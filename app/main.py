@@ -303,6 +303,12 @@ async def customer_login_page():
     return FileResponse(str(FRONTEND_DIR / "login.html"))
 
 
+@app.get("/app/analytics", tags=["Frontend"])
+async def analytics_page():
+    """Analytics dashboard — funnel, call/lead stats, revenue (Chart.js over live-stats)."""
+    return FileResponse(str(FRONTEND_DIR / "analytics.html"))
+
+
 @app.get("/app/customer", tags=["Frontend"])
 async def customer_dashboard_page():
     """Customer dashboard (leads, calls, final qualified leads)."""
