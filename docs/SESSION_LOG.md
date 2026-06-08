@@ -440,3 +440,13 @@
 - Dono EXISTING functions compose karte (generate_post + ai_image) — additive, safe, koi risky internal edit nahi.
 - **DEPLOYED LIVE (87010b7)**: routes 223→**225** (dono registered), prod_check [OK] ALL PASSED, health prod uptime 8s.
 - Frontend next: marketing.html Posts tab `/complete-post` call kare (har post ke saath image), aur ek Variations/A-B tab.
+
+## GODMODE BATCH — chatbot + sentiment + hashtags + logo (2026-06-08, commit 7b1159d)
+- **User: "pehle aur feature add karo, fir sab wire karenge; deep research /godmode".** Research (2026 AI marketing must-haves + free tools): standout gap = AI website CHATBOT trained on business data (Tidio/Elfsight/Katrix sab bechte) — onboarding ab client KB seed karta to powerable. + sentiment, hashtag research, AI logo.
+- **4 naye features (defensive modules + endpoints, FREE-stack)**:
+  - `app/marketing/chatbot.py` + `POST /api/marketing/chatbot` — customer-facing FAQ + lead-capture bot; client KB (ns `client:<id>`) + niche + free_ai grounded; buying-intent/no-answer → number maange. Future website/WhatsApp widget ka brain.
+  - `app/marketing/sentiment.py` + `/sentiment` — reviews/feedback → rule baseline + free_ai themes/action + score.
+  - `app/marketing/hashtags.py` + `/hashtags` — niche+city trending hashtags + best-time-to-post (free_ai + template).
+  - `ai_image.logo_url()` + `/brand-logo` — AI logo (Pollinations free).
+- **DEPLOYED LIVE (7b1159d)**: routes 225→**229**, prod_check [OK] ALL PASSED, health prod uptime 8s. Sandbox-verified (chatbot/sentiment/hashtags graceful; logo stale-mount false-positive → py_compile ne real file confirm kiya).
+- **WIRING PENDING (user plan)**: frontend marketing.html me ye + ai-image/complete-post/variations ke tabs/widgets EK SAATH wire karenge. Backend ab complete (7 naye endpoints is session me: ai-image, complete-post, post-variations, chatbot, sentiment, hashtags, brand-logo).
