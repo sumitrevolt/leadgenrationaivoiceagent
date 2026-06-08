@@ -661,6 +661,38 @@ async def festival_autoschedule(req: FestivalScheduleRequest, current_user: User
         raise HTTPException(status_code=500, detail=f"Festival autoschedule failed: {e}")
 
 
+@router.get("/embed-snippet")
+async def embed_snippet(slug: str, current_user: User = Depends(require_admin)):
+    """Client website lead-capture widget ka copy-paste snippet + URLs (slug = mini-site slug)."""
+    try:
+        from app.marketing import embed_widget
+
+        s = (slug or "").strip()
+        if not s:
+            raise HTTPException(status_code=422, detail="slug zaroori hai")
+        base = embed_widget.site_base()
+        biz = ""
+        try:
+            from app.marketing.clients_store import get_by_slug
+
+            c = get_by_slug(s)
+            if c:
+                biz = str(c.get("business_name") or "")
+        except Exception:
+            pass
+        return {
+            "slug": s,
+            "business_name": biz,
+            "snippet": embed_widget.snippet(s),
+            "widget_url": f"{base}/b/{s}/widget.js",
+            "embed_url": f"{base}/b/{s}/embed",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Embed snippet failed: {e}")
+
+
 @router.get("/gbp-tips")
 async def get_gbp_tips(
     niche: str = "general",

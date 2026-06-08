@@ -618,6 +618,44 @@ async def mini_site_page(slug: str):
     return HTMLResponse(content=html)
 
 
+@app.get("/b/{slug}/embed", tags=["Frontend"], include_in_schema=False)
+async def mini_site_embed(slug: str):
+    """Iframe-able lead-capture form for a client's OWN website (embed widget content)."""
+    from fastapi.responses import HTMLResponse, RedirectResponse
+
+    client = None
+    try:
+        from app.marketing.clients_store import get_by_slug
+
+        client = get_by_slug(slug)
+    except Exception as e:
+        logger.warning(f"embed lookup failed for {slug!r}: {e}")
+    if not client:
+        return RedirectResponse(url="/", status_code=302)
+    try:
+        from app.marketing.embed_widget import embed_page_html
+
+        return HTMLResponse(content=embed_page_html(client))
+    except Exception as e:
+        logger.warning(f"embed render failed for {slug!r}: {e}")
+        return RedirectResponse(url="/", status_code=302)
+
+
+@app.get("/b/{slug}/widget.js", tags=["Frontend"], include_in_schema=False)
+async def mini_site_widget_js(slug: str):
+    """Floating lead-capture widget injector JS — client pastes one <script> line."""
+    from fastapi.responses import Response
+
+    js = "/* widget unavailable */"
+    try:
+        from app.marketing.embed_widget import widget_js
+
+        js = widget_js(slug)
+    except Exception as e:
+        logger.warning(f"widget.js failed for {slug!r}: {e}")
+    return Response(content=js, media_type="application/javascript")
+
+
 @app.websocket("/telephony/twilio/media-stream")
 async def twilio_media_stream(websocket: WebSocket):
     """Twilio Media Streams websocket → live audio bridge to the voice pipeline."""

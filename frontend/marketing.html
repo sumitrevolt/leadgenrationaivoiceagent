@@ -308,6 +308,7 @@
     <button class="tab" data-tab="hashtags">🔖 <span>Hashtags</span></button>
     <button class="tab" data-tab="logo">🏷️ <span>AI Logo</span></button>
     <button class="tab" data-tab="scheduler">📅 <span>Scheduler</span></button>
+    <button class="tab" data-tab="widget">🔌 <span>Web Widget</span></button>
   </div>
 </div>
 
@@ -524,6 +525,28 @@
     <div class="card">
       <h4 style="margin-top:0">🗓️ Scheduled posts</h4>
       <div id="schedList"><div class="empty">Abhi tak kuch schedule nahi hua.</div></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB: Website Widget ================= -->
+  <section class="tabpane hidden" id="pane-widget">
+    <div class="card">
+      <h3>🔌 Website Lead-Capture Widget</h3>
+      <div class="hint">Client ki website pe ek line paste karo — floating "Enquiry" button + form aata hai. Leads seedha dashboard me (auto-linked client ke saath).</div>
+      <div class="frm">
+        <div class="fld">
+          <label for="wgSlug">Client mini-site slug</label>
+          <input id="wgSlug" type="text" placeholder="e.g. sharma-dental-andheri" maxlength="80" />
+        </div>
+      </div>
+      <div class="btns"><button class="btn" id="btnWidgetGen">🔧 Snippet banao</button></div>
+    </div>
+    <div class="card hidden" id="wgCard">
+      <h4 style="margin-top:0">📋 Copy-paste code (client ki website me &lt;/body&gt; se pehle)</h4>
+      <div class="copyitem"><div class="tx" id="wgSnippet"></div><button class="copybtn" id="wgCopy">Copy</button></div>
+      <div class="hint" style="margin-top:10px">Live preview:</div>
+      <iframe id="wgPreview" title="widget preview" style="width:100%;max-width:380px;height:560px;border:1px solid #d4d4d8;border-radius:12px;margin-top:6px"></iframe>
+      <div class="btns"><a class="btn ghost" id="wgOpen" target="_blank" rel="noopener">↗ Embed page kholo</a></div>
     </div>
   </section>
 
@@ -1124,7 +1147,7 @@
   setHeadH();
 
   // ---- Tabs: switch + lazy init (data fetch sirf first open pe) ----------------
-  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack","referral","aiimage","complete","variations","chatbot","sentiment","hashtags","logo","scheduler"];
+  var paneIds = ["posts","audit","review","festivals","poster","wa","comp","rkit","report","react","drip","crm","upi","catalog","ads","reels","hotleads","pack","referral","aiimage","complete","variations","chatbot","sentiment","hashtags","logo","scheduler","widget"];
   var inited = {};
   var lazyInit = { audit: loadAuditQuestions, festivals: loadFestivals, poster: loadPosterTemplates, crm: crmInit, hotleads: loadLeadScores, scheduler: loadScheduler };
   document.getElementById("tabbar").addEventListener("click", function(ev){
@@ -2939,6 +2962,28 @@
   };
   var btnSchedReload = document.getElementById("btnSchedReload");
   if(btnSchedReload) btnSchedReload.onclick = function(){ loadScheduler(); };
+
+  // ============================================================================
+  // TAB: Website Widget (embeddable lead-capture snippet generator)
+  // ============================================================================
+  var btnWidgetGen = document.getElementById("btnWidgetGen");
+  if(btnWidgetGen) btnWidgetGen.onclick = async function(){
+    var slug = (document.getElementById("wgSlug").value || "").trim();
+    if(!slug){ toast("Client slug daalo pehle", "err"); return; }
+    setBusy(btnWidgetGen, true);
+    try{
+      var res = await callApi("/api/marketing/embed-snippet?slug=" + encodeURIComponent(slug), {headers: hdrs()});
+      document.getElementById("wgSnippet").textContent = (res && res.snippet) || "";
+      var pv = document.getElementById("wgPreview"); if(res && res.embed_url) pv.src = res.embed_url;
+      var op = document.getElementById("wgOpen"); if(res && res.embed_url) op.href = res.embed_url;
+      document.getElementById("wgCard").classList.remove("hidden");
+      document.getElementById("wgCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+      toast("Snippet ready ✓" + (res && res.business_name ? " — " + res.business_name : ""), "ok");
+    }catch(e){ if(e.message !== "auth") toast("Snippet fail: " + e.message, "err"); }
+    finally{ setBusy(btnWidgetGen, false, "🔧 Snippet banao"); }
+  };
+  var wgCopy = document.getElementById("wgCopy");
+  if(wgCopy) wgCopy.onclick = function(){ doCopy(document.getElementById("wgSnippet").textContent, this); };
 
 })();
 </script>
