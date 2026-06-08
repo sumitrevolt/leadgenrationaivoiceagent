@@ -1,5 +1,5 @@
 """
-Per-niche knowledge + objection playbook for all 25 niches.
+Per-niche knowledge + objection playbook for all builtin niches.
 
 `niches.py` me har niche ka TARGETING + PRICING config hai. Yeh module uska
 *conversation* counterpart hai — har niche ke liye:
@@ -603,6 +603,332 @@ NICHE_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
             "have_ca": "Achhi baat hai — ek free review karwa lijiye, ho sakta hai koi compliance ya tax saving miss ho rahi ho.",
             "expensive": "Retainer aapke business size ke hisab se hota hai — penalty aur late fees se to yeh kaafi sasta padta hai.",
             "not_now": "Koi baat nahi. Bas upcoming deadlines bata deti hoon taaki koi penalty na lage — jab chahein tab shuru karein.",
+        },
+    },
+
+    # ====================================================================== #
+    # MARKETING NICHES — local-business categories (AI-marketing services).
+    # Facts/benefits MARKETING-context me: kaunsa content chalta hai, kaunse
+    # festivals matter karte hain, GBP tips. End-customer = business owner.
+    # ====================================================================== #
+    "restaurant_cafe": {
+        "facts": [
+            "Restaurant ke liye Instagram Reels sabse zyada reach laate hain — dish videos aur kitchen behind-the-scenes best perform karte hain.",
+            "Google Business Profile pe achhe photos + reviews se 'near me' searches me aapka restaurant upar aata hai.",
+            "Diwali, New Year, Valentine's aur weekend offers ke posters se footfall aur online orders dono badhte hain.",
+            "Zomato/Swiggy ke alawa khud ka WhatsApp + Insta content direct orders laata hai (commission bachta hai).",
+            "Hum roz ka content (posts/reels/menu posters) + festival creatives + Google reviews management sab handle karte hain.",
+        ],
+        "benefits": [
+            "Roz ki dish reels aur posts — aapka time zero",
+            "Google pe 'near me' me upar dikhna",
+            "Festival offers se footfall + online orders",
+            "Reviews badhne se naye customers ka bharosa",
+        ],
+        "objections": {
+            "too_expensive": "₹100/din se kam me poora social media + posters — ek extra table bhi roz bhare to paisa vasool.",
+            "already_have": "Zomato/Swiggy commission khaate hain; hum aapka KHUD ka Insta+Google strong karte hain jisse direct order aaye — commission bache.",
+            "no_time": "Aapko kuch nahi karna — content, posters, posting sab hum karte hain; aap sirf khana banaiye.",
+        },
+    },
+    "jewellery_store": {
+        "facts": [
+            "Jewellery me Dhanteras, Diwali, Akshaya Tritiya aur wedding season sabse bada sales window — in par festival posters zaroori.",
+            "Instagram pe nayi collection ke high-quality photos/reels se walk-in enquiries badhti hain.",
+            "Google Business Profile pe trust badhana zaroori — reviews aur showroom photos se serious buyers aate hain.",
+            "Offer creatives (making-charges off, exchange offer) festival pe sabse zyada chalte hain.",
+            "Hum festival calendar ke hisab se pehle se posters + collection posts + Google reviews handle karte hain.",
+        ],
+        "benefits": [
+            "Har festival/shaadi season ke ready posters",
+            "Nayi collection Insta pe — walk-ins badhein",
+            "Google pe trust + reviews se serious buyers",
+            "Offer creatives jo sach me bikte hain",
+        ],
+        "objections": {
+            "too_expensive": "Ek bhi extra customer aaye to ₹2,999 nikal jaata hai — jewellery ticket-size badi hoti hai, ROI clear hai.",
+            "already_have": "Agency ₹15-25K leti hai; hum ₹3K me wahi festival posters + collection posts + reviews dete hain.",
+            "think_about_it": "Bilkul sochiye — tab tak main free Google Business audit karwa deti hoon, score dekh ke decide karna.",
+        },
+    },
+    "salon_spa": {
+        "facts": [
+            "Before-after reels salon ke liye #1 content hain — naye customers result dekh ke turant book karte hain.",
+            "Google reviews salon business ka sabse bada trust signal — jitne zyada utni nayi booking.",
+            "Monthly offers (bridal package, weekday discount) aur festival posters se slow days bharte hain.",
+            "Instagram + Google Business Profile dono pe regular content se 'salon near me' me upar aate hain.",
+            "Hum before-after reels, offers, festival posters aur review collection sab manage karte hain.",
+        ],
+        "benefits": [
+            "Before-after reels se direct appointments",
+            "Google reviews se naye customers ka bharosa",
+            "Monthly offers se slow days bhare",
+            "'Near me' search me upar dikhna",
+        ],
+        "objections": {
+            "too_expensive": "Mahine me 5-6 nayi appointments bhi aaye to ₹2,999 vasool — salon me repeat customer banta hai.",
+            "already_have": "Sirf post karna kaafi nahi — hum before-after reels + reviews + offers ka poora system dete hain.",
+            "no_time": "Aap customers pe focus kijiye — content, reels, posting sab hamara kaam hai.",
+        },
+    },
+    "boutique_fashion": {
+        "facts": [
+            "Boutique ke liye nayi collection ke reels aur try-on videos Insta pe sabse zyada chalte hain.",
+            "WhatsApp Status + broadcast pe naye design daalne se repeat customers turant order karte hain.",
+            "Festival aur wedding season (Navratri, Diwali, shaadi) ke offer posters peak sales laate hain.",
+            "Google Business Profile + Insta se 'boutique near me' searches me dikhna footfall badhata hai.",
+            "Hum collection posts, reels, festival posters aur WhatsApp offers sab handle karte hain.",
+        ],
+        "benefits": [
+            "Nayi collection ke reels — daily reach",
+            "WhatsApp pe direct orders",
+            "Festival offers se peak sales",
+            "'Near me' search me boutique dikhe",
+        ],
+        "objections": {
+            "too_expensive": "Ek-do extra order roz bhi ho to ₹2,999 nikal jaata hai — clothing me margin achha hota hai.",
+            "already_have": "Khud post karna time-consuming hai; hum daily content + reels + WhatsApp offers professionally karte hain.",
+            "no_time": "Aap design aur store sambhaliye — Insta, reels aur WhatsApp marketing hum karenge.",
+        },
+    },
+    "gym_fitness": {
+        "facts": [
+            "Member transformation reels gym ke liye sabse powerful content hain — log result dekh ke join karte hain.",
+            "January (New-Year resolution) aur season-start pe joining offers sabse zyada chalte hain — posters zaroori.",
+            "Google reviews + Business Profile se 'gym near me' searches me upar aate hain.",
+            "Regular fitness tips aur class reels se members engaged rehte hain (renewals badhte hain).",
+            "Hum transformation reels, offer posters, reviews aur regular posts sab manage karte hain.",
+        ],
+        "benefits": [
+            "Transformation reels se nayi joinings",
+            "New-Year/season offers se member surge",
+            "Google reviews se trust + 'near me' ranking",
+            "Engagement se renewals badhein",
+        ],
+        "objections": {
+            "too_expensive": "Ek membership ₹2,999 se zyada hoti hai — mahine me 1-2 nayi joining bhi aaye to faayda.",
+            "already_have": "Sirf posting nahi — hum transformation reels + offers + reviews ka poora system dete hain.",
+            "no_time": "Aap training pe focus kijiye — content, reels aur offers hum sambhalenge.",
+        },
+    },
+    "bakery_sweets": {
+        "facts": [
+            "Festival (Diwali, Raksha Bandhan, Holi) ke mithai/cake posters bakery ke liye sabse bada sales driver hain.",
+            "Cake aur dessert ke close-up reels Instagram pe khoob reach laate hain — orders direct aate hain.",
+            "Google Business Profile pe photos + reviews se 'cake shop near me' me upar aate hain.",
+            "Birthday/anniversary cake offers aur custom-order posts repeat customers laate hain.",
+            "Hum festival posters, product reels, offers aur Google reviews sab handle karte hain.",
+        ],
+        "benefits": [
+            "Festival mithai/cake posters se order surge",
+            "Dessert reels se direct enquiries",
+            "Google pe 'near me' me dikhna",
+            "Custom-order posts se repeat business",
+        ],
+        "objections": {
+            "too_expensive": "Festival pe hi ₹2,999 se zyada extra orders aa jaate hain — saal bhar ki marketing ka faayda.",
+            "already_have": "Hum festival calendar ke hisab se pehle se posters + reels banate hain — aap kuch miss nahi karte.",
+            "no_time": "Aap baking pe dhyaan dijiye — posters, reels aur posting hamara kaam.",
+        },
+    },
+    "mobile_electronics": {
+        "facts": [
+            "Mobile shop ke liye naye launch + EMI/exchange offer ke posters sabse zyada footfall laate hain.",
+            "Festival sale (Diwali, Republic Day, Independence Day) pe offer creatives peak sales window hai.",
+            "Google Business Profile pe shop dikhna zaroori — log 'mobile shop near me' search karke aate hain.",
+            "WhatsApp broadcast pe naye stock/offers daalne se purane customers wapas aate hain.",
+            "Hum offer posters, new-arrival posts, festival creatives aur Google listing sab manage karte hain.",
+        ],
+        "benefits": [
+            "Launch + offer posters se footfall",
+            "Festival sale creatives — peak orders",
+            "'Near me' search me shop dikhe",
+            "WhatsApp offers se repeat customers",
+        ],
+        "objections": {
+            "too_expensive": "Ek phone ka margin se hi ₹2,999 nikal aata hai — mahine me kuch extra customers = clear profit.",
+            "already_have": "Sirf board lagana kaafi nahi — online (Google+Insta+WhatsApp) pe dikhna aaj zaroori hai, wahi hum karte hain.",
+            "no_time": "Aap shop chalaiye — posters, posts aur Google listing hum sambhalenge.",
+        },
+    },
+    "hotel_resort": {
+        "facts": [
+            "Hotel/resort ke liye property ke reels aur Google reviews booking ka sabse bada source hain.",
+            "Festival aur season packages (New Year, weekend getaway, wedding) ke posters direct bookings laate hain.",
+            "Google Business Profile pe achhe photos + ratings se 'hotel near me' searches me upar aate hain.",
+            "Instagram pe rooms, food aur views ke reels se family aur event bookings badhti hain.",
+            "Hum venue reels, festival/season posters, reviews aur Google listing sab handle karte hain.",
+        ],
+        "benefits": [
+            "Property reels se direct bookings",
+            "Season/festival package posters",
+            "Google reviews + 'near me' ranking",
+            "Event aur family bookings badhein",
+        ],
+        "objections": {
+            "too_expensive": "Ek booking se hi ₹2,999 se zyada milta hai — mahine me 1-2 extra booking = profit.",
+            "already_have": "OTA commission khaate hain; hum aapka direct Insta+Google strong karte hain jisse commission-free booking aaye.",
+            "no_time": "Aap guests sambhaliye — content, reels aur listing hum manage karenge.",
+        },
+    },
+    "automobile_service": {
+        "facts": [
+            "Car/bike service ke liye Google Business Profile #1 lever hai — log 'car service near me' search karke aate hain.",
+            "Seasonal-check (monsoon/summer AC) aur service-package offer ke posters footfall laate hain.",
+            "Google reviews trust banate hain — zyada reviews = zyada walk-ins.",
+            "Before-after detailing reels aur quick-tips content Insta pe engagement laate hain.",
+            "Hum service-offer posters, festival creatives, Google listing aur reviews sab handle karte hain.",
+        ],
+        "benefits": [
+            "Google 'near me' me garage dikhe",
+            "Seasonal + package offers se footfall",
+            "Reviews se naye customers ka bharosa",
+            "Detailing reels se engagement",
+        ],
+        "objections": {
+            "too_expensive": "Mahine me kuch extra services bhi aaye to ₹2,999 nikal jaata hai — repeat customer banta hai.",
+            "already_have": "Google pe sahi se dikhna aur reviews manage karna alag skill hai — wahi hum professionally karte hain.",
+            "no_time": "Aap gaadiyon pe focus kijiye — Google listing, posters aur reviews hum sambhalenge.",
+        },
+    },
+    "photography_studio": {
+        "facts": [
+            "Photography studio ke liye best shoots ke portfolio reels Insta pe sabse zyada bookings laate hain.",
+            "Wedding season ke offer posters aur package creatives peak enquiry window me kaam aate hain.",
+            "Google Business Profile + reviews se 'photographer near me' searches me dikhna footfall laata hai.",
+            "Behind-the-scenes aur client-testimonial reels trust badhate hain.",
+            "Hum portfolio reels, festival/wedding posters, reviews aur Google listing sab handle karte hain.",
+        ],
+        "benefits": [
+            "Portfolio reels se wedding bookings",
+            "Season package posters",
+            "Google reviews + 'near me' ranking",
+            "Testimonial reels se trust",
+        ],
+        "objections": {
+            "too_expensive": "Ek shoot ka package se hi ₹2,999 se kahin zyada milta hai — ek booking = profit.",
+            "already_have": "Sirf photos daalna kaafi nahi — reels, SEO aur reviews ka poora system bookings laata hai, wahi hum dete hain.",
+            "no_time": "Aap shoots pe focus kijiye — reels, posters aur posting hum karenge.",
+        },
+    },
+    "pharmacy_medical": {
+        "facts": [
+            "Pharmacy ke liye Google Business Profile #1 lever hai — log 'medical store near me' / '24-hour pharmacy' search karte hain.",
+            "Home-delivery offer ko Google + WhatsApp pe highlight karne se orders badhte hain.",
+            "Health-day posts (Diabetes Day, Heart Day) aur seasonal tips se community engagement banta hai.",
+            "Google reviews trust badhate hain — medical me bharosa sabse important.",
+            "Hum Google listing optimization, health-day posts, delivery offers aur reviews sab handle karte hain.",
+        ],
+        "benefits": [
+            "Google 'near me' me store dikhe",
+            "Home-delivery enquiries badhein",
+            "Health-day posts se engagement",
+            "Reviews se medical-trust",
+        ],
+        "objections": {
+            "too_expensive": "Ek mahine me kuch extra delivery customers bhi aaye to ₹2,999 nikal jaata hai.",
+            "already_have": "Google pe sahi se dikhna aur delivery promote karna alag kaam hai — wahi hum karte hain.",
+            "no_time": "Aap dukaan chalaiye — Google listing, posts aur reviews hum sambhalenge.",
+        },
+    },
+    "furniture_decor": {
+        "facts": [
+            "Furniture showroom ke liye product catalog posters aur naye-design reels Insta pe footfall laate hain.",
+            "Festival aur wedding-season offers (gruha-pravesh, Diwali) ke posters peak sales window hain.",
+            "Google Business Profile pe showroom photos + reviews se 'furniture shop near me' me upar aate hain.",
+            "WhatsApp pe naya stock/catalog bhejne se enquiries direct aati hain.",
+            "Hum catalog posters, product reels, festival offers aur Google listing sab handle karte hain.",
+        ],
+        "benefits": [
+            "Catalog posters + reels se footfall",
+            "Festival/wedding offers se sales",
+            "Google 'near me' me showroom dikhe",
+            "WhatsApp catalog se enquiries",
+        ],
+        "objections": {
+            "too_expensive": "Furniture ka ek sale margin se hi ₹2,999 nikal aata hai — kuch extra footfall = profit.",
+            "already_have": "Sirf board kaafi nahi — Insta catalog, reels aur Google listing aaj zaroori hain, wahi hum karte hain.",
+            "no_time": "Aap showroom sambhaliye — catalog, posters aur posting hum karenge.",
+        },
+    },
+    "kirana_supermarket": {
+        "facts": [
+            "Kirana/supermarket ke liye weekly WhatsApp offers repeat footfall ka sabse sasta tarika hain.",
+            "Festival aur monthly grocery offer posters se customers planned shopping aapke yahan karte hain.",
+            "Google Business Profile pe store dikhna zaroori — naye log 'grocery near me' / 'supermarket near me' search karte hain.",
+            "WhatsApp broadcast pe combo/discount daalne se home-delivery orders badhte hain.",
+            "Hum WhatsApp offer creatives, festival posters aur Google listing sab handle karte hain.",
+        ],
+        "benefits": [
+            "Weekly WhatsApp offers se repeat footfall",
+            "Festival posters se planned shopping",
+            "Google 'near me' me store dikhe",
+            "Home-delivery orders badhein",
+        ],
+        "objections": {
+            "too_expensive": "Mahine me kuch extra repeat customers bhi rahein to ₹2,999 aaram se nikal jaata hai.",
+            "already_have": "WhatsApp pe sirf forward karna alag baat hai — hum professional offer creatives + Google listing dete hain.",
+            "no_time": "Aap dukaan chalaiye — offers, posters aur WhatsApp marketing hum sambhalenge.",
+        },
+    },
+    "travel_agency": {
+        "facts": [
+            "Travel agency ke liye season package posters (summer hills, Diwali break, honeymoon) sabse zyada enquiries laate hain.",
+            "Destination reels aur customer-trip photos Insta pe trust aur bookings badhate hain.",
+            "Google Business Profile + reviews se 'travel agent near me' searches me dikhna zaroori.",
+            "WhatsApp broadcast pe naye packages bhejne se repeat travellers turant pooch-taach karte hain.",
+            "Hum package posters, destination reels, offers aur Google listing sab handle karte hain.",
+        ],
+        "benefits": [
+            "Season package posters se enquiries",
+            "Destination reels se bookings",
+            "Google reviews + 'near me' ranking",
+            "WhatsApp offers se repeat travellers",
+        ],
+        "objections": {
+            "too_expensive": "Ek package booking se hi ₹2,999 se kahin zyada commission milta hai — ek booking = profit.",
+            "already_have": "Sirf forward karna nahi — hum professional posters, reels aur Google presence ka system dete hain.",
+            "no_time": "Aap bookings sambhaliye — posters, reels aur posting hum karenge.",
+        },
+    },
+    "gift_stationery": {
+        "facts": [
+            "Gift/stationery shop ke liye occasion posters (Rakhi, Diwali, Valentine's, back-to-school) sabse zyada footfall laate hain.",
+            "Naye gift items aur hampers ke Insta/WhatsApp posts se customers aapki shop yaad rakhte hain.",
+            "Google Business Profile pe dikhna zaroori — log 'gift shop near me' search karke aate hain.",
+            "Festival combo aur offer creatives peak occasion pe sabse zyada chalte hain.",
+            "Hum festival/occasion posters, product posts aur Google listing sab handle karte hain.",
+        ],
+        "benefits": [
+            "Occasion posters se footfall",
+            "Naye items ke posts se recall",
+            "Google 'near me' me shop dikhe",
+            "Festival combos se peak sales",
+        ],
+        "objections": {
+            "too_expensive": "Festival season me hi ₹2,999 se zyada extra sale ho jaati hai — saal bhar ka faayda.",
+            "already_have": "Hum occasion-calendar ke hisab se pehle se posters banate hain — aap koi festival miss nahi karte.",
+            "no_time": "Aap shop sambhaliye — posters, posts aur Google listing hum karenge.",
+        },
+    },
+    "hardware_paint": {
+        "facts": [
+            "Hardware/paint shop ke liye Google Business Profile #1 lever hai — contractors aur ghar-wale 'hardware shop near me' search karte hain.",
+            "Offer aur naye-product posters (paint combo, festival discount) footfall laate hain.",
+            "Festival aur construction-season (gruha-pravesh, renovation) ke posters peak enquiry window hain.",
+            "Google reviews aur shop photos se trust badhta hai — bade orders aate hain.",
+            "Hum offer posters, festival creatives, product posts aur Google listing sab handle karte hain.",
+        ],
+        "benefits": [
+            "Google 'near me' me dukaan dikhe",
+            "Offer + product posters se footfall",
+            "Festival/season posters se bade orders",
+            "Reviews se contractor-trust",
+        ],
+        "objections": {
+            "too_expensive": "Ek-do bade order se hi ₹2,999 nikal jaata hai — contractor repeat customer banta hai.",
+            "already_have": "Google pe sahi dikhna aur reviews manage karna alag kaam hai — wahi hum professionally karte hain.",
+            "no_time": "Aap dukaan chalaiye — Google listing, posters aur posts hum sambhalenge.",
         },
     },
 }
