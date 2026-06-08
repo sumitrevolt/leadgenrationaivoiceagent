@@ -29,6 +29,9 @@ PAYLOAD = {
     ],
 }
 
+# Delete ALL _dmarc TXT records (used by `fix` to collapse duplicates back to one).
+DELETE_PAYLOAD = {"filters": [{"name": "_dmarc", "type": "TXT"}]}
+
 
 def _token() -> str:
     t = os.environ.get("HOSTINGER_API_TOKEN")
@@ -91,6 +94,15 @@ def main():
     elif cmd == "put":
         st, body = _req("PUT", BASE, PAYLOAD)
         print("PUT status", st, "->", body[:600])
+    elif cmd == "delete":
+        st, body = _req("DELETE", BASE, DELETE_PAYLOAD)
+        print("DELETE status", st, "->", body[:600])
+    elif cmd == "fix":
+        # collapse _dmarc to exactly one correct record: delete all, then add one.
+        st, body = _req("DELETE", BASE, DELETE_PAYLOAD)
+        print("DELETE status", st, "->", body[:300])
+        st2, body2 = _req("PUT", BASE, PAYLOAD)
+        print("PUT status", st2, "->", body2[:300])
     else:
         print("unknown cmd:", cmd)
 
