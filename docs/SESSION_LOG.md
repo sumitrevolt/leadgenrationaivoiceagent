@@ -373,3 +373,12 @@
 - **Doc**: `docs/LeadGen_Competitor_Repos.md` — competitor feature matrix → repo map, 2026 deliverability rules, done-for-you client pipeline (niche→prospect→enrich→VERIFY→score→outreach), next gaps.
 - **DEPLOYED LIVE (c76d512)**: py_compile OK → push → VPS restart (active, /health prod uptime 6s) → email-validator+phonenumbers install EXIT_PIP=0 + import EXIT_IMPORT=0 → **prod_check [OK] ALL CHECKS PASSED (app.main OK incl. auto_outreach edit, 222 routes)** → health 16s. Sandbox-verified graceful (valid/invalid/role-skip + phone E.164).
 - **USER ACTION (highest-ROI next)**: SPF/DKIM/DMARC leadsgenai.in DNS pe set karo (bina iske bulk reject ho sakta) + dedicated cold-email domain (primary mat jalao) + warmup. Apollo-jaisa contact DB paid — hum scraping+verify se free-stack me competitor-grade.
+
+## EMAIL AUTH via Hostinger DNS API (2026-06-08) — already set + DMARC reporting added
+- **User: "do it yourself using hosting APIs" (SPF/DKIM/DMARC).** Investigate-first (live DNS modify = risky).
+- **FINDING: sab PEHLE SE SET tha** (Hostinger auto jab email provision hua): SPF `v=spf1 include:_spf.mail.hostinger.com ~all`; DKIM 3 CNAMEs (hostingermail-a/b/c._domainkey → real live RSA key); DMARC `p=none`; MX mx1/mx2. dns.google + Hostinger API GET dono se verified → email auth 100% complete tha. Wo "gap" galat flag tha.
+- **Tool**: `scripts/hostinger_dns.py` — Hostinger DNS API helper (GET/validate/put/delete/fix). Token /opt/leadgen/.env se read (kabhi print nahi). **Cloudflare err-1010 (browser_signature_banned) fix: real browser User-Agent header** (default python-urllib UA banned). HOSTINGER_API_TOKEN DNS-scoped (GET 200).
+- **Improvement applied**: DMARC ab `v=DMARC1; p=none; rua=mailto:admin@leadsgenai.in; fo=1` (aggregate reports on; p=none = zero delivery impact). validate (200) → put.
+- **GOTCHA hit+fixed**: Hostinger PUT `overwrite=false` REPLACE nahi ADD karta → _dmarc pe 2 TXT ban gaye (RFC 7489: multiple DMARC = DMARC IGNORED!). Fix = `fix` cmd: DELETE filters[{name:_dmarc,type:TXT}] (dono hata) + PUT (ek correct). GET confirm: _dmarc ab ONE record, SPF/DKIM/MX untouched. **`overwrite=true` KABHI mat use karo** — zone me A/NS/www/etc bhi hain, partial overwrite = site down.
+- Propagation: TTL 3600 (~1hr world tak); authoritative abhi correct.
+- **Next deliverability (USER/infra, code nahi)**: dedicated cold-email domain + warmup (primary domain mat jalao). Auth ab done.
