@@ -256,6 +256,13 @@
 - **STATUS: poora outreach loop ab automated** — scrape (9:30) → personalized pitch (real Google data) → email send (10:30). + auto-content (7:00), audit funnel, digest (8:30), backups, QA/trainer. Sirf WhatsApp send + payment 1-click (ban/safety).
 - **SECURITY GOTCHA**: email password kabhi CLAUDE.md/scripts me mat likho (git push hota hai) — sirf .env. GitHub push-protection arbitrary passwords nahi pakadta, isliye manual dhyan.
 
+## MORE MARKETING CHANNELS (2026-06-08) — SEO blog + email follow-ups + self-brand
+- **User: "aur tarah se marketing karo".** 3 naye automated channels (sab free, no-ban):
+- **Programmatic SEO blog** `app/marketing/seo_blog.py`: niche×city evergreen Hinglish articles (free_ai LLM + never-empty template, real tips from content_focus, CTA to /audit+WA). data/blog/<slug>.json. Routes /blog (list) + /blog/{slug} (article, SEO meta). **/sitemap.xml ab DYNAMIC** (sab blog slugs include). Daily 06:30 IST job "blog" → run_daily_blog(3) (Isha). API /api/marketing/blog (list/run/get). VPS verified: 2 articles publish, /blog 200.
+- **Email follow-up sequences** auto_outreach.py: `run_email_followups()` — emailed prospects jo reply na karein → Day-3 followup#1 + Day-7 followup#2 (alag subject/body, followup_count<2). 10:30 IST job ab run_email_outreach() + run_email_followups() dono chalata. API /email-followups/run.
+- **Self-brand auto-content**: auto_content.run_daily_content() ab LeadGen AI ka apna client (id leadgenai-self, ai_marketing, violet) auto-seed karta (idempotent) → hamari OWN brand ki daily social content bhi queue me. Flag `AUTO_SEED_SELF` (tests off karke pure-loop test karte; 2 test_clients tests monkeypatch se fix).
+- Full auto channel stack ab: SEO blog (06:30) + self+client content (07:00) + digest (08:30) + scrape (09:30) + email outreach+followups (10:30) + QA/trainer/ops/backups raat ko. Inbound: landing + /audit + /blog. Outbound: email auto, WhatsApp 1-click.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
