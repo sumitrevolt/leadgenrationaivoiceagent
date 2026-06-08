@@ -540,6 +540,21 @@ async def run_content() -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# isha — programmatic SEO blog (run_daily_blog wrapper)
+# --------------------------------------------------------------------------- #
+async def run_blog(n: int = 3) -> Dict[str, Any]:
+    """n naye niche×city SEO articles publish karo (/blog + sitemap me aate).
+    Free LLM, template fallback. Import-safe, KABHI raise nahi."""
+    try:
+        from app.marketing import seo_blog
+
+        return await seo_blog.run_daily_blog(n)
+    except Exception as e:
+        logger.warning(f"[staff] run_blog failed: {e}")
+        return {"error": str(e)}
+
+
+# --------------------------------------------------------------------------- #
 # rohan — automated email outreach (run_email_outreach wrapper)
 # --------------------------------------------------------------------------- #
 async def run_email_outreach() -> Dict[str, Any]:
@@ -558,7 +573,7 @@ async def run_email_outreach() -> Dict[str, Any]:
 # Dispatcher
 # --------------------------------------------------------------------------- #
 async def run_member(key: str) -> Dict[str, Any]:
-    """Staff member ka job manually chalao — arjun/meera/kavya/manager(digest)/isha(content)/email_outreach."""
+    """Staff member ka job manually chalao — arjun/meera/kavya/manager(digest)/isha(content)/blog/email_outreach."""
     try:
         jobs = {
             "arjun": run_qa,
@@ -568,6 +583,7 @@ async def run_member(key: str) -> Dict[str, Any]:
             "digest": run_digest,
             "isha": run_content,
             "content": run_content,
+            "blog": run_blog,
             "email_outreach": run_email_outreach,
         }
         fn = jobs.get((key or "").strip().lower())
@@ -579,4 +595,4 @@ async def run_member(key: str) -> Dict[str, Any]:
 
 
 __all__ = ["SCRIPTS", "BANNED", "run_qa", "run_trainer", "run_ops", "run_digest",
-           "run_content", "run_email_outreach", "run_member"]
+           "run_content", "run_blog", "run_email_outreach", "run_member"]

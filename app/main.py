@@ -337,8 +337,228 @@ async def robots_txt():
 
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml():
-    """SEO: sitemap.xml at root with explicit application/xml media type."""
-    return FileResponse(str(_website_dir / "sitemap.xml"), media_type="application/xml")
+    """SEO: DYNAMIC sitemap — static pages + every published /blog/{slug}.
+
+    Programmatic SEO blog ke saare articles yahan auto-include hote hain taaki
+    Google unhe crawl kare. base URL CORS origin / request host se nikalti hai.
+    """
+    from fastapi.responses import Response
+    from xml.sax.saxutils import escape as _xesc
+
+    # base URL (production domain pehle; warna request host)
+    base = "https://leadsgenai.in"
+    try:
+        origins = settings.cors_origins or []
+        for o in origins:
+            if o and o.startswith("http") and "*" not in o:
+                base = o.rstrip("/")
+                break
+    except Exception:
+        pass
+
+    static_paths = ["/", "/audit", "/app/test-call", "/privacy", "/terms", "/refund"]
+    urls: list[str] = list(static_paths)
+    try:
+        from app.marketing import seo_blog
+
+        for slug in seo_blog.all_slugs():
+            if slug:
+                urls.append(f"/blog/{slug}")
+    except Exception as e:  # blog module missing => sirf static pages
+        logger.debug(f"sitemap blog slugs skipped: {e}")
+
+    items = "\n".join(
+        f"  <url><loc>{_xesc(base + p)}</loc></url>" for p in urls
+    )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{items}\n"
+        "</urlset>\n"
+    )
+    return Response(content=xml, media_type="application/xml")
+
+
+# ---------------------------------------------------------------------------
+# Programmatic SEO blog — auto-published niche articles (inbound lead magnet)
+# ---------------------------------------------------------------------------
+_BLOG_CSS = """
+:root{--indigo:#4f46e5;--violet:#7c3aed;--ink:#0f1024;--muted:#64647e;
+--bg:#fff;--bg-soft:#f6f6fb;--line:#e8e8f2;--radius:16px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+color:var(--ink);background:var(--bg);line-height:1.7;-webkit-font-smoothing:antialiased}
+a{color:var(--indigo);text-decoration:none}
+.wrap{max-width:760px;margin:0 auto;padding:0 20px}
+header.nav{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.9);
+backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:64px;
+max-width:760px;margin:0 auto;padding:0 20px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.15rem;
+font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--ink)}
+.brand .logo{width:32px;height:32px;border-radius:9px;
+background:linear-gradient(135deg,var(--indigo),var(--violet));display:grid;
+place-items:center;color:#fff;font-weight:800}
+.btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:.92rem;
+padding:11px 18px;border-radius:11px;cursor:pointer;border:1.5px solid transparent}
+.btn-primary{background:linear-gradient(135deg,var(--indigo),var(--violet));color:#fff;
+box-shadow:0 16px 40px -18px rgba(79,70,229,.5)}
+.btn-ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+h1,h2,h3{font-family:'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:-.02em;
+line-height:1.2;color:var(--ink)}
+.lead{padding:40px 0 16px}
+.lead h1{font-size:clamp(1.6rem,4.5vw,2.4rem);font-weight:800;margin-bottom:10px}
+.lead p.sub{color:var(--muted);font-size:1.05rem}
+article h2{font-size:1.3rem;font-weight:700;margin:30px 0 10px}
+article p{margin:0 0 14px;color:#23243f}
+.meta{color:var(--muted);font-size:.86rem;margin-bottom:6px}
+.cardlist{display:grid;gap:16px;padding:24px 0 60px}
+.card{display:block;background:#fff;border:1px solid var(--line);border-radius:var(--radius);
+padding:20px 22px;transition:transform .2s,box-shadow .2s,border-color .2s}
+.card:hover{transform:translateY(-3px);box-shadow:0 16px 40px -22px rgba(15,16,36,.3);
+border-color:#818cf8}
+.card h3{font-size:1.12rem;margin-bottom:6px;color:var(--ink)}
+.card p{color:var(--muted);font-size:.94rem;margin:0}
+.card .tag{display:inline-block;font-size:.72rem;font-weight:600;color:var(--indigo);
+background:#eef0ff;padding:3px 10px;border-radius:999px;margin-bottom:10px}
+.cta-box{margin:34px 0 56px;padding:26px;border-radius:18px;
+background:linear-gradient(135deg,#eef0ff,#f6f0ff);border:1px solid var(--line)}
+.cta-box h3{font-size:1.2rem;margin-bottom:8px}
+.cta-box p{color:var(--muted);margin-bottom:16px}
+.cta-row{display:flex;gap:12px;flex-wrap:wrap}
+footer{border-top:1px solid var(--line);padding:26px 0;color:var(--muted);font-size:.86rem}
+.empty{padding:60px 0;text-align:center;color:var(--muted)}
+"""
+
+_BLOG_FONTS = (
+    '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    '<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&'
+    'family=Inter:wght@400;500;600&display=swap" rel="stylesheet">'
+)
+
+
+def _blog_header() -> str:
+    return (
+        '<header class="nav"><div class="nav-inner">'
+        '<a href="/" class="brand"><span class="logo">L</span>LeadGen AI</a>'
+        '<a href="/audit" class="btn btn-primary">FREE Google Audit</a>'
+        '</div></header>'
+    )
+
+
+def _blog_footer() -> str:
+    return (
+        '<footer><div class="wrap">© LeadGen AI — AI Marketing for Indian businesses · '
+        '<a href="/">Home</a> · <a href="/blog">Blog</a> · '
+        '<a href="/audit">Free Audit</a> · '
+        '<a href="https://wa.me/918459012607">WhatsApp</a></div></footer>'
+    )
+
+
+def _cta_box() -> str:
+    return (
+        '<div class="cta-box"><h3>Apni marketing badhani hai?</h3>'
+        '<p>2 minute me free Google audit lijiye — hum batayenge kahan kami hai aur '
+        'kaise theek karein. Bilkul free.</p><div class="cta-row">'
+        '<a href="/audit" class="btn btn-primary">🚀 FREE Audit nikalo</a>'
+        '<a href="https://wa.me/918459012607" class="btn btn-ghost">💬 WhatsApp pe baat karo</a>'
+        '</div></div>'
+    )
+
+
+@app.get("/blog", tags=["Frontend"], include_in_schema=False)
+async def blog_index():
+    """Programmatic SEO blog — sab articles ki list (newest first)."""
+    from fastapi.responses import HTMLResponse
+    from html import escape as _h
+
+    articles = []
+    try:
+        from app.marketing import seo_blog
+
+        articles = seo_blog.list_articles(limit=300)
+    except Exception as e:
+        logger.warning(f"blog index list failed: {e}")
+
+    cards = []
+    for a in articles:
+        slug = _h(str(a.get("slug") or ""))
+        title = _h(str(a.get("title") or slug))
+        meta = _h(str(a.get("meta_description") or ""))
+        niche = _h(str(a.get("niche") or "").replace("_", " ").title())
+        city = _h(str(a.get("city") or ""))
+        tag = f"{niche}{(' · ' + city) if city else ''}" or "Marketing"
+        cards.append(
+            f'<a class="card" href="/blog/{slug}">'
+            f'<span class="tag">{tag}</span>'
+            f'<h3>{title}</h3><p>{meta}</p></a>'
+        )
+    body = (
+        "".join(cards) if cards
+        else '<div class="empty">Abhi koi article publish nahi hua — jald aa raha hai!</div>'
+    )
+
+    html = (
+        "<!DOCTYPE html><html lang=\"en-IN\"><head><meta charset=\"UTF-8\">"
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        "<title>Marketing Blog — Local Business Tips (Hinglish) | LeadGen AI</title>"
+        '<meta name="description" content="Local business marketing tips Hinglish me — '
+        'Instagram, Google Business Profile, festival posters, WhatsApp aur reviews. '
+        'Restaurant, salon, real estate aur 40+ niches ke liye free guides.">'
+        f'<link rel="canonical" href="/blog">{_BLOG_FONTS}'
+        f"<style>{_BLOG_CSS}</style></head><body>"
+        f"{_blog_header()}"
+        '<div class="wrap"><div class="lead">'
+        "<h1>Marketing Blog — Local Business Growth Tips</h1>"
+        '<p class="sub">Instagram, Google, festival posters, WhatsApp aur reviews — '
+        "har niche ke liye free, kaam ki Hinglish guides.</p></div>"
+        f'<div class="cardlist">{body}</div>'
+        f"{_cta_box()}</div>{_blog_footer()}</body></html>"
+    )
+    return HTMLResponse(content=html)
+
+
+@app.get("/blog/{slug}", tags=["Frontend"], include_in_schema=False)
+async def blog_article(slug: str):
+    """Ek SEO article render karo (404-safe → /blog redirect)."""
+    from fastapi.responses import HTMLResponse, RedirectResponse
+    from html import escape as _h
+
+    article = None
+    try:
+        from app.marketing import seo_blog
+
+        article = seo_blog.get_article(slug)
+    except Exception as e:
+        logger.warning(f"blog article load failed: {e}")
+    if not article:
+        return RedirectResponse(url="/blog", status_code=302)
+
+    title = _h(str(article.get("title") or "Article"))
+    meta = _h(str(article.get("meta_description") or ""))
+    niche = _h(str(article.get("niche") or "").replace("_", " ").title())
+    city = _h(str(article.get("city") or ""))
+    created = _h(str(article.get("created_at") or "")[:10])
+    body_html = str(article.get("html_body") or "")  # trusted: our generator, clean <h2>/<p>
+    crumb = f"{niche}{(' · ' + city) if city else ''}"
+
+    html = (
+        "<!DOCTYPE html><html lang=\"en-IN\"><head><meta charset=\"UTF-8\">"
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+        f"<title>{title} | LeadGen AI</title>"
+        f'<meta name="description" content="{meta}">'
+        f'<link rel="canonical" href="/blog/{_h(slug)}">{_BLOG_FONTS}'
+        f"<style>{_BLOG_CSS}</style></head><body>"
+        f"{_blog_header()}"
+        '<div class="wrap"><div class="lead">'
+        f'<p class="meta">{crumb}{(" · " + created) if created else ""} · '
+        '<a href="/blog">← Sab articles</a></p>'
+        f"<h1>{title}</h1></div>"
+        f"<article>{body_html}</article>"
+        f"{_cta_box()}</div>{_blog_footer()}</body></html>"
+    )
+    return HTMLResponse(content=html)
 
 
 @app.websocket("/telephony/twilio/media-stream")

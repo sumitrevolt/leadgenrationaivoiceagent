@@ -6,6 +6,7 @@ Schedule (IST):
   - kavya  (ops health check) : har ghante, minute :05 pe
   - arjun  (QA run)           : roz 02:30
   - meera  (trainer analysis) : roz 03:00
+  - isha   (SEO blog)         : roz 06:30 (3 naye niche articles → /blog, sitemap)
   - isha   (auto content)     : roz 07:00 (per-client social posts/posters → queue)
   - manager (daily digest)    : roz 08:30 (inquiries/prospects/QA/health → txt+email)
   - rohan  (client prospecting): roz 09:30 (Tier-1 prospects → outreach queue)
@@ -35,7 +36,7 @@ _TICK_S = 60
 # Per-job "last ran" markers: ops -> "YYYY-MM-DD HH", baki -> "YYYY-MM-DD".
 _last_ran: Dict[str, Optional[str]] = {
     "ops": None, "qa": None, "trainer": None, "prospect": None, "digest": None,
-    "content": None, "email_outreach": None,
+    "content": None, "email_outreach": None, "blog": None,
 }
 
 
@@ -57,6 +58,10 @@ async def _run_job(job: str) -> None:
             from app.marketing import auto_content
 
             await auto_content.run_daily_content()
+        elif job == "blog":
+            from app.marketing import seo_blog
+
+            await seo_blog.run_daily_blog(3)
         elif job == "prospect":
             from app.platform import prospector
 
@@ -64,7 +69,10 @@ async def _run_job(job: str) -> None:
         elif job == "email_outreach":
             from app.platform import auto_outreach
 
+            # Pehli baar wale prospects ko initial cold email, AUR purane
+            # (emailed) prospects ko multi-touch follow-up — dono ek job me.
             await auto_outreach.run_email_outreach()
+            await auto_outreach.run_email_followups()
     except Exception as e:
         logger.warning(f"[team-scheduler] job {job} failed: {e}")
 
@@ -73,8 +81,8 @@ async def scheduler_loop() -> None:
     """Infinite loop: 60s tick; IST schedule ke hisab se staff jobs fire karo."""
     logger.info(
         "[team-scheduler] loop started — ops hourly :05, QA daily 02:30, "
-        "trainer daily 03:00, content daily 07:00, digest daily 08:30, "
-        "prospecting daily 09:30, email-outreach daily 10:30 (IST)"
+        "trainer daily 03:00, blog daily 06:30, content daily 07:00, "
+        "digest daily 08:30, prospecting daily 09:30, email-outreach daily 10:30 (IST)"
     )
     while True:
         try:
@@ -102,6 +110,11 @@ async def scheduler_loop() -> None:
             if (8, 30) <= hm < (10, 30) and _last_ran["digest"] != day_key:
                 _last_ran["digest"] = day_key
                 await _run_job("digest")
+
+            # isha — daily 06:30 programmatic SEO blog (catch-up window 06:30–08:30)
+            if (6, 30) <= hm < (8, 30) and _last_ran["blog"] != day_key:
+                _last_ran["blog"] = day_key
+                await _run_job("blog")
 
             # isha — daily 07:00 per-client social content (catch-up 07:00–09:00)
             if (7, 0) <= hm < (9, 0) and _last_ran["content"] != day_key:

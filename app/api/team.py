@@ -153,4 +153,19 @@ async def get_email_outreach_stats(current_user: User = Depends(require_admin)):
         return {"error": str(e)}
 
 
+@router.post("/email-followups/run")
+async def run_email_followups_now(current_user: User = Depends(require_admin)):
+    """Abhi follow-up emails chalao — pehle email ho chuke (par reply nahi aaye)
+    prospects ko multi-touch follow-up bhejo (requires admin). Flag/SMTP off ho
+    to skipped dict aata hai; kabhi raise nahi karta."""
+    try:
+        from app.platform import auto_outreach, team
+
+        team.log_event("manager", "task_assigned", "manual run: email follow-ups (rohan)")
+        return await auto_outreach.run_email_followups()
+    except Exception as e:
+        logger.warning(f"[team-api] email-followups run failed: {e}")
+        return {"error": str(e)}
+
+
 __all__ = ["router"]

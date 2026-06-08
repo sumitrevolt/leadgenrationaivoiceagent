@@ -10,6 +10,7 @@ No real SMTP / network:
 """
 import json
 import os
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -179,3 +180,141 @@ class TestStats:
         assert stats["with_email"] == 2   # a + c
         assert stats["emailed"] == 1      # c
         assert stats["pending"] == 1      # a (has email, ready, not emailed)
+
+
+def _iso_days_ago(days: float) -> str:
+    return (datetime.utcnow() - timedelta(days=days)).isoformat() + "Z"
+
+
+# --------------------------------------------------------------------------- #
+# _followup_subject_body
+# --------------------------------------------------------------------------- #
+class TestFollowupSubjectBody:
+    def test_step1_and_step2_non_empty_and_different(self):
+        prospect = {"business_name": "Sharma Solar", "city": "Pune"}
+        s1, t1, h1 = auto_outreach._followup_subject_body(prospect, 1)
+        s2, t2, h2 = auto_outreach._followup_subject_body(prospect, 2)
+        # non-empty
+        for v in (s1, t1, h1, s2, t2, h2):
+            assert v and v.strip()
+        # business name personalization + mandatory unsubscribe + footer
+        for t in (t1, t2):
+            assert "Sharma Solar" in t
+            assert "REMOVE" in t
+            assert "LeadGen AI" in t
+        # the two touches must read differently (distinct subject + body)
+        assert s1 != s2
+        assert t1 != t2
+
+    def test_handles_missing_fields(self):
+        s, t, h = auto_outreach._followup_subject_body({}, 1)
+        assert s.strip() and t.strip() and h.strip()
+        assert "REMOVE" in t
+
+
+# --------------------------------------------------------------------------- #
+# run_email_followups — guards
+# --------------------------------------------------------------------------- #
+class TestFollowupGuards:
+    @pytest.mark.asyncio
+    async def test_flag_off_skips(self, monkeypatch):
+        monkeypatch.setattr(app_settings, "auto_email_outreach", False, raising=False)
+        out = await auto_outreach.run_email_followups()
+        assert out == {"skipped": "AUTO_EMAIL_OUTREACH off"}
+
+    @pytest.mark.asyncio
+    async def test_email_unconfigured_skips(self, monkeypatch):
+        monkeypatch.setattr(app_settings, "auto_email_outreach", True, raising=False)
+        monkeypatch.setattr(app_settings, "smtp_user", "", raising=False)
+        monkeypatch.setattr(app_settings, "resend_api_key", "", raising=False)
+        monkeypatch.setattr(app_settings, "brevo_api_key", "", raising=False)
+        out = await auto_outreach.run_email_followups()
+        assert out == {"skipped": "email_unconfigured"}
+
+
+# --------------------------------------------------------------------------- #
+# run_email_followups — happy path + timing
+# --------------------------------------------------------------------------- #
+class TestFollowupRun:
+    @pytest.mark.asyncio
+    async def test_sends_followup1_and_increments(self, monkeypatch, tmp_prospects, no_sleep):
+        monkeypatch.setattr(app_settings, "auto_email_outreach", True, raising=False)
+        monkeypatch.setattr(app_settings, "smtp_user", "user@leadsgenai.in", raising=False)
+        monkeypatch.setattr(app_settings, "smtp_password", "x", raising=False)
+
+        sent = []
+
+        async def _fake_send(self, to_emails, subject, body, html_body=None, **kw):
+            sent.append((to_emails, subject))
+            return True
+
+        from app.integrations import email_sender
+        monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
+
+        # Emailed 4 days ago, no follow-up yet → eligible for follow-up #1.
+        _seed(tmp_prospects, {
+            "id": "f1", "business_name": "Sharma Solar", "city": "Pune",
+            "email": "info@sharmasolar.in", "status": "ready",
+            "emailed_at": _iso_days_ago(4), "followup_count": 0,
+        })
+
+        out = await auto_outreach.run_email_followups()
+        assert out["sent"] == 1
+        assert out["by_step"]["1"] == 1
+        assert len(sent) == 1
+        assert sent[0][0] == ["info@sharmasolar.in"]
+
+        # followup_count incremented + emailed_at bumped (so next touch waits).
+        f1 = next(p for p in prospector.list_prospects(limit=10) if p["id"] == "f1")
+        assert int(f1.get("followup_count")) == 1
+
+        # Immediate re-run: emailed_at is now "today" → gap not met → no send.
+        sent.clear()
+        out2 = await auto_outreach.run_email_followups()
+        assert out2["sent"] == 0
+        assert sent == []
+
+    @pytest.mark.asyncio
+    async def test_timing_and_status_filters(self, monkeypatch, tmp_prospects, no_sleep):
+        monkeypatch.setattr(app_settings, "auto_email_outreach", True, raising=False)
+        monkeypatch.setattr(app_settings, "smtp_user", "user@leadsgenai.in", raising=False)
+        monkeypatch.setattr(app_settings, "smtp_password", "x", raising=False)
+
+        async def _fake_send(self, *a, **k):
+            return True
+
+        from app.integrations import email_sender
+        monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
+
+        # Too recent (2 days, count 0) — gap (3d) not met → NOT eligible.
+        _seed(tmp_prospects, {
+            "id": "recent", "business_name": "Recent", "email": "r@x.in",
+            "status": "ready", "emailed_at": _iso_days_ago(2), "followup_count": 0,
+        })
+        # Replied — must be skipped even though old.
+        _seed(tmp_prospects, {
+            "id": "replied", "business_name": "Replied", "email": "rep@x.in",
+            "status": "replied", "emailed_at": _iso_days_ago(10), "followup_count": 0,
+        })
+        # Maxed out (count 2) — no more follow-ups.
+        _seed(tmp_prospects, {
+            "id": "maxed", "business_name": "Maxed", "email": "m@x.in",
+            "status": "ready", "emailed_at": _iso_days_ago(30), "followup_count": 2,
+        })
+        # Eligible for follow-up #2 (count 1, emailed 8 days ago > 7d gap).
+        _seed(tmp_prospects, {
+            "id": "step2", "business_name": "Step Two", "email": "s2@x.in",
+            "status": "ready", "emailed_at": _iso_days_ago(8), "followup_count": 1,
+        })
+        # Never emailed (no emailed_at) — initial outreach handles it, not this.
+        _seed(tmp_prospects, {
+            "id": "fresh", "business_name": "Fresh", "email": "fr@x.in",
+            "status": "ready",
+        })
+
+        out = await auto_outreach.run_email_followups()
+        assert out["sent"] == 1          # only step2
+        assert out["by_step"]["2"] == 1
+        assert out["by_step"]["1"] == 0
+        s2 = next(p for p in prospector.list_prospects(limit=10) if p["id"] == "step2")
+        assert int(s2.get("followup_count")) == 2

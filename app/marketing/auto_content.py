@@ -275,15 +275,90 @@ def _append_items(client_id: str, items: List[Dict[str, Any]]) -> int:
     return added
 
 
+# Built-in "self" client — LeadGen AI apni hi social media bhi roz banata hai
+# (Sumit 1-click post karke brand grow karta hai). Fixed id = idempotent seed.
+_SELF_CLIENT_ID = "leadgenai-self"
+
+
+def _ensure_self_client() -> Optional[str]:
+    """LeadGen AI ka apna marketing-client record ensure karo (idempotent by id).
+
+    Agar clients_store me koi ai_marketing / "LeadGen AI" client nahi hai to
+    fixed-id "leadgenai-self" wala seed karo — taaki hamara OWN brand bhi daily
+    content queue me aaye. Returns self client id (ya None on failure). KABHI
+    raise nahi karta."""
+    try:
+        if clients_store is None:
+            return None
+        # Pehle se hai? (fixed id, ya ai_marketing niche, ya naam "LeadGen AI")
+        for c in clients_store.list_clients():
+            cid = str(c.get("id") or "")
+            niche = str(c.get("niche") or "").strip().lower()
+            name = str(c.get("business_name") or "").strip().lower()
+            if (cid == _SELF_CLIENT_ID or niche == "ai_marketing"
+                    or name == "leadgen ai"):
+                return cid or _SELF_CLIENT_ID
+        # Seed once. add_client uuid deta hai, isliye direct-append se fixed id.
+        rec = {
+            "id": _SELF_CLIENT_ID,
+            "business_name": "LeadGen AI",
+            "niche": "ai_marketing",
+            "city": "",
+            "phone": "",
+            "plan": "growth",
+            "status": "active",
+            "brand": {"primary": "#6d28d9", "accent": "",
+                      "tagline": "AI Marketing + Voice Agent", "logo_text": "LeadGen AI"},
+            "socials": {"instagram": "", "facebook": "", "gbp": ""},
+            "created_at": _now(),
+        }
+        try:
+            clients_store._append(rec)  # type: ignore[attr-defined]
+        except Exception:
+            # Fallback: public API (uuid id banega, par phir bhi self-content milega).
+            try:
+                created = clients_store.add_client(
+                    business_name="LeadGen AI", niche="ai_marketing",
+                    plan="growth",
+                    brand={"primary": "#6d28d9",
+                           "tagline": "AI Marketing + Voice Agent",
+                           "logo_text": "LeadGen AI"},
+                )
+                return str((created or {}).get("id") or "") or None
+            except Exception:
+                return None
+        # brand_kit me bhi mirror (poster auto-brand) — best-effort.
+        try:
+            from app.marketing import brand_kit
+            brand_kit.save_brand(_SELF_CLIENT_ID, {
+                "business_name": "LeadGen AI",
+                "tagline": "AI Marketing + Voice Agent",
+                "colors": {"primary": "#6d28d9", "accent": ""},
+                "logo_text": "LeadGen AI",
+            })
+        except Exception:
+            pass
+        return _SELF_CLIENT_ID
+    except Exception as e:  # pragma: no cover
+        logger.debug(f"[auto_content] self-client seed skip: {e}")
+        return None
+
+
 async def run_daily_content() -> Dict[str, Any]:
     """Sab active clients ke liye aaj ka content generate + queue me append
     (date+type dedupe). isha event log. Returns {"clients", "items"}. KABHI
-    raise nahi karta."""
+    raise nahi karta. Pehle apna OWN brand (LeadGen AI) bhi ensure karta hai
+    taaki hum khud ki marketing bhi roz karein."""
     n_clients = 0
     total_items = 0
+    self_id = None
     try:
         if clients_store is None:
             return {"clients": 0, "items": 0}
+
+        # LeadGen AI khud ka brand bhi roz post kare (idempotent seed).
+        self_id = _ensure_self_client()
+
         active = clients_store.list_clients("active")
         for client in active:
             cid = str(client.get("id") or "")
@@ -295,6 +370,9 @@ async def run_daily_content() -> Dict[str, Any]:
                 if added:
                     n_clients += 1
                     total_items += added
+                    if self_id and cid == self_id:
+                        _log_isha("self_brand_content",
+                                  f"LeadGen AI ka apna {added} content items banaye")
             except Exception as e:  # pragma: no cover
                 logger.debug(f"[auto_content] client {cid} skip: {e}")
 

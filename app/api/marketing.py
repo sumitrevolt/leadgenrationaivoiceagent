@@ -33,6 +33,9 @@ Marketing API — Dhanda.app-style AI marketing tools (FREE stack).
   GET  /api/marketing/lead-scores      — inquiries ka hot/warm/cold scoring
   POST /api/marketing/gbp-texts        — GBP description + services + posts
   POST /api/marketing/content-pack     — 1-click monthly client deliverable pack
+  GET  /api/marketing/blog             — published SEO articles list
+  POST /api/marketing/blog/run         — publish n new niche×city articles
+  GET  /api/marketing/blog/{slug}      — one article (full content)
 
 Sab admin-auth (sirf /packages public hai — static pricing data, koi secret
 nahi). Generator functions kabhi raise nahi karte (template
@@ -66,6 +69,7 @@ from app.marketing import (
     reels,
     review_kit,
     review_replies,
+    seo_blog,
     upi_kit,
     upi_qr,
     whatsapp_pack,
@@ -283,6 +287,11 @@ class ContentPackRequest(BaseModel):
     client_id: str = Field("", max_length=64)
     offer: str = Field("", max_length=200)
     phone: str = Field("", max_length=40)
+
+
+class BlogRunRequest(BaseModel):
+    """Programmatic SEO blog — kitne naye articles publish karne hain."""
+    n: int = Field(3, ge=1, le=25)
 
 
 # --------------------------------------------------------------------------- #
@@ -960,3 +969,53 @@ async def generate_client_content_pack(
     except Exception as e:
         logger.error(f"Content pack generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Content pack failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Programmatic SEO blog (auto-published niche articles — inbound lead magnet)
+# --------------------------------------------------------------------------- #
+
+@router.get("/blog")
+async def list_blog_articles(
+    limit: int = 200,
+    current_user: User = Depends(require_admin),
+):
+    """Sab published SEO articles ki lightweight list (newest first)."""
+    try:
+        rows = seo_blog.list_articles(limit=limit)
+        return {"articles": rows, "total": len(rows)}
+    except Exception as e:
+        logger.error(f"Blog list failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Blog list failed: {e}")
+
+
+@router.post("/blog/run")
+async def run_blog_publish(
+    req: BlogRunRequest,
+    current_user: User = Depends(require_admin),
+):
+    """n naye niche×city articles generate + publish karo (free LLM, template fallback)."""
+    try:
+        result = await seo_blog.run_daily_blog(n=req.n)
+        _log_isha("seo_blog_run",
+                  f"{result.get('published', 0)} articles published")
+        return result
+    except Exception as e:
+        logger.error(f"Blog run failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Blog run failed: {e}")
+
+
+@router.get("/blog/{slug}")
+async def get_blog_article(
+    slug: str,
+    current_user: User = Depends(require_admin),
+):
+    """Ek article ka full content (slug se). 404 agar nahi mila."""
+    try:
+        article = seo_blog.get_article(slug)
+    except Exception as e:
+        logger.error(f"Blog article lookup failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Blog article lookup failed: {e}")
+    if article is None:
+        raise HTTPException(status_code=404, detail="Article not found")
+    return article
