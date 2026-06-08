@@ -147,7 +147,8 @@ class TestRunDailyContent:
         assert result["items"] > 0
 
     @pytest.mark.asyncio
-    async def test_run_daily_content_dedupes_same_day(self, no_llm, tmp_store):
+    async def test_run_daily_content_dedupes_same_day(self, no_llm, tmp_store, monkeypatch):
+        monkeypatch.setattr(auto_content, "AUTO_SEED_SELF", False, raising=False)
         rec = clients_store.add_client("Dedup Biz", "general", phone="9000000021")
         first = await auto_content.run_daily_content()
         assert first["items"] > 0
@@ -159,7 +160,9 @@ class TestRunDailyContent:
         assert len(queue) == first["items"]
 
     @pytest.mark.asyncio
-    async def test_run_daily_content_no_clients(self, no_llm, tmp_store):
+    async def test_run_daily_content_no_clients(self, no_llm, tmp_store, monkeypatch):
+        # self-brand auto-seed off => pure empty-loop behaviour
+        monkeypatch.setattr(auto_content, "AUTO_SEED_SELF", False, raising=False)
         result = await auto_content.run_daily_content()
         assert result == {"clients": 0, "items": 0}
 

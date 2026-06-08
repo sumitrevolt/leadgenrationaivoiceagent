@@ -278,6 +278,9 @@ def _append_items(client_id: str, items: List[Dict[str, Any]]) -> int:
 # Built-in "self" client — LeadGen AI apni hi social media bhi roz banata hai
 # (Sumit 1-click post karke brand grow karta hai). Fixed id = idempotent seed.
 _SELF_CLIENT_ID = "leadgenai-self"
+# run_daily_content me LeadGen AI ka apna brand auto-seed ho (own marketing).
+# Tests ise False karke pure client-loop test karte hain.
+AUTO_SEED_SELF = True
 
 
 def _ensure_self_client() -> Optional[str]:
@@ -357,7 +360,9 @@ async def run_daily_content() -> Dict[str, Any]:
             return {"clients": 0, "items": 0}
 
         # LeadGen AI khud ka brand bhi roz post kare (idempotent seed).
-        self_id = _ensure_self_client()
+        # AUTO_SEED_SELF flag se tests pure-loop test kar sakte hain.
+        if AUTO_SEED_SELF:
+            self_id = _ensure_self_client()
 
         active = clients_store.list_clients("active")
         for client in active:
