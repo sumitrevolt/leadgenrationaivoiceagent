@@ -218,6 +218,12 @@ try:
     app.include_router(public_site_router, prefix="/api")  # /api/public/* (website inquiry form)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Public site router not mounted: {_e}")
+try:
+    from app.api.clients import router as clients_router
+
+    app.include_router(clients_router, prefix="/api")  # /api/clients/* (marketing clients + auto content)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Clients router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])
@@ -291,6 +297,12 @@ async def marketing_page():
 async def outreach_page():
     """Rohan ka outreach queue — Tier-1 client prospects (WhatsApp pitch)."""
     return FileResponse(str(FRONTEND_DIR / "outreach.html"))
+
+
+@app.get("/app/clients", tags=["Frontend"])
+async def clients_page():
+    """Clients — marketing client store + per-client auto content engine."""
+    return FileResponse(str(FRONTEND_DIR / "clients.html"))
 
 
 @app.get("/audit", tags=["Frontend"])

@@ -39,56 +39,68 @@ _FALLBACK: Dict[str, List[Dict[str, Any]]] = {
         {"day": 0, "goal": "Turant bharosa banao",
          "message": "Namaste! 🙏 {biz} se — aapki inquiry mil gayi, dhanyawad! "
                     "Aapke sawalon ke jawab ready hain. Bataiye, baat karne ka "
-                    "sahi time kya rahega — aaj shaam ya kal subah?"},
+                    "sahi time kya rahega — aaj shaam ya kal subah?",
+         "suggested_buttons": ["💬 Yes, talk now", "📞 Call me later", "❌ Not now"]},
         {"day": 2, "goal": "Proof / value dikhao",
          "message": "Hello! {biz} se. Socha aapko hamare recent kaam ki jhalak "
                     "bhej dein — customers ka feedback dekh kar aapko sahi "
-                    "andaaza milega ⭐ Koi sawal ho to bas reply karein."},
+                    "andaaza milega ⭐ Koi sawal ho to bas reply karein.",
+         "suggested_buttons": ["⭐ Read reviews", "💬 Talk to team"]},
         {"day": 5, "goal": "Doubt / objection clear karo",
          "message": "Namaste! Aksar log price aur process ko lekar sochte hain — "
                     "bilkul natural hai. {biz} me dono transparent hain, 5-min "
-                    "call me sab clear ho jayega. Kab call karein? 😊"},
+                    "call me sab clear ho jayega. Kab call karein? 😊",
+         "suggested_buttons": ["📞 5-min call", "❌ Not interested"]},
         {"day": 9, "goal": "Soft close / last nudge",
          "message": "Hi! {biz} se aakhri reminder 🙏 Aapki inquiry abhi bhi "
                     "hamare paas saved hai. Is hafte book karne par special "
                     "attention milega. Interest ho to bas 'YES' reply karein — "
-                    "warna hum aapko disturb nahi karenge."},
+                    "warna hum aapko disturb nahi karenge.",
+         "suggested_buttons": ["🙋 Yes, interested", "❌ Unsubscribe"]},
     ],
     "no_reply": [
         {"day": 0, "goal": "Naram re-open (guilt nahi)",
          "message": "Namaste! 🙏 {biz} se. Kaafi din pehle aapne interest dikhaya "
                     "tha — busy schedule samajh sakte hain! Bas batana chaha ki "
-                    "hum abhi bhi aapki madad ke liye ready hain. 1 reply kaafi hai 😊"},
+                    "hum abhi bhi aapki madad ke liye ready hain. 1 reply kaafi hai 😊",
+         "suggested_buttons": ["💬 Yes, let's talk", "❌ Not now"]},
         {"day": 2, "goal": "Nayi value / update do",
          "message": "Hello! {biz} se ek chhota update — is mahine humne kuch naya "
-                    "shuru kiya hai jo aapke kaam aa sakta hai. 30-second me "
-                    "padh lijiye, details bhej dein kya?"},
+                     "shuru kiya hai jo aapke kaam aa sakta hai. 30-second me "
+                     "padh lijiye, details bhej dein kya?",
+         "suggested_buttons": ["ℹ️ Details please", "📞 Call me"]},
         {"day": 5, "goal": "Social proof se jagao",
          "message": "Namaste! Pichhle hafte 3 logon ne (aap jaise hi sawal ke "
                     "saath) {biz} ki service li — unka experience bahut accha "
-                    "raha ⭐ Aapke sawal ka jawab bhi 5 minute me de sakte hain."},
+                    "raha ⭐ Aapke sawal ka jawab bhi 5 minute me de sakte hain.",
+         "suggested_buttons": ["⭐ Read feedback", "💬 Chat with team"]},
         {"day": 9, "goal": "Polite break-up (door khula)",
          "message": "Hi! {biz} se. Lagta hai abhi sahi time nahi hai — koi baat "
-                    "nahi 🙏 Hum follow-up band kar rahe hain, par jab bhi zaroorat "
-                    "ho ye number saved rakhiye. Bas 'HI' likhiye, hum hazir!"},
+                    "nahi 🙏 Hum follow-up band kar rahe hain, par jag bhi zaroorat "
+                    "ho ye number saved rakhiye. Bas 'HI' likhiye, hum hazir!",
+         "suggested_buttons": ["👋 Keep in touch", "❌ Delete number"]},
     ],
     "post_purchase": [
         {"day": 0, "goal": "Thank you + support",
          "message": "Dhanyawad! 🙏 {biz} ko chunne ke liye dil se shukriya. Koi "
                     "bhi dikkat ya sawal ho to seedha is number par message "
-                    "karein — hum turant help karenge 😊"},
+                    "karein — hum turant help karenge 😊",
+         "suggested_buttons": ["🙋 Ask a question", "👍 All good"]},
         {"day": 2, "goal": "Review ask",
          "message": "Namaste! Umeed hai {biz} ki service se aap khush hain ⭐ "
                     "Agar 30 second hon to Google par chhota review de dijiye — "
-                    "aapke 2 shabd hamare liye bahut keemti hain. Link bhej dein?"},
+                    "aapke 2 shabd hamare liye bahut keemti hain. Link bhej dein?",
+         "suggested_buttons": ["⭐ Give review link", "❌ Later"]},
         {"day": 5, "goal": "Referral maango",
          "message": "Hello! {biz} se 🙏 Agar hamara kaam pasand aaya ho to apne "
                     "kisi dost/family ko hamara number share kar dein — unke "
-                    "liye special first-time benefit rakha hai 🎁"},
+                    "liye special first-time benefit rakha hai 🎁",
+         "suggested_buttons": ["🎁 Referral info", "❌ Skip"]},
         {"day": 9, "goal": "Repeat / upsell offer",
          "message": "Namaste! {biz} ki taraf se sirf existing customers ke liye: "
                     "agli service par khaas discount 🎉 Valid limited time ke "
-                    "liye hai — book karne ke liye bas reply karein."},
+                    "liye hai — book karne ke liye bas reply karein.",
+         "suggested_buttons": ["🎉 View discounts", "❌ Not now"]},
     ],
 }
 
@@ -101,7 +113,7 @@ def _niche_hook(niche: str) -> str:
         return "quality service, sahi daam"
 
 
-def _parse_llm_steps(text: str, biz: str) -> List[Dict[str, Any]]:
+def _parse_llm_steps(text: str, biz: str, lt: str) -> List[Dict[str, Any]]:
     """'Day X | goal | message' lines parse — EXACT 4 valid steps chahiye."""
     steps: List[Dict[str, Any]] = []
     try:
@@ -114,6 +126,7 @@ def _parse_llm_steps(text: str, biz: str) -> List[Dict[str, Any]]:
                     "day": day,
                     "goal": parts[-2][:120],
                     "message": parts[-1][:500].replace("{biz}", biz),
+                    "suggested_buttons": _FALLBACK[lt][len(steps)]["suggested_buttons"]
                 })
             if len(steps) >= 4:
                 break
@@ -132,7 +145,7 @@ async def drip_sequence(
     niche: str = "general",
     lead_type: str = "new_inquiry",
 ) -> Dict[str, Any]:
-    """4-step WhatsApp drip sequence [{day,goal,message} x4]. KABHI empty nahi.
+    """4-step WhatsApp drip sequence [{day,goal,message,suggested_buttons} x4]. KABHI empty nahi.
 
     Returns: {"business_name","niche","lead_type","steps","tips","provider"}.
     """
@@ -162,7 +175,7 @@ async def drip_sequence(
                 max_tokens=500, temperature=0.7,
             )
             if text and text.strip():
-                parsed = _parse_llm_steps(text, biz)
+                parsed = _parse_llm_steps(text, biz, lt)
                 if parsed:
                     steps = parsed
                     provider = p or "llm"
@@ -171,7 +184,8 @@ async def drip_sequence(
 
     if not steps:
         steps = [{"day": s["day"], "goal": s["goal"],
-                  "message": s["message"].replace("{biz}", biz)}
+                  "message": s["message"].replace("{biz}", biz),
+                  "suggested_buttons": s.get("suggested_buttons", [])}
                  for s in _FALLBACK[lt]]
         provider = "template"
 

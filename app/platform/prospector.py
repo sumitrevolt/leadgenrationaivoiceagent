@@ -21,7 +21,9 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.parse
+import urllib.request
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -133,6 +135,135 @@ def _wa_link(phone10: str, pitch: str) -> str:
     return f"https://wa.me/91{phone10}?text={urllib.parse.quote(pitch)}"
 
 
+def _google_search_link(business_name: str, city: str = "") -> str:
+    """Manual phone-lookup fallback jab OSM phone na de."""
+    q = f"{business_name} {city} phone".strip()
+    return "https://www.google.com/search?q=" + urllib.parse.quote(q)
+
+
+# --------------------------------------------------------------------------- #
+# FREE no-key source — OpenStreetMap Overpass API (https://overpass-api.de)
+# Koi API key nahi, legal (ODbL), stdlib urllib only. Best-effort: kabhi raise
+# nahi karta. Query string → OSM tags map karke city ke area me businesses.
+# --------------------------------------------------------------------------- #
+_OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+_OSM_UA = "LeadGenAI/1.0 (contact: sumitrevolt23@gmail.com)"
+
+# query keyword (lowercase substring) -> list of Overpass tag filters.
+# Pehla match jeetta hai; kuch na mile to naam-search fallback.
+_OSM_TAG_MAP: List[Tuple[Tuple[str, ...], List[str]]] = [
+    (("restaurant", "cafe", "food", "dhaba"),
+     ['amenity~"^(restaurant|cafe|fast_food)$"']),
+    (("salon", "spa", "beauty", "parlour", "parlor", "hairdress"),
+     ['shop~"^(hairdresser|beauty)$"']),
+    (("gym", "fitness"), ['leisure="fitness_centre"']),
+    (("jewel",), ['shop="jewelry"']),
+    (("boutique", "clothing", "fashion", "apparel", "garment"),
+     ['shop="clothes"']),
+    (("bakery", "sweet", "cake"), ['shop~"^(bakery|confectionery)$"']),
+    (("real estate", "property", "realtor"), ['office="estate_agent"']),
+    (("hardware", "paint"), ['shop~"^(hardware|doityourself|paint)$"']),
+    (("furniture", "decor"), ['shop="furniture"']),
+    (("pharmacy", "medical", "chemist"), ['amenity="pharmacy"']),
+    (("mobile", "electronics"), ['shop~"^(mobile_phone|electronics)$"']),
+    (("hotel", "resort", "lodge"), ['tourism~"^(hotel|guest_house|motel)$"']),
+    (("photograph",), ['shop="photo"', 'craft="photographer"']),
+    (("automobile", "car repair", "garage", "car service"),
+     ['shop~"^(car_repair|car)$"']),
+    (("kirana", "supermarket", "grocery", "general store"),
+     ['shop~"^(supermarket|convenience|general)$"']),
+    (("travel", "tour"), ['shop="travel_agency"', 'office="travel_agent"']),
+    (("gift", "stationery"), ['shop~"^(gift|stationery)$"']),
+    (("dental", "dentist"), ['amenity="dentist"', 'healthcare="dentist"']),
+    (("doctor", "clinic", "hospital"),
+     ['amenity~"^(clinic|hospital|doctors)$"', 'healthcare~"^(clinic|hospital|doctor)$"']),
+]
+
+
+def _osm_filters(query: str) -> List[str]:
+    """Query string ko Overpass tag-filters me map karo (fallback name-search)."""
+    q = (query or "").lower()
+    for keys, filters in _OSM_TAG_MAP:
+        if any(k in q for k in keys):
+            return filters
+    # Fallback: kuch bhi match na ho to naam pe case-insensitive search.
+    safe = query.replace('"', "").replace("\\", "")
+    return [f'name~"{safe}",i'] if safe else []
+
+
+def _osm_search(query: str, city: str, limit: int) -> List[Dict[str, Any]]:
+    """OpenStreetMap Overpass se businesses dhundo (NO key). Kabhi raise nahi.
+
+    `area[name="<city>"]` ke andar node/way/relation jinme matching tags hon.
+    Return: list of {business_name, phone, address, city, website}. Naam-less
+    elements skip. Failure (network/parse/koi bhi) -> [] return.
+    """
+    out: List[Dict[str, Any]] = []
+    try:
+        city = (city or "").strip()
+        if not city:
+            return out
+        filters = _osm_filters(query)
+        if not filters:
+            return out
+        cap = max(1, min(int(limit), 50))
+        city_esc = city.replace('"', "").replace("\\", "")
+
+        # Har filter ke liye node/way/relation lines banao (area-scoped).
+        stmts: List[str] = []
+        for f in filters:
+            for elem in ("node", "way", "relation"):
+                stmts.append(f"{elem}(area.searchArea)[{f}];")
+        body = "".join(stmts)
+        ql = (
+            f'[out:json][timeout:25];'
+            f'area["name"="{city_esc}"]->.searchArea;'
+            f"({body});"
+            f"out tags center {cap * 4};"
+        )
+
+        data = urllib.parse.urlencode({"data": ql}).encode("utf-8")
+        req = urllib.request.Request(
+            _OVERPASS_URL, data=data,
+            headers={"User-Agent": _OSM_UA,
+                     "Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            payload = json.loads(resp.read().decode("utf-8", "replace"))
+
+        for el in payload.get("elements", []) or []:
+            tags = el.get("tags") or {}
+            name = str(tags.get("name") or "").strip()
+            if not name:
+                continue
+            phone = str(
+                tags.get("phone")
+                or tags.get("contact:phone")
+                or tags.get("contact:mobile")
+                or tags.get("mobile")
+                or ""
+            ).strip()
+            addr = str(tags.get("addr:full") or "").strip()
+            if not addr:
+                parts = [tags.get("addr:housenumber"), tags.get("addr:street"),
+                         tags.get("addr:suburb"), tags.get("addr:city") or city]
+                addr = ", ".join(p for p in (str(x).strip() for x in parts if x) if p)
+            website = str(tags.get("website") or tags.get("contact:website") or "").strip()
+            out.append({
+                "business_name": name,
+                "phone": phone,
+                "address": addr or city,
+                "city": city,
+                "website": website,
+            })
+            if len(out) >= cap:
+                break
+    except Exception as e:  # network / HTTP / JSON / koi bhi — silently skip
+        logger.debug(f"[prospector] OSM search '{query}' in {city} failed: {e}")
+        return []
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # jsonl persistence
 # --------------------------------------------------------------------------- #
@@ -240,60 +371,87 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
             # business+city bhi (phone-less records repeat na ho)
             seen.add(f"{str(r.get('business_name') or '').strip().lower()}|{str(r.get('city') or '').strip().lower()}")
 
-        # Scraper init — best-effort. Na mile to gracefully empty run return.
+        # Source select: real Google Maps key ho to API path; warna FREE OSM
+        # Overpass (NO key, legal, stdlib). Playwright fallback use NAHI karte —
+        # wo phones nahi deta. OSM = primary free source.
         scraper = None
+        use_osm = True
         try:
             from app.lead_scraper.google_maps import GoogleMapsScraper
 
-            scraper = GoogleMapsScraper()
-            # .env me placeholder key ("your-google-maps-api-key" type) ho to
-            # API path har query fail karega — blank karke playwright fallback.
-            key = str(getattr(scraper, "api_key", "") or "")
-            if key and any(t in key.lower() for t in ("your-", "your_", "placeholder", "xxx", "changeme")):
-                scraper.api_key = None
-                key = ""
-            summary["scraper"] = "api" if key else "playwright_fallback"
+            cand = GoogleMapsScraper()
+            key = str(getattr(cand, "api_key", "") or "")
+            # Placeholder key ("your-google-maps-api-key" type) = real nahi.
+            if key and not any(
+                t in key.lower()
+                for t in ("your-", "your_", "placeholder", "xxx", "changeme")
+            ):
+                scraper = cand
+                use_osm = False
+                summary["scraper"] = "google_maps_api"
         except Exception as e:
-            logger.warning(f"[prospector] scraper unavailable: {e}")
-            summary["scraper"] = f"unavailable: {e}"
+            logger.debug(f"[prospector] google_maps scraper unavailable: {e}")
+        if use_osm:
+            summary["scraper"] = "osm_overpass"
 
         targets = _targets()
         pairs: List[Tuple[Dict[str, Any], str]] = [
             (t, city) for t in targets for city in (t.get("cities") or [])
         ]
 
-        for target, city in pairs:
+        max_per = max(1, min(int(limit_per_query), 50))
+        for idx, (target, city) in enumerate(pairs):
             niche = target.get("niche") or "general"
             query = target.get("query") or ""
-            businesses: List[Any] = []
-            if scraper is not None and query:
-                try:
-                    businesses = await scraper.search_businesses(
-                        query=query, location=city,
-                        max_results=max(1, min(int(limit_per_query), 50)),
-                    )
-                    summary["queries_run"] += 1
-                    if not businesses:
-                        summary["queries_empty"] += 1
-                except Exception as e:
-                    summary["queries_failed"] += 1
-                    logger.warning(f"[prospector] query '{query}' in {city} failed: {e}")
-                    continue
-            else:
+            if not query:
                 summary["queries_failed"] += 1
                 continue
 
-            for biz in businesses or []:
+            # Fetch from chosen source -> normalize to list of dicts with
+            # keys: name, phone, address, rating, website.
+            rows: List[Dict[str, Any]] = []
+            try:
+                if use_osm:
+                    # Politeness: Overpass calls ke beech 1s sleep.
+                    if idx > 0:
+                        time.sleep(1)
+                    for r in _osm_search(query, city, max_per):
+                        rows.append({
+                            "name": r.get("business_name", ""),
+                            "phone": r.get("phone", ""),
+                            "address": r.get("address", ""),
+                            "rating": None,
+                            "website": r.get("website", ""),
+                        })
+                else:
+                    biz_list = await scraper.search_businesses(
+                        query=query, location=city, max_results=max_per,
+                    )
+                    for biz in biz_list or []:
+                        rows.append({
+                            "name": str(getattr(biz, "name", "") or ""),
+                            "phone": getattr(biz, "phone", None),
+                            "address": str(getattr(biz, "address", "") or ""),
+                            "rating": getattr(biz, "rating", None),
+                            "website": str(getattr(biz, "website", "") or ""),
+                        })
+                summary["queries_run"] += 1
+                if not rows:
+                    summary["queries_empty"] += 1
+            except Exception as e:
+                summary["queries_failed"] += 1
+                logger.warning(f"[prospector] query '{query}' in {city} failed: {e}")
+                continue
+
+            for biz in rows:
                 try:
-                    name = str(getattr(biz, "name", "") or "").strip()
+                    name = str(biz.get("name") or "").strip()
                     if not name:
                         continue
-                    phone10 = _phone_digits(getattr(biz, "phone", None))
+                    phone10 = _phone_digits(biz.get("phone"))
                     biz_key = f"{name.lower()}|{city.strip().lower()}"
-                    if not phone10:
-                        summary["no_phone"] += 1
-                        continue
-                    if phone10 in seen or biz_key in seen:
+                    # Dedupe: phone digits (agar ho) AUR name+city dono.
+                    if (phone10 and phone10 in seen) or biz_key in seen:
                         summary["duplicates"] += 1
                         continue
 
@@ -302,18 +460,24 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                         "id": str(uuid.uuid4()),
                         "found_at": datetime.utcnow().isoformat() + "Z",
                         "business_name": name[:200],
-                        "phone": "+91" + phone10,
-                        "address": str(getattr(biz, "address", "") or "")[:300],
+                        "phone": ("+91" + phone10) if phone10 else "",
+                        "address": str(biz.get("address") or "")[:300],
                         "city": city,
                         "niche": niche,
-                        "rating": getattr(biz, "rating", None),
+                        "rating": biz.get("rating"),
+                        "website": str(biz.get("website") or "")[:300],
                         "source_query": query,
                         "pitch": pitch,
-                        "wa_link": _wa_link(phone10, pitch),
+                        # Phone ho to WA link; warna manual Google lookup link.
+                        "wa_link": _wa_link(phone10, pitch) if phone10 else "",
+                        "google_search_link": "" if phone10 else _google_search_link(name, city),
                         "status": "ready",
                     }
+                    if not phone10:
+                        summary["no_phone"] += 1
                     if _append(rec):
-                        seen.add(phone10)
+                        if phone10:
+                            seen.add(phone10)
                         seen.add(biz_key)
                         summary["new"] += 1
                         summary["by_niche"][niche] = summary["by_niche"].get(niche, 0) + 1

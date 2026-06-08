@@ -525,10 +525,25 @@ async def run_digest() -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# isha — per-client auto social-media content (run_daily_content wrapper)
+# --------------------------------------------------------------------------- #
+async def run_content() -> Dict[str, Any]:
+    """Sab active marketing clients ke liye aaj ka social content generate karo
+    (auto_content engine). Import-safe, KABHI raise nahi."""
+    try:
+        from app.marketing import auto_content
+
+        return await auto_content.run_daily_content()
+    except Exception as e:
+        logger.warning(f"[staff] run_content failed: {e}")
+        return {"error": str(e)}
+
+
+# --------------------------------------------------------------------------- #
 # Dispatcher
 # --------------------------------------------------------------------------- #
 async def run_member(key: str) -> Dict[str, Any]:
-    """Staff member ka job manually chalao — arjun/meera/kavya/manager(digest)."""
+    """Staff member ka job manually chalao — arjun/meera/kavya/manager(digest)/isha(content)."""
     try:
         jobs = {
             "arjun": run_qa,
@@ -536,6 +551,8 @@ async def run_member(key: str) -> Dict[str, Any]:
             "kavya": run_ops,
             "manager": run_digest,
             "digest": run_digest,
+            "isha": run_content,
+            "content": run_content,
         }
         fn = jobs.get((key or "").strip().lower())
         if fn is None:
@@ -545,4 +562,5 @@ async def run_member(key: str) -> Dict[str, Any]:
         return {"error": str(e)}
 
 
-__all__ = ["SCRIPTS", "BANNED", "run_qa", "run_trainer", "run_ops", "run_digest", "run_member"]
+__all__ = ["SCRIPTS", "BANNED", "run_qa", "run_trainer", "run_ops", "run_digest",
+           "run_content", "run_member"]

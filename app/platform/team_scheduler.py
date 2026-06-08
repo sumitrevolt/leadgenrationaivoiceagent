@@ -6,6 +6,7 @@ Schedule (IST):
   - kavya  (ops health check) : har ghante, minute :05 pe
   - arjun  (QA run)           : roz 02:30
   - meera  (trainer analysis) : roz 03:00
+  - isha   (auto content)     : roz 07:00 (per-client social posts/posters → queue)
   - manager (daily digest)    : roz 08:30 (inquiries/prospects/QA/health → txt+email)
   - rohan  (client prospecting): roz 09:30 (Tier-1 prospects → outreach queue)
 
@@ -33,6 +34,7 @@ _TICK_S = 60
 # Per-job "last ran" markers: ops -> "YYYY-MM-DD HH", baki -> "YYYY-MM-DD".
 _last_ran: Dict[str, Optional[str]] = {
     "ops": None, "qa": None, "trainer": None, "prospect": None, "digest": None,
+    "content": None,
 }
 
 
@@ -50,6 +52,10 @@ async def _run_job(job: str) -> None:
             await staff.run_trainer()
         elif job == "digest":
             await staff.run_digest()
+        elif job == "content":
+            from app.marketing import auto_content
+
+            await auto_content.run_daily_content()
         elif job == "prospect":
             from app.platform import prospector
 
@@ -62,7 +68,8 @@ async def scheduler_loop() -> None:
     """Infinite loop: 60s tick; IST schedule ke hisab se staff jobs fire karo."""
     logger.info(
         "[team-scheduler] loop started — ops hourly :05, QA daily 02:30, "
-        "trainer daily 03:00, digest daily 08:30, prospecting daily 09:30 (IST)"
+        "trainer daily 03:00, content daily 07:00, digest daily 08:30, "
+        "prospecting daily 09:30 (IST)"
     )
     while True:
         try:
@@ -90,6 +97,11 @@ async def scheduler_loop() -> None:
             if (8, 30) <= hm < (10, 30) and _last_ran["digest"] != day_key:
                 _last_ran["digest"] = day_key
                 await _run_job("digest")
+
+            # isha — daily 07:00 per-client social content (catch-up 07:00–09:00)
+            if (7, 0) <= hm < (9, 0) and _last_ran["content"] != day_key:
+                _last_ran["content"] = day_key
+                await _run_job("content")
 
             # rohan — daily 09:30 client prospecting (catch-up window 09:30–11:30)
             if (9, 30) <= hm < (11, 30) and _last_ran["prospect"] != day_key:
@@ -126,7 +138,7 @@ def start_scheduler() -> Optional["asyncio.Task[Any]"]:
             team.log_event(
                 "manager",
                 "automation_started",
-                "Team scheduler on: ops hourly, QA 02:30, trainer 03:00, digest 08:30, prospecting 09:30",
+                "Team scheduler on: ops hourly, QA 02:30, trainer 03:00, content 07:00, digest 08:30, prospecting 09:30",
             )
         except Exception:
             pass
