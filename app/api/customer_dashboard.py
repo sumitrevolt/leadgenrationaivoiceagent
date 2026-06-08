@@ -30,7 +30,7 @@ import logging
 import os
 from datetime import datetime
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -100,6 +100,7 @@ class DashboardResponse(BaseModel):
     calls: list[CallRow]
     leads: list[LeadRow]
     charts: ChartsData
+    branding: dict | None = None  # reseller white-label (set from Host on subdomains)
 
 
 # --------------------------------------------------------------------------- #
@@ -530,6 +531,7 @@ def _build_from_db(client_id: str, campaign: str | None) -> DashboardResponse | 
 # --------------------------------------------------------------------------- #
 @router.get("/dashboard", response_model=DashboardResponse)
 def get_customer_dashboard(
+    request: Request,
     client_id: str = Query("demo", description="The client/business identifier"),
     campaign: str | None = Query(None, description="Optional campaign id to filter by"),
 ) -> DashboardResponse:
@@ -544,10 +546,15 @@ def get_customer_dashboard(
     activity the response carries honest zeros with is_sample_data=True (UI
     shows a clean "no data yet" state) — never invented businesses or leads.
     """
-    real = _build_from_db(client_id=client_id, campaign=campaign)
-    if real is not None:
-        return real
-    return _build_from_files(client_id=client_id, campaign=campaign)
+    resp = _build_from_db(client_id=client_id, campaign=campaign)
+    if resp is None:
+        resp = _build_from_files(client_id=client_id, campaign=campaign)
+    # White-label: on a reseller subdomain the middleware set request.state.tenant.
+    try:
+        resp.branding = getattr(request.state, "tenant", None)
+    except Exception:
+        pass
+    return resp
 
 
 @router.get("/health")

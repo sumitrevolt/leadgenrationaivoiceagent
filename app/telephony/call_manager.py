@@ -41,6 +41,7 @@ class CallRequest:
     client_service: str
     script_name: str
     lead_data: dict[str, Any]
+    client_id: str = ""  # marketing client (prepaid minute metering/enforcement)
     priority: int = 5  # 1 = highest, 10 = lowest
     retry_count: int = 0
     scheduled_time: datetime | None = None
@@ -169,6 +170,22 @@ class CallManager:
                 f"Compliance gate error for {request.phone_number} ({e}) — blocking promo call."
             )
             return f"compliance_error_{call_id}"
+
+        # Prepaid minute enforcement — block a promo call if the client has used up
+        # their included calling minutes (Advanced tier). Fail-open: no client_id, or
+        # a non-metered plan, or any error -> do NOT block here.
+        try:
+            if request.client_id:
+                from app.billing.usage import has_minutes
+
+                if not has_minutes(request.client_id):
+                    logger.warning(
+                        f"Call to {request.phone_number} blocked — client "
+                        f"{request.client_id} out of prepaid minutes."
+                    )
+                    return f"out_of_minutes_{call_id}"
+        except Exception as e:
+            logger.debug(f"minute-enforcement skipped: {e}")
 
         # Add to the (Redis-backed) priority queue (lower number = higher priority).
         await self.call_state.enqueue(request.priority, call_id, self._request_to_payload(request))
@@ -350,6 +367,20 @@ class CallManager:
         self.completed_calls.append(result)
         self.active_calls.pop(call_id, None)
         await self.call_state.unregister(call_id)
+
+        # Meter this call's minutes against the client's prepaid balance (best-effort;
+        # client_id resolved from the call context / client_name). Never blocks.
+        try:
+            from app.billing.usage import record_call_usage
+
+            record_call_usage(
+                client_id=getattr(context, "client_id", "") or "",
+                duration_seconds=duration,
+                campaign_id=getattr(context, "campaign_id", None),
+                client_name=getattr(context, "client_name", "") or "",
+            )
+        except Exception:
+            pass
 
         logger.info(f"✅ Call {call_id} completed. Outcome: {outcome}, Score: {result.lead_score}")
 

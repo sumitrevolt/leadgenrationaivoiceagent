@@ -338,6 +338,14 @@ def setup_middleware(app: FastAPI, production: bool = False):
     # Tenant context
     app.add_middleware(TenantContextMiddleware)
 
+    # Reseller white-label branding (fail-open: attaches request.state.tenant).
+    try:
+        from app.middleware.tenant import TenantBrandingMiddleware
+
+        app.add_middleware(TenantBrandingMiddleware)
+    except Exception:
+        pass
+
     # Rate limiting
     if production:
         app.add_middleware(
