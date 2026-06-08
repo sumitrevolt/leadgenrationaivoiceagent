@@ -90,4 +90,14 @@ async def marketing_image(
     }
 
 
-__all__ = ["image_url", "marketing_image"]
+def logo_url(business_name: str, niche: str = "general", style: str = "modern minimalist") -> str:
+    """AI logo image URL (Pollinations free) for a business. Never raises."""
+    prompt = (
+        f"{style} vector logo for '{(business_name or 'Business').strip()}', a "
+        f"{(niche or 'general').replace('_', ' ')} business, clean flat iconic memorable brand mark, "
+        "white background, professional, centered, no text"
+    )
+    return image_url(prompt, width=512, height=512)
+
+
+__all__ = ["image_url", "marketing_image", "logo_url"]

@@ -485,6 +485,92 @@ async def generate_post_variations(
         raise HTTPException(status_code=500, detail=f"Variations failed: {e}")
 
 
+class ChatbotRequest(BaseModel):
+    """Customer-facing FAQ + lead-capture chatbot (client-KB grounded)."""
+
+    question: str = Field(..., min_length=1, max_length=500)
+    client_id: str = Field("", max_length=64)
+    niche: str = Field("general", max_length=80)
+
+
+@router.post("/chatbot")
+async def marketing_chatbot(req: ChatbotRequest, current_user: User = Depends(require_admin)):
+    """Client ka website/WhatsApp FAQ + lead-capture bot (KB-grounded)."""
+    try:
+        from app.marketing import chatbot
+
+        result = await chatbot.reply(req.question, req.client_id, req.niche)
+        _log_isha("chatbot", f"{req.client_id or req.niche}: {req.question[:40]}")
+        return result
+    except Exception as e:
+        logger.error(f"Chatbot failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Chatbot failed: {e}")
+
+
+class SentimentRequest(BaseModel):
+    """Reviews/feedback list → sentiment + themes."""
+
+    texts: list[str] = Field(..., min_length=1, max_length=50)
+
+
+@router.post("/sentiment")
+async def marketing_sentiment(req: SentimentRequest, current_user: User = Depends(require_admin)):
+    """Reviews/feedback ka sentiment + themes + action."""
+    try:
+        from app.marketing import sentiment
+
+        result = await sentiment.analyze(req.texts)
+        _log_isha("sentiment", f"{len(req.texts)} texts")
+        return result
+    except Exception as e:
+        logger.error(f"Sentiment failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Sentiment failed: {e}")
+
+
+class HashtagsRequest(BaseModel):
+    """Trending hashtags + best-time-to-post."""
+
+    niche: str = Field("general", max_length=80)
+    city: str = Field("", max_length=80)
+    count: int = Field(15, ge=5, le=30)
+
+
+@router.post("/hashtags")
+async def marketing_hashtags(req: HashtagsRequest, current_user: User = Depends(require_admin)):
+    """Niche+city trending hashtags + best posting times."""
+    try:
+        from app.marketing import hashtags
+
+        result = await hashtags.research(req.niche, req.city, req.count)
+        _log_isha("hashtags", f"{req.niche} {req.city}")
+        return result
+    except Exception as e:
+        logger.error(f"Hashtags failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Hashtags failed: {e}")
+
+
+class LogoRequest(BaseModel):
+    """AI logo generation (Pollinations free)."""
+
+    business_name: str = Field(..., min_length=1, max_length=120)
+    niche: str = Field("general", max_length=80)
+    style: str = Field("modern minimalist", max_length=80)
+
+
+@router.post("/brand-logo")
+async def marketing_brand_logo(req: LogoRequest, current_user: User = Depends(require_admin)):
+    """AI logo image URL (Pollinations free)."""
+    try:
+        from app.marketing import ai_image
+
+        url = ai_image.logo_url(req.business_name, req.niche, req.style)
+        _log_isha("brand_logo", req.business_name)
+        return {"url": url, "business_name": req.business_name, "provider": "pollinations-flux"}
+    except Exception as e:
+        logger.error(f"Logo failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Logo failed: {e}")
+
+
 @router.get("/gbp-tips")
 async def get_gbp_tips(
     niche: str = "general",
