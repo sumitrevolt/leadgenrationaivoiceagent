@@ -363,11 +363,58 @@ def _read_all() -> list[dict[str, Any]]:
     return out
 
 
+def _persist_prospect_to_db(rec: dict[str, Any]) -> bool:
+    """Best-effort: prospect ko relational `leads` table me bhi likho (jsonl ke saath).
+
+    Transactional + dedupe-by-phone. KABHI raise nahi karta — DB down / model missing /
+    FK issue ho to chup-chaap skip (jsonl hi source of truth rehta). Yeh DB ko bharta
+    hai taaki dashboards ka `_build_from_db` real leads dikhaye.
+    """
+    phone = "".join(ch for ch in str(rec.get("phone") or "") if ch.isdigit())
+    if len(phone) < 10:
+        return False
+    try:
+        import uuid as _uuid
+
+        from app.models.base import get_db_session
+        from app.models.lead import Lead, LeadSource, LeadStatus
+
+        with get_db_session() as db:
+            if db.query(Lead).filter(Lead.phone == phone).first():
+                return False  # dedupe
+            db.add(
+                Lead(
+                    id=str(rec.get("id") or _uuid.uuid4()),
+                    company_name=str(rec.get("business_name") or "Unknown")[:255],
+                    contact_name=str(rec.get("contact_name") or "")[:255],
+                    phone=phone,
+                    email=(rec.get("email") or None),
+                    address=(rec.get("address") or None),
+                    city=(rec.get("city") or None),
+                    category=(rec.get("category") or None),
+                    niche=(rec.get("niche") or None),
+                    source=LeadSource.GOOGLE_MAPS,
+                    status=LeadStatus.NEW,
+                    website=(rec.get("website") or None),
+                )
+            )
+            db.commit()
+        return True
+    except Exception as e:  # never let a DB issue break the jsonl write
+        logger.debug(f"[prospector] DB lead persist skipped: {e}")
+        return False
+
+
 def _append(rec: dict[str, Any]) -> bool:
     try:
         os.makedirs(os.path.dirname(_PROSPECTS_FILE) or ".", exist_ok=True)
         with open(_PROSPECTS_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+        # Mirror into the relational DB too (best-effort, never blocks the jsonl write).
+        try:
+            _persist_prospect_to_db(rec)
+        except Exception:
+            pass
         return True
     except Exception as e:
         logger.warning(f"[prospector] prospects.jsonl write failed: {e}")

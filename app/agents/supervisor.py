@@ -91,9 +91,53 @@ def route_for_task(task: str) -> str:
     return "leads_agent"  # default
 
 
-def supervisor_node(state: AgentState) -> dict[str, Any]:
-    """Rule-based router — NO LLM call. Sets state['route']."""
-    route = route_for_task(state.get("task") or "")
+# Lightweight FREE-LLM router prompt — classify a task into exactly one agent.
+_ROUTER_SYSTEM = (
+    "You route a task to ONE agent for an Indian lead-gen + data platform. Labels:\n"
+    "- data_agent: needs knowledge-base research, business details/profiles, or data metrics.\n"
+    "- leads_agent: needs calling, campaigns, lead qualification, or sales pitches.\n"
+    "Reply with ONLY one word: data_agent or leads_agent."
+)
+
+
+async def semantic_route_for_task(task: str) -> str:
+    """Async semantic router via the FREE LLM (Cerebras/Groq chain through free_ai).
+
+    `route_for_task()` keyword matching = zero-latency fallback: langgraph na ho,
+    LLM fail ho, ya output unexpected ho to seedha keyword router. Never raises,
+    koi paid service nahi (free_ai chain).
+    """
+    task = (task or "").strip()
+    if not task:
+        return "leads_agent"
+    if not AGENTS_AVAILABLE:
+        return route_for_task(task)
+    try:
+        from app.voice_agent.free_ai import chat
+
+        reply, _ = await chat(
+            _ROUTER_SYSTEM,
+            [{"role": "user", "content": task[:500]}],
+            max_tokens=6,
+            temperature=0.0,
+        )
+        low = (reply or "").strip().lower()
+        if "data_agent" in low:
+            return "data_agent"
+        if "leads_agent" in low:
+            return "leads_agent"
+        if "data" in low and "lead" not in low:
+            return "data_agent"
+        if "lead" in low and "data" not in low:
+            return "leads_agent"
+    except Exception as e:
+        logger.debug(f"semantic router LLM failed ({e}); keyword fallback.")
+    return route_for_task(task)
+
+
+async def supervisor_node(state: AgentState) -> dict[str, Any]:
+    """Semantic FREE-LLM router (keyword fallback). Sets state['route']."""
+    route = await semantic_route_for_task(state.get("task") or "")
     logger.debug(f"supervisor routed task to {route}")
     return {"route": route}
 

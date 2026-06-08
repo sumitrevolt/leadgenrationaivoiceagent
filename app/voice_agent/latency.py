@@ -513,6 +513,11 @@ class LatencyOptimizer:
         self._total_sum = 0.0
         self._cache_hits = 0
 
+        # Pre-synthesized greeting AUDIO cache (key -> TTS audio bytes). Lets a new
+        # call stream its opening line INSTANTLY (no synth on the critical path) for
+        # a sub-300ms TTFT. Populated via presynthesize_greetings() at warmup.
+        self._audio_cache: dict[str, bytes] = {}
+
     # -- warmup ------------------------------------------------------------
 
     def prewarm(self, providers: Any | None = None) -> None:
@@ -575,6 +580,47 @@ class LatencyOptimizer:
         self._ttft_sum = 0.0
         self._total_sum = 0.0
         self._cache_hits = 0
+
+    # -- pre-synthesized greeting audio cache (instant first-token) --------
+
+    def cache_audio(self, key: str, audio: bytes) -> None:
+        """Store pre-synthesized audio bytes under `key` (e.g. a niche name)."""
+        if key and isinstance(audio, (bytes, bytearray)) and audio:
+            self._audio_cache[str(key)] = bytes(audio)
+
+    def get_cached_audio(self, key: str) -> bytes | None:
+        """Retrieve pre-synthesized audio bytes for `key`, or None if not cached."""
+        return self._audio_cache.get(str(key or ""))
+
+    def has_cached_audio(self, key: str) -> bool:
+        return str(key or "") in self._audio_cache
+
+    def audio_cache_keys(self) -> list[str]:
+        return list(self._audio_cache.keys())
+
+    async def presynthesize_greetings(self, tts: Any, greetings: dict[str, str]) -> int:
+        """Pre-synthesize + cache greeting audio for many keys (niche -> text).
+
+        `tts` = a TTS provider with `synthesize(text)` (sync or async) -> bytes
+        (the project's `registry.get_tts()`). Best-effort: koi fail ho to skip.
+        Returns how many greetings got cached. Never raises.
+        """
+        cached = 0
+        for key, text in (greetings or {}).items():
+            if not key or not text or self.has_cached_audio(key):
+                continue
+            try:
+                audio = tts.synthesize(text)
+                if asyncio.iscoroutine(audio) or isinstance(audio, Awaitable):
+                    audio = await audio  # type: ignore[assignment]
+                if isinstance(audio, (bytes, bytearray)) and audio:
+                    self.cache_audio(key, bytes(audio))
+                    cached += 1
+            except Exception as e:
+                logger.debug(f"presynth greeting '{key}' skipped: {e}")
+        if cached:
+            logger.info(f"🔊 LatencyOptimizer: pre-cached {cached} greeting clip(s) for instant TTFT.")
+        return cached
 
     # -- the end-to-end fast path -----------------------------------------
 
@@ -653,6 +699,32 @@ class LatencyOptimizer:
         except Exception as e:
             logger.debug(f"KB lookup skipped: {e}")
             return ""
+
+
+def build_niche_greetings(agent_name: str = "Riya") -> dict[str, str]:
+    """Hinglish code-switched opening greetings per configured niche (for pre-synth).
+
+    Indian niches ke liye natural, chhota Hinglish greeting — phone-friendly, ek
+    sawaal. NICHES na mile to sirf {"general": ...}. Never raises. Koi paid service
+    nahi — yeh sirf FREE TTS (EdgeTTS) ke liye text deta hai.
+    """
+    out: dict[str, str] = {}
+    try:
+        from app.niches import NICHES
+
+        for key, cfg in (NICHES or {}).items():
+            name = (cfg or {}).get("name", key)
+            out[str(key)] = (
+                f"Namaste! Main {agent_name} bol rahi hoon. "
+                f"Aapne {name} ke baare mein enquiry ki thi — kya main do minute baat kar sakti hoon?"
+            )
+    except Exception:
+        pass
+    out.setdefault(
+        "general",
+        f"Namaste! Main {agent_name} bol rahi hoon. Kya main aapse do minute baat kar sakti hoon?",
+    )
+    return out
 
 
 # =============================================================================
