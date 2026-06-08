@@ -339,3 +339,13 @@
 - **DEPLOYED LIVE (7e966f4)** via Cowork DC: py_compile OK → push (550f3d5..7e966f4) → VPS reset+restart → is-active=active, /health prod uptime 6s → **lightrag-hku install EXIT_PIP=0 + import EXIT_IMPORT=0** → health again OK (18s). Safe ordering: restart pehle (safe code, modules opt-in import nahi hote), install baad → running app untouched.
 - Sandbox-verified graceful: dono OFF + deps-missing → safe dict, no crash.
 - **NEXT (opt-in, FREE test pehle)**: `USE_AGENTIC_RAG=1` → `agent_tester.py` compare → telecaller_brain KB-grounding me wire (better answers on vague/misspelled queries, kam hallucination). LightRAG → ek client/niche seed→`aquery` test → provisioning me graph-seed.
+
+## AUTOMATION + MARKETING REPOS (2026-06-08, commit ec2b888)
+- **User: "ai automation + automated marketing related best repos add karo".** Research (2 searches).
+- **Instructor** `app/llm/structured.py` — typed/validated LLM JSON (Pydantic + auto-retry) over free providers (Cerebras/Groq JSON mode). LLM-JSON parse reliable → post_generator/ads_copy/lead_scoring/competitor/agentic-grading. No env flag; dep/key missing → None → existing template fallback.
+- **advertools** `app/marketing/seo_tools.py` — `generate_keywords` (SEM combos) + `split_ad` (RSA slots). ads_copy/seo_blog/gbp boost. pandas-based.
+- **trafilatura** `app/lead_scraper/web_extract.py` — `clean_text` (best-in-class main-text) + `find_contacts` (emails + IN phones). prospector/competitor enrichment + RAG-feed. Crude regex/tag-strip fallback always works.
+- Sab defensive + opt-in — koi code abhi import nahi karta → zero runtime change until wired. Doc: `docs/Automation_Marketing_Repos.md`.
+- **DEPLOYED LIVE (ec2b888)**: push → VPS restart (active, /health prod uptime 6s) → pip install 3 EXIT_PIP=0 + import EXIT_IMPORT=0 → health again 27s OK.
+- **Harmless warning**: stale UNUSED `langchain-community 0.0.20` ne langchain-core 1.4.1 ke saath version-conflict warning diya (install phir bhi success; app langchain-core directly via langgraph use karta, community import nahi hota). Optional cleanup: `.venv/bin/pip uninstall -y langchain-community`.
+- Sandbox-verified: teeno graceful (split_ad/tag-strip/contact-regex bina lib kaam karte).
