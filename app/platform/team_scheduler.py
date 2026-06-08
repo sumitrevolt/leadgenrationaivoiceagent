@@ -86,6 +86,7 @@ _last_ran: dict[str, str | None] = {
     "email_outreach": None,
     "blog": None,
     "reply_triage": None,
+    "watchdog": None,
 }
 
 
@@ -127,6 +128,10 @@ async def _run_job(job: str) -> None:
             from app.platform import reply_agent
 
             await reply_agent.run_reply_triage()
+        elif job == "watchdog":
+            from app.platform import ops_watchdog
+
+            await ops_watchdog.run_watchdog()
     except Exception as e:
         logger.warning(f"[team-scheduler] job {job} failed: {e}")
 
@@ -175,6 +180,10 @@ async def scheduler_loop() -> None:
             if now.minute >= 20 and _last_ran["reply_triage"] != hour_key:
                 _last_ran["reply_triage"] = hour_key
                 await _run_job("reply_triage")
+            # AI ops watchdog — hourly (monitor + diagnose + alert). Gated by OPS_WATCHDOG.
+            if now.minute >= 35 and _last_ran["watchdog"] != hour_key:
+                _last_ran["watchdog"] = hour_key
+                await _run_job("watchdog")
         except asyncio.CancelledError:
             logger.info("[team-scheduler] loop cancelled")
             raise

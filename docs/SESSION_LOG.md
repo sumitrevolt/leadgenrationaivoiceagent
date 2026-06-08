@@ -391,3 +391,12 @@
 - Sandbox-verified: off→skipped, on+no-creds→imap_unconfigured, no crash.
 - **ENABLE**: `.env REPLY_AGENT=1` + restart (SMTP creds already live) → har ghante replies auto-triage, hot leads minutes me surface. Free-stack self-hosted (imaplib stdlib + free_ai + prospector) — Smartlead SmartAgents ($39/mo) ka free equivalent.
 - Future: drafts dashboard tab + 1-click send; interested → Swara voice auto-callback.
+
+## AI OPS WATCHDOG — autonomous monitoring + alerting (2026-06-08)
+- **User: "project stack ka operations automated karo — AI automation me abhi bhi kami".** Research: 2026 AIOps = sense→reason→act→alert (agentic SRE); self-hosted key pattern = heartbeat monitoring (job chup-chaap ruke → alert).
+- **GAP found**: stack self-runs (scheduler/agents/outreach), par koi job silently fail ho ya LLM provider down ho to **Sumit ko pata hi nahi chalta** (sirf dashboard log). Proactive alerting + AI diagnosis missing tha — yeh THE ops-automation gap.
+- **Built `app/platform/ops_watchdog.py`**: SENSE (scheduler heartbeat `data/.scheduler.lock` age, free_ai providers, disk%, db size, daily-digest freshness) → DETECT (rules: scheduler>20min=critical, no-LLM=critical, disk>90%=warn, digest>30h=warn) → REASON (free_ai Hinglish diagnosis+action) → ALERT (EmailSender → `settings.notify_email`, per-issue 6h throttle) → Kavya event. Never-crash.
+- **Scheduled**: team_scheduler hourly "watchdog" (minute≥35), **gated OPS_WATCHDOG=1** → off tak no-op (3 surgical edits, safe).
+- Sandbox-verified: off→skipped; on→report (sandbox me llm_down detect kiya kyunki keys nahi, alert skip kyunki notify unset); no crash.
+- **ENABLE**: `.env OPS_WATCHDOG=1` + `NOTIFY_EMAIL=<email>` + restart → har ghante system khud monitor; critical (scheduler stall/LLM down) pe Sumit ko email alert (AI diagnosis ke saath). Datadog/AIOps-style autonomous ops, free-stack.
+- Future: external offsite uptime ping, WhatsApp alert, auto-remediation (missed job auto-rerun).
