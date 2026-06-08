@@ -2,29 +2,29 @@
 AI Voice Agent - B2B Lead Generation Platform
 Main Application Configuration
 """
-import os
-from typing import Optional, List
-from pydantic_settings import BaseSettings
-from pydantic import Field, field_validator, model_validator
+
 from functools import lru_cache
+
+from pydantic import Field, field_validator, model_validator
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
-    
+
     # Application
     app_name: str = "AI Voice Agent"
     app_env: str = "development"
     debug: bool = True
     secret_key: str = "change-this-in-production"
-    
+
     # Database
     database_url: str = "postgresql+asyncpg://user:password@localhost:5432/voice_agent_db"
     redis_url: str = "redis://localhost:6379/0"
 
     # Vector RAG (Qdrant) — empty = disabled; KB falls back to Chroma/keyword
     qdrant_url: str = ""
-    
+
     # AI Models
     openai_api_key: str = ""
     anthropic_api_key: str = ""
@@ -38,32 +38,34 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     # Cerebras (free, fastest llama-3.3-70b) + OpenRouter (free deepseek) —
     # OpenAI-compatible LLM fallbacks in the free_ai chain. Both OPTIONAL.
-    cerebras_api_key: str = ""    # cloud.cerebras.ai — llama-3.3-70b
+    cerebras_api_key: str = ""  # cloud.cerebras.ai — llama-3.3-70b
     openrouter_api_key: str = ""  # openrouter.ai — deepseek/deepseek-chat:free
-    xai_api_key: str = ""         # x.ai (Grok — Groq se ALAG company; credits-based)
+    xai_api_key: str = ""  # x.ai (Grok — Groq se ALAG company; credits-based)
     google_cloud_project_id: str = ""
     google_cloud_location: str = "us-central1"
-    default_llm: str = "gemini-1.5-flash"  # gpt-4, gpt-4o, claude-3-opus, gemini-1.5-flash, vertex-gemini, local-llama
+    default_llm: str = (
+        "gemini-1.5-flash"  # gpt-4, gpt-4o, claude-3-opus, gemini-1.5-flash, vertex-gemini, local-llama
+    )
     local_llm_path: str = "models/llama-3-8b-instruct.Q4_K_M.gguf"
-    
+
     # Speech-to-Text
     deepgram_api_key: str = ""
     google_speech_credentials: str = ""
     default_stt: str = "deepgram"  # deepgram, google
-    
+
     # Text-to-Speech
     elevenlabs_api_key: str = ""
     elevenlabs_voice_id: str = ""
     azure_speech_key: str = ""
     azure_speech_region: str = "centralindia"
     default_tts: str = "edge"  # elevenlabs, azure, edge
-    
+
     # Telephony
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
     twilio_phone_number: str = ""
     twilio_webhook_url: str = ""
-    
+
     exotel_sid: str = ""
     exotel_token: str = ""
     exotel_api_key: str = ""
@@ -87,24 +89,24 @@ class Settings(BaseSettings):
 
     # Lead Scraping
     google_maps_api_key: str = ""
-    proxy_url: Optional[str] = None
+    proxy_url: str | None = None
     use_proxy: bool = False
-    
+
     # CRM Integrations
     hubspot_api_key: str = ""
     zoho_client_id: str = ""
     zoho_client_secret: str = ""
     zoho_refresh_token: str = ""
-    
+
     # Google Sheets
     google_sheets_credentials: str = ""
     default_spreadsheet_id: str = ""
-    
+
     # WhatsApp
     whatsapp_business_token: str = ""
     whatsapp_phone_number_id: str = ""
     whatsapp_business_account_id: str = ""
-    
+
     # Email
     smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
@@ -124,32 +126,32 @@ class Settings(BaseSettings):
     outreach_from_name: str = "Sumit — LeadGen AI"
     # Email API providers (SMTP se zyada reliable; key ho to API se bhejta hai).
     # Resend: console resend.com (3000/mo free). Brevo: brevo.com (300/day free).
-    resend_api_key: str = ""        # env RESEND_API_KEY
-    brevo_api_key: str = ""         # env BREVO_API_KEY
-    
+    resend_api_key: str = ""  # env RESEND_API_KEY
+    brevo_api_key: str = ""  # env BREVO_API_KEY
+
     # Compliance
     dnd_api_url: str = ""
     dnd_api_key: str = ""
     enable_dnd_check: bool = True
-    
+
     # Payment Gateways
     # Stripe (International)
     stripe_secret_key: str = ""
     stripe_publishable_key: str = ""
     stripe_webhook_secret: str = ""
-    
+
     # Razorpay (India)
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""
-    
+
     # Payment Settings
     default_currency: str = "INR"  # INR for India, USD for international
     auto_detect_payment_gateway: bool = True  # Auto-select based on currency/country
     # Apna UPI VPA (env UPI_VPA, e.g. 9876543210@ybl) — landing page ka
     # "Shuru karo" payment modal isi se QR banata hai. Empty = path disabled.
     upi_vpa: str = ""
-    
+
     # Call Settings
     max_call_duration_seconds: int = 300
     max_concurrent_calls: int = 10
@@ -158,97 +160,106 @@ class Settings(BaseSettings):
     working_hours_start: str = "09:00"
     working_hours_end: str = "18:00"
     timezone: str = "Asia/Kolkata"
-    
+
     # Support Contact Settings
     support_phone_number: str = ""  # E.g., +919876543210
     support_whatsapp_number: str = ""  # E.g., +919876543210
     support_email: str = ""  # E.g., support@leadgenai.com
     platform_website_url: str = "https://app.leadgenai.com"
-    
+
     # Monitoring
-    sentry_dsn: Optional[str] = None
+    sentry_dsn: str | None = None
     log_level: str = "INFO"  # DEBUG, INFO, WARNING, ERROR
-    
+
     # Platform Settings (Multi-Tier Automation)
     auto_start_platform: bool = True  # Auto-start 24/7 automation on startup
     platform_company_name: str = "LeadGen AI Solutions"
-    platform_target_industries: List[str] = Field(
+    platform_target_industries: list[str] = Field(
         default=["digital_marketing", "real_estate", "solar", "education", "insurance", "logistics"]
     )
-    platform_target_cities: List[str] = Field(
-        default=["Mumbai", "Delhi", "Bangalore", "Chennai", "Hyderabad", "Pune", "Kolkata", "Ahmedabad"]
+    platform_target_cities: list[str] = Field(
+        default=[
+            "Mumbai",
+            "Delhi",
+            "Bangalore",
+            "Chennai",
+            "Hyderabad",
+            "Pune",
+            "Kolkata",
+            "Ahmedabad",
+        ]
     )
-    
+
     # Trial/Subscription Settings
     trial_duration_days: int = 7
     trial_calls_limit: int = 100
     starter_monthly_price: int = 999  # INR
     growth_monthly_price: int = 2499
     enterprise_monthly_price: int = 5999
-    
+
     # Google Cloud Storage (for profile pictures)
     gcs_bucket_name: str = "auraleads-storage"
     gcs_profile_pictures_bucket: str = "auraleads-profile-pictures"
-    
+
     # JWT Settings
     jwt_secret_key: str = "change-this-jwt-secret-in-production"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
     jwt_refresh_token_expire_days: int = 7
-    
+
     # Security
-    cors_origins: List[str] = Field(default=["http://localhost:3000", "http://localhost:5173"])
+    cors_origins: list[str] = Field(default=["http://localhost:3000", "http://localhost:5173"])
     rate_limit_per_minute: int = 100
     max_failed_login_attempts: int = 5
     account_lockout_minutes: int = 30
-    
+
     # Validators
-    @field_validator('app_env')
+    @field_validator("app_env")
     @classmethod
     def validate_app_env(cls, v: str) -> str:
         """Validate app environment"""
-        allowed = ['development', 'staging', 'production', 'test']
+        allowed = ["development", "staging", "production", "test"]
         if v.lower() not in allowed:
             raise ValueError(f"app_env must be one of {allowed}")
         return v.lower()
-    
-    @field_validator('log_level')
+
+    @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
         """Validate log level"""
-        allowed = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+        allowed = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if v.upper() not in allowed:
             raise ValueError(f"log_level must be one of {allowed}")
         return v.upper()
-    
-    @field_validator('max_call_duration_seconds')
+
+    @field_validator("max_call_duration_seconds")
     @classmethod
     def validate_call_duration(cls, v: int) -> int:
         """Validate call duration is reasonable"""
         if v < 30 or v > 3600:
             raise ValueError("max_call_duration_seconds must be between 30 and 3600")
         return v
-    
-    @field_validator('max_concurrent_calls')
+
+    @field_validator("max_concurrent_calls")
     @classmethod
     def validate_concurrent_calls(cls, v: int) -> int:
         """Validate concurrent calls limit"""
         if v < 1 or v > 1000:
             raise ValueError("max_concurrent_calls must be between 1 and 1000")
         return v
-    
-    @field_validator('rate_limit_per_minute')
+
+    @field_validator("rate_limit_per_minute")
     @classmethod
     def validate_rate_limit(cls, v: int) -> int:
         """Validate rate limit"""
         if v < 1 or v > 10000:
             raise ValueError("rate_limit_per_minute must be between 1 and 10000")
         return v
-    
-    @model_validator(mode='after')
-    def validate_production_settings(self) -> 'Settings':
+
+    @model_validator(mode="after")
+    def validate_production_settings(self) -> "Settings":
         """Validate critical settings in production"""
-        if self.app_env == 'production':
+        if self.app_env == "production":
             if self.secret_key == "change-this-in-production":
                 raise ValueError("secret_key must be changed in production")
             if self.jwt_secret_key == "change-this-jwt-secret-in-production":
@@ -256,24 +267,24 @@ class Settings(BaseSettings):
             if self.debug:
                 raise ValueError("debug must be False in production")
         return self
-    
+
     @property
     def is_production(self) -> bool:
         """Check if running in production"""
         return self.app_env == "production"
-    
+
     @property
     def is_development(self) -> bool:
         """Check if running in development"""
         return self.app_env == "development"
-    
+
     class Config:
         env_file = ".env"
         case_sensitive = False
         extra = "ignore"
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance"""
     return Settings()

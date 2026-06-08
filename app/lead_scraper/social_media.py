@@ -12,11 +12,12 @@ REALITY CHECK (important):
     * Ya Apify Instagram Scraper (paid, ~$0.x per 1k)
   Iska interface same rakha gaya hai taaki baad me swap aasaan ho.
 """
+
 import asyncio
 import re
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
-from urllib.parse import urlparse, parse_qs, unquote
+from typing import Any
+from urllib.parse import parse_qs, unquote, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -33,17 +34,18 @@ EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 @dataclass
 class SocialMediaLead:
     """A business lead discovered from a public social media page."""
+
     name: str
-    handle: Optional[str]
-    platform: str            # "instagram" | "facebook"
+    handle: str | None
+    platform: str  # "instagram" | "facebook"
     profile_url: str
-    phone: Optional[str]
-    email: Optional[str]
+    phone: str | None
+    email: str | None
     bio: str
     city: str
     category: str
     source: str = "social_media"
-    raw_data: Dict[str, Any] = field(default_factory=dict)
+    raw_data: dict[str, Any] = field(default_factory=dict)
 
 
 class SocialMediaScraper:
@@ -72,7 +74,7 @@ class SocialMediaScraper:
         logger.info("📱 Social Media Scraper initialized")
 
     def _client(self) -> httpx.AsyncClient:
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "headers": self.headers,
             "timeout": 20.0,
             "follow_redirects": True,
@@ -100,10 +102,10 @@ class SocialMediaScraper:
         self,
         category: str,
         city: str,
-        platforms: Optional[List[str]] = None,
+        platforms: list[str] | None = None,
         max_results: int = 20,
         enrich: bool = True,
-    ) -> List[SocialMediaLead]:
+    ) -> list[SocialMediaLead]:
         """
         Find public social pages for a category + city.
 
@@ -115,7 +117,7 @@ class SocialMediaScraper:
             enrich: fetch each profile page for phone/email in bio
         """
         platforms = platforms or ["instagram", "facebook"]
-        leads: List[SocialMediaLead] = []
+        leads: list[SocialMediaLead] = []
 
         for platform in platforms:
             domain = self.PLATFORM_DOMAINS.get(platform)
@@ -168,7 +170,7 @@ class SocialMediaScraper:
         logger.info(f"Social media found {len(leads)} leads for '{category}' in {city}")
         return leads
 
-    async def _enrich_leads(self, leads: List[SocialMediaLead]) -> None:
+    async def _enrich_leads(self, leads: list[SocialMediaLead]) -> None:
         sem = asyncio.Semaphore(4)
 
         async def fetch(lead: SocialMediaLead):
@@ -194,7 +196,7 @@ class SocialMediaScraper:
         await asyncio.gather(*(fetch(l) for l in leads), return_exceptions=True)
 
     @staticmethod
-    def _extract_handle(url: str, platform: str) -> Optional[str]:
+    def _extract_handle(url: str, platform: str) -> str | None:
         try:
             path = urlparse(url).path.strip("/")
             if not path:
@@ -212,7 +214,7 @@ class SocialMediaScraper:
         return title.strip(" -–·") or title.strip()
 
     @staticmethod
-    def _first_phone(text: str) -> Optional[str]:
+    def _first_phone(text: str) -> str | None:
         m = PHONE_RE.search(text or "")
         if not m:
             return None
@@ -220,7 +222,7 @@ class SocialMediaScraper:
         return digits[-10:] if len(digits) >= 10 else None
 
     @staticmethod
-    def _first_email(text: str) -> Optional[str]:
+    def _first_email(text: str) -> str | None:
         m = EMAIL_RE.search(text or "")
         if not m:
             return None

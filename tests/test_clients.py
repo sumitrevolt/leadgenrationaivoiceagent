@@ -7,6 +7,7 @@ content piece exercises the TEMPLATE fallback (never-empty guarantee). File
 paths are redirected to tmp_path via the module-level _CLIENTS_FILE / _QUEUE_DIR
 constants so tests never touch the real data/ dir.
 """
+
 import os
 from datetime import date
 
@@ -18,6 +19,7 @@ from app.marketing import auto_content, clients_store, post_generator
 @pytest.fixture
 def no_llm(monkeypatch):
     """free_ai.chat ko ("","") force karo — har content piece template path se."""
+
     async def _empty(*args, **kwargs):
         return "", ""
 
@@ -36,6 +38,7 @@ def tmp_store(monkeypatch, tmp_path):
     # brand_kit mirror bhi tmp me rahe (real data dir na chhue)
     try:
         from app.marketing import brand_kit
+
         monkeypatch.setattr(brand_kit, "_BRAND_DIR", brand_dir)
     except Exception:
         pass
@@ -46,11 +49,15 @@ def tmp_store(monkeypatch, tmp_path):
 # clients_store
 # --------------------------------------------------------------------------- #
 
+
 class TestClientsStore:
     def test_add_list_get_roundtrip(self, tmp_store):
         rec = clients_store.add_client(
-            "Sharma Solar", niche="solar_residential",
-            city="Pune", phone="+919876543210", plan="growth",
+            "Sharma Solar",
+            niche="solar_residential",
+            city="Pune",
+            phone="+919876543210",
+            plan="growth",
             brand={"primary": "#0b5fff", "accent": "#ffce00", "tagline": "Go Solar"},
             socials={"instagram": "sharma_solar"},
         )
@@ -95,11 +102,14 @@ class TestClientsStore:
 # auto_content.generate_for_client
 # --------------------------------------------------------------------------- #
 
+
 class TestGenerateForClient:
     @pytest.mark.asyncio
     async def test_returns_items_with_required_keys(self, no_llm, tmp_store):
         client = clients_store.add_client(
-            "Test Biz", "solar_residential", phone="9000000010",
+            "Test Biz",
+            "solar_residential",
+            phone="9000000010",
             brand={"primary": "#0b5fff"},
         )
         items = await auto_content.generate_for_client(client)
@@ -121,15 +131,23 @@ class TestGenerateForClient:
     async def test_poster_day_and_festival_bonus(self, no_llm, tmp_store, monkeypatch):
         # Force Wednesday (poster day) + a festival exactly 1 day away.
         monkeypatch.setattr(
-            auto_content.festivals, "upcoming",
-            lambda days=2: [{"date": "2099-01-01", "name": "Diwali",
-                             "type": "hindu", "marketing_angle": "x", "days_away": 1}],
+            auto_content.festivals,
+            "upcoming",
+            lambda days=2: [
+                {
+                    "date": "2099-01-01",
+                    "name": "Diwali",
+                    "type": "hindu",
+                    "marketing_angle": "x",
+                    "days_away": 1,
+                }
+            ],
         )
         client = clients_store.add_client("Fest Biz", "general", phone="9000000011")
         items = await auto_content.generate_for_client(client, day=date(2026, 6, 10))  # Wed
         types = [it["type"] for it in items]
-        assert "poster" in types        # Wednesday main item
-        assert "festival" in types      # festival bonus (post + poster both 'festival'/'poster')
+        assert "poster" in types  # Wednesday main item
+        assert "festival" in types  # festival bonus (post + poster both 'festival'/'poster')
         # festival greeting post present
         assert any(it["type"] == "festival" for it in items)
 
@@ -137,6 +155,7 @@ class TestGenerateForClient:
 # --------------------------------------------------------------------------- #
 # auto_content.run_daily_content + mark_item
 # --------------------------------------------------------------------------- #
+
 
 class TestRunDailyContent:
     @pytest.mark.asyncio

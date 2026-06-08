@@ -184,11 +184,11 @@
       <!-- Charts row -->
       <div class="grid g-2">
         <div class="card">
-          <div class="hd"><h3>Revenue vs Telephony Cost</h3><span class="right">Last 6 months · ₹</span></div>
+          <div class="hd"><h3>Growth Pipeline</h3><span class="right">Live counts</span></div>
           <div class="bd"><div class="chart-wrap"><canvas id="chRev"></canvas></div></div>
         </div>
         <div class="card">
-          <div class="hd"><h3>Leads by Niche</h3><span class="right">This month</span></div>
+          <div class="hd"><h3>Prospects by Status</h3><span class="right">Outreach pipeline</span></div>
           <div class="bd"><div class="chart-wrap sm"><canvas id="chNiche"></canvas></div></div>
         </div>
       </div>
@@ -196,7 +196,7 @@
       <!-- Calls line + Health -->
       <div class="grid g-2">
         <div class="card">
-          <div class="hd"><h3>Calls per Day</h3><span class="right">This week</span></div>
+          <div class="hd"><h3>Aaj ki Activity</h3><span class="right">Today</span></div>
           <div class="bd"><div class="chart-wrap"><canvas id="chCalls"></canvas></div></div>
         </div>
         <div class="card" id="sec-health">
@@ -308,21 +308,24 @@ const initials = s => s.split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCas
 let charts = {};
 
 /* ----------------------------- render ----------------------------- */
-function renderKPIs(k){
+function renderKPIs(k, live){
+  live = live || {};
+  const num = n => Number(n||0).toLocaleString("en-IN");
   const cards = [
-    {lbl:"Total Clients", val:k.total_clients, chg:"+2 this month", up:true, cls:""},
-    {lbl:"Active Campaigns", val:k.active_campaigns, chg:"6 niches running", up:true, cls:""},
-    {lbl:"Aaj ki Calls", val:Number(k.calls_today).toLocaleString("en-IN"), chg:"+12% vs kal", up:true, cls:"ok"},
-    {lbl:"Qualified Leads (month)", val:Number(k.qualified_leads_month).toLocaleString("en-IN"), chg:"+18% MoM", up:true, cls:"ok"},
-    {lbl:"Revenue (month)", val:inrShort(k.revenue_month), chg:"+10.4% MoM", up:true, cls:"rev"},
-    {lbl:"Est. Telephony Cost", val:inrShort(k.telephony_cost_month), chg:"+4.7% MoM", up:false, cls:"warn"},
-    {lbl:"Net Margin", val:k.net_margin_pct+"%", chg:"healthy", up:true, cls:"ok"}
+    {lbl:"Marketing Clients", val:num(k.total_clients), chg:(live.marketing_clients_active!=null?live.marketing_clients_active+" active":"signed up"), up:true, cls:""},
+    {lbl:"Prospects Scraped", val:num(live.total_prospects), chg:(live.prospects_with_email!=null?live.prospects_with_email+" with email":"in pipeline"), up:true, cls:""},
+    {lbl:"Inquiries (total)", val:num(k.qualified_leads_month), chg:(live.inquiries_today!=null?live.inquiries_today+" aaj":"leads"), up:true, cls:"ok"},
+    {lbl:"Emails Sent", val:num(live.emails_sent), chg:(live.emails_pending!=null?live.emails_pending+" pending":"outreach"), up:true, cls:"ok"},
+    {lbl:"Blog Articles", val:num(live.blog_articles), chg:"SEO published", up:true, cls:""},
+    {lbl:"Content Generated", val:num(live.content_items_generated), chg:"posts/posters", up:true, cls:""},
+    {lbl:"Aaj ki Calls", val:num(k.calls_today), chg:(live.agent_actions_today!=null?live.agent_actions_today+" staff actions":"calls"), up:true, cls:"ok"},
+    {lbl:"Est. MRR", val:inrShort(k.revenue_month), chg:(k.revenue_month>0?"active plans":"abhi ₹0"), up:k.revenue_month>0, cls:"rev"}
   ];
   $("kpis").innerHTML = cards.map(c=>`
     <div class="kpi ${c.cls}">
       <div class="lbl">${c.lbl}</div>
       <div class="val">${c.val}</div>
-      <div class="chg ${c.up?'up':'down'}">${c.up?'▲':'▼'} ${c.chg}</div>
+      <div class="chg ${c.up?'up':'down'}">${c.up?'▲':'•'} ${c.chg}</div>
     </div>`).join("");
 }
 
@@ -355,8 +358,8 @@ function renderAgents(list){
       <div class="stl ${a.status}">${a.status}</div>
       <div class="cl">▸ ${a.current_client}</div>
       <div class="mx">
-        <div><b>${a.calls_made}</b><span>Calls</span></div>
-        <div><b>${a.leads_found}</b><span>Leads</span></div>
+        <div><b>${a.calls_made}</b><span>Aaj ke kaam</span></div>
+        <div><b>${a.leads_found}</b><span>Errors</span></div>
       </div>
     </div>`).join("");
   const active = list.filter(a=>a.status==='calling'||a.status==='scraping').length;
@@ -405,13 +408,13 @@ function renderCharts(c){
     type:"bar",
     data:{ labels:c.revenue_cost.labels,
       datasets:[
-        {label:"Revenue", data:c.revenue_cost.revenue, backgroundColor:"#4f46e5", borderRadius:6, maxBarThickness:26},
-        {label:"Telephony Cost", data:c.revenue_cost.cost, backgroundColor:"#f59e0b", borderRadius:6, maxBarThickness:26}
+        {label:"Total", data:c.revenue_cost.revenue, backgroundColor:"#4f46e5", borderRadius:6, maxBarThickness:36},
+        {label:"Pending", data:c.revenue_cost.cost, backgroundColor:"#f59e0b", borderRadius:6, maxBarThickness:36}
       ]},
     options:{responsive:true, maintainAspectRatio:false,
       plugins:{legend:{position:"bottom", labels:{boxWidth:12, usePointStyle:true}},
-        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+inrShort(ctx.raw)}}},
-      scales:{y:{ticks:{callback:v=>inrShort(v)}, grid:{color:"#f1f5f9"}}, x:{grid:{display:false}}}}
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+": "+Number(ctx.raw).toLocaleString("en-IN")}}},
+      scales:{y:{beginAtZero:true, ticks:{precision:0}, grid:{color:"#f1f5f9"}}, x:{grid:{display:false}}}}
   });
 
   charts.niche = new Chart($("chNiche"), {
@@ -427,12 +430,12 @@ function renderCharts(c){
   charts.calls = new Chart($("chCalls"), {
     type:"line",
     data:{ labels:c.calls_per_day.labels,
-      datasets:[{label:"Calls", data:c.calls_per_day.values, borderColor:"#4f46e5",
+      datasets:[{label:"Count", data:c.calls_per_day.values, borderColor:"#4f46e5",
         backgroundColor:"rgba(79,70,229,.12)", fill:true, tension:.4, pointBackgroundColor:"#4f46e5",
         pointRadius:4, borderWidth:2.5}]},
     options:{responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false}},
-      scales:{y:{beginAtZero:true, grid:{color:"#f1f5f9"}}, x:{grid:{display:false}}}}
+      scales:{y:{beginAtZero:true, ticks:{precision:0}, grid:{color:"#f1f5f9"}}, x:{grid:{display:false}}}}
   });
 }
 
@@ -468,7 +471,7 @@ async function loadNiches(){
 
 /* ----------------------------- orchestration ----------------------------- */
 function renderAll(d){
-  renderKPIs(d.kpis);
+  renderKPIs(d.kpis, d.live);
   renderClients(d.clients);
   renderAgents(d.agents);
   renderCampaigns(d.campaigns);
@@ -476,38 +479,31 @@ function renderAll(d){
   renderCharts(d.charts);
 }
 
+let USING_REAL = false;  // true once the real API responds (stops cosmetic demo nudges)
+
 async function loadDashboard(){
-  // Render demo data immediately so the page is never blank
-  renderAll(DEMO);
-  $("src-label").textContent = "Live Demo";
+  $("src-label").textContent = "Loading…";
   try{
     const ctrl = new AbortController();
-    const t = setTimeout(()=>ctrl.abort(), 2500);
-    const res = await fetch("/api/admin/dashboard", {signal:ctrl.signal});
+    const t = setTimeout(()=>ctrl.abort(), 8000);
+    const res = await fetch("/api/admin/dashboard", {signal:ctrl.signal, cache:"no-store"});
     clearTimeout(t);
     if(!res.ok) throw new Error("bad status "+res.status);
     const data = await res.json();
+    USING_REAL = true;                 // real data wins — never overwrite with demo
     renderAll(data);
-    $("src-label").textContent = "Live · API";
+    $("src-label").textContent = data.is_sample_data ? "Live · API (sample)" : "Live · API";
   }catch(e){
-    // stay on demo data silently
-    $("src-label").textContent = "Demo (offline)";
+    // API unreachable (offline preview) — show demo only as a last resort.
+    if(!USING_REAL){ renderAll(DEMO); $("src-label").textContent = "Demo (offline)"; }
   }
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{ loadDashboard(); loadNiches(); });
 
-/* gentle live feel: nudge agent counters every 5s (cosmetic only) */
-setInterval(()=>{
-  document.querySelectorAll(".agent").forEach((el,i)=>{
-    const a = DEMO.agents[i]; if(!a || a.status==='idle' || a.status==='error') return;
-    a.calls_made += Math.floor(Math.random()*3);
-    if(Math.random()>0.6) a.leads_found += 1;
-    const bs = el.querySelectorAll(".mx b");
-    if(bs[0]) bs[0].textContent = a.calls_made;
-    if(bs[1]) bs[1].textContent = a.leads_found;
-  });
-}, 5000);
+/* Auto-refresh REAL data every 30s (only after the live API has answered, so we
+   never paint fake demo numbers over real ones). Cosmetic random nudges removed. */
+setInterval(()=>{ if(USING_REAL) loadDashboard(); }, 30000);
 </script>
 </body>
 </html>

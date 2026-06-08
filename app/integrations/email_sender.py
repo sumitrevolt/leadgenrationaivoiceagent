@@ -2,10 +2,11 @@
 Email Integration
 Send notifications and reports via email
 """
-import asyncio
-from typing import Optional, List, Dict, Any
-from email.mime.text import MIMEText
+
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Any
+
 import aiosmtplib
 
 from app.config import settings
@@ -17,38 +18,38 @@ logger = setup_logger(__name__)
 class EmailSender:
     """
     Email notification sender
-    
+
     Used for:
     - Lead alerts
     - Daily/weekly reports
     - Appointment confirmations
     - System notifications
     """
-    
+
     def __init__(self):
         self.host = settings.smtp_host
         self.port = settings.smtp_port
         self.user = settings.smtp_user
         self.password = settings.smtp_password
         self.from_email = settings.email_from or settings.smtp_user
-        
+
         if self.user and self.password:
             logger.info("📧 Email Sender initialized")
         else:
             logger.warning("Email credentials not configured")
-    
+
     async def send_email(
         self,
-        to_emails: List[str],
+        to_emails: list[str],
         subject: str,
         body: str,
-        html_body: Optional[str] = None,
-        cc: Optional[List[str]] = None,
-        reply_to: Optional[str] = None
+        html_body: str | None = None,
+        cc: list[str] | None = None,
+        reply_to: str | None = None,
     ) -> bool:
         """
         Send an email
-        
+
         Args:
             to_emails: List of recipient emails
             subject: Email subject
@@ -78,23 +79,23 @@ class EmailSender:
             return False
 
         # Create message
-        msg = MIMEMultipart('alternative')
-        msg['From'] = self.from_email
-        msg['To'] = ', '.join(to_emails)
-        msg['Subject'] = subject
-        
+        msg = MIMEMultipart("alternative")
+        msg["From"] = self.from_email
+        msg["To"] = ", ".join(to_emails)
+        msg["Subject"] = subject
+
         if cc:
-            msg['Cc'] = ', '.join(cc)
+            msg["Cc"] = ", ".join(cc)
         if reply_to:
-            msg['Reply-To'] = reply_to
-        
+            msg["Reply-To"] = reply_to
+
         # Attach plain text body
-        msg.attach(MIMEText(body, 'plain'))
-        
+        msg.attach(MIMEText(body, "plain"))
+
         # Attach HTML body if provided
         if html_body:
-            msg.attach(MIMEText(html_body, 'html'))
-        
+            msg.attach(MIMEText(html_body, "html"))
+
         try:
             await aiosmtplib.send(
                 msg,
@@ -102,24 +103,20 @@ class EmailSender:
                 port=self.port,
                 username=self.user,
                 password=self.password,
-                use_tls=True
+                use_tls=True,
             )
-            
+
             logger.info(f"Email sent to {', '.join(to_emails)}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to send email: {e}")
             return False
-    
-    async def send_lead_alert(
-        self,
-        to_emails: List[str],
-        lead_data: Dict[str, Any]
-    ) -> bool:
+
+    async def send_lead_alert(self, to_emails: list[str], lead_data: dict[str, Any]) -> bool:
         """Send hot lead alert email"""
         subject = f"🔥 New Hot Lead: {lead_data.get('company_name', 'Unknown')}"
-        
+
         body = f"""
 NEW HOT LEAD ALERT!
 
@@ -139,14 +136,14 @@ Call Time: {lead_data.get('call_time', 'N/A')}
 ---
 LeadGen AI - AI Automated Marketing + Voice Agent
         """
-        
+
         html_body = f"""
 <html>
 <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
         <h1 style="color: white; margin: 0;">🔥 New Hot Lead!</h1>
     </div>
-    
+
     <div style="padding: 20px; background: #f5f5f5;">
         <table style="width: 100%; border-collapse: collapse;">
             <tr>
@@ -166,30 +163,26 @@ LeadGen AI - AI Automated Marketing + Voice Agent
                 <td style="padding: 10px;">{lead_data.get('city', 'N/A')}</td>
             </tr>
         </table>
-        
+
         <div style="background: white; padding: 15px; border-radius: 10px; margin-top: 15px;">
             <h3 style="margin-top: 0;">Lead Score: <span style="color: #667eea;">{lead_data.get('lead_score', 0)}/100</span></h3>
             <p>Interest: {lead_data.get('detected_intent', 'N/A')}</p>
         </div>
     </div>
-    
+
     <div style="padding: 15px; text-align: center; color: #666; font-size: 12px;">
         LeadGen AI - AI Automated Marketing + Voice Agent
     </div>
 </body>
 </html>
         """
-        
+
         return await self.send_email(to_emails, subject, body, html_body)
-    
-    async def send_daily_report(
-        self,
-        to_emails: List[str],
-        stats: Dict[str, Any]
-    ) -> bool:
+
+    async def send_daily_report(self, to_emails: list[str], stats: dict[str, Any]) -> bool:
         """Send daily campaign report"""
         subject = f"📊 Daily Campaign Report - {stats.get('date', 'Today')}"
-        
+
         body = f"""
 DAILY CAMPAIGN REPORT
 
@@ -212,17 +205,15 @@ ESTIMATED VALUE: ₹{stats.get('estimated_value', 0):,.0f}
 ---
 LeadGen AI - AI Automated Marketing + Voice Agent
         """
-        
+
         return await self.send_email(to_emails, subject, body)
-    
+
     async def send_appointment_confirmation(
-        self,
-        to_email: str,
-        appointment_data: Dict[str, Any]
+        self, to_email: str, appointment_data: dict[str, Any]
     ) -> bool:
         """Send appointment confirmation email"""
         subject = f"Meeting Confirmed with {appointment_data.get('client_name', 'Our Team')}"
-        
+
         body = f"""
 Your Meeting is Confirmed!
 
@@ -237,5 +228,5 @@ We look forward to speaking with you!
 Best regards,
 {appointment_data.get('client_name', 'Team')}
         """
-        
+
         return await self.send_email([to_email], subject, body)

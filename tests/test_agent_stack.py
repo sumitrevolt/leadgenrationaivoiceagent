@@ -9,6 +9,7 @@ Sab tests network/Qdrant/Gemini ke BINA chalte hain — pure logic + TestClient.
   add/retrieve roundtrip + namespace isolation.
 - Qdrant availability checks short-circuit on empty URL (no crash, no network).
 """
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -21,6 +22,7 @@ from app.voice_agent.knowledge_base import KnowledgeBase
 def no_qdrant(monkeypatch):
     """Force qdrant_url empty so the KB kabhi Qdrant try na kare (no network)."""
     from app.config import settings
+
     monkeypatch.setattr(settings, "qdrant_url", "", raising=False)
     return settings
 
@@ -137,6 +139,7 @@ class TestKnowledgeBackends:
 class TestQdrantIndexUnit:
     def test_url_helper_empty_and_stripped(self, monkeypatch):
         from app.config import settings
+
         monkeypatch.setattr(settings, "qdrant_url", "", raising=False)
         assert kbmod._get_qdrant_url() == ""
         monkeypatch.setattr(settings, "qdrant_url", "   ", raising=False)

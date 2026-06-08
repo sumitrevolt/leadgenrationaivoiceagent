@@ -5,9 +5,10 @@ missed_call.py — Missed call WhatsApp auto-reply generator.
 Generates follow-up messages for clients when they miss a call from a customer.
 Uses free LLM chain with strict Hinglish rules and instant template fallbacks.
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -29,6 +30,7 @@ _TEMPLATE = (
     "Aap directly niche link par click karke callback schedule kar sakte hain: {url}"
 )
 
+
 def _niche_display(niche: str) -> str:
     n = (niche or "").strip().lower()
     try:
@@ -37,21 +39,22 @@ def _niche_display(niche: str) -> str:
     except Exception:
         return "hamari services"
 
+
 async def generate_missed_call_reply(
     business_name: str,
     niche: str = "general",
     callback_url: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Generates missed call auto-response message. KABHI raise nahi karta."""
     biz = (business_name or "").strip() or "Hamari team"
     n = (niche or "general").strip().lower() or "general"
     url = (callback_url or "").strip() or "leadsgenai.in"
     niche_name = _niche_display(n)
-    
+
     fallback = _TEMPLATE.format(biz=biz, niche_name=niche_name, url=url)
     message = fallback
     provider = "template"
-    
+
     if free_ai is not None:
         try:
             system = (
@@ -67,14 +70,14 @@ async def generate_missed_call_reply(
                 system.format(niche_name=niche_name, url=url),
                 [{"role": "user", "content": prompt}],
                 max_tokens=200,
-                temperature=0.7
+                temperature=0.7,
             )
             if text and text.strip():
                 message = text.strip()
                 provider = p or "llm"
         except Exception as e:
             logger.warning(f"missed_call LLM failed, using template: {e}")
-            
+
     return {
         "business_name": biz,
         "niche": n,

@@ -54,14 +54,16 @@ Usage example:
         signature=request.headers.get("X-Signature", ""),
     )
 """
+
 import asyncio
 import hashlib
 import hmac
 import json
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Iterable, Tuple
+from typing import Any
 
 from app.config import settings
 from app.utils.logger import setup_logger
@@ -73,11 +75,13 @@ logger = setup_logger(__name__)
 # EVENT CONSTANTS
 # =============================================================================
 
+
 class WebhookEvent:
     """
     Supported webhook event names. String constants (Retell/Vapi style
     dotted names) taaki JSON me readable rahe aur enum import-overhead na ho.
     """
+
     CALL_STARTED = "call.started"
     CALL_ENDED = "call.ended"
     LEAD_SCRAPED = "lead.scraped"
@@ -89,7 +93,7 @@ class WebhookEvent:
     ERROR = "error"
 
     @classmethod
-    def all(cls) -> List[str]:
+    def all(cls) -> list[str]:
         """Saare supported event names ki list."""
         return [
             cls.CALL_STARTED,
@@ -112,6 +116,7 @@ class WebhookEvent:
 # RESULT DATA STRUCTURES
 # =============================================================================
 
+
 @dataclass
 class EmitResult:
     """
@@ -123,17 +128,18 @@ class EmitResult:
     event     : kaunsa event tha
     event_id  : envelope ka unique id
     """
+
     event: str = ""
     event_id: str = ""
     delivered: int = 0
     failed: int = 0
-    results: List[Dict[str, Any]] = field(default_factory=list)
+    results: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def any_delivered(self) -> bool:
         return self.delivered > 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event": self.event,
             "event_id": self.event_id,
@@ -147,9 +153,10 @@ class EmitResult:
 @dataclass
 class _Subscriber:
     """Ek registered subscriber endpoint + optional event filter."""
+
     url: str
     # None => saare events; warna sirf in events par bhejo
-    events: Optional[set] = None
+    events: set | None = None
 
     def wants(self, event: str) -> bool:
         return self.events is None or event in self.events
@@ -158,6 +165,7 @@ class _Subscriber:
 # =============================================================================
 # WEBHOOK EMITTER
 # =============================================================================
+
 
 class WebhookEmitter:
     """
@@ -176,7 +184,7 @@ class WebhookEmitter:
 
     def __init__(self):
         # --- Signing secret ---
-        self.secret: str = (getattr(settings, "webhook_secret", "") or "")
+        self.secret: str = getattr(settings, "webhook_secret", "") or ""
 
         # --- HTTP behaviour ---
         try:
@@ -192,7 +200,7 @@ class WebhookEmitter:
 
         # --- Subscribers (env-configured + in-process) ---
         # url -> _Subscriber (env subscribers get None event filter = all events)
-        self._subscribers: Dict[str, _Subscriber] = {}
+        self._subscribers: dict[str, _Subscriber] = {}
 
         for url in self._parse_urls(getattr(settings, "webhook_urls", "")):
             self._subscribers[url] = _Subscriber(url=url, events=None)
@@ -220,6 +228,7 @@ class WebhookEmitter:
         if self._httpx is None:
             try:
                 import httpx  # type: ignore
+
                 self._httpx = httpx
             except Exception as e:
                 logger.error(f"httpx not available — webhooks disabled: {e}")
@@ -230,7 +239,7 @@ class WebhookEmitter:
     # Subscription management (in-process)
     # ---------------------------------------------------------------------
 
-    def subscribe(self, url: str, events: Optional[Iterable[str]] = None) -> bool:
+    def subscribe(self, url: str, events: Iterable[str] | None = None) -> bool:
         """
         Runtime par ek subscriber register/update karo.
 
@@ -264,7 +273,7 @@ class WebhookEmitter:
         logger.info(f"unsubscribe: {url} not found (no-op)")
         return False
 
-    def list_subscribers(self) -> List[Dict[str, Any]]:
+    def list_subscribers(self) -> list[dict[str, Any]]:
         """Current subscribers ki readable list (debugging ke liye)."""
         return [
             {"url": s.url, "events": (None if s.events is None else sorted(s.events))}
@@ -278,8 +287,8 @@ class WebhookEmitter:
     async def emit(
         self,
         event: str,
-        payload: Optional[Dict[str, Any]] = None,
-        client_id: Optional[str] = None,
+        payload: dict[str, Any] | None = None,
+        client_id: str | None = None,
     ) -> EmitResult:
         """
         Ek event ko saare matching subscribers par bhejo. KABHI raise nahi karta.
@@ -315,10 +324,15 @@ class WebhookEmitter:
                 logger.error(f"emit({event}): httpx unavailable, cannot deliver")
                 for sub in targets:
                     result.failed += 1
-                    result.results.append({
-                        "url": sub.url, "ok": False, "status": None,
-                        "attempts": 0, "error": "httpx not installed",
-                    })
+                    result.results.append(
+                        {
+                            "url": sub.url,
+                            "ok": False,
+                            "status": None,
+                            "attempts": 0,
+                            "error": "httpx not installed",
+                        }
+                    )
                 return result
 
             # Serialize once + sign once (same body har subscriber ko)
@@ -327,22 +341,24 @@ class WebhookEmitter:
             headers = self._build_headers(signature, envelope)
 
             # Saare targets ko parallel me bhejo
-            tasks = [
-                self._post_with_retry(httpx_mod, sub.url, body, headers)
-                for sub in targets
-            ]
+            tasks = [self._post_with_retry(httpx_mod, sub.url, body, headers) for sub in targets]
             per_url = await asyncio.gather(*tasks, return_exceptions=True)
 
-            for sub, res in zip(targets, per_url):
+            for sub, res in zip(targets, per_url, strict=False):
                 if isinstance(res, Exception):
                     # gather me exception aa hi nahi sakta (handler safe hai),
                     # par double-defensive
                     logger.error(f"emit({event}): unexpected error for {sub.url}: {res}")
                     result.failed += 1
-                    result.results.append({
-                        "url": sub.url, "ok": False, "status": None,
-                        "attempts": 0, "error": str(res),
-                    })
+                    result.results.append(
+                        {
+                            "url": sub.url,
+                            "ok": False,
+                            "status": None,
+                            "attempts": 0,
+                            "error": str(res),
+                        }
+                    )
                     continue
                 result.results.append(res)
                 if res.get("ok"):
@@ -363,8 +379,8 @@ class WebhookEmitter:
 
     async def emit_batch(
         self,
-        events: Iterable[Tuple[str, Optional[Dict[str, Any]], Optional[str]]],
-    ) -> List[EmitResult]:
+        events: Iterable[tuple[str, dict[str, Any] | None, str | None]],
+    ) -> list[EmitResult]:
         """
         Multiple events ek saath emit karo.
 
@@ -378,8 +394,8 @@ class WebhookEmitter:
         Returns:
             List[EmitResult] — har event ka result. Ek fail ho to baaki continue.
         """
-        results: List[EmitResult] = []
-        for item in (events or []):
+        results: list[EmitResult] = []
+        for item in events or []:
             try:
                 if not isinstance(item, (tuple, list)):
                     # Sirf event name diya ho
@@ -430,11 +446,9 @@ class WebhookEmitter:
             # "sha256=" prefix strip karo agar ho
             sig = signature.strip()
             if sig.lower().startswith("sha256="):
-                sig = sig[len("sha256="):]
+                sig = sig[len("sha256=") :]
 
-            expected = hmac.new(
-                secret.encode("utf-8"), body_bytes, hashlib.sha256
-            ).hexdigest()
+            expected = hmac.new(secret.encode("utf-8"), body_bytes, hashlib.sha256).hexdigest()
 
             return hmac.compare_digest(expected, sig)
         except Exception as e:
@@ -448,9 +462,9 @@ class WebhookEmitter:
     def _build_envelope(
         self,
         event: str,
-        payload: Optional[Dict[str, Any]],
-        client_id: Optional[str],
-    ) -> Dict[str, Any]:
+        payload: dict[str, Any] | None,
+        client_id: str | None,
+    ) -> dict[str, Any]:
         """Standard event envelope banao."""
         return {
             "id": uuid.uuid4().hex,
@@ -461,16 +475,16 @@ class WebhookEmitter:
         }
 
     @staticmethod
-    def _serialize_static(envelope: Dict[str, Any]) -> bytes:
+    def _serialize_static(envelope: dict[str, Any]) -> bytes:
         """
         Envelope -> deterministic compact UTF-8 bytes. sorted_keys taaki sender
         aur receiver dono same bytes par HMAC compute karein (signature match ho).
         """
-        return json.dumps(
-            envelope, separators=(",", ":"), sort_keys=True, default=str
-        ).encode("utf-8")
+        return json.dumps(envelope, separators=(",", ":"), sort_keys=True, default=str).encode(
+            "utf-8"
+        )
 
-    def _serialize(self, envelope: Dict[str, Any]) -> bytes:
+    def _serialize(self, envelope: dict[str, Any]) -> bytes:
         return self._serialize_static(envelope)
 
     def _sign(self, body: bytes) -> str:
@@ -478,15 +492,13 @@ class WebhookEmitter:
         if not self.secret:
             return ""
         try:
-            digest = hmac.new(
-                self.secret.encode("utf-8"), body, hashlib.sha256
-            ).hexdigest()
+            digest = hmac.new(self.secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
             return f"sha256={digest}"
         except Exception as e:
             logger.error(f"signing error: {e}")
             return ""
 
-    def _build_headers(self, signature: str, envelope: Dict[str, Any]) -> Dict[str, str]:
+    def _build_headers(self, signature: str, envelope: dict[str, Any]) -> dict[str, str]:
         headers = {
             "Content-Type": "application/json",
             "User-Agent": "LeadGenAI-Webhooks/1.0",
@@ -502,15 +514,15 @@ class WebhookEmitter:
         httpx_mod,
         url: str,
         body: bytes,
-        headers: Dict[str, str],
-    ) -> Dict[str, Any]:
+        headers: dict[str, str],
+    ) -> dict[str, Any]:
         """
         Ek URL par POST with exponential backoff retry. Kabhi raise nahi karta —
         per-url result dict return karta hai.
         """
         attempts = 0
         last_error = ""
-        last_status: Optional[int] = None
+        last_status: int | None = None
 
         for attempt in range(1, self.max_retries + 1):
             attempts = attempt
@@ -521,15 +533,16 @@ class WebhookEmitter:
                     if 200 <= resp.status_code < 300:
                         logger.info(f"webhook POST ok: {url} (status={resp.status_code})")
                         return {
-                            "url": url, "ok": True, "status": resp.status_code,
-                            "attempts": attempt, "error": None,
+                            "url": url,
+                            "ok": True,
+                            "status": resp.status_code,
+                            "attempts": attempt,
+                            "error": None,
                         }
                     # Non-2xx — retryable for 5xx / 429, else give up
                     last_error = f"HTTP {resp.status_code}"
                     if resp.status_code < 500 and resp.status_code != 429:
-                        logger.error(
-                            f"webhook POST non-retryable: {url} status={resp.status_code}"
-                        )
+                        logger.error(f"webhook POST non-retryable: {url} status={resp.status_code}")
                         break
                     logger.error(
                         f"webhook POST retryable fail: {url} status={resp.status_code} "
@@ -538,8 +551,7 @@ class WebhookEmitter:
             except Exception as e:
                 last_error = str(e)
                 logger.error(
-                    f"webhook POST error: {url} ({e}) "
-                    f"(attempt {attempt}/{self.max_retries})"
+                    f"webhook POST error: {url} ({e}) " f"(attempt {attempt}/{self.max_retries})"
                 )
 
             # Backoff before next attempt (last attempt ke baad nahi)
@@ -551,12 +563,15 @@ class WebhookEmitter:
                     pass
 
         return {
-            "url": url, "ok": False, "status": last_status,
-            "attempts": attempts, "error": last_error or "unknown error",
+            "url": url,
+            "ok": False,
+            "status": last_status,
+            "attempts": attempts,
+            "error": last_error or "unknown error",
         }
 
     @staticmethod
-    def _parse_urls(raw: Any) -> List[str]:
+    def _parse_urls(raw: Any) -> list[str]:
         """Comma-separated URL string ko clean list me todho."""
         if not raw:
             return []
@@ -564,7 +579,7 @@ class WebhookEmitter:
             items = list(raw)
         else:
             items = str(raw).split(",")
-        out: List[str] = []
+        out: list[str] = []
         for item in items:
             u = str(item).strip()
             if u and u not in out:
@@ -576,7 +591,7 @@ class WebhookEmitter:
 # SINGLETON
 # =============================================================================
 
-_webhook_emitter_instance: Optional[WebhookEmitter] = None
+_webhook_emitter_instance: WebhookEmitter | None = None
 
 
 def get_webhook_emitter() -> WebhookEmitter:

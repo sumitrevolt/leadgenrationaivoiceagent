@@ -9,9 +9,10 @@ PURE LOGIC — koi LLM nahi, koi network nahi, kabhi raise nahi karta.
 Missing/galat answers ko worst-case (score 0) maana jaata hai — audit
 conservative rehta hai, owner motivated rehta hai.
 """
+
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -23,7 +24,7 @@ logger = setup_logger(__name__)
 # Options BEST → WORST order me hain (index 0 = best) — par score hi truth hai.
 # ============================================================================ #
 
-AUDIT_QUESTIONS: List[Dict[str, Any]] = [
+AUDIT_QUESTIONS: list[dict[str, Any]] = [
     {
         "id": "claimed",
         "q": "Kya aapne apna Google Business Profile claim + verify kiya hai?",
@@ -39,7 +40,10 @@ AUDIT_QUESTIONS: List[Dict[str, Any]] = [
         "q": "Business description kaisa hai? (750 characters tak likh sakte ho)",
         "weight": 2,
         "options": [
-            {"label": "Poora 600-750 chars, local keywords (area + service) ke saath", "score": 1.0},
+            {
+                "label": "Poora 600-750 chars, local keywords (area + service) ke saath",
+                "score": 1.0,
+            },
             {"label": "Likha hai par chhota / bina keywords ke", "score": 0.5},
             {"label": "Khali hai ya 1-2 line hi hai", "score": 0.0},
         ],
@@ -190,7 +194,7 @@ AUDIT_QUESTIONS: List[Dict[str, Any]] = [
 ]
 
 # Concrete Hinglish fix-action per area (lowest scorers me se top-5 dikhte hain)
-_FIXES: Dict[str, str] = {
+_FIXES: dict[str, str] = {
     "claimed": "Sabse pehle business.google.com par jaake profile claim karo aur postcard/phone se verify karwao — bina iske kuch bhi rank nahi hoga.",
     "description": "Aaj hi 600-750 characters ka description likho — apna area + service keywords daalo (jaise 'Andheri me rooftop solar installation').",
     "categories": "Google par apne top competitor ka profile kholo, unki primary category dekho, apni wahi sahi karo + 2-3 secondary categories add karo.",
@@ -219,7 +223,7 @@ def _grade(score: int) -> str:
     return "D"
 
 
-def score_audit(answers: Dict[str, Any]) -> Dict[str, Any]:
+def score_audit(answers: dict[str, Any]) -> dict[str, Any]:
     """Weighted 0-100 GBP score + grade + breakdown + top-5 Hinglish fixes.
 
     `answers` = {question_id: option_index}. Missing/invalid => worst (0).
@@ -229,8 +233,8 @@ def score_audit(answers: Dict[str, Any]) -> Dict[str, Any]:
     total_weight = sum(q["weight"] for q in AUDIT_QUESTIONS) or 1
     earned = 0.0
     answered = 0
-    breakdown: List[Dict[str, Any]] = []
-    losses: List[Dict[str, Any]] = []  # weighted loss per area (fix ranking)
+    breakdown: list[dict[str, Any]] = []
+    losses: list[dict[str, Any]] = []  # weighted loss per area (fix ranking)
 
     for q in AUDIT_QUESTIONS:
         qid = q["id"]
@@ -248,13 +252,15 @@ def score_audit(answers: Dict[str, Any]) -> Dict[str, Any]:
 
         weight = q["weight"]
         earned += opt_score * weight
-        breakdown.append({
-            "id": qid,
-            "question": q["q"],
-            "weight": weight,
-            "answer_label": label,
-            "score_pct": round(opt_score * 100),
-        })
+        breakdown.append(
+            {
+                "id": qid,
+                "question": q["q"],
+                "weight": weight,
+                "answer_label": label,
+                "score_pct": round(opt_score * 100),
+            }
+        )
         loss = (1.0 - opt_score) * weight
         if loss > 0.001:
             losses.append({"id": qid, "loss": loss})
@@ -264,7 +270,7 @@ def score_audit(answers: Dict[str, Any]) -> Dict[str, Any]:
 
     # Top-5 fixes: sabse zyada weighted-loss wale areas, concrete action ke saath
     losses.sort(key=lambda x: x["loss"], reverse=True)
-    top_fixes: List[str] = []
+    top_fixes: list[str] = []
     recoverable = 0.0
     for item in losses[:5]:
         fix = _FIXES.get(item["id"])
@@ -274,12 +280,16 @@ def score_audit(answers: Dict[str, Any]) -> Dict[str, Any]:
 
     potential = min(100, score + round(100.0 * recoverable / total_weight))
     if score >= 90:
-        impact = (f"Zabardast! {score}/100 — profile top shape me hai. "
-                  "Bas weekly photos + posts ka routine banaye rakho.")
+        impact = (
+            f"Zabardast! {score}/100 — profile top shape me hai. "
+            "Bas weekly photos + posts ka routine banaye rakho."
+        )
     else:
-        impact = (f"Abhi {score}/100 — sirf top-5 fixes karne se score ~{potential} tak jaa "
-                  "sakta hai. Google data: complete profiles ko ~2.7x zyada calls/direction "
-                  "requests milti hain — ye free leads hain.")
+        impact = (
+            f"Abhi {score}/100 — sirf top-5 fixes karne se score ~{potential} tak jaa "
+            "sakta hai. Google data: complete profiles ko ~2.7x zyada calls/direction "
+            "requests milti hain — ye free leads hain."
+        )
 
     return {
         "score": score,

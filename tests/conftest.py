@@ -2,38 +2,46 @@
 Test Configuration
 Production-ready test fixtures with proper async handling
 """
-import pytest
+
 import asyncio
 import os
-from typing import Generator, AsyncGenerator
-from datetime import datetime, timezone
-
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-
-from app.main import app
-from app.models.base import Base, get_db, get_async_db
-from app.models.user import User, UserRole, UserStatus
-from app.api.auth_deps import get_current_user, require_agent, require_manager, require_admin, require_super_admin
-
-
-# =============================================================================
-# TEST DATABASE CONFIGURATION
-# =============================================================================
 
 # Use SQLite for tests (fast, no external dependencies)
 # DB lives in the OS temp dir — avoids polluting the repo and works on
 # network/mounted filesystems where SQLite locking can fail with disk I/O errors.
 import tempfile
+from collections.abc import AsyncGenerator, Generator
+from datetime import datetime, timezone
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.api.auth_deps import (
+    get_current_user,
+    require_admin,
+    require_agent,
+    require_manager,
+    require_super_admin,
+)
+from app.main import app
+from app.models.base import Base, get_async_db, get_db
+from app.models.user import User, UserRole, UserStatus
+
+# =============================================================================
+# TEST DATABASE CONFIGURATION
+# =============================================================================
+
+
 _TEST_DB_PATH = os.path.join(tempfile.gettempdir(), "leadgen_test.db")
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", f"sqlite:///{_TEST_DB_PATH}")
 TEST_ASYNC_DATABASE_URL = TEST_DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
 
 # Sync engine for test setup
 engine = create_engine(
-    TEST_DATABASE_URL, 
+    TEST_DATABASE_URL,
     connect_args={"check_same_thread": False},
     echo=False,
 )
@@ -56,6 +64,7 @@ AsyncTestingSessionLocal = async_sessionmaker(
 # =============================================================================
 # DEPENDENCY OVERRIDES
 # =============================================================================
+
 
 def override_get_db():
     """Override database dependency for testing"""
@@ -122,6 +131,7 @@ app.dependency_overrides[require_super_admin] = get_mock_user
 # EVENT LOOP CONFIGURATION
 # =============================================================================
 
+
 @pytest.fixture(scope="session")
 def event_loop():
     """Create event loop for async tests (session-scoped for performance)"""
@@ -136,6 +146,7 @@ def event_loop():
 # =============================================================================
 # DATABASE FIXTURES
 # =============================================================================
+
 
 @pytest.fixture(scope="function")
 def db():
@@ -187,12 +198,13 @@ async def async_db_session(async_db) -> AsyncGenerator:
 # CLIENT FIXTURES
 # =============================================================================
 
+
 @pytest.fixture(scope="function")
 def client(db) -> Generator:
     """Create test client (sync)"""
     from httpx import ASGITransport
     from starlette.testclient import TestClient as StarletteTestClient
-    
+
     # Use ASGITransport for newer httpx versions
     try:
         with TestClient(app) as c:
@@ -207,8 +219,8 @@ def client(db) -> Generator:
 @pytest.fixture(scope="function")
 async def async_client(async_db):
     """Create async test client"""
-    from httpx import AsyncClient, ASGITransport
-    
+    from httpx import ASGITransport, AsyncClient
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
@@ -217,6 +229,7 @@ async def async_client(async_db):
 # =============================================================================
 # SAMPLE DATA FIXTURES
 # =============================================================================
+
 
 @pytest.fixture
 def sample_lead() -> dict:
@@ -273,6 +286,7 @@ def auth_headers() -> dict:
 # MOCK FIXTURES
 # =============================================================================
 
+
 @pytest.fixture
 def mock_redis(mocker):
     """Mock Redis client for tests"""
@@ -303,6 +317,7 @@ def mock_llm(mocker):
 # =============================================================================
 # CLEANUP
 # =============================================================================
+
 
 @pytest.fixture(autouse=True)
 def cleanup_test_files():

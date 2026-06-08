@@ -39,6 +39,7 @@ DEPENDENCIES (runtime — import-safe; missing deps degrade gracefully):
 Import-safe: heavy imports (faster_whisper/edge_tts/pydub/numpy) sab lazy hain,
 to module import kabhi fail na ho — koi dep missing ho to woh path "" deta hai.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -48,7 +49,7 @@ import io
 import json
 import threading
 from collections import deque
-from typing import Any, Deque, Dict, List, Optional
+from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
@@ -62,6 +63,7 @@ logger = setup_logger(__name__)
 # import-safe rahe agar kabhi 3.13 par bina backport ke chale.
 try:
     import audioop  # type: ignore
+
     _AUDIOOP_OK = True
 except Exception as _audioop_err:  # pragma: no cover - only on 3.13 w/o backport
     audioop = None  # type: ignore
@@ -92,26 +94,26 @@ TTS_AVAILABLE = _have("edge_tts") and _have("pydub")
 # --------------------------------------------------------------------------- #
 SR_8K = 8000
 SR_16K = 16000
-FRAME_BYTES_ULAW = 160          # 20 ms of 8 kHz µ-law (1 byte/sample)
-FRAME_SLEEP = 0.02              # pace outbound audio ~realtime (20 ms/frame)
+FRAME_BYTES_ULAW = 160  # 20 ms of 8 kHz µ-law (1 byte/sample)
+FRAME_SLEEP = 0.02  # pace outbound audio ~realtime (20 ms/frame)
 
 # --------------------------------------------------------------------------- #
 # Energy VAD / turn-detection tuning (har inbound media frame ~= 20 ms)
 # --------------------------------------------------------------------------- #
-VAD_RMS_THRESHOLD = 300         # PCM16 rms isse upar = speech
-VAD_START_FRAMES = 3            # >=3 consecutive speech frames -> speech shuru (~60ms)
-VAD_SILENCE_FRAMES = 35         # >=0.7 s silence -> utterance khatam
-VAD_MIN_SPEECH_FRAMES = 20      # >=0.4 s speech collected ho to hi utterance accept
+VAD_RMS_THRESHOLD = 300  # PCM16 rms isse upar = speech
+VAD_START_FRAMES = 3  # >=3 consecutive speech frames -> speech shuru (~60ms)
+VAD_SILENCE_FRAMES = 35  # >=0.7 s silence -> utterance khatam
+VAD_MIN_SPEECH_FRAMES = 20  # >=0.4 s speech collected ho to hi utterance accept
 VAD_MAX_UTTERANCE_BYTES = 12 * SR_8K * 2  # 12 s hard cap (PCM16 @ 8kHz)
 
 # --------------------------------------------------------------------------- #
 # STT / LLM / TTS config
 # --------------------------------------------------------------------------- #
 WHISPER_MODEL_SIZE = "tiny"
-STT_LANGUAGE = "hi"             # Hinglish hint; None karne se auto-detect
+STT_LANGUAGE = "hi"  # Hinglish hint; None karne se auto-detect
 TTS_VOICE = "hi-IN-SwaraNeural"  # natural Indian Hindi female
 REPLY_NUDGE = "(Reply in natural conversational Hinglish, max 2 short sentences)"
-MAX_HISTORY = 20                # conversation history cap (recent turns)
+MAX_HISTORY = 20  # conversation history cap (recent turns)
 
 _FALLBACK_GREETING = (
     "Namaste! Main LeadGen AI ki taraf se baat kar rahi hoon. "
@@ -140,9 +142,7 @@ def _get_whisper() -> Any:
         try:
             from faster_whisper import WhisperModel  # heavy — lazy import
 
-            _WHISPER_MODEL = WhisperModel(
-                WHISPER_MODEL_SIZE, device="cpu", compute_type="int8"
-            )
+            _WHISPER_MODEL = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
             logger.info("phone_stream: faster-whisper '%s' loaded (cpu/int8)", WHISPER_MODEL_SIZE)
         except Exception as e:
             logger.error("phone_stream: faster-whisper unavailable (%s) — STT disabled", e)
@@ -188,41 +188,41 @@ class PhoneCallSession:
         websocket: WebSocket,
         niche: str = "general",
         client_name: str = "LeadGen AI",
-        client_id: Optional[str] = None,
+        client_id: str | None = None,
     ) -> None:
         self.ws = websocket
         self.niche = niche or "general"
         self.client_name = client_name or "LeadGen AI"
-        self.client_id = client_id   # optional — drop-in compat with /stream WS endpoint
+        self.client_id = client_id  # optional — drop-in compat with /stream WS endpoint
 
         # Stream identity (Vobiz 'start' se aata hai)
-        self.stream_sid: Optional[str] = None
-        self.call_sid: Optional[str] = None
+        self.stream_sid: str | None = None
+        self.call_sid: str | None = None
 
         # Conversation state
-        self.history: List[Dict[str, str]] = []
+        self.history: list[dict[str, str]] = []
         self._greeted = False
 
         # Control flags
         self._running = True
-        self._interrupt = False        # barge-in: sender task isse check karke abort karta hai
+        self._interrupt = False  # barge-in: sender task isse check karke abort karta hai
         self._bot_speaking = False
 
         # Locks
-        self._send_lock = asyncio.Lock()   # outbound WS sends serialize
+        self._send_lock = asyncio.Lock()  # outbound WS sends serialize
         self._speak_lock = asyncio.Lock()  # ek time par ek hi audio stream bole
-        self._turn_lock = asyncio.Lock()   # STT->LLM->TTS turns serialize
+        self._turn_lock = asyncio.Lock()  # STT->LLM->TTS turns serialize
 
         # Background tasks (greeting + per-turn processing)
-        self._tasks: "set[asyncio.Task]" = set()
+        self._tasks: set[asyncio.Task] = set()
 
         # VAD state
         self._in_speech = False
         self._consec_speech = 0
         self._speech_frames = 0
         self._silence_frames = 0
-        self._utterance = bytearray()                 # PCM16 @ 8kHz collected
-        self._preroll: Deque[bytes] = deque(maxlen=VAD_START_FRAMES)  # leading speech na cut ho
+        self._utterance = bytearray()  # PCM16 @ 8kHz collected
+        self._preroll: deque[bytes] = deque(maxlen=VAD_START_FRAMES)  # leading speech na cut ho
 
     # --------------------------------------------------------------------- #
     # Entry points
@@ -249,12 +249,12 @@ class PhoneCallSession:
                     raw = await self._recv()
                 except (WebSocketDisconnect, RuntimeError):
                     break
-                if raw is None:           # disconnect
+                if raw is None:  # disconnect
                     break
                 try:
                     data = json.loads(raw)
                 except Exception:
-                    continue              # stray/non-JSON frame — skip
+                    continue  # stray/non-JSON frame — skip
                 if isinstance(data, dict):
                     await self._dispatch(data)
         except Exception as e:
@@ -262,7 +262,7 @@ class PhoneCallSession:
         finally:
             await self._cleanup()
 
-    async def _recv(self) -> Optional[str]:
+    async def _recv(self) -> str | None:
         """Raw WS receive — text ya bytes dono handle; disconnect par None."""
         msg = await self.ws.receive()
         if msg.get("type") == "websocket.disconnect":
@@ -273,7 +273,7 @@ class PhoneCallSession:
             raw = b.decode("utf-8", "ignore") if b else None
         return raw
 
-    async def _dispatch(self, data: Dict[str, Any]) -> None:
+    async def _dispatch(self, data: dict[str, Any]) -> None:
         event = data.get("event")
         if event == "media":
             await self._handle_media(data)
@@ -291,17 +291,21 @@ class PhoneCallSession:
     # --------------------------------------------------------------------- #
     # Event handlers
     # --------------------------------------------------------------------- #
-    async def _handle_start(self, data: Dict[str, Any]) -> None:
+    async def _handle_start(self, data: dict[str, Any]) -> None:
         """'start' — streamSid/callSid save karo (streamSid & stream_sid dono),
         optional customParameters se niche/client_name override, phir greeting."""
         start = data.get("start") or {}
         self.stream_sid = (
-            start.get("streamSid") or start.get("stream_sid")
-            or data.get("streamSid") or data.get("stream_sid")
+            start.get("streamSid")
+            or start.get("stream_sid")
+            or data.get("streamSid")
+            or data.get("stream_sid")
         )
         self.call_sid = (
-            start.get("callSid") or start.get("call_sid")
-            or data.get("callSid") or data.get("call_sid")
+            start.get("callSid")
+            or start.get("call_sid")
+            or data.get("callSid")
+            or data.get("call_sid")
         )
         params = start.get("customParameters") or start.get("custom_parameters") or {}
         if isinstance(params, dict):
@@ -312,24 +316,26 @@ class PhoneCallSession:
 
         logger.info(
             "phone_stream: start streamSid=%s callSid=%s niche=%s",
-            self.stream_sid, self.call_sid, self.niche,
+            self.stream_sid,
+            self.call_sid,
+            self.niche,
         )
         if not self._greeted:
             self._greeted = True
             self._spawn(self._greeting())
 
-    def _handle_dtmf(self, data: Dict[str, Any]) -> None:
+    def _handle_dtmf(self, data: dict[str, Any]) -> None:
         digit = (data.get("dtmf") or {}).get("digit")
         logger.debug("phone_stream: dtmf %s", digit)
         # '#' / '*' ko hangup-intent maan sakte hain (abhi sirf log).
 
-    async def _handle_media(self, data: Dict[str, Any]) -> None:
+    async def _handle_media(self, data: dict[str, Any]) -> None:
         """Inbound caller audio frame — decode, energy VAD, buffer; utterance
         khatam hone par turn spawn. Bot bolte waqt speech aaye to barge-in."""
         payload = (data.get("media") or {}).get("payload")
         if not payload:
             return
-        pcm8k = self._decode_inbound(payload)   # PCM16 @ 8kHz
+        pcm8k = self._decode_inbound(payload)  # PCM16 @ 8kHz
         if not pcm8k or not _AUDIOOP_OK:
             return
         try:
@@ -362,7 +368,7 @@ class PhoneCallSession:
         else:
             self._consec_speech = 0
             if self._in_speech:
-                self._utterance.extend(pcm8k)   # trailing silence bhi rakho
+                self._utterance.extend(pcm8k)  # trailing silence bhi rakho
                 self._silence_frames += 1
 
         # Utterance end? (silence-based ya hard cap)
@@ -413,9 +419,7 @@ class PhoneCallSession:
 
             pcm16k, _ = audioop.ratecv(pcm8k, 2, 1, SR_8K, SR_16K, None)
             samples = np.frombuffer(pcm16k, dtype=np.int16).astype(np.float32) / 32768.0
-            segments, _info = model.transcribe(
-                samples, language=STT_LANGUAGE, beam_size=1
-            )
+            segments, _info = model.transcribe(samples, language=STT_LANGUAGE, beam_size=1)
             return " ".join(seg.text for seg in segments).strip()
         except Exception as e:
             logger.warning("phone_stream: STT failed (%s)", e)
@@ -459,7 +463,7 @@ class PhoneCallSession:
     # --------------------------------------------------------------------- #
     async def _greeting(self) -> None:
         try:
-            await asyncio.sleep(0.3)   # stream ko settle hone do
+            await asyncio.sleep(0.3)  # stream ko settle hone do
             text = await self._greeting_text()
             self.history.append({"role": "assistant", "content": text})
             await self._speak(text)
@@ -471,14 +475,16 @@ class PhoneCallSession:
         if brain is not None:
             try:
                 text = await brain.generate_response(
-                    conversation_history=[{
-                        "role": "user",
-                        "content": (
-                            f"Start a friendly outbound phone call for a {self.niche} "
-                            f"business. Greet warmly in Hinglish and ask ONE short opening "
-                            f"question. {REPLY_NUDGE}"
-                        ),
-                    }],
+                    conversation_history=[
+                        {
+                            "role": "user",
+                            "content": (
+                                f"Start a friendly outbound phone call for a {self.niche} "
+                                f"business. Greet warmly in Hinglish and ask ONE short opening "
+                                f"question. {REPLY_NUDGE}"
+                            ),
+                        }
+                    ],
                     niche=self.niche,
                     client_name=self.client_name,
                     client_service=self.niche,
@@ -552,12 +558,14 @@ class PhoneCallSession:
                     logger.debug("phone_stream: outbound audio aborted (barge-in/stop)")
                     await self._send_clear()
                     break
-                frame = ulaw[i:i + FRAME_BYTES_ULAW]
-                await self._send_json({
-                    "event": "media",
-                    "streamSid": self.stream_sid,
-                    "media": {"payload": base64.b64encode(frame).decode("ascii")},
-                })
+                frame = ulaw[i : i + FRAME_BYTES_ULAW]
+                await self._send_json(
+                    {
+                        "event": "media",
+                        "streamSid": self.stream_sid,
+                        "media": {"payload": base64.b64encode(frame).decode("ascii")},
+                    }
+                )
                 await asyncio.sleep(FRAME_SLEEP)
         finally:
             self._bot_speaking = False
@@ -571,7 +579,7 @@ class PhoneCallSession:
         except Exception:
             pass
 
-    async def _send_json(self, obj: Dict[str, Any]) -> None:
+    async def _send_json(self, obj: dict[str, Any]) -> None:
         if not self._running:
             return
         async with self._send_lock:
@@ -605,7 +613,7 @@ class PhoneCallSession:
         self._utterance = bytearray()
         self._preroll.clear()
 
-    def _spawn(self, coro: Any) -> "asyncio.Task":
+    def _spawn(self, coro: Any) -> asyncio.Task:
         task = asyncio.create_task(coro)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)

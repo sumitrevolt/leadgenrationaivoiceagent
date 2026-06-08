@@ -10,12 +10,12 @@ Tasks are organized by domain:
 """
 
 from app.tasks.brain_training import (
-    train_all_brains,
-    train_brain,
     continuous_training_check,
-    web_knowledge_update,
     get_training_status,
     record_feedback,
+    train_all_brains,
+    train_brain,
+    web_knowledge_update,
 )
 
 __all__ = [

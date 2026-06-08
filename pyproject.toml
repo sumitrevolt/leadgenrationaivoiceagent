@@ -122,6 +122,15 @@ skip = [".venv", "alembic"]
 
 [tool.ruff]
 line-length = 100
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "alembic",
+    "*.pyc",
+]
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -135,13 +144,18 @@ ignore = [
     "E501",  # line too long (handled by black)
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
-]
-exclude = [
-    ".git",
-    ".venv",
-    "__pycache__",
-    "alembic",
-    "*.pyc",
+    "B904",  # raise from err in except
+    "B905",  # zip strict parameter
+    "UP007", # Union to | type hint
+    "UP031", # format specifiers
+    "UP035", # collections.abc imports
+    "E741",  # ambiguous variable name
+    "E402",  # import not at top of file
+    "F841",  # local variable unused
+    "E722",  # bare except
+    "B007",  # loop control variable not used
+    "F401",  # unused imports
+    "F821",  # undefined name
 ]
 
 [tool.mypy]

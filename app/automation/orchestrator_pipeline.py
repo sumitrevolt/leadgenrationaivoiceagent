@@ -20,11 +20,11 @@ pipeline runs end-to-end even without live telephony / API keys configured.
 External integration calls are made defensively (hasattr/getattr) so signature
 drift in a dependency never hard-crashes the whole run.
 """
-import asyncio
+
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -42,6 +42,7 @@ CALL_WINDOW_END = time(21, 0)
 @dataclass
 class CampaignResult:
     """Aggregate outcome of a single campaign run."""
+
     client_id: str
     niche: str
     scraped: int = 0
@@ -51,15 +52,15 @@ class CampaignResult:
     delivered: int = 0
     cost_estimate: float = 0.0
     started_at: datetime = field(default_factory=datetime.now)
-    finished_at: Optional[datetime] = None
+    finished_at: datetime | None = None
     hot_leads: int = 0
     warm_leads: int = 0
     cold_leads: int = 0
     skipped_dnd: int = 0
-    billing_records: List[Dict[str, Any]] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
+    billing_records: list[dict[str, Any]] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["started_at"] = self.started_at.isoformat()
         data["finished_at"] = self.finished_at.isoformat() if self.finished_at else None
@@ -108,51 +109,61 @@ class LeadGenPipeline:
     @staticmethod
     def _build_scraper():
         from app.lead_scraper.scraper_manager import LeadScraperManager
+
         return LeadScraperManager()
 
     @staticmethod
     def _build_dnd_checker():
         from app.utils.dnd_checker import DNDChecker
+
         return DNDChecker()
 
     @staticmethod
     def _build_voice_agent():
         from app.voice_agent.agent import VoiceAgent
+
         return VoiceAgent()
 
     @staticmethod
     def _build_call_manager():
         from app.telephony.call_manager import CallManager
+
         return CallManager()
 
     @staticmethod
     def _build_whatsapp():
         from app.integrations.whatsapp import WhatsAppIntegration
+
         return WhatsAppIntegration()
 
     @staticmethod
     def _build_sheets():
         from app.integrations.google_sheets import GoogleSheetsIntegration
+
         return GoogleSheetsIntegration()
 
     @staticmethod
     def _build_hubspot():
         from app.integrations.hubspot import HubSpotIntegration
+
         return HubSpotIntegration()
 
     @staticmethod
     def _build_telephony():
         from app.telephony.telephony_service import get_telephony_service
+
         return get_telephony_service()
 
     @staticmethod
     def _build_lead_delivery():
         from app.integrations.lead_delivery import get_lead_delivery
+
         return get_lead_delivery()
 
     @staticmethod
     def _build_webhooks():
         from app.integrations.webhooks_emitter import get_webhook_emitter
+
         return get_webhook_emitter()
 
     # ------------------------------------------------------------------ #
@@ -162,14 +173,14 @@ class LeadGenPipeline:
         self,
         client_id: str,
         niche: str,
-        cities: Optional[List[str]] = None,
-        sources: Optional[List[str]] = None,
+        cities: list[str] | None = None,
+        sources: list[str] | None = None,
         max_leads: int = 100,
-        channels: Optional[List[str]] = None,
+        channels: list[str] | None = None,
         client_name: str = "",
         client_service: str = "",
-        notify_whatsapp: Optional[List[str]] = None,
-        spreadsheet_id: Optional[str] = None,
+        notify_whatsapp: list[str] | None = None,
+        spreadsheet_id: str | None = None,
     ) -> CampaignResult:
         """
         Run the complete pipeline for one client campaign.
@@ -227,8 +238,13 @@ class LeadGenPipeline:
 
         # Stage 8 + 9: Deliver qualified leads + emit billing records
         await self._stage_deliver_and_bill(
-            leads, niche, client_id, client_name,
-            notify_whatsapp, spreadsheet_id, result,
+            leads,
+            niche,
+            client_id,
+            client_name,
+            notify_whatsapp,
+            spreadsheet_id,
+            result,
         )
 
         result.finished_at = datetime.now()
@@ -241,11 +257,18 @@ class LeadGenPipeline:
         # Webhook event: campaign finished (summary metrics).
         if self.webhooks and hasattr(self.webhooks, "emit"):
             try:
-                await self.webhooks.emit("campaign.completed", {
-                    "client_id": client_id, "niche": niche,
-                    "scraped": result.scraped, "qualified": result.qualified,
-                    "delivered": result.delivered, "cost_estimate": result.cost_estimate,
-                }, client_id=client_id)
+                await self.webhooks.emit(
+                    "campaign.completed",
+                    {
+                        "client_id": client_id,
+                        "niche": niche,
+                        "scraped": result.scraped,
+                        "qualified": result.qualified,
+                        "delivered": result.delivered,
+                        "cost_estimate": result.cost_estimate,
+                    },
+                    client_id=client_id,
+                )
             except Exception as e:
                 logger.debug(f"webhook campaign.completed failed: {e}")
         return result
@@ -253,7 +276,7 @@ class LeadGenPipeline:
     # ------------------------------------------------------------------ #
     # Stage 1: Scrape
     # ------------------------------------------------------------------ #
-    async def _stage_scrape(self, niche, cities, sources, max_leads, result) -> List[Any]:
+    async def _stage_scrape(self, niche, cities, sources, max_leads, result) -> list[Any]:
         if not self.scraper:
             logger.warning("Scraper unavailable; producing zero leads.")
             return []
@@ -275,9 +298,9 @@ class LeadGenPipeline:
     # ------------------------------------------------------------------ #
     # Stage 2: Clean + dedupe + phone validate
     # ------------------------------------------------------------------ #
-    def _stage_clean(self, leads: List[Any], result) -> List[Any]:
+    def _stage_clean(self, leads: list[Any], result) -> list[Any]:
         try:
-            cleaned: List[Any] = []
+            cleaned: list[Any] = []
             seen_phones: set = set()
             seen_companies: set = set()
 
@@ -315,12 +338,12 @@ class LeadGenPipeline:
     # ------------------------------------------------------------------ #
     # Stage 3: DND / NCPR scrub
     # ------------------------------------------------------------------ #
-    async def _stage_dnd_scrub(self, leads: List[Any], result) -> List[Any]:
+    async def _stage_dnd_scrub(self, leads: list[Any], result) -> list[Any]:
         if not self.dnd_checker:
             logger.warning("DND checker unavailable; skipping scrub (fail-open).")
             return leads
 
-        kept: List[Any] = []
+        kept: list[Any] = []
         for lead in leads:
             phone = getattr(lead, "phone", None)
             if not phone:
@@ -335,9 +358,7 @@ class LeadGenPipeline:
                 continue
             kept.append(lead)
 
-        logger.info(
-            f"Stage 3 DND scrub: removed {result.skipped_dnd}, kept {len(kept)}"
-        )
+        logger.info(f"Stage 3 DND scrub: removed {result.skipped_dnd}, kept {len(kept)}")
         return kept
 
     async def _is_dnd(self, phone: str) -> bool:
@@ -357,7 +378,7 @@ class LeadGenPipeline:
     # Stage 4: Compliance time-window gate
     # ------------------------------------------------------------------ #
     @staticmethod
-    def _within_calling_window(now: Optional[datetime] = None) -> bool:
+    def _within_calling_window(now: datetime | None = None) -> bool:
         now = now or datetime.now()
         return CALL_WINDOW_START <= now.time() <= CALL_WINDOW_END
 
@@ -402,7 +423,7 @@ class LeadGenPipeline:
             if not phone:
                 continue
 
-            qualification: Dict[str, Any] = {}
+            qualification: dict[str, Any] = {}
             intent = "no_answer"
             try:
                 qualification, intent = await self._run_voice_call(
@@ -431,9 +452,7 @@ class LeadGenPipeline:
             f"hot={result.hot_leads} warm={result.warm_leads} cold={result.cold_leads}"
         )
 
-    async def _run_voice_call(
-        self, lead, niche, client_name, client_service, questions
-    ):
+    async def _run_voice_call(self, lead, niche, client_name, client_service, questions):
         """
         Execute (or simulate) one outbound qualification call.
 
@@ -486,7 +505,7 @@ class LeadGenPipeline:
             if call_id and hasattr(self.voice_agent, "get_opening_message"):
                 await self.voice_agent.get_opening_message(call_id)
 
-            answers: Dict[str, Any] = {}
+            answers: dict[str, Any] = {}
             if call_id and hasattr(self.voice_agent, "process_speech"):
                 for q in questions:
                     try:
@@ -512,9 +531,10 @@ class LeadGenPipeline:
             return {}, "no_answer"
 
     @staticmethod
-    def _niche_questions(niche: str) -> List[str]:
+    def _niche_questions(niche: str) -> list[str]:
         try:
             from app.niches import NICHES
+
             cfg = NICHES.get(niche, {})
             return list(cfg.get("qualification_questions", []))
         except Exception as e:
@@ -522,7 +542,7 @@ class LeadGenPipeline:
             return []
 
     @staticmethod
-    def _score_lead(lead, qualification: Dict[str, Any], intent: str):
+    def _score_lead(lead, qualification: dict[str, Any], intent: str):
         """
         Heuristic 0-100 lead score → tier.
 
@@ -580,8 +600,14 @@ class LeadGenPipeline:
     # Stage 8 + 9: Deliver qualified leads + billing
     # ------------------------------------------------------------------ #
     async def _stage_deliver_and_bill(
-        self, leads, niche, client_id, client_name,
-        notify_whatsapp, spreadsheet_id, result,
+        self,
+        leads,
+        niche,
+        client_id,
+        client_name,
+        notify_whatsapp,
+        spreadsheet_id,
+        result,
     ) -> None:
         for lead in leads:
             raw = getattr(lead, "raw_data", {}) or {}
@@ -654,9 +680,7 @@ class LeadGenPipeline:
                         logger.debug(f"webhook lead.qualified failed: {e}")
 
             # 9. Per-lead billing record
-            result.billing_records.append(self._billing_record(
-                client_id, niche, lead, score, tier
-            ))
+            result.billing_records.append(self._billing_record(client_id, niche, lead, score, tier))
 
         # Total billable revenue is informational alongside cost_estimate.
         result.cost_estimate = round(result.cost_estimate, 2)
@@ -665,7 +689,7 @@ class LeadGenPipeline:
             f"delivered={result.delivered} billing_records={len(result.billing_records)}"
         )
 
-    def _billing_record(self, client_id, niche, lead, score, tier) -> Dict[str, Any]:
+    def _billing_record(self, client_id, niche, lead, score, tier) -> dict[str, Any]:
         return {
             "billing_id": str(uuid.uuid4()),
             "client_id": client_id,
@@ -682,7 +706,7 @@ class LeadGenPipeline:
         }
 
     @staticmethod
-    def _lead_to_dict(lead, score, raw) -> Dict[str, Any]:
+    def _lead_to_dict(lead, score, raw) -> dict[str, Any]:
         return {
             "id": getattr(lead, "id", ""),
             "company_name": getattr(lead, "company_name", ""),

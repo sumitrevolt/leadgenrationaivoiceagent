@@ -2,12 +2,12 @@
 Intent Detection Module
 Detects user intent from speech for smart response handling
 """
-from typing import Dict, Any, Optional, List
+
+import re
 from dataclasses import dataclass
 from enum import Enum
-import re
+from typing import Any
 
-from app.config import settings
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -15,6 +15,7 @@ logger = setup_logger(__name__)
 
 class IntentType(Enum):
     """Possible user intents"""
+
     INTERESTED = "interested"
     NOT_INTERESTED = "not_interested"
     CALLBACK_REQUEST = "callback_request"
@@ -35,9 +36,10 @@ class IntentType(Enum):
 @dataclass
 class DetectedIntent:
     """Result of intent detection"""
+
     intent_type: str
     confidence: float
-    entities: Dict[str, Any]
+    entities: dict[str, Any]
     raw_text: str
     language: str  # "en", "hi", "hinglish"
 
@@ -47,7 +49,7 @@ class IntentDetector:
     Detects user intent from transcribed speech
     Uses pattern matching + LLM for accuracy
     """
-    
+
     # Intent patterns (supports Hindi, English, Hinglish)
     INTENT_PATTERNS = {
         IntentType.OPT_OUT: [
@@ -132,31 +134,27 @@ class IntentDetector:
             r"shukriya",
         ],
     }
-    
+
     def __init__(self, use_llm_fallback: bool = True):
         self.use_llm_fallback = use_llm_fallback
         logger.info("🎯 Intent Detector initialized")
-    
-    async def detect(
-        self,
-        text: str,
-        context: Optional[Any] = None
-    ) -> DetectedIntent:
+
+    async def detect(self, text: str, context: Any | None = None) -> DetectedIntent:
         """
         Detect intent from user speech
-        
+
         Args:
             text: Transcribed user speech
             context: Call context for better detection
-            
+
         Returns:
             DetectedIntent with type, confidence, and entities
         """
         text_lower = text.lower().strip()
-        
+
         # Detect language
         language = self._detect_language(text)
-        
+
         # Pattern-based detection first (fast)
         for intent_type, patterns in self.INTENT_PATTERNS.items():
             for pattern in patterns:
@@ -167,88 +165,81 @@ class IntentDetector:
                         confidence=0.85,
                         entities=self._extract_entities(text, intent_type),
                         raw_text=text,
-                        language=language
+                        language=language,
                     )
-        
+
         # LLM-based detection for complex cases
         if self.use_llm_fallback:
             return await self._detect_with_llm(text, language, context)
-        
+
         # Default to neutral
         return DetectedIntent(
             intent_type=IntentType.NEUTRAL.value,
             confidence=0.5,
             entities={},
             raw_text=text,
-            language=language
+            language=language,
         )
-    
+
     def _detect_language(self, text: str) -> str:
         """Detect if text is Hindi, English, or Hinglish"""
         # Simple detection based on character ranges
-        hindi_chars = len(re.findall(r'[\u0900-\u097F]', text))
-        english_chars = len(re.findall(r'[a-zA-Z]', text))
-        
+        hindi_chars = len(re.findall(r"[\u0900-\u097F]", text))
+        english_chars = len(re.findall(r"[a-zA-Z]", text))
+
         total = hindi_chars + english_chars
         if total == 0:
             return "unknown"
-        
+
         hindi_ratio = hindi_chars / total
-        
+
         if hindi_ratio > 0.7:
             return "hi"
         elif hindi_ratio > 0.2:
             return "hinglish"
         else:
             return "en"
-    
-    def _extract_entities(
-        self,
-        text: str,
-        intent_type: IntentType
-    ) -> Dict[str, Any]:
+
+    def _extract_entities(self, text: str, intent_type: IntentType) -> dict[str, Any]:
         """Extract relevant entities based on intent"""
         entities = {}
         text_lower = text.lower()
-        
+
         # Extract time mentions
         time_patterns = [
-            r'(\d{1,2})\s*(am|pm|बजे)',
-            r'(morning|afternoon|evening|subah|dopahar|shaam)',
-            r'(today|tomorrow|kal|aaj|parso)',
-            r'(monday|tuesday|wednesday|thursday|friday|saturday|sunday)',
-            r'(somvar|mangalvar|budhvar|guruvar|shukravar|shanivar|ravivar)'
+            r"(\d{1,2})\s*(am|pm|बजे)",
+            r"(morning|afternoon|evening|subah|dopahar|shaam)",
+            r"(today|tomorrow|kal|aaj|parso)",
+            r"(monday|tuesday|wednesday|thursday|friday|saturday|sunday)",
+            r"(somvar|mangalvar|budhvar|guruvar|shukravar|shanivar|ravivar)",
         ]
-        
+
         for pattern in time_patterns:
             match = re.search(pattern, text_lower)
             if match:
                 entities["time_mention"] = match.group()
                 break
-        
+
         # Extract phone/email if mentioned
-        phone_match = re.search(r'(\+91)?[\s-]?\d{10}', text)
+        phone_match = re.search(r"(\+91)?[\s-]?\d{10}", text)
         if phone_match:
             entities["phone"] = phone_match.group()
-        
-        email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', text)
+
+        email_match = re.search(r"[\w\.-]+@[\w\.-]+\.\w+", text)
         if email_match:
             entities["email"] = email_match.group()
-        
+
         return entities
-    
+
     async def _detect_with_llm(
-        self,
-        text: str,
-        language: str,
-        context: Optional[Any] = None
+        self, text: str, language: str, context: Any | None = None
     ) -> DetectedIntent:
         """Use LLM for complex intent detection"""
         try:
             from app.voice_agent.llm_brain import LLMBrain
-            
+
             llm = LLMBrain()
-            
+
             prompt = f"""Classify the intent of this customer response in a sales call:
 
 Text: "{text}"
@@ -269,25 +260,25 @@ Possible intents:
 
 Respond with ONLY the intent name and confidence (0-1), like:
 interested 0.85"""
-            
+
             response = await llm._generate(prompt)
             parts = response.strip().split()
-            
+
             if len(parts) >= 2:
                 intent = parts[0].lower()
                 confidence = float(parts[1])
             else:
                 intent = parts[0].lower() if parts else "neutral"
                 confidence = 0.7
-            
+
             return DetectedIntent(
                 intent_type=intent,
                 confidence=confidence,
                 entities=self._extract_entities(text, IntentType.NEUTRAL),
                 raw_text=text,
-                language=language
+                language=language,
             )
-            
+
         except Exception as e:
             logger.error(f"LLM intent detection failed: {e}")
             return DetectedIntent(
@@ -295,5 +286,5 @@ interested 0.85"""
                 confidence=0.5,
                 entities={},
                 raw_text=text,
-                language=language
+                language=language,
             )

@@ -8,6 +8,7 @@ No real SMTP / network:
   - settings.auto_email_outreach / smtp_user monkeypatch
   - throttle sleep ko no-op kar dete hain (test fast rahe)
 """
+
 import json
 import os
 from datetime import datetime, timedelta
@@ -29,6 +30,7 @@ def tmp_prospects(monkeypatch, tmp_path):
 @pytest.fixture
 def no_sleep(monkeypatch):
     """Throttle sleep ko instant kar do."""
+
     async def _instant(*_a, **_k):
         return None
 
@@ -111,18 +113,32 @@ class TestRun:
             return True
 
         from app.integrations import email_sender
+
         monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
 
         # One emailable ready prospect + one with no email (skipped).
-        _seed(tmp_prospects, {
-            "id": "p1", "business_name": "Sharma Solar", "city": "Pune",
-            "email": "info@sharmasolar.in", "status": "ready",
-            "rating": 4.3, "reviews_count": 120,
-        })
-        _seed(tmp_prospects, {
-            "id": "p2", "business_name": "No Email Biz", "city": "Pune",
-            "email": "", "status": "ready",
-        })
+        _seed(
+            tmp_prospects,
+            {
+                "id": "p1",
+                "business_name": "Sharma Solar",
+                "city": "Pune",
+                "email": "info@sharmasolar.in",
+                "status": "ready",
+                "rating": 4.3,
+                "reviews_count": 120,
+            },
+        )
+        _seed(
+            tmp_prospects,
+            {
+                "id": "p2",
+                "business_name": "No Email Biz",
+                "city": "Pune",
+                "email": "",
+                "status": "ready",
+            },
+        )
 
         out = await auto_outreach.run_email_outreach()
         assert out["sent"] == 1
@@ -136,7 +152,7 @@ class TestRun:
 
         sent_to.clear()
         out2 = await auto_outreach.run_email_outreach()
-        assert out2["sent"] == 0          # already emailed
+        assert out2["sent"] == 0  # already emailed
         assert sent_to == []
 
     @pytest.mark.asyncio
@@ -150,14 +166,20 @@ class TestRun:
             return True
 
         from app.integrations import email_sender
+
         monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
 
         for i in range(5):
-            _seed(tmp_prospects, {
-                "id": f"c{i}", "business_name": f"Biz {i}", "city": "Pune",
-                "email": f"biz{i}@example.org".replace("example.org", "site.in"),
-                "status": "ready",
-            })
+            _seed(
+                tmp_prospects,
+                {
+                    "id": f"c{i}",
+                    "business_name": f"Biz {i}",
+                    "city": "Pune",
+                    "email": f"biz{i}@example.org".replace("example.org", "site.in"),
+                    "status": "ready",
+                },
+            )
 
         out = await auto_outreach.run_email_outreach()
         assert out["cap"] == 2
@@ -169,17 +191,25 @@ class TestRun:
 # --------------------------------------------------------------------------- #
 class TestStats:
     def test_counts(self, tmp_prospects):
-        _seed(tmp_prospects, {"id": "a", "business_name": "A", "email": "a@x.in",
-                              "status": "ready"})
-        _seed(tmp_prospects, {"id": "b", "business_name": "B", "email": "",
-                              "status": "ready"})
-        _seed(tmp_prospects, {"id": "c", "business_name": "C", "email": "c@x.in",
-                              "status": "ready", "emailed_at": "2026-06-08T00:00:00Z"})
+        _seed(
+            tmp_prospects, {"id": "a", "business_name": "A", "email": "a@x.in", "status": "ready"}
+        )
+        _seed(tmp_prospects, {"id": "b", "business_name": "B", "email": "", "status": "ready"})
+        _seed(
+            tmp_prospects,
+            {
+                "id": "c",
+                "business_name": "C",
+                "email": "c@x.in",
+                "status": "ready",
+                "emailed_at": "2026-06-08T00:00:00Z",
+            },
+        )
         stats = auto_outreach.outreach_stats()
         assert stats["total"] == 3
-        assert stats["with_email"] == 2   # a + c
-        assert stats["emailed"] == 1      # c
-        assert stats["pending"] == 1      # a (has email, ready, not emailed)
+        assert stats["with_email"] == 2  # a + c
+        assert stats["emailed"] == 1  # c
+        assert stats["pending"] == 1  # a (has email, ready, not emailed)
 
 
 def _iso_days_ago(days: float) -> str:
@@ -249,14 +279,22 @@ class TestFollowupRun:
             return True
 
         from app.integrations import email_sender
+
         monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
 
         # Emailed 4 days ago, no follow-up yet → eligible for follow-up #1.
-        _seed(tmp_prospects, {
-            "id": "f1", "business_name": "Sharma Solar", "city": "Pune",
-            "email": "info@sharmasolar.in", "status": "ready",
-            "emailed_at": _iso_days_ago(4), "followup_count": 0,
-        })
+        _seed(
+            tmp_prospects,
+            {
+                "id": "f1",
+                "business_name": "Sharma Solar",
+                "city": "Pune",
+                "email": "info@sharmasolar.in",
+                "status": "ready",
+                "emailed_at": _iso_days_ago(4),
+                "followup_count": 0,
+            },
+        )
 
         out = await auto_outreach.run_email_followups()
         assert out["sent"] == 1
@@ -284,36 +322,70 @@ class TestFollowupRun:
             return True
 
         from app.integrations import email_sender
+
         monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
 
         # Too recent (2 days, count 0) — gap (3d) not met → NOT eligible.
-        _seed(tmp_prospects, {
-            "id": "recent", "business_name": "Recent", "email": "r@x.in",
-            "status": "ready", "emailed_at": _iso_days_ago(2), "followup_count": 0,
-        })
+        _seed(
+            tmp_prospects,
+            {
+                "id": "recent",
+                "business_name": "Recent",
+                "email": "r@x.in",
+                "status": "ready",
+                "emailed_at": _iso_days_ago(2),
+                "followup_count": 0,
+            },
+        )
         # Replied — must be skipped even though old.
-        _seed(tmp_prospects, {
-            "id": "replied", "business_name": "Replied", "email": "rep@x.in",
-            "status": "replied", "emailed_at": _iso_days_ago(10), "followup_count": 0,
-        })
+        _seed(
+            tmp_prospects,
+            {
+                "id": "replied",
+                "business_name": "Replied",
+                "email": "rep@x.in",
+                "status": "replied",
+                "emailed_at": _iso_days_ago(10),
+                "followup_count": 0,
+            },
+        )
         # Maxed out (count 2) — no more follow-ups.
-        _seed(tmp_prospects, {
-            "id": "maxed", "business_name": "Maxed", "email": "m@x.in",
-            "status": "ready", "emailed_at": _iso_days_ago(30), "followup_count": 2,
-        })
+        _seed(
+            tmp_prospects,
+            {
+                "id": "maxed",
+                "business_name": "Maxed",
+                "email": "m@x.in",
+                "status": "ready",
+                "emailed_at": _iso_days_ago(30),
+                "followup_count": 2,
+            },
+        )
         # Eligible for follow-up #2 (count 1, emailed 8 days ago > 7d gap).
-        _seed(tmp_prospects, {
-            "id": "step2", "business_name": "Step Two", "email": "s2@x.in",
-            "status": "ready", "emailed_at": _iso_days_ago(8), "followup_count": 1,
-        })
+        _seed(
+            tmp_prospects,
+            {
+                "id": "step2",
+                "business_name": "Step Two",
+                "email": "s2@x.in",
+                "status": "ready",
+                "emailed_at": _iso_days_ago(8),
+                "followup_count": 1,
+            },
+        )
         # Never emailed (no emailed_at) — initial outreach handles it, not this.
-        _seed(tmp_prospects, {
-            "id": "fresh", "business_name": "Fresh", "email": "fr@x.in",
-            "status": "ready",
-        })
+        _seed(
+            tmp_prospects,
+            {
+                "id": "fresh",
+                "business_name": "Fresh",
+                "email": "fr@x.in",
+                "status": "ready",
+            },
+        )
 
         out = await auto_outreach.run_email_followups()
-        assert out["sent"] == 1          # only step2
+        assert out["sent"] == 1  # only step2
         assert out["by_step"]["2"] == 1
         assert out["by_step"]["1"] == 0
         s2 = next(p for p in prospector.list_prospects(limit=10) if p["id"] == "step2")

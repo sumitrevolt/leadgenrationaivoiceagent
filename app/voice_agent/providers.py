@@ -42,13 +42,9 @@ Usage example (pure text mode, no audio / no API keys needed)::
 
 import os
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator, Callable
 from typing import (
     Any,
-    AsyncGenerator,
-    Callable,
-    Dict,
-    List,
-    Optional,
 )
 
 from app.utils.logger import setup_logger
@@ -91,12 +87,12 @@ class TTSProvider(ABC):
     name: str = "tts"
 
     @abstractmethod
-    async def synthesize(self, text: str, voice_id: Optional[str] = None) -> bytes:
+    async def synthesize(self, text: str, voice_id: str | None = None) -> bytes:
         """Synthesize text into audio bytes."""
         raise NotImplementedError
 
     async def synthesize_stream(
-        self, text: str, voice_id: Optional[str] = None
+        self, text: str, voice_id: str | None = None
     ) -> AsyncGenerator[bytes, None]:
         """Stream audio chunks. Default: synthesize fully then yield once."""
         audio = await self.synthesize(text, voice_id)
@@ -110,7 +106,7 @@ class LLMProvider(ABC):
     name: str = "llm"
 
     @abstractmethod
-    async def complete(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def complete(self, messages: list[dict[str, str]], **kwargs) -> str:
         """Complete a chat given OpenAI-style messages -> assistant text."""
         raise NotImplementedError
 
@@ -156,9 +152,9 @@ class MockTTS(TTSProvider):
 
     name = "mock-tts"
 
-    async def synthesize(self, text: str, voice_id: Optional[str] = None) -> bytes:
+    async def synthesize(self, text: str, voice_id: str | None = None) -> bytes:
         # Encode the text so callers/tests can assert on it; not real audio.
-        return f"[MOCK_AUDIO:{text}]".encode("utf-8")
+        return f"[MOCK_AUDIO:{text}]".encode()
 
 
 class MockLLM(LLMProvider):
@@ -166,7 +162,7 @@ class MockLLM(LLMProvider):
 
     name = "mock-llm"
 
-    async def complete(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def complete(self, messages: list[dict[str, str]], **kwargs) -> str:
         last_user = ""
         for m in reversed(messages):
             if m.get("role") == "user":
@@ -232,11 +228,11 @@ class EdgeTTSWrapper(TTSProvider):
         self._tts = TextToSpeech(provider=provider)
         self.name = f"{provider}-tts"
 
-    async def synthesize(self, text: str, voice_id: Optional[str] = None) -> bytes:
+    async def synthesize(self, text: str, voice_id: str | None = None) -> bytes:
         return await self._tts.synthesize(text, voice_id=voice_id)
 
     async def synthesize_stream(
-        self, text: str, voice_id: Optional[str] = None
+        self, text: str, voice_id: str | None = None
     ) -> AsyncGenerator[bytes, None]:
         async for chunk in self._tts.synthesize_stream(text, voice_id=voice_id):
             yield chunk
@@ -250,16 +246,16 @@ class LLMBrainWrapper(LLMProvider):
 
     name = "llm-brain"
 
-    def __init__(self, model: Optional[str] = None, tenant_id: Optional[str] = None) -> None:
+    def __init__(self, model: str | None = None, tenant_id: str | None = None) -> None:
         from app.voice_agent.llm_brain import LLMBrain
 
         self._brain = LLMBrain(model=model, tenant_id=tenant_id)
         self.name = f"llm-{self._brain.model}"
 
-    async def complete(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def complete(self, messages: list[dict[str, str]], **kwargs) -> str:
         system_prompt = kwargs.get("system_prompt", "")
         # Pull out any explicit system message if present.
-        chat: List[Dict[str, str]] = []
+        chat: list[dict[str, str]] = []
         for m in messages:
             if m.get("role") == "system":
                 system_prompt = (system_prompt + "\n" + m.get("content", "")).strip()
@@ -298,20 +294,20 @@ class ProviderRegistry:
 
     # Safe free defaults per kind.
     DEFAULTS = {
-        "stt": "free",      # Vosk/Whisper/SpeechRecognition auto via FreeSTTManager
-        "tts": "edge",      # EdgeTTS (free)
-        "llm": "gemini",    # Gemini (free tier friendly)
+        "stt": "free",  # Vosk/Whisper/SpeechRecognition auto via FreeSTTManager
+        "tts": "edge",  # EdgeTTS (free)
+        "llm": "gemini",  # Gemini (free tier friendly)
     }
 
     def __init__(self) -> None:
         # kind -> { name -> factory }
-        self._factories: Dict[str, Dict[str, ProviderFactory]] = {
+        self._factories: dict[str, dict[str, ProviderFactory]] = {
             "stt": {},
             "tts": {},
             "llm": {},
         }
         # kind -> cached active instance
-        self._cache: Dict[str, Any] = {}
+        self._cache: dict[str, Any] = {}
         self._register_builtins()
 
     # -- registration ------------------------------------------------------
@@ -390,8 +386,7 @@ class ProviderRegistry:
         instance: Any = None
         if factory is None:
             logger.warning(
-                f"{kind.upper()} provider '{name}' not registered; "
-                f"falling back to Mock."
+                f"{kind.upper()} provider '{name}' not registered; " f"falling back to Mock."
             )
         else:
             try:
@@ -427,7 +422,7 @@ class ProviderRegistry:
         """Clear cached instances (e.g. after changing env)."""
         self._cache.clear()
 
-    def describe(self) -> Dict[str, str]:
+    def describe(self) -> dict[str, str]:
         """Return the resolved provider name per kind (for diagnostics)."""
         return {kind: self._select_name(kind) for kind in self.KINDS}
 
@@ -436,7 +431,7 @@ class ProviderRegistry:
 # MODULE SINGLETON
 # =============================================================================
 
-_registry: Optional[ProviderRegistry] = None
+_registry: ProviderRegistry | None = None
 
 
 def get_registry() -> ProviderRegistry:

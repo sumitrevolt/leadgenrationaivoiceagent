@@ -2,12 +2,13 @@
 Text-to-Speech Module
 Supports ElevenLabs, Azure Neural Voice, and EdgeTTS (Free)
 """
+
 import asyncio
-from typing import Optional
-from abc import ABC, abstractmethod
-import httpx
-import edge_tts
 import io
+from abc import ABC, abstractmethod
+
+import edge_tts
+import httpx
 
 from app.config import settings
 from app.utils.logger import setup_logger
@@ -17,50 +18,47 @@ logger = setup_logger(__name__)
 
 class TTSProvider(ABC):
     """Abstract base class for TTS providers"""
-    
+
     @abstractmethod
-    async def synthesize(self, text: str, voice_id: Optional[str] = None) -> bytes:
+    async def synthesize(self, text: str, voice_id: str | None = None) -> bytes:
         pass
 
 
 class ElevenLabsTTS(TTSProvider):
     """ElevenLabs Text-to-Speech provider - Natural human-like voice"""
-    
+
     def __init__(self):
         self.api_key = settings.elevenlabs_api_key
         self.default_voice_id = settings.elevenlabs_voice_id
         self.base_url = "https://api.elevenlabs.io/v1"
-        
+
     async def synthesize(
-        self,
-        text: str,
-        voice_id: Optional[str] = None,
-        model_id: str = "eleven_multilingual_v2"
+        self, text: str, voice_id: str | None = None, model_id: str = "eleven_multilingual_v2"
     ) -> bytes:
         """
         Synthesize text to speech using ElevenLabs
-        
+
         Args:
             text: Text to convert to speech
             voice_id: ElevenLabs voice ID (uses default if not provided)
             model_id: Model to use (eleven_multilingual_v2 for Hindi support)
-            
+
         Returns:
             Audio bytes (mp3 format)
         """
         if not self.api_key:
             raise ValueError("ElevenLabs API key not configured")
-        
+
         voice = voice_id or self.default_voice_id
         if not voice:
             raise ValueError("No voice ID provided")
-        
+
         headers = {
             "Accept": "audio/mpeg",
             "Content-Type": "application/json",
-            "xi-api-key": self.api_key
+            "xi-api-key": self.api_key,
         }
-        
+
         payload = {
             "text": text,
             "model_id": model_id,
@@ -68,58 +66,50 @@ class ElevenLabsTTS(TTSProvider):
                 "stability": 0.5,
                 "similarity_boost": 0.8,
                 "style": 0.0,
-                "use_speaker_boost": True
-            }
+                "use_speaker_boost": True,
+            },
         }
-        
+
         url = f"{self.base_url}/text-to-speech/{voice}"
-        
+
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                url,
-                headers=headers,
-                json=payload,
-                timeout=30.0
-            )
+            response = await client.post(url, headers=headers, json=payload, timeout=30.0)
             response.raise_for_status()
-            
+
             logger.debug(f"ElevenLabs TTS generated {len(response.content)} bytes")
             return response.content
 
 
 class AzureTTS(TTSProvider):
     """Azure Neural Voice Text-to-Speech provider"""
-    
+
     def __init__(self):
         self.api_key = settings.azure_speech_key
         self.region = settings.azure_speech_region
-        
+
     async def synthesize(
-        self,
-        text: str,
-        voice_id: Optional[str] = None,
-        language: str = "hi-IN"
+        self, text: str, voice_id: str | None = None, language: str = "hi-IN"
     ) -> bytes:
         """
         Synthesize text to speech using Azure Neural Voice
-        
+
         Args:
             text: Text to convert to speech
             voice_id: Azure voice name (e.g., hi-IN-SwaraNeural)
             language: Language code
-            
+
         Returns:
             Audio bytes (wav format)
         """
         if not self.api_key:
             raise ValueError("Azure Speech key not configured")
-        
+
         # Default Indian Hindi female voice
         voice_name = voice_id or "hi-IN-SwaraNeural"
-        
+
         # Create SSML
         ssml = f"""
-        <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' 
+        <speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'
                xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='{language}'>
             <voice name='{voice_name}'>
                 <mstts:express-as style='friendly'>
@@ -128,24 +118,19 @@ class AzureTTS(TTSProvider):
             </voice>
         </speak>
         """
-        
+
         url = f"https://{self.region}.tts.speech.microsoft.com/cognitiveservices/v1"
-        
+
         headers = {
             "Ocp-Apim-Subscription-Key": self.api_key,
             "Content-Type": "application/ssml+xml",
-            "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3"
+            "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
         }
-        
+
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                url,
-                headers=headers,
-                content=ssml,
-                timeout=30.0
-            )
+            response = await client.post(url, headers=headers, content=ssml, timeout=30.0)
             response.raise_for_status()
-            
+
             logger.debug(f"Azure TTS generated {len(response.content)} bytes")
             return response.content
 
@@ -155,28 +140,24 @@ class EdgeTTS(TTSProvider):
     Edge TTS provider (Free)
     Uses Microsoft Edge's online TTS service
     """
-    
+
     def __init__(self):
         self.default_voice = "en-IN-NeerjaNeural"
-        
-    async def synthesize(
-        self,
-        text: str,
-        voice_id: Optional[str] = None
-    ) -> bytes:
+
+    async def synthesize(self, text: str, voice_id: str | None = None) -> bytes:
         """
         Synthesize text to speech using Edge TTS
         """
         voice = voice_id or self.default_voice
-        
+
         communicate = edge_tts.Communicate(text, voice)
-        
+
         # Capture audio to memory
         audio_stream = io.BytesIO()
         async for chunk in communicate.stream():
             if chunk["type"] == "audio":
                 audio_stream.write(chunk["data"])
-                
+
         logger.debug(f"Edge TTS generated {audio_stream.getbuffer().nbytes} bytes")
         return audio_stream.getvalue()
 
@@ -186,34 +167,34 @@ class TextToSpeech:
     Unified Text-to-Speech interface
     Automatically selects provider based on configuration
     """
-    
+
     # Available voice presets for different languages
     VOICE_PRESETS = {
         "hindi_female": {
             "elevenlabs": "pNInz6obpgDQGcFmaJgB",
             "azure": "hi-IN-SwaraNeural",
-            "edge": "hi-IN-SwaraNeural"
+            "edge": "hi-IN-SwaraNeural",
         },
         "hindi_male": {
             "elevenlabs": "VR6AewLTigWG4xSOukaG",
             "azure": "hi-IN-MadhurNeural",
-            "edge": "hi-IN-MadhurNeural"
+            "edge": "hi-IN-MadhurNeural",
         },
         "english_indian_female": {
             "elevenlabs": "21m00Tcm4TlvDq8ikWAM",
             "azure": "en-IN-NeerjaNeural",
-            "edge": "en-IN-NeerjaNeural"
+            "edge": "en-IN-NeerjaNeural",
         },
         "english_indian_male": {
             "elevenlabs": "TxGEqnHWrfWFTfGW9XjX",
             "azure": "en-IN-PrabhatNeural",
-            "edge": "en-IN-PrabhatNeural"
-        }
+            "edge": "en-IN-PrabhatNeural",
+        },
     }
-    
-    def __init__(self, provider: Optional[str] = None):
+
+    def __init__(self, provider: str | None = None):
         provider = provider or settings.default_tts
-        
+
         if provider == "elevenlabs":
             self._provider = ElevenLabsTTS()
         elif provider == "azure":
@@ -222,70 +203,63 @@ class TextToSpeech:
             self._provider = EdgeTTS()
         else:
             raise ValueError(f"Unknown TTS provider: {provider}")
-        
+
         self.provider_name = provider
         logger.info(f"🔊 TTS initialized with: {provider}")
-    
+
     async def synthesize(
-        self,
-        text: str,
-        voice_id: Optional[str] = None,
-        voice_preset: Optional[str] = None
+        self, text: str, voice_id: str | None = None, voice_preset: str | None = None
     ) -> bytes:
         """
         Convert text to speech audio
-        
+
         Args:
             text: Text to convert
             voice_id: Specific voice ID (provider-dependent)
             voice_preset: Named preset (hindi_female, english_indian_male, etc.)
-            
+
         Returns:
             Audio bytes
         """
         # Resolve voice preset to voice_id
         if voice_preset and voice_preset in self.VOICE_PRESETS:
             voice_id = self.VOICE_PRESETS[voice_preset].get(self.provider_name)
-        
+
         try:
             return await self._provider.synthesize(text, voice_id)
         except Exception as e:
             logger.error(f"TTS synthesis failed: {e}")
             raise
-    
-    async def synthesize_stream(
-        self,
-        text: str,
-        voice_id: Optional[str] = None
-    ):
+
+    async def synthesize_stream(self, text: str, voice_id: str | None = None):
         """
         Stream audio for real-time playback with lower latency
-        
+
         This is an async generator that yields audio chunks as they become available.
         Useful for real-time voice calls where you want to start playing audio
         before the full synthesis is complete.
-        
+
         Args:
             text: Text to convert to speech
             voice_id: Voice ID for the TTS provider
-            
+
         Yields:
             bytes: Audio chunks as they become available
         """
         # Resolve voice preset if needed
         if voice_id and voice_id in self.VOICE_PRESETS:
             voice_id = self.VOICE_PRESETS[voice_id].get(self.provider_name)
-        
+
         try:
             if self.provider_name == "edge":
                 # Edge TTS supports native streaming
                 voice = voice_id or "en-IN-NeerjaNeural"
                 communicate = edge_tts.Communicate(text, voice)
-                
+
                 async for chunk in communicate.stream():
                     if chunk["type"] == "audio":
                         yield chunk["data"]
-                        
+
             elif self.provider_name == "elevenlabs" and settings.elevenlabs_api_key:
                 # ElevenLabs streaming endpoint
                 voice = voice_id or settings.elevenlabs_voice_id
@@ -294,52 +268,45 @@ class TextToSpeech:
                     audio = await self.synthesize(text, voice_id)
                     yield audio
                     return
-                
+
                 url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice}/stream"
-                
+
                 headers = {
                     "Accept": "audio/mpeg",
                     "Content-Type": "application/json",
-                    "xi-api-key": settings.elevenlabs_api_key
+                    "xi-api-key": settings.elevenlabs_api_key,
                 }
-                
+
                 payload = {
                     "text": text,
                     "model_id": "eleven_multilingual_v2",
-                    "voice_settings": {
-                        "stability": 0.5,
-                        "similarity_boost": 0.8
-                    }
+                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.8},
                 }
-                
+
                 async with httpx.AsyncClient() as client:
                     async with client.stream(
-                        "POST",
-                        url,
-                        headers=headers,
-                        json=payload,
-                        timeout=30.0
+                        "POST", url, headers=headers, json=payload, timeout=30.0
                     ) as response:
                         response.raise_for_status()
                         async for chunk in response.aiter_bytes(chunk_size=4096):
                             yield chunk
-                            
+
             elif self.provider_name == "azure" and settings.azure_speech_key:
                 # Azure doesn't have easy async streaming, fall back to full synthesis
                 # and yield in chunks
                 audio = await self.synthesize(text, voice_id)
-                
+
                 # Yield in 4KB chunks to simulate streaming
                 chunk_size = 4096
                 for i in range(0, len(audio), chunk_size):
-                    yield audio[i:i + chunk_size]
+                    yield audio[i : i + chunk_size]
                     await asyncio.sleep(0)  # Allow other tasks to run
-                    
+
             else:
                 # Fallback: full synthesis then yield
                 audio = await self.synthesize(text, voice_id)
                 yield audio
-                
+
         except Exception as e:
             logger.error(f"TTS streaming failed: {e}")
             # Fall back to non-streaming synthesis
@@ -349,38 +316,38 @@ class TextToSpeech:
             except Exception as fallback_error:
                 logger.error(f"TTS fallback also failed: {fallback_error}")
                 raise
-    
+
     async def synthesize_to_file(
         self,
         text: str,
         output_path: str,
-        voice_id: Optional[str] = None,
-        voice_preset: Optional[str] = None
+        voice_id: str | None = None,
+        voice_preset: str | None = None,
     ) -> str:
         """
         Synthesize text to speech and save to a file
-        
+
         Args:
             text: Text to convert
             output_path: Path to save the audio file
             voice_id: Specific voice ID (provider-dependent)
             voice_preset: Named preset (hindi_female, english_indian_male, etc.)
-            
+
         Returns:
             Path to the saved audio file
         """
         audio_bytes = await self.synthesize(text, voice_id, voice_preset)
-        
-        with open(output_path, 'wb') as f:
+
+        with open(output_path, "wb") as f:
             f.write(audio_bytes)
-        
+
         logger.debug(f"TTS audio saved to {output_path}")
         return output_path
-    
+
     def get_available_voices(self) -> dict:
         """
         Get available voice presets for the current provider
-        
+
         Returns:
             Dictionary of voice presets with their IDs
         """

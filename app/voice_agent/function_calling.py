@@ -55,12 +55,14 @@ Usage:
     if call:
         result = await reg.execute(call["name"], call["args"])  # -> ToolResult
 """
+
 from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, Dict, List, Optional
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
 
 try:
     from app.config import settings
@@ -69,14 +71,16 @@ except Exception:  # pragma: no cover
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
 # A tool handler is async: (args: dict) -> Any (or a ToolResult).
-ToolHandler = Callable[[Dict[str, Any]], Awaitable[Any]]
+ToolHandler = Callable[[dict[str, Any]], Awaitable[Any]]
 
 
 # --------------------------------------------------------------------------- #
@@ -96,12 +100,13 @@ class Tool:
                       "required": ["x"]}
         handler:     async callable (args: dict) -> Any | ToolResult.
     """
+
     name: str
     description: str
-    parameters: Dict[str, Any]
+    parameters: dict[str, Any]
     handler: ToolHandler
 
-    def schema(self) -> Dict[str, Any]:
+    def schema(self) -> dict[str, Any]:
         """Return the OpenAI/Gemini-style function schema for this tool."""
         return {
             "type": "function",
@@ -113,18 +118,19 @@ class Tool:
         }
 
     @property
-    def required(self) -> List[str]:
+    def required(self) -> list[str]:
         return list((self.parameters or {}).get("required", []) or [])
 
 
 @dataclass
 class ToolResult:
     """Unified output of a tool execution."""
+
     ok: bool
     data: Any = None
-    error: Optional[str] = None
+    error: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"ok": self.ok, "data": self.data, "error": self.error}
 
 
@@ -140,7 +146,7 @@ class ToolRegistry:
     """
 
     def __init__(self) -> None:
-        self._tools: Dict[str, Tool] = {}
+        self._tools: dict[str, Tool] = {}
 
     # ---- registration ---- #
     def register(self, tool: Tool) -> None:
@@ -153,19 +159,19 @@ class ToolRegistry:
         self._tools[tool.name] = tool
         logger.debug(f"🛠️  Registered tool '{tool.name}'.")
 
-    def get(self, name: str) -> Optional[Tool]:
+    def get(self, name: str) -> Tool | None:
         """Return the tool by name, or None."""
         return self._tools.get(name)
 
-    def names(self) -> List[str]:
+    def names(self) -> list[str]:
         return list(self._tools.keys())
 
-    def list_schemas(self) -> List[Dict[str, Any]]:
+    def list_schemas(self) -> list[dict[str, Any]]:
         """Return all tool schemas (OpenAI/Gemini function-calling style)."""
         return [t.schema() for t in self._tools.values()]
 
     # ---- execution ---- #
-    async def execute(self, name: str, args: Optional[Dict[str, Any]] = None) -> ToolResult:
+    async def execute(self, name: str, args: dict[str, Any] | None = None) -> ToolResult:
         """
         Validate + run the named tool. Never raises.
 
@@ -199,7 +205,7 @@ class ToolRegistry:
             return ToolResult(ok=False, error=str(e))
 
 
-def _safe_args(args: Dict[str, Any]) -> Dict[str, Any]:
+def _safe_args(args: dict[str, Any]) -> dict[str, Any]:
     """Redact obvious PII for logs."""
     redacted = dict(args)
     for k in ("phone", "email", "to_human_number"):
@@ -215,7 +221,7 @@ def _safe_args(args: Dict[str, Any]) -> Dict[str, Any]:
 _CALL_RE = re.compile(r"CALL\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*(\{.*\})?", re.DOTALL)
 
 
-def parse_tool_call(llm_output: Any) -> Optional[Dict[str, Any]]:
+def parse_tool_call(llm_output: Any) -> dict[str, Any] | None:
     """
     Extract a tool call from an LLM response.
 
@@ -263,7 +269,7 @@ def parse_tool_call(llm_output: Any) -> Optional[Dict[str, Any]]:
     if m:
         name = m.group(1)
         raw_args = m.group(2)
-        args: Dict[str, Any] = {}
+        args: dict[str, Any] = {}
         if raw_args:
             try:
                 args = json.loads(raw_args)
@@ -275,7 +281,7 @@ def parse_tool_call(llm_output: Any) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _parse_dict_tool_call(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _parse_dict_tool_call(obj: dict[str, Any]) -> dict[str, Any] | None:
     """Normalize the many possible dict shapes into {'name','args'}."""
     if not isinstance(obj, dict):
         return None
@@ -306,7 +312,7 @@ def _parse_dict_tool_call(obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _coerce_args(raw: Any) -> Dict[str, Any]:
+def _coerce_args(raw: Any) -> dict[str, Any]:
     """arguments may be a dict or a JSON string — normalize to dict."""
     if isinstance(raw, dict):
         return raw
@@ -323,7 +329,7 @@ def _strip_code_fences(text: str) -> str:
     return text.replace("```json", "").replace("```", "")
 
 
-def _loads_first_object(text: str) -> Optional[Dict[str, Any]]:
+def _loads_first_object(text: str) -> dict[str, Any] | None:
     """Extract + parse the first balanced {...} from text."""
     depth = 0
     start = -1
@@ -345,7 +351,7 @@ def _loads_first_object(text: str) -> Optional[Dict[str, Any]]:
 # --------------------------------------------------------------------------- #
 # Built-in tools — wired to real services, simulate when unavailable.
 # --------------------------------------------------------------------------- #
-def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegistry:
+def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistry:
     """
     Build a registry pre-loaded with the standard in-call tools, wired to the
     real services (calendar_booking, warm_transfer, telephony) where available
@@ -365,7 +371,7 @@ def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegi
     reg = ToolRegistry()
 
     # ---------------- book_appointment ---------------- #
-    async def _book_appointment(args: Dict[str, Any]) -> ToolResult:
+    async def _book_appointment(args: dict[str, Any]) -> ToolResult:
         lead = ctx.get("lead", {}) or {}
         name = args.get("name") or lead.get("name") or lead.get("contact_name") or ""
         phone = args.get("phone") or lead.get("phone") or ""
@@ -373,6 +379,7 @@ def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegi
         notes = args.get("notes") or f"Booked via AI voice agent for {ctx.get('niche','')}"
         try:
             from app.integrations.calendar_booking import get_calendar
+
             cal = get_calendar()
             res = await cal.book_slot(when_iso=when_iso, name=name, phone=phone, notes=notes)
             return ToolResult(
@@ -399,34 +406,37 @@ def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegi
                 },
             )
 
-    reg.register(Tool(
-        name="book_appointment",
-        description=(
-            "Book an appointment/demo slot for the lead at a specific time. "
-            "Call this once the lead agrees to a date and time."
-        ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "when_iso": {
-                    "type": "string",
-                    "description": "Start time, ISO 8601 e.g. '2026-06-10T15:00'.",
+    reg.register(
+        Tool(
+            name="book_appointment",
+            description=(
+                "Book an appointment/demo slot for the lead at a specific time. "
+                "Call this once the lead agrees to a date and time."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "when_iso": {
+                        "type": "string",
+                        "description": "Start time, ISO 8601 e.g. '2026-06-10T15:00'.",
+                    },
+                    "name": {"type": "string", "description": "Lead's name."},
+                    "phone": {"type": "string", "description": "Lead's phone number."},
+                    "notes": {"type": "string", "description": "Optional context/notes."},
                 },
-                "name": {"type": "string", "description": "Lead's name."},
-                "phone": {"type": "string", "description": "Lead's phone number."},
-                "notes": {"type": "string", "description": "Optional context/notes."},
+                "required": ["when_iso"],
             },
-            "required": ["when_iso"],
-        },
-        handler=_book_appointment,
-    ))
+            handler=_book_appointment,
+        )
+    )
 
     # ---------------- check_availability ---------------- #
-    async def _check_availability(args: Dict[str, Any]) -> ToolResult:
+    async def _check_availability(args: dict[str, Any]) -> ToolResult:
         date_str = args.get("date") or args.get("date_str") or ""
         duration = int(args.get("duration_min", 15) or 15)
         try:
             from app.integrations.calendar_booking import get_calendar
+
             cal = get_calendar()
             slots = await cal.check_availability(date_str, duration_min=duration)
             return ToolResult(
@@ -445,31 +455,33 @@ def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegi
                 },
             )
 
-    reg.register(Tool(
-        name="check_availability",
-        description=(
-            "Check free appointment slots for a given date before offering "
-            "times to the lead."
-        ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "date": {
-                    "type": "string",
-                    "description": "Date 'YYYY-MM-DD' to check availability for.",
+    reg.register(
+        Tool(
+            name="check_availability",
+            description=(
+                "Check free appointment slots for a given date before offering "
+                "times to the lead."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "description": "Date 'YYYY-MM-DD' to check availability for.",
+                    },
+                    "duration_min": {
+                        "type": "integer",
+                        "description": "Meeting length in minutes (default 15).",
+                    },
                 },
-                "duration_min": {
-                    "type": "integer",
-                    "description": "Meeting length in minutes (default 15).",
-                },
+                "required": ["date"],
             },
-            "required": ["date"],
-        },
-        handler=_check_availability,
-    ))
+            handler=_check_availability,
+        )
+    )
 
     # ---------------- transfer_to_human ---------------- #
-    async def _transfer_to_human(args: Dict[str, Any]) -> ToolResult:
+    async def _transfer_to_human(args: dict[str, Any]) -> ToolResult:
         to_human = (
             args.get("to_human_number")
             or ctx.get("to_human_number")
@@ -482,6 +494,7 @@ def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegi
         history = ctx.get("conversation_history", []) or []
         try:
             from app.telephony.warm_transfer import get_warm_transfer
+
             wt = get_warm_transfer()
             brief = await wt.build_brief_async(history, lead)
             if reason:
@@ -513,70 +526,72 @@ def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegi
                 },
             )
 
-    reg.register(Tool(
-        name="transfer_to_human",
-        description=(
-            "Warm-transfer the live call to a human agent, passing along a "
-            "context brief so the lead doesn't repeat themselves. Use when the "
-            "lead wants a human, has a complex request, or is high-value."
-        ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "reason": {
-                    "type": "string",
-                    "description": "Why the transfer is needed.",
+    reg.register(
+        Tool(
+            name="transfer_to_human",
+            description=(
+                "Warm-transfer the live call to a human agent, passing along a "
+                "context brief so the lead doesn't repeat themselves. Use when the "
+                "lead wants a human, has a complex request, or is high-value."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "description": "Why the transfer is needed.",
+                    },
+                    "to_human_number": {
+                        "type": "string",
+                        "description": "Optional override for the human agent's number.",
+                    },
                 },
-                "to_human_number": {
-                    "type": "string",
-                    "description": "Optional override for the human agent's number.",
-                },
+                "required": [],
             },
-            "required": [],
-        },
-        handler=_transfer_to_human,
-    ))
+            handler=_transfer_to_human,
+        )
+    )
 
     # ---------------- capture_lead_info ---------------- #
-    async def _capture_lead_info(args: Dict[str, Any]) -> ToolResult:
+    async def _capture_lead_info(args: dict[str, Any]) -> ToolResult:
         # Merge captured fields into the shared context's lead dict so the rest
         # of the pipeline can read them.
         lead = ctx.setdefault("lead", {})
-        fields = {
-            k: v for k, v in args.items() if v not in (None, "")
-        }
+        fields = {k: v for k, v in args.items() if v not in (None, "")}
         lead.update(fields)
         logger.info(f"🛠️  Captured lead info: {list(fields.keys())}")
         return ToolResult(ok=True, data={"captured": fields, "lead": lead})
 
-    reg.register(Tool(
-        name="capture_lead_info",
-        description=(
-            "Store qualification info the lead just shared (decision maker, "
-            "budget, timeline, email, etc.) so it's saved to the CRM."
-        ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "name": {"type": "string"},
-                "email": {"type": "string"},
-                "company_name": {"type": "string"},
-                "budget_range": {"type": "string"},
-                "timeline": {"type": "string"},
-                "is_decision_maker": {"type": "boolean"},
-                "interest_level": {
-                    "type": "string",
-                    "description": "high | medium | low | none",
+    reg.register(
+        Tool(
+            name="capture_lead_info",
+            description=(
+                "Store qualification info the lead just shared (decision maker, "
+                "budget, timeline, email, etc.) so it's saved to the CRM."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "email": {"type": "string"},
+                    "company_name": {"type": "string"},
+                    "budget_range": {"type": "string"},
+                    "timeline": {"type": "string"},
+                    "is_decision_maker": {"type": "boolean"},
+                    "interest_level": {
+                        "type": "string",
+                        "description": "high | medium | low | none",
+                    },
+                    "notes": {"type": "string"},
                 },
-                "notes": {"type": "string"},
+                "required": [],
             },
-            "required": [],
-        },
-        handler=_capture_lead_info,
-    ))
+            handler=_capture_lead_info,
+        )
+    )
 
     # ---------------- get_pricing_info ---------------- #
-    async def _get_pricing_info(args: Dict[str, Any]) -> ToolResult:
+    async def _get_pricing_info(args: dict[str, Any]) -> ToolResult:
         niche = args.get("niche") or ctx.get("niche") or ""
         # Grounded pricing — per qualified lead model (matches project pitch).
         pricing = {
@@ -590,6 +605,7 @@ def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegi
         # Enrich with niche deal value from niches.py if available.
         try:
             from app.niches import NICHES
+
             cfg = NICHES.get(niche, {}) if niche else {}
             if cfg.get("avg_deal_value"):
                 pricing["niche_avg_deal_value"] = cfg["avg_deal_value"]
@@ -599,33 +615,36 @@ def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegi
             pass
         return ToolResult(ok=True, data=pricing)
 
-    reg.register(Tool(
-        name="get_pricing_info",
-        description=(
-            "Get the grounded pricing details to quote to the lead "
-            "(per-qualified-lead model). Use when the lead asks about cost."
-        ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "niche": {
-                    "type": "string",
-                    "description": "Optional niche key for niche-specific deal value.",
+    reg.register(
+        Tool(
+            name="get_pricing_info",
+            description=(
+                "Get the grounded pricing details to quote to the lead "
+                "(per-qualified-lead model). Use when the lead asks about cost."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "niche": {
+                        "type": "string",
+                        "description": "Optional niche key for niche-specific deal value.",
+                    },
                 },
+                "required": [],
             },
-            "required": [],
-        },
-        handler=_get_pricing_info,
-    ))
+            handler=_get_pricing_info,
+        )
+    )
 
     # ---------------- end_call ---------------- #
-    async def _end_call(args: Dict[str, Any]) -> ToolResult:
+    async def _end_call(args: dict[str, Any]) -> ToolResult:
         outcome = args.get("outcome", "ended")
         reason = args.get("reason", "")
         call_id = ctx.get("call_id") or args.get("call_id") or "unknown-call"
         # Best-effort hangup via telephony if it exposes one; never required.
         try:
             from app.telephony.telephony_service import get_telephony_service
+
             svc = get_telephony_service()
             for m in ("hangup", "end_call", "hangup_call"):
                 fn = getattr(svc, m, None)
@@ -642,25 +661,27 @@ def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegi
             data={"should_end": True, "outcome": outcome, "reason": reason},
         )
 
-    reg.register(Tool(
-        name="end_call",
-        description=(
-            "End the call politely. Use when the conversation is complete, the "
-            "lead is not interested after handling objections, or a goodbye is given."
-        ),
-        parameters={
-            "type": "object",
-            "properties": {
-                "outcome": {
-                    "type": "string",
-                    "description": "qualified | not_interested | callback | ended",
+    reg.register(
+        Tool(
+            name="end_call",
+            description=(
+                "End the call politely. Use when the conversation is complete, the "
+                "lead is not interested after handling objections, or a goodbye is given."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "outcome": {
+                        "type": "string",
+                        "description": "qualified | not_interested | callback | ended",
+                    },
+                    "reason": {"type": "string"},
                 },
-                "reason": {"type": "string"},
+                "required": [],
             },
-            "required": [],
-        },
-        handler=_end_call,
-    ))
+            handler=_end_call,
+        )
+    )
 
     logger.info(f"🛠️  Default tool registry built: {reg.names()}")
     return reg
@@ -669,10 +690,10 @@ def build_default_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegi
 # --------------------------------------------------------------------------- #
 # Module-level singleton
 # --------------------------------------------------------------------------- #
-_registry: Optional[ToolRegistry] = None
+_registry: ToolRegistry | None = None
 
 
-def get_tool_registry(context: Optional[Dict[str, Any]] = None) -> ToolRegistry:
+def get_tool_registry(context: dict[str, Any] | None = None) -> ToolRegistry:
     """
     Return the process-wide ToolRegistry singleton (lazy init with defaults).
 

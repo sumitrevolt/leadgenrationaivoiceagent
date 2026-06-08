@@ -33,17 +33,20 @@ Usage (no LLM / no keys needed — heuristic path):
     print(analysis.outcome, analysis.interest_score, analysis.sentiment)
     print(analysis.summary)
 """
+
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -67,18 +70,19 @@ class CallAnalysis:
         key_quotes:       conversation ke important quotes (list of strings).
         meta:             extra metrics (turns, word counts, source: llm/heuristic).
     """
+
     summary: str = ""
     sentiment: str = "neutral"
     outcome: str = "no_answer"
     interest_score: int = 50
-    extracted_fields: Dict[str, Any] = field(default_factory=dict)
-    talk_ratio: Dict[str, float] = field(default_factory=lambda: {"agent": 0.0, "customer": 0.0})
-    objections: List[str] = field(default_factory=list)
+    extracted_fields: dict[str, Any] = field(default_factory=dict)
+    talk_ratio: dict[str, float] = field(default_factory=lambda: {"agent": 0.0, "customer": 0.0})
+    objections: list[str] = field(default_factory=list)
     next_action: str = ""
-    key_quotes: List[str] = field(default_factory=list)
-    meta: Dict[str, Any] = field(default_factory=dict)
+    key_quotes: list[str] = field(default_factory=list)
+    meta: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Dataclass ko plain dict me convert karo (JSON / CRM ke liye)."""
         return asdict(self)
 
@@ -87,15 +91,49 @@ class CallAnalysis:
 # Keyword banks for heuristic analysis (Hinglish + English)
 # --------------------------------------------------------------------------- #
 _POSITIVE = [
-    "haan", "yes", "sure", "theek hai", "accha", "achha", "great", "perfect",
-    "interested", "bilkul", "zaroor", "sounds good", "ok", "okay", "demo",
-    "schedule", "book", "chaiye", "chahiye", "badhiya", "good", "love",
+    "haan",
+    "yes",
+    "sure",
+    "theek hai",
+    "accha",
+    "achha",
+    "great",
+    "perfect",
+    "interested",
+    "bilkul",
+    "zaroor",
+    "sounds good",
+    "ok",
+    "okay",
+    "demo",
+    "schedule",
+    "book",
+    "chaiye",
+    "chahiye",
+    "badhiya",
+    "good",
+    "love",
 ]
 _NEGATIVE = [
-    "not interested", "nahi chahiye", "no thanks", "mat karo", "busy",
-    "expensive", "mehenga", "waste", "bekaar", "remove", "stop calling",
-    "already have", "pehle se", "don't call", "do not call", "irritate",
-    "pareshaan", "no", "nahi",
+    "not interested",
+    "nahi chahiye",
+    "no thanks",
+    "mat karo",
+    "busy",
+    "expensive",
+    "mehenga",
+    "waste",
+    "bekaar",
+    "remove",
+    "stop calling",
+    "already have",
+    "pehle se",
+    "don't call",
+    "do not call",
+    "irritate",
+    "pareshaan",
+    "no",
+    "nahi",
 ]
 _OBJECTION_MARKERS = [
     ("price", ["mehenga", "expensive", "costly", "price", "budget", "paise", "afford"]),
@@ -105,16 +143,40 @@ _OBJECTION_MARKERS = [
     ("not_interested", ["not interested", "nahi chahiye", "no thanks", "interested nahi"]),
 ]
 _VOICEMAIL_MARKERS = [
-    "leave a message", "after the tone", "after the beep", "voicemail",
-    "not available", "kripya message", "record your message", "available nahi",
+    "leave a message",
+    "after the tone",
+    "after the beep",
+    "voicemail",
+    "not available",
+    "kripya message",
+    "record your message",
+    "available nahi",
 ]
 _QUALIFIED_MARKERS = [
-    "demo", "book", "schedule", "appointment", "meeting", "kal", "tomorrow",
-    "send details", "interested", "let's do", "chalo", "set kar", "callback time",
+    "demo",
+    "book",
+    "schedule",
+    "appointment",
+    "meeting",
+    "kal",
+    "tomorrow",
+    "send details",
+    "interested",
+    "let's do",
+    "chalo",
+    "set kar",
+    "callback time",
 ]
 _CALLBACK_MARKERS = [
-    "call later", "baad me", "call back", "callback", "phir call", "tomorrow call",
-    "next week", "agle hafte", "busy abhi",
+    "call later",
+    "baad me",
+    "call back",
+    "callback",
+    "phir call",
+    "tomorrow call",
+    "next week",
+    "agle hafte",
+    "busy abhi",
 ]
 
 
@@ -138,8 +200,8 @@ class CallAnalyzer:
     # ----------------------- public API ----------------------- #
     async def analyze(
         self,
-        conversation_history: List[Dict[str, str]],
-        lead: Optional[Dict[str, Any]] = None,
+        conversation_history: list[dict[str, str]],
+        lead: dict[str, Any] | None = None,
     ) -> CallAnalysis:
         """Poori conversation ka post-call analysis.
 
@@ -170,9 +232,7 @@ class CallAnalyzer:
                 if hasattr(brain, "extract_qualification_data"):
                     extracted = await brain.extract_qualification_data(history)
                     if isinstance(extracted, dict) and "raw_response" not in extracted:
-                        analysis.extracted_fields = {
-                            **analysis.extracted_fields, **extracted
-                        }
+                        analysis.extracted_fields = {**analysis.extracted_fields, **extracted}
                         # interest_level se score refine
                         lvl = str(extracted.get("interest_level", "")).lower()
                         mapped = {"high": 85, "medium": 60, "low": 30, "none": 10}.get(lvl)
@@ -194,7 +254,7 @@ class CallAnalyzer:
         analysis.meta["source"] = "heuristic"
         return analysis
 
-    def quick_metrics(self, conversation_history: List[Dict[str, str]]) -> Dict[str, Any]:
+    def quick_metrics(self, conversation_history: list[dict[str, str]]) -> dict[str, Any]:
         """Pure-python conversation metrics (no LLM).
 
         Returns dict:
@@ -236,13 +296,11 @@ class CallAnalyzer:
     # ----------------------- heuristic engine ----------------------- #
     def _heuristic_analyze(
         self,
-        history: List[Dict[str, str]],
-        lead: Optional[Dict[str, Any]],
+        history: list[dict[str, str]],
+        lead: dict[str, Any] | None,
     ) -> CallAnalysis:
         metrics = self.quick_metrics(history)
-        customer_text = " ".join(
-            t["content"] for t in history if t["role"] == "customer"
-        ).lower()
+        customer_text = " ".join(t["content"] for t in history if t["role"] == "customer").lower()
         full_text = " ".join(t["content"] for t in history).lower()
 
         # --- sentiment (keyword balance) ---
@@ -256,7 +314,7 @@ class CallAnalyzer:
             sentiment = "neutral"
 
         # --- objections ---
-        objections: List[str] = []
+        objections: list[str] = []
         for label, markers in _OBJECTION_MARKERS:
             if any(m in customer_text for m in markers):
                 objections.append(label)
@@ -313,7 +371,7 @@ class CallAnalyzer:
         )
 
     def _infer_outcome(
-        self, history: List[Dict[str, str]], customer_text: str, full_text: str
+        self, history: list[dict[str, str]], customer_text: str, full_text: str
     ) -> str:
         # voicemail: machine markers + customer ne bola hi nahi
         customer_turns = [t for t in history if t["role"] == "customer"]
@@ -321,9 +379,18 @@ class CallAnalyzer:
             return "voicemail"
         if not customer_turns:
             return "no_answer"
-        if any(m in customer_text for m in ["not interested", "nahi chahiye",
-                                            "no thanks", "interested nahi",
-                                            "do not call", "don't call", "stop calling"]):
+        if any(
+            m in customer_text
+            for m in [
+                "not interested",
+                "nahi chahiye",
+                "no thanks",
+                "interested nahi",
+                "do not call",
+                "don't call",
+                "stop calling",
+            ]
+        ):
             return "not_interested"
         if any(m in customer_text for m in _QUALIFIED_MARKERS):
             return "qualified"
@@ -333,14 +400,19 @@ class CallAnalyzer:
         return "callback" if len(customer_turns) >= 2 else "no_answer"
 
     def _extract_fields_heuristic(
-        self, history: List[Dict[str, str]], customer_text: str
-    ) -> Dict[str, Any]:
-        fields: Dict[str, Any] = {}
+        self, history: list[dict[str, str]], customer_text: str
+    ) -> dict[str, Any]:
+        fields: dict[str, Any] = {}
 
         # decision maker
-        if any(w in customer_text for w in ["main hi", "owner", "i am the", "decision", "haan main"]):
+        if any(
+            w in customer_text for w in ["main hi", "owner", "i am the", "decision", "haan main"]
+        ):
             fields["is_decision_maker"] = True
-        elif any(w in customer_text for w in ["malik se", "boss", "owner se", "manager se", "puchhna padega"]):
+        elif any(
+            w in customer_text
+            for w in ["malik se", "boss", "owner se", "manager se", "puchhna padega"]
+        ):
             fields["is_decision_maker"] = False
 
         # email
@@ -354,19 +426,26 @@ class CallAnalyzer:
             fields["phone"] = pm.group(0)
 
         # budget (numbers with currency-ish context)
-        bm = re.search(r"(?:rs\.?|₹|inr|budget)\s*([\d,]+(?:\s?(?:lakh|lac|cr|crore|k|thousand))?)",
-                       customer_text)
+        bm = re.search(
+            r"(?:rs\.?|₹|inr|budget)\s*([\d,]+(?:\s?(?:lakh|lac|cr|crore|k|thousand))?)",
+            customer_text,
+        )
         if bm:
             fields["budget_mentioned"] = bm.group(0)
 
         # callback time
-        tm = re.search(r"(kal|tomorrow|monday|tuesday|wednesday|thursday|friday|"
-                       r"saturday|sunday|sham|subah|\d{1,2}\s?(?:am|pm|baje))", customer_text)
+        tm = re.search(
+            r"(kal|tomorrow|monday|tuesday|wednesday|thursday|friday|"
+            r"saturday|sunday|sham|subah|\d{1,2}\s?(?:am|pm|baje))",
+            customer_text,
+        )
         if tm:
             fields["callback_time_hint"] = tm.group(0)
 
         # interest level (string form, mirrors LLMBrain output)
-        if any(w in customer_text for w in ["very interested", "bahut interested", "zaroor", "demo de"]):
+        if any(
+            w in customer_text for w in ["very interested", "bahut interested", "zaroor", "demo de"]
+        ):
             fields["interest_level"] = "high"
         elif any(w in customer_text for w in ["not interested", "nahi chahiye"]):
             fields["interest_level"] = "none"
@@ -375,12 +454,16 @@ class CallAnalyzer:
 
         return fields
 
-    def _key_quotes(self, history: List[Dict[str, str]], max_quotes: int = 4) -> List[str]:
+    def _key_quotes(self, history: list[dict[str, str]], max_quotes: int = 4) -> list[str]:
         """Customer ki sabse 'load-bearing' lines (signal words wali) nikaalo."""
-        signal = (_POSITIVE + _NEGATIVE +
-                  [m for _, ms in _OBJECTION_MARKERS for m in ms] +
-                  _QUALIFIED_MARKERS + _CALLBACK_MARKERS)
-        scored: List[tuple] = []
+        signal = (
+            _POSITIVE
+            + _NEGATIVE
+            + [m for _, ms in _OBJECTION_MARKERS for m in ms]
+            + _QUALIFIED_MARKERS
+            + _CALLBACK_MARKERS
+        )
+        scored: list[tuple] = []
         for t in history:
             if t["role"] != "customer":
                 continue
@@ -396,7 +479,7 @@ class CallAnalyzer:
             quotes = list(dict.fromkeys(cust[:1] + cust[-1:]))[:max_quotes]
         return quotes
 
-    def _recommend_action(self, outcome: str, objections: List[str], score: int) -> str:
+    def _recommend_action(self, outcome: str, objections: list[str], score: int) -> str:
         if outcome == "qualified":
             return "Lead ko CRM me 'hot' mark karo aur demo/appointment confirm karo."
         if outcome == "callback":
@@ -435,8 +518,9 @@ class CallAnalyzer:
         )
 
     # ----------------------- LLM helpers ----------------------- #
-    async def _llm_summary(self, brain: Any, history: List[Dict[str, str]]) -> str:
+    async def _llm_summary(self, brain: Any, history: list[dict[str, str]]) -> str:
         import json
+
         prompt = (
             "Yeh ek sales call ki conversation hai. 2-3 line ka crisp summary do "
             "(Hinglish me): kya hua, customer ka interest, aur recommended next "
@@ -458,6 +542,7 @@ class CallAnalyzer:
         self._brain_tried = True
         try:
             from app.voice_agent.llm_brain import LLMBrain
+
             self._brain = LLMBrain()
             return self._brain
         except Exception as e:
@@ -467,12 +552,12 @@ class CallAnalyzer:
 
     # ----------------------- normalization ----------------------- #
     @staticmethod
-    def _normalize(conversation_history: Optional[List[Dict[str, str]]]) -> List[Dict[str, str]]:
+    def _normalize(conversation_history: list[dict[str, str]] | None) -> list[dict[str, str]]:
         """Mixed role labels ko {agent|customer} me normalize karo.
 
         Accepts: assistant/agent/bot -> agent ; user/customer/human -> customer.
         """
-        out: List[Dict[str, str]] = []
+        out: list[dict[str, str]] = []
         for turn in conversation_history or []:
             if not isinstance(turn, dict):
                 continue

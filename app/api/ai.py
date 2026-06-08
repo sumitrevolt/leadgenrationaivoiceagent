@@ -3,14 +3,14 @@ AI API
 Secure backend endpoints for AI/LLM operations
 All API keys are stored server-side only
 """
-from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
 
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from app.api.auth_deps import get_current_user_optional
 from app.config import settings
-from app.utils.logger import setup_logger
-from app.api.auth_deps import get_current_user, get_current_user_optional
 from app.models.user import User
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/ai", tags=["AI"])
@@ -20,14 +20,17 @@ router = APIRouter(prefix="/ai", tags=["AI"])
 # Request/Response Models
 # ============================================================================
 
+
 class GenerateScriptRequest(BaseModel):
     """Generate sales script request"""
+
     product_info: str
     target_audience: str
 
 
 class GenerateTranscriptRequest(BaseModel):
     """Generate call transcript request"""
+
     agent_name: str
     company_name: str
     industry: str
@@ -36,7 +39,8 @@ class GenerateTranscriptRequest(BaseModel):
 
 class StrategySuggestionRequest(BaseModel):
     """Strategy suggestion request"""
-    target_industries: List[str]
+
+    target_industries: list[str]
     monthly_leads_goal: int
     monthly_appointments_goal: int
     agent_aggressiveness: str
@@ -44,12 +48,14 @@ class StrategySuggestionRequest(BaseModel):
 
 class ABTestVariantRequest(BaseModel):
     """A/B test variant request"""
+
     original_script: str
     was_winning: bool
 
 
 class AIResponse(BaseModel):
     """Generic AI response"""
+
     content: str
     model: str = "gemini-1.5-flash"
 
@@ -57,6 +63,7 @@ class AIResponse(BaseModel):
 # ============================================================================
 # AI Client - Server-side only
 # ============================================================================
+
 
 async def call_vertex_ai(prompt: str, system_instruction: str = "") -> str:
     """
@@ -68,39 +75,39 @@ async def call_vertex_ai(prompt: str, system_instruction: str = "") -> str:
             try:
                 import vertexai
                 from vertexai.generative_models import GenerativeModel
-                
+
                 vertexai.init(
                     project=settings.google_cloud_project_id,
-                    location=settings.google_cloud_location
+                    location=settings.google_cloud_location,
                 )
-                
+
                 model = GenerativeModel(
                     model_name="gemini-1.5-flash",
-                    system_instruction=system_instruction if system_instruction else None
+                    system_instruction=system_instruction if system_instruction else None,
                 )
-                
+
                 response = model.generate_content(prompt)
                 return response.text
             except Exception as e:
                 logger.warning(f"Vertex AI failed, trying Gemini API: {e}")
-        
+
         # Fallback to Gemini API
         if settings.gemini_api_key:
             import google.generativeai as genai
-            
+
             genai.configure(api_key=settings.gemini_api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            
+            model = genai.GenerativeModel("gemini-1.5-flash")
+
             full_prompt = f"{system_instruction}\n\n{prompt}" if system_instruction else prompt
             response = model.generate_content(full_prompt)
             return response.text
-        
+
         # No AI available
         raise HTTPException(
             status_code=503,
-            detail="AI service not configured. Please set up Vertex AI or Gemini API key."
+            detail="AI service not configured. Please set up Vertex AI or Gemini API key.",
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -112,10 +119,11 @@ async def call_vertex_ai(prompt: str, system_instruction: str = "") -> str:
 # Endpoints
 # ============================================================================
 
+
 @router.post("/generate-script", response_model=AIResponse)
 async def generate_sales_script(
     request: GenerateScriptRequest,
-    current_user: Optional[User] = Depends(get_current_user_optional)
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """
     Generate a B2B sales script
@@ -137,7 +145,7 @@ Format in Markdown."""
 
 Generate the sales script now.
 """
-    
+
     content = await call_vertex_ai(prompt, system_instruction)
     return AIResponse(content=content)
 
@@ -145,7 +153,7 @@ Generate the sales script now.
 @router.post("/generate-transcript", response_model=AIResponse)
 async def generate_call_transcript(
     request: GenerateTranscriptRequest,
-    current_user: Optional[User] = Depends(get_current_user_optional)
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """
     Generate a realistic call transcript
@@ -164,7 +172,7 @@ Rules:
 - 'Completed': Interest but needs follow-up
 - 'No Answer': Just "[No Answer]"
 """
-    
+
     content = await call_vertex_ai(prompt, system_instruction)
     return AIResponse(content=content)
 
@@ -172,7 +180,7 @@ Rules:
 @router.post("/strategy-suggestion", response_model=AIResponse)
 async def get_strategy_suggestion(
     request: StrategySuggestionRequest,
-    current_user: Optional[User] = Depends(get_current_user_optional)
+    current_user: User | None = Depends(get_current_user_optional),
 ):
     """
     Get AI-powered strategy suggestions
@@ -188,15 +196,14 @@ Current campaign settings:
 
 Provide strategic suggestions for improvement.
 """
-    
+
     content = await call_vertex_ai(prompt, system_instruction)
     return AIResponse(content=content)
 
 
 @router.post("/ab-test-variant", response_model=AIResponse)
 async def generate_ab_test_variant(
-    request: ABTestVariantRequest,
-    current_user: Optional[User] = Depends(get_current_user_optional)
+    request: ABTestVariantRequest, current_user: User | None = Depends(get_current_user_optional)
 ):
     """
     Generate A/B test script variant
@@ -214,7 +221,7 @@ Original script opener:
 This was the {status} of the last A/B test.
 Generate a new creative opener.
 """
-    
+
     content = await call_vertex_ai(prompt, system_instruction)
     return AIResponse(content=content)
 
@@ -226,10 +233,10 @@ async def ai_health_check():
     """
     has_vertex = bool(settings.google_cloud_project_id)
     has_gemini = bool(settings.gemini_api_key)
-    
+
     return {
         "status": "available" if (has_vertex or has_gemini) else "unavailable",
         "vertex_ai": has_vertex,
         "gemini_api": has_gemini,
-        "default_model": settings.default_llm
+        "default_model": settings.default_llm,
     }

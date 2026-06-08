@@ -12,13 +12,14 @@ stdlib). Colors strict #RRGGBB validate hote hain (SVG injection-safe).
     (missing business_name/tagline/phone fill + brand_primary/brand_accent
      colors — posters.generate_poster inhe gradient stops me lagata hai).
 """
+
 from __future__ import annotations
 
 import json
 import os
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -43,7 +44,7 @@ def _clean_color(value: Any) -> str:
     return c if _HEX_RE.match(c) else ""
 
 
-def save_brand(client_id: Any, data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def save_brand(client_id: Any, data: dict[str, Any] | None) -> dict[str, Any]:
     """Brand profile save karo (data/brand_kits/{id}.json). Saved dict lautata hai.
 
     Unknown/extra keys ignore; colors invalid hon to "" (kabhi raw inject nahi).
@@ -69,13 +70,13 @@ def save_brand(client_id: Any, data: Optional[Dict[str, Any]]) -> Dict[str, Any]
     return brand
 
 
-def get_brand(client_id: Any) -> Optional[Dict[str, Any]]:
+def get_brand(client_id: Any) -> dict[str, Any] | None:
     """Saved brand dict ya None (missing/corrupt par bhi kabhi raise nahi)."""
     path = _path(client_id)
     try:
         if not os.path.isfile(path):
             return None
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, dict) else None
     except Exception as e:
@@ -83,7 +84,7 @@ def get_brand(client_id: Any) -> Optional[Dict[str, Any]]:
         return None
 
 
-def apply_brand_to_poster_args(client_id: Any, args: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def apply_brand_to_poster_args(client_id: Any, args: dict[str, Any] | None) -> dict[str, Any]:
     """Poster args me brand merge karo (args ke explicit values jeet-te hain).
 
     Fill: business_name/tagline/phone (agar args me khali) + brand_primary/

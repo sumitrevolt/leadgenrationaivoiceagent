@@ -54,6 +54,32 @@
   .tokrow button{border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
     color:#fff;font-weight:700;padding:0 14px;cursor:pointer;font-size:12.5px}
 
+  /* ---- Growth Pulse banner ---- */
+  .growth{max-width:1180px;margin:16px auto 0;padding:0 16px}
+  .gcard{background:linear-gradient(135deg,#1e1b4b,#4f46e5);color:#fff;border-radius:18px;
+    box-shadow:0 10px 30px rgba(79,70,229,.25);padding:16px 18px;position:relative;overflow:hidden}
+  .gcard .ghead{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .gcard .gtitle{font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px}
+  .gcard .glive{width:8px;height:8px;border-radius:50%;background:#34d399;
+    animation:pulse 1.4s ease-out infinite;box-shadow:0 0 0 0 rgba(52,211,153,.5)}
+  .gcard .gtime{margin-left:auto;font-size:11.5px;font-weight:700;color:#c7d2fe;white-space:nowrap}
+  .gcard .grun{border:none;border-radius:9px;background:rgba(255,255,255,.16);color:#fff;
+    font-weight:700;padding:6px 12px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px}
+  .gcard .grun:hover{background:rgba(255,255,255,.28)}
+  .gcard .grun:disabled{opacity:.6;cursor:not-allowed}
+  .gmetrics{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:14px}
+  @media(min-width:560px){.gmetrics{grid-template-columns:repeat(4,1fr)}}
+  @media(min-width:980px){.gmetrics{grid-template-columns:repeat(7,1fr)}}
+  .gm{background:rgba(255,255,255,.10);border-radius:12px;padding:9px 11px}
+  .gm .gv{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+  .gm .gl{font-size:10.5px;color:#c7d2fe;font-weight:700;margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+  .ginsight{margin-top:13px;background:rgba(255,255,255,.12);border-left:3px solid #34d399;
+    border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.45}
+  .ginsight b{color:#a7f3d0}
+  .ghealed{margin-top:9px;font-size:11.5px;color:#c7d2fe;font-weight:700}
+  .ghealed span{display:inline-block;background:rgba(52,211,153,.22);color:#a7f3d0;
+    border-radius:999px;padding:2px 9px;margin:2px 4px 0 0}
+
   /* ---- Layout ---- */
   .wrap{max-width:1180px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:1fr}
   @media(min-width:980px){.wrap{grid-template-columns:1fr 360px;align-items:start}}
@@ -150,6 +176,21 @@
   <div class="tokrow" id="tokRow">
     <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
     <button id="tokSave">Save</button>
+  </div>
+</div>
+
+<div class="growth">
+  <div class="gcard">
+    <div class="ghead">
+      <div class="gtitle"><span class="glive"></span>📈 Growth Pulse</div>
+      <span class="gtime" id="gTime">—</span>
+      <button class="grun" id="gRun" title="Abhi pulse chalao">▶ Pulse</button>
+    </div>
+    <div class="gmetrics" id="gMetrics">
+      <div class="gm"><div class="gv">–</div><div class="gl">Loading…</div></div>
+    </div>
+    <div class="ginsight" id="gInsight" style="display:none"></div>
+    <div class="ghealed" id="gHealed" style="display:none"></div>
   </div>
 </div>
 
@@ -295,6 +336,53 @@
     });
   }
 
+  // ---- Render: growth pulse banner -------------------------------------------
+  function renderGrowth(data){
+    var p = (data && data.pulse) || {};
+    var pr = p.prospects || {}, inq = p.inquiries || {}, em = p.emails || {};
+    // 7 key live metrics.
+    var cells = [
+      [pr.total != null ? pr.total : 0, "Prospects"],
+      [pr.ready != null ? pr.ready : 0, "Ready"],
+      [inq.total != null ? inq.total : 0, "Inquiries"],
+      [(inq.today != null ? inq.today : 0), "Inq aaj"],
+      [em.emailed != null ? em.emailed : 0, "Emailed"],
+      [p.blog_articles != null ? p.blog_articles : 0, "Blogs"],
+      [p.content_items != null ? p.content_items : 0, "Content"],
+    ];
+    document.getElementById("gMetrics").innerHTML = cells.map(function(c){
+      return '<div class="gm"><div class="gv">' + esc(c[0]) + '</div>' +
+             '<div class="gl">' + esc(c[1]) + '</div></div>';
+    }).join("");
+
+    // last pulse time
+    var t = p.last_pulse_at || p.at;
+    document.getElementById("gTime").textContent = t ? ("⏱ " + relTime(t)) : "abhi tak pulse nahi";
+
+    // best-niche / first insight
+    var gi = document.getElementById("gInsight");
+    var insights = Array.isArray(p.insights) ? p.insights : [];
+    if(p.best_niche || insights.length){
+      var line = "";
+      if(p.best_niche){
+        line = '🎯 Best niche: <b>' + esc(p.best_niche) + '</b>' +
+               (p.best_niche_ratio ? ' (' + Math.round(p.best_niche_ratio*100) + '% warm/won)' : '') +
+               (insights[0] ? ' — ' + esc(insights[0]) : '');
+      } else {
+        line = '💡 ' + esc(insights[0]);
+      }
+      gi.innerHTML = line; gi.style.display = "block";
+    } else { gi.style.display = "none"; }
+
+    // self-heal actions this pulse
+    var gh = document.getElementById("gHealed");
+    var healed = Array.isArray(p.healed) ? p.healed : [];
+    if(healed.length){
+      gh.innerHTML = '🔧 Self-heal: ' + healed.map(function(h){ return '<span>' + esc(h) + '</span>'; }).join("");
+      gh.style.display = "block";
+    } else { gh.style.display = "none"; }
+  }
+
   // ---- Render: activity feed -------------------------------------------------
   function renderEvents(events){
     var feed = document.getElementById("feed");
@@ -317,9 +405,10 @@
   var warned401 = false;
   async function refresh(){
     try{
-      var [r1, r2] = await Promise.all([
+      var [r1, r2, r3] = await Promise.all([
         fetch("/api/platform/team", {headers: hdrs()}),
         fetch("/api/platform/team/events?limit=50", {headers: hdrs()}),
+        fetch("/api/platform/team/growth", {headers: hdrs()}),
       ]);
       if(r1.status === 401 || r1.status === 403){
         needAuth();
@@ -332,6 +421,7 @@
       warned401 = false;
       if(r1.ok) renderTeam(await r1.json());
       if(r2.ok){ var d2 = await r2.json(); renderEvents(d2.events || []); }
+      if(r3.ok){ renderGrowth(await r3.json()); }
     }catch(e){
       // network blip — purana data dikha rehne do
     }
@@ -375,6 +465,27 @@
       refresh();
     }
   }
+
+  // ---- Growth pulse: run-now button --------------------------------------------
+  var gRunning = false;
+  document.getElementById("gRun").onclick = async function(){
+    if(gRunning) return;
+    gRunning = true;
+    var btn = this;
+    btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Chal raha…';
+    try{
+      var r = await fetch("/api/platform/team/growth/run", {method:"POST", headers: hdrs()});
+      if(r.status === 401 || r.status === 403){ needAuth(); toast("Admin token chahiye", "err"); return; }
+      var res = {}; try{ res = await r.json(); }catch(_e){}
+      if(!r.ok || res.error){ toast("Pulse failed: " + (res.error || ("HTTP "+r.status)), "err"); }
+      else{
+        renderGrowth({pulse: res});
+        var h = Array.isArray(res.healed) && res.healed.length ? (" — healed: " + res.healed.join(", ")) : "";
+        toast("✓ Growth pulse done" + h, "ok");
+      }
+    }catch(e){ toast("Pulse error: " + e.message, "err"); }
+    finally{ gRunning = false; btn.disabled = false; btn.innerHTML = "▶ Pulse"; refresh(); }
+  };
 
   // ---- Boot --------------------------------------------------------------------
   refresh();

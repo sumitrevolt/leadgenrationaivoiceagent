@@ -12,10 +12,11 @@ band ho chuki) — entity-optimized Hinglish-friendly copy:
 
 Kabhi raise nahi karta.
 """
+
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -26,8 +27,8 @@ try:
 except Exception:  # pragma: no cover - free_ai khud import-safe hai
     free_ai = None  # type: ignore
 
-_DESC_MAX = 750   # GBP "from the business" description limit
-_SVC_MAX = 300    # GBP service description limit
+_DESC_MAX = 750  # GBP "from the business" description limit
+_SVC_MAX = 300  # GBP service description limit
 
 _MARK_RE = re.compile(r"^\s*(DESC|SVC(\d+)|POST(\d+))\s*[:.\-]\s*(.+)$", re.IGNORECASE)
 
@@ -51,9 +52,9 @@ def _clip(s: str, n: int) -> str:
     return cut.rstrip(" ,.;:-")[:n]
 
 
-def _norm_services(services: Optional[List[Any]]) -> List[str]:
-    out: List[str] = []
-    for s in (services or []):
+def _norm_services(services: list[Any] | None) -> list[str]:
+    out: list[str] = []
+    for s in services or []:
         v = str(s or "").strip()[:80]
         if v and v.lower() not in [x.lower() for x in out]:
             out.append(v)
@@ -62,18 +63,21 @@ def _norm_services(services: Optional[List[Any]]) -> List[str]:
     return out
 
 
-def _fallback_description(name: str, label: str, city: str, svcs: List[str]) -> str:
+def _fallback_description(name: str, label: str, city: str, svcs: list[str]) -> str:
     in_city = f" {city} me" if city else ""
     svc_line = ""
     if svcs:
-        svc_line = (" Hamari services: " + ", ".join(svcs[:6]) + ".")
+        svc_line = " Hamari services: " + ", ".join(svcs[:6]) + "."
     desc = (
         f"{name}{in_city} aapka bharosemand {label} hai. Quality kaam, "
         f"transparent pricing aur time par delivery — yahi hamari pehchan "
         f"hai.{svc_line} Hamari experienced team har customer ko personal "
         "attention deti hai, isliye log hume apno ko refer karte hain. "
-        + (f"{city} aur aas-paas ke ilaake me hum ghar baithe consultation "
-           "bhi dete hain. " if city else "")
+        + (
+            f"{city} aur aas-paas ke ilaake me hum ghar baithe consultation " "bhi dete hain. "
+            if city
+            else ""
+        )
         + "Free estimate aur jaldi response ke liye aaj hi call ya WhatsApp "
         "karein — pehli baat bilkul free hai."
     )
@@ -90,24 +94,31 @@ def _fallback_service_desc(name: str, svc: str, city: str) -> str:
     )
 
 
-def _fallback_posts(name: str, label: str, city: str, svcs: List[str]) -> List[str]:
+def _fallback_posts(name: str, label: str, city: str, svcs: list[str]) -> list[str]:
     svc = svcs[0] if svcs else label
     in_city = f" {city} me" if city else ""
     return [
-        (f"📍 {name}{in_city} — {label} ke liye trusted naam! Quality kaam, "
-         "sahi daam aur friendly team. Aaj hi profile se 'Call' button "
-         "dabayein aur free consultation paayein."),
-        (f"🎉 Is hafte ka special: {svc} par extra dhyan, wahi quality, "
-         f"behtar daam! {name} ke saath kaam karwane ka sabse accha time "
-         "yahi hai — message karke slot book karein."),
-        (f"⭐ Hamare customers hume 5-star kyu dete hain? Time par kaam, "
-         f"transparent baat aur after-service support. {name} ko aaj hi try "
-         "karein — review section khud dekh lijiye!"),
+        (
+            f"📍 {name}{in_city} — {label} ke liye trusted naam! Quality kaam, "
+            "sahi daam aur friendly team. Aaj hi profile se 'Call' button "
+            "dabayein aur free consultation paayein."
+        ),
+        (
+            f"🎉 Is hafte ka special: {svc} par extra dhyan, wahi quality, "
+            f"behtar daam! {name} ke saath kaam karwane ka sabse accha time "
+            "yahi hai — message karke slot book karein."
+        ),
+        (
+            f"⭐ Hamare customers hume 5-star kyu dete hain? Time par kaam, "
+            f"transparent baat aur after-service support. {name} ko aaj hi try "
+            "karein — review section khud dekh lijiye!"
+        ),
     ]
 
 
-async def gbp_texts(business_name: str, niche: str, city: str = "",
-                    services: Optional[List[str]] = None) -> Dict[str, Any]:
+async def gbp_texts(
+    business_name: str, niche: str, city: str = "", services: list[str] | None = None
+) -> dict[str, Any]:
     """GBP description + services texts + 3 posts. LLM 1 call, kabhi raise nahi."""
     name = (business_name or "").strip()[:120] or "Aapka Business"
     label = _label(niche)
@@ -116,12 +127,14 @@ async def gbp_texts(business_name: str, niche: str, city: str = "",
     provider = "template"
 
     llm_desc = ""
-    llm_svc: Dict[int, str] = {}
-    llm_posts: Dict[int, str] = {}
+    llm_svc: dict[int, str] = {}
+    llm_posts: dict[int, str] = {}
 
     if free_ai is not None:
-        svc_fmt = "".join(f"\nSVC{i}: (max 280 chars — '{s}' ki selling description)"
-                          for i, s in enumerate(svcs, 1))
+        svc_fmt = "".join(
+            f"\nSVC{i}: (max 280 chars — '{s}' ki selling description)"
+            for i, s in enumerate(svcs, 1)
+        )
         system = (
             "Tu local SEO expert hai. Google Business Profile ke liye "
             "Hinglish (Roman script) copy likh — business naam, category, "
@@ -132,13 +145,17 @@ async def gbp_texts(business_name: str, niche: str, city: str = "",
             "POST2: (30-60 shabd, offer/seasonal angle)\n"
             "POST3: (30-60 shabd, review/social-proof angle)"
         )
-        user = (f"Business: {name}. Category: {label}."
-                + (f" City: {city_c}." if city_c else "")
-                + (f" Services: {', '.join(svcs)}." if svcs else ""))
+        user = (
+            f"Business: {name}. Category: {label}."
+            + (f" City: {city_c}." if city_c else "")
+            + (f" Services: {', '.join(svcs)}." if svcs else "")
+        )
         try:
             text, p = await free_ai.chat(
-                system, [{"role": "user", "content": user}],
-                max_tokens=900, temperature=0.65,
+                system,
+                [{"role": "user", "content": user}],
+                max_tokens=900,
+                temperature=0.65,
             )
             for ln in (text or "").splitlines():
                 m = _MARK_RE.match(ln)
@@ -157,13 +174,13 @@ async def gbp_texts(business_name: str, niche: str, city: str = "",
         except Exception as e:
             logger.warning(f"gbp_texts LLM failed, using template: {e}")
 
-    description = _clip(llm_desc, _DESC_MAX) or _fallback_description(
-        name, label, city_c, svcs)
+    description = _clip(llm_desc, _DESC_MAX) or _fallback_description(name, label, city_c, svcs)
 
     services_out = [
-        {"name": s,
-         "desc": _clip(llm_svc.get(i, ""), _SVC_MAX)
-                 or _fallback_service_desc(name, s, city_c)}
+        {
+            "name": s,
+            "desc": _clip(llm_svc.get(i, ""), _SVC_MAX) or _fallback_service_desc(name, s, city_c),
+        }
         for i, s in enumerate(svcs, 1)
     ]
 
@@ -180,6 +197,6 @@ async def gbp_texts(business_name: str, niche: str, city: str = "",
         "posts": posts,
         "provider": provider,
         "tip": "Description GBP ke 'Edit profile → From the business' me paste "
-               "karo; har hafte 1 Google post dalo — local ranking ka sabse "
-               "sasta lever yahi hai.",
+        "karo; har hafte 1 Google post dalo — local ranking ka sabse "
+        "sasta lever yahi hai.",
     }

@@ -16,8 +16,9 @@ auto-provision hote hain:
 
 Idempotent: same client ke liye dobara call karne par naye agents nahi bante.
 """
+
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +33,7 @@ AGENT_ROLE_DATA = "data"
 AGENT_ROLE_LEADS = "leads"
 
 
-def resolve_niche_key(value: Optional[str]) -> str:
+def resolve_niche_key(value: str | None) -> str:
     """
     Map a client's industry/niche string to a NICHES key.
     Accepts exact keys ("solar_residential"), display names ("Residential
@@ -71,10 +72,12 @@ def _seed_client_knowledge(client: Any, niche_key: str) -> int:
     """
     try:
         from app.voice_agent.kb_loader import bootstrap_default_kb
+
         kb = bootstrap_default_kb()  # pre-loaded singleton
     except Exception:
         try:
             from app.voice_agent.knowledge_base import KnowledgeBase
+
             kb = KnowledgeBase()
         except Exception as e:  # pragma: no cover
             logger.warning(f"KB unavailable, skipping client knowledge seed: {e}")
@@ -82,7 +85,7 @@ def _seed_client_knowledge(client: Any, niche_key: str) -> int:
 
     cfg = NICHES.get(niche_key, {})
     ns = _client_namespace(str(client.id))
-    facts: List[str] = [
+    facts: list[str] = [
         f"Client business: {client.business_name}."
         + (f" Industry: {client.industry}." if getattr(client, "industry", None) else ""),
         f"Contact: {client.contact_name} ({client.contact_phone})."
@@ -105,6 +108,7 @@ def _seed_client_knowledge(client: Any, niche_key: str) -> int:
     # leads agent end-customer ke sawaalon ka grounded (sach) jawab de sake.
     try:
         from app.niche_knowledge import knowledge_facts
+
         facts.extend(knowledge_facts(niche_key))
     except Exception as e:  # pragma: no cover
         logger.debug(f"niche knowledge seed skipped: {e}")
@@ -120,8 +124,8 @@ def _seed_client_knowledge(client: Any, niche_key: str) -> int:
 async def provision_agents_for_client(
     db: AsyncSession,
     client: Any,
-    niche: Optional[str] = None,
-) -> Dict[str, Any]:
+    niche: str | None = None,
+) -> dict[str, Any]:
     """
     Ensure the client has its two dedicated agents (data + leads).
     Returns {"created": [...], "existing": [...], "niche_key": str}.
@@ -130,13 +134,11 @@ async def provision_agents_for_client(
     cfg = NICHES.get(niche_key, {})
     target_type = cfg.get("target_type", "b2c")
 
-    result = await db.execute(
-        select(Agent).where(Agent.current_client_id == str(client.id))
-    )
+    result = await db.execute(select(Agent).where(Agent.current_client_id == str(client.id)))
     existing = list(result.scalars().all())
     existing_roles = {getattr(a, "role", None) for a in existing}
 
-    created: List[Agent] = []
+    created: list[Agent] = []
 
     if AGENT_ROLE_DATA not in existing_roles:
         data_agent = Agent(
@@ -177,7 +179,11 @@ async def provision_agents_for_client(
     try:  # Team activity: Dev (KB seed) + Rohan (leads agent ready)
         from app.platform.team import log_event
 
-        log_event("dev", "kb_seeded", f"{client.business_name}: business profile + {niche_key} facts KB me seeded")
+        log_event(
+            "dev",
+            "kb_seeded",
+            f"{client.business_name}: business profile + {niche_key} facts KB me seeded",
+        )
         if created:
             log_event(
                 "rohan",
@@ -199,7 +205,7 @@ async def provision_agents_for_client(
     }
 
 
-def _agent_dict(a: Agent) -> Dict[str, Any]:
+def _agent_dict(a: Agent) -> dict[str, Any]:
     return {
         "id": a.id,
         "name": a.name,

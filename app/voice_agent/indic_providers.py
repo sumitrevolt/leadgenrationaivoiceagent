@@ -36,7 +36,7 @@ DESIGN RULES (defensive by contract):
 
 import base64
 import os
-from typing import AsyncGenerator, Dict, Optional
+from collections.abc import AsyncGenerator
 
 from app.utils.logger import setup_logger
 from app.voice_agent.providers import (
@@ -55,7 +55,7 @@ logger = setup_logger(__name__)
 # the Sarvam API as `language_code` / `target_language_code`). English (India)
 # is included for code-switching.
 
-INDIAN_LANGUAGES: Dict[str, str] = {
+INDIAN_LANGUAGES: dict[str, str] = {
     "hi-IN": "Hindi",
     "en-IN": "English (India)",
     "bn-IN": "Bengali",
@@ -87,8 +87,8 @@ DEFAULT_LANGUAGE = "hi-IN"
 # Sarvam API constants.
 _SARVAM_BASE_URL = "https://api.sarvam.ai"
 _SARVAM_AUTH_HEADER = "api-subscription-key"
-_SARVAM_STT_MODEL = "saaras:v3"      # Saaras v3 — speech-to-text-translate / STT
-_SARVAM_TTS_MODEL = "bulbul:v3"      # Bulbul v3 — streaming TTS
+_SARVAM_STT_MODEL = "saaras:v3"  # Saaras v3 — speech-to-text-translate / STT
+_SARVAM_TTS_MODEL = "bulbul:v3"  # Bulbul v3 — streaming TTS
 _SARVAM_DEFAULT_SPEAKER = "anushka"  # safe default voice; overridable via voice_id
 
 
@@ -134,7 +134,7 @@ def detect_language(text: str) -> str:
     if not text:
         return _default_language()
     try:
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for ch in text:
             cp = ord(ch)
             for code, (lo, hi) in _SCRIPT_RANGES:
@@ -223,9 +223,7 @@ class SarvamSTT(STTProvider):
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(url, headers=headers, files=files, data=data)
             if resp.status_code >= 400:
-                logger.warning(
-                    f"SarvamSTT HTTP {resp.status_code}: {resp.text[:200]}"
-                )
+                logger.warning(f"SarvamSTT HTTP {resp.status_code}: {resp.text[:200]}")
                 return ""
             payload = resp.json()
         except Exception as e:
@@ -283,7 +281,7 @@ class SarvamTTS(TTSProvider):
     async def synthesize(
         self,
         text: str,
-        voice_id: Optional[str] = None,
+        voice_id: str | None = None,
         language: str = None,
         **kwargs,
     ) -> bytes:
@@ -332,9 +330,7 @@ class SarvamTTS(TTSProvider):
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(url, headers=headers, json=body)
             if resp.status_code >= 400:
-                logger.warning(
-                    f"SarvamTTS HTTP {resp.status_code}: {resp.text[:200]}"
-                )
+                logger.warning(f"SarvamTTS HTTP {resp.status_code}: {resp.text[:200]}")
                 return b""
             payload = resp.json()
         except Exception as e:
@@ -379,7 +375,7 @@ class SarvamTTS(TTSProvider):
         return b""
 
     async def synthesize_stream(
-        self, text: str, voice_id: Optional[str] = None, **kwargs
+        self, text: str, voice_id: str | None = None, **kwargs
     ) -> AsyncGenerator[bytes, None]:
         """
         Stream synthesized audio. Bulbul v3 supports true streaming; here we use
@@ -491,7 +487,7 @@ class Ai4BharatTTS(TTSProvider):
         return bool(self.endpoint)
 
     async def synthesize(
-        self, text: str, voice_id: Optional[str] = None, language: str = None, **kwargs
+        self, text: str, voice_id: str | None = None, language: str = None, **kwargs
     ) -> bytes:
         if not self.is_available():
             logger.debug(
@@ -562,8 +558,7 @@ def register_indic_providers(registry=None) -> None:
         reg.register("tts", "ai4bharat", Ai4BharatTTS)
 
         logger.info(
-            "Registered Indian-language providers: sarvam (stt+tts), "
-            "ai4bharat (stt+tts)."
+            "Registered Indian-language providers: sarvam (stt+tts), " "ai4bharat (stt+tts)."
         )
     except Exception as e:  # pragma: no cover - registration must never crash app
         logger.warning(f"register_indic_providers failed ({e}); skipping.")

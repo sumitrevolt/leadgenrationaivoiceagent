@@ -2,51 +2,52 @@
 Database Models Package
 Production-ready SQLAlchemy models for the B2B Intelligence Platform
 """
-from app.models.base import (
-    Base,
-    get_db,
-    get_async_db,
-    get_db_session,
-    get_async_session,
-    async_session,
-    init_db,
-    init_async_db,
-    close_async_db,
-)
-from app.models.lead import Lead, LeadStatus, LeadSource
-from app.models.campaign import Campaign, CampaignStatus, CampaignType
-from app.models.call_log import CallLog, CallOutcome, CallDirection
-from app.models.client import Client, ClientStatus, SubscriptionPlan
+
 from app.models.agent import Agent, AgentStatus
 from app.models.agent_event import AgentEvent
+from app.models.base import (
+    Base,
+    async_session,
+    close_async_db,
+    get_async_db,
+    get_async_session,
+    get_db,
+    get_db_session,
+    init_async_db,
+    init_db,
+)
 from app.models.billing_record import (
     BillingRecord,
-    BillingRecordType,
     BillingRecordStatus,
+    BillingRecordType,
 )
-from app.models.user import User, UserRole, UserStatus, UserSession, AuditLog
-from app.models.payment import (
-    Subscription,
-    Payment,
-    Invoice,
-    PaymentMethod,
-    UsageRecord,
-    PaymentGateway,
-    SubscriptionStatus,
-    PaymentStatus,
-    InvoiceStatus,
-    BillingCycle,
-    PricingPlanModel,
-)
+from app.models.call_log import CallDirection, CallLog, CallOutcome
+from app.models.campaign import Campaign, CampaignStatus, CampaignType
+from app.models.client import Client, ClientStatus, SubscriptionPlan
 from app.models.data_credits import (
-    DataCredits,
-    CreditTransaction,
-    CreditTransactionType,
+    CREDIT_COSTS,
+    APIKey,
     APIUsageLog,
     APIUsageType,
-    APIKey,
-    CREDIT_COSTS,
+    CreditTransaction,
+    CreditTransactionType,
+    DataCredits,
 )
+from app.models.lead import Lead, LeadSource, LeadStatus
+from app.models.payment import (
+    BillingCycle,
+    Invoice,
+    InvoiceStatus,
+    Payment,
+    PaymentGateway,
+    PaymentMethod,
+    PaymentStatus,
+    PricingPlanModel,
+    Subscription,
+    SubscriptionStatus,
+    UsageRecord,
+)
+from app.models.user import AuditLog, User, UserRole, UserSession, UserStatus
 
 __all__ = [
     # Base

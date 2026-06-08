@@ -2,17 +2,17 @@
 Data API Endpoints
 B2B Intelligence Platform - Company Search, Enrichment, and Reports API
 """
-from fastapi import APIRouter, Depends, HTTPException, Query, Header, Request
-from fastapi.responses import JSONResponse
-from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
-from datetime import datetime
 
+from typing import Any
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.auth_deps import get_current_user_optional, require_admin
 from app.models.base import get_async_db
-from app.models.data_credits import APIUsageType, CREDIT_COSTS
+from app.models.data_credits import CREDIT_COSTS, APIUsageType
 from app.services.data_service import DataService
-from app.api.auth_deps import get_current_user, get_current_user_optional, require_admin
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -22,12 +22,14 @@ router = APIRouter(prefix="/data", tags=["Data Intelligence"])
 
 # ==================== PYDANTIC MODELS ====================
 
+
 class CompanySearchRequest(BaseModel):
     """Company search filters"""
-    niche: Optional[str] = Field(None, description="Industry niche (e.g., 'real_estate', 'solar')")
-    city: Optional[str] = Field(None, description="City name")
-    state: Optional[str] = Field(None, description="State name")
-    min_score: Optional[int] = Field(None, ge=0, le=100, description="Minimum quality score")
+
+    niche: str | None = Field(None, description="Industry niche (e.g., 'real_estate', 'solar')")
+    city: str | None = Field(None, description="City name")
+    state: str | None = Field(None, description="State name")
+    min_score: int | None = Field(None, ge=0, le=100, description="Minimum quality score")
     verified_only: bool = Field(False, description="Only verified companies")
     has_email: bool = Field(False, description="Must have email")
     has_phone: bool = Field(True, description="Must have phone")
@@ -35,7 +37,8 @@ class CompanySearchRequest(BaseModel):
 
 class CompanySearchResponse(BaseModel):
     """Company search results"""
-    companies: List[Dict[str, Any]]
+
+    companies: list[dict[str, Any]]
     total: int
     page: int
     limit: int
@@ -44,55 +47,63 @@ class CompanySearchResponse(BaseModel):
 
 class EnrichResponse(BaseModel):
     """Company enrichment response"""
-    company: Dict[str, Any]
+
+    company: dict[str, Any]
     credits_consumed: int
 
 
 class ExportRequest(BaseModel):
     """Export request"""
-    company_ids: List[str] = Field(..., min_length=1, max_length=1000)
+
+    company_ids: list[str] = Field(..., min_length=1, max_length=1000)
 
 
 class ExportResponse(BaseModel):
     """Export response"""
-    companies: List[Dict[str, Any]]
+
+    companies: list[dict[str, Any]]
     count: int
     credits_consumed: int
 
 
 class ReportRequest(BaseModel):
     """Market report request"""
+
     report_type: str = Field(..., pattern="^(basic|detailed|custom)$")
     niche: str
-    city: Optional[str] = None
+    city: str | None = None
 
 
 class ReportResponse(BaseModel):
     """Market report response"""
-    report: Dict[str, Any]
+
+    report: dict[str, Any]
     credits_consumed: int
 
 
 class APIKeyCreateRequest(BaseModel):
     """API key creation request"""
+
     name: str = Field(..., min_length=1, max_length=100)
-    scopes: List[str] = Field(default=["read"])
+    scopes: list[str] = Field(default=["read"])
     rate_limit_per_minute: int = Field(default=60, ge=1, le=1000)
-    expires_in_days: Optional[int] = Field(None, ge=1, le=365)
+    expires_in_days: int | None = Field(None, ge=1, le=365)
 
 
 class APIKeyResponse(BaseModel):
     """API key response"""
+
     id: str
     name: str
-    key: Optional[str] = None  # Only returned on creation
+    key: str | None = None  # Only returned on creation
     prefix: str
-    scopes: List[str]
+    scopes: list[str]
     created_at: str
 
 
 class CreditBalanceResponse(BaseModel):
     """Credit balance response"""
+
     balance: int
     lifetime_credits: int
     used_credits: int
@@ -102,53 +113,56 @@ class CreditBalanceResponse(BaseModel):
 
 class AddCreditsRequest(BaseModel):
     """Add credits request"""
+
     amount: int = Field(..., ge=1, le=1000000)
-    description: Optional[str] = ""
+    description: str | None = ""
 
 
 # ==================== DEPENDENCY ====================
 
+
 async def get_api_key_client(
-    x_api_key: Optional[str] = Header(None, alias="X-API-Key"),
-    db: AsyncSession = Depends(get_async_db)
-) -> Optional[str]:
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    db: AsyncSession = Depends(get_async_db),
+) -> str | None:
     """Validate API key and return client_id"""
     if not x_api_key:
         return None
-    
+
     service = DataService(db)
     api_key = await service.validate_api_key(x_api_key)
-    
+
     if not api_key:
         raise HTTPException(status_code=401, detail="Invalid or expired API key")
-    
+
     return api_key.client_id
 
 
 async def get_client_id(
     request: Request,
-    api_client_id: Optional[str] = Depends(get_api_key_client),
-    user = Depends(get_current_user_optional),
+    api_client_id: str | None = Depends(get_api_key_client),
+    user=Depends(get_current_user_optional),
 ) -> str:
     """Get client ID from API key or authenticated user"""
     if api_client_id:
         return api_client_id
-    
-    if user and hasattr(user, 'client_id'):
+
+    if user and hasattr(user, "client_id"):
         return user.client_id
-    
+
     # For development/testing, use a default client
     return "demo-client"
 
 
 # ==================== SEARCH ENDPOINTS ====================
 
+
 @router.get("/companies", response_model=CompanySearchResponse)
 async def search_companies(
-    niche: Optional[str] = Query(None, description="Industry niche"),
-    city: Optional[str] = Query(None, description="City name"),
-    state: Optional[str] = Query(None, description="State name"),
-    min_score: Optional[int] = Query(None, ge=0, le=100, description="Minimum quality score"),
+    niche: str | None = Query(None, description="Industry niche"),
+    city: str | None = Query(None, description="City name"),
+    state: str | None = Query(None, description="State name"),
+    min_score: int | None = Query(None, ge=0, le=100, description="Minimum quality score"),
     verified_only: bool = Query(False, description="Only verified companies"),
     has_email: bool = Query(False, description="Must have email"),
     has_phone: bool = Query(True, description="Must have phone"),
@@ -159,13 +173,13 @@ async def search_companies(
 ):
     """
     Search companies in the database.
-    
+
     **FREE** - Searches don't consume credits. Credits are used when you export or enrich.
-    
+
     Returns preview data with masked contact information.
     """
     service = DataService(db)
-    
+
     offset = (page - 1) * limit
     companies, total = await service.search_companies(
         client_id=client_id,
@@ -179,13 +193,13 @@ async def search_companies(
         limit=limit,
         offset=offset,
     )
-    
+
     return CompanySearchResponse(
         companies=companies,
         total=total,
         page=page,
         limit=limit,
-        credits_consumed=0  # Searches are free
+        credits_consumed=0,  # Searches are free
     )
 
 
@@ -197,22 +211,21 @@ async def get_company_details(
 ):
     """
     Get full company details including contact information.
-    
+
     **Costs 2 credits** per enrichment.
     """
     service = DataService(db)
-    
+
     company, error = await service.enrich_company(
         client_id=client_id,
         company_id=company_id,
     )
-    
+
     if error:
         raise HTTPException(status_code=400, detail=error)
-    
+
     return EnrichResponse(
-        company=company,
-        credits_consumed=CREDIT_COSTS[APIUsageType.COMPANY_ENRICH]
+        company=company, credits_consumed=CREDIT_COSTS[APIUsageType.COMPANY_ENRICH]
     )
 
 
@@ -224,27 +237,28 @@ async def export_companies(
 ):
     """
     Export multiple companies with full contact details.
-    
+
     **Costs 1 credit per company** exported.
     """
     service = DataService(db)
-    
+
     companies, error = await service.export_companies(
         client_id=client_id,
         company_ids=request.company_ids,
     )
-    
+
     if error:
         raise HTTPException(status_code=400, detail=error)
-    
+
     return ExportResponse(
         companies=companies,
         count=len(companies),
-        credits_consumed=len(companies) * CREDIT_COSTS[APIUsageType.COMPANY_EXPORT]
+        credits_consumed=len(companies) * CREDIT_COSTS[APIUsageType.COMPANY_EXPORT],
     )
 
 
 # ==================== REPORTS ENDPOINTS ====================
+
 
 @router.post("/reports", response_model=ReportResponse)
 async def generate_report(
@@ -254,37 +268,37 @@ async def generate_report(
 ):
     """
     Generate a market intelligence report.
-    
+
     **Costs**:
     - Basic: 10 credits
     - Detailed: 50 credits
     - Custom: 100 credits
     """
     service = DataService(db)
-    
+
     report, error = await service.generate_report(
         client_id=client_id,
         report_type=request.report_type,
         niche=request.niche,
         city=request.city,
     )
-    
+
     if error:
         raise HTTPException(status_code=400, detail=error)
-    
+
     type_map = {
         "basic": APIUsageType.REPORT_BASIC,
         "detailed": APIUsageType.REPORT_DETAILED,
         "custom": APIUsageType.REPORT_CUSTOM,
     }
-    
+
     return ReportResponse(
-        report=report,
-        credits_consumed=CREDIT_COSTS[type_map[request.report_type]]
+        report=report, credits_consumed=CREDIT_COSTS[type_map[request.report_type]]
     )
 
 
 # ==================== NICHES & CITIES ====================
+
 
 @router.get("/niches")
 async def get_available_niches(target_type: str = None, tier: str = None):
@@ -293,6 +307,7 @@ async def get_available_niches(target_type: str = None, tier: str = None):
     Optional filters: target_type=b2c|b2b (end-customer audience), tier=S|A|B|C.
     """
     from app.niches import NICHES, refresh_custom_niches
+
     refresh_custom_niches()
 
     niches = [
@@ -319,16 +334,19 @@ async def get_available_niches(target_type: str = None, tier: str = None):
 
 class NicheCreate(BaseModel):
     """Custom niche — sirf name zaroori, baaki optional (defaults sensible)."""
+
     name: str
-    key: Optional[str] = None
-    target_type: str = "b2c"          # b2c | b2b | both
+    key: str | None = None
+    target_type: str = "b2c"  # b2c | b2b | both
     b2b_client: str = ""
     end_customer: str = ""
     avg_ticket_inr: str = ""
     pitch_hook: str = ""
-    keywords: Optional[List[str]] = None
-    qualification_questions: Optional[List[str]] = None
-    pricing_inr: Optional[dict] = None  # {qualified_lead:[min,max], appointment:[min,max], monthly_starter:int}
+    keywords: list[str] | None = None
+    qualification_questions: list[str] | None = None
+    pricing_inr: dict | None = (
+        None  # {qualified_lead:[min,max], appointment:[min,max], monthly_starter:int}
+    )
 
 
 @router.post("/niches")
@@ -361,6 +379,7 @@ async def create_custom_niche(
     # KB seed (best-effort) — naya niche turant grounded-answers de sake.
     try:
         from app.voice_agent.kb_loader import bootstrap_default_kb
+
         kb = bootstrap_default_kb()
         facts = [
             f"Niche: {cfg['name']}. Typical deal value: {cfg['avg_ticket_inr']}.",
@@ -397,21 +416,26 @@ async def get_available_cities(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Get list of cities with company counts"""
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
     from app.models.lead import Lead
-    
-    query = select(
-        Lead.city,
-        func.count(Lead.id).label("count")
-    ).where(Lead.city.isnot(None)).group_by(Lead.city).order_by(func.count(Lead.id).desc()).limit(50)
-    
+
+    query = (
+        select(Lead.city, func.count(Lead.id).label("count"))
+        .where(Lead.city.isnot(None))
+        .group_by(Lead.city)
+        .order_by(func.count(Lead.id).desc())
+        .limit(50)
+    )
+
     result = await db.execute(query)
     cities = [{"city": row.city, "company_count": row.count} for row in result]
-    
+
     return {"cities": cities}
 
 
 # ==================== CREDITS & API KEYS ====================
+
 
 @router.get("/credits", response_model=CreditBalanceResponse)
 async def get_credit_balance(
@@ -429,10 +453,7 @@ async def get_credit_pricing():
     """Get credit costs for each operation"""
     return {
         "operations": {
-            usage_type.value: {
-                "credits": cost,
-                "description": _get_usage_description(usage_type)
-            }
+            usage_type.value: {"credits": cost, "description": _get_usage_description(usage_type)}
             for usage_type, cost in CREDIT_COSTS.items()
         },
         "packages": [
@@ -440,7 +461,7 @@ async def get_credit_pricing():
             {"credits": 2000, "price_inr": 8000, "price_usd": 100},
             {"credits": 5000, "price_inr": 17500, "price_usd": 210},
             {"credits": 10000, "price_inr": 30000, "price_usd": 360},
-        ]
+        ],
     }
 
 
@@ -466,7 +487,7 @@ async def create_api_key(
 ):
     """Create a new API key for programmatic access"""
     service = DataService(db)
-    
+
     raw_key, api_key = await service.create_api_key(
         client_id=client_id,
         name=request.name,
@@ -474,7 +495,7 @@ async def create_api_key(
         rate_limit_per_minute=request.rate_limit_per_minute,
         expires_in_days=request.expires_in_days,
     )
-    
+
     return APIKeyResponse(
         id=api_key.id,
         name=api_key.name,
@@ -505,14 +526,15 @@ async def revoke_api_key(
     """Revoke an API key"""
     service = DataService(db)
     success = await service.revoke_api_key(client_id, key_id)
-    
+
     if not success:
         raise HTTPException(status_code=404, detail="API key not found")
-    
+
     return {"message": "API key revoked"}
 
 
 # ==================== USAGE ANALYTICS ====================
+
 
 @router.get("/usage")
 async def get_usage_stats(

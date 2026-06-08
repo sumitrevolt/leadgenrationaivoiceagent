@@ -3,7 +3,7 @@ Tests: Vobiz telephony — XML builder, answer webhook, test-call endpoint.
 No network — VobizClient methods are monkeypatched; tests always pass an
 explicit `message` so the LLM path is never exercised.
 """
-import pytest
+
 from fastapi.testclient import TestClient
 
 from app.config import settings
@@ -21,10 +21,10 @@ class TestBuildSpeakXml:
         # Vobiz silently drops Speak verbs carrying unsupported attrs (caused
         # "call connects then instantly hangs up"). Minimal <Speak>text</Speak>.
         assert "<Speak>" in xml
-        assert 'language=' not in xml
+        assert "language=" not in xml
 
     def test_escapes_special_chars(self):
-        xml = build_speak_xml('R&D <test> calls')
+        xml = build_speak_xml("R&D <test> calls")
         assert "R&amp;D" in xml
         assert "&lt;test&gt;" in xml
         assert "<test>" not in xml

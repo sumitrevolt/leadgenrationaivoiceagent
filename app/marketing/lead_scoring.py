@@ -16,12 +16,13 @@ data/inquiries.jsonl (public_site.py jo likhta hai) padh kar har lead ko
 
 score_leads() -> {"total","counts":{hot,warm,cold},"leads":[...score desc]}
 """
+
 from __future__ import annotations
 
 import json
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any
 from urllib.parse import quote
 
 from app.utils.logger import setup_logger
@@ -33,22 +34,28 @@ _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
 # S-tier niches (CLAUDE.md / niches.py research-finalized list)
 _S_TIER = {
-    "ai_marketing", "real_estate", "solar_residential", "insurance",
-    "home_loans", "coaching", "studying_abroad", "real_estate_luxury",
+    "ai_marketing",
+    "real_estate",
+    "solar_residential",
+    "insurance",
+    "home_loans",
+    "coaching",
+    "studying_abroad",
+    "real_estate_luxury",
 }
 
 _HOT = 70
 _WARM = 40
 
 
-def _read_inquiries(limit: int = 500) -> List[Dict[str, Any]]:
+def _read_inquiries(limit: int = 500) -> list[dict[str, Any]]:
     """jsonl ki aakhri `limit` lines (parse-safe, corrupt skip, kabhi raise nahi)."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         if not os.path.isfile(_INQUIRIES_FILE):
             return out
-        with open(_INQUIRIES_FILE, "r", encoding="utf-8") as f:
-            lines = f.readlines()[-max(1, limit):]
+        with open(_INQUIRIES_FILE, encoding="utf-8") as f:
+            lines = f.readlines()[-max(1, limit) :]
         for ln in lines:
             try:
                 rec = json.loads(ln)
@@ -98,7 +105,7 @@ def _age_hours(at: Any) -> float:
         return 1e9
 
 
-def _score_one(rec: Dict[str, Any]) -> int:
+def _score_one(rec: dict[str, Any]) -> int:
     score = 0
     if _phone_valid(rec.get("phone")):
         score += 20
@@ -125,26 +132,28 @@ def _label_of(score: int) -> str:
     return "hot" if score >= _HOT else ("warm" if score >= _WARM else "cold")
 
 
-def score_leads() -> Dict[str, Any]:
+def score_leads() -> dict[str, Any]:
     """Saari inquiries score karke sorted list + counts lautao. Kabhi raise nahi."""
-    leads: List[Dict[str, Any]] = []
+    leads: list[dict[str, Any]] = []
     counts = {"hot": 0, "warm": 0, "cold": 0}
     for rec in _read_inquiries():
         try:
             score = _score_one(rec)
             label = _label_of(score)
             counts[label] += 1
-            leads.append({
-                "name": str(rec.get("name") or "").strip()[:120],
-                "business_name": str(rec.get("business_name") or "").strip()[:200],
-                "phone": str(rec.get("phone") or "").strip()[:20],
-                "niche": str(rec.get("niche") or "").strip()[:50],
-                "city": str(rec.get("city") or "").strip()[:100],
-                "score": score,
-                "label": label,
-                "at": str(rec.get("at") or "")[:40],
-                "wa_link": _wa_link(rec.get("phone")),
-            })
+            leads.append(
+                {
+                    "name": str(rec.get("name") or "").strip()[:120],
+                    "business_name": str(rec.get("business_name") or "").strip()[:200],
+                    "phone": str(rec.get("phone") or "").strip()[:20],
+                    "niche": str(rec.get("niche") or "").strip()[:50],
+                    "city": str(rec.get("city") or "").strip()[:100],
+                    "score": score,
+                    "label": label,
+                    "at": str(rec.get("at") or "")[:40],
+                    "wa_link": _wa_link(rec.get("phone")),
+                }
+            )
         except Exception:  # pragma: no cover - _score_one defensive hai
             continue
     # score desc; same score par newest pehle (stable two-pass sort)
@@ -155,5 +164,5 @@ def score_leads() -> Dict[str, Any]:
         "counts": counts,
         "leads": leads,
         "tip": "Hot leads ko 5 minute ke andar WhatsApp/call karo — response "
-               "rate 8-10x hota hai. Warm ko aaj, cold ko drip me daalo.",
+        "rate 8-10x hota hai. Warm ko aaj, cold ko drip me daalo.",
     }

@@ -46,6 +46,7 @@ Notes:
     Higher score = more relevant. Empty list = kuch relevant nahi mila.
   - Thread-safety: simple in-process locking ke saath singleton.
 """
+
 from __future__ import annotations
 
 import math
@@ -54,13 +55,15 @@ import threading
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -71,16 +74,73 @@ _WORD_RE = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 
 # Common Hindi(Roman)/English stopwords — TF-IDF ko noise se bachane ke liye.
 _STOPWORDS = {
-    "the", "a", "an", "and", "or", "but", "is", "are", "was", "were", "be",
-    "to", "of", "in", "on", "for", "with", "at", "by", "from", "as", "it",
-    "this", "that", "these", "those", "i", "you", "he", "she", "we", "they",
-    "do", "does", "did", "ka", "ke", "ki", "ko", "se", "me", "mein", "hai",
-    "hain", "ho", "hi", "bhi", "aur", "ya", "par", "kya", "kaise", "kaun",
-    "yeh", "ye", "woh", "wo", "ek", "kar", "karna", "karo", "raha", "rahe",
+    "the",
+    "a",
+    "an",
+    "and",
+    "or",
+    "but",
+    "is",
+    "are",
+    "was",
+    "were",
+    "be",
+    "to",
+    "of",
+    "in",
+    "on",
+    "for",
+    "with",
+    "at",
+    "by",
+    "from",
+    "as",
+    "it",
+    "this",
+    "that",
+    "these",
+    "those",
+    "i",
+    "you",
+    "he",
+    "she",
+    "we",
+    "they",
+    "do",
+    "does",
+    "did",
+    "ka",
+    "ke",
+    "ki",
+    "ko",
+    "se",
+    "me",
+    "mein",
+    "hai",
+    "hain",
+    "ho",
+    "hi",
+    "bhi",
+    "aur",
+    "ya",
+    "par",
+    "kya",
+    "kaise",
+    "kaun",
+    "yeh",
+    "ye",
+    "woh",
+    "wo",
+    "ek",
+    "kar",
+    "karna",
+    "karo",
+    "raha",
+    "rahe",
 }
 
 
-def tokenize(text: str) -> List[str]:
+def tokenize(text: str) -> list[str]:
     """Lowercase word tokens, stopwords hata ke. Hindi-roman + English dono."""
     toks = _WORD_RE.findall((text or "").lower())
     return [t for t in toks if t not in _STOPWORDS and len(t) > 1]
@@ -90,7 +150,7 @@ def chunk_text(
     text: str,
     max_chars: int = 500,
     overlap: int = 50,
-) -> List[str]:
+) -> list[str]:
     """
     Text ko semantic-ish chunks me todo. Pehle paragraph/sentence boundaries
     par, phir agar koi piece bada ho to char-window se. Overlap se context
@@ -102,7 +162,7 @@ def chunk_text(
 
     # paragraph-first split
     raw_parts = re.split(r"\n\s*\n+", text)
-    pieces: List[str] = []
+    pieces: list[str] = []
     for part in raw_parts:
         part = part.strip()
         if not part:
@@ -128,7 +188,7 @@ def chunk_text(
                     # hard char-window for a single very long sentence
                     start = 0
                     while start < len(s):
-                        pieces.append(s[start:start + max_chars])
+                        pieces.append(s[start : start + max_chars])
                         start += max_chars - overlap
                     buf = ""
         if buf:
@@ -143,8 +203,8 @@ def chunk_text(
 class _Doc:
     text: str
     source: str
-    tokens: List[str] = field(default_factory=list)
-    tf: Dict[str, float] = field(default_factory=dict)
+    tokens: list[str] = field(default_factory=list)
+    tf: dict[str, float] = field(default_factory=dict)
 
 
 class _KeywordIndex:
@@ -157,7 +217,7 @@ class _KeywordIndex:
     """
 
     def __init__(self) -> None:
-        self._docs: List[_Doc] = []
+        self._docs: list[_Doc] = []
         self._df: Counter = Counter()  # document frequency per term
 
     @property
@@ -183,7 +243,7 @@ class _KeywordIndex:
         # smoothed idf
         return math.log((n + 1) / (df + 1)) + 1.0
 
-    def search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
+    def search(self, query: str, k: int = 3) -> list[dict[str, Any]]:
         if not self._docs:
             return []
         q_toks = tokenize(query)
@@ -194,7 +254,7 @@ class _KeywordIndex:
         q_vec = {t: (c / q_total) * self._idf(t) for t, c in q_counts.items()}
         q_norm = math.sqrt(sum(v * v for v in q_vec.values())) or 1.0
 
-        scored: List[Dict[str, Any]] = []
+        scored: list[dict[str, Any]] = []
         for doc in self._docs:
             if not doc.tf:
                 continue
@@ -231,6 +291,7 @@ class _ChromaIndex:
 
     def __init__(self, namespace: str = "default") -> None:
         from app.ml.vector_store import VectorStore  # may raise ImportError
+
         self._store = VectorStore(collection_name=f"kb_{_safe_name(namespace)}")
         self._namespace = namespace
         self._count = 0
@@ -242,6 +303,7 @@ class _ChromaIndex:
         """True only if a real (non-mock) embedder is active."""
         try:
             from app.ml.vector_store import MockEmbedder
+
             return not isinstance(self._store.embedder, MockEmbedder)
         except Exception:
             return False
@@ -264,14 +326,14 @@ class _ChromaIndex:
             documents=[text],
         )
 
-    def search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
+    def search(self, query: str, k: int = 3) -> list[dict[str, Any]]:
         q_emb = self._store._generate_embedding(query)
         try:
             res = self._store.collection.query(query_embeddings=[q_emb], n_results=k)
         except Exception as e:  # pragma: no cover
             logger.debug(f"chroma query failed: {e}")
             return []
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         ids = (res or {}).get("ids") or [[]]
         if not ids or not ids[0]:
             return []
@@ -283,11 +345,13 @@ class _ChromaIndex:
             meta = metas[i] if i < len(metas) else {}
             dist = dists[i] if i < len(dists) else 1.0
             score = 1.0 / (1.0 + float(dist))
-            out.append({
-                "text": text,
-                "score": float(score),
-                "source": (meta or {}).get("source", ""),
-            })
+            out.append(
+                {
+                    "text": text,
+                    "score": float(score),
+                    "source": (meta or {}).get("source", ""),
+                }
+            )
         return out
 
 
@@ -312,8 +376,8 @@ _QDRANT_VECTOR_SIZE = 384  # intfloat/multilingual-e5-small output dim
 _E5_MODEL_NAME = "intfloat/multilingual-e5-small"
 
 _QDRANT_LOCK = threading.Lock()
-_QDRANT_CLIENT: Optional[Any] = None
-_QDRANT_EMBEDDER: Optional[Any] = None
+_QDRANT_CLIENT: Any | None = None
+_QDRANT_EMBEDDER: Any | None = None
 # Pehli hard-failure ke baad is process me dobara try mat karo (slow timeouts
 # har naye namespace par repeat na hon). Restart par phir se probe hoga.
 _QDRANT_DISABLED = False
@@ -323,6 +387,7 @@ def _get_qdrant_url() -> str:
     """settings.qdrant_url (empty string => Qdrant backend disabled)."""
     try:
         from app.config import settings
+
         return (getattr(settings, "qdrant_url", "") or "").strip()
     except Exception:
         return ""
@@ -335,6 +400,7 @@ def _get_qdrant_embedder():
         with _QDRANT_LOCK:
             if _QDRANT_EMBEDDER is None:
                 from fastembed import TextEmbedding  # may raise ImportError
+
                 _QDRANT_EMBEDDER = TextEmbedding(model_name=_E5_MODEL_NAME)
     return _QDRANT_EMBEDDER
 
@@ -351,6 +417,7 @@ def _get_qdrant_client():
             if _QDRANT_CLIENT is None:
                 from qdrant_client import QdrantClient  # may raise ImportError
                 from qdrant_client import models as qmodels
+
                 url = _get_qdrant_url()
                 if not url:
                     raise RuntimeError("QDRANT_URL not configured")
@@ -397,12 +464,13 @@ class _QdrantIndex:
         self._namespace = namespace or "default"
 
     # -- internals -- #
-    def _embed(self, text: str) -> List[float]:
+    def _embed(self, text: str) -> list[float]:
         vec = next(iter(self._embedder.embed([text])))
         return [float(x) for x in vec]
 
     def _ns_filter(self):
         from qdrant_client import models as qmodels
+
         return qmodels.Filter(
             must=[
                 qmodels.FieldCondition(
@@ -428,6 +496,7 @@ class _QdrantIndex:
     def add(self, text: str, source: str = "") -> None:
         # raise hone par KnowledgeBase.add_documents chunk skip kar deta hai
         from qdrant_client import models as qmodels
+
         self._client.upsert(
             collection_name=_QDRANT_COLLECTION,
             points=[
@@ -444,7 +513,7 @@ class _QdrantIndex:
             ],
         )
 
-    def search(self, query: str, k: int = 3) -> List[Dict[str, Any]]:
+    def search(self, query: str, k: int = 3) -> list[dict[str, Any]]:
         try:
             res = self._client.query_points(
                 collection_name=_QDRANT_COLLECTION,
@@ -458,14 +527,16 @@ class _QdrantIndex:
         except Exception as e:  # pragma: no cover
             logger.debug(f"qdrant query failed: {e}")
             return []
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for p in points:
             payload = getattr(p, "payload", None) or {}
-            out.append({
-                "text": str(payload.get("text", "") or ""),
-                "score": float(getattr(p, "score", 0.0) or 0.0),
-                "source": str(payload.get("source", "") or ""),
-            })
+            out.append(
+                {
+                    "text": str(payload.get("text", "") or ""),
+                    "score": float(getattr(p, "score", 0.0) or 0.0),
+                    "source": str(payload.get("source", "") or ""),
+                }
+            )
         return out
 
 
@@ -473,9 +544,7 @@ class _QdrantIndex:
 # KnowledgeBase — public API
 # --------------------------------------------------------------------------- #
 # safe fallback line jab kuch relevant na mile — kabhi hallucinate mat karo.
-_SAFE_FALLBACK = (
-    "Achha sawaal — main aapke liye exact detail team se confirm karwa deti hoon."
-)
+_SAFE_FALLBACK = "Achha sawaal — main aapke liye exact detail team se confirm karwa deti hoon."
 # agar query short na ho aur retrieved score is se neeche ho to "no answer" maano.
 _MIN_GROUND_SCORE = 0.04
 
@@ -500,9 +569,9 @@ class KnowledgeBase:
         self._prefer_chroma = prefer_chroma
         self._lock = threading.RLock()
         # namespace -> retriever (_QdrantIndex | _ChromaIndex | _KeywordIndex)
-        self._indexes: Dict[str, Any] = {}
+        self._indexes: dict[str, Any] = {}
         # namespace -> backend label ("qdrant" | "chroma" | "keyword")
-        self._backends: Dict[str, str] = {}
+        self._backends: dict[str, str] = {}
 
     # ----------------------- index management ----------------------- #
     def _get_index(self, namespace: str):
@@ -563,8 +632,8 @@ class KnowledgeBase:
     # ----------------------- public API ----------------------- #
     def add_documents(
         self,
-        docs: List[Union[str, Dict[str, Any]]],
-        source: Optional[str] = None,
+        docs: list[str | dict[str, Any]],
+        source: str | None = None,
         namespace: str = "default",
     ) -> int:
         """
@@ -608,7 +677,7 @@ class KnowledgeBase:
         query: str,
         k: int = 3,
         namespace: str = "default",
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Query ke top-k most relevant chunks laao.
 
@@ -664,7 +733,7 @@ class KnowledgeBase:
                     answer = f"{answer} {extra}".strip()
         return answer or _SAFE_FALLBACK
 
-    def stats(self, namespace: Optional[str] = None) -> Dict[str, Any]:
+    def stats(self, namespace: str | None = None) -> dict[str, Any]:
         """KB stats — namespaces, backend, chunk counts."""
         with self._lock:
             if namespace is not None:
@@ -677,10 +746,7 @@ class KnowledgeBase:
             return {
                 "namespaces": list(self._indexes.keys()),
                 "backends": dict(self._backends),
-                "chunks": {
-                    ns: getattr(idx, "size", 0)
-                    for ns, idx in self._indexes.items()
-                },
+                "chunks": {ns: getattr(idx, "size", 0) for ns, idx in self._indexes.items()},
             }
 
 
@@ -703,7 +769,7 @@ def _trim_sentence(text: str, max_chars: int = 220) -> str:
 # --------------------------------------------------------------------------- #
 # Singleton
 # --------------------------------------------------------------------------- #
-_KB_SINGLETON: Optional[KnowledgeBase] = None
+_KB_SINGLETON: KnowledgeBase | None = None
 _KB_LOCK = threading.Lock()
 
 

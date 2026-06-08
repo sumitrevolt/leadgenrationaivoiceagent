@@ -3,16 +3,18 @@ Agent (Worker) Model
 Database model for AI voice agents / workers in the agent pool.
 Powers the admin dashboard "agents" panel (live worker status + stats).
 """
-from datetime import datetime
-from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text, ForeignKey, Enum, Index
-from sqlalchemy.orm import relationship
+
 import enum
+from datetime import datetime
+
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Index, Integer, String, Text
 
 from app.models.base import Base
 
 
 class AgentStatus(enum.Enum):
     """Agent / worker live status enum"""
+
     IDLE = "idle"
     CALLING = "calling"
     SCRAPING = "scraping"
@@ -23,11 +25,12 @@ class AgentStatus(enum.Enum):
 
 class Agent(Base):
     """AI voice agent / worker database model"""
+
     __tablename__ = "agents"
 
     __table_args__ = (
-        Index('ix_agents_status', 'status'),
-        Index('ix_agents_client', 'current_client_id'),
+        Index("ix_agents_status", "status"),
+        Index("ix_agents_client", "current_client_id"),
     )
 
     id = Column(String(36), primary_key=True)

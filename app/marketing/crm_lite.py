@@ -13,13 +13,14 @@ data/crm/{client_id}.jsonl — append-only, phone(10-digit) par dedupe.
 Template-based (LLM optional nahi chahiye — wishes personal/chhoti hoti hain).
 Pure stdlib; read/list/wishes kabhi raise nahi karte.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import quote
 
 from app.utils.logger import setup_logger
@@ -71,13 +72,13 @@ def _today_mmdd() -> str:
     return datetime.now(_IST).strftime("%m-%d")
 
 
-def _read(client_id: Any) -> List[Dict[str, Any]]:
+def _read(client_id: Any) -> list[dict[str, Any]]:
     path = _path(client_id)
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     try:
         if not os.path.isfile(path):
             return rows
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -93,7 +94,7 @@ def _read(client_id: Any) -> List[Dict[str, Any]]:
     return rows
 
 
-def add_customers(client_id: Any, rows: Optional[List[Dict[str, Any]]]) -> Dict[str, int]:
+def add_customers(client_id: Any, rows: list[dict[str, Any]] | None) -> dict[str, int]:
     """Customers add karo (phone-10digit dedupe, existing + same-batch dono).
 
     rows: [{"name","phone","birthday"?,"anniversary"?,"tags"?}, ...]
@@ -102,8 +103,8 @@ def add_customers(client_id: Any, rows: Optional[List[Dict[str, Any]]]) -> Dict[
     existing = _read(client_id)
     seen = {r.get("phone") for r in existing}
     added, skipped = 0, 0
-    new_recs: List[Dict[str, Any]] = []
-    for row in (rows or []):
+    new_recs: list[dict[str, Any]] = []
+    for row in rows or []:
         if not isinstance(row, dict):
             skipped += 1
             continue
@@ -115,14 +116,16 @@ def add_customers(client_id: Any, rows: Optional[List[Dict[str, Any]]]) -> Dict[
         tags = row.get("tags") or []
         if not isinstance(tags, list):
             tags = [tags]
-        new_recs.append({
-            "name": str(row.get("name") or "").strip()[:80] or "Customer",
-            "phone": d10,
-            "birthday": _mmdd(row.get("birthday")),
-            "anniversary": _mmdd(row.get("anniversary")),
-            "tags": [str(t).strip()[:30] for t in tags if str(t).strip()][:10],
-            "added_at": datetime.now(timezone.utc).isoformat(),
-        })
+        new_recs.append(
+            {
+                "name": str(row.get("name") or "").strip()[:80] or "Customer",
+                "phone": d10,
+                "birthday": _mmdd(row.get("birthday")),
+                "anniversary": _mmdd(row.get("anniversary")),
+                "tags": [str(t).strip()[:30] for t in tags if str(t).strip()][:10],
+                "added_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
         added += 1
     if new_recs:
         os.makedirs(_CRM_DIR, exist_ok=True)
@@ -132,27 +135,30 @@ def add_customers(client_id: Any, rows: Optional[List[Dict[str, Any]]]) -> Dict[
     return {"added": added, "skipped": skipped, "total": len(existing) + added}
 
 
-def list_customers(client_id: Any, tag: Optional[str] = None) -> List[Dict[str, Any]]:
+def list_customers(client_id: Any, tag: str | None = None) -> list[dict[str, Any]]:
     """Saved customers (newest last). Optional tag filter. Kabhi raise nahi."""
     rows = _read(client_id)
     t = (tag or "").strip().lower()
     if t:
-        rows = [r for r in rows
-                if t in [str(x).lower() for x in (r.get("tags") or [])]]
+        rows = [r for r in rows if t in [str(x).lower() for x in (r.get("tags") or [])]]
     return rows
 
 
 _WISH_TEMPLATES = {
-    "birthday": ("🎂 Janamdin bahut bahut mubarak ho, {name} ji! 🎉 {biz} ki "
-                 "poori team ki taraf se dher saari shubhkamnayein. Aapka din "
-                 "khushiyon se bhara rahe! 🙏"),
-    "anniversary": ("💐 Shaadi ki salgirah mubarak ho, {name} ji! {biz} ki "
-                    "taraf se aap dono ko dher saari badhai — aapka saath yun "
-                    "hi bana rahe! 🎉🙏"),
+    "birthday": (
+        "🎂 Janamdin bahut bahut mubarak ho, {name} ji! 🎉 {biz} ki "
+        "poori team ki taraf se dher saari shubhkamnayein. Aapka din "
+        "khushiyon se bhara rahe! 🙏"
+    ),
+    "anniversary": (
+        "💐 Shaadi ki salgirah mubarak ho, {name} ji! {biz} ki "
+        "taraf se aap dono ko dher saari badhai — aapka saath yun "
+        "hi bana rahe! 🎉🙏"
+    ),
 }
 
 
-async def todays_wishes(client_id: Any, business_name: str = "") -> Dict[str, Any]:
+async def todays_wishes(client_id: Any, business_name: str = "") -> dict[str, Any]:
     """Aaj (IST) ke birthday/anniversary customers ke ready wish messages.
 
     Returns: {"date","count","wishes":[{name,phone,occasion,message,wa_link}]}.
@@ -160,7 +166,7 @@ async def todays_wishes(client_id: Any, business_name: str = "") -> Dict[str, An
     """
     biz = (business_name or "").strip() or "Hamari team"
     today = _today_mmdd()
-    wishes: List[Dict[str, str]] = []
+    wishes: list[dict[str, str]] = []
     for cust in _read(client_id):
         occasions = []
         if cust.get("birthday") == today:
@@ -171,18 +177,22 @@ async def todays_wishes(client_id: Any, business_name: str = "") -> Dict[str, An
             name = str(cust.get("name") or "").strip() or "ji"
             msg = _WISH_TEMPLATES[occ].format(name=name, biz=biz)
             d10 = _digits10(cust.get("phone"))
-            wishes.append({
-                "name": name,
-                "phone": d10,
-                "occasion": occ,
-                "message": msg,
-                "wa_link": f"https://wa.me/91{d10}?text={quote(msg)}" if d10 else "",
-            })
+            wishes.append(
+                {
+                    "name": name,
+                    "phone": d10,
+                    "occasion": occ,
+                    "message": msg,
+                    "wa_link": f"https://wa.me/91{d10}?text={quote(msg)}" if d10 else "",
+                }
+            )
     return {
         "date": today,
         "business_name": biz,
         "count": len(wishes),
         "wishes": wishes,
-        "tip": ("Wish subah 9-10 baje bhejo — personal touch ke liye apne naam "
-                "se 1 line add kar lo. Ye chhoti cheez repeat business laati hai."),
+        "tip": (
+            "Wish subah 9-10 baje bhejo — personal touch ke liye apne naam "
+            "se 1 line add kar lo. Ye chhoti cheez repeat business laati hai."
+        ),
     }

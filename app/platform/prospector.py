@@ -17,6 +17,7 @@ Scraper best-effort hai: Google Maps API key na ho to playwright fallback,
 wo bhi na ho to query skip ho jaati hai (count me dikhta hai) — kabhi crash
 nahi. Scheduler (team_scheduler) roz 09:30 IST pe chalata hai.
 """
+
 from __future__ import annotations
 
 import json
@@ -26,7 +27,7 @@ import urllib.parse
 import urllib.request
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -44,7 +45,7 @@ VALID_STATUSES = ("ready", "sent", "replied", "client", "dead")
 # "cities": ["...", ...]}, ...]
 # --------------------------------------------------------------------------- #
 _DEFAULT_CITIES = ["Pune", "Mumbai", "Nagpur"]
-_DEFAULT_TARGETS: List[Dict[str, Any]] = [
+_DEFAULT_TARGETS: list[dict[str, Any]] = [
     {"niche": "solar_residential", "query": "solar installer", "cities": _DEFAULT_CITIES},
     {"niche": "real_estate", "query": "real estate agency", "cities": _DEFAULT_CITIES},
     {"niche": "coaching", "query": "coaching institute", "cities": _DEFAULT_CITIES},
@@ -52,7 +53,7 @@ _DEFAULT_TARGETS: List[Dict[str, Any]] = [
 ]
 
 # Niche-specific pain line for the pitch (fallback generic).
-_NICHE_PAIN: Dict[str, str] = {
+_NICHE_PAIN: dict[str, str] = {
     "solar_residential": "solar inquiries me aadhe log sirf price puch ke gayab ho jaate hain",
     "real_estate": "site-visit tak pahunchne wale serious buyers dhundna mushkil hai",
     "coaching": "admission season me har inquiry ko time pe follow-up nahi ho paata",
@@ -61,23 +62,25 @@ _NICHE_PAIN: Dict[str, str] = {
 _GENERIC_PAIN = "naye customers tak pahunchna har mahine mehenga aur slow hai"
 
 
-def _targets() -> List[Dict[str, Any]]:
+def _targets() -> list[dict[str, Any]]:
     """PROSPECT_TARGETS env (JSON) ya defaults. Malformed env -> defaults."""
     raw = os.environ.get("PROSPECT_TARGETS", "").strip()
     if not raw:
         return _DEFAULT_TARGETS
     try:
         data = json.loads(raw)
-        out: List[Dict[str, Any]] = []
+        out: list[dict[str, Any]] = []
         for t in data if isinstance(data, list) else []:
             if not isinstance(t, dict) or not t.get("query"):
                 continue
             cities = t.get("cities") or _DEFAULT_CITIES
-            out.append({
-                "niche": str(t.get("niche") or "general"),
-                "query": str(t["query"]),
-                "cities": [str(c) for c in cities if str(c).strip()],
-            })
+            out.append(
+                {
+                    "niche": str(t.get("niche") or "general"),
+                    "query": str(t["query"]),
+                    "cities": [str(c) for c in cities if str(c).strip()],
+                }
+            )
         if out:
             return out
     except Exception as e:
@@ -88,7 +91,7 @@ def _targets() -> List[Dict[str, Any]]:
 # --------------------------------------------------------------------------- #
 # Phone helpers
 # --------------------------------------------------------------------------- #
-def _phone_digits(raw: Optional[str]) -> str:
+def _phone_digits(raw: str | None) -> str:
     """Sirf digits; +91/0 prefix normalize karke 10-digit lautao ('' = unusable)."""
     digits = "".join(c for c in (raw or "") if c.isdigit())
     if digits.startswith("91") and len(digits) == 12:
@@ -135,9 +138,9 @@ def build_personalized_pitch(
     business_name: str,
     niche: str,
     city: str = "",
-    rating: Optional[float] = None,
-    reviews_count: Optional[int] = None,
-    has_website: Optional[bool] = None,
+    rating: float | None = None,
+    reviews_count: int | None = None,
+    has_website: bool | None = None,
 ) -> str:
     """Real Google data (rating/reviews/website) se personalized Hinglish pitch.
 
@@ -172,8 +175,7 @@ def build_personalized_pitch(
             )
         elif has_website is False:
             diag = (
-                "aapki website bhi nahi dikhi — ek mini page + Google "
-                "profile dono set kar dunga"
+                "aapki website bhi nahi dikhi — ek mini page + Google " "profile dono set kar dunga"
             )
         else:
             diag = (
@@ -215,15 +217,15 @@ _OSM_UA = "LeadGenAI/1.0 (contact: sumitrevolt23@gmail.com)"
 
 # query keyword (lowercase substring) -> list of Overpass tag filters.
 # Pehla match jeetta hai; kuch na mile to naam-search fallback.
-_OSM_TAG_MAP: List[Tuple[Tuple[str, ...], List[str]]] = [
-    (("restaurant", "cafe", "food", "dhaba"),
-     ['amenity~"^(restaurant|cafe|fast_food)$"']),
-    (("salon", "spa", "beauty", "parlour", "parlor", "hairdress"),
-     ['shop~"^(hairdresser|beauty)$"']),
+_OSM_TAG_MAP: list[tuple[tuple[str, ...], list[str]]] = [
+    (("restaurant", "cafe", "food", "dhaba"), ['amenity~"^(restaurant|cafe|fast_food)$"']),
+    (
+        ("salon", "spa", "beauty", "parlour", "parlor", "hairdress"),
+        ['shop~"^(hairdresser|beauty)$"'],
+    ),
     (("gym", "fitness"), ['leisure="fitness_centre"']),
     (("jewel",), ['shop="jewelry"']),
-    (("boutique", "clothing", "fashion", "apparel", "garment"),
-     ['shop="clothes"']),
+    (("boutique", "clothing", "fashion", "apparel", "garment"), ['shop="clothes"']),
     (("bakery", "sweet", "cake"), ['shop~"^(bakery|confectionery)$"']),
     (("real estate", "property", "realtor"), ['office="estate_agent"']),
     (("hardware", "paint"), ['shop~"^(hardware|doityourself|paint)$"']),
@@ -232,19 +234,22 @@ _OSM_TAG_MAP: List[Tuple[Tuple[str, ...], List[str]]] = [
     (("mobile", "electronics"), ['shop~"^(mobile_phone|electronics)$"']),
     (("hotel", "resort", "lodge"), ['tourism~"^(hotel|guest_house|motel)$"']),
     (("photograph",), ['shop="photo"', 'craft="photographer"']),
-    (("automobile", "car repair", "garage", "car service"),
-     ['shop~"^(car_repair|car)$"']),
-    (("kirana", "supermarket", "grocery", "general store"),
-     ['shop~"^(supermarket|convenience|general)$"']),
+    (("automobile", "car repair", "garage", "car service"), ['shop~"^(car_repair|car)$"']),
+    (
+        ("kirana", "supermarket", "grocery", "general store"),
+        ['shop~"^(supermarket|convenience|general)$"'],
+    ),
     (("travel", "tour"), ['shop="travel_agency"', 'office="travel_agent"']),
     (("gift", "stationery"), ['shop~"^(gift|stationery)$"']),
     (("dental", "dentist"), ['amenity="dentist"', 'healthcare="dentist"']),
-    (("doctor", "clinic", "hospital"),
-     ['amenity~"^(clinic|hospital|doctors)$"', 'healthcare~"^(clinic|hospital|doctor)$"']),
+    (
+        ("doctor", "clinic", "hospital"),
+        ['amenity~"^(clinic|hospital|doctors)$"', 'healthcare~"^(clinic|hospital|doctor)$"'],
+    ),
 ]
 
 
-def _osm_filters(query: str) -> List[str]:
+def _osm_filters(query: str) -> list[str]:
     """Query string ko Overpass tag-filters me map karo (fallback name-search)."""
     q = (query or "").lower()
     for keys, filters in _OSM_TAG_MAP:
@@ -255,14 +260,14 @@ def _osm_filters(query: str) -> List[str]:
     return [f'name~"{safe}",i'] if safe else []
 
 
-def _osm_search(query: str, city: str, limit: int) -> List[Dict[str, Any]]:
+def _osm_search(query: str, city: str, limit: int) -> list[dict[str, Any]]:
     """OpenStreetMap Overpass se businesses dhundo (NO key). Kabhi raise nahi.
 
     `area[name="<city>"]` ke andar node/way/relation jinme matching tags hon.
     Return: list of {business_name, phone, address, city, website}. Naam-less
     elements skip. Failure (network/parse/koi bhi) -> [] return.
     """
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         city = (city or "").strip()
         if not city:
@@ -274,13 +279,13 @@ def _osm_search(query: str, city: str, limit: int) -> List[Dict[str, Any]]:
         city_esc = city.replace('"', "").replace("\\", "")
 
         # Har filter ke liye node/way/relation lines banao (area-scoped).
-        stmts: List[str] = []
+        stmts: list[str] = []
         for f in filters:
             for elem in ("node", "way", "relation"):
                 stmts.append(f"{elem}(area.searchArea)[{f}];")
         body = "".join(stmts)
         ql = (
-            f'[out:json][timeout:25];'
+            f"[out:json][timeout:25];"
             f'area["name"="{city_esc}"]->.searchArea;'
             f"({body});"
             f"out tags center {cap * 4};"
@@ -288,9 +293,9 @@ def _osm_search(query: str, city: str, limit: int) -> List[Dict[str, Any]]:
 
         data = urllib.parse.urlencode({"data": ql}).encode("utf-8")
         req = urllib.request.Request(
-            _OVERPASS_URL, data=data,
-            headers={"User-Agent": _OSM_UA,
-                     "Content-Type": "application/x-www-form-urlencoded"},
+            _OVERPASS_URL,
+            data=data,
+            headers={"User-Agent": _OSM_UA, "Content-Type": "application/x-www-form-urlencoded"},
         )
         with urllib.request.urlopen(req, timeout=25) as resp:
             payload = json.loads(resp.read().decode("utf-8", "replace"))
@@ -309,19 +314,25 @@ def _osm_search(query: str, city: str, limit: int) -> List[Dict[str, Any]]:
             ).strip()
             addr = str(tags.get("addr:full") or "").strip()
             if not addr:
-                parts = [tags.get("addr:housenumber"), tags.get("addr:street"),
-                         tags.get("addr:suburb"), tags.get("addr:city") or city]
+                parts = [
+                    tags.get("addr:housenumber"),
+                    tags.get("addr:street"),
+                    tags.get("addr:suburb"),
+                    tags.get("addr:city") or city,
+                ]
                 addr = ", ".join(p for p in (str(x).strip() for x in parts if x) if p)
             website = str(tags.get("website") or tags.get("contact:website") or "").strip()
             email = str(tags.get("email") or tags.get("contact:email") or "").strip()
-            out.append({
-                "business_name": name,
-                "phone": phone,
-                "address": addr or city,
-                "city": city,
-                "website": website,
-                "email": email,
-            })
+            out.append(
+                {
+                    "business_name": name,
+                    "phone": phone,
+                    "address": addr or city,
+                    "city": city,
+                    "website": website,
+                    "email": email,
+                }
+            )
             if len(out) >= cap:
                 break
     except Exception as e:  # network / HTTP / JSON / koi bhi — silently skip
@@ -333,13 +344,13 @@ def _osm_search(query: str, city: str, limit: int) -> List[Dict[str, Any]]:
 # --------------------------------------------------------------------------- #
 # jsonl persistence
 # --------------------------------------------------------------------------- #
-def _read_all() -> List[Dict[str, Any]]:
+def _read_all() -> list[dict[str, Any]]:
     """Saare prospects (parse-safe; corrupt lines skip)."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         if not os.path.isfile(_PROSPECTS_FILE):
             return out
-        with open(_PROSPECTS_FILE, "r", encoding="utf-8") as f:
+        with open(_PROSPECTS_FILE, encoding="utf-8") as f:
             for ln in f:
                 try:
                     rec = json.loads(ln)
@@ -352,7 +363,7 @@ def _read_all() -> List[Dict[str, Any]]:
     return out
 
 
-def _append(rec: Dict[str, Any]) -> bool:
+def _append(rec: dict[str, Any]) -> bool:
     try:
         os.makedirs(os.path.dirname(_PROSPECTS_FILE) or ".", exist_ok=True)
         with open(_PROSPECTS_FILE, "a", encoding="utf-8") as f:
@@ -363,7 +374,7 @@ def _append(rec: Dict[str, Any]) -> bool:
         return False
 
 
-def list_prospects(status: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+def list_prospects(status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
     """Prospects newest-first; optional status filter. Kabhi raise nahi karta."""
     try:
         rows = _read_all()
@@ -376,7 +387,7 @@ def list_prospects(status: Optional[str] = None, limit: int = 100) -> List[Dict[
         return []
 
 
-def set_prospect_fields(pid: str, fields: Dict[str, Any]) -> bool:
+def set_prospect_fields(pid: str, fields: dict[str, Any]) -> bool:
     """Ek prospect par arbitrary fields set karo (e.g. emailed_at) — poora file
     rewrite (chhota hai). status VALID_STATUSES wala constraint yahan NAHI lagta
     (auto-outreach `emailed_at` jaisa custom marker set kar sake). KABHI raise
@@ -439,13 +450,13 @@ def mark_prospect(pid: str, status: str) -> bool:
 # --------------------------------------------------------------------------- #
 # Main run — scraper best-effort, dedupe by phone digits, pitch + wa_link
 # --------------------------------------------------------------------------- #
-async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
+async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
     """Targets × cities pe Google Maps scraper chalao, naye prospects queue karo.
 
     Returns summary dict. NEVER raises — har query apne try/except me hai,
     scraper unavailable ho to skip count badhta hai.
     """
-    summary: Dict[str, Any] = {
+    summary: dict[str, Any] = {
         "ok": True,
         "new": 0,
         "duplicates": 0,
@@ -458,13 +469,15 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
     }
     try:
         # Dedupe set: existing prospects ke phone digits.
-        seen: Set[str] = set()
+        seen: set[str] = set()
         for r in _read_all():
             d = _phone_digits(r.get("phone"))
             if d:
                 seen.add(d)
             # business+city bhi (phone-less records repeat na ho)
-            seen.add(f"{str(r.get('business_name') or '').strip().lower()}|{str(r.get('city') or '').strip().lower()}")
+            seen.add(
+                f"{str(r.get('business_name') or '').strip().lower()}|{str(r.get('city') or '').strip().lower()}"
+            )
 
         # Source select: real Google Maps key ho to API path; warna FREE OSM
         # Overpass (NO key, legal, stdlib). Playwright fallback use NAHI karte —
@@ -478,8 +491,7 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
             key = str(getattr(cand, "api_key", "") or "")
             # Placeholder key ("your-google-maps-api-key" type) = real nahi.
             if key and not any(
-                t in key.lower()
-                for t in ("your-", "your_", "placeholder", "xxx", "changeme")
+                t in key.lower() for t in ("your-", "your_", "placeholder", "xxx", "changeme")
             ):
                 scraper = cand
                 use_osm = False
@@ -515,7 +527,7 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
         _email_fn = getattr(scraper, "_extract_email_from_website", None) if scraper else None
 
         targets = _targets()
-        pairs: List[Tuple[Dict[str, Any], str]] = [
+        pairs: list[tuple[dict[str, Any], str]] = [
             (t, city) for t in targets for city in (t.get("cities") or [])
         ]
 
@@ -535,25 +547,29 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
 
             # Fetch from chosen source -> normalize to list of dicts with
             # keys: name, phone, address, rating, website.
-            rows: List[Dict[str, Any]] = []
+            rows: list[dict[str, Any]] = []
             try:
                 if use_osm:
                     # Politeness: Overpass calls ke beech 1s sleep.
                     if idx > 0:
                         time.sleep(1)
                     for r in _osm_search(query, city, max_per):
-                        rows.append({
-                            "name": r.get("business_name", ""),
-                            "phone": r.get("phone", ""),
-                            "address": r.get("address", ""),
-                            "rating": None,
-                            "reviews_count": None,
-                            "website": r.get("website", ""),
-                            "email": str(r.get("email") or "").strip(),
-                        })
+                        rows.append(
+                            {
+                                "name": r.get("business_name", ""),
+                                "phone": r.get("phone", ""),
+                                "address": r.get("address", ""),
+                                "rating": None,
+                                "reviews_count": None,
+                                "website": r.get("website", ""),
+                                "email": str(r.get("email") or "").strip(),
+                            }
+                        )
                 else:
                     biz_list = await scraper.search_businesses(
-                        query=query, location=city, max_results=max_per,
+                        query=query,
+                        location=city,
+                        max_results=max_per,
                     )
                     for biz in biz_list or []:
                         # Place Details lookup hua hai (scraper internally karta).
@@ -563,17 +579,19 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                             break
                         summary["lookups_used"] += 1
                         rc = getattr(biz, "reviews_count", None)
-                        rows.append({
-                            "name": str(getattr(biz, "name", "") or ""),
-                            "phone": getattr(biz, "phone", None),
-                            "address": str(getattr(biz, "address", "") or ""),
-                            "rating": getattr(biz, "rating", None),
-                            "reviews_count": rc if rc is not None else 0,
-                            "website": str(getattr(biz, "website", "") or ""),
-                            # Scraper already may carry an email (Places details
-                            # path runs _extract_email_from_website internally).
-                            "email": str(getattr(biz, "email", "") or "").strip(),
-                        })
+                        rows.append(
+                            {
+                                "name": str(getattr(biz, "name", "") or ""),
+                                "phone": getattr(biz, "phone", None),
+                                "address": str(getattr(biz, "address", "") or ""),
+                                "rating": getattr(biz, "rating", None),
+                                "reviews_count": rc if rc is not None else 0,
+                                "website": str(getattr(biz, "website", "") or ""),
+                                # Scraper already may carry an email (Places details
+                                # path runs _extract_email_from_website internally).
+                                "email": str(getattr(biz, "email", "") or "").strip(),
+                            }
+                        )
                 summary["queries_run"] += 1
                 if not rows:
                     summary["queries_empty"] += 1
@@ -624,14 +642,16 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                     # pitch; warna generic (OSM path me yeh None hote hain).
                     if rating is not None or reviews_count is not None:
                         pitch = build_personalized_pitch(
-                            name, niche, city,
+                            name,
+                            niche,
+                            city,
                             rating=rating,
                             reviews_count=reviews_count,
                             has_website=has_website,
                         )
                     else:
                         pitch = build_pitch(name, niche, city)
-                    rec: Dict[str, Any] = {
+                    rec: dict[str, Any] = {
                         "id": str(uuid.uuid4()),
                         "found_at": datetime.utcnow().isoformat() + "Z",
                         "business_name": name[:200],
@@ -672,10 +692,22 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
                 f"{summary['new']} naye prospects ({summary['queries_run']} queries; "
                 f"{summary['duplicates']} dup, {summary['no_phone']} bina-phone)",
                 status="ok" if summary["queries_failed"] == 0 else "warn",
-                meta={k: summary.get(k) for k in
-                      ("new", "duplicates", "no_phone", "queries_run",
-                       "queries_failed", "queries_empty", "by_niche", "scraper",
-                       "lookups_used", "lookups_capped", "emails_found")},
+                meta={
+                    k: summary.get(k)
+                    for k in (
+                        "new",
+                        "duplicates",
+                        "no_phone",
+                        "queries_run",
+                        "queries_failed",
+                        "queries_empty",
+                        "by_niche",
+                        "scraper",
+                        "lookups_used",
+                        "lookups_capped",
+                        "emails_found",
+                    )
+                },
             )
         except Exception:
             pass
@@ -690,6 +722,11 @@ async def run_prospecting(limit_per_query: int = 10) -> Dict[str, Any]:
 
 
 __all__ = [
-    "run_prospecting", "list_prospects", "mark_prospect", "set_prospect_fields",
-    "build_pitch", "build_personalized_pitch", "VALID_STATUSES",
+    "run_prospecting",
+    "list_prospects",
+    "mark_prospect",
+    "set_prospect_fields",
+    "build_pitch",
+    "build_personalized_pitch",
+    "VALID_STATUSES",
 ]

@@ -14,14 +14,15 @@ Typical use:
     pool.submit(CampaignSpec(client_id="c2", niche="dental_implants"))
     results = await pool.run_all()
 """
+
 import asyncio
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from app.automation.orchestrator_pipeline import LeadGenPipeline, CampaignResult
+from app.automation.orchestrator_pipeline import CampaignResult, LeadGenPipeline
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -29,6 +30,7 @@ logger = setup_logger(__name__)
 
 class AgentStatus(str, Enum):
     """Lifecycle status of a single worker agent."""
+
     IDLE = "idle"
     RUNNING = "running"
     DONE = "done"
@@ -38,34 +40,36 @@ class AgentStatus(str, Enum):
 @dataclass
 class CampaignSpec:
     """A single campaign request handed to the pool."""
+
     client_id: str
     niche: str
-    cities: Optional[List[str]] = None
-    sources: Optional[List[str]] = None
+    cities: list[str] | None = None
+    sources: list[str] | None = None
     max_leads: int = 100
-    channels: Optional[List[str]] = None
+    channels: list[str] | None = None
     client_name: str = ""
     client_service: str = ""
-    notify_whatsapp: Optional[List[str]] = None
-    spreadsheet_id: Optional[str] = None
+    notify_whatsapp: list[str] | None = None
+    spreadsheet_id: str | None = None
     spec_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
 @dataclass
 class AgentInfo:
     """In-memory registry entry describing one worker agent."""
+
     agent_id: str
-    current_client: Optional[str] = None
+    current_client: str | None = None
     status: AgentStatus = AgentStatus.IDLE
     calls_made: int = 0
     leads_found: int = 0
     qualified: int = 0
-    spec_id: Optional[str] = None
-    error: Optional[str] = None
-    started_at: Optional[datetime] = None
-    finished_at: Optional[datetime] = None
+    spec_id: str | None = None
+    error: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data["status"] = self.status.value
         data["started_at"] = self.started_at.isoformat() if self.started_at else None
@@ -84,20 +88,20 @@ class AgentWorkerPool:
     def __init__(
         self,
         concurrency: int = 5,
-        pipeline: Optional[LeadGenPipeline] = None,
+        pipeline: LeadGenPipeline | None = None,
     ):
         self.concurrency = max(1, concurrency)
         self.semaphore = asyncio.Semaphore(self.concurrency)
         # A single pipeline instance is reused (its deps are stateless enough);
         # built lazily so importing the pool never hard-fails on missing deps.
         self._pipeline = pipeline
-        self._specs: List[CampaignSpec] = []
-        self.agents: Dict[str, AgentInfo] = {}
-        self._results: Dict[str, CampaignResult] = {}
+        self._specs: list[CampaignSpec] = []
+        self.agents: dict[str, AgentInfo] = {}
+        self._results: dict[str, CampaignResult] = {}
         logger.info(f"👥 AgentWorkerPool initialized (concurrency={self.concurrency})")
 
     @property
-    def pipeline(self) -> Optional[LeadGenPipeline]:
+    def pipeline(self) -> LeadGenPipeline | None:
         """Lazily construct the shared pipeline, degrading on failure."""
         if self._pipeline is None:
             try:
@@ -123,14 +127,14 @@ class AgentWorkerPool:
         )
         return campaign_spec.spec_id
 
-    def submit_many(self, specs: List[CampaignSpec]) -> List[str]:
+    def submit_many(self, specs: list[CampaignSpec]) -> list[str]:
         """Queue several campaigns at once."""
         return [self.submit(s) for s in specs]
 
     # ------------------------------------------------------------------ #
     # Execution
     # ------------------------------------------------------------------ #
-    async def run_all(self) -> Dict[str, Any]:
+    async def run_all(self) -> dict[str, Any]:
         """
         Execute every queued campaign concurrently and return aggregated results.
 
@@ -142,8 +146,9 @@ class AgentWorkerPool:
             logger.warning("run_all() called with no queued campaigns")
             return self._aggregate()
 
-        logger.info(f"▶️ Running {len(self._specs)} campaigns "
-                    f"(max {self.concurrency} concurrent)")
+        logger.info(
+            f"▶️ Running {len(self._specs)} campaigns " f"(max {self.concurrency} concurrent)"
+        )
 
         tasks = [asyncio.create_task(self._run_one(spec)) for spec in self._specs]
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -221,11 +226,9 @@ class AgentWorkerPool:
     # ------------------------------------------------------------------ #
     # Aggregation + status
     # ------------------------------------------------------------------ #
-    def _aggregate(self) -> Dict[str, Any]:
+    def _aggregate(self) -> dict[str, Any]:
         results = list(self._results.values())
-        total_errors = sum(
-            1 for a in self.agents.values() if a.status == AgentStatus.ERROR
-        )
+        total_errors = sum(1 for a in self.agents.values() if a.status == AgentStatus.ERROR)
         return {
             "total_campaigns": len(results),
             "total_leads_found": sum(r.scraped for r in results),
@@ -240,18 +243,18 @@ class AgentWorkerPool:
             "agents": self.status(),
         }
 
-    def status(self) -> List[Dict[str, Any]]:
+    def status(self) -> list[dict[str, Any]]:
         """Snapshot of every agent's current status."""
         return [a.to_dict() for a in self.agents.values()]
 
-    def status_counts(self) -> Dict[str, int]:
+    def status_counts(self) -> dict[str, int]:
         """Count of agents grouped by status."""
-        counts: Dict[str, int] = {s.value: 0 for s in AgentStatus}
+        counts: dict[str, int] = {s.value: 0 for s in AgentStatus}
         for a in self.agents.values():
             counts[a.status.value] += 1
         return counts
 
-    def get_result(self, spec_id: str) -> Optional[CampaignResult]:
+    def get_result(self, spec_id: str) -> CampaignResult | None:
         """Fetch the CampaignResult for a given submitted spec."""
         return self._results.get(spec_id)
 

@@ -1,10 +1,11 @@
 """
 LeadGen AI Voice Agent - Command Line Interface
 """
+
 import argparse
 import asyncio
-import sys
 import os
+import sys
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -26,16 +27,18 @@ Examples:
   leadgen test                Run test suite
         """,
     )
-    
+
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
-    
+
     # Server command
     server_parser = subparsers.add_parser("server", help="Start the API server")
     server_parser.add_argument("--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)")
-    server_parser.add_argument("--port", type=int, default=8000, help="Port to bind (default: 8000)")
+    server_parser.add_argument(
+        "--port", type=int, default=8000, help="Port to bind (default: 8000)"
+    )
     server_parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
     server_parser.add_argument("--workers", type=int, default=1, help="Number of workers")
-    
+
     # Platform commands
     platform_parser = subparsers.add_parser("platform", help="Platform management")
     platform_subparsers = platform_parser.add_subparsers(dest="platform_command")
@@ -43,27 +46,27 @@ Examples:
     platform_subparsers.add_parser("stop", help="Stop the automation platform")
     platform_subparsers.add_parser("status", help="Check platform status")
     platform_subparsers.add_parser("stats", help="Show platform statistics")
-    
+
     # Database commands
     db_parser = subparsers.add_parser("db", help="Database management")
     db_subparsers = db_parser.add_subparsers(dest="db_command")
     db_subparsers.add_parser("upgrade", help="Run database migrations")
     db_subparsers.add_parser("downgrade", help="Rollback last migration")
     db_subparsers.add_parser("reset", help="Reset database (WARNING: destructive)")
-    
+
     # Test command
     test_parser = subparsers.add_parser("test", help="Run tests")
     test_parser.add_argument("--coverage", action="store_true", help="Run with coverage")
     test_parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
-    
+
     # Version command
     subparsers.add_parser("version", help="Show version")
-    
+
     # Health check
     subparsers.add_parser("health", help="Check system health")
-    
+
     args = parser.parse_args()
-    
+
     if args.command == "server":
         run_server(args)
     elif args.command == "platform":
@@ -83,9 +86,9 @@ Examples:
 def run_server(args):
     """Start the API server"""
     import uvicorn
-    
+
     print(f"?? Starting LeadGen AI Voice Agent on {args.host}:{args.port}")
-    
+
     uvicorn.run(
         "app.main:app",
         host=args.host,
@@ -98,9 +101,9 @@ def run_server(args):
 def run_platform_command(args):
     """Handle platform commands"""
     import httpx
-    
+
     base_url = os.environ.get("LEADGEN_API_URL", "http://localhost:8000")
-    
+
     if args.platform_command == "start":
         print("?? Starting automation platform...")
         try:
@@ -111,7 +114,7 @@ def run_platform_command(args):
                 print(f"? Failed to start: {response.text}")
         except httpx.ConnectError:
             print("? Cannot connect to API server. Is it running?")
-    
+
     elif args.platform_command == "stop":
         print("?? Stopping automation platform...")
         try:
@@ -122,7 +125,7 @@ def run_platform_command(args):
                 print(f"? Failed to stop: {response.text}")
         except httpx.ConnectError:
             print("? Cannot connect to API server")
-    
+
     elif args.platform_command == "status":
         try:
             response = httpx.get(f"{base_url}/api/platform/status", timeout=10)
@@ -135,7 +138,7 @@ def run_platform_command(args):
                 print(f"? Error: {response.text}")
         except httpx.ConnectError:
             print("? Cannot connect to API server")
-    
+
     elif args.platform_command == "stats":
         try:
             response = httpx.get(f"{base_url}/api/platform/stats", timeout=10)
@@ -157,7 +160,7 @@ def run_platform_command(args):
 def run_db_command(args):
     """Handle database commands"""
     import subprocess
-    
+
     if args.db_command == "upgrade":
         print("?? Running database migrations...")
         result = subprocess.run(["alembic", "upgrade", "head"], capture_output=True, text=True)
@@ -166,7 +169,7 @@ def run_db_command(args):
             print("? Migrations complete")
         else:
             print(f"? Migration failed: {result.stderr}")
-    
+
     elif args.db_command == "downgrade":
         print("?? Rolling back last migration...")
         result = subprocess.run(["alembic", "downgrade", "-1"], capture_output=True, text=True)
@@ -175,7 +178,7 @@ def run_db_command(args):
             print("? Rollback complete")
         else:
             print(f"? Rollback failed: {result.stderr}")
-    
+
     elif args.db_command == "reset":
         confirm = input("?? This will DELETE all data. Type 'yes' to confirm: ")
         if confirm.lower() == "yes":
@@ -192,15 +195,15 @@ def run_db_command(args):
 def run_tests(args):
     """Run test suite"""
     import subprocess
-    
+
     cmd = ["python", "-m", "pytest", "tests/"]
-    
+
     if args.verbose:
         cmd.append("-v")
-    
+
     if args.coverage:
         cmd.extend(["--cov=app", "--cov-report=term-missing"])
-    
+
     print("?? Running tests...")
     result = subprocess.run(cmd)
     sys.exit(result.returncode)
@@ -217,14 +220,14 @@ def show_version():
 async def check_health():
     """Check system health"""
     import httpx
-    
+
     print("?? Checking system health...\n")
-    
+
     checks = {
         "API Server": "http://localhost:8000/health",
         "Platform": "http://localhost:8000/api/platform/status",
     }
-    
+
     async with httpx.AsyncClient(timeout=5) as client:
         for name, url in checks.items():
             try:
@@ -237,23 +240,27 @@ async def check_health():
                 print(f"? {name}: Not reachable")
             except Exception as e:
                 print(f"? {name}: Error - {e}")
-    
+
     # Check Redis
     try:
         import redis
+
         r = redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
         r.ping()
         print("? Redis: Connected")
     except Exception:
         print("?? Redis: Not available (using in-memory fallback)")
-    
+
     # Check Database
     try:
         from app.config import settings
-        print(f"?? Database URL: {'Configured' if 'postgresql' in settings.database_url else 'SQLite/Default'}")
+
+        print(
+            f"?? Database URL: {'Configured' if 'postgresql' in settings.database_url else 'SQLite/Default'}"
+        )
     except Exception:
         print("?? Database: Configuration not loaded")
-    
+
     print("\n? Health check complete")
 
 

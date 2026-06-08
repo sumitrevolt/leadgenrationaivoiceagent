@@ -2,35 +2,39 @@
 Campaigns API
 Endpoints for campaign management
 """
-from typing import Optional, List
+
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
-from app.automation.campaign_manager import CampaignManager, CampaignStatus, CampaignType
+from app.automation.campaign_manager import CampaignManager
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 
+
 # Pydantic Models
 class CampaignCreate(BaseModel):
     """Create campaign request"""
+
     name: str
     niche: str
     client_name: str
     client_service: str
-    target_cities: List[str] = Field(default_factory=list)
+    target_cities: list[str] = Field(default_factory=list)
     target_lead_count: int = 500
     daily_call_limit: int = 100
-    notify_whatsapp: List[str] = Field(default_factory=list)
-    notify_email: List[str] = Field(default_factory=list)
+    notify_whatsapp: list[str] = Field(default_factory=list)
+    notify_email: list[str] = Field(default_factory=list)
     sync_to_sheets: bool = True
     sync_to_hubspot: bool = False
 
 
 class CampaignResponse(BaseModel):
     """Campaign response"""
+
     id: str
     name: str
     niche: str
@@ -46,6 +50,7 @@ class CampaignResponse(BaseModel):
 
 class CampaignStats(BaseModel):
     """Campaign statistics"""
+
     id: str
     name: str
     status: str
@@ -63,21 +68,18 @@ class CampaignStats(BaseModel):
 campaign_manager = CampaignManager()
 
 
-@router.get("/", response_model=List[dict])
-async def list_campaigns(
-    status: Optional[str] = None,
-    niche: Optional[str] = None
-):
+@router.get("/", response_model=list[dict])
+async def list_campaigns(status: str | None = None, niche: str | None = None):
     """
     List all campaigns
     """
     campaigns = campaign_manager.list_campaigns()
-    
+
     if status:
         campaigns = [c for c in campaigns if c["status"] == status]
     if niche:
         campaigns = [c for c in campaigns if c["niche"] == niche]
-    
+
     return campaigns
 
 
@@ -108,16 +110,16 @@ async def create_campaign(campaign: CampaignCreate):
         notify_whatsapp=campaign.notify_whatsapp,
         notify_email=campaign.notify_email,
         sync_to_sheets=campaign.sync_to_sheets,
-        sync_to_hubspot=campaign.sync_to_hubspot
+        sync_to_hubspot=campaign.sync_to_hubspot,
     )
-    
+
     logger.info(f"Campaign created: {created.id}")
-    
+
     return {
         "id": created.id,
         "name": created.name,
         "status": created.status.value,
-        "message": "Campaign created successfully"
+        "message": "Campaign created successfully",
     }
 
 
@@ -166,13 +168,13 @@ async def get_campaign_stats(campaign_id: str):
     stats = await campaign_manager.get_campaign_stats(campaign_id)
     if not stats:
         raise HTTPException(status_code=404, detail="Campaign not found")
-    
+
     # Calculate rates
     leads_scraped = stats.get("leads_scraped", 0)
     leads_called = stats.get("leads_called", 0)
     leads_qualified = stats.get("leads_qualified", 0)
     appointments = stats.get("appointments_booked", 0)
-    
+
     return CampaignStats(
         id=stats["id"],
         name=stats["name"],
@@ -184,7 +186,7 @@ async def get_campaign_stats(campaign_id: str):
         callbacks_scheduled=stats.get("callbacks_scheduled", 0),
         connection_rate=leads_called / leads_scraped if leads_scraped > 0 else 0,
         qualification_rate=leads_qualified / leads_called if leads_called > 0 else 0,
-        conversion_rate=appointments / leads_qualified if leads_qualified > 0 else 0
+        conversion_rate=appointments / leads_qualified if leads_qualified > 0 else 0,
     )
 
 
@@ -194,7 +196,7 @@ async def get_available_niches():
     Get list of available niches with scripts
     """
     from app.lead_scraper.scraper_manager import LeadScraperManager
-    
+
     return {
         "niches": list(LeadScraperManager.NICHE_QUERIES.keys()),
         "description": {
@@ -203,8 +205,8 @@ async def get_available_niches():
             "logistics": "Logistics, transport, freight companies",
             "digital_marketing": "Digital marketing agencies",
             "manufacturing": "Manufacturing and industrial businesses",
-            "insurance": "Insurance agencies and brokers"
-        }
+            "insurance": "Insurance agencies and brokers",
+        },
     }
 
 
@@ -214,9 +216,9 @@ async def get_available_cities():
     Get list of available target cities
     """
     from app.lead_scraper.scraper_manager import LeadScraperManager
-    
+
     return {
         "cities": LeadScraperManager.INDIAN_CITIES,
         "tier1": ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai", "Kolkata"],
-        "tier2": ["Pune", "Ahmedabad", "Jaipur", "Lucknow", "Chandigarh", "Indore"]
+        "tier2": ["Pune", "Ahmedabad", "Jaipur", "Lucknow", "Chandigarh", "Indore"],
     }

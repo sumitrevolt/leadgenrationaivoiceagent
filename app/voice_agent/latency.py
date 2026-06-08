@@ -65,16 +65,10 @@ import asyncio
 import re
 import time
 from collections import OrderedDict
+from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    Awaitable,
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
 )
 
 from app.utils.logger import setup_logger
@@ -89,10 +83,37 @@ logger = setup_logger(__name__)
 # Filler words stripped during normalization so semantically-equal utterances
 # collapse to the same cache key (Hinglish-aware). Kept small + safe.
 _FILLERS = {
-    "uh", "um", "uhh", "umm", "hmm", "ah", "eh", "er", "well",
-    "actually", "basically", "like", "so", "ok", "okay", "achha", "acha",
-    "haan", "han", "ji", "bhai", "yaar", "matlab", "toh", "to", "na",
-    "please", "plz", "kya", "are", "arre",
+    "uh",
+    "um",
+    "uhh",
+    "umm",
+    "hmm",
+    "ah",
+    "eh",
+    "er",
+    "well",
+    "actually",
+    "basically",
+    "like",
+    "so",
+    "ok",
+    "okay",
+    "achha",
+    "acha",
+    "haan",
+    "han",
+    "ji",
+    "bhai",
+    "yaar",
+    "matlab",
+    "toh",
+    "to",
+    "na",
+    "please",
+    "plz",
+    "kya",
+    "are",
+    "arre",
 }
 
 # Punctuation incl. the Hindi danda + question mark variants.
@@ -120,10 +141,10 @@ class ResponseCache:
         ttl_s: seconds an entry stays fresh; None / <=0 => never expires.
     """
 
-    def __init__(self, max_size: int = 256, ttl_s: Optional[float] = 1800.0) -> None:
+    def __init__(self, max_size: int = 256, ttl_s: float | None = 1800.0) -> None:
         self.max_size = max(1, int(max_size))
         self.ttl_s = ttl_s if (ttl_s is None or ttl_s > 0) else None
-        self._store: "OrderedDict[str, _CacheEntry]" = OrderedDict()
+        self._store: OrderedDict[str, _CacheEntry] = OrderedDict()
         self.hits = 0
         self.misses = 0
 
@@ -163,7 +184,7 @@ class ResponseCache:
     def _expired(self, entry: _CacheEntry) -> bool:
         return time.monotonic() >= entry.expires_at
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         """
         Look up an answer by RAW utterance (normalized internally). Returns the
         cached string on a fresh hit, else None. Updates hit/miss counters and
@@ -195,9 +216,7 @@ class ResponseCache:
         norm = self.normalize(key)
         if not norm or value is None or value == "":
             return
-        deadline = (
-            float("inf") if self.ttl_s is None else time.monotonic() + self.ttl_s
-        )
+        deadline = float("inf") if self.ttl_s is None else time.monotonic() + self.ttl_s
         if norm in self._store:
             self._store.move_to_end(norm)
         self._store[norm] = _CacheEntry(value=value, expires_at=deadline)
@@ -205,9 +224,7 @@ class ResponseCache:
         while len(self._store) > self.max_size:
             self._store.popitem(last=False)
 
-    async def cached_or(
-        self, fn: Callable[[str], Any], utterance: str
-    ) -> Tuple[str, bool]:
+    async def cached_or(self, fn: Callable[[str], Any], utterance: str) -> tuple[str, bool]:
         """
         Return a cached answer for `utterance` if present, else call `fn`
         (sync OR async) to produce one, cache it, and return it.
@@ -223,7 +240,7 @@ class ResponseCache:
             result = fn(utterance)
             if asyncio.iscoroutine(result) or isinstance(result, Awaitable):
                 result = await result  # type: ignore[assignment]
-            answer = (result or "")
+            answer = result or ""
             answer = answer.strip() if isinstance(answer, str) else str(answer)
         except Exception as e:  # never crash the call
             logger.warning(f"cached_or: generator fn failed: {e}")
@@ -238,7 +255,7 @@ class ResponseCache:
         total = self.hits + self.misses
         return (self.hits / total) if total else 0.0
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         return {
             "size": len(self._store),
             "max_size": self.max_size,
@@ -282,14 +299,14 @@ class FirstSentenceChunker:
     def __init__(self, min_first_chars: int = 12) -> None:
         self.min_first_chars = max(0, int(min_first_chars))
 
-    def _raw_sentences(self, text: str) -> List[str]:
+    def _raw_sentences(self, text: str) -> list[str]:
         """Split into sentences keeping terminating punctuation; whitespace-trim."""
         if not text:
             return []
         text = text.strip()
         if not text:
             return []
-        out: List[str] = []
+        out: list[str] = []
         last = 0
         for m in _SENT_SPLIT_RE.finditer(text):
             end = m.end(1)  # include the punctuation, exclude trailing space
@@ -303,7 +320,7 @@ class FirstSentenceChunker:
             out.append(tail)
         return out
 
-    def split_for_tts(self, text: str) -> Tuple[str, str]:
+    def split_for_tts(self, text: str) -> tuple[str, str]:
         """
         Return (first_sentence, remainder).
 
@@ -458,7 +475,7 @@ class TurnTimer:
         self.total_ms = (now - self.start) * 1000.0
         return self.total_ms
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "ttft_ms": round(self.ttft_ms, 1),
             "total_ms": round(self.total_ms, 1),
@@ -482,9 +499,9 @@ class LatencyOptimizer:
 
     def __init__(
         self,
-        cache: Optional[ResponseCache] = None,
-        chunker: Optional[FirstSentenceChunker] = None,
-        partial_buffer: Optional[PartialTranscriptBuffer] = None,
+        cache: ResponseCache | None = None,
+        chunker: FirstSentenceChunker | None = None,
+        partial_buffer: PartialTranscriptBuffer | None = None,
     ) -> None:
         self.cache = cache or ResponseCache()
         self.chunker = chunker or FirstSentenceChunker()
@@ -498,7 +515,7 @@ class LatencyOptimizer:
 
     # -- warmup ------------------------------------------------------------
 
-    def prewarm(self, providers: Optional[Any] = None) -> None:
+    def prewarm(self, providers: Any | None = None) -> None:
         """
         Optional, no-op-safe parallel-warmup hook. Touches provider singletons so
         the first REAL turn doesn't pay construction/connection cost. Accepts a
@@ -539,7 +556,7 @@ class LatencyOptimizer:
         if timer.cache_hit:
             self._cache_hits += 1
 
-    def metrics(self) -> Dict[str, Any]:
+    def metrics(self) -> dict[str, Any]:
         """
         Aggregate latency summary: turn count, avg TTFT, avg total, and cache
         hit-rate (combining timer-level hits with the cache's own counters).
@@ -565,8 +582,8 @@ class LatencyOptimizer:
         self,
         generate_fn: Callable[[str], Any],
         utterance: str,
-        kb: Optional[Any] = None,
-    ) -> Tuple[str, TurnTimer]:
+        kb: Any | None = None,
+    ) -> tuple[str, TurnTimer]:
         """
         Produce a reply for `utterance` on the lowest-latency path and return
         (text, TurnTimer). Order:
@@ -613,7 +630,7 @@ class LatencyOptimizer:
         return text, timer
 
     @staticmethod
-    async def _try_kb(kb: Optional[Any], utterance: str) -> str:
+    async def _try_kb(kb: Any | None, utterance: str) -> str:
         """Resolve an optional KB instant answer. Tolerant + never raises."""
         if kb is None:
             return ""
@@ -642,7 +659,7 @@ class LatencyOptimizer:
 # MODULE SINGLETON
 # =============================================================================
 
-_optimizer: Optional[LatencyOptimizer] = None
+_optimizer: LatencyOptimizer | None = None
 
 
 def get_optimizer() -> LatencyOptimizer:

@@ -24,16 +24,18 @@ Usage:
         say(fp.next("thinking"))      # har baar alag filler, repeat avoid
     # phir asli reply bol do
 """
+
 from __future__ import annotations
 
 import random
-from typing import Dict, List, Optional
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -45,62 +47,110 @@ except Exception:  # pragma: no cover
 #   transition   -> topic / step badalte waqt smooth bridge ("dekhiye...", "to...")
 #   empathy      -> objection / hesitation par warmth ("samajh sakti hoon...")
 # --------------------------------------------------------------------------- #
-FILLERS: Dict[str, Dict[str, List[str]]] = {
+FILLERS: dict[str, dict[str, list[str]]] = {
     "hinglish": {
         "thinking": [
-            "ek second...", "hmm theek hai...", "ek minute...",
-            "haan dekhiye...", "let me check...", "ruko zara...",
-            "achha...", "ek second, dekh leti hoon...",
+            "ek second...",
+            "hmm theek hai...",
+            "ek minute...",
+            "haan dekhiye...",
+            "let me check...",
+            "ruko zara...",
+            "achha...",
+            "ek second, dekh leti hoon...",
         ],
         "acknowledge": [
-            "haan...", "achha...", "theek hai...", "samajh gayi...",
-            "bilkul...", "ji haan...", "hmm...", "right...",
+            "haan...",
+            "achha...",
+            "theek hai...",
+            "samajh gayi...",
+            "bilkul...",
+            "ji haan...",
+            "hmm...",
+            "right...",
         ],
         "transition": [
-            "to dekhiye...", "achha ek baat...", "waise...",
-            "to phir...", "ek cheez bataiye...", "chaliye...",
+            "to dekhiye...",
+            "achha ek baat...",
+            "waise...",
+            "to phir...",
+            "ek cheez bataiye...",
+            "chaliye...",
         ],
         "empathy": [
-            "samajh sakti hoon...", "bilkul, koi baat nahi...",
-            "haan sahi baat hai...", "main samajhti hoon...",
-            "no problem...", "koi pressure nahi...",
+            "samajh sakti hoon...",
+            "bilkul, koi baat nahi...",
+            "haan sahi baat hai...",
+            "main samajhti hoon...",
+            "no problem...",
+            "koi pressure nahi...",
         ],
     },
     "hi": {
         "thinking": [
-            "ek pal...", "ek kshan...", "haan dekhiye...",
-            "thodi der...", "rukiye zara...", "achha...",
+            "ek pal...",
+            "ek kshan...",
+            "haan dekhiye...",
+            "thodi der...",
+            "rukiye zara...",
+            "achha...",
         ],
         "acknowledge": [
-            "haan...", "achha...", "theek hai...", "ji...",
-            "samajh gaya...", "bilkul...",
+            "haan...",
+            "achha...",
+            "theek hai...",
+            "ji...",
+            "samajh gaya...",
+            "bilkul...",
         ],
         "transition": [
-            "to...", "achha ek baat...", "ek prashn...",
-            "aage badhte hain...", "chaliye...",
+            "to...",
+            "achha ek baat...",
+            "ek prashn...",
+            "aage badhte hain...",
+            "chaliye...",
         ],
         "empathy": [
-            "main samajhta hoon...", "koi baat nahi...",
-            "bilkul sahi...", "aapki baat sahi hai...",
+            "main samajhta hoon...",
+            "koi baat nahi...",
+            "bilkul sahi...",
+            "aapki baat sahi hai...",
         ],
     },
     "en": {
         "thinking": [
-            "one second...", "let me check...", "hmm, okay...",
-            "just a moment...", "give me a sec...", "right...",
+            "one second...",
+            "let me check...",
+            "hmm, okay...",
+            "just a moment...",
+            "give me a sec...",
+            "right...",
             "let me see...",
         ],
         "acknowledge": [
-            "yeah...", "okay...", "got it...", "sure...",
-            "right...", "mm-hmm...", "understood...",
+            "yeah...",
+            "okay...",
+            "got it...",
+            "sure...",
+            "right...",
+            "mm-hmm...",
+            "understood...",
         ],
         "transition": [
-            "so...", "okay, so...", "one thing...", "by the way...",
-            "alright...", "let me ask you...",
+            "so...",
+            "okay, so...",
+            "one thing...",
+            "by the way...",
+            "alright...",
+            "let me ask you...",
         ],
         "empathy": [
-            "i understand...", "no worries...", "that's fair...",
-            "totally get it...", "i hear you...", "no pressure...",
+            "i understand...",
+            "no worries...",
+            "that's fair...",
+            "totally get it...",
+            "i hear you...",
+            "no pressure...",
         ],
     },
 }
@@ -109,7 +159,7 @@ _DEFAULT_LANG = "hinglish"
 _DEFAULT_CATEGORY = "thinking"
 
 
-def _resolve_lang(lang: Optional[str]) -> str:
+def _resolve_lang(lang: str | None) -> str:
     """User-provided lang ko supported bank key me map karo (defensive)."""
     if not lang:
         return _DEFAULT_LANG
@@ -126,15 +176,21 @@ def _resolve_lang(lang: Optional[str]) -> str:
     return _DEFAULT_LANG
 
 
-def _resolve_category(category: Optional[str]) -> str:
+def _resolve_category(category: str | None) -> str:
     if not category:
         return _DEFAULT_CATEGORY
     low = category.lower().strip()
     aliases = {
-        "think": "thinking", "latency": "thinking", "wait": "thinking",
-        "ack": "acknowledge", "backchannel": "acknowledge",
-        "bridge": "transition", "transit": "transition",
-        "empathize": "empathy", "empathetic": "empathy", "reassure": "empathy",
+        "think": "thinking",
+        "latency": "thinking",
+        "wait": "thinking",
+        "ack": "acknowledge",
+        "backchannel": "acknowledge",
+        "bridge": "transition",
+        "transit": "transition",
+        "empathize": "empathy",
+        "empathetic": "empathy",
+        "reassure": "empathy",
     }
     low = aliases.get(low, low)
     return low if low in FILLERS[_DEFAULT_LANG] else _DEFAULT_CATEGORY
@@ -143,7 +199,7 @@ def _resolve_category(category: Optional[str]) -> str:
 def pick_filler(
     lang: str = "hinglish",
     context: str = "thinking",
-    avoid: Optional[str] = None,
+    avoid: str | None = None,
 ) -> str:
     """Ek chhota natural filler return karo (language + context aware).
 
@@ -187,9 +243,9 @@ class FillerPlayer:
         """
         self.lang = _resolve_lang(lang)
         self.memory = max(1, int(memory))
-        self._recent: List[str] = []
+        self._recent: list[str] = []
 
-    def next(self, category: str = "thinking", lang: Optional[str] = None) -> str:
+    def next(self, category: str = "thinking", lang: str | None = None) -> str:
         """Agla anti-repeat filler do.
 
         Args:
@@ -218,7 +274,7 @@ class FillerPlayer:
         return choice
 
     @property
-    def last(self) -> Optional[str]:
+    def last(self) -> str | None:
         """Sabse recent diya gaya filler (ya None)."""
         return self._recent[-1] if self._recent else None
 

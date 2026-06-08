@@ -17,7 +17,8 @@ API notes (IMPORTANT — discovered the hard way):
 
 Import-safe: no network at import time; httpx is imported lazily inside methods.
 """
-from typing import Any, Dict, Optional
+
+from typing import Any
 from xml.sax.saxutils import escape
 
 from app.config import settings
@@ -42,7 +43,7 @@ class VobizClient:
         """True when account credentials are configured."""
         return bool(self.auth_id and self.auth_token)
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         return {
             "X-Auth-ID": self.auth_id,
             "X-Auth-Token": self.auth_token,
@@ -50,7 +51,7 @@ class VobizClient:
         }
 
     @staticmethod
-    def _safe_body(resp: Any) -> Dict[str, Any]:
+    def _safe_body(resp: Any) -> dict[str, Any]:
         try:
             body = resp.json()
             return body if isinstance(body, dict) else {"data": body}
@@ -61,11 +62,11 @@ class VobizClient:
         self,
         to: str,
         answer_url: str,
-        from_: Optional[str] = None,
+        from_: str | None = None,
         call_type: str = "transactional",
         skip_compliance: bool = False,
         **extra: Any,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """POST {base}/Call/ — place an outbound call (capital C + trailing slash).
 
         COMPLIANCE: every call first passes the ComplianceGate (DND + calling
@@ -80,23 +81,35 @@ class VobizClient:
         """
         if not skip_compliance:
             try:
-                from app.telephony.compliance import get_compliance_gate, CallType
+                from app.telephony.compliance import CallType, get_compliance_gate
 
-                ct = CallType(call_type) if call_type in (c.value for c in CallType) else CallType.TRANSACTIONAL
+                ct = (
+                    CallType(call_type)
+                    if call_type in (c.value for c in CallType)
+                    else CallType.TRANSACTIONAL
+                )
                 decision = await get_compliance_gate().check(to, ct)
                 if not decision.allowed:
                     logger.warning(f"Vobiz place_call blocked by compliance: {decision.reasons}")
-                    return {"status_code": 0, "blocked": True,
-                            "compliance": decision.as_dict(),
-                            "body": {"error": "blocked_by_compliance", "reasons": decision.reasons}}
+                    return {
+                        "status_code": 0,
+                        "blocked": True,
+                        "compliance": decision.as_dict(),
+                        "body": {"error": "blocked_by_compliance", "reasons": decision.reasons},
+                    }
             except Exception as e:
                 # Gate failure must not silently allow promo dialing.
                 if (call_type or "").lower() == "promotional":
-                    logger.error(f"Vobiz place_call: compliance gate error on promo call ({e}) — blocking.")
-                    return {"status_code": 0, "blocked": True,
-                            "body": {"error": "compliance_gate_error", "detail": str(e)}}
+                    logger.error(
+                        f"Vobiz place_call: compliance gate error on promo call ({e}) — blocking."
+                    )
+                    return {
+                        "status_code": 0,
+                        "blocked": True,
+                        "body": {"error": "compliance_gate_error", "detail": str(e)},
+                    }
                 logger.debug(f"Vobiz place_call: compliance gate skipped ({e}).")
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "from": from_ or settings.vobiz_caller_id or settings.vobiz_sip_user,
             "to": to,
             "answer_url": answer_url,
@@ -116,7 +129,7 @@ class VobizClient:
             logger.error(f"Vobiz place_call failed: {e}")
             return {"status_code": 0, "body": {"error": str(e)}}
 
-    async def get_balance(self) -> Dict[str, Any]:
+    async def get_balance(self) -> dict[str, Any]:
         """GET {base}/ — account details (incl. balance). Never raises."""
         try:
             import httpx  # lazy

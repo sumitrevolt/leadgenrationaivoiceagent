@@ -30,18 +30,21 @@ Usage example:
         result = await runner.step(flow, state, user_input="...")
     print(state.captured, state.outcome)
 """
+
 from __future__ import annotations
 
-from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass, field
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+from typing import Any
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover - logger should always import
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -49,15 +52,17 @@ except Exception:  # pragma: no cover - logger should always import
 # NODE / FLOW MODEL
 # =============================================================================
 
+
 class NodeType(Enum):
     """Types of nodes in a conversation flow graph."""
-    GREETING = "greeting"      # opening line of the call
-    QUESTION = "question"      # asks a qualification question, expects an answer
-    CONDITION = "condition"    # branches based on captured signals (no caller text)
-    CAPTURE = "capture"        # stores a piece of info (name/email/phone/etc.)
-    TRANSFER = "transfer"      # hand off to a human / book a meeting
-    MESSAGE = "message"        # speak a line, then move on
-    END = "end"                # terminal node, call finishes
+
+    GREETING = "greeting"  # opening line of the call
+    QUESTION = "question"  # asks a qualification question, expects an answer
+    CONDITION = "condition"  # branches based on captured signals (no caller text)
+    CAPTURE = "capture"  # stores a piece of info (name/email/phone/etc.)
+    TRANSFER = "transfer"  # hand off to a human / book a meeting
+    MESSAGE = "message"  # speak a line, then move on
+    END = "end"  # terminal node, call finishes
 
 
 @dataclass
@@ -80,13 +85,14 @@ class FlowNode:
                        - condition_kind: how a CONDITION node evaluates
                          ("interest_score" is the built-in default).
     """
+
     id: str
     type: NodeType
     text: str = ""
-    transitions: Dict[str, str] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    transitions: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def next_for(self, condition: str) -> Optional[str]:
+    def next_for(self, condition: str) -> str | None:
         """Return the next node id for a condition label, or the default."""
         if condition in self.transitions:
             return self.transitions[condition]
@@ -104,12 +110,13 @@ class ConversationFlow:
         nodes:         Mapping of node id -> FlowNode.
         start_node_id: Where the conversation begins.
     """
+
     id: str
     name: str
-    nodes: Dict[str, FlowNode] = field(default_factory=dict)
+    nodes: dict[str, FlowNode] = field(default_factory=dict)
     start_node_id: str = ""
 
-    def get_node(self, node_id: Optional[str]) -> Optional[FlowNode]:
+    def get_node(self, node_id: str | None) -> FlowNode | None:
         """Look up a node by id (None-safe)."""
         if not node_id:
             return None
@@ -119,7 +126,7 @@ class ConversationFlow:
         """Register a node in the flow."""
         self.nodes[node.id] = node
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """
         Structural validation of the graph.
 
@@ -132,7 +139,7 @@ class ConversationFlow:
         Returns:
             A list of human-readable issue strings. Empty list == valid.
         """
-        issues: List[str] = []
+        issues: list[str] = []
 
         if not self.nodes:
             issues.append("Flow has no nodes.")
@@ -187,6 +194,7 @@ class ConversationFlow:
 # RUNTIME STATE
 # =============================================================================
 
+
 @dataclass
 class FlowState:
     """
@@ -204,24 +212,26 @@ class FlowState:
         interest_score:  Running interest/lead signal score (0..100-ish).
         meta:            Free-form scratch space.
     """
-    current_node_id: str = ""
-    captured: Dict[str, Any] = field(default_factory=dict)
-    history: List[Dict[str, Any]] = field(default_factory=list)
-    finished: bool = False
-    outcome: Optional[str] = None
-    interest_score: int = 0
-    meta: Dict[str, Any] = field(default_factory=dict)
 
-    def log(self, role: str, content: str, node_id: str,
-            intent: Optional[str] = None) -> None:
+    current_node_id: str = ""
+    captured: dict[str, Any] = field(default_factory=dict)
+    history: list[dict[str, Any]] = field(default_factory=list)
+    finished: bool = False
+    outcome: str | None = None
+    interest_score: int = 0
+    meta: dict[str, Any] = field(default_factory=dict)
+
+    def log(self, role: str, content: str, node_id: str, intent: str | None = None) -> None:
         """Append a turn to the history log."""
-        self.history.append({
-            "role": role,
-            "content": content,
-            "node_id": node_id,
-            "intent": intent,
-            "timestamp": datetime.now().isoformat(),
-        })
+        self.history.append(
+            {
+                "role": role,
+                "content": content,
+                "node_id": node_id,
+                "intent": intent,
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
 
 # =============================================================================
@@ -234,8 +244,22 @@ _NEGATIVE_INTENTS = {"not_interested", "opt_out"}
 _POSITIVE_INTENTS = {"interested", "appointment_interest"}
 
 # Cheap rule-based yes/no detection for the LLM-free fallback path.
-_YES_WORDS = {"yes", "yeah", "yep", "haan", "ha", "ji", "sure", "ok", "okay",
-              "of course", "definitely", "absolutely", "bilkul", "han"}
+_YES_WORDS = {
+    "yes",
+    "yeah",
+    "yep",
+    "haan",
+    "ha",
+    "ji",
+    "sure",
+    "ok",
+    "okay",
+    "of course",
+    "definitely",
+    "absolutely",
+    "bilkul",
+    "han",
+}
 _NO_WORDS = {"no", "nope", "nahi", "nahin", "not", "never", "na"}
 
 
@@ -252,8 +276,7 @@ class FlowRunner:
     walk using each node's transitions and simple keyword matching.
     """
 
-    def __init__(self, llm_brain: Optional[Any] = None,
-                 intent_detector: Optional[Any] = None):
+    def __init__(self, llm_brain: Any | None = None, intent_detector: Any | None = None):
         """
         Args:
             llm_brain:        Optional pre-built LLMBrain instance. If None the
@@ -281,8 +304,8 @@ class FlowRunner:
         self,
         flow: ConversationFlow,
         state: FlowState,
-        user_input: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        user_input: str | None = None,
+    ) -> dict[str, Any]:
         """
         Advance the conversation by one turn.
 
@@ -316,7 +339,7 @@ class FlowRunner:
             state.outcome = state.outcome or "error"
             return self._result("", state, None)
 
-        intent: Optional[str] = None
+        intent: str | None = None
 
         # 1) Process the caller's utterance against the current node.
         if user_input:
@@ -388,7 +411,7 @@ class FlowRunner:
             return "cold"
         return "default"
 
-    def _choose_next(self, node, state, user_input, intent) -> Optional[str]:
+    def _choose_next(self, node, state, user_input, intent) -> str | None:
         """
         Pick the next node id from the current node given the caller's reply.
 
@@ -427,7 +450,7 @@ class FlowRunner:
         return node.transitions.get("default") or next(iter(node.transitions.values()))
 
     @staticmethod
-    def _yes_no(text: Optional[str]) -> Optional[str]:
+    def _yes_no(text: str | None) -> str | None:
         """Very small rule-based yes/no classifier (Hinglish aware)."""
         if not text:
             return None
@@ -490,15 +513,15 @@ class FlowRunner:
             return base
 
         try:
-            captured_summary = ", ".join(
-                f"{k}={v}" for k, v in list(state.captured.items())[:6]
-            ) or "none yet"
+            captured_summary = (
+                ", ".join(f"{k}={v}" for k, v in list(state.captured.items())[:6]) or "none yet"
+            )
             prompt = (
                 "You are a friendly B2B voice sales agent on a live call. "
                 "Rephrase the following line so it sounds natural and "
                 "conversational (Hinglish is fine). Keep it to 1-2 short "
                 "sentences. Do NOT add explanations.\n\n"
-                f"Line: \"{base}\"\n"
+                f'Line: "{base}"\n'
                 f"Known so far: {captured_summary}\n\n"
                 "Rephrased line:"
             )
@@ -520,6 +543,7 @@ class FlowRunner:
         self._llm_attempted = True
         try:
             from app.voice_agent.llm_brain import LLMBrain
+
             self._llm = LLMBrain()
             logger.info("🧠 FlowRunner attached LLMBrain")
         except Exception as e:
@@ -527,7 +551,7 @@ class FlowRunner:
             self._llm = None
         return self._llm
 
-    async def _detect_intent(self, text: str) -> Optional[str]:
+    async def _detect_intent(self, text: str) -> str | None:
         """Detect intent via IntentDetector; fall back to keyword heuristics."""
         detector = self._get_intent()
         if detector is not None:
@@ -556,6 +580,7 @@ class FlowRunner:
         self._intent_attempted = True
         try:
             from app.voice_agent.intent_detector import IntentDetector
+
             # use_llm_fallback=False keeps it fast + side-effect free here.
             self._intent = IntentDetector(use_llm_fallback=False)
             logger.info("🎯 FlowRunner attached IntentDetector")
@@ -567,7 +592,7 @@ class FlowRunner:
     # ----- internal: result helper ---------------------------------------
 
     @staticmethod
-    def _result(agent_text, state, intent, node_type=None) -> Dict[str, Any]:
+    def _result(agent_text, state, intent, node_type=None) -> dict[str, Any]:
         node_type_value = node_type.value if isinstance(node_type, NodeType) else node_type
         return {
             "agent_text": agent_text,

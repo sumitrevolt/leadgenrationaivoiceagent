@@ -22,6 +22,7 @@ har ek me intro + 4-6 H2 sections + ek closing CTA hai. CTA hamesha:
 Import-safe: free_ai/NICHES na milein to bhi load hota hai aur templates se
 kaam chalta hai. Koi function raise nahi karta.
 """
+
 from __future__ import annotations
 
 import json
@@ -30,7 +31,7 @@ import re
 from datetime import datetime, timezone
 from html import escape as _esc
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -51,6 +52,7 @@ except Exception:  # pragma: no cover
 try:  # custom niches bhi pick ho jaayein (best-effort)
     from app.niches import refresh_custom_niches as _refresh_niches  # type: ignore
 except Exception:  # pragma: no cover
+
     def _refresh_niches() -> None:  # type: ignore
         return None
 
@@ -64,10 +66,10 @@ _WA = "wa.me/918459012607"
 _CTA_LINE = f"FREE Google audit: {_AUDIT_URL} | WhatsApp: {_WA}"
 
 # Programmatic SEO cities (high-intent local-biz search markets) ----------- #
-CITIES: List[str] = ["Pune", "Mumbai", "Nagpur", "Delhi", "Bangalore"]
+CITIES: list[str] = ["Pune", "Mumbai", "Nagpur", "Delhi", "Bangalore"]
 
 # Evergreen Hinglish topic templates ({niche}/{city} fill hote hain) ------- #
-TOPICS: List[str] = [
+TOPICS: list[str] = [
     "{niche} ki marketing kaise badhaye {city} me",
     "{niche} ke liye Instagram aur Google marketing tips",
     "{city} me {niche} business ke liye festival marketing ideas",
@@ -81,6 +83,7 @@ TOPICS: List[str] = [
 # Helpers
 # ============================================================================ #
 
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -90,7 +93,7 @@ def _slugify(s: str) -> str:
     return s[:90] or "article"
 
 
-def _niche_cfg(niche: str) -> Dict[str, Any]:
+def _niche_cfg(niche: str) -> dict[str, Any]:
     try:
         return NICHES.get((niche or "").strip().lower(), {}) or {}
     except Exception:
@@ -106,17 +109,17 @@ def _niche_name(niche: str) -> str:
     return key.replace("_", " ").title()
 
 
-def _content_focus(niche: str) -> List[str]:
+def _content_focus(niche: str) -> list[str]:
     cfg = _niche_cfg(niche)
     foc = cfg.get("content_focus") or []
     out = [str(f).strip() for f in foc if str(f).strip()]
     return out or ["social posts", "Google Business Profile", "festival posters", "reviews"]
 
 
-def _marketing_niches() -> List[str]:
+def _marketing_niches() -> list[str]:
     """category 'marketing' ya 'both' wale niche keys (programmatic SEO target)."""
     _refresh_niches()
-    keys: List[str] = []
+    keys: list[str] = []
     try:
         for k, cfg in NICHES.items():
             if (cfg or {}).get("category") in ("marketing", "both"):
@@ -167,7 +170,7 @@ def _focus_label(f: str) -> str:
 # ============================================================================ #
 
 # Universal, niche-agnostic free tips (har article me kaam ke aate hain).
-_UNIVERSAL_TIPS: List[str] = [
+_UNIVERSAL_TIPS: list[str] = [
     "Roz ek post karein — consistency hi sabse bada free hack hai. Google aur "
     "Instagram dono active business ko upar dikhate hain.",
     "Har post me apna area/city ka naam daalein (jaise '{city} me best {niche}') "
@@ -181,16 +184,15 @@ _UNIVERSAL_TIPS: List[str] = [
 ]
 
 
-def _template_article(niche: str, city: str, topic: str) -> Dict[str, str]:
+def _template_article(niche: str, city: str, topic: str) -> dict[str, str]:
     """Deterministic, useful Hinglish article (LLM bilkul na chale tab bhi)."""
     name = _niche_name(niche)
     focus = _content_focus(niche)
-    city_in = f" {city}" if city else ""
     city_phrase = f"{city} me " if city else ""
 
     title = topic.strip() or f"{name} ki marketing kaise badhaye"
 
-    parts: List[str] = []
+    parts: list[str] = []
     # Intro
     parts.append(
         f"<p>Aaj ke time me {city_phrase}{name} chalana sirf accha kaam karne "
@@ -262,55 +264,74 @@ def _focus_body(f: str, name: str, city: str) -> str:
     f = (f or "").strip().lower()
     in_city = f" {city} me" if city else ""
     bodies = {
-        "reels": (f"Short reels (15-30 second) aaj ki sabse badi free reach hain. "
-                  f"{name} ke liye apne kaam, behind-the-scenes ya ek tip ka reel "
-                  f"banaye — trending audio lagaye aur hafte me 2-3 reels zaroor "
-                  f"daalein. Reels nayi audience tak pahunchte hain jo aapko "
-                  f"follow nahi karti."),
-        "reviews": (f"Google reviews aapki local ranking ka sabse bada factor "
-                    f"hain. Har khush customer se politely review maangein — ek "
-                    f"WhatsApp link bhej dein jisse wo 30 second me review de "
-                    f"sakein. Jitne zyada 4-5 star reviews, utna upar aapka "
-                    f"business{in_city} dikhega."),
-        "festival posters": (f"Har festival ek free marketing mauka hai. {name} "
-                             f"ke liye Diwali, Holi, Eid, Raksha Bandhan jaise har "
-                             f"tyohaar pe poster pehle se taiyaar rakhein — apne "
-                             f"naam, number aur ek chhote offer ke saath. Log "
-                             f"festival posts zyada share karte hain."),
-        "gbp optimization": (f"Google Business Profile (GBP) free me aapki dukaan "
-                             f"ko 'near me' searches me laata hai. Profile 100% "
-                             f"bharein, hafte me photos daalein, har review ka "
-                             f"reply dein aur sahi category chunein — yahi sabse "
-                             f"sasta aur asar-daar lever hai."),
-        "menu posters": (f"Apne menu ya popular items ke clean posters banaye aur "
-                         f"Instagram + WhatsApp status pe share karein. Photo "
-                         f"acchi ho toh log bina poochhe order kar dete hain — "
-                         f"price clearly likhein."),
-        "before-after reels": (f"Before-after content sabse zyada bikta hai kyunki "
-                               f"usme result saaf dikhta hai. {name} ke liye "
-                               f"customer ki permission le ke transformation reel "
-                               f"banaye — yahi naye customers ko convince karta hai."),
-        "lead forms": (f"Website ya Instagram bio me ek simple lead-capture form/"
-                       f"link lagaye taaki interested log apna number chhod sakein. "
-                       f"Phir 5 minute ke andar follow-up karein — jaldi reply "
-                       f"karne wala business hi deal jeetta hai."),
-        "whatsapp offers": (f"WhatsApp par apne regular customers ko hafte me ek "
-                            f"chhota offer ya update bhejein (broadcast list use "
-                            f"karein, har kisi ko alag nahi). {name} ke liye yahi "
-                            f"repeat business laata hai — bilkul free."),
+        "reels": (
+            f"Short reels (15-30 second) aaj ki sabse badi free reach hain. "
+            f"{name} ke liye apne kaam, behind-the-scenes ya ek tip ka reel "
+            f"banaye — trending audio lagaye aur hafte me 2-3 reels zaroor "
+            f"daalein. Reels nayi audience tak pahunchte hain jo aapko "
+            f"follow nahi karti."
+        ),
+        "reviews": (
+            f"Google reviews aapki local ranking ka sabse bada factor "
+            f"hain. Har khush customer se politely review maangein — ek "
+            f"WhatsApp link bhej dein jisse wo 30 second me review de "
+            f"sakein. Jitne zyada 4-5 star reviews, utna upar aapka "
+            f"business{in_city} dikhega."
+        ),
+        "festival posters": (
+            f"Har festival ek free marketing mauka hai. {name} "
+            f"ke liye Diwali, Holi, Eid, Raksha Bandhan jaise har "
+            f"tyohaar pe poster pehle se taiyaar rakhein — apne "
+            f"naam, number aur ek chhote offer ke saath. Log "
+            f"festival posts zyada share karte hain."
+        ),
+        "gbp optimization": (
+            "Google Business Profile (GBP) free me aapki dukaan "
+            "ko 'near me' searches me laata hai. Profile 100% "
+            "bharein, hafte me photos daalein, har review ka "
+            "reply dein aur sahi category chunein — yahi sabse "
+            "sasta aur asar-daar lever hai."
+        ),
+        "menu posters": (
+            "Apne menu ya popular items ke clean posters banaye aur "
+            "Instagram + WhatsApp status pe share karein. Photo "
+            "acchi ho toh log bina poochhe order kar dete hain — "
+            "price clearly likhein."
+        ),
+        "before-after reels": (
+            f"Before-after content sabse zyada bikta hai kyunki "
+            f"usme result saaf dikhta hai. {name} ke liye "
+            f"customer ki permission le ke transformation reel "
+            f"banaye — yahi naye customers ko convince karta hai."
+        ),
+        "lead forms": (
+            "Website ya Instagram bio me ek simple lead-capture form/"
+            "link lagaye taaki interested log apna number chhod sakein. "
+            "Phir 5 minute ke andar follow-up karein — jaldi reply "
+            "karne wala business hi deal jeetta hai."
+        ),
+        "whatsapp offers": (
+            f"WhatsApp par apne regular customers ko hafte me ek "
+            f"chhota offer ya update bhejein (broadcast list use "
+            f"karein, har kisi ko alag nahi). {name} ke liye yahi "
+            f"repeat business laata hai — bilkul free."
+        ),
     }
     if f in bodies:
         return bodies[f]
     label = f.replace("-", " ").replace("_", " ")
-    return (f"{label.capitalize()} {name} ki marketing ka ek important hissa hai. "
-            f"Ise regularly aur achhi quality me karein — apne area ka naam "
-            f"daalein, photos clear rakhein aur har post pe ek clear call-to-action "
-            f"(call/WhatsApp) dein taaki customer turant action le sake.")
+    return (
+        f"{label.capitalize()} {name} ki marketing ka ek important hissa hai. "
+        f"Ise regularly aur achhi quality me karein — apne area ka naam "
+        f"daalein, photos clear rakhein aur har post pe ek clear call-to-action "
+        f"(call/WhatsApp) dein taaki customer turant action le sake."
+    )
 
 
 # ============================================================================ #
 # LLM article (LLM-first; template fallback)
 # ============================================================================ #
+
 
 def _strip_md(text: str) -> str:
     """Basic markdown ko clean text me badlo (## , **, * , - ) — clean HTML ke liye."""
@@ -328,8 +349,8 @@ def _llm_to_html(text: str) -> str:
     Markdown headings/bold strip; har line either <h2> (## se) ya <p>.
     """
     lines = (text or "").splitlines()
-    out: List[str] = []
-    buf: List[str] = []
+    out: list[str] = []
+    buf: list[str] = []
 
     def _flush() -> None:
         if buf:
@@ -380,7 +401,8 @@ def _ensure_cta(html_body: str, name: str) -> str:
 # generate_article — LLM-first, template-guaranteed
 # ============================================================================ #
 
-async def generate_article(niche: str, city: str = "", topic: Optional[str] = None) -> Dict[str, Any]:
+
+async def generate_article(niche: str, city: str = "", topic: str | None = None) -> dict[str, Any]:
     """Ek genuinely-useful 500-700 word Hinglish article banao.
 
     Returns: {slug, title, meta_description(<=155), html_body(clean <h2>/<p>),
@@ -392,7 +414,7 @@ async def generate_article(niche: str, city: str = "", topic: Optional[str] = No
 
     if not (topic or "").strip():
         # deterministic-ish topic pick (niche+city pe stable)
-        idx = (abs(hash(f"{niche}|{city}")) % len(TOPICS))
+        idx = abs(hash(f"{niche}|{city}")) % len(TOPICS)
         topic = TOPICS[idx]
     topic = topic.format(niche=name, city=city or "apne sheher").strip()
 
@@ -421,8 +443,10 @@ async def generate_article(niche: str, city: str = "", topic: Optional[str] = No
                 "Is topic par upar diye structure me Hinglish article likho."
             )
             text, provider = await free_ai.chat(
-                system, [{"role": "user", "content": user}],
-                max_tokens=1100, temperature=0.7,
+                system,
+                [{"role": "user", "content": user}],
+                max_tokens=1100,
+                temperature=0.7,
             )
             if text and text.strip():
                 html_body = _llm_to_html(text)
@@ -463,6 +487,7 @@ async def generate_article(niche: str, city: str = "", topic: Optional[str] = No
 # Storage — data/blog/<slug>.json
 # ============================================================================ #
 
+
 def _ensure_dir() -> None:
     try:
         os.makedirs(_BLOG_DIR, exist_ok=True)
@@ -470,7 +495,7 @@ def _ensure_dir() -> None:
         pass
 
 
-def save_article(article: Dict[str, Any]) -> str:
+def save_article(article: dict[str, Any]) -> str:
     """Article ko data/blog/<slug>.json me likho. Slug return karta hai.
 
     Slug uniqueness guarantee: agar slug already exist karta hai (alag content),
@@ -500,7 +525,7 @@ def save_article(article: Dict[str, Any]) -> str:
     return final
 
 
-def get_article(slug: str) -> Optional[Dict[str, Any]]:
+def get_article(slug: str) -> dict[str, Any] | None:
     """Ek article load karo (slug se). None agar nahi mila / corrupt."""
     s = _slugify(slug or "")
     if not s:
@@ -509,15 +534,15 @@ def get_article(slug: str) -> Optional[Dict[str, Any]]:
     try:
         if not os.path.isfile(path):
             return None
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return None
 
 
-def all_slugs() -> List[str]:
+def all_slugs() -> list[str]:
     """Saare published article slugs (filename se)."""
-    out: List[str] = []
+    out: list[str] = []
     try:
         for fn in os.listdir(_BLOG_DIR):
             if fn.endswith(".json"):
@@ -527,25 +552,27 @@ def all_slugs() -> List[str]:
     return out
 
 
-def list_articles(limit: int = 200) -> List[Dict[str, Any]]:
+def list_articles(limit: int = 200) -> list[dict[str, Any]]:
     """Lightweight list (newest first): slug/title/meta/niche/city/created_at."""
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     try:
         for fn in os.listdir(_BLOG_DIR):
             if not fn.endswith(".json"):
                 continue
             path = os.path.join(_BLOG_DIR, fn)
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     a = json.load(f)
-                rows.append({
-                    "slug": a.get("slug") or fn[:-5],
-                    "title": a.get("title") or fn[:-5],
-                    "meta_description": a.get("meta_description") or "",
-                    "niche": a.get("niche") or "",
-                    "city": a.get("city") or "",
-                    "created_at": a.get("created_at") or "",
-                })
+                rows.append(
+                    {
+                        "slug": a.get("slug") or fn[:-5],
+                        "title": a.get("title") or fn[:-5],
+                        "meta_description": a.get("meta_description") or "",
+                        "niche": a.get("niche") or "",
+                        "city": a.get("city") or "",
+                        "created_at": a.get("created_at") or "",
+                    }
+                )
             except Exception:
                 continue
     except Exception:
@@ -562,7 +589,8 @@ def list_articles(limit: int = 200) -> List[Dict[str, Any]]:
 # run_daily_blog — n naye niche×city articles publish karo (never raises)
 # ============================================================================ #
 
-async def run_daily_blog(n: int = 3) -> Dict[str, Any]:
+
+async def run_daily_blog(n: int = 3) -> dict[str, Any]:
     """n niche×city combos (jo abhi tak cover nahi hue) chuno, generate + save.
 
     Returns {"published": n, "slugs": [...]}. log_event("isha","seo_article").
@@ -573,13 +601,13 @@ async def run_daily_blog(n: int = 3) -> Dict[str, Any]:
     except Exception:
         n = 3
 
-    published: List[str] = []
+    published: list[str] = []
     try:
         niches = _marketing_niches()
         existing = set(all_slugs())
 
         # niche×city×topic combos generate karo, jo cover nahi hue unme se pick
-        combos: List[tuple] = []
+        combos: list[tuple] = []
         for niche in niches:
             for city in CITIES:
                 # pehla topic stable; uska slug check (variety topics baad me)
@@ -610,9 +638,12 @@ async def run_daily_blog(n: int = 3) -> Dict[str, Any]:
         try:
             from app.platform.team import log_event
 
-            log_event("isha", "seo_article",
-                      f"{len(published)} articles published",
-                      meta={"slugs": published[:20]})
+            log_event(
+                "isha",
+                "seo_article",
+                f"{len(published)} articles published",
+                meta={"slugs": published[:20]},
+            )
         except Exception:
             pass
 
@@ -629,6 +660,12 @@ async def run_daily_blog(n: int = 3) -> Dict[str, Any]:
 
 
 __all__ = [
-    "TOPICS", "CITIES", "generate_article", "save_article", "get_article",
-    "all_slugs", "list_articles", "run_daily_blog",
+    "TOPICS",
+    "CITIES",
+    "generate_article",
+    "save_article",
+    "get_article",
+    "all_slugs",
+    "list_articles",
+    "run_daily_blog",
 ]

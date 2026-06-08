@@ -32,10 +32,11 @@ Usage from a FastAPI WebSocket route (wired by main.py separately):
         bridge = TwilioMediaStreamBridge()
         await bridge.handle(ws)
 """
+
 import asyncio
 import base64
 import json
-from typing import Any, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -51,14 +52,14 @@ class TwilioMediaStreamBridge:
     pipeline, and writes the pipeline's TTS audio back as outbound media frames.
     """
 
-    def __init__(self, pipeline: Optional[Any] = None):
+    def __init__(self, pipeline: Any | None = None):
         # Optional pre-built pipeline; otherwise lazily resolved on first audio.
         self._pipeline = pipeline
         self._pipeline_tried = pipeline is not None
 
         # Populated from the "start" frame.
-        self.stream_sid: Optional[str] = None
-        self.call_sid: Optional[str] = None
+        self.stream_sid: str | None = None
+        self.call_sid: str | None = None
 
         # Counters for diagnostics.
         self._inbound_frames = 0
@@ -69,7 +70,7 @@ class TwilioMediaStreamBridge:
     # ------------------------------------------------------------------ #
     # Pipeline resolution (lazy, import-safe)
     # ------------------------------------------------------------------ #
-    def _get_pipeline(self) -> Optional[Any]:
+    def _get_pipeline(self) -> Any | None:
         """
         Lazily import + construct app.voice_agent.pipeline.VoicePipeline.
 
@@ -83,6 +84,7 @@ class TwilioMediaStreamBridge:
         self._pipeline_tried = True
         try:
             from app.voice_agent.pipeline import VoicePipeline  # type: ignore
+
             self._pipeline = VoicePipeline()
             logger.info("🎙️ MediaStreamBridge: VoicePipeline loaded.")
         except Exception as e:
@@ -114,9 +116,7 @@ class TwilioMediaStreamBridge:
 
     def _encode_mark_frame(self, stream_sid: str, name: str) -> str:
         """Encode a 'mark' frame — lets us know when playback finished."""
-        return json.dumps(
-            {"event": "mark", "streamSid": stream_sid, "mark": {"name": name}}
-        )
+        return json.dumps({"event": "mark", "streamSid": stream_sid, "mark": {"name": name}})
 
     def _encode_clear_frame(self, stream_sid: str) -> str:
         """Encode a 'clear' frame — flush any buffered outbound audio (barge-in)."""
@@ -172,7 +172,7 @@ class TwilioMediaStreamBridge:
             )
 
     @staticmethod
-    def _safe_parse(raw: str) -> Optional[dict]:
+    def _safe_parse(raw: str) -> dict | None:
         """Parse a JSON frame defensively. Returns None on any problem."""
         try:
             data = json.loads(raw)
@@ -194,8 +194,7 @@ class TwilioMediaStreamBridge:
         self.call_sid = start.get("callSid")
         self._started = True
         logger.info(
-            f"▶️ Media stream START (streamSid={self.stream_sid}, "
-            f"callSid={self.call_sid})."
+            f"▶️ Media stream START (streamSid={self.stream_sid}, " f"callSid={self.call_sid})."
         )
 
         # Optionally greet the caller via pipeline (best-effort).
@@ -277,14 +276,12 @@ class TwilioMediaStreamBridge:
         # No known ingest method — nothing to do.
         return None
 
-    async def _send_audio(self, websocket: Any, audio_bytes: Optional[bytes]) -> None:
+    async def _send_audio(self, websocket: Any, audio_bytes: bytes | None) -> None:
         """Send raw mu-law audio back as a Twilio outbound media frame."""
         if not audio_bytes or not self.stream_sid or websocket is None:
             return
         try:
-            await websocket.send_text(
-                self._encode_media_frame(self.stream_sid, audio_bytes)
-            )
+            await websocket.send_text(self._encode_media_frame(self.stream_sid, audio_bytes))
             self._outbound_frames += 1
         except Exception as e:
             logger.debug(f"Failed to send outbound media frame (handled): {e}")

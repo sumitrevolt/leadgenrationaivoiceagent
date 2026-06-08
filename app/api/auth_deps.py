@@ -2,18 +2,16 @@
 Authentication Dependencies
 Centralized authentication for all API endpoints
 """
-from typing import Optional
-from datetime import datetime
-from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from jose import jwt, JWTError
-import os
 
-from app.models.user import User, UserRole, UserStatus
-from app.models.base import get_async_db
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config import settings
+from app.models.base import get_async_db
+from app.models.user import User, UserRole, UserStatus
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -36,8 +34,8 @@ def decode_token(token: str) -> dict:
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: AsyncSession = Depends(get_async_db)
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_async_db),
 ) -> User:
     """
     Get current authenticated user from JWT token
@@ -45,50 +43,48 @@ async def get_current_user(
     """
     if not credentials:
         raise HTTPException(status_code=401, detail="Authentication required")
-    
+
     token = credentials.credentials
-    
+
     try:
         payload = decode_token(token)
         if payload.get("type") != "access":
             raise HTTPException(status_code=401, detail="Invalid token type")
-        
+
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token payload")
-        
+
         # Get user from database
-        result = await db.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
-        
+
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
-        
+
         if user.status == UserStatus.SUSPENDED:
             raise HTTPException(status_code=403, detail="Account suspended")
-        
+
         if user.status == UserStatus.INACTIVE:
             raise HTTPException(status_code=403, detail="Account inactive")
-        
+
         return user
-        
+
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
 async def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: AsyncSession = Depends(get_async_db)
-) -> Optional[User]:
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: AsyncSession = Depends(get_async_db),
+) -> User | None:
     """
     Get current user if authenticated, None otherwise
     Use for endpoints that support both authenticated and unauthenticated access
     """
     if not credentials:
         return None
-    
+
     try:
         return await get_current_user(credentials, db)
     except HTTPException:
@@ -130,13 +126,12 @@ def require_permission(permission: str):
     Decorator factory for requiring specific permissions
     Usage: @router.get("/endpoint", dependencies=[Depends(require_permission("manage_campaigns"))])
     """
+
     async def permission_checker(user: User = Depends(get_current_user)):
         if not user.has_permission(permission):
-            raise HTTPException(
-                status_code=403, 
-                detail=f"Permission denied: {permission} required"
-            )
+            raise HTTPException(status_code=403, detail=f"Permission denied: {permission} required")
         return user
+
     return permission_checker
 
 

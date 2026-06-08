@@ -36,22 +36,26 @@ OpenTelemetry note:
     `opentelemetry.trace.get_tracer(__name__).start_as_current_span(name)`),
     par yahan koi hard dependency NAHI hai — production me OTel optional rahe.
 """
+
 from __future__ import annotations
 
 import json
 import time
 import uuid
 from collections import deque
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Deque, Dict, Iterator, List, Optional
+from typing import Any
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -71,7 +75,7 @@ def _now_ms() -> float:
     return time.time() * 1000.0
 
 
-def _iso(ts_ms: Optional[float]) -> Optional[str]:
+def _iso(ts_ms: float | None) -> str | None:
     if ts_ms is None:
         return None
     return datetime.fromtimestamp(ts_ms / 1000.0, tz=timezone.utc).isoformat()
@@ -90,17 +94,18 @@ def estimate_tokens(text: str) -> int:
 @dataclass
 class Span:
     """Ek single step ka timing record (e.g. one STT / LLM / TTS call)."""
+
     name: str
     start_ms: float
-    end_ms: Optional[float] = None
+    end_ms: float | None = None
     duration_ms: float = 0.0
-    attributes: Dict[str, Any] = field(default_factory=dict)
+    attributes: dict[str, Any] = field(default_factory=dict)
 
-    def close(self, end_ms: Optional[float] = None) -> None:
+    def close(self, end_ms: float | None = None) -> None:
         self.end_ms = _now_ms() if end_ms is None else end_ms
         self.duration_ms = round(max(0.0, self.end_ms - self.start_ms), 3)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "start_ms": round(self.start_ms, 3),
@@ -115,21 +120,27 @@ class Span:
 @dataclass
 class CallTrace:
     """Ek poori call ka trace — spans + events + totals + cost + outcome."""
+
     trace_id: str
     call_id: str
-    started_at: float                       # epoch ms
-    ended_at: Optional[float] = None         # epoch ms
-    spans: List[Span] = field(default_factory=list)
-    events: List[Dict[str, Any]] = field(default_factory=list)
-    totals: Dict[str, float] = field(default_factory=lambda: {
-        "stt_ms": 0.0, "llm_ms": 0.0, "tts_ms": 0.0, "total_ms": 0.0,
-    })
+    started_at: float  # epoch ms
+    ended_at: float | None = None  # epoch ms
+    spans: list[Span] = field(default_factory=list)
+    events: list[dict[str, Any]] = field(default_factory=list)
+    totals: dict[str, float] = field(
+        default_factory=lambda: {
+            "stt_ms": 0.0,
+            "llm_ms": 0.0,
+            "tts_ms": 0.0,
+            "total_ms": 0.0,
+        }
+    )
     token_estimate: int = 0
     cost_estimate_inr: float = 0.0
-    outcome: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    outcome: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "trace_id": self.trace_id,
             "call_id": self.call_id,
@@ -180,7 +191,7 @@ class Tracer:
         telephony_inr_per_min: float = DEFAULT_TELEPHONY_INR_PER_MIN,
         llm_inr_per_1k_tokens: float = DEFAULT_LLM_INR_PER_1K_TOKENS,
     ):
-        self._buffer: Deque[CallTrace] = deque(maxlen=max(1, buffer_size))
+        self._buffer: deque[CallTrace] = deque(maxlen=max(1, buffer_size))
         self.telephony_inr_per_min = telephony_inr_per_min
         self.llm_inr_per_1k_tokens = llm_inr_per_1k_tokens
 
@@ -196,13 +207,11 @@ class Tracer:
         logger.debug(f"trace start call={call_id} trace_id={trace.trace_id}")
         return trace
 
-    def end_call(self, trace: CallTrace, outcome: Optional[str] = None) -> CallTrace:
+    def end_call(self, trace: CallTrace, outcome: str | None = None) -> CallTrace:
         trace.ended_at = _now_ms()
         if outcome is not None:
             trace.outcome = outcome
-        trace.totals["total_ms"] = round(
-            max(0.0, trace.ended_at - trace.started_at), 3
-        )
+        trace.totals["total_ms"] = round(max(0.0, trace.ended_at - trace.started_at), 3)
         self._recompute_cost(trace)
         logger.debug(
             f"trace end call={trace.call_id} outcome={trace.outcome} "
@@ -249,34 +258,36 @@ class Tracer:
         return sp
 
     # ----------------------- events ----------------------- #
-    def event(self, trace: CallTrace, name: str, data: Optional[Dict[str, Any]] = None) -> None:
+    def event(self, trace: CallTrace, name: str, data: dict[str, Any] | None = None) -> None:
         """Point-in-time marker (intent detected, barge-in, voicemail, error...)."""
-        trace.events.append({
-            "name": name,
-            "at": _iso(_now_ms()),
-            "at_ms": round(_now_ms(), 3),
-            "data": data or {},
-        })
+        trace.events.append(
+            {
+                "name": name,
+                "at": _iso(_now_ms()),
+                "at_ms": round(_now_ms(), 3),
+                "data": data or {},
+            }
+        )
 
     # ----------------------- serialization ----------------------- #
-    def to_dict(self, trace: CallTrace) -> Dict[str, Any]:
+    def to_dict(self, trace: CallTrace) -> dict[str, Any]:
         return trace.to_dict()
 
-    def to_json(self, trace: CallTrace, indent: Optional[int] = 2) -> str:
+    def to_json(self, trace: CallTrace, indent: int | None = 2) -> str:
         return json.dumps(trace.to_dict(), indent=indent, default=str, ensure_ascii=False)
 
     # ----------------------- dashboard read ----------------------- #
-    def recent(self, n: int = 20) -> List[CallTrace]:
+    def recent(self, n: int = 20) -> list[CallTrace]:
         """Last `n` traces (newest last) — dashboard ke liye."""
         if n <= 0:
             return []
         items = list(self._buffer)
         return items[-n:]
 
-    def recent_dicts(self, n: int = 20) -> List[Dict[str, Any]]:
+    def recent_dicts(self, n: int = 20) -> list[dict[str, Any]]:
         return [t.to_dict() for t in self.recent(n)]
 
-    def get(self, trace_id: str) -> Optional[CallTrace]:
+    def get(self, trace_id: str) -> CallTrace | None:
         for t in reversed(self._buffer):
             if t.trace_id == trace_id:
                 return t
@@ -292,7 +303,7 @@ class Tracer:
             trace.totals[bucket] = round(trace.totals.get(bucket, 0.0) + sp.duration_ms, 3)
 
     @staticmethod
-    def _bucket_for(name: str) -> Optional[str]:
+    def _bucket_for(name: str) -> str | None:
         low = (name or "").lower()
         for prefix, bucket in _STEP_BUCKETS.items():
             if low.startswith(prefix) or prefix in low:
@@ -316,7 +327,7 @@ class Tracer:
 # --------------------------------------------------------------------------- #
 # Module singleton
 # --------------------------------------------------------------------------- #
-_TRACER: Optional[Tracer] = None
+_TRACER: Tracer | None = None
 
 
 def get_tracer() -> Tracer:
@@ -328,9 +339,13 @@ def get_tracer() -> Tracer:
 
 
 __all__ = [
-    "Span", "CallTrace", "Tracer", "get_tracer",
+    "Span",
+    "CallTrace",
+    "Tracer",
+    "get_tracer",
     "estimate_tokens",
-    "DEFAULT_TELEPHONY_INR_PER_MIN", "CHARS_PER_TOKEN",
+    "DEFAULT_TELEPHONY_INR_PER_MIN",
+    "CHARS_PER_TOKEN",
 ]
 
 

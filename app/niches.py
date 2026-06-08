@@ -33,11 +33,20 @@ NICHES = {
         "target_type": "b2b",
         "b2b_client": "local businesses needing marketing",
         "end_customer": "business owners",
-        "keywords": ["local business marketing", "ai marketing services", "digital marketing for small business", "google business profile optimization"],
+        "keywords": [
+            "local business marketing",
+            "ai marketing services",
+            "digital marketing for small business",
+            "google business profile optimization",
+        ],
         "avg_deal_value": "₹36,000–1,44,000/yr",
         "avg_ticket_inr": "₹3–12K/mo subscription (₹36K–1.44L/yr LTV)",
         "pitch_hook": "posts, Google ranking, festival posters — plus an AI that calls every inquiry in 2 minutes; no Indian competitor bundles both",
-        "pricing_inr": {"qualified_lead": (300, 1000), "appointment": (800, 2000), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (300, 1000),
+            "appointment": (800, 2000),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi aap apni marketing kaise karte ho — khud, staff, ya agency?",
             "Google pe aapka business search karne par dikhta hai kya?",
@@ -52,11 +61,20 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Brokers, channel partners, builders' sales teams",
         "end_customer": "Property buyers/sellers (site-visit booking, budget/locality qualification)",
-        "keywords": ["real estate agents", "property dealers", "real estate brokers", "channel partners real estate"],
+        "keywords": [
+            "real estate agents",
+            "property dealers",
+            "real estate brokers",
+            "channel partners real estate",
+        ],
         "avg_deal_value": "₹40,00,000+",
         "avg_ticket_inr": "₹40L–1Cr (brokerage 1–2%)",
         "pitch_hook": "every portal lead called in under 5 minutes — site visits booked while competitors are still dialing",
-        "pricing_inr": {"qualified_lead": (800, 2500), "appointment": (3000, 7500), "monthly_starter": 15000},
+        "pricing_inr": {
+            "qualified_lead": (800, 2500),
+            "appointment": (3000, 7500),
+            "monthly_starter": 15000,
+        },
         "qualification_questions": [
             "Are you actively buying leads from portals like 99acres or MagicBricks?",
             "How many site visits does your team complete per week?",
@@ -71,11 +89,19 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Luxury brokers, premium project marketers",
         "end_customer": "HNI investors & buyers (₹2Cr+ properties)",
-        "keywords": ["luxury real estate agents", "premium property dealers", "high end real estate brokers"],
+        "keywords": [
+            "luxury real estate agents",
+            "premium property dealers",
+            "high end real estate brokers",
+        ],
         "avg_deal_value": "₹2,00,00,000+",
         "avg_ticket_inr": "₹2Cr+ (brokerage ₹2L+/deal)",
         "pitch_hook": "re-engage your cold database of HNI investors",
-        "pricing_inr": {"qualified_lead": (3000, 6000), "appointment": (7500, 15000), "monthly_starter": 25000},
+        "pricing_inr": {
+            "qualified_lead": (3000, 6000),
+            "appointment": (7500, 15000),
+            "monthly_starter": 25000,
+        },
         "qualification_questions": [
             "Do you handle properties above 2 Cr?",
             "Are you currently looking for HNI investors?",
@@ -90,11 +116,19 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Overseas education consultancies",
         "end_customer": "Students/parents (country, budget, intake qualification + counseling booking)",
-        "keywords": ["study abroad consultants", "overseas education counsellors", "visa consultants"],
+        "keywords": [
+            "study abroad consultants",
+            "overseas education counsellors",
+            "visa consultants",
+        ],
         "avg_deal_value": "₹2,00,000+",
         "avg_ticket_inr": "₹2–3L commission/enrolled student (10–15% of first-year tuition)",
         "pitch_hook": "every inquiry counselled within minutes — enrollments worth ₹2-3L commission each",
-        "pricing_inr": {"qualified_lead": (1000, 2500), "appointment": (2000, 4000), "monthly_starter": 20000},
+        "pricing_inr": {
+            "qualified_lead": (1000, 2500),
+            "appointment": (2000, 4000),
+            "monthly_starter": 20000,
+        },
         "qualification_questions": [
             "Do you handle admissions for USA/UK/Canada?",
             "Are you looking for students with budget above 20L?",
@@ -109,11 +143,20 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Loan DSAs, mortgage brokers, fintech lending partners",
         "end_customer": "Home-loan seekers (eligibility, ticket size, balance-transfer qualification)",
-        "keywords": ["home loan dsa", "loan agents", "mortgage brokers india", "loan against property agents"],
+        "keywords": [
+            "home loan dsa",
+            "loan agents",
+            "mortgage brokers india",
+            "loan against property agents",
+        ],
         "avg_deal_value": "₹25,00,000+",
         "avg_ticket_inr": "₹23–33L avg ticket (DSA payout 0.5–1.5%)",
         "pitch_hook": "your telecalling team replaced — eligibility-checked, doc-ready borrowers on your calendar",
-        "pricing_inr": {"qualified_lead": (500, 1500), "appointment": (1500, 3000), "monthly_starter": 15000},
+        "pricing_inr": {
+            "qualified_lead": (500, 1500),
+            "appointment": (1500, 3000),
+            "monthly_starter": 15000,
+        },
         "qualification_questions": [
             "Are you an active DSA with bank/NBFC tie-ups?",
             "What loan ticket sizes do you focus on?",
@@ -128,11 +171,19 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Solar installers & EPC dealers (residential)",
         "end_customer": "Homeowners (roof ownership, bill size, subsidy interest → site-survey booking)",
-        "keywords": ["solar installers residential", "rooftop solar dealers", "solar panel installation company"],
+        "keywords": [
+            "solar installers residential",
+            "rooftop solar dealers",
+            "solar panel installation company",
+        ],
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1.5–1.8L per 3kW install (PM Surya Ghar demand)",
         "pitch_hook": "subsidy-curious homeowners qualified for roof & bill size before your surveyor leaves the office",
-        "pricing_inr": {"qualified_lead": (400, 1000), "appointment": (800, 1500), "monthly_starter": 12000},
+        "pricing_inr": {
+            "qualified_lead": (400, 1000),
+            "appointment": (800, 1500),
+            "monthly_starter": 12000,
+        },
         "qualification_questions": [
             "Do you install residential rooftop systems?",
             "Which cities/areas do you cover?",
@@ -147,11 +198,19 @@ NICHES = {
         "target_type": "b2b",
         "b2b_client": "Solar EPC companies (C&I segment)",
         "end_customer": "Factory/warehouse owners (roof suitability, load, capex appetite)",
-        "keywords": ["commercial solar installers", "solar epc companies", "industrial solar solutions"],
+        "keywords": [
+            "commercial solar installers",
+            "solar epc companies",
+            "industrial solar solutions",
+        ],
         "avg_deal_value": "₹20,00,000+",
         "avg_ticket_inr": "₹20L+ per C&I project",
         "pitch_hook": "qualify factory owners for roof suitability before you visit",
-        "pricing_inr": {"qualified_lead": (1500, 3000), "appointment": (3000, 6000), "monthly_starter": 20000},
+        "pricing_inr": {
+            "qualified_lead": (1500, 3000),
+            "appointment": (3000, 6000),
+            "monthly_starter": 20000,
+        },
         "qualification_questions": [
             "Do you handle commercial installations above 100kW?",
             "Are you looking for industrial leads?",
@@ -166,11 +225,20 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Insurance agencies, POSPs, broker teams",
         "end_customer": "Families/professionals (age, cover need, premium budget) — IRDAI/DND compliant",
-        "keywords": ["insurance agents", "health insurance brokers", "term insurance advisors", "posp insurance"],
+        "keywords": [
+            "insurance agents",
+            "health insurance brokers",
+            "term insurance advisors",
+            "posp insurance",
+        ],
         "avg_deal_value": "₹25,000+",
         "avg_ticket_inr": "₹15–50K premium (35–40% first-year commission)",
         "pitch_hook": "renewal reminders + new-policy qualification on autopilot — the classic telesales niche without telecaller churn",
-        "pricing_inr": {"qualified_lead": (300, 800), "appointment": (800, 1500), "monthly_starter": 10000},
+        "pricing_inr": {
+            "qualified_lead": (300, 800),
+            "appointment": (800, 1500),
+            "monthly_starter": 10000,
+        },
         "qualification_questions": [
             "Are you an IRDAI-registered agent/broker/POSP?",
             "Which products do you focus on — health, term, motor?",
@@ -185,18 +253,26 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Test-prep coaching institutes",
         "end_customer": "Parents/students (target exam, class, budget → counseling session booking)",
-        "keywords": ["neet coaching institutes", "jee coaching centers", "upsc coaching", "test prep institutes"],
+        "keywords": [
+            "neet coaching institutes",
+            "jee coaching centers",
+            "upsc coaching",
+            "test prep institutes",
+        ],
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1.5–2.5L/year fees (₹58,000Cr industry)",
         "pitch_hook": "every admission inquiry counselled the same hour — seats filled before parents compare brochures",
-        "pricing_inr": {"qualified_lead": (500, 1200), "appointment": (1000, 2000), "monthly_starter": 15000},
+        "pricing_inr": {
+            "qualified_lead": (500, 1200),
+            "appointment": (1000, 2000),
+            "monthly_starter": 15000,
+        },
         "qualification_questions": [
             "Which exams do you coach for?",
             "What is your annual fee structure?",
             "Do you have admission counselors following up on inquiries today?",
         ],
     },
-
     # ====================================================================== #
     # A-TIER — strong economics, proven phone funnels
     # ====================================================================== #
@@ -212,7 +288,11 @@ NICHES = {
         "avg_deal_value": "₹10,00,000+",
         "avg_ticket_inr": "₹4–20L per 2BHK project",
         "pitch_hook": "possession-ready homeowners qualified by budget before your designer picks up the phone",
-        "pricing_inr": {"qualified_lead": (1000, 2500), "appointment": (2000, 4000), "monthly_starter": 15000},
+        "pricing_inr": {
+            "qualified_lead": (1000, 2500),
+            "appointment": (2000, 4000),
+            "monthly_starter": 15000,
+        },
         "qualification_questions": [
             "Do you handle turnkey residential projects?",
             "What is your minimum project budget?",
@@ -227,11 +307,19 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Modular kitchen brands & showrooms",
         "end_customer": "Homeowners (kitchen size, budget, timeline → showroom/site visit)",
-        "keywords": ["modular kitchen manufacturers", "luxury kitchen showrooms", "italian kitchen dealers"],
+        "keywords": [
+            "modular kitchen manufacturers",
+            "luxury kitchen showrooms",
+            "italian kitchen dealers",
+        ],
         "avg_deal_value": "₹2,00,000+",
         "avg_ticket_inr": "₹1.2–6.5L per kitchen",
         "pitch_hook": "showroom visits from budget-qualified homeowners, not window shoppers",
-        "pricing_inr": {"qualified_lead": (600, 1500), "appointment": (1200, 2500), "monthly_starter": 12000},
+        "pricing_inr": {
+            "qualified_lead": (600, 1500),
+            "appointment": (1200, 2500),
+            "monthly_starter": 12000,
+        },
         "qualification_questions": [
             "Do you manufacture in-house or trade?",
             "Are you looking for direct homeowner leads?",
@@ -250,7 +338,11 @@ NICHES = {
         "avg_deal_value": "₹50,000+",
         "avg_ticket_inr": "₹20–50K/tooth, full-mouth ₹3–8L",
         "pitch_hook": "fill your empty chair slots with high-value implant patients",
-        "pricing_inr": {"qualified_lead": (500, 1500), "appointment": (1000, 2200), "monthly_starter": 12000},
+        "pricing_inr": {
+            "qualified_lead": (500, 1500),
+            "appointment": (1000, 2200),
+            "monthly_starter": 12000,
+        },
         "qualification_questions": [
             "Do you offer dental implants?",
             "Are you looking to increase high-ticket patient footfall?",
@@ -269,7 +361,11 @@ NICHES = {
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1–3.5L per procedure",
         "pitch_hook": "consults booked at half the ₹4,000+ cost-per-qualified-lead you pay ads today",
-        "pricing_inr": {"qualified_lead": (1200, 2500), "appointment": (2000, 4000), "monthly_starter": 15000},
+        "pricing_inr": {
+            "qualified_lead": (1200, 2500),
+            "appointment": (2000, 4000),
+            "monthly_starter": 15000,
+        },
         "qualification_questions": [
             "How many consults does your counselor team handle daily?",
             "What is your average procedure value?",
@@ -288,7 +384,11 @@ NICHES = {
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1–2.5L per cycle",
         "pitch_hook": "compassionate 24/7 intake — every inquiry answered, qualified and booked with a counselor",
-        "pricing_inr": {"qualified_lead": (800, 2200), "appointment": (1800, 3500), "monthly_starter": 15000},
+        "pricing_inr": {
+            "qualified_lead": (800, 2200),
+            "appointment": (1800, 3500),
+            "monthly_starter": 15000,
+        },
         "qualification_questions": [
             "How many new patient inquiries do you get monthly?",
             "Do you have counselors for first-call intake?",
@@ -307,7 +407,11 @@ NICHES = {
         "avg_deal_value": "₹75,000+",
         "avg_ticket_inr": "₹50K–1.25L per case",
         "pitch_hook": "eligibility-scored PR aspirants on your counselors' calendars every morning",
-        "pricing_inr": {"qualified_lead": (800, 2000), "appointment": (1500, 3000), "monthly_starter": 15000},
+        "pricing_inr": {
+            "qualified_lead": (800, 2000),
+            "appointment": (1500, 3000),
+            "monthly_starter": 15000,
+        },
         "qualification_questions": [
             "Which countries do you process — Canada, Australia, UK?",
             "Are you ICCRC/MARA registered or partnered?",
@@ -322,11 +426,19 @@ NICHES = {
         "target_type": "both",
         "b2b_client": "Venues, banquet halls, resorts",
         "end_customer": "Couples/families (date, guests, budget → venue visit) + corporate event planners",
-        "keywords": ["luxury wedding venues", "5 star banquet halls", "destination wedding resorts"],
+        "keywords": [
+            "luxury wedding venues",
+            "5 star banquet halls",
+            "destination wedding resorts",
+        ],
         "avg_deal_value": "₹10,00,000+",
         "avg_ticket_inr": "₹2–25L/booking (avg Indian wedding ₹39.5L)",
         "pitch_hook": "date-and-budget-matched venue visits — calendars filled for the season before rivals reply",
-        "pricing_inr": {"qualified_lead": (500, 1500), "appointment": (800, 2000), "monthly_starter": 12000},
+        "pricing_inr": {
+            "qualified_lead": (500, 1500),
+            "appointment": (800, 2000),
+            "monthly_starter": 12000,
+        },
         "qualification_questions": [
             "What is your guest capacity?",
             "Are you looking for corporate event bookings as well?",
@@ -345,7 +457,11 @@ NICHES = {
         "avg_deal_value": "₹4,00,000+",
         "avg_ticket_inr": "₹3–5L core segment (market $36B→$83B)",
         "pitch_hook": "test drives booked from portal leads in minutes — and trade-in sellers qualified for procurement",
-        "pricing_inr": {"qualified_lead": (300, 800), "appointment": (400, 800), "monthly_starter": 10000},
+        "pricing_inr": {
+            "qualified_lead": (300, 800),
+            "appointment": (400, 800),
+            "monthly_starter": 10000,
+        },
         "qualification_questions": [
             "How many cars do you retail monthly?",
             "Do you buy leads from CarWale/Cars24/OLX today?",
@@ -360,11 +476,19 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "EdTech companies, certification institutes",
         "end_customer": "Working professionals (career goal, budget, EMI eligibility → counselor call)",
-        "keywords": ["edtech companies", "professional certification institutes", "online course providers"],
+        "keywords": [
+            "edtech companies",
+            "professional certification institutes",
+            "online course providers",
+        ],
         "avg_deal_value": "₹1,00,000+",
         "avg_ticket_inr": "₹50K–3L per program",
         "pitch_hook": "the BYJU's-style telecalling engine — without the 200-person telecalling floor",
-        "pricing_inr": {"qualified_lead": (300, 800), "appointment": (800, 1500), "monthly_starter": 10000},
+        "pricing_inr": {
+            "qualified_lead": (300, 800),
+            "appointment": (800, 1500),
+            "monthly_starter": 10000,
+        },
         "qualification_questions": [
             "What programs do you sell and at what ticket size?",
             "Do you have an inside-sales team today?",
@@ -379,18 +503,26 @@ NICHES = {
         "target_type": "both",
         "b2b_client": "Recruitment/staffing firms",
         "end_customer": "Candidates (screening at scale) + employer mandates (BD calls)",
-        "keywords": ["recruitment agencies", "staffing companies", "it recruitment agencies", "headhunters"],
+        "keywords": [
+            "recruitment agencies",
+            "staffing companies",
+            "it recruitment agencies",
+            "headhunters",
+        ],
         "avg_deal_value": "₹1,00,000+",
         "avg_ticket_inr": "8.33–16.67% of CTC ≈ ₹50K–2L per placement",
         "pitch_hook": "screen 200 candidates a day and qualify new employer mandates — one agent, both sides",
-        "pricing_inr": {"qualified_lead": (300, 800), "appointment": (1500, 3000), "monthly_starter": 15000},
+        "pricing_inr": {
+            "qualified_lead": (300, 800),
+            "appointment": (1500, 3000),
+            "monthly_starter": 15000,
+        },
         "qualification_questions": [
             "Do you do permanent hiring, staffing, or both?",
             "How many open mandates are you working?",
             "What volumes of candidate screening do you do weekly?",
         ],
     },
-
     # ====================================================================== #
     # B-TIER — solid volume/strategic plays
     # ====================================================================== #
@@ -402,11 +534,19 @@ NICHES = {
         "target_type": "b2b",
         "b2b_client": "HVAC contractors & AMC providers",
         "end_customer": "IT parks, malls, offices (AMC renewals, retrofit projects)",
-        "keywords": ["hvac contractors commercial", "central ac installation", "industrial cooling solutions"],
+        "keywords": [
+            "hvac contractors commercial",
+            "central ac installation",
+            "industrial cooling solutions",
+        ],
         "avg_deal_value": "₹5,00,000+",
         "avg_ticket_inr": "₹5L+ projects; AMC recurring",
         "pitch_hook": "secure high-value AMC contracts with IT parks",
-        "pricing_inr": {"qualified_lead": (1500, 3000), "appointment": (3000, 5000), "monthly_starter": 15000},
+        "pricing_inr": {
+            "qualified_lead": (1500, 3000),
+            "appointment": (3000, 5000),
+            "monthly_starter": 15000,
+        },
         "qualification_questions": [
             "Do you take AMC contracts for IT parks/malls?",
             "What is your minimum project size?",
@@ -425,7 +565,11 @@ NICHES = {
         "avg_deal_value": "₹2,00,000+",
         "avg_ticket_inr": "₹50K–50L orders (IndiaMART BuyLead ₹16–24 raw)",
         "pitch_hook": "every IndiaMART RFQ called back in 5 minutes — before the other 6 suppliers wake up",
-        "pricing_inr": {"qualified_lead": (150, 400), "appointment": (500, 1200), "monthly_starter": 8000},
+        "pricing_inr": {
+            "qualified_lead": (150, 400),
+            "appointment": (500, 1200),
+            "monthly_starter": 8000,
+        },
         "qualification_questions": [
             "Are you buying BuyLeads on IndiaMART today?",
             "What is your average order value?",
@@ -440,11 +584,19 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Travel agencies & tour operators",
         "end_customer": "Families/couples (destination, dates, budget → itinerary consult)",
-        "keywords": ["travel agencies international packages", "tour operators", "holiday package companies"],
+        "keywords": [
+            "travel agencies international packages",
+            "tour operators",
+            "holiday package companies",
+        ],
         "avg_deal_value": "₹3,00,000+",
         "avg_ticket_inr": "₹2.9–3.2L per international trip (couple)",
         "pitch_hook": "itinerary-ready travellers with dates and budgets locked — not brochure collectors",
-        "pricing_inr": {"qualified_lead": (400, 1000), "appointment": (800, 1500), "monthly_starter": 10000},
+        "pricing_inr": {
+            "qualified_lead": (400, 1000),
+            "appointment": (800, 1500),
+            "monthly_starter": 10000,
+        },
         "qualification_questions": [
             "Which destinations do you specialize in?",
             "What is your average package value?",
@@ -463,7 +615,11 @@ NICHES = {
         "avg_deal_value": "₹30,000+",
         "avg_ticket_inr": "₹11–55K intercity moves",
         "pitch_hook": "fastest quote wins the move — your agent calls back in 60 seconds, day or night",
-        "pricing_inr": {"qualified_lead": (200, 500), "appointment": (400, 800), "monthly_starter": 8000},
+        "pricing_inr": {
+            "qualified_lead": (200, 500),
+            "appointment": (400, 800),
+            "monthly_starter": 8000,
+        },
         "qualification_questions": [
             "Which routes/cities do you cover?",
             "How many moves do you handle monthly?",
@@ -478,11 +634,20 @@ NICHES = {
         "target_type": "b2b",
         "b2b_client": "Hotels, resorts, convention centers",
         "end_customer": "Corporate event planners, HR/admin teams (event size, dates, budget)",
-        "keywords": ["hotels corporate events", "convention centers", "mice venues", "conference halls"],
+        "keywords": [
+            "hotels corporate events",
+            "convention centers",
+            "mice venues",
+            "conference halls",
+        ],
         "avg_deal_value": "₹5,00,000+",
         "avg_ticket_inr": "MICE market $37.75B; corporate events high-value",
         "pitch_hook": "banquet inquiries qualified for date, size and budget — sales team only talks to real events",
-        "pricing_inr": {"qualified_lead": (1000, 2500), "appointment": (2000, 4000), "monthly_starter": 15000},
+        "pricing_inr": {
+            "qualified_lead": (1000, 2500),
+            "appointment": (2000, 4000),
+            "monthly_starter": 15000,
+        },
         "qualification_questions": [
             "What is your banquet/hall capacity?",
             "Do you target corporate MICE business?",
@@ -501,7 +666,11 @@ NICHES = {
         "avg_deal_value": "₹50,000/mo",
         "avg_ticket_inr": "₹15–50K/mo retainers",
         "pitch_hook": "white-label our voice agents — sell lead-gen calling to your clients under your brand",
-        "pricing_inr": {"qualified_lead": (800, 2000), "appointment": (1500, 3000), "monthly_starter": 12000},
+        "pricing_inr": {
+            "qualified_lead": (800, 2000),
+            "appointment": (1500, 3000),
+            "monthly_starter": 12000,
+        },
         "qualification_questions": [
             "Are you accepting new white-label partners?",
             "What is your minimum retainer?",
@@ -516,18 +685,26 @@ NICHES = {
         "target_type": "b2b",
         "b2b_client": "CA firms, compliance/legal service providers",
         "end_customer": "SMBs/startups (GST, ROC, IP, compliance needs → consult booking)",
-        "keywords": ["ca firms", "chartered accountants", "compliance services", "corporate law firms"],
+        "keywords": [
+            "ca firms",
+            "chartered accountants",
+            "compliance services",
+            "corporate law firms",
+        ],
         "avg_deal_value": "₹50,000+",
         "avg_ticket_inr": "₹10–50K recurring engagements",
         "pitch_hook": "compliance-season pipelines filled — qualified SMBs booked while rivals rely on referrals",
-        "pricing_inr": {"qualified_lead": (600, 1500), "appointment": (1200, 2500), "monthly_starter": 10000},
+        "pricing_inr": {
+            "qualified_lead": (600, 1500),
+            "appointment": (1200, 2500),
+            "monthly_starter": 10000,
+        },
         "qualification_questions": [
             "Which services do you focus on — GST, ROC, audit, IP?",
             "Do you serve startups/SMBs?",
             "What is your typical engagement value?",
         ],
     },
-
     # ====================================================================== #
     # MARKETING NICHES — local-business categories jinhe hum AI-marketing
     # (posts / GBP / posters / festivals / reviews / reels) bechte hain.
@@ -545,7 +722,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "roz ki dish reels, menu posters aur festival offers — Insta+Google pe aapka restaurant chamke, footfall badhe",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi aap restaurant ki marketing kaise karte ho — khud post karte ho ya koi karta hai?",
             "Instagram aur Google pe roz naye photos/reels daalte ho kya?",
@@ -564,7 +745,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "Dhanteras-Diwali-shaadi season ke designer posters aur offer creatives — har tyohaar pe aapka store sabse aage dikhe",
-        "pricing_inr": {"qualified_lead": (150, 400), "appointment": (200, 500), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (150, 400),
+            "appointment": (200, 500),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi jewellery store ki marketing kaise hoti hai — khud ya koi designer?",
             "Festival aur shaadi season pe offer posters kaun banata hai?",
@@ -583,7 +768,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "before-after reels, monthly offers aur Google reviews — naye customers khud appointment book karein",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi salon ki marketing kaise karte ho — Insta khud chalate ho ya koi?",
             "Before-after photos ya reels banate ho customers ke liye?",
@@ -602,7 +791,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "nayi collection ke reels aur festival offer posters — Insta+WhatsApp pe customers daily naye design dekhein",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi boutique ki marketing kaise hoti hai — khud post karte ho?",
             "Nayi collection aane par Instagram/WhatsApp pe daalte ho kya?",
@@ -621,7 +814,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "member transformation reels aur New-Year/Jan offers — naye joinings aapke gym me khud aayein",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi gym ki marketing kaise karte ho — Insta khud chalate ho?",
             "Members ke transformation/results post karte ho kya?",
@@ -640,7 +837,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "Diwali-Raksha Bandhan ke mithai posters aur cake reels — har festival pe aapke orders badhein",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi bakery/sweet shop ki marketing kaise hoti hai?",
             "Festival pe special items ke posters kaun banata hai?",
@@ -659,7 +860,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "naye launch aur EMI/exchange offer ke posters — festival sale pe aapki shop sabse aage dikhe",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi mobile/electronics shop ki marketing kaise karte ho?",
             "Naye phone launch ya offer ke posters kaun banata hai?",
@@ -678,7 +883,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "venue reels, festival packages aur Google reviews — bookings aur enquiries direct aapke paas aayein",
-        "pricing_inr": {"qualified_lead": (150, 400), "appointment": (200, 500), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (150, 400),
+            "appointment": (200, 500),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi hotel/resort ki marketing kaise hoti hai — khud ya koi agency?",
             "Festival ya season package ke posters kaun banata hai?",
@@ -697,7 +906,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "service-offer aur seasonal-check posters — Google pe rank karke nazdeeki gaadi-walon ko laaye",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi service center ki marketing kaise karte ho?",
             "Google pe aapka garage search karne par dikhta hai kya?",
@@ -712,11 +925,20 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Photography & wedding studios, photographers",
         "end_customer": "Couples & families (shoots, wedding bookings)",
-        "keywords": ["photography studio", "wedding photographer", "photo studio", "candid photography"],
+        "keywords": [
+            "photography studio",
+            "wedding photographer",
+            "photo studio",
+            "candid photography",
+        ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "aapke best shoots ke portfolio reels — Insta pe dikhe to wedding aur event bookings khud aayein",
-        "pricing_inr": {"qualified_lead": (150, 400), "appointment": (200, 500), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (150, 400),
+            "appointment": (200, 500),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi studio ki marketing kaise hoti hai — khud Insta chalate ho?",
             "Apne best shoots ke reels banate ho kya?",
@@ -735,7 +957,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "Google Business Profile + health-day posts — nazdeeki log aapki dukaan dhoondh ke pahunchein aur delivery maangein",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Google pe aapka medical store search karne par dikhta hai kya?",
             "Home delivery offer karte ho — log ko pata hai kya?",
@@ -750,11 +976,21 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Furniture showrooms, home decor & furnishing stores",
         "end_customer": "Homeowners (showroom footfall + enquiries)",
-        "keywords": ["furniture store", "home decor", "furnishing shop", "sofa shop", "furniture showroom"],
+        "keywords": [
+            "furniture store",
+            "home decor",
+            "furnishing shop",
+            "sofa shop",
+            "furniture showroom",
+        ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "product catalog posters aur festival offers — naye design Insta+WhatsApp pe dikhein, footfall badhe",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi furniture showroom ki marketing kaise karte ho?",
             "Naye products ke photos/catalog Insta pe daalte ho kya?",
@@ -769,11 +1005,21 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Kirana stores, supermarkets, grocery shops",
         "end_customer": "Local households (repeat footfall + WhatsApp orders)",
-        "keywords": ["kirana store", "supermarket", "grocery shop", "general store", "provision store"],
+        "keywords": [
+            "kirana store",
+            "supermarket",
+            "grocery shop",
+            "general store",
+            "provision store",
+        ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "weekly WhatsApp offers aur festival posters — mohalle ke customers baar-baar aapki dukaan pe aayein",
-        "pricing_inr": {"qualified_lead": (80, 250), "appointment": (120, 350), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (80, 250),
+            "appointment": (120, 350),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi customers ko offers kaise batate ho — WhatsApp pe ya nahi?",
             "Festival ya monthly offer ke posters kaun banata hai?",
@@ -788,11 +1034,21 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Travel agencies, tour & holiday operators",
         "end_customer": "Local travellers & families (package enquiries)",
-        "keywords": ["travel agency", "tour operator", "holiday packages", "tour and travels", "ticketing agent"],
+        "keywords": [
+            "travel agency",
+            "tour operator",
+            "holiday packages",
+            "tour and travels",
+            "ticketing agent",
+        ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "season package posters aur destination reels — Insta+WhatsApp pe travellers khud enquiry karein",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi travel agency ki marketing kaise hoti hai?",
             "Package ya offer ke posters kaun banata hai?",
@@ -811,7 +1067,11 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "Rakhi-Diwali-Valentine ke gift posters aur offers — har occasion pe customers aapki shop yaad rakhein",
-        "pricing_inr": {"qualified_lead": (80, 250), "appointment": (120, 350), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (80, 250),
+            "appointment": (120, 350),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi gift/stationery shop ki marketing kaise karte ho?",
             "Festival aur occasion ke posters kaun banata hai?",
@@ -826,11 +1086,21 @@ NICHES = {
         "target_type": "b2c",
         "b2b_client": "Hardware, paint & electrical supply shops",
         "end_customer": "Homeowners, contractors & local trade (footfall + enquiries)",
-        "keywords": ["hardware shop", "paint shop", "electrical store", "sanitary shop", "building material"],
+        "keywords": [
+            "hardware shop",
+            "paint shop",
+            "electrical store",
+            "sanitary shop",
+            "building material",
+        ],
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "offer aur festival posters + Google listing — contractors aur ghar-walon ko aapki dukaan aasani se mile",
-        "pricing_inr": {"qualified_lead": (100, 300), "appointment": (150, 400), "monthly_starter": 2999},
+        "pricing_inr": {
+            "qualified_lead": (100, 300),
+            "appointment": (150, 400),
+            "monthly_starter": 2999,
+        },
         "qualification_questions": [
             "Abhi hardware/paint shop ki marketing kaise hoti hai?",
             "Google pe aapki dukaan search karne par dikhti hai kya?",
@@ -920,20 +1190,24 @@ def add_custom_niche(
         "custom": True,
         "target_type": target_type,
         "b2b_client": b2b_client or f"{name} businesses",
-        "end_customer": end_customer or (
-            "Consumers interested in this service" if target_type != "b2b"
+        "end_customer": end_customer
+        or (
+            "Consumers interested in this service"
+            if target_type != "b2b"
             else "Business buyers for this service"
         ),
         "keywords": keywords or [name.lower()],
         "avg_deal_value": avg_ticket_inr or "varies",
         "avg_ticket_inr": avg_ticket_inr or "varies",
-        "pitch_hook": pitch_hook or f"bring qualified {name} customers to your business on autopilot",
+        "pitch_hook": pitch_hook
+        or f"bring qualified {name} customers to your business on autopilot",
         "pricing_inr": {
             "qualified_lead": tuple(pricing.get("qualified_lead", (300, 1500))),
             "appointment": tuple(pricing.get("appointment", (800, 2500))),
             "monthly_starter": int(pricing.get("monthly_starter", 12000)),
         },
-        "qualification_questions": qualification_questions or [
+        "qualification_questions": qualification_questions
+        or [
             f"Are you currently looking for more {name} customers?",
             "What is your average deal or ticket size?",
             "Who follows up with your inquiries today?",
@@ -978,6 +1252,7 @@ _load_custom_niches(force=True)  # module import pe custom niches merge
 
 # Convenience views ------------------------------------------------------- #
 
+
 def niches_by_tier(tier: str) -> dict:
     """Return niches of a given tier ('S' | 'A' | 'B' | 'C'=custom)."""
     refresh_custom_niches()
@@ -987,7 +1262,4 @@ def niches_by_tier(tier: str) -> dict:
 def niches_by_target(target_type: str) -> dict:
     """Return niches whose END CUSTOMERS match 'b2c' | 'b2b' (includes 'both')."""
     refresh_custom_niches()
-    return {
-        k: v for k, v in NICHES.items()
-        if v.get("target_type") in (target_type, "both")
-    }
+    return {k: v for k, v in NICHES.items() if v.get("target_type") in (target_type, "both")}

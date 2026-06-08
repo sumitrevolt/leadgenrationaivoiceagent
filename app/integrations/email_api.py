@@ -12,9 +12,8 @@ tier hai. NEVER raises — (ok, info) tuple return karta hai.
 api_available() batata hai koi API key set hai ya nahi (EmailSender pehle API
 try karta hai, phir SMTP fallback).
 """
-from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from __future__ import annotations
 
 from app.config import settings
 from app.utils.logger import setup_logger
@@ -26,7 +25,7 @@ def api_available() -> bool:
     return bool((settings.resend_api_key or "").strip() or (settings.brevo_api_key or "").strip())
 
 
-def _from() -> Tuple[str, str]:
+def _from() -> tuple[str, str]:
     """(email, name). email_from set ho to wahi; warna resend test sender."""
     name = (settings.outreach_from_name or "LeadGen AI").strip()
     email = (settings.email_from or settings.smtp_user or "").strip()
@@ -37,12 +36,12 @@ def _from() -> Tuple[str, str]:
 
 
 async def send_email_api(
-    to_emails: List[str],
+    to_emails: list[str],
     subject: str,
     body: str,
-    html_body: Optional[str] = None,
-    reply_to: Optional[str] = None,
-) -> Tuple[bool, str]:
+    html_body: str | None = None,
+    reply_to: str | None = None,
+) -> tuple[bool, str]:
     """Resend (priority) ya Brevo se email bhejo. (ok, info). Never raises."""
     resend = (settings.resend_api_key or "").strip()
     brevo = (settings.brevo_api_key or "").strip()
@@ -71,7 +70,10 @@ async def send_email_api(
             async with httpx.AsyncClient(timeout=20.0) as client:
                 r = await client.post(
                     "https://api.resend.com/emails",
-                    headers={"Authorization": f"Bearer {resend}", "Content-Type": "application/json"},
+                    headers={
+                        "Authorization": f"Bearer {resend}",
+                        "Content-Type": "application/json",
+                    },
                     json=payload,
                 )
             if 200 <= r.status_code < 300:
@@ -99,7 +101,11 @@ async def send_email_api(
             async with httpx.AsyncClient(timeout=20.0) as client:
                 r = await client.post(
                     "https://api.brevo.com/v3/smtp/email",
-                    headers={"api-key": brevo, "Content-Type": "application/json", "accept": "application/json"},
+                    headers={
+                        "api-key": brevo,
+                        "Content-Type": "application/json",
+                        "accept": "application/json",
+                    },
                     json=payload,
                 )
             if 200 <= r.status_code < 300:

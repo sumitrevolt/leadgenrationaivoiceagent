@@ -3,13 +3,14 @@ Tests for the telephony ComplianceGate (TCCCPR/TRAI pre-dial chokepoint).
 
 Async checks are driven via asyncio.run() so no pytest-asyncio plugin is needed.
 """
+
 import asyncio
 from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
 
-from app.telephony.compliance import ComplianceGate, CallType, IST
+from app.telephony.compliance import IST, CallType, ComplianceGate
 
 
 def _run(coro):
@@ -18,6 +19,7 @@ def _run(coro):
 
 class _FakeDND:
     """Stand-in for DNDChecker — returns a fixed is_dnd verdict."""
+
     def __init__(self, is_dnd: bool = False):
         self._v = is_dnd
 
@@ -25,8 +27,8 @@ class _FakeDND:
         return SimpleNamespace(is_dnd=self._v)
 
 
-IN_HOURS = datetime(2026, 6, 7, 12, 0, tzinfo=IST)   # noon IST — inside both windows
-LATE = datetime(2026, 6, 7, 22, 0, tzinfo=IST)       # 22:00 IST — outside both windows
+IN_HOURS = datetime(2026, 6, 7, 12, 0, tzinfo=IST)  # noon IST — inside both windows
+LATE = datetime(2026, 6, 7, 22, 0, tzinfo=IST)  # 22:00 IST — outside both windows
 
 
 @pytest.fixture(autouse=True)
@@ -35,8 +37,12 @@ def _clean_env(monkeypatch):
     monkeypatch.setenv("COMPLIANCE_ENABLED", "1")
     monkeypatch.setenv("COMPLIANCE_ALLOWLIST", "")
     monkeypatch.setenv("DLT_APPROVED", "0")
-    for k in ("COMPLIANCE_PROMO_START", "COMPLIANCE_PROMO_END",
-              "COMPLIANCE_TXN_START", "COMPLIANCE_TXN_END"):
+    for k in (
+        "COMPLIANCE_PROMO_START",
+        "COMPLIANCE_PROMO_END",
+        "COMPLIANCE_TXN_START",
+        "COMPLIANCE_TXN_END",
+    ):
         monkeypatch.delenv(k, raising=False)
     yield
 

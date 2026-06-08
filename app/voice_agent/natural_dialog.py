@@ -27,20 +27,22 @@ Usage (text mode, no external services needed):
     reply = await mgr.respond("Haan boliye kya kaam hai?", state)
     print(reply.text)
 """
+
 from __future__ import annotations
 
-import re
 import asyncio
+import re
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -49,33 +51,33 @@ except Exception:  # pragma: no cover
 # --------------------------------------------------------------------------- #
 class UtteranceType(str, Enum):
     GREETING = "greeting"
-    QUESTION = "question"          # customer puchh raha hai
-    OBJECTION = "objection"        # "busy", "mehenga", "nahi chahiye"
-    ANSWER = "answer"              # qualification ka jawab
+    QUESTION = "question"  # customer puchh raha hai
+    OBJECTION = "objection"  # "busy", "mehenga", "nahi chahiye"
+    ANSWER = "answer"  # qualification ka jawab
     INTERESTED = "interested"
     NOT_INTERESTED = "not_interested"
-    CONFUSED = "confused"          # "samajh nahi aaya", "kaun bol raha hai"
-    UNCLEAR = "unclear"            # garbled / empty ASR
+    CONFUSED = "confused"  # "samajh nahi aaya", "kaun bol raha hai"
+    UNCLEAR = "unclear"  # garbled / empty ASR
     CHITCHAT = "chitchat"
     GOODBYE = "goodbye"
 
 
 class Affect(str, Enum):
     NEUTRAL = "neutral"
-    KEEN = "keen"        # excited / positive
+    KEEN = "keen"  # excited / positive
     ANNOYED = "annoyed"  # irritated / rushed
     HESITANT = "hesitant"
 
 
 @dataclass
 class DialogState:
-    history: List[Dict[str, str]] = field(default_factory=list)  # {role, content}
-    captured: Dict[str, Any] = field(default_factory=dict)
-    asked_questions: List[str] = field(default_factory=list)
+    history: list[dict[str, str]] = field(default_factory=list)  # {role, content}
+    captured: dict[str, Any] = field(default_factory=dict)
+    asked_questions: list[str] = field(default_factory=list)
     turn: int = 0
-    interest_score: int = 50          # 0-100
+    interest_score: int = 50  # 0-100
     finished: bool = False
-    outcome: Optional[str] = None     # qualified | not_interested | callback | ended
+    outcome: str | None = None  # qualified | not_interested | callback | ended
     last_affect: Affect = Affect.NEUTRAL
     objection_attempts: int = 0
     unclear_streak: int = 0
@@ -90,9 +92,9 @@ class DialogReply:
     utterance_type: UtteranceType = UtteranceType.ANSWER
     affect: Affect = Affect.NEUTRAL
     should_end: bool = False
-    outcome: Optional[str] = None
-    captured: Dict[str, Any] = field(default_factory=dict)
-    meta: Dict[str, Any] = field(default_factory=dict)
+    outcome: str | None = None
+    captured: dict[str, Any] = field(default_factory=dict)
+    meta: dict[str, Any] = field(default_factory=dict)
 
 
 # --------------------------------------------------------------------------- #
@@ -132,7 +134,7 @@ KNOWN FACTS (inhi se sahi jawab do — jo yahan nahi hai woh mat banao; bolo "ma
 
 
 # Niche-wise chhoti FAQ/knowledge base — sahi (grounded) jawab ke liye.
-DEFAULT_KNOWLEDGE: Dict[str, List[str]] = {
+DEFAULT_KNOWLEDGE: dict[str, list[str]] = {
     "_global": [
         "Hum aapke business ke potential customers ko AI voice agent se call karke qualified leads laate hain.",
         "Pricing per qualified lead hoti hai (₹200-500/lead) — aap sirf result ke paise dete ho.",
@@ -143,8 +145,12 @@ DEFAULT_KNOWLEDGE: Dict[str, List[str]] = {
 
 VAGUE_OR_GARBLED = re.compile(r"^[\s\.\,\-\?\!]*$")
 ROBOTIC_PHRASES = [
-    "as an ai language model", "as an ai", "i am an ai language model",
-    "i cannot", "i'm just a", "i am unable to",
+    "as an ai language model",
+    "as an ai",
+    "i am an ai language model",
+    "i cannot",
+    "i'm just a",
+    "i am unable to",
 ]
 
 
@@ -163,7 +169,7 @@ class NaturalDialogManager:
         client_service: str = "",
         agent_name: str = "Riya",
         goal: str = "lead ko qualify karna aur ek free demo / callback book karna",
-        knowledge: Optional[List[str]] = None,
+        knowledge: list[str] | None = None,
         brain: Any = None,
         intent_detector: Any = None,
         flow: Any = None,
@@ -215,8 +221,12 @@ class NaturalDialogManager:
                 # LLM output sirf tab use karo jab usme koi placeholder na ho
                 # (kabhi-kabhi "[Your Name]" jaisa template aa jaata hai) —
                 # warna saaf hardcoded Hinglish line behtar hai.
-                if (isinstance(got, str) and got.strip()
-                        and "[" not in got and "your name" not in got.lower()):
+                if (
+                    isinstance(got, str)
+                    and got.strip()
+                    and "[" not in got
+                    and "your name" not in got.lower()
+                ):
                     line = self._humanize(got)
         except Exception as e:
             logger.debug(f"opening fallback: {e}")
@@ -241,11 +251,19 @@ class NaturalDialogManager:
                     state.add("user", utterance)
                     if action == "leave_message":
                         msg = self.amd.voicemail_message(self.client_name, callback_number="")
-                        reply = DialogReply(text=msg, utterance_type=UtteranceType.GOODBYE,
-                                            should_end=True, outcome="voicemail")
+                        reply = DialogReply(
+                            text=msg,
+                            utterance_type=UtteranceType.GOODBYE,
+                            should_end=True,
+                            outcome="voicemail",
+                        )
                     else:
-                        reply = DialogReply(text="", utterance_type=UtteranceType.GOODBYE,
-                                            should_end=True, outcome="voicemail")
+                        reply = DialogReply(
+                            text="",
+                            utterance_type=UtteranceType.GOODBYE,
+                            should_end=True,
+                            outcome="voicemail",
+                        )
                     state.add("assistant", reply.text)
                     return self._finalize(reply, state)
             except Exception as e:
@@ -276,7 +294,9 @@ class NaturalDialogManager:
             if state.unclear_streak >= 3:
                 reply = DialogReply(
                     text="Lagta hai network thoda disturb hai. Main aapko thodi der me dobara call karoon?",
-                    utterance_type=UtteranceType.UNCLEAR, should_end=True, outcome="callback",
+                    utterance_type=UtteranceType.UNCLEAR,
+                    should_end=True,
+                    outcome="callback",
                 )
             else:
                 reply = DialogReply(
@@ -303,7 +323,8 @@ class NaturalDialogManager:
         ):
             reply = DialogReply(
                 text="Bilkul, aapka time lene ke liye shukriya. Aapka din accha rahe!",
-                utterance_type=UtteranceType.GOODBYE, should_end=True,
+                utterance_type=UtteranceType.GOODBYE,
+                should_end=True,
                 outcome="not_interested" if utype == UtteranceType.NOT_INTERESTED else "ended",
             )
             state.add("assistant", reply.text)
@@ -337,22 +358,89 @@ class NaturalDialogManager:
     async def _classify(self, utterance: str, state: DialogState) -> UtteranceType:
         low = utterance.lower()
         # fast rule-based signals (robust + free)
-        if any(w in low for w in ["?", "kya", "kaise", "kitna", "kaun", "matlab", "how", "what", "why", "price", "kitne"]):
+        if any(
+            w in low
+            for w in [
+                "?",
+                "kya",
+                "kaise",
+                "kitna",
+                "kaun",
+                "matlab",
+                "how",
+                "what",
+                "why",
+                "price",
+                "kitne",
+            ]
+        ):
             qtype = UtteranceType.QUESTION
         else:
             qtype = None
-        if any(w in low for w in ["not interested", "nahi chahiye", "mat karo", "interested nahi", "no thanks", "remove"]):
+        if any(
+            w in low
+            for w in [
+                "not interested",
+                "nahi chahiye",
+                "mat karo",
+                "interested nahi",
+                "no thanks",
+                "remove",
+            ]
+        ):
             return UtteranceType.NOT_INTERESTED
-        if any(w in low for w in ["busy", "abhi nahi", "baad me", "call later", "mat call",
-                                   "mehenga", "mehengi", "expensive", "already", "pehle se",
-                                   "bas dekh", "sirf dekh", "dekh raha", "dekh rahi",
-                                   "just looking", "browsing"]):
+        if any(
+            w in low
+            for w in [
+                "busy",
+                "abhi nahi",
+                "baad me",
+                "call later",
+                "mat call",
+                "mehenga",
+                "mehengi",
+                "expensive",
+                "already",
+                "pehle se",
+                "bas dekh",
+                "sirf dekh",
+                "dekh raha",
+                "dekh rahi",
+                "just looking",
+                "browsing",
+            ]
+        ):
             return UtteranceType.OBJECTION
-        if any(w in low for w in ["samajh nahi", "kaun bol", "who is this", "what is this", "repeat", "phir se", "matlab kya"]):
+        if any(
+            w in low
+            for w in [
+                "samajh nahi",
+                "kaun bol",
+                "who is this",
+                "what is this",
+                "repeat",
+                "phir se",
+                "matlab kya",
+            ]
+        ):
             return UtteranceType.CONFUSED
         if any(w in low for w in ["bye", "rakhta", "rakhti", "good bye", "hang up", "phone rakho"]):
             return UtteranceType.GOODBYE
-        if any(w in low for w in ["haan", "yes", "ok", "theek", "sure", "batao", "interested", "bilkul", "zaroor", "accha"]):
+        if any(
+            w in low
+            for w in [
+                "haan",
+                "yes",
+                "ok",
+                "theek",
+                "sure",
+                "batao",
+                "interested",
+                "bilkul",
+                "zaroor",
+                "accha",
+            ]
+        ):
             # could be interested OR an answer — prefer intent detector
             base = UtteranceType.INTERESTED
         else:
@@ -364,8 +452,11 @@ class NaturalDialogManager:
         try:
             if self.intent_detector and hasattr(self.intent_detector, "detect"):
                 res = await self._maybe_await(self.intent_detector.detect(utterance))
-                itype = (getattr(res, "intent_type", None) or
-                         (res.get("intent_type") if isinstance(res, dict) else None) or "")
+                itype = (
+                    getattr(res, "intent_type", None)
+                    or (res.get("intent_type") if isinstance(res, dict) else None)
+                    or ""
+                )
                 itype = str(itype).lower()
                 mapping = {
                     "interested": UtteranceType.INTERESTED,
@@ -384,9 +475,15 @@ class NaturalDialogManager:
     @staticmethod
     def _detect_affect(utterance: str) -> Affect:
         low = utterance.lower()
-        if any(w in low for w in ["jaldi", "busy", "irritate", "pareshaan", "band karo", "kitni baar", "!!"]):
+        if any(
+            w in low
+            for w in ["jaldi", "busy", "irritate", "pareshaan", "band karo", "kitni baar", "!!"]
+        ):
             return Affect.ANNOYED
-        if any(w in low for w in ["wah", "great", "accha hai", "interested", "zaroor", "perfect", "sahi"]):
+        if any(
+            w in low
+            for w in ["wah", "great", "accha hai", "interested", "zaroor", "perfect", "sahi"]
+        ):
             return Affect.KEEN
         if any(w in low for w in ["pata nahi", "soch", "maybe", "shayad", "dekhungo", "dekhungi"]):
             return Affect.HESITANT
@@ -409,9 +506,7 @@ class NaturalDialogManager:
         try:
             if self.brain is not None:
                 if hasattr(self.brain, "_generate_chat"):
-                    out = await self._maybe_await(
-                        self.brain._generate_chat(system_prompt, history)
-                    )
+                    out = await self._maybe_await(self.brain._generate_chat(system_prompt, history))
                 elif hasattr(self.brain, "generate_response"):
                     out = await self._maybe_await(
                         self.brain.generate_response(
@@ -448,6 +543,7 @@ class NaturalDialogManager:
             # niche-specific, end-customer-appropriate rebuttal pehle (real niche pe).
             try:
                 from app.niche_knowledge import NICHE_KNOWLEDGE, match_objection
+
                 if self.niche in NICHE_KNOWLEDGE:
                     rebut = match_objection(self.niche, utterance)
                     if rebut:
@@ -460,10 +556,15 @@ class NaturalDialogManager:
                 return "Koi baat nahi! Main aapko kis time call karoon jo aapke liye sahi rahe?"
             return "Bilkul samajhti hoon. Bas ek chhoti baat — agar bina mehnat 5 qualified leads aayein, to ek 5-minute demo theek rahega?"
         if utype == UtteranceType.INTERESTED:
-            return self._next_goal_question(state) or "Badhiya! Main aapke liye ek free demo set kar deti hoon — kal sham theek rahega?"
+            return (
+                self._next_goal_question(state)
+                or "Badhiya! Main aapke liye ek free demo set kar deti hoon — kal sham theek rahega?"
+            )
         if utype == UtteranceType.CONFUSED:
-            return (f"Main {self.agent_name}, {self.client_name} se — hum aapke business ke liye "
-                    f"qualified customers laate hain. Ek line me bataoon kaise?")
+            return (
+                f"Main {self.agent_name}, {self.client_name} se — hum aapke business ke liye "
+                f"qualified customers laate hain. Ek line me bataoon kaise?"
+            )
         # default: acknowledge + move goal forward
         nxt = self._next_goal_question(state)
         return ("Achha, samajh gayi. " + nxt) if nxt else "Theek hai, samajh gayi. Aur bataiye?"
@@ -516,7 +617,8 @@ class NaturalDialogManager:
         gq = self._next_goal_question(state)
         goal_question_block = (
             f"AGLA NATURAL STEP (agar customer ka sawaal nahi hai to ye aage badhao): {gq}\n\n"
-            if gq else ""
+            if gq
+            else ""
         )
         affect_hint = {
             Affect.ANNOYED: "Customer thoda jaldi/irritate me lag raha hai — extra short raho, time ki value do.",
@@ -555,9 +657,12 @@ class NaturalDialogManager:
 
     def _update_interest(self, state, utype, affect) -> None:
         delta = {
-            UtteranceType.INTERESTED: 12, UtteranceType.QUESTION: 6,
-            UtteranceType.ANSWER: 4, UtteranceType.OBJECTION: -8,
-            UtteranceType.NOT_INTERESTED: -25, UtteranceType.CONFUSED: -2,
+            UtteranceType.INTERESTED: 12,
+            UtteranceType.QUESTION: 6,
+            UtteranceType.ANSWER: 4,
+            UtteranceType.OBJECTION: -8,
+            UtteranceType.NOT_INTERESTED: -25,
+            UtteranceType.CONFUSED: -2,
         }.get(utype, 0)
         if affect == Affect.KEEN:
             delta += 6
@@ -613,7 +718,7 @@ class NaturalDialogManager:
     def _slug(text: str) -> str:
         return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")[:24] or "ans"
 
-    def _load_knowledge(self, niche: str) -> List[str]:
+    def _load_knowledge(self, niche: str) -> list[str]:
         kb = list(DEFAULT_KNOWLEDGE.get("_global", []))
         kb += DEFAULT_KNOWLEDGE.get(niche, [])
         # per-niche grounded knowledge pack (end-customer facts) — yahi se LEADS
@@ -621,6 +726,7 @@ class NaturalDialogManager:
         # Sirf real niche pack ke liye (general/unknown ke liye behaviour unchanged).
         try:
             from app.niche_knowledge import NICHE_KNOWLEDGE, knowledge_facts
+
             if niche in NICHE_KNOWLEDGE:
                 kb += knowledge_facts(niche)
         except Exception as e:
@@ -628,6 +734,7 @@ class NaturalDialogManager:
         # niche-specific value prop from niches.py if available
         try:
             from app.niches import NICHES
+
             cfg = NICHES.get(niche, {})
             hook = cfg.get("pitch_hook")
             if hook:
@@ -636,16 +743,17 @@ class NaturalDialogManager:
             pass
         # dedupe preserving order (packs me _global se overlap ho sakta hai)
         seen: set = set()
-        out: List[str] = []
+        out: list[str] = []
         for fact in kb:
             if fact not in seen:
                 seen.add(fact)
                 out.append(fact)
         return out
 
-    def _load_goal_questions(self, niche: str) -> List[str]:
+    def _load_goal_questions(self, niche: str) -> list[str]:
         try:
             from app.niches import NICHES
+
             cfg = NICHES.get(niche, {})
             qs = list(cfg.get("qualification_questions", []))
             if qs:
@@ -661,6 +769,7 @@ class NaturalDialogManager:
     def _build_brain(self):
         try:
             from app.voice_agent.llm_brain import LLMBrain
+
             return LLMBrain()
         except Exception as e:
             logger.warning(f"LLMBrain unavailable, rule-based dialog only: {e}")
@@ -669,6 +778,7 @@ class NaturalDialogManager:
     def _build_intent(self):
         try:
             from app.voice_agent.intent_detector import IntentDetector
+
             return IntentDetector()
         except Exception as e:
             logger.debug(f"IntentDetector unavailable: {e}")
@@ -679,6 +789,7 @@ class NaturalDialogManager:
         """Knowledge base (RAG) for accurate, grounded answers."""
         try:
             from app.voice_agent.kb_loader import bootstrap_default_kb
+
             return bootstrap_default_kb()
         except Exception as e:
             logger.debug(f"KnowledgeBase unavailable: {e}")
@@ -688,11 +799,14 @@ class NaturalDialogManager:
         """In-call tool registry (book_appointment, transfer_to_human, ...)."""
         try:
             from app.voice_agent.function_calling import build_default_registry
-            return build_default_registry({
-                "client_name": self.client_name,
-                "niche": self.niche,
-                "client_service": self.client_service,
-            })
+
+            return build_default_registry(
+                {
+                    "client_name": self.client_name,
+                    "niche": self.niche,
+                    "client_service": self.client_service,
+                }
+            )
         except Exception as e:
             logger.debug(f"ToolRegistry unavailable: {e}")
             return None
@@ -701,6 +815,7 @@ class NaturalDialogManager:
         """Answering-machine / voicemail detection."""
         try:
             from app.voice_agent.amd import AnsweringMachineDetector
+
             return AnsweringMachineDetector()
         except Exception as e:
             logger.debug(f"AMD unavailable: {e}")
@@ -710,6 +825,7 @@ class NaturalDialogManager:
         """Natural thinking-filler player to mask latency."""
         try:
             from app.voice_agent.fillers import FillerPlayer
+
             return FillerPlayer(lang="hinglish")
         except Exception as e:
             logger.debug(f"Fillers unavailable: {e}")
@@ -719,6 +835,7 @@ class NaturalDialogManager:
         """Safety guardrails: PII redaction, injection block, output validation."""
         try:
             from app.voice_agent.guardrails import get_guardrails
+
             return get_guardrails()
         except Exception as e:
             logger.debug(f"Guardrails unavailable: {e}")
@@ -728,6 +845,7 @@ class NaturalDialogManager:
         """Latency optimizer: response cache + first-sentence chunking + metrics."""
         try:
             from app.voice_agent.latency import get_optimizer
+
             return get_optimizer()
         except Exception as e:
             logger.debug(f"LatencyOptimizer unavailable: {e}")
@@ -737,6 +855,7 @@ class NaturalDialogManager:
         """Register Sarvam / AI4Bharat Indian-language providers into the BYOK registry."""
         try:
             from app.voice_agent.indic_providers import register_indic_providers
+
             register_indic_providers()
         except Exception as e:
             logger.debug(f"Indic providers not registered: {e}")
@@ -750,12 +869,13 @@ class NaturalDialogManager:
                 pass
         return "Ek second..."
 
-    async def _maybe_tool_call(self, llm_output: str, state: DialogState) -> Optional[str]:
+    async def _maybe_tool_call(self, llm_output: str, state: DialogState) -> str | None:
         """Agar LLM output me tool call hai (e.g. book_appointment), execute karke natural confirm do."""
         if self.tools is None:
             return None
         try:
             from app.voice_agent.function_calling import parse_tool_call
+
             call = parse_tool_call(llm_output)
             if not call:
                 return None
@@ -768,7 +888,9 @@ class NaturalDialogManager:
                 state.outcome = "qualified"
                 return f"Perfect! {conf}. Aapko WhatsApp par reminder bhej deti hoon."
             if call["name"] == "transfer_to_human":
-                return "Theek hai, main aapko abhi humari team se connect kar deti hoon — ek second."
+                return (
+                    "Theek hai, main aapko abhi humari team se connect kar deti hoon — ek second."
+                )
             if call["name"] == "check_availability" and ok:
                 slots = data.get("slots") or data.get("available") or []
                 if slots:
@@ -779,10 +901,11 @@ class NaturalDialogManager:
             logger.debug(f"tool-call handling skipped: {e}")
         return None
 
-    async def analyze_call(self, state: DialogState, lead: Optional[Dict[str, Any]] = None):
+    async def analyze_call(self, state: DialogState, lead: dict[str, Any] | None = None):
         """Call ke baad: summary, sentiment, outcome, extracted fields, talk-ratio, next action."""
         try:
             from app.voice_agent.call_analyzer import CallAnalyzer
+
             analyzer = CallAnalyzer(brain=self.brain)
             return await self._maybe_await(analyzer.analyze(state.history, lead))
         except Exception as e:
@@ -795,6 +918,9 @@ class NaturalDialogManager:
 
 
 __all__ = [
-    "NaturalDialogManager", "DialogState", "DialogReply",
-    "UtteranceType", "Affect",
+    "NaturalDialogManager",
+    "DialogState",
+    "DialogReply",
+    "UtteranceType",
+    "Affect",
 ]

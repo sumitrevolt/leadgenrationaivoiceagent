@@ -10,10 +10,11 @@ LLM se 1 batch call me 3 message STYLES bante hain ({name}/{offer} slots),
 phir per-customer template-fill hota hai (50 cap). LLM fail → built-in styles.
 KABHI empty, KABHI raise nahi.
 """
+
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import quote
 
 from app.utils.logger import setup_logger
@@ -28,7 +29,7 @@ except Exception:  # pragma: no cover - free_ai khud import-safe hai
 _MAX_CUSTOMERS = 50
 
 
-def _digits10(raw: Optional[str]) -> str:
+def _digits10(raw: str | None) -> str:
     """Sirf digits; +91/0 prefix normalize karke 10-digit lautao ('' = unusable)."""
     digits = "".join(c for c in str(raw or "") if c.isdigit())
     if digits.startswith("91") and len(digits) == 12:
@@ -40,31 +41,42 @@ def _digits10(raw: Optional[str]) -> str:
 
 # --- 3 built-in win-back styles ({name}/{biz}/{offer_line} slots) --- #
 _STYLES = [
-    ("warm", "Namaste {name} ji! 🙏 {biz} se. Aapko humse seva liye kaafi time ho "
-             "gaya — aapki yaad aayi! {offer_line} Is hafte aaiye, special dhyan "
-             "rakhenge. Bas is message ka reply kar dijiye 😊"),
-    ("offer", "Hello {name} ji! {biz} ki taraf se sirf purane customers ke liye "
-              "khaas: {offer_line} Limited time hai — reply karein ya isi number "
-              "par call karein, turant book kar denge 🎁"),
-    ("feedback", "Namaste {name} ji, {biz} se. Aap kaafi time se nahi aaye — kya "
-                 "hum kuch behtar kar sakte the? Aapka 1 reply hamare liye bahut "
-                 "keemti hai. {offer_line} Wapas aane par special welcome pakka 🙏"),
+    (
+        "warm",
+        "Namaste {name} ji! 🙏 {biz} se. Aapko humse seva liye kaafi time ho "
+        "gaya — aapki yaad aayi! {offer_line} Is hafte aaiye, special dhyan "
+        "rakhenge. Bas is message ka reply kar dijiye 😊",
+    ),
+    (
+        "offer",
+        "Hello {name} ji! {biz} ki taraf se sirf purane customers ke liye "
+        "khaas: {offer_line} Limited time hai — reply karein ya isi number "
+        "par call karein, turant book kar denge 🎁",
+    ),
+    (
+        "feedback",
+        "Namaste {name} ji, {biz} se. Aap kaafi time se nahi aaye — kya "
+        "hum kuch behtar kar sakte the? Aapka 1 reply hamare liye bahut "
+        "keemti hai. {offer_line} Wapas aane par special welcome pakka 🙏",
+    ),
 ]
 
 
 def _offer_line(offer: str) -> str:
     offer = (offer or "").strip()
-    return (f"Aapke liye khaas offer: {offer}." if offer
-            else "Aapke liye ek khaas welcome-back offer rakha hai.")
+    return (
+        f"Aapke liye khaas offer: {offer}."
+        if offer
+        else "Aapke liye ek khaas welcome-back offer rakha hai."
+    )
 
 
-def _parse_llm_styles(text: str) -> List[str]:
+def _parse_llm_styles(text: str) -> list[str]:
     """STYLE1:/STYLE2:/STYLE3: parse — sirf {name} slot wale valid maane jaate."""
-    out: List[str] = []
+    out: list[str] = []
     try:
         for i in (1, 2, 3):
-            m = re.search(rf"STYLE\s*{i}\s*:\s*(.+?)(?=\n\s*STYLE\s*\d\s*:|\Z)",
-                          text, re.S | re.I)
+            m = re.search(rf"STYLE\s*{i}\s*:\s*(.+?)(?=\n\s*STYLE\s*\d\s*:|\Z)", text, re.S | re.I)
             if m:
                 style = m.group(1).strip().strip('"').strip()
                 if style and "{name}" in style:
@@ -77,9 +89,9 @@ def _parse_llm_styles(text: str) -> List[str]:
 async def reactivation_campaign(
     business_name: str,
     niche: str = "general",
-    customers: Optional[List[Dict[str, Any]]] = None,
+    customers: list[dict[str, Any]] | None = None,
     offer: str = "",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Per-customer win-back message + wa.me link (cap 50). KABHI empty nahi.
 
     customers: [{"name","phone","last_visit"?,"note"?}, ...]
@@ -105,11 +117,14 @@ async def reactivation_campaign(
                 "STYLE2: <offer-led message>\n"
                 "STYLE3: <feedback-ask message>"
             )
-            user = (f"Business: {biz} (category: {niche}). "
-                    f"Offer line jo include karni hai: {oline}")
+            user = (
+                f"Business: {biz} (category: {niche}). " f"Offer line jo include karni hai: {oline}"
+            )
             text, p = await free_ai.chat(
-                system, [{"role": "user", "content": user}],
-                max_tokens=400, temperature=0.8,
+                system,
+                [{"role": "user", "content": user}],
+                max_tokens=400,
+                temperature=0.8,
             )
             if text and text.strip():
                 parsed = _parse_llm_styles(text)
@@ -120,21 +135,25 @@ async def reactivation_campaign(
             logger.warning(f"reactivation LLM styles failed, using templates: {e}")
 
     # --- per-customer template-fill (round-robin styles) --- #
-    messages: List[Dict[str, str]] = []
+    messages: list[dict[str, str]] = []
     for i, row in enumerate(rows):
         name = str(row.get("name") or "").strip()[:60] or "ji"
-        text = (styles[i % 3]
-                .replace("{name}", name)
-                .replace("{biz}", biz)
-                .replace("{offer_line}", oline))
+        text = (
+            styles[i % 3]
+            .replace("{name}", name)
+            .replace("{biz}", biz)
+            .replace("{offer_line}", oline)
+        )
         d10 = _digits10(row.get("phone"))
         wa_link = f"https://wa.me/91{d10}?text={quote(text)}" if d10 else ""
-        messages.append({
-            "name": name,
-            "phone": d10 or str(row.get("phone") or "").strip()[:20],
-            "text": text,
-            "wa_link": wa_link,
-        })
+        messages.append(
+            {
+                "name": name,
+                "phone": d10 or str(row.get("phone") or "").strip()[:20],
+                "text": text,
+                "wa_link": wa_link,
+            }
+        )
 
     tips = [
         "Roz 15-20 se zyada mat bhejo aur har message personalized rakho — "

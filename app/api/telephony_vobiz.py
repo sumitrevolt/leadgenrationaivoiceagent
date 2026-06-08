@@ -12,11 +12,12 @@ Endpoints (mounted by main.py under /api → /api/telephony/vobiz/*):
 NOTE (DLT pending): test calls sirf own/known numbers pe (transactional);
 promo cold-calls 140-DID + DLT ke baad hi.
 """
+
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, Response, WebSocket
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
@@ -31,9 +32,9 @@ router = APIRouter(prefix="/telephony/vobiz", tags=["Telephony"])
 
 # In-memory message store: token -> Speak text. Single-process best-effort —
 # fine for admin test calls (Vobiz fetches the answer_url within seconds).
-_PENDING_MESSAGES: Dict[str, str] = {}
+_PENDING_MESSAGES: dict[str, str] = {}
 # Streaming calls: token -> {"niche", "client_id"} (answer-stream + WS read it).
-_PENDING_STREAMS: Dict[str, Dict[str, Any]] = {}
+_PENDING_STREAMS: dict[str, dict[str, Any]] = {}
 _MAX_PENDING = 200
 
 _FALLBACK_GREETING = (
@@ -45,15 +46,18 @@ _FALLBACK_GREETING = (
 
 class TestCallRequest(BaseModel):
     """Outbound test-call request."""
-    to: str = Field(..., min_length=8, max_length=20, description="Destination number, E.164 (+91...)")
+
+    to: str = Field(
+        ..., min_length=8, max_length=20, description="Destination number, E.164 (+91...)"
+    )
     niche: str = Field("general", max_length=100, description="Niche key for the LLM greeting")
-    message: Optional[str] = Field(
+    message: str | None = Field(
         None, max_length=1000, description="Exact text to speak (skips LLM generation)"
     )
     call_type: str = Field(
         "transactional",
         description="'transactional' (consented/known, lenient) or 'promotional' "
-                    "(cold outreach — DND + 10-19 IST window + DLT/140 enforced)",
+        "(cold outreach — DND + 10-19 IST window + DLT/140 enforced)",
     )
 
 
@@ -64,13 +68,15 @@ async def _generate_message(niche: str) -> str:
 
         brain = LLMBrain()
         text = await brain.generate_response(
-            conversation_history=[{
-                "role": "user",
-                "content": (
-                    f"Give a 2-sentence Hinglish intro call greeting for a {niche} "
-                    "business demo call. Mention this is an AI demo call from LeadGen AI."
-                ),
-            }],
+            conversation_history=[
+                {
+                    "role": "user",
+                    "content": (
+                        f"Give a 2-sentence Hinglish intro call greeting for a {niche} "
+                        "business demo call. Mention this is an AI demo call from LeadGen AI."
+                    ),
+                }
+            ],
             niche=niche,
             client_name="LeadGen AI",
             client_service="AI voice agents",
@@ -86,7 +92,7 @@ async def _generate_message(niche: str) -> str:
 async def place_test_call(
     request: TestCallRequest,
     user: User = Depends(require_admin),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Place an outbound Vobiz test call that speaks a greeting and hangs up."""
     client = VobizClient()
     if not client.available():
@@ -103,13 +109,17 @@ async def place_test_call(
     _PENDING_MESSAGES[token] = message
 
     answer_url = f"{settings.public_base_url}/api/telephony/vobiz/answer/{token}"
-    result = await client.place_call(to=request.to, answer_url=answer_url, call_type=request.call_type)
+    result = await client.place_call(
+        to=request.to, answer_url=answer_url, call_type=request.call_type
+    )
     if result.get("blocked"):
         _PENDING_MESSAGES.pop(token, None)
         raise HTTPException(
             status_code=422,
-            detail={"error": "Call blocked by compliance gate (TCCCPR/TRAI).",
-                    "compliance": result.get("compliance") or result.get("body")},
+            detail={
+                "error": "Call blocked by compliance gate (TCCCPR/TRAI).",
+                "compliance": result.get("compliance") or result.get("body"),
+            },
         )
     placed = 200 <= int(result.get("status_code") or 0) < 300
     if not placed:
@@ -138,13 +148,14 @@ async def answer_xml(token: str) -> Response:
 # --------------------------------------------------------------------------- #
 class StreamCallRequest(BaseModel):
     """Outbound conversational (WebSocket-streamed) call request."""
+
     to: str = Field(..., min_length=8, max_length=20, description="Destination number, E.164")
     niche: str = Field("general", max_length=100, description="Niche key for the bot")
-    client_id: Optional[str] = Field(None, max_length=100, description="Client id for the bot")
+    client_id: str | None = Field(None, max_length=100, description="Client id for the bot")
     call_type: str = Field(
         "transactional",
         description="'transactional' (consented/known) or 'promotional' (cold — "
-                    "DND + 10-19 IST window + DLT/140 enforced)",
+        "DND + 10-19 IST window + DLT/140 enforced)",
     )
 
 
@@ -157,9 +168,9 @@ def _wss_host() -> str:
 async def start_stream_call(
     to: str,
     niche: str = "general",
-    client_id: Optional[str] = None,
+    client_id: str | None = None,
     call_type: str = "transactional",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """INTERNAL helper — conversational stream call lagao (no HTTP/auth layer).
 
     Wahi token + _PENDING_STREAMS + answer-stream URL flow jo POST /stream-call
@@ -197,7 +208,7 @@ async def start_stream_call(
 async def place_stream_call(
     request: StreamCallRequest,
     user: User = Depends(require_admin),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Place an outbound call that streams two-way audio to our WS for a full
     conversation (vs. /test-call which speaks one line and hangs up)."""
     client = VobizClient()
@@ -213,13 +224,17 @@ async def place_stream_call(
     _PENDING_STREAMS[token] = {"niche": request.niche, "client_id": request.client_id}
 
     answer_url = f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
-    result = await client.place_call(to=request.to, answer_url=answer_url, call_type=request.call_type)
+    result = await client.place_call(
+        to=request.to, answer_url=answer_url, call_type=request.call_type
+    )
     if result.get("blocked"):
         _PENDING_STREAMS.pop(token, None)
         raise HTTPException(
             status_code=422,
-            detail={"error": "Call blocked by compliance gate (TCCCPR/TRAI).",
-                    "compliance": result.get("compliance") or result.get("body")},
+            detail={
+                "error": "Call blocked by compliance gate (TCCCPR/TRAI).",
+                "compliance": result.get("compliance") or result.get("body"),
+            },
         )
     placed = 200 <= int(result.get("status_code") or 0) < 300
     if not placed:
@@ -261,7 +276,7 @@ async def vobiz_stream_ws(
     websocket: WebSocket,
     token: str,
     niche: str = "general",
-    client_id: Optional[str] = None,
+    client_id: str | None = None,
 ) -> None:
     """Two-way media WebSocket Vobiz connects to. Runs a full STT->LLM->TTS
     conversation loop. niche/client come from query params or the pending
@@ -278,10 +293,10 @@ async def vobiz_stream_ws(
 
 
 @router.get("/status")
-async def vobiz_status(user: User = Depends(require_admin)) -> Dict[str, Any]:
+async def vobiz_status(user: User = Depends(require_admin)) -> dict[str, Any]:
     """Vobiz config snapshot + best-effort balance (admin)."""
     client = VobizClient()
-    out: Dict[str, Any] = {
+    out: dict[str, Any] = {
         "available": client.available(),
         "trunk_id": settings.vobiz_trunk_id,
         "domain": settings.vobiz_trunk_domain,
@@ -292,7 +307,7 @@ async def vobiz_status(user: User = Depends(require_admin)) -> Dict[str, Any]:
     try:
         from app.telephony import vobiz_stream as _vs
 
-        streaming: Dict[str, Any] = {
+        streaming: dict[str, Any] = {
             "stt_available": _vs.STT_AVAILABLE,
             "tts_available": _vs.TTS_AVAILABLE,
             "audioop": _vs._AUDIOOP_OK,

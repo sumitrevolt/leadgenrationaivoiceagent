@@ -29,18 +29,21 @@ Usage (text mode, no external services needed):
             msg = amd.voicemail_message("SunPower", "+919876543210")
             # ...play/synthesize `msg` then hangup
 """
+
 from __future__ import annotations
 
 import math
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, List, Optional, Sequence
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -58,18 +61,19 @@ class AMDResult:
         action:      recommended action -> "leave_message" | "hangup" | "continue".
         matched:     jo phrases / signals match hue (debug ke liye).
     """
+
     is_machine: bool = False
     confidence: float = 0.0
     reason: str = "human"
     action: str = "continue"
-    matched: List[str] = field(default_factory=list)
+    matched: list[str] = field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #
 # Voicemail phrase banks (English + Hindi + Hinglish)
 # --------------------------------------------------------------------------- #
 # High-confidence: classic voicemail greetings — yeh dikhe to almost certainly machine.
-_STRONG_PHRASES: List[str] = [
+_STRONG_PHRASES: list[str] = [
     "leave a message after the tone",
     "leave a message after the beep",
     "leave your message after the tone",
@@ -111,7 +115,7 @@ _STRONG_PHRASES: List[str] = [
 ]
 
 # Medium-confidence signals — alone weak, combined ya repeated to machine likely.
-_WEAK_PHRASES: List[str] = [
+_WEAK_PHRASES: list[str] = [
     "voicemail",
     "voice mail",
     "answering machine",
@@ -127,7 +131,7 @@ _WEAK_PHRASES: List[str] = [
 ]
 
 # Carrier / network auto-messages (call hi nahi lagi) -> hangup.
-_CARRIER_PHRASES: List[str] = [
+_CARRIER_PHRASES: list[str] = [
     "the number you have dialed is incorrect",
     "the number you are calling is not in service",
     "number does not exist",
@@ -157,9 +161,9 @@ class AnsweringMachineDetector:
 
     def __init__(
         self,
-        strong_phrases: Optional[Sequence[str]] = None,
-        weak_phrases: Optional[Sequence[str]] = None,
-        carrier_phrases: Optional[Sequence[str]] = None,
+        strong_phrases: Sequence[str] | None = None,
+        weak_phrases: Sequence[str] | None = None,
+        carrier_phrases: Sequence[str] | None = None,
         long_utterance_chars: int = 220,
         long_utterance_ms: int = 6500,
     ):
@@ -174,7 +178,7 @@ class AnsweringMachineDetector:
     def detect_from_transcript(
         self,
         text: str,
-        timing_ms: Optional[int] = None,
+        timing_ms: int | None = None,
     ) -> AMDResult:
         """Transcript (STT output) se voicemail detect karo.
 
@@ -188,7 +192,7 @@ class AnsweringMachineDetector:
         """
         raw = (text or "").strip()
         low = raw.lower()
-        matched: List[str] = []
+        matched: list[str] = []
 
         if not low:
             # Khaali transcript — koi detection nahi, continue (human ho sakta hai).
@@ -200,8 +204,11 @@ class AnsweringMachineDetector:
                 matched.append(p)
                 logger.debug(f"AMD carrier message matched: {p!r}")
                 return AMDResult(
-                    is_machine=True, confidence=0.95,
-                    reason="carrier_message", action="hangup", matched=matched,
+                    is_machine=True,
+                    confidence=0.95,
+                    reason="carrier_message",
+                    action="hangup",
+                    matched=matched,
                 )
 
         score = 0.0
@@ -286,9 +293,9 @@ class AnsweringMachineDetector:
                 return AMDResult(False, 0.0, "no_audio", "continue")
 
             frame_len = max(1, int(sample_rate * frame_ms / 1000))
-            frames: List[float] = []
+            frames: list[float] = []
             for i in range(0, len(vals), frame_len):
-                chunk = vals[i:i + frame_len]
+                chunk = vals[i : i + frame_len]
                 if chunk:
                     frames.append(self._rms(chunk))
             if not frames:
@@ -315,7 +322,7 @@ class AnsweringMachineDetector:
                 (sum(tail) / len(tail)) > 1.5 * (sum(pre_tail) / len(pre_tail))
             )
 
-            matched: List[str] = []
+            matched: list[str] = []
             score = 0.0
             # continuous speech (kam pauses) = machine signal
             if voiced_ratio >= 0.7 and longest_ms >= self.long_utterance_ms:
@@ -364,7 +371,7 @@ class AnsweringMachineDetector:
     def voicemail_message(
         self,
         client_name: str,
-        callback_number: Optional[str] = None,
+        callback_number: str | None = None,
         agent_name: str = "Riya",
         lang: str = "hinglish",
     ) -> str:
@@ -414,10 +421,11 @@ class AnsweringMachineDetector:
 
     # ----------------------- internal helpers ----------------------- #
     @staticmethod
-    def _to_float_samples(samples: Sequence[float] | bytes) -> List[float]:
+    def _to_float_samples(samples: Sequence[float] | bytes) -> list[float]:
         """int16 PCM bytes ya numeric sequence ko float list me convert karo."""
         if isinstance(samples, (bytes, bytearray)):
             import array
+
             arr = array.array("h")  # signed short (int16)
             # even length tak hi parse karo (last odd byte drop)
             n = len(samples) - (len(samples) % 2)

@@ -10,11 +10,12 @@ LLM (free_ai) se 3-line Hinglish summary — fail par template. DB/events na hon
 to bhi report banti hai (zeros + starter suggestions). KABHI empty, KABHI raise
 nahi.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from html import escape
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -28,7 +29,7 @@ except Exception:  # pragma: no cover - free_ai khud import-safe hai
 _IST = timezone(timedelta(hours=5, minutes=30))
 
 # Dashboard-highlight buckets: action -> bucket (team events se).
-_ACTION_BUCKETS: Dict[str, tuple] = {
+_ACTION_BUCKETS: dict[str, tuple] = {
     "posts": ("post_generated", "festival_posts_generated", "calendar_generated"),
     "posters": ("poster_generated",),
     "calls": ("call_placed", "call_finished", "web_demo", "stream_call"),
@@ -47,10 +48,10 @@ _BUCKET_LABELS = {
 }
 
 
-def _collect_stats() -> Dict[str, Any]:
+def _collect_stats() -> dict[str, Any]:
     """team.recent_events(300) → counts. DB na ho to zeros (kabhi raise nahi)."""
-    events: List[Dict[str, Any]] = []
-    staff: Dict[str, Any] = {}
+    events: list[dict[str, Any]] = []
+    staff: dict[str, Any] = {}
     try:
         from app.platform.team import STAFF, recent_events
 
@@ -59,8 +60,8 @@ def _collect_stats() -> Dict[str, Any]:
     except Exception as e:
         logger.debug(f"[report] events fetch skipped: {e}")
 
-    by_member: Dict[str, int] = {}
-    by_action: Dict[str, int] = {}
+    by_member: dict[str, int] = {}
+    by_action: dict[str, int] = {}
     for ev in events:
         m = str(ev.get("member") or "system")
         a = str(ev.get("action") or "event")
@@ -85,7 +86,7 @@ def _collect_stats() -> Dict[str, Any]:
     }
 
 
-def _template_summary(stats: Dict[str, Any]) -> List[str]:
+def _template_summary(stats: dict[str, Any]) -> list[str]:
     h = stats["highlights"]
     total = stats["total_actions"]
     if total == 0:
@@ -96,13 +97,15 @@ def _template_summary(stats: Dict[str, Any]) -> List[str]:
         ]
     return [
         f"Is mahine total {total} marketing actions hue — system active hai.",
-        (f"Content: {h['posts']} posts + {h['posters']} posters bane; "
-         f"calls/demos: {h['calls']}, review kaam: {h['reviews']}."),
+        (
+            f"Content: {h['posts']} posts + {h['posters']} posters bane; "
+            f"calls/demos: {h['calls']}, review kaam: {h['reviews']}."
+        ),
         "Agle mahine review collection + drip follow-ups par focus karein — conversion wahin se badhti hai.",
     ]
 
 
-def _default_plan() -> List[str]:
+def _default_plan() -> list[str]:
     plan = [
         "Har hafte 2 posts + 1 poster publish karein (festival templates ready hain).",
         "Har khush customer ko review QR/link bhejein — mahine me 8-10 naye reviews ka target.",
@@ -115,26 +118,35 @@ def _default_plan() -> List[str]:
         up = festivals.upcoming(60)
         if up:
             f0 = up[0]
-            plan.insert(0, f"{f0['name']} ({f0['date']}) aa raha hai — poster + offer post abhi schedule karein.")
+            plan.insert(
+                0,
+                f"{f0['name']} ({f0['date']}) aa raha hai — poster + offer post abhi schedule karein.",
+            )
     except Exception:
         pass
     return plan[:5]
 
 
-def _build_html(client: str, month: str, stats: Dict[str, Any],
-                summary: List[str], plan: List[str]) -> str:
+def _build_html(
+    client: str, month: str, stats: dict[str, Any], summary: list[str], plan: list[str]
+) -> str:
     e = lambda s: escape(str(s or ""), quote=True)  # noqa: E731
     chips = "".join(
         f'<div class="chip"><div class="num">{stats["highlights"][b]}</div>'
         f'<div class="lbl">{e(_BUCKET_LABELS[b])}</div></div>'
         for b in _ACTION_BUCKETS
     )
-    rows = "".join(
-        f'<tr><td>{e(stats["member_names"].get(m, m))}</td><td class="r">{n}</td></tr>'
-        for m, n in sorted(stats["by_member"].items(), key=lambda kv: -kv[1])
-    ) or '<tr><td>Abhi events record nahi hue</td><td class="r">0</td></tr>'
-    rows += (f'<tr class="tot"><td>Total actions</td>'
-             f'<td class="r">{stats["total_actions"]}</td></tr>')
+    rows = (
+        "".join(
+            f'<tr><td>{e(stats["member_names"].get(m, m))}</td><td class="r">{n}</td></tr>'
+            for m, n in sorted(stats["by_member"].items(), key=lambda kv: -kv[1])
+        )
+        or '<tr><td>Abhi events record nahi hue</td><td class="r">0</td></tr>'
+    )
+    rows += (
+        f'<tr class="tot"><td>Total actions</td>'
+        f'<td class="r">{stats["total_actions"]}</td></tr>'
+    )
     sugg = "".join(f"<li>{e(s)}</li>" for s in summary)
     plan_html = "".join(f"<li>{e(p)}</li>" for p in plan)
     return (
@@ -170,7 +182,7 @@ def _build_html(client: str, month: str, stats: Dict[str, Any],
     )
 
 
-async def build_report(client_name: str = "", month: Optional[str] = None) -> Dict[str, Any]:
+async def build_report(client_name: str = "", month: str | None = None) -> dict[str, Any]:
     """Monthly marketing report (HTML + stats). KABHI empty nahi, KABHI raise nahi.
 
     Returns: {"html", "stats", "summary"[3], "plan", "month", "client_name", "provider"}.
@@ -182,11 +194,16 @@ async def build_report(client_name: str = "", month: Optional[str] = None) -> Di
         stats = _collect_stats()
     except Exception as e:  # pragma: no cover - _collect_stats khud guarded hai
         logger.warning(f"build_report stats failed: {e}")
-        stats = {"total_actions": 0, "by_member": {}, "by_action": {},
-                 "member_names": {}, "highlights": {b: 0 for b in _ACTION_BUCKETS},
-                 "events_analyzed": 0}
+        stats = {
+            "total_actions": 0,
+            "by_member": {},
+            "by_action": {},
+            "member_names": {},
+            "highlights": dict.fromkeys(_ACTION_BUCKETS, 0),
+            "events_analyzed": 0,
+        }
 
-    summary: List[str] = []
+    summary: list[str] = []
     provider = "template"
     if free_ai is not None:
         try:
@@ -205,8 +222,10 @@ async def build_report(client_name: str = "", month: Optional[str] = None) -> Di
                 f"whatsapp campaigns: {h['whatsapp']}. 3-line summary likho."
             )
             text, p = await free_ai.chat(
-                system, [{"role": "user", "content": user}],
-                max_tokens=220, temperature=0.6,
+                system,
+                [{"role": "user", "content": user}],
+                max_tokens=220,
+                temperature=0.6,
             )
             lines = [ln.strip(" -•*") for ln in (text or "").splitlines() if ln.strip()]
             if len(lines) >= 2:

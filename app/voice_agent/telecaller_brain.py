@@ -23,11 +23,12 @@ Usage:
     text  = await brain.reply(history, user_text)   # "" on any failure
     opener = brain.opening_line()                    # permission-based greet
 """
+
 from __future__ import annotations
 
 import asyncio
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.config import settings
 from app.utils.logger import setup_logger
@@ -38,12 +39,13 @@ logger = setup_logger(__name__)
 # missing/broken module can never stop the brain from initializing — get_script
 # then degrades to {} and the prompt falls back to niche-data questions.
 try:
-    from app.voice_agent.niche_scripts import get_script, NICHE_SCRIPTS
+    from app.voice_agent.niche_scripts import NICHE_SCRIPTS, get_script
 except Exception:  # pragma: no cover - pure-data module, but never break the brain
-    NICHE_SCRIPTS: Dict[str, dict] = {}
+    NICHE_SCRIPTS: dict[str, dict] = {}
 
     def get_script(_niche: str) -> dict:  # type: ignore[misc]
         return {}
+
 
 # Readable Hinglish customer-phrase hints for objection keys (prompt me clear
 # dikhe ki customer kya bolega) — niche_scripts ke objection dict keys ke liye.
@@ -62,9 +64,12 @@ _GENERIC_QUESTIONS = [
     "Agar ready qualified leads milne lagein, toh kab se shuru karna chahenge?",
 ]
 
-_MAX_HISTORY_TURNS = 8          # last ~8 turns to keep prompt (and latency) small
-_GEN_CONFIG = {"temperature": 0.5, "max_output_tokens": 60}  # brevity (phone) — 60 so closes don't truncate
-_REPLY_TIMEOUT_S = 6.0          # Gemini se itne me jawab nahi => "" (fallback chain)
+_MAX_HISTORY_TURNS = 8  # last ~8 turns to keep prompt (and latency) small
+_GEN_CONFIG = {
+    "temperature": 0.5,
+    "max_output_tokens": 60,
+}  # brevity (phone) — 60 so closes don't truncate
+_REPLY_TIMEOUT_S = 6.0  # Gemini se itne me jawab nahi => "" (fallback chain)
 
 # KB-grounding (Qdrant niche + client KB) — phone hot path, so keep it tight:
 # top-2 facts, short timeout, low score gate (works for both e5-cosine and
@@ -117,8 +122,9 @@ class TelecallerBrain:
     pipeline. KB-grounded (niche + client facts). Raises on init only if NEITHER
     Gemini NOR a free provider key is configured (caller falls back)."""
 
-    def __init__(self, niche: str = "general", client_name: str = "Demo Co",
-                 client_id: Optional[str] = None) -> None:
+    def __init__(
+        self, niche: str = "general", client_name: str = "Demo Co", client_id: str | None = None
+    ) -> None:
         self.niche = (niche or "general").strip() or "general"
         self.client_name = (client_name or "Demo Co").strip() or "Demo Co"
         self.client_id = (str(client_id).strip() or None) if client_id else None
@@ -129,8 +135,12 @@ class TelecallerBrain:
         # works exactly as before.
         try:
             from app.voice_agent.gemini_keys import (
-                active_key, advance_key, key_count, is_quota_error,
+                active_key,
+                advance_key,
+                is_quota_error,
+                key_count,
             )
+
             self._active_key = active_key
             self._advance_key = advance_key
             self._key_count = key_count
@@ -160,6 +170,7 @@ class TelecallerBrain:
             try:
                 # Same pattern as llm_brain._init_gemini — direct google.generativeai.
                 import google.generativeai as genai
+
                 genai.configure(api_key=first_key)
                 self._genai = genai
                 model = (settings.default_llm or "").strip()
@@ -190,7 +201,7 @@ class TelecallerBrain:
     # Niche data (pitch_hook + qualification_questions from app.niches)
     # ------------------------------------------------------------------ #
     def _load_niche(self) -> None:
-        data: Dict = {}
+        data: dict = {}
         try:
             from app.niches import NICHES
 
@@ -200,7 +211,9 @@ class TelecallerBrain:
         self.niche_name = data.get("name") or self.niche.replace("_", " ").title()
         self.pitch_hook = (data.get("pitch_hook") or "").strip()
         qs = data.get("qualification_questions") or []
-        self.questions: List[str] = [str(q).strip() for q in qs if str(q).strip()] or list(_GENERIC_QUESTIONS)
+        self.questions: list[str] = [str(q).strip() for q in qs if str(q).strip()] or list(
+            _GENERIC_QUESTIONS
+        )
         # Numbers the agent is ALLOWED to say — only what niche data provides.
         nums = []
         if data.get("avg_ticket_inr"):
@@ -228,22 +241,34 @@ class TelecallerBrain:
 
         hook = self.pitch_hook or "businesses ko ready qualified leads dilana"
         hook_short = _short_hook(hook) or "qualified leads"
-        numbers_line = self.allowed_numbers or "(koi nahi — matlab tum KOI number/price quote nahi kar sakti)"
+        numbers_line = (
+            self.allowed_numbers or "(koi nahi — matlab tum KOI number/price quote nahi kar sakti)"
+        )
 
         # Compact professional-script reference blocks (style guide — copy-paste nahi).
         opening = (s.get("opening") or "").strip()
         closing = (s.get("closing") or "").strip()
         value_lines = [str(v).strip() for v in (s.get("value_lines") or []) if str(v).strip()]
-        value_block = "\n".join(f"- {v}" for v in value_lines) or "- (niche ke hisaab se ek crisp value-line)"
-        obj_block = "\n".join(
-            f'- Customer: "{_OBJ_HINT.get(k, k)}" -> Tum: {v}'
-            for k, v in (s.get("objections") or {}).items() if str(v).strip()
-        ) or "- (empathize karo, ek chhoti value-line do, phir aage badho)"
+        value_block = (
+            "\n".join(f"- {v}" for v in value_lines) or "- (niche ke hisaab se ek crisp value-line)"
+        )
+        obj_block = (
+            "\n".join(
+                f'- Customer: "{_OBJ_HINT.get(k, k)}" -> Tum: {v}'
+                for k, v in (s.get("objections") or {}).items()
+                if str(v).strip()
+            )
+            or "- (empathize karo, ek chhoti value-line do, phir aage badho)"
+        )
         script_block = (
             (f"Opening (permission-based): {opening}\n" if opening else "")
             + f"Discovery questions (ISI ORDER me, ek turn me sirf EK; jo customer PEHLE bata chuka woh SKIP):\n{q_block}\n"
             + f"Value lines (jab pitch karni ho):\n{value_block}"
-            + (f"\nClosing (interest dikhe to appointment/visit/callback BOOK karo): {closing}" if closing else "")
+            + (
+                f"\nClosing (interest dikhe to appointment/visit/callback BOOK karo): {closing}"
+                if closing
+                else ""
+            )
         )
 
         return f"""Tum "Swara" ho — {self.client_name} ki professional Indian female telecaller. Tum ek TOP professional Indian telecaller ho (noob nahi). Confident, warm, crisp. Customer ke har jawab ko sun ke uske hisab se aage badho — ratta-maar nahi. Tum ek LIVE PHONE CALL par ho (text chat nahi); bhasha natural Hinglish (Hindi-English mix), awaaz bilkul insaan jaisi.
@@ -295,15 +320,19 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
     def opening_line(self) -> str:
         hook = _short_hook(self.pitch_hook)
         if hook:
-            return (f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
-                    f"Aapke kaam ki ek choti si baat hai — {hook} — kya main tees second me bata doon?")
-        return (f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
-                "Kya main do minute le sakti hoon?")
+            return (
+                f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
+                f"Aapke kaam ki ek choti si baat hai — {hook} — kya main tees second me bata doon?"
+            )
+        return (
+            f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
+            "Kya main do minute le sakti hoon?"
+        )
 
     # ------------------------------------------------------------------ #
     # Reply — system prompt + last ~8 turns → ONE short spoken line.
     # ------------------------------------------------------------------ #
-    async def reply(self, history: List[Dict[str, str]], user_text: str) -> str:
+    async def reply(self, history: list[dict[str, str]], user_text: str) -> str:
         """Returns stripped reply text, or "" on ANY failure (caller falls back).
 
         Pipeline: KB-grounding (niche + client facts) -> free_ai.chat (Cerebras ->
@@ -328,7 +357,7 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
                 if t2 and not self._too_similar(t2, prev):
                     text, prov = t2, p2
 
-            text = self._clean(text)   # HARD brevity cap on the final reply
+            text = self._clean(text)  # HARD brevity cap on the final reply
             # SCRIPT FALLBACK: agar LLM throttled/slow/empty (free quota spike),
             # generic "samajh gayi" ki jagah niche-script ka agla PROFESSIONAL
             # sawaal do — instant (0 LLM), niche-specific, kabhi repeat nahi.
@@ -343,12 +372,13 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             logger.warning(f"[telecaller-brain] reply failed: {e}")
             return self._script_fallback(history) or ""
 
-    def _script_fallback(self, history: List[Dict[str, str]]) -> str:
+    def _script_fallback(self, history: list[dict[str, str]]) -> str:
         """Deterministic professional line from the niche script (no LLM).
         Rotates through discovery questions by how many bot turns happened,
         then a value line, then the close — so it advances + never repeats."""
         try:
             from app.voice_agent.niche_scripts import get_script
+
             s = get_script(self.niche) or {}
         except Exception:
             return ""
@@ -373,7 +403,7 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
         return (text, "gemini") if text else ("", "")
 
     @staticmethod
-    def _prev_assistant(history: Optional[List[Dict[str, str]]]) -> str:
+    def _prev_assistant(history: list[dict[str, str]] | None) -> str:
         """Last assistant turn ka text (repeated-answer guard ke liye)."""
         for m in reversed(history or []):
             if m.get("role") == "assistant":
@@ -398,10 +428,11 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
     # ------------------------------------------------------------------ #
     # Prompt assembly (system + KB facts + recent turns)
     # ------------------------------------------------------------------ #
-    def _build_prompt(self, history: List[Dict[str, str]], user_text: str,
-                      facts: Optional[List[str]] = None) -> str:
+    def _build_prompt(
+        self, history: list[dict[str, str]], user_text: str, facts: list[str] | None = None
+    ) -> str:
         turns = list(history or [])[-_MAX_HISTORY_TURNS:]
-        lines: List[str] = [self.system_prompt]
+        lines: list[str] = [self.system_prompt]
         if facts:
             # KB facts as ONE short line (phone hot path — no paragraphs). Use
             # only if relevant; never invent numbers/claims beyond these.
@@ -417,8 +448,11 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
         # history me aakhri user msg already ho sakta hai (vobiz_stream appends
         # before _think) — duplicate mat karo.
         ut = (user_text or "").strip()
-        if ut and not (turns and turns[-1].get("role") == "user"
-                       and str(turns[-1].get("content", "")).strip() == ut):
+        if ut and not (
+            turns
+            and turns[-1].get("role") == "user"
+            and str(turns[-1].get("content", "")).strip() == ut
+        ):
             lines.append(f"User: {ut}")
         lines.append("Swara:")
         return "\n".join(lines)
@@ -426,7 +460,7 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
     # ------------------------------------------------------------------ #
     # KB-grounding — top-2 niche + client facts for this turn (executor)
     # ------------------------------------------------------------------ #
-    async def _kb_facts(self, user_text: str) -> List[str]:
+    async def _kb_facts(self, user_text: str) -> list[str]:
         """Top-2 grounding facts from the niche + client KB for this user turn.
         Runs in an executor with a short timeout so a slow/empty/cold KB never
         stalls the spoken reply. Returns [] on anything unusual."""
@@ -441,8 +475,8 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
         if self.client_id:
             namespaces.append(f"client:{self.client_id}")
 
-        def _query() -> List[Dict[str, Any]]:
-            hits: List[Dict[str, Any]] = []
+        def _query() -> list[dict[str, Any]]:
+            hits: list[dict[str, Any]] = []
             for ns in namespaces:
                 try:
                     hits.extend(kb.retrieve(ut, k=_KB_TOP_K, namespace=ns) or [])
@@ -452,19 +486,18 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
 
         try:
             loop = asyncio.get_event_loop()
-            hits = await asyncio.wait_for(
-                loop.run_in_executor(None, _query), timeout=_KB_TIMEOUT_S
-            )
+            hits = await asyncio.wait_for(loop.run_in_executor(None, _query), timeout=_KB_TIMEOUT_S)
         except Exception:
             return []
 
         # gate weak/empty, dedupe, keep top-2 by score
         hits = [
-            h for h in (hits or [])
+            h
+            for h in (hits or [])
             if (h.get("score") or 0.0) >= _KB_MIN_SCORE and str(h.get("text") or "").strip()
         ]
         hits.sort(key=lambda h: h.get("score", 0.0), reverse=True)
-        facts: List[str] = []
+        facts: list[str] = []
         seen = set()
         for h in hits:
             t = str(h["text"]).strip()
@@ -494,9 +527,7 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
                 model = self._genai.GenerativeModel(self.model)
                 # Hard latency cap: phone par 6s+ ka silence = dead call.
                 response = await asyncio.wait_for(
-                    model.generate_content_async(
-                        prompt, generation_config=dict(_GEN_CONFIG)
-                    ),
+                    model.generate_content_async(prompt, generation_config=dict(_GEN_CONFIG)),
                     timeout=_REPLY_TIMEOUT_S,
                 )
                 return self._clean((getattr(response, "text", "") or "").strip())
@@ -525,7 +556,9 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
                 temperature=float(_GEN_CONFIG["temperature"]),
             )
             if text:
-                logger.info(f"[telecaller-brain] free-AI fallback via {provider} (Gemini unavailable)")
+                logger.info(
+                    f"[telecaller-brain] free-AI fallback via {provider} (Gemini unavailable)"
+                )
             return self._clean(text)
         except Exception as e:
             logger.warning(f"[telecaller-brain] free-AI fallback failed: {e}")

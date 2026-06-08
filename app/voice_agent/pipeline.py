@@ -52,15 +52,10 @@ Usage example (pure text mode)::
 
 import asyncio
 import time
+from collections.abc import AsyncGenerator, AsyncIterable
 from dataclasses import dataclass, field
 from typing import (
     Any,
-    AsyncGenerator,
-    AsyncIterable,
-    Dict,
-    List,
-    Optional,
-    Tuple,
     Union,
 )
 
@@ -93,7 +88,7 @@ class TurnMetrics:
     total_ms: float = 0.0
     barged_in: bool = False
 
-    def as_dict(self) -> Dict[str, float]:
+    def as_dict(self) -> dict[str, float]:
         return {
             "stt_ms": round(self.stt_ms, 1),
             "llm_ms": round(self.llm_ms, 1),
@@ -107,10 +102,10 @@ class TurnMetrics:
 class PipelineState:
     """Holds conversation history + (optional) flow-engine state for a session."""
 
-    history: List[Dict[str, str]] = field(default_factory=list)
-    flow_state: Dict[str, Any] = field(default_factory=dict)
+    history: list[dict[str, str]] = field(default_factory=list)
+    flow_state: dict[str, Any] = field(default_factory=dict)
     turn_count: int = 0
-    last_metrics: Optional[TurnMetrics] = None
+    last_metrics: TurnMetrics | None = None
 
     def add_user(self, text: str) -> None:
         self.history.append({"role": "user", "content": text})
@@ -139,11 +134,11 @@ class VoicePipeline:
     def __init__(
         self,
         system_prompt: str = "",
-        registry: Optional[Any] = None,
+        registry: Any | None = None,
         silence_timeout_s: float = 0.8,
         energy_threshold: int = 500,
         use_flow_engine: bool = True,
-        voice_id: Optional[str] = None,
+        voice_id: str | None = None,
     ) -> None:
         self.system_prompt = system_prompt
         self._registry = registry or get_registry()
@@ -155,15 +150,15 @@ class VoicePipeline:
 
         # Barge-in coordination: set => "interrupt the bot now".
         self.interrupt = asyncio.Event()
-        self._tts_task: Optional[asyncio.Task] = None
+        self._tts_task: asyncio.Task | None = None
 
         # Endpointing bookkeeping (audio mode).
-        self._silence_started: Optional[float] = None
+        self._silence_started: float | None = None
 
         # Lazy provider handles (built on first use, Mock-safe).
-        self._stt: Optional[STTProvider] = None
-        self._tts: Optional[TTSProvider] = None
-        self._llm: Optional[LLMProvider] = None
+        self._stt: STTProvider | None = None
+        self._tts: TTSProvider | None = None
+        self._llm: LLMProvider | None = None
 
         # Optional flow engine (lazy / optional).
         self._flow = None
@@ -297,7 +292,7 @@ class VoicePipeline:
 
     # -- core stages -------------------------------------------------------
 
-    async def _do_stt(self, item: AudioOrText) -> Tuple[str, float]:
+    async def _do_stt(self, item: AudioOrText) -> tuple[str, float]:
         """Run STT (or pass text through). Returns (text, elapsed_ms)."""
         start = time.monotonic()
         if isinstance(item, str):
@@ -310,7 +305,7 @@ class VoicePipeline:
                 text = ""
         return text, (time.monotonic() - start) * 1000.0
 
-    async def _do_llm(self, user_text: str) -> Tuple[str, float]:
+    async def _do_llm(self, user_text: str) -> tuple[str, float]:
         """
         Generate the assistant reply. Prefers the optional flow engine; falls
         back to a free-form LLM completion. Returns (reply, elapsed_ms).
@@ -334,21 +329,19 @@ class VoicePipeline:
                 reply = ""
 
         if not reply:
-            messages: List[Dict[str, str]] = []
+            messages: list[dict[str, str]] = []
             if self.system_prompt:
                 messages.append({"role": "system", "content": self.system_prompt})
             messages.extend(self.state.history)
             try:
-                reply = await self.llm.complete(
-                    messages, system_prompt=self.system_prompt
-                )
+                reply = await self.llm.complete(messages, system_prompt=self.system_prompt)
             except Exception as e:
                 logger.warning(f"LLM failed, using safe fallback reply: {e}")
                 reply = "Sorry, I didn't catch that. Could you repeat?"
 
         return (reply or "").strip(), (time.monotonic() - start) * 1000.0
 
-    async def _do_tts(self, text: str) -> Tuple[bytes, float]:
+    async def _do_tts(self, text: str) -> tuple[bytes, float]:
         """
         Synthesize speech for `text` as a CANCELLABLE task so barge-in can stop
         it mid-way. Returns (audio_bytes, elapsed_ms); audio is b"" if cancelled.
@@ -375,9 +368,7 @@ class VoicePipeline:
 
     # -- public API: one turn ---------------------------------------------
 
-    async def run_turn(
-        self, audio_chunk_or_text: AudioOrText
-    ) -> Tuple[str, TurnMetrics]:
+    async def run_turn(self, audio_chunk_or_text: AudioOrText) -> tuple[str, TurnMetrics]:
         """
         Run ONE full turn: STT -> LLM -> TTS, updating conversation state.
 
@@ -420,9 +411,7 @@ class VoicePipeline:
 
     # -- public API: streaming loop ---------------------------------------
 
-    async def stream(
-        self, audio_source: AsyncIterable[AudioOrText]
-    ) -> AsyncGenerator[str, None]:
+    async def stream(self, audio_source: AsyncIterable[AudioOrText]) -> AsyncGenerator[str, None]:
         """
         Consume an async stream of audio chunks (or text utterances) and yield a
         bot reply string per completed user turn.
@@ -434,7 +423,7 @@ class VoicePipeline:
         Barge-in: if `interrupt` is set (e.g. caller detected fresh user speech),
         the in-flight TTS is cancelled and the loop moves on to the next turn.
         """
-        text_buffer: List[str] = []
+        text_buffer: list[str] = []
         audio_buffer = bytearray()
 
         async for item in audio_source:

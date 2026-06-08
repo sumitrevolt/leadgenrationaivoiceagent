@@ -15,6 +15,7 @@ hota hai taaki posters/posts auto-brand ho jaayein.
 Pure stdlib, file-based, KABHI raise nahi karta. Module-level path const
 `_CLIENTS_FILE` test-monkeypatch ke liye exposed hai.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,7 +23,7 @@ import os
 import re
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -55,7 +56,7 @@ def _clean_color(value: Any) -> str:
     return c if _HEX_RE.match(c) else ""
 
 
-def _norm_brand(brand: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+def _norm_brand(brand: dict[str, Any] | None) -> dict[str, Any]:
     b = brand if isinstance(brand, dict) else {}
     return {
         "primary": _clean_color(b.get("primary")),
@@ -65,7 +66,7 @@ def _norm_brand(brand: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
-def _norm_socials(socials: Optional[Dict[str, Any]]) -> Dict[str, str]:
+def _norm_socials(socials: dict[str, Any] | None) -> dict[str, str]:
     s = socials if isinstance(socials, dict) else {}
     return {
         "instagram": str(s.get("instagram") or "").strip()[:200],
@@ -74,14 +75,14 @@ def _norm_socials(socials: Optional[Dict[str, Any]]) -> Dict[str, str]:
     }
 
 
-def _read_all() -> List[Dict[str, Any]]:
+def _read_all() -> list[dict[str, Any]]:
     """Saare client records (parse-safe; corrupt lines skip)."""
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     path = _CLIENTS_FILE
     try:
         if not os.path.isfile(path):
             return rows
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -97,14 +98,14 @@ def _read_all() -> List[Dict[str, Any]]:
     return rows
 
 
-def _append(rec: Dict[str, Any]) -> None:
+def _append(rec: dict[str, Any]) -> None:
     path = _CLIENTS_FILE
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
-def _rewrite(rows: List[Dict[str, Any]]) -> None:
+def _rewrite(rows: list[dict[str, Any]]) -> None:
     """Poori file dobara likho (status/update ke liye). Atomic-ish."""
     path = _CLIENTS_FILE
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
@@ -121,9 +122,9 @@ def add_client(
     city: str = "",
     phone: str = "",
     plan: str = "starter",
-    brand: Optional[Dict[str, Any]] = None,
-    socials: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    brand: dict[str, Any] | None = None,
+    socials: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Naya marketing client banao (uuid id). Dedupe by phone (last-10) ya
     business_name (case-insensitive) — existing mile to wahi return (no dup).
     Brand bhi brand_kit me save hota hai (posters auto-brand). Kabhi raise nahi."""
@@ -142,7 +143,7 @@ def add_client(
 
         cid = uuid.uuid4().hex[:12]
         brand_d = _norm_brand(brand)
-        rec: Dict[str, Any] = {
+        rec: dict[str, Any] = {
             "id": cid,
             "business_name": name,
             "niche": niche_k,
@@ -159,14 +160,19 @@ def add_client(
         # Brand ko brand_kit me bhi mirror karo (posters/content-pack auto-brand).
         if brand_kit is not None:
             try:
-                brand_kit.save_brand(cid, {
-                    "business_name": name,
-                    "tagline": brand_d.get("tagline", ""),
-                    "phone": rec["phone"],
-                    "colors": {"primary": brand_d.get("primary", ""),
-                               "accent": brand_d.get("accent", "")},
-                    "logo_text": brand_d.get("logo_text", ""),
-                })
+                brand_kit.save_brand(
+                    cid,
+                    {
+                        "business_name": name,
+                        "tagline": brand_d.get("tagline", ""),
+                        "phone": rec["phone"],
+                        "colors": {
+                            "primary": brand_d.get("primary", ""),
+                            "accent": brand_d.get("accent", ""),
+                        },
+                        "logo_text": brand_d.get("logo_text", ""),
+                    },
+                )
             except Exception as e:  # pragma: no cover
                 logger.debug(f"[clients_store] brand mirror skip: {e}")
         return rec
@@ -175,7 +181,7 @@ def add_client(
         return {"error": str(e)}
 
 
-def list_clients(status: Optional[str] = None) -> List[Dict[str, Any]]:
+def list_clients(status: str | None = None) -> list[dict[str, Any]]:
     """Saare clients (optional status filter). Newest first. Kabhi raise nahi."""
     try:
         rows = _read_all()
@@ -189,7 +195,7 @@ def list_clients(status: Optional[str] = None) -> List[Dict[str, Any]]:
         return []
 
 
-def get_client(cid: str) -> Optional[Dict[str, Any]]:
+def get_client(cid: str) -> dict[str, Any] | None:
     """Ek client by id (None agar na mile). Kabhi raise nahi."""
     try:
         key = (cid or "").strip()
@@ -207,19 +213,25 @@ def set_status(cid: str, status: str) -> bool:
 
 
 _ALLOWED_FIELDS = {
-    "business_name", "niche", "city", "phone", "plan", "status",
-    "brand", "socials",
+    "business_name",
+    "niche",
+    "city",
+    "phone",
+    "plan",
+    "status",
+    "brand",
+    "socials",
 }
 
 
-def update_client(cid: str, **fields: Any) -> Optional[Dict[str, Any]]:
+def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
     """Client ke fields update karo (whitelist). Updated dict ya None. Kabhi
     raise nahi. Brand/socials dict-merge hote hain; brand change brand_kit me
     bhi mirror hota hai."""
     try:
         key = (cid or "").strip()
         rows = _read_all()
-        found: Optional[Dict[str, Any]] = None
+        found: dict[str, Any] | None = None
         for r in rows:
             if str(r.get("id")) == key:
                 found = r
@@ -246,14 +258,16 @@ def update_client(cid: str, **fields: Any) -> Optional[Dict[str, Any]]:
         if "brand" in fields and brand_kit is not None:
             try:
                 b = found["brand"]
-                brand_kit.save_brand(key, {
-                    "business_name": found.get("business_name", ""),
-                    "tagline": b.get("tagline", ""),
-                    "phone": found.get("phone", ""),
-                    "colors": {"primary": b.get("primary", ""),
-                               "accent": b.get("accent", "")},
-                    "logo_text": b.get("logo_text", ""),
-                })
+                brand_kit.save_brand(
+                    key,
+                    {
+                        "business_name": found.get("business_name", ""),
+                        "tagline": b.get("tagline", ""),
+                        "phone": found.get("phone", ""),
+                        "colors": {"primary": b.get("primary", ""), "accent": b.get("accent", "")},
+                        "logo_text": b.get("logo_text", ""),
+                    },
+                )
             except Exception:  # pragma: no cover
                 pass
         return found
@@ -263,5 +277,9 @@ def update_client(cid: str, **fields: Any) -> Optional[Dict[str, Any]]:
 
 
 __all__ = [
-    "add_client", "list_clients", "get_client", "set_status", "update_client",
+    "add_client",
+    "list_clients",
+    "get_client",
+    "set_status",
+    "update_client",
 ]

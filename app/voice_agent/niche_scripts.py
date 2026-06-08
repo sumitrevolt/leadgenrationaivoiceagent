@@ -220,7 +220,6 @@ NICHE_SCRIPTS: dict[str, dict] = {
         ],
         "closing": "Toh sir, main aapka FREE Google Business audit aur ek AI demo call book kar deti hoon — aaj shaam ya kal subah, kaunsa time theek rahega?",
     },
-
     # ====================================================================== #
     # GENERAL FALLBACK — baaki saare niches (real_estate_luxury, modular_kitchen,
     # hair_transplant, immigration, custom niches, etc.) yahi use karte hain.
@@ -277,6 +276,7 @@ _OBJ_LABELS: dict[str, str] = {
 # ========================================================================== #
 # Tiny helpers (pure, no side effects)
 # ========================================================================== #
+
 
 def get_script(niche_key: str) -> dict:
     """Return the script-block for a niche, ya 'general' fallback.

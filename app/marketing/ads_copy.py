@@ -10,10 +10,11 @@ ads_copy.py — Google RSA + Meta ad copy pack (free stack).
 
 Kabhi raise nahi karta, kabhi khali nahi deta.
 """
+
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -24,8 +25,8 @@ try:
 except Exception:  # pragma: no cover - free_ai khud import-safe hai
     free_ai = None  # type: ignore
 
-_H_MAX = 30   # Google RSA headline char limit
-_D_MAX = 90   # Google RSA description char limit
+_H_MAX = 30  # Google RSA headline char limit
+_D_MAX = 90  # Google RSA description char limit
 _P_MAX_WORDS = 125  # Meta primary text word budget
 
 _LINE_RE = re.compile(r"^\s*(?:[-*\d.()]+\s*)?(H|D|P|C)\s*[:.\-]\s*(.+)$", re.IGNORECASE)
@@ -52,9 +53,9 @@ def _clip_words(s: str, n: int) -> str:
     return " ".join(words[:n]) if len(words) > n else (s or "").strip()
 
 
-def _dedupe_fill(cands: List[str], fillers: List[str], count: int, max_len: int) -> List[str]:
+def _dedupe_fill(cands: list[str], fillers: list[str], count: int, max_len: int) -> list[str]:
     """Clip → dedupe(case-insensitive) → exactly `count` items (fillers se pad)."""
-    out: List[str] = []
+    out: list[str] = []
     seen = set()
     for s in list(cands) + list(fillers):
         c = _clip_chars(s, max_len)
@@ -70,7 +71,7 @@ def _dedupe_fill(cands: List[str], fillers: List[str], count: int, max_len: int)
     return out[:count]
 
 
-def _fallback_headlines(name: str, label: str, offer: str, city: str) -> List[str]:
+def _fallback_headlines(name: str, label: str, offer: str, city: str) -> list[str]:
     c = (city or "").strip()
     cands = [name]
     if offer:
@@ -82,54 +83,73 @@ def _fallback_headlines(name: str, label: str, offer: str, city: str) -> List[st
 
 
 _H_FILLERS = [
-    "Aaj Hi Call Karein", "Free Quote Paayein", "Trusted Local Business",
-    "Quality Kaam, Sahi Daam", "Abhi Enquiry Karein", "5-Star Rated Service",
-    "Jaldi Booking Karein", "Limited Time Offer", "Ghar Baithe Solution",
-    "Expert Team, Asaan Process", "WhatsApp Pe Baat Karein",
-    "100% Satisfaction", "Sahi Daam, Pakka Kaam", "Aaj Hi Shuru Karein",
-    "Free Consultation Paayein", "Hazaron Khush Customers",
+    "Aaj Hi Call Karein",
+    "Free Quote Paayein",
+    "Trusted Local Business",
+    "Quality Kaam, Sahi Daam",
+    "Abhi Enquiry Karein",
+    "5-Star Rated Service",
+    "Jaldi Booking Karein",
+    "Limited Time Offer",
+    "Ghar Baithe Solution",
+    "Expert Team, Asaan Process",
+    "WhatsApp Pe Baat Karein",
+    "100% Satisfaction",
+    "Sahi Daam, Pakka Kaam",
+    "Aaj Hi Shuru Karein",
+    "Free Consultation Paayein",
+    "Hazaron Khush Customers",
 ]
 
 
-def _fallback_descriptions(name: str, label: str, offer: str, city: str) -> List[str]:
+def _fallback_descriptions(name: str, label: str, offer: str, city: str) -> list[str]:
     c = city.strip() or "aapke sheher"
     out = [
         f"{name}: {label} ke liye trusted naam. Aaj hi call karein, free quote paayein.",
-        f"Hazaron khush customers. Quality kaam, sahi daam, time pe delivery. Abhi baat karein.",
+        "Hazaron khush customers. Quality kaam, sahi daam, time pe delivery. Abhi baat karein.",
         f"{c} me ghar baithe {label} — WhatsApp pe enquiry karein, turant jawab milega.",
     ]
-    out.append(f"{offer} — offer limited hai, aaj hi book karein!" if offer
-               else "Free consultation + transparent pricing. Pehle baat karein, phir decide karein.")
+    out.append(
+        f"{offer} — offer limited hai, aaj hi book karein!"
+        if offer
+        else "Free consultation + transparent pricing. Pehle baat karein, phir decide karein."
+    )
     return out
 
 
-def _fallback_primaries(name: str, label: str, offer: str, city: str) -> List[str]:
+def _fallback_primaries(name: str, label: str, offer: str, city: str) -> list[str]:
     c = city.strip() or "aapke area"
     offer_line = f" Abhi chal raha hai: {offer}." if offer else ""
     return [
-        (f"Kya aap {c} me bharosemand {label} dhundh rahe hain? 🤔 {name} ne "
-         f"hazaron customers ka kaam time par, sahi daam me poora kiya hai."
-         f"{offer_line} Quality ki guarantee, transparent pricing aur friendly "
-         "team — sab ek jagah. Aaj hi WhatsApp pe message karein aur FREE "
-         "consultation paayein. Der mat kijiye, slot limited hain! 📲"),
-        (f"⭐⭐⭐⭐⭐ '{name} ne kaam itna accha kiya ki maine 3 dost refer kar "
-         f"diye!' — aise reviews hi hamari pehchan hain. {label} me {c} ka "
-         f"trusted naam.{offer_line} Pehle baat karein, estimate lein, phir "
-         "decide karein — koi pressure nahi. Abhi call ya message karein. 📞"),
-        (f"STOP scrolling! 🛑 Agar {label.lower()} ki zarurat hai to ye post "
-         f"aapke liye hai. {name} — {c} me quality + speed + sahi daam ka "
-         f"perfect combo.{offer_line} Sirf is hafte ke liye special slots "
-         "khule hain. Comment ya DM karein 'INFO' aur hum turant details "
-         "bhejenge. 🚀"),
+        (
+            f"Kya aap {c} me bharosemand {label} dhundh rahe hain? 🤔 {name} ne "
+            f"hazaron customers ka kaam time par, sahi daam me poora kiya hai."
+            f"{offer_line} Quality ki guarantee, transparent pricing aur friendly "
+            "team — sab ek jagah. Aaj hi WhatsApp pe message karein aur FREE "
+            "consultation paayein. Der mat kijiye, slot limited hain! 📲"
+        ),
+        (
+            f"⭐⭐⭐⭐⭐ '{name} ne kaam itna accha kiya ki maine 3 dost refer kar "
+            f"diye!' — aise reviews hi hamari pehchan hain. {label} me {c} ka "
+            f"trusted naam.{offer_line} Pehle baat karein, estimate lein, phir "
+            "decide karein — koi pressure nahi. Abhi call ya message karein. 📞"
+        ),
+        (
+            f"STOP scrolling! 🛑 Agar {label.lower()} ki zarurat hai to ye post "
+            f"aapke liye hai. {name} — {c} me quality + speed + sahi daam ka "
+            f"perfect combo.{offer_line} Sirf is hafte ke liye special slots "
+            "khule hain. Comment ya DM karein 'INFO' aur hum turant details "
+            "bhejenge. 🚀"
+        ),
     ]
 
 
 _FALLBACK_CTAS = ["WhatsApp Karein 📲", "Abhi Call Karein 📞"]
 
 
-def _parse_marked(text: str) -> Dict[str, List[str]]:
+def _parse_marked(text: str) -> dict[str, list[str]]:
     """'H:/D:/P:/C:' prefixed lines parse karo -> {h:[],d:[],p:[],c:[]}."""
-    out: Dict[str, List[str]] = {"h": [], "d": [], "p": [], "c": []}
+    out: dict[str, list[str]] = {"h": [], "d": [], "p": [], "c": []}
     for ln in (text or "").splitlines():
         m = _LINE_RE.match(ln)
         if m:
@@ -137,8 +157,9 @@ def _parse_marked(text: str) -> Dict[str, List[str]]:
     return out
 
 
-async def ads_pack(business_name: str, niche: str,
-                   offer: str = "", city: str = "") -> Dict[str, Any]:
+async def ads_pack(
+    business_name: str, niche: str, offer: str = "", city: str = ""
+) -> dict[str, Any]:
     """Google RSA + Meta ad pack. LLM-first (2 calls), Hinglish fallback.
 
     Limits HARD-enforced: 15 headlines ≤30 chars, 4 descriptions ≤90 chars,
@@ -150,15 +171,17 @@ async def ads_pack(business_name: str, niche: str,
     city_c = (city or "").strip()[:80]
     provider = "template"
 
-    llm_h: List[str] = []
-    llm_d: List[str] = []
-    llm_p: List[str] = []
-    llm_c: List[str] = []
+    llm_h: list[str] = []
+    llm_d: list[str] = []
+    llm_p: list[str] = []
+    llm_c: list[str] = []
 
     if free_ai is not None:
-        brief = (f"Business: {name}. Category: {label}."
-                 + (f" City: {city_c}." if city_c else "")
-                 + (f" Offer: {offer_c}." if offer_c else ""))
+        brief = (
+            f"Business: {name}. Category: {label}."
+            + (f" City: {city_c}." if city_c else "")
+            + (f" Offer: {offer_c}." if offer_c else "")
+        )
         try:
             g_sys = (
                 "Tu Google Ads expert hai. Hinglish (Roman script) me likh: "
@@ -168,8 +191,10 @@ async def ads_pack(business_name: str, niche: str,
                 "par. Sirf ye lines, koi commentary nahi."
             )
             text, p = await free_ai.chat(
-                g_sys, [{"role": "user", "content": brief}],
-                max_tokens=520, temperature=0.7,
+                g_sys,
+                [{"role": "user", "content": brief}],
+                max_tokens=520,
+                temperature=0.7,
             )
             parsed = _parse_marked(text)
             llm_h, llm_d = parsed["h"], parsed["d"]
@@ -186,8 +211,10 @@ async def ads_pack(business_name: str, niche: str,
                 "lines, koi commentary nahi."
             )
             text2, p2 = await free_ai.chat(
-                m_sys, [{"role": "user", "content": brief}],
-                max_tokens=600, temperature=0.75,
+                m_sys,
+                [{"role": "user", "content": brief}],
+                max_tokens=600,
+                temperature=0.75,
             )
             parsed2 = _parse_marked(text2)
             llm_p, llm_c = parsed2["p"], parsed2["c"]
@@ -198,11 +225,15 @@ async def ads_pack(business_name: str, niche: str,
 
     headlines = _dedupe_fill(
         llm_h + _fallback_headlines(name, label, offer_c, city_c),
-        _H_FILLERS, 15, _H_MAX,
+        _H_FILLERS,
+        15,
+        _H_MAX,
     )
     descriptions = _dedupe_fill(
         llm_d + _fallback_descriptions(name, label, offer_c, city_c),
-        _fallback_descriptions(name, label, offer_c, city_c), 4, _D_MAX,
+        _fallback_descriptions(name, label, offer_c, city_c),
+        4,
+        _D_MAX,
     )
     primaries = [
         _clip_words(s, _P_MAX_WORDS)
@@ -222,5 +253,5 @@ async def ads_pack(business_name: str, niche: str,
         "meta": {"primaries": primaries, "ctas": ctas},
         "provider": provider,
         "tip": "Google RSA me sab 15 headlines paste karo — Google khud best "
-               "combos test karta hai. Meta pe 3 primaries A/B test karo.",
+        "combos test karta hai. Meta pe 3 primaries A/B test karo.",
     }

@@ -7,6 +7,7 @@ lead scoring, GBP texts + v5: client content pack, data retention).
 No network — free_ai.chat is monkeypatched to return ("","") so every path
 exercises the TEMPLATE fallback (the never-empty guarantee).
 """
+
 import json
 import os
 import time
@@ -26,6 +27,7 @@ from app.marketing import (
     gbp_audit,
     gbp_text,
     lead_scoring,
+    missed_call,
     monthly_report,
     post_generator,
     posters,
@@ -35,7 +37,6 @@ from app.marketing import (
     review_replies,
     upi_kit,
     upi_qr,
-    missed_call,
     whatsapp_pack,
 )
 
@@ -43,6 +44,7 @@ from app.marketing import (
 @pytest.fixture
 def no_llm(monkeypatch):
     """free_ai.chat ko hamesha ("","") return karwao — template path force."""
+
     async def _empty(*args, **kwargs):
         return "", ""
 
@@ -155,7 +157,8 @@ class TestReviewReplies:
     @pytest.mark.asyncio
     async def test_fallback_three_replies(self, no_llm):
         result = await review_replies.generate_replies(
-            "Bahut accha kaam kiya, best service!", rating=5,
+            "Bahut accha kaam kiya, best service!",
+            rating=5,
             business_name="Sharma Solar",
         )
         assert len(result["replies"]) == 3
@@ -207,8 +210,12 @@ class TestPosters:
             assert t["id"].strip() and t["name"].strip() and t["best_for"].strip()
 
         result = posters.generate_poster(
-            "festival-glow", "R&D <Solar>", tagline="No.1 \"quality\"",
-            offer="10% off", phone="9876543210", festival="Diwali",
+            "festival-glow",
+            "R&D <Solar>",
+            tagline='No.1 "quality"',
+            offer="10% off",
+            phone="9876543210",
+            festival="Diwali",
         )
         svg = result["svg"]
         assert svg.startswith("<svg")
@@ -244,7 +251,8 @@ class TestCompetitor:
     @pytest.mark.asyncio
     async def test_fallback_rule_based_non_empty(self, no_llm):
         result = await competitor.compare_tips(
-            "Sharma Solar", "solar_residential",
+            "Sharma Solar",
+            "solar_residential",
             "Unke reviews zyada hain aur Instagram strong hai, par wo slow hain "
             "aur kaafi mehenga charge karte hain.",
         )
@@ -313,8 +321,7 @@ class TestMonthlyReport:
         html = result["html"]
         assert "Sharma Solar" in html
         assert "<html" in html.lower() and "</html>" in html.lower()
-        for section in ("Is Mahine Ka Kaam", "Numbers", "AI Suggestions",
-                        "Next Month Plan"):
+        for section in ("Is Mahine Ka Kaam", "Numbers", "AI Suggestions", "Next Month Plan"):
             assert section in html
         stats = result["stats"]
         assert isinstance(stats["total_actions"], int)
@@ -335,7 +342,8 @@ class TestReactivation:
     @pytest.mark.asyncio
     async def test_two_customers_two_wa_links(self, no_llm):
         result = await reactivation.reactivation_campaign(
-            "Sharma Solar", "solar_residential",
+            "Sharma Solar",
+            "solar_residential",
             customers=[
                 {"name": "Ramesh", "phone": "+91 98765 43210"},
                 {"name": "Suresh", "phone": "09812345678"},
@@ -387,14 +395,17 @@ class TestDrip:
 class TestBrandKit:
     def test_save_get_roundtrip_and_merge(self, tmp_path, monkeypatch):
         monkeypatch.setattr(brand_kit, "_BRAND_DIR", str(tmp_path))
-        saved = brand_kit.save_brand("client-42", {
-            "business_name": "Sharma Solar",
-            "tagline": "Bijli bachao",
-            "phone": "9876543210",
-            "colors": {"primary": "#112233", "accent": "#abcdef"},
-            "tone": "friendly",
-            "logo_text": "SS",
-        })
+        saved = brand_kit.save_brand(
+            "client-42",
+            {
+                "business_name": "Sharma Solar",
+                "tagline": "Bijli bachao",
+                "phone": "9876543210",
+                "colors": {"primary": "#112233", "accent": "#abcdef"},
+                "tone": "friendly",
+                "logo_text": "SS",
+            },
+        )
         assert saved["colors"]["primary"] == "#112233"
         got = brand_kit.get_brand("client-42")
         assert got is not None
@@ -415,9 +426,7 @@ class TestBrandKit:
         assert "/" not in bad["client_id"] and ".." not in bad["client_id"]
 
     def test_brand_colors_apply_in_poster(self):
-        branded = posters.generate_poster(
-            "clean-pro", "Test Biz", brand_primary="#112233"
-        )
+        branded = posters.generate_poster("clean-pro", "Test Biz", brand_primary="#112233")
         assert "#112233" in branded["svg"]
         assert "#0b5fff" not in branded["svg"]
         # default unchanged jab brand params nahi
@@ -430,9 +439,7 @@ class TestBrandKit:
         assert "<script>" not in inj["svg"]
         assert "#0b5fff" in inj["svg"]
         # accent slot bhi chale
-        acc = posters.generate_poster(
-            "generic-sale", "Test Biz", brand_accent="#ff0000"
-        )
+        acc = posters.generate_poster("generic-sale", "Test Biz", brand_accent="#ff0000")
         assert "#ff0000" in acc["svg"]
 
 
@@ -441,12 +448,19 @@ class TestCrmLite:
     async def test_add_list_dedupe_and_wishes(self, tmp_path, monkeypatch):
         monkeypatch.setattr(crm_lite, "_CRM_DIR", str(tmp_path))
         today = crm_lite._today_mmdd()
-        res = crm_lite.add_customers("client-7", [
-            {"name": "Ramesh", "phone": "9876543210",
-             "birthday": f"1990-{today}", "tags": ["vip"]},
-            {"name": "Suresh", "phone": "+91 98123 45678", "anniversary": today},
-            {"name": "Dup", "phone": "98765 43210"},  # same as Ramesh => skip
-        ])
+        res = crm_lite.add_customers(
+            "client-7",
+            [
+                {
+                    "name": "Ramesh",
+                    "phone": "9876543210",
+                    "birthday": f"1990-{today}",
+                    "tags": ["vip"],
+                },
+                {"name": "Suresh", "phone": "+91 98123 45678", "anniversary": today},
+                {"name": "Dup", "phone": "98765 43210"},  # same as Ramesh => skip
+            ],
+        )
         assert res["added"] == 2 and res["skipped"] == 1 and res["total"] == 2
         # dedupe across calls bhi
         res2 = crm_lite.add_customers("client-7", [{"name": "R2", "phone": "9876543210"}])
@@ -473,8 +487,7 @@ class TestCrmLite:
 
 class TestUpiKit:
     def test_link_format_qr_and_slip(self):
-        kit = upi_kit.payment_kit("Sharma Solar", "sharma@upi",
-                                  amount=499, note="Order 12")
+        kit = upi_kit.payment_kit("Sharma Solar", "sharma@upi", amount=499, note="Order 12")
         link = kit["upi_link"]
         assert link.startswith("upi://pay?pa=sharma@upi&pn=Sharma%20Solar")
         assert "&am=499" in link
@@ -495,8 +508,12 @@ class TestUpiKit:
         assert len(kit["instructions"]) == 2
         assert all(i.strip() for i in kit["instructions"])
         # deterministic (pure logic)
-        assert kit["qr_svg"] == upi_kit.payment_kit(
-            "Sharma Solar", "sharma@upi", amount=499, note="Order 12")["qr_svg"]
+        assert (
+            kit["qr_svg"]
+            == upi_kit.payment_kit("Sharma Solar", "sharma@upi", amount=499, note="Order 12")[
+                "qr_svg"
+            ]
+        )
 
     def test_no_amount_invalid_vpa_and_escape(self):
         plain = upi_kit.payment_kit("Test Biz", "9876543210@ybl")
@@ -516,14 +533,17 @@ class TestUpiKit:
 class TestCatalog:
     @pytest.mark.asyncio
     async def test_svg_items_escaped_and_wa_text(self, no_llm):
-        result = await catalog.build_catalog("Gupta Sweets", [
-            {"name": "Paneer & Tikka", "price": "249", "desc": "creamy <fresh>"},
-            {"name": "Veg Biryani", "price": 199},
-        ])
+        result = await catalog.build_catalog(
+            "Gupta Sweets",
+            [
+                {"name": "Paneer & Tikka", "price": "249", "desc": "creamy <fresh>"},
+                {"name": "Veg Biryani", "price": 199},
+            ],
+        )
         svg = result["svg"]
         assert svg.startswith("<svg")
-        assert "Paneer &amp; Tikka" in svg          # XML-escaped
-        assert "<fresh>" not in svg                  # raw injection nahi
+        assert "Paneer &amp; Tikka" in svg  # XML-escaped
+        assert "<fresh>" not in svg  # raw injection nahi
         assert "₹249" in svg and "₹199" in svg
         assert "Gupta Sweets" in svg
         assert result["width"] == 1080 and result["height"] == 1350
@@ -537,13 +557,16 @@ class TestCatalog:
     @pytest.mark.asyncio
     async def test_desc_fallback_and_12_cap(self, no_llm):
         # LLM ("","") => desc fallback: apna desc, warna NAAM as-is
-        result = await catalog.build_catalog("Biz", [
-            {"name": "Masala Chai", "price": 20},
-            {"name": "Samosa", "price": 15, "desc": "garma garam"},
-        ])
+        result = await catalog.build_catalog(
+            "Biz",
+            [
+                {"name": "Masala Chai", "price": 20},
+                {"name": "Samosa", "price": 15, "desc": "garma garam"},
+            ],
+        )
         items = result["items"]
-        assert items[0]["desc"] == "Masala Chai"   # name as-is fallback
-        assert items[1]["desc"] == "garma garam"   # apna desc jeet-ta hai
+        assert items[0]["desc"] == "Masala Chai"  # name as-is fallback
+        assert items[1]["desc"] == "garma garam"  # apna desc jeet-ta hai
         # 12-item cap + khali naam skip
         many = [{"name": f"Item {i}", "price": i * 10} for i in range(1, 20)]
         many.insert(0, {"name": "", "price": 5})
@@ -556,8 +579,10 @@ class TestAdsCopy:
     @pytest.mark.asyncio
     async def test_fallback_counts_and_hard_limits(self, no_llm):
         result = await ads_copy.ads_pack(
-            "Sharma Solar Solutions Private Limited", "solar_residential",
-            offer="Flat 20% off is mahine", city="Pune",
+            "Sharma Solar Solutions Private Limited",
+            "solar_residential",
+            offer="Flat 20% off is mahine",
+            city="Pune",
         )
         heads = result["google"]["headlines"]
         descs = result["google"]["descriptions"]
@@ -594,7 +619,8 @@ class TestReels:
     @pytest.mark.asyncio
     async def test_fallback_three_scripts_complete(self, no_llm):
         result = await reels.reels_scripts(
-            "Sharma Solar", "solar_residential", topic="bijli bachat")
+            "Sharma Solar", "solar_residential", topic="bijli bachat"
+        )
         scripts = result["scripts"]
         assert len(scripts) == 3
         for s in scripts:
@@ -605,8 +631,7 @@ class TestReels:
             assert len(s["hashtags"]) == 5
             assert all(t.startswith("#") for t in s["hashtags"])
             assert s["duration"] == "30s"
-            total_words = sum(len(str(s[k]).split())
-                              for k in ("hook", "body", "cta", "caption"))
+            total_words = sum(len(str(s[k]).split()) for k in ("hook", "body", "cta", "caption"))
             assert total_words <= 120, f"script >120 words: {total_words}"
         assert result["provider"] == "template"
 
@@ -630,27 +655,39 @@ class TestLeadScoring:
         inq = tmp_path / "inquiries.jsonl"
         monkeypatch.setattr(lead_scoring, "_INQUIRIES_FILE", str(inq))
         now = datetime.now(timezone.utc)
-        self._write(str(inq), [
-            {   # HOT: sab points => 100
-                "name": "Ramesh", "business_name": "Ramesh Homes",
-                "phone": "+919876543210", "niche": "real_estate",
-                "city": "Pune", "message": "Mujhe 3BHK project ke liye "
-                "leads chahiye urgent", "source": "website",
-                "at": now.isoformat(),
-            },
-            {   # WARM: valid phone(20) + 3-din recency(15) + website(10) = 45
-                "name": "Suresh", "business_name": "Suresh Dental",
-                "phone": "+919812345678", "niche": "dental_implants",
-                "city": "", "message": "info", "source": "website",
-                "at": (now - timedelta(days=3)).isoformat(),
-            },
-            {   # COLD: bad phone, purana, non-S niche, no city/msg = 5
-                "name": "Ghost", "business_name": "Ghost Co",
-                "phone": "12345", "niche": "packaging",
-                "source": "referral",
-                "at": (now - timedelta(days=40)).isoformat(),
-            },
-        ])
+        self._write(
+            str(inq),
+            [
+                {  # HOT: sab points => 100
+                    "name": "Ramesh",
+                    "business_name": "Ramesh Homes",
+                    "phone": "+919876543210",
+                    "niche": "real_estate",
+                    "city": "Pune",
+                    "message": "Mujhe 3BHK project ke liye " "leads chahiye urgent",
+                    "source": "website",
+                    "at": now.isoformat(),
+                },
+                {  # WARM: valid phone(20) + 3-din recency(15) + website(10) = 45
+                    "name": "Suresh",
+                    "business_name": "Suresh Dental",
+                    "phone": "+919812345678",
+                    "niche": "dental_implants",
+                    "city": "",
+                    "message": "info",
+                    "source": "website",
+                    "at": (now - timedelta(days=3)).isoformat(),
+                },
+                {  # COLD: bad phone, purana, non-S niche, no city/msg = 5
+                    "name": "Ghost",
+                    "business_name": "Ghost Co",
+                    "phone": "12345",
+                    "niche": "packaging",
+                    "source": "referral",
+                    "at": (now - timedelta(days=40)).isoformat(),
+                },
+            ],
+        )
         result = lead_scoring.score_leads()
         assert result["total"] == 3
         assert result["counts"] == {"hot": 1, "warm": 1, "cold": 1}
@@ -666,8 +703,7 @@ class TestLeadScoring:
         assert leads[2]["wa_link"] == ""
 
     def test_missing_file_and_corrupt_lines(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(lead_scoring, "_INQUIRIES_FILE",
-                            str(tmp_path / "nahi-hai.jsonl"))
+        monkeypatch.setattr(lead_scoring, "_INQUIRIES_FILE", str(tmp_path / "nahi-hai.jsonl"))
         empty = lead_scoring.score_leads()
         assert empty["total"] == 0
         assert empty["counts"] == {"hot": 0, "warm": 0, "cold": 0}
@@ -676,9 +712,17 @@ class TestLeadScoring:
         inq = tmp_path / "mix.jsonl"
         with open(str(inq), "w", encoding="utf-8") as f:
             f.write("not-json{{{\n")
-            f.write(json.dumps({"name": "OK", "phone": "+919876543210",
-                                "source": "website",
-                                "at": datetime.now(timezone.utc).isoformat()}) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "name": "OK",
+                        "phone": "+919876543210",
+                        "source": "website",
+                        "at": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+                + "\n"
+            )
         monkeypatch.setattr(lead_scoring, "_INQUIRIES_FILE", str(inq))
         mixed = lead_scoring.score_leads()
         assert mixed["total"] == 1
@@ -689,7 +733,9 @@ class TestGbpText:
     @pytest.mark.asyncio
     async def test_fallback_description_limits(self, no_llm):
         result = await gbp_text.gbp_texts(
-            "Sharma Solar", "solar_residential", city="Pune",
+            "Sharma Solar",
+            "solar_residential",
+            city="Pune",
             services=["Rooftop Solar", "AMC", "Subsidy Filing"],
         )
         desc = result["description"]
@@ -726,19 +772,26 @@ class TestContentPack:
     @pytest.mark.asyncio
     async def test_pack_html_and_counts(self, no_llm):
         result = await content_pack.build_client_pack(
-            "Sharma Solar", "solar_residential",
-            offer="10% off is mahine", phone="9876543210",
+            "Sharma Solar",
+            "solar_residential",
+            offer="10% off is mahine",
+            phone="9876543210",
         )
         html = result["html"]
         assert "Sharma Solar" in html
         assert "Monthly Marketing Pack" in html
         # saare deliverable sections maujood
-        for section in ("Content Calendar", "Ready Posts", "Posters",
-                        "Google Business Profile", "WhatsApp Messages",
-                        "Festival Plan"):
+        for section in (
+            "Content Calendar",
+            "Ready Posts",
+            "Posters",
+            "Google Business Profile",
+            "WhatsApp Messages",
+            "Festival Plan",
+        ):
             assert section in html
-        assert "<svg" in html            # inline posters
-        assert "9876543210" in html      # phone poster pe
+        assert "<svg" in html  # inline posters
+        assert "9876543210" in html  # phone poster pe
         counts = result["counts"]
         assert counts["posts"] == 3
         assert counts["posters"] == 2
@@ -790,7 +843,7 @@ class TestUpiQr:
             business_name="Sharma Solar",
             amount=499,
             brand_primary="#059669",
-            brand_accent="#047857"
+            brand_accent="#047857",
         )
         assert result["vpa"] == "sharma@upi"
         assert result["business_name"] == "Sharma Solar"
@@ -808,9 +861,7 @@ class TestMissedCall:
     @pytest.mark.asyncio
     async def test_missed_call_reply_fallback(self, no_llm):
         result = await missed_call.generate_missed_call_reply(
-            business_name="Sharma Solar",
-            niche="solar_residential",
-            callback_url="http://solar.in"
+            business_name="Sharma Solar", niche="solar_residential", callback_url="http://solar.in"
         )
         assert result["business_name"] == "Sharma Solar"
         assert result["niche"] == "solar_residential"
@@ -827,7 +878,7 @@ class TestMarketingAPIExtensions:
             "business_name": "Test UPI QR Shop",
             "amount": 199.50,
             "brand_primary": "#112233",
-            "brand_accent": "#445566"
+            "brand_accent": "#445566",
         }
         response = client.post("/api/marketing/upi-qr", json=payload)
         assert response.status_code == 200
@@ -842,13 +893,14 @@ class TestMarketingAPIExtensions:
         # mock free_ai.chat to be empty for template path
         async def _empty(*args, **kwargs):
             return "", ""
+
         if post_generator.free_ai is not None:
             monkeypatch.setattr(post_generator.free_ai, "chat", _empty)
 
         payload = {
             "business_name": "Test Missed Call Shop",
             "niche": "general",
-            "callback_url": "https://callback.link"
+            "callback_url": "https://callback.link",
         }
         response = client.post("/api/marketing/missed-call-reply", json=payload)
         assert response.status_code == 200

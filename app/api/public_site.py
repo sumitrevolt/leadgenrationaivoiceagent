@@ -21,6 +21,7 @@ Final paths (main.py prefix="/api" ke saath):
 Import-safe: DB/team modules lazy-import hote hain; kuch bhi missing ho to
 form submit phir bhi jsonl me save hota hai aur user ko ok milta hai.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -29,7 +30,7 @@ import os
 import time
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -50,13 +51,13 @@ _OK_MESSAGE = "Dhanyawad! 24 ghante me call aayega."
 # --------------------------------------------------------------------------- #
 # In-memory rate limit — max 5 inquiries / minute / IP (simple timestamp list)
 # --------------------------------------------------------------------------- #
-_RL: Dict[str, List[float]] = {}
-_RL_AUDIT: Dict[str, List[float]] = {}  # /audit/score ka alag bucket — inquiry quota nahi khaata
+_RL: dict[str, list[float]] = {}
+_RL_AUDIT: dict[str, list[float]] = {}  # /audit/score ka alag bucket — inquiry quota nahi khaata
 _RL_MAX = 5
 _RL_WINDOW_S = 60.0
 
 
-def _client_ip(request: Optional[Request]) -> str:
+def _client_ip(request: Request | None) -> str:
     """Real client IP nikalo — nginx ke peeche X-Forwarded-For pehle."""
     try:
         if request is not None:
@@ -72,7 +73,7 @@ def _client_ip(request: Optional[Request]) -> str:
     return "unknown"
 
 
-def _rate_limited(ip: str, store: Optional[Dict[str, List[float]]] = None) -> bool:
+def _rate_limited(ip: str, store: dict[str, list[float]] | None = None) -> bool:
     """True = is IP ne 1 min me 5+ requests bheji (block karo).
 
     `store` se alag bucket de sakte ho (audit vs inquiry) — default _RL.
@@ -93,7 +94,7 @@ def _rate_limited(ip: str, store: Optional[Dict[str, List[float]]] = None) -> bo
     return False
 
 
-def _clean_phone(raw: str) -> Optional[str]:
+def _clean_phone(raw: str) -> str | None:
     """+91/0/spaces strip karke 10-12 digit number lautao (warna None).
 
     10-digit Indian number ko "+91XXXXXXXXXX" format me store karte hain
@@ -127,7 +128,7 @@ def _db():
         return None
 
 
-def _append_jsonl(rec: Dict[str, Any]) -> bool:
+def _append_jsonl(rec: dict[str, Any]) -> bool:
     """data/inquiries.jsonl me ek line append — yahi guarantee hai ki koi
     inquiry kabhi lost na ho (DB fail ho tab bhi)."""
     try:
@@ -140,7 +141,7 @@ def _append_jsonl(rec: Dict[str, Any]) -> bool:
         return False
 
 
-def _save_lead_db(rec: Dict[str, Any]) -> Optional[str]:
+def _save_lead_db(rec: dict[str, Any]) -> str | None:
     """Lead model me best-effort save. Fail ho to None (jsonl me data hai hi)."""
     try:
         from app.models.lead import Lead, LeadSource, LeadStatus
@@ -149,7 +150,7 @@ def _save_lead_db(rec: Dict[str, Any]) -> Optional[str]:
         if db is None:
             return None
         try:
-            notes_parts: List[str] = []
+            notes_parts: list[str] = []
             if rec.get("message"):
                 notes_parts.append(f"Message: {rec['message']}")
             if rec.get("city"):
@@ -181,14 +182,14 @@ def _save_lead_db(rec: Dict[str, Any]) -> Optional[str]:
         return None
 
 
-def _read_jsonl(limit: int = 300) -> List[Dict[str, Any]]:
+def _read_jsonl(limit: int = 300) -> list[dict[str, Any]]:
     """jsonl ki aakhri `limit` lines (parse-safe, corrupt lines skip)."""
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     try:
         if not os.path.isfile(_INQUIRIES_FILE):
             return out
-        with open(_INQUIRIES_FILE, "r", encoding="utf-8") as f:
-            lines = f.readlines()[-max(1, limit):]
+        with open(_INQUIRIES_FILE, encoding="utf-8") as f:
+            lines = f.readlines()[-max(1, limit) :]
         for ln in lines:
             try:
                 rec = json.loads(ln)
@@ -208,6 +209,8 @@ def _read_jsonl(limit: int = 300) -> List[Dict[str, Any]]:
 # --------------------------------------------------------------------------- #
 # Fire-and-forget tasks ka strong reference (warna GC pending task gira sakta).
 _BG_TASKS: set = set()
+
+
 async def _auto_callback(phone: str, niche: str, business: str) -> None:
     """Fire-and-forget: inquiry phone pe conversational AI call try karo."""
     try:
@@ -224,9 +227,12 @@ async def _auto_callback(phone: str, niche: str, business: str) -> None:
                 f"Inquiry callback → {phone} ({business})"
                 + ("" if placed else f" — fail: {result.get('error') or 'not placed'}"),
                 status="ok" if placed else "error",
-                meta={"niche": niche, "placed": placed,
-                      "error": result.get("error"),
-                      "stream_token": result.get("stream_token")},
+                meta={
+                    "niche": niche,
+                    "placed": placed,
+                    "error": result.get("error"),
+                    "stream_token": result.get("stream_token"),
+                },
             )
         except Exception:
             pass
@@ -237,8 +243,9 @@ async def _auto_callback(phone: str, niche: str, business: str) -> None:
         try:
             from app.platform.team import log_event
 
-            log_event("swara", "auto_callback", f"Inquiry callback → {phone} — crash: {e}",
-                      status="error")
+            log_event(
+                "swara", "auto_callback", f"Inquiry callback → {phone} — crash: {e}", status="error"
+            )
         except Exception:
             pass
 
@@ -248,7 +255,7 @@ async def _auto_callback(phone: str, niche: str, business: str) -> None:
 # NOTIFY_EMAIL + SMTP_USER/SMTP_PASSWORD .env me ho tabhi bhejta hai; kuch bhi
 # missing/fail ho to silent skip (inquiry flow kabhi affect nahi hota).
 # --------------------------------------------------------------------------- #
-async def _notify_inquiry_email(rec: Dict[str, Any]) -> None:
+async def _notify_inquiry_email(rec: dict[str, Any]) -> None:
     try:
         from app.config import settings
 
@@ -278,16 +285,17 @@ class InquiryIn(BaseModel):
     name: str = ""
     business_name: str = ""
     phone: str = ""
-    niche: Optional[str] = None
-    city: Optional[str] = None
-    message: Optional[str] = None
-    package: Optional[str] = None  # Starter/Growth/Advanced (pricing card se)
-    website: Optional[str] = ""  # honeypot — insaan ise kabhi nahi bharta
+    niche: str | None = None
+    city: str | None = None
+    message: str | None = None
+    package: str | None = None  # Starter/Growth/Advanced (pricing card se)
+    website: str | None = ""  # honeypot — insaan ise kabhi nahi bharta
 
 
 class AuditIn(BaseModel):
     """GBP self-audit answers — {question_id: option_index}. Missing = worst case."""
-    answers: Dict[str, Any] = {}
+
+    answers: dict[str, Any] = {}
 
 
 # --------------------------------------------------------------------------- #
@@ -312,9 +320,11 @@ async def submit_inquiry(body: InquiryIn, request: Request):
         raise HTTPException(status_code=422, detail="Naam aur business ka naam dono zaroori hain.")
     phone = _clean_phone(body.phone or "")
     if not phone:
-        raise HTTPException(status_code=422, detail="Phone number sahi nahi lag raha (10 digit chahiye).")
+        raise HTTPException(
+            status_code=422, detail="Phone number sahi nahi lag raha (10 digit chahiye)."
+        )
 
-    rec: Dict[str, Any] = {
+    rec: dict[str, Any] = {
         "id": str(uuid.uuid4()),
         "at": datetime.utcnow().isoformat() + "Z",
         "name": name[:120],
@@ -388,7 +398,7 @@ async def pay_info():
     if not vpa:
         return {"enabled": False}
 
-    out: Dict[str, Any] = {"enabled": True, "vpa": vpa}
+    out: dict[str, Any] = {"enabled": True, "vpa": vpa}
     try:
         from app.marketing.upi_kit import payment_kit
 
@@ -463,8 +473,8 @@ async def audit_score(body: AuditIn, request: Request):
 @router.get("/inquiries")
 async def list_inquiries(current_user: User = Depends(require_admin)):
     """Admin view — last 100 inquiries, jsonl + DB (source=website) merged."""
-    records: List[Dict[str, Any]] = []
-    seen: Dict[str, Dict[str, Any]] = {}  # phone|business -> record (dedupe DB vs file)
+    records: list[dict[str, Any]] = []
+    seen: dict[str, dict[str, Any]] = {}  # phone|business -> record (dedupe DB vs file)
 
     for rec in _read_jsonl(limit=300):
         r = dict(rec)
@@ -490,7 +500,9 @@ async def list_inquiries(current_user: User = Depends(require_admin)):
                     key = f"{getattr(row, 'phone', '')}|{str(getattr(row, 'company_name', '') or '').strip().lower()}"
                     if key in seen:
                         seen[key].setdefault("lead_id", getattr(row, "id", None))
-                        seen[key]["lead_status"] = row.status.value if getattr(row, "status", None) else None
+                        seen[key]["lead_status"] = (
+                            row.status.value if getattr(row, "status", None) else None
+                        )
                         if "db" not in seen[key]["stored_in"]:
                             seen[key]["stored_in"].append("db")
                     else:
@@ -505,7 +517,9 @@ async def list_inquiries(current_user: User = Depends(require_admin)):
                                 "niche": getattr(row, "niche", None),
                                 "city": getattr(row, "city", None),
                                 "message": getattr(row, "notes", None),
-                                "lead_status": row.status.value if getattr(row, "status", None) else None,
+                                "lead_status": (
+                                    row.status.value if getattr(row, "status", None) else None
+                                ),
                                 "stored_in": ["db"],
                             }
                         )

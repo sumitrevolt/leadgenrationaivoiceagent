@@ -11,11 +11,12 @@ Chhote business ka digital catalog:
 
 Sab inputs XML-escaped (injection-safe). Generator kabhi raise nahi karta.
 """
+
 from __future__ import annotations
 
 import re
 from html import escape
-from typing import Any, Dict, List
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -48,20 +49,22 @@ def _fmt_price(raw: Any) -> str:
         return s[:14]
 
 
-def _norm_items(items: Any) -> List[Dict[str, str]]:
+def _norm_items(items: Any) -> list[dict[str, str]]:
     """Items normalize: [{'name','price','desc'}] — khali naam skip, cap 12."""
-    out: List[Dict[str, str]] = []
-    for it in (items or []):
+    out: list[dict[str, str]] = []
+    for it in items or []:
         if not isinstance(it, dict):
             continue
         name = str(it.get("name") or "").strip()[:80]
         if not name:
             continue
-        out.append({
-            "name": name,
-            "price": _fmt_price(it.get("price")),
-            "desc": str(it.get("desc") or "").strip()[:160],
-        })
+        out.append(
+            {
+                "name": name,
+                "price": _fmt_price(it.get("price")),
+                "desc": str(it.get("desc") or "").strip()[:160],
+            }
+        )
         if len(out) >= _MAX_ITEMS:
             break
     return out
@@ -72,9 +75,9 @@ def _clip(s: str, n: int) -> str:
     return s if len(s) <= n else (s[: n - 1].rstrip() + "…")
 
 
-def _catalog_svg(biz: str, items: List[Dict[str, str]]) -> str:
+def _catalog_svg(biz: str, items: list[dict[str, str]]) -> str:
     """1080x1350 price-list card. Inputs escape karke hi aate hain."""
-    rows: List[str] = []
+    rows: list[str] = []
     y = 330
     for it in items:
         name = escape(_clip(it["name"], 30), quote=True)
@@ -101,22 +104,22 @@ def _catalog_svg(biz: str, items: List[Dict[str, str]]) -> str:
         '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">'
         '<defs><linearGradient id="catbg" x1="0%" y1="0%" x2="100%" y2="100%">'
         '<stop offset="0%" stop-color="#6d28d9"/><stop offset="100%" stop-color="#4f46e5"/>'
-        '</linearGradient></defs>'
+        "</linearGradient></defs>"
         '<rect width="1080" height="1350" fill="#ffffff"/>'
         '<rect width="1080" height="220" fill="url(#catbg)"/>'
         f'<text x="540" y="105" font-family="{_FONT}" font-size="52" font-weight="bold" '
         f'fill="#ffffff" text-anchor="middle">{biz_esc}</text>'
         f'<text x="540" y="172" font-family="{_FONT}" font-size="30" fill="#ddd6fe" '
         'text-anchor="middle">✨ Price List ✨</text>'
-        + "".join(rows) +
-        '<rect x="140" y="1252" width="800" height="70" rx="35" fill="#6d28d9"/>'
+        + "".join(rows)
+        + '<rect x="140" y="1252" width="800" height="70" rx="35" fill="#6d28d9"/>'
         f'<text x="540" y="1298" font-family="{_FONT}" font-size="30" font-weight="bold" '
         'fill="#ffffff" text-anchor="middle">📞 Order / Enquiry — WhatsApp karein</text>'
-        '</svg>'
+        "</svg>"
     )
 
 
-def _wa_catalog_text(biz: str, items: List[Dict[str, str]]) -> str:
+def _wa_catalog_text(biz: str, items: list[dict[str, str]]) -> str:
     lines = [f"🛍️ *{biz} — Price List*", ""]
     for i, it in enumerate(items, 1):
         price = f" — {it['price']}" if it["price"] else ""
@@ -127,7 +130,7 @@ def _wa_catalog_text(biz: str, items: List[Dict[str, str]]) -> str:
     return "\n".join(lines)
 
 
-async def _ai_descriptions(biz: str, items: List[Dict[str, str]]) -> str:
+async def _ai_descriptions(biz: str, items: list[dict[str, str]]) -> str:
     """SINGLE LLM call — har item ki 1-line Hinglish selling line. '' = fail."""
     if free_ai is None or not items:
         return ""
@@ -145,7 +148,8 @@ async def _ai_descriptions(biz: str, items: List[Dict[str, str]]) -> str:
         text, provider = await free_ai.chat(
             system,
             [{"role": "user", "content": f"Business: {biz}\nItems:\n{menu}"}],
-            max_tokens=320, temperature=0.7,
+            max_tokens=320,
+            temperature=0.7,
         )
         if text and text.strip():
             return text.strip()
@@ -154,8 +158,9 @@ async def _ai_descriptions(biz: str, items: List[Dict[str, str]]) -> str:
     return ""
 
 
-async def build_catalog(business_name: str, items: List[Dict[str, Any]],
-                        style: str = "price_list") -> Dict[str, Any]:
+async def build_catalog(
+    business_name: str, items: list[dict[str, Any]], style: str = "price_list"
+) -> dict[str, Any]:
     """Catalog kit: SVG card + WA text + AI item-descriptions. Kabhi raise nahi.
 
     Descriptions: LLM 1 call; fail/missing par item ka apna desc, warna NAAM
@@ -167,7 +172,7 @@ async def build_catalog(business_name: str, items: List[Dict[str, Any]],
 
     if norm:
         raw = await _ai_descriptions(biz, norm)
-        ai_map: Dict[int, str] = {}
+        ai_map: dict[int, str] = {}
         for ln in raw.splitlines():
             m = _DESC_LINE_RE.match(ln)
             if m:
@@ -181,10 +186,12 @@ async def build_catalog(business_name: str, items: List[Dict[str, Any]],
         svg = _catalog_svg(biz, norm)
     except Exception as e:  # pragma: no cover - deterministic
         logger.error(f"catalog svg failed: {e}")
-        svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350">'
-               f'<rect width="1080" height="1350" fill="#6d28d9"/>'
-               f'<text x="540" y="675" font-family="{_FONT}" font-size="56" fill="#ffffff" '
-               f'text-anchor="middle">{escape(biz, quote=True)}</text></svg>')
+        svg = (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350">'
+            f'<rect width="1080" height="1350" fill="#6d28d9"/>'
+            f'<text x="540" y="675" font-family="{_FONT}" font-size="56" fill="#ffffff" '
+            f'text-anchor="middle">{escape(biz, quote=True)}</text></svg>'
+        )
 
     return {
         "business_name": biz,
@@ -197,5 +204,5 @@ async def build_catalog(business_name: str, items: List[Dict[str, Any]],
         "wa_catalog_text": _wa_catalog_text(biz, norm),
         "provider": provider,
         "tip": "PNG download karke WhatsApp status + Instagram pe lagao; "
-               "text version broadcast list me bhejo.",
+        "text version broadcast list me bhejo.",
     }

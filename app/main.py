@@ -8,41 +8,39 @@ MULTI-TIER AUTOMATED PLATFORM (marketing-first):
    Advanced tier adds an AI voice agent that calls their inquiries
 3. Everything runs 24/7 with minimal human intervention
 """
-import os
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
-import logging
-import asyncio
 
-from app.config import settings
-from app.api import leads, campaigns, analytics, webhooks
-from app.api.billing import router as billing_router
-from app.api.platform import router as platform_router
-from app.api.ml_training import router as ml_router
-from app.api.health import router as health_router
-from app.api.admin import router as admin_router
-from app.api.ai import router as ai_router
-from app.api.data import router as data_router
-from app.api.customer_dashboard import router as customer_dashboard_router
-from app.api.admin_dashboard import router as admin_dashboard_router
-from app.api.web_call import router as web_call_router
-from app.api.agents import router as agents_router
-from app.api.telephony_vobiz import router as telephony_vobiz_router
-from fastapi import WebSocket
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
+import os
+from contextlib import asynccontextmanager
 from pathlib import Path
+
+from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.api import analytics, campaigns, leads, webhooks
+from app.api.admin import router as admin_router
+from app.api.admin_dashboard import router as admin_dashboard_router
+from app.api.agents import router as agents_router
+from app.api.ai import router as ai_router
+from app.api.billing import router as billing_router
+from app.api.customer_dashboard import router as customer_dashboard_router
+from app.api.data import router as data_router
+from app.api.health import router as health_router
+from app.api.ml_training import router as ml_router
+from app.api.platform import router as platform_router
+from app.api.telephony_vobiz import router as telephony_vobiz_router
+from app.api.web_call import router as web_call_router
+from app.config import settings
 
 # Frontend directory (dashboards + marketing website + PWA)
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
-from app.platform.orchestrator import PlatformOrchestrator
-from app.ml import get_training_scheduler, stop_training_scheduler
-from app.models.base import init_async_db, close_async_db
-from app.middleware import setup_middleware
-from app.exceptions import setup_exception_handlers
 from app.cache import close_redis_client
+from app.exceptions import setup_exception_handlers
+from app.middleware import setup_middleware
+from app.ml import stop_training_scheduler
+from app.models.base import close_async_db, init_async_db
+from app.platform.orchestrator import PlatformOrchestrator
 from app.utils.logger import setup_logger
 
 # Setup logging
@@ -52,10 +50,10 @@ logger = setup_logger(__name__)
 if settings.sentry_dsn and settings.app_env == "production":
     try:
         import sentry_sdk
-        from sentry_sdk.integrations.fastapi import FastApiIntegration
-        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-        from sentry_sdk.integrations.redis import RedisIntegration
         from sentry_sdk.integrations.celery import CeleryIntegration
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.redis import RedisIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
         sentry_sdk.init(
             dsn=settings.sentry_dsn,
@@ -74,7 +72,11 @@ if settings.sentry_dsn and settings.app_env == "production":
             # Attach stack traces for all log messages at ERROR level or higher
             attach_stacktrace=True,
             # Filter out health check endpoints from transactions
-            before_send_transaction=lambda event, hint: None if event.get("transaction") in ["/health", "/health/ready", "/health/live"] else event,
+            before_send_transaction=lambda event, hint: (
+                None
+                if event.get("transaction") in ["/health", "/health/ready", "/health/live"]
+                else event
+            ),
         )
         logger.info("✅ Sentry error tracking initialized")
     except ImportError:
@@ -193,8 +195,12 @@ app.add_middleware(
 app.include_router(health_router)  # Health checks at root level
 app.include_router(data_router, prefix="/api", tags=["Data Intelligence"])  # B2B Data Platform
 app.include_router(leads.router, prefix="/api/leads", tags=["Leads"])
-app.include_router(campaigns.router, prefix="/api", tags=["Campaigns"])  # router self-prefixes /campaigns
-app.include_router(analytics.router, prefix="/api", tags=["Analytics"])  # router self-prefixes /analytics
+app.include_router(
+    campaigns.router, prefix="/api", tags=["Campaigns"]
+)  # router self-prefixes /campaigns
+app.include_router(
+    analytics.router, prefix="/api", tags=["Analytics"]
+)  # router self-prefixes /analytics
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
 app.include_router(billing_router, prefix="/api", tags=["Billing"])
 app.include_router(platform_router, prefix="/api", tags=["Platform"])
@@ -221,17 +227,23 @@ except Exception as _e:  # pragma: no cover
 try:
     from app.api.clients import router as clients_router
 
-    app.include_router(clients_router, prefix="/api")  # /api/clients/* (marketing clients + auto content)
+    app.include_router(
+        clients_router, prefix="/api"
+    )  # /api/clients/* (marketing clients + auto content)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Clients router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])
 app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /api/customer/*
-app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])        # /api/admin/*
+app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])  # /api/admin/*
 app.include_router(web_call_router, prefix="/api", tags=["Web Call (Test Mode)"])  # /api/web-call/*
-app.include_router(agents_router, prefix="/api", tags=["Agents"])  # /api/agents/* (LangGraph supervisor)
-app.include_router(telephony_vobiz_router, prefix="/api", tags=["Telephony"])  # /api/telephony/vobiz/*
+app.include_router(
+    agents_router, prefix="/api", tags=["Agents"]
+)  # /api/agents/* (LangGraph supervisor)
+app.include_router(
+    telephony_vobiz_router, prefix="/api", tags=["Telephony"]
+)  # /api/telephony/vobiz/*
 
 
 # ---------------------------------------------------------------------------
@@ -342,8 +354,9 @@ async def sitemap_xml():
     Programmatic SEO blog ke saare articles yahan auto-include hote hain taaki
     Google unhe crawl kare. base URL CORS origin / request host se nikalti hai.
     """
-    from fastapi.responses import Response
     from xml.sax.saxutils import escape as _xesc
+
+    from fastapi.responses import Response
 
     # base URL (production domain pehle; warna request host)
     base = "https://leadsgenai.in"
@@ -367,9 +380,7 @@ async def sitemap_xml():
     except Exception as e:  # blog module missing => sirf static pages
         logger.debug(f"sitemap blog slugs skipped: {e}")
 
-    items = "\n".join(
-        f"  <url><loc>{_xesc(base + p)}</loc></url>" for p in urls
-    )
+    items = "\n".join(f"  <url><loc>{_xesc(base + p)}</loc></url>" for p in urls)
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -443,7 +454,7 @@ def _blog_header() -> str:
         '<header class="nav"><div class="nav-inner">'
         '<a href="/" class="brand"><span class="logo">L</span>LeadGen AI</a>'
         '<a href="/audit" class="btn btn-primary">FREE Google Audit</a>'
-        '</div></header>'
+        "</div></header>"
     )
 
 
@@ -459,19 +470,20 @@ def _blog_footer() -> str:
 def _cta_box() -> str:
     return (
         '<div class="cta-box"><h3>Apni marketing badhani hai?</h3>'
-        '<p>2 minute me free Google audit lijiye — hum batayenge kahan kami hai aur '
+        "<p>2 minute me free Google audit lijiye — hum batayenge kahan kami hai aur "
         'kaise theek karein. Bilkul free.</p><div class="cta-row">'
         '<a href="/audit" class="btn btn-primary">🚀 FREE Audit nikalo</a>'
         '<a href="https://wa.me/918459012607" class="btn btn-ghost">💬 WhatsApp pe baat karo</a>'
-        '</div></div>'
+        "</div></div>"
     )
 
 
 @app.get("/blog", tags=["Frontend"], include_in_schema=False)
 async def blog_index():
     """Programmatic SEO blog — sab articles ki list (newest first)."""
-    from fastapi.responses import HTMLResponse
     from html import escape as _h
+
+    from fastapi.responses import HTMLResponse
 
     articles = []
     try:
@@ -492,19 +504,20 @@ async def blog_index():
         cards.append(
             f'<a class="card" href="/blog/{slug}">'
             f'<span class="tag">{tag}</span>'
-            f'<h3>{title}</h3><p>{meta}</p></a>'
+            f"<h3>{title}</h3><p>{meta}</p></a>"
         )
     body = (
-        "".join(cards) if cards
+        "".join(cards)
+        if cards
         else '<div class="empty">Abhi koi article publish nahi hua — jald aa raha hai!</div>'
     )
 
     html = (
-        "<!DOCTYPE html><html lang=\"en-IN\"><head><meta charset=\"UTF-8\">"
+        '<!DOCTYPE html><html lang="en-IN"><head><meta charset="UTF-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
         "<title>Marketing Blog — Local Business Tips (Hinglish) | LeadGen AI</title>"
         '<meta name="description" content="Local business marketing tips Hinglish me — '
-        'Instagram, Google Business Profile, festival posters, WhatsApp aur reviews. '
+        "Instagram, Google Business Profile, festival posters, WhatsApp aur reviews. "
         'Restaurant, salon, real estate aur 40+ niches ke liye free guides.">'
         f'<link rel="canonical" href="/blog">{_BLOG_FONTS}'
         f"<style>{_BLOG_CSS}</style></head><body>"
@@ -522,8 +535,9 @@ async def blog_index():
 @app.get("/blog/{slug}", tags=["Frontend"], include_in_schema=False)
 async def blog_article(slug: str):
     """Ek SEO article render karo (404-safe → /blog redirect)."""
-    from fastapi.responses import HTMLResponse, RedirectResponse
     from html import escape as _h
+
+    from fastapi.responses import HTMLResponse, RedirectResponse
 
     article = None
     try:
@@ -544,7 +558,7 @@ async def blog_article(slug: str):
     crumb = f"{niche}{(' · ' + city) if city else ''}"
 
     html = (
-        "<!DOCTYPE html><html lang=\"en-IN\"><head><meta charset=\"UTF-8\">"
+        '<!DOCTYPE html><html lang="en-IN"><head><meta charset="UTF-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
         f"<title>{title} | LeadGen AI</title>"
         f'<meta name="description" content="{meta}">'
@@ -566,6 +580,7 @@ async def twilio_media_stream(websocket: WebSocket):
     """Twilio Media Streams websocket → live audio bridge to the voice pipeline."""
     try:
         from app.telephony.media_stream import TwilioMediaStreamBridge
+
         bridge = TwilioMediaStreamBridge()
         await bridge.handle(websocket)
     except Exception as e:
@@ -582,16 +597,21 @@ async def pwa_manifest():
     mf = _website_dir / "manifest.json"
     if mf.is_file():
         return FileResponse(str(mf))
-    return JSONResponse({
-        "name": "LeadGen AI", "short_name": "LeadGen AI",
-        "start_url": "/site/", "display": "standalone",
-        "background_color": "#4f46e5", "theme_color": "#4f46e5",
-        "description": "AI Automated Marketing + Voice Agent for Indian businesses",
-        "icons": [
-            {"src": "/site/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
-            {"src": "/site/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
-        ],
-    })
+    return JSONResponse(
+        {
+            "name": "LeadGen AI",
+            "short_name": "LeadGen AI",
+            "start_url": "/site/",
+            "display": "standalone",
+            "background_color": "#4f46e5",
+            "theme_color": "#4f46e5",
+            "description": "AI Automated Marketing + Voice Agent for Indian businesses",
+            "icons": [
+                {"src": "/site/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+                {"src": "/site/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
+            ],
+        }
+    )
 
 
 @app.get("/sw.js", tags=["Frontend"])
@@ -601,6 +621,7 @@ async def pwa_service_worker():
     if sw.is_file():
         return FileResponse(str(sw))
     from fastapi.responses import Response
+
     return Response("/* no service worker */", media_type="application/javascript")
 
 
@@ -618,9 +639,9 @@ async def api_status():
                 "Data Enrichment",
                 "Market Reports",
                 "Lead Scoring",
-            ]
+            ],
         },
-        "message": "🚀 B2B Intelligence Platform - Data that drives revenue!"
+        "message": "🚀 B2B Intelligence Platform - Data that drives revenue!",
     }
 
 
@@ -632,19 +653,23 @@ async def health_check():
     return {
         "status": "healthy",
         "platform": {
-            "orchestrator": "running" if (platform_orchestrator and platform_orchestrator.is_running) else "stopped",
-            "auto_mode": settings.auto_start_platform
+            "orchestrator": (
+                "running"
+                if (platform_orchestrator and platform_orchestrator.is_running)
+                else "stopped"
+            ),
+            "auto_mode": settings.auto_start_platform,
         },
         "ml": {
             "scheduler": "running" if ml_scheduler and ml_scheduler.is_running else "stopped",
-            "auto_learning": "enabled"
+            "auto_learning": "enabled",
         },
         "services": {
             "api": "operational",
             "database": "check_required",
             "redis": "check_required",
-            "telephony": "check_required"
-        }
+            "telephony": "check_required",
+        },
     }
 
 
@@ -659,4 +684,5 @@ if _website_dir.is_dir():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

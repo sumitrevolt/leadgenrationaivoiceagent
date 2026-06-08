@@ -36,13 +36,14 @@ Usage:
     if not decision.allowed:
         ...  # do NOT dial; decision.reasons explains why
 """
+
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -53,20 +54,21 @@ IST = timezone(timedelta(hours=5, minutes=30))
 
 
 class CallType(str, Enum):
-    PROMOTIONAL = "promotional"      # cold outreach — strict rules
+    PROMOTIONAL = "promotional"  # cold outreach — strict rules
     TRANSACTIONAL = "transactional"  # consented / known number — lenient
 
 
 @dataclass
 class ComplianceDecision:
     """Result of a compliance check. ``allowed`` decides whether to dial."""
+
     allowed: bool
     call_type: str
     phone: str
-    reasons: List[str] = field(default_factory=list)   # why blocked (or notes)
-    checks: Dict[str, Any] = field(default_factory=dict)
+    reasons: list[str] = field(default_factory=list)  # why blocked (or notes)
+    checks: dict[str, Any] = field(default_factory=dict)
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         return {
             "allowed": self.allowed,
             "call_type": self.call_type,
@@ -104,7 +106,7 @@ class ComplianceGate:
     """Single pre-dial gate. ``check()`` returns a ComplianceDecision; never raises."""
 
     def __init__(self, dnd_checker: Any = None) -> None:
-        self._dnd = dnd_checker          # injected/lazy DNDChecker
+        self._dnd = dnd_checker  # injected/lazy DNDChecker
         self._dnd_tried = False
 
     # ----------------------------- config ----------------------------- #
@@ -125,13 +127,14 @@ class ComplianceGate:
         for tok in raw.replace(";", ",").split(","):
             d = _digits(tok)
             if len(d) >= 10:
-                out.add(d[-10:])   # compare on the last 10 digits (ignore +91/91)
+                out.add(d[-10:])  # compare on the last 10 digits (ignore +91/91)
         return out
 
     @staticmethod
     def _caller_id() -> str:
         try:
             from app.config import settings
+
             cid = (getattr(settings, "vobiz_caller_id", "") or "").strip()
             if cid:
                 return cid
@@ -155,13 +158,14 @@ class ComplianceGate:
         self._dnd_tried = True
         try:
             from app.utils.dnd_checker import DNDChecker
+
             self._dnd = DNDChecker()
         except Exception as e:
             logger.debug(f"compliance: DNDChecker unavailable ({e}).")
             self._dnd = None
         return self._dnd
 
-    async def _is_dnd(self, phone: str) -> Optional[bool]:
+    async def _is_dnd(self, phone: str) -> bool | None:
         """True/False if verifiable, None if it could not be checked."""
         checker = self._get_dnd()
         if checker is None:
@@ -178,7 +182,7 @@ class ComplianceGate:
         self,
         phone: str,
         call_type: CallType = CallType.PROMOTIONAL,
-        now: Optional[datetime] = None,
+        now: datetime | None = None,
     ) -> ComplianceDecision:
         """Run every applicable rule. Returns a ComplianceDecision (never raises)."""
         try:
@@ -186,15 +190,16 @@ class ComplianceGate:
         except Exception:
             ct = CallType.PROMOTIONAL
         phone_d = _digits(phone)
-        reasons: List[str] = []
-        checks: Dict[str, Any] = {"call_type": ct.value}
+        reasons: list[str] = []
+        checks: dict[str, Any] = {"call_type": ct.value}
 
         try:
             # 0) kill switch (explicit opt-out; logs so it is never silent).
             if not self._enabled():
                 logger.warning("⚠️ ComplianceGate DISABLED (COMPLIANCE_ENABLED=0) — allowing call.")
-                return ComplianceDecision(True, ct.value, phone,
-                                          ["compliance_disabled"], {"enabled": False})
+                return ComplianceDecision(
+                    True, ct.value, phone, ["compliance_disabled"], {"enabled": False}
+                )
 
             # 1) phone sanity (E.164-ish: 10–15 digits).
             checks["digits"] = len(phone_d)
@@ -208,7 +213,7 @@ class ComplianceGate:
                 return ComplianceDecision(True, ct.value, phone, ["allowlisted"], checks)
 
             # 3) calling-hours window (IST).
-            now_ist = (now or datetime.now(IST))
+            now_ist = now or datetime.now(IST)
             if now_ist.tzinfo is None:
                 now_ist = now_ist.replace(tzinfo=IST)
             now_ist = now_ist.astimezone(IST)
@@ -244,7 +249,9 @@ class ComplianceGate:
 
         except Exception as e:
             # Fail SAFE: promo blocked, transactional allowed.
-            logger.warning(f"compliance: gate error ({e}); failing {'closed' if ct==CallType.PROMOTIONAL else 'open'}.")
+            logger.warning(
+                f"compliance: gate error ({e}); failing {'closed' if ct==CallType.PROMOTIONAL else 'open'}."
+            )
             safe = ct != CallType.PROMOTIONAL
             return ComplianceDecision(safe, ct.value, phone, [f"gate_error:{e}"], checks)
 
@@ -252,7 +259,7 @@ class ComplianceGate:
 # ---------------------------------------------------------------------- #
 # Process-wide singleton
 # ---------------------------------------------------------------------- #
-_gate: Optional[ComplianceGate] = None
+_gate: ComplianceGate | None = None
 
 
 def get_compliance_gate() -> ComplianceGate:

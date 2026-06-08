@@ -28,21 +28,24 @@ Usage example:
     assert flow.is_valid()
     print(flow.start_node_id, len(flow.nodes))
 """
+
 from __future__ import annotations
 
-from typing import Dict, Any, List, Optional
+from typing import Any
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 from app.voice_agent.flow_engine import (
-    NodeType,
-    FlowNode,
     ConversationFlow,
+    FlowNode,
+    NodeType,
 )
 
 try:
@@ -55,6 +58,7 @@ except Exception as e:  # defensive: still usable for custom specs
 # =============================================================================
 # NICHE -> FLOW
 # =============================================================================
+
 
 def build_flow_for_niche(niche_key: str) -> ConversationFlow:
     """
@@ -184,7 +188,8 @@ def build_flow_for_niche(niche_key: str) -> ConversationFlow:
 # CUSTOM SPEC -> FLOW
 # =============================================================================
 
-def build_flow_from_spec(spec: Dict[str, Any]) -> ConversationFlow:
+
+def build_flow_from_spec(spec: dict[str, Any]) -> ConversationFlow:
     """
     Build a ConversationFlow from a plain dict spec (hand-authored flows).
 
@@ -246,6 +251,7 @@ def build_flow_from_spec(spec: Dict[str, Any]) -> ConversationFlow:
 # HELPERS
 # =============================================================================
 
+
 def _coerce_node_type(value: Any) -> NodeType:
     """Map a string/NodeType to a NodeType, defaulting to MESSAGE."""
     if isinstance(value, NodeType):
@@ -266,35 +272,51 @@ def _build_generic_flow(label: str) -> ConversationFlow:
         nodes={},
         start_node_id="greeting",
     )
-    flow.add_node(FlowNode(
-        id="greeting", type=NodeType.GREETING,
-        text="Hi, this is Maya from your AI sales team. Do you have a quick minute?",
-        transitions={"not_interested": "end", "no": "end", "default": "q1"},
-        metadata={"score": 5},
-    ))
-    flow.add_node(FlowNode(
-        id="q1", type=NodeType.QUESTION,
-        text="Are you currently looking to generate more qualified B2B leads?",
-        transitions={"no": "score_check", "not_interested": "end",
-                     "default": "score_check"},
-        metadata={"capture_field": "q1", "score": 20},
-    ))
-    flow.add_node(FlowNode(
-        id="score_check", type=NodeType.CONDITION, text="",
-        transitions={"hot": "transfer", "cold": "end", "default": "end"},
-        metadata={"condition_kind": "interest_score", "threshold": 20},
-    ))
-    flow.add_node(FlowNode(
-        id="transfer", type=NodeType.TRANSFER,
-        text="Perfect, let me connect you with a specialist for a quick demo.",
-        transitions={"default": "end"},
-        metadata={"outcome": "transfer"},
-    ))
-    flow.add_node(FlowNode(
-        id="end", type=NodeType.END,
-        text="Thanks for your time, have a great day!",
-        transitions={}, metadata={"outcome": "ended"},
-    ))
+    flow.add_node(
+        FlowNode(
+            id="greeting",
+            type=NodeType.GREETING,
+            text="Hi, this is Maya from your AI sales team. Do you have a quick minute?",
+            transitions={"not_interested": "end", "no": "end", "default": "q1"},
+            metadata={"score": 5},
+        )
+    )
+    flow.add_node(
+        FlowNode(
+            id="q1",
+            type=NodeType.QUESTION,
+            text="Are you currently looking to generate more qualified B2B leads?",
+            transitions={"no": "score_check", "not_interested": "end", "default": "score_check"},
+            metadata={"capture_field": "q1", "score": 20},
+        )
+    )
+    flow.add_node(
+        FlowNode(
+            id="score_check",
+            type=NodeType.CONDITION,
+            text="",
+            transitions={"hot": "transfer", "cold": "end", "default": "end"},
+            metadata={"condition_kind": "interest_score", "threshold": 20},
+        )
+    )
+    flow.add_node(
+        FlowNode(
+            id="transfer",
+            type=NodeType.TRANSFER,
+            text="Perfect, let me connect you with a specialist for a quick demo.",
+            transitions={"default": "end"},
+            metadata={"outcome": "transfer"},
+        )
+    )
+    flow.add_node(
+        FlowNode(
+            id="end",
+            type=NodeType.END,
+            text="Thanks for your time, have a great day!",
+            transitions={},
+            metadata={"outcome": "ended"},
+        )
+    )
     _warn_if_invalid(flow)
     return flow
 

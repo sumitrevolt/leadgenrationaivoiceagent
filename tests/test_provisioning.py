@@ -2,23 +2,32 @@
 Tests: client onboarding auto-provisions 2 agents (data + leads),
 and the 26-niche registry (25 research + ai_marketing) powers flows + API correctly.
 """
-import pytest
+
 from fastapi.testclient import TestClient
 
-from app.niches import NICHES, niches_by_tier, niches_by_target
+from app.niches import NICHES, niches_by_target, niches_by_tier
 
 
 class TestNicheRegistry:
     def test_exactly_42_builtin_niches(self):
         # 26 (25 research + ai_marketing) + 16 local-business marketing niches
         from app.niches import _BUILTIN_KEYS
+
         assert len(_BUILTIN_KEYS) == 42
 
     def test_every_niche_has_required_fields(self):
         required = [
-            "name", "tier", "target_type", "b2b_client", "end_customer",
-            "keywords", "avg_deal_value", "avg_ticket_inr", "pitch_hook",
-            "pricing_inr", "qualification_questions",
+            "name",
+            "tier",
+            "target_type",
+            "b2b_client",
+            "end_customer",
+            "keywords",
+            "avg_deal_value",
+            "avg_ticket_inr",
+            "pitch_hook",
+            "pricing_inr",
+            "qualification_questions",
         ]
         for key, cfg in NICHES.items():
             for field in required:
@@ -40,6 +49,7 @@ class TestNicheRegistry:
 
     def test_flow_builds_for_every_niche(self):
         from app.voice_agent.flow_builder import build_flow_for_niche
+
         for key in NICHES:
             flow = build_flow_for_niche(key)
             assert flow is not None, f"flow failed for {key}"
@@ -49,13 +59,15 @@ class TestNicheKnowledge:
     """Har builtin niche ka grounded knowledge + objection playbook complete ho."""
 
     def test_every_builtin_niche_has_a_knowledge_pack(self):
-        from app.niches import _BUILTIN_KEYS
         from app.niche_knowledge import NICHE_KNOWLEDGE
+        from app.niches import _BUILTIN_KEYS
+
         missing = [k for k in _BUILTIN_KEYS if k not in NICHE_KNOWLEDGE]
         assert not missing, f"builtin niches missing knowledge pack: {missing}"
 
     def test_packs_are_substantive(self):
         from app.niche_knowledge import NICHE_KNOWLEDGE
+
         for key, pack in NICHE_KNOWLEDGE.items():
             assert len(pack.get("facts", [])) >= 3, f"{key}: <3 facts"
             assert len(pack.get("benefits", [])) >= 2, f"{key}: <2 benefits"
@@ -65,8 +77,12 @@ class TestNicheKnowledge:
 
     def test_helpers_and_generic_fallback(self):
         from app.niche_knowledge import (
-            knowledge_facts, niche_benefits, objection_response, match_objection,
+            knowledge_facts,
+            match_objection,
+            niche_benefits,
+            objection_response,
         )
+
         assert knowledge_facts("solar_residential")
         assert niche_benefits("solar_residential")
         # unknown niche -> generic, never crashes
@@ -77,8 +93,9 @@ class TestNicheKnowledge:
         assert match_objection("real_estate", "abhi bas dekh raha hoon") is not None
 
     def test_common_objection_matches_for_every_builtin_niche(self):
-        from app.niches import _BUILTIN_KEYS
         from app.niche_knowledge import match_objection
+        from app.niches import _BUILTIN_KEYS
+
         for key in _BUILTIN_KEYS:
             assert match_objection(key, "thoda mehenga lag raha hai") is not None, key
 
@@ -128,7 +145,7 @@ class TestClientAgentProvisioning:
         cid = r1.json()["client"]["id"]
         r2 = client.post(f"/api/platform/clients/{cid}/provision-agents")
         assert r2.status_code == 200
-        assert r2.json()["created"] == []          # dobara naye agents nahi
+        assert r2.json()["created"] == []  # dobara naye agents nahi
         assert len(r2.json()["existing"]) == 2
 
     def test_list_client_agents(self, client: TestClient, db):
@@ -148,6 +165,7 @@ class TestClientAgentProvisioning:
 class TestCustomNiches:
     def _cleanup(self, key):
         from app.niches import remove_custom_niche
+
         try:
             remove_custom_niche(key)
         except Exception:
@@ -175,16 +193,20 @@ class TestCustomNiches:
 
             # flow builds for the new niche (voice agent kaam karega)
             from app.voice_agent.flow_builder import build_flow_for_niche
+
             assert build_flow_for_niche(key) is not None
 
             # client onboarding on the custom niche → 2 agents on that niche
-            cr = client.post("/api/platform/clients", json={
-                "business_name": "FurryCare Pets",
-                "contact_name": "Ravi",
-                "contact_email": "ravi@furrycare.example",
-                "contact_phone": "+919810000099",
-                "niche": key,
-            })
+            cr = client.post(
+                "/api/platform/clients",
+                json={
+                    "business_name": "FurryCare Pets",
+                    "contact_name": "Ravi",
+                    "contact_email": "ravi@furrycare.example",
+                    "contact_phone": "+919810000099",
+                    "niche": key,
+                },
+            )
             assert cr.status_code == 200, cr.text
             assert cr.json()["client"]["niche"] == key
             roles = sorted(a["role"] for a in cr.json()["agents"])
@@ -211,23 +233,28 @@ class TestCustomNiches:
         r2 = client.delete(f"/api/data/niches/{key}")
         assert r2.status_code == 200
         from app.niches import NICHES as live
+
         assert key not in live
 
 
 class TestNicheResolution:
     def test_resolve_exact_key(self):
         from app.platform.agent_provisioner import resolve_niche_key
+
         assert resolve_niche_key("real_estate") == "real_estate"
 
     def test_resolve_display_name(self):
         from app.platform.agent_provisioner import resolve_niche_key
+
         assert resolve_niche_key("Health & Term Insurance") == "insurance"
 
     def test_resolve_loose_word(self):
         from app.platform.agent_provisioner import resolve_niche_key
+
         assert resolve_niche_key("solar").startswith("solar")
 
     def test_resolve_unknown_falls_back(self):
         from app.platform.agent_provisioner import resolve_niche_key
+
         assert resolve_niche_key("xyz-unknown-industry") == "general"
         assert resolve_niche_key(None) == "general"

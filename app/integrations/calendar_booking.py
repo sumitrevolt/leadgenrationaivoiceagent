@@ -28,14 +28,17 @@ Usage:
     # res -> BookingResult(ok, booking_id, when, confirmation_text)
     await cal.cancel(res.booking_id)
 """
+
 from __future__ import annotations
 
 import asyncio
 import os
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, time as dtime
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from datetime import time as dtime
+from datetime import timedelta
+from typing import Any
 
 try:
     from app.config import settings
@@ -44,9 +47,11 @@ except Exception:  # pragma: no cover - keep import-safe
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -62,13 +67,14 @@ DEFAULT_DURATION_MIN = 15
 @dataclass
 class BookingResult:
     """Unified result for a booking attempt."""
+
     ok: bool
-    booking_id: Optional[str] = None
-    when: Optional[str] = None            # ISO 8601 start time
+    booking_id: str | None = None
+    when: str | None = None  # ISO 8601 start time
     confirmation_text: str = ""
     provider: str = "simulation"
-    error: Optional[str] = None
-    meta: Dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+    meta: dict[str, Any] = field(default_factory=dict)
 
 
 def _setting(name: str, default: str = "") -> str:
@@ -89,10 +95,10 @@ class CalendarBooking:
     book that mimics a real calendar so the whole pipeline works key-free.
     """
 
-    def __init__(self, provider: Optional[str] = None):
+    def __init__(self, provider: str | None = None):
         # In-memory booking book: booking_id -> record (used in simulation and
         # also as a local mirror for fast cancels).
-        self._bookings: Dict[str, Dict[str, Any]] = {}
+        self._bookings: dict[str, dict[str, Any]] = {}
         # when-ISO set, to avoid double-booking the same slot in simulation.
         self._taken: set = set()
 
@@ -105,9 +111,7 @@ class CalendarBooking:
                 if self._gcal is None:
                     self.provider = "simulation"
             except Exception as e:
-                logger.error(
-                    f"Google Calendar init failed ({e}); using simulation."
-                )
+                logger.error(f"Google Calendar init failed ({e}); using simulation.")
                 self.provider = "simulation"
 
         if self.provider == "simulation":
@@ -123,10 +127,7 @@ class CalendarBooking:
     # ------------------------------------------------------------------ #
     def _detect_provider(self) -> str:
         """Pick 'google' if creds exist, else 'simulation'."""
-        creds = (
-            _setting("GOOGLE_CALENDAR_CREDENTIALS")
-            or _setting("google_sheets_credentials")
-        )
+        creds = _setting("GOOGLE_CALENDAR_CREDENTIALS") or _setting("google_sheets_credentials")
         cal_id = _setting("GOOGLE_CALENDAR_ID")
         if creds and os.path.exists(creds) and cal_id:
             return "google"
@@ -135,9 +136,8 @@ class CalendarBooking:
     def _build_google_calendar(self):
         """Build a Google Calendar API service. Local imports keep us safe if
         the google libs are not installed."""
-        creds_path = (
-            _setting("GOOGLE_CALENDAR_CREDENTIALS")
-            or _setting("google_sheets_credentials")
+        creds_path = _setting("GOOGLE_CALENDAR_CREDENTIALS") or _setting(
+            "google_sheets_credentials"
         )
         self._calendar_id = _setting("GOOGLE_CALENDAR_ID") or "primary"
         try:
@@ -145,9 +145,7 @@ class CalendarBooking:
             from googleapiclient.discovery import build
 
             scopes = ["https://www.googleapis.com/auth/calendar"]
-            credentials = Credentials.from_service_account_file(
-                creds_path, scopes=scopes
-            )
+            credentials = Credentials.from_service_account_file(creds_path, scopes=scopes)
             service = build("calendar", "v3", credentials=credentials)
             logger.info("📅 Google Calendar service constructed")
             return service
@@ -168,7 +166,7 @@ class CalendarBooking:
         self,
         date_str: str,
         duration_min: int = DEFAULT_DURATION_MIN,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Return a list of free slot start-times (ISO 8601) for the given date.
 
@@ -254,7 +252,7 @@ class CalendarBooking:
     # ------------------------------------------------------------------ #
     # Google Calendar backend
     # ------------------------------------------------------------------ #
-    async def _google_free_slots(self, day: datetime, duration_min: int) -> List[str]:
+    async def _google_free_slots(self, day: datetime, duration_min: int) -> list[str]:
         """Use freebusy to subtract busy intervals from the business-hours grid."""
         cal_id = getattr(self, "_calendar_id", "primary")
         start = datetime.combine(day.date(), BUSINESS_START)
@@ -265,13 +263,11 @@ class CalendarBooking:
             "timeMax": end.isoformat() + "+05:30",
             "items": [{"id": cal_id}],
         }
-        resp = await asyncio.to_thread(
-            self._gcal.freebusy().query(body=body).execute
-        )
+        resp = await asyncio.to_thread(self._gcal.freebusy().query(body=body).execute)
         busy = resp.get("calendars", {}).get(cal_id, {}).get("busy", [])
 
         candidate = self._sim_free_slots(day, duration_min)
-        free: List[str] = []
+        free: list[str] = []
         for slot in candidate:
             slot_start = datetime.fromisoformat(slot)
             slot_end = slot_start + timedelta(minutes=duration_min)
@@ -280,7 +276,7 @@ class CalendarBooking:
         return free
 
     @staticmethod
-    def _overlaps_busy(slot_start, slot_end, busy: List[Dict[str, str]]) -> bool:
+    def _overlaps_busy(slot_start, slot_end, busy: list[dict[str, str]]) -> bool:
         for b in busy:
             try:
                 b_start = datetime.fromisoformat(b["start"].replace("Z", "+00:00"))
@@ -302,8 +298,7 @@ class CalendarBooking:
         event = {
             "summary": f"AI Voice Agent — meeting with {name or 'lead'}",
             "description": (
-                f"Booked via AI voice agent.\nLead: {name}\nPhone: {phone}\n"
-                f"Notes: {notes}"
+                f"Booked via AI voice agent.\nLead: {name}\nPhone: {phone}\n" f"Notes: {notes}"
             ),
             "start": {"dateTime": when.isoformat(), "timeZone": "Asia/Kolkata"},
             "end": {"dateTime": end.isoformat(), "timeZone": "Asia/Kolkata"},
@@ -333,9 +328,9 @@ class CalendarBooking:
     # ------------------------------------------------------------------ #
     # In-memory simulation backend
     # ------------------------------------------------------------------ #
-    def _sim_free_slots(self, day: datetime, duration_min: int) -> List[str]:
+    def _sim_free_slots(self, day: datetime, duration_min: int) -> list[str]:
         """Generate business-hours slots for `day`, minus already-taken ones."""
-        slots: List[str] = []
+        slots: list[str] = []
         cursor = datetime.combine(day.date(), BUSINESS_START)
         end = datetime.combine(day.date(), BUSINESS_END)
         step = timedelta(minutes=max(duration_min, DEFAULT_DURATION_MIN))
@@ -364,8 +359,7 @@ class CalendarBooking:
                 when=iso,
                 error="Slot already booked.",
                 confirmation_text=(
-                    "Woh slot abhi book ho gaya — main aapko aas-paas ka dusra "
-                    "time de doon?"
+                    "Woh slot abhi book ho gaya — main aapko aas-paas ka dusra " "time de doon?"
                 ),
             )
         booking_id = f"bk_{uuid.uuid4().hex[:12]}"
@@ -426,7 +420,7 @@ class CalendarBooking:
         return self._next_business_day(datetime.now())
 
     @staticmethod
-    def _normalize_when(when_iso: str) -> Optional[datetime]:
+    def _normalize_when(when_iso: str) -> datetime | None:
         """Accept ISO datetime; return None if unparseable."""
         when_iso = (when_iso or "").strip()
         if not when_iso:
@@ -442,7 +436,7 @@ class CalendarBooking:
                     continue
         return None
 
-    def validate_config(self) -> Dict[str, Any]:
+    def validate_config(self) -> dict[str, Any]:
         """Diagnostics for dashboard / health checks."""
         return {
             "active_provider": self.provider,
@@ -461,7 +455,7 @@ class CalendarBooking:
 # ---------------------------------------------------------------------- #
 # Module-level singleton
 # ---------------------------------------------------------------------- #
-_calendar: Optional[CalendarBooking] = None
+_calendar: CalendarBooking | None = None
 
 
 def get_calendar() -> CalendarBooking:

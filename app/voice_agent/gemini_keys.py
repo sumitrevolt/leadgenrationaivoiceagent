@@ -23,30 +23,37 @@ DESIGN
   (doesn't skip the whole pool).
 * Pure-python, thread-safe, zero new deps. Importing this NEVER raises.
 """
+
 from __future__ import annotations
 
 import os
 import re
 import threading
-from typing import List, Optional
 
 _LOCK = threading.Lock()
-_KEYS: Optional[List[str]] = None
+_KEYS: list[str] | None = None
 _IDX = 0
 
 # Substrings that mark a quota / rate-limit failure across SDKs (google-genai,
 # google.generativeai, REST). Matched case-insensitively against type+message.
 _QUOTA_MARKERS = (
-    "resourceexhausted", "resource exhausted", "quota", "429",
-    "rate limit", "rate-limit", "ratelimit", "exhausted", "too many requests",
+    "resourceexhausted",
+    "resource exhausted",
+    "quota",
+    "429",
+    "rate limit",
+    "rate-limit",
+    "ratelimit",
+    "exhausted",
+    "too many requests",
 )
 
 
-def _split(raw: str) -> List[str]:
+def _split(raw: str) -> list[str]:
     return [k.strip() for k in re.split(r"[,\s]+", raw or "") if k.strip()]
 
 
-def _load_keys() -> List[str]:
+def _load_keys() -> list[str]:
     """Collect keys from settings (preferred) then env, deduped + ordered."""
     multi = single = ""
     try:
@@ -59,7 +66,7 @@ def _load_keys() -> List[str]:
     multi = multi or (os.environ.get("GEMINI_API_KEYS", "") or "").strip()
     single = single or (os.environ.get("GEMINI_API_KEY", "") or "").strip()
 
-    keys: List[str] = []
+    keys: list[str] = []
     seen = set()
     for k in _split(multi) + _split(single):
         if k not in seen:
@@ -68,7 +75,7 @@ def _load_keys() -> List[str]:
     return keys
 
 
-def reload_keys() -> List[str]:
+def reload_keys() -> list[str]:
     """Force re-read (e.g. after .env change). Resets the active index."""
     global _KEYS, _IDX
     with _LOCK:
@@ -77,7 +84,7 @@ def reload_keys() -> List[str]:
         return list(_KEYS)
 
 
-def gemini_keys() -> List[str]:
+def gemini_keys() -> list[str]:
     """All configured Gemini keys (lazy, cached). Empty list = none set."""
     global _KEYS
     if _KEYS is None:

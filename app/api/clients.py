@@ -13,7 +13,6 @@ Clients API — marketing client store + per-client auto content engine.
 Sab admin-auth (marketing.py jaisa pattern). Generators kabhi raise nahi karte;
 phir bhi unexpected par 500 + detail. Har action team-log (isha) — best-effort.
 """
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -41,8 +40,10 @@ def _log_isha(action: str, detail: str) -> None:
 # Request models
 # --------------------------------------------------------------------------- #
 
+
 class ClientBrand(BaseModel):
     """Brand profile (#RRGGBB colors; invalid => ignore)."""
+
     primary: str = Field("", max_length=10)
     accent: str = Field("", max_length=10)
     tagline: str = Field("", max_length=160)
@@ -51,6 +52,7 @@ class ClientBrand(BaseModel):
 
 class ClientSocials(BaseModel):
     """Client ke social handles (display/links ke liye)."""
+
     instagram: str = Field("", max_length=200)
     facebook: str = Field("", max_length=200)
     gbp: str = Field("", max_length=300)
@@ -58,6 +60,7 @@ class ClientSocials(BaseModel):
 
 class AddClientRequest(BaseModel):
     """Naya marketing client."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     city: str = Field("", max_length=80)
@@ -69,17 +72,20 @@ class AddClientRequest(BaseModel):
 
 class StatusRequest(BaseModel):
     """Status update (active/paused/dead)."""
+
     status: str = Field(..., min_length=1, max_length=30)
 
 
 class ItemStatusRequest(BaseModel):
     """Content item status (draft/approved/posted/skipped)."""
+
     status: str = Field(..., min_length=1, max_length=30)
 
 
 # --------------------------------------------------------------------------- #
 # Endpoints
 # --------------------------------------------------------------------------- #
+
 
 @router.post("")
 async def create_client(
@@ -97,8 +103,7 @@ async def create_client(
             brand=req.brand.model_dump(),
             socials=req.socials.model_dump(),
         )
-        _log_isha("client_added",
-                  f"{req.business_name} ({req.niche or 'general'}, {req.plan})")
+        _log_isha("client_added", f"{req.business_name} ({req.niche or 'general'}, {req.plan})")
         return {"client": client}
     except Exception as e:
         logger.error(f"Client add failed: {e}")
@@ -107,7 +112,7 @@ async def create_client(
 
 @router.get("")
 async def list_all_clients(
-    status: Optional[str] = None,
+    status: str | None = None,
     current_user: User = Depends(require_admin),
 ):
     """Marketing clients list (optional ?status= filter)."""
@@ -177,7 +182,7 @@ async def run_client_content(
 @router.get("/{cid}/content")
 async def get_client_content(
     cid: str,
-    status: Optional[str] = None,
+    status: str | None = None,
     current_user: User = Depends(require_admin),
 ):
     """Client ke content queue items (newest first, optional ?status=)."""

@@ -27,13 +27,14 @@ Persistence: data/content_queue/<client_id>.jsonl (DEDUPE by date+type — same
 din re-run pe duplicate nahi banta). Sab try/except — KABHI raise nahi, never
 empty (har piece ka fallback hai). Test-monkeypatch: `_QUEUE_DIR`.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import uuid
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -71,6 +72,7 @@ def _now() -> str:
 def _safe_id(client_id: Any) -> str:
     """Path-traversal safe filename stem."""
     import re
+
     s = re.sub(r"[^A-Za-z0-9_-]", "_", str(client_id or "").strip())[:64]
     return s or "default"
 
@@ -81,13 +83,13 @@ def _queue_path(client_id: Any) -> str:
 
 # Weekday → (type, theme-label, occasion-for-LLM)
 _WEEKLY_PLAN = {
-    0: ("post", "Tip / Gyaan", ""),                  # Monday
-    1: ("post", "Offer / Deal", ""),                 # Tuesday
-    2: ("poster", "Brand Poster", ""),               # Wednesday
-    3: ("reel", "Reel Idea", ""),                    # Thursday
-    4: ("post", "Festival / Fun", ""),               # Friday (festival override below)
-    5: ("post", "Product Spotlight", ""),            # Saturday
-    6: ("post", "Engagement Question", ""),          # Sunday
+    0: ("post", "Tip / Gyaan", ""),  # Monday
+    1: ("post", "Offer / Deal", ""),  # Tuesday
+    2: ("poster", "Brand Poster", ""),  # Wednesday
+    3: ("reel", "Reel Idea", ""),  # Thursday
+    4: ("post", "Festival / Fun", ""),  # Friday (festival override below)
+    5: ("post", "Product Spotlight", ""),  # Saturday
+    6: ("post", "Engagement Question", ""),  # Sunday
 }
 
 # Per-type offer hint (caption ko thoda direct karta hai — sirf flavor).
@@ -97,7 +99,7 @@ _TYPE_OFFER_HINT = {
 }
 
 
-def _brand_colors(client: Dict[str, Any]) -> Dict[str, str]:
+def _brand_colors(client: dict[str, Any]) -> dict[str, str]:
     brand = (client.get("brand") or {}) if isinstance(client, dict) else {}
     return {
         "primary": str(brand.get("primary") or "").strip(),
@@ -106,8 +108,9 @@ def _brand_colors(client: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
-async def _make_post_item(client: Dict[str, Any], today_s: str, item_type: str,
-                          theme: str, occasion: str = "") -> Dict[str, Any]:
+async def _make_post_item(
+    client: dict[str, Any], today_s: str, item_type: str, theme: str, occasion: str = ""
+) -> dict[str, Any]:
     """Caption-based item (post/reel/festival) banao — LLM-first, template fallback."""
     name = str(client.get("business_name") or "Aapka Business")
     niche = str(client.get("niche") or "general")
@@ -116,8 +119,10 @@ async def _make_post_item(client: Dict[str, Any], today_s: str, item_type: str,
     try:
         if post_generator is not None:
             res = await post_generator.generate_post(
-                business_name=name, niche=niche,
-                occasion=occasion, offer=offer,
+                business_name=name,
+                niche=niche,
+                occasion=occasion,
+                offer=offer,
             )
             caption = str((res or {}).get("caption") or "").strip()
             hashtags = list((res or {}).get("hashtags") or [])
@@ -126,10 +131,12 @@ async def _make_post_item(client: Dict[str, Any], today_s: str, item_type: str,
 
     if not caption:
         # Never-empty deterministic fallback.
-        occ = (occasion or theme or "aaj").strip()
-        caption = (f"✨ {name} — {theme}!\n"
-                   f"{('🎊 ' + occasion) if occasion else 'Quality service, sahi daam'} — "
-                   "aaj hi humse judiye. 📞 Call ya WhatsApp karein!")
+        (occasion or theme or "aaj").strip()
+        caption = (
+            f"✨ {name} — {theme}!\n"
+            f"{('🎊 ' + occasion) if occasion else 'Quality service, sahi daam'} — "
+            "aaj hi humse judiye. 📞 Call ya WhatsApp karein!"
+        )
         if not hashtags:
             hashtags = ["#LocalBusiness", "#SmallBusinessIndia", "#SupportLocal"]
 
@@ -146,8 +153,14 @@ async def _make_post_item(client: Dict[str, Any], today_s: str, item_type: str,
     }
 
 
-def _make_poster_item(client: Dict[str, Any], today_s: str, template_id: str,
-                      title: str, festival: str = "", offer: str = "") -> Dict[str, Any]:
+def _make_poster_item(
+    client: dict[str, Any],
+    today_s: str,
+    template_id: str,
+    title: str,
+    festival: str = "",
+    offer: str = "",
+) -> dict[str, Any]:
     """SVG poster item (brand colors client se). posters.generate_poster never-raise."""
     name = str(client.get("business_name") or "Aapka Business")
     phone = str(client.get("phone") or "")
@@ -181,12 +194,13 @@ def _make_poster_item(client: Dict[str, Any], today_s: str, template_id: str,
     }
 
 
-async def generate_for_client(client: Dict[str, Any],
-                              day: Optional[date] = None) -> List[Dict[str, Any]]:
+async def generate_for_client(
+    client: dict[str, Any], day: date | None = None
+) -> list[dict[str, Any]]:
     """Aaj (ya `day`) ke liye client ke content items banao (weekly plan +
     nearby festival). Har item: {id, client_id, date, type, title, caption?,
     hashtags?, svg?, status:"draft", created_at}. KABHI raise nahi, never empty."""
-    items: List[Dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
     try:
         if not isinstance(client, dict):
             return items
@@ -196,10 +210,10 @@ async def generate_for_client(client: Dict[str, Any],
         item_type, theme, occasion = _WEEKLY_PLAN.get(weekday, ("post", "Daily Post", ""))
 
         # --- nearby festival lookup (within 2 days) --- #
-        near_fest: Optional[Dict[str, Any]] = None
+        near_fest: dict[str, Any] | None = None
         try:
             if festivals is not None:
-                for f in (festivals.upcoming(2) or []):
+                for f in festivals.upcoming(2) or []:
                     if 0 <= int(f.get("days_away", 99)) <= 2:
                         near_fest = f
                         break
@@ -209,15 +223,15 @@ async def generate_for_client(client: Dict[str, Any],
         # --- main item-of-the-day --- #
         try:
             if item_type == "poster":
-                items.append(_make_poster_item(
-                    client, today_s, template_id="clean-pro", title=theme))
+                items.append(
+                    _make_poster_item(client, today_s, template_id="clean-pro", title=theme)
+                )
             else:
                 # Friday: festival ho to festive flavor de do.
                 occ = occasion
                 if weekday == 4 and near_fest:
                     occ = str(near_fest.get("name") or "")
-                items.append(await _make_post_item(
-                    client, today_s, item_type, theme, occasion=occ))
+                items.append(await _make_post_item(client, today_s, item_type, theme, occasion=occ))
         except Exception as e:  # pragma: no cover
             logger.debug(f"[auto_content] main item skip: {e}")
 
@@ -225,15 +239,23 @@ async def generate_for_client(client: Dict[str, Any],
         if near_fest:
             fest_name = str(near_fest.get("name") or "Festival")
             try:
-                items.append(await _make_post_item(
-                    client, today_s, "festival",
-                    f"{fest_name} Greeting", occasion=fest_name))
+                items.append(
+                    await _make_post_item(
+                        client, today_s, "festival", f"{fest_name} Greeting", occasion=fest_name
+                    )
+                )
             except Exception as e:  # pragma: no cover
                 logger.debug(f"[auto_content] festival post skip: {e}")
             try:
-                items.append(_make_poster_item(
-                    client, today_s, template_id="festival-glow",
-                    title=f"{fest_name} Poster", festival=fest_name))
+                items.append(
+                    _make_poster_item(
+                        client,
+                        today_s,
+                        template_id="festival-glow",
+                        title=f"{fest_name} Poster",
+                        festival=fest_name,
+                    )
+                )
             except Exception as e:  # pragma: no cover
                 logger.debug(f"[auto_content] festival poster skip: {e}")
     except Exception as e:
@@ -253,7 +275,7 @@ def _existing_keys(client_id: str) -> set:
     return keys
 
 
-def _append_items(client_id: str, items: List[Dict[str, Any]]) -> int:
+def _append_items(client_id: str, items: list[dict[str, Any]]) -> int:
     """Items queue file me append karo (date+type DEDUPE). Added count return."""
     if not items:
         return 0
@@ -283,7 +305,7 @@ _SELF_CLIENT_ID = "leadgenai-self"
 AUTO_SEED_SELF = True
 
 
-def _ensure_self_client() -> Optional[str]:
+def _ensure_self_client() -> str | None:
     """LeadGen AI ka apna marketing-client record ensure karo (idempotent by id).
 
     Agar clients_store me koi ai_marketing / "LeadGen AI" client nahi hai to
@@ -298,8 +320,7 @@ def _ensure_self_client() -> Optional[str]:
             cid = str(c.get("id") or "")
             niche = str(c.get("niche") or "").strip().lower()
             name = str(c.get("business_name") or "").strip().lower()
-            if (cid == _SELF_CLIENT_ID or niche == "ai_marketing"
-                    or name == "leadgen ai"):
+            if cid == _SELF_CLIENT_ID or niche == "ai_marketing" or name == "leadgen ai":
                 return cid or _SELF_CLIENT_ID
         # Seed once. add_client uuid deta hai, isliye direct-append se fixed id.
         rec = {
@@ -310,8 +331,12 @@ def _ensure_self_client() -> Optional[str]:
             "phone": "",
             "plan": "growth",
             "status": "active",
-            "brand": {"primary": "#6d28d9", "accent": "",
-                      "tagline": "AI Marketing + Voice Agent", "logo_text": "LeadGen AI"},
+            "brand": {
+                "primary": "#6d28d9",
+                "accent": "",
+                "tagline": "AI Marketing + Voice Agent",
+                "logo_text": "LeadGen AI",
+            },
             "socials": {"instagram": "", "facebook": "", "gbp": ""},
             "created_at": _now(),
         }
@@ -321,11 +346,14 @@ def _ensure_self_client() -> Optional[str]:
             # Fallback: public API (uuid id banega, par phir bhi self-content milega).
             try:
                 created = clients_store.add_client(
-                    business_name="LeadGen AI", niche="ai_marketing",
+                    business_name="LeadGen AI",
+                    niche="ai_marketing",
                     plan="growth",
-                    brand={"primary": "#6d28d9",
-                           "tagline": "AI Marketing + Voice Agent",
-                           "logo_text": "LeadGen AI"},
+                    brand={
+                        "primary": "#6d28d9",
+                        "tagline": "AI Marketing + Voice Agent",
+                        "logo_text": "LeadGen AI",
+                    },
                 )
                 return str((created or {}).get("id") or "") or None
             except Exception:
@@ -333,12 +361,16 @@ def _ensure_self_client() -> Optional[str]:
         # brand_kit me bhi mirror (poster auto-brand) — best-effort.
         try:
             from app.marketing import brand_kit
-            brand_kit.save_brand(_SELF_CLIENT_ID, {
-                "business_name": "LeadGen AI",
-                "tagline": "AI Marketing + Voice Agent",
-                "colors": {"primary": "#6d28d9", "accent": ""},
-                "logo_text": "LeadGen AI",
-            })
+
+            brand_kit.save_brand(
+                _SELF_CLIENT_ID,
+                {
+                    "business_name": "LeadGen AI",
+                    "tagline": "AI Marketing + Voice Agent",
+                    "colors": {"primary": "#6d28d9", "accent": ""},
+                    "logo_text": "LeadGen AI",
+                },
+            )
         except Exception:
             pass
         return _SELF_CLIENT_ID
@@ -347,7 +379,7 @@ def _ensure_self_client() -> Optional[str]:
         return None
 
 
-async def run_daily_content() -> Dict[str, Any]:
+async def run_daily_content() -> dict[str, Any]:
     """Sab active clients ke liye aaj ka content generate + queue me append
     (date+type dedupe). isha event log. Returns {"clients", "items"}. KABHI
     raise nahi karta. Pehle apna OWN brand (LeadGen AI) bhi ensure karta hai
@@ -376,29 +408,28 @@ async def run_daily_content() -> Dict[str, Any]:
                     n_clients += 1
                     total_items += added
                     if self_id and cid == self_id:
-                        _log_isha("self_brand_content",
-                                  f"LeadGen AI ka apna {added} content items banaye")
+                        _log_isha(
+                            "self_brand_content", f"LeadGen AI ka apna {added} content items banaye"
+                        )
             except Exception as e:  # pragma: no cover
                 logger.debug(f"[auto_content] client {cid} skip: {e}")
 
-        _log_isha("auto_content",
-                  f"{n_clients} clients, {total_items} items generated")
+        _log_isha("auto_content", f"{n_clients} clients, {total_items} items generated")
     except Exception as e:
         logger.warning(f"[auto_content] run_daily_content failed: {e}")
         _log_isha("auto_content", f"auto-content crash: {e}", status="error")
     return {"clients": n_clients, "items": total_items}
 
 
-def list_queue(client_id: str, status: Optional[str] = None,
-               limit: int = 60) -> List[Dict[str, Any]]:
+def list_queue(client_id: str, status: str | None = None, limit: int = 60) -> list[dict[str, Any]]:
     """Client ka content queue (newest first, optional status filter). Kabhi
     raise nahi karta."""
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
     path = _queue_path(client_id)
     try:
         if not os.path.isfile(path):
             return rows
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -437,9 +468,9 @@ def mark_item(client_id: str, item_id: str, status: str) -> bool:
     try:
         if not os.path.isfile(path):
             return False
-        rows: List[Dict[str, Any]] = []
+        rows: list[dict[str, Any]] = []
         found = False
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -477,5 +508,8 @@ def _log_isha(action: str, detail: str, status: str = "ok") -> None:
 
 
 __all__ = [
-    "generate_for_client", "run_daily_content", "list_queue", "mark_item",
+    "generate_for_client",
+    "run_daily_content",
+    "list_queue",
+    "mark_item",
 ]

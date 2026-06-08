@@ -17,7 +17,7 @@ aur respond_text() existing LLMBrain se text-level kaam karta rehta hai
 Install (jab audio wiring karni ho):  pip install pipecat-ai
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from loguru import logger
 
@@ -26,7 +26,7 @@ from loguru import logger
 # tab bhi (Windows dev venv / VPS jab tak heavy install nahi hui).
 # ---------------------------------------------------------------------------
 PIPECAT_AVAILABLE = False
-_PIPECAT_IMPORT_ERROR: Optional[str] = None
+_PIPECAT_IMPORT_ERROR: str | None = None
 
 try:  # pragma: no cover - environment dependent
     import pipecat  # noqa: F401
@@ -53,8 +53,12 @@ class LeadgenVoicePipeline:
     Text-path (respond_text) aaj hi kaam karta hai via LLMBrain.
     """
 
-    def __init__(self, niche: str = "general", client_name: str = "LeadGen AI",
-                 client_service: str = "AI voice agent for lead generation"):
+    def __init__(
+        self,
+        niche: str = "general",
+        client_name: str = "LeadGen AI",
+        client_service: str = "AI voice agent for lead generation",
+    ):
         self.niche = niche
         self.client_name = client_name
         self.client_service = client_service
@@ -91,17 +95,22 @@ class LeadgenVoicePipeline:
     # ------------------------------------------------------------------
     # Text path (kaam karta hai aaj) — existing LLMBrain bridge
     # ------------------------------------------------------------------
-    async def respond_text(self, text: str, niche: Optional[str] = None,
-                           conversation_history: Optional[List[Dict[str, str]]] = None) -> str:
+    async def respond_text(
+        self,
+        text: str,
+        niche: str | None = None,
+        conversation_history: list[dict[str, str]] | None = None,
+    ) -> str:
         """User ke text utterance ka agent reply — LLMBrain.generate_response se.
 
         FreeSWITCH/pipecat ke bina bhi (web-call, tests) yeh path live hai.
         """
         if self._brain is None:
             from app.voice_agent.llm_brain import LLMBrain  # import inside — optional deps safe
+
             self._brain = LLMBrain()
 
-        history: List[Dict[str, str]] = list(conversation_history or [])
+        history: list[dict[str, str]] = list(conversation_history or [])
         history.append({"role": "user", "content": text})
 
         return await self._brain.generate_response(
@@ -112,7 +121,7 @@ class LeadgenVoicePipeline:
         )
 
 
-def pipecat_status() -> Dict[str, Any]:
+def pipecat_status() -> dict[str, Any]:
     """Quick diagnostic — health/debug endpoints ke liye."""
     return {
         "pipecat_available": PIPECAT_AVAILABLE,

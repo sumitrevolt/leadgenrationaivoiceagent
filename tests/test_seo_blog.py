@@ -7,6 +7,7 @@ TEMPLATE fallback se banta hai (never-empty + CTA guarantee). Storage dir
 tmp_path pe redirect hota hai (_BLOG_DIR const) — real data/blog kabhi nahi
 chhuti. Fast: koi LLM/network call nahi.
 """
+
 import os
 
 import pytest
@@ -17,6 +18,7 @@ from app.marketing import seo_blog
 @pytest.fixture
 def no_llm(monkeypatch):
     """free_ai.chat ko ("","") force karo — har article template path se banega."""
+
     async def _empty(*args, **kwargs):
         return "", ""
 
@@ -36,13 +38,13 @@ def tmp_blog(monkeypatch, tmp_path):
 # generate_article — template fallback (never-empty + CTA)
 # --------------------------------------------------------------------------- #
 
+
 class TestGenerateArticle:
     @pytest.mark.asyncio
     async def test_template_fallback_has_slug_title_html_cta(self, no_llm, tmp_blog):
         art = await seo_blog.generate_article("restaurant_cafe", city="Pune")
         # required keys
-        for k in ("slug", "title", "meta_description", "html_body",
-                  "niche", "city", "created_at"):
+        for k in ("slug", "title", "meta_description", "html_body", "niche", "city", "created_at"):
             assert k in art, f"missing key {k}"
         assert art["slug"].strip()
         assert art["title"].strip()
@@ -91,6 +93,7 @@ class TestGenerateArticle:
 # save -> get -> list roundtrip + slug uniqueness
 # --------------------------------------------------------------------------- #
 
+
 class TestStorageRoundtrip:
     @pytest.mark.asyncio
     async def test_save_get_list_roundtrip(self, no_llm, tmp_blog):
@@ -137,6 +140,7 @@ class TestStorageRoundtrip:
 # --------------------------------------------------------------------------- #
 # run_daily_blog — publishes n, never raises, unique slugs
 # --------------------------------------------------------------------------- #
+
 
 class TestRunDailyBlog:
     @pytest.mark.asyncio

@@ -19,10 +19,10 @@ Mount in main.py with:
     app.include_router(customer_router)
 (Router already carries prefix="/api/customer".)
 """
+
 import logging
 import random
 from datetime import datetime, timedelta
-from typing import List, Optional
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
@@ -44,24 +44,24 @@ class Kpis(BaseModel):
 
 
 class CallRow(BaseModel):
-    time: str                 # "2026-06-05 14:32"
-    business: str             # "Sharma Solar Solutions"
-    phone_masked: str         # "+91 98XXXXXX10"
-    city: str                 # "Mumbai"
-    duration: str             # "2m 14s"
-    status: str               # connected | no-answer | busy
-    outcome: str              # "Interested - qualified" etc.
+    time: str  # "2026-06-05 14:32"
+    business: str  # "Sharma Solar Solutions"
+    phone_masked: str  # "+91 98XXXXXX10"
+    city: str  # "Mumbai"
+    duration: str  # "2m 14s"
+    status: str  # connected | no-answer | busy
+    outcome: str  # "Interested - qualified" etc.
 
 
 class LeadRow(BaseModel):
     business: str
     contact: str
-    phone: str                # full number (client owns this lead)
+    phone: str  # full number (client owns this lead)
     city: str
-    niche: str                # solar | dental | real-estate
-    score: str                # Hot | Warm | Cold
-    qualification: str        # short summary of qualification answers
-    date: str                 # "2026-06-05"
+    niche: str  # solar | dental | real-estate
+    score: str  # Hot | Warm | Cold
+    qualification: str  # short summary of qualification answers
+    date: str  # "2026-06-05"
 
 
 class SeriesPoint(BaseModel):
@@ -70,9 +70,9 @@ class SeriesPoint(BaseModel):
 
 
 class ChartsData(BaseModel):
-    calls_per_day: List[SeriesPoint]
-    leads_by_status: List[SeriesPoint]   # Hot / Warm / Cold
-    leads_by_city: List[SeriesPoint]
+    calls_per_day: list[SeriesPoint]
+    leads_by_status: list[SeriesPoint]  # Hot / Warm / Cold
+    leads_by_city: list[SeriesPoint]
 
 
 class Campaign(BaseModel):
@@ -86,10 +86,10 @@ class DashboardResponse(BaseModel):
     )
     client_id: str
     generated_at: str
-    campaigns: List[Campaign]
+    campaigns: list[Campaign]
     kpis: Kpis
-    calls: List[CallRow]
-    leads: List[LeadRow]
+    calls: list[CallRow]
+    leads: list[LeadRow]
     charts: ChartsData
 
 
@@ -101,31 +101,58 @@ _NICHES = ["solar", "dental", "real-estate"]
 
 _BUSINESSES = {
     "solar": [
-        "Sharma Solar Solutions", "SunVolt Energy", "GreenRay Solar",
-        "Aditya Solar Power", "EcoSun Systems", "Surya Renewables",
-        "BrightWatt Solar", "Tejas Solar Hub",
+        "Sharma Solar Solutions",
+        "SunVolt Energy",
+        "GreenRay Solar",
+        "Aditya Solar Power",
+        "EcoSun Systems",
+        "Surya Renewables",
+        "BrightWatt Solar",
+        "Tejas Solar Hub",
     ],
     "dental": [
-        "Smile Care Dental", "Dr. Mehta Dental Clinic", "Perfect Smile Studio",
-        "DentaWorld Clinic", "City Dental Care", "Bright Dental Hub",
-        "Oral Health Centre", "Pearl Dental Clinic",
+        "Smile Care Dental",
+        "Dr. Mehta Dental Clinic",
+        "Perfect Smile Studio",
+        "DentaWorld Clinic",
+        "City Dental Care",
+        "Bright Dental Hub",
+        "Oral Health Centre",
+        "Pearl Dental Clinic",
     ],
     "real-estate": [
-        "Gokhale Realty", "Prime Properties", "Skyline Estates",
-        "Urban Nest Realtors", "Capital Homes", "Greenfield Properties",
-        "Metro Realty Group", "Anand Estate Agents",
+        "Gokhale Realty",
+        "Prime Properties",
+        "Skyline Estates",
+        "Urban Nest Realtors",
+        "Capital Homes",
+        "Greenfield Properties",
+        "Metro Realty Group",
+        "Anand Estate Agents",
     ],
 }
 
 _CONTACTS = [
-    "Rajesh Sharma", "Priya Mehta", "Amit Gokhale", "Sneha Iyer",
-    "Vikram Singh", "Pooja Nair", "Rahul Desai", "Anita Rao",
-    "Suresh Patil", "Kavya Reddy", "Manish Joshi", "Neha Kulkarni",
+    "Rajesh Sharma",
+    "Priya Mehta",
+    "Amit Gokhale",
+    "Sneha Iyer",
+    "Vikram Singh",
+    "Pooja Nair",
+    "Rahul Desai",
+    "Anita Rao",
+    "Suresh Patil",
+    "Kavya Reddy",
+    "Manish Joshi",
+    "Neha Kulkarni",
 ]
 
 _OUTCOMES_CONNECTED = [
-    "Interested - qualified", "Interested - callback",
-    "Asked to call later", "Wants quotation", "Not interested",
+    "Interested - qualified",
+    "Interested - callback",
+    "Asked to call later",
+    "Wants quotation",
+    "Not interested",
     "Already has vendor",
 ]
 
@@ -153,7 +180,7 @@ def _mask_phone(num: str) -> str:
     return f"+91 {num[:2]}XXXXXX{num[-2:]}"
 
 
-def _build_sample(client_id: str, campaign: Optional[str]) -> DashboardResponse:
+def _build_sample(client_id: str, campaign: str | None) -> DashboardResponse:
     rng = random.Random(42)  # stable sample so the UI looks consistent
 
     campaigns = [
@@ -164,15 +191,13 @@ def _build_sample(client_id: str, campaign: Optional[str]) -> DashboardResponse:
     ]
 
     # ----- calls (40) -----
-    calls: List[CallRow] = []
+    calls: list[CallRow] = []
     base = datetime(2026, 6, 5, 18, 0)
     for i in range(40):
         niche = rng.choice(_NICHES)
         biz = rng.choice(_BUSINESSES[niche])
         city = rng.choice(_CITIES)
-        status = rng.choices(
-            ["connected", "no-answer", "busy"], weights=[62, 26, 12]
-        )[0]
+        status = rng.choices(["connected", "no-answer", "busy"], weights=[62, 26, 12])[0]
         t = base - timedelta(minutes=rng.randint(5, 60) * (i + 1))
         if status == "connected":
             secs = rng.randint(35, 230)
@@ -182,35 +207,39 @@ def _build_sample(client_id: str, campaign: Optional[str]) -> DashboardResponse:
             duration = "0m 00s"
             outcome = "No answer" if status == "no-answer" else "Line busy"
         digits = f"{rng.randint(70, 99)}{rng.randint(10000000, 99999999):08d}"[:10]
-        calls.append(CallRow(
-            time=t.strftime("%Y-%m-%d %H:%M"),
-            business=biz,
-            phone_masked=_mask_phone(digits),
-            city=city,
-            duration=duration,
-            status=status,
-            outcome=outcome,
-        ))
+        calls.append(
+            CallRow(
+                time=t.strftime("%Y-%m-%d %H:%M"),
+                business=biz,
+                phone_masked=_mask_phone(digits),
+                city=city,
+                duration=duration,
+                status=status,
+                outcome=outcome,
+            )
+        )
 
     # ----- leads (26) -----
-    leads: List[LeadRow] = []
+    leads: list[LeadRow] = []
     for i in range(26):
         niche = rng.choice(_NICHES)
         biz = rng.choice(_BUSINESSES[niche])
         city = rng.choice(_CITIES)
         score = rng.choices(["Hot", "Warm", "Cold"], weights=[34, 44, 22])[0]
         digits = f"{rng.randint(70, 99)}{rng.randint(10000000, 99999999):08d}"[:10]
-        d = (datetime(2026, 6, 5) - timedelta(days=rng.randint(0, 9)))
-        leads.append(LeadRow(
-            business=biz,
-            contact=rng.choice(_CONTACTS),
-            phone=f"+91 {digits}",
-            city=city,
-            niche=niche,
-            score=score,
-            qualification=rng.choice(_QUALIFICATION[niche]),
-            date=d.strftime("%Y-%m-%d"),
-        ))
+        d = datetime(2026, 6, 5) - timedelta(days=rng.randint(0, 9))
+        leads.append(
+            LeadRow(
+                business=biz,
+                contact=rng.choice(_CONTACTS),
+                phone=f"+91 {digits}",
+                city=city,
+                niche=niche,
+                score=score,
+                qualification=rng.choice(_QUALIFICATION[niche]),
+                date=d.strftime("%Y-%m-%d"),
+            )
+        )
 
     # ----- KPIs -----
     total_calls = len(calls)
@@ -230,17 +259,14 @@ def _build_sample(client_id: str, campaign: Optional[str]) -> DashboardResponse:
 
     # ----- charts -----
     days = ["May 30", "May 31", "Jun 01", "Jun 02", "Jun 03", "Jun 04", "Jun 05"]
-    calls_per_day = [
-        SeriesPoint(label=d, value=rng.randint(28, 72)) for d in days
-    ]
+    calls_per_day = [SeriesPoint(label=d, value=rng.randint(28, 72)) for d in days]
     leads_by_status = [
         SeriesPoint(label="Hot", value=sum(1 for l in leads if l.score == "Hot")),
         SeriesPoint(label="Warm", value=sum(1 for l in leads if l.score == "Warm")),
         SeriesPoint(label="Cold", value=sum(1 for l in leads if l.score == "Cold")),
     ]
     leads_by_city = [
-        SeriesPoint(label=c, value=sum(1 for l in leads if l.city == c))
-        for c in _CITIES
+        SeriesPoint(label=c, value=sum(1 for l in leads if l.city == c)) for c in _CITIES
     ]
 
     return DashboardResponse(
@@ -277,14 +303,14 @@ def _fmt_duration(seconds: int) -> str:
     return f"{seconds // 60}m {seconds % 60:02d}s"
 
 
-def _mask_full_phone(num: Optional[str]) -> str:
+def _mask_full_phone(num: str | None) -> str:
     digits = "".join(c for c in (num or "") if c.isdigit())[-10:]
     if len(digits) < 4:
         return "+91 XXXXXXXXXX"
     return f"+91 {digits[:2]}XXXXXX{digits[-2:]}"
 
 
-def _build_from_db(client_id: str, campaign: Optional[str]) -> Optional[DashboardResponse]:
+def _build_from_db(client_id: str, campaign: str | None) -> DashboardResponse | None:
     """
     Build the dashboard payload from the real DB.
     Returns None if the DB is unavailable OR has no rows for this client
@@ -292,9 +318,9 @@ def _build_from_db(client_id: str, campaign: Optional[str]) -> Optional[Dashboar
     """
     try:
         from app.models.base import get_db_session
-        from app.models.lead import Lead, LeadStatus
         from app.models.call_log import CallLog, CallOutcome
         from app.models.campaign import Campaign as CampaignModel
+        from app.models.lead import Lead, LeadStatus
     except Exception as e:  # missing deps / import error
         logger.warning("customer_dashboard: DB models unavailable, using sample (%s)", e)
         return None
@@ -322,12 +348,12 @@ def _build_from_db(client_id: str, campaign: Optional[str]) -> Optional[Dashboar
                 return None
 
             # ----- campaigns list (always include "All") -----
-            campaigns: List[Campaign] = [Campaign(id="all", name="All Campaigns")]
+            campaigns: list[Campaign] = [Campaign(id="all", name="All Campaigns")]
             for c in camp_rows:
                 campaigns.append(Campaign(id=str(c.id), name=c.name or "Campaign"))
 
             # ----- calls -----
-            calls: List[CallRow] = []
+            calls: list[CallRow] = []
             connected = 0
             for c in call_rows:
                 status_raw = (c.status or "").lower()
@@ -336,45 +362,60 @@ def _build_from_db(client_id: str, campaign: Optional[str]) -> Optional[Dashboar
                     status = "no-answer"
                 elif outcome_val == CallOutcome.BUSY.value:
                     status = "busy"
-                elif (c.duration_seconds or 0) > 0 or status_raw in ("answered", "completed", "connected"):
+                elif (c.duration_seconds or 0) > 0 or status_raw in (
+                    "answered",
+                    "completed",
+                    "connected",
+                ):
                     status = "connected"
                 else:
                     status = "no-answer"
                 if status == "connected":
                     connected += 1
                 when = c.initiated_at or c.created_at or datetime.utcnow()
-                calls.append(CallRow(
-                    time=when.strftime("%Y-%m-%d %H:%M"),
-                    business=(c.lead.company_name if c.lead else None) or "Unknown",
-                    phone_masked=_mask_full_phone(c.to_number),
-                    city=(c.lead.city if c.lead else None) or "-",
-                    duration=_fmt_duration(c.duration_seconds),
-                    status=status,
-                    outcome=(outcome_val.replace("_", " ").title() if outcome_val else "Pending"),
-                ))
+                calls.append(
+                    CallRow(
+                        time=when.strftime("%Y-%m-%d %H:%M"),
+                        business=(c.lead.company_name if c.lead else None) or "Unknown",
+                        phone_masked=_mask_full_phone(c.to_number),
+                        city=(c.lead.city if c.lead else None) or "-",
+                        duration=_fmt_duration(c.duration_seconds),
+                        status=status,
+                        outcome=(
+                            outcome_val.replace("_", " ").title() if outcome_val else "Pending"
+                        ),
+                    )
+                )
 
             # ----- leads -----
-            leads: List[LeadRow] = []
+            leads: list[LeadRow] = []
             for l in lead_rows:
                 qual = l.get_qualification_data() if hasattr(l, "get_qualification_data") else {}
                 qual_text = ""
                 if isinstance(qual, dict) and qual:
                     qual_text = ", ".join(f"{k}: {v}" for k, v in list(qual.items())[:3])
-                leads.append(LeadRow(
-                    business=l.company_name or "Unknown",
-                    contact=l.contact_name or "-",
-                    phone=f"+91 {l.phone}" if l.phone and not str(l.phone).startswith("+") else (l.phone or "-"),
-                    city=l.city or "-",
-                    niche=l.niche or "general",
-                    score=_score_tier(l.lead_score, l.is_hot_lead),
-                    qualification=qual_text or (l.notes or "")[:80] or "-",
-                    date=(l.created_at or datetime.utcnow()).strftime("%Y-%m-%d"),
-                ))
+                leads.append(
+                    LeadRow(
+                        business=l.company_name or "Unknown",
+                        contact=l.contact_name or "-",
+                        phone=(
+                            f"+91 {l.phone}"
+                            if l.phone and not str(l.phone).startswith("+")
+                            else (l.phone or "-")
+                        ),
+                        city=l.city or "-",
+                        niche=l.niche or "general",
+                        score=_score_tier(l.lead_score, l.is_hot_lead),
+                        qualification=qual_text or (l.notes or "")[:80] or "-",
+                        date=(l.created_at or datetime.utcnow()).strftime("%Y-%m-%d"),
+                    )
+                )
 
             # ----- KPIs -----
             total_calls = len(call_rows)
             qualified = sum(
-                1 for l in lead_rows
+                1
+                for l in lead_rows
                 if l.status in (LeadStatus.QUALIFIED, LeadStatus.APPOINTMENT, LeadStatus.CONVERTED)
                 or l.is_hot_lead
             )
@@ -392,6 +433,7 @@ def _build_from_db(client_id: str, campaign: Optional[str]) -> Optional[Dashboar
 
             # ----- charts -----
             from collections import defaultdict
+
             per_day: dict = defaultdict(int)
             for c in call_rows:
                 when = c.initiated_at or c.created_at
@@ -446,9 +488,9 @@ def _real_topline_counts(client_id: str) -> dict:
     """
     out: dict = {}
     try:
+        from app.models.agent_event import AgentEvent
         from app.models.base import get_db_session
         from app.models.lead import Lead
-        from app.models.agent_event import AgentEvent
 
         with get_db_session() as db:
             try:
@@ -473,7 +515,7 @@ def _real_topline_counts(client_id: str) -> dict:
 
         path = os.path.join("data", "inquiries.jsonl")
         if os.path.isfile(path):
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 n = sum(1 for ln in f if ln.strip())
             if n:
                 out["inquiries"] = n
@@ -488,9 +530,7 @@ def _real_topline_counts(client_id: str) -> dict:
 @router.get("/dashboard", response_model=DashboardResponse)
 def get_customer_dashboard(
     client_id: str = Query("demo", description="The client/business identifier"),
-    campaign: Optional[str] = Query(
-        None, description="Optional campaign id to filter by"
-    ),
+    campaign: str | None = Query(None, description="Optional campaign id to filter by"),
 ) -> DashboardResponse:
     """
     Return the full dashboard payload for a customer.

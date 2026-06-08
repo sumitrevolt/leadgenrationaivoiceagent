@@ -15,8 +15,9 @@ Degrades gracefully: if `langgraph` is not installed, AGENTS_AVAILABLE=False and
 run_supervisor_task() raises RuntimeError — API layer turns that into HTTP 501.
 Persistence: SQLite checkpointer at data/agent_graph.db (best-effort).
 """
+
 import os
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, TypedDict
 
 from app.niches import NICHES
 from app.utils.logger import setup_logger
@@ -24,7 +25,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # Node names exposed for /agents/status (defined even without langgraph).
-GRAPH_NODES: List[str] = ["supervisor", "data_agent", "leads_agent"]
+GRAPH_NODES: list[str] = ["supervisor", "data_agent", "leads_agent"]
 
 _DB_PATH = os.path.join("data", "agent_graph.db")
 
@@ -64,11 +65,11 @@ if AGENTS_AVAILABLE:
 # --------------------------------------------------------------------------- #
 class AgentState(TypedDict, total=False):
     messages: list
-    client_id: Optional[str]
+    client_id: str | None
     niche: str
     task: str
-    result: Optional[str]
-    route: Optional[str]
+    result: str | None
+    route: str | None
 
 
 # --------------------------------------------------------------------------- #
@@ -90,7 +91,7 @@ def route_for_task(task: str) -> str:
     return "leads_agent"  # default
 
 
-def supervisor_node(state: AgentState) -> Dict[str, Any]:
+def supervisor_node(state: AgentState) -> dict[str, Any]:
     """Rule-based router — NO LLM call. Sets state['route']."""
     route = route_for_task(state.get("task") or "")
     logger.debug(f"supervisor routed task to {route}")
@@ -104,19 +105,19 @@ def _llm_brain():
     return LLMBrain()
 
 
-async def data_agent_node(state: AgentState) -> Dict[str, Any]:
+async def data_agent_node(state: AgentState) -> dict[str, Any]:
     """KB-grounded answer/plan for the client (role='data' agent equivalent)."""
     task = state.get("task") or ""
     client_id = state.get("client_id")
     niche = state.get("niche") or "general"
 
     # Retrieve top 3 chunks: client namespace first, niche namespace fallback.
-    chunks: List[str] = []
+    chunks: list[str] = []
     try:
         from app.voice_agent.kb_loader import bootstrap_default_kb
 
         kb = bootstrap_default_kb()
-        hits: List[Dict[str, Any]] = []
+        hits: list[dict[str, Any]] = []
         if client_id:
             hits = kb.retrieve(task, k=3, namespace=f"client:{client_id}")
         if not hits:
@@ -145,7 +146,7 @@ async def data_agent_node(state: AgentState) -> Dict[str, Any]:
     return {"result": result, "messages": messages}
 
 
-async def leads_agent_node(state: AgentState) -> Dict[str, Any]:
+async def leads_agent_node(state: AgentState) -> dict[str, Any]:
     """Calling/qualification plan from niche config (role='leads' agent equivalent)."""
     task = state.get("task") or ""
     client_id = state.get("client_id")
@@ -194,7 +195,7 @@ if AGENTS_AVAILABLE:
     _WORKFLOW.add_edge("leads_agent", END)
 
 
-async def _execute(state: AgentState, config: Dict[str, Any]) -> Dict[str, Any]:
+async def _execute(state: AgentState, config: dict[str, Any]) -> dict[str, Any]:
     """Run the graph with the best available checkpointer (best-effort)."""
     # 1) AsyncSqliteSaver — the correct saver for async nodes (.ainvoke).
     if _ASYNC_SAVER_CLS is not None:
@@ -219,7 +220,9 @@ async def _execute(state: AgentState, config: Dict[str, Any]) -> Dict[str, Any]:
             finally:
                 conn.close()
         except NotImplementedError:
-            logger.info("sync SqliteSaver does not support async graphs; running without persistence")
+            logger.info(
+                "sync SqliteSaver does not support async graphs; running without persistence"
+            )
         except Exception as e:
             logger.warning(f"sqlite checkpointer failed ({e}); retrying without persistence")
     # 3) No persistence.
@@ -232,9 +235,9 @@ async def _execute(state: AgentState, config: Dict[str, Any]) -> Dict[str, Any]:
 # --------------------------------------------------------------------------- #
 async def run_supervisor_task(
     task: str,
-    client_id: Optional[str] = None,
+    client_id: str | None = None,
     niche: str = "general",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Route a task through the supervisor graph and return the agent's result.
 
@@ -270,7 +273,11 @@ async def run_supervisor_task(
         route = out.get("route") or "?"
         worker = "dev" if route == "data_agent" else "rohan"
         log_event("manager", "task_routed", f"Task '{task[:60]}' → {route} ({niche_key})")
-        log_event(worker, "task_done", f"{('KB/data kaam' if worker == 'dev' else 'Outreach plan')}: {task[:60]}")
+        log_event(
+            worker,
+            "task_done",
+            f"{('KB/data kaam' if worker == 'dev' else 'Outreach plan')}: {task[:60]}",
+        )
     except Exception:
         pass
     return {

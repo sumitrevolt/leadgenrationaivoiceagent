@@ -2,50 +2,55 @@
 Leads API
 Endpoints for lead management
 """
-from typing import Optional, List
+
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.lead_scraper.scraper_manager import LeadScraperManager, UnifiedLead
-from app.utils.logger import setup_logger
 from app.api.auth_deps import get_current_user, require_agent, require_manager
+from app.lead_scraper.scraper_manager import LeadScraperManager
 from app.models.user import User
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 router = APIRouter()  # No prefix - main.py adds /api/leads
 
+
 # Pydantic Models
 class LeadCreate(BaseModel):
     """Create lead request"""
+
     company_name: str
-    contact_name: Optional[str] = None
+    contact_name: str | None = None
     phone: str
-    email: Optional[str] = None
-    website: Optional[str] = None
+    email: str | None = None
+    website: str | None = None
     city: str
     category: str
     source: str = "manual"
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class LeadUpdate(BaseModel):
     """Update lead request"""
-    status: Optional[str] = None
-    lead_score: Optional[int] = None
-    notes: Optional[str] = None
-    assigned_to: Optional[str] = None
-    website: Optional[str] = None
+
+    status: str | None = None
+    lead_score: int | None = None
+    notes: str | None = None
+    assigned_to: str | None = None
+    website: str | None = None
 
 
 class LeadResponse(BaseModel):
     """Lead response"""
+
     id: str
     company_name: str
-    contact_name: Optional[str]
+    contact_name: str | None
     phone: str
-    email: Optional[str]
-    website: Optional[str]
+    email: str | None
+    website: str | None
     city: str
     category: str
     source: str
@@ -58,13 +63,15 @@ class LeadResponse(BaseModel):
 
 class ScrapeRequest(BaseModel):
     """Scrape leads request"""
+
     niche: str
-    cities: List[str] = Field(default_factory=list)
+    cities: list[str] = Field(default_factory=list)
     max_leads: int = 100
 
 
 class ScrapeResponse(BaseModel):
     """Scrape response"""
+
     task_id: str
     status: str
     message: str
@@ -75,28 +82,28 @@ leads_storage: dict = {}
 scrape_tasks: dict = {}
 scraper = LeadScraperManager()
 
+
 def load_growth_engine_leads():
     """Load leads from Growth Engine CSVs"""
     import csv
     import glob
-    import os
-    
+
     try:
         # Find all master_leads csv files
-        list_of_files = glob.glob('revenue_pipeline/master_leads_*.csv') 
+        list_of_files = glob.glob("revenue_pipeline/master_leads_*.csv")
         if not list_of_files:
             return
 
         # Load all of them or just the latest? Let's load the latest for now to avoid duplicates if running multiple times
         # actually, let's load all unique phone numbers
-        
+
         for csv_file in list_of_files:
-            with open(csv_file, mode='r', encoding='utf-8') as f:
+            with open(csv_file, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     # Use phone or name as unique key to prevent duplicates
                     lead_id = f"csv_{row.get('Phone', row.get('Name'))}".replace(" ", "_")
-                    
+
                     if lead_id not in leads_storage:
                         leads_storage[lead_id] = {
                             "id": lead_id,
@@ -113,22 +120,22 @@ def load_growth_engine_leads():
                             "updated_at": datetime.now(),
                             "notes": row.get("Efficiency Report"),
                             "email": None,
-                            "contact_name": None
+                            "contact_name": None,
                         }
         logger.info(f"Loaded {len(leads_storage)} leads from revenue_pipeline")
     except Exception as e:
         logger.error(f"Error loading CSV leads: {e}")
 
 
-@router.get("/", response_model=List[LeadResponse])
+@router.get("/", response_model=list[LeadResponse])
 async def list_leads(
-    status: Optional[str] = None,
-    city: Optional[str] = None,
-    category: Optional[str] = None,
-    min_score: Optional[int] = None,
+    status: str | None = None,
+    city: str | None = None,
+    category: str | None = None,
+    min_score: int | None = None,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     List all leads with optional filters (requires authentication)
@@ -136,9 +143,9 @@ async def list_leads(
     # Auto-load leads if empty
     if not leads_storage:
         load_growth_engine_leads()
-        
+
     filtered = list(leads_storage.values())
-    
+
     if status:
         filtered = [l for l in filtered if l.get("status") == status]
     if city:
@@ -147,8 +154,8 @@ async def list_leads(
         filtered = [l for l in filtered if l.get("category", "").lower() == category.lower()]
     if min_score:
         filtered = [l for l in filtered if l.get("lead_score", 0) >= min_score]
-    
-    return filtered[skip:skip + limit]
+
+    return filtered[skip : skip + limit]
 
 
 @router.get("/{lead_id}", response_model=LeadResponse)
@@ -168,10 +175,10 @@ async def create_lead(lead: LeadCreate, current_user: User = Depends(require_age
     Create a new lead manually (requires agent role)
     """
     import uuid
-    
+
     lead_id = str(uuid.uuid4())
     now = datetime.now()
-    
+
     lead_data = {
         "id": lead_id,
         **lead.model_dump(),
@@ -179,30 +186,32 @@ async def create_lead(lead: LeadCreate, current_user: User = Depends(require_age
         "lead_score": 0,
         "verified": False,
         "created_at": now,
-        "updated_at": now
+        "updated_at": now,
     }
-    
+
     leads_storage[lead_id] = lead_data
     logger.info(f"Lead created: {lead_id}")
-    
+
     return lead_data
 
 
 @router.put("/{lead_id}", response_model=LeadResponse)
-async def update_lead(lead_id: str, update: LeadUpdate, current_user: User = Depends(require_agent)):
+async def update_lead(
+    lead_id: str, update: LeadUpdate, current_user: User = Depends(require_agent)
+):
     """
     Update an existing lead (requires agent role)
     """
     lead = leads_storage.get(lead_id)
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
+
     update_data = update.model_dump(exclude_unset=True)
     update_data["updated_at"] = datetime.now()
-    
+
     lead.update(update_data)
     leads_storage[lead_id] = lead
-    
+
     logger.info(f"Lead updated: {lead_id}")
     return lead
 
@@ -214,10 +223,10 @@ async def delete_lead(lead_id: str, current_user: User = Depends(require_manager
     """
     if lead_id not in leads_storage:
         raise HTTPException(status_code=404, detail="Lead not found")
-    
+
     del leads_storage[lead_id]
     logger.info(f"Lead deleted: {lead_id}")
-    
+
     return {"message": "Lead deleted successfully"}
 
 
@@ -225,29 +234,25 @@ async def delete_lead(lead_id: str, current_user: User = Depends(require_manager
 async def scrape_leads(
     request: ScrapeRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(require_manager)
+    current_user: User = Depends(require_manager),
 ):
     """
     Start a background scraping task (requires manager role)
     """
     import uuid
-    
+
     task_id = str(uuid.uuid4())
-    
-    scrape_tasks[task_id] = {
-        "status": "running",
-        "started_at": datetime.now(),
-        "leads_found": 0
-    }
-    
+
+    scrape_tasks[task_id] = {"status": "running", "started_at": datetime.now(), "leads_found": 0}
+
     async def run_scrape():
         try:
             leads = await scraper.scrape_leads(
                 niche=request.niche,
                 cities=request.cities if request.cities else None,
-                max_leads=request.max_leads
+                max_leads=request.max_leads,
             )
-            
+
             # Store scraped leads
             for lead in leads:
                 lead_dict = lead.to_dict()
@@ -256,26 +261,23 @@ async def scrape_leads(
                 lead_dict["created_at"] = datetime.now()
                 lead_dict["updated_at"] = datetime.now()
                 leads_storage[lead.id] = lead_dict
-            
+
             scrape_tasks[task_id] = {
                 "status": "completed",
                 "leads_found": len(leads),
-                "completed_at": datetime.now()
+                "completed_at": datetime.now(),
             }
-            
+
         except Exception as e:
             logger.error(f"Scrape failed: {e}")
-            scrape_tasks[task_id] = {
-                "status": "failed",
-                "error": str(e)
-            }
-    
+            scrape_tasks[task_id] = {"status": "failed", "error": str(e)}
+
     background_tasks.add_task(run_scrape)
-    
+
     return ScrapeResponse(
         task_id=task_id,
         status="started",
-        message=f"Scraping {request.niche} leads from {len(request.cities) or 'default'} cities"
+        message=f"Scraping {request.niche} leads from {len(request.cities) or 'default'} cities",
     )
 
 
@@ -296,7 +298,7 @@ async def get_leads_summary():
     Get leads summary statistics
     """
     all_leads = list(leads_storage.values())
-    
+
     return {
         "total": len(all_leads),
         "by_status": {
@@ -304,11 +306,13 @@ async def get_leads_summary():
             "contacted": len([l for l in all_leads if l.get("status") == "contacted"]),
             "qualified": len([l for l in all_leads if l.get("status") == "qualified"]),
             "converted": len([l for l in all_leads if l.get("status") == "converted"]),
-            "rejected": len([l for l in all_leads if l.get("status") == "rejected"])
+            "rejected": len([l for l in all_leads if l.get("status") == "rejected"]),
         },
         "by_source": _group_by(all_leads, "source"),
         "by_city": _group_by(all_leads, "city"),
-        "avg_score": sum(l.get("lead_score", 0) for l in all_leads) / len(all_leads) if all_leads else 0
+        "avg_score": (
+            sum(l.get("lead_score", 0) for l in all_leads) / len(all_leads) if all_leads else 0
+        ),
     }
 
 

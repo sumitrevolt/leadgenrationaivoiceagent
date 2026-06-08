@@ -16,15 +16,16 @@ Usage:
 
     ans = kb.grounded_answer("pricing kya hai?", namespace="_global")
 """
-from __future__ import annotations
 
-from typing import List, Optional
+from __future__ import annotations
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 from app.voice_agent.knowledge_base import (
@@ -33,12 +34,11 @@ from app.voice_agent.knowledge_base import (
     get_knowledge_base,
 )
 
-
 # --------------------------------------------------------------------------- #
 # Common business FAQs — har niche ke liye relevant (LeadGen AI ka apna pitch).
 # Yeh natural_dialog.DEFAULT_KNOWLEDGE["_global"] ke saath consistent hai.
 # --------------------------------------------------------------------------- #
-COMMON_BUSINESS_FAQS: List[str] = [
+COMMON_BUSINESS_FAQS: list[str] = [
     "Hum aapke business ke potential customers ko AI voice agent se call karke "
     "qualified leads laate hain — aap sirf interested customers se baat karte ho.",
     "Pricing per qualified lead hoti hai, ₹200 se ₹500 ke beech. Aap sirf result "
@@ -51,8 +51,7 @@ COMMON_BUSINESS_FAQS: List[str] = [
     "deliver ho jaate hain, real-time.",
     "AI voice agent aapke business ke hisaab se customer se baat karta hai, unhe "
     "qualify karta hai, aur sirf serious leads aage bhejta hai.",
-    "Aap kisi bhi waqt start ya pause kar sakte ho — koi lambe contract ki "
-    "majboori nahi.",
+    "Aap kisi bhi waqt start ya pause kar sakte ho — koi lambe contract ki " "majboori nahi.",
     "Calls aapke kaam ke ghanton me hoti hain (din me), DND rules ka dhyaan rakhte "
     "hue — compliance handle hum karte hain.",
 ]
@@ -62,7 +61,7 @@ def load_from_text(
     kb: KnowledgeBase,
     text: str,
     namespace: str = "default",
-    source: Optional[str] = None,
+    source: str | None = None,
 ) -> int:
     """
     Raw text ya pasted doc ko chunk + KB me add karo.
@@ -102,9 +101,7 @@ def load_niche_faqs(kb: KnowledgeBase, namespace: str = "_global") -> int:
     total = 0
 
     # 1) Common business FAQs -> global namespace
-    total += kb.add_documents(
-        COMMON_BUSINESS_FAQS, source="business_faq", namespace=namespace
-    )
+    total += kb.add_documents(COMMON_BUSINESS_FAQS, source="business_faq", namespace=namespace)
 
     # 2) Per-niche facts -> har niche ka apna namespace
     try:
@@ -124,7 +121,7 @@ def load_niche_faqs(kb: KnowledgeBase, namespace: str = "_global") -> int:
         _script_docs = None
 
     for niche_key, cfg in (NICHES or {}).items():
-        facts: List[str] = []
+        facts: list[str] = []
         name = cfg.get("name", niche_key.replace("_", " ").title())
         hook = cfg.get("pitch_hook")
         deal = cfg.get("avg_deal_value")
@@ -155,6 +152,7 @@ def load_niche_faqs(kb: KnowledgeBase, namespace: str = "_global") -> int:
         # apne thin SAAS facts ke saath rehte hain.
         try:
             from app.niche_knowledge import NICHE_KNOWLEDGE, knowledge_facts
+
             if niche_key in NICHE_KNOWLEDGE:
                 facts.extend(knowledge_facts(niche_key))
         except Exception as e:  # pragma: no cover
@@ -212,6 +210,7 @@ def load_from_website(
     html = ""
     try:
         import httpx
+
         headers = {"User-Agent": "Mozilla/5.0 (LeadGenAI KB sync)"}
         resp = httpx.get(url, timeout=timeout, follow_redirects=True, headers=headers)
         resp.raise_for_status()
@@ -240,15 +239,18 @@ def _html_to_text(html: str) -> str:
     """HTML -> readable text. BeautifulSoup prefer; else regex fallback."""
     try:
         from bs4 import BeautifulSoup
+
         soup = BeautifulSoup(html, "html.parser")
         # remove non-content elements
-        for tag in soup(["script", "style", "noscript", "head", "header",
-                         "footer", "nav", "svg", "form"]):
+        for tag in soup(
+            ["script", "style", "noscript", "head", "header", "footer", "nav", "svg", "form"]
+        ):
             tag.decompose()
         text = soup.get_text(separator="\n")
     except Exception as e:
         logger.debug(f"BeautifulSoup unavailable/failed ({e}); regex strip.")
         import re
+
         # drop scripts/styles, then tags
         text = re.sub(r"(?is)<(script|style).*?>.*?</\1>", " ", html)
         text = re.sub(r"(?s)<[^>]+>", " ", text)
@@ -257,6 +259,7 @@ def _html_to_text(html: str) -> str:
 
     # normalize whitespace, keep paragraph breaks
     import re as _re
+
     lines = [ln.strip() for ln in text.splitlines()]
     lines = [ln for ln in lines if ln]
     cleaned = "\n".join(lines)

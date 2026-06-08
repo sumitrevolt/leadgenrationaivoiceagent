@@ -42,17 +42,20 @@ Usage:
     out.allowed      # False -> safe replacement text use karo
     out.text         # safe fallback line
 """
+
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Pattern, Tuple
+from re import Pattern
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -71,10 +74,11 @@ class GuardrailResult:
       violations: list  -> kis rule ne flag kiya (audit/log ke liye).
       severity  : str   -> "none" | "low" | "medium" | "high"
     """
+
     allowed: bool = True
     action: str = "allow"
     text: str = ""
-    violations: List[str] = field(default_factory=list)
+    violations: list[str] = field(default_factory=list)
     severity: str = "none"
 
 
@@ -83,32 +87,31 @@ class GuardrailResult:
 # --------------------------------------------------------------------------- #
 # PII — ORDER MATTERS: Aadhaar/card (longer digit runs) ko phone se PEHLE redact
 # karo, warna phone regex unke andar match kar lega.
-_PII_PATTERNS: List[Tuple[str, Pattern]] = [
+_PII_PATTERNS: list[tuple[str, Pattern]] = [
     # Email — phone se pehle (warna numbers in email accidentally match ho sakte hain)
-    ("[REDACTED_EMAIL]", re.compile(
-        r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")),
+    ("[REDACTED_EMAIL]", re.compile(r"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b")),
     # Credit/debit card — 13-16 digits, optional space/hyphen separators
-    ("[REDACTED_CARD]", re.compile(
-        r"\b(?:\d[ \-]?){13,16}\b")),
+    ("[REDACTED_CARD]", re.compile(r"\b(?:\d[ \-]?){13,16}\b")),
     # Aadhaar — 12 digits, often grouped 4-4-4
-    ("[REDACTED_AADHAAR]", re.compile(
-        r"\b\d{4}[ \-]?\d{4}[ \-]?\d{4}\b")),
+    ("[REDACTED_AADHAAR]", re.compile(r"\b\d{4}[ \-]?\d{4}[ \-]?\d{4}\b")),
     # PAN — 5 letters, 4 digits, 1 letter (e.g. ABCDE1234F)
-    ("[REDACTED_PAN]", re.compile(
-        r"\b[A-Za-z]{5}\d{4}[A-Za-z]\b")),
+    ("[REDACTED_PAN]", re.compile(r"\b[A-Za-z]{5}\d{4}[A-Za-z]\b")),
     # UPI id — name@bank (e.g. ratan@okhdfc, 9876543210@ybl)
-    ("[REDACTED_UPI]", re.compile(
-        r"\b[A-Za-z0-9.\-_]{2,}@(?:ok[a-z]+|[a-z]{2,}bank|ybl|paytm|apl|axl|ibl|upi|hdfc|icici|sbi|axis|kotak|yapl)\b",
-        re.IGNORECASE)),
+    (
+        "[REDACTED_UPI]",
+        re.compile(
+            r"\b[A-Za-z0-9.\-_]{2,}@(?:ok[a-z]+|[a-z]{2,}bank|ybl|paytm|apl|axl|ibl|upi|hdfc|icici|sbi|axis|kotak|yapl)\b",
+            re.IGNORECASE,
+        ),
+    ),
     # Indian phone — +91 / 0 prefix optional, 10 digits starting 6-9.
     # Allow arbitrary single space/hyphen grouping inside the 10 digits
     # (e.g. 9876543210, 98765-43210, 98765 43210, +91 987 654 3210).
-    ("[REDACTED_PHONE]", re.compile(
-        r"(?<!\d)(?:\+?91[\-\s]?|0)?[6-9]\d(?:[\-\s]?\d){8}(?!\d)")),
+    ("[REDACTED_PHONE]", re.compile(r"(?<!\d)(?:\+?91[\-\s]?|0)?[6-9]\d(?:[\-\s]?\d){8}(?!\d)")),
 ]
 
 # Prompt-injection / jailbreak — substring (lowercased) match, fast.
-_INJECTION_PHRASES: List[str] = [
+_INJECTION_PHRASES: list[str] = [
     "ignore previous instructions",
     "ignore all previous instructions",
     "ignore the above",
@@ -148,48 +151,110 @@ _INJECTION_PHRASES: List[str] = [
 ]
 
 # Profanity — mild hi+en list (flag only, not auto-block).
-_PROFANITY_WORDS: List[str] = [
-    "fuck", "shit", "bitch", "bastard", "asshole", "dick", "crap",
-    "bhosdi", "bhosad", "madarchod", "behenchod", "chutiya", "chutiye",
-    "gandu", "harami", "kamina", "kutta", "kutte", "saala", "saale",
-    "randi", "lavde", "lund", "gaand", "bc", "mc",
+_PROFANITY_WORDS: list[str] = [
+    "fuck",
+    "shit",
+    "bitch",
+    "bastard",
+    "asshole",
+    "dick",
+    "crap",
+    "bhosdi",
+    "bhosad",
+    "madarchod",
+    "behenchod",
+    "chutiya",
+    "chutiye",
+    "gandu",
+    "harami",
+    "kamina",
+    "kutta",
+    "kutte",
+    "saala",
+    "saale",
+    "randi",
+    "lavde",
+    "lund",
+    "gaand",
+    "bc",
+    "mc",
 ]
 
 # --- Output (POST-LLM) patterns --------------------------------------------- #
 # System-prompt / internal-instruction leak in BOT output.
-_LEAK_PHRASES: List[str] = [
-    "my system prompt", "my instructions are", "i was instructed to",
-    "my prompt says", "according to my instructions", "as per my system prompt",
-    "known facts:", "voice_system_prompt", "you are {agent_name}",
-    "my guidelines say", "internal instructions", "the prompt i was given",
-    "mera system prompt", "mujhe instruct kiya gaya",
+_LEAK_PHRASES: list[str] = [
+    "my system prompt",
+    "my instructions are",
+    "i was instructed to",
+    "my prompt says",
+    "according to my instructions",
+    "as per my system prompt",
+    "known facts:",
+    "voice_system_prompt",
+    "you are {agent_name}",
+    "my guidelines say",
+    "internal instructions",
+    "the prompt i was given",
+    "mera system prompt",
+    "mujhe instruct kiya gaya",
 ]
 
 # Unsafe promises / out-of-scope advice in BOT output.
-_UNSAFE_PROMISE_PHRASES: List[str] = [
-    "100% guarantee", "100 percent guarantee", "guaranteed returns",
-    "guaranteed results", "guaranteed profit", "we guarantee",
-    "i guarantee", "i promise you", "definitely cure", "will cure",
-    "money back guaranteed", "risk free", "no risk", "zero risk",
-    "double your money", "assured returns",
+_UNSAFE_PROMISE_PHRASES: list[str] = [
+    "100% guarantee",
+    "100 percent guarantee",
+    "guaranteed returns",
+    "guaranteed results",
+    "guaranteed profit",
+    "we guarantee",
+    "i guarantee",
+    "i promise you",
+    "definitely cure",
+    "will cure",
+    "money back guaranteed",
+    "risk free",
+    "no risk",
+    "zero risk",
+    "double your money",
+    "assured returns",
     # Hinglish
-    "guarantee deta", "guarantee deti", "pakka faayda", "pakka profit",
-    "100% pakka", "definitely thik ho jaoge",
+    "guarantee deta",
+    "guarantee deti",
+    "pakka faayda",
+    "pakka profit",
+    "100% pakka",
+    "definitely thik ho jaoge",
 ]
 
 # Medical / legal / financial advice trigger words (out of a sales agent's scope).
-_ADVICE_TRIGGERS: List[str] = [
-    "you should take", "i recommend taking", "prescribe", "diagnosis",
-    "legal advice", "you must sue", "tax loophole", "evade tax",
-    "invest all your", "guaranteed investment", "stop your medication",
-    "dawai band", "medicine band kar", "tax bacha", "kanooni salah",
+_ADVICE_TRIGGERS: list[str] = [
+    "you should take",
+    "i recommend taking",
+    "prescribe",
+    "diagnosis",
+    "legal advice",
+    "you must sue",
+    "tax loophole",
+    "evade tax",
+    "invest all your",
+    "guaranteed investment",
+    "stop your medication",
+    "dawai band",
+    "medicine band kar",
+    "tax bacha",
+    "kanooni salah",
 ]
 
 # Robotic phrases — rewrite (strip), not block.
-_ROBOTIC_PHRASES: List[str] = [
-    "as an ai language model", "as an ai", "i am an ai language model",
-    "i'm just a language model", "i am unable to", "i cannot fulfill",
-    "as a large language model", "i'm sorry, but as an ai",
+_ROBOTIC_PHRASES: list[str] = [
+    "as an ai language model",
+    "as an ai",
+    "i am an ai language model",
+    "i'm just a language model",
+    "i am unable to",
+    "i cannot fulfill",
+    "as a large language model",
+    "i'm sorry, but as an ai",
 ]
 
 # Safe fallback lines (jab output block ho jaye).
@@ -221,34 +286,34 @@ class Guardrails:
 
     def __init__(
         self,
-        extra_blocklist: Optional[List[str]] = None,
-        extra_pii_patterns: Optional[List[Tuple[str, object]]] = None,
-        extra_profanity: Optional[List[str]] = None,
+        extra_blocklist: list[str] | None = None,
+        extra_pii_patterns: list[tuple[str, object]] | None = None,
+        extra_profanity: list[str] | None = None,
         block_profanity: bool = False,
     ):
         self.block_profanity = block_profanity
 
         # PII patterns (copy base + caller extras, compiling any str patterns).
-        self._pii_patterns: List[Tuple[str, Pattern]] = list(_PII_PATTERNS)
-        for repl, pat in (extra_pii_patterns or []):
+        self._pii_patterns: list[tuple[str, Pattern]] = list(_PII_PATTERNS)
+        for repl, pat in extra_pii_patterns or []:
             try:
                 compiled = pat if hasattr(pat, "search") else re.compile(str(pat))
                 self._pii_patterns.append((repl, compiled))
             except Exception as e:  # pragma: no cover
                 logger.debug(f"skip bad extra_pii_pattern {pat!r}: {e}")
 
-        self._injection = list(_INJECTION_PHRASES) + [
-            p.lower() for p in (extra_blocklist or [])
-        ]
-        self._profanity = list(_PROFANITY_WORDS) + [
-            p.lower() for p in (extra_profanity or [])
-        ]
+        self._injection = list(_INJECTION_PHRASES) + [p.lower() for p in (extra_blocklist or [])]
+        self._profanity = list(_PROFANITY_WORDS) + [p.lower() for p in (extra_profanity or [])]
         # Profanity word-boundary regex (precompiled once).
         try:
-            self._profanity_re = re.compile(
-                r"\b(" + "|".join(re.escape(w) for w in self._profanity) + r")\b",
-                re.IGNORECASE,
-            ) if self._profanity else None
+            self._profanity_re = (
+                re.compile(
+                    r"\b(" + "|".join(re.escape(w) for w in self._profanity) + r")\b",
+                    re.IGNORECASE,
+                )
+                if self._profanity
+                else None
+            )
         except Exception:  # pragma: no cover
             self._profanity_re = None
 
@@ -299,7 +364,7 @@ class Guardrails:
         """
         try:
             original = text or ""
-            violations: List[str] = []
+            violations: list[str] = []
 
             # 1) PII redact (hamesha — chahe block ho ya na ho)
             redacted = self.redact_pii(original)
@@ -326,38 +391,52 @@ class Guardrails:
                 violations.append(f"profanity:{prof}")
                 if self.block_profanity:
                     return GuardrailResult(
-                        allowed=False, action="block", text=redacted,
-                        violations=violations, severity="medium",
+                        allowed=False,
+                        action="block",
+                        text=redacted,
+                        violations=violations,
+                        severity="medium",
                     )
 
             if "pii_redacted" in violations:
                 return GuardrailResult(
-                    allowed=True, action="redact", text=redacted,
+                    allowed=True,
+                    action="redact",
+                    text=redacted,
                     violations=violations,
                     severity="medium" if prof else "low",
                 )
             if prof:
                 return GuardrailResult(
-                    allowed=True, action="allow", text=redacted,
-                    violations=violations, severity="low",
+                    allowed=True,
+                    action="allow",
+                    text=redacted,
+                    violations=violations,
+                    severity="low",
                 )
             return GuardrailResult(
-                allowed=True, action="allow", text=redacted,
-                violations=[], severity="none",
+                allowed=True,
+                action="allow",
+                text=redacted,
+                violations=[],
+                severity="none",
             )
         except Exception as e:  # pragma: no cover
             logger.debug(f"check_input failed-open: {e}")
             return GuardrailResult(
-                allowed=True, action="allow", text=text or "",
-                violations=["guardrail_error"], severity="none",
+                allowed=True,
+                action="allow",
+                text=text or "",
+                violations=["guardrail_error"],
+                severity="none",
             )
 
     # ----------------------- POST-LLM ----------------------- #
     def check_output(
         self,
         text: str,
-        allowed_topics: Optional[List[str]] = None,
-        known_facts: Optional[List[str]] = None,
+        allowed_topics: list[str] | None = None,
+        known_facts: list[str] | None = None,
     ) -> GuardrailResult:
         """
         POST-LLM check. Bot ka reply customer tak jaane se pehle:
@@ -373,19 +452,25 @@ class Guardrails:
             original = (text or "").strip()
             if not original:
                 return GuardrailResult(
-                    allowed=True, action="allow", text="",
-                    violations=[], severity="none",
+                    allowed=True,
+                    action="allow",
+                    text="",
+                    violations=[],
+                    severity="none",
                 )
             low = original.lower()
-            violations: List[str] = []
+            violations: list[str] = []
 
             # 1) System-prompt / instruction leak -> hard block
             leak = self._first_match(low, _LEAK_PHRASES)
             if leak:
                 violations.append(f"system_leak:{leak}")
                 return GuardrailResult(
-                    allowed=False, action="block", text=_SAFE_OUTPUT_FALLBACK,
-                    violations=violations, severity="high",
+                    allowed=False,
+                    action="block",
+                    text=_SAFE_OUTPUT_FALLBACK,
+                    violations=violations,
+                    severity="high",
                 )
 
             # 2) Unsafe promises -> block
@@ -393,8 +478,11 @@ class Guardrails:
             if promise:
                 violations.append(f"unsafe_promise:{promise}")
                 return GuardrailResult(
-                    allowed=False, action="block", text=_SAFE_OUTPUT_FALLBACK,
-                    violations=violations, severity="high",
+                    allowed=False,
+                    action="block",
+                    text=_SAFE_OUTPUT_FALLBACK,
+                    violations=violations,
+                    severity="high",
                 )
 
             # 3) Out-of-scope medical/legal/financial advice -> block
@@ -402,8 +490,11 @@ class Guardrails:
             if advice:
                 violations.append(f"out_of_scope_advice:{advice}")
                 return GuardrailResult(
-                    allowed=False, action="block", text=_SAFE_OUTPUT_FALLBACK,
-                    violations=violations, severity="high",
+                    allowed=False,
+                    action="block",
+                    text=_SAFE_OUTPUT_FALLBACK,
+                    violations=violations,
+                    severity="high",
                 )
 
             safe = original
@@ -421,46 +512,61 @@ class Guardrails:
                 if self._is_off_topic(low, allowed_topics):
                     violations.append("off_topic")
                     return GuardrailResult(
-                        allowed=False, action="block", text=_SAFE_OUTPUT_FALLBACK,
-                        violations=violations, severity="medium",
+                        allowed=False,
+                        action="block",
+                        text=_SAFE_OUTPUT_FALLBACK,
+                        violations=violations,
+                        severity="medium",
                     )
 
             # 6) Light hallucination / grounding -> softer "rewrite" suggestion
             if known_facts and self._unsupported_number_claim(safe, known_facts):
                 violations.append("possible_hallucination")
                 return GuardrailResult(
-                    allowed=True, action="rewrite", text=safe,
-                    violations=violations, severity="low",
+                    allowed=True,
+                    action="rewrite",
+                    text=safe,
+                    violations=violations,
+                    severity="low",
                 )
 
             if violations:
                 # sirf robotic-strip type changes the —> rewrite/allow
                 action = "rewrite" if safe != original else "allow"
                 return GuardrailResult(
-                    allowed=True, action=action, text=safe,
-                    violations=violations, severity="low",
+                    allowed=True,
+                    action=action,
+                    text=safe,
+                    violations=violations,
+                    severity="low",
                 )
             return GuardrailResult(
-                allowed=True, action="allow", text=safe,
-                violations=[], severity="none",
+                allowed=True,
+                action="allow",
+                text=safe,
+                violations=[],
+                severity="none",
             )
         except Exception as e:  # pragma: no cover
             logger.debug(f"check_output failed-open: {e}")
             return GuardrailResult(
-                allowed=True, action="allow", text=text or "",
-                violations=["guardrail_error"], severity="none",
+                allowed=True,
+                action="allow",
+                text=text or "",
+                violations=["guardrail_error"],
+                severity="none",
             )
 
     # ----------------------- internal helpers ----------------------- #
     @staticmethod
-    def _first_match(low_text: str, phrases: List[str]) -> Optional[str]:
+    def _first_match(low_text: str, phrases: list[str]) -> str | None:
         """Pehla phrase jo low_text me mile (substring). None agar koi nahi."""
         for p in phrases:
             if p and p in low_text:
                 return p
         return None
 
-    def _profanity_hit(self, low_text: str) -> Optional[str]:
+    def _profanity_hit(self, low_text: str) -> str | None:
         if self._profanity_re is None:
             return None
         try:
@@ -470,7 +576,7 @@ class Guardrails:
             return None
 
     @staticmethod
-    def _strip_phrases(text: str, phrases: List[str]) -> str:
+    def _strip_phrases(text: str, phrases: list[str]) -> str:
         out = text
         for p in phrases:
             try:
@@ -483,7 +589,7 @@ class Guardrails:
         return out.strip()
 
     @staticmethod
-    def _is_off_topic(low_text: str, allowed_topics: List[str]) -> bool:
+    def _is_off_topic(low_text: str, allowed_topics: list[str]) -> bool:
         """
         Bahut halka off-topic check: agar reply lamba hai AUR kisi bhi allowed
         topic keyword ka zikr nahi -> off-topic maano. Chhoti acknowledgements
@@ -499,7 +605,7 @@ class Guardrails:
         return True
 
     @staticmethod
-    def _unsupported_number_claim(text: str, known_facts: List[str]) -> bool:
+    def _unsupported_number_claim(text: str, known_facts: list[str]) -> bool:
         """
         Light grounding check: agar output me koi specific number/% claim hai jo
         kisi known_fact me literally maujood nahi -> possibly hallucinated.
@@ -523,7 +629,7 @@ class Guardrails:
 # --------------------------------------------------------------------------- #
 # Module singleton
 # --------------------------------------------------------------------------- #
-_GUARDRAILS_SINGLETON: Optional[Guardrails] = None
+_GUARDRAILS_SINGLETON: Guardrails | None = None
 
 
 def get_guardrails(**kwargs) -> Guardrails:

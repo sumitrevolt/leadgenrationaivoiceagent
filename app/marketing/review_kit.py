@@ -14,10 +14,11 @@ Chhote business ke liye Google-review maangne ka poora kit:
 
 Pure stdlib; generator functions kabhi raise nahi karte.
 """
+
 from __future__ import annotations
 
 from html import escape
-from typing import Any, Dict, List
+from typing import Any
 from urllib.parse import quote
 
 from app.utils.logger import setup_logger
@@ -38,9 +39,9 @@ _FONT = "Segoe UI, Arial, sans-serif"
 # ============================================================================ #
 
 # version -> (data codewords, EC codewords) for EC level L (1 RS block each).
-_QR_L: Dict[int, tuple] = {1: (19, 7), 2: (34, 10), 3: (55, 15), 4: (80, 20), 5: (108, 26)}
+_QR_L: dict[int, tuple] = {1: (19, 7), 2: (34, 10), 3: (55, 15), 4: (80, 20), 5: (108, 26)}
 # version -> alignment-pattern center coordinates.
-_QR_ALIGN: Dict[int, List[int]] = {1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30]}
+_QR_ALIGN: dict[int, list[int]] = {1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30]}
 
 # GF(256) log/antilog tables (primitive poly 0x11D).
 _EXP = [0] * 512
@@ -62,14 +63,14 @@ def _gmul(a: int, b: int) -> int:
     return _EXP[_LOG[a] + _LOG[b]]
 
 
-def _rs_ec(data: List[int], n_ec: int) -> List[int]:
+def _rs_ec(data: list[int], n_ec: int) -> list[int]:
     """Reed-Solomon EC codewords (single block, generator poly degree n_ec)."""
     gen = [1]
     for i in range(n_ec):
         nxt = [0] * (len(gen) + 1)
         for j, g in enumerate(gen):
-            nxt[j] ^= g                       # × x
-            nxt[j + 1] ^= _gmul(g, _EXP[i])   # × α^i
+            nxt[j] ^= g  # × x
+            nxt[j + 1] ^= _gmul(g, _EXP[i])  # × α^i
         gen = nxt
     rem = list(data) + [0] * n_ec
     for i in range(len(data)):
@@ -77,7 +78,7 @@ def _rs_ec(data: List[int], n_ec: int) -> List[int]:
         if f:
             for j in range(1, len(gen)):
                 rem[i + j] ^= _gmul(gen[j], f)
-    return rem[len(data):]
+    return rem[len(data) :]
 
 
 # Mask conditions (r=row, c=col) — module invert hota hai jab condition True.
@@ -93,11 +94,11 @@ _MASKS = (
 )
 
 
-def _penalty(M: List[List[bool]]) -> int:
+def _penalty(M: list[list[bool]]) -> int:
     """Standard mask-penalty (N1/N2/N4 exact, N3 simplified string-scan)."""
     size = len(M)
     pen = 0
-    for grid in (M, list(zip(*M))):
+    for grid in (M, list(zip(*M, strict=False))):
         for line in grid:
             run, prev = 0, None
             for cell in line:
@@ -121,7 +122,7 @@ def _penalty(M: List[List[bool]]) -> int:
     return pen + 10 * max(0, k)
 
 
-def _qr_matrix(payload: bytes) -> List[List[bool]]:
+def _qr_matrix(payload: bytes) -> list[list[bool]]:
     """bytes → QR module-matrix (True = dark). Version auto 1-5, EC L."""
     version = 5
     for v in range(1, 6):
@@ -134,7 +135,7 @@ def _qr_matrix(payload: bytes) -> List[List[bool]]:
     size = 17 + 4 * version
 
     # --- bitstream: mode(0100) + count(8) + data + terminator + pad bytes --- #
-    bits: List[int] = []
+    bits: list[int] = []
 
     def _put(val: int, n: int) -> None:
         for k in range(n - 1, -1, -1):
@@ -151,10 +152,10 @@ def _qr_matrix(payload: bytes) -> List[List[bool]]:
     while len(bits) < n_data * 8:
         _put((0xEC, 0x11)[pad_i % 2], 8)
         pad_i += 1
-    cw: List[int] = []
+    cw: list[int] = []
     for k in range(0, len(bits), 8):
         byte = 0
-        for bit in bits[k:k + 8]:
+        for bit in bits[k : k + 8]:
             byte = (byte << 1) | bit
         cw.append(byte)
     cw += _rs_ec(cw, n_ec)
@@ -295,7 +296,8 @@ def qr_svg(url: str, size: int = 320) -> str:
 # Review links + ask pack (templates — instant, no LLM)
 # ============================================================================ #
 
-def review_link(place_query: str) -> Dict[str, Any]:
+
+def review_link(place_query: str) -> dict[str, Any]:
     """Google review links + guidance. Universal maps-search link hamesha milta hai."""
     q = (place_query or "").strip() or "mera business"
     return {
@@ -322,7 +324,7 @@ _CARD_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">'
     '<defs><linearGradient id="rkbg" x1="0%" y1="0%" x2="0%" y2="100%">'
     '<stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#5b21b6"/>'
-    '</linearGradient></defs>'
+    "</linearGradient></defs>"
     '<rect width="800" height="1000" fill="#ffffff"/>'
     '<rect width="800" height="240" fill="url(#rkbg)"/>'
     f'<text x="400" y="105" font-family="{_FONT}" font-size="44" font-weight="bold" '
@@ -335,16 +337,16 @@ _CARD_SVG = (
     'fill="#7c3aed" text-anchor="middle">Google pe review karein 🙏</text>'
     '<rect x="220" y="460" width="360" height="360" rx="18" fill="#f5f3ff" '
     'stroke="#7c3aed" stroke-width="3"/>'
-    '{qr}'
+    "{qr}"
     f'<text x="400" y="880" font-family="{_FONT}" font-size="28" fill="#374151" '
     'text-anchor="middle">📱 Phone se scan karein — sirf 30 second</text>'
     f'<text x="400" y="945" font-family="{_FONT}" font-size="24" fill="#6b7280" '
     'text-anchor="middle">Aapka review hamare liye sabse bada gift hai ❤️</text>'
-    '</svg>'
+    "</svg>"
 )
 
 
-def review_ask_pack(business_name: str) -> Dict[str, str]:
+def review_ask_pack(business_name: str) -> dict[str, str]:
     """Review-request pack: wa_message + counter_card_svg ({qr} slot) + sms_line.
 
     Pure template — instant, kabhi empty nahi. {qr} slot full_kit() fill karta hai
@@ -358,8 +360,7 @@ def review_ask_pack(business_name: str) -> Dict[str, str]:
         "hamare liye bahut keemti hain aur dusre logon ki madad bhi karte hain ⭐"
     )
     sms_line = (
-        f"{name}: Service achhi lagi? Google par 1-min me review dein — "
-        "bahut madad hogi 🙏"
+        f"{name}: Service achhi lagi? Google par 1-min me review dein — " "bahut madad hogi 🙏"
     )
     card = _CARD_SVG.replace("{business_name}", escape(name, quote=True))
     return {
@@ -369,7 +370,7 @@ def review_ask_pack(business_name: str) -> Dict[str, str]:
     }
 
 
-async def full_kit(business_name: str, place_query: str) -> Dict[str, Any]:
+async def full_kit(business_name: str, place_query: str) -> dict[str, Any]:
     """Poora review kit assemble: links + QR + counter card (QR embedded) + messages.
 
     wa_message LLM-polish hota hai (free_ai), fail par template — KABHI empty nahi.
@@ -396,7 +397,8 @@ async def full_kit(business_name: str, place_query: str) -> Dict[str, Any]:
             text, p = await free_ai.chat(
                 system,
                 [{"role": "user", "content": f"Business: {name}. Review-request message likho."}],
-                max_tokens=140, temperature=0.7,
+                max_tokens=140,
+                temperature=0.7,
             )
             if text and text.strip():
                 wa_message = text.strip()[:500]

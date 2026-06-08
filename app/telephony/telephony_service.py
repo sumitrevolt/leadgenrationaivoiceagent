@@ -25,13 +25,14 @@ Design goals:
     - defensive: any provider error degrades gracefully (logged), and the
       caller always gets a CallResult.
 """
+
 import asyncio
 import os
 import random
-import time
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Optional, Callable, Awaitable, Any, Dict
+from typing import Any
 
 from app.config import settings
 from app.utils.logger import setup_logger
@@ -47,11 +48,12 @@ ScriptCallback = Callable[[str], Awaitable[Any]]
 @dataclass
 class CallResult:
     """Unified call result returned by TelephonyService for every provider."""
+
     call_id: str
     status: str  # initiated, connected, no_answer, busy, failed, not_configured, simulated
     duration: int  # seconds
     provider: str  # twilio | exotel | sip:* | simulation
-    error: Optional[str] = None
+    error: str | None = None
 
 
 def _env(name: str, default: str = "") -> str:
@@ -72,7 +74,7 @@ class TelephonyService:
 
     VALID_PROVIDERS = ("twilio", "exotel", "sip", "none", "simulation")
 
-    def __init__(self, provider: Optional[str] = None):
+    def __init__(self, provider: str | None = None):
         self.provider = (provider or self._detect_provider()).lower()
         self._handler = None  # lazily constructed real handler (if any)
 
@@ -126,12 +128,15 @@ class TelephonyService:
         missing module for one provider never breaks the others."""
         if provider == "twilio":
             from app.telephony.twilio_handler import TwilioHandler
+
             return TwilioHandler()
         if provider == "exotel":
             from app.telephony.exotel_handler import ExotelHandler
+
             return ExotelHandler()
         if provider == "sip":
             from app.telephony.sip_handler import SIPHandler
+
             return SIPHandler()
         raise ValueError(f"Unknown provider: {provider}")
 
@@ -141,8 +146,8 @@ class TelephonyService:
     async def place_call(
         self,
         to_number: str,
-        from_number: Optional[str] = None,
-        script_callback: Optional[ScriptCallback] = None,
+        from_number: str | None = None,
+        script_callback: ScriptCallback | None = None,
         call_type: str = "promotional",
     ) -> CallResult:
         """
@@ -166,22 +171,32 @@ class TelephonyService:
         # COMPLIANCE GATE (real providers only) — DND + calling hours + DLT/140.
         # A non-compliant promotional call is never dialled (TCCCPR; ₹10L risk).
         try:
-            from app.telephony.compliance import get_compliance_gate, CallType
+            from app.telephony.compliance import CallType, get_compliance_gate
 
-            ct = CallType(call_type) if call_type in (c.value for c in CallType) else CallType.PROMOTIONAL
+            ct = (
+                CallType(call_type)
+                if call_type in (c.value for c in CallType)
+                else CallType.PROMOTIONAL
+            )
             decision = await get_compliance_gate().check(to_number, ct)
             if not decision.allowed:
                 logger.warning(f"place_call blocked by compliance: {decision.reasons}")
                 return CallResult(
-                    call_id=str(uuid.uuid4()), status="blocked_compliance",
-                    duration=0, provider=self.provider, error="; ".join(decision.reasons),
+                    call_id=str(uuid.uuid4()),
+                    status="blocked_compliance",
+                    duration=0,
+                    provider=self.provider,
+                    error="; ".join(decision.reasons),
                 )
         except Exception as e:
             if (call_type or "").lower() == "promotional":
                 logger.error(f"compliance gate error ({e}) — blocking promo call.")
                 return CallResult(
-                    call_id=str(uuid.uuid4()), status="blocked_compliance",
-                    duration=0, provider=self.provider, error=f"gate_error:{e}",
+                    call_id=str(uuid.uuid4()),
+                    status="blocked_compliance",
+                    duration=0,
+                    provider=self.provider,
+                    error=f"gate_error:{e}",
                 )
 
         try:
@@ -244,11 +259,13 @@ class TelephonyService:
     async def _simulate_call(
         self,
         to_number: str,
-        from_number: Optional[str],
+        from_number: str | None,
     ) -> CallResult:
         """Run a realistic simulated call so the pipeline works without keys."""
         call_id = str(uuid.uuid4())
-        logger.info(f"🎭 [SIMULATION] Placing call to {to_number} (from={from_number or 'sim-did'})")
+        logger.info(
+            f"🎭 [SIMULATION] Placing call to {to_number} (from={from_number or 'sim-did'})"
+        )
 
         # Brief async sleep to mimic ringing/connect latency.
         await asyncio.sleep(random.uniform(0.2, 0.8))
@@ -267,9 +284,7 @@ class TelephonyService:
         else:  # no_answer
             duration = random.randint(15, 30)  # rings then drops
 
-        logger.info(
-            f"🎭 [SIMULATION] Call {call_id} -> {outcome} ({duration}s)"
-        )
+        logger.info(f"🎭 [SIMULATION] Call {call_id} -> {outcome} ({duration}s)")
 
         return CallResult(
             call_id=call_id,
@@ -279,7 +294,7 @@ class TelephonyService:
             error=None,
         )
 
-    def validate_config(self) -> Dict[str, Any]:
+    def validate_config(self) -> dict[str, Any]:
         """
         Report the active provider and what (if anything) is missing.
 
@@ -332,7 +347,7 @@ class TelephonyService:
 # ---------------------------------------------------------------------- #
 # Module-level singleton
 # ---------------------------------------------------------------------- #
-_telephony_service: Optional[TelephonyService] = None
+_telephony_service: TelephonyService | None = None
 
 
 def get_telephony_service() -> TelephonyService:

@@ -24,15 +24,16 @@ Usage:
     facts = knowledge_facts("solar_residential")
     rebut = objection_response("solar_residential", "too_expensive")
 """
+
 from __future__ import annotations
 
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 # Common objection rebuttals jo har niche pe kaam aate hain (per-niche pack inhe
 # override kar sakta hai). End-customer ke saath warm, non-pushy tone.
 # NOTE: ye canonical CATEGORY keys hain — har category ka ek generic fallback hai
 # taaki koi bhi niche bina apne specific rebuttal ke bhi kuch sahi bol sake.
-_GENERIC_OBJECTIONS: Dict[str, str] = {
+_GENERIC_OBJECTIONS: dict[str, str] = {
     "not_interested": "Bilkul samajhti hoon. Bas ek chhoti si baat — agar yeh aapke kaam ka na ho to main 1 minute me phone rakh deti hoon, par sun lijiye?",
     "busy": "Koi baat nahi, aap busy hain. Main aapko kis time call karoon jo aapke liye sahi rahe?",
     "send_details": "Zaroor, main WhatsApp pe detail bhej deti hoon. Bas 30 second me ek main baat bata doon taaki aapko pata ho kya bhej rahi hoon?",
@@ -45,24 +46,51 @@ _GENERIC_OBJECTIONS: Dict[str, str] = {
 # Canonical category -> niche pack me jo synonym keys ho sakti hain (preference
 # order). match_objection/objection_response pehle niche-specific wording dhoondte
 # hain, phir generic fallback.
-_OBJECTION_SYNONYMS: Dict[str, List[str]] = {
+_OBJECTION_SYNONYMS: dict[str, list[str]] = {
     "too_expensive": [
-        "too_expensive", "expensive", "expensive_abroad", "expensive_amc",
-        "price", "price_high", "price_negotiable", "rate_high", "high_capex",
-        "fees", "fees_high", "budget", "budget_issue",
+        "too_expensive",
+        "expensive",
+        "expensive_abroad",
+        "expensive_amc",
+        "price",
+        "price_high",
+        "price_negotiable",
+        "rate_high",
+        "high_capex",
+        "fees",
+        "fees_high",
+        "budget",
+        "budget_issue",
     ],
     "already_have": [
-        "already_have", "already_have_broker", "already_coaching",
-        "already_applying", "have_vendor", "have_supplier", "have_ca",
-        "have_team", "have_loan", "existing_partner", "local_carpenter",
+        "already_have",
+        "already_have_broker",
+        "already_coaching",
+        "already_applying",
+        "have_vendor",
+        "have_supplier",
+        "have_ca",
+        "have_team",
+        "have_loan",
+        "existing_partner",
+        "local_carpenter",
         "carpenter_cheaper",
     ],
     "just_browsing": [
-        "just_browsing", "just_looking", "just_planning", "comparing",
+        "just_browsing",
+        "just_looking",
+        "just_planning",
+        "comparing",
     ],
     "think_about_it": [
-        "think_about_it", "think", "need_to_discuss", "need_time",
-        "not_decided", "not_sure", "later", "not_now",
+        "think_about_it",
+        "think",
+        "need_to_discuss",
+        "need_time",
+        "not_decided",
+        "not_sure",
+        "later",
+        "not_now",
     ],
     "busy": ["busy", "no_time", "later", "not_now"],
     "send_details": ["send_details", "send_quote", "send_proposal"],
@@ -70,7 +98,7 @@ _OBJECTION_SYNONYMS: Dict[str, List[str]] = {
 }
 
 
-NICHE_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
+NICHE_KNOWLEDGE: dict[str, dict[str, Any]] = {
     # ====================================================================== #
     # S-TIER
     # ====================================================================== #
@@ -257,7 +285,6 @@ NICHE_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
             "too_far": "Online batch bhi same faculty ke saath available hai, ya hostel guidance bhi de dete hain.",
         },
     },
-
     # ====================================================================== #
     # A-TIER
     # ====================================================================== #
@@ -461,7 +488,6 @@ NICHE_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
             "tried_before": "Samajhti hoon. Ek role trial pe de dijiye — screened profiles dekh ke aap khud farak judge kar lijiye.",
         },
     },
-
     # ====================================================================== #
     # B-TIER
     # ====================================================================== #
@@ -605,7 +631,6 @@ NICHE_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
             "not_now": "Koi baat nahi. Bas upcoming deadlines bata deti hoon taaki koi penalty na lage — jab chahein tab shuru karein.",
         },
     },
-
     # ====================================================================== #
     # MARKETING NICHES — local-business categories (AI-marketing services).
     # Facts/benefits MARKETING-context me: kaunsa content chalta hai, kaunse
@@ -935,7 +960,7 @@ NICHE_KNOWLEDGE: Dict[str, Dict[str, Any]] = {
 
 
 # Generic pack — unknown niche ya missing fields ke liye safe fallback.
-_GENERIC_PACK: Dict[str, Any] = {
+_GENERIC_PACK: dict[str, Any] = {
     "facts": [
         "Hum aapke business ke potential customers ko AI voice agent se call karke qualified leads laate hain.",
         "Aap sirf qualified result ke paise dete ho — koi bada fixed setup nahi.",
@@ -953,24 +978,24 @@ _GENERIC_PACK: Dict[str, Any] = {
 # --------------------------------------------------------------------------- #
 # Public helpers
 # --------------------------------------------------------------------------- #
-def get_knowledge_pack(niche_key: Optional[str]) -> Dict[str, Any]:
+def get_knowledge_pack(niche_key: str | None) -> dict[str, Any]:
     """Return the full pack for a niche (generic fallback for unknown keys)."""
     if not niche_key:
         return _GENERIC_PACK
     return NICHE_KNOWLEDGE.get(niche_key, _GENERIC_PACK)
 
 
-def knowledge_facts(niche_key: Optional[str]) -> List[str]:
+def knowledge_facts(niche_key: str | None) -> list[str]:
     """Grounded facts for a niche — DATA agent KB seed + LEADS agent grounding."""
     return list(get_knowledge_pack(niche_key).get("facts", []))
 
 
-def niche_benefits(niche_key: Optional[str]) -> List[str]:
+def niche_benefits(niche_key: str | None) -> list[str]:
     """End-customer benefits for a niche."""
     return list(get_knowledge_pack(niche_key).get("benefits", []))
 
 
-def objection_response(niche_key: Optional[str], objection_key: str) -> Optional[str]:
+def objection_response(niche_key: str | None, objection_key: str) -> str | None:
     """
     Objection rebuttal for a niche. Resolution order:
       1. niche pack me exact key ya uske synonyms (niche-specific wording).
@@ -990,21 +1015,71 @@ def objection_response(niche_key: Optional[str], objection_key: str) -> Optional
 # Free-form utterance keyword -> canonical objection category. Hindi + English
 # dono cover karte hain taaki LEADS agent ka rule-based fallback richer ho.
 _OBJECTION_KEYWORDS = [
-    (("mehenga", "mehengi", "expensive", "costly", "zyada paisa", "zyada paise",
-      "budget nahi", "afford", "paise nahi", "kitne ka", "kitna lagega"), "too_expensive"),
-    (("dekh raha", "dekh rahi", "bas dekh", "sirf dekh", "browse", "browsing",
-      "just looking", "abhi sirf", "compare", "compar"), "just_browsing"),
-    (("already", "pehle se", "humara already", "existing", "already have",
-      "ek aur", "lagaya hua", "pehle se hai"), "already_have"),
+    (
+        (
+            "mehenga",
+            "mehengi",
+            "expensive",
+            "costly",
+            "zyada paisa",
+            "zyada paise",
+            "budget nahi",
+            "afford",
+            "paise nahi",
+            "kitne ka",
+            "kitna lagega",
+        ),
+        "too_expensive",
+    ),
+    (
+        (
+            "dekh raha",
+            "dekh rahi",
+            "bas dekh",
+            "sirf dekh",
+            "browse",
+            "browsing",
+            "just looking",
+            "abhi sirf",
+            "compare",
+            "compar",
+        ),
+        "just_browsing",
+    ),
+    (
+        (
+            "already",
+            "pehle se",
+            "humara already",
+            "existing",
+            "already have",
+            "ek aur",
+            "lagaya hua",
+            "pehle se hai",
+        ),
+        "already_have",
+    ),
     (("busy", "abhi nahi", "baad me", "call later", "time nahi", "kaam me"), "busy"),
-    (("soch", "think", "dekhungi", "dekhunga", "discuss", "ghar me baat",
-      "family se", "samay", "time chahiye"), "think_about_it"),
+    (
+        (
+            "soch",
+            "think",
+            "dekhungi",
+            "dekhunga",
+            "discuss",
+            "ghar me baat",
+            "family se",
+            "samay",
+            "time chahiye",
+        ),
+        "think_about_it",
+    ),
     (("whatsapp", "email", "detail bhej", "bhej do", "send", "message kar"), "send_details"),
     (("not interested", "nahi chahiye", "interested nahi", "mat karo"), "not_interested"),
 ]
 
 
-def match_objection(niche_key: Optional[str], utterance: str) -> Optional[str]:
+def match_objection(niche_key: str | None, utterance: str) -> str | None:
     """
     Free-form utterance se best niche objection rebuttal nikaalo. Pehle niche ke
     apne objection key ka direct token match, phir keyword->category->synonym

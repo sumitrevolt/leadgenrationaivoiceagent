@@ -18,17 +18,21 @@ or import:
     report = await run_suite(lambda: NaturalDialogManager(niche="solar", brain=None))
     print(report.pass_rate)
 """
+
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -46,25 +50,26 @@ class Persona:
     success_criteria(run) -> (passed: bool, note: str):  EvalRun ko dekh ke decide
         karta hai ki test pass hua ya nahi.
     """
+
     name: str
     opening: str
     next_line: Callable[[str, int], str]
     expected_outcome: str
-    success_criteria: Callable[["EvalRun"], Any]
+    success_criteria: Callable[[EvalRun], Any]
     description: str = ""
 
 
 @dataclass
 class EvalRun:
     persona: str
-    transcript: List[Dict[str, str]] = field(default_factory=list)  # {role, content}
-    outcome: Optional[str] = None
+    transcript: list[dict[str, str]] = field(default_factory=list)  # {role, content}
+    outcome: str | None = None
     passed: bool = False
     score: float = 0.0
-    notes: List[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
     turns: int = 0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "persona": self.persona,
             "transcript": list(self.transcript),
@@ -78,13 +83,13 @@ class EvalRun:
 
 @dataclass
 class EvalReport:
-    runs: List[EvalRun] = field(default_factory=list)
+    runs: list[EvalRun] = field(default_factory=list)
     passed: int = 0
     failed: int = 0
     pass_rate: float = 0.0
-    by_persona: Dict[str, bool] = field(default_factory=dict)
+    by_persona: dict[str, bool] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "runs": [r.to_dict() for r in self.runs],
             "passed": self.passed,
@@ -97,7 +102,7 @@ class EvalReport:
 # --------------------------------------------------------------------------- #
 # Helpers for criteria
 # --------------------------------------------------------------------------- #
-def _bot_said_goodbye_politely(run: "EvalRun") -> bool:
+def _bot_said_goodbye_politely(run: EvalRun) -> bool:
     """Last bot line me polite close-words hon (thanks / shukriya / din accha)."""
     bot_lines = [t["content"].lower() for t in run.transcript if t["role"] == "assistant"]
     if not bot_lines:
@@ -107,7 +112,7 @@ def _bot_said_goodbye_politely(run: "EvalRun") -> bool:
     return any(p in last for p in polite)
 
 
-def _never_pushy(run: "EvalRun", max_followups: int = 3) -> bool:
+def _never_pushy(run: EvalRun, max_followups: int = 3) -> bool:
     """Bot ne 'naa' ke baad hadd se zyada baar push to nahi kiya."""
     return run.turns <= 14
 
@@ -157,8 +162,10 @@ def _price_objector_next(bot_text: str, turn: int) -> str:
 
 def _voicemail_next(bot_text: str, turn: int) -> str:
     if turn == 0:
-        return ("Aap jis vyakti ko call kar rahe hain woh abhi uplabdh nahi hai. "
-                "Kripya beep ke baad apna sandesh record karein.")
+        return (
+            "Aap jis vyakti ko call kar rahe hain woh abhi uplabdh nahi hai. "
+            "Kripya beep ke baad apna sandesh record karein."
+        )
     return ""  # machine doesn't talk back
 
 
@@ -183,7 +190,7 @@ def _language_switcher_next(bot_text: str, turn: int) -> str:
     return "Dhanyawad, book kar dijiye."
 
 
-PERSONAS: List[Persona] = [
+PERSONAS: list[Persona] = [
     Persona(
         name="interested_buyer",
         description="Keen decision-maker — demo book karna chahta hai.",
@@ -191,10 +198,14 @@ PERSONAS: List[Persona] = [
         next_line=_interested_next,
         expected_outcome="qualified",
         success_criteria=lambda run: (
-            (run.outcome == "qualified" or any(
-                w in (run.transcript[-1]["content"].lower() if run.transcript else "")
-                for w in ["demo", "book", "perfect", "badhiya"]),
-             "interested buyer ko qualify/demo tak pahunchna chahiye")
+            (
+                run.outcome == "qualified"
+                or any(
+                    w in (run.transcript[-1]["content"].lower() if run.transcript else "")
+                    for w in ["demo", "book", "perfect", "badhiya"]
+                ),
+                "interested buyer ko qualify/demo tak pahunchna chahiye",
+            )
         ),
     ),
     Persona(
@@ -204,8 +215,10 @@ PERSONAS: List[Persona] = [
         next_line=_busy_rude_next,
         expected_outcome="callback",
         success_criteria=lambda run: (
-            (run.outcome in ("callback", "ended", "not_interested") or run.turns <= 8,
-             "busy customer ka time respect ho — callback/short close")
+            (
+                run.outcome in ("callback", "ended", "not_interested") or run.turns <= 8,
+                "busy customer ka time respect ho — callback/short close",
+            )
         ),
     ),
     Persona(
@@ -215,9 +228,14 @@ PERSONAS: List[Persona] = [
         next_line=_confused_next,
         expected_outcome="ended",
         success_criteria=lambda run: (
-            (any("?" in t["content"] or "main" in t["content"].lower()
-                 for t in run.transcript if t["role"] == "assistant"),
-             "confused customer ko bot ne explain/clarify kiya hona chahiye")
+            (
+                any(
+                    "?" in t["content"] or "main" in t["content"].lower()
+                    for t in run.transcript
+                    if t["role"] == "assistant"
+                ),
+                "confused customer ko bot ne explain/clarify kiya hona chahiye",
+            )
         ),
     ),
     Persona(
@@ -227,22 +245,32 @@ PERSONAS: List[Persona] = [
         next_line=_price_objector_next,
         expected_outcome="qualified",
         success_criteria=lambda run: (
-            (any(w in " ".join(t["content"].lower() for t in run.transcript
-                               if t["role"] == "assistant")
-                 for w in ["lead", "result", "demo", "qualified"]),
-             "price objection pe bot ne value (per-lead/result) samjhana chahiye")
+            (
+                any(
+                    w
+                    in " ".join(
+                        t["content"].lower() for t in run.transcript if t["role"] == "assistant"
+                    )
+                    for w in ["lead", "result", "demo", "qualified"]
+                ),
+                "price objection pe bot ne value (per-lead/result) samjhana chahiye",
+            )
         ),
     ),
     Persona(
         name="voicemail",
         description="Answering machine / voicemail uthata hai.",
-        opening=("Aap jis vyakti ko call kar rahe hain woh abhi uplabdh nahi hai. "
-                 "Kripya beep ke baad apna sandesh record karein."),
+        opening=(
+            "Aap jis vyakti ko call kar rahe hain woh abhi uplabdh nahi hai. "
+            "Kripya beep ke baad apna sandesh record karein."
+        ),
         next_line=_voicemail_next,
         expected_outcome="voicemail",
         success_criteria=lambda run: (
-            (run.outcome in ("voicemail", "callback", "ended"),
-             "voicemail detect ho ya gracefully end ho (machine se baat na karta rahe)")
+            (
+                run.outcome in ("voicemail", "callback", "ended"),
+                "voicemail detect ho ya gracefully end ho (machine se baat na karta rahe)",
+            )
         ),
     ),
     Persona(
@@ -252,8 +280,10 @@ PERSONAS: List[Persona] = [
         next_line=_not_interested_next,
         expected_outcome="not_interested",
         success_criteria=lambda run: (
-            (run.outcome == "not_interested" and _bot_said_goodbye_politely(run),
-             "not_interested -> politely close (thanks/shukriya), pushy nahi")
+            (
+                run.outcome == "not_interested" and _bot_said_goodbye_politely(run),
+                "not_interested -> politely close (thanks/shukriya), pushy nahi",
+            )
         ),
     ),
     Persona(
@@ -263,10 +293,15 @@ PERSONAS: List[Persona] = [
         next_line=_language_switcher_next,
         expected_outcome="qualified",
         success_criteria=lambda run: (
-            (run.turns >= 3 and not any(
-                "i cannot" in t["content"].lower() or "as an ai" in t["content"].lower()
-                for t in run.transcript if t["role"] == "assistant"),
-             "Hindi customer ke saath bot natural chala (robotic/refusal nahi)")
+            (
+                run.turns >= 3
+                and not any(
+                    "i cannot" in t["content"].lower() or "as an ai" in t["content"].lower()
+                    for t in run.transcript
+                    if t["role"] == "assistant"
+                ),
+                "Hindi customer ke saath bot natural chala (robotic/refusal nahi)",
+            )
         ),
     ),
 ]
@@ -342,15 +377,13 @@ async def run_persona(manager: Any, persona: Persona, max_turns: int = 12) -> Ev
     if run.outcome == persona.expected_outcome:
         run.notes.append(f"outcome matched expected ({persona.expected_outcome})")
     else:
-        run.notes.append(
-            f"outcome={run.outcome} expected={persona.expected_outcome}"
-        )
+        run.notes.append(f"outcome={run.outcome} expected={persona.expected_outcome}")
     return run
 
 
 async def run_suite(
     manager_factory: Callable[[], Any],
-    personas: Optional[List[Persona]] = None,
+    personas: list[Persona] | None = None,
     max_turns: int = 12,
 ) -> EvalReport:
     """
@@ -363,8 +396,9 @@ async def run_suite(
         try:
             manager = manager_factory()
         except Exception as e:
-            run = EvalRun(persona=persona.name, passed=False,
-                          notes=[f"manager_factory() fail: {e!r}"])
+            run = EvalRun(
+                persona=persona.name, passed=False, notes=[f"manager_factory() fail: {e!r}"]
+            )
             report.runs.append(run)
             report.by_persona[persona.name] = False
             continue
@@ -400,13 +434,14 @@ async def demo() -> EvalReport:
     print("=" * 64)
     for run in report.runs:
         status = "PASS" if run.passed else "FAIL"
-        print(f"[{status}] {run.persona:<18} outcome={run.outcome!s:<14} "
-              f"turns={run.turns} score={run.score}")
+        print(
+            f"[{status}] {run.persona:<18} outcome={run.outcome!s:<14} "
+            f"turns={run.turns} score={run.score}"
+        )
         for note in run.notes:
             print(f"        - {note}")
     print("-" * 64)
-    print(f" passed={report.passed}  failed={report.failed}  "
-          f"pass_rate={report.pass_rate:.0%}")
+    print(f" passed={report.passed}  failed={report.failed}  " f"pass_rate={report.pass_rate:.0%}")
     print("=" * 64)
     return report
 
@@ -416,6 +451,11 @@ if __name__ == "__main__":  # pragma: no cover
 
 
 __all__ = [
-    "Persona", "EvalRun", "EvalReport",
-    "PERSONAS", "run_persona", "run_suite", "demo",
+    "Persona",
+    "EvalRun",
+    "EvalReport",
+    "PERSONAS",
+    "run_persona",
+    "run_suite",
+    "demo",
 ]

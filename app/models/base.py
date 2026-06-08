@@ -2,8 +2,9 @@
 Database Base Configuration
 Production-ready with async support
 """
-from contextlib import contextmanager, asynccontextmanager
-from typing import AsyncGenerator, Generator, Optional
+
+from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager, contextmanager
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
@@ -32,15 +33,17 @@ _async_session = None
 def _get_sync_engine():
     """Lazy initialization of sync engine"""
     global _engine, _SessionLocal
-    
+
     if _engine is None:
         try:
             from sqlalchemy import create_engine
             from sqlalchemy.orm import sessionmaker
-            
+
             # Convert async URL to sync for migrations
-            sync_url = settings.database_url.replace("+asyncpg", "").replace("postgresql://", "postgresql+psycopg2://")
-            
+            sync_url = settings.database_url.replace("+asyncpg", "").replace(
+                "postgresql://", "postgresql+psycopg2://"
+            )
+
             _engine = create_engine(
                 sync_url,
                 pool_size=10,
@@ -53,26 +56,30 @@ def _get_sync_engine():
         except Exception as e:
             logger.warning(f"Could not initialize sync engine: {e}")
             return None
-    
+
     return _engine
 
 
 def _get_async_engine():
     """Lazy initialization of async engine"""
     global _async_engine, _async_session
-    
+
     if _async_engine is None:
         try:
-            from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+            from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
             # Normalize DATABASE_URL to an ASYNC driver URL.
             url = settings.database_url
             if url.startswith("sqlite") and "+aiosqlite" not in url:
-                url = url.replace("sqlite+pysqlite://", "sqlite://").replace("sqlite://", "sqlite+aiosqlite://")
+                url = url.replace("sqlite+pysqlite://", "sqlite://").replace(
+                    "sqlite://", "sqlite+aiosqlite://"
+                )
             elif url.startswith("postgresql") and "+asyncpg" not in url:
-                url = url.replace("postgresql+psycopg2://", "postgresql://").replace("postgresql://", "postgresql+asyncpg://")
+                url = url.replace("postgresql+psycopg2://", "postgresql://").replace(
+                    "postgresql://", "postgresql+asyncpg://"
+                )
 
-            kwargs = dict(pool_pre_ping=True, echo=settings.debug)
+            kwargs = {"pool_pre_ping": True, "echo": settings.debug}
             # SQLite does not support pool_size/max_overflow.
             if not url.startswith("sqlite"):
                 kwargs.update(pool_size=20, max_overflow=30)
@@ -88,7 +95,7 @@ def _get_async_engine():
         except Exception as e:
             logger.warning(f"Could not initialize async engine: {e}")
             return None
-    
+
     return _async_engine
 
 
@@ -113,6 +120,7 @@ def async_session():
 # SYNC DATABASE DEPENDENCIES
 # =============================================================================
 
+
 def get_db() -> Generator[Session, None, None]:
     """
     Sync database session dependency
@@ -121,7 +129,7 @@ def get_db() -> Generator[Session, None, None]:
     _get_sync_engine()
     if _SessionLocal is None:
         raise RuntimeError("Database not configured")
-    
+
     db = _SessionLocal()
     try:
         yield db
@@ -138,7 +146,7 @@ def get_db_session() -> Generator[Session, None, None]:
     _get_sync_engine()
     if _SessionLocal is None:
         raise RuntimeError("Database not configured")
-    
+
     db = _SessionLocal()
     try:
         yield db
@@ -154,6 +162,7 @@ def get_db_session() -> Generator[Session, None, None]:
 # ASYNC DATABASE DEPENDENCIES
 # =============================================================================
 
+
 async def get_async_db() -> AsyncGenerator:
     """
     Async database session dependency
@@ -162,7 +171,7 @@ async def get_async_db() -> AsyncGenerator:
     session_factory = async_session()
     if session_factory is None:
         raise RuntimeError("Async database not configured")
-    
+
     async with session_factory() as session:
         try:
             yield session
@@ -183,7 +192,7 @@ async def get_async_session() -> AsyncGenerator:
     session_factory = async_session()
     if session_factory is None:
         raise RuntimeError("Async database not configured")
-    
+
     async with session_factory() as session:
         try:
             yield session
@@ -196,6 +205,7 @@ async def get_async_session() -> AsyncGenerator:
 # =============================================================================
 # INITIALIZATION
 # =============================================================================
+
 
 def init_db():
     """Initialize database tables (sync)"""

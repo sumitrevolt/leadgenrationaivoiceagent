@@ -11,11 +11,12 @@ Chhote business ke liye payment maangne ka poora kit:
 
 PURE LOGIC — koi LLM/network nahi, kabhi raise nahi. Inputs XML-escaped.
 """
+
 from __future__ import annotations
 
 import re
 from html import escape
-from typing import Any, Dict, Optional
+from typing import Any
 from urllib.parse import quote
 
 from app.marketing.review_kit import qr_svg  # pure-python QR encoder (reuse)
@@ -56,22 +57,30 @@ def _build_upi_link(vpa: str, name: str, amount_str: str, note: str) -> str:
 def _slip_svg(name: str, vpa: str, amount_str: str, note: str) -> str:
     """800x1000 branded payment-slip SVG with {qr} slot. Inputs escape ho ke aate."""
     amount_block = (
-        ('<rect x="250" y="775" width="300" height="70" rx="35" fill="#7c3aed"/>'
-         f'<text x="400" y="822" font-family="{_FONT}" font-size="36" font-weight="bold" '
-         f'fill="#ffffff" text-anchor="middle">₹ {amount_str}</text>')
-        if amount_str else
-        (f'<text x="400" y="810" font-family="{_FONT}" font-size="26" fill="#6b7280" '
-         'text-anchor="middle">Amount aap khud enter karein</text>')
+        (
+            '<rect x="250" y="775" width="300" height="70" rx="35" fill="#7c3aed"/>'
+            f'<text x="400" y="822" font-family="{_FONT}" font-size="36" font-weight="bold" '
+            f'fill="#ffffff" text-anchor="middle">₹ {amount_str}</text>'
+        )
+        if amount_str
+        else (
+            f'<text x="400" y="810" font-family="{_FONT}" font-size="26" fill="#6b7280" '
+            'text-anchor="middle">Amount aap khud enter karein</text>'
+        )
     )
     note_block = (
-        f'<text x="400" y="885" font-family="{_FONT}" font-size="24" fill="#6b7280" '
-        f'text-anchor="middle">Note: {note}</text>'
-    ) if note else ""
+        (
+            f'<text x="400" y="885" font-family="{_FONT}" font-size="24" fill="#6b7280" '
+            f'text-anchor="middle">Note: {note}</text>'
+        )
+        if note
+        else ""
+    )
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000">'
         '<defs><linearGradient id="upibg" x1="0%" y1="0%" x2="0%" y2="100%">'
         '<stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#5b21b6"/>'
-        '</linearGradient></defs>'
+        "</linearGradient></defs>"
         '<rect width="800" height="1000" fill="#ffffff"/>'
         '<rect width="800" height="210" fill="url(#upibg)"/>'
         f'<text x="400" y="92" font-family="{_FONT}" font-size="40" font-weight="bold" '
@@ -82,18 +91,19 @@ def _slip_svg(name: str, vpa: str, amount_str: str, note: str) -> str:
         'text-anchor="middle">📱 Scan &amp; Pay — koi bhi UPI app</text>'
         '<rect x="220" y="310" width="360" height="360" rx="18" fill="#f5f3ff" '
         'stroke="#7c3aed" stroke-width="3"/>'
-        '{qr}'
+        "{qr}"
         f'<text x="400" y="742" font-family="{_FONT}" font-size="30" font-weight="bold" '
         f'fill="#1f2937" text-anchor="middle">UPI ID: {vpa}</text>'
-        f'{amount_block}{note_block}'
+        f"{amount_block}{note_block}"
         f'<text x="400" y="950" font-family="{_FONT}" font-size="24" fill="#6b7280" '
         'text-anchor="middle">GPay • PhonePe • Paytm • BHIM — sab chalega ✅</text>'
-        '</svg>'
+        "</svg>"
     )
 
 
-def payment_kit(business_name: str, vpa: str,
-                amount: Optional[Any] = None, note: str = "") -> Dict[str, Any]:
+def payment_kit(
+    business_name: str, vpa: str, amount: Any | None = None, note: str = ""
+) -> dict[str, Any]:
     """UPI payment kit: link + QR + slip (QR embedded) + WA message + steps.
 
     Pure logic — instant, deterministic, KABHI raise nahi. Invalid VPA par bhi

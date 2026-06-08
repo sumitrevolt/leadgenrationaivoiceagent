@@ -4,6 +4,7 @@ Tests: production gaps — public pay-info endpoint + manager daily digest.
 No SMTP / UPI_VPA / AI keys required — unset-default paths are exercised
 (env-gated features must degrade silently, never 500).
 """
+
 import pytest
 from fastapi.testclient import TestClient
 

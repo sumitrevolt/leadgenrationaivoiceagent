@@ -39,12 +39,14 @@ returns a clear `not_configured` CallResult instead of crashing, so the rest of
 the lead-gen pipeline keeps running (the TelephonyService falls back to
 simulation mode in that case).
 """
+
 import asyncio
 import os
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Optional, Callable, Awaitable, Any, Dict
+from typing import Any
 
 import httpx
 
@@ -66,11 +68,12 @@ class CallResult:
     This matches the shape used by TelephonyService so all providers return a
     consistent object to the caller.
     """
+
     call_id: str
     status: str  # initiated, connected, no_answer, busy, failed, not_configured
     duration: int  # seconds (0 if not connected / unknown at originate time)
     provider: str  # e.g. "sip:plivo", "sip:asterisk", "sip"
-    error: Optional[str] = None
+    error: str | None = None
 
 
 def _get(name: str, default: str = "") -> str:
@@ -107,7 +110,7 @@ class SIPHandler:
     # Minimal REST originate endpoints for common providers. These are best
     # effort templates; tweak per your account. Self-hosted Asterisk users
     # should instead point SIP_HOST at ARI and extend _place_via_ari.
-    _PROVIDER_ENDPOINTS: Dict[str, str] = {
+    _PROVIDER_ENDPOINTS: dict[str, str] = {
         "plivo": "https://api.plivo.com/v1/Account/{username}/Call/",
         "frejun": "https://api.frejun.com/api/v1/call/",
         "generic": "{host}/call",  # fully custom: SIP_HOST is the API base
@@ -131,7 +134,7 @@ class SIPHandler:
                 "place_call() will return 'not_configured'."
             )
 
-    def validate_config(self) -> Dict[str, Any]:
+    def validate_config(self) -> dict[str, Any]:
         """Return what is configured / missing for SIP."""
         missing = []
         for key in ("SIP_HOST", "SIP_USERNAME", "SIP_PASSWORD"):
@@ -165,8 +168,8 @@ class SIPHandler:
     async def place_call(
         self,
         to_number: str,
-        from_number: Optional[str] = None,
-        on_answer: Optional[OnAnswerCallback] = None,
+        from_number: str | None = None,
+        on_answer: OnAnswerCallback | None = None,
     ) -> CallResult:
         """
         Place an outbound call over the SIP trunk.
@@ -192,7 +195,7 @@ class SIPHandler:
                 duration=0,
                 provider="sip",
                 error="SIP_HOST/SIP_USERNAME/SIP_PASSWORD missing. "
-                      "Set them (and SIP_PROVIDER for REST) or use simulation mode.",
+                "Set them (and SIP_PROVIDER for REST) or use simulation mode.",
             )
 
         to_e164 = self._normalize_number(to_number)
@@ -214,15 +217,15 @@ class SIPHandler:
             duration=0,
             provider="sip:self-hosted",
             error="SIP trunk credentials present but no SIP_PROVIDER REST API and "
-                  "no Asterisk/ARI bridge configured. See sip_handler docstring.",
+            "no Asterisk/ARI bridge configured. See sip_handler docstring.",
         )
 
     async def _place_via_rest(
         self,
         call_id: str,
         to_number: str,
-        from_number: Optional[str],
-        on_answer: Optional[OnAnswerCallback],
+        from_number: str | None,
+        on_answer: OnAnswerCallback | None,
     ) -> CallResult:
         """Originate a call via a provider's REST API (Plivo/FreJun/generic)."""
         template = self._PROVIDER_ENDPOINTS.get(self.provider)
@@ -233,7 +236,7 @@ class SIPHandler:
                 duration=0,
                 provider=f"sip:{self.provider}",
                 error=f"Unknown SIP_PROVIDER '{self.provider}'. "
-                      f"Supported: {', '.join(self._PROVIDER_ENDPOINTS)}.",
+                f"Supported: {', '.join(self._PROVIDER_ENDPOINTS)}.",
             )
 
         url = template.format(username=self.username, host=self.host.rstrip("/"))
@@ -264,10 +267,7 @@ class SIPHandler:
                 data = {}
 
             provider_call_id = (
-                data.get("call_uuid")
-                or data.get("call_id")
-                or data.get("request_uuid")
-                or call_id
+                data.get("call_uuid") or data.get("call_id") or data.get("request_uuid") or call_id
             )
 
             logger.info(
@@ -312,8 +312,8 @@ class SIPHandler:
         self,
         call_id: str,
         to_number: str,
-        from_number: Optional[str],
-        on_answer: Optional[OnAnswerCallback],
+        from_number: str | None,
+        on_answer: OnAnswerCallback | None,
     ) -> CallResult:
         """
         STUB: originate via self-hosted Asterisk ARI.

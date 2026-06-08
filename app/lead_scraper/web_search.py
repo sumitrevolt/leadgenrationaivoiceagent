@@ -9,11 +9,12 @@ Note: DuckDuckGo ka HTML endpoint (https://html.duckduckgo.com/html/) free hai
 aur rate-limit lenient hai. Agar zyada volume chahiye to Google Custom Search
 API (100 free/day) ya SerpAPI plug kar sakte ho — interface same rahega.
 """
+
 import asyncio
 import re
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional
-from urllib.parse import quote_plus, urlparse, parse_qs, unquote
+from typing import Any
+from urllib.parse import parse_qs, unquote, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -24,25 +25,24 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # Indian phone numbers: +91 / 0 prefix optional, 10 digits starting 6-9
-PHONE_RE = re.compile(
-    r"(?:(?:\+?91[\-\s]?)|0)?([6-9]\d{4}[\-\s]?\d{5})"
-)
+PHONE_RE = re.compile(r"(?:(?:\+?91[\-\s]?)|0)?([6-9]\d{4}[\-\s]?\d{5})")
 EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
 
 
 @dataclass
 class WebSearchLead:
     """A business lead discovered via web search."""
+
     name: str
-    website: Optional[str]
-    phone: Optional[str]
-    email: Optional[str]
+    website: str | None
+    phone: str | None
+    email: str | None
     snippet: str
     city: str
     category: str
     source_url: str
     source: str = "web_search"
-    raw_data: Dict[str, Any] = field(default_factory=dict)
+    raw_data: dict[str, Any] = field(default_factory=dict)
 
 
 class WebSearchScraper:
@@ -70,15 +70,26 @@ class WebSearchScraper:
         }
         # domains jo business websites nahi hote — skip
         self.skip_domains = {
-            "facebook.com", "instagram.com", "linkedin.com", "twitter.com",
-            "youtube.com", "wikipedia.org", "justdial.com", "indiamart.com",
-            "duckduckgo.com", "google.com", "amazon.in", "flipkart.com",
-            "quora.com", "reddit.com", "tripadvisor.com",
+            "facebook.com",
+            "instagram.com",
+            "linkedin.com",
+            "twitter.com",
+            "youtube.com",
+            "wikipedia.org",
+            "justdial.com",
+            "indiamart.com",
+            "duckduckgo.com",
+            "google.com",
+            "amazon.in",
+            "flipkart.com",
+            "quora.com",
+            "reddit.com",
+            "tripadvisor.com",
         }
         logger.info("🌐 Web Search Scraper initialized")
 
     def _client(self) -> httpx.AsyncClient:
-        kwargs: Dict[str, Any] = {
+        kwargs: dict[str, Any] = {
             "headers": self.headers,
             "timeout": 20.0,
             "follow_redirects": True,
@@ -115,7 +126,7 @@ class WebSearchScraper:
         city: str,
         max_results: int = 30,
         enrich: bool = True,
-    ) -> List[WebSearchLead]:
+    ) -> list[WebSearchLead]:
         """
         Search the web for businesses in a category + city.
 
@@ -127,7 +138,7 @@ class WebSearchScraper:
         """
         query = f"{category} in {city} contact phone number"
         logger.info(f"Web search: '{query}'")
-        leads: List[WebSearchLead] = []
+        leads: list[WebSearchLead] = []
 
         try:
             async with self._client() as client:
@@ -178,7 +189,7 @@ class WebSearchScraper:
         logger.info(f"Web search found {len(leads)} leads for '{category}' in {city}")
         return leads
 
-    async def _enrich_leads(self, leads: List[WebSearchLead]) -> None:
+    async def _enrich_leads(self, leads: list[WebSearchLead]) -> None:
         """Fetch each business website to fill in missing phone/email."""
         sem = asyncio.Semaphore(5)
 
@@ -202,7 +213,7 @@ class WebSearchScraper:
         await asyncio.gather(*(fetch(l) for l in leads), return_exceptions=True)
 
     @staticmethod
-    def _first_phone(text: str) -> Optional[str]:
+    def _first_phone(text: str) -> str | None:
         m = PHONE_RE.search(text or "")
         if not m:
             return None
@@ -210,7 +221,7 @@ class WebSearchScraper:
         return digits[-10:] if len(digits) >= 10 else None
 
     @staticmethod
-    def _first_email(text: str) -> Optional[str]:
+    def _first_email(text: str) -> str | None:
         m = EMAIL_RE.search(text or "")
         if not m:
             return None

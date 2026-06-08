@@ -22,19 +22,21 @@ Usage example:
 
     print(analyze_prompt("Do you take AMC contracts for IT parks?"))
 """
+
 from __future__ import annotations
 
-from typing import Dict, Any, List
+from typing import Any
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
-from app.voice_agent.flow_engine import NodeType, ConversationFlow, FlowNode
-
+from app.voice_agent.flow_engine import ConversationFlow, FlowNode, NodeType
 
 # Severity weights subtracted from the perfect score of 100.
 _SEVERITY_PENALTY = {
@@ -44,15 +46,34 @@ _SEVERITY_PENALTY = {
 }
 
 # Heuristics for prompt quality.
-_MAX_PROMPT_WORDS = 45        # above this a spoken line is too long
-_MIN_PROMPT_WORDS = 2         # below this it's basically empty
+_MAX_PROMPT_WORDS = 45  # above this a spoken line is too long
+_MIN_PROMPT_WORDS = 2  # below this it's basically empty
 _VAGUE_WORDS = {
-    "stuff", "things", "something", "etc", "whatever", "some", "various",
-    "general", "anything",
+    "stuff",
+    "things",
+    "something",
+    "etc",
+    "whatever",
+    "some",
+    "various",
+    "general",
+    "anything",
 }
 _CTA_HINTS = {
-    "?", "book", "schedule", "demo", "meeting", "call", "connect", "minute",
-    "interested", "let me", "can you", "would you", "are you", "do you",
+    "?",
+    "book",
+    "schedule",
+    "demo",
+    "meeting",
+    "call",
+    "connect",
+    "minute",
+    "interested",
+    "let me",
+    "can you",
+    "would you",
+    "are you",
+    "do you",
     "shall we",
 }
 
@@ -61,7 +82,8 @@ _CTA_HINTS = {
 # PROMPT-LEVEL ANALYSIS
 # =============================================================================
 
-def analyze_prompt(text: str) -> Dict[str, Any]:
+
+def analyze_prompt(text: str) -> dict[str, Any]:
     """
     Score a single prompt/utterance for quality.
 
@@ -82,7 +104,7 @@ def analyze_prompt(text: str) -> Dict[str, Any]:
             "issues": [str, ...],      # human-readable notes
         }
     """
-    issues: List[str] = []
+    issues: list[str] = []
     text = (text or "").strip()
     words = text.split()
     word_count = len(words)
@@ -98,9 +120,7 @@ def analyze_prompt(text: str) -> Dict[str, Any]:
         score -= 30
 
     if word_count > _MAX_PROMPT_WORDS:
-        issues.append(
-            f"Prompt is long ({word_count} words); spoken lines should be concise."
-        )
+        issues.append(f"Prompt is long ({word_count} words); spoken lines should be concise.")
         score -= 20
 
     lowered = {w.strip(".,!?").lower() for w in words}
@@ -128,7 +148,8 @@ def analyze_prompt(text: str) -> Dict[str, Any]:
 # FLOW-LEVEL ANALYSIS
 # =============================================================================
 
-def analyze_flow(flow: ConversationFlow) -> Dict[str, Any]:
+
+def analyze_flow(flow: ConversationFlow) -> dict[str, Any]:
     """
     Run a full QA pass over a ConversationFlow.
 
@@ -155,15 +176,14 @@ def analyze_flow(flow: ConversationFlow) -> Dict[str, Any]:
             ],
         }
     """
-    issues: List[Dict[str, Any]] = []
+    issues: list[dict[str, Any]] = []
 
     if flow is None or not getattr(flow, "nodes", None):
         return {
             "score": 0,
             "passed": False,
             "node_count": 0,
-            "issues": [{"severity": "error", "node_id": None,
-                        "message": "Flow is empty or None."}],
+            "issues": [{"severity": "error", "node_id": None, "message": "Flow is empty or None."}],
         }
 
     nodes = flow.nodes
@@ -173,26 +193,36 @@ def analyze_flow(flow: ConversationFlow) -> Dict[str, Any]:
         for msg in flow.validate():
             issues.append({"severity": "error", "node_id": None, "message": msg})
     except Exception as e:
-        issues.append({"severity": "error", "node_id": None,
-                       "message": f"Structural validation crashed: {e}"})
+        issues.append(
+            {"severity": "error", "node_id": None, "message": f"Structural validation crashed: {e}"}
+        )
 
     # --- Greeting presence ----------------------------------------------
     greetings = [n for n in nodes.values() if n.type == NodeType.GREETING]
     if not greetings:
-        issues.append({"severity": "warning", "node_id": None,
-                       "message": "Flow has no GREETING node; calls open abruptly."})
+        issues.append(
+            {
+                "severity": "warning",
+                "node_id": None,
+                "message": "Flow has no GREETING node; calls open abruptly.",
+            }
+        )
 
     # --- Transfer / handoff path ----------------------------------------
     transfers = [n for n in nodes.values() if n.type == NodeType.TRANSFER]
     if not transfers:
-        issues.append({"severity": "warning", "node_id": None,
-                       "message": "Flow has no TRANSFER node; hot leads cannot be handed off."})
+        issues.append(
+            {
+                "severity": "warning",
+                "node_id": None,
+                "message": "Flow has no TRANSFER node; hot leads cannot be handed off.",
+            }
+        )
 
     # --- End node presence (also covered structurally, kept as info) ----
     ends = [n for n in nodes.values() if n.type == NodeType.END]
     if not ends:
-        issues.append({"severity": "error", "node_id": None,
-                       "message": "Flow has no END node."})
+        issues.append({"severity": "error", "node_id": None, "message": "Flow has no END node."})
 
     # --- Per-node checks -------------------------------------------------
     for node in nodes.values():
@@ -219,28 +249,47 @@ def analyze_flow(flow: ConversationFlow) -> Dict[str, Any]:
     }
 
 
-def _analyze_node(node: FlowNode, issues: List[Dict[str, Any]]) -> None:
+def _analyze_node(node: FlowNode, issues: list[dict[str, Any]]) -> None:
     """Append content-quality issues for a single node."""
     # CONDITION nodes legitimately have no spoken text — skip prompt checks.
     if node.type == NodeType.CONDITION:
         if not node.transitions:
-            issues.append({"severity": "warning", "node_id": node.id,
-                           "message": "CONDITION node has no branches."})
+            issues.append(
+                {
+                    "severity": "warning",
+                    "node_id": node.id,
+                    "message": "CONDITION node has no branches.",
+                }
+            )
         return
 
     # QUESTION nodes must capture their answer.
     if node.type == NodeType.QUESTION and not node.metadata.get("capture_field"):
-        issues.append({"severity": "warning", "node_id": node.id,
-                       "message": "QUESTION node has no capture_field; the answer is lost."})
+        issues.append(
+            {
+                "severity": "warning",
+                "node_id": node.id,
+                "message": "QUESTION node has no capture_field; the answer is lost.",
+            }
+        )
 
     # Prompt quality for any speaking node.
     if node.type != NodeType.END or node.text:
         prompt_report = analyze_prompt(node.text)
         if not node.text.strip():
-            if node.type in (NodeType.GREETING, NodeType.QUESTION,
-                             NodeType.MESSAGE, NodeType.TRANSFER):
-                issues.append({"severity": "error", "node_id": node.id,
-                               "message": f"{node.type.value.upper()} node has empty prompt."})
+            if node.type in (
+                NodeType.GREETING,
+                NodeType.QUESTION,
+                NodeType.MESSAGE,
+                NodeType.TRANSFER,
+            ):
+                issues.append(
+                    {
+                        "severity": "error",
+                        "node_id": node.id,
+                        "message": f"{node.type.value.upper()} node has empty prompt.",
+                    }
+                )
         else:
             for note in prompt_report["issues"]:
                 # Map a couple of prompt notes to friendlier severities.
@@ -249,10 +298,14 @@ def _analyze_node(node: FlowNode, issues: List[Dict[str, Any]]) -> None:
                     severity = "error"
                 elif "long" in note.lower() or "no clear call-to-action" in note.lower():
                     severity = "warning"
-                issues.append({"severity": severity, "node_id": node.id,
-                               "message": note})
+                issues.append({"severity": severity, "node_id": node.id, "message": note})
 
     # Non-terminal nodes should be able to go somewhere.
     if node.type not in (NodeType.END,) and not node.transitions:
-        issues.append({"severity": "warning", "node_id": node.id,
-                       "message": f"Node '{node.id}' is a dead end (no transitions)."})
+        issues.append(
+            {
+                "severity": "warning",
+                "node_id": node.id,
+                "message": f"Node '{node.id}' is a dead end (no transitions).",
+            }
+        )

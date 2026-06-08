@@ -42,7 +42,6 @@ nahi). Generator functions kabhi raise nahi karte (template
 fallback built-in) — phir bhi unexpected par 500 + detail dete hain.
 Har generation team-log me jaata hai (isha) — import-safe, best-effort.
 """
-from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -95,8 +94,10 @@ def _log_isha(action: str, detail: str) -> None:
 # Request models
 # --------------------------------------------------------------------------- #
 
+
 class PostRequest(BaseModel):
     """Social post generation request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     occasion: str = Field("", max_length=80)
@@ -106,6 +107,7 @@ class PostRequest(BaseModel):
 
 class CalendarRequest(BaseModel):
     """Content calendar request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     days: int = Field(7, ge=1, le=30)
@@ -113,19 +115,22 @@ class CalendarRequest(BaseModel):
 
 class AuditScoreRequest(BaseModel):
     """GBP audit answers: {question_id: option_index}."""
-    answers: Dict[str, int] = Field(default_factory=dict)
+
+    answers: dict[str, int] = Field(default_factory=dict)
 
 
 class ReviewReplyRequest(BaseModel):
     """Review reply generation request."""
+
     review_text: str = Field(..., min_length=1, max_length=2000)
-    rating: Optional[float] = Field(None, ge=0, le=5)
+    rating: float | None = Field(None, ge=0, le=5)
     business_name: str = Field("", max_length=120)
     tone: str = Field("professional", max_length=40)
 
 
 class FestivalPostsRequest(BaseModel):
     """Festival posts request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     days: int = Field(45, ge=1, le=730)
@@ -133,19 +138,21 @@ class FestivalPostsRequest(BaseModel):
 
 class PosterRequest(BaseModel):
     """SVG poster generation request (brand colors optional — brand_kit se)."""
+
     template_id: str = Field(..., min_length=1, max_length=60)
     business_name: str = Field(..., min_length=1, max_length=120)
     tagline: str = Field("", max_length=160)
     offer: str = Field("", max_length=160)
     phone: str = Field("", max_length=40)
     festival: str = Field("", max_length=80)
-    client_id: str = Field("", max_length=64)        # set => saved brand auto-apply
-    brand_primary: str = Field("", max_length=10)    # #RRGGBB
-    brand_accent: str = Field("", max_length=10)     # #RRGGBB
+    client_id: str = Field("", max_length=64)  # set => saved brand auto-apply
+    brand_primary: str = Field("", max_length=10)  # #RRGGBB
+    brand_accent: str = Field("", max_length=10)  # #RRGGBB
 
 
 class WhatsAppPackRequest(BaseModel):
     """WhatsApp broadcast pack request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     occasion: str = Field("", max_length=80)
@@ -154,6 +161,7 @@ class WhatsAppPackRequest(BaseModel):
 
 class CompetitorRequest(BaseModel):
     """Competitor comparison request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     competitor_notes: str = Field(..., min_length=1, max_length=4000)
@@ -161,12 +169,14 @@ class CompetitorRequest(BaseModel):
 
 class ReviewKitRequest(BaseModel):
     """Review-collection kit request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     place_query: str = Field("", max_length=200)
 
 
 class ReactivationCustomer(BaseModel):
     """Ek purana customer (win-back ke liye)."""
+
     name: str = Field("", max_length=80)
     phone: str = Field("", max_length=20)
     last_visit: str = Field("", max_length=40)
@@ -175,14 +185,16 @@ class ReactivationCustomer(BaseModel):
 
 class ReactivationRequest(BaseModel):
     """Database-reactivation campaign request (cap 50 customers)."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     offer: str = Field("", max_length=200)
-    customers: List[ReactivationCustomer] = Field(default_factory=list, max_length=50)
+    customers: list[ReactivationCustomer] = Field(default_factory=list, max_length=50)
 
 
 class DripRequest(BaseModel):
     """WhatsApp nurture sequence request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     lead_type: str = Field("new_inquiry", max_length=30)
@@ -190,6 +202,7 @@ class DripRequest(BaseModel):
 
 class UPIQRRequest(BaseModel):
     """UPI QR Code poster request."""
+
     vpa: str = Field(..., min_length=3, max_length=120)
     business_name: str = Field(..., min_length=1, max_length=120)
     amount: float = Field(0.0, ge=0.0, le=100000.0)
@@ -199,6 +212,7 @@ class UPIQRRequest(BaseModel):
 
 class MissedCallRequest(BaseModel):
     """Missed call auto-reply request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     callback_url: str = Field("", max_length=200)
@@ -206,12 +220,14 @@ class MissedCallRequest(BaseModel):
 
 class BrandColors(BaseModel):
     """Brand colors (#RRGGBB; invalid => ignore)."""
+
     primary: str = Field("", max_length=10)
     accent: str = Field("", max_length=10)
 
 
 class BrandRequest(BaseModel):
     """Per-client brand profile."""
+
     business_name: str = Field("", max_length=120)
     tagline: str = Field("", max_length=160)
     phone: str = Field("", max_length=40)
@@ -222,28 +238,32 @@ class BrandRequest(BaseModel):
 
 class CrmCustomer(BaseModel):
     """CRM-lite customer row."""
+
     name: str = Field("", max_length=80)
     phone: str = Field(..., min_length=5, max_length=20)
-    birthday: str = Field("", max_length=20)     # YYYY-MM-DD ya MM-DD
+    birthday: str = Field("", max_length=20)  # YYYY-MM-DD ya MM-DD
     anniversary: str = Field("", max_length=20)  # YYYY-MM-DD ya MM-DD
-    tags: List[str] = Field(default_factory=list, max_length=10)
+    tags: list[str] = Field(default_factory=list, max_length=10)
 
 
 class CrmCustomersRequest(BaseModel):
     """CRM customers add request."""
-    customers: List[CrmCustomer] = Field(default_factory=list, max_length=500)
+
+    customers: list[CrmCustomer] = Field(default_factory=list, max_length=500)
 
 
 class UpiKitRequest(BaseModel):
     """UPI payment kit request (vpa = naam@bank)."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     vpa: str = Field(..., min_length=3, max_length=100)
-    amount: Optional[float] = Field(None, ge=0, le=10_000_000)
+    amount: float | None = Field(None, ge=0, le=10_000_000)
     note: str = Field("", max_length=100)
 
 
 class CatalogItem(BaseModel):
     """Catalog ka ek item (price string flexible: '249' / '₹249')."""
+
     name: str = Field(..., min_length=1, max_length=80)
     price: str = Field("", max_length=20)
     desc: str = Field("", max_length=160)
@@ -251,13 +271,15 @@ class CatalogItem(BaseModel):
 
 class CatalogRequest(BaseModel):
     """Price-list catalog request (12 se zyada items trim ho jaate hain)."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
-    items: List[CatalogItem] = Field(default_factory=list, max_length=24)
+    items: list[CatalogItem] = Field(default_factory=list, max_length=24)
     style: str = Field("price_list", max_length=30)
 
 
 class AdsPackRequest(BaseModel):
     """Google RSA + Meta ads copy request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     offer: str = Field("", max_length=200)
@@ -266,6 +288,7 @@ class AdsPackRequest(BaseModel):
 
 class ReelsRequest(BaseModel):
     """Reels scripts request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     topic: str = Field("", max_length=120)
@@ -274,14 +297,16 @@ class ReelsRequest(BaseModel):
 
 class GbpTextsRequest(BaseModel):
     """GBP description + services + posts request."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     city: str = Field("", max_length=80)
-    services: List[str] = Field(default_factory=list, max_length=12)
+    services: list[str] = Field(default_factory=list, max_length=12)
 
 
 class ContentPackRequest(BaseModel):
     """Monthly client content pack request (client_id => saved brand auto-apply)."""
+
     business_name: str = Field(..., min_length=1, max_length=120)
     niche: str = Field("general", max_length=80)
     client_id: str = Field("", max_length=64)
@@ -291,12 +316,14 @@ class ContentPackRequest(BaseModel):
 
 class BlogRunRequest(BaseModel):
     """Programmatic SEO blog — kitne naye articles publish karne hain."""
+
     n: int = Field(3, ge=1, le=25)
 
 
 # --------------------------------------------------------------------------- #
 # Endpoints
 # --------------------------------------------------------------------------- #
+
 
 @router.get("/packages")
 async def get_marketing_packages():
@@ -373,12 +400,12 @@ async def generate_content_calendar(
 # GBP self-audit (no Google API — owner ke jawab se score)
 # --------------------------------------------------------------------------- #
 
+
 @router.get("/audit/questions")
 async def get_audit_questions(current_user: User = Depends(require_admin)):
     """GBP self-audit ke 16 sawal (Hinglish, multiple-choice)."""
     try:
-        return {"questions": gbp_audit.AUDIT_QUESTIONS,
-                "total": len(gbp_audit.AUDIT_QUESTIONS)}
+        return {"questions": gbp_audit.AUDIT_QUESTIONS, "total": len(gbp_audit.AUDIT_QUESTIONS)}
     except Exception as e:
         logger.error(f"Audit questions failed: {e}")
         raise HTTPException(status_code=500, detail=f"Audit questions failed: {e}")
@@ -392,9 +419,11 @@ async def score_gbp_audit(
     """Audit answers → weighted 0-100 score + grade + top-5 Hinglish fixes."""
     try:
         result = gbp_audit.score_audit(req.answers)
-        _log_isha("gbp_audit_scored",
-                  f"score={result.get('score')} grade={result.get('grade')} "
-                  f"({result.get('answered')}/{result.get('total_questions')} answered)")
+        _log_isha(
+            "gbp_audit_scored",
+            f"score={result.get('score')} grade={result.get('grade')} "
+            f"({result.get('answered')}/{result.get('total_questions')} answered)",
+        )
         return result
     except Exception as e:
         logger.error(f"Audit scoring failed: {e}")
@@ -404,6 +433,7 @@ async def score_gbp_audit(
 # --------------------------------------------------------------------------- #
 # Review replies
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/review-reply")
 async def generate_review_replies(
@@ -418,9 +448,11 @@ async def generate_review_replies(
             business_name=req.business_name,
             tone=req.tone,
         )
-        _log_isha("review_reply_generated",
-                  f"{req.business_name or 'business'} (rating={req.rating}, "
-                  f"sentiment={result.get('sentiment')})")
+        _log_isha(
+            "review_reply_generated",
+            f"{req.business_name or 'business'} (rating={req.rating}, "
+            f"sentiment={result.get('sentiment')})",
+        )
         return result
     except Exception as e:
         logger.error(f"Review reply generation failed: {e}")
@@ -430,6 +462,7 @@ async def generate_review_replies(
 # --------------------------------------------------------------------------- #
 # Festivals
 # --------------------------------------------------------------------------- #
+
 
 @router.get("/festivals")
 async def get_festivals(
@@ -456,9 +489,11 @@ async def generate_festival_posts(
             niche=req.niche,
             days=req.days,
         )
-        _log_isha("festival_posts_generated",
-                  f"{req.business_name} ({req.niche or 'general'}, "
-                  f"{len(result.get('posts', []))} posts)")
+        _log_isha(
+            "festival_posts_generated",
+            f"{req.business_name} ({req.niche or 'general'}, "
+            f"{len(result.get('posts', []))} posts)",
+        )
         return result
     except Exception as e:
         logger.error(f"Festival posts generation failed: {e}")
@@ -468,6 +503,7 @@ async def generate_festival_posts(
 # --------------------------------------------------------------------------- #
 # SVG posters (AdBanao-lite)
 # --------------------------------------------------------------------------- #
+
 
 @router.get("/poster/templates")
 async def get_poster_templates(current_user: User = Depends(require_admin)):
@@ -503,8 +539,7 @@ async def generate_svg_poster(
         if req.client_id.strip():
             args = brand_kit.apply_brand_to_poster_args(req.client_id, args)
         result = posters.generate_poster(**args)
-        _log_isha("poster_generated",
-                  f"{req.business_name} (template={result.get('template')})")
+        _log_isha("poster_generated", f"{req.business_name} (template={result.get('template')})")
         return result
     except Exception as e:
         logger.error(f"Poster generation failed: {e}")
@@ -514,6 +549,7 @@ async def generate_svg_poster(
 # --------------------------------------------------------------------------- #
 # WhatsApp pack
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/whatsapp-pack")
 async def generate_whatsapp_pack(
@@ -528,8 +564,7 @@ async def generate_whatsapp_pack(
             occasion=req.occasion,
             offer=req.offer,
         )
-        _log_isha("whatsapp_pack_generated",
-                  f"{req.business_name} ({req.niche or 'general'})")
+        _log_isha("whatsapp_pack_generated", f"{req.business_name} ({req.niche or 'general'})")
         return result
     except Exception as e:
         logger.error(f"WhatsApp pack generation failed: {e}")
@@ -539,6 +574,7 @@ async def generate_whatsapp_pack(
 # --------------------------------------------------------------------------- #
 # Competitor comparison
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/competitor")
 async def generate_competitor_tips(
@@ -552,8 +588,7 @@ async def generate_competitor_tips(
             niche=req.niche,
             competitor_notes=req.competitor_notes,
         )
-        _log_isha("competitor_tips_generated",
-                  f"{req.business_name} ({req.niche or 'general'})")
+        _log_isha("competitor_tips_generated", f"{req.business_name} ({req.niche or 'general'})")
         return result
     except Exception as e:
         logger.error(f"Competitor tips generation failed: {e}")
@@ -563,6 +598,7 @@ async def generate_competitor_tips(
 # --------------------------------------------------------------------------- #
 # Review-collection kit (Birdeye-lite: QR + counter card + ask messages)
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/review-kit")
 async def generate_review_kit(
@@ -586,6 +622,7 @@ async def generate_review_kit(
 # Monthly report
 # --------------------------------------------------------------------------- #
 
+
 @router.get("/report")
 async def get_monthly_report(
     client_name: str = "",
@@ -595,11 +632,14 @@ async def get_monthly_report(
     """Monthly marketing report (self-contained HTML + stats) — team events se."""
     try:
         result = await monthly_report.build_report(
-            client_name=client_name, month=month or None,
+            client_name=client_name,
+            month=month or None,
         )
-        _log_isha("monthly_report_generated",
-                  f"{client_name or 'business'} ({result.get('month')}, "
-                  f"{result.get('stats', {}).get('total_actions', 0)} actions)")
+        _log_isha(
+            "monthly_report_generated",
+            f"{client_name or 'business'} ({result.get('month')}, "
+            f"{result.get('stats', {}).get('total_actions', 0)} actions)",
+        )
         return result
     except Exception as e:
         logger.error(f"Monthly report failed: {e}")
@@ -609,6 +649,7 @@ async def get_monthly_report(
 # --------------------------------------------------------------------------- #
 # Database reactivation (win-back campaign — manual one-click send)
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/reactivation")
 async def generate_reactivation_campaign(
@@ -623,8 +664,9 @@ async def generate_reactivation_campaign(
             customers=[c.model_dump() for c in req.customers],
             offer=req.offer,
         )
-        _log_isha("reactivation_generated",
-                  f"{req.business_name} ({result.get('count', 0)} customers)")
+        _log_isha(
+            "reactivation_generated", f"{req.business_name} ({result.get('count', 0)} customers)"
+        )
         return result
     except Exception as e:
         logger.error(f"Reactivation campaign failed: {e}")
@@ -634,6 +676,7 @@ async def generate_reactivation_campaign(
 # --------------------------------------------------------------------------- #
 # Drip / nurture sequences
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/drip")
 async def generate_drip_sequence(
@@ -647,8 +690,7 @@ async def generate_drip_sequence(
             niche=req.niche,
             lead_type=req.lead_type,
         )
-        _log_isha("drip_generated",
-                  f"{req.business_name} ({result.get('lead_type')})")
+        _log_isha("drip_generated", f"{req.business_name} ({result.get('lead_type')})")
         return result
     except Exception as e:
         logger.error(f"Drip sequence failed: {e}")
@@ -659,6 +701,7 @@ async def generate_drip_sequence(
 # Brand kit (per-client brand profile)
 # --------------------------------------------------------------------------- #
 
+
 @router.post("/brand/{client_id}")
 async def save_client_brand(
     client_id: str,
@@ -668,9 +711,11 @@ async def save_client_brand(
     """Client ka brand profile save karo (posters/posts me auto-apply hota hai)."""
     try:
         brand = brand_kit.save_brand(client_id, req.model_dump())
-        _log_isha("brand_saved",
-                  f"{brand.get('business_name') or client_id} "
-                  f"(primary={brand.get('colors', {}).get('primary') or '-'})")
+        _log_isha(
+            "brand_saved",
+            f"{brand.get('business_name') or client_id} "
+            f"(primary={brand.get('colors', {}).get('primary') or '-'})",
+        )
         return {"saved": True, "brand": brand}
     except Exception as e:
         logger.error(f"Brand save failed: {e}")
@@ -697,6 +742,7 @@ async def get_client_brand(
 # CRM-lite (customers store + birthday/anniversary wishes)
 # --------------------------------------------------------------------------- #
 
+
 @router.post("/crm/{client_id}/customers")
 async def add_crm_customers(
     client_id: str,
@@ -706,11 +752,13 @@ async def add_crm_customers(
     """Customers add karo (10-digit phone dedupe — existing + same batch)."""
     try:
         result = crm_lite.add_customers(
-            client_id, [c.model_dump() for c in req.customers],
+            client_id,
+            [c.model_dump() for c in req.customers],
         )
-        _log_isha("crm_customers_added",
-                  f"client={client_id} (+{result.get('added', 0)}, "
-                  f"total {result.get('total', 0)})")
+        _log_isha(
+            "crm_customers_added",
+            f"client={client_id} (+{result.get('added', 0)}, " f"total {result.get('total', 0)})",
+        )
         return result
     except Exception as e:
         logger.error(f"CRM add failed: {e}")
@@ -720,7 +768,7 @@ async def add_crm_customers(
 @router.get("/crm/{client_id}/customers")
 async def list_crm_customers(
     client_id: str,
-    tag: Optional[str] = None,
+    tag: str | None = None,
     current_user: User = Depends(require_admin),
 ):
     """Saved customers list (optional ?tag= filter)."""
@@ -742,8 +790,7 @@ async def get_todays_wishes(
     try:
         result = await crm_lite.todays_wishes(client_id, business_name)
         if result.get("count"):
-            _log_isha("wishes_generated",
-                      f"client={client_id} ({result['count']} wishes aaj)")
+            _log_isha("wishes_generated", f"client={client_id} ({result['count']} wishes aaj)")
         return result
     except Exception as e:
         logger.error(f"Wishes lookup failed: {e}")
@@ -753,6 +800,7 @@ async def get_todays_wishes(
 # --------------------------------------------------------------------------- #
 # UPI payment kit (QR + slip + WA message — pure logic)
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/upi-kit")
 async def generate_upi_kit(
@@ -767,9 +815,11 @@ async def generate_upi_kit(
             amount=req.amount,
             note=req.note,
         )
-        _log_isha("upi_kit_generated",
-                  f"{req.business_name} (vpa_valid={result.get('vpa_valid')}, "
-                  f"amount={result.get('amount') or '-'})")
+        _log_isha(
+            "upi_kit_generated",
+            f"{req.business_name} (vpa_valid={result.get('vpa_valid')}, "
+            f"amount={result.get('amount') or '-'})",
+        )
         return result
     except Exception as e:
         logger.error(f"UPI kit generation failed: {e}")
@@ -779,6 +829,7 @@ async def generate_upi_kit(
 # --------------------------------------------------------------------------- #
 # UPI QR Poster (printable counter-stand poster)
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/upi-qr")
 async def generate_upi_qr(
@@ -805,6 +856,7 @@ async def generate_upi_qr(
 # Missed Call WhatsApp auto-reply
 # --------------------------------------------------------------------------- #
 
+
 @router.post("/missed-call-reply")
 async def generate_missed_call_reply(
     req: MissedCallRequest,
@@ -828,6 +880,7 @@ async def generate_missed_call_reply(
 # Catalog (price-list SVG + WhatsApp catalog text)
 # --------------------------------------------------------------------------- #
 
+
 @router.post("/catalog")
 async def generate_catalog(
     req: CatalogRequest,
@@ -840,8 +893,7 @@ async def generate_catalog(
             items=[i.model_dump() for i in req.items],
             style=req.style,
         )
-        _log_isha("catalog_generated",
-                  f"{req.business_name} ({result.get('count', 0)} items)")
+        _log_isha("catalog_generated", f"{req.business_name} ({result.get('count', 0)} items)")
         return result
     except Exception as e:
         logger.error(f"Catalog generation failed: {e}")
@@ -851,6 +903,7 @@ async def generate_catalog(
 # --------------------------------------------------------------------------- #
 # Ads copy pack (Google RSA + Meta)
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/ads-pack")
 async def generate_ads_pack(
@@ -865,8 +918,7 @@ async def generate_ads_pack(
             offer=req.offer,
             city=req.city,
         )
-        _log_isha("ads_pack_generated",
-                  f"{req.business_name} ({req.niche or 'general'})")
+        _log_isha("ads_pack_generated", f"{req.business_name} ({req.niche or 'general'})")
         return result
     except Exception as e:
         logger.error(f"Ads pack generation failed: {e}")
@@ -876,6 +928,7 @@ async def generate_ads_pack(
 # --------------------------------------------------------------------------- #
 # Reels scripts
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/reels")
 async def generate_reels_scripts(
@@ -890,8 +943,7 @@ async def generate_reels_scripts(
             topic=req.topic,
             n=req.n,
         )
-        _log_isha("reels_generated",
-                  f"{req.business_name} ({result.get('count', 0)} scripts)")
+        _log_isha("reels_generated", f"{req.business_name} ({result.get('count', 0)} scripts)")
         return result
     except Exception as e:
         logger.error(f"Reels generation failed: {e}")
@@ -902,14 +954,16 @@ async def generate_reels_scripts(
 # Lead scoring (website inquiries -> hot/warm/cold)
 # --------------------------------------------------------------------------- #
 
+
 @router.get("/lead-scores")
 async def get_lead_scores(current_user: User = Depends(require_admin)):
     """Website inquiries ka rule-based scoring — hot pehle, wa.me ready."""
     try:
         result = lead_scoring.score_leads()
-        _log_isha("lead_scores_viewed",
-                  f"{result.get('total', 0)} leads "
-                  f"(hot={result.get('counts', {}).get('hot', 0)})")
+        _log_isha(
+            "lead_scores_viewed",
+            f"{result.get('total', 0)} leads " f"(hot={result.get('counts', {}).get('hot', 0)})",
+        )
         return result
     except Exception as e:
         logger.error(f"Lead scoring failed: {e}")
@@ -919,6 +973,7 @@ async def get_lead_scores(current_user: User = Depends(require_admin)):
 # --------------------------------------------------------------------------- #
 # GBP texts (description + services + Google posts)
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/gbp-texts")
 async def generate_gbp_texts(
@@ -933,9 +988,11 @@ async def generate_gbp_texts(
             city=req.city,
             services=req.services,
         )
-        _log_isha("gbp_texts_generated",
-                  f"{req.business_name} ({len(result.get('services', []))} services, "
-                  f"desc {result.get('description_chars', 0)} chars)")
+        _log_isha(
+            "gbp_texts_generated",
+            f"{req.business_name} ({len(result.get('services', []))} services, "
+            f"desc {result.get('description_chars', 0)} chars)",
+        )
         return result
     except Exception as e:
         logger.error(f"GBP texts generation failed: {e}")
@@ -945,6 +1002,7 @@ async def generate_gbp_texts(
 # --------------------------------------------------------------------------- #
 # Client content pack (1-click monthly deliverable bundle)
 # --------------------------------------------------------------------------- #
+
 
 @router.post("/content-pack")
 async def generate_client_content_pack(
@@ -962,9 +1020,11 @@ async def generate_client_content_pack(
             phone=req.phone,
         )
         counts = result.get("counts") or {}
-        _log_isha("content_pack",
-                  f"{req.business_name} ({req.niche or 'general'}, "
-                  f"{counts.get('posts', 0)} posts + {counts.get('posters', 0)} posters)")
+        _log_isha(
+            "content_pack",
+            f"{req.business_name} ({req.niche or 'general'}, "
+            f"{counts.get('posts', 0)} posts + {counts.get('posters', 0)} posters)",
+        )
         return result
     except Exception as e:
         logger.error(f"Content pack generation failed: {e}")
@@ -974,6 +1034,7 @@ async def generate_client_content_pack(
 # --------------------------------------------------------------------------- #
 # Programmatic SEO blog (auto-published niche articles — inbound lead magnet)
 # --------------------------------------------------------------------------- #
+
 
 @router.get("/blog")
 async def list_blog_articles(
@@ -997,8 +1058,7 @@ async def run_blog_publish(
     """n naye niche×city articles generate + publish karo (free LLM, template fallback)."""
     try:
         result = await seo_blog.run_daily_blog(n=req.n)
-        _log_isha("seo_blog_run",
-                  f"{result.get('published', 0)} articles published")
+        _log_isha("seo_blog_run", f"{result.get('published', 0)} articles published")
         return result
     except Exception as e:
         logger.error(f"Blog run failed: {e}")

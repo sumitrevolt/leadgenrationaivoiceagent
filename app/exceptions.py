@@ -2,12 +2,13 @@
 Exception Handlers and Custom Exceptions
 Centralized error handling for the platform
 """
-from typing import Optional, Any, Dict
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
+
 import traceback
+from typing import Any
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.utils.logger import setup_logger
@@ -19,15 +20,16 @@ logger = setup_logger(__name__)
 # CUSTOM EXCEPTIONS
 # =============================================================================
 
+
 class LeadGenException(Exception):
     """Base exception for the platform"""
-    
+
     def __init__(
         self,
         message: str,
         code: str = "INTERNAL_ERROR",
         status_code: int = 500,
-        details: Optional[Dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
     ):
         self.message = message
         self.code = code
@@ -38,8 +40,8 @@ class LeadGenException(Exception):
 
 class ValidationException(LeadGenException):
     """Validation error"""
-    
-    def __init__(self, message: str, field: Optional[str] = None):
+
+    def __init__(self, message: str, field: str | None = None):
         super().__init__(
             message=message,
             code="VALIDATION_ERROR",
@@ -50,7 +52,7 @@ class ValidationException(LeadGenException):
 
 class AuthenticationException(LeadGenException):
     """Authentication error"""
-    
+
     def __init__(self, message: str = "Authentication required"):
         super().__init__(
             message=message,
@@ -61,7 +63,7 @@ class AuthenticationException(LeadGenException):
 
 class AuthorizationException(LeadGenException):
     """Authorization error"""
-    
+
     def __init__(self, message: str = "Insufficient permissions"):
         super().__init__(
             message=message,
@@ -72,7 +74,7 @@ class AuthorizationException(LeadGenException):
 
 class ResourceNotFoundException(LeadGenException):
     """Resource not found"""
-    
+
     def __init__(self, resource: str, identifier: str):
         super().__init__(
             message=f"{resource} not found: {identifier}",
@@ -84,7 +86,7 @@ class ResourceNotFoundException(LeadGenException):
 
 class RateLimitException(LeadGenException):
     """Rate limit exceeded"""
-    
+
     def __init__(self, retry_after: int = 60):
         super().__init__(
             message="Rate limit exceeded. Please try again later.",
@@ -96,7 +98,7 @@ class RateLimitException(LeadGenException):
 
 class TelephonyException(LeadGenException):
     """Telephony provider error"""
-    
+
     def __init__(self, message: str, provider: str):
         super().__init__(
             message=message,
@@ -108,7 +110,7 @@ class TelephonyException(LeadGenException):
 
 class LLMException(LeadGenException):
     """LLM provider error"""
-    
+
     def __init__(self, message: str, provider: str):
         super().__init__(
             message=message,
@@ -120,7 +122,7 @@ class LLMException(LeadGenException):
 
 class ScrapingException(LeadGenException):
     """Scraping error"""
-    
+
     def __init__(self, message: str, source: str):
         super().__init__(
             message=message,
@@ -132,7 +134,7 @@ class ScrapingException(LeadGenException):
 
 class QuotaExceededException(LeadGenException):
     """Quota exceeded"""
-    
+
     def __init__(self, resource: str, limit: int, current: int):
         super().__init__(
             message=f"{resource} quota exceeded: {current}/{limit}",
@@ -150,14 +152,15 @@ class QuotaExceededException(LeadGenException):
 # EXCEPTION HANDLERS
 # =============================================================================
 
+
 async def leadgen_exception_handler(
     request: Request,
     exc: LeadGenException,
 ) -> JSONResponse:
     """Handle custom LeadGen exceptions"""
-    
+
     request_id = getattr(request.state, "request_id", "unknown")
-    
+
     logger.error(
         f"LeadGen exception: {exc.code} - {exc.message}",
         extra={
@@ -167,7 +170,7 @@ async def leadgen_exception_handler(
             "details": exc.details,
         },
     )
-    
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -187,9 +190,9 @@ async def http_exception_handler(
     exc: HTTPException,
 ) -> JSONResponse:
     """Handle FastAPI HTTP exceptions"""
-    
+
     request_id = getattr(request.state, "request_id", "unknown")
-    
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -208,18 +211,20 @@ async def validation_exception_handler(
     exc: RequestValidationError,
 ) -> JSONResponse:
     """Handle validation errors"""
-    
+
     request_id = getattr(request.state, "request_id", "unknown")
-    
+
     errors = []
     for error in exc.errors():
         field = ".".join(str(loc) for loc in error["loc"])
-        errors.append({
-            "field": field,
-            "message": error["msg"],
-            "type": error["type"],
-        })
-    
+        errors.append(
+            {
+                "field": field,
+                "message": error["msg"],
+                "type": error["type"],
+            }
+        )
+
     return JSONResponse(
         status_code=422,
         content={
@@ -239,9 +244,9 @@ async def generic_exception_handler(
     exc: Exception,
 ) -> JSONResponse:
     """Handle unexpected exceptions"""
-    
+
     request_id = getattr(request.state, "request_id", "unknown")
-    
+
     # Log full traceback
     logger.error(
         f"Unhandled exception: {str(exc)}",
@@ -250,7 +255,7 @@ async def generic_exception_handler(
             "traceback": traceback.format_exc(),
         },
     )
-    
+
     # In production, don't expose internal errors
     if settings.app_env == "production":
         message = "An unexpected error occurred. Please try again later."
@@ -258,7 +263,7 @@ async def generic_exception_handler(
     else:
         message = str(exc)
         details = {"traceback": traceback.format_exc().split("\n")}
-    
+
     return JSONResponse(
         status_code=500,
         content={
@@ -277,12 +282,13 @@ async def generic_exception_handler(
 # SETUP EXCEPTION HANDLERS
 # =============================================================================
 
+
 def setup_exception_handlers(app: FastAPI):
     """Register all exception handlers"""
-    
+
     app.add_exception_handler(LeadGenException, leadgen_exception_handler)
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(Exception, generic_exception_handler)
-    
+
     logger.info("? Exception handlers configured")

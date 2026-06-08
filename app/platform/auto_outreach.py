@@ -22,13 +22,14 @@ Guards (har layer):
 
 Scheduler (team_scheduler) roz 10:30 IST chalata hai — flag+SMTP off ho to no-op.
 """
+
 from __future__ import annotations
 
 import asyncio
 import html as _html
 import random
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -59,7 +60,7 @@ def _from_name() -> str:
         return "Sumit — LeadGen AI"
 
 
-def _email_subject_body(prospect: Dict[str, Any]) -> Tuple[str, str, str]:
+def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
     """Personalized Hinglish+English cold email — (subject, text, html).
 
     Real Google signal (rating/reviews) ho to acknowledge karta hai. FREE GBP
@@ -174,7 +175,7 @@ def _email_subject_body(prospect: Dict[str, Any]) -> Tuple[str, str, str]:
         return subject, text, text
 
 
-def _followup_subject_body(prospect: Dict[str, Any], step: int) -> Tuple[str, str, str]:
+def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, str, str]:
     """Multi-touch follow-up email — (subject, text, html). step 1 ya 2.
 
     Cold-email me ek touch kaafi nahi — log busy hote hain. Yeh DIFFERENT (chhota,
@@ -243,14 +244,12 @@ def _followup_subject_body(prospect: Dict[str, Any], step: int) -> Tuple[str, st
         text_lines = [
             "Namaste,",
             "",
-            f"{name} ji, yeh mera aakhri reminder hai — uske baad aapko pareshan "
-            "nahi karunga.",
+            f"{name} ji, yeh mera aakhri reminder hai — uske baad aapko pareshan " "nahi karunga.",
             "",
             "Ek chhota idea jo aapke kaam aa sakta hai:",
             idea,
             "",
-            "Aisa free sample + Google profile audit dekhna ho to 2 minute lagenge: "
-            + _AUDIT_URL,
+            "Aisa free sample + Google profile audit dekhna ho to 2 minute lagenge: " + _AUDIT_URL,
             "Ya seedha WhatsApp: " + _WA_LINK,
             "",
             _UNSUB_LINE,
@@ -305,7 +304,7 @@ _FOLLOWUP_MAX = 2
 _FOLLOWUP_GAP_DAYS = {0: 3, 1: 7}  # followup_count -> days since last email before next touch
 
 
-def _days_since(iso_ts: str) -> Optional[float]:
+def _days_since(iso_ts: str) -> float | None:
     """ISO timestamp (emailed_at) se ab tak kitne din. Parse-fail -> None."""
     s = (iso_ts or "").strip()
     if not s:
@@ -320,14 +319,14 @@ def _days_since(iso_ts: str) -> Optional[float]:
         return None
 
 
-async def run_email_outreach(limit: Optional[int] = None) -> Dict[str, Any]:
+async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
     """Ready prospects (jinka email hai aur abhi tak email nahi gaya) ko
     personalized cold email auto-bhejo. NEVER raises.
 
     Returns: {"sent": n, "skipped_no_email": x, "failed": y, "cap": c, ...}
     ya {"skipped": "<reason>"} jab flag/SMTP off ho.
     """
-    result: Dict[str, Any] = {"sent": 0, "skipped_no_email": 0, "failed": 0, "cap": 0}
+    result: dict[str, Any] = {"sent": 0, "skipped_no_email": 0, "failed": 0, "cap": 0}
     try:
         from app.config import settings
 
@@ -338,6 +337,7 @@ async def run_email_outreach(limit: Optional[int] = None) -> Dict[str, Any]:
         _api = False
         try:
             from app.integrations.email_api import api_available
+
             _api = api_available()
         except Exception:
             _api = False
@@ -348,7 +348,7 @@ async def run_email_outreach(limit: Optional[int] = None) -> Dict[str, Any]:
         from app.platform import prospector
 
         # Pick: status ready + email present + not already emailed.
-        candidates: List[Dict[str, Any]] = []
+        candidates: list[dict[str, Any]] = []
         for p in prospector.list_prospects(status="ready", limit=500):
             email = str(p.get("email") or "").strip()
             if not _valid_email(email):
@@ -430,7 +430,7 @@ async def run_email_outreach(limit: Optional[int] = None) -> Dict[str, Any]:
         return result
 
 
-async def run_email_followups(limit: Optional[int] = None) -> Dict[str, Any]:
+async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
     """Pehle email ho chuke prospects ko multi-touch FOLLOW-UP bhejo. NEVER raises.
 
     Eligible prospect:
@@ -443,8 +443,11 @@ async def run_email_followups(limit: Optional[int] = None) -> Dict[str, Any]:
 
     Returns: {"sent","skipped":..,"failed","cap","candidates","by_step":{1,2}}
     """
-    result: Dict[str, Any] = {
-        "sent": 0, "failed": 0, "cap": 0, "candidates": 0,
+    result: dict[str, Any] = {
+        "sent": 0,
+        "failed": 0,
+        "cap": 0,
+        "candidates": 0,
         "by_step": {"1": 0, "2": 0},
     }
     try:
@@ -456,6 +459,7 @@ async def run_email_followups(limit: Optional[int] = None) -> Dict[str, Any]:
         _api = False
         try:
             from app.integrations.email_api import api_available
+
             _api = api_available()
         except Exception:
             _api = False
@@ -466,7 +470,7 @@ async def run_email_followups(limit: Optional[int] = None) -> Dict[str, Any]:
         from app.platform import prospector
 
         _DONE = {"replied", "client", "dead"}
-        candidates: List[Tuple[Dict[str, Any], int]] = []  # (prospect, step)
+        candidates: list[tuple[dict[str, Any], int]] = []  # (prospect, step)
         for p in prospector.list_prospects(limit=500):
             try:
                 if str(p.get("status") or "ready").lower() in _DONE:
@@ -566,7 +570,7 @@ async def run_email_followups(limit: Optional[int] = None) -> Dict[str, Any]:
         return result
 
 
-def outreach_stats() -> Dict[str, Any]:
+def outreach_stats() -> dict[str, Any]:
     """Email-outreach counts: total prospects / with_email / emailed / pending.
     KABHI raise nahi karta (failure pe zeros)."""
     stats = {"total": 0, "with_email": 0, "emailed": 0, "pending": 0}
@@ -588,8 +592,9 @@ def outreach_stats() -> Dict[str, Any]:
     return stats
 
 
-def _log_event(action: str, summary: str, status: str = "ok",
-               meta: Optional[Dict[str, Any]] = None) -> None:
+def _log_event(
+    action: str, summary: str, status: str = "ok", meta: dict[str, Any] | None = None
+) -> None:
     """Rohan ke naam se team event (best-effort)."""
     try:
         from app.platform.team import log_event
@@ -600,6 +605,9 @@ def _log_event(action: str, summary: str, status: str = "ok",
 
 
 __all__ = [
-    "run_email_outreach", "run_email_followups", "outreach_stats",
-    "_email_subject_body", "_followup_subject_body",
+    "run_email_outreach",
+    "run_email_followups",
+    "outreach_stats",
+    "_email_subject_body",
+    "_followup_subject_body",
 ]

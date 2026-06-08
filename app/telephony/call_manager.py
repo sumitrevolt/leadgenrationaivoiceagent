@@ -2,25 +2,27 @@
 Call Manager
 Unified call orchestration for Twilio and Exotel
 """
+
 import asyncio
-from typing import Optional, Dict, Any, List
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import uuid
+from typing import Any
 
 from app.config import settings
-from app.telephony.twilio_handler import TwilioHandler
 from app.telephony.exotel_handler import ExotelHandler
-from app.voice_agent.agent import VoiceAgent, CallStatus, CallContext
-from app.utils.logger import setup_logger
+from app.telephony.twilio_handler import TwilioHandler
 from app.utils.dnd_checker import DNDChecker
+from app.utils.logger import setup_logger
+from app.voice_agent.agent import CallContext, CallStatus, VoiceAgent
 
 logger = setup_logger(__name__)
 
 
 class TelephonyProvider(Enum):
     """Supported telephony providers"""
+
     TWILIO = "twilio"
     EXOTEL = "exotel"
 
@@ -28,6 +30,7 @@ class TelephonyProvider(Enum):
 @dataclass
 class CallRequest:
     """Request to make a call"""
+
     lead_id: str
     phone_number: str
     campaign_id: str
@@ -35,15 +38,16 @@ class CallRequest:
     client_name: str
     client_service: str
     script_name: str
-    lead_data: Dict[str, Any]
+    lead_data: dict[str, Any]
     priority: int = 5  # 1 = highest, 10 = lowest
     retry_count: int = 0
-    scheduled_time: Optional[datetime] = None
+    scheduled_time: datetime | None = None
 
 
 @dataclass
 class CallResult:
     """Result of a completed call"""
+
     call_id: str
     lead_id: str
     phone_number: str
@@ -51,18 +55,18 @@ class CallResult:
     duration_seconds: int
     outcome: str  # interested, not_interested, callback, appointment, no_answer
     lead_score: int
-    qualification_data: Dict[str, Any]
-    transcript: List[Dict[str, str]]
-    recording_url: Optional[str]
-    appointment_details: Optional[Dict[str, Any]]
-    callback_time: Optional[str]
+    qualification_data: dict[str, Any]
+    transcript: list[dict[str, str]]
+    recording_url: str | None
+    appointment_details: dict[str, Any] | None
+    callback_time: str | None
     completed_at: datetime
 
 
 class CallManager:
     """
     Unified Call Manager
-    
+
     Handles:
     - Call queue management
     - Provider selection (Twilio/Exotel)
@@ -71,41 +75,41 @@ class CallManager:
     - Retry logic
     - Call result processing
     """
-    
-    def __init__(self, provider: Optional[str] = None):
+
+    def __init__(self, provider: str | None = None):
         provider = provider or settings.default_telephony
-        
+
         if provider == "twilio":
             self.handler = TwilioHandler()
         elif provider == "exotel":
             self.handler = ExotelHandler()
         else:
             raise ValueError(f"Unknown telephony provider: {provider}")
-        
+
         self.provider = TelephonyProvider(provider)
         self.voice_agent = VoiceAgent()
         self.dnd_checker = DNDChecker()
-        
+
         # Call queue
         self.call_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
-        self.active_calls: Dict[str, CallContext] = {}
-        self.completed_calls: List[CallResult] = []
-        
+        self.active_calls: dict[str, CallContext] = {}
+        self.completed_calls: list[CallResult] = []
+
         # Concurrency control
         self.max_concurrent_calls = settings.max_concurrent_calls
         self.semaphore = asyncio.Semaphore(self.max_concurrent_calls)
-        
+
         # Stats
         self.calls_made = 0
         self.calls_connected = 0
         self.calls_failed = 0
-        
+
         logger.info(f"📞 Call Manager initialized with {provider}")
-    
+
     async def queue_call(self, request: CallRequest) -> str:
         """
         Add a call to the queue
-        
+
         Returns:
             Call ID for tracking
         """
@@ -116,11 +120,9 @@ class CallManager:
         # compliant is NEVER queued (TCCCPR; penalty up to ₹10L). Fixes the old
         # dead `dnd_checker.check()` call (that method never existed).
         try:
-            from app.telephony.compliance import get_compliance_gate, CallType
+            from app.telephony.compliance import CallType, get_compliance_gate
 
-            decision = await get_compliance_gate().check(
-                request.phone_number, CallType.PROMOTIONAL
-            )
+            decision = await get_compliance_gate().check(request.phone_number, CallType.PROMOTIONAL)
             if not decision.allowed:
                 logger.warning(
                     f"Call to {request.phone_number} blocked by compliance: {decision.reasons}"
@@ -133,52 +135,47 @@ class CallManager:
             return f"compliance_error_{call_id}"
 
         # Add to priority queue (lower number = higher priority)
-        await self.call_queue.put((
-            request.priority,
-            datetime.now().timestamp(),
-            call_id,
-            request
-        ))
-        
+        await self.call_queue.put((request.priority, datetime.now().timestamp(), call_id, request))
+
         logger.info(f"Call queued: {call_id} to {request.phone_number}")
         return call_id
-    
+
     async def start_call_processor(self):
         """
         Start processing calls from queue
         Call this in a background task
         """
         logger.info("🚀 Call processor started")
-        
+
         while True:
             try:
                 # Get next call from queue
                 priority, timestamp, call_id, request = await self.call_queue.get()
-                
+
                 # Check if scheduled for later
                 if request.scheduled_time and datetime.now() < request.scheduled_time:
                     # Re-queue for later
                     await self.call_queue.put((priority, timestamp, call_id, request))
                     await asyncio.sleep(60)  # Check again in 1 minute
                     continue
-                
+
                 # Process call with concurrency limit
                 asyncio.create_task(self._process_call(call_id, request))
-                
+
             except asyncio.CancelledError:
                 logger.info("Call processor stopped")
                 break
             except Exception as e:
                 logger.error(f"Call processor error: {e}")
                 await asyncio.sleep(5)
-    
+
     async def _process_call(self, call_id: str, request: CallRequest):
         """Process a single call"""
         async with self.semaphore:
             try:
                 logger.info(f"📞 Making call {call_id} to {request.phone_number}")
                 self.calls_made += 1
-                
+
                 # Initialize voice agent for this call
                 context = await self.voice_agent.start_call(
                     lead_id=request.lead_id,
@@ -188,43 +185,36 @@ class CallManager:
                     client_name=request.client_name,
                     client_service=request.client_service,
                     script_name=request.script_name,
-                    lead_data=request.lead_data
+                    lead_data=request.lead_data,
                 )
-                
+
                 self.active_calls[call_id] = context
-                
+
                 # Make the actual call
                 if self.provider == TelephonyProvider.TWILIO:
                     call_sid = await self.handler.make_call(
-                        to_number=request.phone_number,
-                        call_id=call_id
+                        to_number=request.phone_number, call_id=call_id
                     )
                 else:  # Exotel
                     call_sid = await self.handler.make_call(
-                        to_number=request.phone_number,
-                        call_id=call_id
+                        to_number=request.phone_number, call_id=call_id
                     )
-                
+
                 if call_sid:
                     context.status = CallStatus.RINGING
                     self.calls_connected += 1
                     logger.info(f"Call {call_id} connected: {call_sid}")
                 else:
                     await self._handle_call_failure(call_id, request, "Failed to connect")
-                
+
             except Exception as e:
                 logger.error(f"Call {call_id} failed: {e}")
                 await self._handle_call_failure(call_id, request, str(e))
-    
-    async def _handle_call_failure(
-        self,
-        call_id: str,
-        request: CallRequest,
-        error: str
-    ):
+
+    async def _handle_call_failure(self, call_id: str, request: CallRequest, error: str):
         """Handle failed call with retry logic"""
         self.calls_failed += 1
-        
+
         if request.retry_count < settings.call_retry_attempts:
             # Schedule retry
             request.retry_count += 1
@@ -232,40 +222,41 @@ class CallManager:
             request.scheduled_time = datetime.now() + asyncio.timedelta(
                 minutes=settings.call_retry_delay_minutes * request.retry_count
             )
-            
-            await self.call_queue.put((
-                request.priority,
-                datetime.now().timestamp(),
-                f"{call_id}_retry{request.retry_count}",
-                request
-            ))
-            
+
+            await self.call_queue.put(
+                (
+                    request.priority,
+                    datetime.now().timestamp(),
+                    f"{call_id}_retry{request.retry_count}",
+                    request,
+                )
+            )
+
             logger.info(f"Call {call_id} scheduled for retry #{request.retry_count}")
         else:
             logger.warning(f"Call {call_id} failed after {request.retry_count} retries")
-            
+
             # Record as failed
-            self.completed_calls.append(CallResult(
-                call_id=call_id,
-                lead_id=request.lead_id,
-                phone_number=request.phone_number,
-                status="failed",
-                duration_seconds=0,
-                outcome="failed",
-                lead_score=0,
-                qualification_data={},
-                transcript=[],
-                recording_url=None,
-                appointment_details=None,
-                callback_time=None,
-                completed_at=datetime.now()
-            ))
-    
+            self.completed_calls.append(
+                CallResult(
+                    call_id=call_id,
+                    lead_id=request.lead_id,
+                    phone_number=request.phone_number,
+                    status="failed",
+                    duration_seconds=0,
+                    outcome="failed",
+                    lead_score=0,
+                    qualification_data={},
+                    transcript=[],
+                    recording_url=None,
+                    appointment_details=None,
+                    callback_time=None,
+                    completed_at=datetime.now(),
+                )
+            )
+
     async def handle_call_completed(
-        self,
-        call_id: str,
-        duration: int,
-        recording_url: Optional[str] = None
+        self, call_id: str, duration: int, recording_url: str | None = None
     ) -> CallResult:
         """
         Handle a completed call
@@ -275,13 +266,13 @@ class CallManager:
         if not context:
             logger.warning(f"No context found for call {call_id}")
             return None
-        
+
         # End call in voice agent
         summary = await self.voice_agent.end_call(call_id)
-        
+
         # Determine outcome
         outcome = self._determine_outcome(summary)
-        
+
         result = CallResult(
             call_id=call_id,
             lead_id=context.lead_id,
@@ -295,17 +286,17 @@ class CallManager:
             recording_url=recording_url,
             appointment_details=summary.get("appointment_details"),
             callback_time=summary.get("callback_time"),
-            completed_at=datetime.now()
+            completed_at=datetime.now(),
         )
-        
+
         self.completed_calls.append(result)
         del self.active_calls[call_id]
-        
+
         logger.info(f"✅ Call {call_id} completed. Outcome: {outcome}, Score: {result.lead_score}")
-        
+
         return result
-    
-    def _determine_outcome(self, summary: Dict[str, Any]) -> str:
+
+    def _determine_outcome(self, summary: dict[str, Any]) -> str:
         """Determine call outcome from summary"""
         if summary.get("appointment_scheduled"):
             return "appointment"
@@ -319,8 +310,8 @@ class CallManager:
             return "opt_out"
         else:
             return "no_answer"
-    
-    def get_stats(self) -> Dict[str, Any]:
+
+    def get_stats(self) -> dict[str, Any]:
         """Get call statistics"""
         return {
             "calls_made": self.calls_made,
@@ -330,33 +321,32 @@ class CallManager:
             "queued_calls": self.call_queue.qsize(),
             "completed_calls": len(self.completed_calls),
             "connection_rate": self.calls_connected / self.calls_made if self.calls_made > 0 else 0,
-            "outcomes": self._get_outcome_stats()
+            "outcomes": self._get_outcome_stats(),
         }
-    
-    def _get_outcome_stats(self) -> Dict[str, int]:
+
+    def _get_outcome_stats(self) -> dict[str, int]:
         """Get outcome breakdown"""
         outcomes = {}
         for call in self.completed_calls:
             outcomes[call.outcome] = outcomes.get(call.outcome, 0) + 1
         return outcomes
-    
-    async def get_hot_leads(self, min_score: int = 70) -> List[CallResult]:
+
+    async def get_hot_leads(self, min_score: int = 70) -> list[CallResult]:
         """Get high-scoring leads from completed calls"""
-        return [
-            call for call in self.completed_calls
-            if call.lead_score >= min_score
-        ]
-    
-    async def get_callbacks(self) -> List[CallResult]:
+        return [call for call in self.completed_calls if call.lead_score >= min_score]
+
+    async def get_callbacks(self) -> list[CallResult]:
         """Get all callback requests"""
         return [
-            call for call in self.completed_calls
+            call
+            for call in self.completed_calls
             if call.outcome == "callback" and call.callback_time
         ]
-    
-    async def get_appointments(self) -> List[CallResult]:
+
+    async def get_appointments(self) -> list[CallResult]:
         """Get all booked appointments"""
         return [
-            call for call in self.completed_calls
+            call
+            for call in self.completed_calls
             if call.outcome == "appointment" and call.appointment_details
         ]

@@ -17,6 +17,7 @@ Consumers:
 
 Pure-data module — koi heavy import nahi (import-safe, kabhi raise nahi karta).
 """
+
 from __future__ import annotations
 
 PACKAGES: list[dict] = [

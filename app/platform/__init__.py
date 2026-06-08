@@ -8,20 +8,24 @@ Business Model:
 
 Everything is AUTOMATED with minimal human intervention.
 """
-from typing import Optional, List, Dict
-from pydantic import BaseModel, Field
+
 from datetime import datetime
 from enum import Enum
+from typing import Dict, List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class TenantType(Enum):
     """Type of tenant on the platform"""
+
     PLATFORM_OWNER = "platform_owner"  # Your company
     CLIENT = "client"  # Businesses using your service
 
 
 class SubscriptionTier(Enum):
     """Subscription tiers for clients"""
+
     TRIAL = "trial"  # 7-day free trial
     STARTER = "starter"  # ₹15,000/month - 500 calls
     GROWTH = "growth"  # ₹25,000/month - 2000 calls
@@ -31,6 +35,7 @@ class SubscriptionTier(Enum):
 
 class AutomationLevel(Enum):
     """Level of automation for tenant"""
+
     FULL_AUTO = "full_auto"  # Everything automated
     SEMI_AUTO = "semi_auto"  # Human reviews hot leads
     MANUAL = "manual"  # Human approves each step
@@ -38,17 +43,18 @@ class AutomationLevel(Enum):
 
 class TenantConfig(BaseModel):
     """Configuration for each tenant (client)"""
+
     tenant_id: str
     company_name: str
     tenant_type: TenantType
-    
+
     # Business Details
     industry: str
     target_audience: str  # B2B or B2C
-    services: List[str]
-    target_niches: List[str]
-    target_cities: List[str]
-    
+    services: list[str]
+    target_niches: list[str]
+    target_cities: list[str]
+
     # Automation Settings
     automation_level: AutomationLevel = AutomationLevel.FULL_AUTO
     auto_scrape: bool = True  # Auto-scrape leads daily
@@ -56,22 +62,22 @@ class TenantConfig(BaseModel):
     auto_followup: bool = True  # Auto-followup on interested leads
     auto_appointment: bool = True  # Auto-book appointments
     auto_crm_sync: bool = True  # Auto-sync to CRM
-    
+
     # Subscription
     subscription_tier: SubscriptionTier
     monthly_call_limit: int
     calls_used: int = 0
-    
+
     # Notifications (minimal human touch points)
     notify_on_hot_lead: bool = True
     notify_on_appointment: bool = True
     notify_daily_report: bool = True
-    notification_channels: List[str] = ["whatsapp", "email"]
-    
+    notification_channels: list[str] = ["whatsapp", "email"]
+
     # API Keys (each tenant can have their own)
-    custom_telephony_config: Optional[Dict] = None
-    custom_crm_config: Optional[Dict] = None
-    
+    custom_telephony_config: dict | None = None
+    custom_crm_config: dict | None = None
+
     # Status
     is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.now)
@@ -81,15 +87,13 @@ class TenantConfig(BaseModel):
 PLATFORM_CONFIG = {
     "company_name": "LeadGen AI Solutions",  # Your Company Name
     "tagline": "AI Automated Marketing + Voice Agent for Indian Businesses",
-    
     # What your company sells
     "services": [
         "AI Voice Agent for Lead Generation",
         "Automated Cold Calling System",
         "Smart Lead Qualification",
-        "CRM Integration Services"
+        "CRM Integration Services",
     ],
-    
     # Target niches - businesses that need lead generation
     "target_niches": [
         "real_estate",
@@ -99,15 +103,21 @@ PLATFORM_CONFIG = {
         "financial_services",
         "saas_companies",
         "recruitment_agencies",
-        "educational_institutes"
+        "educational_institutes",
     ],
-    
     # Target cities for finding clients
     "target_cities": [
-        "Mumbai", "Delhi", "Bangalore", "Hyderabad", "Chennai",
-        "Pune", "Ahmedabad", "Kolkata", "Jaipur", "Lucknow"
+        "Mumbai",
+        "Delhi",
+        "Bangalore",
+        "Hyderabad",
+        "Chennai",
+        "Pune",
+        "Ahmedabad",
+        "Kolkata",
+        "Jaipur",
+        "Lucknow",
     ],
-    
     # Automation for YOUR company's lead gen
     "automation": {
         "daily_scrape_time": "06:00",  # Scrape new leads daily
@@ -115,6 +125,6 @@ PLATFORM_CONFIG = {
         "daily_call_end": "18:00",  # Stop calling
         "leads_per_day": 100,  # Scrape 100 potential clients/day
         "calls_per_day": 50,  # Call 50 potential clients/day
-        "auto_onboard_trial": True  # Auto-start trial for interested leads
-    }
+        "auto_onboard_trial": True,  # Auto-start trial for interested leads
+    },
 }

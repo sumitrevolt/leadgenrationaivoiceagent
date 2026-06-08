@@ -13,10 +13,9 @@ Har channel try/except + hasattr/getattr defensive checks ke saath wrapped hai.
 Agar koi channel configured nahi hai (keys missing), to wo "skipped" ho jata hai —
 service kabhi crash nahi karta.
 """
-import asyncio
-from typing import Optional, Dict, Any, List
+
 from dataclasses import dataclass, field
-from datetime import datetime
+from typing import Any
 
 from app.config import settings
 from app.utils.logger import setup_logger
@@ -28,6 +27,7 @@ logger = setup_logger(__name__)
 # RESULT DATA STRUCTURES
 # =============================================================================
 
+
 @dataclass
 class DeliveryResult:
     """
@@ -37,11 +37,12 @@ class DeliveryResult:
     failed    : channels jo error ke karan fail hue (dict: channel -> error str)
     skipped   : channels jo configured nahi the (skipped)
     """
+
     lead_ref: str = ""
-    succeeded: List[str] = field(default_factory=list)
-    failed: Dict[str, str] = field(default_factory=dict)
-    skipped: List[str] = field(default_factory=list)
-    details: Dict[str, Any] = field(default_factory=dict)
+    succeeded: list[str] = field(default_factory=list)
+    failed: dict[str, str] = field(default_factory=dict)
+    skipped: list[str] = field(default_factory=list)
+    details: dict[str, Any] = field(default_factory=dict)
 
     @property
     def any_delivered(self) -> bool:
@@ -59,7 +60,7 @@ class DeliveryResult:
     def mark_skipped(self, channel: str):
         self.skipped.append(channel)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "lead_ref": self.lead_ref,
             "succeeded": self.succeeded,
@@ -73,6 +74,7 @@ class DeliveryResult:
 # =============================================================================
 # LEAD DELIVERY SERVICE
 # =============================================================================
+
 
 class LeadDelivery:
     """
@@ -114,6 +116,7 @@ class LeadDelivery:
         if self._whatsapp is None:
             try:
                 from app.integrations.whatsapp import WhatsAppIntegration
+
                 self._whatsapp = WhatsAppIntegration()
             except Exception as e:
                 logger.error(f"WhatsApp integration load error: {e}")
@@ -124,6 +127,7 @@ class LeadDelivery:
         if self._sheets is None:
             try:
                 from app.integrations.google_sheets import GoogleSheetsIntegration
+
                 self._sheets = GoogleSheetsIntegration()
             except Exception as e:
                 logger.error(f"Google Sheets integration load error: {e}")
@@ -134,6 +138,7 @@ class LeadDelivery:
         if self._hubspot is None:
             try:
                 from app.integrations.hubspot import HubSpotIntegration
+
                 self._hubspot = HubSpotIntegration()
             except Exception as e:
                 logger.error(f"HubSpot integration load error: {e}")
@@ -144,6 +149,7 @@ class LeadDelivery:
         if self._email is None:
             try:
                 from app.integrations.email_sender import EmailSender
+
                 self._email = EmailSender()
             except Exception as e:
                 logger.error(f"Email integration load error: {e}")
@@ -156,8 +162,8 @@ class LeadDelivery:
 
     async def deliver_lead(
         self,
-        lead: Dict[str, Any],
-        client_config: Optional[Dict[str, Any]] = None,
+        lead: dict[str, Any],
+        client_config: dict[str, Any] | None = None,
     ) -> DeliveryResult:
         """
         Ek qualified lead ko saare configured channels par deliver karta hai.
@@ -180,10 +186,7 @@ class LeadDelivery:
         lead = lead or {}
 
         lead_ref = (
-            lead.get("business")
-            or lead.get("company_name")
-            or lead.get("phone")
-            or "unknown-lead"
+            lead.get("business") or lead.get("company_name") or lead.get("phone") or "unknown-lead"
         )
         result = DeliveryResult(lead_ref=str(lead_ref))
 
@@ -211,15 +214,15 @@ class LeadDelivery:
 
     async def deliver_batch(
         self,
-        leads: List[Dict[str, Any]],
-        client_config: Optional[Dict[str, Any]] = None,
-    ) -> List[DeliveryResult]:
+        leads: list[dict[str, Any]],
+        client_config: dict[str, Any] | None = None,
+    ) -> list[DeliveryResult]:
         """
         Multiple leads ko deliver karta hai. Har lead independently process hoti
         hai — ek lead fail ho to baaki continue rehti hain.
         """
-        results: List[DeliveryResult] = []
-        for lead in (leads or []):
+        results: list[DeliveryResult] = []
+        for lead in leads or []:
             try:
                 res = await self.deliver_lead(lead, client_config)
             except Exception as e:
@@ -237,8 +240,8 @@ class LeadDelivery:
 
     async def _deliver_whatsapp(
         self,
-        lead: Dict[str, Any],
-        client_config: Dict[str, Any],
+        lead: dict[str, Any],
+        client_config: dict[str, Any],
         result: DeliveryResult,
     ):
         channel = "whatsapp"
@@ -290,8 +293,8 @@ class LeadDelivery:
 
     async def _deliver_sheets(
         self,
-        lead: Dict[str, Any],
-        client_config: Dict[str, Any],
+        lead: dict[str, Any],
+        client_config: dict[str, Any],
         result: DeliveryResult,
     ):
         channel = "sheets"
@@ -313,9 +316,8 @@ class LeadDelivery:
                 result.mark_skipped(channel)
                 return
 
-            spreadsheet_id = (
-                client_config.get("spreadsheet_id")
-                or getattr(sheets, "default_spreadsheet", None)
+            spreadsheet_id = client_config.get("spreadsheet_id") or getattr(
+                sheets, "default_spreadsheet", None
             )
             if not spreadsheet_id:
                 logger.info(f"{channel}: skipped (no spreadsheet id)")
@@ -345,8 +347,8 @@ class LeadDelivery:
 
     async def _deliver_hubspot(
         self,
-        lead: Dict[str, Any],
-        client_config: Dict[str, Any],
+        lead: dict[str, Any],
+        client_config: dict[str, Any],
         result: DeliveryResult,
     ):
         channel = "hubspot"
@@ -381,7 +383,7 @@ class LeadDelivery:
                 result.mark_failed(channel, "no contact id returned")
                 return
 
-            info: Dict[str, Any] = {"contact_id": contact_id}
+            info: dict[str, Any] = {"contact_id": contact_id}
             logger.info(f"{channel}: contact created/updated id={contact_id}")
 
             # Optionally ek deal bhi banao
@@ -414,8 +416,8 @@ class LeadDelivery:
 
     async def _deliver_email(
         self,
-        lead: Dict[str, Any],
-        client_config: Dict[str, Any],
+        lead: dict[str, Any],
+        client_config: dict[str, Any],
         result: DeliveryResult,
     ):
         channel = "email"
@@ -473,7 +475,7 @@ class LeadDelivery:
     # HELPERS
     # ---------------------------------------------------------------------
 
-    def _format_lead_message(self, lead: Dict[str, Any]) -> str:
+    def _format_lead_message(self, lead: dict[str, Any]) -> str:
         """
         Clean WhatsApp/email text banata hai lead ke fields se.
         Fields: business, contact, phone, city, niche, score, qualification, source.
@@ -489,8 +491,8 @@ class LeadDelivery:
 
         # Score ke hisab se emoji
         score_str = str(score)
-        emoji = "🔥" if score_str.lower() == "hot" else (
-            "🌤️" if score_str.lower() == "warm" else "❄️"
+        emoji = (
+            "🔥" if score_str.lower() == "hot" else ("🌤️" if score_str.lower() == "warm" else "❄️")
         )
 
         message = f"""{emoji} *NEW QUALIFIED LEAD*
@@ -510,7 +512,7 @@ class LeadDelivery:
 
         return message
 
-    def _to_sheet_lead(self, lead: Dict[str, Any]) -> Dict[str, Any]:
+    def _to_sheet_lead(self, lead: dict[str, Any]) -> dict[str, Any]:
         """
         Lead dict ko GoogleSheetsIntegration.append_lead ke expected keys me map karta hai.
         """
@@ -530,7 +532,7 @@ class LeadDelivery:
             "notes": lead.get("qualification") or lead.get("notes", ""),
         }
 
-    def _to_hubspot_contact(self, lead: Dict[str, Any]) -> Dict[str, Any]:
+    def _to_hubspot_contact(self, lead: dict[str, Any]) -> dict[str, Any]:
         """
         Lead dict ko HubSpotIntegration.create_contact ke expected keys me map karta hai.
         """
@@ -573,7 +575,7 @@ class LeadDelivery:
 # SINGLETON
 # =============================================================================
 
-_lead_delivery_instance: Optional[LeadDelivery] = None
+_lead_delivery_instance: LeadDelivery | None = None
 
 
 def get_lead_delivery() -> LeadDelivery:

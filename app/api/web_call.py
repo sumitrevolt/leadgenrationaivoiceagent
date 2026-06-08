@@ -28,7 +28,8 @@ Server -> Client (JSON):
 Import-safe: degrades gracefully if the VoicePipeline or providers are missing —
 falls back to a simple LLM responder, and if even that is unavailable, an echo.
 """
-from typing import Any, Dict, Optional
+
+from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -42,21 +43,23 @@ router = APIRouter(prefix="/web-call", tags=["Web Call (Test Mode)"])
 # ---------------------------------------------------------------------------- #
 # Lazy, import-safe resolvers
 # ---------------------------------------------------------------------------- #
-def _get_pipeline() -> Optional[Any]:
+def _get_pipeline() -> Any | None:
     """Lazily build app.voice_agent.pipeline.VoicePipeline (owned by another
     agent — may not exist). Returns None on any failure."""
     try:
         from app.voice_agent.pipeline import VoicePipeline  # type: ignore
+
         return VoicePipeline()
     except Exception as e:
         logger.debug(f"web-call: VoicePipeline unavailable ({e}).")
         return None
 
 
-def _get_registry_describe() -> Optional[Dict[str, Any]]:
+def _get_registry_describe() -> dict[str, Any] | None:
     """Call get_registry().describe() if such a provider registry exists."""
     try:
         from app.voice_agent.registry import get_registry  # type: ignore
+
         reg = get_registry()
         describe = getattr(reg, "describe", None)
         if callable(describe):
@@ -66,17 +69,18 @@ def _get_registry_describe() -> Optional[Dict[str, Any]]:
     return None
 
 
-def _get_llm_brain() -> Optional[Any]:
+def _get_llm_brain() -> Any | None:
     """Fallback responder — the LLM brain — if no full pipeline is present."""
     try:
         from app.voice_agent.llm_brain import LLMBrain  # type: ignore
+
         return LLMBrain()
     except Exception as e:
         logger.debug(f"web-call: LLMBrain unavailable ({e}).")
         return None
 
 
-def _get_natural_dialog(niche: str, client_name: str, client_service: str) -> Optional[Any]:
+def _get_natural_dialog(niche: str, client_name: str, client_service: str) -> Any | None:
     """
     Build the NaturalDialogManager — the human-like "listen -> understand ->
     answer" brain. THIS is what makes the bot reply like a person: short,
@@ -87,6 +91,7 @@ def _get_natural_dialog(niche: str, client_name: str, client_service: str) -> Op
     """
     try:
         from app.voice_agent.natural_dialog import NaturalDialogManager  # type: ignore
+
         niche = niche or "general"
         return NaturalDialogManager(
             niche=niche,
@@ -98,7 +103,7 @@ def _get_natural_dialog(niche: str, client_name: str, client_service: str) -> Op
         return None
 
 
-async def _edge_tts_mp3_b64(text: str) -> Optional[str]:
+async def _edge_tts_mp3_b64(text: str) -> str | None:
     """
     Synthesize `text` to the SAME natural Hindi voice as the phone agent
     (EdgeTTS hi-IN-SwaraNeural, slightly brisk) and return a base64-encoded mp3
@@ -113,7 +118,7 @@ async def _edge_tts_mp3_b64(text: str) -> Optional[str]:
     if not text:
         return None
 
-    async def _synth() -> Optional[str]:
+    async def _synth() -> str | None:
         try:
             import edge_tts  # type: ignore
         except Exception:
@@ -150,27 +155,32 @@ def _script_opening(niche: str, client_name: str = "Demo Co") -> str:
     opening = ""
     try:
         from app.voice_agent.niche_scripts import get_script  # type: ignore
+
         opening = (get_script(niche) or {}).get("opening", "") or ""
     except Exception:
         opening = ""
     if opening:
-        opening = (opening
-                   .replace("[Company]", client_name or "hamari company")
-                   .replace("[Name]", "Swara")
-                   .replace("[Project]", "hamare project"))
+        opening = (
+            opening.replace("[Company]", client_name or "hamari company")
+            .replace("[Name]", "Swara")
+            .replace("[Project]", "hamare project")
+        )
         return opening.strip()
-    return (f"Namaste! Main Swara bol rahi hoon {client_name or 'hamari company'} ki taraf se — "
-            "bas ek minute baat kar sakti hoon?")
+    return (
+        f"Namaste! Main Swara bol rahi hoon {client_name or 'hamari company'} ki taraf se — "
+        "bas ek minute baat kar sakti hoon?"
+    )
 
 
 async def _maybe_await(value: Any) -> Any:
     import asyncio
+
     if asyncio.iscoroutine(value) or isinstance(value, asyncio.Future):
         return await value
     return value
 
 
-def _pipeline_text_method(pipeline: Any) -> Optional[Any]:
+def _pipeline_text_method(pipeline: Any) -> Any | None:
     """
     Return the pipeline's text-responder method, or None.
     VoicePipeline is built for live audio streaming and may expose NO text
@@ -190,7 +200,7 @@ def _pipeline_text_method(pipeline: Any) -> Optional[Any]:
 # Config endpoint
 # ---------------------------------------------------------------------------- #
 @router.get("/config")
-async def web_call_config() -> Dict[str, Any]:
+async def web_call_config() -> dict[str, Any]:
     """
     Report whether the pipeline / providers are available + active provider
     names. Always returns 200 — degrades gracefully.
@@ -202,9 +212,10 @@ async def web_call_config() -> Dict[str, Any]:
     natural_available = _get_natural_dialog("general", "Demo Co", "") is not None
 
     # Telephony providers (for the dashboard's awareness) — best-effort.
-    telephony: Dict[str, Any] = {}
+    telephony: dict[str, Any] = {}
     try:
         from app.telephony.telephony_service import get_telephony_service
+
         telephony = get_telephony_service().validate_config()
     except Exception as e:
         logger.debug(f"web-call: telephony info unavailable ({e}).")
@@ -213,6 +224,7 @@ async def web_call_config() -> Dict[str, Any]:
     telecaller_available = False
     try:
         from app.voice_agent.telecaller_brain import TelecallerBrain  # type: ignore
+
         TelecallerBrain(niche="general", client_name="Demo Co")
         telecaller_available = True
     except Exception as e:
@@ -222,6 +234,7 @@ async def web_call_config() -> Dict[str, Any]:
     # audio_b64; else the browser uses its own speechSynthesis.
     try:
         import edge_tts  # type: ignore  # noqa: F401
+
         natural_voice_available = True
     except Exception:
         natural_voice_available = False
@@ -238,10 +251,13 @@ async def web_call_config() -> Dict[str, Any]:
         "providers": registry or {"detail": "No provider registry; using fallback responder."},
         "telephony": telephony or {"detail": "Telephony info unavailable."},
         "responder": (
-            "telecaller" if telecaller_available
-            else ("natural" if natural_available
-                  else ("pipeline" if pipeline_can_text
-                        else ("llm" if brain_available else "echo")))
+            "telecaller"
+            if telecaller_available
+            else (
+                "natural"
+                if natural_available
+                else ("pipeline" if pipeline_can_text else ("llm" if brain_available else "echo"))
+            )
         ),
     }
 
@@ -260,9 +276,11 @@ async def web_call_ws(websocket: WebSocket) -> None:
 
     # Per-session conversation context. Defaults until the client tells us the
     # niche/flow (via 'start' or the first 'user' message).
-    session: Dict[str, Any] = {
-        "niche": "general", "flow": "qualify",
-        "client_name": "Demo Co", "client_service": "",
+    session: dict[str, Any] = {
+        "niche": "general",
+        "flow": "qualify",
+        "client_name": "Demo Co",
+        "client_service": "",
     }
 
     # PRIMARY responder: the human-like NaturalDialogManager. It LISTENS,
@@ -271,7 +289,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
     # (with a fresh conversation) if the niche changes mid-session.
     dialog: Any = None
     dstate: Any = None
-    dialog_niche: Optional[str] = None
+    dialog_niche: str | None = None
 
     # Fallbacks (used ONLY if the natural-dialog brain can't be built).
     pipeline = _get_pipeline()
@@ -287,7 +305,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
         if dialog is not None and dialog_niche == niche:
             return
         mgr = _get_natural_dialog(
-            niche, session.get("client_name", "Demo Co"),
+            niche,
+            session.get("client_name", "Demo Co"),
             session.get("client_service", ""),
         )
         if mgr is not None:
@@ -295,7 +314,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
             dstate = mgr.new_conversation()
             dialog_niche = niche
 
-    def _get_tcbrain(niche: str) -> Optional[Any]:
+    def _get_tcbrain(niche: str) -> Any | None:
         """
         Lazy, per-session TelecallerBrain — the SAME professional brain the phone
         agent uses (researched niche scripts + free_ai Cerebras/Groq/Gemini,
@@ -310,6 +329,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
         tcb = None
         try:
             from app.voice_agent.telecaller_brain import TelecallerBrain  # type: ignore
+
             tcb = TelecallerBrain(
                 niche=niche,
                 client_name=session.get("client_name", "Demo Co"),
@@ -332,14 +352,16 @@ async def web_call_ws(websocket: WebSocket) -> None:
         responder = "llm" if brain is not None else "echo"
 
     try:
-        await websocket.send_json({
-            "type": "ready",
-            "test_mode": True,
-            "responder": responder,
-            "pipeline": pipeline is not None,
-            "providers": _get_registry_describe() or {},
-            "note": "TEST MODE — no real call. Say hello to talk to the bot.",
-        })
+        await websocket.send_json(
+            {
+                "type": "ready",
+                "test_mode": True,
+                "responder": responder,
+                "pipeline": pipeline is not None,
+                "providers": _get_registry_describe() or {},
+                "note": "TEST MODE — no real call. Say hello to talk to the bot.",
+            }
+        )
     except Exception:
         return
 
@@ -354,7 +376,9 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 # Non-JSON or transport hiccup — inform and continue.
                 logger.debug(f"web-call: bad inbound message ({e}).")
                 try:
-                    await websocket.send_json({"type": "error", "text": "Invalid message (expected JSON)."})
+                    await websocket.send_json(
+                        {"type": "error", "text": "Invalid message (expected JSON)."}
+                    )
                 except Exception:
                     break
                 continue
@@ -378,12 +402,16 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 try:  # Team activity: Swara web-demo session
                     from app.platform.team import log_event
 
-                    log_event("swara", "web_demo", f"Web-call demo started (niche: {session.get('niche', 'general')})")
+                    log_event(
+                        "swara",
+                        "web_demo",
+                        f"Web-call demo started (niche: {session.get('niche', 'general')})",
+                    )
                 except Exception:
                     pass
                 # Fresh conversation for the chosen niche + a natural opening
                 # line so the bot greets FIRST (proves it's alive and human).
-                dialog = None            # force rebuild with fresh state
+                dialog = None  # force rebuild with fresh state
                 history = []
 
                 # PRIMARY: professional TelecallerBrain opener (same as the phone
@@ -400,10 +428,14 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     if opening:
                         history.append({"role": "assistant", "content": opening})
                         audio_b64 = await _edge_tts_mp3_b64(opening)
-                        await websocket.send_json({
-                            "type": "bot", "text": opening,
-                            "audio_b64": audio_b64, "test_mode": True,
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "bot",
+                                "text": opening,
+                                "audio_b64": audio_b64,
+                                "test_mode": True,
+                            }
+                        )
                         continue
 
                 # FALLBACK: natural-dialog opening (browser TTS), then info.
@@ -411,17 +443,23 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 if dialog is not None and dstate is not None:
                     try:
                         opening = await dialog.opening_line(dstate)
-                        await websocket.send_json({
-                            "type": "bot", "text": opening,
-                            "audio_b64": None, "test_mode": True,
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "bot",
+                                "text": opening,
+                                "audio_b64": None,
+                                "test_mode": True,
+                            }
+                        )
                         continue
                     except Exception as e:
                         logger.debug(f"web-call: opening line skipped ({e}).")
-                await websocket.send_json({
-                    "type": "info",
-                    "text": f"TEST MODE started — niche='{session['niche']}', flow='{session['flow']}'.",
-                })
+                await websocket.send_json(
+                    {
+                        "type": "info",
+                        "text": f"TEST MODE started — niche='{session['niche']}', flow='{session['flow']}'.",
+                    }
+                )
                 continue
 
             # Extract user text (direct text, or transcribe audio if supported).
@@ -430,7 +468,9 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 user_text = await _transcribe_audio(pipeline, brain, data.get("audio_b64"))
 
             if not user_text:
-                await websocket.send_json({"type": "error", "text": "Empty message — nothing to process."})
+                await websocket.send_json(
+                    {"type": "error", "text": "Empty message — nothing to process."}
+                )
                 continue
 
             # PRIMARY: professional TelecallerBrain (the SAME brain as the phone
@@ -448,12 +488,14 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     history.append({"role": "user", "content": user_text})
                     history.append({"role": "assistant", "content": tc_reply})
                     audio_b64 = await _edge_tts_mp3_b64(tc_reply)
-                    await websocket.send_json({
-                        "type": "bot",
-                        "text": tc_reply,
-                        "audio_b64": audio_b64,  # mp3 (Swara) or None -> browser TTS
-                        "test_mode": True,
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "bot",
+                            "text": tc_reply,
+                            "audio_b64": audio_b64,  # mp3 (Swara) or None -> browser TTS
+                            "test_mode": True,
+                        }
+                    )
                     continue
 
             # FALLBACK: human-like natural dialog (listen -> understand -> answer).
@@ -461,13 +503,15 @@ async def web_call_ws(websocket: WebSocket) -> None:
             if dialog is not None and dstate is not None:
                 try:
                     reply = await dialog.respond(user_text, dstate)
-                    await websocket.send_json({
-                        "type": "bot",
-                        "text": reply.text,
-                        "audio_b64": None,  # browser TTS speaks it
-                        "test_mode": True,
-                        "should_end": bool(getattr(reply, "should_end", False)),
-                    })
+                    await websocket.send_json(
+                        {
+                            "type": "bot",
+                            "text": reply.text,
+                            "audio_b64": None,  # browser TTS speaks it
+                            "test_mode": True,
+                            "should_end": bool(getattr(reply, "should_end", False)),
+                        }
+                    )
                     continue
                 except Exception as e:
                     logger.warning(f"web-call: natural dialog failed, using fallback: {e}")
@@ -476,12 +520,14 @@ async def web_call_ws(websocket: WebSocket) -> None:
             history.append({"role": "user", "content": user_text})
             bot_text, audio_b64 = await _respond(pipeline, brain, history, session, user_text)
             history.append({"role": "assistant", "content": bot_text})
-            await websocket.send_json({
-                "type": "bot",
-                "text": bot_text,
-                "audio_b64": audio_b64,  # may be None — browser will use its own TTS/none
-                "test_mode": True,
-            })
+            await websocket.send_json(
+                {
+                    "type": "bot",
+                    "text": bot_text,
+                    "audio_b64": audio_b64,  # may be None — browser will use its own TTS/none
+                    "test_mode": True,
+                }
+            )
     except Exception as e:
         logger.error(f"web-call ws fatal (handled): {e}")
         try:
@@ -496,6 +542,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
 async def _transcribe_audio(pipeline: Any, brain: Any, audio_b64: str) -> str:
     """Best-effort STT for audio chunks. Returns '' if not supported."""
     import base64
+
     try:
         audio = base64.b64decode(audio_b64)
     except Exception:
@@ -536,21 +583,25 @@ async def _respond(pipeline, brain, history, session, user_text):
         fn = getattr(brain, "generate_response", None)
         if callable(fn):
             try:
-                text = await _maybe_await(fn(
-                    conversation_history=history,
-                    niche=session.get("niche", "general"),
-                    client_name=session.get("client_name", "Demo Co"),
-                    client_service=session.get("niche", "our service"),
-                ))
+                text = await _maybe_await(
+                    fn(
+                        conversation_history=history,
+                        niche=session.get("niche", "general"),
+                        client_name=session.get("client_name", "Demo Co"),
+                        client_service=session.get("niche", "our service"),
+                    )
+                )
                 if text:
                     return str(text), None
                 logger.warning("web-call llm responder returned empty text — falling back to echo.")
             except Exception as e:
-                logger.warning(f"web-call llm responder failed — falling back to echo: {type(e).__name__}: {e}")
+                logger.warning(
+                    f"web-call llm responder failed — falling back to echo: {type(e).__name__}: {e}"
+                )
 
     # 3) Echo fallback (always works).
     return (
-        f"[echo / test-mode] You said: \"{user_text}\". "
+        f'[echo / test-mode] You said: "{user_text}". '
         f"(No live LLM configured — this is a placeholder reply.)",
         None,
     )

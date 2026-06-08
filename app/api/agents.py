@@ -6,7 +6,8 @@ GET  /agents/status          — engine availability + node list
 
 Returns HTTP 501 when the langgraph engine is not installed (graceful path).
 """
-from typing import Any, Dict, Optional
+
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -23,16 +24,17 @@ router = APIRouter(prefix="/agents", tags=["Agents"])
 
 class AgentRunRequest(BaseModel):
     """Task to route through the supervisor graph."""
+
     task: str = Field(..., min_length=3, max_length=2000, description="What the agent should do")
-    client_id: Optional[str] = Field(None, description="Client ID (uses client KB namespace)")
-    niche: Optional[str] = Field("general", description="Niche key or loose name (e.g. 'solar')")
+    client_id: str | None = Field(None, description="Client ID (uses client KB namespace)")
+    niche: str | None = Field("general", description="Niche key or loose name (e.g. 'solar')")
 
 
 @router.post("/run")
 async def run_agent_task(
     request: AgentRunRequest,
     user: User = Depends(require_admin),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Route a task to the data/leads agent via the rule-based supervisor."""
     if not AGENTS_AVAILABLE:
         raise HTTPException(status_code=501, detail="agents engine not installed")
@@ -50,7 +52,7 @@ async def run_agent_task(
 
 
 @router.get("/status")
-async def agents_status() -> Dict[str, Any]:
+async def agents_status() -> dict[str, Any]:
     """Engine availability — safe to call without auth (no secrets exposed)."""
     return {
         "available": AGENTS_AVAILABLE,

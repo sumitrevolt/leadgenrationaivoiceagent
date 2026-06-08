@@ -61,6 +61,7 @@ Protocol events (EXACT, per docs.vobiz.ai/xml/stream + /xml/stream/play-audio):
   send: {"event":"playAudio","media":{"contentType":"audio/x-l16","sampleRate":16000,"payload":"<b64 PCM16 16k>"}}
         {"event":"clearAudio"}      # flush playback on barge-in (no sid)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -73,7 +74,7 @@ import random
 import re
 import threading
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -105,9 +106,9 @@ def _groq_key() -> str:
 
 _VOSK_OK = _have("vosk")
 _FWHISPER_OK = _have("faster_whisper")
-_GENAI_OK = _have("google.genai")          # NEW google-genai SDK (Gemini audio-in STT)
-_OPENAI_SDK_OK = _have("openai")           # Groq STT via shared free_ai layer (OpenAI-compatible)
-_LOCAL_STT_OK = _VOSK_OK or _FWHISPER_OK   # local engines (whisper fallback chain)
+_GENAI_OK = _have("google.genai")  # NEW google-genai SDK (Gemini audio-in STT)
+_OPENAI_SDK_OK = _have("openai")  # Groq STT via shared free_ai layer (OpenAI-compatible)
+_LOCAL_STT_OK = _VOSK_OK or _FWHISPER_OK  # local engines (whisper fallback chain)
 # STT chain (auto): groq (free, fast Whisper-large-v3) -> gemini (multimodal,
 # multi-key) -> whisper (local, always works). Groq counts as available only
 # when the openai SDK is importable AND a GROQ_API_KEY is configured.
@@ -132,10 +133,11 @@ except Exception:  # pragma: no cover
 # --------------------------------------------------------------------------- #
 # Tunables (env-overridable) — phone audio, so frames are 20 ms / 160 µ-law B.
 # --------------------------------------------------------------------------- #
-SAMPLE_RATE = 16000     # Vobiz L16 stream rate (contentType audio/x-l16;rate=16000)
-STT_RATE = 16000        # STT models want 16 kHz PCM16 (== SAMPLE_RATE: no resample)
-FRAME_PCM = 640         # 20 ms of PCM16 @ 16 kHz (16000 * 0.02 * 2 bytes)
-PCM_SILENCE = b"\x00"   # PCM16 silence == zero bytes
+SAMPLE_RATE = 16000  # Vobiz L16 stream rate (contentType audio/x-l16;rate=16000)
+STT_RATE = 16000  # STT models want 16 kHz PCM16 (== SAMPLE_RATE: no resample)
+FRAME_PCM = 640  # 20 ms of PCM16 @ 16 kHz (16000 * 0.02 * 2 bytes)
+PCM_SILENCE = b"\x00"  # PCM16 silence == zero bytes
+
 
 def _env_num(name: str, default: float) -> float:
     """float(env) with safe fallback — bad env value must never kill import."""
@@ -145,23 +147,25 @@ def _env_num(name: str, default: float) -> float:
         return default
 
 
-_VAD_RMS = int(_env_num("VOBIZ_VAD_RMS", 300))            # PCM16 RMS speech gate
-SILENCE_MS = _env_num("VOBIZ_SILENCE_MS", 650.0)          # trailing silence that ends an utterance (650ms = snappier turn-taking; env VOBIZ_SILENCE_MS overrides)
-MIN_SPEECH_MS = _env_num("VOBIZ_MIN_SPEECH_MS", 300.0)    # ignore sub-300ms blips (coughs/clicks)
-MIN_STT_MS = _env_num("VOBIZ_MIN_STT_MS", 400.0)          # drop sub-400ms utterances (STT unreliable)
+_VAD_RMS = int(_env_num("VOBIZ_VAD_RMS", 300))  # PCM16 RMS speech gate
+SILENCE_MS = _env_num(
+    "VOBIZ_SILENCE_MS", 650.0
+)  # trailing silence that ends an utterance (650ms = snappier turn-taking; env VOBIZ_SILENCE_MS overrides)
+MIN_SPEECH_MS = _env_num("VOBIZ_MIN_SPEECH_MS", 300.0)  # ignore sub-300ms blips (coughs/clicks)
+MIN_STT_MS = _env_num("VOBIZ_MIN_STT_MS", 400.0)  # drop sub-400ms utterances (STT unreliable)
 MAX_UTTER_MS = 15000.0  # hard cap so a long monologue still gets processed
-BARGE_MIN_FRAMES = 5    # ~100 ms of speech while we talk = barge-in
+BARGE_MIN_FRAMES = 5  # ~100 ms of speech while we talk = barge-in
 
 
 # --------------------------------------------------------------------------- #
 # STT engine — lazy singleton (model load is heavy; reuse across calls).
 # --------------------------------------------------------------------------- #
-_STT_ENGINE: Optional[tuple] = None   # ("vosk", model) | ("whisper", model)
+_STT_ENGINE: tuple | None = None  # ("vosk", model) | ("whisper", model)
 _STT_INIT = False
-_STT_LOCK = threading.Lock()          # module warmup thread vs executor threads
+_STT_LOCK = threading.Lock()  # module warmup thread vs executor threads
 
 
-def _get_stt() -> Optional[tuple]:
+def _get_stt() -> tuple | None:
     """Load (once) the best available STT model. vosk if VOSK_MODEL_PATH set,
     else faster-whisper. Returns None if neither usable. THREAD-SAFE: module
     warmup thread + per-call executor threads race here; the lock makes late
@@ -192,7 +196,10 @@ def _get_stt() -> Optional[tuple]:
                     # base >> tiny for Hindi (tiny Hindi pe bahut weak hai); CPU pe
                     # short utterances ~1-2.5s — acceptable. Env: FWHISPER_MODEL.
                     model_size = os.environ.get("FWHISPER_MODEL", "base")
-                    _STT_ENGINE = ("whisper", WhisperModel(model_size, device="cpu", compute_type="int8"))
+                    _STT_ENGINE = (
+                        "whisper",
+                        WhisperModel(model_size, device="cpu", compute_type="int8"),
+                    )
                     logger.info(f"[vobiz-stream] STT engine: faster-whisper ({model_size})")
                     return _STT_ENGINE
                 except Exception as e:
@@ -262,11 +269,11 @@ _GEMINI_STT_TIMEOUT = _env_num("VOBIZ_STT_TIMEOUT_S", 8.0)
 # the SAME process-wide active key as the LLM (app.voice_agent.gemini_keys) — so
 # when STT exhausts key A's free quota, the LLM stops using A too, and the next
 # audio turn rotates to key B. Each key gets its own cached Client (thread-safe).
-_GENAI_CLIENTS: Dict[str, Any] = {}
+_GENAI_CLIENTS: dict[str, Any] = {}
 _GENAI_LOCK = threading.Lock()
 
 
-def _get_genai_client(key: str = "") -> Optional[Any]:
+def _get_genai_client(key: str = "") -> Any | None:
     """google-genai Client for ``key`` (defaults to the rotation pool's active
     key, else legacy single settings/env key). Cached per-key. None = SDK
     missing OR no key — caller falls back to whisper."""
@@ -336,10 +343,12 @@ def _gemini_has_key() -> bool:
             return True
     except Exception:
         pass
-    return bool((os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEYS", "")).strip())
+    return bool(
+        (os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEYS", "")).strip()
+    )
 
 
-def _stt_chain() -> List[str]:
+def _stt_chain() -> list[str]:
     """Ordered STT providers to try this turn. ``VOBIZ_STT`` forces exactly ONE
     (groq|gemini|whisper). Default ('auto'/empty) = groq (key set) -> gemini
     (SDK+key) -> whisper. The chain ALWAYS ends with whisper so a missing or
@@ -347,7 +356,7 @@ def _stt_chain() -> List[str]:
     forced = (os.environ.get("VOBIZ_STT", "") or "").strip().lower()
     if forced in ("groq", "gemini", "whisper"):
         return [forced]
-    chain: List[str] = []
+    chain: list[str] = []
     if _OPENAI_SDK_OK and _groq_key():
         chain.append("groq")
     if _GENAI_OK and _gemini_has_key():
@@ -364,8 +373,8 @@ def _pcm_to_wav(pcm16: bytes, rate: int = SAMPLE_RATE) -> bytes:
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wf:
         wf.setnchannels(1)
-        wf.setsampwidth(2)      # 16-bit
-        wf.setframerate(rate)   # 16000 Hz
+        wf.setsampwidth(2)  # 16-bit
+        wf.setframerate(rate)  # 16000 Hz
         wf.writeframes(pcm16)
     return buf.getvalue()
 
@@ -428,7 +437,7 @@ def _pcm_rms(pcm16: bytes) -> int:
 _SENT_SPLIT_RE = re.compile(r"(?<=[।.?!])\s+")
 
 
-def _split_sentences(text: str) -> List[str]:
+def _split_sentences(text: str) -> list[str]:
     t = (text or "").strip()
     if not t:
         return []
@@ -442,11 +451,11 @@ def _split_sentences(text: str) -> List[str]:
 # a stale entry can never play the WRONG greeting). Fillers: short "Hmm/Achha"
 # acknowledgments played the instant STT text aata hai (perceived-latency fix).
 # --------------------------------------------------------------------------- #
-_GREET_CACHE: Dict[str, bytes] = {}
+_GREET_CACHE: dict[str, bytes] = {}
 _GREET_CACHE_MAX = 64
 _FILLER_TEXTS = ("Hmm...", "Achha...", "Ji...")
-_FILLER_PCM: List[bytes] = []
-_FILLER_STARTED = False   # synth fillers once per worker (first session does it)
+_FILLER_PCM: list[bytes] = []
+_FILLER_STARTED = False  # synth fillers once per worker (first session does it)
 
 
 # --------------------------------------------------------------------------- #
@@ -456,46 +465,51 @@ class VobizStreamSession:
     """Drives one streamed phone call: listen -> understand -> reply -> speak,
     with energy-VAD turn-taking and barge-in. Never raises out of handle()."""
 
-    def __init__(self, websocket: Any, niche: str = "general",
-                 client_id: Optional[str] = None, client_name: str = "Demo Co",
-                 voice: str = "hi-IN-SwaraNeural") -> None:
+    def __init__(
+        self,
+        websocket: Any,
+        niche: str = "general",
+        client_id: str | None = None,
+        client_name: str = "Demo Co",
+        voice: str = "hi-IN-SwaraNeural",
+    ) -> None:
         self.ws = websocket
         self.niche = (niche or "general").strip() or "general"
         self.client_id = client_id
         self.client_name = client_name or "Demo Co"
         self.voice = voice
 
-        self.stream_sid: Optional[str] = None
-        self.hist: List[Dict[str, str]] = []   # {role: user|assistant, content}
+        self.stream_sid: str | None = None
+        self.hist: list[dict[str, str]] = []  # {role: user|assistant, content}
         self._closed = False
-        self._started_at = datetime.now(timezone.utc)          # transcript meta
-        self._stt_counts: Dict[str, int] = {"groq": 0, "gemini": 0, "whisper": 0}
+        self._started_at = datetime.now(timezone.utc)  # transcript meta
+        self._stt_counts: dict[str, int] = {"groq": 0, "gemini": 0, "whisper": 0}
 
         # turn-taking / VAD state
-        self._speech_buf: List[bytes] = []
+        self._speech_buf: list[bytes] = []
         self._speech_ms = 0.0
         self._silence_ms = 0.0
         self._had_speech = False
-        self._speech_segments = 0   # rising-edge count (post-speech grace)
+        self._speech_segments = 0  # rising-edge count (post-speech grace)
         self._vad_rms = _VAD_RMS
 
         # playback / barge-in state
         self._speaking = False
-        self._play_task: Optional[asyncio.Task] = None
+        self._play_task: asyncio.Task | None = None
         self._barge_frames = 0
         self._thinking = False
-        self._bg_tasks: set = set()   # keep refs so tasks aren't GC'd mid-run
+        self._bg_tasks: set = set()  # keep refs so tasks aren't GC'd mid-run
 
         # instant-greeting state (pre-synthesized at WS open, before 'start')
-        self._greet_pcm: Optional[bytes] = None
-        self._pregen_task: Optional[asyncio.Task] = None
+        self._greet_pcm: bytes | None = None
+        self._pregen_task: asyncio.Task | None = None
 
         # lazy helpers
-        self._telecaller = None   # TelecallerBrain — lean phone-tuned (primary)
+        self._telecaller = None  # TelecallerBrain — lean phone-tuned (primary)
         self._telecaller_tried = False
         self._brain = None
         self._brain_tried = False
-        self._ndm = None          # NaturalDialogManager fallback (cached — heavy)
+        self._ndm = None  # NaturalDialogManager fallback (cached — heavy)
         self._ndm_tried = False
 
     # ------------------------------------------------------------------ #
@@ -527,6 +541,7 @@ class VobizStreamSession:
         # (Module import par bhi ek warmup thread chalta hai — yeh tab no-op hai.)
         try:
             if _LOCAL_STT_OK:
+
                 async def _warm_stt() -> None:
                     try:
                         loop = asyncio.get_event_loop()
@@ -582,8 +597,12 @@ class VobizStreamSession:
         # need it — we only keep it for logging/checkpoints.
         start = data.get("start") or {}
         sid = (
-            data.get("streamId") or data.get("streamSid") or data.get("stream_sid")
-            or start.get("streamId") or start.get("streamSid") or start.get("stream_sid")
+            data.get("streamId")
+            or data.get("streamSid")
+            or data.get("stream_sid")
+            or start.get("streamId")
+            or start.get("streamSid")
+            or start.get("stream_sid")
         )
         if sid and not self.stream_sid:
             self.stream_sid = sid
@@ -671,10 +690,18 @@ class VobizStreamSession:
         # lone short word still goes through once the caller clearly stops
         # (≥2× SILENCE_MS) so "haan"/"ji" are never permanently dropped.
         substantial = self._speech_segments >= 2 or self._speech_ms >= 400.0
-        ended = (self._had_speech and self._silence_ms >= SILENCE_MS
-                 and self._speech_ms >= MIN_SPEECH_MS and substantial)
-        if (not ended and self._had_speech and self._speech_ms >= MIN_SPEECH_MS
-                and self._silence_ms >= SILENCE_MS * 2):
+        ended = (
+            self._had_speech
+            and self._silence_ms >= SILENCE_MS
+            and self._speech_ms >= MIN_SPEECH_MS
+            and substantial
+        )
+        if (
+            not ended
+            and self._had_speech
+            and self._speech_ms >= MIN_SPEECH_MS
+            and self._silence_ms >= SILENCE_MS * 2
+        ):
             ended = True
         too_long = self._speech_ms >= MAX_UTTER_MS
         if ended or too_long:
@@ -720,8 +747,7 @@ class VobizStreamSession:
                 return
             # Skip an exact repeat of the last user turn (STT echo / duplicate).
             last_user = next(
-                (m.get("content", "") for m in reversed(self.hist)
-                 if m.get("role") == "user"), ""
+                (m.get("content", "") for m in reversed(self.hist) if m.get("role") == "user"), ""
             )
             if text == (last_user or "").strip():
                 logger.debug(f"[vobiz-stream] dropped duplicate STT: {text!r}")
@@ -804,12 +830,17 @@ class VobizStreamSession:
         next key and retries ONCE. Returns "" on any other failure — caller
         falls to whisper. Free-tier tokens (~32/sec audio); 15s ≈ 480KB WAV."""
         try:
-            from app.voice_agent.gemini_keys import active_key, advance_key, is_quota_error, key_count
+            from app.voice_agent.gemini_keys import (
+                active_key,
+                advance_key,
+                is_quota_error,
+                key_count,
+            )
         except Exception:  # pool unavailable — single-key, no rotation
-            active_key = lambda: ""            # noqa: E731
-            advance_key = lambda bad="": ""    # noqa: E731
-            is_quota_error = lambda e: False   # noqa: E731
-            key_count = lambda: 1              # noqa: E731
+            active_key = lambda: ""  # noqa: E731
+            advance_key = lambda bad="": ""  # noqa: E731
+            is_quota_error = lambda e: False  # noqa: E731
+            key_count = lambda: 1  # noqa: E731
 
         loop = asyncio.get_event_loop()
         wav = _pcm_to_wav(pcm16)
@@ -905,8 +936,10 @@ class VobizStreamSession:
 
             # brain=False sentinel keeps it rule-based (None would auto-build LLM).
             self._ndm = NaturalDialogManager(
-                niche=self.niche, client_name=self.client_name,
-                client_service=self.niche, brain=False,
+                niche=self.niche,
+                client_name=self.client_name,
+                client_service=self.niche,
+                brain=False,
             )
         except Exception as e:
             logger.debug(f"[vobiz-stream] NaturalDialogManager unavailable: {e}")
@@ -923,7 +956,8 @@ class VobizStreamSession:
             from app.voice_agent.telecaller_brain import TelecallerBrain
 
             self._telecaller = TelecallerBrain(
-                niche=self.niche, client_name=self.client_name,
+                niche=self.niche,
+                client_name=self.client_name,
                 client_id=self.client_id,
             )
         except Exception as e:
@@ -961,12 +995,13 @@ class VobizStreamSession:
             opening = (get_script(self.niche).get("opening") or "").strip()
             if opening:
                 # Fill placeholders + align to the female Swara TTS voice.
-                opening = (opening
-                           .replace("[Company]", self.client_name)
-                           .replace("[Name]", "Swara")
-                           .replace("[Project]", "hamare project")
-                           .replace("[project]", "hamare project")
-                           .replace("raha hoon", "rahi hoon"))
+                opening = (
+                    opening.replace("[Company]", self.client_name)
+                    .replace("[Name]", "Swara")
+                    .replace("[Project]", "hamare project")
+                    .replace("[project]", "hamare project")
+                    .replace("raha hoon", "rahi hoon")
+                )
                 return opening
         except Exception:
             pass
@@ -985,10 +1020,14 @@ class VobizStreamSession:
         except Exception:
             hook = hook[:90].rstrip(" ,.-")
         if hook:
-            return (f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
-                    f"Aapke kaam ki ek choti si baat hai — {hook} — kya main tees second me bata doon?")
-        return (f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
-                "Kya main do minute le sakti hoon?")
+            return (
+                f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
+                f"Aapke kaam ki ek choti si baat hai — {hook} — kya main tees second me bata doon?"
+            )
+        return (
+            f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
+            "Kya main do minute le sakti hoon?"
+        )
 
     def _greet_key(self) -> str:
         """Cache key = voice + exact opener text (niche/client embedded) —
@@ -1019,7 +1058,7 @@ class VobizStreamSession:
         global _FILLER_STARTED
         if _FILLER_STARTED or not TTS_AVAILABLE:
             return
-        _FILLER_STARTED = True   # set first — concurrent sessions double-synth na karein
+        _FILLER_STARTED = True  # set first — concurrent sessions double-synth na karein
         for t in _FILLER_TEXTS:
             try:
                 pcm = await self._synth_pcm(t)
@@ -1051,7 +1090,7 @@ class VobizStreamSession:
                     return
             except Exception as e:
                 logger.debug(f"[vobiz-stream] cached greet failed: {e}")
-        await self._say(line)   # fallback: synth now (pregen failed/missing)
+        await self._say(line)  # fallback: synth now (pregen failed/missing)
 
     async def _say(self, text: str) -> None:
         """Speak a reply via SENTENCE-CHUNKED STREAMING TTS (see _say_streaming):
@@ -1064,7 +1103,7 @@ class VobizStreamSession:
             logger.warning("[vobiz-stream] TTS unavailable (edge-tts/pydub) — skipping speak")
             return
         self._stop_play()
-        self._speaking = True       # set early so the synth window also detects barge-in
+        self._speaking = True  # set early so the synth window also detects barge-in
         self._barge_frames = 0
         self._play_task = asyncio.create_task(self._say_streaming(text))
 
@@ -1082,8 +1121,8 @@ class VobizStreamSession:
         playback stops. _speaking is owned by the canceller on barge-in (it
         already set it False); only NORMAL completion clears it here."""
         sentences = _split_sentences(text)
-        cur_synth: Optional[asyncio.Task] = None
-        next_synth: Optional[asyncio.Task] = None
+        cur_synth: asyncio.Task | None = None
+        next_synth: asyncio.Task | None = None
         cancelled = False
         try:
             if not sentences:
@@ -1104,11 +1143,11 @@ class VobizStreamSession:
                     logger.warning(f"[vobiz-stream] sentence synth failed: {e}")
                     pcm = b""
                 cur_synth = None
-                if not self._speaking:      # barged-in during synth
+                if not self._speaking:  # barged-in during synth
                     break
                 if pcm:
-                    await self._play_frames(pcm)   # raises CancelledError on barge-in
-                if not self._speaking:      # barged-in during playback
+                    await self._play_frames(pcm)  # raises CancelledError on barge-in
+                if not self._speaking:  # barged-in during playback
                     break
         except asyncio.CancelledError:
             cancelled = True
@@ -1160,19 +1199,21 @@ class VobizStreamSession:
         _speaking flag — callers (_run_play / _say_streaming) own its lifecycle."""
         for i in range(0, len(pcm), FRAME_PCM):
             if not self._speaking:
-                break   # barge-in flipped the flag (covers inline filler play too)
-            frame = pcm[i:i + FRAME_PCM]
+                break  # barge-in flipped the flag (covers inline filler play too)
+            frame = pcm[i : i + FRAME_PCM]
             if len(frame) < FRAME_PCM:
                 frame = frame + PCM_SILENCE * (FRAME_PCM - len(frame))
             # Vobiz playAudio: L16 @16k, base64 payload, NO streamSid field.
-            await self._send({
-                "event": "playAudio",
-                "media": {
-                    "contentType": "audio/x-l16",
-                    "sampleRate": SAMPLE_RATE,
-                    "payload": base64.b64encode(frame).decode("ascii"),
-                },
-            })
+            await self._send(
+                {
+                    "event": "playAudio",
+                    "media": {
+                        "contentType": "audio/x-l16",
+                        "sampleRate": SAMPLE_RATE,
+                        "payload": base64.b64encode(frame).decode("ascii"),
+                    },
+                }
+            )
             await asyncio.sleep(0.02)  # pace at ~real-time (20 ms/frame)
 
     async def _run_play(self, pcm: bytes) -> None:
@@ -1202,7 +1243,7 @@ class VobizStreamSession:
         logger.debug("[vobiz-stream] barge-in: playback cleared (clearAudio)")
 
     # ------------------------------------------------------------------ #
-    async def _send(self, obj: Dict[str, Any]) -> None:
+    async def _send(self, obj: dict[str, Any]) -> None:
         if self._closed:
             return
         try:

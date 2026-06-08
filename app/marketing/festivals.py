@@ -7,11 +7,12 @@ hain, marketing ke liye kaafi). `upcoming(days)` aaj se aage ke festivals
 deta hai; `festival_posts()` nearest 3 ke liye LLM captions (1 call) —
 template fallback ke saath. KABHI empty nahi, KABHI raise nahi.
 """
+
 from __future__ import annotations
 
 import re
 from datetime import date, datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -25,6 +26,7 @@ except Exception:  # pragma: no cover - free_ai khud import-safe hai
 try:
     from app.marketing.post_generator import _niche_name, _niche_pitch  # type: ignore
 except Exception:  # pragma: no cover
+
     def _niche_name(niche: str) -> str:  # type: ignore
         return (niche or "general").replace("_", " ").title()
 
@@ -37,65 +39,181 @@ except Exception:  # pragma: no cover
 # type: national | hindu | muslim | sikh | christian | regional
 # ============================================================================ #
 
-FESTIVALS_2026_27: List[Dict[str, str]] = [
-    {"date": "2026-07-16", "name": "Rath Yatra", "type": "hindu",
-     "marketing_angle": "Naye safar ki shuruaat — 'naya kadam' offer launch karne ka perfect din."},
-    {"date": "2026-08-15", "name": "Independence Day", "type": "national",
-     "marketing_angle": "Freedom-theme sale (79th I-Day) — 'Aazadi offer' tricolor creatives ke saath."},
-    {"date": "2026-08-26", "name": "Onam", "type": "regional",
-     "marketing_angle": "Kerala/south audience ke liye Onam sadhya-style 'full thali' bundle offer."},
-    {"date": "2026-08-28", "name": "Raksha Bandhan", "type": "hindu",
-     "marketing_angle": "Bhai-behen gifting angle — 'Rakhi special' combo ya behen ke liye discount."},
-    {"date": "2026-09-04", "name": "Janmashtami", "type": "hindu",
-     "marketing_angle": "Matki-phod contest ya midnight flash-offer — engagement bahut high hota hai."},
-    {"date": "2026-09-14", "name": "Ganesh Chaturthi", "type": "hindu",
-     "marketing_angle": "'Shubh aarambh' angle — naye kaam/booking shuru karne ka sabse mangal din."},
-    {"date": "2026-10-11", "name": "Navratri (Start)", "type": "hindu",
-     "marketing_angle": "9-din 9-offers series chalao — har din ek naya color/deal, daily posts ready."},
-    {"date": "2026-10-20", "name": "Dussehra", "type": "hindu",
-     "marketing_angle": "'Burai par jeet' — purani problems (mehengi bijli/purana ghar) par offer-attack."},
-    {"date": "2026-10-29", "name": "Karwa Chauth", "type": "hindu",
-     "marketing_angle": "Couples gifting — 'patni ke liye special' offers, evening-slot bookings push karo."},
-    {"date": "2026-11-06", "name": "Dhanteras", "type": "hindu",
-     "marketing_angle": "Saal ka SABSE bada buying-day — 'shubh kharidari' badi-ticket offers aaj hi."},
-    {"date": "2026-11-08", "name": "Diwali", "type": "hindu",
-     "marketing_angle": "Greetings + gratitude post zaroor; Diwali-dhamaka sale ka final push."},
-    {"date": "2026-11-11", "name": "Bhai Dooj", "type": "hindu",
-     "marketing_angle": "Rakhi jaisa gifting angle round-2 — sibling combo offers."},
-    {"date": "2026-11-15", "name": "Chhath Puja", "type": "regional",
-     "marketing_angle": "Bihar/UP/Jharkhand audience se emotional connect — shraddha-bhari greeting post."},
-    {"date": "2026-11-24", "name": "Guru Nanak Jayanti", "type": "sikh",
-     "marketing_angle": "Seva-bhaav greeting — community-respect post, hard-sell nahi."},
-    {"date": "2026-12-25", "name": "Christmas", "type": "christian",
-     "marketing_angle": "Year-end festive sale + Secret-Santa style surprise discounts."},
-    {"date": "2027-01-01", "name": "New Year", "type": "national",
-     "marketing_angle": "'Naya saal, naya …' resolution-angle — saal ki pehli booking par offer."},
-    {"date": "2027-01-14", "name": "Makar Sankranti / Pongal", "type": "hindu",
-     "marketing_angle": "Patang/fasal theme — 'oonchi udaan' offers, south me Pongal greetings."},
-    {"date": "2027-01-26", "name": "Republic Day", "type": "national",
-     "marketing_angle": "78th R-Day — desh-bhakti theme sale, tricolor branding ek din pehle se."},
-    {"date": "2027-03-06", "name": "Maha Shivratri", "type": "hindu",
-     "marketing_angle": "Bhakti-greeting + vrat-special angle (food/wellness businesses ke liye gold)."},
-    {"date": "2027-03-10", "name": "Eid-ul-Fitr", "type": "muslim",
-     "marketing_angle": "Eid Mubarak greetings + Eidi-style gift offers, family-feast angle."},
-    {"date": "2027-03-22", "name": "Holi", "type": "hindu",
-     "marketing_angle": "Rang-barse colorful creatives — 'rangon wali deal' bundle offers."},
-    {"date": "2027-04-14", "name": "Baisakhi", "type": "sikh",
-     "marketing_angle": "Fasal/naye saal (Punjabi) ki khushi — harvest-bonus offers north audience ke liye."},
-    {"date": "2027-05-09", "name": "Akshaya Tritiya", "type": "hindu",
-     "marketing_angle": "'Akshaya' = kabhi na ghatne wala — investments/gold/property ke liye #1 din."},
-    {"date": "2027-05-17", "name": "Eid-ul-Adha", "type": "muslim",
-     "marketing_angle": "Bakrid Mubarak greeting — community-connect post, qurbani/sharing theme."},
-    {"date": "2027-08-15", "name": "Independence Day", "type": "national",
-     "marketing_angle": "80th Independence Day — milestone-saal ki badi patriotic sale."},
-    {"date": "2027-08-17", "name": "Raksha Bandhan", "type": "hindu",
-     "marketing_angle": "Rakhi gifting combos — behen/bhai dono ke liye paired offers."},
-    {"date": "2027-09-04", "name": "Ganesh Chaturthi", "type": "hindu",
-     "marketing_angle": "Shubh-aarambh bookings — Ganpati ke 10 din daily-post series."},
-    {"date": "2027-10-29", "name": "Diwali", "type": "hindu",
-     "marketing_angle": "Diwali 2027 mega-sale — Dhanteras se Bhai-Dooj tak full festive week plan."},
-    {"date": "2027-12-25", "name": "Christmas", "type": "christian",
-     "marketing_angle": "Saal ki aakhri badi sale — year-end gratitude + clearance offers."},
+FESTIVALS_2026_27: list[dict[str, str]] = [
+    {
+        "date": "2026-07-16",
+        "name": "Rath Yatra",
+        "type": "hindu",
+        "marketing_angle": "Naye safar ki shuruaat — 'naya kadam' offer launch karne ka perfect din.",
+    },
+    {
+        "date": "2026-08-15",
+        "name": "Independence Day",
+        "type": "national",
+        "marketing_angle": "Freedom-theme sale (79th I-Day) — 'Aazadi offer' tricolor creatives ke saath.",
+    },
+    {
+        "date": "2026-08-26",
+        "name": "Onam",
+        "type": "regional",
+        "marketing_angle": "Kerala/south audience ke liye Onam sadhya-style 'full thali' bundle offer.",
+    },
+    {
+        "date": "2026-08-28",
+        "name": "Raksha Bandhan",
+        "type": "hindu",
+        "marketing_angle": "Bhai-behen gifting angle — 'Rakhi special' combo ya behen ke liye discount.",
+    },
+    {
+        "date": "2026-09-04",
+        "name": "Janmashtami",
+        "type": "hindu",
+        "marketing_angle": "Matki-phod contest ya midnight flash-offer — engagement bahut high hota hai.",
+    },
+    {
+        "date": "2026-09-14",
+        "name": "Ganesh Chaturthi",
+        "type": "hindu",
+        "marketing_angle": "'Shubh aarambh' angle — naye kaam/booking shuru karne ka sabse mangal din.",
+    },
+    {
+        "date": "2026-10-11",
+        "name": "Navratri (Start)",
+        "type": "hindu",
+        "marketing_angle": "9-din 9-offers series chalao — har din ek naya color/deal, daily posts ready.",
+    },
+    {
+        "date": "2026-10-20",
+        "name": "Dussehra",
+        "type": "hindu",
+        "marketing_angle": "'Burai par jeet' — purani problems (mehengi bijli/purana ghar) par offer-attack.",
+    },
+    {
+        "date": "2026-10-29",
+        "name": "Karwa Chauth",
+        "type": "hindu",
+        "marketing_angle": "Couples gifting — 'patni ke liye special' offers, evening-slot bookings push karo.",
+    },
+    {
+        "date": "2026-11-06",
+        "name": "Dhanteras",
+        "type": "hindu",
+        "marketing_angle": "Saal ka SABSE bada buying-day — 'shubh kharidari' badi-ticket offers aaj hi.",
+    },
+    {
+        "date": "2026-11-08",
+        "name": "Diwali",
+        "type": "hindu",
+        "marketing_angle": "Greetings + gratitude post zaroor; Diwali-dhamaka sale ka final push.",
+    },
+    {
+        "date": "2026-11-11",
+        "name": "Bhai Dooj",
+        "type": "hindu",
+        "marketing_angle": "Rakhi jaisa gifting angle round-2 — sibling combo offers.",
+    },
+    {
+        "date": "2026-11-15",
+        "name": "Chhath Puja",
+        "type": "regional",
+        "marketing_angle": "Bihar/UP/Jharkhand audience se emotional connect — shraddha-bhari greeting post.",
+    },
+    {
+        "date": "2026-11-24",
+        "name": "Guru Nanak Jayanti",
+        "type": "sikh",
+        "marketing_angle": "Seva-bhaav greeting — community-respect post, hard-sell nahi.",
+    },
+    {
+        "date": "2026-12-25",
+        "name": "Christmas",
+        "type": "christian",
+        "marketing_angle": "Year-end festive sale + Secret-Santa style surprise discounts.",
+    },
+    {
+        "date": "2027-01-01",
+        "name": "New Year",
+        "type": "national",
+        "marketing_angle": "'Naya saal, naya …' resolution-angle — saal ki pehli booking par offer.",
+    },
+    {
+        "date": "2027-01-14",
+        "name": "Makar Sankranti / Pongal",
+        "type": "hindu",
+        "marketing_angle": "Patang/fasal theme — 'oonchi udaan' offers, south me Pongal greetings.",
+    },
+    {
+        "date": "2027-01-26",
+        "name": "Republic Day",
+        "type": "national",
+        "marketing_angle": "78th R-Day — desh-bhakti theme sale, tricolor branding ek din pehle se.",
+    },
+    {
+        "date": "2027-03-06",
+        "name": "Maha Shivratri",
+        "type": "hindu",
+        "marketing_angle": "Bhakti-greeting + vrat-special angle (food/wellness businesses ke liye gold).",
+    },
+    {
+        "date": "2027-03-10",
+        "name": "Eid-ul-Fitr",
+        "type": "muslim",
+        "marketing_angle": "Eid Mubarak greetings + Eidi-style gift offers, family-feast angle.",
+    },
+    {
+        "date": "2027-03-22",
+        "name": "Holi",
+        "type": "hindu",
+        "marketing_angle": "Rang-barse colorful creatives — 'rangon wali deal' bundle offers.",
+    },
+    {
+        "date": "2027-04-14",
+        "name": "Baisakhi",
+        "type": "sikh",
+        "marketing_angle": "Fasal/naye saal (Punjabi) ki khushi — harvest-bonus offers north audience ke liye.",
+    },
+    {
+        "date": "2027-05-09",
+        "name": "Akshaya Tritiya",
+        "type": "hindu",
+        "marketing_angle": "'Akshaya' = kabhi na ghatne wala — investments/gold/property ke liye #1 din.",
+    },
+    {
+        "date": "2027-05-17",
+        "name": "Eid-ul-Adha",
+        "type": "muslim",
+        "marketing_angle": "Bakrid Mubarak greeting — community-connect post, qurbani/sharing theme.",
+    },
+    {
+        "date": "2027-08-15",
+        "name": "Independence Day",
+        "type": "national",
+        "marketing_angle": "80th Independence Day — milestone-saal ki badi patriotic sale.",
+    },
+    {
+        "date": "2027-08-17",
+        "name": "Raksha Bandhan",
+        "type": "hindu",
+        "marketing_angle": "Rakhi gifting combos — behen/bhai dono ke liye paired offers.",
+    },
+    {
+        "date": "2027-09-04",
+        "name": "Ganesh Chaturthi",
+        "type": "hindu",
+        "marketing_angle": "Shubh-aarambh bookings — Ganpati ke 10 din daily-post series.",
+    },
+    {
+        "date": "2027-10-29",
+        "name": "Diwali",
+        "type": "hindu",
+        "marketing_angle": "Diwali 2027 mega-sale — Dhanteras se Bhai-Dooj tak full festive week plan.",
+    },
+    {
+        "date": "2027-12-25",
+        "name": "Christmas",
+        "type": "christian",
+        "marketing_angle": "Saal ki aakhri badi sale — year-end gratitude + clearance offers.",
+    },
 ]
 
 
@@ -106,14 +224,14 @@ def _parse_date(s: str) -> date | None:
         return None
 
 
-def upcoming(days: int = 45) -> List[Dict[str, str]]:
+def upcoming(days: int = 45) -> list[dict[str, str]]:
     """Aaj se agle `days` din ke festivals (sorted). Kabhi raise nahi karta."""
     try:
         days = max(1, min(int(days), 730))
     except (TypeError, ValueError):
         days = 45
     today = date.today()
-    out: List[Dict[str, str]] = []
+    out: list[dict[str, str]] = []
     for f in FESTIVALS_2026_27:
         d = _parse_date(f.get("date", ""))
         if d is None:
@@ -127,7 +245,7 @@ def upcoming(days: int = 45) -> List[Dict[str, str]]:
     return out
 
 
-def _next_n(n: int = 3) -> List[Dict[str, str]]:
+def _next_n(n: int = 3) -> list[dict[str, str]]:
     """Aaj ke baad ke nearest n festivals — window ki parwah kiye bina.
 
     Calendar khatam ho jaaye (sab past) to aakhri n entries (never empty).
@@ -146,15 +264,17 @@ def _next_n(n: int = 3) -> List[Dict[str, str]]:
 
 
 def _template_caption(festival: str, business_name: str, niche: str) -> str:
-    return (f"✨ {festival} ki dher saari shubhkamnayein! 🪔\n"
-            f"{business_name} parivar ki taraf se aapko aur aapke parivar ko "
-            f"khushiyon bhara tyohar mubarak. {_niche_pitch(niche)}\n"
-            f"📞 Is shubh avsar par humse judiye — abhi contact karein!")
+    return (
+        f"✨ {festival} ki dher saari shubhkamnayein! 🪔\n"
+        f"{business_name} parivar ki taraf se aapko aur aapke parivar ko "
+        f"khushiyon bhara tyohar mubarak. {_niche_pitch(niche)}\n"
+        f"📞 Is shubh avsar par humse judiye — abhi contact karein!"
+    )
 
 
-def _parse_festival_captions(text: str, names: List[str]) -> Dict[str, str]:
+def _parse_festival_captions(text: str, names: list[str]) -> dict[str, str]:
     """'1. <caption>' / 'FestivalName: <caption>' dono style lenient parse."""
-    found: Dict[str, str] = {}
+    found: dict[str, str] = {}
     try:
         # Style A: numbered lines (multi-line captions tak chalta hai)
         blocks = re.split(r"\n\s*(?=\d+[\.\)]\s)", "\n" + (text or "").strip())
@@ -173,8 +293,9 @@ def _parse_festival_captions(text: str, names: List[str]) -> Dict[str, str]:
             return found
         # Style B: "Name: caption" lines
         for name in names:
-            m = re.search(rf"{re.escape(name)}\s*[:\-–]\s*(.+?)(?=\n\s*\S+\s*[:\-–]|\Z)",
-                          text, re.S | re.I)
+            m = re.search(
+                rf"{re.escape(name)}\s*[:\-–]\s*(.+?)(?=\n\s*\S+\s*[:\-–]|\Z)", text, re.S | re.I
+            )
             if m and m.group(1).strip():
                 found[name] = m.group(1).strip()[:500]
     except Exception:  # pragma: no cover
@@ -182,7 +303,9 @@ def _parse_festival_captions(text: str, names: List[str]) -> Dict[str, str]:
     return found
 
 
-async def festival_posts(business_name: str, niche: str = "general", days: int = 45) -> Dict[str, Any]:
+async def festival_posts(
+    business_name: str, niche: str = "general", days: int = 45
+) -> dict[str, Any]:
     """Upcoming festivals + nearest 3 ke ready captions (1 LLM call, template fallback).
 
     Returns: {"upcoming": [...], "posts": [{"festival","date","type","marketing_angle",
@@ -195,7 +318,7 @@ async def festival_posts(business_name: str, niche: str = "general", days: int =
     targets = upcoming_list[:3] if upcoming_list else _next_n(3)
     names = [t["name"] for t in targets]
 
-    captions: Dict[str, str] = {}
+    captions: dict[str, str] = {}
     provider = ""
     if free_ai is not None and names:
         try:
@@ -206,31 +329,37 @@ async def festival_posts(business_name: str, niche: str = "general", days: int =
                 + "\n".join(f"{i+1}. <{n} ka caption>" for i, n in enumerate(names))
                 + "\nKoi extra commentary nahi."
             )
-            user = (f"Business: {business_name} (category: {_niche_name(niche)}, "
-                    f"angle: {_niche_pitch(niche)}). Festivals: {', '.join(names)}.")
+            user = (
+                f"Business: {business_name} (category: {_niche_name(niche)}, "
+                f"angle: {_niche_pitch(niche)}). Festivals: {', '.join(names)}."
+            )
             text, provider = await free_ai.chat(
-                system, [{"role": "user", "content": user}],
-                max_tokens=500, temperature=0.8,
+                system,
+                [{"role": "user", "content": user}],
+                max_tokens=500,
+                temperature=0.8,
             )
             if text and text.strip():
                 captions = _parse_festival_captions(text, names)
         except Exception as e:
             logger.warning(f"festival_posts LLM step failed, using templates: {e}")
 
-    posts: List[Dict[str, str]] = []
+    posts: list[dict[str, str]] = []
     used_template = False
     for t in targets:
         cap = (captions.get(t["name"]) or "").strip()
         if not cap:
             cap = _template_caption(t["name"], business_name, niche)
             used_template = True
-        posts.append({
-            "festival": t["name"],
-            "date": t["date"],
-            "type": t.get("type", ""),
-            "marketing_angle": t.get("marketing_angle", ""),
-            "caption": cap,
-        })
+        posts.append(
+            {
+                "festival": t["name"],
+                "date": t["date"],
+                "type": t.get("type", ""),
+                "marketing_angle": t.get("marketing_angle", ""),
+                "caption": cap,
+            }
+        )
 
     return {
         "business_name": business_name,

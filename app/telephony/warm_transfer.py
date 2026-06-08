@@ -27,12 +27,13 @@ Usage:
                             context_summary=brief)
     # res -> TransferResult(ok, status, human_call_id, brief, steps, error)
 """
+
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from app.config import settings
@@ -41,25 +42,28 @@ except Exception:  # pragma: no cover
 
 try:
     from app.utils.logger import setup_logger
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
 @dataclass
 class TransferResult:
     """Unified result for a warm-transfer attempt."""
+
     ok: bool
     status: str  # bridged | failed | no_agent | simulated
-    call_id: Optional[str] = None         # original lead call
-    human_call_id: Optional[str] = None   # leg dialed to the human agent
+    call_id: str | None = None  # original lead call
+    human_call_id: str | None = None  # leg dialed to the human agent
     to_human_number: str = ""
     brief: str = ""
     provider: str = "simulation"
-    steps: List[str] = field(default_factory=list)
-    error: Optional[str] = None
-    meta: Dict[str, Any] = field(default_factory=dict)
+    steps: list[str] = field(default_factory=list)
+    error: str | None = None
+    meta: dict[str, Any] = field(default_factory=dict)
 
 
 class WarmTransfer:
@@ -84,6 +88,7 @@ class WarmTransfer:
             return self._telephony
         try:
             from app.telephony.telephony_service import get_telephony_service
+
             self._telephony = get_telephony_service()
         except Exception as e:
             logger.debug(f"telephony unavailable for warm-transfer: {e}")
@@ -96,6 +101,7 @@ class WarmTransfer:
         self._brain_tried = True
         try:
             from app.voice_agent.llm_brain import LLMBrain
+
             self._brain = LLMBrain()
         except Exception as e:
             logger.debug(f"LLMBrain unavailable for brief summarization: {e}")
@@ -117,7 +123,7 @@ class WarmTransfer:
 
         Never raises — degrades to a simulated TransferResult on any failure.
         """
-        steps: List[str] = []
+        steps: list[str] = []
         to_human_number = (to_human_number or "").strip()
 
         if not to_human_number:
@@ -139,9 +145,7 @@ class WarmTransfer:
         await self._safe_hold(telephony, call_id)
 
         # STEP 2 — dial the human agent and whisper the context brief.
-        steps.append(
-            f"[WHISPER] Dialing human agent {to_human_number} and whispering brief."
-        )
+        steps.append(f"[WHISPER] Dialing human agent {to_human_number} and whispering brief.")
         logger.info(f"🤝 [WARM-TRANSFER] Whisper brief to agent {to_human_number}")
         human_call_id = None
         try:
@@ -210,8 +214,8 @@ class WarmTransfer:
 
     def build_brief(
         self,
-        conversation_history: List[Dict[str, str]],
-        lead: Optional[Dict[str, Any]] = None,
+        conversation_history: list[dict[str, str]],
+        lead: dict[str, Any] | None = None,
     ) -> str:
         """
         Build a short human-agent briefing from the conversation + lead data.
@@ -227,9 +231,7 @@ class WarmTransfer:
 
         # Pull the last few user turns as "what they want".
         user_turns = [
-            m.get("content", "")
-            for m in (conversation_history or [])
-            if m.get("role") == "user"
+            m.get("content", "") for m in (conversation_history or []) if m.get("role") == "user"
         ]
         recent = " | ".join(t for t in user_turns[-3:] if t).strip()
 
@@ -245,8 +247,8 @@ class WarmTransfer:
 
     async def build_brief_async(
         self,
-        conversation_history: List[Dict[str, str]],
-        lead: Optional[Dict[str, Any]] = None,
+        conversation_history: list[dict[str, str]],
+        lead: dict[str, Any] | None = None,
     ) -> str:
         """LLM-summarized brief if a brain is available; else the rule-based one."""
         base = self.build_brief(conversation_history, lead)
@@ -315,7 +317,7 @@ class WarmTransfer:
 # ---------------------------------------------------------------------- #
 # Module-level singleton
 # ---------------------------------------------------------------------- #
-_warm_transfer: Optional[WarmTransfer] = None
+_warm_transfer: WarmTransfer | None = None
 
 
 def get_warm_transfer() -> WarmTransfer:

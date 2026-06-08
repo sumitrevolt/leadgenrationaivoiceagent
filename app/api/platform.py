@@ -2,18 +2,19 @@
 Platform API
 Endpoints for platform administration and tenant management
 """
-from typing import Optional, List
+
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.platform.tenant_manager import TenantManager, TenantStatus
-from app.platform.orchestrator import PlatformOrchestrator, start_platform, stop_platform
-from app.platform import SubscriptionTier, AutomationLevel
-from app.utils.logger import setup_logger
-from app.api.auth_deps import get_current_user, require_admin, require_super_admin
+from app.api.auth_deps import require_admin, require_super_admin
 from app.models.base import get_async_db
 from app.models.user import User
+from app.platform import SubscriptionTier
+from app.platform.orchestrator import PlatformOrchestrator
+from app.platform.tenant_manager import TenantManager
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/platform", tags=["Platform"])
@@ -22,17 +23,19 @@ router = APIRouter(prefix="/platform", tags=["Platform"])
 # Pydantic Models
 class TenantCreate(BaseModel):
     """Create tenant request"""
+
     company_name: str
     contact_name: str
     contact_phone: str
     contact_email: str
     industry: str
-    target_niches: List[str] = Field(default_factory=list)
-    target_cities: List[str] = Field(default_factory=list)
+    target_niches: list[str] = Field(default_factory=list)
+    target_cities: list[str] = Field(default_factory=list)
 
 
 class TenantResponse(BaseModel):
     """Tenant response"""
+
     id: str
     company_name: str
     status: str
@@ -46,6 +49,7 @@ class TenantResponse(BaseModel):
 
 class PlatformStatsResponse(BaseModel):
     """Platform statistics response"""
+
     total_tenants: int
     active_tenants: int
     trial_tenants: int
@@ -56,36 +60,33 @@ class PlatformStatsResponse(BaseModel):
 
 class UpgradeRequest(BaseModel):
     """Upgrade subscription request"""
+
     tier: str  # starter, growth, enterprise
 
 
 # Global instances
 tenant_manager = TenantManager()
-orchestrator: Optional[PlatformOrchestrator] = None
+orchestrator: PlatformOrchestrator | None = None
 
 
 @router.post("/start")
 async def start_platform_api(
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(require_super_admin)
+    background_tasks: BackgroundTasks, current_user: User = Depends(require_super_admin)
 ):
     """
     Start the entire platform automation (requires super admin)
     This starts all automated processes
     """
     global orchestrator
-    
+
     if orchestrator and orchestrator.is_running:
         return {"status": "already_running", "message": "Platform is already running"}
-    
+
     orchestrator = PlatformOrchestrator()
     background_tasks.add_task(orchestrator.start)
-    
+
     logger.info("🚀 Platform started via API")
-    return {
-        "status": "started",
-        "message": "Platform automation started successfully"
-    }
+    return {"status": "started", "message": "Platform automation started successfully"}
 
 
 @router.post("/stop")
@@ -94,11 +95,11 @@ async def stop_platform_api(current_user: User = Depends(require_super_admin)):
     Stop the platform automation gracefully (requires super admin)
     """
     global orchestrator
-    
+
     if orchestrator:
         await orchestrator.stop()
         return {"status": "stopped", "message": "Platform stopped successfully"}
-    
+
     return {"status": "not_running", "message": "Platform was not running"}
 
 
@@ -108,14 +109,14 @@ async def get_platform_stats(current_user: User = Depends(require_admin)):
     Get platform-wide statistics (requires admin)
     """
     stats = tenant_manager.get_platform_stats()
-    
+
     return PlatformStatsResponse(
         total_tenants=stats["total_tenants"],
         active_tenants=stats["active_tenants"],
         trial_tenants=stats["trial_tenants"],
         total_calls_made=stats["total_calls_made"],
         total_leads_generated=stats["total_leads_generated"],
-        is_running=orchestrator.is_running if orchestrator else False
+        is_running=orchestrator.is_running if orchestrator else False,
     )
 
 
@@ -126,13 +127,10 @@ async def get_dashboard(current_user: User = Depends(require_admin)):
     """
     if orchestrator:
         return orchestrator.get_dashboard_data()
-    
+
     return {
-        "platform_stats": {
-            "is_running": False,
-            "message": "Platform not started"
-        },
-        "tenant_stats": tenant_manager.get_platform_stats()
+        "platform_stats": {"is_running": False, "message": "Platform not started"},
+        "tenant_stats": tenant_manager.get_platform_stats(),
     }
 
 
@@ -140,22 +138,23 @@ async def get_dashboard(current_user: User = Depends(require_admin)):
 # TENANT MANAGEMENT
 # =========================================================================
 
-@router.get("/tenants", response_model=List[dict])
+
+@router.get("/tenants", response_model=list[dict])
 async def list_tenants(
-    status: Optional[str] = None,
-    tier: Optional[str] = None,
-    current_user: User = Depends(require_admin)
+    status: str | None = None,
+    tier: str | None = None,
+    current_user: User = Depends(require_admin),
 ):
     """
     List all tenants on the platform (requires admin)
     """
     tenants = tenant_manager.get_all_tenants()
-    
+
     if status:
         tenants = [t for t in tenants if t["status"] == status]
     if tier:
         tenants = [t for t in tenants if t["tier"] == tier]
-    
+
     return tenants
 
 
@@ -163,7 +162,7 @@ async def list_tenants(
 async def create_tenant(
     tenant: TenantCreate,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(require_admin)
+    current_user: User = Depends(require_admin),
 ):
     """
     Manually onboard a new tenant/client (requires admin)
@@ -175,14 +174,14 @@ async def create_tenant(
         contact_email=tenant.contact_email,
         industry=tenant.industry,
         target_niches=tenant.target_niches or ["general"],
-        target_cities=tenant.target_cities or ["Mumbai", "Delhi", "Bangalore"]
+        target_cities=tenant.target_cities or ["Mumbai", "Delhi", "Bangalore"],
     )
 
     return {
         "id": new_tenant.id,
         "company_name": new_tenant.company_name,
         "status": new_tenant.status.value,
-        "message": "Tenant created and automation started"
+        "message": "Tenant created and automation started",
     }
 
 
@@ -190,15 +189,17 @@ async def create_tenant(
 # CLIENTS (DB-backed) — onboarding with auto-provisioned agents
 # ============================================================================
 
+
 class ClientCreate(BaseModel):
     """Create a DB client; system auto-provisions its 2 agents (data+leads)."""
+
     business_name: str
     contact_name: str
     contact_email: str
     contact_phone: str
-    industry: str = ""           # free text ya NICHES key — resolve ho jata hai
-    niche: Optional[str] = None  # explicit NICHES key (industry se priority)
-    city: Optional[str] = None
+    industry: str = ""  # free text ya NICHES key — resolve ho jata hai
+    niche: str | None = None  # explicit NICHES key (industry se priority)
+    city: str | None = None
 
 
 @router.post("/clients", response_model=dict)
@@ -215,6 +216,7 @@ async def create_client(
     import uuid as _uuid
 
     from sqlalchemy import select as _select
+
     from app.models.client import Client, ClientStatus
     from app.platform.agent_provisioner import provision_agents_for_client
 
@@ -256,7 +258,7 @@ async def create_client(
 @router.post("/clients/{client_id}/provision-agents", response_model=dict)
 async def provision_client_agents(
     client_id: str,
-    niche: Optional[str] = None,
+    niche: str | None = None,
     db=Depends(get_async_db),
     current_user: User = Depends(require_admin),
 ):
@@ -265,6 +267,7 @@ async def provision_client_agents(
     (seeded) clients ko backfill karne ke liye.
     """
     from sqlalchemy import select as _select
+
     from app.models.client import Client
     from app.platform.agent_provisioner import provision_agents_for_client
 
@@ -290,12 +293,11 @@ async def list_client_agents(
 ):
     """Client ke dedicated agents (data + leads) ki list."""
     from sqlalchemy import select as _select
+
     from app.models.agent import Agent
     from app.platform.agent_provisioner import _agent_dict
 
-    result = await db.execute(
-        _select(Agent).where(Agent.current_client_id == client_id)
-    )
+    result = await db.execute(_select(Agent).where(Agent.current_client_id == client_id))
     agents = [_agent_dict(a) for a in result.scalars().all()]
     return {"client_id": client_id, "agents": agents, "count": len(agents)}
 
@@ -308,7 +310,7 @@ async def get_tenant(tenant_id: str):
     tenant = tenant_manager.tenants.get(tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
-    
+
     return {
         "id": tenant.id,
         "company_name": tenant.company_name,
@@ -320,20 +322,20 @@ async def get_tenant(tenant_id: str):
         "subscription": {
             "tier": tenant.config.subscription_tier.value,
             "calls_used": tenant.config.calls_used,
-            "calls_limit": tenant.config.monthly_call_limit
+            "calls_limit": tenant.config.monthly_call_limit,
         },
         "automation": {
             "is_running": tenant.is_running,
             "level": tenant.config.automation_level.value,
             "auto_scrape": tenant.config.auto_scrape,
-            "auto_call": tenant.config.auto_call
+            "auto_call": tenant.config.auto_call,
         },
         "stats": {
             "total_leads": tenant.total_leads_generated,
             "total_calls": tenant.total_calls_made,
-            "appointments": tenant.total_appointments
+            "appointments": tenant.total_appointments,
         },
-        "created_at": tenant.created_at.isoformat()
+        "created_at": tenant.created_at.isoformat(),
     }
 
 
@@ -345,21 +347,21 @@ async def upgrade_tenant(tenant_id: str, request: UpgradeRequest):
     tier_map = {
         "starter": SubscriptionTier.STARTER,
         "growth": SubscriptionTier.GROWTH,
-        "enterprise": SubscriptionTier.ENTERPRISE
+        "enterprise": SubscriptionTier.ENTERPRISE,
     }
-    
+
     tier = tier_map.get(request.tier.lower())
     if not tier:
         raise HTTPException(status_code=400, detail="Invalid tier")
-    
+
     success = await tenant_manager.upgrade_tenant(tenant_id, tier)
     if not success:
         raise HTTPException(status_code=404, detail="Tenant not found")
-    
+
     return {
         "status": "upgraded",
         "new_tier": tier.value,
-        "message": f"Tenant upgraded to {tier.value}"
+        "message": f"Tenant upgraded to {tier.value}",
     }
 
 
@@ -388,13 +390,13 @@ async def delete_tenant(tenant_id: str):
     """
     if tenant_id not in tenant_manager.tenants:
         raise HTTPException(status_code=404, detail="Tenant not found")
-    
+
     # Pause automation first
     await tenant_manager.pause_tenant(tenant_id)
-    
+
     # Remove tenant
     tenant = tenant_manager.tenants.pop(tenant_id)
-    
+
     logger.info(f"Tenant removed: {tenant.company_name}")
     return {"status": "deleted", "message": f"Tenant {tenant.company_name} removed"}
 
@@ -403,6 +405,7 @@ async def delete_tenant(tenant_id: str):
 # PLATFORM AUTOMATION CONTROLS
 # =========================================================================
 
+
 @router.post("/scrape/platform")
 async def trigger_platform_scrape(background_tasks: BackgroundTasks):
     """
@@ -410,7 +413,7 @@ async def trigger_platform_scrape(background_tasks: BackgroundTasks):
     """
     if not orchestrator:
         raise HTTPException(status_code=400, detail="Platform not started")
-    
+
     background_tasks.add_task(orchestrator._scrape_potential_clients)
     return {"status": "started", "message": "Platform lead scraping started"}
 
@@ -423,7 +426,7 @@ async def trigger_tenant_scrape(tenant_id: str, background_tasks: BackgroundTask
     tenant = tenant_manager.tenants.get(tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
-    
+
     background_tasks.add_task(tenant_manager._scrape_for_tenant, tenant)
     return {"status": "started", "message": f"Scraping started for {tenant.company_name}"}
 
@@ -437,5 +440,5 @@ async def health_check():
         "status": "healthy",
         "platform_running": orchestrator.is_running if orchestrator else False,
         "total_tenants": len(tenant_manager.tenants),
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }

@@ -1,21 +1,8 @@
 """
 Team API — AI staff roster, live activity feed, manual job runs.
-================================================================
-
-Final paths (main.py prefix="/api" ke saath, platform.py jaise):
-  GET  /api/platform/team               -> roster + per-member live state
-  GET  /api/platform/team/events        -> recent activity feed (?limit=&member=)
-  POST /api/platform/team/run/{member}  -> staff job manually chalao (arjun/meera/kavya)
-  GET  /api/platform/team/prospects             -> outreach queue (?status=&limit=)
-  POST /api/platform/team/prospects/run         -> abhi prospecting chalao (Rohan)
-  POST /api/platform/team/prospects/{pid}/status -> {status} ready→sent/replied/client/dead
-
-Auth: wahi admin dependency pattern jo platform.py use karta hai
-(require_admin). Handlers ke andar lazy imports — import-safe.
 """
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -30,7 +17,6 @@ router = APIRouter(prefix="/platform/team", tags=["Team"])
 
 @router.get("")
 async def get_team_status(current_user: User = Depends(require_admin)):
-    """Team dashboard payload — roster, states, aaj ke counts (requires admin)."""
     try:
         from app.platform import team
         return team.team_status()
@@ -40,12 +26,7 @@ async def get_team_status(current_user: User = Depends(require_admin)):
 
 
 @router.get("/events")
-async def get_team_events(
-    limit: int = 60,
-    member: Optional[str] = None,
-    current_user: User = Depends(require_admin),
-):
-    """Live activity feed (newest first); member= se filter (requires admin)."""
+async def get_team_events(limit: int = 60, member: str | None = None, current_user: User = Depends(require_admin)):
     try:
         from app.platform import team
         return {"events": team.recent_events(limit=limit, member=member)}
@@ -56,12 +37,9 @@ async def get_team_events(
 
 @router.post("/run/{member}")
 async def run_team_member(member: str, current_user: User = Depends(require_admin)):
-    """Staff member ka job on-demand chalao — arjun (QA) / meera (trainer) /
-    kavya (ops). Result turant return hota hai (requires admin)."""
     try:
-        from app.platform import team
         from app.agents import staff
-
+        from app.platform import team
         team.log_event("manager", "task_assigned", f"manual run: {member}")
         return await staff.run_member(member)
     except Exception as e:
@@ -69,23 +47,14 @@ async def run_team_member(member: str, current_user: User = Depends(require_admi
         return {"error": str(e)}
 
 
-# --------------------------------------------------------------------------- #
-# Prospects — Rohan ka Tier-1 client-hunting queue (data/prospects.jsonl)
-# --------------------------------------------------------------------------- #
 class ProspectStatusIn(BaseModel):
     status: str = Field(..., max_length=20, description="ready|sent|replied|client|dead")
 
 
 @router.get("/prospects")
-async def get_prospects(
-    status: Optional[str] = None,
-    limit: int = 100,
-    current_user: User = Depends(require_admin),
-):
-    """Outreach queue — prospects newest-first (?status= filter) (requires admin)."""
+async def get_prospects(status: str | None = None, limit: int = 100, current_user: User = Depends(require_admin)):
     try:
         from app.platform import prospector
-
         return {"prospects": prospector.list_prospects(status=status, limit=limit)}
     except Exception as e:
         logger.warning(f"[team-api] prospects list failed: {e}")
@@ -94,11 +63,8 @@ async def get_prospects(
 
 @router.post("/prospects/run")
 async def run_prospecting_now(current_user: User = Depends(require_admin)):
-    """Abhi prospects dhundo — Google Maps scraper se Tier-1 client hunting
-    (requires admin). Summary return karta hai; kabhi raise nahi karta."""
     try:
         from app.platform import prospector, team
-
         team.log_event("manager", "task_assigned", "manual run: prospecting (rohan)")
         return await prospector.run_prospecting()
     except Exception as e:
@@ -107,15 +73,9 @@ async def run_prospecting_now(current_user: User = Depends(require_admin)):
 
 
 @router.post("/prospects/{pid}/status")
-async def set_prospect_status(
-    pid: str,
-    body: ProspectStatusIn,
-    current_user: User = Depends(require_admin),
-):
-    """Prospect ka pipeline status update karo (requires admin)."""
+async def set_prospect_status(pid: str, body: ProspectStatusIn, current_user: User = Depends(require_admin)):
     try:
         from app.platform import prospector
-
         ok = prospector.mark_prospect(pid, body.status)
         return {"ok": ok, "id": pid, "status": body.status if ok else None}
     except Exception as e:
@@ -123,17 +83,10 @@ async def set_prospect_status(
         return {"ok": False, "error": str(e)}
 
 
-# --------------------------------------------------------------------------- #
-# Email outreach — system KHUD prospects ko cold email bhejta hai (Rohan)
-# --------------------------------------------------------------------------- #
 @router.post("/email-outreach/run")
 async def run_email_outreach_now(current_user: User = Depends(require_admin)):
-    """Abhi email outreach chalao — ready prospects (jinka email hai) ko
-    personalized cold email bhejo (requires admin). Flag/SMTP off ho to
-    skipped dict aata hai; kabhi raise nahi karta."""
     try:
         from app.platform import auto_outreach, team
-
         team.log_event("manager", "task_assigned", "manual run: email outreach (rohan)")
         return await auto_outreach.run_email_outreach()
     except Exception as e:
@@ -143,10 +96,8 @@ async def run_email_outreach_now(current_user: User = Depends(require_admin)):
 
 @router.get("/email-outreach/stats")
 async def get_email_outreach_stats(current_user: User = Depends(require_admin)):
-    """Email-outreach counts: total / with_email / emailed / pending (requires admin)."""
     try:
         from app.platform import auto_outreach
-
         return auto_outreach.outreach_stats()
     except Exception as e:
         logger.warning(f"[team-api] email-outreach stats failed: {e}")
@@ -155,16 +106,33 @@ async def get_email_outreach_stats(current_user: User = Depends(require_admin)):
 
 @router.post("/email-followups/run")
 async def run_email_followups_now(current_user: User = Depends(require_admin)):
-    """Abhi follow-up emails chalao — pehle email ho chuke (par reply nahi aaye)
-    prospects ko multi-touch follow-up bhejo (requires admin). Flag/SMTP off ho
-    to skipped dict aata hai; kabhi raise nahi karta."""
     try:
         from app.platform import auto_outreach, team
-
         team.log_event("manager", "task_assigned", "manual run: email follow-ups (rohan)")
         return await auto_outreach.run_email_followups()
     except Exception as e:
         logger.warning(f"[team-api] email-followups run failed: {e}")
+        return {"error": str(e)}
+
+
+@router.get("/growth")
+async def get_growth(current_user: User = Depends(require_admin)):
+    try:
+        from app.platform import growth_engine
+        return {"pulse": growth_engine.latest_pulse(), "history": growth_engine.history(30)}
+    except Exception as e:
+        logger.warning(f"[team-api] growth get failed: {e}")
+        return {"pulse": {}, "history": [], "error": str(e)}
+
+
+@router.post("/growth/run")
+async def run_growth_now(current_user: User = Depends(require_admin)):
+    try:
+        from app.platform import growth_engine, team
+        team.log_event("manager", "task_assigned", "manual run: growth pulse")
+        return await growth_engine.pulse()
+    except Exception as e:
+        logger.warning(f"[team-api] growth run failed: {e}")
         return {"error": str(e)}
 
 

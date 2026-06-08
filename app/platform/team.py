@@ -18,12 +18,13 @@ Ye sab telephony / web-call / supervisor / QA / trainer / ops flows se call
 hota hai. KABHI raise nahi karta — voice pipeline kabhi team-logging ki wajah
 se nahi girni chahiye.
 """
+
 from __future__ import annotations
 
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -36,7 +37,7 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 # --------------------------------------------------------------------------- #
 # Company roster — the AI staff. Fixed, code-defined (roles change via code).
 # --------------------------------------------------------------------------- #
-STAFF: Dict[str, Dict[str, Any]] = {
+STAFF: dict[str, dict[str, Any]] = {
     "manager": {
         "name": "Boss",
         "emoji": "🧑‍💼",
@@ -120,7 +121,7 @@ def log_event(
     action: str,
     detail: str = "",
     status: str = "ok",
-    meta: Optional[Dict[str, Any]] = None,
+    meta: dict[str, Any] | None = None,
 ) -> None:
     """Staff member ka ek kaam record karo. Sync, fast, kabhi raise nahi karta.
 
@@ -153,7 +154,7 @@ def log_event(
         logger.debug(f"[team] log_event skipped: {e}")
 
 
-def recent_events(limit: int = 60, member: Optional[str] = None) -> List[Dict[str, Any]]:
+def recent_events(limit: int = 60, member: str | None = None) -> list[dict[str, Any]]:
     """Latest activity feed (newest first) — dashboard ke liye dicts."""
     try:
         from app.models.agent_event import AgentEvent
@@ -174,7 +175,7 @@ def recent_events(limit: int = 60, member: Optional[str] = None) -> List[Dict[st
         return []
 
 
-def _ev_dict(r: Any) -> Dict[str, Any]:
+def _ev_dict(r: Any) -> dict[str, Any]:
     member = getattr(r, "member", "") or "system"
     info = STAFF.get(member, {})
     try:
@@ -198,17 +199,19 @@ def _ev_dict(r: Any) -> Dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Team status (dashboard ka main payload)
 # --------------------------------------------------------------------------- #
-def team_status() -> Dict[str, Any]:
+def team_status() -> dict[str, Any]:
     """Roster + per-member live state + aaj ke counts + latest activity line."""
     now_utc = datetime.utcnow()
     ist_now = datetime.now(_IST)
     day_start_utc = (
-        ist_now.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
+        ist_now.replace(hour=0, minute=0, second=0, microsecond=0)
+        .astimezone(timezone.utc)
+        .replace(tzinfo=None)
     )
 
-    per_member_today: Dict[str, int] = {}
-    per_member_errors: Dict[str, int] = {}
-    last_event: Dict[str, Dict[str, Any]] = {}
+    per_member_today: dict[str, int] = {}
+    per_member_errors: dict[str, int] = {}
+    last_event: dict[str, dict[str, Any]] = {}
     try:
         from app.models.agent_event import AgentEvent
 
@@ -246,7 +249,7 @@ def team_status() -> Dict[str, Any]:
     except Exception as e:
         logger.debug(f"[team] team_status db part failed: {e}")
 
-    members: List[Dict[str, Any]] = []
+    members: list[dict[str, Any]] = []
     for key, info in STAFF.items():
         le = last_event.get(key)
         state = "offline"
