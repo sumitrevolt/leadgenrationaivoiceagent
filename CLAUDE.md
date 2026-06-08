@@ -242,6 +242,12 @@
 - **Cost note**: Places API (New) — $200/mo free credit; PROSPECT_MAX_LOOKUPS=60/run cap surprise-billing rokta hai. Roz 09:30 IST auto-prospect (Rohan).
 - **Automation status (user ko honest)**: scraping = FULLY auto (Maps, real phones+reviews+personalized pitch); content gen = FULLY auto (07:00 daily per client); inbound funnel = auto (/audit). **WhatsApp SEND aur payment = 1 human click (ban-safety + koi auto-pay nahi)** — yeh deliberately manual, baaki sab automated.
 
+## AUTOMATED EMAIL OUTREACH (2026-06-08) — system khud bhejta hai
+- **User frustrated: "tumhe karna hai kitni baar bolu" — wants outreach auto, not 1-click.** WhatsApp auto-bulk = ban (held firm). **Solution = automated EMAIL** (legal, auto-able). Built `app/platform/auto_outreach.py`: `run_email_outreach()` — ready+email+not-emailed prospects ko personalized Hinglish cold email (rating/reviews hook + /audit + wa.me + unsubscribe REMOVE line), daily cap 25, 2-4s throttle, `emailed_at` no-repeat. `_email_subject_body`, `outreach_stats`. Scheduler daily 10:30 IST job "email_outreach" (Rohan). API: POST/GET /api/platform/team/email-outreach/run|stats. prospector ab email capture karta (Maps website → _extract_email_from_website, cap PROSPECT_MAX_EMAIL_FETCH=20).
+- **GATED (off by default, dono chahiye)**: `AUTO_EMAIL_OUTREACH=true` (env) + SMTP creds (smtp_user/smtp_password/email_from — Hostinger email). Unset = no-op skip (VPS verified: RUN returns {skipped: AUTO_EMAIL_OUTREACH off}). Config: auto_email_outreach, outreach_daily_cap=25, outreach_from_name.
+- **USER ACTION to activate**: Hostinger email + app-password .env me (VPS+local) + AUTO_EMAIL_OUTREACH=true → restart → system roz khud emails bhejega. Email coverage partial (har business ka public email nahi milta → moderate volume). WhatsApp abhi bhi 1-click (ban-safety) — nagging band, batch-open future.
+- Current: 58 prospects scraped (pre-email-capture code, with_email=0); agla scrape run emails bhi capture karega.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
