@@ -236,6 +236,12 @@
 - **HONEST LIMIT user ko bataya**: auto-POSTING Insta/FB pe Meta Graph API + app-review (hafte, locked) chahiye — abhi auto-GENERATION + queue + 1-click copy/download/wa-send. True auto-publish future.
 - VPS verified: clients page 200, onboard→generate→queue working, tests green. Tasks 37-39 done.
 
+## GOOGLE MAPS LIVE + AUTO-PROSPECTING WORKING (2026-06-08)
+- **User ne Google Maps API key di** → .env me set (VPS + local, gitignored, git me NAHI). **GOTCHA: legacy `place/textsearch/json` ab REQUEST_DENIED deta hai** ("legacy API not enabled") — Google naye projects pe legacy band kar chuka. **FIX: Places API (New)** — `app/lead_scraper/google_maps.py` me `_search_with_places_new()`: POST `https://places.googleapis.com/v1/places:searchText`, headers `X-Goog-Api-Key` + `X-Goog-FieldMask` (places.displayName/nationalPhoneNumber/rating/userRatingCount/formattedAddress/websiteUri/id), body {textQuery, maxResultCount, regionCode:IN, pageToken}. ONE call me phone+rating+reviews+website (legacy ke 2-call details ki zaroorat nahi). search_businesses ab: Places-New → legacy → scraping fallback. BusinessLead constructor me city/state/lat/lng required the (add kiye).
+- **VERIFIED LIVE**: scraper 5 leads/4 phones (Malaka Spice 4.3⭐ 9257 reviews); **ek prospecting run = 58 naye prospects** (interior designers Pune, phone+reviews), scraper="google_maps_api", lookups_used=60 (cost cap PROSPECT_MAX_LOOKUPS=60 hit). Auto-personalized pitch real Google data se (low-reviews/no-website hooks + leadsgenai.in/audit CTA).
+- **Cost note**: Places API (New) — $200/mo free credit; PROSPECT_MAX_LOOKUPS=60/run cap surprise-billing rokta hai. Roz 09:30 IST auto-prospect (Rohan).
+- **Automation status (user ko honest)**: scraping = FULLY auto (Maps, real phones+reviews+personalized pitch); content gen = FULLY auto (07:00 daily per client); inbound funnel = auto (/audit). **WhatsApp SEND aur payment = 1 human click (ban-safety + koi auto-pay nahi)** — yeh deliberately manual, baaki sab automated.
+
 ## Environment Gotchas (IMPORTANT for Claude sessions)
 - **Sandbox mount STALE ho jata hai** file-tool edits ke baad — edited files bash se truncated dikhti hain. Windows side (Read/Write/Edit tools + Desktop Commander) hi source of truth hai. Verification hamesha Windows pe karo (bats run karke log files Read karo).
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
