@@ -162,3 +162,5 @@ git_check.log
 .fuse_hidden*
 _commit_out.txt
 _push_out.txt
+
+cowork_*.log

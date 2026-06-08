@@ -9,8 +9,8 @@
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
 | 1 | Exploration & Analysis | Run Explorers to identify gaps in Security, Reliability, Scalability, Monitoring, and Testing. | none | DONE |
-| 2 | Report Compilation | Worker compiles findings into `production_readiness_report.md` in workspace root. | M1 | PLANNED |
-| 3 | Review & Audit | Reviewers and Auditor verify the report for correctness and integrity. | M2 | PLANNED |
+| 2 | Report Compilation | Worker compiles findings into `production_readiness_report.md` in workspace root. | M1 | DONE |
+| 3 | Review & Audit | Reviewers and Auditor verify the report for correctness and integrity. | M2 | DEGRADED (quota exhaust) |
 
 ## Interface Contracts
 - Output file path: `c:/Users/Ratanshila/Documents/leadgenrationaivoiceagent/production_readiness_report.md`

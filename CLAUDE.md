@@ -37,6 +37,7 @@
 ## AI Staff Team (product framing) — `app/platform/team.py` + `team_scheduler.py`
 8 staff: Boss(Manager) · Swara(Telecaller) · Dev(Data) · Rohan(Leads) · Arjun(QA) · Meera(Trainer) · Kavya(Ops) · Isha(Marketing). Events → `agent_events` table. Dashboard `/app/team`.
 **Auto-schedule (IST)**: 06:30 blog · 07:00 content(self+clients) · 08:30 digest · 09:30 scrape/prospect · 10:30 email outreach+followups · hourly Kavya health · 02:30 Arjun QA · 03:00 Meera trainer · 15-min growth-pulse (`growth_engine.py`) · ~04:00 backups.
+**Scalable multi-agent (optional, OFF default)**: `app/agents/staff_supervisor.py` — langgraph-supervisor over STAFF roster (auto-scales, dynamic). Deps VPS pe installed. Enable: `USE_LANGGRAPH_SUPERVISOR=1` + CEREBRAS/GROQ key. Existing rule-based `supervisor.py` + scheduler untouched. Detail: SESSION_LOG.
 
 ## Outbound/Growth (working)
 - **Email outreach LIVE**: Hostinger SMTP `admin@leadsgenai.in` (`smtp.hostinger.com:465`). `AUTO_EMAIL_OUTREACH=true` → Rohan roz 10:30 auto-sends personalized Hinglish cold-emails + Day-3/Day-7 followups. Cap 25/day. (`app/platform/auto_outreach.py`; Resend/Brevo API fallback in `email_api.py`.)
