@@ -141,6 +141,14 @@ async def run(
             step = max(1, scraped or batch)
             _write_cursor((_read_cursor() + step) % len(keys))
 
+    # Auto-score the leads so hot ones surface in dashboards — best-effort, never blocks.
+    try:
+        from app.platform import lead_scoring
+
+        await lead_scoring.rescore_db(2000)
+    except Exception as e:
+        logger.debug(f"[niche_prospector] auto-rescore skip: {e}")
+
     logger.info(f"[niche_prospector] scraped niches: {covered}")
     return {"ok": True, "covered": covered, "targets": len(targets), "result": result}
 
