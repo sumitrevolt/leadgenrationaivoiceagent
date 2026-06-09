@@ -687,3 +687,36 @@ Fixed the broken app image + swapped the live app into Docker (both verified, au
 
 ### NOT done
 - Deploy NAHI (commit only, no push). New page-routes = HARD RELOAD. No-code builder UI user ne skip kiya.
+
+
+## 2026-06-09 PM — 4 growth features (deep-research-driven), Windows-verified, NOT deployed
+**User:** "naye feature aur extend karo, deep web research karo." Deep research (5 areas: AI voice 2026, WhatsApp/RCS India, agentic AI SDR, AI marketing automation, reputation/reviews). User ne char ke char chune. Sab additive + free + gated + grep-first (review_kit.py already tha → reuse).
+
+### Router: app/api/growth.py (/api/growth/*, admin) — mounted in main.py
+
+### 1) AI lead scoring + hot-lead engine — agentic-2026 (30-50% better SQL)
+- `app/platform/lead_scoring.py`: `score_lead(dict)` 0-100 weighted (status _STATUS_PTS, source _SOURCE_PTS, verification, recency `_recency_pts`, qualification, niche_fit, engagement). `score_components` breakdown. `rank(list)`, `is_hot` (HOT_THRESHOLD=70). `rescore_db(limit)` (Lead model me lead_score+is_hot_lead columns PEHLE se — fill karta via get_async_session). `top_hot_leads(limit)` (live-score read-only). Pure-Python, defensive.
+- API: GET /growth/leads/hot, POST /leads/rescore, POST /leads/score.
+
+### 2) Sentiment-gated review GENERATION engine — reviews=20% local ranking, 3-5x in 90d
+- GREP: `app/marketing/review_kit.py` ALREADY review-request content banata (WA msg + pure-python QR + counter-card + full_kit LLM-polish). REBUILD NAHI.
+- NAYA `app/marketing/review_engine.py` ORCHESTRATION on top: `request_review()` sentiment-gate (happy≥4/5 → review_kit.full_kit Google request; unhappy → `_private_feedback_msg`, rating bachao, Google-compliant). Track `data/review_requests.jsonl`. Auto-send gated WHATSAPP_AUTO_SEND (existing whatsapp.py send_text_message). 
+- API: POST /growth/review/request, GET /review/requests. Journey action `request_review` added (journeys.py ACTIONS + _run_action) → omnichannel tie-in.
+
+### 3) WhatsApp Flows — in-chat lead capture (India #1 2026)
+- `app/marketing/whatsapp_flows.py`: `FLOW_LEAD_CAPTURE` JSON (Meta Flow Builder publish) + `send_flow()` (interactive flow msg via whatsapp.py _send_message, GATED WHATSAPP_LEAD_FLOW_ID+creds, inert otherwise) + `handle_flow_response()` (flow submit → public_site `_append_jsonl`+`_save_lead_db`, abhi se kaam karta). Ready-to-flip.
+- API: POST /growth/whatsapp/flow/send.
+
+### 4) Missed-call → instant AI callback — 62% inbound SMB calls unanswered
+- `app/telephony/missed_call.py`: `handle_missed_call(from_number,niche,business)` → lead capture HAMESHA (public_site jsonl+db) + dedupe 1/hr (_RECENT) + GATED MISSED_CALL_CALLBACK=1 instant callback (reuse `telephony_vobiz.start_stream_call`, transactional — caller ne khud ring kiya, ban-safe). Ready-to-flip (Vobiz DID).
+- API: POST /growth/missed-call (admin test; real = telephony webhook).
+
+### Verify (Windows=truth)
+- py_compile: lead_scoring, review_engine, whatsapp_flows, missed_call, growth, journeys, main → OK.
+- **import app.main → IMPORT_OK. prod_check → PASSED, 301 routes** (was 294; +7 growth endpoints).
+
+### Env flags (default OFF = zero change)
+- WHATSAPP_LEAD_FLOW_ID (flows), MISSED_CALL_CALLBACK=1 (callback). Lead-scoring + review-engine = live (no flag).
+
+### NOT done
+- Deploy NAHI (commit only). Flows = Meta approval pending; missed-call = Vobiz DID pending (dono ready-to-flip).

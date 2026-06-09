@@ -307,6 +307,12 @@ try:
     app.include_router(journeys_router, prefix="/api")  # /api/journeys/* (omnichannel rule engine)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Journeys router not mounted: {_e}")
+try:
+    from app.api.growth import router as growth_router
+
+    app.include_router(growth_router, prefix="/api")  # /api/growth/* (lead-score, review, flows, missed-call)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Growth router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])

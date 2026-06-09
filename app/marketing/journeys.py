@@ -29,7 +29,7 @@ _RUNS = os.path.join("data", "journey_runs.jsonl")
 # Valid trigger events (jis par rules fire ho sakte).
 TRIGGERS = {"inquiry_received", "signup", "no_show", "email_reply", "manual"}
 # Valid actions (sab ban-safe: draft/note; koi auto-send default me nahi).
-ACTIONS = {"draft_whatsapp", "draft_email", "schedule_callback", "notify", "add_tag"}
+ACTIONS = {"draft_whatsapp", "draft_email", "schedule_callback", "notify", "add_tag", "request_review"}
 
 
 def _now() -> str:
@@ -230,6 +230,27 @@ async def _run_action(action: dict[str, Any], context: dict[str, Any]) -> dict[s
         return {"action": t, "note": str(p.get("text") or "notify"), "to": p.get("to")}
     if t == "add_tag":
         return {"action": t, "tag": str(p.get("tag") or "")}
+    if t == "request_review":
+        # Sentiment-gated review request (review_engine) — draft/link (ban-safe).
+        try:
+            from app.marketing import review_engine
+
+            r = await review_engine.request_review(
+                business_name=context.get("business_name") or "Hamari team",
+                customer_name=context.get("name") or "",
+                customer_phone=context.get("phone") or "",
+                sentiment_score=p.get("sentiment_score"),
+            )
+            return {
+                "action": t,
+                "channel": "Review",
+                "gate": r.get("gate"),
+                "draft": r.get("message"),
+                "review_link": r.get("review_link"),
+                "auto_sent": r.get("auto_sent"),
+            }
+        except Exception as e:
+            return {"action": t, "error": str(e)[:120]}
     return {"action": t, "skipped": True}
 
 
