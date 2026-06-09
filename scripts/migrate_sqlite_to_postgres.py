@@ -37,7 +37,7 @@ import os
 import sys
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, MetaData, create_engine, inspect, select
+from sqlalchemy import Boolean, Date, DateTime, MetaData, create_engine, inspect, select, text
 from sqlalchemy.engine import Engine
 
 # Make sure the app package is importable when run from the repo root.
@@ -120,6 +120,11 @@ def migrate(sqlite_url: str, pg_url: str, *, wipe: bool, force: bool, batch: int
     summary: list[tuple[str, int, int, str]] = []
 
     with src.connect() as sconn, dst.begin() as dconn:
+        # Disable FK enforcement on Postgres during bulk load so the copy faithfully
+        # replicates SQLite (which doesn't enforce FKs — prod has some orphan rows).
+        is_pg = dconn.dialect.name == "postgresql"
+        if is_pg:
+            dconn.execute(text("SET session_replication_role = replica"))
         for table in metadata.sorted_tables:  # FK-safe (parents first)
             name = table.name
             if name == "alembic_version":
@@ -153,6 +158,9 @@ def migrate(sqlite_url: str, pg_url: str, *, wipe: bool, force: bool, batch: int
             summary.append((name, src_count, dst_n, "OK" if ok else "MISMATCH"))
             if not ok:
                 failures.append(name)
+
+        if is_pg:
+            dconn.execute(text("SET session_replication_role = DEFAULT"))
 
     # 3) Report
     print(f"{'TABLE':<34}{'SRC':>8}{'DST':>8}  STATUS")

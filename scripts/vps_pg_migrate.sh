@@ -48,7 +48,7 @@ echo "######## Phase 2: migration deps + copy ########"
 "$PY" -c "import psycopg2" 2>/dev/null || "$PY" -m pip install --quiet psycopg2-binary
 "$PY" -c "import sqlalchemy,sys; print('sqlalchemy', sqlalchemy.__version__)"
 DATABASE_URL="$SYNC_LOCAL" "$PY" scripts/migrate_sqlite_to_postgres.py \
-  --sqlite sqlite:////opt/leadgen/leadgen.db --postgres "$SYNC_LOCAL"
+  --sqlite sqlite:////opt/leadgen/leadgen.db --postgres "$SYNC_LOCAL" --wipe
 
 echo ""
 echo "######## MIGRATION DONE — Postgres has schema+data. Live app STILL on SQLite (zero downtime). ########"
