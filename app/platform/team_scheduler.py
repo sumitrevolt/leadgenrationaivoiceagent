@@ -177,6 +177,7 @@ async def _run_job(job: str) -> None:
 
 async def scheduler_loop() -> None:
     logger.info("[team-scheduler] loop started (growth 15min + dailies)")
+    _boot_seeded = False
     while True:
         try:
             _refresh_lock()  # heartbeat — owner zinda hai
@@ -184,6 +185,27 @@ async def scheduler_loop() -> None:
             hour_key = now.strftime("%Y-%m-%d %H")
             day_key = now.strftime("%Y-%m-%d")
             hm = (now.hour, now.minute)
+
+            # BOOT GRACE (one-time): agar restart kisi HEAVY daily job ke window me
+            # hua, to use is boot pe SKIP karo (mark done). Warna boot pe qa/content
+            # jaisa heavy job event-loop block karke HTTP starve karta tha (prod 000
+            # during 2:30-4:00 IST qa window). Daily job apne next din normal chalega;
+            # growth(15min)/hourly jobs unaffected.
+            if not _boot_seeded:
+                _boot_seeded = True
+                _heavy = {
+                    "qa": ((2, 30), (4, 0)),
+                    "trainer": ((3, 0), (4, 30)),
+                    "blog": ((6, 30), (8, 30)),
+                    "content": ((7, 0), (9, 0)),
+                    "digest": ((8, 30), (10, 30)),
+                    "prospect": ((9, 30), (11, 30)),
+                    "email_outreach": ((10, 30), (12, 30)),
+                }
+                for _jk, (_lo, _hi) in _heavy.items():
+                    if _lo <= hm < _hi:
+                        _last_ran[_jk] = day_key
+                        logger.info(f"[team-scheduler] boot-grace: {_jk} skipped this boot (window active)")
 
             slot_min = (now.minute // 15) * 15
             slot_key = now.strftime("%Y-%m-%d %H:") + f"{slot_min:02d}"
