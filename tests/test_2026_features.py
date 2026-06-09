@@ -450,3 +450,8 @@ def test_agent_coordinator_advanced(tmp_path, monkeypatch):
     # debate / consensus
     d = asyncio.run(coordinator.debate("Cold calling abhi shuru karein?", rounds=1))
     assert d["ok"] and d["verdict"] and len(d["rounds"]) == 1
+
+    # hierarchical (Boss -> sub-teams -> members), fallback team = growth
+    h = asyncio.run(coordinator.coordinate_hierarchical("Pune growth + ops plan"))
+    assert h["ok"] and h["pattern"] == "hierarchical" and h["teams"]
+    assert all("members" in t and "summary" in t for t in h["teams"])

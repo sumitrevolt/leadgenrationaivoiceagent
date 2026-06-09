@@ -472,11 +472,102 @@ async def debate(question: str, rounds: int = 1) -> dict:
     return out
 
 
+# =========================================================================== #
+# HIERARCHICAL orchestration (2026 supervisor→sub-supervisor→workers topology).
+# Boss goal ko relevant DOMAIN sub-teams me baantta; har sub-team ka supervisor
+# apne members ko coordinate karta (teams PARALLEL); Boss top-level merge.
+# =========================================================================== #
+_TEAMS: dict[str, list[str]] = {
+    "growth": ["dev", "rohan", "isha"],  # research + outreach + marketing
+    "ops": ["kavya", "arjun", "meera"],  # health + QA + training
+    "sales": ["rohan", "swara"],  # outreach + close
+}
+
+
+async def _assign_teams(goal: str) -> dict[str, str]:
+    """Boss decides which sub-team(s) handle the goal + each team's objective."""
+    sys = (
+        "Tum Manager (Boss) ho. Goal ke liye 1-2 relevant sub-teams chuno aur har ek ka chhota objective do. "
+        'SIRF JSON lautao: {"growth":"<obj>","ops":"<obj>","sales":"<obj>"} me se SIRF relevant keys. '
+        "Teams: growth(research/outreach/marketing), ops(health/QA/training), sales(outreach/close). Aur kuch nahi."
+    )
+    raw, _ = await _llm(sys, f"Goal: {goal}", max_tokens=200, temperature=0.2)
+    t = (raw or "").strip()
+    i, j = t.find("{"), t.rfind("}")
+    if i != -1 and j != -1 and j > i:
+        t = t[i : j + 1]
+    try:
+        d = json.loads(t)
+        out = {k: str(v)[:200] for k, v in d.items() if k in _TEAMS and v}
+        if out:
+            return out
+    except Exception:
+        pass
+    return {"growth": goal}  # fallback: growth team handles it
+
+
+async def _run_team(team: str, objective: str, execute: bool) -> dict:
+    """Sub-supervisor: team ke members ko sequential handoff se coordinate kare."""
+    members = _TEAMS.get(team, [])
+    bb: dict[str, Any] = {"goal": objective, "results": []}
+    for m in members:
+        v = _roster().get(m, {})
+        r = await _run_agent(m, f"{objective} ({v.get('title', '')})", bb, execute)
+        bb["results"].append({"agent": m, **r})
+        _log(m, "hier_step", f"{team}: {objective[:80]}")
+    sub, _ = await _llm(
+        f"Tum {team} team ke supervisor ho. Apni team ke kaam ko 2-3 line Hinglish me sameto. Sirf text.",
+        f"Objective: {objective}\nResults: {json.dumps(bb['results'], ensure_ascii=False)[:1400]}",
+        max_tokens=160,
+        temperature=0.4,
+    )
+    return {
+        "team": team,
+        "objective": objective,
+        "members": members,
+        "results": bb["results"],
+        "summary": sub or "(team summary nahi bana)",
+    }
+
+
+async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
+    """2-level hierarchy: Boss → sub-teams (PARALLEL) → members → Boss merge. Never raises."""
+    goal = (goal or "").strip()
+    if len(goal) < 3:
+        return {"ok": False, "error": "goal bahut chhota hai"}
+    run_id = uuid.uuid4().hex[:12]
+    assign = await _assign_teams(goal)
+    _log("manager", "hier_start", f"{goal} -> teams {list(assign)}")
+    team_outs = await asyncio.gather(
+        *[_run_team(t, obj, execute) for t, obj in assign.items()], return_exceptions=True
+    )
+    teams = [t for t in team_outs if isinstance(t, dict)]
+    summary, _ = await _llm(
+        "Tum Manager (Boss) ho. Sub-teams ke summaries ko ek unified 4-5 line Hinglish plan + next-action me merge karo. Sirf text.",
+        f"Goal: {goal}\nTeams: {json.dumps([{'team': t['team'], 'summary': t['summary']} for t in teams], ensure_ascii=False)[:1600]}",
+        max_tokens=240,
+        temperature=0.4,
+    )
+    _log("manager", "hier_done", summary or "done")
+    out = {
+        "ok": True,
+        "run_id": run_id,
+        "goal": goal,
+        "pattern": "hierarchical",
+        "teams": teams,
+        "summary": summary or "(merge nahi bana)",
+        "at": _now(),
+    }
+    _persist(out)
+    return out
+
+
 __all__ = [
     "roster",
     "plan",
     "coordinate",
     "coordinate_advanced",
+    "coordinate_hierarchical",
     "fan_out",
     "debate",
     "recent_runs",

@@ -88,6 +88,7 @@ _last_ran: dict[str, str | None] = {
     "reply_triage": None,
     "watchdog": None,
     "onboard": None,
+    "standup": None,
 }
 
 
@@ -161,6 +162,15 @@ async def _run_job(job: str) -> None:
             from app.marketing import onboarding
 
             await onboarding.run_onboarding_sweep()
+        elif job == "standup":
+            # Boss daily standup — hierarchical team coordination (gated AGENT_STANDUP).
+            if os.environ.get("AGENT_STANDUP", "0").strip().lower() in ("1", "true", "yes"):
+                from app.agents import coordinator
+
+                await coordinator.coordinate_hierarchical(
+                    "Aaj ka team plan: growth (naye leads + outreach) aur ops (system health + QA) — "
+                    "priorities aur next-actions nikalo"
+                )
     except Exception as e:
         logger.warning(f"[team-scheduler] job {job} failed: {e}")
 
@@ -217,6 +227,10 @@ async def scheduler_loop() -> None:
             if now.minute >= 50 and _last_ran["onboard"] != hour_key:
                 _last_ran["onboard"] = hour_key
                 await _run_job("onboard")
+            # Boss daily standup — morning hierarchical coordination (gated AGENT_STANDUP).
+            if (8, 0) <= hm < (9, 30) and _last_ran["standup"] != day_key:
+                _last_ran["standup"] = day_key
+                await _run_job("standup")
         except asyncio.CancelledError:
             logger.info("[team-scheduler] loop cancelled")
             raise

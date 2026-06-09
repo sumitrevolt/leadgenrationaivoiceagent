@@ -368,6 +368,13 @@ async def analytics_page():
     return FileResponse(str(FRONTEND_DIR / "analytics.html"))
 
 
+@app.get("/app/agents", tags=["Frontend"])
+async def agents_page():
+    """Live multi-agent coordination dashboard — roster, Reflexion coordinate, debate,
+    episodic memory. Calls /api/agents/* (admin token for POSTs)."""
+    return FileResponse(str(FRONTEND_DIR / "agents.html"))
+
+
 @app.get("/app/customer", tags=["Frontend"])
 async def customer_dashboard_page():
     """Customer dashboard (leads, calls, final qualified leads)."""

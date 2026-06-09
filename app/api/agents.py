@@ -151,3 +151,18 @@ async def debate_agents(req: DebateRequest, user: User = Depends(require_admin))
 async def agents_memory(limit: int = 30, user: User = Depends(require_admin)) -> dict[str, Any]:
     """Recent episodic agent memory (Reflexion reflections + scores)."""
     return {"memory": coordinator.memory_log(limit=limit)}
+
+
+class HierRequest(BaseModel):
+    """Goal for hierarchical (Boss → sub-teams → members) orchestration."""
+
+    goal: str = Field(..., min_length=3, max_length=2000)
+    execute: bool = Field(False, description="True = agents ki SAFE capabilities bhi chalao")
+
+
+@router.post("/coordinate-hierarchical", dependencies=[Depends(rate_limit("agents", 10, 60))])
+async def coordinate_hierarchical_agents(
+    req: HierRequest, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """Hierarchical: Boss -> domain sub-teams (growth/ops/sales, PARALLEL) -> members -> unified merge."""
+    return await coordinator.coordinate_hierarchical(req.goal, execute=req.execute)
