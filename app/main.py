@@ -375,6 +375,13 @@ async def agents_page():
     return FileResponse(str(FRONTEND_DIR / "agents.html"))
 
 
+@app.get("/app/admin-login", tags=["Frontend"])
+async def admin_login_page():
+    """Admin login — email+password → /api/admin/auth/login → sets accessToken (unlocks
+    all admin dashboards). Without this, admin pages 401 (no token)."""
+    return FileResponse(str(FRONTEND_DIR / "admin_login.html"))
+
+
 @app.get("/app/customer", tags=["Frontend"])
 async def customer_dashboard_page():
     """Customer dashboard (leads, calls, final qualified leads)."""
