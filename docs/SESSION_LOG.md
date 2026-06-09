@@ -613,3 +613,18 @@ Drove the staged cutover on the VPS via Git ssh.exe (Desktop Commander), command
 **Net:** Live business on Postgres+Redis (no more SQLite write-lock ceiling, distributed Redis cache/rate-limit), durable nightly backups, ~1 min downtime, zero data loss. App still systemd (host Caddy unchanged). SQLite + `.env.bak_switch_*` retained → instant rollback.
 
 **Still pending (optional, user/next):** CI auto-deploy (set GitHub var `DEPLOY_ENABLED=true` + VPS/GHCR secrets); full app-in-container (needs requirements drift freeze-lock, py3.12 base); observability stack (`docker-compose.observability.yml`). Unrelated pre-existing: DLT/Vobiz telephony, payment keys (UPI/Stripe/Razorpay), POLLINATIONS_TOKEN.
+
+
+### 2026-06-09 (cont.) — App FULLY CONTAINERIZED ✅
+
+Fixed the broken app image + swapped the live app into Docker (both verified, auto-rollback).
+
+- **Image build fixed** (`Dockerfile.lock`): `requirements.txt` had version drift (Pillow 10.2 vs fastembed≥10.3; pydantic too low for langgraph 1.x) — clean pip resolution impossible. Pivoted to building from the LIVE-VENV freeze: `scripts/vps_freeze.sh` → `requirements.lock.txt` (273 pkgs, py3.12, no VCS/editable), installed `--no-deps` (no resolution = no conflict). Committed the lock; CI (`deploy-vps.yml`) now builds `Dockerfile.lock`. `scripts/vps_build_verify.sh` (self-backgrounding + status marker, build log to file) → **build OK + container `import app.main` OK**.
+- **Live app swap** (`scripts/vps_app_container_swap.sh`, auto-rollback): stop systemd → `docker compose up -d app` → poll `/health/ready` → **200 (db+redis healthy, version=latest = container)** → `systemctl disable leadgen` (kept for rollback). Compose app fixes: DATABASE_URL hardcoded to internal `db:5432` (NOT `.env`'s 127.0.0.1, which is for the systemd-host/migration path); `user: "0:0"` so the root-owned bind-mounted `./data` stays writable. ~30s downtime.
+- **Smoke**: leadsgenai.in /,/audit,/blog,/api/data/niches?tier=S all 200 via Caddy→container; niches API real data (Postgres). Containers healthy: leadgen_app + leadgen_db + leadgen_redis (+ existing freeswitch, qdrant). systemd inactive. Nightly pg_backup OK (42K).
+
+**Net end state:** App in Docker (`leadgen_app`, restart:unless-stopped, auto-heal) → Postgres + Redis, host Caddy TLS unchanged. Reproducible image from committed lock. Nightly backups. Two-level rollback (app→systemd, DB→SQLite). 
+
+**Rollback cheatsheet:** app→systemd `docker compose -f docker-compose.vps.yml stop app; systemctl enable --now leadgen`. DB→SQLite: set `.env` DATABASE_URL=sqlite:////opt/leadgen/leadgen.db + restart.
+
+**Remaining (user-gated):** CI auto-deploy = set GitHub repo var `DEPLOY_ENABLED=true` + secrets VPS_HOST/USER/SSH_KEY/GHCR_PAT. Optional: observability stack, multi-worker scale, offsite backup (RCLONE_REMOTE). Unrelated pre-existing: DLT/Vobiz, payment keys, POLLINATIONS_TOKEN.
