@@ -76,7 +76,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.production
+          file: Dockerfile.lock
           push: true
           build-args: |
             APP_VERSION=${{ github.sha }}
