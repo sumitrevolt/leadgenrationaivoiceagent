@@ -598,3 +598,18 @@
 - Migration script: `_coerce` unit tests PASS (str/int/datetime/None→correct types); e2e synthetic schema copy PASS (FK order, row-count verify, bool/datetime integrity, idempotent re-run skip).
 
 **USER-PENDING (cutover execution):** `docs/PRODUCTION_CUTOVER.md` follow karna; GitHub secrets + `.env` POSTGRES_* set karna. Postgres+Redis VPS pe Docker se (Docker already installed — Qdrant chal raha). Voice torch deps / DLT / payments keys = pehle jaisa pending (in-infra se unrelated).
+
+
+### 2026-06-09 (cont.) — CUTOVER EXECUTED ✅ Live on Postgres + Redis
+
+Drove the staged cutover on the VPS via Git ssh.exe (Desktop Commander), commands-in-scripts pattern (no inline &&/quotes — CLAUDE.md gotcha).
+
+- **Recon** (`vps_recon.sh`): VPS healthy — 16GB RAM (14.7 free), 186G disk, Docker 29 + Compose v5, systemd leadgen active :8000, live DB sqlite (724K), no port conflicts.
+- **Phase 1-2 zero-downtime** (`vps_pg_migrate.sh`, venv-based — sidestepped Docker image build): Postgres16 + Redis7 containers up (127.0.0.1 published), copied SQLite→PG via live venv (py3.12). **19 tables verified SRC==DST** (agent_events 382, billing_records 120, call_logs 40, leads 27, clients 10, campaigns 8, agents 6, data_credits 1…). Live app stayed on SQLite throughout.
+- **Two migration fixes found+fixed live**: (1) `Pillow==10.2.0` vs fastembed (needs ≥10.3) — bumped to `>=10.3.0,<11` (was blocking the *image* build; pivoted to venv-migrate to unblock). (2) FK violation on orphan row (`data_credits.client_id=demo-client` absent from clients — SQLite doesn't enforce FKs) → migrate script now `SET session_replication_role=replica` during PG bulk load (faithful copy incl orphans) + `text` import.
+- **Phase 3 switch** (`vps_cutover_switch.sh`, atomic + auto-rollback): set `.env` DATABASE_URL=postgresql+asyncpg@127.0.0.1:5432 + REDIS_URL, `systemctl restart leadgen`, polled `/health/ready` → **200 healthy (database+redis both healthy)**. Auto-rollback armed (revert .env + restart if non-200) — not needed.
+- **Post-cutover** (`vps_postcutover.sh`): smoke all 200 (leadsgenai.in /,/audit,/blog,/api/data/niches?tier=S — niches API real data via PG). Nightly `pg_backup.sh` cron @02:30 IST installed + test dump OK (41K). Containers: leadgen_db+redis healthy (alongside existing freeswitch+qdrant).
+
+**Net:** Live business on Postgres+Redis (no more SQLite write-lock ceiling, distributed Redis cache/rate-limit), durable nightly backups, ~1 min downtime, zero data loss. App still systemd (host Caddy unchanged). SQLite + `.env.bak_switch_*` retained → instant rollback.
+
+**Still pending (optional, user/next):** CI auto-deploy (set GitHub var `DEPLOY_ENABLED=true` + VPS/GHCR secrets); full app-in-container (needs requirements drift freeze-lock, py3.12 base); observability stack (`docker-compose.observability.yml`). Unrelated pre-existing: DLT/Vobiz telephony, payment keys (UPI/Stripe/Razorpay), POLLINATIONS_TOKEN.
