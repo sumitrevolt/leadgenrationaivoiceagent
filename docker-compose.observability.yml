@@ -43,6 +43,8 @@ services:
     container_name: leadgen_alertmanager
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      # SMTP password (gitignored, deploy pe .env se likhi jaati) — secret repo me nahi.
+      - ./monitoring/alertmanager_smtp_pass:/etc/alertmanager/smtp_pass:ro
       - amdata:/alertmanager
     command:
       - --config.file=/etc/alertmanager/alertmanager.yml

@@ -150,7 +150,16 @@ async def get_client_id(
     if user and hasattr(user, "client_id"):
         return user.client_id
 
-    # For development/testing, use a default client
+    # Anonymous request: PRODUCTION me block karo — warna koi bhi bina auth ke
+    # metered lead-search/export/reports hit karke shared credits drain kar leta.
+    # Dev/test me hi "demo-client" shortcut allowed.
+    from app.config import settings
+
+    if getattr(settings, "is_production", False):
+        raise HTTPException(
+            status_code=401,
+            detail="Is endpoint ke liye API key ya login chahiye.",
+        )
     return "demo-client"
 
 

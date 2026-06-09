@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Secrets (never commit) — Alertmanager SMTP password file, written on VPS from .env
+monitoring/alertmanager_smtp_pass
+
 # C extensions
 *.so
 
