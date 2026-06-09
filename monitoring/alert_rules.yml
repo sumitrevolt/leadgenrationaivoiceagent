@@ -1,0 +1,60 @@
+# =============================================================================
+# Prometheus alert rules — LeadGen stack.
+# Loaded by prometheus.yml (rule_files). Alerts -> Alertmanager -> email/Telegram.
+#
+# `up`-based alerts har setup me kaam karte (Prometheus scrape se aata).
+# HTTP-rate alerts tabhi fire honge jab app `http_requests_total` /
+# `http_request_duration_seconds_bucket` expose kare (prometheus-fastapi-
+# instrumentator naming). Metric naam alag ho to inhe tune karna.
+# =============================================================================
+groups:
+  - name: availability
+    rules:
+      - alert: AppInstanceDown
+        expr: up{job="leadgen-app"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "leadgen_app down (2m+)"
+          description: "Prometheus {{ $labels.job }} target reachable nahi — app/container down ya /metrics block."
+
+      - alert: PrometheusTargetMissing
+        expr: up == 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Scrape target down: {{ $labels.job }}"
+          description: "{{ $labels.instance }} 5m se scrape nahi ho raha."
+
+  - name: latency_errors
+    rules:
+      - alert: HighHttp5xxRate
+        expr: |
+          sum(rate(http_requests_total{job="leadgen-app",status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total{job="leadgen-app"}[5m])), 0.001) > 0.02
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "5xx error rate > 2% (5m)"
+          description: "App 5xx errors spike — Sentry/Tempo trace dekho."
+
+      - alert: HighRequestLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="leadgen-app"}[5m])) by (le)) > 2
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "p95 latency > 2s (10m)"
+          description: "Requests slow — DB/LLM/TTS downstream check karo."
+
+  - name: resources
+    rules:
+      - alert: ContainerHighMemory
+        expr: |
+          (process_resident_memory_bytes{job="leadgen-app"} / 1e9) > 1.5
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "App RSS > 1.5GB (10m)"
+          description: "Memory creep — worker_max_memory_per_child / leak check."

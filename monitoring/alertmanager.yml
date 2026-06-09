@@ -1,0 +1,45 @@
+# =============================================================================
+# Alertmanager config — routes Prometheus alerts to email / Telegram.
+# Used by docker-compose.observability.yml (alertmanager service).
+#
+# DEFAULT = safe no-op-ish: alerts sirf Alertmanager UI (:9093) me dikhte.
+# Email/Telegram ON karne ke liye neeche placeholders bharo (ya env-templated
+# config mount karo). Hostinger SMTP creds app ke .env me already hain.
+# =============================================================================
+global:
+  resolve_timeout: 5m
+  # --- Email (Hostinger SMTP) — uncomment + fill to enable email alerts ---
+  # smtp_smarthost: "smtp.hostinger.com:587"
+  # smtp_from: "admin@leadsgenai.in"
+  # smtp_auth_username: "admin@leadsgenai.in"
+  # smtp_auth_password: "<SMTP_PASSWORD>"
+  # smtp_require_tls: true
+
+route:
+  receiver: default
+  group_by: ["alertname"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+  routes:
+    - matchers: ['severity="critical"']
+      receiver: default
+      repeat_interval: 1h
+
+receivers:
+  - name: default
+    # Default: koi external send nahi (UI-only) taaki misconfig pe spam na ho.
+    # Email enable: upar SMTP bharo + neeche email_configs uncomment.
+    # email_configs:
+    #   - to: "admin@leadsgenai.in"
+    #     send_resolved: true
+    # Telegram enable: bot token + chat id daalo.
+    # telegram_configs:
+    #   - bot_token: "<TELEGRAM_BOT_TOKEN>"
+    #     chat_id: <CHAT_ID>
+    #     send_resolved: true
+
+inhibit_rules:
+  - source_matchers: ['severity="critical"']
+    target_matchers: ['severity="warning"']
+    equal: ["alertname"]

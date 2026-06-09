@@ -628,3 +628,33 @@ Fixed the broken app image + swapped the live app into Docker (both verified, au
 **Rollback cheatsheet:** app→systemd `docker compose -f docker-compose.vps.yml stop app; systemctl enable --now leadgen`. DB→SQLite: set `.env` DATABASE_URL=sqlite:////opt/leadgen/leadgen.db + restart.
 
 **Remaining (user-gated):** CI auto-deploy = set GitHub repo var `DEPLOY_ENABLED=true` + secrets VPS_HOST/USER/SSH_KEY/GHCR_PAT. Optional: observability stack, multi-worker scale, offsite backup (RCLONE_REMOTE). Unrelated pre-existing: DLT/Vobiz, payment keys, POLLINATIONS_TOKEN.
+
+
+## 2026-06-09 PM — Production-Automation-Revenue build (roadmap + 5 features, Windows-verified, NOT deployed)
+**User:** "project production ready hone ke liye kya kamiya + infra strong/automated + revenue process — deep research, github repos, add features." Then "sab kuch karo."
+
+### Deliverable 1 — Research roadmap
+- `docs/ROADMAP_2026_Automation_Revenue_Hardening.md`: deep web+github research (Windmill/Temporal/n8n/Hatchet, Pipecat/LiveKit, PostHog/Umami/Metabase, Stripe-SmartRetries/Razorpay-dunning, OTel-LGTM blueswen/fastapi-observability, Barman/WAL-G/pgBackRest-unmaintained, AI-SDR open-sdr/b2b-sdr-agent-template). Gap-analysis P0/P1/P2 + free-stack picks + phased plan. Key finding: code already ~80% prod-grade; gap = deployment + revenue-loop + durability, NOT code.
+
+### Deliverable 2 — 5 features built (all additive, flag-gated, free-stack)
+1. **Self-serve REVENUE loop** — discovery ne dikhaya BACKEND checkout already complete (`/api/billing/plans,checkout,verify-payment` in billing.py). Toh sirf frontend+thin-signup banaya:
+   - `frontend/pricing.html` (plans fetch, billing-cycle toggle, signup modal, Razorpay checkout.js, graceful UPI/contact fallback when keys unset).
+   - main.py page-routes `/pricing` + `/start`.
+   - `POST /api/public/signup` in public_site.py (honeypot+rate-limit+email-dedupe + add_client + register_login + auto-login JWT + Rohan team-event). **Anti-hijack**: add_client phone/name-dedupe → existing-owned client (login already attached) pe naya login block (`client_has_login`).
+   - customer_auth.py: `register_login()` (set_password ab isko reuse karta, dup-wiring khatam) + `login_exists()` + `client_has_login()`.
+   - NEEDS env: `RAZORPAY_KEY_ID/SECRET` + `UPI_VPA`. Bina keys = account banta, payment fallback dikhta.
+2. **Durable Celery path** — `app/tasks/staff_jobs.py` (`run_staff_job(job)` shared_task wraps team_scheduler._run_job via own event-loop, retry). worker.py: include + 12 beat entries (IST crontab mirror) + **DLQ** in `on_task_failure` (Redis `dlq:failed_tasks`, bounded 1000). DORMANT — sirf celery beat (`--profile celery`) pe; switch `RUN_IN_PROCESS_SCHEDULER=0` (no double-run). In-process APScheduler default untouched.
+3. **CI deploy hardened** — `deploy-vps.yml`: capture prev image id → `/health/ready` retry-gate (12×5s) → fail pe **auto-rollback** (retag prev as :rollback + compose up) + exit 1; `--remove-orphans`. Still `DEPLOY_ENABLED` gated.
+4. **OTel + alerting** — `app/observability_otel.py` (`setup_otel(app)`, import-safe, `ENABLE_OTEL=0` default no-op; FastAPI+SQLAlchemy+Redis+httpx instrument; OTLP→Tempo). main.py gated call after exception-handlers. `monitoring/alert_rules.yml` (availability/latency/5xx/mem), `alertmanager.yml` (email/telegram templated, UI-only default), `tempo.yaml`; prometheus.yml rule_files+alerting+alertmanager-scrape; observability compose +alertmanager+loki+tempo+volumes. requirements.txt OTel deps commented (lock build untouched).
+5. **Postgres DR** — `scripts/pg_restore_drill.sh` (latest dump → throwaway container restore → table/row-count verify → PASS/FAIL, prod untouched, monthly cron) + `scripts/pg_pitr_enable.sh` (WAL-archiving via ALTER SYSTEM, dry-run default, `--apply` maintenance-window, restart-note).
+
+### Verify (Windows = truth; sandbox mount STALE confirmed again)
+- py_compile: customer_auth, public_site, main, worker, staff_jobs, observability_otel → all OK.
+- YAML: deploy-vps.yml, prometheus.yml, alertmanager.yml, alert_rules.yml, tempo.yaml, observability compose → all safe_load OK.
+- bash -n: both pg_*.sh → OK.
+- **`import app.main` + `import app.worker` → OK** (OTel logged "disabled", no new errors; pre-existing duplicate-opid warnings only).
+- **prod_check.py → ALL CHECKS PASSED, 284 routes** (was 278; +pricing/start/signup).
+- JS double-JSON.parse bug in openModal → fixed.
+
+### NOT done (user decision pending — live prod)
+- Deploy NAHI kiya. Push DEPLOY_ENABLED unset hone se gate-only chalega (safe). Live deploy = either enable CI (DEPLOY_ENABLED=true+secrets) ya manual image rebuild. New page-routes = HARD RELOAD.

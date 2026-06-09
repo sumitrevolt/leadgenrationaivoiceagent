@@ -105,6 +105,9 @@ jobs:
             export GHCR_PAT="${{ secrets.GHCR_PAT }}"
             export GITHUB_SHA="${{ github.sha }}"
             cd /opt/leadgen
+            # --- capture currently-running image for AUTO-ROLLBACK on bad deploy ---
+            PREV_IMG_ID="$(docker inspect leadgen_app --format '{{.Image}}' 2>/dev/null || echo '')"
+            echo "==> prev image id: ${PREV_IMG_ID:-none}"
             echo "==> sync compose + migrations from git"
             git fetch --all --quiet || true
             git checkout main --quiet || true
@@ -113,11 +116,27 @@ jobs:
             echo "${GHCR_PAT}" | docker login ghcr.io -u sumitrevolt --password-stdin
             export APP_VERSION="${GITHUB_SHA}"
             docker compose -f docker-compose.vps.yml pull
-            echo "==> roll the stack"
-            docker compose -f docker-compose.vps.yml up -d
+            echo "==> roll the stack (fresh image -> no stale .pyc possible)"
+            docker compose -f docker-compose.vps.yml up -d --remove-orphans
             echo "==> apply migrations (idempotent)"
             docker compose -f docker-compose.vps.yml run --rm app alembic upgrade head || true
-            echo "==> health check"
-            sleep 10
-            curl -fsS http://127.0.0.1:8000/health && echo " HEALTH OK"
+            echo "==> health gate: /health/ready (db+redis) with retries"
+            ok=0
+            for i in $(seq 1 12); do
+              if curl -fsS http://127.0.0.1:8000/health/ready >/dev/null 2>&1; then ok=1; break; fi
+              echo "   not ready yet ($i/12)…"; sleep 5
+            done
+            if [ "$ok" != "1" ]; then
+              echo "!!! HEALTH FAILED — AUTO-ROLLBACK to previous image"
+              if [ -n "$PREV_IMG_ID" ]; then
+                docker tag "$PREV_IMG_ID" ghcr.io/sumitrevolt/leadgenrationaivoiceagent:rollback
+                APP_VERSION=rollback docker compose -f docker-compose.vps.yml up -d --remove-orphans || true
+                sleep 8
+                curl -fsS http://127.0.0.1:8000/health/ready >/dev/null 2>&1 && echo "   rolled back, healthy again" || echo "   ROLLBACK ALSO UNHEALTHY — manual check needed"
+              else
+                echo "   no previous image captured — manual rollback (see CLAUDE.md)"
+              fi
+              exit 1
+            fi
+            echo "==> HEALTH OK (ready)"
             docker image prune -f || true

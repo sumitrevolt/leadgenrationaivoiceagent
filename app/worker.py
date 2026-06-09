@@ -24,6 +24,7 @@ celery_app = Celery(
         "app.tasks.reporting",
         "app.tasks.sync",
         "app.tasks.brain_training",  # Brain training tasks
+        "app.tasks.staff_jobs",  # Durable AI-staff jobs (dormant unless celery beat runs)
     ],
 )
 
@@ -126,6 +127,31 @@ def on_task_failure(task_id, exception, args, kwargs, traceback, einfo, **kw):
             sentry_sdk.capture_exception(exception)
         except Exception:
             pass
+
+    # Dead-letter recorder: failed task ka record Redis list me (inspection/replay).
+    # Best-effort + bounded (last 1000). Redis down ho to silent skip.
+    try:
+        import json as _json
+        from datetime import datetime as _dt
+
+        import redis as _redis
+
+        _r = _redis.from_url(settings.redis_url, socket_timeout=2)
+        _r.lpush(
+            "dlq:failed_tasks",
+            _json.dumps(
+                {
+                    "task_id": str(task_id),
+                    "error": str(exception)[:500],
+                    "args": str(args)[:400],
+                    "kwargs": str(kwargs)[:400],
+                    "ts": _dt.utcnow().isoformat() + "Z",
+                }
+            ),
+        )
+        _r.ltrim("dlq:failed_tasks", 0, 999)
+    except Exception:
+        pass
 
 
 @signals.task_retry.connect
@@ -233,6 +259,73 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.brain_training.vertex_knowledge_update",
         "schedule": crontab(hour="4,16", minute=30),  # 4:30 AM and 4:30 PM
         "args": (),
+    },
+    # ========================================
+    # AI-STAFF JOBS (durable path) — mirrors team_scheduler.py IST cadence.
+    # DORMANT unless `celery beat` runs (compose --profile celery). On default
+    # deployment the in-process APScheduler still owns these. Switch = set
+    # RUN_IN_PROCESS_SCHEDULER=0 + run celery beat (no double-run). Timezone here
+    # is Asia/Kolkata (celery_app.conf.timezone) so hours below are IST.
+    # ========================================
+    "staff-growth-15min": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute="*/15"),
+        "args": ("growth",),
+    },
+    "staff-ops-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=5),
+        "args": ("ops",),
+    },
+    "staff-reply-triage-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=20),
+        "args": ("reply_triage",),
+    },
+    "staff-watchdog-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=35),
+        "args": ("watchdog",),
+    },
+    "staff-onboard-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=50),
+        "args": ("onboard",),
+    },
+    "staff-qa-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=2, minute=30),
+        "args": ("qa",),
+    },
+    "staff-trainer-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=3, minute=0),
+        "args": ("trainer",),
+    },
+    "staff-blog-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=6, minute=30),
+        "args": ("blog",),
+    },
+    "staff-content-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=7, minute=0),
+        "args": ("content",),
+    },
+    "staff-digest-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=8, minute=30),
+        "args": ("digest",),
+    },
+    "staff-prospect-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=9, minute=30),
+        "args": ("prospect",),
+    },
+    "staff-email-outreach-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=10, minute=30),
+        "args": ("email_outreach",),
     },
 }
 

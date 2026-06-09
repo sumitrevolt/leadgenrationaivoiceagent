@@ -4,6 +4,17 @@ global:
   scrape_interval: 30s
   scrape_timeout: 10s
 
+# Alert rules (availability / latency / errors / resources).
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+
+# Send firing alerts to Alertmanager (added in docker-compose.observability.yml).
+# Alertmanager na chale to Prometheus bas warn karta — scrape/rules chalte rehte.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["leadgen_alertmanager:9093"]
+
 scrape_configs:
   - job_name: leadgen-app
     metrics_path: /metrics
@@ -14,3 +25,7 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["leadgen_alertmanager:9093"]

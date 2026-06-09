@@ -131,3 +131,12 @@
 
 ## History & Research
 - Full dated history: **`docs/SESSION_LOG.md`**. Research: `docs/Architecture_Research_RAG_Agents_MCP.md`, `docs/P3_Own_Telephony_Stack_Plan.md`, `docs/Marketing_Kit_LeadGenAI.md`, `docs/Sales_Kit_Hinglish.md`, `docs/THREE_BRAIN_ARCHITECTURE.md`, `docs/API.md`. Pricing: `Niche_Pricing_Research.xlsx`.
+
+
+## 5 MORE FEATURES BUILT (2026-06-09 PM, code-complete + Windows-verified, NOT deployed) — detail: SESSION_LOG
+> **Rebuild MAT karo.** `import app.main`+`app.worker` OK, prod_check **284 routes** PASS. Deploy ke baad naye page-routes (`/pricing`,`/start`) = HARD RELOAD. Full roadmap: `docs/ROADMAP_2026_Automation_Revenue_Hardening.md`.
+- **Self-serve REVENUE loop** (`frontend/pricing.html` + page-routes `/pricing`,`/start` in main.py + `POST /api/public/signup` in public_site.py + `register_login`/`login_exists`/`client_has_login` in customer_auth.py): pricing→signup→Razorpay checkout, EXISTING `/api/billing/{plans,checkout,verify-payment}` use karta (rebuild NAHI). Anti-hijack guard (add_client name/phone-dedupe pe owned-client pe login attach block). Payment keys unset ho to graceful UPI/contact fallback (account fir bhi banta). NEEDS: `RAZORPAY_KEY_ID/SECRET` + `UPI_VPA`.
+- **Durable Celery path** (`app/tasks/staff_jobs.py` + worker.py beat entries + DLQ): team_scheduler ke 12 AI-staff jobs ab Celery-beat se durable. **DORMANT default** — sirf `celery beat` (`--profile celery`) pe fire; switch=`RUN_IN_PROCESS_SCHEDULER=0` (double-run avoid). DLQ: failed tasks → Redis `dlq:failed_tasks` (worker.py `on_task_failure`).
+- **CI deploy hardened** (`deploy-vps.yml`): `/health/ready` gate + **auto-rollback** (prev-image capture→retag→up on health-fail) + `--remove-orphans`. Still gated `DEPLOY_ENABLED`.
+- **OTel tracing** (`app/observability_otel.py`, gated `ENABLE_OTEL=0` default→no-op; deps commented in requirements.txt) + **Alertmanager+Loki+Tempo** in `docker-compose.observability.yml` (+`monitoring/alert_rules.yml`,`alertmanager.yml`,`tempo.yaml`; prometheus.yml rule_files+alerting). All opt-in.
+- **Postgres DR**: `scripts/pg_restore_drill.sh` (throwaway-container restore-verify, prod-safe, monthly cron) + `scripts/pg_pitr_enable.sh` (WAL-archiving PITR, dry-run default, `--apply` maintenance-window).

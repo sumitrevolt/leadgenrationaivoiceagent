@@ -436,6 +436,120 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     return {"ok": True, "message": _OK_MESSAGE}
 
 
+class SignupIn(BaseModel):
+    """Self-serve signup payload — pricing.html se. Account (client + login) banata."""
+
+    business_name: str
+    email: str
+    password: str
+    phone: str | None = ""
+    niche: str | None = "general"
+    city: str | None = ""
+    plan: str | None = "starter"
+    website: str | None = ""  # honeypot — insaan kabhi nahi bharta
+
+
+@router.post("/signup")
+async def public_signup(body: SignupIn, request: Request):
+    """NO AUTH self-serve signup: client + customer-login banao -> client_id + JWT.
+
+    pricing.html isko call karta, phir /api/billing/checkout se payment open hota.
+    ADDITIVE + abuse-safe: honeypot + rate-limit + email dedupe + ANTI-HIJACK
+    (existing client jiska login pehle se hai, uspe naya login attach nahi hota).
+    Existing inquiry/lead flow ko bilkul touch nahi karta.
+    """
+    # 0) Honeypot
+    if (body.website or "").strip():
+        raise HTTPException(status_code=400, detail="Invalid request.")
+
+    # 1) Rate limit (5/min/IP — same store as inquiry)
+    ip = _client_ip(request)
+    if _rate_limited(ip):
+        raise HTTPException(status_code=429, detail="Thoda ruk ke dobara try karo.")
+
+    # 2) Validate
+    biz = (body.business_name or "").strip()
+    email = (body.email or "").strip().lower()
+    pw = body.password or ""
+    if len(biz) < 2:
+        raise HTTPException(status_code=422, detail="Business ka naam chahiye.")
+    if "@" not in email or "." not in email.split("@")[-1] or len(email) < 5:
+        raise HTTPException(status_code=422, detail="Valid email do.")
+    if len(pw) < 6:
+        raise HTTPException(status_code=422, detail="Password kam se kam 6 characters.")
+
+    # 3) Email already registered? -> login karo
+    try:
+        from app.api.customer_auth import client_has_login, login_exists, register_login
+
+        if login_exists(email):
+            raise HTTPException(
+                status_code=409, detail="Yeh email already registered hai — login karo."
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"[signup] auth-store check failed: {e}")
+        raise HTTPException(status_code=500, detail="Signup abhi possible nahi, baad me try karo.")
+
+    # 4) Client banao (add_client phone/naam pe dedupe karta — kabhi raise nahi)
+    try:
+        from app.marketing.clients_store import add_client
+
+        client = add_client(
+            business_name=biz,
+            niche=(body.niche or "general"),
+            city=(body.city or ""),
+            phone=(body.phone or ""),
+            plan=(body.plan or "starter"),
+        )
+        cid = str((client or {}).get("id") or "")
+    except Exception as e:
+        logger.error(f"[signup] add_client failed: {e}")
+        raise HTTPException(status_code=500, detail="Account banane me dikkat, baad me try karo.")
+    if not cid:
+        raise HTTPException(status_code=500, detail="Account id missing — support se contact karo.")
+
+    # 5) ANTI-HIJACK: agar yeh client pehle se kisi ka owned hai (login attached), reject
+    if client_has_login(cid):
+        raise HTTPException(
+            status_code=409,
+            detail="Yeh business already registered lag raha — login karo ya alag naam/phone do.",
+        )
+
+    # 6) Login banao + auto-login JWT
+    register_login(email, pw, cid)
+    token = None
+    try:
+        from app.api.admin import create_access_token
+
+        token = create_access_token(cid, email, "customer")
+    except Exception as e:
+        logger.debug(f"[signup] token issue (login still works): {e}")
+
+    # 7) Team activity (best-effort) — Rohan ko self-signup dikhe
+    try:
+        from app.platform.team import log_event
+
+        log_event(
+            "rohan",
+            "self_signup",
+            f"{biz} ({body.plan or 'starter'}) — {email}",
+            meta={"client_id": cid, "plan": body.plan, "via": "pricing_page"},
+        )
+    except Exception:
+        pass
+
+    return {
+        "ok": True,
+        "client_id": cid,
+        "access_token": token,
+        "token_type": "bearer",
+        "business_name": (client or {}).get("business_name"),
+        "slug": (client or {}).get("slug"),
+    }
+
+
 @router.get("/pay-info")
 async def pay_info():
     """Landing page ka payment modal — NO AUTH. UPI_VPA env set ho tabhi

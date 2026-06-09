@@ -27,12 +27,53 @@ services:
     container_name: leadgen_prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - promdata:/prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=30d
+      - --web.enable-lifecycle
     ports:
       - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+    networks: [leadgen_net]
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: leadgen_alertmanager
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - amdata:/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+    ports:
+      - "127.0.0.1:9093:9093"
+    restart: unless-stopped
+    networks: [leadgen_net]
+
+  # Logs (Loki) + Traces (Tempo) — feed by app when ENABLE_OTEL=1. Grafana inhe
+  # data-source ke roop me jodo (Tempo: http://tempo:3200, Loki: http://loki:3100).
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: leadgen_loki
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - lokidata:/loki
+    ports:
+      - "127.0.0.1:3100:3100"
+    restart: unless-stopped
+    networks: [leadgen_net]
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: leadgen_tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./monitoring/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempodata:/var/tempo
+    ports:
+      - "127.0.0.1:3200:3200"   # tempo query
+      - "127.0.0.1:4317:4317"   # OTLP gRPC (app -> OTEL_EXPORTER_OTLP_ENDPOINT)
     restart: unless-stopped
     networks: [leadgen_net]
 
@@ -64,6 +105,9 @@ volumes:
   promdata:
   grafanadata:
   kumadata:
+  amdata:
+  lokidata:
+  tempodata:
 
 networks:
   leadgen_net:

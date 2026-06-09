@@ -114,6 +114,46 @@ def require_customer(creds: HTTPAuthorizationCredentials = Depends(_security)) -
 # --------------------------------------------------------------------------- #
 # endpoints
 # --------------------------------------------------------------------------- #
+def register_login(email: str, password: str, client_id: str) -> dict:
+    """Public-safe helper: ek email+password login banao/overwrite (client_id se link).
+
+    Admin set-password AUR public self-serve signup (public_site.py) dono isko use karte —
+    credential-store wiring ek hi jagah. Existing email overwrite hoti (idempotent).
+    """
+    e = (email or "").strip().lower()
+    rows = [r for r in _read() if r.get("email") != e]
+    rows.append(
+        {
+            "email": e,
+            "client_id": str(client_id).strip(),
+            "password_hash": _hash(password),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    _write_all(rows)
+    return {"email": e, "client_id": str(client_id).strip()}
+
+
+def login_exists(email: str) -> bool:
+    """True agar is email ka login already hai (public signup dedupe ke liye)."""
+    return _find(email) is not None
+
+
+def client_has_login(client_id: str) -> bool:
+    """True agar is client_id pe pehle se koi login attached hai.
+
+    Self-serve signup me ANTI-HIJACK guard: add_client phone/business_name pe dedupe
+    karta — koi existing client ka naam de ke uspe login attach na kar paaye.
+    """
+    cid = str(client_id or "").strip()
+    if not cid:
+        return False
+    try:
+        return any(str(r.get("client_id") or "").strip() == cid for r in _read())
+    except Exception:
+        return False
+
+
 class SetPwIn(BaseModel):
     email: str = Field(..., min_length=3, max_length=200)
     password: str = Field(..., min_length=6, max_length=128)
@@ -123,18 +163,8 @@ class SetPwIn(BaseModel):
 @router.post("/set-password")
 async def set_password(req: SetPwIn, current_user=Depends(require_admin)):
     """ADMIN: ek client ka login email+password set/reset karo (client_id se link)."""
-    e = req.email.strip().lower()
-    rows = [r for r in _read() if r.get("email") != e]
-    rows.append(
-        {
-            "email": e,
-            "client_id": req.client_id.strip(),
-            "password_hash": _hash(req.password),
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-    )
-    _write_all(rows)
-    return {"ok": True, "email": e, "client_id": req.client_id.strip()}
+    res = register_login(req.email, req.password, req.client_id)
+    return {"ok": True, **res}
 
 
 class LoginIn(BaseModel):

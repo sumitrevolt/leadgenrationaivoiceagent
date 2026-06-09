@@ -202,6 +202,15 @@ setup_middleware(app, production=is_production)
 # Configure exception handlers
 setup_exception_handlers(app)
 
+# OpenTelemetry distributed tracing — import-safe, OFF unless ENABLE_OTEL=1.
+# (Sentry + Prometheus aaj jaisa hi; yeh sirf end-to-end traces add karta.)
+try:
+    from app.observability_otel import setup_otel
+
+    setup_otel(app)
+except Exception as _otel_e:  # never block boot on observability wiring
+    logger.warning(f"OTel wiring skipped: {_otel_e}")
+
 # CORS Middleware (configured based on environment)
 # In production the allowed origins come from settings.cors_origins
 # (CORS_ORIGINS env var, JSON list) so each deployment can set its own domains.
@@ -399,6 +408,22 @@ async def outreach_page():
 async def clients_page():
     """Clients — marketing client store + per-client auto content engine."""
     return FileResponse(str(FRONTEND_DIR / "clients.html"))
+
+
+@app.get("/pricing", tags=["Frontend"])
+async def pricing_page():
+    """PUBLIC self-serve revenue funnel: pricing → signup → Razorpay checkout.
+
+    Backend already built (/api/billing/plans, /billing/checkout, /billing/verify-payment,
+    /api/public/signup). Payment keys unset ho to page graceful UPI/contact fallback dikhata.
+    """
+    return FileResponse(str(FRONTEND_DIR / "pricing.html"))
+
+
+@app.get("/start", tags=["Frontend"])
+async def start_alias_page():
+    """CTA-friendly alias for /pricing."""
+    return FileResponse(str(FRONTEND_DIR / "pricing.html"))
 
 
 @app.get("/audit", tags=["Frontend"])
