@@ -173,3 +173,12 @@
 - **Scraping**: `app/platform/niche_prospector.py` — saare 42 niches ko round-robin **batch cursor** (`data/niche_prospect_cursor.json`) se cover karta; har niche ke apne `keywords` use. EXISTING `prospector.run_prospecting()` ko `PROSPECT_TARGETS` env-inject karke drive karta (prospector ZERO touch). Pehle sirf 4 hardcoded niches scrape hote the. Gated `NICHE_ROTATION=1` → daily `prospect` job (team_scheduler) all-niche rotation use karta (default OFF = 4-niche jaisa). API `POST /api/growth/niche/scrape`.
 - **Marketing**: `app/marketing/niche_pack.py` — per-niche poora pack: `content_focus` themes → `post_generator.generate_post` (reuse) + `hashtags.research` (reuse) + offer/CTA (pricing_inr/pitch_hook se). `build_pack(niche)` + `build_all(tier,limit)`. API `GET /api/growth/niche/pack/{key}`, `POST /niche/packs`, `GET /niches` (overview).
 - **Tests** added to `tests/test_2026_features.py` (build_targets rotation + pack helpers). New env flag: `NICHE_ROTATION=1` (default off).
+
+
+## AUTOMATION FULLY ENABLED (2026-06-09 PM) — full lead→outreach pipeline LIVE
+- **.env flags ON** (backup `.env.bak_autosetup`): `NICHE_ROTATION=1` · `AUTO_EMAIL_OUTREACH=true` · `JOURNEY_ENGINE=1` · `AUTO_QUALIFY_CALLS=1` · `REPLY_AGENT=1` · `OPS_WATCHDOG=1` · `AUTO_ONBOARD=1` · `NOTIFY_EMAIL=admin@leadsgenai.in` · `ENABLE_OTEL=1`. In-container verified (printenv).
+- **OFF (risk/blocked, jaan-bujhke)**: `WHATSAPP_AUTO_SEND` (number-ban), `MISSED_CALL_CALLBACK` (Vobiz DID pending), `WHATSAPP_LEAD_FLOW_ID` (Meta approval), cold-calling (DLT).
+- **Live pipeline**: daily all-niche scrape (42 niches rotation) → auto-score (`niche_prospector.run` ab `rescore_db` call karta, commit 9085d1a) → email outreach (Rohan 10:30 IST, cap 25/day, MX-verified) → reply-triage (hourly, draft-only) → journey drafts (inquiry/signup) → post-call qualify → auto-onboard (paid clients) → ops-watchdog (hourly, email-alert). Scheduler single-instance lock (multi-worker safe).
+- **Leads pulled (live)**: 201 prospects (184 phone, 45 email, 7 niches), 149 DB leads scored.
+- **OTel GOTCHA**: `ENABLE_OTEL=1` par opentelemetry packages image me NAHI (requirements.txt me commented, lock me nahi) → startup pe graceful skip-warning, traces nahi aate. Metrics(`/metrics`)+Uptime+Alertmanager+Grafana (obs stack) chal raha. Traces chahiye → otel pkgs `requirements.lock.txt` me add + rebuild.
+- **BUGS fixed live this session**: niche cursor skip (advance by actually-scraped); `lead_scoring` `async with get_async_session` (tha `async for` → rescore/top_hot fail).
