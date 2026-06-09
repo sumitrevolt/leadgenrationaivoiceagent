@@ -152,7 +152,7 @@ async def rescore_db(limit: int = 500) -> dict[str, Any]:
     updated = 0
     hot = 0
     try:
-        async for session in get_async_session():  # type: ignore
+        async with get_async_session() as session:  # type: ignore
             res = await session.execute(select(Lead).limit(limit))
             for lead in res.scalars().all():
                 try:
@@ -166,7 +166,6 @@ async def rescore_db(limit: int = 500) -> dict[str, Any]:
                 if is_hot(s):
                     hot += 1
             await session.commit()
-            break
         return {"ok": True, "updated": updated, "hot": hot, "threshold": HOT_THRESHOLD}
     except Exception as e:
         logger.warning(f"[lead_scoring] rescore_db failed: {e}")
@@ -184,7 +183,7 @@ async def top_hot_leads(limit: int = 25) -> dict[str, Any]:
         logger.debug(f"[lead_scoring] db imports unavailable: {e}")
         return {"ok": False, "reason": "db unavailable", "leads": []}
     try:
-        async for session in get_async_session():  # type: ignore
+        async with get_async_session() as session:  # type: ignore
             res = await session.execute(select(Lead).limit(2000))
             dicts = []
             for lead in res.scalars().all():
