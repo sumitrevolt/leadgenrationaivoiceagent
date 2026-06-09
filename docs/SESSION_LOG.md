@@ -564,3 +564,37 @@
 - **Opt4 — Mini-site builder** (`app/marketing/mini_site.py` 708-line + NEW `app/api/minisite_builder.py`,`frontend/minisite_builder.html`): customization store `data/mini_site_config.jsonl` (5 palettes, 3 layouts classic/bold/minimal, logo); logo upload validate (png/jpg/webp ≤2MB magic-byte, `data/logos/`, served `GET /api/minisite/logo/{file}` traversal-safe — **no static mount**); `/b/{slug}` render palette(CSS-vars)+layout+logo (brand=fallback, no-config = identical to before); booking calendar component **existing `/api/booking/slots`+`/book` reuse** (no dup); reviews feed `data/reviews/<slug>.jsonl` (public submit rate-limited 5/hr/IP + honeypot + admin-moderated); embed snippet surface (`embed_widget.snippet()`, no dup). Mount: `minisite_builder_router` `/api`, page `/app/minisite-builder`. Tests `tests/test_mini_site_builder.py`.
 - **VERIFY (Windows, .venv, mount-stale issue → file-tools source-of-truth)**: `prod_check.py` PASS — 306 files, app import OK, **278 routes** (naye mounts live, koi "not mounted" warning nahi), env=development. New tests **62/62 PASS** (1 initial fail = test-bug pydantic setattr non-field → config field add se fix). Regression `test_phase3_billing_tenant`+`test_phase2_upgrades`+`test_telephony_upgrades` PASS (billing/usage watermark + voice + telephony no-break). `node --check` 4 HTML (whatsapp/minisite_builder/customer_dashboard/admin_dashboard) all JS_OK.
 - **NOT deployed** (live system, user-driven deploy loop). **USER-PENDING creds to go live**: Opt1 = `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`/`RAZORPAY_WEBHOOK_SECRET` + webhook URLs Stripe/Razorpay dashboard me register. Opt2 = capacity-check ke baad torch+silero VPS install + `USE_SILERO_VAD=1`/`USE_SMART_TURN=1`. Opt3 = Meta `whatsapp_business_token`+`whatsapp_phone_number_id`+`WHATSAPP_APP_SECRET`+`WHATSAPP_VERIFY_TOKEN` + approved templates + webhook register + `WHATSAPP_AUTO_SEND=1`. Opt4 = koi cred nahi (turant live). Deploy ke baad naye `@app.get` page-routes → **HARD RELOAD** (stale-pyc gotcha).
+
+
+---
+
+## 2026-06-09 — Production Infra Upgrade (Docker stack: Postgres + Redis + real CI/CD)
+
+**Trigger:** "project production-ready banao, godmode/billionaire thinking, free, staged+safe cutover."
+
+**Diagnosis (ground-truth audit of live code):**
+- Repo me 2 alag infra reconcile nahi the: (a) Cloud-Run-era (CI→GCP Cloud Run, Redis `main.py` me disabled "VPC connector", `docker-compose.prod.yml` 3-replica+Celery), (b) LIVE lean (SQLite + single uvicorn + systemd + host Caddy + manual SSH).
+- Code ALREADY prod-grade: `app/worker.py` (Celery queues+beat), `app/api/health.py` `/health/ready` (db+redis checks) + `/metrics` (Prometheus text), `app/models/base.py` dual-DB (sqlite+pg), config default already Postgres. **Gap = deployment, not code.**
+- Bug found: `app/middleware` `RateLimitMiddleware` `from app.cache import RateLimiter` — class ka naam `RedisRateLimiter` tha → ImportError → API hamesha per-worker in-memory limiting pe (never distributed).
+
+**Decision:** Free + best-fit = ek unified Docker stack USI VPS pe (app+Postgres self-host+Redis). Host Caddy TLS untouched (proxies 127.0.0.1:8000). systemd+SQLite rollback-anchor रखा.
+
+**Built (Windows repo, all additive — live untouched till cutover):**
+- `docker-compose.vps.yml` — canonical VPS stack: app (uvicorn, healthcheck, restart, depends_on db+redis healthy, 127.0.0.1:8000:8080), db (postgres:16-alpine, tuned for shared VPS, named volume pgdata, healthcheck), redis (7-alpine, appendonly, healthcheck). worker+scheduler (Celery) = `--profile celery` opt-in.
+- `scripts/migrate_sqlite_to_postgres.py` — safe SQLite→PG copy: create_all schema, reflect source, FK-safe order (metadata.sorted_tables), type coercion (int→bool, ISO-str→datetime/date), row-count verify, idempotent (skip non-empty unless --wipe/--force), excludes alembic_version. READ-only on source = zero-loss rollback.
+- `scripts/pg_backup.sh` — nightly pg_dump custom-format + gzip + 30d retention + optional rclone offsite (R2/B2).
+- `.github/workflows/deploy-vps.yml` — push main → gate (import smoke + prod_check + ruff; pytest non-blocking) → build+push GHCR → appleboy SSH → compose pull+up+alembic upgrade+health. Secrets: VPS_HOST/USER/SSH_KEY/GHCR_PAT. **Manual-SSH + stale-.pyc problem permanently solved (immutable images).**
+- `.github/workflows/ci-cd.yml` + `deploy.yml` — Cloud Run auto-triggers DISABLED (workflow_dispatch-only) to stop dueling/failing deploys.
+- `docker-compose.observability.yml` + `monitoring/prometheus.yml` — Prometheus+Grafana+Uptime Kuma (free, opt-in, joins leadgen network, scrapes leadgen_app:8080/metrics).
+- `docs/PRODUCTION_CUTOVER.md` — staged runbook (Phase0 backup → 1 db/redis → 2 schema+data copy → 3 cutover → 4 smoke → rollback → post-hardening → scaling).
+
+**Code edits (additive, OFF=zero behaviour change):**
+- `app/cache/__init__.py` — added `RateLimiter` class (Redis-backed fixed-window, in-memory fallback, fail-open) matching middleware contract → real distributed rate-limit restored.
+- `app/main.py` — Redis "DISABLED" log block replaced with lazy warm-up ping (fail-open); in-process scheduler gated by `RUN_IN_PROCESS_SCHEDULER` (default ON = today; set 0 on web replicas when scaling + Celery scheduler).
+
+**Verification:**
+- Windows-side `python -m py_compile` (main.py, cache, middleware, migrate script) → COMPILE_OK. (Sandbox mount was STALE/truncated after edits — Windows = source of truth, confirmed via Desktop Commander.)
+- YAML valid (compose ×3 + workflows ×3). bash -n pg_backup.sh OK.
+- Migration script: `_coerce` unit tests PASS (str/int/datetime/None→correct types); e2e synthetic schema copy PASS (FK order, row-count verify, bool/datetime integrity, idempotent re-run skip).
+
+**USER-PENDING (cutover execution):** `docs/PRODUCTION_CUTOVER.md` follow karna; GitHub secrets + `.env` POSTGRES_* set karna. Postgres+Redis VPS pe Docker se (Docker already installed — Qdrant chal raha). Voice torch deps / DLT / payments keys = pehle jaisa pending (in-infra se unrelated).

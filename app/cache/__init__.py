@@ -200,6 +200,60 @@ class RedisRateLimiter:
         await redis.delete(f"{self.prefix}:hour:{identifier}")
 
 
+class RateLimiter:
+    """
+    Fixed-window rate limiter used by ``app.middleware.RateLimitMiddleware``.
+
+    This class previously did not exist, so ``from app.cache import RateLimiter``
+    in the middleware always raised ImportError and the API silently fell back to
+    PER-WORKER in-memory limiting (never distributed). This restores real,
+    Redis-backed, multi-worker rate limiting — with automatic in-memory fallback
+    (via get_redis_client) and fail-open on any error.
+
+    Contract expected by the middleware:
+        RateLimiter(prefix=..., max_requests=..., window_seconds=...)
+        await limiter.is_allowed(identifier) -> (allowed: bool, remaining: int)
+    """
+
+    def __init__(
+        self,
+        prefix: str = "ratelimit",
+        max_requests: int = 100,
+        window_seconds: int = 60,
+    ):
+        self.prefix = prefix
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+
+    async def is_allowed(self, identifier: str) -> tuple[bool, int]:
+        import time
+
+        try:
+            redis = await get_redis_client()
+            window = int(time.time() // self.window_seconds)
+            key = f"{self.prefix}:{identifier}:{window}"
+
+            count = await redis.incr(key)
+            if count == 1:
+                await redis.expire(key, self.window_seconds)
+
+            remaining = max(0, self.max_requests - count)
+            return (count <= self.max_requests), remaining
+        except Exception:
+            # Fail-open: never block real traffic because the limiter broke.
+            return True, self.max_requests
+
+    async def reset(self, identifier: str) -> None:
+        import time
+
+        try:
+            redis = await get_redis_client()
+            window = int(time.time() // self.window_seconds)
+            await redis.delete(f"{self.prefix}:{identifier}:{window}")
+        except Exception:
+            pass
+
+
 # =============================================================================
 # CACHE UTILITIES
 # =============================================================================

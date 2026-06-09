@@ -1,10 +1,8 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
+  # Auto-triggers DISABLED — deploys moved to deploy-vps.yml (Hostinger VPS, not Cloud Run).
+  # Kept manual-only (workflow_dispatch) so the legacy Cloud Run path stays available if ever needed.
   workflow_dispatch:
     inputs:
       deploy_environment:

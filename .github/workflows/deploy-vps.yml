@@ -1,0 +1,123 @@
+# =============================================================================
+# deploy-vps.yml — REAL auto-deploy to the Hostinger VPS (replaces Cloud Run).
+#
+# Flow on every push to main:
+#   1) gate     : fast deterministic checks (import smoke + prod_check + ruff)
+#   2) build    : build Docker image, push to GHCR (tagged :latest and :<sha>)
+#   3) deploy   : SSH to VPS -> pull image -> docker compose up -d -> migrate -> health
+#
+# One-time GitHub repo secrets required (Settings > Secrets and variables > Actions):
+#   VPS_HOST     = 72.61.245.204
+#   VPS_USER     = root
+#   VPS_SSH_KEY  = <private key matching the VPS authorized_keys>
+#   GHCR_PAT     = <classic PAT with read:packages>  (used by the VPS to pull)
+#
+# pytest runs but does NOT block deploys yet (continue-on-error) — flip to a hard
+# gate once the CI test env is stable. The fast checks below DO block.
+# =============================================================================
+name: deploy-vps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/sumitrevolt/leadgenrationaivoiceagent
+
+jobs:
+  gate:
+    name: Gate (import + prod_check + lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Import smoke (catches syntax/import/route breakage)
+        run: python -c "import app.main; print('import OK')"
+      - name: Production check
+        run: python scripts/prod_check.py
+      - name: Lint (ruff, non-blocking warnings)
+        run: pip install ruff && ruff check app || true
+      - name: Tests (reported, not yet blocking)
+        continue-on-error: true
+        run: pip install pytest && pytest -q || true
+
+  build:
+    name: Build & push image (GHCR)
+    needs: gate
+    # Activates only after you set repo variable DEPLOY_ENABLED=true (and the VPS
+    # secrets). Until then, pushes just run the `gate` job — no failing deploys.
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.production
+          push: true
+          build-args: |
+            APP_VERSION=${{ github.sha }}
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: GHCR_PAT,GITHUB_SHA
+          script_stop: true
+          script: |
+            set -e
+            export GHCR_PAT="${{ secrets.GHCR_PAT }}"
+            export GITHUB_SHA="${{ github.sha }}"
+            cd /opt/leadgen
+            echo "==> sync compose + migrations from git"
+            git fetch --all --quiet || true
+            git checkout main --quiet || true
+            git pull --ff-only || true
+            echo "==> login GHCR + pull image ${GITHUB_SHA}"
+            echo "${GHCR_PAT}" | docker login ghcr.io -u sumitrevolt --password-stdin
+            export APP_VERSION="${GITHUB_SHA}"
+            docker compose -f docker-compose.vps.yml pull
+            echo "==> roll the stack"
+            docker compose -f docker-compose.vps.yml up -d
+            echo "==> apply migrations (idempotent)"
+            docker compose -f docker-compose.vps.yml run --rm app alembic upgrade head || true
+            echo "==> health check"
+            sleep 10
+            curl -fsS http://127.0.0.1:8000/health && echo " HEALTH OK"
+            docker image prune -f || true

@@ -139,20 +139,36 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Startup migrations skipped: {e}")
 
-    # DISABLED: Redis and ML scheduler for initial production startup
-    # Redis requires VPC connector which is not configured yet
-    logger.info("⏭️ Redis disabled - requires VPC connector for internal network access")
-    logger.info("⏭️ Platform orchestrator disabled for initial deployment")
-    logger.info("⏭️ ML scheduler disabled for initial deployment")
-
-    # AI Staff Team automation (Arjun QA 02:30, Meera trainer 03:00, Kavya ops hourly)
+    # Redis: lazy singleton — warm it up so /health/ready reflects reality.
+    # Fail-open: if Redis is unreachable the cache/rate-limit layers transparently
+    # fall back to in-memory. (The old "VPC connector" note was Cloud-Run-specific;
+    # on the VPS, Redis is a local container at redis://redis:6379.)
     try:
-        from app.platform.team_scheduler import start_scheduler
+        from app.cache import get_redis_client
 
-        start_scheduler()
-        logger.info("✅ AI Staff Team scheduler started (TEAM_AUTOMATION)")
+        _redis = await get_redis_client()
+        await _redis.ping()
+        logger.info("✅ Redis connected")
     except Exception as e:
-        logger.warning(f"Team scheduler not started: {e}")
+        logger.warning(f"Redis unavailable (in-memory fallback active): {e}")
+
+    # Platform orchestrator + ML scheduler remain opt-in (heavy) for now.
+    logger.info("⏭️ Platform orchestrator / ML scheduler disabled (opt-in)")
+
+    # AI Staff Team automation (Arjun QA 02:30, Meera trainer 03:00, Kavya ops hourly).
+    # Gated by RUN_IN_PROCESS_SCHEDULER (default ON = today's single-process behaviour).
+    # When scaling to multiple web workers + a dedicated scheduler container, set this
+    # to 0 on the web replicas so jobs never double-fire. See docs/PRODUCTION_CUTOVER.md.
+    if os.environ.get("RUN_IN_PROCESS_SCHEDULER", "1").strip().lower() in ("1", "true", "yes"):
+        try:
+            from app.platform.team_scheduler import start_scheduler
+
+            start_scheduler()
+            logger.info("✅ AI Staff Team scheduler started (in-process)")
+        except Exception as e:
+            logger.warning(f"Team scheduler not started: {e}")
+    else:
+        logger.info("⏭️ In-process scheduler disabled (RUN_IN_PROCESS_SCHEDULER=0)")
 
     logger.info("✅ Startup complete - application ready")
 

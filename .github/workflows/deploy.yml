@@ -6,13 +6,9 @@
 name: Deploy to GCP
 
 on:
-  push:
-    branches:
-      - main
-      - staging
-  pull_request:
-    branches:
-      - main
+  # DISABLED — superseded by deploy-vps.yml (deploys to the Hostinger VPS, not GCP Cloud Run).
+  # Manual-only so the legacy GCP path stays available if ever needed.
+  workflow_dispatch:
 
 env:
   PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}

@@ -1,0 +1,180 @@
+# =============================================================================
+# docker-compose.vps.yml  —  CANONICAL production stack for the Hostinger VPS
+# -----------------------------------------------------------------------------
+# Single source of truth for the LIVE deployment. Replaces the lean
+# "systemd + SQLite + single uvicorn" setup with a reproducible, auto-healing
+# container stack ON THE SAME BOX:  App (uvicorn) + Postgres + Redis.
+#
+# The host Caddy keeps terminating TLS for leadsgenai.in and proxies to
+# 127.0.0.1:8000 (this stack's published app port) — so NO TLS change needed.
+#
+# Quick start (build locally / on VPS from source):
+#   docker compose -f docker-compose.vps.yml up -d --build
+#   docker compose -f docker-compose.vps.yml run --rm app alembic upgrade head
+#
+# CI/pull-based deploy (image already on GHCR):
+#   docker compose -f docker-compose.vps.yml pull && \
+#   docker compose -f docker-compose.vps.yml up -d
+#
+# Optional Celery workers (OFF by default — in-process scheduler runs today):
+#   docker compose -f docker-compose.vps.yml --profile celery up -d
+#
+# Rollback: `docker compose -f docker-compose.vps.yml down` then
+#           `systemctl start leadgen` (old SQLite service stays installed).
+# =============================================================================
+
+name: leadgen
+
+services:
+  # ---------------------------------------------------------------------------
+  # FastAPI app (web + in-process AI-staff scheduler when WEB_CONCURRENCY=1)
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+      args:
+        APP_VERSION: ${APP_VERSION:-latest}
+    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
+    container_name: leadgen_app
+    env_file: .env
+    environment:
+      APP_ENV: production
+      PORT: 8080
+      # 1 worker = today's behaviour (web + in-process scheduler in one process).
+      # To scale: set WEB_CONCURRENCY=N and RUN_IN_PROCESS_SCHEDULER=0, then enable
+      # a dedicated scheduler (see docs/PRODUCTION_CUTOVER.md "Scaling").
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+      RUN_IN_PROCESS_SCHEDULER: ${RUN_IN_PROCESS_SCHEDULER:-1}
+      # Point the app at the in-stack Postgres + Redis (override in .env if needed).
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://leadgen:${POSTGRES_PASSWORD:-leadgen}@db:5432/leadgen}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    ports:
+      - "127.0.0.1:8000:8080"   # host Caddy proxies leadsgenai.in -> here
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data        # persisted app data (brains, jsonl stores, logos)
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # Postgres 16 — modestly tuned for a SHARED VPS (not the 4GB cloud profile
+  # in docker-compose.prod.yml). Data persisted in the named volume `pgdata`.
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: leadgen_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-leadgen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+      POSTGRES_DB: ${POSTGRES_DB:-leadgen}
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=128MB
+      -c wal_compression=on
+      -c checkpoint_completion_target=0.9
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-leadgen} -d ${POSTGRES_DB:-leadgen}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 — cache, distributed rate-limit store, call-state, Celery broker.
+  # AOF persistence so it survives restarts.
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: leadgen_redis
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
+  # OPTIONAL Celery worker + beat (profile: celery). Off by default so prod
+  # behaviour is unchanged. Turn on when migrating jobs off the in-process
+  # scheduler for horizontal scaling.
+  # ---------------------------------------------------------------------------
+  worker:
+    profiles: ["celery"]
+    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: leadgen_worker
+    command: celery -A app.worker worker --loglevel=info --concurrency=4
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://leadgen:${POSTGRES_PASSWORD:-leadgen}@db:5432/leadgen}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    networks: [leadgen_net]
+
+  scheduler:
+    profiles: ["celery"]
+    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    container_name: leadgen_scheduler
+    command: celery -A app.worker beat --loglevel=info
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://leadgen:${POSTGRES_PASSWORD:-leadgen}@db:5432/leadgen}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [leadgen_net]
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  leadgen_net:
+    driver: bridge

@@ -27,8 +27,15 @@
 - (Prices = LIVE `packages.py` truth: 999/2499/5999. Landing + JSON-LD schema isi se match.)
 - **Launch NOW possible**: marketing tiers + inbound callbacks ko DLT/telephony NAHI chahiye. Sirf Advanced voice cold-calling DLT pe atki.
 
+## Production Infra Upgrade (2026-06-09, code-complete + verified, NOT cut over yet — runbook: `docs/PRODUCTION_CUTOVER.md`)
+- **Diagnosis**: repo Cloud-Run-era stack (CI→Cloud Run, Redis disabled "VPC connector", compose 3-replica+Celery) vs LIVE lean (SQLite+single-uvicorn+systemd+Caddy) kabhi reconcile nahi hue. Code already prod-grade (Celery `app/worker.py`, full `/health/ready` db+redis, Prometheus `/metrics`) — gap = DEPLOYMENT, not code.
+- **Decision (free, best-fit)**: ek unified **Docker stack USI VPS pe** — app+Postgres(self-host)+Redis; host Caddy TLS untouched (proxies 127.0.0.1:8000). Rollback = systemd+SQLite रखा (SQLite sirf READ hoti migration me → zero-loss).
+- **Built**: `docker-compose.vps.yml` (canonical; worker/beat `--profile celery` opt-in) · `scripts/migrate_sqlite_to_postgres.py` (safe/idempotent/verified — coerce+FK-order+rowcount tests PASS) · `scripts/pg_backup.sh` (pg_dump 30d + optional rclone R2/B2) · `.github/workflows/deploy-vps.yml` (push→GHCR→SSH deploy; **kills manual-SSH + stale-.pyc**; old ci-cd.yml/deploy.yml = manual-only now) · `docker-compose.observability.yml` (+`monitoring/prometheus.yml`: Prometheus+Grafana+Uptime Kuma, opt-in).
+- **Code fixes (additive, zero behaviour change OFF)**: `app/cache` me `RateLimiter` class add (middleware `from app.cache import RateLimiter` pehle FAIL hota → hamesha in-memory; ab REAL Redis distributed limit) · `main.py` Redis re-enabled (lazy+fail-open) + `RUN_IN_PROCESS_SCHEDULER` gate (default ON=aaj jaisa; multi-worker scale ke liye 0 + Celery scheduler). Windows py_compile OK (sandbox mount stale tha — Windows = truth).
+- **USER-PENDING cutover**: `docs/PRODUCTION_CUTOVER.md` follow karo (Phase0 backup→1 db/redis→2 schema+data copy→3 switch→rollback ready). GitHub secrets (VPS_HOST/USER/SSH_KEY/GHCR_PAT) + .env (POSTGRES_*) set karne hain.
+
 ## Live Infra
-- VPS **72.61.245.204** (Mumbai, Ubuntu 24.04, Docker). App `/opt/leadgen`, systemd `leadgen` (uvicorn :8000). Caddy proxy (Traefik conflict — hostinger-deploy skill dekho). DB SQLite `/opt/leadgen/leadgen.db`. Qdrant docker `127.0.0.1:6333`.
+- VPS **72.61.245.204** (Mumbai, Ubuntu 24.04, Docker). App `/opt/leadgen`, systemd `leadgen` (uvicorn :8000). Caddy proxy (Traefik conflict — hostinger-deploy skill dekho). DB SQLite `/opt/leadgen/leadgen.db`. Qdrant docker `127.0.0.1:6333`. **(→ Docker stack pe move ho raha — upar dekho.)**
 - Key pages: `/` landing · `/audit` (public GBP-audit = **#1 lead magnet**) · `/blog` (programmatic SEO) · `/b/{slug}` (per-client mini-site+booking) · `/app/marketing` (26 tabs) · `/app/clients` · `/app/outreach` · `/app/team` · `/app/test-call` (FREE voice tuning) · `/app/admin` · `/app/customer`. Legal: `/privacy /terms /refund`. SEO: `/robots.txt /sitemap.xml` (dynamic).
 - `/mcp` MCP server mounted (Platform/Data/Agents tools).
 
