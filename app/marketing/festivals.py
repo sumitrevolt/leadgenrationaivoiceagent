@@ -10,6 +10,7 @@ template fallback ke saath. KABHI empty nahi, KABHI raise nahi.
 
 from __future__ import annotations
 
+import os
 import re
 from datetime import date, datetime
 from typing import Any
@@ -303,6 +304,74 @@ def _parse_festival_captions(text: str, names: list[str]) -> dict[str, str]:
     return found
 
 
+# --------------------------------------------------------------------------- #
+# FREE public-holidays enrichment (Nager.Date — NO API key) — public-apis entry.
+# Static festival list ko official India national-holidays se enrich karta.
+# Gated FESTIVALS_LIVE_HOLIDAYS=1 (default OFF = zero change). Cached, never-raise.
+# --------------------------------------------------------------------------- #
+_HOLIDAY_CACHE: dict[int, list[dict[str, str]]] = {}
+
+
+async def fetch_public_holidays(year: int, country: str = "IN") -> list[dict[str, str]]:
+    """Free public holidays (Nager.Date, NO key) — official national holidays.
+
+    Per-year cached, 5s timeout, NEVER raises (network/parse fail -> []).
+    """
+    if year in _HOLIDAY_CACHE:
+        return _HOLIDAY_CACHE[year]
+    out: list[dict[str, str]] = []
+    try:
+        import httpx
+
+        url = f"https://date.nager.at/api/v3/PublicHolidays/{year}/{country}"
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.get(url)
+            if r.status_code == 200:
+                for h in r.json() or []:
+                    nm = h.get("localName") or h.get("name")
+                    dt = h.get("date")
+                    if nm and dt:
+                        out.append(
+                            {
+                                "name": str(nm),
+                                "date": str(dt),
+                                "type": "national",
+                                "marketing_angle": "Chhutti greeting / special offer",
+                                "source": "nager",
+                            }
+                        )
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("fetch_public_holidays skip: %s", e)
+    _HOLIDAY_CACHE[year] = out
+    return out
+
+
+async def upcoming_enriched(days: int = 45) -> list[dict[str, str]]:
+    """`upcoming(days)` + free public-holidays merge (dedup by date+name). Gated
+    `FESTIVALS_LIVE_HOLIDAYS=1` (default OFF = sirf static curated list). Never raises.
+    """
+    base = upcoming(days)
+    if os.environ.get("FESTIVALS_LIVE_HOLIDAYS", "0").strip().lower() not in ("1", "true", "yes"):
+        return base
+    try:
+        today = date.today()
+        end = date.fromordinal(today.toordinal() + max(1, int(days)))
+        seen = {(f.get("date"), str(f.get("name", "")).lower()) for f in base}
+        merged = list(base)
+        for yr in (today.year, today.year + 1):
+            for h in await fetch_public_holidays(yr):
+                d = _parse_date(h.get("date", ""))
+                key = (h.get("date"), str(h.get("name", "")).lower())
+                if d and today <= d <= end and key not in seen:
+                    seen.add(key)
+                    merged.append(h)
+        merged.sort(key=lambda f: f.get("date", ""))
+        return merged
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upcoming_enriched skip: %s", e)
+        return base
+
+
 async def festival_posts(
     business_name: str, niche: str = "general", days: int = 45
 ) -> dict[str, Any]:
@@ -314,7 +383,7 @@ async def festival_posts(
     business_name = (business_name or "").strip() or "Aapka Business"
     niche = (niche or "general").strip().lower() or "general"
 
-    upcoming_list = upcoming(days)
+    upcoming_list = await upcoming_enriched(days)
     targets = upcoming_list[:3] if upcoming_list else _next_n(3)
     names = [t["name"] for t in targets]
 
