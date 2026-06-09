@@ -395,6 +395,14 @@ async def affiliate_register(body: AffiliateIn):
     return affiliate.register_affiliate(body.name, body.email or "", body.phone or "")
 
 
+@router.get("/weather-angle", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))])
+async def weather_angle_ep(city: str = "Mumbai"):
+    """PUBLIC: city ka aaj ka mausam → marketing content angle (Open-Meteo, free, no key, India)."""
+    from app.marketing import weather_angle as wa
+
+    return await wa.weather_angle(city)
+
+
 @router.get("/affiliate/stats")
 async def affiliate_stats(code: str | None = None, _user=Depends(require_admin)):
     from app.marketing import affiliate

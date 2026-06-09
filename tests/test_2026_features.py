@@ -470,3 +470,18 @@ def test_agent_coordinator_advanced(tmp_path, monkeypatch):
     h = asyncio.run(coordinator.coordinate_hierarchical("Pune growth + ops plan"))
     assert h["ok"] and h["pattern"] == "hierarchical" and h["teams"]
     assert all("members" in t and "summary" in t for t in h["teams"])
+
+
+def test_weather_angle_logic():
+    """Open-Meteo weather→marketing-angle mapping (pure, deterministic)."""
+    from app.marketing import weather_angle as wa
+
+    assert wa._condition(0) == "clear"
+    assert wa._condition(61) == "rain"
+    assert wa._condition(71) == "snow"
+    assert wa._condition(96) == "storm"
+    assert wa._angle(38, "clear")["season"] == "garmi"
+    assert wa._angle(25, "rain")["season"] == "barish"
+    assert wa._angle(8, "clear")["season"] == "sardi"
+    assert wa._angle(28, "clear")["season"] == "suhana"
+    assert all(wa._angle(t, c).get("angle") for t, c in [(38, "clear"), (8, "clear"), (25, "rain"), (28, "clear")])
