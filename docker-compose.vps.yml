@@ -109,6 +109,31 @@ services:
     networks: [leadgen_net]
 
   # ---------------------------------------------------------------------------
+  # PgBouncer — connection pooler (session mode = asyncpg-safe). Additive: app
+  # abhi bhi DIRECT db:5432 pe (zero change). Switch karne ke liye app ka
+  # DATABASE_URL `@pgbouncer:6432` pe point karo (staging pe verify karke).
+  # AUTH_TYPE=plain — internal docker network only (host-published nahi), safe.
+  # ---------------------------------------------------------------------------
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: leadgen_pgbouncer
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER:-leadgen}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
+      DB_NAME: ${POSTGRES_DB:-leadgen}
+      POOL_MODE: session
+      AUTH_TYPE: plain
+      MAX_CLIENT_CONN: "1000"
+      DEFAULT_POOL_SIZE: "25"
+      LISTEN_PORT: "6432"
+    depends_on:
+      db: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [leadgen_net]
+
+  # ---------------------------------------------------------------------------
   # Redis 7 — cache, distributed rate-limit store, call-state, Celery broker.
   # AOF persistence so it survives restarts.
   # ---------------------------------------------------------------------------
