@@ -165,8 +165,8 @@ class VoiceAgent:
                 lead_name=context.lead_data.get("name", "Sir/Madam"),
             )
 
-            # Add compliance disclosure
-            opening = f"Hello! This is an automated call from {context.client_name}. {opening}"
+            # Add compliance disclosure (TRAI: automated/AI call disclose karo, Hinglish)
+            opening = f"Namaste! Yeh {context.client_name} ki taraf se ek automated AI call hai. {opening}"
 
             context.conversation_history.append({"role": "assistant", "content": opening})
 
@@ -175,7 +175,7 @@ class VoiceAgent:
         except Exception as e:
             logger.error(f"Failed to generate opening for call {call_id}: {e}")
             # Return fallback opening
-            fallback = f"Hello! This is a call from {context.client_name}. How are you today?"
+            fallback = f"Namaste! Yeh {context.client_name} ki taraf se ek AI call hai. Aap kaise hain?"
             context.conversation_history.append({"role": "assistant", "content": fallback})
             return fallback
 

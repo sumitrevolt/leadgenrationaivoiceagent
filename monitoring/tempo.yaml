@@ -1,5 +1,10 @@
-# Minimal Grafana Tempo config — receives OTLP traces from the app (ENABLE_OTEL=1)
-# on :4317 (gRPC) / :4318 (HTTP). Local block storage, 48h retention.
+# Minimal Grafana Tempo config — receives OTLP traces from the app
+# (ENABLE_OTEL=1) on :4317 (gRPC) / :4318 (HTTP). Local block storage.
+#
+# NOTE: `ingester:` and `compactor:` blocks REMOVED — is Tempo image me unka
+# schema reject hota tha ("field ingester not found in type app.Config" → 329
+# restarts). Defaults bilkul theek hain; traces tabhi aate jab ENABLE_OTEL=1
+# + otel packages image me hon.
 server:
   http_listen_port: 3200
 
@@ -11,13 +16,6 @@ distributor:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
-
-ingester:
-  max_block_duration: 5m
-
-compactor:
-  compaction:
-    block_retention: 48h
 
 storage:
   trace:

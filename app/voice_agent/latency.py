@@ -715,14 +715,14 @@ def build_niche_greetings(agent_name: str = "Riya") -> dict[str, str]:
         for key, cfg in (NICHES or {}).items():
             name = (cfg or {}).get("name", key)
             out[str(key)] = (
-                f"Namaste! Main {agent_name} bol rahi hoon. "
+                f"Namaste! Main {agent_name} bol rahi hoon, ek AI assistant. "
                 f"Aapne {name} ke baare mein enquiry ki thi — kya main do minute baat kar sakti hoon?"
             )
     except Exception:
         pass
     out.setdefault(
         "general",
-        f"Namaste! Main {agent_name} bol rahi hoon. Kya main aapse do minute baat kar sakti hoon?",
+        f"Namaste! Main {agent_name} bol rahi hoon, ek AI assistant. Kya main aapse do minute baat kar sakti hoon?",
     )
     return out
 
