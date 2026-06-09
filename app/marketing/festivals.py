@@ -305,9 +305,13 @@ def _parse_festival_captions(text: str, names: list[str]) -> dict[str, str]:
 
 
 # --------------------------------------------------------------------------- #
-# FREE public-holidays enrichment (Nager.Date — NO API key) — public-apis entry.
-# Static festival list ko official India national-holidays se enrich karta.
-# Gated FESTIVALS_LIVE_HOLIDAYS=1 (default OFF = zero change). Cached, never-raise.
+# FREE public-holidays enrichment (public-apis entry) — defensive, gated, cached.
+# ⚠️ LIVE-TESTED: Nager.Date India support NAHI karta (IN -> HTTP 204, nahi in
+# AvailableCountries) → enrichment static FESTIVALS_2026_27 pe fall back hoti (jo
+# Indian festivals Diwali/Holi/Eid ke liye behtar bhi hai). Yeh scaffold READY-TO-
+# FLIP hai: India live holidays chahiye to keyed source (Calendarific free tier)
+# is fn ke shape me daalo + URL/parse swap. Gated FESTIVALS_LIVE_HOLIDAYS=1
+# (default OFF = zero change). Cached per-year, NEVER raises (204/[] -> static).
 # --------------------------------------------------------------------------- #
 _HOLIDAY_CACHE: dict[int, list[dict[str, str]]] = {}
 
