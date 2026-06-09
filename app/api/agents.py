@@ -12,8 +12,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app.agents import coordinator
 from app.agents.supervisor import AGENTS_AVAILABLE, GRAPH_NODES, run_supervisor_task
 from app.api.auth_deps import require_admin
+from app.api.ratelimit import rate_limit
 from app.models.user import User
 from app.utils.logger import setup_logger
 
@@ -59,3 +61,45 @@ async def agents_status() -> dict[str, Any]:
         "engine": "langgraph-supervisor",
         "nodes": GRAPH_NODES,
     }
+
+
+# ============================================================================
+# Multi-agent COORDINATOR — free-stack coordination over the STAFF roster.
+# plan -> sequential handoff (shared blackboard) | parallel fan-out -> aggregate.
+# Always available (no langgraph dep). SAFE default (execute=False = drafts only).
+# ============================================================================
+class CoordinateRequest(BaseModel):
+    """High-level goal for the agent team to coordinate on."""
+
+    goal: str = Field(..., min_length=3, max_length=2000)
+    execute: bool = Field(
+        False, description="True = agents ki SAFE capabilities bhi chalao (warna sirf drafts)"
+    )
+    max_steps: int = Field(5, ge=1, le=8)
+
+
+class FanOutRequest(BaseModel):
+    """Goal to fan out to multiple agents in parallel."""
+
+    goal: str = Field(..., min_length=3, max_length=2000)
+    agents: list[str] | None = Field(None, description="STAFF keys; default dev/rohan/isha/kavya")
+
+
+@router.get("/roster")
+async def agents_roster() -> dict[str, Any]:
+    """STAFF roster + executable-capability flag + recent coordination runs (no secrets)."""
+    return {"roster": coordinator.roster(), "recent_runs": coordinator.recent_runs(10)}
+
+
+@router.post("/coordinate", dependencies=[Depends(rate_limit("agents", 15, 60))])
+async def coordinate_agents(
+    req: CoordinateRequest, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """Decompose a goal -> assign STAFF agents -> sequential handoff (shared blackboard) -> Boss aggregate."""
+    return await coordinator.coordinate(req.goal, execute=req.execute, max_steps=req.max_steps)
+
+
+@router.post("/fanout", dependencies=[Depends(rate_limit("agents", 15, 60))])
+async def fanout_agents(req: FanOutRequest, user: User = Depends(require_admin)) -> dict[str, Any]:
+    """Parallel coordination — multiple agents work the same goal at once, then aggregate."""
+    return await coordinator.fan_out(req.goal, agents=req.agents)

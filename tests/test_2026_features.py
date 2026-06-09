@@ -388,3 +388,34 @@ def test_rate_limit_dependency(monkeypatch):
 
     monkeypatch.setattr(rl.RateLimiter, "is_allowed", _boom)
     asyncio.run(rl.rate_limit("t2", 1, 60)(_Req({}, "7.7.7.7")))  # no raise = pass
+
+
+# --------------------------------------------------------------------------- #
+# Multi-agent coordinator (planner + sequential handoff + parallel fan-out)
+# --------------------------------------------------------------------------- #
+def test_agent_coordinator(tmp_path, monkeypatch):
+    from app.agents import coordinator
+    from app.voice_agent import free_ai
+
+    # Offline + deterministic: LLM empty -> coordinator fallbacks (plan + draft).
+    async def _fake_chat(system, messages, **kw):
+        return "", "none"
+
+    monkeypatch.setattr(free_ai, "chat", _fake_chat)
+    monkeypatch.setattr(coordinator, "_RUNS", str(tmp_path / "coord.jsonl"))
+
+    # roster — kavya has an executable capability (run_ops)
+    rost = coordinator.roster()
+    assert any(a["id"] == "kavya" and a["executable"] for a in rost)
+
+    # plan fallback (LLM empty) -> sane default chain, allowlisted agents
+    steps = asyncio.run(coordinator.plan("leads 2x karo", max_steps=3))
+    assert 1 <= len(steps) <= 3 and all(s["agent"] in coordinator._AGENTS for s in steps)
+
+    # coordinate (execute=False = drafts) -> structured, results == plan, never raises
+    res = asyncio.run(coordinator.coordinate("Sharma Solar ke liye outreach", max_steps=3))
+    assert res["ok"] and res["plan"] and len(res["results"]) == len(res["plan"]) and res["summary"]
+
+    # parallel fan-out
+    fo = asyncio.run(coordinator.fan_out("brand awareness", agents=["dev", "isha"]))
+    assert fo["ok"] and fo["mode"] == "parallel" and len(fo["results"]) == 2
