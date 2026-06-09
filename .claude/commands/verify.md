@@ -1,0 +1,24 @@
+---
+description: LeadGen AI ka full pre-ship verify loop chalao (prod_check + tests + import) aur PASS/FAIL report do.
+---
+# /verify — LeadGen AI verification loop
+
+Project ka REAL verify loop. **Windows = source of truth** (sandbox mount file-edits ke baad STALE hota hai — Windows venv pe verify karo).
+
+## Steps (exact order)
+1. **prod_check**: `.venv\Scripts\python.exe scripts\prod_check.py` — parse/pycache/import/route/config. Route count note karo. FAIL → ruk jao + report.
+2. **Tests**: `scripts\run_tests.bat` → phir **`pytest_run.log` Read karo** (console truncate hota hai, log = truth). ~80+ green expected. Targeted: `.venv\Scripts\python.exe -m pytest tests\test_X.py -q`.
+3. **Import**: `.venv\Scripts\python.exe -c "import app.main; print('IMPORT_OK')"`.
+4. **Secrets**: changed files me koi hardcoded secret nahi (sirf `.env`, gitignored).
+
+## Output
+```
+VERIFY: PASS/FAIL
+prod_check: OK (N routes) | FAIL: <reason>
+tests:     X passed / Y failed
+import:    OK/FAIL
+secrets:   OK/found
+Ready to ship: YES/NO
+```
+
+`$ARGUMENTS`: `quick` = prod_check + import only · `full` = sab (default).
