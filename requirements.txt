@@ -97,7 +97,7 @@ python-dotenv==1.0.1
 pydub==0.25.1
 phonenumbers==8.13.28
 APScheduler==3.10.4
-Pillow==10.2.0
+Pillow>=10.3.0,<11   # was ==10.2.0 — conflicted with fastembed (needs >=10.3.0); live venv already runs >=10.3
 
 # =============================================================================
 # Background Tasks
