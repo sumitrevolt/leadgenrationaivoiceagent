@@ -129,7 +129,17 @@ async def run(
     if advance:
         keys = _all_niche_keys(tier)
         if keys:
-            _write_cursor((_read_cursor() + batch) % len(keys))
+            # SKIP-SAFE: cursor ko ACTUALLY-scraped niches se aage badhao (lookup-cap
+            # se aksar batch ka sirf pehla niche hi scrape hota — batch se advance
+            # karne par baaki skip ho jaate). by_niche se real count lo, min 1.
+            scraped = 0
+            try:
+                byn = (result or {}).get("by_niche") if isinstance(result, dict) else None
+                scraped = len(byn) if isinstance(byn, dict) else 0
+            except Exception:
+                scraped = 0
+            step = max(1, scraped or batch)
+            _write_cursor((_read_cursor() + step) % len(keys))
 
     logger.info(f"[niche_prospector] scraped niches: {covered}")
     return {"ok": True, "covered": covered, "targets": len(targets), "result": result}
