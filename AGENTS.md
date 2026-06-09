@@ -92,7 +92,7 @@
 - **GROQ_API_KEY**: ✅ **SET** (live setup-audit confirmed) → STT "hearing" weak-link **RESOLVED**. (Memory pehle galti se 'missing' kehti thi; `scripts/setup_status.py` ne pakda.)
 - **Vobiz telephony**: trial ~khatam. Recharge → trial number auto-remove → DID kharido → `VOBIZ_CALLER_ID=+91<DID>` (.env VPS+local) + restart. Streaming ₹0.65/min, raw-SIP ₹0.45. Cost ladder: Plivo ₹0.60 → Vobiz ₹0.45 → operator-direct ₹0.30-0.40 → VNO.
 - **UPI_VPA** (payment modal dormant tak set na ho). **NOTIFY_EMAIL** (inquiry alerts).
-- **Future (EXTERNAL-BLOCKED — user paperwork/approval, Claude build nahi kar sakta)**: missed-call callback (Vobiz DID + inbound webhook), GBP API auto-post (Google 60-din approval), Meta/FB-IG auto-posting (app-review). In par token mat jalao jab tak unlock na ho.
+- **Future (EXTERNAL-BLOCKED — user paperwork/approval, Codex build nahi kar sakta)**: missed-call callback (Vobiz DID + inbound webhook), GBP API auto-post (Google 60-din approval), Meta/FB-IG auto-posting (app-review). In par token mat jalao jab tak unlock na ho.
 
 ## Telephony (production-hardened, commit 310e141, 2026-06-09)
 - `telephony/webhooks.py` ab `/api/webhooks` pe MOUNTED (main.py) — Twilio/Exotel voice+status callbacks. POST routes signature-verified (Depends `verify_twilio_signature`/`verify_exotel_signature` from `app/api/webhooks.py`). Module **lazy-init** (VoiceAgent/CallManager import pe instantiate nahi → mount se startup crash nahi). Sentry FastApiIntegration global = errors auto-capture.
@@ -114,7 +114,7 @@
 - Pure minutes-resale bina license = Telegraph Act violation. Legal resale = **SaaS bundle** (DLT/140 CLIENT ke naam) — industry standard.
 - WhatsApp bulk auto-send = number ban. Cold auto-calls bina DLT = ₹10L risk → sirf inbound auto-callback.
 
-## Skills (`.claude/skills/` — workflow invoke karo, re-derive mat karo)
+## Skills (`.Codex/skills/` — workflow invoke karo, re-derive mat karo)
 `leadgen-start` (session bootstrap + token discipline) · `leadgen-ops` (verify→test→push→deploy loop) · `hostinger-deploy` (VPS gotchas) · `marketing-feature` (naya marketing feature add karne ka pattern) · `niche-onboarding` · `run-campaign` · `test-agent` · `voice-agent-kb` · `deploy`.
 
 ## Deploy loop (detail → `leadgen-ops` + `hostinger-deploy` skills)
@@ -127,7 +127,7 @@
 - Windows **OpenSSH broken** → Git ka ssh.exe use karo.
 - `.bat`: npm/git `.cmd` ko `call` ke saath; `timeout /t` fail → `ping -n N 127.0.0.1`. DC one-liner quoting mangle → complex cmd `.bat` me likho, output log me, log Read karo. SSH command me `&`/`<` quoting todta (EXIT_9009) → smoke `.py` file me likho, ssh se `python scripts/x.py`.
 - **Bade multi-file edits same file pe parallel mat do** — file truncate ho jati hai.
-- **Secrets kabhi committed file/CLAUDE.md/scripts me mat likho — sirf .env** (gitignored).
+- **Secrets kabhi committed file/AGENTS.md/scripts me mat likho — sirf .env** (gitignored).
 
 ## History & Research
 - Full dated history: **`docs/SESSION_LOG.md`**. Research: `docs/Architecture_Research_RAG_Agents_MCP.md`, `docs/P3_Own_Telephony_Stack_Plan.md`, `docs/Marketing_Kit_LeadGenAI.md`, `docs/Sales_Kit_Hinglish.md`, `docs/THREE_BRAIN_ARCHITECTURE.md`, `docs/API.md`. Pricing: `Niche_Pricing_Research.xlsx`.
@@ -207,12 +207,3 @@
 - **Programmatic SEO pages** (`app/marketing/seo_pages.py`) — `generate_page`/`generate_batch` niche×city landing (H1/body/FAQ/schema/CTA→/audit) for organic INBOUND. Reuse NICHES+free_ai.
 - **API** (growth.py, admin): `POST /api/growth/cadence/{enroll,run}` `GET /cadence` · `POST /sms/send` · `POST /linkedin/draft` · `POST /seo/{page,batch}`.
 - **New flags (default OFF)**: `CADENCE_ENGINE=1`, `SMS_DLT_ENABLED=1`(+BSP creds). LinkedIn/SEO = no flag (drafts/content, live).
-
-
-## TELEPHONY-FREE CHANNELS BUILT (2026-06-09 PM) — 4 more agentic acquisition channels, Windows-verified
-> **Rebuild MAT karo.** prod_check **324 routes**, tests **22/22**. Sab additive + free + ban-safe (drafts/calc, no auto-post/send). Telephony/DLT ke bina abhi-usable. Playbook: `docs/Agentic_Customer_Acquisition_Playbook.md`.
-- **Partnerships / reseller (B2B2B)** — `app/marketing/partnerships.py`: 6 partner-types (CA, web-designer, IT, consultant, marketing-agency white-label, printer) ke liye AI pitch drafts. `GET /api/growth/partnership/types` · `POST /partnership/{draft,batch}`.
-- **Free lead-magnet tools (PUBLIC, inbound PLG)** — `app/marketing/lead_tools.py`: missed-call-revenue calc, lead-cost-savings calc, google-presence-score checker → CTA `/audit`+`/pricing`. `POST /api/growth/tools/{missed-call-revenue,lead-cost,google-score}` (NO AUTH — public inbound).
-- **Affiliate / referral program** — `app/marketing/affiliate.py`: `register_affiliate`→code+link, `record_referral`, `stats`, 20% commission. Store `data/affiliates.jsonl`+`affiliate_referrals.jsonl`. `POST /api/growth/affiliate/register` (public) · `GET /affiliate/stats` (admin).
-- **Community / Q&A content drafter** — `app/marketing/community_content.py`: Quora/Reddit/WhatsApp-group/Telegram/LinkedIn-article/Medium ke liye value-first content drafts (soft CTA, ban-safe manual post). `POST /api/growth/community/{draft,batch}`.
-- No new env flags (drafts/calc = live). Public tools inbound capture ke liye `/audit`/`/pricing` pe push karte.

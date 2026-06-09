@@ -308,3 +308,115 @@ async def seo_batch(body: SeoBatchIn, _user=Depends(require_admin)):
     from app.marketing import seo_pages
 
     return await seo_pages.generate_batch(tier=body.tier, limit=body.limit)
+
+
+# ---------------- Partnerships / reseller (B2B2B) --------------------- #
+class PartnerIn(BaseModel):
+    partner_type: str = "ca"
+    partner_name: str | None = ""
+    city: str | None = ""
+
+
+@router.get("/partnership/types")
+async def partnership_types(_user=Depends(require_admin)):
+    from app.marketing import partnerships
+
+    return {"types": partnerships.list_partner_types()}
+
+
+@router.post("/partnership/draft")
+async def partnership_draft(body: PartnerIn, _user=Depends(require_admin)):
+    from app.marketing import partnerships
+
+    return await partnerships.draft_partnership(body.partner_type, body.partner_name or "", body.city or "")
+
+
+@router.post("/partnership/batch")
+async def partnership_batch(city: str = "", _user=Depends(require_admin)):
+    from app.marketing import partnerships
+
+    return await partnerships.draft_batch(city=city)
+
+
+# ---------------- Free lead-magnet tools (PUBLIC, inbound) ------------ #
+class MissedCallIn2(BaseModel):
+    missed_per_day: float
+    avg_deal_value: float
+    close_rate: float = 0.2
+
+
+@router.post("/tools/missed-call-revenue", tags=["Public Tools"])
+async def tool_missed_call(body: MissedCallIn2):
+    """PUBLIC lead-magnet: missed-call revenue calculator."""
+    from app.marketing import lead_tools
+
+    return lead_tools.missed_call_revenue(body.missed_per_day, body.avg_deal_value, body.close_rate)
+
+
+class LeadCostIn(BaseModel):
+    current_cost_per_lead: float
+    leads_per_month: float
+
+
+@router.post("/tools/lead-cost", tags=["Public Tools"])
+async def tool_lead_cost(body: LeadCostIn):
+    """PUBLIC: lead-cost savings calculator."""
+    from app.marketing import lead_tools
+
+    return lead_tools.lead_cost_savings(body.current_cost_per_lead, body.leads_per_month)
+
+
+class GoogleScoreIn(BaseModel):
+    business_name: str
+    city: str | None = ""
+
+
+@router.post("/tools/google-score", tags=["Public Tools"])
+async def tool_google_score(body: GoogleScoreIn):
+    """PUBLIC: Google-presence checker."""
+    from app.marketing import lead_tools
+
+    return await lead_tools.google_presence_score(body.business_name, body.city or "")
+
+
+# ---------------- Affiliate / referral program ----------------------- #
+class AffiliateIn(BaseModel):
+    name: str
+    email: str | None = ""
+    phone: str | None = ""
+
+
+@router.post("/affiliate/register", tags=["Public Tools"])
+async def affiliate_register(body: AffiliateIn):
+    """PUBLIC: koi bhi affiliate ban sakta → referral link + commission."""
+    from app.marketing import affiliate
+
+    return affiliate.register_affiliate(body.name, body.email or "", body.phone or "")
+
+
+@router.get("/affiliate/stats")
+async def affiliate_stats(code: str | None = None, _user=Depends(require_admin)):
+    from app.marketing import affiliate
+
+    return {"stats": affiliate.stats(code), "affiliates": affiliate.list_affiliates(50)}
+
+
+# ---------------- Community / Q&A content drafter -------------------- #
+class CommunityIn(BaseModel):
+    platform: str = "quora"
+    topic: str | None = ""
+    niche: str | None = "general"
+
+
+@router.post("/community/draft")
+async def community_draft(body: CommunityIn, _user=Depends(require_admin)):
+    from app.marketing import community_content
+
+    return await community_content.draft_content(body.platform, body.topic or "", body.niche or "general")
+
+
+@router.post("/community/batch")
+async def community_batch(body: CommunityIn, _user=Depends(require_admin)):
+    from app.marketing import community_content
+
+    return await community_content.draft_batch(topic=body.topic or "", niche=body.niche or "general")

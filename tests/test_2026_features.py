@@ -267,3 +267,46 @@ def test_cadence_orchestrator(tmp_path, monkeypatch):
     monkeypatch.setenv("CADENCE_ENGINE", "1")
     r = asyncio.run(cadence.run_due())
     assert r["ok"] is True and r["advanced"] >= 1  # day-0 steps fire
+
+
+# --------------------------------------------------------------------------- #
+# Telephony-free channels: partnerships / lead-tools / affiliate / community
+# --------------------------------------------------------------------------- #
+def test_partnerships():
+    from app.marketing import partnerships
+
+    assert len(partnerships.list_partner_types()) >= 5
+    d = asyncio.run(partnerships.draft_partnership("ca", "ABC & Co", "Pune"))
+    assert d["ok"] and d["pitch"] and d["auto_sent"] is False
+
+
+def test_lead_tools():
+    from app.marketing import lead_tools
+
+    r = lead_tools.missed_call_revenue(5, 10000, 0.2)
+    assert r["lost_per_month"] > 0 and r["cta"]["url"] == "/audit"
+    s = lead_tools.lead_cost_savings(100, 50)
+    assert s["savings_per_month"] >= 0
+    g = asyncio.run(lead_tools.google_presence_score("Test", "Pune"))
+    assert len(g["checklist"]) >= 4
+
+
+def test_affiliate(tmp_path, monkeypatch):
+    from app.marketing import affiliate
+
+    monkeypatch.setattr(affiliate, "_AFFILIATES", str(tmp_path / "a.jsonl"))
+    monkeypatch.setattr(affiliate, "_REFERRALS", str(tmp_path / "r.jsonl"))
+    a = affiliate.register_affiliate("Ravi", "ravi@x.com")
+    assert a["ok"] and a["code"] and a["link"]
+    assert affiliate.register_affiliate("Ravi", "ravi@x.com")["code"] == a["code"]  # dedupe
+    affiliate.record_referral(a["code"], {"business_name": "X", "amount": 999}, status="paid")
+    st = affiliate.stats(a["code"])
+    assert st["referrals"] == 1 and st["commission_earned"] > 0
+
+
+def test_community_content():
+    from app.marketing import community_content
+
+    assert len(community_content.list_platforms()) >= 4
+    c = asyncio.run(community_content.draft_content("quora", "leads", "real_estate"))
+    assert c["ok"] and c["content"] and c["auto_posted"] is False
