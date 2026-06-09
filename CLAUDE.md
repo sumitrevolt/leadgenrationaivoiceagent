@@ -157,3 +157,12 @@
 - **WhatsApp Flows (in-chat lead capture)** — `app/marketing/whatsapp_flows.py`: `FLOW_LEAD_CAPTURE` JSON + `send_flow()` (Cloud API, GATED `WHATSAPP_LEAD_FLOW_ID`+creds) + `handle_flow_response()` (flow submit→EXISTING inquiry path, abhi se kaam karta). Ready-to-flip (Meta approval). API: `POST /api/growth/whatsapp/flow/send`.
 - **Missed-call → instant AI callback** — `app/telephony/missed_call.py`: `handle_missed_call()` → lead capture (hamesha) + GATED `MISSED_CALL_CALLBACK=1` instant callback (reuse `telephony_vobiz.start_stream_call`), dedupe 1/hr, transactional (caller ne khud ring kiya). Ready-to-flip (Vobiz DID). API: `POST /api/growth/missed-call`.
 - **New env flags (default OFF)**: `WHATSAPP_LEAD_FLOW_ID` (flows), `MISSED_CALL_CALLBACK=1` (callback). Lead-scoring + review-engine = no flag (live).
+
+
+## LIVE STATE VERIFIED (2026-06-09 PM, post-deploy SSH audit) — source of truth
+- **Deployed**: commit 98732f5 LIVE (Docker `leadgen_app` rebuilt, /health=production healthy, /pricing+/app/assistant+/app/journeys 200 public). 3 commits ka sab kaam live.
+- **Env TRUTH** (definitive `grep -c`+len, NOT the earlier buggy "SET" check): `RAZORPAY_KEY_ID`+`RAZORPAY_KEY_SECRET` SET (20ch each, real) → Razorpay checkout kaam karega. **`UPI_VPA` UNSET** (standalone UPI modal off; Razorpay ke andar UPI phir bhi chalta). **Saare gated flags OFF/unset**: JOURNEY_ENGINE, AUTO_QUALIFY_CALLS, MISSED_CALL_CALLBACK, ENABLE_OTEL, WHATSAPP_AUTO_SEND (=ban-safe ✓). RUN_IN_PROCESS_SCHEDULER unset→code default "1" (in-process scheduler ON).
+- **Telephony**: `/api/webhooks/health` provider=**twilio**, calls_made=0 (configured but PROD-unproven). `leadgen-freeswitch` container up 2 days. Vobiz NOT the active webhook provider.
+- **Observability NOW UP** (2026-06-09): `docker-compose.observability.yml` started — leadgen_prometheus(:9090 ok)+grafana(:3000 ok)+alertmanager(:9093)+loki(:3100)+tempo(:4317)+uptime(:3001). 10 total containers. App unaffected. (OTel traces tabhi aayenge jab ENABLE_OTEL=1.)
+- **Tests**: `tests/test_2026_features.py` — 10/10 PASS (lead_scoring, call_qualifier, journeys, review_engine, whatsapp_flows, missed_call, customer_auth helpers). Total test files ab 26.
+- **REMAINING GAPS (honest)**: (1) UPI_VPA set karo (ya Razorpay-only payments rakho); (2) telephony prod-proof (1 real call test); (3) gated flags `1` karo jab activate karna ho; (4) HA/staging nahi (single VPS); (5) `/api/ai/command` unauth (LLM abuse surface — rate-limit/auth add karo).
