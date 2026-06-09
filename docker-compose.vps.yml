@@ -80,6 +80,8 @@ services:
   db:
     image: postgres:16-alpine
     container_name: leadgen_db
+    ports:
+      - "127.0.0.1:5432:5432"   # host-published so the systemd app / venv migration can reach it (localhost only)
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-leadgen}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leadgen}
@@ -110,6 +112,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: leadgen_redis
+    ports:
+      - "127.0.0.1:6379:6379"   # host-published so the systemd app can reach it (localhost only)
     command: >
       redis-server
       --appendonly yes

@@ -62,12 +62,12 @@ def _load_models_metadata() -> MetaData:
             __import__(mod)
         except Exception:
             pass
-    # Fallback: importing the app wires up any remaining model modules.
-    if len(Base.metadata.tables) < 3:
-        try:
-            import app.main  # noqa: F401
-        except Exception:
-            pass
+    # Most reliable: import the full app — it wires up EVERY model module exactly
+    # like the live app's create_all() does, so no table is silently missed.
+    try:
+        import app.main  # noqa: F401
+    except Exception as exc:
+        print(f"[warn] could not import app.main ({exc}); relying on app.models only")
     return Base.metadata
 
 
