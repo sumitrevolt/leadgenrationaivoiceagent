@@ -390,6 +390,49 @@ class CallManager:
         except Exception:
             pass
 
+        # Post-call AI qualification (Expedify-style "qualify leads 24/7") — GATED
+        # AUTO_QUALIFY_CALLS=1 (default off = zero change). Best-effort: call
+        # completion ko kabhi block/affect nahi karta. Result -> jsonl (dashboard/1-click).
+        try:
+            import os as _os
+
+            if _os.environ.get("AUTO_QUALIFY_CALLS", "0").strip().lower() in ("1", "true", "yes"):
+                _tx = result.transcript or []
+                _txt = "\n".join(
+                    f"{m.get('role', '?')}: {m.get('content', '')}"
+                    for m in _tx
+                    if isinstance(m, dict)
+                )
+                if len(_txt) >= 10:
+                    import json as _json
+
+                    from app.voice_agent.call_qualifier import qualify_transcript
+
+                    _q = await qualify_transcript(
+                        _txt,
+                        {
+                            "name": getattr(context, "client_name", "") or "",
+                            "phone": context.phone_number,
+                        },
+                    )
+                    _os.makedirs("data", exist_ok=True)
+                    with open(
+                        _os.path.join("data", "call_qualifications.jsonl"), "a", encoding="utf-8"
+                    ) as _f:
+                        _f.write(
+                            _json.dumps(
+                                {"call_id": call_id, "lead_id": context.lead_id, **_q},
+                                ensure_ascii=False,
+                            )
+                            + "\n"
+                        )
+                    logger.info(
+                        f"[call_qualifier] {call_id}: score={_q.get('interest_score')} "
+                        f"qualified={_q.get('qualified')}"
+                    )
+        except Exception as _qe:
+            logger.debug(f"[call_qualifier] auto-qualify skip: {_qe}")
+
         logger.info(f"✅ Call {call_id} completed. Outcome: {outcome}, Score: {result.lead_score}")
 
         return result

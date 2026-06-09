@@ -433,6 +433,28 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     except Exception as e:
         logger.debug(f"[public] notify-email task spawn failed: {e}")
 
+    # 8) Omnichannel journey engine — fire 'inquiry_received' (gated JOURNEY_ENGINE=1;
+    #    default off = kuch nahi hota). Matching rules cross-channel drafts banate.
+    try:
+        from app.marketing import journeys
+
+        jtask = asyncio.create_task(
+            journeys.emit_event(
+                "inquiry_received",
+                {
+                    "business_name": rec.get("business_name"),
+                    "name": rec.get("name"),
+                    "phone": rec.get("phone"),
+                    "niche": rec.get("niche"),
+                    "city": rec.get("city"),
+                },
+            )
+        )
+        _BG_TASKS.add(jtask)
+        jtask.add_done_callback(_BG_TASKS.discard)
+    except Exception as e:
+        logger.debug(f"[public] journey emit spawn failed: {e}")
+
     return {"ok": True, "message": _OK_MESSAGE}
 
 
@@ -539,6 +561,20 @@ async def public_signup(body: SignupIn, request: Request):
         )
     except Exception:
         pass
+
+    # Journey engine — fire 'signup' (gated JOURNEY_ENGINE=1; default off).
+    try:
+        from app.marketing import journeys
+
+        st = asyncio.create_task(
+            journeys.emit_event(
+                "signup", {"business_name": biz, "name": biz, "phone": body.phone, "plan": body.plan}
+            )
+        )
+        _BG_TASKS.add(st)
+        st.add_done_callback(_BG_TASKS.discard)
+    except Exception as e:
+        logger.debug(f"[signup] journey emit spawn failed: {e}")
 
     return {
         "ok": True,

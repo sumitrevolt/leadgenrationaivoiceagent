@@ -301,6 +301,12 @@ try:
     app.include_router(minisite_builder_router, prefix="/api")  # /api/minisite/* (mini-site builder)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Mini-site builder router not mounted: {_e}")
+try:
+    from app.api.journeys import router as journeys_router
+
+    app.include_router(journeys_router, prefix="/api")  # /api/journeys/* (omnichannel rule engine)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Journeys router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])
@@ -424,6 +430,24 @@ async def pricing_page():
 async def start_alias_page():
     """CTA-friendly alias for /pricing."""
     return FileResponse(str(FRONTEND_DIR / "pricing.html"))
+
+
+@app.get("/app/assistant", tags=["Frontend"])
+async def assistant_page():
+    """NL CRM command bar (Expedify-style 'talk to your CRM') — Hinglish NL -> action.
+
+    Calls POST /api/ai/command (read/draft only, free-LLM intent). Auto-send nahi.
+    """
+    return FileResponse(str(FRONTEND_DIR / "assistant.html"))
+
+
+@app.get("/app/journeys", tags=["Frontend"])
+async def journeys_page():
+    """Omnichannel journey/rule engine admin (Expedify-style) — event→action drafts.
+
+    CRUD over /api/journeys/* (admin token). Engine gated JOURNEY_ENGINE=1.
+    """
+    return FileResponse(str(FRONTEND_DIR / "journeys.html"))
 
 
 @app.get("/audit", tags=["Frontend"])

@@ -658,3 +658,32 @@ Fixed the broken app image + swapped the live app into Docker (both verified, au
 
 ### NOT done (user decision pending — live prod)
 - Deploy NAHI kiya. Push DEPLOY_ENABLED unset hone se gate-only chalega (safe). Live deploy = either enable CI (DEPLOY_ENABLED=true+secrets) ya manual image rebuild. New page-routes = HARD RELOAD.
+
+
+## 2026-06-09 PM — 3 Expedify-style features (NL CRM bar + journey engine + voice qualifier), Windows-verified, NOT deployed
+**User:** "feature aur extend karo, Expedify AI ke features bhi add karo, unka voice agent accha kaam karta." Web research → Expedify = India AI-native CRM: (1) NL 'talk to your CRM', (2) omnichannel journey/rule engine, (3) no-code agent builder, 24/7 qualify+book. User ne 3 chune: journey engine + NL bar + voice boost (no-code builder NAHI).
+
+### 1) NL CRM command bar (Expedify signature) — read/draft only, ban-safe
+- `POST /api/ai/command` in `app/api/ai.py` (router /api/ai): CommandIn{query,client_id?} → `free_ai.chat` se intent JSON parse (`_extract_json`) → ALLOWLISTED `_CMD_ACTIONS` {stats, list_clients, find_client, draft_followup, draft_message, help}. Auto-write/send KABHI nahi. `_cmd_stats` (clients+inquiries counts), `_cmd_draft` (free-LLM Hinglish draft). Defensive: koi fail → help. Reuses free_ai + clients_store (rebuild nahi).
+- Frontend `frontend/assistant.html` (Hinglish bar, example chips, renders stats/clients-table/draft-with-copy) + route `/app/assistant`.
+
+### 2) Omnichannel journey/rule engine — event→condition→action drafts
+- `app/marketing/journeys.py`: TRIGGERS{inquiry_received,signup,no_show,email_reply,manual} · ACTIONS{draft_whatsapp,draft_email,schedule_callback,notify,add_tag}. Store `data/journeys.jsonl`+`journey_runs.jsonl`. CRUD (add/set_enabled/delete/list_runs) + `seed_defaults()` (3 rules, disabled). `emit_event(event,ctx)` **GATED JOURNEY_ENGINE=1** (default off): matching enabled rules → `_run_action` → ban-safe DRAFTS (free-LLM WA/email message), schedule_callback=note only (no real call). Run log = 1-click human send. Import-safe, kabhi raise nahi.
+- `app/api/journeys.py` (router /api/journeys, admin): GET list, POST create, POST seed, POST {id}/toggle, DELETE {id}, GET runs, POST emit (test). Mounted in main.py (try/except).
+- Triggers wired fire-and-forget: `inquiry_received` in public_site.submit_inquiry, `signup` in public_signup. Default off = zero change.
+- Frontend `frontend/journeys.html` + route `/app/journeys` (list/toggle/delete/seed/create/test-emit/runs, admin token).
+
+### 3) Voice boost — post-call AI qualifier ("qualify leads 24/7")
+- `app/voice_agent/call_qualifier.py`: `qualify_transcript(transcript,ctx)` → free-LLM JSON → `_coerce` safe shape: interest_score(1-5)/qualified/appointment_requested/budget_signal/summary/next_action/followup_draft/provider. Real-time path ke BAHAR (latency-safe). Import-safe.
+- `POST /api/ai/qualify-call` in ai.py.
+- Auto-wire in `call_manager.handle_call_completed` **GATED AUTO_QUALIFY_CALLS=1** (default off): transcript join → qualify → `data/call_qualifications.jsonl`. Best-effort, call completion ko kabhi affect nahi karta. Real-time voice pipeline (turn-detector etc.) untouched.
+
+### Verify (Windows=truth, sandbox mount stale)
+- py_compile: ai.py, journeys.py(marketing+api), public_site.py, call_qualifier.py, call_manager.py, main.py → OK.
+- **import app.main → IMPORT_OK** (OTel disabled log, no new errors). **prod_check → PASSED, 294 routes** (was 284; +command/qualify-call/6 journeys/2 pages).
+
+### Env flags (all default OFF = zero behaviour change)
+- `JOURNEY_ENGINE=1` (rule engine on), `AUTO_QUALIFY_CALLS=1` (post-call qualify on). NL command bar = no flag (live, read/draft only).
+
+### NOT done
+- Deploy NAHI (commit only, no push). New page-routes = HARD RELOAD. No-code builder UI user ne skip kiya.

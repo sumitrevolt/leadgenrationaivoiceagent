@@ -240,3 +240,207 @@ async def ai_health_check():
         "gemini_api": has_gemini,
         "default_model": settings.default_llm,
     }
+
+
+# ============================================================================
+# NL CRM COMMAND BAR ("talk to your CRM") — Expedify-style.
+# Hinglish NL -> free-LLM intent -> ALLOWLISTED safe actions over existing data.
+# READ/DRAFT only (koi auto-send/auto-write nahi — ban-safe + 1-click culture).
+# Free-stack: app.voice_agent.free_ai chain (Cerebras/Groq/…). Kabhi raise nahi.
+# ============================================================================
+import json as _json  # noqa: E402
+
+_CMD_ACTIONS = {"stats", "list_clients", "find_client", "draft_followup", "draft_message", "help"}
+
+_CMD_SYSTEM = (
+    "Tum LeadGenAI CRM ka command-parser ho. User Hinglish/English me request karega. "
+    "SIRF ek JSON object lautao, aur kuch nahi: "
+    '{"action":"<stats|list_clients|find_client|draft_followup|draft_message|help>",'
+    '"params":{"query":"<naam/keyword agar ho>","status":"<active|inactive agar ho>",'
+    '"topic":"<message ka topic agar ho>"},"reply":"<ek line Hinglish acknowledgement>"}. '
+    "Samajh na aaye to action=help. Koi explanation mat do, sirf JSON."
+)
+
+
+def _extract_json(text: str) -> dict:
+    """LLM output se pehla JSON object nikaalo (code-fence safe). Fail -> {}."""
+    if not text:
+        return {}
+    t = text.strip()
+    i, j = t.find("{"), t.rfind("}")
+    if i != -1 and j != -1 and j > i:
+        t = t[i : j + 1]
+    try:
+        d = _json.loads(t)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _cmd_stats() -> dict:
+    """Lightweight CRM snapshot — clients + inquiries counts (pure, no DB session)."""
+    out = {"clients": 0, "active_clients": 0, "inquiries": 0}
+    try:
+        from app.marketing import clients_store
+
+        cl = clients_store.list_clients()
+        out["clients"] = len(cl)
+        out["active_clients"] = sum(1 for c in cl if str(c.get("status")) == "active")
+    except Exception:
+        pass
+    try:
+        import os
+
+        f = os.path.join("data", "inquiries.jsonl")
+        if os.path.exists(f):
+            with open(f, encoding="utf-8") as fh:
+                out["inquiries"] = sum(1 for _ in fh)
+    except Exception:
+        pass
+    return out
+
+
+async def _cmd_draft(topic: str, who: str) -> dict:
+    """Hinglish follow-up/message DRAFT (auto-send NAHI). free-LLM se."""
+    from app.voice_agent import free_ai
+
+    sys = (
+        "Tum ek polite Indian sales assistant ho. Ek SHORT (2-3 line) Hinglish "
+        "follow-up message likho. Sirf message, koi explanation nahi."
+    )
+    prompt = f"Kis ke liye: {who or 'customer'}. Topic: {topic or 'general follow-up'}."
+    reply, prov = await free_ai.chat(
+        sys, [{"role": "user", "content": prompt}], max_tokens=160, temperature=0.7
+    )
+    return {
+        "draft": reply or "Namaste! Aapki inquiry ke baare me follow-up kar rahe hain. Kaise help karein?",
+        "provider": prov,
+        "auto_sent": False,
+    }
+
+
+class CommandIn(BaseModel):
+    """NL command bar input."""
+
+    query: str
+    client_id: str | None = None
+
+
+@router.post("/command")
+async def nl_command(req: CommandIn, user: User = Depends(get_current_user_optional)):
+    """NL CRM command bar — Hinglish NL -> intent -> SAFE read/draft action.
+
+    Auto-send/auto-write kabhi nahi (sirf data dikhata + draft deta). free-LLM
+    se intent parse, allowlisted actions hi execute. Defensive: kuch bhi fail =>
+    help fallback, kabhi 500 nahi (except validation).
+    """
+    q = (req.query or "").strip()
+    if len(q) < 2:
+        raise HTTPException(
+            status_code=422,
+            detail="Kuch likho — e.g. 'stats dikhao' ya 'solar client ko follow-up draft karo'.",
+        )
+    from app.voice_agent import free_ai
+
+    raw, provider = await free_ai.chat(
+        _CMD_SYSTEM, [{"role": "user", "content": q}], max_tokens=200, temperature=0.1
+    )
+    intent = _extract_json(raw)
+    action = intent.get("action")
+    if action not in _CMD_ACTIONS:
+        action = "help"
+    params = intent.get("params") if isinstance(intent.get("params"), dict) else {}
+    human = str(intent.get("reply") or "").strip()
+    data = None
+    try:
+        if action == "stats":
+            data = _cmd_stats()
+        elif action == "list_clients":
+            from app.marketing import clients_store
+
+            st = params.get("status") or None
+            data = [
+                {
+                    "id": c.get("id"),
+                    "business_name": c.get("business_name"),
+                    "niche": c.get("niche"),
+                    "city": c.get("city"),
+                    "plan": c.get("plan"),
+                    "status": c.get("status"),
+                }
+                for c in clients_store.list_clients(st)[:25]
+            ]
+        elif action == "find_client":
+            from app.marketing import clients_store
+
+            kw = str(params.get("query") or "").strip().lower()
+            matches = [
+                c
+                for c in clients_store.list_clients()
+                if kw
+                and (
+                    kw in str(c.get("business_name", "")).lower()
+                    or kw in str(c.get("niche", "")).lower()
+                    or kw in str(c.get("city", "")).lower()
+                )
+            ]
+            data = [
+                {
+                    "id": c.get("id"),
+                    "business_name": c.get("business_name"),
+                    "niche": c.get("niche"),
+                    "city": c.get("city"),
+                    "plan": c.get("plan"),
+                }
+                for c in matches[:15]
+            ]
+        elif action in ("draft_followup", "draft_message"):
+            data = await _cmd_draft(params.get("topic") or q, params.get("query") or "")
+        else:
+            action = "help"
+            data = {
+                "capabilities": [
+                    "stats dikhao",
+                    "clients list karo",
+                    "'X' naam ka client dhoondo",
+                    "'X' client ko follow-up draft karo",
+                    "diwali offer ka message draft karo",
+                ]
+            }
+    except Exception as e:
+        logger.warning(f"[nl-command] action {action} failed: {e}")
+        action = "help"
+        data = {"error": "Yeh command abhi process nahi hui, dobara try karo."}
+    if not human:
+        human = {
+            "stats": "Yeh raha CRM snapshot.",
+            "list_clients": "Yeh tumhare clients hain.",
+            "find_client": "Yeh matching clients mile.",
+            "draft_followup": "Follow-up draft taiyaar (review karke bhejo).",
+            "draft_message": "Message draft taiyaar.",
+            "help": "Main yeh kar sakta hoon:",
+        }.get(action, "Done.")
+    return {"ok": True, "action": action, "reply": human, "data": data, "provider": provider}
+
+
+# ============================================================================
+# POST-CALL AI QUALIFIER ("qualify leads 24/7") — Expedify-style voice boost.
+# Real-time path ke BAHAR: call transcript -> structured qualification + draft.
+# ============================================================================
+class QualifyCallIn(BaseModel):
+    """Post-call qualification input."""
+
+    transcript: str
+    context: dict | None = None
+
+
+@router.post("/qualify-call")
+async def qualify_call(req: QualifyCallIn, user: User = Depends(get_current_user_optional)):
+    """Call transcript -> AI lead qualification (interest/qualified/appointment/
+    budget/summary/next-action/follow-up draft). free-LLM, latency-safe (post-call)."""
+    tx = (req.transcript or "").strip()
+    if len(tx) < 10:
+        raise HTTPException(status_code=422, detail="Transcript chahiye (chhota/khaali hai).")
+    from app.voice_agent.call_qualifier import qualify_transcript
+
+    return await qualify_transcript(tx, req.context or {})
