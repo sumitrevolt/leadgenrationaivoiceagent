@@ -95,7 +95,14 @@ def record_call_usage(
 
 
 def minutes_used_this_period(client_id: str) -> int:
-    """Sum of TELEPHONY ledger minutes for this client in the current month. 0 on any error."""
+    """Sum of TELEPHONY ledger minutes for this client in the current month. 0 on any error.
+
+    Respects a per-client *period-start watermark* (set by ``reset_usage_period`` on a
+    paid renewal): only ledger lines created at/after the watermark count. The watermark
+    lives in the latest Subscription row's ``extra_data['usage_period_start']`` (ISO-8601,
+    no schema change). If absent/unreadable, the whole calendar month counts (legacy
+    behaviour — fully backward compatible).
+    """
     try:
         cid = (client_id or "").strip()
         if not cid:
@@ -106,17 +113,18 @@ def minutes_used_this_period(client_id: str) -> int:
         from app.models.billing_record import BillingRecord, BillingRecordType
 
         now = datetime.utcnow()
+        watermark = _usage_period_start(cid)
         with get_db_session() as db:
-            total = (
-                db.query(func.coalesce(func.sum(BillingRecord.quantity), 0))
-                .filter(
-                    BillingRecord.client_id == cid,
-                    BillingRecord.record_type == BillingRecordType.TELEPHONY,
-                    BillingRecord.period_year == now.year,
-                    BillingRecord.period_month == now.month,
-                )
-                .scalar()
+            q = db.query(func.coalesce(func.sum(BillingRecord.quantity), 0)).filter(
+                BillingRecord.client_id == cid,
+                BillingRecord.record_type == BillingRecordType.TELEPHONY,
+                BillingRecord.period_year == now.year,
+                BillingRecord.period_month == now.month,
             )
+            # A mid-month paid renewal zeroes usage from the renewal instant onward.
+            if watermark is not None and watermark.year == now.year and watermark.month == now.month:
+                q = q.filter(BillingRecord.created_at >= watermark)
+            total = q.scalar()
         return int(total or 0)
     except Exception as e:
         logger.debug("minutes_used_this_period error: %s", e)
@@ -142,6 +150,134 @@ def has_minutes(client_id: str, plan: str | None = None) -> bool:
     return minutes_used_this_period(client_id) < cap
 
 
+# --------------------------------------------------------------------------- #
+# Auto-provisioning hooks (called by the payment webhooks on a paid pay/renew) #
+#                                                                              #
+# SEMANTICS (documented choice): the minute ledger only ever DEBITS (one line  #
+# per finished call) and is calendar-month based. To "give a client their plan #
+# minutes" on payment we do NOT credit the ledger; instead:                    #
+#   (1) activate_plan() ensures clients_store has the right `plan` so the cap   #
+#       (PLAN_MINUTES) used by minutes_remaining()/has_minutes() is correct,    #
+#       and stashes the gateway subscription id on the latest Subscription row. #
+#   (2) reset_usage_period() drops a *watermark* (ISO ts) into that row's       #
+#       extra_data['usage_period_start']; minutes_used_this_period() then only  #
+#       counts ledger lines at/after the watermark *within the same month*.     #
+# This is the simplest correct approach: a mid-period renewal zeroes usage      #
+# WITHOUT deleting history or inventing credit lines, and needs no new columns. #
+# Everything is best-effort and NEVER raises.                                   #
+# --------------------------------------------------------------------------- #
+def _latest_subscription(db, client_id: str):
+    """Most-recent Subscription row for a client (any status), or None. Caller owns `db`."""
+    from app.models.payment import Subscription
+
+    return (
+        db.query(Subscription)
+        .filter(Subscription.client_id == client_id)
+        .order_by(Subscription.created_at.desc())
+        .first()
+    )
+
+
+def _usage_period_start(client_id: str):
+    """Read the renewal watermark from the latest Subscription's extra_data. None if absent."""
+    try:
+        cid = (client_id or "").strip()
+        if not cid:
+            return None
+        from app.models.base import get_db_session
+
+        with get_db_session() as db:
+            sub = _latest_subscription(db, cid)
+            if not sub:
+                return None
+            raw = (sub.extra_data or {}).get("usage_period_start")
+            if not raw:
+                return None
+            return datetime.fromisoformat(str(raw).replace("Z", ""))
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("_usage_period_start skipped: %s", e)
+        return None
+
+
+def activate_plan(
+    client_id: str,
+    plan: str,
+    subscription_id: str | None = None,
+    period_end: datetime | None = None,
+) -> bool:
+    """Provision a client's plan after a successful subscription pay/renew. Best-effort.
+
+    - Sets the client's `plan` in clients_store so the minute cap is correct.
+    - Stashes the gateway subscription id + period_end on the latest Subscription row's
+      extra_data (no schema change) for traceability.
+    Returns True if the plan was applied to clients_store, else False (never raises).
+    """
+    cid = (client_id or "").strip()
+    plan_k = (plan or "").strip().lower()
+    if not cid or not plan_k:
+        return False
+
+    applied = False
+    try:
+        from app.marketing.clients_store import get_client, update_client
+
+        if get_client(cid):
+            update_client(cid, plan=plan_k)
+            applied = True
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("activate_plan clients_store skipped: %s", e)
+
+    # Best-effort: annotate the latest Subscription row (traceability only).
+    try:
+        from app.models.base import get_db_session
+
+        with get_db_session() as db:
+            sub = _latest_subscription(db, cid)
+            if sub is not None:
+                meta = dict(sub.extra_data or {})
+                meta["provisioned_plan"] = plan_k
+                if subscription_id:
+                    meta["gateway_subscription_id"] = subscription_id
+                if period_end:
+                    meta["provisioned_period_end"] = period_end.isoformat()
+                sub.extra_data = meta
+                db.commit()
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("activate_plan subscription annotate skipped: %s", e)
+
+    logger.info("activate_plan: client=%s plan=%s (applied=%s)", cid, plan_k, applied)
+    return applied
+
+
+def reset_usage_period(client_id: str, at: datetime | None = None) -> bool:
+    """Zero metered usage from `at` (default now) onward by dropping a watermark.
+
+    Stored in the latest Subscription row's extra_data['usage_period_start'] (ISO ts).
+    minutes_used_this_period() then ignores ledger lines created before the watermark
+    within the current month. Best-effort; returns True if the watermark was written.
+    """
+    cid = (client_id or "").strip()
+    if not cid:
+        return False
+    when = at or datetime.utcnow()
+    try:
+        from app.models.base import get_db_session
+
+        with get_db_session() as db:
+            sub = _latest_subscription(db, cid)
+            if sub is None:
+                return False
+            meta = dict(sub.extra_data or {})
+            meta["usage_period_start"] = when.isoformat()
+            sub.extra_data = meta
+            db.commit()
+        logger.info("reset_usage_period: client=%s watermark=%s", cid, when.isoformat())
+        return True
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("reset_usage_period skipped: %s", e)
+        return False
+
+
 __all__ = [
     "PLAN_MINUTES",
     "plan_minutes",
@@ -150,4 +286,6 @@ __all__ = [
     "minutes_used_this_period",
     "minutes_remaining",
     "has_minutes",
+    "activate_plan",
+    "reset_usage_period",
 ]

@@ -99,10 +99,29 @@ FRAME_SLEEP = 0.02  # pace outbound audio ~realtime (20 ms/frame)
 
 # --------------------------------------------------------------------------- #
 # Energy VAD / turn-detection tuning (har inbound media frame ~= 20 ms)
+# Shared knobs (TURN_SILENCE_MS / TURN_VAD_RMS / TURN_BARGE_MIN_MS) ek hi env se
+# saare audio paths tune karte hain. Defaults previous hard-coded values reproduce
+# karte hain (RMS 300, 700 ms silence, ~100 ms barge-in) — prod unchanged jab tak
+# env set na ho. Import defensive: turn_detector na mile to literal fallback.
 # --------------------------------------------------------------------------- #
-VAD_RMS_THRESHOLD = 300  # PCM16 rms isse upar = speech
+FRAME_MS = 20.0  # each inbound media frame ~= 20 ms (8 kHz µ-law, 160 B)
+
+try:  # pragma: no cover - import-safety
+    from app.voice_agent.turn_detector import (
+        barge_in_frames as _shared_barge_frames,
+        turn_silence_ms as _shared_silence_ms,
+        turn_vad_rms as _shared_vad_rms,
+    )
+
+    VAD_RMS_THRESHOLD = _shared_vad_rms(300)  # PCM16 rms isse upar = speech
+    VAD_SILENCE_FRAMES = max(1, int(round(_shared_silence_ms(700.0) / FRAME_MS)))  # ~0.7 s silence
+    VAD_BARGE_FRAMES = _shared_barge_frames(FRAME_MS, 100.0)  # speech-over-bot before barge-in
+except Exception:
+    VAD_RMS_THRESHOLD = 300
+    VAD_SILENCE_FRAMES = 35  # 0.7 s
+    VAD_BARGE_FRAMES = 5  # ~100 ms
+
 VAD_START_FRAMES = 3  # >=3 consecutive speech frames -> speech shuru (~60ms)
-VAD_SILENCE_FRAMES = 35  # >=0.7 s silence -> utterance khatam
 VAD_MIN_SPEECH_FRAMES = 20  # >=0.4 s speech collected ho to hi utterance accept
 VAD_MAX_UTTERANCE_BYTES = 12 * SR_8K * 2  # 12 s hard cap (PCM16 @ 8kHz)
 
@@ -369,8 +388,10 @@ class PhoneCallSession:
                     self._utterance.extend(f)
                 self._preroll.clear()
                 self._speech_frames = self._consec_speech
-                # BARGE-IN: bot bol raha hai to use turant roko
-                if self._bot_speaking:
+                # BARGE-IN: bot bol raha hai to use roko — but require at least
+                # VAD_BARGE_FRAMES of speech (TURN_BARGE_MIN_MS) so the bot's own
+                # echo / a single click doesn't cut it off. Default ~100 ms.
+                if self._bot_speaking and self._consec_speech >= VAD_BARGE_FRAMES:
                     self._interrupt = True
                     logger.debug("phone_stream: barge-in detected")
             elif self._in_speech:

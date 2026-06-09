@@ -69,6 +69,13 @@
 - **USER-PENDING env (main fabricate nahi kar sakta)**: `UPI_VPA=<apna UPI ID>` (payment modal — abhi `/api/public/pay-info` `enabled:false`), `POLLINATIONS_TOKEN=<auth.pollinations.ai free token>` (AI images). Set karte hi restart → live.
 - Still OFF: USE_LIGHTRAG (LLM-heavy), USE_SILERO_VAD/SMART_TURN (heavy torch/pipecat deps not installed — Priority-4 careful install pending).
 
+## 4 NEW FEATURES BUILT (2026-06-09, code-complete + Windows-verified, NOT deployed) — detail: SESSION_LOG
+> **Rebuild MAT karo — ban chuke.** Local prod_check **278 routes**, new tests 62/62 + regression PASS. Deploy ke baad naye `@app.get` page-routes = HARD RELOAD.
+- **Payment automation** (`app/api/billing.py`,`usage.py`): Stripe+Razorpay webhooks `POST /api/billing/webhooks/{stripe,razorpay}` + `POST /billing/portal` (Stripe) + pause/resume; pay/renew → `usage.activate_plan()`+`reset_usage_period()` (watermark in `Subscription.extra_data`, backward-compat = no-watermark→full-month). UI: customer+admin dashboard billing section. NEEDS: `STRIPE_*`/`RAZORPAY_*` keys + webhook-URL register.
+- **Voice VAD/latency**: `SmartTurnDetector.is_endpoint` no-op **BUG FIX** (ab ONNX endpoint head). Env knobs `TURN_SILENCE_MS=700`/`TURN_VAD_RMS=300`/`TURN_BARGE_MIN_MS=100`/`SMART_TURN_THRESHOLD=0.55` (defaults=aaj jaisa, flags OFF=zero change). NEW `scripts/vps_capacity_check.py`+`voice_latency_scorecard.py`. torch/silero abhi bhi NOT installed (capacity-check→user go-ahead).
+- **WhatsApp Cloud API** (`wa_campaign_runner.py`,`app/api/whatsapp.py`,page `/app/whatsapp`): official Meta only, default 1-click links, auto-send gated `WHATSAPP_AUTO_SEND=1`+creds+approved-template+opted-in (spaced+`WHATSAPP_DAILY_CAP`). `run_due()` scheduler `content` job me hooked. config NEW `whatsapp_app_secret`+`whatsapp_verify_token`. NEEDS: Meta creds+approved-templates+webhook register.
+- **Mini-site builder** (`app/api/minisite_builder.py`,page `/app/minisite-builder`): palette/3-layout/logo (`data/mini_site_config.jsonl`,`data/logos/`), `/b/{slug}` booking-calendar (reuses `/api/booking`, no dup), reviews feed (`data/reviews/<slug>.jsonl`, public rate-limited + admin-moderated). Koi cred nahi = turant live.
+
 ## Active Blockers / USER-ACTION pending (env-unset = dormant, graceful skip)
 - **DLT**: individual request REJECTED → user ko **Udyam (MSME, FREE, udyamregistration.gov.in)** cert se Proprietorship re-apply. (Udyam cert ready hai.) DLT sirf cold-calling (Advanced) ke liye.
 - **GROQ_API_KEY**: ✅ **SET** (live setup-audit confirmed) → STT "hearing" weak-link **RESOLVED**. (Memory pehle galti se 'missing' kehti thi; `scripts/setup_status.py` ne pakda.)

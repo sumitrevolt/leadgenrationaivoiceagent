@@ -153,7 +153,7 @@
       <a href="#sec-clients"><span class="ic">⊞</span> Leads</a>
       <a href="#sec-agents"><span class="ic">⌬</span> Scrapers</a>
       <div class="sec">Business</div>
-      <a href="#sec-niches"><span class="ic">₹</span> Billing & Revenue</a>
+      <a href="#sec-billing"><span class="ic">₹</span> Billing & Revenue</a>
       <a href="#sec-health"><span class="ic">◐</span> System Health</a>
       <a href="#top"><span class="ic">⚒</span> Settings</a>
     </nav>
@@ -241,6 +241,32 @@
             <thead><tr><th>Niche</th><th>Tier</th><th>Audience</th><th>Avg Ticket</th><th>Per Qualified Lead (₹)</th></tr></thead>
             <tbody id="niches"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Billing & Revenue (per-client lookup) -->
+      <div class="card" id="sec-billing">
+        <div class="hd">
+          <h3>Billing &amp; Subscriptions</h3>
+          <span class="right" id="bill-summary">Enter a client ID to load billing</span>
+        </div>
+        <div class="bd">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+            <input id="billCid" placeholder="client_id (e.g. sharma-solar-7b6f)"
+              style="flex:1;min-width:220px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:13px" />
+            <button class="btn" onclick="adminLoadBilling()">Load Billing</button>
+            <button class="btn" id="abPauseBtn" onclick="adminBilling('pause')" style="display:none;background:var(--amber)">⏸ Pause</button>
+            <button class="btn" id="abResumeBtn" onclick="adminBilling('resume')" style="display:none;background:var(--green)">▶️ Resume</button>
+            <button class="btn" id="abPortalBtn" onclick="adminBillingPortal()" style="display:none">💳 Portal</button>
+            <button class="btn" id="abCancelBtn" onclick="adminBilling('cancel')" style="display:none;background:var(--red)">✖ Cancel</button>
+          </div>
+          <div id="billCards" class="kpis" style="margin-bottom:14px"></div>
+          <div class="tbl-scroll" style="border:1px solid var(--line);border-radius:10px;overflow:hidden">
+            <table>
+              <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>Status</th><th>Receipt</th></tr></thead>
+              <tbody id="billInvoices"><tr><td colspan="5" style="color:var(--muted)">No client loaded.</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -504,6 +530,105 @@ document.addEventListener("DOMContentLoaded", ()=>{ loadDashboard(); loadNiches(
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
    never paint fake demo numbers over real ones). Cosmetic random nudges removed. */
 setInterval(()=>{ if(USING_REAL) loadDashboard(); }, 30000);
+
+/* ============================================================
+   BILLING & SUBSCRIPTIONS — admin per-client lookup.
+   Binds to /api/billing/{subscription,usage,invoices,portal,subscription/*}.
+   Admin token (if present) sent as Bearer; endpoints also work cookie/IP-gated.
+   ============================================================ */
+let AB_CID = "";
+function abAuthHdr(){
+  const t = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
+  return t ? {"Authorization":"Bearer "+t} : {};
+}
+function abDate(iso){ if(!iso) return "—"; try{ return new Date(iso).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ return iso; } }
+function abMoney(n,cur){ const c=cur==="USD"?"$":(cur==="EUR"?"€":"₹"); return c+Number(n||0).toLocaleString("en-IN"); }
+function abShow(id,on){ const el=$(id); if(el) el.style.display=on?"inline-flex":"none"; }
+
+async function adminLoadBilling(){
+  const cid=($("billCid").value||"").trim();
+  if(!cid){ $("bill-summary").textContent="Enter a client ID first."; return; }
+  AB_CID=cid;
+  $("bill-summary").textContent="Loading "+cid+"…";
+  let sub=null, usage=null, invoices=[];
+  try{ const r=await fetch("/api/billing/subscription?client_id="+encodeURIComponent(cid),{headers:abAuthHdr()}); if(r.ok) sub=await r.json(); }catch(e){}
+  try{ const r=await fetch("/api/billing/usage?client_id="+encodeURIComponent(cid),{headers:abAuthHdr()}); if(r.ok) usage=await r.json(); }catch(e){}
+  try{ const r=await fetch("/api/billing/invoices?client_id="+encodeURIComponent(cid)+"&limit=25",{headers:abAuthHdr()}); if(r.ok) invoices=await r.json(); }catch(e){}
+  adminRenderBilling(sub,usage,invoices);
+}
+
+function adminRenderBilling(sub,usage,invoices){
+  const cards=[];
+  if(sub&&sub.plan_id){
+    cards.push({lbl:"Plan", val:sub.plan_name||sub.plan_id, chg:abMoney(sub.base_price,sub.currency)+"/mo", cls:"rev"});
+    cards.push({lbl:"Status", val:(sub.status||"—").toUpperCase(), chg:sub.payment_gateway||"—", cls:String(sub.status).toLowerCase()==="active"?"ok":"warn"});
+    cards.push({lbl:"Period End", val:abDate(sub.current_period_end), chg:"renews/expires", cls:""});
+  }else{
+    cards.push({lbl:"Plan", val:"None", chg:"no active subscription", cls:"warn"});
+  }
+  if(usage){
+    const cr=usage.calls_remaining, cu=usage.calls_used;
+    cards.push({lbl:"Voice Min Used", val:(cu!=null?cu:"—"), chg:(typeof usage.calls_limit==="number"&&usage.calls_limit>0?("limit "+usage.calls_limit):"metered"), cls:"ok"});
+    cards.push({lbl:"Min Remaining", val:(cr!=null?cr:"—"), chg:"this period", cls:""});
+  }
+  $("billCards").innerHTML = cards.map(c=>`
+    <div class="kpi ${c.cls}"><div class="lbl">${c.lbl}</div><div class="val">${c.val}</div>
+      <div class="chg up">• ${c.chg}</div></div>`).join("");
+
+  const body=$("billInvoices");
+  if(invoices&&invoices.length){
+    body.innerHTML=invoices.map(inv=>{
+      const url=inv.hosted_url||inv.pdf_url;
+      const paid=inv.status==="paid";
+      return `<tr>
+        <td class="co">${inv.invoice_number||inv.id||"—"}</td>
+        <td>${abDate(inv.invoice_date)}</td>
+        <td class="num">${abMoney(inv.total,inv.currency)}</td>
+        <td><span class="st ${paid?'up':'paused'}"><span class="d"></span>${inv.status||"—"}</span></td>
+        <td>${url?`<a href="${url}" target="_blank" rel="noopener">View ↗</a>`:"—"}</td>
+      </tr>`;}).join("");
+  }else{
+    body.innerHTML=`<tr><td colspan="5" style="color:var(--muted)">No invoices for this client.</td></tr>`;
+  }
+
+  const hasSub=!!(sub&&sub.plan_id);
+  const isPaused=hasSub&&String(sub.status).toLowerCase()==="paused";
+  abShow("abPortalBtn",hasSub);
+  abShow("abPauseBtn",hasSub&&!isPaused);
+  abShow("abResumeBtn",hasSub&&isPaused);
+  abShow("abCancelBtn",hasSub&&!isPaused);
+  $("bill-summary").textContent=(hasSub?(sub.plan_name+" · "+sub.status):"No subscription")+" · "+(invoices.length||0)+" invoices";
+}
+
+async function adminBillingPortal(){
+  if(!AB_CID) return;
+  try{
+    const r=await fetch("/api/billing/portal?client_id="+encodeURIComponent(AB_CID),{
+      method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
+      body:JSON.stringify({return_url:location.href})});
+    const j=await r.json();
+    if(r.ok&&j.portal_url){ window.open(j.portal_url,"_blank","noopener"); }
+    else{ alert(j.message||"No hosted portal — use Pause/Cancel."); }
+  }catch(e){ alert("Portal error — try again."); }
+}
+
+async function adminBilling(action){
+  if(!AB_CID) return;
+  let url, opts={method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr())};
+  if(action==="pause"){ url="/api/billing/subscription/pause?client_id="+encodeURIComponent(AB_CID); }
+  else if(action==="resume"){ url="/api/billing/subscription/resume?client_id="+encodeURIComponent(AB_CID); }
+  else if(action==="cancel"){
+    if(!confirm("Cancel this client's subscription? (cancel at period end)")) return;
+    url="/api/billing/subscription/cancel?client_id="+encodeURIComponent(AB_CID);
+    opts.body=JSON.stringify({cancel_immediately:false});
+  }else{ return; }
+  try{
+    const r=await fetch(url,opts);
+    const j=await r.json().catch(()=>({}));
+    if(r.ok){ adminLoadBilling(); }
+    else{ alert(j.detail||"Action failed (check admin token)."); }
+  }catch(e){ alert("Network error."); }
+}
 </script>
 </body>
 </html>

@@ -1,8 +1,19 @@
 """
 WhatsApp Business API Integration
 Send lead notifications and follow-ups via WhatsApp
+
+OFFICIAL Meta Cloud API only (graph.facebook.com). Never uses an unofficial
+gateway (baileys/web get the number banned). Send helpers degrade gracefully —
+on any error they return a dict with an ``error`` key instead of raising, so
+background campaign runners never crash. Webhook payload signatures are verified
+with the Meta App Secret (``WHATSAPP_APP_SECRET``) via :func:`verify_meta_signature`.
 """
 
+from __future__ import annotations
+
+import hashlib
+import hmac
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,6 +23,34 @@ from app.config import settings
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+
+# Graph API version is overridable without a code change (Meta deprecates old graph versions).
+GRAPH_API_VERSION = os.getenv("WHATSAPP_GRAPH_VERSION", "v18.0").strip() or "v18.0"
+
+
+def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool:
+    """Verify a Meta webhook payload using the App Secret (X-Hub-Signature-256).
+
+    Returns ``True`` only on a valid HMAC-SHA256 match. If no App Secret is
+    configured (``WHATSAPP_APP_SECRET`` / settings.whatsapp_app_secret), returns
+    ``True`` so local/dev still works — production MUST set the secret. Never raises.
+    """
+    secret = (
+        os.getenv("WHATSAPP_APP_SECRET", "")
+        or getattr(settings, "whatsapp_app_secret", "")
+        or ""
+    ).strip()
+    if not secret:
+        return True  # unconfigured -> don't hard-block (loud warning expected upstream)
+    try:
+        sig = (signature_header or "").strip()
+        if sig.startswith("sha256="):
+            sig = sig[len("sha256=") :]
+        expected = hmac.new(secret.encode("utf-8"), raw_body or b"", hashlib.sha256).hexdigest()
+        return hmac.compare_digest(expected, sig)
+    except Exception:
+        return False
 
 
 @dataclass
@@ -39,10 +78,10 @@ class WhatsAppIntegration:
     def __init__(self):
         self.token = settings.whatsapp_business_token
         self.phone_number_id = settings.whatsapp_phone_number_id
-        self.base_url = f"https://graph.facebook.com/v18.0/{self.phone_number_id}"
+        self.base_url = f"https://graph.facebook.com/{GRAPH_API_VERSION}/{self.phone_number_id}"
 
         if self.token:
-            logger.info("📱 WhatsApp Integration initialized")
+            logger.info("WhatsApp Integration initialized")
         else:
             logger.warning("WhatsApp credentials not configured")
 
@@ -55,9 +94,8 @@ class WhatsAppIntegration:
             message: Message text
         """
         if not self.token:
-            raise ValueError("WhatsApp not configured")
+            return {"error": "whatsapp_not_configured"}
 
-        # Ensure number format
         to_number = self._normalize_number(to_number)
 
         payload = {
@@ -79,11 +117,10 @@ class WhatsAppIntegration:
         Template messages are required for initiating conversations
         """
         if not self.token:
-            raise ValueError("WhatsApp not configured")
+            return {"error": "whatsapp_not_configured"}
 
         to_number = self._normalize_number(to_number)
 
-        # Build template components
         components = []
         if template_params:
             components.append(
@@ -109,26 +146,19 @@ class WhatsAppIntegration:
     async def send_lead_alert(
         self, sales_team_number: str, lead_data: dict[str, Any]
     ) -> dict[str, Any]:
-        """
-        Send hot lead alert to sales team
-        """
-        message = f"""🔥 *NEW HOT LEAD!*
-
-📞 *Company:* {lead_data.get('company_name', 'N/A')}
-👤 *Contact:* {lead_data.get('contact_name', 'N/A')}
-📱 *Phone:* {lead_data.get('phone', 'N/A')}
-📍 *City:* {lead_data.get('city', 'N/A')}
-
-🎯 *Lead Score:* {lead_data.get('lead_score', 0)}/100
-💬 *Interest:* {lead_data.get('detected_intent', 'N/A')}
-
-📝 *Key Points:*
-{lead_data.get('notes', 'No additional notes')}
-
-⏰ *Call Time:* {lead_data.get('call_time', 'N/A')}
-
-Reply with 'CLAIM' to assign this lead to yourself."""
-
+        """Send hot lead alert to sales team"""
+        message = (
+            "NEW HOT LEAD!\n\n"
+            f"Company: {lead_data.get('company_name', 'N/A')}\n"
+            f"Contact: {lead_data.get('contact_name', 'N/A')}\n"
+            f"Phone: {lead_data.get('phone', 'N/A')}\n"
+            f"City: {lead_data.get('city', 'N/A')}\n\n"
+            f"Lead Score: {lead_data.get('lead_score', 0)}/100\n"
+            f"Interest: {lead_data.get('detected_intent', 'N/A')}\n\n"
+            f"Notes: {lead_data.get('notes', 'No additional notes')}\n"
+            f"Call Time: {lead_data.get('call_time', 'N/A')}\n\n"
+            "Reply with 'CLAIM' to assign this lead to yourself."
+        )
         return await self.send_text_message(sales_team_number, message)
 
     async def send_appointment_confirmation(
@@ -139,68 +169,55 @@ Reply with 'CLAIM' to assign this lead to yourself."""
         appointment_time: str,
         meeting_link: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Send appointment confirmation to lead
-        """
-        message = f"""✅ *Appointment Confirmed!*
-
-Thank you for scheduling a meeting with *{client_name}*.
-
-📅 *Date:* {appointment_date}
-⏰ *Time:* {appointment_time}
-"""
+        """Send appointment confirmation to lead"""
+        message = (
+            "Appointment Confirmed!\n\n"
+            f"Thank you for scheduling a meeting with {client_name}.\n\n"
+            f"Date: {appointment_date}\n"
+            f"Time: {appointment_time}\n"
+        )
         if meeting_link:
-            message += f"🔗 *Meeting Link:* {meeting_link}\n"
-
+            message += f"Meeting Link: {meeting_link}\n"
         message += "\nWe look forward to speaking with you!"
-
         return await self.send_text_message(to_number, message)
 
     async def send_callback_reminder(
         self, to_number: str, client_name: str, callback_time: str
     ) -> dict[str, Any]:
-        """
-        Send callback reminder to sales team
-        """
-        message = f"""⏰ *CALLBACK REMINDER*
-
-A lead requested a callback:
-
-🏢 *Client:* {client_name}
-📱 *Number:* {to_number}
-⏰ *Requested Time:* {callback_time}
-
-Please call them back at the requested time."""
-
-        return await self.send_text_message(
-            settings.smtp_user, message
-        )  # Send to configured email as fallback
+        """Send callback reminder to sales team"""
+        message = (
+            "CALLBACK REMINDER\n\n"
+            "A lead requested a callback:\n\n"
+            f"Client: {client_name}\n"
+            f"Number: {to_number}\n"
+            f"Requested Time: {callback_time}\n\n"
+            "Please call them back at the requested time."
+        )
+        return await self.send_text_message(settings.smtp_user, message)
 
     async def send_daily_report(self, to_number: str, stats: dict[str, Any]) -> dict[str, Any]:
-        """
-        Send daily campaign report
-        """
-        message = f"""📊 *DAILY CAMPAIGN REPORT*
-
-📞 *Calls Made:* {stats.get('calls_made', 0)}
-✅ *Connected:* {stats.get('calls_connected', 0)}
-📈 *Connection Rate:* {stats.get('connection_rate', 0):.1%}
-
-🎯 *Outcomes:*
-  • Interested: {stats.get('interested', 0)}
-  • Appointments: {stats.get('appointments', 0)}
-  • Callbacks: {stats.get('callbacks', 0)}
-  • Not Interested: {stats.get('not_interested', 0)}
-
-🏆 *Hot Leads Today:* {stats.get('hot_leads', 0)}
-💰 *Estimated Value:* ₹{stats.get('estimated_value', 0):,.0f}
-
-Keep up the great work! 💪"""
-
+        """Send daily campaign report"""
+        message = (
+            "DAILY CAMPAIGN REPORT\n\n"
+            f"Calls Made: {stats.get('calls_made', 0)}\n"
+            f"Connected: {stats.get('calls_connected', 0)}\n"
+            f"Connection Rate: {stats.get('connection_rate', 0):.1%}\n\n"
+            "Outcomes:\n"
+            f"  Interested: {stats.get('interested', 0)}\n"
+            f"  Appointments: {stats.get('appointments', 0)}\n"
+            f"  Callbacks: {stats.get('callbacks', 0)}\n"
+            f"  Not Interested: {stats.get('not_interested', 0)}\n\n"
+            f"Hot Leads Today: {stats.get('hot_leads', 0)}\n"
+            f"Estimated Value: Rs {stats.get('estimated_value', 0):,.0f}\n"
+        )
         return await self.send_text_message(to_number, message)
 
     async def _send_message(self, payload: dict[str, Any]) -> dict[str, Any]:
-        """Send message via WhatsApp API"""
+        """Send message via WhatsApp Cloud API.
+
+        Returns the Graph API JSON on success, or ``{"error": ...}`` on failure
+        (never raises) so background campaign runners stay crash-safe.
+        """
         url = f"{self.base_url}/messages"
 
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
@@ -215,18 +232,21 @@ Keep up the great work! 💪"""
                 return result
 
             except httpx.HTTPStatusError as e:
-                logger.error(f"WhatsApp API error: {e.response.text}")
-                raise
+                body = ""
+                try:
+                    body = e.response.text
+                except Exception:
+                    pass
+                logger.error(f"WhatsApp API error: {body}")
+                return {"error": "http_error", "status": getattr(e.response, "status_code", 0), "detail": body[:500]}
             except Exception as e:
                 logger.error(f"WhatsApp error: {e}")
-                raise
+                return {"error": "request_failed", "detail": str(e)[:300]}
 
     def _normalize_number(self, number: str) -> str:
         """Normalize phone number to WhatsApp format"""
-        # Remove all non-digits
         digits = "".join(filter(str.isdigit, number))
 
-        # Add India country code if not present
         if len(digits) == 10:
             digits = "91" + digits
         elif digits.startswith("0"):
@@ -258,7 +278,6 @@ class WhatsAppWebhookHandler:
         """
         message_lower = message_body.lower().strip()
 
-        # Handle common commands
         if message_lower == "claim":
             return await self._handle_claim_command(from_number)
         elif message_lower == "status":
@@ -270,19 +289,18 @@ class WhatsAppWebhookHandler:
 
     async def _handle_claim_command(self, from_number: str) -> str:
         """Handle lead claim command from sales team"""
-        # This would update the lead assignment in the database
-        return "✅ Lead claimed successfully! The lead details have been assigned to you."
+        return "Lead claimed successfully! The lead details have been assigned to you."
 
     async def _handle_status_command(self, from_number: str) -> str:
         """Handle status request"""
-        return "📊 Campaign is running. Use the dashboard for detailed stats."
+        return "Campaign is running. Use the dashboard for detailed stats."
 
     def _get_help_message(self) -> str:
         """Return help message"""
-        return """📖 *Available Commands:*
-
-CLAIM - Claim the last hot lead
-STATUS - Get current campaign status
-HELP - Show this message
-
-For detailed reports, visit the dashboard."""
+        return (
+            "Available Commands:\n\n"
+            "CLAIM - Claim the last hot lead\n"
+            "STATUS - Get current campaign status\n"
+            "HELP - Show this message\n\n"
+            "For detailed reports, visit the dashboard."
+        )

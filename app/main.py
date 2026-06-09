@@ -129,6 +129,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Database init failed (may not be configured): {e}")
 
+    # Keep the Alembic migration history consistent (best-effort; never blocks boot).
+    # create_all() above builds the schema; this stamps/upgrades the version so future
+    # migrations apply cleanly. Disable with SKIP_DB_MIGRATIONS=1.
+    try:
+        from app.models.migrations import run_startup_migrations
+
+        logger.info(f"✅ DB migrations: {run_startup_migrations()}")
+    except Exception as e:
+        logger.warning(f"Startup migrations skipped: {e}")
+
     # DISABLED: Redis and ML scheduler for initial production startup
     # Redis requires VPC connector which is not configured yet
     logger.info("⏭️ Redis disabled - requires VPC connector for internal network access")
@@ -254,6 +264,18 @@ try:
     )  # /api/clients/* (marketing clients + auto content)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Clients router not mounted: {_e}")
+try:
+    from app.api.whatsapp import router as whatsapp_router
+
+    app.include_router(whatsapp_router, prefix="/api", tags=["WhatsApp"])  # /api/wa/*
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"WhatsApp router not mounted: {_e}")
+try:
+    from app.api.minisite_builder import router as minisite_builder_router
+
+    app.include_router(minisite_builder_router, prefix="/api")  # /api/minisite/* (mini-site builder)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Mini-site builder router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])
@@ -337,6 +359,18 @@ async def team_dashboard_page():
 async def marketing_page():
     """AI Marketing (Isha) — social posts, content calendar, GBP tips."""
     return FileResponse(str(FRONTEND_DIR / "marketing.html"))
+
+
+@app.get("/app/whatsapp", tags=["Frontend"])
+async def whatsapp_page():
+    """WhatsApp Cloud API panel — templates, campaigns, suppression (auto-send gated)."""
+    return FileResponse(str(FRONTEND_DIR / "whatsapp.html"))
+
+
+@app.get("/app/minisite-builder", tags=["Frontend"])
+async def minisite_builder_page():
+    """Mini-site builder — palette/layout/logo, booking calendar, reviews for /b/{slug}."""
+    return FileResponse(str(FRONTEND_DIR / "minisite_builder.html"))
 
 
 @app.get("/app/outreach", tags=["Frontend"])

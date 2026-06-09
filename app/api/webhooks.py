@@ -31,6 +31,34 @@ router = APIRouter()
 logger = setup_logger(__name__)
 
 
+def _provision_minutes(
+    client_id: str | None,
+    plan_id: str | None = None,
+    period_end: datetime | None = None,
+    subscription_id: str | None = None,
+    reset: bool = True,
+) -> None:
+    """Best-effort: refresh a client's plan calling-minutes after a paid pay/renew.
+
+    Sets the client's plan (so the PLAN_MINUTES cap is right) and drops a usage
+    watermark (mid-period renewal zeroes metered usage). NEVER raises — a billing
+    hiccup must not 500 a provider webhook (Stripe/Razorpay would just retry).
+    """
+    try:
+        if not client_id:
+            return
+        from app.billing import usage as _usage
+
+        if plan_id:
+            _usage.activate_plan(
+                client_id, plan_id, subscription_id=subscription_id, period_end=period_end
+            )
+        if reset:
+            _usage.reset_usage_period(client_id)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning(f"webhook usage provisioning skipped for {client_id}: {e}")
+
+
 async def verify_twilio_signature(
     request: Request, x_twilio_signature: str | None = Header(None, alias="X-Twilio-Signature")
 ) -> bool:
@@ -323,6 +351,15 @@ async def handle_stripe_invoice_paid(data: dict, db: AsyncSession):
     db.add(invoice)
 
     await db.commit()
+
+    # After commit (write lock released) -> provision the renewed period's minutes.
+    if subscription:
+        _provision_minutes(
+            subscription.client_id,
+            subscription.plan_id,
+            subscription.current_period_end,
+            stripe_subscription_id,
+        )
     logger.info(f"Invoice paid: {stripe_invoice_id}")
 
 
@@ -365,6 +402,7 @@ async def handle_stripe_subscription_created(data: dict, db: AsyncSession):
         "past_due": SubscriptionStatus.PAST_DUE,
         "canceled": SubscriptionStatus.CANCELLED,
         "unpaid": SubscriptionStatus.PAST_DUE,
+        "paused": SubscriptionStatus.PAUSED,
     }
     status = status_map.get(data.get("status"), SubscriptionStatus.ACTIVE)
 
@@ -406,6 +444,9 @@ async def handle_stripe_subscription_created(data: dict, db: AsyncSession):
     db.add(subscription)
     await db.commit()
 
+    # New paid subscription -> provision the plan's calling minutes.
+    _provision_minutes(client_id, plan_id, subscription.current_period_end, stripe_subscription_id)
+
     logger.info(f"Created subscription {subscription.id} from Stripe webhook")
 
 
@@ -427,6 +468,7 @@ async def handle_stripe_subscription_updated(data: dict, db: AsyncSession):
         "past_due": SubscriptionStatus.PAST_DUE,
         "canceled": SubscriptionStatus.CANCELLED,
         "unpaid": SubscriptionStatus.PAST_DUE,
+        "paused": SubscriptionStatus.PAUSED,
     }
 
     subscription.status = status_map.get(data.get("status"), subscription.status)
@@ -437,6 +479,16 @@ async def handle_stripe_subscription_updated(data: dict, db: AsyncSession):
         subscription.cancelled_at = datetime.utcnow()
 
     await db.commit()
+
+    # Renewal/reactivation -> refresh plan minutes; pause/cancel leaves usage as-is.
+    if subscription.status == SubscriptionStatus.ACTIVE:
+        _provision_minutes(
+            subscription.client_id,
+            subscription.plan_id,
+            subscription.current_period_end,
+            stripe_subscription_id,
+        )
+
     logger.info(f"Updated subscription {subscription.id}")
 
 
@@ -564,6 +616,12 @@ async def razorpay_webhook(
         elif event_type == "subscription.halted":
             await handle_razorpay_subscription_halted(entity, db)
 
+        elif event_type in ("subscription.paused", "subscription.pending"):
+            await handle_razorpay_subscription_paused(entity, db)
+
+        elif event_type == "subscription.resumed":
+            await handle_razorpay_subscription_activated(entity, db)
+
         elif event_type == "order.paid":
             await handle_razorpay_order_paid(entity, db)
 
@@ -682,6 +740,9 @@ async def handle_razorpay_subscription_activated(entity: dict, db: AsyncSession)
         existing.current_period_start = datetime.fromtimestamp(sub_data.get("current_start", 0))
         existing.current_period_end = datetime.fromtimestamp(sub_data.get("current_end", 0))
         await db.commit()
+        _provision_minutes(
+            existing.client_id, existing.plan_id, existing.current_period_end, razorpay_sub_id
+        )
         return
 
     # Create new subscription
@@ -715,6 +776,9 @@ async def handle_razorpay_subscription_activated(entity: dict, db: AsyncSession)
     )
     db.add(subscription)
     await db.commit()
+
+    # New paid subscription -> provision the plan's calling minutes.
+    _provision_minutes(client_id, plan_id, subscription.current_period_end, razorpay_sub_id)
 
     logger.info(f"Created subscription {subscription.id} from Razorpay webhook")
 
@@ -753,6 +817,13 @@ async def handle_razorpay_subscription_charged(entity: dict, db: AsyncSession):
             db.add(payment)
 
         await db.commit()
+        # After commit (write lock released) -> reset metered minutes for the new period.
+        _provision_minutes(
+            subscription.client_id,
+            subscription.plan_id,
+            subscription.current_period_end,
+            razorpay_sub_id,
+        )
         logger.info(f"Subscription {subscription.id} charged")
 
 
@@ -776,6 +847,22 @@ async def handle_razorpay_subscription_cancelled(entity: dict, db: AsyncSession)
         )
         await db.commit()
         logger.info(f"Subscription {subscription.id} cancelled")
+
+
+async def handle_razorpay_subscription_paused(entity: dict, db: AsyncSession):
+    """Handle subscription.paused / subscription.pending event (client paused billing)."""
+    sub_data = entity.get("subscription", {}).get("entity", {})
+    razorpay_sub_id = sub_data.get("id")
+
+    result = await db.execute(
+        select(Subscription).where(Subscription.razorpay_subscription_id == razorpay_sub_id)
+    )
+    subscription = result.scalar_one_or_none()
+
+    if subscription:
+        subscription.status = SubscriptionStatus.PAUSED
+        await db.commit()
+        logger.info(f"Subscription {subscription.id} paused")
 
 
 async def handle_razorpay_subscription_halted(entity: dict, db: AsyncSession):
@@ -812,3 +899,119 @@ async def handle_razorpay_order_paid(entity: dict, db: AsyncSession):
             subscription.balance = (subscription.balance or Decimal("0")) + amount
             await db.commit()
             logger.info(f"Added {amount} INR to balance for client {client_id}")
+
+
+# =============================================================================
+# WHATSAPP CLOUD API WEBHOOK (Meta) — inbound replies -> reply_agent drafts
+# =============================================================================
+def _wa_verify_token() -> str:
+    """Meta webhook GET-handshake token (settings -> env fallback)."""
+    tok = ""
+    try:
+        tok = (settings.whatsapp_verify_token or "").strip()
+    except Exception:
+        tok = ""
+    return tok or os.environ.get("WHATSAPP_VERIFY_TOKEN", "").strip()
+
+
+@router.get("/whatsapp")
+async def whatsapp_webhook_verify(request: Request):
+    """Meta webhook verification handshake (echo hub.challenge if verify token matches).
+
+    PUBLIC — Meta GETs this with hub.mode=subscribe&hub.verify_token=..&hub.challenge=..
+    """
+    from fastapi.responses import PlainTextResponse
+
+    params = request.query_params
+    mode = params.get("hub.mode")
+    token = params.get("hub.verify_token")
+    challenge = params.get("hub.challenge", "")
+    expected = _wa_verify_token()
+    if mode == "subscribe" and expected and token == expected:
+        return PlainTextResponse(challenge)
+    return PlainTextResponse("verification_failed", status_code=403)
+
+
+@router.post("/whatsapp")
+async def whatsapp_webhook_inbound(request: Request):
+    """Inbound WhatsApp messages from the official Meta Cloud API.
+
+    - App-Secret signature verified (X-Hub-Signature-256); unconfigured -> allowed (warn).
+    - Each inbound TEXT -> ``reply_agent.whatsapp_reply()`` => intent classify + Hinglish
+      draft saved to ``data/reply_drafts.jsonl`` (1-click human send).
+    - 'STOP' / 'UNSUBSCRIBE' / 'band karo' -> opt-out (suppress), no draft.
+    - 'failed' delivery status -> recipient auto-suppressed (bounce protection).
+    Always returns 200 JSON (Meta retries on non-2xx). NEVER raises.
+    """
+    raw = b""
+    try:
+        raw = await request.body()
+    except Exception:
+        pass
+
+    try:
+        from app.integrations.whatsapp import verify_meta_signature
+
+        sig = request.headers.get("X-Hub-Signature-256") or request.headers.get(
+            "x-hub-signature-256"
+        )
+        if not verify_meta_signature(raw, sig):
+            logger.warning("whatsapp webhook: bad signature, ignoring payload")
+            return {"ok": False, "reason": "bad_signature"}
+    except Exception:
+        pass
+
+    try:
+        payload = json.loads(raw.decode("utf-8") or "{}")
+    except Exception:
+        payload = {}
+
+    res = {"ok": True, "messages": 0, "drafted": 0, "suppressed": 0, "statuses": 0}
+    _opt_out = ("stop", "unsubscribe", "stop promotions", "band karo", "band kardo")
+    try:
+        from app.platform import reply_agent
+
+        try:
+            from app.marketing import wa_campaign_runner as _runner
+        except Exception:
+            _runner = None
+
+        for entry in payload.get("entry", []) or []:
+            for change in entry.get("changes", []) or []:
+                value = (change or {}).get("value", {}) or {}
+                for msg in value.get("messages", []) or []:
+                    res["messages"] += 1
+                    frm = str(msg.get("from", "")).strip()
+                    text = ""
+                    if msg.get("type") == "text":
+                        text = str((msg.get("text") or {}).get("body", "")).strip()
+                    if text.lower() in _opt_out:
+                        if _runner is not None:
+                            try:
+                                _runner.suppress(frm, reason="opt_out_inbound")
+                            except Exception:
+                                pass
+                        res["suppressed"] += 1
+                        continue
+                    if text:
+                        try:
+                            rec = await reply_agent.whatsapp_reply(frm, text, msg.get("id", ""))
+                            if rec:
+                                res["drafted"] += 1
+                        except Exception as e:
+                            logger.info("whatsapp reply_agent err: %s", e)
+                for st in value.get("statuses", []) or []:
+                    res["statuses"] += 1
+                    if st.get("status") == "failed" and _runner is not None:
+                        recipient = str(st.get("recipient_id", "")).strip()
+                        errs = st.get("errors") or []
+                        reason = (
+                            errs[0].get("title") if errs else "delivery_failed"
+                        ) or "delivery_failed"
+                        try:
+                            _runner.record_failure(recipient, str(reason))
+                        except Exception:
+                            pass
+    except Exception as e:
+        logger.info("whatsapp webhook parse err: %s", e)
+    return res

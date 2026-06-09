@@ -9,13 +9,18 @@ button — aur har enquiry hamare lead-funnel me capture hoti hai.
 
   render_site(client) -> str   (complete self-contained HTML page)
 
+Builder-aware: palette/layout/logo `minisite_builder.get_config(slug)` se aata
+hai (lazy import, defensive). Booking-calendar + reviews-feed sections bhi
+shamil hain (calendar -> /api/booking/*, reviews -> /api/minisite/reviews/*).
+
 Page sections (brand colors client.brand se):
   - Hero        : business name + tagline + niche badge + Call/WhatsApp buttons
   - About       : template blurb (niche-aware) — pure SYNC, no LLM/await
   - Services    : niche content_focus / client-provided list → chips
   - Booking form: name/phone/message/preferred-time → POST /api/public/inquiry
                   (hidden source_slug) — submit ke baad thank-you
-  - Reviews     : Google-review QR (review_kit) + GBP map link (optional)
+  - Calendar    : interactive date/slot picker -> /api/booking/slots + /book
+  - Reviews     : customer-feedback feed + submit + Google-review QR (optional)
   - Socials     : Instagram / Facebook / Google links (jo diye hon)
   - Footer      : "Powered by LeadGen AI — leadsgenai.in"
 
@@ -65,6 +70,21 @@ def _digits_intl(phone: Any) -> str:
     elif d.startswith("0") and len(d) == 11:
         d = "91" + d[1:]
     return d
+
+
+def _load_config(slug: str) -> dict[str, Any]:
+    """Mini-site builder config (palette/layout/logo) for a slug. Lazy import so
+    there is no circular dependency at module load; never raises. Returns safe
+    defaults if the builder module / store is unavailable."""
+    try:
+        from app.api.minisite_builder import get_config  # lazy (avoid cycle)
+
+        cfg = get_config(slug)
+        if isinstance(cfg, dict):
+            return cfg
+    except Exception as e:  # pragma: no cover - builder optional
+        logger.debug(f"[mini_site] config load skip: {e}")
+    return {"palette": "violet", "layout": "classic", "logo_url": "", "primary": "", "accent": ""}
 
 
 def _niche_label(niche: Any) -> str:
@@ -169,9 +189,53 @@ def _booking_section(slug: str, name: str) -> str:
     )
 
 
-def _reviews_section(name: str, gbp: str, place_query: str) -> str:
-    """Google-review QR (pure-python encoder) + GBP map link (optional)."""
-    inner: list[str] = []
+def _calendar_section() -> str:
+    """Interactive date/slot picker. Static markup; JS (`_calendar_js`) fetches
+    GET /api/booking/slots and submits POST /api/booking/book."""
+    return (
+        '<section class="sec calsec" id="calendar"><h2>Appointment Book Karein</h2>'
+        '<p class="csub">Apna pasand ka din aur time chuniye — turant slot lock ho jayega.</p>'
+        '<div class="cal">'
+        '<div class="days" id="calDays"></div>'
+        '<div class="slots" id="calSlots"></div>'
+        '<div class="bform" id="calBook" style="display:none">'
+        '<label>Aapka naam *<input id="calName" type="text" placeholder="Pura naam" '
+        'maxlength="120" /></label>'
+        '<label>Phone *<input id="calPhone" type="tel" placeholder="10-digit mobile" '
+        'maxlength="14" /></label>'
+        '<button type="button" class="cta submit" id="calConfirm">✅ Slot confirm karein</button>'
+        "</div>"
+        '<div class="calmsg" id="calMsg" role="status">Loading available days…</div>'
+        "</div></section>"
+    )
+
+
+def _reviews_section(name: str, gbp: str, place_query: str, slug: str = "") -> str:
+    """Customer-feedback reviews FEED (approved reviews + submit form) PLUS the
+    existing Google-review QR + GBP map link (optional). Feed data is fetched
+    client-side from /api/minisite/reviews/public; submit posts (rate-limited,
+    moderated) to /api/minisite/reviews/submit."""
+    feed = (
+        '<div class="rvavg" id="rvAvg"></div>'
+        '<div class="rvlist" id="rvList"></div>'
+        '<form class="rvform" id="rvForm" novalidate>'
+        '<input type="text" id="rvHp" name="website" class="hp" tabindex="-1" '
+        'autocomplete="off" aria-hidden="true" />'
+        '<div class="rvrow">'
+        '<input id="rvName" type="text" placeholder="Aapka naam" maxlength="80" />'
+        '<select id="rvRating" aria-label="Rating">'
+        '<option value="5">★★★★★</option><option value="4">★★★★</option>'
+        '<option value="3">★★★</option><option value="2">★★</option>'
+        '<option value="1">★</option></select>'
+        "</div>"
+        '<textarea id="rvText" rows="2" placeholder="Apna experience likhiye…" '
+        'maxlength="600"></textarea>'
+        '<button type="submit" class="cta submit" id="rvBtn">⭐ Review do</button>'
+        '<div class="bmsg" id="rvMsg" role="status"></div>'
+        "</form>"
+    )
+
+    extra: list[str] = []
     try:
         from app.marketing.review_kit import qr_svg, review_link
 
@@ -182,7 +246,7 @@ def _reviews_section(name: str, gbp: str, place_query: str) -> str:
             url = review_link(place_query or name).get("maps_search_url", "")
         if url:
             svg = qr_svg(url, 200)
-            inner.append(
+            extra.append(
                 '<div class="qrbox">' + svg + "</div>"
                 '<p class="qrcap">📱 Scan karke Google par review dein</p>'
             )
@@ -190,13 +254,17 @@ def _reviews_section(name: str, gbp: str, place_query: str) -> str:
         logger.debug(f"[mini_site] review QR skip: {e}")
 
     if gbp.startswith("http"):
-        inner.append(
+        extra.append(
             f'<a class="maplink" href="{_e(gbp)}" target="_blank" '
             'rel="noopener">📍 Google par dekho / location</a>'
         )
-    if not inner:
-        return ""
-    return '<section class="sec reviews"><h2>Reviews & Location</h2>' + "".join(inner) + "</section>"
+
+    return (
+        '<section class="sec reviews" id="reviews"><h2>Customer Reviews</h2>'
+        + feed
+        + "".join(extra)
+        + "</section>"
+    )
 
 
 def _socials_section(socials: dict[str, Any]) -> str:
@@ -228,8 +296,50 @@ def _socials_section(socials: dict[str, Any]) -> str:
 # --------------------------------------------------------------------------- #
 # CSS + booking JS (templated with brand colors)
 # --------------------------------------------------------------------------- #
-def _css(primary: str, accent: str) -> str:
-    return (
+def _layout_css(layout: str) -> str:
+    """Layout-specific CSS overrides (3 visually-distinct templates) appended
+    after the base CSS. 'classic' = base (no override)."""
+    lay = (layout or "classic").strip().lower()
+    if lay == "bold":
+        # Big solid hero band, heavier type, dark alternating sections, square-ish.
+        return (
+            ".hero{background:var(--p);padding:70px 22px 56px}"
+            ".hero h1{font-size:clamp(2rem,8vw,2.8rem);letter-spacing:-.03em}"
+            ".hero .logo{border-radius:8px;width:72px;height:72px;font-size:30px;"
+            "background:rgba(255,255,255,.16)}"
+            ".sec{padding:38px 22px}"
+            ".sec h2{font-size:1.5rem;text-transform:uppercase;letter-spacing:.04em}"
+            ".sec.reviews,.sec.socials{background:#15131f;color:#fff}"
+            ".sec.reviews h2,.sec.socials h2{color:#fff}"
+            ".chip{border-radius:6px;background:#efe9fb}"
+            ".cta{border-radius:8px;padding:15px 22px;font-size:1rem}"
+            ".bform input,.bform textarea{border-radius:8px;border-width:2px}"
+            ".rvcard{border-radius:8px}"
+        )
+    if lay == "minimal":
+        # Clean white hero, thin accents, airy spacing, hairline borders.
+        return (
+            ".hero{background:#fff;color:var(--ink);padding:60px 24px 30px;"
+            "border-bottom:1px solid var(--line)}"
+            ".hero h1{color:var(--ink);font-weight:700}"
+            ".hero .tag{color:var(--muted);opacity:1}"
+            ".hero .logo{background:var(--bg);color:var(--p);border:1px solid var(--line);"
+            "backdrop-filter:none}"
+            ".hero .nb{background:var(--bg);color:var(--p);border:1px solid var(--line)}"
+            ".hero .logoimg{box-shadow:none;border:1px solid var(--line)}"
+            ".cta.call{background:var(--p);color:#fff;border:1px solid var(--p)}"
+            ".cta.book{background:#fff;color:var(--p);border:1.5px solid var(--p)}"
+            ".sec{padding:34px 24px}"
+            ".sec h2{font-weight:700;font-size:1.15rem}"
+            ".chip{background:#fff;border:1px solid var(--line);color:var(--ink)}"
+            ".cta.submit{background:var(--p)}"
+            ".rvcard{box-shadow:none;border:1px solid var(--line)}"
+        )
+    return ""  # classic
+
+
+def _css(primary: str, accent: str, layout: str = "classic") -> str:
+    base = (
         ":root{--p:%s;--a:%s;--ink:#1e1b2e;--muted:#6b7280;--line:#e9e7f2;"
         "--bg:#f7f6fb;--card:#fff}"
         "*{box-sizing:border-box;margin:0;padding:0}"
@@ -243,6 +353,8 @@ def _css(primary: str, accent: str) -> str:
         ".hero .logo{width:64px;height:64px;border-radius:18px;background:rgba(255,255,255,.22);"
         "display:grid;place-items:center;font-weight:800;font-size:26px;margin:0 auto 16px;"
         "backdrop-filter:blur(6px)}"
+        ".hero .logoimg{width:84px;height:84px;border-radius:18px;object-fit:cover;margin:0 auto 16px;"
+        "display:block;background:#fff;box-shadow:0 6px 20px rgba(0,0,0,.18)}"
         ".hero h1{font-family:%s;font-size:clamp(1.6rem,6vw,2.2rem);font-weight:800;"
         "letter-spacing:-.02em;line-height:1.15}"
         ".hero .nb{display:inline-block;margin-top:10px;font-size:.78rem;font-weight:700;"
@@ -277,7 +389,39 @@ def _css(primary: str, accent: str) -> str:
         ".cta.submit:disabled{opacity:.6;cursor:not-allowed}"
         ".bmsg{font-size:.92rem;font-weight:600;text-align:center;min-height:1px}"
         ".bmsg.ok{color:#15803d}.bmsg.err{color:#dc2626}"
+        # --- booking calendar component --- #
+        ".cal{display:flex;flex-direction:column;gap:14px}"
+        ".cal .csub{color:var(--muted);margin-bottom:2px}"
+        ".days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}"
+        ".day{flex:0 0 auto;min-width:58px;text-align:center;border:1.5px solid var(--line);"
+        "border-radius:12px;padding:9px 8px;background:#fff;cursor:pointer;font-weight:700;"
+        "color:var(--ink);transition:border-color .12s,background .12s}"
+        ".day small{display:block;font-size:.66rem;font-weight:600;color:var(--muted)}"
+        ".day b{display:block;font-size:1.15rem;line-height:1.1}"
+        ".day.sel{background:var(--p);color:#fff;border-color:var(--p)}"
+        ".day.sel small{color:rgba(255,255,255,.85)}"
+        ".slots{display:flex;flex-wrap:wrap;gap:8px;min-height:8px}"
+        ".slot{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:9px 13px;"
+        "font-size:.92rem;font-weight:700;color:var(--p);cursor:pointer}"
+        ".slot.sel{background:var(--p);color:#fff;border-color:var(--p)}"
+        ".calmsg{font-size:.9rem;color:var(--muted);min-height:1px}"
+        ".calmsg.ok{color:#15803d}.calmsg.err{color:#dc2626}"
+        # --- reviews feed --- #
         ".reviews{text-align:center}"
+        ".rvavg{font-size:1.05rem;font-weight:700;color:var(--ink);margin-bottom:12px}"
+        ".rvavg .stars{color:#f59e0b;letter-spacing:1px}"
+        ".rvlist{display:flex;flex-direction:column;gap:12px;text-align:left;margin-bottom:18px}"
+        ".rvcard{background:#faf9ff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}"
+        ".rvcard .rvtop{display:flex;justify-content:space-between;align-items:center;gap:8px}"
+        ".rvcard .rvname{font-weight:800;font-size:.95rem;color:var(--ink)}"
+        ".rvcard .rvstars{color:#f59e0b;font-size:.9rem;letter-spacing:1px}"
+        ".rvcard .rvtext{color:#44425c;font-size:.92rem;margin-top:6px}"
+        ".rvform{display:flex;flex-direction:column;gap:10px;text-align:left;"
+        "border-top:1px dashed var(--line);padding-top:16px}"
+        ".rvform .rvrow{display:flex;gap:10px}"
+        ".rvform input,.rvform textarea,.rvform select{font-family:inherit;font-size:.95rem;"
+        "border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%%;color:var(--ink)}"
+        ".rvform .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}"
         ".qrbox{display:inline-block;padding:12px;background:#fff;border:1px solid var(--line);"
         "border-radius:16px;max-width:220px}"
         ".qrcap{color:var(--muted);font-size:.9rem;margin-top:10px}"
@@ -289,6 +433,7 @@ def _css(primary: str, accent: str) -> str:
         "footer a{color:var(--p);font-weight:700;text-decoration:none}"
         % (primary, accent, _FONT, _HEAD_FONT, _HEAD_FONT)
     )
+    return base + _layout_css(layout)
 
 
 def _booking_js(slug: str) -> str:
@@ -328,6 +473,119 @@ def _booking_js(slug: str) -> str:
     )
 
 
+def _calendar_js() -> str:
+    """Booking-calendar widget: next-7-day strip → GET /api/booking/slots per day
+    → pick slot → POST /api/booking/book. Pure vanilla JS, reuses existing API."""
+    return (
+        "<script>(function(){"
+        "var daysEl=document.getElementById('calDays');"
+        "var slotsEl=document.getElementById('calSlots');"
+        "var bookEl=document.getElementById('calBook');"
+        "var msg=document.getElementById('calMsg');"
+        "if(!daysEl||!slotsEl||!msg)return;"
+        "var selSlot=null,selDay=null;"
+        "var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];"
+        "function pad(n){return(n<10?'0':'')+n;}"
+        "function fmtTime(iso){var t=iso.split('T')[1]||'';var hm=t.slice(0,5).split(':');"
+        "if(hm.length<2)return iso;var h=parseInt(hm[0],10),m=hm[1];"
+        "var ap=h>=12?'PM':'AM';var h12=((h+11)%12)+1;return h12+':'+m+' '+ap;}"
+        "function buildDays(){var today=new Date();var html='';"
+        "for(var i=0;i<7;i++){var d=new Date(today.getTime()+i*86400000);"
+        "var ds=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());"
+        "html+='<div class=\"day\" data-d=\"'+ds+'\"><small>'+DOW[d.getDay()]+'</small>'"
+        "+'<b>'+d.getDate()+'</b></div>';}"
+        "daysEl.innerHTML=html;"
+        "var nodes=daysEl.querySelectorAll('.day');"
+        "for(var j=0;j<nodes.length;j++){nodes[j].addEventListener('click',function(){"
+        "for(var k=0;k<nodes.length;k++)nodes[k].classList.remove('sel');"
+        "this.classList.add('sel');selDay=this.getAttribute('data-d');loadSlots(selDay);});}"
+        "if(nodes[0])nodes[0].click();}"
+        "function loadSlots(day){slotsEl.innerHTML='';selSlot=null;bookEl.style.display='none';"
+        "msg.className='calmsg';msg.textContent='Slots dekh rahe hain…';"
+        "fetch('/api/booking/slots?date='+encodeURIComponent(day)+'&duration_min=30')"
+        ".then(function(r){return r.json();}).then(function(d){"
+        "var arr=(d&&d.slots)?d.slots:[];"
+        "if(!arr.length){msg.textContent='Is din koi slot free nahi — doosra din chuniye.';return;}"
+        "msg.textContent='';var html='';"
+        "for(var i=0;i<arr.length;i++){var s=arr[i];var iso=(typeof s==='string')?s:(s&&(s.when||s.start||s.iso||s.slot));"
+        "if(!iso)continue;html+='<button type=\"button\" class=\"slot\" data-iso=\"'"
+        "+encodeURIComponent(iso)+'\">'+fmtTime(iso)+'</button>';}"
+        "slotsEl.innerHTML=html;"
+        "var sn=slotsEl.querySelectorAll('.slot');"
+        "for(var j=0;j<sn.length;j++){sn[j].addEventListener('click',function(){"
+        "for(var k=0;k<sn.length;k++)sn[k].classList.remove('sel');this.classList.add('sel');"
+        "selSlot=decodeURIComponent(this.getAttribute('data-iso'));bookEl.style.display='flex';"
+        "msg.className='calmsg';msg.textContent='Naam aur phone bhar ke confirm karein.';});}"
+        "}).catch(function(){msg.className='calmsg err';msg.textContent='Slots load nahi hue — dobara try karein.';});}"
+        "var cb=document.getElementById('calConfirm');"
+        "if(cb)cb.addEventListener('click',function(){"
+        "var nm=(document.getElementById('calName').value||'').trim();"
+        "var ph=(document.getElementById('calPhone').value||'').trim();"
+        "if(!selSlot){msg.className='calmsg err';msg.textContent='Pehle ek slot chuniye.';return;}"
+        "if(!nm||ph.replace(/\\D/g,'').length<10){msg.className='calmsg err';"
+        "msg.textContent='Naam aur sahi 10-digit phone daaliye.';return;}"
+        "cb.disabled=true;cb.textContent='Book ho raha hai…';"
+        "fetch('/api/booking/book',{method:'POST',headers:{'Content-Type':'application/json'},"
+        "body:JSON.stringify({slot:selSlot,name:nm,phone:ph,notes:'Mini-site booking'})})"
+        ".then(function(r){return r.json().catch(function(){return{};});}).then(function(d){"
+        "if(d&&d.ok){msg.className='calmsg ok';"
+        "msg.textContent=d.confirmation_text||'Aapki appointment book ho gayi!';"
+        "bookEl.style.display='none';slotsEl.innerHTML='';}"
+        "else{msg.className='calmsg err';msg.textContent=(d&&(d.error||d.detail))||'Book nahi ho payi — doosra slot try karein.';"
+        "cb.disabled=false;cb.textContent='✅ Slot confirm karein';}})"
+        ".catch(function(){msg.className='calmsg err';msg.textContent='Network issue — dobara try karein.';"
+        "cb.disabled=false;cb.textContent='✅ Slot confirm karein';});});"
+        "buildDays();"
+        "})();</script>"
+    )
+
+
+def _reviews_js(slug: str) -> str:
+    """Reviews feed: load approved reviews (GET /api/minisite/reviews/public) +
+    submit (POST /api/minisite/reviews/submit, rate-limited+moderated). slug JSON-safe."""
+    import json
+
+    slug_js = json.dumps(str(slug or ""))
+    return (
+        "<script>(function(){"
+        "var SLUG=%s;"
+        "var listEl=document.getElementById('rvList');"
+        "var avgEl=document.getElementById('rvAvg');"
+        "var form=document.getElementById('rvForm');"
+        "var msg=document.getElementById('rvMsg');"
+        "function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}"
+        "function stars(n){n=Math.max(0,Math.min(5,parseInt(n,10)||0));"
+        "return '★★★★★'.slice(0,n)+'☆☆☆☆☆'.slice(0,5-n);}"
+        "function load(){fetch('/api/minisite/reviews/public?slug='+encodeURIComponent(SLUG))"
+        ".then(function(r){return r.json();}).then(function(d){"
+        "var arr=(d&&d.reviews)?d.reviews:[];"
+        "if(avgEl){avgEl.innerHTML=arr.length?('<span class=\"stars\">'+stars(Math.round(d.avg_rating))"
+        "+'</span> '+d.avg_rating+' / 5 · '+arr.length+' reviews'):'';}"
+        "if(!listEl)return;if(!arr.length){listEl.innerHTML='';return;}"
+        "var html='';for(var i=0;i<arr.length;i++){var rv=arr[i];"
+        "html+='<div class=\"rvcard\"><div class=\"rvtop\"><span class=\"rvname\">'+esc(rv.name)"
+        "+'</span><span class=\"rvstars\">'+stars(rv.rating)+'</span></div>'"
+        "+(rv.text?'<div class=\"rvtext\">'+esc(rv.text)+'</div>':'')+'</div>';}"
+        "listEl.innerHTML=html;}).catch(function(){});}"
+        "if(form){form.addEventListener('submit',function(ev){ev.preventDefault();"
+        "var hp=document.getElementById('rvHp');if(hp&&hp.value){return;}"
+        "var nm=(document.getElementById('rvName').value||'').trim()||'Anonymous';"
+        "var rt=parseInt(document.getElementById('rvRating').value,10)||5;"
+        "var tx=(document.getElementById('rvText').value||'').trim();"
+        "var btn=document.getElementById('rvBtn');btn.disabled=true;"
+        "fetch('/api/minisite/reviews/submit',{method:'POST',headers:{'Content-Type':'application/json'},"
+        "body:JSON.stringify({slug:SLUG,name:nm,rating:rt,text:tx,website:''})})"
+        ".then(function(r){return r.json().catch(function(){return{};});}).then(function(d){"
+        "if(d&&d.ok){msg.className='bmsg ok';msg.textContent=d.message||'Shukriya!';form.reset();}"
+        "else{msg.className='bmsg err';msg.textContent=(d&&d.detail)||'Submit nahi hua — dobara try karein.';}"
+        "btn.disabled=false;}).catch(function(){msg.className='bmsg err';"
+        "msg.textContent='Network issue — dobara try karein.';btn.disabled=false;});});}"
+        "load();"
+        "})();</script>"
+        % (slug_js,)
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Main entry
 # --------------------------------------------------------------------------- #
@@ -347,8 +605,13 @@ def render_site(client: dict[str, Any] | None) -> str:
         brand = c.get("brand") if isinstance(c.get("brand"), dict) else {}
         socials = c.get("socials") if isinstance(c.get("socials"), dict) else {}
 
-        primary = _color(brand.get("primary"), _DEF_PRIMARY)
-        accent = _color(brand.get("accent"), _DEF_ACCENT)
+        # Mini-site builder config (palette/layout/logo). Palette colors WIN over
+        # the legacy brand colors when set; brand still used as the fallback.
+        cfg = _load_config(slug)
+        layout = str(cfg.get("layout") or "classic").strip().lower()
+        logo_url = str(cfg.get("logo_url") or "").strip()
+        primary = _color(cfg.get("primary"), _color(brand.get("primary"), _DEF_PRIMARY))
+        accent = _color(cfg.get("accent"), _color(brand.get("accent"), _DEF_ACCENT))
         tagline = str(brand.get("tagline") or "").strip()
         logo_text = str(brand.get("logo_text") or "").strip() or (name[:1].upper() if name else "B")
 
@@ -375,9 +638,15 @@ def render_site(client: dict[str, Any] | None) -> str:
             f'<span class="nb">📍 {_e(city)}</span>' if city else ""
         )
         tag_html = f'<p class="tag">{_e(tagline)}</p>' if tagline else ""
+        # Logo: real uploaded/linked image if configured (validated upstream),
+        # else the text-initial badge fallback.
+        if logo_url:
+            logo_html = f'<img class="logoimg" src="{_e(logo_url)}" alt="{_e(name)} logo" />'
+        else:
+            logo_html = f'<div class="logo">{_e(logo_text[:3])}</div>'
         hero = (
             '<div class="hero">'
-            f'<div class="logo">{_e(logo_text[:3])}</div>'
+            f"{logo_html}"
             f"<h1>{_e(name)}</h1>"
             f"{nb}{tag_html}"
             f"{_btn_row(phone_raw, wa)}"
@@ -400,7 +669,8 @@ def render_site(client: dict[str, Any] | None) -> str:
             + about
             + _services_section(services)
             + _booking_section(slug, name)
-            + _reviews_section(name, gbp, place_query)
+            + _calendar_section()
+            + _reviews_section(name, gbp, place_query, slug)
             + _socials_section(socials)
             + footer
             + "</div>"
@@ -415,8 +685,8 @@ def render_site(client: dict[str, Any] | None) -> str:
             f'<meta property="og:description" content="{_e(desc[:160])}">'
             f'<link rel="canonical" href="/b/{_e(slug)}">'
             f'<meta name="theme-color" content="{_e(primary)}">'
-            f"{fonts}<style>{_css(primary, accent)}</style></head><body>"
-            f"{body}{_booking_js(slug)}</body></html>"
+            f"{fonts}<style>{_css(primary, accent, layout)}</style></head><body>"
+            f"{body}{_booking_js(slug)}{_calendar_js()}{_reviews_js(slug)}</body></html>"
         )
     except Exception as e:  # absolute guard — page kabhi 500 na de
         logger.warning(f"[mini_site] render failed, minimal fallback: {e}")
@@ -434,3 +704,4 @@ def render_site(client: dict[str, Any] | None) -> str:
 
 
 __all__ = ["render_site"]
+# Builder-aware mini-site: palette/layout/logo + booking-calendar + reviews-feed.

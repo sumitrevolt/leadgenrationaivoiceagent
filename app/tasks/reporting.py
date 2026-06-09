@@ -3,6 +3,7 @@ Reporting Tasks
 Background tasks for report generation
 """
 
+import asyncio
 import csv
 import json
 import os
@@ -444,3 +445,72 @@ def export_campaign_report(campaign_id: str, format: str = "csv"):
     except Exception as e:
         logger.error(f"Error exporting campaign report: {e}")
         return {"status": "failed", "error": str(e)}
+
+
+# =============================================================================
+# Social auto-poster (Track 3) — publish content_schedule 'ready' items via Meta
+# =============================================================================
+async def run_social_autopost(limit: int = 20) -> dict[str, Any]:
+    """Publish scheduled 'ready' posts to clients' connected Meta (FB Page / Instagram).
+
+    For each ``content_schedule`` item with status='ready' (up to ``limit``): resolve the
+    client's Meta connection and publish via the Graph API. Real publishing only when
+    ``SOCIAL_AUTOPOST=1`` AND a token exists — otherwise the publisher returns a MOCK
+    result and the item STAYS 'ready' (a later real run can still post it). On a real post
+    the item is marked 'posted' (idempotent — never re-posted). NEVER raises.
+
+    Returns a counters dict: ``{"ready", "posted", "mock", "failed"}``.
+    """
+    res = {"ready": 0, "posted": 0, "mock": 0, "failed": 0}
+    try:
+        from app.integrations import meta_graph
+        from app.marketing import content_schedule
+
+        ready = content_schedule.list_scheduled(status="ready", limit=max(1, limit))
+        res["ready"] = len(ready)
+        for item in ready:
+            try:
+                # Graph calls are blocking httpx -> run off the event loop.
+                out = await asyncio.to_thread(meta_graph.publish_post, item)
+            except Exception as e:
+                logger.info("autopost item err: %s", e)
+                res["failed"] += 1
+                continue
+            status = (out or {}).get("status")
+            if status == "posted":
+                res["posted"] += 1
+                try:
+                    content_schedule.mark(item.get("id", ""), "posted")
+                except Exception:
+                    pass
+            elif status == "mock":
+                res["mock"] += 1
+            else:
+                res["failed"] += 1
+        try:
+            from app.platform.team import log_event
+
+            log_event(
+                "isha",
+                "social_autopost",
+                f"{res['posted']} posted, {res['mock']} mock (of {res['ready']} ready)",
+            )
+        except Exception:
+            pass
+    except Exception as e:
+        logger.info("run_social_autopost err: %s", e)
+    return res
+
+
+@shared_task
+def social_autopost_task(limit: int = 20):
+    """Celery entrypoint for the social auto-poster (wraps the async core)."""
+    try:
+        return asyncio.run(run_social_autopost(limit))
+    except RuntimeError:
+        # Already inside a running loop (rare in a worker) -> use a fresh loop.
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(run_social_autopost(limit))
+        finally:
+            loop.close()

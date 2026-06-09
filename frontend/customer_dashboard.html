@@ -143,6 +143,7 @@
     <a class="navlink active"><span class="ic">📊</span> Dashboard</a>
     <a class="navlink" onclick="scrollToId('callsCard')"><span class="ic">📞</span> Calls Kiye Gaye</a>
     <a class="navlink" onclick="scrollToId('leadsCard')"><span class="ic">🔥</span> Aapke Leads</a>
+    <a class="navlink" onclick="scrollToId('billingCard')"><span class="ic">💳</span> Billing &amp; Plan</a>
     <a class="navlink" onclick="toast('Reports','PDF report jald aa raha hai.')"><span class="ic">📁</span> Reports</a>
     <a class="navlink" onclick="toast('Settings','Settings page coming soon.')"><span class="ic">⚙️</span> Settings</a>
     <div class="side-foot">
@@ -231,6 +232,38 @@
               <th>Business</th><th>Contact</th><th>Phone</th><th>City</th><th>Niche</th><th>Score</th><th>Qualification</th><th>Date</th>
             </tr></thead>
             <tbody id="leadsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Billing & Plan -->
+      <div class="card" id="billingCard" style="margin-top:18px">
+        <div class="card-h">
+          <h2>Billing &amp; Plan</h2>
+          <span class="pill" id="billStatus">—</span>
+          <div class="grow"></div>
+          <button class="btn" id="billPauseBtn" onclick="billingAction('pause')" style="display:none">⏸ Pause</button>
+          <button class="btn" id="billResumeBtn" onclick="billingAction('resume')" style="display:none">▶️ Resume</button>
+          <button class="btn" id="billManageBtn" onclick="openBillingPortal()" style="display:none">💳 Manage Billing</button>
+          <button class="btn" id="billCancelBtn" onclick="billingAction('cancel')" style="display:none">✖ Cancel</button>
+        </div>
+        <div class="card-b">
+          <div id="billSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:8px">
+            <div><div class="sm" style="color:var(--muted)">Current Plan</div><div style="font-weight:800;font-size:18px" id="billPlan">—</div></div>
+            <div><div class="sm" style="color:var(--muted)">Billing Period</div><div style="font-weight:700" id="billPeriod">—</div></div>
+            <div><div class="sm" style="color:var(--muted)">Voice Minutes Used</div><div style="font-weight:700" id="billMinUsed">—</div></div>
+            <div><div class="sm" style="color:var(--muted)">Minutes Remaining</div><div style="font-weight:800;font-size:18px" id="billMinLeft">—</div></div>
+          </div>
+          <div id="billNote" class="sm" style="color:var(--muted);margin-top:6px"></div>
+        </div>
+        <div class="card-h" style="border-top:1px solid var(--line)">
+          <h2 style="font-size:13px">Invoice History</h2>
+          <span class="pill" id="billInvCount">0 invoices</span>
+        </div>
+        <div class="tbl-scroll" style="max-height:280px">
+          <table>
+            <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>Status</th><th>Receipt</th></tr></thead>
+            <tbody id="billInvBody"><tr><td colspan="5" class="sm" style="color:var(--muted)">No invoices yet.</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -483,9 +516,12 @@ function boot(data){
 }
 boot(buildDemo());  // instant render, works offline
 
+/* Billing state — declared before tryLive (which reads BILL.cid). */
+const BILL = { cid: "demo", token: "" };
+
 (async function tryLive(){
   try{
-    const res=await fetch("/api/customer/dashboard?client_id=demo",{headers:{Accept:"application/json"}});
+    const res=await fetch("/api/customer/dashboard?client_id="+encodeURIComponent(BILL.cid),{headers:{Accept:"application/json"}});
     if(!res.ok) throw new Error("bad status "+res.status);
     const live=await res.json();
     if(live&&live.kpis&&Array.isArray(live.calls)&&Array.isArray(live.leads)){
@@ -496,6 +532,128 @@ boot(buildDemo());  // instant render, works offline
     /* offline / file:// — silently keep demo data */
   }
 })();
+
+/* ============================================================
+   BILLING — live-binds to /api/billing/* using the customer JWT.
+   client_id source: customer login token (lgai_token -> /api/customer/auth/me),
+   else stored lgai_cid, else ?client_id= query, else "demo".
+   ============================================================ */
+function billToken(){ return localStorage.getItem("lgai_token") || ""; }
+function billAuthHdr(){ const t=billToken(); return t ? {"Authorization":"Bearer "+t} : {}; }
+function qparam(k){ try{ return new URLSearchParams(location.search).get(k)||""; }catch(e){ return ""; } }
+
+async function resolveClientId(){
+  BILL.token = billToken();
+  // 1) authenticated customer -> /me gives sub=client_id
+  if(BILL.token){
+    try{
+      const r=await fetch("/api/customer/auth/me",{headers:billAuthHdr()});
+      if(r.ok){ const j=await r.json(); if(j&&j.client_id){ return String(j.client_id); } }
+    }catch(e){/* fall through */}
+  }
+  return localStorage.getItem("lgai_cid") || qparam("client_id") || "demo";
+}
+
+function fmtMoney(n,cur){ const c=cur==="USD"?"$":(cur==="EUR"?"€":"₹"); return c+Number(n||0).toLocaleString("en-IN"); }
+function fmtDate(iso){ if(!iso) return "—"; try{ return new Date(iso).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ return iso; } }
+
+async function loadBilling(){
+  BILL.cid = await resolveClientId();
+  document.getElementById("sideClient").textContent="Client: "+BILL.cid;
+  let sub=null, usage=null, invoices=[];
+  // subscription (404 = no active sub -> free/trial state)
+  try{ const r=await fetch("/api/billing/subscription?client_id="+encodeURIComponent(BILL.cid),{headers:billAuthHdr()});
+       if(r.ok) sub=await r.json(); }catch(e){}
+  try{ const r=await fetch("/api/billing/usage?client_id="+encodeURIComponent(BILL.cid),{headers:billAuthHdr()});
+       if(r.ok) usage=await r.json(); }catch(e){}
+  try{ const r=await fetch("/api/billing/invoices?client_id="+encodeURIComponent(BILL.cid)+"&limit=20",{headers:billAuthHdr()});
+       if(r.ok) invoices=await r.json(); }catch(e){}
+  renderBilling(sub,usage,invoices);
+}
+
+function renderBilling(sub,usage,invoices){
+  const statusEl=document.getElementById("billStatus");
+  const planEl=document.getElementById("billPlan");
+  const periodEl=document.getElementById("billPeriod");
+  const usedEl=document.getElementById("billMinUsed");
+  const leftEl=document.getElementById("billMinLeft");
+  const noteEl=document.getElementById("billNote");
+
+  if(sub&&sub.plan_id){
+    planEl.textContent=sub.plan_name||sub.plan_id;
+    statusEl.textContent=(sub.status||"—").toUpperCase();
+    periodEl.textContent=(sub.current_period_start?fmtDate(sub.current_period_start):"—")+" → "+(sub.current_period_end?fmtDate(sub.current_period_end):"—");
+    noteEl.textContent="Gateway: "+(sub.payment_gateway||"—")+" · Plan price "+fmtMoney(sub.base_price,sub.currency)+"/mo";
+  }else{
+    planEl.textContent="Free / Trial";
+    statusEl.textContent="NO PLAN";
+    periodEl.textContent="—";
+    noteEl.textContent="Koi active paid plan nahi. Upgrade karne ke liye sales se baat karein.";
+  }
+
+  // minutes (Advanced=metered; others "Unlimited"/0)
+  if(usage){
+    const cu=usage.calls_used, cl=usage.calls_limit, cr=usage.calls_remaining;
+    usedEl.textContent=(cu!=null?cu:"—")+(typeof cl==="number"&&cl>0?(" / "+cl):"");
+    leftEl.textContent=(cr!=null?cr:"—");
+  }else{ usedEl.textContent="—"; leftEl.textContent="—"; }
+
+  // invoices table
+  const body=document.getElementById("billInvBody");
+  document.getElementById("billInvCount").textContent=(invoices.length||0)+" invoices";
+  if(invoices&&invoices.length){
+    body.innerHTML=invoices.map(inv=>{
+      const url=inv.hosted_url||inv.pdf_url;
+      return `<tr>
+        <td class="sm">${inv.invoice_number||inv.id||"—"}</td>
+        <td class="sm">${fmtDate(inv.invoice_date)}</td>
+        <td class="sm">${fmtMoney(inv.total,inv.currency)}</td>
+        <td><span class="tag ${inv.status==='paid'?'connected':'no-answer'}">${inv.status||"—"}</span></td>
+        <td class="sm">${url?`<a href="${url}" target="_blank" rel="noopener">View ↗</a>`:"—"}</td>
+      </tr>`;}).join("");
+  }else{
+    body.innerHTML=`<tr><td colspan="5" class="sm" style="color:var(--muted)">No invoices yet.</td></tr>`;
+  }
+
+  // action buttons (only meaningful with an active sub + a token)
+  const hasSub=!!(sub&&sub.plan_id);
+  const isPaused=hasSub&&String(sub.status).toLowerCase()==="paused";
+  show("billManageBtn",hasSub);
+  show("billPauseBtn",hasSub&&!isPaused);
+  show("billResumeBtn",hasSub&&isPaused);
+  show("billCancelBtn",hasSub&&!isPaused);
+}
+function show(id,on){ const el=document.getElementById(id); if(el) el.style.display=on?"inline-flex":"none"; }
+
+async function openBillingPortal(){
+  try{
+    const r=await fetch("/api/billing/portal?client_id="+encodeURIComponent(BILL.cid),{
+      method:"POST",headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
+      body:JSON.stringify({return_url:location.href})});
+    const j=await r.json();
+    if(r.ok&&j.portal_url){ window.location.href=j.portal_url; }
+    else{ toast("Billing","Hosted portal unavailable. "+(j.message||"Pause/Cancel use karein.")); }
+  }catch(e){ toast("Billing","Portal kholne me dikkat. Baad me try karein."); }
+}
+
+async function billingAction(action){
+  let url, opts={method:"POST",headers:Object.assign({"Content-Type":"application/json"},billAuthHdr())};
+  if(action==="pause"){ url="/api/billing/subscription/pause?client_id="+encodeURIComponent(BILL.cid); }
+  else if(action==="resume"){ url="/api/billing/subscription/resume?client_id="+encodeURIComponent(BILL.cid); }
+  else if(action==="cancel"){
+    if(!confirm("Subscription cancel karein? Period-end tak active rahega.")) return;
+    url="/api/billing/subscription/cancel?client_id="+encodeURIComponent(BILL.cid);
+    opts.body=JSON.stringify({cancel_immediately:false});
+  }else{ return; }
+  try{
+    const r=await fetch(url,opts);
+    const j=await r.json().catch(()=>({}));
+    if(r.ok){ toast("Done ✅",(action.charAt(0).toUpperCase()+action.slice(1))+" ho gaya."); loadBilling(); }
+    else{ toast("Error",(j.detail||"Action fail hua. Token/login check karein.")); }
+  }catch(e){ toast("Error","Network issue — baad me try karein."); }
+}
+
+loadBilling();
 </script>
 </body>
 </html>

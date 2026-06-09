@@ -73,6 +73,32 @@ logger = setup_logger(__name__)
 AudioOrText = Union[bytes, str]
 
 
+def _default_silence_s() -> float:
+    """End-of-turn silence (seconds) — shares TURN_SILENCE_MS with the phone
+    paths. Historical default 0.8 s if turn_detector is unimportable. Defensive:
+    never raises (a missing module just yields the literal default)."""
+    try:
+        from app.voice_agent.turn_detector import turn_silence_ms
+
+        return turn_silence_ms(800.0) / 1000.0
+    except Exception:
+        return 0.8
+
+
+def _default_energy() -> int:
+    """Avg-abs-amplitude 'silence' threshold for this pipeline's pure-Python VAD.
+    This metric ≈ 0.6×RMS, so we scale the shared TURN_VAD_RMS to keep parity and
+    fall back to the historical 500. Defensive (never raises)."""
+    try:
+        from app.voice_agent.turn_detector import turn_vad_rms
+
+        # avg-abs ≈ RMS for speech; keep the historical 500 floor so we never get
+        # *more* eager than before unless the operator lowers TURN_VAD_RMS a lot.
+        return max(1, int(turn_vad_rms(500)))
+    except Exception:
+        return 500
+
+
 # =============================================================================
 # METRICS & STATE
 # =============================================================================
@@ -135,15 +161,22 @@ class VoicePipeline:
         self,
         system_prompt: str = "",
         registry: Any | None = None,
-        silence_timeout_s: float = 0.8,
-        energy_threshold: int = 500,
+        silence_timeout_s: float | None = None,
+        energy_threshold: int | None = None,
         use_flow_engine: bool = True,
         voice_id: str | None = None,
     ) -> None:
         self.system_prompt = system_prompt
         self._registry = registry or get_registry()
-        self.silence_timeout_s = silence_timeout_s
-        self.energy_threshold = energy_threshold
+        # End-of-turn knobs: explicit args win; otherwise the shared env-tunable
+        # defaults (TURN_SILENCE_MS / TURN_VAD_RMS) so this path tunes with the
+        # phone paths. Falls back to the historical 0.8 s / 500 if unset/unimportable.
+        self.silence_timeout_s = (
+            silence_timeout_s if silence_timeout_s is not None else _default_silence_s()
+        )
+        self.energy_threshold = (
+            energy_threshold if energy_threshold is not None else _default_energy()
+        )
         self.voice_id = voice_id
 
         self.state = PipelineState()

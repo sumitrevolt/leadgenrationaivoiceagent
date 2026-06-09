@@ -147,14 +147,34 @@ def _env_num(name: str, default: float) -> float:
         return default
 
 
-_VAD_RMS = int(_env_num("VOBIZ_VAD_RMS", 300))  # PCM16 RMS speech gate
+# Shared turn-taking defaults (TURN_SILENCE_MS / TURN_VAD_RMS / TURN_BARGE_MIN_MS)
+# give every audio path one knob. The VOBIZ_* envs below still WIN when set, so
+# prod is unchanged; only the *defaults* now come from the shared helpers
+# (~700 ms silence, RMS 300, ~100 ms barge-in). Import is defensive: if
+# turn_detector can't load we keep literal fallbacks (zero behaviour change).
+try:  # pragma: no cover - import-safety
+    from app.voice_agent.turn_detector import (
+        barge_in_frames as _shared_barge_frames,
+        turn_silence_ms as _shared_silence_ms,
+        turn_vad_rms as _shared_vad_rms,
+    )
+
+    _DEF_VAD_RMS = _shared_vad_rms(300)
+    _DEF_SILENCE_MS = _shared_silence_ms(650.0)  # keep snappy 650 ms vobiz default
+    _DEF_BARGE_FRAMES = _shared_barge_frames(20.0, 100.0)  # 20 ms frames @16k
+except Exception:
+    _DEF_VAD_RMS, _DEF_SILENCE_MS, _DEF_BARGE_FRAMES = 300, 650.0, 5
+
+_VAD_RMS = int(_env_num("VOBIZ_VAD_RMS", _DEF_VAD_RMS))  # PCM16 RMS speech gate
 SILENCE_MS = _env_num(
-    "VOBIZ_SILENCE_MS", 650.0
-)  # trailing silence that ends an utterance (650ms = snappier turn-taking; env VOBIZ_SILENCE_MS overrides)
+    "VOBIZ_SILENCE_MS", _DEF_SILENCE_MS
+)  # trailing silence that ends an utterance (VOBIZ_SILENCE_MS > TURN_SILENCE_MS > 650 ms default)
 MIN_SPEECH_MS = _env_num("VOBIZ_MIN_SPEECH_MS", 300.0)  # ignore sub-300ms blips (coughs/clicks)
 MIN_STT_MS = _env_num("VOBIZ_MIN_STT_MS", 400.0)  # drop sub-400ms utterances (STT unreliable)
 MAX_UTTER_MS = 15000.0  # hard cap so a long monologue still gets processed
-BARGE_MIN_FRAMES = 5  # ~100 ms of speech while we talk = barge-in
+# ~100 ms of speech while we talk = barge-in. Env: VOBIZ_BARGE_MIN_FRAMES wins,
+# else TURN_BARGE_MIN_MS (via shared helper), else 5 frames.
+BARGE_MIN_FRAMES = max(1, int(_env_num("VOBIZ_BARGE_MIN_FRAMES", _DEF_BARGE_FRAMES)))
 
 
 # --------------------------------------------------------------------------- #

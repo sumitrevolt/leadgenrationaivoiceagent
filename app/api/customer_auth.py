@@ -160,6 +160,106 @@ async def customer_login(req: LoginIn):
     }
 
 
+_VALID_PLANS = {"starter", "growth", "advanced"}
+
+
+def _plan_minutes_safe(plan: str) -> int:
+    try:
+        from app.billing.usage import plan_minutes
+
+        return plan_minutes(plan)
+    except Exception:
+        return 0
+
+
+class SignupIn(BaseModel):
+    business_name: str = Field(..., min_length=2, max_length=120)
+    email: str = Field(..., min_length=3, max_length=200)
+    password: str = Field(..., min_length=6, max_length=128)
+    phone: str = Field("", max_length=40)
+    niche: str = Field("general", max_length=80)
+    city: str = Field("", max_length=80)
+    plan: str = Field("starter", max_length=30)
+
+
+@router.post("/signup")
+async def customer_signup(req: SignupIn):
+    """PUBLIC self-serve signup — naya client profile + login ek shot me (no admin).
+
+    Flow (har step defensive, signup kabhi 500 pe nahi girta):
+      1) Email already registered -> 409 (login karein).
+      2) clients_store me client profile auto-create (dedupe by phone/business name).
+      3) Login credential (email -> client_id) save (pbkdf2).
+      4) Default plan ke calling-minutes provision (activate_plan + reset_usage_period).
+      5) Customer JWT (role=customer) turant return -> frontend seedha portal me.
+    """
+    email = (req.email or "").strip().lower()
+    if "@" not in email or "." not in email.rsplit("@", 1)[-1]:
+        raise HTTPException(status_code=422, detail="Valid email zaroori hai")
+    if _find(email):
+        raise HTTPException(status_code=409, detail="Email already registered — login karein")
+
+    plan = (req.plan or "starter").strip().lower()
+    if plan not in _VALID_PLANS:
+        plan = "starter"
+
+    # 2) Client profile auto-create (clients_store dedupes by phone/name; never raises).
+    client_id = ""
+    business_name = (req.business_name or "").strip() or "Aapka Business"
+    try:
+        from app.marketing.clients_store import add_client
+
+        rec = add_client(
+            business_name=business_name,
+            niche=(req.niche or "general"),
+            city=(req.city or ""),
+            phone=(req.phone or ""),
+            plan=plan,
+        )
+        client_id = str((rec or {}).get("id") or "")
+        business_name = str((rec or {}).get("business_name") or business_name)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.error(f"signup add_client failed: {e}")
+    if not client_id:
+        # Fallback id so signup still succeeds even if clients_store hiccups.
+        client_id = "c_" + secrets.token_hex(6)
+
+    # 3) Persist the login credential (email -> client_id).
+    rows = [r for r in _read() if r.get("email") != email]
+    rows.append(
+        {
+            "email": email,
+            "client_id": client_id,
+            "password_hash": _hash(req.password),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "source": "self_serve_signup",
+        }
+    )
+    _write_all(rows)
+
+    # 4) Provision the plan's calling minutes (best-effort — never blocks signup).
+    try:
+        from app.billing import usage as _usage
+
+        _usage.activate_plan(client_id, plan)
+        _usage.reset_usage_period(client_id)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug(f"signup provisioning skipped: {e}")
+
+    # 5) Issue a customer JWT immediately (auto-login after signup).
+    from app.api.admin import create_access_token
+
+    token = create_access_token(client_id, email, "customer")
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "client_id": client_id,
+        "business_name": business_name,
+        "plan": plan,
+        "minutes": _plan_minutes_safe(plan),
+    }
+
+
 @router.get("/me")
 async def me(client_id: str = Depends(require_customer)):
     return {"client_id": client_id, "business_name": _biz_name(client_id)}

@@ -245,6 +245,50 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
         return {"error": str(exc), **res}
 
 
+async def whatsapp_reply(
+    from_number: str,
+    text: str,
+    message_id: str = "",
+    business_name: str = "",
+) -> dict[str, Any]:
+    """Classify an inbound WhatsApp message + draft a Hinglish reply (1-click human send).
+
+    Same brain as the email triage (free_ai classify + draft) but adapted for chat:
+    no subject, body = the message text. Writes a draft to ``reply_drafts.jsonl`` with
+    ``channel="whatsapp"`` and notifies the team. NEVER raises; returns the saved record
+    (``{}`` on empty text). Auto-send OFF (ban-safe) — human sends in 1 click.
+    """
+    txt = (text or "").strip()
+    frm = (from_number or "").strip()
+    if not txt:
+        return {}
+    try:
+        intent = await _classify("WhatsApp inbound", txt)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("wa classify err: %s", exc)
+        intent = "other"
+    draft = ""
+    if intent in ("interested", "question", "objection"):
+        try:
+            draft = await _draft(business_name or "", "WhatsApp inquiry", txt, intent)
+        except Exception:  # pragma: no cover - defensive
+            draft = ""
+    rec = {
+        "channel": "whatsapp",
+        "from": frm,
+        "message_id": (message_id or "").strip(),
+        "text": txt[:2000],
+        "intent": intent,
+        "draft": draft,
+        "status": _STATUS.get(intent, "replied"),
+        "at": datetime.now(timezone.utc).isoformat(),
+    }
+    _save_draft(rec)
+    member = "swara" if intent in ("interested", "question") else "rohan"
+    _notify(member, f"wa_reply_{intent}", f"{frm}: {txt[:60]}")
+    return rec
+
+
 def list_drafts(limit: int = 50) -> list[dict]:
     """Recent reply drafts for the dashboard (1-click human send)."""
     out: list[dict] = []
@@ -263,4 +307,4 @@ def list_drafts(limit: int = 50) -> list[dict]:
     return out[-limit:][::-1]
 
 
-__all__ = ["run_reply_triage", "list_drafts"]
+__all__ = ["run_reply_triage", "whatsapp_reply", "list_drafts"]

@@ -263,6 +263,55 @@ class StripeGateway(PaymentGatewayBase):
             logger.error(f"Failed to cancel Stripe subscription: {e}")
             raise
 
+    async def pause_subscription(self, subscription_id: str) -> dict[str, Any]:
+        """Pause a Stripe subscription (pause_collection -> behavior 'void')."""
+        try:
+            subscription = self.client.Subscription.modify(
+                subscription_id, pause_collection={"behavior": "void"}
+            )
+            logger.info(f"Paused Stripe subscription: {subscription_id}")
+            return {
+                "subscription_id": subscription.id,
+                "status": subscription.status,
+                "paused": bool(getattr(subscription, "pause_collection", None)),
+                "gateway": self.gateway_type.value,
+            }
+        except Exception as e:
+            logger.error(f"Failed to pause Stripe subscription: {e}")
+            raise
+
+    async def resume_subscription(self, subscription_id: str) -> dict[str, Any]:
+        """Resume a paused Stripe subscription (clear pause_collection)."""
+        try:
+            subscription = self.client.Subscription.modify(subscription_id, pause_collection="")
+            logger.info(f"Resumed Stripe subscription: {subscription_id}")
+            return {
+                "subscription_id": subscription.id,
+                "status": subscription.status,
+                "paused": bool(getattr(subscription, "pause_collection", None)),
+                "gateway": self.gateway_type.value,
+            }
+        except Exception as e:
+            logger.error(f"Failed to resume Stripe subscription: {e}")
+            raise
+
+    async def create_billing_portal_session(
+        self, customer_id: str, return_url: str
+    ) -> dict[str, Any]:
+        """Create a Stripe Billing Portal session (hosted card / invoice management)."""
+        try:
+            session = self.client.billing_portal.Session.create(
+                customer=customer_id, return_url=return_url
+            )
+            logger.info(f"Created Stripe billing portal session for {customer_id}")
+            return {
+                "portal_url": session.url,
+                "gateway": self.gateway_type.value,
+            }
+        except Exception as e:
+            logger.error(f"Failed to create Stripe billing portal session: {e}")
+            raise
+
     async def get_subscription(self, subscription_id: str) -> dict[str, Any]:
         """Get Stripe subscription details"""
         try:
@@ -536,6 +585,40 @@ class RazorpayGateway(PaymentGatewayBase):
             }
         except Exception as e:
             logger.error(f"Failed to cancel Razorpay subscription: {e}")
+            raise
+
+    async def pause_subscription(self, subscription_id: str) -> dict[str, Any]:
+        """Pause a Razorpay subscription (pause_at='now'). Raises if SDK lacks the method."""
+        try:
+            pause = getattr(self.client.subscription, "pause", None)
+            if pause is None:
+                raise NotImplementedError("razorpay SDK has no subscription.pause")
+            subscription = pause(subscription_id, {"pause_at": "now"})
+            logger.info(f"Paused Razorpay subscription: {subscription_id}")
+            return {
+                "subscription_id": subscription.get("id", subscription_id),
+                "status": subscription.get("status"),
+                "gateway": self.gateway_type.value,
+            }
+        except Exception as e:
+            logger.error(f"Failed to pause Razorpay subscription: {e}")
+            raise
+
+    async def resume_subscription(self, subscription_id: str) -> dict[str, Any]:
+        """Resume a Razorpay subscription (resume_at='now'). Raises if SDK lacks the method."""
+        try:
+            resume = getattr(self.client.subscription, "resume", None)
+            if resume is None:
+                raise NotImplementedError("razorpay SDK has no subscription.resume")
+            subscription = resume(subscription_id, {"resume_at": "now"})
+            logger.info(f"Resumed Razorpay subscription: {subscription_id}")
+            return {
+                "subscription_id": subscription.get("id", subscription_id),
+                "status": subscription.get("status"),
+                "gateway": self.gateway_type.value,
+            }
+        except Exception as e:
+            logger.error(f"Failed to resume Razorpay subscription: {e}")
             raise
 
     async def get_subscription(self, subscription_id: str) -> dict[str, Any]:

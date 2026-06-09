@@ -106,6 +106,8 @@ class Settings(BaseSettings):
     whatsapp_business_token: str = ""
     whatsapp_phone_number_id: str = ""
     whatsapp_business_account_id: str = ""
+    whatsapp_app_secret: str = ""  # Meta webhook X-Hub-Signature-256 verification
+    whatsapp_verify_token: str = ""  # Meta webhook GET handshake token
 
     # Email
     smtp_host: str = "smtp.gmail.com"
@@ -151,6 +153,16 @@ class Settings(BaseSettings):
     # Apna UPI VPA (env UPI_VPA, e.g. 9876543210@ybl) — landing page ka
     # "Shuru karo" payment modal isi se QR banata hai. Empty = path disabled.
     upi_vpa: str = ""
+
+    # Social auto-post — Meta Graph API (Track 3). OFF by default; creds na ho to
+    # publisher mock-mode chalta hai (kuch publish nahi hota, sirf record). App-review
+    # unlock ke baad flag + tokens set karo. Per-client tokens data/meta_connections.jsonl
+    # me; yeh GLOBAL fallback (platform ke apne page/IG) ke liye.
+    social_autopost: bool = False  # env SOCIAL_AUTOPOST — real publishing master switch
+    meta_page_access_token: str = ""  # env META_PAGE_ACCESS_TOKEN (global fallback page token)
+    meta_facebook_page_id: str = ""  # env META_FACEBOOK_PAGE_ID
+    meta_instagram_account_id: str = ""  # env META_INSTAGRAM_ACCOUNT_ID
+    meta_graph_version: str = "v21.0"  # env META_GRAPH_VERSION
 
     # Call Settings
     max_call_duration_seconds: int = 300

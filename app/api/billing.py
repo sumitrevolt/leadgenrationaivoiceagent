@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +30,95 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 router = APIRouter()
+
+# Fallback "from" address when a client has no email on file (matches Hostinger SMTP).
+_FALLBACK_EMAIL = "admin@leadsgenai.in"
+
+
+# =============================================================================
+# Helpers (client email resolution + gateway-config gating + usage provisioning)
+# =============================================================================
+def _client_email(client_id: str) -> str:
+    """Best-effort REAL email for a client (never the fake client_{id}@example.com).
+
+    Order: clients_store record (email / contact_email / owner_email) -> the customer
+    login store (data/customer_auth.jsonl, reverse client_id->email) -> fallback admin
+    address. Never raises.
+    """
+    cid = (client_id or "").strip()
+    if not cid:
+        return _FALLBACK_EMAIL
+    # 1) clients_store record (future records may carry an email field)
+    try:
+        from app.marketing.clients_store import get_client
+
+        rec = get_client(cid) or {}
+        for key in ("email", "contact_email", "owner_email"):
+            val = str(rec.get(key) or "").strip()
+            if val and "@" in val:
+                return val
+    except Exception:
+        pass
+    # 2) customer auth store (admin set-password links email -> client_id)
+    try:
+        from app.api.customer_auth import _read as _read_auth
+
+        for row in _read_auth() or []:
+            if str(row.get("client_id") or "").strip() == cid:
+                email = str(row.get("email") or "").strip()
+                if email and "@" in email:
+                    return email
+    except Exception:
+        pass
+    return _FALLBACK_EMAIL
+
+
+def _client_name(client_id: str) -> str:
+    """Best-effort business name for a client (falls back to "Client <id>")."""
+    try:
+        from app.marketing.clients_store import get_client
+
+        rec = get_client(client_id) or {}
+        name = str(rec.get("business_name") or "").strip()
+        if name:
+            return name
+    except Exception:
+        pass
+    return f"Client {client_id}"
+
+
+def _stripe_configured() -> bool:
+    return bool((settings.stripe_secret_key or "").strip())
+
+
+def _stripe_webhook_configured() -> bool:
+    return bool((settings.stripe_webhook_secret or "").strip())
+
+
+def _razorpay_configured() -> bool:
+    return bool(
+        (settings.razorpay_key_id or "").strip() and (settings.razorpay_key_secret or "").strip()
+    )
+
+
+def _razorpay_webhook_configured() -> bool:
+    return bool((settings.razorpay_webhook_secret or "").strip())
+
+
+def _provision_usage(client_id: str, plan_id: str | None, period_end: datetime | None,
+                     subscription_id: str | None, reset: bool = True) -> None:
+    """Provision/refresh the minute ledger after a successful pay/renew. Never raises."""
+    try:
+        from app.billing import usage as usage_mod
+
+        if client_id and plan_id:
+            usage_mod.activate_plan(
+                client_id, plan_id, subscription_id=subscription_id, period_end=period_end
+            )
+        if client_id and reset:
+            usage_mod.reset_usage_period(client_id)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning(f"usage provisioning skipped for {client_id}: {e}")
 
 
 # =============================================================================
@@ -261,10 +350,10 @@ async def create_checkout_session(
 
     try:
         # Check if customer exists, create if not
-        # In production, get customer from DB
+        # Use the client's REAL email (clients_store / customer-auth store; fallback admin).
         customer_result = await gateway.create_customer(
-            email=f"client_{client_id}@example.com",  # Replace with actual email
-            name=f"Client {client_id}",
+            email=_client_email(client_id),
+            name=_client_name(client_id),
             metadata={"client_id": client_id},
         )
 
@@ -352,14 +441,21 @@ async def get_current_subscription(
     client_id: str = Query(..., description="Client ID"), db: AsyncSession = Depends(get_async_db)
 ):
     """
-    Get current subscription for a client
+    Get current subscription for a client (TRIAL / ACTIVE / PAUSED — so the UI can
+    show a Resume control for a paused plan).
     """
     result = await db.execute(
         select(Subscription)
         .where(
             and_(
                 Subscription.client_id == client_id,
-                Subscription.status.in_([SubscriptionStatus.TRIAL, SubscriptionStatus.ACTIVE]),
+                Subscription.status.in_(
+                    [
+                        SubscriptionStatus.TRIAL,
+                        SubscriptionStatus.ACTIVE,
+                        SubscriptionStatus.PAUSED,
+                    ]
+                ),
             )
         )
         .order_by(Subscription.created_at.desc())
@@ -616,10 +712,10 @@ async def add_account_balance(
     gateway = get_payment_gateway(currency=request.currency)
 
     try:
-        # Create customer if needed
+        # Create customer if needed (REAL email — no fake example.com).
         customer_result = await gateway.create_customer(
-            email=f"client_{client_id}@example.com",
-            name=f"Client {client_id}",
+            email=_client_email(client_id),
+            name=_client_name(client_id),
             metadata={"client_id": client_id},
         )
 
@@ -694,6 +790,46 @@ async def get_usage_history(
     return [record.to_dict() for record in records]
 
 
+# =============================================================================
+# Unified payment webhook (one public URL for both gateways)
+# =============================================================================
+@router.post("/billing/webhook", tags=["Billing"])
+async def unified_payment_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Unified payment webhook — ek hi public URL Stripe + Razorpay dono ke liye.
+
+    Provider request header se detect hota hai:
+      - ``Stripe-Signature``      -> Stripe events  (checkout / invoice / subscription.*)
+      - ``X-Razorpay-Signature``  -> Razorpay events (payment / subscription.*)
+
+    Verification + event dispatch EXISTING handlers (``app.api.webhooks``) ko delegate
+    hota hai — single source of truth. Wahi handlers subscription renewals/pauses/
+    cancellations + plan minute-provisioning (``usage.activate_plan`` /
+    ``reset_usage_period``) karte hain. Existing ``/api/webhooks/stripe`` aur
+    ``/api/webhooks/razorpay`` bhi as-is chalte (backward compatible).
+
+    Bina valid provider-signature header ke -> 400. Signature galat -> handler 401
+    deta hai (provider retry karega). Koi unhandled 500 nahi (handlers contain errors).
+    """
+    from app.api import webhooks as _wh
+
+    headers = request.headers
+    stripe_sig = headers.get("Stripe-Signature") or headers.get("stripe-signature")
+    rzp_sig = headers.get("X-Razorpay-Signature") or headers.get("x-razorpay-signature")
+
+    if stripe_sig:
+        return await _wh.stripe_webhook(request=request, stripe_signature=stripe_sig, db=db)
+    if rzp_sig:
+        return await _wh.razorpay_webhook(request=request, x_razorpay_signature=rzp_sig, db=db)
+
+    raise HTTPException(
+        status_code=400,
+        detail="Unrecognized payment webhook (Stripe-Signature / X-Razorpay-Signature header missing)",
+    )
+
+
 @router.post("/billing/subscription/upgrade", tags=["Billing"])
 async def upgrade_subscription(
     new_plan_id: str,
@@ -738,3 +874,494 @@ async def upgrade_subscription(
         "new_plan": new_plan_id,
         "message": "Subscription upgraded successfully",
     }
+
+
+# =============================================================================
+# Stripe billing PORTAL (hosted card management)
+# =============================================================================
+class PortalRequest(BaseModel):
+    """Create a billing-portal session request."""
+
+    return_url: str = Field(..., description="Where Stripe sends the customer back")
+
+
+@router.post("/billing/portal", tags=["Billing"])
+async def create_billing_portal(
+    request: PortalRequest,
+    client_id: str = Query(..., description="Client ID"),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Open the gateway-hosted billing portal.
+
+    Stripe: returns a Billing Portal URL (card/invoice management). Razorpay has no
+    hosted self-serve portal -> returns ``{portal_url: null, ...}`` (manage via
+    pause/cancel endpoints instead). Returns 503 if Stripe keys are not configured.
+    """
+    result = await db.execute(
+        select(Subscription)
+        .where(Subscription.client_id == client_id)
+        .order_by(Subscription.created_at.desc())
+    )
+    subscription = result.scalar_one_or_none()
+
+    # Stripe path (only if a Stripe customer + keys exist).
+    if subscription and subscription.stripe_customer_id:
+        if not _stripe_configured():
+            raise HTTPException(status_code=503, detail="Stripe gateway not configured")
+        try:
+            from app.billing.payment_gateway import get_stripe_gateway
+
+            gateway = get_stripe_gateway()
+            session = await gateway.create_billing_portal_session(
+                customer_id=subscription.stripe_customer_id, return_url=request.return_url
+            )
+            return {"portal_url": session["portal_url"], "gateway": "stripe"}
+        except Exception as e:
+            logger.error(f"Failed to create billing portal: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Razorpay (or unknown) — no hosted portal.
+    return {
+        "portal_url": None,
+        "gateway": (subscription.payment_gateway if subscription else None) or "razorpay",
+        "message": "No hosted portal — manage your plan via pause/resume/cancel.",
+    }
+
+
+# =============================================================================
+# PAUSE / RESUME subscription
+# =============================================================================
+async def _get_active_or_paused_sub(db: AsyncSession, client_id: str) -> Subscription:
+    result = await db.execute(
+        select(Subscription)
+        .where(
+            and_(
+                Subscription.client_id == client_id,
+                Subscription.status.in_(
+                    [
+                        SubscriptionStatus.TRIAL,
+                        SubscriptionStatus.ACTIVE,
+                        SubscriptionStatus.PAUSED,
+                    ]
+                ),
+            )
+        )
+        .order_by(Subscription.created_at.desc())
+    )
+    sub = result.scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status_code=404, detail="No subscription found")
+    return sub
+
+
+@router.post("/billing/subscription/pause", tags=["Billing"])
+async def pause_subscription(
+    client_id: str = Query(..., description="Client ID"),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Pause the client's subscription (gateway-side if linked, then DB status=PAUSED)."""
+    subscription = await _get_active_or_paused_sub(db, client_id)
+    try:
+        if subscription.stripe_subscription_id and _stripe_configured():
+            from app.billing.payment_gateway import get_stripe_gateway
+
+            await get_stripe_gateway().pause_subscription(subscription.stripe_subscription_id)
+        elif subscription.razorpay_subscription_id and _razorpay_configured():
+            from app.billing.payment_gateway import get_razorpay_gateway
+
+            try:
+                await get_razorpay_gateway().pause_subscription(
+                    subscription.razorpay_subscription_id
+                )
+            except Exception as e:
+                # Razorpay pause may be unavailable for the plan — fall back to DB-only.
+                logger.warning(f"Razorpay pause unavailable, DB-only pause: {e}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to pause subscription: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    subscription.status = SubscriptionStatus.PAUSED
+    subscription.updated_at = datetime.utcnow()
+    await db.commit()
+    return {"success": True, "subscription_id": subscription.id, "status": "paused"}
+
+
+@router.post("/billing/subscription/resume", tags=["Billing"])
+async def resume_subscription(
+    client_id: str = Query(..., description="Client ID"),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Resume a paused subscription (gateway-side if linked, then DB status=ACTIVE)."""
+    subscription = await _get_active_or_paused_sub(db, client_id)
+    try:
+        if subscription.stripe_subscription_id and _stripe_configured():
+            from app.billing.payment_gateway import get_stripe_gateway
+
+            await get_stripe_gateway().resume_subscription(subscription.stripe_subscription_id)
+        elif subscription.razorpay_subscription_id and _razorpay_configured():
+            from app.billing.payment_gateway import get_razorpay_gateway
+
+            try:
+                await get_razorpay_gateway().resume_subscription(
+                    subscription.razorpay_subscription_id
+                )
+            except Exception as e:
+                logger.warning(f"Razorpay resume unavailable, DB-only resume: {e}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to resume subscription: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    subscription.status = SubscriptionStatus.ACTIVE
+    subscription.updated_at = datetime.utcnow()
+    await db.commit()
+    return {"success": True, "subscription_id": subscription.id, "status": "active"}
+
+
+# =============================================================================
+# Signature-verified WEBHOOKS (Stripe + Razorpay)
+# =============================================================================
+def _period_dt(value) -> datetime | None:
+    """Coerce a unix-timestamp / datetime into a datetime, else None."""
+    try:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value
+        return datetime.utcfromtimestamp(int(value))
+    except Exception:
+        return None
+
+
+async def _find_subscription_by_gateway_id(
+    db: AsyncSession, *, stripe_id: str | None = None, razorpay_id: str | None = None
+) -> Subscription | None:
+    if stripe_id:
+        res = await db.execute(
+            select(Subscription).where(Subscription.stripe_subscription_id == stripe_id)
+        )
+        sub = res.scalar_one_or_none()
+        if sub:
+            return sub
+    if razorpay_id:
+        res = await db.execute(
+            select(Subscription).where(Subscription.razorpay_subscription_id == razorpay_id)
+        )
+        sub = res.scalar_one_or_none()
+        if sub:
+            return sub
+    return None
+
+
+async def _activate_subscription_row(
+    db: AsyncSession,
+    *,
+    client_id: str | None,
+    plan_id: str | None,
+    gateway: str,
+    stripe_subscription_id: str | None = None,
+    stripe_customer_id: str | None = None,
+    razorpay_subscription_id: str | None = None,
+    razorpay_customer_id: str | None = None,
+    period_start: datetime | None = None,
+    period_end: datetime | None = None,
+) -> Subscription | None:
+    """Find/create the Subscription row and mark it ACTIVE for the current period.
+
+    Mirrors the existing cancel/upgrade DB patterns. Best-effort; returns the row or
+    None when there isn't enough identity to act on.
+    """
+    sub = await _find_subscription_by_gateway_id(
+        db, stripe_id=stripe_subscription_id, razorpay_id=razorpay_subscription_id
+    )
+    # Else by client + active/trial (the row created at checkout time).
+    if sub is None and client_id:
+        res = await db.execute(
+            select(Subscription)
+            .where(
+                and_(
+                    Subscription.client_id == client_id,
+                    Subscription.status.in_(
+                        [
+                            SubscriptionStatus.TRIAL,
+                            SubscriptionStatus.ACTIVE,
+                            SubscriptionStatus.PAST_DUE,
+                            SubscriptionStatus.PAUSED,
+                        ]
+                    ),
+                )
+            )
+            .order_by(Subscription.created_at.desc())
+        )
+        sub = res.scalar_one_or_none()
+
+    if sub is None:
+        if not client_id:
+            return None
+        # Create a fresh row from the plan catalogue (no checkout row existed).
+        plan = billing_manager.get_plan(plan_id) if plan_id else None
+        sub = Subscription(
+            id=str(uuid.uuid4()),
+            client_id=client_id,
+            plan_id=plan_id or "advanced",
+            plan_name=plan.name if plan else (plan_id or "advanced"),
+            status=SubscriptionStatus.ACTIVE,
+            currency=settings.default_currency,
+            base_price=plan.monthly_price if plan else 0,
+            calls_limit=plan.calls_per_month if plan else 0,
+            leads_limit=plan.leads_per_month if plan else 0,
+        )
+        db.add(sub)
+
+    sub.status = SubscriptionStatus.ACTIVE
+    sub.payment_gateway = gateway
+    if stripe_subscription_id:
+        sub.stripe_subscription_id = stripe_subscription_id
+    if stripe_customer_id:
+        sub.stripe_customer_id = stripe_customer_id
+    if razorpay_subscription_id:
+        sub.razorpay_subscription_id = razorpay_subscription_id
+    if razorpay_customer_id:
+        sub.razorpay_customer_id = razorpay_customer_id
+    if period_start:
+        sub.current_period_start = period_start
+    if period_end:
+        sub.current_period_end = period_end
+    sub.updated_at = datetime.utcnow()
+    return sub
+
+
+@router.post("/billing/webhooks/stripe", tags=["Billing"])
+async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_db)):
+    """Stripe webhook (signature-verified). 503 if keys missing; never crashes.
+
+    Handled: checkout.session.completed, invoice.paid / invoice.payment_succeeded,
+    customer.subscription.created/updated/deleted/paused/resumed. On a successful
+    pay/renew -> mark the Subscription ACTIVE + provision the minute ledger.
+    """
+    if not _stripe_configured() or not _stripe_webhook_configured():
+        raise HTTPException(status_code=503, detail="Stripe gateway not configured")
+
+    payload = await request.body()
+    signature = request.headers.get("Stripe-Signature", "")
+
+    try:
+        from app.billing.payment_gateway import get_stripe_gateway
+
+        event = await get_stripe_gateway().verify_webhook(payload, signature)
+    except Exception as e:
+        logger.warning(f"Stripe webhook verification failed: {e}")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    event_type = event.get("event_type", "")
+    obj = event.get("data") or {}
+    # event.data.object is a stripe object; coerce to plain dict access.
+    get = obj.get if isinstance(obj, dict) else (lambda k, d=None: getattr(obj, k, d))
+    meta = get("metadata", {}) or {}
+    client_id = (meta.get("client_id") if isinstance(meta, dict) else None) or None
+    plan_id = (meta.get("plan_id") if isinstance(meta, dict) else None) or None
+
+    try:
+        if event_type == "checkout.session.completed":
+            sub_id = get("subscription")
+            customer_id = get("customer")
+            mode = get("mode")
+            if mode == "subscription" or sub_id:
+                sub = await _activate_subscription_row(
+                    db,
+                    client_id=client_id,
+                    plan_id=plan_id,
+                    gateway=PaymentGateway.STRIPE.value,
+                    stripe_subscription_id=sub_id,
+                    stripe_customer_id=customer_id,
+                )
+                await db.commit()
+                _provision_usage(
+                    client_id or (sub.client_id if sub else None),
+                    plan_id or (sub.plan_id if sub else None),
+                    sub.current_period_end if sub else None,
+                    sub_id,
+                )
+
+        elif event_type in ("invoice.paid", "invoice.payment_succeeded"):
+            sub_id = get("subscription")
+            customer_id = get("customer")
+            lines = get("lines", {}) or {}
+            period_start = period_end = None
+            try:
+                line0 = (lines.get("data") or [{}])[0] if isinstance(lines, dict) else {}
+                period = (line0 or {}).get("period") or {}
+                period_start = _period_dt(period.get("start"))
+                period_end = _period_dt(period.get("end"))
+            except Exception:
+                pass
+            sub = await _activate_subscription_row(
+                db,
+                client_id=client_id,
+                plan_id=plan_id,
+                gateway=PaymentGateway.STRIPE.value,
+                stripe_subscription_id=sub_id,
+                stripe_customer_id=customer_id,
+                period_start=period_start,
+                period_end=period_end,
+            )
+            await db.commit()
+            _provision_usage(
+                client_id or (sub.client_id if sub else None),
+                plan_id or (sub.plan_id if sub else None),
+                period_end,
+                sub_id,
+            )
+
+        elif event_type in (
+            "customer.subscription.created",
+            "customer.subscription.updated",
+            "customer.subscription.resumed",
+        ):
+            sub_id = get("id")
+            status_raw = (get("status") or "").lower()
+            paused = bool(get("pause_collection"))
+            period_start = _period_dt(get("current_period_start"))
+            period_end = _period_dt(get("current_period_end"))
+            sub = await _find_subscription_by_gateway_id(db, stripe_id=sub_id)
+            if sub:
+                if paused:
+                    sub.status = SubscriptionStatus.PAUSED
+                elif status_raw in ("active", "trialing"):
+                    sub.status = SubscriptionStatus.ACTIVE
+                elif status_raw == "past_due":
+                    sub.status = SubscriptionStatus.PAST_DUE
+                if period_start:
+                    sub.current_period_start = period_start
+                if period_end:
+                    sub.current_period_end = period_end
+                sub.updated_at = datetime.utcnow()
+                await db.commit()
+                if sub.status == SubscriptionStatus.ACTIVE:
+                    _provision_usage(sub.client_id, sub.plan_id, period_end, sub_id, reset=False)
+
+        elif event_type in ("customer.subscription.deleted", "customer.subscription.paused"):
+            sub_id = get("id")
+            sub = await _find_subscription_by_gateway_id(db, stripe_id=sub_id)
+            if sub:
+                sub.status = (
+                    SubscriptionStatus.PAUSED
+                    if event_type.endswith("paused")
+                    else SubscriptionStatus.CANCELLED
+                )
+                if event_type.endswith("deleted"):
+                    sub.ended_at = datetime.utcnow()
+                sub.updated_at = datetime.utcnow()
+                await db.commit()
+    except Exception as e:  # never 500 a webhook for a downstream hiccup
+        logger.error(f"Stripe webhook handling error ({event_type}): {e}")
+
+    return {"received": True, "event": event_type}
+
+
+@router.post("/billing/webhooks/razorpay", tags=["Billing"])
+async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_async_db)):
+    """Razorpay webhook (HMAC-SHA256 verified). 503 if secret missing; never crashes.
+
+    Handled: payment.captured, subscription.activated/charged/halted/cancelled/
+    paused/resumed. On a successful pay/renew -> mark the Subscription ACTIVE +
+    provision the minute ledger. client_id is read from notes.
+    """
+    if not _razorpay_configured() or not _razorpay_webhook_configured():
+        raise HTTPException(status_code=503, detail="Razorpay gateway not configured")
+
+    payload = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature", "")
+
+    # Verify signature (HMAC) ourselves so we can inspect the full event tree.
+    import hashlib
+    import hmac
+    import json as _json
+
+    try:
+        expected = hmac.new(
+            (settings.razorpay_webhook_secret or "").encode("utf-8"), payload, hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(expected, signature):
+            raise ValueError("signature mismatch")
+        event = _json.loads(payload.decode("utf-8"))
+    except Exception as e:
+        logger.warning(f"Razorpay webhook verification failed: {e}")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    event_type = event.get("event", "")
+    payload_tree = event.get("payload", {}) or {}
+    sub_entity = (payload_tree.get("subscription", {}) or {}).get("entity", {}) or {}
+    pay_entity = (payload_tree.get("payment", {}) or {}).get("entity", {}) or {}
+
+    notes = sub_entity.get("notes") or pay_entity.get("notes") or {}
+    client_id = (notes.get("client_id") if isinstance(notes, dict) else None) or None
+    plan_id = (notes.get("plan_id") if isinstance(notes, dict) else None) or None
+    rzp_sub_id = sub_entity.get("id")
+    rzp_customer_id = sub_entity.get("customer_id") or pay_entity.get("customer_id")
+    period_start = _period_dt(sub_entity.get("current_start"))
+    period_end = _period_dt(sub_entity.get("current_end"))
+
+    try:
+        if event_type in ("subscription.activated", "subscription.charged", "subscription.resumed"):
+            sub = await _activate_subscription_row(
+                db,
+                client_id=client_id,
+                plan_id=plan_id,
+                gateway=PaymentGateway.RAZORPAY.value,
+                razorpay_subscription_id=rzp_sub_id,
+                razorpay_customer_id=rzp_customer_id,
+                period_start=period_start,
+                period_end=period_end,
+            )
+            await db.commit()
+            # Both first-activation and renewals start a fresh metered period -> reset usage.
+            _provision_usage(
+                client_id or (sub.client_id if sub else None),
+                plan_id or (sub.plan_id if sub else None),
+                period_end,
+                rzp_sub_id,
+                reset=True,
+            )
+
+        elif event_type == "payment.captured":
+            # One-off captured payment (e.g. order-based checkout / balance top-up).
+            if client_id:
+                sub = await _activate_subscription_row(
+                    db,
+                    client_id=client_id,
+                    plan_id=plan_id,
+                    gateway=PaymentGateway.RAZORPAY.value,
+                    period_end=period_end,
+                )
+                await db.commit()
+                _provision_usage(
+                    client_id, plan_id or (sub.plan_id if sub else None), period_end, rzp_sub_id
+                )
+
+        elif event_type in ("subscription.halted", "subscription.cancelled"):
+            sub = await _find_subscription_by_gateway_id(db, razorpay_id=rzp_sub_id)
+            if sub:
+                sub.status = (
+                    SubscriptionStatus.PAST_DUE
+                    if event_type.endswith("halted")
+                    else SubscriptionStatus.CANCELLED
+                )
+                if event_type.endswith("cancelled"):
+                    sub.ended_at = datetime.utcnow()
+                sub.updated_at = datetime.utcnow()
+                await db.commit()
+
+        elif event_type == "subscription.paused":
+            sub = await _find_subscription_by_gateway_id(db, razorpay_id=rzp_sub_id)
+            if sub:
+                sub.status = SubscriptionStatus.PAUSED
+                sub.updated_at = datetime.utcnow()
+                await db.commit()
+    except Exception as e:  # never 500 a webhook
+        logger.error(f"Razorpay webhook handling error ({event_type}): {e}")
+
+    return {"received": True, "event": event_type}

@@ -115,6 +115,14 @@ async def _run_job(job: str) -> None:
             from app.marketing import content_schedule
 
             await content_schedule.run_due()  # date-scheduled posts auto-prepare
+            from app.tasks.reporting import run_social_autopost
+
+            # Publish 'ready' posts to connected Meta accounts (MOCK unless
+            # SOCIAL_AUTOPOST=1 + a Page/IG token — inert/safe otherwise).
+            await run_social_autopost()
+            from app.marketing import wa_campaign_runner
+
+            await wa_campaign_runner.run_due()  # WhatsApp drip/reactivation (inert without creds)
         elif job == "blog":
             from app.marketing import seo_blog
 
