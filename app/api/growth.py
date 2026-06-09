@@ -112,3 +112,67 @@ async def missed_call(body: MissedCallIn, _user=Depends(require_admin)):
     from app.telephony.missed_call import handle_missed_call
 
     return await handle_missed_call(body.from_number, body.niche or "general", body.business or "")
+
+
+# ---------------------- Niche-driven automation ------------------------- #
+@router.get("/niches")
+async def list_niches(tier: str | None = None, _user=Depends(require_admin)):
+    """Saare niches overview — keywords (scraping) + content_focus (marketing)."""
+    try:
+        from app.niches import NICHES
+    except Exception:
+        return {"niches": []}
+    out = []
+    for k, c in NICHES.items():
+        if not isinstance(c, dict):
+            continue
+        if tier and str(c.get("tier", "")).upper() != tier.upper():
+            continue
+        out.append(
+            {
+                "id": k,
+                "name": c.get("name"),
+                "tier": c.get("tier"),
+                "category": c.get("category"),
+                "keywords": c.get("keywords") or [],
+                "content_focus": c.get("content_focus") or [],
+            }
+        )
+    return {"count": len(out), "niches": out}
+
+
+class NicheScrapeIn(BaseModel):
+    tier: str | None = None
+    batch: int = 8
+    limit_per_query: int = 6
+
+
+@router.post("/niche/scrape")
+async def niche_scrape(body: NicheScrapeIn, _user=Depends(require_admin)):
+    """Next niche-batch scrape karo (all-niche rotation, existing prospector se)."""
+    from app.platform import niche_prospector
+
+    return await niche_prospector.run(
+        tier=body.tier, batch=body.batch, limit_per_query=body.limit_per_query
+    )
+
+
+@router.get("/niche/pack/{niche_key}")
+async def niche_pack_one(niche_key: str, count: int = 4, city: str = "", _user=Depends(require_admin)):
+    """Ek niche ka poora marketing pack (content_focus posts + hashtags + offer)."""
+    from app.marketing import niche_pack
+
+    return await niche_pack.build_pack(niche_key, city=city, count=count)
+
+
+class NichePacksIn(BaseModel):
+    tier: str | None = None
+    limit: int = 6
+
+
+@router.post("/niche/packs")
+async def niche_packs(body: NichePacksIn, _user=Depends(require_admin)):
+    """Multiple niches ke marketing packs (LLM-heavy; tier filter + limit)."""
+    from app.marketing import niche_pack
+
+    return await niche_pack.build_all(tier=body.tier, limit=body.limit)

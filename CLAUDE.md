@@ -166,3 +166,10 @@
 - **Observability NOW UP** (2026-06-09): `docker-compose.observability.yml` started — leadgen_prometheus(:9090 ok)+grafana(:3000 ok)+alertmanager(:9093)+loki(:3100)+tempo(:4317)+uptime(:3001). 10 total containers. App unaffected. (OTel traces tabhi aayenge jab ENABLE_OTEL=1.)
 - **Tests**: `tests/test_2026_features.py` — 10/10 PASS (lead_scoring, call_qualifier, journeys, review_engine, whatsapp_flows, missed_call, customer_auth helpers). Total test files ab 26.
 - **REMAINING GAPS (honest)**: (1) UPI_VPA set karo (ya Razorpay-only payments rakho); (2) telephony prod-proof (1 real call test); (3) gated flags `1` karo jab activate karna ho; (4) HA/staging nahi (single VPS); (5) `/api/ai/command` unauth (LLM abuse surface — rate-limit/auth add karo).
+
+
+## NICHE AUTOMATION — scraping + marketing all-42-niches (2026-06-09 PM, Windows-verified)
+> **Rebuild MAT karo.** Niches (`app/niches.py`) me PEHLE se `keywords` (scraping) + `content_focus` (marketing) per-niche the — gap = unhe AUTOMATE karna across saare 42 niches. import OK, prod_check **305 routes**, tests **12/12**.
+- **Scraping**: `app/platform/niche_prospector.py` — saare 42 niches ko round-robin **batch cursor** (`data/niche_prospect_cursor.json`) se cover karta; har niche ke apne `keywords` use. EXISTING `prospector.run_prospecting()` ko `PROSPECT_TARGETS` env-inject karke drive karta (prospector ZERO touch). Pehle sirf 4 hardcoded niches scrape hote the. Gated `NICHE_ROTATION=1` → daily `prospect` job (team_scheduler) all-niche rotation use karta (default OFF = 4-niche jaisa). API `POST /api/growth/niche/scrape`.
+- **Marketing**: `app/marketing/niche_pack.py` — per-niche poora pack: `content_focus` themes → `post_generator.generate_post` (reuse) + `hashtags.research` (reuse) + offer/CTA (pricing_inr/pitch_hook se). `build_pack(niche)` + `build_all(tier,limit)`. API `GET /api/growth/niche/pack/{key}`, `POST /niche/packs`, `GET /niches` (overview).
+- **Tests** added to `tests/test_2026_features.py` (build_targets rotation + pack helpers). New env flag: `NICHE_ROTATION=1` (default off).

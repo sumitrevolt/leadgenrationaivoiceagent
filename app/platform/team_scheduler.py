@@ -128,9 +128,16 @@ async def _run_job(job: str) -> None:
 
             await seo_blog.run_daily_blog(3)
         elif job == "prospect":
-            from app.platform import prospector
+            # NICHE_ROTATION=1 → all-42-niches round-robin (niche_prospector); warna
+            # default 4-niche prospector (aaj jaisa). Gated = zero behaviour change.
+            if os.environ.get("NICHE_ROTATION", "0").strip().lower() in ("1", "true", "yes"):
+                from app.platform import niche_prospector
 
-            await prospector.run_prospecting()
+                await niche_prospector.run(batch=8)
+            else:
+                from app.platform import prospector
+
+                await prospector.run_prospecting()
         elif job == "email_outreach":
             from app.platform import auto_outreach
 

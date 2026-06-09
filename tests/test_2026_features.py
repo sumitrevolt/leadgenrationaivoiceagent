@@ -163,3 +163,33 @@ def test_customer_auth_helpers(tmp_path, monkeypatch):
     assert customer_auth.login_exists("x@y.com") is True
     assert customer_auth.client_has_login("cid123") is True
     assert customer_auth.client_has_login("nope") is False
+
+
+# --------------------------------------------------------------------------- #
+# niche_prospector (all-niche scraping rotation)
+# --------------------------------------------------------------------------- #
+def test_niche_prospector_targets(tmp_path, monkeypatch):
+    from app.platform import niche_prospector
+
+    monkeypatch.setattr(niche_prospector, "_CURSOR", str(tmp_path / "cur.json"))
+    targets = niche_prospector.build_targets(batch=3, max_keywords=2)
+    assert targets  # NICHES me keywords hain -> non-empty
+    assert all(set(("niche", "query", "cities")).issubset(t) for t in targets)
+    assert 1 <= len({t["niche"] for t in targets}) <= 3
+    assert len(niche_prospector._all_niche_keys(tier="S")) >= 1
+    # cursor rotation advances
+    niche_prospector._write_cursor(5)
+    assert niche_prospector._read_cursor() == 5
+
+
+# --------------------------------------------------------------------------- #
+# niche_pack (content_focus marketing pack helpers)
+# --------------------------------------------------------------------------- #
+def test_niche_pack_helpers():
+    from app.marketing import niche_pack
+
+    cfg = niche_pack._niche_cfg("ai_marketing")
+    assert cfg.get("name")
+    assert isinstance(niche_pack._derive_offer(cfg), str) and niche_pack._derive_offer(cfg)
+    assert niche_pack._cta(cfg)
+    assert niche_pack._derive_offer({}) == "Aaj hi shuru karo — pehle hafte me naye leads."
