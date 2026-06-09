@@ -193,3 +193,33 @@ def test_niche_pack_helpers():
     assert isinstance(niche_pack._derive_offer(cfg), str) and niche_pack._derive_offer(cfg)
     assert niche_pack._cta(cfg)
     assert niche_pack._derive_offer({}) == "Aaj hi shuru karo — pehle hafte me naye leads."
+
+
+# --------------------------------------------------------------------------- #
+# Forward Deployed Engineer (FDE) agents
+# --------------------------------------------------------------------------- #
+def test_fde_registry():
+    from app.agents import fde
+
+    skills = fde.list_skills()
+    cats = {s["category"] for s in skills}
+    assert {"automation", "marketing", "website"} <= cats
+    agents = {a["key"] for a in fde.list_agents()}
+    assert {"isha_fde", "veer", "aarav", "neo"} <= agents
+    neo = [a for a in fde.list_agents() if a["key"] == "neo"][0]
+    assert len(neo["skills"]) >= 8  # full-stack covers all categories
+
+
+def test_fde_deploy_website_skills():
+    from app.agents import fde
+
+    r = asyncio.run(
+        fde.deploy(
+            {"business_name": "Sharma Solar", "niche": "solar_residential", "city": "Pune", "slug": "sharma-solar-7b6f"},
+            agent="veer",
+            skills=["minisite", "embed_widget"],
+        )
+    )
+    assert r["ok"] is True
+    assert r["total"] == 2
+    assert any(s["skill"] == "minisite" and s["ok"] for s in r["steps"])

@@ -176,3 +176,41 @@ async def niche_packs(body: NichePacksIn, _user=Depends(require_admin)):
     from app.marketing import niche_pack
 
     return await niche_pack.build_all(tier=body.tier, limit=body.limit)
+
+
+# ------------------- Forward Deployed Engineer (FDE) agents ------------- #
+@router.get("/fde/agents")
+async def fde_agents(_user=Depends(require_admin)):
+    """FDE personas (Isha/Veer/Aarav/Neo) + unke skills (automation/marketing/website)."""
+    from app.agents import fde
+
+    return {"agents": fde.list_agents(), "skills": fde.list_skills()}
+
+
+class FdeDeployIn(BaseModel):
+    business_name: str | None = None
+    niche: str | None = "general"
+    city: str | None = ""
+    slug: str | None = None
+    client_id: str | None = None
+    agent: str | None = "neo"   # isha_fde | veer | aarav | neo
+    brief: str | None = ""      # NL brief — FDE plan isi se banata
+
+
+@router.post("/fde/deploy")
+async def fde_deploy(body: FdeDeployIn, _user=Depends(require_admin)):
+    """FDE agent ko ek client ke liye automation+marketing+website 'deploy' karne bolo.
+
+    Brief do (e.g. 'naye solar client ka full marketing setup') → FDE plan banata +
+    skills chalata (existing capabilities). Ban-safe (drafts/setup, auto-publish nahi).
+    """
+    from app.agents import fde
+
+    ctx = {
+        "business_name": body.business_name,
+        "niche": body.niche,
+        "city": body.city,
+        "slug": body.slug,
+        "client_id": body.client_id,
+    }
+    return await fde.deploy(ctx, agent=body.agent or "neo", brief=body.brief or "")
