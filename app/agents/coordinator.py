@@ -24,7 +24,7 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 from app.utils.logger import setup_logger
 
@@ -48,36 +48,93 @@ def _roster() -> dict[str, dict]:
         return {}
 
 
-def _capabilities() -> dict[str, Callable[[], Awaitable[dict]]]:
-    """Agent -> SAFE async capability (existing staff fns; self-gated/defensive)."""
-    caps: dict[str, Callable] = {}
+def _guess_niche(text: str) -> str:
+    """Loose keyword-match goal/task → a configured niche key (fallback 'general')."""
     try:
-        from app.agents import staff
+        from app.niches import NICHES
 
-        caps.update(
-            {
-                "kavya": staff.run_ops,
-                "arjun": staff.run_qa,
-                "meera": staff.run_trainer,
-                "isha": staff.run_content,
-                "rohan": staff.run_email_outreach,
-            }
-        )
-    except Exception as e:  # pragma: no cover - defensive
-        logger.debug("coordinator caps err: %s", e)
-    return caps
+        t = (text or "").lower()
+        for k, v in (NICHES or {}).items():
+            name = str((v or {}).get("name", k)).lower()
+            if k.replace("_", " ") in t or (name and name in t):
+                return k
+        for k, v in (NICHES or {}).items():
+            name = str((v or {}).get("name", k)).lower()
+            if any(w in t for w in name.split() if len(w) > 3):
+                return k
+    except Exception:
+        pass
+    return "general"
+
+
+# --------------------------------------------------------------------------- #
+# Per-agent REAL tools (execute-mode): goal-aware, ACTUAL artifacts produce karte
+# (sirf draft nahi). SAFE only — koi auto-send/call nahi. Side-effect agents
+# (rohan=outreach, swara=calls) jaan-bujhke OUT → woh draft hi rehte (ban-safe).
+# --------------------------------------------------------------------------- #
+async def _tool_isha(task: str, goal: str) -> dict:
+    """Marketing — real social post (caption + hashtags + image idea)."""
+    from app.marketing import post_generator
+
+    p = await post_generator.generate_post(
+        business_name="Aapka Business", niche=_guess_niche(goal + " " + task), occasion=task[:80]
+    )
+    return {
+        "tool": "generate_post",
+        "caption": p.get("caption"),
+        "hashtags": p.get("hashtags"),
+        "image_idea": p.get("image_idea"),
+    }
+
+
+async def _tool_dev(task: str, goal: str) -> dict:
+    """Data/research — real trending hashtags + best-time research for the niche."""
+    from app.marketing import hashtags
+
+    h = await hashtags.research(_guess_niche(goal + " " + task), "", count=12)
+    return {"tool": "hashtags.research", "research": h if isinstance(h, dict) else {"data": h}}
+
+
+async def _tool_kavya(task: str, goal: str) -> dict:
+    """Ops — real system health snapshot."""
+    from app.agents import staff
+
+    return {"tool": "run_ops", "result": await staff.run_ops()}
+
+
+async def _tool_arjun(task: str, goal: str) -> dict:
+    """QA — real agent scorecard run."""
+    from app.agents import staff
+
+    return {"tool": "run_qa", "result": await staff.run_qa()}
+
+
+async def _tool_meera(task: str, goal: str) -> dict:
+    """Trainer — real transcript-quality analysis."""
+    from app.agents import staff
+
+    return {"tool": "run_trainer", "result": await staff.run_trainer()}
+
+
+# agent -> real goal-aware tool (execute mode). manager/rohan/swara = draft-only.
+_TOOLS: dict[str, Any] = {
+    "isha": _tool_isha,
+    "dev": _tool_dev,
+    "kavya": _tool_kavya,
+    "arjun": _tool_arjun,
+    "meera": _tool_meera,
+}
 
 
 def roster() -> list[dict]:
-    """Public roster + which agents have a concrete executable capability."""
-    caps = _capabilities()
+    """Public roster + which agents have a real executable tool (execute-mode)."""
     return [
         {
             "id": k,
             "name": v.get("name"),
             "title": v.get("title"),
             "duties": v.get("duties"),
-            "executable": k in caps,
+            "executable": k in _TOOLS,
         }
         for k, v in _roster().items()
     ]
@@ -151,10 +208,9 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
 
 async def _run_agent(agent: str, task: str, blackboard: dict, execute: bool) -> dict:
     """Ek agent apna sub-task kare — concrete capability (execute) ya free-LLM reasoning."""
-    caps = _capabilities()
-    if execute and agent in caps:
+    if execute and agent in _TOOLS:
         try:
-            res = await caps[agent]()
+            res = await _TOOLS[agent](task, blackboard.get("goal", ""))
             return {"mode": "executed", "output": res}
         except Exception as e:  # pragma: no cover - defensive
             return {"mode": "executed", "error": str(e)[:200]}

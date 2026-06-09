@@ -420,6 +420,21 @@ def test_agent_coordinator(tmp_path, monkeypatch):
     fo = asyncio.run(coordinator.fan_out("brand awareness", agents=["dev", "isha"]))
     assert fo["ok"] and fo["mode"] == "parallel" and len(fo["results"]) == 2
 
+    # per-agent real tools: isha/dev/kavya/arjun/meera executable; rohan/swara/manager draft-only
+    ids = {a["id"]: a["executable"] for a in rost}
+    assert ids.get("isha") and ids.get("dev") and ids.get("kavya")
+    assert not ids.get("rohan") and not ids.get("swara") and not ids.get("manager")
+    assert isinstance(coordinator._guess_niche("solar panel lagwana hai"), str)
+
+    # execute-mode wiring: a real tool actually runs (mode='executed')
+    async def _fake_tool(task, goal):
+        return {"tool": "x", "ok": True}
+
+    monkeypatch.setitem(coordinator._TOOLS, "isha", _fake_tool)
+    monkeypatch.setitem(coordinator._TOOLS, "dev", _fake_tool)
+    ex = asyncio.run(coordinator.coordinate("content banao", execute=True, max_steps=3))
+    assert any(r.get("mode") == "executed" for r in ex["results"])
+
 
 def test_agent_coordinator_advanced(tmp_path, monkeypatch):
     """Reflexion loop (plan→execute→verify→reflect→retry) + episodic memory + debate."""
