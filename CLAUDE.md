@@ -191,3 +191,9 @@
 - 📋 **Guide** `docs/INFRA_HARDENING_GUIDE.md` — Cloudflare Tunnel+WAF+CDN, R2/B2 offsite backups (rclone hook ready), SOPS/Infisical secrets, blue-green/Coolify zero-downtime. Ye account/creds chahiye (user activate kare).
 - **Containers ab ~11**: app+db+redis+**pgbouncer**+freeswitch+6 obs (prometheus/grafana/alertmanager/loki/tempo/uptime).
 - **Backups dir**: `.env.bak_*` (autosetup, nicherot), restore via guide.
+
+
+## FDE AGENTS — Forward Deployed Engineer agents (2026-06-09 PM, LIVE) — commit 647096c
+- **`app/agents/fde.py`**: 2026 FDE pattern — agent client ke liye automation+marketing+website "deploy" karta. 4 personas: **Isha** (Marketing FDE), **Veer** (Website FDE), **Aarav** (Automation FDE), **Neo** (Full-stack). **11 skills** = registry wrapping EXISTING capabilities (REBUILD NAHI): marketing_pack(niche_pack), social_posts(post_generator), hashtags, gbp_content(gbp_text), festival_posts(festivals), review_kit(review_engine), competitor, minisite(/b/slug), embed_widget, drip_journey(journeys), content_schedule. **free-LLM deployment PLANNER** (brief → ordered relevant skill subset) + deploy executor. Ban-safe (drafts/setup; auto-publish/send nahi). Import-safe, handler kabhi raise nahi.
+- **API** (growth.py, admin): `GET /api/growth/fde/agents` (personas+skills) · `POST /api/growth/fde/deploy` {business_name,niche,city,slug?,client_id?,agent?,brief}.
+- **Live demo verified**: Neo ne Sharma Solar ke liye brief se 4/4 skills deploy kiye (marketing_pack+review_kit+embed_widget+drip_journey — planner ne brief se sahi chune). prod_check **307 routes**, tests **14/14**. Research: OpenAI/ServiceNow/EY FDE model + Addy Osmani agent-skills(43.8k★)/VoltAgent awesome-agent-skills patterns.
