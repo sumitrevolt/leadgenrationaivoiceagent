@@ -469,6 +469,13 @@ async def public_audit_page():
     return FileResponse(str(_website_dir / "audit.html"))
 
 
+@app.get("/demo", tags=["Frontend"])
+async def public_demo_page():
+    """PUBLIC lead-magnet: AI marketing preview — business naam → real posts/hashtags/offer
+    (POST /api/public/ai-demo). Shows prospects what LeadGenAI's AI team builds for them."""
+    return FileResponse(str(_website_dir / "demo.html"))
+
+
 @app.get("/privacy", tags=["Frontend"])
 async def privacy_page():
     """Privacy policy (static legal page)."""

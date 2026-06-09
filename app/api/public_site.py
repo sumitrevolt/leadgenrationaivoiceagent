@@ -311,6 +311,42 @@ class AuditIn(BaseModel):
 
 # --------------------------------------------------------------------------- #
 # Routes
+class AiDemoIn(BaseModel):
+    """Public AI-marketing demo input (lead magnet)."""
+
+    business_name: str
+    niche: str | None = "general"
+    city: str | None = ""
+
+
+@router.post("/ai-demo", dependencies=[Depends(rate_limit("ai_demo", 8, 60))])
+async def ai_demo(body: AiDemoIn):
+    """PUBLIC lead-magnet: business naam → REAL AI marketing pack preview (3 posts +
+    hashtags + offer + CTA). Powered by niche_pack/post_generator (agent tools).
+    No auth, rate-limited (LLM cost), free-stack, never-raise."""
+    biz = (body.business_name or "").strip()
+    if len(biz) < 2:
+        raise HTTPException(status_code=422, detail="Business ka naam likho (min 2 akshar).")
+    try:
+        from app.marketing import niche_pack
+
+        pack = await niche_pack.build_pack(
+            (body.niche or "general").strip().lower() or "general",
+            biz,
+            (body.city or "").strip(),
+            count=3,
+        )
+    except Exception as e:
+        logger.warning(f"[ai-demo] pack failed: {e}")
+        pack = {"ok": False, "posts": [], "hashtags": [], "offer": "", "cta": ""}
+    return {
+        "ok": True,
+        "business": biz,
+        "pack": pack,
+        "cta": {"pricing": "/pricing", "audit": "/audit", "whatsapp": "https://wa.me/918459012607"},
+    }
+
+
 # --------------------------------------------------------------------------- #
 @router.post("/inquiry", dependencies=[Depends(rate_limit("inquiry", 15, 60))])
 async def submit_inquiry(body: InquiryIn, request: Request):
