@@ -45,12 +45,27 @@ class ExotelHandler:
         self.subdomain = settings.exotel_subdomain
         self.caller_id = settings.exotel_caller_id
 
-        if self.sid and self.token:
-            self.base_url = f"https://{self.sid}:{self.token}@{self.subdomain}.exotel.com/v1/Accounts/{self.sid}"
-            self.auth = base64.b64encode(f"{self.sid}:{self.token}".encode()).decode()
+        # Modern Exotel auth = API Key (username) + API Token (password) for HTTP
+        # Basic auth; the Account SID stays only in the URL path. Legacy accounts
+        # used SID + auth-token — fall back to that when API key/token are unset.
+        api_key = (getattr(settings, "exotel_api_key", "") or self.sid).strip()
+        api_token = (getattr(settings, "exotel_api_token", "") or self.token).strip()
+
+        # subdomain may be given as "api" or a full host like "api.exotel.com";
+        # normalize so we never produce "api.exotel.com.exotel.com".
+        host = (self.subdomain or "api").strip().rstrip(".")
+        if not host.endswith(".exotel.com"):
+            host = f"{host}.exotel.com"
+
+        if self.sid and api_key and api_token:
+            # Credentials live in the Authorization header (not the URL) to avoid
+            # leaking them in logs or via httpx userinfo parsing.
+            self.base_url = f"https://{host}/v1/Accounts/{self.sid}"
+            self.auth = base64.b64encode(f"{api_key}:{api_token}".encode()).decode()
             logger.info("📞 Exotel Handler initialized")
         else:
             self.base_url = None
+            self.auth = None
             logger.warning("Exotel credentials not configured")
 
     async def make_call(
