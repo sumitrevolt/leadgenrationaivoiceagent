@@ -37,6 +37,7 @@ services:
         APP_VERSION: ${APP_VERSION:-latest}
     image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
     container_name: leadgen_app
+    user: "0:0"   # root, matches the systemd app — keeps bind-mounted root-owned ./data writable
     env_file: .env
     environment:
       APP_ENV: production
@@ -46,9 +47,11 @@ services:
       # a dedicated scheduler (see docs/PRODUCTION_CUTOVER.md "Scaling").
       WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
       RUN_IN_PROCESS_SCHEDULER: ${RUN_IN_PROCESS_SCHEDULER:-1}
-      # Point the app at the in-stack Postgres + Redis (override in .env if needed).
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://leadgen:${POSTGRES_PASSWORD:-leadgen}@db:5432/leadgen}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      # Container ALWAYS uses in-stack internal DNS (db/redis), NOT the host's
+      # 127.0.0.1 DATABASE_URL in .env (that's for the systemd-host app + migration).
+      # `environment:` overrides env_file, so .env's host URLs are ignored here.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@db:5432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "127.0.0.1:8000:8080"   # host Caddy proxies leadsgenai.in -> here
     depends_on:
