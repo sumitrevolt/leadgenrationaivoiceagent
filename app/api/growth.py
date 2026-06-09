@@ -214,3 +214,97 @@ async def fde_deploy(body: FdeDeployIn, _user=Depends(require_admin)):
         "client_id": body.client_id,
     }
     return await fde.deploy(ctx, agent=body.agent or "neo", brief=body.brief or "")
+
+
+# ---------------- Omnichannel Cadence Orchestrator --------------------- #
+class CadenceEnrollIn(BaseModel):
+    leads: list[dict] | None = None
+    from_prospects: int = 0   # >0 → top N prospects auto-enroll
+
+
+@router.post("/cadence/enroll")
+async def cadence_enroll(body: CadenceEnrollIn, _user=Depends(require_admin)):
+    """Leads ko omnichannel cadence pe daalo (ya top-N prospects auto)."""
+    from app.marketing import cadence
+
+    leads = list(body.leads or [])
+    if body.from_prospects and body.from_prospects > 0:
+        try:
+            from app.platform import prospector
+
+            rows = [r for r in prospector._read_all() if r.get("phone")][: body.from_prospects]
+            leads.extend(rows)
+        except Exception:
+            pass
+    n = cadence.enroll_many(leads)
+    return {"ok": True, "enrolled": n, "stats": cadence.stats()}
+
+
+@router.post("/cadence/run")
+async def cadence_run(_user=Depends(require_admin)):
+    """Due cadence steps advance karo (drafts/sends). GATED CADENCE_ENGINE=1."""
+    from app.marketing import cadence
+
+    return await cadence.run_due()
+
+
+@router.get("/cadence")
+async def cadence_status(_user=Depends(require_admin)):
+    from app.marketing import cadence
+
+    return {"stats": cadence.stats(), "cadence": cadence.DEFAULT_CADENCE, "recent_runs": cadence.list_runs(30)}
+
+
+# ---------------- SMS (DLT) / LinkedIn / SEO channels ------------------ #
+class SmsIn(BaseModel):
+    to: str
+    template: str = "intro"
+    business_name: str | None = ""
+
+
+@router.post("/sms/send")
+async def sms_send(body: SmsIn, _user=Depends(require_admin)):
+    """DLT SMS bhejo (creds/flag na ho -> inert). Ready-to-flip."""
+    from app.integrations import sms_dlt
+
+    return await sms_dlt.send_template(body.to, body.template, biz=body.business_name or "ji")
+
+
+class LinkedInIn(BaseModel):
+    target_name: str
+    company: str | None = ""
+    niche: str | None = "general"
+
+
+@router.post("/linkedin/draft")
+async def linkedin_draft(body: LinkedInIn, _user=Depends(require_admin)):
+    """LinkedIn comment + connect-note + DM drafts (ban-safe, manual send)."""
+    from app.marketing import linkedin_assist
+
+    return await linkedin_assist.draft_outreach(body.target_name, body.company or "", body.niche or "general")
+
+
+class SeoPageIn(BaseModel):
+    niche: str
+    city: str = "Pune"
+
+
+@router.post("/seo/page")
+async def seo_page(body: SeoPageIn, _user=Depends(require_admin)):
+    """Ek niche×city SEO landing page generate karo (inbound)."""
+    from app.marketing import seo_pages
+
+    return await seo_pages.generate_page(body.niche, body.city)
+
+
+class SeoBatchIn(BaseModel):
+    tier: str | None = None
+    limit: int = 6
+
+
+@router.post("/seo/batch")
+async def seo_batch(body: SeoBatchIn, _user=Depends(require_admin)):
+    """Multiple niche×city SEO pages (LLM-heavy; limit)."""
+    from app.marketing import seo_pages
+
+    return await seo_pages.generate_batch(tier=body.tier, limit=body.limit)

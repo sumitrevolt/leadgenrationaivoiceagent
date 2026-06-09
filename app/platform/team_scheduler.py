@@ -123,6 +123,9 @@ async def _run_job(job: str) -> None:
             from app.marketing import wa_campaign_runner
 
             await wa_campaign_runner.run_due()  # WhatsApp drip/reactivation (inert without creds)
+            from app.marketing import cadence
+
+            await cadence.run_due()  # omnichannel cadence advance (gated CADENCE_ENGINE; inert off)
         elif job == "blog":
             from app.marketing import seo_blog
 

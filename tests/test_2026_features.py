@@ -223,3 +223,47 @@ def test_fde_deploy_website_skills():
     assert r["ok"] is True
     assert r["total"] == 2
     assert any(s["skill"] == "minisite" and s["ok"] for s in r["steps"])
+
+
+# --------------------------------------------------------------------------- #
+# Channels: SMS-DLT / LinkedIn / SEO pages / Cadence orchestrator
+# --------------------------------------------------------------------------- #
+def test_sms_dlt_inert(monkeypatch):
+    from app.integrations import sms_dlt
+
+    assert "audit" in sms_dlt.render("intro", biz="Sharma Solar").lower()
+    monkeypatch.delenv("SMS_DLT_ENABLED", raising=False)
+    r = asyncio.run(sms_dlt.send_template("+919999999999", "intro", biz="X"))
+    assert r["ok"] is False and r.get("inert") is True
+
+
+def test_linkedin_assist_drafts():
+    from app.marketing import linkedin_assist
+
+    d = asyncio.run(linkedin_assist.draft_outreach("Ravi", "Sharma Solar", "solar_residential"))
+    assert d["ok"] and d["comment"] and d["connect_note"] and d["dm"]
+    assert d["auto_sent"] is False
+
+
+def test_seo_page_gen():
+    from app.marketing import seo_pages
+
+    p = asyncio.run(seo_pages.generate_page("ai_marketing", "Pune"))["page"]
+    assert p["title"] and p["h1"] and len(p["faqs"]) >= 2
+    assert p["schema"]["@type"] == "FAQPage" and p["cta"]["url"] == "/audit"
+
+
+def test_cadence_orchestrator(tmp_path, monkeypatch):
+    from app.marketing import cadence
+
+    monkeypatch.setattr(cadence, "_LEADS", str(tmp_path / "cl.jsonl"))
+    monkeypatch.setattr(cadence, "_RUNS", str(tmp_path / "cr.jsonl"))
+    rec = cadence.enroll({"business_name": "Test", "phone": "+919876543210", "niche": "solar_residential", "city": "Pune"})
+    assert rec["step_idx"] == 0
+    assert cadence.enroll({"phone": "+919876543210"})["id"] == rec["id"]  # dedupe
+    assert cadence.stats()["enrolled"] == 1
+    monkeypatch.delenv("CADENCE_ENGINE", raising=False)
+    assert asyncio.run(cadence.run_due())["ok"] is False  # gated off
+    monkeypatch.setenv("CADENCE_ENGINE", "1")
+    r = asyncio.run(cadence.run_due())
+    assert r["ok"] is True and r["advanced"] >= 1  # day-0 steps fire
