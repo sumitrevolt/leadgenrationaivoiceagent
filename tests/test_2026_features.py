@@ -310,3 +310,38 @@ def test_community_content():
     assert len(community_content.list_platforms()) >= 4
     c = asyncio.run(community_content.draft_content("quora", "leads", "real_estate"))
     assert c["ok"] and c["content"] and c["auto_posted"] is False
+
+
+# --------------------------------------------------------------------------- #
+# Sales automation: proposal / assistant / pipeline
+# --------------------------------------------------------------------------- #
+def test_proposal():
+    from app.marketing import proposal
+
+    r = asyncio.run(proposal.generate_proposal("Sharma Solar", "solar_residential", "Pune", "growth"))
+    assert r["ok"] and r["proposal"]
+    assert r["payment_link"].endswith("/pricing") and r["price_inr"] == 2499
+
+
+def test_sales_assistant():
+    from app.marketing import sales_assistant
+
+    r = asyncio.run(sales_assistant.handle_message("bahut mehenga hai", "X", "real_estate"))
+    assert r["ok"] and r["reply"] and r["cta_url"] and r["auto_sent"] is False
+
+
+def test_sales_pipeline(tmp_path, monkeypatch):
+    from app.marketing import sales_pipeline
+
+    monkeypatch.setattr(sales_pipeline, "_DEALS", str(tmp_path / "d.jsonl"))
+    monkeypatch.setattr(sales_pipeline, "_ACTIONS", str(tmp_path / "da.jsonl"))
+    d = sales_pipeline.upsert_deal({"business_name": "X", "phone": "+919876543210", "niche": "solar_residential"}, "interested")
+    assert d["stage"] == "interested"
+    assert sales_pipeline.set_stage(d["id"], "demo_sent") is True
+    deal = sales_pipeline.list_deals()[0]
+    act = asyncio.run(sales_pipeline.next_action(deal))
+    assert act["action"] == "send_proposal"  # demo_sent → proposal
+    monkeypatch.delenv("SALES_ENGINE", raising=False)
+    assert asyncio.run(sales_pipeline.run_pipeline())["ok"] is False  # gated off
+    monkeypatch.setenv("SALES_ENGINE", "1")
+    assert asyncio.run(sales_pipeline.run_pipeline())["ok"] is True

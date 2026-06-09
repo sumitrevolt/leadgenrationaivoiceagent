@@ -213,6 +213,17 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     res["unsubscribed"] += 1
                 elif intent in ("interested", "question"):
                     res["interested"] += 1
+                    # Sales automation: interested reply -> deal (pipeline auto next-action).
+                    try:
+                        from app.marketing import sales_pipeline
+
+                        sales_pipeline.upsert_deal(
+                            {"business_name": (p or {}).get("business_name"), "email": frm,
+                             "phone": (p or {}).get("phone"), "niche": (p or {}).get("niche")},
+                            stage="interested",
+                        )
+                    except Exception:
+                        pass
 
                 draft = ""
                 if intent in ("interested", "question", "objection"):

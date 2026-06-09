@@ -216,3 +216,12 @@
 - **Affiliate / referral program** — `app/marketing/affiliate.py`: `register_affiliate`→code+link, `record_referral`, `stats`, 20% commission. Store `data/affiliates.jsonl`+`affiliate_referrals.jsonl`. `POST /api/growth/affiliate/register` (public) · `GET /affiliate/stats` (admin).
 - **Community / Q&A content drafter** — `app/marketing/community_content.py`: Quora/Reddit/WhatsApp-group/Telegram/LinkedIn-article/Medium ke liye value-first content drafts (soft CTA, ban-safe manual post). `POST /api/growth/community/{draft,batch}`.
 - No new env flags (drafts/calc = live). Public tools inbound capture ke liye `/audit`/`/pricing` pe push karte.
+
+
+## SALES AUTOMATION BUILT (2026-06-09 PM) — conversion funnel automated, Windows-verified
+> **Rebuild MAT karo.** prod_check **330 routes**, tests **25/25**. Demo-conversation human; baaki funnel auto. Ban-safe.
+- **Sales pipeline** (`app/marketing/sales_pipeline.py`) — deal stages (new→contacted→interested→demo_sent→proposal_sent→negotiating→won/lost) + har stage ka **auto next-action** (intro→demo-link+booking→proposal→payment-link+followup→onboard). `upsert_deal`/`set_stage`/`next_action`/`run_pipeline`/`stats`. **GATED `SALES_ENGINE=1`**. Wired into team_scheduler `content` job + **reply_agent (interested reply→auto deal banao)**. Store `data/deals.jsonl`.
+- **Auto-proposal** (`app/marketing/proposal.py`) — per-lead personalized: problem→solution→plan+price(packages)→ROI(lead_tools missed-revenue)→demo+payment links. `generate_proposal`.
+- **AI sales-closer** (`app/marketing/sales_assistant.py`) — objection classify (price/trust/works/timing/info/ready) → confident rebuttal + CTA (demo/pricing/audit). Inbound chat/WhatsApp/email. `handle_message`.
+- **API** (growth.py, admin): `POST /api/growth/sales/{deal,run,proposal,assistant}` · `POST /sales/deal/{id}/stage` · `GET /sales/deals`.
+- **Self-serve CLOSE = /pricing→signup→pay (NO human).** High-touch demo = human. New flag `SALES_ENGINE=1` (default off).

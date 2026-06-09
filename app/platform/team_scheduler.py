@@ -126,6 +126,9 @@ async def _run_job(job: str) -> None:
             from app.marketing import cadence
 
             await cadence.run_due()  # omnichannel cadence advance (gated CADENCE_ENGINE; inert off)
+            from app.marketing import sales_pipeline
+
+            await sales_pipeline.run_pipeline()  # sales deals auto next-action (gated SALES_ENGINE)
         elif job == "blog":
             from app.marketing import seo_blog
 

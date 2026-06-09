@@ -420,3 +420,75 @@ async def community_batch(body: CommunityIn, _user=Depends(require_admin)):
     from app.marketing import community_content
 
     return await community_content.draft_batch(topic=body.topic or "", niche=body.niche or "general")
+
+
+# ==================== SALES AUTOMATION (conversion) =================== #
+class DealIn(BaseModel):
+    lead: dict
+    stage: str = "interested"
+
+
+@router.post("/sales/deal")
+async def sales_deal(body: DealIn, _user=Depends(require_admin)):
+    """Interested lead ko deal banao (pipeline me daalo)."""
+    from app.marketing import sales_pipeline
+
+    return {"ok": True, "deal": sales_pipeline.upsert_deal(body.lead, body.stage)}
+
+
+class StageIn(BaseModel):
+    stage: str
+
+
+@router.post("/sales/deal/{deal_id}/stage")
+async def sales_stage(deal_id: str, body: StageIn, _user=Depends(require_admin)):
+    from app.marketing import sales_pipeline
+
+    if not sales_pipeline.set_stage(deal_id, body.stage):
+        raise HTTPException(status_code=404, detail="deal/stage invalid")
+    return {"ok": True}
+
+
+@router.get("/sales/deals")
+async def sales_deals(stage: str | None = None, _user=Depends(require_admin)):
+    from app.marketing import sales_pipeline
+
+    return {"stats": sales_pipeline.stats(), "deals": sales_pipeline.list_deals(stage),
+            "recent_actions": sales_pipeline.list_actions(30)}
+
+
+@router.post("/sales/run")
+async def sales_run(_user=Depends(require_admin)):
+    """Pipeline advance: active deals ke auto next-actions generate karo. GATED SALES_ENGINE."""
+    from app.marketing import sales_pipeline
+
+    return await sales_pipeline.run_pipeline()
+
+
+class ProposalIn(BaseModel):
+    business_name: str
+    niche: str | None = "general"
+    city: str | None = ""
+    plan: str | None = "growth"
+
+
+@router.post("/sales/proposal")
+async def sales_proposal(body: ProposalIn, _user=Depends(require_admin)):
+    """Auto personalized proposal + payment/demo links."""
+    from app.marketing import proposal
+
+    return await proposal.generate_proposal(body.business_name, body.niche or "general", body.city or "", body.plan or "growth")
+
+
+class SalesMsgIn(BaseModel):
+    message: str
+    business_name: str | None = ""
+    niche: str | None = "general"
+
+
+@router.post("/sales/assistant")
+async def sales_assistant_reply(body: SalesMsgIn, _user=Depends(require_admin)):
+    """AI sales-closer: prospect message → objection-aware reply + CTA."""
+    from app.marketing import sales_assistant
+
+    return await sales_assistant.handle_message(body.message, body.business_name or "", body.niche or "general")
