@@ -182,3 +182,12 @@
 - **Leads pulled (live)**: 201 prospects (184 phone, 45 email, 7 niches), 149 DB leads scored.
 - **OTel GOTCHA**: `ENABLE_OTEL=1` par opentelemetry packages image me NAHI (requirements.txt me commented, lock me nahi) → startup pe graceful skip-warning, traces nahi aate. Metrics(`/metrics`)+Uptime+Alertmanager+Grafana (obs stack) chal raha. Traces chahiye → otel pkgs `requirements.lock.txt` me add + rebuild.
 - **BUGS fixed live this session**: niche cursor skip (advance by actually-scraped); `lead_scoring` `async with get_async_session` (tha `async for` → rescore/top_hot fail).
+
+
+## INFRA HARDENING — top-5 advancements (2026-06-09 PM, mostly LIVE)
+- ✅ **PgBouncer** (session mode, asyncpg-safe) LIVE — app DB ab `pgbouncer:6432` ke through (commit bc5fa2d). Verify: `PGBOUNCER_OK 1` + `/health/ready` db=healthy. Container `leadgen_pgbouncer` (edoburu/pgbouncer, AUTH_TYPE=plain internal-net-only). **Revert**: compose `DATABASE_URL` host wapas `@db:5432` + recreate app. Switch deploy me auto-rollback gate tha.
+- ✅ **fail2ban** + **unattended-upgrades** active (VPS apt). **restore-drill** monthly cron `0 3 1 * *` → `pg_restore_drill.sh`. pg scripts chmod +x.
+- ✅ **Staging**: `docker-compose.staging.yml` (alag DB+Redis+port 8001, automation OFF, env_file `.env.staging`). Use: `docker compose -f docker-compose.staging.yml --env-file .env.staging up -d`.
+- 📋 **Guide** `docs/INFRA_HARDENING_GUIDE.md` — Cloudflare Tunnel+WAF+CDN, R2/B2 offsite backups (rclone hook ready), SOPS/Infisical secrets, blue-green/Coolify zero-downtime. Ye account/creds chahiye (user activate kare).
+- **Containers ab ~11**: app+db+redis+**pgbouncer**+freeswitch+6 obs (prometheus/grafana/alertmanager/loki/tempo/uptime).
+- **Backups dir**: `.env.bak_*` (autosetup, nicherot), restore via guide.
