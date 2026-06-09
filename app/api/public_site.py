@@ -39,6 +39,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 from app.api.auth_deps import require_admin
+from app.api.ratelimit import rate_limit
 from app.models.user import User
 from app.utils.logger import setup_logger
 
@@ -311,7 +312,7 @@ class AuditIn(BaseModel):
 # --------------------------------------------------------------------------- #
 # Routes
 # --------------------------------------------------------------------------- #
-@router.post("/inquiry")
+@router.post("/inquiry", dependencies=[Depends(rate_limit("inquiry", 15, 60))])
 async def submit_inquiry(body: InquiryIn, request: Request):
     """Landing page ka lead form — NO AUTH. Validate → file+DB save → team log."""
     # 1) Honeypot: bots hidden "website" field bhar dete hain — ok bolo, ignore karo.
@@ -471,7 +472,7 @@ class SignupIn(BaseModel):
     website: str | None = ""  # honeypot — insaan kabhi nahi bharta
 
 
-@router.post("/signup")
+@router.post("/signup", dependencies=[Depends(rate_limit("signup", 10, 60))])
 async def public_signup(body: SignupIn, request: Request):
     """NO AUTH self-serve signup: client + customer-login banao -> client_id + JWT.
 

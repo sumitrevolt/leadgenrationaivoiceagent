@@ -345,3 +345,46 @@ def test_sales_pipeline(tmp_path, monkeypatch):
     assert asyncio.run(sales_pipeline.run_pipeline())["ok"] is False  # gated off
     monkeypatch.setenv("SALES_ENGINE", "1")
     assert asyncio.run(sales_pipeline.run_pipeline())["ok"] is True
+
+
+# --------------------------------------------------------------------------- #
+# Security: per-IP rate-limit dependency (abuse/cost guard)
+# --------------------------------------------------------------------------- #
+def test_rate_limit_dependency(monkeypatch):
+    import app.api.ratelimit as rl
+    from fastapi import HTTPException
+
+    class _Req:
+        def __init__(self, headers, host="1.2.3.4"):
+            self.headers = headers
+            self.client = type("C", (), {"host": host})()
+
+    # real client IP: X-Forwarded-For first, warna socket peer
+    assert rl._client_ip(_Req({"x-forwarded-for": "9.9.9.9, 1.1.1.1"})) == "9.9.9.9"
+    assert rl._client_ip(_Req({}, "5.5.5.5")) == "5.5.5.5"
+
+    # limit cross -> 429
+    state = {"n": 0}
+
+    async def _fake_allowed(self, ident):
+        state["n"] += 1
+        return (state["n"] <= 2, 0)
+
+    monkeypatch.setattr(rl.RateLimiter, "is_allowed", _fake_allowed)
+    dep = rl.rate_limit("t", 2, 60)
+    req = _Req({"x-forwarded-for": "8.8.8.8"})
+    asyncio.run(dep(req))
+    asyncio.run(dep(req))
+    raised = 0
+    try:
+        asyncio.run(dep(req))
+    except HTTPException as e:
+        raised = e.status_code
+    assert raised == 429
+
+    # limiter error -> FAIL-OPEN (request block NA ho)
+    async def _boom(self, ident):
+        raise RuntimeError("redis down")
+
+    monkeypatch.setattr(rl.RateLimiter, "is_allowed", _boom)
+    asyncio.run(rl.rate_limit("t2", 1, 60)(_Req({}, "7.7.7.7")))  # no raise = pass

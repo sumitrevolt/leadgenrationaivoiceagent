@@ -7,13 +7,15 @@ All API keys are stored server-side only
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.api.auth_deps import get_current_user_optional
+from app.api.auth_deps import get_current_user_optional, require_admin
+from app.api.ratelimit import rate_limit
 from app.config import settings
 from app.models.user import User
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
-router = APIRouter(prefix="/ai", tags=["AI"])
+# Per-IP rate limit on ALL /api/ai/* (LLM cost/abuse guard). FAIL-OPEN.
+router = APIRouter(prefix="/ai", tags=["AI"], dependencies=[Depends(rate_limit("ai", 30, 60))])
 
 
 # ============================================================================
@@ -327,7 +329,7 @@ class CommandIn(BaseModel):
 
 
 @router.post("/command")
-async def nl_command(req: CommandIn, user: User = Depends(get_current_user_optional)):
+async def nl_command(req: CommandIn, user: User = Depends(require_admin)):
     """NL CRM command bar — Hinglish NL -> intent -> SAFE read/draft action.
 
     Auto-send/auto-write kabhi nahi (sirf data dikhata + draft deta). free-LLM
@@ -435,7 +437,7 @@ class QualifyCallIn(BaseModel):
 
 
 @router.post("/qualify-call")
-async def qualify_call(req: QualifyCallIn, user: User = Depends(get_current_user_optional)):
+async def qualify_call(req: QualifyCallIn, user: User = Depends(require_admin)):
     """Call transcript -> AI lead qualification (interest/qualified/appointment/
     budget/summary/next-action/follow-up draft). free-LLM, latency-safe (post-call)."""
     tx = (req.transcript or "").strip()

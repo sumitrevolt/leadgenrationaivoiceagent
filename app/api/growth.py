@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.auth_deps import require_admin
+from app.api.ratelimit import rate_limit
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -345,7 +346,7 @@ class MissedCallIn2(BaseModel):
     close_rate: float = 0.2
 
 
-@router.post("/tools/missed-call-revenue", tags=["Public Tools"])
+@router.post("/tools/missed-call-revenue", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))])
 async def tool_missed_call(body: MissedCallIn2):
     """PUBLIC lead-magnet: missed-call revenue calculator."""
     from app.marketing import lead_tools
@@ -358,7 +359,7 @@ class LeadCostIn(BaseModel):
     leads_per_month: float
 
 
-@router.post("/tools/lead-cost", tags=["Public Tools"])
+@router.post("/tools/lead-cost", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))])
 async def tool_lead_cost(body: LeadCostIn):
     """PUBLIC: lead-cost savings calculator."""
     from app.marketing import lead_tools
@@ -371,7 +372,7 @@ class GoogleScoreIn(BaseModel):
     city: str | None = ""
 
 
-@router.post("/tools/google-score", tags=["Public Tools"])
+@router.post("/tools/google-score", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))])
 async def tool_google_score(body: GoogleScoreIn):
     """PUBLIC: Google-presence checker."""
     from app.marketing import lead_tools
@@ -386,7 +387,7 @@ class AffiliateIn(BaseModel):
     phone: str | None = ""
 
 
-@router.post("/affiliate/register", tags=["Public Tools"])
+@router.post("/affiliate/register", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))])
 async def affiliate_register(body: AffiliateIn):
     """PUBLIC: koi bhi affiliate ban sakta → referral link + commission."""
     from app.marketing import affiliate
