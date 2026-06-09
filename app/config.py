@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     exotel_api_token: str = ""
     exotel_subdomain: str = ""
     exotel_caller_id: str = ""
+    exotel_app_id: str = ""  # App Bazaar applet id (connect.json Url)
+    exotel_flow_app_id: str = ""  # alt applet id (fallback)
     default_telephony: str = "twilio"  # twilio, exotel
 
     # Vobiz (India-native SIP trunk + voice API — primary trunk for P3)
