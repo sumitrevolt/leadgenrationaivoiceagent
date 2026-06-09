@@ -117,8 +117,12 @@ def _extract_list(text: str) -> list:
         return []
 
 
-async def plan(goal: str, max_steps: int = 5) -> list[dict]:
-    """Goal -> ordered [{agent, task}] across allowlisted STAFF. Keyword fallback."""
+async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
+    """Goal -> ordered [{agent, task}] across allowlisted STAFF. Keyword fallback.
+
+    `hint` = optional prior-learnings/reflection context (episodic memory) jo behtar
+    plan ke liye condition karta (Reflexion).
+    """
     roster_desc = "; ".join(f"{k}={v.get('title')}" for k, v in _roster().items())
     sys = (
         "Tum LeadGenAI ke Manager (Boss) ho. Goal ko 2-4 ORDERED sub-tasks me todo, har ek "
@@ -126,7 +130,10 @@ async def plan(goal: str, max_steps: int = 5) -> list[dict]:
         '[{"agent":"<key>","task":"<chhota Hinglish task>"}]. '
         f"Allowed keys: {', '.join(_AGENTS)}. Roster: {roster_desc}. Aur kuch mat likho."
     )
-    raw, _ = await _llm(sys, f"Goal: {goal}", max_tokens=300, temperature=0.2)
+    user = f"Goal: {goal}"
+    if hint:
+        user += f"\nPichhle learnings (inhe dhyan me rakho): {hint[:600]}"
+    raw, _ = await _llm(sys, user, max_tokens=300, temperature=0.2)
     steps = [
         {"agent": s["agent"], "task": str(s["task"])[:240]}
         for s in _extract_list(raw)
@@ -266,4 +273,212 @@ def recent_runs(limit: int = 20) -> list[dict]:
     return out[-limit:][::-1]
 
 
-__all__ = ["roster", "plan", "coordinate", "fan_out", "recent_runs"]
+# =========================================================================== #
+# ADVANCED ORCHESTRATION (2026 SOTA, free-stack native, NEVER raises):
+#   - Reflexion loop : Actor (agents) -> Evaluator (critic) -> Self-Reflection -> retry
+#                      (guardrails: max_iterations + quality_bar + convergence).
+#   - Episodic memory (CoALA): verbal reflections persist + recall across runs.
+#   - MAR critic     : Arjun (QA) ALAG persona grade kare (confirmation-bias kam).
+#   - debate/consensus: pro vs con -> Boss judge.
+# Research: Reflexion (Shinn 2023), MAR, CoALA memory, 2026 supervisor+reflection SOTA.
+# =========================================================================== #
+_MEMORY = os.path.join("data", "agent_memory.jsonl")
+_MAX_MEM = 3  # Reflexion: bounded episodic buffer (1-3 reflections)
+
+
+def memory_log(limit: int = 50) -> list[dict]:
+    """Recent episodic memory (reflections + scores)."""
+    out: list[dict] = []
+    try:
+        if os.path.exists(_MEMORY):
+            with open(_MEMORY, encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            out.append(json.loads(line))
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+    return out[-limit:][::-1]
+
+
+def _remember(topic: str, reflection: str, score: float) -> None:
+    """Episodic memory write — verbal reflection + score (bounded, append-only)."""
+    if not reflection:
+        return
+    try:
+        os.makedirs(os.path.dirname(_MEMORY), exist_ok=True)
+        with open(_MEMORY, "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {"topic": topic[:120], "reflection": reflection[:600], "score": score, "at": _now()},
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+    except Exception:
+        pass
+
+
+def _recall(topic: str, k: int = _MAX_MEM) -> list[str]:
+    """Retrieve up to k most-relevant prior reflections (keyword overlap, semantic-lite)."""
+    rows = memory_log(limit=200)
+    toks = {w for w in topic.lower().split() if len(w) > 3}
+    scored: list[tuple[int, str]] = []
+    for r in rows:
+        rt = str(r.get("topic", "")).lower()
+        overlap = len(toks & {w for w in rt.split() if len(w) > 3})
+        if overlap:
+            scored.append((overlap, str(r.get("reflection", ""))))
+    scored.sort(key=lambda x: -x[0])
+    return [r for _, r in scored[:k] if r]
+
+
+async def _verify(goal: str, results: list[dict]) -> dict:
+    """Critic/Evaluator (Arjun=QA persona, MAR separation) → score 0-1 + weaknesses + fixes."""
+    sys = (
+        "Tum Arjun ho — QA Engineer (critic). Team ke kaam ko goal ke against kathorta se grade karo. "
+        'SIRF JSON lautao: {"score":0.0-1.0,"weak":["..."],"fixes":["..."]}. '
+        "score=kitna goal poora hua. weak=kya missing/kamzor. fixes=kya improve karna. Aur kuch nahi."
+    )
+    raw, _ = await _llm(
+        sys,
+        f"Goal: {goal}\nTeam results: {json.dumps(results, ensure_ascii=False)[:2000]}",
+        max_tokens=240,
+        temperature=0.2,
+    )
+    t = (raw or "").strip()
+    i, j = t.find("{"), t.rfind("}")
+    if i != -1 and j != -1 and j > i:
+        t = t[i : j + 1]
+    try:
+        d = json.loads(t)
+        score = float(d.get("score", 0.6))
+        weak = d.get("weak") if isinstance(d.get("weak"), list) else []
+        fixes = d.get("fixes") if isinstance(d.get("fixes"), list) else []
+        return {"score": max(0.0, min(1.0, score)), "weak": weak[:5], "fixes": fixes[:5]}
+    except Exception:
+        # Neutral fallback — loop ko stuck/infinite hone se bachao.
+        return {"score": 0.6, "weak": [], "fixes": []}
+
+
+async def _reflect(goal: str, results: list[dict], critique: dict) -> str:
+    """Self-Reflection module — verbal feedback: kya galat tha + agli baar kaise behtar."""
+    out, _ = await _llm(
+        "Tum reflective strategist ho. Critique dekh ke 2-3 line Hinglish reflection do: kya kamzor tha aur "
+        "agli iteration me kaise improve karein. Sirf reflection text.",
+        f"Goal: {goal}\nCritique: {json.dumps(critique, ensure_ascii=False)[:800]}",
+        max_tokens=160,
+        temperature=0.5,
+    )
+    return out
+
+
+async def coordinate_advanced(
+    goal: str,
+    max_iterations: int = 2,
+    quality_bar: float = 0.7,
+    execute: bool = False,
+    max_steps: int = 4,
+) -> dict:
+    """Reflexion orchestration: recall memory → plan → execute (handoff) → VERIFY (critic) →
+    score<bar & iterations left ho to REFLECT + retry → aggregate.
+
+    Guardrails: `max_iterations` (cap 3) + `quality_bar` (early-stop on convergence).
+    Episodic memory persist (reflections). SAFE default (execute=False=drafts). Never raises.
+    """
+    goal = (goal or "").strip()
+    if len(goal) < 3:
+        return {"ok": False, "error": "goal bahut chhota hai"}
+    run_id = uuid.uuid4().hex[:12]
+    recalled = _recall(goal)
+    hint = " | ".join(recalled)
+    _log("manager", "advanced_start", f"{goal} (mem:{len(recalled)})")
+    iterations: list[dict] = []
+    results: list[dict] = []
+    critique = {"score": 0.0, "weak": [], "fixes": []}
+    reflection = ""
+    for it in range(max(1, min(3, max_iterations))):
+        steps = await plan(goal, max_steps=max_steps, hint=hint)
+        bb: dict[str, Any] = {"goal": goal, "results": [], "reflection": reflection}
+        for s in steps:
+            r = await _run_agent(s["agent"], s["task"], bb, execute)
+            bb["results"].append({"agent": s["agent"], "task": s["task"], **r})
+            _log(s["agent"], "adv_step", f"{s['task']} [it{it}]")
+        results = bb["results"]
+        critique = await _verify(goal, results)
+        iterations.append(
+            {"iteration": it, "score": critique["score"], "weak": critique["weak"], "steps": len(steps)}
+        )
+        if critique["score"] >= quality_bar:
+            break
+        reflection = await _reflect(goal, results, critique)
+        _remember(goal, reflection, critique["score"])
+        hint = (hint + " | " + reflection)[:800]
+    summary, _ = await _llm(
+        "Tum Manager ho. Final team output + critique ko 3-4 line Hinglish summary + clear next-action me sameto. Sirf text.",
+        f"Goal: {goal}\nResults: {json.dumps(results, ensure_ascii=False)[:1600]}\nCritique: {json.dumps(critique, ensure_ascii=False)[:600]}",
+        max_tokens=220,
+        temperature=0.4,
+    )
+    _log("manager", "advanced_done", f"score={critique['score']} iters={len(iterations)}")
+    out = {
+        "ok": True,
+        "run_id": run_id,
+        "goal": goal,
+        "pattern": "reflexion",
+        "iterations": iterations,
+        "final_score": critique["score"],
+        "critique": critique,
+        "results": results,
+        "summary": summary or "(summary abhi nahi bana)",
+        "memory_used": len(recalled),
+        "at": _now(),
+    }
+    _persist(out)
+    return out
+
+
+async def debate(question: str, rounds: int = 1) -> dict:
+    """Consensus pattern — Rohan (pro) vs Kavya (con) argue, Boss judge decides. Never raises."""
+    question = (question or "").strip()
+    if len(question) < 3:
+        return {"ok": False, "error": "question bahut chhota hai"}
+    transcript: list[dict] = []
+    pro = con = ""
+    for rd in range(max(1, min(2, rounds))):
+        pro, _ = await _llm(
+            "Tum Rohan ho. Is proposal ke PRO me 2-3 line strong argument do (Hinglish).",
+            f"Proposal: {question}\nOpponent abhi tak: {con}",
+            max_tokens=160,
+            temperature=0.6,
+        )
+        con, _ = await _llm(
+            "Tum Kavya ho. Is proposal ke AGAINST/risks 2-3 line me do (Hinglish).",
+            f"Proposal: {question}\nProponent: {pro}",
+            max_tokens=160,
+            temperature=0.6,
+        )
+        transcript.append({"round": rd, "pro": pro, "con": con})
+    verdict, _ = await _llm(
+        "Tum Manager (Boss) ho. Dono side dekh ke ek CLEAR decision + reason do (3-4 line Hinglish).",
+        f"Proposal: {question}\nDebate: {json.dumps(transcript, ensure_ascii=False)[:1600]}",
+        max_tokens=200,
+        temperature=0.3,
+    )
+    out = {"ok": True, "question": question, "rounds": transcript, "verdict": verdict or "(verdict nahi bana)", "at": _now()}
+    _persist(out)
+    return out
+
+
+__all__ = [
+    "roster",
+    "plan",
+    "coordinate",
+    "coordinate_advanced",
+    "fan_out",
+    "debate",
+    "recent_runs",
+    "memory_log",
+]

@@ -103,3 +103,51 @@ async def coordinate_agents(
 async def fanout_agents(req: FanOutRequest, user: User = Depends(require_admin)) -> dict[str, Any]:
     """Parallel coordination — multiple agents work the same goal at once, then aggregate."""
     return await coordinator.fan_out(req.goal, agents=req.agents)
+
+
+# ============================================================================
+# ADVANCED orchestration (2026 SOTA): Reflexion loop (plan→execute→verify→reflect→retry)
+# + episodic memory + critic, and debate/consensus. Free-stack, admin + rate-limited.
+# ============================================================================
+class AdvancedRequest(BaseModel):
+    """Goal for the Reflexion-style self-correcting agent team."""
+
+    goal: str = Field(..., min_length=3, max_length=2000)
+    max_iterations: int = Field(2, ge=1, le=3, description="Reflexion retries (critic<quality_bar pe)")
+    quality_bar: float = Field(0.7, ge=0.0, le=1.0, description="Early-stop score threshold")
+    execute: bool = Field(False, description="True = agents ki SAFE capabilities bhi chalao")
+    max_steps: int = Field(4, ge=1, le=8)
+
+
+class DebateRequest(BaseModel):
+    """A proposal/decision for pro-vs-con debate + Boss verdict."""
+
+    question: str = Field(..., min_length=3, max_length=2000)
+    rounds: int = Field(1, ge=1, le=2)
+
+
+@router.post("/coordinate-advanced", dependencies=[Depends(rate_limit("agents", 10, 60))])
+async def coordinate_advanced_agents(
+    req: AdvancedRequest, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """Reflexion orchestration: plan → execute (handoff) → critic verify → reflect + retry → aggregate.
+    Episodic memory recall/persist + guardrails (max_iterations, quality_bar)."""
+    return await coordinator.coordinate_advanced(
+        req.goal,
+        max_iterations=req.max_iterations,
+        quality_bar=req.quality_bar,
+        execute=req.execute,
+        max_steps=req.max_steps,
+    )
+
+
+@router.post("/debate", dependencies=[Depends(rate_limit("agents", 10, 60))])
+async def debate_agents(req: DebateRequest, user: User = Depends(require_admin)) -> dict[str, Any]:
+    """Consensus pattern — pro vs con agents argue, Boss judges with a clear verdict."""
+    return await coordinator.debate(req.question, rounds=req.rounds)
+
+
+@router.get("/memory")
+async def agents_memory(limit: int = 30, user: User = Depends(require_admin)) -> dict[str, Any]:
+    """Recent episodic agent memory (Reflexion reflections + scores)."""
+    return {"memory": coordinator.memory_log(limit=limit)}

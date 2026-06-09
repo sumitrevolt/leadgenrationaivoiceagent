@@ -419,3 +419,34 @@ def test_agent_coordinator(tmp_path, monkeypatch):
     # parallel fan-out
     fo = asyncio.run(coordinator.fan_out("brand awareness", agents=["dev", "isha"]))
     assert fo["ok"] and fo["mode"] == "parallel" and len(fo["results"]) == 2
+
+
+def test_agent_coordinator_advanced(tmp_path, monkeypatch):
+    """Reflexion loop (plan→execute→verify→reflect→retry) + episodic memory + debate."""
+    from app.agents import coordinator
+    from app.voice_agent import free_ai
+
+    async def _fake(system, messages, **kw):
+        return "ok", "none"  # non-JSON -> critic fallback 0.6, reflections non-empty
+
+    monkeypatch.setattr(free_ai, "chat", _fake)
+    monkeypatch.setattr(coordinator, "_RUNS", str(tmp_path / "r.jsonl"))
+    monkeypatch.setattr(coordinator, "_MEMORY", str(tmp_path / "m.jsonl"))
+
+    # early-stop: critic 0.6 >= quality_bar 0.5 -> exactly 1 iteration (convergence guardrail)
+    res = asyncio.run(
+        coordinator.coordinate_advanced("Pune solar leads", max_iterations=2, quality_bar=0.5, max_steps=3)
+    )
+    assert res["ok"] and res["pattern"] == "reflexion" and len(res["iterations"]) == 1
+    assert isinstance(res["final_score"], float) and res["results"] and "critique" in res
+
+    # high bar -> runs full max_iterations (2) + persists episodic reflections
+    res2 = asyncio.run(
+        coordinator.coordinate_advanced("Mumbai gym leads", max_iterations=2, quality_bar=0.95, max_steps=2)
+    )
+    assert len(res2["iterations"]) == 2
+    assert len(coordinator.memory_log()) >= 1  # reflection remembered
+
+    # debate / consensus
+    d = asyncio.run(coordinator.debate("Cold calling abhi shuru karein?", rounds=1))
+    assert d["ok"] and d["verdict"] and len(d["rounds"]) == 1
