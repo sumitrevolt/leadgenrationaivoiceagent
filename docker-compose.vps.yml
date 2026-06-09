@@ -50,7 +50,9 @@ services:
       # Container ALWAYS uses in-stack internal DNS (db/redis), NOT the host's
       # 127.0.0.1 DATABASE_URL in .env (that's for the systemd-host app + migration).
       # `environment:` overrides env_file, so .env's host URLs are ignored here.
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@db:5432/${POSTGRES_DB:-leadgen}
+      # DB ab PgBouncer (session mode) ke through — connection pooling. Direct DB
+      # chahiye to host wapas `@db:5432` karo (revert).
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
     ports:
       - "127.0.0.1:8000:8080"   # host Caddy proxies leadsgenai.in -> here
@@ -59,6 +61,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      pgbouncer:
+        condition: service_started
     volumes:
       - ./data:/app/data        # persisted app data (brains, jsonl stores, logos)
       - ./logs:/app/logs
