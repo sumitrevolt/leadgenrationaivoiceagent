@@ -198,6 +198,12 @@ def _create_inquiry(rec: dict[str, Any]) -> str | None:
             )
         except Exception:
             pass
+        try:
+            from app.platform.lead_alerts import notify_new_lead_bg
+
+            notify_new_lead_bg(rec)  # instant Telegram/email alert (fire-and-forget, gated)
+        except Exception:
+            pass
         return lead_id or rec.get("id")
     except Exception as e:
         logger.warning(f"[conversion] inquiry create failed: {e}")

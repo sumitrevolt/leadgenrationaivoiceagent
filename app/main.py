@@ -338,6 +338,20 @@ try:
     app.include_router(seoops_router, prefix="/api")  # /api/seoops/* (rank tracker, conversations, dialer)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"SeoOps router not mounted: {_e}")
+try:
+    from app.api.engage import redirect_router as _redirect_router
+    from app.api.engage import router as engage_router
+
+    app.include_router(engage_router, prefix="/api")  # /api/engage/* (upi-qr, short-links, reviews-widget, alerts)
+    app.include_router(_redirect_router)  # /r/{code} short-link redirect (NO prefix)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Engage router not mounted: {_e}")
+try:
+    from app.api.privacy_ops import router as privacy_ops_router
+
+    app.include_router(privacy_ops_router, prefix="/api")  # /api/privacy/* (DPDP export/erasure)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Privacy-ops router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])

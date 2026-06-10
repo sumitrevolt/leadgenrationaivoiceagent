@@ -421,6 +421,12 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     if not stored_file and not lead_id:
         # Dono fail — even then log line to bachao (last resort).
         logger.error(f"[public] INQUIRY STORE FAILED — raw: {json.dumps(rec, ensure_ascii=False)}")
+    try:
+        from app.platform.lead_alerts import notify_new_lead_bg
+
+        notify_new_lead_bg(rec)  # instant Telegram/email alert (fire-and-forget, gated)
+    except Exception:
+        pass
 
     # 5) Team activity (Rohan — Leads Manager) — kabhi raise nahi karta.
     #    Mini-site se aayi ho to dedicated "mini_site_inquiry" event log hota.

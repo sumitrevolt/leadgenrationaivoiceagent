@@ -67,10 +67,9 @@ class AIResponse(BaseModel):
 # ============================================================================
 
 
-async def call_vertex_ai(prompt: str, system_instruction: str = "") -> str:
-    """
-    Call Vertex AI/Gemini - API key is ONLY on server side
-    """
+def _call_vertex_ai_sync(prompt: str, system_instruction: str = "") -> str:
+    """SYNC Gemini/Vertex call — SIRF thread me chalao (sync SDK event loop
+    block karta hai — widget-chat prod-down lesson)."""
     try:
         # Try Vertex AI first (GCP)
         if settings.google_cloud_project_id:
@@ -117,6 +116,20 @@ async def call_vertex_ai(prompt: str, system_instruction: str = "") -> str:
         raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
 
 
+async def call_vertex_ai(prompt: str, system_instruction: str = "") -> str:
+    """Async wrapper — sync SDK ko thread me + 45s hard timeout (loop-safe)."""
+    import asyncio
+
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(_call_vertex_ai_sync, prompt, system_instruction), timeout=45.0
+        )
+    except HTTPException:
+        raise
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="AI generation timed out — dobara try karo.")
+
+
 # ============================================================================
 # Endpoints
 # ============================================================================
@@ -125,7 +138,7 @@ async def call_vertex_ai(prompt: str, system_instruction: str = "") -> str:
 @router.post("/generate-script", response_model=AIResponse)
 async def generate_sales_script(
     request: GenerateScriptRequest,
-    current_user: User | None = Depends(get_current_user_optional),
+    current_user: User = Depends(require_admin),
 ):
     """
     Generate a B2B sales script
@@ -155,7 +168,7 @@ Generate the sales script now.
 @router.post("/generate-transcript", response_model=AIResponse)
 async def generate_call_transcript(
     request: GenerateTranscriptRequest,
-    current_user: User | None = Depends(get_current_user_optional),
+    current_user: User = Depends(require_admin),
 ):
     """
     Generate a realistic call transcript
@@ -182,7 +195,7 @@ Rules:
 @router.post("/strategy-suggestion", response_model=AIResponse)
 async def get_strategy_suggestion(
     request: StrategySuggestionRequest,
-    current_user: User | None = Depends(get_current_user_optional),
+    current_user: User = Depends(require_admin),
 ):
     """
     Get AI-powered strategy suggestions
@@ -205,7 +218,7 @@ Provide strategic suggestions for improvement.
 
 @router.post("/ab-test-variant", response_model=AIResponse)
 async def generate_ab_test_variant(
-    request: ABTestVariantRequest, current_user: User | None = Depends(get_current_user_optional)
+    request: ABTestVariantRequest, current_user: User = Depends(require_admin)
 ):
     """
     Generate A/B test script variant

@@ -102,3 +102,87 @@ def generate_upi_poster(
         "payment_url": link,
         "poster_svg": poster,
     }
+
+
+# =========================================================================== #
+# Engage-batch additions (additive) — client-record-driven payment QR pack.
+# upi_kit.payment_kit REUSE hota hai (slip/WA msg duplicate nahi banate).
+# =========================================================================== #
+def build_upi_uri(
+    vpa: str, name: str, amount: Any | None = None, note: str | None = None
+) -> str:
+    """NPCI-spec `upi://pay` deep link — URL-encoded, VPA validated (x@y).
+
+    Invalid VPA = "" (caller error dikhaye). Kabhi raise nahi.
+    """
+    try:
+        from app.marketing import upi_kit
+
+        vpa_clean = (vpa or "").strip().replace(" ", "")[:100]
+        if not upi_kit._VPA_RE.match(vpa_clean):
+            return ""
+        amount_str = upi_kit._fmt_amount(amount)
+        return upi_kit._build_upi_link(
+            vpa_clean, (name or "").strip()[:120] or "Business", amount_str, (note or "").strip()[:100]
+        )
+    except Exception as e:  # pragma: no cover - sab deterministic
+        logger.warning(f"build_upi_uri failed: {e}")
+        return ""
+
+
+def qr_image_url(data: str, size: int = 400) -> str:
+    """Free no-key QR image URL (api.qrserver.com — docs/Free_APIs_Curated.md).
+
+    PNG chahiye (WhatsApp share/print) to yeh; SVG embed ke liye review_kit.qr_svg.
+    """
+    try:
+        size = max(100, min(int(size or 400), 1000))
+    except Exception:
+        size = 400
+    return (
+        f"https://api.qrserver.com/v1/create-qr-code/?size={size}x{size}"
+        f"&data={quote((data or '').strip(), safe='')}"
+    )
+
+
+def payment_qr_pack(
+    client_id: str, amount: Any | None = None, note: str | None = None
+) -> dict[str, Any]:
+    """Client record se UPI payment QR pack — uri + QR-image URL + branded slip
+    poster (upi_kit reuse) + WhatsApp share text. Never raises, error dicts.
+
+    Client field `upi_vpa` chahiye (clients_store.update_client se set hota).
+    """
+    try:
+        from app.marketing import clients_store, upi_kit
+
+        cid = (client_id or "").strip()
+        client = clients_store.get_client(cid) or clients_store.get_by_slug(cid) or {}
+        if not client:
+            return {"ok": False, "error": "client nahi mila — /app/clients me pehle add karo."}
+        vpa = str(client.get("upi_vpa") or "").strip()
+        if not vpa:
+            return {
+                "ok": False,
+                "error": "client ka upi_vpa set nahi hai — client update me UPI ID (naam@bank) daalo.",
+            }
+        name = str(client.get("business_name") or "Business").strip()
+        kit = upi_kit.payment_kit(name, vpa, amount=amount, note=note or "")
+        uri = kit.get("upi_link") or build_upi_uri(vpa, name, amount, note)
+        share_text = kit.get("wa_payment_msg") or f"{name} ko UPI se pay karein: {uri}"
+        return {
+            "ok": True,
+            "client_id": str(client.get("id") or cid),
+            "business_name": name,
+            "vpa": vpa,
+            "vpa_valid": bool(kit.get("vpa_valid")),
+            "upi_uri": uri,
+            "qr_url": qr_image_url(uri),
+            "poster_svg": kit.get("slip_svg") or "",
+            "share_text": share_text,
+            "wa_share_url": "https://wa.me/?text=" + quote(share_text, safe=""),
+            "instructions": kit.get("instructions") or [],
+        }
+    except Exception as e:
+        logger.warning(f"payment_qr_pack failed: {e}")
+        return {"ok": False, "error": str(e)[:160]}

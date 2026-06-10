@@ -28,23 +28,46 @@ logger = setup_logger(__name__)
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Add security headers to all responses"""
 
+    # Paths jo CLIENT websites pe iframe hote hain — in pe X-Frame-Options DENY
+    # nahi lagana (warna browser embed block kar deta — lead widget + reviews
+    # widget client sites pe kabhi render hi nahi hote).
+    _EMBEDDABLE_PREFIXES = ("/api/engage/reviews-widget",)
+
+    @staticmethod
+    def _is_embeddable(path: str) -> bool:
+        if path.startswith(SecurityHeadersMiddleware._EMBEDDABLE_PREFIXES):
+            return True
+        # /b/{slug}/embed (lead-capture iframe)
+        return path.startswith("/b/") and path.endswith("/embed")
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         response = await call_next(request)
 
+        embeddable = False
+        try:
+            embeddable = self._is_embeddable(request.url.path)
+        except Exception:
+            pass
+
         # Security headers
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
+        if not embeddable:
+            response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        # CSP: dashboards/web-call pages load Chart.js etc. from jsDelivr and
+        # CSP: dashboards/web-call pages load Chart.js etc. from jsDelivr/cdnjs and
         # Google Fonts, use inline <script>/<style>, talk to the API over
         # fetch/WebSocket, and play mic-recorded audio from blobs.
+        # img-src: QR (api.qrserver.com) + AI images (pollinations) admin pages me
+        # direct render hote hain.
+        _frame = "frame-ancestors *; " if embeddable else ""
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+            "default-src 'self'; " + _frame +
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com; "
-            "img-src 'self' data: blob:; "
+            "img-src 'self' data: blob: https://api.qrserver.com https://gen.pollinations.ai "
+            "https://image.pollinations.ai https://media.pollinations.ai; "
             "connect-src 'self' ws: wss:; "
             "media-src 'self' blob: data:"
         )
