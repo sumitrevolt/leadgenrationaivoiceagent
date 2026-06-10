@@ -769,3 +769,124 @@ async def website_audit_public(body: SiteAuditIn):
     from app.marketing import website_auditor
 
     return await website_auditor.audit_url(body.url)
+
+
+# ---------------- AI-automation infra (observability/health/DLQ/flags) ---------------- #
+@router.get("/infra/llm")
+async def infra_llm_metrics(window: int = 2000, _user=Depends(require_admin)):
+    """LLM observability: per-provider calls/ok-rate/latency/fallback-rate."""
+    from app.platform import llm_metrics
+
+    return llm_metrics.stats(max(100, min(window, 10000)))
+
+
+@router.get("/infra/automation-health")
+async def infra_automation_health(_user=Depends(require_admin)):
+    """Dead-man switch: har scheduled job ka last-run + overdue status."""
+    from app.platform import automation_health
+
+    return automation_health.health()
+
+
+@router.get("/infra/dlq")
+async def infra_dlq(limit: int = 50, _user=Depends(require_admin)):
+    """Failed Celery tasks (Redis dlq:failed_tasks) inspect karo."""
+    out: dict = {"count": 0, "items": []}
+    try:
+        import json as _json
+
+        import redis as _redis
+
+        from app.config import settings
+
+        r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
+        out["count"] = int(r.llen("dlq:failed_tasks") or 0)
+        for raw in r.lrange("dlq:failed_tasks", 0, max(0, min(limit, 200)) - 1) or []:
+            try:
+                out["items"].append(_json.loads(raw))
+            except Exception:
+                pass
+    except Exception as e:
+        out["error"] = str(e)[:120]
+    return out
+
+
+@router.post("/infra/dlq/retry")
+async def infra_dlq_retry(limit: int = 10, _user=Depends(require_admin)):
+    """DLQ se staff-jobs dobara dispatch karo (jo parse ho sakein); baaki skip."""
+    retried, skipped = [], 0
+    try:
+        import json as _json
+
+        import redis as _redis
+
+        from app.config import settings
+        from app.tasks.staff_jobs import STAFF_JOBS
+
+        r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
+        for _ in range(max(1, min(limit, 50))):
+            raw = r.rpop("dlq:failed_tasks")
+            if not raw:
+                break
+            job = None
+            try:
+                rec = _json.loads(raw)
+                args_s = str(rec.get("args") or "")
+                job = next((j for j in STAFF_JOBS if f"'{j}'" in args_s or f'"{j}"' in args_s), None)
+            except Exception:
+                pass
+            if job:
+                try:
+                    from app.worker import celery_app
+
+                    celery_app.send_task("app.tasks.staff_jobs.run_staff_job", args=[job])
+                    retried.append(job)
+                    continue
+                except Exception:
+                    pass
+            skipped += 1
+    except Exception as e:
+        return {"error": str(e)[:120], "retried": retried, "skipped": skipped}
+    return {"retried": retried, "skipped": skipped}
+
+
+@router.delete("/infra/dlq")
+async def infra_dlq_purge(_user=Depends(require_admin)):
+    """DLQ poora khali karo."""
+    try:
+        import redis as _redis
+
+        from app.config import settings
+
+        r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
+        n = int(r.llen("dlq:failed_tasks") or 0)
+        r.delete("dlq:failed_tasks")
+        return {"purged": n}
+    except Exception as e:
+        return {"error": str(e)[:120]}
+
+
+# Saare gated automation flags ka registry — live env status ek jagah.
+AUTOMATION_FLAGS = [
+    "TEAM_AUTOMATION", "RUN_IN_PROCESS_SCHEDULER", "NICHE_ROTATION", "AUTO_EMAIL_OUTREACH",
+    "JOURNEY_ENGINE", "AUTO_QUALIFY_CALLS", "REPLY_AGENT", "OPS_WATCHDOG", "AUTO_ONBOARD",
+    "USE_STRUCTURED_CONTENT", "USE_AGENTIC_RAG", "USE_LANGGRAPH_SUPERVISOR", "AGENT_STANDUP",
+    "SALES_ENGINE", "CADENCE_ENGINE", "DUNNING_ENGINE", "LIFECYCLE_NURTURE",
+    "CLIENT_HEALTH_ALERTS", "REVENUE_DIGEST", "GROWTH_OPTIMIZER", "CHANNEL_EXPERIMENTS",
+    "REVIEW_MONITOR", "BOOKING_REMINDERS", "DELIVERABILITY_MONITOR", "AUTOMATION_HEALTH_ALERTS",
+    "WHATSAPP_AUTO_SEND", "MISSED_CALL_CALLBACK", "SMS_DLT_ENABLED", "USE_SILERO_VAD",
+    "USE_SMART_TURN", "USE_LIGHTRAG", "ENABLE_OTEL", "ENABLE_LEGACY_BEAT", "FESTIVALS_LIVE_HOLIDAYS",
+]
+
+
+@router.get("/infra/flags")
+async def infra_flags(_user=Depends(require_admin)):
+    """Saare automation flags ka live status (on/off/unset) ek nazar me."""
+    import os as _os
+
+    out = {}
+    for f in AUTOMATION_FLAGS:
+        v = _os.environ.get(f)
+        out[f] = {"set": v is not None, "on": (v or "").strip().lower() in ("1", "true", "yes"), "value": v}
+    on = [k for k, d in out.items() if d["on"]]
+    return {"on_count": len(on), "on": on, "flags": out}

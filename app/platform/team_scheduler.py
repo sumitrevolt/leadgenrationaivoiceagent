@@ -93,6 +93,28 @@ _last_ran: dict[str, str | None] = {
 
 
 async def _run_job(job: str) -> None:
+    """Heartbeat wrapper — har run automation_health me record hota (dead-man
+    switch: job chupchaap band ho jaye to overdue-alert). In-process + Celery
+    dono path isi se guzarte. Wrapper KABHI behaviour change nahi karta."""
+    import time as _time
+
+    _t0 = _time.monotonic()
+    _ok = True
+    try:
+        await _run_job_inner(job)
+    except Exception:
+        _ok = False
+        raise
+    finally:
+        try:
+            from app.platform import automation_health
+
+            automation_health.record_run(job, _ok, _time.monotonic() - _t0)
+        except Exception:
+            pass
+
+
+async def _run_job_inner(job: str) -> None:
     try:
         from app.agents import staff
 
@@ -185,6 +207,9 @@ async def _run_job(job: str) -> None:
             from app.platform import deliverability_monitor
 
             await deliverability_monitor.run_check()  # SPF/DMARC + blacklist (alert gated DELIVERABILITY_MONITOR)
+            from app.platform import automation_health
+
+            await automation_health.run_watch()  # dead-man switch: overdue jobs alert (gated AUTOMATION_HEALTH_ALERTS)
         elif job == "onboard":
             from app.marketing import onboarding
 

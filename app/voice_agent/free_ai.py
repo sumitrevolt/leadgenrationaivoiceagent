@@ -209,6 +209,7 @@ async def chat(
         client = _client(provider)
         if client is None:
             continue
+        _t0 = time.monotonic()
         try:
             resp = await asyncio.wait_for(
                 client.chat.completions.create(
@@ -225,9 +226,22 @@ async def chat(
             except Exception:
                 text = ""
             if text:
+                # LLM observability hook (ultra-light, never-raise)
+                try:
+                    from app.platform import llm_metrics
+
+                    llm_metrics.record(provider, True, (time.monotonic() - _t0) * 1000)
+                except Exception:
+                    pass
                 return text, provider
         except Exception as e:
             _trip_cooldown(provider, str(e))
+            try:
+                from app.platform import llm_metrics
+
+                llm_metrics.record(provider, False, (time.monotonic() - _t0) * 1000, str(e))
+            except Exception:
+                pass
             logger.warning(f"[free_ai] {provider} chat failed: {e}")
             continue
     return "", ""
