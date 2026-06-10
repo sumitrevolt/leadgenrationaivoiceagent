@@ -369,3 +369,12 @@
 - **Annual pricing** — packages.py additive `price_inr_year` (2 mahine free: 9990/24990/59990) + `annual_note` (get_packages shape unchanged).
 - **Gatus synthetic monitoring** — `monitoring/gatus.yaml` + obs-compose `leadgen_gatus` (:8082) — `/health/ready` BODY assert + TLS expiry (Kuma ping-only gap close). Opt-in compose.
 - **Flags (default OFF, registry me added)**: `AUTO_INVOICE` · `EMAIL_WARMUP` · `USAGE_ALERTS`. **Deferred (doc me ADR + adoption path)**: Alembic stamp-head, docker-rollout blue-green, SOPS+age, secondary cold-email domain.
+
+
+## BILLING-TRUTH BATCH-2 ✅ DEPLOYED LIVE (2026-06-10 PM, commit 3dfb98d) — 473 routes, detail: SESSION_LOG
+> **Rebuild MAT karo.** 🚨 **CRITICAL BUG FIX**: /pricing page + checkout `billing_manager` ke LEGACY Cloud-Run plans use karte the — page ₹15k/25k/50k+internal plans dikhata, checkout ₹15,000+hardcoded 18% GST charge karta (vs advertised ₹999), **"advanced" checkout 404**, unregistered GST collection illegal. FIX: `subscription.py _sync_plans_from_packages()` (packages.py = single truth), `calculate_price` GST sirf `GST_GSTIN` set pe, `/billing/plans` sirf public 3, yearly_discount=1/6 = price_inr_year exact. Tests `test_billing_truth_2026.py` 8/8 lock karte hain.
+- **Top-up packs**: `packages.TOPUP_PACKS` (100/250/500 min — ₹1499/3499/5999) · `usage.add_topup_minutes`/`topup_minutes` (extra_data counter, `reset_usage_period` pe EXPIRE) · `has_minutes`/`minutes_remaining` = cap+topup · webhook `payment.captured` topup-branch (plan activate NAHI, credit+invoice) · API `/api/growth/revenue/topup-link`·`/topup-packs`.
+- **1-tap recovery links**: `payment_links.create_payment_link` ab `extra_notes` (plan_id→webhook auto provision+invoice+mark_recovered) · dunning saare touches + usage-alert 100% emails me Razorpay link (creds unset = graceful skip).
+- **Portal invoices**: customer `/api/customer/auth/portal/invoices`+`/portal/invoice-html` (ownership-checked) · admin GSTR CSV `/api/growth/revenue/invoices.csv?fy=`.
+- **Annual research**: one-time order > yearly e-mandate (RBI ₹15k AFA cap); advance receipt = time of supply, same-day invoice compliant. pricing.html "2 mahine FREE" toggle.
+- **USER-ACTION (repeat, ab aur important)**: Razorpay dashboard webhook register + `RAZORPAY_WEBHOOK_SECRET` — topup credit/dunning recovery/auto-invoice sab events pe depend.
