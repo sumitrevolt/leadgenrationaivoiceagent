@@ -48,13 +48,20 @@ fi
 
 echo "[$(date -Is)] --apply: archive dir + ALTER SYSTEM…"
 docker exec "${DB_CONTAINER}" mkdir -p "${WAL_ARCHIVE_DIR}" || true
-docker exec "${DB_CONTAINER}" psql -U "${PG_USER}" -v ON_ERROR_STOP=1 <<SQL
+docker exec "${DB_CONTAINER}" chown postgres:postgres "${WAL_ARCHIVE_DIR}" || true
+# BUGFIX (2026-06-10): heredoc ke liye `docker exec -i` ZAROORI hai (warna stdin
+# pass nahi hota — psql kuch run hi nahi karta, "staged" jhooth bolta tha).
+# ALTER SYSTEM ko -c multi-statement me bhi mat dalna (transaction-block error).
+docker exec -i "${DB_CONTAINER}" psql -U "${PG_USER}" -v ON_ERROR_STOP=1 <<SQL
 ALTER SYSTEM SET wal_level = 'replica';
 ALTER SYSTEM SET archive_mode = 'on';
 ALTER SYSTEM SET archive_command = 'test ! -f ${WAL_ARCHIVE_DIR}/%f && cp %p ${WAL_ARCHIVE_DIR}/%f';
 ALTER SYSTEM SET archive_timeout = '300';
 SELECT pg_reload_conf();
 SQL
+# verify staged (auto.conf me dikhna chahiye)
+docker exec "${DB_CONTAINER}" grep -E 'archive_mode|wal_level' /var/lib/postgresql/data/postgresql.auto.conf || {
+  echo "[$(date -Is)] ❌ ALTER SYSTEM stage nahi hua — abort"; exit 1; }
 
 echo "[$(date -Is)] settings staged. ⚠️ ab 'docker restart ${DB_CONTAINER}' karo (archive_mode restart-only)."
 echo "[$(date -Is)] restart ke baad verify: docker exec ${DB_CONTAINER} psql -U ${PG_USER} -c 'show archive_mode;'"
