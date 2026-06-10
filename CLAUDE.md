@@ -248,6 +248,14 @@
 - **Revenue digest** (`app/platform/revenue_digest.py`) — Monday weekly email: MRR estimate, subs counts, dunning, nurture funnel, hot leads, deals, health. **GATED `REVENUE_DIGEST=1`** + NOTIFY_EMAIL. digest job me wired.
 - **API** (growth.py, admin): `POST /api/growth/revenue/dunning/{case,run}` `GET /revenue/dunning` · `GET /revenue/health/clients` `POST /revenue/health/run` · `POST /revenue/lifecycle/{enroll,run}` `GET /revenue/lifecycle` · `POST /revenue/digest/run`. Scheduler: content job → dunning+lifecycle run_due; digest job → revenue_digest+client_health.
 
+## INFRA BATCH-2 + TEAM 10 AGENTS ✅ LIVE (2026-06-10, commit 23afff5)
+> prod_check **374 routes**, tests `test_infra_batch2.py` 5/5. LIVE: **telephony readiness 100/100** (missing[] — "KYC/DLT milte hi calling ready"), /app/ops 200, staff 10, self-heal cron */10 installed.
+- **Telephony readiness monitor** (`telephony/telephony_readiness.py`, **Tara** agent) — hourly (watchdog wired): Exotel creds/caller-ID/app-ID, webhook secrets, edge-tts, GROQ STT, LLM chain+ok-rate, compliance posture → score+actions. Score-drop alert gated `TELEPHONY_READY_ALERTS=1`. `GET /api/growth/infra/telephony-readiness`.
+- **2 naye AI staff (total 10)**: **Tara** 🎙️ Voice Infra Ops · **Nikhil** 💰 Revenue Ops (dunning_sweep events). team.py STAFF.
+- **Queue-depth guard** — `automation_health.queue_depth()` (celery+dlq llen), backlog>50 → degraded + gated alert. health() me `queue` field.
+- **Host self-heal cron** (`scripts/vps_selfheal.sh`, */10 cron LIVE) — unhealthy/exited leadgen containers auto-restart + app-health 200 double-check + nightly 03:30 data/ tarball (7d rotate, /opt/leadgen/backups/data). Log /var/log/leadgen_selfheal.log. (CRLF strip karke install hota hai.)
+- **`/app/ops` Mission Control** (`frontend/ops.html`) — system health, dead-man jobs table, LLM providers, telephony readiness, flags-ON pills, DLQ, weakest-funnel — ek page, 60s auto-refresh, admin accessToken.
+
 ## AI-AUTOMATION INFRA OBSERVABILITY ✅ LIVE (2026-06-10, commit 4fcb5ce)
 > prod_check **372 routes**, tests `test_infra_observability.py` 5/5. LIVE: free_ai call→groq 322.8ms recorded, auto-health 12 jobs tracked. Flag ON: `AUTOMATION_HEALTH_ALERTS`.
 - **LLM observability** (`platform/llm_metrics.py`, Langfuse-pattern) — free_ai.chat me ultra-light hook: per-provider calls/ok-rate/avg-ms/last-error/fallback-rate (`data/llm_calls.jsonl` auto-trim 10k). `GET /api/growth/infra/llm`.
