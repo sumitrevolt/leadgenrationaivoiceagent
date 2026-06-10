@@ -879,6 +879,82 @@ AUTOMATION_FLAGS = [
 ]
 
 
+# ------------- Apollo-inspired: prospect search/lists/import + email finder ------------- #
+@router.get("/prospects/search")
+async def prospects_search(
+    niche: str = "",
+    city: str = "",
+    status: str = "",
+    has_email: bool | None = None,
+    q: str = "",
+    min_score: int = 0,
+    limit: int = 100,
+    _user=Depends(require_admin),
+):
+    """Apollo-style filter search apne prospects pe (live score ke saath)."""
+    from app.platform import prospect_lists
+
+    return prospect_lists.search(niche, city, status, has_email, q, min_score, limit)
+
+
+class ListIn(BaseModel):
+    name: str
+    prospect_ids: list[str] | None = None
+    filters: dict | None = None
+
+
+@router.post("/prospects/lists")
+async def prospects_create_list(body: ListIn, _user=Depends(require_admin)):
+    """Saved list banao (explicit ids ya filters-snapshot)."""
+    from app.platform import prospect_lists
+
+    return prospect_lists.create_list(body.name, body.prospect_ids, body.filters)
+
+
+@router.get("/prospects/lists")
+async def prospects_lists(_user=Depends(require_admin)):
+    from app.platform import prospect_lists
+
+    return prospect_lists.get_lists()
+
+
+@router.post("/prospects/lists/{list_id}/enroll-cadence")
+async def prospects_list_enroll(list_id: str, _user=Depends(require_admin)):
+    """Poori list ko omnichannel cadence me daalo (ban-safe drafts)."""
+    from app.platform import prospect_lists
+
+    return prospect_lists.enroll_list_to_cadence(list_id)
+
+
+class ImportIn(BaseModel):
+    rows: list[dict] | None = None
+    csv_text: str | None = None
+    source: str | None = "apollo_import"
+
+
+@router.post("/prospects/import")
+async def prospects_import(body: ImportIn, _user=Depends(require_admin)):
+    """Apollo CSV/rows import → dedupe → prospector store + DB + scoring pipeline."""
+    from app.platform import prospect_lists
+
+    if body.csv_text:
+        return prospect_lists.import_csv_text(body.csv_text, body.source or "apollo_import")
+    return prospect_lists.import_rows(body.rows or [], body.source or "apollo_import")
+
+
+class EmailFindIn(BaseModel):
+    website: str
+    owner_name: str | None = ""
+
+
+@router.post("/prospects/find-email")
+async def prospects_find_email(body: EmailFindIn, _user=Depends(require_admin)):
+    """Email-finder waterfall: site-extract → pattern-guess → MX verify (Apollo-free)."""
+    from app.platform import email_finder
+
+    return await email_finder.find(body.website, body.owner_name or "")
+
+
 @router.get("/revenue/summary")
 async def revenue_summary(_user=Depends(require_admin)):
     """Ops-dashboard ke liye compact revenue snapshot (digest ka collect reuse)."""

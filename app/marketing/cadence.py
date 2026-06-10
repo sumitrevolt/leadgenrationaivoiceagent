@@ -194,12 +194,22 @@ def list_runs(limit: int = 50) -> list[dict[str, Any]]:
 
 def stats() -> dict[str, Any]:
     rows = _read(_LEADS)
+    # Apollo-style per-step analytics: har channel/action pe kitne touches gaye
+    # (sequence ka kaunsa step kitna chala — drop-off saaf dikhta).
+    step_counts: dict[str, int] = {}
+    try:
+        for r in _read(_RUNS):
+            key = f"{r.get('channel', '?')}:{r.get('action', '?')}"
+            step_counts[key] = step_counts.get(key, 0) + 1
+    except Exception:
+        pass
     return {
         "enrolled": len(rows),
         "active": sum(1 for r in rows if r.get("status") == "active"),
         "done": sum(1 for r in rows if r.get("status") == "done"),
         "cadence_steps": len(DEFAULT_CADENCE),
         "engine_on": _enabled(),
+        "step_touches": step_counts,
     }
 
 
