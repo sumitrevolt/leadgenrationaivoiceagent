@@ -1,0 +1,45 @@
+---
+name: tdd-contract-first
+description: Red-green-refactor + "contract tests PEHLE" discipline — naya feature/bugfix likhne se pehle failing test, aur business-critical numbers (price/plan/route/flag) ke contract asserts up-front. Use when user says "naya feature", "test likho", "TDD", "bugfix karo", ya jab billing/pricing/public API touch ho raha ho.
+---
+
+# TDD + Contract-First (test pehle, code baad me)
+
+**Iron rule: failing test dekhe bina production code nahi.** Test jo turant pass ho jaye = kuch prove nahi karta. Bug fix? Pehle repro-test jo FAIL kare, fir fix.
+
+## Red → Green → Refactor (project flow)
+
+1. **RED** — `tests/test_<feature>.py` me EK minimal test (ek behavior, clear naam, pure-python — no network/DB, parallel-batch rule). Chalao: `python -m pytest tests/test_x.py -x -q` → **fail hote dekho**, aur sahi reason se fail ho (feature missing, typo nahi).
+2. **GREEN** — minimal code jo pass kare. Over-engineering nahi (YAGNI) — options/knobs tab jodo jab test maange.
+3. **REFACTOR** — green rehte hue cleanup. Behavior add nahi.
+4. **Full gate** — `scripts\run_tests.bat` chalao, fir **pytest_run.log Read karo** (console truncate hota hai — log = truth). Fir `python scripts/prod_check.py`.
+
+## CONTRACT tests pehle (billing-truth lesson 🚨)
+/pricing page ₹15k dikhata tha jabki advertised ₹999 tha — legacy plans ne packages.py ko shadow kar diya, checkout 404 + illegal GST. `tests/test_billing_truth_2026.py` ab ye LOCK karta hai. **Naya feature jisme paisa/plan/public promise hai → pehla test = contract assert:**
+- Price/plan: `assert get_packages()[0]["price_inr"] == 999` style — SOURCE of truth (packages.py) vs har surface (API, page, checkout).
+- Public API shape: response keys/status codes assert karo (`/api/public/*` backward-compat).
+- Flag-OFF = zero change: `monkeypatch.delenv("FLAG")` → assert old behavior bilkul same (gated-feature pattern).
+- Fail-open/fail-closed DELIBERATE assert: compliance DND = fail-CLOSED (block), rate-limit = fail-OPEN — test me yehi contract likho, weaken kabhi nahi.
+
+## free_ai mock pattern (LLM tests hermetic rakho)
+```python
+async def fake_chat(*a, **k):
+    return '{"score": 0.8}'  # ya jo shape callee expect kare
+monkeypatch.setattr(module_under_test.free_ai, "chat", fake_chat)
+```
+- `free_ai.chat` ka REAL signature respect karo (system, messages-list → growth_optimizer bug isi drift se tha).
+- Parse-fail path bhi test karo (LLM garbage de to fallback chale, raise nahi).
+- Network-touch tests me **timeout marker zaroor** — bina timeout full pytest hang ho chuka hai (~27th test).
+- MX/DNS-dependent (email_verify) = autouse stub (test_auto_outreach pattern copy karo).
+
+## Common rationalizations (sab reject)
+| Excuse | Reality |
+|---|---|
+| "Simple hai, test nahi chahiye" | Simple code bhi tutta hai; test 30 sec ka hai |
+| "Test baad me likh dunga" | Tests-after = "kya karta hai"; tests-first = "kya karna CHAHIYE" |
+| "Manually test kar liya" | No record, no re-run — har deploy pe dobara manual? |
+| "Pricing page bas UI hai" | ₹15k-vs-₹999 bug bolta hai: UI bhi contract hai |
+
+Bug mila debugging me? → failing test PEHLE (sibling skill `systematic-debugging` Phase 4). Ship flow = `leadgen-ops`.
+
+Adapted from obra/superpowers `test-driven-development` (via VoltAgent/awesome-agent-skills).

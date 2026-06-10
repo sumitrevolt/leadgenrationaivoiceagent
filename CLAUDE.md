@@ -348,12 +348,12 @@
 
 ## P0+P1 PARITY BATCHES ✅ DEPLOYED LIVE (2026-06-11) — 550 routes prod, detail: SESSION_LOG
 - Deploy health-gated (rollback armed, unused): smoke all-200 (/pricing, /app/growth-tools 17 tabs, /b/{slug}/card, .vcf), openapi 45 naye paths, **geo-check LIVE-proven** (free-LLM probes + health 6/6 200 during call), ffmpeg image me tha (clips ready). **Flags ON**: SERVICE_REMINDERS + OUTREACH_AB (`.env.bak_envset_20260610_191714`). **CALL_TRANSFER OFF rakha** — callers me `flow_state["owner_phone"]` + Exotel KYC pehle chahiye. Backlog ab sirf USER-ACTION (Razorpay 401+webhook, UPI_VPA, DLT, CF perms, 2nd domain).
- NS change, warna email tut jayega) + R2 bucket offsite backups.
-## COMPLETENESS BATCH ✅ LIVE (2026-06-10 PM, agents H/I) — 458 routes, **FULL PYTEST 100% GREEN (EXIT 0, 508 tests)**
-- **`/app/growth-tools`** (frontend/growth_tools.html, 11 tabs) — UPI QR+payment links, jingle, bg-remove, multilang-9, rank tracker, catalog, customer CRM (CSV import+wishes), short links, reviews widget, **memory browser** (entities/topics/prep tester), lead-webhook helper (key issue + Zapier/Pabbly Hinglish guide). Sab API-only features ka UI ab complete. PWA ab outreach/whatsapp/onboard/minisite_builder/admin_login pe bhi.
-- **6 failing tests FIXED (hermetic, code untouched)**: auto_outreach×4 = email_verify.verify autouse-stub (MX DNS env-dependence); supervisor test = async contract + semantic monkeypatch; compliance test = fail-CLOSED contract assert (TRAI weaken NAHI kiya). Ab `pytest tests/` = clean green, CI-ready.
-- **CLIENT_REPORTS monthly wiring**: content job me din-1 pe `client_report.run_monthly()` (flag OFF = file-only, email nahi — flag user decision).
-- **Flags ON (.env.bak_complete_*)**: MEMORY_VAULT · LIVE_NOTES · CUSTOMER_WISHES · RANK_TRACKER (sab draft/no-send safe). Initial memory sync ran.
+
+## +9 SKILLS from VoltAgent/awesome-agent-skills (2026-06-11) — total 35 project skills
+- **Engineering (obra/superpowers + NeoLabHQ + hamelsmu/evals-skills adapt)**: `systematic-debugging` (reproduce→isolate→verify + project triage table) · `tdd-contract-first` (red-green + billing-truth contract-tests lesson) · `plan-then-build` (plan doc + grep-router precheck + ownership matrix) · `self-code-review` (5 solo-dev passes pre-/ship) · `llm-error-analysis` (open-coding over llm_calls/qualifications + Arjun-critic judge calibration).
+- **Marketing (coreyhaines31/marketingskills adapt, Hinglish)**: `cold-email-craft` (Rohan ke templates/subject-A/B ke liye frameworks + ready templates) · `saas-pricing-strategy` (packages.py-anchored; pricing change = packages.py + test_billing_truth SAATH) · `churn-prevention` (dunning/client_health/nurture engines ke playbooks) · `hinglish-copywriting` (AIDA/PAS + psychology, funnel + product prompt-templates dono).
+- Sab distilled+tailored (verbatim nahi), attribution lines included. Naya feature/debug/pricing/copy kaam = pehle relevant skill invoke karo.
+EMORY_VAULT · LIVE_NOTES · CUSTOMER_WISHES · RANK_TRACKER (sab draft/no-send safe). Initial memory sync ran.
 - NOTE: marketing.html me multilang UI kabhi tha hi nahi — 9-lang UI growth-tools tab me hai (Agent H ne sahi skip kiya).
 
 ## ROWBOAT-INSPIRED COMPOUNDING MEMORY ✅ LIVE (2026-06-10 PM) — 457 routes, detail: SESSION_LOG
