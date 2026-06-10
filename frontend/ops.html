@@ -35,6 +35,9 @@ ul{list-style:none} li{padding:2px 0;font-size:.82rem}
   <div class="card"><h2>🎙️ Telephony Readiness (Tara)</h2><div id="telr" class="big mut">…</div><ul id="tela"></ul></div>
   <div class="card"><h2>🚩 Flags ON</h2><div id="flags"></div></div>
   <div class="card"><h2>📥 DLQ + Queue</h2><div id="dlq" class="mut">…</div></div>
+  <div class="card"><h2>💰 Revenue (Nikhil)</h2><div id="rev" class="mut">…</div></div>
+  <div class="card"><h2>🎯 Channel Outcome (1-click)</h2><div class="mut" style="margin-bottom:6px">Inquiry kahan se aayi? Click karo — bandit seekhega:</div><div id="outbtns"></div><div id="outmsg" class="mut"></div></div>
+  <div class="card" style="grid-column:1/-1"><h2>📥 Action Inbox — aaj ke 1-click kaam</h2><div id="inbox" class="mut">…</div></div>
   <div class="card" style="grid-column:1/-1"><h2>📈 Growth Funnel (weakest stage)</h2><div id="funnel" class="mut">…</div></div>
   <div class="card" style="grid-column:1/-1"><h2>🗓️ Job Heartbeats</h2><table id="jobs"><thead><tr><th>Job</th><th>Last run</th><th>OK</th><th>Dur (s)</th><th>Status</th></tr></thead><tbody></tbody></table></div>
 </div>
@@ -72,7 +75,20 @@ async function load(){
   try{const g=await api('/api/growth/optimizer/analysis');const w=g.weakest||{};
     $('funnel').innerHTML=`<b class="warn">${w.stage}</b> — ${w.reason||''}<br><span class="mut">Action: ${w.action||''}</span>`;
   }catch(e){$('funnel').textContent='—'}
+  try{const rv=await api('/api/growth/revenue/summary');const s=rv.subscriptions||{},dn=rv.dunning||{},lc=rv.lifecycle||{};
+    $('rev').innerHTML=`<div class="big ok">₹${rv.mrr||0} MRR</div><span class="mut">${s.active||0} active · ${s.past_due||0} past_due · dunning ${dn.open||0} open/${dn.recovered||0} rec · nurture ${lc.active||0} active/${lc.converted||0} won</span>`;
+  }catch(e){$('rev').textContent='—'}
+  try{const ib=await api('/api/growth/inbox');let h='';
+    if((ib.hot_leads||[]).length)h+='<b>🔥 Hot leads:</b> '+ib.hot_leads.map(l=>`${l.business_name||l.name||'?'} (${l.lead_score||l.score||''})`).join(' · ')+'<br>';
+    if((ib.reply_drafts||[]).length)h+=`<b>✉️ Reply drafts:</b> ${ib.reply_drafts.length} ready (data/reply_drafts)<br>`;
+    if((ib.review_drafts||[]).length)h+=`<b>⭐ Review replies:</b> ${ib.review_drafts.length} naye review drafts<br>`;
+    if((ib.recent_experiments||[]).length)h+='<b>🧪 Experiments:</b> '+ib.recent_experiments.map(x=>`${x.channel}(${x.niche})`).join(' · ');
+    $('inbox').innerHTML=h||'Sab khali — automation sab handle kar raha ✅';
+  }catch(e){$('inbox').textContent='—'}
 }
+const CHANNELS=['seo_page','quora','reddit','whatsapp_group','telegram','linkedin_article','medium','partnership','linkedin_dm'];
+$('outbtns').innerHTML=CHANNELS.map(c=>`<button style="margin:2px;padding:4px 10px;font-size:.75rem" onclick="rec('${c}')">${c}</button>`).join('');
+async function rec(ch){try{const r=await fetch('/api/growth/experiments/outcome',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok()},body:JSON.stringify({channel:ch,kind:'inquiry'})});const d=await r.json();$('outmsg').textContent=d.ok?`✅ ${ch} +1 (score ${d.stats.score})`:(d.error||'fail')}catch(e){$('outmsg').textContent='token?'}}
 $('tok').value=tok();load();setInterval(load,60000);
 </script>
 </body>

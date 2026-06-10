@@ -879,6 +879,52 @@ AUTOMATION_FLAGS = [
 ]
 
 
+@router.get("/revenue/summary")
+async def revenue_summary(_user=Depends(require_admin)):
+    """Ops-dashboard ke liye compact revenue snapshot (digest ka collect reuse)."""
+    from app.platform import revenue_digest
+
+    stats = await revenue_digest._collect()
+    return stats
+
+
+@router.get("/inbox")
+async def action_inbox(_user=Depends(require_admin)):
+    """Aaj ke 1-click actions ek jagah: hot leads + reply drafts + review drafts +
+    pending experiments. Sumit ka roz ka manual kaam = sirf approvals."""
+    out: dict = {"hot_leads": [], "reply_drafts": [], "review_drafts": [], "recent_experiments": []}
+    try:
+        from app.platform import lead_scoring
+
+        out["hot_leads"] = (await lead_scoring.top_hot_leads(5)) or []
+    except Exception:
+        pass
+    try:
+        import json as _json
+        import os as _os
+
+        p = _os.path.join("data", "reply_drafts.jsonl")
+        if _os.path.exists(p):
+            with open(p, encoding="utf-8") as f:
+                rows = [_json.loads(x) for x in f.readlines()[-5:] if x.strip()]
+            out["reply_drafts"] = rows[::-1]
+    except Exception:
+        pass
+    try:
+        from app.marketing import review_monitor
+
+        out["review_drafts"] = review_monitor.recent_drafts(5)
+    except Exception:
+        pass
+    try:
+        from app.marketing import channel_experiments
+
+        out["recent_experiments"] = channel_experiments.recent(5)
+    except Exception:
+        pass
+    return out
+
+
 @router.get("/infra/telephony-readiness")
 async def infra_telephony_readiness(_user=Depends(require_admin)):
     """Tara: calling-launch readiness score + missing checklist + next-actions."""

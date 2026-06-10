@@ -483,6 +483,13 @@ async def public_audit_page():
     return FileResponse(str(_website_dir / "audit.html"))
 
 
+@app.get("/site-audit", tags=["Frontend"])
+async def public_site_audit_page():
+    """PUBLIC lead-magnet #2: website URL → AI report card (score/tips/CTA).
+    POST /api/growth/tools/website-audit ko call karta (rate-limited)."""
+    return FileResponse(str(_website_dir / "site-audit.html"))
+
+
 @app.get("/demo", tags=["Frontend"])
 async def public_demo_page():
     """PUBLIC lead-magnet: AI marketing preview — business naam → real posts/hashtags/offer

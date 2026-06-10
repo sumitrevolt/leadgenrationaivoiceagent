@@ -51,4 +51,23 @@ def test_ops_routes_registered():
 
     paths = {r.path for r in router.routes}
     assert "/growth/infra/telephony-readiness" in paths
+    assert "/growth/revenue/summary" in paths
+    assert "/growth/inbox" in paths
     # /app/ops page route main.py me hai — yahan growth API hi check
+
+
+def test_utm_attribution_mapping(tmp_path, monkeypatch):
+    """Inquiry utm_source → channel outcome auto-record (bandit attribution)."""
+    from app.marketing import channel_experiments as ce
+
+    monkeypatch.setattr(ce, "_RUNS", str(tmp_path / "r.jsonl"))
+    monkeypatch.setattr(ce, "_OUTCOMES", str(tmp_path / "o.jsonl"))
+    # public_site ke _UTM_MAP jaisa mapping — direct record path verify
+    r = ce.record_outcome("quora", "inquiry", 1, "utm:quora")
+    assert r["ok"] is True and r["stats"]["outcomes"] == 1
+
+
+def test_inquiry_model_has_utm():
+    from app.api.public_site import InquiryIn
+
+    assert "utm_source" in InquiryIn.model_fields

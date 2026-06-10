@@ -300,6 +300,7 @@ class InquiryIn(BaseModel):
     package: str | None = None  # Starter/Growth/Advanced (pricing card se)
     source_slug: str | None = None  # mini-site /b/{slug} se aayi inquiry
     preferred_time: str | None = None  # booking form ka "pasand ka time"
+    utm_source: str | None = None  # channel attribution (quora/reddit/seo/...) — bandit seekhta
     website: str | None = ""  # honeypot — insaan ise kabhi nahi bharta
 
 
@@ -469,6 +470,24 @@ async def submit_inquiry(body: InquiryIn, request: Request):
         ntask.add_done_callback(_BG_TASKS.discard)
     except Exception as e:
         logger.debug(f"[public] notify-email task spawn failed: {e}")
+
+    # 7.4) Channel attribution (UTM → experiments bandit) — best-effort, sync-fast.
+    try:
+        utm = (body.utm_source or "").strip().lower()
+        if utm:
+            _UTM_MAP = {
+                "quora": "quora", "reddit": "reddit", "linkedin": "linkedin_article",
+                "medium": "medium", "telegram": "telegram", "whatsapp": "whatsapp_group",
+                "wa": "whatsapp_group", "seo": "seo_page", "google": "seo_page",
+                "organic": "seo_page", "partner": "partnership", "partnership": "partnership",
+            }
+            ch = _UTM_MAP.get(utm)
+            if ch:
+                from app.marketing import channel_experiments
+
+                channel_experiments.record_outcome(ch, "inquiry", 1, f"utm:{utm}")
+    except Exception as e:
+        logger.debug(f"[public] utm attribution skip: {e}")
 
     # 7.5) Outbound webhooks (Zapier-style) — inert bina registered hooks. Fire-and-forget.
     try:
