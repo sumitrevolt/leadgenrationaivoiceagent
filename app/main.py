@@ -388,6 +388,24 @@ try:
     app.include_router(contentplus_router, prefix="/api")  # /api/contentplus/* (clips, gif, avatar, service-reminders, A/B)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"ContentPlus router not mounted: {_e}")
+try:
+    from app.api.widgets import router as widgets_router
+
+    app.include_router(widgets_router, prefix="/api")  # /api/widgets/* (popup pack, bio-link, beacon analytics)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Widgets router not mounted: {_e}")
+try:
+    from app.api.lifecycle import router as lifecycle_router
+
+    app.include_router(lifecycle_router, prefix="/api")  # /api/lifecycle/* (newsletter, winback, signature, lead-magnet)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Lifecycle router not mounted: {_e}")
+try:
+    from app.api.contentauto import router as contentauto_router
+
+    app.include_router(contentauto_router, prefix="/api")  # /api/contentauto/* (repurpose, pulse, month-plan, team-report, push)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"ContentAuto router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])
@@ -984,6 +1002,22 @@ async def client_card_page(slug: str):
             return HTMLResponse(content=res["html"])
     except Exception as e:
         logger.warning(f"card render failed for {slug!r}: {e}")
+    return RedirectResponse(url="/", status_code=302)
+
+
+@app.get("/b/{slug}/bio", tags=["Frontend"], include_in_schema=False)
+async def client_bio_page(slug: str):
+    """Bio-link page (Linktree-killer) — mobile-first, brand-colored. Kabhi 500 nahi."""
+    from fastapi.responses import HTMLResponse, RedirectResponse
+
+    try:
+        from app.marketing import bio_link
+
+        res = bio_link.render_bio_html(slug)
+        if res.get("ok"):
+            return HTMLResponse(content=res["html"])
+    except Exception as e:
+        logger.warning(f"bio render failed for {slug!r}: {e}")
     return RedirectResponse(url="/", status_code=302)
 
 

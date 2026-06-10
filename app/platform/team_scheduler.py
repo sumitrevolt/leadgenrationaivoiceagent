@@ -183,6 +183,18 @@ async def _run_job_inner(job: str) -> None:
                     team.log_event("boss", "speed_to_lead", f"⚡ {_stl['verdict']}")
             except Exception:
                 pass
+            try:
+                from app.platform import brand_pulse
+
+                await brand_pulse.run_weekly_if_enabled()  # brand mention scan + drafts (gated BRAND_PULSE; LLM-free scan)
+            except Exception:
+                pass
+            try:
+                from app.platform import team_report
+
+                await team_report.run_weekly_if_enabled()  # client-facing AI-staff weekly narrative (gated TEAM_REPORT)
+            except Exception:
+                pass
         elif job == "content":
             from app.marketing import auto_content
 
@@ -229,6 +241,18 @@ async def _run_job_inner(job: str) -> None:
                 from app.platform import service_reminders
 
                 await service_reminders.run_due_if_enabled()  # repeat-service WA reminder DRAFTS (gated SERVICE_REMINDERS)
+            except Exception:
+                pass
+            try:
+                from app.marketing import newsletter
+
+                await newsletter.run_due_if_enabled()  # monthly client-newsletter (gated NEWSLETTER_ENGINE; month-dedupe)
+            except Exception:
+                pass
+            try:
+                from app.platform import winback
+
+                await winback.run_due_if_enabled()  # inactive win-back DRAFTS (gated WINBACK_ENGINE)
             except Exception:
                 pass
             try:

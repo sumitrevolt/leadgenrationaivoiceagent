@@ -15,3 +15,16 @@ self.addEventListener("fetch", (e) => {
       .catch(() => caches.match(e.request))
   );
 });
+
+// Web Push (webpush.py) — push notification listener
+self.addEventListener("push", function (e) {
+  var d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) {}
+  e.waitUntil(self.registration.showNotification(d.title || "LeadsGenAI", {
+    body: d.body || "", icon: "/pwa-icon-192.png", badge: "/pwa-icon-192.png",
+    data: { url: d.url || "/" }
+  }));
+});
+self.addEventListener("notificationclick", function (e) {
+  e.notification.close();
+  e.waitUntil(clients.openWindow((e.notification.data && e.notification.data.url) || "/"));
+});
