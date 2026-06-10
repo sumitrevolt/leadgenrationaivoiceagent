@@ -210,6 +210,9 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import automation_health
 
             await automation_health.run_watch()  # dead-man switch: overdue jobs alert (gated AUTOMATION_HEALTH_ALERTS)
+            from app.telephony import telephony_readiness
+
+            await telephony_readiness.run_watch()  # Tara: calling-launch readiness score (alert gated TELEPHONY_READY_ALERTS)
         elif job == "onboard":
             from app.marketing import onboarding
 

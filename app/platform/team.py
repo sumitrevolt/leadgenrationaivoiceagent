@@ -94,6 +94,20 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "Clients ke liye AI social posts (FB/Insta captions), Google Business Profile tips, festival/offer content",
         "schedule": "On-demand (marketing)",
     },
+    "tara": {
+        "name": "Tara",
+        "emoji": "🎙️",
+        "title": "Voice Infra Ops",
+        "duties": "Telephony readiness (Exotel auth, caller-ID, webhooks, DND, TTS/STT/LLM chain) har ghante verify karna — calling launch ke liye system hamesha taiyaar rahe",
+        "schedule": "Har ghante (watchdog ke saath)",
+    },
+    "nikhil": {
+        "name": "Nikhil",
+        "emoji": "💰",
+        "title": "Revenue Ops",
+        "duties": "Dunning recovery, lifecycle nurture funnel, client churn-risk aur MRR digest pe nazar — paisa leak na ho",
+        "schedule": "Roz (digest/content jobs ke saath)",
+    },
 }
 
 # member offline mana jaata hai agar itne minute se koi event nahi (scheduled wale).

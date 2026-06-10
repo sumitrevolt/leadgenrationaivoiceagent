@@ -879,6 +879,14 @@ AUTOMATION_FLAGS = [
 ]
 
 
+@router.get("/infra/telephony-readiness")
+async def infra_telephony_readiness(_user=Depends(require_admin)):
+    """Tara: calling-launch readiness score + missing checklist + next-actions."""
+    from app.telephony import telephony_readiness
+
+    return telephony_readiness.run_checks()
+
+
 @router.get("/infra/flags")
 async def infra_flags(_user=Depends(require_admin)):
     """Saare automation flags ka live status (on/off/unset) ek nazar me."""

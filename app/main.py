@@ -375,6 +375,13 @@ async def agents_page():
     return FileResponse(str(FRONTEND_DIR / "agents.html"))
 
 
+@app.get("/app/ops", tags=["Frontend"])
+async def ops_page():
+    """Ops Mission Control — automation health (dead-man), LLM observability,
+    telephony readiness, flags, DLQ, weakest-funnel — sab /api/growth/infra/* se."""
+    return FileResponse(str(FRONTEND_DIR / "ops.html"))
+
+
 @app.get("/app/admin-login", tags=["Frontend"])
 async def admin_login_page():
     """Admin login — email+password → /api/admin/auth/login → sets accessToken (unlocks

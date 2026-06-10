@@ -78,6 +78,26 @@ def record_run(job: str, ok: bool = True, seconds: float = 0.0, note: str = "") 
         pass
 
 
+def queue_depth() -> dict[str, Any]:
+    """Celery queue backlog (Redis llen). Backlog badhta jaye = worker mar gaya/slow.
+    Redis na ho to {-1} (unknown). Kabhi raise nahi."""
+    out = {"celery": -1, "dlq": -1}
+    try:
+        import redis as _redis
+
+        from app.config import settings
+
+        r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
+        out["celery"] = int(r.llen("celery") or 0)
+        out["dlq"] = int(r.llen("dlq:failed_tasks") or 0)
+    except Exception:
+        pass
+    return out
+
+
+QUEUE_BACKLOG_ALERT = 50  # itne pending tasks = worker problem
+
+
 def health() -> dict[str, Any]:
     """Per-job: last run, ok, overdue? + overall status. Kabhi raise nahi."""
     beats: dict[str, Any] = {}
@@ -115,10 +135,14 @@ def health() -> dict[str, Any]:
             )
         except Exception:
             jobs.append({"job": job, "status": "unknown"})
+    q = queue_depth()
+    backlogged = q.get("celery", -1) > QUEUE_BACKLOG_ALERT
     return {
-        "status": "degraded" if overdue else ("warming_up" if never_ran else "healthy"),
+        "status": "degraded" if (overdue or backlogged) else ("warming_up" if never_ran else "healthy"),
         "overdue": overdue,
         "never_ran": never_ran,
+        "queue": q,
+        "queue_backlogged": backlogged,
         "jobs": jobs,
         "at": _now().isoformat(timespec="seconds"),
     }
@@ -128,6 +152,19 @@ async def run_watch() -> dict[str, Any]:
     """Watchdog hook: overdue jobs → (gated) email alert. Kabhi raise nahi."""
     try:
         h = health()
+        if h.get("queue_backlogged") and _alerts_enabled():
+            notify = os.environ.get("NOTIFY_EMAIL", "").strip()
+            if notify:
+                try:
+                    from app.integrations.email_sender import email_sender
+
+                    await email_sender.send_email(
+                        [notify],
+                        f"⚠️ Celery backlog: {h['queue'].get('celery')} tasks pending",
+                        "Worker slow/mar gaya lagta hai. Check: docker logs leadgen_worker (automation_health)",
+                    )
+                except Exception:
+                    pass
         if h["overdue"] and _alerts_enabled():
             notify = os.environ.get("NOTIFY_EMAIL", "").strip()
             if notify:

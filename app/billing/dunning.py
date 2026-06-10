@@ -365,6 +365,13 @@ async def run_due() -> dict[str, Any]:
         if changed:
             _write_all(_CASES, rows)
         renewals = await _renewal_reminders()
+        if touched or renewals:
+            try:
+                from app.platform import team
+
+                team.log_event("nikhil", "dunning_sweep", f"{touched} recovery touches, {renewals} renewal reminders")
+            except Exception:
+                pass
         return {"enabled": True, "touches": touched, "renewal_reminders": renewals}
     except Exception as e:
         logger.warning(f"[dunning] run_due failed: {e}")

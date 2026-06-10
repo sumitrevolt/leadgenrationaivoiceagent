@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ops Mission Control — LeadsGenAI</title>
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px;max-width:1200px;margin:auto}
+h1{font-size:1.3rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h2{font-size:.95rem;margin-bottom:8px;color:var(--acc)}
+.big{font-size:1.6rem;font-weight:700} .ok{color:var(--ok)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:.8rem} td,th{padding:3px 6px;text-align:left;border-bottom:1px solid var(--line)}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.72rem;margin:1px;background:#222636}
+.pill.on{background:#123524;color:var(--ok)} .mut{color:var(--mut);font-size:.78rem}
+input{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:8px;width:280px}
+button{background:var(--acc);border:0;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;margin-left:6px}
+ul{list-style:none} li{padding:2px 0;font-size:.82rem}
+</style>
+</head>
+<body>
+<h1>🛠️ Ops Mission Control</h1>
+<div class="sub">Automation health · LLM observability · Telephony readiness · Flags · DLQ — sab ek jagah. Auto-refresh 60s.</div>
+<div style="margin-bottom:12px">
+  <input id="tok" type="password" placeholder="Admin token (login se auto)">
+  <button onclick="saveTok()">Save</button>
+  <a href="/app/admin-login" style="color:var(--mut);font-size:.8rem;margin-left:8px">login →</a>
+</div>
+<div class="grid">
+  <div class="card"><h2>💚 System</h2><div id="sys" class="big mut">…</div><div id="sysd" class="mut"></div></div>
+  <div class="card"><h2>🤖 Automation Jobs (dead-man)</h2><div id="autoh" class="big mut">…</div><div id="autod"></div></div>
+  <div class="card"><h2>🧠 LLM Providers</h2><div id="llm"></div></div>
+  <div class="card"><h2>🎙️ Telephony Readiness (Tara)</h2><div id="telr" class="big mut">…</div><ul id="tela"></ul></div>
+  <div class="card"><h2>🚩 Flags ON</h2><div id="flags"></div></div>
+  <div class="card"><h2>📥 DLQ + Queue</h2><div id="dlq" class="mut">…</div></div>
+  <div class="card" style="grid-column:1/-1"><h2>📈 Growth Funnel (weakest stage)</h2><div id="funnel" class="mut">…</div></div>
+  <div class="card" style="grid-column:1/-1"><h2>🗓️ Job Heartbeats</h2><table id="jobs"><thead><tr><th>Job</th><th>Last run</th><th>OK</th><th>Dur (s)</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){localStorage.setItem('accessToken',$('tok').value.trim());load()}
+async function api(p){const r=await fetch(p,{headers:{Authorization:'Bearer '+tok()}});if(!r.ok)throw new Error(r.status);return r.json()}
+function cls(s){return s==='healthy'||s==='ok'?'ok':(s==='degraded'||s==='overdue'?'bad':'warn')}
+async function load(){
+  try{const h=await (await fetch('/health/ready')).json();
+    $('sys').textContent=h.status;$('sys').className='big '+cls(h.status);
+    const c=h.checks||{};$('sysd').textContent=`db:${(c.database||{}).status} redis:${(c.redis||{}).status} disk:${(c.disk||{}).free_percent}% free mem:${(c.memory||{}).used_percent}%`;
+  }catch(e){$('sys').textContent='unreachable';$('sys').className='big bad'}
+  try{const a=await api('/api/growth/infra/automation-health');
+    $('autoh').textContent=a.status;$('autoh').className='big '+cls(a.status);
+    $('autod').innerHTML=`<span class="mut">overdue: ${a.overdue.join(', ')||'none'} · queue: ${a.queue?a.queue.celery:'?'} pending</span>`;
+    const tb=$('jobs').querySelector('tbody');tb.innerHTML='';
+    (a.jobs||[]).forEach(j=>{tb.innerHTML+=`<tr><td>${j.job}</td><td>${j.last_run||'—'}</td><td>${j.last_ok===false?'❌':'✅'}</td><td>${j.duration_s??''}</td><td class="${cls(j.status)}">${j.status}</td></tr>`});
+  }catch(e){$('autoh').textContent='token?'}
+  try{const l=await api('/api/growth/infra/llm');let html='<table><tr><th>Provider</th><th>Calls</th><th>OK%</th><th>Avg ms</th></tr>';
+    Object.entries(l.providers||{}).forEach(([p,d])=>{html+=`<tr><td>${p}</td><td>${d.calls}</td><td class="${d.ok_rate>0.8?'ok':'warn'}">${Math.round(d.ok_rate*100)}%</td><td>${d.avg_ms}</td></tr>`});
+    html+=`</table><div class="mut">fallback/fail rate: ${Math.round((l.fallback_or_fail_rate||0)*100)}%</div>`;$('llm').innerHTML=html;
+  }catch(e){$('llm').innerHTML='<span class="mut">—</span>'}
+  try{const t=await api('/api/growth/infra/telephony-readiness');
+    $('telr').textContent=t.score+'/100';$('telr').className='big '+(t.score>=80?'ok':(t.score>=50?'warn':'bad'));
+    $('tela').innerHTML=(t.actions||[]).map(a=>`<li>• ${a}</li>`).join('');
+  }catch(e){$('telr').textContent='—'}
+  try{const f=await api('/api/growth/infra/flags');
+    $('flags').innerHTML=`<div class="big ok">${f.on_count}</div>`+(f.on||[]).map(x=>`<span class="pill on">${x}</span>`).join('');
+  }catch(e){$('flags').innerHTML='<span class="mut">—</span>'}
+  try{const d=await api('/api/growth/infra/dlq?limit=5');
+    $('dlq').innerHTML=`<span class="big ${d.count>0?'warn':'ok'}">${d.count}</span> failed tasks`+(d.items||[]).map(i=>`<div class="mut">${(i.error||'').slice(0,80)}</div>`).join('');
+  }catch(e){$('dlq').textContent='—'}
+  try{const g=await api('/api/growth/optimizer/analysis');const w=g.weakest||{};
+    $('funnel').innerHTML=`<b class="warn">${w.stage}</b> — ${w.reason||''}<br><span class="mut">Action: ${w.action||''}</span>`;
+  }catch(e){$('funnel').textContent='—'}
+}
+$('tok').value=tok();load();setInterval(load,60000);
+</script>
+</body>
+</html>
