@@ -17,26 +17,27 @@
 - [x] BONUS P1: WA sticker pack · trackable proposals · dialer leaderboard
 
 ### P0 follow-ups
-- [ ] DEPLOY batch (/ship; HARD RELOAD — naya page-route /b/{slug}/card) + live smoke naye public endpoints
-- [ ] Voice pipeline me detect_transfer_intent wiring (hot-path safe keyword check)
-- [ ] Scheduler hooks: digest me speed-to-lead line, proposal-opened alert, pending-approvals reminder
-- [ ] UI tabs: frames daily-feed + card + approvals (marketing.html/growth-tools pattern)
+- [ ] DEPLOY P0+P1 batches (/ship; HARD RELOAD — naya page-route /b/{slug}/card) + live smoke naye public endpoints (geo-check pe health-poll — LLM endpoint!)
+- [x] Voice pipeline detect_transfer_intent wiring (pipeline.py run_turn, gated) — NOTE: callers ko flow_state["owner_phone"] dena hota
+- [x] Scheduler hooks: digest speed-to-lead Boss-event, watchdog proposal-opened sweep, content service-reminders
+- [x] UI tabs: growth_tools 11→17 (frames/card/approvals/speed+board/ask-AI/localseo+)
+- [ ] VPS pe ffmpeg install (video clips ke liye) — `apt install ffmpeg` ya container image me add
 
-## P1 — next
-- [ ] AI-search/GEO visibility report (lead magnet #3)
-- [ ] Local 3×3 grid rank tracker (Places locationBias, cost-capped)
-- [ ] India listings presence score in GBP audit (Justdial/Sulekha/IndiaMART checklist)
-- [ ] Cold-email spintax/A-B + per-variant reply stats
+## P1 — ✅ BUILT 2026-06-11 (pending deploy)
+- [x] AI-search/GEO visibility report (`geo_visibility.py`, public /api/localseo/geo-check)
+- [x] Local 3×3 grid rank tracker (`grid_rank.py`, cost-capped)
+- [x] India listings presence score (`listings_presence.py`, checklist — no scraping)
+- [x] Cold-email spintax/A-B (`outreach_variants.py`, gated OUTREACH_AB)
 - [x] Telecaller leaderboard (✅ built in P0 batch)
 - [x] Trackable proposals (✅ built in P0 batch)
-- [x] WA sticker pack (✅ built; GIF maker pending)
-- [ ] Repeat-service reminders (customer CRM cycles)
-- [ ] Long-video→clips (ffmpeg, WORKER-ONLY — qa-job lesson)
-- [ ] Pricing page: competitor price-compare + "connected calls only" framing (copy, 1hr)
+- [x] WA sticker pack + GIF maker (✅ dono built)
+- [x] Repeat-service reminders (`service_reminders.py`, gated SERVICE_REMINDERS)
+- [x] Long-video→clips (`video_clips.py`, background-thread, ffmpeg VPS pe install karna)
+- [x] Pricing page compare strip + connected-calls line
 
 ## P2 / blocked
-- [ ] Inbox rotation + 2nd domain (USER: domain kharido)
-- [ ] AI avatar video (Pollinations video_url scaffold)
+- [x] Inbox rotation code (`OUTREACH_MAILBOXES` JSON, gated) — USER: 2nd domain/mailbox kharido tab ON
+- [x] AI avatar video (`avatar_video.py` — POLLINATIONS_API_KEY pe chalti)
 - EXTERNAL-BLOCKED: Meta publish/Lead-Ads/CTWA/CAPI, GBP API, WA Flows approval, DLT, Exotel KYC, Truecaller
 - SKIP FOREVER: unofficial WA auto-responder, Justdial/IndiaMART/LinkedIn scrape, SERP scrape
 

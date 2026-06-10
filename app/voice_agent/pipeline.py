@@ -431,6 +431,35 @@ class VoicePipeline:
 
         self.state.add_user(user_text)
 
+        # 1.5) Live human-transfer intent (gated CALL_TRANSFER, default OFF).
+        # Pure-keyword check (hot-path safe, no LLM); transfer khud fire-and-forget
+        # background task me hota hai — turn block NAHI karta.
+        try:
+            from app.telephony import call_transfer as _ct
+
+            if (
+                _ct.enabled()
+                and not self.state.flow_state.get("transfer_requested")
+                and _ct.detect_transfer_intent(user_text)
+            ):
+                self.state.flow_state["transfer_requested"] = True
+                _ctx = {
+                    "history": list(self.state.history[-12:]),
+                    **{k: v for k, v in self.state.flow_state.items() if isinstance(v, (str, int, float))},
+                }
+                _owner = str(self.state.flow_state.get("owner_phone") or "")
+                asyncio.get_running_loop().create_task(_ct.request_transfer(_ctx, _owner))
+                reply = "Ji bilkul — ek minute rukiye, main aapko owner se connect kar raha hoon."
+                self.state.add_assistant(reply)
+                if not self.interrupt.is_set():
+                    _audio, metrics.tts_ms = await self._do_tts(reply)
+                metrics.total_ms = (time.monotonic() - turn_start) * 1000.0
+                self.state.turn_count += 1
+                self.state.last_metrics = metrics
+                return reply, metrics
+        except Exception as _e:
+            logger.warning(f"transfer-intent check failed (ignored): {_e}")
+
         # 2) LLM (flow engine or free-form)
         reply, metrics.llm_ms = await self._do_llm(user_text)
         self.state.add_assistant(reply)

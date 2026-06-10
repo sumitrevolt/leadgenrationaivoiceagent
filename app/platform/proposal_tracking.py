@@ -241,4 +241,60 @@ def list_tracked(limit: int = 100) -> list[dict[str, Any]]:
         return []
 
 
-__all__ = ["make_tracked", "resolve", "record_view", "views", "list_tracked"]
+_SWEEP_CURSOR = os.path.join("data", "proposal_sweep_cursor.json")
+
+
+def sweep_new_opens() -> dict[str, Any]:
+    """Naye proposal-opens ka sweep (watchdog-job se hourly) — "client ne proposal
+    khola — abhi call karo" team-event. Cursor se dedupe; sirf event log, NO send.
+    Never raises."""
+    try:
+        last_ts = ""
+        try:
+            with open(_SWEEP_CURSOR, encoding="utf-8") as f:
+                last_ts = str(json.load(f).get("last_ts") or "")
+        except Exception:
+            pass
+        new_opens: list[dict[str, Any]] = []
+        max_ts = last_ts
+        for v in _read_all(_VIEWS_FILE):
+            ts = str(v.get("ts") or "")
+            if ts and ts > last_ts:
+                new_opens.append(v)
+                if ts > max_ts:
+                    max_ts = ts
+        if new_opens:
+            links = {str(r.get("token") or ""): r for r in _read_all(_LINKS_FILE)}
+            try:
+                from app.platform.team import log_event
+
+                for v in new_opens[:10]:
+                    rec = links.get(str(v.get("token") or ""), {})
+                    label = rec.get("label") or rec.get("phone") or v.get("token")
+                    log_event(
+                        "rohan",
+                        "proposal_opened",
+                        f"📂 Proposal khola: {label} — abhi follow-up call ka best time!",
+                    )
+            except Exception as e:
+                logger.warning(f"[proposal_tracking] sweep event failed: {e}")
+            try:
+                os.makedirs(os.path.dirname(_SWEEP_CURSOR) or ".", exist_ok=True)
+                with open(_SWEEP_CURSOR, "w", encoding="utf-8") as f:
+                    json.dump({"last_ts": max_ts}, f)
+            except Exception:
+                pass
+        return {"ok": True, "new_opens": len(new_opens)}
+    except Exception as e:
+        logger.warning(f"[proposal_tracking] sweep failed: {e}")
+        return {"ok": False, "error": str(e)}
+
+
+__all__ = [
+    "make_tracked",
+    "resolve",
+    "record_view",
+    "views",
+    "list_tracked",
+    "sweep_new_opens",
+]

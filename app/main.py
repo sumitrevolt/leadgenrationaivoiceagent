@@ -376,6 +376,18 @@ try:
     app.include_router(voiceai_router, prefix="/api")  # /api/voiceai/* (transfer, ask-AI, leaderboard)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"VoiceAI router not mounted: {_e}")
+try:
+    from app.api.localseo import router as localseo_router
+
+    app.include_router(localseo_router, prefix="/api")  # /api/localseo/* (geo-visibility, grid-rank, listings)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"LocalSEO router not mounted: {_e}")
+try:
+    from app.api.contentplus import router as contentplus_router
+
+    app.include_router(contentplus_router, prefix="/api")  # /api/contentplus/* (clips, gif, avatar, service-reminders, A/B)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"ContentPlus router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])

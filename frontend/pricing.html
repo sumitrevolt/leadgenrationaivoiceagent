@@ -45,6 +45,20 @@
   .cta:hover{background:var(--pri2)}
   .cta.ghost{background:transparent;border:1px solid var(--bd);color:var(--ink)}
   .note{text-align:center;color:var(--mut);font-size:13px;margin-top:22px}
+  .mins{font-size:12px;color:var(--mut);margin:-8px 0 12px}
+  /* Hum vs Doosre — compare strip */
+  .cmp{margin-top:46px}
+  .cmp h2{text-align:center;font-size:22px;margin:0 0 16px}
+  .cmp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:820px){.cmp-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:520px){.cmp-grid{grid-template-columns:1fr}}
+  .cmp-card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;text-align:center}
+  .cmp-card.us{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok)}
+  .cmp-name{font-size:13px;color:var(--mut)}
+  .cmp-price{font-size:22px;font-weight:800;margin:6px 0}
+  .cmp-price small{font-size:11px;color:var(--mut);font-weight:500}
+  .cmp-what{font-size:12px;color:#d7def5}
+  .cmp-fine{text-align:center;color:var(--mut);font-size:11px;margin-top:10px}
   /* modal */
   .ov{position:fixed;inset:0;background:rgba(4,8,20,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
   .ov.on{display:flex}
@@ -94,6 +108,18 @@
   <div id="plans" class="grid"><div class="note">Plans load ho rahe hain…</div></div>
 
   <p class="note">Sab plans me GST extra. Kabhi bhi cancel karo. Advanced tier me AI voice calling (500 min/mo).</p>
+
+  <!-- Hum vs Doosre — compare strip -->
+  <section class="cmp">
+    <h2>Hum vs Doosre — seedha hisaab</h2>
+    <div class="cmp-grid">
+      <div class="cmp-card"><div class="cmp-name">MyOperator-type AI voice</div><div class="cmp-price">₹10,000<small>/agent/mo</small></div><div class="cmp-what">Sirf AI voice calling</div></div>
+      <div class="cmp-card"><div class="cmp-name">Predis-type AI social</div><div class="cmp-price">~₹1,600+<small>/mo</small></div><div class="cmp-what">Sirf social posts</div></div>
+      <div class="cmp-card"><div class="cmp-name">Birdeye-type reputation</div><div class="cmp-price">$299+<small>/location/mo</small></div><div class="cmp-what">Sirf reviews / reputation</div></div>
+      <div class="cmp-card us"><div class="cmp-name">LeadsGenAI</div><div class="cmp-price">₹5,999<small>/mo</small></div><div class="cmp-what">Marketing + leads + reviews + AI voice — sab ek saath (₹999 se shuru)</div></div>
+    </div>
+    <p class="cmp-fine">* Competitor prices unki public pricing pages se, June 2026. Naam sirf category samjhane ke liye hain.</p>
+  </section>
 
   <div class="foot">
     Payment secure (UPI / card / netbanking). Sawaal? <a href="/audit">Free GBP audit</a> se shuru karo.
@@ -154,6 +180,7 @@ function render(){
   el.innerHTML = "";
   PLANS.forEach((p,i)=>{
     const feat = (String(p.id).toLowerCase().includes("growth") || i===1);
+    const isAdv = String(p.id).toLowerCase().includes("advanced");
     const pr = priceFor(p);
     const feats = (p.features||[]).slice(0,7).map(f=>`<li>${f}</li>`).join("");
     el.insertAdjacentHTML("beforeend", `
@@ -163,6 +190,7 @@ function render(){
         <div class="price">${inr(pr.amt)}<small>${pr.suf}</small></div>
         <div class="pdesc">${feat?'Sabse zyada chuna jaane wala plan.':'&nbsp;'}</div>
         <ul class="feats">${feats}</ul>
+        ${isAdv?'<div class="mins">📞 500 min/mo included · Sirf connected calls ke minutes count hote hain</div>':''}
         <button class="cta ${feat?'':'ghost'}" onclick='openModal(${JSON.stringify(JSON.stringify(p))})'>Get Started</button>
       </div>`);
   });

@@ -404,6 +404,21 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             biz = str(p.get("business_name") or "").strip() or "(unknown)"
             try:
                 subject, text, html_body = _email_subject_body(p)
+                try:  # A/B spintax subject (GATED OUTREACH_AB=1; OFF = zero change)
+                    import os as _os
+
+                    if (_os.getenv("OUTREACH_AB") or "").strip().lower() in {"1", "true", "yes", "on"}:
+                        from app.marketing.outreach_variants import apply_ab
+
+                        subject, text, html_body = apply_ab(p, subject, text, html_body)
+                except Exception:
+                    pass
+                try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON; absent = no-op)
+                    from app.marketing.outreach_variants import rotate_sender
+
+                    rotate_sender(sender)
+                except Exception:
+                    pass
                 ok = False
                 try:
                     ok = bool(await sender.send_email([to_addr], subject, text, html_body))
@@ -555,6 +570,12 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
             biz = str(p.get("business_name") or "").strip() or "(unknown)"
             try:
                 subject, text, html_body = _followup_subject_body(p, step)
+                try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON; absent = no-op)
+                    from app.marketing.outreach_variants import rotate_sender
+
+                    rotate_sender(sender)
+                except Exception:
+                    pass
                 ok = False
                 try:
                     ok = bool(await sender.send_email([to_addr], subject, text, html_body))

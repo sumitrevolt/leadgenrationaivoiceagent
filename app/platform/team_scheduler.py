@@ -174,6 +174,15 @@ async def _run_job_inner(job: str) -> None:
                 await payment_recon.run_if_enabled()  # Razorpay vs invoices recon (gated PAYMENT_RECON)
             except Exception:
                 pass
+            try:
+                # Speed-to-lead accountability line (READ-only metric) — Boss event me.
+                from app.platform import speed_to_lead, team
+
+                _stl = speed_to_lead.summary(7)
+                if _stl.get("ok") and _stl.get("verdict"):
+                    team.log_event("boss", "speed_to_lead", f"⚡ {_stl['verdict']}")
+            except Exception:
+                pass
         elif job == "content":
             from app.marketing import auto_content
 
@@ -214,6 +223,12 @@ async def _run_job_inner(job: str) -> None:
                 from app.marketing import customer_crm
 
                 await customer_crm.run_wishes_if_enabled()  # birthday/anniversary wish DRAFTS (gated CUSTOMER_WISHES)
+            except Exception:
+                pass
+            try:
+                from app.platform import service_reminders
+
+                await service_reminders.run_due_if_enabled()  # repeat-service WA reminder DRAFTS (gated SERVICE_REMINDERS)
             except Exception:
                 pass
             try:
@@ -311,6 +326,12 @@ async def _run_job_inner(job: str) -> None:
             from app.agents import self_improve
 
             self_improve.ensure_alive()  # continuous-loop dead-man revive (gated SELF_IMPROVE_LOOP; sirf Celery enqueue, inline kabhi nahi)
+            try:
+                from app.platform import proposal_tracking
+
+                proposal_tracking.sweep_new_opens()  # "proposal khola" event sweep (file-IO only, no send)
+            except Exception:
+                pass
         elif job == "onboard":
             from app.marketing import onboarding
 
