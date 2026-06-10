@@ -1038,7 +1038,7 @@ AUTOMATION_FLAGS = [
     "USE_SMART_TURN", "USE_LIGHTRAG", "ENABLE_OTEL", "ENABLE_LEGACY_BEAT", "FESTIVALS_LIVE_HOLIDAYS",
     "TELEGRAM_AUTO_PUBLISH", "CLIENT_REPORTS", "CUSTOMER_WISHES", "RANK_TRACKER",
     "MEMORY_VAULT", "LIVE_NOTES", "DLQ_AUTO_RETRY", "INTEGRATION_ALERTS",
-    "NPS_ALERTS", "PAYMENT_RECON", "INDEXNOW",
+    "NPS_ALERTS", "PAYMENT_RECON", "INDEXNOW", "SALES_TEAM",
 ]
 
 
@@ -1450,3 +1450,57 @@ async def seo_indexnow(body: IndexNowIn, _user=Depends(require_admin)):
     if body.urls:
         return await indexnow.submit_urls(body.urls)
     return await indexnow.submit_sitemap_if_enabled(force=True)  # admin manual = flag bypass
+
+
+# ------------- Sales team: 5-agent prospect deep-dive (ai-sales-team adapt) ------------- #
+class ProspectAnalysisIn(BaseModel):
+    prospect: dict | None = None  # direct record do...
+    phone: str | None = None      # ...ya phone se prospects me dhundo
+
+
+@router.post("/sales/prospect-analysis")
+async def sales_prospect_analysis(body: ProspectAnalysisIn, _user=Depends(require_admin)):
+    """5 parallel agents (research/BANT/competitive/outreach/objections) ek prospect pe —
+    ready-to-act analysis + 1-click drafts. Manual run (flag-independent)."""
+    from app.agents import sales_team
+
+    p = body.prospect
+    if not p and body.phone:
+        from app.platform import prospect_lists
+
+        hits = prospect_lists.search("", "", "", None, body.phone, 0, 3) or []
+        rows = hits.get("results") if isinstance(hits, dict) else hits
+        p = (rows or [{}])[0] if rows else None
+    if not p:
+        raise HTTPException(status_code=400, detail="prospect dict ya phone do")
+    return await sales_team.analyze(p)
+
+
+@router.get("/sales/prospect-analyses")
+async def sales_prospect_analyses(limit: int = 20, _user=Depends(require_admin)):
+    """Recent deep-dive analyses (markdown path + score/grade)."""
+    from app.agents import sales_team
+
+    return {"analyses": sales_team.list_analyses(limit)}
+
+
+@router.post("/sales/team-run")
+async def sales_team_run(limit: int = 3, _user=Depends(require_admin)):
+    """Auto-pilot sweep abhi chalao (top hot leads pe deep-dive) — manual trigger."""
+    import os as _os
+
+    from app.agents import sales_team
+
+    if _os.environ.get("SALES_TEAM", "0").strip().lower() not in ("1", "true", "yes"):
+        # manual admin run = gate bypass karke ek baar chala do
+        leads_done = 0
+        from app.platform import lead_scoring
+
+        res = await lead_scoring.top_hot_leads(10)
+        leads = (res.get("leads") if isinstance(res, dict) else res) or []
+        for lead in leads[: max(1, min(limit, 5))]:
+            r = await sales_team.analyze(lead if isinstance(lead, dict) else {})
+            if r.get("ok"):
+                leads_done += 1
+        return {"ok": True, "analyzed": leads_done, "note": "flag OFF — one-shot manual run"}
+    return await sales_team.run_auto(limit)

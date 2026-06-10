@@ -210,6 +210,12 @@ async def _run_job_inner(job: str) -> None:
             except Exception:
                 pass
             try:
+                from app.agents import sales_team
+
+                await sales_team.run_auto(3)  # 5-agent prospect deep-dives on hot leads (gated SALES_TEAM)
+            except Exception:
+                pass
+            try:
                 # White-label monthly client report — mahine ki 1 tarikh ko hi.
                 # Email sirf CLIENT_REPORTS=1 pe jata (warna file-only) — run_monthly khud gate karta.
                 from datetime import datetime as _dt
