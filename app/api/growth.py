@@ -876,6 +876,7 @@ AUTOMATION_FLAGS = [
     "REVIEW_MONITOR", "BOOKING_REMINDERS", "DELIVERABILITY_MONITOR", "AUTOMATION_HEALTH_ALERTS",
     "WHATSAPP_AUTO_SEND", "MISSED_CALL_CALLBACK", "SMS_DLT_ENABLED", "USE_SILERO_VAD",
     "USE_SMART_TURN", "USE_LIGHTRAG", "ENABLE_OTEL", "ENABLE_LEGACY_BEAT", "FESTIVALS_LIVE_HOLIDAYS",
+    "TELEGRAM_AUTO_PUBLISH",
 ]
 
 
@@ -1020,3 +1021,90 @@ async def infra_flags(_user=Depends(require_admin)):
         out[f] = {"set": v is not None, "on": (v or "").strip().lower() in ("1", "true", "yes"), "value": v}
     on = [k for k, d in out.items() if d["on"]]
     return {"on_count": len(on), "on": on, "flags": out}
+
+
+# ------------- Marketing AI upgrades: feedback loop / trends / reel / KB-post / telegram ------------- #
+class FeedbackIn(BaseModel):
+    theme: str
+    worked: bool
+    format: str = "post"
+    niche: str = ""
+    post_id: str = ""
+    channel: str = ""
+    note: str = ""
+
+
+@router.post("/content/feedback")
+async def content_feedback_record(body: FeedbackIn, _user=Depends(require_admin)):
+    """1-click 'post chala/nahi' — theme-level learning + channel bandit credit."""
+    from app.marketing import content_feedback
+
+    return content_feedback.record_feedback(
+        body.theme, body.worked, body.format, body.niche, body.post_id, body.channel, body.note
+    )
+
+
+@router.get("/content/feedback/stats")
+async def content_feedback_stats(niche: str = "", _user=Depends(require_admin)):
+    from app.marketing import content_feedback
+
+    return content_feedback.theme_stats(niche)
+
+
+@router.get("/content/trends")
+async def content_trends(niche: str = "general", business_name: str = "", _user=Depends(require_admin)):
+    """Google Trends (IN) → niche ke liye fresh Hinglish content angles."""
+    from app.marketing import trends
+
+    return await trends.trend_angles(niche, business_name)
+
+
+class ReelIn(BaseModel):
+    business_name: str
+    niche: str = "general"
+    slides: list[str] | None = None
+    offer: str = ""
+    client_id: str = ""
+
+
+@router.post("/content/reel-video")
+async def content_reel_video(body: ReelIn, _user=Depends(require_admin)):
+    """Faceless reel MP4 (PIL+EdgeTTS+ffmpeg) — heavy, human upload karta hai."""
+    from app.marketing import reel_video
+
+    return await reel_video.build_reel(
+        body.business_name, body.niche, body.slides, body.offer, body.client_id
+    )
+
+
+class PersonalizeIn(BaseModel):
+    client_id: str
+    occasion: str = ""
+    offer: str = ""
+
+
+@router.post("/content/personalize")
+async def content_personalize(body: PersonalizeIn, _user=Depends(require_admin)):
+    """Client-KB facts ke saath personalized post (AUTO_ONBOARD seeded KB reuse)."""
+    from app.marketing import kb_personalize
+
+    return await kb_personalize.personalized_post(body.client_id, body.occasion, body.offer)
+
+
+class TelegramIn(BaseModel):
+    chat_id: str = ""
+    text: str = ""
+    image_url: str = ""
+    client_id: str = ""
+    occasion: str = ""
+    offer: str = ""
+
+
+@router.post("/content/telegram-send")
+async def content_telegram_send(body: TelegramIn, _user=Depends(require_admin)):
+    """Telegram channel pe publish — TRUE auto channel (TELEGRAM_BOT_TOKEN gated)."""
+    from app.marketing import telegram_publish
+
+    if body.client_id and not body.text:
+        return await telegram_publish.send_for_client(body.client_id, body.occasion, body.offer)
+    return await telegram_publish.send_post(body.chat_id, body.text, body.image_url)
