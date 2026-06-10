@@ -115,6 +115,9 @@ async def _run_job(job: str) -> None:
             from app.platform import client_health
 
             await client_health.run_check()  # churn-risk scan (alert gated CLIENT_HEALTH_ALERTS)
+            from app.agents import growth_optimizer
+
+            await growth_optimizer.optimize()  # daily self-healing profit loop (gated GROWTH_OPTIMIZER)
         elif job == "content":
             from app.marketing import auto_content
 
@@ -142,6 +145,9 @@ async def _run_job(job: str) -> None:
             from app.marketing import lifecycle_nurture
 
             await lifecycle_nurture.run_due()  # signup->paid nurture (gated LIFECYCLE_NURTURE; inert off)
+            from app.marketing import channel_experiments
+
+            await channel_experiments.run_daily(3)  # naye approach-channel experiments (gated CHANNEL_EXPERIMENTS)
         elif job == "blog":
             from app.marketing import seo_blog
 

@@ -26,6 +26,31 @@ logger = setup_logger(__name__)
 _CURSOR = os.path.join("data", "niche_prospect_cursor.json")
 _DEFAULT_CITIES = ["Pune", "Mumbai", "Nagpur", "Nashik", "Thane"]
 
+# REACH SCALE: bada legal city-pool (Google Places API + OSM — dono ToS-safe).
+# `PROSPECT_CITIES` env (comma-separated) pool override karta. Har din rotating
+# window of `_CITY_WINDOW` cities — kuch dino me poora pool cover (over-scrape
+# ya billing-surprise ke bina).
+_CITY_POOL = [
+    "Pune", "Mumbai", "Nagpur", "Nashik", "Thane", "Aurangabad", "Solapur",
+    "Kolhapur", "Indore", "Surat", "Ahmedabad", "Jaipur", "Lucknow", "Bhopal", "Hyderabad",
+]
+_CITY_WINDOW = 4
+
+
+def city_rotation(window: int = _CITY_WINDOW, day_ordinal: int | None = None) -> list[str]:
+    """Aaj ke scrape ke liye rotating city window (deterministic by date — testable).
+    PROSPECT_CITIES env set ho to wahi pool. Kabhi raise nahi."""
+    try:
+        pool = [c.strip() for c in os.environ.get("PROSPECT_CITIES", "").split(",") if c.strip()] or list(_CITY_POOL)
+        if window >= len(pool):
+            return pool
+        from datetime import date
+
+        start = (day_ordinal if day_ordinal is not None else date.today().toordinal()) % len(pool)
+        return [pool[(start + j) % len(pool)] for j in range(window)]
+    except Exception:
+        return list(_DEFAULT_CITIES)
+
 
 def _all_niche_keys(tier: str | None = None, leadgen_only: bool = True) -> list[str]:
     """NICHES keys (optional tier filter). leadgen_only=True → marketing-only skip
@@ -82,7 +107,7 @@ def build_targets(
     n = len(keys)
     start = _read_cursor() % n
     picked = [keys[(start + j) % n] for j in range(min(batch, n))]
-    cities = cities or _DEFAULT_CITIES
+    cities = cities or city_rotation()
     targets: list[dict[str, Any]] = []
     for nk in picked:
         cfg = NICHES.get(nk) or {}
@@ -153,4 +178,4 @@ async def run(
     return {"ok": True, "covered": covered, "targets": len(targets), "result": result}
 
 
-__all__ = ["build_targets", "run", "_all_niche_keys"]
+__all__ = ["build_targets", "run", "_all_niche_keys", "city_rotation"]

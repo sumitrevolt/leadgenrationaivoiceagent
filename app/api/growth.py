@@ -588,3 +588,60 @@ async def revenue_digest_run(_user=Depends(require_admin)):
     from app.platform import revenue_digest
 
     return await revenue_digest.run(force=True)
+
+
+# ------------- Self-healing growth optimizer + channel experiments ------------- #
+@router.get("/optimizer/analysis")
+async def optimizer_analysis(_user=Depends(require_admin)):
+    """Funnel snapshot + weakest-stage diagnosis (read-only, koi action nahi)."""
+    from app.agents import growth_optimizer
+
+    snap = await growth_optimizer.funnel_snapshot()
+    return {"snapshot": snap, "weakest": growth_optimizer.weakest_stage(snap)}
+
+
+@router.post("/optimizer/run")
+async def optimizer_run(_user=Depends(require_admin)):
+    """Self-healing profit loop abhi chalao (gated GROWTH_OPTIMIZER — off = no-op)."""
+    from app.agents import growth_optimizer
+
+    return await growth_optimizer.optimize()
+
+
+@router.get("/optimizer/runs")
+async def optimizer_runs(limit: int = 20, _user=Depends(require_admin)):
+    """Recent optimizer runs + ideas."""
+    from app.agents import growth_optimizer
+
+    return {"runs": growth_optimizer.recent_runs(limit), "ideas": growth_optimizer.recent_ideas(30)}
+
+
+@router.post("/experiments/run")
+async def experiments_run(n: int = 3, _user=Depends(require_admin)):
+    """Channel experiments abhi launch karo (gated CHANNEL_EXPERIMENTS)."""
+    from app.marketing import channel_experiments
+
+    return await channel_experiments.run_daily(max(1, min(n, 5)))
+
+
+@router.get("/experiments")
+async def experiments_overview(_user=Depends(require_admin)):
+    """Per-channel bandit stats + recent experiments."""
+    from app.marketing import channel_experiments
+
+    return {"stats": channel_experiments.stats(), "recent": channel_experiments.recent(30)}
+
+
+class OutcomeIn(BaseModel):
+    channel: str
+    kind: str | None = "inquiry"
+    value: int | None = 1
+    note: str | None = ""
+
+
+@router.post("/experiments/outcome")
+async def experiments_outcome(body: OutcomeIn, _user=Depends(require_admin)):
+    """Channel outcome record karo (inquiry/reply/signup attribution) — bandit seekhta."""
+    from app.marketing import channel_experiments
+
+    return channel_experiments.record_outcome(body.channel, body.kind or "inquiry", body.value or 1, body.note or "")
