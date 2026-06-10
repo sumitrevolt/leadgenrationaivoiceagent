@@ -148,6 +148,12 @@ async def _run_job(job: str) -> None:
             from app.marketing import channel_experiments
 
             await channel_experiments.run_daily(3)  # naye approach-channel experiments (gated CHANNEL_EXPERIMENTS)
+            from app.platform import booking_reminders
+
+            await booking_reminders.run_due()  # kal ki bookings ke reminders (gated BOOKING_REMINDERS)
+            from app.marketing import review_monitor
+
+            await review_monitor.run_check()  # naye Google reviews -> AI reply drafts (gated REVIEW_MONITOR)
         elif job == "blog":
             from app.marketing import seo_blog
 
@@ -176,6 +182,9 @@ async def _run_job(job: str) -> None:
             from app.platform import ops_watchdog
 
             await ops_watchdog.run_watchdog()
+            from app.platform import deliverability_monitor
+
+            await deliverability_monitor.run_check()  # SPF/DMARC + blacklist (alert gated DELIVERABILITY_MONITOR)
         elif job == "onboard":
             from app.marketing import onboarding
 

@@ -65,6 +65,29 @@ async def book_slot(req: BookIn):
 
         cal = get_calendar()
         res = await cal.book_slot(req.slot, name=req.name, phone=req.phone, notes=req.notes)
+        # Persistent record + reminder pipeline (best-effort — booking kabhi na ruke)
+        try:
+            from app.platform import booking_reminders
+
+            slot_iso = ""
+            try:
+                slot_iso = req.slot.get("iso") or req.slot.get("start") or str(req.slot) if isinstance(req.slot, dict) else str(req.slot)
+            except Exception:
+                slot_iso = str(req.slot)
+            booking_reminders.record_booking(slot_iso, req.name, req.phone, notes=req.notes)
+        except Exception as e:
+            logger.debug(f"[booking] reminder record skip: {e}")
+        # Outbound webhook (Zapier-style, inert bina registered hooks)
+        try:
+            import asyncio as _aio
+
+            from app.platform import outbound_webhooks
+
+            _aio.get_event_loop().create_task(
+                outbound_webhooks.emit("booking", {"name": req.name, "phone": req.phone[-10:], "slot": str(req.slot)[:60]})
+            )
+        except Exception:
+            pass
         return _ser(res)
     except Exception as e:
         logger.error(f"booking book failed: {e}")

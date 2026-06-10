@@ -199,13 +199,13 @@ async def suggest_new_ways(niche: str = "general") -> list[str]:
     try:
         from app.voice_agent.free_ai import chat
 
-        raw = await chat(
-            system=(
+        raw, _prov = await chat(
+            (
                 "Tu ek Indian local-business growth hacker hai. SIRF free aur legal "
                 "tarike de (koi paid ads, koi scraping-ToS-violation, koi WhatsApp bulk). "
                 'JSON list de: ["idea1", ...] — 5 ideas, har ek <15 words, Hinglish.'
             ),
-            user=f"Niche: {niche}. leadsgenai.in ke liye naye customer-approach channels?",
+            [{"role": "user", "content": f"Niche: {niche}. leadsgenai.in ke liye naye customer-approach channels?"}],
             max_tokens=220,
         )
         txt = raw if isinstance(raw, str) else str(raw)

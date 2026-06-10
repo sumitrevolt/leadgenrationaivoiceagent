@@ -645,3 +645,127 @@ async def experiments_outcome(body: OutcomeIn, _user=Depends(require_admin)):
     from app.marketing import channel_experiments
 
     return channel_experiments.record_outcome(body.channel, body.kind or "inquiry", body.value or 1, body.note or "")
+
+
+# ---------------- Competitor-parity content (carousel/meme/multilang) ---------------- #
+class CarouselIn(BaseModel):
+    business_name: str
+    niche: str | None = "general"
+    topic: str | None = ""
+    slides: int | None = 4
+
+
+@router.post("/content/carousel")
+async def content_carousel(body: CarouselIn, _user=Depends(require_admin)):
+    """Predis-style carousel pack: 3-5 branded SVG slides + caption."""
+    from app.marketing import carousel
+
+    return await carousel.generate_carousel(body.business_name, body.niche or "general", body.topic or "", body.slides or 4)
+
+
+class MemeIn(BaseModel):
+    business_name: str | None = ""
+    niche: str | None = "general"
+    topic: str | None = ""
+
+
+@router.post("/content/meme")
+async def content_meme(body: MemeIn, _user=Depends(require_admin)):
+    """Desi business meme (SVG + caption + hashtags)."""
+    from app.marketing import meme_gen
+
+    return await meme_gen.generate_meme(body.business_name or "", body.niche or "general", body.topic or "")
+
+
+class MultilangIn(BaseModel):
+    caption: str
+    langs: list[str] | None = None
+
+
+@router.post("/content/multilang")
+async def content_multilang(body: MultilangIn, _user=Depends(require_admin)):
+    """Caption → Hindi/Marathi/Hinglish versions (local reach 2-3x)."""
+    from app.marketing import multilang_post
+
+    return await multilang_post.translate_post(body.caption, body.langs)
+
+
+# ---------------- Deliverability / bookings / reviews / webhooks ---------------- #
+@router.get("/deliverability")
+async def deliverability_check(_user=Depends(require_admin)):
+    """SPF/DMARC + IP blacklist check abhi chalao (Smartlead-pattern)."""
+    from app.platform import deliverability_monitor
+
+    return await deliverability_monitor.run_check()
+
+
+@router.get("/bookings/upcoming")
+async def bookings_upcoming(_user=Depends(require_admin)):
+    from app.platform import booking_reminders
+
+    return booking_reminders.upcoming(30)
+
+
+@router.post("/bookings/remind-run")
+async def bookings_remind_run(_user=Depends(require_admin)):
+    """Booking reminders sweep (gated BOOKING_REMINDERS)."""
+    from app.platform import booking_reminders
+
+    return await booking_reminders.run_due()
+
+
+@router.post("/reviews/monitor-run")
+async def reviews_monitor_run(_user=Depends(require_admin)):
+    """Naye Google reviews check + AI reply drafts (gated REVIEW_MONITOR)."""
+    from app.marketing import review_monitor
+
+    return await review_monitor.run_check()
+
+
+@router.get("/reviews/drafts")
+async def reviews_drafts(_user=Depends(require_admin)):
+    from app.marketing import review_monitor
+
+    return review_monitor.recent_drafts(30)
+
+
+class WebhookIn(BaseModel):
+    url: str
+    events: list[str] | None = None
+    client_id: str | None = ""
+    secret: str | None = ""
+
+
+@router.post("/webhooks/register")
+async def webhooks_register(body: WebhookIn, _user=Depends(require_admin)):
+    """Zapier-style outbound webhook register (https only, HMAC-signed)."""
+    from app.platform import outbound_webhooks
+
+    return outbound_webhooks.register(body.url, body.events, body.client_id or "", body.secret or "")
+
+
+@router.get("/webhooks")
+async def webhooks_list(_user=Depends(require_admin)):
+    from app.platform import outbound_webhooks
+
+    return {"webhooks": outbound_webhooks.list_webhooks(), "deliveries": outbound_webhooks.recent_deliveries(20)}
+
+
+@router.delete("/webhooks/{webhook_id}")
+async def webhooks_remove(webhook_id: str, _user=Depends(require_admin)):
+    from app.platform import outbound_webhooks
+
+    return {"removed": outbound_webhooks.remove(webhook_id)}
+
+
+# ---------------- PUBLIC: AI website audit (lead magnet) ---------------- #
+class SiteAuditIn(BaseModel):
+    url: str
+
+
+@router.post("/tools/website-audit", dependencies=[Depends(rate_limit("site_audit", 10, 60))])
+async def website_audit_public(body: SiteAuditIn):
+    """PUBLIC lead magnet: website URL → score + Hinglish tips + CTA."""
+    from app.marketing import website_auditor
+
+    return await website_auditor.audit_url(body.url)

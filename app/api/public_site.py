@@ -470,6 +470,27 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     except Exception as e:
         logger.debug(f"[public] notify-email task spawn failed: {e}")
 
+    # 7.5) Outbound webhooks (Zapier-style) — inert bina registered hooks. Fire-and-forget.
+    try:
+        from app.platform import outbound_webhooks
+
+        wtask = asyncio.create_task(
+            outbound_webhooks.emit(
+                "inquiry_received",
+                {
+                    "business_name": str(rec.get("business_name") or "")[:80],
+                    "name": str(rec.get("name") or "")[:60],
+                    "phone": str(rec.get("phone") or "")[-10:],
+                    "niche": rec.get("niche"),
+                    "city": rec.get("city"),
+                },
+            )
+        )
+        _BG_TASKS.add(wtask)
+        wtask.add_done_callback(_BG_TASKS.discard)
+    except Exception as e:
+        logger.debug(f"[public] webhook emit skip: {e}")
+
     # 8) Omnichannel journey engine — fire 'inquiry_received' (gated JOURNEY_ENGINE=1;
     #    default off = kuch nahi hota). Matching rules cross-channel drafts banate.
     try:
