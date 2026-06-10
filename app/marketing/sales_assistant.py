@@ -45,14 +45,30 @@ REBUTTALS: dict[str, dict[str, str]] = {
 _CATS = list(REBUTTALS.keys())
 
 
-async def handle_message(message: str, business_name: str = "", niche: str = "general") -> dict[str, Any]:
-    """Prospect message → objection-aware sales reply + CTA. Kabhi raise nahi."""
+async def handle_message(
+    message: str, business_name: str = "", niche: str = "general", phone: str = ""
+) -> dict[str, Any]:
+    """Prospect message → objection-aware sales reply + CTA. Kabhi raise nahi.
+
+    `phone` (optional) ho to memory_vault se prospect history LLM context me
+    jaati (Rowboat-style compounding memory) — memory na ho = aaj jaisa."""
     msg = (message or "").strip()
     if not msg:
         return {"ok": False, "reason": "empty"}
     intent = "info"
     reply = REBUTTALS["info"]["reply"]
     cta = REBUTTALS["info"]["cta"]
+
+    # Best-effort memory context (never-raise; empty = zero change)
+    history = ""
+    if phone:
+        try:
+            from app.platform import memory_vault
+
+            history = memory_vault.context_snippet(phone=phone, max_chars=600)
+        except Exception:
+            history = ""
+
     try:
         from app.voice_agent import free_ai
         import json
@@ -62,8 +78,11 @@ async def handle_message(message: str, business_name: str = "", niche: str = "ge
             '{"intent":"<price|trust|works|timing|info|ready>","reply":"<confident short Hinglish '
             'reply jo objection handle kare + close pe push kare>"}. Pushy nahi, helpful. Sirf JSON.'
         )
+        user_content = f"Business: {business_name}. Niche: {niche}. Msg: {msg}"
+        if history:
+            user_content = f"History (is prospect ki):\n{history}\n\n{user_content}"
         raw, _ = await free_ai.chat(
-            sys, [{"role": "user", "content": f"Business: {business_name}. Niche: {niche}. Msg: {msg}"}],
+            sys, [{"role": "user", "content": user_content}],
             max_tokens=200, temperature=0.4,
         )
         i, j = raw.find("{"), raw.rfind("}")

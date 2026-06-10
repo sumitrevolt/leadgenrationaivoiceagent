@@ -34,10 +34,24 @@ async def generate_proposal(
     plan: str = "growth",
     missed_per_day: float = 5,
     avg_deal_value: float = 20000,
+    phone: str = "",
 ) -> dict[str, Any]:
-    """Ek lead ke liye personalized proposal + payment/demo links + ROI. Kabhi raise nahi."""
+    """Ek lead ke liye personalized proposal + payment/demo links + ROI. Kabhi raise nahi.
+
+    `phone` (optional) ho to memory_vault history LLM prompt me jaati (proposal
+    prospect ki actual baat-cheet pe personalized) — memory na ho = aaj jaisa."""
     biz = (business_name or "Aapka business").strip()
     p = _plan(plan)
+
+    # Best-effort memory context (never-raise; empty = zero change)
+    history = ""
+    if phone:
+        try:
+            from app.platform import memory_vault
+
+            history = memory_vault.context_snippet(phone=phone, max_chars=600)
+        except Exception:
+            history = ""
 
     # ROI from lead_tools (missed-revenue)
     roi = {}
@@ -74,6 +88,8 @@ async def generate_proposal(
             f"Business: {biz}, Niche: {niche}, City: {city}. Plan: {p['name']} ₹{p['price']}/mo. "
             f"Monthly loss: ₹{lost}. Demo: {BASE}/app/test-call. Pay: {BASE}/pricing."
         )
+        if history:
+            prompt += f"\nIs prospect ki history (personalize karo): {history}"
         txt, _ = await free_ai.chat(sys, [{"role": "user", "content": prompt}], max_tokens=320, temperature=0.6)
         if txt and txt.strip():
             proposal = txt.strip()

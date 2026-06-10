@@ -74,7 +74,9 @@ function show(){
     <div class="act">
       <a href="tel:+91${ph}">📞 Call karo</a>
       <a href="https://wa.me/91${ph}${p.pitch?'?text='+encodeURIComponent(p.pitch):''}" target="_blank">🟢 WhatsApp</a>
+      <button class="sec" onclick="prep('${ph}')">📋 Prep</button>
     </div>
+    <div id="prep" class="pitch" style="display:none"></div>
     <textarea id="notes" placeholder="Notes (kya baat hui…)"></textarea>
     <div class="disp">
       <button class="d-int" onclick="disp('interested')">😊 Interested</button>
@@ -92,6 +94,22 @@ async function disp(d){
     const r=await api('/api/seoops/dialer/disposition',{method:'POST',body:JSON.stringify({phone:p.phone,disposition:d,notes:$('notes').value.trim()})});
     if(r.ok){idx++;show();loadStats()}else{$('dmsg').textContent='❌ '+(r.error||'fail')}
   }catch(e){$('dmsg').textContent='❌ '+e.message}
+}
+async function prep(ph){
+  const el=$('prep');if(!el)return;
+  el.style.display='block';el.textContent='⏳ Brief ban raha (call history + AI)…';
+  try{
+    const r=await api('/api/memory/prep?phone='+encodeURIComponent(ph));
+    if(!r.ok){el.textContent='❌ '+(r.error||'prep fail');return}
+    const b=r.brief||{};
+    let h='<b>📋 '+esc(b.kaun_hai||'')+'</b>'+(r.score?(' · score '+r.score):'')+(r.memory_found?' · 🧠 memory':'')+'\n';
+    if(b.history_summary)h+='\n🕘 '+esc(b.history_summary)+'\n';
+    if((b.talking_points||[]).length)h+='\n🎯 Talking points:\n'+b.talking_points.map(t=>'• '+esc(t)).join('\n')+'\n';
+    if((b.objections||[]).length)h+='\n🛡️ Objections:\n'+b.objections.map(o=>'• "'+esc(o.objection)+'" → '+esc(o.jawab)).join('\n')+'\n';
+    if(b.next_action)h+='\n➡️ '+esc(b.next_action);
+    if(b.best_time_hint)h+='\n⏰ '+esc(b.best_time_hint);
+    el.innerHTML=h.replace(/\n/g,'<br>');
+  }catch(e){el.textContent='❌ '+e.message}
 }
 async function loadStats(){
   try{

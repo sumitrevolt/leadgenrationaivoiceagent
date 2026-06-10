@@ -352,6 +352,12 @@ try:
     app.include_router(privacy_ops_router, prefix="/api")  # /api/privacy/* (DPDP export/erasure)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Privacy-ops router not mounted: {_e}")
+try:
+    from app.api.memory_api import router as memory_router
+
+    app.include_router(memory_router, prefix="/api")  # /api/memory/* (compounding memory, call-prep, live notes)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Memory router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])

@@ -188,6 +188,18 @@ async def _run_job_inner(job: str) -> None:
                 await rank_tracker.run_if_enabled()  # local rank tracking sweep (gated RANK_TRACKER, cap lookups)
             except Exception:
                 pass
+            try:
+                from app.platform import memory_vault
+
+                await memory_vault.sync_if_enabled()  # compounding memory tail-sync (gated MEMORY_VAULT, no LLM)
+            except Exception:
+                pass
+            try:
+                from app.platform import live_notes
+
+                await live_notes.refresh_if_enabled()  # topic live-notes refresh (gated LIVE_NOTES, max 5/day)
+            except Exception:
+                pass
         elif job == "blog":
             from app.marketing import seo_blog
 
