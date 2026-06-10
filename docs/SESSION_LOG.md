@@ -824,3 +824,15 @@ Smoke (`docker exec leadgen_app python scripts/smoke_revenue_infra.py`) = **PASS
 **Customer portal invoices**: `GET /api/customer/auth/portal/invoices` + `/portal/invoice-html?number=` (ownership = JWT client_id check). **GSTR CSV**: `GET /api/growth/revenue/invoices.csv?fy=` (admin) — CA/accounting ready.
 **Verify**: prod_check **473 routes**, naya `test_billing_truth_2026.py` 8/8 + revenue_infra/revenue_automation 20 + phase3_billing_tenant/2026_features 36 — sab green; pricing.html JS_OK. **LIVE**: health 200 db+redis healthy, smoke PASS (plans truth 999/2499/5999, monthly 999/yearly 9990 flat, topup packs), public `/api/billing/plans` ab "Marketing Starter" @999 — /pricing page turant sahi.
 **NOTE**: Razorpay webhook dashboard-register abhi bhi USER-ACTION (bina iske captured/failed events nahi aate — topup credit, dunning recovery, auto-invoice sab uspe depend).
+
+
+## 2026-06-10 PM — NPS + Payment Recon + IndexNow batch (commit 55560ae, DEPLOYED LIVE)
+Research-driven (FastAPI prod guides + Formbricks/Fider feedback pattern + Hyperswitch recon pattern + IndexNow free instant-indexing). Sab additive/gated/never-raise/free-stack.
+- **NPS collector** `app/platform/nps.py` — classify/compute_nps pure fns, public submit (rate-limit 10/60s), detractor email alert gated NPS_ALERTS, promoter -> suggest_review (review_engine candidate), per-client WhatsApp survey drafts. Store data/nps_responses.jsonl.
+- **Payment recon** `app/billing/payment_recon.py` — Razorpay captured payments (READ-only API) vs data/invoices.jsonl match (id/order-id blob + amount+day fallback), unmatched = revenue-leak alert gated PAYMENT_RECON. digest job wired. Store data/payment_recon_last.json.
+- **IndexNow** `app/marketing/indexnow.py` — key auto-gen persist (data/indexnow_key.txt) + /indexnow-key.txt route (main.py), sitemap self-fetch -> <loc> diff (sha256 cursor) -> api.indexnow.org POST. blog job wired gated INDEXNOW. Admin force: POST /api/growth/seo/indexnow.
+- **Alembic adopt** — scaffold+5 revisions pehle se the; scripts/alembic_baseline.sh (dry-run default) banaya; LIVE: Postgres ALREADY stamped 005 head (confirm hua). Ab se schema change = revision --autogenerate + upgrade head.
+- **Verify**: prod_check 482 routes PASS, naya test 7/7, regression (revenue_automation+revenue_infra+billing_truth) 28/28. Deploy: image rebuild + compose recreate, health 200 int+ext, 16 containers Up.
+- **Flags ON** (.env.bak_envset_20260610_144356): NPS_ALERTS, PAYMENT_RECON, INDEXNOW. LIVE smoke: IndexNow 22 URLs HTTP 202 submitted; NPS calc ok.
+- **🚨 FINDING: Razorpay Payments API = 401 Authentication failed** live creds se — recon ne pakda. Checkout/payment-links isi creds pe — USER-ACTION: dashboard me keys verify/regenerate + .env update + container recreate. (Recon graceful — alert spam nahi.)
+- Deploy gotcha refresher: DC one-liner ssh quoting mangle — smoke/deploy .bat me hi likho (nps_batch_deploy/smoke/activate.bat pattern).
