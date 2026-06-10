@@ -10,6 +10,8 @@ Sab tests network/Qdrant/Gemini ke BINA chalte hain — pure logic + TestClient.
 - Qdrant availability checks short-circuit on empty URL (no crash, no network).
 """
 
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -78,11 +80,21 @@ class TestSupervisorRouting:
         assert sup.route_for_task("SEED KB RESEARCH") == "data_agent"
         assert sup.route_for_task("Qualify LEAD") == "leads_agent"
 
-    def test_supervisor_node_uses_router(self):
-        # node bhi bina langgraph ke importable/callable hai
-        assert sup.supervisor_node({"task": "seed kb"})["route"] == "data_agent"
-        assert sup.supervisor_node({"task": "call campaign"})["route"] == "leads_agent"
-        assert sup.supervisor_node({})["route"] == "leads_agent"
+    def test_supervisor_node_uses_router(self, monkeypatch):
+        # Phase-2: node ab ASYNC hai (semantic free-LLM router + keyword
+        # fallback). LLM ko deterministic keyword fallback se replace karo —
+        # no network — aur node ke route-contract ko assert karo.
+        async def _kw_only(task):
+            return sup.route_for_task(task)
+
+        monkeypatch.setattr(sup, "semantic_route_for_task", _kw_only)
+
+        def run(state):
+            return asyncio.run(sup.supervisor_node(state))
+
+        assert run({"task": "seed kb"})["route"] == "data_agent"
+        assert run({"task": "call campaign"})["route"] == "leads_agent"
+        assert run({})["route"] == "leads_agent"
 
     def test_graph_nodes_constant(self):
         assert sup.GRAPH_NODES == ["supervisor", "data_agent", "leads_agent"]

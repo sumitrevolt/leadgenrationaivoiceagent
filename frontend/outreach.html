@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>LeadGen AI — Outreach Queue</title>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
 <style>
   :root{
     --brand:#6d28d9;          /* violet-700 */
@@ -311,5 +312,6 @@
   refresh();
   setInterval(refresh, 30000);
 </script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
 </body>
 </html>

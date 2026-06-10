@@ -594,6 +594,13 @@ async def journeys_page():
     return FileResponse(str(FRONTEND_DIR / "journeys.html"))
 
 
+@app.get("/app/growth-tools", tags=["Frontend"])
+async def growth_tools_page():
+    """Growth Tools admin — UPI QR, jingle, bg-remove, multilang-9, rank tracker,
+    catalog, customer CRM, short links, reviews widget, memory, lead webhook."""
+    return FileResponse(str(FRONTEND_DIR / "growth_tools.html"))
+
+
 @app.get("/app/conversations", tags=["Frontend"])
 async def conversations_page():
     """Unified conversation inbox (GHL-style) — email replies + web-chat + inquiries ek thread view.

@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>WhatsApp Campaigns — LeadsGenAI</title>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
 <style>
   :root{--pri:#16a34a;--ink:#0f172a;--mut:#64748b;--bg:#f1f5f9;--card:#fff;--bad:#b91c1c;--amber:#b45309;}
   *{box-sizing:border-box;}
@@ -237,5 +238,6 @@
   loadAll();
 })();
 </script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
 </body>
 </html>

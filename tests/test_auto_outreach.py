@@ -7,6 +7,8 @@ No real SMTP / network:
   - email_sender.send_email ko async stub se monkeypatch
   - settings.auto_email_outreach / smtp_user monkeypatch
   - throttle sleep ko no-op kar dete hain (test fast rahe)
+  - email_verify.verify (MX/DNS lookup) ko deterministic stub se monkeypatch
+    (autouse) — test domains fake hain, real DNS kabhi nahi hota
 """
 
 import json
@@ -17,6 +19,25 @@ import pytest
 
 from app.config import settings as app_settings
 from app.platform import auto_outreach, prospector
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_email_verify(monkeypatch):
+    """MX-deliverability gate ko hermetic banao — koi real DNS lookup nahi.
+
+    `auto_outreach._valid_email` ab `email_verify.verify` (email-validator + MX)
+    call karta hai; test emails ke domains fake hain to real DNS = 0 sends.
+    Stub same return-shape deta hai ("absent" reason NAHI, taaki _valid_email
+    verifier ka verdict hi use kare) — syntax-level ok/not-ok deterministic.
+    """
+    from app.lead_scraper import email_verify
+
+    def _fake_verify(addr, check_mx=True):
+        a = (addr or "").strip()
+        ok = "@" in a and "." in a.split("@")[-1] and len(a) >= 6
+        return {"ok": ok, "email": a, "reason": "valid (stub)" if ok else "bad syntax (stub)"}
+
+    monkeypatch.setattr(email_verify, "verify", _fake_verify)
 
 
 @pytest.fixture

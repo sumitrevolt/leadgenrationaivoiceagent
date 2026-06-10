@@ -200,6 +200,17 @@ async def _run_job_inner(job: str) -> None:
                 await live_notes.refresh_if_enabled()  # topic live-notes refresh (gated LIVE_NOTES, max 5/day)
             except Exception:
                 pass
+            try:
+                # White-label monthly client report — mahine ki 1 tarikh ko hi.
+                # Email sirf CLIENT_REPORTS=1 pe jata (warna file-only) — run_monthly khud gate karta.
+                from datetime import datetime as _dt
+
+                if _dt.now().day == 1:
+                    from app.marketing import client_report
+
+                    await client_report.run_monthly()
+            except Exception:
+                pass
         elif job == "blog":
             from app.marketing import seo_blog
 

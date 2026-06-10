@@ -121,6 +121,10 @@ def test_gate_never_raises_on_bad_dnd(monkeypatch):
 
     g = ComplianceGate(dnd_checker=_BoomDND())
     d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
-    # DND unverifiable -> note, not a hard block; DLT+caller-id present -> allowed.
-    assert d.allowed, d.reasons
+    # Gate raised nahi (decision return hua) — core intent.
+    # TRAI fail-CLOSED: DND unverifiable => promotional call BLOCKED (₹10L-safe),
+    # even with DLT + caller-id set. Reason surfaced, not an exception.
+    assert not d.allowed
+    assert "dnd_lookup_failed" in d.reasons
     assert d.checks.get("dnd") is None
+    assert d.checks.get("dnd_note") == "lookup_failed"

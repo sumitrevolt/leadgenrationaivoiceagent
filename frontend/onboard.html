@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Naya Client Onboard — LeadsGenAI</title>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
 <style>
   :root{--pri:#2563eb;--ink:#e2e8f0;--mut:#94a3b8;--bg:#0b1020;--card:#141b2e;--bord:#26314d;--ok:#22c55e;--bad:#f87171;}
   *{box-sizing:border-box;}
@@ -299,5 +300,6 @@
   }
 })();
 </script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
 </body>
 </html>

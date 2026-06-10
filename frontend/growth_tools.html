@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<title>Growth Tools — LeadsGenAI</title>
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px;max-width:1280px;margin:auto}
+h1{font-size:1.3rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
+.layout{display:flex;gap:14px;align-items:flex-start}
+.side{width:215px;flex-shrink:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;position:sticky;top:12px}
+.side button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--txt);padding:8px 10px;border-radius:8px;cursor:pointer;font-size:.85rem;margin:1px 0}
+.side button:hover{background:#222636} .side button.act{background:var(--acc);color:#fff}
+.main{flex:1;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{font-size:1rem;margin-bottom:8px;color:var(--acc)} .card h3{font-size:.88rem;margin:10px 0 6px;color:var(--warn)}
+label{display:block;font-size:.78rem;color:var(--mut);margin:8px 0 3px}
+input,select,textarea{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:7px 10px;border-radius:8px;width:100%;max-width:420px;font-size:.85rem;font-family:inherit}
+textarea{max-width:640px;min-height:80px}
+button.btn{background:var(--acc);border:0;color:#fff;padding:7px 16px;border-radius:8px;cursor:pointer;margin:8px 6px 0 0;font-size:.85rem}
+button.btn2{background:#222636;border:1px solid var(--line);color:var(--txt);padding:5px 12px;border-radius:8px;cursor:pointer;margin:4px 4px 0 0;font-size:.78rem}
+button.btnd{background:#3a1d24;border:1px solid #5b2733;color:var(--bad);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:.75rem}
+button:disabled{opacity:.5;cursor:wait}
+table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:8px} td,th{padding:4px 7px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top} th{color:var(--mut);font-weight:600}
+.mut{color:var(--mut);font-size:.8rem} .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+.tabsec{display:none}
+.result{background:#11141d;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;font-size:.85rem;overflow:auto}
+pre{white-space:pre-wrap;word-break:break-word;font-size:.78rem;background:#0c0e14;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:420px;overflow:auto}
+.copybox{display:flex;gap:6px;align-items:center;margin-top:6px;max-width:680px}
+.copybox input{flex:1;max-width:none}
+.toast{position:fixed;bottom:18px;right:18px;padding:10px 16px;border-radius:10px;font-size:.85rem;z-index:99;max-width:340px}
+.tok{background:#123524;color:var(--ok);border:1px solid #1d5a3c} .tbad{background:#3a1d24;color:var(--bad);border:1px solid #5b2733}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.72rem;margin:1px;background:#222636}
+.chip{display:inline-flex;align-items:center;gap:4px;background:#222636;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin:3px;font-size:.78rem;cursor:pointer}
+.chip input{width:auto;max-width:none}
+img.qr{background:#fff;border-radius:10px;padding:6px;max-width:220px;display:block;margin-top:8px}
+.svgwrap{background:#fff;border-radius:10px;padding:6px;margin-top:8px;max-width:460px;overflow:auto}
+iframe.prev{width:100%;max-width:680px;height:230px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-top:8px}
+audio{margin-top:8px;width:100%;max-width:420px}
+.row{display:flex;gap:14px;flex-wrap:wrap} .row>div{flex:1;min-width:280px}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<h1>🧰 Growth Tools</h1>
+<div class="sub">UPI QR · Jingle · BG Remove · Multilang · Rank · Catalog · Customer CRM · Short Links · Reviews · Memory · Lead Webhook — sab ek jagah.</div>
+<div style="margin-bottom:12px">
+  <input id="tokin" type="password" placeholder="Admin token (login se auto)" style="width:280px">
+  <button class="btn" style="margin:0 0 0 6px" onclick="saveTok()">Save</button>
+  <a href="/app/admin-login" class="mut" style="margin-left:8px;font-size:.8rem">login →</a>
+</div>
+
+<div class="layout">
+<nav class="side" id="sidebar">
+  <button id="tab-upi" onclick="show('upi')">💸 UPI QR + Payment Link</button>
+  <button id="tab-jingle" onclick="show('jingle')">🎙️ Jingle</button>
+  <button id="tab-bgrm" onclick="show('bgrm')">🖼️ BG Remove</button>
+  <button id="tab-multilang" onclick="show('multilang')">🌐 Multilang 9</button>
+  <button id="tab-rank" onclick="show('rank')">📍 Rank Tracker</button>
+  <button id="tab-catalog" onclick="show('catalog')">🛍️ Catalog</button>
+  <button id="tab-crm" onclick="show('crm')">🎂 Customer CRM</button>
+  <button id="tab-links" onclick="show('links')">🔗 Short Links</button>
+  <button id="tab-reviews" onclick="show('reviews')">⭐ Reviews Widget</button>
+  <button id="tab-memory" onclick="show('memory')">🧠 Memory</button>
+  <button id="tab-webhook" onclick="show('webhook')">📥 Lead Webhook</button>
+</nav>
+
+<div class="main">
+
+<!-- ============ 1. UPI QR + Payment Link ============ -->
+<section class="tabsec" id="sec-upi">
+  <div class="card">
+    <h2>💸 UPI QR Poster</h2>
+    <div class="mut">Client ke record me <b>upi_vpa</b> set hona chahiye (/app/clients). Scan-and-pay QR + branded slip poster + WA share.</div>
+    <label>Client ID / slug</label><input id="upiClient" placeholder="sharma-solar-7b6f">
+    <label>Amount (₹, optional — khali = open amount)</label><input id="upiAmt" type="number" placeholder="999">
+    <label>Note (optional)</label><input id="upiNote" placeholder="Advance payment">
+    <button class="btn" id="upiBtn" onclick="upiGo()">QR Pack banao</button>
+    <div id="upiOut"></div>
+  </div>
+  <div class="card">
+    <h2>💳 Razorpay Payment Link</h2>
+    <div class="mut">Create-only (auto-charge nahi). Razorpay creds unset = graceful error.</div>
+    <div class="row"><div>
+      <label>Client ID</label><input id="plClient" placeholder="client id">
+      <label>Amount (₹)</label><input id="plAmt" type="number" placeholder="2499">
+      <label>Purpose</label><input id="plPurpose" placeholder="Growth plan — June">
+    </div><div>
+      <label>Customer name (optional)</label><input id="plName">
+      <label>Customer phone (optional)</label><input id="plPhone" placeholder="98xxxxxxxx">
+      <label>Business name (optional — khali = client record se)</label><input id="plBiz">
+    </div></div>
+    <button class="btn" id="plBtn" onclick="payLinkGo()">Link banao</button>
+    <button class="btn2" onclick="payLinksList()">📋 Bane links dekho</button>
+    <div id="plOut"></div><div id="plList"></div>
+  </div>
+</section>
+
+<!-- ============ 2. Jingle ============ -->
+<section class="tabsec" id="sec-jingle">
+  <div class="card">
+    <h2>🎙️ Audio Jingle (15-20s radio ad)</h2>
+    <div class="mut">free-LLM script + EdgeTTS mp3. WhatsApp status / reel audio / shop speaker — HUMAN use kare, auto-publish nahi. ~10-25s lagta hai.</div>
+    <label>Business name</label><input id="jgBiz" placeholder="Sharma Solar">
+    <label>Niche</label><input id="jgNiche" placeholder="solar">
+    <label>Offer (optional)</label><input id="jgOffer" placeholder="Subsidy + free site visit">
+    <label>Language</label>
+    <select id="jgLang"><option value="hinglish">Hinglish</option><option value="hindi">Hindi</option><option value="marathi">Marathi</option></select>
+    <button class="btn" id="jgBtn" onclick="jingleGo()">Jingle banao</button>
+    <div id="jgOut"></div>
+  </div>
+</section>
+
+<!-- ============ 3. BG Remove ============ -->
+<section class="tabsec" id="sec-bgrm">
+  <div class="card">
+    <h2>🖼️ Background Remove (photo → transparent PNG)</h2>
+    <div class="mut">Product/owner photo ka background 1-click hatao — poster me use karo. <span class="warn">Note: rembg VPS pe installed nahi ho to graceful error aayega (heavy dep, install = user decision).</span></div>
+    <label>Photo choose karo</label><input id="bgFile" type="file" accept="image/*" style="padding:5px">
+    <button class="btn" id="bgBtn" onclick="bgGo()">BG hatao</button>
+    <div id="bgOut"></div>
+  </div>
+</section>
+
+<!-- ============ 4. Multilang 9 ============ -->
+<section class="tabsec" id="sec-multilang">
+  <div class="card">
+    <h2>🌐 Multilang Post (9 bhashayein)</h2>
+    <div class="mut">Caption ko local languages me convert karo — native script, brand/numbers/hashtags same. Local reach 2-3x.</div>
+    <label>Caption</label><textarea id="mlText" placeholder="Solar lagwao, bijli bill bhool jao! ☀️ Sharma Solar — call 98xxxxxxxx"></textarea>
+    <label>Languages</label><div id="mlLangs"></div>
+    <button class="btn" id="mlBtn" onclick="mlGo()">Translate karo</button>
+    <div id="mlOut"></div>
+  </div>
+</section>
+
+<!-- ============ 5. Rank Tracker ============ -->
+<section class="tabsec" id="sec-rank">
+  <div class="card">
+    <h2>📍 Local Rank Tracker (Google Maps)</h2>
+    <div class="row"><div>
+      <h3>Tracking config (ongoing)</h3>
+      <label>Client ID</label><input id="rkClient">
+      <label>Keywords (comma se)</label><input id="rkKeys" placeholder="solar installer, solar panel dealer">
+      <label>City</label><input id="rkCity" placeholder="Pune">
+      <label>Business name</label><input id="rkBiz">
+      <label>Phone (match ke liye, optional)</label><input id="rkPhone">
+      <button class="btn" onclick="rankConfig()">Config save</button>
+      <button class="btn2" onclick="rankConfigs()">📋 Configs dekho</button>
+      <div id="rkCfgOut"></div>
+    </div><div>
+      <h3>One-off check (demo/sales)</h3>
+      <label>Business name</label><input id="rcBiz">
+      <label>Keyword</label><input id="rcKey" placeholder="solar installer">
+      <label>City</label><input id="rcCity" placeholder="Pune">
+      <label>Phone (optional)</label><input id="rcPhone">
+      <button class="btn" id="rcBtn" onclick="rankCheck()">Abhi check karo</button>
+      <div id="rcOut"></div>
+    </div></div>
+  </div>
+  <div class="card">
+    <h2>📈 Rank History</h2>
+    <div class="copybox"><input id="rhClient" placeholder="client_id (khali = sab)"><button class="btn2" onclick="rankHistory()">Load</button></div>
+    <div id="rhOut"></div>
+  </div>
+</section>
+
+<!-- ============ 6. Catalog ============ -->
+<section class="tabsec" id="sec-catalog">
+  <div class="card">
+    <h2>🛍️ Mini-site Product Catalog</h2>
+    <div class="mut">Products mini-site pe LIVE dikhte hain + WhatsApp-order button. Page: <span id="ctLink" class="mut">/b/{slug}</span></div>
+    <div class="copybox"><input id="ctSlug" placeholder="client slug (e.g. sharma-solar-7b6f)"><button class="btn2" onclick="catalogLoad()">Products load</button></div>
+    <div id="ctList"></div>
+    <h3>➕ Product add</h3>
+    <div class="row"><div>
+      <label>Name</label><input id="ctName" placeholder="5kW Solar Combo">
+      <label>Price (₹)</label><input id="ctPrice" type="number" placeholder="225000">
+      <label>Photo URL (optional)</label><input id="ctPhoto" placeholder="https://...">
+    </div><div>
+      <label>Description (optional)</label><textarea id="ctDesc" style="min-height:60px"></textarea>
+      <label><input type="checkbox" id="ctStock" checked style="width:auto"> In stock</label>
+    </div></div>
+    <button class="btn" onclick="catalogAdd()">Add karo</button>
+  </div>
+</section>
+
+<!-- ============ 7. Customer CRM ============ -->
+<section class="tabsec" id="sec-crm">
+  <div class="card">
+    <h2>🎂 End-Customer CRM (birthday/anniversary wishes)</h2>
+    <div class="copybox"><input id="crmClient" placeholder="client_id"><button class="btn2" onclick="crmLoad()">Customers load</button></div>
+    <div id="crmList"></div>
+    <div class="row"><div>
+      <h3>➕ Customer add</h3>
+      <label>Name</label><input id="cuName">
+      <label>Phone</label><input id="cuPhone" placeholder="98xxxxxxxx">
+      <label>Birthday (MM-DD ya YYYY-MM-DD)</label><input id="cuBday" placeholder="06-15">
+      <label>Anniversary (optional)</label><input id="cuAnniv" placeholder="11-20">
+      <button class="btn" onclick="crmAdd()">Add karo</button>
+    </div><div>
+      <h3>📋 Bulk import (CSV/Excel paste)</h3>
+      <div class="mut">Columns: Name, Mobile, DOB, Anniversary (aliases auto-map hote).</div>
+      <textarea id="cuCsv" placeholder="Name,Mobile,DOB&#10;Ramesh,9876543210,06-15"></textarea>
+      <button class="btn" onclick="crmImport()">Import karo</button>
+    </div></div>
+    <div id="crmAddOut"></div>
+  </div>
+  <div class="card">
+    <h2>🎉 Aaj ke occasions + Wish drafts</h2>
+    <button class="btn2" onclick="crmOccasions()">🎂 Aaj ke occasions</button>
+    <button class="btn2" onclick="crmDrafts()">📝 Wish drafts dekho</button>
+    <button class="btn" style="margin-top:4px" id="wishBtn" onclick="crmWishRun()">✨ Aaj ke wish DRAFTS banao</button>
+    <div class="mut">Drafts = caption + AI image + wa.me 1-click. Auto-send NAHI (ban-safe).</div>
+    <div id="crmOcc"></div><div id="crmDraftsOut"></div>
+  </div>
+</section>
+
+<!-- ============ 8. Short Links ============ -->
+<section class="tabsec" id="sec-links">
+  <div class="card">
+    <h2>🔗 Short Links (apna domain — /r/code)</h2>
+    <div class="mut">Attribution-ready: channel choose karo to click pe bandit credit milta hai.</div>
+    <label>Long URL</label><input id="slUrl" placeholder="https://leadsgenai.in/pricing">
+    <label>Label (optional)</label><input id="slLabel" placeholder="June pricing push">
+    <label>Channel (optional)</label>
+    <select id="slChannel"><option value="">— none —</option><option>seo_page</option><option>quora</option><option>reddit</option><option>whatsapp_group</option><option>telegram</option><option>linkedin_article</option><option>medium</option><option>partnership</option><option>linkedin_dm</option></select>
+    <button class="btn" onclick="slCreate()">Short link banao</button>
+    <div id="slOut"></div>
+  </div>
+  <div class="card">
+    <h2>📊 Click Stats</h2>
+    <button class="btn2" onclick="slStats()">Stats load</button>
+    <div id="slStatsOut"></div>
+  </div>
+</section>
+
+<!-- ============ 9. Reviews Widget ============ -->
+<section class="tabsec" id="sec-reviews">
+  <div class="card">
+    <h2>⭐ Reviews Widget (client site pe social proof)</h2>
+    <div class="mut">Approved reviews ki strip — client apni website me ek line paste kare.</div>
+    <div class="copybox"><input id="rwSlug" placeholder="client slug"><button class="btn2" onclick="rwLoad()">Snippet + preview</button></div>
+    <div id="rwOut"></div>
+  </div>
+</section>
+
+<!-- ============ 10. Memory ============ -->
+<section class="tabsec" id="sec-memory">
+  <div class="card">
+    <h2>🧠 Memory Vault</h2>
+    <div class="copybox" style="max-width:480px">
+      <select id="mvKind" style="max-width:180px"><option value="prospects">prospects</option><option value="clients">clients</option><option value="topics">topics</option></select>
+      <button class="btn2" onclick="mvList()">Entities load</button>
+      <button class="btn2" id="mvSyncBtn" onclick="mvSync()">🔄 Manual sync</button>
+    </div>
+    <div id="mvEntities"></div>
+    <div id="mvEntity"></div>
+  </div>
+  <div class="card">
+    <h2>📰 Live Topics</h2>
+    <div class="row"><div>
+      <label>Topic</label><input id="tpName" placeholder="Pune solar market">
+      <label>Niche (optional)</label><input id="tpNiche" placeholder="solar">
+      <label>City (optional)</label><input id="tpCity" placeholder="Pune">
+      <button class="btn" onclick="tpAdd()">Topic add</button>
+      <button class="btn2" onclick="tpList()">📋 Topics dekho</button>
+    </div><div id="tpOut"></div></div>
+  </div>
+  <div class="card">
+    <h2>📋 Call Prep tester</h2>
+    <div class="copybox"><input id="ppPhone" placeholder="phone (98xxxxxxxx)"><button class="btn2" id="ppBtn" onclick="prepGo()">Prep brief</button></div>
+    <div id="ppOut"></div>
+  </div>
+</section>
+
+<!-- ============ 11. Lead Webhook ============ -->
+<section class="tabsec" id="sec-webhook">
+  <div class="card">
+    <h2>📥 Inbound Lead Webhook (Zapier / Pabbly / FB Lead Ads / IndiaMART)</h2>
+    <div class="mut">Client ki API key se webhook URL banao — koi bhi source leads seedha dashboard me bhejega.</div>
+    <h3>1) Client API key</h3>
+    <div class="copybox" style="max-width:560px">
+      <input id="wkClient" placeholder="client_id">
+      <input id="wkName" placeholder="key name (e.g. zapier)" style="max-width:160px">
+      <button class="btn2" onclick="wkIssue()">🔑 Naya key</button>
+      <button class="btn2" onclick="wkList()">📋 Keys</button>
+    </div>
+    <div id="wkKeyOut"></div><div id="wkListOut"></div>
+    <h3>2) Webhook URL</h3>
+    <div class="mut">Naya key banate hi URL yahan ready milega (key sirf ek baar dikhti hai — copy karke safe rakho):</div>
+    <div class="copybox"><input id="wkUrl" readonly placeholder="https://leadsgenai.in/api/public/lead-in?key=lga_..."><button class="btn2" onclick="copyVal('wkUrl')">Copy</button></div>
+    <h3>3) Setup (Hinglish)</h3>
+    <div class="result mut" style="line-height:1.6">
+      <b>Zapier/Pabbly:</b> Action = "Webhooks → POST" → URL upar wala → Payload type JSON → fields map karo: <span class="pill">name</span> <span class="pill">phone</span> <span class="pill">email</span> <span class="pill">city</span> <span class="pill">message</span> <span class="pill">source</span>. Phone 10-digit Indian zaroori hai.<br>
+      <b>FB Lead Ads:</b> Zapier ka "Facebook Lead Ads → New Lead" trigger + upar wala POST action — FB ka field_data format bhi auto-handle hota hai.<br>
+      <b>IndiaMART/JustDial:</b> unke panel me "Push API / webhook URL" me yahi URL daalo.<br>
+      <b>Test (curl):</b> <code>curl -X POST "URL" -H "Content-Type: application/json" -d '{"name":"Test","phone":"9876543210","source":"zapier-test"}'</code><br>
+      Duplicate phone auto-skip hota hai. Lead aate hi instant alert (Telegram/email) bhi fire hota hai.
+    </div>
+    <h3>4) Alert setup verify</h3>
+    <button class="btn" id="alBtn" onclick="alertTest()">🔔 Test alert bhejo</button>
+    <div id="alOut"></div>
+  </div>
+</section>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+const $=id=>document.getElementById(id);
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){localStorage.setItem('accessToken',$('tokin').value.trim());toast('Token saved ✅')}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function toast(msg,ok){var t=document.createElement('div');t.className='toast '+(ok===false?'tbad':'tok');t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},4500)}
+async function api(path,opts){
+  opts=opts||{};
+  var headers={Authorization:'Bearer '+tok()};
+  if(opts.body && !(opts.body instanceof FormData)) headers['Content-Type']='application/json';
+  var r=await fetch(path,Object.assign({},opts,{headers:Object.assign(headers,opts.headers||{})}));
+  var d=null; try{d=await r.json()}catch(e){}
+  if(r.status===401||r.status===403){toast('Token galat/expired — upar paste karo ya login karo',false);throw new Error('auth')}
+  if(!r.ok){var m=(d&&(d.detail&&(d.detail.msg||d.detail)||d.error))||('HTTP '+r.status);throw new Error(typeof m==='string'?m:JSON.stringify(m))}
+  return d;
+}
+async function copyTxt(txt){try{await navigator.clipboard.writeText(txt);toast('Copy ho gaya ✅')}catch(e){toast('Copy fail — manually select karo',false)}}
+function copyVal(id){copyTxt($(id).value)}
+function busy(id,on,lbl){var b=$(id);if(!b)return;b.disabled=!!on;if(on){b.dataset.t=b.textContent;b.textContent=lbl||'⏳ ruko...'}else if(b.dataset.t){b.textContent=b.dataset.t}}
+function show(tab){
+  document.querySelectorAll('.tabsec').forEach(function(s){s.style.display='none'});
+  document.querySelectorAll('.side button').forEach(function(b){b.classList.remove('act')});
+  $('sec-'+tab).style.display='block';$('tab-'+tab).classList.add('act');
+  try{location.hash=tab}catch(e){}
+}
+
+/* ---------------- 1. UPI QR + Payment Link ---------------- */
+async function upiGo(){
+  var cid=$('upiClient').value.trim(); if(!cid)return toast('Client ID daalo',false);
+  busy('upiBtn',1);
+  try{
+    var d=await api('/api/engage/upi-qr',{method:'POST',body:JSON.stringify({client_id:cid,amount:$('upiAmt').value||null,note:$('upiNote').value||null})});
+    if(!d.ok)throw new Error(d.error||'fail');
+    var h='<div class="result"><b>'+esc(d.business_name)+'</b> · VPA: <b>'+esc(d.vpa)+'</b> '+(d.vpa_valid?'<span class="ok">✓</span>':'<span class="warn">format check karo</span>');
+    h+='<img class="qr" src="'+esc(d.qr_url)+'" alt="UPI QR">';
+    h+='<div class="copybox"><input readonly value="'+esc(d.upi_uri)+'" id="upiUri"><button class="btn2" onclick="copyVal(\'upiUri\')">Copy UPI link</button></div>';
+    h+='<button class="btn2" onclick="copyTxt('+esc(JSON.stringify(d.share_text||''))+')">📋 Share text copy</button> ';
+    if(d.wa_share_url)h+='<a class="btn2" style="text-decoration:none;display:inline-block" href="'+esc(d.wa_share_url)+'" target="_blank">🟢 WhatsApp share</a>';
+    if(d.poster_svg)h+='<div class="svgwrap">'+d.poster_svg+'</div>';
+    h+='</div>';
+    $('upiOut').innerHTML=h;
+  }catch(e){toast('UPI QR fail: '+e.message,false)}
+  busy('upiBtn',0);
+}
+async function payLinkGo(){
+  var cid=$('plClient').value.trim(),amt=$('plAmt').value,pur=$('plPurpose').value.trim();
+  if(!cid||!amt||!pur)return toast('Client ID + amount + purpose chahiye',false);
+  busy('plBtn',1);
+  try{
+    var d=await api('/api/clientcrm/payment-link',{method:'POST',body:JSON.stringify({client_id:cid,amount_inr:amt,purpose:pur,customer_name:$('plName').value,customer_phone:$('plPhone').value,business_name:$('plBiz').value})});
+    if(d.ok===false)throw new Error(d.error||'fail (Razorpay creds?)');
+    var url=d.short_url||d.url||(d.link&&d.link.short_url)||'';
+    var h='<div class="result">';
+    if(url){h+='<div class="copybox"><input readonly value="'+esc(url)+'" id="plUrl"><button class="btn2" onclick="copyVal(\'plUrl\')">Copy</button></div>';
+      var wa=d.wa_share_url||('https://wa.me/?text='+encodeURIComponent('Payment link: '+url));
+      h+='<a class="btn2" style="text-decoration:none;display:inline-block" href="'+esc(wa)+'" target="_blank">🟢 WhatsApp share</a>';}
+    else h+='<pre>'+esc(JSON.stringify(d,null,2))+'</pre>';
+    h+='</div>';$('plOut').innerHTML=h;toast('Payment link ready ✅');
+  }catch(e){toast('Payment link fail: '+e.message,false)}
+  busy('plBtn',0);
+}
+async function payLinksList(){
+  try{
+    var d=await api('/api/clientcrm/payment-links?client_id='+encodeURIComponent($('plClient').value.trim()));
+    var rows=d.links||[];
+    var h='<div class="mut" style="margin-top:8px">configured: '+(d.configured?'<span class="ok">haan</span>':'<span class="bad">nahi (Razorpay creds set karo)</span>')+' · '+rows.length+' links</div>';
+    if(rows.length){h+='<table><tr><th>Kab</th><th>Client</th><th>₹</th><th>Purpose</th><th>Link</th></tr>';
+      rows.forEach(function(r){h+='<tr><td>'+esc((r.created_at||'').slice(0,16))+'</td><td>'+esc(r.client_id||'')+'</td><td>'+esc(r.amount_inr||r.amount||'')+'</td><td>'+esc(r.purpose||'')+'</td><td>'+(r.short_url?'<a href="'+esc(r.short_url)+'" target="_blank">link</a>':'—')+'</td></tr>'});
+      h+='</table>';}
+    $('plList').innerHTML=h;
+  }catch(e){toast('List fail: '+e.message,false)}
+}
+
+/* ---------------- 2. Jingle ---------------- */
+async function jingleGo(){
+  var biz=$('jgBiz').value.trim(); if(!biz)return toast('Business name daalo',false);
+  busy('jgBtn',1,'⏳ ban raha (~20s)...');
+  try{
+    var d=await api('/api/creative/jingle',{method:'POST',body:JSON.stringify({business_name:biz,niche:$('jgNiche').value||'general',offer:$('jgOffer').value,lang:$('jgLang').value})});
+    if(!d.ok)throw new Error(d.error||'fail');
+    var h='<div class="result"><audio controls src="'+esc(d.url)+'"></audio>';
+    h+='<div class="mut" style="margin:6px 0">~'+esc(d.duration_est_s||'?')+'s · voice: '+esc(d.voice||'')+' · script: '+esc(d.script_source||'')+'</div>';
+    h+='<pre>'+esc(d.script||'')+'</pre>';
+    h+='<button class="btn2" onclick="copyTxt('+esc(JSON.stringify(d.script||''))+')">📋 Script copy</button>';
+    h+='<a class="btn2" style="text-decoration:none;display:inline-block" href="'+esc(d.url)+'" download>⬇️ MP3 download</a>';
+    h+='<div class="mut" style="margin-top:6px">'+esc(d.note||'')+'</div></div>';
+    $('jgOut').innerHTML=h;toast('Jingle ready ✅');
+  }catch(e){toast('Jingle fail: '+e.message,false)}
+  busy('jgBtn',0);
+}
+
+/* ---------------- 3. BG Remove ---------------- */
+async function bgGo(){
+  var f=$('bgFile').files[0]; if(!f)return toast('Pehle photo choose karo',false);
+  busy('bgBtn',1,'⏳ processing...');
+  try{
+    var fd=new FormData();fd.append('file',f);
+    var r=await fetch('/api/creative/bg-remove',{method:'POST',headers:{Authorization:'Bearer '+tok()},body:fd});
+    if(r.status===401||r.status===403){toast('Token galat/expired',false);busy('bgBtn',0);return}
+    var ct=r.headers.get('content-type')||'';
+    if(ct.indexOf('image/png')>=0){
+      var blob=await r.blob();var u=URL.createObjectURL(blob);
+      $('bgOut').innerHTML='<div class="result"><img src="'+u+'" style="max-width:380px;border-radius:10px;background:repeating-conic-gradient(#222 0% 25%,#333 0% 50%) 0/20px 20px"><br><a class="btn2" style="text-decoration:none;display:inline-block;margin-top:8px" href="'+u+'" download="cutout.png">⬇️ PNG download</a></div>';
+      toast('Cutout ready ✅');
+    }else{
+      var d=await r.json();
+      $('bgOut').innerHTML='<div class="result warn">'+esc(d.error||JSON.stringify(d))+'<div class="mut" style="margin-top:4px">rembg VPS pe installed nahi ho sakta — heavy dep, install user decision hai.</div></div>';
+    }
+  }catch(e){toast('BG remove fail: '+e.message,false)}
+  busy('bgBtn',0);
+}
+
+/* ---------------- 4. Multilang ---------------- */
+var ML_LANGS=[['hinglish','Hinglish'],['hindi','Hindi हिंदी'],['marathi','Marathi मराठी'],['gujarati','Gujarati ગુજરાતી'],['telugu','Telugu తెలుగు'],['tamil','Tamil தமிழ்'],['bengali','Bengali বাংলা'],['punjabi','Punjabi ਪੰਜਾਬੀ'],['kannada','Kannada ಕನ್ನಡ']];
+$('mlLangs').innerHTML=ML_LANGS.map(function(l,i){return '<label class="chip"><input type="checkbox" class="mlcb" value="'+l[0]+'"'+(i<3?' checked':'')+'> '+l[1]+'</label>'}).join('');
+async function mlGo(){
+  var txt=$('mlText').value.trim(); if(!txt)return toast('Caption daalo',false);
+  var langs=Array.prototype.slice.call(document.querySelectorAll('.mlcb:checked')).map(function(c){return c.value});
+  if(!langs.length)return toast('Kam se kam ek bhasha choose karo',false);
+  busy('mlBtn',1,'⏳ translate ho raha...');
+  try{
+    var d=await api('/api/growth/content/multilang',{method:'POST',body:JSON.stringify({caption:txt,langs:langs})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    var vers=d.versions||d.translations||d;var h='';
+    langs.forEach(function(lg){
+      var v=(vers&&typeof vers==='object')?(vers[lg]||''):'';
+      if(!v)return;
+      h+='<div class="card" style="margin-top:8px"><b class="warn">'+esc(lg)+'</b><pre>'+esc(v)+'</pre><button class="btn2" onclick="copyTxt('+esc(JSON.stringify(v))+')">📋 Copy</button></div>';
+    });
+    $('mlOut').innerHTML=h||'<div class="result"><pre>'+esc(JSON.stringify(d,null,2))+'</pre></div>';
+    toast('Versions ready ✅');
+  }catch(e){toast('Multilang fail: '+e.message,false)}
+  busy('mlBtn',0);
+}
+
+/* ---------------- 5. Rank Tracker ---------------- */
+async function rankConfig(){
+  var cid=$('rkClient').value.trim(),keys=$('rkKeys').value.split(',').map(function(s){return s.trim()}).filter(Boolean),city=$('rkCity').value.trim();
+  if(!cid||!keys.length||!city)return toast('client_id + keywords + city chahiye',false);
+  try{
+    var d=await api('/api/seoops/rank/config',{method:'POST',body:JSON.stringify({client_id:cid,keywords:keys,city:city,business_name:$('rkBiz').value,phone:$('rkPhone').value})});
+    $('rkCfgOut').innerHTML='<div class="result"><pre>'+esc(JSON.stringify(d,null,2))+'</pre></div>';toast('Config saved ✅');
+  }catch(e){toast('Config fail: '+e.message,false)}
+}
+async function rankConfigs(){
+  try{
+    var d=await api('/api/seoops/rank/config');var rows=d.configs||[];
+    var h='<table><tr><th>Client</th><th>Keywords</th><th>City</th></tr>';
+    rows.forEach(function(r){h+='<tr><td>'+esc(r.client_id||'')+'</td><td>'+esc((r.keywords||[]).join(', '))+'</td><td>'+esc(r.city||'')+'</td></tr>'});
+    $('rkCfgOut').innerHTML=h+'</table>'+(rows.length?'':'<div class="mut">Koi config nahi.</div>');
+  }catch(e){toast('Fail: '+e.message,false)}
+}
+async function rankCheck(){
+  var biz=$('rcBiz').value.trim(),key=$('rcKey').value.trim(),city=$('rcCity').value.trim();
+  if(!biz||!key||!city)return toast('business + keyword + city chahiye',false);
+  busy('rcBtn',1,'⏳ checking...');
+  try{
+    var d=await api('/api/seoops/rank/check',{method:'POST',body:JSON.stringify({business_name:biz,keyword:key,city:city,phone:$('rcPhone').value})});
+    var h='<div class="result">';
+    if(d.error)h+='<div class="warn">'+esc(d.error)+'</div>';
+    h+='<div class="mut">"'+esc(d.keyword||key)+'" in '+esc(d.city||city)+'</div>';
+    h+='<div style="font-size:1.5rem;font-weight:700" class="'+(d.position?(d.position<=3?'ok':'warn'):'bad')+'">'+(d.position?('#'+d.position):'Top 20 me nahi')+'</div>';
+    if((d.top3||[]).length)h+='<div class="mut">Top 3: '+esc(d.top3.join(' · '))+'</div>';
+    h+='</div>';$('rcOut').innerHTML=h;
+  }catch(e){toast('Check fail: '+e.message,false)}
+  busy('rcBtn',0);
+}
+async function rankHistory(){
+  try{
+    var d=await api('/api/seoops/rank/history?client_id='+encodeURIComponent($('rhClient').value.trim()));
+    var rows=d.history||[];
+    if(!rows.length){$('rhOut').innerHTML='<div class="mut">History khali — pehle config + run karo.</div>';return}
+    var h='<table><tr><th>Kab</th><th>Client</th><th>Keyword</th><th>City</th><th>Position</th><th>Top 3</th></tr>';
+    rows.forEach(function(r){h+='<tr><td>'+esc((r.checked_at||'').slice(0,16))+'</td><td>'+esc(r.client_id||'')+'</td><td>'+esc(r.keyword||'')+'</td><td>'+esc(r.city||'')+'</td><td class="'+(r.position?(r.position<=3?'ok':'warn'):'bad')+'">'+(r.position||'—')+'</td><td class="mut">'+esc((r.top3||[]).join(', '))+'</td></tr>'});
+    $('rhOut').innerHTML=h+'</table>';
+  }catch(e){toast('History fail: '+e.message,false)}
+}
+
+/* ---------------- 6. Catalog ---------------- */
+function ctSlugVal(){return $('ctSlug').value.trim()}
+async function catalogLoad(){
+  var slug=ctSlugVal(); if(!slug)return toast('Slug daalo',false);
+  $('ctLink').innerHTML='Mini-site: <a href="/b/'+esc(slug)+'" target="_blank">/b/'+esc(slug)+'</a> (products yahan live dikhte)';
+  try{
+    var d=await api('/api/clientcrm/catalog/'+encodeURIComponent(slug));
+    var rows=d.products||[];
+    if(!rows.length){$('ctList').innerHTML='<div class="mut" style="margin-top:8px">Koi product nahi — neeche add karo.</div>';return}
+    var h='<table><tr><th>Photo</th><th>Name</th><th>₹</th><th>Stock</th><th></th></tr>';
+    rows.forEach(function(p){
+      h+='<tr><td>'+(p.photo_url?'<img src="'+esc(p.photo_url)+'" style="width:42px;height:42px;object-fit:cover;border-radius:6px">':'—')+'</td><td>'+esc(p.name||'')+'<div class="mut">'+esc(p.desc||'')+'</div></td><td>'+esc(p.price_inr||p.price||'')+'</td><td>'+(p.in_stock===false?'<span class="bad">out</span>':'<span class="ok">in</span>')+'</td><td><button class="btnd" onclick="catalogDel(\''+esc(p.id||p.product_id||'')+'\')">Delete</button></td></tr>';
+    });
+    $('ctList').innerHTML=h+'</table>';
+  }catch(e){toast('Catalog fail: '+e.message,false)}
+}
+async function catalogAdd(){
+  var slug=ctSlugVal(),name=$('ctName').value.trim();
+  if(!slug||!name)return toast('Slug + product name chahiye',false);
+  try{
+    var d=await api('/api/clientcrm/catalog/'+encodeURIComponent(slug),{method:'POST',body:JSON.stringify({name:name,price_inr:$('ctPrice').value||0,photo_url:$('ctPhoto').value,desc:$('ctDesc').value,in_stock:$('ctStock').checked})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    toast('Product added ✅');$('ctName').value='';$('ctPrice').value='';$('ctPhoto').value='';$('ctDesc').value='';catalogLoad();
+  }catch(e){toast('Add fail: '+e.message,false)}
+}
+async function catalogDel(pid){
+  if(!pid||!confirm('Product delete karein?'))return;
+  try{await api('/api/clientcrm/catalog/'+encodeURIComponent(ctSlugVal())+'/'+encodeURIComponent(pid),{method:'DELETE'});toast('Deleted ✅');catalogLoad()}catch(e){toast('Delete fail: '+e.message,false)}
+}
+
+/* ---------------- 7. Customer CRM ---------------- */
+function crmCid(){return $('crmClient').value.trim()}
+async function crmLoad(){
+  var cid=crmCid(); if(!cid)return toast('client_id daalo',false);
+  try{
+    var d=await api('/api/clientcrm/customers/'+encodeURIComponent(cid));
+    var rows=d.customers||[];
+    if(!rows.length){$('crmList').innerHTML='<div class="mut" style="margin-top:8px">Koi customer nahi — add ya import karo.</div>';return}
+    var h='<table><tr><th>Name</th><th>Phone</th><th>🎂 Birthday</th><th>💍 Anniversary</th><th>Tags</th></tr>';
+    rows.forEach(function(c){h+='<tr><td>'+esc(c.name||'')+'</td><td>'+esc(c.phone||'')+'</td><td>'+esc(c.birthday||'—')+'</td><td>'+esc(c.anniversary||'—')+'</td><td class="mut">'+esc((c.tags||[]).join(', '))+'</td></tr>'});
+    $('crmList').innerHTML=h+'</table><div class="mut">'+rows.length+' customers</div>';
+  }catch(e){toast('Load fail: '+e.message,false)}
+}
+async function crmAdd(){
+  var cid=crmCid(); if(!cid)return toast('Pehle upar client_id daalo',false);
+  var name=$('cuName').value.trim(),phone=$('cuPhone').value.trim();
+  if(!name||!phone)return toast('Name + phone chahiye',false);
+  try{
+    var d=await api('/api/clientcrm/customers/'+encodeURIComponent(cid),{method:'POST',body:JSON.stringify({name:name,phone:phone,birthday:$('cuBday').value,anniversary:$('cuAnniv').value})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    toast('Customer added ✅');$('cuName').value='';$('cuPhone').value='';crmLoad();
+  }catch(e){toast('Add fail: '+e.message,false)}
+}
+async function crmImport(){
+  var cid=crmCid(); if(!cid)return toast('Pehle upar client_id daalo',false);
+  var csv=$('cuCsv').value.trim(); if(!csv)return toast('CSV paste karo',false);
+  try{
+    var d=await api('/api/clientcrm/customers/'+encodeURIComponent(cid)+'/import',{method:'POST',body:JSON.stringify({csv_text:csv})});
+    $('crmAddOut').innerHTML='<div class="result"><pre>'+esc(JSON.stringify(d,null,2))+'</pre></div>';
+    toast('Import done ✅');crmLoad();
+  }catch(e){toast('Import fail: '+e.message,false)}
+}
+async function crmOccasions(){
+  try{
+    var d=await api('/api/clientcrm/occasions/today');
+    var h='<div class="result"><b>'+esc(d.total_occasions||0)+' occasions aaj</b> ('+esc(d.clients||0)+' clients)';
+    (d.groups||[]).forEach(function(g){
+      h+='<div style="margin-top:6px"><b class="warn">'+esc(g.client_id||g.business_name||'')+'</b>: '+(g.occasions||[]).map(function(o){return esc((o.name||'')+' ('+(o.kind||o.type||'')+')')}).join(' · ')+'</div>';
+    });
+    $('crmOcc').innerHTML=h+'</div>';
+  }catch(e){toast('Occasions fail: '+e.message,false)}
+}
+async function crmWishRun(){
+  busy('wishBtn',1,'⏳ drafts ban rahe...');
+  try{var d=await api('/api/clientcrm/wishes/run',{method:'POST'});
+    $('crmDraftsOut').innerHTML='<div class="result"><pre>'+esc(JSON.stringify(d,null,2))+'</pre></div>';toast('Wish drafts ready ✅');
+  }catch(e){toast('Run fail: '+e.message,false)}
+  busy('wishBtn',0);
+}
+async function crmDrafts(){
+  try{
+    var d=await api('/api/clientcrm/wishes/drafts');var rows=d.drafts||[];
+    if(!rows.length){$('crmDraftsOut').innerHTML='<div class="mut" style="margin-top:8px">Koi draft nahi.</div>';return}
+    var h='';
+    rows.forEach(function(w){
+      h+='<div class="card" style="margin-top:8px"><b>'+esc(w.customer_name||w.name||'')+'</b> <span class="pill">'+esc(w.occasion||w.kind||'')+'</span><pre>'+esc(w.caption||w.message||'')+'</pre>';
+      if(w.wa_url||w.wa_link)h+='<a class="btn2" style="text-decoration:none;display:inline-block" href="'+esc(w.wa_url||w.wa_link)+'" target="_blank">🟢 WhatsApp 1-click</a>';
+      h+='<button class="btn2" onclick="copyTxt('+esc(JSON.stringify(w.caption||w.message||''))+')">📋 Copy</button></div>';
+    });
+    $('crmDraftsOut').innerHTML=h;
+  }catch(e){toast('Drafts fail: '+e.message,false)}
+}
+
+/* ---------------- 8. Short Links ---------------- */
+async function slCreate(){
+  var url=$('slUrl').value.trim(); if(!url)return toast('URL daalo',false);
+  try{
+    var d=await api('/api/engage/links',{method:'POST',body:JSON.stringify({url:url,label:$('slLabel').value,channel:$('slChannel').value})});
+    if(!d.ok)throw new Error(d.error||'fail');
+    $('slOut').innerHTML='<div class="result"><div class="copybox"><input readonly value="'+esc(d.short_url)+'" id="slShort"><button class="btn2" onclick="copyVal(\'slShort\')">Copy</button></div></div>';
+    toast('Short link ready ✅');
+  }catch(e){toast('Link fail: '+e.message,false)}
+}
+async function slStats(){
+  try{
+    var d=await api('/api/engage/links/stats');
+    if(!d.ok)throw new Error(d.error||'fail');
+    var h='<div class="mut" style="margin-top:8px"><b>'+esc(d.total_clicks)+'</b> clicks · <b>'+esc(d.total_links)+'</b> links · channels: '+Object.entries(d.by_channel||{}).map(function(e){return esc(e[0])+':'+esc(e[1])}).join(' · ')+'</div>';
+    var rows=d.links||[];
+    if(rows.length){h+='<table><tr><th>Code</th><th>Label</th><th>Channel</th><th>Clicks</th><th>URL</th></tr>';
+      rows.forEach(function(r){h+='<tr><td><a href="'+esc(r.short_url||'')+'" target="_blank">'+esc(r.code||'')+'</a></td><td>'+esc(r.label||'')+'</td><td>'+esc(r.channel||'—')+'</td><td>'+esc(r.clicks||0)+'</td><td class="mut" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.url||'')+'</td></tr>'});
+      h+='</table>';}
+    $('slStatsOut').innerHTML=h;
+  }catch(e){toast('Stats fail: '+e.message,false)}
+}
+
+/* ---------------- 9. Reviews Widget ---------------- */
+async function rwLoad(){
+  var slug=$('rwSlug').value.trim(); if(!slug)return toast('Slug daalo',false);
+  try{
+    var d=await api('/api/engage/reviews-snippet?slug='+encodeURIComponent(slug));
+    var h='<div class="result"><div class="mut">Client ki website me yeh paste karo:</div>';
+    h+='<textarea readonly id="rwSnip" style="min-height:64px;max-width:100%;margin-top:6px">'+esc(d.snippet||'')+'</textarea>';
+    h+='<button class="btn2" onclick="copyTxt(document.getElementById(\'rwSnip\').value)">📋 Snippet copy</button>';
+    h+='<div class="mut" style="margin-top:10px">Live preview:</div><iframe class="prev" src="/api/engage/reviews-widget/'+encodeURIComponent(slug)+'"></iframe></div>';
+    $('rwOut').innerHTML=h;
+  }catch(e){toast('Snippet fail: '+e.message,false)}
+}
+
+/* ---------------- 10. Memory ---------------- */
+async function mvList(){
+  try{
+    var kind=$('mvKind').value;
+    var d=await api('/api/memory/entities?kind='+encodeURIComponent(kind));
+    if(d.ok===false)throw new Error(d.error||'fail');
+    var ents=d.entities||[];
+    if(!ents.length){$('mvEntities').innerHTML='<div class="mut" style="margin-top:8px">Koi memory file nahi ('+esc(kind)+') — sync chalao ya data aane do.</div>';return}
+    $('mvEntities').innerHTML='<div style="margin-top:8px">'+ents.map(function(e){
+      var key=(typeof e==='string')?e:(e.key||e.name||'');
+      return '<button class="btn2" onclick="mvOpen('+esc(JSON.stringify(key))+')">'+esc(key)+'</button>';
+    }).join('')+'</div>';
+  }catch(e){toast('Entities fail: '+e.message,false)}
+}
+async function mvOpen(key){
+  try{
+    var d=await api('/api/memory/entity?kind='+encodeURIComponent($('mvKind').value)+'&key='+encodeURIComponent(key));
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('mvEntity').innerHTML='<div class="result"><b class="warn">'+esc(d.key)+'</b> <span class="pill">'+esc(d.kind)+'</span><pre>'+esc(d.markdown||'')+'</pre></div>';
+  }catch(e){toast('Entity fail: '+e.message,false)}
+}
+async function mvSync(){
+  busy('mvSyncBtn',1,'⏳ sync...');
+  try{var d=await api('/api/memory/sync',{method:'POST'});toast(d.ok===false?('Sync issue: '+(d.error||'')):'Sync done ✅',d.ok!==false);mvList()}catch(e){toast('Sync fail: '+e.message,false)}
+  busy('mvSyncBtn',0);
+}
+async function tpList(){
+  try{
+    var d=await api('/api/memory/topics');var rows=d.topics||[];
+    var h='<div class="mut">LIVE_NOTES flag: '+(d.enabled?'<span class="ok">ON</span>':'<span class="warn">OFF (manual refresh phir bhi chalta)</span>')+'</div>';
+    if(rows.length){h+='<table><tr><th>Topic</th><th>Niche/City</th><th></th></tr>';
+      rows.forEach(function(t){h+='<tr><td>'+esc(t.topic||'')+'</td><td class="mut">'+esc((t.niche||'')+' '+(t.city||''))+'</td><td><button class="btn2" onclick="tpRefresh(\''+esc(t.id||'')+'\')">🔄 Refresh</button> <button class="btnd" onclick="tpDel(\''+esc(t.id||'')+'\')">Del</button></td></tr>'});
+      h+='</table>';}
+    else h+='<div class="mut" style="margin-top:6px">Koi topic nahi.</div>';
+    $('tpOut').innerHTML=h;
+  }catch(e){toast('Topics fail: '+e.message,false)}
+}
+async function tpAdd(){
+  var t=$('tpName').value.trim(); if(!t)return toast('Topic daalo',false);
+  try{var d=await api('/api/memory/topics',{method:'POST',body:JSON.stringify({topic:t,niche:$('tpNiche').value,city:$('tpCity').value})});
+    if(d.ok===false)throw new Error(d.error||'fail');toast('Topic added ✅');$('tpName').value='';tpList();
+  }catch(e){toast('Add fail: '+e.message,false)}
+}
+async function tpRefresh(id){
+  try{toast('Refresh chal raha...');var d=await api('/api/memory/topics/'+encodeURIComponent(id)+'/refresh',{method:'POST'});
+    toast(d.ok===false?('Issue: '+(d.error||'')):'Topic refreshed ✅',d.ok!==false);
+  }catch(e){toast('Refresh fail: '+e.message,false)}
+}
+async function tpDel(id){
+  if(!confirm('Topic delete?'))return;
+  try{await api('/api/memory/topics/'+encodeURIComponent(id),{method:'DELETE'});toast('Deleted ✅');tpList()}catch(e){toast('Del fail: '+e.message,false)}
+}
+async function prepGo(){
+  var ph=$('ppPhone').value.trim(); if(!ph)return toast('Phone daalo',false);
+  busy('ppBtn',1,'⏳...');
+  try{var d=await api('/api/memory/prep?phone='+encodeURIComponent(ph));
+    $('ppOut').innerHTML='<div class="result"><pre>'+esc(d.brief||d.text||JSON.stringify(d,null,2))+'</pre></div>';
+  }catch(e){toast('Prep fail: '+e.message,false)}
+  busy('ppBtn',0);
+}
+
+/* ---------------- 11. Lead Webhook ---------------- */
+function baseUrl(){return (location.origin&&location.origin.indexOf('http')===0)?location.origin:'https://leadsgenai.in'}
+async function wkIssue(){
+  var cid=$('wkClient').value.trim(); if(!cid)return toast('client_id daalo',false);
+  try{
+    var d=await api('/api/growth/client-keys',{method:'POST',body:JSON.stringify({client_id:cid,name:$('wkName').value.trim()||'webhook'})});
+    if(!d.ok)throw new Error(d.error||'fail');
+    var url=baseUrl()+'/api/public/lead-in?key='+d.api_key;
+    $('wkUrl').value=url;
+    $('wkKeyOut').innerHTML='<div class="result"><b class="ok">Key ban gayi ✅</b> <span class="warn">(sirf abhi dikh rahi — copy karo!)</span><div class="copybox"><input readonly value="'+esc(d.api_key)+'" id="wkKey"><button class="btn2" onclick="copyVal(\'wkKey\')">Copy key</button></div><div class="mut" style="margin-top:4px">'+esc(d.note||'')+'</div></div>';
+    toast('Webhook URL ready — step 2 me copy karo ✅');
+  }catch(e){toast('Key fail: '+e.message,false)}
+}
+async function wkList(){
+  try{
+    var d=await api('/api/growth/client-keys?client_id='+encodeURIComponent($('wkClient').value.trim()));
+    var rows=d.keys||[];
+    if(!rows.length){$('wkListOut').innerHTML='<div class="mut" style="margin-top:8px">Koi key nahi.</div>';return}
+    var h='<table><tr><th>Client</th><th>Name</th><th>Created</th><th>Active</th></tr>';
+    rows.forEach(function(k){h+='<tr><td>'+esc(k.client_id||'')+'</td><td>'+esc(k.name||'')+'</td><td class="mut">'+esc((k.created_at||'').slice(0,16))+'</td><td>'+(k.active?'<span class="ok">✓</span>':'<span class="bad">revoked</span>')+'</td></tr>'});
+    $('wkListOut').innerHTML=h+'</table><div class="mut">Plain key sirf create-time pe dikhti hai (store = hash only).</div>';
+  }catch(e){toast('Keys fail: '+e.message,false)}
+}
+async function alertTest(){
+  busy('alBtn',1,'⏳ bhej raha...');
+  try{
+    var d=await api('/api/engage/alerts/test',{method:'POST',body:JSON.stringify({client_id:$('wkClient').value.trim()})});
+    var h='<div class="result">Telegram: '+(d.telegram_sent?'<span class="ok">✅ gaya</span>':'<span class="bad">❌</span>')+' · Email: '+(d.email_sent?'<span class="ok">✅ gaya</span>':'<span class="bad">❌</span>');
+    (d.hints||[]).forEach(function(x){h+='<div class="warn" style="margin-top:4px">→ '+esc(x)+'</div>'});
+    $('alOut').innerHTML=h+'</div>';
+  }catch(e){toast('Test fail: '+e.message,false)}
+  busy('alBtn',0);
+}
+
+/* ---------------- init ---------------- */
+$('tokin').value=tok();
+var start=(location.hash||'').replace('#','');
+var valid=['upi','jingle','bgrm','multilang','rank','catalog','crm','links','reviews','memory','webhook'];
+show(valid.indexOf(start)>=0?start:'upi');
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+</body>
+</html>

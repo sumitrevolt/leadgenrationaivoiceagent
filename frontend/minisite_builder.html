@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Mini-site Builder — LeadsGenAI</title>
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
 <style>
   :root{--pri:#6d28d9;--ink:#0f172a;--mut:#64748b;--bg:#f1f5f9;--card:#fff;--line:#e2e8f0;}
   *{box-sizing:border-box;}
@@ -298,5 +299,6 @@
   loadPalettes().then(function(){ if(slug()) loadConfig(); });
 })();
 </script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
 </body>
 </html>
