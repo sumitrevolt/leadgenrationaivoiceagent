@@ -50,6 +50,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
+from app.api.ratelimit import rate_limit
 from app.marketing import (
     ads_copy,
     brand_kit,
@@ -407,6 +408,22 @@ async def generate_ai_image(
     except Exception as e:
         logger.error(f"AI image generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"AI image failed: {e}")
+
+
+@router.get("/ai-image-proxy", dependencies=[Depends(rate_limit("aiimg", 20, 60))])
+async def ai_image_proxy(prompt: str, w: int = 1024, h: int = 1024, seed: int | None = None):
+    """sk_ key-safe image serve: server-side Pollinations fetch (Authorization header) +
+    disk cache (data/ai_images/) — key kabhi client tak nahi jaati, repeat load free.
+    Public (img-tag se load hota) but rate-limited."""
+    from fastapi.responses import Response
+
+    from app.marketing import ai_image
+
+    w, h = max(256, min(int(w), 1536)), max(256, min(int(h), 1536))
+    data = await ai_image.fetch_image_bytes(prompt[:480], w, h, seed)
+    if not data:
+        raise HTTPException(status_code=502, detail="image generation unavailable (key/upstream)")
+    return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
 
 
 class CompletePostRequest(BaseModel):

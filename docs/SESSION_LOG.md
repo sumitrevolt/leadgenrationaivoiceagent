@@ -757,3 +757,5 @@ Fixed the broken app image + swapped the live app into Docker (both verified, au
  
 ## 2026-06-10 — 5 marketing AI upgrades (content_feedback, trends, kb_personalize, telegram_publish, reel_video) 
 - 388 routes, tests/test_marketing_upgrades.py 8/8. Routes /api/growth/content/*. brand_kit already existed - skipped (no duplicate). TELEGRAM_BOT_TOKEN + ffmpeg = user/VPS deps. 
+ 
+## 2026-06-10 — Pollinations NEW API migrate (gen.pollinations.ai): ai_image.py rewrite, key-safety pk_/sk_, ai-image-proxy route (cache), video_url() added. 389 routes, tests 9/9. 

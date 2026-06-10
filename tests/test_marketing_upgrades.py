@@ -73,3 +73,22 @@ def test_reel_available_and_missing_dep(monkeypatch):
 def test_reel_default_slides():
     s = reel_video._default_slides("Sharma Solar", "solar", "")
     assert len(s) == 3 and "Sharma Solar" in s[0]
+
+
+def test_ai_image_new_api_key_safety(monkeypatch):
+    from app.marketing import ai_image
+
+    # no key → direct URL, no key leak
+    monkeypatch.delenv("POLLINATIONS_API_KEY", raising=False)
+    monkeypatch.delenv("POLLINATIONS_TOKEN", raising=False)
+    u = ai_image.image_url("diwali poster")
+    assert u.startswith("https://gen.pollinations.ai/image/") and "key=" not in u
+    # pk_ (publishable, client-safe) → embedded
+    monkeypatch.setenv("POLLINATIONS_API_KEY", "pk_test123")
+    assert "key=pk_test123" in ai_image.image_url("x")
+    assert "key=pk_test123" in ai_image.video_url("x")
+    # sk_ (secret) → NEVER in URL; marketing flows use proxy path
+    monkeypatch.setenv("POLLINATIONS_API_KEY", "sk_secret")
+    assert "sk_secret" not in ai_image.image_url("x")
+    assert ai_image.logo_url("Biz").startswith("/api/marketing/ai-image-proxy?")
+    assert ai_image.proxy_path("p").startswith("/api/marketing/ai-image-proxy?prompt=p")

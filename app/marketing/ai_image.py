@@ -1,47 +1,123 @@
-"""AI image generation — real marketing images from a text prompt (Pollinations, FREE).
+"""AI image/video generation — Pollinations NEW API (gen.pollinations.ai).
 
-The #1 feature of competitor marketing-AI apps (Predis.ai, AdBanao) is turning a phrase
-into an actual image/creative. We only had SVG templates. Pollinations.ai gives free,
-**no-API-key**, unlimited Flux text-to-image — a perfect free-stack fit.
+API migrate (2026-06): old image.pollinations.ai → `https://gen.pollinations.ai/image/{prompt}`.
+Key enter.pollinations.ai se (env `POLLINATIONS_API_KEY`; legacy `POLLINATIONS_TOKEN` fallback).
 
-URL-based by design: we return an image URL that renders on load (no server-side fetch or
-storage = light + fast; the frontend <img>/download just uses the URL). A free_ai step
-crafts a vivid prompt from the business + occasion + offer (template fallback). Never raises.
+KEY SAFETY (important):
+- `pk_` (publishable) = client-safe by design → direct URL me `?key=` embed OK.
+- `sk_` (secret) = KABHI client URL me nahi → marketing_image() proxy URL deta hai
+  (`/api/marketing/ai-image-proxy`), server Authorization header se fetch + disk-cache
+  (data/ai_images/) karta — repeat loads pollen nahi jalate.
+- Koi key nahi → direct URL (upstream 402 dega; frontend __imgErr graceful msg pehle se).
 
 Use:
-  from app.marketing.ai_image import image_url, marketing_image
-  url = image_url("Diwali sale poster for a jewellery store, golden diyas, festive, text space")
-  data = await marketing_image("Sharma Jewellers", "jewellery_store", occasion="Diwali", offer="20% off")
-  # -> {"url": "...", "prompt": "...", "provider": "pollinations-flux", "width":1024, "height":1024}
+  from app.marketing.ai_image import image_url, marketing_image, video_url
+  data = await marketing_image("Sharma Jewellers", "jewellery_store", occasion="Diwali")
+Never raises.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import os
 import urllib.parse
 
 logger = logging.getLogger(__name__)
 
-_BASE = "https://image.pollinations.ai/prompt/"
+_BASE = "https://gen.pollinations.ai/image/"
+_VIDEO_BASE = "https://gen.pollinations.ai/video/"
+_CACHE_DIR = os.path.join("data", "ai_images")
+
+
+def _api_key() -> str:
+    return (os.getenv("POLLINATIONS_API_KEY") or os.getenv("POLLINATIONS_TOKEN") or "").strip()
+
+
+def has_key() -> bool:
+    return bool(_api_key())
+
+
+def _is_secret() -> bool:
+    return _api_key().startswith("sk_")
 
 
 def image_url(prompt: str, width: int = 1024, height: int = 1024, seed: int | None = None, model: str = "flux") -> str:
-    """Build a Pollinations image URL (renders a real AI image on load). Never raises."""
+    """Direct Pollinations image URL. sk_ key NEVER embedded (sirf pk_). Never raises."""
     try:
-        import os
-
         p = urllib.parse.quote((prompt or "marketing poster").strip()[:480], safe="")
         q = f"width={int(width)}&height={int(height)}&nologo=true&model={model}"
         if seed is not None:
             q += f"&seed={int(seed)}"
-        # Pollinations ab anonymous pe 402 deta hai — free token (auth.pollinations.ai)
-        # POLLINATIONS_TOKEN env me daalo to images chalu ho jaayenge.
-        tok = os.getenv("POLLINATIONS_TOKEN", "").strip()
-        if tok:
-            q += "&token=" + urllib.parse.quote(tok, safe="")
+        key = _api_key()
+        if key.startswith("pk_"):  # publishable = client-safe
+            q += "&key=" + urllib.parse.quote(key, safe="")
         return f"{_BASE}{p}?{q}"
     except Exception:
         return f"{_BASE}marketing%20poster?width=1024&height=1024&nologo=true&model=flux"
+
+
+def video_url(prompt: str, model: str = "wan-fast", duration: int = 4) -> str:
+    """Direct AI-video (MP4) URL — naya capability. Same key-safety rule. Never raises."""
+    try:
+        p = urllib.parse.quote((prompt or "product showcase").strip()[:400], safe="")
+        q = f"model={model}&duration={max(2, min(int(duration), 10))}"
+        key = _api_key()
+        if key.startswith("pk_"):
+            q += "&key=" + urllib.parse.quote(key, safe="")
+        return f"{_VIDEO_BASE}{p}?{q}"
+    except Exception:
+        return f"{_VIDEO_BASE}product%20showcase?model=wan-fast&duration=4"
+
+
+def proxy_path(prompt: str, width: int = 1024, height: int = 1024, seed: int | None = None) -> str:
+    """Hamare server ka proxy URL (sk_ key server-side header me lagti hai)."""
+    q = urllib.parse.urlencode(
+        {"prompt": (prompt or "")[:480], "w": int(width), "h": int(height), **({"seed": int(seed)} if seed is not None else {})}
+    )
+    return f"/api/marketing/ai-image-proxy?{q}"
+
+
+def _cache_file(prompt: str, width: int, height: int, seed: int | None) -> str:
+    h = hashlib.sha1(f"{prompt}|{width}|{height}|{seed}".encode()).hexdigest()[:24]
+    return os.path.join(_CACHE_DIR, f"{h}.jpg")
+
+
+async def fetch_image_bytes(
+    prompt: str, width: int = 1024, height: int = 1024, seed: int | None = None, model: str = "flux"
+) -> bytes | None:
+    """Server-side fetch (Authorization header) + disk cache. None = fail (caller handle kare)."""
+    path = _cache_file(prompt, width, height, seed)
+    try:
+        if os.path.exists(path) and os.path.getsize(path) > 500:
+            with open(path, "rb") as f:
+                return f.read()
+    except Exception:
+        pass
+    key = _api_key()
+    if not key:
+        return None
+    try:
+        import httpx
+
+        p = urllib.parse.quote((prompt or "marketing poster").strip()[:480], safe="")
+        url = f"{_BASE}{p}?width={int(width)}&height={int(height)}&nologo=true&model={model}"
+        if seed is not None:
+            url += f"&seed={int(seed)}"
+        async with httpx.AsyncClient(timeout=90) as cx:
+            r = await cx.get(url, headers={"Authorization": f"Bearer {key}"}, follow_redirects=True)
+        if r.status_code == 200 and len(r.content) > 500:
+            try:
+                os.makedirs(_CACHE_DIR, exist_ok=True)
+                with open(path, "wb") as f:
+                    f.write(r.content)
+            except Exception:
+                pass
+            return r.content
+        logger.warning(f"pollinations image {r.status_code}: {r.text[:120]}")
+    except Exception as e:
+        logger.warning(f"pollinations fetch failed: {e}")
+    return None
 
 
 def _template_prompt(business: str, niche: str, occasion: str, offer: str, style: str) -> str:
@@ -84,12 +160,13 @@ async def marketing_image(
     width: int = 1024,
     height: int = 1024,
 ) -> dict:
-    """Craft a prompt + return a ready AI-image URL. Never raises."""
+    """Craft prompt + ready image URL. sk_ key → proxy URL (key-safe). Never raises."""
     business_name = (business_name or "Aapka Business").strip()
     niche = (niche or "general").strip()
     prompt = await _craft_prompt(business_name, niche, (occasion or "").strip(), (offer or "").strip(), style)
+    url = proxy_path(prompt, width, height) if _is_secret() else image_url(prompt, width, height)
     return {
-        "url": image_url(prompt, width, height),
+        "url": url,
         "prompt": prompt,
         "provider": "pollinations-flux",
         "width": width,
@@ -98,13 +175,15 @@ async def marketing_image(
 
 
 def logo_url(business_name: str, niche: str = "general", style: str = "modern minimalist") -> str:
-    """AI logo image URL (Pollinations free) for a business. Never raises."""
+    """AI logo URL. sk_ key → proxy path. Never raises."""
     prompt = (
         f"{style} vector logo for '{(business_name or 'Business').strip()}', a "
         f"{(niche or 'general').replace('_', ' ')} business, clean flat iconic memorable brand mark, "
         "white background, professional, centered, no text"
     )
+    if _is_secret():
+        return proxy_path(prompt, 512, 512)
     return image_url(prompt, width=512, height=512)
 
 
-__all__ = ["image_url", "marketing_image", "logo_url"]
+__all__ = ["image_url", "video_url", "marketing_image", "logo_url", "fetch_image_bytes", "proxy_path", "has_key"]
