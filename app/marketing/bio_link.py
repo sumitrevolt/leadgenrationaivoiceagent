@@ -340,7 +340,24 @@ def render_bio_html(slug: str) -> dict[str, Any]:
         key = _slug_key(slug)
         cfg = get_bio(key)
         if not cfg:
-            return {"ok": False, "error": "bio config nahi mila"}
+            # Default bio: client record se auto-blocks (WA/call/mini-site) —
+            # pehli visit pe hi kaam kare, config baad me customize. Save karte
+            # hain taaki click-redirect ids resolve ho (kabhi 302-blank nahi).
+            client = _load_client(key)
+            phone = str((client or {}).get("phone") or "").strip()
+            if not client:
+                return {"ok": False, "error": "bio config nahi mila"}
+            default_blocks = []
+            if phone:
+                default_blocks.append({"type": "whatsapp", "label": "WhatsApp karein", "value": phone, "emoji": "💬"})
+                default_blocks.append({"type": "call", "label": "Call karein", "value": phone, "emoji": "📞"})
+            default_blocks.append({"type": "link", "label": "Hamari website", "value": f"{_site_base()}/b/{key}", "emoji": "🌐"})
+            saved = save_bio(key, default_blocks)
+            if not saved.get("ok"):
+                return {"ok": False, "error": "bio config nahi mila"}
+            cfg = get_bio(key)
+            if not cfg:
+                return {"ok": False, "error": "bio config nahi mila"}
         client = _load_client(key)
         primary, _accent = _brand_colors(key, client)
         title = str(cfg.get("title") or client.get("business_name") or key.replace("-", " ").title())[:80]

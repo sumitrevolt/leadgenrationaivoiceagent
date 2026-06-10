@@ -185,8 +185,19 @@ def test_render_bio_html_escapes_and_tracking(stores):
     assert "Sharma &amp; Sons" in html_out
     assert "/api/widgets/bio/sharma-solar/c/wa" in html_out  # tracking redirect href
     assert "#16a34a" in html_out  # brand color
-    # config na ho → ok False (caller redirect kare)
-    assert bio_link.render_bio_html("koi-aur")["ok"] is False
+    # config na ho par CLIENT ho → default blocks (WA/call/website) auto-render
+    res2 = bio_link.render_bio_html("koi-aur")
+    assert res2["ok"] is True
+    assert "WhatsApp" in res2["html"]
+    # client bhi na ho → ok False (caller redirect kare)
+    import types
+
+    orig = bio_link._load_client
+    bio_link._load_client = lambda s: {}
+    try:
+        assert bio_link.render_bio_html("bilkul-anjaan")["ok"] is False
+    finally:
+        bio_link._load_client = orig
 
 
 # -------------------------------- site_beacon ------------------------------ #
