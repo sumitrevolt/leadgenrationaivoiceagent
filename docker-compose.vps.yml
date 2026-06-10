@@ -225,7 +225,10 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' >/dev/null || exit 1"]
+      # NOTE: image me pgrep NAHI hai (procps absent) → pgrep check hamesha fail
+      # hota tha → 'unhealthy' → vps_selfheal cron har 10 min beat restart kar
+      # raha tha. /proc scan se beat process dhundo (busybox/sh-safe).
+      test: ["CMD-SHELL", "grep -lq beat /proc/[0-9]*/cmdline 2>/dev/null || exit 1"]
       interval: 60s
       timeout: 10s
       start_period: 30s
