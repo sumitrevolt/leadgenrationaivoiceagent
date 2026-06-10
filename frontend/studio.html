@@ -52,6 +52,7 @@
     <button data-tab="photo" class="on">📷 Photo → Poster</button>
     <button data-tab="poster">✨ AI Poster</button>
     <button data-tab="templates">🗂️ Templates</button>
+    <button data-tab="editor">✏️ Editor</button>
   </div>
 
   <!-- Photo -> Poster -->
@@ -115,6 +116,47 @@
     <div class="err" id="tp-err"></div>
     <div class="tgrid" id="tp-grid"></div>
   </div>
+
+  <!-- Editor (fabric.js) -->
+  <div class="card" id="tab-editor" style="display:none">
+    <h3>Poster Editor (Canva-style)</h3>
+    <p class="hint">Generated poster load karo — text add/edit, logo overlay, drag-resize, PNG download. Sab browser me, free.</p>
+    <div class="row">
+      <div>
+        <label>Image URL (generated poster ka)</label>
+        <input type="text" id="ed-url" placeholder="/api/marketing/ai-img-file/xxxx.jpg" />
+        <button class="btn2" id="ed-load" type="button">🖼️ URL se Load</button>
+      </div>
+      <div>
+        <label>Ya apni image upload karo</label>
+        <input type="file" id="ed-base" accept="image/*" />
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div>
+        <label>Text size / color (selected text pe lagta)</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="ed-size" value="42" style="width:70px" />
+          <input type="color" id="ed-color" value="#ffffff" style="width:46px;height:36px;padding:2px;border:1px solid var(--bord);border-radius:8px;background:#0f1729" />
+          <button class="btn2" id="ed-addtext" type="button" style="margin-top:0">➕ Text</button>
+          <button class="btn2" id="ed-apply" type="button" style="margin-top:0">🎨 Apply</button>
+        </div>
+      </div>
+      <div>
+        <label>Logo overlay (png/jpg)</label>
+        <input type="file" id="ed-logo" accept="image/*" />
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <button class="btn2" id="ed-del" type="button">🗑️ Delete selected</button>
+      <button class="btn" id="ed-download" type="button" style="margin-top:0;margin-left:8px">⬇️ Download PNG</button>
+    </div>
+    <div class="err" id="ed-err"></div>
+    <div class="okmsg" id="ed-ok"></div>
+    <div style="margin-top:14px;overflow:auto;border:1px solid var(--bord);border-radius:12px;background:#0f1729;padding:8px">
+      <canvas id="ed-canvas" width="640" height="640"></canvas>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -151,10 +193,11 @@
   var tabs=document.querySelectorAll(".tabs button");
   function switchTab(name){
     tabs.forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-tab")===name); });
-    ["photo","poster","templates"].forEach(function(t){
+    ["photo","poster","templates","editor"].forEach(function(t){
       document.getElementById("tab-"+t).style.display = (t===name)?"":"none";
     });
     if(name==="templates") loadTemplates();
+    if(name==="editor") initEditor();
   }
   tabs.forEach(function(b){ b.addEventListener("click", function(){ switchTab(b.getAttribute("data-tab")); }); });
 
@@ -238,6 +281,103 @@
     switchTab("poster");
     document.getElementById("ai-name").focus();
   }
+
+  // ---- Editor (fabric.js, lazy-load on first open) ----
+  var fcanvas=null, fabricLoading=false;
+  var edErr=document.getElementById("ed-err"), edOk=document.getElementById("ed-ok");
+  function edMsg(ok, msg){ edErr.textContent = ok?"":(msg||""); edOk.textContent = ok?(msg||""):""; }
+  function ensureFabric(cb){
+    if(window.fabric){ cb(); return; }
+    if(fabricLoading) return;
+    fabricLoading=true;
+    var s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js";
+    s.onload=function(){ fabricLoading=false; cb(); };
+    s.onerror=function(){ fabricLoading=false; edMsg(false,"fabric.js load nahi hua — internet/CDN check karo."); };
+    document.head.appendChild(s);
+  }
+  function initEditor(){
+    ensureFabric(function(){
+      if(!fcanvas){
+        fcanvas=new fabric.Canvas("ed-canvas",{preserveObjectStacking:true,backgroundColor:"#111827"});
+        fcanvas.renderAll();
+      }
+    });
+  }
+  function loadBase(url){
+    if(!fcanvas){ edMsg(false,"Editor abhi load ho raha — 1 sec baad try karo."); return; }
+    edMsg(true,"Image load ho rahi…");
+    fabric.Image.fromURL(url, function(img){
+      if(!img||!img.width){ edMsg(false,"Image load nahi hui — URL check karo."); return; }
+      var maxW=640, scale=Math.min(1, maxW/img.width);
+      fcanvas.setWidth(Math.round(img.width*scale));
+      fcanvas.setHeight(Math.round(img.height*scale));
+      img.scale(scale);
+      fcanvas.setBackgroundImage(img, fcanvas.renderAll.bind(fcanvas), {originX:"left",originY:"top"});
+      edMsg(true,"Image loaded — ab text/logo add karo.");
+    }, {crossOrigin:"anonymous"});
+  }
+  document.getElementById("ed-load").addEventListener("click", function(){
+    var u=(document.getElementById("ed-url").value||"").trim();
+    if(!u){ edMsg(false,"Pehle image URL daalo (generate kiye poster ka)."); return; }
+    initEditor(); setTimeout(function(){ loadBase(u); }, window.fabric?0:800);
+  });
+  document.getElementById("ed-base").addEventListener("change", function(){
+    var f=this.files[0]; if(!f) return;
+    var rd=new FileReader();
+    rd.onload=function(){ initEditor(); setTimeout(function(){ loadBase(rd.result); }, window.fabric?0:800); };
+    rd.readAsDataURL(f);
+  });
+  document.getElementById("ed-addtext").addEventListener("click", function(){
+    if(!fcanvas){ edMsg(false,"Pehle image load karo."); return; }
+    var sz=parseInt(document.getElementById("ed-size").value,10)||42;
+    var col=document.getElementById("ed-color").value||"#ffffff";
+    var t=new fabric.IText("Apna text yahan",{left:40,top:40,fontSize:sz,fill:col,fontFamily:"Arial",fontWeight:"bold",stroke:"#00000055",strokeWidth:0.5});
+    fcanvas.add(t); fcanvas.setActiveObject(t); fcanvas.renderAll();
+    edMsg(true,"Text added — double-click karke edit karo, drag/resize karo.");
+  });
+  document.getElementById("ed-apply").addEventListener("click", function(){
+    if(!fcanvas) return;
+    var o=fcanvas.getActiveObject();
+    if(!o||!o.set||(o.type!=="i-text"&&o.type!=="text"&&o.type!=="textbox")){ edMsg(false,"Pehle koi text select karo."); return; }
+    o.set({fontSize:parseInt(document.getElementById("ed-size").value,10)||42, fill:document.getElementById("ed-color").value||"#ffffff"});
+    fcanvas.renderAll(); edMsg(true,"Style applied.");
+  });
+  document.getElementById("ed-logo").addEventListener("change", function(){
+    var f=this.files[0]; if(!f) return;
+    if(!fcanvas){ edMsg(false,"Pehle base image load karo."); this.value=""; return; }
+    var rd=new FileReader();
+    rd.onload=function(){
+      fabric.Image.fromURL(rd.result, function(img){
+        if(!img||!img.width){ edMsg(false,"Logo load nahi hua."); return; }
+        img.scaleToWidth(Math.min(140, fcanvas.getWidth()/4));
+        img.set({left:fcanvas.getWidth()-160, top:20});
+        fcanvas.add(img); fcanvas.setActiveObject(img); fcanvas.renderAll();
+        edMsg(true,"Logo added — drag/resize karo.");
+      });
+    };
+    rd.readAsDataURL(f);
+    this.value="";
+  });
+  document.getElementById("ed-del").addEventListener("click", function(){
+    if(!fcanvas) return;
+    var objs=fcanvas.getActiveObjects();
+    if(!objs||!objs.length){ edMsg(false,"Pehle koi object select karo."); return; }
+    objs.forEach(function(o){ fcanvas.remove(o); });
+    fcanvas.discardActiveObject(); fcanvas.renderAll();
+    edMsg(true,"Deleted.");
+  });
+  document.getElementById("ed-download").addEventListener("click", function(){
+    if(!fcanvas){ edMsg(false,"Pehle image load karo."); return; }
+    try{
+      var data=fcanvas.toDataURL({format:"png",multiplier:2});
+      var a=document.createElement("a"); a.href=data; a.download="poster-edit.png";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      edMsg(true,"PNG download ho gaya ✓");
+    }catch(e){
+      edMsg(false,"Download fail — external image CORS block karti hai. Same-site (/api/marketing/...) image use karo.");
+    }
+  });
 })();
 </script>
 </body>

@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#4f46e5" />
+<link rel="manifest" href="/manifest.json">
 <title>Multi-Agent Coordination | LeadGen AI</title>
 <meta name="description" content="LeadGen AI — live Multi-Agent Coordination dashboard. Reflexion orchestration, debate/consensus, episodic memory over the 8-agent AI staff team." />
 <link rel="icon" type="image/svg+xml" href="/site/icons/icon.svg" />
@@ -500,5 +501,6 @@ document.addEventListener("DOMContentLoaded", function(){
   loadMemory();
 });
 </script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

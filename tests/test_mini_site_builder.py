@@ -33,9 +33,10 @@ def test_config_defaults_when_unset():
     assert cfg["palette"] == mb.DEFAULT_PALETTE
     assert cfg["layout"] == mb.DEFAULT_LAYOUT
     assert cfg["logo_url"] == ""
-    # default palette resolves to concrete hex
-    assert cfg["primary"].startswith("#")
-    assert cfg["accent"].startswith("#")
+    # unset slug => primary/accent EMPTY (client brand colors jeet sakein);
+    # concrete hex sirf SAVED config pe resolve hota hai (bug-fix 2026-06-10)
+    assert cfg["primary"] == ""
+    assert cfg["accent"] == ""
 
 
 def test_config_persist_and_roundtrip():

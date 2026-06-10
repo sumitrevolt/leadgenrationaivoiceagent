@@ -616,6 +616,21 @@ async def public_signup(body: SignupIn, request: Request):
             detail="Yeh business already registered lag raha — login karo ya alag naam/phone do.",
         )
 
+    # 5.5) FREE TRIAL plan — payment ke BINA account (₹0, 7 din, marketing-lite).
+    #      Sirf plan="trial" pe client record me trial fields set hote; paid flow
+    #      (starter/growth/advanced) bilkul untouched. Best-effort, kabhi raise nahi.
+    is_trial = (body.plan or "").strip().lower() == "trial"
+    trial_expires = None
+    if is_trial:
+        try:
+            from app.marketing.clients_store import update_client
+            from app.marketing.packages import trial_expiry_iso
+
+            trial_expires = trial_expiry_iso()
+            update_client(cid, trial=True, trial_expires=trial_expires, plan="trial")
+        except Exception as e:
+            logger.warning(f"[signup] trial fields set failed (account still ok): {e}")
+
     # 6) Login banao + auto-login JWT
     register_login(email, pw, cid)
     token = None
@@ -662,7 +677,7 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception as e:
         logger.debug(f"[signup] journey emit spawn failed: {e}")
 
-    return {
+    out: dict[str, Any] = {
         "ok": True,
         "client_id": cid,
         "access_token": token,
@@ -670,6 +685,11 @@ async def public_signup(body: SignupIn, request: Request):
         "business_name": (client or {}).get("business_name"),
         "slug": (client or {}).get("slug"),
     }
+    if is_trial:
+        out["trial"] = True
+        out["trial_expires"] = trial_expires
+        out["message"] = "7-din FREE trial shuru — koi payment nahi chahiye. 🎉"
+    return out
 
 
 @router.get("/pay-info")

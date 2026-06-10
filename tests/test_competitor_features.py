@@ -117,7 +117,9 @@ def test_multilang_fallback():
 
     out = asyncio.run(ml.translate_post("Diwali offer! 20% off ☀️ #solar"))
     assert out["ok"] is True
-    assert set(out["versions"].keys()) == set(ml.LANGS.keys())
+    # Default = DEFAULT_LANGS (3, backward-compat); LANGS ab 9 (regional add hue)
+    assert set(out["versions"].keys()) == set(ml.DEFAULT_LANGS)
+    assert set(ml.DEFAULT_LANGS) <= set(ml.LANGS.keys())
     for v in out["versions"].values():
         assert v  # fallback = original, kabhi empty nahi
     assert asyncio.run(ml.translate_post(""))["ok"] is False

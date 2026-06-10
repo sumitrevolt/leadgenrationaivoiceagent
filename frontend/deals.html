@@ -2,6 +2,7 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
 <title>Deals Kanban — LeadsGenAI</title>
 <style>
 :root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6;--blue:#60a5fa}
@@ -144,5 +145,6 @@ $('d_stage').innerHTML=STAGES.map(function(s){return '<option'+(s==='interested'
 $('tok').value=tok();
 load();
 </script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

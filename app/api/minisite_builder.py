@@ -166,14 +166,17 @@ def _rewrite_jsonl(path: str, rows: list[dict[str, Any]]) -> None:
 # A) CONFIG store — palette / layout / logo per slug
 # --------------------------------------------------------------------------- #
 def _default_config(slug: str) -> dict[str, Any]:
-    pal = PALETTES[DEFAULT_PALETTE]
+    # NOTE: primary/accent EMPTY by default (na ki resolved palette hex) —
+    # warna render_site me client ka brand.primary KABHI nahi lagta (cfg
+    # hamesha jeet jata tha). Saved config (palette/custom colors) pe hi
+    # concrete hex resolve hota hai (get_config me).
     return {
         "slug": slug,
         "palette": DEFAULT_PALETTE,
         "layout": DEFAULT_LAYOUT,
         "logo_url": "",
-        "primary": pal["primary"],
-        "accent": pal["accent"],
+        "primary": "",
+        "accent": "",
     }
 
 

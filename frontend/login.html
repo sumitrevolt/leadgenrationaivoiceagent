@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0b1020">
 <title>Client Login — LeadsGenAI</title>
 <style>
   :root { --pri:#2563eb; --bg:#0b1020; --card:#fff; --ink:#0f172a; --mut:#64748b; }
@@ -103,5 +104,6 @@
   if(localStorage.getItem("lgai_token")){ loadAccount(); } else { show("login"); }
 })();
 </script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

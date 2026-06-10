@@ -83,6 +83,14 @@
     <button id="tg-yearly" onclick="setCycle('yearly')">Yearly <span class="save">save up to 20%</span></button>
   </div>
 
+  <div class="plan" style="margin-top:18px;border-color:var(--ok);flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="flex:1;min-width:220px">
+      <div class="pname">🎁 7-Din FREE Trial</div>
+      <div style="font-size:14px;color:var(--mut);margin-top:4px">Bina card, bina payment — 5 AI posts + GBP audit + lead-capture widget (AI chat). Pasand aaye to plan lo.</div>
+    </div>
+    <button class="cta" style="width:auto;background:var(--ok)" onclick="startTrial()">Start FREE Trial</button>
+  </div>
+
   <div id="plans" class="grid"><div class="note">Plans load ho rahe hain…</div></div>
 
   <p class="note">Sab plans me GST extra. Kabhi bhi cancel karo. Advanced tier me AI voice calling (500 min/mo).</p>
@@ -171,12 +179,23 @@ function openModal(pjson){
   document.getElementById("m-title").textContent = `Sign up — ${SELECTED.name||SELECTED.id}`;
   document.getElementById("m-sub").textContent = `${inr(priceFor(SELECTED).amt)} ${priceFor(SELECTED).suf} · ${CYCLE}`;
   document.getElementById("m-msg").textContent = "";
+  document.getElementById("m-go").innerHTML = "Sign up & Pay";
+  document.getElementById("ov").classList.add("on");
+}
+
+// 7-din FREE trial — payment ke bina account (plan=trial)
+function startTrial(){
+  SELECTED = {id:"trial", name:"7-Din FREE Trial", monthly_price:0};
+  document.getElementById("m-title").textContent = "Start FREE Trial";
+  document.getElementById("m-sub").textContent = "₹0 · 7 din · koi card/payment nahi";
+  document.getElementById("m-msg").textContent = "";
+  document.getElementById("m-go").innerHTML = "Start FREE Trial";
   document.getElementById("ov").classList.add("on");
 }
 function closeModal(){document.getElementById("ov").classList.remove("on");}
 
 function setMsg(t, ok){const m=document.getElementById("m-msg");m.className="msg "+(ok?"ok":"err");m.innerHTML=t;}
-function busy(on){const b=document.getElementById("m-go");b.disabled=on;b.innerHTML=on?'<span class="spin"></span>Wait…':'Sign up & Pay';}
+function busy(on){const b=document.getElementById("m-go");b.disabled=on;const idle=(SELECTED&&SELECTED.id==="trial")?"Start FREE Trial":"Sign up & Pay";b.innerHTML=on?'<span class="spin"></span>Wait…':idle;}
 
 async function doSignupPay(){
   const biz=document.getElementById("f-biz").value.trim();
@@ -197,6 +216,13 @@ async function doSignupPay(){
     cid=d.client_id; token=d.access_token;
     if(token) localStorage.setItem("accessToken", token);
   }catch(e){ busy(false); return setMsg("Network error, dobara try karo."); }
+
+  // 1.5) FREE TRIAL — koi payment nahi, seedha dashboard
+  if(SELECTED && SELECTED.id==="trial"){
+    setMsg("FREE trial activate ✓ 7 din ka access ready — redirect…", true);
+    setTimeout(function(){ location.href="/app/customer"; }, 900);
+    return;
+  }
 
   // 2) checkout session
   let co;

@@ -290,6 +290,8 @@ _ALLOWED_FIELDS = {
     "status",
     "brand",
     "socials",
+    "trial",  # free-trial flag (bool) — conversion funnel
+    "trial_expires",  # ISO timestamp — trial khatam kab
 }
 
 
@@ -319,6 +321,8 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
                 found["status"] = str(v or "").strip().lower()[:30] or found.get("status", "active")
             elif k == "niche":
                 found["niche"] = str(v or "").strip().lower()[:80] or found.get("niche", "general")
+            elif k == "trial":
+                found["trial"] = bool(v)
             else:
                 found[k] = str(v or "").strip()[:120]
         found["updated_at"] = _now()

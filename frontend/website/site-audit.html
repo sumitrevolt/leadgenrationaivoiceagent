@@ -2,6 +2,7 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#6d28d9">
 <title>FREE Website Audit — 10 second me apni website ka report card | LeadsGenAI</title>
 <meta name="description" content="Apni business website ka FREE AI audit — SEO, mobile, WhatsApp, contact — score + Hinglish tips 10 second me. LeadsGenAI.">
 <style>
@@ -64,5 +65,6 @@ async function run(){
 }
 $('url').addEventListener('keydown',e=>{if(e.key==='Enter')run()});
 </script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

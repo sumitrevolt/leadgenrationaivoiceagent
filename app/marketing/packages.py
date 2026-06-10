@@ -81,6 +81,89 @@ PACKAGES: list[dict] = [
 ]
 
 
-def get_packages() -> list:
-    """Public pricing packages (list of dicts) — landing page + API ke liye."""
+def get_packages(include_trial: bool = False) -> list:
+    """Public pricing packages (list of dicts) — landing page + API ke liye.
+
+    Default (include_trial=False) = pehle jaisa EXACT 3 paid packages (backward
+    compatible — existing consumers untouched). include_trial=True pe FREE trial
+    package list ke aage add hota hai (additive only).
+    """
+    if include_trial:
+        return [dict(TRIAL_PACKAGE)] + PACKAGES
     return PACKAGES
+
+
+# --------------------------------------------------------------------------- #
+# FREE TRIAL (₹0, 7 din, marketing-lite) — funnel-leak fix: paid-only signup
+# se hesitant SMBs nikal jaate the. Trial = ZERO payment, limited features.
+# --------------------------------------------------------------------------- #
+TRIAL_DAYS = 7
+
+TRIAL_PACKAGE: dict = {
+    "key": "trial",
+    "name": "7-Din FREE Trial",
+    "tagline": "Bina paise diye AI marketing try karo — card bhi nahi chahiye.",
+    "price_inr_month": 0,
+    "price_note": "₹0 — 7 din ka free trial, koi card/payment nahi. Pasand aaye to Starter se shuru karo.",
+    "marketing_only": True,
+    "trial": True,
+    "trial_days": TRIAL_DAYS,
+    "features": [
+        "5 AI social media posts (Hinglish, ready-to-share)",
+        "1 Google Business Profile audit (0-100 score + fixes)",
+        "Website lead-capture widget (form + AI chat)",
+        "WhatsApp content — basic pack",
+        "No voice calling (Advanced tier me milta hai)",
+    ],
+    "highlight": False,
+    "badge": "🎁 FREE",
+}
+
+
+def get_trial_package() -> dict:
+    """Trial package ka copy (mutation-safe)."""
+    return dict(TRIAL_PACKAGE)
+
+
+def trial_expiry_iso(days: int = TRIAL_DAYS) -> str:
+    """Aaj se `days` din baad ka ISO timestamp (UTC) — client record ke liye."""
+    try:
+        from datetime import datetime, timedelta, timezone
+
+        return (datetime.now(timezone.utc) + timedelta(days=max(1, int(days)))).isoformat()
+    except Exception:
+        return ""
+
+
+def trial_status(client: dict | None) -> dict:
+    """Client record se trial state — {trial, active, expired, days_left, expires_at}.
+
+    Pure helper (no DB/middleware) — customer portal + admin UI ke liye.
+    Kabhi raise nahi karta.
+    """
+    out = {"trial": False, "active": False, "expired": False, "days_left": 0, "expires_at": None}
+    try:
+        c = client or {}
+        if not c.get("trial"):
+            return out
+        out["trial"] = True
+        exp_raw = str(c.get("trial_expires") or "").strip()
+        out["expires_at"] = exp_raw or None
+        if not exp_raw:
+            return out
+        from datetime import datetime, timezone
+
+        exp_s = exp_raw[:-1] + "+00:00" if exp_raw.endswith("Z") else exp_raw
+        exp = datetime.fromisoformat(exp_s)
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        delta = exp - now
+        if delta.total_seconds() > 0:
+            out["active"] = True
+            out["days_left"] = max(1, delta.days + (1 if delta.seconds > 0 else 0))
+        else:
+            out["expired"] = True
+    except Exception:
+        pass
+    return out

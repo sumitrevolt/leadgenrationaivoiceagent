@@ -313,6 +313,31 @@ try:
     app.include_router(growth_router, prefix="/api")  # /api/growth/* (lead-score, review, flows, missed-call)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Growth router not mounted: {_e}")
+try:
+    from app.api import conversion as _conversion
+
+    app.include_router(_conversion.public_router, prefix="/api")  # /api/public/widget-chat, /lead-in, /trial-status
+    app.include_router(_conversion.admin_router, prefix="/api")  # /api/conversion/* (widget form builder)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Conversion router not mounted: {_e}")
+try:
+    from app.api.creative import router as creative_router
+
+    app.include_router(creative_router, prefix="/api")  # /api/creative/* (jingle, bg-remove, multilang status)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Creative router not mounted: {_e}")
+try:
+    from app.api.clientcrm import router as clientcrm_router
+
+    app.include_router(clientcrm_router, prefix="/api")  # /api/clientcrm/* (end-customer CRM, catalog, payment links)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"ClientCRM router not mounted: {_e}")
+try:
+    from app.api.seoops import router as seoops_router
+
+    app.include_router(seoops_router, prefix="/api")  # /api/seoops/* (rank tracker, conversations, dialer)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"SeoOps router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])
@@ -547,6 +572,21 @@ async def journeys_page():
     CRUD over /api/journeys/* (admin token). Engine gated JOURNEY_ENGINE=1.
     """
     return FileResponse(str(FRONTEND_DIR / "journeys.html"))
+
+
+@app.get("/app/conversations", tags=["Frontend"])
+async def conversations_page():
+    """Unified conversation inbox (GHL-style) — email replies + web-chat + inquiries ek thread view.
+
+    Reads /api/seoops/conversations (admin token). Reply = DRAFT/1-click only, auto-send nahi.
+    """
+    return FileResponse(str(FRONTEND_DIR / "conversations.html"))
+
+
+@app.get("/app/dialer", tags=["Frontend"])
+async def dialer_page():
+    """Human telecaller dialer mode (NeoDove-style) — lead queue, tel:/wa.me 1-click, dispositions."""
+    return FileResponse(str(FRONTEND_DIR / "dialer.html"))
 
 
 @app.get("/audit", tags=["Frontend"])

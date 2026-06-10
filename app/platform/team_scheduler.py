@@ -176,6 +176,18 @@ async def _run_job_inner(job: str) -> None:
             from app.marketing import review_monitor
 
             await review_monitor.run_check()  # naye Google reviews -> AI reply drafts (gated REVIEW_MONITOR)
+            try:
+                from app.marketing import customer_crm
+
+                await customer_crm.run_wishes_if_enabled()  # birthday/anniversary wish DRAFTS (gated CUSTOMER_WISHES)
+            except Exception:
+                pass
+            try:
+                from app.platform import rank_tracker
+
+                await rank_tracker.run_if_enabled()  # local rank tracking sweep (gated RANK_TRACKER, cap lookups)
+            except Exception:
+                pass
         elif job == "blog":
             from app.marketing import seo_blog
 

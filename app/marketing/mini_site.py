@@ -165,6 +165,65 @@ def _services_section(services: list[str]) -> str:
     )
 
 
+def _catalog_section(slug: str, name: str, wa: str) -> str:
+    """Product catalog grid (WhatsApp-store style) — product_catalog store se.
+
+    Catalog empty/missing/error => '' (page me ZERO change). Har product pe
+    'WhatsApp pe order karein' = wa.me 1-click prefilled link (auto-send nahi).
+    """
+    try:
+        from urllib.parse import quote as _q
+
+        from app.marketing import product_catalog  # lazy (optional store)
+
+        items = product_catalog.list_products(slug, include_out_of_stock=False)
+    except Exception as e:  # store/module issue => section hi nahi
+        logger.debug(f"[mini_site] catalog skip: {e}")
+        return ""
+    if not items:
+        return ""
+
+    cards: list[str] = []
+    for p in items[:24]:
+        try:
+            pname = str(p.get("name") or "").strip()
+            if not pname:
+                continue
+            price = product_catalog.fmt_price(p.get("price_inr"))
+            desc = str(p.get("desc") or "").strip()
+            photo = str(p.get("photo_url") or "").strip()
+            img = (
+                f'<img class="pimg" src="{_e(photo)}" alt="{_e(pname)}" loading="lazy" '
+                "onerror=\"this.style.display='none'\" />"
+                if photo.startswith(("https://", "http://", "/"))
+                else '<div class="pimg ph">🛍️</div>'
+            )
+            order_btn = ""
+            if wa:
+                msg = f"Mujhe {pname}" + (f" ({price})" if price else "") + f" order karna hai — {name}"
+                order_btn = (
+                    f'<a class="porder" href="https://wa.me/{_e(wa)}?text={_e(_q(msg))}" '
+                    'target="_blank" rel="noopener">💬 WhatsApp pe order karein</a>'
+                )
+            cards.append(
+                '<div class="pcard">'
+                + img
+                + f'<div class="pname">{_e(pname)}</div>'
+                + (f'<div class="pprice">{_e(price)}</div>' if price else "")
+                + (f'<div class="pdesc">{_e(desc[:120])}</div>' if desc else "")
+                + order_btn
+                + "</div>"
+            )
+        except Exception:
+            continue
+    if not cards:
+        return ""
+    return (
+        '<section class="sec catalog" id="catalog"><h2>Hamare Products</h2>'
+        '<div class="pgrid">' + "".join(cards) + "</div></section>"
+    )
+
+
 def _booking_section(slug: str, name: str) -> str:
     """Enquiry/booking form → POST /api/public/inquiry (hidden source_slug)."""
     return (
@@ -433,7 +492,25 @@ def _css(primary: str, accent: str, layout: str = "classic") -> str:
         "footer a{color:var(--p);font-weight:700;text-decoration:none}"
         % (primary, accent, _FONT, _HEAD_FONT, _HEAD_FONT)
     )
-    return base + _layout_css(layout)
+    return base + _CATALOG_CSS + _layout_css(layout)
+
+
+# Product-catalog grid (plain string — no %-format, safe append after base CSS).
+_CATALOG_CSS = (
+    ".pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}"
+    "@media(max-width:380px){.pgrid{grid-template-columns:1fr}}"
+    ".pcard{background:#faf9ff;border:1px solid var(--line);border-radius:14px;"
+    "padding:12px;display:flex;flex-direction:column;gap:7px}"
+    ".pimg{width:100%;height:120px;object-fit:cover;border-radius:10px;background:#f3f0fd}"
+    ".pimg.ph{display:grid;place-items:center;font-size:38px;color:var(--p)}"
+    ".pname{font-weight:800;font-size:.95rem;color:var(--ink);line-height:1.3}"
+    ".pprice{font-weight:800;font-size:1.02rem;color:var(--p)}"
+    ".pdesc{font-size:.82rem;color:var(--muted);line-height:1.45}"
+    ".porder{margin-top:auto;display:inline-flex;align-items:center;justify-content:center;"
+    "gap:6px;background:#25d366;color:#fff;font-weight:700;font-size:.82rem;"
+    "padding:9px 10px;border-radius:10px;text-decoration:none;text-align:center}"
+    ".porder:active{transform:scale(.97)}"
+)
 
 
 def _booking_js(slug: str) -> str:
@@ -668,6 +745,7 @@ def render_site(client: dict[str, Any] | None) -> str:
             + hero
             + about
             + _services_section(services)
+            + _catalog_section(slug, name, wa)
             + _booking_section(slug, name)
             + _calendar_section()
             + _reviews_section(name, gbp, place_query, slug)
