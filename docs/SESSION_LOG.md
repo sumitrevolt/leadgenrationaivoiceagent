@@ -836,3 +836,13 @@ Research-driven (FastAPI prod guides + Formbricks/Fider feedback pattern + Hyper
 - **Flags ON** (.env.bak_envset_20260610_144356): NPS_ALERTS, PAYMENT_RECON, INDEXNOW. LIVE smoke: IndexNow 22 URLs HTTP 202 submitted; NPS calc ok.
 - **🚨 FINDING: Razorpay Payments API = 401 Authentication failed** live creds se — recon ne pakda. Checkout/payment-links isi creds pe — USER-ACTION: dashboard me keys verify/regenerate + .env update + container recreate. (Recon graceful — alert spam nahi.)
 - Deploy gotcha refresher: DC one-liner ssh quoting mangle — smoke/deploy .bat me hi likho (nps_batch_deploy/smoke/activate.bat pattern).
+
+
+## 2026-06-10 PM — Sales Team 5-agent deep-dive (commit c18f54a, DEPLOYED LIVE, flag ON)
+Source: github.com/zubair-trabzada/ai-sales-team-claude (Claude Code skills pack — BANT+MEDDIC qualify, 5 parallel agents, 5-email sequences, LAER objection playbook). Unka US-B2B-SaaS frame (funding/G2/LinkedIn) humare Indian-local-SMB free-stack me ADAPT kiya (copy nahi).
+- `app/platform/sales_qualify.py` — BANT 0-100 pure-Python: Budget (rating/reviews=busy, website=invest, S-tier niche), Authority (owner-operator base 12 + phone/contact), Need ULTA-scored (website NAHI/reviews<10/rating<4 = HUMARI service ki need), Timeline (status/recency/inbound source). grade_of A>=75/B>=55/C>=35/D. Hinglish action per grade.
+- `app/agents/sales_team.py` — analyze(prospect): Veer BANT pehle (outreach hints), fir Riya (httpx fetch + web_extract.clean_text -> LLM brief) + Dev (competitive angle) + Isha (5-touch D1/2/7/14/21 personalized via LLM, build_sequence_fallback static) + Arjun (OBJECTION_PLAYBOOK static 5 LAER + LLM personalize) PARALLEL gather, Boss verdict, _render_md -> data/prospect_analyses/<pid>.md + index.jsonl, team.log_event(swara). run_auto gated SALES_TEAM, dedupe 7-din (_already_done), max 5/run.
+- Routes (growth.py admin): POST /sales/prospect-analysis (dict ya phone->prospect_lists.search) · GET /sales/prospect-analyses · POST /sales/team-run (flag OFF pe bhi one-shot manual). Flag SALES_TEAM registry me. content job wired.
+- Verify: prod_check 485 routes, test_sales_team 8/8 (BANT dims/grades/need-inversion/never-raise, sequence fallback pure, playbook, analyze offline-fallback md render, gate), regression 44/44.
+- Deploy: image rebuild, SALES_TEAM=1 (.env.bak_envset_20260610_145835), health 200. LIVE demo: Sharma Solar -> 67/100 B, full md report; us waqt Cerebras 429 + Groq TPD 100k/100k exhausted + xai no-credits -> SAB fallbacks chale, report phir bhi complete (resilience proven).
+- Gyan: Groq TPD content-heavy din pe khatam hota hai — naye LLM-heavy daily jobs add karte waqt max_tokens tight rakho; sales_team isi liye static-fallback-first design hai.
