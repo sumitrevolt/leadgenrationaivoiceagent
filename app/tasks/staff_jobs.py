@@ -94,6 +94,32 @@ def self_improve_tick(self):
 
 @shared_task(
     bind=True,
+    name="app.tasks.staff_jobs.process_tick",
+    max_retries=0,
+    acks_late=True,
+)
+def process_tick(self, run_id: str):
+    """Process-engine run ko worker me advance karo (babysitter-pattern).
+    RUNNING rahe to khud requeue (10s) — breakpoint/end pe chain rukti.
+    Kabhi raise nahi."""
+    res = {}
+    try:
+        from app.agents import process_engine
+
+        res = _run_async(process_engine.advance(run_id)) or {}
+    except Exception as e:
+        logger.warning(f"[process] tick failed {run_id}: {e}")
+        return {"ok": False, "run_id": run_id, "error": str(e)[:150]}
+    try:
+        if res.get("status") == "running" or res.get("note") == "step budget — tick continue karega":
+            process_tick.apply_async(args=[run_id], countdown=10)
+    except Exception:
+        pass
+    return {"ok": True, "run_id": run_id, "status": res.get("status", "")}
+
+
+@shared_task(
+    bind=True,
     name="app.tasks.staff_jobs.self_improve_revive",
     max_retries=0,
     acks_late=True,
