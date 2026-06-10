@@ -248,6 +248,13 @@
 - **Revenue digest** (`app/platform/revenue_digest.py`) — Monday weekly email: MRR estimate, subs counts, dunning, nurture funnel, hot leads, deals, health. **GATED `REVENUE_DIGEST=1`** + NOTIFY_EMAIL. digest job me wired.
 - **API** (growth.py, admin): `POST /api/growth/revenue/dunning/{case,run}` `GET /revenue/dunning` · `GET /revenue/health/clients` `POST /revenue/health/run` · `POST /revenue/lifecycle/{enroll,run}` `GET /revenue/lifecycle` · `POST /revenue/digest/run`. Scheduler: content job → dunning+lifecycle run_due; digest job → revenue_digest+client_health.
 
+## APOLLO-INSPIRED BATCH ✅ LIVE (2026-06-10, commit dd1a613) — 382 routes
+> Apollo.io patterns free-stack me (unka data India-local SMB pe weak — humne UX/infra ideas liye). Tests `test_apollo_inspired.py` 7/7. LIVE: search real prospects score-sorted, email-finder leadsgenai.in pe website-source `hello@` + MX-verified patterns.
+- **Prospect search + saved lists** (`platform/prospect_lists.py`) — filter search (niche/city/status/has_email/q/min_score, live lead_scoring) + saved lists (`data/lead_lists.jsonl`) + **list→cadence enroll**. `GET /api/growth/prospects/search` · `POST/GET /prospects/lists` · `POST /prospects/lists/{id}/enroll-cadence`.
+- **Apollo-CSV import** — `POST /prospects/import` {rows|csv_text} — alias-mapping (Company/Work Email/...), dedupe phone/email, prospector store+DB mirror, Rohan log. Apollo free me manually export → yahan paste = pipeline me.
+- **Email-finder waterfall** (`platform/email_finder.py`) — site-extract (web_extract) → pattern-guess (info@/contact@/<name>@, free-mail skip) → MX verify (email_verify). `POST /prospects/find-email`. SMTP-handshake jaan-bujhke NAHI (port-25 reputation).
+- **Cadence step-touch stats** — `cadence.stats()` me `step_touches` (channel:action counts) — sequence drop-off visible.
+
 ## EXOTEL API SETUP ✅ DONE (2026-06-10, commit 8bdd8eb) — credits live, sab API se
 - **Balance ₹422.62** (trial credits) — `GET /v1/Accounts/{sid}/Balance.json` WORKS (v2 not supported account pe). `app/telephony/exotel_account.py` `balance()` (30-min cache) **telephony_readiness me wired** — readiness response me `exotel_balance` + low-balance email alert (`EXOTEL_LOW_BALANCE` threshold, default ₹100, TELEPHONY_READY_ALERTS=1 ON).
 - **ExoPhone StatusCallback SET via API** (HTTP 200): 01141189204 → `https://leadsgenai.in/api/webhooks/exotel/status` — inbound/call events ab humare webhook pe. (verify_exotel_signature EXOTEL_API_SECRET unset = fail-open accept.)
