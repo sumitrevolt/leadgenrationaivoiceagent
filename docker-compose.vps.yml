@@ -174,19 +174,31 @@ services:
       context: .
       dockerfile: Dockerfile.lock
     container_name: leadgen_worker
+    user: "0:0"   # root — bind-mounted root-owned ./data writable (app jaisa)
     command: celery -A app.worker worker --loglevel=info --concurrency=4
     env_file: .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://leadgen:${POSTGRES_PASSWORD:-leadgen}@db:5432/leadgen}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      # In-network URLs HARDCODED (app jaisa) — .env ke 127.0.0.1 URLs container
+      # ke andar khud container hote (galat). PgBouncer session-mode pool ke through.
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      RUN_IN_PROCESS_SCHEDULER: "0"
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+      pgbouncer:
+        condition: service_started
     volumes:
       - ./data:/app/data
+      - ./logs:/app/logs
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
     networks: [leadgen_net]
 
   scheduler:
@@ -196,15 +208,21 @@ services:
       context: .
       dockerfile: Dockerfile.lock
     container_name: leadgen_scheduler
-    command: celery -A app.worker beat --loglevel=info
+    user: "0:0"
+    command: celery -A app.worker beat --loglevel=info --schedule /tmp/celerybeat-schedule
     env_file: .env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://leadgen:${POSTGRES_PASSWORD:-leadgen}@db:5432/leadgen}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks: [leadgen_net]
 
 volumes:

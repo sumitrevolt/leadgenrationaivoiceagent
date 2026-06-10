@@ -4,6 +4,7 @@ Production-ready background task processing
 """
 
 import logging
+import os
 
 from celery import Celery, signals
 from celery.schedules import crontab
@@ -328,6 +329,18 @@ celery_app.conf.beat_schedule = {
         "args": ("email_outreach",),
     },
 }
+
+# ---------------------------------------------------------------------------
+# SAFETY GATE: legacy (Cloud-Run/Vertex era) beat entries DEFAULT OFF.
+# Bina GCP/Vertex creds ke ye tasks heavy/no-op hain, aur `process_queue`
+# jaise entries call-side-effects rakh sakte. Celery-beat switch ka core =
+# sirf `staff-*` jobs (team_scheduler._run_job dispatcher — saare naye
+# engines included). Puraane entries chahiye to ENABLE_LEGACY_BEAT=1.
+# ---------------------------------------------------------------------------
+if os.environ.get("ENABLE_LEGACY_BEAT", "0").strip().lower() not in ("1", "true", "yes"):
+    celery_app.conf.beat_schedule = {
+        k: v for k, v in celery_app.conf.beat_schedule.items() if k.startswith("staff-")
+    }
 
 
 # Task definitions
