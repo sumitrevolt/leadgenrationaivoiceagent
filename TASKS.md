@@ -17,11 +17,12 @@
 - [x] BONUS P1: WA sticker pack · trackable proposals · dialer leaderboard
 
 ### P0 follow-ups
-- [ ] DEPLOY P0+P1 batches (/ship; HARD RELOAD — naya page-route /b/{slug}/card) + live smoke naye public endpoints (geo-check pe health-poll — LLM endpoint!)
+- [x] DEPLOYED 2026-06-11 ✅ — 550 routes live, smoke all-200, geo-check LIVE-proven, flags SERVICE_REMINDERS+OUTREACH_AB ON
+- [ ] CALL_TRANSFER ON karna ho to: callers me flow_state["owner_phone"] set + Exotel KYC pehle
 - [x] Voice pipeline detect_transfer_intent wiring (pipeline.py run_turn, gated) — NOTE: callers ko flow_state["owner_phone"] dena hota
 - [x] Scheduler hooks: digest speed-to-lead Boss-event, watchdog proposal-opened sweep, content service-reminders
 - [x] UI tabs: growth_tools 11→17 (frames/card/approvals/speed+board/ask-AI/localseo+)
-- [ ] VPS pe ffmpeg install (video clips ke liye) — `apt install ffmpeg` ya container image me add
+- [x] ffmpeg — image me pehle se tha (Dockerfile.lock), live verified 7.1.4
 
 ## P1 — ✅ BUILT 2026-06-11 (pending deploy)
 - [x] AI-search/GEO visibility report (`geo_visibility.py`, public /api/localseo/geo-check)
