@@ -143,6 +143,12 @@ async def _run_job_inner(job: str) -> None:
             from app.agents import growth_optimizer
 
             await growth_optimizer.optimize()  # daily self-healing profit loop (gated GROWTH_OPTIMIZER)
+            try:
+                from app.billing import payment_recon
+
+                await payment_recon.run_if_enabled()  # Razorpay vs invoices recon (gated PAYMENT_RECON)
+            except Exception:
+                pass
         elif job == "content":
             from app.marketing import auto_content
 
@@ -218,6 +224,12 @@ async def _run_job_inner(job: str) -> None:
             from app.marketing import seo_blog
 
             await seo_blog.run_daily_blog(3)
+            try:
+                from app.marketing import indexnow
+
+                await indexnow.submit_sitemap_if_enabled()  # naye URLs Bing/Yandex pe (gated INDEXNOW)
+            except Exception:
+                pass
         elif job == "prospect":
             # NICHE_ROTATION=1 → all-42-niches round-robin (niche_prospector); warna
             # default 4-niche prospector (aaj jaisa). Gated = zero behaviour change.

@@ -1038,6 +1038,7 @@ AUTOMATION_FLAGS = [
     "USE_SMART_TURN", "USE_LIGHTRAG", "ENABLE_OTEL", "ENABLE_LEGACY_BEAT", "FESTIVALS_LIVE_HOLIDAYS",
     "TELEGRAM_AUTO_PUBLISH", "CLIENT_REPORTS", "CUSTOMER_WISHES", "RANK_TRACKER",
     "MEMORY_VAULT", "LIVE_NOTES", "DLQ_AUTO_RETRY", "INTEGRATION_ALERTS",
+    "NPS_ALERTS", "PAYMENT_RECON", "INDEXNOW",
 ]
 
 
@@ -1386,3 +1387,66 @@ async def client_data_summary(key: str):
         raise HTTPException(status_code=401, detail="invalid api key")
     client = clients_store.get_client(cid) or {}
     return {"client_id": cid, "business_name": client.get("business_name"), "stats": client_report.collect_stats(client)}
+
+
+# ------------- Prod-batch 2026-06-10: NPS + payment recon + IndexNow ------------- #
+class NPSIn(BaseModel):
+    score: int
+    comment: str | None = ""
+    name: str | None = ""
+    phone: str | None = ""
+    client_slug: str | None = ""
+
+
+@router.post("/nps/submit", tags=["Public Tools"], dependencies=[Depends(rate_limit("nps", 10, 60))])
+async def nps_submit(body: NPSIn):
+    """PUBLIC: NPS/CSAT response (0-10). Detractor alert gated NPS_ALERTS=1."""
+    from app.platform import nps
+
+    return await nps.submit(body.score, body.comment or "", body.name or "", body.phone or "", body.client_slug or "")
+
+
+@router.get("/nps/stats")
+async def nps_stats(client_slug: str = "", days: int = 90, _user=Depends(require_admin)):
+    """NPS score + recent responses (overall ya per-client)."""
+    from app.platform import nps
+
+    return nps.stats(client_slug, days)
+
+
+@router.get("/nps/request-drafts")
+async def nps_request_drafts(limit: int = 20, _user=Depends(require_admin)):
+    """Har client ke liye 1-click WhatsApp survey draft (ban-safe, manual send)."""
+    from app.platform import nps
+
+    return {"drafts": nps.request_drafts(limit)}
+
+
+@router.get("/revenue/recon")
+async def payment_recon_last(_user=Depends(require_admin)):
+    """Last payment-reconciliation report (Razorpay vs invoices)."""
+    from app.billing import payment_recon
+
+    return payment_recon.last_report()
+
+
+@router.post("/revenue/recon/run")
+async def payment_recon_run(days: int = 3, _user=Depends(require_admin)):
+    """Razorpay captured payments vs internal invoices — READ-only recon sweep."""
+    from app.billing import payment_recon
+
+    return await payment_recon.run(days)
+
+
+class IndexNowIn(BaseModel):
+    urls: list[str] | None = None  # khali = poora sitemap sweep
+
+
+@router.post("/seo/indexnow")
+async def seo_indexnow(body: IndexNowIn, _user=Depends(require_admin)):
+    """Bing/Yandex IndexNow submit — urls do ya khali chodo (sitemap sweep)."""
+    from app.marketing import indexnow
+
+    if body.urls:
+        return await indexnow.submit_urls(body.urls)
+    return await indexnow.submit_sitemap_if_enabled(force=True)  # admin manual = flag bypass

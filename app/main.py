@@ -660,6 +660,16 @@ async def robots_txt():
     return FileResponse(str(_website_dir / "robots.txt"), media_type="text/plain")
 
 
+@app.get("/indexnow-key.txt", include_in_schema=False)
+async def indexnow_key_txt():
+    """IndexNow key-file (Bing/Yandex ownership verify) — keyLocation isi pe point karti."""
+    from fastapi.responses import PlainTextResponse
+
+    from app.marketing import indexnow
+
+    return PlainTextResponse(indexnow.get_key())
+
+
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml():
     """SEO: DYNAMIC sitemap — static pages + every published /blog/{slug}.
