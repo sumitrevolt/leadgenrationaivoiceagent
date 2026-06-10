@@ -248,6 +248,18 @@
 - **Revenue digest** (`app/platform/revenue_digest.py`) — Monday weekly email: MRR estimate, subs counts, dunning, nurture funnel, hot leads, deals, health. **GATED `REVENUE_DIGEST=1`** + NOTIFY_EMAIL. digest job me wired.
 - **API** (growth.py, admin): `POST /api/growth/revenue/dunning/{case,run}` `GET /revenue/dunning` · `GET /revenue/health/clients` `POST /revenue/health/run` · `POST /revenue/lifecycle/{enroll,run}` `GET /revenue/lifecycle` · `POST /revenue/digest/run`. Scheduler: content job → dunning+lifecycle run_due; digest job → revenue_digest+client_health.
 
+## BULK COMPETITOR-PARITY BATCH ✅ LIVE (2026-06-10, commit 679f223) — 8 features ek saath
+> **Rebuild MAT karo.** prod_check **367 routes**, tests `test_competitor_features.py` 9/9. LIVE smoke: carousel LLM-real ("Solar Subsidy" 3 slides), meme real, deliverability SPF✓ DMARC✓ blacklist[], leadsgenai.in site-audit 85/A, multilang 3 versions. Flags ON: `REVIEW_MONITOR` · `BOOKING_REMINDERS` · `DELIVERABILITY_MONITOR` (`.env.bak_bulk`).
+- **Carousel** (`marketing/carousel.py`, Predis) — topic→3-5 branded SVG slides+caption. `POST /api/growth/content/carousel`.
+- **Meme gen** (`marketing/meme_gen.py`) — niche→Hinglish meme SVG+caption. `POST /content/meme`.
+- **Multilang** (`marketing/multilang_post.py`, AdBanao-edge) — caption→hinglish/hindi/marathi. `POST /content/multilang`.
+- **Deliverability monitor** (`platform/deliverability_monitor.py`, Smartlead) — SPF/DMARC TXT + Spamhaus/SpamCop DNSBL check, watchdog-job wired, alert gated `DELIVERABILITY_MONITOR=1`. `GET /deliverability`.
+- **Booking reminders** (`platform/booking_reminders.py`, Calendly) — booking.py hook se persistent record (`data/bookings.jsonl`) + 24h-pehle reminder, gated `BOOKING_REMINDERS=1`, content-job wired. `GET /bookings/upcoming` `POST /bookings/remind-run`.
+- **Review monitor** (`marketing/review_monitor.py`, Birdeye) — Places API(New) se naye Google reviews → review_replies AI drafts (`data/review_monitor_drafts.jsonl`), gated `REVIEW_MONITOR=1`+maps-key, content-job wired. `POST /reviews/monitor-run` `GET /reviews/drafts`.
+- **Outbound webhooks** (`platform/outbound_webhooks.py`, Zapier/HighLevel) — https-only register + HMAC-signed POST on events (inquiry_received/signup/booking/...), inquiry+booking wired fire-and-forget, inert bina registered hooks. `POST /webhooks/register` `GET /webhooks` `DELETE /webhooks/{id}`.
+- **Website auditor** (`marketing/website_auditor.py`) — PUBLIC lead magnet `POST /api/growth/tools/website-audit` (rate-limited 10/60s): URL→score/grade+Hinglish tips+CTA.
+- **BUGFIX**: growth_optimizer `free_ai.chat` signature (system, messages-list)→tuple — pehle hamesha static-fallback ideas the, ab real LLM brainstorm.
+
 ## INFRA: CELERY DURABLE SCHEDULER ✅ SWITCHED LIVE (2026-06-10, commit e62feee) — competitor-research-driven
 > Research: Smartlead/2026-SaaS pattern = web process KABHI heavy job na chalaye (humara prod-down qa-job bug isi se tha). Doc: `docs/Competitor_Infra_Research.md`.
 - **LIVE ab**: `WEB_CONCURRENCY=2` (uvicorn 2 workers, sirf HTTP) + `RUN_IN_PROCESS_SCHEDULER=0` + **`leadgen_worker` (celery, concurrency=4) + `leadgen_scheduler` (beat)** containers (`--profile celery`). PROOF: beat 12:45 IST `staff-growth-15min` → worker 8.6s succeeded `{'ok': True}` → health 200 (HTTP unblocked). 13 containers total.
