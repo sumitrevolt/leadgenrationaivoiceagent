@@ -121,6 +121,7 @@ async def create_payment_link(
     customer_name: str | None = None,
     customer_phone: str | None = None,
     business_name: str = "",
+    extra_notes: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Razorpay Payment Link banao (CREATE only — koi charge/transfer nahi).
 
@@ -151,6 +152,16 @@ async def create_payment_link(
             "reminder_enable": False,
             "notes": {"client_id": str(client_id or "")[:80], "purpose": desc[:120], "via": "leadsgenai"},
         }
+        # extra_notes (e.g. plan_id="advanced"/"topup_100") — payment.captured webhook
+        # notes inherit karta hai => auto plan-provision/top-up-credit/invoice ho jata.
+        # Razorpay limit: max 15 notes, 256 chars each.
+        if extra_notes:
+            try:
+                for k, v in list(extra_notes.items())[:10]:
+                    if k and str(k) not in payload["notes"]:
+                        payload["notes"][str(k)[:40]] = str(v)[:250]
+            except Exception:
+                pass
         cust: dict[str, str] = {}
         nm = (customer_name or "").strip()[:100]
         ph = _digits_intl(customer_phone)

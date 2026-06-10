@@ -165,6 +165,53 @@ async def _send_email(to_email: str, subject: str, body: str) -> bool:
         return False
 
 
+async def _ensure_pay_link(case: dict[str, Any]) -> str:
+    """Case ke liye 1-tap Razorpay payment link (ek baar banao, case me cache).
+
+    Research: recovery link (UPI-intent, no-login) checkout-redirect se behtar convert
+    karta. notes me client_id+plan_id => payment.captured webhook AUTO provision+invoice+
+    mark_recovered karta. Creds unset / amount missing => "" (graceful). Never raises.
+    """
+    try:
+        if case.get("pay_link"):
+            return str(case["pay_link"])
+        amount = case.get("amount")
+        if not amount:
+            return ""
+        from app.billing import payment_links
+
+        if not payment_links.is_configured():
+            return ""
+        cid = str(case.get("client_id") or "")
+        plan = ""
+        try:
+            plan = str((_client_info(cid) or {}).get("plan") or "").strip().lower()
+        except Exception:
+            pass
+        res = await payment_links.create_payment_link(
+            cid,
+            amount,
+            f"LeadsGenAI subscription renewal — {case.get('business_name', '')}".strip(),
+            customer_name=str(case.get("business_name") or ""),
+            customer_phone=str(case.get("phone") or ""),
+            business_name="LeadsGenAI",
+            extra_notes={"plan_id": plan or "starter", "dunning_case": str(case.get("id") or "")},
+        )
+        link = str(res.get("short_url") or "") if res.get("ok") else ""
+        if link:
+            case["pay_link"] = link
+        return link
+    except Exception as e:
+        logger.debug(f"[dunning] pay link skipped: {e}")
+        return ""
+
+
+def _with_link(body: str, link: str) -> str:
+    if not link:
+        return body
+    return body + f"\n\n1-tap payment link (UPI/card/netbanking): {link}"
+
+
 async def on_payment_failed(
     client_id: str,
     amount: Any = None,
@@ -204,9 +251,10 @@ async def on_payment_failed(
         _write_all(_CASES, rows)
 
         msg = build_message("failed_now", biz, amount)
+        link = await _ensure_pay_link(case)  # 1-tap recovery link (creds unset = "")
         sent = False
         if _enabled() and email:
-            sent = await _send_email(email, msg["subject"], msg["body"])
+            sent = await _send_email(email, msg["subject"], _with_link(msg["body"], link))
         _append(
             _RUNS,
             {
@@ -342,7 +390,12 @@ async def run_due() -> dict[str, Any]:
                     if t["key"] in done or days < t["day"]:
                         continue
                     msg = build_message(t["key"], case.get("business_name", ""), case.get("amount"))
-                    ok = await _send_email(case.get("email", ""), msg["subject"], msg["body"])
+                    link = await _ensure_pay_link(case)  # cached after first touch
+                    if link and case.get("pay_link") == link:
+                        changed = True  # persist cached link
+                    ok = await _send_email(
+                        case.get("email", ""), msg["subject"], _with_link(msg["body"], link)
+                    )
                     _append(
                         _RUNS,
                         {

@@ -259,8 +259,20 @@ async def get_pricing_plans():
     """
     Get all available pricing plans
     """
+    # PUBLIC pricing = sirf marketing packages wale plans (starter/growth/advanced).
+    # Legacy internal plans (enterprise/per_lead/hybrid/data_*) public page pe NAHI —
+    # /pricing page yahi endpoint render karta hai (BUG FIX 2026-06-10: pehle saare
+    # legacy ₹15k+ plans dikh rahe the).
+    try:
+        from app.marketing.packages import PACKAGES as _PKGS
+
+        _public_keys = [str(p.get("key")) for p in _PKGS]
+    except Exception:  # pragma: no cover - defensive
+        _public_keys = ["starter", "growth", "advanced"]
+    _public = [PRICING_PLANS[k] for k in _public_keys if k in PRICING_PLANS]
+
     plans = []
-    for plan in PRICING_PLANS.values():
+    for plan in _public or PRICING_PLANS.values():
         plans.append(
             PlanResponse(
                 id=plan.id,
@@ -1345,8 +1357,33 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_asyn
             )
 
         elif event_type == "payment.captured":
-            # One-off captured payment (e.g. order-based checkout / balance top-up).
-            if client_id:
+            # Voice-minute TOP-UP pack (payment-link/order with notes plan_id="topup_*"):
+            # plan activate NAHI hota — sirf minutes credit + invoice. (Warna activate_plan
+            # client ka plan 'topup_100' kar deta = plan break.)
+            if client_id and str(plan_id or "").startswith("topup"):
+                try:
+                    from app.billing import usage as _usage
+                    from app.marketing.packages import topup_pack
+
+                    pack = topup_pack(str(plan_id))
+                    minutes = int(pack.get("minutes") or 0)
+                    if minutes > 0:
+                        _usage.add_topup_minutes(client_id, minutes)
+                        amount_inr = float(pay_entity.get("amount") or 0) / 100.0
+                        from app.billing import gst_invoice
+
+                        await gst_invoice.on_payment_success(
+                            client_id,
+                            str(plan_id),
+                            payment_ref=str(pay_entity.get("id") or ""),
+                            gateway="razorpay",
+                            amount_inr=amount_inr or float(pack.get("price_inr") or 0),
+                        )
+                        logger.info(f"topup credited: client={client_id} +{minutes} min")
+                except Exception as te:  # pragma: no cover - defensive
+                    logger.warning(f"topup credit failed for {client_id}: {te}")
+            # One-off captured payment (e.g. order-based checkout / annual prepay).
+            elif client_id:
                 sub = await _activate_subscription_row(
                     db,
                     client_id=client_id,

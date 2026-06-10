@@ -126,6 +126,32 @@ TRIAL_PACKAGE: dict = {
 }
 
 
+# --------------------------------------------------------------------------- #
+# VOICE-MINUTE TOP-UP PACKS (Advanced tier ke liye; period-end pe EXPIRE — research:
+# rollover rare, revenue-recognition+usage reasons). Effective rate included-minute
+# (₹12/min @500) se UPAR, taaki heavy users ko upgrade/renew sasta lage (upsell lever).
+# NOTE: prices research-pattern se set (₹15-18/min) — user adjust kar sakta hai.
+# --------------------------------------------------------------------------- #
+TOPUP_PACKS: list[dict] = [
+    {"key": "topup_100", "minutes": 100, "price_inr": 1499, "label": "100 min Top-up"},
+    {"key": "topup_250", "minutes": 250, "price_inr": 3499, "label": "250 min Top-up"},
+    {"key": "topup_500", "minutes": 500, "price_inr": 5999, "label": "500 min Top-up"},
+]
+
+
+def get_topup_packs() -> list[dict]:
+    return [dict(p) for p in TOPUP_PACKS]
+
+
+def topup_pack(key: str) -> dict:
+    """Pack by key ('topup_100') — {} if unknown. Kabhi raise nahi."""
+    k = (key or "").strip().lower()
+    for p in TOPUP_PACKS:
+        if p["key"] == k:
+            return dict(p)
+    return {}
+
+
 def get_trial_package() -> dict:
     """Trial package ka copy (mutation-safe)."""
     return dict(TRIAL_PACKAGE)

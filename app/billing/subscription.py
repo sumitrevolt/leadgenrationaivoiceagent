@@ -280,6 +280,48 @@ PRICING_PLANS = {
 }
 
 
+def _sync_plans_from_packages() -> None:
+    """PUBLIC pricing truth = app/marketing/packages.py — yahan ke legacy Cloud-Run-era
+    prices (₹15k/25k/50k) ko LIVE marketing prices (999/2499/5999) se OVERRIDE karo aur
+    missing 'advanced' plan add karo. (BUG FIX 2026-06-10: /pricing page ₹999 dikhata
+    tha par checkout billing_manager se ₹15,000+GST charge karta; 'advanced' checkout
+    404 deta.) Yearly discount = 1/6 => 12mo*(5/6) = 10mo = packages price_inr_year
+    ("2 mahine free"). Defensive: packages import fail => legacy as-is (kabhi raise nahi).
+    """
+    try:
+        from app.marketing.packages import PACKAGES
+
+        for pkg in PACKAGES:
+            key = str(pkg.get("key") or "").strip().lower()
+            price = Decimal(str(pkg.get("price_inr_month") or 0))
+            if not key or price <= 0:
+                continue
+            feats = list(pkg.get("features") or [])
+            existing = PRICING_PLANS.get(key)
+            if existing is not None:
+                existing.monthly_price = price
+                existing.name = str(pkg.get("name") or existing.name)
+                existing.features = feats or existing.features
+                existing.yearly_discount = float(Decimal(1) / Decimal(6))
+            else:
+                PRICING_PLANS[key] = PricingPlan(
+                    id=key,
+                    name=str(pkg.get("name") or key.title()),
+                    pricing_model=PricingModel.SUBSCRIPTION,
+                    monthly_price=price,
+                    calls_per_month=500 if key == "advanced" else 0,
+                    leads_per_month=0,
+                    concurrent_campaigns=1,
+                    features=feats,
+                    yearly_discount=float(Decimal(1) / Decimal(6)),
+                )
+    except Exception:  # pragma: no cover - defensive (legacy prices se chalta rahe)
+        pass
+
+
+_sync_plans_from_packages()
+
+
 @dataclass
 class UsageRecord:
     """Track usage for billing"""
@@ -396,7 +438,13 @@ class BillingManager:
         subtotal = base_price * months
         discount = subtotal * discount_rate
         taxable = subtotal - discount
-        tax = taxable * self.tax_rate
+        # GST sirf REGISTERED hone par (GST_GSTIN env set). Unregistered (<₹20L services
+        # turnover) GST collect karna ILLEGAL hai — tab advertised price hi total hai.
+        # (BUG FIX 2026-06-10: pehle hamesha +18% lagta tha.)
+        import os as _os
+
+        tax_rate = self.tax_rate if (_os.environ.get("GST_GSTIN", "").strip()) else Decimal("0")
+        tax = taxable * tax_rate
         total = taxable + tax
 
         return {
@@ -405,7 +453,7 @@ class BillingManager:
             "discount_percentage": discount_rate * 100,
             "taxable": taxable,
             "tax": tax,
-            "tax_rate": self.tax_rate * 100,
+            "tax_rate": tax_rate * 100,
             "total": total,
             "per_month": total / months,
         }

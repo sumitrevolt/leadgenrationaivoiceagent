@@ -80,7 +80,7 @@
 
   <div class="toggle">
     <button id="tg-monthly" class="on" onclick="setCycle('monthly')">Monthly</button>
-    <button id="tg-yearly" onclick="setCycle('yearly')">Yearly <span class="save">save up to 20%</span></button>
+    <button id="tg-yearly" onclick="setCycle('yearly')">Yearly <span class="save">2 mahine FREE</span></button>
   </div>
 
   <div class="plan" style="margin-top:18px;border-color:var(--ok);flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap">
@@ -142,7 +142,8 @@ async function loadPlans(){
 function priceFor(p){
   const m = Number(p.monthly_price||0);
   if(CYCLE==="yearly"){
-    const disc = (p.yearly_discount? p.yearly_discount/100 : 0.20);
+    // default 1/6 = "2 mahine free" (12mo * 5/6 = 10mo) — packages.py price_inr_year se match
+    const disc = (p.yearly_discount? p.yearly_discount/100 : 1/6);
     return {amt: Math.round(m*12*(1-disc)/12), suf:"/mo (yearly)"};
   }
   return {amt:m, suf:"/mo"};

@@ -614,6 +614,65 @@ async def revenue_invoice_create(payload: dict, _user=Depends(require_admin)):
     return inv or {"error": "invoice nahi bana — client_id/plan/amount check karo"}
 
 
+@router.get("/revenue/invoices.csv")
+async def revenue_invoices_csv(fy: str = "", _user=Depends(require_admin)):
+    """GSTR-friendly CSV export (?fy=2026-27 optional filter) — accounting/CA ke liye."""
+    import csv
+    import io
+
+    from fastapi.responses import PlainTextResponse
+
+    from app.billing import gst_invoice
+
+    rows = gst_invoice.list_invoices(5000)
+    if fy.strip():
+        rows = [r for r in rows if r.get("fy") == fy.strip()]
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["number", "date", "fy", "client_id", "recipient", "recipient_gstin", "plan",
+                "description", "sac_code", "taxable_value", "cgst", "sgst", "igst",
+                "gross_inr", "place_of_supply", "tax_mode", "payment_ref", "gateway"])
+    for r in rows:
+        rec = r.get("recipient", {}) or {}
+        w.writerow([r.get("number"), r.get("date"), r.get("fy"), r.get("client_id"),
+                    rec.get("name"), rec.get("gstin"), r.get("plan"), r.get("description"),
+                    r.get("sac_code"), r.get("taxable_value"), r.get("cgst"), r.get("sgst"),
+                    r.get("igst"), r.get("gross_inr"), r.get("place_of_supply"),
+                    r.get("tax_mode"), r.get("payment_ref"), r.get("gateway")])
+    return PlainTextResponse(buf.getvalue(), media_type="text/csv")
+
+
+@router.post("/revenue/topup-link")
+async def revenue_topup_link(payload: dict, _user=Depends(require_admin)):
+    """Voice-minute top-up payment link banao: {client_id, pack: topup_100|topup_250|topup_500}.
+
+    Payment hone par webhook AUTO minutes credit + invoice karta (plan untouched).
+    """
+    from app.billing import payment_links
+    from app.marketing.packages import get_topup_packs, topup_pack
+
+    cid = str(payload.get("client_id") or "").strip()
+    pack = topup_pack(str(payload.get("pack") or "topup_100"))
+    if not cid or not pack:
+        return {"ok": False, "error": "client_id + valid pack chahiye", "packs": get_topup_packs()}
+    res = await payment_links.create_payment_link(
+        cid,
+        pack["price_inr"],
+        f"{pack['label']} — AI voice minutes",
+        business_name="LeadsGenAI",
+        extra_notes={"plan_id": pack["key"]},
+    )
+    res["pack"] = pack
+    return res
+
+
+@router.get("/revenue/topup-packs")
+async def revenue_topup_packs(_user=Depends(require_admin)):
+    from app.marketing.packages import get_topup_packs
+
+    return {"packs": get_topup_packs()}
+
+
 @router.get("/revenue/invoice-html")
 async def revenue_invoice_html(number: str, _user=Depends(require_admin)):
     """Printable HTML invoice (?number=INV/2026-27/0001 — number me '/' isliye query param)."""

@@ -131,23 +131,73 @@ def minutes_used_this_period(client_id: str) -> int:
         return 0
 
 
+def topup_minutes(client_id: str) -> int:
+    """Is period ke purchased top-up minutes (latest Subscription extra_data se).
+
+    Semantics: top-ups PERIOD-END pe EXPIRE hote (research-standard) — implemented by
+    ``reset_usage_period`` clearing the counter on every paid renewal. 0 on any error.
+    """
+    try:
+        cid = (client_id or "").strip()
+        if not cid:
+            return 0
+        from app.models.base import get_db_session
+
+        with get_db_session() as db:
+            sub = _latest_subscription(db, cid)
+            if not sub:
+                return 0
+            return max(0, int((sub.extra_data or {}).get("topup_minutes") or 0))
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("topup_minutes skipped: %s", e)
+        return 0
+
+
+def add_topup_minutes(client_id: str, minutes: int) -> bool:
+    """Top-up pack payment hook — minutes credit karo (Subscription extra_data counter).
+
+    Best-effort, kabhi raise nahi. Subscription row na ho to False (top-up sirf
+    subscribed clients ke liye makes sense).
+    """
+    cid = (client_id or "").strip()
+    add = max(0, int(minutes or 0))
+    if not cid or add <= 0:
+        return False
+    try:
+        from app.models.base import get_db_session
+
+        with get_db_session() as db:
+            sub = _latest_subscription(db, cid)
+            if sub is None:
+                return False
+            meta = dict(sub.extra_data or {})
+            meta["topup_minutes"] = max(0, int(meta.get("topup_minutes") or 0)) + add
+            sub.extra_data = meta
+            db.commit()
+        logger.info("add_topup_minutes: client=%s +%s min", cid, add)
+        return True
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("add_topup_minutes skipped: %s", e)
+        return False
+
+
 def minutes_remaining(client_id: str, plan: str | None = None) -> int:
     cap = plan_minutes(plan or _client_plan(client_id))
     if cap <= 0:
         return 0
-    return max(0, cap - minutes_used_this_period(client_id))
+    return max(0, cap + topup_minutes(client_id) - minutes_used_this_period(client_id))
 
 
 def has_minutes(client_id: str, plan: str | None = None) -> bool:
     """True if the client can place another metered call.
 
     Fail-OPEN: a plan with no metered calling cap (cap<=0) is NOT blocked here. A
-    metered (Advanced) client is blocked once usage reaches the cap.
+    metered (Advanced) client is blocked once usage reaches cap + purchased top-ups.
     """
     cap = plan_minutes(plan or _client_plan(client_id))
     if cap <= 0:
         return True
-    return minutes_used_this_period(client_id) < cap
+    return minutes_used_this_period(client_id) < cap + topup_minutes(client_id)
 
 
 # --------------------------------------------------------------------------- #
@@ -269,6 +319,7 @@ def reset_usage_period(client_id: str, at: datetime | None = None) -> bool:
                 return False
             meta = dict(sub.extra_data or {})
             meta["usage_period_start"] = when.isoformat()
+            meta["topup_minutes"] = 0  # top-ups period-end pe EXPIRE (renewal = naya period)
             sub.extra_data = meta
             db.commit()
         logger.info("reset_usage_period: client=%s watermark=%s", cid, when.isoformat())
@@ -286,6 +337,8 @@ __all__ = [
     "minutes_used_this_period",
     "minutes_remaining",
     "has_minutes",
+    "topup_minutes",
+    "add_topup_minutes",
     "activate_plan",
     "reset_usage_period",
 ]

@@ -63,6 +63,25 @@ def main() -> int:
         ok = False
         print("PACKAGES FAIL:", e)
 
+    # batch-2: pricing truth (checkout = packages prices, GST conditional, topup packs)
+    try:
+        from app.billing.subscription import BillingCycle, PRICING_PLANS, billing_manager
+        from app.marketing.packages import get_topup_packs
+
+        truth = {k: float(PRICING_PLANS[k].monthly_price) for k in ("starter", "growth", "advanced") if k in PRICING_PLANS}
+        print("BILLING_TRUTH plans:", json.dumps(truth))
+        assert truth == {"starter": 999.0, "growth": 2499.0, "advanced": 5999.0}
+        p = billing_manager.calculate_price("starter", BillingCycle.MONTHLY)
+        py = billing_manager.calculate_price("starter", BillingCycle.YEARLY)
+        gst_on = bool(os.environ.get("GST_GSTIN", "").strip())
+        print("BILLING_TRUTH starter monthly total:", float(p["total"]), "yearly:", float(py["total"]), "gst_registered:", gst_on)
+        if not gst_on:
+            assert round(float(p["total"]), 2) == 999.0 and round(float(py["total"]), 2) == 9990.0
+        print("TOPUP packs:", json.dumps(get_topup_packs()))
+    except Exception as e:
+        ok = False
+        print("BILLING_TRUTH FAIL:", e)
+
     print("SMOKE_RESULT:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 

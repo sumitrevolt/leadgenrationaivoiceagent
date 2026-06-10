@@ -102,6 +102,34 @@ def build_message(threshold: int, business_name: str, used: int, cap: int) -> di
     }
 
 
+async def _topup_link(client_id: str, business_name: str) -> str:
+    """100%-threshold pe 1-tap top-up payment link (entry pack). Creds unset = "".
+
+    notes plan_id='topup_100' => payment.captured webhook AUTO minutes credit + invoice
+    (app/api/billing.py topup branch). Never raises.
+    """
+    try:
+        from app.billing import payment_links
+        from app.marketing.packages import topup_pack
+
+        if not payment_links.is_configured():
+            return ""
+        pack = topup_pack("topup_100")
+        if not pack:
+            return ""
+        res = await payment_links.create_payment_link(
+            client_id,
+            pack["price_inr"],
+            f"{pack['label']} — AI voice minutes ({business_name})".strip(),
+            customer_name=business_name,
+            business_name="LeadsGenAI",
+            extra_notes={"plan_id": pack["key"]},
+        )
+        return str(res.get("short_url") or "") if res.get("ok") else ""
+    except Exception:
+        return ""
+
+
 async def _send(to_email: str, subject: str, body: str) -> bool:
     try:
         if not to_email:
@@ -171,7 +199,12 @@ async def run_check() -> dict[str, Any]:
                     out["alerts"] += 1
                     if _enabled():
                         email = _client_email(cid, cl)
-                        ok = await _send(email, msg["subject"], msg["body"])
+                        body = msg["body"]
+                        if th >= 100:  # out-of-minutes => 1-tap top-up link (best-effort)
+                            tl = await _topup_link(cid, str(cl.get("business_name") or ""))
+                            if tl:
+                                body += f"\n\nTurant 100 min top-up (1-tap, UPI/card): {tl}"
+                        ok = await _send(email, msg["subject"], body)
                         rec["sent"] = bool(ok)
                         notify = os.environ.get("NOTIFY_EMAIL", "").strip()
                         if notify:

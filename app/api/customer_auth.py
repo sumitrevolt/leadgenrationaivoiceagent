@@ -300,6 +300,45 @@ async def me(client_id: str = Depends(require_customer)):
     return {"client_id": client_id, "business_name": _biz_name(client_id)}
 
 
+@router.get("/portal/invoices")
+async def portal_invoices(client_id: str = Depends(require_customer)):
+    """Customer ke APNE invoices (GST engine se) — ownership token se enforced."""
+    try:
+        from app.billing import gst_invoice
+
+        rows = [r for r in gst_invoice.list_invoices(500) if str(r.get("client_id")) == client_id]
+        return {
+            "invoices": [
+                {
+                    "number": r.get("number"),
+                    "date": r.get("date"),
+                    "description": r.get("description"),
+                    "gross_inr": r.get("gross_inr"),
+                    "plan": r.get("plan"),
+                }
+                for r in rows
+            ]
+        }
+    except Exception:
+        return {"invoices": []}
+
+
+@router.get("/portal/invoice-html")
+async def portal_invoice_html(number: str, client_id: str = Depends(require_customer)):
+    """Apna invoice printable HTML (?number=INV/2026-27/0001) — ownership check ke saath."""
+    from fastapi.responses import HTMLResponse
+
+    try:
+        from app.billing import gst_invoice
+
+        inv = gst_invoice.get_by_number(number)
+        if not inv or str(inv.get("client_id")) != client_id:
+            return {"error": "invoice not found"}
+        return HTMLResponse(gst_invoice.invoice_html(inv))
+    except Exception:
+        return {"error": "invoice render error"}
+
+
 @router.get("/portal/dashboard")
 async def portal_dashboard(client_id: str = Depends(require_customer)):
     """Authenticated customer dashboard — sirf apna data (token ke client_id se)."""
