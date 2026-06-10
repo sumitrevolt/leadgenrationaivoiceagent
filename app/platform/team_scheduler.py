@@ -26,6 +26,23 @@ _have_lock = False
 
 
 def _pid_alive(pid: int) -> bool:
+    """Cross-platform liveness check. ⚠️ Windows pe os.kill(pid, 0) KABHI nahi —
+    signal 0 == CTRL_C_EVENT → apne hi console group ko Ctrl+C chala jata hai
+    (pytest/dev-runs randomly KeyboardInterrupt se marte the). POSIX pe hi os.kill."""
+    if pid <= 0:
+        return False
+    if os.name == "nt":
+        try:
+            import ctypes
+
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            h = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+            if not h:
+                return False
+            ctypes.windll.kernel32.CloseHandle(h)
+            return True
+        except Exception:
+            return False
     try:
         os.kill(pid, 0)
         return True
@@ -275,6 +292,9 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import integration_health
 
             await integration_health.run_watch()  # integration silent-failure alert (gated INTEGRATION_ALERTS; off = sirf counters)
+            from app.agents import self_improve
+
+            self_improve.ensure_alive()  # continuous-loop dead-man revive (gated SELF_IMPROVE_LOOP; sirf Celery enqueue, inline kabhi nahi)
         elif job == "onboard":
             from app.marketing import onboarding
 

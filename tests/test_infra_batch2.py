@@ -33,7 +33,8 @@ def test_queue_depth_defensive_and_health_shape(tmp_path, monkeypatch):
     monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "r.jsonl"))
     monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "b.json"))
     q = ah.queue_depth()  # Redis na ho -> -1, kabhi raise nahi
-    assert set(q.keys()) == {"celery", "dlq"}
+    # contract: core keys hamesha; extra queues (heavy/dead) additive allowed
+    assert {"celery", "dlq"}.issubset(set(q.keys()))
     h = ah.health()
     assert "queue" in h and "queue_backlogged" in h
 

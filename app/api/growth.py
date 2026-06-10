@@ -1038,7 +1038,7 @@ AUTOMATION_FLAGS = [
     "USE_SMART_TURN", "USE_LIGHTRAG", "ENABLE_OTEL", "ENABLE_LEGACY_BEAT", "FESTIVALS_LIVE_HOLIDAYS",
     "TELEGRAM_AUTO_PUBLISH", "CLIENT_REPORTS", "CUSTOMER_WISHES", "RANK_TRACKER",
     "MEMORY_VAULT", "LIVE_NOTES", "DLQ_AUTO_RETRY", "INTEGRATION_ALERTS",
-    "NPS_ALERTS", "PAYMENT_RECON", "INDEXNOW", "SALES_TEAM",
+    "NPS_ALERTS", "PAYMENT_RECON", "INDEXNOW", "SALES_TEAM", "SELF_IMPROVE_LOOP",
 ]
 
 
@@ -1504,3 +1504,108 @@ async def sales_team_run(limit: int = 3, _user=Depends(require_admin)):
                 leads_done += 1
         return {"ok": True, "analyzed": leads_done, "note": "flag OFF — one-shot manual run"}
     return await sales_team.run_auto(limit)
+
+
+# ------------- Self-improve continuous loop + skill library + naye channels ------------- #
+@router.get("/selfimprove/status")
+async def selfimprove_status(_user=Depends(require_admin)):
+    """Continuous loop ka live status: heartbeat, runs, queue, skill summary."""
+    from app.agents import self_improve
+
+    return self_improve.status()
+
+
+@router.post("/selfimprove/run")
+async def selfimprove_run(_user=Depends(require_admin)):
+    """Loop tick ABHI enqueue karo (Celery worker me chalega — web process block
+    nahi hota). Flag OFF ho to bhi one-shot enqueue ho jata (tick khud gate check
+    karta, requeue sirf flag ON pe)."""
+    try:
+        from app.tasks.staff_jobs import self_improve_tick
+
+        r = self_improve_tick.delay()
+        return {"ok": True, "queued": True, "task_id": str(getattr(r, "id", ""))}
+    except Exception as e:
+        return {"ok": False, "queued": False, "error": str(e)[:200], "hint": "celery worker chal raha hai?"}
+
+
+class SelfImproveTaskIn(BaseModel):
+    task: str
+    action: str = ""
+
+
+@router.post("/selfimprove/task")
+async def selfimprove_add_task(body: SelfImproveTaskIn, _user=Depends(require_admin)):
+    """Manual task queue me daalo — loop agle tick pe ise pehle uthayega.
+    Valid actions: self_improve.ACTIONS keys (khali = auto-pick)."""
+    from app.agents import self_improve
+
+    return self_improve.add_task(body.task, body.action, source="manual")
+
+
+@router.get("/selfimprove/actions")
+async def selfimprove_actions(_user=Depends(require_admin)):
+    """Available loop actions + descriptions."""
+    from app.agents import self_improve
+
+    return {"actions": [{"key": k, "llm_heavy": v[0], "desc": v[1]} for k, v in self_improve.ACTIONS.items()]}
+
+
+@router.get("/skills/library")
+async def skills_library(_user=Depends(require_admin)):
+    """Auto-learn skill library: per-tactic success-rates + recent lessons."""
+    from app.platform import skill_library
+
+    return skill_library.summary()
+
+
+class LessonIn(BaseModel):
+    topic: str = "general"
+    lesson: str
+
+
+@router.post("/skills/lesson")
+async def skills_add_lesson(body: LessonIn, _user=Depends(require_admin)):
+    """Manual lesson add (human coaching → agents agle runs me use karte)."""
+    from app.platform import skill_library
+
+    return skill_library.record_lesson(body.topic, body.lesson, source="manual", agent="sumit")
+
+
+@router.get("/social/channels")
+async def social_channels_list(_user=Depends(require_admin)):
+    """Naye customer-approach channels (sab ban-safe drafts)."""
+    from app.marketing import social_channels
+
+    return {"channels": social_channels.list_channels()}
+
+
+class SocialDraftIn(BaseModel):
+    channel: str
+    niche: str = "general"
+    city: str = ""
+    business_name: str = ""
+
+
+@router.post("/social/draft")
+async def social_draft(body: SocialDraftIn, _user=Depends(require_admin)):
+    """Ek naye channel ka ready-to-post Hinglish draft (manual 1-click post)."""
+    from app.marketing import social_channels
+
+    return await social_channels.draft(body.channel, body.niche, body.city, body.business_name)
+
+
+class SocialBatchIn(BaseModel):
+    niche: str = "general"
+    city: str = ""
+    business_name: str = ""
+    channels: list[str] | None = None
+    limit: int = 4
+
+
+@router.post("/social/batch")
+async def social_batch(body: SocialBatchIn, _user=Depends(require_admin)):
+    """Multiple naye channels ka draft pack."""
+    from app.marketing import social_channels
+
+    return await social_channels.draft_batch(body.niche, body.city, body.business_name, body.channels, body.limit)

@@ -363,6 +363,12 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=10, minute=30),
         "args": ("email_outreach",),
     },
+    # Self-improve CONTINUOUS loop ka dead-man REVIVER (loop khud self-requeue
+    # chain hai — yeh sirf stale-heartbeat pe restart karta; flag OFF = no-op).
+    "staff-selfimprove-revive": {
+        "task": "app.tasks.staff_jobs.self_improve_revive",
+        "schedule": crontab(minute="*/20"),
+    },
 }
 
 # ---------------------------------------------------------------------------

@@ -62,6 +62,56 @@ def _run_async(coro):
 
 @shared_task(
     bind=True,
+    name="app.tasks.staff_jobs.self_improve_tick",
+    max_retries=0,
+    acks_late=True,
+)
+def self_improve_tick(self):
+    """Self-improve CONTINUOUS loop ka ek tick: run_once → khud ko requeue
+    (countdown=gap). Koi cron timing nahi — task complete → agla task.
+    Flag OFF ho jaye to chain khud ruk jaati (no requeue). Kabhi raise nahi."""
+    res = {}
+    try:
+        from app.agents import self_improve
+
+        res = _run_async(self_improve.run_once()) or {}
+    except Exception as e:
+        logger.warning(f"[self-improve] tick failed: {e}")
+        res = {"ok": False, "error": str(e)[:200]}
+    # requeue ALWAYS attempt (loop never dies) — sirf flag OFF pe chain stop
+    try:
+        from app.agents import self_improve
+
+        if self_improve.enabled():
+            gap = self_improve.gap_seconds()
+            if res.get("skipped") == "daily_cap":
+                gap = 3600  # cap hit — ghante me wapas check (naya din = resume)
+            self_improve_tick.apply_async(countdown=gap)
+    except Exception as e:
+        logger.warning(f"[self-improve] requeue failed (watchdog revive karega): {e}")
+    return {"ok": bool(res.get("ok", res.get("enabled", False))), "action": res.get("action", res.get("skipped", ""))}
+
+
+@shared_task(
+    bind=True,
+    name="app.tasks.staff_jobs.self_improve_revive",
+    max_retries=0,
+    acks_late=True,
+)
+def self_improve_revive(self):
+    """Dead-man reviver (beat */20min): heartbeat stale + flag ON → tick enqueue.
+    Loop alive ho to no-op. Kabhi raise nahi."""
+    try:
+        from app.agents import self_improve
+
+        return self_improve.ensure_alive()
+    except Exception as e:
+        logger.warning(f"[self-improve] revive failed: {e}")
+        return {"ok": False, "error": str(e)[:120]}
+
+
+@shared_task(
+    bind=True,
     name="app.tasks.staff_jobs.run_staff_job",
     max_retries=2,
     default_retry_delay=120,

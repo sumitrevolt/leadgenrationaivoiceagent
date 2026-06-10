@@ -44,7 +44,28 @@ CHANNELS = [
     "medium",
     "partnership",
     "linkedin_dm",
+    # naye customer-approach channels (social_channels.py — sab ban-safe drafts)
+    "instagram_comment",
+    "youtube_shorts",
+    "gbp_qna",
+    "whatsapp_status",
+    "micro_influencer",
+    "local_pr",
+    "event_outreach",
+    "listing_optimizer",
 ]
+
+# social_channels.py se serve hone wale channels (draft via social draft fn)
+_SOCIAL_V2 = {
+    "instagram_comment",
+    "youtube_shorts",
+    "gbp_qna",
+    "whatsapp_status",
+    "micro_influencer",
+    "local_pr",
+    "event_outreach",
+    "listing_optimizer",
+}
 
 
 def _now() -> datetime:
@@ -166,6 +187,11 @@ async def _generate(channel: str, niche: str, city: str) -> dict[str, Any]:
 
         res = await linkedin_assist.draft_outreach(f"{niche} owner", f"{niche} {city}", niche)
         return {"kind": "draft", "assets": 1, "detail": str(res.get("comment") or "")[:150]}
+    if channel in _SOCIAL_V2:
+        from app.marketing import social_channels
+
+        res = await social_channels.draft(channel, niche=niche, city=city)
+        return {"kind": "draft", "assets": 1, "detail": str(res.get("draft") or "")[:150]}
     # community platforms (quora/reddit/whatsapp_group/telegram/linkedin_article/medium)
     from app.marketing import community_content
 
