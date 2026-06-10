@@ -130,10 +130,13 @@ async def run_due() -> dict[str, Any]:
                 continue
         if changed:
             try:
-                os.makedirs(os.path.dirname(_STORE) or ".", exist_ok=True)
-                with open(_STORE, "w", encoding="utf-8") as f:
-                    for r in rows:
-                        f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
+                # Lock + atomic — web (booking hook) + celery (run_due) dono likhte.
+                from app.utils.file_lock import locked_rewrite
+
+                locked_rewrite(
+                    _STORE,
+                    "".join(json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in rows),
+                )
             except Exception:
                 pass
         return {"enabled": True, "reminders": sent}

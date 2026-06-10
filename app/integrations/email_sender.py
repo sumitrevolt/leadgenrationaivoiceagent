@@ -15,6 +15,25 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+def _integ_fail(name: str, note: str = "") -> None:
+    """integration_health counter — best-effort, KABHI raise nahi."""
+    try:
+        from app.platform import integration_health
+
+        integration_health.record_failure(name, note)
+    except Exception:
+        pass
+
+
+def _integ_ok(name: str) -> None:
+    try:
+        from app.platform import integration_health
+
+        integration_health.record_success(name)
+    except Exception:
+        pass
+
+
 class EmailSender:
     """
     Email notification sender
@@ -69,10 +88,13 @@ class EmailSender:
                 )
                 if ok:
                     logger.info(f"Email sent via API ({info}) to {', '.join(to_emails)}")
+                    _integ_ok("email_api")
                     return True
                 logger.warning(f"Email API failed ({info}); trying SMTP fallback")
+                _integ_fail("email_api", str(info))
         except Exception as e:
             logger.warning(f"Email API path error ({e}); SMTP fallback")
+            _integ_fail("email_api", str(e))
 
         if not self.user or not self.password:
             logger.warning("Email not configured (no API key + no SMTP), skipping send")
@@ -107,10 +129,12 @@ class EmailSender:
             )
 
             logger.info(f"Email sent to {', '.join(to_emails)}")
+            _integ_ok("smtp")
             return True
 
         except Exception as e:
             logger.error(f"Failed to send email: {e}")
+            _integ_fail("smtp", str(e))
             return False
 
     async def send_lead_alert(self, to_emails: list[str], lead_data: dict[str, Any]) -> bool:

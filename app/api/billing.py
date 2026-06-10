@@ -120,6 +120,23 @@ def _provision_usage(client_id: str, plan_id: str | None, period_end: datetime |
     except Exception as e:  # pragma: no cover - defensive
         logger.warning(f"usage provisioning skipped for {client_id}: {e}")
 
+    # GST invoice (additive, fire-and-forget) — record hamesha; email gated AUTO_INVOICE=1.
+    # payment_ref = sub-id + month => monthly renewals invoice hote, double-webhooks dedupe.
+    try:
+        if client_id and plan_id:
+            import asyncio as _aio
+
+            from app.billing import gst_invoice
+
+            _ref = f"{subscription_id}:{datetime.utcnow():%Y-%m}" if subscription_id else ""
+            _aio.get_running_loop().create_task(
+                gst_invoice.on_payment_success(client_id, plan_id, payment_ref=_ref)
+            )
+    except RuntimeError:
+        pass  # no running loop (sync caller) — invoice manual API se ban sakta
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug(f"invoice hook skipped for {client_id}: {e}")
+
 
 # =============================================================================
 # Request/Response Models

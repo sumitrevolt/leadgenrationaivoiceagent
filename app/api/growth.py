@@ -590,6 +590,86 @@ async def revenue_digest_run(_user=Depends(require_admin)):
     return await revenue_digest.run(force=True)
 
 
+# ------------- GST invoicing (gst_invoice.py — Rule 46, sequential FY numbering) ------------- #
+@router.get("/revenue/invoices")
+async def revenue_invoices(limit: int = 50, _user=Depends(require_admin)):
+    """Invoice list + FY stats (latest first)."""
+    from app.billing import gst_invoice
+
+    return {"stats": gst_invoice.stats(), "invoices": gst_invoice.list_invoices(limit)}
+
+
+@router.post("/revenue/invoice")
+async def revenue_invoice_create(payload: dict, _user=Depends(require_admin)):
+    """Manual invoice banao: {client_id, plan, amount_inr?, payment_ref?, gateway?}."""
+    from app.billing import gst_invoice
+
+    inv = await gst_invoice.on_payment_success(
+        str(payload.get("client_id") or ""),
+        str(payload.get("plan") or ""),
+        payment_ref=str(payload.get("payment_ref") or ""),
+        gateway=str(payload.get("gateway") or ""),
+        amount_inr=payload.get("amount_inr"),
+    )
+    return inv or {"error": "invoice nahi bana — client_id/plan/amount check karo"}
+
+
+@router.get("/revenue/invoice-html")
+async def revenue_invoice_html(number: str, _user=Depends(require_admin)):
+    """Printable HTML invoice (?number=INV/2026-27/0001 — number me '/' isliye query param)."""
+    from fastapi.responses import HTMLResponse
+
+    from app.billing import gst_invoice
+
+    inv = gst_invoice.get_by_number(number)
+    if not inv:
+        return {"error": "invoice not found"}
+    return HTMLResponse(gst_invoice.invoice_html(inv))
+
+
+# ------------- Usage upsell alerts (usage_alerts.py — 80%/100% minute triggers) ------------- #
+@router.post("/revenue/usage-alerts/run")
+async def usage_alerts_run(_user=Depends(require_admin)):
+    """Usage-threshold sweep abhi chalao (send gated USAGE_ALERTS=1; record hamesha)."""
+    from app.billing import usage_alerts
+
+    return await usage_alerts.run_check()
+
+
+@router.get("/revenue/usage-alerts")
+async def usage_alerts_recent(limit: int = 50, _user=Depends(require_admin)):
+    """Recent usage alerts (latest first)."""
+    from app.billing import usage_alerts
+
+    return {"alerts": usage_alerts.recent(limit)}
+
+
+# ------------- Email warmup ramp + bounce guard (email_warmup.py) ------------- #
+@router.get("/outreach/warmup")
+async def outreach_warmup_status(_user=Depends(require_admin)):
+    """Warmup state: day/week, aaj ka ramp cap, 7d bounce-rate, paused?"""
+    from app.platform import email_warmup
+
+    return email_warmup.status()
+
+
+@router.post("/outreach/warmup/bounce")
+async def outreach_warmup_bounce(payload: dict | None = None, _user=Depends(require_admin)):
+    """Bounce record karo: {email?, reason?} — threshold (1.8%) cross pe auto-pause."""
+    from app.platform import email_warmup
+
+    p = payload or {}
+    return email_warmup.record_bounce(str(p.get("email") or ""), str(p.get("reason") or ""))
+
+
+@router.post("/outreach/warmup/resume")
+async def outreach_warmup_resume(_user=Depends(require_admin)):
+    """Auto-pause manually hatao (lists saaf karne ke baad)."""
+    from app.platform import email_warmup
+
+    return {"resumed": email_warmup.resume()}
+
+
 # ------------- Self-healing growth optimizer + channel experiments ------------- #
 @router.get("/optimizer/analysis")
 async def optimizer_analysis(_user=Depends(require_admin)):
@@ -788,10 +868,21 @@ async def infra_automation_health(_user=Depends(require_admin)):
     return automation_health.health()
 
 
+@router.get("/infra/integrations")
+async def infra_integrations(hours: int = 24, _user=Depends(require_admin)):
+    """Integration silent-failure counters: per-integration fail/ok/last-error
+    (email/exotel/telegram...). Alert gated INTEGRATION_ALERTS=1."""
+    from app.platform import integration_health
+
+    return integration_health.snapshot(hours=hours)
+
+
 @router.get("/infra/dlq")
-async def infra_dlq(limit: int = 50, _user=Depends(require_admin)):
-    """Failed Celery tasks (Redis dlq:failed_tasks) inspect karo."""
-    out: dict = {"count": 0, "items": []}
+async def infra_dlq(limit: int = 50, key: str = "failed", _user=Depends(require_admin)):
+    """Failed Celery tasks inspect karo. key=failed (dlq:failed_tasks) ya
+    key=dead (dlq:dead — auto-retry exhausted/unknown, dlq_retry sweep)."""
+    redis_key = "dlq:dead" if key == "dead" else "dlq:failed_tasks"
+    out: dict = {"count": 0, "items": [], "key": redis_key}
     try:
         import json as _json
 
@@ -800,8 +891,8 @@ async def infra_dlq(limit: int = 50, _user=Depends(require_admin)):
         from app.config import settings
 
         r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
-        out["count"] = int(r.llen("dlq:failed_tasks") or 0)
-        for raw in r.lrange("dlq:failed_tasks", 0, max(0, min(limit, 200)) - 1) or []:
+        out["count"] = int(r.llen(redis_key) or 0)
+        for raw in r.lrange(redis_key, 0, max(0, min(limit, 200)) - 1) or []:
             try:
                 out["items"].append(_json.loads(raw))
             except Exception:
@@ -809,6 +900,15 @@ async def infra_dlq(limit: int = 50, _user=Depends(require_admin)):
     except Exception as e:
         out["error"] = str(e)[:120]
     return out
+
+
+@router.post("/infra/dlq/sweep")
+async def infra_dlq_sweep(limit: int = 20, _user=Depends(require_admin)):
+    """Smart DLQ sweep (dlq_retry): staff-jobs retry w/ backoff+attempt-cap,
+    unknown/exhausted → dlq:dead. Manual trigger = flag-independent."""
+    from app.platform import dlq_retry
+
+    return await dlq_retry.run_sweep(max_items=limit, force=True)
 
 
 @router.post("/infra/dlq/retry")
@@ -873,11 +973,12 @@ AUTOMATION_FLAGS = [
     "USE_STRUCTURED_CONTENT", "USE_AGENTIC_RAG", "USE_LANGGRAPH_SUPERVISOR", "AGENT_STANDUP",
     "SALES_ENGINE", "CADENCE_ENGINE", "DUNNING_ENGINE", "LIFECYCLE_NURTURE",
     "CLIENT_HEALTH_ALERTS", "REVENUE_DIGEST", "GROWTH_OPTIMIZER", "CHANNEL_EXPERIMENTS",
+    "AUTO_INVOICE", "EMAIL_WARMUP", "USAGE_ALERTS",
     "REVIEW_MONITOR", "BOOKING_REMINDERS", "DELIVERABILITY_MONITOR", "AUTOMATION_HEALTH_ALERTS",
     "WHATSAPP_AUTO_SEND", "MISSED_CALL_CALLBACK", "SMS_DLT_ENABLED", "USE_SILERO_VAD",
     "USE_SMART_TURN", "USE_LIGHTRAG", "ENABLE_OTEL", "ENABLE_LEGACY_BEAT", "FESTIVALS_LIVE_HOLIDAYS",
     "TELEGRAM_AUTO_PUBLISH", "CLIENT_REPORTS", "CUSTOMER_WISHES", "RANK_TRACKER",
-    "MEMORY_VAULT", "LIVE_NOTES",
+    "MEMORY_VAULT", "LIVE_NOTES", "DLQ_AUTO_RETRY", "INTEGRATION_ALERTS",
 ]
 
 

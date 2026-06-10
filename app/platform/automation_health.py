@@ -63,17 +63,24 @@ def record_run(job: str, ok: bool = True, seconds: float = 0.0, note: str = "") 
         os.makedirs(os.path.dirname(_RUNS) or ".", exist_ok=True)
         with open(_RUNS, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-        # latest-per-job snapshot (fast reads)
-        beats: dict[str, Any] = {}
-        try:
-            if os.path.exists(_BEATS):
-                with open(_BEATS, encoding="utf-8") as f:
-                    beats = json.load(f) or {}
-        except Exception:
-            beats = {}
-        beats[rec["job"]] = rec
-        with open(_BEATS, "w", encoding="utf-8") as f:
-            json.dump(beats, f, ensure_ascii=False)
+        # latest-per-job snapshot (fast reads) — READ-MODIFY-WRITE, isliye
+        # cross-process lock + atomic replace (web 2 workers + celery workers
+        # ek saath record_run kar sakte = snapshot corrupt ho sakta tha).
+        from app.utils.file_lock import file_lock
+
+        with file_lock(_BEATS):
+            beats: dict[str, Any] = {}
+            try:
+                if os.path.exists(_BEATS):
+                    with open(_BEATS, encoding="utf-8") as f:
+                        beats = json.load(f) or {}
+            except Exception:
+                beats = {}
+            beats[rec["job"]] = rec
+            tmp = f"{_BEATS}.tmp.{os.getpid()}"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(beats, f, ensure_ascii=False)
+            os.replace(tmp, _BEATS)
     except Exception:
         pass
 
@@ -81,7 +88,7 @@ def record_run(job: str, ok: bool = True, seconds: float = 0.0, note: str = "") 
 def queue_depth() -> dict[str, Any]:
     """Celery queue backlog (Redis llen). Backlog badhta jaye = worker mar gaya/slow.
     Redis na ho to {-1} (unknown). Kabhi raise nahi."""
-    out = {"celery": -1, "dlq": -1}
+    out = {"celery": -1, "heavy": -1, "dlq": -1, "dead": -1}
     try:
         import redis as _redis
 
@@ -89,7 +96,9 @@ def queue_depth() -> dict[str, Any]:
 
         r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
         out["celery"] = int(r.llen("celery") or 0)
+        out["heavy"] = int(r.llen("heavy") or 0)  # heavy staff-jobs queue (CELERY_HEAVY_QUEUE)
         out["dlq"] = int(r.llen("dlq:failed_tasks") or 0)
+        out["dead"] = int(r.llen("dlq:dead") or 0)  # dlq_retry: retry-exhausted/unknown
     except Exception:
         pass
     return out
@@ -136,7 +145,9 @@ def health() -> dict[str, Any]:
         except Exception:
             jobs.append({"job": job, "status": "unknown"})
     q = queue_depth()
-    backlogged = q.get("celery", -1) > QUEUE_BACKLOG_ALERT
+    backlogged = (
+        q.get("celery", -1) > QUEUE_BACKLOG_ALERT or q.get("heavy", -1) > QUEUE_BACKLOG_ALERT
+    )
     return {
         "status": "degraded" if (overdue or backlogged) else ("warming_up" if never_ran else "healthy"),
         "overdue": overdue,

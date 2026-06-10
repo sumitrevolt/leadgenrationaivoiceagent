@@ -26,6 +26,8 @@ PACKAGES: list[dict] = [
         "name": "Marketing Starter",
         "tagline": "Roz ka content + Google presence — sab AI se, aapka time zero. 100% marketing-only plan.",
         "price_inr_month": 999,
+        "price_inr_year": 9990,  # 10x monthly = 2 mahine FREE (research: 16.7% standard, churn ~27% kam)
+        "annual_note": "Saal bhar ka ek saath: ₹9,990 (2 mahine FREE)",
         "price_note": "100% marketing-only — koi calling charge nahi · roz ke ₹33 me poora setup (billed annually or ₹1,299/mo)",
         "marketing_only": True,
         "features": [
@@ -44,6 +46,8 @@ PACKAGES: list[dict] = [
         "name": "Growth",
         "tagline": "Poora marketing engine — content, competitor aur leads sab automatic. 100% marketing-only plan.",
         "price_inr_month": 2499,
+        "price_inr_year": 24990,  # 2 mahine FREE
+        "annual_note": "Saal bhar ka ek saath: ₹24,990 (2 mahine FREE)",
         "price_note": "100% marketing-only — koi calling charge nahi · sab kuch Starter ka + growth tools",
         "marketing_only": True,
         "features": [
@@ -64,6 +68,8 @@ PACKAGES: list[dict] = [
         "name": "Advanced AI Agent",
         "tagline": "Marketing + ek AI jo aapke har inquiry ko KHUD call kare — India me sirf yahan.",
         "price_inr_month": 5999,
+        "price_inr_year": 59990,  # 2 mahine FREE
+        "annual_note": "Saal bhar ka ek saath: ₹59,990 (2 mahine FREE)",
         "price_note": "telephony usage included up to 500 min/mo",
         "marketing_only": False,
         "features": [

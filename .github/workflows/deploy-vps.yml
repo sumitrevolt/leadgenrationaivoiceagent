@@ -115,6 +115,10 @@ jobs:
             echo "==> login GHCR + pull image ${GITHUB_SHA}"
             echo "${GHCR_PAT}" | docker login ghcr.io -u sumitrevolt --password-stdin
             export APP_VERSION="${GITHUB_SHA}"
+            # LIVE stack celery profile ke saath chalta hai (worker+worker-heavy+scheduler).
+            # Profile ke BINA `up --remove-orphans` un containers ko ORPHAN maan ke
+            # REMOVE kar deta — isliye profile yahan explicit hai.
+            export COMPOSE_PROFILES=celery
             docker compose -f docker-compose.vps.yml pull
             echo "==> roll the stack (fresh image -> no stale .pyc possible)"
             docker compose -f docker-compose.vps.yml up -d --remove-orphans
@@ -130,7 +134,7 @@ jobs:
               echo "!!! HEALTH FAILED — AUTO-ROLLBACK to previous image"
               if [ -n "$PREV_IMG_ID" ]; then
                 docker tag "$PREV_IMG_ID" ghcr.io/sumitrevolt/leadgenrationaivoiceagent:rollback
-                APP_VERSION=rollback docker compose -f docker-compose.vps.yml up -d --remove-orphans || true
+                APP_VERSION=rollback COMPOSE_PROFILES=celery docker compose -f docker-compose.vps.yml up -d --remove-orphans || true
                 sleep 8
                 curl -fsS http://127.0.0.1:8000/health/ready >/dev/null 2>&1 && echo "   rolled back, healthy again" || echo "   ROLLBACK ALSO UNHEALTHY — manual check needed"
               else

@@ -43,11 +43,13 @@ def _read() -> list[dict]:
 
 
 def _write_all(items: list[dict]) -> None:
+    # Lock + atomic — web (API add) + celery (run_due) dono likhte hain.
     try:
-        os.makedirs(os.path.dirname(_FILE), exist_ok=True)
-        with open(_FILE, "w", encoding="utf-8") as f:
-            for it in items:
-                f.write(json.dumps(it, ensure_ascii=False) + "\n")
+        from app.utils.file_lock import locked_rewrite
+
+        content = "".join(json.dumps(it, ensure_ascii=False) + "\n" for it in items)
+        if not locked_rewrite(_FILE, content):
+            logger.info("content_schedule locked write failed")
     except Exception as e:
         logger.info("content_schedule write err: %s", e)
 

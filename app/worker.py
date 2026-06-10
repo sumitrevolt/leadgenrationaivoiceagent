@@ -29,6 +29,38 @@ celery_app = Celery(
     ],
 )
 
+# ---------------------------------------------------------------------------
+# HEAVY/LIGHT queue separation (prod-down qa-job lesson, worker-level):
+# heavy staff-jobs (ML/LLM/network-bulk) ek hi worker pool me light jobs
+# (alerts/dunning/triage) ko starve kar sakte. Gated `CELERY_HEAVY_QUEUE=1`
+# (compose me ON jahan dedicated heavy worker bhi defined hai) → heavy jobs
+# `heavy` queue me route hote, jise alag `worker-heavy` (concurrency=1)
+# consume karta. Flag OFF (default) = sab default queue = aaj jaisa.
+# NOTE: routing SEND-side evaluate hota hai (beat/app) — isliye flag compose
+# me scheduler+app+worker sab pe set hai, warna heavy task default me jayega.
+# ---------------------------------------------------------------------------
+HEAVY_STAFF_JOBS = {"qa", "trainer", "blog", "content", "digest", "prospect"}
+
+
+def _heavy_queue_enabled() -> bool:
+    return os.environ.get("CELERY_HEAVY_QUEUE", "0").strip().lower() in ("1", "true", "yes")
+
+
+def _route_staff_task(name, args, kwargs, options, task=None, **kw):
+    """Router fn: heavy staff-jobs → 'heavy' queue (sirf flag ON pe)."""
+    try:
+        if (
+            name == "app.tasks.staff_jobs.run_staff_job"
+            and _heavy_queue_enabled()
+            and args
+            and str(args[0]) in HEAVY_STAFF_JOBS
+        ):
+            return {"queue": "heavy"}
+    except Exception:
+        pass
+    return None
+
+
 # Production-ready configuration
 celery_app.conf.update(
     # Serialization
@@ -38,14 +70,17 @@ celery_app.conf.update(
     # Timezone
     timezone="Asia/Kolkata",
     enable_utc=True,
-    # Task routing by queue
-    task_routes={
-        "app.tasks.scraping.*": {"queue": "scraping"},
-        "app.tasks.calling.*": {"queue": "calling"},
-        "app.tasks.reporting.*": {"queue": "reporting"},
-        "app.tasks.sync.*": {"queue": "sync"},
-        "app.tasks.brain_training.*": {"queue": "training"},
-    },
+    # Task routing by queue (router-fn pehle, fir static dict)
+    task_routes=(
+        _route_staff_task,
+        {
+            "app.tasks.scraping.*": {"queue": "scraping"},
+            "app.tasks.calling.*": {"queue": "calling"},
+            "app.tasks.reporting.*": {"queue": "reporting"},
+            "app.tasks.sync.*": {"queue": "sync"},
+            "app.tasks.brain_training.*": {"queue": "training"},
+        },
+    ),
     # Rate limits per task type
     task_annotations={
         "app.tasks.calling.make_call": {"rate_limit": "20/m"},

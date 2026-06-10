@@ -72,9 +72,24 @@ async def send_post(chat_id: str, text: str, image_url: str = "") -> dict[str, A
             "len": len(text),
         }
         _log(rec)
+        try:
+            from app.platform import integration_health
+
+            if ok:
+                integration_health.record_success("telegram")
+            else:
+                integration_health.record_failure("telegram", r.text[:150])
+        except Exception:
+            pass
         return {"sent": bool(ok), **({} if ok else {"reason": r.text[:200]})}
     except Exception as e:
         logger.warning(f"telegram send failed: {e}")
+        try:
+            from app.platform import integration_health
+
+            integration_health.record_failure("telegram", str(e))
+        except Exception:
+            pass
         return {"sent": False, "reason": str(e)[:150]}
 
 

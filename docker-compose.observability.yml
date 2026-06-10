@@ -103,6 +103,18 @@ services:
     restart: unless-stopped
     networks: [leadgen_net]
 
+  # Synthetic checks with BODY assertions (Kuma = ping-style only) — ~40MB RAM.
+  gatus:
+    image: twinproduction/gatus:latest
+    container_name: leadgen_gatus
+    volumes:
+      - ./monitoring/gatus.yaml:/config/config.yaml:ro
+      - gatusdata:/data
+    ports:
+      - "127.0.0.1:8082:8080"
+    restart: unless-stopped
+    networks: [leadgen_net]
+
 volumes:
   promdata:
   grafanadata:
@@ -110,6 +122,7 @@ volumes:
   amdata:
   lokidata:
   tempodata:
+  gatusdata:
 
 networks:
   leadgen_net:

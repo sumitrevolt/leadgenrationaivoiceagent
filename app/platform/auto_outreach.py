@@ -379,6 +379,12 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         except Exception:
             daily_cap = 25
         daily_cap = max(0, daily_cap)
+        try:  # warmup ramp + bounce auto-pause (GATED EMAIL_WARMUP; OFF = base cap unchanged)
+            from app.platform import email_warmup
+
+            daily_cap = email_warmup.effective_cap(daily_cap)
+        except Exception:
+            pass
         cap = daily_cap if limit is None else max(0, min(int(limit), daily_cap or int(limit)))
         result["cap"] = cap
 
@@ -432,6 +438,12 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                 except Exception:
                     pass
 
+        try:  # warmup stats (flag-independent — bounce-rate denominator)
+            from app.platform import email_warmup
+
+            email_warmup.record_sent(int(result.get("sent") or 0))
+        except Exception:
+            pass
         _log_event(
             "email_outreach_run",
             f"{result['sent']} emails bheje, {result['failed']} fail, cap {cap}",
@@ -519,6 +531,12 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
         except Exception:
             daily_cap = 25
         daily_cap = max(0, daily_cap)
+        try:  # warmup ramp + bounce auto-pause (GATED EMAIL_WARMUP; OFF = base cap unchanged)
+            from app.platform import email_warmup
+
+            daily_cap = email_warmup.effective_cap(daily_cap)
+        except Exception:
+            pass
         cap = daily_cap if limit is None else max(0, min(int(limit), daily_cap or int(limit)))
         result["cap"] = cap
 
@@ -571,6 +589,12 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                 except Exception:
                     pass
 
+        try:  # warmup stats (flag-independent)
+            from app.platform import email_warmup
+
+            email_warmup.record_sent(int(result.get("sent") or 0))
+        except Exception:
+            pass
         _log_event(
             "email_followup_run",
             f"{result['sent']} follow-ups bheje (#1:{result['by_step'].get('1',0)} "

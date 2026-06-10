@@ -137,10 +137,22 @@ class ExotelHandler:
                 call_sid = result.get("Call", {}).get("Sid")
 
                 logger.info(f"Exotel call initiated: {call_sid}")
+                try:
+                    from app.platform import integration_health
+
+                    integration_health.record_success("exotel")
+                except Exception:
+                    pass
                 return call_sid
 
             except Exception as e:
                 logger.error(f"Exotel call failed: {e}")
+                try:
+                    from app.platform import integration_health
+
+                    integration_health.record_failure("exotel", str(e))
+                except Exception:
+                    pass
                 raise
 
     async def get_call_status(self, call_sid: str) -> ExotelCallResult | None:

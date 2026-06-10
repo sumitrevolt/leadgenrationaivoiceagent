@@ -47,12 +47,19 @@ def record(provider: str, ok: bool, ms: float, error: str = "", kind: str = "cha
 
 
 def _trim() -> None:
+    # READ-MODIFY-WRITE — multi-worker me lock zaroori (do process ek saath
+    # trim karein to file truncate ho sakti thi). Lock + atomic os.replace.
     try:
-        with open(_LOG, encoding="utf-8") as f:
-            lines = f.readlines()
-        if len(lines) > _MAX_LINES:
-            with open(_LOG, "w", encoding="utf-8") as f:
-                f.writelines(lines[-_MAX_LINES // 2 :])
+        from app.utils.file_lock import file_lock
+
+        with file_lock(_LOG):
+            with open(_LOG, encoding="utf-8") as f:
+                lines = f.readlines()
+            if len(lines) > _MAX_LINES:
+                tmp = f"{_LOG}.tmp.{os.getpid()}"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    f.writelines(lines[-_MAX_LINES // 2 :])
+                os.replace(tmp, _LOG)
     except Exception:
         pass
 

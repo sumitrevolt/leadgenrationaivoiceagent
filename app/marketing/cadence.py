@@ -62,11 +62,13 @@ def _read(path: str) -> list[dict[str, Any]]:
 
 
 def _write_all(path: str, rows: list[dict[str, Any]]) -> None:
+    # Lock + atomic — web (API enroll) + celery (run_due) dono likhte hain.
     try:
-        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            for r in rows:
-                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        from app.utils.file_lock import locked_rewrite
+
+        content = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows)
+        if not locked_rewrite(path, content):
+            logger.warning(f"[cadence] locked write failed: {path}")
     except Exception as e:
         logger.warning(f"[cadence] write {path} failed: {e}")
 

@@ -67,10 +67,15 @@ def _read() -> list[dict]:
 
 
 def _write_all(rows: list[dict]) -> None:
-    os.makedirs(os.path.dirname(_STORE) or ".", exist_ok=True)
-    with open(_STORE, "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+    # Lock + atomic — auth store corrupt hua to saare customer logins tut jaate.
+    from app.utils.file_lock import locked_rewrite
+
+    content = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows)
+    if not locked_rewrite(_STORE, content):
+        # fallback: direct write (lock util hi na ho to bhi auth kabhi na ruke)
+        os.makedirs(os.path.dirname(_STORE) or ".", exist_ok=True)
+        with open(_STORE, "w", encoding="utf-8") as f:
+            f.write(content)
 
 
 def _find(email: str) -> dict | None:

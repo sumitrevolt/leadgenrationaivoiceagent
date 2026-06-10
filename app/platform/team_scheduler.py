@@ -137,6 +137,9 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import client_health
 
             await client_health.run_check()  # churn-risk scan (alert gated CLIENT_HEALTH_ALERTS)
+            from app.billing import usage_alerts
+
+            await usage_alerts.run_check()  # 80%/100% minute upsell triggers (gated USAGE_ALERTS)
             from app.agents import growth_optimizer
 
             await growth_optimizer.optimize()  # daily self-healing profit loop (gated GROWTH_OPTIMIZER)
@@ -248,6 +251,12 @@ async def _run_job_inner(job: str) -> None:
             from app.telephony import telephony_readiness
 
             await telephony_readiness.run_watch()  # Tara: calling-launch readiness score (alert gated TELEPHONY_READY_ALERTS)
+            from app.platform import dlq_retry
+
+            await dlq_retry.run_sweep()  # failed staff-jobs auto-retry+backoff (gated DLQ_AUTO_RETRY; off = no-op)
+            from app.platform import integration_health
+
+            await integration_health.run_watch()  # integration silent-failure alert (gated INTEGRATION_ALERTS; off = sirf counters)
         elif job == "onboard":
             from app.marketing import onboarding
 
