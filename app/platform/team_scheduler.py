@@ -264,6 +264,14 @@ async def _run_job_inner(job: str) -> None:
                 from app.platform import prospector
 
                 await prospector.run_prospecting()
+            # Multi-source harvest sweep (websearch/opendata/enrich) — gated
+            # LEAD_HARVESTER=1, gated sources bina key inert. Legal-only sources.
+            try:
+                from app.platform import lead_harvester
+
+                await lead_harvester.run_loop_sweep()
+            except Exception:
+                pass
         elif job == "email_outreach":
             from app.platform import auto_outreach
 

@@ -104,8 +104,19 @@ async def _exec_revenue_sweep(inputs: dict) -> dict:
     return {"ok": True, "count": 1, "detail": ", ".join(parts) or "sweep done"}
 
 
+async def _exec_harvest(inputs: dict) -> dict:
+    from app.platform import lead_harvester
+
+    res = await lead_harvester.run_harvest(
+        niche=str(inputs.get("niche", "")), city=str(inputs.get("city", "")), limit=int(inputs.get("limit", 10))
+    )
+    n = int(res.get("new_leads", 0) or 0)
+    return {"ok": bool(res.get("ok")), "count": n, "detail": f"harvest +{n} (dedup {res.get('deduped', 0)})"}
+
+
 EXECUTORS = {
     "scrape": _exec_scrape,
+    "harvest": _exec_harvest,
     "rescore": _exec_rescore,
     "sales_analysis": _exec_sales_analysis,
     "content_pack": _exec_content_pack,

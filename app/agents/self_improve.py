@@ -167,6 +167,7 @@ def _mark_done(task_id: str, result: str = "") -> None:
 # action → (LLM-heavy?, description). Side-effect engines khud gated hain.
 ACTIONS: dict[str, tuple[bool, str]] = {
     "scrape_leads": (False, "naye prospects scrape (42-niche rotation, Places/OSM)"),
+    "harvest_leads": (False, "multi-source harvest (websearch/opendata/enrich, legal-only)"),
     "channel_experiments": (True, "2 channel experiments (bandit) — drafts/SEO pages"),
     "content_pack": (True, "best-niche content pack (posts+hashtags+offer)"),
     "seo_pages": (True, "2 niche×city SEO landing pages (organic inbound)"),
@@ -179,7 +180,7 @@ ACTIONS: dict[str, tuple[bool, str]] = {
 
 # funnel weakest-stage → preferred actions (deterministic bias)
 _STAGE_ACTIONS = {
-    "lead_supply": ["scrape_leads", "seo_pages", "channel_experiments"],
+    "lead_supply": ["scrape_leads", "harvest_leads", "seo_pages", "channel_experiments"],
     "outreach_quality": ["sales_deepdive", "social_drafts", "reflection"],
     "inbound": ["seo_pages", "channel_experiments", "social_drafts"],
     "conversion": ["sales_deepdive", "content_pack", "revenue_sweep"],
@@ -246,6 +247,11 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
 
         res = await niche_prospector.run(batch=4, limit_per_query=4)
         return {"ok": bool(res.get("ok", True)), "detail": f"covered={res.get('covered', [])}"}
+    if action == "harvest_leads":
+        from app.platform import lead_harvester
+
+        res = await lead_harvester.run_harvest()
+        return {"ok": bool(res.get("ok")), "detail": f"+{res.get('new_leads', 0)} leads (dedup {res.get('deduped', 0)}, enrich {((res.get('enrich') or {}).get('found', 0))})"}
     if action == "channel_experiments":
         from app.marketing import channel_experiments
 

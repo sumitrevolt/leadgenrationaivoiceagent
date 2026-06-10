@@ -1038,7 +1038,7 @@ AUTOMATION_FLAGS = [
     "USE_SMART_TURN", "USE_LIGHTRAG", "ENABLE_OTEL", "ENABLE_LEGACY_BEAT", "FESTIVALS_LIVE_HOLIDAYS",
     "TELEGRAM_AUTO_PUBLISH", "CLIENT_REPORTS", "CUSTOMER_WISHES", "RANK_TRACKER",
     "MEMORY_VAULT", "LIVE_NOTES", "DLQ_AUTO_RETRY", "INTEGRATION_ALERTS",
-    "NPS_ALERTS", "PAYMENT_RECON", "INDEXNOW", "SALES_TEAM", "SELF_IMPROVE_LOOP",
+    "NPS_ALERTS", "PAYMENT_RECON", "INDEXNOW", "SALES_TEAM", "SELF_IMPROVE_LOOP", "LEAD_HARVESTER",
 ]
 
 
@@ -1609,6 +1609,48 @@ async def social_batch(body: SocialBatchIn, _user=Depends(require_admin)):
     from app.marketing import social_channels
 
     return await social_channels.draft_batch(body.niche, body.city, body.business_name, body.channels, body.limit)
+
+
+# ------------- Lead harvester (multi-source, legal-only, automated loop) ------------- #
+class HarvestIn(BaseModel):
+    niche: str = ""
+    city: str = ""
+    limit: int = 10
+    sources: list[str] | None = None
+
+
+@router.post("/harvest/run")
+async def harvest_run(body: HarvestIn, _user=Depends(require_admin)):
+    """Multi-source lead harvest abhi chalao (manual = flag-independent).
+    Sources: prospector (Places/OSM), websearch (BRAVE_API_KEY), opendata
+    (DATA_GOV_IN_API_KEY) + email-enrich. Directory/social scraping NAHI (ToS)."""
+    from app.platform import lead_harvester
+
+    return await lead_harvester.run_harvest(body.niche, body.city, body.limit, body.sources)
+
+
+@router.get("/harvest/runs")
+async def harvest_runs(limit: int = 15, _user=Depends(require_admin)):
+    """Recent harvest runs (per-source stats)."""
+    from app.platform import lead_harvester
+
+    return {"runs": lead_harvester.recent_runs(limit)}
+
+
+@router.get("/harvest/sources")
+async def harvest_sources(_user=Depends(require_admin)):
+    """Source readiness (kaunse keys armed) + blocked-domains policy."""
+    from app.platform import lead_harvester
+
+    return lead_harvester.source_status()
+
+
+@router.post("/harvest/enrich")
+async def harvest_enrich(limit: int = 10, _user=Depends(require_admin)):
+    """Email-less prospects pe enrich waterfall abhi chalao."""
+    from app.platform import lead_harvester
+
+    return await lead_harvester.enrich_missing_emails(limit)
 
 
 # ------------- Process engine (babysitter-pattern: deterministic + breakpoints) ------------- #
