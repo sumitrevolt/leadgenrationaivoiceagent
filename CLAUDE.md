@@ -248,6 +248,13 @@
 - **Revenue digest** (`app/platform/revenue_digest.py`) — Monday weekly email: MRR estimate, subs counts, dunning, nurture funnel, hot leads, deals, health. **GATED `REVENUE_DIGEST=1`** + NOTIFY_EMAIL. digest job me wired.
 - **API** (growth.py, admin): `POST /api/growth/revenue/dunning/{case,run}` `GET /revenue/dunning` · `GET /revenue/health/clients` `POST /revenue/health/run` · `POST /revenue/lifecycle/{enroll,run}` `GET /revenue/lifecycle` · `POST /revenue/digest/run`. Scheduler: content job → dunning+lifecycle run_due; digest job → revenue_digest+client_health.
 
+## EXOTEL API SETUP ✅ DONE (2026-06-10, commit 8bdd8eb) — credits live, sab API se
+- **Balance ₹422.62** (trial credits) — `GET /v1/Accounts/{sid}/Balance.json` WORKS (v2 not supported account pe). `app/telephony/exotel_account.py` `balance()` (30-min cache) **telephony_readiness me wired** — readiness response me `exotel_balance` + low-balance email alert (`EXOTEL_LOW_BALANCE` threshold, default ₹100, TELEPHONY_READY_ALERTS=1 ON).
+- **ExoPhone StatusCallback SET via API** (HTTP 200): 01141189204 → `https://leadsgenai.in/api/webhooks/exotel/status` — inbound/call events ab humare webhook pe. (verify_exotel_signature EXOTEL_API_SECRET unset = fail-open accept.)
+- **2nd test call PROVEN**: connect.json → Sid 8ce1cc1c, 55s, completed, AnsweredBy=human (08459012607). Total ab 2 successful calls.
+- **`scripts/exotel_setup_audit.py`** — ek command me account/kyc/balance/exophones/recent-calls + `--set-callback <url>` + `--call <num>`. Run: `docker exec leadgen_app python scripts/exotel_setup_audit.py`.
+- **Account TRUTH**: Type=Trial, KYC=notstarted (sirf verified numbers callable; KYC+DLT = user paperwork), ExoPhone 1 (01141189204, applet 1265199), call rate ~₹0.75/call observed.
+
 ## PENDINGS COMPLETE ✅ LIVE (2026-06-10, commit 3fdb6b3) — 377 routes
 - **`/site-audit` PUBLIC page** (`frontend/website/site-audit.html`) — lead-magnet #2: URL→AI report card (score/grade/checks/tips)→/audit+/pricing CTA (utm_source=seo). LIVE 200, leadsgenai.in khud 85/A.
 - **UTM channel attribution** — `InquiryIn.utm_source` + submit_inquiry me `_UTM_MAP` (quora/reddit/linkedin/seo/partner/wa/...) → `channel_experiments.record_outcome` AUTO — bandit ab khud seekhta inquiry kahan se aayi. (Frontend forms me ?utm_source= URL param pass karna content me — drafts already CTA me daal sakte.)
