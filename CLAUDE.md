@@ -248,6 +248,14 @@
 - **Revenue digest** (`app/platform/revenue_digest.py`) — Monday weekly email: MRR estimate, subs counts, dunning, nurture funnel, hot leads, deals, health. **GATED `REVENUE_DIGEST=1`** + NOTIFY_EMAIL. digest job me wired.
 - **API** (growth.py, admin): `POST /api/growth/revenue/dunning/{case,run}` `GET /revenue/dunning` · `GET /revenue/health/clients` `POST /revenue/health/run` · `POST /revenue/lifecycle/{enroll,run}` `GET /revenue/lifecycle` · `POST /revenue/digest/run`. Scheduler: content job → dunning+lifecycle run_due; digest job → revenue_digest+client_health.
 
+## AI-AUTOMATION INFRA OBSERVABILITY ✅ LIVE (2026-06-10, commit 4fcb5ce)
+> prod_check **372 routes**, tests `test_infra_observability.py` 5/5. LIVE: free_ai call→groq 322.8ms recorded, auto-health 12 jobs tracked. Flag ON: `AUTOMATION_HEALTH_ALERTS`.
+- **LLM observability** (`platform/llm_metrics.py`, Langfuse-pattern) — free_ai.chat me ultra-light hook: per-provider calls/ok-rate/avg-ms/last-error/fallback-rate (`data/llm_calls.jsonl` auto-trim 10k). `GET /api/growth/infra/llm`.
+- **Dead-man switch** (`platform/automation_health.py`, Cronitor-pattern) — `team_scheduler._run_job` ab heartbeat WRAPPER (+`_run_job_inner` dispatcher; in-process+Celery dono path) → `data/job_heartbeats.json`; EXPECTED_GAP_MIN registry se overdue detect; watchdog-job wired, alert gated `AUTOMATION_HEALTH_ALERTS=1` (ON). `GET /infra/automation-health`.
+- **DLQ ops** — `GET /infra/dlq` (inspect Redis dlq:failed_tasks) · `POST /infra/dlq/retry` (staff-jobs re-dispatch) · `DELETE /infra/dlq` (purge).
+- **Flags registry** — `GET /infra/flags`: saare 34 automation flags ka live on/off/unset ek endpoint pe (AUTOMATION_FLAGS list growth.py me — naya flag banao to wahan add karo).
+- **Compose healthchecks**: worker (`celery inspect ping`) + scheduler (`pgrep beat`) — silent-death pe docker unhealthy+restart.
+
 ## BULK COMPETITOR-PARITY BATCH ✅ LIVE (2026-06-10, commit 679f223) — 8 features ek saath
 > **Rebuild MAT karo.** prod_check **367 routes**, tests `test_competitor_features.py` 9/9. LIVE smoke: carousel LLM-real ("Solar Subsidy" 3 slides), meme real, deliverability SPF✓ DMARC✓ blacklist[], leadsgenai.in site-audit 85/A, multilang 3 versions. Flags ON: `REVIEW_MONITOR` · `BOOKING_REMINDERS` · `DELIVERABILITY_MONITOR` (`.env.bak_bulk`).
 - **Carousel** (`marketing/carousel.py`, Predis) — topic→3-5 branded SVG slides+caption. `POST /api/growth/content/carousel`.
