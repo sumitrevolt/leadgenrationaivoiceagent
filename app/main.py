@@ -358,6 +358,24 @@ try:
     app.include_router(memory_router, prefix="/api")  # /api/memory/* (compounding memory, call-prep, live notes)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Memory router not mounted: {_e}")
+try:
+    from app.api.brandassets import router as brandassets_router
+
+    app.include_router(brandassets_router, prefix="/api")  # /api/brand/* (frames, card, resize, review-post, stickers)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"BrandAssets router not mounted: {_e}")
+try:
+    from app.api.clientops import router as clientops_router
+
+    app.include_router(clientops_router, prefix="/api")  # /api/clientops/* (speed-to-lead, approvals, snapshots, routing, proposals)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"ClientOps router not mounted: {_e}")
+try:
+    from app.api.voiceai import router as voiceai_router
+
+    app.include_router(voiceai_router, prefix="/api")  # /api/voiceai/* (transfer, ask-AI, leaderboard)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"VoiceAI router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 app.include_router(ai_router, prefix="/api", tags=["AI"])
@@ -939,6 +957,22 @@ async def mini_site_page(slug: str):
         logger.warning(f"mini-site render failed for {slug!r}: {e}")
         return RedirectResponse(url="/", status_code=302)
     return HTMLResponse(content=html)
+
+
+@app.get("/b/{slug}/card", tags=["Frontend"], include_in_schema=False)
+async def client_card_page(slug: str):
+    """Digital visiting card (AdBanao-parity) — mobile-first, .vcf save-contact + QR. Kabhi 500 nahi."""
+    from fastapi.responses import HTMLResponse, RedirectResponse
+
+    try:
+        from app.marketing import business_card
+
+        res = business_card.render_card_html(slug)
+        if res.get("ok"):
+            return HTMLResponse(content=res["html"])
+    except Exception as e:
+        logger.warning(f"card render failed for {slug!r}: {e}")
+    return RedirectResponse(url="/", status_code=302)
 
 
 @app.get("/b/{slug}/embed", tags=["Frontend"], include_in_schema=False)

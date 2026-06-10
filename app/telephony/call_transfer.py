@@ -1,561 +1,272 @@
-"""
-Hot Lead Call Transfer System
-Transfers high-intent leads to human sales reps in real-time
+"""Live human transfer w/ context — AI call ke beech customer "owner se baat karao"
+bole to owner ko turant connect + poora context summary (Hinglish).
 
-When AI detects a hot lead (high intent to buy), it can:
-1. Transfer call to available sales rep
-2. Add sales rep to the call (conference)
-3. Schedule immediate callback from sales rep
+NOTE: is path par pehle Cloud-Run-era DEAD demo code tha (CallTransferManager,
+hardcoded fake sales-reps, module-level WhatsAppIntegration init) — repo me
+kahin import nahi hota tha (grep-verified) → lean gated module se REPLACED.
+
+Kyun: Vodex/Smartlead-class voice agents ka killer feature = AI stuck/asked →
+HUMAN handoff with context (owner ko blind call nahi milti). Flow:
+  detect_transfer_intent(text)  → voice pipeline me intent pakdo (wiring alag pass)
+  request_transfer(call_context, owner_phone) →
+    (a) gate: CALL_TRANSFER=1 flag (default OFF = inert, {"ok": False, "reason": "disabled"})
+    (b) Hinglish context summary (free_ai, template fallback — LLM down pe bhi kaam)
+    (c) Exotel connect-leg owner↔caller (EXISTING ExotelHandler.make_call reuse,
+        lazy import; creds nahi = draft-only, raise nahi)
+    (d) owner ke liye WhatsApp 1-click summary link (wa.me, draft) + email DRAFT
+        (send NAHI — ban-safe)
+    (e) log data/call_transfers.jsonl
+
+GATED `CALL_TRANSFER=1` (default OFF = zero behaviour change). Free-stack.
+Never raises. Auto-send kuch NAHI (sirf call-leg initiate, woh bhi flag+creds pe).
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
+from __future__ import annotations
+
+import json
+import os
+import urllib.parse
+from datetime import datetime, timezone
 from typing import Any
 
-from app.integrations.whatsapp import WhatsAppIntegration
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-
-class TransferType(Enum):
-    """Type of call transfer"""
-
-    WARM_TRANSFER = "warm_transfer"  # AI briefs rep, then transfers
-    BLIND_TRANSFER = "blind_transfer"  # Direct transfer without brief
-    CONFERENCE = "conference"  # Add rep to call, AI stays
-    CALLBACK = "callback"  # Schedule immediate callback
-
-
-class TransferReason(Enum):
-    """Why the transfer was triggered"""
-
-    HIGH_INTENT = "high_intent"
-    REQUESTED_HUMAN = "requested_human"
-    COMPLEX_QUERY = "complex_query"
-    READY_TO_BUY = "ready_to_buy"
-    APPOINTMENT_CONFIRMED = "appointment_confirmed"
-    VIP_LEAD = "vip_lead"
-
-
-@dataclass
-class SalesRep:
-    """Sales representative"""
-
-    id: str
-    name: str
-    phone: str
-    email: str
-    extension: str  # For call transfer
-    specializations: list[str]  # Industries they handle
-    is_available: bool = True
-    current_calls: int = 0
-    max_concurrent_calls: int = 2
-    daily_transfers_received: int = 0
-
-    # Performance metrics
-    total_transfers: int = 0
-    successful_closes: int = 0
-    avg_response_time_seconds: float = 0
-
-    def availability_score(self) -> float:
-        """Calculate availability score for routing"""
-        if not self.is_available:
-            return 0
-
-        # Lower current calls = higher score
-        call_score = (self.max_concurrent_calls - self.current_calls) / self.max_concurrent_calls
-
-        # Success rate factor
-        success_rate = self.successful_closes / max(self.total_transfers, 1)
-
-        return (call_score * 0.6) + (success_rate * 0.4)
-
-
-@dataclass
-class TransferRequest:
-    """Request to transfer a call"""
-
-    call_id: str
-    lead_id: str
-    phone_number: str
-    lead_name: str
-    company_name: str | None
-    industry: str
-    transfer_type: TransferType
-    reason: TransferReason
-    lead_score: int
-    qualification_data: dict[str, Any]
-    conversation_summary: str
-    urgency_level: str  # low, medium, high, critical
-
-    # Transfer status
-    status: str = "pending"  # pending, in_progress, completed, failed
-    assigned_rep: SalesRep | None = None
-    created_at: datetime = field(default_factory=datetime.now)
-    transferred_at: datetime | None = None
-
-
-class HotLeadDetector:
-    """
-    Detects hot leads based on conversation signals
-    """
-
-    # Signals that indicate high intent
-    HIGH_INTENT_SIGNALS = [
-        "ready to buy",
-        "want to purchase",
-        "send the invoice",
-        "when can we start",
-        "what's the price",
-        "final cost",
-        "sign the deal",
-        "proceed with",
-        "let's do it",
-        "book it",
-        "confirm the order",
-        "payment terms",
-        "contract",
-        "when can you deliver",
-    ]
-
-    # Signals for requesting human
-    HUMAN_REQUEST_SIGNALS = [
-        "talk to a human",
-        "speak to someone",
-        "real person",
-        "manager",
-        "sales person",
-        "representative",
-        "transfer me",
-        "not a robot",
-    ]
-
-    # Budget mentions that indicate serious intent
-    BUDGET_SIGNALS = [
-        "budget is",
-        "can spend",
-        "allocated",
-        "approved budget",
-        "we have funds",
-    ]
-
-    def detect_hot_lead(
-        self,
-        conversation_history: list[dict[str, str]],
-        qualification_data: dict[str, Any],
-        lead_score: int,
-    ) -> dict[str, Any]:
-        """
-        Analyze conversation to detect if this is a hot lead
-
-        Returns:
-            {
-                "is_hot": bool,
-                "confidence": float,
-                "reason": TransferReason,
-                "urgency": str,
-                "signals_detected": List[str]
-            }
-        """
-        signals_found = []
-        reason = None
-
-        # Combine all user messages
-        user_text = " ".join(
-            [turn["content"].lower() for turn in conversation_history if turn["role"] == "user"]
-        )
-
-        # Check for high intent signals
-        for signal in self.HIGH_INTENT_SIGNALS:
-            if signal in user_text:
-                signals_found.append(f"high_intent: {signal}")
-                reason = TransferReason.READY_TO_BUY
-
-        # Check for human request
-        for signal in self.HUMAN_REQUEST_SIGNALS:
-            if signal in user_text:
-                signals_found.append(f"human_request: {signal}")
-                reason = TransferReason.REQUESTED_HUMAN
-
-        # Check for budget mention
-        for signal in self.BUDGET_SIGNALS:
-            if signal in user_text:
-                signals_found.append(f"budget_mention: {signal}")
-
-        # Check qualification data
-        if qualification_data.get("is_decision_maker") is True:
-            signals_found.append("is_decision_maker")
-
-        if qualification_data.get("budget"):
-            signals_found.append("has_budget")
-
-        if qualification_data.get("timeline"):
-            if any(
-                word in str(qualification_data["timeline"]).lower()
-                for word in ["urgent", "asap", "immediately", "this week", "today"]
-            ):
-                signals_found.append("urgent_timeline")
-                reason = reason or TransferReason.HIGH_INTENT
-
-        # Calculate confidence
-        confidence = len(signals_found) / 10  # Max 10 signals = 100% confidence
-        confidence = min(confidence, 1.0)
-
-        # Add lead score to confidence
-        if lead_score >= 80:
-            confidence = min(confidence + 0.3, 1.0)
-            signals_found.append("high_lead_score")
-        elif lead_score >= 60:
-            confidence = min(confidence + 0.1, 1.0)
-
-        # Determine if hot lead
-        is_hot = confidence >= 0.5 or reason == TransferReason.REQUESTED_HUMAN
-
-        # Determine urgency
-        if reason == TransferReason.REQUESTED_HUMAN:
-            urgency = "critical"
-        elif reason == TransferReason.READY_TO_BUY:
-            urgency = "high"
-        elif confidence >= 0.7:
-            urgency = "high"
-        elif confidence >= 0.5:
-            urgency = "medium"
-        else:
-            urgency = "low"
-
-        return {
-            "is_hot": is_hot,
-            "confidence": confidence,
-            "reason": reason or TransferReason.HIGH_INTENT,
-            "urgency": urgency,
-            "signals_detected": signals_found,
-        }
-
-
-class CallTransferManager:
-    """
-    Manages call transfers to sales reps
-    """
-
-    def __init__(self):
-        self.sales_reps: dict[str, SalesRep] = {}
-        self.pending_transfers: dict[str, TransferRequest] = {}
-        self.hot_lead_detector = HotLeadDetector()
-        self.whatsapp = WhatsAppIntegration()
-
-        # Load sales reps (in production, load from database)
-        self._load_default_reps()
-
-        logger.info("📞 Call Transfer Manager initialized")
-
-    def _load_default_reps(self):
-        """Load default sales reps (demo data)"""
-        default_reps = [
-            SalesRep(
-                id="rep_001",
-                name="Rahul Sharma",
-                phone="+919876543210",
-                email="rahul@company.com",
-                extension="101",
-                specializations=["real_estate", "solar", "insurance"],
-                is_available=True,
-            ),
-            SalesRep(
-                id="rep_002",
-                name="Priya Patel",
-                phone="+919876543211",
-                email="priya@company.com",
-                extension="102",
-                specializations=["coaching", "healthcare", "edtech"],
-                is_available=True,
-            ),
-            SalesRep(
-                id="rep_003",
-                name="Amit Kumar",
-                phone="+919876543212",
-                email="amit@company.com",
-                extension="103",
-                specializations=["real_estate", "solar", "digital_marketing"],
-                is_available=True,
-            ),
-        ]
-
-        for rep in default_reps:
-            self.sales_reps[rep.id] = rep
-
-    def add_sales_rep(self, rep: SalesRep):
-        """Add a sales rep to the pool"""
-        self.sales_reps[rep.id] = rep
-
-    def set_rep_availability(self, rep_id: str, is_available: bool):
-        """Set availability of a sales rep"""
-        if rep_id in self.sales_reps:
-            self.sales_reps[rep_id].is_available = is_available
-
-    def find_best_rep(self, industry: str) -> SalesRep | None:
-        """
-        Find best available sales rep for the industry
-        Uses availability score and specialization matching
-        """
-        eligible_reps = []
-
-        for rep in self.sales_reps.values():
-            if not rep.is_available:
-                continue
-            if rep.current_calls >= rep.max_concurrent_calls:
-                continue
-
-            # Check specialization match
-            specialization_match = industry in rep.specializations
-            score = rep.availability_score()
-
-            if specialization_match:
-                score += 0.3  # Boost for specialization
-
-            eligible_reps.append((rep, score))
-
-        if not eligible_reps:
-            return None
-
-        # Sort by score descending
-        eligible_reps.sort(key=lambda x: x[1], reverse=True)
-        return eligible_reps[0][0]
-
-    async def check_for_transfer(
-        self,
-        call_id: str,
-        lead_id: str,
-        phone_number: str,
-        lead_name: str,
-        company_name: str | None,
-        industry: str,
-        conversation_history: list[dict[str, str]],
-        qualification_data: dict[str, Any],
-        lead_score: int,
-    ) -> TransferRequest | None:
-        """
-        Check if call should be transferred based on conversation
-        Returns TransferRequest if transfer is needed
-        """
-        # Detect if this is a hot lead
-        detection = self.hot_lead_detector.detect_hot_lead(
-            conversation_history, qualification_data, lead_score
-        )
-
-        if not detection["is_hot"]:
-            return None
-
-        logger.info(f"🔥 Hot lead detected! Call {call_id}, Confidence: {detection['confidence']}")
-        logger.info(f"   Signals: {detection['signals_detected']}")
-
-        # Create transfer request
-        transfer = TransferRequest(
-            call_id=call_id,
-            lead_id=lead_id,
-            phone_number=phone_number,
-            lead_name=lead_name,
-            company_name=company_name,
-            industry=industry,
-            transfer_type=TransferType.WARM_TRANSFER,
-            reason=detection["reason"],
-            lead_score=lead_score,
-            qualification_data=qualification_data,
-            conversation_summary=self._create_summary(conversation_history),
-            urgency_level=detection["urgency"],
-        )
-
-        # Find best rep
-        rep = self.find_best_rep(industry)
-        if rep:
-            transfer.assigned_rep = rep
-            self.pending_transfers[call_id] = transfer
-
-            # Notify rep
-            await self._notify_rep(rep, transfer)
-
-        return transfer
-
-    def _create_summary(self, conversation_history: list[dict[str, str]]) -> str:
-        """Create brief summary of conversation for sales rep"""
-        # Get last 6 turns
-        recent = conversation_history[-6:]
-
-        summary_parts = []
-        for turn in recent:
-            role = "Lead" if turn["role"] == "user" else "AI"
-            content = turn["content"][:100]  # Truncate
-            summary_parts.append(f"{role}: {content}")
-
-        return "\n".join(summary_parts)
-
-    async def _notify_rep(self, rep: SalesRep, transfer: TransferRequest):
-        """Notify sales rep about incoming transfer"""
-        message = f"""🔥 *HOT LEAD ALERT*
-
-*Lead:* {transfer.lead_name}
-*Company:* {transfer.company_name or 'N/A'}
-*Industry:* {transfer.industry}
-*Lead Score:* {transfer.lead_score}/100
-*Urgency:* {transfer.urgency_level.upper()}
-
-*Qualification:*
-{self._format_qualification(transfer.qualification_data)}
-
-*Conversation Summary:*
-{transfer.conversation_summary[:500]}
-
-*Transfer Reason:* {transfer.reason.value}
-
-📞 *Call will be transferred to you shortly*
-Reply 'READY' to confirm availability."""
-
-        try:
-            await self.whatsapp.send_text_message(rep.phone, message)
-            logger.info(f"📱 Notified {rep.name} about transfer")
-        except Exception as e:
-            logger.error(f"Failed to notify rep: {e}")
-
-    def _format_qualification(self, data: dict[str, Any]) -> str:
-        """Format qualification data for message"""
+_TRANSFERS = os.path.join("data", "call_transfers.jsonl")
+
+# Hinglish transfer-intent keywords (voice pipeline / chat dono ke liye)
+_INTENT_KEYWORDS = (
+    "owner se baat",
+    "malik se baat",
+    "manager se baat",
+    "insaan se baat",
+    "insan se baat",
+    "aadmi se baat",
+    "asli aadmi",
+    "real person",
+    "human se",
+    "transfer kar",
+    "transfer karo",
+    "transfer me",
+    "kisi aur se baat",
+    "boss se baat",
+    "sir se baat",
+    "madam se baat",
+    "speak to owner",
+    "talk to owner",
+    "talk to human",
+    "talk to a human",
+    "speak to a human",
+    "speak to manager",
+    "not a robot",
+    "agent se baat",
+    "customer care se",
+)
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _phone10(raw: Any) -> str:
+    digits = "".join(ch for ch in str(raw or "") if ch.isdigit())
+    if digits.startswith("91") and len(digits) == 12:
+        digits = digits[2:]
+    elif digits.startswith("0") and len(digits) == 11:
+        digits = digits[1:]
+    return digits if len(digits) == 10 else ""
+
+
+def enabled() -> bool:
+    """Flag gate — CALL_TRANSFER=1 hone par hi active (default OFF = inert)."""
+    return os.getenv("CALL_TRANSFER", "0").strip().lower() in ("1", "true", "yes")
+
+
+def detect_transfer_intent(text: str) -> bool:
+    """Customer ke utterance me human-transfer intent hai? Pure-python, fast
+    (voice hot-path safe — koi LLM nahi). Never raises."""
+    try:
+        t = (text or "").strip().lower()
+        if not t:
+            return False
+        return any(kw in t for kw in _INTENT_KEYWORDS)
+    except Exception:
+        return False
+
+
+def _conversation_text(call_context: dict[str, Any]) -> str:
+    """call_context se conversation-so-far nikaalo (jo bhi shape mile)."""
+    ctx = call_context or {}
+    conv = ctx.get("conversation") or ctx.get("transcript") or ctx.get("history") or ""
+    if isinstance(conv, list):
         lines = []
-        if data.get("is_decision_maker"):
-            lines.append("✅ Decision Maker: Yes")
-        if data.get("budget"):
-            lines.append(f"💰 Budget: {data['budget']}")
-        if data.get("timeline"):
-            lines.append(f"⏰ Timeline: {data['timeline']}")
-        if data.get("pain_points"):
-            lines.append(f"❗ Pain Points: {data['pain_points']}")
+        for turn in conv[-20:]:
+            if isinstance(turn, dict):
+                role = str(turn.get("role") or turn.get("speaker") or "?")
+                content = str(turn.get("content") or turn.get("text") or "")
+                lines.append(f"{role}: {content}")
+            else:
+                lines.append(str(turn))
+        conv = "\n".join(lines)
+    return str(conv or "").strip()[:3000]
 
-        return "\n".join(lines) if lines else "Basic qualification done"
 
-    async def execute_transfer(
-        self, call_id: str, transfer_type: TransferType = TransferType.WARM_TRANSFER
-    ) -> dict[str, Any]:
-        """
-        Execute the call transfer
-        Returns transfer status and details
-        """
-        transfer = self.pending_transfers.get(call_id)
-        if not transfer:
-            return {"success": False, "error": "No pending transfer"}
+def _template_summary(call_context: dict[str, Any]) -> str:
+    """LLM-free fallback summary (hamesha kaam karta)."""
+    ctx = call_context or {}
+    who = str(ctx.get("name") or ctx.get("business_name") or "Customer")
+    phone = _phone10(ctx.get("phone") or ctx.get("phone_number")) or "unknown"
+    niche = str(ctx.get("niche") or "general")
+    conv = _conversation_text(ctx)
+    last_line = conv.splitlines()[-1][:140] if conv else "baat-cheet record nahi mili"
+    return (
+        f"📞 Live transfer: {who} ({phone}, {niche}) AI call par hain aur aapse "
+        f'baat karna chahte hain. Aakhri baat: "{last_line}". Turant connect ho rahe hain.'
+    )
 
-        if not transfer.assigned_rep:
-            return {"success": False, "error": "No rep assigned"}
 
-        rep = transfer.assigned_rep
-        transfer.status = "in_progress"
+async def _summarize(call_context: dict[str, Any]) -> tuple[str, str]:
+    """Hinglish context summary (free_ai → template fallback). Returns (summary, provider)."""
+    fallback = _template_summary(call_context)
+    conv = _conversation_text(call_context)
+    if not conv:
+        return fallback, ""
+    try:
+        from app.voice_agent import free_ai
 
-        # In production, this would use telephony API to transfer
-        # For now, return the transfer details
+        ctx = call_context or {}
+        who = str(ctx.get("name") or ctx.get("business_name") or "Customer")
+        reply, provider = await free_ai.chat(
+            system=(
+                "Tu ek call-transfer assistant hai. AI agent ki customer se chal rahi call ka "
+                "context owner ko dena hai. 2-3 line Hinglish me: customer kaun, kya chahiye, "
+                "kya discuss hua, ab kya karna. Owner ko turant samajh aaye — concise."
+            ),
+            messages=[{"role": "user", "content": f"Customer: {who}\n\nConversation:\n{conv}"}],
+            max_tokens=160,
+            temperature=0.2,
+        )
+        summary = (reply or "").strip()
+        if summary:
+            return summary[:600], provider
+    except Exception as e:
+        logger.info(f"[call_transfer] summary LLM skipped: {e}")
+    return fallback, ""
 
-        result = {
-            "success": True,
-            "transfer_type": transfer_type.value,
-            "rep": {"name": rep.name, "phone": rep.phone, "extension": rep.extension},
-            "lead": {
-                "name": transfer.lead_name,
-                "phone": transfer.phone_number,
-                "score": transfer.lead_score,
-            },
+
+def _log(rec: dict[str, Any]) -> None:
+    try:
+        os.makedirs(os.path.dirname(_TRANSFERS) or ".", exist_ok=True)
+        with open(_TRANSFERS, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+    except Exception as e:
+        logger.warning(f"[call_transfer] log failed: {e}")
+
+
+async def _initiate_connect_leg(owner10: str, call_id: str) -> dict[str, Any]:
+    """Exotel connect-leg: owner ko call lagao (existing applet caller se jodta).
+    Lazy import, creds nahi = graceful skip. Never raises."""
+    try:
+        from app.telephony.exotel_handler import ExotelHandler
+
+        handler = ExotelHandler()
+        if not getattr(handler, "base_url", None):
+            return {"initiated": False, "reason": "exotel_not_configured"}
+        sid = await handler.make_call(to_number=owner10, call_id=call_id)
+        return {"initiated": bool(sid), "call_sid": sid or ""}
+    except Exception as e:
+        logger.warning(f"[call_transfer] connect-leg failed: {e}")
+        return {"initiated": False, "reason": str(e)[:200]}
+
+
+async def request_transfer(call_context: dict[str, Any], owner_phone: str) -> dict[str, Any]:
+    """AI call → live human (owner) transfer with Hinglish context. Never raises.
+
+    Flag OFF / owner_phone invalid = inert. Flag ON: summary + Exotel connect-leg
+    (creds pe) + owner ke liye WA 1-click link + email DRAFT + jsonl log.
+    """
+    try:
+        if not enabled():
+            return {"ok": False, "reason": "disabled", "hint": "CALL_TRANSFER=1 set karo"}
+
+        owner10 = _phone10(owner_phone)
+        if not owner10:
+            return {"ok": False, "reason": "owner_phone invalid (10-digit chahiye)"}
+
+        ctx = call_context if isinstance(call_context, dict) else {}
+        summary, provider = await _summarize(ctx)
+
+        call_id = str(ctx.get("call_id") or f"transfer-{int(datetime.now(timezone.utc).timestamp())}")
+        leg = await _initiate_connect_leg(owner10, call_id)
+
+        wa_link = f"https://wa.me/91{owner10}?text={urllib.parse.quote(summary[:320])}"
+        email_draft = {
+            "subject": f"📞 Live call transfer — {ctx.get('name') or ctx.get('business_name') or 'Customer'}",
+            "body": (
+                f"{summary}\n\n"
+                f"Customer phone: {_phone10(ctx.get('phone') or ctx.get('phone_number')) or 'unknown'}\n"
+                f"Call ID: {call_id}\n"
+                f"Transfer time: {_now()}"
+            ),
+            "auto_sent": False,  # draft only — ban/spam-safe
         }
 
-        # Update rep status
-        rep.current_calls += 1
-        rep.total_transfers += 1
-        transfer.status = "completed"
-        transfer.transferred_at = datetime.now()
-
-        logger.info(f"✅ Transfer completed: {call_id} -> {rep.name}")
-
-        return result
-
-    def get_transfer_message(self, transfer: TransferRequest) -> str:
-        """
-        Get message to speak before transfer
-        This is what AI says to the lead before transferring
-        """
-        rep_name = transfer.assigned_rep.name if transfer.assigned_rep else "our specialist"
-
-        messages = {
-            TransferReason.READY_TO_BUY: f"""Sir, aap ready hain proceed karne ke liye - bahut achhi baat hai!
-Main aapko {rep_name} se connect kar raha hoon jo aapki process complete karenge.
-Ek second hold karein.""",
-            TransferReason.REQUESTED_HUMAN: f"""Bilkul sir, main aapko humare specialist {rep_name} se connect kar raha hoon.
-Wo aapki saari queries personally handle karenge.
-Ek second please.""",
-            TransferReason.HIGH_INTENT: f"""Sir, aapki requirements sun ke lagta hai aap serious hain.
-Main aapko {rep_name} se connect kar raha hoon jo aapke liye best solution discuss karenge.
-Hold please.""",
-            TransferReason.COMPLEX_QUERY: f"""Yeh ek detailed question hai sir. Main aapko humare expert {rep_name} se connect kar raha hoon.
-Wo properly explain kar denge. One moment please.""",
-            TransferReason.VIP_LEAD: f"""Sir, main aapko humare senior specialist {rep_name} se connect kar raha hoon.
-Wo personally aapki requirement handle karenge. Please hold.""",
-            TransferReason.APPOINTMENT_CONFIRMED: f"""Appointment confirm ho gayi hai sir! Main aapko {rep_name} se connect kar raha hoon
-jo final details confirm karenge. One moment.""",
+        rec = {
+            "call_id": call_id,
+            "owner_phone": owner10,
+            "customer_phone": _phone10(ctx.get("phone") or ctx.get("phone_number")),
+            "summary": summary,
+            "provider": provider,
+            "connect_leg": leg,
+            "wa_link": wa_link,
+            "at": _now(),
         }
+        _log(rec)
 
-        return messages.get(transfer.reason, messages[TransferReason.HIGH_INTENT])
+        # AI staff feed (best-effort — Swara dashboard me dikhe)
+        try:
+            from app.platform import team
 
-    def get_handoff_brief(self, transfer: TransferRequest) -> str:
-        """
-        Get brief for sales rep when call connects
-        This is spoken to the rep before connecting to lead
-        """
-        return f"""Connecting you with {transfer.lead_name}.
-They're interested in {transfer.industry}.
-Lead score {transfer.lead_score}.
-They mentioned: {transfer.qualification_data.get('pain_points', 'general interest')}.
-Transferring now."""
-
-
-class TransferAnalytics:
-    """
-    Track and analyze transfer performance
-    """
-
-    def __init__(self):
-        self.transfers: list[TransferRequest] = []
-
-    def record_transfer(self, transfer: TransferRequest):
-        """Record a transfer for analytics"""
-        self.transfers.append(transfer)
-
-    def get_metrics(self) -> dict[str, Any]:
-        """Get transfer metrics"""
-        total = len(self.transfers)
-        if total == 0:
-            return {"total_transfers": 0}
-
-        completed = sum(1 for t in self.transfers if t.status == "completed")
+            team.log_event(
+                "swara",
+                "call_transfer",
+                f"Live transfer → owner {owner10} ({'connected' if leg.get('initiated') else 'draft'})",
+            )
+        except Exception:
+            pass
 
         return {
-            "total_transfers": total,
-            "completed": completed,
-            "success_rate": completed / total,
-            "by_reason": self._count_by_reason(),
-            "by_industry": self._count_by_industry(),
-            "avg_lead_score": sum(t.lead_score for t in self.transfers) / total,
+            "ok": True,
+            "transferred": bool(leg.get("initiated")),
+            "summary": summary,
+            "wa_link": wa_link,
+            "email_draft": email_draft,
+            "connect_leg": leg,
+            "call_id": call_id,
         }
-
-    def _count_by_reason(self) -> dict[str, int]:
-        """Count transfers by reason"""
-        counts = {}
-        for t in self.transfers:
-            reason = t.reason.value
-            counts[reason] = counts.get(reason, 0) + 1
-        return counts
-
-    def _count_by_industry(self) -> dict[str, int]:
-        """Count transfers by industry"""
-        counts = {}
-        for t in self.transfers:
-            counts[t.industry] = counts.get(t.industry, 0) + 1
-        return counts
+    except Exception as e:
+        logger.warning(f"[call_transfer] request_transfer failed: {e}")
+        return {"ok": False, "reason": str(e)[:200]}
 
 
-# Global instances
-call_transfer_manager = CallTransferManager()
-transfer_analytics = TransferAnalytics()
+def list_transfers(limit: int = 50) -> list[dict[str, Any]]:
+    """Recent transfers (newest first). Never raises."""
+    out: list[dict[str, Any]] = []
+    try:
+        if not os.path.isfile(_TRANSFERS):
+            return out
+        with open(_TRANSFERS, encoding="utf-8") as f:
+            for ln in f:
+                try:
+                    rec = json.loads(ln)
+                    if isinstance(rec, dict):
+                        out.append(rec)
+                except Exception:
+                    continue
+    except Exception as e:
+        logger.debug(f"[call_transfer] list failed: {e}")
+    return list(reversed(out))[: max(1, min(int(limit or 50), 200))]
+
+
+__all__ = ["enabled", "detect_transfer_intent", "request_transfer", "list_transfers"]

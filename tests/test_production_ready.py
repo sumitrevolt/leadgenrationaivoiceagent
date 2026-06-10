@@ -264,9 +264,13 @@ class TestProductionChecklist:
         assert os.path.exists(".env.example")
 
     def test_production_checklist_exists(self):
+        # PRODUCTION_CHECKLIST.md ADR-001 cleanup me hata (commit 12f6721) —
+        # ab canonical readiness doc docs/ me hai.
         import os
 
-        assert os.path.exists("PRODUCTION_CHECKLIST.md")
+        assert os.path.exists(
+            os.path.join("docs", "PRODUCTION_READINESS_2026.md")
+        ) or os.path.exists("PRODUCTION_CHECKLIST.md")
 
     def test_pre_commit_config_exists(self):
         import os
