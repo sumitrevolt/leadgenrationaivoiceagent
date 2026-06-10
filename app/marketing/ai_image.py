@@ -120,6 +120,71 @@ async def fetch_image_bytes(
     return None
 
 
+async def upload_media(data: bytes, filename: str = "photo.jpg") -> str | None:
+    """media.pollinations.ai pe upload → public content-addressed URL (key required)."""
+    key = _api_key()
+    if not key or not data:
+        return None
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=60) as cx:
+            r = await cx.post(
+                "https://media.pollinations.ai/upload",
+                headers={"Authorization": f"Bearer {key}"},
+                files={"file": (filename, data)},
+            )
+        if r.status_code == 200:
+            j = r.json()
+            return j.get("url") or (f"https://media.pollinations.ai/{j['hash']}" if j.get("hash") else None)
+        logger.warning(f"media upload {r.status_code}: {r.text[:120]}")
+    except Exception as e:
+        logger.warning(f"media upload failed: {e}")
+    return None
+
+
+async def edit_image_bytes(prompt: str, photo: bytes, model: str = "kontext", width: int = 1024, height: int = 1024) -> tuple[bytes | None, str]:
+    """Photo→poster (image-to-image): user photo upload → AI edit. Returns (bytes|None, cache_name)."""
+    img_url = await upload_media(photo)
+    if not img_url:
+        return None, ""
+    key = _api_key()
+    cache_key = f"edit|{prompt}|{hashlib.sha1(photo).hexdigest()[:16]}|{model}"
+    path = _cache_file(cache_key, width, height, None)
+    try:
+        if os.path.exists(path) and os.path.getsize(path) > 500:
+            with open(path, "rb") as f:
+                return f.read(), os.path.basename(path)
+        import httpx
+
+        p = urllib.parse.quote((prompt or "make this a professional marketing poster").strip()[:400], safe="")
+        url = f"{_BASE}{p}?model={model}&width={int(width)}&height={int(height)}&nologo=true&image={urllib.parse.quote(img_url, safe='')}"
+        async with httpx.AsyncClient(timeout=120) as cx:
+            r = await cx.get(url, headers={"Authorization": f"Bearer {key}"}, follow_redirects=True)
+        if r.status_code == 200 and len(r.content) > 500:
+            try:
+                os.makedirs(_CACHE_DIR, exist_ok=True)
+                with open(path, "wb") as f:
+                    f.write(r.content)
+            except Exception:
+                pass
+            return r.content, os.path.basename(path)
+        logger.warning(f"edit image {r.status_code}: {r.text[:120]}")
+    except Exception as e:
+        logger.warning(f"edit image failed: {e}")
+    return None, ""
+
+
+def cache_file_path(name: str) -> str | None:
+    """Safe cache filename → full path (serve route ke liye). Traversal-proof."""
+    import re
+
+    if not re.fullmatch(r"[a-f0-9]{24}\.jpg", name or ""):
+        return None
+    p = os.path.join(_CACHE_DIR, name)
+    return p if os.path.exists(p) else None
+
+
 def _template_prompt(business: str, niche: str, occasion: str, offer: str, style: str) -> str:
     bits = [f"{style} social-media marketing poster"]
     if occasion:

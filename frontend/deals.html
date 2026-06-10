@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deals Kanban — LeadsGenAI</title>
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6;--blue:#60a5fa}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px}
+h1{font-size:1.3rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
+input,select{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:8px;font-size:.85rem}
+button{background:var(--acc);border:0;color:#fff;padding:6px 14px;border-radius:8px;cursor:pointer;font-size:.85rem}
+button.ghost{background:#222636}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:.78rem;color:var(--mut)}
+.stat b{color:var(--txt);font-size:1rem;margin-right:4px}
+.addform{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.board{display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:14px}
+.col{background:var(--card);border:1px solid var(--line);border-radius:12px;min-width:215px;width:215px;flex-shrink:0;padding:8px}
+.col h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;padding:4px 6px;margin-bottom:6px;display:flex;justify-content:space-between}
+.col.over{border-color:var(--acc);background:#1b1530}
+.col .cnt{background:#222636;border-radius:8px;padding:0 8px;font-size:.72rem;color:var(--mut)}
+.cardd{background:#11141d;border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:8px;cursor:grab;font-size:.8rem}
+.cardd:active{cursor:grabbing}
+.cardd b{display:block;font-size:.85rem;margin-bottom:2px}
+.cardd .meta{color:var(--mut);font-size:.72rem;margin-bottom:4px}
+.cardd .na{color:var(--blue);font-size:.72rem;border-top:1px dashed var(--line);padding-top:4px;margin-top:2px}
+.c-won h2{color:var(--ok)} .c-lost h2{color:var(--bad)} .c-negotiating h2,.c-proposal_sent h2{color:var(--warn)} .c-new h2,.c-contacted h2{color:var(--mut)} .c-interested h2,.c-demo_sent h2{color:var(--acc)}
+.mut{color:var(--mut);font-size:.78rem} .msg{font-size:.8rem;margin-left:8px}
+</style>
+</head>
+<body>
+<h1>💼 Deals Kanban</h1>
+<div class="sub">Sales pipeline board — card ko drag karke stage badlo (auto-save). Next-action har card pe.</div>
+<div class="bar">
+  <input id="tok" type="password" placeholder="Admin token paste karo" style="width:260px">
+  <button onclick="saveTok()">Save</button>
+  <button class="ghost" onclick="load()">↻ Reload</button>
+  <a href="/app/admin-login" style="color:var(--mut);font-size:.8rem">login →</a>
+  <span id="err" class="msg" style="color:var(--bad)"></span>
+</div>
+<div class="stats" id="stats"></div>
+<div class="addform">
+  <b style="font-size:.85rem">➕ Deal:</b>
+  <input id="d_name" placeholder="Business name" style="width:160px">
+  <input id="d_phone" placeholder="Phone" style="width:120px">
+  <input id="d_email" placeholder="Email" style="width:160px">
+  <input id="d_niche" placeholder="Niche" style="width:110px">
+  <input id="d_city" placeholder="City" style="width:110px">
+  <select id="d_stage"></select>
+  <button onclick="addDeal()">Add</button>
+  <span id="addmsg" class="msg mut"></span>
+</div>
+<div class="board" id="board"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const STAGES=['new','contacted','interested','demo_sent','proposal_sent','negotiating','won','lost'];
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){localStorage.setItem('accessToken',$('tok').value.trim());load()}
+async function api(p,opt){
+  opt=opt||{};opt.headers=Object.assign({Authorization:'Bearer '+tok()},opt.headers||{});
+  const r=await fetch(p,opt);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json();
+}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+let DEALS=[], ACTIONS={};
+
+async function load(){
+  $('err').textContent='';
+  try{
+    const d=await api('/api/growth/sales/deals');
+    DEALS=d.deals||[];
+    ACTIONS={};
+    (d.recent_actions||[]).forEach(function(a){ if(a.deal_id && !ACTIONS[a.deal_id]) ACTIONS[a.deal_id]=a; });
+    const st=d.stats||{}, bs=st.by_stage||{};
+    $('stats').innerHTML='<span class="stat"><b>'+(st.total||0)+'</b>total</span>'+
+      '<span class="stat"><b>'+(st.open||0)+'</b>open</span>'+
+      STAGES.map(function(s){return '<span class="stat"><b>'+(bs[s]||0)+'</b>'+s+'</span>'}).join('')+
+      '<span class="stat">engine: '+(st.engine_on?'<b style="color:var(--ok)">ON</b>':'<b style="color:var(--warn)">OFF</b>')+'</span>';
+    render();
+  }catch(e){ $('err').textContent='Deals load fail — token sahi hai? ('+e.message+')'; }
+}
+
+function render(){
+  let html='';
+  STAGES.forEach(function(s){
+    const list=DEALS.filter(function(d){return d.stage===s});
+    html+='<div class="col c-'+s+'" data-stage="'+s+'" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="drop(event)">'+
+      '<h2>'+s.replace('_',' ')+'<span class="cnt">'+list.length+'</span></h2>'+
+      list.map(card).join('')+'</div>';
+  });
+  $('board').innerHTML=html;
+}
+function card(d){
+  const a=ACTIONS[d.id];
+  return '<div class="cardd" draggable="true" ondragstart="dragStart(event,\''+d.id+'\')">'+
+    '<b>'+esc(d.business_name||'Lead')+'</b>'+
+    '<div class="meta">'+esc(d.niche||'')+(d.city?' · '+esc(d.city):'')+'</div>'+
+    (d.phone?'<div class="meta">📞 <a style="color:var(--blue)" href="tel:+91'+esc(d.phone)+'">'+esc(d.phone)+'</a> · <a style="color:var(--ok)" target="_blank" href="https://wa.me/91'+esc(d.phone)+'">wa</a></div>':'')+
+    (d.email?'<div class="meta">✉️ '+esc(d.email)+'</div>':'')+
+    (a?'<div class="na">▶ '+esc(a.action||'')+': '+esc(String(a.content||'').slice(0,120))+'</div>':'')+
+    '</div>';
+}
+
+function dragStart(ev,id){ ev.dataTransfer.setData('text/plain',id); }
+function dragOver(ev){ ev.preventDefault(); ev.currentTarget.classList.add('over'); }
+function dragLeave(ev){ ev.currentTarget.classList.remove('over'); }
+async function drop(ev){
+  ev.preventDefault();
+  const col=ev.currentTarget; col.classList.remove('over');
+  const id=ev.dataTransfer.getData('text/plain');
+  const stage=col.getAttribute('data-stage');
+  const deal=DEALS.filter(function(d){return d.id===id})[0];
+  if(!deal||deal.stage===stage)return;
+  const old=deal.stage; deal.stage=stage; render();
+  try{
+    await api('/api/growth/sales/deal/'+encodeURIComponent(id)+'/stage',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({stage:stage})});
+    load();
+  }catch(e){
+    deal.stage=old; render();
+    $('err').textContent='Stage update fail ('+e.message+')';
+  }
+}
+
+async function addDeal(){
+  const name=$('d_name').value.trim();
+  if(!name){ $('addmsg').textContent='naam to do'; return; }
+  $('addmsg').textContent='…';
+  try{
+    await api('/api/growth/sales/deal',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({lead:{business_name:name,phone:$('d_phone').value.trim(),email:$('d_email').value.trim(),
+        niche:$('d_niche').value.trim()||'general',city:$('d_city').value.trim()},stage:$('d_stage').value})});
+    $('addmsg').textContent='✅ added';
+    $('d_name').value='';$('d_phone').value='';$('d_email').value='';
+    load();
+  }catch(e){ $('addmsg').textContent='❌ '+e.message+' — token?'; }
+}
+
+$('d_stage').innerHTML=STAGES.map(function(s){return '<option'+(s==='interested'?' selected':'')+'>'+s+'</option>'}).join('');
+$('tok').value=tok();
+load();
+</script>
+</body>
+</html>

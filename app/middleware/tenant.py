@@ -38,14 +38,25 @@ def _subdomain(host: str) -> str:
 def resolve_branding(host: str) -> dict | None:
     """Return a reseller branding dict for this host, or None. Never raises."""
     try:
+        client = None
         sub = _subdomain(host)
-        if not sub or sub in _RESERVED_SUBS:
-            return None
-        from app.marketing.clients_store import get_by_slug
+        if sub and sub not in _RESERVED_SUBS:
+            from app.marketing.clients_store import get_by_slug
 
-        client = get_by_slug(sub)
+            client = get_by_slug(sub)
+        if not client:
+            # Custom domain per client (HighLevel-parity): client record me
+            # `custom_domain` field exact-match (Caddy on-demand TLS se serve).
+            h = (host or "").split(":")[0].strip().lower().rstrip(".")
+            if h and h not in _BASE_HOSTS and not h.endswith(".leadsgenai.in"):
+                from app.marketing.clients_store import list_clients
+
+                client = next(
+                    (c for c in list_clients() if str(c.get("custom_domain") or "").strip().lower() == h), None
+                )
         if not client:
             return None
+        sub = str(client.get("slug") or sub)
         brand = client.get("brand") if isinstance(client.get("brand"), dict) else {}
         return {
             "slug": sub,

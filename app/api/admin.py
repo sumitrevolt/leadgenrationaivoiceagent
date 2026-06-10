@@ -77,6 +77,7 @@ class LoginRequest(BaseModel):
 
     email: EmailStr
     password: str
+    totp: str = ""  # 2FA code (sirf ADMIN_TOTP_SECRET env set hone par required)
 
 
 class LoginResponse(BaseModel):
@@ -291,6 +292,17 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_async_db))
         await db.commit()
         await log_audit(db, None, "login.failed", "user", user.id, severity="warning")
         raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # 2FA (optional): ADMIN_TOTP_SECRET env set ho to valid TOTP zaroori (gated, zero-migration)
+    import os as _os
+
+    _totp_secret = (_os.getenv("ADMIN_TOTP_SECRET") or "").strip()
+    if _totp_secret:
+        from app.utils.totp import verify_totp
+
+        if not verify_totp(_totp_secret, request.totp):
+            await log_audit(db, user.id, "login.totp_failed", "user", user.id, severity="warning")
+            raise HTTPException(status_code=401, detail="2FA code required/invalid")
 
     # Reset failed attempts on success
     user.failed_login_attempts = 0

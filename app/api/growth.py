@@ -876,7 +876,7 @@ AUTOMATION_FLAGS = [
     "REVIEW_MONITOR", "BOOKING_REMINDERS", "DELIVERABILITY_MONITOR", "AUTOMATION_HEALTH_ALERTS",
     "WHATSAPP_AUTO_SEND", "MISSED_CALL_CALLBACK", "SMS_DLT_ENABLED", "USE_SILERO_VAD",
     "USE_SMART_TURN", "USE_LIGHTRAG", "ENABLE_OTEL", "ENABLE_LEGACY_BEAT", "FESTIVALS_LIVE_HOLIDAYS",
-    "TELEGRAM_AUTO_PUBLISH",
+    "TELEGRAM_AUTO_PUBLISH", "CLIENT_REPORTS",
 ]
 
 
@@ -1108,3 +1108,120 @@ async def content_telegram_send(body: TelegramIn, _user=Depends(require_admin)):
     if body.client_id and not body.text:
         return await telegram_publish.send_for_client(body.client_id, body.occasion, body.offer)
     return await telegram_publish.send_post(body.chat_id, body.text, body.image_url)
+
+
+# ------------- Competitor-parity batch-2: templates / loyalty / reports / client API keys ------------- #
+@router.get("/content/templates")
+async def content_templates(niche: str = "", occasion: str = "", _user=Depends(require_admin)):
+    """Curated template gallery (AdBanao-style) — studio prefill ke liye."""
+    from app.marketing import template_library
+
+    return template_library.list_templates(niche, occasion)
+
+
+class CouponIn(BaseModel):
+    client_id: str
+    title: str
+    kind: str = "percent"
+    value: int = 10
+    expiry_days: int = 30
+    max_redemptions: int = 100
+
+
+@router.post("/loyalty/campaign")
+async def loyalty_create(body: CouponIn, _user=Depends(require_admin)):
+    """SMB ke end-customers ke liye coupon campaign (share_text 1-click WA)."""
+    from app.marketing import loyalty
+
+    return loyalty.create_campaign(body.client_id, body.title, body.kind, body.value, body.expiry_days, body.max_redemptions)
+
+
+@router.get("/loyalty")
+async def loyalty_stats(client_id: str = "", _user=Depends(require_admin)):
+    from app.marketing import loyalty
+
+    return loyalty.stats(client_id)
+
+
+@router.get("/loyalty/check/{code}", dependencies=[Depends(rate_limit("loycheck", 30, 60))])
+async def loyalty_check(code: str):
+    """PUBLIC: counter pe staff coupon-code verify kare."""
+    from app.marketing import loyalty
+
+    return loyalty.check_code(code)
+
+
+class RedeemIn(BaseModel):
+    code: str
+    customer_phone: str = ""
+    referrer_phone: str = ""
+    note: str = ""
+
+
+@router.post("/loyalty/redeem", dependencies=[Depends(rate_limit("loyredeem", 20, 60))])
+async def loyalty_redeem(body: RedeemIn):
+    """PUBLIC (rate-limited): redemption record."""
+    from app.marketing import loyalty
+
+    return loyalty.redeem(body.code, body.customer_phone, body.referrer_phone, body.note)
+
+
+class ReportIn(BaseModel):
+    client_id: str
+    month: str = ""
+    send: bool | None = None
+
+
+@router.post("/revenue/client-report")
+async def client_report_build(body: ReportIn, _user=Depends(require_admin)):
+    """White-label monthly client report (HTML + optional email, CLIENT_REPORTS gate)."""
+    from app.marketing import client_report
+
+    return await client_report.build_report(body.client_id, body.month, body.send)
+
+
+@router.post("/revenue/client-reports/run")
+async def client_reports_run(send: bool | None = None, _user=Depends(require_admin)):
+    from app.marketing import client_report
+
+    return await client_report.run_monthly(send)
+
+
+class KeyIn(BaseModel):
+    client_id: str
+    name: str = "default"
+
+
+@router.post("/client-keys")
+async def client_key_issue(body: KeyIn, _user=Depends(require_admin)):
+    """Client-facing API key issue (plain key sirf is response me)."""
+    from app.platform import client_api_keys
+
+    return client_api_keys.issue(body.client_id, body.name)
+
+
+@router.get("/client-keys")
+async def client_keys_list(client_id: str = "", _user=Depends(require_admin)):
+    from app.platform import client_api_keys
+
+    return {"keys": client_api_keys.list_keys(client_id)}
+
+
+@router.delete("/client-keys/{hash_prefix}")
+async def client_key_revoke(hash_prefix: str, _user=Depends(require_admin)):
+    from app.platform import client_api_keys
+
+    return client_api_keys.revoke(hash_prefix)
+
+
+@router.get("/client-data/summary", dependencies=[Depends(rate_limit("clientdata", 30, 60))])
+async def client_data_summary(key: str):
+    """PUBLIC key-authed (Zapier-style): client apna data pull kare apni API key se."""
+    from app.marketing import client_report, clients_store
+    from app.platform import client_api_keys
+
+    cid = client_api_keys.verify(key)
+    if not cid:
+        raise HTTPException(status_code=401, detail="invalid api key")
+    client = clients_store.get_client(cid) or {}
+    return {"client_id": cid, "business_name": client.get("business_name"), "stats": client_report.collect_stats(client)}

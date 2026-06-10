@@ -46,7 +46,7 @@ fallback built-in) — phir bhi unexpected par 500 + detail dete hain.
 Har generation team-log me jaata hai (isha) — import-safe, best-effort.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
@@ -408,6 +408,45 @@ async def generate_ai_image(
     except Exception as e:
         logger.error(f"AI image generation failed: {e}")
         raise HTTPException(status_code=500, detail=f"AI image failed: {e}")
+
+
+@router.post("/photo-poster")
+async def photo_poster(
+    file: UploadFile = File(...),
+    prompt: str = Form(""),
+    style: str = Form("vibrant professional"),
+    current_user: User = Depends(require_admin),
+):
+    """Photo → AI poster (Predis/Canva-killer): user ki dukaan/product photo + prompt →
+    image-to-image (Pollinations kontext). POLLINATIONS_API_KEY required."""
+    from app.marketing import ai_image
+
+    if not ai_image.has_key():
+        raise HTTPException(status_code=402, detail="POLLINATIONS_API_KEY set karo (enter.pollinations.ai free)")
+    photo = await file.read()
+    if not photo or len(photo) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="photo missing ya >8MB")
+    full_prompt = (prompt or "").strip() or "turn this photo into a professional social-media marketing poster"
+    if style:
+        full_prompt += f", {style} style, high quality, space for text"
+    data, name = await ai_image.edit_image_bytes(full_prompt, photo)
+    if not data:
+        raise HTTPException(status_code=502, detail="image edit failed (upstream)")
+    _log_isha("photo_poster", f"{file.filename} → poster")
+    return {"url": f"/api/marketing/ai-img-file/{name}", "prompt": full_prompt, "provider": "pollinations-kontext"}
+
+
+@router.get("/ai-img-file/{name}", dependencies=[Depends(rate_limit("aiimgf", 60, 60))])
+async def ai_img_file(name: str):
+    """Cached AI image serve (public, filename regex-locked)."""
+    from fastapi.responses import FileResponse as _FR
+
+    from app.marketing import ai_image
+
+    p = ai_image.cache_file_path(name)
+    if not p:
+        raise HTTPException(status_code=404, detail="not found")
+    return _FR(p, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=604800"})
 
 
 @router.get("/ai-image-proxy", dependencies=[Depends(rate_limit("aiimg", 20, 60))])

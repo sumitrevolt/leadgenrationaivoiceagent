@@ -39,6 +39,8 @@
       <input id="email" type="email" autocomplete="username" placeholder="admin@leadsgenai.in" required />
       <label for="pw">Password</label>
       <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required />
+      <label for="totp">2FA Code <span style="opacity:.6">(agar enabled hai)</span></label>
+      <input id="totp" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" />
       <button id="btn" type="submit">Login</button>
     </form>
     <div id="msg" class="msg"></div>
@@ -56,7 +58,7 @@
     btn.disabled=true; var lbl=btn.textContent; btn.textContent="Logging in…"; msg.className="msg";
     try{
       var r=await fetch("/api/admin/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({email:document.getElementById("email").value.trim(),password:document.getElementById("pw").value})});
+        body:JSON.stringify({email:document.getElementById("email").value.trim(),password:document.getElementById("pw").value,totp:document.getElementById("totp").value.trim()})});
       var d=await r.json().catch(function(){return {};});
       if(r.ok && d.access_token){
         localStorage.setItem("accessToken", d.access_token);

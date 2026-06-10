@@ -310,6 +310,18 @@
 - **API** (growth.py admin): `GET /api/growth/optimizer/{analysis,runs}` `POST /optimizer/run` · `GET /experiments` `POST /experiments/{run,outcome}`.
 - **✅ FLAGS NOW ON in VPS .env (2026-06-10 godmode, `.env.bak_godmode`)**: `DUNNING_ENGINE` · `LIFECYCLE_NURTURE` · `CLIENT_HEALTH_ALERTS` · `REVENUE_DIGEST` + pehle-se-built `SALES_ENGINE` · `CADENCE_ENGINE` bhi ON. Container recreate + LIVE smoke: /health+/health/ready 200 (db+redis healthy), dunning/lifecycle stores ready, digest gate ok ("not monday"), client_health real-Postgres 2 clients green, ext https /health+/pricing 200. **Ab bhi OFF (jaan-bujhke, ban/blocked)**: WHATSAPP_AUTO_SEND, MISSED_CALL_CALLBACK, WHATSAPP_LEAD_FLOW_ID, SMS_DLT_ENABLED, USE_SILERO_VAD/SMART_TURN, USE_LIGHTRAG, AGENT cold-calling (DLT). **USER-ACTION pending**: Razorpay dashboard me webhook register (`POST /api/billing/webhooks/razorpay` + RAZORPAY_WEBHOOK_SECRET) — bina iske payment-fail event aayega hi nahi to dunning trigger nahi hoga.
 
+## COMPETITOR-PARITY BATCH-2 (2026-06-10) — UI + retention + trust gap close
+> **Rebuild MAT karo.** prod_check **408 routes**, `test_competitor_parity.py` 6/6 + upgrades 9/9. 2 parallel frontend sub-agents ne 5 pages banaye (JS node-check OK). Naye page-routes = HARD RELOAD post-deploy.
+- **5 naye UI pages**: `/app/studio` (photo→poster image-to-image + AI poster + template gallery) · `/app/calendar` (month-view content+bookings) · `/app/deals` (kanban drag-drop sales pipeline) · `/app/inbox` (unified action inbox) · `/app/onboard` (4-step client wizard). Sab admin `accessToken` pattern.
+- **Photo→poster** (Predis-killer): `POST /api/marketing/photo-poster` (multipart) — photo → media.pollinations.ai upload → kontext image-to-image → cache → `GET /ai-img-file/{name}` (regex-locked serve). NEEDS POLLINATIONS_API_KEY.
+- **Template library** (`marketing/template_library.py`, 24 curated niche×festival prompts) — `GET /api/growth/content/templates`.
+- **Loyalty/coupons** (`marketing/loyalty.py`, Dhanda-edge) — campaign+code gen, public check/redeem (rate-limited), referrer tracking. `/api/growth/loyalty/*`.
+- **White-label monthly client report** (`marketing/client_report.py`) — brand-colored HTML + email gated `CLIENT_REPORTS=1`. `POST /api/growth/revenue/client-report(+s/run)`. Scheduler wiring PENDING (manual abhi).
+- **Client API keys** (`platform/client_api_keys.py`, Zapier-base) — `lga_` keys (hash-only store), public `GET /api/growth/client-data/summary?key=`. `/api/growth/client-keys` CRUD.
+- **2FA TOTP** (`app/utils/totp.py` stdlib RFC6238) — gated `ADMIN_TOTP_SECRET` env (unset = aaj jaisa); login body `totp` field, admin_login.html me input.
+- **Custom domain per client** — tenant.py ab client record `custom_domain` exact-host match bhi karta (subdomain ke alawa). Caddy on-demand TLS user-side.
+- **PWA** — `/manifest.json` `/sw.js` `/pwa-icon-{192,512}.png` (PIL runtime-gen). Manifest-link abhi sirf status.html me (baaki pages pending). **`/status`** public status page.
+
 ## 5 MARKETING AI UPGRADES (2026-06-10) — content loop closes
 > **Rebuild MAT karo.** prod_check **388 routes**, `tests/test_marketing_upgrades.py` 8/8. Sab additive/defensive/ban-safe. Routes growth.py me `/api/growth/content/*` (admin). NOTE: `brand_kit.py` PEHLE se tha (save_brand/get_brand/apply_brand_to_poster_args) — duplicate NAHI banaya.
 - **Content feedback loop** (`marketing/content_feedback.py`) — `tracked_link()` (utm+is.gd short), `record_feedback()` 1-click "post chala/nahi" → theme×format Laplace stats + channel-bandit credit. `best_themes()` content jobs ke liye. `POST /content/feedback` · `GET /content/feedback/stats`.

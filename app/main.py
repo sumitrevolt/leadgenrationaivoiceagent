@@ -389,6 +389,78 @@ async def admin_login_page():
     return FileResponse(str(FRONTEND_DIR / "admin_login.html"))
 
 
+@app.get("/app/calendar", tags=["Frontend"])
+async def calendar_page():
+    """Content calendar month-view (Buffer-style) — schedule + bookings."""
+    return FileResponse(str(FRONTEND_DIR / "calendar.html"))
+
+
+@app.get("/app/deals", tags=["Frontend"])
+async def deals_page():
+    """Sales pipeline kanban (drag-drop) over /api/growth/sales/*."""
+    return FileResponse(str(FRONTEND_DIR / "deals.html"))
+
+
+@app.get("/app/inbox", tags=["Frontend"])
+async def inbox_page():
+    """Unified action inbox — hot leads, reply/review drafts, experiments."""
+    return FileResponse(str(FRONTEND_DIR / "inbox.html"))
+
+
+@app.get("/app/studio", tags=["Frontend"])
+async def studio_page():
+    """AI Studio — photo→poster (image-to-image), AI poster, template gallery."""
+    return FileResponse(str(FRONTEND_DIR / "studio.html"))
+
+
+@app.get("/app/onboard", tags=["Frontend"])
+async def onboard_page():
+    """Naya client onboarding wizard (4 steps, self-serve)."""
+    return FileResponse(str(FRONTEND_DIR / "onboard.html"))
+
+
+@app.get("/status", tags=["Frontend"])
+async def status_page():
+    """Public system status page (health/ready client-side checks)."""
+    return FileResponse(str(FRONTEND_DIR / "status.html"))
+
+
+@app.get("/manifest.json", include_in_schema=False)
+async def pwa_manifest():
+    return FileResponse(str(FRONTEND_DIR / "manifest.json"), media_type="application/manifest+json")
+
+
+@app.get("/sw.js", include_in_schema=False)
+async def pwa_sw():
+    return FileResponse(str(FRONTEND_DIR / "sw.js"), media_type="application/javascript")
+
+
+@app.get("/pwa-icon-{size}.png", include_in_schema=False)
+async def pwa_icon(size: int):
+    """PWA icon runtime-generate (PIL) + disk cache — koi binary repo me nahi."""
+    from fastapi.responses import Response as _Resp
+
+    size = 192 if int(size) not in (192, 512) else int(size)
+    icon_path = Path("data") / f"pwa_icon_{size}.png"
+    try:
+        if not icon_path.exists():
+            from PIL import Image, ImageDraw, ImageFont
+
+            img = Image.new("RGB", (size, size), (37, 99, 235))
+            dr = ImageDraw.Draw(img)
+            try:
+                font = ImageFont.truetype("DejaVuSans-Bold.ttf", size // 3)
+            except Exception:
+                font = ImageFont.load_default()
+            bb = dr.textbbox((0, 0), "LG", font=font)
+            dr.text(((size - bb[2] + bb[0]) / 2, (size - bb[3] + bb[1]) / 2 - bb[1]), "LG", fill="white", font=font)
+            icon_path.parent.mkdir(parents=True, exist_ok=True)
+            img.save(icon_path)
+        return FileResponse(str(icon_path), media_type="image/png")
+    except Exception:
+        return _Resp(status_code=404)
+
+
 @app.get("/app/customer", tags=["Frontend"])
 async def customer_dashboard_page():
     """Customer dashboard (leads, calls, final qualified leads)."""
