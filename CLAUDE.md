@@ -248,6 +248,11 @@
 - **Revenue digest** (`app/platform/revenue_digest.py`) — Monday weekly email: MRR estimate, subs counts, dunning, nurture funnel, hot leads, deals, health. **GATED `REVENUE_DIGEST=1`** + NOTIFY_EMAIL. digest job me wired.
 - **API** (growth.py, admin): `POST /api/growth/revenue/dunning/{case,run}` `GET /revenue/dunning` · `GET /revenue/health/clients` `POST /revenue/health/run` · `POST /revenue/lifecycle/{enroll,run}` `GET /revenue/lifecycle` · `POST /revenue/digest/run`. Scheduler: content job → dunning+lifecycle run_due; digest job → revenue_digest+client_health.
 
+## PENDINGS COMPLETE ✅ LIVE (2026-06-10, commit 3fdb6b3) — 377 routes
+- **`/site-audit` PUBLIC page** (`frontend/website/site-audit.html`) — lead-magnet #2: URL→AI report card (score/grade/checks/tips)→/audit+/pricing CTA (utm_source=seo). LIVE 200, leadsgenai.in khud 85/A.
+- **UTM channel attribution** — `InquiryIn.utm_source` + submit_inquiry me `_UTM_MAP` (quora/reddit/linkedin/seo/partner/wa/...) → `channel_experiments.record_outcome` AUTO — bandit ab khud seekhta inquiry kahan se aayi. (Frontend forms me ?utm_source= URL param pass karna content me — drafts already CTA me daal sakte.)
+- **Ops dashboard upgrades** — `GET /api/growth/revenue/summary` (digest _collect reuse) + `GET /inbox` (hot leads + reply drafts + review drafts + experiments) → ops.html me 💰 Revenue card, 📥 Action Inbox, 🎯 1-click channel-outcome buttons. **`TELEPHONY_READY_ALERTS=1` ON.**
+
 ## INFRA BATCH-2 + TEAM 10 AGENTS ✅ LIVE (2026-06-10, commit 23afff5)
 > prod_check **374 routes**, tests `test_infra_batch2.py` 5/5. LIVE: **telephony readiness 100/100** (missing[] — "KYC/DLT milte hi calling ready"), /app/ops 200, staff 10, self-heal cron */10 installed.
 - **Telephony readiness monitor** (`telephony/telephony_readiness.py`, **Tara** agent) — hourly (watchdog wired): Exotel creds/caller-ID/app-ID, webhook secrets, edge-tts, GROQ STT, LLM chain+ok-rate, compliance posture → score+actions. Score-drop alert gated `TELEPHONY_READY_ALERTS=1`. `GET /api/growth/infra/telephony-readiness`.
