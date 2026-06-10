@@ -131,6 +131,26 @@ async def run_watch() -> dict[str, Any]:
     """Hourly (watchdog) — log under Tara; score girne pe gated alert. Kabhi raise nahi."""
     try:
         res = run_checks()
+        # Live Exotel credits (cached 30min) — readiness me dikhe + low-balance alert.
+        try:
+            from app.telephony import exotel_account
+
+            bal = await exotel_account.balance()
+            if bal is not None:
+                res["exotel_balance"] = round(bal, 2)
+                low_at = float(os.environ.get("EXOTEL_LOW_BALANCE", "100") or 100)
+                if bal < low_at and _alerts_enabled():
+                    notify = os.environ.get("NOTIFY_EMAIL", "").strip()
+                    if notify:
+                        from app.integrations.email_sender import email_sender
+
+                        await email_sender.send_email(
+                            [notify],
+                            f"⚠️ Exotel balance low: ₹{round(bal, 2)}",
+                            f"Credits ₹{round(bal, 2)} bache (threshold ₹{low_at}). Recharge karo warna calling rukegi.",
+                        )
+        except Exception:
+            pass
         prev_score = None
         try:
             if os.path.exists(_LOG):

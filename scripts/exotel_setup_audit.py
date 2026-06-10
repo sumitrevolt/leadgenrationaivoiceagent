@@ -98,6 +98,40 @@ async def main() -> None:
                 for c in (cl if isinstance(cl, list) else [])
             ],
         }
+        # 4.5) Optional: ExoPhone pe StatusCallback set karo (inbound/call events
+        # humare webhook pe aayein) — `--set-callback <url>` (API-driven setup).
+        if "--set-callback" in sys.argv:
+            try:
+                cb = sys.argv[sys.argv.index("--set-callback") + 1]
+            except Exception:
+                cb = ""
+            num_sid = ""
+            try:
+                ip = (nums or {}).get("IncomingPhoneNumbers") or (nums or {}).get("IncomingPhoneNumber")
+                if isinstance(ip, dict):
+                    num_sid = ip.get("Sid", "")
+                elif isinstance(ip, list) and ip:
+                    num_sid = ip[0].get("Sid", "")
+                # exophones block ne nested shape pakda ho to:
+                if not num_sid and isinstance(nums, dict):
+                    inner = ((nums.get("IncomingPhoneNumbers") or {}).get("IncomingPhoneNumber")) or {}
+                    if isinstance(inner, dict):
+                        num_sid = inner.get("Sid", "")
+            except Exception:
+                pass
+            if cb and num_sid:
+                try:
+                    r = await client.post(
+                        f"https://{HOST}/v1/Accounts/{SID}/IncomingPhoneNumbers/{num_sid}.json",
+                        data={"StatusCallback": cb, "StatusCallbackMethod": "POST"},
+                        headers=H, timeout=20.0,
+                    )
+                    out["set_callback"] = {"http": r.status_code, "resp": (r.text or "")[:250]}
+                except Exception as e:
+                    out["set_callback"] = {"error": str(e)[:200]}
+            else:
+                out["set_callback"] = {"error": f"need url+number_sid (url={bool(cb)}, sid={bool(num_sid)})"}
+
         # 5) Optional test call (credits USE hote)
         if "--call" in sys.argv:
             try:
