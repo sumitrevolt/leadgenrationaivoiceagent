@@ -104,6 +104,7 @@ services:
       -c checkpoint_completion_target=0.9
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - walarchive:/var/lib/postgresql/wal_archive  # PITR WAL archive (pg_pitr_enable.sh)
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-leadgen} -d ${POSTGRES_DB:-leadgen}"]
@@ -243,6 +244,7 @@ services:
 volumes:
   pgdata:
   redisdata:
+  walarchive:
 
 networks:
   leadgen_net:
