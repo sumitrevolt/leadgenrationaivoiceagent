@@ -34,6 +34,8 @@ frontend/public
 frontend/*.json
 frontend/*.ts
 frontend/*.js
+!frontend/manifest.json
+!frontend/sw.js
 frontend/.gitignore
 
 # Terraform/Infrastructure (not needed in container)
