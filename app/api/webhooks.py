@@ -379,6 +379,18 @@ async def handle_stripe_invoice_failed(data: dict, db: AsyncSession):
             subscription.status = SubscriptionStatus.PAST_DUE
             await db.commit()
             logger.info(f"Subscription {subscription.id} marked as past_due")
+            # Dunning hook (best-effort, kabhi raise nahi) — recovery sequence open karo.
+            try:
+                from app.billing import dunning
+
+                await dunning.on_payment_failed(
+                    str(subscription.client_id),
+                    gateway="stripe",
+                    reason="invoice.payment_failed",
+                    subscription_id=str(subscription.id),
+                )
+            except Exception as e:
+                logger.debug(f"[webhooks] dunning hook skip: {e}")
 
 
 async def handle_stripe_subscription_created(data: dict, db: AsyncSession):
@@ -552,6 +564,20 @@ async def handle_stripe_payment_failed(data: dict, db: AsyncSession):
     db.add(payment)
     await db.commit()
     logger.info(f"Payment failed: {payment_intent_id}")
+    # Dunning hook (best-effort)
+    try:
+        cid = data.get("metadata", {}).get("client_id")
+        if cid:
+            from app.billing import dunning
+
+            await dunning.on_payment_failed(
+                str(cid),
+                amount=float(Decimal(str(data.get("amount", 0))) / 100),
+                gateway="stripe",
+                reason=str(data.get("last_payment_error", {}).get("code") or "payment_failed"),
+            )
+    except Exception as e:
+        logger.debug(f"[webhooks] dunning hook skip: {e}")
 
 
 # =============================================================================
@@ -689,6 +715,14 @@ async def handle_razorpay_payment_captured(entity: dict, db: AsyncSession):
 
     await db.commit()
     logger.info(f"Razorpay payment captured: {payment_id}")
+    # Dunning recovered hook (best-effort) — open case close karo.
+    try:
+        if client_id:
+            from app.billing import dunning
+
+            dunning.mark_recovered(str(client_id))
+    except Exception as e:
+        logger.debug(f"[webhooks] dunning recover skip: {e}")
 
 
 async def handle_razorpay_payment_failed(entity: dict, db: AsyncSession):
@@ -714,6 +748,19 @@ async def handle_razorpay_payment_failed(entity: dict, db: AsyncSession):
     db.add(payment)
     await db.commit()
     logger.info(f"Razorpay payment failed: {payment_id}")
+    # Dunning hook (best-effort)
+    try:
+        if client_id:
+            from app.billing import dunning
+
+            await dunning.on_payment_failed(
+                str(client_id),
+                amount=float(Decimal(str(payment_data.get("amount", 0))) / 100),
+                gateway="razorpay",
+                reason=str(payment_data.get("error_description") or "payment_failed"),
+            )
+    except Exception as e:
+        logger.debug(f"[webhooks] dunning hook skip: {e}")
 
 
 async def handle_razorpay_subscription_activated(entity: dict, db: AsyncSession):
@@ -879,6 +926,18 @@ async def handle_razorpay_subscription_halted(entity: dict, db: AsyncSession):
         subscription.status = SubscriptionStatus.PAST_DUE
         await db.commit()
         logger.info(f"Subscription {subscription.id} halted due to payment failure")
+        # Dunning hook (best-effort)
+        try:
+            from app.billing import dunning
+
+            await dunning.on_payment_failed(
+                str(subscription.client_id),
+                gateway="razorpay",
+                reason="subscription.halted",
+                subscription_id=str(subscription.id),
+            )
+        except Exception as e:
+            logger.debug(f"[webhooks] dunning hook skip: {e}")
 
 
 async def handle_razorpay_order_paid(entity: dict, db: AsyncSession):

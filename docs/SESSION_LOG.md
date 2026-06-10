@@ -720,3 +720,19 @@ Fixed the broken app image + swapped the live app into Docker (both verified, au
 
 ### NOT done
 - Deploy NAHI (commit only). Flows = Meta approval pending; missed-call = Vobiz DID pending (dono ready-to-flip).
+  
+## 2026-06-10 - Revenue Automation batch (research-driven, Windows-verified, NOT deployed) 
+
+**Research basis (deep web)**: (1) involuntary churn ~9% MRR / ~30% of attrition — automated dunning recovers 40-70% (Baremetrics/Churn Buster/Razorpay intelligent-retry patterns; Razorpay khud NPCI 1+3 retries karta, hum uske UPAR human-channel recovery layer hain). (2) Behavioral lifecycle emails 3.8x vs drip; day-0/2/7 activation sequence trial->paid ~2x (ChartMogul 2026: median free->paid 8%, top quartile 15%+). (3) Proactive weekly client monitoring = 34% lambi agency retention. OSS reference: Dittofeed/Laudspeaker (journey/lifecycle pattern free-stack me adapt, heavy self-host dep ke bina).
+
+**Built (4 modules + wiring + 10 tests)**:
+1. `app/billing/dunning.py` — case store + day-0/3/7/14 Hinglish touches + renewal pre-dunning + mark_recovered. Wired: `app/api/webhooks.py` me 5 hooks (stripe invoice_failed + payment_failed, razorpay payment_failed + subscription.halted -> on_payment_failed; razorpay captured -> mark_recovered) — sab try/except best-effort, handler behaviour unchanged.
+2. `app/platform/client_health.py` — score_client pure fn + _gather_signals (clients_store + Lead/Subscription DB best-effort + client_packs mtime) + run_check (gated alert).
+3. `app/marketing/lifecycle_nurture.py` — enroll/run_due/stats; public_signup me enroll wired (record-only, fire-and-forget).
+4. `app/platform/revenue_digest.py` — _collect (subs/MRR/dunning/lifecycle/hot-leads/deals/health) + compose pure fn + Monday IST week-dedupe.
+- `app/api/growth.py`: +9 admin routes (/revenue/*). `team_scheduler.py`: content job -> dunning.run_due + lifecycle_nurture.run_due; digest job -> revenue_digest.maybe_run_weekly + client_health.run_check.
+- Tests `tests/test_revenue_automation.py` 10/10 (tmp-store monkeypatch, no network/DB needed); regression test_2026_features + test_telephony_upgrades + test_phase3_billing_tenant = 44/44; prod_check 349 routes PASS.
+
+**Activate karne ke liye** (.env): `DUNNING_ENGINE=1 LIFECYCLE_NURTURE=1 CLIENT_HEALTH_ALERTS=1 REVENUE_DIGEST=1` (NOTIFY_EMAIL already set). Deploy normal loop se; naya page-route nahi to HARD RELOAD optional, par container rebuild chahiye.
+
+**Honest gaps (is batch ke bahar, user-action)**: Razorpay webhook URL register (dashboard me `POST /api/billing/webhooks/razorpay` + secret) — bina iske dunning trigger hi nahi hoga; UPI_VPA; dunning WhatsApp auto-send (jaan-bujhke ban-safe 1-click hi); monthly_report -> weekly client value report upgrade (agla candidate).

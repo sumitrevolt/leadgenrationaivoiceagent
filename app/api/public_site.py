@@ -599,6 +599,15 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception:
         pass
 
+    # Lifecycle nurture — signup ko trial->paid sequence me enroll (record-only;
+    # emails sirf LIFECYCLE_NURTURE=1 pe scheduler se). Best-effort, kabhi raise nahi.
+    try:
+        from app.marketing import lifecycle_nurture
+
+        lifecycle_nurture.enroll(email, biz, cid, body.plan or "starter")
+    except Exception as e:
+        logger.debug(f"[signup] lifecycle enroll skip: {e}")
+
     # Journey engine — fire 'signup' (gated JOURNEY_ENGINE=1; default off).
     try:
         from app.marketing import journeys

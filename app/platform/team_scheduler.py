@@ -109,6 +109,12 @@ async def _run_job(job: str) -> None:
             await staff.run_trainer()
         elif job == "digest":
             await staff.run_digest()
+            from app.platform import revenue_digest
+
+            await revenue_digest.maybe_run_weekly()  # Monday-only weekly MRR digest (gated REVENUE_DIGEST)
+            from app.platform import client_health
+
+            await client_health.run_check()  # churn-risk scan (alert gated CLIENT_HEALTH_ALERTS)
         elif job == "content":
             from app.marketing import auto_content
 
@@ -130,6 +136,12 @@ async def _run_job(job: str) -> None:
             from app.marketing import sales_pipeline
 
             await sales_pipeline.run_pipeline()  # sales deals auto next-action (gated SALES_ENGINE)
+            from app.billing import dunning
+
+            await dunning.run_due()  # payment-recovery sweep (gated DUNNING_ENGINE; inert off)
+            from app.marketing import lifecycle_nurture
+
+            await lifecycle_nurture.run_due()  # signup->paid nurture (gated LIFECYCLE_NURTURE; inert off)
         elif job == "blog":
             from app.marketing import seo_blog
 

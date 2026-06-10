@@ -501,3 +501,90 @@ async def sales_assistant_reply(body: SalesMsgIn, _user=Depends(require_admin)):
     from app.marketing import sales_assistant
 
     return await sales_assistant.handle_message(body.message, body.business_name or "", body.niche or "general")
+
+
+# ------------------- Revenue automation (dunning/health/lifecycle/digest) ------------------- #
+class DunningCaseIn(BaseModel):
+    client_id: str
+    amount: float | None = None
+    gateway: str | None = ""
+    reason: str | None = ""
+
+
+@router.post("/revenue/dunning/case")
+async def dunning_open_case(body: DunningCaseIn, _user=Depends(require_admin)):
+    """Manual dunning case (webhook ke bahar se) — recovery sequence shuru."""
+    from app.billing import dunning
+
+    return await dunning.on_payment_failed(body.client_id, body.amount, body.gateway or "", body.reason or "")
+
+
+@router.post("/revenue/dunning/run")
+async def dunning_run(_user=Depends(require_admin)):
+    """Dunning sweep abhi chalao (gated DUNNING_ENGINE — off = no-op)."""
+    from app.billing import dunning
+
+    return await dunning.run_due()
+
+
+@router.get("/revenue/dunning")
+async def dunning_overview(_user=Depends(require_admin)):
+    """Dunning stats + open cases."""
+    from app.billing import dunning
+
+    return dunning.stats()
+
+
+@router.get("/revenue/health/clients")
+async def client_health_report(_user=Depends(require_admin)):
+    """Saare clients ka churn-risk health score (red pehle)."""
+    from app.platform import client_health
+
+    return await client_health.health_report()
+
+
+@router.post("/revenue/health/run")
+async def client_health_run(_user=Depends(require_admin)):
+    """Health check + (gated CLIENT_HEALTH_ALERTS) red-client email alert."""
+    from app.platform import client_health
+
+    return await client_health.run_check()
+
+
+class LifecycleEnrollIn(BaseModel):
+    email: str
+    business_name: str | None = ""
+    client_id: str | None = ""
+    plan: str | None = "starter"
+
+
+@router.post("/revenue/lifecycle/enroll")
+async def lifecycle_enroll(body: LifecycleEnrollIn, _user=Depends(require_admin)):
+    """Manually kisi signup ko nurture sequence me daalo."""
+    from app.marketing import lifecycle_nurture
+
+    return lifecycle_nurture.enroll(body.email, body.business_name or "", body.client_id or "", body.plan or "starter")
+
+
+@router.post("/revenue/lifecycle/run")
+async def lifecycle_run(_user=Depends(require_admin)):
+    """Nurture sweep abhi chalao (gated LIFECYCLE_NURTURE — off = no-op)."""
+    from app.marketing import lifecycle_nurture
+
+    return await lifecycle_nurture.run_due()
+
+
+@router.get("/revenue/lifecycle")
+async def lifecycle_overview(_user=Depends(require_admin)):
+    """Nurture funnel stats."""
+    from app.marketing import lifecycle_nurture
+
+    return lifecycle_nurture.stats()
+
+
+@router.post("/revenue/digest/run")
+async def revenue_digest_run(_user=Depends(require_admin)):
+    """Revenue digest abhi banao+bhejo (force — gate/dedupe skip)."""
+    from app.platform import revenue_digest
+
+    return await revenue_digest.run(force=True)
