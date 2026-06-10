@@ -337,17 +337,34 @@ def _real_agents() -> list[Agent]:
 
         ts = team_status()
         members = ts.get("members", []) if isinstance(ts, dict) else []
-        state_map = {"working": "calling", "idle": "idle", "offline": "idle"}
+        # working = green pulse; active (aaj kaam kiya) = scraping/blue; offline = grey idle.
+        # data/scraper roles ka active = "scraping" (blue), baaki = "calling" (green-ish).
+        _scraper_roles = {"dev", "rohan"}
         for m in members:
             la = m.get("last_activity") or {}
+            action = str(la.get("action") or "")
             detail = str(la.get("detail") or m.get("title") or "-")[:60]
+            mins = m.get("last_active_mins")
+            when = ""
+            if isinstance(mins, (int, float)):
+                when = "abhi" if mins < 2 else (f"{int(mins)}m pehle" if mins < 60 else f"{int(mins // 60)}h pehle")
+            line = (f"{detail} · {when}" if when else detail)[:72]
             errs = int(m.get("today_errors") or 0)
-            ui_status = "error" if errs > 0 else state_map.get(str(m.get("state") or "offline"), "idle")
+            state = str(m.get("state") or "offline")
+            key = str(m.get("key") or "")
+            if errs > 0:
+                ui_status = "error"
+            elif state == "working":
+                ui_status = "scraping" if key in _scraper_roles else "calling"
+            elif state == "active":
+                ui_status = "scraping" if key in _scraper_roles else "calling"
+            else:
+                ui_status = "idle"
             out.append(
                 Agent(
                     id=str(m.get("emoji") or "🤖") + " " + str(m.get("title") or "Staff"),
                     name=str(m.get("name") or "Agent"),
-                    current_client=str(detail or m.get("title") or "-"),
+                    current_client=str(line or m.get("title") or "-"),
                     status=ui_status,
                     calls_made=int(m.get("today_actions") or 0),
                     leads_found=errs,

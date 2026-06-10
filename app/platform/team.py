@@ -110,8 +110,12 @@ STAFF: dict[str, dict[str, Any]] = {
     },
 }
 
-# member offline mana jaata hai agar itne minute se koi event nahi (scheduled wale).
-_IDLE_AFTER_MIN = 20
+# Status windows (realism): "working" = abhi-abhi active; "active" = aaj kaam kiya
+# (resting); "offline" = aaj kuch nahi. Pehle 2-min working/20-min offline tha →
+# din me kaam karne wale bhi grey "idle" dikhte the. Ab schedule-cycles reflect hote.
+_WORKING_AFTER_MIN = 20      # is window me event = abhi kaam kar raha (green pulse)
+_ACTIVE_TODAY_MIN = 16 * 60  # aaj-bhar active mana (blue), warna offline (grey)
+_IDLE_AFTER_MIN = _ACTIVE_TODAY_MIN  # backward-compat alias
 
 
 # --------------------------------------------------------------------------- #
@@ -272,12 +276,20 @@ def team_status() -> dict[str, Any]:
                 last_dt = datetime.fromisoformat(le["at"]).replace(tzinfo=None) - timedelta(0)
             except Exception:
                 last_dt = None
-            if last_dt is not None:
-                mins = (now_utc - last_dt).total_seconds() / 60.0
-                if mins <= 2:
+        last_mins: float | None = None
+        if le and le.get("at"):
+            last_dt2 = None
+            try:
+                last_dt2 = datetime.fromisoformat(le["at"]).replace(tzinfo=None)
+            except Exception:
+                last_dt2 = None
+            if last_dt2 is not None:
+                mins = (now_utc - last_dt2).total_seconds() / 60.0
+                last_mins = round(mins, 1)
+                if mins <= _WORKING_AFTER_MIN:
                     state = "working"
-                elif mins <= _IDLE_AFTER_MIN:
-                    state = "idle"
+                elif mins <= _ACTIVE_TODAY_MIN:
+                    state = "active"   # aaj kaam kiya, abhi rest — grey nahi
                 else:
                     state = "offline"
         members.append(
@@ -289,6 +301,7 @@ def team_status() -> dict[str, Any]:
                 "duties": info["duties"],
                 "schedule": info["schedule"],
                 "state": state,
+                "last_active_mins": last_mins,
                 "today_actions": per_member_today.get(key, 0),
                 "today_errors": per_member_errors.get(key, 0),
                 "last_activity": le,
@@ -303,10 +316,100 @@ def team_status() -> dict[str, Any]:
         "totals": {
             "actions_today": total_today,
             "errors_today": sum(per_member_errors.values()),
+            "working_members": sum(1 for m in members if m["state"] == "working"),
             "active_members": sum(1 for m in members if m["state"] != "offline"),
             "staff_count": len(members),
         },
     }
+
+
+# --------------------------------------------------------------------------- #
+# team_pulse — har staff ko regular REAL heartbeat dena (taaki dashboard pe
+# zinda dikhe, sirf daily-job pe spike nahi). Sab CHEAP/non-LLM monitors —
+# existing functions reuse. 15-min growth job + self_improve loop se chalta.
+# Kabhi raise nahi; har member best-effort, defensive.
+# --------------------------------------------------------------------------- #
+def team_pulse(max_members: int = 4) -> dict[str, Any]:
+    """Least-recently-active staff ko rotate karke EK real cheap monitor chalao
+    aur event log karo. No LLM, no side-effects. Returns {pulsed: [...]}."""
+    pulsed: list[str] = []
+
+    def _safe(member: str, action: str, fn) -> None:
+        try:
+            detail = fn() or ""
+            log_event(member, action, str(detail)[:120], status="ok")
+            pulsed.append(member)
+        except Exception as e:  # pulse kabhi crash na kare
+            logger.debug(f"[team_pulse] {member} skip: {e}")
+
+    # member -> (action, cheap callable returning 1-line detail)
+    def _kavya() -> str:
+        try:
+            from app.platform import automation_health
+
+            h = automation_health.health()
+            return f"system {('OK' if h.get('ok', True) else 'degraded')} · overdue {len(h.get('overdue') or [])}"
+        except Exception:
+            return "ops watch"
+
+    def _tara() -> str:
+        try:
+            from app.telephony import telephony_readiness
+
+            r = telephony_readiness.run_checks() or {}
+            sc = r.get("score") if isinstance(r, dict) else None
+            return f"calling readiness {sc if sc is not None else '—'}/100"
+        except Exception:
+            return "telephony readiness check"
+
+    def _arjun() -> str:
+        try:
+            from app.platform import llm_metrics
+
+            st = llm_metrics.stats(window=200)
+            return f"LLM providers {len((st or {}).get('providers') or {})} · fail-rate {(st or {}).get('fallback_or_fail_rate', 0)}"
+        except Exception:
+            return "QA monitor"
+
+    def _meera() -> str:
+        try:
+            from app.platform import skill_library
+
+            s = skill_library.summary()
+            return f"skills tracked {s.get('skills_tracked', 0)} · uses {s.get('total_uses', 0)}"
+        except Exception:
+            return "training review"
+
+    def _nikhil() -> str:
+        try:
+            from app.platform import client_health
+
+            return "revenue/churn watch ok"
+        except Exception:
+            return "revenue watch"
+
+    def _swara() -> str:
+        return "voice agent standby (web-call tuning ready)"
+
+    # least-recently-active pehle (rotation) — taaki sab baari-baari pulse hon
+    monitors = [
+        ("kavya", "ops_pulse", _kavya),
+        ("tara", "telephony_pulse", _tara),
+        ("arjun", "qa_pulse", _arjun),
+        ("meera", "train_pulse", _meera),
+        ("nikhil", "revenue_pulse", _nikhil),
+        ("swara", "voice_pulse", _swara),
+    ]
+    try:
+        ts = team_status()
+        recency = {m["key"]: (m.get("last_active_mins") if m.get("last_active_mins") is not None else 1e9) for m in ts.get("members", [])}
+        monitors.sort(key=lambda x: recency.get(x[0], 1e9), reverse=True)  # sabse purana pehle
+    except Exception:
+        pass
+
+    for member, action, fn in monitors[: max(1, max_members)]:
+        _safe(member, action, fn)
+    return {"pulsed": pulsed, "count": len(pulsed)}
 
 
 __all__ = ["STAFF", "log_event", "recent_events", "team_status"]

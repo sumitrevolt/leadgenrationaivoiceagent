@@ -416,6 +416,7 @@ async def run_once() -> dict[str, Any]:
         from app.platform import team
 
         team.log_event("manager", "self_improve", f"{action}: {'OK' if rec['ok'] else 'FAIL'} — {rec['detail'][:80]}")
+        team.team_pulse(max_members=2)  # har tick 2 under-active staff ko bhi heartbeat
     except Exception:
         pass
 

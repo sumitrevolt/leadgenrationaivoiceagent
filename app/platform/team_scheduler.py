@@ -140,6 +140,14 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import growth_engine
 
             await growth_engine.pulse()
+            # Team heartbeat — har 15-min cycle pe under-active staff ke cheap
+            # real monitors chalao (dashboard pe zinda dikhe, sirf daily-spike nahi).
+            try:
+                from app.platform import team
+
+                team.team_pulse(max_members=4)
+            except Exception:
+                pass
         elif job == "ops":
             await staff.run_ops()
         elif job == "qa":
