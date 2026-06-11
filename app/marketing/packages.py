@@ -2,14 +2,17 @@
 Marketing-first pricing packages — platform ke PUBLIC pricing ka source-of-truth.
 ==================================================================================
 
-Positioning (June 2026 pivot): product = "AI Automated Marketing" for local
-businesses (Dhanda-style posts/GBP/festivals/posters/WhatsApp/reviews — sab
-/app/marketing me built hai). AI voice agent ab marketing ka KILLER helper hai:
-website/GBP inquiry auto-callback, lead qualification calls, missed-call
-follow-ups.
+Positioning (June 2026, CLARIFIED): hum DO alag products banate hain —
+  1. **AI Automated Marketing** (MAIN product, yeh pricing usi ki hai) — local
+     businesses ke liye posts/GBP/festivals/posters/WhatsApp/reviews, sab
+     /app/marketing me built. Advanced tier me **AI voice agent ek FEATURE**
+     hai: inquiry auto-callback, lead qualification calls, missed-call follow-ups.
+  2. **AI Voice Calling Agent** (ALAG standalone product) — full AI telecaller
+     (outbound/DLT-gated); iski pricing/page alag hai, yahan NAHI.
 
-USP: koi bhi Indian competitor (Dhanda ₹7,999/yr, AdBanao, Predis) voice-calling
-+ marketing EK package me nahi deta — isliye "advanced" tier highlight hai.
+USP (marketing product ka): koi bhi Indian marketing competitor (Dhanda
+₹7,999/yr, AdBanao, Predis) AI voice-callback FEATURE nahi deta — isliye
+"advanced" tier highlight hai. "Bundle/dono ek saath" framing MAT use karo.
 
 Consumers:
   - GET /api/marketing/packages (PUBLIC — landing page JS fetch karta hai)
@@ -66,7 +69,7 @@ PACKAGES: list[dict] = [
     {
         "key": "advanced",
         "name": "Advanced AI Agent",
-        "tagline": "Marketing + ek AI jo aapke har inquiry ko KHUD call kare — India me sirf yahan.",
+        "tagline": "Growth ka poora marketing + AI Voice Agent feature — har inquiry ko AI khud call kare. India me sirf yahan.",
         "price_inr_month": 5999,
         "price_inr_year": 59990,  # 2 mahine FREE
         "annual_note": "Saal bhar ka ek saath: ₹59,990 (2 mahine FREE)",
