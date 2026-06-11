@@ -213,6 +213,18 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     res["unsubscribed"] += 1
                 elif intent in ("interested", "question"):
                     res["interested"] += 1
+                    # Phone push: HOT reply — sales moment, turant pata chale (gated ntfy).
+                    try:
+                        from app.integrations import ntfy
+
+                        await ntfy.push(
+                            "🔥 Hot reply!",
+                            f"{(p or {}).get('business_name') or frm}: {subj[:80]}",
+                            priority="high",
+                            tags=["fire"],
+                        )
+                    except Exception:
+                        pass
                     # Sales automation: interested reply -> deal (pipeline auto next-action).
                     try:
                         from app.marketing import sales_pipeline

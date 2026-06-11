@@ -1059,7 +1059,34 @@ AUTOMATION_FLAGS = [
     "CALL_TRANSFER", "OUTREACH_AB", "SERVICE_REMINDERS",
     "NEWSLETTER_ENGINE", "WINBACK_ENGINE", "BRAND_PULSE", "TEAM_REPORT",
     "SKILL_PACK", "CODE_UPGRADER", "RECORDING_RETENTION",
+    "SEARXNG_URL", "NTFY_URL", "NTFY_TOPIC",  # self-hosted tools stack (URL-valued = set hone pe ON)
 ]
+
+
+# ------------- Self-hosted tools: free web research (SearXNG) ------------- #
+@router.get("/research/search")
+async def research_search(q: str, count: int = 10, user=Depends(require_admin)):
+    """FREE web search via self-hosted SearXNG (gated SEARXNG_URL).
+
+    Agents/UI ke liye research primitive — paid search API ki zaroorat nahi.
+    """
+    from app.integrations import searxng
+
+    if not searxng.enabled():
+        return {"enabled": False, "hint": "SEARXNG_URL env set karo (docker-compose.tools.yml)", "results": []}
+    results = await searxng.search(q, count=count)
+    return {"enabled": True, "query": q, "count": len(results), "results": results}
+
+
+@router.post("/notify/test")
+async def notify_test(user=Depends(require_admin)):
+    """ntfy phone-push test (gated NTFY_URL+NTFY_TOPIC)."""
+    from app.integrations import ntfy
+
+    if not ntfy.enabled():
+        return {"enabled": False, "hint": "NTFY_URL + NTFY_TOPIC env set karo"}
+    ok = await ntfy.push("Test 🔔", "LeadGen AI ntfy push kaam kar raha hai!", priority="default", tags=["white_check_mark"])
+    return {"enabled": True, "sent": ok}
 
 
 # ------------- Apollo-inspired: prospect search/lists/import + email finder ------------- #

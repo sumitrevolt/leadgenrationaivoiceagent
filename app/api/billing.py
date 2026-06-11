@@ -1357,6 +1357,19 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_asyn
             )
 
         elif event_type == "payment.captured":
+            # Phone push: paisa aaya (self-hosted ntfy, gated — best-effort, kabhi block nahi).
+            try:
+                from app.integrations import ntfy
+
+                _amt = float(pay_entity.get("amount") or 0) / 100.0
+                ntfy.push_bg(
+                    "Payment aaya 💰",
+                    f"₹{_amt:,.0f} captured — client={client_id or '?'} plan={plan_id or '?'}",
+                    priority="high",
+                    tags=["moneybag"],
+                )
+            except Exception:
+                pass
             # Voice-minute TOP-UP pack (payment-link/order with notes plan_id="topup_*"):
             # plan activate NAHI hota — sirf minutes credit + invoice. (Warna activate_plan
             # client ka plan 'topup_100' kar deta = plan break.)

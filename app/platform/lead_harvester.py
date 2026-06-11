@@ -131,17 +131,24 @@ async def _src_prospector(niche: str, city: str, limit: int) -> dict[str, Any]:
         return {"source": "prospector", "error": str(e)[:120], "leads": []}
 
 
-async def _src_websearch(niche: str, city: str, limit: int) -> dict[str, Any]:
-    """Brave Search (gated BRAVE_API_KEY) → business websites → public contacts.
-    Directory/social domains SKIP (ToS). Bina key = inert."""
+async def _web_results(q: str) -> tuple[str, list[dict[str, Any]]]:
+    """Search results waterfall: self-hosted SearXNG (FREE, gated SEARXNG_URL) →
+    Brave API (gated BRAVE_API_KEY). Returns (provider, [{title,url}]). '' = none."""
+    try:
+        from app.integrations import searxng
+
+        if searxng.enabled():
+            res = await searxng.search(q, count=10)
+            if res:
+                return "searxng", res
+    except Exception:
+        pass
     key = os.environ.get("BRAVE_API_KEY", "").strip()
     if not key:
-        return {"source": "websearch", "skipped": "no BRAVE_API_KEY", "leads": []}
-    leads: list[dict[str, Any]] = []
+        return "", []
     try:
         import httpx
 
-        q = f"{niche.replace('_', ' ')} {city} contact phone"
         async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, headers={"User-Agent": _UA}) as client:
             r = await client.get(
                 "https://api.search.brave.com/res/v1/web/search",
@@ -149,8 +156,26 @@ async def _src_websearch(niche: str, city: str, limit: int) -> dict[str, Any]:
                 headers={"X-Subscription-Token": key, "Accept": "application/json"},
             )
             if r.status_code != 200:
-                return {"source": "websearch", "error": f"brave {r.status_code}", "leads": []}
-            results = ((r.json().get("web") or {}).get("results") or [])[:10]
+                return "", []
+            return "brave", ((r.json().get("web") or {}).get("results") or [])[:10]
+    except Exception:
+        return "", []
+
+
+async def _src_websearch(niche: str, city: str, limit: int) -> dict[str, Any]:
+    """Web search (SearXNG self-hosted FREE → Brave fallback) → business websites
+    → public contacts. Directory/social domains SKIP (ToS). Bina dono = inert."""
+    if not (os.environ.get("SEARXNG_URL", "").strip() or os.environ.get("BRAVE_API_KEY", "").strip()):
+        return {"source": "websearch", "skipped": "no SEARXNG_URL/BRAVE_API_KEY", "leads": []}
+    leads: list[dict[str, Any]] = []
+    try:
+        import httpx
+
+        q = f"{niche.replace('_', ' ')} {city} contact phone"
+        provider, results = await _web_results(q)
+        if not results:
+            return {"source": "websearch", "error": f"no results (provider={provider or 'none'})", "leads": []}
+        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, headers={"User-Agent": _UA}) as client:
             fetched = 0
             for item in results:
                 url = str(item.get("url") or "")
@@ -186,7 +211,7 @@ async def _src_websearch(niche: str, city: str, limit: int) -> dict[str, Any]:
                 await asyncio.sleep(0.5)  # polite
     except Exception as e:
         return {"source": "websearch", "error": str(e)[:120], "leads": leads}
-    return {"source": "websearch", "leads": leads}
+    return {"source": "websearch", "provider": provider, "leads": leads}
 
 
 async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
@@ -374,7 +399,9 @@ def source_status() -> dict[str, Any]:
     return {
         "enabled_loop": enabled(),
         "prospector": bool(os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()) or "osm-fallback",
-        "websearch": bool(os.environ.get("BRAVE_API_KEY", "").strip()),
+        "websearch": bool(
+            os.environ.get("SEARXNG_URL", "").strip() or os.environ.get("BRAVE_API_KEY", "").strip()
+        ),
         "opendata": bool(os.environ.get("DATA_GOV_IN_API_KEY", "").strip()) and bool(os.environ.get("DATA_GOV_RESOURCE_ID", "").strip()),
         "blocked_domains_policy": list(_BLOCKED_DOMAINS[:6]) + ["..."],
     }

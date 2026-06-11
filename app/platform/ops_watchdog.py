@@ -127,6 +127,13 @@ def _should_alert(key: str) -> bool:
 
 
 async def _alert(subject: str, body: str) -> bool:
+    # Phone push bhi (self-hosted ntfy, gated NTFY_URL/TOPIC — best-effort).
+    try:
+        from app.integrations import ntfy
+
+        await ntfy.push(subject, body[:1500], priority="high", tags=["rotating_light"])
+    except Exception:
+        pass
     try:
         from app.config import settings
 
