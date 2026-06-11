@@ -203,6 +203,8 @@ class LeadDelivery:
             await self._deliver_sheets(lead, client_config, result)
         if _wanted("hubspot"):
             await self._deliver_hubspot(lead, client_config, result)
+        if _wanted("zoho"):
+            await self._deliver_zoho(lead, client_config, result)
         if _wanted("email"):
             await self._deliver_email(lead, client_config, result)
 
@@ -406,6 +408,41 @@ class LeadDelivery:
 
             result.mark_success(channel, info)
 
+        except Exception as e:
+            logger.error(f"{channel}: delivery failed: {e}")
+            result.mark_failed(channel, str(e))
+
+    # ---------------------------------------------------------------------
+    # CHANNEL: ZOHO CRM (Indian SMB native)
+    # ---------------------------------------------------------------------
+
+    async def _deliver_zoho(
+        self,
+        lead: dict[str, Any],
+        client_config: dict[str, Any],
+        result: DeliveryResult,
+    ):
+        channel = "zoho"
+        try:
+            from app.integrations.zoho_crm import ZohoCRM
+
+            # Per-client creds (client_config) ya global settings fallback.
+            z = ZohoCRM(
+                client_id=str(client_config.get("zoho_client_id") or ""),
+                client_secret=str(client_config.get("zoho_client_secret") or ""),
+                refresh_token=str(client_config.get("zoho_refresh_token") or ""),
+                dc=str(client_config.get("zoho_dc") or ""),
+            )
+            if not z.enabled:
+                logger.info(f"{channel}: skipped (not configured)")
+                result.mark_skipped(channel)
+                return
+            rid = await z.upsert_lead(lead, note=str(lead.get("qualification") or lead.get("notes") or ""))
+            if rid:
+                logger.info(f"{channel}: lead upserted id={rid}")
+                result.mark_success(channel, {"record_id": rid})
+            else:
+                result.mark_failed(channel, "upsert returned no id")
         except Exception as e:
             logger.error(f"{channel}: delivery failed: {e}")
             result.mark_failed(channel, str(e))

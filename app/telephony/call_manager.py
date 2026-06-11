@@ -474,6 +474,29 @@ class CallManager:
                                 _lead_usage.record_qualified_lead(_cid, ref=str(call_id))
                         except Exception:
                             pass
+                        # Native CRM sync (Zoho/HubSpot) — qualified lead client ke
+                        # apne CRM me. GATED CRM_SYNC=1, best-effort, never blocks.
+                        try:
+                            from app.platform import crm_sync as _crm
+
+                            if _crm.auto_enabled():
+                                await _crm.push_lead(
+                                    {
+                                        "business_name": getattr(context, "client_name", "") or "",
+                                        "phone": context.phone_number,
+                                        "source": "AI Voice Agent",
+                                        "score": _q.get("interest_score") or 0,
+                                    },
+                                    client_id=getattr(context, "client_id", "") or "",
+                                    note=(
+                                        f"Qualified by AI voice agent (call {call_id}).\n"
+                                        f"Score: {_q.get('interest_score')}/100\n"
+                                        f"Summary: {_q.get('summary', '')}\n"
+                                        f"Next action: {_q.get('next_action', '')}"
+                                    ),
+                                )
+                        except Exception:
+                            pass
         except Exception as _qe:
             logger.debug(f"[call_qualifier] auto-qualify skip: {_qe}")
 

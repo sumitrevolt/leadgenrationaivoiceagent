@@ -43,8 +43,10 @@ class HubSpotIntegration:
     - Notes
     """
 
-    def __init__(self):
-        self.api_key = settings.hubspot_api_key
+    def __init__(self, api_key: str | None = None):
+        # Per-client token override (client apna HubSpot private-app token de) —
+        # default = global settings (backward-compatible).
+        self.api_key = (api_key or settings.hubspot_api_key or "").strip()
         self.base_url = "https://api.hubapi.com"
 
         if self.api_key:
