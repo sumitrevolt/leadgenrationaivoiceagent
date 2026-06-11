@@ -31,10 +31,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install --no-deps -r requirements.lock.txt
           # -U + pins ZAROORI: lock me purane pytest/pytest-asyncio pinned hain —
-          # bina -U pip "already satisfied" bolke unhe rakh leta (CI run #1/#2 fail
-          # isi se: old pytest-asyncio = event-loop/fixture errors). Versions =
-          # Windows dev venv (jahan full suite green hai) ke exact.
-          pip install -U "pytest==9.0.2" "pytest-asyncio==1.3.0" "pytest-timeout==2.4.0" "httpx==0.28.1"
+          # bina -U pip "already satisfied" bolke unhe rakh leta (old pytest-asyncio
+          # = event-loop/fixture errors). httpx ko -U MAT karo: lock ke starlette ke
+          # saath httpx 0.28 TestClient(app) TypeError deta (run #3 lesson).
+          pip install -U "pytest==9.0.2" "pytest-asyncio==1.3.0" "pytest-timeout==2.4.0"
 
       - name: prod_check (import + routes gate)
         run: python scripts/prod_check.py
