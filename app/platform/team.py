@@ -94,6 +94,14 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "System health (service, AI providers, DB, disk), telephony balance/trunk status pe nazar",
         "schedule": "Har ghante + on-demand",
     },
+    "hermes": {
+        "product": "platform",
+        "name": "Hermes",
+        "emoji": "🛰️",
+        "title": "Infrastructure Handler",
+        "duties": "Poore infra ka scan — app readiness (db+redis), disk/memory, dead-man jobs, queue backlog, LLM chain, backup freshness → 0-100 score + Hinglish fix-actions; critical pe email alert (Kavya/Tara ke engines REUSE — aggregator/diagnoser)",
+        "schedule": "Har ghante (watchdog, gated INFRA_HANDLER) + pulse rotation",
+    },
     "isha": {
         "product": "marketing",
         "name": "Isha",
@@ -449,6 +457,17 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         except Exception:
             return "skill curation"
 
+    def _hermes() -> str:
+        try:
+            from app.platform import infra_handler
+
+            scans = infra_handler.recent_scans(limit=1)
+            if scans:
+                return f"infra {scans[0].get('score', '—')}/100 ({scans[0].get('status', '')})"
+            return "infra watch standby (INFRA_HANDLER scan pending)"
+        except Exception:
+            return "infra watch"
+
     # least-recently-active pehle (rotation) — taaki sab baari-baari pulse hon
     monitors = [
         ("kavya", "ops_pulse", _kavya),
@@ -459,6 +478,7 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         ("swara", "voice_pulse", _swara),
         ("vikram", "code_pulse", _vikram),
         ("guru", "skill_pulse", _guru),
+        ("hermes", "infra_pulse", _hermes),
     ]
     try:
         ts = team_status()

@@ -351,6 +351,9 @@ async def _run_job_inner(job: str) -> None:
             from app.telephony import telephony_readiness
 
             await telephony_readiness.run_watch()  # Tara: calling-launch readiness score (alert gated TELEPHONY_READY_ALERTS)
+            from app.platform import infra_handler
+
+            await infra_handler.run_watch()  # Hermes: full infra score+actions (alert gated INFRA_HANDLER; off = no-op)
             from app.platform import dlq_retry
 
             await dlq_retry.run_sweep()  # failed staff-jobs auto-retry+backoff (gated DLQ_AUTO_RETRY; off = no-op)

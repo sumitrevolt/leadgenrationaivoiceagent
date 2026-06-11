@@ -927,6 +927,23 @@ async def infra_automation_health(_user=Depends(require_admin)):
     return automation_health.health()
 
 
+@router.get("/infra/hermes")
+async def infra_hermes(_user=Depends(require_admin)):
+    """Hermes 🛰️ Infrastructure Handler: full infra snapshot — readiness, disk,
+    memory, dead-man jobs, queue, LLM chain, backups → score + Hinglish actions."""
+    from app.platform import infra_handler
+
+    return await infra_handler.snapshot()
+
+
+@router.get("/infra/hermes/scans")
+async def infra_hermes_scans(limit: int = 20, _user=Depends(require_admin)):
+    """Hermes ke recent hourly scans (gated INFRA_HANDLER=1 se aate hain)."""
+    from app.platform import infra_handler
+
+    return {"scans": infra_handler.recent_scans(max(1, min(limit, 100)))}
+
+
 @router.get("/infra/integrations")
 async def infra_integrations(hours: int = 24, _user=Depends(require_admin)):
     """Integration silent-failure counters: per-integration fail/ok/last-error
@@ -1037,7 +1054,7 @@ AUTOMATION_FLAGS = [
     "WHATSAPP_AUTO_SEND", "MISSED_CALL_CALLBACK", "SMS_DLT_ENABLED", "USE_SILERO_VAD",
     "USE_SMART_TURN", "USE_LIGHTRAG", "ENABLE_OTEL", "ENABLE_LEGACY_BEAT", "FESTIVALS_LIVE_HOLIDAYS",
     "TELEGRAM_AUTO_PUBLISH", "CLIENT_REPORTS", "CUSTOMER_WISHES", "RANK_TRACKER",
-    "MEMORY_VAULT", "LIVE_NOTES", "DLQ_AUTO_RETRY", "INTEGRATION_ALERTS",
+    "MEMORY_VAULT", "LIVE_NOTES", "DLQ_AUTO_RETRY", "INTEGRATION_ALERTS", "INFRA_HANDLER",
     "NPS_ALERTS", "PAYMENT_RECON", "INDEXNOW", "SALES_TEAM", "SELF_IMPROVE_LOOP", "LEAD_HARVESTER",
     "CALL_TRANSFER", "OUTREACH_AB", "SERVICE_REMINDERS",
     "NEWSLETTER_ENGINE", "WINBACK_ENGINE", "BRAND_PULSE", "TEAM_REPORT",
