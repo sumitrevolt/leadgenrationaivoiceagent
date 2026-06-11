@@ -6,6 +6,13 @@ Production-ready test fixtures with proper async handling
 import asyncio
 import os
 
+# TESTS ME AUTOMATION HAMESHA OFF (app.main import se PEHLE set karna zaroori):
+# TestClient(app) startup pe in-process team_scheduler chal jaata tha aur fresh
+# checkout (CI) pe growth-pulse job REAL OSM/Places scraping karne lagta —
+# urllib timeout=25 ke loops me poora pytest hang (CI runs #1-#9 lesson, 2026-06-11).
+os.environ.setdefault("RUN_IN_PROCESS_SCHEDULER", "0")
+os.environ.setdefault("TEAM_AUTOMATION", "0")
+
 # Use SQLite for tests (fast, no external dependencies)
 # DB lives in the OS temp dir — avoids polluting the repo and works on
 # network/mounted filesystems where SQLite locking can fail with disk I/O errors.
