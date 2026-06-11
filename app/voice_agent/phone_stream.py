@@ -357,6 +357,11 @@ class PhoneCallSession:
         pcm8k = self._decode_inbound(payload)  # PCM16 @ 8kHz
         if not pcm8k or not _AUDIOOP_OK:
             return
+        self._vad_on_frame(pcm8k)
+
+    def _vad_on_frame(self, pcm8k: bytes) -> None:
+        """Ek ~20ms PCM16@8k frame par energy VAD + turn detection. Subclasses
+        (e.g. Exotel PCM streams) decode/resample karke isi ko reuse karte hain."""
         try:
             rms = audioop.rms(pcm8k, 2)
         except Exception:

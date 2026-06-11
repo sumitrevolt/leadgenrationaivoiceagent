@@ -1087,6 +1087,38 @@ async def twilio_media_stream(websocket: WebSocket):
             pass
 
 
+@app.websocket("/ws/exotel-voicebot")
+async def exotel_voicebot_ws(websocket: WebSocket):
+    """Exotel AgentStream Voicebot applet — bidirectional voice stream.
+
+    Applet URL: wss://leadsgenai.in/ws/exotel-voicebot?sample-rate=16000
+    Optional custom params (Exotel max 3): niche / client_name / client_id.
+    """
+    try:
+        from app.voice_agent.exotel_stream import ExotelVoicebotSession
+
+        qp = websocket.query_params
+        sr_raw = qp.get("sample-rate") or qp.get("sample_rate") or "8000"
+        try:
+            sr = int(sr_raw)
+        except (TypeError, ValueError):
+            sr = 8000
+        session = ExotelVoicebotSession(
+            websocket,
+            sample_rate=sr,
+            niche=qp.get("niche") or "general",
+            client_name=qp.get("client_name") or "LeadGen AI",
+            client_id=qp.get("client_id"),
+        )
+        await session.handle()
+    except Exception as e:
+        logger.warning(f"Exotel voicebot stream error: {e}")
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+
 @app.get("/manifest.json", tags=["Frontend"])
 async def pwa_manifest():
     """PWA manifest at root scope so the app is installable (inline fallback if file missing)."""
