@@ -107,7 +107,7 @@ async def _competitive(p: dict) -> dict[str, Any]:
     """Dev: prospect ke paas abhi kya options hain + humara edge."""
     txt = await _llm(
         "Tum Dev ho — competitive analyst. Is local business ko marketing services bechne ja rahe hain "
-        "(AI posts+GBP+reviews+voice callbacks, ₹999-5999/mo). 3 Hinglish bullets: (1) yeh abhi marketing "
+        "(AI posts+GBP+reviews+voice callbacks, ₹1,199-6,999/mo). 3 Hinglish bullets: (1) yeh abhi marketing "
         "kaise karta hoga (2) humse pehle kis se compare karega (local agency/Dhanda-type app/khud) "
         "(3) humara 1-line killer differentiation iske liye. Sirf bullets.",
         _pdesc(p),
@@ -115,7 +115,7 @@ async def _competitive(p: dict) -> dict[str, Any]:
     if not txt:
         txt = ("- Abhi: word-of-mouth + kabhi-kabhi boosted post\n"
                "- Compare karega: local agency (₹8-15k/mo) ya DIY apps\n"
-               "- Humara edge: agency-level kaam ₹999 se + AI callback jo koi nahi deta")
+               "- Humara edge: agency-level kaam ₹1,199 se + AI callback jo koi nahi deta")
     return {"agent": "dev", "competitive": txt}
 
 
@@ -133,7 +133,7 @@ def build_sequence_fallback(p: dict) -> list[dict[str, str]]:
                   f"Haan bolo to abhi link bhej deta hoon."},
         {"day": "7", "channel": "email", "title": "Social proof",
          "draft": f"{nm}, {city} ke ek {niche} ne humare AI marketing se 30 din me inquiries double ki — "
-                  f"posts+reviews+missed-call callback sab automatic. ₹999/mo se start. Demo: leadsgenai.in/demo"},
+                  f"posts+reviews+missed-call callback sab automatic. ₹1,199/mo se start. Demo: leadsgenai.in/demo"},
         {"day": "14", "channel": "email", "title": "Different angle",
          "draft": f"{nm}, ek sawaal — jab koi customer call karta hai aur aap busy ho, woh kahan jata hai? "
                   f"Competitor ke paas. Humara AI 2-min me callback karta hai. Dekho: leadsgenai.in/pricing"},
@@ -170,7 +170,7 @@ async def _outreach(p: dict, qual: dict | None = None) -> dict[str, Any]:
 OBJECTION_PLAYBOOK = [
     {"objection": "Mehenga hai / budget nahi", "category": "price",
      "laer": "Acknowledge: bilkul sahi sawaal. Explore: abhi marketing pe mahine ka kitna jata hai? "
-             "Respond: ₹999 me jo milta hai uska agency rate ₹8-10k hai; ek naya customer bhi aaya to paisa vasool. "
+             "Respond: ₹1,199 me jo milta hai uska agency rate ₹8-10k hai; ek naya customer bhi aaya to paisa vasool. "
              "Redirect: Starter se shuru karo, kabhi bhi band kar sakte ho."},
     {"objection": "Pehle se koi (agency/ladka) sambhal raha hai", "category": "competition",
      "laer": "Acknowledge: badhiya, matlab marketing ki value samajhte ho. Explore: results se khush ho? reviews/callback "

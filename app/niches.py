@@ -11,12 +11,13 @@ Two-tier model:
   - Tier 2 (client → end customers): client ka voice agent uske END CUSTOMERS
     ko call karta hai — `target_type` batata hai wo audience B2C hai ya B2B.
 
-Pricing fields (INR, research-benchmarked):
-  pricing_inr = {
-    "qualified_lead": (min, max),   # per qualified lead delivered
-    "appointment": (min, max),      # per appointment/site-visit/consult booked
-    "monthly_starter": int,         # entry monthly plan (capped leads)
-  }
+Voice-product pricing (ADR-009, 2026-06-11): PER-LEAD pricing REMOVED.
+  lead_band = "A" | "B" | "C"   # Band A mass-local / B high-ticket / C premium-HNI
+  Actual prices (per-10-qualified-leads tiers + top-up packs) live in
+  app/marketing/voice_packages.py — yahan sirf band mapping.
+Product split: category "marketing" -> sirf Product 1 (AI Automated Marketing),
+  "leadgen" -> sirf Product 2 (AI Voice Calling Agent), "both" -> dono.
+  Helpers: niches_for_product() / niche_products() / lead_band().
 Backward-compatible fields retained: name, keywords, avg_deal_value,
 pitch_hook, qualification_questions.
 """
@@ -42,11 +43,7 @@ NICHES = {
         "avg_deal_value": "₹36,000–1,44,000/yr",
         "avg_ticket_inr": "₹3–12K/mo subscription (₹36K–1.44L/yr LTV)",
         "pitch_hook": "posts, Google ranking, festival posters — plus an AI that calls every inquiry in 2 minutes; no Indian competitor bundles both",
-        "pricing_inr": {
-            "qualified_lead": (300, 1000),
-            "appointment": (800, 2000),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹650)
         "qualification_questions": [
             "Abhi aap apni marketing kaise karte ho — khud, staff, ya agency?",
             "Google pe aapka business search karne par dikhta hai kya?",
@@ -70,11 +67,7 @@ NICHES = {
         "avg_deal_value": "₹40,00,000+",
         "avg_ticket_inr": "₹40L–1Cr (brokerage 1–2%)",
         "pitch_hook": "every portal lead called in under 5 minutes — site visits booked while competitors are still dialing",
-        "pricing_inr": {
-            "qualified_lead": (800, 2500),
-            "appointment": (3000, 7500),
-            "monthly_starter": 15000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1650)
         "qualification_questions": [
             "Are you actively buying leads from portals like 99acres or MagicBricks?",
             "How many site visits does your team complete per week?",
@@ -97,11 +90,7 @@ NICHES = {
         "avg_deal_value": "₹2,00,00,000+",
         "avg_ticket_inr": "₹2Cr+ (brokerage ₹2L+/deal)",
         "pitch_hook": "re-engage your cold database of HNI investors",
-        "pricing_inr": {
-            "qualified_lead": (3000, 6000),
-            "appointment": (7500, 15000),
-            "monthly_starter": 25000,
-        },
+        "lead_band": "C",  # voice-product band (ADR-009; old per-lead mid ₹4500)
         "qualification_questions": [
             "Do you handle properties above 2 Cr?",
             "Are you currently looking for HNI investors?",
@@ -124,11 +113,7 @@ NICHES = {
         "avg_deal_value": "₹2,00,000+",
         "avg_ticket_inr": "₹2–3L commission/enrolled student (10–15% of first-year tuition)",
         "pitch_hook": "every inquiry counselled within minutes — enrollments worth ₹2-3L commission each",
-        "pricing_inr": {
-            "qualified_lead": (1000, 2500),
-            "appointment": (2000, 4000),
-            "monthly_starter": 20000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1750)
         "qualification_questions": [
             "Do you handle admissions for USA/UK/Canada?",
             "Are you looking for students with budget above 20L?",
@@ -152,11 +137,7 @@ NICHES = {
         "avg_deal_value": "₹25,00,000+",
         "avg_ticket_inr": "₹23–33L avg ticket (DSA payout 0.5–1.5%)",
         "pitch_hook": "your telecalling team replaced — eligibility-checked, doc-ready borrowers on your calendar",
-        "pricing_inr": {
-            "qualified_lead": (500, 1500),
-            "appointment": (1500, 3000),
-            "monthly_starter": 15000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1000)
         "qualification_questions": [
             "Are you an active DSA with bank/NBFC tie-ups?",
             "What loan ticket sizes do you focus on?",
@@ -179,11 +160,7 @@ NICHES = {
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1.5–1.8L per 3kW install (PM Surya Ghar demand)",
         "pitch_hook": "subsidy-curious homeowners qualified for roof & bill size before your surveyor leaves the office",
-        "pricing_inr": {
-            "qualified_lead": (400, 1000),
-            "appointment": (800, 1500),
-            "monthly_starter": 12000,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹700)
         "qualification_questions": [
             "Do you install residential rooftop systems?",
             "Which cities/areas do you cover?",
@@ -206,11 +183,7 @@ NICHES = {
         "avg_deal_value": "₹20,00,000+",
         "avg_ticket_inr": "₹20L+ per C&I project",
         "pitch_hook": "qualify factory owners for roof suitability before you visit",
-        "pricing_inr": {
-            "qualified_lead": (1500, 3000),
-            "appointment": (3000, 6000),
-            "monthly_starter": 20000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹2250)
         "qualification_questions": [
             "Do you handle commercial installations above 100kW?",
             "Are you looking for industrial leads?",
@@ -234,11 +207,7 @@ NICHES = {
         "avg_deal_value": "₹25,000+",
         "avg_ticket_inr": "₹15–50K premium (35–40% first-year commission)",
         "pitch_hook": "renewal reminders + new-policy qualification on autopilot — the classic telesales niche without telecaller churn",
-        "pricing_inr": {
-            "qualified_lead": (300, 800),
-            "appointment": (800, 1500),
-            "monthly_starter": 10000,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹550)
         "qualification_questions": [
             "Are you an IRDAI-registered agent/broker/POSP?",
             "Which products do you focus on — health, term, motor?",
@@ -262,11 +231,7 @@ NICHES = {
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1.5–2.5L/year fees (₹58,000Cr industry)",
         "pitch_hook": "every admission inquiry counselled the same hour — seats filled before parents compare brochures",
-        "pricing_inr": {
-            "qualified_lead": (500, 1200),
-            "appointment": (1000, 2000),
-            "monthly_starter": 15000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹850)
         "qualification_questions": [
             "Which exams do you coach for?",
             "What is your annual fee structure?",
@@ -288,11 +253,7 @@ NICHES = {
         "avg_deal_value": "₹10,00,000+",
         "avg_ticket_inr": "₹4–20L per 2BHK project",
         "pitch_hook": "possession-ready homeowners qualified by budget before your designer picks up the phone",
-        "pricing_inr": {
-            "qualified_lead": (1000, 2500),
-            "appointment": (2000, 4000),
-            "monthly_starter": 15000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1750)
         "qualification_questions": [
             "Do you handle turnkey residential projects?",
             "What is your minimum project budget?",
@@ -315,11 +276,7 @@ NICHES = {
         "avg_deal_value": "₹2,00,000+",
         "avg_ticket_inr": "₹1.2–6.5L per kitchen",
         "pitch_hook": "showroom visits from budget-qualified homeowners, not window shoppers",
-        "pricing_inr": {
-            "qualified_lead": (600, 1500),
-            "appointment": (1200, 2500),
-            "monthly_starter": 12000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1050)
         "qualification_questions": [
             "Do you manufacture in-house or trade?",
             "Are you looking for direct homeowner leads?",
@@ -338,11 +295,7 @@ NICHES = {
         "avg_deal_value": "₹50,000+",
         "avg_ticket_inr": "₹20–50K/tooth, full-mouth ₹3–8L",
         "pitch_hook": "fill your empty chair slots with high-value implant patients",
-        "pricing_inr": {
-            "qualified_lead": (500, 1500),
-            "appointment": (1000, 2200),
-            "monthly_starter": 12000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1000)
         "qualification_questions": [
             "Do you offer dental implants?",
             "Are you looking to increase high-ticket patient footfall?",
@@ -361,11 +314,7 @@ NICHES = {
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1–3.5L per procedure",
         "pitch_hook": "consults booked at half the ₹4,000+ cost-per-qualified-lead you pay ads today",
-        "pricing_inr": {
-            "qualified_lead": (1200, 2500),
-            "appointment": (2000, 4000),
-            "monthly_starter": 15000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1850)
         "qualification_questions": [
             "How many consults does your counselor team handle daily?",
             "What is your average procedure value?",
@@ -384,11 +333,7 @@ NICHES = {
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1–2.5L per cycle",
         "pitch_hook": "compassionate 24/7 intake — every inquiry answered, qualified and booked with a counselor",
-        "pricing_inr": {
-            "qualified_lead": (800, 2200),
-            "appointment": (1800, 3500),
-            "monthly_starter": 15000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1500)
         "qualification_questions": [
             "How many new patient inquiries do you get monthly?",
             "Do you have counselors for first-call intake?",
@@ -407,11 +352,7 @@ NICHES = {
         "avg_deal_value": "₹75,000+",
         "avg_ticket_inr": "₹50K–1.25L per case",
         "pitch_hook": "eligibility-scored PR aspirants on your counselors' calendars every morning",
-        "pricing_inr": {
-            "qualified_lead": (800, 2000),
-            "appointment": (1500, 3000),
-            "monthly_starter": 15000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1400)
         "qualification_questions": [
             "Which countries do you process — Canada, Australia, UK?",
             "Are you ICCRC/MARA registered or partnered?",
@@ -434,11 +375,7 @@ NICHES = {
         "avg_deal_value": "₹10,00,000+",
         "avg_ticket_inr": "₹2–25L/booking (avg Indian wedding ₹39.5L)",
         "pitch_hook": "date-and-budget-matched venue visits — calendars filled for the season before rivals reply",
-        "pricing_inr": {
-            "qualified_lead": (500, 1500),
-            "appointment": (800, 2000),
-            "monthly_starter": 12000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1000)
         "qualification_questions": [
             "What is your guest capacity?",
             "Are you looking for corporate event bookings as well?",
@@ -457,11 +394,7 @@ NICHES = {
         "avg_deal_value": "₹4,00,000+",
         "avg_ticket_inr": "₹3–5L core segment (market $36B→$83B)",
         "pitch_hook": "test drives booked from portal leads in minutes — and trade-in sellers qualified for procurement",
-        "pricing_inr": {
-            "qualified_lead": (300, 800),
-            "appointment": (400, 800),
-            "monthly_starter": 10000,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹550)
         "qualification_questions": [
             "How many cars do you retail monthly?",
             "Do you buy leads from CarWale/Cars24/OLX today?",
@@ -484,11 +417,7 @@ NICHES = {
         "avg_deal_value": "₹1,00,000+",
         "avg_ticket_inr": "₹50K–3L per program",
         "pitch_hook": "the BYJU's-style telecalling engine — without the 200-person telecalling floor",
-        "pricing_inr": {
-            "qualified_lead": (300, 800),
-            "appointment": (800, 1500),
-            "monthly_starter": 10000,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹550)
         "qualification_questions": [
             "What programs do you sell and at what ticket size?",
             "Do you have an inside-sales team today?",
@@ -512,11 +441,7 @@ NICHES = {
         "avg_deal_value": "₹1,00,000+",
         "avg_ticket_inr": "8.33–16.67% of CTC ≈ ₹50K–2L per placement",
         "pitch_hook": "screen 200 candidates a day and qualify new employer mandates — one agent, both sides",
-        "pricing_inr": {
-            "qualified_lead": (300, 800),
-            "appointment": (1500, 3000),
-            "monthly_starter": 15000,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹550)
         "qualification_questions": [
             "Do you do permanent hiring, staffing, or both?",
             "How many open mandates are you working?",
@@ -542,11 +467,7 @@ NICHES = {
         "avg_deal_value": "₹5,00,000+",
         "avg_ticket_inr": "₹5L+ projects; AMC recurring",
         "pitch_hook": "secure high-value AMC contracts with IT parks",
-        "pricing_inr": {
-            "qualified_lead": (1500, 3000),
-            "appointment": (3000, 5000),
-            "monthly_starter": 15000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹2250)
         "qualification_questions": [
             "Do you take AMC contracts for IT parks/malls?",
             "What is your minimum project size?",
@@ -565,11 +486,7 @@ NICHES = {
         "avg_deal_value": "₹2,00,000+",
         "avg_ticket_inr": "₹50K–50L orders (IndiaMART BuyLead ₹16–24 raw)",
         "pitch_hook": "every IndiaMART RFQ called back in 5 minutes — before the other 6 suppliers wake up",
-        "pricing_inr": {
-            "qualified_lead": (150, 400),
-            "appointment": (500, 1200),
-            "monthly_starter": 8000,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹275)
         "qualification_questions": [
             "Are you buying BuyLeads on IndiaMART today?",
             "What is your average order value?",
@@ -592,11 +509,7 @@ NICHES = {
         "avg_deal_value": "₹3,00,000+",
         "avg_ticket_inr": "₹2.9–3.2L per international trip (couple)",
         "pitch_hook": "itinerary-ready travellers with dates and budgets locked — not brochure collectors",
-        "pricing_inr": {
-            "qualified_lead": (400, 1000),
-            "appointment": (800, 1500),
-            "monthly_starter": 10000,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹700)
         "qualification_questions": [
             "Which destinations do you specialize in?",
             "What is your average package value?",
@@ -615,11 +528,7 @@ NICHES = {
         "avg_deal_value": "₹30,000+",
         "avg_ticket_inr": "₹11–55K intercity moves",
         "pitch_hook": "fastest quote wins the move — your agent calls back in 60 seconds, day or night",
-        "pricing_inr": {
-            "qualified_lead": (200, 500),
-            "appointment": (400, 800),
-            "monthly_starter": 8000,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹350)
         "qualification_questions": [
             "Which routes/cities do you cover?",
             "How many moves do you handle monthly?",
@@ -643,11 +552,7 @@ NICHES = {
         "avg_deal_value": "₹5,00,000+",
         "avg_ticket_inr": "MICE market $37.75B; corporate events high-value",
         "pitch_hook": "banquet inquiries qualified for date, size and budget — sales team only talks to real events",
-        "pricing_inr": {
-            "qualified_lead": (1000, 2500),
-            "appointment": (2000, 4000),
-            "monthly_starter": 15000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1750)
         "qualification_questions": [
             "What is your banquet/hall capacity?",
             "Do you target corporate MICE business?",
@@ -666,11 +571,7 @@ NICHES = {
         "avg_deal_value": "₹50,000/mo",
         "avg_ticket_inr": "₹15–50K/mo retainers",
         "pitch_hook": "white-label our voice agents — sell lead-gen calling to your clients under your brand",
-        "pricing_inr": {
-            "qualified_lead": (800, 2000),
-            "appointment": (1500, 3000),
-            "monthly_starter": 12000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1400)
         "qualification_questions": [
             "Are you accepting new white-label partners?",
             "What is your minimum retainer?",
@@ -694,11 +595,7 @@ NICHES = {
         "avg_deal_value": "₹50,000+",
         "avg_ticket_inr": "₹10–50K recurring engagements",
         "pitch_hook": "compliance-season pipelines filled — qualified SMBs booked while rivals rely on referrals",
-        "pricing_inr": {
-            "qualified_lead": (600, 1500),
-            "appointment": (1200, 2500),
-            "monthly_starter": 10000,
-        },
+        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1050)
         "qualification_questions": [
             "Which services do you focus on — GST, ROC, audit, IP?",
             "Do you serve startups/SMBs?",
@@ -722,11 +619,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "roz ki dish reels, menu posters aur festival offers — Insta+Google pe aapka restaurant chamke, footfall badhe",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi aap restaurant ki marketing kaise karte ho — khud post karte ho ya koi karta hai?",
             "Instagram aur Google pe roz naye photos/reels daalte ho kya?",
@@ -745,11 +638,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "Dhanteras-Diwali-shaadi season ke designer posters aur offer creatives — har tyohaar pe aapka store sabse aage dikhe",
-        "pricing_inr": {
-            "qualified_lead": (150, 400),
-            "appointment": (200, 500),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹275)
         "qualification_questions": [
             "Abhi jewellery store ki marketing kaise hoti hai — khud ya koi designer?",
             "Festival aur shaadi season pe offer posters kaun banata hai?",
@@ -768,11 +657,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "before-after reels, monthly offers aur Google reviews — naye customers khud appointment book karein",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi salon ki marketing kaise karte ho — Insta khud chalate ho ya koi?",
             "Before-after photos ya reels banate ho customers ke liye?",
@@ -791,11 +676,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "nayi collection ke reels aur festival offer posters — Insta+WhatsApp pe customers daily naye design dekhein",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi boutique ki marketing kaise hoti hai — khud post karte ho?",
             "Nayi collection aane par Instagram/WhatsApp pe daalte ho kya?",
@@ -814,11 +695,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "member transformation reels aur New-Year/Jan offers — naye joinings aapke gym me khud aayein",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi gym ki marketing kaise karte ho — Insta khud chalate ho?",
             "Members ke transformation/results post karte ho kya?",
@@ -837,11 +714,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "Diwali-Raksha Bandhan ke mithai posters aur cake reels — har festival pe aapke orders badhein",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi bakery/sweet shop ki marketing kaise hoti hai?",
             "Festival pe special items ke posters kaun banata hai?",
@@ -860,11 +733,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "naye launch aur EMI/exchange offer ke posters — festival sale pe aapki shop sabse aage dikhe",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi mobile/electronics shop ki marketing kaise karte ho?",
             "Naye phone launch ya offer ke posters kaun banata hai?",
@@ -883,11 +752,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "venue reels, festival packages aur Google reviews — bookings aur enquiries direct aapke paas aayein",
-        "pricing_inr": {
-            "qualified_lead": (150, 400),
-            "appointment": (200, 500),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹275)
         "qualification_questions": [
             "Abhi hotel/resort ki marketing kaise hoti hai — khud ya koi agency?",
             "Festival ya season package ke posters kaun banata hai?",
@@ -906,11 +771,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "service-offer aur seasonal-check posters — Google pe rank karke nazdeeki gaadi-walon ko laaye",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi service center ki marketing kaise karte ho?",
             "Google pe aapka garage search karne par dikhta hai kya?",
@@ -934,11 +795,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "aapke best shoots ke portfolio reels — Insta pe dikhe to wedding aur event bookings khud aayein",
-        "pricing_inr": {
-            "qualified_lead": (150, 400),
-            "appointment": (200, 500),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹275)
         "qualification_questions": [
             "Abhi studio ki marketing kaise hoti hai — khud Insta chalate ho?",
             "Apne best shoots ke reels banate ho kya?",
@@ -957,11 +814,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "Google Business Profile + health-day posts — nazdeeki log aapki dukaan dhoondh ke pahunchein aur delivery maangein",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Google pe aapka medical store search karne par dikhta hai kya?",
             "Home delivery offer karte ho — log ko pata hai kya?",
@@ -986,11 +839,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "product catalog posters aur festival offers — naye design Insta+WhatsApp pe dikhein, footfall badhe",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi furniture showroom ki marketing kaise karte ho?",
             "Naye products ke photos/catalog Insta pe daalte ho kya?",
@@ -1015,11 +864,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "weekly WhatsApp offers aur festival posters — mohalle ke customers baar-baar aapki dukaan pe aayein",
-        "pricing_inr": {
-            "qualified_lead": (80, 250),
-            "appointment": (120, 350),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹165)
         "qualification_questions": [
             "Abhi customers ko offers kaise batate ho — WhatsApp pe ya nahi?",
             "Festival ya monthly offer ke posters kaun banata hai?",
@@ -1044,11 +889,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "season package posters aur destination reels — Insta+WhatsApp pe travellers khud enquiry karein",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi travel agency ki marketing kaise hoti hai?",
             "Package ya offer ke posters kaun banata hai?",
@@ -1067,11 +908,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "Rakhi-Diwali-Valentine ke gift posters aur offers — har occasion pe customers aapki shop yaad rakhein",
-        "pricing_inr": {
-            "qualified_lead": (80, 250),
-            "appointment": (120, 350),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹165)
         "qualification_questions": [
             "Abhi gift/stationery shop ki marketing kaise karte ho?",
             "Festival aur occasion ke posters kaun banata hai?",
@@ -1096,11 +933,7 @@ NICHES = {
         "avg_deal_value": "₹35,988/yr",
         "avg_ticket_inr": "₹2,999/mo retainer (₹36K/yr LTV)",
         "pitch_hook": "offer aur festival posters + Google listing — contractors aur ghar-walon ko aapki dukaan aasani se mile",
-        "pricing_inr": {
-            "qualified_lead": (100, 300),
-            "appointment": (150, 400),
-            "monthly_starter": 2999,
-        },
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹200)
         "qualification_questions": [
             "Abhi hardware/paint shop ki marketing kaise hoti hai?",
             "Google pe aapki dukaan search karne par dikhti hai kya?",
@@ -1170,7 +1003,7 @@ def add_custom_niche(
     avg_ticket_inr: str = "",
     pitch_hook: str = "",
     qualification_questions: list = None,
-    pricing_inr: dict = None,
+    lead_band: str = "A",
     key: str = None,
 ) -> tuple:
     """
@@ -1183,7 +1016,7 @@ def add_custom_niche(
         raise ValueError(f"Niche '{nkey}' already exists")
     if target_type not in ("b2c", "b2b", "both"):
         raise ValueError("target_type must be b2c | b2b | both")
-    pricing = pricing_inr or {}
+    _band = str(lead_band or "A").strip().upper()
     cfg = {
         "name": name.strip(),
         "tier": "C",  # custom tier — dropdown me [custom] group
@@ -1201,11 +1034,7 @@ def add_custom_niche(
         "avg_ticket_inr": avg_ticket_inr or "varies",
         "pitch_hook": pitch_hook
         or f"bring qualified {name} customers to your business on autopilot",
-        "pricing_inr": {
-            "qualified_lead": tuple(pricing.get("qualified_lead", (300, 1500))),
-            "appointment": tuple(pricing.get("appointment", (800, 2500))),
-            "monthly_starter": int(pricing.get("monthly_starter", 12000)),
-        },
+        "lead_band": _band if _band in ("A", "B", "C") else "A",
         "qualification_questions": qualification_questions
         or [
             f"Are you currently looking for more {name} customers?",
@@ -1263,3 +1092,29 @@ def niches_by_target(target_type: str) -> dict:
     """Return niches whose END CUSTOMERS match 'b2c' | 'b2b' (includes 'both')."""
     refresh_custom_niches()
     return {k: v for k, v in NICHES.items() if v.get("target_type") in (target_type, "both")}
+
+
+def niche_products(cfg: dict) -> list:
+    """Niche kis PRODUCT me bikta hai (ADR-009 two-product split).
+
+    category: "marketing" -> sirf Product 1 (AI Automated Marketing);
+    "leadgen" -> sirf Product 2 (AI Voice Calling Agent); "both"/missing -> dono.
+    """
+    cat = str((cfg or {}).get("category") or "both").strip().lower()
+    return {"marketing": ["marketing"], "leadgen": ["voice"]}.get(cat, ["marketing", "voice"])
+
+
+def niches_for_product(product: str) -> dict:
+    """product='marketing' | 'voice' ke niches — dono products ke niche sets ALAG."""
+    refresh_custom_niches()
+    p = (product or "").strip().lower()
+    if p not in ("marketing", "voice"):
+        return dict(NICHES)
+    return {k: v for k, v in NICHES.items() if p in niche_products(v)}
+
+
+def lead_band(key: str) -> str:
+    """Voice-product pricing band ('A'|'B'|'C') for a niche key — default 'A'."""
+    refresh_custom_niches()
+    b = str((NICHES.get((key or "").strip().lower()) or {}).get("lead_band") or "A").upper()
+    return b if b in ("A", "B", "C") else "A"

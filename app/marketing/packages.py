@@ -8,7 +8,12 @@ Positioning (June 2026, CLARIFIED): hum DO alag products banate hain —
      /app/marketing me built. Advanced tier me **AI voice agent ek FEATURE**
      hai: inquiry auto-callback, lead qualification calls, missed-call follow-ups.
   2. **AI Voice Calling Agent** (ALAG standalone product) — full AI telecaller
-     (outbound/DLT-gated); iski pricing/page alag hai, yahan NAHI.
+     (outbound/DLT-gated); iski pricing **`voice_packages.py`** me (page /voice-agent),
+     model = per-niche per-10-qualified-leads (ADR-009). Yahan NAHI.
+
+Prices (research-revised 2026-06-11, ADR-009): Starter ₹1,199 · Growth ₹2,999 ·
+Advanced ₹6,999 (anchors: Dhanda ₹7,999/yr, Predis Lite ~₹2,700/mo social-only,
+agency retainer ₹10-25k/mo). Yearly = 10x monthly (2 mahine FREE).
 
 USP (marketing product ka): koi bhi Indian marketing competitor (Dhanda
 ₹7,999/yr, AdBanao, Predis) AI voice-callback FEATURE nahi deta — isliye
@@ -28,10 +33,10 @@ PACKAGES: list[dict] = [
         "key": "starter",
         "name": "Marketing Starter",
         "tagline": "Roz ka content + Google presence — sab AI se, aapka time zero. 100% marketing-only plan.",
-        "price_inr_month": 999,
-        "price_inr_year": 9990,  # 10x monthly = 2 mahine FREE (research: 16.7% standard, churn ~27% kam)
-        "annual_note": "Saal bhar ka ek saath: ₹9,990 (2 mahine FREE)",
-        "price_note": "100% marketing-only — koi calling charge nahi · roz ke ₹33 me poora setup (billed annually or ₹1,299/mo)",
+        "price_inr_month": 1199,
+        "price_inr_year": 11990,  # 10x monthly = 2 mahine FREE (research: 16.7% standard, churn ~27% kam)
+        "annual_note": "Saal bhar ka ek saath: ₹11,990 (2 mahine FREE)",
+        "price_note": "100% marketing-only — koi calling charge nahi · roz ke ₹40 se kam me poora marketing setup",
         "marketing_only": True,
         "features": [
             "AI social media posts + festival calendar (Diwali, Holi, sab covered)",
@@ -48,9 +53,9 @@ PACKAGES: list[dict] = [
         "key": "growth",
         "name": "Growth",
         "tagline": "Poora marketing engine — content, competitor aur leads sab automatic. 100% marketing-only plan.",
-        "price_inr_month": 2499,
-        "price_inr_year": 24990,  # 2 mahine FREE
-        "annual_note": "Saal bhar ka ek saath: ₹24,990 (2 mahine FREE)",
+        "price_inr_month": 2999,
+        "price_inr_year": 29990,  # 2 mahine FREE
+        "annual_note": "Saal bhar ka ek saath: ₹29,990 (2 mahine FREE)",
         "price_note": "100% marketing-only — koi calling charge nahi · sab kuch Starter ka + growth tools",
         "marketing_only": True,
         "features": [
@@ -70,9 +75,9 @@ PACKAGES: list[dict] = [
         "key": "advanced",
         "name": "Advanced AI Agent",
         "tagline": "Growth ka poora marketing + AI Voice Agent feature — har inquiry ko AI khud call kare. India me sirf yahan.",
-        "price_inr_month": 5999,
-        "price_inr_year": 59990,  # 2 mahine FREE
-        "annual_note": "Saal bhar ka ek saath: ₹59,990 (2 mahine FREE)",
+        "price_inr_month": 6999,
+        "price_inr_year": 69990,  # 2 mahine FREE
+        "annual_note": "Saal bhar ka ek saath: ₹69,990 (2 mahine FREE)",
         "price_note": "telephony usage included up to 500 min/mo",
         "marketing_only": False,
         "features": [

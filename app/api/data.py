@@ -310,15 +310,17 @@ async def generate_report(
 
 
 @router.get("/niches")
-async def get_available_niches(target_type: str = None, tier: str = None):
+async def get_available_niches(target_type: str = None, tier: str = None, product: str = None):
     """
     List available industry niches (research-finalized top 25 + custom).
-    Optional filters: target_type=b2c|b2b (end-customer audience), tier=S|A|B|C.
+    Optional filters: target_type=b2c|b2b (end-customer audience), tier=S|A|B|C,
+    product=marketing|voice (ADR-009 — dono products ke niche sets ALAG).
     """
-    from app.niches import NICHES, refresh_custom_niches
+    from app.niches import NICHES, niche_products, refresh_custom_niches
 
     refresh_custom_niches()
 
+    p = (product or "").strip().lower()
     niches = [
         {
             "id": key,
@@ -331,14 +333,16 @@ async def get_available_niches(target_type: str = None, tier: str = None):
             "b2b_client": config.get("b2b_client"),
             "end_customer": config.get("end_customer"),
             "avg_ticket_inr": config.get("avg_ticket_inr", config.get("avg_deal_value")),
-            "pricing_inr": config.get("pricing_inr"),
+            "products": niche_products(config),
+            "lead_band": config.get("lead_band", "A"),
         }
         for key, config in NICHES.items()
         if (not target_type or config.get("target_type") in (target_type.lower(), "both"))
         and (not tier or config.get("tier") == tier.upper())
+        and (p not in ("marketing", "voice") or p in niche_products(config))
     ]
 
-    return {"niches": niches, "count": len(niches)}
+    return {"niches": niches, "count": len(niches), "product": p or "all"}
 
 
 class NicheCreate(BaseModel):
@@ -353,9 +357,7 @@ class NicheCreate(BaseModel):
     pitch_hook: str = ""
     keywords: list[str] | None = None
     qualification_questions: list[str] | None = None
-    pricing_inr: dict | None = (
-        None  # {qualified_lead:[min,max], appointment:[min,max], monthly_starter:int}
-    )
+    lead_band: str = "A"  # voice-product band A|B|C (ADR-009; per-lead pricing removed)
 
 
 @router.post("/niches")
@@ -380,7 +382,7 @@ async def create_custom_niche(
             pitch_hook=payload.pitch_hook,
             keywords=payload.keywords,
             qualification_questions=payload.qualification_questions,
-            pricing_inr=payload.pricing_inr,
+            lead_band=payload.lead_band,
         )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))

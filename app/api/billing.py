@@ -1382,6 +1382,31 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_asyn
                         logger.info(f"topup credited: client={client_id} +{minutes} min")
                 except Exception as te:  # pragma: no cover - defensive
                     logger.warning(f"topup credit failed for {client_id}: {te}")
+            # Qualified-LEAD top-up pack (Product 2: voice agent, ADR-009) —
+            # notes plan_id="lead_pack_10" + band. Plan activate NAHI hota.
+            elif client_id and str(plan_id or "").startswith("lead_pack"):
+                try:
+                    from app.billing import lead_usage as _lead_usage
+                    from app.marketing.voice_packages import LEAD_TOPUP_PACK, lead_topup_price
+
+                    band = str((notes or {}).get("band") or "A").upper()
+                    leads = int(LEAD_TOPUP_PACK.get("leads") or 10)
+                    if _lead_usage.add_topup_leads(
+                        client_id, leads, ref=str(pay_entity.get("id") or "")
+                    ):
+                        amount_inr = float(pay_entity.get("amount") or 0) / 100.0
+                        from app.billing import gst_invoice
+
+                        await gst_invoice.on_payment_success(
+                            client_id,
+                            str(plan_id),
+                            payment_ref=str(pay_entity.get("id") or ""),
+                            gateway="razorpay",
+                            amount_inr=amount_inr or float(lead_topup_price(band)),
+                        )
+                        logger.info(f"lead pack credited: client={client_id} +{leads} leads")
+                except Exception as te:  # pragma: no cover - defensive
+                    logger.warning(f"lead pack credit failed for {client_id}: {te}")
             # One-off captured payment (e.g. order-based checkout / annual prepay).
             elif client_id:
                 sub = await _activate_subscription_row(

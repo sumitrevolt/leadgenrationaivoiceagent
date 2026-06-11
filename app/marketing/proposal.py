@@ -17,9 +17,9 @@ logger = setup_logger(__name__)
 
 BASE = "https://leadsgenai.in"
 PLANS = {
-    "starter": {"name": "Starter", "price": 999, "for": "marketing only (posts, GBP, reviews, WhatsApp)"},
-    "growth": {"name": "Growth", "price": 2499, "for": "+ content calendar, competitor, lead-form, monthly report"},
-    "advanced": {"name": "Advanced", "price": 5999, "for": "+ AI voice agent (inquiry call 2-min, qualification, 500 min/mo)"},
+    "starter": {"name": "Starter", "price": 1199, "for": "marketing only (posts, GBP, reviews, WhatsApp)"},
+    "growth": {"name": "Growth", "price": 2999, "for": "+ content calendar, competitor, lead-form, monthly report"},
+    "advanced": {"name": "Advanced", "price": 6999, "for": "+ AI voice agent (inquiry call 2-min, qualification, 500 min/mo)"},
 }
 
 

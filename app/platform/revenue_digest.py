@@ -25,7 +25,7 @@ _LOG = os.path.join("data", "revenue_digest.jsonl")
 _IST = timezone(timedelta(hours=5, minutes=30))
 
 # plan -> monthly price (packages.py truth se mirror; import-fail pe yahi fallback)
-_PLAN_PRICE = {"starter": 999, "growth": 2499, "advanced": 5999}
+_PLAN_PRICE = {"starter": 1199, "growth": 2999, "advanced": 6999}  # packages.py truth (ADR-009)
 
 
 def _enabled() -> bool:

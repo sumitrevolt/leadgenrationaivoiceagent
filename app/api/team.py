@@ -16,10 +16,17 @@ router = APIRouter(prefix="/platform/team", tags=["Team"])
 
 
 @router.get("")
-async def get_team_status(current_user: User = Depends(require_admin)):
+async def get_team_status(product: str | None = None, current_user: User = Depends(require_admin)):
+    """?product=marketing|voice => sirf us product ke agents + shared platform staff (ADR-009)."""
     try:
         from app.platform import team
-        return team.team_status()
+        status = team.team_status()
+        p = (product or "").strip().lower()
+        if p in ("marketing", "voice") and isinstance(status.get("members"), list):
+            keep = set(team.staff_for_product(p))
+            status["members"] = [m for m in status["members"] if m.get("key") in keep]
+            status["product"] = p
+        return status
     except Exception as e:
         logger.warning(f"[team-api] status failed: {e}")
         return {"error": str(e), "members": [], "totals": {}}

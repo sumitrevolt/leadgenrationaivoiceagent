@@ -377,6 +377,12 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"VoiceAI router not mounted: {_e}")
 try:
+    from app.api.voice_product import router as voice_product_router
+
+    app.include_router(voice_product_router, prefix="/api")  # /api/voice/* (Product 2: packages, quota, lead packs — ADR-009)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Voice Product router not mounted: {_e}")
+try:
     from app.api.localseo import router as localseo_router
 
     app.include_router(localseo_router, prefix="/api")  # /api/localseo/* (geo-visibility, grid-rank, listings)
@@ -696,6 +702,16 @@ async def public_demo_page():
     return FileResponse(str(_website_dir / "demo.html"))
 
 
+@app.get("/voice-agent", tags=["Frontend"])
+async def voice_agent_product_page():
+    """PUBLIC: Product 2 — AI Voice Calling Agent (standalone) landing + pricing.
+
+    Pricing GET /api/voice/packages se (per-niche per-10-qualified-leads, ADR-009).
+    Marketing product (/pricing) se ALAG page — bundle framing nahi.
+    """
+    return FileResponse(str(_website_dir / "voice-agent.html"))
+
+
 @app.get("/privacy", tags=["Frontend"])
 async def privacy_page():
     """Privacy policy (static legal page)."""
@@ -752,7 +768,7 @@ async def sitemap_xml():
     except Exception:
         pass
 
-    static_paths = ["/", "/audit", "/app/test-call", "/privacy", "/terms", "/refund"]
+    static_paths = ["/", "/audit", "/pricing", "/voice-agent", "/demo", "/site-audit", "/app/test-call", "/privacy", "/terms", "/refund"]
     urls: list[str] = list(static_paths)
     try:
         from app.marketing import seo_blog

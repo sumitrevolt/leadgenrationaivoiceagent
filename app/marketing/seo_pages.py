@@ -88,7 +88,7 @@ async def generate_page(niche: str, city: str) -> dict[str, Any]:
          "a": f"AI voice agent har inquiry ko 2-min me call karke qualify karta hai + social posts, "
               f"Google ranking, aur WhatsApp follow-up automate hote hain. Free audit: leadsgenai.in/audit"},
         {"q": "Kitna kharcha aata hai?",
-         "a": "₹999/mo Starter se shuru. Pehle 10 qualified leads free. Advanced tier me AI calling (500 min/mo)."},
+         "a": "₹1,199/mo Starter se shuru. Pehle 10 qualified leads free. Advanced tier me AI calling (500 min/mo)."},
         {"q": "Result kitne din me?",
          "a": "Pehle hafte me naye leads + content live. Cancel anytime."},
     ]

@@ -114,15 +114,15 @@ def build_message(step_key: str, business_name: str, niche: str = "") -> dict[st
             f"Namaste,\n\nLocal business roz ke 3-5 inquiries miss karta hai — mahine ka "
             f"hazaaron ka nuksan. Hamara AI 2 minute me callback karta hai + leads "
             f"qualify karta hai.\n\nApna number calculate karo: {AUDIT_URL}\n"
-            f"Plans (₹999 se shuru): {PRICING_URL}\n"
+            f"Plans (₹1,199 se shuru): {PRICING_URL}\n"
         )
     elif step_key == "upgrade":
         subject = f"{biz} — plan choose karo, aaj se marketing autopilot pe"
         body = (
             f"Namaste,\n\nAapka trial setup ready hai. Ab plan activate karo:\n\n"
-            f"• Starter ₹999/mo — daily posts, GBP, reviews, posters\n"
-            f"• Growth ₹2,499/mo — + unlimited posters, calendar, lead-form, reports\n"
-            f"• Advanced ₹5,999/mo — + AI voice calling (2-min inquiry callback)\n\n"
+            f"• Starter ₹1,199/mo — daily posts, GBP, reviews, posters\n"
+            f"• Growth ₹2,999/mo — + unlimited posters, calendar, lead-form, reports\n"
+            f"• Advanced ₹6,999/mo — + AI voice calling feature (2-min inquiry callback)\n\n"
             f"Activate: {PRICING_URL}\n\nUPI/card — 2 minute. Sawal ho to reply karo.\n"
         )
     else:  # last_call

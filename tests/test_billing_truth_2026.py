@@ -21,7 +21,7 @@ def test_pricing_plans_synced_to_packages():
         assert key in PRICING_PLANS, f"{key} billing plans me hona chahiye (checkout 404 bug)"
         assert float(PRICING_PLANS[key].monthly_price) == float(pkg["price_inr_month"])
     # advanced (pehle missing tha) — 500 min metering ke saath
-    assert float(PRICING_PLANS["advanced"].monthly_price) == 5999.0
+    assert float(PRICING_PLANS["advanced"].monthly_price) == 6999.0
     assert PRICING_PLANS["advanced"].calls_per_month == 500
 
 
@@ -31,12 +31,12 @@ def test_calculate_price_unregistered_flat(monkeypatch):
 
     monkeypatch.delenv("GST_GSTIN", raising=False)
     p = billing_manager.calculate_price("starter", BillingCycle.MONTHLY)
-    assert round(float(p["total"]), 2) == 999.0 and float(p["tax"]) == 0.0
+    assert round(float(p["total"]), 2) == 1199.0 and float(p["tax"]) == 0.0
     # yearly = packages price_inr_year (2 mahine free)
     py = billing_manager.calculate_price("starter", BillingCycle.YEARLY)
-    assert round(float(py["total"]), 2) == 9990.0
+    assert round(float(py["total"]), 2) == 11990.0
     pa = billing_manager.calculate_price("advanced", BillingCycle.YEARLY)
-    assert round(float(pa["total"]), 2) == 59990.0
+    assert round(float(pa["total"]), 2) == 69990.0
 
 
 def test_calculate_price_registered_gst(monkeypatch):
@@ -44,7 +44,7 @@ def test_calculate_price_registered_gst(monkeypatch):
 
     monkeypatch.setenv("GST_GSTIN", "27ABCDE1234F1Z5")
     p = billing_manager.calculate_price("starter", BillingCycle.MONTHLY)
-    assert round(float(p["total"]), 2) == round(999 * 1.18, 2)
+    assert round(float(p["total"]), 2) == round(1199 * 1.18, 2)
     assert round(float(p["tax_rate"]), 0) == 18.0
 
 

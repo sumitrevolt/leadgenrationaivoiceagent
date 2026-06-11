@@ -33,10 +33,6 @@ def _derive_offer(cfg: dict[str, Any]) -> str:
     hook = str(cfg.get("pitch_hook") or "").strip()
     if hook:
         return hook[:160]
-    pr = cfg.get("pricing_inr") or {}
-    start = pr.get("monthly_starter")
-    if start:
-        return f"Sirf ₹{start}/mo se shuru — pehla result 7 din me."
     return "Aaj hi shuru karo — pehle hafte me naye leads."
 
 

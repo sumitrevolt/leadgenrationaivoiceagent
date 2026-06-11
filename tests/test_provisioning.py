@@ -26,16 +26,13 @@ class TestNicheRegistry:
             "avg_deal_value",
             "avg_ticket_inr",
             "pitch_hook",
-            "pricing_inr",
+            "lead_band",  # ADR-009: per-lead pricing_inr REMOVED
             "qualification_questions",
         ]
         for key, cfg in NICHES.items():
             for field in required:
                 assert field in cfg, f"{key} missing {field}"
-            p = cfg["pricing_inr"]
-            assert p["qualified_lead"][0] < p["qualified_lead"][1], key
-            assert p["appointment"][0] < p["appointment"][1], key
-            assert p["monthly_starter"] > 0, key
+            assert cfg["lead_band"] in ("A", "B", "C"), key  # voice-product band (ADR-009)
             assert cfg["tier"] in ("S", "A", "B", "C"), key
             assert cfg["target_type"] in ("b2c", "b2b", "both"), key
 
@@ -184,7 +181,7 @@ class TestCustomNiches:
             assert key == "pet_grooming_studios"
             cfg = r.json()["niche"]
             assert cfg["tier"] == "C" and cfg["custom"] is True
-            assert cfg["pricing_inr"]["monthly_starter"] > 0
+            assert cfg["lead_band"] in ("A", "B", "C")  # ADR-009
 
             # appears in listing with custom flag
             listing = client.get("/api/data/niches").json()

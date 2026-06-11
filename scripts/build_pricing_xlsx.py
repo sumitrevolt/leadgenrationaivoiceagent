@@ -6,6 +6,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 from app.niches import NICHES
+from app.marketing.voice_packages import VOICE_TIERS, lead_topup_price
 
 F = "Arial"
 HDR_FILL = PatternFill("solid", start_color="1F4E79")
@@ -24,8 +25,8 @@ ws["A2"].font = Font(name=F, italic=True, size=10)
 
 headers = ["Rank", "Niche", "Tier", "End-Customer Type", "B2B Client (hamara customer)",
            "End Customer (agent kise call karega)", "Avg Ticket (INR)",
-           "Qualified Lead Min (INR)", "Qualified Lead Max (INR)", "QL Mid (INR)",
-           "Appointment Min (INR)", "Appointment Max (INR)", "Monthly Starter (INR)"]
+           "Lead Band (A/B/C)", "Voice Starter ₹/mo (10 leads)", "Voice Growth ₹/mo (30 leads)",
+           "Voice Pro ₹/mo (60 leads)", "Top-up ₹ (10 extra leads)"]
 HR = 4
 for c, h in enumerate(headers, 1):
     cell = ws.cell(row=HR, column=c, value=h)
@@ -39,15 +40,16 @@ rows = sorted(NICHES.items(), key=lambda kv: (tier_order[kv[1]["tier"]],))
 r = HR
 for rank, (nid, cfg) in enumerate(rows, 1):
     r += 1
-    p = cfg["pricing_inr"]
+    band = str(cfg.get("lead_band") or "A").upper()
+    _vt = {t["key"]: int(t["price_inr_month"].get(band, 0)) for t in VOICE_TIERS}
     vals = [rank, cfg["name"], cfg["tier"], cfg["target_type"].upper(), cfg["b2b_client"],
-            cfg["end_customer"], cfg["avg_ticket_inr"], p["qualified_lead"][0], p["qualified_lead"][1],
-            f"=ROUND(AVERAGE(H{r}:I{r}),0)", p["appointment"][0], p["appointment"][1], p["monthly_starter"]]
+            cfg["end_customer"], cfg["avg_ticket_inr"], band, _vt.get("voice_starter", 0),
+            _vt.get("voice_growth", 0), _vt.get("voice_pro", 0), lead_topup_price(band)]
     for c, v in enumerate(vals, 1):
         cell = ws.cell(row=r, column=c, value=v)
         cell.font = Font(name=F, size=10)
         cell.border = THIN
-        if c in (8, 9, 10, 11, 12, 13):
+        if c in (9, 10, 11, 12):
             cell.number_format = "₹#,##0"
         if c == 3:
             cell.fill = PatternFill("solid", start_color=TIER_FILL[cfg["tier"]])

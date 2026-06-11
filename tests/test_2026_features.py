@@ -320,7 +320,7 @@ def test_proposal():
 
     r = asyncio.run(proposal.generate_proposal("Sharma Solar", "solar_residential", "Pune", "growth"))
     assert r["ok"] and r["proposal"]
-    assert r["payment_link"].endswith("/pricing") and r["price_inr"] == 2499
+    assert r["payment_link"].endswith("/pricing") and r["price_inr"] == 2999
 
 
 def test_sales_assistant():

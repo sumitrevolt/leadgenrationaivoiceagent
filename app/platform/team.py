@@ -39,6 +39,7 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 # --------------------------------------------------------------------------- #
 STAFF: dict[str, dict[str, Any]] = {
     "manager": {
+        "product": "platform",
         "name": "Boss",
         "emoji": "🧑‍💼",
         "title": "Manager (Supervisor)",
@@ -46,6 +47,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "On-demand (har /api/agents/run pe)",
     },
     "swara": {
+        "product": "voice",
         "name": "Swara",
         "emoji": "📞",
         "title": "Telecaller",
@@ -53,6 +55,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "On-demand (calls/demos)",
     },
     "dev": {
+        "product": "marketing",
         "name": "Dev",
         "emoji": "📚",
         "title": "Data Analyst",
@@ -60,6 +63,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "Har naye client pe auto",
     },
     "rohan": {
+        "product": "marketing",
         "name": "Rohan",
         "emoji": "🎯",
         "title": "Leads Manager",
@@ -67,6 +71,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "On-demand (campaigns)",
     },
     "arjun": {
+        "product": "voice",
         "name": "Arjun",
         "emoji": "🧪",
         "title": "QA Engineer",
@@ -74,6 +79,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "Roz raat 2:30 + on-demand",
     },
     "meera": {
+        "product": "voice",
         "name": "Meera",
         "emoji": "🎓",
         "title": "Trainer",
@@ -81,6 +87,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "Roz raat 3:00 + on-demand",
     },
     "kavya": {
+        "product": "platform",
         "name": "Kavya",
         "emoji": "🛡️",
         "title": "Ops Monitor",
@@ -88,6 +95,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "Har ghante + on-demand",
     },
     "isha": {
+        "product": "marketing",
         "name": "Isha",
         "emoji": "📣",
         "title": "Marketing Executive",
@@ -95,6 +103,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "On-demand (marketing)",
     },
     "tara": {
+        "product": "voice",
         "name": "Tara",
         "emoji": "🎙️",
         "title": "Voice Infra Ops",
@@ -102,6 +111,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "Har ghante (watchdog ke saath)",
     },
     "nikhil": {
+        "product": "platform",
         "name": "Nikhil",
         "emoji": "💰",
         "title": "Revenue Ops",
@@ -109,6 +119,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "Roz (digest/content jobs ke saath)",
     },
     "vikram": {
+        "product": "platform",
         "name": "Vikram",
         "emoji": "🛠️",
         "title": "Code Upgrader",
@@ -116,6 +127,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "Har ghante (watchdog ke saath, gated CODE_UPGRADER)",
     },
     "guru": {
+        "product": "platform",
         "name": "Guru",
         "emoji": "📚",
         "title": "Skill Trainer",
@@ -123,6 +135,19 @@ STAFF: dict[str, dict[str, Any]] = {
         "schedule": "Roz (trainer job ke saath, gated SKILL_PACK)",
     },
 }
+
+
+def staff_for_product(product: str) -> dict[str, dict[str, Any]]:
+    """ADR-009 two-product split: dono products ke AI agents ALAG.
+
+    product='marketing' -> marketing staff + shared 'platform' staff;
+    product='voice' -> voice staff + shared; aur kuch bhi -> poora roster.
+    """
+    p = (product or "").strip().lower()
+    if p not in ("marketing", "voice"):
+        return dict(STAFF)
+    return {k: v for k, v in STAFF.items() if v.get("product") in (p, "platform")}
+
 
 # Status windows (realism): "working" = abhi-abhi active; "active" = aaj kaam kiya
 # (resting); "offline" = aaj kuch nahi. Pehle 2-min working/20-min offline tha →
@@ -309,6 +334,7 @@ def team_status() -> dict[str, Any]:
         members.append(
             {
                 "key": key,
+                "product": info.get("product", "platform"),
                 "name": info["name"],
                 "emoji": info["emoji"],
                 "title": info["title"],

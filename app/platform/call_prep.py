@@ -61,11 +61,11 @@ def _static_brief(ph10: str, rec: dict[str, Any], snippet: str, client_id: str) 
         "talking_points": [
             f"Namaste! {biz or 'Aapke business'} ke liye ek kaam ki baat thi",
             "Har inquiry ka 2-min me AI follow-up — koi lead miss nahi",
-            "Marketing + Google + reviews sab automated, ₹999/mo se shuru",
+            "Marketing + Google + reviews sab automated, ₹1,199/mo se shuru",
             "Free GBP audit abhi bhej sakta hoon — leadsgenai.in/audit",
         ],
         "objections": [
-            {"objection": "Mehnga lagega", "jawab": "Ek missed inquiry ₹15-20K ki hoti — ₹999/mo us se kam, pehle 10 leads FREE."},
+            {"objection": "Mehnga lagega", "jawab": "Ek missed inquiry ₹15-20K ki hoti — ₹1,199/mo us se kam, pehle 10 leads FREE."},
             {"objection": "AI pe bharosa nahi", "jawab": "2-min live demo karke khud sun lo — leadsgenai.in/app/test-call. Cancel anytime."},
         ],
         "next_action": "Free audit link WhatsApp karo + 2-min demo offer karo",

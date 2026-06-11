@@ -54,7 +54,7 @@ def lead_cost_savings(current_cost_per_lead: float, leads_per_month: float) -> d
         "savings_per_month": round(save_month),
         "savings_per_year": round(save_month * 12),
         "headline": f"AI se aap ~₹{round(save_month):,}/mo bacha sakte ho lead-cost pe.",
-        "cta": {"text": "Shuru karein ₹999/mo", "url": "/pricing"},
+        "cta": {"text": "Shuru karein ₹1,199/mo", "url": "/pricing"},
     }
 
 

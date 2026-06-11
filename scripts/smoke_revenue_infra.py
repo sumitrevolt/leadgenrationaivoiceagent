@@ -70,13 +70,13 @@ def main() -> int:
 
         truth = {k: float(PRICING_PLANS[k].monthly_price) for k in ("starter", "growth", "advanced") if k in PRICING_PLANS}
         print("BILLING_TRUTH plans:", json.dumps(truth))
-        assert truth == {"starter": 999.0, "growth": 2499.0, "advanced": 5999.0}
+        assert truth == {"starter": 1199.0, "growth": 2999.0, "advanced": 6999.0}
         p = billing_manager.calculate_price("starter", BillingCycle.MONTHLY)
         py = billing_manager.calculate_price("starter", BillingCycle.YEARLY)
         gst_on = bool(os.environ.get("GST_GSTIN", "").strip())
         print("BILLING_TRUTH starter monthly total:", float(p["total"]), "yearly:", float(py["total"]), "gst_registered:", gst_on)
         if not gst_on:
-            assert round(float(p["total"]), 2) == 999.0 and round(float(py["total"]), 2) == 9990.0
+            assert round(float(p["total"]), 2) == 1199.0 and round(float(py["total"]), 2) == 11990.0
         print("TOPUP packs:", json.dumps(get_topup_packs()))
     except Exception as e:
         ok = False

@@ -168,36 +168,9 @@ PRICING_PLANS = {
             "24/7 Phone Support",
         ],
     ),
-    "per_lead": PricingPlan(
-        id="per_lead",
-        name="Pay Per Lead",
-        pricing_model=PricingModel.PER_LEAD,
-        price_per_qualified_lead=Decimal("25"),  # ₹25 per qualified lead
-        price_per_appointment=Decimal("50"),  # ₹50 per appointment
-        price_per_call=Decimal("2"),  # ₹2 per call
-        features=[
-            "No Monthly Commitment",
-            "Pay for Results Only",
-            "All Features Included",
-            "Minimum ₹5,000 Top-up",
-        ],
-    ),
-    "hybrid_starter": PricingPlan(
-        id="hybrid_starter",
-        name="Hybrid Starter",
-        pricing_model=PricingModel.HYBRID,
-        monthly_price=Decimal("10000"),  # ₹10,000/month base
-        price_per_qualified_lead=Decimal("15"),  # ₹15 per qualified lead above limit
-        price_per_appointment=Decimal("30"),  # ₹30 per appointment above limit
-        calls_per_month=300,  # Included
-        leads_per_month=100,  # Included
-        features=[
-            "Base 300 calls included",
-            "Base 100 leads included",
-            "Pay extra only when you exceed",
-            "All Growth features",
-        ],
-    ),
+    # NOTE (ADR-009, 2026-06-11): legacy "per_lead" (₹25/lead) + "hybrid_starter"
+    # (per-lead overage) plans REMOVED — per-lead pricing system retired.
+    # Voice product plans ab _sync_voice_plans() se aate hain (per-10-leads model).
     # =============================================================================
     # B2B INTELLIGENCE PLATFORM - CREDIT-BASED PLANS
     # =============================================================================
@@ -319,7 +292,36 @@ def _sync_plans_from_packages() -> None:
         pass
 
 
+def _sync_voice_plans() -> None:
+    """AI Voice Calling Agent (Product 2, ADR-009) plans — voice_packages.py truth.
+
+    9 plan ids: voice_{starter,growth,pro}_{a,b,c} (band = niche ka lead_band).
+    leads_per_month = qualified-lead quota (metering: app/billing/lead_usage.py).
+    Yearly discount 0 (voice annual abhi offer nahi). Defensive — kabhi raise nahi.
+    """
+    try:
+        from app.marketing.voice_packages import BANDS, VOICE_TIERS
+
+        for t in VOICE_TIERS:
+            for b in BANDS:
+                pid = f"{t['key']}_{b.lower()}"
+                PRICING_PLANS[pid] = PricingPlan(
+                    id=pid,
+                    name=f"{t['name']} (Band {b})",
+                    pricing_model=PricingModel.SUBSCRIPTION,
+                    monthly_price=Decimal(str(t["price_inr_month"][b])),
+                    calls_per_month=int(t.get("fair_use_minutes") or 0),
+                    leads_per_month=int(t.get("leads_per_month") or 0),
+                    concurrent_campaigns=1,
+                    features=list(t.get("features") or []),
+                    yearly_discount=0.0,
+                )
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+
 _sync_plans_from_packages()
+_sync_voice_plans()
 
 
 @dataclass

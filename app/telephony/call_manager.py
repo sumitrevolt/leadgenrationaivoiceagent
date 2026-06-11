@@ -195,6 +195,27 @@ class CallManager:
         except Exception as e:
             logger.debug(f"minute-enforcement skipped: {e}")
 
+        # Voice-product (ADR-009) qualified-lead quota enforcement — voice plan ke
+        # client ka quota khatam => naye campaign calls block (top-up pack message).
+        # FAIL-OPEN: no client_id / non-voice plan / error -> block nahi.
+        try:
+            if request.client_id:
+                from app.billing.lead_usage import has_lead_quota
+
+                _plan = getattr(request, "plan_id", None) or getattr(request, "plan", None)
+                if not _plan:
+                    from app.marketing import clients_store
+
+                    _plan = (clients_store.get_client(request.client_id) or {}).get("plan")
+                if not has_lead_quota(request.client_id, _plan):
+                    logger.warning(
+                        f"Call to {request.phone_number} blocked — client "
+                        f"{request.client_id} out of qualified-lead quota (voice plan)."
+                    )
+                    return f"out_of_lead_quota_{call_id}"
+        except Exception as e:
+            logger.debug(f"lead-quota enforcement skipped: {e}")
+
         # Add to the (Redis-backed) priority queue (lower number = higher priority).
         await self.call_state.enqueue(request.priority, call_id, self._request_to_payload(request))
 
@@ -430,6 +451,17 @@ class CallManager:
                         f"[call_qualifier] {call_id}: score={_q.get('interest_score')} "
                         f"qualified={_q.get('qualified')}"
                     )
+                    # Voice product (ADR-009) lead-quota meter: qualified lead =
+                    # billable unit. Best-effort, FAIL-OPEN (lead_usage kabhi raise nahi).
+                    if _q.get("qualified"):
+                        try:
+                            from app.billing import lead_usage as _lead_usage
+
+                            _cid = getattr(context, "client_id", "") or ""
+                            if _cid:
+                                _lead_usage.record_qualified_lead(_cid, ref=str(call_id))
+                        except Exception:
+                            pass
         except Exception as _qe:
             logger.debug(f"[call_qualifier] auto-qualify skip: {_qe}")
 

@@ -30,7 +30,7 @@ def test_invoice_fy_and_sequence(tmp_path, monkeypatch):
     assert n1 == "INV/2026-27/0001" and len(n1) <= 16  # Rule 46: <=16 chars
     monkeypatch.setattr(gi, "_client", lambda cid: {"business_name": "Sharma Solar", "email": ""})
     inv = gi.create_invoice("c1", "starter")
-    assert inv["number"] == "INV/2026-27/0001" and inv["gross_inr"] == 999.0
+    assert inv["number"] == "INV/2026-27/0001" and inv["gross_inr"] == 1199.0
     inv2 = gi.create_invoice("c2", "growth")
     assert inv2["number"] == "INV/2026-27/0002"  # sequential per FY
 
@@ -40,7 +40,7 @@ def test_invoice_tax_modes(tmp_path, monkeypatch):
     monkeypatch.setattr(gi, "_client", lambda cid: {"business_name": "B", "state_code": "27"})
     # unregistered (GSTIN unset) -> no tax lines, gross == taxable
     inv = gi.create_invoice("c1", "starter")
-    assert inv["tax_mode"] == "unregistered" and inv["taxable_value"] == 999.0
+    assert inv["tax_mode"] == "unregistered" and inv["taxable_value"] == 1199.0
     assert inv["cgst"] == 0 and inv["igst"] == 0 and inv["sac_code"] == "998313"
     # registered intra-state (27 == 27) -> CGST+SGST split, totals reconcile
     monkeypatch.setenv("GST_GSTIN", "27ABCDE1234F1Z5")
