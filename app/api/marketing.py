@@ -1012,6 +1012,44 @@ async def generate_review_kit(
 
 
 # --------------------------------------------------------------------------- #
+# Social PAGE KIT — naye FB/Insta/LinkedIn/X/GBP/WA pages ka paste-ready setup
+# --------------------------------------------------------------------------- #
+
+
+class PageKitRequest(BaseModel):
+    business_name: str
+    niche: str = "general"
+    city: str = ""
+    phone: str = ""
+    posts_count: int = 5
+
+
+@router.post("/page-kit")
+async def generate_page_kit(
+    req: PageKitRequest,
+    current_user: User = Depends(require_admin),
+):
+    """Complete social-page setup kit: har platform ka name/handle/bio/about +
+    logo + cover prompt + pehle 5 posts + hashtags. (Pages create karna
+    account-action hai — yeh 1-click-copy content deta hai.)"""
+    try:
+        from app.marketing.social_page_kit import build_page_kit
+
+        result = await build_page_kit(
+            business_name=req.business_name,
+            niche=req.niche,
+            city=req.city,
+            phone=req.phone,
+            posts_count=req.posts_count,
+        )
+        _log_isha("page_kit_generated", f"{req.business_name} ({req.niche})")
+        return result
+    except Exception as e:
+        logger.error(f"Page kit generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Page kit failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
 # Monthly report
 # --------------------------------------------------------------------------- #
 
