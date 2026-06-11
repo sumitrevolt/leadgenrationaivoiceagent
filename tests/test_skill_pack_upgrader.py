@@ -106,6 +106,44 @@ def test_upgrader_propose_and_status(tmp_path, monkeypatch):
     assert cu.set_status(pid, "weird")["ok"] is False
     assert cu.set_status("nope", "approved")["ok"] is False
 
+    # OPEN-signal dedupe (duplicate 8b05c720 regression): approved patch ka signal
+    # agle din bhi re-propose NAHI hona chahiye (sirf rejected/applied = closed).
+    res3 = asyncio.run(cu.scan_and_propose())
+    assert res3["proposed"] == 0
+    # reject (closed) ke baad — same-day guard ki wajah se aaj phir bhi nahi
+    assert cu.set_status(pid, "rejected", "dup")["ok"]
+    res4 = asyncio.run(cu.scan_and_propose())
+    assert res4["proposed"] == 0
+
+
+def test_llm_cooldown_escalates_and_resets(monkeypatch):
+    from app.voice_agent import free_ai as fa
+
+    monkeypatch.setattr(fa, "_LLM_COOLDOWN_UNTIL", {})
+    monkeypatch.setattr(fa, "_LLM_TRIP_STREAK", {})
+    base = fa._LLM_COOLDOWN_S
+    now = 1_000_000.0
+    monkeypatch.setattr(fa.time, "time", lambda: now)
+
+    # 1st trip = base 60s
+    fa._trip_cooldown("cerebras", "Error code: 429 too_many_requests")
+    assert fa._LLM_COOLDOWN_UNTIL["cerebras"] == now + base
+    # 2nd/3rd trip = escalate 2x, 4x
+    fa._trip_cooldown("cerebras", "429 rate limit")
+    assert fa._LLM_COOLDOWN_UNTIL["cerebras"] == now + base * 2
+    fa._trip_cooldown("cerebras", "429 rate limit")
+    assert fa._LLM_COOLDOWN_UNTIL["cerebras"] == now + base * 4
+    # daily-quota wording = seedha max cooldown (Groq TPD lesson)
+    fa._trip_cooldown("groq", "429 Rate limit reached for model x tokens per day")
+    assert fa._LLM_COOLDOWN_UNTIL["groq"] == now + fa._LLM_COOLDOWN_MAX_S
+    # non-rate error = no trip
+    fa._trip_cooldown("xai", "boom connection reset")
+    assert "xai" not in fa._LLM_COOLDOWN_UNTIL
+    # success = streak reset → agla trip wapas base
+    fa._reset_cooldown_streak("cerebras")
+    fa._trip_cooldown("cerebras", "429")
+    assert fa._LLM_COOLDOWN_UNTIL["cerebras"] == now + base
+
 
 def test_upgrader_gated_off(monkeypatch, tmp_path):
     from app.agents import code_upgrader as cu
@@ -136,4 +174,5 @@ def test_team_has_new_staff():
     from app.platform import team
 
     assert "vikram" in team.STAFF and "guru" in team.STAFF
-    assert len(team.STAFF) == 12
+    # >= (== nahi) — naya staff add hone pe yeh test stale na ho (Hermes 13th lesson)
+    assert len(team.STAFF) >= 13 and "hermes" in team.STAFF

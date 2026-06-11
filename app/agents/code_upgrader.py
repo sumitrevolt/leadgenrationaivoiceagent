@@ -182,8 +182,15 @@ async def scan_and_propose() -> dict[str, Any]:
         return {"ok": True, "signals": 0, "proposed": 0}
 
     day = _now().strftime("%Y-%m-%d")
-    seen_today = {r.get("signal_key") for r in list_patches(limit=200) if str(r.get("at", "")).startswith(day)}
-    new = [s for s in sigs if s["key"] not in seen_today][:_MAX_PROPOSALS_PER_SCAN]
+    recent = list_patches(limit=300)
+    # Dedupe fix (duplicate 8b05c720 lesson): jis signal ka patch already OPEN hai
+    # (proposed = decision pending, approved = fix in-flight via deploy-loop), usi
+    # signal pe naya proposal mat banao — warna approve hote hi agle din wahi issue
+    # dobara propose hota tha (merge me 'at' approval-time ban jata, day-check miss).
+    # Sirf CLOSED (rejected/applied) signals re-propose ho sakte, woh bhi same-day nahi.
+    open_keys = {r.get("signal_key") for r in recent if r.get("status") in ("proposed", "approved")}
+    seen_today = {r.get("signal_key") for r in recent if str(r.get("at", "")).startswith(day)}
+    new = [s for s in sigs if s["key"] not in open_keys and s["key"] not in seen_today][:_MAX_PROPOSALS_PER_SCAN]
 
     proposed = []
     for s in new:

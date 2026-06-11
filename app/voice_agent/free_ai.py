@@ -64,10 +64,17 @@ _XAI_LLM_MODEL = "grok-3-mini"  # fast/cheap Grok; credits-based (user ke paas k
 # spike phone par cached filler ("hmm/achha ji") se mask hota hai.
 _CALL_TIMEOUT_S = 8.0
 
-# Circuit-breaker: jab koi provider 429/rate-limit de, use ~60s skip karo (har call pe
-# wasted retry-latency na ho). Research-backed; auto-reopen. Cerebras burst-429 ka asar khatam.
+# Circuit-breaker: jab koi provider 429/rate-limit de, use skip karo (har call pe
+# wasted retry-latency na ho). Auto-reopen. UPGRADE (patches 6e7af062/c01b6766):
+# flat 60s kaafi nahi tha — daily-quota (Groq TPD) exhaust hone pe provider poore din
+# har 60s pe retry karke fail hota raha (ok-rate 0.4-0.48 tank). Ab ESCALATING backoff:
+# consecutive trips pe 60s → 2min → 4min ... cap 30min; "per day/TPD/daily" wording
+# dikhe to seedha 30min (din-bhar ke liye repeated useless retries band). Success pe
+# streak reset — provider wapas aate hi normal 60s sensitivity.
 _LLM_COOLDOWN_UNTIL: dict[str, float] = {}
 _LLM_COOLDOWN_S = 60.0
+_LLM_COOLDOWN_MAX_S = 1800.0
+_LLM_TRIP_STREAK: dict[str, int] = {}
 
 
 def _provider_down(p: str) -> bool:
@@ -76,8 +83,19 @@ def _provider_down(p: str) -> bool:
 
 def _trip_cooldown(p: str, err: str) -> None:
     e = (err or "").lower()
-    if any(k in e for k in ("429", "rate", "quota", "queue", "too_many", "exhaust")):
-        _LLM_COOLDOWN_UNTIL[p] = time.time() + _LLM_COOLDOWN_S
+    if not any(k in e for k in ("429", "rate", "quota", "queue", "too_many", "exhaust")):
+        return
+    streak = _LLM_TRIP_STREAK.get(p, 0) + 1
+    _LLM_TRIP_STREAK[p] = streak
+    cd = min(_LLM_COOLDOWN_S * (2 ** (streak - 1)), _LLM_COOLDOWN_MAX_S)
+    if any(k in e for k in ("per day", "daily", "tpd", "tokens per day", "limit reached for model")):
+        cd = _LLM_COOLDOWN_MAX_S
+    _LLM_COOLDOWN_UNTIL[p] = time.time() + cd
+
+
+def _reset_cooldown_streak(p: str) -> None:
+    """Provider ne kaam kiya — backoff streak reset (60s base pe wapas)."""
+    _LLM_TRIP_STREAK.pop(p, None)
 
 
 # provider -> (settings attr, base_url)
@@ -226,6 +244,7 @@ async def chat(
             except Exception:
                 text = ""
             if text:
+                _reset_cooldown_streak(provider)
                 # LLM observability hook (ultra-light, never-raise)
                 try:
                     from app.platform import llm_metrics
