@@ -408,6 +408,12 @@ except Exception as _e:  # pragma: no cover
     logger.warning(f"ContentAuto router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
+try:
+    from app.api.team_access import router as team_access_router
+
+    app.include_router(team_access_router, prefix="/api")  # /api/team-access/* (sub-admins + module grants)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Team-access router not mounted: {_e}")
 app.include_router(ai_router, prefix="/api", tags=["AI"])
 app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /api/customer/*
 app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])  # /api/admin/*
@@ -473,6 +479,12 @@ async def ops_page():
     """Ops Mission Control — automation health (dead-man), LLM observability,
     telephony readiness, flags, DLQ, weakest-funnel — sab /api/growth/infra/* se."""
     return FileResponse(str(FRONTEND_DIR / "ops.html"))
+
+
+@app.get("/app/team-access", tags=["Frontend"])
+async def team_access_page():
+    """Team access management — sub-admins + module grants (super admin UI)."""
+    return FileResponse(str(FRONTEND_DIR / "team_access.html"))
 
 
 @app.get("/app/admin-login", tags=["Frontend"])

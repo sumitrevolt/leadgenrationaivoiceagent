@@ -1,0 +1,11 @@
+@echo off
+cd /d C:\Users\Ratanshila\Documents\leadgenrationaiagent
+del /q prodcheck_rbac.log pytest_new.log 2>nul
+set GIT=C:\PROGRA~1\Git\cmd\git.exe
+set SSH=C:\PROGRA~1\Git\usr\bin\ssh.exe
+%GIT% add .claude/skills/backend-rbac .claude/skills/team-access-ops .claude/skills/feature-change-flow docs/ADMIN_RBAC_DESIGN.md app/platform/rbac.py app/api/auth_deps.py app/api/admin.py app/api/team_access.py app/api/growth.py app/main.py frontend/team_access.html tests/test_team_rbac.py scripts/ship_rbac.bat > scripts\ship_rbac.log 2>&1
+%GIT% commit -m "team rbac, sub-admins and module grants, team-access api and ui, 3 new skills" >> scripts\ship_rbac.log 2>&1
+%GIT% push origin main >> scripts\ship_rbac.log 2>&1
+%GIT% log -1 --oneline >> scripts\ship_rbac.log 2>&1
+%SSH% -i C:\Users\Ratanshila\.ssh\id_rsa -o StrictHostKeyChecking=no root@72.61.245.204 "echo c2V0IC1lCnNldCAtbyBwaXBlZmFpbApjZCAvb3B0L2xlYWRnZW4KZ2l0IHN0YXNoIC1xIDI+L2Rldi9udWxsIHx8IHRydWUKZ2l0IGZldGNoIG9yaWdpbiAtcQpnaXQgbWVyZ2UgLS1mZi1vbmx5IG9yaWdpbi9tYWluCmVjaG8gUFVMTEVEOiAkKGdpdCBsb2cgLTEgLS1vbmVsaW5lKQpkb2NrZXIgY29tcG9zZSAtZiBkb2NrZXItY29tcG9zZS52cHMueW1sIGJ1aWxkIGFwcCAyPiYxIHwgdGFpbCAtMwpkb2NrZXIgY29tcG9zZSAtZiBkb2NrZXItY29tcG9zZS52cHMueW1sIC0tcHJvZmlsZSBjZWxlcnkgdXAgLWQgLS1mb3JjZS1yZWNyZWF0ZSBhcHAgd29ya2VyIHNjaGVkdWxlciAyPiYxIHwgdGFpbCAtNApzbGVlcCAxNgplY2hvIC1uICJIRUFMVEgxOiAiOyBjdXJsIC1zIC1vIC9kZXYvbnVsbCAtdyAnJXtodHRwX2NvZGV9JyBodHRwOi8vMTI3LjAuMC4xOjgwMDAvaGVhbHRoOyBlY2hvCnNsZWVwIDYKZWNobyAtbiAiSEVBTFRIMjogIjsgY3VybCAtcyAtbyAvZGV2L251bGwgLXcgJyV7aHR0cF9jb2RlfScgaHR0cDovLzEyNy4wLjAuMTo4MDAwL2hlYWx0aDsgZWNobwplY2hvIC1uICJQQUdFOiAiOyBjdXJsIC1zIC1vIC9kZXYvbnVsbCAtdyAnJXtodHRwX2NvZGV9JyBodHRwOi8vMTI3LjAuMC4xOjgwMDAvYXBwL3RlYW0tYWNjZXNzOyBlY2hvCmVjaG8gLW4gIkFQSV9OT0FVVEgoNDAxIGV4cGVjdCk6ICI7IGN1cmwgLXMgLW8gL2Rldi9udWxsIC13ICcle2h0dHBfY29kZX0nIGh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9hcGkvdGVhbS1hY2Nlc3MvbW9kdWxlczsgZWNobwplY2hvIC1uICJFWFQ6ICI7IGN1cmwgLXMgLW8gL2Rldi9udWxsIC13ICcle2h0dHBfY29kZX0nIGh0dHBzOi8vbGVhZHNnZW5haS5pbi9hcHAvdGVhbS1hY2Nlc3M7IGVjaG8KZG9ja2VyIGV4ZWMgbGVhZGdlbl9hcHAgcHl0aG9uIC1jICJmcm9tIGFwcC5wbGF0Zm9ybSBpbXBvcnQgcmJhYzsgcHJpbnQoJ21vZHVsZXMnLCBsaXN0KHJiYWMuTU9EVUxFUykpIgplY2hvIERFUExPWV9ET05FCg== | base64 -d | bash" >> scripts\ship_rbac.log 2>&1
+echo BATDONE >> scripts\ship_rbac.log

@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.api.auth_deps import require_admin
+from app.api.auth_deps import require_admin, require_super_admin
 from app.api.ratelimit import rate_limit
 from app.utils.logger import setup_logger
 
@@ -1638,8 +1638,8 @@ class PatchStatusIn(BaseModel):
 
 
 @router.post("/upgrader/patches/{patch_id}/status")
-async def upgrader_patch_status(patch_id: str, body: PatchStatusIn, _user=Depends(require_admin)):
-    """Hybrid gate: core-code patch approve/reject (apply deploy-loop me hota hai)."""
+async def upgrader_patch_status(patch_id: str, body: PatchStatusIn, _user=Depends(require_super_admin)):
+    """Hybrid gate: core-code patch approve/reject — SUPER_ADMIN only (RBAC design)."""
     from app.agents import code_upgrader
 
     return code_upgrader.set_status(patch_id, body.status, body.note)

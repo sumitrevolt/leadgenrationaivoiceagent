@@ -88,6 +88,7 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     expires_in: int = 3600
     user: UserResponse
+    must_change_password: bool = False  # temp-password onboarding (rbac flag)
 
 
 class AdminStats(BaseModel):
@@ -328,9 +329,17 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_async_db))
 
     await log_audit(db, user.id, "login.success", "user", user.id)
 
+    try:
+        from app.platform import rbac as _rbac
+
+        _must_change = _rbac.must_change_password(user)
+    except Exception:
+        _must_change = False
+
     return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
+        must_change_password=_must_change,
         user=UserResponse(
             id=user.id,
             email=user.email,

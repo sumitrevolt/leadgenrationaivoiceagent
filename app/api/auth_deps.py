@@ -3,7 +3,7 @@ Authentication Dependencies
 Centralized authentication for all API endpoints
 """
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy import select
@@ -91,11 +91,20 @@ async def get_current_user_optional(
         return None
 
 
-async def require_admin(user: User = Depends(get_current_user)) -> User:
-    """Require admin role (admin or super_admin)"""
-    if not user.can_access_admin():
-        raise HTTPException(status_code=403, detail="Admin access required")
-    return user
+async def require_admin(request: Request, user: User = Depends(get_current_user)) -> User:
+    """Admin access: super_admin/admin = full pass; manager/agent/viewer = sirf
+    apne GRANTED module ke paths (rbac.MODULES, preferences JSON me grants —
+    docs/ADMIN_RBAC_DESIGN.md). Unmapped path member ke liye 403 (fail-closed)."""
+    if user.can_access_admin():
+        return user
+    try:
+        from app.platform import rbac
+
+        if rbac.member_can_access(user, request.url.path):
+            return user
+    except Exception:
+        pass  # rbac issue = fail-closed (sirf admin+ pass)
+    raise HTTPException(status_code=403, detail="Admin access required (ya module grant missing)")
 
 
 async def require_super_admin(user: User = Depends(get_current_user)) -> User:
