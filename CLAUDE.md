@@ -43,7 +43,7 @@
 - `/mcp` MCP server mounted (Platform/Data/Agents tools).
 
 ## AI Stack (all free, `app/voice_agent/free_ai.py` multi-provider chain)
-- **LLM**: Cerebras `gpt-oss-120b` (WORKING, free-unlimited) → groq → xai(no credits) → openrouter → Gemini. (Gemini quota PER MODEL.) **Circuit-breaker (NEW)**: provider 429/quota/queue pe 60s cooldown (`_LLM_COOLDOWN_UNTIL` in `free_ai.py`) → burst me dead provider skip, auto-reopen. Verified: Cerebras 429 burst → Groq instant fallback, chat 'OK'.
+- **LLM**: Cerebras `gpt-oss-120b` (WORKING, free-unlimited) → groq → xai(no credits) → openrouter → Gemini. (Gemini quota PER MODEL.) **Circuit-breaker (UPGRADED a2f1415, 2026-06-12)**: provider 429/quota/queue pe ESCALATING cooldown 60s→2x..→30min cap (`_LLM_TRIP_STREAK`), "per day/TPD/limit reached for model" wording = seedha 30min (Groq TPD din-bhar useless retries band — ok-rate 0.4 tank fix, Vikram patches 6e7af062/c01b6766), success pe streak reset. Upgrader dedupe bhi fixed: OPEN (proposed/approved) signal re-propose nahi hota. `scripts/patch_status.py` = container me patch approve/reject CLI.
 - **STT**: Groq `whisper-large-v3` (**needs GROQ_API_KEY — abhi MISSING = weak link**) → Gemini audio → local faster-whisper (Hindi weak).
 - **TTS**: EdgeTTS `hi-IN-SwaraNeural` (`edge-tts>=7.2.0` zaroori, warna 403).
 - **RAG**: Qdrant single `kb_main` collection, per-niche namespaces (`niche:` + `client:<id>`). Embedder **multi-model fallback** `_EMBED_CANDIDATES` (e5-small unsupported tha → `paraphrase-multilingual-MiniLM-L12-v2` dim-384; fastembed version-proof, REAL dim auto-detect, collection recreate on mismatch). backend=qdrant semantic verified (`scripts/check_rag.py`).
