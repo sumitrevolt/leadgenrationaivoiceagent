@@ -18,8 +18,9 @@ COPY requirements.lock.txt .
 RUN grep -v -E "^(playwright|selenium)" requirements.lock.txt > req.filtered || cp requirements.lock.txt req.filtered
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --no-cache-dir --upgrade pip wheel setuptools && \
-    pip install --no-cache-dir --no-deps -r req.filtered
+ENV PIP_DEFAULT_TIMEOUT=60
+RUN pip install --no-cache-dir --retries 10 --upgrade pip wheel setuptools && \
+    pip install --no-cache-dir --retries 10 --no-deps -r req.filtered
 
 FROM python:3.12-slim AS production
 ARG APP_VERSION=latest
@@ -40,6 +41,8 @@ COPY --chown=appuser:appgroup alembic.ini ./
 COPY --chown=appuser:appgroup scripts/ ./scripts/
 COPY --chown=appuser:appgroup frontend/ ./frontend/
 COPY --chown=appuser:appgroup data/ ./data/
+# Project skills — skill_pack inhe VPS agents ko runtime pe serve karta hai
+COPY --chown=appuser:appgroup .claude/skills/ ./.claude/skills/
 RUN chown -R appuser:appgroup /app
 USER appuser
 ENV PYTHONUNBUFFERED=1 \
