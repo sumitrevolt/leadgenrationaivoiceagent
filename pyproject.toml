@@ -63,6 +63,7 @@ dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
+    "pytest-timeout>=2.3.0",
     "httpx>=0.26.0",
     "black>=24.1.0",
     "isort>=5.13.0",
@@ -167,9 +168,14 @@ exclude = ["alembic", "tests"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q"
+# --timeout: full-suite hang fix (network test bina timeout pe latak jaata tha).
+# pytest-timeout dev-dep required. thread method = sync+async dono cover.
+addopts = "-ra -q --timeout=120 --timeout-method=thread"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "network: internet/LLM-key dependent tests (CI: -m 'not network')",
+]
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::UserWarning",

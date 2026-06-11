@@ -176,7 +176,7 @@ AGENT_KNOWLEDGE_MAP: dict[AgentRole, dict] = {
         ],
     },
     AgentRole.PRICING: {
-        "file_patterns": ["app/billing/**", "app/api/analytics.py", "frontend/src/**pricing**"],
+        "file_patterns": ["app/billing/**", "app/api/analytics.py", "frontend/**pricing**"],
         "domain_keywords": ["price", "plan", "upsell", "trial", "upgrade", "promo", "paywall"],
         "priority": "revenue",
         "expertise": [
@@ -245,7 +245,7 @@ AGENT_KNOWLEDGE_MAP: dict[AgentRole, dict] = {
         ],
     },
     AgentRole.FRONTEND: {
-        "file_patterns": ["frontend/src/**", "frontend/package.json"],
+        "file_patterns": ["frontend/**"],
         "domain_keywords": ["react", "typescript", "tailwind", "component", "hook", "query"],
         "priority": "features",
         "expertise": [

@@ -133,7 +133,7 @@ async def place_test_call(
     }
 
 
-@router.api_route("/answer/{token}", methods=["GET", "POST"])
+@router.api_route("/answer/{token}", methods=["GET", "POST"], include_in_schema=False)
 async def answer_xml(token: str) -> Response:
     """Answer-URL webhook — Vobiz fetches this (NO auth). Returns VobizXML.
 
@@ -258,7 +258,7 @@ async def place_stream_call(
     }
 
 
-@router.api_route("/answer-stream/{token}", methods=["GET", "POST"])
+@router.api_route("/answer-stream/{token}", methods=["GET", "POST"], include_in_schema=False)
 async def answer_stream_xml(token: str) -> Response:
     """Answer-URL webhook for streamed calls (NO auth). Returns VobizXML that
     bridges the call to our WebSocket. Unknown tokens still get a valid stream

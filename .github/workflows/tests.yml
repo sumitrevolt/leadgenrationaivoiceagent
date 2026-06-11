@@ -1,0 +1,50 @@
+name: tests
+
+# CI TEST GATE (tech-debt fix, 2026-06-11): har push/PR pe prod_check + deterministic
+# suites. Deploy se ALAG (deploy-vps.yml DEPLOY_ENABLED-gated hi rehta). Full pytest
+# ab hang nahi karta (pytest-timeout in pyproject) — par CI me sirf network-free
+# targeted set chalta hai (LLM/Redis/Qdrant-dependent tests local/VPS pe).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ENVIRONMENT: test
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install deps (live lock, Dockerfile.lock jaisa)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-deps -r requirements.lock.txt
+          pip install pytest pytest-asyncio pytest-timeout httpx
+
+      - name: prod_check (import + routes gate)
+        run: python scripts/prod_check.py
+
+      - name: Targeted test suites (deterministic, no external creds)
+        run: >
+          pytest -q --tb=short -m "not network"
+          tests/test_product_split.py
+          tests/test_billing_truth_2026.py
+          tests/test_provisioning.py
+          tests/test_2026_features.py
+          tests/test_revenue_infra_2026.py
+          tests/test_revenue_automation.py
+          tests/test_apollo_inspired.py
+          tests/test_parity_clientops.py
+          tests/test_parity_conversion.py
+          tests/test_production_gaps.py

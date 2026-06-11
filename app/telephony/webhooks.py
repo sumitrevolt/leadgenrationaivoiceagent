@@ -186,7 +186,10 @@ async def twilio_status_webhook(
         return {"status": "error", "message": str(e)}
 
 
-@router.post("/exotel/status")
+# NOTE: app/api/webhooks.py ka /exotel/status PEHLE mount hota (first-route-wins)
+# — yeh route effectively shadowed hai. include_in_schema=False = duplicate
+# operation-id warning fix (OpenAPI clients todta tha). Path same rakha (rollback-safe).
+@router.post("/exotel/status", include_in_schema=False)
 async def exotel_status_webhook(
     request: Request, _sig: bool = Depends(verify_exotel_signature)
 ):
