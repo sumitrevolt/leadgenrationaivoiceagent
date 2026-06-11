@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<title>🤖 Automation Mission Control — LeadGen AI</title>
+<style>
+:root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:system-ui,Arial;padding:18px;max-width:1280px;margin:auto}
+h1{font-size:1.3rem;margin-bottom:4px} .sub{color:var(--mut);font-size:.85rem;margin-bottom:14px}
+.layout{display:flex;gap:14px;align-items:flex-start}
+.side{width:215px;flex-shrink:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;position:sticky;top:12px}
+.side button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--txt);padding:8px 10px;border-radius:8px;cursor:pointer;font-size:.85rem;margin:1px 0}
+.side button:hover{background:#222636} .side button.act{background:var(--acc);color:#fff}
+.main{flex:1;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.card h2{font-size:1rem;margin-bottom:8px;color:var(--acc)} .card h3{font-size:.88rem;margin:10px 0 6px;color:var(--warn)}
+label{display:block;font-size:.78rem;color:var(--mut);margin:8px 0 3px}
+input,select,textarea{background:#11141d;border:1px solid var(--line);color:var(--txt);padding:7px 10px;border-radius:8px;width:100%;max-width:420px;font-size:.85rem;font-family:inherit}
+textarea{max-width:640px;min-height:80px}
+button.btn{background:var(--acc);border:0;color:#fff;padding:7px 16px;border-radius:8px;cursor:pointer;margin:8px 6px 0 0;font-size:.85rem}
+button.btn2{background:#222636;border:1px solid var(--line);color:var(--txt);padding:5px 12px;border-radius:8px;cursor:pointer;margin:4px 4px 0 0;font-size:.78rem}
+button.btnd{background:#3a1d24;border:1px solid #5b2733;color:var(--bad);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:.75rem}
+button:disabled{opacity:.5;cursor:wait}
+table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:8px} td,th{padding:4px 7px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top} th{color:var(--mut);font-weight:600}
+.mut{color:var(--mut);font-size:.8rem} .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+.tabsec{display:none}
+.result{background:#11141d;border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;font-size:.85rem;overflow:auto}
+.result.warn{border-color:#5b4a1d;color:var(--warn)}
+pre{white-space:pre-wrap;word-break:break-word;font-size:.78rem;background:#0c0e14;border:1px solid var(--line);border-radius:8px;padding:10px;max-height:420px;overflow:auto}
+.copybox{display:flex;gap:6px;align-items:center;margin-top:6px;max-width:680px}
+.copybox input{flex:1;max-width:none}
+.toast{position:fixed;bottom:18px;right:18px;padding:10px 16px;border-radius:10px;font-size:.85rem;z-index:99;max-width:340px}
+.tok{background:#123524;color:var(--ok);border:1px solid #1d5a3c} .tbad{background:#3a1d24;color:var(--bad);border:1px solid #5b2733}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.72rem;margin:1px;background:#222636}
+.badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:.74rem;font-weight:600}
+.bg-red{background:#3a1d24;color:var(--bad)} .bg-yellow{background:#3a331d;color:var(--warn)} .bg-green{background:#123524;color:var(--ok)}
+.svgwrap{background:#fff;border-radius:10px;padding:6px;margin-top:8px;max-width:460px;overflow:auto}
+.row{display:flex;gap:14px;flex-wrap:wrap} .row>div{flex:1;min-width:280px}
+a{color:var(--acc)}
+@media(max-width:760px){.layout{flex-direction:column}.side{width:100%;position:static;display:flex;flex-wrap:wrap}.side button{width:auto}}
+</style>
+</head>
+<body>
+<h1>🤖 Automation Mission Control</h1>
+<div class="sub">Harvester · Prospects · Cadence · Sales Team AI · Processes · Self-Improve · Code Upgrader · Drafters · Revenue Ops · Research · Content+ — API-only features ab ek dashboard pe.</div>
+<div style="margin-bottom:12px">
+  <input id="tokin" type="password" placeholder="Admin token (login se auto)" style="width:280px">
+  <button class="btn" style="margin:0 0 0 6px" onclick="saveTok()">Save</button>
+  <a href="/app/admin-login" class="mut" style="margin-left:8px;font-size:.8rem">login →</a>
+</div>
+
+<div class="layout">
+<nav class="side" id="sidebar">
+  <button id="tab-harvest" onclick="show('harvest')">🌾 Harvester</button>
+  <button id="tab-prospects" onclick="show('prospects')">👥 Prospects</button>
+  <button id="tab-cadence" onclick="show('cadence')">📨 Cadence</button>
+  <button id="tab-salesai" onclick="show('salesai')">🧠 Sales Team AI</button>
+  <button id="tab-process" onclick="show('process')">⚙️ Processes</button>
+  <button id="tab-selfimp" onclick="show('selfimp')">🔁 Self-Improve</button>
+  <button id="tab-upgrader" onclick="show('upgrader')">🛠️ Code Upgrader</button>
+  <button id="tab-drafters" onclick="show('drafters')">✍️ Drafters</button>
+  <button id="tab-revenue" onclick="show('revenue')">💰 Revenue Ops</button>
+  <button id="tab-research" onclick="show('research')">🔎 Research</button>
+  <button id="tab-contentplus" onclick="show('contentplus')">🎨 Content+</button>
+</nav>
+
+<div class="main">
+
+<!-- ============ 1. Harvester ============ -->
+<section class="tabsec" id="sec-harvest">
+  <div class="card">
+    <h2>🌾 Lead Harvester (multi-source, legal-only)</h2>
+    <div class="mut">Places/OSM + websearch (SearXNG/Brave) + opendata + email-enrich. Directory/social scraping KABHI nahi (ToS-safe).</div>
+    <button class="btn2" onclick="hvSources()">🔌 Sources armed status</button>
+    <div id="hvSrcOut"></div>
+  </div>
+  <div class="card">
+    <h2>▶️ Harvest abhi chalao</h2>
+    <div class="row"><div>
+      <label>Niche</label><input id="hvNiche" placeholder="solar">
+      <label>City</label><input id="hvCity" placeholder="Pune">
+    </div><div>
+      <label>Limit (per source)</label><input id="hvLimit" type="number" value="10">
+    </div></div>
+    <button class="btn" id="hvRunBtn" onclick="hvRun()">🌾 Harvest run</button>
+    <div id="hvRunOut"></div>
+  </div>
+  <div class="card">
+    <h2>📧 Email enrich (missing emails)</h2>
+    <div class="mut">Website-wale prospects jinka email nahi — finder waterfall (site-extract → pattern → MX).</div>
+    <label>Limit</label><input id="hvEnLimit" type="number" value="10" style="max-width:120px">
+    <button class="btn" id="hvEnBtn" onclick="hvEnrich()">Enrich karo</button>
+    <div id="hvEnOut"></div>
+  </div>
+  <div class="card">
+    <h2>📜 Recent harvest runs</h2>
+    <button class="btn2" onclick="hvRuns()">Load</button>
+    <div id="hvRunsOut"></div>
+  </div>
+</section>
+
+<!-- ============ 2. Prospects ============ -->
+<section class="tabsec" id="sec-prospects">
+  <div class="card">
+    <h2>👥 Prospect Search (Apollo-style filters)</h2>
+    <div class="row"><div>
+      <label>Niche</label><input id="psNiche" placeholder="solar">
+      <label>City</label><input id="psCity" placeholder="Pune">
+      <label>Search text (naam/phone)</label><input id="psQ" placeholder="sharma">
+    </div><div>
+      <label>Email hai?</label>
+      <select id="psEmail"><option value="">— koi bhi —</option><option value="true">haan</option><option value="false">nahi</option></select>
+      <label>Min score (0-100)</label><input id="psScore" type="number" value="0">
+    </div></div>
+    <button class="btn" id="psBtn" onclick="psSearch()">🔍 Search</button>
+    <button class="btn2" onclick="psSaveList()">💾 Is filter ko list bana ke save karo</button>
+    <div id="psOut"></div>
+  </div>
+  <div class="card">
+    <h2>📋 Saved Lists</h2>
+    <button class="btn2" onclick="psLists()">Lists load</button>
+    <div class="mut">Enroll = poori list omnichannel cadence me (ban-safe drafts).</div>
+    <div id="psListsOut"></div>
+  </div>
+  <div class="card">
+    <h2>📥 CSV Import (Apollo/koi bhi)</h2>
+    <div class="mut">Apollo free se export karo → yahan paste. Aliases (Company/Work Email/...) auto-map, phone/email dedupe.</div>
+    <textarea id="psCsv" placeholder="Company,Phone,Work Email,City&#10;Sharma Solar,9876543210,info@sharmasolar.in,Pune"></textarea>
+    <button class="btn" id="psImpBtn" onclick="psImport()">Import karo</button>
+    <div id="psImpOut"></div>
+  </div>
+  <div class="card">
+    <h2>🕵️ Email Finder (waterfall)</h2>
+    <label>Website URL</label><input id="feSite" placeholder="https://sharmasolar.in">
+    <label>Owner name (optional, pattern-guess ke liye)</label><input id="feOwner" placeholder="Ramesh Sharma">
+    <button class="btn" id="feBtn" onclick="psFindEmail()">Email dhundo</button>
+    <div id="feOut"></div>
+  </div>
+</section>
+
+<!-- ============ 3. Cadence ============ -->
+<section class="tabsec" id="sec-cadence">
+  <div class="card">
+    <h2>📨 Omnichannel Cadence — status</h2>
+    <div class="mut">email→sms→whatsapp→voice→linkedin sequence. Har step ban-safe DRAFT (auto-send sirf channel-gate pe).</div>
+    <button class="btn2" onclick="cdLoad()">Stats load</button>
+    <div id="cdOut"></div>
+  </div>
+  <div class="card">
+    <h2>➕ Enroll</h2>
+    <div class="row"><div>
+      <h3>Ek lead enroll</h3>
+      <label>Business name</label><input id="cdBiz" placeholder="Sharma Solar">
+      <label>Phone</label><input id="cdPhone" placeholder="98xxxxxxxx">
+      <label>Email (optional)</label><input id="cdEmail">
+      <label>Niche (optional)</label><input id="cdNiche" placeholder="solar">
+      <button class="btn" onclick="cdEnroll()">Enroll karo</button>
+    </div><div>
+      <h3>Top-N prospects auto-enroll</h3>
+      <label>Kitne prospects (phone-wale top N)</label><input id="cdTopN" type="number" value="10" style="max-width:120px">
+      <button class="btn" onclick="cdEnrollTop()">Auto-enroll</button>
+    </div></div>
+    <div id="cdEnOut"></div>
+  </div>
+  <div class="card">
+    <h2>▶️ Due steps run</h2>
+    <div class="mut">GATED <b>CADENCE_ENGINE=1</b> — off ho to no-op aayega.</div>
+    <button class="btn" id="cdRunBtn" onclick="cdRun()">Run due steps</button>
+    <div id="cdRunOut"></div>
+  </div>
+</section>
+
+<!-- ============ 4. Sales Team AI ============ -->
+<section class="tabsec" id="sec-salesai">
+  <div class="card">
+    <h2>🧠 5-Agent Prospect Deep-Dive</h2>
+    <div class="mut">Riya(research) · Veer(BANT) · Dev(competitive) · Isha(sequence) · Arjun(objections) — parallel, Boss verdict. Phone do (store se dhundta) YA fields bharo.</div>
+    <div class="row"><div>
+      <label>Phone (store me dhundo)</label><input id="saPhone" placeholder="98xxxxxxxx">
+    </div><div>
+      <label>YA — Business name</label><input id="saBiz" placeholder="Sharma Solar">
+      <label>Niche</label><input id="saNiche" placeholder="solar">
+      <label>City</label><input id="saCity" placeholder="Pune">
+    </div></div>
+    <button class="btn" id="saBtn" onclick="saAnalyze()">🧠 Deep-dive karo (~30-60s)</button>
+    <div id="saOut"></div>
+  </div>
+  <div class="card">
+    <h2>📜 Recent analyses</h2>
+    <button class="btn2" onclick="saList()">Load</button>
+    <button class="btn" id="saRunBtn" onclick="saTeamRun()">🤖 Auto-run (top hot leads)</button>
+    <label>Auto-run limit</label><input id="saRunLimit" type="number" value="3" style="max-width:100px">
+    <div id="saListOut"></div>
+  </div>
+  <div class="card">
+    <h2>📄 Auto Proposal</h2>
+    <div class="row"><div>
+      <label>Business name</label><input id="ppBiz" placeholder="Sharma Solar">
+      <label>Niche</label><input id="ppNiche" placeholder="solar">
+    </div><div>
+      <label>City</label><input id="ppCity" placeholder="Pune">
+      <label>Plan</label>
+      <select id="ppPlan"><option value="starter">starter</option><option value="growth" selected>growth</option><option value="advanced">advanced</option></select>
+    </div></div>
+    <button class="btn" id="ppBtn" onclick="saProposal()">Proposal banao</button>
+    <div id="ppOut"></div>
+  </div>
+  <div class="card">
+    <h2>💬 AI Sales-Closer (objection handler)</h2>
+    <label>Prospect ka message</label><textarea id="scMsg" placeholder="Bhai price bahut zyada hai, itna budget nahi hai"></textarea>
+    <label>Business name (optional)</label><input id="scBiz">
+    <label>Niche (optional)</label><input id="scNiche" placeholder="solar">
+    <button class="btn" id="scBtn" onclick="saAssist()">Jawab banao</button>
+    <div id="scOut"></div>
+  </div>
+</section>
+
+<!-- ============ 5. Processes ============ -->
+<section class="tabsec" id="sec-process">
+  <div class="card">
+    <h2>⚙️ Process-as-code Workflows</h2>
+    <div class="mut">Deterministic steps + code gates + human breakpoints (ban-risky step se pehle PAUSE). Celery worker me chalte.</div>
+    <div class="row"><div>
+      <label>Niche (start inputs)</label><input id="prNiche" placeholder="solar">
+    </div><div>
+      <label>City</label><input id="prCity" placeholder="Pune">
+    </div></div>
+    <button class="btn2" onclick="prDefs()">Definitions load</button>
+    <div id="prDefsOut"></div>
+  </div>
+  <div class="card">
+    <h2>🏃 Runs</h2>
+    <div class="mut">waiting_approval status pe ✅ Approve / ❌ Reject milega. Row pe 📖 = journal viewer.</div>
+    <button class="btn2" onclick="prRuns()">Runs load</button>
+    <div id="prRunsOut"></div>
+    <div id="prDetailOut"></div>
+  </div>
+</section>
+
+<!-- ============ 6. Self-Improve ============ -->
+<section class="tabsec" id="sec-selfimp">
+  <div class="card">
+    <h2>🔁 Self-Improve Continuous Loop</h2>
+    <div class="mut">task→task forever loop (pick→execute→learn→requeue). Flag <b>SELF_IMPROVE_LOOP</b>.</div>
+    <button class="btn2" onclick="siStatus()">📊 Status</button>
+    <button class="btn" id="siRunBtn" onclick="siRun()">▶️ Ek tick abhi (Celery enqueue)</button>
+    <div id="siStatusOut"></div>
+  </div>
+  <div class="card">
+    <h2>📝 Custom task queue karo</h2>
+    <label>Task / goal (Hinglish chalega)</label><input id="siTask" placeholder="Nashik me gym niche ke 10 leads lao" style="max-width:640px">
+    <label>Action (optional — khali = auto-pick)</label><select id="siAction"><option value="">— auto —</option></select>
+    <button class="btn2" onclick="siActions()">Actions list load</button>
+    <button class="btn" id="siTaskBtn" onclick="siAddTask()">Queue karo</button>
+    <div id="siActionsOut"></div><div id="siTaskOut"></div>
+  </div>
+  <div class="card">
+    <h2>📚 Skill Library (auto-learn)</h2>
+    <button class="btn2" onclick="siSkills()">Library load</button>
+    <div id="siSkillsOut"></div>
+    <h3>➕ Manual lesson (human coaching)</h3>
+    <label>Topic</label><input id="siLessonTopic" value="general" style="max-width:220px">
+    <label>Lesson</label><textarea id="siLessonText" placeholder="WhatsApp group drafts Tuesday ko zyada chalte"></textarea>
+    <button class="btn" id="siLessonBtn" onclick="siLesson()">Lesson add</button>
+    <div id="siLessonOut"></div>
+  </div>
+</section>
+
+<!-- ============ 7. Code Upgrader ============ -->
+<section class="tabsec" id="sec-upgrader">
+  <div class="card">
+    <h2>🛠️ Code Upgrader (Vikram)</h2>
+    <div class="mut">Observability signals → patch PROPOSALS. Core code kabhi auto-apply nahi — approve = normal deploy loop. <span class="warn">Approve/Reject = SUPER_ADMIN only.</span></div>
+    <button class="btn" id="upScanBtn" onclick="upScan()">🔍 Scan abhi chalao</button>
+    <button class="btn2" onclick="upPatches()">📋 Patches load</button>
+    <label>Status filter</label>
+    <select id="upFilter" style="max-width:200px"><option value="">— sab —</option><option>proposed</option><option>approved</option><option>rejected</option><option>applied</option></select>
+    <div id="upScanOut"></div>
+    <div id="upListOut"></div>
+  </div>
+</section>
+
+<!-- ============ 8. Drafters ============ -->
+<section class="tabsec" id="sec-drafters">
+  <div class="card">
+    <h2>🤝 Partnership pitch (B2B2B)</h2>
+    <button class="btn2" onclick="dtTypes()">Partner types load</button>
+    <label>Partner type</label><select id="dtPType"><option value="ca">ca</option></select>
+    <label>Partner name (optional)</label><input id="dtPName">
+    <label>City (optional)</label><input id="dtPCity" placeholder="Pune">
+    <button class="btn" id="dtPBtn" onclick="dtPartner()">Draft banao</button>
+    <div id="dtPOut"></div>
+  </div>
+  <div class="card">
+    <h2>🌐 Community / Q&amp;A draft</h2>
+    <label>Platform</label>
+    <select id="dtCPlat"><option>quora</option><option>reddit</option><option>whatsapp_group</option><option>telegram</option><option>linkedin_article</option><option>medium</option></select>
+    <label>Topic (optional)</label><input id="dtCTopic" placeholder="missed calls se business loss">
+    <label>Niche</label><input id="dtCNiche" placeholder="solar">
+    <button class="btn" id="dtCBtn" onclick="dtCommunity()">Draft banao</button>
+    <div id="dtCOut"></div>
+  </div>
+  <div class="card">
+    <h2>💼 LinkedIn comment-first</h2>
+    <label>Target name</label><input id="dtLName" placeholder="Ramesh Sharma">
+    <label>Company (optional)</label><input id="dtLCo" placeholder="Sharma Solar">
+    <label>Niche</label><input id="dtLNiche" placeholder="solar">
+    <button class="btn" id="dtLBtn" onclick="dtLinkedin()">Draft banao</button>
+    <div id="dtLOut"></div>
+  </div>
+  <div class="card">
+    <h2>📄 SEO landing page (niche×city)</h2>
+    <div class="row"><div>
+      <label>Niche</label><input id="dtSNiche" placeholder="solar">
+      <label>City</label><input id="dtSCity" value="Pune">
+      <button class="btn" id="dtSBtn" onclick="dtSeoPage()">Page banao</button>
+    </div><div>
+      <label>Batch limit (multiple niches)</label><input id="dtSBatch" type="number" value="4" style="max-width:120px">
+      <button class="btn2" id="dtSBBtn" onclick="dtSeoBatch()">Batch banao (LLM-heavy)</button>
+    </div></div>
+    <div id="dtSOut"></div>
+  </div>
+  <div class="card">
+    <h2>📣 Social channels (8 naye approach)</h2>
+    <button class="btn2" onclick="dtChannels()">Channels load</button>
+    <label>Channel</label><select id="dtSocCh"><option value="gbp_qna">gbp_qna</option></select>
+    <label>Niche</label><input id="dtSocNiche" placeholder="solar">
+    <label>City</label><input id="dtSocCity" placeholder="Pune">
+    <label>Business name (optional)</label><input id="dtSocBiz">
+    <button class="btn" id="dtSocBtn" onclick="dtSocial()">Draft banao</button>
+    <div id="dtSocOut"></div>
+  </div>
+</section>
+
+<!-- ============ 9. Revenue Ops ============ -->
+<section class="tabsec" id="sec-revenue">
+  <div class="card">
+    <h2>🧾 Dunning (payment recovery)</h2>
+    <button class="btn2" onclick="rvDunning()">Cases load</button>
+    <button class="btn" id="rvDunBtn" onclick="rvDunningRun()">▶️ Sweep run (gated DUNNING_ENGINE)</button>
+    <div id="rvDunOut"></div>
+  </div>
+  <div class="card">
+    <h2>❤️ Client Health (churn risk)</h2>
+    <button class="btn2" onclick="rvHealth()">Health report</button>
+    <button class="btn" id="rvHlBtn" onclick="rvHealthRun()">▶️ Check + alerts run</button>
+    <div id="rvHlOut"></div>
+  </div>
+  <div class="card">
+    <h2>🌱 Lifecycle Nurture</h2>
+    <button class="btn2" onclick="rvLifecycle()">Funnel stats</button>
+    <button class="btn" id="rvLcBtn" onclick="rvLifecycleRun()">▶️ Sweep run (gated LIFECYCLE_NURTURE)</button>
+    <div id="rvLcOut"></div>
+  </div>
+  <div class="card">
+    <h2>🧾 GST Invoices</h2>
+    <button class="btn2" onclick="rvInvoices()">Invoices load</button>
+    <a class="btn2" style="text-decoration:none;display:inline-block" href="/api/growth/revenue/invoices.csv" target="_blank" rel="noopener">⬇️ GSTR CSV</a>
+    <div id="rvInvOut"></div>
+  </div>
+  <div class="card">
+    <h2>📈 Usage Alerts + ✉️ Warmup</h2>
+    <button class="btn2" onclick="rvAlerts()">Recent alerts</button>
+    <button class="btn2" id="rvAlBtn" onclick="rvAlertsRun()">▶️ Usage sweep</button>
+    <button class="btn2" onclick="rvWarmup()">✉️ Warmup status</button>
+    <div id="rvAlOut"></div><div id="rvWuOut"></div>
+  </div>
+  <div class="card">
+    <h2>🔁 Payment Recon + 📬 Digest</h2>
+    <button class="btn2" onclick="rvRecon()">Last recon report</button>
+    <label>Recon days</label><input id="rvReconDays" type="number" value="3" style="max-width:100px">
+    <button class="btn" id="rvRcBtn" onclick="rvReconRun()">▶️ Recon run (READ-only)</button>
+    <button class="btn2" id="rvDgBtn" onclick="rvDigest()">📬 Revenue digest abhi bhejo</button>
+    <div id="rvRcOut"></div><div id="rvDgOut"></div>
+  </div>
+  <div class="card">
+    <h2>⏫ Voice-minute Top-up Link</h2>
+    <label>Client ID</label><input id="rvTuClient" placeholder="client id">
+    <label>Pack</label>
+    <select id="rvTuPack"><option value="topup_100">topup_100 (100 min)</option><option value="topup_250">topup_250 (250 min)</option><option value="topup_500">topup_500 (500 min)</option></select>
+    <button class="btn2" onclick="rvTuPacks()">Packs detail</button>
+    <button class="btn" id="rvTuBtn" onclick="rvTopup()">Link banao</button>
+    <div id="rvTuOut"></div>
+  </div>
+</section>
+
+<!-- ============ 10. Research ============ -->
+<section class="tabsec" id="sec-research">
+  <div class="card">
+    <h2>🔎 Web Search (self-hosted SearXNG — FREE)</h2>
+    <div class="copybox"><input id="rsQ" placeholder="solar installers Pune contact"><button class="btn" style="margin:0" id="rsBtn" onclick="rsSearch()">Search</button></div>
+    <div id="rsOut"></div>
+  </div>
+  <div class="card">
+    <h2>🔔 ntfy Phone Push</h2>
+    <div class="mut">Gated NTFY_URL+NTFY_TOPIC — test push phone pe aayega.</div>
+    <button class="btn" id="rsNtBtn" onclick="rsNotify()">Test push bhejo</button>
+    <div id="rsNtOut"></div>
+  </div>
+  <div class="card">
+    <h2>🔥 Hot Leads</h2>
+    <button class="btn2" onclick="rsHot()">Hot leads load</button>
+    <button class="btn" id="rsRsBtn" onclick="rsRescore()">♻️ Saare leads rescore</button>
+    <div id="rsHotOut"></div>
+  </div>
+  <div class="card">
+    <h2>🌦️ Weather Angle + 📈 Trends</h2>
+    <div class="row"><div>
+      <label>City</label><input id="rsWCity" value="Mumbai">
+      <button class="btn2" id="rsWBtn" onclick="rsWeather()">Aaj ka angle</button>
+      <div id="rsWOut"></div>
+    </div><div>
+      <label>Niche (trends)</label><input id="rsTNiche" value="general">
+      <button class="btn2" id="rsTBtn" onclick="rsTrends()">Trends angles</button>
+      <div id="rsTOut"></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ============ 11. Content+ ============ -->
+<section class="tabsec" id="sec-contentplus">
+  <div class="card">
+    <h2>🎠 Carousel (3-5 branded SVG slides)</h2>
+    <div class="row"><div>
+      <label>Business name</label><input id="ctBiz" placeholder="Sharma Solar">
+      <label>Niche</label><input id="ctNiche" placeholder="solar">
+    </div><div>
+      <label>Topic (optional)</label><input id="ctTopic" placeholder="solar subsidy">
+      <label>Slides (3-5)</label><input id="ctSlides" type="number" value="4" style="max-width:100px">
+    </div></div>
+    <button class="btn" id="ctCarBtn" onclick="ctCarousel()">Carousel banao</button>
+    <div id="ctCarOut"></div>
+  </div>
+  <div class="card">
+    <h2>😂 Meme</h2>
+    <label>Business name (optional)</label><input id="ctMBiz">
+    <label>Niche</label><input id="ctMNiche" placeholder="solar">
+    <label>Topic (optional)</label><input id="ctMTopic">
+    <button class="btn" id="ctMemeBtn" onclick="ctMeme()">Meme banao</button>
+    <div id="ctMemeOut"></div>
+  </div>
+  <div class="card">
+    <h2>🎯 KB-Personalized Post</h2>
+    <div class="mut">Client ki KB facts (AUTO_ONBOARD seeded) caption me inject hote.</div>
+    <label>Client ID</label><input id="ctPClient" placeholder="client id">
+    <label>Occasion (optional)</label><input id="ctPOcc" placeholder="diwali">
+    <label>Offer (optional)</label><input id="ctPOffer" placeholder="10% off">
+    <button class="btn" id="ctPerBtn" onclick="ctPersonalize()">Post banao</button>
+    <div id="ctPerOut"></div>
+  </div>
+  <div class="card">
+    <h2>✈️ Telegram Publish (TRUE auto channel)</h2>
+    <div class="mut">Gated TELEGRAM_BOT_TOKEN. Client ID do (record ke chat_id pe content) YA chat_id+text manually.</div>
+    <div class="row"><div>
+      <label>Client ID (auto content)</label><input id="ctTgClient">
+    </div><div>
+      <label>YA chat_id</label><input id="ctTgChat" placeholder="@mychannel ya -100...">
+      <label>Text</label><textarea id="ctTgText" style="min-height:60px"></textarea>
+    </div></div>
+    <button class="btn" id="ctTgBtn" onclick="ctTelegram()">Send karo</button>
+    <div id="ctTgOut"></div>
+  </div>
+  <div class="card">
+    <h2>📊 Content Feedback Loop</h2>
+    <div class="mut">1-click "post chala/nahi" → theme×format learning + channel-bandit credit.</div>
+    <label>Niche filter (stats)</label><input id="ctFbNiche" style="max-width:220px">
+    <button class="btn2" onclick="ctFbStats()">Stats load</button>
+    <div id="ctFbStatsOut"></div>
+    <h3>➕ Feedback record</h3>
+    <div class="row"><div>
+      <label>Theme</label><input id="ctFbTheme" placeholder="festival_offer">
+      <label>Format</label>
+      <select id="ctFbFormat"><option>post</option><option>carousel</option><option>meme</option><option>reel</option><option>story</option></select>
+    </div><div>
+      <label>Chala?</label>
+      <select id="ctFbWorked"><option value="true">✅ chala</option><option value="false">❌ nahi chala</option></select>
+      <label>Niche (optional)</label><input id="ctFbN2">
+    </div></div>
+    <button class="btn" id="ctFbBtn" onclick="ctFeedback()">Record karo</button>
+    <div id="ctFbOut"></div>
+  </div>
+</section>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+const $=id=>document.getElementById(id);
+function tok(){return localStorage.getItem('accessToken')||''}
+function saveTok(){localStorage.setItem('accessToken',$('tokin').value.trim());toast('Token saved ✅')}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function toast(msg,ok){var t=document.createElement('div');t.className='toast '+(ok===false?'tbad':'tok');t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},4500)}
+async function api(path,opts){
+  opts=opts||{};
+  var headers={Authorization:'Bearer '+tok()};
+  if(opts.body && !(opts.body instanceof FormData)) headers['Content-Type']='application/json';
+  var r=await fetch(path,Object.assign({},opts,{headers:Object.assign(headers,opts.headers||{})}));
+  var d=null; try{d=await r.json()}catch(e){}
+  if(r.status===401||r.status===403){toast('Token galat/expired — upar paste karo ya login karo',false);throw new Error('auth')}
+  if(!r.ok){var m=(d&&(d.detail&&(d.detail.msg||d.detail)||d.error))||('HTTP '+r.status);throw new Error(typeof m==='string'?m:JSON.stringify(m))}
+  return d;
+}
+async function copyTxt(txt){try{await navigator.clipboard.writeText(txt);toast('Copy ho gaya ✅')}catch(e){toast('Copy fail — manually select karo',false)}}
+function copyVal(id){copyTxt($(id).value)}
+function busy(id,on,lbl){var b=$(id);if(!b)return;b.disabled=!!on;if(on){b.dataset.t=b.textContent;b.textContent=lbl||'⏳ ruko...'}else if(b.dataset.t){b.textContent=b.dataset.t}}
+function show(tab){
+  document.querySelectorAll('.tabsec').forEach(function(s){s.style.display='none'});
+  document.querySelectorAll('.side button').forEach(function(b){b.classList.remove('act')});
+  $('sec-'+tab).style.display='block';$('tab-'+tab).classList.add('act');
+  try{location.hash=tab}catch(e){}
+}
+/* generic renderers */
+function jpre(d){return '<pre>'+esc(JSON.stringify(d,null,2))+'</pre>'}
+function pills(d){var h='';Object.keys(d||{}).forEach(function(k){var v=d[k];if(typeof v==='number'||typeof v==='string'||typeof v==='boolean'){h+='<span class="pill">'+esc(k)+': <b>'+esc(v)+'</b></span> '}});return h}
+function draftBlocks(d,depth){
+  depth=depth||0;var h='';
+  Object.keys(d||{}).forEach(function(k){
+    if(k==='ok'||k==='svg')return;
+    var v=d[k];
+    if(typeof v==='string'&&v.trim().length>2){
+      h+='<div style="margin-top:8px"><b class="warn">'+esc(k)+'</b><pre>'+esc(v)+'</pre><button class="btn2" onclick="copyTxt('+esc(JSON.stringify(v))+')">📋 Copy</button></div>';
+    }else if(Array.isArray(v)&&v.length&&typeof v[0]==='string'){
+      var joined=v.join('\n');
+      h+='<div style="margin-top:8px"><b class="warn">'+esc(k)+'</b><pre>'+esc(joined)+'</pre><button class="btn2" onclick="copyTxt('+esc(JSON.stringify(joined))+')">📋 Copy</button></div>';
+    }else if(v&&typeof v==='object'&&depth<1){
+      h+='<div style="margin-top:8px"><b class="warn">'+esc(k)+'</b>'+draftBlocks(v,depth+1)+'</div>';
+    }else if(v&&typeof v==='object'){
+      h+='<div style="margin-top:8px"><b class="warn">'+esc(k)+'</b>'+jpre(v)+'</div>';
+    }
+  });
+  return h||jpre(d);
+}
+function warnBox(id,msg){$(id).innerHTML='<div class="result warn">'+esc(msg)+'</div>'}
+
+/* ---------------- 1. Harvester ---------------- */
+async function hvSources(){
+  try{
+    var d=await api('/api/growth/harvest/sources');
+    var h='<div class="result"><table><tr><th>Source</th><th>Status</th></tr>';
+    Object.keys(d||{}).forEach(function(k){
+      var v=d[k];var disp;
+      if(v===true)disp='<span class="ok">✅ armed</span>';
+      else if(v===false)disp='<span class="bad">❌ off (key/flag nahi)</span>';
+      else if(typeof v==='string'||typeof v==='number')disp='<span class="warn">'+esc(v)+'</span>';
+      else disp='<span class="mut">'+esc(JSON.stringify(v))+'</span>';
+      h+='<tr><td>'+esc(k)+'</td><td>'+disp+'</td></tr>';
+    });
+    $('hvSrcOut').innerHTML=h+'</table></div>';
+  }catch(e){toast('Sources fail: '+e.message,false)}
+}
+async function hvRun(){
+  var niche=$('hvNiche').value.trim(),city=$('hvCity').value.trim();
+  if(!niche||!city)return toast('Niche + city daalo',false);
+  busy('hvRunBtn',1,'⏳ harvest chal raha (~30-60s)...');
+  try{
+    var d=await api('/api/growth/harvest/run',{method:'POST',body:JSON.stringify({niche:niche,city:city,limit:parseInt($('hvLimit').value)||10})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('hvRunOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+    toast('Harvest done ✅');
+  }catch(e){toast('Harvest fail: '+e.message,false)}
+  busy('hvRunBtn',0);
+}
+async function hvEnrich(){
+  busy('hvEnBtn',1,'⏳ enrich...');
+  try{
+    var n=parseInt($('hvEnLimit').value)||10;
+    var d=await api('/api/growth/harvest/enrich?limit='+n,{method:'POST'});
+    $('hvEnOut').innerHTML='<div class="result">Tried: <b>'+esc(d.tried||0)+'</b> · Emails mile: <b class="ok">'+esc(d.found||0)+'</b>'+(d.error?' · <span class="bad">'+esc(d.error)+'</span>':'')+'</div>';
+    toast('Enrich done ✅');
+  }catch(e){toast('Enrich fail: '+e.message,false)}
+  busy('hvEnBtn',0);
+}
+async function hvRuns(){
+  try{
+    var d=await api('/api/growth/harvest/runs');
+    var rows=d.runs||[];
+    if(!rows.length){$('hvRunsOut').innerHTML='<div class="mut" style="margin-top:8px">Abhi koi run nahi.</div>';return}
+    var h='<table><tr><th>Kab</th><th>Niche</th><th>City</th><th>Detail</th></tr>';
+    rows.forEach(function(r){
+      var when=r.ts?new Date(r.ts*1000).toLocaleString():(r.at||r.time||'');
+      var det={};Object.keys(r).forEach(function(k){if(['ts','at','time','niche','city'].indexOf(k)<0)det[k]=r[k]});
+      h+='<tr><td>'+esc(when)+'</td><td>'+esc(r.niche||'')+'</td><td>'+esc(r.city||'')+'</td><td class="mut">'+esc(JSON.stringify(det).slice(0,180))+'</td></tr>';
+    });
+    $('hvRunsOut').innerHTML=h+'</table>';
+  }catch(e){toast('Runs fail: '+e.message,false)}
+}
+
+/* ---------------- 2. Prospects ---------------- */
+function psFilters(){
+  return {niche:$('psNiche').value.trim(),city:$('psCity').value.trim(),q:$('psQ').value.trim(),
+          has_email:$('psEmail').value,min_score:parseInt($('psScore').value)||0};
+}
+async function psSearch(){
+  busy('psBtn',1);
+  try{
+    var f=psFilters();
+    var qs='niche='+encodeURIComponent(f.niche)+'&city='+encodeURIComponent(f.city)+'&q='+encodeURIComponent(f.q)+'&min_score='+f.min_score+'&limit=50';
+    if(f.has_email)qs+='&has_email='+f.has_email;
+    var d=await api('/api/growth/prospects/search?'+qs);
+    var rows=d.results||d.prospects||(Array.isArray(d)?d:[]);
+    if(!rows.length){$('psOut').innerHTML='<div class="mut" style="margin-top:8px">Koi prospect nahi mila — filter dheela karo.</div>';return}
+    var h='<div class="mut" style="margin-top:8px">'+rows.length+' results</div><table><tr><th>Business</th><th>Phone</th><th>Email</th><th>Niche</th><th>City</th><th>Score</th><th>Status</th></tr>';
+    rows.forEach(function(r){
+      var sc=r.score||r.lead_score||0;
+      h+='<tr><td>'+esc(r.name||r.business_name||'')+'</td><td>'+esc(r.phone||'')+'</td><td>'+esc(r.email||'—')+'</td><td>'+esc(r.niche||'')+'</td><td>'+esc(r.city||'')+'</td><td class="'+(sc>=70?'ok':(sc>=40?'warn':'mut'))+'"><b>'+esc(sc)+'</b></td><td class="mut">'+esc(r.status||'')+'</td></tr>';
+    });
+    $('psOut').innerHTML=h+'</table>';
+  }catch(e){toast('Search fail: '+e.message,false)}
+  busy('psBtn',0);
+}
+async function psSaveList(){
+  var name=prompt('List ka naam?'); if(!name)return;
+  try{
+    var f=psFilters();
+    var filters={niche:f.niche,city:f.city,q:f.q,min_score:f.min_score};
+    if(f.has_email)filters.has_email=(f.has_email==='true');
+    var d=await api('/api/growth/prospects/lists',{method:'POST',body:JSON.stringify({name:name,filters:filters})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    toast('List saved ✅');psLists();
+  }catch(e){toast('Save fail: '+e.message,false)}
+}
+async function psLists(){
+  try{
+    var d=await api('/api/growth/prospects/lists');
+    var rows=d.lists||(Array.isArray(d)?d:[]);
+    if(!rows.length){$('psListsOut').innerHTML='<div class="mut" style="margin-top:8px">Koi saved list nahi.</div>';return}
+    var h='<table><tr><th>Name</th><th>Type</th><th>Count</th><th></th></tr>';
+    rows.forEach(function(r){
+      var id=r.id||r.list_id||'';
+      h+='<tr><td>'+esc(r.name||'')+'</td><td class="mut">'+esc(r.filters?'filters':'ids')+'</td><td>'+esc(r.count||((r.prospect_ids||[]).length)||'—')+'</td>';
+      h+='<td><button class="btn2" onclick="psEnrollList(\''+esc(id)+'\')">📨 Cadence me enroll</button></td></tr>';
+    });
+    $('psListsOut').innerHTML=h+'</table>';
+  }catch(e){toast('Lists fail: '+e.message,false)}
+}
+async function psEnrollList(id){
+  if(!id)return toast('List id nahi mila',false);
+  try{
+    var d=await api('/api/growth/prospects/lists/'+encodeURIComponent(id)+'/enroll-cadence',{method:'POST'});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    toast('Enrolled ✅ — '+(d.enrolled!=null?d.enrolled+' leads':'done'));
+  }catch(e){toast('Enroll fail: '+e.message,false)}
+}
+async function psImport(){
+  var csv=$('psCsv').value.trim(); if(!csv)return toast('CSV paste karo',false);
+  busy('psImpBtn',1,'⏳ import...');
+  try{
+    var d=await api('/api/growth/prospects/import',{method:'POST',body:JSON.stringify({csv_text:csv,source:'dashboard_import'})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('psImpOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+    toast('Import done ✅');
+  }catch(e){toast('Import fail: '+e.message,false)}
+  busy('psImpBtn',0);
+}
+async function psFindEmail(){
+  var site=$('feSite').value.trim(); if(!site)return toast('Website URL daalo',false);
+  busy('feBtn',1,'⏳ dhund raha...');
+  try{
+    var d=await api('/api/growth/prospects/find-email',{method:'POST',body:JSON.stringify({website:site,owner_name:$('feOwner').value.trim()})});
+    var h='<div class="result">';
+    if(d.email){h+='Email mila: <b class="ok">'+esc(d.email)+'</b> <button class="btn2" onclick="copyTxt('+esc(JSON.stringify(d.email))+')">📋 Copy</button>';
+      if(d.source||d.method)h+='<div class="mut">source: '+esc(d.source||d.method)+(d.verified!=null?' · MX verified: '+(d.verified?'✅':'❌'):'')+'</div>';}
+    else h+='<span class="warn">Email nahi mila.</span>'+jpre(d);
+    h+='</div>';$('feOut').innerHTML=h;
+  }catch(e){toast('Finder fail: '+e.message,false)}
+  busy('feBtn',0);
+}
+
+/* ---------------- 3. Cadence ---------------- */
+async function cdLoad(){
+  try{
+    var d=await api('/api/growth/cadence');
+    var st=d.stats||{};
+    var h='<div class="result">'+pills(st);
+    if(st.step_touches&&Object.keys(st.step_touches).length){
+      h+='<table><tr><th>Channel:Action</th><th>Touches</th></tr>';
+      Object.keys(st.step_touches).forEach(function(k){h+='<tr><td>'+esc(k)+'</td><td>'+esc(st.step_touches[k])+'</td></tr>'});
+      h+='</table>';
+    }
+    var seq=d.cadence||[];
+    if(seq.length){
+      h+='<h3 style="color:var(--warn);font-size:.85rem;margin-top:10px">Sequence (day → channel)</h3><table><tr><th>Day</th><th>Channel</th><th>Action</th></tr>';
+      seq.forEach(function(s){h+='<tr><td>'+esc(s.day!=null?s.day:s.offset)+'</td><td>'+esc(s.channel||'')+'</td><td class="mut">'+esc(s.action||s.template||'')+'</td></tr>'});
+      h+='</table>';
+    }
+    var runs=d.recent_runs||[];
+    if(runs.length){
+      h+='<h3 style="color:var(--warn);font-size:.85rem;margin-top:10px">Recent runs</h3>';
+      runs.slice(0,8).forEach(function(r){h+='<div class="mut">'+esc(JSON.stringify(r).slice(0,160))+'</div>'});
+    }
+    $('cdOut').innerHTML=h+'</div>';
+  }catch(e){toast('Cadence fail: '+e.message,false)}
+}
+async function cdEnroll(){
+  var biz=$('cdBiz').value.trim(),phone=$('cdPhone').value.trim(),email=$('cdEmail').value.trim();
+  if(!phone&&!email)return toast('Phone ya email chahiye',false);
+  try{
+    var lead={business_name:biz,name:biz,phone:phone,email:email,niche:$('cdNiche').value.trim()};
+    var d=await api('/api/growth/cadence/enroll',{method:'POST',body:JSON.stringify({leads:[lead]})});
+    $('cdEnOut').innerHTML='<div class="result">Enrolled: <b class="ok">'+esc(d.enrolled||0)+'</b> '+pills(d.stats||{})+'</div>';
+    toast('Enrolled ✅');
+  }catch(e){toast('Enroll fail: '+e.message,false)}
+}
+async function cdEnrollTop(){
+  var n=parseInt($('cdTopN').value)||10;
+  try{
+    var d=await api('/api/growth/cadence/enroll',{method:'POST',body:JSON.stringify({from_prospects:n})});
+    $('cdEnOut').innerHTML='<div class="result">Enrolled: <b class="ok">'+esc(d.enrolled||0)+'</b> '+pills(d.stats||{})+'</div>';
+    toast('Auto-enrolled ✅');
+  }catch(e){toast('Enroll fail: '+e.message,false)}
+}
+async function cdRun(){
+  busy('cdRunBtn',1,'⏳ steps chal rahe...');
+  try{
+    var d=await api('/api/growth/cadence/run',{method:'POST'});
+    if(d.enabled===false){warnBox('cdRunOut','CADENCE_ENGINE flag OFF hai — .env me 1 karo, tab tak no-op.')}
+    else $('cdRunOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+    toast('Run done ✅');
+  }catch(e){toast('Run fail: '+e.message,false)}
+  busy('cdRunBtn',0);
+}
+
+/* ---------------- 4. Sales Team AI ---------------- */
+async function saAnalyze(){
+  var phone=$('saPhone').value.trim(),biz=$('saBiz').value.trim();
+  if(!phone&&!biz)return toast('Phone YA business name daalo',false);
+  busy('saBtn',1,'⏳ 5 agents kaam pe (~30-60s)...');
+  try{
+    var body=phone?{phone:phone}:{prospect:{business_name:biz,name:biz,niche:$('saNiche').value.trim()||'general',city:$('saCity').value.trim()}};
+    var d=await api('/api/growth/sales/prospect-analysis',{method:'POST',body:JSON.stringify(body)});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    var a=d.analysis||{};var q=a.qualify||{};
+    var sc=d.score!=null?d.score:(q.total||0);
+    var h='<div class="result"><div style="font-size:1.6rem;font-weight:700" class="'+(sc>=70?'ok':(sc>=45?'warn':'bad'))+'">'+esc(sc)+'/100 <span style="font-size:1rem">grade '+esc(d.grade||q.grade||'?')+'</span></div>';
+    h+='<div class="mut">'+esc(d.name||'')+' · '+esc(d.phone||'')+' · '+esc(d.niche||'')+' '+esc(d.city||'')+'</div>';
+    if(a.boss_summary)h+='<div style="margin-top:8px"><b class="warn">👔 Boss verdict</b><pre>'+esc(a.boss_summary)+'</pre></div>';
+    if(q.reasons&&q.reasons.length)h+='<div style="margin-top:6px"><b class="warn">BANT reasons</b><pre>'+esc(q.reasons.join('\n'))+'</pre></div>';
+    if(q.action)h+='<div class="mut">Next: '+esc(q.action)+'</div>';
+    ['research','competitive','outreach','objections'].forEach(function(k){
+      if(a[k])h+='<details style="margin-top:6px"><summary class="warn" style="cursor:pointer">'+esc(k)+'</summary>'+draftBlocks(a[k])+'</details>';
+    });
+    h+='</div>';$('saOut').innerHTML=h;toast('Analysis ready ✅');
+  }catch(e){toast('Analysis fail: '+e.message,false)}
+  busy('saBtn',0);
+}
+async function saList(){
+  try{
+    var d=await api('/api/growth/sales/prospect-analyses');
+    var rows=d.analyses||[];
+    if(!rows.length){$('saListOut').innerHTML='<div class="mut" style="margin-top:8px">Abhi koi analysis nahi.</div>';return}
+    var h='<table><tr><th>Kab</th><th>Name</th><th>Phone</th><th>Niche</th><th>City</th><th>Score</th><th>Grade</th></tr>';
+    rows.forEach(function(r){
+      var when=r.ts?new Date(r.ts*1000).toLocaleString():'';
+      h+='<tr><td>'+esc(when)+'</td><td>'+esc(r.name||'')+'</td><td>'+esc(r.phone||'')+'</td><td>'+esc(r.niche||'')+'</td><td>'+esc(r.city||'')+'</td><td><b>'+esc(r.score!=null?r.score:'—')+'</b></td><td class="'+(r.grade==='A'?'ok':(r.grade==='B'?'warn':'mut'))+'">'+esc(r.grade||'')+'</td></tr>';
+    });
+    $('saListOut').innerHTML=h+'</table>';
+  }catch(e){toast('List fail: '+e.message,false)}
+}
+async function saTeamRun(){
+  busy('saRunBtn',1,'⏳ hot leads pe deep-dive...');
+  try{
+    var n=parseInt($('saRunLimit').value)||3;
+    var d=await api('/api/growth/sales/team-run?limit='+n,{method:'POST'});
+    $('saListOut').innerHTML='<div class="result">'+pills(d)+(d.note?'<div class="mut">'+esc(d.note)+'</div>':'')+'</div>';
+    toast('Team run done ✅');saList();
+  }catch(e){toast('Run fail: '+e.message,false)}
+  busy('saRunBtn',0);
+}
+async function saProposal(){
+  var biz=$('ppBiz').value.trim(); if(!biz)return toast('Business name daalo',false);
+  busy('ppBtn',1,'⏳ proposal ban raha...');
+  try{
+    var d=await api('/api/growth/sales/proposal',{method:'POST',body:JSON.stringify({business_name:biz,niche:$('ppNiche').value.trim()||'general',city:$('ppCity').value.trim(),plan:$('ppPlan').value})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('ppOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';
+    toast('Proposal ready ✅');
+  }catch(e){toast('Proposal fail: '+e.message,false)}
+  busy('ppBtn',0);
+}
+async function saAssist(){
+  var msg=$('scMsg').value.trim(); if(!msg)return toast('Message likho',false);
+  busy('scBtn',1,'⏳ jawab soch raha...');
+  try{
+    var d=await api('/api/growth/sales/assistant',{method:'POST',body:JSON.stringify({message:msg,business_name:$('scBiz').value.trim(),niche:$('scNiche').value.trim()||'general'})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('scOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';
+    toast('Reply ready ✅');
+  }catch(e){toast('Assistant fail: '+e.message,false)}
+  busy('scBtn',0);
+}
+
+/* ---------------- 5. Processes ---------------- */
+async function prDefs(){
+  try{
+    var d=await api('/api/growth/process/definitions');
+    var rows=d.processes||[];
+    if(!rows.length){$('prDefsOut').innerHTML='<div class="mut" style="margin-top:8px">Koi process defined nahi.</div>';return}
+    var h='';
+    rows.forEach(function(p){
+      var key=p.key||p.id||p.name||'';
+      h+='<div class="card" style="margin-top:8px"><b>'+esc(p.name||key)+'</b> <span class="pill">'+esc(key)+'</span>';
+      if(p.description||p.desc)h+='<div class="mut" style="margin-top:4px">'+esc(p.description||p.desc)+'</div>';
+      var steps=p.steps||[];
+      if(steps.length)h+='<div class="mut" style="margin-top:4px">Steps: '+esc(steps.map(function(s){return typeof s==='string'?s:(s.name||s.key||'')}).join(' → '))+'</div>';
+      h+='<button class="btn" onclick="prStart(\''+esc(key)+'\')">▶️ Start</button></div>';
+    });
+    $('prDefsOut').innerHTML=h;
+  }catch(e){toast('Definitions fail: '+e.message,false)}
+}
+async function prStart(key){
+  if(!key)return;
+  try{
+    var inputs={};
+    if($('prNiche').value.trim())inputs.niche=$('prNiche').value.trim();
+    if($('prCity').value.trim())inputs.city=$('prCity').value.trim();
+    var d=await api('/api/growth/process/start',{method:'POST',body:JSON.stringify({process:key,inputs:inputs})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    toast('Run started ✅ '+(d.queued?'(worker me queued)':'(queue fail — worker check)'),d.queued!==false);
+    prRuns();
+  }catch(e){toast('Start fail: '+e.message,false)}
+}
+async function prRuns(){
+  try{
+    var d=await api('/api/growth/process/runs');
+    var rows=d.runs||[];
+    if(!rows.length){$('prRunsOut').innerHTML='<div class="mut" style="margin-top:8px">Abhi koi run nahi.</div>';return}
+    var h='<table><tr><th>Run</th><th>Process</th><th>Status</th><th>Step</th><th>Actions</th></tr>';
+    rows.forEach(function(r){
+      var id=r.run_id||r.id||'';
+      var st=String(r.status||'');
+      var stCls=st==='completed'?'ok':(st.indexOf('wait')>=0?'warn':(st==='failed'?'bad':'mut'));
+      h+='<tr><td class="mut">'+esc(String(id).slice(0,14))+'</td><td>'+esc(r.process||'')+'</td><td class="'+stCls+'">'+esc(st)+'</td><td class="mut">'+esc(r.step||r.current_step||r.cursor||'')+'</td><td>';
+      h+='<button class="btn2" onclick="prDetail(\''+esc(id)+'\')">📖 Journal</button>';
+      if(st.indexOf('wait')>=0){
+        h+='<button class="btn2" onclick="prApprove(\''+esc(id)+'\')">✅ Approve</button>';
+        h+='<button class="btnd" onclick="prReject(\''+esc(id)+'\')">❌ Reject</button>';
+      }
+      h+='</td></tr>';
+    });
+    $('prRunsOut').innerHTML=h+'</table>';
+  }catch(e){toast('Runs fail: '+e.message,false)}
+}
+async function prDetail(id){
+  if(!id)return;
+  try{
+    var d=await api('/api/growth/process/run/'+encodeURIComponent(id));
+    var h='<div class="result"><b class="warn">Run '+esc(String(id).slice(0,14))+'</b>';
+    if(d.state)h+='<div style="margin-top:6px"><b>State</b>'+jpre(d.state)+'</div>';
+    var ev=d.journal||[];
+    if(ev.length){
+      h+='<div style="margin-top:6px"><b>Journal ('+ev.length+' events)</b>';
+      ev.forEach(function(e2){h+='<div class="mut" style="margin-top:3px;border-bottom:1px solid var(--line);padding-bottom:3px">'+esc(JSON.stringify(e2).slice(0,300))+'</div>'});
+      h+='</div>';
+    }
+    $('prDetailOut').innerHTML=h+'</div>';
+  }catch(e){toast('Detail fail: '+e.message,false)}
+}
+async function prApprove(id){
+  var note=prompt('Approve note (optional)')||'';
+  try{
+    var d=await api('/api/growth/process/run/'+encodeURIComponent(id)+'/approve',{method:'POST',body:JSON.stringify({note:note})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    toast('Approved ✅ — run resume hoga');prRuns();
+  }catch(e){toast('Approve fail: '+e.message,false)}
+}
+async function prReject(id){
+  var note=prompt('Reject reason?')||'';
+  try{
+    var d=await api('/api/growth/process/run/'+encodeURIComponent(id)+'/reject',{method:'POST',body:JSON.stringify({note:note})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    toast('Rejected ❌');prRuns();
+  }catch(e){toast('Reject fail: '+e.message,false)}
+}
+
+/* ---------------- 6. Self-Improve ---------------- */
+async function siStatus(){
+  try{
+    var d=await api('/api/growth/selfimprove/status');
+    $('siStatusOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+  }catch(e){toast('Status fail: '+e.message,false)}
+}
+async function siRun(){
+  busy('siRunBtn',1,'⏳ enqueue...');
+  try{
+    var d=await api('/api/growth/selfimprove/run',{method:'POST'});
+    if(d.ok===false)warnBox('siStatusOut',(d.error||'fail')+' — '+(d.hint||''));
+    else{$('siStatusOut').innerHTML='<div class="result">✅ Tick queued (task '+esc(d.task_id||'')+') — worker me chalega, thodi der me status dekho.</div>';toast('Queued ✅')}
+  }catch(e){toast('Run fail: '+e.message,false)}
+  busy('siRunBtn',0);
+}
+async function siActions(){
+  try{
+    var d=await api('/api/growth/selfimprove/actions');
+    var rows=d.actions||[];
+    var sel=$('siAction');sel.innerHTML='<option value="">— auto —</option>';
+    var h='<table><tr><th>Action</th><th>LLM-heavy</th><th>Desc</th></tr>';
+    rows.forEach(function(a){
+      sel.innerHTML+='<option value="'+esc(a.key)+'">'+esc(a.key)+'</option>';
+      h+='<tr><td>'+esc(a.key)+'</td><td>'+(a.llm_heavy?'<span class="warn">haan</span>':'<span class="mut">nahi</span>')+'</td><td class="mut">'+esc(a.desc||'')+'</td></tr>';
+    });
+    $('siActionsOut').innerHTML=h+'</table>';
+  }catch(e){toast('Actions fail: '+e.message,false)}
+}
+async function siAddTask(){
+  var t=$('siTask').value.trim(); if(!t)return toast('Task likho',false);
+  busy('siTaskBtn',1);
+  try{
+    var d=await api('/api/growth/selfimprove/task',{method:'POST',body:JSON.stringify({task:t,action:$('siAction').value})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('siTaskOut').innerHTML='<div class="result">✅ Queue me — agle tick pe pick hoga.'+jpre(d)+'</div>';
+    toast('Task queued ✅');
+  }catch(e){toast('Task fail: '+e.message,false)}
+  busy('siTaskBtn',0);
+}
+async function siSkills(){
+  try{
+    var d=await api('/api/growth/skills/library');
+    var h='<div class="result">'+pills(d);
+    var tac=d.tactics||d.skills||d.success_rates||null;
+    if(tac&&typeof tac==='object'&&!Array.isArray(tac)){
+      h+='<table><tr><th>Tactic</th><th>Stats</th></tr>';
+      Object.keys(tac).forEach(function(k){h+='<tr><td>'+esc(k)+'</td><td class="mut">'+esc(typeof tac[k]==='object'?JSON.stringify(tac[k]):tac[k])+'</td></tr>'});
+      h+='</table>';
+    }
+    var les=d.lessons||d.recent_lessons||[];
+    if(les.length){
+      h+='<h3 style="color:var(--warn);font-size:.85rem;margin-top:10px">Lessons</h3>';
+      les.forEach(function(l){h+='<div class="mut" style="margin-top:3px">→ '+esc(typeof l==='string'?l:(l.lesson||JSON.stringify(l)))+'</div>'});
+    }
+    if(!tac&&!les.length)h+=jpre(d);
+    $('siSkillsOut').innerHTML=h+'</div>';
+  }catch(e){toast('Library fail: '+e.message,false)}
+}
+async function siLesson(){
+  var txt=$('siLessonText').value.trim(); if(!txt)return toast('Lesson likho',false);
+  busy('siLessonBtn',1);
+  try{
+    var d=await api('/api/growth/skills/lesson',{method:'POST',body:JSON.stringify({topic:$('siLessonTopic').value.trim()||'general',lesson:txt})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('siLessonOut').innerHTML='<div class="result">✅ Lesson saved — agents agle runs me use karenge.</div>';
+    toast('Lesson added ✅');$('siLessonText').value='';
+  }catch(e){toast('Lesson fail: '+e.message,false)}
+  busy('siLessonBtn',0);
+}
+
+/* ---------------- 7. Code Upgrader ---------------- */
+async function upScan(){
+  busy('upScanBtn',1,'⏳ scan chal raha (~30s)...');
+  try{
+    var d=await api('/api/growth/upgrader/scan',{method:'POST'});
+    $('upScanOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+    toast('Scan done ✅');upPatches();
+  }catch(e){toast('Scan fail: '+e.message,false)}
+  busy('upScanBtn',0);
+}
+async function upPatches(){
+  try{
+    var st=$('upFilter').value;
+    var d=await api('/api/growth/upgrader/patches'+(st?'?status='+encodeURIComponent(st):''));
+    var rows=d.patches||[];
+    if(!rows.length){$('upListOut').innerHTML='<div class="mut" style="margin-top:8px">Koi patch proposal nahi — pehle scan chalao.</div>';return}
+    var h='<table><tr><th>ID</th><th>Title</th><th>Status</th><th>Actions</th></tr>';
+    rows.forEach(function(p){
+      var id=p.id||p.patch_id||'';
+      var st2=String(p.status||'proposed');
+      h+='<tr><td class="mut">'+esc(String(id).slice(0,12))+'</td><td>'+esc(p.title||p.summary||'')+(p.detail||p.description?'<div class="mut">'+esc(String(p.detail||p.description).slice(0,160))+'</div>':'')+'</td>';
+      h+='<td class="'+(st2==='approved'?'ok':(st2==='rejected'?'bad':'warn'))+'">'+esc(st2)+'</td><td>';
+      if(st2==='proposed'){
+        h+='<button class="btn2" onclick="upSet(\''+esc(id)+'\',\'approved\')">✅ Approve</button>';
+        h+='<button class="btnd" onclick="upSet(\''+esc(id)+'\',\'rejected\')">❌ Reject</button>';
+      }
+      h+='</td></tr>';
+    });
+    $('upListOut').innerHTML=h+'</table>';
+  }catch(e){toast('Patches fail: '+e.message,false)}
+}
+async function upSet(id,status){
+  if(!id)return;
+  try{
+    var d=await api('/api/growth/upgrader/patches/'+encodeURIComponent(id)+'/status',{method:'POST',body:JSON.stringify({status:status,note:''})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    toast(status==='approved'?'Approved ✅':'Rejected ❌');upPatches();
+  }catch(e){
+    if(e.message==='auth')warnBox('upListOut','⛔ Approve/Reject SUPER_ADMIN only hai — sub-admin token se 403 aayega. Sumit ke token se try karo.');
+    else toast('Status fail: '+e.message,false);
+  }
+}
+
+/* ---------------- 8. Drafters ---------------- */
+async function dtTypes(){
+  try{
+    var d=await api('/api/growth/partnership/types');
+    var rows=d.types||[];
+    var sel=$('dtPType');sel.innerHTML='';
+    rows.forEach(function(t){
+      var key=typeof t==='string'?t:(t.key||t.type||t.id||'');
+      var label=typeof t==='string'?t:(t.name||t.label||key);
+      if(key)sel.innerHTML+='<option value="'+esc(key)+'">'+esc(label)+'</option>';
+    });
+    if(!sel.innerHTML)sel.innerHTML='<option value="ca">ca</option>';
+    toast('Types loaded ✅');
+  }catch(e){toast('Types fail: '+e.message,false)}
+}
+async function dtPartner(){
+  busy('dtPBtn',1,'⏳ draft...');
+  try{
+    var d=await api('/api/growth/partnership/draft',{method:'POST',body:JSON.stringify({partner_type:$('dtPType').value,partner_name:$('dtPName').value.trim(),city:$('dtPCity').value.trim()})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('dtPOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Draft ready ✅');
+  }catch(e){toast('Draft fail: '+e.message,false)}
+  busy('dtPBtn',0);
+}
+async function dtCommunity(){
+  busy('dtCBtn',1,'⏳ draft...');
+  try{
+    var d=await api('/api/growth/community/draft',{method:'POST',body:JSON.stringify({platform:$('dtCPlat').value,topic:$('dtCTopic').value.trim(),niche:$('dtCNiche').value.trim()||'general'})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('dtCOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Draft ready ✅');
+  }catch(e){toast('Draft fail: '+e.message,false)}
+  busy('dtCBtn',0);
+}
+async function dtLinkedin(){
+  var name=$('dtLName').value.trim(); if(!name)return toast('Target name daalo',false);
+  busy('dtLBtn',1,'⏳ draft...');
+  try{
+    var d=await api('/api/growth/linkedin/draft',{method:'POST',body:JSON.stringify({target_name:name,company:$('dtLCo').value.trim(),niche:$('dtLNiche').value.trim()||'general'})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('dtLOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Draft ready ✅');
+  }catch(e){toast('Draft fail: '+e.message,false)}
+  busy('dtLBtn',0);
+}
+async function dtSeoPage(){
+  var niche=$('dtSNiche').value.trim(); if(!niche)return toast('Niche daalo',false);
+  busy('dtSBtn',1,'⏳ page ban raha...');
+  try{
+    var d=await api('/api/growth/seo/page',{method:'POST',body:JSON.stringify({niche:niche,city:$('dtSCity').value.trim()||'Pune'})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    var h='<div class="result">'+pills(d);
+    if(d.url||d.path)h+='<div style="margin-top:6px"><a href="'+esc(d.url||d.path)+'" target="_blank" rel="noopener">📄 Page kholo</a></div>';
+    h+=draftBlocks(d)+'</div>';
+    $('dtSOut').innerHTML=h;toast('SEO page ready ✅');
+  }catch(e){toast('Page fail: '+e.message,false)}
+  busy('dtSBtn',0);
+}
+async function dtSeoBatch(){
+  busy('dtSBBtn',1,'⏳ batch (LLM-heavy)...');
+  try{
+    var d=await api('/api/growth/seo/batch',{method:'POST',body:JSON.stringify({limit:parseInt($('dtSBatch').value)||4})});
+    $('dtSOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Batch done ✅');
+  }catch(e){toast('Batch fail: '+e.message,false)}
+  busy('dtSBBtn',0);
+}
+async function dtChannels(){
+  try{
+    var d=await api('/api/growth/social/channels');
+    var rows=d.channels||[];
+    var sel=$('dtSocCh');sel.innerHTML='';
+    rows.forEach(function(c){
+      var key=typeof c==='string'?c:(c.key||c.channel||c.id||'');
+      var label=typeof c==='string'?c:(c.name||c.label||key);
+      if(key)sel.innerHTML+='<option value="'+esc(key)+'">'+esc(label)+'</option>';
+    });
+    if(!sel.innerHTML)sel.innerHTML='<option value="gbp_qna">gbp_qna</option>';
+    toast('Channels loaded ✅');
+  }catch(e){toast('Channels fail: '+e.message,false)}
+}
+async function dtSocial(){
+  busy('dtSocBtn',1,'⏳ draft...');
+  try{
+    var d=await api('/api/growth/social/draft',{method:'POST',body:JSON.stringify({channel:$('dtSocCh').value,niche:$('dtSocNiche').value.trim()||'general',city:$('dtSocCity').value.trim(),business_name:$('dtSocBiz').value.trim()})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('dtSocOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Draft ready ✅');
+  }catch(e){toast('Draft fail: '+e.message,false)}
+  busy('dtSocBtn',0);
+}
+
+/* ---------------- 9. Revenue Ops ---------------- */
+async function rvDunning(){
+  try{
+    var d=await api('/api/growth/revenue/dunning');
+    var h='<div class="result">'+pills(d);
+    var cases=d.open_cases||d.cases||[];
+    if(cases.length){
+      h+='<table><tr><th>Client</th><th>₹</th><th>Stage</th><th>Reason</th><th>Kab</th></tr>';
+      cases.forEach(function(c){h+='<tr><td>'+esc(c.client_id||'')+'</td><td>'+esc(c.amount||'')+'</td><td class="warn">'+esc(c.stage||c.status||'')+'</td><td class="mut">'+esc(c.reason||'')+'</td><td class="mut">'+esc(String(c.opened_at||c.ts||'').slice(0,16))+'</td></tr>'});
+      h+='</table>';
+    }else h+='<div class="mut" style="margin-top:6px">Koi open case nahi 🎉</div>';
+    $('rvDunOut').innerHTML=h+'</div>';
+  }catch(e){toast('Dunning fail: '+e.message,false)}
+}
+async function rvDunningRun(){
+  busy('rvDunBtn',1);
+  try{var d=await api('/api/growth/revenue/dunning/run',{method:'POST'});
+    $('rvDunOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Sweep done ✅');
+  }catch(e){toast('Run fail: '+e.message,false)}
+  busy('rvDunBtn',0);
+}
+function healthBadge(st){
+  st=String(st||'').toLowerCase();
+  var cls=st==='red'?'bg-red':(st==='yellow'?'bg-yellow':'bg-green');
+  return '<span class="badge '+cls+'">'+esc(st||'green')+'</span>';
+}
+async function rvHealth(){
+  try{
+    var d=await api('/api/growth/revenue/health/clients');
+    var rows=d.clients||d.report||(Array.isArray(d)?d:[]);
+    if(!rows.length){$('rvHlOut').innerHTML='<div class="result">'+pills(d)+'<div class="mut">Koi client report nahi.</div></div>';return}
+    var h='<table><tr><th>Client</th><th>Score</th><th>Status</th><th>Action</th></tr>';
+    rows.forEach(function(c){
+      h+='<tr><td>'+esc(c.business_name||c.client_id||'')+'</td><td><b>'+esc(c.score!=null?c.score:'—')+'</b></td><td>'+healthBadge(c.status||c.band||c.color)+'</td><td class="mut">'+esc(c.action||c.note||'')+'</td></tr>';
+    });
+    $('rvHlOut').innerHTML=h+'</table>';
+  }catch(e){toast('Health fail: '+e.message,false)}
+}
+async function rvHealthRun(){
+  busy('rvHlBtn',1);
+  try{var d=await api('/api/growth/revenue/health/run',{method:'POST'});
+    $('rvHlOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Health run done ✅');
+  }catch(e){toast('Run fail: '+e.message,false)}
+  busy('rvHlBtn',0);
+}
+async function rvLifecycle(){
+  try{var d=await api('/api/growth/revenue/lifecycle');
+    $('rvLcOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+  }catch(e){toast('Lifecycle fail: '+e.message,false)}
+}
+async function rvLifecycleRun(){
+  busy('rvLcBtn',1);
+  try{var d=await api('/api/growth/revenue/lifecycle/run',{method:'POST'});
+    $('rvLcOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Sweep done ✅');
+  }catch(e){toast('Run fail: '+e.message,false)}
+  busy('rvLcBtn',0);
+}
+async function rvInvoices(){
+  try{
+    var d=await api('/api/growth/revenue/invoices');
+    var h='<div class="result">'+pills(d.stats||{});
+    var rows=d.invoices||[];
+    if(rows.length){
+      h+='<table><tr><th>Number</th><th>Date</th><th>Client</th><th>Plan</th><th>₹ Gross</th><th></th></tr>';
+      rows.forEach(function(r){
+        h+='<tr><td>'+esc(r.number||'')+'</td><td class="mut">'+esc(r.date||'')+'</td><td>'+esc(r.client_id||'')+'</td><td>'+esc(r.plan||'')+'</td><td>'+esc(r.gross_inr||'')+'</td>';
+        h+='<td><a href="/api/growth/revenue/invoice-html?number='+encodeURIComponent(r.number||'')+'" target="_blank" rel="noopener">🖨️ HTML</a></td></tr>';
+      });
+      h+='</table>';
+    }else h+='<div class="mut" style="margin-top:6px">Koi invoice nahi.</div>';
+    $('rvInvOut').innerHTML=h+'</div>';
+  }catch(e){toast('Invoices fail: '+e.message,false)}
+}
+async function rvAlerts(){
+  try{
+    var d=await api('/api/growth/revenue/usage-alerts');
+    var rows=d.alerts||[];
+    if(!rows.length){$('rvAlOut').innerHTML='<div class="mut" style="margin-top:8px">Koi usage alert nahi.</div>';return}
+    var h='<table><tr><th>Client</th><th>Threshold</th><th>Detail</th></tr>';
+    rows.forEach(function(a){h+='<tr><td>'+esc(a.client_id||'')+'</td><td class="warn">'+esc(a.threshold||a.pct||'')+'</td><td class="mut">'+esc(JSON.stringify(a).slice(0,160))+'</td></tr>'});
+    $('rvAlOut').innerHTML=h+'</table>';
+  }catch(e){toast('Alerts fail: '+e.message,false)}
+}
+async function rvAlertsRun(){
+  busy('rvAlBtn',1);
+  try{var d=await api('/api/growth/revenue/usage-alerts/run',{method:'POST'});
+    $('rvAlOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Sweep done ✅');
+  }catch(e){toast('Run fail: '+e.message,false)}
+  busy('rvAlBtn',0);
+}
+async function rvWarmup(){
+  try{var d=await api('/api/growth/outreach/warmup');
+    $('rvWuOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+  }catch(e){toast('Warmup fail: '+e.message,false)}
+}
+async function rvRecon(){
+  try{var d=await api('/api/growth/revenue/recon');
+    $('rvRcOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+  }catch(e){toast('Recon fail: '+e.message,false)}
+}
+async function rvReconRun(){
+  busy('rvRcBtn',1);
+  try{
+    var days=parseInt($('rvReconDays').value)||3;
+    var d=await api('/api/growth/revenue/recon/run?days='+days,{method:'POST'});
+    $('rvRcOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Recon done ✅');
+  }catch(e){toast('Recon fail: '+e.message,false)}
+  busy('rvRcBtn',0);
+}
+async function rvDigest(){
+  busy('rvDgBtn',1,'⏳ digest...');
+  try{var d=await api('/api/growth/revenue/digest/run',{method:'POST'});
+    $('rvDgOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Digest done ✅');
+  }catch(e){toast('Digest fail: '+e.message,false)}
+  busy('rvDgBtn',0);
+}
+async function rvTuPacks(){
+  try{var d=await api('/api/growth/revenue/topup-packs');
+    $('rvTuOut').innerHTML='<div class="result">'+jpre(d.packs||d)+'</div>';
+  }catch(e){toast('Packs fail: '+e.message,false)}
+}
+async function rvTopup(){
+  var cid=$('rvTuClient').value.trim(); if(!cid)return toast('Client ID daalo',false);
+  busy('rvTuBtn',1);
+  try{
+    var d=await api('/api/growth/revenue/topup-link',{method:'POST',body:JSON.stringify({client_id:cid,pack:$('rvTuPack').value})});
+    if(d.ok===false)throw new Error(d.error||'fail (Razorpay creds?)');
+    var url=d.short_url||d.url||(d.link&&d.link.short_url)||'';
+    var h='<div class="result">';
+    if(url)h+='<div class="copybox"><input readonly value="'+esc(url)+'" id="rvTuUrl"><button class="btn2" onclick="copyVal(\'rvTuUrl\')">Copy</button></div><div class="mut">Pay hote hi webhook AUTO minutes credit + invoice karega.</div>';
+    else h+=jpre(d);
+    h+='</div>';$('rvTuOut').innerHTML=h;toast('Top-up link ready ✅');
+  }catch(e){toast('Top-up fail: '+e.message,false)}
+  busy('rvTuBtn',0);
+}
+
+/* ---------------- 10. Research ---------------- */
+async function rsSearch(){
+  var q=$('rsQ').value.trim(); if(!q)return toast('Query likho',false);
+  busy('rsBtn',1,'⏳...');
+  try{
+    var d=await api('/api/growth/research/search?q='+encodeURIComponent(q));
+    if(d.enabled===false){warnBox('rsOut',d.hint||'SEARXNG_URL set nahi hai.');busy('rsBtn',0);return}
+    var rows=d.results||[];
+    if(!rows.length){$('rsOut').innerHTML='<div class="mut" style="margin-top:8px">Koi result nahi.</div>';busy('rsBtn',0);return}
+    var h='<div class="result">';
+    rows.forEach(function(r){
+      h+='<div style="margin-bottom:10px"><a href="'+esc(r.url||'#')+'" target="_blank" rel="noopener"><b>'+esc(r.title||r.url||'')+'</b></a>';
+      h+='<div class="mut" style="word-break:break-all">'+esc(r.url||'')+'</div>';
+      if(r.content||r.snippet)h+='<div style="font-size:.8rem;margin-top:2px">'+esc(r.content||r.snippet)+'</div>';
+      h+='</div>';
+    });
+    $('rsOut').innerHTML=h+'</div>';
+  }catch(e){toast('Search fail: '+e.message,false)}
+  busy('rsBtn',0);
+}
+async function rsNotify(){
+  busy('rsNtBtn',1);
+  try{
+    var d=await api('/api/growth/notify/test',{method:'POST'});
+    if(d.enabled===false)warnBox('rsNtOut',d.hint||'NTFY_URL+NTFY_TOPIC set nahi.');
+    else $('rsNtOut').innerHTML='<div class="result">'+(d.sent?'✅ Push sent — phone check karo!':'<span class="bad">❌ Send fail</span>')+'</div>';
+  }catch(e){toast('Push fail: '+e.message,false)}
+  busy('rsNtBtn',0);
+}
+async function rsHot(){
+  try{
+    var d=await api('/api/growth/leads/hot');
+    var rows=(d&&d.leads)||(Array.isArray(d)?d:[]);
+    if(!rows.length){$('rsHotOut').innerHTML='<div class="mut" style="margin-top:8px">Koi hot lead nahi — pehle rescore chalao.</div>';return}
+    var h='<table><tr><th>Name</th><th>Phone</th><th>Niche</th><th>City</th><th>Score</th></tr>';
+    rows.forEach(function(r){
+      var sc=r.lead_score||r.score||0;
+      h+='<tr><td>'+esc(r.name||r.business_name||'')+'</td><td>'+esc(r.phone||'')+'</td><td>'+esc(r.niche||'')+'</td><td>'+esc(r.city||'')+'</td><td class="ok"><b>'+esc(sc)+'</b></td></tr>';
+    });
+    $('rsHotOut').innerHTML=h+'</table>';
+  }catch(e){toast('Hot leads fail: '+e.message,false)}
+}
+async function rsRescore(){
+  busy('rsRsBtn',1,'⏳ rescore...');
+  try{var d=await api('/api/growth/leads/rescore?limit=500',{method:'POST'});
+    $('rsHotOut').innerHTML='<div class="result">'+pills(d)+'</div>';toast('Rescore done ✅');rsHot();
+  }catch(e){toast('Rescore fail: '+e.message,false)}
+  busy('rsRsBtn',0);
+}
+async function rsWeather(){
+  busy('rsWBtn',1);
+  try{
+    var d=await api('/api/growth/weather-angle?city='+encodeURIComponent($('rsWCity').value.trim()||'Mumbai'));
+    $('rsWOut').innerHTML='<div class="result">'+pills(d)+draftBlocks(d)+'</div>';
+  }catch(e){toast('Weather fail: '+e.message,false)}
+  busy('rsWBtn',0);
+}
+async function rsTrends(){
+  busy('rsTBtn',1,'⏳ trends...');
+  try{
+    var d=await api('/api/growth/content/trends?niche='+encodeURIComponent($('rsTNiche').value.trim()||'general'));
+    var h='<div class="result">';
+    var angles=d.angles||d.trends||[];
+    if(angles.length){
+      angles.forEach(function(a){
+        if(typeof a==='string')h+='<div style="margin-top:4px">→ '+esc(a)+'</div>';
+        else h+='<div style="margin-top:6px"><b class="warn">'+esc(a.trend||a.title||'')+'</b><div class="mut">'+esc(a.angle||a.idea||JSON.stringify(a))+'</div></div>';
+      });
+    }else h+=jpre(d);
+    $('rsTOut').innerHTML=h+'</div>';
+  }catch(e){toast('Trends fail: '+e.message,false)}
+  busy('rsTBtn',0);
+}
+
+/* ---------------- 11. Content+ ---------------- */
+async function ctCarousel(){
+  var biz=$('ctBiz').value.trim(); if(!biz)return toast('Business name daalo',false);
+  busy('ctCarBtn',1,'⏳ slides ban rahe...');
+  try{
+    var d=await api('/api/growth/content/carousel',{method:'POST',body:JSON.stringify({business_name:biz,niche:$('ctNiche').value.trim()||'general',topic:$('ctTopic').value.trim(),slides:parseInt($('ctSlides').value)||4})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    var h='<div class="result">';
+    if(d.caption)h+='<pre>'+esc(d.caption)+'</pre><button class="btn2" onclick="copyTxt('+esc(JSON.stringify(d.caption))+')">📋 Caption copy</button>';
+    (d.slides||[]).forEach(function(s,i){
+      h+='<div style="margin-top:10px"><b class="warn">Slide '+(i+1)+': '+esc(s.title||'')+'</b>';
+      if(s.svg)h+='<div class="svgwrap">'+s.svg+'</div>';
+      if(s.body)h+='<div class="mut">'+esc(s.body)+'</div>';
+      h+='</div>';
+    });
+    h+='</div>';$('ctCarOut').innerHTML=h;toast('Carousel ready ✅');
+  }catch(e){toast('Carousel fail: '+e.message,false)}
+  busy('ctCarBtn',0);
+}
+async function ctMeme(){
+  busy('ctMemeBtn',1,'⏳ meme...');
+  try{
+    var d=await api('/api/growth/content/meme',{method:'POST',body:JSON.stringify({business_name:$('ctMBiz').value.trim(),niche:$('ctMNiche').value.trim()||'general',topic:$('ctMTopic').value.trim()})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    var h='<div class="result">';
+    if(d.svg)h+='<div class="svgwrap">'+d.svg+'</div>';
+    if(d.caption)h+='<pre>'+esc(d.caption)+'</pre><button class="btn2" onclick="copyTxt('+esc(JSON.stringify(d.caption))+')">📋 Caption copy</button>';
+    var tags=d.hashtags;
+    if(tags){var ts=Array.isArray(tags)?tags.join(' '):String(tags);h+='<div class="mut" style="margin-top:6px">'+esc(ts)+'</div>'}
+    h+='</div>';$('ctMemeOut').innerHTML=h;toast('Meme ready ✅');
+  }catch(e){toast('Meme fail: '+e.message,false)}
+  busy('ctMemeBtn',0);
+}
+async function ctPersonalize(){
+  var cid=$('ctPClient').value.trim(); if(!cid)return toast('Client ID daalo',false);
+  busy('ctPerBtn',1,'⏳ KB se post...');
+  try{
+    var d=await api('/api/growth/content/personalize',{method:'POST',body:JSON.stringify({client_id:cid,occasion:$('ctPOcc').value.trim(),offer:$('ctPOffer').value.trim()})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('ctPerOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Post ready ✅');
+  }catch(e){toast('Personalize fail: '+e.message,false)}
+  busy('ctPerBtn',0);
+}
+async function ctTelegram(){
+  var cid=$('ctTgClient').value.trim(),chat=$('ctTgChat').value.trim(),txt=$('ctTgText').value.trim();
+  if(!cid&&!(chat&&txt))return toast('Client ID YA chat_id+text chahiye',false);
+  busy('ctTgBtn',1,'⏳ bhej raha...');
+  try{
+    var body=cid?{client_id:cid}:{chat_id:chat,text:txt};
+    var d=await api('/api/growth/content/telegram-send',{method:'POST',body:JSON.stringify(body)});
+    if(d.ok===false){warnBox('ctTgOut',(d.error||'fail')+' — TELEGRAM_BOT_TOKEN / chat_id check karo.')}
+    else{$('ctTgOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Sent ✅')}
+  }catch(e){toast('Telegram fail: '+e.message,false)}
+  busy('ctTgBtn',0);
+}
+async function ctFbStats(){
+  try{
+    var d=await api('/api/growth/content/feedback/stats?niche='+encodeURIComponent($('ctFbNiche').value.trim()));
+    var h='<div class="result">'+pills(d);
+    var th=d.themes||d.stats||null;
+    if(Array.isArray(th)&&th.length){
+      h+='<table><tr><th>Theme</th><th>Format</th><th>Detail</th></tr>';
+      th.forEach(function(t){h+='<tr><td>'+esc(t.theme||'')+'</td><td>'+esc(t.format||'')+'</td><td class="mut">'+esc(JSON.stringify(t).slice(0,140))+'</td></tr>'});
+      h+='</table>';
+    }else if(th&&typeof th==='object'){
+      h+='<table><tr><th>Theme×Format</th><th>Stats</th></tr>';
+      Object.keys(th).forEach(function(k){h+='<tr><td>'+esc(k)+'</td><td class="mut">'+esc(typeof th[k]==='object'?JSON.stringify(th[k]):th[k])+'</td></tr>'});
+      h+='</table>';
+    }else h+=jpre(d);
+    $('ctFbStatsOut').innerHTML=h+'</div>';
+  }catch(e){toast('Stats fail: '+e.message,false)}
+}
+async function ctFeedback(){
+  var theme=$('ctFbTheme').value.trim(); if(!theme)return toast('Theme daalo',false);
+  busy('ctFbBtn',1);
+  try{
+    var d=await api('/api/growth/content/feedback',{method:'POST',body:JSON.stringify({theme:theme,worked:$('ctFbWorked').value==='true',format:$('ctFbFormat').value,niche:$('ctFbN2').value.trim()})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('ctFbOut').innerHTML='<div class="result">✅ Recorded — bandit seekh raha.</div>';toast('Feedback recorded ✅');
+  }catch(e){toast('Feedback fail: '+e.message,false)}
+  busy('ctFbBtn',0);
+}
+
+/* ---------------- init ---------------- */
+$('tokin').value=tok();
+var start=(location.hash||'').replace('#','');
+var valid=['harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus'];
+show(valid.indexOf(start)>=0?start:'harvest');
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+</body>
+</html>

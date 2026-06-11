@@ -667,6 +667,14 @@ async def growth_tools_page():
     return FileResponse(str(FRONTEND_DIR / "growth_tools.html"))
 
 
+@app.get("/app/automation", tags=["Frontend"])
+async def automation_page():
+    """Automation Mission Control — API-only features ka UI: harvester, prospects,
+    cadence, sales-team AI, process approvals, self-improve, upgrader, drafters,
+    revenue ops, research (SearXNG/ntfy), content+."""
+    return FileResponse(str(FRONTEND_DIR / "automation.html"))
+
+
 @app.get("/app/conversations", tags=["Frontend"])
 async def conversations_page():
     """Unified conversation inbox (GHL-style) — email replies + web-chat + inquiries ek thread view.
