@@ -108,6 +108,20 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "Dunning recovery, lifecycle nurture funnel, client churn-risk aur MRR digest pe nazar — paisa leak na ho",
         "schedule": "Roz (digest/content jobs ke saath)",
     },
+    "vikram": {
+        "name": "Vikram",
+        "emoji": "🛠️",
+        "title": "Code Upgrader",
+        "duties": "Observability signals (LLM errors, failing jobs, weak actions) se code-upgrade proposals banana — safe skills auto, core code Sumit ke approve pe (hybrid autonomy)",
+        "schedule": "Har ghante (watchdog ke saath, gated CODE_UPGRADER)",
+    },
+    "guru": {
+        "name": "Guru",
+        "emoji": "📚",
+        "title": "Skill Trainer",
+        "duties": "35+ project skills ko agents ke runtime context + KB me rakhna, naye agent-authored skills curate karna — LLM/team seekhte rahein",
+        "schedule": "Roz (trainer job ke saath, gated SKILL_PACK)",
+    },
 }
 
 # Status windows (realism): "working" = abhi-abhi active; "active" = aaj kaam kiya
@@ -391,6 +405,24 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
     def _swara() -> str:
         return "voice agent standby (web-call tuning ready)"
 
+    def _vikram() -> str:
+        try:
+            from app.agents import code_upgrader
+
+            rows = code_upgrader.list_patches(limit=100)
+            pending = len([r for r in rows if r.get("status") == "proposed"])
+            return f"code-upgrade proposals {len(rows)} · pending approve {pending}"
+        except Exception:
+            return "code health watch"
+
+    def _guru() -> str:
+        try:
+            from app.platform import skill_pack
+
+            return f"skill pack {len(skill_pack.list_skills())} skills serve-ready"
+        except Exception:
+            return "skill curation"
+
     # least-recently-active pehle (rotation) — taaki sab baari-baari pulse hon
     monitors = [
         ("kavya", "ops_pulse", _kavya),
@@ -399,6 +431,8 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         ("meera", "train_pulse", _meera),
         ("nikhil", "revenue_pulse", _nikhil),
         ("swara", "voice_pulse", _swara),
+        ("vikram", "code_pulse", _vikram),
+        ("guru", "skill_pulse", _guru),
     ]
     try:
         ts = team_status()

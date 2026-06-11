@@ -1041,6 +1041,7 @@ AUTOMATION_FLAGS = [
     "NPS_ALERTS", "PAYMENT_RECON", "INDEXNOW", "SALES_TEAM", "SELF_IMPROVE_LOOP", "LEAD_HARVESTER",
     "CALL_TRANSFER", "OUTREACH_AB", "SERVICE_REMINDERS",
     "NEWSLETTER_ENGINE", "WINBACK_ENGINE", "BRAND_PULSE", "TEAM_REPORT",
+    "SKILL_PACK", "CODE_UPGRADER",
 ]
 
 
@@ -1572,6 +1573,76 @@ async def skills_add_lesson(body: LessonIn, _user=Depends(require_admin)):
     from app.platform import skill_library
 
     return skill_library.record_lesson(body.topic, body.lesson, source="manual", agent="sumit")
+
+
+# ------------- Skill pack (Claude project skills → VPS agents) + code upgrader ------------- #
+@router.get("/skills/pack")
+async def skills_pack_list(q: str = "", _user=Depends(require_admin)):
+    """35+ project skills (+agent-authored extras) — list ya keyword search."""
+    from app.platform import skill_pack
+
+    if q:
+        return {"query": q, "matches": skill_pack.find(q, k=5)}
+    return {"enabled": skill_pack.enabled(), "skills": skill_pack.list_skills()}
+
+
+@router.get("/skills/pack/{name}")
+async def skills_pack_get(name: str, _user=Depends(require_admin)):
+    from app.platform import skill_pack
+
+    s = skill_pack.load(name)
+    if not s:
+        raise HTTPException(status_code=404, detail="skill not found")
+    return s
+
+
+@router.post("/skills/pack/ingest")
+async def skills_pack_ingest(_user=Depends(require_admin)):
+    """Saari skills KB namespace 'skills' me (Qdrant semantic recall)."""
+    from app.platform import skill_pack
+
+    return skill_pack.ingest_to_kb()
+
+
+class SkillAuthorIn(BaseModel):
+    name: str
+    text: str
+
+
+@router.post("/skills/pack/author")
+async def skills_pack_author(body: SkillAuthorIn, _user=Depends(require_admin)):
+    """Tier-1 SAFE write — naya/updated skill data/skills_extra/ me (runtime-live)."""
+    from app.platform import skill_pack
+
+    return skill_pack.author(body.name, body.text)
+
+
+@router.post("/upgrader/scan")
+async def upgrader_scan(_user=Depends(require_admin)):
+    """Vikram: observability signals → code-upgrade proposals (flag-independent manual run)."""
+    from app.agents import code_upgrader
+
+    return await code_upgrader.scan_and_propose()
+
+
+@router.get("/upgrader/patches")
+async def upgrader_patches(status: str | None = None, limit: int = 50, _user=Depends(require_admin)):
+    from app.agents import code_upgrader
+
+    return {"patches": code_upgrader.list_patches(status, limit)}
+
+
+class PatchStatusIn(BaseModel):
+    status: str  # approved | rejected | applied
+    note: str = ""
+
+
+@router.post("/upgrader/patches/{patch_id}/status")
+async def upgrader_patch_status(patch_id: str, body: PatchStatusIn, _user=Depends(require_admin)):
+    """Hybrid gate: core-code patch approve/reject (apply deploy-loop me hota hai)."""
+    from app.agents import code_upgrader
+
+    return code_upgrader.set_status(patch_id, body.status, body.note)
 
 
 @router.get("/social/channels")

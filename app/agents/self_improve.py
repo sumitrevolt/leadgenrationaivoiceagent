@@ -176,16 +176,18 @@ ACTIONS: dict[str, tuple[bool, str]] = {
     "revenue_sweep": (False, "dunning + lifecycle nurture due-runs"),
     "optimizer": (True, "growth optimizer full pass (weakest stage + corrective)"),
     "reflection": (True, "recent runs pe LLM reflection → lesson save"),
+    "study_skills": (True, "project skill padh ke lesson nikalo (skill_pack → skill_library)"),
+    "code_scan": (False, "observability signals se code-upgrade proposals (Vikram, gated)"),
 }
 
 # funnel weakest-stage → preferred actions (deterministic bias)
 _STAGE_ACTIONS = {
     "lead_supply": ["scrape_leads", "harvest_leads", "seo_pages", "channel_experiments"],
-    "outreach_quality": ["sales_deepdive", "social_drafts", "reflection"],
+    "outreach_quality": ["sales_deepdive", "social_drafts", "reflection", "study_skills"],
     "inbound": ["seo_pages", "channel_experiments", "social_drafts"],
     "conversion": ["sales_deepdive", "content_pack", "revenue_sweep"],
     "retention": ["revenue_sweep", "content_pack", "reflection"],
-    "scale": ["optimizer", "channel_experiments", "social_drafts"],
+    "scale": ["optimizer", "channel_experiments", "social_drafts", "study_skills", "code_scan"],
 }
 
 
@@ -306,7 +308,73 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         return {"ok": bool(res.get("enabled", True)), "detail": f"stage={res.get('weakest', {}).get('stage', '?')}"}
     if action == "reflection":
         return await _reflect()
+    if action == "study_skills":
+        return await _study_skills(task)
+    if action == "code_scan":
+        from app.agents import code_upgrader
+
+        res = await code_upgrader.run_if_enabled()
+        if not res.get("enabled", True):
+            return {"ok": True, "detail": "CODE_UPGRADER off (skip)"}
+        return {"ok": bool(res.get("ok")), "detail": f"signals={res.get('signals', 0)} proposed={res.get('proposed', 0)}"}
     return {"ok": False, "detail": f"unknown action '{action}'"}
+
+
+async def _study_skills(task: str) -> dict[str, Any]:
+    """Skill pack se relevant (ya least-studied) skill padho → EK lesson skill_library me.
+    Yahi 'LLM seekhta rahe' loop hai: skills → lessons → future prompts condition karte."""
+    try:
+        from app.platform import skill_pack
+    except Exception as e:
+        return {"ok": False, "detail": f"skill_pack import: {e}"}
+    if not skill_pack.enabled():
+        return {"ok": True, "detail": "SKILL_PACK off (skip)"}
+
+    hits = skill_pack.find(task or "marketing leads growth", k=1)
+    name = hits[0]["name"] if hits else ""
+    if not name:
+        all_sk = skill_pack.list_skills()
+        if not all_sk:
+            return {"ok": False, "detail": "no skills found"}
+        import random as _r
+
+        name = _r.choice(all_sk)["name"]
+    s = skill_pack.load(name)
+    if not s:
+        return {"ok": False, "detail": f"skill '{name}' load fail"}
+
+    lesson = ""
+    try:
+        from app.voice_agent import free_ai
+
+        text, _ = await asyncio.wait_for(
+            free_ai.chat(
+                "Tu ek growth-team coach hai. Diye gaye internal playbook (skill) se EK concrete, "
+                "actionable Hinglish lesson nikaal jo AI-staff aaj apply kar sakein. Max 2 sentences, sirf lesson.",
+                [{"role": "user", "content": f"Skill '{s['name']}':\n{s['text'][:3500]}"}],
+                max_tokens=120,
+                temperature=0.4,
+            ),
+            timeout=45,
+        )
+        lesson = (text or "").strip()
+    except Exception:
+        pass
+    if not lesson:
+        lesson = f"Skill '{s['name']}' follow karo: {s['description'][:140]}"
+    try:
+        from app.platform import skill_library
+
+        skill_library.record_lesson(f"skill:{s['name']}", lesson, source="study", agent="guru")
+    except Exception:
+        pass
+    try:
+        from app.platform import team
+
+        team.log_event("guru", "skill_study", f"📚 {s['name']}: {lesson[:90]}")
+    except Exception:
+        pass
+    return {"ok": True, "detail": f"studied '{s['name']}': {lesson[:100]}"}
 
 
 async def _reflect() -> dict[str, Any]:
@@ -321,6 +389,17 @@ async def _reflect() -> dict[str, Any]:
         digest = "\n".join(
             f"- {r.get('action')}: ok={r.get('ok')} {str(r.get('detail', ''))[:80]}" for r in runs
         )
+        try:
+            # SKILL_PACK on ho to relevant project-skill ka excerpt context me (LLM seekhe)
+            from app.platform import skill_pack
+
+            if skill_pack.enabled():
+                fails = [str(r.get("action")) for r in runs if not r.get("ok")]
+                sn = skill_pack.snippet_for(" ".join(fails) or "growth automation", max_chars=700)
+                if sn:
+                    digest += f"\n\nRelevant internal playbook:\n{sn}"
+        except Exception:
+            pass
         text, _ = await asyncio.wait_for(
             free_ai.chat(
                 "Tu ek growth-ops coach hai. Recent automation runs dekh ke EK concrete Hinglish lesson de "

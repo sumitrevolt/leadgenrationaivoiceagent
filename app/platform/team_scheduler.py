@@ -154,6 +154,16 @@ async def _run_job_inner(job: str) -> None:
             await staff.run_qa()
         elif job == "trainer":
             await staff.run_trainer()
+            try:
+                # Guru: project skills → KB ingest (semantic recall; gated SKILL_PACK)
+                from app.platform import skill_pack, team
+
+                if skill_pack.enabled():
+                    res = skill_pack.ingest_to_kb()
+                    if res.get("ok"):
+                        team.log_event("guru", "skill_ingest", f"📚 {res.get('skills', 0)} skills → KB ({res.get('chunks', 0)} chunks, {res.get('backend')})")
+            except Exception:
+                pass
         elif job == "digest":
             await staff.run_digest()
             from app.platform import revenue_digest
@@ -354,6 +364,12 @@ async def _run_job_inner(job: str) -> None:
                 from app.platform import proposal_tracking
 
                 proposal_tracking.sweep_new_opens()  # "proposal khola" event sweep (file-IO only, no send)
+            except Exception:
+                pass
+            try:
+                from app.agents import code_upgrader
+
+                await code_upgrader.run_if_enabled()  # Vikram: code-upgrade proposals (gated CODE_UPGRADER; off = no-op)
             except Exception:
                 pass
         elif job == "onboard":
