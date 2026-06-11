@@ -910,3 +910,8 @@ User brief: super admin sab handle kare, sub-admins assign, team members limited
 - Wire: `main.py` `@app.websocket("/ws/exotel-voicebot")` — query params sample-rate/niche/client_name/client_id. Deploy pe HARD RELOAD (new main.py route).
 - Verify: py_compile 3 files OK; sandbox me deps install karke logic test (start/media/chunking/clear/disclosure) + Vobiz regression PASS; `tests/test_exotel_stream.py` 7/7 (sandbox --noconftest; Windows venv full run /ship pe).
 - USER pending: KYC docs + company info (my.exotel.com) → support ko bolo applet enable + 2nd ExoPhone; phir applet me `wss://leadsgenai.in/ws/exotel-voicebot?sample-rate=16000` paste. Exotel API key rotate bhi pending.
+
+## 2026-06-11 — Exotel Voicebot handler ✅ DEPLOYED LIVE (commit d4a590d)
+- KYC approved (user) → /ship loop: prod_check PASS (596 routes) → full pytest me 1 F + hang: F = STALE `test_infra_batch2::test_new_staff_in_roster` (roster 12 hai, test ==10 assert karta tha; fix >=12), hang = team_pulse area (~588th test, network — known gotcha, targeted suites green) → push d4a590d → VPS: detached nohup deploy (`/tmp/deploy_ws.sh` — pehla seedha ssh DC-timeout pe mara, LESSON: docker build wale lambe ssh = nohup + log poll) → image rebuilt, app+worker recreate, HEALTH_OK production.
+- **WS verified LIVE**: internal `127.0.0.1:8000/ws/exotel-voicebot?sample-rate=16000` → HTTP/1.1 **101**; external `wss://leadsgenai.in/...` → **101** (curl `--http1.1` zaroori — default h2 pe 404 artifact, Caddy WS proxy theek hai).
+- USER next: Exotel support ko bolo Streaming+Voicebot applet enable (KYC done) → App Bazar: naya flow = Greeting → Voicebot (URL: `wss://leadsgenai.in/ws/exotel-voicebot?sample-rate=16000`) → save → ExoPhones me 2nd number pe assign (sandbox nahi). Fir test call.
