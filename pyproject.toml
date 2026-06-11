@@ -168,9 +168,12 @@ exclude = ["alembic", "tests"]
 
 [tool.pytest.ini_options]
 minversion = "7.0"
-# --timeout: full-suite hang fix (network test bina timeout pe latak jaata tha).
-# pytest-timeout dev-dep required. thread method = sync+async dono cover.
-addopts = "-ra -q --timeout=120 --timeout-method=thread"
+addopts = "-ra -q"
+# timeout (ini-key, NOT addopts): full-suite hang fix. pytest-timeout installed ho
+# to 120s/test enforce hota; na ho to sirf unknown-ini warning (pytest tutta NAHI —
+# addopts --timeout plugin-missing pe har run tod deta tha, CI/container lesson).
+timeout = 120
+timeout_method = "thread"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
