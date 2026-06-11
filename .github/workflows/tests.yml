@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          pytest -q --tb=line -m "not network" \
+          pytest -v --tb=line -m "not network" \
             tests/test_product_split.py \
             tests/test_billing_truth_2026.py \
             tests/test_provisioning.py \
@@ -57,8 +57,7 @@ jobs:
             tests/test_production_gaps.py 2>&1 | tee pytest_ci.txt || {
               # failure lines -> ::error:: annotations (API se anonymously readable —
               # full logs ke liye admin-token chahiye hota, annotations nahi)
-              grep -E '^(FAILED|ERROR|E  )' pytest_ci.txt | head -25 | while IFS= read -r l; do
-                echo "::error::${l}"
-              done
+              { grep -E '^(FAILED|ERROR|E  )' pytest_ci.txt | head -15; tail -20 pytest_ci.txt; } \
+                | while IFS= read -r l; do echo "::error::${l}"; done
               exit 1
             }
