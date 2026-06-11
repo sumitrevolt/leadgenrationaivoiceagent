@@ -41,15 +41,24 @@ jobs:
         run: python scripts/prod_check.py
 
       - name: Targeted test suites (deterministic, no external creds)
-        run: >
-          pytest -q --tb=short -m "not network"
-          tests/test_product_split.py
-          tests/test_billing_truth_2026.py
-          tests/test_provisioning.py
-          tests/test_2026_features.py
-          tests/test_revenue_infra_2026.py
-          tests/test_revenue_automation.py
-          tests/test_apollo_inspired.py
-          tests/test_parity_clientops.py
-          tests/test_parity_conversion.py
-          tests/test_production_gaps.py
+        shell: bash
+        run: |
+          set -o pipefail
+          pytest -q --tb=line -m "not network" \
+            tests/test_product_split.py \
+            tests/test_billing_truth_2026.py \
+            tests/test_provisioning.py \
+            tests/test_2026_features.py \
+            tests/test_revenue_infra_2026.py \
+            tests/test_revenue_automation.py \
+            tests/test_apollo_inspired.py \
+            tests/test_parity_clientops.py \
+            tests/test_parity_conversion.py \
+            tests/test_production_gaps.py 2>&1 | tee pytest_ci.txt || {
+              # failure lines -> ::error:: annotations (API se anonymously readable —
+              # full logs ke liye admin-token chahiye hota, annotations nahi)
+              grep -E '^(FAILED|ERROR|E  )' pytest_ci.txt | head -25 | while IFS= read -r l; do
+                echo "::error::${l}"
+              done
+              exit 1
+            }
