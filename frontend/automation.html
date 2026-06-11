@@ -44,7 +44,7 @@ a{color:var(--acc)}
 </head>
 <body>
 <h1>🤖 Automation Mission Control</h1>
-<div class="sub">Harvester · Prospects · Cadence · Sales Team AI · Processes · Self-Improve · Code Upgrader · Drafters · Revenue Ops · Research · Content+ — API-only features ab ek dashboard pe.</div>
+<div class="sub">Schedule · Agents · Scraping · Approvals · Events + Harvester · Prospects · Cadence · Sales Team AI · Processes · Self-Improve · Code Upgrader · Drafters · Revenue Ops · Research · Content+ — poora automation control ek dashboard pe.</div>
 <div style="margin-bottom:12px">
   <input id="tokin" type="password" placeholder="Admin token (login se auto)" style="width:280px">
   <button class="btn" style="margin:0 0 0 6px" onclick="saveTok()">Save</button>
@@ -53,6 +53,12 @@ a{color:var(--acc)}
 
 <div class="layout">
 <nav class="side" id="sidebar">
+  <button id="tab-schedule" onclick="show('schedule')">🗓️ Schedule</button>
+  <button id="tab-agents" onclick="show('agents')">🤖 Agents</button>
+  <button id="tab-scraping" onclick="show('scraping')">🕷️ Scraping</button>
+  <button id="tab-approvals" onclick="show('approvals')">📥 Approvals</button>
+  <button id="tab-events" onclick="show('events')">📜 Events</button>
+  <div style="border-top:1px solid var(--line);margin:6px 4px"></div>
   <button id="tab-harvest" onclick="show('harvest')">🌾 Harvester</button>
   <button id="tab-prospects" onclick="show('prospects')">👥 Prospects</button>
   <button id="tab-cadence" onclick="show('cadence')">📨 Cadence</button>
@@ -480,6 +486,95 @@ a{color:var(--acc)}
     </div></div>
     <button class="btn" id="ctFbBtn" onclick="ctFeedback()">Record karo</button>
     <div id="ctFbOut"></div>
+  </div>
+</section>
+
+<!-- ================= 12. SCHEDULE ================= -->
+<section class="tabsec" id="sec-schedule">
+  <div class="card">
+    <h2>🗓️ Job Schedule + Heartbeats (dead-man)</h2>
+    <div class="mut">Scheduler ke saare automation jobs — last run, kitna time laga, overdue to red. 60s auto-refresh jab tab khula ho.</div>
+    <button class="btn2" onclick="scLoad()">🔄 Refresh</button>
+    <div id="scHealthOut" class="mut" style="margin-top:8px">Load ho raha...</div>
+  </div>
+  <div class="card">
+    <h2>👥 AI Staff — live state + manual run</h2>
+    <div class="mut">Har staff abhi kya kar raha (working/active/offline) + [▶ Run now] se uska job turant chalao.</div>
+    <div id="scTeamOut" class="mut" style="margin-top:8px">Load ho raha...</div>
+  </div>
+</section>
+
+<!-- ================= 13. AGENTS ================= -->
+<section class="tabsec" id="sec-agents">
+  <div class="card">
+    <h2>🤖 Agent Roster + Recent Coordination Runs</h2>
+    <button class="btn2" onclick="agLoad()">🔄 Refresh</button>
+    <div id="agRosterOut" class="mut" style="margin-top:8px">Load ho raha...</div>
+  </div>
+  <div class="card">
+    <h2>🎯 Goal assign karo (multi-agent)</h2>
+    <div class="mut">Boss goal ko sub-tasks me todta → staff agents ko assign → chalata. Default = sirf DRAFTS (side-effect nahi); Execute = agents ke SAFE real tools (isha post, dev hashtags, ops/qa).</div>
+    <label>Goal (Hinglish chalega)</label><textarea id="agGoal" placeholder="Pune solar se 10 leads + ek content pack"></textarea>
+    <label>Mode</label>
+    <select id="agMode" style="max-width:300px">
+      <option value="coordinate">Sequential handoff (basic)</option>
+      <option value="coordinate-advanced">Advanced — Reflexion + critic</option>
+      <option value="coordinate-hierarchical">Hierarchical — teams parallel</option>
+      <option value="fanout">Fan-out — sab parallel same goal</option>
+    </select>
+    <label style="margin-top:10px"><input type="checkbox" id="agExec" style="width:auto;max-width:none"> Execute mode (real SAFE tools)</label>
+    <button class="btn" id="agRunBtn" onclick="agRun()">🚀 Assign + Run</button>
+    <div id="agRunOut"></div>
+  </div>
+</section>
+
+<!-- ================= 14. SCRAPING ================= -->
+<section class="tabsec" id="sec-scraping">
+  <div class="card">
+    <h2>🕷️ Niche-Rotation Scrape (42 niches round-robin)</h2>
+    <div class="mut">Har niche apne keywords se scrape hota (Places API + OSM, legal-only). Places quota use hota hai — soch ke chalao.</div>
+    <div class="row"><div>
+      <label>Tier (optional)</label>
+      <select id="srTier" style="max-width:160px"><option value="">— sab —</option><option>S</option><option>A</option><option>B</option></select>
+    </div><div>
+      <label>Batch (kitne niches)</label><input id="srBatch" type="number" value="8" style="max-width:120px">
+      <label>Limit / query</label><input id="srLimit" type="number" value="6" style="max-width:120px">
+    </div></div>
+    <button class="btn" id="srNicheBtn" onclick="srNiche()">▶ Scrape chalao</button>
+    <div id="srNicheOut"></div>
+  </div>
+  <div class="card">
+    <h2>🎯 Prospector ab chalao (Rohan ka daily job, manually)</h2>
+    <div class="mut">Default targets pe full prospecting — real phones+reviews enrich. Daily 09:30 IST se alag manual trigger.</div>
+    <button class="btn" id="srProsBtn" onclick="srProspect()">▶ Prospecting run</button>
+    <div id="srProsOut"></div>
+  </div>
+  <div class="card">
+    <h2>🚦 Scraping/automation flags</h2>
+    <div class="mut">Multi-source ke liye <a href="#" onclick="show('harvest');return false">🌾 Harvester tab</a>. Flag change = VPS .env + restart (UI se flip nahi — safety).</div>
+    <button class="btn2" onclick="srFlags()">🔄 Flags load</button>
+    <div id="srFlagsOut"></div>
+  </div>
+</section>
+
+<!-- ================= 15. APPROVALS ================= -->
+<section class="tabsec" id="sec-approvals">
+  <div class="card">
+    <h2>📥 Pending Approvals — aapke decisions ek jagah</h2>
+    <div class="mut">Process breakpoints (WAITING runs) + Code-upgrader patch proposals. Patch approve = SUPER_ADMIN only.</div>
+    <button class="btn2" onclick="apLoad()">🔄 Refresh</button>
+    <div id="apOut" class="mut" style="margin-top:8px">Load ho raha...</div>
+  </div>
+</section>
+
+<!-- ================= 16. EVENTS ================= -->
+<section class="tabsec" id="sec-events">
+  <div class="card">
+    <h2>📜 Completed Tasks — agent events timeline</h2>
+    <div class="mut">Har staff action ka log (newest first) — kya hua, kisne kiya, kab.</div>
+    <label>Member filter (optional)</label><input id="evMember" placeholder="isha / rohan / dev ..." style="max-width:200px">
+    <button class="btn2" onclick="evLoad()">🔄 Load</button>
+    <div id="evOut" class="mut" style="margin-top:8px">Load ho raha...</div>
   </div>
 </section>
 
@@ -1369,11 +1464,193 @@ async function ctFeedback(){
   busy('ctFbBtn',0);
 }
 
+/* ---------------- 12. Schedule (jobs + staff) ---------------- */
+function fmtTime(iso){if(!iso)return '—';try{return new Date(iso).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:true,day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}catch(e){return String(iso)}}
+async function scLoad(){
+  try{
+    var d=await api('/api/growth/infra/automation-health');
+    var q=d.queue||{};
+    var h='<div class="result">'+pills({status:d.status,overdue:(d.overdue||[]).join(', ')||'none',queue_celery:q.celery,dlq:q.dlq});
+    h+='<table><tr><th>Job</th><th>Last run (IST)</th><th>Took</th><th>Status</th></tr>';
+    (d.jobs||[]).forEach(function(j){
+      var st=String(j.status||'');
+      var cls=st==='ok'?'ok':(st==='overdue'||st==='last_failed'?'bad':'warn');
+      h+='<tr><td>'+esc(j.job)+'</td><td class="mut">'+esc(fmtTime(j.last_run))+'</td><td class="mut">'+(j.duration_s!=null?esc(j.duration_s)+'s':'')+'</td><td class="'+cls+'">'+esc(st)+'</td></tr>';
+    });
+    $('scHealthOut').innerHTML=h+'</table></div>';
+  }catch(e){warnBox('scHealthOut','Health fail: '+e.message)}
+  try{
+    var t=await api('/api/platform/team');
+    var h2='<table><tr><th>Staff</th><th>Role</th><th>State</th><th>Last active</th><th></th></tr>';
+    (t.members||[]).forEach(function(m){
+      var st=String(m.state||'');
+      var cls=st==='working'?'ok':(st==='active'?'warn':'mut');
+      h2+='<tr><td>'+esc((m.emoji||'')+' '+(m.name||m.key||''))+'</td><td class="mut">'+esc(m.role||'')+'</td><td class="'+cls+'">'+esc(st||'offline')+'</td><td class="mut">'+(m.last_active_mins!=null?esc(m.last_active_mins)+'m pehle':'—')+'</td>';
+      h2+='<td><button class="btn2" onclick="scRun(\''+esc(m.key||'')+'\')">▶ Run now</button></td></tr>';
+    });
+    $('scTeamOut').innerHTML=h2+'</table>';
+  }catch(e){warnBox('scTeamOut','Team fail: '+e.message)}
+}
+async function scRun(member){
+  if(!member)return;
+  if(!confirm(member+' ka job ABHI chalaye?'))return;
+  toast('▶ '+member+' start...');
+  try{
+    var d=await api('/api/platform/team/run/'+encodeURIComponent(member),{method:'POST'});
+    if(d&&d.error)throw new Error(d.error);
+    toast(member+' done ✅');scLoad();
+  }catch(e){toast(member+' fail: '+e.message,false)}
+}
+var scTimer=null;
+function scAuto(on){if(scTimer){clearInterval(scTimer);scTimer=null}if(on){scTimer=setInterval(function(){if($('sec-schedule').style.display!=='none')scLoad()},60000)}}
+
+/* ---------------- 13. Agents ---------------- */
+async function agLoad(){
+  try{
+    var d=await api('/api/agents/roster');
+    var h='<table><tr><th>Agent</th><th>Role</th><th>Tools</th></tr>';
+    (d.roster||[]).forEach(function(a){
+      h+='<tr><td>'+esc((a.emoji||'🤖')+' '+(a.name||a.key||''))+'</td><td class="mut">'+esc(a.role||a.title||'')+'</td><td>'+(a.executable?'<span class="ok">⚙️ real tools</span>':'<span class="mut">draft-only</span>')+'</td></tr>';
+    });
+    h+='</table>';
+    var runs=d.recent_runs||[];
+    if(runs.length){
+      h+='<h3>Recent coordination runs</h3><table><tr><th>Time</th><th>Goal</th><th>Status</th></tr>';
+      runs.forEach(function(r){h+='<tr><td class="mut">'+esc(fmtTime(r.at||r.started_at||r.ts))+'</td><td>'+esc(String(r.goal||'').slice(0,90))+'</td><td class="mut">'+esc(r.status||r.kind||'')+'</td></tr>'});
+      h+='</table>';
+    }
+    $('agRosterOut').innerHTML=h;
+  }catch(e){warnBox('agRosterOut','Roster fail: '+e.message)}
+}
+async function agRun(){
+  var goal=$('agGoal').value.trim(); if(goal.length<3)return toast('Goal likho',false);
+  var mode=$('agMode').value, exec=$('agExec').checked;
+  if(exec&&!confirm('Execute mode: agents real (SAFE) tools chalayenge — content/hashtags/ops/qa. Pakka?'))return;
+  busy('agRunBtn',1,'⏳ agents kaam kar rahe (1-3 min)...');
+  try{
+    var body={goal:goal};
+    if(mode!=='fanout')body.execute=exec;
+    var d=await api('/api/agents/'+mode,{method:'POST',body:JSON.stringify(body)});
+    $('agRunOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';
+    toast('Run complete ✅');agLoad();
+  }catch(e){toast('Run fail: '+e.message,false)}
+  busy('agRunBtn',0);
+}
+
+/* ---------------- 14. Scraping ---------------- */
+async function srNiche(){
+  if(!confirm('Niche-rotation scrape chalaye? (Places API quota use hota)'))return;
+  busy('srNicheBtn',1,'⏳ scraping (1-2 min)...');
+  try{
+    var d=await api('/api/growth/niche/scrape',{method:'POST',body:JSON.stringify({tier:($('srTier').value||null),batch:parseInt($('srBatch').value,10)||8,limit_per_query:parseInt($('srLimit').value,10)||6})});
+    $('srNicheOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+    toast('Scrape done ✅');
+  }catch(e){toast('Scrape fail: '+e.message,false)}
+  busy('srNicheBtn',0);
+}
+async function srProspect(){
+  if(!confirm('Full prospecting run? (Places lookups cap tak use honge)'))return;
+  busy('srProsBtn',1,'⏳ prospecting (2-4 min)...');
+  try{
+    var d=await api('/api/platform/team/prospects/run',{method:'POST'});
+    if(d&&d.ok===false)throw new Error(d.error||'fail');
+    $('srProsOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+    toast('Prospecting done ✅');
+  }catch(e){toast('Prospecting fail: '+e.message,false)}
+  busy('srProsBtn',0);
+}
+var SR_FLAGS=['NICHE_ROTATION','LEAD_HARVESTER','TEAM_AUTOMATION','AUTO_EMAIL_OUTREACH','CADENCE_ENGINE','SELF_IMPROVE_LOOP','GROWTH_OPTIMIZER','CHANNEL_EXPERIMENTS'];
+async function srFlags(){
+  try{
+    var d=await api('/api/growth/infra/flags');
+    var fl=d.flags||{};
+    var h='<div class="result"><span class="pill">ON total: <b>'+esc(d.on_count!=null?d.on_count:'?')+'</b></span><div style="margin-top:6px">';
+    SR_FLAGS.forEach(function(k){
+      var f=fl[k]||{};
+      var lbl=f.on?'✅ ON':(f.set?'❌ off':'— unset');
+      h+='<span class="pill" style="'+(f.on?'background:#123524;color:var(--ok)':'')+'">'+esc(k)+': <b>'+lbl+'</b></span> ';
+    });
+    h+='</div><div class="mut" style="margin-top:8px">Poora flags catalog Ops page pe bhi hai. Change = .env + restart.</div></div>';
+    $('srFlagsOut').innerHTML=h;
+  }catch(e){warnBox('srFlagsOut','Flags fail: '+e.message)}
+}
+
+/* ---------------- 15. Approvals ---------------- */
+async function apLoad(){
+  var h='';var pending=0;
+  try{
+    var d=await api('/api/growth/process/runs');
+    var waiting=(d.runs||[]).filter(function(r){return String(r.status||'').indexOf('wait')>=0});
+    h+='<h3>⚙️ Process breakpoints ('+waiting.length+')</h3>';
+    if(!waiting.length)h+='<div class="mut">Koi waiting run nahi.</div>';
+    else{
+      h+='<table><tr><th>Run</th><th>Process</th><th>Step</th><th>Actions</th></tr>';
+      waiting.forEach(function(r){
+        var id=r.run_id||r.id||'';pending++;
+        h+='<tr><td class="mut">'+esc(String(id).slice(0,14))+'</td><td>'+esc(r.process||'')+'</td><td class="mut">'+esc(r.step||r.current_step||'')+'</td>';
+        h+='<td><button class="btn2" onclick="apProc(\''+esc(id)+'\',1)">✅ Approve</button><button class="btnd" onclick="apProc(\''+esc(id)+'\',0)">❌ Reject</button></td></tr>';
+      });
+      h+='</table>';
+    }
+  }catch(e){h+='<div class="bad">Process fail: '+esc(e.message)+'</div>'}
+  try{
+    var p=await api('/api/growth/upgrader/patches?status=proposed');
+    var rows=p.patches||[];
+    h+='<h3>🛠️ Code patches proposed ('+rows.length+') <span class="mut">— SUPER_ADMIN</span></h3>';
+    if(!rows.length)h+='<div class="mut">Koi proposed patch nahi.</div>';
+    else{
+      h+='<table><tr><th>Patch</th><th>Actions</th></tr>';
+      rows.forEach(function(pt){
+        var id=pt.id||pt.patch_id||'';pending++;
+        h+='<tr><td>'+esc(pt.title||pt.summary||id)+(pt.detail||pt.description?'<div class="mut">'+esc(String(pt.detail||pt.description).slice(0,160))+'</div>':'')+'</td>';
+        h+='<td><button class="btn2" onclick="apPatch(\''+esc(id)+'\',\'approved\')">✅ Approve</button><button class="btnd" onclick="apPatch(\''+esc(id)+'\',\'rejected\')">❌ Reject</button></td></tr>';
+      });
+      h+='</table>';
+    }
+  }catch(e){h+='<div class="bad">Patches fail: '+esc(e.message)+'</div>'}
+  $('apOut').innerHTML=h;
+  var b=$('tab-approvals'); if(b)b.textContent='📥 Approvals'+(pending?' ('+pending+')':'');
+}
+async function apProc(id,ok){
+  var note=prompt(ok?'Approve note (optional)':'Reject reason?')||'';
+  try{
+    var d=await api('/api/growth/process/run/'+encodeURIComponent(id)+'/'+(ok?'approve':'reject'),{method:'POST',body:JSON.stringify({note:note})});
+    if(d&&d.ok===false)throw new Error(d.error||'fail');
+    toast(ok?'Approved ✅ — run resume hoga':'Rejected ❌');apLoad();
+  }catch(e){toast('Fail: '+e.message,false)}
+}
+async function apPatch(id,status){
+  try{
+    var d=await api('/api/growth/upgrader/patches/'+encodeURIComponent(id)+'/status',{method:'POST',body:JSON.stringify({status:status,note:''})});
+    if(d&&d.ok===false)throw new Error(d.error||'fail');
+    toast(status==='approved'?'Approved ✅':'Rejected ❌');apLoad();
+  }catch(e){toast('Fail (SUPER_ADMIN token chahiye): '+e.message,false)}
+}
+
+/* ---------------- 16. Events timeline ---------------- */
+async function evLoad(){
+  try{
+    var m=$('evMember').value.trim();
+    var d=await api('/api/platform/team/events?limit=100'+(m?'&member='+encodeURIComponent(m):''));
+    var rows=d.events||[];
+    if(!rows.length){$('evOut').innerHTML='<div class="mut">Koi events nahi.</div>';return}
+    var h='<table><tr><th>Time (IST)</th><th>Staff</th><th>Action</th><th>Detail</th><th></th></tr>';
+    rows.forEach(function(e2){
+      var st=String(e2.status||'ok');
+      h+='<tr><td class="mut">'+esc(fmtTime(e2.at))+'</td><td>'+esc((e2.emoji||'')+' '+(e2.name||e2.member||''))+'</td><td>'+esc(e2.action||'')+'</td><td class="mut">'+esc(String(e2.detail||'').slice(0,120))+'</td><td class="'+(st==='ok'?'ok':'bad')+'">'+esc(st)+'</td></tr>';
+    });
+    $('evOut').innerHTML=h+'</table>';
+  }catch(e){warnBox('evOut','Events fail: '+e.message)}
+}
+
 /* ---------------- init ---------------- */
 $('tokin').value=tok();
+var AUTOLOAD={schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:apLoad,events:evLoad};
+var _origShow=show;
+show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}};
 var start=(location.hash||'').replace('#','');
-var valid=['harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus'];
-show(valid.indexOf(start)>=0?start:'harvest');
+var valid=['schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus'];
+show(valid.indexOf(start)>=0?start:'schedule');
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
 </body>
