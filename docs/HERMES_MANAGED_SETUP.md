@@ -51,6 +51,52 @@ BOUNDARIES (hamesha):
 ## Step 4 — (Optional) Telegram connect
 Hermes Settings → Connectors → Telegram link karo, taaki phone se hi infra sawal pooch sako.
 
+## 1-MAHINA VALUE PLAN (plan kharida hai — poora nichodo)
+
+> Funda: Managed Hermes wahi kaam kare jo HAMARA stack nahi karta — background research,
+> external watch, Telegram-se-ops. Jo hamara platform already karta hai (content, posts,
+> monitoring alerts) us pe iske credits MAT jalao. FREE/sasta model use karo (Step 2 —
+> Groq key = ₹0; nexos credits plan me mile hon to wo).
+
+### Week 1 — Setup + infra assistant
+1. Step 1-3 upar (login, Groq key, role prompt) + Telegram connect.
+2. Test: "leadsgenai.in/health/ready fetch karke batao sab healthy hai?"
+3. Scheduled daily task paste karo:
+```
+Roz subah 9 baje IST: https://leadsgenai.in/health/ready aur https://leadsgenai.in/status
+fetch karo. Agar kuch unhealthy/slow dikhe to mujhe Telegram pe turant batao,
+warna sirf "✅ sab healthy" ek line. Koi action khud mat lena.
+```
+
+### Week 2 — Competitor watch (background, jo hum manually nahi karte)
+```
+Har Somvaar yeh karo aur mujhe summary do (Hinglish, 10 lines max):
+1. predis.ai/pricing, dhanda.app, adbanao.com pe koi pricing/feature change?
+2. Google pe "AI telecaller India pricing" ke naye players/offers?
+3. caller.digital aur myoperator.com pe voice-AI pricing change?
+Sirf CHANGES batao — purani cheez repeat mat karo. Source link ke saath.
+```
+
+### Week 3 — Lead research assistant (drafts only, send hum karte hain)
+```
+Task: Pune/Nashik/Nagpur ke 20 solar installation companies dhundo jinki website
+nahi hai ya bahut purani hai. Har ek ka: naam, city, phone (public listing se),
+website-status. Table me do. Yeh main apne CRM me import karunga.
+DISCLAIMER: koi contact/outreach khud mat karna — sirf research.
+```
+(Output CSV jaisa aaye to hum `/api/growth/prospects/import` me daal denge.)
+
+### Week 4 — Content/SEO research (hamare generators ke liye raw material)
+```
+"AI marketing for [niche] India" type 10 blog-topic ideas do jo Google me
+low-competition + high-intent hain, har ek ke saath 3 H2 subheadings.
+Niches: solar, real estate, coaching classes, dental clinics.
+```
+
+### Mahine ke end pe decide
+- Agar Telegram-ops + competitor-watch ki aadat ban gayi aur credits free-tier me
+  chal rahe → renew socho. Warna cancel — in-app stack sab zaroori kaam karta hai.
+
 ## Security rules (IMPORTANT)
 1. **Managed Hermes ko VPS ka SSH/root access MAT do** — autonomous agent + prod root = ek bhool me site down.
    Advise-only rakho; commands khud chalao ya mujhse (Claude) chalwao.
