@@ -6,6 +6,8 @@ Routes (admin, mount `app.include_router(voiceai_router, prefix="/api")` → /ap
   POST /voiceai/ask          — NL question over call/lead data (Vodex-style, 10/60s)
   GET  /voiceai/call-stats   — pure-python call/dialer/cadence counts
   GET  /voiceai/leaderboard  — telecaller gamification ranking (?days=1|7)
+  POST /voiceai/consent/{record,opt-out,opt-in,retention-sweep} — TCCCPR/DPDP consent ledger
+  GET  /voiceai/consent/{suppressed,history}                    — suppression list + per-phone audit
 
 Pattern: ai.py jaisa — router-level per-IP rate limit (LLM abuse guard, FAIL-OPEN)
 + require_admin har endpoint pe. LLM calls async free_ai + asyncio.wait_for hard
@@ -129,3 +131,80 @@ async def dialer_leaderboard(days: int = 1, _user: User = Depends(require_admin)
     from app.platform import dialer_leaderboard as lb
 
     return lb.leaderboard(days)
+
+
+# --------------------------------------------------------------------------- #
+# F4 — Consent + opt-out ledger (TCCCPR/DPDP) — app/telephony/consent_ledger.py
+# --------------------------------------------------------------------------- #
+class ConsentIn(BaseModel):
+    phone: str
+    scope: str = "voice_promo"
+    source: str = ""
+    proof: str = ""
+    client_id: str = ""
+
+
+class OptOutIn(BaseModel):
+    phone: str
+    reason: str = "user_request"
+    channel: str = "manual"
+
+
+class OptInIn(BaseModel):
+    phone: str
+    source: str = "admin"
+    proof: str = ""
+
+
+@router.post("/consent/record")
+async def consent_record(body: ConsentIn, _user: User = Depends(require_admin)):
+    """Timestamped consent record (source/proof DPDP audit ke liye)."""
+    from app.telephony import consent_ledger
+
+    return consent_ledger.record_consent(
+        body.phone, scope=body.scope, source=body.source, proof=body.proof, client_id=body.client_id
+    )
+
+
+@router.post("/consent/opt-out")
+async def consent_opt_out(body: OptOutIn, _user: User = Depends(require_admin)):
+    """Manual opt-out → instant suppression (voice + WA cross-channel)."""
+    from app.telephony import consent_ledger
+
+    return consent_ledger.record_opt_out(body.phone, reason=body.reason, channel=body.channel)
+
+
+@router.post("/consent/opt-in")
+async def consent_opt_in(body: OptInIn, _user: User = Depends(require_admin)):
+    """Re-consent: suppression se hatao + fresh consent record (explicit only)."""
+    from app.telephony import consent_ledger
+
+    return consent_ledger.opt_back_in(body.phone, source=body.source, proof=body.proof)
+
+
+@router.get("/consent/suppressed")
+async def consent_suppressed(limit: int = 500, _user: User = Depends(require_admin)):
+    """Opt-out suppression list (newest first)."""
+    from app.telephony import consent_ledger
+
+    return {"items": consent_ledger.suppression_list(limit)}
+
+
+@router.get("/consent/history")
+async def consent_history(phone: str, _user: User = Depends(require_admin)):
+    """Phone ka poora consent/opt-out history (DPDP access right)."""
+    from app.telephony import consent_ledger
+
+    return {
+        "phone": phone,
+        "suppressed": consent_ledger.is_suppressed(phone),
+        "history": consent_ledger.ledger_for(phone),
+    }
+
+
+@router.post("/consent/retention-sweep")
+async def consent_retention_sweep(_user: User = Depends(require_admin)):
+    """Manual recording-retention sweep (delete sirf RECORDING_RETENTION=1 pe)."""
+    from app.telephony import consent_ledger
+
+    return consent_ledger.retention_sweep()

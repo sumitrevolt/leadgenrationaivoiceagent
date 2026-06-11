@@ -375,6 +375,12 @@ async def _run_job_inner(job: str) -> None:
                 await code_upgrader.run_if_enabled()  # Vikram: code-upgrade proposals (gated CODE_UPGRADER; off = no-op)
             except Exception:
                 pass
+            try:
+                from app.telephony import consent_ledger
+
+                consent_ledger.retention_sweep()  # 90-din recording retention (delete gated RECORDING_RETENTION; off = report-only, dir absent = no-op)
+            except Exception:
+                pass
         elif job == "onboard":
             from app.marketing import onboarding
 

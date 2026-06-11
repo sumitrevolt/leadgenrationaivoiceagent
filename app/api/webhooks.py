@@ -1050,6 +1050,13 @@ async def whatsapp_webhook_inbound(request: Request):
                                 _runner.suppress(frm, reason="opt_out_inbound")
                             except Exception:
                                 pass
+                        # TCCCPR: revocation sab commercial comms pe — voice ledger bhi.
+                        try:
+                            from app.telephony.consent_ledger import record_opt_out
+
+                            record_opt_out(frm, reason="wa_stop", channel="whatsapp")
+                        except Exception:
+                            pass
                         res["suppressed"] += 1
                         continue
                     if text:

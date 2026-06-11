@@ -216,6 +216,20 @@ class ComplianceGate:
                 checks["allowlisted"] = True
                 return ComplianceDecision(True, ct.value, phone, ["allowlisted"], checks)
 
+            # 2.5) opt-out suppression (TCCCPR: revoked consent > sab kuch for promo).
+            #      Transactional pe block nahi (user ne khud callback manga ho sakta),
+            #      sirf note. Defensive: ledger error = no change.
+            try:
+                from app.telephony.consent_ledger import is_suppressed
+
+                if is_suppressed(phone_d):
+                    checks["suppressed"] = True
+                    if ct == CallType.PROMOTIONAL:
+                        reasons.append("opted_out")
+                        return ComplianceDecision(False, ct.value, phone, reasons, checks)
+            except Exception:
+                pass
+
             # 3) calling-hours window (IST).
             now_ist = now or datetime.now(IST)
             if now_ist.tzinfo is None:

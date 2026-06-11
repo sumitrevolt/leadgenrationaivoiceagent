@@ -377,6 +377,18 @@ class CallManager:
         # Determine outcome
         outcome = self._determine_outcome(summary)
 
+        # Opt-out → suppression ledger (covers every voice path, agent handler ke
+        # alawa bhi). Idempotent + best-effort — kabhi completion block nahi karta.
+        if outcome == "opt_out":
+            try:
+                from app.telephony.consent_ledger import record_opt_out
+
+                record_opt_out(
+                    context.phone_number, reason="call_outcome", channel="voice", call_id=str(call_id)
+                )
+            except Exception:
+                pass
+
         result = CallResult(
             call_id=call_id,
             lead_id=context.lead_id,
