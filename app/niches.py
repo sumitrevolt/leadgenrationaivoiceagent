@@ -915,6 +915,51 @@ NICHES = {
             "Instagram/WhatsApp pe naye gift items daalte ho kya?",
         ],
     },
+    "hospital_appointments": {
+        "name": "Hospitals & Clinics — Appointment Booking",
+        "tier": "A",
+        "category": "both",
+        "content_focus": [
+            "doctor intro reels",
+            "health-awareness posts",
+            "patient testimonials",
+            "OPD timing posts",
+            "health-camp announcements",
+        ],
+        "target_type": "b2c",
+        "b2b_client": "Multispecialty hospitals, polyclinics & nursing homes",
+        "end_customer": "Patients / families (symptom query → right doctor → OPD appointment booked; follow-up reminders)",
+        "keywords": [
+            "multispecialty hospital",
+            "polyclinic",
+            "nursing home",
+            "general hospital",
+            "super speciality hospital",
+            "day care clinic",
+        ],
+        "avg_deal_value": "₹83,988/yr",
+        "avg_ticket_inr": "₹6,999/mo retainer (₹84K/yr LTV)",
+        "pitch_hook": "AI agent 24×7 inbound calls handle karta hai — symptom sunta hai, sahi doctor suggest karta hai, OPD appointment book karta hai, reminder bhejta hai; hospital staff free rehta hai",
+        "lead_band": "A",  # voice-product band
+        "qualification_questions": [
+            "Hospital me roz kitne inbound inquiry calls aate hain aur kitne miss hote hain?",
+            "Abhi appointment booking kaun handle karta hai — receptionist ya WhatsApp?",
+            "Kaun-kaun se departments hain jahan patient zyada poochh-taach karte hain?",
+        ],
+        "niche_script": {
+            "greeting": "Namaste! Main {hospital_name} ka AI assistant hoon. Aap kis department ya doctor se appointment lena chahte hain?",
+            "qualification": [
+                "Aapko kya takleef ho rahi hai — thoda bata sakte hain taaki main sahi doctor suggest kar sakoon?",
+                "Appointment kab chahiye — aaj, kal, ya koi specific date?",
+                "Aapka naam aur contact number bata dijiye, confirm karte hain.",
+            ],
+            "objection_handling": {
+                "price": "Hamare saath sirf qualified appointments pe charge hota hai — missed calls ya no-shows pe nahi.",
+                "trust": "Humara AI agent TRAI-compliant hai — aur sirf appointment book karta hai, medical advice nahi deta.",
+                "already_have": "Receptionist saari calls handle nahi kar paate — raat ko, Sunday ko, ya rush hour me calls miss hoti hain. Wahi gap hum fill karte hain.",
+            },
+        },
+    },
     "hardware_paint": {
         "name": "Hardware / Paint / Electrical",
         "tier": "B",
