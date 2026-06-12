@@ -349,8 +349,63 @@ def _sync_voice_plans() -> None:
         pass
 
 
+def _sync_combo_plans() -> None:
+    """AI Growth Suite (Product 3) plans — combo_packages.py truth.
+
+    Flat monthly model: 7 plan IDs
+      combo_starter_monthly, combo_growth_monthly, combo_pro_monthly
+      combo_starter_annual,  combo_growth_annual,  combo_pro_annual
+      combo_pilot  (free 7-day trial)
+    Unlimited calls — lead_usage.py has_lead_quota UNLIMITED_QUOTA gate karta hai.
+    Defensive — kabhi raise nahi.
+    """
+    try:
+        from app.marketing.combo_packages import COMBO_TIERS, UNLIMITED_QUOTA, PILOT_CALL_CAP
+
+        for tier_key, t in COMBO_TIERS.items():
+            pid_m = t["plan_monthly"]
+            PRICING_PLANS[pid_m] = PricingPlan(
+                id=pid_m,
+                name=f"{t['name']} — Monthly",
+                pricing_model=PricingModel.SUBSCRIPTION,
+                monthly_price=Decimal(str(t["price_month"])),
+                calls_per_month=UNLIMITED_QUOTA,
+                leads_per_month=UNLIMITED_QUOTA,
+                concurrent_campaigns=5,
+                features=[f"Combo {tier_key} — Marketing + Voice {t['voice_band']} band, flat monthly"],
+                yearly_discount=0.0,
+            )
+            pid_a = t["plan_annual"]
+            PRICING_PLANS[pid_a] = PricingPlan(
+                id=pid_a,
+                name=f"{t['name']} — Annual",
+                pricing_model=PricingModel.SUBSCRIPTION,
+                monthly_price=Decimal(str(t["price_month"])),
+                calls_per_month=UNLIMITED_QUOTA,
+                leads_per_month=UNLIMITED_QUOTA,
+                concurrent_campaigns=5,
+                features=[f"Combo {tier_key} — Annual, 2 mahine free"],
+                yearly_discount=1 / 6,
+            )
+
+        PRICING_PLANS["combo_pilot"] = PricingPlan(
+            id="combo_pilot",
+            name="Combo Pilot — 7 din free",
+            pricing_model=PricingModel.SUBSCRIPTION,
+            monthly_price=Decimal("0"),
+            calls_per_month=PILOT_CALL_CAP,
+            leads_per_month=PILOT_CALL_CAP,
+            concurrent_campaigns=1,
+            features=["7-day free pilot — marketing + voice dono"],
+            yearly_discount=0.0,
+        )
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+
 _sync_plans_from_packages()
 _sync_voice_plans()
+_sync_combo_plans()
 
 
 @dataclass
@@ -781,98 +836,4 @@ class BillingManager:
         limits = self.check_limits(tenant_id)
 
         # Get recent invoices
-        tenant_invoices = [inv for inv in self.invoices.values() if inv.tenant_id == tenant_id]
-        tenant_invoices.sort(key=lambda x: x.created_at, reverse=True)
-
-        return {
-            "subscription": {
-                "id": subscription.id,
-                "plan": plan.name,
-                "status": subscription.status.value,
-                "billing_cycle": subscription.billing_cycle.value,
-                "current_period_start": subscription.current_period_start.isoformat(),
-                "current_period_end": subscription.current_period_end.isoformat(),
-                "next_payment": (
-                    subscription.next_payment.isoformat() if subscription.next_payment else None
-                ),
-            },
-            "usage": {
-                "calls_used": subscription.calls_used,
-                "calls_limit": limits.get("calls_limit", "Unlimited"),
-                "leads_generated": subscription.leads_generated,
-                "leads_limit": limits.get("leads_limit", "Unlimited"),
-                "appointments": subscription.appointments_booked,
-            },
-            "pricing": {
-                "monthly_price": str(plan.monthly_price),
-                "per_lead_price": str(plan.price_per_qualified_lead),
-                "per_appointment_price": str(plan.price_per_appointment),
-            },
-            "recent_invoices": [
-                {
-                    "id": inv.id,
-                    "amount": str(inv.total_amount),
-                    "status": inv.status.value,
-                    "date": inv.created_at.isoformat(),
-                }
-                for inv in tenant_invoices[:5]
-            ],
-        }
-
-
-# Global billing manager
-billing_manager = BillingManager()
-
-
-# =============================================================================
-# API ENDPOINTS (FastAPI routes)
-# =============================================================================
-
-"""
-# Add these routes to your FastAPI app
-
-from fastapi import APIRouter, HTTPException
-from app.billing.subscription import billing_manager, PRICING_PLANS
-
-router = APIRouter(prefix="/billing", tags=["Billing"])
-
-@router.get("/plans")
-async def get_pricing_plans():
-    return {
-        "plans": [
-            {
-                "id": plan.id,
-                "name": plan.name,
-                "pricing_model": plan.pricing_model.value,
-                "monthly_price": str(plan.monthly_price),
-                "calls_per_month": plan.calls_per_month or "Unlimited",
-                "leads_per_month": plan.leads_per_month or "Unlimited",
-                "features": plan.features,
-                "pricing": billing_manager.calculate_price(plan.id)
-            }
-            for plan in PRICING_PLANS.values()
-        ]
-    }
-
-@router.post("/subscribe")
-async def create_subscription(
-    tenant_id: str,
-    plan_id: str,
-    billing_cycle: str = "monthly"
-):
-    cycle = BillingCycle(billing_cycle)
-    subscription = await billing_manager.create_subscription(
-        tenant_id=tenant_id,
-        plan_id=plan_id,
-        billing_cycle=cycle
-    )
-    return {"subscription": subscription}
-
-@router.get("/usage/{tenant_id}")
-async def get_usage(tenant_id: str):
-    return billing_manager.check_limits(tenant_id)
-
-@router.get("/summary/{tenant_id}")
-async def get_billing_summary(tenant_id: str):
-    return billing_manager.get_tenant_billing_summary(tenant_id)
-"""
+        tenant_invoices = [inv for inv in self.invoices.val

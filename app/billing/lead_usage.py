@@ -117,10 +117,15 @@ def topup_leads_this_period(client_id: str, period: str | None = None) -> int:
 
 
 def plan_quota(plan: str | None) -> int:
-    """Voice plan (band-suffixed ya base key) -> leads/month (non-voice => 0)."""
+    """Voice ya combo plan -> leads/month (UNLIMITED_QUOTA for flat plans; non-voice => 0)."""
+    try:
+        from app.marketing.combo_packages import combo_plan_quota, is_combo_plan
+        if is_combo_plan(plan):
+            return combo_plan_quota(plan)
+    except Exception:
+        pass
     try:
         from app.marketing.voice_packages import plan_lead_quota
-
         return plan_lead_quota(plan)
     except Exception:
         return 0
@@ -165,23 +170,4 @@ def usage_summary(client_id: str, plan: str | None = None) -> dict:
     return {
         "client_id": cid,
         "period": _period_key(),
-        "plan": str(plan or ""),
-        "quota_leads": quota,
-        "topup_leads": topup,
-        "used_leads": used,
-        "remaining_leads": max(0, quota + topup - used),
-        "unit": "qualified_lead",
-        "pack_size": 10,
-    }
-
-
-__all__ = [
-    "record_qualified_lead",
-    "add_topup_leads",
-    "leads_used_this_period",
-    "topup_leads_this_period",
-    "leads_remaining",
-    "has_lead_quota",
-    "plan_quota",
-    "usage_summary",
-]
+    

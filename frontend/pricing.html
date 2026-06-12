@@ -109,7 +109,26 @@
 
   <p class="note">Sab plans me GST rules apply. Kabhi bhi cancel karo. Advanced tier me AI voice calling feature (500 min/mo).</p>
 
-  <div class="note" style="background:#eef2ff;border-radius:12px;padding:14px;margin-top:10px">📞 <b>Full AI telecaller chahiye?</b> Wo hamara ALAG product hai — <a href="/voice-agent" style="font-weight:700">AI Voice Calling Agent</a>: Hinglish AI jo leads qualify karke deta hai, pricing per 10 qualified leads (aapke niche ke hisaab se).</div>
+  <div class="note" style="background:#eef2ff;border-radius:12px;padding:14px;margin-top:10px">📞 <b>Full AI telecaller chahiye?</b> Wo hamara ALAG product hai — <a href="/voice-agent" style="font-weight:700">AI Voice Calling Agent</a>: Hinglish AI jo unlimited calls karta hai aapke niche ke liye (flat monthly).</div>
+
+  <!-- ===== PRODUCT 3: AI Growth Suite (Combo) ===== -->
+  <section id="combo-section" style="margin-top:46px">
+    <div style="text-align:center;margin-bottom:8px">
+      <span style="background:linear-gradient(135deg,#5b8cff,#7aa2ff);color:#fff;font-size:11px;font-weight:800;padding:4px 14px;border-radius:999px;letter-spacing:.6px">NEW — PRODUCT 3</span>
+    </div>
+    <h2 style="text-align:center;font-size:24px;margin:6px 0 4px">🚀 AI Growth Suite — Combo Pack</h2>
+    <p style="text-align:center;color:var(--mut);font-size:15px;margin:0 0 6px">Marketing + Voice ek saath — alag-alag lene se ₹1,200–5,000/mo zyada lagta hai.</p>
+    <p style="text-align:center;color:var(--mut);font-size:13px;margin:0 0 24px"><b style="color:#2ecc71">India me sirf hamare paas</b> — koi competitor yeh bundle nahi deta.</p>
+
+    <div class="toggle" style="margin-bottom:16px">
+      <button id="ctg-monthly" class="on" onclick="setCombo('monthly')">Monthly</button>
+      <button id="ctg-yearly" onclick="setCombo('yearly')">Yearly <span class="save">2 mahine FREE</span></button>
+    </div>
+
+    <div id="combo-plans" class="grid"><div class="note">Combo plans load ho rahe hain…</div></div>
+
+    <p class="note" style="margin-top:16px">7-din free pilot included · Koi lead-counting nahi · TRAI AI-disclosure built-in</p>
+  </section>
 
   <!-- Hum vs Doosre — compare strip -->
   <section class="cmp">
@@ -281,31 +300,4 @@ async function doSignupPay(){
         try{
           const v = await fetch(API+`/api/billing/verify-payment?client_id=${encodeURIComponent(cid)}`,{
             method:"POST",headers:{"Content-Type":"application/json"},
-            body:JSON.stringify({order_id:resp.razorpay_order_id,payment_id:resp.razorpay_payment_id,signature:resp.razorpay_signature})});
-          if(v.ok){ setMsg("Payment ho gaya! Redirect…",true); location.href="/app/customer"; }
-          else setMsg("Payment hua par verify pending — humse contact karo.");
-        }catch(e){ setMsg("Verify error — humse contact karo."); }
-      },
-      modal:{ondismiss:function(){busy(false);setMsg("Payment cancel — account bana hua hai, baad me pay kar sakte ho.");}}
-    });
-    rzp.open();
-  } else if(co.gateway==="stripe" && co.checkout_url){
-    location.href = co.checkout_url;
-  } else {
-    busy(false); paymentFallback(cid);
-  }
-}
-
-// Agar payment gateway abhi configure nahi (keys unset) — account bana hua hai, UPI/contact dikhao.
-async function paymentFallback(cid){
-  let upi=null;
-  try{ const r=await fetch(API+"/api/public/pay-info"); if(r.ok){const d=await r.json(); if(d.enabled) upi=d;} }catch(e){}
-  if(upi && upi.vpa){
-    setMsg(`Account ban gaya ✓ Payment ke liye UPI karo: <b>${upi.vpa}</b><br>Phir <a href="/app/login">login</a> karo. Hum activate kar denge.`, true);
-  }else{
-    setMsg(`Account ban gaya ✓ Online payment jald hi. Abhi activate karne ke liye humein WhatsApp karo. <a href="/app/login">Login</a>`, true);
-  }
-}
-
-loadPlans();
-<
+        
