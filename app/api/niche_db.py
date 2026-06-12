@@ -30,7 +30,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.api.ratelimit import rate_limit
-from app.utils.auth import get_current_user, require_admin
+from app.utils.auth import get_current_user_payload as get_current_user, require_admin
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
