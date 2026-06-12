@@ -548,16 +548,6 @@ async def status_page():
     return FileResponse(str(FRONTEND_DIR / "status.html"))
 
 
-@app.get("/manifest.json", include_in_schema=False)
-async def pwa_manifest():
-    return FileResponse(str(FRONTEND_DIR / "manifest.json"), media_type="application/manifest+json")
-
-
-@app.get("/sw.js", include_in_schema=False)
-async def pwa_sw():
-    return FileResponse(str(FRONTEND_DIR / "sw.js"), media_type="application/javascript")
-
-
 @app.get("/pwa-icon-{size}.png", include_in_schema=False)
 async def pwa_icon(size: int):
     """PWA icon runtime-generate (PIL) + disk cache — koi binary repo me nahi."""
