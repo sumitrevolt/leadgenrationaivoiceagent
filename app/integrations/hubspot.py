@@ -430,30 +430,61 @@ class HubSpotIntegration:
 
 class ZohoCRMIntegration:
     """
-    Zoho CRM Integration (placeholder)
-    Similar structure to HubSpot
+    Zoho CRM Integration — delegates to the real implementation in
+    app.integrations.zoho_crm.ZohoCRM (which uses proper OAuth + upsert).
+    Kept for backward-compat imports; real usage via crm_sync.push_lead().
     """
 
     def __init__(self):
         self.client_id = settings.zoho_client_id
         self.client_secret = settings.zoho_client_secret
         self.refresh_token = settings.zoho_refresh_token
-
+        self._zoho = None
         if all([self.client_id, self.client_secret, self.refresh_token]):
-            logger.info("🔵 Zoho CRM Integration initialized")
+            try:
+                from app.integrations.zoho_crm import ZohoCRM
+                self._zoho = ZohoCRM(
+                    client_id=self.client_id,
+                    client_secret=self.client_secret,
+                    refresh_token=self.refresh_token,
+                )
+                logger.info("🔵 Zoho CRM Integration initialized (via zoho_crm)")
+            except Exception as e:
+                logger.warning(f"Zoho CRM init failed: {e}")
         else:
             logger.warning("Zoho CRM credentials not configured")
 
     async def create_lead(self, lead_data: dict[str, Any]) -> str | None:
-        """Create a lead in Zoho CRM"""
-        # Implementation similar to HubSpot
-        # Uses Zoho API v2
-        pass
+        """Create/upsert a lead in Zoho CRM. Returns record ID or None."""
+        if not self._zoho or not self._zoho.enabled:
+            return None
+        try:
+            return await self._zoho.upsert_lead(lead_data)
+        except Exception as e:
+            logger.warning(f"Zoho create_lead failed: {e}")
+            return None
 
     async def update_lead(self, lead_id: str, data: dict[str, Any]) -> bool:
-        """Update a lead in Zoho"""
-        pass
+        """Update a lead record in Zoho."""
+        if not self._zoho or not self._zoho.enabled:
+            return False
+        try:
+            # upsert with explicit Id field for update
+            payload = {**data, "Id": lead_id}
+            result = await self._zoho.upsert_lead(payload)
+            return bool(result)
+        except Exception as e:
+            logger.warning(f"Zoho update_lead failed: {e}")
+            return False
 
     async def log_call(self, lead_id: str, call_data: dict[str, Any]) -> bool:
-        """Log call activity in Zoho"""
-        pass
+        """Log a call activity note in Zoho against a lead."""
+        if not self._zoho or not self._zoho.enabled:
+            return False
+        try:
+            note = call_data.get("summary") or call_data.get("notes") or str(call_data)[:500]
+            await self._zoho.add_note(lead_id, "LeadGen AI — Call Log", note)
+            return True
+        except Exception as e:
+            logger.warning(f"Zoho log_call failed: {e}")
+            return False

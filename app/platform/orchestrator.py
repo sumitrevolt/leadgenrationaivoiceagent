@@ -26,6 +26,39 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+def _get_memory_usage() -> str:
+    """Current process memory in MB (psutil optional, stdlib fallback)."""
+    try:
+        import os
+        import resource  # POSIX-only; Windows fallback below
+        usage_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return f"{usage_kb // 1024} MB"
+    except Exception:
+        pass
+    try:
+        import os
+        # /proc/self/status on Linux
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("VmRSS:"):
+                    kb = int(line.split()[1])
+                    return f"{kb // 1024} MB"
+    except Exception:
+        pass
+    return "OK"
+
+
+def _get_db_health() -> str:
+    """Quick DB ping — returns 'OK' or 'ERROR: <reason>'. Never raises."""
+    try:
+        from app.database import engine
+        with engine.connect() as conn:
+            conn.execute(__import__("sqlalchemy").text("SELECT 1"))
+        return "OK"
+    except Exception as e:
+        return f"ERROR: {str(e)[:60]}"
+
+
 @dataclass
 class PlatformStats:
     """Platform-wide statistics"""
@@ -338,8 +371,22 @@ class PlatformOrchestrator:
             }
         )
 
-        # TODO: Send to admin WhatsApp/email
         logger.info(f"📊 Platform Stats: {stats}")
+        # Send email report to admin (NOTIFY_EMAIL se, ops_watchdog pattern)
+        try:
+            import os
+            notify = os.environ.get("NOTIFY_EMAIL", "").strip()
+            if notify:
+                from app.platform.auto_outreach import send_email
+                lines = [f"{k}: {v}" for k, v in stats.items()]
+                body = "Platform Stats Report\n\n" + "\n".join(lines)
+                await send_email(
+                    to=notify,
+                    subject="📊 LeadGen AI — Platform Stats Report",
+                    body=body,
+                )
+        except Exception as _e:
+            logger.debug(f"orchestrator: admin report email failed ({_e})")
 
     async def _midnight_maintenance(self):
         """Midnight maintenance tasks"""
@@ -403,8 +450,8 @@ class PlatformOrchestrator:
                         [t for t in self.tenant_manager.tenants.values() if t.is_running]
                     ),
                     "total_calls_today": self.stats.platform_calls_made,
-                    "memory_usage": "OK",  # TODO: Add actual memory check
-                    "database": "OK",  # TODO: Add actual DB health check
+                    "memory_usage": _get_memory_usage(),
+                    "database": _get_db_health(),
                 }
 
                 # Log health every hour

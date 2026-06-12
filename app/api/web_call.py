@@ -121,6 +121,43 @@ def _get_natural_dialog(niche: str, client_name: str, client_service: str) -> An
         return None
 
 
+import re as _re
+
+_FILLER_LINES = ["Hmm...", "Achha...", "Ji...", "Haan..."]
+_filler_idx = 0
+
+
+async def _filler_b64() -> str | None:
+    """
+    Short Hinglish filler phrase (mp3 b64) — sent INSTANTLY while LLM thinks so
+    user doesn't hear dead silence. Rotates through _FILLER_LINES. Never raises.
+    """
+    global _filler_idx
+    text = _FILLER_LINES[_filler_idx % len(_FILLER_LINES)]
+    _filler_idx += 1
+    return await _edge_tts_mp3_b64(text)
+
+
+def _split_sentences(text: str) -> list[str]:
+    """
+    Split bot reply into sentences for streaming TTS.
+    Splits on '.' '।' '?' '!' followed by space/end.
+    Preserves trailing punctuation. Short trailing fragment joins previous.
+    """
+    parts = _re.split(r"(?<=[.।?!])\s+", text.strip())
+    sentences: list[str] = []
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+        # Very short fragment (<= 8 chars) — append to previous sentence
+        if sentences and len(p) <= 8:
+            sentences[-1] = sentences[-1] + " " + p
+        else:
+            sentences.append(p)
+    return sentences or [text]
+
+
 async def _edge_tts_mp3_b64(text: str) -> str | None:
     """
     Synthesize `text` to the SAME natural Hindi voice as the phone agent
@@ -514,6 +551,21 @@ async def web_call_ws(websocket: WebSocket) -> None:
             # we drop through to the existing natural-dialog/_respond chain.
             tcbrain = await _run_blocking(_get_tcbrain, session.get("niche", "general"))
             if tcbrain is not None:
+                # FILLER ACK — LLM ke sochne se pehle instant thinking sound bhejo
+                # taaki user ko dead silence na milein.
+                try:
+                    filler_audio = await _filler_b64()
+                    await websocket.send_json(
+                        {
+                            "type": "filler",
+                            "audio_b64": filler_audio,
+                            "heard": user_text,  # caption sync immediately
+                            "test_mode": True,
+                        }
+                    )
+                except Exception:
+                    pass  # filler fail = ignore, LLM reply abhi bhi aayega
+
                 try:
                     tc_reply = await tcbrain.reply(history, user_text)
                 except Exception as e:
@@ -522,16 +574,24 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 if tc_reply:
                     history.append({"role": "user", "content": user_text})
                     history.append({"role": "assistant", "content": tc_reply})
-                    audio_b64 = await _edge_tts_mp3_b64(tc_reply)
-                    await websocket.send_json(
-                        {
-                            "type": "bot",
-                            "text": tc_reply,
-                            "audio_b64": audio_b64,  # mp3 (Swara) or None -> browser TTS
-                            "heard": user_text,  # server-STT transcript (caption sync)
-                            "test_mode": True,
-                        }
-                    )
+
+                    # SENTENCE-SPLIT STREAMING — har sentence ka audio alag bhejo
+                    # taaki user pehla sentence lete lete baaki synthesize ho.
+                    sentences = _split_sentences(tc_reply)
+                    for i, sentence in enumerate(sentences):
+                        audio_b64 = await _edge_tts_mp3_b64(sentence)
+                        await websocket.send_json(
+                            {
+                                "type": "bot",
+                                "text": sentence,
+                                "full_text": tc_reply if i == 0 else None,  # first chunk full reply
+                                "audio_b64": audio_b64,
+                                "heard": user_text if i == 0 else None,
+                                "chunk_index": i,
+                                "chunk_total": len(sentences),
+                                "test_mode": True,
+                            }
+                        )
                     continue
 
             # FALLBACK: human-like natural dialog (listen -> understand -> answer).
