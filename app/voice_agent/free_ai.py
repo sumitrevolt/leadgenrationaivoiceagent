@@ -43,26 +43,27 @@ except Exception:  # pragma: no cover - SDK missing
 
 
 # Provider endpoints — sab OpenAI-compatible /v1.
+# COMPLETELY FREE providers only (no credit card, no paid credits required).
 _GROQ_BASE = "https://api.groq.com/openai/v1"
 _CEREBRAS_BASE = "https://api.cerebras.ai/v1"
 _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
-_XAI_BASE = "https://api.x.ai/v1"  # xAI Grok (NOTE: Groq se alag company!)
-_GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"  # OpenAI-compat
-_TOGETHER_BASE = "https://api.together.xyz/v1"
-_HYPERBOLIC_BASE = "https://api.hyperbolic.xyz/v1"
+_XAI_BASE = "https://api.x.ai/v1"          # credits-based, kept for config compat only
+_GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
+_SAMBANOVA_BASE = "https://api.sambanova.ai/v1"   # 100% free, no card — cloud.sambanova.ai
+_MISTRAL_BASE = "https://api.mistral.ai/v1"       # free tier La Plateforme — console.mistral.ai
 
-# Models.
-# turbo = faster decode, same free tier + comparable Hindi quality → lower STT latency.
+# Models — all free tier.
 _GROQ_STT_MODEL = "whisper-large-v3-turbo"
-_CEREBRAS_LLM_MODEL = (
-    "gpt-oss-120b"  # is account pe available (models API se confirmed): gpt-oss-120b + zai-glm-4.7
-)
-_GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # 14k RPD vs 1k, 6000 RPM — much higher limits than versatile
+_CEREBRAS_LLM_MODEL = "gpt-oss-120b"       # free, fastest 120B
+_GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # free, 6000 RPM, 14k RPD
+_GEMINI_LLM_MODEL = "gemini-2.0-flash-lite"  # free, 1500 RPD, 30 RPM — key already set
+_SAMBANOVA_LLM_MODEL = "Meta-Llama-3.3-70B-Instruct"  # free, fast inference chip
+_MISTRAL_LLM_MODEL = "mistral-small-latest"  # free tier (La Plateforme)
+# OpenRouter multiple free models — fallback cascade
 _OPENROUTER_LLM_MODEL = "deepseek/deepseek-chat:free"
-_XAI_LLM_MODEL = "grok-3-mini"  # fast/cheap Grok; credits-based (user ke paas keys)
-_GEMINI_LLM_MODEL = "gemini-2.0-flash-lite"  # fastest + free tier (1500 RPD, 30 RPM)
-_TOGETHER_LLM_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"  # together free tier
-_HYPERBOLIC_LLM_MODEL = "meta-llama/Llama-3.1-70B-Instruct"  # hyperbolic free tier
+_OPENROUTER_LLM_MODEL2 = "meta-llama/llama-3.1-8b-instruct:free"
+_OPENROUTER_LLM_MODEL3 = "google/gemma-2-9b-it:free"
+_XAI_LLM_MODEL = "grok-3-mini"  # credits-based — NOT in chain, kept for key compat
 
 # Hard per-call latency cap. 8s: Cerebras normally 4-5s; 6s ne use beech me
 # kaat ke weak generic fallback ("samajh gayi, aur bataiye") + repeats paida
@@ -111,13 +112,13 @@ def _reset_cooldown_streak(p: str) -> None:
 
 # provider -> (settings attr, base_url)
 _PROVIDER_CFG: dict[str, tuple[str, str]] = {
-    "groq": ("groq_api_key", _GROQ_BASE),
-    "cerebras": ("cerebras_api_key", _CEREBRAS_BASE),
+    "groq":       ("groq_api_key",      _GROQ_BASE),
+    "cerebras":   ("cerebras_api_key",  _CEREBRAS_BASE),
     "openrouter": ("openrouter_api_key", _OPENROUTER_BASE),
-    "xai": ("xai_api_key", _XAI_BASE),
-    "gemini": ("gemini_api_key", _GEMINI_BASE),
-    "together": ("together_api_key", _TOGETHER_BASE),
-    "hyperbolic": ("hyperbolic_api_key", _HYPERBOLIC_BASE),
+    "xai":        ("xai_api_key",       _XAI_BASE),       # credits-based, chain me nahi
+    "gemini":     ("gemini_api_key",    _GEMINI_BASE),
+    "sambanova":  ("sambanova_api_key", _SAMBANOVA_BASE),  # free — cloud.sambanova.ai
+    "mistral":    ("mistral_api_key",   _MISTRAL_BASE),    # free tier — console.mistral.ai
 }
 
 
@@ -236,14 +237,17 @@ async def chat(
     if not msgs:
         return "", ""
 
+    # COMPLETELY FREE chain — no credit card, no paid credits.
+    # Sign-up URLs: cloud.sambanova.ai | console.mistral.ai | openrouter.ai
     chain = [
-        ("cerebras", _CEREBRAS_LLM_MODEL),    # ~4-5s, gpt-oss-120b, best quality
-        ("groq", _GROQ_LLM_MODEL),            # ~1s, 8b-instant, 6000 RPM
-        ("gemini", _GEMINI_LLM_MODEL),         # ~1-2s, 2.0-flash-lite, 1500 RPD free — key already set
-        ("together", _TOGETHER_LLM_MODEL),     # free $25 credits — set TOGETHER_API_KEY
-        ("hyperbolic", _HYPERBOLIC_LLM_MODEL), # free tier — set HYPERBOLIC_API_KEY
-        # xAI removed — 403 no credits (773 calls 0% success, sirf latency waste karta tha)
-        ("openrouter", _OPENROUTER_LLM_MODEL), # deepseek:free, last resort
+        ("cerebras",   _CEREBRAS_LLM_MODEL),   # free, 120B, ~4-5s
+        ("groq",       _GROQ_LLM_MODEL),        # free, 8B, ~1s, 6000 RPM
+        ("gemini",     _GEMINI_LLM_MODEL),      # free, 1500 RPD — key set
+        ("sambanova",  _SAMBANOVA_LLM_MODEL),   # free, 70B fast — SAMBANOVA_API_KEY
+        ("mistral",    _MISTRAL_LLM_MODEL),     # free tier — MISTRAL_API_KEY
+        ("openrouter", _OPENROUTER_LLM_MODEL),  # deepseek:free
+        ("openrouter", _OPENROUTER_LLM_MODEL2), # llama-3.1-8b:free fallback
+        ("openrouter", _OPENROUTER_LLM_MODEL3), # gemma-2-9b:free last resort
     ]
     for provider, model in chain:
         if _provider_down(provider):
@@ -300,9 +304,11 @@ def describe() -> dict[str, Any]:
             f"cerebras:{_CEREBRAS_LLM_MODEL}",
             f"groq:{_GROQ_LLM_MODEL}",
             f"gemini:{_GEMINI_LLM_MODEL}",
-            f"together:{_TOGETHER_LLM_MODEL}",
-            f"hyperbolic:{_HYPERBOLIC_LLM_MODEL}",
+            f"sambanova:{_SAMBANOVA_LLM_MODEL}",
+            f"mistral:{_MISTRAL_LLM_MODEL}",
             f"openrouter:{_OPENROUTER_LLM_MODEL}",
+            f"openrouter:{_OPENROUTER_LLM_MODEL2}",
+            f"openrouter:{_OPENROUTER_LLM_MODEL3}",
         ],
     }
 
