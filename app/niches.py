@@ -29,7 +29,7 @@ NICHES = {
     "ai_marketing": {
         "name": "AI Marketing Services",
         "tier": "S",
-        "category": "both",
+        "category": "marketing",
         "content_focus": ["festival posters", "GBP optimization", "social posts", "reels"],
         "target_type": "b2b",
         "b2b_client": "local businesses needing marketing",
@@ -170,7 +170,7 @@ NICHES = {
     "coaching": {
         "name": "Coaching Institutes (NEET/JEE/UPSC)",
         "tier": "S",
-        "category": "marketing",
+        "category": "both",
         "content_focus": ["result posters", "admission posts", "reels", "reviews"],
         "target_type": "b2c",
         "b2b_client": "Test-prep coaching institutes",
@@ -239,7 +239,7 @@ NICHES = {
     "dental_implants": {
         "name": "Dental Clinics (Implants/Aligners)",
         "tier": "A",
-        "category": "marketing",
+        "category": "both",
         "content_focus": ["before-after posts", "health-day posts", "reviews", "GBP optimization"],
         "target_type": "b2c",
         "b2b_client": "Dental clinics & chains",
