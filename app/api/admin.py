@@ -518,7 +518,24 @@ async def create_user(
         new_value={"email": user.email, "role": role.value},
     )
 
-    # TODO: Send verification email
+    # Send verification email (best-effort, never block create)
+    try:
+        from app.platform.auto_outreach import EmailSender as _ES
+        _es = _ES()
+        _es.send(
+            to=user.email,
+            subject="Aapka LeadsGenAI account ban gaya ✅",
+            body=(
+                f"Namaste {user.first_name},\n\n"
+                f"Aapka account create ho gaya hai.\n"
+                f"Login: https://leadsgenai.in/app/admin-login\n"
+                f"Email: {user.email}\n\n"
+                f"Agar aapne yeh account request nahi kiya, please ignore karein.\n\n"
+                f"Team LeadsGenAI"
+            ),
+        )
+    except Exception as _ve:
+        logger.debug(f"[user.create] verification email skip: {_ve}")
 
     return UserResponse(
         id=user.id,
@@ -814,17 +831,61 @@ async def get_admin_stats(
     )
     active_users = active_users_result.scalar() or 0
 
-    # TODO: Get these from actual database tables
+    # Real DB queries — models import lazy to avoid circular
+    try:
+        from sqlalchemy import func as _func
+
+        from app.models.billing_record import BillingRecord
+        from app.models.call_log import CallLog
+        from app.models.client import Client
+        from app.models.lead import Lead
+
+        _tc_r = await db.execute(select(_func.count(Client.id)))
+        total_clients = _tc_r.scalar() or 0
+
+        from app.models.client import ClientStatus as _CS
+        _ac_r = await db.execute(
+            select(_func.count(Client.id)).where(Client.status.in_([_CS.ACTIVE, _CS.TRIAL]))
+        )
+        active_clients = _ac_r.scalar() or 0
+
+        _tl_r = await db.execute(select(_func.count(Lead.id)))
+        total_leads = _tl_r.scalar() or 0
+
+        _calls_r = await db.execute(select(_func.count(CallLog.id)))
+        total_calls = _calls_r.scalar() or 0
+
+        from app.models.billing_record import BillingRecordStatus as _BRS
+        from app.models.call_log import CallOutcome as _CO
+
+        _appt_r = await db.execute(
+            select(_func.count(CallLog.id)).where(CallLog.outcome == _CO.APPOINTMENT)
+        )
+        total_appointments = _appt_r.scalar() or 0
+
+        _rev_r = await db.execute(
+            select(_func.sum(BillingRecord.amount)).where(
+                BillingRecord.status == _BRS.PAID
+            )
+        )
+        # amount stored in paise → convert to INR
+        total_revenue_inr = float((_rev_r.scalar() or 0) / 100.0)
+    except Exception as _e:
+        logger.warning(f"[admin_stats] DB query failed, using defaults: {_e}")
+        total_clients = active_clients = 0
+        total_leads = total_calls = total_appointments = 0
+        total_revenue_inr = 0.0
+
     return AdminStats(
         total_users=total_users,
         active_users=active_users,
-        total_clients=150,  # Query from clients table
-        active_clients=120,
-        total_leads=25000,  # Query from leads table
-        total_calls=50000,  # Query from call_logs table
-        total_appointments=2500,
-        total_revenue_inr=1500000.00,
-        active_campaigns=45,
+        total_clients=total_clients,
+        active_clients=active_clients,
+        total_leads=total_leads,
+        total_calls=total_calls,
+        total_appointments=total_appointments,
+        total_revenue_inr=total_revenue_inr,
+        active_campaigns=0,
         system_health="healthy",
     )
 

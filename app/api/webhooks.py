@@ -146,7 +146,37 @@ async def twilio_webhook(request: Request):
     form_data.get("To")
     form_data.get("CallStatus")
 
-    # TODO: Route to appropriate handler based on webhook type
+    # Route to voice agent handler (best-effort — never block Twilio ack)
+    from_number = str(form_data.get("From") or "")
+    to_number = str(form_data.get("To") or "")
+    call_status = str(form_data.get("CallStatus") or "")
+    try:
+        if call_status in ("in-progress", "ringing", "initiated"):
+            from app.telephony.call_manager import CallManager as _CM
+            _cm = _CM()
+            import asyncio as _aio_tw
+            _aio_tw.create_task(
+                _cm.queue_call(
+                    phone_number=from_number,
+                    call_type="inbound",
+                    telephony_provider="twilio",
+                    extra={"call_sid": call_sid, "to": to_number, "source": "twilio_webhook"},
+                )
+            )
+        elif call_status in ("completed", "failed", "busy", "no-answer", "canceled"):
+            from app.telephony.call_manager import CallManager as _CM
+            _cm = _CM()
+            import asyncio as _aio_tw
+            _aio_tw.create_task(
+                _cm.handle_call_completed(
+                    phone_number=from_number,
+                    outcome=call_status,
+                    duration_seconds=int(form_data.get("CallDuration") or 0),
+                    extra={"call_sid": call_sid, "source": "twilio_webhook"},
+                )
+            )
+    except Exception as _tw_e:
+        logger.debug(f"[twilio] voice route skip: {_tw_e}")
 
     return {"status": "received", "call_sid": call_sid}
 
