@@ -8,6 +8,9 @@
 - **Hinglish (Roman script) me HI reply karo** — har baar. Concise + direct, kam formatting.
 - Sab **free stack** — koi paid STT/TTS/LLM nahi (user decision). Phone-call paisa khaata hai → tuning FREE web-call pe.
 
+## WEB-CALL STT FIX + 5 SKILLS ✅ LIVE (2026-06-12 PM, commit b9686ee, skills total 49) — detail: SESSION_LOG
+- Web-call "noob/slow/sunta-nahi" ROOT: STT browser Web Speech API thi (Groq sirf phone paths pe) + client_name "Demo Co". FIX LIVE: frontend MediaRecorder utterance → `audio_b64` → server `_transcribe_audio` ab Groq whisper-large-v3 PRIMARY (free_ai additive filename/mime, webm sniff; fail = browser-text, zero regression) + `heard` caption sync + topbar Business-naam field → session client_name → tcbrains rebuild. Smoke: responder=telecaller, voice=True. Naye skills: `web-call-triage` (is workflow ka runbook) · `llm-quota-ops` · `prod-incident-triage` · `dialer-sprint-ops` · `pipeline-hygiene`. Slow ka baaki hissa = LLM cooldowns + full-synth TTS (next: web filler ack + sentence-split streaming).
+
 ## +2 AGENT-LOOP SKILLS ✅ LIVE (2026-06-12 PM, total 44) — detail: SESSION_LOG
 - **`agent-loop-design`** (naya always-on loop pattern: Celery-only, dead-man trio, guards checklist, loops inventory) · **`multi-agent-coordination`** (coordinator-modes decision matrix, execute-safety, agent/team add steps, anti-patterns). Image rebuild — container me skill_pack hit verified.
 
