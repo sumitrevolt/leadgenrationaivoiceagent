@@ -134,6 +134,31 @@ TTS_VOICE = "hi-IN-SwaraNeural"  # natural Indian Hindi female
 REPLY_NUDGE = "(Reply in natural conversational Hinglish, max 2 short sentences)"
 MAX_HISTORY = 20  # conversation history cap (recent turns)
 
+# --------------------------------------------------------------------------- #
+# HUMANIZATION (2026-06-12, Vapi/Retell/SquadStack research) — sab env-tunable,
+# defaults = aaj jaisa (zero behaviour change jab tak env set na ho).
+#   PHONE_TTS_RATE / PHONE_TTS_PITCH : EdgeTTS prosody ("+8%" / "+2Hz" natural
+#       confident telecaller pace deta hai; default "+0%"/"+0Hz" = unchanged).
+#   PHONE_FILLERS=0                  : thinking-filler ack band karne ke liye.
+#   FILLER_AFTER_MS                  : LLM itne ms se slow ho TABHI filler bole.
+# --------------------------------------------------------------------------- #
+import os as _os
+
+TTS_RATE = (_os.environ.get("PHONE_TTS_RATE") or "+0%").strip()
+TTS_PITCH = (_os.environ.get("PHONE_TTS_PITCH") or "+0Hz").strip()
+FILLERS_ENABLED = (_os.environ.get("PHONE_FILLERS", "1").strip() or "1") not in ("0", "false", "no")
+try:
+    FILLER_AFTER_MS = max(150.0, float(_os.environ.get("FILLER_AFTER_MS", "450") or 450))
+except Exception:
+    FILLER_AFTER_MS = 450.0
+
+# Short natural acks — LLM sochte waqt dead-air mask (Retell/Vapi "filler audio"
+# pattern). MP3 module-level cache (worker me EK baar synth); har session apne
+# wire-format (ulaw/pcm) me lazily convert+cache karta hai.
+_FILLER_TEXTS = ("Hmm...", "Achha...", "Ji...", "Haan...")
+_FILLER_MP3: list[bytes] = []
+_FILLER_SYNTH_STARTED = False
+
 _FALLBACK_GREETING = (
     "Namaste! Main LeadGen AI ki taraf se baat kar rahi hoon. "
     "Aapse bas do minute baat kar sakti hoon?"
@@ -234,6 +259,16 @@ class PhoneCallSession:
 
         # Background tasks (greeting + per-turn processing)
         self._tasks: set[asyncio.Task] = set()
+
+        # TelecallerBrain (lean phone-tuned, KB-grounded) — PRIMARY brain; lazy
+        # build AFTER 'start' (niche/client_name final ho chuke hote hain).
+        # LLMBrain (heavy/verbose) ab sirf fallback hai — vobiz_stream parity.
+        self._telecaller: Any = None
+        self._telecaller_tried = False
+
+        # Per-session filler audio cache (wire-format converted from _FILLER_MP3)
+        self._filler_audio: list[bytes] = []
+        self._filler_idx = -1
 
         # VAD state
         self._in_speech = False
@@ -342,6 +377,8 @@ class PhoneCallSession:
         if not self._greeted:
             self._greeted = True
             self._spawn(self._greeting())
+        if FILLERS_ENABLED:
+            self._spawn(self._pregen_fillers())
 
     def _handle_dtmf(self, data: dict[str, Any]) -> None:
         digit = (data.get("dtmf") or {}).get("digit")
@@ -431,19 +468,72 @@ class PhoneCallSession:
         async with self._turn_lock:
             if not self._running:
                 return
-            loop = asyncio.get_event_loop()
-            text = await loop.run_in_executor(None, self._transcribe_blocking, pcm8k)
-            text = (text or "").strip()
+            text = await self._stt_chain(pcm8k)
             if not text:
                 logger.debug("phone_stream: empty STT — turn skipped")
                 return
             logger.info("phone_stream caller: %s", text)
 
-            reply = await self._llm_reply(text)
+            # HUMANIZATION: LLM ko background me sochne do; agar FILLER_AFTER_MS
+            # se zyada lage to ek chhota natural ack ("Hmm.../Achha...") bolo —
+            # dead-air = robotic feel (Vapi/Retell filler-audio pattern).
+            llm_task = asyncio.ensure_future(self._llm_reply(text))
+            reply = ""
+            try:
+                reply = await asyncio.wait_for(
+                    asyncio.shield(llm_task), timeout=FILLER_AFTER_MS / 1000.0
+                )
+            except TimeoutError:
+                if FILLERS_ENABLED:
+                    await self._play_filler()  # speak_lock serialize karta hai
+                try:
+                    reply = await llm_task
+                except Exception:
+                    reply = ""
+            except Exception:
+                reply = ""
             if not reply or not self._running:
                 return
             logger.info("phone_stream bot: %s", reply)
             await self._speak(reply)
+
+    # --------------------------------------------------------------------- #
+    # STT chain: Groq whisper-large-v3 (free, Hindi-strong) -> local whisper.
+    # vobiz_stream parity — local tiny-whisper Hindi phone-audio par weak tha
+    # (mis-hearing = poori conversation noob lagti thi).
+    # --------------------------------------------------------------------- #
+    async def _stt_chain(self, pcm8k: bytes) -> str:
+        text = await self._groq_stt(pcm8k)
+        if text:
+            return text
+        loop = asyncio.get_event_loop()
+        text = await loop.run_in_executor(None, self._transcribe_blocking, pcm8k)
+        return (text or "").strip()
+
+    async def _groq_stt(self, pcm8k: bytes) -> str:
+        """Groq whisper-large-v3 via shared free_ai.transcribe_audio. 8k PCM16 ->
+        16k WAV in-memory. "" on ANY failure/missing key (local fallback)."""
+        try:
+            from app.voice_agent.free_ai import transcribe_audio
+
+            if not pcm8k or not _AUDIOOP_OK:
+                return ""
+            pcm16k, _ = audioop.ratecv(pcm8k, 2, 1, SR_8K, SR_16K, None)
+            import wave as _wave
+
+            buf = io.BytesIO()
+            with _wave.open(buf, "wb") as w:
+                w.setnchannels(1)
+                w.setsampwidth(2)
+                w.setframerate(SR_16K)
+                w.writeframes(pcm16k)
+            text, _prov = await asyncio.wait_for(
+                transcribe_audio(buf.getvalue(), language="hi"), timeout=6.0
+            )
+            return (text or "").strip().strip("\"'` ").strip()
+        except Exception as e:
+            logger.debug("phone_stream: Groq STT unavailable (%s) — local fallback", e)
+            return ""
 
     def _transcribe_blocking(self, pcm8k: bytes) -> str:
         """Blocking STT (executor me chalta hai). 8k PCM16 -> 16k float32 ->
@@ -463,18 +553,29 @@ class PhoneCallSession:
             return ""
 
     async def _llm_reply(self, user_text: str) -> str:
-        """LLMBrain se reply. History clean rakhte hain; brevity nudge sirf LLM
-        ko bheje jaane wale last user message par append hota hai."""
+        """Reply chain: TelecallerBrain (lean phone-tuned, professional Hinglish,
+        KB-grounded — PRIMARY, vobiz parity) -> LLMBrain (heavy fallback)."""
         self.history.append({"role": "user", "content": user_text})
         self._trim_history()
 
+        # 1) TelecallerBrain — professional telecaller persona + niche script.
+        tc = self._get_telecaller()
+        if tc is not None:
+            try:
+                text = await tc.reply(self.history, user_text)
+                if text and text.strip():
+                    text = text.strip()
+                    self.history.append({"role": "assistant", "content": text})
+                    return text
+            except Exception as e:
+                logger.warning("phone_stream: TelecallerBrain failed (%s)", e)
+
+        # 2) LLMBrain fallback (purana path) — brevity nudge ke saath.
         brain = _get_brain()
         if brain is None:
             reply = "Maaf kijiye, abhi thodi technical dikkat hai. Baad me try karein."
             self.history.append({"role": "assistant", "content": reply})
             return reply
-
-        # Last user message ko nudge ke saath bhejo (history me original hi rahe)
         call_history = list(self.history)
         call_history[-1] = {"role": "user", "content": f"{user_text} {REPLY_NUDGE}"}
         try:
@@ -490,6 +591,22 @@ class PhoneCallSession:
             text = "Sorry, awaaz thodi clear nahi aayi — dobara boliye?"
         self.history.append({"role": "assistant", "content": text})
         return text
+
+    def _get_telecaller(self) -> Any:
+        """Lazy per-session TelecallerBrain (start ke baad niche/client final)."""
+        if self._telecaller_tried:
+            return self._telecaller
+        self._telecaller_tried = True
+        try:
+            from app.voice_agent.telecaller_brain import TelecallerBrain
+
+            self._telecaller = TelecallerBrain(
+                niche=self.niche, client_name=self.client_name, client_id=self.client_id
+            )
+        except Exception as e:
+            logger.warning("phone_stream: TelecallerBrain unavailable (%s)", e)
+            self._telecaller = None
+        return self._telecaller
 
     def _trim_history(self) -> None:
         if len(self.history) > MAX_HISTORY:
@@ -508,28 +625,38 @@ class PhoneCallSession:
             logger.warning("phone_stream: greeting failed (%s)", e)
 
     async def _greeting_text(self) -> str:
-        brain = _get_brain()
-        if brain is not None:
-            try:
-                text = await brain.generate_response(
-                    conversation_history=[
-                        {
-                            "role": "user",
-                            "content": (
-                                f"Start a friendly outbound phone call for a {self.niche} "
-                                f"business. Greet warmly in Hinglish and ask ONE short opening "
-                                f"question. {REPLY_NUDGE}"
-                            ),
-                        }
-                    ],
-                    niche=self.niche,
-                    client_name=self.client_name,
-                    client_service=self.niche,
+        """STATIC professional permission-based opener (Gong: ~11% vs 2.3%) —
+        instant (0 LLM = 0 dead-air on pickup), niche-script preferred, phir
+        pitch_hook template (vobiz_stream._opening_line parity). LLM-generated
+        greeting hata diya: slow + generic tha."""
+        # 1) Professional niche-script opening
+        try:
+            from app.voice_agent.niche_scripts import get_script
+
+            opening = (get_script(self.niche).get("opening") or "").strip()
+            if opening:
+                return (
+                    opening.replace("[Company]", self.client_name)
+                    .replace("[Name]", "Swara")
+                    .replace("[Project]", "hamare project")
+                    .replace("[project]", "hamare project")
+                    .replace("raha hoon", "rahi hoon")
                 )
-                if text and text.strip():
-                    return text.strip()
-            except Exception as e:
-                logger.debug("phone_stream: greeting LLM failed (%s)", e)
+        except Exception:
+            pass
+        # 2) pitch_hook template
+        try:
+            from app.niches import NICHES
+            from app.voice_agent.telecaller_brain import _short_hook
+
+            hook = _short_hook((NICHES.get(self.niche, {}).get("pitch_hook") or "").strip())
+            if hook:
+                return (
+                    f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
+                    f"Aapke kaam ki ek choti si baat hai — {hook} — kya main tees second me bata doon?"
+                )
+        except Exception:
+            pass
         return _FALLBACK_GREETING
 
     # --------------------------------------------------------------------- #
@@ -551,20 +678,92 @@ class PhoneCallSession:
         """EdgeTTS mp3 stream collect karo, phir executor me µ-law 8k decode.
         Koi bhi failure (edge_tts/pydub/ffmpeg missing) par b'' (never raises)."""
         try:
+            mp3 = await self._edge_mp3(text)
+            if not mp3:
+                return b""
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, self._mp3_to_ulaw, mp3)
+        except Exception as e:
+            logger.warning("phone_stream: TTS failed (%s)", e)
+            return b""
+
+    @staticmethod
+    async def _edge_mp3(text: str) -> bytes:
+        """EdgeTTS -> mp3 bytes, env-tunable prosody (PHONE_TTS_RATE/PITCH —
+        "+8%"/"+2Hz" = confident natural telecaller pace). b'' on failure."""
+        try:
             import edge_tts  # lazy
 
-            communicate = edge_tts.Communicate(text, voice=TTS_VOICE)
+            kwargs: dict[str, str] = {}
+            if TTS_RATE and TTS_RATE != "+0%":
+                kwargs["rate"] = TTS_RATE
+            if TTS_PITCH and TTS_PITCH != "+0Hz":
+                kwargs["pitch"] = TTS_PITCH
+            try:
+                communicate = edge_tts.Communicate(text, voice=TTS_VOICE, **kwargs)
+            except TypeError:  # old edge-tts build without rate/pitch kwargs
+                communicate = edge_tts.Communicate(text, voice=TTS_VOICE)
             mp3 = bytearray()
             async for chunk in communicate.stream():
                 if chunk.get("type") == "audio" and chunk.get("data"):
                     mp3.extend(chunk["data"])
-            if not mp3:
-                return b""
-            loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, self._mp3_to_ulaw, bytes(mp3))
+            return bytes(mp3)
         except Exception as e:
-            logger.warning("phone_stream: TTS failed (%s)", e)
+            logger.warning("phone_stream: EdgeTTS failed (%s)", e)
             return b""
+
+    # --------------------------------------------------------------------- #
+    # Thinking fillers — module-level MP3 cache + per-session wire conversion
+    # --------------------------------------------------------------------- #
+    async def _pregen_fillers(self) -> None:
+        """Worker me EK baar filler mp3s synth karo (chhote, ~0.5s each)."""
+        global _FILLER_SYNTH_STARTED
+        if _FILLER_SYNTH_STARTED or not TTS_AVAILABLE:
+            return
+        _FILLER_SYNTH_STARTED = True
+        for t in _FILLER_TEXTS:
+            try:
+                mp3 = await self._edge_mp3(t)
+                if mp3:
+                    _FILLER_MP3.append(mp3)
+            except Exception:
+                pass
+        logger.info("phone_stream: %d filler clips cached", len(_FILLER_MP3))
+
+    def _filler_wire(self) -> bytes:
+        """Agla filler clip session ke wire-format me (anti-repeat rotation).
+        Pehli baar saare mp3 convert karke session-cache karta hai."""
+        if not _FILLER_MP3:
+            return b""
+        if not self._filler_audio:
+            for mp3 in _FILLER_MP3:
+                try:
+                    audio = self._mp3_to_wire(mp3)
+                    if audio:
+                        self._filler_audio.append(audio)
+                except Exception:
+                    pass
+        if not self._filler_audio:
+            return b""
+        self._filler_idx = (self._filler_idx + 1) % len(self._filler_audio)
+        return self._filler_audio[self._filler_idx]
+
+    async def _play_filler(self) -> None:
+        """Ek chhota ack bolo (agar bot pehle se nahi bol raha)."""
+        if self._bot_speaking or not self._running:
+            return
+        try:
+            audio = await asyncio.get_event_loop().run_in_executor(None, self._filler_wire)
+            if audio:
+                async with self._speak_lock:
+                    await self._send_audio(audio)
+        except Exception:
+            pass
+
+    def _mp3_to_wire(self, mp3_bytes: bytes) -> bytes:
+        """mp3 -> is session ka outbound wire format (default µ-law 8k; Exotel
+        subclass PCM16 @ negotiated rate override karta hai)."""
+        return self._mp3_to_ulaw(mp3_bytes)
 
     @staticmethod
     def _mp3_to_ulaw(mp3_bytes: bytes) -> bytes:

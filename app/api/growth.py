@@ -927,6 +927,16 @@ async def infra_automation_health(_user=Depends(require_admin)):
     return automation_health.health()
 
 
+@router.get("/overview/today")
+async def overview_today(_user=Depends(require_admin)):
+    """'Aaj kya hua?' — PLAIN-HINGLISH admin snapshot (staff + jobs + problems +
+    flags) ek hi call me. /app/automation ke '🏠 Aaj' default tab ka payload.
+    No LLM, instant, kabhi raise nahi (2026-06-12 admin-friendly upgrade)."""
+    from app.platform import today_overview
+
+    return today_overview.build()
+
+
 @router.get("/infra/hermes")
 async def infra_hermes(_user=Depends(require_admin)):
     """Hermes 🛰️ Infrastructure Handler: full infra snapshot — readiness, disk,

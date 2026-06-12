@@ -300,6 +300,50 @@ async def me(client_id: str = Depends(require_customer)):
     return {"client_id": client_id, "business_name": _biz_name(client_id)}
 
 
+@router.get("/portal/content")
+async def portal_content(client_id: str = Depends(require_customer)):
+    """Customer ka APNA marketing content (Isha ke daily posts — ready/posted) +
+    mini-site/bio/widget links. Dashboard '📣 Aapka Content' section ka payload.
+    Ownership token se enforced; kabhi raise nahi (empty graceful).
+    (2026-06-12 UX upgrade: pehle customer ko apna content dikhta hi nahi tha.)"""
+    out: dict = {"items": [], "links": {}}
+    try:
+        from app.marketing.auto_content import list_queue
+
+        items = list_queue(client_id, limit=10) or []
+        out["items"] = [
+            {
+                "id": i.get("id"),
+                "date": i.get("date"),
+                "type": i.get("type"),
+                "title": i.get("title") or i.get("theme") or "",
+                "caption": i.get("caption") or i.get("text") or "",
+                "hashtags": i.get("hashtags") or [],
+                "status": i.get("status"),
+                "image_url": i.get("image_url") or "",
+            }
+            for i in items
+        ]
+    except Exception as e:
+        logger.debug(f"portal content queue failed: {e}")
+    try:
+        from app.marketing.clients_store import get_client
+
+        c = get_client(client_id) or {}
+        slug = c.get("slug") or ""
+        if slug:
+            out["links"] = {
+                "mini_site": f"/b/{slug}",
+                "bio_link": f"/b/{slug}/bio",
+                "digital_card": f"/b/{slug}/card",
+            }
+        out["business_name"] = c.get("business_name") or _biz_name(client_id)
+        out["niche"] = c.get("niche") or ""
+    except Exception as e:
+        logger.debug(f"portal content client failed: {e}")
+    return out
+
+
 @router.get("/portal/invoices")
 async def portal_invoices(client_id: str = Depends(require_customer)):
     """Customer ke APNE invoices (GST engine se) — ownership token se enforced."""

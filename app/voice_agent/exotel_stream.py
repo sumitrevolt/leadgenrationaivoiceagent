@@ -127,23 +127,22 @@ class ExotelVoicebotSession(PhoneCallSession):
     # Outbound: TTS -> PCM16 @ negotiated rate -> chunked media frames
     # ------------------------------------------------------------------ #
     async def _synthesize(self, text: str) -> bytes:
-        """EdgeTTS mp3 -> PCM16 mono @ self.sample_rate (u-law NAHI — Exotel
-        slin expect karta hai). Failure par b'' (never raises)."""
+        """EdgeTTS mp3 (parent _edge_mp3 — prosody env-tuned) -> PCM16 mono @
+        self.sample_rate (u-law NAHI — Exotel slin). Failure par b''."""
         try:
-            import edge_tts  # lazy
-
-            communicate = edge_tts.Communicate(text, voice=self._tts_voice())
-            mp3 = bytearray()
-            async for chunk in communicate.stream():
-                if chunk.get("type") == "audio" and chunk.get("data"):
-                    mp3.extend(chunk["data"])
+            mp3 = await self._edge_mp3(text)
             if not mp3:
                 return b""
             loop = asyncio.get_event_loop()
-            return await loop.run_in_executor(None, self._mp3_to_pcm, bytes(mp3), self.sample_rate)
+            return await loop.run_in_executor(None, self._mp3_to_pcm, mp3, self.sample_rate)
         except Exception as e:
             logger.warning("exotel_stream: TTS failed (%s)", e)
             return b""
+
+    def _mp3_to_wire(self, mp3_bytes: bytes) -> bytes:
+        """Filler clips bhi PCM16 @ negotiated rate me (parent µ-law default
+        Exotel pipe me noise ban jaata)."""
+        return self._mp3_to_pcm(mp3_bytes, self.sample_rate)
 
     def _tts_voice(self) -> str:
         from app.voice_agent.phone_stream import TTS_VOICE

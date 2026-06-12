@@ -53,6 +53,7 @@ a{color:var(--acc)}
 
 <div class="layout">
 <nav class="side" id="sidebar">
+  <button id="tab-today" onclick="show('today')">🏠 Aaj</button>
   <button id="tab-schedule" onclick="show('schedule')">🗓️ Schedule</button>
   <button id="tab-agents" onclick="show('agents')">🤖 Agents</button>
   <button id="tab-scraping" onclick="show('scraping')">🕷️ Scraping</button>
@@ -486,6 +487,30 @@ a{color:var(--acc)}
     </div></div>
     <button class="btn" id="ctFbBtn" onclick="ctFeedback()">Record karo</button>
     <div id="ctFbOut"></div>
+  </div>
+</section>
+
+<!-- ================= 0. AAJ (default home, plain-Hinglish) ================= -->
+<section class="tabsec" id="sec-today">
+  <div class="card">
+    <h2 id="tdHead">🏠 Aaj kya hua — load ho raha hai...</h2>
+    <div class="mut">Simple Hinglish me: kya chal raha hai, kisne kya kiya, kya tootha hai. <button class="btn2" onclick="tdLoad()">🔄 Refresh</button></div>
+    <div id="tdProblems" style="margin-top:10px"></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <div class="card">
+      <h2>👥 Team ne aaj kya kiya</h2>
+      <div id="tdStaff" class="mut">...</div>
+    </div>
+    <div class="card">
+      <h2>⏰ Scheduled automations</h2>
+      <div id="tdJobs" class="mut">...</div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>🚩 Band automations</h2>
+    <div class="mut">Yeh features abhi OFF hain — matlab neeche likha kaam NAHI ho raha. ON karna ho to VPS .env me flag=1 + restart.</div>
+    <div id="tdFlags">...</div>
   </div>
 </section>
 
@@ -1643,14 +1668,42 @@ async function evLoad(){
   }catch(e){warnBox('evOut','Events fail: '+e.message)}
 }
 
+/* ---------------- 0. Aaj (plain-Hinglish home) ---------------- */
+async function tdLoad(){
+  try{
+    var d=await api('/api/growth/overview/today');
+    $('tdHead').textContent=d.headline||'🏠 Aaj';
+    var ph='';
+    (d.problems||[]).forEach(function(p){
+      ph+='<div class="result" style="border-left:3px solid #e05555;margin-top:6px"><b class="bad">'+esc(p.kya)+'</b><div class="mut">Fix: '+esc(p.fix||'')+'</div></div>';
+    });
+    $('tdProblems').innerHTML=ph||'<div class="ok" style="margin-top:6px">✅ Koi problem nahi mili.</div>';
+    var sh='<table><tr><th>Staff</th><th>Status</th><th>Aaj ke kaam</th><th>Aakhri kaam</th></tr>';
+    (d.staff||[]).forEach(function(s){
+      sh+='<tr><td>'+esc((s.emoji||'')+' '+s.name)+'<div class="mut" style="font-size:.75rem">'+esc(s.role||'')+'</div></td><td>'+esc(s.line)+'</td><td><b>'+esc(s.today)+'</b></td><td class="mut">'+esc(s.last||'—')+'</td></tr>';
+    });
+    $('tdStaff').innerHTML=sh+'</table>';
+    var jh='';
+    (d.jobs||[]).forEach(function(j){
+      jh+='<div style="margin-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line)"><b>'+esc(j.label)+'</b><div class="mut" style="font-size:.8rem">'+esc(j.kya||'')+'</div><div>'+esc(j.line)+'</div></div>';
+    });
+    $('tdJobs').innerHTML=jh||'<div class="mut">Koi job data nahi.</div>';
+    var fh='';
+    (d.flags_off||[]).forEach(function(f){
+      fh+='<div style="margin-top:6px"><span class="pill">'+esc(f.flag)+'</span> <span class="mut">'+esc(f.matlab)+'</span></div>';
+    });
+    $('tdFlags').innerHTML=fh||'<div class="ok">Saare important automations ON hain ✅</div>';
+  }catch(e){warnBox('tdProblems','Load fail: '+e.message+' — token check karo (upar Save)')}
+}
+
 /* ---------------- init ---------------- */
 $('tokin').value=tok();
-var AUTOLOAD={schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:apLoad,events:evLoad};
+var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:apLoad,events:evLoad};
 var _origShow=show;
 show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}};
 var start=(location.hash||'').replace('#','');
-var valid=['schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus'];
-show(valid.indexOf(start)>=0?start:'schedule');
+var valid=['today','schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus'];
+show(valid.indexOf(start)>=0?start:'today');
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
 </body>

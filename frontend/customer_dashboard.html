@@ -126,7 +126,13 @@
     .grid-2,.grid-3{grid-template-columns:1fr}
   }
   @media (max-width:820px){
-    .sidebar{display:none}
+    /* Mobile: sidebar gayab nahi — horizontal quick-nav ban jaata hai */
+    .app{flex-direction:column}
+    .sidebar{width:100%;flex:none;height:auto;position:static;flex-direction:row;
+      align-items:center;gap:4px;padding:10px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .sidebar .brand{margin-bottom:0;font-size:14px;flex:0 0 auto}
+    .sidebar .navlink{flex:0 0 auto;padding:8px 10px;font-size:12px;white-space:nowrap}
+    .side-foot{display:none}
     .content{padding:16px}
     .topbar{padding:12px 16px}
   }
@@ -145,7 +151,7 @@
     <a class="navlink" onclick="scrollToId('callsCard')"><span class="ic">📞</span> Calls Kiye Gaye</a>
     <a class="navlink" onclick="scrollToId('leadsCard')"><span class="ic">🔥</span> Aapke Leads</a>
     <a class="navlink" onclick="scrollToId('billingCard')"><span class="ic">💳</span> Billing &amp; Plan</a>
-    <a class="navlink" onclick="toast('Reports','PDF report jald aa raha hai.')"><span class="ic">📁</span> Reports</a>
+    <a class="navlink" onclick="scrollToId('contentCard')"><span class="ic">📣</span> Aapka Content</a>
     <a class="navlink" onclick="toast('Settings','Settings page coming soon.')"><span class="ic">⚙️</span> Settings</a>
     <div class="side-foot">
       Aapki AI marketing + voice agent team<br>din-raat kaam kar rahi hai.<br><br>
@@ -176,6 +182,19 @@
         <div class="kpi k3"><div class="lab">Qualified Leads</div><div class="val" id="kQual">—</div><div class="sub">Ready-to-talk customers</div></div>
         <div class="kpi k4"><div class="lab">Conversion %</div><div class="val" id="kConv">—</div><div class="sub">Connected → Qualified</div></div>
         <div class="kpi k5"><div class="lab">Est. Cost</div><div class="val" id="kCost">—</div><div class="sub">Telephony estimate</div></div>
+      </div>
+
+      <!-- Aapka Content (AI-generated, 1-click post) -->
+      <div class="card" id="contentCard" style="margin-bottom:18px">
+        <div class="card-h">
+          <h2>📣 Aapka Aaj Ka Content — AI ne banaya, aap bas post karo</h2>
+          <span class="pill" id="contentCount">—</span>
+          <div class="grow"></div>
+          <span id="contentLinks"></span>
+        </div>
+        <div class="card-b" id="contentBody">
+          <span class="sm" style="color:var(--muted)">Login ke baad yahan aapke ready-made posts dikhenge (caption + hashtags) — copy karke WhatsApp/Instagram pe daal do.</span>
+        </div>
       </div>
 
       <!-- Charts row -->
@@ -558,6 +577,40 @@ async function resolveClientId(){
 function fmtMoney(n,cur){ const c=cur==="USD"?"$":(cur==="EUR"?"€":"₹"); return c+Number(n||0).toLocaleString("en-IN"); }
 function fmtDate(iso){ if(!iso) return "—"; try{ return new Date(iso).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ return iso; } }
 
+/* ---- 📣 Aapka Content (AI-generated daily posts, 1-click copy/share) ---- */
+function escH(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+async function copyText(t){try{await navigator.clipboard.writeText(t);toast("Copy ho gaya ✅","Ab WhatsApp/Instagram pe paste karo.");}catch(e){toast("Copy nahi hua","Text manually select karo.");}}
+async function loadContent(){
+  const body=document.getElementById("contentBody"), cnt=document.getElementById("contentCount"), lk=document.getElementById("contentLinks");
+  if(!billToken()){ cnt.textContent="login karo"; return; }
+  try{
+    const r=await fetch("/api/customer/auth/portal/content",{headers:billAuthHdr()});
+    if(!r.ok){ cnt.textContent="—"; return; }
+    const d=await r.json(); const items=d.items||[];
+    if(d.links&&d.links.mini_site){
+      lk.innerHTML='<a class="btn" href="'+escH(d.links.mini_site)+'" target="_blank">🌐 Mini-Site</a> '
+        +'<a class="btn" href="'+escH(d.links.bio_link)+'" target="_blank">🔗 Bio Link</a> '
+        +'<a class="btn" href="'+escH(d.links.digital_card)+'" target="_blank">💳 Digital Card</a>';
+    }
+    cnt.textContent=items.length+" posts";
+    if(!items.length){ body.innerHTML='<span class="sm" style="color:var(--muted)">Aaj ka content abhi ban raha hai — subah 7 baje tak aa jaata hai. 🌅</span>'; return; }
+    let h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';
+    items.forEach(function(it){
+      const full=(it.caption||"")+"\n\n"+(it.hashtags||[]).join(" ");
+      h+='<div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfaff">'
+        +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span class="niche">'+escH(it.type||"post")+'</span><span class="sm" style="color:var(--muted)">'+escH(it.date||"")+'</span></div>'
+        +'<div style="font-weight:700;margin-bottom:6px">'+escH(it.title||"")+'</div>'
+        +'<div class="sm" style="white-space:pre-wrap;max-height:120px;overflow:auto">'+escH(it.caption||"")+'</div>'
+        +'<div class="sm" style="color:var(--brand);margin-top:6px">'+escH((it.hashtags||[]).slice(0,6).join(" "))+'</div>'
+        +'<div style="margin-top:10px;display:flex;gap:8px">'
+        +'<button class="btn" onclick="copyText('+escH(JSON.stringify(full))+')">📋 Copy</button>'
+        +'<a class="btn primary" target="_blank" href="https://wa.me/?text='+encodeURIComponent(full)+'">📲 WhatsApp</a>'
+        +'</div></div>';
+    });
+    body.innerHTML=h+'</div>';
+  }catch(e){ cnt.textContent="—"; }
+}
+
 async function loadBilling(){
   BILL.cid = await resolveClientId();
   document.getElementById("sideClient").textContent="Client: "+BILL.cid;
@@ -655,6 +708,7 @@ async function billingAction(action){
 }
 
 loadBilling();
+loadContent();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
