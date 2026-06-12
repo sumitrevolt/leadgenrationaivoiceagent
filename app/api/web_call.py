@@ -80,6 +80,24 @@ def _get_llm_brain() -> Any | None:
         return None
 
 
+async def _run_blocking(fn, *args, timeout: float = 15.0, default=None):
+    """
+    Run a potentially heavy SYNC callable off the event loop with a hard
+    timeout. Dialog/brain builders KB/fastembed load trigger kar sakte hain
+    (missing model cache = HuggingFace runtime download = minutes ka hang) —
+    yeh KABHI event loop par nahi chalna chahiye (2026-06-12 prod-down lesson:
+    dono uvicorn workers isi se freeze hue the). Timeout/error par `default`
+    return hota hai (caller gracefully degrade karta hai). Never raises.
+    """
+    import asyncio
+
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(fn, *args), timeout)
+    except Exception as e:
+        logger.warning(f"web-call: blocking init '{getattr(fn, '__name__', fn)}' skipped ({e})")
+        return default
+
+
 def _get_natural_dialog(niche: str, client_name: str, client_service: str) -> Any | None:
     """
     Build the NaturalDialogManager — the human-like "listen -> understand ->
@@ -340,8 +358,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
         cache[niche] = tcb
         return tcb
 
-    _ensure_dialog()
-    if _get_tcbrain(session.get("niche", "general")) is not None:
+    await _run_blocking(_ensure_dialog)
+    if await _run_blocking(_get_tcbrain, session.get("niche", "general")) is not None:
         responder = "telecaller"
     elif dialog is not None:
         responder = "natural"
@@ -417,7 +435,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 # PRIMARY: professional TelecallerBrain opener (same as the phone
                 # agent), spoken in the natural Swara voice (EdgeTTS mp3 b64).
                 niche = session.get("niche", "general")
-                tcbrain = _get_tcbrain(niche)
+                tcbrain = await _run_blocking(_get_tcbrain, niche)
                 if tcbrain is not None:
                     try:
                         opening = (tcbrain.opening_line() or "").strip()
@@ -439,7 +457,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         continue
 
                 # FALLBACK: natural-dialog opening (browser TTS), then info.
-                _ensure_dialog()
+                await _run_blocking(_ensure_dialog)
                 if dialog is not None and dstate is not None:
                     try:
                         opening = await dialog.opening_line(dstate)
@@ -477,7 +495,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
             # agent — researched niche scripts + free_ai/Gemini, KB-grounded),
             # spoken in the natural Swara voice (EdgeTTS mp3 b64). On empty/fail
             # we drop through to the existing natural-dialog/_respond chain.
-            tcbrain = _get_tcbrain(session.get("niche", "general"))
+            tcbrain = await _run_blocking(_get_tcbrain, session.get("niche", "general"))
             if tcbrain is not None:
                 try:
                     tc_reply = await tcbrain.reply(history, user_text)
@@ -499,7 +517,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     continue
 
             # FALLBACK: human-like natural dialog (listen -> understand -> answer).
-            _ensure_dialog()
+            await _run_blocking(_ensure_dialog)
             if dialog is not None and dstate is not None:
                 try:
                     reply = await dialog.respond(user_text, dstate)

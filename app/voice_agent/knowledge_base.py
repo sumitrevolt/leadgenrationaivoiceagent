@@ -50,6 +50,7 @@ Notes:
 from __future__ import annotations
 
 import math
+import os
 import re
 import threading
 import uuid
@@ -403,28 +404,61 @@ def _get_qdrant_url() -> str:
 
 
 def _get_qdrant_embedder():
-    """Lazy global fastembed TextEmbedding singleton (model load is heavy)."""
-    global _QDRANT_EMBEDDER, _QDRANT_VECTOR_SIZE, _E5_MODEL_NAME
-    if _QDRANT_EMBEDDER is None:
-        with _QDRANT_LOCK:
-            if _QDRANT_EMBEDDER is None:
-                from fastembed import TextEmbedding  # may raise ImportError
+    """Lazy global fastembed TextEmbedding singleton (model load is heavy).
 
-                last_err = None
-                for _name in _EMBED_CANDIDATES:
-                    try:
-                        emb = TextEmbedding(model_name=_name)
-                        dim = len(list(emb.embed(["test"]))[0])  # verify + real dim
-                        _QDRANT_EMBEDDER = emb
-                        _QDRANT_VECTOR_SIZE = dim
-                        _E5_MODEL_NAME = _name
-                        logger.info("fastembed model loaded: %s (dim=%d)", _name, dim)
-                        break
-                    except Exception as _e:
-                        last_err = _e
-                        continue
+    PROD-SAFETY (2026-06-12): model cache missing hone par fastembed runtime me
+    HuggingFace se download karta hai — slow/blocked network par yeh call
+    MINUTES tak hang ho sakti hai. Aaj yahi hua: web-call websocket se yeh
+    SYNC call dono uvicorn workers ke event loop pe atki -> poora prod down.
+    Isliye ab load ek helper THREAD me hota hai with hard deadline
+    (KB_EMBED_LOAD_TIMEOUT_S, default 20s). Deadline cross hote hi is process
+    me Qdrant DISABLE (callers Chroma/keyword par fall back); orphan thread
+    baad me complete ho jaye to singleton set ho jata hai (agla use semantic).
+    """
+    global _QDRANT_EMBEDDER, _QDRANT_DISABLED
+    if _QDRANT_EMBEDDER is not None:
+        return _QDRANT_EMBEDDER
+    if _QDRANT_DISABLED:
+        raise RuntimeError("qdrant embedder disabled (earlier load timeout/failure)")
+    os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "15")
+    timeout_s = float(os.getenv("KB_EMBED_LOAD_TIMEOUT_S", "20") or 20)
+    done = threading.Event()
+
+    def _load() -> None:
+        global _QDRANT_EMBEDDER, _QDRANT_VECTOR_SIZE, _E5_MODEL_NAME
+        try:
+            with _QDRANT_LOCK:
                 if _QDRANT_EMBEDDER is None:
-                    raise RuntimeError("no supported fastembed model: " + str(last_err))
+                    from fastembed import TextEmbedding  # may raise ImportError
+
+                    last_err = None
+                    for _name in _EMBED_CANDIDATES:
+                        try:
+                            emb = TextEmbedding(model_name=_name)
+                            dim = len(list(emb.embed(["test"]))[0])  # verify + real dim
+                            _QDRANT_EMBEDDER = emb
+                            _QDRANT_VECTOR_SIZE = dim
+                            _E5_MODEL_NAME = _name
+                            logger.info("fastembed model loaded: %s (dim=%d)", _name, dim)
+                            break
+                        except Exception as _e:
+                            last_err = _e
+                            continue
+                    if _QDRANT_EMBEDDER is None:
+                        logger.warning("no supported fastembed model: %s", last_err)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning("fastembed load thread error: %s", e)
+        finally:
+            done.set()
+
+    threading.Thread(target=_load, name="kb-embed-load", daemon=True).start()
+    done.wait(timeout_s)
+    if _QDRANT_EMBEDDER is None:
+        _QDRANT_DISABLED = True
+        raise RuntimeError(
+            f"fastembed model not ready within {timeout_s:.0f}s "
+            "(likely runtime HF download) — qdrant disabled for this process"
+        )
     return _QDRANT_EMBEDDER
 
 

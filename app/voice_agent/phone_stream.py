@@ -559,7 +559,15 @@ class PhoneCallSession:
         self._trim_history()
 
         # 1) TelecallerBrain — professional telecaller persona + niche script.
-        tc = self._get_telecaller()
+        # Init OFF the event loop: pehla build KB/fastembed load trigger kar
+        # sakta hai (model cache missing = HF download hang) — 2026-06-12
+        # prod-down lesson. Timeout par is turn pe LLMBrain fallback; agla
+        # turn ready singleton utha lega (._telecaller_tried guard).
+        try:
+            tc = await asyncio.wait_for(asyncio.to_thread(self._get_telecaller), timeout=10.0)
+        except Exception as e:
+            logger.warning("phone_stream: telecaller init slow/failed (%s)", e)
+            tc = self._telecaller
         if tc is not None:
             try:
                 text = await tc.reply(self.history, user_text)
