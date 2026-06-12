@@ -1052,3 +1052,38 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
 - **Verify+deploy**: py_compile OK, JS_OK, prod_check 622 routes, pytest 39/39 targeted, secrets clean. VPS pull + rebuild + up -d (pehla ssh MCP-timeout pe gira → nohup background-build pattern phir poll), INT health production + EXT 200 + test-call 200, smoke responder=telecaller voice=True, served page me bizName/startRecorder.
 - **Skills +5 (total 49)**: `web-call-triage` (web vs phone architecture-truth + symptom triage) · `llm-quota-ops` · `prod-incident-triage` · `dialer-sprint-ops` · `pipeline-hygiene`.
 - **Next ideas**: web pe thinking-filler ack, TTS sentence-split streaming, client_service UI field.
+
+## 2026-06-12 PM — TELEGRAM + DIVERSITY GUARD v2 + PROD AUDIT + GST GUIDANCE
+
+### Telegram Auto-Publish ✅ LIVE
+- **Setup**: Bot `@Leadsgenai1_bot` token set in .env (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID=1621120182` — numeric, `@sumitdaryanani` username nahi chalta Bot API me). `TELEGRAM_AUTO_PUBLISH=1` ON. Test message delivered (200 True). `telegram_publish.py` ab channel pe real posts bhejega.
+- **How chat_id mila**: user ne bot ko "hi" message kiya → `https://api.telegram.org/bot<token>/getUpdates` → `message.chat.id` = `1621120182`.
+
+### Self-Improve Diversity Guard v2 ✅ DEPLOYED (commit 6389f41)
+- **Problem**: sales_deepdive 60-77% of all self_improve runs — monopoly. Other actions (harvest_leads, study_skills, seo_page, etc.) kabhi nahi chale.
+- **Fix** `app/agents/self_improve.py`: (1) Last-3 dedup → **last-6 dedup** (6 actions me same action repeat block), (2) **20-minute per-action cooldown** (recent_runs[-20] scan karo, koi action 20min pehle chala = candidates se hata). Guard applied BEFORE skill_library bandit pick — diversity + cooldown dono.
+- **Deploy note**: container recreate (Telegram setup ke liye) se docker cp wiped ho gaya tha. Code git me committed hai. Har container recreate ke baad re-cp zaroori: `scripts/recp_self_improve.bat` (scp → leadgen_app + leadgen_worker + leadgen_worker_heavy). DIVERSITY_GUARD_LIVE confirmed.
+
+### Festival Content Schedule ✅ QUEUED (24 items)
+- **Problem**: `content_schedule` pehle empty tha — koi festival posts queue nahi thi.
+- **Fix**: `docker exec leadgen_app python3 -c "from app.marketing.content_schedule import schedule; ..."` se 24 festivals (Rath Yatra, Independence Day, Onam, Raksha Bandhan, Janmashtami, Ganesh Chaturthi, Navratri, Dussehra + more through 2026-12) queue kiye. Correct function `schedule(business_name, niche, date_iso, occasion)` — `add_item()` exist nahi karta tha.
+
+### OUTREACH_DAILY_CAP = 50 (was 25)
+- Rohan ab 50 cold emails/day bhej sakta hai. Email warmup (wk5) = 25 base cap, plus 25 extra = 50 total tested + set.
+
+### GST + Legal Guidance (User applied)
+- **User question**: Razorpay KYC + Exotel KYC + DLT ke liye konsa document chahiye?
+- **Answer**: Personal PAN = Business PAN (sole proprietor me alag nahi hota). **GST registration** ek document hai jo sab unblock karta hai: Razorpay KYC (SAC 998313 software/SaaS), Exotel account verification, DLT re-apply under Udyam+GSTIN.
+- **User action**: GST apply kar diya — ARN received. GSTIN 3-7 din me aayega.
+- **After GSTIN**: (1) Razorpay dashboard KYC submit, (2) Razorpay API keys regenerate (current keys 401 de rahe hain), (3) Exotel dashboard company info + KYC complete, (4) DLT portal Udyam+GSTIN se re-apply (pehla individual rejection tha).
+
+### Prod Audit Results (scripts/prod_ready.log)
+- **Green**: all 19 containers healthy, 598 routes, RAZORPAY_WEBHOOK_SECRET SET (28ch — pehle yeh missing tha!), GROQ/OPENROUTER/POLLINATIONS/EXOTEL SET, TELEGRAM full SET, REPLY_AUTO_SEND SET.
+- **Red/Pending**: RAZORPAY 401 (regenerate zaroori), UPI_VPA MISSING, BRAVE_API_KEY MISSING, GSTIN MISSING (applied), VOBIZ_API_KEY MISSING.
+- **Self-improve at audit time**: runs at 11:32 still showed sales_deepdive majority — those were pre-fix runs. Guard re-cp'd post audit.
+
+### Env State Snapshot (.env confirmed live)
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID=1621120182`, `TELEGRAM_AUTO_PUBLISH=1`
+- `OUTREACH_DAILY_CAP=50`, `REPLY_AUTO_SEND=1`
+- `RAZORPAY_WEBHOOK_SECRET` SET (28ch) — dunning/payment events will work once Razorpay keys regenerated
+- Still user-pending: `UPI_VPA`, `BRAVE_API_KEY` ($5/mo), Razorpay key regen, GSTIN (3-7 days)
