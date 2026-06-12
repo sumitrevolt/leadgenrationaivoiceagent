@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     cerebras_api_key: str = ""  # cloud.cerebras.ai — llama-3.3-70b
     openrouter_api_key: str = ""  # openrouter.ai — deepseek/deepseek-chat:free
     xai_api_key: str = ""  # x.ai (Grok — Groq se ALAG company; credits-based)
+    together_api_key: str = ""  # together.ai — free $25 credits, Llama/Mistral models
+    hyperbolic_api_key: str = ""  # hyperbolic.xyz — free tier, llama-3.1-70b
     google_cloud_project_id: str = ""
     google_cloud_location: str = "us-central1"
     default_llm: str = (

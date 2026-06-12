@@ -47,6 +47,9 @@ _GROQ_BASE = "https://api.groq.com/openai/v1"
 _CEREBRAS_BASE = "https://api.cerebras.ai/v1"
 _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 _XAI_BASE = "https://api.x.ai/v1"  # xAI Grok (NOTE: Groq se alag company!)
+_GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"  # OpenAI-compat
+_TOGETHER_BASE = "https://api.together.xyz/v1"
+_HYPERBOLIC_BASE = "https://api.hyperbolic.xyz/v1"
 
 # Models.
 # turbo = faster decode, same free tier + comparable Hindi quality → lower STT latency.
@@ -57,6 +60,9 @@ _CEREBRAS_LLM_MODEL = (
 _GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # 14k RPD vs 1k, 6000 RPM — much higher limits than versatile
 _OPENROUTER_LLM_MODEL = "deepseek/deepseek-chat:free"
 _XAI_LLM_MODEL = "grok-3-mini"  # fast/cheap Grok; credits-based (user ke paas keys)
+_GEMINI_LLM_MODEL = "gemini-2.0-flash-lite"  # fastest + free tier (1500 RPD, 30 RPM)
+_TOGETHER_LLM_MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"  # together free tier
+_HYPERBOLIC_LLM_MODEL = "meta-llama/Llama-3.1-70B-Instruct"  # hyperbolic free tier
 
 # Hard per-call latency cap. 8s: Cerebras normally 4-5s; 6s ne use beech me
 # kaat ke weak generic fallback ("samajh gayi, aur bataiye") + repeats paida
@@ -109,6 +115,9 @@ _PROVIDER_CFG: dict[str, tuple[str, str]] = {
     "cerebras": ("cerebras_api_key", _CEREBRAS_BASE),
     "openrouter": ("openrouter_api_key", _OPENROUTER_BASE),
     "xai": ("xai_api_key", _XAI_BASE),
+    "gemini": ("gemini_api_key", _GEMINI_BASE),
+    "together": ("together_api_key", _TOGETHER_BASE),
+    "hyperbolic": ("hyperbolic_api_key", _HYPERBOLIC_BASE),
 }
 
 
@@ -228,10 +237,13 @@ async def chat(
         return "", ""
 
     chain = [
-        ("cerebras", _CEREBRAS_LLM_MODEL),
-        ("groq", _GROQ_LLM_MODEL),
+        ("cerebras", _CEREBRAS_LLM_MODEL),    # ~4-5s, gpt-oss-120b, best quality
+        ("groq", _GROQ_LLM_MODEL),            # ~1s, 8b-instant, 6000 RPM
+        ("gemini", _GEMINI_LLM_MODEL),         # ~1-2s, 2.0-flash-lite, 1500 RPD free — key already set
+        ("together", _TOGETHER_LLM_MODEL),     # free $25 credits — set TOGETHER_API_KEY
+        ("hyperbolic", _HYPERBOLIC_LLM_MODEL), # free tier — set HYPERBOLIC_API_KEY
         # xAI removed — 403 no credits (773 calls 0% success, sirf latency waste karta tha)
-        ("openrouter", _OPENROUTER_LLM_MODEL),
+        ("openrouter", _OPENROUTER_LLM_MODEL), # deepseek:free, last resort
     ]
     for provider, model in chain:
         if _provider_down(provider):
@@ -287,6 +299,9 @@ def describe() -> dict[str, Any]:
         "llm_chain": [
             f"cerebras:{_CEREBRAS_LLM_MODEL}",
             f"groq:{_GROQ_LLM_MODEL}",
+            f"gemini:{_GEMINI_LLM_MODEL}",
+            f"together:{_TOGETHER_LLM_MODEL}",
+            f"hyperbolic:{_HYPERBOLIC_LLM_MODEL}",
             f"openrouter:{_OPENROUTER_LLM_MODEL}",
         ],
     }
