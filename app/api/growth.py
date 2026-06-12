@@ -1415,6 +1415,29 @@ async def reply_feedback_stats(_user=Depends(require_admin)):
 
 
 
+
+
+@router.get("/speed-to-lead/summary")
+async def speed_to_lead_summary(
+    days: int = 7,
+    _user=Depends(require_admin),
+):
+    """Speed-to-lead metric: avg/median response time + Hinglish verdict.
+    dashboard badge + ops page ke liye."""
+    from app.platform import speed_to_lead
+    return speed_to_lead.summary(days)
+
+
+@router.get("/speed-to-lead/breakdown")
+async def speed_to_lead_breakdown(
+    days: int = 30,
+    _user=Depends(require_admin),
+):
+    """Per-inquiry breakdown: kitne seconds me pehla touch hua."""
+    from app.platform import speed_to_lead
+    rows = speed_to_lead.per_inquiry(days)
+    return {"ok": True, "days": days, "inquiries": rows, "count": len(rows)}
+
 @router.get("/revenue/summary")
 async def revenue_summary(_user=Depends(require_admin)):
     """Ops-dashboard ke liye compact revenue snapshot (digest ka collect reuse)."""

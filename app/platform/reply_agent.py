@@ -18,6 +18,7 @@ unsubscribe which is always honoured. `IMAP_HOST` overrides (default derived fro
 from __future__ import annotations
 
 import email
+import json
 import email.utils
 import imaplib
 import json
@@ -130,16 +131,49 @@ def _body(msg) -> str:
     return ""
 
 
+def _load_feedback_examples(max_n: int = 8) -> str:
+    """Recent feedback corrections -> few-shot examples for classifier (reduces 'other' rate)."""
+    _FB = os.path.join("data", "reply_feedback.jsonl")
+    if not os.path.exists(_FB):
+        return ""
+    examples = []
+    try:
+        with open(_FB, encoding="utf-8") as f:
+            rows = [json.loads(l) for l in f if l.strip()]
+        # Only corrections (old != correct)
+        corrections = [r for r in rows if r.get("old_intent") != r.get("correct_intent")][-max_n:]
+        for r in corrections:
+            snip = str(r.get("body_snippet") or r.get("subject") or "")[:150]
+            examples.append(f'  "{snip}" -> {r["correct_intent"]}')
+    except Exception:
+        pass
+    if not examples:
+        return ""
+    return "\nRecent corrections (sikhne ke liye):\n" + "\n".join(examples)
+
+
 async def _classify(subject: str, body: str) -> str:
+    """Classify email reply intent. Uses few-shot feedback examples to reduce 'other' rate."""
     try:
         from app.voice_agent import free_ai
 
+        examples = _load_feedback_examples()
+        system = (
+            "Tu ek AI email classifier hai. Reply email ka intent classify karo into EXACTLY one label:\n"
+            "  interested  = prospect ne interest dikhaya, demo/meeting/pricing maanga\n"
+            "  question    = specific sawal poocha (product/pricing/features ke baare me)\n"
+            "  objection   = concern/pushback (pricing zyada, abhi nahi, try kar ke dekha)\n"
+            "  not_interested = clearly mana kar diya\n"
+            "  unsubscribe = unsubscribe/remove/stop chahta\n"
+            "  ooo         = out of office auto-reply\n"
+            "  other       = baaki sab (generic ack, spam, irrelevant)\n"
+            + examples +
+            "\nSIRF ek label reply karo, kuch aur nahi."
+        )
         reply, _ = await free_ai.chat(
-            system="Classify the email reply into EXACTLY one label: "
-            + ", ".join(_CATS)
-            + ". Reply with ONLY the label.",
+            system=system,
             messages=[{"role": "user", "content": f"Subject: {subject}\n\n{body[:1500]}"}],
-            max_tokens=4,
+            max_tokens=8,
             temperature=0.0,
         )
         lab = (reply or "").strip().lower()
@@ -275,6 +309,18 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                                  "phone": p.get("phone"), "niche": p.get("niche")},
                                 stage="interested",
                             )
+                        except Exception:
+                            pass
+                        # Cadence enroll: interested reply -> follow-up sequence (gated CADENCE_ENGINE)
+                        try:
+                            from app.marketing import cadence as _cadence
+                            _cadence.enroll({
+                                "business_name": p.get("business_name") or "",
+                                "phone": p.get("phone") or "",
+                                "email": frm,
+                                "niche": p.get("niche") or "",
+                                "source": "reply_interested",
+                            })
                         except Exception:
                             pass
 
