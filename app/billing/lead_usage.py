@@ -138,13 +138,19 @@ def leads_remaining(client_id: str, plan: str | None = None) -> int:
 
 
 def has_lead_quota(client_id: str | None, plan: str | None = None) -> bool:
-    """Campaign-call gate — FAIL-OPEN (no client / non-voice plan / error => True)."""
+    """Campaign-call gate — FAIL-OPEN (no client / non-voice plan / error => True).
+    Flat monthly plans (UNLIMITED_QUOTA=9999) => hamesha True.
+    """
     try:
+        from app.marketing.voice_packages import UNLIMITED_QUOTA
         cid = (client_id or "").strip()
         if not cid:
             return True
-        if plan_quota(plan) <= 0:
-            return True  # voice plan hi nahi — yeh meter apply nahi hota
+        q = plan_quota(plan)
+        if q <= 0:
+            return True  # voice plan hi nahi — meter apply nahi hota
+        if q >= UNLIMITED_QUOTA:
+            return True  # flat monthly plan — unlimited calls
         return leads_remaining(cid, plan) > 0
     except Exception:
         return True

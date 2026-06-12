@@ -293,29 +293,58 @@ def _sync_plans_from_packages() -> None:
 
 
 def _sync_voice_plans() -> None:
-    """AI Voice Calling Agent (Product 2, ADR-009) plans — voice_packages.py truth.
+    """AI Voice Calling Agent (Product 2) plans — voice_packages.py truth.
 
-    9 plan ids: voice_{starter,growth,pro}_{a,b,c} (band = niche ka lead_band).
-    leads_per_month = qualified-lead quota (metering: app/billing/lead_usage.py).
-    Yearly discount 0 (voice annual abhi offer nahi). Defensive — kabhi raise nahi.
+    Flat monthly model (2026-06-12): 7 plan IDs
+      voice_a_monthly, voice_b_monthly, voice_c_monthly
+      voice_a_annual,  voice_b_annual,  voice_c_annual
+      voice_pilot  (free 7-day trial)
+    Unlimited calls — lead_usage.py has_lead_quota UNLIMITED_QUOTA gate karta hai.
+    Defensive — kabhi raise nahi.
     """
     try:
-        from app.marketing.voice_packages import BANDS, VOICE_TIERS
+        from app.marketing.voice_packages import BANDS, UNLIMITED_QUOTA, PILOT_CALL_CAP
 
-        for t in VOICE_TIERS:
-            for b in BANDS:
-                pid = f"{t['key']}_{b.lower()}"
-                PRICING_PLANS[pid] = PricingPlan(
-                    id=pid,
-                    name=f"{t['name']} (Band {b})",
-                    pricing_model=PricingModel.SUBSCRIPTION,
-                    monthly_price=Decimal(str(t["price_inr_month"][b])),
-                    calls_per_month=int(t.get("fair_use_minutes") or 0),
-                    leads_per_month=int(t.get("leads_per_month") or 0),
-                    concurrent_campaigns=1,
-                    features=list(t.get("features") or []),
-                    yearly_discount=0.0,
-                )
+        for band, info in BANDS.items():
+            # Monthly plan
+            pid_m = info["plan_monthly"]
+            PRICING_PLANS[pid_m] = PricingPlan(
+                id=pid_m,
+                name=f"Voice {band} — Monthly",
+                pricing_model=PricingModel.SUBSCRIPTION,
+                monthly_price=Decimal(str(info["price_month"])),
+                calls_per_month=UNLIMITED_QUOTA,
+                leads_per_month=UNLIMITED_QUOTA,
+                concurrent_campaigns=3,
+                features=[f"Band {band} niche — flat monthly, unlimited calls"],
+                yearly_discount=0.0,
+            )
+            # Annual plan
+            pid_a = info["plan_annual"]
+            PRICING_PLANS[pid_a] = PricingPlan(
+                id=pid_a,
+                name=f"Voice {band} — Annual",
+                pricing_model=PricingModel.SUBSCRIPTION,
+                monthly_price=Decimal(str(info["price_month"])),
+                calls_per_month=UNLIMITED_QUOTA,
+                leads_per_month=UNLIMITED_QUOTA,
+                concurrent_campaigns=3,
+                features=[f"Band {band} niche — annual, 2 mahine free"],
+                yearly_discount=1 / 6,  # 2 of 12 months free
+            )
+
+        # Free pilot plan
+        PRICING_PLANS["voice_pilot"] = PricingPlan(
+            id="voice_pilot",
+            name="Voice Pilot — 7 din free",
+            pricing_model=PricingModel.SUBSCRIPTION,
+            monthly_price=Decimal("0"),
+            calls_per_month=PILOT_CALL_CAP,
+            leads_per_month=PILOT_CALL_CAP,
+            concurrent_campaigns=1,
+            features=["7-day free pilot, 50 calls cap"],
+            yearly_discount=0.0,
+        )
     except Exception:  # pragma: no cover - defensive
         pass
 
