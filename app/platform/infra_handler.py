@@ -136,6 +136,31 @@ def _check_llm() -> dict[str, Any]:
         return {"ok": None}
 
 
+def _check_embedder() -> dict[str, Any]:
+    """
+    Voice-KB embedder assets present? (2026-06-12 prod-down lesson: model cache
+    missing => fastembed runtime HF download => event-loop hang.) Sirf DISK
+    check — model load NahI karte (heavy). FASTEMBED_CACHE_PATH ya /tmp cache
+    me onnx model file dikhni chahiye.
+    """
+    try:
+        import os as _os
+
+        dirs = [
+            _os.getenv("FASTEMBED_CACHE_PATH") or "",
+            "/opt/fastembed_cache",
+            "/tmp/fastembed_cache",
+        ]
+        for d in dirs:
+            if d and Path(d).is_dir():
+                onnx = list(Path(d).rglob("*.onnx"))
+                if onnx:
+                    return {"ok": True, "cache_dir": d, "models": len(onnx)}
+        return {"ok": False, "note": "fastembed model cache MISSING — image bake/redeploy karo (runtime HF download = freeze risk)"}
+    except Exception:
+        return {"ok": None}
+
+
 def _check_backups() -> dict[str, Any]:
     """Newest file in backups/ ki age (container me dir na ho => unknown)."""
     try:
@@ -164,6 +189,7 @@ async def snapshot() -> dict[str, Any]:
         "jobs": _check_jobs(),
         "llm": _check_llm(),
         "backups": _check_backups(),
+        "embedder": _check_embedder(),
     }
     score = 100
     actions: list[str] = []
@@ -204,6 +230,11 @@ async def snapshot() -> dict[str, Any]:
     if b.get("ok") is False:
         score -= 10
         actions.append(f"Backup {b.get('age_hours')}h purana — pg_backup cron + offsite mail check karo.")
+
+    e = checks["embedder"]
+    if e.get("ok") is False:
+        score -= 10
+        actions.append("Voice-KB embedding model cache missing — image rebuild/bake karo (runtime download = freeze risk).")
 
     score = max(0, score)
     return {

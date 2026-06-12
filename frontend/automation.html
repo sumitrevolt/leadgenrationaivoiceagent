@@ -1491,16 +1491,37 @@ async function ctFeedback(){
 
 /* ---------------- 12. Schedule (jobs + staff) ---------------- */
 function fmtTime(iso){if(!iso)return '—';try{return new Date(iso).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',hour12:true,day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}catch(e){return String(iso)}}
+/* Har job ka plain-Hinglish matlab — admin bina jargon ke samjhe kya chal raha hai. */
+var JOB_DESC={
+  blog:'Roz subah SEO blog post likhta hai (06:30)',
+  content:'Apne + clients ke daily social posts banata hai (07:00)',
+  digest:'Sumit ko daily business summary email (08:30)',
+  prospect:'Naye potential customers dhoondta hai — 42 niches rotation (09:30)',
+  email_outreach:'Rohan cold emails + follow-ups bhejta hai, cap 25/din (10:30)',
+  growth:'Har 15-min funnel check — jahan kami, wahan auto-action',
+  ops:'Kavya hourly system health check',
+  watchdog:'Hourly: kuch toota to Sumit ko email alert',
+  reply_triage:'Aaye hue email replies padh ke draft jawab banata hai',
+  onboard:'Naye paid client ka auto-setup (website→KB, content pack)',
+  qa:'Arjun raat 02:30 voice-agent quality test',
+  trainer:'Meera raat 03:00 AI brain training/tuning',
+  standup:'Boss subah team standup chalata hai'
+};
 async function scLoad(){
   try{
     var d=await api('/api/growth/infra/automation-health');
     var q=d.queue||{};
-    var h='<div class="result">'+pills({status:d.status,overdue:(d.overdue||[]).join(', ')||'none',queue_celery:q.celery,dlq:q.dlq});
-    h+='<table><tr><th>Job</th><th>Last run (IST)</th><th>Took</th><th>Status</th></tr>';
+    var ok=String(d.status||'')==='ok'||String(d.status||'')==='healthy';
+    var ov=(d.overdue||[]);
+    var banner=ok&&!ov.length
+      ?'<div class="ok" style="font-size:15px;margin-bottom:8px">✅ Sab automations time pe chal rahe hain — koi action nahi chahiye.</div>'
+      :'<div class="bad" style="font-size:15px;margin-bottom:8px">⚠️ Dhyan do: '+(ov.length?esc(ov.join(', '))+' job(s) time pe nahi chale.':'system status '+esc(d.status||'?'))+' Neeche table me red row dekho.</div>';
+    var h='<div class="result">'+banner+pills({status:d.status,overdue:ov.join(', ')||'none',queue_celery:q.celery,dlq:q.dlq});
+    h+='<table><tr><th>Job</th><th>Kya karta hai</th><th>Last run (IST)</th><th>Took</th><th>Status</th></tr>';
     (d.jobs||[]).forEach(function(j){
       var st=String(j.status||'');
       var cls=st==='ok'?'ok':(st==='overdue'||st==='last_failed'?'bad':'warn');
-      h+='<tr><td>'+esc(j.job)+'</td><td class="mut">'+esc(fmtTime(j.last_run))+'</td><td class="mut">'+(j.duration_s!=null?esc(j.duration_s)+'s':'')+'</td><td class="'+cls+'">'+esc(st)+'</td></tr>';
+      h+='<tr><td>'+esc(j.job)+'</td><td class="mut">'+esc(JOB_DESC[j.job]||'')+'</td><td class="mut">'+esc(fmtTime(j.last_run))+'</td><td class="mut">'+(j.duration_s!=null?esc(j.duration_s)+'s':'')+'</td><td class="'+cls+'">'+esc(st)+'</td></tr>';
     });
     $('scHealthOut').innerHTML=h+'</table></div>';
   }catch(e){warnBox('scHealthOut','Health fail: '+e.message)}
