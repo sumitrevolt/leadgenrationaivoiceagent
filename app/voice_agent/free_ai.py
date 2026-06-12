@@ -110,12 +110,31 @@ def _reset_cooldown_streak(p: str) -> None:
     _LLM_TRIP_STREAK.pop(p, None)
 
 
+# OpenRouter multi-key rotation — 4 accounts, har ek alag circuit-breaker
+# Keys: OPENROUTER_API_KEY (primary) + OPENROUTER_API_KEY_2/3/4 (rotation)
+def _or_keys() -> list[str]:
+    """Return all non-empty OpenRouter keys in order."""
+    try:
+        from app.config import settings
+        keys = []
+        for attr in ("openrouter_api_key", "openrouter_api_key_2", "openrouter_api_key_3", "openrouter_api_key_4"):
+            v = (getattr(settings, attr, "") or "").strip()
+            if v:
+                keys.append(v)
+        return keys
+    except Exception:
+        return []
+
+
 # provider -> (settings attr, base_url)
 _PROVIDER_CFG: dict[str, tuple[str, str]] = {
-    "groq":       ("groq_api_key",      _GROQ_BASE),
-    "cerebras":   ("cerebras_api_key",  _CEREBRAS_BASE),
-    "openrouter": ("openrouter_api_key", _OPENROUTER_BASE),
-    "xai":        ("xai_api_key",       _XAI_BASE),       # credits-based, chain me nahi
+    "groq":         ("groq_api_key",          _GROQ_BASE),
+    "cerebras":     ("cerebras_api_key",       _CEREBRAS_BASE),
+    "openrouter":   ("openrouter_api_key",     _OPENROUTER_BASE),
+    "openrouter_2": ("openrouter_api_key_2",   _OPENROUTER_BASE),
+    "openrouter_3": ("openrouter_api_key_3",   _OPENROUTER_BASE),
+    "openrouter_4": ("openrouter_api_key_4",   _OPENROUTER_BASE),
+    "xai":          ("xai_api_key",            _XAI_BASE),  # credits-based, chain me nahi
     "gemini":     ("gemini_api_key",    _GEMINI_BASE),
     "sambanova":  ("sambanova_api_key", _SAMBANOVA_BASE),  # free — cloud.sambanova.ai
     "mistral":    ("mistral_api_key",   _MISTRAL_BASE),    # free tier — console.mistral.ai
@@ -238,16 +257,20 @@ async def chat(
         return "", ""
 
     # COMPLETELY FREE chain — no credit card, no paid credits.
-    # Sign-up URLs: cloud.sambanova.ai | console.mistral.ai | openrouter.ai
+    # OpenRouter 4 keys = 4x rate-limit headroom (each alag circuit-breaker)
     chain = [
-        ("cerebras",   _CEREBRAS_LLM_MODEL),   # free, 120B, ~4-5s
-        ("groq",       _GROQ_LLM_MODEL),        # free, 8B, ~1s, 6000 RPM
-        ("gemini",     _GEMINI_LLM_MODEL),      # free, 1500 RPD — key set
-        ("sambanova",  _SAMBANOVA_LLM_MODEL),   # free, 70B fast — SAMBANOVA_API_KEY
-        ("mistral",    _MISTRAL_LLM_MODEL),     # free tier — MISTRAL_API_KEY
-        ("openrouter", _OPENROUTER_LLM_MODEL),  # deepseek:free
-        ("openrouter", _OPENROUTER_LLM_MODEL2), # llama-3.1-8b:free fallback
-        ("openrouter", _OPENROUTER_LLM_MODEL3), # gemma-2-9b:free last resort
+        ("cerebras",     _CEREBRAS_LLM_MODEL),    # free, 120B, ~4-5s
+        ("groq",         _GROQ_LLM_MODEL),         # free, 8B, ~1s, 6000 RPM
+        ("gemini",       _GEMINI_LLM_MODEL),       # free, 1500 RPD
+        ("sambanova",    _SAMBANOVA_LLM_MODEL),    # free, 70B fast
+        ("mistral",      _MISTRAL_LLM_MODEL),      # free tier
+        ("openrouter",   _OPENROUTER_LLM_MODEL),   # key1 deepseek:free
+        ("openrouter_2", _OPENROUTER_LLM_MODEL),   # key2 deepseek:free
+        ("openrouter_3", _OPENROUTER_LLM_MODEL),   # key3 deepseek:free
+        ("openrouter_4", _OPENROUTER_LLM_MODEL),   # key4 deepseek:free
+        ("openrouter",   _OPENROUTER_LLM_MODEL2),  # llama:free
+        ("openrouter_2", _OPENROUTER_LLM_MODEL2),  # llama:free key2
+        ("openrouter",   _OPENROUTER_LLM_MODEL3),  # gemma:free
     ]
     for provider, model in chain:
         if _provider_down(provider):

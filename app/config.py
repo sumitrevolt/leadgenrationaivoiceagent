@@ -39,7 +39,10 @@ class Settings(BaseSettings):
     # Cerebras (free, fastest llama-3.3-70b) + OpenRouter (free deepseek) —
     # OpenAI-compatible LLM fallbacks in the free_ai chain. Both OPTIONAL.
     cerebras_api_key: str = ""  # cloud.cerebras.ai — llama-3.3-70b
-    openrouter_api_key: str = ""  # openrouter.ai — deepseek/deepseek-chat:free
+    openrouter_api_key: str = ""    # openrouter.ai key 1 — deepseek/deepseek-chat:free
+    openrouter_api_key_2: str = ""  # key 2 (rotation — 4x rate-limit headroom)
+    openrouter_api_key_3: str = ""  # key 3
+    openrouter_api_key_4: str = ""  # key 4
     xai_api_key: str = ""  # x.ai (Grok — Groq se ALAG company; credits-based)
     sambanova_api_key: str = ""  # cloud.sambanova.ai — 100% free, no card, Llama-3.3-70B
     mistral_api_key: str = ""   # console.mistral.ai — free tier La Plateforme, mistral-small
