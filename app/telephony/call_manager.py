@@ -502,6 +502,46 @@ class CallManager:
 
         logger.info(f"✅ Call {call_id} completed. Outcome: {outcome}, Score: {result.lead_score}")
 
+        # ── niche_database post-call update ──────────────────────────────────
+        # Har call ke baad niche_database me lead status update karo — call attempts,
+        # next_call_at, qualification_data, etc. Best-effort, kabhi block nahi karta.
+        # outcome mapping: call_manager outcomes → niche_database outcome codes
+        try:
+            _lead_id = getattr(context, "lead_id", "") or ""
+            if _lead_id:
+                _OUTCOME_MAP = {
+                    "appointment": "qualified",
+                    "interested": "qualified",
+                    "callback": "callback",
+                    "not_interested": "not_interested",
+                    "opt_out": "dnd",
+                    "no_answer": "voicemail",
+                    "failed": "voicemail",
+                }
+                _niche_outcome = _OUTCOME_MAP.get(outcome, "voicemail")
+                _cb_hours = 24
+                if result.callback_time:
+                    try:
+                        from datetime import datetime as _dt
+                        _cb_dt = _dt.fromisoformat(result.callback_time)
+                        _diff = (_cb_dt - _dt.now()).total_seconds() / 3600
+                        _cb_hours = max(1, int(_diff))
+                    except Exception:
+                        pass
+                from app.platform.niche_database import update_after_call as _ndb_update
+                import asyncio as _asyncio
+                _asyncio.create_task(
+                    _ndb_update(
+                        lead_id=_lead_id,
+                        outcome=_niche_outcome,
+                        notes=result.qualification_data.get("summary", ""),
+                        niche_data=result.qualification_data or None,
+                        callback_hours=_cb_hours,
+                    )
+                )
+        except Exception as _ndb_e:
+            logger.debug(f"[call_manager] niche_db post-call update skip: {_ndb_e}")
+
         return result
 
     def _determine_outcome(self, summary: dict[str, Any]) -> str:

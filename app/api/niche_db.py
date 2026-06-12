@@ -26,7 +26,7 @@ import io
 import json
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
 from app.api.ratelimit import rate_limit
@@ -378,3 +378,95 @@ async def voice_niches_list(
         return {"ok": True, "niches": result, "total": len(result)}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# POST /niche/queue-call — niche DB prospects ko Exotel call queue me push karo
+# ---------------------------------------------------------------------------
+
+class QueueCallIn(BaseModel):
+    client_id: str = Field(..., description="Client ID")
+    niche: str = Field(..., description="Niche key")
+    client_name: str = Field("Demo Co", description="Business name (caller ID display)")
+    client_service: str = Field("", description="Service offered (for AI script)")
+    limit: int = Field(10, ge=1, le=50, description="Max prospects to queue this run")
+    priority: int = Field(5, ge=1, le=10, description="Call priority (1=highest, 10=lowest)")
+
+
+@router.post("/queue-call", summary="Push niche prospects into call queue")
+async def queue_call_batch(
+    body: QueueCallIn,
+    request: Request,
+    _rl=Depends(rate_limit("niche_queue_call", 10, 60)),
+    _user=Depends(require_admin),
+):
+    """Niche DB se next-to-call prospects uthao aur Exotel CallManager queue me push karo.
+
+    Flow:
+      1. call_queue_next(client_id, niche, limit) — priority-ordered prospects
+      2. Har prospect ke liye CallRequest banao + CallManager.queue_call()
+      3. Compliance gate (DND check) CallManager ke andar hi hota hai
+      4. Return: queued_count + skipped (compliance/no-phone) + call IDs
+    """
+    queued: list[str] = []
+    skipped: list[str] = []
+    errors: list[str] = []
+
+    try:
+        from app.platform.niche_database import call_queue_next
+        prospects = await call_queue_next(body.client_id, body.niche, body.limit)
+    except Exception as e:
+        return {"ok": False, "error": f"call_queue_next failed: {e}"}
+
+    if not prospects:
+        return {"ok": True, "queued": 0, "skipped": 0, "message": "No callable prospects in queue"}
+
+    try:
+        from app.telephony.call_manager import CallManager, CallRequest
+        cm = CallManager()
+    except Exception as e:
+        return {"ok": False, "error": f"CallManager init failed: {e}"}
+
+    for p in prospects:
+        phone = (p.get("phone") or "").strip()
+        if not phone:
+            skipped.append(p.get("id", "?"))
+            continue
+        try:
+            qd = p.get("qualification_data") or {}
+            req = CallRequest(
+                lead_id=str(p.get("id") or ""),
+                phone_number=phone,
+                campaign_id=f"niche_{body.niche}_{body.client_id}",
+                niche=body.niche,
+                client_name=body.client_name,
+                client_service=body.client_service or body.niche.replace("_", " ").title(),
+                script_name=body.niche,
+                lead_data={
+                    "company_name": p.get("company_name", ""),
+                    "city": p.get("city", ""),
+                    **qd,
+                },
+                client_id=body.client_id,
+                call_type="promotional",
+                priority=body.priority,
+            )
+            call_id = await cm.queue_call(req)
+            if call_id.startswith("compliance") or call_id.startswith("out_of"):
+                skipped.append(f"{p.get('id','?')} ({call_id})")
+            else:
+                queued.append(call_id)
+        except Exception as e:
+            errors.append(f"id={p.get('id','?')}: {e}")
+
+    return {
+        "ok": True,
+        "queued_count": len(queued),
+        "skipped_count": len(skipped),
+        "error_count": len(errors),
+        "call_ids": queued,
+        "skipped": skipped[:10],
+        "errors": errors[:5],
+        "niche": body.niche,
+        "client_id": body.client_id,
+    }

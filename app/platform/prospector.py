@@ -420,6 +420,33 @@ def _append(rec: dict[str, Any]) -> bool:
             _persist_prospect_to_db(rec)
         except Exception:
             pass
+        # ── niche_database mirror ─────────────────────────────────────────────
+        # Scraped prospect ko niche_database (call-queue table) me bhi sync karo.
+        # Yeh async function hai — sync context me fire-and-forget via asyncio.
+        # Best-effort: fail hone pe jsonl write already ho chuka, koi loss nahi.
+        try:
+            niche = rec.get("niche") or "general"
+            client_id = rec.get("client_id") or "platform"
+            if niche and niche != "general":
+                import asyncio as _asyncio
+                from app.platform.niche_database import bulk_import as _ndb_bulk
+                _row = {
+                    "phone": rec.get("phone") or "",
+                    "company": rec.get("name") or rec.get("business_name") or "",
+                    "contact_name": rec.get("contact_name") or rec.get("owner_name") or "",
+                    "email": rec.get("email") or "",
+                    "city": rec.get("city") or "",
+                    "state": rec.get("state") or "",
+                    "source": rec.get("source") or "scrape",
+                }
+                try:
+                    loop = _asyncio.get_running_loop()
+                    loop.create_task(_ndb_bulk([_row], niche, client_id, "scrape"))
+                except RuntimeError:
+                    # No running event loop (sync context) — skip, DB mirror above is enough
+                    pass
+        except Exception:
+            pass
         return True
     except Exception as e:
         logger.warning(f"[prospector] prospects.jsonl write failed: {e}")

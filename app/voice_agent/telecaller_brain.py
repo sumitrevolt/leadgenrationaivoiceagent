@@ -222,6 +222,34 @@ class TelecallerBrain:
             nums.append(f"average deal value: {data['avg_deal_value']}")
         self.allowed_numbers = "; ".join(nums)
 
+        # ── niche_database schema injection ──────────────────────────────────
+        # NICHE_CALL_SCHEMA se script_context + collect_during questions inject
+        # karo — yeh brain ko call se PEHLE niche-specific context deta hai.
+        # Defensive: import fail / key missing = no change (niches.py questions used).
+        self.niche_script_context: str = ""
+        self.collect_during_questions: list[str] = []
+        try:
+            from app.platform.niche_database import NICHE_CALL_SCHEMA
+
+            schema = NICHE_CALL_SCHEMA.get(self.niche, {})
+            self.niche_script_context = (schema.get("script_context") or "").strip()
+            raw_cd = schema.get("collect_during") or []
+            self.collect_during_questions = [
+                str(q.get("question") or "").strip()
+                for q in raw_cd
+                if isinstance(q, dict) and str(q.get("question") or "").strip()
+            ]
+            # collect_during se better questions mile to questions override karo
+            if self.collect_during_questions:
+                self.questions = self.collect_during_questions
+            if self.niche_script_context:
+                logger.debug(
+                    f"[telecaller-brain] niche_database schema loaded for {self.niche} "
+                    f"({len(self.collect_during_questions)} collect_during qs)"
+                )
+        except Exception as _e:
+            logger.debug(f"[telecaller-brain] niche_database schema skip: {_e}")
+
     # ------------------------------------------------------------------ #
     # System prompt — research-distilled rules + 3 few-shot exchanges
     # ------------------------------------------------------------------ #
@@ -271,9 +299,16 @@ class TelecallerBrain:
             )
         )
 
+        # Niche-database context block (call schema se inject hota hai call se pehle)
+        niche_ctx_block = (
+            f"\nNICHE CALL CONTEXT (call ke liye specific — follow karo): {self.niche_script_context}"
+            if getattr(self, "niche_script_context", "")
+            else ""
+        )
+
         return f"""Tum "Swara" ho — {self.client_name} ki professional Indian female telecaller. Tum ek TOP professional Indian telecaller ho (noob nahi). Confident, warm, crisp. Customer ke har jawab ko sun ke uske hisab se aage badho — ratta-maar nahi. Tum ek LIVE PHONE CALL par ho (text chat nahi); bhasha natural Hinglish (Hindi-English mix), awaaz bilkul insaan jaisi.
 
-CLIENT: {self.client_name} | NICHE: {self.niche_name}
+CLIENT: {self.client_name} | NICHE: {self.niche_name}{niche_ctx_block}
 VALUE LINE (pitch hook): {hook}
 
 PROFESSIONAL SCRIPT (inhi lines/style me baat karo, copy-paste mat karo, natural raho):
