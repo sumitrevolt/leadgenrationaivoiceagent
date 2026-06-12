@@ -573,11 +573,7 @@ async def get_weekly_report():
             "worst_day": worst_day["date"] if worst_day else None,
         },
         "daily_breakdown": daily_breakdown,
-        "trends": {
-            "leads_trend": 0,  # TODO: compute % change vs previous week from DB
-            "calls_trend": 0,
-            "conversion_trend": 0,
-        },
+        "trends": _week_trends(week_calls, week_leads, week_start),
     }
 
 
@@ -625,13 +621,66 @@ async def get_monthly_report(
             "avg_lead_score": _avg([c.get("lead_score", 0) for c in month_calls]),
             "conversion_rate": conversion_rate,
         },
-        "weekly_breakdown": [],  # TODO: derive ISO-week buckets from DB
+        "weekly_breakdown": _iso_week_buckets(month_calls, year, month),
         "by_campaign": await get_campaign_performance(),
         "by_niche": _group_count(month_leads, "niche"),
-        "comparison": {
-            "vs_last_month": 0,  # TODO: compute from DB
-            "vs_last_year": 0,
-        },
+        "comparison": _month_comparison(len(month_calls), len(month_leads), year, month),
+    }
+
+
+def _iso_week_buckets(calls: list[dict[str, Any]], year: int, month: int) -> list[dict[str, Any]]:
+    """Month ke calls ko ISO-week buckets me group karo."""
+    from collections import defaultdict as _dd
+    buckets: dict[str, int] = _dd(int)
+    for c in calls:
+        dt = analytics_store._as_dt(c.get("completed_at"))
+        if dt:
+            iso = dt.isocalendar()
+            key = f"{iso[0]}-W{iso[1]:02d}"
+            buckets[key] += 1
+    return [{"week": k, "calls": v} for k, v in sorted(buckets.items())]
+
+
+def _month_comparison(calls_this: int, leads_this: int, year: int, month: int) -> dict[str, Any]:
+    """Is month vs previous month % change."""
+    import calendar as _cal
+    prev_month = month - 1 if month > 1 else 12
+    prev_year = year if month > 1 else year - 1
+    _, last_day = _cal.monthrange(prev_year, prev_month)
+    prev_start = datetime(prev_year, prev_month, 1)
+    prev_end = datetime(prev_year, prev_month, last_day, 23, 59, 59)
+    prev_calls = _in_range(_calls_source(), "completed_at", prev_start, prev_end)
+    prev_leads = _in_range(_leads_source(), "created_at", prev_start, prev_end)
+    def _pct(cur: int, prev: int) -> float:
+        if prev == 0:
+            return 100.0 if cur > 0 else 0.0
+        return round((cur - prev) / prev * 100, 1)
+    return {
+        "vs_last_month_calls": _pct(calls_this, len(prev_calls)),
+        "vs_last_month_leads": _pct(leads_this, len(prev_leads)),
+        "prev_month_calls": len(prev_calls),
+        "prev_month_leads": len(prev_leads),
+    }
+
+
+def _week_trends(week_calls: list, week_leads: list, week_start) -> dict[str, Any]:
+    """Is week vs previous week % change."""
+    prev_start = datetime.combine(week_start - timedelta(days=7), datetime.min.time())
+    prev_end = datetime.combine(week_start - timedelta(days=1), datetime.max.time())
+    prev_calls = _in_range(_calls_source(), "completed_at", prev_start, prev_end)
+    prev_leads = _in_range(_leads_source(), "created_at", prev_start, prev_end)
+    def _pct(cur: int, prev: int) -> float:
+        if prev == 0:
+            return 100.0 if cur > 0 else 0.0
+        return round((cur - prev) / prev * 100, 1)
+    prev_appts = [c for c in prev_calls if c.get("outcome") == "appointment"]
+    cur_appts = [c for c in week_calls if c.get("outcome") == "appointment"]
+    return {
+        "leads_trend": _pct(len(week_leads), len(prev_leads)),
+        "calls_trend": _pct(len(week_calls), len(prev_calls)),
+        "conversion_trend": _pct(len(cur_appts), len(prev_appts)),
+        "vs_prev_week_calls": len(prev_calls),
+        "vs_prev_week_leads": len(prev_leads),
     }
 
 

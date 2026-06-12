@@ -25,7 +25,7 @@ logger = setup_logger(__name__)
 
 _STORE = os.path.join("data", "outbound_webhooks.jsonl")
 _DELIVERIES = os.path.join("data", "webhook_deliveries.jsonl")
-EVENTS = ["inquiry_received", "signup", "lead_hot", "booking", "payment_failed", "review_new"]
+EVENTS = ["inquiry_received", "signup", "lead_hot", "booking", "payment_failed", "payment_captured", "call_completed", "review_new"]
 
 
 def _read(path: str) -> list[dict[str, Any]]:

@@ -149,11 +149,12 @@ async def next_action(deal: dict[str, Any]) -> dict[str, Any]:
 
 
 async def run_pipeline(limit: int = 100) -> dict[str, Any]:
-    """Active deals ke liye next-actions generate karo (drafts/links). GATED SALES_ENGINE."""
+    """Active deals ke liye next-actions generate + safe auto-execute karo. GATED SALES_ENGINE."""
     if not _enabled():
         return {"ok": False, "reason": "SALES_ENGINE off"}
     rows = _read(_DEALS)
     produced = 0
+    executed = 0
     for d in rows[:limit]:
         if d.get("stage") in ("won", "lost"):
             continue
@@ -161,7 +162,38 @@ async def run_pipeline(limit: int = 100) -> dict[str, Any]:
         _append(_ACTIONS, {"deal_id": d["id"], "business_name": d["business_name"],
                            "stage": d.get("stage"), **act, "at": _now()})
         produced += 1
-    return {"ok": True, "deals_processed": produced, "stats": stats()}
+
+        # Auto-execute safe actions (draft/enroll — auto-send kabhi nahi):
+        action_type = act.get("action", "")
+        try:
+            if action_type == "send_intro" and d.get("stage") in ("new", "contacted"):
+                # New deal → cadence enroll (email intro sequence)
+                from app.marketing import cadence as _cad
+                _cad.enroll({
+                    "phone": d.get("phone") or "",
+                    "email": d.get("email") or "",
+                    "business_name": d.get("business_name") or "",
+                    "niche": d.get("niche") or "",
+                    "city": d.get("city") or "",
+                })
+                if d.get("stage") == "new":
+                    set_stage(d["id"], "contacted")
+                executed += 1
+            elif action_type == "onboard":
+                # Won deal → auto-onboard KB seed (gated AUTO_ONBOARD=1)
+                cid = d.get("client_id") or ""
+                if cid:
+                    try:
+                        import asyncio as _aio_sp
+                        from app.marketing.onboarding import onboard_client
+                        _aio_sp.create_task(onboard_client(cid))
+                        executed += 1
+                    except Exception:
+                        pass
+        except Exception as _exec_e:
+            logger.debug(f"[pipeline] action execute skip ({action_type}): {_exec_e}")
+
+    return {"ok": True, "deals_processed": produced, "actions_executed": executed, "stats": stats()}
 
 
 def list_deals(stage: str | None = None, limit: int = 100) -> list[dict[str, Any]]:

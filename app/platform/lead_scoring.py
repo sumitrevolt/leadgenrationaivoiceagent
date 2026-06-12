@@ -166,6 +166,17 @@ async def rescore_db(limit: int = 500) -> dict[str, Any]:
                 if is_hot(s):
                     hot += 1
             await session.commit()
+        # Outbound webhook: lead_hot — ek baar rescore ke baad naye hot leads ke liye.
+        if hot > 0:
+            try:
+                import asyncio as _aio_ls
+                from app.platform import outbound_webhooks as _ow_ls
+
+                _aio_ls.create_task(
+                    _ow_ls.emit("lead_hot", {"hot_count": hot, "updated": updated, "threshold": HOT_THRESHOLD})
+                )
+            except Exception:
+                pass
         return {"ok": True, "updated": updated, "hot": hot, "threshold": HOT_THRESHOLD}
     except Exception as e:
         logger.warning(f"[lead_scoring] rescore_db failed: {e}")

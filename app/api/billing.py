@@ -1391,6 +1391,24 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_asyn
                 )
             except Exception:
                 pass
+            # Outbound webhook: payment_captured (Zapier/n8n ke liye). Best-effort.
+            try:
+                from app.platform import outbound_webhooks as _ow_bill
+                import asyncio as _aio_bill
+
+                _aio_bill.create_task(
+                    _ow_bill.emit(
+                        "payment_captured",
+                        {
+                            "client_id": client_id or "",
+                            "plan": plan_id or "",
+                            "amount_inr": float(pay_entity.get("amount") or 0) / 100.0,
+                            "payment_id": str(pay_entity.get("id") or ""),
+                        },
+                    )
+                )
+            except Exception:
+                pass
             # Voice-minute TOP-UP pack (payment-link/order with notes plan_id="topup_*"):
             # plan activate NAHI hota — sirf minutes credit + invoice. (Warna activate_plan
             # client ka plan 'topup_100' kar deta = plan break.)

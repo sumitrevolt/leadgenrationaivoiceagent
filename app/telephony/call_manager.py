@@ -519,6 +519,27 @@ class CallManager:
 
         logger.info(f"✅ Call {call_id} completed. Outcome: {outcome}, Score: {result.lead_score}")
 
+        # ── outbound webhook: call_completed event ────────────────────────────
+        try:
+            from app.platform import outbound_webhooks as _ow_cm
+            import asyncio as _aio_cm
+
+            _aio_cm.create_task(
+                _ow_cm.emit(
+                    "call_completed",
+                    {
+                        "call_id": str(call_id),
+                        "phone": context.phone_number,
+                        "outcome": outcome,
+                        "lead_score": result.lead_score or 0,
+                        "duration_seconds": getattr(result, "duration_seconds", 0) or 0,
+                        "client_name": getattr(context, "client_name", "") or "",
+                    },
+                )
+            )
+        except Exception:
+            pass
+
         # ── niche_database post-call update ──────────────────────────────────
         # Har call ke baad niche_database me lead status update karo — call attempts,
         # next_call_at, qualification_data, etc. Best-effort, kabhi block nahi karta.

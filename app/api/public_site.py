@@ -747,6 +747,18 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception as e:
         logger.debug(f"[signup] journey emit spawn failed: {e}")
 
+    # Outbound webhook: signup event (Zapier/n8n integration ke liye).
+    try:
+        from app.platform import outbound_webhooks as _ow
+
+        _ow_t = asyncio.create_task(
+            _ow.emit("signup", {"business_name": biz, "phone": body.phone or "", "plan": body.plan or "starter", "client_id": cid})
+        )
+        _BG_TASKS.add(_ow_t)
+        _ow_t.add_done_callback(_BG_TASKS.discard)
+    except Exception as e:
+        logger.debug(f"[signup] outbound_webhook skip: {e}")
+
     out: dict[str, Any] = {
         "ok": True,
         "client_id": cid,
