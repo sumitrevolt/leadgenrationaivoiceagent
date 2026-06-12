@@ -1228,6 +1228,193 @@ async def prospects_find_email(body: EmailFindIn, _user=Depends(require_admin)):
     return await email_finder.find(body.website, body.owner_name or "")
 
 
+class EmailBatchIn(BaseModel):
+    client_id: str = ""
+    niche: str = ""
+    limit: int = Field(50, ge=1, le=200)
+
+
+@router.post("/prospects/find-email-batch")
+async def prospects_find_email_batch(
+    body: EmailBatchIn,
+    request: Request,
+    _rl=Depends(rate_limit("email_batch", 3, 60)),
+    _user=Depends(require_admin),
+):
+    """Bulk email enrichment: DB leads with phone but no email -> waterfall find -> update."""
+    import asyncio as _asyncio
+    from app.models.base import get_async_session
+    from app.models.lead import Lead
+    from app.platform import email_finder
+    from sqlalchemy import select as _select
+
+    found = 0
+    not_found = 0
+    updated = 0
+    errors: list = []
+    try:
+        async with get_async_session() as session:
+            q = _select(Lead).where(
+                Lead.phone.isnot(None),
+                Lead.phone != "",
+                Lead.email.is_(None),
+            )
+            if body.client_id:
+                q = q.where(Lead.assigned_to == body.client_id)
+            if body.niche:
+                q = q.where(Lead.industry == body.niche)
+            q = q.limit(body.limit)
+            result = await session.execute(q)
+            leads = result.scalars().all()
+
+        async def _enrich_one(lead):
+            nonlocal found, not_found, updated
+            website = (lead.website or "").strip()
+            name = (lead.company_name or "").strip()
+            if not website:
+                not_found += 1
+                return {"ok": False, "phone": lead.phone}
+            try:
+                r = await email_finder.find(website, name)
+                emails = r.get("emails") or []
+                best = next((e["email"] for e in emails if e.get("verified")), None)
+                if best:
+                    async with get_async_session() as session:
+                        obj = await session.get(Lead, lead.id)
+                        if obj:
+                            obj.email = best
+                            obj.email_verified = True
+                            await session.commit()
+                    found += 1
+                    updated += 1
+                    return {"ok": True, "phone": lead.phone, "email": best}
+                else:
+                    not_found += 1
+                    return {"ok": False, "phone": lead.phone}
+            except Exception as e:
+                errors.append(str(e)[:80])
+                not_found += 1
+                return {"ok": False, "phone": lead.phone, "error": str(e)[:80]}
+
+        await _asyncio.gather(*[_enrich_one(l) for l in leads])
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:150]}
+
+    return {
+        "ok": True,
+        "total_checked": found + not_found,
+        "found": found,
+        "updated": updated,
+        "not_found": not_found,
+        "errors": errors[:10],
+    }
+
+
+class ReplyFeedbackIn(BaseModel):
+    reply_id: str
+    correct_intent: str
+
+
+@router.post("/reply/feedback")
+async def reply_feedback(
+    body: ReplyFeedbackIn,
+    _rl=Depends(rate_limit("reply_feedback", 30, 60)),
+    _user=Depends(require_admin),
+):
+    """Mark reply intent correct/wrong -> training signal for 63/79 'other' classifier fix."""
+    import json as _json
+    import os as _os
+    import time as _time
+
+    _DRAFTS = "data/reply_drafts.jsonl"
+    _FEEDBACK = "data/reply_feedback.jsonl"
+    _VALID = {"interested", "question", "objection", "not_interested",
+               "unsubscribe", "ooo", "other"}
+
+    if body.correct_intent not in _VALID:
+        raise HTTPException(400, f"intent must be one of {sorted(_VALID)}")
+
+    draft = None
+    if _os.path.exists(_DRAFTS):
+        with open(_DRAFTS, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    row = _json.loads(line)
+                    if str(row.get("id") or "") == str(body.reply_id):
+                        draft = row
+                        break
+                except Exception:
+                    pass
+
+    if not draft:
+        raise HTTPException(404, "reply_id not found in reply_drafts.jsonl")
+
+    old_intent = draft.get("intent") or "unknown"
+    fb = {
+        "id": body.reply_id,
+        "old_intent": old_intent,
+        "correct_intent": body.correct_intent,
+        "subject": draft.get("subject", ""),
+        "body_snippet": str(draft.get("body") or "")[:200],
+        "ts": _time.time(),
+    }
+    try:
+        _os.makedirs("data", exist_ok=True)
+        with open(_FEEDBACK, "a", encoding="utf-8") as f:
+            f.write(_json.dumps(fb) + "\n")
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:150]}
+
+    # Update draft intent in-place
+    try:
+        lines = []
+        with open(_DRAFTS, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    row = _json.loads(line)
+                    if str(row.get("id") or "") == str(body.reply_id):
+                        row["intent"] = body.correct_intent
+                    lines.append(_json.dumps(row))
+                except Exception:
+                    lines.append(line.rstrip())
+        with open(_DRAFTS, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+    except Exception:
+        pass
+
+    return {
+        "ok": True,
+        "reply_id": body.reply_id,
+        "old_intent": old_intent,
+        "correct_intent": body.correct_intent,
+        "feedback_recorded": True,
+    }
+
+
+@router.get("/reply/feedback/stats")
+async def reply_feedback_stats(_user=Depends(require_admin)):
+    """Feedback distribution — misclassified intents from reply_drafts corrections."""
+    import json as _json
+    import os as _os
+    from collections import Counter
+
+    _FEEDBACK = "data/reply_feedback.jsonl"
+    corrections: Counter = Counter()
+    total = 0
+    if _os.path.exists(_FEEDBACK):
+        with open(_FEEDBACK, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    row = _json.loads(line)
+                    corrections[f"{row.get('old_intent')}-->{row.get('correct_intent')}"] += 1
+                    total += 1
+                except Exception:
+                    pass
+    return {"ok": True, "total_corrections": total,
+            "corrections": dict(corrections.most_common(20))}
+
+
+
 @router.get("/revenue/summary")
 async def revenue_summary(_user=Depends(require_admin)):
     """Ops-dashboard ke liye compact revenue snapshot (digest ka collect reuse)."""

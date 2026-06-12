@@ -317,16 +317,46 @@ def _already_done(phone: str | None, name: str | None) -> bool:
 
 
 async def run_auto(limit: int = 3) -> dict[str, Any]:
-    """AUTO-PILOT (gated SALES_TEAM=1): top hot leads jin pe analysis nahi — deep-dive.
+    """AUTO-PILOT (gated SALES_TEAM=1): top hot leads (score>=70) jin pe analysis nahi -- deep-dive.
     Daily content job se chalta. Drafts banata hai, KUCH send nahi karta."""
     if not _enabled():
         return {"ok": False, "skipped": "SALES_TEAM off"}
     try:
-        from app.platform import lead_scoring
+        leads: list = []
+        try:
+            from app.models.base import get_async_session
+            from app.models.lead import Lead
+            from sqlalchemy import select as _select
 
-        res = await lead_scoring.top_hot_leads(15)
-        leads = res.get("leads") if isinstance(res, dict) else res
-        leads = leads or []
+            async with get_async_session() as session:
+                q = (
+                    _select(Lead)
+                    .where(Lead.lead_score >= 70)
+                    .order_by(Lead.lead_score.desc())
+                    .limit(15)
+                )
+                result = await session.execute(q)
+                rows = result.scalars().all()
+                leads = [
+                    {
+                        "phone": r.phone or "",
+                        "email": r.email or "",
+                        "name": r.company_name or "",
+                        "business_name": r.company_name or "",
+                        "niche": r.industry or "",
+                        "city": r.city or "",
+                        "website": r.website or "",
+                        "lead_score": r.lead_score or 0,
+                        "is_hot_lead": bool(r.is_hot_lead),
+                    }
+                    for r in rows
+                ]
+        except Exception as _db_e:
+            logger.debug(f"[sales-team] DB query fallback: {_db_e}")
+            from app.platform import lead_scoring
+            res = await lead_scoring.top_hot_leads(15)
+            leads = res.get("leads") if isinstance(res, dict) else (res or [])
+
         done = 0
         for lead in leads:
             if done >= max(1, min(limit, 5)):
@@ -337,7 +367,8 @@ async def run_auto(limit: int = 3) -> dict[str, Any]:
             r = await analyze(p)
             if r.get("ok"):
                 done += 1
-        return {"ok": True, "analyzed": done}
+        return {"ok": True, "analyzed": done, "pool_size": len(leads)}
     except Exception as e:
         logger.warning(f"[sales-team] run_auto fail: {e}")
         return {"ok": False, "error": str(e)[:160]}
+
