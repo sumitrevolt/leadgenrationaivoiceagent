@@ -227,14 +227,35 @@ async def _pick_next() -> dict[str, Any]:
         light = [a for a in candidates if not ACTIONS.get(a, (True, ""))[0]]
         candidates = light or ["scrape_leads", "revenue_sweep"]
 
-    # DIVERSITY GUARD (2026-06-12): sales_deepdive ek action 77% runs le raha tha.
-    # Last 3 completed runs dekho — recently used action ko penalise karo.
+    # DIVERSITY GUARD v2 (2026-06-12): sales_deepdive ek action monopoly le raha tha.
+    # 2-tier approach: (1) last 6 runs dedup, (2) 20-min per-action cooldown.
     try:
-        recent_acts = [r.get("action") for r in _read_jsonl(_RUNS)[-3:] if r.get("action")]
+        recent_runs = _read_jsonl(_RUNS)[-6:]
+        recent_acts = [r.get("action") for r in recent_runs if r.get("action")]
         deduped = [a for a in candidates if a not in recent_acts]
         if deduped:
             candidates = deduped
         # agar sab recently used = candidates unchanged (fallback safe)
+    except Exception:
+        pass
+    # Cooldown: agar koi action 20 min pehle chala to deprioritize (hata do, fallback nahi)
+    try:
+        from datetime import datetime, timedelta, timezone as _tz
+        cutoff = datetime.now(_tz.utc) - timedelta(minutes=20)
+        recent_runs_all = _read_jsonl(_RUNS)[-20:]
+        hot = set()
+        for r in recent_runs_all:
+            try:
+                ran_at = datetime.fromisoformat(str(r.get("at", "")))
+                if ran_at.tzinfo is None:
+                    ran_at = ran_at.replace(tzinfo=_tz.utc)
+                if ran_at > cutoff:
+                    hot.add(r.get("action"))
+            except Exception:
+                pass
+        cooled = [a for a in candidates if a not in hot]
+        if cooled:
+            candidates = cooled
     except Exception:
         pass
 
