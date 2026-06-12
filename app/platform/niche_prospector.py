@@ -174,8 +174,10 @@ async def run(
     except Exception as e:
         logger.debug(f"[niche_prospector] auto-rescore skip: {e}")
 
-    logger.info(f"[niche_prospector] scraped niches: {covered}")
-    return {"ok": True, "covered": covered, "targets": len(targets), "result": result}
+    # Cadence auto-enroll — naye scraped leads ko omnichannel sequence me daalo.
+    # Gated CADENCE_ENGINE=1 (cadence.enroll guard karta hai agar off).
+    cadence_enrolled = 0
+    try:
+        import os as _os
 
-
-__all__ = ["build_targets", "run", "_all_niche_keys", "city_rotation"]
+        if

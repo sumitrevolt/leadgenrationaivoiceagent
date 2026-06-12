@@ -276,6 +276,21 @@ async def optimize() -> dict[str, Any]:
 
         ideas = await suggest_new_ways(str(snap.get("best_niche") or "general"))
 
+        # Self-improve queue: top idea → skill_library me lesson record karo taaki
+        # self_improve loop isko utha ke execute kare (study/content/outreach actions).
+        try:
+            if ideas and os.environ.get("SELF_IMPROVE_LOOP", "").strip() in ("1", "true", "yes"):
+                from app.platform import skill_library as _sl
+
+                _sl.record_lesson(
+                    topic=f"growth_optimizer:{weak['stage']}",
+                    lesson=ideas[0],
+                    source="growth_optimizer",
+                    agent="boss",
+                )
+        except Exception:
+            pass
+
         rec = {
             "id": uuid.uuid4().hex[:12],
             "stage": weak["stage"],
@@ -308,22 +323,6 @@ def recent_runs(limit: int = 20) -> list[dict[str, Any]]:
     try:
         if os.path.exists(_RUNS):
             with open(_RUNS, encoding="utf-8") as f:
-                for line in f:
-                    if line.strip():
-                        try:
-                            rows.append(json.loads(line))
-                        except Exception:
-                            pass
-    except Exception:
-        pass
-    return rows[-limit:][::-1]
-
-
-def recent_ideas(limit: int = 30) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    try:
-        if os.path.exists(_IDEAS):
-            with open(_IDEAS, encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         try:

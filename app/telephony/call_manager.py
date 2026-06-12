@@ -514,6 +514,24 @@ class CallManager:
                             )
                         except Exception:
                             pass
+                        # Cadence enroll: qualified voice lead = omnichannel follow-up
+                        # sequence me daalo (email→sms→wa→linkedin). Gated CADENCE_ENGINE=1.
+                        try:
+                            import os as _os2
+
+                            if _os2.environ.get("CADENCE_ENGINE", "").strip() in ("1", "true", "yes"):
+                                from app.marketing import cadence as _cad
+
+                                _cad.enroll({
+                                    "phone": context.phone_number,
+                                    "business_name": getattr(context, "client_name", "") or "",
+                                    "niche": getattr(context, "niche", "") or "",
+                                    "city": getattr(context, "city", "") or "",
+                                    "email": "",
+                                    "source": "AI Voice Call",
+                                })
+                        except Exception:
+                            pass
         except Exception as _qe:
             logger.debug(f"[call_qualifier] auto-qualify skip: {_qe}")
 
@@ -522,21 +540,7 @@ class CallManager:
         # ── outbound webhook: call_completed event ────────────────────────────
         try:
             from app.platform import outbound_webhooks as _ow_cm
-            import asyncio as _aio_cm
-
-            _aio_cm.create_task(
-                _ow_cm.emit(
-                    "call_completed",
-                    {
-                        "call_id": str(call_id),
-                        "phone": context.phone_number,
-                        "outcome": outcome,
-                        "lead_score": result.lead_score or 0,
-                        "duration_seconds": getattr(result, "duration_seconds", 0) or 0,
-                        "client_name": getattr(context, "client_name", "") or "",
-                    },
-                )
-            )
+            import asyncio as _a
         except Exception:
             pass
 
@@ -616,23 +620,3 @@ class CallManager:
         for call in self.completed_calls:
             outcomes[call.outcome] = outcomes.get(call.outcome, 0) + 1
         return outcomes
-
-    async def get_hot_leads(self, min_score: int = 70) -> list[CallResult]:
-        """Get high-scoring leads from completed calls"""
-        return [call for call in self.completed_calls if call.lead_score >= min_score]
-
-    async def get_callbacks(self) -> list[CallResult]:
-        """Get all callback requests"""
-        return [
-            call
-            for call in self.completed_calls
-            if call.outcome == "callback" and call.callback_time
-        ]
-
-    async def get_appointments(self) -> list[CallResult]:
-        """Get all booked appointments"""
-        return [
-            call
-            for call in self.completed_calls
-            if call.outcome == "appointment" and call.appointment_details
-        ]
