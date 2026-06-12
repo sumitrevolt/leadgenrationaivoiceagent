@@ -8,6 +8,13 @@
 - **Hinglish (Roman script) me HI reply karo** — har baar. Concise + direct, kam formatting.
 - Sab **free stack** — koi paid STT/TTS/LLM nahi (user decision). Phone-call paisa khaata hai → tuning FREE web-call pe.
 
+## LOOP COMPLETIONS BATCH ✅ LIVE (2026-06-13, commit e1f7db8) — detail: SESSION_LOG
+- **PlatformOrchestrator dead import REMOVED** from main.py (Cloud Run-era legacy; team_scheduler handles sab). `/health` "orchestrator": "team_scheduler".
+- **process_engine in-process tick**: growth job (15min) me `list_runs()` → RUNNING runs pe `advance()` (max 3/tick, max_steps=3) — processes ab in-process mode me bhi aage badhte hain, sirf Celery pe nahi.
+- **lead_harvester → cadence auto-enroll**: harvest ke baad naye ready leads automatically `cadence.enroll_many()` se sequence me (gated CADENCE_ENGINE=1). Summary me `cadence_enrolled` count ab show hota.
+- **ops.html SSE**: `EventSource('/api/events/stream')` add kiya — agent event aate hi `load()` trigger, fallback `setInterval(60s)` bhi rakha.
+- **automation.html events tab SSE**: `evStartSSE()` + `_evSSE` real-time tab refresh — events tab pe live broadcast, har 60s poll ki jagah.
+
 ## SSE REAL-TIME + LOOP FIXES ✅ LIVE (2026-06-12 PM, commit 40fa546, 486 routes) — detail: SESSION_LOG
 - **`GET /api/events/stream`** (SSE, admin-gated): Redis pub/sub channel `lgai:events` → real-time dashboard feed. Fallback: DB poll 10s agar Redis pub/sub nahi. 20s heartbeat (proxy timeout prevent). `POST /api/events/publish` manual trigger.
 - **`team.log_event` → Redis PUBLISH** (fire-and-forget, fail-open): har agent event ab SSE pe live broadcast hota hai — dashboards ka 60s polling REPLACED.
