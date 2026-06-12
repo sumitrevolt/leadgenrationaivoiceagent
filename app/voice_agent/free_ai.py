@@ -59,10 +59,10 @@ _GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # free, 6000 RPM, 14k RPD
 _GEMINI_LLM_MODEL = "gemini-2.0-flash-lite"  # free, 1500 RPD, 30 RPM — key already set
 _SAMBANOVA_LLM_MODEL = "Meta-Llama-3.3-70B-Instruct"  # free, fast inference chip
 _MISTRAL_LLM_MODEL = "mistral-small-latest"  # free tier (La Plateforme)
-# OpenRouter multiple free models — fallback cascade
-_OPENROUTER_LLM_MODEL = "deepseek/deepseek-chat:free"
-_OPENROUTER_LLM_MODEL2 = "meta-llama/llama-3.1-8b-instruct:free"
-_OPENROUTER_LLM_MODEL3 = "google/gemma-2-9b-it:free"
+# OpenRouter free models — cascade (deepseek/deepseek-chat:free deprecated 2026-06 → 404)
+_OPENROUTER_LLM_MODEL = "meta-llama/llama-3.1-8b-instruct:free"   # primary (llama 8B free)
+_OPENROUTER_LLM_MODEL2 = "deepseek/deepseek-r1:free"              # deepseek R1 free
+_OPENROUTER_LLM_MODEL3 = "google/gemma-2-9b-it:free"              # gemma fallback
 _XAI_LLM_MODEL = "grok-3-mini"  # credits-based — NOT in chain, kept for key compat
 
 # Hard per-call latency cap. 8s: Cerebras normally 4-5s; 6s ne use beech me
