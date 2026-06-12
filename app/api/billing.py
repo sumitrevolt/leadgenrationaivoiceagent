@@ -1355,6 +1355,27 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_asyn
                 rzp_sub_id,
                 reset=True,
             )
+            # Sales pipeline: paid subscription = deal "won". Best-effort.
+            try:
+                from app.marketing import sales_pipeline as _sp
+                from app.marketing.clients_store import get_client
+
+                _cid_here = client_id or (sub.client_id if sub else None) or ""
+                _client_rec = get_client(_cid_here) if _cid_here else {}
+                if _client_rec:
+                    _sp.upsert_deal(
+                        {
+                            "phone": _client_rec.get("phone") or "",
+                            "email": _client_rec.get("email") or "",
+                            "business_name": _client_rec.get("business_name") or _cid_here,
+                            "niche": _client_rec.get("niche") or "",
+                            "source": "subscription",
+                            "plan": plan_id or "",
+                        },
+                        stage="won",
+                    )
+            except Exception as _spe:
+                logger.debug(f"[billing] sales_pipeline won skip: {_spe}")
 
         elif event_type == "payment.captured":
             # Phone push: paisa aaya (self-hosted ntfy, gated — best-effort, kabhi block nahi).
@@ -1433,6 +1454,32 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_asyn
                 _provision_usage(
                     client_id, plan_id or (sub.plan_id if sub else None), period_end, rzp_sub_id
                 )
+                # Lifecycle nurture: trial/free → paid conversion signal.
+                # run_due() already does paid-check internally — yahan enroll se converted hoga.
+                try:
+                    from app.marketing import lifecycle_nurture as _ln
+
+                    _ln.enroll(client_id)  # idempotent — already enrolled = no-op
+                except Exception as _lne:
+                    logger.debug(f"[billing] lifecycle enroll skip: {_lne}")
+                # Affiliate: referral code se aaya tha to commission mark karo.
+                try:
+                    from app.marketing.affiliate import record_referral
+                    from app.marketing.clients_store import get_client
+
+                    _crec = get_client(client_id) or {}
+                    _rcode = (_crec.get("ref_code") or "").strip()
+                    if _rcode:
+                        record_referral(
+                            _rcode,
+                            {
+                                "client_id": client_id,
+                                "plan": plan_id or "",
+                                "status": "paid",
+                            },
+                        )
+                except Exception as _afe:
+                    logger.debug(f"[billing] affiliate paid record skip: {_afe}")
 
         elif event_type in ("subscription.halted", "subscription.cancelled"):
             sub = await _find_subscription_by_gateway_id(db, razorpay_id=rzp_sub_id)

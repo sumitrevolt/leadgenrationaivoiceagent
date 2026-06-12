@@ -538,6 +538,60 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     except Exception as e:
         logger.debug(f"[public] journey emit spawn failed: {e}")
 
+    # ── ntfy instant phone ping ───────────────────────────────────────────────
+    # Har naya inquiry pe phone pe push notification (ntfy already ON in .env).
+    try:
+        from app.integrations import ntfy as _ntfy
+
+        _ntfy.push_bg(
+            "Naya inquiry aaya 🔔",
+            f"{rec.get('business_name') or rec.get('name') or 'Unknown'} — "
+            f"{rec.get('phone') or rec.get('email') or ''} ({rec.get('niche') or ''}/{rec.get('city') or ''})",
+            priority="default",
+            tags=["bell"],
+        )
+    except Exception as e:
+        logger.debug(f"[public] ntfy push skip: {e}")
+
+    # ── sales pipeline: inquiry = new deal ───────────────────────────────────
+    # CRM-style deal tracking: inquiry aate hi "new" stage me deal ban jata.
+    # GATED: SALES_ENGINE=1 ke bina dormant (sales_pipeline guard karta hai internally).
+    try:
+        from app.marketing import sales_pipeline as _sp
+
+        _sp.upsert_deal(
+            {
+                "phone": rec.get("phone") or "",
+                "email": rec.get("email") or "",
+                "business_name": rec.get("business_name") or rec.get("name") or "",
+                "niche": rec.get("niche") or "",
+                "city": rec.get("city") or "",
+                "source": "inquiry",
+            },
+            stage="new",
+        )
+    except Exception as e:
+        logger.debug(f"[public] sales_pipeline deal skip: {e}")
+
+    # ── cadence enroll: inquiry → nurture sequence ────────────────────────────
+    # Naya inquiry lead ko multi-channel cadence me enroll karo (email→sms→wa→voice).
+    # GATED: CADENCE_ENGINE=1 bina dormant.
+    try:
+        from app.marketing import cadence as _cadence
+
+        _cadence.enroll(
+            lead={
+                "phone": rec.get("phone") or "",
+                "email": rec.get("email") or "",
+                "name": rec.get("business_name") or rec.get("name") or "",
+                "niche": rec.get("niche") or "",
+                "city": rec.get("city") or "",
+            },
+            source="inquiry",
+        )
+    except Exception as e:
+        logger.debug(f"[public] cadence enroll skip: {e}")
+
     return {"ok": True, "message": _OK_MESSAGE}
 
 

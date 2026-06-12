@@ -497,6 +497,23 @@ class CallManager:
                                 )
                         except Exception:
                             pass
+                        # Sales pipeline: qualified voice call = "interested" deal stage.
+                        # Prospect ek baar call me qualified hua = warm deal. Best-effort.
+                        try:
+                            from app.marketing import sales_pipeline as _sp
+
+                            _sp.upsert_deal(
+                                {
+                                    "phone": context.phone_number,
+                                    "business_name": getattr(context, "client_name", "") or "",
+                                    "source": "AI Voice Call",
+                                    "score": _q.get("interest_score") or 0,
+                                    "summary": _q.get("summary") or "",
+                                },
+                                stage="interested",
+                            )
+                        except Exception:
+                            pass
         except Exception as _qe:
             logger.debug(f"[call_qualifier] auto-qualify skip: {_qe}")
 
