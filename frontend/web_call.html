@@ -49,6 +49,12 @@
     background-repeat:no-repeat;background-position:right 8px center;max-width:46vw;
   }
   select:disabled{opacity:.55;cursor:not-allowed}
+  .biz{
+    border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 10px;
+    font-size:12.5px;font-weight:600;color:var(--ink);font-family:inherit;width:128px;max-width:34vw;
+  }
+  .biz:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .biz:disabled{opacity:.55;cursor:not-allowed}
   .kbd{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;
     display:grid;place-items:center;font-size:15px;cursor:pointer;color:var(--muted)}
   .kbd.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
@@ -141,6 +147,8 @@
   <div class="topbar">
     <div class="brand"><span class="logo">📞</span><span>LeadGen AI</span></div>
     <div class="spacer"></div>
+    <input id="bizName" class="biz" placeholder="Business naam"
+      title="Aapke business ka naam — agent isi naam se baat karega (khali = Demo Co)" />
     <select id="niche" title="Niche">
       <!-- Populated from /api/data/niches; static fallback below -->
       <option value="ai_marketing" selected>AI Marketing</option>
@@ -215,6 +223,7 @@
   var callCap   = document.getElementById("callCap");
   var nicheSel  = document.getElementById("niche");
   var flowSel   = document.getElementById("flow");
+  var bizName   = document.getElementById("bizName");
   var kbdToggle = document.getElementById("kbdToggle");
   var typedRow  = document.getElementById("typedRow");
   var input     = document.getElementById("input");
@@ -279,6 +288,7 @@
   function setControls(active){
     nicheSel.disabled = active;
     flowSel.disabled  = active;
+    bizName.disabled  = active;
     startBtn.classList.toggle("hidden", active);
     endBtn.classList.toggle("hidden", !active);
     callCap.textContent = active ? "End Call" : "Call Start";
@@ -306,6 +316,13 @@
     if(ws && ws.readyState === WebSocket.OPEN){ ws.send(JSON.stringify(obj)); return true; }
     return false;
   }
+  function withBiz(p){
+    // Business naam session me bhejo — agent "Demo Co" ki jagah isi naam se
+    // baat karta hai (backend client_name handle karta hai).
+    var n = (bizName && bizName.value || "").trim();
+    if(n){ p.client_name = n; }
+    return p;
+  }
 
   function connectWS(){
     try{ ws = new WebSocket(WS_URL); }
@@ -313,7 +330,7 @@
 
     ws.onopen = function(){
       // Backend replies with {type:"ready"} then a spoken greeting on 'start'.
-      sendJSON({type:"start", niche:nicheSel.value, flow:flowSel.value});
+      sendJSON(withBiz({type:"start", niche:nicheSel.value, flow:flowSel.value}));
     };
     ws.onmessage = function(ev){
       var data; try{ data = JSON.parse(ev.data); }catch(e){ return; }
@@ -339,6 +356,8 @@
         awaitingGreeting = false; clearTimeout(kickTimer);
         pendingBot = false; clearTimeout(safetyTimer);
         endAfterSpeak = !!data.should_end;
+        // Server-STT ne jo suna woh caption me dikhao (browser-SR text replace).
+        if(data.heard){ showUserCaption(data.heard, false); }
         playBotTurn(data.text || "(no response)", data.audio_b64);
 
       } else if(data.type === "info"){
@@ -393,6 +412,7 @@
 
   function playBotTurn(text, b64){
     stopListening();              // ECHO GUARD: mic OFF before the bot speaks
+    discardRecorder();            // bot ki awaaz record nahi karni
     // DOUBLE-VOICE GUARD: naya turn shuru hone se pehle purana audio/TTS
     // poora band karo — warna do awaazein overlap ho jaati hain.
     if(currentAudio){
@@ -427,6 +447,60 @@
     }
   }
 
+  // ---- Mic recorder: utterance audio -> server Groq STT ----------------
+  // Web Speech API endpointing accha hai par Hinglish GALAT sunta hai; isliye
+  // saath-saath MediaRecorder se raw audio bhi pakdo aur final turn ke saath
+  // audio_b64 bhejo — server Groq whisper-large-v3 se sunta hai (phone-parity).
+  // Recorder fail/unsupported = aaj jaisa text-only (zero regression).
+  var micStream = null, recorder = null, recChunks = [];
+  function initMic(){
+    if(micStream || !navigator.mediaDevices || !window.MediaRecorder) return;
+    try{
+      navigator.mediaDevices.getUserMedia({audio:true})
+        .then(function(s){ micStream = s; if(callActive && recognizing) startRecorder(); })
+        .catch(function(){ micStream = null; });
+    }catch(e){ micStream = null; }
+  }
+  function startRecorder(){
+    if(!micStream || !window.MediaRecorder || recorder) return;
+    try{
+      recChunks = [];
+      recorder = new MediaRecorder(micStream);
+      recorder.ondataavailable = function(e){ if(e.data && e.data.size) recChunks.push(e.data); };
+      recorder.start();
+    }catch(e){ recorder = null; }
+  }
+  function stopRecorder(cb){
+    // cb(base64|null) — HAMESHA exactly ek baar (timeout-safe, kabhi hang nahi).
+    if(!recorder){ cb(null); return; }
+    var r = recorder; recorder = null;
+    var called = false;
+    function finish(){
+      if(called) return; called = true;
+      var chunks = recChunks; recChunks = [];
+      var blob = null;
+      try{ if(chunks.length) blob = new Blob(chunks, {type: r.mimeType || "audio/webm"}); }catch(e){}
+      if(!blob || blob.size < 1200 || blob.size > 1500000){ cb(null); return; }
+      try{
+        var fr = new FileReader();
+        fr.onload = function(){
+          var s = String(fr.result || ""); var i = s.indexOf(",");
+          cb(i >= 0 ? s.slice(i+1) : null);
+        };
+        fr.onerror = function(){ cb(null); };
+        fr.readAsDataURL(blob);
+      }catch(e){ cb(null); }
+    }
+    r.onstop = finish;
+    try{ r.stop(); }catch(e){ finish(); }
+    setTimeout(finish, 700);
+  }
+  function discardRecorder(){
+    if(!recorder) return;
+    var r = recorder; recorder = null; recChunks = [];
+    try{ r.onstop = null; r.ondataavailable = null; r.stop(); }catch(e){}
+  }
+
   // ---- Continuous, hands-free speech recognition -----------------------
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var recog = null;
@@ -439,6 +513,7 @@
 
     recog.onstart = function(){
       recognizing = true;
+      startRecorder();   // SR ke saath raw-audio capture (server Groq STT)
       if(callActive && !botSpeaking && !pendingBot) setState("listening");
     };
     recog.onresult = function(ev){
@@ -492,17 +567,24 @@
     // dusra user-turn mat bhejo (SR ke double-final se double replies aati thin).
     if(pendingBot || botSpeaking) return;
     showUserCaption(text, false);
-    if(sendJSON({type:"user", text:text, niche:nicheSel.value, flow:flowSel.value})){
-      stopListening();            // turn-based: mic OFF until the bot replies
-      pendingBot = true;
-      setState("thinking");
-      clearTimeout(safetyTimer);
-      safetyTimer = setTimeout(function(){   // safety: never get stuck waiting
-        if(callActive && pendingBot && !botSpeaking){
-          pendingBot = false; setState("listening"); startListening();
-        }
-      }, 13000);
-    }
+    pendingBot = true;            // dup-guard ON pehle hi (audio read async hai)
+    setState("thinking");
+    stopListening();              // turn-based: mic OFF until the bot replies
+    stopRecorder(function(b64){   // recorded utterance -> server Groq STT
+      if(!callActive){ pendingBot = false; return; }
+      var p = withBiz({type:"user", text:text, niche:nicheSel.value, flow:flowSel.value});
+      if(b64){ p.audio_b64 = b64; }
+      if(sendJSON(p)){
+        clearTimeout(safetyTimer);
+        safetyTimer = setTimeout(function(){   // safety: never get stuck waiting
+          if(callActive && pendingBot && !botSpeaking){
+            pendingBot = false; setState("listening"); startListening();
+          }
+        }, 13000);
+      } else {
+        pendingBot = false;
+      }
+    });
   }
 
   // ---- Call lifecycle --------------------------------------------------
@@ -513,6 +595,7 @@
     clearCaptions();
     setControls(true);
     setState("calling");
+    initMic();                    // raw-audio capture (server Groq STT) ke liye
     connectWS();
   }
   function endCall(){
@@ -520,6 +603,8 @@
     awaitingGreeting = false; pendingBot = false; botSpeaking = false; endAfterSpeak = false;
     clearTimeout(kickTimer); clearTimeout(safetyTimer);
     stopListening();
+    discardRecorder();
+    if(micStream){ try{ micStream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} micStream = null; }
     try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
     if(currentAudio){ try{ currentAudio.pause(); }catch(e){} currentAudio = null; }
     if(ws){ try{ ws.close(); }catch(e){} ws = null; }
@@ -558,6 +643,12 @@
 
   // Keepalive
   setInterval(function(){ sendJSON({type:"ping"}); }, 25000);
+
+  // Business naam yaad rakho (per-browser).
+  try{ bizName.value = localStorage.getItem("lg_bizname") || ""; }catch(e){}
+  bizName.addEventListener("change", function(){
+    try{ localStorage.setItem("lg_bizname", (bizName.value || "").trim()); }catch(e){}
+  });
 
   // ---- Boot ------------------------------------------------------------
   setControls(false);

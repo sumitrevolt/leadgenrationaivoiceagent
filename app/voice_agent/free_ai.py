@@ -158,9 +158,16 @@ def _client(provider: str) -> Any | None:
 # --------------------------------------------------------------------------- #
 # STT — Groq whisper-large-v3 (free, OpenAI-compatible audio.transcriptions)
 # --------------------------------------------------------------------------- #
-async def transcribe_audio(wav_bytes: bytes, language: str = "hi") -> tuple[str, str]:
-    """Groq whisper-large-v3 se WAV bytes transcribe karo.
+async def transcribe_audio(
+    wav_bytes: bytes,
+    language: str = "hi",
+    filename: str = "audio.wav",
+    mime: str = "audio/wav",
+) -> tuple[str, str]:
+    """Groq whisper-large-v3 se audio bytes transcribe karo.
 
+    Default WAV (phone paths unchanged); web-call webm/ogg bhi bhej sakta hai
+    (`filename`/`mime` se format batao — Groq extension se pehchanta hai).
     Returns (text, "groq") on success, ya ("","") on any failure/absence.
     (Gemini audio-in + local faster-whisper caller ke agle links hain.)
     """
@@ -173,7 +180,7 @@ async def transcribe_audio(wav_bytes: bytes, language: str = "hi") -> tuple[str,
         resp = await asyncio.wait_for(
             client.audio.transcriptions.create(
                 model=_GROQ_STT_MODEL,
-                file=("audio.wav", wav_bytes, "audio/wav"),
+                file=(filename or "audio.wav", wav_bytes, mime or "audio/wav"),
                 language=language or "hi",
             ),
             timeout=_CALL_TIMEOUT_S,

@@ -411,6 +411,17 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 session["niche"] = str(data["niche"])
             if data.get("flow"):
                 session["flow"] = str(data["flow"])
+            # Business identity — agent ISI naam se baat karta hai (default
+            # "Demo Co" tha jo demo-jaisa lagta tha). Change par cached brains
+            # invalid: fresh build naye client_name ke saath hota hai.
+            if data.get("client_name") and str(data["client_name"]).strip():
+                _new_name = str(data["client_name"]).strip()[:80]
+                if _new_name != session.get("client_name"):
+                    session["client_name"] = _new_name
+                    session["tcbrains"] = {}
+                    dialog = None
+            if data.get("client_service") and str(data["client_service"]).strip():
+                session["client_service"] = str(data["client_service"]).strip()[:120]
 
             if mtype == "ping":
                 await websocket.send_json({"type": "pong"})
@@ -480,10 +491,16 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 )
                 continue
 
-            # Extract user text (direct text, or transcribe audio if supported).
-            user_text = (data.get("text") or "").strip()
-            if not user_text and data.get("audio_b64"):
+            # Extract user text. Audio (jab client ne bheja ho) PEHLE server
+            # STT se transcribe hota hai — Groq whisper-large-v3 Hinglish me
+            # browser Web Speech API se kahin behtar sunta hai (phone-parity).
+            # STT fail/empty par browser ka text fallback hai (zero regression).
+            browser_text = (data.get("text") or "").strip()
+            user_text = ""
+            if data.get("audio_b64"):
                 user_text = await _transcribe_audio(pipeline, brain, data.get("audio_b64"))
+            if not user_text:
+                user_text = browser_text
 
             if not user_text:
                 await websocket.send_json(
@@ -511,6 +528,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                             "type": "bot",
                             "text": tc_reply,
                             "audio_b64": audio_b64,  # mp3 (Swara) or None -> browser TTS
+                            "heard": user_text,  # server-STT transcript (caption sync)
                             "test_mode": True,
                         }
                     )
@@ -526,6 +544,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                             "type": "bot",
                             "text": reply.text,
                             "audio_b64": None,  # browser TTS speaks it
+                            "heard": user_text,
                             "test_mode": True,
                             "should_end": bool(getattr(reply, "should_end", False)),
                         }
@@ -543,6 +562,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     "type": "bot",
                     "text": bot_text,
                     "audio_b64": audio_b64,  # may be None — browser will use its own TTS/none
+                    "heard": user_text,
                     "test_mode": True,
                 }
             )
@@ -557,16 +577,51 @@ async def web_call_ws(websocket: WebSocket) -> None:
 # ---------------------------------------------------------------------------- #
 # Responder helpers
 # ---------------------------------------------------------------------------- #
+def _sniff_audio_format(audio: bytes) -> tuple[str, str]:
+    """Magic-bytes se (filename, mime) — MediaRecorder webm/opus default hai;
+    Groq whisper extension/mime se format pehchanta hai."""
+    if audio[:4] == b"\x1aE\xdf\xa3":
+        return "audio.webm", "audio/webm"
+    if audio[:4] == b"OggS":
+        return "audio.ogg", "audio/ogg"
+    if audio[:4] == b"RIFF":
+        return "audio.wav", "audio/wav"
+    if audio[:3] == b"ID3" or audio[:2] in (b"\xff\xfb", b"\xff\xf3"):
+        return "audio.mp3", "audio/mpeg"
+    if len(audio) > 8 and audio[4:8] == b"ftyp":
+        return "audio.mp4", "audio/mp4"
+    return "audio.webm", "audio/webm"
+
+
 async def _transcribe_audio(pipeline: Any, brain: Any, audio_b64: str) -> str:
-    """Best-effort STT for audio chunks. Returns '' if not supported."""
+    """
+    Server-side STT. PRIMARY: free_ai Groq whisper-large-v3 (wahi chain jo
+    phone agent use karta hai — Hinglish-strong). Fallback: pipeline transcribe
+    method. '' return = caller browser-provided text use karega. Never raises.
+    """
     import base64
 
     try:
         audio = base64.b64decode(audio_b64)
     except Exception:
         return ""
+    if not audio or len(audio) > 4_000_000:  # >4MB = kuch galat hai, skip
+        return ""
 
-    # Try a pipeline transcribe method.
+    # 1) Groq whisper-large-v3 via free_ai (phone-parity, GROQ_API_KEY needed).
+    try:
+        from app.voice_agent import free_ai  # type: ignore
+
+        filename, mime = _sniff_audio_format(audio)
+        text, _provider = await free_ai.transcribe_audio(
+            audio, language="hi", filename=filename, mime=mime
+        )
+        if (text or "").strip():
+            return text.strip()
+    except Exception as e:
+        logger.debug(f"web-call: free_ai STT failed ({e}).")
+
+    # 2) Pipeline transcribe method (rarely present).
     for obj in (pipeline,):
         for name in ("transcribe", "stt", "speech_to_text"):
             fn = getattr(obj, name, None) if obj else None
@@ -575,8 +630,7 @@ async def _transcribe_audio(pipeline: Any, brain: Any, audio_b64: str) -> str:
                     return (await _maybe_await(fn(audio))) or ""
                 except Exception:
                     pass
-    # No server-side STT available — the browser's Web Speech API is the
-    # intended path, so just return empty and let the client handle it.
+    # No server-side STT available — caller falls back to the browser text.
     return ""
 
 
