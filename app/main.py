@@ -679,6 +679,12 @@ async def growth_tools_page():
     return FileResponse(str(FRONTEND_DIR / "growth_tools.html"))
 
 
+@app.get("/app/command-center", tags=["Frontend"])
+async def command_center_page():
+    """Command Center — real-time KPIs, funnel, LLM health, staff roster, automation flags."""
+    return FileResponse(str(FRONTEND_DIR / "command_center.html"))
+
+
 @app.get("/app/automation", tags=["Frontend"])
 async def automation_page():
     """Automation Mission Control — API-only features ka UI: harvester, prospects,
