@@ -354,15 +354,42 @@ async def run_harvest(
         except Exception:
             pass
 
+        # Cadence auto-enroll — naye harvested leads ko omnichannel sequence me daalo.
+        # Gated CADENCE_ENGINE=1 (inert agar off — cadence khud guard karta hai).
+        cadence_enrolled = 0
+        try:
+            import os as _os
+
+            if _os.environ.get("CADENCE_ENGINE", "").strip() in ("1", "true", "yes") and new > 0:
+                from app.marketing import cadence
+                from app.platform import prospector as _p
+
+                # prospects.jsonl se last N+10 rows padho, naye niche/city/ready wale chuno
+                _all = _p._read_all()  # full jsonl, sorted by insertion
+                _recent = [
+                    r for r in _all[-(new + 20):]
+                    if r.get("niche") == niche and r.get("city") == city
+                    and r.get("status") == "ready"
+                ][:new]
+                if _recent:
+                    cadence_enrolled = cadence.enroll_many(_recent)  # returns int
+                    logger.debug(f"[harvester] cadence auto-enrolled {cadence_enrolled} leads")
+        except Exception as _cad_e:
+            logger.debug(f"[harvester] cadence enroll skip: {_cad_e}")
+
         summary = {
             "ok": True, "niche": niche, "city": city, "sources": per_source,
-            "new_leads": new, "deduped": skipped, "enrich": enr, "at": _now(),
+            "new_leads": new, "deduped": skipped, "enrich": enr,
+            "cadence_enrolled": cadence_enrolled, "at": _now(),
         }
         _append_run(summary)
         try:
             from app.platform import team
 
-            team.log_event("dev", "lead_harvest", f"{niche}/{city}: +{new} naye leads (dedup {skipped}, enrich {enr.get('found', 0)})")
+            team.log_event(
+                "dev", "lead_harvest",
+                f"{niche}/{city}: +{new} naye leads (dedup {skipped}, enrich {enr.get('found', 0)}, cadence {cadence_enrolled})"
+            )
         except Exception:
             pass
         return summary
@@ -374,37 +401,4 @@ async def run_harvest(
 async def run_loop_sweep() -> dict[str, Any]:
     """Loop hook (gated LEAD_HARVESTER) — daily prospect job / self_improve se."""
     if not enabled():
-        return {"enabled": False}
-    return await run_harvest()
-
-
-def recent_runs(limit: int = 15) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    try:
-        if os.path.exists(_RUNS):
-            with open(_RUNS, encoding="utf-8") as f:
-                for line in f:
-                    if line.strip():
-                        try:
-                            rows.append(json.loads(line))
-                        except Exception:
-                            pass
-    except Exception:
-        pass
-    return rows[-limit:][::-1]
-
-
-def source_status() -> dict[str, Any]:
-    """Kaunse sources armed hain (keys present) — ops visibility."""
-    return {
-        "enabled_loop": enabled(),
-        "prospector": bool(os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()) or "osm-fallback",
-        "websearch": bool(
-            os.environ.get("SEARXNG_URL", "").strip() or os.environ.get("BRAVE_API_KEY", "").strip()
-        ),
-        "opendata": bool(os.environ.get("DATA_GOV_IN_API_KEY", "").strip()) and bool(os.environ.get("DATA_GOV_RESOURCE_ID", "").strip()),
-        "blocked_domains_policy": list(_BLOCKED_DOMAINS[:6]) + ["..."],
-    }
-
-
-__all__ = ["run_harvest", "run_loop_sweep", "enrich_missing_emails", "recent_runs", "source_status", "enabled", "SOURCES"]
+        

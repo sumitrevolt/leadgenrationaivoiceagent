@@ -91,7 +91,7 @@ const CHANNELS=['seo_page','quora','reddit','whatsapp_group','telegram','linkedi
 $('outbtns').innerHTML=CHANNELS.map(c=>`<button style="margin:2px;padding:4px 10px;font-size:.75rem" onclick="rec('${c}')">${c}</button>`).join('');
 async function rec(ch){try{const r=await fetch('/api/growth/experiments/outcome',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok()},body:JSON.stringify({channel:ch,kind:'inquiry'})});const d=await r.json();$('outmsg').textContent=d.ok?`✅ ${ch} +1 (score ${d.stats.score})`:(d.error||'fail')}catch(e){$('outmsg').textContent='token?'}}
 $('tok').value=tok();load();setInterval(load,60000);
-</script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
-</body>
-</html>
+
+// SSE real-time feed — agent events pe live reload trigger karta hai
+(function startSSE(){
+  if(!tok())return; // token nahi hai 

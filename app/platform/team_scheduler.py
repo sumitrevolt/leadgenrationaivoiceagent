@@ -163,6 +163,24 @@ async def _run_job_inner(job: str) -> None:
                     logger.debug(f"[scheduler] self_improve in-process: {result.get('action','?')} ok={result.get('ok')}")
             except Exception as _si_e:
                 logger.debug(f"[scheduler] self_improve in-process skip: {_si_e}")
+            # Process engine in-process tick —
+            # Celery pe `process_tick` Celery task handle karta hai.
+            # In-process mode me RUNNING processes (non-breakpoint steps) yahan advance hote hain.
+            try:
+                import os
+
+                _celery_off2 = os.environ.get("RUN_IN_PROCESS_SCHEDULER", "1").strip() in ("1", "true", "yes")
+                if _celery_off2:
+                    from app.agents.process_engine import list_runs, advance
+
+                    _running = [r for r in list_runs() if r.get("status") == "running"]
+                    for _pr in _running[:3]:  # max 3 per tick — no runaway
+                        try:
+                            await advance(_pr["run_id"], max_steps=3)
+                        except Exception:
+                            pass
+            except Exception as _pe_e:
+                logger.debug(f"[scheduler] process_engine tick skip: {_pe_e}")
         elif job == "ops":
             await staff.run_ops()
         elif job == "qa":
@@ -485,48 +503,4 @@ async def scheduler_loop() -> None:
                 await _run_job("watchdog")
             # Auto client onboarding — hourly sweep (un-setup active clients). Gated AUTO_ONBOARD.
             if now.minute >= 50 and _last_ran["onboard"] != hour_key:
-                _last_ran["onboard"] = hour_key
-                await _run_job("onboard")
-            # Boss daily standup — morning hierarchical coordination (gated AGENT_STANDUP).
-            if (8, 0) <= hm < (9, 30) and _last_ran["standup"] != day_key:
-                _last_ran["standup"] = day_key
-                await _run_job("standup")
-        except asyncio.CancelledError:
-            logger.info("[team-scheduler] loop cancelled")
-            raise
-        except Exception as e:
-            logger.warning(f"[team-scheduler] tick failed: {e}")
-        await asyncio.sleep(_TICK_S)
-
-
-def start_scheduler() -> asyncio.Task[Any] | None:
-    try:
-        flag = "1"
-        try:
-            from app.config import settings
-
-            flag = str(getattr(settings, "team_automation", None) or os.environ.get("TEAM_AUTOMATION", "1"))
-        except Exception:
-            flag = os.environ.get("TEAM_AUTOMATION", "1")
-        if flag.strip() == "0":
-            logger.info("[team-scheduler] TEAM_AUTOMATION=0 — scheduler OFF")
-            return None
-        # Single-instance: sirf EK worker scheduler chalaye (warna double jobs).
-        if not _acquire_lock():
-            logger.info("[team-scheduler] another worker owns the scheduler — skip (single-instance)")
-            return None
-        task = asyncio.create_task(scheduler_loop(), name="team-scheduler")
-        try:
-            from app.platform import team
-
-            team.log_event("manager", "automation_started", "Team scheduler on (growth 15min + dailies)")
-        except Exception:
-            pass
-        logger.info("[team-scheduler] started")
-        return task
-    except Exception as e:
-        logger.warning(f"[team-scheduler] start failed: {e}")
-        return None
-
-
-__all__ = ["scheduler_loop", "start_scheduler"]
+                _last

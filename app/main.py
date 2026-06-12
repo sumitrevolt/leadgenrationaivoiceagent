@@ -40,7 +40,6 @@ from app.exceptions import setup_exception_handlers
 from app.middleware import setup_middleware
 from app.ml import stop_training_scheduler
 from app.models.base import close_async_db, init_async_db
-from app.platform.orchestrator import PlatformOrchestrator
 from app.utils.logger import setup_logger
 
 # Setup logging
@@ -84,8 +83,7 @@ if settings.sentry_dsn and settings.app_env == "production":
     except Exception as e:
         logger.warning(f"Sentry initialization failed: {e}")
 
-# Platform orchestrator instance
-platform_orchestrator: PlatformOrchestrator = None
+# ML scheduler instance (opt-in heavy; PlatformOrchestrator removed — team_scheduler handles all jobs)
 ml_scheduler = None
 
 
@@ -114,7 +112,7 @@ def _log_startup_banner():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
-    global platform_orchestrator, ml_scheduler
+    global ml_scheduler
 
     # Startup
     logger.info(f"🚀 Starting {settings.app_name}...")
@@ -152,8 +150,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Redis unavailable (in-memory fallback active): {e}")
 
-    # Platform orchestrator + ML scheduler remain opt-in (heavy) for now.
-    logger.info("⏭️ Platform orchestrator / ML scheduler disabled (opt-in)")
+    # ML scheduler remains opt-in (heavy). All automation handled by team_scheduler.
+    logger.info("⏭️ ML scheduler disabled (opt-in)")
 
     # AI Staff Team automation (Arjun QA 02:30, Meera trainer 03:00, Kavya ops hourly).
     # Gated by RUN_IN_PROCESS_SCHEDULER (default ON = today's single-process behaviour).
@@ -176,8 +174,6 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Shutting down application...")
-    if platform_orchestrator:
-        await platform_orchestrator.stop()
     if ml_scheduler:
         await stop_training_scheduler()
     await close_async_db()
@@ -1224,16 +1220,12 @@ async def api_status():
 @app.get("/health")
 async def health_check():
     """Detailed health check"""
-    global platform_orchestrator, ml_scheduler
+    global ml_scheduler
 
     return {
         "status": "healthy",
         "platform": {
-            "orchestrator": (
-                "running"
-                if (platform_orchestrator and platform_orchestrator.is_running)
-                else "stopped"
-            ),
+            "orchestrator": "team_scheduler",
             "auto_mode": settings.auto_start_platform,
         },
         "ml": {
@@ -1251,14 +1243,4 @@ async def health_check():
 
 # ---------------------------------------------------------------------------
 # Root website mount — LAST so all API/app routes match first; everything
-# else (/, /styles.css, /images/...) serves the marketing site (html=True
-# makes "/" return index.html). /site mount upar bhi rehta hai (old links).
-# ---------------------------------------------------------------------------
-if _website_dir.is_dir():
-    app.mount("/", StaticFiles(directory=str(_website_dir), html=True), name="root_website")
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+# else (/, /styles.css, /images/...) serve
