@@ -1059,6 +1059,20 @@ async def whatsapp_webhook_inbound(request: Request):
                             pass
                         res["suppressed"] += 1
                         continue
+                    # WhatsApp Flow response (nfm_reply type) -> lead capture
+                    if msg.get("type") == "interactive":
+                        interactive = msg.get("interactive") or {}
+                        if interactive.get("type") == "nfm_reply":
+                            try:
+                                from app.marketing.whatsapp_flows import handle_flow_response
+                                import json as _json
+                                nfm = interactive.get("nfm_reply") or {}
+                                resp_json = nfm.get("response_json") or "{}"
+                                flow_data = _json.loads(resp_json) if isinstance(resp_json, str) else resp_json
+                                await handle_flow_response(flow_data, from_number=frm)
+                            except Exception as e:
+                                logger.info("wa flow response err: %s", e)
+
                     if text:
                         try:
                             rec = await reply_agent.whatsapp_reply(frm, text, msg.get("id", ""))

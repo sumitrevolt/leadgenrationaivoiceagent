@@ -416,6 +416,20 @@ async def generate_post(
 
     if not caption.strip() and free_ai is not None:
         try:
+            # Inject content_feedback best_themes — learn from past performance
+            _theme_hint = ""
+            try:
+                from app.marketing.content_feedback import best_themes as _best_themes
+                _top = _best_themes(niche=niche, limit=3)
+                if _top:
+                    _theme_hint = (
+                        "\nTop-performing themes for this niche (past feedback): "
+                        + ", ".join(f"{t['theme']}({t['format']})" for t in _top)
+                        + " — prefer these angles."
+                    )
+            except Exception:
+                pass
+
             system = (
                 "Tu ek expert Indian social-media marketer hai jo chhote local "
                 f"businesses ke liye catchy {language} posts likhta hai. "
@@ -423,6 +437,7 @@ async def generate_post(
                 "CAPTION: <2-3 chhoti lines, emojis ke saath>\n"
                 "HASHTAGS: <8-12 relevant hashtags, space-separated, # ke saath>\n"
                 "IMAGE: <1-line photo/creative idea>"
+                + _theme_hint
             )
             user = (
                 f"Business: {business_name}\n"

@@ -22,12 +22,24 @@ logger = setup_logger(__name__)
 # Included calling minutes per marketing plan (matches packages.py: Advanced = 500/mo).
 PLAN_MINUTES: dict[str, int] = {"starter": 0, "growth": 0, "advanced": 500}
 
+# Combo plans (Product 3) — marketing+voice bundle; voice minutes same as advanced tier
+_COMBO_PLAN_MINUTES: dict[str, int] = {
+    "combo_starter_monthly": 500, "combo_starter_annual": 500,
+    "combo_growth_monthly": 1000, "combo_growth_annual": 1000,
+    "combo_pro_monthly": 2000, "combo_pro_annual": 2000,
+    "combo_pilot": 0,  # pilot = 50 calls cap, not minute-metered
+}
+
 # Telephony cost estimate (paise/min) for the ledger `cost` column (informational).
 _COST_PAISE_PER_MIN = 65  # ~₹0.65/min streaming (CLAUDE.md cost ladder)
 
 
 def plan_minutes(plan: str | None) -> int:
-    return PLAN_MINUTES.get((plan or "").strip().lower(), 0)
+    key = (plan or "").strip().lower()
+    # Check combo plans first (Product 3 bundles)
+    if key in _COMBO_PLAN_MINUTES:
+        return _COMBO_PLAN_MINUTES[key]
+    return PLAN_MINUTES.get(key, 0)
 
 
 def _client_plan(client_id: str) -> str:

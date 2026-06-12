@@ -551,6 +551,7 @@ class SignupIn(BaseModel):
     niche: str | None = "general"
     city: str | None = ""
     plan: str | None = "starter"
+    ref_code: str | None = ""   # affiliate referral code (optional, from ?ref= URL param)
     website: str | None = ""  # honeypot — insaan kabhi nahi bharta
 
 
@@ -668,6 +669,15 @@ async def public_signup(body: SignupIn, request: Request):
         lifecycle_nurture.enroll(email, biz, cid, body.plan or "starter")
     except Exception as e:
         logger.debug(f"[signup] lifecycle enroll skip: {e}")
+
+    # Affiliate referral — ref_code se signup aaya to record karo (commission track)
+    try:
+        ref = (body.ref_code or "").strip()
+        if ref:
+            from app.marketing.affiliate import record_referral
+            record_referral(ref, {"business_name": biz, "email": email, "phone": body.phone or ""})
+    except Exception as e:
+        logger.debug(f"[signup] referral record skip: {e}")
 
     # Journey engine — fire 'signup' (gated JOURNEY_ENGINE=1; default off).
     try:
