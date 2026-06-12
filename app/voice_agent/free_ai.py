@@ -54,7 +54,7 @@ _GROQ_STT_MODEL = "whisper-large-v3-turbo"
 _CEREBRAS_LLM_MODEL = (
     "gpt-oss-120b"  # is account pe available (models API se confirmed): gpt-oss-120b + zai-glm-4.7
 )
-_GROQ_LLM_MODEL = "llama-3.3-70b-versatile"
+_GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # 14k RPD vs 1k, 6000 RPM — much higher limits than versatile
 _OPENROUTER_LLM_MODEL = "deepseek/deepseek-chat:free"
 _XAI_LLM_MODEL = "grok-3-mini"  # fast/cheap Grok; credits-based (user ke paas keys)
 
@@ -83,6 +83,11 @@ def _provider_down(p: str) -> bool:
 
 def _trip_cooldown(p: str, err: str) -> None:
     e = (err or "").lower()
+    # 403 = no credits / permission denied — treat as long cooldown (permanent until restart)
+    if "403" in e or "permission-denied" in e or "permission denied" in e:
+        _LLM_TRIP_STREAK[p] = 99  # force max cooldown
+        _LLM_COOLDOWN_UNTIL[p] = time.time() + _LLM_COOLDOWN_MAX_S
+        return
     if not any(k in e for k in ("429", "rate", "quota", "queue", "too_many", "exhaust")):
         return
     streak = _LLM_TRIP_STREAK.get(p, 0) + 1
@@ -204,7 +209,7 @@ async def chat(
 ) -> tuple[str, str]:
     """Free LLM chain par ek short reply lo.
 
-    Chain: Cerebras llama-3.3-70b → Groq llama-3.3-70b-versatile →
+    Chain: Cerebras gpt-oss-120b → Groq llama-3.1-8b-instant →
     OpenRouter deepseek/deepseek-chat:free. Har provider asyncio.wait_for 8s ke
     andar; pehla non-empty reply jeet jaata hai. Returns (reply, provider) ya
     ("","") agar SAB fail/absent. Kabhi raise nahi karta.
@@ -225,7 +230,7 @@ async def chat(
     chain = [
         ("cerebras", _CEREBRAS_LLM_MODEL),
         ("groq", _GROQ_LLM_MODEL),
-        ("xai", _XAI_LLM_MODEL),
+        # xAI removed — 403 no credits (773 calls 0% success, sirf latency waste karta tha)
         ("openrouter", _OPENROUTER_LLM_MODEL),
     ]
     for provider, model in chain:
@@ -282,7 +287,6 @@ def describe() -> dict[str, Any]:
         "llm_chain": [
             f"cerebras:{_CEREBRAS_LLM_MODEL}",
             f"groq:{_GROQ_LLM_MODEL}",
-            f"xai:{_XAI_LLM_MODEL}",
             f"openrouter:{_OPENROUTER_LLM_MODEL}",
         ],
     }
