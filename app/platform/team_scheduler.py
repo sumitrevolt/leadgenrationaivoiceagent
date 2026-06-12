@@ -148,6 +148,21 @@ async def _run_job_inner(job: str) -> None:
                 team.team_pulse(max_members=4)
             except Exception:
                 pass
+            # Self-improve in-process fallback —
+            # Celery mode me Celery tasks handle karte hain.
+            # In-process mode (RUN_IN_PROCESS_SCHEDULER=1) me Celery tick kabhi fire nahi
+            # hota, isliye yahan directly run_once() call karo (15-min cadence = theek hai).
+            try:
+                import os
+
+                from app.agents import self_improve
+
+                _celery_off = os.environ.get("RUN_IN_PROCESS_SCHEDULER", "1").strip() in ("1", "true", "yes")
+                if _celery_off and self_improve.enabled():
+                    result = await self_improve.run_once()
+                    logger.debug(f"[scheduler] self_improve in-process: {result.get('action','?')} ok={result.get('ok')}")
+            except Exception as _si_e:
+                logger.debug(f"[scheduler] self_improve in-process skip: {_si_e}")
         elif job == "ops":
             await staff.run_ops()
         elif job == "qa":

@@ -195,6 +195,7 @@ def log_event(
     detail: 1-line human summary (dashboard feed me dikhta hai).
     status: ok | warn | error.
     """
+    ev_id = str(uuid.uuid4())
     try:
         from app.models.agent_event import AgentEvent
 
@@ -203,7 +204,7 @@ def log_event(
             return
         try:
             ev = AgentEvent(
-                id=str(uuid.uuid4()),
+                id=ev_id,
                 member=(member or "system")[:40],
                 action=(action or "event")[:60],
                 detail=(detail or "")[:500],
@@ -217,6 +218,31 @@ def log_event(
             db.close()
     except Exception as e:  # NEVER break the caller (voice pipeline etc.)
         logger.debug(f"[team] log_event skipped: {e}")
+
+    # Real-time SSE broadcast — Redis publish (non-blocking, fail-open)
+    try:
+        import asyncio
+
+        event_payload = {
+            "id": ev_id,
+            "member": (member or "system")[:40],
+            "action": (action or "event")[:60],
+            "detail": (detail or "")[:300],
+            "status": (status or "ok")[:10],
+            "at": datetime.utcnow().isoformat(),
+        }
+
+        async def _pub() -> None:
+            from app.api.events import publish_to_redis
+            await publish_to_redis(event_payload)
+
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_pub())  # fire-and-forget, never blocks caller
+        except RuntimeError:
+            pass  # no running loop (sync context) — SSE fallback polling handle karta hai
+    except Exception:
+        pass
 
 
 def recent_events(limit: int = 60, member: str | None = None) -> list[dict[str, Any]]:

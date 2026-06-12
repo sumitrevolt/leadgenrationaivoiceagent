@@ -359,6 +359,12 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Memory router not mounted: {_e}")
 try:
+    from app.api.events import router as events_router
+
+    app.include_router(events_router, prefix="/api")  # /api/events/stream (SSE real-time feed)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Events router not mounted: {_e}")
+try:
     from app.api.brandassets import router as brandassets_router
 
     app.include_router(brandassets_router, prefix="/api")  # /api/brand/* (frames, card, resize, review-post, stickers)
