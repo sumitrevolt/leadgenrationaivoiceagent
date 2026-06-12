@@ -47,7 +47,7 @@ def test_zoho_india_dc_default():
 def test_hubspot_per_client_token():
     from app.integrations.hubspot import HubSpotIntegration
 
-    hs = HubSpotIntegration(api_key="test-token-123")
+    hs = HubSpotIntegration(api_key="test-token-123")  # nosecret
     assert hs.headers is not None
     assert "test-token-123" in hs.headers["Authorization"]
     hs2 = HubSpotIntegration()

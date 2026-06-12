@@ -8,6 +8,9 @@
 - **Hinglish (Roman script) me HI reply karo** — har baar. Concise + direct, kam formatting.
 - Sab **free stack** — koi paid STT/TTS/LLM nahi (user decision). Phone-call paisa khaata hai → tuning FREE web-call pe.
 
+## CLAUDE-HOWTO ADAPT ✅ (2026-06-12 PM) — detail: SESSION_LOG
+- luongnv89/claude-howto (MIT) se 3 adapt: **`scripts/check_secrets.py`** (secrets scanner, /verify step-4 me WIRED; changed+untracked+`--all`; false-positive = line pe `nosecret`; full-repo audit CLEAN) · **/optimize** (event-loop-blocking scan — 3 prod-downs ki class) · **/test-expand** (coverage loop, project gotchas). Commands ab 7. Hooks/subagents/memory sections jaan-bujhke SKIP (duplicates/friction).
+
 ## COMPETITIVE INTEL + /compare PAGE ✅ LIVE (2026-06-12 PM, commit 1a77967) — detail: SESSION_LOG
 - 10-competitor fresh research (5 marketing + 5 voice). **`/compare` public page LIVE** (dono products ALAG sections, sitemap me) + pricing.html strip refresh (Dhanda/Predis/Practina-GHL) + **`docs/BATTLECARD_2026_06.html` INTERNAL battlecard** (talk tracks/landmines — serve nahi hota). prod_check 624 routes, INT+EXT smoke sab 200. Key: per-qualified-lead @ ₹3,999 UNCONTESTED; gaps = Meta auto-publish, human fallback; threats = Practina India launch, SquadStack downmarket, Dhanda EZO channel. Refresh monthly.
 

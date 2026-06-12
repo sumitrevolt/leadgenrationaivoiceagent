@@ -10,7 +10,7 @@ from app.utils import totp
 
 
 def test_totp_roundtrip_and_bad_input():
-    secret = "JBSWY3DPEHPK3PXP"  # standard test vector secret
+    secret = "JBSWY3DPEHPK3PXP"  # standard test vector secret (nosecret)
     code = totp.totp_now(secret)
     assert len(code) == 6 and code.isdigit()
     assert totp.verify_totp(secret, code)

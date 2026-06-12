@@ -72,7 +72,7 @@ infrastructure/
 ```bash
 # 1. Set variables
 export PROJECT_ID="your-project-id"
-export TF_VAR_db_password="secure-password"
+export TF_VAR_db_password="secure-password"  # nosecret (placeholder)
 export TF_VAR_gemini_api_key="your-key"
 
 # 2. Initialize

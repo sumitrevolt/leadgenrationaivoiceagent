@@ -9,7 +9,7 @@ Project ka REAL verify loop. **Windows = source of truth** (sandbox mount file-e
 1. **prod_check**: `.venv\Scripts\python.exe scripts\prod_check.py` — parse/pycache/import/route/config. Route count note karo. FAIL → ruk jao + report.
 2. **Tests**: `scripts\run_tests.bat` → phir **`pytest_run.log` Read karo** (console truncate hota hai, log = truth). ~80+ green expected. Targeted: `.venv\Scripts\python.exe -m pytest tests\test_X.py -q`.
 3. **Import**: `.venv\Scripts\python.exe -c "import app.main; print('IMPORT_OK')"`.
-4. **Secrets**: changed files me koi hardcoded secret nahi (sirf `.env`, gitignored).
+4. **Secrets**: `.venv\Scripts\python.exe scripts\check_secrets.py` (changed files scan; patterns: api-keys/JWT/sk_/rzp_live/AKIA/private-key). FAIL → secret `.env` me move karo; false-positive = us line pe `nosecret` comment. Full audit: `--all`.
 
 ## Output
 ```
