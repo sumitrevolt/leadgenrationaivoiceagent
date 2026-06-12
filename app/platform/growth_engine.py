@@ -196,7 +196,7 @@ def collect_metrics() -> dict[str, Any]:
     try:
         from app.platform import prospector
 
-        rows = prospector.list_prospects(limit=500)
+        rows = prospector.list_prospects(limit=2000)
         snap["prospects"]["total"] = len(rows)
         for r in rows:
             st = str(r.get("status") or "ready").lower()
@@ -207,6 +207,31 @@ def collect_metrics() -> dict[str, Any]:
                 snap["prospects"]["with_email"] += 1
     except Exception as e:
         logger.debug(f"[growth] prospects metric failed: {e}")
+
+    # DB fallback: agar jsonl 0 deta hai to Postgres se real counts lo
+    if snap["prospects"]["total"] == 0:
+        try:
+            from sqlalchemy import func as _sfunc
+            from sqlalchemy import select as _sselect
+
+            from app.models.base import get_db_session
+            from app.models.lead import Lead
+
+            with get_db_session() as _db:
+                _total = _db.query(Lead).count()
+                snap["prospects"]["total"] = _total
+                # status breakdown
+                from app.models.lead import LeadStatus
+                for _ls in LeadStatus:
+                    _cnt = _db.query(Lead).filter(Lead.status == _ls).count()
+                    _key = _ls.value.lower()
+                    if _key in snap["prospects"]:
+                        snap["prospects"][_key] += _cnt
+                # email count
+                _em_cnt = _db.query(Lead).filter(Lead.email.isnot(None), Lead.email != "").count()
+                snap["prospects"]["with_email"] = _em_cnt
+        except Exception as _dbe:
+            logger.debug(f"[growth] DB prospects fallback failed: {_dbe}")
 
     # --- inquiries (total + today) --- #
     try:

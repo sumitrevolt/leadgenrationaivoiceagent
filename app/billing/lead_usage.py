@@ -170,4 +170,23 @@ def usage_summary(client_id: str, plan: str | None = None) -> dict:
     return {
         "client_id": cid,
         "period": _period_key(),
-    
+        "plan": str(plan or ""),
+        "quota_leads": quota,
+        "topup_leads": topup,
+        "used_leads": used,
+        "remaining_leads": max(0, quota + topup - used),
+        "unit": "qualified_lead",
+        "pack_size": 10,
+    }
+
+
+__all__ = [
+    "record_qualified_lead",
+    "add_topup_leads",
+    "leads_used_this_period",
+    "topup_leads_this_period",
+    "leads_remaining",
+    "has_lead_quota",
+    "plan_quota",
+    "usage_summary",
+]
