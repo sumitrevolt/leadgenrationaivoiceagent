@@ -156,19 +156,38 @@ async def _direct_actions(stage: str) -> list[str]:
             res = await niche_prospector.run(batch=6, limit_per_query=4)
             done.append(f"scrape batch ({len(res.get('covered') or [])} niches)")
         elif stage == "outreach_quality":
-            from app.marketing import channel_experiments
-
-            res = await channel_experiments.run_daily(3)
-            done.append(f"channel experiments x{len(res.get('launched') or [])}")
+            # Channel experiments (gated, may no-op) + always: SEO pages + social drafts
+            try:
+                from app.marketing import channel_experiments
+                res = await channel_experiments.run_daily(3)
+                done.append(f"channel experiments x{len(res.get('launched') or [])}")
+            except Exception:
+                pass
+            try:
+                from app.marketing import seo_pages
+                res2 = await seo_pages.generate_batch(limit=3)
+                done.append(f"seo pages +{res2.get('count', len(res2.get('pages') or []))}")
+            except Exception:
+                pass
+            try:
+                from app.marketing import social_channels
+                from app.marketing.channel_experiments import _pick_niche_city
+                niche, city = _pick_niche_city()
+                res3 = await social_channels.draft_batch(niche=niche, city=city, limit=2)
+                done.append(f"social drafts +{res3.get('count', 0)}")
+            except Exception:
+                pass
         elif stage == "inbound":
             from app.marketing import seo_pages
 
-            res = await seo_pages.generate_batch(limit=4)
-            done.append(f"seo pages +{len(res.get('pages') or res.get('generated') or [])}")
-            from app.marketing import channel_experiments
-
-            res2 = await channel_experiments.run_daily(2)
-            done.append(f"experiments x{len(res2.get('launched') or [])}")
+            res = await seo_pages.generate_batch(limit=8)
+            done.append(f"seo pages +{res.get('count', len(res.get('pages') or res.get('generated') or []))}")
+            try:
+                from app.marketing import channel_experiments
+                res2 = await channel_experiments.run_daily(2)
+                done.append(f"experiments x{len(res2.get('launched') or [])}")
+            except Exception:
+                pass
         elif stage == "conversion":
             from app.marketing import lifecycle_nurture, sales_pipeline
 

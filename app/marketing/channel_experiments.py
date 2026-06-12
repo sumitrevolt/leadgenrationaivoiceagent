@@ -175,6 +175,9 @@ async def _generate(channel: str, niche: str, city: str) -> dict[str, Any]:
         from app.marketing import seo_pages
 
         page = await seo_pages.generate_page(niche, city)
+        # SEO page = LIVE own-site page → auto-record as outcome (fully legal/safe)
+        if page and (page.get("url") or page.get("slug")):
+            record_outcome("seo_page", value=1)
         return {"kind": "live_page", "assets": 1, "detail": str(page.get("url") or page.get("slug") or "")[:200]}
     if channel == "partnership":
         from app.marketing import partnerships

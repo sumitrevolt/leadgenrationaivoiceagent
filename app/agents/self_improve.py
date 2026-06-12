@@ -60,9 +60,9 @@ def gap_seconds() -> int:
 
 def max_per_day() -> int:
     try:
-        return max(1, int(os.environ.get("SELF_IMPROVE_MAX_PER_DAY", "60")))
+        return max(1, int(os.environ.get("SELF_IMPROVE_MAX_PER_DAY", "120")))
     except Exception:
-        return 60
+        return 120
 
 
 # ---------------------------------------------------------------- stores
@@ -226,6 +226,17 @@ async def _pick_next() -> dict[str, Any]:
     if not _llm_healthy():
         light = [a for a in candidates if not ACTIONS.get(a, (True, ""))[0]]
         candidates = light or ["scrape_leads", "revenue_sweep"]
+
+    # DIVERSITY GUARD (2026-06-12): sales_deepdive ek action 77% runs le raha tha.
+    # Last 3 completed runs dekho — recently used action ko penalise karo.
+    try:
+        recent_acts = [r.get("action") for r in _read_jsonl(_RUNS)[-3:] if r.get("action")]
+        deduped = [a for a in candidates if a not in recent_acts]
+        if deduped:
+            candidates = deduped
+        # agar sab recently used = candidates unchanged (fallback safe)
+    except Exception:
+        pass
 
     try:
         from app.platform import skill_library
