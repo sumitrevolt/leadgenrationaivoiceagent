@@ -720,6 +720,16 @@ async def voice_agent_product_page():
     return FileResponse(str(_website_dir / "voice-agent.html"))
 
 
+@app.get("/compare", tags=["Frontend"])
+async def public_compare_page():
+    """PUBLIC: competitor comparison page (dono products ALAG sections) — SEO + conversion.
+
+    Marketing: vs Dhanda/Predis/AdBanao/Practina/GHL. Voice: vs SquadStack/Vodex/
+    Exotel/Knowlarity/CallHippo. Data June 2026 public sources; bundle framing NAHI.
+    """
+    return FileResponse(str(_website_dir / "compare.html"))
+
+
 @app.get("/privacy", tags=["Frontend"])
 async def privacy_page():
     """Privacy policy (static legal page)."""
@@ -776,7 +786,7 @@ async def sitemap_xml():
     except Exception:
         pass
 
-    static_paths = ["/", "/audit", "/pricing", "/voice-agent", "/demo", "/site-audit", "/app/test-call", "/privacy", "/terms", "/refund"]
+    static_paths = ["/", "/audit", "/pricing", "/voice-agent", "/compare", "/demo", "/site-audit", "/app/test-call", "/privacy", "/terms", "/refund"]
     urls: list[str] = list(static_paths)
     try:
         from app.marketing import seo_blog
