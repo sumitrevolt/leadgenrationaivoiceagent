@@ -136,7 +136,7 @@ NICHES = {
         "avg_deal_value": "₹20,00,000+",
         "avg_ticket_inr": "₹20L+ per C&I project",
         "pitch_hook": "qualify factory owners for roof suitability before you visit",
-        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹2250)
+        "lead_band": "C",  # voice-product band (ADR-009; old per-lead mid ₹2250)
         "qualification_questions": [
             "Do you handle commercial installations above 100kW?",
             "Are you looking for industrial leads?",
@@ -184,7 +184,7 @@ NICHES = {
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1.5–2.5L/year fees (₹58,000Cr industry)",
         "pitch_hook": "every admission inquiry counselled the same hour — seats filled before parents compare brochures",
-        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹850)
+        "lead_band": "A",  # voice-product band (ADR-009; old per-lead mid ₹850)
         "qualification_questions": [
             "Which exams do you coach for?",
             "What is your annual fee structure?",
@@ -267,7 +267,7 @@ NICHES = {
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1–3.5L per procedure",
         "pitch_hook": "consults booked at half the ₹4,000+ cost-per-qualified-lead you pay ads today",
-        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1850)
+        "lead_band": "C",  # voice-product band (ADR-009; old per-lead mid ₹1850)
         "qualification_questions": [
             "How many consults does your counselor team handle daily?",
             "What is your average procedure value?",
@@ -286,7 +286,7 @@ NICHES = {
         "avg_deal_value": "₹1,50,000+",
         "avg_ticket_inr": "₹1–2.5L per cycle",
         "pitch_hook": "compassionate 24/7 intake — every inquiry answered, qualified and booked with a counselor",
-        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1500)
+        "lead_band": "C",  # voice-product band (ADR-009; old per-lead mid ₹1500)
         "qualification_questions": [
             "How many new patient inquiries do you get monthly?",
             "Do you have counselors for first-call intake?",
@@ -305,7 +305,7 @@ NICHES = {
         "avg_deal_value": "₹75,000+",
         "avg_ticket_inr": "₹50K–1.25L per case",
         "pitch_hook": "eligibility-scored PR aspirants on your counselors' calendars every morning",
-        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹1400)
+        "lead_band": "C",  # voice-product band (ADR-009; old per-lead mid ₹1400)
         "qualification_questions": [
             "Which countries do you process — Canada, Australia, UK?",
             "Are you ICCRC/MARA registered or partnered?",
@@ -378,7 +378,7 @@ NICHES = {
         "avg_deal_value": "₹5,00,000+",
         "avg_ticket_inr": "₹5L+ projects; AMC recurring",
         "pitch_hook": "secure high-value AMC contracts with IT parks",
-        "lead_band": "B",  # voice-product band (ADR-009; old per-lead mid ₹2250)
+        "lead_band": "C",  # voice-product band (ADR-009; old per-lead mid ₹2250)
         "qualification_questions": [
             "Do you take AMC contracts for IT parks/malls?",
             "What is your minimum project size?",
@@ -793,7 +793,7 @@ NICHES = {
         "avg_deal_value": "₹59,988/yr",
         "avg_ticket_inr": "₹4,999/mo retainer (₹60K/yr LTV)",
         "pitch_hook": "SIP aur insurance content se trust banta hai — 81% log Meta pe finance product dhundhte hain; aapka AI agent 24×7 inquiry handle kare",
-        "lead_band": "A",
+        "lead_band": "B",
         "qualification_questions": [
             "Abhi advisory business ki marketing kaise karte ho — referral pe depend ho?",
             "Financial literacy posts ya SIP infographics daalte ho Insta/Facebook pe?",
@@ -1155,6 +1155,4 @@ def niches_for_product(product: str) -> dict:
 
 def lead_band(key: str) -> str:
     """Voice-product pricing band ('A'|'B'|'C') for a niche key — default 'A'."""
-    refresh_custom_niches()
-    b = str((NICHES.get((key or "").strip().lower()) or {}).get("lead_band") or "A").upper()
-    return b if b in ("A", "B", "C") else "A"
+    refresh_custom_nic
