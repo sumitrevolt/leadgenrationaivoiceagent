@@ -299,11 +299,18 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 _auto_send = os.environ.get("REPLY_AUTO_SEND", "").strip() == "1"
                 if _auto_send and draft and intent in ("interested", "question") and p is not None:
                     try:
-                        from app.platform.auto_outreach import _send_email  # type: ignore
+                        from app.integrations.email_sender import EmailSender
+                        sender = EmailSender()
                         re_subj = subj if subj.lower().startswith("re:") else f"Re: {subj}"
-                        await _send_email(frm, re_subj, draft)
-                        res["auto_sent"] = res.get("auto_sent", 0) + 1
-                        logger.info("[reply_agent] auto-sent reply to %s (intent=%s)", frm, intent)
+                        ok = await sender.send_email(
+                            to_email=frm,
+                            subject=re_subj,
+                            body_text=draft,
+                            body_html=f"<p>{draft.replace(chr(10), '<br>')}</p>",
+                        )
+                        if ok:
+                            res["auto_sent"] = res.get("auto_sent", 0) + 1
+                            logger.info("[reply_agent] auto-sent reply to %s (intent=%s)", frm, intent)
                     except Exception as _ae:
                         logger.info("[reply_agent] auto_send failed: %s", _ae)
 
