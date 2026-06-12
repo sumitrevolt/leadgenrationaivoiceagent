@@ -8,6 +8,9 @@
 - **Hinglish (Roman script) me HI reply karo** — har baar. Concise + direct, kam formatting.
 - Sab **free stack** — koi paid STT/TTS/LLM nahi (user decision). Phone-call paisa khaata hai → tuning FREE web-call pe.
 
+## COMPETITIVE INTEL + /compare PAGE ✅ LIVE (2026-06-12 PM, commit 1a77967) — detail: SESSION_LOG
+- 10-competitor fresh research (5 marketing + 5 voice). **`/compare` public page LIVE** (dono products ALAG sections, sitemap me) + pricing.html strip refresh (Dhanda/Predis/Practina-GHL) + **`docs/BATTLECARD_2026_06.html` INTERNAL battlecard** (talk tracks/landmines — serve nahi hota). prod_check 624 routes, INT+EXT smoke sab 200. Key: per-qualified-lead @ ₹3,999 UNCONTESTED; gaps = Meta auto-publish, human fallback; threats = Practina India launch, SquadStack downmarket, Dhanda EZO channel. Refresh monthly.
+
 ## 🚨 PROD-DOWN #3 FIXED + MODEL-BAKE BATCH ✅ (2026-06-12 PM) — detail: SESSION_LOG
 - **Incident**: image rebuild ne fastembed cache wipe kiya → web-call WS par `_get_qdrant_embedder` SYNC HF download (~250MB) event-loop pe → DONO workers freeze, app unhealthy, CPU 0%. py-spy (HOST se — container me ptrace denied) ne stack pakda. **Job heartbeats sab green the — user ka "automations broken" feel = yahi freeze.**
 - **Fix (commit e0587bb+)**: knowledge_base `_get_qdrant_embedder` thread+deadline (`KB_EMBED_LOAD_TIMEOUT_S`=20s) + `_QDRANT_DISABLED` switch · web_call `_run_blocking` (dialog/tcbrain init off-loop 15s) · phone_stream `_get_telecaller` to_thread 10s · **Dockerfile.lock model BAKE** (`FASTEMBED_CACHE_PATH=/opt/fastembed_cache`, 241M verified live) + **silero-vad bake** (torch CPU `--index-url .../whl/cpu` — PyPI torch = CUDA 2.5GB mat lena; model wheel-bundled) · Hermes `_check_embedder` (disk-only) · skill #42 `model-asset-bake`. **RULE: har ML asset = image-bake + off-loop load + deadline + disable-switch.**
