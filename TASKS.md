@@ -42,6 +42,16 @@
 - EXTERNAL-BLOCKED: Meta publish/Lead-Ads/CTWA/CAPI, GBP API, WA Flows approval, DLT, Exotel KYC, Truecaller
 - SKIP FOREVER: unofficial WA auto-responder, Justdial/IndiaMART/LinkedIn scrape, SERP scrape
 
+## Pipeline Review actions (2026-06-12 — score 31/100, detail: SESSION_LOG)
+- [x] Junk-deal guard: reply_agent bulk-sender skip + deal sirf known-prospect (commit 5a2a41f) + 2 junk deals (PayU/Instamojo) VPS se removed
+- [x] Prospect store hygiene: created_at/updated_at in _append + mark/set bumps (5a2a41f)
+- [ ] USER/DAILY: human dialer sprint — 421 phone-only prospects, `/app/dialer` se 20-30 calls/din (top niches: home_loans 48 · real_estate 43 · solar 39); battlecard landmines use karo
+- [ ] Email-finder enrich run on ~289 phone-only prospects (`POST /api/growth/prospects/find-email` batch) — sendable pool 132 → 250+ target
+- [ ] USER: 1 "replied" prospect ko follow-up (store me single garam lead)
+- [ ] Reply intent classifier tune — 63/79 drafts "other" (junk guard ke baad re-measure karo, fir prompt improve)
+- [ ] Sales-team auto deep-dives ko hot DB leads (score 70+) pe target karna (abhi sab Grade C aa rahe)
+- [ ] Inbound watch: /compare SEO + channel-experiment outcomes feed karte raho (2-4 hafte)
+
 ## Pehle se pending (carry-over)
 - [ ] USER: Razorpay API keys 401 fix (dashboard regenerate) — pehla paid customer se pehle ZAROORI
 - [ ] USER: Razorpay webhook register + RAZORPAY_WEBHOOK_SECRET

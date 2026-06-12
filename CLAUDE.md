@@ -8,6 +8,9 @@
 - **Hinglish (Roman script) me HI reply karo** — har baar. Concise + direct, kam formatting.
 - Sab **free stack** — koi paid STT/TTS/LLM nahi (user decision). Phone-call paisa khaata hai → tuning FREE web-call pe.
 
+## PIPELINE REVIEW + JUNK-DEAL GUARD ✅ LIVE (2026-06-12 PM, commit 5a2a41f) — detail: SESSION_LOG
+- Pipeline score 31/100: 464/465 prospects "ready" stuck, inbound=0 real, deals=2 JUNK (PayU/Instamojo newsletters → reply_agent unknown-sender pe bhi deal banata tha). **FIX LIVE**: `_is_bulk_sender()` guard (unknown+bulk = skip, deal sirf known prospect) + prospector store timestamps (`created_at`/`updated_at` — staleness ab measurable). VPS junk deals cleaned. **Asli untapped asset: 421 phones (91%) — human dialer legal hai, TASKS.md me sprint actions.** Reply classifier "other" 63/79 — guard ke baad re-measure.
+
 ## CLAUDE-HOWTO ADAPT ✅ (2026-06-12 PM) — detail: SESSION_LOG
 - luongnv89/claude-howto (MIT) se 3 adapt: **`scripts/check_secrets.py`** (secrets scanner, /verify step-4 me WIRED; changed+untracked+`--all`; false-positive = line pe `nosecret`; full-repo audit CLEAN) · **/optimize** (event-loop-blocking scan — 3 prod-downs ki class) · **/test-expand** (coverage loop, project gotchas). Commands ab 7. Hooks/subagents/memory sections jaan-bujhke SKIP (duplicates/friction).
 
