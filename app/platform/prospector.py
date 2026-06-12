@@ -407,6 +407,11 @@ def _persist_prospect_to_db(rec: dict[str, Any]) -> bool:
 
 def _append(rec: dict[str, Any]) -> bool:
     try:
+        # Store hygiene (2026-06-12): timestamps — bina inke staleness/review
+        # measure hi nahi ho sakti thi (pipeline review finding).
+        _now = datetime.utcnow().isoformat() + "Z"
+        rec.setdefault("created_at", _now)
+        rec.setdefault("updated_at", _now)
         os.makedirs(os.path.dirname(_PROSPECTS_FILE) or ".", exist_ok=True)
         with open(_PROSPECTS_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
@@ -447,6 +452,7 @@ def set_prospect_fields(pid: str, fields: dict[str, Any]) -> bool:
         for r in rows:
             if r.get("id") == pid:
                 r.update(fields)
+                r["updated_at"] = datetime.utcnow().isoformat() + "Z"
                 found = True
                 break
         if not found:
@@ -478,6 +484,7 @@ def mark_prospect(pid: str, status: str) -> bool:
             if r.get("id") == pid:
                 r["status"] = status
                 r["status_at"] = datetime.utcnow().isoformat() + "Z"
+                r["updated_at"] = r["status_at"]
                 found = True
                 break
         if not found:

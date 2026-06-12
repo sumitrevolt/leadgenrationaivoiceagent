@@ -30,6 +30,40 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 _CATS = ["interested", "question", "objection", "not_interested", "unsubscribe", "ooo", "other"]
+
+# Bulk/marketing senders — unknown sender + inme se koi signal = junk skip.
+_BULK_LOCALPARTS = {
+    "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply", "notifications",
+    "notification", "notify", "alerts", "alert", "updates", "update", "newsletter",
+    "newsletters", "marketing", "mailer", "bounce", "bounces", "postmaster",
+    "mailer-daemon", "promo", "promotions", "offers", "billing", "receipts", "hello",
+    "support", "info", "news", "team", "digest", "feedback", "survey",
+}
+
+
+def _is_bulk_sender(frm: str, msg: Any) -> bool:
+    """Bulk/marketing mail detect — header signals + localpart. Never raises.
+
+    NOTE: yeh SIRF unknown senders pe lagta hai (known prospect kabhi skip nahi
+    hota, chahe support@ se hi reply kare).
+    """
+    try:
+        local = (frm.split("@", 1)[0] if "@" in frm else frm).lower()
+        if local in _BULK_LOCALPARTS:
+            return True
+        for h, val in (("List-Unsubscribe", None), ("Auto-Submitted", "no"), ("Precedence", None)):
+            v = str(msg.get(h) or "").strip().lower()
+            if h == "Auto-Submitted":
+                if v and v != "no":
+                    return True
+            elif h == "Precedence":
+                if v in ("bulk", "list", "junk"):
+                    return True
+            elif v:
+                return True
+    except Exception:
+        pass
+    return False
 # intent -> prospect status
 _STATUS = {
     "interested": "replied_hot",
@@ -187,11 +221,16 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 msg = email.message_from_bytes(md[0][1])
                 frm = email.utils.parseaddr(msg.get("From", ""))[1].lower()
                 subj = _decode(msg.get("Subject", ""))
+                p = pmap.get(frm)
+                # JUNK GUARD (2026-06-12): unknown sender + bulk/marketing mail = skip.
+                # Pehle PayU/Instamojo newsletters "interested" classify hoke FAKE deals
+                # bana rahe the + har newsletter pe LLM classify/draft tokens jalte the.
+                if p is None and _is_bulk_sender(frm, msg):
+                    res["skipped"] += 1
+                    continue
                 body = _body(msg)
                 intent = await _classify(subj, body)
                 res["processed"] += 1
-
-                p = pmap.get(frm)
                 pid = (p or {}).get("id") or (p or {}).get("pid")
                 if pid:
                     try:
@@ -225,17 +264,19 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         )
                     except Exception:
                         pass
-                    # Sales automation: interested reply -> deal (pipeline auto next-action).
-                    try:
-                        from app.marketing import sales_pipeline
+                    # Sales automation: interested reply -> deal — SIRF known prospect pe
+                    # (unknown sender se junk deals bante the: PayU/Instamojo case).
+                    if p:
+                        try:
+                            from app.marketing import sales_pipeline
 
-                        sales_pipeline.upsert_deal(
-                            {"business_name": (p or {}).get("business_name"), "email": frm,
-                             "phone": (p or {}).get("phone"), "niche": (p or {}).get("niche")},
-                            stage="interested",
-                        )
-                    except Exception:
-                        pass
+                            sales_pipeline.upsert_deal(
+                                {"business_name": p.get("business_name"), "email": frm,
+                                 "phone": p.get("phone"), "niche": p.get("niche")},
+                                stage="interested",
+                            )
+                        except Exception:
+                            pass
 
                 draft = ""
                 if intent in ("interested", "question", "objection"):
