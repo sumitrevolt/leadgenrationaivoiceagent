@@ -1,0 +1,20 @@
+# SOPS configuration for age-based secrets encryption
+# Docs: https://github.com/getsops/sops
+#
+# SETUP (one-time):
+#   1. Run scripts/sops_setup.sh on the VPS to generate an age keypair.
+#   2. Copy the printed public key (age1...) and replace the placeholder below.
+#   3. Commit this file — it contains only the PUBLIC key (safe to commit).
+#   4. NEVER commit the private key (~/.config/sops/age/keys.txt).
+#
+# Usage:
+#   Encrypt : bash scripts/sops_encrypt_env.sh
+#   Decrypt : bash scripts/sops_decrypt_env.sh
+
+creation_rules:
+  - path_regex: secrets/.*\.enc\.yaml$
+    age: >-
+      age1REPLACE_WITH_YOUR_PUBLIC_KEY_OUTPUT_FROM_sops_setup_sh
+    # Example (replace the line above with your real key):
+    # age: >-
+    #   age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p

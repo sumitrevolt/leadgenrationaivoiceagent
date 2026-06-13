@@ -70,4 +70,63 @@ def rate_limit(prefix: str, max_requests: int = 30, window_seconds: int = 60):
     return _dep
 
 
-__all__ = ["rate_limit"]
+# --------------------------------------------------------------------------- #
+# Tier-aware rate limiting (R1#1) — per client-tier budget. Higher tiers = more
+# headroom. Tier resolve hota hai: X-Client-Tier header → request.state.tenant →
+# default "free". Base limit ko tier-multiplier se scale karte. FAIL-OPEN, additive
+# (existing rate_limit untouched). Routes opt-in karein:
+#   dependencies=[Depends(tier_rate_limit("ai", base_max=20, window=60))]
+# --------------------------------------------------------------------------- #
+_TIER_MULT: dict[str, float] = {
+    "free": 1.0,
+    "trial": 1.0,
+    "starter": 2.0,
+    "growth": 4.0,
+    "advanced": 8.0,
+    "voice": 8.0,
+    "admin": 20.0,
+}
+
+
+def _client_tier(request: Request) -> str:
+    """Requester ka tier — header > tenant state > 'free'. Never-raise."""
+    try:
+        h = (request.headers.get("x-client-tier") or "").strip().lower()
+        if h in _TIER_MULT:
+            return h
+        tenant = getattr(request.state, "tenant", None)
+        if tenant:
+            t = str((tenant.get("plan") if isinstance(tenant, dict) else getattr(tenant, "plan", "")) or "").lower()
+            for key in _TIER_MULT:
+                if key in t:
+                    return key
+    except Exception:
+        pass
+    return "free"
+
+
+def tier_rate_limit(prefix: str, base_max: int = 20, window_seconds: int = 60):
+    """Tier-scaled per-IP rate limit. base_max = free-tier budget; higher tiers
+    proportionally zyada. Alag tier = alag bucket (taaki ek tier dusre ko na affect kare)."""
+
+    async def _dep(request: Request) -> None:
+        try:
+            tier = _client_tier(request)
+            cap = max(1, int(base_max * _TIER_MULT.get(tier, 1.0)))
+            limiter = RateLimiter(prefix=f"rl:{prefix}:{tier}", max_requests=cap, window_seconds=window_seconds)
+            ident = _client_ip(request)
+            allowed, _rem = await limiter.is_allowed(ident)
+        except Exception as exc:  # defensive fail-open
+            logger.debug("tier_rate_limit fail-open (%s): %s", prefix, exc)
+            return
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail="Bahut zyada requests — thodi der baad try karo (ya plan upgrade).",
+                headers={"Retry-After": str(window_seconds)},
+            )
+
+    return _dep
+
+
+__all__ = ["rate_limit", "tier_rate_limit"]

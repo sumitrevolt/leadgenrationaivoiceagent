@@ -8,14 +8,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.auth_deps import get_current_user_optional, require_admin
-from app.api.ratelimit import rate_limit
+from app.api.ratelimit import rate_limit, tier_rate_limit
 from app.config import settings
 from app.models.user import User
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
-# Per-IP rate limit on ALL /api/ai/* (LLM cost/abuse guard). FAIL-OPEN.
-router = APIRouter(prefix="/ai", tags=["AI"], dependencies=[Depends(rate_limit("ai", 30, 60))])
+# Per-IP TIER-AWARE rate limit on ALL /api/ai/* (R1#1 — LLM cost/abuse guard,
+# higher client-tiers = more headroom; admin = 20x). FAIL-OPEN. base 30/60s.
+router = APIRouter(prefix="/ai", tags=["AI"], dependencies=[Depends(tier_rate_limit("ai", 30, 60))])
 
 
 # ============================================================================

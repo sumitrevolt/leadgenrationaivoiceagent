@@ -230,6 +230,56 @@ async def transcribe_audio(
 # --------------------------------------------------------------------------- #
 # LLM — chain: Cerebras → Groq → OpenRouter (pehla non-empty reply jeet jaata)
 # --------------------------------------------------------------------------- #
+# --- LLM response cache (R11#4) — gated LLM_CACHE=1 (default OFF = zero change).
+# Identical (system+messages+params) -> reuse reply, API calls bachao. In-memory
+# TTL cache, never-raise. Default off taaki dynamic/varied replies pe asar na ho.
+import hashlib as _hashlib
+import os as _os
+
+_LLM_CACHE: dict[str, tuple[float, tuple[str, str]]] = {}
+_LLM_CACHE_TTL_S = float(_os.environ.get("LLM_CACHE_TTL_S", "300") or 300)
+_LLM_CACHE_MAX = 500
+
+
+def _llm_cache_on() -> bool:
+    return _os.environ.get("LLM_CACHE", "0").strip().lower() in ("1", "true", "yes")
+
+
+def _llm_cache_key(system: Any, msgs: Any, max_tokens: Any, temperature: Any) -> str:
+    try:
+        raw = repr((system, msgs, max_tokens, round(float(temperature), 2)))
+        return _hashlib.sha256(raw.encode("utf-8", "ignore")).hexdigest()
+    except Exception:
+        return ""
+
+
+def _llm_cache_get(key: str):
+    try:
+        if not key:
+            return None
+        v = _LLM_CACHE.get(key)
+        if not v:
+            return None
+        ts, val = v
+        if time.time() - ts > _LLM_CACHE_TTL_S:
+            _LLM_CACHE.pop(key, None)
+            return None
+        return val
+    except Exception:
+        return None
+
+
+def _llm_cache_put(key: str, val: tuple[str, str]) -> None:
+    try:
+        if not key:
+            return
+        if len(_LLM_CACHE) >= _LLM_CACHE_MAX:
+            _LLM_CACHE.clear()  # simple bound
+        _LLM_CACHE[key] = (time.time(), val)
+    except Exception:
+        pass
+
+
 async def chat(
     system: str,
     messages: list[dict[str, str]],
@@ -255,6 +305,13 @@ async def chat(
             msgs.append({"role": role, "content": content})
     if not msgs:
         return "", ""
+
+    # Response cache (gated LLM_CACHE) — identical prompt -> reuse, API call bachao.
+    _ck = _llm_cache_key(system, msgs, max_tokens, temperature) if _llm_cache_on() else ""
+    if _ck:
+        _hit = _llm_cache_get(_ck)
+        if _hit is not None:
+            return _hit
 
     # COMPLETELY FREE chain — no credit card, no paid credits.
     # OpenRouter 4 keys = 4x rate-limit headroom (each alag circuit-breaker)
@@ -309,6 +366,8 @@ async def chat(
                     llm_metrics.record(provider, True, (time.monotonic() - _t0) * 1000)
                 except Exception:
                     pass
+                if _ck:
+                    _llm_cache_put(_ck, (text, provider))
                 return text, provider
         except Exception as e:
             _trip_cooldown(provider, str(e))

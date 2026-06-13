@@ -23,6 +23,24 @@ import socket as _socket
 
 _socket.setdefaulttimeout(10)
 
+# NETWORK GUARD (OPT-IN, default OFF): blocks external sockets so a COLD single
+# test/file doesn't hang on embedder/LLM downloads. Allows localhost/127.0.0.1/::1
+# (SQLite, in-process TestClient).
+# ⚠️ DEFAULT OFF kyun: aggressive raise se kuch code (fastembed/httpx) infinite-RETRY
+# loop me chala jaata hai → poora full-suite 9% pe HANG ho gaya (2026-06-13 lesson).
+# Bina guard ke full suite `socket.setdefaulttimeout(10)` se slow-but-COMPLETE hota hai.
+# Cold single-file run ke liye chahiye to: set PYTEST_NETGUARD=1.
+if os.environ.get("PYTEST_NETGUARD", "0").strip().lower() in ("1", "true", "yes"):
+    try:
+        from tests._netguard import enable as _netguard_enable
+        _netguard_enable()
+    except Exception as _ng_exc:
+        import warnings as _warnings
+        _warnings.warn(
+            f"[conftest] netguard could not be enabled: {_ng_exc!r}.",
+            RuntimeWarning,
+        )
+
 # Use SQLite for tests (fast, no external dependencies)
 # DB lives in the OS temp dir — avoids polluting the repo and works on
 # network/mounted filesystems where SQLite locking can fail with disk I/O errors.
@@ -347,3 +365,21 @@ def cleanup_test_files():
             os.remove(test_db_path)
         except PermissionError:
             pass  # File might still be in use
+
+
+@pytest.fixture(scope="session", autouse=True)
+def netguard_session():
+    """
+    Session-scoped fixture that ensures the network guard stays active for
+    the whole test run.  The guard is also installed at import time above,
+    but this fixture re-enables it after any potential disable() call and
+    provides a clean disable on teardown (useful when running a single test
+    interactively where you want real network after the session).
+    """
+    try:
+        from tests._netguard import enable as _ng_enable, disable as _ng_disable
+        _ng_enable()   # idempotent if already active
+        yield
+        _ng_disable()  # restore originals so pytest's own cleanup can work
+    except Exception:
+        yield  # never block pytest teardown
