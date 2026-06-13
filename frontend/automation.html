@@ -71,6 +71,12 @@ a{color:var(--acc)}
   <button id="tab-revenue" onclick="show('revenue')">💰 Revenue Ops</button>
   <button id="tab-research" onclick="show('research')">🔎 Research</button>
   <button id="tab-contentplus" onclick="show('contentplus')">🎨 Content+</button>
+  <div style="border-top:1px solid var(--line);margin:6px 4px"></div>
+  <button id="tab-loyalty" onclick="show('loyalty')">🎟️ Loyalty</button>
+  <button id="tab-nps" onclick="show('nps')">📊 NPS</button>
+  <button id="tab-webhooks" onclick="show('webhooks')">🔗 Webhooks</button>
+  <button id="tab-reviewmon" onclick="show('reviewmon')">⭐ Reviews</button>
+  <button id="tab-clientrep" onclick="show('clientrep')">📑 Client Reports</button>
 </nav>
 
 <div class="main">
@@ -600,6 +606,97 @@ a{color:var(--acc)}
     <label>Member filter (optional)</label><input id="evMember" placeholder="isha / rohan / dev ..." style="max-width:200px">
     <button class="btn2" onclick="evLoad()">🔄 Load</button>
     <div id="evOut" class="mut" style="margin-top:8px">Load ho raha...</div>
+  </div>
+</section>
+
+<!-- ============ Loyalty ============ -->
+<section class="tabsec" id="sec-loyalty">
+  <div class="card">
+    <h2>🎟️ Loyalty / Coupon Campaign banao</h2>
+    <label>Client ID</label><input id="lyClient" placeholder="client id">
+    <label>Title</label><input id="lyTitle" placeholder="e.g. Diwali Dhamaka 20% off">
+    <label>Kind</label>
+    <select id="lyKind"><option value="percent">percent (%)</option><option value="flat">flat (₹)</option></select>
+    <label>Value</label><input id="lyValue" type="number" value="10" style="max-width:120px">
+    <label>Expiry (days)</label><input id="lyExp" type="number" value="30" style="max-width:120px">
+    <label>Max redemptions</label><input id="lyMax" type="number" value="100" style="max-width:120px">
+    <button class="btn" id="lyBtn" onclick="lyCreate()">➕ Campaign banao</button>
+    <div id="lyOut"></div>
+  </div>
+  <div class="card">
+    <h2>📋 Loyalty stats</h2>
+    <label>Client ID (khali = sab)</label><input id="lyStatClient" placeholder="client id (optional)">
+    <button class="btn2" onclick="lyStats()">🔄 Load</button>
+    <div id="lyStatOut" class="mut" style="margin-top:8px">Load karne ke liye click karo.</div>
+  </div>
+</section>
+
+<!-- ============ NPS ============ -->
+<section class="tabsec" id="sec-nps">
+  <div class="card">
+    <h2>📊 NPS Score (promoters/detractors)</h2>
+    <label>Days</label><input id="npsDays" type="number" value="90" style="max-width:120px">
+    <label>Client slug (khali = sab)</label><input id="npsSlug" placeholder="client slug (optional)">
+    <button class="btn2" onclick="npsStats()">🔄 Stats load</button>
+    <div id="npsOut" class="mut" style="margin-top:8px">Load karne ke liye click karo.</div>
+  </div>
+  <div class="card">
+    <h2>✍️ NPS survey request drafts (WhatsApp)</h2>
+    <label>Limit</label><input id="npsLim" type="number" value="20" style="max-width:120px">
+    <button class="btn2" onclick="npsDrafts()">🔄 Drafts load</button>
+    <div id="npsDrOut"></div>
+  </div>
+</section>
+
+<!-- ============ Webhooks ============ -->
+<section class="tabsec" id="sec-webhooks">
+  <div class="card">
+    <h2>🔗 Outbound webhook register (Zapier/HighLevel)</h2>
+    <label>URL (https only)</label><input id="whUrl" placeholder="https://hooks.zapier.com/...">
+    <label>Events (comma — khali = sab)</label><input id="whEvents" placeholder="inquiry_received,signup,booking">
+    <label>Client ID (optional)</label><input id="whClient" placeholder="client id">
+    <label>Secret (HMAC, optional)</label><input id="whSecret" placeholder="signing secret">
+    <button class="btn" id="whBtn" onclick="whRegister()">➕ Register</button>
+    <div id="whOut"></div>
+  </div>
+  <div class="card">
+    <h2>📋 Registered webhooks</h2>
+    <button class="btn2" onclick="whList()">🔄 Load</button>
+    <div id="whListOut" class="mut" style="margin-top:8px">Load karne ke liye click karo.</div>
+  </div>
+</section>
+
+<!-- ============ Review Monitor ============ -->
+<section class="tabsec" id="sec-reviewmon">
+  <div class="card">
+    <h2>⭐ Google review monitor (Birdeye-style)</h2>
+    <button class="btn" id="rmBtn" onclick="rmRun()">▶️ Monitor run (gated REVIEW_MONITOR + maps key)</button>
+    <button class="btn2" onclick="rmDrafts()">📝 AI reply drafts load</button>
+    <div id="rmOut"></div>
+  </div>
+  <div class="card">
+    <h2>🙏 Review requests (happy-customer asks)</h2>
+    <label>Limit</label><input id="rmReqLim" type="number" value="100" style="max-width:120px">
+    <button class="btn2" onclick="rmRequests()">🔄 Load</button>
+    <div id="rmReqOut" class="mut" style="margin-top:8px">Load karne ke liye click karo.</div>
+  </div>
+</section>
+
+<!-- ============ Client Reports ============ -->
+<section class="tabsec" id="sec-clientrep">
+  <div class="card">
+    <h2>📑 White-label client report banao</h2>
+    <label>Client ID</label><input id="crClient" placeholder="client id">
+    <label>Month (YYYY-MM, khali = pichla mahina)</label><input id="crMonth" placeholder="2026-05">
+    <label><input id="crSend" type="checkbox"> Email bhejo (gated CLIENT_REPORTS)</label>
+    <button class="btn" id="crBtn" onclick="crBuild()">📄 Report banao</button>
+    <div id="crOut"></div>
+  </div>
+  <div class="card">
+    <h2>📨 Saare active clients ke reports run</h2>
+    <label><input id="crRunSend" type="checkbox"> Email bhejo (warna sirf file)</label>
+    <button class="btn" id="crRunBtn" onclick="crRun()">▶️ Run all</button>
+    <div id="crRunOut"></div>
   </div>
 </section>
 
@@ -1738,13 +1835,118 @@ async function tdLoad(){
   }catch(e){warnBox('tdProblems','Load fail: '+e.message+' — token check karo (upar Save)')}
 }
 
+/* ---------------- Loyalty ---------------- */
+async function lyCreate(){
+  busy('lyBtn',true);
+  try{
+    var body={client_id:$('lyClient').value.trim(),title:$('lyTitle').value.trim(),kind:$('lyKind').value,
+      value:parseInt($('lyValue').value||'10',10),expiry_days:parseInt($('lyExp').value||'30',10),
+      max_redemptions:parseInt($('lyMax').value||'100',10)};
+    if(!body.client_id||!body.title){toast('Client ID + Title zaroori',false);return}
+    var d=await api('/api/growth/loyalty/campaign',{method:'POST',body:JSON.stringify(body)});
+    $('lyOut').innerHTML='<div class="result ok">✅ Campaign ban gaya'+(d&&d.code?' — code: <b>'+esc(d.code)+'</b>':'')+'</div>'+jpre(d);
+    toast('Campaign ban gaya ✅');
+  }catch(e){warnBox('lyOut',e.message)}finally{busy('lyBtn',false)}
+}
+async function lyStats(){
+  try{
+    var cid=$('lyStatClient').value.trim();
+    var d=await api('/api/growth/loyalty'+(cid?('?client_id='+encodeURIComponent(cid)):''));
+    $('lyStatOut').innerHTML='<div class="result">'+pills(d)+'</div>'+jpre(d);
+  }catch(e){warnBox('lyStatOut',e.message)}
+}
+
+/* ---------------- NPS ---------------- */
+async function npsStats(){
+  try{
+    var q='?days='+encodeURIComponent($('npsDays').value||'90');
+    var slug=$('npsSlug').value.trim(); if(slug)q+='&client_slug='+encodeURIComponent(slug);
+    var d=await api('/api/growth/nps/stats'+q);
+    $('npsOut').innerHTML='<div class="result">'+pills(d)+'</div>'+jpre(d);
+  }catch(e){warnBox('npsOut',e.message)}
+}
+async function npsDrafts(){
+  try{
+    var d=await api('/api/growth/nps/request-drafts?limit='+encodeURIComponent($('npsLim').value||'20'));
+    $('npsDrOut').innerHTML=draftBlocks(d);
+  }catch(e){warnBox('npsDrOut',e.message)}
+}
+
+/* ---------------- Webhooks ---------------- */
+async function whRegister(){
+  busy('whBtn',true);
+  try{
+    var url=$('whUrl').value.trim();
+    if(!/^https:\/\//.test(url)){toast('https:// URL zaroori',false);return}
+    var ev=$('whEvents').value.trim();
+    var body={url:url,client_id:$('whClient').value.trim(),secret:$('whSecret').value.trim(),
+      events:ev?ev.split(',').map(function(s){return s.trim()}).filter(Boolean):null};
+    var d=await api('/api/growth/webhooks/register',{method:'POST',body:JSON.stringify(body)});
+    $('whOut').innerHTML='<div class="result ok">✅ Registered</div>'+jpre(d);toast('Webhook registered ✅');whList();
+  }catch(e){warnBox('whOut',e.message)}finally{busy('whBtn',false)}
+}
+async function whList(){
+  try{
+    var d=await api('/api/growth/webhooks');
+    var rows=(d&&(d.webhooks||d.hooks||(Array.isArray(d)?d:[])))||[];
+    if(!rows.length){$('whListOut').innerHTML='<div class="mut">Koi webhook nahi.</div>';return}
+    var h='<div class="result"><table><tr><th>ID</th><th>URL</th><th>Events</th><th></th></tr>';
+    rows.forEach(function(w){
+      var id=esc(w.id||w.webhook_id||'');
+      h+='<tr><td>'+id+'</td><td>'+esc(w.url||'')+'</td><td>'+esc((w.events||['*']).join(', '))+
+        '</td><td><button class="btn2" onclick="whDelete('+JSON.stringify(id)+')">🗑️</button></td></tr>';
+    });
+    $('whListOut').innerHTML=h+'</table></div>';
+  }catch(e){warnBox('whListOut',e.message)}
+}
+async function whDelete(id){
+  if(!id||!confirm('Webhook delete kare? '+id))return;
+  try{await api('/api/growth/webhooks/'+encodeURIComponent(id),{method:'DELETE'});toast('Deleted ✅');whList();}
+  catch(e){toast(e.message,false)}
+}
+
+/* ---------------- Review Monitor ---------------- */
+async function rmRun(){
+  busy('rmBtn',true);
+  try{var d=await api('/api/growth/reviews/monitor-run',{method:'POST'});
+    $('rmOut').innerHTML='<div class="result ok">✅ Monitor run</div>'+jpre(d);toast('Review monitor chala ✅');
+  }catch(e){warnBox('rmOut',e.message)}finally{busy('rmBtn',false)}
+}
+async function rmDrafts(){
+  try{var d=await api('/api/growth/reviews/drafts');$('rmOut').innerHTML=draftBlocks(d);}
+  catch(e){warnBox('rmOut',e.message)}
+}
+async function rmRequests(){
+  try{var d=await api('/api/growth/review/requests?limit='+encodeURIComponent($('rmReqLim').value||'100'));
+    $('rmReqOut').innerHTML='<div class="result">'+pills(d)+'</div>'+jpre(d);
+  }catch(e){warnBox('rmReqOut',e.message)}
+}
+
+/* ---------------- Client Reports ---------------- */
+async function crBuild(){
+  busy('crBtn',true);
+  try{
+    var body={client_id:$('crClient').value.trim(),month:$('crMonth').value.trim(),send:$('crSend').checked};
+    if(!body.client_id){toast('Client ID zaroori',false);return}
+    var d=await api('/api/growth/revenue/client-report',{method:'POST',body:JSON.stringify(body)});
+    $('crOut').innerHTML='<div class="result ok">✅ Report ban gaya'+(d&&d.path?(' — '+esc(d.path)):'')+'</div>'+jpre(d);
+    toast('Report ban gaya ✅');
+  }catch(e){warnBox('crOut',e.message)}finally{busy('crBtn',false)}
+}
+async function crRun(){
+  busy('crRunBtn',true);
+  try{var d=await api('/api/growth/revenue/client-reports/run'+($('crRunSend').checked?'?send=true':''),{method:'POST'});
+    $('crRunOut').innerHTML='<div class="result ok">✅ Run complete</div>'+jpre(d);toast('Reports run complete ✅');
+  }catch(e){warnBox('crRunOut',e.message)}finally{busy('crRunBtn',false)}
+}
+
 /* ---------------- init ---------------- */
 $('tokin').value=tok();
-var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:apLoad,events:function(){evLoad();evStartSSE();}};
+var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:apLoad,events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList};
 var _origShow=show;
 show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}};
 var start=(location.hash||'').replace('#','');
-var valid=['today','schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus'];
+var valid=['today','schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus','loyalty','nps','webhooks','reviewmon','clientrep'];
 show(valid.indexOf(start)>=0?start:'today');
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
