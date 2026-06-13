@@ -180,4 +180,24 @@ async def run(
     try:
         import os as _os
 
-        if
+        if _os.environ.get("CADENCE_ENGINE", "").strip() in ("1", "true", "yes"):
+            from app.marketing import cadence as _cadence
+            from app.platform import prospector as _p
+
+            # Last scraped batch se fresh "ready" leads chuno (result me by_niche count hai)
+            _total_new = sum((result or {}).get("by_niche", {}).values()) if isinstance(result, dict) else 0
+            if _total_new > 0:
+                _all = _p._read_all()
+                _fresh = [r for r in _all[-(_total_new + 30):] if r.get("status") == "ready"][:_total_new]
+                if _fresh:
+                    cadence_enrolled = _cadence.enroll_many(_fresh)
+                    logger.debug(f"[niche_prospector] cadence enrolled {cadence_enrolled} leads")
+    except Exception as _ce:
+        logger.debug(f"[niche_prospector] cadence enroll skip: {_ce}")
+
+    logger.info(f"[niche_prospector] scraped niches: {covered}")
+    return {"ok": True, "covered": covered, "targets": len(targets), "result": result,
+            "cadence_enrolled": cadence_enrolled}
+
+
+__all__ = ["build_targets", "run", "_all_niche_keys", "city_rotation"]

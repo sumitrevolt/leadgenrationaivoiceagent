@@ -401,4 +401,37 @@ async def run_harvest(
 async def run_loop_sweep() -> dict[str, Any]:
     """Loop hook (gated LEAD_HARVESTER) — daily prospect job / self_improve se."""
     if not enabled():
-        
+        return {"enabled": False}
+    return await run_harvest()
+
+
+def recent_runs(limit: int = 15) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    try:
+        if os.path.exists(_RUNS):
+            with open(_RUNS, encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            rows.append(json.loads(line))
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+    return rows[-limit:][::-1]
+
+
+def source_status() -> dict[str, Any]:
+    """Kaunse sources armed hain (keys present) — ops visibility."""
+    return {
+        "enabled_loop": enabled(),
+        "prospector": bool(os.environ.get("GOOGLE_MAPS_API_KEY", "").strip()) or "osm-fallback",
+        "websearch": bool(
+            os.environ.get("SEARXNG_URL", "").strip() or os.environ.get("BRAVE_API_KEY", "").strip()
+        ),
+        "opendata": bool(os.environ.get("DATA_GOV_IN_API_KEY", "").strip()) and bool(os.environ.get("DATA_GOV_RESOURCE_ID", "").strip()),
+        "blocked_domains_policy": list(_BLOCKED_DOMAINS[:6]) + ["..."],
+    }
+
+
+__all__ = ["run_harvest", "run_loop_sweep", "enrich_missing_emails", "recent_runs", "source_status", "enabled", "SOURCES"]

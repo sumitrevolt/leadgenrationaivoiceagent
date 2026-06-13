@@ -363,6 +363,13 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=10, minute=30),
         "args": ("email_outreach",),
     },
+    # Boss daily standup — in-process loop ke saath parity (gated AGENT_STANDUP;
+    # flag OFF = run_staff_job no-op early return, zero behaviour change).
+    "staff-standup-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=8, minute=0),
+        "args": ("standup",),
+    },
     # Self-improve CONTINUOUS loop ka dead-man REVIVER (loop khud self-requeue
     # chain hai — yeh sirf stale-heartbeat pe restart karta; flag OFF = no-op).
     "staff-selfimprove-revive": {

@@ -1243,4 +1243,14 @@ async def health_check():
 
 # ---------------------------------------------------------------------------
 # Root website mount — LAST so all API/app routes match first; everything
-# else (/, /styles.css, /images/...) serve
+# else (/, /styles.css, /images/...) serves the marketing site (html=True
+# makes "/" return index.html). /site mount upar bhi rehta hai (old links).
+# ---------------------------------------------------------------------------
+if _website_dir.is_dir():
+    app.mount("/", StaticFiles(directory=str(_website_dir), html=True), name="root_website")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

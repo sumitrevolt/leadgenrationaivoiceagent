@@ -44,6 +44,7 @@ STAFF_JOBS = (
     "reply_triage",
     "watchdog",
     "onboard",
+    "standup",
 )
 
 
