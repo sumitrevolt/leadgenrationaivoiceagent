@@ -12,6 +12,16 @@ import os
 # urllib timeout=25 ke loops me poora pytest hang (CI runs #1-#9 lesson, 2026-06-11).
 os.environ.setdefault("RUN_IN_PROCESS_SCHEDULER", "0")
 os.environ.setdefault("TEAM_AUTOMATION", "0")
+# TestClient startup (lifespan) KB embedder pre-warm trigger karta — tests me heavy
+# fastembed load (8s+) background task = slow/interfere. Tests me OFF.
+os.environ.setdefault("KB_PREWARM", "0")
+# FULL-SUITE HANG FIX: prod "redis://redis:6379" hostname test-env me DNS-resolve
+# NAHI hota -> get_redis_client connect DNS pe HANG (test_agent_stack rate-limit dep
+# pe atak jata tha). Redis ko localhost-REFUSE pe point karo: instant ConnectionRefused
+# (no DNS, no hang) -> in-memory fallback. Qdrant off -> embedder load skip (keyword KB).
+# Dono ka graceful fallback hai = zero test-behaviour change, sirf hang khatam.
+os.environ["REDIS_URL"] = "redis://127.0.0.1:6399/0"
+os.environ.setdefault("QDRANT_URL", "")
 
 # SAFETY NET: koi bhi test agar galti se asli network (LLM/Exotel/Maps/Redis) hit
 # kare to wo HANG na ho — har raw socket op max 10s me fail ho jaye. pytest-timeout
@@ -62,6 +72,28 @@ from app.api.auth_deps import (
     require_super_admin,
 )
 from app.main import app
+
+# =============================================================================
+# LLM STUB (tests) — free_ai.chat/transcribe REAL httpx calls karte the jo offline/
+# slow free-providers (groq TPD, gemini quota, openrouter 404) pe HANG karte the
+# (test_multilang/carousel/meme/2026 etc. — full-suite ~9-13% pe atak jata). Yahan
+# global module-attr stub: saare callers (free_ai.chat) instant canned reply paate.
+# Real LLM kabhi test me NAHI chahiye — content fns ka template/structure phir bhi
+# banta. Ek jagah fix = saari LLM-content tests fast + zero network hang.
+# =============================================================================
+try:
+    from app.voice_agent import free_ai as _free_ai_mod
+
+    async def _stub_llm_chat(system, messages, max_tokens=90, temperature=0.6):
+        return ("Theek hai sir, samajh gayi — aap boliye.", "stub")
+
+    async def _stub_transcribe(*_a, **_k):
+        return ""
+
+    _free_ai_mod.chat = _stub_llm_chat
+    _free_ai_mod.transcribe_audio = _stub_transcribe
+except Exception:
+    pass
 from app.models.base import Base, get_async_db, get_db
 from app.models.user import User, UserRole, UserStatus
 
