@@ -69,7 +69,7 @@ _GEN_CONFIG = {
     "temperature": 0.5,
     "max_output_tokens": 60,
 }  # brevity (phone) — 60 so closes don't truncate
-_REPLY_TIMEOUT_S = 6.0  # Gemini se itne me jawab nahi => "" (fallback chain)
+_REPLY_TIMEOUT_S = 4.5  # itne me LLM reply nahi => "" -> instant script_fallback (voice me 6s+ = dead-air "reply nahi deta"; mistral warm ~1-2s)
 
 # KB-grounding (Qdrant niche + client KB) — phone hot path, so keep it tight:
 # top-2 facts, short timeout, low score gate (works for both e5-cosine and
@@ -392,19 +392,19 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             facts = await self._kb_facts(ut)
             prompt = self._build_prompt(history, ut, facts)
 
-            text, prov = await self._generate(prompt)
+            # HARD LATENCY CAP — _generate (free_llm + gemini fallback) ko ek overall
+            # deadline do. Free providers exhausted/slow ho (groq TPD, gemini quota,
+            # openrouter 404) to cascade 10-14s tak chala jaata tha = voice me dead-air
+            # ("reply nahi deta"). Timeout pe instant script_fallback (niche discovery-Q).
+            try:
+                text, prov = await asyncio.wait_for(self._generate(prompt), timeout=_REPLY_TIMEOUT_S)
+            except Exception:
+                text, prov = "", ""
 
-            # REPEATED-ANSWER GUARD — same-as-last-line par nudge + ek retry.
+            # REPEAT GUARD — nudge-retry (2nd LLM call) HATA diya: wo per-turn latency
+            # ~6s tak badha deta tha ("reply nahi deta" feel = dead-air). Repeat/empty/
+            # re-greet ab seedha script_fallback se handle (instant + niche discovery-Q).
             prev = self._prev_assistant(history)
-            if text and prev and self._too_similar(text, prev):
-                nudged = prompt.rstrip() + (
-                    "\n\n(NOTE: apni pichhli line bilkul mat dohrao — baat aage "
-                    "badhao, agla qualification sawaal poochho ya nayi value-line do.)\nSwara:"
-                )
-                t2, p2 = await self._generate(nudged)
-                if t2 and not self._too_similar(t2, prev):
-                    text, prov = t2, p2
-
             text = self._fill(self._clean(text))  # brevity cap + placeholder fill ([Company] leak guard)
             # RE-GREETING GUARD — LLM cold/first-turn pe niche opening PARROT kar deta
             # (user ke sawaal ka jawab nahi, sirf dobara greet → "reply nahi deta" feel).
