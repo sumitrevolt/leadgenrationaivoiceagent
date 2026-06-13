@@ -406,10 +406,15 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
                     text, prov = t2, p2
 
             text = self._fill(self._clean(text))  # brevity cap + placeholder fill ([Company] leak guard)
-            # SCRIPT FALLBACK: agar LLM throttled/slow/empty (free quota spike),
-            # generic "samajh gayi" ki jagah niche-script ka agla PROFESSIONAL
-            # sawaal do — instant (0 LLM), niche-specific, kabhi repeat nahi.
-            if not text or (prev and self._too_similar(text, prev)):
+            # RE-GREETING GUARD — LLM cold/first-turn pe niche opening PARROT kar deta
+            # (user ke sawaal ka jawab nahi, sirf dobara greet → "reply nahi deta" feel).
+            # Non-first turn pe greeting-like reply = chhodo, script ka asli
+            # discovery-question do taaki conversation aage badhe.
+            _spoken = sum(1 for m in (history or []) if (m.get("role") or "") == "assistant")
+            _regreet = bool(text and _spoken >= 1 and self._looks_like_greeting(text))
+            # SCRIPT FALLBACK: LLM throttled/slow/empty/re-greet -> niche-script ka
+            # agla PROFESSIONAL sawaal (instant, niche-specific, kabhi repeat nahi).
+            if not text or _regreet or (prev and self._too_similar(text, prev)):
                 sc = self._script_fallback(history)
                 if sc:
                     return sc
@@ -434,6 +439,18 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             return self._SAFE_LINES[n % len(self._SAFE_LINES)]
         except Exception:
             return "Ji, boliye?"
+
+    @staticmethod
+    def _looks_like_greeting(text: str) -> bool:
+        """Reply niche-opening jaisa hai? (Namaste + greeting-phrase). Non-first turn
+        pe ye re-greeting = bug; script discovery-question se replace karte."""
+        t = (text or "").lower()
+        if "namaste" not in t and "hello" not in t and "main swara" not in t:
+            return False
+        markers = ("bol rahi hoon", "bol raha hoon", "30 second", "tees second",
+                   "baat kar sakti", "baat kar sakta", "do minute", "ek minute de",
+                   "se baat kar rah", "se swara", "minute baat")
+        return any(m in t for m in markers)
 
     def _fill(self, text: str) -> str:
         """Template placeholders ([Company]/[Name]/[Project]) ko real values se
