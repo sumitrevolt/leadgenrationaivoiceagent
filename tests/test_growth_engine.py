@@ -38,13 +38,33 @@ def tmp_env(monkeypatch, tmp_path):
     monkeypatch.setattr(prospector, "_PROSPECTS_FILE", pros)
     # DB off — team.log_event / team_status silently no-op (no DB needed).
     monkeypatch.setattr(team, "_db", lambda: None)
+    # collect_metrics blog/clients/content ko REAL data/ se padhta hai — full-suite me
+    # pichle tests ka leftover state "empty -> zeros" assertion ko tod deta tha.
+    # In sources ko empty stub karo (yeh tests prospects pe focus karte hain).
+    from app.marketing import auto_content, clients_store, seo_blog
+
+    monkeypatch.setattr(seo_blog, "list_articles", lambda *a, **k: [])
+    monkeypatch.setattr(clients_store, "list_clients", lambda *a, **k: [])
+    monkeypatch.setattr(auto_content, "list_queue", lambda *a, **k: [])
+    # collect_metrics ka prospects DB-FALLBACK (get_db_session) shared test-DB ke
+    # leftover leads count kar leta tha — docstring "no DB" intent ke against. DB off
+    # karo taaki empty-jsonl pe prospects.total sach me 0 rahe (fallback skip ho).
+    import app.models.base as _mb
+
+    def _no_db(*_a, **_k):
+        raise RuntimeError("DB off in growth_engine unit test")
+
+    monkeypatch.setattr(_mb, "get_db_session", _no_db, raising=False)
     return {"pulse": pulse, "hist": hist, "inq": inq, "pros": pros}
 
 
 @pytest.fixture
 def no_heal_side_effects(monkeypatch):
-    """Self-heal kabhi asli blog/scrape na kare — async no-op stubs."""
-    from app.marketing import seo_blog
+    """Self-heal kabhi asli blog/scrape/content-gen na kare — async no-op stubs.
+    auto_content.run_daily_content() bhi stub: full-suite me pichle tests ke leftover
+    active-clients self-heal branch (b) ko trigger karte the → real LLM network call →
+    poora pytest hang (test isolation me clients=0 hone se chhupa rehta tha)."""
+    from app.marketing import auto_content, seo_blog
 
     async def _blog(*_a, **_k):
         return {"published": 0, "slugs": []}
@@ -52,8 +72,12 @@ def no_heal_side_effects(monkeypatch):
     async def _scrape(*_a, **_k):
         return {"new": 0}
 
+    async def _content(*_a, **_k):
+        return {"items": 0}
+
     monkeypatch.setattr(seo_blog, "run_daily_blog", _blog)
     monkeypatch.setattr(prospector, "run_prospecting", _scrape)
+    monkeypatch.setattr(auto_content, "run_daily_content", _content)
 
 
 def _seed_prospect(pfile, rec):

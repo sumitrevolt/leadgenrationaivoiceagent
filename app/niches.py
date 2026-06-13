@@ -1155,4 +1155,7 @@ def niches_for_product(product: str) -> dict:
 
 def lead_band(key: str) -> str:
     """Voice-product pricing band ('A'|'B'|'C') for a niche key — default 'A'."""
-    refresh_custom_nic
+    refresh_custom_niches()
+    cfg = NICHES.get((key or "").strip().lower()) or {}
+    b = str(cfg.get("lead_band") or "A").strip().upper()
+    return b if b in ("A", "B", "C") else "A"

@@ -249,6 +249,12 @@ async def _run_job_inner(job: str) -> None:
             from app.marketing import wa_campaign_runner
 
             await wa_campaign_runner.run_due()  # WhatsApp drip/reactivation (inert without creds)
+            try:
+                from app.marketing import telegram_publish
+
+                await telegram_publish.run_due()  # Telegram channel auto-publish (gated TELEGRAM_AUTO_PUBLISH; inert off)
+            except Exception:
+                pass
             from app.marketing import cadence
 
             await cadence.run_due()  # omnichannel cadence advance (gated CADENCE_ENGINE; inert off)

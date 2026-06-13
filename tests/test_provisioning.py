@@ -9,11 +9,12 @@ from app.niches import NICHES, niches_by_target, niches_by_tier
 
 
 class TestNicheRegistry:
-    def test_exactly_42_builtin_niches(self):
-        # 26 (25 research + ai_marketing) + 16 local-business marketing niches
+    def test_exactly_39_builtin_niches(self):
+        # ADR-009 + niche rebuild (commits 46f3b4d/50ea9a8): curated 39 builtin
+        # niches (S=8, A=14, B=17). Purane 42 me se weak niches removed.
         from app.niches import _BUILTIN_KEYS
 
-        assert len(_BUILTIN_KEYS) == 42
+        assert len(_BUILTIN_KEYS) == 39
 
     def test_every_niche_has_required_fields(self):
         required = [
@@ -37,12 +38,12 @@ class TestNicheRegistry:
             assert cfg["target_type"] in ("b2c", "b2b", "both"), key
 
     def test_tier_and_target_views(self):
-        assert len(niches_by_tier("S")) == 13  # S-tier (incl. new marketing S niches)
+        assert len(niches_by_tier("S")) == 8  # S-tier (post niche rebuild)
         total = sum(len(niches_by_tier(t)) for t in ("S", "A", "B"))
-        assert total == 42  # builtin tiers; custom niches tier "C" me hote hain
+        assert total == 39  # builtin tiers; custom niches tier "C" me hote hain
         # b2c view includes 'both'
         b2c = niches_by_target("b2c")
-        assert "real_estate" in b2c and "wedding_venues" in b2c
+        assert "cloud_kitchen" in b2c and "skin_dermatology" in b2c
 
     def test_flow_builds_for_every_niche(self):
         from app.voice_agent.flow_builder import build_flow_for_niche
@@ -106,7 +107,7 @@ class TestNichesAPI:
     def test_tier_filter(self, client: TestClient):
         r = client.get("/api/data/niches?tier=S")
         assert r.status_code == 200
-        assert r.json()["count"] == 13  # S-tier (incl. new marketing S niches)
+        assert r.json()["count"] == 8  # S-tier (post niche rebuild)
 
     def test_target_type_filter(self, client: TestClient):
         r = client.get("/api/data/niches?target_type=b2c")
@@ -221,7 +222,7 @@ class TestCustomNiches:
             self._cleanup(key)
 
     def test_builtin_niche_delete_protected(self, client: TestClient):
-        r = client.delete("/api/data/niches/real_estate")
+        r = client.delete("/api/data/niches/ai_marketing")
         assert r.status_code == 403
 
     def test_delete_custom_niche(self, client: TestClient):
@@ -238,7 +239,7 @@ class TestNicheResolution:
     def test_resolve_exact_key(self):
         from app.platform.agent_provisioner import resolve_niche_key
 
-        assert resolve_niche_key("real_estate") == "real_estate"
+        assert resolve_niche_key("solar_residential") == "solar_residential"
 
     def test_resolve_display_name(self):
         from app.platform.agent_provisioner import resolve_niche_key

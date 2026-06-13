@@ -31,6 +31,34 @@ def enabled() -> bool:
     return bool(_token())
 
 
+def auto_enabled() -> bool:
+    """Auto-publish loop gate. Token AUR TELEGRAM_AUTO_PUBLISH=1 dono chahiye —
+    warna run_due() inert (zero behaviour change). Manual/API send isse independent."""
+    return enabled() and os.getenv("TELEGRAM_AUTO_PUBLISH", "0").strip().lower() in ("1", "true", "yes")
+
+
+_STATE = os.path.join("data", ".telegram_autopub.json")
+
+
+def _load_state() -> dict[str, str]:
+    try:
+        with open(_STATE, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def _save_state(state: dict[str, str]) -> None:
+    try:
+        os.makedirs(os.path.dirname(_STATE) or ".", exist_ok=True)
+        tmp = _STATE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(state, f)
+        os.replace(tmp, _STATE)
+    except Exception as e:
+        logger.warning(f"telegram autopub state save failed: {e}")
+
+
 def _log(rec: dict[str, Any]) -> None:
     try:
         os.makedirs(os.path.dirname(_PATH) or ".", exist_ok=True)
@@ -110,3 +138,49 @@ async def send_for_client(client_id: str, occasion: str = "", offer: str = "") -
     )
     res = await send_post(chat_id, post.get("post_text") or post.get("caption", ""))
     return {**res, "caption": post.get("caption", "")}
+
+
+async def run_due() -> dict[str, Any]:
+    """Scheduler loop: TELEGRAM_AUTO_PUBLISH=1 pe har active client (jiska
+    telegram_chat_id set hai) ke channel pe aaj ka content AUTO publish karo.
+    Per-client daily dedupe (state file) — content-job din me ek baar chalta hai
+    par re-run/double-tick pe dobara post na ho. Flag/token off = inert. NEVER raises."""
+    if not auto_enabled():
+        return {"ran": False, "reason": "TELEGRAM_AUTO_PUBLISH off ya token unset"}
+    try:
+        from app.marketing import clients_store
+
+        day_key = time.strftime("%Y-%m-%d")
+        state = _load_state()
+        clients = clients_store.list_clients(status="active") or clients_store.list_clients()
+        sent = skipped = failed = 0
+        for c in clients:
+            cid = str(c.get("id") or "").strip()
+            chat_id = str(c.get("telegram_chat_id") or "").strip()
+            if not cid or not chat_id:
+                continue
+            if state.get(cid) == day_key:  # already published today
+                skipped += 1
+                continue
+            try:
+                res = await send_for_client(cid)
+                if res.get("sent"):
+                    sent += 1
+                    state[cid] = day_key  # mark only on success → retry next tick on failure
+                else:
+                    failed += 1
+            except Exception as e:
+                failed += 1
+                logger.warning(f"telegram run_due client {cid} failed: {e}")
+        _save_state(state)
+        if sent:
+            try:
+                from app.platform import team
+
+                team.log_event("isha", "telegram_autopublish", f"📣 Telegram auto-publish: {sent} clients")
+            except Exception:
+                pass
+        return {"ran": True, "sent": sent, "skipped": skipped, "failed": failed}
+    except Exception as e:
+        logger.warning(f"telegram run_due failed: {e}")
+        return {"ran": False, "reason": str(e)[:150]}

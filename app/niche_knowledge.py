@@ -122,6 +122,150 @@ NICHE_KNOWLEDGE: dict[str, dict[str, Any]] = {
             "think_about_it": "Bilkul sochiye sir — tab tak main aapka FREE Google Business audit karwa deti hoon, score saamne dekh ke aaram se decide kar lena.",
         },
     },
+    "edtech_creators": {
+        "facts": [
+            "Course free demo/trial ke saath aata hai — pehle dekh lijiye, phir decide kijiye.",
+            "Recorded lessons lifetime access ke saath milte hain, apne time pe padh sakte ho.",
+            "Doubt-solving ke liye community/WhatsApp group hota hai — akele nahi atakte.",
+            "Certificate aur practical projects milte hain jo resume/LinkedIn pe kaam aate hain.",
+        ],
+        "benefits": [
+            "Apne pace pe seekho — job ya college ke saath bhi manageable",
+            "Industry-relevant skills, sirf theory nahi",
+            "Doubt support + community se motivation banta hai",
+        ],
+        "objections": {
+            "too_expensive": "EMI aur scholarship options hote hain — aur ek skill se job/freelance income aapki fees se kahin zyada nikal aati hai. Free demo dekh ke value khud judge kar lijiye.",
+            "think_about_it": "Bilkul sochiye — main free demo class ka access bhej deti hoon, content dekh ke aaram se decide karna.",
+            "no_time": "Lessons recorded hain, roz 30 minute bhi kaafi hai — apne schedule ke hisab se chal sakta hai.",
+        },
+    },
+    "hospital_appointments": {
+        "facts": [
+            "Aap symptom batayein, hum sahi department/doctor suggest karke OPD appointment book kar dete hain.",
+            "Appointment ka confirmation aur reminder WhatsApp/SMS pe mil jaata hai — line me lagne ki zarurat nahi.",
+            "Reschedule ya cancel bhi ek call/message me ho jaata hai.",
+            "Reports aur follow-up ke liye bhi hum reminder bhejte hain taaki koi visit miss na ho.",
+        ],
+        "benefits": [
+            "Bina lambi wait ke time-slot mil jaata hai",
+            "Sahi doctor tak seedha pahunch — sahi department",
+            "Reminder se follow-up miss nahi hota",
+        ],
+        "objections": {
+            "too_expensive": "Consultation fee standard hi hai — hum sirf booking aasaan banate hain, koi extra charge nahi. Aapko slot aur doctor confirm karke bata dete hain.",
+            "think_about_it": "Koi jaldi nahi — aap jab ready ho tab slot book kar dijiye, main aapke liye available timings WhatsApp pe bhej deti hoon.",
+            "busy": "Samajhti hoon. Aap apna preferred din-time bata dijiye, us hisab se appointment fix kar deti hoon.",
+        },
+    },
+    "finance_advisory": {
+        "facts": [
+            "Pehle aapke goals aur risk-comfort samajhte hain, phir hi koi plan suggest karte hain — ek-size-fits-all nahi.",
+            "SIP chhoti amount (₹500/mahina) se bhi shuru ho sakti hai; insurance term plans ki cost aksar logon ke andaaze se kam hoti hai.",
+            "Tax-saving (80C/80D) aur investment dono ek saath plan ho sakte hain.",
+            "Exact returns market pe depend karte hain — hum realistic picture dete hain, jhoothe vaade nahi.",
+        ],
+        "benefits": [
+            "Goal-based plan — sirf product bechna nahi",
+            "Tax bachat + wealth dono ek saath",
+            "Regular review — plan time ke saath adjust hota hai",
+        ],
+        "objections": {
+            "too_expensive": "Shuruaat chhoti SIP se ho sakti hai — ₹500/mahina bhi. Pehle ek free goal-planning baithak kar lijiye, koi commitment nahi.",
+            "think_about_it": "Bilkul, paise ka decision soch ke hi lena chahiye. Main ek simple goal-plan summary bhej deti hoon, aaram se dekh lena.",
+            "not_interested": "Koi baat nahi — bas itna, jaldi shuru karne se compounding ka fayda zyada milta hai. Ek 2-minute summary bhej doon?",
+        },
+    },
+    "cloud_kitchen": {
+        "facts": [
+            "Direct WhatsApp/phone order pe aksar Zomato/Swiggy se behtar rate aur portion milta hai.",
+            "Roz ka fresh menu aur timing aapko WhatsApp pe mil jaata hai.",
+            "Hygiene aur packaging ka dhyan rakha jaata hai — ghar tak safe delivery.",
+            "Bulk/monthly tiffin plans pe special pricing hoti hai.",
+        ],
+        "benefits": [
+            "Ghar jaisa khana, roz fresh",
+            "Direct order pe better value (commission nahi)",
+            "Monthly plan se time aur paisa dono bachta hai",
+        ],
+        "objections": {
+            "too_expensive": "Direct order pe aggregator commission nahi lagta isliye rate behtar rehta hai — aur monthly tiffin plan me per-meal cost aur kam ho jaati hai.",
+            "already_have": "Ek baar try karke dekh lijiye — pehla order pe chhota offer de deti hoon, taste pasand aaye to hi continue kijiye.",
+            "send_details": "Zaroor, aaj ka menu aur pricing WhatsApp pe bhej deti hoon — dekh ke order kar lena.",
+        },
+    },
+    "ecommerce_d2c": {
+        "facts": [
+            "Genuine products with proper warranty/return policy — koi duplicate nahi.",
+            "Festival aur launch offers pe pricing kaafi competitive hoti hai.",
+            "Order tracking aur support WhatsApp pe milta hai — delivery tak update.",
+            "COD aur prepaid dono options, secure payment ke saath.",
+        ],
+        "benefits": [
+            "Authentic products + easy returns",
+            "Direct-from-brand pricing aur offers",
+            "WhatsApp pe quick support aur tracking",
+        ],
+        "objections": {
+            "too_expensive": "Quality aur warranty ke saath ye rate reasonable hai — aur abhi ek launch/festival offer chal raha hai jisse aur sasta pad jaata hai.",
+            "just_browsing": "Bilkul dekhiye — main naye arrivals aur current offers WhatsApp pe bhej deti hoon, jab man kare order kar lena.",
+            "trust_issue": "Samajhti hoon. Return/replacement policy clear hai aur COD bhi available hai — risk minimal rakha hai.",
+        },
+    },
+    "skin_dermatology": {
+        "facts": [
+            "Pehle skin assessment hota hai, phir aapki skin ke hisab se treatment plan banta hai.",
+            "Acne, pigmentation, anti-aging, laser, PRP jaise common concerns clinic me address hote hain.",
+            "Qualified dermatologist consult karte hain — results realistic aur safe rakhe jaate hain.",
+            "Consultation me hi expected sessions aur approximate cost clear bata dete hain.",
+        ],
+        "benefits": [
+            "Personalized plan — generic cream nahi",
+            "Doctor-supervised, safe procedures",
+            "Pehle hi clear expectations aur cost",
+        ],
+        "objections": {
+            "too_expensive": "Treatment session-wise hota hai aur EMI bhi available hoti hai — pehle ek consultation me exact plan aur cost jaan lijiye, phir decide karna.",
+            "think_about_it": "Bilkul, skin ka decision soch ke lena sahi hai. Ek consultation book kar deti hoon — doctor se baat karke aaram se decide karna.",
+            "not_sure_works": "Har skin alag hoti hai isliye pehle assessment karte hain — jhoothe vaade nahi. Realistic result hi batate hain.",
+        },
+    },
+    "event_management": {
+        "facts": [
+            "Budget aur theme batayein — uske hisab se end-to-end planning (venue, decor, catering, vendors) handle karte hain.",
+            "Corporate offsites/launches aur family functions dono ka experience hai.",
+            "Ek single point of contact rehta hai — aapko alag-alag vendors chase nahi karne padte.",
+            "Past events ka portfolio aur references share kar sakte hain.",
+        ],
+        "benefits": [
+            "Stress-free planning — sab kuch ek jagah se",
+            "Budget ke andar best vendors aur deals",
+            "On-the-day coordination — aap relax karein",
+        ],
+        "objections": {
+            "too_expensive": "Hum aapke budget ke andar hi plan banate hain aur vendor deals se aksar paisa bachate hain — pehle ek free planning call kar lijiye.",
+            "think_about_it": "Bilkul, event bada decision hai. Main ek sample plan aur portfolio bhej deti hoon, dekh ke aaram se decide karna.",
+            "already_have": "Koi baat nahi — ek free quote/idea le lijiye, compare karne me kuch nuksan nahi.",
+        },
+    },
+    "ayurveda_wellness": {
+        "facts": [
+            "Pehle aapki body-type aur problem samajhte hain, phir personalized treatment/diet plan dete hain.",
+            "Chronic issues, immunity, stress, weight jaise concerns pe natural approach se kaam hota hai.",
+            "Treatment qualified practitioner ki guidance me hota hai — safe aur gradual.",
+            "Results time lete hain; hum realistic timeline batate hain, instant ke jhoothe vaade nahi.",
+        ],
+        "benefits": [
+            "Natural, side-effect-minimal approach",
+            "Personalized plan — diet + lifestyle ke saath",
+            "Practitioner guidance throughout",
+        ],
+        "objections": {
+            "too_expensive": "Plan aapke budget ke hisab se adjust ho jaata hai — pehle ek consultation me problem aur approximate cost samajh lijiye, koi pressure nahi.",
+            "think_about_it": "Bilkul soch ke lijiye — main ek short consultation book kar deti hoon, baat karke aaram se decide karna.",
+            "not_sure_works": "Har body alag react karti hai isliye pehle assessment karte hain aur realistic timeline batate hain — jhoothe vaade nahi.",
+        },
+    },
     "real_estate": {
         "facts": [
             "Hum RERA-registered projects aur verified resale properties dono dikhate hain.",

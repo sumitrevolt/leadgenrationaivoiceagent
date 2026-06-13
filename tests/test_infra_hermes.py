@@ -23,7 +23,7 @@ def test_snapshot_defensive_and_scored(tmp_path, monkeypatch):
     assert snap["agent"] == "hermes"
     assert isinstance(snap["score"], int) and 0 <= snap["score"] <= 100
     assert snap["status"] in ("healthy", "attention", "critical")
-    assert set(snap["checks"]) == {"ready", "disk", "memory", "jobs", "llm", "backups"}
+    assert set(snap["checks"]) == {"ready", "disk", "memory", "jobs", "llm", "backups", "embedder"}
     assert snap["actions"]  # hamesha kam-se-kam ek line
 
 

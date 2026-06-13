@@ -13,6 +13,16 @@ import os
 os.environ.setdefault("RUN_IN_PROCESS_SCHEDULER", "0")
 os.environ.setdefault("TEAM_AUTOMATION", "0")
 
+# SAFETY NET: koi bhi test agar galti se asli network (LLM/Exotel/Maps/Redis) hit
+# kare to wo HANG na ho — har raw socket op max 10s me fail ho jaye. pytest-timeout
+# ka thread-method blocking socket ko interrupt nahi kar pata (Windows pe signal-
+# method bhi nahi hai), isliye poora suite kabhi-kabhi infinite hang ho jata tha.
+# TestClient ASGI in-process hai (socket nahi) → isse unaffected; sirf real network
+# bounded hota hai. (test_growth_engine self-heal auto_content branch lesson, 2026-06-13.)
+import socket as _socket
+
+_socket.setdefaulttimeout(10)
+
 # Use SQLite for tests (fast, no external dependencies)
 # DB lives in the OS temp dir — avoids polluting the repo and works on
 # network/mounted filesystems where SQLite locking can fail with disk I/O errors.

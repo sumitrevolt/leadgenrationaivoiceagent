@@ -131,7 +131,11 @@ def test_suggest_new_ways_fallback(tmp_path, monkeypatch):
     monkeypatch.setattr(go, "_IDEAS", str(tmp_path / "ideas.jsonl"))
     ideas = asyncio.run(go.suggest_new_ways("solar"))
     assert len(ideas) == 5  # LLM fail -> static fallback, phir bhi 5 ideas
-    assert go.recent_ideas(10)
+    # ideas _IDEAS ledger me persist hote hain (recent_ideas helper removed)
+    import os
+    assert os.path.isfile(go._IDEAS)
+    with open(go._IDEAS, encoding="utf-8") as f:
+        assert len([ln for ln in f if ln.strip()]) >= 1
 
 
 # ----------------------------- city rotation ----------------------------- #

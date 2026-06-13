@@ -12,24 +12,26 @@ import importlib
 
 
 # ----------------------- voice catalog ----------------------- #
+# PRICING MODEL (2026-06-12): FLAT MONTHLY per band (per-10-lead system REMOVED).
+# Band A=₹4,999 · B=₹9,999 · C=₹19,999 /mo; annual = 10× (2 mahine free); pilot free.
 def test_voice_packages_catalog():
     from app.marketing import voice_packages as vp
 
-    assert vp.PACK_SIZE == 10
     assert set(vp.BANDS) == {"A", "B", "C"}
-    keys = [t["key"] for t in vp.VOICE_TIERS]
-    assert keys == ["voice_starter", "voice_growth", "voice_pro"]
-    for t in vp.VOICE_TIERS:
-        assert t["leads_per_month"] % vp.PACK_SIZE == 0  # quota = 10-lead units
-        for b in ("A", "B", "C"):
-            assert t["price_inr_month"][b] > 0
-        # band ladder: A < B < C
-        assert t["price_inr_month"]["A"] < t["price_inr_month"]["B"] < t["price_inr_month"]["C"]
-    # top-up rate tier-effective-rate se UPAR (upsell lever)
-    st = next(t for t in vp.VOICE_TIERS if t["key"] == "voice_starter")
+    # flat monthly prices, band ladder A < B < C
+    pa, pb, pc = (vp.BANDS[b]["price_month"] for b in ("A", "B", "C"))
+    assert pa < pb < pc and pa > 0
+    # annual = 10× monthly (2 mahine free) for every band
     for b in ("A", "B", "C"):
-        per_lead_tier = st["price_inr_month"][b] / st["leads_per_month"]
-        assert vp.lead_topup_price(b) / vp.PACK_SIZE >= per_lead_tier
+        assert vp.BANDS[b]["price_year"] == vp.BANDS[b]["price_month"] * 10
+    # plan-id registry: 3 monthly + 3 annual + free pilot
+    assert set(vp.VOICE_PLAN_IDS) == {
+        "voice_a_monthly", "voice_b_monthly", "voice_c_monthly",
+        "voice_a_annual", "voice_b_annual", "voice_c_annual", "voice_pilot",
+    }
+    # flat plans = unlimited quota signal; pilot = fair-use call cap
+    assert vp.plan_lead_quota("voice_a_monthly") == vp.UNLIMITED_QUOTA
+    assert vp.plan_lead_quota("voice_pilot") == vp.PILOT_CALL_CAP
 
 
 def test_voice_packages_resolution_helpers():
@@ -37,14 +39,17 @@ def test_voice_packages_resolution_helpers():
 
     pkg = vp.get_voice_packages(band="b")
     assert pkg["band"] == "B" and len(pkg["tiers"]) == 3
-    assert pkg["tiers"][0]["plan_id"] == "voice_starter_b"
-    assert pkg["topup_pack"]["price_inr"] == vp.lead_topup_price("B")
-    assert vp.voice_plan_parts("voice_growth_c") == ("voice_growth", "C")
+    assert pkg["pricing_model"] == "flat_monthly"
+    plan_ids = [t["plan_id"] for t in pkg["tiers"]]
+    assert plan_ids == ["voice_pilot", "voice_b_monthly", "voice_b_annual"]
+    assert vp.voice_plan_parts("voice_b_monthly") == ("voice_b_monthly", "B")
     assert vp.voice_plan_parts("starter") == ("", "A")  # marketing plan != voice
-    assert vp.is_voice_plan("voice_pro_a") and not vp.is_voice_plan("growth")
-    assert vp.plan_lead_quota("voice_growth_b") == 30
-    assert vp.plan_lead_quota("advanced") == 0
+    assert vp.is_voice_plan("voice_c_monthly") and not vp.is_voice_plan("growth")
+    assert vp.plan_lead_quota("voice_b_monthly") == vp.UNLIMITED_QUOTA
+    assert vp.plan_lead_quota("advanced") == 0  # non-voice plan
     assert vp.normalize_band("junk") == "A"
+    # niche -> band resolution (niches.py lead_band se)
+    assert vp.niche_band("ivf_clinics") == "C"
 
 
 # ----------------------- niches split ----------------------- #
@@ -52,11 +57,11 @@ def test_niches_lead_band_and_no_per_lead_pricing():
     from app import niches as n
 
     builtins = {k: v for k, v in n.NICHES.items() if not v.get("custom")}
-    assert len(builtins) >= 40
+    assert len(builtins) == 39  # curated builtin set (niche rebuild)
     for k, cfg in builtins.items():
         assert "pricing_inr" not in cfg, f"per-lead pricing leftover in {k}"
         assert cfg.get("lead_band") in ("A", "B", "C"), k
-    assert n.lead_band("real_estate_luxury") == "C"
+    assert n.lead_band("ivf_clinics") == "C"  # premium band niche
     assert n.lead_band("nope_unknown") == "A"
 
 
@@ -80,23 +85,26 @@ def test_niches_for_product_sets_differ():
 # ----------------------- lead usage metering ----------------------- #
 def test_lead_usage_guards_and_flow(tmp_path, monkeypatch):
     from app.billing import lead_usage as lu
+    from app.marketing.voice_packages import UNLIMITED_QUOTA
 
     monkeypatch.setattr(lu, "_STORE", tmp_path / "lead_usage.jsonl")
     assert lu.record_qualified_lead("") is False
     assert lu.add_topup_leads("c1", 0) is False
     # fail-open: no client / non-voice plan
-    assert lu.has_lead_quota("", "voice_starter_a") is True
+    assert lu.has_lead_quota("", "voice_a_monthly") is True
     assert lu.has_lead_quota("c1", "advanced") is True
-    # voice plan flow: quota 10 -> consume -> topup
-    assert lu.record_qualified_lead("c1", ref="call_x", plan="voice_starter_a")
-    s = lu.usage_summary("c1", "voice_starter_a")
-    assert s["used_leads"] == 1 and s["quota_leads"] == 10 and s["remaining_leads"] == 9
+    # flat monthly plan: usage METERED (reporting) par quota UNLIMITED -> gate hamesha open
+    assert lu.record_qualified_lead("c1", ref="call_x", plan="voice_a_monthly")
+    s = lu.usage_summary("c1", "voice_a_monthly")
+    assert s["used_leads"] == 1 and s["quota_leads"] == UNLIMITED_QUOTA
     for i in range(9):
-        lu.record_qualified_lead("c1", ref=f"c{i}", plan="voice_starter_a")
-    assert lu.has_lead_quota("c1", "voice_starter_a") is False
+        lu.record_qualified_lead("c1", ref=f"c{i}", plan="voice_a_monthly")
+    assert lu.leads_used_this_period("c1") == 10
+    # unlimited flat plan -> has_lead_quota hamesha True
+    assert lu.has_lead_quota("c1", "voice_a_monthly") is True
+    # top-up still records additively (reporting)
     assert lu.add_topup_leads("c1", 10, ref="pay_1")
-    assert lu.has_lead_quota("c1", "voice_starter_a") is True
-    assert lu.leads_remaining("c1", "voice_starter_a") == 10
+    assert lu.topup_leads_this_period("c1") == 10
 
 
 # ----------------------- team split ----------------------- #
@@ -124,16 +132,19 @@ def test_billing_plans_two_products():
     assert float(sub.PRICING_PLANS["starter"].monthly_price) == 1199.0
     assert float(sub.PRICING_PLANS["growth"].monthly_price) == 2999.0
     assert float(sub.PRICING_PLANS["advanced"].monthly_price) == 6999.0
-    # voice (Product 2) — 9 band plans, quota in leads_per_month
-    from app.marketing.voice_packages import BANDS, VOICE_TIERS
+    # voice (Product 2) — flat per-band plans (monthly + annual) + free pilot
+    from app.marketing.voice_packages import BANDS, VOICE_PLAN_IDS, UNLIMITED_QUOTA
 
-    for t in VOICE_TIERS:
-        for b in BANDS:
-            pid = f"{t['key']}_{b.lower()}"
-            plan = sub.PRICING_PLANS.get(pid)
-            assert plan is not None, pid
-            assert float(plan.monthly_price) == float(t["price_inr_month"][b])
-            assert plan.leads_per_month == t["leads_per_month"]
+    for pid in VOICE_PLAN_IDS:
+        plan = sub.PRICING_PLANS.get(pid)
+        assert plan is not None, pid
+    # band monthly prices synced from voice_packages source-of-truth
+    for b in ("A", "B", "C"):
+        mp = sub.PRICING_PLANS[BANDS[b]["plan_monthly"]]
+        assert float(mp.monthly_price) == float(BANDS[b]["price_month"])
+        assert mp.leads_per_month == UNLIMITED_QUOTA  # flat = unlimited
+    # free pilot plan
+    assert float(sub.PRICING_PLANS["voice_pilot"].monthly_price) == 0.0
     # legacy PER-LEAD plans hata diye (per-lead system removed)
     assert "per_lead" not in sub.PRICING_PLANS
     assert "hybrid_starter" not in sub.PRICING_PLANS
