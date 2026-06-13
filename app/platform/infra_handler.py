@@ -237,12 +237,59 @@ async def snapshot() -> dict[str, Any]:
         actions.append("Voice-KB embedding model cache missing — image rebuild/bake karo (runtime download = freeze risk).")
 
     score = max(0, score)
+
+    # --- Skill-grounded recommendations (Fable skills -> Hermes) --- #
+    # Har detected issue ke liye skill_pack se sabse relevant PROJECT skill suggest
+    # karo, taaki Hermes ka action sirf "kya" nahi "kaise" bhi bataye (skill snippet
+    # padh ke). skill_pack off / koi match nahi = chup-chap skip (never-raise).
+    skills_suggested: list[dict[str, str]] = []
+    try:
+        from app.platform import skill_pack
+
+        if skill_pack.enabled():
+            _topic = {
+                "ready": "production down health deploy incident",
+                "disk": "infra disk cleanup backups hardening",
+                "memory": "infra memory leak performance",
+                "jobs": "scheduler jobs automation loop dead-man",
+                "llm": "llm provider quota fallback circuit-breaker",
+                "backups": "backup restore offsite postgres",
+                "embedder": "model bake embedder voice asset",
+            }
+            _seen: set[str] = set()
+            for _k, _ok_is_false in (
+                ("ready", checks["ready"].get("ok") is False),
+                ("disk", isinstance(checks["disk"].get("pct_used"), (int, float)) and checks["disk"]["pct_used"] >= DISK_WARN),
+                ("memory", checks["memory"].get("ok") is False),
+                ("jobs", bool(checks["jobs"].get("overdue") or checks["jobs"].get("queue_backlogged"))),
+                ("llm", checks["llm"].get("ok") is False),
+                ("backups", checks["backups"].get("ok") is False),
+                ("embedder", checks["embedder"].get("ok") is False),
+            ):
+                if not _ok_is_false:
+                    continue
+                for s in skill_pack.find(_topic[_k], k=1):
+                    nm = s.get("name")
+                    if nm and nm not in _seen:
+                        _seen.add(nm)
+                        skills_suggested.append({"issue": _k, "skill": nm, "why": (s.get("description") or "")[:120]})
+            # Healthy bhi ho to bhi "fable operating manual" hamesha point-of-reference
+            if not skills_suggested:
+                for s in skill_pack.find("fable operating manual project discipline", k=1):
+                    if s.get("name"):
+                        skills_suggested.append({"issue": "general", "skill": s["name"], "why": (s.get("description") or "")[:120]})
+    except Exception:
+        pass
+    if skills_suggested:
+        actions.append("📚 Relevant skills (padho phir act): " + ", ".join(sorted({x["skill"] for x in skills_suggested})))
+
     return {
         "agent": "hermes",
         "score": score,
         "status": "healthy" if score >= 85 else ("attention" if score >= ALERT_SCORE else "critical"),
         "checks": checks,
         "actions": actions or ["Sab theek — koi action nahi chahiye."],
+        "skills": skills_suggested,
         "at": _now().isoformat(timespec="seconds"),
     }
 
