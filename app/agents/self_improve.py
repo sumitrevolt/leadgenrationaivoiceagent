@@ -181,13 +181,19 @@ ACTIONS: dict[str, tuple[bool, str]] = {
 }
 
 # funnel weakest-stage → preferred actions (deterministic bias)
+# 2026-06-13 REBALANCE: agents 90%+ INTERNAL busywork (study_skills/reflection/
+# social_drafts) kar rahe the, real outbound/revenue kam. Har stage ko ab OUTBOUND/
+# revenue actions (harvest_leads, sales_deepdive, revenue_sweep, channel_experiments,
+# seo_pages) ki taraf bias kiya. Pure-meta hatai: reflection waise bhi har
+# _REFLECT_EVERY(8) runs pe ALAG se chalti hai; study_skills sirf 'scale' me rakha
+# (periodic learning). Outbound velocity ↑, self-monitoring noise ↓.
 _STAGE_ACTIONS = {
-    "lead_supply": ["scrape_leads", "harvest_leads", "seo_pages", "channel_experiments"],
-    "outreach_quality": ["sales_deepdive", "social_drafts", "reflection", "study_skills"],
+    "lead_supply": ["harvest_leads", "scrape_leads", "seo_pages", "channel_experiments"],
+    "outreach_quality": ["sales_deepdive", "harvest_leads", "channel_experiments", "social_drafts"],
     "inbound": ["seo_pages", "channel_experiments", "social_drafts"],
-    "conversion": ["sales_deepdive", "content_pack", "revenue_sweep"],
-    "retention": ["revenue_sweep", "content_pack", "reflection"],
-    "scale": ["optimizer", "channel_experiments", "social_drafts", "study_skills", "code_scan"],
+    "conversion": ["sales_deepdive", "revenue_sweep", "content_pack"],
+    "retention": ["revenue_sweep", "content_pack"],
+    "scale": ["optimizer", "channel_experiments", "harvest_leads", "study_skills"],
 }
 
 
