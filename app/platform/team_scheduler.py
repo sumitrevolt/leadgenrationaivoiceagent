@@ -389,6 +389,9 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import infra_handler
 
             await infra_handler.run_watch()  # Hermes: full infra score+actions (alert gated INFRA_HANDLER; off = no-op)
+            from app.platform import llm_metrics
+
+            await llm_metrics.run_capacity_watch()  # LLM gateway capacity/fallback alert (gated LLM_CAPACITY_ALERTS; #1 bottleneck self-flag)
             from app.platform import dlq_retry
 
             await dlq_retry.run_sweep()  # failed staff-jobs auto-retry+backoff (gated DLQ_AUTO_RETRY; off = no-op)

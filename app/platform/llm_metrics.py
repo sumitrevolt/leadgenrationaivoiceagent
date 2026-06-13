@@ -105,3 +105,56 @@ def stats(window: int = 2000) -> dict[str, Any]:
     fails = sum(1 for r in rows if not r.get("ok"))
     out["fallback_or_fail_rate"] = round(fails / max(len(rows), 1), 3)
     return out
+
+
+async def run_capacity_watch() -> dict[str, Any]:
+    """LLM gateway CAPACITY/RELIABILITY alert (competitor best-practice — LiteLLM/Vapi:
+    alert jab fallback-rate high ya provider-headroom low). Free providers exhaust hote
+    (groq TPD, gemini quota-0, openrouter 404) -> voice latency + content quality girti =
+    project ka #1 live bottleneck. Ye bottleneck system KHUD flag kare (observability->
+    action) taaki capacity/upgrade decision data-driven ho. GATED LLM_CAPACITY_ALERTS=1
+    (off = sirf return, no send). Dedupe via ops_watchdog cooldown. Never-raise."""
+    try:
+        import os as _os
+
+        st = stats(window=300)
+        total = int(st.get("total_calls", 0) or 0)
+        rate = float(st.get("fallback_or_fail_rate", 0) or 0)
+        provs = st.get("providers", {}) or {}
+        healthy = [
+            p for p, v in provs.items()
+            if isinstance(v, dict) and float(v.get("ok_rate", 0) or 0) >= 0.5 and int(v.get("calls", 0) or 0) >= 3
+        ]
+        exhausted = [
+            p for p, v in provs.items()
+            if isinstance(v, dict) and any(
+                k in str(v.get("last_error", "")).lower()
+                for k in ("quota", "tpd", "per day", "rate limit", "exhaust", "429", "resource_exhausted")
+            )
+        ]
+        degraded = total >= 30 and (rate >= 0.4 or len(healthy) <= 1)
+        res = {
+            "ok": not degraded,
+            "total_calls": total,
+            "fallback_rate": rate,
+            "healthy_providers": healthy,
+            "exhausted": exhausted,
+        }
+        if degraded and _os.environ.get("LLM_CAPACITY_ALERTS", "0").strip().lower() in ("1", "true", "yes"):
+            try:
+                from app.platform import ops_watchdog
+
+                if ops_watchdog._should_alert("llm_capacity"):
+                    body = (
+                        f"LLM capacity DEGRADED — fallback/fail-rate {rate}, healthy providers "
+                        f"{len(healthy)} ({', '.join(healthy) or 'NONE'}), exhausted: {', '.join(exhausted) or '-'}.\n"
+                        f"Asar: voice latency badhti (script-fallback), content quality template pe girti.\n"
+                        f"Fix (highest ROI): ek headroom/paid LLM key add karo — Groq Dev tier ya 1 paid provider."
+                    )
+                    await ops_watchdog._alert("⚠️ LeadGenAI: LLM capacity low (voice/content affected)", body)
+                    res["alerted"] = True
+            except Exception:
+                pass
+        return res
+    except Exception as e:  # pragma: no cover
+        return {"ok": True, "error": str(e)[:120]}
