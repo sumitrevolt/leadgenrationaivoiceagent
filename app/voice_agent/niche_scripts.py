@@ -199,26 +199,26 @@ NICHE_SCRIPTS: dict[str, dict] = {
         "closing": "Toh sir, ek free consultation fix kar dein — kal subah ya shaam, doctor ke paas aapka slot reserve kar doon?",
     },
     "ai_marketing": {
-        "opening": "Namaste sir, main LeadGen AI se [Name] bol rahi hoon — local businesses ki marketing AI se automate karte hain, bas 30 second baat kar sakti hoon?",
+        "opening": "Namaste sir, main LeadGen AI se [Name] bol rahi hoon — chhote businesses ki poori marketing AI se sambhalte hain: roz ke posts, festival posters, Google profile aur WhatsApp. Bas 30 second baat kar sakti hoon?",
         "discovery": [
             "Abhi aap apni marketing kaise karte ho — khud post dalte ho, staff hai, ya agency?",
             "Google pe aapka business search karne par upar dikhta hai kya?",
-            "Website ya Google se jo inquiries aati hain, unka follow-up kaun karta hai?",
+            "Social media pe regular post daal paate ho, ya time nahi milta?",
             "Mahine me marketing pe approx kitna kharcha ho jaata hai?",
         ],
         "objections": {
-            "mehenga": "Sir, ek customer ki value sochiye — ₹100/din me poora marketing department mil jaata hai; ek bhi extra customer aaye toh investment cover ho jaata hai.",
-            "abhi_nahi": "Koi baat nahi sir, tab tak ek FREE Google Business audit karwa lijiye — aapka score aur fixes saamne aa jayenge, koi charge nahi.",
-            "soch_ke": "Bilkul sochiye sir — main aapka FREE GBP audit bhej deti hoon, score dekh ke aap aaram se decide kar lijiye, koi obligation nahi.",
-            "pehle_se_hai": "Achha sir, agency to ₹15-25K/mahina leti hai — hum ₹3K se shuru karte hain, aur AI aapki inquiries ko CALL bhi karta hai jo agency nahi karti.",
-            "bharosa": "Sahi sawaal hai sir — pehle FREE audit aur live AI demo call dekh lijiye, kaam pasand aaye tabhi aage badhiye.",
+            "mehenga": "Sir, plan ₹1,199/mahina se shuru hota hai — yaani ₹40/din se kam me poora marketing department. Ek bhi extra customer aaye toh kharcha nikal jaata hai.",
+            "abhi_nahi": "Koi baat nahi sir, tab tak ek FREE Google Business audit karwa lijiye — aapka score aur top fixes saamne aa jayenge, koi charge nahi.",
+            "soch_ke": "Bilkul sochiye sir — main aapka FREE GBP audit bhej deti hoon, aur 7-din ka free trial bhi hai, dekh ke aaram se decide kijiye.",
+            "pehle_se_hai": "Achha sir, agency to ₹15-25K/mahina leti hai — hum ₹1,199 se shuru karte hain. Aur Advanced plan me AI aapki website/Google inquiries ko khud call karke follow-up bhi karta hai.",
+            "bharosa": "Sahi sawaal hai sir — pehle FREE audit aur 7-din free trial le lijiye, kaam pasand aaye tabhi aage badhiye. Card ki bhi zarurat nahi.",
         },
         "value_lines": [
-            "Dhanda-type apps sirf content dete hain — hum content ke saath aapki har inquiry ko AI se CALL bhi karwate hain, India me sirf hamare paas.",
-            "Shuru karne ke liye 10 FREE leads ka trial milta hai — risk zero.",
-            "Festival posts, Google ranking aur AI receptionist — teeno ek hi price me.",
+            "Roz ke social media posts, festival posters aur Google Business profile — sab automatic, aapka time zero lagta hai.",
+            "7 din ka FREE trial — bina credit card, pehle results dekho phir decide karo.",
+            "Advanced plan me AI receptionist bhi — har website/Google inquiry ko 2 minute me khud call karke follow-up.",
         ],
-        "closing": "Toh sir, main aapka FREE Google Business audit aur ek AI demo call book kar deti hoon — aaj shaam ya kal subah, kaunsa time theek rahega?",
+        "closing": "Toh sir, main abhi aapka FREE Google Business audit kar deti hoon — score aur top fixes saamne aa jayenge. Saath me 7-din ka free trial set kar doon, aaj ya kal?",
     },
     # ====================================================================== #
     # ADDITIONAL NICHE SCRIPTS (29 niches — professionally researched Hinglish)

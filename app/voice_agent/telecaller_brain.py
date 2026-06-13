@@ -81,8 +81,21 @@ _KB_MIN_SCORE = 0.05
 
 def _short_hook(hook: str, max_len: int = 90) -> str:
     """pitch_hook ka pehla, chhota hissa — opener me poora English hook lamba
-    lagta hai. Split on em-dash/hyphen clause, cap length."""
+    lagta hai. Split on em-dash/hyphen clause, cap length.
+
+    English-heavy hook (B2B value-prop) end-customer greeting me NAHI daalte —
+    "" return karte taaki greeting clean Hinglish fallback (opening_line ke
+    `if hook:` else-branch) pe jaaye. (Test: solar ka poora-English pitch_hook
+    Hindi greeting me leak ho raha tha → mixed-language + 41-word too-long.)"""
     h = (hook or "").strip()
+    if not h:
+        return ""
+    _low = " " + h.lower() + " "
+    _en = (" your ", " the ", " before ", " with ", " every ", " you ", " not ", " of ",
+           " who ", " and ", "qualified", "homeowners", "borrowers", "patients",
+           "aspirants", "suppliers", "inquiries", "booked", "replaced", "calendar")
+    if sum(1 for m in _en if m in _low) >= 2:
+        return ""  # English B2B hook — greeting me mat daalo
     for sep in ("—", " - ", ";"):
         if sep in h:
             h = h.split(sep)[0].strip()
@@ -402,10 +415,25 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
                     return sc
             if text:
                 logger.debug(f"[telecaller-brain] reply via {prov}")
-            return text or ""
+            return text or self._safe_fallback(history)
         except Exception as e:
             logger.warning(f"[telecaller-brain] reply failed: {e}")
-            return self._script_fallback(history) or ""
+            return self._script_fallback(history) or self._safe_fallback(history)
+
+    # Agent KABHI chup na rahe — LLM slow/empty + script-fallback bhi khali ho to
+    # ek safe Hinglish clarify/ack line do (silence = worst UX; test me "NO REPLY" bug).
+    _SAFE_LINES = (
+        "Ji, main sun rahi hoon — zara dobara boliye?",
+        "Achha sir, thoda detail me bataaiye?",
+        "Samajh gayi sir — ek minute, aap boliye?",
+    )
+
+    def _safe_fallback(self, history: list[dict[str, str]]) -> str:
+        try:
+            n = sum(1 for m in (history or []) if (m.get("role") or "") == "assistant")
+            return self._SAFE_LINES[n % len(self._SAFE_LINES)]
+        except Exception:
+            return "Ji, boliye?"
 
     def _script_fallback(self, history: list[dict[str, str]]) -> str:
         """Deterministic professional line from the niche script (no LLM).
