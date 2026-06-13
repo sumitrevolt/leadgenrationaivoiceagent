@@ -168,6 +168,27 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("⏭️ In-process scheduler disabled (RUN_IN_PROCESS_SCHEDULER=0)")
 
+    # KB embedder PRE-WARM (off-loop, background, fire-and-forget) — pehle voice
+    # turn ka ~8-12s cold-load (fastembed model RAM-load) startup pe nipta do taaki
+    # first call snappy ho. ⚠️ NEVER block boot / event-loop (prod-down #3: embedder
+    # load loop pe = HTTP starve) — isliye run_in_executor (thread) me. Gated KB_PREWARM.
+    if os.environ.get("KB_PREWARM", "1").strip().lower() in ("1", "true", "yes"):
+        try:
+            import asyncio as _aio
+
+            async def _prewarm_kb() -> None:
+                try:
+                    from app.voice_agent.knowledge_base import _get_qdrant_embedder
+
+                    await _aio.get_running_loop().run_in_executor(None, _get_qdrant_embedder)
+                    logger.info("✅ KB embedder pre-warmed (voice first-turn fast)")
+                except Exception as _e:
+                    logger.warning(f"KB prewarm skipped: {_e}")
+
+            _aio.create_task(_prewarm_kb())
+        except Exception as e:
+            logger.warning(f"KB prewarm not scheduled: {e}")
+
     logger.info("✅ Startup complete - application ready")
 
     yield
