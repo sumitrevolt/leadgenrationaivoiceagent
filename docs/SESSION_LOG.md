@@ -1087,3 +1087,31 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
 - `OUTREACH_DAILY_CAP=50`, `REPLY_AUTO_SEND=1`
 - `RAZORPAY_WEBHOOK_SECRET` SET (28ch) — dunning/payment events will work once Razorpay keys regenerated
 - Still user-pending: `UPI_VPA`, `BRAVE_API_KEY` ($5/mo), Razorpay key regen, GSTIN (3-7 days)
+
+## 2026-06-13 — Hostinger Hermes Agent integration (Phase-1) + repo hygiene
+
+### Decision: Hostinger Managed Hermes ka best use
+- User ne **Hostinger Managed Hermes Agent** plan liya (paid, 10GB sandbox, Gemini-powered, CLI+App access, expires 2026-07-11). Naming collision — humara internal `app/platform/infra_handler.py` bhi "Hermes 🛰️" hai.
+- **Disambiguation rule**: code/docs me Hostinger ka product = `hostinger_hermes` prefix. Internal = `infra_handler`/Hermes 🛰️.
+- **Best fit decided**: 14th AI staff "Apprentice Dev" — `code_upgrader.py` (Vikram 🛠️) propose karta hai, koi apply nahi karta. Hostinger Hermes wahi missing executor. Phase 1 = read-only health report (zero risk). Phase 2 = draft-PR executor (gated `HERMES_HANDOFF=1`, future).
+- **Rejected**: voice/marketing agents replicate (existing engines tuned, duplicate work).
+
+### Built (Phase-1, read-only)
+- `docs/HOSTINGER_HERMES_SETUP.md` — full setup guide (one-time bootstrap, config template, cron schedule, Phase-2 plan).
+- `scripts/hostinger_hermes_bootstrap.sh` — one-time inside-sandbox setup (clone repo, lean deps `httpx+requests`, `~/.hermes/config.env` template, pehla dry-run).
+- `scripts/hostinger_hermes_daily_report.py` — daily project-health report (git state · prod_check · external `/health` + `/health/ready` probe · pending code-upgrader patches · loop_audit summary). SMTP send via Hostinger mail. ntfy push only on ATTENTION. `--dry-run` flag. ANSI-stripped output. Windows-safe stdout reconfigure.
+- `app/api/growth.py` AUTOMATION_FLAGS me `HERMES_HANDOFF` add — Phase-2 flag visible in `/api/growth/infra/flags` (default OFF).
+
+### Repo hygiene (same commit)
+- **85 untracked files** → cleaned to 11 (all keepers).
+- Deleted: `1]` stray file, `*_out.txt` debug outputs (`test_out.txt`, `prod_check_out.txt`, `deploy_filler_out.txt`).
+- Moved 69 orphan debug bat/sh scripts → `scripts/_debug/` (gitignored). Preserved on disk, no git noise.
+- `.gitignore`: added `scripts/_debug/` + `*_out.txt` patterns. Cleaned 13 duplicate `cowork_*.log` lines (from past auto-append bug).
+- Tracked keepers: `scripts/{gap_check,health_check,loop_audit,loop_audit2,dup_check,smoke_niche,smoke_queue_call,_index_check,_jscheck}.py` (utility scripts used recurringly) + `docs/{BATTLECARD_AGENTIC_2026_06,Sales_Asset_LeadGenAI_Overview}.html`.
+
+### Verification
+- `python scripts/hostinger_hermes_daily_report.py --dry-run` → ALL GREEN (HEAD `926a694`, 0 behind, prod_check PASS 642 routes, ext https /health 200 in 227ms, ready 200, 0 pending patches, 622 audit hits/166 files informational).
+- `python scripts/prod_check.py` → ALL CHECKS PASSED.
+- `python -c "import app.main"` → 683 routes (growth.py flag-registry add clean).
+- `python scripts/check_secrets.py` → no secrets in 18 changed files.
+

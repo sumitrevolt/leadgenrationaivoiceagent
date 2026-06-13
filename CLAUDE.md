@@ -8,12 +8,20 @@
 - **Hinglish (Roman script) me HI reply karo** — har baar. Concise + direct, kam formatting.
 - Sab **free stack** — koi paid STT/TTS/LLM nahi (user decision). Phone-call paisa khaata hai → tuning FREE web-call pe.
 
-## LOOP COMPLETIONS BATCH ✅ LIVE (2026-06-13, commit e1f7db8) — detail: SESSION_LOG
-- **PlatformOrchestrator dead import REMOVED** from main.py (Cloud Run-era legacy; team_scheduler handles sab). `/health` "orchestrator": "team_scheduler".
-- **process_engine in-process tick**: growth job (15min) me `list_runs()` → RUNNING runs pe `advance()` (max 3/tick, max_steps=3) — processes ab in-process mode me bhi aage badhte hain, sirf Celery pe nahi.
-- **lead_harvester → cadence auto-enroll**: harvest ke baad naye ready leads automatically `cadence.enroll_many()` se sequence me (gated CADENCE_ENGINE=1). Summary me `cadence_enrolled` count ab show hota.
-- **ops.html SSE**: `EventSource('/api/events/stream')` add kiya — agent event aate hi `load()` trigger, fallback `setInterval(60s)` bhi rakha.
-- **automation.html events tab SSE**: `evStartSSE()` + `_evSSE` real-time tab refresh — events tab pe live broadcast, har 60s poll ki jagah.
+## HOSTINGER HERMES Phase-1 + REPO HYGIENE (2026-06-13) — detail: SESSION_LOG
+- **Hostinger Managed Hermes Agent** (paid plan, Gemini-powered cloud sandbox) wired as 14th staff **"Apprentice Dev"**: `scripts/hostinger_hermes_bootstrap.sh` + `scripts/hostinger_hermes_daily_report.py` (read-only: git state, prod_check, ext /health probe, pending code_upgrader patches, loop_audit, SMTP send via Hostinger mail). `docs/HOSTINGER_HERMES_SETUP.md` = full setup guide. **Naming rule**: external Hostinger product = `hostinger_hermes` prefix; internal `infra_handler` agent = Hermes 🛰️ (collision — disambiguate always).
+- **Phase-2 (gated `HERMES_HANDOFF=1`, future)**: `code_upgrader.py` (Vikram, propose-only) → Hostinger Hermes draft-PR executor. Flag added to AUTOMATION_FLAGS registry (visible in `/api/growth/infra/flags`, default OFF). Phase-1 needs no flag.
+- **Repo hygiene**: 85 untracked → 11 keepers. Trash deleted (`1]`, `*_out.txt`). 69 orphan debug bat/sh → `scripts/_debug/` (gitignored, preserved on disk). `.gitignore` cleaned (13 dup `cowork_*.log` lines + added `scripts/_debug/` + `*_out.txt`). Tracked utility scripts (`gap_check.py`, `health_check.py`, `loop_audit.py`, `dup_check.py`, `_index_check.py`, `_jscheck.py`, `smoke_niche.py`, `smoke_queue_call.py`) + 2 docs HTML. **prod_check 642 routes PASS, ext https /health 200 in 227ms, check_secrets clean.**
+
+## LOOP COMPLETIONS BATCH ✅ LIVE (2026-06-13, commits e1f7db8+38b4a99) — detail: SESSION_LOG
+- **PlatformOrchestrator dead import REMOVED** from main.py (Cloud Run-era legacy; team_scheduler handles sab).
+- **process_engine in-process tick**: growth job (15min) me `list_runs()` → RUNNING runs pe `advance()` (max 3/tick, max_steps=3).
+- **lead_harvester → cadence auto-enroll**: harvest ke baad naye ready leads `cadence.enroll_many()` se sequence me (CADENCE_ENGINE=1).
+- **ops.html + automation.html SSE**: EventSource('/api/events/stream') real-time refresh, 60s fallback.
+- **call_manager qualified call → cadence enroll**: voice call me "interested" qualify hone pe cadence omnichannel sequence me auto-enroll (CADENCE_ENGINE=1).
+- **prospector.run_prospecting → rescore_db**: naye leads ke baad hot-lead scoring auto-run.
+- **niche_prospector.run → cadence enroll**: scraping ke baad fresh "ready" leads cadence me.
+- **growth_optimizer ideas → skill_library**: top idea `record_lesson()` se skill_library me — self_improve loop utha ke execute kar sakta (SELF_IMPROVE_LOOP=1).
 
 ## SSE REAL-TIME + LOOP FIXES ✅ LIVE (2026-06-12 PM, commit 40fa546, 486 routes) — detail: SESSION_LOG
 - **`GET /api/events/stream`** (SSE, admin-gated): Redis pub/sub channel `lgai:events` → real-time dashboard feed. Fallback: DB poll 10s agar Redis pub/sub nahi. 20s heartbeat (proxy timeout prevent). `POST /api/events/publish` manual trigger.

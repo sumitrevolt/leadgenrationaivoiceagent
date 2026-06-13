@@ -1071,6 +1071,9 @@ AUTOMATION_FLAGS = [
     "SKILL_PACK", "CODE_UPGRADER", "RECORDING_RETENTION",
     "SEARXNG_URL", "NTFY_URL", "NTFY_TOPIC",  # self-hosted tools stack (URL-valued = set hone pe ON)
     "CRM_SYNC",  # qualified lead -> client ka Zoho/HubSpot auto-push
+    "HERMES_HANDOFF",  # Phase-2 future: code_upgrader -> Hostinger Hermes draft-PR executor.
+    # Phase-1 (read-only daily health report) hai HOSTINGER sandbox me, flag-independent.
+    # Docs: docs/HOSTINGER_HERMES_SETUP.md
 ]
 
 
