@@ -300,4 +300,90 @@ async function doSignupPay(){
         try{
           const v = await fetch(API+`/api/billing/verify-payment?client_id=${encodeURIComponent(cid)}`,{
             method:"POST",headers:{"Content-Type":"application/json"},
-        
+            body:JSON.stringify({order_id:resp.razorpay_order_id,payment_id:resp.razorpay_payment_id,signature:resp.razorpay_signature})});
+          if(v.ok){ setMsg("Payment ho gaya! Redirect…",true); location.href="/app/customer"; }
+          else setMsg("Payment hua par verify pending — humse contact karo.");
+        }catch(e){ setMsg("Verify error — humse contact karo."); }
+      },
+      modal:{ondismiss:function(){busy(false);setMsg("Payment cancel — account bana hua hai, baad me pay kar sakte ho.");}}
+    });
+    rzp.open();
+  } else if(co.gateway==="stripe" && co.checkout_url){
+    location.href = co.checkout_url;
+  } else {
+    busy(false); paymentFallback(cid);
+  }
+}
+
+// Agar payment gateway abhi configure nahi (keys unset) — account bana hua hai, UPI/contact dikhao.
+async function paymentFallback(cid){
+  let upi=null;
+  try{ const r=await fetch(API+"/api/public/pay-info"); if(r.ok){const d=await r.json(); if(d.enabled) upi=d;} }catch(e){}
+  if(upi && upi.vpa){
+    setMsg(`Account ban gaya ✓ Payment ke liye UPI karo: <b>${upi.vpa}</b><br>Phir <a href="/app/login">login</a> karo. Hum activate kar denge.`, true);
+  }else{
+    setMsg(`Account ban gaya ✓ Online payment jald hi. Abhi activate karne ke liye humein WhatsApp karo. <a href="/app/login">Login</a>`, true);
+  }
+}
+
+loadPlans();
+
+// ===== COMBO PLANS =====
+let COMBO_CYCLE = "monthly";
+let COMBO_DATA = null;
+
+function inrFmt(n){return "₹"+Number(n||0).toLocaleString("en-IN");}
+
+async function loadComboPlan(){
+  try{
+    const r = await fetch(API+"/api/combo/packages");
+    if(r.ok){ COMBO_DATA = await r.json(); }
+  }catch(e){}
+  renderCombo();
+}
+
+function setCombo(c){
+  COMBO_CYCLE = c;
+  document.getElementById("ctg-monthly").classList.toggle("on", c==="monthly");
+  document.getElementById("ctg-yearly").classList.toggle("on", c==="yearly");
+  renderCombo();
+}
+
+function renderCombo(){
+  const el = document.getElementById("combo-plans");
+  if(!el) return;
+  const tiers = COMBO_DATA && COMBO_DATA.tiers ? COMBO_DATA.tiers : [
+    {name:"Combo Starter",key:"combo_starter",price_month:4999,price_year:49990,price_separately:6198,savings_month:1199,plan_monthly:"combo_starter_monthly",plan_annual:"combo_starter_annual",badge:"",highlight:false,
+     features:["AI Social Posts + Festival Calendar","GBP Audit + Fixes","WhatsApp Content Pack","Lead Capture Widget","AI Voice — Band A (Insurance, Solar, Hospital…)","Unlimited AI Calls","Live Dashboard + Transcripts"]},
+    {name:"Combo Growth",key:"combo_growth",price_month:9999,price_year:99990,price_separately:12998,savings_month:2999,plan_monthly:"combo_growth_monthly",plan_annual:"combo_growth_annual",badge:"Best seller",highlight:true,
+     features:["Sab Starter features +","Unlimited Posters + Content Calendar","Competitor Analysis + Win-back","WhatsApp Drip Sequences","AI Voice — Band B (Home Loans, Dental, Finance…)","Unlimited AI Calls","CRM / Webhook Integration"]},
+    {name:"Combo Pro",key:"combo_pro",price_month:21999,price_year:219990,price_separately:26998,savings_month:4999,plan_monthly:"combo_pro_monthly",plan_annual:"combo_pro_annual",badge:"Maximum savings",highlight:false,
+     features:["Sab Growth features +","AI Voice Feature in Marketing (500 min/mo)","Priority Support + Monthly Review","AI Voice — Band C (IVF, Immigration, HVAC…)","Unlimited AI Calls","Full CRM Sync (Zoho/HubSpot)","Dedicated Voice Strategy Session"]}
+  ];
+  el.innerHTML = "";
+  tiers.forEach(t => {
+    const isYear = COMBO_CYCLE === "yearly";
+    const dispPrice = isYear ? Math.round(t.price_year / 12) : t.price_month;
+    const suf = isYear ? "/mo (yearly)" : "/mo";
+    const planId = isYear ? t.plan_annual : t.plan_monthly;
+    const savMsg = isYear
+      ? `Save ${inrFmt(t.savings_month * 12)}/yr vs alag-alag`
+      : `Save ${inrFmt(t.savings_month)}/mo vs alag-alag`;
+    const feats = (t.features||[]).map(f=>`<li>${f}</li>`).join("");
+    el.insertAdjacentHTML("beforeend", `
+      <div class="plan ${t.highlight?'feat':''}">
+        ${t.badge ? `<div class="badge">${t.badge}</div>` : ''}
+        <div class="pname">${t.name}</div>
+        <div class="price">${inrFmt(dispPrice)}<small>${suf}</small></div>
+        <div class="pdesc" style="color:#2ecc71;font-size:13px">${savMsg}</div>
+        <ul class="feats">${feats}</ul>
+        <button class="cta ${t.highlight?'':'ghost'}" onclick='openModal(${JSON.stringify(JSON.stringify({id:planId,name:t.name,monthly_price:t.price_month}))})'>Get Started</button>
+      </div>`);
+  });
+}
+
+loadComboPlan();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+</body>
+</html>

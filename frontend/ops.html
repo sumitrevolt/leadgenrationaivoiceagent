@@ -94,4 +94,17 @@ $('tok').value=tok();load();setInterval(load,60000);
 
 // SSE real-time feed — agent events pe live reload trigger karta hai
 (function startSSE(){
-  if(!tok())return; // token nahi hai 
+  if(!tok())return; // token nahi hai to SSE nahi chalega
+  var es=new EventSource('/api/events/stream?token='+encodeURIComponent(tok()));
+  es.onmessage=function(e){
+    if(e.data&&e.data.trim()&&e.data!=='ping')try{load()}catch(_){}
+  };
+  es.onerror=function(){
+    // connection drop pe 30s baad reconnect (avoid tight loop)
+    es.close();setTimeout(startSSE,30000);
+  };
+})();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

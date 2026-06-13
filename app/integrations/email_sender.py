@@ -254,3 +254,21 @@ Best regards,
         """
 
         return await self.send_email([to_email], subject, body)
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton.
+# Bahut saare modules (dunning, lifecycle_nurture, usage_alerts, revenue_digest,
+# client_health, automation_health, telephony_readiness, gst_invoice, nps,
+# client_journey, etc.) `from app.integrations.email_sender import email_sender`
+# karte hain. Pehle yeh instance EXIST hi nahi karta tha -> har automated/alert
+# email chup-chaap fail ho raha tha ("cannot import name 'email_sender'").
+# EmailSender.__init__ sirf settings padhta hai (no network) -> import-safe.
+# Defensive: kabhi raise nahi.
+try:
+    email_sender = EmailSender()
+except Exception:  # pragma: no cover - import KABHI break nahi hona chahiye
+    email_sender = None  # type: ignore[assignment]
+
+
+__all__ = ["EmailSender", "email_sender"]

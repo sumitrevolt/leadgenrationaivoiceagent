@@ -10,7 +10,7 @@ Sab additive + free + gated. Writes admin-only.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin, require_super_admin
