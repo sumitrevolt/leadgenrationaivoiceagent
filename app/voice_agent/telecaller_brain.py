@@ -405,7 +405,7 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
                 if t2 and not self._too_similar(t2, prev):
                     text, prov = t2, p2
 
-            text = self._clean(text)  # HARD brevity cap on the final reply
+            text = self._fill(self._clean(text))  # brevity cap + placeholder fill ([Company] leak guard)
             # SCRIPT FALLBACK: agar LLM throttled/slow/empty (free quota spike),
             # generic "samajh gayi" ki jagah niche-script ka agla PROFESSIONAL
             # sawaal do — instant (0 LLM), niche-specific, kabhi repeat nahi.
@@ -434,6 +434,23 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             return self._SAFE_LINES[n % len(self._SAFE_LINES)]
         except Exception:
             return "Ji, boliye?"
+
+    def _fill(self, text: str) -> str:
+        """Template placeholders ([Company]/[Name]/[Project]) ko real values se
+        replace — LLM kabhi script opening parrot kare to "[Company]" raw na bole
+        (test: solar reply me "[Company]" leak hua tha). Never-raise."""
+        try:
+            t = text or ""
+            if "[" not in t:
+                return t
+            return (
+                t.replace("[Company]", self.client_name or "hamari company")
+                .replace("[Name]", "Swara")
+                .replace("[Project]", "hamare project")
+                .replace("[City]", "aapke area")
+            )
+        except Exception:
+            return text or ""
 
     def _script_fallback(self, history: list[dict[str, str]]) -> str:
         """Deterministic professional line from the niche script (no LLM).

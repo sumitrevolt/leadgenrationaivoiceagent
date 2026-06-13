@@ -90,7 +90,15 @@ async def _collect_bots(ws, first_timeout=12.0, settle=2.5):
         except Exception:
             continue
         if d.get("type") == "bot":
-            bots.append((d.get("text") or "").strip())
+            # Sentence-split STREAMING: ek reply N chunks me aata (chunk_total>1) —
+            # ise EK reply gino (warna false "DOUBLE REPLY"). First chunk pe full_text.
+            ct = d.get("chunk_total")
+            if ct and ct > 1:
+                if d.get("chunk_index", 0) == 0:
+                    bots.append((d.get("full_text") or d.get("text") or "").strip())
+                # baaki chunks same reply ke — skip
+            else:
+                bots.append((d.get("text") or "").strip())
     return bots
 
 
