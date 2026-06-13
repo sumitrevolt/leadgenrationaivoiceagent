@@ -90,8 +90,14 @@ def _provider_down(p: str) -> bool:
 
 def _trip_cooldown(p: str, err: str) -> None:
     e = (err or "").lower()
-    # 403 = no credits / permission denied — treat as long cooldown (permanent until restart)
-    if "403" in e or "permission-denied" in e or "permission denied" in e:
+    # 403 = no credits/permission · 404 = model not found/deprecated (OpenRouter :free
+    # variants rotate → 404). DONO ko LONG cooldown (max, ~restart tak) do — warna dead
+    # endpoint har chat() fallback pe dobara retry hota hai (LIVE: openrouter :free 404
+    # → 52% LLM fallback waste). Provider-agnostic dead-model sideline.
+    if any(k in e for k in (
+        "403", "permission-denied", "permission denied",
+        "404", "not found", "no endpoints", "model_not_found", "no allowed providers",
+    )):
         _LLM_TRIP_STREAK[p] = 99  # force max cooldown
         _LLM_COOLDOWN_UNTIL[p] = time.time() + _LLM_COOLDOWN_MAX_S
         return
