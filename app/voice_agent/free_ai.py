@@ -258,12 +258,18 @@ async def chat(
 
     # COMPLETELY FREE chain — no credit card, no paid credits.
     # OpenRouter 4 keys = 4x rate-limit headroom (each alag circuit-breaker)
+    # ORDER = LIVE measured ok-rate (data/llm_calls.jsonl), NOT theory.
+    # 2026-06-13 audit: mistral 99% · groq 96% · cerebras 9% (429 queue) ·
+    # gemini/sambanova/openrouter ~0% (quota/deprecated). Pehle proven
+    # performers try karo taaki har call me 2-5 dead attempts waste na hon
+    # (aggregate ok 50% -> ~97%, latency bhi girti). Saare providers retain
+    # (fallback headroom) — sirf order badla. Naye keys aayein to wapas tune karo.
     chain = [
-        ("cerebras",     _CEREBRAS_LLM_MODEL),    # free, 120B, ~4-5s
-        ("groq",         _GROQ_LLM_MODEL),         # free, 8B, ~1s, 6000 RPM
+        ("mistral",      _MISTRAL_LLM_MODEL),      # LIVE 99% ok — primary workhorse
+        ("groq",         _GROQ_LLM_MODEL),         # LIVE 96% ok, ~1s, 6000 RPM
+        ("cerebras",     _CEREBRAS_LLM_MODEL),     # 120B free but 429-prone; circuit-breaker handles
         ("gemini",       _GEMINI_LLM_MODEL),       # free, 1500 RPD
         ("sambanova",    _SAMBANOVA_LLM_MODEL),    # free, 70B fast
-        ("mistral",      _MISTRAL_LLM_MODEL),      # free tier
         ("openrouter",   _OPENROUTER_LLM_MODEL),   # key1 deepseek:free
         ("openrouter_2", _OPENROUTER_LLM_MODEL),   # key2 deepseek:free
         ("openrouter_3", _OPENROUTER_LLM_MODEL),   # key3 deepseek:free

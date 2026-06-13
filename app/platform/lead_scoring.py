@@ -18,7 +18,18 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-HOT_THRESHOLD = 70  # >= isse hot lead
+import os as _os
+
+# >= isse hot lead. Default 60 (env LEAD_HOT_THRESHOLD se override).
+# 2026-06-13 audit: fresh-scraped cold leads ka max score ~68 (engagement/
+# qualification points sirf call/reply ke BAAD bharte). 70 threshold reachable
+# hi nahi tha -> 564 leads, 0 hot -> sales-deepdive/priority-outreach flow IDLE.
+# 60 = avg 37.8 se kaafi upar, top phone+email+verified cold leads ko surface
+# karta taaki prioritization chale. Engagement ke baad score aur upar jaata hai.
+try:
+    HOT_THRESHOLD = int(_os.environ.get("LEAD_HOT_THRESHOLD", "60"))
+except Exception:
+    HOT_THRESHOLD = 60
 
 # Signal weights (total cap 100). Tuning ke liye yahan badlo.
 _STATUS_PTS = {
