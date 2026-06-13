@@ -65,6 +65,37 @@ _OPENROUTER_LLM_MODEL2 = "deepseek/deepseek-r1:free"              # deepseek R1 
 _OPENROUTER_LLM_MODEL3 = "google/gemma-2-9b-it:free"              # gemma fallback
 _XAI_LLM_MODEL = "grok-3-mini"  # credits-based — NOT in chain, kept for key compat
 
+# --------------------------------------------------------------------------- #
+# SELF-HOSTED LLM (OWN STACK — kisi free/paid tier pe NIRBHAR nahi). Ollama
+# OpenAI-compatible (/v1). OLLAMA_URL set hote hi provider ACTIVE — UNLIMITED,
+# no quota, no 429, no per-call cost (sirf apna compute). Free providers exhaust
+# (groq TPD, gemini quota) hone par bhi yeh KABHI down nahi — true independence.
+# CPU inference slow hai isliye apna lamba timeout. Default model Hinglish-strong.
+# OLLAMA_PRIMARY=1 -> chain me sabse pehle (pure self-reliance); warna reliable
+# fallback (fast cloud pehle, own-LLM guaranteed catch).
+# --------------------------------------------------------------------------- #
+def _ollama_url() -> str:
+    import os as _os
+    return (_os.environ.get("OLLAMA_URL") or "").strip()
+
+
+def _ollama_model() -> str:
+    import os as _os
+    return (_os.environ.get("OLLAMA_MODEL") or "qwen2.5:3b-instruct").strip()
+
+
+def _ollama_timeout() -> float:
+    import os as _os
+    try:
+        return float(_os.environ.get("OLLAMA_TIMEOUT_S", "30") or 30)
+    except Exception:
+        return 30.0
+
+
+def _ollama_primary() -> bool:
+    import os as _os
+    return bool(_ollama_url()) and _os.environ.get("OLLAMA_PRIMARY", "0").strip().lower() in ("1", "true", "yes")
+
 # Hard per-call latency cap. 8s: Cerebras normally 4-5s; 6s ne use beech me
 # kaat ke weak generic fallback ("samajh gayi, aur bataiye") + repeats paida
 # kiye (QA-tester proven). 8s = professional replies, no repeats; occasional
@@ -158,6 +189,8 @@ def _key(attr: str) -> str:
 
 
 def _has_key(provider: str) -> bool:
+    if provider == "ollama":
+        return bool(_ollama_url())  # self-hosted: URL = "key"
     attr = _PROVIDER_CFG.get(provider, ("", ""))[0]
     return bool(attr) and bool(_key(attr))
 
@@ -182,6 +215,18 @@ def _client(provider: str) -> Any | None:
         return None
     if provider in _CLIENTS:
         return _CLIENTS[provider]
+    if provider == "ollama":
+        url = _ollama_url()
+        client = None
+        if url:
+            try:
+                # Ollama api_key ignore karta — dummy. CPU inference slow -> lamba timeout.
+                client = AsyncOpenAI(api_key="ollama", base_url=url, timeout=_ollama_timeout())
+            except Exception as e:  # pragma: no cover
+                logger.warning(f"[free_ai] ollama client init failed: {e}")
+                client = None
+        _CLIENTS["ollama"] = client
+        return client
     attr, base = _PROVIDER_CFG.get(provider, ("", ""))
     api_key = _key(attr) if attr else ""
     client: Any | None = None
@@ -327,10 +372,23 @@ async def chat(
     # performers try karo taaki har call me 2-5 dead attempts waste na hon
     # (aggregate ok 50% -> ~97%, latency bhi girti). Saare providers retain
     # (fallback headroom) — sirf order badla. Naye keys aayein to wapas tune karo.
-    chain = [
+    # SELF-HOSTED own LLM (OLLAMA_URL set hote hi active) — UNLIMITED, no quota, kisi
+    # tier pe nirbhar nahi. OLLAMA_PRIMARY=1 -> sabse pehle (pure self-reliance); warna
+    # proven cloud (mistral/groq/cerebras) ke BAAD + flaky cloud se PEHLE = fast jab
+    # cloud up, par cloud exhaust hote hi OWN LLM guaranteed answer (kabhi fully down nahi).
+    # OLLAMA_URL unset = _client("ollama") None -> instantly skip (zero change).
+    _ollama_entry = ("ollama", _ollama_model())
+    chain: list[tuple[str, str]] = []
+    if _ollama_primary():
+        chain.append(_ollama_entry)
+    chain += [
         ("mistral",      _MISTRAL_LLM_MODEL),      # LIVE 99% ok — primary workhorse
         ("groq",         _GROQ_LLM_MODEL),         # LIVE 96% ok, ~1s, 6000 RPM
         ("cerebras",     _CEREBRAS_LLM_MODEL),     # 120B free but 429-prone; circuit-breaker handles
+    ]
+    if not _ollama_primary():
+        chain.append(_ollama_entry)               # own LLM: reliable floor before flaky cloud
+    chain += [
         ("gemini",       _GEMINI_LLM_MODEL),       # free, 1500 RPD
         ("sambanova",    _SAMBANOVA_LLM_MODEL),    # free, 70B fast
         ("openrouter",   _OPENROUTER_LLM_MODEL),   # key1 deepseek:free
