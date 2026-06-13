@@ -12,7 +12,6 @@ from app.api.auth_deps import require_admin, require_super_admin
 from app.models.base import get_async_db
 from app.models.user import User
 from app.platform import SubscriptionTier
-from app.platform.orchestrator import PlatformOrchestrator
 from app.platform.tenant_manager import TenantManager
 from app.utils.logger import setup_logger
 
@@ -66,7 +65,10 @@ class UpgradeRequest(BaseModel):
 
 # Global instances
 tenant_manager = TenantManager()
-orchestrator: PlatformOrchestrator | None = None
+
+# NOTE: PlatformOrchestrator (Cloud-Run era) REMOVED. Sab scheduling
+# team_scheduler handle karta hai — /platform/start = manual growth pulse.
+_scheduler_running: bool = False
 
 
 @router.post("/start")
@@ -74,33 +76,29 @@ async def start_platform_api(
     background_tasks: BackgroundTasks, current_user: User = Depends(require_super_admin)
 ):
     """
-    Start the entire platform automation (requires super admin)
-    This starts all automated processes
+    Trigger a manual growth pulse + confirm scheduler is running.
+    (Full automation team_scheduler me hoti hai — always-on via Docker.)
     """
-    global orchestrator
-
-    if orchestrator and orchestrator.is_running:
-        return {"status": "already_running", "message": "Platform is already running"}
-
-    orchestrator = PlatformOrchestrator()
-    background_tasks.add_task(orchestrator.start)
-
-    logger.info("🚀 Platform started via API")
-    return {"status": "started", "message": "Platform automation started successfully"}
+    global _scheduler_running
+    try:
+        from app.platform import growth_engine
+        background_tasks.add_task(growth_engine.pulse)
+        _scheduler_running = True
+    except Exception as _e:
+        logger.warning(f"[platform/start] growth pulse trigger failed: {_e}")
+    logger.info("🚀 Platform pulse triggered via API")
+    return {"status": "started", "message": "Growth pulse triggered — team_scheduler handles full automation"}
 
 
 @router.post("/stop")
 async def stop_platform_api(current_user: User = Depends(require_super_admin)):
     """
-    Stop the platform automation gracefully (requires super admin)
+    Mark scheduler flag off (informational — Docker-managed processes need
+    container stop; this endpoint is kept for API compatibility).
     """
-    global orchestrator
-
-    if orchestrator:
-        await orchestrator.stop()
-        return {"status": "stopped", "message": "Platform stopped successfully"}
-
-    return {"status": "not_running", "message": "Platform was not running"}
+    global _scheduler_running
+    _scheduler_running = False
+    return {"status": "stopped", "message": "Flag cleared — to fully stop, bring down the container"}
 
 
 @router.get("/stats", response_model=PlatformStatsResponse)
@@ -116,20 +114,22 @@ async def get_platform_stats(current_user: User = Depends(require_admin)):
         trial_tenants=stats["trial_tenants"],
         total_calls_made=stats["total_calls_made"],
         total_leads_generated=stats["total_leads_generated"],
-        is_running=orchestrator.is_running if orchestrator else False,
+        is_running=_scheduler_running,
     )
 
 
 @router.get("/dashboard")
 async def get_dashboard(current_user: User = Depends(require_admin)):
     """
-    Get dashboard data for admin panel (requires admin)
+    Get dashboard data — live growth pulse + tenant stats.
     """
-    if orchestrator:
-        return orchestrator.get_dashboard_data()
-
+    try:
+        from app.platform import growth_engine
+        pulse = growth_engine.latest_pulse()
+    except Exception:
+        pulse = {}
     return {
-        "platform_stats": {"is_running": False, "message": "Platform not started"},
+        "platform_stats": {"is_running": _scheduler_running, "pulse": pulse},
         "tenant_stats": tenant_manager.get_platform_stats(),
     }
 
@@ -409,13 +409,14 @@ async def delete_tenant(tenant_id: str):
 @router.post("/scrape/platform")
 async def trigger_platform_scrape(background_tasks: BackgroundTasks):
     """
-    Manually trigger lead scraping for platform (finding new clients)
+    Manually trigger lead scraping for platform (finding new clients via niche prospector)
     """
-    if not orchestrator:
-        raise HTTPException(status_code=400, detail="Platform not started")
-
-    background_tasks.add_task(orchestrator._scrape_potential_clients)
-    return {"status": "started", "message": "Platform lead scraping started"}
+    try:
+        from app.platform import niche_prospector as _np
+        background_tasks.add_task(_np.run)
+    except Exception as _e:
+        raise HTTPException(status_code=500, detail=f"Scrape trigger failed: {_e}")
+    return {"status": "started", "message": "Platform lead scraping started via niche_prospector"}
 
 
 @router.post("/scrape/tenant/{tenant_id}")
@@ -438,7 +439,7 @@ async def health_check():
     """
     return {
         "status": "healthy",
-        "platform_running": orchestrator.is_running if orchestrator else False,
+        "platform_running": _scheduler_running,
         "total_tenants": len(tenant_manager.tenants),
         "timestamp": datetime.now().isoformat(),
     }

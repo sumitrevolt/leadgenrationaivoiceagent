@@ -420,6 +420,22 @@ def _append(rec: dict[str, Any]) -> bool:
             _persist_prospect_to_db(rec)
         except Exception:
             pass
+        # ── analytics_store.record_lead (in-memory dashboard feed) ──────────
+        # Naye prospect → analytics store me push karo taaki /analytics/leads
+        # real data dikha sake (DB fallback bhi hai, par in-memory = zero-lag).
+        try:
+            from app.api.analytics import analytics_store as _ast_p
+            _ast_p.record_lead({
+                "created_at": rec.get("created_at"),
+                "status": rec.get("status") or "new",
+                "lead_score": rec.get("lead_score") or 0,
+                "lead_tier": "hot" if rec.get("is_hot_lead") else None,
+                "niche": rec.get("niche") or "",
+                "city": rec.get("city") or "",
+                "source": rec.get("source") or "scrape",
+            })
+        except Exception:
+            pass
         # ── niche_database mirror ─────────────────────────────────────────────
         # Scraped prospect ko niche_database (call-queue table) me bhi sync karo.
         # Yeh async function hai — sync context me fire-and-forget via asyncio.
@@ -763,4 +779,60 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
                 except Exception as e:
                     logger.debug(f"[prospector] record build failed: {e}")
 
-     
+        # Team activity — Rohan (Leads Manager). Never raises.
+        try:
+            from app.platform.team import log_event
+
+            log_event(
+                "rohan",
+                "prospects_found",
+                f"{summary['new']} naye prospects ({summary['queries_run']} queries; "
+                f"{summary['duplicates']} dup, {summary['no_phone']} bina-phone)",
+                status="ok" if summary["queries_failed"] == 0 else "warn",
+                meta={
+                    k: summary.get(k)
+                    for k in (
+                        "new",
+                        "duplicates",
+                        "no_phone",
+                        "queries_run",
+                        "queries_failed",
+                        "queries_empty",
+                        "by_niche",
+                        "scraper",
+                        "lookups_used",
+                        "lookups_capped",
+                        "emails_found",
+                    )
+                },
+            )
+        except Exception:
+            pass
+
+        # Auto-rescore — naye leads hot-lead dashboard me aayein (niche_prospector jaisa).
+        if summary.get("new", 0) > 0:
+            try:
+                from app.platform import lead_scoring
+
+                await lead_scoring.rescore_db(limit=500)
+            except Exception:
+                pass
+
+        logger.info(f"[prospector] run done: {summary}")
+        return summary
+    except Exception as e:  # absolute guard — scheduler/API kabhi na gire
+        logger.warning(f"[prospector] run_prospecting failed: {e}")
+        summary["ok"] = False
+        summary["error"] = str(e)
+        return summary
+
+
+__all__ = [
+    "run_prospecting",
+    "list_prospects",
+    "mark_prospect",
+    "set_prospect_fields",
+    "build_pitch",
+    "build_personalized_pitch",
+    "VALID_STATUSES",
+]

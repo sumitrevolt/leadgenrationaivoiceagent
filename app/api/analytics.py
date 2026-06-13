@@ -651,15 +651,38 @@ def _month_comparison(calls_this: int, leads_this: int, year: int, month: int) -
     prev_end = datetime(prev_year, prev_month, last_day, 23, 59, 59)
     prev_calls = _in_range(_calls_source(), "completed_at", prev_start, prev_end)
     prev_leads = _in_range(_leads_source(), "created_at", prev_start, prev_end)
+
     def _pct(cur: int, prev: int) -> float:
         if prev == 0:
             return 100.0 if cur > 0 else 0.0
         return round((cur - prev) / prev * 100, 1)
+
     return {
         "vs_last_month_calls": _pct(calls_this, len(prev_calls)),
         "vs_last_month_leads": _pct(leads_this, len(prev_leads)),
         "prev_month_calls": len(prev_calls),
         "prev_month_leads": len(prev_leads),
+    }
+
+
+def _week_trends(week_calls: list, week_leads: list, week_start) -> dict[str, Any]:
+    """Is week vs previous week % change."""
+    from datetime import timedelta as _td
+    prev_end = datetime.combine(week_start, datetime.min.time()) - _td(seconds=1)
+    prev_start = prev_end - _td(days=6)
+    prev_calls = _in_range(_calls_source(), "completed_at", prev_start, prev_end)
+    prev_leads = _in_range(_leads_source(), "created_at", prev_start, prev_end)
+
+    def _pct(cur: int, prev: int) -> float:
+        if prev == 0:
+            return 100.0 if cur > 0 else 0.0
+        return round((cur - prev) / prev * 100, 1)
+
+    return {
+        "calls_vs_prev_week": _pct(len(week_calls), len(prev_calls)),
+        "leads_vs_prev_week": _pct(len(week_leads), len(prev_leads)),
+        "prev_week_calls": len(prev_calls),
+        "prev_week_leads": len(prev_leads),
     }
 
 

@@ -537,10 +537,77 @@ class CallManager:
 
         logger.info(f"✅ Call {call_id} completed. Outcome: {outcome}, Score: {result.lead_score}")
 
+        # ── CallLog DB persist ────────────────────────────────────────────────
+        # Har completed call → call_logs table row (analytics _db_calls() isi se
+        # padhta hai). Best-effort, kabhi result return block nahi karta.
+        try:
+            import uuid as _uuid
+            from app.models.base import get_db_session
+            from app.models.call_log import CallLog as _CL, CallOutcome as _CO, CallDirection as _CD
+
+            _outcome_map = {
+                "appointment": "APPOINTMENT",
+                "callback": "CALLBACK",
+                "interested": "INTERESTED",
+                "not_interested": "NOT_INTERESTED",
+                "opt_out": "DND",
+                "no_answer": "NO_ANSWER",
+                "failed": "FAILED",
+                "busy": "BUSY",
+                "wrong_number": "WRONG_NUMBER",
+            }
+            _co_val = _outcome_map.get(outcome, "FAILED")
+            _co_enum = _CO[_co_val] if _co_val in _CO.__members__ else _CO.FAILED
+            with get_db_session() as _db:
+                _row = _CL(
+                    id=str(_uuid.uuid4()),
+                    call_sid=str(call_id),
+                    provider=getattr(context, "provider", "exotel"),
+                    direction=_CD.OUTBOUND,
+                    lead_id=getattr(context, "lead_id", None) or None,
+                    campaign_id=getattr(context, "campaign_id", None) or None,
+                    client_id=getattr(context, "client_id", None) or None,
+                    from_number=getattr(context, "caller_id", None) or None,
+                    to_number=context.phone_number,
+                    duration_seconds=duration,
+                    outcome=_co_enum,
+                    lead_score=result.lead_score or 0,
+                    ended_at=result.completed_at,
+                )
+                _db.add(_row)
+                _db.commit()
+        except Exception as _cl_e:
+            logger.debug(f"[call_manager] CallLog DB persist skip: {_cl_e}")
+
+        # ── analytics_store.record_call (in-memory, fast dashboard) ──────────
+        try:
+            from app.api.analytics import analytics_store as _ast
+            _ast.record_call({
+                "completed_at": result.completed_at,
+                "duration_seconds": duration,
+                "status": "completed" if duration > 0 else "failed",
+                "outcome": outcome,
+                "lead_score": result.lead_score or 0,
+                "campaign_id": getattr(context, "campaign_id", None) or "unknown",
+                "agent_id": getattr(context, "agent_id", None) or "unassigned",
+            })
+        except Exception as _ast_e:
+            logger.debug(f"[call_manager] analytics_store.record_call skip: {_ast_e}")
+
         # ── outbound webhook: call_completed event ────────────────────────────
         try:
             from app.platform import outbound_webhooks as _ow_cm
             import asyncio as _a
+            _a.create_task(
+                _ow_cm.fire_event("call_completed", {
+                    "call_id": str(call_id),
+                    "outcome": outcome,
+                    "duration_seconds": duration,
+                    "lead_score": result.lead_score or 0,
+                    "phone": context.phone_number,
+                    "campaign_id": getattr(context, "campaign_id", None) or "",
+                })
+            )
         except Exception:
             pass
 
@@ -620,3 +687,23 @@ class CallManager:
         for call in self.completed_calls:
             outcomes[call.outcome] = outcomes.get(call.outcome, 0) + 1
         return outcomes
+
+    async def get_hot_leads(self, min_score: int = 70) -> list[CallResult]:
+        """Get high-scoring leads from completed calls"""
+        return [call for call in self.completed_calls if call.lead_score >= min_score]
+
+    async def get_callbacks(self) -> list[CallResult]:
+        """Get all callback requests"""
+        return [
+            call
+            for call in self.completed_calls
+            if call.outcome == "callback" and call.callback_time
+        ]
+
+    async def get_appointments(self) -> list[CallResult]:
+        """Get all booked appointments"""
+        return [
+            call
+            for call in self.completed_calls
+            if call.outcome == "appointment" and call.appointment_details
+        ]
