@@ -119,7 +119,9 @@ Thumbs.db
 
 # Project specific
 logs/
-data/
+data/*
+!data/skills_extra/
+!data/skills_extra/**
 *.db
 *.sqlite
 recordings/
