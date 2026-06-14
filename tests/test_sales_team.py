@@ -57,7 +57,7 @@ def test_bant_never_raises():
 def _no_llm(monkeypatch):
     from app.agents import sales_team as st
 
-    async def _empty(system, user, max_tokens=350):
+    async def _empty(system, user, max_tokens=350, ground=""):
         return ""
 
     monkeypatch.setattr(st, "_llm", _empty)
@@ -101,3 +101,14 @@ def test_run_auto_gate(monkeypatch):
 
     monkeypatch.delenv("SALES_TEAM", raising=False)
     assert asyncio.run(st.run_auto())["skipped"] == "SALES_TEAM off"
+
+
+def test_persona_prefix_defensive():
+    """Agency sales-persona grounding: empty topic -> ''; real topic -> str (never raise)."""
+    from app.agents import sales_team as st
+
+    assert st._persona_prefix("") == ""
+    out = st._persona_prefix("sales objection handling rebuttal closing coach")
+    assert isinstance(out, str)
+    if out:  # skill_pack ne match diya
+        assert "playbook" in out.lower()

@@ -46,11 +46,35 @@ def _pid(p: dict) -> str:
     return re.sub(r"[^a-zA-Z0-9]+", "_", str(raw)).strip("_")[:60] or "anon"
 
 
-async def _llm(system: str, user: str, max_tokens: int = 350) -> str:
+def _persona_prefix(topic: str, max_chars: int = 420) -> str:
+    """Agency sales-persona pack se guidance prefix (skill_pack.snippet_for).
+
+    LLM ko ek senior sales specialist ka playbook deta — ppc nahi, sales
+    personas (account/deal/outbound/coach). Defensive: skill_pack missing ya
+    kuch na mile to ""."""
+    if not topic:
+        return ""
+    try:
+        from app.platform import skill_pack
+
+        snip = skill_pack.snippet_for(topic, max_chars=max_chars) or ""
+        if not snip:
+            return ""
+        return (
+            "Neeche ek senior sales specialist ka internal playbook hai. "
+            "Ise APPLY karo (raw text copy mat karo):\n"
+            f"{snip}\n\n"
+        )
+    except Exception:
+        return ""
+
+
+async def _llm(system: str, user: str, max_tokens: int = 350, ground: str = "") -> str:
     try:
         from app.voice_agent import free_ai
 
-        reply, _ = await free_ai.chat(system, [{"role": "user", "content": user}],
+        sys2 = (_persona_prefix(ground) + system) if ground else system
+        reply, _ = await free_ai.chat(sys2, [{"role": "user", "content": user}],
                                       max_tokens=max_tokens, temperature=0.5)
         return (reply or "").strip()
     except Exception:
@@ -85,6 +109,7 @@ async def _research(p: dict) -> dict[str, Any]:
         "Tum Riya ho — sales research analyst. 3 short Hinglish bullets me prospect brief do: "
         "kya bechte hain, kitne serious/established lagte hain, marketing me kya GAP dikhta hai. Sirf bullets.",
         _pdesc(p) + (f"\n\nWebsite text:\n{site_text}" if site_text else "\n\n(Website nahi hai / fetch fail)"),
+        ground="sales account research prospect discovery qualification",
     )
     if not brief:
         brief = (f"- {p.get('niche') or 'local'} business, {p.get('city') or '?'}\n"
@@ -111,6 +136,7 @@ async def _competitive(p: dict) -> dict[str, Any]:
         "kaise karta hoga (2) humse pehle kis se compare karega (local agency/Dhanda-type app/khud) "
         "(3) humara 1-line killer differentiation iske liye. Sirf bullets.",
         _pdesc(p),
+        ground="sales competitive positioning differentiation deal strategy",
     )
     if not txt:
         txt = ("- Abhi: word-of-mouth + kabhi-kabhi boosted post\n"
@@ -155,6 +181,7 @@ async def _outreach(p: dict, qual: dict | None = None) -> dict[str, Any]:
         "drafts short Hinglish, pushy nahi. Sirf JSON.",
         _pdesc(p) + hints + "\n\nTemplate:\n" + json.dumps(seq, ensure_ascii=False),
         max_tokens=700,
+        ground="sales outbound cold email sequence cadence multi-touch",
     )
     try:
         i, j = raw.find("["), raw.rfind("]")
@@ -199,6 +226,7 @@ async def _objections(p: dict) -> dict[str, Any]:
         "(Listen-Acknowledge-Explore-Respond) Hinglish rebuttals do. JSON array [{objection, category, laer}]. Sirf JSON.",
         _pdesc(p),
         max_tokens=600,
+        ground="sales objection handling rebuttal closing coach",
     )
     try:
         i, j = raw.find("["), raw.rfind("]")
