@@ -8,6 +8,9 @@
 - **Hinglish (Roman script) me HI reply karo** — har baar. Concise + direct, kam formatting.
 - Sab **free stack** — koi paid STT/TTS/LLM nahi (user decision). Phone-call paisa khaata hai → tuning FREE web-call pe.
 
+## AGENCY-AGENTS PERSONA PACK ✅ LIVE (2026-06-14, commit 5bb900e)
+- **140 curated AI agent personas** (msitarzewski/agency-agents, MIT) → `data/skills_extra/agency-*.md` + index `agency-agents-pack.md`. skill_pack ab **202 skills** (61 project + 141 extra). Curation: project-relevant only — China/game-dev/GIS/academic/blockchain/healthcare-legal-realestate-HR SKIP. `.gitignore`: `data/*` + `!data/skills_extra/` (sirf ye path tracked, baaki `data/` ignore). LIVE-verified container me find(): voice→agency-engineering-voice-ai-integration-engineer, ppc→agency-paid-media-ppc-strategist, churn→agency-customer-success-manager (existing skills ke saath blend). Bind-mount = no image rebuild; trainer job KB "skills" ns me ingest karega. **Naye persona load**: `skill_pack.load('agency-<name>')`.
+
 ## HOSTINGER HERMES Phase-1 + REPO HYGIENE (2026-06-13) — detail: SESSION_LOG
 - **Hostinger Managed Hermes Agent** (paid plan, Gemini-powered cloud sandbox) wired as 14th staff **"Apprentice Dev"**: `scripts/hostinger_hermes_bootstrap.sh` + `scripts/hostinger_hermes_daily_report.py` (read-only: git state, prod_check, ext /health probe, pending code_upgrader patches, loop_audit, SMTP send via Hostinger mail). `docs/HOSTINGER_HERMES_SETUP.md` = full setup guide. **Naming rule**: external Hostinger product = `hostinger_hermes` prefix; internal `infra_handler` agent = Hermes 🛰️ (collision — disambiguate always).
 - **Phase-2 (gated `HERMES_HANDOFF=1`, future)**: `code_upgrader.py` (Vikram, propose-only) → Hostinger Hermes draft-PR executor. Flag added to AUTOMATION_FLAGS registry (visible in `/api/growth/infra/flags`, default OFF). Phase-1 needs no flag.
