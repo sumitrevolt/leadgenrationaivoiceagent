@@ -3,6 +3,16 @@
 > Source: `docs/Competitor_Top20_Feature_Gap_2026.md` (26 competitors deep research).
 > Rule: build se pehle `grep '@router' app/api/*.py` — duplicates already dedupe kiye, par double-check karo.
 
+## ✅ PRODUCTION-READINESS AUDIT (2026-06-14) — deep live scan done
+**Verdict: system HEALTHY, loops in loop, sab agents kaam kar rahe. Lone blocker = Razorpay (user-action).**
+- ✅ **Automation loops ALL firing**: growth/ops/reply_triage/watchdog/onboard/qa/trainer `last_ok=true`; `overdue=[]`, `never_ran=[]`, celery queue 0. Hermes infra **100/100**.
+- ✅ **Pipeline flowing**: 936 prospects (432 email), 309 cadence-enrolled, 122 reply-drafts, **5 hot leads** (DB, threshold 60 — code already tuned 70→60 kyunki cold leads cap ~68).
+- ✅ **Persona pack (140 agency-agents) wired into 3 core engines**: ads-pack (ppc/paid-social), sales-team deep-dive (discovery/outreach/objection), post_generator (social-media-strategist). skill_pack **202 skills** LIVE.
+- ✅ **Fixed this session**: (1) Celery backlog 8347→0 (self_improve_tick accumulation, purged); (2) content-feedback `best_themes` DEAD loop (galat kwarg `limit`+indexing → ab chalega); (3) `gap_check.py` KeyError('provider').
+- ⚠️ **Flags OFF (mostly intentional)**: CRM_SYNC (per-client creds chahiye), NEWSLETTER_ENGINE, WINBACK_ENGINE, CLIENT_REPORTS, BRAND_PULSE, TEAM_REPORT — content/use-case ready hone par ON.
+- 🚨 **#1 BLOCKER (USER): Razorpay 401 "Authentication failed"** — LIVE-confirmed. 0 invoices, koi revenue possible nahi. Fix: dashboard se keys regenerate → `.env` update → `up -d --no-deps app` → webhook register (`/api/billing/webhooks/razorpay` + `RAZORPAY_WEBHOOK_SECRET`). Pehla paid customer se pehle ZAROORI.
+- **Naya agent NAHI chahiye** — 14-staff roster + loops comprehensive aur healthy hain. Aur agent = bloat.
+
 ## P0 — ✅ BUILT 2026-06-11 (commit pending deploy — /ship)
 - [x] Branded frames + daily-post feed (`brand_frames.py`, /api/brand/frames/*)
 - [x] Digital business card `/b/{slug}/card` + .vcf + QR (`business_card.py`)

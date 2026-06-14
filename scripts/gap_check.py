@@ -2,11 +2,14 @@ import json, os
 from collections import defaultdict, Counter
 
 # LLM ok-rates (last 500 calls)
-rows = open('data/llm_calls.jsonl').readlines()[-500:]
+rows = open('data/llm_calls.jsonl').readlines()[-500:] if os.path.exists('data/llm_calls.jsonl') else []
 s = defaultdict(lambda:[0,0])
 for r in rows:
-    d = json.loads(r)
-    p = d['provider']
+    try:
+        d = json.loads(r)
+    except Exception:
+        continue
+    p = d.get('provider') or 'unknown'
     s[p][0] += 1
     if d.get('ok'): s[p][1] += 1
 print("=== LLM OK-RATES (last 500) ===")
