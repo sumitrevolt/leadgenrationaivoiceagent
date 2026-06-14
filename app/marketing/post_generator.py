@@ -30,6 +30,24 @@ try:
 except Exception:  # pragma: no cover - free_ai khud import-safe hai
     free_ai = None  # type: ignore
 
+try:
+    # Marketing persona pack (agency-agents) — content/social/copywriting guidance.
+    from app.platform import skill_pack  # type: ignore
+except Exception:  # pragma: no cover
+    skill_pack = None  # type: ignore
+
+
+def _persona_prefix(topic: str, max_chars: int = 300) -> str:
+    """Marketing persona ka short guidance prefix (skill_pack). Hot path =
+    chhota cap (~300). Defensive: skill_pack missing/empty -> ''."""
+    if skill_pack is None or not topic:
+        return ""
+    try:
+        snip = skill_pack.snippet_for(topic, max_chars=max_chars) or ""
+        return (f"Expert social-media strategist guidance (APPLY, copy mat kar): {snip}\n\n") if snip else ""
+    except Exception:
+        return ""
+
 # --- niche registry (import-safe; {} => generic flavor) --- #
 try:
     from app.niches import NICHES  # type: ignore
@@ -420,18 +438,19 @@ async def generate_post(
             _theme_hint = ""
             try:
                 from app.marketing.content_feedback import best_themes as _best_themes
-                _top = _best_themes(niche=niche, limit=3)
+                _top = _best_themes(niche=niche, n=3)  # list[str] — past winners
                 if _top:
                     _theme_hint = (
                         "\nTop-performing themes for this niche (past feedback): "
-                        + ", ".join(f"{t['theme']}({t['format']})" for t in _top)
+                        + ", ".join(_top)
                         + " — prefer these angles."
                     )
             except Exception:
                 pass
 
             system = (
-                "Tu ek expert Indian social-media marketer hai jo chhote local "
+                _persona_prefix("social media marketing content viral caption hook copywriting")
+                + "Tu ek expert Indian social-media marketer hai jo chhote local "
                 f"businesses ke liye catchy {language} posts likhta hai. "
                 "Output EXACTLY is format me de, koi extra commentary nahi:\n"
                 "CAPTION: <2-3 chhoti lines, emojis ke saath>\n"
