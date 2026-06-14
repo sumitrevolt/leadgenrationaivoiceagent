@@ -348,6 +348,14 @@ async def calculate_plan_pricing(
     }
 
 
+def _razorpay_ready() -> bool:
+    """Real Razorpay creds set? Placeholder (rzp_test_your.../your-...) ya empty =
+    NOT configured → checkout gracefully 503 (broken 500 ke bajay UPI/contact fallback)."""
+    kid = (settings.razorpay_key_id or "").strip().lower()
+    ksec = (settings.razorpay_key_secret or "").strip().lower()
+    return kid.startswith("rzp_") and "your" not in kid and bool(ksec) and "your" not in ksec
+
+
 @router.post("/billing/checkout", response_model=CheckoutResponse, tags=["Billing"])
 async def create_checkout_session(
     request: CreateCheckoutRequest,
@@ -376,6 +384,15 @@ async def create_checkout_session(
 
     # Get appropriate gateway
     gateway = get_payment_gateway(currency=currency)
+
+    # Graceful guard: agar Razorpay keys placeholder/unset hain to broken 500 ke
+    # bajay clean 503 do (frontend UPI/contact fallback dikha sake). Real keys
+    # set hote hi auto-enable.
+    if "razorpay" in str(getattr(gateway, "gateway_type", "")).lower() and not _razorpay_ready():
+        raise HTTPException(
+            status_code=503,
+            detail="Online payment abhi setup ho raha hai — UPI ya contact se pay karein.",
+        )
 
     try:
         # Check if customer exists, create if not
