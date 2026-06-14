@@ -605,6 +605,16 @@ class TestAdsCopy:
         assert len(ctas) == 2
         assert all(c.strip() for c in ctas)
         assert result["provider"] == "template"
+        # persona-grounded campaign plan (deterministic, never-empty)
+        plan = result["plan"]
+        assert set(plan) >= {
+            "budget_split", "targeting", "keywords",
+            "negative_keywords", "measurement", "pro_tip",
+        }
+        assert plan["budget_split"]["google_pct"] + plan["budget_split"]["meta_pct"] == 100
+        assert 0 < len(plan["keywords"]) <= 10
+        assert plan["targeting"] and plan["measurement"]
+        assert isinstance(result["grounded_by"], list)
 
     @pytest.mark.asyncio
     async def test_empty_inputs_still_full_pack(self, no_llm):
@@ -613,6 +623,9 @@ class TestAdsCopy:
         assert all(len(h) <= 30 for h in result["google"]["headlines"])
         assert len(result["google"]["descriptions"]) == 4
         assert len(result["meta"]["primaries"]) == 3
+        # plan present even with empty inputs
+        assert result["plan"]["keywords"]
+        assert isinstance(result["grounded_by"], list)
 
 
 class TestReels:

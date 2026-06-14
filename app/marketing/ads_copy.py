@@ -25,6 +25,18 @@ try:
 except Exception:  # pragma: no cover - free_ai khud import-safe hai
     free_ai = None  # type: ignore
 
+try:
+    # Paid-media specialist personas (agency-agents pack) ko prompt-grounding ke
+    # liye on-demand search karte hain. Defensive — missing ho to no-op.
+    from app.platform import skill_pack  # type: ignore
+except Exception:  # pragma: no cover
+    skill_pack = None  # type: ignore
+
+try:
+    from app.niches import NICHES  # type: ignore
+except Exception:  # pragma: no cover
+    NICHES = {}  # type: ignore
+
 _H_MAX = 30  # Google RSA headline char limit
 _D_MAX = 90  # Google RSA description char limit
 _P_MAX_WORDS = 125  # Meta primary text word budget
@@ -157,6 +169,93 @@ def _parse_marked(text: str) -> dict[str, list[str]]:
     return out
 
 
+def _persona(topic: str, max_chars: int = 460) -> tuple[str, str]:
+    """Paid-media persona pack se (name, system-prompt grounding prefix).
+
+    skill_pack.find/snippet_for use karta — ppc/paid-social/creative/tracking
+    personas ko surface karke LLM ko expert guidance deta. Defensive: kuch na
+    mile (ya skill_pack missing) to ('', '')."""
+    if skill_pack is None:
+        return "", ""
+    try:
+        hits = skill_pack.find(topic, k=1)
+        if not hits:
+            return "", ""
+        name = hits[0].get("name", "") or ""
+        snip = skill_pack.snippet_for(topic, max_chars=max_chars) or ""
+        if not snip:
+            return name, ""
+        prefix = (
+            "Neeche ek senior paid-media strategist ka internal guidance hai. "
+            "Ise apne jawab me APPLY kar (raw text copy mat kar):\n"
+            f"{snip}\n\n"
+        )
+        return name, prefix
+    except Exception:  # pragma: no cover - never break ad copy
+        return "", ""
+
+
+def _niche_keywords(niche: str) -> list[str]:
+    """niches.py se is niche ke seed keywords (custom-safe). Empty on miss."""
+    try:
+        cfg = NICHES.get((niche or "").strip(), {}) or {}
+        return [str(k).strip() for k in (cfg.get("keywords") or []) if str(k).strip()][:6]
+    except Exception:  # pragma: no cover
+        return []
+
+
+def campaign_plan(
+    name: str, label: str, offer: str = "", city: str = "", niche: str = ""
+) -> dict[str, Any]:
+    """Deterministic paid-media campaign plan — ppc + paid-social + tracking
+    persona best-practices ka structured Hinglish form. LLM-free (quota-safe),
+    kabhi khali/raise nahi."""
+    c = (city or "").strip()
+    loc = c or "aapke sheher"
+    low = (label or "Service").lower()
+    seeds = _niche_keywords(niche) or [low, f"{low} services", f"best {low}"]
+    keywords: list[str] = []
+    seen: set[str] = set()
+    for k in seeds:
+        for variant in (k, f"{k} {c}".strip(), f"{low} near me"):
+            v = re.sub(r"\s+", " ", variant).strip().lower()
+            if v and v not in seen:
+                seen.add(v)
+                keywords.append(v)
+    return {
+        "budget_split": {
+            "google_pct": 60,
+            "meta_pct": 40,
+            "note": (
+                f"Local {low} me search-intent zyada hota hai → Google pe ~60%. "
+                "₹300-500/din se start karein; 10-14 din data ke baad jo channel "
+                "sasta lead de, usme budget shift karein."
+            ),
+        },
+        "targeting": [
+            f"📍 Location: {loc} + 10-15 km radius (local service business).",
+            "👥 Age 25-55, mobile-first (zyadatar leads mobile se aati hain).",
+            f"🎯 Meta interests: {label} + ghar/property owners + local-area pages.",
+            "🔁 Retargeting: 7-din ke website/widget visitors par (sabse sasti conversion).",
+            "👀 Lookalike: enquiry/call kar chuke logon ka 1% lookalike (Meta).",
+        ],
+        "keywords": keywords[:10],
+        "negative_keywords": ["free", "sasta", "jobs", "salary", "vacancy", "diy", "kaise kare"],
+        "measurement": [
+            "🔗 Har ad-link par UTM lagayein (utm_source=google/meta) — lead ka source pata chale.",
+            "📞 Call-tracking + WhatsApp-click ko conversion mark karein (sirf clicks nahi).",
+            "🎯 KPI: cost-per-lead (CPL). Pehle 2 hafte target ₹100-300/lead (niche pe depend).",
+            "📅 Hafte me ek baar search-terms report dekhein, fizool keywords negative me daalein.",
+        ],
+        "pro_tip": (
+            f"{name or 'Aapka business'}: pehle ₹3,000-5,000 ka 2-hafte test budget chalayein, "
+            "winner ad + winner keyword nikalein, phir scale karein. Ek saath 3-4 creative "
+            "variants test karein (creative-strategist rule)."
+            + (f" Offer highlight: {offer.strip()}." if (offer or '').strip() else "")
+        ),
+    }
+
+
 async def ads_pack(
     business_name: str, niche: str, offer: str = "", city: str = ""
 ) -> dict[str, Any]:
@@ -170,6 +269,9 @@ async def ads_pack(
     offer_c = (offer or "").strip()[:200]
     city_c = (city or "").strip()[:80]
     provider = "template"
+    g_name, g_ground = _persona("google search ads ppc headlines keywords conversion quality score")
+    m_name, m_ground = _persona("facebook instagram meta paid social ad creative hook targeting")
+    grounded_by = [n for n in dict.fromkeys([g_name, m_name]) if n]
 
     llm_h: list[str] = []
     llm_d: list[str] = []
@@ -190,6 +292,8 @@ async def ads_pack(
                 "headline 'H: ...' line par, har description 'D: ...' line "
                 "par. Sirf ye lines, koi commentary nahi."
             )
+            if g_ground:
+                g_sys = g_ground + g_sys
             text, p = await free_ai.chat(
                 g_sys,
                 [{"role": "user", "content": brief}],
@@ -210,6 +314,8 @@ async def ads_pack(
                 "har primary EK line par 'P: ...', har CTA 'C: ...'. Sirf ye "
                 "lines, koi commentary nahi."
             )
+            if m_ground:
+                m_sys = m_ground + m_sys
             text2, p2 = await free_ai.chat(
                 m_sys,
                 [{"role": "user", "content": brief}],
@@ -251,6 +357,8 @@ async def ads_pack(
         "niche": label,
         "google": {"headlines": headlines, "descriptions": descriptions},
         "meta": {"primaries": primaries, "ctas": ctas},
+        "plan": campaign_plan(name, label, offer_c, city_c, niche),
+        "grounded_by": grounded_by,
         "provider": provider,
         "tip": "Google RSA me sab 15 headlines paste karo — Google khud best "
         "combos test karta hai. Meta pe 3 primaries A/B test karo.",

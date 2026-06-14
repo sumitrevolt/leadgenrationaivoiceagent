@@ -2585,6 +2585,38 @@
       if(ctas.length){
         html += '<div class="sect"><div class="sh">👆 CTA buttons</div>' + chipListHtml(ctas) + '</div>';
       }
+      var plan = (res && res.plan) || null;
+      if(plan){
+        var bs = plan.budget_split || {};
+        html += '<div class="sect"><div class="sh">🧭 Campaign plan</div>';
+        if(bs.google_pct != null){
+          html += '<div class="copyitem"><div class="tx"><b>💰 Budget split:</b> Google ' +
+            esc(bs.google_pct) + '% / Meta ' + esc(bs.meta_pct) + '%. ' + esc(bs.note || "") + '</div></div>';
+        }
+        if((plan.targeting||[]).length){
+          html += '<div class="tx" style="margin-top:6px"><b>🎯 Targeting</b></div>' +
+            plan.targeting.map(function(t){ return '<div class="tx">• ' + esc(t) + '</div>'; }).join("");
+        }
+        if((plan.keywords||[]).length){
+          html += '<div class="tx" style="margin-top:8px"><b>🔑 Keywords</b> ' +
+            copyBtnHtml(plan.keywords.join("\n")).replace('📋 Copy', '📋 Copy all') + '</div>' + chipListHtml(plan.keywords);
+        }
+        if((plan.negative_keywords||[]).length){
+          html += '<div class="tx" style="margin-top:8px"><b>🚫 Negative keywords</b></div>' + chipListHtml(plan.negative_keywords);
+        }
+        if((plan.measurement||[]).length){
+          html += '<div class="tx" style="margin-top:8px"><b>📊 Measurement</b></div>' +
+            plan.measurement.map(function(t){ return '<div class="tx">• ' + esc(t) + '</div>'; }).join("");
+        }
+        if(plan.pro_tip){
+          html += '<div class="tx" style="margin-top:8px"><b>💡 Pro tip:</b> ' + esc(plan.pro_tip) + '</div>';
+        }
+        html += '</div>';
+      }
+      var gb = (res && res.grounded_by) || [];
+      if(gb.length){
+        html += '<div class="sect"><div class="tx" style="opacity:.7;font-size:12px">⚙️ Persona-grounded: ' + esc(gb.join(", ")) + '</div></div>';
+      }
       document.getElementById("adsRows").innerHTML = html || '<div class="empty">Ads pack nahi bana — dobara try karo.</div>';
       document.getElementById("adsCard").classList.remove("hidden");
       document.getElementById("adsCard").scrollIntoView({behavior:"smooth", block:"nearest"});
