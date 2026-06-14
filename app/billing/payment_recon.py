@@ -26,6 +26,7 @@ logger = setup_logger(__name__)
 
 _INVOICES = os.path.join("data", "invoices.jsonl")
 _LAST = os.path.join("data", "payment_recon_last.json")
+_ALERT = os.path.join("data", "payment_recon_alert.json")  # gateway-down 24h dedup
 _RZP_PAYMENTS = "https://api.razorpay.com/v1/payments"
 
 
@@ -96,6 +97,50 @@ def match_payments(payments: list[dict], invoices: list[dict]) -> dict[str, Any]
             "matched": len(matched), "unmatched": unmatched}
 
 
+async def _alert_gateway_down(status: int, detail: str) -> None:
+    """Payment rail down (auth/5xx) → CRITICAL alert (email + ntfy). 24h dedup
+    (recon roz chalti — spam mat karo). Defensive, kabhi raise nahi."""
+    try:
+        try:
+            if os.path.exists(_ALERT):
+                last = float(json.load(open(_ALERT, encoding="utf-8")).get("ts", 0) or 0)
+                if time.time() - last < 86400:
+                    return  # already alerted in last 24h
+        except Exception:
+            pass
+        auth = status in (401, 403)
+        hint = (
+            "AUTH FAIL — Razorpay dashboard → API Keys regenerate karo → .env update → app recreate → webhook register."
+            if auth else "Razorpay API error — dashboard/status.razorpay.com check karo."
+        )
+        subject = f"🚨 PAYMENT GATEWAY DOWN (Razorpay {status}) — koi payment nahi ho sakti"
+        body = (
+            f"Razorpay payments API ne {status} return kiya: {detail}\n\n{hint}\n\n"
+            "Impact: customers pay/renew nahi kar sakte — checkout, invoices, dunning, topup SAB block. "
+            "Fix ke baad `GET /api/growth/revenue/recon` se verify karo."
+        )
+        notify = os.environ.get("NOTIFY_EMAIL", "").strip()
+        if notify:
+            try:
+                from app.integrations.email_sender import email_sender
+                await email_sender.send_email([notify], subject, body)
+            except Exception as e:
+                logger.warning(f"[recon] gateway-down email fail: {e}")
+        try:
+            from app.integrations import ntfy
+            await ntfy.push(subject, body[:1000], priority="high", tags=["rotating_light", "money_with_wings"])
+        except Exception:
+            pass
+        try:
+            os.makedirs(os.path.dirname(_ALERT) or ".", exist_ok=True)
+            json.dump({"ts": time.time(), "status": status}, open(_ALERT, "w", encoding="utf-8"))
+        except Exception:
+            pass
+        logger.warning(f"[recon] 🚨 payment gateway down alert sent (status={status})")
+    except Exception as e:
+        logger.warning(f"[recon] gateway-down alert fail: {e}")
+
+
 async def run(days: int = 3) -> dict[str, Any]:
     """Razorpay fetch + match + (gated) mismatch alert. READ-only."""
     kid, ksec = _creds()
@@ -109,6 +154,7 @@ async def run(days: int = 3) -> dict[str, Any]:
         async with httpx.AsyncClient(timeout=20, auth=(kid, ksec)) as cx:
             r = await cx.get(_RZP_PAYMENTS, params=params)
         if r.status_code != 200:
+            await _alert_gateway_down(r.status_code, r.text[:120])
             return {"ok": False, "error": f"razorpay {r.status_code}: {r.text[:120]}"}
         payments = [p for p in (r.json().get("items") or []) if p.get("status") == "captured"]
         report = match_payments(payments, _load_invoices())
