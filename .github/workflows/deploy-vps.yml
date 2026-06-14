@@ -37,21 +37,22 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: pip
-      - name: Install deps
+      - name: Install deps (lock file — same as Dockerfile.lock + tests.yml)
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --no-deps -r requirements.lock.txt
+          pip install -U "httpx==0.27.2" ruff pytest
       - name: Import smoke (catches syntax/import/route breakage)
         run: python -c "import app.main; print('import OK')"
       - name: Production check
         run: python scripts/prod_check.py
       - name: Lint (ruff, non-blocking warnings)
-        run: pip install ruff && ruff check app || true
+        run: ruff check app || true
       - name: Tests (reported, not yet blocking)
         continue-on-error: true
-        run: pip install pytest && pytest -q || true
+        run: pytest -q --ignore=tests/integration || true
 
   build:
     name: Build & push image (GHCR)

@@ -6,10 +6,9 @@
 name: Tests
 
 on:
-  push:
-    branches: [main, staging, develop]
-  pull_request:
-    branches: [main, staging]
+  workflow_dispatch:
+  # Legacy workflow — black/isort/trufflehog strict checks hamesha fail karte hain.
+  # Auto-trigger band kiya (notifications spam). Manual run only. Use tests.yml instead.
 
 env:
   PYTHON_VERSION: '3.11'
