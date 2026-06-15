@@ -48,7 +48,7 @@ mkdocstrings[python]==0.24.0
 pre-commit==3.6.0  # Git hooks
 ipython==8.20.0  # Enhanced Python shell
 ipdb==0.13.13  # Interactive debugger
-watchfiles==0.21.0  # File watching for hot reload
+watchfiles==1.2.0  # File watching for hot reload
 
 # =============================================================================
 # Profiling & Performance
