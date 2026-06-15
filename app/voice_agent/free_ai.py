@@ -351,6 +351,7 @@ async def chat(
     messages: list[dict[str, str]],
     max_tokens: int = 90,
     temperature: float = 0.6,
+    scope: str = "global",
 ) -> tuple[str, str]:
     """Free LLM chain par ek short reply lo.
 
@@ -358,6 +359,10 @@ async def chat(
     OpenRouter deepseek/deepseek-chat:free. Har provider asyncio.wait_for 8s ke
     andar; pehla non-empty reply jeet jaata hai. Returns (reply, provider) ya
     ("","") agar SAB fail/absent. Kabhi raise nahi karta.
+
+    scope: per-tenant/per-loop budget attribution (e.g. client_id / "self_improve").
+           budget_guard (LLM_BUDGET_GUARD flag) is scope ke daily cap enforce karta;
+           flag OFF (default) = zero overhead, koi behaviour change nahi.
     """
     msgs: list[dict[str, str]] = []
     if system and system.strip():
@@ -373,11 +378,27 @@ async def chat(
         return "", ""
 
     # Response cache (gated LLM_CACHE) — identical prompt -> reuse, API call bachao.
+    # Budget guard ke PEHLE: cached reply ka zero real LLM cost hai, isliye over-budget
+    # hone par bhi cache-hit serve hona chahiye (review finding #5).
     _ck = _llm_cache_key(system, msgs, max_tokens, temperature) if _llm_cache_on() else ""
     if _ck:
         _hit = _llm_cache_get(_ck)
         if _hit is not None:
             return _hit
+
+    # Per-scope LLM budget guard (gated LLM_BUDGET_GUARD ya emergency LLM_BUDGET_HARD_KILL).
+    # Over-budget / hard-kill = graceful ("","") jaise saare providers exhaust. Fail-open.
+    # active() = guard ON YA hard-kill ON — taaki sirf hard-kill set karne pe bhi block ho.
+    try:
+        from app.llm import budget_guard
+
+        if budget_guard.active():
+            _ok, _bi = await budget_guard.allow(scope)
+            if not _ok:
+                logger.warning("[free_ai] budget guard blocked scope=%s reason=%s", scope, _bi.get("reason"))
+                return "", ""
+    except Exception:
+        pass  # guard error = proceed normally (fail-open)
 
     # COMPLETELY FREE chain — no credit card, no paid credits.
     # OpenRouter 4 keys = 4x rate-limit headroom (each alag circuit-breaker)
@@ -455,6 +476,20 @@ async def chat(
                     from app.platform import llm_metrics
 
                     llm_metrics.record(provider, True, (time.monotonic() - _t0) * 1000)
+                except Exception:
+                    pass
+                # Budget guard: per-scope usage record (best-effort, never-raise).
+                try:
+                    from app.llm import budget_guard
+
+                    if budget_guard.is_enabled():
+                        _bu = getattr(resp, "usage", None)
+                        await budget_guard.record(
+                            scope,
+                            calls=1,
+                            prompt_tokens=getattr(_bu, "prompt_tokens", 0) or 0,
+                            completion_tokens=getattr(_bu, "completion_tokens", 0) or 0,
+                        )
                 except Exception:
                     pass
                 if _ck:

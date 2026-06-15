@@ -308,6 +308,12 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Customer auth router not mounted: {_e}")
 try:
+    from app.api.impersonation import router as impersonation_router
+
+    app.include_router(impersonation_router, prefix="/api")  # /api/impersonate/* (super-admin login-as-customer, GATED)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Impersonation router not mounted: {_e}")
+try:
     from app.api.clients import router as clients_router
 
     app.include_router(
@@ -616,6 +622,12 @@ async def customer_dashboard_page():
 async def admin_dashboard_page():
     """Admin dashboard (clients, agents, campaigns, revenue, health)."""
     return FileResponse(str(FRONTEND_DIR / "admin_dashboard.html"))
+
+
+@app.get("/app/impersonate", tags=["Frontend"])
+async def impersonate_page():
+    """Super-admin 'login as customer' support tool (gated IMPERSONATION=1; audited)."""
+    return FileResponse(str(FRONTEND_DIR / "impersonate.html"))
 
 
 @app.get("/app/test-call", tags=["Frontend"])

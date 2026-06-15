@@ -10,6 +10,7 @@ pbkdf2-sha256 (stdlib) hashing — koi naya dep nahi. Import-safe, never raises 
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -396,3 +397,175 @@ async def portal_dashboard(client_id: str = Depends(require_customer)):
     except Exception as e:
         logger.error(f"portal dashboard failed: {e}")
         raise HTTPException(status_code=500, detail=f"dashboard failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Magic-link (passwordless) login — GATED `MAGIC_LINK=1` (default OFF).
+# Reuses LIVE Hostinger SMTP. Single-use (redis NX) + 15-min expiry. Request kabhi
+# email-enumeration leak nahi karta (generic response). Flag OFF = endpoints 404.
+# --------------------------------------------------------------------------- #
+def _magic_enabled() -> bool:
+    return (os.getenv("MAGIC_LINK", "") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _magic_ttl() -> int:
+    try:
+        return int(os.getenv("MAGIC_LINK_TTL_S", "900") or 900)  # 15 min
+    except Exception:
+        return 900
+
+
+def _base_url() -> str:
+    u = (os.getenv("PUBLIC_BASE_URL", "") or "").strip().rstrip("/")
+    return u or "https://leadsgenai.in"
+
+
+def _mint_magic(client_id: str, email: str) -> str:
+    from datetime import timedelta
+
+    from jose import jwt
+
+    from app.config import settings
+
+    payload = {
+        "sub": str(client_id),
+        "email": (email or "").strip().lower(),
+        "type": "magic",
+        "jti": secrets.token_hex(16),
+        "exp": datetime.now(timezone.utc) + timedelta(seconds=_magic_ttl()),
+    }
+    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+
+def _decode_magic(token: str) -> dict:
+    from jose import JWTError, jwt
+
+    from app.config import settings
+
+    try:
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Link invalid ya expire ho gaya")
+    if payload.get("type") != "magic" or not payload.get("sub"):
+        raise HTTPException(status_code=401, detail="Link invalid")
+    return payload
+
+
+async def _consume_jti(jti: str) -> bool:
+    """Single-use enforce: pehli baar True, dobara False. Redis down = True (fail-open,
+    exp-only window). best-effort."""
+    if not jti:
+        return True
+    try:
+        from app.cache import get_redis_client
+
+        r = await get_redis_client()
+        # SET NX: agar pehle se hai => reused => None => reject.
+        ok = await r.set(f"magiclink:used:{jti}", "1", nx=True, ex=_magic_ttl() + 60)
+        return bool(ok)
+    except Exception:
+        return True  # redis unavailable => exp-only (15-min) window
+
+
+async def _email_cooldown_ok(email: str) -> bool:
+    """Per-email 60s cooldown (email-bomb se bachao). Fail-open."""
+    try:
+        from app.cache import get_redis_client
+
+        r = await get_redis_client()
+        ok = await r.set(f"magiclink:cd:{email}", "1", nx=True, ex=60)
+        return bool(ok)
+    except Exception:
+        return True
+
+
+async def _send_magic_email(email: str, link: str, biz: str) -> bool:
+    try:
+        from app.integrations.email_sender import EmailSender
+
+        subject = "Aapka LeadGen AI login link"
+        body = (
+            f"Namaste{(' ' + biz) if biz else ''},\n\n"
+            f"Apne LeadGen AI account me login karne ke liye is link pe click karein "
+            f"(15 minute valid):\n\n{link}\n\n"
+            "Agar aapne ye request nahi ki, to is email ko ignore karein.\n\n— LeadGen AI"
+        )
+        html = (
+            f"<p>Namaste{(' ' + biz) if biz else ''},</p>"
+            f"<p>Apne LeadGen AI account me login karne ke liye click karein (15 min valid):</p>"
+            f'<p><a href="{link}" style="background:#2563eb;color:#fff;padding:10px 18px;'
+            f'border-radius:8px;text-decoration:none;display:inline-block">Login karein</a></p>'
+            f'<p style="color:#666;font-size:12px">Ya ye link: {link}</p>'
+            "<p>Agar aapne ye request nahi ki, to ignore karein.</p><p>— LeadGen AI</p>"
+        )
+        return await EmailSender().send_email([email], subject, body, html_body=html)
+    except Exception as e:
+        logger.warning(f"magic-link email send failed: {e}")
+        return False
+
+
+class MagicRequestIn(BaseModel):
+    email: str = Field(..., min_length=3, max_length=200)
+
+
+@router.get("/magic-link/config")
+async def magic_link_config():
+    """Frontend ke liye: magic-link feature ON hai ya nahi (UI conditionally dikhaye)."""
+    return {"enabled": _magic_enabled()}
+
+
+@router.post("/magic-link/request")
+async def magic_link_request(req: MagicRequestIn):
+    """Email pe ek single-use login link bhejo. ENUMERATION-SAFE: response hamesha
+    generic (chahe email registered ho ya na ho). GATED MAGIC_LINK=1."""
+    if not _magic_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    generic = {"ok": True, "message": "Agar ye email registered hai, to login link bhej diya gaya hai."}
+
+    email = (req.email or "").strip().lower()
+    if "@" not in email or "." not in email.rsplit("@", 1)[-1]:
+        return generic  # invalid email bhi generic — koi signal leak na ho
+
+    rec = _find(email)
+    if not rec:
+        return generic  # unknown email — same response, koi enumeration nahi
+    if not await _email_cooldown_ok(email):
+        return generic  # spam guard — chup-chaap generic
+
+    cid = str(rec.get("client_id") or "")
+    token = _mint_magic(cid, email)
+    link = f"{_base_url()}/app/login?magic={token}"
+    # Fire-and-forget: SMTP ko inline await MAT karo — warna known-email response slow
+    # (SMTP round-trip) = timing oracle = email enumeration (review finding #3/#4).
+    # _send_magic_email khud apni exceptions nigalta hai (safe to detach).
+    try:
+        asyncio.create_task(_send_magic_email(email, link, _biz_name(cid)))
+    except RuntimeError:
+        await _send_magic_email(email, link, _biz_name(cid))  # no running loop (test/sync)
+    return generic
+
+
+class MagicVerifyIn(BaseModel):
+    token: str = Field(..., min_length=10, max_length=4000)
+
+
+@router.post("/magic-link/verify")
+async def magic_link_verify(req: MagicVerifyIn):
+    """Magic-link token verify → customer JWT (login.html ?magic= se POST hota). GATED."""
+    if not _magic_enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    payload = _decode_magic(req.token)
+    if not await _consume_jti(str(payload.get("jti") or "")):
+        raise HTTPException(status_code=401, detail="Link pehle use ho chuka hai")
+
+    from app.api.admin import create_access_token
+
+    cid = str(payload["sub"])
+    email = str(payload.get("email") or "")
+    token = create_access_token(cid, email, "customer")
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "client_id": cid,
+        "business_name": _biz_name(cid),
+    }

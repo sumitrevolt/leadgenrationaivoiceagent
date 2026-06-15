@@ -1,0 +1,149 @@
+# =============================================================================
+# security-scan.yml — Supply-chain security scan (SaaS-infra: "Security →
+# supply-chain" pillar). NAYA + STANDALONE — ci.yml / deploy-vps.yml ko touch
+# NAHI karta (zero prod-risk). Trivy se Python-deps CVE + IaC-misconfig + leaked
+# secret scan + CycloneDX SBOM. Sab abhi NON-BLOCKING (exit-code 0) — pehle
+# results dekho, phir gate banane ke liye niche diya step uncomment karo.
+#
+# Pehle CI me sirf source-level checks the (bandit/safety/detect-secrets/hadolint).
+# Deps-CVE + SBOM + IaC-misconfig ka koi gate nahi tha — ye woh hole bharta.
+# =============================================================================
+name: security-scan
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
+  schedule:
+    - cron: "0 2 * * 1"   # har Mon 02:00 UTC — unchanged deps me naye CVE pakadne ke liye
+  workflow_dispatch:
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) REPO SCAN — koi image build nahi chahiye -> fast + hamesha chalega.
+  #    (a) Python deps CVE (locked deps), (b) IaC misconfig + secrets, (c) SBOM.
+  # ---------------------------------------------------------------------------
+  repo-scan:
+    name: Trivy repo scan + SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Trivy (latest)
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin
+          trivy --version
+
+      # Trivy by-default sirf "requirements.txt" naam ko pip-deps maanta. Tera
+      # shipped lock "requirements.lock.txt" hai -> standard naam se copy karke
+      # scan karte hain (guaranteed Python CVE detection, flag-quirks se bachke).
+      - name: Prep locked deps for scanning
+        run: |
+          mkdir -p .sec
+          cp requirements.lock.txt .sec/requirements.txt
+          echo "prepared .sec/requirements.txt ($(wc -l < .sec/requirements.txt) pkgs)"
+
+      # (a) Python deps CVE — locked deps (jo image me actually ship hote).
+      - name: Trivy vuln scan — Python deps (table, advisory)
+        run: |
+          trivy fs --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 0 --format table .sec
+
+      - name: Trivy vuln scan — Python deps (JSON artifact)
+        run: |
+          trivy fs --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 0 --format json -o trivy-deps.json .sec
+
+      # (b) IaC misconfig (Dockerfile*/compose/terraform) + leaked secrets — poora repo.
+      - name: Trivy misconfig + secret scan (table, advisory)
+        run: |
+          trivy fs --scanners misconfig,secret --severity HIGH,CRITICAL \
+            --skip-dirs ".venv,node_modules,data,logs,backups,models,.ruff_cache,.pytest_cache,.sec" \
+            --no-progress --exit-code 0 --format table .
+
+      - name: Trivy misconfig + secret scan (JSON artifact)
+        run: |
+          trivy fs --scanners misconfig,secret --severity HIGH,CRITICAL \
+            --skip-dirs ".venv,node_modules,data,logs,backups,models,.ruff_cache,.pytest_cache,.sec" \
+            --no-progress --exit-code 0 --format json -o trivy-config.json .
+
+      # (c) CycloneDX SBOM — locked deps ka full inventory.
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          trivy fs --format cyclonedx --no-progress -o sbom.cdx.json .sec
+
+      - name: Upload scan results + SBOM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-repo-scan
+          path: |
+            trivy-deps.json
+            trivy-config.json
+            sbom.cdx.json
+          retention-days: 30
+
+      # === GATE BANANE KE LIYE (jab ek baar results clean dekh lo) ===
+      # Niche wala step uncomment karo -> CRITICAL fixable Python CVE pe build RED:
+      # - name: Fail on CRITICAL (enforce)
+      #   run: |
+      #     trivy fs --scanners vuln --severity CRITICAL --ignore-unfixed \
+      #       --no-progress --exit-code 1 .sec
+
+  # ---------------------------------------------------------------------------
+  # 2) IMAGE SCAN — built GHCR image (base-OS + system pkgs bhi cover karta).
+  #    deploy-vps.yml ke build job ki tarah DEPLOY_ENABLED pe gated — isliye
+  #    jab tak deploy OFF hai, ye job SKIP hoga (koi failing run nahi).
+  # ---------------------------------------------------------------------------
+  image-scan:
+    name: Trivy image scan (GHCR)
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Trivy (latest)
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin
+
+      - name: Scan latest image (table, advisory)
+        run: |
+          trivy image --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 0 --format table \
+            ghcr.io/sumitrevolt/leadgenrationaivoiceagent:latest
+
+      - name: Scan latest image (JSON artifact)
+        run: |
+          trivy image --severity HIGH,CRITICAL --ignore-unfixed \
+            --no-progress --exit-code 0 --format json -o trivy-image.json \
+            ghcr.io/sumitrevolt/leadgenrationaivoiceagent:latest
+
+      - name: Upload image scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-scan
+          path: trivy-image.json
+          retention-days: 30

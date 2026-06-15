@@ -85,8 +85,13 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-changeme}
       GF_USERS_ALLOW_SIGN_UP: "false"
+      # Auto-provision dashboards from monitoring/grafana/dashboards/ — no manual import.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/celery_tasks.json
     volumes:
       - grafanadata:/var/lib/grafana
+      # Auto-provisioning: dashboards + datasources yahan se load hote (restart pe bhi).
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
       - "127.0.0.1:3000:3000"
     depends_on: [prometheus]

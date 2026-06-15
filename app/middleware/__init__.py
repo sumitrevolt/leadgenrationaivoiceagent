@@ -431,6 +431,133 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
 
 
 # =============================================================================
+# PLAN-TIER AWARE RATE LIMITING  (genuinely additive — existing limiter is flat
+# per-IP only, not plan-aware. SaaS standard: Starter 60rpm < Growth 200rpm <
+# Advanced 500rpm. FAIL-OPEN: plan lookup fails → generous fallback, no block.
+# GATED: PLAN_RATE_LIMIT=1 env var (default OFF — zero behaviour change).
+# =============================================================================
+
+_PLAN_LIMITS: dict[str, int] = {
+    # Marketing tiers (packages.py)
+    "starter":        60,
+    "growth":         200,
+    "advanced":       500,
+    # Voice tiers (voice_packages.py)
+    "vstarter":       60,
+    "vgrowth":        200,
+    "vpro":           500,
+    # Combo tiers
+    "combo_starter":  100,
+    "combo_growth":   300,
+    "combo_advanced": 600,
+    # Admin / internal
+    "admin":          9999,
+    "internal":       9999,
+}
+_DEFAULT_RPM_AUTHED = 100
+_DEFAULT_RPM_ANON   = 20
+
+
+def _plan_prefix(plan: str | None) -> str:
+    if not plan:
+        return ""
+    p = str(plan).lower().strip()
+    for prefix in sorted(_PLAN_LIMITS, key=len, reverse=True):
+        if p.startswith(prefix):
+            return prefix
+    return ""
+
+
+def _rpm_for_plan(plan: str | None, client_id: str | None) -> int:
+    prefix = _plan_prefix(plan)
+    if prefix:
+        return _PLAN_LIMITS.get(prefix, _DEFAULT_RPM_AUTHED)
+    return _DEFAULT_RPM_AUTHED if client_id else _DEFAULT_RPM_ANON
+
+
+class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
+    """Plan-aware rate limiter (per-plan RPM, not flat per-IP).
+
+    Identity resolution:
+      1. request.state.tenant (TenantBrandingMiddleware) → slug → DB plan
+      2. X-Client-ID header → plan lookup
+      3. IP fallback (anon limit)
+
+    Completely FAIL-OPEN. GATED: PLAN_RATE_LIMIT=1 (default OFF).
+    """
+
+    _SKIP = ("/health", "/metrics", "/ws", "/api/web-call/stream",
+             "/api/voiceai", "/status", "/robots.txt", "/sitemap.xml")
+
+    async def _resolve_plan(self, request: Request) -> tuple[str | None, str | None]:
+        try:
+            tenant = getattr(request.state, "tenant", None)
+            if isinstance(tenant, dict) and tenant.get("slug"):
+                from app.marketing.clients_store import get_by_slug
+                c = get_by_slug(tenant["slug"])
+                if c:
+                    return str(c.get("id", tenant["slug"])), str(c.get("plan") or "")
+            cid = request.headers.get("X-Client-ID", "").strip()
+            if cid:
+                from app.marketing.clients_store import get_client
+                c = get_client(cid)
+                return cid, str((c or {}).get("plan") or "")
+        except Exception:
+            pass
+        return None, None
+
+    async def _redis_check(self, key: str, limit: int) -> tuple[bool, int]:
+        try:
+            from app.cache import get_redis_client
+            r = await get_redis_client()
+            pipe = r.pipeline()
+            pipe.incr(key)
+            pipe.expire(key, 62)
+            count = int((await pipe.execute())[0])
+            return (count <= limit, max(0, limit - count))
+        except Exception:
+            return (True, limit)
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        if os.environ.get("PLAN_RATE_LIMIT", "0") not in ("1", "true", "yes"):
+            return await call_next(request)
+        path = request.url.path
+        if path.startswith(self._SKIP):
+            return await call_next(request)
+        try:
+            client_id, plan = await self._resolve_plan(request)
+            rpm = _rpm_for_plan(plan, client_id)
+            identity = client_id or _real_client_ip(request)
+            minute = int(time.time() / 60)
+            key = f"plantier:{identity}:{minute}"
+            allowed, remaining = await self._redis_check(key, rpm)
+            if not allowed:
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "detail": f"Plan rate limit ({rpm} req/min) exceeded. Upgrade plan for higher limits.",
+                        "limit_rpm": rpm,
+                        "plan": plan or "anon",
+                        "retry_after": 60,
+                    },
+                    headers={
+                        "Retry-After": "60",
+                        "X-RateLimit-Limit": str(rpm),
+                        "X-RateLimit-Remaining": "0",
+                        "X-RateLimit-Plan": str(plan or "anon"),
+                    },
+                )
+            response = await call_next(request)
+            response.headers["X-RateLimit-Limit"] = str(rpm)
+            response.headers["X-RateLimit-Remaining"] = str(remaining)
+            response.headers["X-RateLimit-Plan"] = str(plan or "anon")
+            return response
+        except Exception as e:
+            logger.debug("PlanTierRateLimit fail-open: %s", e)
+            return await call_next(request)
+
+
+# =============================================================================
 # SETUP ALL MIDDLEWARE
 # =============================================================================
 
@@ -455,7 +582,11 @@ def setup_middleware(app: FastAPI, production: bool = False):
     except Exception:
         pass
 
-    # Rate limiting
+    # Plan-tier aware rate limiting (GATED: PLAN_RATE_LIMIT=1, default OFF).
+    # Run BEFORE flat IP limiter so plan limits apply first.
+    app.add_middleware(PlanTierRateLimitMiddleware)
+
+    # Flat IP rate limiting (baseline protection regardless of plan)
     if production:
         app.add_middleware(
             RateLimitMiddleware,
@@ -470,7 +601,6 @@ def setup_middleware(app: FastAPI, production: bool = False):
     app.add_middleware(SecurityHeadersMiddleware)
 
     # Request guard (per-request timeout + load-shed) — GATED `REQUEST_GUARD=1`, default OFF
-    # (zero change). Added LAST = executes FIRST (outermost) → guard poore chain ko wrap kare.
     if os.environ.get("REQUEST_GUARD", "0").strip().lower() in ("1", "true", "yes"):
         app.add_middleware(RequestGuardMiddleware)
         logger.info(
@@ -479,4 +609,4 @@ def setup_middleware(app: FastAPI, production: bool = False):
             os.environ.get("REQUEST_MAX_INFLIGHT", "200"),
         )
 
-    logger.info(f"? Middleware stack configured (production={production})")
+    logger.info(f"✅ Middleware stack configured (production={production})")

@@ -42,6 +42,11 @@
       <div class="err" id="err"></div>
       <button type="submit" id="btn">Login</button>
     </form>
+    <div id="magicWrap" style="display:none;text-align:center;margin-top:14px">
+      <div style="color:var(--mut);font-size:12px;margin-bottom:8px">— ya —</div>
+      <button type="button" class="ghost" id="magicBtn">📧 Email me a login link</button>
+      <div class="err" id="magicMsg" style="color:#15803d"></div>
+    </div>
   </div>
 
   <div class="acct" id="acctView">
@@ -101,7 +106,43 @@
   document.getElementById("logout").addEventListener("click", function(){
     localStorage.removeItem("lgai_token"); localStorage.removeItem("lgai_cid"); show("login"); });
 
-  if(localStorage.getItem("lgai_token")){ loadAccount(); } else { show("login"); }
+  // Magic-link (passwordless) — sirf tab dikhao jab feature ON ho (config se).
+  var magicWrap=document.getElementById("magicWrap"), magicBtn=document.getElementById("magicBtn"), magicMsg=document.getElementById("magicMsg");
+  fetch("/api/customer/auth/magic-link/config").then(function(r){return r.json();}).then(function(j){
+    if(j&&j.enabled&&magicWrap){ magicWrap.style.display="block"; }
+  }).catch(function(){});
+  if(magicBtn){ magicBtn.addEventListener("click", async function(){
+    var em=(document.getElementById("email").value||"").trim();
+    magicMsg.style.color="#15803d";
+    if(!em){ magicMsg.style.color="#b91c1c"; magicMsg.textContent="Pehle email daalein"; return; }
+    magicBtn.disabled=true; magicBtn.textContent="Bhej rahe…";
+    try{
+      await fetch("/api/customer/auth/magic-link/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:em})});
+      magicMsg.textContent="Agar account hai to email me login link bhej diya. Inbox check karein.";
+    }catch(e){ magicMsg.textContent="Agar account hai to link bhej diya."; }
+    finally{ magicBtn.disabled=false; magicBtn.textContent="📧 Email me a login link"; }
+  }); }
+
+  // ?magic=<token> -> verify -> auto-login (URL se token turant hatao).
+  async function tryMagic(){
+    try{
+      var t=new URLSearchParams(location.search).get("magic");
+      if(!t) return false;
+      var r=await fetch("/api/customer/auth/magic-link/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:t})});
+      var j=await r.json().catch(function(){return{};});
+      history.replaceState({}, "", "/app/login");
+      if(r.ok && j.access_token){
+        localStorage.setItem("lgai_token", j.access_token);
+        localStorage.setItem("lgai_cid", j.client_id||"");
+        await loadAccount(); return true;
+      }
+      err.textContent = j.detail || "Login link invalid ya expire ho gaya.";
+    }catch(e){}
+    return false;
+  }
+
+  if(localStorage.getItem("lgai_token")){ loadAccount(); }
+  else { tryMagic().then(function(done){ if(!done) show("login"); }); }
 })();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>

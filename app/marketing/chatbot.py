@@ -62,19 +62,28 @@ async def reply(question: str, client_id: str = "", niche: str = "general", k: i
     context = "\n".join(f"- {c}" for c in ctx[:k])
     try:
         from app.voice_agent import free_ai
+        from app.cache.semantic_cache import semantic_complete
 
-        ans_text, _ = await asyncio.wait_for(
-            free_ai.chat(
-                system="Tu ek business ka friendly customer-support + sales assistant hai. CONTEXT se hi, "
-                "concise Hinglish me (max 3 lines) jawab de. Agar customer buy/visit/price me interested lage "
-                "ya answer context me na ho, to politely uska number/WhatsApp maang (lead capture). Pushy mat ban.",
-                messages=[{"role": "user", "content": f"CONTEXT:\n{context or '(none)'}\n\nCUSTOMER: {q}"}],
-                max_tokens=120,
-                temperature=0.4,
-            ),
-            timeout=25.0,
-        )
-        ans = (ans_text or "").strip()
+        async def _gen_answer() -> str:
+            ans_text, _ = await asyncio.wait_for(
+                free_ai.chat(
+                    system="Tu ek business ka friendly customer-support + sales assistant hai. CONTEXT se hi, "
+                    "concise Hinglish me (max 3 lines) jawab de. Agar customer buy/visit/price me interested lage "
+                    "ya answer context me na ho, to politely uska number/WhatsApp maang (lead capture). Pushy mat ban.",
+                    messages=[{"role": "user", "content": f"CONTEXT:\n{context or '(none)'}\n\nCUSTOMER: {q}"}],
+                    max_tokens=120,
+                    temperature=0.4,
+                ),
+                timeout=25.0,
+            )
+            return (ans_text or "").strip()
+
+        # FAQ-style repeat sawaalon pe semantic cache (latency↓ + free-LLM TPD↓).
+        # OFF default (SEMANTIC_CACHE flag) -> _gen_answer() seedha = byte-identical
+        # behaviour. Fail-open. scope=client/niche (cross-serve nahi). Answer KB-context
+        # pe depend karta isliye TTL (default 6h) staleness bound karta hai.
+        ans, _ci = await semantic_complete(q, _gen_answer, scope=(client_id or niche or "general"))
+        ans = (ans or "").strip()
         if ans:
             low = ans.lower()
             ask = (not context) or any(w in low for w in ["number", "whatsapp", "contact", "call"])

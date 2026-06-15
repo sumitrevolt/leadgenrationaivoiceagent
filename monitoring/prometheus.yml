@@ -53,3 +53,19 @@ scrape_configs:
   - job_name: redis-cache      # cache redis (allkeys-lru)
     static_configs:
       - targets: ["leadgen_redis_exporter_cache:9121"]
+
+  # --- Celery exporters (docker-compose.addons.yml) --------------------------
+  # celery-exporter: task counts/states/runtimes, worker count, queue lengths.
+  # docker-compose.addons.yml up hone ke baad hi active (graceful: missing target
+  # = Prometheus bas warn karta, scrape FAIL nahi hota).
+  - job_name: celery
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["leadgen_celery_exporter:9808"]
+
+  # Flower bhi /metrics expose karta (task history, worker metrics).
+  - job_name: flower
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["leadgen_flower:5555"]

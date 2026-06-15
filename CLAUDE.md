@@ -59,6 +59,15 @@
 - **Self-hosted tools** (`docker-compose.tools.yml`): SearXNG (free web-search, ON) · ntfy phone-push (`https://ntfy.leadsgenai.in`, ON) · changedetection.io.
 - Per-client: `clients_store.py` + `auto_content.py` + `mini_site.py` (`/b/{slug}`) + `onboarding.py` (`AUTO_ONBOARD=1` ON: website→KB seed + first content pack).
 
+## Infra Additions (2026-06-15 — see docs/INFRA_UPGRADE_2026.md for full detail)
+- **docker-compose.addons.yml** (NEW): `celery-exporter` (:9808 Prometheus) + `flower` (:5555 task UI) + `minio` (:9000 S3 API / :9001 console). Activate: `docker compose -f docker-compose.addons.yml up -d`
+- **prometheus.yml**: celery + flower scrape targets ADDED (docker-compose.addons.yml up hone ke baad active).
+- **Grafana auto-provisioning**: `monitoring/grafana/provisioning/` + `monitoring/grafana/dashboards/celery_tasks.json` (restart karne pe Celery dashboard auto-load).
+- **`app/middleware/__init__.py`**: `PlanTierRateLimitMiddleware` ADDED (Starter 60rpm / Growth 200rpm / Advanced 500rpm). Activate: `PLAN_RATE_LIMIT=1` in `.env`.
+- **`app/storage/minio_client.py`** (NEW): S3-compatible storage layer, local-disk fallback. `from app.storage import get_storage`.
+- **Wired-but-OFF (just need .env keys)**: PostHog (`POSTHOG_API_KEY`), Sentry (`SENTRY_DSN`), LiteLLM (`LITELLM_MASTER_KEY`), Cloudflare (`CLOUDFLARE_TUNNEL_TOKEN`), OTel (`ENABLE_OTEL=1`), RequestGuard (`REQUEST_GUARD=1`).
+- **Activation checklist**: `docs/INFRA_UPGRADE_2026.md` Part 8.
+
 ## Active Blockers / USER-ACTION pending (env-unset = dormant, graceful skip)
 - **🚨 Razorpay 401 (ROOT CAUSE PROVEN 2026-06-14)**: `.env` me PLACEHOLDER values hain — `RAZORPAY_KEY_ID=rzp_test_you...`, `RAZORPAY_KEY_SECRET=your-razorpa...`. Real keys kabhi set hi nahi hue (code bug NAHI, revoked NAHI). **FIX = .env me asli `rzp_live_...` keys daalo → recreate app → webhook register** (`POST /api/billing/webhooks/razorpay` + `RAZORPAY_WEBHOOK_SECRET`). Bina iske checkout/payment-links/topup/dunning sab dead. Grace guard built (commit 0e6d6ee, deploy deferred — agle clean rebuild pe auto). **Pehla paid customer aane se pehle MUST fix.**
 - **UPI_VPA UNSET** (standalone UPI modal off; Razorpay ke andar UPI phir bhi chalta). **NOTIFY_EMAIL=admin@leadsgenai.in** SET (inquiry alerts).

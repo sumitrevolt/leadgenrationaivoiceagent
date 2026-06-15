@@ -374,6 +374,60 @@ async def prometheus_metrics():
     except Exception:
         pass
 
+    # Semantic LLM cache (SHARED Redis counters — multi-worker-correct, tera in-process
+    # "unreliable" decision ke according). hit_rate = (exact+semantic)/lookups. Cache OFF
+    # (SEMANTIC_CACHE flag) => mostly "disabled" events, hit_rate 0. Fail-open scrape.
+    try:
+        from app.cache import semantic_cache as _semcache
+
+        cs = await _semcache.redis_stats()
+        served = int(cs.get("exact", 0)) + int(cs.get("semantic", 0))
+        looked = served + int(cs.get("miss", 0))
+        hit_rate = (served / looked) if looked else 0.0
+
+        metrics.append("")
+        metrics.append("# HELP leadgen_semcache_events_total Semantic LLM cache events by kind")
+        metrics.append("# TYPE leadgen_semcache_events_total counter")
+        for _k in ("exact", "semantic", "miss", "error", "disabled"):
+            metrics.append(f'leadgen_semcache_events_total{{kind="{_k}"}} {int(cs.get(_k, 0))}')
+
+        metrics.append("")
+        metrics.append(
+            "# HELP leadgen_semcache_hit_rate Semantic cache hit rate 0-1 ((exact+semantic)/lookups)"
+        )
+        metrics.append("# TYPE leadgen_semcache_hit_rate gauge")
+        metrics.append(f"leadgen_semcache_hit_rate {hit_rate:.3f}")
+    except Exception:
+        pass
+
+    # LLM budget guard (gated LLM_BUDGET_GUARD) — per-scope cost/usage governance.
+    # OFF (default) => enabled=0, counters 0. Fail-open scrape.
+    try:
+        from app.llm import budget_guard as _bg
+
+        bs = await _bg.redis_stats()
+        metrics.append("")
+        metrics.append("# HELP leadgen_llm_budget_enabled LLM budget guard active (1) or off (0)")
+        metrics.append("# TYPE leadgen_llm_budget_enabled gauge")
+        metrics.append(f"leadgen_llm_budget_enabled {1 if bs.get('enabled') else 0}")
+        metrics.append(f"leadgen_llm_budget_hard_kill {1 if bs.get('hard_kill') else 0}")
+
+        metrics.append("")
+        metrics.append("# HELP leadgen_llm_budget_global_today Global LLM usage today (all scopes)")
+        metrics.append("# TYPE leadgen_llm_budget_global_today gauge")
+        metrics.append(f'leadgen_llm_budget_global_today{{unit="calls"}} {int(bs.get("global_calls", 0))}')
+        metrics.append(f'leadgen_llm_budget_global_today{{unit="tokens"}} {int(bs.get("global_tokens", 0))}')
+
+        metrics.append("")
+        metrics.append("# HELP leadgen_llm_budget_events_total Budget guard decisions by kind")
+        metrics.append("# TYPE leadgen_llm_budget_events_total counter")
+        for _ek in ("allowed", "blocked", "killed", "error", "disabled"):
+            metrics.append(
+                f'leadgen_llm_budget_events_total{{kind="{_ek}"}} {int(bs.get("events_" + _ek, 0))}'
+            )
+    except Exception:
+        pass
+
     # Database metrics — counts are cached in Redis for 60s so Prometheus scrapes
     # don't fire 4x COUNT() against the DB on every poll (cheap, scrape-safe).
     try:
