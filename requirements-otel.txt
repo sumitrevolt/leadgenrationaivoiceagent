@@ -8,8 +8,8 @@
 # Bina inke: observability_otel.py graceful no-op (Sentry/Prometheus active rehte).
 #
 # Versions pinned-conservative; upgrade carefully (otel API/SDK same minor rakho).
-opentelemetry-api==1.27.0
-opentelemetry-sdk==1.27.0
-opentelemetry-exporter-otlp-proto-grpc==1.27.0
-opentelemetry-instrumentation-fastapi==0.48b0
-opentelemetry-instrumentation-asgi==0.48b0
+opentelemetry-api==1.42.1
+opentelemetry-sdk==1.42.1
+opentelemetry-exporter-otlp-proto-grpc==1.42.1
+opentelemetry-instrumentation-fastapi==0.63b1
+opentelemetry-instrumentation-asgi==0.63b1
