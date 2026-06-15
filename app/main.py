@@ -242,6 +242,15 @@ app.add_middleware(
     expose_headers=["X-Request-ID", "X-Response-Time"],
 )
 
+# PostHog web-analytics snippet auto-inject (G3) — OFF by default. POSTHOG_API_KEY
+# unset = har response untouched (turant passthrough). Never blocks boot.
+try:
+    from app.middleware.analytics_inject import PostHogInjectMiddleware
+
+    app.add_middleware(PostHogInjectMiddleware)
+except Exception as _ph_e:  # pragma: no cover
+    logger.warning(f"PostHog inject middleware skipped: {_ph_e}")
+
 
 # Include API routers
 app.include_router(health_router)  # Health checks at root level

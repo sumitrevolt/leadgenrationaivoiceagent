@@ -32,6 +32,21 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# LLM observability (G1) — optional OTel/Langfuse trace per call. Hot path ko
+# KABHI nahi todta agar module/deps absent ho (graceful no-op fallback).
+try:
+    from app.observability_llm import llm_span as _llm_span
+except Exception:  # pragma: no cover
+    from contextlib import contextmanager as _contextmanager
+
+    @_contextmanager
+    def _llm_span(*_a, **_k):
+        class _NoopSpan:
+            def record(self, *_a, **_k):
+                pass
+
+        yield _NoopSpan()
+
 # --- openai SDK guard (requirements me hai, par import-safe rakho) --- #
 try:
     from openai import AsyncOpenAI  # type: ignore
@@ -407,20 +422,32 @@ async def chat(
             continue
         _t0 = time.monotonic()
         try:
-            resp = await asyncio.wait_for(
-                client.chat.completions.create(
-                    model=model,
-                    messages=msgs,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                ),
-                timeout=_CALL_TIMEOUT_S,
-            )
-            text = ""
-            try:
-                text = (resp.choices[0].message.content or "").strip()
-            except Exception:
+            with _llm_span("chat", model=model, provider=provider) as _obs:
+                resp = await asyncio.wait_for(
+                    client.chat.completions.create(
+                        model=model,
+                        messages=msgs,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                    ),
+                    timeout=_CALL_TIMEOUT_S,
+                )
                 text = ""
+                try:
+                    text = (resp.choices[0].message.content or "").strip()
+                except Exception:
+                    text = ""
+                try:
+                    _u = getattr(resp, "usage", None)
+                    _obs.record(
+                        prompt_tokens=getattr(_u, "prompt_tokens", None),
+                        completion_tokens=getattr(_u, "completion_tokens", None),
+                        latency_ms=(time.monotonic() - _t0) * 1000.0,
+                        output_preview=text,
+                        ok=bool(text),
+                    )
+                except Exception:
+                    pass
             if text:
                 _reset_cooldown_streak(provider)
                 # LLM observability hook (ultra-light, never-raise)

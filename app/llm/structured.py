@@ -29,6 +29,20 @@ from typing import Optional, Type, TypeVar
 
 logger = logging.getLogger(__name__)
 
+# LLM observability (G1) — optional, NEVER breaks this path if module absent.
+try:
+    from app.observability_llm import llm_span as _llm_span
+except Exception:  # pragma: no cover
+    from contextlib import contextmanager as _contextmanager
+
+    @_contextmanager
+    def _llm_span(*_a, **_k):
+        class _NoopSpan:
+            def record(self, *_a, **_k):
+                pass
+
+        yield _NoopSpan()
+
 T = TypeVar("T")
 
 
@@ -76,17 +90,20 @@ def extract(
         client = instructor.from_openai(
             OpenAI(base_url=base_url, api_key=api_key), mode=instructor.Mode.JSON
         )
-        return client.chat.completions.create(
-            model=model,
-            response_model=response_model,
-            max_retries=max_retries,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            messages=[
-                {"role": "system", "content": system or ""},
-                {"role": "user", "content": user},
-            ],
-        )
+        with _llm_span("extract", model=model, provider="free") as _obs:
+            _result = client.chat.completions.create(
+                model=model,
+                response_model=response_model,
+                max_retries=max_retries,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                messages=[
+                    {"role": "system", "content": system or ""},
+                    {"role": "user", "content": user},
+                ],
+            )
+            _obs.record()
+            return _result
     except Exception as exc:
         logger.info("structured.extract failed (%s) — caller should use fallback", exc)
         return None
@@ -115,17 +132,20 @@ async def aextract(
         client = instructor.from_openai(
             AsyncOpenAI(base_url=base_url, api_key=api_key), mode=instructor.Mode.JSON
         )
-        return await client.chat.completions.create(
-            model=model,
-            response_model=response_model,
-            max_retries=max_retries,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            messages=[
-                {"role": "system", "content": system or ""},
-                {"role": "user", "content": user},
-            ],
-        )
+        with _llm_span("extract", model=model, provider="free") as _obs:
+            _result = await client.chat.completions.create(
+                model=model,
+                response_model=response_model,
+                max_retries=max_retries,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                messages=[
+                    {"role": "system", "content": system or ""},
+                    {"role": "user", "content": user},
+                ],
+            )
+            _obs.record()
+            return _result
     except Exception as exc:
         logger.info("structured.aextract failed (%s) — caller should use fallback", exc)
         return None

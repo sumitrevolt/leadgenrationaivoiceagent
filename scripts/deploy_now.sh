@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# =============================================================================
+# deploy_now.sh — one-shot app deploy (infra-upgrade session).
+#   * PostHog env set (KEY arg se aata — committed file me KABHI nahi)
+#   * sirf `app` service rebuild + recreate (data/observability/tools untouched)
+#   * boot-grace + /health verify
+# Run on VPS AFTER `git pull`:
+#   bash scripts/deploy_now.sh <POSTHOG_API_KEY> [POSTHOG_HOST]
+# =============================================================================
+set -euo pipefail
+cd /opt/leadgen
+COMPOSE="docker compose -f docker-compose.vps.yml"
+
+PH_KEY="${1:-}"
+PH_HOST="${2:-https://us.i.posthog.com}"
+
+set_env() {  # key value -> .env me set/replace (idempotent)
+  local k="$1" v="$2"
+  if grep -q "^${k}=" .env 2>/dev/null; then
+    sed -i "s|^${k}=.*|${k}=${v}|" .env
+  else
+    printf '%s=%s\n' "$k" "$v" >> .env
+  fi
+}
+
+if [ -n "$PH_KEY" ]; then
+  set_env POSTHOG_API_KEY "$PH_KEY"
+  set_env POSTHOG_HOST "$PH_HOST"
+  echo "[deploy] POSTHOG env set in .env"
+fi
+
+echo "[deploy] building app image (chown layer slow — few min ho sakta)..."
+$COMPOSE build app
+echo "[deploy] recreating app container (no-deps)..."
+$COMPOSE up -d --no-deps app
+echo "[deploy] boot-grace 16s..."
+sleep 16
+echo "[deploy] health check ->"
+if curl -fsS http://127.0.0.1:8000/health; then
+  echo ""
+  echo "[deploy] HEALTH OK"
+else
+  echo "[deploy] HEALTH FAIL — logs: docker logs --tail 80 leadgen_app"
+  exit 1
+fi

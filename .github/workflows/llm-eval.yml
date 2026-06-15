@@ -1,0 +1,63 @@
+# =============================================================================
+# llm-eval.yml — ADVISORY LLM/prompt eval gate (G8). security-scan.yml pattern:
+# NON-BLOCKING (exit 0), build kabhi RED nahi karega — pehle results dekho, phir
+# gate banao. promptfoo (YAML asserts + red-team) GitHub-hosted runner pe chalta
+# (VPS resource 0). agent_tester.py (tera scorecard) ke upar declarative layer.
+#
+# Gated: evals/promptfooconfig.yaml hona chahiye + LLM key secret set ho. Bina
+# key ke sirf config-validate hota (assertions skip) — phir bhi green.
+# =============================================================================
+name: llm-eval
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["evals/**", "app/voice_agent/**", "app/llm/**", "app/marketing/**"]
+  schedule:
+    - cron: "0 3 * * 1"   # weekly Mon 03:00 UTC — model/prompt drift catch
+  workflow_dispatch:
+
+concurrency:
+  group: llm-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  promptfoo:
+    name: promptfoo (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if no eval config
+        id: cfg
+        run: |
+          if [ -f evals/promptfooconfig.yaml ]; then echo "have=1" >> "$GITHUB_OUTPUT";
+          else echo "have=0" >> "$GITHUB_OUTPUT"; echo "no evals/promptfooconfig.yaml — skipping"; fi
+
+      - uses: actions/setup-node@v4
+        if: steps.cfg.outputs.have == '1'
+        with:
+          node-version: "20"
+
+      - name: Run promptfoo (advisory, never fails build)
+        if: steps.cfg.outputs.have == '1'
+        continue-on-error: true
+        env:
+          # Cerebras/Groq OpenAI-compatible — repo secret set karo to assertions chalein.
+          OPENAI_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          OPENAI_BASE_URL: "https://api.cerebras.ai/v1"
+        run: |
+          npx -y promptfoo@latest eval -c evals/promptfooconfig.yaml \
+            --output evals/results.json --no-progress-bar || true
+
+      - name: Upload eval results
+        if: always() && steps.cfg.outputs.have == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: promptfoo-results
+          path: evals/results.json
+          retention-days: 30
