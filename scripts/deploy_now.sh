@@ -13,6 +13,9 @@ COMPOSE="docker compose -f docker-compose.vps.yml"
 
 PH_KEY="${1:-}"
 PH_HOST="${2:-https://us.i.posthog.com}"
+LF_PUB="${3:-}"
+LF_SEC="${4:-}"
+LF_BASE="${5:-https://us.cloud.langfuse.com}"
 
 set_env() {  # key value -> .env me set/replace (idempotent)
   local k="$1" v="$2"
@@ -27,6 +30,14 @@ if [ -n "$PH_KEY" ]; then
   set_env POSTHOG_API_KEY "$PH_KEY"
   set_env POSTHOG_HOST "$PH_HOST"
   echo "[deploy] POSTHOG env set in .env"
+fi
+
+if [ -n "$LF_PUB" ] && [ -n "$LF_SEC" ]; then
+  set_env LANGFUSE_PUBLIC_KEY "$LF_PUB"
+  set_env LANGFUSE_SECRET_KEY "$LF_SEC"
+  set_env LANGFUSE_BASE_URL "$LF_BASE"
+  set_env ENABLE_LLM_OBS "1"
+  echo "[deploy] LANGFUSE env set in .env (ENABLE_LLM_OBS=1)"
 fi
 
 echo "[deploy] building app image (chown layer slow — few min ho sakta)..."
