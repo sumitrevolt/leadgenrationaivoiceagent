@@ -1210,6 +1210,19 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
     client_id = (meta.get("client_id") if isinstance(meta, dict) else None) or None
     plan_id = (meta.get("plan_id") if isinstance(meta, dict) else None) or None
 
+    # IDEMPOTENCY (audit): Stripe bhi at-least-once — event-id se dedupe (consumer ki job).
+    # Duplicate = early return (koi side-effect nahi). Fail-open + never-raise.
+    _evt_id = str(event.get("id") or event.get("event_id") or "")
+    _idem_key = f"stripe:{_evt_id}" if _evt_id else f"stripe:{event_type}:{get('id') or ''}"
+    try:
+        from app.billing import idempotency as _idem
+
+        if await _idem.seen_before(_idem_key):
+            logger.info("[stripe] duplicate event skipped: %s", _idem_key)
+            return {"received": True, "duplicate": True, "event": event_type}
+    except Exception:
+        pass
+
     try:
         if event_type == "checkout.session.completed":
             sub_id = get("subscription")
@@ -1350,6 +1363,25 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_asyn
     rzp_customer_id = sub_entity.get("customer_id") or pay_entity.get("customer_id")
     period_start = _period_dt(sub_entity.get("current_start"))
     period_end = _period_dt(sub_entity.get("current_end"))
+
+    # IDEMPOTENCY (audit): Razorpay events at-least-once RETRY hote — bina dedup ke ek hi
+    # payment.captured do baar process ho sakta → topup leads/minutes DOUBLE credit. Event-id
+    # (header) se exactly-once processing; duplicate = early return (koi side-effect nahi).
+    # Fail-open + never-raise (idempotency.py) → guard kabhi legit webhook block na kare.
+    _evt_id = request.headers.get("X-Razorpay-Event-Id") or ""
+    _idem_key = (
+        f"rzp:{_evt_id}"
+        if _evt_id
+        else f"rzp:{event_type}:{pay_entity.get('id') or sub_entity.get('id') or ''}"
+    )
+    try:
+        from app.billing import idempotency as _idem
+
+        if await _idem.seen_before(_idem_key):
+            logger.info("[razorpay] duplicate event skipped: %s", _idem_key)
+            return {"received": True, "duplicate": True, "event": event_type}
+    except Exception:
+        pass
 
     try:
         if event_type in ("subscription.activated", "subscription.charged", "subscription.resumed"):

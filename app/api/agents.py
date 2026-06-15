@@ -166,3 +166,57 @@ async def coordinate_hierarchical_agents(
 ) -> dict[str, Any]:
     """Hierarchical: Boss -> domain sub-teams (growth/ops/sales, PARALLEL) -> members -> unified merge."""
     return await coordinator.coordinate_hierarchical(req.goal, execute=req.execute)
+
+
+# ============================================================================
+# AGENTVERSE task-solving (OpenBMB, ICLR'24 — arXiv:2308.10848): dynamic expert
+# recruitment + evaluate→re-compose closed loop. Differs from coordinate-advanced
+# (fixed-roster Reflexion): yahan team khud goal ke hisaab se banti + feedback pe
+# badalti. Free-stack, admin + rate-limited, SAFE default (execute=False=drafts).
+# ============================================================================
+class AgentVerseRequest(BaseModel):
+    """Goal for AgentVerse-style dynamic-expert task solving."""
+
+    goal: str = Field(..., min_length=3, max_length=2000)
+    execute: bool = Field(
+        False, description="True = recruited experts ki SAFE staff-capabilities bhi chalao"
+    )
+    max_rounds: int = Field(2, ge=1, le=3, description="recruit→solve→evaluate→re-compose rounds")
+    quality_bar: float = Field(0.75, ge=0.0, le=1.0, description="early-stop evaluator score")
+    team_size: int = Field(3, ge=2, le=4, description="experts recruited per round")
+
+
+@router.post("/coordinate-agentverse", dependencies=[Depends(rate_limit("agents", 10, 60))])
+async def coordinate_agentverse_agents(
+    req: AgentVerseRequest, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """AgentVerse: dynamically RECRUIT task-tailored experts → collaborate + solver synthesize
+    → EVALUATE (critic) → feedback se team RE-COMPOSE + refine (rounds tak). Best-of kept."""
+    return await coordinator.coordinate_agentverse(
+        req.goal,
+        execute=req.execute,
+        max_rounds=req.max_rounds,
+        quality_bar=req.quality_bar,
+        team_size=req.team_size,
+    )
+
+
+# ============================================================================
+# ENGINEERING crew (MetaGPT/OpenHands-inspired): Architect → Engineer → Reviewer →
+# Tester → design + implementation plan + review + test plan. DRAFT-ONLY (code
+# auto-apply NAHI). code_upgrader (signal→patch) ka goal→design complement.
+# ============================================================================
+class EngineeringRequest(BaseModel):
+    """Goal for the engineering crew (draft-only design/plan/tests)."""
+
+    goal: str = Field(..., min_length=3, max_length=2000)
+    context: str = Field("", max_length=4000, description="Optional existing-code/constraints context")
+
+
+@router.post("/coordinate-engineering", dependencies=[Depends(rate_limit("agents", 10, 60))])
+async def coordinate_engineering_agents(
+    req: EngineeringRequest, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """Engineering crew → design + implementation PLAN + security/reliability review + test plan.
+    DRAFT-ONLY (code auto-apply nahi). Free-stack, never raises."""
+    return await coordinator.coordinate_engineering(req.goal, context=req.context)

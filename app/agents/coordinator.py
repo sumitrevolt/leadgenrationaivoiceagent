@@ -618,12 +618,245 @@ async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
     return out
 
 
+# --------------------------------------------------------------------------- #
+# AgentVerse-style task-solving (OpenBMB, ICLR'24 — arXiv:2308.10848).
+# 4-stage CLOSED LOOP: RECRUIT (dynamic, task-tailored experts) → COLLABORATE
+# (experts contribute + solver synthesizes) → EXECUTE (safe staff tools, execute=True)
+# → EVALUATE (_verify) → feedback se team RE-COMPOSE + refine (rounds tak).
+# coordinate_advanced (FIXED roster Reflexion) se ALAG: yahan team khud goal ke hisaab
+# se banti hai aur evaluator-feedback pe har round badalti (AgentVerse ka signature).
+# All free-stack (free_ai), reuses _verify/_recall/_remember/_persist. NEVER raises.
+# --------------------------------------------------------------------------- #
+async def _recruit_experts(goal: str, feedback: str = "", team_size: int = 3) -> list[dict]:
+    """Stage 1 — RECRUITER (HR-manager persona) goal ke liye 2-4 TAILORED expert roles
+    design karta (fixed roster nahi). feedback (evaluator se) team ko RE-COMPOSE karta."""
+    staff_keys = ", ".join(_AGENTS)
+    sys = (
+        "Tum ek RECRUITER ho (HR manager jaisa). Goal ke liye 2-4 EXPERT roles design karo jo "
+        "milke ise best solve karein — roles goal ke hisaab se TAILORED hon (generic nahi). "
+        'SIRF JSON array lautao: [{"role":"<expert title>","expertise":"<1-line kya laata hai>",'
+        f'"staff":"<closest in {staff_keys}, warna khaali>"}}]. Aur kuch mat likho.'
+    )
+    user = f"Goal: {goal}"
+    if feedback:
+        user += f"\nPichhli round ka evaluator-feedback (team isi hisaab se ADJUST karo): {feedback[:600]}"
+    raw, _ = await _llm(sys, user, max_tokens=320, temperature=0.5)
+    experts: list[dict] = []
+    for e in _extract_list(raw):
+        if isinstance(e, dict) and e.get("role"):
+            staff = str(e.get("staff") or "").strip().lower()
+            experts.append(
+                {
+                    "role": str(e["role"])[:80],
+                    "expertise": str(e.get("expertise") or "")[:160],
+                    "staff": staff if staff in _AGENTS else "",
+                }
+            )
+    experts = experts[: max(2, min(4, team_size))]
+    if experts:
+        return experts
+    return [  # fallback trio (LLM down/parse fail)
+        {"role": "Domain Researcher", "expertise": "niche + market grounding", "staff": "dev"},
+        {"role": "Strategy Lead", "expertise": "plan + prioritization", "staff": "manager"},
+        {"role": "Execution Specialist", "expertise": "concrete deliverable", "staff": "isha"},
+    ][: max(2, min(4, team_size))]
+
+
+async def _expert_contribution(expert: dict, goal: str, board: str, execute: bool) -> dict:
+    """Stage 2/3 — ek recruited expert apna perspective de. execute + staff-bound + real
+    tool ho to ACTUAL artifact (safe capability), warna free-LLM draft."""
+    staff = expert.get("staff") or ""
+    if execute and staff in _TOOLS:
+        try:
+            res = await _TOOLS[staff](goal, goal)
+            return {"role": expert["role"], "staff": staff, "mode": "executed", "output": res}
+        except Exception as e:  # pragma: no cover - defensive
+            return {"role": expert["role"], "staff": staff, "mode": "executed", "error": str(e)[:200]}
+    sys = (
+        f"Tum '{expert['role']}' ho — expertise: {expert.get('expertise', '')}. Apne expert lens se "
+        "goal pe concrete, actionable contribution do (3-5 line Hinglish). Sirf apna output."
+    )
+    out, prov = await _llm(sys, f"Goal: {goal}\nAb tak team ne: {board[:1200]}", max_tokens=240, temperature=0.5)
+    return {
+        "role": expert["role"],
+        "staff": staff,
+        "mode": "draft",
+        "output": out or "(draft pending)",
+        "provider": prov,
+    }
+
+
+async def _solver_synthesize(goal: str, contributions: list[dict], feedback: str = "") -> str:
+    """Stage 2 (vertical solver) — experts ke contributions ko ek coherent, actionable
+    SOLUTION me synthesize karo (evaluator feedback ko address karte hue)."""
+    sys = (
+        "Tum SOLVER ho. Experts ke contributions ko ek single, coherent, actionable SOLUTION me "
+        "synthesize karo (5-8 line Hinglish, clear steps). feedback diya ho to use address karo. Sirf solution."
+    )
+    user = f"Goal: {goal}\nExpert contributions: {json.dumps(contributions, ensure_ascii=False)[:2000]}"
+    if feedback:
+        user += f"\nEvaluator feedback (isse fix karo): {feedback[:500]}"
+    out, _ = await _llm(sys, user, max_tokens=420, temperature=0.45)
+    return out
+
+
+async def coordinate_agentverse(
+    goal: str,
+    execute: bool = False,
+    max_rounds: int = 2,
+    quality_bar: float = 0.75,
+    team_size: int = 3,
+) -> dict:
+    """AgentVerse task-solving loop (arXiv:2308.10848): RECRUIT → COLLABORATE+SOLVE →
+    EXECUTE → EVALUATE → feedback se team RE-COMPOSE + refine (rounds tak, best-of kept).
+
+    Guardrails: max_rounds (cap 3) + quality_bar (early-stop). Episodic memory (_recall/
+    _remember) cross-run learning. SAFE default (execute=False=drafts). Never raises.
+    """
+    goal = (goal or "").strip()
+    if len(goal) < 3:
+        return {"ok": False, "error": "goal bahut chhota hai"}
+    run_id = uuid.uuid4().hex[:12]
+    recalled = _recall(goal)
+    feedback = " | ".join(recalled)
+    _log("manager", "agentverse_start", f"{goal} (mem:{len(recalled)})")
+    rounds: list[dict] = []
+    best: dict[str, Any] = {"solution": "", "score": -1.0, "experts": [], "critique": {}, "contributions": []}
+    for rnd in range(max(1, min(3, max_rounds))):
+        experts = await _recruit_experts(goal, feedback=feedback, team_size=team_size)
+        _log("manager", "av_recruit", f"r{rnd}: " + ", ".join(e["role"] for e in experts))
+        board = ""
+        contributions: list[dict] = []
+        for ex in experts:  # collaborative — har expert pichhla board dekhta (shared context)
+            c = await _expert_contribution(ex, goal, board, execute)
+            contributions.append(c)
+            board += f"\n[{c['role']}] {json.dumps(c.get('output'), ensure_ascii=False)[:400]}"
+            _log(ex.get("staff") or "manager", "av_contrib", f"{ex['role']} [r{rnd}]")
+        solution = await _solver_synthesize(goal, contributions, feedback=feedback if rnd else "")
+        critique = await _verify(goal, [{"solution": solution, "contributions": contributions}])
+        score = float(critique.get("score", 0.6))
+        rounds.append(
+            {
+                "round": rnd,
+                "experts": [{"role": e["role"], "staff": e.get("staff", "")} for e in experts],
+                "score": score,
+                "weak": critique.get("weak", []),
+            }
+        )
+        if score > best["score"]:
+            best = {
+                "solution": solution,
+                "score": score,
+                "experts": experts,
+                "critique": critique,
+                "contributions": contributions,
+            }
+        if score >= quality_bar:
+            break
+        # EVALUATE → feedback se team RE-COMPOSE (AgentVerse ka core loop)
+        fb = "; ".join(critique.get("fixes", []) or critique.get("weak", []))
+        feedback = (feedback + " | " + fb)[:800] if feedback else fb
+        if fb:
+            _remember(goal, fb, score)
+    summary, _ = await _llm(
+        "Tum Manager ho. Final solution + score ko 3-4 line Hinglish summary + clear next-action me sameto. Sirf text.",
+        f"Goal: {goal}\nSolution: {best['solution'][:1400]}\nScore: {best['score']}",
+        max_tokens=220,
+        temperature=0.4,
+    )
+    _log("manager", "agentverse_done", f"score={best['score']} rounds={len(rounds)}")
+    out = {
+        "ok": True,
+        "run_id": run_id,
+        "goal": goal,
+        "pattern": "agentverse",
+        "execute": execute,
+        "rounds": rounds,
+        "final_score": best["score"],
+        "experts": [
+            {"role": e["role"], "expertise": e.get("expertise", ""), "staff": e.get("staff", "")}
+            for e in best["experts"]
+        ],
+        "contributions": best.get("contributions", []),
+        "solution": best["solution"] or "(solution abhi nahi bana)",
+        "critique": best["critique"],
+        "summary": summary or "(summary abhi nahi bana)",
+        "memory_used": len(recalled),
+        "at": _now(),
+    }
+    _persist(out)
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# ENGINEERING crew (MetaGPT / OpenHands-inspired): Architect → Engineer → Reviewer
+# → Tester. GOAL-driven feature/design aid. DRAFT-ONLY — code KABHI auto-apply nahi
+# (code_upgrader ki philosophy: core code admin-approve pe hi badle). Yeh code_upgrader
+# (signal→patch) ka complement = goal→design+plan+tests. Free-stack, never raises.
+# --------------------------------------------------------------------------- #
+async def coordinate_engineering(goal: str, context: str = "") -> dict:
+    """4-role SDE crew → design + implementation plan + review + test plan (DRAFT)."""
+    goal = (goal or "").strip()
+    if len(goal) < 3:
+        return {"ok": False, "error": "goal bahut chhota hai"}
+    run_id = uuid.uuid4().hex[:12]
+    _log("manager", "engineering_start", goal[:120])
+    ctx = (context or "")[:1200]
+    architect, _ = await _llm(
+        "Tum Senior Software ARCHITECT ho (FastAPI/async/free-stack production system). Goal ke liye "
+        "concise DESIGN do: components, data-flow, API/contract shape, key trade-offs. 6-10 line "
+        "Hinglish. Sirf design.",
+        f"Goal: {goal}\nContext: {ctx}",
+        max_tokens=440,
+        temperature=0.4,
+    )
+    implementer, _ = await _llm(
+        "Tum ENGINEER ho. Architect ke design pe step-by-step IMPLEMENTATION PLAN do (files/functions, "
+        "pseudo-code level — ACTUAL code apply mat karo). 6-10 line Hinglish. Sirf plan.",
+        f"Goal: {goal}\nDesign: {architect[:1200]}",
+        max_tokens=460,
+        temperature=0.4,
+    )
+    reviewer, _ = await _llm(
+        "Tum staff REVIEWER ho (security + reliability lens). Plan ke risks, edge-cases, failure-modes, "
+        "security/idempotency/never-raise concerns + fixes list karo. 5-8 line Hinglish. Sirf review.",
+        f"Goal: {goal}\nDesign: {architect[:800]}\nPlan: {implementer[:1000]}",
+        max_tokens=380,
+        temperature=0.3,
+    )
+    tester, _ = await _llm(
+        "Tum QA ENGINEER ho. Is feature ke liye TEST PLAN do: unit + integration + failure-mode cases "
+        "(kya assert karna). 5-8 line Hinglish. Sirf test plan.",
+        f"Goal: {goal}\nPlan: {implementer[:1000]}\nReview: {reviewer[:600]}",
+        max_tokens=360,
+        temperature=0.3,
+    )
+    _log("manager", "engineering_done", goal[:120])
+    out = {
+        "ok": True,
+        "run_id": run_id,
+        "goal": goal,
+        "pattern": "engineering_crew",
+        "roles": ["architect", "engineer", "reviewer", "tester"],
+        "design": architect or "(design pending)",
+        "implementation_plan": implementer or "(plan pending)",
+        "review": reviewer or "(review pending)",
+        "test_plan": tester or "(tests pending)",
+        "note": "DRAFT only — code auto-apply NAHI hua. Changes sirf code_upgrader/admin-approve se.",
+        "at": _now(),
+    }
+    _persist(out)
+    return out
+
+
 __all__ = [
     "roster",
     "plan",
     "coordinate",
     "coordinate_advanced",
     "coordinate_hierarchical",
+    "coordinate_agentverse",
+    "coordinate_engineering",
     "fan_out",
     "debate",
     "recent_runs",

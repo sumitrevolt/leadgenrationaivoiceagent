@@ -162,6 +162,14 @@ async def run_watchdog() -> dict[str, Any]:
     if not _flag("OPS_WATCHDOG"):
         return {"skipped": "OPS_WATCHDOG off"}
     try:
+        # Outbox flush — failed outbound-webhook deliveries ko TIME-based retry (event-traffic
+        # ke bina bhi, e.g. raat me). Best-effort — watchdog ko kabhi block/break nahi karta.
+        try:
+            from app.platform import outbound_webhooks as _ow
+
+            await _ow.retry_pending()
+        except Exception:
+            pass
         s = _signals()
         issues = _detect(s)
         report: dict[str, Any] = {

@@ -3,6 +3,8 @@ Production Middleware Stack
 Rate limiting, security headers, API authentication, and request tracing
 """
 
+import asyncio
+import os
 import time
 import uuid
 from collections.abc import Callable
@@ -362,6 +364,73 @@ def add_gzip_middleware(app: FastAPI):
 
 
 # =============================================================================
+# REQUEST GUARD MIDDLEWARE — per-request timeout (504) + load-shed (503)
+# =============================================================================
+
+# Per-worker in-flight counter (worker apne event-loop ko khud protect kare — yeh
+# granularity sahi hai, distributed nahi chahiye).
+_INFLIGHT = 0
+
+
+class RequestGuardMiddleware(BaseHTTPMiddleware):
+    """Inbound reliability guard (audit): per-request hard TIMEOUT (slow handler worker ko
+    indefinitely hold na kare → 504, upstream-proxy 504 se pehle) + LOAD-SHED (per-worker
+    in-flight cap → 503 + Retry-After; overload-collapse se bachao, mid-flight cut nahi).
+
+    GATED `REQUEST_GUARD=1` (default OFF = zero change). Long/streaming/ws paths SKIP
+    (warna voice/LLM/SSE cut ho jate). FAIL-OPEN: koi bhi guard-error pe normal process
+    (legit traffic kabhi na ruke). Tunables: REQUEST_TIMEOUT_S, REQUEST_MAX_INFLIGHT,
+    REQUEST_GUARD_SKIP (comma paths)."""
+
+    def __init__(self, app: FastAPI):
+        super().__init__(app)
+        self.timeout_s = float(os.environ.get("REQUEST_TIMEOUT_S", "55") or 55)
+        self.max_inflight = int(os.environ.get("REQUEST_MAX_INFLIGHT", "200") or 200)
+        _default_skip = (
+            "/ws,/health,/metrics,/api/web-call,/api/voiceai,/agents/coordinate,"
+            "/api/agents/run,/api/ml,/api/ai"
+        )
+        self.skip = tuple(
+            p.strip()
+            for p in os.environ.get("REQUEST_GUARD_SKIP", _default_skip).split(",")
+            if p.strip()
+        )
+
+    def _skip(self, path: str) -> bool:
+        return path.startswith(self.skip) or "stream" in path
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        global _INFLIGHT
+        try:
+            path = request.url.path
+            if self._skip(path):
+                return await call_next(request)
+            # LOAD-SHED: per-worker in-flight cap (overload pe naye ko 503, running ko cut nahi)
+            if _INFLIGHT >= self.max_inflight:
+                logger.warning("RequestGuard load-shed 503 (in-flight=%d) %s", _INFLIGHT, path)
+                return JSONResponse(
+                    status_code=503,
+                    content={"detail": "Server busy — thodi der baad try karo."},
+                    headers={"Retry-After": "5"},
+                )
+            _INFLIGHT += 1
+            try:
+                return await asyncio.wait_for(call_next(request), timeout=self.timeout_s)
+            except asyncio.TimeoutError:
+                logger.warning("RequestGuard timeout 504 (%.0fs) %s", self.timeout_s, path)
+                return JSONResponse(
+                    status_code=504,
+                    content={"detail": "Request timed out — phir se try karo."},
+                    headers={"Retry-After": "5"},
+                )
+            finally:
+                _INFLIGHT -= 1
+        except Exception as e:  # fail-open — guard kabhi legit request na rok de
+            logger.debug("RequestGuard fail-open: %s", e)
+            return await call_next(request)
+
+
+# =============================================================================
 # SETUP ALL MIDDLEWARE
 # =============================================================================
 
@@ -399,5 +468,15 @@ def setup_middleware(app: FastAPI, production: bool = False):
 
     # Security headers (applied first, so last in chain)
     app.add_middleware(SecurityHeadersMiddleware)
+
+    # Request guard (per-request timeout + load-shed) — GATED `REQUEST_GUARD=1`, default OFF
+    # (zero change). Added LAST = executes FIRST (outermost) → guard poore chain ko wrap kare.
+    if os.environ.get("REQUEST_GUARD", "0").strip().lower() in ("1", "true", "yes"):
+        app.add_middleware(RequestGuardMiddleware)
+        logger.info(
+            "✅ RequestGuard enabled (timeout=%ss, max_inflight=%s)",
+            os.environ.get("REQUEST_TIMEOUT_S", "55"),
+            os.environ.get("REQUEST_MAX_INFLIGHT", "200"),
+        )
 
     logger.info(f"? Middleware stack configured (production={production})")
