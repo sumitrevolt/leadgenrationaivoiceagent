@@ -19,6 +19,7 @@ Kabhi raise nahi karta. Import-safe (heavy deps nahi).
 from __future__ import annotations
 
 import json
+import logging
 import os
 import threading
 from datetime import datetime, timezone
@@ -26,6 +27,32 @@ from pathlib import Path
 
 _STORE = Path(os.getenv("DATA_DIR", "data")) / "lead_usage.jsonl"
 _LOCK = threading.Lock()
+_log = logging.getLogger("billing.lead_usage")
+
+
+def _record_meter_failure(rec: dict) -> None:
+    """Metering write fail-open hai (call kabhi block na ho) — par failure SILENT
+    na rahe (revenue-leak risk). ERROR log (Loki/alertable) + best-effort DURABLE
+    record main redis (REDIS_URL = noeviction, audit P0-1) ki list
+    `billing:meter_failures` me → ops manual replay/reconcile kar sake. Kabhi raise
+    nahi karta. Replay: `redis-cli lrange billing:meter_failures 0 -1`."""
+    try:
+        _log.error(
+            "BILLING meter write FAILED (revenue-leak risk) — manual replay needed: %s",
+            json.dumps(rec, ensure_ascii=False)[:300],
+        )
+    except Exception:
+        pass
+    try:
+        import redis as _redis
+
+        url = os.environ.get("REDIS_URL")  # main (noeviction) — NOT cache redis (evictable)
+        if url:
+            r = _redis.from_url(url, socket_timeout=2)
+            r.lpush("billing:meter_failures", json.dumps(rec, ensure_ascii=False))
+            r.ltrim("billing:meter_failures", 0, 4999)  # bounded
+    except Exception:
+        pass
 
 
 def _now() -> datetime:
@@ -76,16 +103,18 @@ def record_qualified_lead(client_id: str, ref: str = "", plan: str | None = None
     cid = (client_id or "").strip()
     if not cid:
         return False
-    return _append(
-        {
-            "client_id": cid,
-            "ts": _now().isoformat(),
-            "kind": "qualified",
-            "leads": 1,
-            "ref": str(ref or ""),
-            "plan": str(plan or ""),
-        }
-    )
+    rec = {
+        "client_id": cid,
+        "ts": _now().isoformat(),
+        "kind": "qualified",
+        "leads": 1,
+        "ref": str(ref or ""),
+        "plan": str(plan or ""),
+    }
+    ok = _append(rec)
+    if not ok:
+        _record_meter_failure(rec)  # silent revenue-leak na ho — log + durable replay-list
+    return ok
 
 
 def add_topup_leads(client_id: str, leads: int, ref: str = "") -> bool:
@@ -97,9 +126,12 @@ def add_topup_leads(client_id: str, leads: int, ref: str = "") -> bool:
         return False
     if not cid or n <= 0:
         return False
-    return _append(
-        {"client_id": cid, "ts": _now().isoformat(), "kind": "topup", "leads": n, "ref": str(ref or "")}
-    )
+    rec = {"client_id": cid, "ts": _now().isoformat(), "kind": "topup", "leads": n, "ref": str(ref or "")}
+    ok = _append(rec)
+    if not ok:
+        # topup failure = customer ne PAY kiya par credit nahi mila — aur bhi critical
+        _record_meter_failure(rec)
+    return ok
 
 
 def leads_used_this_period(client_id: str, period: str | None = None) -> int:

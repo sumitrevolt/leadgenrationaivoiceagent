@@ -1274,4 +1274,6 @@ if _website_dir.is_dir():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    # reload sirf development me — prod me galti se `python app/main.py` chale to
+    # auto-reload (file-watch overhead + double-load) na ho (audit P2).
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=settings.is_development)

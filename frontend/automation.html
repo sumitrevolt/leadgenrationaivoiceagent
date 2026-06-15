@@ -591,7 +591,19 @@ a{color:var(--acc)}
 <!-- ================= 15. APPROVALS ================= -->
 <section class="tabsec" id="sec-approvals">
   <div class="card">
-    <h2>📥 Pending Approvals — aapke decisions ek jagah</h2>
+    <h2>💰 Self-Improve Cost Tracking</h2>
+    <div class="mut">Daily budget cap (Phase 6 safety gate) — LLM-heavy actions ka cost limit.</div>
+    <button class="btn2" onclick="apCostStatus()">📊 Cost status load</button>
+    <div id="apCostOut" class="mut" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h2>✋ Self-Improve Approval Queue</h2>
+    <div class="mut">SELF_IMPROVE_APPROVAL=1 pe LLM-heavy actions pending approval. Approve karo ya reject.</div>
+    <button class="btn2" onclick="apSelfImprovePending()">🔄 Pending load</button>
+    <div id="apSelfImpOut" class="mut" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <h2>📥 Process Breakpoints + Code Patches</h2>
     <div class="mut">Process breakpoints (WAITING runs) + Code-upgrader patch proposals. Patch approve = SUPER_ADMIN only.</div>
     <button class="btn2" onclick="apLoad()">🔄 Refresh</button>
     <div id="apOut" class="mut" style="margin-top:8px">Load ho raha...</div>
@@ -1718,6 +1730,80 @@ async function srFlags(){
   }catch(e){warnBox('srFlagsOut','Flags fail: '+e.message)}
 }
 
+/* ---------------- 15a. Self-Improve Cost + Approval (Phase 6) ---- */
+async function apCostStatus(){
+  try{
+    var d=await api('/api/growth/selfimprove/cost-status');
+    if(!d||!d.date){$('apCostOut').innerHTML='<div class="mut">Cost tracking not available.</div>';return}
+    var pct=d.pct_used||0;var bar_color=pct<50?'#34d399':(pct<80?'#fbbf24':'#f87171');
+    var h='<div class="result" style="margin-top:8px">';
+    h+='<div style="font-weight:600;margin-bottom:6px">'+esc(d.date)+' — Daily Budget</div>';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin:6px 0"><div style="font-size:2rem;font-weight:700">$'+d.spent.toFixed(2)+'</div><div style="flex:1"><div style="background:#2a2f3e;border-radius:4px;height:24px;overflow:hidden"><div style="background:'+bar_color+';height:100%;width:'+pct+'%;transition:width 0.3s"></div></div><div class="mut" style="font-size:.75rem;margin-top:2px">'+pct.toFixed(1)+'% of $'+d.cap.toFixed(2)+'</div></div></div>';
+    h+='<div style="color:#34d399;font-weight:600">$'+d.remaining.toFixed(2)+' remaining</div>';
+    if(d.tasks&&d.tasks.length){
+      h+='<div style="margin-top:12px;font-size:.9rem"><b>Tasks today:</b><table style="width:100%;font-size:.8rem"><tr><th>Task</th><th style="text-align:right">Cost</th><th style="text-align:right">Time</th></tr>';
+      d.tasks.forEach(function(t){
+        h+='<tr><td>'+esc(t.task)+'</td><td style="text-align:right">$'+t.cost.toFixed(2)+'</td><td class="mut" style="text-align:right;font-size:.75rem">'+esc(new Date(t.time).toLocaleTimeString())+'</td></tr>';
+      });
+      h+='</table></div>';
+    }
+    h+='</div>';
+    $('apCostOut').innerHTML=h;
+  }catch(e){warnBox('apCostOut','Cost status fail: '+e.message)}
+}
+
+async function apSelfImprovePending(){
+  try{
+    var d=await api('/api/growth/selfimprove/approvals-pending');
+    if(!d||!d.approval_required){
+      $('apSelfImpOut').innerHTML='<div class="mut">SELF_IMPROVE_APPROVAL flag OFF — approvals gated nahi.</div>';return
+    }
+    var pending=d.pending||[];
+    if(!pending.length){
+      $('apSelfImpOut').innerHTML='<div class="ok">✅ Koi pending approvals nahi — loop freely run kar raha hai.</div>';return
+    }
+    var h='<div style="margin-top:8px">';
+    pending.forEach(function(task){
+      var id=task.id||'';
+      var timestamp=new Date(task.timestamp);
+      h+='<div style="border:1px solid #2a2f3e;border-radius:8px;padding:12px;margin-bottom:10px;background:#11141d">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">';
+      h+='<div><strong style="font-size:1rem">'+esc(task.task)+'</strong><div class="mut" style="font-size:.85rem;margin-top:2px">'+timestamp.toLocaleString()+'</div></div>';
+      h+='<span style="font-size:1.1rem;color:#fbbf24;font-weight:600">$'+task.cost.toFixed(2)+'</span>';
+      h+='</div>';
+      h+='<p style="margin:8px 0;font-size:.9rem;color:#e6e8ef">'+esc(task.reason)+'</p>';
+      h+='<div style="display:flex;gap:6px">';
+      h+='<button class="btn2" style="background:#123524;color:#34d399;flex:1" onclick="apSelfImproveApprove(\''+esc(id)+'\')">✅ Approve</button>';
+      h+='<button class="btnd" style="flex:1" onclick="apSelfImproveReject(\''+esc(id)+'\')">❌ Reject</button>';
+      h+='</div>';
+      h+='</div>';
+    });
+    h+='</div>';
+    var badge=$('tab-approvals');if(badge)badge.innerHTML='📥 Approvals ('+pending.length+')';
+    $('apSelfImpOut').innerHTML=h;
+  }catch(e){warnBox('apSelfImpOut','Self-improve approvals fail: '+e.message)}
+}
+
+async function apSelfImproveApprove(taskId){
+  if(!taskId||!confirm('Task '+taskId.slice(0,8)+' approve kare?'))return;
+  try{
+    var d=await api('/api/growth/selfimprove/approval/'+encodeURIComponent(taskId)+'/approve',{method:'PATCH',body:JSON.stringify({reason:''})});
+    toast(d.status==='approved'?'✅ Approved — task execute hoga':'Fail');
+    apSelfImprovePending();
+  }catch(e){toast('Fail: '+e.message,false)}
+}
+
+async function apSelfImproveReject(taskId){
+  if(!taskId)return;
+  var reason=prompt('Reject reason:','');
+  if(!confirm('Task '+taskId.slice(0,8)+' reject kare?'))return;
+  try{
+    var d=await api('/api/growth/selfimprove/approval/'+encodeURIComponent(taskId)+'/reject',{method:'PATCH',body:JSON.stringify({reason:reason||''})});
+    toast(d.status==='rejected'?'❌ Rejected':'Fail');
+    apSelfImprovePending();
+  }catch(e){toast('Fail: '+e.message,false)}
+}
+
 /* ---------------- 15. Approvals ---------------- */
 async function apLoad(){
   var h='';var pending=0;
@@ -1942,7 +2028,7 @@ async function crRun(){
 
 /* ---------------- init ---------------- */
 $('tokin').value=tok();
-var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:apLoad,events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList};
+var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:function(){apCostStatus();apSelfImprovePending();apLoad();},events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList};
 var _origShow=show;
 show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}};
 var start=(location.hash||'').replace('#','');

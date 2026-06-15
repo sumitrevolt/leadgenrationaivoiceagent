@@ -1258,3 +1258,22 @@ __all__ = [
     "objection_response",
     "match_objection",
 ]
+
+
+# --- depth overlay merge (2026-06-14) ---------------------------------------- #
+# niche_knowledge_extra.EXTRA ko base packs me APPEND-only merge karo:
+# facts/benefits dedupe-append, objections update. Base packs hamesha kaam karte;
+# overlay sirf depth badhata. try/except = overlay optional, import kabhi nahi todta.
+try:
+    from app.niche_knowledge_extra import EXTRA as _EXTRA
+
+    for _k, _v in _EXTRA.items():
+        _p = NICHE_KNOWLEDGE.setdefault(_k, {"facts": [], "benefits": [], "objections": {}})
+        for _fld in ("facts", "benefits"):
+            _dst = _p.setdefault(_fld, [])
+            for _item in _v.get(_fld, []):
+                if _item not in _dst:
+                    _dst.append(_item)
+        _p.setdefault("objections", {}).update(_v.get("objections", {}))
+except Exception:  # pragma: no cover — overlay optional
+    pass

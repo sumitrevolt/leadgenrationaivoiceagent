@@ -69,4 +69,9 @@ ENV PYTHONUNBUFFERED=1 \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 EXPOSE 8080
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers ${WEB_CONCURRENCY:-2} --timeout-keep-alive 30"]
+# --proxy-headers + --forwarded-allow-ips='*': app Caddy ke peeche hai (container
+# port sirf 127.0.0.1 pe bound — sirf local Caddy pahunchta, isliye '*' safe).
+# Bina iske request.client.host = Docker gateway (sab clients ek hi IP) → global
+# rate-limit poori site ko ek bucket me throttle karta. Yeh flag se real client IP
+# (X-Forwarded-For) resolve hota — per-IP limiting + sahi access logs.
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers ${WEB_CONCURRENCY:-2} --timeout-keep-alive 30 --proxy-headers --forwarded-allow-ips='*'"]

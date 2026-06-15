@@ -587,4 +587,433 @@ def status() -> dict[str, Any]:
     return out
 
 
-__all__ = ["enabled", "gap_seconds", "run_once", "ensure_alive", "status", "add_task", "ACTIONS"]
+# ================================================================ PHASE 7 + 6
+# Deterministic Feedback Loops + Cost-Aware Bandit Optimization
+# ================================================================
+
+# Phase 7: Outcome weighting for deterministic feedback gates
+OUTCOME_WEIGHTS = {
+    "lead_quality": 0.40,      # hot-lead score (0-1)
+    "revenue": 0.40,           # MRR impact ($)
+    "cost": -0.20,             # penalize expensive ($/outcome)
+}
+
+DETERMINISTIC_GATES = {
+    "budget": True,                # Skip if over daily budget
+    "expensive_risky": True,       # Skip if cost>$5 AND success<60%
+    "low_roi": True,               # Skip if neutral outcome AND cost>$3
+}
+
+
+def compute_outcome_value(outcome_dict: dict[str, Any]) -> float:
+    """
+    Phase 7: Combines multiple metrics into single value score (0-1).
+
+    outcome_dict = {
+        "lead_count": 18,
+        "avg_lead_score": 0.64,
+        "revenue_impact": 150,  # $ of deals expected
+        "cost": 2.31,
+        "success": True
+    }
+
+    Returns: 0-1 score (weighted blend of lead quality + revenue - cost).
+    """
+    try:
+        lead_quality = float(outcome_dict.get("avg_lead_score", 0))  # 0-1
+        lead_quality = max(0, min(1, lead_quality))
+
+        revenue = float(outcome_dict.get("revenue_impact", 0))  # $ of deals
+        revenue_score = revenue / 1000.0  # normalize to 0-1 (capped at $1000)
+        revenue_score = max(0, min(1, revenue_score))
+
+        cost = float(outcome_dict.get("cost", 0))  # $ spent
+        cost_score = cost / 10.0  # normalize to 0-1 (capped at $10)
+        cost_score = max(0, min(1, cost_score))
+
+        # Weighted sum (cost is negative = penalizes expensive)
+        score = (
+            OUTCOME_WEIGHTS["lead_quality"] * lead_quality +
+            OUTCOME_WEIGHTS["revenue"] * revenue_score +
+            OUTCOME_WEIGHTS["cost"] * cost_score
+        )
+
+        return max(0, min(1, score))  # clamp to 0-1
+    except Exception:
+        return 0.5  # fail-open: neutral score
+
+
+# ---------------------------------------------------------------- cost tracking + approval gates
+
+
+class CostTracker:
+    """Daily cost cap + per-task tracking (Phase 6 safety gates)."""
+
+    def __init__(self, daily_cap: float = 50.0):
+        self.daily_cap = daily_cap
+        self.today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        self.today_cost = 0.0
+        self.tasks_today: list[dict[str, Any]] = []
+
+    def can_afford(self, task_name: str, estimated_cost: float) -> bool:
+        """Check if task fits under daily budget."""
+        self._reset_if_new_day()
+        return (self.today_cost + estimated_cost) <= self.daily_cap
+
+    def record_cost(self, task_name: str, actual_cost: float) -> None:
+        """Log cost for task."""
+        self._reset_if_new_day()
+        self.today_cost += actual_cost
+        self.tasks_today.append({
+            "task": task_name,
+            "cost": round(actual_cost, 2),
+            "time": _now().isoformat(),
+        })
+
+    def get_daily_status(self) -> dict[str, Any]:
+        """Return today's budget status."""
+        self._reset_if_new_day()
+        return {
+            "date": self.today_date,
+            "cap": self.daily_cap,
+            "spent": round(self.today_cost, 2),
+            "remaining": round(self.daily_cap - self.today_cost, 2),
+            "pct_used": round(100 * self.today_cost / self.daily_cap, 1) if self.daily_cap > 0 else 0,
+            "tasks": self.tasks_today,
+        }
+
+    def _reset_if_new_day(self) -> None:
+        new_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if new_date != self.today_date:
+            self.today_date = new_date
+            self.today_cost = 0.0
+            self.tasks_today = []
+
+
+def should_skip_task(task_name: str, cost_remaining: float, last_outcome: dict[str, Any] | None = None) -> tuple[bool, str]:
+    """
+    Phase 7: Deterministic gates that skip expensive low-ROI tasks.
+
+    Rules:
+    1. If cost_remaining < estimated_cost, skip (budget)
+    2. If success_rate < 60% AND cost > $5, skip (expensive + risky)
+    3. If last outcome was "neutral" (value_score<0.5) AND cost > $3, skip (no ROI)
+
+    Returns: (skip: bool, reason: str)
+    """
+    try:
+        from app.platform import skill_library
+
+        task_stats = skill_library.stats().get(task_name, {})
+        success_rate = task_stats.get("rate", 0.5)  # default neutral
+        cost_avg = 2.5 if ACTIONS.get(task_name, (True, ""))[0] else 0.5
+
+        # Gate 1: Budget (skip if exceeds remaining)
+        if not DETERMINISTIC_GATES.get("budget", True):
+            return False, ""
+        if cost_avg > cost_remaining:
+            return True, f"budget_exceeded (${cost_remaining:.2f} left, task costs ${cost_avg:.2f})"
+
+        # Gate 2: High-cost + low-success (skip risky expensive)
+        if not DETERMINISTIC_GATES.get("expensive_risky", True):
+            return False, ""
+        if success_rate < 0.6 and cost_avg > 5:
+            return True, f"expensive_risky (success={success_rate:.0%}, cost=${cost_avg:.2f})"
+
+        # Gate 3: Neutral outcome + expensive (skip low-ROI)
+        if not DETERMINISTIC_GATES.get("low_roi", True):
+            return False, ""
+        if last_outcome:
+            value_score = last_outcome.get("value_score", 0.5)
+            if value_score < 0.5 and cost_avg > 3:
+                return True, f"low_roi (outcome_value={value_score:.2f}, cost=${cost_avg:.2f})"
+
+        return False, ""
+    except Exception:
+        return False, ""
+
+
+class ApprovalQueue:
+    """Human approval gates for high-risk self-improve actions (Phase 6)."""
+
+    def __init__(self, approval_required: bool = False):
+        self.approval_required = approval_required
+        self.pending: list[dict[str, Any]] = []
+        self.approved: list[dict[str, Any]] = []
+        self._approval_file = os.path.join("data", "self_improve_approvals.jsonl")
+
+    def queue_task(self, task_name: str, reason: str, cost_estimate: float) -> bool:
+        """Queue task for approval. Return True if auto-approved, False if waiting."""
+        if not self.approval_required:
+            return True
+
+        rec = {
+            "id": uuid.uuid4().hex[:12],
+            "task": task_name,
+            "reason": reason[:300],
+            "cost": round(cost_estimate, 2),
+            "timestamp": _now().isoformat(),
+            "status": "waiting",
+        }
+        self.pending.append(rec)
+        _append(self._approval_file, rec)
+        return False
+
+    def get_pending(self) -> list[dict[str, Any]]:
+        """Return list of pending approvals."""
+        return self.pending.copy()
+
+    def approve(self, task_id: str) -> bool:
+        """Admin approves a pending task. Return True if found."""
+        for task in self.pending:
+            if task.get("id") == task_id:
+                task["status"] = "approved"
+                task["approved_at"] = _now().isoformat()
+                self.approved.append(task)
+                _append(self._approval_file, task)
+                self.pending.remove(task)
+                return True
+        return False
+
+    def reject(self, task_id: str, reason: str = "") -> bool:
+        """Admin rejects a pending task. Return True if found."""
+        for task in self.pending:
+            if task.get("id") == task_id:
+                task["status"] = "rejected"
+                task["rejection_reason"] = reason[:200]
+                task["rejected_at"] = _now().isoformat()
+                _append(self._approval_file, task)
+                self.pending.remove(task)
+                return True
+        return False
+
+    def is_approved(self, task_id: str) -> bool:
+        """Check if a specific task is approved."""
+        return any(t.get("id") == task_id and t.get("status") == "approved" for t in self.approved)
+
+
+# Global instances (persist across run_once calls)
+_cost_tracker: CostTracker | None = None
+_approval_queue: ApprovalQueue | None = None
+
+
+def _get_cost_tracker() -> CostTracker:
+    global _cost_tracker
+    if _cost_tracker is None:
+        try:
+            cap = float(os.environ.get("SELFIMPROVE_COST_CAP", "50.0"))
+        except Exception:
+            cap = 50.0
+        _cost_tracker = CostTracker(daily_cap=cap)
+    return _cost_tracker
+
+
+def _get_approval_queue() -> ApprovalQueue:
+    global _approval_queue
+    if _approval_queue is None:
+        approval_mode = os.environ.get("SELF_IMPROVE_APPROVAL", "0").strip().lower() in ("1", "true", "yes")
+        _approval_queue = ApprovalQueue(approval_required=approval_mode)
+    return _approval_queue
+
+
+# ================================================================ MAIN LOOP (Phase 7 integrated)
+# ================================================================
+
+
+async def run_once() -> dict[str, Any]:
+    """
+    EK iteration: pick → deterministic-gates → execute → learn.
+    Loop continuation Celery requeue se (tasks/staff_jobs.self_improve_tick).
+    Kabhi raise nahi.
+
+    Phase 7 additions:
+    - Deterministic gates (budget, expensive_risky, low_roi)
+    - Outcome value computation (lead_quality + revenue - cost)
+    - Cost-aware task picking
+    """
+    if not enabled():
+        return {"enabled": False}
+
+    ct = _get_cost_tracker()
+    aq = _get_approval_queue()
+
+    st = _load_state()
+    day = _now().strftime("%Y-%m-%d")
+    runs_today = int(st.get("runs_today", 0) or 0) if st.get("day") == day else 0
+    if runs_today >= max_per_day():
+        _heartbeat({"status": "daily_cap"})
+        return {"enabled": True, "skipped": "daily_cap", "runs_today": runs_today}
+
+    picked = await _pick_next()
+    action = picked.get("action") or "channel_experiments"
+    if action not in ACTIONS:
+        action = "channel_experiments"
+
+    # Estimate cost
+    estimated_cost = 2.5 if ACTIONS.get(action, (False, ""))[0] else 0.5
+
+    # ========== PHASE 7: DETERMINISTIC GATES ==========
+    cost_remaining = ct.daily_cap - ct.today_cost
+    last_outcome = None
+    try:
+        from app.platform import skill_library
+
+        task_stats = skill_library.stats().get(action, {})
+        # Infer last outcome if possible (for low_roi gate)
+        runs = _read_jsonl(_RUNS)
+        last_run = next((r for r in reversed(runs) if r.get("action") == action), None)
+        if last_run:
+            last_outcome = {
+                "value_score": last_run.get("outcome_value", 0.5),
+                "cost": last_run.get("cost", estimated_cost),
+            }
+    except Exception:
+        pass
+
+    skip, skip_reason = should_skip_task(action, cost_remaining, last_outcome)
+    if skip:
+        _heartbeat({"status": "gate_skip"})
+        logger.info(f"[self-improve] deterministic gate: {action} — {skip_reason}")
+        return {
+            "enabled": True,
+            "skipped": "gate_skip",
+            "gate_reason": skip_reason,
+            "cost_status": ct.get_daily_status(),
+        }
+
+    # ========== PHASE 6: COST + APPROVAL GATES ==========
+    if not ct.can_afford(action, estimated_cost):
+        _heartbeat({"status": "budget_cap"})
+        logger.info(f"[self-improve] budget cap: spent ${ct.today_cost:.2f}, need ${estimated_cost:.2f}")
+        return {
+            "enabled": True,
+            "skipped": "budget_cap",
+            "cost_status": ct.get_daily_status(),
+        }
+
+    if aq.approval_required and ACTIONS.get(action, (False, ""))[0]:
+        task_id = aq.queue_task(
+            action,
+            reason=f"{picked.get('task', '')[:100]} — LLM-heavy action",
+            cost_estimate=estimated_cost,
+        )
+        if not task_id:
+            _heartbeat({"status": "approval_pending"})
+            logger.info(f"[self-improve] approval_pending: {action}")
+            return {
+                "enabled": True,
+                "skipped": "approval_pending",
+                "action": action,
+                "pending_approvals": len(aq.get_pending()),
+            }
+
+    # ========== EXECUTE ==========
+    t0 = time.monotonic()
+    try:
+        result = await asyncio.wait_for(_execute(action, picked.get("task", "")), timeout=_ITER_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        result = {"ok": False, "detail": f"timeout {_ITER_TIMEOUT_S}s"}
+    except Exception as e:
+        result = {"ok": False, "detail": str(e)[:200]}
+    ms = (time.monotonic() - t0) * 1000
+
+    # Record cost
+    ct.record_cost(action, estimated_cost)
+
+    # ========== PHASE 7: COMPUTE OUTCOME VALUE ==========
+    outcome_value = 0.5  # default neutral
+    if result.get("ok"):
+        # Try to extract outcome metrics from result detail
+        outcome_dict = {
+            "lead_count": result.get("lead_count", 0),
+            "avg_lead_score": result.get("avg_lead_score", 0.5),
+            "revenue_impact": result.get("revenue_impact", 0),
+            "cost": estimated_cost,
+            "success": result.get("ok", False),
+        }
+        outcome_value = compute_outcome_value(outcome_dict)
+
+    # Learn — har run skill_library me (with outcome value)
+    try:
+        from app.platform import skill_library
+
+        skill_library.record_use(action, bool(result.get("ok")), result.get("detail", ""), ms, agent="boss")
+    except Exception:
+        pass
+
+    if picked.get("queued_id"):
+        _mark_done(picked["queued_id"], result.get("detail", ""))
+
+    rec = {
+        "id": uuid.uuid4().hex[:10],
+        "task": picked.get("task", ""),
+        "action": action,
+        "source": picked.get("source", "auto"),
+        "ok": bool(result.get("ok")),
+        "detail": str(result.get("detail", ""))[:300],
+        "ms": round(ms, 1),
+        "cost": round(estimated_cost, 2),
+        "outcome_value": round(outcome_value, 2),  # NEW: Phase 7
+        "at": _now().isoformat(),
+    }
+    _append(_RUNS, rec)
+    _heartbeat({"runs_today": runs_today + 1, "last_action": action, "status": "ok"})
+
+    # periodic reflection (auto-learn never stops)
+    total = runs_today + 1
+    if action != "reflection" and total % _REFLECT_EVERY == 0:
+        try:
+            await asyncio.wait_for(_reflect(), timeout=60)
+        except Exception:
+            pass
+
+    try:
+        from app.platform import team
+
+        gate_info = f" [GATE: {skip_reason}]" if skip else ""
+        team.log_event(
+            "manager",
+            "self_improve",
+            f"{action}: {'OK' if rec['ok'] else 'FAIL'} — ${rec['cost']:.2f} (value={rec['outcome_value']:.2f}) — {rec['detail'][:70]}{gate_info}",
+        )
+        team.team_pulse(max_members=2)  # har tick 2 under-active staff ko bhi heartbeat
+    except Exception:
+        pass
+
+    return {"enabled": True, **rec, "cost_status": ct.get_daily_status()}
+
+
+def cost_status() -> dict[str, Any]:
+    """Return current daily cost tracking status."""
+    ct = _get_cost_tracker()
+    return ct.get_daily_status()
+
+
+def approval_status() -> dict[str, Any]:
+    """Return current approval queue status."""
+    aq = _get_approval_queue()
+    return {
+        "approval_required": aq.approval_required,
+        "pending_count": len(aq.get_pending()),
+        "pending": aq.get_pending(),
+        "approved_count": len(aq.approved),
+    }
+
+
+__all__ = [
+    "enabled",
+    "gap_seconds",
+    "run_once",
+    "ensure_alive",
+    "status",
+    "add_task",
+    "ACTIONS",
+    "cost_status",
+    "approval_status",
+    "CostTracker",
+    "ApprovalQueue",
+    "compute_outcome_value",
+    "should_skip_task",
+    "OUTCOME_WEIGHTS",
+    "DETERMINISTIC_GATES",
+]

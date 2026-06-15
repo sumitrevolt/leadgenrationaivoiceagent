@@ -1,0 +1,311 @@
+================================================================================
+PHASE 7: DETERMINISTIC FEEDBACK LOOPS ARCHITECTURE DIAGRAM
+================================================================================
+
+COMPLETE LOOP FLOW (run_once iteration):
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  STEP 1: PICK TASK                                                          │
+│  ─────────────────                                                          │
+│  • Use epsilon-greedy bandit (30% explore, 70% exploit)                   │
+│  • Select from ACTIONS list based on success_rate                         │
+│  • Consider cost penalty (prefer cheap actions)                           │
+│                                                                             │
+│  → picked = {task: "...", action: "seo_pages", stage: "lead_supply"}     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  STEP 2: ESTIMATE COST                                                      │
+│  ──────────────────────                                                    │
+│  • LLM-heavy actions = $2.50                                              │
+│  • Light actions (scrape/harvest) = $0.50                                │
+│                                                                             │
+│  estimated_cost = 2.5  (for seo_pages, LLM-heavy)                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                                                                             ║
+║  PHASE 7: DETERMINISTIC GATES (NEW)                                        ║
+║  ═════════════════════════════════════════════════════════════════════════  ║
+║                                                                             ║
+║  should_skip_task(action, cost_remaining, last_outcome)                    ║
+║                                                                             ║
+║  ┌─────────────────────────────────────────────────────────────────────┐   ║
+║  │ GATE 1: BUDGET                                                      │   ║
+║  │ ────────────────                                                    │   ║
+║  │ IF (cost > remaining):                                              │   ║
+║  │   SKIP with reason "budget_exceeded"                                │   ║
+║  │                                                                     │   ║
+║  │ Check: $2.50 (cost) > $20 (remaining)?  NO → PASS                  │   ║
+║  └─────────────────────────────────────────────────────────────────────┘   ║
+║                                    │                                       ║
+║                                    ▼                                       ║
+║  ┌─────────────────────────────────────────────────────────────────────┐   ║
+║  │ GATE 2: EXPENSIVE + RISKY                                           │   ║
+║  │ ──────────────────────────                                          │   ║
+║  │ IF (success_rate < 60% AND cost > $5):                              │   ║
+║  │   SKIP with reason "expensive_risky"                                │   ║
+║  │                                                                     │   ║
+║  │ Check: 75% (success) < 60%?  NO → PASS                              │   ║
+║  │ Check: $2.50 (cost) > $5?    NO → PASS                              │   ║
+║  └─────────────────────────────────────────────────────────────────────┘   ║
+║                                    │                                       ║
+║                                    ▼                                       ║
+║  ┌─────────────────────────────────────────────────────────────────────┐   ║
+║  │ GATE 3: LOW ROI + EXPENSIVE                                         │   ║
+║  │ ─────────────────────────────────                                   │   ║
+║  │ IF (last_outcome.value < 0.5 AND cost > $3):                        │   ║
+║  │   SKIP with reason "low_roi"                                        │   ║
+║  │                                                                     │   ║
+║  │ Check: last_outcome.value=0.72 < 0.5?  NO → PASS                    │   ║
+║  │ Check: $2.50 (cost) > $3?  NO → PASS                                │   ║
+║  └─────────────────────────────────────────────────────────────────────┘   ║
+║                                    │                                       ║
+║                         All gates PASS → Continue                          ║
+║                                                                             ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  PHASE 6: COST + APPROVAL GATES (COMPLEMENTARY)                            │
+│  ─────────────────────────────────────────────                             │
+│                                                                             │
+│  IF NOT CostTracker.can_afford(action, estimated_cost):                    │
+│    SKIP "budget_cap"                                                      │
+│  (Phase 7 gate already checked this, but Phase 6 is backup)               │
+│                                                                             │
+│  IF approval_required AND is_llm_heavy(action):                            │
+│    Queue for approval (human review)                                      │
+│                                                                             │
+│  → Cost check: $2.50 < $20  ✓ PASS                                        │
+│  → Approval: Not required   ✓ PASS                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  EXECUTE TASK                                                               │
+│  ────────────                                                              │
+│  result = await _execute("seo_pages", picked_task_text)                   │
+│  → Generates 2 SEO pages                                                  │
+│  → Returns: {ok: True, detail: "2 pages generated"}                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+╔═════════════════════════════════════════════════════════════════════════════╗
+║                                                                             ║
+║  PHASE 7: COMPUTE OUTCOME VALUE (NEW)                                      ║
+║  ════════════════════════════════════════════════════════════════════════   ║
+║                                                                             ║
+║  compute_outcome_value(outcome_dict)                                       ║
+║                                                                             ║
+║  Formula:                                                                  ║
+║  ────────                                                                  ║
+║  value = 0.40 × lead_quality                                              ║
+║          + 0.40 × revenue_normalized                                       ║
+║          - 0.20 × cost_normalized                                          ║
+║                                                                             ║
+║  Example:                                                                  ║
+║  ───────                                                                   ║
+║  outcome = {                                                               ║
+║    "lead_count": 2,                                                        ║
+║    "avg_lead_score": 0.65,     # moderate quality pages                   ║
+║    "revenue_impact": 0,        # no immediate revenue                     ║
+║    "cost": 2.50,               # cost of execution                        │
+║    "success": True                                                         ║
+║  }                                                                         ║
+║                                                                             ║
+║  lead_quality = 0.65                                                       ║
+║  revenue_score = 0 / 1000 = 0.0                                           ║
+║  cost_score = 2.50 / 10 = 0.25                                            ║
+║                                                                             ║
+║  value = 0.40 × 0.65 + 0.40 × 0.0 - 0.20 × 0.25                           ║
+║        = 0.26 + 0.0 - 0.05                                                ║
+║        = 0.21  (clamped to [0,1])                                         ║
+║                                                                             ║
+║  → outcome_value = 0.21 (weak — informational pages, no revenue)           ║
+║                                                                             ║
+╚═════════════════════════════════════════════════════════════════════════════╝
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  RECORD COST + OUTCOME                                                      │
+│  ─────────────────────────                                                 │
+│  rec = {                                                                   │
+│    "id": "a1b2c3d4e5",                                                     │
+│    "action": "seo_pages",                                                  │
+│    "ok": True,                                                             │
+│    "cost": 2.50,                                                           │
+│    "outcome_value": 0.21,  ← NEW: Phase 7 metric                          │
+│    "detail": "2 pages generated",                                          │
+│    "ms": 12500.0,                                                          │
+│    "at": "2026-06-14T10:30Z"                                              │
+│  }                                                                         │
+│                                                                             │
+│  Append to: data/self_improve_runs.jsonl                                   │
+│  Update cost tracker                                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│  LEARN                                                                      │
+│  ──────                                                                    │
+│  1. skill_library.record_use("seo_pages", ok=True, ...)                   │
+│     → Updates success_rate for next pick_epsilon_greedy                   │
+│                                                                             │
+│  2. If total_runs % 8 == 0: await _reflect()                              │
+│     → LLM reflection on recent runs (Phase 5+)                            │
+│     → Returns Hinglish lesson                                             │
+│     → Stored in skill_library                                             │
+│                                                                             │
+│  3. team.log_event("manager", "self_improve", ...)                        │
+│     → Event logged for monitoring                                         │
+│     → Message includes: action, cost, outcome_value                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+                        RETURN to Celery self-requeue
+                         (tasks/staff_jobs.self_improve_tick)
+                         Sleep SELFIMPROVE_GAP_S seconds
+                         Next iteration begins ↑
+
+================================================================================
+GATE DECISION TREE (Simplified)
+================================================================================
+
+                                    START
+                                      │
+                                      ▼
+                        Remaining budget < cost?
+                                    YES ──→ SKIP "budget_exceeded"
+                                    │
+                                    NO
+                                    │
+                                    ▼
+                    Success rate < 60% AND cost > $5?
+                                    YES ──→ SKIP "expensive_risky"
+                                    │
+                                    NO
+                                    │
+                                    ▼
+                Last outcome value < 0.5 AND cost > $3?
+                                    YES ──→ SKIP "low_roi"
+                                    │
+                                    NO
+                                    │
+                                    ▼
+                          All gates PASS → EXECUTE
+
+================================================================================
+OUTCOME VALUE RANGES
+================================================================================
+
+Score Range │ Interpretation      │ Example
+────────────┼─────────────────────┼──────────────────────────────────────
+0.90-1.00   │ Ideal / Excellent   │ 20 hot leads + $1000 revenue + $1
+0.70-0.89   │ Good / Strong       │ 10 leads + $500 revenue + $2
+0.50-0.69   │ Moderate / Neutral  │ 5 leads + $100 revenue + $3
+0.30-0.49   │ Weak / Poor         │ 2 info leads + $0 revenue + $5
+0.10-0.29   │ Very Weak / Bad     │ 1 info lead + $0 revenue + $5
+0.00-0.09   │ Worst / Failure     │ 0 leads + $0 revenue + $10
+
+================================================================================
+PHASE 7 vs PHASE 6 vs REFLEXION (Comparison)
+================================================================================
+
+                      Deterministic Gates (Phase 7)
+                                │
+                                ▼
+                      ┌─────────────────────┐
+                      │ Budget Gate         │ Prevent overspend
+                      │ Expensive+Risky     │ Block bad bets
+                      │ Low ROI             │ Avoid failures
+                      └─────────────────────┘
+                      Speed: <50ms, No LLM
+
+
+                      Cost + Approval (Phase 6)
+                                │
+                                ▼
+                      ┌─────────────────────┐
+                      │ Budget Check        │ Simple < cap check
+                      │ Approval Queue      │ Human gate
+                      └─────────────────────┘
+                      Complementary to Phase 7
+
+
+                      LLM Reflexion (Phase 5+)
+                                │
+                                ▼
+                      ┌─────────────────────┐
+                      │ Recent runs digest  │ Every 8 runs
+                      │ LLM reflection      │ Extract pattern
+                      │ Save lesson         │ Update behavior
+                      └─────────────────────┘
+                      Speed: 30-60s (LLM call)
+                      Adaptive learning
+
+    Together: Deterministic base + Learning overlay = Robust feedback loop
+
+================================================================================
+COST TRACKING STATE (Example Daily View)
+================================================================================
+
+Time    │ Action          │ Cost   │ Total  │ Remaining │ Outcome │ Gate?
+─────────┼─────────────────┼────────┼────────┼───────────┼─────────┼───────
+08:00   │ harvest_leads   │ $0.50  │ $0.50  │ $49.50    │ 0.85    │ PASS
+08:15   │ seo_pages       │ $2.50  │ $3.00  │ $47.00    │ 0.21    │ PASS
+08:30   │ content_pack    │ $2.50  │ $5.50  │ $44.50    │ 0.15    │ PASS
+08:45   │ scrape_leads    │ $0.50  │ $6.00  │ $44.00    │ 0.72    │ PASS
+09:00   │ channel_exp     │ $2.50  │ $8.50  │ $41.50    │ 0.68    │ PASS
+...
+17:00   │ sales_deepdive  │ $2.50  │ $42.00 │ $8.00     │ 0.55    │ PASS
+17:15   │ seo_pages       │ $2.50  │ $44.50 │ $5.50     │ n/a     │ ?
+
+    ↓ Decision for next task:
+
+17:30   │ (candidate)     │ $5.00  │ ─      │ $5.50     │ ?       │ SKIP
+                                               Budget OK but...
+                                               Last seo_pages = 0.21 (low ROI)
+                                               Cost = $5 > $3 threshold
+                                               → Gate 3: low_roi triggers
+                                               → SKIP this repeat
+
+17:30   │ harvest_leads   │ $0.50  │ $45.00 │ $5.00     │ 0.80    │ PASS
+                                               Cheap + high success
+                                               No gate triggers
+                                               → EXECUTE
+
+18:00   │ content_pack    │ $2.50  │ $47.50 │ $2.50     │ 0.50    │ PASS
+        │ (candidate)     │ $2.00  │ ─      │ $2.50     │ ?       │ ?
+                                               Budget OK
+                                               No gate triggers
+                                               → EXECUTE
+
+18:15   │ ??? (next)      │ ???    │ ─      │ $0.50     │ ?       │ ?
+                                               Only $0.50 remaining
+                                               Can only run cheap tasks
+                                               Budget gate will SKIP most
+
+End of day:
+  Total spent: ~$50.00 / $50.00 (100%)
+  Outcome values: [0.85, 0.21, 0.15, 0.72, 0.68, ..., 0.80, 0.50]
+  Gates triggered: 1 (low_roi on seo_pages repeat)
+  Effective ROI: Skip avoided repeating weak outcome
+
+================================================================================
+END OF ARCHITECTURE DIAGRAM
+================================================================================

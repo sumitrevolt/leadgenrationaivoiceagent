@@ -3,6 +3,7 @@ Health and Observability API Endpoints
 Production monitoring and health checks
 """
 
+import asyncio
 import os
 import sys
 from datetime import datetime
@@ -335,31 +336,40 @@ async def prometheus_metrics():
         f'leadgen_info{{version="{version}",env="{settings.app_env}",llm="{settings.default_llm}",tts="{settings.default_tts}"}} 1'
     )
 
-    # LLM metrics
+    # LLM provider health — REAL source app.platform.llm_metrics (data/llm_calls.jsonl,
+    # shared across workers = multi-worker-correct). Pehle yahan legacy vertex_client
+    # tha jo prod me empty rehta (audit P1-3). File read off-loop (executor) — scrape
+    # event-loop block na kare. ok_rate/fallback_rate alert-ready (free providers
+    # exhaust = voice/content ka #1 live bottleneck — ab visible).
     try:
-        from app.llm.vertex_client import get_vertex_client
+        from app.platform import llm_metrics
 
-        client = get_vertex_client()
-        stats = client.get_usage_stats()
-
-        model = stats.get("model", "unknown")
-        total = stats.get("total", {})
+        llm = await asyncio.get_running_loop().run_in_executor(None, llm_metrics.stats, 500)
+        providers = (llm or {}).get("providers", {}) or {}
 
         metrics.append("")
-        metrics.append("# HELP leadgen_llm_requests_total Total number of LLM requests")
-        metrics.append("# TYPE leadgen_llm_requests_total counter")
-        metrics.append(f'leadgen_llm_requests_total{{model="{model}"}} {total.get("requests", 0)}')
+        metrics.append("# HELP leadgen_llm_provider_calls Total LLM attempts per provider (rolling window)")
+        metrics.append("# TYPE leadgen_llm_provider_calls gauge")
+        for p, v in providers.items():
+            metrics.append(f'leadgen_llm_provider_calls{{provider="{p}"}} {int(v.get("calls", 0) or 0)}')
 
         metrics.append("")
-        metrics.append("# HELP leadgen_llm_tokens_total Total tokens used")
-        metrics.append("# TYPE leadgen_llm_tokens_total counter")
-        metrics.append(f'leadgen_llm_tokens_total{{model="{model}"}} {total.get("tokens", 0)}')
+        metrics.append("# HELP leadgen_llm_provider_ok_rate LLM provider success rate 0-1 (rolling window)")
+        metrics.append("# TYPE leadgen_llm_provider_ok_rate gauge")
+        for p, v in providers.items():
+            metrics.append(f'leadgen_llm_provider_ok_rate{{provider="{p}"}} {float(v.get("ok_rate", 0) or 0):.3f}')
 
         metrics.append("")
-        metrics.append("# HELP leadgen_llm_cost_inr_total Total cost in INR")
-        metrics.append("# TYPE leadgen_llm_cost_inr_total counter")
+        metrics.append("# HELP leadgen_llm_provider_avg_latency_ms LLM provider avg latency ms (successful calls)")
+        metrics.append("# TYPE leadgen_llm_provider_avg_latency_ms gauge")
+        for p, v in providers.items():
+            metrics.append(f'leadgen_llm_provider_avg_latency_ms{{provider="{p}"}} {float(v.get("avg_ms", 0) or 0):.1f}')
+
+        metrics.append("")
+        metrics.append("# HELP leadgen_llm_fallback_rate Fraction of LLM attempts that failed/fell through 0-1")
+        metrics.append("# TYPE leadgen_llm_fallback_rate gauge")
         metrics.append(
-            f'leadgen_llm_cost_inr_total{{model="{model}"}} {total.get("cost_inr", 0):.4f}'
+            f'leadgen_llm_fallback_rate {float((llm or {}).get("fallback_or_fail_rate", 0) or 0):.3f}'
         )
     except Exception:
         pass
@@ -444,6 +454,26 @@ async def prometheus_metrics():
     except Exception:
         pass
 
+    # Celery queue depth — broker = main redis lists (shared = multi-worker-correct).
+    # Backlog visibility at scale: koi queue badhti rahe = worker starve/stuck (audit
+    # P1-3). InMemoryCache fallback me llen nahi → guard se skip.
+    try:
+        from app.cache import get_redis_client
+
+        redis = await get_redis_client()
+        if redis and hasattr(redis, "llen"):
+            metrics.append("")
+            metrics.append("# HELP leadgen_celery_queue_depth Pending tasks per Celery queue")
+            metrics.append("# TYPE leadgen_celery_queue_depth gauge")
+            for q in ("celery", "heavy", "scraping", "calling", "reporting", "sync", "training"):
+                try:
+                    depth = await redis.llen(q)
+                except Exception:
+                    depth = 0
+                metrics.append(f'leadgen_celery_queue_depth{{queue="{q}"}} {int(depth or 0)}')
+    except Exception:
+        pass
+
     # System metrics
     try:
         import psutil
@@ -451,7 +481,9 @@ async def prometheus_metrics():
         metrics.append("")
         metrics.append("# HELP leadgen_process_cpu_percent Process CPU usage percentage")
         metrics.append("# TYPE leadgen_process_cpu_percent gauge")
-        metrics.append(f"leadgen_process_cpu_percent {psutil.cpu_percent(interval=0.1):.1f}")
+        # interval=None = non-blocking (since-last-call). interval=0.1 har /metrics
+        # scrape pe 100ms event-loop block karta tha (P2). Pehla scrape 0.0, phir real.
+        metrics.append(f"leadgen_process_cpu_percent {psutil.cpu_percent(interval=None):.1f}")
 
         memory = psutil.virtual_memory()
         metrics.append("")

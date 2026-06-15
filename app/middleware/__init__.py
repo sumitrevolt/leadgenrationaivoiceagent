@@ -20,6 +20,23 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+def _real_client_ip(request: Request) -> str:
+    """Real client IP — proxy headers first (Caddy), warna socket peer.
+
+    App Caddy ke peeche hai. uvicorn --proxy-headers ke saath request.client.host
+    already real IP hota; yeh helper defense-in-depth hai (agar proxy-headers config
+    badle to bhi rate-limit per-IP rahe, na ki sab ek gateway-IP bucket me). Mirror
+    of app.api.ratelimit._client_ip — dono limiters consistent.
+    """
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    xri = request.headers.get("x-real-ip")
+    if xri:
+        return xri.strip()
+    return request.client.host if request.client else "unknown"
+
+
 # =============================================================================
 # SECURITY HEADERS MIDDLEWARE
 # =============================================================================
@@ -190,7 +207,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path in skip_paths:
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = _real_client_ip(request)
 
         # Try Redis rate limiter first
         limiter = await self._get_limiter()

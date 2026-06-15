@@ -2122,3 +2122,79 @@ async def process_reject(run_id: str, body: ProcessApproveIn, _user=Depends(requ
     from app.agents import process_engine
 
     return process_engine.reject(run_id, by=getattr(_user, "email", "admin") or "admin", reason=body.note)
+
+
+# ----------------------------- Self-Improve Approval Gates (Phase 6) -------- #
+
+
+@router.get("/selfimprove/cost-status")
+async def selfimprove_cost(current_user=Depends(require_admin)):
+    """Daily cost tracking status (budget cap, spent, remaining)."""
+    from app.agents import self_improve
+
+    return self_improve.cost_status()
+
+
+@router.get("/selfimprove/approvals-pending")
+async def selfimprove_approvals(current_user=Depends(require_admin)):
+    """List all pending approval tasks (Phase 6 gate)."""
+    from app.agents import self_improve
+
+    status = self_improve.approval_status()
+    return status
+
+
+class ApprovalActionIn(BaseModel):
+    reason: str = ""
+
+
+@router.patch("/selfimprove/approval/{task_id}/approve")
+async def approve_selfimprove_task(
+    task_id: str,
+    body: ApprovalActionIn | None = None,
+    current_user=Depends(require_admin),
+):
+    """Admin approves a pending self-improve task."""
+    from app.agents import self_improve
+
+    aq = self_improve._get_approval_queue()
+    success = aq.approve(task_id)
+    if success:
+        try:
+            from app.platform import team
+
+            team.log_event(
+                "admin",
+                "selfimprove_approved",
+                f"Task {task_id} approved by {getattr(current_user, 'email', 'admin')}",
+            )
+        except Exception:
+            pass
+        return {"status": "approved", "task_id": task_id}
+    return {"status": "error", "detail": f"task {task_id} not found"}
+
+
+@router.patch("/selfimprove/approval/{task_id}/reject")
+async def reject_selfimprove_task(
+    task_id: str,
+    body: ApprovalActionIn,
+    current_user=Depends(require_admin),
+):
+    """Admin rejects a pending self-improve task."""
+    from app.agents import self_improve
+
+    aq = self_improve._get_approval_queue()
+    success = aq.reject(task_id, reason=body.reason or "")
+    if success:
+        try:
+            from app.platform import team
+
+            team.log_event(
+                "admin",
+                "selfimprove_rejected",
+                f"Task {task_id} rejected: {body.reason or 'no reason'} by {getattr(current_user, 'email', 'admin')}",
+            )
+        except Exception:
+            pass
+        return {"status": "rejected", "task_id": task_id, "reason": body.reason}
+    return {"status": "error", "detail": f"task {task_id} not found"}

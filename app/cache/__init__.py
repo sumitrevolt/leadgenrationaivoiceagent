@@ -5,6 +5,7 @@ Production-grade caching and rate limiting using Redis
 
 import asyncio
 import json
+import os
 from datetime import timedelta
 from typing import Any, Optional, Union
 
@@ -15,6 +16,9 @@ logger = setup_logger(__name__)
 
 # Redis client singleton
 _redis_client = None
+# Separate client for the EVICTABLE cache (app.cache.Cache) — audit P0-1. Uses
+# CACHE_REDIS_URL when set, else falls back to _redis_client (backwards-compatible).
+_cache_redis_client = None
 
 
 async def get_redis_client():
@@ -43,14 +47,52 @@ async def get_redis_client():
     return _redis_client
 
 
+async def get_cache_redis_client():
+    """Redis client for the EVICTABLE cache only (app.cache.Cache).
+
+    CACHE_REDIS_URL set ho to alag instance (redis-cache, allkeys-lru) use karta —
+    taaki high-volume cache writes broker/call-state wali main Redis (noeviction) ko
+    fill/evict na karein (audit P0-1). UNSET = main get_redis_client() fallback (zero
+    behaviour change, code merge-safe before the container exists). Fail-open: error
+    pe main client pe gir jata.
+    """
+    global _cache_redis_client
+
+    url = (os.environ.get("CACHE_REDIS_URL") or "").strip()
+    if not url:
+        return await get_redis_client()
+
+    if _cache_redis_client is None:
+        try:
+            import redis.asyncio as aioredis
+
+            _cache_redis_client = aioredis.from_url(
+                url, encoding="utf-8", decode_responses=True, max_connections=20
+            )
+            await _cache_redis_client.ping()
+            logger.info("Cache Redis client connected (CACHE_REDIS_URL)")
+        except Exception as e:
+            logger.warning(f"Cache Redis connect failed ({e}); using main redis.")
+            _cache_redis_client = None
+            return await get_redis_client()
+
+    return _cache_redis_client
+
+
 async def close_redis_client():
     """Close Redis connection"""
-    global _redis_client
+    global _redis_client, _cache_redis_client
 
     if _redis_client and not isinstance(_redis_client, InMemoryCache):
         await _redis_client.close()
         _redis_client = None
         logger.info("? Redis client closed")
+    if _cache_redis_client is not None and not isinstance(_cache_redis_client, InMemoryCache):
+        try:
+            await _cache_redis_client.close()
+        except Exception:
+            pass
+        _cache_redis_client = None
 
 
 class InMemoryCache:
@@ -269,11 +311,13 @@ class Cache:
         self.default_ttl = default_ttl
 
     async def get(self, key: str) -> Any | None:
-        """Get cached value"""
-        redis = await get_redis_client()
-
-        full_key = f"{self.prefix}:{key}"
-        value = await redis.get(full_key)
+        """Get cached value. Fail-soft: cache/Redis error = treat as miss (None)."""
+        try:
+            redis = await get_cache_redis_client()
+            full_key = f"{self.prefix}:{key}"
+            value = await redis.get(full_key)
+        except Exception:
+            return None
 
         if value:
             try:
@@ -289,20 +333,24 @@ class Cache:
         value: Any,
         ttl: int | None = None,
     ):
-        """Set cached value"""
-        redis = await get_redis_client()
-
-        full_key = f"{self.prefix}:{key}"
-
-        if isinstance(value, (dict, list)):
-            value = json.dumps(value)
-
-        await redis.set(full_key, value, ex=ttl or self.default_ttl)
+        """Set cached value. Fail-soft: write error (e.g. Redis OOM under noeviction)
+        request me kabhi raise nahi karta — cache best-effort hai."""
+        try:
+            redis = await get_cache_redis_client()
+            full_key = f"{self.prefix}:{key}"
+            if isinstance(value, (dict, list)):
+                value = json.dumps(value)
+            await redis.set(full_key, value, ex=ttl or self.default_ttl)
+        except Exception:
+            return None
 
     async def delete(self, key: str):
-        """Delete cached value"""
-        redis = await get_redis_client()
-        await redis.delete(f"{self.prefix}:{key}")
+        """Delete cached value (fail-soft)."""
+        try:
+            redis = await get_cache_redis_client()
+            await redis.delete(f"{self.prefix}:{key}")
+        except Exception:
+            return None
 
     async def get_or_set(
         self,

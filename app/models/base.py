@@ -44,11 +44,16 @@ def _get_sync_engine():
                 "postgresql://", "postgresql+psycopg2://"
             )
 
+            # Sync engine = migrations + occasional background sync only (rarely
+            # concurrent) → small pool. Shares the same PgBouncer/PG budget as the
+            # async engine (audit P1-2).
             _engine = create_engine(
                 sync_url,
-                pool_size=10,
-                max_overflow=20,
+                pool_size=3,
+                max_overflow=2,
                 pool_pre_ping=True,
+                pool_recycle=1800,
+                pool_timeout=10,
                 echo=settings.debug,
             )
             _SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=_engine)
@@ -82,7 +87,16 @@ def _get_async_engine():
             kwargs = {"pool_pre_ping": True, "echo": settings.debug}
             # SQLite does not support pool_size/max_overflow.
             if not url.startswith("sqlite"):
-                kwargs.update(pool_size=20, max_overflow=30)
+                # Right-sized for PgBouncer session-mode (DEFAULT_POOL_SIZE=25) +
+                # Postgres max_connections=100 across ALL processes: 2 web + worker +
+                # worker-heavy ≈ 4 engines × pool_size 5 = 20 baseline ≤ 25. Session
+                # mode me held client-conn ≈ server-conn, isliye bada pool ulta
+                # contention/queueing deta tha (audit P1-2). recycle = PgBouncer/PG
+                # idle-close se aayi stale conn pre-empt; timeout = exhaust pe 30s
+                # hang ki jagah 10s me fail-fast (request stall na ho).
+                kwargs.update(
+                    pool_size=5, max_overflow=5, pool_recycle=1800, pool_timeout=10
+                )
 
             _async_engine = create_async_engine(url, **kwargs)
             _async_session = async_sessionmaker(
@@ -242,7 +256,19 @@ def _apply_schema_upgrades(sync_conn) -> None:
 
 
 async def init_async_db():
-    """Initialize database tables (async)"""
+    """Initialize database tables (async).
+
+    DB_CREATE_ALL (default "1" = aaj jaisa behaviour) — boot pe create_all +
+    idempotent column-ALTERs. Alembic-only cutover ke liye (audit P2): pehle
+    migrations live DB ke against verify karo (`alembic upgrade head` clean), FIR
+    `DB_CREATE_ALL=0` set karo — tab schema purely Alembic-managed. Default ON
+    rakha kyunki blind flip = missing-table/column risk (isliye opt-in, deliberate).
+    """
+    import os as _os
+
+    if _os.environ.get("DB_CREATE_ALL", "1").strip().lower() not in ("1", "true", "yes"):
+        logger.info("DB_CREATE_ALL=0 — create_all skipped (Alembic-only schema mode)")
+        return
     engine = _get_async_engine()
     if engine:
         async with engine.begin() as conn:
