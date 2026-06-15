@@ -26,8 +26,30 @@ fi
 echo "[$(date -Is)] restore-drill of: ${LATEST}"
 
 TMP="leadgen_drill_$$"
-cleanup() { docker rm -f "${TMP}" >/dev/null 2>&1 || true; }
-trap cleanup EXIT
+TEXTFILE_DIR="${TEXTFILE_DIR:-/opt/leadgen/backups/metrics}"
+
+# Prometheus textfile metric — drill PASS(1)/FAIL(0) + timestamp → silent-failure alert
+# (node_exporter --collector.textfile.directory). "untested backup = no backup".
+_emit_drill() {  # $1 = 1|0
+  mkdir -p "${TEXTFILE_DIR}" 2>/dev/null || return 0
+  {
+    echo "# HELP leadgen_pg_restore_drill_success Last restore-drill verdict (1=pass,0=fail)"
+    echo "# TYPE leadgen_pg_restore_drill_success gauge"
+    echo "leadgen_pg_restore_drill_success ${1}"
+    echo "# HELP leadgen_pg_restore_drill_last_timestamp_seconds Last drill run (unix)"
+    echo "# TYPE leadgen_pg_restore_drill_last_timestamp_seconds gauge"
+    echo "leadgen_pg_restore_drill_last_timestamp_seconds $(date +%s)"
+  } > "${TEXTFILE_DIR}/pg_restore_drill.prom.tmp" 2>/dev/null \
+    && mv "${TEXTFILE_DIR}/pg_restore_drill.prom.tmp" "${TEXTFILE_DIR}/pg_restore_drill.prom" 2>/dev/null || true
+}
+
+# Combined exit handler — cleanup + emit metric (exit-code se pass/fail derive).
+_on_exit() {
+  local ec=$?
+  docker rm -f "${TMP}" >/dev/null 2>&1 || true
+  if [ "${ec}" -eq 0 ]; then _emit_drill 1; else _emit_drill 0; fi
+}
+trap _on_exit EXIT
 
 # 1) Throwaway Postgres (isolated; never touches prod)
 docker run -d --rm --name "${TMP}" \

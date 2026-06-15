@@ -115,6 +115,75 @@ services:
     restart: unless-stopped
     networks: [leadgen_net]
 
+  # ===========================================================================
+  # INFRA EXPORTERS (audit infra-upgrade) — USE metrics jo abhi tak missing the.
+  # Prometheus internally scrape karta (koi host-port nahi = secure). All free +
+  # light. cAdvisor=per-container CPU/mem (P1-1 limits validate), node=host
+  # disk/mem/cpu, postgres=connections/slow (P1-2), redis=evicted_keys/mem (P0-1).
+  # ===========================================================================
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: leadgen_node_exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|rootfs)($$|/)'
+      # textfile collector — pg_backup.sh / pg_restore_drill.sh yahan .prom metrics
+      # likhte (backup/drill success+timestamp) → silent-failure alerting.
+      - '--collector.textfile.directory=/textfile'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /opt/leadgen/backups/metrics:/textfile:ro
+    restart: unless-stopped
+    mem_limit: 128m
+    networks: [leadgen_net]
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: leadgen_cadvisor
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    restart: unless-stopped
+    mem_limit: 384m
+    networks: [leadgen_net]
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: leadgen_pg_exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@db:5432/${POSTGRES_DB:-leadgen}?sslmode=disable"
+    restart: unless-stopped
+    mem_limit: 128m
+    networks: [leadgen_net]
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: leadgen_redis_exporter
+    environment:
+      REDIS_ADDR: "redis://redis:6379"   # main (noeviction) — evicted_keys 0 hona chahiye
+    restart: unless-stopped
+    mem_limit: 64m
+    networks: [leadgen_net]
+
+  redis-exporter-cache:
+    image: oliver006/redis_exporter:latest
+    container_name: leadgen_redis_exporter_cache
+    environment:
+      REDIS_ADDR: "redis://redis-cache:6379"   # cache (allkeys-lru) — evictions expected
+    restart: unless-stopped
+    mem_limit: 64m
+    networks: [leadgen_net]
+
 volumes:
   promdata:
   grafanadata:

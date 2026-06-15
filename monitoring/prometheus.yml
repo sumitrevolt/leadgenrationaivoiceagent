@@ -29,3 +29,27 @@ scrape_configs:
   - job_name: alertmanager
     static_configs:
       - targets: ["leadgen_alertmanager:9093"]
+
+  # --- Infra exporters (audit infra-upgrade) — USE metrics ---
+  # Host (CPU/mem/disk/load) + per-container (cAdvisor) volatile → 10s scrape.
+  - job_name: node
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["leadgen_node_exporter:9100"]
+
+  - job_name: cadvisor
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["leadgen_cadvisor:8080"]
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["leadgen_pg_exporter:9187"]
+
+  - job_name: redis            # main redis (noeviction) — broker/state
+    static_configs:
+      - targets: ["leadgen_redis_exporter:9121"]
+
+  - job_name: redis-cache      # cache redis (allkeys-lru)
+    static_configs:
+      - targets: ["leadgen_redis_exporter_cache:9121"]

@@ -51,4 +51,20 @@ else
   echo "[$(date -Is)] offsite skipped (set RCLONE_REMOTE + install rclone to enable)"
 fi
 
+# Prometheus textfile metric (node_exporter --collector.textfile.directory) → backup
+# stale/fail alerting. Success path pe hi pohnchte (set -e); fail = timestamp stale =
+# alert. Best-effort (|| true) — metric-write kabhi backup ko fail na kare.
+TEXTFILE_DIR="${TEXTFILE_DIR:-/opt/leadgen/backups/metrics}"
+if mkdir -p "${TEXTFILE_DIR}" 2>/dev/null; then
+  {
+    echo "# HELP leadgen_pg_backup_last_success_timestamp_seconds Last successful pg_dump (unix)"
+    echo "# TYPE leadgen_pg_backup_last_success_timestamp_seconds gauge"
+    echo "leadgen_pg_backup_last_success_timestamp_seconds $(date +%s)"
+    echo "# HELP leadgen_pg_backup_size_bytes Size of last pg_dump"
+    echo "# TYPE leadgen_pg_backup_size_bytes gauge"
+    echo "leadgen_pg_backup_size_bytes $(stat -c%s "${OUT}" 2>/dev/null || echo 0)"
+  } > "${TEXTFILE_DIR}/pg_backup.prom.tmp" 2>/dev/null \
+    && mv "${TEXTFILE_DIR}/pg_backup.prom.tmp" "${TEXTFILE_DIR}/pg_backup.prom" 2>/dev/null || true
+fi
+
 echo "[$(date -Is)] backup complete"

@@ -1,0 +1,76 @@
+# =============================================================================
+# CI — automated quality gate (SaaS-infra: "Infrastructure → CI/CD" pillar).
+# Pehle koi CI nahi tha (tests sirf manual run_tests.bat se deploy se pehle).
+# Ab har push/PR pe GitHub Actions automatically gate chalata — broken code main
+# tak na pohnche. GitHub-hosted runner (free) — VPS deploy isse ALAG (woh manual
+# git-pull + docker rehta, ye sirf pre-merge quality gate hai).
+# =============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
+  pull_request:
+    branches: [main]
+    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Fast, dependency-light gate — hamesha reliable (koi heavy ML dep nahi).
+  quality:
+    name: Lint + syntax + secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: python -m pip install --upgrade pip ruff
+      - name: Syntax check (compileall)   # MUST-PASS — syntax error = red
+        run: python -m compileall -q app scripts
+      - name: Secret scan                 # MUST-PASS — no secrets in commit
+        run: python scripts/check_secrets.py
+      - name: Ruff lint (repo config)     # informational annotations (style debt block na kare)
+        run: ruff check --output-format=github app || true
+
+  # Full gate — runtime deps (Dockerfile.lock-mirror) + prod_check + pytest.
+  # `-m "not network"` = LLM/internet tests skip (repo marker, no API keys CI me).
+  tests:
+    name: prod_check + pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: System libs (voice/audio imports)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libsndfile1
+      - name: Install Python deps (mirrors Dockerfile.lock)
+        run: |
+          python -m pip install --upgrade pip wheel setuptools
+          if [ -f requirements.lock.txt ]; then
+            grep -v -E "^(playwright|selenium)" requirements.lock.txt > req.filtered || cp requirements.lock.txt req.filtered
+            pip install --no-deps -r req.filtered
+          else
+            pip install -e ".[dev,monitoring]"
+          fi
+          # torch CPU (Dockerfile.lock jaisa) + test tooling (lock me na ho to).
+          pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu || true
+          pip install pytest pytest-asyncio pytest-timeout
+      - name: Production readiness check
+        run: python scripts/prod_check.py
+      - name: Pytest (skip network/LLM-key tests)
+        env:
+          APP_ENV: test
+        run: pytest -m "not network" -q --no-header -p no:cacheprovider
