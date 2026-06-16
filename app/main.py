@@ -791,6 +791,15 @@ async def automation_page():
     return FileResponse(str(FRONTEND_DIR / "automation.html"))
 
 
+@app.get("/app/dashboards", tags=["Frontend"])
+async def dashboards_page():
+    """H.5 unified admin dashboards — single pane surfacing activation-
+    readiness, engineer agents, eval-gate, agent memory, MCP keys, DR +
+    LiteLLM cost, customer webhooks, Turnstile config. Auto-refresh 30s.
+    Admin token from localStorage (adminToken or accessToken)."""
+    return FileResponse(str(FRONTEND_DIR / "dashboards.html"))
+
+
 @app.get("/app/conversations", tags=["Frontend"])
 async def conversations_page():
     """Unified conversation inbox (GHL-style) — email replies + web-chat + inquiries ek thread view.
