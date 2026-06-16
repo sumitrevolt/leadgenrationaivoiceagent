@@ -378,6 +378,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Engineer-agents router not mounted: {_e}")
 try:
+    from app.api.customer_webhooks import router as _customer_webhooks_router
+
+    # /api/customer/webhooks/* — H.1 customer-facing webhooks (sellable SaaS
+    # feature). Customer-JWT gated; INERT when CUSTOMER_WEBHOOKS unset.
+    app.include_router(_customer_webhooks_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Customer-webhooks router not mounted: {_e}")
+try:
     from app.api import conversion as _conversion
 
     app.include_router(_conversion.public_router, prefix="/api")  # /api/public/widget-chat, /lead-in, /trial-status
