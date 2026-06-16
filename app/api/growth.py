@@ -1072,6 +1072,7 @@ AUTOMATION_FLAGS = [
     "LLM_BUDGET_HARD_KILL",  # emergency manual stop: ALL LLM block (fail-closed) — OFF default
     "MAGIC_LINK",  # passwordless customer login (single-use email link) — OFF default
     "IMPERSONATION",  # super-admin "login as customer" support tool (audited) — OFF default
+    "PUBLIC_GUARDRAILS",  # PII-redact + prompt-injection block on public chatbot/widget LLM — OFF default, fail-open
     "OLLAMA_URL", "OLLAMA_PRIMARY",  # self-hosted own LLM (GPU/PC) — URL set = active
     "NEWSLETTER_ENGINE", "WINBACK_ENGINE", "BRAND_PULSE", "TEAM_REPORT",
     "SKILL_PACK", "CODE_UPGRADER", "RECORDING_RETENTION",

@@ -48,6 +48,26 @@
 
 ---
 
+## §A.2 — ROUND-2 deep-sweep (17-agent "kya MISS hua?" — found genuine deltas)
+
+Exhaustive re-sweep (top SaaS blueprint repos + 2026 infra/AI-agent/data refs, adversarial absence-verify + completeness critic). 10 candidates → 6 confirmed genuinely-new. **4 BUILT (flag-gated/additive), 3 deferred:**
+
+| # | Item | Sev | Status |
+|---|------|-----|--------|
+| 1 | **Alembic migration-safety**: deploy `alembic upgrade head \|\| true` (silent fail) → **hard-gated auto-rollback**; new `.github/workflows/migrations.yml` (Postgres round-trip + single-head + `alembic check` + Squawk DDL-lint, advisory) | HIGH | ✅ BUILT |
+| 2 | **Public guardrails**: `guardrails.py` (PII-redact + injection-block) wired into public `chatbot.py` (was voice-only). Flag `PUBLIC_GUARDRAILS`, fail-open | MED | ✅ BUILT |
+| 3 | **Qdrant snapshot backup**: live-dir tar → consistent snapshot-API + `.sha256` (tar fallback) in `vps_backup.sh` | MED | ✅ BUILT |
+| 4 | **PG restore-drill content-integrity**: `pg_restore_drill.sh` ab critical-table existence + non-empty core check ("backups green but empty" guard) + content metric | MED | ✅ BUILT |
+| 5 | Fider feedback/roadmap board | LOW | ⏳ DEFER — zero paying customers yet; +1 container RAM. Once-you-have-customers lever |
+| 6 | Pyrra SLO/error-budget | LOW | ⏳ DEFER — flat alerts solo single-VPS ke liye kaafi; +container. Tab jab alert-fatigue real ho |
+| 7 | Postmaster Tools v2 spam-rate poller | LOW | ⏳ DEFER — activation-gated (service-account); volume-threshold tak silent |
+
+**Completeness critic verdict:** FinOps (free-stack = ~₹0 COGS, budget-guard covers runaway), DR game-day (chaos+pg-drill), incident/on-call (12 runbooks+ntfy), DPDP (consent ledger+privacy_ops) — **sab saturated**. Critic ke 2 follow-on (offsite-restore drill = activation-gated; PG content-integrity = built as #4). **Verdict: stack saturated; aage digging ki marginal value < build time.**
+
+Round-2 verify: 54 tests green · shell `bash -n` OK · workflow YAML valid · chatbot import OK · 17-agent adversarial sweep (0 false-positive on the 6 confirmed).
+
+---
+
 ## §B — DEDUP CORRECTIONS (prior docs me galat tha)
 
 | Prior claim | Reality (verified) |

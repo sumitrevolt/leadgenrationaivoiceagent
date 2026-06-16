@@ -36,6 +36,9 @@ _emit_drill() {  # $1 = 1|0
     echo "# HELP leadgen_pg_restore_drill_success Last restore-drill verdict (1=pass,0=fail)"
     echo "# TYPE leadgen_pg_restore_drill_success gauge"
     echo "leadgen_pg_restore_drill_success ${1}"
+    echo "# HELP leadgen_pg_restore_drill_content_ok Restored DB content integrity (1=critical tables present+non-empty,0=suspect)"
+    echo "# TYPE leadgen_pg_restore_drill_content_ok gauge"
+    echo "leadgen_pg_restore_drill_content_ok ${CONTENT_OK:-0}"
     echo "# HELP leadgen_pg_restore_drill_last_timestamp_seconds Last drill run (unix)"
     echo "# TYPE leadgen_pg_restore_drill_last_timestamp_seconds gauge"
     echo "leadgen_pg_restore_drill_last_timestamp_seconds $(date +%s)"
@@ -75,15 +78,34 @@ gunzip -c "${LATEST}" | docker exec -i "${TMP}" \
 TABLES="$(docker exec "${TMP}" psql -U "${PG_USER}" -d "${PG_DB}" -tAc \
   "select count(*) from information_schema.tables where table_schema='public';" 2>/dev/null || echo 0)"
 echo "[$(date -Is)] restored public tables: ${TABLES}"
-for t in agent_events billing calls leads clients; do
+for t in agent_events billing_records payments leads users; do
   c="$(docker exec "${TMP}" psql -U "${PG_USER}" -d "${PG_DB}" -tAc "select count(*) from ${t};" 2>/dev/null || echo 'n/a')"
   echo "    ${t}: ${c}"
 done
 
-# 5) Verdict
-if [[ "${TABLES:-0}" =~ ^[0-9]+$ ]] && (( TABLES >= MIN_TABLES )); then
-  echo "[$(date -Is)] ✅ DRILL PASS (${TABLES} tables restored cleanly)"
+# 4b) CONTENT INTEGRITY — "restored cleanly but empty/missing critical tables" guard.
+# Ek dump table-COUNT sahi de ke bhi silently data miss kar sakta (galat DB, excluded
+# schema) — "backups 8 mahine green the, sab khaali" failure. Critical tables EXIST karte
+# hain? AUR DB empty-shell to nahi? (billing pre-revenue khaali ho sakta — uspe gate NAHI.)
+CONTENT_OK=1
+for t in users leads billing_records agent_events; do
+  reg="$(docker exec "${TMP}" psql -U "${PG_USER}" -d "${PG_DB}" -tAc "select to_regclass('public.${t}');" 2>/dev/null || echo '')"
+  if [[ -z "${reg}" ]]; then
+    echo "    ⚠ MISSING critical table: ${t}"; CONTENT_OK=0
+  fi
+done
+# Non-empty signal: core tables (users+leads+agent_events) ka total > 0 = backup khaali nahi.
+SIG="$(docker exec "${TMP}" psql -U "${PG_USER}" -d "${PG_DB}" -tAc \
+  "select coalesce((select count(*) from users),0)+coalesce((select count(*) from leads),0)+coalesce((select count(*) from agent_events),0);" 2>/dev/null || echo 0)"
+echo "[$(date -Is)] content signal (users+leads+agent_events rows): ${SIG}"
+if ! [[ "${SIG}" =~ ^[0-9]+$ ]] || (( SIG <= 0 )); then
+  echo "    ⚠ EMPTY-SHELL: core tables me zero rows — backup suspect (data capture nahi hua?)"; CONTENT_OK=0
+fi
+
+# 5) Verdict — table-count AND content-integrity dono PASS hone chahiye.
+if [[ "${TABLES:-0}" =~ ^[0-9]+$ ]] && (( TABLES >= MIN_TABLES )) && [[ "${CONTENT_OK}" == "1" ]]; then
+  echo "[$(date -Is)] ✅ DRILL PASS (${TABLES} tables, content integrity OK)"
   exit 0
 fi
-echo "[$(date -Is)] ❌ DRILL FAIL — only ${TABLES} tables (expected >= ${MIN_TABLES}). Backup suspect!"
+echo "[$(date -Is)] ❌ DRILL FAIL — tables=${TABLES} (need >=${MIN_TABLES}), content_ok=${CONTENT_OK}. Backup suspect!"
 exit 3

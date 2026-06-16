@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,15 @@ _FALLBACK = (
     "Iska jawab main team se confirm karke bata deta hoon — apna number/WhatsApp share "
     "kar dijiye, hum turant contact karenge. 🙏"
 )
+
+_GUARDRAIL_BLOCK = "Maaf kijiye, is request me main madad nahi kar sakti. Koi aur sawaal ho to poochhiye. 🙏"
+
+
+def _guardrails_on() -> bool:
+    """Public chatbot/widget pe runtime guardrails (PII redact + injection block).
+    GATED PUBLIC_GUARDRAILS=1 (default OFF = byte-identical behaviour). The voice path
+    already uses guardrails; yeh wahi rule-based module public LLM surface pe wire karta."""
+    return (os.getenv("PUBLIC_GUARDRAILS", "") or "").strip().lower() in ("1", "true", "yes", "on")
 
 
 def _kb_context_sync(q: str, client_id: str, niche: str, k: int) -> list[str]:
@@ -47,6 +57,24 @@ async def reply(question: str, client_id: str = "", niche: str = "general", k: i
     q = (question or "").strip()
     if not q:
         return {"answer": "Namaste! Boliye, main aapki kaise madad karu?", "ask_contact": False, "sources": 0}
+
+    # PRE-LLM guardrails (public unauth surface): PII redact + prompt-injection block.
+    # GATED PUBLIC_GUARDRAILS=1 (default OFF). Fail-open. Block -> LLM call hi nahi hoti;
+    # redacted text hi KB+LLM tak jaata (customer PII free-LLM tak na pahunche).
+    _guard = None
+    if _guardrails_on():
+        try:
+            from app.voice_agent.guardrails import get_guardrails
+
+            _guard = get_guardrails()
+            _gi = _guard.check_input(q)
+            if not _gi.allowed:
+                logger.info("chatbot guardrail blocked input: %s", _gi.violations)
+                return {"answer": _GUARDRAIL_BLOCK, "ask_contact": False, "sources": 0}
+            q = (_gi.text or q).strip() or q  # redacted text aage
+        except Exception as e:
+            logger.debug("chatbot guardrail input skip (fail-open): %s", e)
+            _guard = None
 
     # KB retrieval thread me + hard timeout — event loop KABHI block nahi hota.
     # (Fresh container me fastembed model first-load minutes le sakta hai → us request
@@ -85,6 +113,13 @@ async def reply(question: str, client_id: str = "", niche: str = "general", k: i
         ans, _ci = await semantic_complete(q, _gen_answer, scope=(client_id or niche or "general"))
         ans = (ans or "").strip()
         if ans:
+            # POST-LLM guardrail: system-prompt-leak / unsafe-promise block -> safe text.
+            if _guard is not None:
+                try:
+                    _go = _guard.check_output(ans)
+                    ans = (_go.text or ans).strip()
+                except Exception as e:
+                    logger.debug("chatbot guardrail output skip (fail-open): %s", e)
             low = ans.lower()
             ask = (not context) or any(w in low for w in ["number", "whatsapp", "contact", "call"])
             return {"answer": ans, "ask_contact": ask, "sources": len(ctx[:k])}
