@@ -46,6 +46,7 @@ _COOLDOWN = {
     "engineer_score": 4 * 3600,      # at most one per role per 4h
     "eval_reject": 6 * 3600,         # at most one per suite/metric per 6h
     "readiness_digest": 20 * 3600,   # at most one daily-style digest per 20h
+    "webhook_dead_letter": 6 * 3600, # at most one per webhook per 6h (L.3)
 }
 
 # Thresholds — override via env if the operator wants tighter/looser.
@@ -241,9 +242,50 @@ def daily_readiness_digest() -> dict[str, Any]:
     return {"alerted": True, "blockers": len(blockers)}
 
 
+# --------------------------------------------------------------------------- #
+# Alert 4 — webhook dead-letter (L.3)
+# --------------------------------------------------------------------------- #
+_DEAD_LETTER_THRESHOLD = int(os.environ.get("OPS_ALERT_WEBHOOK_DEAD_LETTER_THRESHOLD", "3"))
+
+
+def maybe_alert_webhook_dead_letter(webhook_id: str, client_id: str, url: str) -> dict[str, Any]:
+    """Push ntfy when a webhook has accumulated N consecutive failures.
+
+    Wired into customer_webhooks._deliver_one() after a non-2xx response so
+    the customer (via the platform's own dashboard) sees a dead-letter
+    marker, and the ops team gets paged.
+    """
+    if not enabled():
+        return {"alerted": False, "reason": "disabled"}
+    try:
+        from app.platform import customer_webhooks as _cw
+
+        n = _cw.consecutive_failure_count(webhook_id)
+    except Exception as exc:
+        logger.debug("dead-letter probe error: %s", exc)
+        return {"alerted": False, "reason": "probe_error"}
+
+    if n < _DEAD_LETTER_THRESHOLD:
+        return {"alerted": False, "reason": "below_threshold", "consecutive_failures": n}
+
+    key = f"webhook_dead_letter:{webhook_id}"
+    if _cooldown_active(key, "webhook_dead_letter"):
+        return {"alerted": False, "reason": "cooldown", "consecutive_failures": n}
+
+    title = f"🚨 Webhook dead-letter ({n} consecutive fails)"
+    body = (
+        f"client={client_id} url={url} — last {n} deliveries failed. "
+        f"Likely the customer's endpoint is down or rejecting our signature."
+    )[:1500]
+    _ntfy(title, body, priority="urgent", tags=["rotating_light", "webhook"])
+    _record_fire(key)
+    return {"alerted": True, "consecutive_failures": n}
+
+
 __all__ = [
     "enabled",
     "maybe_alert_engineer_score",
     "maybe_alert_eval_reject",
+    "maybe_alert_webhook_dead_letter",
     "daily_readiness_digest",
 ]

@@ -85,4 +85,18 @@ async def run_one(role: str, _user=Depends(require_admin)) -> dict:
     return ea.run(role_l)
 
 
+@router.post("/{role}/run")
+async def run_now(role: str, _user=Depends(require_admin)) -> dict:
+    """L.5: force-run an engineer agent regardless of scheduler window. Useful
+    after fixing a backup / arming a flag to verify the score recovers without
+    waiting for the next scheduled tick. Same payload as GET /{role}."""
+    role_l = (role or "").strip().lower()
+    if role_l not in _VALID:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown role '{role}'. Valid: {sorted(_VALID)}",
+        )
+    return ea.run(role_l)
+
+
 __all__ = ["router"]

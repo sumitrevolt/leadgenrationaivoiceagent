@@ -24,6 +24,10 @@ class WebhookCreateIn(BaseModel):
     description: str = Field("", max_length=120)
 
 
+class WebhookToggleIn(BaseModel):
+    enabled: bool
+
+
 @router.get("/_meta")
 async def meta() -> dict[str, Any]:
     """Public meta: enabled state + supported event list. No auth (so SDKs can
@@ -152,6 +156,20 @@ async def deliveries(
     """Recent delivery attempts (success + failure)."""
     items = cw.recent_deliveries(webhook_id, client_id, limit=max(1, min(int(limit), 200)))
     return {"webhook_id": webhook_id, "count": len(items), "deliveries": items}
+
+
+@router.patch("/{webhook_id}")
+async def update(
+    webhook_id: str,
+    body: WebhookToggleIn,
+    client_id: str = Depends(require_customer),
+) -> dict:
+    """L.1: pause/resume a webhook. enabled=False stops emit() from firing it;
+    delivery history + secret + subscriptions preserved."""
+    out = cw.set_enabled(webhook_id, client_id, body.enabled)
+    if not out.get("ok"):
+        raise HTTPException(status_code=404, detail=out.get("error", "update failed"))
+    return out
 
 
 @router.post("/{webhook_id}/rotate-secret")

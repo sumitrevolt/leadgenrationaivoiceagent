@@ -736,11 +736,14 @@ async function whLoad(){
     if(r.status===401||r.status===403){ list.innerHTML='<div style="color:var(--bad);font-size:12px">Login required</div>'; return; }
     const d = await r.json();
     if(!d.webhooks || !d.webhooks.length){ list.innerHTML='<div style="color:var(--muted);font-size:12px;font-style:italic">No webhooks yet — register one below.</div>'; return; }
-    list.innerHTML = d.webhooks.map(w => `
-      <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;font-size:12px">
+    list.innerHTML = d.webhooks.map(w => {
+      const isOn = (w.enabled !== false);
+      return `
+      <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;font-size:12px;${isOn?"":"opacity:.55"}">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <div style="font-weight:700;font-family:monospace">${escH(w.url)}</div>
+          <div style="font-weight:700;font-family:monospace">${escH(w.url)} ${isOn?"":"<span style='color:var(--bad);font-weight:600'>(paused)</span>"}</div>
           <div>
+            <button class="btn" onclick="whToggle('${escH(w.id)}', ${!isOn})" style="padding:4px 10px;font-size:11px" title="${isOn?"Pause delivery without losing history":"Resume delivery"}">${isOn?"⏸ Pause":"▶ Resume"}</button>
             <button class="btn" onclick="whTest('${escH(w.id)}')" style="padding:4px 10px;font-size:11px">Test</button>
             <button class="btn" onclick="whShowDeliveries('${escH(w.id)}')" style="padding:4px 10px;font-size:11px">Deliveries</button>
             <button class="btn" onclick="whRotate('${escH(w.id)}')" style="padding:4px 10px;font-size:11px" title="Issue new secret (leaked secret recovery)">🔄 Rotate</button>
@@ -751,7 +754,7 @@ async function whLoad(){
         ${w.description ? `<div style="color:var(--muted);font-size:11px;margin-top:3px">${escH(w.description)}</div>` : ""}
         <div id="whDeliv_${escH(w.id)}" style="display:none;margin-top:8px;background:var(--bg);padding:8px;border-radius:6px;font-family:monospace;font-size:11px;max-height:200px;overflow:auto"></div>
       </div>
-    `).join("");
+    `;}).join("");
   }catch(e){ list.innerHTML='<div style="color:var(--bad);font-size:12px">'+escH(String(e))+'</div>'; }
 }
 async function whRegister(){
@@ -825,6 +828,17 @@ async function whRetry(webhookId, deliveryId){
     }
     whShowDeliveries(webhookId);  // refresh
     whShowDeliveries(webhookId);  // re-open
+  }catch(e){ alert("Error: "+e.message); }
+}
+async function whToggle(id, enable){
+  try{
+    const r = await fetch("/api/customer/webhooks/"+encodeURIComponent(id), {
+      method:"PATCH",
+      headers: {...billAuthHdr(), "Content-Type":"application/json"},
+      body: JSON.stringify({enabled: enable}),
+    });
+    if(!r.ok){ const d=await r.json(); alert("Toggle failed: "+(d.detail||r.status)); return; }
+    whLoad();
   }catch(e){ alert("Error: "+e.message); }
 }
 async function whRotate(id){

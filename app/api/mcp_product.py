@@ -202,4 +202,18 @@ async def admin_revoke(key_id: str, _user=Depends(require_admin)) -> dict:
     return {"revoked": True}
 
 
+class KeyToggleIn(BaseModel):
+    enabled: bool
+
+
+@router.patch("/api/admin/mcp-keys/{key_id}")
+async def admin_toggle(key_id: str, body: KeyToggleIn, _user=Depends(require_admin)) -> dict:
+    """L.2: pause/resume an MCP key without permanent revocation. Useful for
+    quota disputes / suspected leak triage where revoke is too final."""
+    ok = mcp_keys.set_enabled(key_id, body.enabled)
+    if not ok:
+        raise HTTPException(status_code=404, detail="key not found")
+    return {"id": key_id, "enabled": body.enabled}
+
+
 __all__ = ["router"]

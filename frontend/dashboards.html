@@ -267,14 +267,29 @@ async function loadMCP(){
       const klass = pct>=90?"bad":(pct>=60?"warn":"ok");
       const en = u.enabled !== false;
       html += `<div class="row">
-        <span>${esc(u.label||u.id)} ${en?"":'<span class="pill bad" style="margin-left:6px">revoked</span>'}</span>
+        <span>${esc(u.label||u.id)} ${en?"":'<span class="pill bad" style="margin-left:6px">disabled</span>'}</span>
         <span>${u.calls_today}/${u.daily_limit}
-          ${en?`<button onclick="revokeMcpKey('${esc(u.id)}','${esc(u.label||u.id)}')" style="margin-left:6px;background:transparent;border:1px solid var(--bad);color:var(--bad);padding:1px 6px;border-radius:4px;cursor:pointer;font-size:.7rem">revoke</button>`:""}
+          ${en?`<button onclick="toggleMcpKey('${esc(u.id)}',false)" style="margin-left:4px;background:transparent;border:1px solid var(--warn);color:var(--warn);padding:1px 6px;border-radius:4px;cursor:pointer;font-size:.7rem" title="Pause without revoke">⏸</button>`:
+              `<button onclick="toggleMcpKey('${esc(u.id)}',true)" style="margin-left:4px;background:transparent;border:1px solid var(--ok);color:var(--ok);padding:1px 6px;border-radius:4px;cursor:pointer;font-size:.7rem" title="Resume">▶</button>`}
+          ${en?`<button onclick="revokeMcpKey('${esc(u.id)}','${esc(u.label||u.id)}')" style="margin-left:4px;background:transparent;border:1px solid var(--bad);color:var(--bad);padding:1px 6px;border-radius:4px;cursor:pointer;font-size:.7rem">revoke</button>`:""}
         </span></div>
         ${en?`<div class="bar ${klass==="bad"?"bad":(klass==="warn"?"warn":"")}"><div style="width:${Math.min(100,pct)}%"></div></div>`:""}`;
     }
   }
   body.innerHTML = html;
+}
+
+async function toggleMcpKey(id, enable){
+  try{
+    const r = await fetch("/api/admin/mcp-keys/"+encodeURIComponent(id), {
+      method:"PATCH",
+      headers: {...authHdr(), "Content-Type":"application/json"},
+      body: JSON.stringify({enabled: enable}),
+    });
+    if(r.status===401||r.status===403){ alert("Auth required."); return; }
+    if(!r.ok){ const d=await r.json(); alert("Toggle failed: "+(d.detail||r.status)); return; }
+    loadMCP();
+  }catch(e){ alert("Error: "+e.message); }
 }
 
 async function revokeMcpKey(id, label){

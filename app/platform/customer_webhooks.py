@@ -371,6 +371,13 @@ async def _deliver_one(
         "delivered": False,
         "at": int(time.time()),
     })
+    # L.3 dead-letter alert — best-effort; never blocks delivery completion.
+    try:
+        from app.platform import ops_alerts as _oa
+
+        _oa.maybe_alert_webhook_dead_letter(row["id"], row["client_id"], row["url"])
+    except Exception as exc:
+        logger.debug("dead-letter alert hook swallowed: %s", exc)
     return {"delivered": False, "attempts": len(schedule),
             "status": last_status, "error": last_error, "id": delivery_id}
 
@@ -423,6 +430,41 @@ async def fire_test(webhook_id: str, client_id: str) -> dict[str, Any]:
         {"hello": "from leadsgenai.in", "ts": int(time.time())},
         schedule=(_HTTP_TIMEOUT_S,),  # one attempt, no retries
     )
+
+
+def set_enabled(webhook_id: str, client_id: str, enabled: bool) -> dict[str, Any]:
+    """L.1: pause/resume a webhook without losing subscriptions or delivery
+    history. emit() already respects the `enabled` flag — this is the toggle.
+    """
+    cid = (client_id or "").strip()
+    if not cid:
+        return {"ok": False, "error": "client_id required"}
+    rows = _read_registrations()
+    found = False
+    for r in rows:
+        if r.get("id") == webhook_id and r.get("client_id") == cid:
+            r["enabled"] = bool(enabled)
+            r["enabled_toggled_at"] = int(time.time())
+            found = True
+    if not found:
+        return {"ok": False, "error": "not_found"}
+    if not _atomic_rewrite(rows):
+        return {"ok": False, "error": "storage write failed"}
+    return {"ok": True, "id": webhook_id, "enabled": bool(enabled)}
+
+
+def consecutive_failure_count(webhook_id: str) -> int:
+    """L.3: count of consecutive failed deliveries for one webhook ending at
+    the most-recent attempt. Resets to 0 on the first successful delivery
+    walking back from newest. Used by the dead-letter alert hook."""
+    rows = [r for r in _read_deliveries(limit=_DELIVERIES_TAIL)
+            if r.get("webhook_id") == webhook_id]
+    n = 0
+    for r in reversed(rows):
+        if r.get("delivered"):
+            break
+        n += 1
+    return n
 
 
 def rotate_secret(webhook_id: str, client_id: str) -> dict[str, Any]:
@@ -493,4 +535,6 @@ __all__ = [
     "fire_test",
     "rotate_secret",
     "retry_delivery",
+    "set_enabled",
+    "consecutive_failure_count",
 ]

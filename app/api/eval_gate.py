@@ -7,10 +7,11 @@ recent decision counts. Read-only, admin-gated.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.agents import eval_gate
-from app.api.auth_deps import require_admin
+from app.api.auth_deps import require_admin, require_super_admin
 
 router = APIRouter(prefix="/api/eval-gate", tags=["Infrastructure"])
 
@@ -41,6 +42,22 @@ async def eval_gate_recent(
         "enabled": eval_gate.enabled(),
         "hard_mode": eval_gate.hard_mode(),
     }
+
+
+class ResetIn(BaseModel):
+    suite: str = Field(..., min_length=1, max_length=80)
+    metric: str = Field(..., min_length=1, max_length=80)
+
+
+@router.post("/reset")
+async def reset(body: ResetIn, _user=Depends(require_super_admin)) -> dict:
+    """L.4: clear baseline history for one (suite, metric). Super-admin only —
+    a wrong reset wipes the regression-detection signal for that metric until
+    fresh scores accumulate. Returns removed/remaining counts."""
+    out = eval_gate.reset_baseline(body.suite, body.metric)
+    if not out.get("ok"):
+        raise HTTPException(status_code=500, detail=out.get("error", "reset failed"))
+    return out
 
 
 __all__ = ["router"]

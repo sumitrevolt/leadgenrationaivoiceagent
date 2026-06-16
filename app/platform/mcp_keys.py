@@ -199,6 +199,21 @@ def list_all() -> list[dict]:
     return [_redact(r) for r in _read_keys()]
 
 
+def set_enabled(key_id: str, enabled: bool) -> bool:
+    """L.2: pause/resume a key without permanent revocation. Resuming a paused
+    key restores all prior capabilities + quota counters."""
+    rows = _read_keys()
+    found = False
+    for r in rows:
+        if r.get("id") == key_id:
+            r["enabled"] = bool(enabled)
+            r["enabled_toggled_at"] = int(time.time())
+            found = True
+    if not found:
+        return False
+    return _atomic_rewrite_keys(rows)
+
+
 def revoke(key_id: str) -> bool:
     rows = _read_keys()
     new_rows = []
@@ -277,6 +292,7 @@ __all__ = [
     "issue",
     "list_all",
     "revoke",
+    "set_enabled",
     "authenticate",
     "check_and_meter",
     "usage_summary",

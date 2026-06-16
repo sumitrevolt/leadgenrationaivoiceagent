@@ -323,6 +323,37 @@ def summary(window: int = _DEFAULT_BASELINE_WINDOW) -> dict[str, Any]:
     }
 
 
+def reset_baseline(suite: str, metric: str) -> dict[str, Any]:
+    """L.4: clear all history rows for one (suite, metric) combo. Useful when
+    a baseline drifted bad (e.g. a model rollback invalidated prior scores)
+    and the operator wants a clean cold-start. Returns counts removed +
+    remaining so a dashboard shows the operation took.
+
+    Rewrites the entire jsonl file (atomic temp + rename) so a half-written
+    state isn't possible. Best-effort: any IO error leaves the file as-is
+    and returns {"ok": False}.
+    """
+    if not _HISTORY_PATH.exists():
+        return {"ok": True, "removed": 0, "remaining": 0, "note": "no history yet"}
+    try:
+        all_rows = _read_history(limit=10**9)  # full file
+        keep = [
+            r for r in all_rows
+            if not (r.get("suite") == suite and r.get("metric") == metric)
+        ]
+        removed = len(all_rows) - len(keep)
+        tmp = _HISTORY_PATH.with_suffix(".jsonl.tmp")
+        with tmp.open("w", encoding="utf-8") as f:
+            for r in keep:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        tmp.replace(_HISTORY_PATH)
+        return {"ok": True, "removed": removed, "remaining": len(keep),
+                "suite": suite, "metric": metric}
+    except Exception as exc:
+        logger.error("eval_gate reset_baseline failed: %s", exc)
+        return {"ok": False, "error": str(exc)[:120]}
+
+
 __all__ = [
     "enabled",
     "hard_mode",
@@ -332,4 +363,5 @@ __all__ = [
     "gate_decision",
     "score_and_gate",
     "summary",
+    "reset_baseline",
 ]
