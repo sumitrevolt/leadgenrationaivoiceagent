@@ -233,6 +233,57 @@ class _NativeBackend:
         )
         return True
 
+    def scroll_subject(self, subject: str, limit: int) -> list[dict[str, Any]]:
+        """Operator view: list every stored fact for a subject (no vector search)."""
+        from qdrant_client import models as qm
+
+        client = self._client()
+        if not client.collection_exists(self.collection):
+            return []
+        points, _ = client.scroll(
+            collection_name=self.collection,
+            scroll_filter=qm.Filter(
+                must=[qm.FieldCondition(key="subject", match=qm.MatchValue(value=subject))]
+            ),
+            limit=max(1, int(limit)),
+            with_payload=True,
+            with_vectors=False,
+        )
+        out: list[dict[str, Any]] = []
+        for p in points or []:
+            pl = getattr(p, "payload", None) or {}
+            out.append({"fact": pl.get("fact"), "ts": float(pl.get("ts", 0.0) or 0.0)})
+        return out
+
+    def purge_subject(self, subject: str) -> int:
+        """DPDP "right to be forgotten": delete every fact for a subject.
+        Returns the count that was present (best-effort; -1 if count failed)."""
+        from qdrant_client import models as qm
+
+        client = self._client()
+        if not client.collection_exists(self.collection):
+            return 0
+        try:
+            c = client.count(
+                collection_name=self.collection,
+                count_filter=qm.Filter(
+                    must=[qm.FieldCondition(key="subject", match=qm.MatchValue(value=subject))]
+                ),
+                exact=True,
+            )
+            n = int(getattr(c, "count", 0) or 0)
+        except Exception:
+            n = -1
+        client.delete(
+            collection_name=self.collection,
+            points_selector=qm.FilterSelector(
+                filter=qm.Filter(
+                    must=[qm.FieldCondition(key="subject", match=qm.MatchValue(value=subject))]
+                )
+            ),
+        )
+        return n
+
 
 _BACKEND: Optional[Any] = None
 
@@ -286,6 +337,19 @@ class _Mem0Backend:
         for it in items or []:
             out.append({"fact": (it or {}).get("memory") or (it or {}).get("text"), "score": float((it or {}).get("score", 0.0) or 0.0), "ts": 0.0})
         return out
+
+    def mem0_list(self, subject: str, limit: int) -> list[dict[str, Any]]:
+        res = self._m.get_all(user_id=subject) or {}
+        items = res.get("results", res) if isinstance(res, dict) else res
+        out: list[dict[str, Any]] = []
+        for it in (items or [])[: max(1, int(limit))]:
+            out.append({"fact": (it or {}).get("memory") or (it or {}).get("text"), "ts": 0.0})
+        return out
+
+    def mem0_purge(self, subject: str) -> int:
+        # Mem0 doesn't report a count; signal "unknown but done" via -1.
+        self._m.delete_all(user_id=subject)
+        return -1
 
 
 # --- fact extraction (free LLM, off-loop) -------------------------------------
@@ -429,4 +493,72 @@ async def remember(
         return {"stored": 0, "error": str(e)[:120]}
 
 
-__all__ = ["is_enabled", "recall", "recall_block", "remember", "redis_stats", "stats"]
+async def list_facts(
+    subject_id: Any,
+    *,
+    scope: str = "lead",
+    limit: int = 100,
+    backend: Any = None,
+) -> list[dict[str, Any]]:
+    """Operator-facing scroll: every stored fact for a subject (no vector search).
+
+    Used by /api/agent-memory/inspect for /app/automation debugging — "what
+    does the agent actually remember about this lead?". Disabled-or-error -> [].
+    """
+    if not is_enabled():
+        return []
+    subject = _subject(subject_id, scope)
+    if not subject:
+        return []
+    be = backend or _backend()
+    try:
+        if isinstance(be, _Mem0Backend):
+            return await _safe_thread(be.mem0_list, subject, int(limit), timeout=_op_timeout()) or []
+        return await _safe_thread(be.scroll_subject, subject, int(limit), timeout=_op_timeout()) or []
+    except Exception as e:
+        logger.debug("agent_memory list_facts skipped: %s", e)
+        return []
+
+
+async def purge_subject(
+    subject_id: Any,
+    *,
+    scope: str = "lead",
+    backend: Any = None,
+) -> dict[str, Any]:
+    """DPDP/TRAI "right to be forgotten": erase every fact for this subject.
+
+    Wired by /api/agent-memory/purge (admin) and SHOULD also be called from
+    consent_ledger.record_opt_out() so memories vanish with the opt-out. Native
+    backend returns the prior count; Mem0 returns -1 (count not reported).
+    Always best-effort: a backend error returns {"purged": 0, "error": "..."}.
+    """
+    if not is_enabled():
+        return {"purged": 0, "disabled": True}
+    subject = _subject(subject_id, scope)
+    if not subject:
+        return {"purged": 0, "error": "no_subject"}
+    be = backend or _backend()
+    try:
+        if isinstance(be, _Mem0Backend):
+            cnt = await _safe_thread(be.mem0_purge, subject, timeout=_op_timeout())
+        else:
+            cnt = await _safe_thread(be.purge_subject, subject, timeout=_op_timeout())
+        await _record("purged")
+        return {"purged": int(cnt if cnt is not None else 0), "subject": subject}
+    except Exception as e:
+        logger.debug("agent_memory purge_subject skipped: %s", e)
+        await _record("error")
+        return {"purged": 0, "error": str(e)[:120]}
+
+
+__all__ = [
+    "is_enabled",
+    "recall",
+    "recall_block",
+    "remember",
+    "redis_stats",
+    "stats",
+    "list_facts",
+    "purge_subject",
+]

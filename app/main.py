@@ -362,6 +362,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Eval-gate router not mounted: {_e}")
 try:
+    from app.api.agent_memory_admin import router as _agent_memory_admin_router
+
+    # /api/agent-memory/* — operator inspect + DPDP-compliant purge (F.4).
+    # Admin-only; INERT when AGENT_MEMORY flag unset (backend itself returns []).
+    app.include_router(_agent_memory_admin_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Agent-memory admin router not mounted: {_e}")
+try:
     from app.api import conversion as _conversion
 
     app.include_router(_conversion.public_router, prefix="/api")  # /api/public/widget-chat, /lead-in, /trial-status
