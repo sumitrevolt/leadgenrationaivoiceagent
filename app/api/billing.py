@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,6 +34,61 @@ router = APIRouter()
 
 # Fallback "from" address when a client has no email on file (matches Hostinger SMTP).
 _FALLBACK_EMAIL = "admin@leadsgenai.in"
+
+# --------------------------------------------------------------------------- #
+# Auth dependency — resolve client_id from the caller's TOKEN, not a query param.
+# Previously every billing endpoint trusted `client_id=...` from the query string
+# (no auth) => cross-tenant IDOR: anyone could cancel/upgrade/credit/read any
+# account. Now: customer token -> its own id; admin/super_admin/manager token ->
+# explicit client_id (acting on behalf). Missing/invalid token -> 401.
+# --------------------------------------------------------------------------- #
+_bearer = HTTPBearer(auto_error=False)
+_ADMIN_ROLES = ("admin", "super_admin", "manager")
+
+
+def _decode_or_401(creds: HTTPAuthorizationCredentials | None) -> dict:
+    if creds is None or not creds.credentials:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    try:
+        from app.api.admin import decode_token
+
+        return decode_token(creds.credentials)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def _authed_client_id(
+    client_id: str | None = Query(None, description="Client ID (admin acting on behalf)"),
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> str:
+    payload = _decode_or_401(creds)
+    role = payload.get("role")
+    if role == "customer":
+        sub = payload.get("sub")
+        if not sub:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return str(sub)
+    if role in _ADMIN_ROLES:
+        if not client_id:
+            raise HTTPException(status_code=400, detail="client_id required for admin access")
+        return str(client_id)
+    raise HTTPException(status_code=403, detail="Not authorized for billing")
+
+
+async def _authed_admin_client_id(
+    client_id: str | None = Query(None, description="Client ID (admin only)"),
+    creds: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> str:
+    """Admin-only: used for privileged mutations (e.g. direct plan swap) that a
+    customer must NOT self-serve without payment. Customer upgrades go via checkout."""
+    payload = _decode_or_401(creds)
+    if payload.get("role") not in _ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    if not client_id:
+        raise HTTPException(status_code=400, detail="client_id required")
+    return str(client_id)
 
 
 # =============================================================================
@@ -359,7 +415,7 @@ def _razorpay_ready() -> bool:
 @router.post("/billing/checkout", response_model=CheckoutResponse, tags=["Billing"])
 async def create_checkout_session(
     request: CreateCheckoutRequest,
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_client_id),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
@@ -437,7 +493,7 @@ async def create_checkout_session(
 @router.post("/billing/verify-payment", tags=["Billing"])
 async def verify_razorpay_payment(
     request: VerifyPaymentRequest,
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_client_id),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
@@ -454,25 +510,34 @@ async def verify_razorpay_payment(
         if not is_valid:
             raise HTTPException(status_code=400, detail="Invalid payment signature")
 
-        # Record the payment in database
-        payment = Payment(
-            id=str(uuid.uuid4()),
-            client_id=client_id,
-            payment_gateway=PaymentGateway.RAZORPAY,
-            gateway_payment_id=request.payment_id,
-            gateway_order_id=request.order_id,
-            amount=Decimal("0"),  # Will be updated from webhook
-            currency="INR",
-            status=PaymentStatus.COMPLETED,
-            completed_at=datetime.utcnow(),
-        )
-        db.add(payment)
-        await db.commit()
+        # Record the payment as PENDING. A valid signature only proves the order/payment
+        # IDs are linked — it does NOT prove the money was captured or the amount. The
+        # webhook (payment.captured, now idempotent) is the source of truth that flips
+        # this to COMPLETED and fills the real captured amount. (Previously this wrote a
+        # COMPLETED ₹0 row straight from a frontend call.)
+        existing = (
+            await db.execute(
+                select(Payment).where(Payment.gateway_payment_id == request.payment_id)
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            payment = Payment(
+                id=str(uuid.uuid4()),
+                client_id=client_id,
+                payment_gateway=PaymentGateway.RAZORPAY,
+                gateway_payment_id=request.payment_id,
+                gateway_order_id=request.order_id,
+                amount=Decimal("0"),  # filled by webhook (payment.captured)
+                currency="INR",
+                status=PaymentStatus.PENDING,
+            )
+            db.add(payment)
+            await db.commit()
 
         return {
             "success": True,
             "payment_id": request.payment_id,
-            "message": "Payment verified successfully",
+            "message": "Payment verified — confirmation pending",
         }
 
     except HTTPException:
@@ -484,7 +549,7 @@ async def verify_razorpay_payment(
 
 @router.get("/billing/subscription", response_model=SubscriptionResponse, tags=["Billing"])
 async def get_current_subscription(
-    client_id: str = Query(..., description="Client ID"), db: AsyncSession = Depends(get_async_db)
+    client_id: str = Depends(_authed_client_id), db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get current subscription for a client (TRIAL / ACTIVE / PAUSED — so the UI can
@@ -546,7 +611,7 @@ async def get_current_subscription(
 @router.post("/billing/subscription/cancel", tags=["Billing"])
 async def cancel_subscription(
     request: CancelSubscriptionRequest,
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_client_id),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
@@ -612,7 +677,7 @@ async def cancel_subscription(
 
 @router.get("/billing/invoices", response_model=list[InvoiceResponse], tags=["Billing"])
 async def get_invoices(
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_client_id),
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_async_db),
@@ -650,7 +715,7 @@ async def get_invoices(
 @router.get("/billing/invoices/{invoice_id}", tags=["Billing"])
 async def get_invoice_details(
     invoice_id: str,
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_client_id),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
@@ -669,7 +734,7 @@ async def get_invoice_details(
 
 @router.get("/billing/usage", response_model=UsageResponse, tags=["Billing"])
 async def get_current_usage(
-    client_id: str = Query(..., description="Client ID"), db: AsyncSession = Depends(get_async_db)
+    client_id: str = Depends(_authed_client_id), db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get current billing period usage for a client
@@ -729,7 +794,7 @@ async def get_current_usage(
 
 @router.get("/billing/payment-methods", tags=["Billing"])
 async def get_payment_methods(
-    client_id: str = Query(..., description="Client ID"), db: AsyncSession = Depends(get_async_db)
+    client_id: str = Depends(_authed_client_id), db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get saved payment methods for a client
@@ -747,7 +812,7 @@ async def get_payment_methods(
 @router.post("/billing/balance/add", tags=["Billing"])
 async def add_account_balance(
     request: AddBalanceRequest,
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_client_id),
     success_url: str = Query(..., description="Success redirect URL"),
     cancel_url: str = Query(..., description="Cancel redirect URL"),
     db: AsyncSession = Depends(get_async_db),
@@ -795,7 +860,7 @@ async def add_account_balance(
 
 @router.get("/billing/balance", tags=["Billing"])
 async def get_account_balance(
-    client_id: str = Query(..., description="Client ID"), db: AsyncSession = Depends(get_async_db)
+    client_id: str = Depends(_authed_client_id), db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get current account balance (for per-lead pricing model)
@@ -817,7 +882,7 @@ async def get_account_balance(
 
 @router.get("/billing/usage/history", tags=["Billing"])
 async def get_usage_history(
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_client_id),
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -879,11 +944,15 @@ async def unified_payment_webhook(
 @router.post("/billing/subscription/upgrade", tags=["Billing"])
 async def upgrade_subscription(
     new_plan_id: str,
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_admin_client_id),
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Upgrade subscription to a new plan
+    Upgrade subscription to a new plan.
+
+    ADMIN-ONLY: this performs a direct plan swap with NO payment/proration. A customer
+    must not self-upgrade for free — customer-initiated upgrades go through
+    /billing/checkout (which charges the new plan) and the webhook updates the plan.
     """
     # Get current subscription
     result = await db.execute(
@@ -934,7 +1003,7 @@ class PortalRequest(BaseModel):
 @router.post("/billing/portal", tags=["Billing"])
 async def create_billing_portal(
     request: PortalRequest,
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_client_id),
     db: AsyncSession = Depends(get_async_db),
 ):
     """Open the gateway-hosted billing portal.
@@ -1002,7 +1071,7 @@ async def _get_active_or_paused_sub(db: AsyncSession, client_id: str) -> Subscri
 
 @router.post("/billing/subscription/pause", tags=["Billing"])
 async def pause_subscription(
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_client_id),
     db: AsyncSession = Depends(get_async_db),
 ):
     """Pause the client's subscription (gateway-side if linked, then DB status=PAUSED)."""
@@ -1036,7 +1105,7 @@ async def pause_subscription(
 
 @router.post("/billing/subscription/resume", tags=["Billing"])
 async def resume_subscription(
-    client_id: str = Query(..., description="Client ID"),
+    client_id: str = Depends(_authed_client_id),
     db: AsyncSession = Depends(get_async_db),
 ):
     """Resume a paused subscription (gateway-side if linked, then DB status=ACTIVE)."""

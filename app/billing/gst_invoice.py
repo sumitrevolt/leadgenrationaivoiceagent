@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -90,10 +91,47 @@ def _append(rec: dict[str, Any]) -> None:
 
 
 def next_number(fy: str | None = None) -> str:
-    """Sequential per-FY number, Rule 46 compliant (<=16 chars): INV/2026-27/0001."""
+    """Sequential per-FY number, Rule 46 compliant (<=16 chars): INV/2026-27/0001.
+
+    NOTE: count-based; MUST be called inside ``_reserve_number_and_append`` so the
+    read-count and the append are atomic — otherwise two concurrent invoices compute
+    the same number (duplicate Rule-46 number = GST violation)."""
     fy = fy or fy_label()
     n = sum(1 for r in _read() if r.get("fy") == fy) + 1
     return f"INV/{fy}/{n:04d}"
+
+
+_LOCK = threading.Lock()
+
+
+def _reserve_number_and_append(inv: dict[str, Any], fy: str) -> None:
+    """Atomically assign the next per-FY number and append the record. Cross-process
+    safe via an flock on a sidecar lock file (Linux/prod, e.g. Celery prefork + uvicorn
+    workers); the threading.Lock covers in-process; both degrade gracefully where flock
+    is unavailable (Windows dev)."""
+    lock_path = _STORE + ".lock"
+    with _LOCK:
+        fh = None
+        try:
+            os.makedirs(os.path.dirname(_STORE) or ".", exist_ok=True)
+            try:
+                import fcntl
+
+                fh = open(lock_path, "w")
+                fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+            except Exception:
+                fh = None  # no fcntl (Windows) — in-process _LOCK still applies
+            inv["number"] = next_number(fy)
+            _append(inv)
+        finally:
+            if fh is not None:
+                try:
+                    import fcntl
+
+                    fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+                    fh.close()
+                except Exception:
+                    pass
 
 
 def _plan_amount(plan: str) -> int:
@@ -158,7 +196,7 @@ def create_invoice(
         now = _now()
         fy = fy_label(now)
         inv = {
-            "number": next_number(fy),
+            "number": "",  # assigned atomically below (race-safe)
             "fy": fy,
             "date": now.strftime("%Y-%m-%d"),
             "created_at": now.isoformat(),
@@ -181,7 +219,7 @@ def create_invoice(
             "gateway": gateway,
             **_tax_lines(gross, rstate, sup),
         }
-        _append(inv)
+        _reserve_number_and_append(inv, fy)
         logger.info(f"[invoice] {inv['number']} client={cid} plan={plan_k} ₹{gross}")
         return inv
     except Exception as e:

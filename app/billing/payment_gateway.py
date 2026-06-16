@@ -157,7 +157,7 @@ class StripeGateway(PaymentGatewayBase):
         """Create a Stripe Checkout Session"""
         try:
             # Convert amount to cents/paisa
-            amount_minor = int(amount * 100)
+            amount_minor = int(round(amount * 100))
 
             session = self.client.checkout.Session.create(
                 customer=customer_id,
@@ -338,7 +338,7 @@ class StripeGateway(PaymentGatewayBase):
     ) -> dict[str, Any]:
         """Create a Stripe PaymentIntent"""
         try:
-            amount_minor = int(amount * 100)
+            amount_minor = int(round(amount * 100))
 
             params = {
                 "amount": amount_minor,
@@ -417,7 +417,7 @@ class StripeGateway(PaymentGatewayBase):
             params = {"payment_intent": payment_id}
 
             if amount:
-                params["amount"] = int(amount * 100)
+                params["amount"] = int(round(amount * 100))
             if reason:
                 params["reason"] = reason
 
@@ -493,7 +493,7 @@ class RazorpayGateway(PaymentGatewayBase):
         """Create a Razorpay order (equivalent to checkout session)"""
         try:
             # Razorpay uses paisa (100 paisa = 1 INR)
-            amount_minor = int(amount * 100)
+            amount_minor = int(round(amount * 100))
 
             order = self.client.order.create(
                 {
@@ -655,7 +655,7 @@ class RazorpayGateway(PaymentGatewayBase):
     ) -> dict[str, Any]:
         """Create a Razorpay order (equivalent to payment intent)"""
         try:
-            amount_minor = int(amount * 100)
+            amount_minor = int(round(amount * 100))
 
             order = self.client.order.create(
                 {
@@ -748,7 +748,7 @@ class RazorpayGateway(PaymentGatewayBase):
         try:
             params = {}
             if amount:
-                params["amount"] = int(amount * 100)
+                params["amount"] = int(round(amount * 100))
             if reason:
                 params["notes"] = {"reason": reason}
 

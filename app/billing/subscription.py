@@ -724,7 +724,13 @@ class BillingManager:
         base_amount = pricing.get("subtotal", Decimal("0"))
         discount = pricing.get("discount", Decimal("0"))
         taxable = base_amount - discount + usage_amount
-        tax = taxable * self.tax_rate
+        # GST sirf REGISTERED hone par (GST_GSTIN set) — same gate as calculate_price.
+        # Unregistered (<₹20L) pe 18% collect karna ILLEGAL hai; pehle yahan hamesha
+        # +18% lagta tha (calculate_price already fixed tha, yeh method chhoot gaya tha).
+        import os as _os
+
+        _gst_rate = self.tax_rate if _os.environ.get("GST_GSTIN", "").strip() else Decimal("0")
+        tax = taxable * _gst_rate
         total = taxable + tax
 
         invoice = Invoice(

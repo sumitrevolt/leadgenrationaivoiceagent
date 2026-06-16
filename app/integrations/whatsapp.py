@@ -42,7 +42,16 @@ def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool
         or ""
     ).strip()
     if not secret:
-        return True  # unconfigured -> don't hard-block (loud warning expected upstream)
+        # Fail-CLOSED in production: an unverified opt-out/inbound webhook could suppress
+        # arbitrary numbers (DoS) or inject reply drafts. Only skip in dev/local.
+        try:
+            from app.config import settings as _s
+
+            if getattr(_s, "is_production", False):
+                return False
+        except Exception:
+            pass
+        return True  # dev/local only -> don't hard-block
     try:
         sig = (signature_header or "").strip()
         if sig.startswith("sha256="):

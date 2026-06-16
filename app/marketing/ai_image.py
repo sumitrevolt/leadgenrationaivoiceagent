@@ -104,7 +104,7 @@ async def fetch_image_bytes(
         url = f"{_BASE}{p}?width={int(width)}&height={int(height)}&nologo=true&model={model}"
         if seed is not None:
             url += f"&seed={int(seed)}"
-        async with httpx.AsyncClient(timeout=90) as cx:
+        async with httpx.AsyncClient(timeout=45) as cx:
             r = await cx.get(url, headers={"Authorization": f"Bearer {key}"}, follow_redirects=True)
         if r.status_code == 200 and len(r.content) > 500:
             try:
@@ -159,7 +159,7 @@ async def edit_image_bytes(prompt: str, photo: bytes, model: str = "kontext", wi
 
         p = urllib.parse.quote((prompt or "make this a professional marketing poster").strip()[:400], safe="")
         url = f"{_BASE}{p}?model={model}&width={int(width)}&height={int(height)}&nologo=true&image={urllib.parse.quote(img_url, safe='')}"
-        async with httpx.AsyncClient(timeout=120) as cx:
+        async with httpx.AsyncClient(timeout=60) as cx:
             r = await cx.get(url, headers={"Authorization": f"Bearer {key}"}, follow_redirects=True)
         if r.status_code == 200 and len(r.content) > 500:
             try:

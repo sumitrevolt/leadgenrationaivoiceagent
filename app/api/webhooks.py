@@ -66,33 +66,46 @@ async def verify_twilio_signature(
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
 
     if not auth_token:
-        logger.warning(
-            "TWILIO_AUTH_TOKEN not set - skipping signature verification (UNSAFE for production)"
-        )
+        if settings.is_production:
+            logger.error(
+                "TWILIO_AUTH_TOKEN not set in production — refusing unverified webhook"
+            )
+            raise HTTPException(status_code=503, detail="Webhook verification not configured")
+        logger.warning("TWILIO_AUTH_TOKEN not set - skipping signature verification (dev only)")
         return True
 
     if not x_twilio_signature:
         raise HTTPException(status_code=401, detail="Missing Twilio signature")
 
-    # Get full URL and form data for signature validation
-    url = str(request.url)
+    # Behind a reverse proxy (Caddy -> 127.0.0.1:8000) request.url carries the INTERNAL
+    # scheme/host, but Twilio signed the PUBLIC url. Reconstruct from public_base_url,
+    # else every genuine Twilio webhook would 401 (self-DoS).
+    public_url = settings.public_base_url.rstrip("/") + request.url.path
+    if request.url.query:
+        public_url += "?" + request.url.query
     form_data = await request.form()
+    params = {k: str(v) for k, v in form_data.items()}
 
-    # Build the data string for signature
-    data_string = url
-    for key in sorted(form_data.keys()):
-        data_string += key + form_data[key]
+    try:
+        from twilio.request_validator import RequestValidator
 
-    # Compute expected signature
-    expected_signature = hmac.new(
-        auth_token.encode("utf-8"), data_string.encode("utf-8"), hashlib.sha1
-    ).digest()
+        valid = RequestValidator(auth_token).validate(public_url, params, x_twilio_signature)
+    except ImportError:
+        # Fallback: Twilio's documented algorithm (URL + sorted concatenated params),
+        # HMAC-SHA1 -> base64 — using the PUBLIC url (not request.url).
+        import base64
 
-    import base64
+        data_string = public_url
+        for key in sorted(params.keys()):
+            data_string += key + params[key]
+        digest = hmac.new(
+            auth_token.encode("utf-8"), data_string.encode("utf-8"), hashlib.sha1
+        ).digest()
+        valid = hmac.compare_digest(
+            base64.b64encode(digest).decode("utf-8"), x_twilio_signature
+        )
 
-    expected_signature_b64 = base64.b64encode(expected_signature).decode("utf-8")
-
-    if not hmac.compare_digest(expected_signature_b64, x_twilio_signature):
+    if not valid:
         logger.warning("Invalid Twilio signature received")
         raise HTTPException(status_code=401, detail="Invalid Twilio signature")
 
@@ -107,9 +120,12 @@ async def verify_exotel_signature(
     api_secret = os.environ.get("EXOTEL_API_SECRET", "")
 
     if not api_key or not api_secret:
-        logger.warning(
-            "EXOTEL credentials not set - skipping signature verification (UNSAFE for production)"
-        )
+        if settings.is_production:
+            logger.error(
+                "EXOTEL credentials not set in production — refusing unverified webhook"
+            )
+            raise HTTPException(status_code=503, detail="Webhook verification not configured")
+        logger.warning("EXOTEL credentials not set - skipping signature verification (dev only)")
         return True
 
     if not x_exotel_signature:
@@ -146,37 +162,15 @@ async def twilio_webhook(request: Request):
     form_data.get("To")
     form_data.get("CallStatus")
 
-    # Route to voice agent handler (best-effort — never block Twilio ack)
-    from_number = str(form_data.get("From") or "")
-    to_number = str(form_data.get("To") or "")
-    call_status = str(form_data.get("CallStatus") or "")
-    try:
-        if call_status in ("in-progress", "ringing", "initiated"):
-            from app.telephony.call_manager import CallManager as _CM
-            _cm = _CM()
-            import asyncio as _aio_tw
-            _aio_tw.create_task(
-                _cm.queue_call(
-                    phone_number=from_number,
-                    call_type="inbound",
-                    telephony_provider="twilio",
-                    extra={"call_sid": call_sid, "to": to_number, "source": "twilio_webhook"},
-                )
-            )
-        elif call_status in ("completed", "failed", "busy", "no-answer", "canceled"):
-            from app.telephony.call_manager import CallManager as _CM
-            _cm = _CM()
-            import asyncio as _aio_tw
-            _aio_tw.create_task(
-                _cm.handle_call_completed(
-                    phone_number=from_number,
-                    outcome=call_status,
-                    duration_seconds=int(form_data.get("CallDuration") or 0),
-                    extra={"call_sid": call_sid, "source": "twilio_webhook"},
-                )
-            )
-    except Exception as _tw_e:
-        logger.debug(f"[twilio] voice route skip: {_tw_e}")
+    # NOTE: inbound Twilio voice is handled via the telephony stream / voicebot path
+    # and the /twilio/voice/{call_id} + /twilio/status/{call_id} routes in
+    # app/telephony/webhooks.py — NOT here. A prior inline call_manager call used wrong
+    # signatures (queue_call/handle_call_completed) and TypeError'd on every request
+    # (silently swallowed) while also constructing a heavy CallManager per request. Ack only.
+    logger.info(
+        f"Twilio incoming: sid={call_sid} status={form_data.get('CallStatus')} "
+        f"from={form_data.get('From')}"
+    )
 
     return {"status": "received", "call_sid": call_sid}
 
@@ -212,17 +206,10 @@ async def exotel_webhook(request: Request):
     return {"status": "received", "call_sid": call_sid}
 
 
-@router.post("/exotel/status")
-async def exotel_status_webhook(request: Request):
-    """
-    Exotel call status callback
-    """
-    await verify_exotel_signature(request)
-
-    body = await request.json()
-    logger.info(f"Exotel status webhook: {body}")
-
-    return {"status": "received"}
+# NOTE: /exotel/status is intentionally NOT defined here. The richer handler in
+# app/telephony/webhooks.py (AMD + handle_call_completed + minute-metering +
+# qualified-lead billing + post-call opt-out) owns this route. Previously a no-op
+# stub here shadowed it (first-route-wins) so call completion/billing never fired.
 
 
 # =============================================================================
@@ -653,6 +640,18 @@ async def razorpay_webhook(
 
     logger.info(f"Razorpay webhook received: {event_type}")
 
+    # Idempotency: Razorpay delivers at-least-once. Dedup on the event-id header so a
+    # retried order.paid / balance-topup can't double-credit the account balance.
+    event_id = request.headers.get("x-razorpay-event-id", "")
+    try:
+        from app.billing import idempotency as _idem
+
+        if event_id and await _idem.seen_before(f"rzp:{event_id}"):
+            logger.info(f"Razorpay duplicate event skipped: {event_id}")
+            return {"status": "duplicate_skipped", "event_id": event_id}
+    except Exception:
+        pass
+
     try:
         if event_type == "payment.captured":
             await handle_razorpay_payment_captured(entity, db)
@@ -708,6 +707,12 @@ async def handle_razorpay_payment_captured(entity: dict, db: AsyncSession):
     if existing:
         existing.status = PaymentStatus.COMPLETED
         existing.completed_at = datetime.utcnow()
+        # Fill the real captured amount — the verify-payment row is created PENDING/₹0.
+        try:
+            existing.amount = Decimal(str(payment_data.get("amount", 0))) / 100
+            existing.currency = payment_data.get("currency", "INR").upper()
+        except Exception:
+            pass
         await db.commit()
         return
 
@@ -1044,11 +1049,13 @@ async def whatsapp_webhook_inbound(request: Request):
         sig = request.headers.get("X-Hub-Signature-256") or request.headers.get(
             "x-hub-signature-256"
         )
-        if not verify_meta_signature(raw, sig):
-            logger.warning("whatsapp webhook: bad signature, ignoring payload")
-            return {"ok": False, "reason": "bad_signature"}
-    except Exception:
-        pass
+        verified = verify_meta_signature(raw, sig)
+    except Exception as _ve:
+        logger.error(f"whatsapp webhook: signature verification error: {_ve}")
+        verified = False
+    if not verified:
+        logger.warning("whatsapp webhook: bad/unverified signature, ignoring payload")
+        return {"ok": False, "reason": "bad_signature"}
 
     try:
         payload = json.loads(raw.decode("utf-8") or "{}")

@@ -8,12 +8,58 @@ free-LLM se 3 personalized tips (fallback static). Kabhi raise nahi.
 
 from __future__ import annotations
 
+import asyncio
+import ipaddress
 import re
+import socket
 from typing import Any
+from urllib.parse import urljoin, urlparse
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+
+def _resolve_is_public(host: str) -> bool:
+    """True only if EVERY resolved IP for ``host`` is a public address. Blocks SSRF to
+    loopback / private / link-local / reserved targets (cloud-metadata
+    169.254.169.254, docker service IPs, 127.0.0.1, 10./172.16./192.168., etc.)."""
+    low = (host or "").strip().lower().rstrip(".")
+    if not low or low == "localhost" or low.endswith((".local", ".internal")):
+        return False
+    try:
+        infos = socket.getaddrinfo(low, None)
+    except Exception:
+        return False
+    if not infos:
+        return False
+    for info in infos:
+        ip = str(info[4][0]).split("%")[0]  # strip IPv6 zone id
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+        if (
+            addr.is_private
+            or addr.is_loopback
+            or addr.is_link_local
+            or addr.is_reserved
+            or addr.is_multicast
+            or addr.is_unspecified
+        ):
+            return False
+    return True
+
+
+def _safe_audit_target(u: str) -> bool:
+    """User-supplied audit URL http(s) hai AND sirf public IPs pe resolve hota?"""
+    try:
+        p = urlparse(u)
+    except Exception:
+        return False
+    if p.scheme not in ("http", "https") or not p.hostname:
+        return False
+    return _resolve_is_public(p.hostname)
 
 
 def analyze_html(html_text: str, final_url: str = "") -> dict[str, Any]:
@@ -63,10 +109,28 @@ async def audit_url(url: str) -> dict[str, Any]:
     try:
         import httpx
 
-        async with httpx.AsyncClient(follow_redirects=True, headers={"User-Agent": "Mozilla/5.0 (LeadsGenAI-Audit)"}) as client:
-            resp = await client.get(u, timeout=12.0)
-            html_text = resp.text[:800_000]
-            final_url = str(resp.url)
+        html_text = ""
+        final_url = u
+        cur = u
+        # SSRF guard: redirects manually follow karo aur HAR hop ka host validate karo
+        # (warna public->internal redirect se metadata/DB/redis hit ho sakta).
+        async with httpx.AsyncClient(
+            follow_redirects=False,
+            headers={"User-Agent": "Mozilla/5.0 (LeadsGenAI-Audit)"},
+        ) as client:
+            for _hop in range(5):
+                if not await asyncio.to_thread(_safe_audit_target, cur):
+                    return {"ok": False, "error": "Yeh URL allowed nahi — sirf public website audit hoti hai"}
+                resp = await client.get(cur, timeout=12.0)
+                loc = resp.headers.get("location")
+                if resp.is_redirect and loc:
+                    cur = urljoin(cur, loc)
+                    continue
+                html_text = resp.text[:800_000]
+                final_url = str(resp.url)
+                break
+            else:
+                return {"ok": False, "error": "Bahut zyada redirects — URL check karo"}
     except Exception as e:
         return {"ok": False, "error": f"Site fetch nahi hui ({str(e)[:80]}) — URL check karo"}
 

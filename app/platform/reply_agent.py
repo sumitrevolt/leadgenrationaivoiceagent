@@ -18,7 +18,6 @@ unsubscribe which is always honoured. `IMAP_HOST` overrides (default derived fro
 from __future__ import annotations
 
 import email
-import json
 import email.utils
 import imaplib
 import json
@@ -366,10 +365,10 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         sender = EmailSender()
                         re_subj = subj if subj.lower().startswith("re:") else f"Re: {subj}"
                         ok = await sender.send_email(
-                            to_email=frm,
-                            subject=re_subj,
-                            body_text=draft,
-                            body_html=f"<p>{draft.replace(chr(10), '<br>')}</p>",
+                            [frm],
+                            re_subj,
+                            draft,
+                            html_body=f"<p>{draft.replace(chr(10), '<br>')}</p>",
                         )
                         if ok:
                             res["auto_sent"] = res.get("auto_sent", 0) + 1

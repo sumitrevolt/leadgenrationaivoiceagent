@@ -213,6 +213,17 @@ async def exotel_status_webhook(
 
     try:
         if status == "completed":
+            # Idempotency: Exotel may retry the completed callback. Dedup on call_id so
+            # minute-metering + qualified-lead billing run exactly once (no double-charge).
+            try:
+                from app.billing import idempotency as _idem
+
+                if call_id and await _idem.seen_before(f"call_done:{call_id}"):
+                    logger.info(f"Exotel duplicate completion skipped: {call_id}")
+                    return {"status": "duplicate_skipped"}
+            except Exception:
+                pass
+
             cm = _get_call_manager()
             result = None
             if cm is not None:
@@ -249,7 +260,25 @@ async def exotel_voice_webhook(
     logger.info(f"Exotel voice webhook - SID: {call_sid}, Digits: {digits}")
 
     if digits == "9":
-        # Opt-out
+        # Opt-out — PERSIST the suppression cross-channel (TCCCPR). Earlier this only
+        # *said* "hata diya" but never recorded it, so the number stayed callable.
+        caller = str(
+            form_data.get("CallFrom")
+            or form_data.get("From")
+            or form_data.get("From_Number")
+            or ""
+        ).strip()
+        if caller:
+            try:
+                from app.telephony.consent_ledger import record_opt_out
+
+                record_opt_out(
+                    caller, reason="ivr_press9", channel="voice", call_id=str(call_sid or "")
+                )
+            except Exception as _oe:
+                logger.error(f"press-9 opt-out persist failed: {_oe}")
+        else:
+            logger.warning("press-9 opt-out: caller number missing in Exotel payload")
         exoml = """<?xml version="1.0" encoding="UTF-8"?>
 <Response>
     <Say voice="female" language="hi-IN">
