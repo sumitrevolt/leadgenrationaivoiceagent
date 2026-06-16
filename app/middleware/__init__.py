@@ -568,8 +568,11 @@ def setup_middleware(app: FastAPI, production: bool = False):
     Order matters: last added = first executed
     """
 
-    # Compression (applied last, so compressed first)
-    add_gzip_middleware(app)
+    # Compression DISABLED (2026-06-17): GZipMiddleware innermost tha, isliye compressed
+    # body ko ek outer middleware text-process karke corrupt kar raha tha (gzip byte 0x8b strip),
+    # jisse Caddy ko "gzip: invalid header" milta tha aur SAARE HTML pages empty serve hote the.
+    # Plain serve karo (correct). Client-side compression Caddy `encode` se add ki ja sakti hai.
+    # add_gzip_middleware(app)
 
     # Tenant context
     app.add_middleware(TenantContextMiddleware)
