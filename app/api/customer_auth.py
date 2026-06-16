@@ -180,13 +180,34 @@ class LoginIn(BaseModel):
 
 @router.post("/login")
 async def customer_login(req: LoginIn):
-    """Client login → JWT (role=customer, sub=client_id)."""
+    """Client login → JWT (role=customer, sub=client_id).
+
+    H.2: If customer has 2FA enabled, returns {needs_2fa: true, challenge_token}
+    instead of an access_token; customer then calls /api/customer/2fa/verify
+    with the challenge + TOTP code to get the real JWT.
+    """
     rec = _find(req.email)
     if not rec or not _verify(req.password, rec.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    cid = str(rec["client_id"])
+    # 2FA gate — if armed, do NOT issue the JWT here; force the verify step.
+    try:
+        from app.platform import customer_totp
+
+        if customer_totp.is_enabled(cid):
+            return {
+                "needs_2fa": True,
+                "challenge_token": customer_totp.create_challenge(cid),
+                "client_id": cid,
+                "business_name": _biz_name(cid),
+            }
+    except Exception:
+        # If the TOTP module errors, fall through to normal login (fail-open
+        # so an infra problem doesn't lock customers out of their accounts).
+        pass
+
     from app.api.admin import create_access_token
 
-    cid = str(rec["client_id"])
     token = create_access_token(cid, rec["email"], "customer")
     return {
         "access_token": token,

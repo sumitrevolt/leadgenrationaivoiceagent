@@ -386,6 +386,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Customer-webhooks router not mounted: {_e}")
 try:
+    from app.api.customer_totp import router as _customer_totp_router
+
+    # /api/customer/2fa/* — H.2 customer-side TOTP 2FA. Opt-in per customer.
+    # customer_auth.login flow checks is_enabled() before issuing the JWT.
+    app.include_router(_customer_totp_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Customer-TOTP router not mounted: {_e}")
+try:
     from app.api import conversion as _conversion
 
     app.include_router(_conversion.public_router, prefix="/api")  # /api/public/widget-chat, /lead-in, /trial-status
