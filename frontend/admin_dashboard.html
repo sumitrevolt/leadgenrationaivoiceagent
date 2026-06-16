@@ -178,6 +178,37 @@
     </div>
 
     <div class="content" id="top">
+      <!-- S.2 Add Customer — top of admin pane, single highest-volume operator action -->
+      <div class="card" id="onboardCard" style="margin-bottom:14px;background:linear-gradient(90deg,#0f172a,#1e1b4b);border:1px solid #6366f1">
+        <div class="hd" style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="color:#e0e7ff">➕ Add Customer</h3>
+          <button id="onbToggle" class="btn" onclick="onbToggle()" style="background:#6366f1;color:#fff;border:0">Show form</button>
+        </div>
+        <div class="bd" id="onbForm" style="display:none">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:8px">
+            <div><label style="font-size:11px;color:#94a3b8">Business name *</label><input id="onbBiz" placeholder="Sharma Solar" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#94a3b8">Niche</label><input id="onbNiche" placeholder="solar" value="general" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#94a3b8">City</label><input id="onbCity" placeholder="Pune" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#94a3b8">Phone *</label><input id="onbPhone" placeholder="9876543210" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#94a3b8">Email (login)</label><input id="onbEmail" type="email" placeholder="customer@example.com" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#94a3b8">Plan</label>
+              <select id="onbPlan" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px">
+                <option value="trial">trial</option>
+                <option value="starter">starter</option>
+                <option value="growth">growth</option>
+                <option value="advanced">advanced</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn" onclick="onbSubmit()" style="background:#10b981;color:#fff;border:0;padding:8px 18px;font-weight:600">Create + Issue Login</button>
+            <span style="font-size:11px;color:#94a3b8">Password auto-generated unless typed below</span>
+            <input id="onbPwd" type="text" placeholder="Custom password (optional)" style="padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px;min-width:180px">
+          </div>
+          <div id="onbOut" style="margin-top:10px;font-size:12px"></div>
+        </div>
+      </div>
+
       <!-- KPIs -->
       <div class="kpis" id="kpis"></div>
 
@@ -541,6 +572,62 @@ function abAuthHdr(){
   const t = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
   return t ? {"Authorization":"Bearer "+t} : {};
 }
+
+/* ====== S.2 Add Customer (admin onboard) ====== */
+function onbToggle(){
+  const f = document.getElementById("onbForm");
+  const b = document.getElementById("onbToggle");
+  const open = f.style.display === "none";
+  f.style.display = open ? "block" : "none";
+  b.textContent = open ? "Hide form" : "Show form";
+}
+function _onbVal(id){ return (document.getElementById(id).value || "").trim(); }
+async function onbSubmit(){
+  const out = document.getElementById("onbOut");
+  const biz = _onbVal("onbBiz");
+  const phone = _onbVal("onbPhone");
+  if(!biz || !phone){ out.innerHTML='<span style="color:#fca5a5">business_name + phone required</span>'; return; }
+  out.innerHTML='<span style="color:#94a3b8">Onboarding…</span>';
+  const body = {
+    business_name: biz,
+    niche: _onbVal("onbNiche") || "general",
+    city: _onbVal("onbCity"),
+    phone: phone,
+    plan: _onbVal("onbPlan") || "trial",
+  };
+  const email = _onbVal("onbEmail");
+  if(email) body.email = email;
+  const pwd = _onbVal("onbPwd");
+  if(pwd) body.password = pwd;
+  try{
+    const r = await fetch("/api/admin/customers/onboard", {
+      method:"POST",
+      headers:{...abAuthHdr(), "Content-Type":"application/json"},
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if(!r.ok){ out.innerHTML='<span style="color:#fca5a5">'+escH(d.detail||"failed")+'</span>'; return; }
+    let html = `<div style="background:#1e1b4b;border:1px dashed #10b981;padding:12px;border-radius:8px">
+      <div style="color:#10b981;font-weight:600;margin-bottom:6px">✓ Customer created</div>
+      <div style="font-size:11px;color:#cbd5e1">client_id: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">${escH(d.client_id)}</code></div>
+      <div style="font-size:11px;color:#cbd5e1;margin-top:4px">Dashboard: <a href="${escH(d.customer_dashboard)}" style="color:#a5b4fc" target="_blank">${escH(d.customer_dashboard)}</a></div>`;
+    if(d.login_email){
+      html += `<div style="font-size:11px;color:#cbd5e1;margin-top:4px">Login: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">${escH(d.login_email)}</code></div>`;
+      if(d.password){
+        html += `<div style="margin-top:8px;background:#0f172a;padding:8px;border-radius:6px">
+          <div style="font-size:11px;color:#f59e0b;font-weight:600">⚠ Password — shown ONCE${d.password_generated?" (auto-generated)":""}:</div>
+          <div style="font-family:monospace;font-size:13px;color:#e2e8f0;margin:4px 0">${escH(d.password)}</div>
+          <button onclick="navigator.clipboard.writeText('${escH(d.password)}');this.textContent='✓ copied'" style="background:#6366f1;color:#fff;border:0;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px">Copy</button>
+        </div>`;
+      }
+    }
+    html += '</div>';
+    out.innerHTML = html;
+    // Clear form for next entry
+    for(const id of ["onbBiz","onbCity","onbPhone","onbEmail","onbPwd"]) document.getElementById(id).value = "";
+  }catch(e){ out.innerHTML='<span style="color:#fca5a5">'+escH(String(e))+'</span>'; }
+}
+function escH(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c])}
 function abDate(iso){ if(!iso) return "—"; try{ return new Date(iso).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ return iso; } }
 function abMoney(n,cur){ const c=cur==="USD"?"$":(cur==="EUR"?"€":"₹"); return c+Number(n||0).toLocaleString("en-IN"); }
 function abShow(id,on){ const el=$(id); if(el) el.style.display=on?"inline-flex":"none"; }

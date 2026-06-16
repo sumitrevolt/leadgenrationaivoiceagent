@@ -378,6 +378,15 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Engineer-agents router not mounted: {_e}")
 try:
+    from app.api.customer_onboard import router as _customer_onboard_router
+
+    # S.1 POST /api/admin/customers/onboard — single-call admin onboarding
+    # (profile + login + audit log) with a copy-pasteable customer dashboard
+    # URL + one-time password.
+    app.include_router(_customer_onboard_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Customer-onboard router not mounted: {_e}")
+try:
     from app.api.customer_webhooks import router as _customer_webhooks_router
 
     # /api/customer/webhooks/* — H.1 customer-facing webhooks (sellable SaaS
