@@ -14,11 +14,15 @@ Scorecard print karta + har issue ki line.
 """
 import asyncio
 import json
+import os
 import time
 
 import aiohttp
 
-WS = "ws://127.0.0.1:8000/api/web-call/ws"
+# Host/local default. IN-CONTAINER the app listens on :8080 (compose maps host
+# 127.0.0.1:8000 -> container 8080), so run inside the container with:
+#   AGENT_TESTER_WS=ws://127.0.0.1:8080/api/web-call/ws python scripts/agent_tester.py
+WS = os.environ.get("AGENT_TESTER_WS") or "ws://127.0.0.1:8000/api/web-call/ws"
 
 SCRIPTS = {
     "solar_residential": [

@@ -818,6 +818,24 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
             except Exception:
                 pass
 
+        # Cadence auto-enroll — default prospector path bhi niche_prospector jaisa (gated CADENCE_ENGINE).
+        cadence_enrolled = 0
+        try:
+            import os as _os
+
+            if _os.environ.get("CADENCE_ENGINE", "").strip() in ("1", "true", "yes") and summary.get("new", 0) > 0:
+                from app.marketing import cadence as _cadence
+
+                _total_new = int(summary.get("new") or 0)
+                _all = _read_all()
+                _fresh = [r for r in _all[-(_total_new + 30):] if r.get("status") == "ready"][:_total_new]
+                if _fresh:
+                    cadence_enrolled = _cadence.enroll_many(_fresh)
+                    logger.debug(f"[prospector] cadence enrolled {cadence_enrolled} leads")
+        except Exception as _ce:
+            logger.debug(f"[prospector] cadence enroll skip: {_ce}")
+        summary["cadence_enrolled"] = cadence_enrolled
+
         logger.info(f"[prospector] run done: {summary}")
         return summary
     except Exception as e:  # absolute guard — scheduler/API kabhi na gire

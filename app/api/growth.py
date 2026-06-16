@@ -839,9 +839,11 @@ async def deliverability_check(_user=Depends(require_admin)):
 
 
 @router.get("/bookings/upcoming")
-async def bookings_upcoming(_user=Depends(require_admin)):
+async def bookings_upcoming(all: bool = False, _user=Depends(require_admin)):
     from app.platform import booking_reminders
 
+    if all:
+        return booking_reminders.list_all(50)
     return booking_reminders.upcoming(30)
 
 
@@ -851,6 +853,18 @@ async def bookings_remind_run(_user=Depends(require_admin)):
     from app.platform import booking_reminders
 
     return await booking_reminders.run_due()
+
+
+class BookingNoShowIn(BaseModel):
+    booking_id: str
+
+
+@router.post("/bookings/no-show")
+async def bookings_no_show(body: BookingNoShowIn, _user=Depends(require_admin)):
+    """Appointment no-show mark + journey drafts (gated JOURNEY_ENGINE)."""
+    from app.platform import booking_reminders
+
+    return await booking_reminders.mark_no_show(body.booking_id.strip())
 
 
 @router.post("/reviews/monitor-run")
@@ -1079,6 +1093,14 @@ AUTOMATION_FLAGS = [
     "SKILL_PACK", "CODE_UPGRADER", "RECORDING_RETENTION",
     "SEARXNG_URL", "NTFY_URL", "NTFY_TOPIC",  # self-hosted tools stack (URL-valued = set hone pe ON)
     "CRM_SYNC",  # qualified lead -> client ka Zoho/HubSpot auto-push
+    "TELEPHONY_READY_ALERTS",  # Tara readiness score-drop email alert
+    "SOCIAL_AUTOPOST",  # Meta Graph real publish (content job)
+    "AUTO_CALLBACK_INQUIRY",  # inquiry submit pe instant AI callback
+    "WHATSAPP_LEAD_FLOW_ID",  # Meta Flow in-chat lead capture (URL-valued = set hone pe ON)
+    "REPLY_AUTO_SEND",  # interested reply auto-send (ban-risk — default OFF)
+    "SELF_IMPROVE_APPROVAL",  # LLM-heavy self-improve actions human approve gate
+    "REQUEST_GUARD",  # per-request timeout + load-shed middleware
+    "PLAN_RATE_LIMIT",  # tier-based API rpm limits
     "HERMES_HANDOFF",  # Phase-2 future: code_upgrader -> Hostinger Hermes draft-PR executor.
     # Phase-1 (read-only daily health report) hai HOSTINGER sandbox me, flag-independent.
     # Docs: docs/HOSTINGER_HERMES_SETUP.md
@@ -1850,14 +1872,20 @@ async def selfimprove_status(_user=Depends(require_admin)):
 async def selfimprove_run(_user=Depends(require_admin)):
     """Loop tick ABHI enqueue karo (Celery worker me chalega — web process block
     nahi hota). Flag OFF ho to bhi one-shot enqueue ho jata (tick khud gate check
-    karta, requeue sirf flag ON pe)."""
+    karta, requeue sirf flag ON pe). Celery down ho to in-process fallback."""
     try:
         from app.tasks.staff_jobs import self_improve_tick
 
         r = self_improve_tick.delay()
         return {"ok": True, "queued": True, "task_id": str(getattr(r, "id", ""))}
-    except Exception as e:
-        return {"ok": False, "queued": False, "error": str(e)[:200], "hint": "celery worker chal raha hai?"}
+    except Exception:
+        try:
+            from app.agents import self_improve
+
+            res = await self_improve.run_once()
+            return {"ok": True, "queued": False, "fallback": "in_process", "result": res}
+        except Exception as e2:
+            return {"ok": False, "queued": False, "error": str(e2)[:200], "hint": "celery worker chal raha hai?"}
 
 
 class SelfImproveTaskIn(BaseModel):
@@ -2070,19 +2098,26 @@ class ProcessStartIn(BaseModel):
 
 @router.post("/process/start")
 async def process_start(body: ProcessStartIn, _user=Depends(require_admin)):
-    """Run start + Celery worker me advance enqueue (web kabhi inline nahi)."""
+    """Run start + Celery worker me advance enqueue; worker down ho to inline advance."""
     from app.agents import process_engine
 
     r = process_engine.start_run(body.process, body.inputs)
     if r.get("ok"):
+        run_id = r.get("run_id") or ""
         try:
             from app.tasks.staff_jobs import process_tick
 
-            process_tick.delay(r["run_id"])
+            process_tick.delay(run_id)
             r["queued"] = True
-        except Exception as e:
-            r["queued"] = False
-            r["hint"] = f"worker enqueue fail: {str(e)[:100]}"
+        except Exception:
+            try:
+                adv = await process_engine.advance(run_id)
+                r["queued"] = False
+                r["fallback"] = "in_process"
+                r["advance"] = adv
+            except Exception as e2:
+                r["queued"] = False
+                r["hint"] = f"worker+inline fail: {str(e2)[:100]}"
     return r
 
 
@@ -2119,7 +2154,13 @@ async def process_approve(run_id: str, body: ProcessApproveIn, _user=Depends(req
             process_tick.delay(run_id)
             r["queued"] = True
         except Exception:
-            r["queued"] = False
+            try:
+                adv = await process_engine.advance(run_id)
+                r["queued"] = False
+                r["fallback"] = "in_process"
+                r["advance"] = adv
+            except Exception:
+                r["queued"] = False
     return r
 
 

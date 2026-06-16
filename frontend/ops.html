@@ -35,7 +35,12 @@ ul{list-style:none} li{padding:2px 0;font-size:.82rem}
   <div class="card"><h2>🧠 LLM Providers</h2><div id="llm"></div></div>
   <div class="card"><h2>🎙️ Telephony Readiness (Tara)</h2><div id="telr" class="big mut">…</div><ul id="tela"></ul></div>
   <div class="card"><h2>🚩 Flags ON</h2><div id="flags"></div></div>
-  <div class="card"><h2>📥 DLQ + Queue</h2><div id="dlq" class="mut">…</div></div>
+  <div class="card"><h2>📥 DLQ + Queue</h2><div id="dlq" class="mut">…</div>
+    <div style="margin-top:6px"><button style="padding:4px 10px;font-size:.75rem" onclick="dlqAct('sweep')">▶️ Smart sweep</button>
+    <button style="padding:4px 10px;font-size:.75rem;margin-left:4px" onclick="dlqAct('retry')">🔄 Retry failed</button>
+    <span id="dlqmsg" class="mut" style="margin-left:6px"></span></div></div>
+  <div class="card"><h2>🛰️ Hermes Infra</h2><div id="hermes" class="big mut">…</div><div id="hermesd" class="mut"></div></div>
+  <div class="card"><h2>🔌 Integrations (silent-fail)</h2><div id="integ" class="mut">…</div></div>
   <div class="card"><h2>💰 Revenue (Nikhil)</h2><div id="rev" class="mut">…</div></div>
   <div class="card"><h2>🎯 Channel Outcome (1-click)</h2><div class="mut" style="margin-bottom:6px">Inquiry kahan se aayi? Click karo — bandit seekhega:</div><div id="outbtns"></div><div id="outmsg" class="mut"></div></div>
   <div class="card" style="grid-column:1/-1"><h2>📥 Action Inbox — aaj ke 1-click kaam</h2><div id="inbox" class="mut">…</div></div>
@@ -73,6 +78,14 @@ async function load(){
   try{const d=await api('/api/growth/infra/dlq?limit=5');
     $('dlq').innerHTML=`<span class="big ${d.count>0?'warn':'ok'}">${d.count}</span> failed tasks`+(d.items||[]).map(i=>`<div class="mut">${(i.error||'').slice(0,80)}</div>`).join('');
   }catch(e){$('dlq').textContent='—'}
+  try{const h=await api('/api/growth/infra/hermes');const sc=h.score??h.readiness??null;
+    $('hermes').textContent=(sc!=null?sc+'/100':(h.status||'—'));$('hermes').className='big '+(sc>=80?'ok':(sc>=50?'warn':'bad'));
+    $('hermesd').innerHTML=(h.actions||h.recommendations||[]).slice(0,4).map(a=>`<div class="mut">• ${typeof a==='string'?a:(a.msg||JSON.stringify(a))}</div>`).join('')||'<span class="mut">no actions</span>';
+  }catch(e){$('hermes').textContent='—'}
+  try{const ig=await api('/api/growth/infra/integrations');const items=ig.integrations||ig.items||ig;let h='';
+    Object.entries(items||{}).forEach(([k,v])=>{if(v&&typeof v==='object'){const f=v.fail||v.errors||0;h+=`<span class="pill ${f>0?'':'on'}">${k}: ${f>0?'❌'+f:'✅'}</span> `}});
+    $('integ').innerHTML=h||'<span class="mut">no integration activity</span>';
+  }catch(e){$('integ').textContent='—'}
   try{const g=await api('/api/growth/optimizer/analysis');const w=g.weakest||{};
     $('funnel').innerHTML=`<b class="warn">${w.stage}</b> — ${w.reason||''}<br><span class="mut">Action: ${w.action||''}</span>`;
   }catch(e){$('funnel').textContent='—'}
@@ -90,6 +103,7 @@ async function load(){
 const CHANNELS=['seo_page','quora','reddit','whatsapp_group','telegram','linkedin_article','medium','partnership','linkedin_dm'];
 $('outbtns').innerHTML=CHANNELS.map(c=>`<button style="margin:2px;padding:4px 10px;font-size:.75rem" onclick="rec('${c}')">${c}</button>`).join('');
 async function rec(ch){try{const r=await fetch('/api/growth/experiments/outcome',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok()},body:JSON.stringify({channel:ch,kind:'inquiry'})});const d=await r.json();$('outmsg').textContent=d.ok?`✅ ${ch} +1 (score ${d.stats.score})`:(d.error||'fail')}catch(e){$('outmsg').textContent='token?'}}
+async function dlqAct(act){$('dlqmsg').textContent='⏳...';try{const r=await fetch('/api/growth/infra/dlq/'+act,{method:'POST',headers:{Authorization:'Bearer '+tok()}});const d=await r.json();$('dlqmsg').textContent='✅ '+JSON.stringify(d).slice(0,120);load();}catch(e){$('dlqmsg').textContent='fail/token?'}}
 $('tok').value=tok();load();setInterval(load,60000);
 
 // SSE real-time feed — agent events pe live reload trigger karta hai

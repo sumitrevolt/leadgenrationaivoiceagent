@@ -69,8 +69,13 @@ a{color:var(--acc)}
   <button id="tab-upgrader" onclick="show('upgrader')">🛠️ Code Upgrader</button>
   <button id="tab-drafters" onclick="show('drafters')">✍️ Drafters</button>
   <button id="tab-revenue" onclick="show('revenue')">💰 Revenue Ops</button>
+  <button id="tab-growthlab" onclick="show('growthlab')">📈 Growth Lab</button>
   <button id="tab-research" onclick="show('research')">🔎 Research</button>
   <button id="tab-contentplus" onclick="show('contentplus')">🎨 Content+</button>
+  <button id="tab-lifecycle" onclick="show('lifecycle')">📬 Lifecycle</button>
+  <button id="tab-contentauto" onclick="show('contentauto')">♻️ ContentAuto</button>
+  <button id="tab-fde" onclick="show('fde')">🚀 FDE Deploy</button>
+  <button id="tab-telephony" onclick="show('telephony')">📞 Telephony</button>
   <div style="border-top:1px solid var(--line);margin:6px 4px"></div>
   <button id="tab-loyalty" onclick="show('loyalty')">🎟️ Loyalty</button>
   <button id="tab-nps" onclick="show('nps')">📊 NPS</button>
@@ -397,6 +402,49 @@ a{color:var(--acc)}
     <button class="btn" id="rvTuBtn" onclick="rvTopup()">Link banao</button>
     <div id="rvTuOut"></div>
   </div>
+  <div class="card">
+    <h2>🎯 Affiliate / Referral Program</h2>
+    <div class="mut">Affiliate register karo (ya khud public /audit pe ban sakte) + stats dekho.</div>
+    <div class="row"><div>
+      <label>Naam</label><input id="afName" placeholder="Ramesh Traders">
+      <label>Email (optional)</label><input id="afEmail">
+    </div><div>
+      <label>Phone (optional)</label><input id="afPhone">
+    </div></div>
+    <button class="btn2" id="afRegBtn" onclick="afRegister()">➕ Register affiliate</button>
+    <button class="btn2" onclick="afStats()">📊 Stats + list</button>
+    <div id="afOut"></div>
+  </div>
+</section>
+
+<!-- ============ Growth Lab (optimizer + channel experiments) ============ -->
+<section class="tabsec" id="sec-growthlab">
+  <div class="card">
+    <h2>📈 Growth Optimizer (self-healing profit loop)</h2>
+    <div class="mut">Funnel ka weakest stage diagnose + ideas. Run gated <b>GROWTH_OPTIMIZER</b> (off = no-op). Analysis read-only.</div>
+    <button class="btn2" onclick="goAnalysis()">🔍 Funnel analysis</button>
+    <button class="btn2" onclick="goRuns()">📜 Recent runs + ideas</button>
+    <button class="btn" id="goRunBtn" onclick="goRun()">▶️ Optimize run</button>
+    <div id="goOut"></div>
+  </div>
+  <div class="card">
+    <h2>🧪 Channel Experiments (free-channel bandit)</h2>
+    <div class="mut">17 free+legal channels ka bandit. Run gated <b>CHANNEL_EXPERIMENTS</b>. Auto-POST kahin nahi — sirf seekhta.</div>
+    <button class="btn2" onclick="ceOverview()">📊 Per-channel stats</button>
+    <label>Kitne launch karein (1-5)</label><input id="ceN" type="number" value="3" style="max-width:100px">
+    <button class="btn" id="ceRunBtn" onclick="ceRun()">▶️ Experiments run</button>
+    <h3>➕ Outcome record (bandit attribution)</h3>
+    <div class="row"><div>
+      <label>Channel</label><input id="ceCh" placeholder="telegram / email / gbp">
+      <label>Kind</label>
+      <select id="ceKind"><option>inquiry</option><option>reply</option><option>signup</option></select>
+    </div><div>
+      <label>Value</label><input id="ceVal" type="number" value="1" style="max-width:100px">
+      <label>Note (optional)</label><input id="ceNote">
+    </div></div>
+    <button class="btn2" id="ceOutBtn" onclick="ceOutcome()">Outcome record</button>
+    <div id="ceOut"></div>
+  </div>
 </section>
 
 <!-- ============ 10. Research ============ -->
@@ -447,6 +495,21 @@ a{color:var(--acc)}
     <div id="ctCarOut"></div>
   </div>
   <div class="card">
+    <h2>🎬 Faceless Reel (MP4)</h2>
+    <div class="mut">PIL+EdgeTTS+ffmpeg se short reel banta — heavy (~20-40s). Human khud upload karta.</div>
+    <div class="row"><div>
+      <label>Business name</label><input id="ctRlBiz" placeholder="Sharma Solar">
+      <label>Niche</label><input id="ctRlNiche" placeholder="solar">
+    </div><div>
+      <label>Offer (optional)</label><input id="ctRlOffer" placeholder="10% off">
+      <label>Client ID (optional)</label><input id="ctRlClient">
+    </div></div>
+    <label>Slides (optional, har line ek slide — khali = auto)</label>
+    <textarea id="ctRlSlides" style="min-height:60px" placeholder="Solar se bijli bill 80% kam&#10;Subsidy abhi available&#10;Free site survey book karo"></textarea>
+    <button class="btn" id="ctRlBtn" onclick="ctReel()">Reel banao</button>
+    <div id="ctRlOut"></div>
+  </div>
+  <div class="card">
     <h2>😂 Meme</h2>
     <label>Business name (optional)</label><input id="ctMBiz">
     <label>Niche</label><input id="ctMNiche" placeholder="solar">
@@ -494,6 +557,32 @@ a{color:var(--acc)}
     <button class="btn" id="ctFbBtn" onclick="ctFeedback()">Record karo</button>
     <div id="ctFbOut"></div>
   </div>
+  <div class="card">
+    <h2>🧩 Batch Content Drafts</h2>
+    <div class="mut">Ek hi click pe multiple drafts — community Q&A, partnership outreach, ya naye social channels.</div>
+    <h3>💬 Community (Quora/Reddit)</h3>
+    <div class="row"><div>
+      <label>Platform</label>
+      <select id="bcCommPlat"><option>quora</option><option>reddit</option><option>facebook_group</option></select>
+      <label>Topic (optional)</label><input id="bcCommTopic" placeholder="solar subsidy">
+    </div><div>
+      <label>Niche</label><input id="bcCommNiche" placeholder="solar" value="general">
+    </div></div>
+    <button class="btn" id="bcCommBtn" onclick="bcCommunity()">Community batch</button>
+    <h3>🤝 Partnership outreach</h3>
+    <label>City (optional)</label><input id="bcPartCity" placeholder="Pune" style="max-width:220px">
+    <button class="btn" id="bcPartBtn" onclick="bcPartnership()">Partnership batch</button>
+    <h3>📡 Social channels</h3>
+    <div class="row"><div>
+      <label>Niche</label><input id="bcSocNiche" value="general">
+      <label>City (optional)</label><input id="bcSocCity">
+    </div><div>
+      <label>Business name (optional)</label><input id="bcSocBiz">
+      <label>Kitne (limit)</label><input id="bcSocLimit" type="number" value="4" style="max-width:100px">
+    </div></div>
+    <button class="btn" id="bcSocBtn" onclick="bcSocial()">Social batch</button>
+    <div id="bcOut"></div>
+  </div>
 </section>
 
 <!-- ================= 0. AAJ (default home, plain-Hinglish) ================= -->
@@ -532,6 +621,13 @@ a{color:var(--acc)}
     <h2>👥 AI Staff — live state + manual run</h2>
     <div class="mut">Har staff abhi kya kar raha (working/active/offline) + [▶ Run now] se uska job turant chalao.</div>
     <div id="scTeamOut" class="mut" style="margin-top:8px">Load ho raha...</div>
+  </div>
+  <div class="card">
+    <h2>📅 Bookings — reminders + no-show</h2>
+    <div class="mut">Kal ki appointments ko reminder bhejo (BOOKING_REMINDERS=1) ya no-show mark karo (journey trigger).</div>
+    <button class="btn2" onclick="scBookings()">🔄 Bookings load</button>
+    <button class="btn" id="scBkRemBtn" onclick="scBkRemind()">⏰ Reminder sweep</button>
+    <div id="scBkOut" class="mut" style="margin-top:8px"></div>
   </div>
 </section>
 
@@ -618,6 +714,111 @@ a{color:var(--acc)}
     <label>Member filter (optional)</label><input id="evMember" placeholder="isha / rohan / dev ..." style="max-width:200px">
     <button class="btn2" onclick="evLoad()">🔄 Load</button>
     <div id="evOut" class="mut" style="margin-top:8px">Load ho raha...</div>
+  </div>
+</section>
+
+<!-- ============ Lifecycle (newsletter + winback) ============ -->
+<section class="tabsec" id="sec-lifecycle">
+  <div class="card">
+    <h2>📬 Newsletter (per-client monthly)</h2>
+    <div class="mut">NEWSLETTER_ENGINE=1 pe send; OFF = preview/record-only. Subscribers import + manual run.</div>
+    <label>Client ID</label><input id="lcClient" placeholder="client id">
+    <button class="btn2" onclick="lcSubs()">Subscribers load</button>
+    <button class="btn2" onclick="lcPreview()">Preview compose</button>
+    <button class="btn" id="lcNlBtn" onclick="lcNewsletterRun()">▶ Monthly run</button>
+    <div id="lcNlOut"></div>
+  </div>
+  <div class="card">
+    <h2>🔙 Winback (inactive re-engage)</h2>
+    <label>Inactive days</label><input id="lcWbDays" type="number" value="60" style="max-width:120px">
+    <button class="btn2" onclick="lcInactive()">Inactive list</button>
+    <button class="btn" id="lcWbBtn" onclick="lcWinbackRun()">▶ Winback drafts</button>
+    <button class="btn2" onclick="lcWinbackDrafts()">Drafts load</button>
+    <div id="lcWbOut"></div>
+  </div>
+</section>
+
+<!-- ============ ContentAuto (repurpose + pulse) ============ -->
+<section class="tabsec" id="sec-contentauto">
+  <div class="card">
+    <h2>♻️ Repurpose (1 input → 7 formats)</h2>
+    <label>Topic ya URL</label><input id="caTopic" placeholder="solar subsidy 2026 ya https://...">
+    <label>Niche</label><input id="caNiche" value="general" style="max-width:200px">
+    <label>Business name (optional)</label><input id="caBiz">
+    <button class="btn" id="caRepBtn" onclick="caRepurpose()">Repurpose karo</button>
+    <div id="caRepOut"></div>
+  </div>
+  <div class="card">
+    <h2>📡 Brand Pulse (mention scan)</h2>
+    <label>Business name</label><input id="caPulseBiz" placeholder="Sharma Solar">
+    <label>City</label><input id="caPulseCity" placeholder="Pune">
+    <button class="btn" id="caPulseBtn" onclick="caPulse()">Scan karo</button>
+    <button class="btn2" onclick="caPulseRuns()">Past runs</button>
+    <div id="caPulseOut"></div>
+  </div>
+  <div class="card">
+    <h2>📅 30-din Month Plan</h2>
+    <label>Client ID</label><input id="caPlanClient" placeholder="client id">
+    <label>Niche</label><input id="caPlanNiche" value="general">
+    <label><input type="checkbox" id="caPlanCommit" style="width:auto"> Commit to scheduler (content_schedule)</label>
+    <button class="btn" id="caPlanBtn" onclick="caMonthPlan()">Plan banao</button>
+    <div id="caPlanOut"></div>
+  </div>
+</section>
+
+<!-- ============ FDE Deploy ============ -->
+<section class="tabsec" id="sec-fde">
+  <div class="card">
+    <h2>🚀 Forward Deployed Engineer — client deploy</h2>
+    <div class="mut">Brief do → Neo/Isha/Veer/Aarav plan + skills chalata (drafts/setup only, auto-publish nahi).</div>
+    <button class="btn2" onclick="fdeAgents()">Agents load</button>
+    <div id="fdeAgentsOut" class="mut" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:10px"><div>
+      <label>Business name</label><input id="fdeBiz" placeholder="Sharma Solar">
+      <label>Niche</label><input id="fdeNiche" value="solar">
+      <label>City</label><input id="fdeCity" placeholder="Pune">
+    </div><div>
+      <label>Agent</label>
+      <select id="fdeAgent"><option value="neo">Neo (full-stack)</option><option value="isha_fde">Isha (marketing)</option><option value="veer">Veer (website)</option><option value="aarav">Aarav (automation)</option></select>
+      <label>Client ID (optional)</label><input id="fdeClient">
+      <label>Slug (optional)</label><input id="fdeSlug">
+    </div></div>
+    <label>Brief (Hinglish)</label><textarea id="fdeBrief" placeholder="Naye solar client ka full marketing setup + mini-site + widget"></textarea>
+    <button class="btn" id="fdeBtn" onclick="fdeDeploy()">🚀 Deploy karo (~30-90s)</button>
+    <div id="fdeOut"></div>
+  </div>
+</section>
+
+<!-- ============ Telephony ops ============ -->
+<section class="tabsec" id="sec-telephony">
+  <div class="card">
+    <h2>📞 Missed-call handler</h2>
+    <div class="mut">Lead capture + gated MISSED_CALL_CALLBACK instant callback. Phone E.164 ya 10-digit.</div>
+    <label>Caller phone</label><input id="telPhone" placeholder="9876543210">
+    <label>Exotel Call SID (optional)</label><input id="telSid">
+    <button class="btn" id="telMissBtn" onclick="telMissed()">Trigger</button>
+    <div id="telMissOut"></div>
+  </div>
+  <div class="card">
+    <h2>💬 SMS-DLT test send</h2>
+    <div class="mut">Gated SMS_DLT_ENABLED + BSP creds. Bina DLT = inert.</div>
+    <label>Phone</label><input id="telSmsPhone" placeholder="9876543210">
+    <label>Message</label><textarea id="telSmsMsg" style="min-height:60px">Namaste! LeadsGenAI se test SMS.</textarea>
+    <button class="btn" id="telSmsBtn" onclick="telSms()">Send (gated)</button>
+    <div id="telSmsOut"></div>
+  </div>
+  <div class="card">
+    <h2>⭐ Review request</h2>
+    <label>Client slug</label><input id="telRevSlug" placeholder="sharma-solar-7b6f">
+    <label>Customer phone</label><input id="telRevPhone" placeholder="9876543210">
+    <label>Rating (1-5)</label><input id="telRevRating" type="number" value="5" style="max-width:80px">
+    <button class="btn" id="telRevBtn" onclick="telReview()">Request bhejo</button>
+    <div id="telRevOut"></div>
+  </div>
+  <div class="card">
+    <h2>📊 Deliverability check</h2>
+    <button class="btn2" onclick="telDeliverability()">SPF/DMARC check abhi</button>
+    <div id="telDelOut" class="mut" style="margin-top:8px"></div>
   </div>
 </section>
 
@@ -762,6 +963,103 @@ function draftBlocks(d,depth){
   return h||jpre(d);
 }
 function warnBox(id,msg){$(id).innerHTML='<div class="result warn">'+esc(msg)+'</div>'}
+
+/* ---------------- Content+: Faceless Reel ---------------- */
+async function ctReel(){
+  var biz=$('ctRlBiz').value.trim(),niche=$('ctRlNiche').value.trim();
+  if(!biz)return toast('Business name daalo',false);
+  var slidesRaw=$('ctRlSlides').value.trim();
+  var slides=slidesRaw?slidesRaw.split('\n').map(function(s){return s.trim()}).filter(Boolean):null;
+  busy('ctRlBtn',1,'⏳ reel ban raha (~20-40s)...');
+  try{
+    var d=await api('/api/growth/content/reel-video',{method:'POST',body:JSON.stringify({
+      business_name:biz,niche:niche||'general',slides:slides,offer:$('ctRlOffer').value.trim(),client_id:$('ctRlClient').value.trim()})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('ctRlOut').innerHTML='<div class="result">'+pills(d)+draftBlocks(d)+'</div>';
+    toast('Reel ready ✅');
+  }catch(e){toast('Reel fail: '+e.message,false)}
+  busy('ctRlBtn',0);
+}
+
+/* ---------------- Growth Lab: optimizer + experiments ---------------- */
+async function goAnalysis(){
+  try{var d=await api('/api/growth/optimizer/analysis');
+    $('goOut').innerHTML='<div class="result"><b class="warn">Weakest stage:</b> '+esc(JSON.stringify(d.weakest||'—'))+pills(d.snapshot||{})+jpre(d)+'</div>';
+  }catch(e){toast('Analysis fail: '+e.message,false)}
+}
+async function goRuns(){
+  try{var d=await api('/api/growth/optimizer/runs');$('goOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('Runs fail: '+e.message,false)}
+}
+async function goRun(){
+  busy('goRunBtn',1,'⏳ optimize chal raha...');
+  try{var d=await api('/api/growth/optimizer/run',{method:'POST'});
+    $('goOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Optimizer run done ✅');
+  }catch(e){toast('Optimize fail: '+e.message,false)}
+  busy('goRunBtn',0);
+}
+async function ceOverview(){
+  try{var d=await api('/api/growth/experiments');$('ceOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('Stats fail: '+e.message,false)}
+}
+async function ceRun(){
+  var n=parseInt($('ceN').value)||3;
+  busy('ceRunBtn',1,'⏳ experiments launch...');
+  try{var d=await api('/api/growth/experiments/run?n='+Math.max(1,Math.min(n,5)),{method:'POST'});
+    $('ceOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Experiments run done ✅');
+  }catch(e){toast('Experiments fail: '+e.message,false)}
+  busy('ceRunBtn',0);
+}
+async function ceOutcome(){
+  var ch=$('ceCh').value.trim();if(!ch)return toast('Channel daalo',false);
+  busy('ceOutBtn',1,'⏳...');
+  try{var d=await api('/api/growth/experiments/outcome',{method:'POST',body:JSON.stringify({
+      channel:ch,kind:$('ceKind').value,value:parseInt($('ceVal').value)||1,note:$('ceNote').value.trim()})});
+    $('ceOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Outcome recorded ✅');
+  }catch(e){toast('Outcome fail: '+e.message,false)}
+  busy('ceOutBtn',0);
+}
+
+/* ---------------- Batch drafts (community / partnership / social) ---------------- */
+async function bcCommunity(){
+  busy('bcCommBtn',1,'⏳ batch...');
+  try{var d=await api('/api/growth/community/batch',{method:'POST',body:JSON.stringify({
+      platform:$('bcCommPlat').value,topic:$('bcCommTopic').value.trim(),niche:$('bcCommNiche').value.trim()||'general'})});
+    $('bcOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Community batch ✅');
+  }catch(e){toast('Community fail: '+e.message,false)}
+  busy('bcCommBtn',0);
+}
+async function bcPartnership(){
+  busy('bcPartBtn',1,'⏳ batch...');
+  try{var d=await api('/api/growth/partnership/batch?city='+encodeURIComponent($('bcPartCity').value.trim()),{method:'POST'});
+    $('bcOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Partnership batch ✅');
+  }catch(e){toast('Partnership fail: '+e.message,false)}
+  busy('bcPartBtn',0);
+}
+async function bcSocial(){
+  busy('bcSocBtn',1,'⏳ batch...');
+  try{var d=await api('/api/growth/social/batch',{method:'POST',body:JSON.stringify({
+      niche:$('bcSocNiche').value.trim()||'general',city:$('bcSocCity').value.trim(),
+      business_name:$('bcSocBiz').value.trim(),limit:parseInt($('bcSocLimit').value)||4})});
+    $('bcOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Social batch ✅');
+  }catch(e){toast('Social fail: '+e.message,false)}
+  busy('bcSocBtn',0);
+}
+
+/* ---------------- Affiliate / referral ---------------- */
+async function afRegister(){
+  var name=$('afName').value.trim();if(!name)return toast('Naam daalo',false);
+  busy('afRegBtn',1,'⏳...');
+  try{var d=await api('/api/growth/affiliate/register',{method:'POST',body:JSON.stringify({
+      name:name,email:$('afEmail').value.trim(),phone:$('afPhone').value.trim()})});
+    $('afOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Affiliate registered ✅');
+  }catch(e){toast('Register fail: '+e.message,false)}
+  busy('afRegBtn',0);
+}
+async function afStats(){
+  try{var d=await api('/api/growth/affiliate/stats');$('afOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('Stats fail: '+e.message,false)}
+}
 
 /* ---------------- 1. Harvester ---------------- */
 async function hvSources(){
@@ -1046,7 +1344,11 @@ async function prStart(key){
     if($('prCity').value.trim())inputs.city=$('prCity').value.trim();
     var d=await api('/api/growth/process/start',{method:'POST',body:JSON.stringify({process:key,inputs:inputs})});
     if(d.ok===false)throw new Error(d.error||'fail');
-    toast('Run started ✅ '+(d.queued?'(worker me queued)':'(queue fail — worker check)'),d.queued!==false);
+    var msg='Run started ✅ ';
+    if(d.fallback==='in_process')msg+='(in-process advance — Celery fallback)';
+    else if(d.queued)msg+='(worker queued)';
+    else msg+='(queue fail — worker check)';
+    toast(msg,d.queued!==false||d.fallback==='in_process');
     prRuns();
   }catch(e){toast('Start fail: '+e.message,false)}
 }
@@ -1115,6 +1417,7 @@ async function siRun(){
   try{
     var d=await api('/api/growth/selfimprove/run',{method:'POST'});
     if(d.ok===false)warnBox('siStatusOut',(d.error||'fail')+' — '+(d.hint||''));
+    else if(d.fallback==='in_process'){$('siStatusOut').innerHTML='<div class="result">✅ In-process tick chala (Celery down tha).'+jpre(d.result||d)+'</div>';toast('Tick done ✅')}
     else{$('siStatusOut').innerHTML='<div class="result">✅ Tick queued (task '+esc(d.task_id||'')+') — worker me chalega, thodi der me status dekho.</div>';toast('Queued ✅')}
   }catch(e){toast('Run fail: '+e.message,false)}
   busy('siRunBtn',0);
@@ -1646,6 +1949,36 @@ async function scLoad(){
     $('scTeamOut').innerHTML=h2+'</table>';
   }catch(e){warnBox('scTeamOut','Team fail: '+e.message)}
 }
+async function scBookings(){
+  try{
+    var d=await api('/api/growth/bookings/upcoming?all=true');
+    var rows=Array.isArray(d)?d:(d.items||[]);
+    if(!rows.length){$('scBkOut').innerHTML='<div class="mut">Koi booking nahi.</div>';return}
+    var h='<table><tr><th>Name</th><th>Phone</th><th>Slot</th><th>Reminded</th><th></th></tr>';
+    rows.forEach(function(b){
+      h+='<tr><td>'+esc(b.name||'')+'</td><td class="mut">'+esc(b.phone||'')+'</td><td>'+esc(String(b.slot||'').slice(0,16))+'</td><td>'+(b.reminded?'✓':'—')+'</td>';
+      h+='<td><button class="btn2" onclick="scNoShow(\''+esc(b.id||'')+'\')">No-show</button></td></tr>';
+    });
+    $('scBkOut').innerHTML=h+'</table>';
+  }catch(e){warnBox('scBkOut','Bookings fail: '+e.message)}
+}
+async function scBkRemind(){
+  busy('scBkRemBtn',1,'⏳ sweep...');
+  try{
+    var d=await api('/api/growth/bookings/remind-run',{method:'POST'});
+    $('scBkOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Reminder sweep done ✅');
+    scBookings();
+  }catch(e){toast('Remind fail: '+e.message,false)}
+  busy('scBkRemBtn',0);
+}
+async function scNoShow(id){
+  if(!id||!confirm('No-show mark karo? Journey trigger hoga (JOURNEY_ENGINE=1).'))return;
+  try{
+    var d=await api('/api/growth/bookings/no-show',{method:'POST',body:JSON.stringify({booking_id:id})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    toast('No-show marked ✅');scBookings();
+  }catch(e){toast('No-show fail: '+e.message,false)}
+}
 async function scRun(member){
   if(!member)return;
   if(!confirm(member+' ka job ABHI chalaye?'))return;
@@ -2036,13 +2369,133 @@ async function crRun(){
   }catch(e){warnBox('crRunOut',e.message)}finally{busy('crRunBtn',false)}
 }
 
+/* ---------------- Lifecycle ---------------- */
+async function lcSubs(){
+  var cid=$('lcClient').value.trim(); if(!cid)return toast('Client ID daalo',false);
+  try{var d=await api('/api/lifecycle/newsletter/subscribers?client_id='+encodeURIComponent(cid));
+    $('lcNlOut').innerHTML='<div class="result">'+pills({count:d.count})+jpre(d)+'</div>';
+  }catch(e){toast('Subs fail: '+e.message,false)}
+}
+async function lcPreview(){
+  var cid=$('lcClient').value.trim(); if(!cid)return toast('Client ID daalo',false);
+  busy('lcNlBtn',1,'⏳ compose...');
+  try{var d=await api('/api/lifecycle/newsletter/preview?client_id='+encodeURIComponent(cid));
+    $('lcNlOut').innerHTML='<div class="result">'+jpre(d)+'</div>';toast('Preview ready ✅');
+  }catch(e){toast('Preview fail: '+e.message,false)}
+  busy('lcNlBtn',0);
+}
+async function lcNewsletterRun(){
+  busy('lcNlBtn',1,'⏳ run...');
+  try{var d=await api('/api/lifecycle/newsletter/run',{method:'POST',body:JSON.stringify({force:false})});
+    $('lcNlOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Newsletter run done ✅');
+  }catch(e){toast('Run fail: '+e.message,false)}
+  busy('lcNlBtn',0);
+}
+async function lcInactive(){
+  var days=parseInt($('lcWbDays').value)||60;
+  try{var d=await api('/api/lifecycle/winback/inactive?days='+days);
+    $('lcWbOut').innerHTML='<div class="result">'+pills({count:d.count})+jpre(d)+'</div>';
+  }catch(e){toast('Inactive fail: '+e.message,false)}
+}
+async function lcWinbackRun(){
+  busy('lcWbBtn',1,'⏳ drafts...');
+  var days=parseInt($('lcWbDays').value)||60;
+  try{var d=await api('/api/lifecycle/winback/run',{method:'POST',body:JSON.stringify({days:days})});
+    $('lcWbOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Winback done ✅');
+  }catch(e){toast('Winback fail: '+e.message,false)}
+  busy('lcWbBtn',0);
+}
+async function lcWinbackDrafts(){
+  try{var d=await api('/api/lifecycle/winback/drafts');
+    $('lcWbOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('Drafts fail: '+e.message,false)}
+}
+
+/* ---------------- ContentAuto ---------------- */
+async function caRepurpose(){
+  var t=$('caTopic').value.trim(); if(!t)return toast('Topic/URL daalo',false);
+  busy('caRepBtn',1,'⏳ repurpose...');
+  try{var d=await api('/api/contentauto/repurpose',{method:'POST',body:JSON.stringify({topic_or_url:t,niche:$('caNiche').value||'general',business_name:$('caBiz').value})});
+    $('caRepOut').innerHTML='<div class="result">'+jpre(d)+'</div>';toast('Repurpose done ✅');
+  }catch(e){toast('Fail: '+e.message,false)}
+  busy('caRepBtn',0);
+}
+async function caPulse(){
+  var b=$('caPulseBiz').value.trim(); if(!b)return toast('Business name daalo',false);
+  busy('caPulseBtn',1,'⏳ scan...');
+  try{var d=await api('/api/contentauto/pulse',{method:'POST',body:JSON.stringify({business_name:b,city:$('caPulseCity').value})});
+    $('caPulseOut').innerHTML='<div class="result">'+jpre(d)+'</div>';toast('Pulse done ✅');
+  }catch(e){toast('Pulse fail: '+e.message,false)}
+  busy('caPulseBtn',0);
+}
+async function caPulseRuns(){
+  try{var d=await api('/api/contentauto/pulse/runs');
+    $('caPulseOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('Runs fail: '+e.message,false)}
+}
+async function caMonthPlan(){
+  busy('caPlanBtn',1,'⏳ plan...');
+  try{var d=await api('/api/contentauto/month-plan',{method:'POST',body:JSON.stringify({client_id:$('caPlanClient').value,niche:$('caPlanNiche').value||'general',commit:$('caPlanCommit').checked})});
+    $('caPlanOut').innerHTML='<div class="result">'+jpre(d)+'</div>';toast('Plan ready ✅');
+  }catch(e){toast('Plan fail: '+e.message,false)}
+  busy('caPlanBtn',0);
+}
+
+/* ---------------- FDE Deploy ---------------- */
+async function fdeAgents(){
+  try{var d=await api('/api/growth/fde/agents');
+    var h='<table><tr><th>Agent</th><th>Focus</th></tr>';
+    (d.agents||[]).forEach(function(a){h+='<tr><td>'+esc(a.name||a.key||'')+'</td><td class="mut">'+esc(a.focus||a.desc||'')+'</td></tr>'});
+    $('fdeAgentsOut').innerHTML=h+'</table><div class="mut" style="margin-top:6px">Skills: '+esc((d.skills||[]).length)+'</div>';
+  }catch(e){warnBox('fdeAgentsOut','Agents fail: '+e.message)}
+}
+async function fdeDeploy(){
+  var biz=$('fdeBiz').value.trim(); if(!biz)return toast('Business name daalo',false);
+  busy('fdeBtn',1,'⏳ deploy...');
+  try{var d=await api('/api/growth/fde/deploy',{method:'POST',body:JSON.stringify({business_name:biz,niche:$('fdeNiche').value,city:$('fdeCity').value,agent:$('fdeAgent').value,client_id:$('fdeClient').value||null,slug:$('fdeSlug').value||null,brief:$('fdeBrief').value})});
+    $('fdeOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('FDE deploy done ✅');
+  }catch(e){toast('Deploy fail: '+e.message,false)}
+  busy('fdeBtn',0);
+}
+
+/* ---------------- Telephony ops ---------------- */
+async function telMissed(){
+  var ph=$('telPhone').value.trim(); if(!ph)return toast('Phone daalo',false);
+  busy('telMissBtn',1);
+  try{var d=await api('/api/growth/missed-call',{method:'POST',body:JSON.stringify({from_number:ph,niche:'general'})});
+    $('telMissOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Triggered ✅');
+  }catch(e){toast('Fail: '+e.message,false)}
+  busy('telMissBtn',0);
+}
+async function telSms(){
+  var ph=$('telSmsPhone').value.trim(); if(!ph)return toast('Phone daalo',false);
+  busy('telSmsBtn',1);
+  try{var d=await api('/api/growth/sms/send',{method:'POST',body:JSON.stringify({to:ph,template:'intro',business_name:'ji'})});
+    $('telSmsOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('SMS sent/inert ✅');
+  }catch(e){toast('SMS fail: '+e.message,false)}
+  busy('telSmsBtn',0);
+}
+async function telReview(){
+  var slug=$('telRevSlug').value.trim(); if(!slug)return toast('Slug daalo',false);
+  busy('telRevBtn',1);
+  try{var d=await api('/api/growth/review/request',{method:'POST',body:JSON.stringify({business_name:slug,place_query:slug,customer_phone:$('telRevPhone').value,sentiment_score:parseInt($('telRevRating').value)||5})});
+    $('telRevOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Review request ✅');
+  }catch(e){toast('Review fail: '+e.message,false)}
+  busy('telRevBtn',0);
+}
+async function telDeliverability(){
+  try{var d=await api('/api/growth/deliverability');
+    $('telDelOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('Deliverability fail: '+e.message,false)}
+}
+
 /* ---------------- init ---------------- */
 $('tokin').value=tok();
 var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:function(){apCostStatus();apSelfImprovePending();apLoad();},events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList};
 var _origShow=show;
 show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}};
 var start=(location.hash||'').replace('#','');
-var valid=['today','schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus','loyalty','nps','webhooks','reviewmon','clientrep'];
+var valid=['today','schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus','lifecycle','contentauto','fde','telephony','loyalty','nps','webhooks','reviewmon','clientrep'];
 show(valid.indexOf(start)>=0?start:'today');
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>

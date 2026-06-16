@@ -148,3 +148,56 @@ async def run_due() -> dict[str, Any]:
 def upcoming(limit: int = 20) -> list[dict[str, Any]]:
     rows = [r for r in _read(_STORE) if not r.get("reminded")]
     return rows[-limit:]
+
+
+def list_all(limit: int = 50) -> list[dict[str, Any]]:
+    """Admin calendar — saari active bookings (no-show excluded)."""
+    rows = [r for r in _read(_STORE) if not r.get("no_show")]
+    return rows[-limit:]
+
+
+async def mark_no_show(booking_id: str) -> dict[str, Any]:
+    """Past appointment ko no-show mark karo + journey trigger (gated JOURNEY_ENGINE)."""
+    if not booking_id:
+        return {"ok": False, "error": "booking_id required"}
+    try:
+        rows = _read(_STORE)
+        rec: dict[str, Any] | None = None
+        for r in rows:
+            if r.get("id") == booking_id:
+                rec = r
+                r["no_show"] = True
+                r["no_show_at"] = _now().isoformat()
+                break
+        if not rec:
+            return {"ok": False, "error": "booking not found"}
+        try:
+            from app.utils.file_lock import locked_rewrite
+
+            locked_rewrite(
+                _STORE,
+                "".join(json.dumps(r, ensure_ascii=False, default=str) + "\n" for r in rows),
+            )
+        except Exception:
+            pass
+        journey_runs = 0
+        try:
+            from app.marketing import journeys
+
+            runs = await journeys.emit_event(
+                "no_show",
+                {
+                    "name": rec.get("name") or "",
+                    "phone": rec.get("phone") or "",
+                    "business_name": rec.get("slug") or rec.get("name") or "",
+                    "booking_id": booking_id,
+                    "slot": rec.get("slot") or "",
+                },
+            )
+            journey_runs = len(runs or [])
+        except Exception as e:
+            logger.debug(f"[booking_reminders] no_show journey skip: {e}")
+        return {"ok": True, "booking_id": booking_id, "journey_runs": journey_runs}
+    except Exception as e:
+        logger.warning(f"[booking_reminders] mark_no_show failed: {e}")
+        return {"ok": False, "error": str(e)[:200]}

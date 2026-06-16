@@ -33,6 +33,7 @@ jobs:
   gate:
     name: Gate (import + prod_check + lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 15  # hang guard (full pytest team_pulse area can stall — CLAUDE.md)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -50,9 +51,14 @@ jobs:
         run: python scripts/prod_check.py
       - name: Lint (ruff, non-blocking warnings)
         run: ruff check app || true
-      - name: Tests (reported, not yet blocking)
+      - name: Contract tests (billing/pricing truth — BLOCKING)
+        # Deterministic, no-network. Pricing/plan/route regression => deploy blocked.
+        run: pytest -q tests/test_billing_truth_2026.py
+      - name: Tests (full suite — reported, non-blocking)
+        # continue-on-error keeps deploy unblocked, but failures now show RED in CI
+        # (removed the `|| true` mask). Flip to hard gate once the test env is stable.
         continue-on-error: true
-        run: pytest -q --ignore=tests/integration || true
+        run: pytest -q --ignore=tests/integration
 
   build:
     name: Build & push image (GHCR)

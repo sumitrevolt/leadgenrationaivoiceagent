@@ -323,6 +323,23 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             })
                         except Exception:
                             pass
+                        # Journey: email_reply trigger (gated JOURNEY_ENGINE=1)
+                        try:
+                            from app.marketing import journeys
+
+                            await journeys.emit_event(
+                                "email_reply",
+                                {
+                                    "business_name": p.get("business_name") or "",
+                                    "name": p.get("business_name") or "",
+                                    "phone": p.get("phone") or "",
+                                    "email": frm,
+                                    "niche": p.get("niche") or "",
+                                    "intent": intent,
+                                },
+                            )
+                        except Exception:
+                            pass
 
                 draft = ""
                 if intent in ("interested", "question", "objection"):
