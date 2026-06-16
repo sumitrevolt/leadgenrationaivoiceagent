@@ -380,6 +380,120 @@ _PROBES = (
 # --------------------------------------------------------------------------- #
 # Route
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# Wizard — pick the single highest-leverage NEXT step from current state.
+# --------------------------------------------------------------------------- #
+# Operator was getting a 13-item readiness checklist with no ordering hint.
+# The runbook (`docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md`) groups items by
+# phase; this endpoint encodes the same dependency order so the operator
+# always sees ONE concrete next step instead of a wall of items.
+#
+# Phase order matches the runbook:
+#   1 Survival  — razorpay, sentry, posthog, turnstile, cloudflare_tunnel
+#   2 Visibility — agent_memory, eval_gate
+#   3 AI staff   — engineer_agents, ops_alerts
+#   4 Sellable   — customer_webhooks, mcp_product
+#   5 Margin     — litellm_costs, warm_dr
+_PHASES: tuple[tuple[int, str, tuple[str, ...]], ...] = (
+    (1, "Survival",  ("razorpay", "sentry", "posthog", "turnstile", "cloudflare_tunnel")),
+    (2, "Visibility", ("agent_memory", "eval_gate")),
+    (3, "AI staff",   ("engineer_agents", "ops_alerts")),
+    (4, "Sellable",   ("customer_webhooks", "mcp_product")),
+    (5, "Margin",     ("litellm_costs", "warm_dr")),
+)
+
+# Lookup the probe function by key so we can call it independently of the
+# read-only readiness endpoint (which always probes everything).
+_PROBE_BY_KEY = {
+    "razorpay": _razorpay,
+    "sentry": _sentry,
+    "posthog": _posthog,
+    "turnstile": _turnstile,
+    "cloudflare_tunnel": _cloudflare_tunnel,
+    "agent_memory": _agent_memory,
+    "eval_gate": _eval_gate,
+    "engineer_agents": _engineer_agents,
+    "ops_alerts": _ops_alerts,
+    "customer_webhooks": _customer_webhooks,
+    "mcp_product": _mcp_product,
+    "litellm_costs": _litellm_costs,
+    "warm_dr": _warm_dr,
+}
+
+
+def _item_is_actionable(probe_result: dict[str, Any]) -> bool:
+    """An item is the next-step candidate iff its status is BLOCKER or WARN —
+    NEUTRAL (opt-in unset) and OK both mean 'no action needed right now'."""
+    return probe_result.get("status") in {_BLOCKER, _WARN}
+
+
+@router.get("/wizard")
+async def activation_wizard(_user=Depends(require_admin)) -> dict[str, Any]:
+    """Return the single highest-priority next step.
+
+    Walks the phase order (Survival → Visibility → AI staff → Sellable →
+    Margin) and returns the FIRST probe with status BLOCKER or WARN —
+    plus the exact env keys and a verify-curl the operator can copy-paste.
+
+    Output shape:
+      {
+        "all_done": bool,                # True iff every phase is green
+        "current_phase": {"n": int, "name": str},
+        "next_step": {
+            "key": "razorpay",
+            "label": "Razorpay live payments",
+            "category": "revenue",
+            "status": "BLOCKER",
+            "env_vars": ["RAZORPAY_KEY_ID", ...],
+            "action": "Set real rzp_live_* keys ...",
+            "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#...",
+            "verify_curl": "curl -s http://127.0.0.1:8000/api/activation/readiness | ...",
+        },
+        "phases_done": [1, 2, ...],      # phases with zero actionable items
+        "phases_remaining": [...],       # phases still containing actionable items
+      }
+    """
+    phases_done: list[int] = []
+    phases_remaining: list[int] = []
+    next_step: dict[str, Any] | None = None
+    current_phase: dict[str, Any] | None = None
+
+    for phase_n, phase_name, keys in _PHASES:
+        phase_has_action = False
+        for key in keys:
+            probe = _PROBE_BY_KEY.get(key)
+            if probe is None:
+                continue
+            result = probe()
+            if not _item_is_actionable(result):
+                continue
+            phase_has_action = True
+            if next_step is None:
+                # First actionable item across all phases — this is THE step.
+                next_step = {
+                    **result,
+                    "phase": {"n": phase_n, "name": phase_name},
+                    "verify_curl": (
+                        "curl -s http://127.0.0.1:8000/api/activation/readiness "
+                        "-H 'Authorization: Bearer $TOKEN' | python3 -m json.tool"
+                    ),
+                }
+                current_phase = {"n": phase_n, "name": phase_name}
+        if phase_has_action:
+            phases_remaining.append(phase_n)
+        else:
+            phases_done.append(phase_n)
+
+    return {
+        "all_done": next_step is None,
+        "current_phase": current_phase,
+        "next_step": next_step,
+        "phases_done": phases_done,
+        "phases_remaining": phases_remaining,
+        "total_phases": len(_PHASES),
+    }
+
+
 @router.get("/readiness")
 async def activation_readiness(_user=Depends(require_admin)) -> dict[str, Any]:
     """Activation-debt snapshot for /app/automation Mission Control.
