@@ -22,6 +22,57 @@ async def run_all(_user=Depends(require_admin)) -> dict:
     return ea.run_all()
 
 
+_ROLE_TO_AGENT = {"sre": "pranav", "finops": "vidya", "security": "arnav"}
+
+
+@router.get("/{role}/history")
+async def history(role: str, limit: int = 50, _user=Depends(require_admin)) -> dict:
+    """Recent agent_events for one engineer agent (trend chart fuel).
+
+    Reads the same AgentEvent table the existing /app/team dashboard uses,
+    filtered to the engineer-agent member. Falls back to empty list if DB
+    unavailable — INERT (never raises).
+    """
+    role_l = (role or "").strip().lower()
+    if role_l not in _VALID:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unknown role '{role}'. Valid: {sorted(_VALID)}",
+        )
+    member = _ROLE_TO_AGENT[role_l]
+    n = max(1, min(int(limit), 500))
+    items: list[dict] = []
+    try:
+        from app.models.agent_event import AgentEvent
+        from app.platform.team import _db
+
+        db = _db()
+        if db is None:
+            return {"role": role_l, "agent": member, "count": 0, "events": []}
+        try:
+            rows = (
+                db.query(AgentEvent)
+                .filter(AgentEvent.member == member)
+                .order_by(AgentEvent.created_at.desc())
+                .limit(n)
+                .all()
+            )
+            for r in rows:
+                items.append(
+                    {
+                        "action": r.action,
+                        "detail": r.detail,
+                        "status": r.status,
+                        "at": r.created_at.isoformat() if r.created_at else None,
+                    }
+                )
+        finally:
+            db.close()
+    except Exception:
+        pass
+    return {"role": role_l, "agent": member, "count": len(items), "events": items}
+
+
 @router.get("/{role}")
 async def run_one(role: str, _user=Depends(require_admin)) -> dict:
     """Run a single engineer agent. role = sre | finops | security."""

@@ -266,6 +266,13 @@ def score_and_gate(
         agent=agent, artifact=artifact,
         extra={"decision": verdict["decision"], "ratio": verdict["ratio"]},
     )
+    # G.1: burst-of-rejects alert (best-effort — INERT when OPS_ALERTS unset).
+    try:
+        from app.platform import ops_alerts
+
+        ops_alerts.maybe_alert_eval_reject(suite, metric, verdict)
+    except Exception as exc:
+        logger.debug("eval_gate alert hook swallowed: %s", exc)
     return verdict
 
 

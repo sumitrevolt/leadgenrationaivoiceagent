@@ -82,6 +82,20 @@ def _try_log(role: str, event: str, detail: str) -> None:
         logger.debug("engineer_agents log_event swallowed: %s", e)
 
 
+def _maybe_alert(result: dict[str, Any]) -> None:
+    """Push ntfy if score < threshold (G.1 ops_alerts hook). Best-effort."""
+    try:
+        from app.platform import ops_alerts
+
+        ops_alerts.maybe_alert_engineer_score(
+            result.get("role", "?"),
+            result.get("score"),
+            summary=str(result.get("summary", "")),
+        )
+    except Exception as e:  # pragma: no cover
+        logger.debug("engineer_agents _maybe_alert swallowed: %s", e)
+
+
 def _disabled_result(role: str, flag: str) -> dict[str, Any]:
     return {
         "role": role,
@@ -182,6 +196,7 @@ def run_sre() -> dict[str, Any]:
         "ts": int(time.time()),
     }
     _try_log("pranav", "sre_drill", json.dumps({"score": score, "n_actions": len(actions)}))
+    _maybe_alert(result)
     return result
 
 
@@ -284,6 +299,7 @@ def run_finops() -> dict[str, Any]:
         "ts": int(time.time()),
     }
     _try_log("vidya", "finops_check", json.dumps({"score": score, "tokens": tokens_today}))
+    _maybe_alert(result)
     return result
 
 
@@ -352,6 +368,7 @@ def run_security() -> dict[str, Any]:
         "ts": int(time.time()),
     }
     _try_log("arnav", "security_posture", json.dumps({"score": score, "armed": armed}))
+    _maybe_alert(result)
     return result
 
 

@@ -110,6 +110,7 @@ _last_ran: dict[str, str | None] = {
     "engineer_sre": None,       # hourly: Pranav reliability score
     "engineer_finops": None,    # daily: Vidya margin score
     "engineer_security": None,  # daily: Arnav compliance posture
+    "readiness_digest": None,   # G.3: daily activation-readiness ntfy digest (OPS_ALERTS gated)
 }
 
 
@@ -437,6 +438,13 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import engineer_agents
 
             engineer_agents.run_security()
+        elif job == "readiness_digest":
+            # G.3: daily activation-readiness digest. INERT until OPS_ALERTS=1 +
+            # ntfy creds set; ops_alerts.daily_readiness_digest itself is the
+            # single source of truth on cooldown / threshold logic.
+            from app.platform import ops_alerts
+
+            ops_alerts.daily_readiness_digest()
         elif job == "onboard":
             from app.marketing import onboarding
 
@@ -544,6 +552,10 @@ async def scheduler_loop() -> None:
             if (9, 30) <= hm < (10, 30) and _last_ran["engineer_security"] != day_key:
                 _last_ran["engineer_security"] = day_key
                 await _run_job("engineer_security")
+            # G.3 daily activation-readiness digest — quiet ntfy unless BLOCKER present.
+            if (8, 30) <= hm < (9, 30) and _last_ran["readiness_digest"] != day_key:
+                _last_ran["readiness_digest"] = day_key
+                await _run_job("readiness_digest")
         except asyncio.CancelledError:
             logger.info("[team-scheduler] loop cancelled")
             raise

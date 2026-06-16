@@ -46,24 +46,44 @@ def test_security_disabled_when_flag_unset() -> None:
 # --------------------------------------------------------------------------- #
 # Pranav — SRE / Reliability
 # --------------------------------------------------------------------------- #
+def _stub_psutil_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Pin the capacity sub-score to neutral-50 so other signals are testable
+    deterministically. Without this the test-host CPU load contaminates the
+    expected score (test flakes under parallel test runs / high system load).
+
+    Implementation: drop a sentinel into sys.modules that raises on attribute
+    access — `import psutil` succeeds but `psutil.cpu_percent(...)` blows up,
+    landing in the agent's `except Exception` -> neutral-50 fallback."""
+    import sys
+
+    class _BombPsutil:
+        def __getattr__(self, _name: str):  # noqa: ANN001
+            raise RuntimeError("psutil pinned-out for test isolation")
+
+    monkeypatch.setitem(sys.modules, "psutil", _BombPsutil())
+
+
 def test_sre_no_signals_returns_neutral(monkeypatch: pytest.MonkeyPatch) -> None:
     """No backup log, no heartbeat -> three neutral-50 sub-scores, NOT zero."""
     monkeypatch.setenv("SRE_AGENT", "1")
+    _stub_psutil_unavailable(monkeypatch)
     out = ea.run_sre()
     assert out["status"] == "ok"
     assert out["score"] is not None
-    # Missing signals should land in a moderate band, not 0
-    assert 30 <= out["score"] <= 80
+    # All three signals neutral (50/50/50) -> exactly 50
+    assert out["score"] == pytest.approx(50.0)
     assert any("backup log" in a.lower() for a in out["actions"])
 
 
 def test_sre_score_lifts_on_fresh_backup(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Fresh backup log SHOULD lift the score vs no-signals baseline."""
     monkeypatch.setenv("SRE_AGENT", "1")
+    _stub_psutil_unavailable(monkeypatch)
     base = ea.run_sre()["score"]
     (tmp_path / "pg_backup.log").write_text("ok\n", encoding="utf-8")
     after = ea.run_sre()["score"]
-    assert after >= base  # signal added -> non-decreasing
+    # Fresh backup contributes 100, others stay neutral 50 -> (100+50+50)/3 ≈ 66.7
+    assert after > base
     assert after > 60  # fresh backup is a real positive signal
 
 
@@ -72,6 +92,7 @@ def test_sre_score_drops_on_stale_backup(monkeypatch: pytest.MonkeyPatch, tmp_pa
     import os, time
 
     monkeypatch.setenv("SRE_AGENT", "1")
+    _stub_psutil_unavailable(monkeypatch)
     p = tmp_path / "pg_backup.log"
     p.write_text("ok\n", encoding="utf-8")
     fresh = ea.run_sre()["score"]
