@@ -46,6 +46,30 @@ ul{list-style:none} li{padding:2px 0;font-size:.82rem}
   <div class="card" style="grid-column:1/-1"><h2>📥 Action Inbox — aaj ke 1-click kaam</h2><div id="inbox" class="mut">…</div></div>
   <div class="card" style="grid-column:1/-1"><h2>📈 Growth Funnel (weakest stage)</h2><div id="funnel" class="mut">…</div></div>
   <div class="card" style="grid-column:1/-1"><h2>🗓️ Job Heartbeats</h2><table id="jobs"><thead><tr><th>Job</th><th>Last run</th><th>OK</th><th>Dur (s)</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+  <div class="card" style="grid-column:1/-1"><h2>🎛️ Feature Flags — per-tenant / % rollout</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">
+      <input id="ffkey" placeholder="flag key (e.g. new_dashboard)" style="width:200px">
+      <select id="ffstate" style="background:#11141d;border:1px solid var(--line);color:var(--txt);padding:6px 10px;border-radius:8px">
+        <option value="disabled">disabled</option>
+        <option value="enabled_all">enabled_all</option>
+        <option value="enabled_percentage">enabled_percentage</option>
+        <option value="enabled_tenants">enabled_tenants</option>
+      </select>
+      <input id="ffpct" type="number" min="0" max="100" placeholder="%" style="width:70px" title="sirf enabled_percentage">
+      <input id="fftenants" placeholder="tenant ids (comma)" style="width:190px" title="sirf enabled_tenants">
+      <input id="ffdesc" placeholder="description" style="width:190px">
+      <button onclick="saveFF()">Save flag</button>
+      <span id="ffmsg" class="mut"></span>
+    </div>
+    <div id="fflist" class="mut">…</div>
+    <div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px">
+      <span class="mut">Check eval: </span>
+      <input id="ffck" placeholder="flag key" style="width:160px">
+      <input id="ffckt" placeholder="tenant_id" style="width:140px">
+      <button style="padding:4px 12px" onclick="checkFF()">Check</button>
+      <span id="ffckmsg" class="mut" style="margin-left:8px"></span>
+    </div>
+  </div>
 </div>
 <script>
 const $=id=>document.getElementById(id);
@@ -99,6 +123,51 @@ async function load(){
     if((ib.recent_experiments||[]).length)h+='<b>🧪 Experiments:</b> '+ib.recent_experiments.map(x=>`${x.channel}(${x.niche})`).join(' · ');
     $('inbox').innerHTML=h||'Sab khali — automation sab handle kar raha ✅';
   }catch(e){$('inbox').textContent='—'}
+  loadFF();
+}
+async function loadFF(){
+  try{
+    const r=await api('/api/growth/infra/feature-flags');
+    const badge=r.system_active?'<span class="pill on">MASTER ON</span>':'<span class="pill warn" style="background:#3a3320;color:var(--warn)">MASTER OFF — set FEATURE_FLAGS=1 to go live</span>';
+    let h='<div style="margin-bottom:6px">'+badge+' <span class="mut">'+(r.count||0)+' flag(s)</span></div>';
+    if((r.flags||[]).length){
+      h+='<table><tr><th>Key</th><th>State</th><th>Detail</th><th>Updated</th><th></th></tr>';
+      r.flags.forEach(f=>{
+        const detail=f.state==='enabled_percentage'?(f.percentage+'%'):(f.state==='enabled_tenants'?((f.enabled_tenants||[]).join(', ')||'—'):'—');
+        h+=`<tr><td><b>${f.key}</b>${f.description?`<div class="mut">${f.description.slice(0,50)}</div>`:''}</td>`+
+           `<td><span class="pill ${f.state!=='disabled'?'on':''}">${f.state}</span></td>`+
+           `<td>${detail}</td><td class="mut">${(f.updated_at||'').replace('T',' ').slice(0,16)}</td>`+
+           `<td><button style="padding:2px 8px;font-size:.7rem;background:#3a2030" onclick="delFF('${f.key}')">del</button></td></tr>`;
+      });
+      h+='</table>';
+    } else { h+='<span class="mut">koi flag nahi — upar form se banao</span>'; }
+    $('fflist').innerHTML=h;
+  }catch(e){$('fflist').innerHTML='<span class="mut">— (admin token chahiye)</span>'}
+}
+async function saveFF(){
+  const key=$('ffkey').value.trim();
+  if(!key){$('ffmsg').textContent='key chahiye';return}
+  const body={key,state:$('ffstate').value,description:$('ffdesc').value.trim(),
+    percentage:parseInt($('ffpct').value||'0',10)||0,
+    enabled_tenants:($('fftenants').value||'').split(',').map(s=>s.trim()).filter(Boolean)};
+  $('ffmsg').textContent='⏳...';
+  try{
+    const r=await fetch('/api/growth/infra/feature-flags',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok()},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(r.ok){$('ffmsg').textContent='✅ saved';['ffkey','ffdesc','ffpct','fftenants'].forEach(i=>$(i).value='');loadFF();}
+    else{$('ffmsg').textContent='❌ '+(d.detail||r.status)+(r.status===403?' (super-admin chahiye)':'');}
+  }catch(e){$('ffmsg').textContent='fail/token?'}
+}
+async function delFF(key){
+  if(!confirm('Delete feature flag "'+key+'"?'))return;
+  try{await fetch('/api/growth/infra/feature-flags/'+encodeURIComponent(key),{method:'DELETE',headers:{Authorization:'Bearer '+tok()}});loadFF();}catch(e){}
+}
+async function checkFF(){
+  const key=$('ffck').value.trim(),t=$('ffckt').value.trim();
+  if(!key){$('ffckmsg').textContent='key?';return}
+  try{const r=await api('/api/growth/infra/feature-flags/'+encodeURIComponent(key)+'/check?tenant_id='+encodeURIComponent(t));
+    $('ffckmsg').innerHTML=r.enabled?'<span class="ok">✅ ENABLED</span>':'<span class="bad">⛔ disabled</span>';
+  }catch(e){$('ffckmsg').textContent='— (token?)'}
 }
 const CHANNELS=['seo_page','quora','reddit','whatsapp_group','telegram','linkedin_article','medium','partnership','linkedin_dm'];
 $('outbtns').innerHTML=CHANNELS.map(c=>`<button style="margin:2px;padding:4px 10px;font-size:.75rem" onclick="rec('${c}')">${c}</button>`).join('');

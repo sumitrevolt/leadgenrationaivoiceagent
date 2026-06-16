@@ -279,7 +279,7 @@ async function doSignupPay(){
   try{
     const succ = location.origin+"/app/customer";
     const r = await fetch(API+`/api/billing/checkout?client_id=${encodeURIComponent(cid)}`,{
-      method:"POST",headers:{"Content-Type":"application/json"},
+      method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(token||"")},
       body:JSON.stringify({plan_id:(SELECTED.id||"starter"),billing_cycle:CYCLE,currency:"INR",
         success_url:succ,cancel_url:location.href})});
     co = await r.json();
@@ -299,7 +299,7 @@ async function doSignupPay(){
       handler:async function(resp){
         try{
           const v = await fetch(API+`/api/billing/verify-payment?client_id=${encodeURIComponent(cid)}`,{
-            method:"POST",headers:{"Content-Type":"application/json"},
+            method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(token||"")},
             body:JSON.stringify({order_id:resp.razorpay_order_id,payment_id:resp.razorpay_payment_id,signature:resp.razorpay_signature})});
           if(v.ok){ setMsg("Payment ho gaya! Redirect…",true); location.href="/app/customer"; }
           else setMsg("Payment hua par verify pending — humse contact karo.");

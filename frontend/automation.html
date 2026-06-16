@@ -70,6 +70,7 @@ a{color:var(--acc)}
   <button id="tab-drafters" onclick="show('drafters')">✍️ Drafters</button>
   <button id="tab-revenue" onclick="show('revenue')">💰 Revenue Ops</button>
   <button id="tab-growthlab" onclick="show('growthlab')">📈 Growth Lab</button>
+  <button id="tab-clientops" onclick="show('clientops')">🤝 ClientOps</button>
   <button id="tab-research" onclick="show('research')">🔎 Research</button>
   <button id="tab-contentplus" onclick="show('contentplus')">🎨 Content+</button>
   <button id="tab-lifecycle" onclick="show('lifecycle')">📬 Lifecycle</button>
@@ -82,6 +83,7 @@ a{color:var(--acc)}
   <button id="tab-webhooks" onclick="show('webhooks')">🔗 Webhooks</button>
   <button id="tab-reviewmon" onclick="show('reviewmon')">⭐ Reviews</button>
   <button id="tab-clientrep" onclick="show('clientrep')">📑 Client Reports</button>
+  <button id="tab-fflags" onclick="show('fflags')">🚦 Runtime Flags</button>
 </nav>
 
 <div class="main">
@@ -187,6 +189,18 @@ a{color:var(--acc)}
     <div class="mut">GATED <b>CADENCE_ENGINE=1</b> — off ho to no-op aayega.</div>
     <button class="btn" id="cdRunBtn" onclick="cdRun()">Run due steps</button>
     <div id="cdRunOut"></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>📥 Inbox — 1-click actions</h2>
+    <div class="mut">Hot leads + reply drafts + review drafts ek jagah. Reply triage ka output yahan.</div>
+    <button class="btn2" onclick="inboxLoad()">Load inbox</button>
+    <div id="inboxOut"></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>🔁 Reply Feedback stats</h2>
+    <div class="mut">AI intent mis-classification corrections (REPLY_AGENT corrections log).</div>
+    <button class="btn2" onclick="rfLoad()">Stats load</button>
+    <div id="rfOut"></div>
   </div>
 </section>
 
@@ -447,6 +461,39 @@ a{color:var(--acc)}
   </div>
 </section>
 
+<!-- ============ ClientOps (speed-to-lead, proposal tracking, snapshots) ============ -->
+<section class="tabsec" id="sec-clientops">
+  <div class="card">
+    <h2>🏃 Speed-to-Lead</h2>
+    <div class="mut">Inquiry se pehle-response tak ka time — fast follow-up = zyada conversion.</div>
+    <label>Days</label><input id="coStlDays" type="number" value="30" style="max-width:100px">
+    <button class="btn" id="coStlBtn" onclick="coSpeedToLead()">Report load</button>
+    <div id="coStlOut"></div>
+  </div>
+  <div class="card">
+    <h2>🔗 Proposal Tracking</h2>
+    <div class="mut">Tracked link banao — client ne proposal kab/kitni baar khola pata chalega.</div>
+    <div class="row"><div>
+      <label>Proposal URL (optional)</label><input id="coTpUrl" placeholder="https://...">
+      <label>Phone (optional)</label><input id="coTpPhone">
+    </div><div>
+      <label>Label (optional)</label><input id="coTpLabel" placeholder="Sharma Solar Q3 proposal">
+    </div></div>
+    <button class="btn" id="coTpBtn" onclick="coTrackProposal()">Tracked link banao</button>
+    <button class="btn2" onclick="coProposalViews()">👁️ Views dekho</button>
+    <div id="coTpOut"></div>
+  </div>
+  <div class="card">
+    <h2>📸 Client KB Snapshots</h2>
+    <div class="mut">Client ka pura setup snapshot — naye similar client pe apply ke liye.</div>
+    <label>Client ID</label><input id="coSnapClient" placeholder="client id">
+    <label>Snapshot naam (optional)</label><input id="coSnapName" placeholder="solar-template">
+    <button class="btn" id="coSnapBtn" onclick="coSnapCapture()">📸 Capture</button>
+    <button class="btn2" onclick="coSnapList()">List snapshots</button>
+    <div id="coSnapOut"></div>
+  </div>
+</section>
+
 <!-- ============ 10. Research ============ -->
 <section class="tabsec" id="sec-research">
   <div class="card">
@@ -583,6 +630,18 @@ a{color:var(--acc)}
     <button class="btn" id="bcSocBtn" onclick="bcSocial()">Social batch</button>
     <div id="bcOut"></div>
   </div>
+  <div class="card">
+    <h2>🧑 Avatar Video (talking-head)</h2>
+    <div class="mut">Topic se short avatar video — heavy, human upload karta.</div>
+    <div class="row"><div>
+      <label>Topic</label><input id="ctAvTopic" placeholder="solar subsidy 2026">
+      <label>Niche</label><input id="ctAvNiche" value="general">
+    </div><div>
+      <label>Slug (optional)</label><input id="ctAvSlug">
+    </div></div>
+    <button class="btn" id="ctAvBtn" onclick="ctAvatar()">Avatar video banao</button>
+    <div id="ctAvOut"></div>
+  </div>
 </section>
 
 <!-- ================= 0. AAJ (default home, plain-Hinglish) ================= -->
@@ -606,6 +665,14 @@ a{color:var(--acc)}
     <h2>🚩 Band automations</h2>
     <div class="mut">Yeh features abhi OFF hain — matlab neeche likha kaam NAHI ho raha. ON karna ho to VPS .env me flag=1 + restart.</div>
     <div id="tdFlags">...</div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>⚡ Speed-to-Lead</h2>
+    <div class="mut">Inquiry aane ke baad pehla touch kitni der me? 2-min target = 21x conversion.
+      <button class="btn2" onclick="stlLoad()">Load</button>
+      &nbsp;<label style="font-size:0.85rem">Days:</label><input id="stlDays" type="number" value="30" style="max-width:70px;display:inline-block">
+    </div>
+    <div id="stlOut"></div>
   </div>
 </section>
 
@@ -913,6 +980,39 @@ a{color:var(--acc)}
   </div>
 </section>
 
+<!-- ============ Runtime Feature Flags ============ -->
+<section class="tabsec" id="sec-fflags">
+  <div class="card">
+    <h2>🚦 Runtime Feature Flags</h2>
+    <div class="mut">Redis-backed per-tenant / percentage flags. Env-var <b>AUTOMATION_FLAGS</b> se ALAG — yeh bina restart ke toggle hote hain. Master gate: <b>FEATURE_FLAGS=1</b> env.</div>
+    <button class="btn2" onclick="ffLoad()">🔄 Load flags</button>
+    <div id="ffStatus" style="margin:6px 0"></div>
+    <div id="ffList"></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>➕ Create / Update flag (super-admin)</h2>
+    <div class="mut">Existing key = update (created_at preserve). State change seedha live hota (≤60s cache).</div>
+    <div class="row"><div>
+      <label>Key</label><input id="ffKey" placeholder="new_checkout_flow">
+      <label>State</label>
+      <select id="ffState">
+        <option value="disabled">disabled</option>
+        <option value="enabled_all">enabled_all</option>
+        <option value="enabled_percentage">enabled_percentage</option>
+        <option value="enabled_tenants">enabled_tenants</option>
+      </select>
+      <label>Description</label><input id="ffDesc" placeholder="Naya checkout UI A/B test">
+    </div><div>
+      <label>Percentage (0-100, sirf enabled_percentage me)</label>
+      <input id="ffPct" type="number" value="0" min="0" max="100" style="max-width:100px">
+      <label>Tenants (comma-sep, sirf enabled_tenants me)</label>
+      <input id="ffTenants" placeholder="tenant1,tenant2">
+      <button class="btn" id="ffSaveBtn" onclick="ffSave()">💾 Save flag</button>
+    </div></div>
+    <div id="ffSaveOut"></div>
+  </div>
+</section>
+
 </div><!-- /main -->
 </div><!-- /layout -->
 
@@ -1059,6 +1159,54 @@ async function afRegister(){
 async function afStats(){
   try{var d=await api('/api/growth/affiliate/stats');$('afOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
   }catch(e){toast('Stats fail: '+e.message,false)}
+}
+
+/* ---------------- ClientOps ---------------- */
+async function coSpeedToLead(){
+  busy('coStlBtn',1,'⏳...');
+  try{var d=await api('/api/clientops/speed-to-lead?days='+(parseInt($('coStlDays').value)||30));
+    $('coStlOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
+  }catch(e){toast('Speed-to-lead fail: '+e.message,false)}
+  busy('coStlBtn',0);
+}
+async function coTrackProposal(){
+  busy('coTpBtn',1,'⏳...');
+  try{var d=await api('/api/clientops/track-proposal',{method:'POST',body:JSON.stringify({
+      url:$('coTpUrl').value.trim(),phone:$('coTpPhone').value.trim(),label:$('coTpLabel').value.trim()})});
+    $('coTpOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Tracked link ready ✅');
+  }catch(e){toast('Track fail: '+e.message,false)}
+  busy('coTpBtn',0);
+}
+async function coProposalViews(){
+  try{var d=await api('/api/clientops/proposal-views');$('coTpOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('Views fail: '+e.message,false)}
+}
+async function coSnapCapture(){
+  var cid=$('coSnapClient').value.trim();if(!cid)return toast('Client ID daalo',false);
+  busy('coSnapBtn',1,'⏳...');
+  try{var d=await api('/api/clientops/snapshots/capture',{method:'POST',body:JSON.stringify({
+      client_id:cid,name:$('coSnapName').value.trim()})});
+    $('coSnapOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Snapshot captured ✅');
+  }catch(e){toast('Capture fail: '+e.message,false)}
+  busy('coSnapBtn',0);
+}
+async function coSnapList(){
+  var cid=$('coSnapClient').value.trim();
+  try{var d=await api('/api/clientops/snapshots'+(cid?('?client_id='+encodeURIComponent(cid)):''));
+    $('coSnapOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('List fail: '+e.message,false)}
+}
+
+/* ---------------- Content+: Avatar video ---------------- */
+async function ctAvatar(){
+  var topic=$('ctAvTopic').value.trim();if(!topic)return toast('Topic daalo',false);
+  busy('ctAvBtn',1,'⏳ avatar ban raha...');
+  try{var d=await api('/api/contentplus/avatar-video',{method:'POST',body:JSON.stringify({
+      topic:topic,niche:$('ctAvNiche').value.trim()||'general',slug:$('ctAvSlug').value.trim()})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    $('ctAvOut').innerHTML='<div class="result">'+pills(d)+draftBlocks(d)+'</div>';toast('Avatar video ready ✅');
+  }catch(e){toast('Avatar fail: '+e.message,false)}
+  busy('ctAvBtn',0);
 }
 
 /* ---------------- 1. Harvester ---------------- */
@@ -2491,11 +2639,139 @@ async function telDeliverability(){
 
 /* ---------------- init ---------------- */
 $('tokin').value=tok();
-var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:function(){apCostStatus();apSelfImprovePending();apLoad();},events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList};
+/* ---------- Speed-to-Lead ---------- */
+async function stlLoad(){
+  var days=parseInt($('stlDays').value)||30;
+  $('stlOut').innerHTML='<div class="mut">Loading...</div>';
+  try{
+    var d=await api('/api/growth/speed-to-lead/summary?days='+days);
+    var html='<div class="result">';
+    if(d.verdict) html+='<p>'+d.verdict+'</p>';
+    html+='<table style="width:100%;border-collapse:collapse"><tr><th>Metric</th><th>Value</th></tr>';
+    html+='<tr><td>Total inquiries</td><td>'+(d.total_inquiries||0)+'</td></tr>';
+    html+='<tr><td>Touched</td><td>'+(d.touched||0)+'</td></tr>';
+    html+='<tr><td>Untouched</td><td>'+(d.untouched||0)+'</td></tr>';
+    if(d.avg_seconds!=null) html+='<tr><td>Avg response</td><td>'+(d.avg_seconds/60).toFixed(1)+' min</td></tr>';
+    if(d.median_seconds!=null) html+='<tr><td>Median response</td><td>'+(d.median_seconds/60).toFixed(1)+' min</td></tr>';
+    if(d.under_2min_pct!=null) html+='<tr><td>Under 2-min %</td><td><b>'+d.under_2min_pct+'%</b></td></tr>';
+    html+='</table>';
+    if(d.inquiries&&d.inquiries.length){
+      html+='<details style="margin-top:8px"><summary>Recent inquiries ('+d.inquiries.length+')</summary><div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><tr><th>Phone</th><th>Inquiry at</th><th>First touch</th><th>Via</th></tr>';
+      d.inquiries.slice().reverse().slice(0,10).forEach(function(r){
+        html+='<tr><td>'+r.phone+'</td><td>'+(r.inquiry_at||'?')+'</td><td>'+(r.first_touch_seconds!=null?(r.first_touch_seconds+'s'):'❌ untouched')+'</td><td>'+(r.via||'—')+'</td></tr>';
+      });
+      html+='</table></div></details>';
+    }
+    html+='</div>';
+    $('stlOut').innerHTML=html;
+  }catch(e){warnBox('stlOut','Speed-to-lead fail: '+e.message);}
+}
+
+/* ---------- Inbox ---------- */
+async function inboxLoad(){
+  $('inboxOut').innerHTML='<div class="mut">Loading...</div>';
+  try{
+    var d=await api('/api/growth/inbox');
+    var html='<div class="result">';
+    var empty=true;
+    if(d.hot_leads&&d.hot_leads.length){
+      empty=false;
+      html+='<h3>🔥 Hot leads ('+d.hot_leads.length+')</h3><div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><tr><th>Phone/Email</th><th>Score</th><th>Stage</th></tr>';
+      d.hot_leads.forEach(function(l){html+='<tr><td>'+(l.phone||l.email||'—')+'</td><td>'+(l.score||'—')+'</td><td>'+(l.stage||'—')+'</td></tr>';});
+      html+='</table></div>';
+    }
+    if(d.reply_drafts&&d.reply_drafts.length){
+      empty=false;
+      html+='<h3>📧 Reply drafts ('+d.reply_drafts.length+')</h3>';
+      d.reply_drafts.forEach(function(r){
+        html+='<div style="border:1px solid var(--border,#333);padding:8px;border-radius:6px;margin-bottom:6px">';
+        html+='<b>'+(r.from||r.sender||'?')+'</b> — <span class="mut">'+(r.intent||r.subject||'').substring(0,80)+'</span>';
+        if(r.draft) html+='<pre style="font-size:0.8rem;white-space:pre-wrap;margin:4px 0;opacity:0.85">'+r.draft.substring(0,300)+'</pre>';
+        html+='</div>';
+      });
+    }
+    if(d.review_drafts&&d.review_drafts.length){
+      empty=false;
+      html+='<h3>⭐ Review drafts ('+d.review_drafts.length+')</h3>';
+      d.review_drafts.forEach(function(r){html+='<div class="mut" style="font-size:0.85rem">'+JSON.stringify(r).substring(0,120)+'</div>';});
+    }
+    if(empty) html+='<div class="mut">Inbox khali hai. 👍</div>';
+    html+='</div>';
+    $('inboxOut').innerHTML=html;
+  }catch(e){warnBox('inboxOut','Inbox fail: '+e.message);}
+}
+
+/* ---------- Reply Feedback ---------- */
+async function rfLoad(){
+  $('rfOut').innerHTML='<div class="mut">Loading...</div>';
+  try{
+    var d=await api('/api/growth/reply/feedback/stats');
+    var html='<div class="result"><p>Total corrections: <b>'+(d.total||0)+'</b></p>';
+    if(d.corrections&&Object.keys(d.corrections).length){
+      html+='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse"><tr><th>Old intent → Correct</th><th>Count</th></tr>';
+      Object.entries(d.corrections).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
+        html+='<tr><td>'+e[0]+'</td><td>'+e[1]+'</td></tr>';
+      });
+      html+='</table></div>';
+    } else { html+='<div class="mut">Abhi koi correction feedback nahi.</div>'; }
+    html+='</div>';
+    $('rfOut').innerHTML=html;
+  }catch(e){warnBox('rfOut','Reply feedback fail: '+e.message);}
+}
+
+/* ---------- Runtime Feature Flags ---------- */
+var _FF_STATE_COLORS={disabled:'#888',enabled_all:'#4caf50',enabled_percentage:'#ff9800',enabled_tenants:'#2196f3'};
+async function ffLoad(){
+  $('ffList').innerHTML='<div class="mut">Loading...</div>';
+  $('ffStatus').innerHTML='';
+  try{
+    var d=await api('/api/growth/infra/feature-flags');
+    var active=d.system_active;
+    $('ffStatus').innerHTML='<span style="padding:3px 10px;border-radius:12px;font-size:0.8rem;background:'+(active?'#4caf50':'#888')+';color:#fff">'+(active?'FEATURE_FLAGS=1 ✅ ACTIVE':'FEATURE_FLAGS=OFF ⚠️ sab flags dormant')+'</span> &nbsp; <span class="mut">'+d.count+' flags</span>';
+    if(!d.flags||!d.flags.length){$('ffList').innerHTML='<div class="mut">Koi flag nahi. Naya banao neeche.</div>';return;}
+    var html='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;margin-top:8px"><tr><th>Key</th><th>State</th><th>%</th><th>Tenants</th><th>Description</th><th>Updated</th><th>Action</th></tr>';
+    d.flags.forEach(function(f){
+      var col=_FF_STATE_COLORS[f.state]||'#888';
+      var badge='<span style="padding:2px 8px;border-radius:10px;font-size:0.75rem;background:'+col+';color:#fff">'+f.state+'</span>';
+      var pct=f.state==='enabled_percentage'?f.percentage+'%':'—';
+      var ten=f.state==='enabled_tenants'&&f.enabled_tenants&&f.enabled_tenants.length?f.enabled_tenants.join(', '):'—';
+      html+='<tr><td><b>'+f.key+'</b></td><td>'+badge+'</td><td>'+pct+'</td><td style="font-size:0.8rem;max-width:120px">'+ten+'</td><td class="mut" style="font-size:0.8rem;max-width:160px">'+(f.description||'')+'</td><td class="mut" style="font-size:0.75rem">'+(f.updated_at||'').substring(0,16)+'</td>';
+      html+='<td><button class="btn2" style="font-size:0.75rem;padding:2px 8px" onclick="ffEdit(\''+f.key+'\',\''+f.state+'\','+f.percentage+',\''+((f.enabled_tenants||[]).join(','))+'\',\''+f.description.replace(/'/g,'')+'\')">Edit</button>';
+      html+=' <button class="btn2" style="font-size:0.75rem;padding:2px 8px;background:#c33" onclick="ffDel(\''+f.key+'\')">Del</button></td></tr>';
+    });
+    html+='</table></div>';
+    $('ffList').innerHTML=html;
+  }catch(e){warnBox('ffList','Feature flags load fail: '+e.message);}
+}
+function ffEdit(key,state,pct,tenants,desc){
+  $('ffKey').value=key;$('ffState').value=state;$('ffPct').value=pct;$('ffTenants').value=tenants;$('ffDesc').value=desc;
+  $('ffKey').focus();
+}
+async function ffSave(){
+  var key=($('ffKey').value||'').trim();
+  if(!key){toast('Key required');return;}
+  if(!confirm('Flag save: '+key+' → '+$('ffState').value+'?'))return;
+  $('ffSaveOut').innerHTML='<div class="mut">Saving...</div>';
+  try{
+    var body={key:key,state:$('ffState').value,percentage:parseInt($('ffPct').value)||0,description:$('ffDesc').value.trim(),enabled_tenants:$('ffTenants').value.split(',').map(function(s){return s.trim();}).filter(Boolean)};
+    var d=await api('/api/growth/infra/feature-flags',{method:'POST',body:JSON.stringify(body)});
+    $('ffSaveOut').innerHTML='<div class="result">Saved ✅ &nbsp;'+d.flag.key+' → '+d.flag.state+'</div>';
+    toast('Flag saved');ffLoad();
+  }catch(e){warnBox('ffSaveOut','Save fail (super-admin needed?): '+e.message);}
+}
+async function ffDel(key){
+  if(!confirm('Delete flag "'+key+'"? Permanent hai.'))return;
+  try{
+    await api('/api/growth/infra/feature-flags/'+encodeURIComponent(key),{method:'DELETE'});
+    toast('Deleted: '+key);ffLoad();
+  }catch(e){toast('Delete fail (super-admin needed?): '+e.message);}
+}
+
+var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:function(){apCostStatus();apSelfImprovePending();apLoad();},events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList,cadence:function(){cdLoad();inboxLoad();},fflags:ffLoad};
 var _origShow=show;
 show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}};
 var start=(location.hash||'').replace('#','');
-var valid=['today','schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus','lifecycle','contentauto','fde','telephony','loyalty','nps','webhooks','reviewmon','clientrep'];
+var valid=['today','schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus','lifecycle','contentauto','fde','telephony','loyalty','nps','webhooks','reviewmon','clientrep','fflags'];
 show(valid.indexOf(start)>=0?start:'today');
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
