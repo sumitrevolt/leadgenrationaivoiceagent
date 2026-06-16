@@ -66,10 +66,30 @@ a:hover{text-decoration:underline}
 <header>
   <div>
     <h1>🎛️ Admin Dashboards</h1>
-    <div class="muted">F-track + G-track + H-track operator pane · auto-refresh 30s</div>
+    <div class="muted">F-M tracks operator pane · auto-refresh 30s</div>
   </div>
   <button class="refresh" onclick="refreshAll()">⟳ Refresh all</button>
 </header>
+
+<!-- R.1 wizard banner — single highest-priority next action -->
+<div id="wizardBanner" style="display:none;background:linear-gradient(90deg,#1e293b,#312e81);border:1px solid var(--accent);border-radius:12px;padding:18px;margin-bottom:18px">
+  <div style="display:flex;justify-content:space-between;align-items:start;gap:14px;flex-wrap:wrap">
+    <div style="flex:1;min-width:280px">
+      <div style="font-size:.75rem;color:var(--mut);text-transform:uppercase;letter-spacing:1px">Next Action</div>
+      <h2 id="wbTitle" style="font-size:1.15rem;margin:6px 0 4px">…</h2>
+      <div id="wbAction" style="font-size:.9rem;color:#cbd5e1;margin-bottom:8px"></div>
+      <div id="wbEnv" style="font-size:.78rem;font-family:monospace;color:#a5b4fc"></div>
+    </div>
+    <div style="text-align:right;min-width:160px">
+      <div id="wbPhase" class="pill neutral" style="margin-bottom:6px">…</div>
+      <div id="wbProgress" style="font-size:.72rem;color:var(--mut)"></div>
+      <div style="margin-top:8px;font-size:.7rem;color:var(--mut)">CLI: <code>python3 /opt/leadgen/scripts/activate.py</code></div>
+    </div>
+  </div>
+</div>
+<div id="wizardBannerDone" style="display:none;background:rgba(16,185,129,.08);border:1px solid var(--ok);border-radius:12px;padding:14px 18px;margin-bottom:18px;color:var(--ok);font-weight:600">
+  ✅ All activation phases green — platform is fully activated.
+</div>
 
 <div id="authBanner" class="banner">
   No admin token detected. Paste below to load admin endpoints:
@@ -157,6 +177,33 @@ async function api(path){
 }
 function pill(el,kind,text){ const e=document.getElementById(el); e.className="pill "+kind; e.textContent=text; }
 function esc(s){ return String(s||"").replace(/[<>&"]/g,c=>({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"})[c]); }
+
+// ---------- R.1: Activation Wizard banner (top of page) ----------
+async function loadWizard(){
+  const d = await api("/api/activation/wizard");
+  const banner = document.getElementById("wizardBanner");
+  const done = document.getElementById("wizardBannerDone");
+  if(d.__auth===false || d.__err){ banner.style.display="none"; done.style.display="none"; return; }
+  if(d.all_done){
+    banner.style.display="none";
+    done.style.display="block";
+    return;
+  }
+  done.style.display="none";
+  banner.style.display="block";
+  const step = d.next_step || {};
+  const phase = step.phase || d.current_phase || {n:"?",name:"?"};
+  document.getElementById("wbTitle").textContent = step.label || "Loading…";
+  document.getElementById("wbAction").textContent = step.action || "";
+  document.getElementById("wbEnv").textContent = "Set: " + (step.env_vars||[]).join(", ");
+  const pill = document.getElementById("wbPhase");
+  pill.className = "pill " + (step.status==="BLOCKER"?"bad":(step.status==="WARN"?"warn":"neutral"));
+  pill.textContent = "Phase " + phase.n + " · " + (step.status||"…");
+  const totalPhases = d.total_phases || 5;
+  const doneCount = (d.phases_done||[]).length;
+  document.getElementById("wbProgress").textContent =
+    doneCount + " of " + totalPhases + " phases complete";
+}
 
 // ---------- F.2: Activation Readiness ----------
 async function loadReadiness(){
@@ -380,6 +427,7 @@ async function issueMcpKey(){
 
 // ---------- master loop ----------
 async function refreshAll(){
+  loadWizard();
   loadReadiness(); loadEngineers(); loadEval(); loadMemory();
   loadMCP(); loadH4(); loadWebhooks(); loadTurnstile();
 }

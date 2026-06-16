@@ -170,6 +170,38 @@ _PHASES: dict[int, dict] = {
             },
         ],
     },
+    5: {
+        "name": "Margin (per-tenant cost + warm-DR)",
+        "items": [
+            {
+                "key": "litellm_costs",
+                "label": "LiteLLM gateway + per-tenant cost attribution",
+                "env": [
+                    ("LITELLM_COSTS", "1", "1"),
+                    ("LITELLM_MASTER_KEY",
+                     "32+ char random (bearer for /spend/keys)"),
+                    ("LITELLM_GATEWAY_URL",
+                     "http://litellm:4000 (in-network)",
+                     "http://litellm:4000"),
+                ],
+                "validator": None,
+                "post_command": (
+                    "docker compose -f docker-compose.edge.yml --profile gateway up -d"
+                ),
+            },
+            {
+                "key": "warm_dr",
+                "label": "Warm-DR replica (Neon/Supabase free tier)",
+                "env": [
+                    ("DR_REPLICA_URL",
+                     "postgres://user:pass@neon.tech/dbname (read-only replica)"),
+                    ("DR_LAG_WARN_S", "Default 60", "60"),
+                    ("DR_LAG_FAIL_S", "Default 600", "600"),
+                ],
+                "validator": None,
+            },
+        ],
+    },
 }
 
 
