@@ -76,13 +76,16 @@ def _read(path: Path) -> list[dict]:
         return []
 
 
-def _append(path: Path, item: dict) -> None:
+def _append(path: Path, item: dict) -> bool:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
+        return True
     except Exception as e:
-        logger.debug(f"consent_ledger: append failed ({e})")
+        # A failed SUPPRESSION write is a compliance event, not a debug note.
+        logger.error(f"consent_ledger: append failed ({e})")
+        return False
 
 
 def _write_all(path: Path, items: list[dict]) -> None:
@@ -185,11 +188,18 @@ def record_opt_out(
         "at": _now(),
     }
     _append(LEDGER_FILE, rec)
+    suppressed = True
     if not is_suppressed(k):
-        _append(
+        ok = _append(
             SUPPRESSION_FILE,
             {"phone": k, "reason": rec["reason"], "channel": rec["channel"], "at": rec["at"]},
         )
+        if not ok:
+            # Fail-CLOSED on report: agar suppression persist NAHI hua to "suppressed"
+            # claim mat karo — warna number dobara callable reh jaata (TCCCPR fail-open
+            # = illegal). Loud ERROR for alerting + manual re-suppress.
+            logger.error(f"opt-out suppression WRITE FAILED for ***{k[-4:]} — NOT suppressed")
+            suppressed = False
     # Cross-channel propagate (TCCCPR: revocation sab commercial comms pe lagti hai).
     try:
         from app.marketing import wa_campaign_runner
@@ -197,8 +207,30 @@ def record_opt_out(
         wa_campaign_runner.suppress(k, reason=f"{channel}_opt_out")
     except Exception:
         pass
+    # F.4 bridge — DPDP "right to be forgotten": purge any stored agent memory
+    # for this phone too. Fire-and-forget; never blocks the opt-out write. The
+    # voice agent stores cross-session lead facts in Qdrant (agent_memory.py);
+    # without this hook, opting out of CALLS would still leave personal
+    # utterances in memory — a DPDP s.12 violation.
+    try:
+        import asyncio as _asyncio
+
+        from app.voice_agent import agent_memory as _agm
+
+        try:
+            _loop = _asyncio.get_running_loop()
+            _loop.create_task(_agm.purge_subject(k, scope="lead"))
+        except RuntimeError:
+            # No running loop (sync/CLI path) — schedule synchronously via run().
+            # Wrapped so a missing dep / disabled flag still never breaks opt-out.
+            try:
+                _asyncio.run(_agm.purge_subject(k, scope="lead"))
+            except Exception:
+                pass
+    except Exception:
+        pass
     logger.info(f"🔕 opt-out recorded ***{k[-4:]} ({channel}/{rec['reason']})")
-    return {"phone": k, "suppressed": True, **rec}
+    return {"phone": k, "suppressed": suppressed, **rec}
 
 
 def is_suppressed(phone: str) -> bool:

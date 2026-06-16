@@ -518,6 +518,33 @@ async def run_once() -> dict[str, Any]:
         "ms": round(ms, 1),
         "at": _now().isoformat(),
     }
+
+    # F.3 eval_gate close-the-loop: score this iteration against rolling baseline
+    # of the same action. Binary reward (ok->1.0, fail->0.0) is enough for
+    # eval_gate's regression detection — if "harvest_leads" was 0.9 across last
+    # 20 runs and today drops to 0.3, the median-baseline ratio surfaces it as
+    # a REJECT decision so the operator notices BEFORE quality drift compounds.
+    # INERT when EVAL_GATE unset (project ethos); never raises.
+    try:
+        from app.agents import eval_gate as _eg
+
+        _verdict = _eg.score_and_gate(
+            "self_improve", action,
+            current_score=1.0 if rec["ok"] else 0.0,
+            agent="self_improve",
+            artifact=rec["id"],
+        )
+        if _verdict.get("decision") == "reject":
+            rec["regression"] = True
+            rec["baseline"] = _verdict.get("baseline")
+            # Hard-mode = surface visibly in detail; auto-rollback is intentionally
+            # NOT done here (a successful action with a low baseline is still
+            # useful — we're flagging the drift, not preventing the work).
+            if _eg.hard_mode():
+                rec["detail"] = f"[REGRESSION baseline={_verdict.get('baseline'):.2f}] " + rec["detail"]
+    except Exception:
+        pass
+
     _append(_RUNS, rec)
     _heartbeat({"runs_today": runs_today + 1, "last_action": action, "status": "ok"})
 

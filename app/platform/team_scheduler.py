@@ -106,6 +106,10 @@ _last_ran: dict[str, str | None] = {
     "watchdog": None,
     "onboard": None,
     "standup": None,
+    # F.5 engineer agents — gated by per-role flag inside run_X() (INERT default).
+    "engineer_sre": None,       # hourly: Pranav reliability score
+    "engineer_finops": None,    # daily: Vidya margin score
+    "engineer_security": None,  # daily: Arnav compliance posture
 }
 
 
@@ -419,6 +423,20 @@ async def _run_job_inner(job: str) -> None:
                 consent_ledger.retention_sweep()  # 90-din recording retention (delete gated RECORDING_RETENTION; off = report-only, dir absent = no-op)
             except Exception:
                 pass
+        elif job == "engineer_sre":
+            # F.5: Pranav SRE reliability score. INERT until SRE_AGENT=1 (engine
+            # itself returns "disabled" result so this never blocks the loop).
+            from app.platform import engineer_agents
+
+            engineer_agents.run_sre()
+        elif job == "engineer_finops":
+            from app.platform import engineer_agents
+
+            engineer_agents.run_finops()
+        elif job == "engineer_security":
+            from app.platform import engineer_agents
+
+            engineer_agents.run_security()
         elif job == "onboard":
             from app.marketing import onboarding
 
@@ -514,6 +532,18 @@ async def scheduler_loop() -> None:
             if (8, 0) <= hm < (9, 30) and _last_ran["standup"] != day_key:
                 _last_ran["standup"] = day_key
                 await _run_job("standup")
+            # F.5 Pranav SRE — reliability score, hourly (engine INERT unless SRE_AGENT=1).
+            if now.minute >= 45 and _last_ran["engineer_sre"] != hour_key:
+                _last_ran["engineer_sre"] = hour_key
+                await _run_job("engineer_sre")
+            # F.5 Vidya FinOps — daily morning margin score (engine INERT unless FINOPS_AGENT=1).
+            if (9, 0) <= hm < (10, 0) and _last_ran["engineer_finops"] != day_key:
+                _last_ran["engineer_finops"] = day_key
+                await _run_job("engineer_finops")
+            # F.5 Arnav Security — daily morning compliance posture (engine INERT unless SECURITY_AGENT=1).
+            if (9, 30) <= hm < (10, 30) and _last_ran["engineer_security"] != day_key:
+                _last_ran["engineer_security"] = day_key
+                await _run_job("engineer_security")
         except asyncio.CancelledError:
             logger.info("[team-scheduler] loop cancelled")
             raise

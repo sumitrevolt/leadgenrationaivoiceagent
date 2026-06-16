@@ -80,6 +80,20 @@ jobs:
         with:
           python-version: "3.12"
 
+      # F.3 eval_gate baseline cache — restore prior eval_history.jsonl across
+      # CI runs so the median-baseline regression detector has real signal.
+      # Key on the main branch SHA so PRs read main's baseline (one source of
+      # truth) and only the post-merge run on main actually advances it.
+      - name: Restore eval_gate baseline cache
+        if: steps.cfg.outputs.have == '1'
+        uses: actions/cache@v4
+        with:
+          path: data/eval_history.jsonl
+          key: eval-history-${{ github.ref }}
+          restore-keys: |
+            eval-history-refs/heads/main
+            eval-history-
+
       - name: Install deepeval (isolated — prod deps se alag, conflict-safe)
         if: steps.cfg.outputs.have == '1'
         run: pip install "deepeval>=1.4,<4" "openai>=1.0" "pytest>=7.4"
@@ -95,10 +109,26 @@ jobs:
           python -m pytest evals/test_rag_quality.py -q \
             --junitxml=evals/deepeval-results.xml || true
 
+      # F.3 eval_gate CI step — record each metric in the rolling baseline and
+      # produce a regressions summary. Advisory (continue-on-error) until the
+      # baseline is trusted; once stable, drop the flag and set EVAL_GATE_HARD=1
+      # at the workflow level to make regressions actually fail the build.
+      - name: Record scores + compute gate verdicts
+        if: steps.cfg.outputs.have == '1'
+        continue-on-error: true
+        env:
+          EVAL_GATE: "1"
+          EVAL_GATE_HARD: "0"
+        run: |
+          mkdir -p data
+          python evals/eval_gate_ci.py
+
       - name: Upload DeepEval results
         if: always() && steps.cfg.outputs.have == '1'
         uses: actions/upload-artifact@v4
         with:
           name: deepeval-results
-          path: evals/deepeval-results.xml
+          path: |
+            evals/deepeval-results.xml
+            evals/eval_gate_summary.json
           retention-days: 30
