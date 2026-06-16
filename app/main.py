@@ -402,6 +402,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"MCP-product router not mounted: {_e}")
 try:
+    from app.api.h4_admin import router as _h4_router
+
+    # H.4 warm-DR + LiteLLM per-tenant cost rollup. Admin-only; INERT when
+    # DR_REPLICA_URL / LITELLM_COSTS unset.
+    app.include_router(_h4_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"H.4 router not mounted: {_e}")
+try:
     from app.api import conversion as _conversion
 
     app.include_router(_conversion.public_router, prefix="/api")  # /api/public/widget-chat, /lead-in, /trial-status
