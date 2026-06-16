@@ -354,6 +354,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Activation router not mounted: {_e}")
 try:
+    from app.api.eval_gate import router as _eval_gate_router
+
+    # /api/eval-gate/* — DeepEval close-the-loop reward signal (F.3).
+    # Admin-only summary + recent-scores view for self_improve safety rail.
+    app.include_router(_eval_gate_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Eval-gate router not mounted: {_e}")
+try:
     from app.api import conversion as _conversion
 
     app.include_router(_conversion.public_router, prefix="/api")  # /api/public/widget-chat, /lead-in, /trial-status
