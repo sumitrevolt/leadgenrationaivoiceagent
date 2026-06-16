@@ -370,6 +370,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Agent-memory admin router not mounted: {_e}")
 try:
+    from app.api.engineer_agents import router as _engineer_agents_router
+
+    # /api/engineer-agents/* — F.5 SRE (Pranav) + FinOps (Vidya) + Security
+    # (Arnav). Admin-only score/KPI rollup; INERT when role flag unset.
+    app.include_router(_engineer_agents_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Engineer-agents router not mounted: {_e}")
+try:
     from app.api import conversion as _conversion
 
     app.include_router(_conversion.public_router, prefix="/api")  # /api/public/widget-chat, /lead-in, /trial-status

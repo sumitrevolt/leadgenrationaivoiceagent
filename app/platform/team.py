@@ -139,8 +139,36 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Guru",
         "emoji": "📚",
         "title": "Skill Trainer",
-        "duties": "35+ project skills ko agents ke runtime context + KB me rakhna, naye agent-authored skills curate karna — LLM/team seekhte rahein",
+        "duties": "35+ project skills ko agents ke runtime context + KB me rakhna, naye agent-authored skills curate karna — LLM/team seekhte rahein. Knowledge/Memory steward role bhi (Mem0 hygiene + agent_memory drift detect)",
         "schedule": "Roz (trainer job ke saath, gated SKILL_PACK)",
+    },
+    # ----- F.5: 3 engineer agents (billionaire-audit Section H, KPI-bound) ----- #
+    # Audit verdict: "add a specialized engineer agent only if it creates
+    # measurable operational leverage your current roster does not."
+    # These three pass that bar; everything else folded/deferred.
+    "pranav": {
+        "product": "platform",
+        "name": "Pranav",
+        "emoji": "🔧",
+        "title": "SRE / Reliability",
+        "duties": "DR drills, backup-restore integrity, capacity headroom, SLO/error-budget tracking. KPIs: backup_pass_rate, mttr_seconds, capacity_headroom_pct. Existing Kavya does liveness; Pranav owns SURVIVABILITY on a SPOF VPS.",
+        "schedule": "Har ghante (gated SRE_AGENT) + daily DR-readiness summary",
+    },
+    "vidya": {
+        "product": "platform",
+        "name": "Vidya",
+        "emoji": "💹",
+        "title": "FinOps / Cost",
+        "duties": "Per-tenant unit economics (cost-per-customer once LiteLLM virtual keys live), margin-negative niche flag, LLM spend vs revenue trend. KPI: gross_margin_per_tenant. Existing Nikhil does revenue collection; Vidya defends margin.",
+        "schedule": "Roz (daily margin digest, gated FINOPS_AGENT)",
+    },
+    "arnav": {
+        "product": "platform",
+        "name": "Arnav",
+        "emoji": "🛡️",
+        "title": "Security / Compliance",
+        "duties": "DPDP + TRAI posture, secret-rotation reminders, CVE triage → patch proposal, DSAR handling. KPI: compliance_posture_score. Spreads across pre-commit/Trivy today; Arnav owns it.",
+        "schedule": "Daily (gated SECURITY_AGENT) + on-demand posture report",
     },
 }
 
