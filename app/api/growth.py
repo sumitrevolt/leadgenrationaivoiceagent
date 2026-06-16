@@ -1068,6 +1068,7 @@ AUTOMATION_FLAGS = [
     "NPS_ALERTS", "PAYMENT_RECON", "INDEXNOW", "SALES_TEAM", "SELF_IMPROVE_LOOP", "LEAD_HARVESTER",
     "CALL_TRANSFER", "OUTREACH_AB", "SERVICE_REMINDERS", "LLM_CAPACITY_ALERTS", "KB_PREWARM",
     "SEMANTIC_CACHE",  # semantic LLM response cache (Qdrant+Redis, off-loop) — OFF default, fail-open
+    "AGENT_MEMORY",  # cross-session per-lead/client memory (Qdrant+free LLM, off-loop) — OFF default, fail-open
     "LLM_BUDGET_GUARD",  # per-scope LLM daily cost/usage cap + kill-switch — OFF default, fail-open
     "LLM_BUDGET_HARD_KILL",  # emergency manual stop: ALL LLM block (fail-closed) — OFF default
     "MAGIC_LINK",  # passwordless customer login (single-use email link) — OFF default

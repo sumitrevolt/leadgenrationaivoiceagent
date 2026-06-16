@@ -400,6 +400,28 @@ async def prometheus_metrics():
     except Exception:
         pass
 
+    # Agent memory (gated AGENT_MEMORY) — cross-session lead/client recall usage.
+    # OFF (default) => events mostly 0. Fail-open scrape (semcache jaisa pattern).
+    try:
+        from app.voice_agent import agent_memory as _amem
+
+        ms = await _amem.redis_stats()
+        _looked = int(ms.get("recall_hit", 0)) + int(ms.get("recall_miss", 0))
+        _mrate = (int(ms.get("recall_hit", 0)) / _looked) if _looked else 0.0
+
+        metrics.append("")
+        metrics.append("# HELP leadgen_agent_memory_events_total Agent memory events by kind")
+        metrics.append("# TYPE leadgen_agent_memory_events_total counter")
+        for _mk in ("recall_hit", "recall_miss", "stored", "error", "disabled"):
+            metrics.append(f'leadgen_agent_memory_events_total{{kind="{_mk}"}} {int(ms.get(_mk, 0))}')
+
+        metrics.append("")
+        metrics.append("# HELP leadgen_agent_memory_recall_rate Memory recall hit rate 0-1 (hit/(hit+miss))")
+        metrics.append("# TYPE leadgen_agent_memory_recall_rate gauge")
+        metrics.append(f"leadgen_agent_memory_recall_rate {_mrate:.3f}")
+    except Exception:
+        pass
+
     # LLM budget guard (gated LLM_BUDGET_GUARD) — per-scope cost/usage governance.
     # OFF (default) => enabled=0, counters 0. Fail-open scrape.
     try:

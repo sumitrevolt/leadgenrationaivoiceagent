@@ -141,6 +141,13 @@ class TelecallerBrain:
         self.niche = (niche or "general").strip() or "general"
         self.client_name = (client_name or "Demo Co").strip() or "Demo Co"
         self.client_id = (str(client_id).strip() or None) if client_id else None
+        # Agent memory (cross-session lead recall) subject — None by DEFAULT.
+        # 🔒 SECURITY: client_id ko default subject MAT banao — warna ek client ke
+        # SAARE leads ek hi bucket (lead:<client_id>) share karte => Lead A ka PII
+        # (budget/identity) Lead B ki call me recall+inject ho sakta. Per-lead memory
+        # ke liye call-session set_memory_subject(<lead_id/caller_phone>) bulaaye; jab
+        # tak na bulaaye memory INERT (safe). AGENT_MEMORY flag OFF => waise bhi no-op.
+        self.memory_subject: str | None = None
 
         # Multi-key rotation pool (free-AI resilience): STT + LLM share a Gemini
         # quota PER KEY, so we rotate to the next key on a quota/429 error. The
@@ -209,6 +216,12 @@ class TelecallerBrain:
             f"gemini_keys={self._key_count()} free_ai={self._free_ai_providers or 'none'} "
             f"client_id={self.client_id}"
         )
+
+    def set_memory_subject(self, subject_id: str | None) -> None:
+        """Call-session per-lead memory subject set kare (e.g. lead_id / phone).
+        AGENT_MEMORY flag OFF ho to iska koi asar nahi (recall/remember no-op)."""
+        if subject_id:
+            self.memory_subject = str(subject_id).strip() or self.memory_subject
 
     # ------------------------------------------------------------------ #
     # Niche data (pitch_hook + qualification_questions from app.niches)
@@ -390,6 +403,30 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
         try:
             ut = (user_text or "").strip()
             facts = await self._kb_facts(ut)
+            # Agent memory (cross-session lead recall) — flag-gated, off-loop+deadline
+            # (recall khud bounded). OFF (AGENT_MEMORY unset) => instant []. Never blocks.
+            try:
+                if self.memory_subject:
+                    from app.voice_agent import agent_memory
+
+                    if agent_memory.is_enabled():
+                        # OUTER hot-path deadline (embed+search sub-timeouts sum ~3.5s;
+                        # _kb_facts/_generate jaisa ek hard cap rakho — dead-air na ho).
+                        _mem = await asyncio.wait_for(
+                            agent_memory.recall(self.memory_subject, ut, scope="lead"), timeout=2.0
+                        )
+                        if _mem:
+                            facts = list(facts or []) + _mem
+                        # write-hook: durable facts background me store (fire-and-forget,
+                        # non-blocking). Sirf substantive user turns pe (chhote ack skip).
+                        if len(ut) >= 15:
+                            _hist = list(history or []) + [{"role": "user", "content": ut}]
+                            _t = asyncio.create_task(
+                                agent_memory.remember(self.memory_subject, _hist, scope="lead")
+                            )
+                            _t.add_done_callback(lambda t: t.cancelled() or t.exception())
+            except Exception:
+                pass
             prompt = self._build_prompt(history, ut, facts)
 
             # HARD LATENCY CAP — _generate (free_llm + gemini fallback) ko ek overall

@@ -19,11 +19,18 @@ DESIGN (prod-rules ke hisaab se):
   * interface STABLE-> llm_span()/observe_llm() signature same (free_ai/structured
                        ke call-sites unchanged).
 
+DO SINKS (independent — ek, dono, ya koi nahi):
+  1. Langfuse REST  (ENABLE_LLM_OBS=1 + LANGFUSE keys) — cloud free-tier, zero VPS load.
+  2. OTel -> Tempo  (ENABLE_OTEL=1 + opentelemetry installed) — maujooda Grafana/Tempo
+     stack reuse, protobuf-SAFE (sirf otel-API import; OTLP exporter boot pe alag).
+
 ENV:
   ENABLE_LLM_OBS=1
   LANGFUSE_PUBLIC_KEY=pk-lf-...
   LANGFUSE_SECRET_KEY=sk-lf-...     (secret — sirf .env me)
   LANGFUSE_BASE_URL=https://us.cloud.langfuse.com   (default; EU/JP/HIPAA alag)
+  ENABLE_OTEL=1                      (+ pip install -r requirements-otel.txt) -> Tempo
+  OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
 """
 from __future__ import annotations
 
@@ -204,29 +211,104 @@ class _NoopSpan:
         pass
 
 
+# --------------------------------------------------------------------------- #
+# OTel sink (-> Tempo). Langfuse se SWATANTRA (independent). KYUN alag: image ka
+# protobuf==4.25.9 PINNED hai (Gemini/Qdrant/fastembed). Yahan hum sirf
+# opentelemetry-api (PURE-PYTHON, protobuf-free) lazy-import karte — asli OTLP gRPC
+# exporter (protobuf) sirf app boot pe `observability_otel.setup_otel()` me load
+# hota (requirements-otel.txt; otel 1.27 = protobuf-4 safe). OTel installed na ho ya
+# ENABLE_OTEL unset = 100% no-op. Har LLM call ek `llm.<op>` span (gen_ai.* attrs)
+# banata jo maujooda request-trace (FastAPIInstrumentor) ka child ban ke Tempo me
+# jaata — Grafana me ab provider/model/tokens/latency dikhte. NEVER-RAISE.
+# --------------------------------------------------------------------------- #
+def _otel_enabled() -> bool:
+    if _env("ENABLE_OTEL").lower() not in _TRUE:
+        return False
+    try:
+        import opentelemetry.trace  # noqa: F401  (pure-python API; no protobuf)
+
+        return True
+    except Exception:
+        return False
+
+
+def _otel_start(operation: str, model: Any, provider: Any) -> Any:
+    """LLM OTel span start karo (current request-context ka child). None on failure."""
+    try:
+        from opentelemetry import trace
+
+        sp = trace.get_tracer("app.llm").start_span(f"llm.{operation}")
+        try:
+            sp.set_attribute("gen_ai.operation.name", operation)
+            if provider:
+                sp.set_attribute("gen_ai.system", str(provider))
+            if model:
+                sp.set_attribute("gen_ai.request.model", str(model))
+        except Exception:
+            pass
+        return sp
+    except Exception:
+        return None
+
+
+def _otel_finish(sp: Any, span: "_Span", ok: bool) -> None:
+    """Span ko recorded tokens/latency/ok ke saath close karo. Never-raise."""
+    if sp is None:
+        return
+    try:
+        from opentelemetry.trace import Status, StatusCode
+
+        if span._pt is not None:
+            sp.set_attribute("gen_ai.usage.input_tokens", int(span._pt))
+        if span._ct is not None:
+            sp.set_attribute("gen_ai.usage.output_tokens", int(span._ct))
+        if span._latency is not None:
+            sp.set_attribute("gen_ai.latency_ms", float(span._latency))
+        final_ok = span._ok if span._ok is not None else ok
+        sp.set_attribute("gen_ai.ok", bool(final_ok))
+        sp.set_status(Status(StatusCode.OK if final_ok else StatusCode.ERROR))
+    except Exception:
+        pass
+    finally:
+        try:
+            sp.end()
+        except Exception:
+            pass
+
+
 @contextmanager
 def llm_span(operation: str, *, model: Optional[str] = None,
              provider: Optional[str] = None, **attrs: Any) -> Iterator[Any]:
-    """LLM call ke around. Disabled/keys-absent -> no-op span. User-code exception
-    NORMALLY propagate hota (suppress nahi); span ERROR mark + flush hota."""
-    if not _enabled():
+    """LLM call ke around. DO independent sinks:
+      * Langfuse REST  -> _enabled()       (ENABLE_LLM_OBS + LANGFUSE_*_KEY)
+      * OTel -> Tempo  -> _otel_enabled()  (ENABLE_OTEL + opentelemetry installed)
+    Dono OFF = no-op span. User-code exception NORMALLY propagate hota (suppress
+    nahi); span ERROR mark + flush/close hota. interface unchanged (call-sites same)."""
+    lf_on = _enabled()
+    ot_on = _otel_enabled()
+    if not (lf_on or ot_on):
         yield _NoopSpan()
         return
     span = _Span(operation, model, provider, attrs)
+    otsp = _otel_start(operation, model, provider) if ot_on else None
     try:
         yield span
     except BaseException:
         try:
             span.error()
-            span._flush()
+            if lf_on:
+                span._flush()
         except Exception:
             pass
+        _otel_finish(otsp, span, ok=False)
         raise
     else:
         try:
-            span._flush()
+            if lf_on:
+                span._flush()
         except Exception:
             pass
+        _otel_finish(otsp, span, ok=True)
 
 
 def observe_llm(operation: str = "chat", *, model: Optional[str] = None,

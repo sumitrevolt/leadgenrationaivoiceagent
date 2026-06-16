@@ -61,3 +61,44 @@ jobs:
           name: promptfoo-results
           path: evals/results.json
           retention-days: 30
+
+  deepeval:
+    name: deepeval RAG quality (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if no eval tests
+        id: cfg
+        run: |
+          if [ -f evals/test_rag_quality.py ]; then echo "have=1" >> "$GITHUB_OUTPUT";
+          else echo "have=0" >> "$GITHUB_OUTPUT"; echo "no evals/test_rag_quality.py — skipping"; fi
+
+      - uses: actions/setup-python@v5
+        if: steps.cfg.outputs.have == '1'
+        with:
+          python-version: "3.12"
+
+      - name: Install deepeval (isolated — prod deps se alag, conflict-safe)
+        if: steps.cfg.outputs.have == '1'
+        run: pip install "deepeval>=1.4,<4" "openai>=1.0" "pytest>=7.4"
+
+      - name: Run DeepEval RAG quality (advisory, never fails build)
+        if: steps.cfg.outputs.have == '1'
+        continue-on-error: true
+        env:
+          # FREE judge — wahi key jo promptfoo use karta (Cerebras OpenAI-compatible).
+          # Secret na ho to judge-gated tests SKIP honge (deterministic guards phir bhi chalte).
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+        run: |
+          python -m pytest evals/test_rag_quality.py -q \
+            --junitxml=evals/deepeval-results.xml || true
+
+      - name: Upload DeepEval results
+        if: always() && steps.cfg.outputs.have == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepeval-results
+          path: evals/deepeval-results.xml
+          retention-days: 30
