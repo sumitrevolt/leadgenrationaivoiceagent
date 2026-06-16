@@ -31,6 +31,78 @@ async def meta() -> dict[str, Any]:
     return {
         "enabled": cw.enabled(),
         "supported_events": list(cw.SUPPORTED_EVENTS),
+        "verifier_doc": "/api/customer/webhooks/_verifier-examples",
+    }
+
+
+_VERIFIER_PY = '''# Python — verify a LeadsGenAI webhook (Flask/FastAPI/Django)
+import hmac, hashlib
+
+WEBHOOK_SECRET = b"whsec_xxxxxxxx"   # value shown ONCE at registration
+
+def verify(body: bytes, signature_header: str) -> bool:
+    """signature_header is the literal value of X-LeadGen-Signature, e.g.
+    'sha256=ab12cd34...'. body is the raw HTTP body bytes (NOT json.loads'd)."""
+    if not signature_header.startswith("sha256="):
+        return False
+    expected = hmac.new(WEBHOOK_SECRET, body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(signature_header[7:], expected)
+
+# Flask:
+# @app.post("/hook")
+# def hook():
+#     if not verify(request.get_data(), request.headers.get("X-LeadGen-Signature", "")):
+#         return ("bad signature", 401)
+#     payload = request.get_json()
+#     ...
+'''
+
+_VERIFIER_NODE = '''// Node.js (Express) — verify a LeadsGenAI webhook
+const crypto = require("crypto");
+const WEBHOOK_SECRET = "whsec_xxxxxxxx";   // value shown ONCE at registration
+
+function verify(rawBody, signatureHeader) {
+  if (!signatureHeader || !signatureHeader.startsWith("sha256=")) return false;
+  const expected = crypto.createHmac("sha256", WEBHOOK_SECRET)
+                         .update(rawBody)
+                         .digest("hex");
+  // constant-time compare
+  return crypto.timingSafeEqual(
+    Buffer.from(signatureHeader.slice(7), "hex"),
+    Buffer.from(expected, "hex"),
+  );
+}
+
+// app.post("/hook", express.raw({type: "application/json"}), (req, res) => {
+//   if (!verify(req.body, req.headers["x-leadgen-signature"])) {
+//     return res.status(401).send("bad signature");
+//   }
+//   const payload = JSON.parse(req.body.toString());
+//   ...
+// });
+'''
+
+
+@router.get("/_verifier-examples")
+async def verifier_examples() -> dict[str, Any]:
+    """Public — drop-in HMAC verifier code for Python + Node. Customer SDK
+    builders read this to integrate without reverse-engineering our headers."""
+    return {
+        "scheme": "HMAC-SHA256",
+        "headers": {
+            "signature": "X-LeadGen-Signature  (format: sha256=<hex>)",
+            "event": "X-LeadGen-Event  (e.g. lead.qualified, call.completed)",
+            "delivery": "X-LeadGen-Delivery  (unique per attempt — use for idempotency)",
+        },
+        "important": [
+            "Sign the RAW body bytes — not the json.loads'd payload.",
+            "Use constant-time compare (hmac.compare_digest / crypto.timingSafeEqual).",
+            "Be idempotent — respond 200 even if you already processed the X-LeadGen-Delivery ID.",
+            "Respond within 10s — we treat anything else as a failure and retry.",
+            "Reject signatures older than your tolerance window (LeadGenAI does not currently send a timestamp; use delivery ID dedup).",
+        ],
+        "python_example": _VERIFIER_PY,
+        "node_example": _VERIFIER_NODE,
     }
 
 

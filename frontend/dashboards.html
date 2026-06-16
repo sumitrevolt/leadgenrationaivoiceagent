@@ -262,14 +262,29 @@ async function loadMCP(){
   const usage = (d.usage||{}).keys||[];
   if(!usage.length) html += '<div class="empty">No keys issued yet. POST /api/admin/mcp-keys to create one.</div>';
   else{
-    for(const u of usage.slice(0,5)){
+    for(const u of usage.slice(0,8)){
       const pct = u.daily_limit?(100*u.calls_today/u.daily_limit):0;
       const klass = pct>=90?"bad":(pct>=60?"warn":"ok");
-      html += `<div class="row"><span>${esc(u.label||u.id)}</span><span>${u.calls_today}/${u.daily_limit}</span></div>
-        <div class="bar ${klass==="bad"?"bad":(klass==="warn"?"warn":"")}"><div style="width:${Math.min(100,pct)}%"></div></div>`;
+      const en = u.enabled !== false;
+      html += `<div class="row">
+        <span>${esc(u.label||u.id)} ${en?"":'<span class="pill bad" style="margin-left:6px">revoked</span>'}</span>
+        <span>${u.calls_today}/${u.daily_limit}
+          ${en?`<button onclick="revokeMcpKey('${esc(u.id)}','${esc(u.label||u.id)}')" style="margin-left:6px;background:transparent;border:1px solid var(--bad);color:var(--bad);padding:1px 6px;border-radius:4px;cursor:pointer;font-size:.7rem">revoke</button>`:""}
+        </span></div>
+        ${en?`<div class="bar ${klass==="bad"?"bad":(klass==="warn"?"warn":"")}"><div style="width:${Math.min(100,pct)}%"></div></div>`:""}`;
     }
   }
   body.innerHTML = html;
+}
+
+async function revokeMcpKey(id, label){
+  if(!confirm("Revoke MCP key '"+label+"'? This cannot be undone — the customer using this key will start getting 401s immediately.")) return;
+  try{
+    const r = await fetch("/api/admin/mcp-keys/"+encodeURIComponent(id), {method:"DELETE", headers: authHdr()});
+    if(r.status===401||r.status===403){ alert("Auth required."); return; }
+    if(!r.ok){ const d=await r.json(); alert("Revoke failed: "+(d.detail||r.status)); return; }
+    loadMCP();
+  }catch(e){ alert("Error: "+e.message); }
 }
 
 // ---------- H.4: DR + LiteLLM ----------

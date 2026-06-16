@@ -352,6 +352,31 @@
         </div>
       </div>
 
+      <!-- ===== 8) Customer Webhooks (J.1 — H.1 UI) ===== -->
+      <div class="sec-title">📡 Webhooks (Programmable Events)</div>
+      <div class="card" id="webhookCard" style="margin-bottom:18px">
+        <div class="card-h">
+          <h2>Your event subscriptions</h2>
+          <span class="pill" id="whFlagPill">Loading…</span>
+        </div>
+        <div class="card-b">
+          <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
+            Apne CRM / automation tool ko bata sakte ho jab koi lead qualify ho, payment aaye, ya call complete ho — automatic POST + HMAC-SHA256 signature.
+          </p>
+          <div id="whList" style="margin-bottom:14px"></div>
+          <div style="background:var(--bg);padding:12px;border-radius:8px;border:1px dashed var(--line)">
+            <div style="font-weight:700;margin-bottom:8px;font-size:13px">+ Register a new webhook</div>
+            <input id="whUrl" placeholder="https://your-crm.example.com/hook" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:6px;margin-bottom:8px">
+            <div id="whEvents" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;font-size:12px">
+              <!-- event-type checkboxes filled by JS -->
+            </div>
+            <input id="whDesc" placeholder="Description (optional)" maxlength="120" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:6px;margin-bottom:8px;font-size:12px">
+            <button class="btn" onclick="whRegister()" style="background:var(--accent);color:#fff">+ Register</button>
+            <div id="whRegOut" style="margin-top:10px;font-size:12px"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== 7) Security (2FA — H.2) ===== -->
       <div class="sec-title">🔒 Surakhsha (Security)</div>
       <div class="card" id="secCard" style="margin-bottom:18px">
@@ -690,6 +715,104 @@ async function resolveClientId(){
   return localStorage.getItem("lgai_cid") || qparam("client_id") || "demo";
 }
 
+/* ====== J.1: customer-side webhook management (H.1 UI) ====== */
+async function whLoad(){
+  const list = document.getElementById("whList");
+  const evtBox = document.getElementById("whEvents");
+  const pill = document.getElementById("whFlagPill");
+  try{
+    const meta = await fetch("/api/customer/webhooks/_meta").then(r=>r.json());
+    pill.textContent = meta.enabled ? "LIVE" : "OFF";
+    pill.style.background = meta.enabled ? "rgba(16,185,129,.18)" : "rgba(100,116,139,.18)";
+    pill.style.color = meta.enabled ? "#10b981" : "#64748b";
+    if(!evtBox.dataset.built){
+      evtBox.innerHTML = (meta.supported_events||[]).map(e =>
+        `<label style="display:inline-flex;align-items:center;gap:4px;background:#fff;padding:4px 8px;border:1px solid var(--line);border-radius:6px"><input type="checkbox" value="${escH(e)}" ${e.indexOf("lead")===0?"checked":""}> ${escH(e)}</label>`
+      ).join("");
+      evtBox.dataset.built = "1";
+    }
+
+    const r = await fetch("/api/customer/webhooks", {headers: billAuthHdr()});
+    if(r.status===401||r.status===403){ list.innerHTML='<div style="color:var(--bad);font-size:12px">Login required</div>'; return; }
+    const d = await r.json();
+    if(!d.webhooks || !d.webhooks.length){ list.innerHTML='<div style="color:var(--muted);font-size:12px;font-style:italic">No webhooks yet — register one below.</div>'; return; }
+    list.innerHTML = d.webhooks.map(w => `
+      <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;font-size:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <div style="font-weight:700;font-family:monospace">${escH(w.url)}</div>
+          <div>
+            <button class="btn" onclick="whTest('${escH(w.id)}')" style="padding:4px 10px;font-size:11px">Test</button>
+            <button class="btn" onclick="whShowDeliveries('${escH(w.id)}')" style="padding:4px 10px;font-size:11px">Deliveries</button>
+            <button class="btn" onclick="whDelete('${escH(w.id)}')" style="background:var(--bad);color:#fff;padding:4px 10px;font-size:11px">✕</button>
+          </div>
+        </div>
+        <div style="color:var(--muted);font-size:11px">${(w.events||[]).join(", ")} · secret <code>${escH(w.secret_preview||"***")}</code></div>
+        ${w.description ? `<div style="color:var(--muted);font-size:11px;margin-top:3px">${escH(w.description)}</div>` : ""}
+        <div id="whDeliv_${escH(w.id)}" style="display:none;margin-top:8px;background:var(--bg);padding:8px;border-radius:6px;font-family:monospace;font-size:11px;max-height:200px;overflow:auto"></div>
+      </div>
+    `).join("");
+  }catch(e){ list.innerHTML='<div style="color:var(--bad);font-size:12px">'+escH(String(e))+'</div>'; }
+}
+async function whRegister(){
+  const url = (document.getElementById("whUrl").value || "").trim();
+  const desc = (document.getElementById("whDesc").value || "").trim();
+  const events = Array.from(document.querySelectorAll("#whEvents input:checked")).map(c => c.value);
+  const out = document.getElementById("whRegOut");
+  if(!url){ out.innerHTML='<span style="color:var(--bad)">URL required</span>'; return; }
+  if(!events.length){ out.innerHTML='<span style="color:var(--bad)">Select at least one event</span>'; return; }
+  out.innerHTML='<span style="color:var(--muted)">Registering…</span>';
+  try{
+    const r = await fetch("/api/customer/webhooks", {
+      method:"POST",
+      headers:{...billAuthHdr(), "Content-Type":"application/json"},
+      body: JSON.stringify({url, events, description: desc}),
+    });
+    const d = await r.json();
+    if(!r.ok){ out.innerHTML='<span style="color:var(--bad)">'+escH(d.detail||d.error||"failed")+'</span>'; return; }
+    out.innerHTML = `<div style="background:#fff;border:1px dashed var(--ok);padding:10px;border-radius:6px">
+      <div style="color:var(--ok);font-weight:700">✓ Registered. Save the SECRET (shown only once):</div>
+      <div style="font-family:monospace;background:var(--bg);padding:6px;margin-top:6px;border-radius:4px;word-break:break-all">${escH(d.secret)}</div>
+      <button onclick="navigator.clipboard.writeText('${escH(d.secret)}');this.textContent='✓ copied'" class="btn" style="margin-top:6px;background:var(--accent);color:#fff;padding:4px 10px;font-size:11px">Copy secret</button>
+    </div>`;
+    document.getElementById("whUrl").value = "";
+    document.getElementById("whDesc").value = "";
+    whLoad();
+  }catch(e){ out.innerHTML='<span style="color:var(--bad)">'+escH(String(e))+'</span>'; }
+}
+async function whDelete(id){
+  if(!confirm("Delete this webhook?")) return;
+  try{
+    const r = await fetch("/api/customer/webhooks/"+encodeURIComponent(id), {method:"DELETE", headers: billAuthHdr()});
+    if(!r.ok){ alert("Delete failed"); return; }
+    whLoad();
+  }catch(e){ alert("Error: "+e.message); }
+}
+async function whTest(id){
+  try{
+    const r = await fetch("/api/customer/webhooks/"+encodeURIComponent(id)+"/test", {method:"POST", headers: billAuthHdr()});
+    const d = await r.json();
+    alert(d.delivered ? ("✓ Test delivered ("+d.status+")") : ("✗ Test failed: status="+(d.status||"n/a")+" error="+(d.error||"unknown")));
+  }catch(e){ alert("Error: "+e.message); }
+}
+async function whShowDeliveries(id){
+  const box = document.getElementById("whDeliv_"+id);
+  if(!box) return;
+  if(box.style.display === "block"){ box.style.display = "none"; return; }
+  box.style.display = "block";
+  box.innerHTML = "Loading…";
+  try{
+    const r = await fetch("/api/customer/webhooks/"+encodeURIComponent(id)+"/deliveries?limit=20", {headers: billAuthHdr()});
+    const d = await r.json();
+    if(!d.deliveries || !d.deliveries.length){ box.innerHTML="No deliveries yet."; return; }
+    box.innerHTML = d.deliveries.slice().reverse().map(x => {
+      const ok = x.delivered ? "✓" : "✗";
+      const colour = x.delivered ? "var(--ok)" : "var(--bad)";
+      const when = x.at ? new Date(x.at*1000).toLocaleString("en-IN") : "—";
+      return `<div style="color:${colour}">${ok} ${escH(x.event_type)} · ${when} · ${x.attempts}x · status=${x.last_status||"-"}</div>`;
+    }).join("");
+  }catch(e){ box.innerHTML="Error: "+escH(String(e)); }
+}
+
 /* ====== H.2: customer-side 2FA (TOTP) ====== */
 let SEC_ENROLL = null; // {secret, otpauth_uri, recovery_codes} during enroll flow
 async function sec2faLoad(){
@@ -904,6 +1027,7 @@ async function billingAction(action){
 loadBilling();
 loadContent();
 sec2faLoad();
+whLoad();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>

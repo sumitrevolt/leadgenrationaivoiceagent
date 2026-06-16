@@ -71,7 +71,11 @@ def resolve_client_id(client_name: str) -> str:
 def record_call_usage(
     client_id: str, duration_seconds: int, campaign_id: str | None = None, client_name: str = ""
 ) -> bool:
-    """Post-call hook: write a TELEPHONY ledger line for this call's minutes. Best-effort."""
+    """Post-call hook: write a TELEPHONY ledger line for this call's minutes. Best-effort.
+
+    J.4: Also fans out a `call.completed` event to customer-registered webhooks
+    (H.1). INERT when CUSTOMER_WEBHOOKS unset; NEVER blocks the billing path.
+    """
     try:
         cid = (client_id or "").strip() or resolve_client_id(client_name)
         if not cid:
@@ -100,6 +104,33 @@ def record_call_usage(
                 )
             )
             db.commit()
+
+        # J.4 customer-webhook fan-out — fire-and-forget; never raises.
+        try:
+            import asyncio as _asyncio
+
+            from app.platform import customer_webhooks as _cw
+
+            payload = {
+                "client_id": cid,
+                "duration_seconds": int(duration_seconds or 0),
+                "minutes_billed": minutes,
+                "campaign_id": campaign_id,
+                "cost_paise": minutes * _COST_PAISE_PER_MIN,
+                "currency": "INR",
+                "completed_at": now.isoformat(),
+            }
+            try:
+                _loop = _asyncio.get_running_loop()
+                _loop.create_task(_cw.emit(cid, "call.completed", payload))
+            except RuntimeError:
+                try:
+                    _asyncio.run(_cw.emit(cid, "call.completed", payload))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         return True
     except Exception as e:
         logger.debug("record_call_usage skipped: %s", e)
