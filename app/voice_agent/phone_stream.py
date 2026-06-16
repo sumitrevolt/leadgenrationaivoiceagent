@@ -238,6 +238,9 @@ class PhoneCallSession:
         self.niche = niche or "general"
         self.client_name = client_name or "LeadGen AI"
         self.client_id = client_id  # optional — drop-in compat with /stream WS endpoint
+        # Stable per-LEAD id for cross-session agent memory (caller phone / lead_id).
+        # customParameters se aata (_handle_start). None = memory INERT (safe, no leak).
+        self._lead_phone: str | None = None
 
         # Stream identity (Vobiz 'start' se aata hai)
         self.stream_sid: str | None = None
@@ -367,6 +370,16 @@ class PhoneCallSession:
                 self.niche = str(params["niche"])
             if params.get("client_name"):
                 self.client_name = str(params["client_name"])
+            if params.get("client_id"):
+                self.client_id = str(params["client_id"])
+            # Optional stable lead id for agent memory (outbound dialer passes the
+            # lead; inbound carries 'from'). Pure read — memory is flag-gated, so
+            # zero behaviour change jab tak AGENT_MEMORY=1 na ho.
+            for _k in ("lead_phone", "lead_id", "from", "From", "caller", "customer_phone"):
+                _v = params.get(_k)
+                if _v:
+                    self._lead_phone = str(_v).strip()
+                    break
 
         logger.info(
             "phone_stream: start streamSid=%s callSid=%s niche=%s",
@@ -611,6 +624,17 @@ class PhoneCallSession:
             self._telecaller = TelecallerBrain(
                 niche=self.niche, client_name=self.client_name, client_id=self.client_id
             )
+            # Agent memory (AGENT_MEMORY flag): per-(client+lead) subject so brain.reply()
+            # ka recall/remember cross-session fire kare. STABLE lead id chahiye —
+            # call_sid NAHI (har call naya = kabhi recall nahi). Lead id na ho to subject
+            # set hi nahi hota => memory inert (cross-lead PII leak impossible).
+            try:
+                from app.voice_agent import agent_memory
+
+                if agent_memory.is_enabled() and self._lead_phone:
+                    self._telecaller.set_memory_subject(f"{self.client_id or 'na'}:{self._lead_phone}")
+            except Exception:
+                pass
         except Exception as e:
             logger.warning("phone_stream: TelecallerBrain unavailable (%s)", e)
             self._telecaller = None

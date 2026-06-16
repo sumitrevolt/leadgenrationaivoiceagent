@@ -133,6 +133,7 @@ recordings/
 credentials/
 *.json
 !package.json
+!.mcp.json
 
 # Test database
 test.db

@@ -46,3 +46,30 @@ graphify install --platform claude
 - **Free-stack:** AST extraction LLM-free. LLM sirf optional semantic-edge/labeling pe — wahan **local Ollama** use karo (zero cost, code local).
 - **Artifacts gitignored** (`graphify-out/`, `app/graphify-out/`) — regenerable, large (graph.json ~9MB). Repo me commit nahi hote, prod image me bake nahi hote (`.dockerignore`).
 - Graph staleness: report me "Built from commit" likha hota — `git rev-parse HEAD` se compare karke `graphify update app` re-run karo.
+
+---
+
+## Refresh automation + MCP wiring (added 2026-06-16)
+
+### 1. Staleness-aware refresh (one command, FREE)
+`graphify update app` ko manually yaad rakhne ki zaroorat nahi — script khud GRAPH_REPORT.md ka "Built from commit" vs `git HEAD` compare karke sirf stale hone par rebuild karta (incremental, AST-only, token cost 0).
+```
+scripts\graphify_refresh.bat          # Windows (dev) — auto: rebuild only if stale
+scripts\graphify_refresh.bat --force  # always rebuild
+bash scripts/graphify_refresh.sh      # git-bash / WSL / VPS
+```
+> **Abhi STALE hai:** graph `9b244493` se bana, HEAD aage hai → ek baar `scripts\graphify_refresh.bat` chala lo.
+
+Chaho to commit pe auto-refresh: `.pre-commit-config.yaml` me ek local hook add kar sakte ho (par har commit thoda slow hoga — manual/script recommended).
+
+### 2. graphify-mcp → Claude Code (agents seedha graph query karein)
+`.mcp.json` (repo root) ab `graphify` MCP server register karta — Claude Code / Cowork restart pe AI ko structured graph-tools milte (`query`/`explain`/`affected`/`path`) bina har baar CLI chalaye. **Yahi asli leverage hai** (grep/file-by-file ki jagah structured codebase query).
+
+**One-time setup:**
+```
+uv tool install graphifyy     # graphify + graphify-mcp PATH pe (agar pehle se nahi)
+# .mcp.json already wired -> Claude Code RESTART karo (project MCP servers reload)
+```
+- MCP server stdio hai, `app/graphify-out/graph.json` (project root se) auto-find karta. Pehle `graphify_refresh.bat` chala ke graph fresh rakho — MCP usi file ko serve karta.
+- **Agar Claude Code graph na dhoonde:** `.mcp.json` me args add karo `["--graph","app/graphify-out/graph.json"]`; ya command ko `where graphify-mcp` ke full path se replace karo (Windows PATH issue).
+- `.mcp.json` commit karna safe hai (koi secret nahi) — team ko bhi same MCP milta.

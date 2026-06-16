@@ -497,6 +497,9 @@ class VobizStreamSession:
         self.niche = (niche or "general").strip() or "general"
         self.client_id = client_id
         self.client_name = client_name or "Demo Co"
+        # Stable per-LEAD id for cross-session agent memory (customParameters se).
+        # None = memory INERT (safe). call_sid use NAHI karte (har call naya).
+        self._lead_phone: str | None = None
         self.voice = voice
 
         self.stream_sid: str | None = None
@@ -638,6 +641,11 @@ class VobizStreamSession:
             params = start.get("customParameters") or {}
             self.niche = (params.get("niche") or self.niche).strip() or "general"
             self.client_id = params.get("client_id") or self.client_id
+            # Optional stable lead id for agent memory (flag-gated; pure read).
+            for _k in ("lead_phone", "lead_id", "from", "From", "caller", "customer_phone"):
+                if params.get(_k):
+                    self._lead_phone = str(params[_k]).strip()
+                    break
             logger.info(f"[vobiz-stream] start streamId={self.stream_sid} niche={self.niche}")
             await self._maybe_greet()
         elif event == "dtmf":
@@ -991,6 +999,15 @@ class VobizStreamSession:
                 client_name=self.client_name,
                 client_id=self.client_id,
             )
+            # Agent memory (AGENT_MEMORY flag): per-(client+lead) subject -> cross-session
+            # recall/remember in brain.reply(). Stable lead id na ho to inert (no leak).
+            try:
+                from app.voice_agent import agent_memory
+
+                if agent_memory.is_enabled() and self._lead_phone:
+                    self._telecaller.set_memory_subject(f"{self.client_id or 'na'}:{self._lead_phone}")
+            except Exception:
+                pass
         except Exception as e:
             logger.warning(f"[vobiz-stream] TelecallerBrain unavailable: {e}")
             self._telecaller = None
