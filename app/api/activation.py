@@ -207,7 +207,174 @@ def _cloudflare_tunnel() -> dict[str, Any]:
     }
 
 
-_PROBES = (_razorpay, _sentry, _posthog, _turnstile, _cloudflare_tunnel)
+def _agent_memory() -> dict[str, Any]:
+    """Voice agent cross-session lead recall (F.4)."""
+    on = _set("AGENT_MEMORY")
+    return {
+        "key": "agent_memory",
+        "label": "Voice agent cross-session memory (F.4)",
+        "category": "ai",
+        "status": _OK if on else _NEUTRAL,
+        "env_vars": ["AGENT_MEMORY"],
+        "checks": {"enabled": on},
+        "action": "Set AGENT_MEMORY=1 for cross-session lead recall (Qdrant)" if not on else "",
+        "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#23",
+    }
+
+
+def _eval_gate() -> dict[str, Any]:
+    """DeepEval close-the-loop reward signal (F.3)."""
+    on = _set("EVAL_GATE")
+    hard = _set("EVAL_GATE_HARD")
+    return {
+        "key": "eval_gate",
+        "label": "Eval-gate self_improve reward signal (F.3)",
+        "category": "ai",
+        "status": _OK if on else _NEUTRAL,
+        "env_vars": ["EVAL_GATE", "EVAL_GATE_HARD"],
+        "checks": {"recording": on, "hard_blocking": hard},
+        "action": (
+            "Set EVAL_GATE=1 to start recording (observe-only); after baseline trusted, EVAL_GATE_HARD=1 to block regressions"
+            if not on
+            else "Once 20+ samples per metric, flip EVAL_GATE_HARD=1 to enforce" if not hard else ""
+        ),
+        "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#24",
+    }
+
+
+def _engineer_agents() -> dict[str, Any]:
+    """3 engineer agents (F.5) — Pranav SRE, Vidya FinOps, Arnav Security."""
+    sre = _set("SRE_AGENT")
+    fin = _set("FINOPS_AGENT")
+    sec = _set("SECURITY_AGENT")
+    on_count = sum([sre, fin, sec])
+    status = _OK if on_count == 3 else (_WARN if on_count else _NEUTRAL)
+    missing = []
+    if not sre: missing.append("SRE_AGENT")
+    if not fin: missing.append("FINOPS_AGENT")
+    if not sec: missing.append("SECURITY_AGENT")
+    return {
+        "key": "engineer_agents",
+        "label": "Engineer agents Pranav/Vidya/Arnav (F.5)",
+        "category": "ai",
+        "status": status,
+        "env_vars": ["SRE_AGENT", "FINOPS_AGENT", "SECURITY_AGENT"],
+        "checks": {"sre": sre, "finops": fin, "security": sec, "on_count": on_count},
+        "action": (
+            f"Set {', '.join(missing)}=1 to wake the remaining engineer agent(s)"
+            if missing else ""
+        ),
+        "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#31",
+    }
+
+
+def _ops_alerts() -> dict[str, Any]:
+    """ntfy fan-out for engineer-score / eval-reject / readiness digest (G.1)."""
+    on = _set("OPS_ALERTS")
+    ntfy_url = _set("NTFY_URL")
+    ntfy_topic = _set("NTFY_TOPIC")
+    fully_armed = on and ntfy_url and ntfy_topic
+    status = _OK if fully_armed else (_WARN if on else _NEUTRAL)
+    return {
+        "key": "ops_alerts",
+        "label": "ops_alerts ntfy fan-out (G.1)",
+        "category": "visibility",
+        "status": status,
+        "env_vars": ["OPS_ALERTS", "NTFY_URL", "NTFY_TOPIC"],
+        "checks": {"master": on, "ntfy_url_set": ntfy_url, "ntfy_topic_set": ntfy_topic},
+        "action": (
+            "Set OPS_ALERTS=1 + NTFY_URL + NTFY_TOPIC to wake low-score / regression alerts"
+            if not fully_armed and not on
+            else "OPS_ALERTS on but NTFY_URL/NTFY_TOPIC missing — pushes will no-op"
+            if on and not fully_armed
+            else ""
+        ),
+        "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#32",
+    }
+
+
+def _customer_webhooks() -> dict[str, Any]:
+    """Customer-facing webhooks (H.1 + J.1 UI)."""
+    on = _set("CUSTOMER_WEBHOOKS")
+    return {
+        "key": "customer_webhooks",
+        "label": "Customer-facing webhooks (H.1)",
+        "category": "revenue",
+        "status": _OK if on else _NEUTRAL,
+        "env_vars": ["CUSTOMER_WEBHOOKS"],
+        "checks": {"enabled": on},
+        "action": "Set CUSTOMER_WEBHOOKS=1 to arm event fan-out to customer URLs" if not on else "",
+        "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#41",
+    }
+
+
+def _mcp_product() -> dict[str, Any]:
+    """MCP-as-product metered surface (H.3)."""
+    on = _set("MCP_PRODUCT")
+    return {
+        "key": "mcp_product",
+        "label": "MCP-as-product programmatic surface (H.3)",
+        "category": "revenue",
+        "status": _OK if on else _NEUTRAL,
+        "env_vars": ["MCP_PRODUCT"],
+        "checks": {"enabled": on},
+        "action": "Set MCP_PRODUCT=1 + issue keys via /app/dashboards to enable revenue surface" if not on else "",
+        "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#43",
+    }
+
+
+def _litellm_costs() -> dict[str, Any]:
+    """LiteLLM per-tenant cost rollup (H.4 + I.1)."""
+    on = _set("LITELLM_COSTS")
+    master = _set("LITELLM_MASTER_KEY")
+    gateway = _set("LITELLM_GATEWAY_URL")
+    fully_armed = on and master and gateway
+    status = _OK if fully_armed else (_WARN if on else _NEUTRAL)
+    return {
+        "key": "litellm_costs",
+        "label": "LiteLLM per-tenant cost (H.4)",
+        "category": "margin",
+        "status": status,
+        "env_vars": ["LITELLM_COSTS", "LITELLM_MASTER_KEY", "LITELLM_GATEWAY_URL"],
+        "checks": {"flag": on, "master_key": master, "gateway_url": gateway},
+        "action": (
+            "Set LITELLM_COSTS=1 + LITELLM_MASTER_KEY + LITELLM_GATEWAY_URL (after docker compose -f docker-compose.edge.yml --profile gateway up)"
+            if not fully_armed and not on
+            else "LITELLM_COSTS on but MASTER_KEY or GATEWAY_URL missing — Vidya will report unavailable"
+            if on and not fully_armed
+            else ""
+        ),
+        "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#51",
+    }
+
+
+def _warm_dr() -> dict[str, Any]:
+    """Warm-DR replica (H.4)."""
+    on = _set("DR_REPLICA_URL")
+    return {
+        "key": "warm_dr",
+        "label": "Warm-DR replica (H.4)",
+        "category": "edge",
+        "status": _OK if on else _NEUTRAL,
+        "env_vars": ["DR_REPLICA_URL"],
+        "checks": {"configured": on},
+        "action": "Set DR_REPLICA_URL to a Neon/Supabase replica for warm-DR (SPOF mitigation)" if not on else "",
+        "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#52",
+    }
+
+
+_PROBES = (
+    # Phase 1: Survival (revenue + visibility + trust + edge)
+    _razorpay, _sentry, _posthog, _turnstile, _cloudflare_tunnel,
+    # Phase 2: AI safety + memory
+    _agent_memory, _eval_gate,
+    # Phase 3: AI staff + alerting
+    _engineer_agents, _ops_alerts,
+    # Phase 4: Sellable capabilities
+    _customer_webhooks, _mcp_product,
+    # Phase 5: Margin + survival
+    _litellm_costs, _warm_dr,
+)
 
 
 # --------------------------------------------------------------------------- #

@@ -743,6 +743,7 @@ async function whLoad(){
           <div>
             <button class="btn" onclick="whTest('${escH(w.id)}')" style="padding:4px 10px;font-size:11px">Test</button>
             <button class="btn" onclick="whShowDeliveries('${escH(w.id)}')" style="padding:4px 10px;font-size:11px">Deliveries</button>
+            <button class="btn" onclick="whRotate('${escH(w.id)}')" style="padding:4px 10px;font-size:11px" title="Issue new secret (leaked secret recovery)">🔄 Rotate</button>
             <button class="btn" onclick="whDelete('${escH(w.id)}')" style="background:var(--bad);color:#fff;padding:4px 10px;font-size:11px">✕</button>
           </div>
         </div>
@@ -808,9 +809,33 @@ async function whShowDeliveries(id){
       const ok = x.delivered ? "✓" : "✗";
       const colour = x.delivered ? "var(--ok)" : "var(--bad)";
       const when = x.at ? new Date(x.at*1000).toLocaleString("en-IN") : "—";
-      return `<div style="color:${colour}">${ok} ${escH(x.event_type)} · ${when} · ${x.attempts}x · status=${x.last_status||"-"}</div>`;
+      const retryBtn = !x.delivered ? ` <button class="btn" onclick="whRetry('${escH(id)}','${escH(x.id)}')" style="padding:1px 6px;font-size:10px;background:var(--accent);color:#fff;margin-left:4px">↻ retry</button>` : "";
+      return `<div style="color:${colour};margin:3px 0">${ok} ${escH(x.event_type)} · ${when} · ${x.attempts}x · status=${x.last_status||"-"}${retryBtn}</div>`;
     }).join("");
   }catch(e){ box.innerHTML="Error: "+escH(String(e)); }
+}
+async function whRetry(webhookId, deliveryId){
+  try{
+    const r = await fetch("/api/customer/webhooks/"+encodeURIComponent(webhookId)+"/deliveries/"+encodeURIComponent(deliveryId)+"/retry", {method:"POST", headers: billAuthHdr()});
+    const d = await r.json();
+    if(d.delivered){
+      alert("✓ Retry succeeded (status "+d.status+")");
+    } else {
+      alert("✗ Retry failed: status="+(d.status||"n/a")+" error="+(d.error||"unknown"));
+    }
+    whShowDeliveries(webhookId);  // refresh
+    whShowDeliveries(webhookId);  // re-open
+  }catch(e){ alert("Error: "+e.message); }
+}
+async function whRotate(id){
+  if(!confirm("Rotate the signing secret? Your existing verifier will start rejecting webhooks until you update the secret. New secret is shown ONCE.")) return;
+  try{
+    const r = await fetch("/api/customer/webhooks/"+encodeURIComponent(id)+"/rotate-secret", {method:"POST", headers: billAuthHdr()});
+    const d = await r.json();
+    if(!r.ok){ alert("Rotate failed: "+(d.detail||r.status)); return; }
+    prompt("✓ New secret (save this NOW — won't be shown again):", d.secret);
+    whLoad();
+  }catch(e){ alert("Error: "+e.message); }
 }
 
 /* ====== H.2: customer-side 2FA (TOTP) ====== */

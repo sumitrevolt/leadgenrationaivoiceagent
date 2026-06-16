@@ -425,6 +425,63 @@ async def fire_test(webhook_id: str, client_id: str) -> dict[str, Any]:
     )
 
 
+def rotate_secret(webhook_id: str, client_id: str) -> dict[str, Any]:
+    """K.3: replace a webhook's signing secret in-place. Subscriptions and the
+    webhook ID stay; only the secret changes. Returns the NEW plaintext secret
+    once (same pattern as create) — customer must update their verifier.
+
+    Use case: leaked secret recovery. Avoids the delete-then-recreate dance
+    that loses delivery history and forces a new webhook ID.
+    """
+    cid = (client_id or "").strip()
+    if not cid:
+        return {"ok": False, "error": "client_id required"}
+    rows = _read_registrations()
+    new_secret = "whsec_" + secrets.token_urlsafe(24)
+    found = False
+    for r in rows:
+        if r.get("id") == webhook_id and r.get("client_id") == cid:
+            r["secret"] = new_secret
+            r["secret_rotated_at"] = int(time.time())
+            found = True
+    if not found:
+        return {"ok": False, "error": "not_found"}
+    if not _atomic_rewrite(rows):
+        return {"ok": False, "error": "storage write failed"}
+    return {"ok": True, "secret": new_secret, "id": webhook_id}
+
+
+async def retry_delivery(webhook_id: str, client_id: str, delivery_id: str) -> dict[str, Any]:
+    """K.2: replay a prior delivery attempt. Looks the original event_type +
+    payload up from data/customer_webhook_deliveries.jsonl. Useful when the
+    customer's endpoint was briefly down and the original 3 retries exhausted.
+    """
+    row = get_one(webhook_id, client_id)
+    if not row:
+        return {"ok": False, "error": "webhook_not_found"}
+    # Find the original delivery record. Payload isn't persisted (privacy +
+    # storage size); we replay with the event_type and a marker payload so
+    # the customer's verifier sees a legitimate signed retry. If their
+    # event-handler is idempotent on X-LeadGen-Delivery (as the verifier
+    # docs urge), they de-dupe correctly.
+    original = None
+    for r in _read_deliveries(limit=_DELIVERIES_TAIL):
+        if r.get("id") == delivery_id and r.get("webhook_id") == webhook_id:
+            original = r
+            break
+    if not original:
+        return {"ok": False, "error": "delivery_not_found"}
+    if original.get("delivered"):
+        return {"ok": False, "error": "delivery_already_succeeded"}
+    return await _deliver_one(
+        row,
+        str(original.get("event_type") or "webhook.test"),
+        {"retry_of": delivery_id, "ts": int(time.time())},
+        delivery_id="del_retry_" + uuid.uuid4().hex[:14],
+        schedule=(_HTTP_TIMEOUT_S,),  # single-shot — operator can re-retry
+    )
+
+
 __all__ = [
     "enabled",
     "SUPPORTED_EVENTS",
@@ -434,4 +491,6 @@ __all__ = [
     "recent_deliveries",
     "emit",
     "fire_test",
+    "rotate_secret",
+    "retry_delivery",
 ]

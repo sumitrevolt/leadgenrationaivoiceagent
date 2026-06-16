@@ -154,4 +154,31 @@ async def deliveries(
     return {"webhook_id": webhook_id, "count": len(items), "deliveries": items}
 
 
+@router.post("/{webhook_id}/rotate-secret")
+async def rotate_secret(
+    webhook_id: str, client_id: str = Depends(require_customer)
+) -> dict:
+    """K.3: rotate the signing secret in-place. Returns new secret ONCE."""
+    out = cw.rotate_secret(webhook_id, client_id)
+    if not out.get("ok"):
+        raise HTTPException(status_code=404, detail=out.get("error", "rotate failed"))
+    return out
+
+
+@router.post("/{webhook_id}/deliveries/{delivery_id}/retry")
+async def retry_delivery(
+    webhook_id: str,
+    delivery_id: str,
+    client_id: str = Depends(require_customer),
+) -> dict:
+    """K.2: re-fire a prior failed delivery. The new attempt is logged with a
+    fresh delivery_id; the original failure record stays intact for audit."""
+    out = await cw.retry_delivery(webhook_id, client_id, delivery_id)
+    if not out.get("delivered") and out.get("error") in (
+        "webhook_not_found", "delivery_not_found", "delivery_already_succeeded"
+    ):
+        raise HTTPException(status_code=404, detail=out["error"])
+    return out
+
+
 __all__ = ["router"]

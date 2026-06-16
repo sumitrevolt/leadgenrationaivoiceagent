@@ -444,6 +444,33 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     except Exception:
         pass
 
+    # K.4: customer-webhook fan-out for `lead.created`. Only fires when the
+    # inquiry resolved to a known client (mini-site path). Platform-level
+    # public-landing inquiries don't have a customer to notify, so they
+    # silently skip — emit() itself short-circuits on empty client_id.
+    if mini_client_id:
+        try:
+            from app.platform import customer_webhooks as _cw
+
+            payload = {
+                "client_id": mini_client_id,
+                "lead_id": lead_id,
+                "business_name": rec["business_name"],
+                "phone": rec["phone"],
+                "city": rec.get("city"),
+                "niche": rec.get("niche"),
+                "source_slug": rec.get("source_slug"),
+                "source": rec.get("source"),
+                "created_at": rec["at"],
+            }
+            # Already in an async handler — no try/RuntimeError needed
+            try:
+                asyncio.create_task(_cw.emit(mini_client_id, "lead.created", payload))
+            except Exception:
+                pass
+        except Exception:
+            pass
+
     # 5) Team activity (Rohan — Leads Manager) — kabhi raise nahi karta.
     #    Mini-site se aayi ho to dedicated "mini_site_inquiry" event log hota.
     try:

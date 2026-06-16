@@ -150,7 +150,15 @@ async def test_readiness_aggregates_blockers(monkeypatch: pytest.MonkeyPatch) ->
     assert out["blocker_count"] >= 1
     assert "razorpay" in out["blockers"]
     keys = {it["key"] for it in out["items"]}
-    assert keys == {"razorpay", "sentry", "posthog", "turnstile", "cloudflare_tunnel"}
+    # K.1: expanded from 5 -> 13 probes (Phase 1-5 of activation runbook)
+    expected = {
+        "razorpay", "sentry", "posthog", "turnstile", "cloudflare_tunnel",
+        "agent_memory", "eval_gate",
+        "engineer_agents", "ops_alerts",
+        "customer_webhooks", "mcp_product",
+        "litellm_costs", "warm_dr",
+    }
+    assert keys == expected
 
 
 async def test_readiness_flips_true_when_no_blockers(monkeypatch: pytest.MonkeyPatch) -> None:
