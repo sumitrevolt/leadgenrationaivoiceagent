@@ -178,6 +178,61 @@ async def per_key_spend(hours: int = 24) -> dict[str, Any]:
     }
 
 
+def per_key_spend_sync(hours: int = 24) -> dict[str, Any]:
+    """Sync mirror of per_key_spend() for sync call sites (engineer agents).
+
+    Engineer agents are sync functions on the scheduler; this lets them probe
+    LiteLLM without spawning an event loop. Shape identical to per_key_spend.
+    """
+    if not enabled():
+        return {"available": False, "reason": "LITELLM_COSTS unset or no master key"}
+    url = _gateway_url()
+    if not url:
+        return {"available": False, "reason": "LITELLM_GATEWAY_URL unset"}
+    try:
+        import httpx
+
+        headers = {"Authorization": f"Bearer {_master_key()}"}
+        with httpx.Client(timeout=_HTTP_TIMEOUT_S) as client:
+            r = client.get(
+                f"{url}/spend/keys",
+                params={"window_hours": int(hours)},
+                headers=headers,
+            )
+            if r.status_code != 200:
+                return {"available": False, "reason": f"litellm /spend/keys HTTP {r.status_code}"}
+            data = r.json()
+    except Exception as exc:
+        return {"available": False, "reason": f"unreachable: {exc}"}
+
+    keymap = _read_keymap()
+    rows: list[dict[str, Any]] = []
+    total = 0.0
+    items = data.get("data", data) if isinstance(data, dict) else data
+    for it in items or []:
+        if not isinstance(it, dict):
+            continue
+        vkey = str(it.get("key") or it.get("token") or it.get("api_key") or "")
+        spend = float(it.get("spend") or it.get("spend_usd") or 0.0)
+        calls = int(it.get("call_count") or it.get("requests") or 0)
+        mapping = keymap.get(vkey, {})
+        rows.append({
+            "vkey": vkey[:8] + "..." if len(vkey) > 8 else vkey,
+            "client_id": mapping.get("client_id"),
+            "niche": mapping.get("niche"),
+            "spend_usd": round(spend, 4),
+            "calls": calls,
+        })
+        total += spend
+    return {
+        "available": True,
+        "window_hours": int(hours),
+        "spend": rows,
+        "total_usd": round(total, 4),
+        "ts": int(time.time()),
+    }
+
+
 async def margin_alerts(revenue_per_client_usd: dict[str, float] | None = None) -> dict[str, Any]:
     """Flag clients whose LLM cost > stated revenue (margin-negative).
 
@@ -206,4 +261,4 @@ async def margin_alerts(revenue_per_client_usd: dict[str, float] | None = None) 
     return {"available": True, "flagged": flagged, "total_clients_checked": len(spend["spend"])}
 
 
-__all__ = ["enabled", "gateway_health", "per_key_spend", "margin_alerts"]
+__all__ = ["enabled", "gateway_health", "per_key_spend", "per_key_spend_sync", "margin_alerts"]

@@ -284,6 +284,30 @@ def run_finops() -> dict[str, Any]:
             "Activate LiteLLM (LITELLM_MASTER_KEY) for true per-tenant cost attribution"
         )
 
+    # I.1: when LiteLLM data is available, REAL per-tenant cost replaces the
+    # token-volume proxy. Flag margin-negative clients (spend > ₹0 + no client_id
+    # mapping = "unmapped spend") as a concrete FinOps action.
+    try:
+        from app.platform import litellm_costs as _lc
+
+        if _lc.enabled():
+            spend = _lc.per_key_spend_sync(hours=24)
+            if spend.get("available"):
+                kpis["litellm_total_usd_24h"] = spend.get("total_usd")
+                kpis["litellm_keys_tracked"] = len(spend.get("spend", []))
+                # Unmapped spend = keys without a client_id in keymap (revenue leak risk)
+                unmapped = [r for r in (spend.get("spend") or []) if not r.get("client_id")]
+                if unmapped:
+                    unmapped_usd = round(sum(r.get("spend_usd", 0.0) for r in unmapped), 4)
+                    kpis["litellm_unmapped_spend_usd"] = unmapped_usd
+                    if unmapped_usd > 0:
+                        actions.append(
+                            f"${unmapped_usd:.2f} of LLM spend has no client_id mapping "
+                            f"(populate data/litellm_keymap.jsonl)"
+                        )
+    except Exception as exc:
+        logger.debug("vidya litellm enrichment swallowed: %s", exc)
+
     score = _clamp(sum(sub_scores) / len(sub_scores)) if sub_scores else None
     result = {
         "role": "finops",

@@ -352,6 +352,42 @@
         </div>
       </div>
 
+      <!-- ===== 7) Security (2FA — H.2) ===== -->
+      <div class="sec-title">🔒 Surakhsha (Security)</div>
+      <div class="card" id="secCard" style="margin-bottom:18px">
+        <div class="card-h">
+          <h2>Two-Factor Authentication (2FA)</h2>
+          <span class="pill" id="sec2faStatus">Loading…</span>
+        </div>
+        <div class="card-b">
+          <div id="sec2faOff" style="display:none">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:10px">
+              Extra surakhsha — login ke baad ek 6-digit code (Google Authenticator / Authy app se) bhi maangega.
+              Recommended for accounts with billing access.
+            </p>
+            <button class="btn" onclick="sec2faEnroll()" style="background:var(--accent);color:#fff">▶ 2FA Enable Karo</button>
+            <div id="sec2faEnrollBox" style="display:none;margin-top:14px;background:var(--bg);padding:14px;border-radius:8px;border:1px dashed var(--accent)">
+              <div style="font-weight:700;margin-bottom:8px">Step 1: Scan this QR in your authenticator app</div>
+              <div id="sec2faQr" style="font-family:monospace;font-size:11px;background:#fff;color:#000;padding:8px;border-radius:6px;word-break:break-all;margin-bottom:10px"></div>
+              <div style="font-weight:700;margin-bottom:6px">Step 2: Save these recovery codes (shown once!)</div>
+              <div id="sec2faRecovery" style="font-family:monospace;font-size:12px;background:#fff;color:#000;padding:8px;border-radius:6px;margin-bottom:10px;line-height:1.7"></div>
+              <div style="font-weight:700;margin-bottom:6px">Step 3: Enter the 6-digit code from your app</div>
+              <input id="sec2faCode" placeholder="123456" maxlength="6" style="padding:8px 12px;border:1px solid var(--line);border-radius:6px;width:140px;font-size:16px;text-align:center;letter-spacing:4px">
+              <button class="btn" onclick="sec2faConfirm()" style="background:var(--ok);color:#fff;margin-left:8px">✓ Confirm</button>
+              <div id="sec2faEnrollErr" style="color:var(--bad);font-size:12px;margin-top:8px"></div>
+            </div>
+          </div>
+          <div id="sec2faOn" style="display:none">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:10px">
+              ✅ 2FA active hai. Next login me code maangega.
+            </p>
+            <input id="sec2faDisCode" placeholder="TOTP code ya recovery code" style="padding:8px 12px;border:1px solid var(--line);border-radius:6px;width:230px;font-size:14px">
+            <button class="btn" onclick="sec2faDisable()" style="background:var(--bad);color:#fff;margin-left:8px">Disable 2FA</button>
+            <div id="sec2faDisErr" style="color:var(--bad);font-size:12px;margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+
       <footer>Powered by <b>LeadGen AI</b> · AI Marketing + Voice Agent · Made in India 🇮🇳</footer>
     </div>
   </div>
@@ -654,6 +690,80 @@ async function resolveClientId(){
   return localStorage.getItem("lgai_cid") || qparam("client_id") || "demo";
 }
 
+/* ====== H.2: customer-side 2FA (TOTP) ====== */
+let SEC_ENROLL = null; // {secret, otpauth_uri, recovery_codes} during enroll flow
+async function sec2faLoad(){
+  try{
+    const r = await fetch("/api/customer/2fa/status", {headers: billAuthHdr()});
+    if(r.status===401||r.status===403){
+      document.getElementById("sec2faStatus").textContent = "login required";
+      return;
+    }
+    const d = await r.json();
+    document.getElementById("sec2faStatus").textContent = d.enabled ? "ENABLED" : "OFF";
+    document.getElementById("sec2faOff").style.display = d.enabled ? "none" : "block";
+    document.getElementById("sec2faOn").style.display = d.enabled ? "block" : "none";
+  }catch(e){
+    document.getElementById("sec2faStatus").textContent = "error";
+  }
+}
+async function sec2faEnroll(){
+  try{
+    const r = await fetch("/api/customer/2fa/enroll", {method:"POST", headers: billAuthHdr()});
+    const d = await r.json();
+    if(!r.ok){ alert(d.detail||"enroll failed"); return; }
+    SEC_ENROLL = d;
+    // Render the otpauth URI as text — customers paste into their authenticator
+    // app, OR use a QR-render extension. Keeping vanilla (no QR lib dep).
+    document.getElementById("sec2faQr").textContent = d.otpauth_uri;
+    document.getElementById("sec2faRecovery").innerHTML =
+      d.recovery_codes.map(c => `<div>${c}</div>`).join("");
+    document.getElementById("sec2faEnrollBox").style.display = "block";
+  }catch(e){ alert("enroll error: "+e.message); }
+}
+async function sec2faConfirm(){
+  const code = (document.getElementById("sec2faCode").value || "").trim();
+  const err = document.getElementById("sec2faEnrollErr");
+  if(!SEC_ENROLL){ err.textContent = "session lost — refresh page"; return; }
+  if(code.length !== 6){ err.textContent = "6-digit code chahiye"; return; }
+  try{
+    const r = await fetch("/api/customer/2fa/confirm", {
+      method:"POST",
+      headers: {...billAuthHdr(), "Content-Type":"application/json"},
+      body: JSON.stringify({
+        secret: SEC_ENROLL.secret,
+        code,
+        recovery_codes: SEC_ENROLL.recovery_codes,
+      }),
+    });
+    const d = await r.json();
+    if(!r.ok){ err.textContent = d.detail || "wrong code"; return; }
+    err.textContent = "";
+    document.getElementById("sec2faEnrollBox").style.display = "none";
+    SEC_ENROLL = null;
+    alert("✅ 2FA enabled! Save those recovery codes — you'll need them if you lose your phone.");
+    sec2faLoad();
+  }catch(e){ err.textContent = "confirm error: "+e.message; }
+}
+async function sec2faDisable(){
+  const code = (document.getElementById("sec2faDisCode").value || "").trim();
+  const err = document.getElementById("sec2faDisErr");
+  if(!code){ err.textContent = "code chahiye"; return; }
+  try{
+    const r = await fetch("/api/customer/2fa/disable", {
+      method:"POST",
+      headers: {...billAuthHdr(), "Content-Type":"application/json"},
+      body: JSON.stringify({code}),
+    });
+    const d = await r.json();
+    if(!r.ok){ err.textContent = d.detail || "bad code"; return; }
+    err.textContent = "";
+    document.getElementById("sec2faDisCode").value = "";
+    alert("2FA disabled.");
+    sec2faLoad();
+  }catch(e){ err.textContent = "disable error: "+e.message; }
+}
+
 function fmtMoney(n,cur){ const c=cur==="USD"?"$":(cur==="EUR"?"€":"₹"); return c+Number(n||0).toLocaleString("en-IN"); }
 function fmtDate(iso){ if(!iso) return "—"; try{ return new Date(iso).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ return iso; } }
 
@@ -793,6 +903,7 @@ async function billingAction(action){
 
 loadBilling();
 loadContent();
+sec2faLoad();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>

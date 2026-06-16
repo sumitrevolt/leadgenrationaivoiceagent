@@ -145,8 +145,12 @@ def test_challenge_tampered_signature_rejected() -> None:
 
 
 def test_challenge_expired_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A challenge older than TTL must not verify (replay-window bound)."""
+    """A challenge older than TTL must not verify (replay-window bound).
+
+    Sleep 2.5s vs TTL=1s — int() truncation in create_challenge means a 1.2s
+    sleep is borderline (works most runs, fails when t0 is just past an
+    integer boundary). 2.5s gives a clean margin without slowing the suite."""
     monkeypatch.setattr(ct, "_CHALLENGE_TTL_S", 1)
     tok = ct.create_challenge("client_a")
-    time.sleep(1.2)
+    time.sleep(2.5)
     assert ct.consume_challenge(tok) is None

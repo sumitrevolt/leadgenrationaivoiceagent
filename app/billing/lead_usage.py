@@ -99,6 +99,10 @@ def record_qualified_lead(client_id: str, ref: str = "", plan: str | None = None
     """Ek AI-qualified lead consume karo (call_qualifier 'interested' verdict pe).
 
     ref = call sid / qualification id (dispute-evidence link). Best-effort.
+
+    I.2: After the meter row is written, fire-and-forget a `lead.qualified`
+    event to the customer's subscribed webhooks (H.1). INERT when
+    CUSTOMER_WEBHOOKS unset or the client has no matching subscription.
     """
     cid = (client_id or "").strip()
     if not cid:
@@ -114,6 +118,30 @@ def record_qualified_lead(client_id: str, ref: str = "", plan: str | None = None
     ok = _append(rec)
     if not ok:
         _record_meter_failure(rec)  # silent revenue-leak na ho — log + durable replay-list
+
+    # Customer webhook fan-out (best-effort, never blocks billing path).
+    try:
+        import asyncio as _asyncio
+
+        from app.platform import customer_webhooks as _cw
+
+        payload = {
+            "client_id": cid,
+            "lead_ref": str(ref or ""),
+            "plan": str(plan or ""),
+            "qualified_at": rec["ts"],
+        }
+        try:
+            _loop = _asyncio.get_running_loop()
+            _loop.create_task(_cw.emit(cid, "lead.qualified", payload))
+        except RuntimeError:
+            try:
+                _asyncio.run(_cw.emit(cid, "lead.qualified", payload))
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     return ok
 
 

@@ -107,6 +107,12 @@ a:hover{text-decoration:underline}
   <div class="card" id="cardMCP">
     <h3><span class="lbl">🔑 MCP Keys (as product)</span><span id="mcpPill" class="pill neutral">…</span></h3>
     <div id="mcpBody" class="muted">Loading…</div>
+    <div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+      <input id="mcpLabel" placeholder="Label (e.g. customer-acme)" style="background:var(--bg);border:1px solid var(--border);padding:6px 10px;border-radius:6px;color:var(--text);width:55%;font-size:.8rem">
+      <input id="mcpLimit" type="number" value="1000" min="1" max="1000000" style="background:var(--bg);border:1px solid var(--border);padding:6px 8px;border-radius:6px;color:var(--text);width:30%;font-size:.8rem">
+      <button onclick="issueMcpKey()" class="refresh" style="margin-top:6px;width:100%">+ Issue new key</button>
+      <div id="mcpIssueOut" style="margin-top:8px;font-size:.78rem"></div>
+    </div>
   </div>
 
   <!-- DR + LiteLLM (H.4) -->
@@ -314,6 +320,32 @@ async function loadTurnstile(){
     <div class="k">Status</div><div class="v">${t.enabled?"armed (forms gated)":"INERT (forms open)"}</div>
     <div class="k">Site-key</div><div class="v">${t.site_key?(esc(t.site_key.slice(0,12))+"…"):"unset"}</div>
   </div><div class="muted" style="margin-top:6px;font-size:.78rem">Gates /audit /site-audit /demo /inquiry once both TURNSTILE_* env are set.</div>`;
+}
+
+// ---------- MCP issue key ----------
+async function issueMcpKey(){
+  const label = document.getElementById("mcpLabel").value.trim();
+  const limit = parseInt(document.getElementById("mcpLimit").value, 10) || 1000;
+  const out = document.getElementById("mcpIssueOut");
+  if(!label){ out.innerHTML='<span style="color:var(--bad)">label required</span>'; return; }
+  out.innerHTML='<span class="spin"></span> issuing…';
+  try{
+    const r = await fetch("/api/admin/mcp-keys", {
+      method:"POST",
+      headers:{"Content-Type":"application/json", ...authHdr()},
+      body: JSON.stringify({label, daily_limit: limit}),
+    });
+    if(r.status===401||r.status===403){ out.innerHTML='<span style="color:var(--bad)">auth required</span>'; return; }
+    const d = await r.json();
+    if(!d.ok){ out.innerHTML='<span style="color:var(--bad)">'+esc(d.detail||d.error||"failed")+'</span>'; return; }
+    out.innerHTML=`<div style="background:var(--bg);border:1px dashed var(--ok);padding:10px;border-radius:6px">
+      <div style="color:var(--ok);font-weight:600">✓ Key issued (save NOW — shown only once):</div>
+      <div style="font-family:monospace;font-size:.75rem;background:var(--card);padding:6px;margin-top:6px;border-radius:4px;word-break:break-all">${esc(d.key)}</div>
+      <button onclick="navigator.clipboard.writeText('${esc(d.key)}');this.textContent='copied ✓'" style="margin-top:6px;background:var(--accent);color:#fff;border:0;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.75rem">copy</button>
+    </div>`;
+    document.getElementById("mcpLabel").value="";
+    loadMCP();
+  }catch(e){ out.innerHTML='<span style="color:var(--bad)">'+esc(String(e))+'</span>'; }
 }
 
 // ---------- master loop ----------
