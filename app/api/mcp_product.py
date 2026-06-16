@@ -129,6 +129,24 @@ class ScoreLeadIn(BaseModel):
     notes: str | None = Field("", max_length=1000)
 
 
+class QualifierRunIn(BaseModel):
+    """Prospect shape accepted by sales_qualify.bant_score — every field is
+    optional. The richer the input, the more accurate the score."""
+    business_name: str | None = Field("", max_length=200)
+    niche: str | None = Field("", max_length=80)
+    city: str | None = Field("", max_length=80)
+    phone: str | None = Field("", max_length=20)
+    website: str | None = Field("", max_length=500)
+    reviews: int | None = Field(None, ge=0, le=1_000_000)
+    user_ratings_total: int | None = Field(None, ge=0, le=1_000_000)
+    rating: float | None = Field(None, ge=0, le=5)
+    employees: int | None = Field(None, ge=0, le=1_000_000)
+    annual_revenue_inr: float | None = Field(None, ge=0)
+    last_contacted_days_ago: int | None = Field(None, ge=0, le=10000)
+    intent: str | None = Field("", max_length=200)
+    notes: str | None = Field("", max_length=2000)
+
+
 @router.post("/api/mcp-product/v1/score-lead")
 async def score_lead(
     body: ScoreLeadIn,
@@ -169,6 +187,39 @@ async def score_lead(
         "band": band,
         "reasons": reasons,
         "input": {"business_name": name, "niche": niche, "city": city},
+    }
+
+
+@router.post("/api/mcp-product/v1/qualifier")
+async def qualifier_run(
+    body: QualifierRunIn,
+    x_leadgen_key: str | None = Header(default=None, alias="X-LeadGen-Key"),
+) -> dict:
+    """M.1: real BANT qualification — pure-Python, zero LLM call, identical
+    rubric to the one the in-house Veer agent uses (app/platform/sales_qualify.
+    bant_score). Returns total + grade (A/B/C/D) + per-dimension scores +
+    reasons + recommended action.
+
+    Field-by-field:
+      budget    — derived from annual_revenue_inr + employees + rating
+      authority — phone present + role hints in notes
+      need      — website-quality + niche match + "intent" string keywords
+      timeline  — last_contacted_days_ago + urgency keywords in notes
+
+    Stable contract — customers can build automation that triggers when
+    grade in {A, B}. Score scale, grade letters, and action strings are
+    versioned via the gateway version field (v1).
+    """
+    verdict = await _require_key("qualifier.run", x_leadgen_key)
+    from app.platform import sales_qualify
+
+    # Convert Pydantic -> plain dict; drop None so bant_score's defaults apply
+    prospect = {k: v for k, v in body.model_dump().items() if v not in (None, "")}
+    score = sales_qualify.bant_score(prospect)
+    return {
+        "meter_remaining": verdict.get("remaining"),
+        "version": "v1",
+        **score,
     }
 
 
