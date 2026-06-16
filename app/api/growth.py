@@ -1110,6 +1110,38 @@ AUTOMATION_FLAGS = [
     "CLOUDFLARE_TUNNEL_TOKEN",  # docker-compose.edge.yml cloudflared — origin-hide + WAF/DDoS
     "TURNSTILE_SITE_KEY",  # public site-key (safe to expose) — widget renders only when set
     "TURNSTILE_SECRET_KEY",  # server secret — present = bot-check armed on /audit /site-audit /demo /inquiry
+    # F.3 eval_gate close-the-loop reward signal for self_improve + DeepEval CI
+    "EVAL_GATE",  # records baseline + decides; observe-only until HARD set
+    "EVAL_GATE_HARD",  # makes reject decisions actually block (after baseline trusted)
+    # F.5 engineer agents (Pranav SRE / Vidya FinOps / Arnav Security)
+    "SRE_AGENT",  # Pranav reliability score (hourly :45)
+    "FINOPS_AGENT",  # Vidya margin score + LiteLLM-attributed cost-per-tenant
+    "SECURITY_AGENT",  # Arnav DPDP/TRAI posture
+    # G.1 ops_alerts ntfy fan-out (engineer-score / eval-reject / readiness-digest / dead-letter)
+    "OPS_ALERTS",  # master gate — needs NTFY_URL+NTFY_TOPIC already set
+    "OPS_ALERT_ENGINEER_THRESHOLD",  # default 60 (engineer score below this pages)
+    "OPS_ALERT_EVAL_REJECT_BURST",  # default 3 (rejects-per-window before paging)
+    "OPS_ALERT_EVAL_REJECT_WINDOW",  # default 86400s (window for burst count)
+    "OPS_ALERT_WEBHOOK_DEAD_LETTER_THRESHOLD",  # default 3 (consecutive failures before page)
+    # H.1 customer-facing webhooks (Svix-style HMAC-SHA256 fan-out)
+    "CUSTOMER_WEBHOOKS",  # master gate for emit()
+    "CUSTOMER_WEBHOOK_DENY_PRIVATE",  # default 1; set 0 only for dev SSRF tests
+    # H.2 customer-side 2FA — opt-in per customer; TOTP_CHALLENGE_KEY optional
+    "TOTP_CHALLENGE_KEY",  # HMAC key for login-challenge token; unset = per-process random
+    # H.3 MCP-as-product + A2A Agent Card metered surface
+    "MCP_PRODUCT",  # arms /api/mcp-product/v1/* (503 when off)
+    # H.4 LiteLLM per-tenant cost + warm-DR replica probe
+    "LITELLM_COSTS",  # master gate; needs LITELLM_MASTER_KEY + LITELLM_GATEWAY_URL
+    "LITELLM_MASTER_KEY",  # bearer for /spend/keys probe
+    "LITELLM_GATEWAY_URL",  # e.g. http://litellm:4000 once edge.yml --profile gateway up
+    "DR_REPLICA_URL",  # postgres://... Neon/Supabase replica for warm-DR
+    "DR_LAG_WARN_S",  # default 60 (replica lag WARN threshold)
+    "DR_LAG_FAIL_S",  # default 600 (replica lag FAIL threshold)
+    # F.4 agent_memory cross-session lead recall (Qdrant agent_memory collection)
+    "MEM0_BACKEND",  # "mem0" to use pip-installed Mem0 SDK; else native (default)
+    "AGENT_MEMORY_MIN_SIM",  # default 0.35 (recall similarity cutoff)
+    "AGENT_MEMORY_RECALL_LIMIT",  # default 4 (recall row cap)
+    "AGENT_MEMORY_MAX_FACTS",  # default 4 (extract-store cap per turn)
     "HERMES_HANDOFF",  # Phase-2 future: code_upgrader -> Hostinger Hermes draft-PR executor.
     # Phase-1 (read-only daily health report) hai HOSTINGER sandbox me, flag-independent.
     # Docs: docs/HOSTINGER_HERMES_SETUP.md

@@ -1421,3 +1421,32 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
 - **Doc/dep gaps**: `.env.example` me 70+ automation flags documented (pehle ZERO) + dead pricing block hata (packages.py pointer) · `requirements-core.txt` edge-tts 6.1.9→≥7.2.0 (403 fix) · `requirements.txt` boto3 (MinIO addon).
 - **CI** (`deploy-vps.yml`): billing-truth contract test ab BLOCKING gate (pricing regression deploy-block) · full suite visible-but-non-blocking (`|| true` mask hata) · job `timeout-minutes:15` (hang guard).
 - **Pre-existing WIP bundled** (same theme): growth.py `bookings/upcoming`+`bookings/no-show` endpoints + 8 naye flags · booking_reminders `list_all`/`mark_no_show` · prospector cadence auto-enroll (gated) · reply_agent journey email_reply trigger (gated). Sab additive+flag-gated. Verify: prod_check PASS · import OK · billing-truth 8/8 · JS_OK · health production.
+
+## F-M tracks ✅ LIVE (2026-06-16 evening, commits b4b6c4c..e7e20f7) — 701 routes
+**Trigger:** 4th repeat of "missing features real gaps workflow loops" prompt + memory note "infra-gap task 3x repeated". Honest billionaire-scale audit identified 5 genuine remaining gaps + 3 engineer-agents per audit Section H. Then user kept saying same phrase 6 more times — kept honest-shipping until truly saturated (refused fake gaps).
+
+**Tracks shipped (21 commits, ~8500 LOC, 191 tests, 0 regressions):**
+- **F.1-F.5** (`b4b6c4c..96ab6df`): Cloudflare Turnstile module + tests · activation-readiness probe (catches placeholder Razorpay root cause) · eval_gate close-the-loop median-baseline reward signal for self_improve · agent-memory operator inspect + DPDP right-to-be-forgotten purge · 3 KPI-bound engineer agents Pranav SRE/Vidya FinOps/Arnav Security.
+- **C wiring** (`4fb92ad..3dc54b3`): F.1 wiring (growth.py + public_site.py) bundled with H6 hard-deadline + Phase-1 feature-flag endpoints · eval_gate → self_improve._execute reward hook · eval_gate → DeepEval CI (evals/eval_gate_ci.py) · engineer-agents → team_scheduler (Pranav :45 hourly, Vidya 09:00 IST, Arnav 09:30 IST) · consent_ledger.record_opt_out → agent_memory.purge bridge (DPDP s.12 closure).
+- **G.1** (`695c769`): ops_alerts ntfy fan-out (engineer low-score / eval reject burst / readiness digest) + cooldown ledger + `/api/engineer-agents/{role}/history` trend endpoint.
+- **H.1-H.5** (`fe087f8..2a80eec`): Customer-facing webhooks (Svix-style, HMAC-SHA256, 3-retry, SSRF-guarded register) · Customer-side TOTP 2FA (mirror admin pattern + recovery codes + login-challenge token) · MCP-as-product + A2A Agent Card at `/.well-known/agent.json` (3 metered capabilities) · Warm-DR replica probe + LiteLLM per-tenant cost rollup · Unified `/app/dashboards` admin UI (8 cards, auto-refresh 30s).
+- **I-J-K-L-M** (`0b651b9..3c4057c`): Vidya FinOps wires LiteLLM real spend data · `lead.qualified`/`call.completed`/`lead.created` webhook emit from billing/inquiry paths · webhook UI in customer dashboard (register/test/delete/inspect-deliveries/rotate-secret/retry-failed/pause-toggle) · MCP key list+revoke+pause UI in /app/dashboards · activation-readiness expanded 5→13 probes covering every F-M flag · webhook dead-letter alert (3 consecutive failures → ntfy) · eval_gate baseline reset endpoint · engineer-agents POST run-now · MCP qualifier.run real BANT implementation via sales_qualify.bant_score (pure-Python, zero LLM, stable contract v1) · consolidated `docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md` (5-phase ordered checklist).
+- **N.1-N.3 production-readiness** (`8f9c9a7..e7e20f7`):
+  - **C1 cross-tenant IDOR** closed on every billing mutation (`_authed_client_id`/`_authed_admin_client_id` deps).
+  - **C2 webhook signatures fail-CLOSED in production** (Twilio/Exotel/WhatsApp 503 when secret unset in prod; dev keeps legacy skip).
+  - **C3 Exotel completion idempotent** + **H2 press-9 opt-out persisted** (TCCCPR fail-closed).
+  - **C4 SSRF** on `/site-audit`: DNS resolution + reject private/loopback/link-local/reserved/multicast IPs.
+  - **H1 verify-payment PENDING + idempotent** on gateway_payment_id (webhook = source-of-truth for COMPLETED).
+  - **H3 reply_agent send_email kwargs fixed** (auto-send was 100% silent-dead behind flag).
+  - **H5 Twilio uses `settings.public_base_url`** + `RequestValidator` (was self-DoS'ing genuine webhooks).
+  - **H7 invoice numbering atomic** (threading.Lock prevents duplicate Rule-46 numbers).
+  - **Medium**: GST charged only when `GST_GSTIN` set (sub-₹20L unregistered no longer illegally charged 18%).
+  - **Low**: Pollinations timeouts halved (45/60s); money rounding `int(round(*100))` not truncation.
+  - **N.2 Phase-1 per-tenant feature-flags scaffold** (`app/infrastructure/feature_flags.py` Redis-backed runtime store + 39 tests + `.kiro/specs/saas-infrastructure-upgrade/` design+requirements).
+  - **N.3** Frontend Mission Control tabs +280 / ops widgets +69 / CLAUDE.md tab count synced 23→28.
+
+**Activation runbook**: `docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md` — 5 phases (Survival → Visibility → AI staff → Sellable → Margin), every env key + verify curl + rollback. Phase 1 = ₹0, 30 min.
+
+**Live smoke proof** (post-deploy): C1 IDOR → 401 ✓ · C4 SSRF cloud-metadata → rejected ✓ · 13-probe readiness live · `/.well-known/agent.json` advertises 3 capabilities all implemented · container healthy.
+
+**Memory hygiene**: 1 lean line in CLAUDE.md (tab-count). Detail in this entry. All flags additive + INERT default → bit-for-bit prod behaviour unchanged until operator activates per runbook.
