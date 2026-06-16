@@ -1714,18 +1714,28 @@ async function srProspect(){
   }catch(e){toast('Prospecting fail: '+e.message,false)}
   busy('srProsBtn',0);
 }
-var SR_FLAGS=['NICHE_ROTATION','LEAD_HARVESTER','TEAM_AUTOMATION','AUTO_EMAIL_OUTREACH','CADENCE_ENGINE','SELF_IMPROVE_LOOP','GROWTH_OPTIMIZER','CHANNEL_EXPERIMENTS'];
+// Safety-critical flags — alag highlight (governance/ban-risk). automation-flags skill.
+var SR_SAFETY=['LLM_BUDGET_HARD_KILL','LLM_BUDGET_GUARD','PUBLIC_GUARDRAILS','WHATSAPP_AUTO_SEND','AGENT_MEMORY','SEMANTIC_CACHE'];
 async function srFlags(){
   try{
     var d=await api('/api/growth/infra/flags');
     var fl=d.flags||{};
-    var h='<div class="result"><span class="pill">ON total: <b>'+esc(d.on_count!=null?d.on_count:'?')+'</b></span><div style="margin-top:6px">';
-    SR_FLAGS.forEach(function(k){
+    var keys=Object.keys(fl);
+    // ALL flags (live registry — naya flag auto-dikhega). Sort: ON -> set-off -> unset.
+    var rank=function(f){return f.on?0:(f.set?1:2)};
+    keys.sort(function(a,b){return (rank(fl[a])-rank(fl[b]))||a.localeCompare(b)});
+    var h='<div class="result"><span class="pill">ON: <b>'+esc(d.on_count!=null?d.on_count:'?')+'</b> / '+keys.length+' flags</span>';
+    h+='<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">';
+    keys.forEach(function(k){
       var f=fl[k]||{};
-      var lbl=f.on?'✅ ON':(f.set?'❌ off':'— unset');
-      h+='<span class="pill" style="'+(f.on?'background:#123524;color:var(--ok)':'')+'">'+esc(k)+': <b>'+lbl+'</b></span> ';
+      var lbl=f.on?'✅':(f.set?'❌':'—');
+      var safe=SR_SAFETY.indexOf(k)>=0;
+      var st=f.on?'background:#123524;color:var(--ok)':(f.set?'':'opacity:.5');
+      if(safe)st+=';border:1px solid var(--acc)';
+      var tip=(f.set?('value: '+esc(f.value)):'unset')+(safe?' · safety/governance flag':'');
+      h+='<span class="pill" style="'+st+'" title="'+tip+'">'+(safe?'🔒 ':'')+esc(k)+' '+lbl+'</span>';
     });
-    h+='</div><div class="mut" style="margin-top:8px">Poora flags catalog Ops page pe bhi hai. Change = .env + restart.</div></div>';
+    h+='</div><div class="mut" style="margin-top:8px">Saare '+keys.length+' automation flags live (🔒 = safety/governance). Change = .env + restart (UI se flip nahi — safety). Detail: Ops page / automation-flags skill.</div></div>';
     $('srFlagsOut').innerHTML=h;
   }catch(e){warnBox('srFlagsOut','Flags fail: '+e.message)}
 }
