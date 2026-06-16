@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# graphify (code knowledge-graph dev tool) — generated artifacts, regenerable + large (graph.json ~9MB)
+graphify-out/
+app/graphify-out/
+.graphify/
+
 # Secrets (never commit) — Alertmanager SMTP password file, written on VPS from .env
 monitoring/alertmanager_smtp_pass
 

@@ -3,6 +3,11 @@
 .gitignore
 .github
 
+# graphify generated artifacts — NEVER bake into the prod image (app/ is COPYed in)
+graphify-out
+app/graphify-out
+.graphify
+
 # Python
 __pycache__
 *.pyc
