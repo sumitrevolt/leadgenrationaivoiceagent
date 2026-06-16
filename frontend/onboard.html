@@ -61,17 +61,19 @@
     <h3>Business ki jaankari</h3>
     <p class="hint">Basic details bharo — client record ban jayega (mini-site slug ke saath).</p>
     <div class="row">
+      <div><label>Product *</label><select id="b-product">
+        <option value="marketing">AI Marketing</option>
+        <option value="voice">AI Voice Agent</option>
+        <option value="combo">Both — AI Growth Suite</option>
+      </select></div>
       <div><label>Business naam *</label><input type="text" id="b-name" placeholder="Sharma Solar" /></div>
       <div><label>Niche</label><select id="b-niche"><option value="general">Loading…</option></select></div>
       <div><label>City</label><input type="text" id="b-city" placeholder="Pune" /></div>
       <div><label>Phone</label><input type="text" id="b-phone" placeholder="98xxxxxxxx" /></div>
       <div><label>Website (optional)</label><input type="text" id="b-web" placeholder="https://..." /></div>
-      <div><label>Plan</label><select id="b-plan">
-        <option value="starter">Starter ₹1,199</option>
-        <option value="growth">Growth ₹2,999</option>
-        <option value="advanced">Advanced ₹6,999</option>
-      </select></div>
+      <div><label>Plan</label><select id="b-plan"></select></div>
     </div>
+    <p class="hint" id="b-plan-hint" style="margin:10px 0 0"></p>
     <div class="err" id="e1"></div><div class="okmsg" id="o1"></div>
     <div class="nav"><span style="flex:1"></span><button class="btn" id="n1">Client Banao →</button></div>
   </div>
@@ -162,19 +164,99 @@
     if(n===4) renderDone();
   }
 
-  // niches dropdown
+  // product -> niche -> plan wiring (prices mirror voice_packages.py / combo_packages.py)
+  /* Embedded niche fallback (niches.py mirror). API chale to override; fail/empty pe bhi product-wise dropdown. */
+  var WZ_NICHES=[
+    {id:"ai_marketing",name:"AI Marketing Services",products:["marketing"],band:"A"},
+    {id:"studying_abroad",name:"Study Abroad Consultants",products:["voice"],band:"B"},
+    {id:"home_loans",name:"Home Loans & LAP (DSA)",products:["voice"],band:"B"},
+    {id:"solar_residential",name:"Residential Rooftop Solar",products:["marketing","voice"],band:"A"},
+    {id:"solar_commercial",name:"Commercial Solar Installers",products:["voice"],band:"C"},
+    {id:"insurance",name:"Health & Term Insurance",products:["voice"],band:"A"},
+    {id:"coaching",name:"Coaching Institutes (NEET/JEE/UPSC)",products:["marketing","voice"],band:"A"},
+    {id:"interior_designers",name:"Interior Design Studios",products:["marketing"],band:"B"},
+    {id:"modular_kitchen",name:"Modular Kitchen Manufacturers",products:["marketing","voice"],band:"B"},
+    {id:"dental_implants",name:"Dental Clinics (Implants/Aligners)",products:["marketing","voice"],band:"B"},
+    {id:"hair_transplant",name:"Hair Transplant Clinics",products:["marketing","voice"],band:"C"},
+    {id:"ivf_clinics",name:"IVF & Fertility Clinics",products:["voice"],band:"C"},
+    {id:"immigration",name:"Immigration & PR Consultants",products:["voice"],band:"C"},
+    {id:"upskilling",name:"Upskilling & EdTech Programs",products:["voice"],band:"A"},
+    {id:"recruitment",name:"Recruitment & Staffing Agencies",products:["voice"],band:"A"},
+    {id:"hvac_commercial",name:"Commercial HVAC",products:["voice"],band:"C"},
+    {id:"b2b_suppliers",name:"Manufacturing & B2B Suppliers",products:["voice"],band:"A"},
+    {id:"travel_packages",name:"International Travel Packages",products:["marketing","voice"],band:"A"},
+    {id:"packers_movers",name:"Packers & Movers",products:["voice"],band:"A"},
+    {id:"hotels_mice",name:"Hotels & Banquets (Corporate/MICE)",products:["voice"],band:"B"},
+    {id:"digital_marketing",name:"Digital Marketing Agencies",products:["voice"],band:"B"},
+    {id:"ca_legal",name:"CA & Legal Services",products:["voice"],band:"B"},
+    {id:"restaurant_cafe",name:"Restaurant / Cafe",products:["marketing"],band:"A"},
+    {id:"automobile_service",name:"Automobile / Car Service",products:["marketing"],band:"A"},
+    {id:"photography_studio",name:"Photography / Wedding Studio",products:["marketing"],band:"A"},
+    {id:"pharmacy_medical",name:"Pharmacy / Medical Store",products:["marketing"],band:"A"},
+    {id:"furniture_decor",name:"Furniture / Home Decor",products:["marketing"],band:"A"},
+    {id:"kirana_supermarket",name:"Kirana / Supermarket",products:["marketing"],band:"A"},
+    {id:"travel_agency",name:"Travel Agency / Tours",products:["marketing"],band:"A"},
+    {id:"gift_stationery",name:"Gift / Stationery Shop",products:["marketing"],band:"A"},
+    {id:"hospital_appointments",name:"Hospitals & Clinics — Appointment Booking",products:["marketing","voice"],band:"A"},
+    {id:"skin_dermatology",name:"Dermatology & Skin Clinics",products:["marketing","voice"],band:"A"},
+    {id:"finance_advisory",name:"Insurance & Mutual Fund Advisors",products:["marketing","voice"],band:"B"},
+    {id:"edtech_creators",name:"Online Educators & Course Creators",products:["marketing"],band:"A"},
+    {id:"cloud_kitchen",name:"Cloud Kitchen / Tiffin Service",products:["marketing"],band:"A"},
+    {id:"ayurveda_wellness",name:"Ayurveda & Wellness Clinics",products:["marketing","voice"],band:"A"},
+    {id:"ecommerce_d2c",name:"D2C / E-commerce Brand Owners",products:["marketing"],band:"A"},
+    {id:"event_management",name:"Corporate & Social Event Planners",products:["marketing","voice"],band:"A"},
+    {id:"hardware_paint",name:"Hardware / Paint / Electrical",products:["marketing"],band:"A"}
+  ];
+  var WZ_VOICE_BANDS={A:{m:4999,y:49990}, B:{m:9999,y:99990}, C:{m:19999,y:199990}};
+  var WZ_COMBO_TIERS={A:{key:"starter",m:4999,y:49990}, B:{key:"growth",m:9999,y:99990}, C:{key:"pro",m:21999,y:219990}};
+  var WZ_MKT_PLANS=[["starter","Starter — ₹1,199/mo"],["growth","Growth — ₹2,999/mo"],["advanced","Advanced — ₹6,999/mo"],["trial","Trial — free"]];
+  function wzInr(n){ return n ? ("₹"+Number(n).toLocaleString("en-IN")) : "Free"; }
+  function wzCurProduct(){ var e=document.getElementById("b-product"); return e?e.value:"marketing"; }
+  function wzSelectedBand(){
+    var sel=document.getElementById("b-niche"); if(!sel||sel.selectedIndex<0) return "A";
+    var b=(sel.options[sel.selectedIndex].getAttribute("data-band")||"A").toUpperCase();
+    return (["A","B","C"].indexOf(b)>=0)?b:"A";
+  }
+  function wzProductChange(){
+    var prod=wzCurProduct(), sel=document.getElementById("b-niche"); if(!sel) return;
+    var list=WZ_NICHES.filter(function(n){
+      if(prod==="marketing") return n.products.indexOf("marketing")>=0;
+      return n.products.indexOf("voice")>=0;   // voice & combo dono ko voice-capable niche chahiye
+    });
+    var html='<option value="general" data-band="A">General</option>';
+    list.forEach(function(n){ html+='<option value="'+esc(n.id)+'" data-band="'+esc(n.band)+'">'+esc(n.name)+(prod!=="marketing"?(" · Band "+esc(n.band)):"")+'</option>'; });
+    sel.innerHTML=html;
+    wzRefreshPlans();
+  }
+  function wzNicheChange(){ if(wzCurProduct()!=="marketing") wzRefreshPlans(); }
+  function wzRefreshPlans(){
+    var prod=wzCurProduct(), sel=document.getElementById("b-plan"), hint=document.getElementById("b-plan-hint");
+    if(!sel) return; var opts=[];
+    if(prod==="marketing"){ opts=WZ_MKT_PLANS.slice(); if(hint) hint.textContent=""; }
+    else if(prod==="voice"){
+      var b=wzSelectedBand(), p=WZ_VOICE_BANDS[b];
+      opts=[["voice_pilot","Free Pilot — 7 din / 50 calls"],
+            ["voice_"+b.toLowerCase()+"_monthly","Monthly · Band "+b+" — "+wzInr(p.m)+"/mo"],
+            ["voice_"+b.toLowerCase()+"_annual","Annual · Band "+b+" — "+wzInr(p.y)+"/yr"]];
+      if(hint) hint.textContent="Voice plan band niche se auto-resolve hota hai (abhi Band "+b+").";
+    } else {
+      var b2=wzSelectedBand(), t=WZ_COMBO_TIERS[b2];
+      opts=[["combo_pilot","Free Pilot — 7 din / 50 calls"],
+            ["combo_"+t.key+"_monthly","Combo "+t.key+" · Monthly — "+wzInr(t.m)+"/mo"],
+            ["combo_"+t.key+"_annual","Combo "+t.key+" · Annual — "+wzInr(t.y)+"/yr"]];
+      if(hint) hint.textContent="Band "+b2+" → Combo "+t.key+" (Marketing + Voice bundle).";
+    }
+    sel.innerHTML=opts.map(function(o){ return '<option value="'+esc(o[0])+'">'+esc(o[1])+'</option>'; }).join("");
+  }
   (async function(){
-    var sel=document.getElementById("b-niche");
+    var pe=document.getElementById("b-product"); if(pe) pe.addEventListener("change", wzProductChange);
+    var ne=document.getElementById("b-niche"); if(ne) ne.addEventListener("change", wzNicheChange);
+    wzProductChange();                       // turant embedded fallback se populate (API ka wait nahi)
     try{
       var j=await api("GET","/api/data/niches");
-      var list=(j&&j.niches)||[];
-      sel.innerHTML='<option value="general">General</option>';
-      list.forEach(function(nch){
-        var o=document.createElement("option");
-        o.value=nch.id; o.textContent=nch.name+(nch.tier?(" ("+nch.tier+")"):"");
-        sel.appendChild(o);
-      });
-    }catch(e){ sel.innerHTML='<option value="general">General (niches load fail)</option>'; }
+      var mapped=((j&&j.niches)||[]).map(function(n){ return {id:n.id, name:n.name, products:(n.products||["marketing","voice"]), band:(n.lead_band||"A")}; });
+      if(mapped.length){ WZ_NICHES=mapped; wzProductChange(); }   // API success -> full/fresh list
+    }catch(e){ /* fallback already populated — kuch mat karo */ }
   })();
 
   // STEP 1: create client — POST /api/clients
@@ -189,6 +271,7 @@
     btn.disabled=true;
     try{
       var j=await api("POST","/api/clients",{
+        product:wzCurProduct(),
         business_name:name, niche:state.niche,
         city:(document.getElementById("b-city").value||"").trim(),
         phone:state.phone,

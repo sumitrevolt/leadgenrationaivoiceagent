@@ -175,6 +175,7 @@ def add_client(
     plan: str = "starter",
     brand: dict[str, Any] | None = None,
     socials: dict[str, Any] | None = None,
+    product: str = "marketing",
 ) -> dict[str, Any]:
     """Naya marketing client banao (uuid id). Dedupe by phone (last-10) ya
     business_name (case-insensitive) — existing mile to wahi return (no dup).
@@ -194,6 +195,11 @@ def add_client(
 
         cid = uuid.uuid4().hex[:12]
         brand_d = _norm_brand(brand)
+        prod = (product or "marketing").strip().lower()
+        if prod == "both":
+            prod = "combo"
+        if prod not in ("marketing", "voice", "combo"):
+            prod = "marketing"
         rec: dict[str, Any] = {
             "id": cid,
             "business_name": name,
@@ -201,7 +207,8 @@ def add_client(
             "niche": niche_k,
             "city": (city or "").strip()[:80],
             "phone": str(phone or "").strip()[:40],
-            "plan": (plan or "starter").strip().lower()[:30] or "starter",
+            "plan": (plan or "starter").strip().lower()[:40] or "starter",
+            "product": prod,  # marketing | voice | combo (ADR-009 two-product split)
             "status": "active",
             "brand": brand_d,
             "socials": _norm_socials(socials),

@@ -65,7 +65,8 @@ class AddClientRequest(BaseModel):
     niche: str = Field("general", max_length=80)
     city: str = Field("", max_length=80)
     phone: str = Field("", max_length=40)
-    plan: str = Field("starter", max_length=30)
+    plan: str = Field("starter", max_length=40)
+    product: str = Field("marketing", max_length=20)  # marketing|voice|combo (ADR-009)
     brand: ClientBrand = Field(default_factory=ClientBrand)
     socials: ClientSocials = Field(default_factory=ClientSocials)
 
@@ -102,8 +103,9 @@ async def create_client(
             plan=req.plan,
             brand=req.brand.model_dump(),
             socials=req.socials.model_dump(),
+            product=req.product,
         )
-        _log_isha("client_added", f"{req.business_name} ({req.niche or 'general'}, {req.plan})")
+        _log_isha("client_added", f"{req.business_name} ({req.product}/{req.niche or 'general'}, {req.plan})")
         return {"client": client}
     except Exception as e:
         logger.error(f"Client add failed: {e}")

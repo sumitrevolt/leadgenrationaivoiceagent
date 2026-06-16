@@ -143,6 +143,8 @@
     </div>
     <nav class="nav">
       <div class="sec">Overview</div>
+      <a href="#onboardCard" onclick="openOnboard();return false;" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic">➕</span> Add Customer</a>
+      <a href="/app/onboard"><span class="ic">✦</span> Onboarding Wizard</a>
       <a class="active" href="#top"><span class="ic">▦</span> Dashboard</a>
       <a href="#sec-clients"><span class="ic">★</span> Sabhi Clients <span class="badge" id="nav-clients">10</span></a>
       <a href="#sec-campaigns"><span class="ic">◎</span> Campaigns <span class="badge" id="nav-camp">8</span></a>
@@ -173,6 +175,7 @@
       </div>
       <div class="top-right">
         <span class="pill"><span class="live-dot"></span> <span id="src-label">Live Demo</span></span>
+        <button class="btn" onclick="openOnboard()" style="background:#10b981">➕ Add Customer</button>
         <button class="btn" onclick="loadDashboard()">↻ Refresh</button>
       </div>
     </div>
@@ -186,20 +189,25 @@
         </div>
         <div class="bd" id="onbForm" style="display:none">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:8px">
-            <div><label style="font-size:11px;color:#94a3b8">Business name *</label><input id="onbBiz" placeholder="Sharma Solar" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
-            <div><label style="font-size:11px;color:#94a3b8">Niche</label><input id="onbNiche" placeholder="solar" value="general" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
-            <div><label style="font-size:11px;color:#94a3b8">City</label><input id="onbCity" placeholder="Pune" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
-            <div><label style="font-size:11px;color:#94a3b8">Phone *</label><input id="onbPhone" placeholder="9876543210" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
-            <div><label style="font-size:11px;color:#94a3b8">Email (login)</label><input id="onbEmail" type="email" placeholder="customer@example.com" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
-            <div><label style="font-size:11px;color:#94a3b8">Plan</label>
-              <select id="onbPlan" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px">
-                <option value="trial">trial</option>
-                <option value="starter">starter</option>
-                <option value="growth">growth</option>
-                <option value="advanced">advanced</option>
+            <div><label style="font-size:11px;color:#94a3b8">Product *</label>
+              <select id="onbProduct" onchange="onbProductChange()" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px">
+                <option value="marketing">AI Marketing</option>
+                <option value="voice">AI Voice Agent</option>
+                <option value="combo">Both — AI Growth Suite</option>
               </select>
             </div>
+            <div><label style="font-size:11px;color:#94a3b8">Business name *</label><input id="onbBiz" placeholder="Sharma Solar" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#94a3b8">Niche</label>
+              <select id="onbNiche" onchange="onbNicheChange()" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"><option value="general">Loading…</option></select>
+            </div>
+            <div><label style="font-size:11px;color:#94a3b8">Phone *</label><input id="onbPhone" placeholder="9876543210" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#94a3b8">City</label><input id="onbCity" placeholder="Pune" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#94a3b8">Email (login)</label><input id="onbEmail" type="email" placeholder="customer@example.com" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#94a3b8">Plan</label>
+              <select id="onbPlan" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></select>
+            </div>
           </div>
+          <div id="onbPlanHint" style="font-size:11px;color:#7dd3fc;margin:-2px 0 8px"></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <button class="btn" onclick="onbSubmit()" style="background:#10b981;color:#fff;border:0;padding:8px 18px;font-weight:600">Create + Issue Login</button>
             <span style="font-size:11px;color:#94a3b8">Password auto-generated unless typed below</span>
@@ -556,7 +564,7 @@ async function loadDashboard(){
   }
 }
 
-document.addEventListener("DOMContentLoaded", ()=>{ loadDashboard(); loadNiches(); });
+document.addEventListener("DOMContentLoaded", ()=>{ loadDashboard(); loadNiches(); onbLoadNiches(); });
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
    never paint fake demo numbers over real ones). Cosmetic random nudges removed. */
@@ -574,12 +582,128 @@ function abAuthHdr(){
 }
 
 /* ====== S.2 Add Customer (admin onboard) ====== */
+/* openOnboard() — sidebar/topbar "Add Customer" se call hota hai:
+   form ko force-open karta hai, card pe smooth scroll, mobile sidebar band,
+   aur pehli field (Business name) pe focus. */
+function openOnboard(){
+  const f = document.getElementById("onbForm");
+  const b = document.getElementById("onbToggle");
+  if(f) f.style.display = "block";
+  if(b) b.textContent = "Hide form";
+  const sb = document.getElementById("sidebar");
+  if(sb) sb.classList.remove("open");   // mobile: menu band karo
+  const card = document.getElementById("onboardCard");
+  if(card) card.scrollIntoView({behavior:"smooth", block:"start"});
+  setTimeout(()=>{ const el = document.getElementById("onbBiz"); if(el) el.focus(); }, 350);
+}
 function onbToggle(){
   const f = document.getElementById("onbForm");
   const b = document.getElementById("onbToggle");
   const open = f.style.display === "none";
   f.style.display = open ? "block" : "none";
   b.textContent = open ? "Hide form" : "Show form";
+}
+/* ---- product -> niche -> plan wiring (prices mirror voice_packages.py / combo_packages.py) ---- */
+/* Embedded niche fallback (niches.py ka mirror). API (/api/data/niches) chale to
+   override ho jata — custom + fresh. API fail/empty pe bhi dropdown product-wise
+   bhara rehta hai (kabhi sirf "General" nahi). */
+var ONB_NICHES = [
+  {id:"ai_marketing",name:"AI Marketing Services",products:["marketing"],band:"A"},
+  {id:"studying_abroad",name:"Study Abroad Consultants",products:["voice"],band:"B"},
+  {id:"home_loans",name:"Home Loans & LAP (DSA)",products:["voice"],band:"B"},
+  {id:"solar_residential",name:"Residential Rooftop Solar",products:["marketing","voice"],band:"A"},
+  {id:"solar_commercial",name:"Commercial Solar Installers",products:["voice"],band:"C"},
+  {id:"insurance",name:"Health & Term Insurance",products:["voice"],band:"A"},
+  {id:"coaching",name:"Coaching Institutes (NEET/JEE/UPSC)",products:["marketing","voice"],band:"A"},
+  {id:"interior_designers",name:"Interior Design Studios",products:["marketing"],band:"B"},
+  {id:"modular_kitchen",name:"Modular Kitchen Manufacturers",products:["marketing","voice"],band:"B"},
+  {id:"dental_implants",name:"Dental Clinics (Implants/Aligners)",products:["marketing","voice"],band:"B"},
+  {id:"hair_transplant",name:"Hair Transplant Clinics",products:["marketing","voice"],band:"C"},
+  {id:"ivf_clinics",name:"IVF & Fertility Clinics",products:["voice"],band:"C"},
+  {id:"immigration",name:"Immigration & PR Consultants",products:["voice"],band:"C"},
+  {id:"upskilling",name:"Upskilling & EdTech Programs",products:["voice"],band:"A"},
+  {id:"recruitment",name:"Recruitment & Staffing Agencies",products:["voice"],band:"A"},
+  {id:"hvac_commercial",name:"Commercial HVAC",products:["voice"],band:"C"},
+  {id:"b2b_suppliers",name:"Manufacturing & B2B Suppliers",products:["voice"],band:"A"},
+  {id:"travel_packages",name:"International Travel Packages",products:["marketing","voice"],band:"A"},
+  {id:"packers_movers",name:"Packers & Movers",products:["voice"],band:"A"},
+  {id:"hotels_mice",name:"Hotels & Banquets (Corporate/MICE)",products:["voice"],band:"B"},
+  {id:"digital_marketing",name:"Digital Marketing Agencies",products:["voice"],band:"B"},
+  {id:"ca_legal",name:"CA & Legal Services",products:["voice"],band:"B"},
+  {id:"restaurant_cafe",name:"Restaurant / Cafe",products:["marketing"],band:"A"},
+  {id:"automobile_service",name:"Automobile / Car Service",products:["marketing"],band:"A"},
+  {id:"photography_studio",name:"Photography / Wedding Studio",products:["marketing"],band:"A"},
+  {id:"pharmacy_medical",name:"Pharmacy / Medical Store",products:["marketing"],band:"A"},
+  {id:"furniture_decor",name:"Furniture / Home Decor",products:["marketing"],band:"A"},
+  {id:"kirana_supermarket",name:"Kirana / Supermarket",products:["marketing"],band:"A"},
+  {id:"travel_agency",name:"Travel Agency / Tours",products:["marketing"],band:"A"},
+  {id:"gift_stationery",name:"Gift / Stationery Shop",products:["marketing"],band:"A"},
+  {id:"hospital_appointments",name:"Hospitals & Clinics — Appointment Booking",products:["marketing","voice"],band:"A"},
+  {id:"skin_dermatology",name:"Dermatology & Skin Clinics",products:["marketing","voice"],band:"A"},
+  {id:"finance_advisory",name:"Insurance & Mutual Fund Advisors",products:["marketing","voice"],band:"B"},
+  {id:"edtech_creators",name:"Online Educators & Course Creators",products:["marketing"],band:"A"},
+  {id:"cloud_kitchen",name:"Cloud Kitchen / Tiffin Service",products:["marketing"],band:"A"},
+  {id:"ayurveda_wellness",name:"Ayurveda & Wellness Clinics",products:["marketing","voice"],band:"A"},
+  {id:"ecommerce_d2c",name:"D2C / E-commerce Brand Owners",products:["marketing"],band:"A"},
+  {id:"event_management",name:"Corporate & Social Event Planners",products:["marketing","voice"],band:"A"},
+  {id:"hardware_paint",name:"Hardware / Paint / Electrical",products:["marketing"],band:"A"}
+];
+var ONB_VOICE_BANDS = {A:{m:4999,y:49990}, B:{m:9999,y:99990}, C:{m:19999,y:199990}};
+var ONB_COMBO_TIERS = {A:{key:"starter",m:4999,y:49990}, B:{key:"growth",m:9999,y:99990}, C:{key:"pro",m:21999,y:219990}};
+var ONB_MKT_PLANS = [["trial","Trial — free"],["starter","Starter — ₹1,199/mo"],["growth","Growth — ₹2,999/mo"],["advanced","Advanced — ₹6,999/mo"]];
+function onbInr(n){ return n ? ("₹"+Number(n).toLocaleString("en-IN")) : "Free"; }
+function onbCurProduct(){ var e=document.getElementById("onbProduct"); return e ? e.value : "marketing"; }
+async function onbLoadNiches(){
+  onbProductChange();                       // turant embedded fallback se populate (API ka wait nahi)
+  try{
+    var r = await fetch("/api/data/niches");
+    var j = await r.json();
+    var mapped = (j.niches||[]).map(function(n){
+      return {id:n.id, name:n.name, products:(n.products||["marketing","voice"]), band:(n.lead_band||"A")};
+    });
+    if(mapped.length){ ONB_NICHES = mapped; onbProductChange(); }   // API success -> full/fresh list
+  }catch(e){ /* fallback already populated — kuch mat karo */ }
+}
+function onbProductChange(){
+  var prod = onbCurProduct();
+  var sel = document.getElementById("onbNiche"); if(!sel) return;
+  var list = ONB_NICHES.filter(function(n){
+    if(prod==="marketing") return n.products.indexOf("marketing")>=0;
+    return n.products.indexOf("voice")>=0;   // voice & combo dono ko voice-capable niche chahiye
+  });
+  var html = '<option value="general" data-band="A">General</option>';
+  list.forEach(function(n){
+    html += '<option value="'+escH(n.id)+'" data-band="'+escH(n.band)+'">'+escH(n.name)+(prod!=="marketing"?(" · Band "+escH(n.band)):"")+'</option>';
+  });
+  sel.innerHTML = html;
+  onbRefreshPlans();
+}
+function onbSelectedBand(){
+  var sel=document.getElementById("onbNiche"); if(!sel||sel.selectedIndex<0) return "A";
+  var b=(sel.options[sel.selectedIndex].getAttribute("data-band")||"A").toUpperCase();
+  return (["A","B","C"].indexOf(b)>=0) ? b : "A";
+}
+function onbNicheChange(){ if(onbCurProduct()!=="marketing") onbRefreshPlans(); }
+function onbRefreshPlans(){
+  var prod=onbCurProduct(), sel=document.getElementById("onbPlan"), hint=document.getElementById("onbPlanHint");
+  if(!sel) return; var opts=[];
+  if(prod==="marketing"){
+    opts = ONB_MKT_PLANS.slice();
+    if(hint) hint.textContent="";
+  } else if(prod==="voice"){
+    var b=onbSelectedBand(), p=ONB_VOICE_BANDS[b];
+    opts=[["voice_pilot","Free Pilot — 7 din / 50 calls"],
+          ["voice_"+b.toLowerCase()+"_monthly","Monthly · Band "+b+" — "+onbInr(p.m)+"/mo"],
+          ["voice_"+b.toLowerCase()+"_annual","Annual · Band "+b+" — "+onbInr(p.y)+"/yr"]];
+    if(hint) hint.textContent="Voice plan band niche se auto-resolve hota hai (abhi Band "+b+").";
+  } else {
+    var b2=onbSelectedBand(), t=ONB_COMBO_TIERS[b2];
+    opts=[["combo_pilot","Free Pilot — 7 din / 50 calls"],
+          ["combo_"+t.key+"_monthly","Combo "+t.key+" · Monthly — "+onbInr(t.m)+"/mo"],
+          ["combo_"+t.key+"_annual","Combo "+t.key+" · Annual — "+onbInr(t.y)+"/yr"]];
+    if(hint) hint.textContent="Band "+b2+" → Combo "+t.key+" (Marketing + Voice bundle).";
+  }
+  sel.innerHTML = opts.map(function(o){ return '<option value="'+escH(o[0])+'">'+escH(o[1])+'</option>'; }).join("");
 }
 function _onbVal(id){ return (document.getElementById(id).value || "").trim(); }
 async function onbSubmit(){
@@ -589,11 +713,12 @@ async function onbSubmit(){
   if(!biz || !phone){ out.innerHTML='<span style="color:#fca5a5">business_name + phone required</span>'; return; }
   out.innerHTML='<span style="color:#94a3b8">Onboarding…</span>';
   const body = {
+    product: onbCurProduct(),
     business_name: biz,
     niche: _onbVal("onbNiche") || "general",
     city: _onbVal("onbCity"),
     phone: phone,
-    plan: _onbVal("onbPlan") || "trial",
+    plan: _onbVal("onbPlan") || "",
   };
   const email = _onbVal("onbEmail");
   if(email) body.email = email;
@@ -610,6 +735,7 @@ async function onbSubmit(){
     let html = `<div style="background:#1e1b4b;border:1px dashed #10b981;padding:12px;border-radius:8px">
       <div style="color:#10b981;font-weight:600;margin-bottom:6px">✓ Customer created</div>
       <div style="font-size:11px;color:#cbd5e1">client_id: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">${escH(d.client_id)}</code></div>
+      <div style="font-size:11px;color:#cbd5e1;margin-top:4px">Product: <b style="color:#a5b4fc">${escH(d.product||body.product)}</b> · Plan: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">${escH(d.plan||body.plan)}</code></div>
       <div style="font-size:11px;color:#cbd5e1;margin-top:4px">Dashboard: <a href="${escH(d.customer_dashboard)}" style="color:#a5b4fc" target="_blank">${escH(d.customer_dashboard)}</a></div>`;
     if(d.login_email){
       html += `<div style="font-size:11px;color:#cbd5e1;margin-top:4px">Login: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">${escH(d.login_email)}</code></div>`;

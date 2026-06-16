@@ -27,16 +27,21 @@ router = APIRouter(prefix="/api/admin/customers", tags=["Admin Customers"])
 
 
 _ALPHABET = string.ascii_letters + string.digits
-_VALID_PLANS = {"trial", "starter", "growth", "advanced"}
+_MKT_PLANS = {"trial", "starter", "growth", "advanced"}
+_DEFAULT_PLAN = {"marketing": "trial", "voice": "voice_pilot", "combo": "combo_pilot"}
 
 
 class OnboardIn(BaseModel):
     business_name: str = Field(..., min_length=2, max_length=200)
+    # ADR-009 two-product split: marketing | voice | combo (UI me "both" = combo)
+    product: str = Field("marketing", max_length=20)
     niche: str = Field("general", max_length=80)
     city: str = Field("", max_length=80)
     phone: str = Field(..., min_length=8, max_length=20)
     email: EmailStr | None = None
-    plan: str = Field("trial", max_length=20)
+    # Resolved plan id — product ke hisab se (marketing: trial/starter/growth/advanced,
+    # voice: voice_pilot/voice_a_monthly..., combo: combo_pilot/combo_growth_monthly...).
+    plan: str = Field("", max_length=40)
     # If unset, server generates a random 14-char password and returns it ONCE.
     # If set, operator-chosen (e.g. customer asked for a specific one).
     password: str | None = Field(None, min_length=8, max_length=64)
@@ -70,12 +75,37 @@ async def onboard_customer(body: OnboardIn, _user=Depends(require_admin)) -> dic
     client_id but issues a fresh password (operator can use this to reset
     a customer's password without touching the password-reset flow).
     """
-    plan = (body.plan or "trial").strip().lower()
-    if plan not in _VALID_PLANS:
-        raise HTTPException(
-            status_code=422,
-            detail=f"plan must be one of {sorted(_VALID_PLANS)}",
-        )
+    # Product normalize (UI "both" -> combo).
+    product = (body.product or "marketing").strip().lower()
+    if product == "both":
+        product = "combo"
+    if product not in ("marketing", "voice", "combo"):
+        raise HTTPException(status_code=422, detail="product must be one of marketing|voice|combo")
+
+    # Plan validate per product (empty -> sensible default per product).
+    plan = (body.plan or "").strip().lower() or _DEFAULT_PLAN[product]
+    if product == "marketing":
+        if plan not in _MKT_PLANS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"marketing plan must be one of {sorted(_MKT_PLANS)}",
+            )
+    elif product == "voice":
+        from app.marketing.voice_packages import is_voice_plan
+
+        if not is_voice_plan(plan):
+            raise HTTPException(
+                status_code=422,
+                detail="voice plan invalid (e.g. voice_pilot, voice_a_monthly, voice_b_annual)",
+            )
+    else:  # combo
+        from app.marketing.combo_packages import is_combo_plan
+
+        if not is_combo_plan(plan):
+            raise HTTPException(
+                status_code=422,
+                detail="combo plan invalid (e.g. combo_pilot, combo_growth_monthly)",
+            )
 
     # 1) Create / dedupe the profile (clients_store handles idempotency on phone).
     try:
@@ -93,6 +123,7 @@ async def onboard_customer(body: OnboardIn, _user=Depends(require_admin)) -> dic
             plan=plan,
             brand=brand,
             socials={},
+            product=product,
         )
         client_id = str(client.get("id") or "")
         if not client_id:
@@ -128,8 +159,8 @@ async def onboard_customer(body: OnboardIn, _user=Depends(require_admin)) -> dic
         log_event(
             "rohan",
             "customer_onboarded",
-            f"{body.business_name} ({body.niche}, {plan}) - {body.phone}",
-            meta={"client_id": client_id, "via": "admin_onboard"},
+            f"{body.business_name} ({product}/{body.niche}, {plan}) - {body.phone}",
+            meta={"client_id": client_id, "via": "admin_onboard", "product": product},
         )
     except Exception:
         pass
@@ -148,6 +179,7 @@ async def onboard_customer(body: OnboardIn, _user=Depends(require_admin)) -> dic
         "login_email": login_email,
         "password": password,  # plaintext — shown only this once
         "password_generated": password_generated,
+        "product": product,
         "plan": plan,
         "customer_dashboard": customer_dashboard,
         "magic_link_hint": magic_link_hint,
