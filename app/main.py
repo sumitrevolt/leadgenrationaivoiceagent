@@ -346,6 +346,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Growth router not mounted: {_e}")
 try:
+    from app.api.activation import router as _activation_router
+
+    # /api/activation/readiness — launch-blocker / activation-debt snapshot (F.2).
+    # Admin-only, env shape-checks only (no outbound calls).
+    app.include_router(_activation_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Activation router not mounted: {_e}")
+try:
     from app.api import conversion as _conversion
 
     app.include_router(_conversion.public_router, prefix="/api")  # /api/public/widget-chat, /lead-in, /trial-status
