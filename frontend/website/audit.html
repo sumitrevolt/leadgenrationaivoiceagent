@@ -240,6 +240,7 @@
         <div class="fld"><label for="a-phone">Phone / WhatsApp number *</label><input id="a-phone" name="phone" type="tel" required placeholder="98765 43210" autocomplete="tel" /></div>
         <!-- honeypot: bots fill this, humans never see it -->
         <input type="text" name="website" id="a-website" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <div data-turnstile-host></div>
         <button type="submit" class="btn btn-primary" id="auditSubmit" style="width:100%">📞 Poora plan FREE me lo</button>
         <p class="form-note">✅ No spam · 24 ghante me call · Details sirf aapse contact ke liye</p>
       </form>
@@ -357,9 +358,10 @@
     document.getElementById('qText').textContent = 'Score nikal rahe hain…';
     document.getElementById('opts').innerHTML = '<div class="qload"><span class="spin"></span></div>';
     try {
+      const tok = window.turnstileToken ? await window.turnstileToken() : "";
       const res = await fetch('/api/public/audit/score', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Turnstile-Token': tok },
         body: JSON.stringify({ answers })
       });
       if (res.status === 429) { showToast('Thoda ruk ke dobara try karo ⏳'); renderQ(); return; }
@@ -455,9 +457,10 @@
     const OLD = btn.textContent;
     btn.disabled = true; btn.textContent = 'Bhej rahe hain…';
     try {
+      const tok = window.turnstileToken ? await window.turnstileToken() : "";
       const res = await fetch('/api/public/inquiry', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Turnstile-Token': tok },
         body: JSON.stringify({
           name, business_name: biz, phone,
           package: 'Free Audit Lead',
@@ -485,5 +488,6 @@
   // go!
   loadQuestions();
 </script>
+<script src="/site/turnstile.js" defer></script>
 </body>
 </html>

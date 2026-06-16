@@ -192,6 +192,7 @@
           <label for="d-city">City *</label>
           <input id="d-city" name="city" type="text" required placeholder="e.g. Pune" autocomplete="address-level2" />
         </div>
+        <div data-turnstile-host></div>
         <button type="submit" class="btn btn-primary" id="genBtn" style="width:100%">✨ Generate my free AI marketing pack</button>
         <p class="form-note">✅ 100% FREE · Koi signup nahi · Result turant screen pe</p>
       </form>
@@ -432,9 +433,10 @@
     document.getElementById('demo').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     try {
+      var tok = window.turnstileToken ? await window.turnstileToken() : "";
       var res = await fetch('/api/public/ai-demo', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Turnstile-Token': tok },
         body: JSON.stringify(input)
       });
       if (res.status === 429) {
@@ -626,6 +628,7 @@
   // go!
   loadNiches();
 </script>
+<script src="/site/turnstile.js" defer></script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

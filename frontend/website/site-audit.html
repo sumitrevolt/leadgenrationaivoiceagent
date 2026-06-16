@@ -27,6 +27,7 @@ a{color:var(--acc)}
 <div class="sub">Apni website ka URL daalo — 10 second me AI report card: SEO, mobile, WhatsApp, contact + sudhaar ke tips (Hinglish me).</div>
 <div class="card">
   <input id="url" type="url" placeholder="aapkiwebsite.in" autofocus>
+  <div data-turnstile-host></div>
   <button id="go" onclick="run()">Audit Karo (FREE)</button>
   <div id="err" class="err"></div>
 </div>
@@ -51,7 +52,8 @@ async function run(){
   const u=$('url').value.trim(); if(!u){$('err').textContent='URL daalo';return}
   $('go').disabled=true;$('go').textContent='AI audit chal raha…';$('err').textContent='';
   try{
-    const r=await fetch('/api/growth/tools/website-audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:u})});
+    const tok = window.turnstileToken ? await window.turnstileToken() : "";
+    const r=await fetch('/api/growth/tools/website-audit',{method:'POST',headers:{'Content-Type':'application/json','X-Turnstile-Token':tok},body:JSON.stringify({url:u})});
     const d=await r.json();
     if(!d.ok){$('err').textContent=d.error||'Kuch galat hua, dobara try karo';return}
     $('res').style.display='block';
@@ -65,6 +67,7 @@ async function run(){
 }
 $('url').addEventListener('keydown',e=>{if(e.key==='Enter')run()});
 </script>
+<script src="/site/turnstile.js" defer></script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>
