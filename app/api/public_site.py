@@ -38,6 +38,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from app.security.turnstile import site_key as _turnstile_site_key
+from app.security.turnstile import verify_turnstile
+
 from app.api.auth_deps import require_admin
 from app.api.ratelimit import rate_limit
 from app.models.user import User
@@ -320,7 +323,10 @@ class AiDemoIn(BaseModel):
     city: str | None = ""
 
 
-@router.post("/ai-demo", dependencies=[Depends(rate_limit("ai_demo", 8, 60))])
+@router.post(
+    "/ai-demo",
+    dependencies=[Depends(rate_limit("ai_demo", 8, 60)), Depends(verify_turnstile)],
+)
 async def ai_demo(body: AiDemoIn):
     """PUBLIC lead-magnet: business naam → REAL AI marketing pack preview (3 posts +
     hashtags + offer + CTA). Powered by niche_pack/post_generator (agent tools).
@@ -331,14 +337,21 @@ async def ai_demo(body: AiDemoIn):
     try:
         from app.marketing import niche_pack
 
-        pack = await niche_pack.build_pack(
-            (body.niche or "general").strip().lower() or "general",
-            biz,
-            (body.city or "").strip(),
-            count=3,
+        # Hard deadline: this is an unauthenticated public endpoint that fans out to
+        # several free-LLM calls. Without a cap a single request can hold an HTTP worker
+        # for tens of seconds during provider degradation (WEB_CONCURRENCY=2 -> worker
+        # starvation, the prior outage class). Cap it; fall back to a static pack.
+        pack = await asyncio.wait_for(
+            niche_pack.build_pack(
+                (body.niche or "general").strip().lower() or "general",
+                biz,
+                (body.city or "").strip(),
+                count=3,
+            ),
+            timeout=20.0,
         )
     except Exception as e:
-        logger.warning(f"[ai-demo] pack failed: {e}")
+        logger.warning(f"[ai-demo] pack failed/timeout: {e}")
         pack = {"ok": False, "posts": [], "hashtags": [], "offer": "", "cta": ""}
     return {
         "ok": True,
@@ -349,7 +362,10 @@ async def ai_demo(body: AiDemoIn):
 
 
 # --------------------------------------------------------------------------- #
-@router.post("/inquiry", dependencies=[Depends(rate_limit("inquiry", 15, 60))])
+@router.post(
+    "/inquiry",
+    dependencies=[Depends(rate_limit("inquiry", 15, 60)), Depends(verify_turnstile)],
+)
 async def submit_inquiry(body: InquiryIn, request: Request):
     """Landing page ka lead form — NO AUTH. Validate → file+DB save → team log."""
     # 1) Honeypot: bots hidden "website" field bhar dete hain — ok bolo, ignore karo.
@@ -819,6 +835,17 @@ async def pay_info():
 # --------------------------------------------------------------------------- #
 # FREE public GBP audit — lead-magnet funnel (/audit page isi par chalta hai)
 # --------------------------------------------------------------------------- #
+@router.get("/turnstile/config")
+async def turnstile_config():
+    """Public Turnstile config for client-side widget render.
+
+    Returns `{enabled, site_key}`. INERT (enabled=False) when site-key unset —
+    HTML pages skip the widget injection entirely, zero change for today's flow.
+    """
+    sk = _turnstile_site_key()
+    return {"enabled": bool(sk), "site_key": sk}
+
+
 @router.get("/audit/questions")
 async def audit_questions():
     """GBP self-audit ke 16 sawaal — NO AUTH (safe static data, koi secret nahi)."""
@@ -827,7 +854,7 @@ async def audit_questions():
     return {"questions": AUDIT_QUESTIONS}
 
 
-@router.post("/audit/score")
+@router.post("/audit/score", dependencies=[Depends(verify_turnstile)])
 async def audit_score(body: AuditIn, request: Request):
     """Audit answers → TEASER result — NO AUTH.
 
