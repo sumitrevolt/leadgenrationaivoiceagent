@@ -394,6 +394,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Customer-TOTP router not mounted: {_e}")
 try:
+    from app.api.mcp_product import router as _mcp_product_router
+
+    # H.3 MCP-as-product + A2A Agent Card. Public discovery + metered
+    # capabilities under X-LeadGen-Key. INERT when MCP_PRODUCT unset.
+    app.include_router(_mcp_product_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"MCP-product router not mounted: {_e}")
+try:
     from app.api import conversion as _conversion
 
     app.include_router(_conversion.public_router, prefix="/api")  # /api/public/widget-chat, /lead-in, /trial-status
