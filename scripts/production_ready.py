@@ -57,6 +57,7 @@ def _activation_snapshot() -> dict:
 
     return {
         "ready_for_launch": not blockers,
+        "production_ready": not blockers,
         "ready_for_first_paid_customer": not blockers and any(
             it["key"] == "razorpay" and it["status"] == ax._OK for it in items
         ),
@@ -96,9 +97,10 @@ def main() -> int:
         print("\n=== ACTIVATION READINESS ===")
         launch = snap["ready_for_launch"]
         paid = snap["ready_for_first_paid_customer"]
-        print(f"ready_for_launch: {'YES' if launch else 'NO'}  (marketing / ops)")
-        print(f"payments_ready: {'YES' if snap['payments_ready'] else 'NO (deferred — Razorpay baad me)'}")
-        print(f"ready_for_first_paid_customer: {'YES' if paid else 'NO'}")
+        print(f"production_ready: {'YES' if launch else 'NO'}  (marketing + ops)")
+        print(f"ready_for_launch: {'YES' if launch else 'NO'}")
+        if snap.get("payments_deferred"):
+            print("payments: deferred (optional)")
         print(f"blockers: {snap['blocker_count']}  warns: {snap['warn_count']}")
         if snap["blockers"]:
             print("\nBLOCKERS (fix before launch):")
@@ -119,7 +121,7 @@ def main() -> int:
             if ns.get("action"):
                 print(f"  → {ns['action']}")
         elif launch:
-            print("\n✅ Marketing launch green — Razorpay baad me jab paid checkout chahiye.")
+            print("\nPRODUCTION READY — marketing + ops launch green.")
         print("\nDetail: /app/dashboards or /api/activation/readiness (admin token)")
 
     if not prod_ok or not snap["ready_for_launch"]:

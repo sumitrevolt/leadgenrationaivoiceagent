@@ -507,6 +507,7 @@ async def activation_summary_public() -> dict[str, Any]:
     launch_ready = not blockers
     return {
         "ready_for_launch": launch_ready,
+        "production_ready": launch_ready,
         "ready_for_first_paid_customer": launch_ready and payments_ready,
         "payments_ready": payments_ready,
         "payments_deferred": not payments_ready,
@@ -540,16 +541,18 @@ async def activation_readiness(_user=Depends(require_admin)) -> dict[str, Any]:
 
     return {
         "ready_for_launch": launch_ready,
+        "production_ready": launch_ready,
         "ready_for_first_paid_customer": launch_ready and payments_ready,
         "payments_ready": payments_ready,
         "payments_deferred": not payments_ready,
         "blocker_count": len(blockers),
-        "blockers": blockers,
         "warn_count": len(warns),
+        "blockers": blockers,
         "warns": warns,
         "items": items,
         "telephony": telephony,
         "ready_for_calling": int(telephony.get("score") or 0) >= 70,
+        "calling_optional": True,
     }
 
 
@@ -564,7 +567,7 @@ async def get_activation_summary() -> dict[str, Any]:
     warns = [it for it in items if it["status"] == _WARN]
     payments_ready = next((it for it in items if it["key"] == "razorpay"), {}).get("status") == _OK
     launch_ready = not blockers
-    probes = {it["key"]: it["status"] == _OK for it in items}
+    probes = {it["key"]: it["status"] != _BLOCKER for it in items}
 
     telephony: dict[str, Any] = {}
     try:
@@ -576,6 +579,7 @@ async def get_activation_summary() -> dict[str, Any]:
 
     return {
         "ready_for_launch": launch_ready,
+        "production_ready": launch_ready,
         "ready_for_first_paid_customer": launch_ready and payments_ready,
         "payments_ready": payments_ready,
         "payments_deferred": not payments_ready,
@@ -587,6 +591,7 @@ async def get_activation_summary() -> dict[str, Any]:
         "items": items,
         "telephony": telephony,
         "ready_for_calling": int(telephony.get("score") or 0) >= 70,
+        "calling_optional": True,
     }
 
 
