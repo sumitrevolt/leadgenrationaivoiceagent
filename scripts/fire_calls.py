@@ -23,11 +23,14 @@ def normalise(ph):
         return "+91" + ph
     return "+" + ph
 
-def get_prospects(limit):
+def get_db_conn():
     import psycopg2, urllib.parse as up
     p = up.urlparse(os.environ["DATABASE_URL"])
-    conn = psycopg2.connect(host=p.hostname, port=p.port or 5432,
+    return psycopg2.connect(host=p.hostname, port=p.port or 5432,
         dbname=p.path.lstrip("/"), user=p.username, password=p.password)
+
+def get_prospects(limit):
+    conn = get_db_conn()
     cur = conn.cursor()
     cur.execute("""SELECT phone, company_name, niche, city FROM leads
         WHERE phone IS NOT NULL AND phone != ''
@@ -38,6 +41,17 @@ def get_prospects(limit):
     conn.close()
     return [{"phone": r[0], "name": r[1] or "Business",
              "niche": r[2] or "general", "city": r[3] or ""} for r in rows]
+
+def mark_called(phone_raw):
+    """Increment call_attempts so the same number isn't redialled."""
+    try:
+        conn = get_db_conn()
+        cur = conn.cursor()
+        cur.execute("""UPDATE leads SET call_attempts = COALESCE(call_attempts,0)+1,
+            last_called_at = NOW() WHERE phone = %s""", (phone_raw,))
+        conn.commit(); conn.close()
+    except Exception as e:
+        print(f"  [warn] DB mark_called failed: {e}")
 
 async def fire(prospects, dry_run):
     from app.api.telephony_vobiz import start_stream_call
@@ -52,6 +66,7 @@ async def fire(prospects, dry_run):
         result = await start_stream_call(to=phone, niche=niche, call_type="promotional")
         if result.get("placed"):
             print("PLACED OK")
+            mark_called(p["phone"])   # mark so we don't redial
             ok += 1
         elif result.get("error") == "compliance_blocked":
             print("BLOCKED(DND/hours)")
