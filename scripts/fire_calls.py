@@ -4,11 +4,14 @@ leads DB se numbers uthata hai, Swara se LeadGen AI pitch karwata hai.
 Run: docker exec leadgen_app python3 scripts/fire_calls.py [--limit N] [--dry-run]
 """
 import asyncio, argparse, sys, os
-sys.path.insert(0, "/opt/leadgen")
-os.chdir("/opt/leadgen")
+
+# Container = /app  |  VPS host = /opt/leadgen
+_BASE = "/app" if os.path.isdir("/app") else "/opt/leadgen"
+sys.path.insert(0, _BASE)
+os.chdir(_BASE)
 
 from dotenv import load_dotenv
-load_dotenv("/opt/leadgen/.env", override=True)
+load_dotenv(os.path.join(_BASE, ".env"), override=True)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--limit", type=int, default=10)
