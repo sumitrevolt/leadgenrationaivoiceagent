@@ -10,7 +10,10 @@ def test_telephony_readiness_checks(monkeypatch):
 
     res = tr.run_checks()
     assert 0 <= res["score"] <= 100
-    assert "exotel_creds" in res["checks"] and "tts_edge" in res["checks"]
+    # Provider-agnostic check keys (refactor: vobiz default; exotel_creds only when
+    # TELEPHONY_PROVIDER=exotel). caller_id is the provider's DID-cred dimension.
+    assert "caller_id" in res["checks"] and "tts_edge" in res["checks"]
+    assert "llm_chain" in res["checks"] and "stt_groq" in res["checks"]
     assert isinstance(res["actions"], list) and res["actions"]
     # creds unset env me -> missing me dikhe (defensive: config fallback ho sakta)
     assert isinstance(res["missing"], list)
