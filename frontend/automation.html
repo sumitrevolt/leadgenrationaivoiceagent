@@ -691,7 +691,7 @@ a{color:var(--acc)}
   </div>
   <div class="card" style="margin-top:14px;border-color:#5b4a1d">
     <h2>🚀 Production Launch Status</h2>
-    <div class="mut">Marketing launch ke liye sab BLOCKER green hona chahiye. Razorpay = baad me (deferred).</div>
+    <div class="mut">Marketing + ops launch — sirf BLOCKER count. Payments/calling optional.</div>
     <button class="btn2" onclick="launchLoad()">🔄 Check readiness</button>
     <a href="/app/dashboards" class="btn2" style="display:inline-block;text-decoration:none;margin-left:4px">Full dashboards →</a>
     <div id="launchBanner" style="margin-top:10px"></div>
@@ -711,7 +711,7 @@ a{color:var(--acc)}
 <section class="tabsec" id="sec-launch">
   <div class="card">
     <h2>🚀 Production Launch Checklist</h2>
-    <div class="mut">13 probes — BLOCKER = launch rok sakta hai. WARN = recommended. NEUTRAL = optional / deferred (Razorpay).</div>
+    <div class="mut">13 probes — BLOCKER = launch rok sakta hai. WARN/NEUTRAL = optional.</div>
     <button class="btn" onclick="launchLoad()">🔄 Refresh readiness</button>
     <a href="/app/dashboards" class="btn2" style="display:inline-block;text-decoration:none">Unified dashboards →</a>
     <div id="launchTabBanner" style="margin-top:12px"></div>
@@ -724,10 +724,7 @@ a{color:var(--acc)}
   <div class="card">
     <h2>🛠️ Quick fixes (no secrets in UI)</h2>
     <div class="mut" style="line-height:1.7;font-size:.85rem">
-      <b>P1 Visibility:</b> Sentry DSN · PostHog key · Turnstile keys (lead forms)<br>
-      <b>P1 Hardening:</b> <code>PLAN_RATE_LIMIT=1</code> · <code>ENVIRONMENT=production</code><br>
-      <b>Payments (baad me):</b> Razorpay <code>rzp_live_*</code> + webhook jab checkout chalu karo<br>
-      <b>Verify:</b> <code>python scripts/production_ready.py</code> on VPS (exit 0 = green)
+      <b>Verify:</b> <code>python scripts/final_integration_check.py</code> (exit 0 = production ready)
     </div>
   </div>
 </section>
@@ -2544,20 +2541,12 @@ async function launchLoad(){
       return;
     }
     if(d.__err) throw new Error(d.__err);
-    var launch=!!d.ready_for_launch;
-    var paid=!!d.ready_for_first_paid_customer;
-    var callReady=!!d.ready_for_calling;
-    var tel=d.telephony||{};
-    var telScore=tel.score||0;
+    var launch=!!(d.production_ready||d.ready_for_launch);
     var top=launch
-      ?'<div class="ok" style="font-size:16px;padding:10px;border-radius:8px;background:#123524">✅ LAUNCH READY — marketing/ops ke liye koi BLOCKER nahi'
-        +(paid?'':' <span class="mut">(Razorpay deferred)</span>')+'</div>'
+      ?'<div class="ok" style="font-size:16px;padding:10px;border-radius:8px;background:#123524">✅ PRODUCTION READY — marketing + ops launch green</div>'
       :'<div class="bad" style="font-size:16px;padding:10px;border-radius:8px;background:#3a1d24">⛔ NOT READY — '+esc(d.blocker_count||0)+' blocker(s) fix karo</div>';
-    var callBanner=callReady
-      ?'<div class="ok" style="margin-top:8px;padding:8px;border-radius:8px;background:#123524">📞 CALLING READY — telephony score '+esc(String(telScore))+'/100 ('+esc(tel.provider||'vobiz')+')</div>'
-      :'<div class="warn" style="margin-top:8px;padding:8px;border-radius:8px;background:#3a2f12">📞 Calling gap — score '+esc(String(telScore))+'/100. '+(tel.actions&&tel.actions[0]?esc(tel.actions[0]):'VOBIZ/EXOTEL + GROQ check karo')+'</div>';
-    if(banner) banner.innerHTML=top+callBanner;
-    if(tabB) tabB.innerHTML=top+callBanner;
+    if(banner) banner.innerHTML=top;
+    if(tabB) tabB.innerHTML=top;
     var html='<table><tr><th>Item</th><th>Status</th><th>Action</th></tr>';
     (d.items||[]).forEach(function(it){
       var cls=it.status==='BLOCKER'?'bad':(it.status==='WARN'?'warn':'ok');
