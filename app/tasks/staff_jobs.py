@@ -49,16 +49,37 @@ STAFF_JOBS = (
 
 
 def _run_async(coro):
-    """Async coroutine ko sync Celery task ke andar safely chalao (apna loop)."""
+    """Async coroutine ko sync Celery task ke andar safely chalao (apna loop).
+
+    Teardown = wahi sequence jo asyncio.run karta hai: pending tasks cancel +
+    asyncgens shutdown PHIR close. Bina iske leftover transports (httpx/aiohttp)
+    GC pe closed-loop pe call_soon karte → "Event loop is closed" log spam.
+    """
     loop = asyncio.new_event_loop()
     try:
         asyncio.set_event_loop(loop)
         return loop.run_until_complete(coro)
     finally:
         try:
-            loop.close()
+            pending = asyncio.all_tasks(loop)
+            for t in pending:
+                t.cancel()
+            if pending:
+                loop.run_until_complete(
+                    asyncio.gather(*pending, return_exceptions=True)
+                )
+            loop.run_until_complete(loop.shutdown_asyncgens())
         except Exception:
             pass
+        finally:
+            try:
+                asyncio.set_event_loop(None)
+            except Exception:
+                pass
+            try:
+                loop.close()
+            except Exception:
+                pass
 
 
 @shared_task(

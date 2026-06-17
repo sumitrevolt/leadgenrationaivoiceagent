@@ -18,6 +18,37 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+def _run_async(coro):
+    """Run an async coroutine in a Celery (sync) task with proper teardown.
+
+    asyncio.run-style cleanup (cancel pending + shutdown_asyncgens before close)
+    so leftover transports don't log "Event loop is closed" on GC.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coro)
+    finally:
+        try:
+            pending = asyncio.all_tasks(loop)
+            for t in pending:
+                t.cancel()
+            if pending:
+                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            loop.run_until_complete(loop.shutdown_asyncgens())
+        except Exception:
+            pass
+        finally:
+            try:
+                asyncio.set_event_loop(None)
+            except Exception:
+                pass
+            try:
+                loop.close()
+            except Exception:
+                pass
+
+
 @shared_task(bind=True, max_retries=3, rate_limit="20/m")
 def make_call_task(self, call_request_data: dict):
     """
@@ -41,14 +72,8 @@ def make_call_task(self, call_request_data: dict):
             priority=call_request_data.get("priority", 5),
         )
 
-        # Run async call in sync context
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        try:
-            result = loop.run_until_complete(call_manager.initiate_call(request))
-        finally:
-            loop.close()
+        # Run async call in sync context (proper teardown)
+        result = _run_async(call_manager.initiate_call(request))
 
         logger.info(f"Call completed: {result.outcome if result else 'failed'}")
 
@@ -72,14 +97,8 @@ def process_queue():
 
     call_manager = CallManager()
 
-    # Run async processing in sync context
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    try:
-        loop.run_until_complete(call_manager.process_queue())
-    finally:
-        loop.close()
+    # Run async processing in sync context (proper teardown)
+    _run_async(call_manager.process_queue())
 
     return {"status": "completed", "processed_at": datetime.now().isoformat()}
 
