@@ -8,20 +8,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-PAGES = [
-    ROOT / "frontend/admin_dashboard.html",
-    ROOT / "frontend/customer_dashboard.html",
-    ROOT / "frontend/automation.html",
-    ROOT / "frontend/battlecard.html",
-    ROOT / "frontend/impersonate.html",
-    ROOT / "frontend/marketing.html",
-    ROOT / "frontend/growth_tools.html",
-    ROOT / "frontend/outreach.html",
-    ROOT / "frontend/dialer.html",
-    ROOT / "frontend/ops.html",
-    ROOT / "frontend/journeys.html",
-    ROOT / "frontend/clients.html",
-]
+# Auto-discover ALL frontend pages (exhaustive — nothing left out).
+PAGES = sorted((ROOT / "frontend").glob("*.html"))
 
 SKIP_HANDLERS = {
     "document", "navigator", "window", "alert", "confirm", "return", "this",
@@ -30,6 +18,11 @@ SKIP_HANDLERS = {
     "copyVal", "copyTxt", "scrollToId", "toggleDark", "toggleNotifPanel",
     "markAllRead", "saveTok", "tok", "hdr", "JSON", "location", "render",
     "applyFilter", "start", "load", "setMsg", "renderAll", "filterByCampaign",
+    # JS keywords + DOM-event built-ins (inline onclicks like
+    # onclick="event.stopPropagation();realFn()" — first stmt is a built-in).
+    "event", "if", "else", "for", "while", "switch", "void", "delete",
+    "console", "history", "localStorage", "sessionStorage", "Math", "Object",
+    "Array", "String", "Number", "setTimeout", "setInterval", "e",
 }
 
 
@@ -90,6 +83,7 @@ def audit_file(path: pathlib.Path, routes: set[str]) -> dict:
     apis |= set(re.findall(r"""fetch\(['"]([^'"]+)['"]""", html))
     apis |= set(re.findall(r'["\'`](/api/[^"\']+)["\'`]', html))
 
+    _ident = re.compile(r"^[A-Za-z_$][\w$]*$")  # clean JS identifier base
     missing_handlers = sorted(
         h
         for h in onclicks
@@ -97,11 +91,15 @@ def audit_file(path: pathlib.Path, routes: set[str]) -> dict:
         and h.split(".")[0] not in SKIP_HANDLERS
         and not h.startswith("this.")
         and not h.endswith(".splice")
+        # skip template-literal / ternary parse-artifacts (e.g. "${s.node?`fn")
+        and _ident.match(h.split(".")[0])
     )
+    _url_ok = re.compile(r"^[/\w\-.{}?=&%:]+$")  # real URL path chars only
     missing_apis = sorted(
         p
         for p in apis
         if (p.startswith("/api") or p.startswith("/health"))
+        and _url_ok.match(p)  # skip desc/label strings ("/api/x · y → z")
         and not route_exists(p, routes)
     )
     # sidebar anchors
