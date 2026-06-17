@@ -14,6 +14,13 @@ PAGES = [
     ROOT / "frontend/automation.html",
     ROOT / "frontend/battlecard.html",
     ROOT / "frontend/impersonate.html",
+    ROOT / "frontend/marketing.html",
+    ROOT / "frontend/growth_tools.html",
+    ROOT / "frontend/outreach.html",
+    ROOT / "frontend/dialer.html",
+    ROOT / "frontend/ops.html",
+    ROOT / "frontend/journeys.html",
+    ROOT / "frontend/clients.html",
 ]
 
 SKIP_HANDLERS = {
