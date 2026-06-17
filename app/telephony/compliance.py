@@ -27,6 +27,8 @@ Config (env, all optional with safe defaults):
   COMPLIANCE_PROMO_END    promotional window end,   "HH:MM" IST (default 19:00)
   COMPLIANCE_TXN_START    transactional window start (default 09:00)
   COMPLIANCE_TXN_END      transactional window end   (default 21:00)
+  DND_FAIL_OPEN           "1" to treat a failed DND lookup as "not on DND"
+                         (use when Exotel KYC is pending and you accept the risk)
   (caller-id is read from settings.vobiz_caller_id, else VOBIZ_CALLER_ID env)
 
 Usage:
@@ -166,20 +168,23 @@ class ComplianceGate:
         return self._dnd
 
     async def _is_dnd(self, phone: str) -> bool | None:
-        """True/False if verifiable, None if it could not be checked."""
+        """True/False if verifiable, None if it could not be checked.
+        When DND_FAIL_OPEN=1 and the lookup fails/unverified, returns False
+        (caller accepts the risk — e.g. Exotel KYC pending)."""
+        _fail_open = _env("DND_FAIL_OPEN", "0") in ("1", "true", "yes")
         checker = self._get_dnd()
         if checker is None:
-            return None
+            return False if _fail_open else None
         try:
             res = await checker.check_single(phone)
-            # FAIL-CLOSED: an unverified lookup (Exotel down / non-200) must NOT be
-            # treated as "clean". Surface it as None so promotional calls get blocked.
+            # FAIL-CLOSED by default: unverified lookup treated as unknown → block.
+            # DND_FAIL_OPEN=1 overrides: treat unverified as "not on DND".
             if not getattr(res, "verified", True):
-                return None
+                return False if _fail_open else None
             return bool(getattr(res, "is_dnd", False))
         except Exception as e:
             logger.debug(f"compliance: DND check failed for {phone} ({e}).")
-            return None
+            return False if _fail_open else None
 
     # ----------------------------- check ------------------------------ #
     async def check(
