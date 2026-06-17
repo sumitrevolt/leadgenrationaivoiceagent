@@ -552,6 +552,12 @@ except Exception as _e:  # pragma: no cover
 app.include_router(ai_router, prefix="/api", tags=["AI"])
 app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /api/customer/*
 app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])  # /api/admin/*
+try:
+    from app.api.call_recordings import router as call_recordings_router
+
+    app.include_router(call_recordings_router)  # /api/admin/call-recordings/*
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Call recordings router not mounted: {_e}")
 app.include_router(web_call_router, prefix="/api", tags=["Web Call (Test Mode)"])  # /api/web-call/*
 app.include_router(
     agents_router, prefix="/api", tags=["Agents"]

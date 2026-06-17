@@ -212,6 +212,7 @@
       <a href="/app/outreach" role="menuitem" aria-label="Outreach pipeline"><span class="ic" aria-hidden="true">📧</span> Outreach</a>
       <a href="#sec-speed" role="menuitem" aria-label="Speed to lead"><span class="ic" aria-hidden="true">⚡</span> Speed-to-Lead</a>
       <a href="#sec-agents" role="menuitem" aria-label="Call Logs"><span class="ic" aria-hidden="true">☎</span> Call Logs</a>
+      <a href="#sec-recordings" role="menuitem" aria-label="Call Recordings player"><span class="ic" aria-hidden="true">🎙</span> Call Recordings</a>
       <a href="#sec-prospects" role="menuitem" aria-label="Prospects and leads"><span class="ic" aria-hidden="true">⊞</span> Prospects / Leads</a>
       <a href="#sec-audit" role="menuitem" aria-label="Activity audit log"><span class="ic" aria-hidden="true">📜</span> Activity Log</a>
       <div class="sec" role="presentation">Business</div>
@@ -510,6 +511,18 @@
               <tbody id="billInvoices"><tr><td colspan="5" style="color:var(--muted)">No client loaded.</td></tr></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- Call Recordings -->
+      <div class="card" id="sec-recordings" style="scroll-margin-top:80px">
+        <div class="hd">
+          <h3>🎙 Call Recordings</h3>
+          <span class="right" id="rec-summary">—</span>
+          <button class="btn" onclick="loadRecordings()" style="margin-left:10px;padding:6px 12px;font-size:12px">↺ Refresh</button>
+        </div>
+        <div class="bd" id="rec-body">
+          <div style="color:var(--muted);font-size:13px">Loading recordings…</div>
         </div>
       </div>
 
@@ -1087,6 +1100,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores();
   loadRevenueAnalytics(); loadProspectsPanel(); loadActivityFeed();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail();
+  loadRecordings();
 });
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
@@ -1364,6 +1378,55 @@ async function adminBilling(action){
     if(r.ok){ adminLoadBilling(); }
     else{ alert(j.detail||"Action failed (check admin token)."); }
   }catch(e){ alert("Network error."); }
+}
+
+/* ====== Call Recordings ====== */
+async function loadRecordings(){
+  const body=$("rec-body"), summ=$("rec-summary");
+  if(body) body.innerHTML='<div style="color:var(--muted);font-size:13px">Loading…</div>';
+  try{
+    const r=await fetch("/api/admin/call-recordings",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok){ if(body) body.innerHTML='<div style="color:var(--red)">Error '+r.status+'</div>'; return; }
+    const d=await r.json();
+    if(summ) summ.textContent=(d.total_sessions||0)+" sessions";
+    if(!d.dates||!d.dates.length){
+      if(body) body.innerHTML='<div style="color:var(--muted);padding:8px 0">Abhi koi recording nahi — VOBIZ_CALL_RECORD=1 set karo aur call karo.</div>';
+      return;
+    }
+    let html="";
+    for(const day of d.dates){
+      html+=`<div style="margin-bottom:22px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:10px;color:var(--ink)">📅 ${escH(day.date)} <span style="color:var(--muted);font-weight:400">(${day.count} calls)</span></div>
+        <div style="display:flex;flex-direction:column;gap:14px">`;
+      for(const s of day.sessions){
+        const base="/api/admin/call-recordings/"+encodeURIComponent(day.date)+"/";
+        html+=`<div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:13px 16px">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:monospace">SID: ${escH(s.sid)} &nbsp;·&nbsp; ${s.size_kb}KB</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+        if(s.caller_wav){
+          html+=`<div>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">👤 Caller (prospect)</div>
+            <audio controls preload="metadata" style="width:100%;height:36px" src="${base+encodeURIComponent(s.caller_wav)}"></audio>
+          </div>`;
+        } else {
+          html+=`<div style="display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:8px;height:46px;font-size:12px;color:var(--muted)">No caller audio</div>`;
+        }
+        if(s.bot_wav){
+          html+=`<div>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">🤖 Swara (bot)</div>
+            <audio controls preload="metadata" style="width:100%;height:36px" src="${base+encodeURIComponent(s.bot_wav)}"></audio>
+          </div>`;
+        } else {
+          html+=`<div style="display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:8px;height:46px;font-size:12px;color:var(--muted)">No bot audio</div>`;
+        }
+        html+=`</div></div>`;
+      }
+      html+=`</div></div>`;
+    }
+    if(body) body.innerHTML=html;
+  }catch(e){
+    if(body) body.innerHTML='<div style="color:var(--red)">Network error — '+escH(String(e))+'</div>';
+  }
 }
 </script>
 </body>
