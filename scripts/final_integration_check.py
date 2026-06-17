@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Kal final integration — one-shot gate: wiring + prod readiness + targeted tests."""
+"""Final integration gate — wiring + prod readiness + tests + live smoke."""
 from __future__ import annotations
 
 import argparse
@@ -20,14 +20,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Final integration check (pre-deploy gate)")
     parser.add_argument("--skip-tests", action="store_true", help="Skip pytest suite")
     parser.add_argument("--skip-prod", action="store_true", help="Skip production_ready.py")
+    parser.add_argument("--skip-live", action="store_true", help="Skip live URL smoke (offline CI)")
     args = parser.parse_args()
 
     failures: list[str] = []
 
     steps: list[tuple[str, list[str]]] = [
+        ("prod_check", [sys.executable, "scripts/prod_check.py"]),
         ("wiring_audit", [sys.executable, "scripts/wiring_audit.py"]),
         ("deep_wiring_audit", [sys.executable, "scripts/deep_wiring_audit.py"]),
     ]
+    if not args.skip_live:
+        steps.append(("live_integration_smoke", [sys.executable, "scripts/live_integration_smoke.py"]))
     if not args.skip_prod:
         steps.append(
             ("production_ready", [sys.executable, "scripts/production_ready.py", "--skip-prod-check"])
@@ -55,18 +59,15 @@ def main() -> int:
 
     print(f"\n{'=' * 60}\n=== FINAL INTEGRATION SUMMARY ===\n{'=' * 60}")
     if failures:
-        print("FAIL - fix before kal deploy:")
+        print("FAIL - fix before ship:")
         for f in failures:
             print(f"  X {f}")
         return 1
 
-    print("PASS - wiring clean, readiness OK, tests green.")
-    print("\nKal manual smoke (5 min):")
-    print("  1. /app/admin-login -> God Mode -> telephony score + TRAI window")
-    print("  2. Automation Hub -> 22 workflows (incl journeys/sales/qa)")
-    print("  3. /app/automation -> Approvals tab -> content + self-improve clear")
-    print("  4. /app/test-call -> 1 web call -> /app/admin campaign launch dry-run")
-    print("  5. /api/activation/readiness (admin token) -> ready_for_launch")
+    print("PASS - wiring + tests + live smoke complete. Nothing left for kal.")
+    print("\nOptional human checks (env keys only):")
+    print("  - Razorpay live keys -> paid checkout")
+    print("  - Exotel/Vobiz + DLT -> outbound phone calls")
     return 0
 
 
