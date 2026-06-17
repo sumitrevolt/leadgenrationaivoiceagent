@@ -349,7 +349,7 @@
       </div>
 
       <!-- Content approval (agency-grade — Dhanda se aage) -->
-      <div class="card" id="approvalCard" style="margin-bottom:14px;display:none">
+      <div class="card" id="approvalCard" style="margin-bottom:14px">
         <div class="card-h">
           <h2>✅ Post Approval — publish se pehle aapki OK</h2>
           <span class="pill" id="approvalCount">0 pending</span>
@@ -1344,9 +1344,12 @@ async function loadApprovals(){
     const r=await fetch("/api/customer/approvals/pending",{headers:billAuthHdr()});
     if(!r.ok){ card.style.display="none"; return; }
     const d=await r.json(); const rows=d.approvals||[];
-    if(!rows.length){ card.style.display="none"; return; }
     card.style.display="block";
     cnt.textContent=rows.length+" pending";
+    if(!rows.length){
+      body.innerHTML='<span class="sm" style="color:var(--muted)">Abhi koi post approval pending nahi — naya draft aane par yahan dikhega. ✅</span>';
+      return;
+    }
     body.innerHTML=rows.map(function(a){
       const c=a.content||{};
       const cap=escH((c.caption||c.text||"").slice(0,180));
