@@ -122,6 +122,17 @@ async def run_email_followups_now(current_user: User = Depends(require_admin)):
         return {"error": str(e)}
 
 
+@router.post("/reply-triage/run")
+async def run_reply_triage_now(current_user: User = Depends(require_admin)):
+    try:
+        from app.platform import reply_agent, team
+        team.log_event("manager", "task_assigned", "manual run: reply triage")
+        return await reply_agent.run_reply_triage()
+    except Exception as e:
+        logger.warning(f"[team-api] reply-triage run failed: {e}")
+        return {"error": str(e)}
+
+
 @router.get("/growth")
 async def get_growth(current_user: User = Depends(require_admin)):
     try:

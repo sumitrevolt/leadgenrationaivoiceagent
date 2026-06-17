@@ -28,8 +28,10 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
+
+from app.api.auth_deps import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -884,3 +886,62 @@ async def get_live_stats() -> dict:
     except Exception as e:
         logger.warning("admin_dashboard: live-stats failed (%s)", e)
         return {"is_sample_data": False, "error": str(e)}
+
+
+class BulkEmailIn(BaseModel):
+    client_ids: list[str] = Field(..., min_length=1, max_length=50)
+    subject: str | None = "LeadsGenAI — quick check-in"
+    message: str | None = ""
+
+
+@router.post("/clients/bulk-email")
+async def bulk_email_clients(body: BulkEmailIn, _user=Depends(require_admin)) -> dict:
+    """Selected clients ko transactional check-in email — SMTP off ho to graceful skip."""
+    from app.api.billing import _client_email, _client_name
+    from app.integrations.email_sender import EmailSender
+
+    subject = (body.subject or "LeadsGenAI — quick check-in").strip()[:200]
+    custom = (body.message or "").strip()
+    sender = EmailSender()
+    sent = 0
+    skipped = 0
+    failed = 0
+    details: list[dict] = []
+
+    for raw_cid in body.client_ids[:50]:
+        cid = str(raw_cid or "").strip()
+        if not cid:
+            skipped += 1
+            continue
+        to = _client_email(cid)
+        if not to or "@" not in to or to.endswith("@example.com"):
+            skipped += 1
+            details.append({"client_id": cid, "status": "skipped", "reason": "no_email"})
+            continue
+        name = _client_name(cid)
+        text = custom or (
+            f"Namaste {name},\n\n"
+            "Yeh LeadsGenAI se ek quick check-in hai — aapka dashboard aur leads theek chal rahe hain?\n"
+            "Koi sawal ho to reply karein ya portal pe login karein: https://leadsgenai.in/app/customer\n\n"
+            "— LeadsGenAI Team"
+        )
+        try:
+            ok = await sender.send_email([to], subject, text)
+            if ok:
+                sent += 1
+                details.append({"client_id": cid, "status": "sent", "email": to})
+            else:
+                failed += 1
+                details.append({"client_id": cid, "status": "failed", "email": to})
+        except Exception as e:
+            failed += 1
+            details.append({"client_id": cid, "status": "failed", "error": str(e)[:80]})
+
+    return {
+        "ok": sent > 0 or (skipped > 0 and failed == 0),
+        "sent": sent,
+        "skipped": skipped,
+        "failed": failed,
+        "smtp_configured": bool(sender.user and sender.password),
+        "details": details[:20],
+    }

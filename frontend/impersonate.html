@@ -93,8 +93,16 @@
       if(r.status===401||r.status===403){ listEl.innerHTML='<div class="empty">Super-admin access chahiye. <a href="/app/admin-login">Login</a></div>'; return; }
       var j=await r.json();
       ALL=j.targets||[];
-      applyFilter();
-      setMsg(ALL.length+" clients", "");
+      var params=new URLSearchParams(location.search);
+      var preCid=(params.get("cid")||"").trim();
+      if(preCid){
+        q.value=preCid;
+        applyFilter();
+        setMsg("Pre-selected: "+preCid,"ok");
+      }else{
+        applyFilter();
+        setMsg(ALL.length+" clients", "");
+      }
     }catch(e){ listEl.innerHTML='<div class="empty err">Load failed: '+esc(e.message)+'</div>'; }
   }
   load();

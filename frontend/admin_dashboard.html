@@ -561,6 +561,15 @@
               <button class="btn" onclick="autoAction('dunning')" style="font-size:11px;padding:6px 10px">💳 Dunning Sweep</button>
               <button class="btn" onclick="autoAction('digest')" style="font-size:11px;padding:6px 10px">📊 Revenue Digest</button>
               <button class="btn" onclick="autoAction('health')" style="font-size:11px;padding:6px 10px">❤️ Client Health</button>
+              <button class="btn" onclick="autoAction('harvest')" style="font-size:11px;padding:6px 10px">🌾 Lead Harvest</button>
+              <button class="btn" onclick="autoAction('cadence')" style="font-size:11px;padding:6px 10px">📨 Cadence Run</button>
+              <button class="btn" onclick="autoAction('lifecycle')" style="font-size:11px;padding:6px 10px">📬 Lifecycle</button>
+              <button class="btn" onclick="autoAction('followups')" style="font-size:11px;padding:6px 10px">↩️ Email Followups</button>
+              <button class="btn" onclick="autoAction('reply')" style="font-size:11px;padding:6px 10px">💬 Reply Triage</button>
+              <button class="btn" onclick="autoAction('content')" style="font-size:11px;padding:6px 10px">📣 Daily Content</button>
+              <button class="btn" onclick="autoAction('blog')" style="font-size:11px;padding:6px 10px">📝 SEO Blog</button>
+              <button class="btn" onclick="autoAction('growth')" style="font-size:11px;padding:6px 10px">📊 Growth Pulse</button>
+              <button class="btn" onclick="autoAction('reviews')" style="font-size:11px;padding:6px 10px">⭐ Review Monitor</button>
             </div>
             <div id="autoActionOut" style="margin-top:10px;font-size:12px;color:var(--muted)">Action output yahan dikhega.</div>
           </div>
@@ -816,9 +825,22 @@ function bulkExport(){
   adminToast(`${sel.length} clients exported`,"success");
 }
 function bulkEmail(){
-  const sel=_getSelectedRows();
-  if(!sel.length){adminToast("Koi client select nahi!","error");return;}
-  adminToast(`📧 ${sel.length} clients ko email drafts queued`,"success");
+  return (async()=>{
+    const sel=_getSelectedRows().filter(c=>c.client_id);
+    if(!sel.length){adminToast("Client ID chahiye — dashboard reload karo","error");return;}
+    if(!confirm(sel.length+" clients ko check-in email bhejna hai?")) return;
+    adminToast("📧 Email bhej rahe hain…","success");
+    try{
+      const r=await fetch("/api/admin/clients/bulk-email",{
+        method:"POST",
+        headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
+        body:JSON.stringify({client_ids:sel.map(c=>c.client_id)}),
+      });
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok){ adminToast(d.detail||"Email fail","error"); return; }
+      adminToast(`📧 ${d.sent||0} sent · ${d.skipped||0} skip · ${d.failed||0} fail`,"success");
+    }catch(e){ adminToast("Network error","error"); }
+  })();
 }
 async function bulkBillingAction(action){
   const sel=_getSelectedRows().filter(c=>c.client_id);
@@ -837,9 +859,12 @@ async function bulkBillingAction(action){
 function bulkPause(){ bulkBillingAction("pause"); }
 function bulkResume(){ bulkBillingAction("resume"); }
 function bulkImpersonate(){
-  const sel=_getSelectedRows();
-  if(!sel.length){adminToast("Koi client select nahi!","error");return;}
-  if(sel.length>1){ window.open("/app/impersonate","_blank"); return; }
+  const sel=_getSelectedRows().filter(c=>c.client_id);
+  if(!sel.length){adminToast("Client ID chahiye — dashboard reload karo","error");return;}
+  if(sel.length===1){
+    window.open("/app/impersonate?cid="+encodeURIComponent(sel[0].client_id),"_blank");
+    return;
+  }
   window.open("/app/impersonate","_blank");
 }
 function exportClientsCSV(){
@@ -1034,7 +1059,7 @@ async function loadDiffPanel(){
     if(ap){
       if(al.ok){
         const d=await al.json(); const rows=d.approvals||[];
-        ap.innerHTML=rows.length?rows.map(r=>'<div class="sm" style="padding:6px 0;border-bottom:1px solid var(--line)">'+escH((r.content||{}).title||"post")+' · '+escH(r.created_at||"")+'</div>').join(""):"Koi pending approval nahi ✅";
+        ap.innerHTML=rows.length?rows.map(r=>'<div class="sm" style="padding:6px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center"><span>'+escH((r.content||{}).title||(r.content||{}).caption||"post")+' · '+escH(r.created_at||"")+'</span><span><button class="btn" style="font-size:10px;padding:3px 7px" onclick="diffApprDecide(\''+escH(r.id||"")+'\',\'approve\')">✓</button> <button class="btn" style="font-size:10px;padding:3px 7px" onclick="diffApprDecide(\''+escH(r.id||"")+'\',\'reject\')">✕</button></span></div>').join(""):"Koi pending approval nahi ✅";
       }else ap.textContent="Approvals load fail";
     }
     if(rt){
@@ -1046,6 +1071,21 @@ async function loadDiffPanel(){
       }else rt.textContent="Routing load fail";
     }
   }catch(e){ if(feed) feed.textContent="Error: "+e.message; }
+}
+async function diffApprDecide(id, action){
+  if(!id||!confirm(action+" this content approval?")) return;
+  try{
+    const r=await fetch("/api/clientops/approvals/"+encodeURIComponent(id)+"/decide",{
+      method:"POST",
+      headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
+      body:JSON.stringify({action:action, note:""}),
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok){ adminToast(d.error||d.detail||"Approval action fail","error"); return; }
+    adminToast("Approval "+action+" ✅","success");
+    loadDiffPanel();
+    loadAutomationHub();
+  }catch(e){ adminToast("Network error","error"); }
 }
 
 /* ====== Enhanced health from /health/ready ====== */
@@ -1548,6 +1588,14 @@ async function loadAutomationHub(){
     let apprHtml="";
     let pending=0;
     try{
+      const cap=await autoFetch("/api/clientops/approvals?status=pending").catch(()=>({}));
+      const crows=cap.approvals||[];
+      if(crows.length){
+        pending+=crows.length;
+        apprHtml+=crows.slice(0,4).map(r=>'<div style="font-size:11px;padding:6px 0;border-bottom:1px solid var(--line)"><b>Content</b> · '+escH((r.content||{}).title||(r.content||{}).caption||"post").slice(0,40)+' <button class="btn" style="font-size:10px;padding:3px 7px" onclick="diffApprDecide(\''+escH(r.id||"")+'\',\'approve\')">✓</button> <button class="btn" style="font-size:10px;padding:3px 7px" onclick="diffApprDecide(\''+escH(r.id||"")+'\',\'reject\')">✕</button></div>').join("");
+      }
+    }catch(e){}
+    try{
       const ap=await autoFetch("/api/growth/selfimprove/approvals-pending");
       const rows=ap.pending||[];
       if(ap.approval_required&&rows.length){
@@ -1584,10 +1632,19 @@ async function autoAction(kind){
     selfimprove:{url:"/api/growth/selfimprove/run",method:"POST"},
     optimizer:{url:"/api/growth/optimizer/run",method:"POST"},
     prospect:{url:"/api/growth/niche/scrape",method:"POST",body:{}},
-    email:{url:"/api/platform/team/run/rohan",method:"POST"},
+    email:{url:"/api/platform/team/email-outreach/run",method:"POST"},
     dunning:{url:"/api/growth/revenue/dunning/run",method:"POST"},
     digest:{url:"/api/growth/revenue/digest/run",method:"POST"},
     health:{url:"/api/growth/revenue/health/run",method:"POST"},
+    harvest:{url:"/api/growth/harvest/run",method:"POST",body:{niche:"general",city:"Mumbai",limit:25}},
+    cadence:{url:"/api/growth/cadence/run",method:"POST"},
+    lifecycle:{url:"/api/growth/revenue/lifecycle/run",method:"POST"},
+    followups:{url:"/api/platform/team/email-followups/run",method:"POST"},
+    reply:{url:"/api/platform/team/reply-triage/run",method:"POST"},
+    content:{url:"/api/platform/team/run/isha",method:"POST"},
+    blog:{url:"/api/platform/team/run/blog",method:"POST"},
+    growth:{url:"/api/platform/team/growth/run",method:"POST"},
+    reviews:{url:"/api/growth/reviews/monitor-run",method:"POST"},
   };
   const spec=map[kind]; if(!spec){ return; }
   try{

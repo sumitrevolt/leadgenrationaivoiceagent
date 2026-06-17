@@ -85,6 +85,24 @@ async def list_approvals(
     return {"ok": True, "count": len(rows), "approvals": rows}
 
 
+class ApprovalDecideIn(BaseModel):
+    action: str
+    note: str | None = ""
+
+
+@router.post("/approvals/{approval_id}/decide")
+async def admin_decide_approval(
+    approval_id: str,
+    body: ApprovalDecideIn,
+    _user=Depends(require_admin),
+):
+    """Admin dashboard se content approve/reject — token link ki zaroorat nahi."""
+    from app.marketing import content_approval
+
+    act = "reject" if str(body.action or "").strip().lower() == "reject" else "approve"
+    return content_approval.decide_by_id(approval_id, act, body.note or "")
+
+
 @router.get(
     "/approve/{token}", dependencies=[Depends(rate_limit("approval", 10, 60))]
 )

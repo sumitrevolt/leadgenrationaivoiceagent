@@ -111,6 +111,24 @@ def test_content_approval_reject_and_unknown(tmp_path, monkeypatch):
     assert "Approve ho gaya" in html
 
 
+def test_content_approval_decide_by_id(tmp_path, monkeypatch):
+    from app.marketing import content_approval as ca
+
+    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "approvals.jsonl"))
+
+    res = ca.submit("client-admin", {"caption": "Admin decide test", "title": "Post"})
+    aid = res["approval"]["id"]
+    assert len(ca.pending("client-admin")) == 1
+
+    ok = ca.decide_by_id(aid, "approve")
+    assert ok["ok"] is True and ok["approval"]["status"] == "approved"
+    assert ca.pending("client-admin") == []
+
+    res2 = ca.submit("client-admin", {"caption": "Reject me"})
+    rej = ca.decide_by_id(res2["approval"]["id"], "reject", "change logo")
+    assert rej["ok"] is True and rej["approval"]["status"] == "rejected"
+
+
 # --------------------------------------------------------------------------- #
 # F3: client_snapshots
 # --------------------------------------------------------------------------- #

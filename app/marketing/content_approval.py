@@ -259,6 +259,19 @@ def decide_for_client(client_id: str, approval_id: str, action: str, note: str =
     return approve(token)
 
 
+def decide_by_id(approval_id: str, action: str, note: str = "") -> dict[str, Any]:
+    """Admin/support — approval id se decide (client_id verify nahi)."""
+    rec = _latest_states().get(str(approval_id or "").strip())
+    if not rec:
+        return {"ok": False, "error": "approval nahi mila."}
+    token = str(rec.get("token") or "")
+    if not token:
+        return {"ok": False, "error": "approval token missing."}
+    if action == "reject":
+        return reject(token, note)
+    return approve(token)
+
+
 def list_all(client_id: str = "", limit: int = 100) -> list[dict[str, Any]]:
     """Saare approvals latest-state (admin list). Never raises."""
     try:
