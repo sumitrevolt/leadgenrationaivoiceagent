@@ -32,30 +32,29 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(k, raising=False)
 
 
-def test_razorpay_unset_is_blocker() -> None:
+def test_razorpay_unset_is_deferred_neutral() -> None:
     r = ax._razorpay()
-    assert r["status"] == "BLOCKER"
-    assert "rzp_live_" in r["action"]
+    assert r["status"] == "NEUTRAL"
+    assert r["checks"]["deferred"] is True
 
 
-def test_razorpay_placeholder_keys_caught_as_blocker(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The exact 2026-06-14 root cause: .env.example placeholders that LOOK set."""
+def test_razorpay_placeholder_keys_are_neutral_not_blocker(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Placeholder keys = deferred; marketing launch not blocked."""
     monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_test_you-key-here")
     monkeypatch.setenv("RAZORPAY_KEY_SECRET", "your-razorpay-secret")
     monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "anything")
     r = ax._razorpay()
-    assert r["status"] == "BLOCKER"
+    assert r["status"] == "NEUTRAL"
     assert r["checks"]["key_id_placeholder"] is True
     assert r["checks"]["secret_placeholder"] is True
 
 
-def test_razorpay_test_keys_still_blocker_for_live_payments(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test mode keys are non-placeholder but not live — still blocker."""
+def test_razorpay_test_keys_deferred(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_test_realLookingKey")
     monkeypatch.setenv("RAZORPAY_KEY_SECRET", "real-looking-secret")
     monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "whs")
     r = ax._razorpay()
-    assert r["status"] == "BLOCKER"
+    assert r["status"] == "NEUTRAL"
     assert r["checks"]["key_id_live"] is False
 
 
@@ -142,13 +141,23 @@ def test_cloudflare_tunnel_armed_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 # --------------------------------------------------------------------------- #
 # Aggregate readiness — the single number that matters
 # --------------------------------------------------------------------------- #
-async def test_readiness_aggregates_blockers(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Default empty env -> Razorpay is the only BLOCKER, not-ready-for-payments."""
-    # Bypass require_admin dep — call the underlying function directly
+async def test_activation_summary_public() -> None:
+    from app.api.activation import activation_summary_public
+
+    out = await activation_summary_public()
+    assert out["ready_for_launch"] is True
+    assert out["payments_deferred"] is True
+    assert "graph_version" in out
+
+
+async def test_readiness_launch_ready_without_razorpay(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default empty env -> no BLOCKERs; marketing launch OK; payments deferred."""
     out = await ax.activation_readiness(_user=None)  # type: ignore[arg-type]
+    assert out["ready_for_launch"] is True
     assert out["ready_for_first_paid_customer"] is False
-    assert out["blocker_count"] >= 1
-    assert "razorpay" in out["blockers"]
+    assert out["payments_deferred"] is True
+    assert out["blocker_count"] == 0
+    assert "razorpay" not in out["blockers"]
     keys = {it["key"] for it in out["items"]}
     # K.1: expanded from 5 -> 13 probes (Phase 1-5 of activation runbook)
     expected = {
@@ -161,10 +170,24 @@ async def test_readiness_aggregates_blockers(monkeypatch: pytest.MonkeyPatch) ->
     assert keys == expected
 
 
-async def test_readiness_flips_true_when_no_blockers(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_get_activation_summary_has_probes() -> None:
+    from app.api.activation import get_activation_summary
+
+    out = await get_activation_summary()
+    assert "probes" in out
+    assert isinstance(out["probes"], dict)
+    assert "telephony" in out
+    assert "ready_for_calling" in out
+
+
+async def test_readiness_flips_paid_when_razorpay_ok(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_live_realKey")
     monkeypatch.setenv("RAZORPAY_KEY_SECRET", "real-secret")
     monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "whs")
     out = await ax.activation_readiness(_user=None)  # type: ignore[arg-type]
+    assert out["ready_for_launch"] is True
     assert out["ready_for_first_paid_customer"] is True
+    assert out["payments_ready"] is True
     assert out["blockers"] == []
+    assert "telephony" in out
+    assert "ready_for_calling" in out

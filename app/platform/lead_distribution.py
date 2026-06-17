@@ -181,6 +181,20 @@ def assign(client_id: str, lead: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": str(e)[:160]}
 
 
+def maybe_assign(client_id: str, lead: dict[str, Any]) -> dict[str, Any] | None:
+    """Routing config ho to auto round-robin assign — warna None (silent skip)."""
+    try:
+        client_id = str(client_id or "").strip()
+        if not client_id or not isinstance(lead, dict):
+            return None
+        if not get_config(client_id):
+            return None
+        out = assign(client_id, lead)
+        return out if out.get("ok") else None
+    except Exception:
+        return None
+
+
 def assignments(client_id: str = "", limit: int = 100) -> list[dict[str, Any]]:
     """Recent assignments (newest first). Never raises."""
     try:
@@ -196,4 +210,4 @@ def assignments(client_id: str = "", limit: int = 100) -> list[dict[str, Any]]:
         return []
 
 
-__all__ = ["set_config", "get_config", "assign", "assignments"]
+__all__ = ["set_config", "get_config", "assign", "maybe_assign", "assignments"]

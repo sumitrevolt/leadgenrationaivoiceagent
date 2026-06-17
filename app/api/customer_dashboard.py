@@ -817,6 +817,93 @@ async def send_dashboard_leads_to_crm(
     )
 
 
+class RoutingMemberIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=80)
+    phone: str = Field(..., min_length=10, max_length=15)
+
+
+class RoutingConfigIn(BaseModel):
+    members: list[RoutingMemberIn] = Field(default_factory=list, max_length=10)
+
+
+class ApprovalDecideIn(BaseModel):
+    action: str = Field(default="approve", pattern="^(approve|reject)$")
+    note: str = Field(default="", max_length=300)
+
+
+@router.get("/branded-feed")
+async def customer_branded_feed(client_id: str = Depends(require_customer)):
+    """AdBanao-style aaj ke 3 branded posts (logo+naam frame) — customer scoped."""
+    try:
+        from app.marketing import brand_frames
+        from app.marketing.clients_store import get_client
+
+        c = get_client(client_id) or {}
+        slug = str(c.get("slug") or client_id or "").strip()
+        return await brand_frames.daily_feed(slug)
+    except Exception as e:
+        logger.debug("customer branded-feed failed: %s", e)
+        return {"ok": False, "error": "feed load nahi hua", "posts": []}
+
+
+@router.get("/approvals/pending")
+def customer_pending_approvals(client_id: str = Depends(require_customer)):
+    """Posts jo client approval ka wait kar rahe hain."""
+    try:
+        from app.marketing import content_approval
+
+        rows = content_approval.pending(client_id)
+        safe = [
+            {
+                "id": r.get("id"),
+                "status": r.get("status"),
+                "created_at": r.get("created_at"),
+                "content": r.get("content") or {},
+            }
+            for r in rows
+        ]
+        return {"ok": True, "count": len(safe), "approvals": safe}
+    except Exception as e:
+        logger.debug("customer approvals pending failed: %s", e)
+        return {"ok": False, "count": 0, "approvals": []}
+
+
+@router.post("/approvals/{approval_id}/decide")
+def customer_decide_approval(
+    approval_id: str,
+    body: ApprovalDecideIn,
+    client_id: str = Depends(require_customer),
+):
+    """Portal se approve/reject — token link ki zaroorat nahi."""
+    from app.marketing import content_approval
+
+    return content_approval.decide_for_client(
+        client_id, approval_id, body.action, body.note or ""
+    )
+
+
+@router.get("/routing")
+def customer_routing_get(client_id: str = Depends(require_customer)):
+    """Client ki sales team round-robin config."""
+    from app.platform import lead_distribution as ld
+
+    cfg = ld.get_config(client_id)
+    recent = ld.assignments(client_id, limit=15)
+    return {"ok": True, "config": cfg, "recent_assignments": recent}
+
+
+@router.post("/routing")
+def customer_routing_set(
+    body: RoutingConfigIn,
+    client_id: str = Depends(require_customer),
+):
+    """Team members set karo — naye leads round-robin me bantenge."""
+    from app.platform import lead_distribution as ld
+
+    members = [{"name": m.name, "phone": m.phone} for m in body.members]
+    return ld.set_config(client_id, members)
+
+
 @router.get("/health")
 def customer_dashboard_health() -> dict:
     """Lightweight liveness probe for the customer dashboard API."""

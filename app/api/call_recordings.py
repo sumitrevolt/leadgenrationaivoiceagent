@@ -20,8 +20,10 @@ from __future__ import annotations
 import os
 import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
+
+from app.api.auth_deps import require_admin
 
 router = APIRouter(prefix="/api/admin/call-recordings", tags=["Call Recordings"])
 
@@ -40,7 +42,7 @@ def _get_size_kb(path: str) -> int:
 
 
 @router.get("", summary="List call recordings grouped by date")
-async def list_recordings() -> dict:
+async def list_recordings(_user=Depends(require_admin)) -> dict:
     """
     Returns recording sessions grouped by date (newest first).
 
@@ -118,7 +120,7 @@ async def list_recordings() -> dict:
 
 
 @router.get("/{date}/{filename}", summary="Stream a single WAV recording")
-async def serve_recording(date: str, filename: str):
+async def serve_recording(date: str, filename: str, _user=Depends(require_admin)):
     """Download / stream a call recording WAV file."""
     if not _DATE_RE.match(date):
         raise HTTPException(status_code=400, detail="Invalid date format (YYYY-MM-DD)")

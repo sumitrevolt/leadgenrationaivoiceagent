@@ -53,6 +53,9 @@ def test_routes_mounted():
     assert "/api/customer/dashboard" in paths
     assert "/api/customer/dashboard/send-to-crm" in paths
     assert "/api/customer/speed-to-lead" in paths
+    assert "/api/customer/branded-feed" in paths
+    assert "/api/customer/approvals/pending" in paths
+    assert "/api/customer/routing" in paths
     assert "/app/login" in paths
 
 
@@ -116,3 +119,19 @@ def test_send_to_crm_requires_auth():
     c = TestClient(app)
     r = c.post("/api/customer/dashboard/send-to-crm")
     assert r.status_code in (401, 403)
+
+
+def test_branded_feed_requires_auth():
+    from app.main import app
+
+    c = TestClient(app)
+    r = c.get("/api/customer/branded-feed")
+    assert r.status_code in (401, 403)
+
+
+def test_customer_routing_requires_auth():
+    from app.main import app
+
+    c = TestClient(app)
+    assert c.get("/api/customer/routing").status_code in (401, 403)
+    assert c.post("/api/customer/routing", json={"members": []}).status_code in (401, 403)

@@ -217,6 +217,12 @@
     border-radius:999px;font-size:12px;font-weight:700;background:#ecfdf5;color:#15803d;border:1px solid #bbf7d0}
   .stl-badge.warn{background:#fffbeb;color:#b45309;border-color:#fde68a}
   .stl-badge.bad{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+  .svgwrap{background:#fff;border-radius:10px;padding:8px;margin-top:8px;max-width:100%;overflow:auto;border:1px solid var(--line)}
+  .svgwrap svg{max-width:100%;height:auto;display:block}
+  .approve-card{border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .approve-card .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .route-row{display:grid;grid-template-columns:1fr 140px auto;gap:8px;margin-bottom:8px;align-items:center}
+  @media(max-width:640px){.route-row{grid-template-columns:1fr}}
 
   /* responsive */
   @media (max-width:1080px){
@@ -253,10 +259,13 @@
     <div class="brand" aria-label="LeadGen AI"><span class="logo" aria-hidden="true">🎙️</span> LeadGen AI</div>
     <a class="navlink active" href="#" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home</a>
     <a class="navlink" href="#contentCard" onclick="scrollToId('contentCard');return false;" aria-label="Aaj ka Post section"><span class="ic" aria-hidden="true">📣</span> Aaj ka Post</a>
+    <a class="navlink" href="#approvalCard" onclick="scrollToId('approvalCard');return false;" aria-label="Post approvals"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
+    <a class="navlink" href="#webToolsCard" onclick="scrollToId('webToolsCard');return false;" aria-label="Website tools mini-site widget"><span class="ic" aria-hidden="true">🌐</span> Website Tools</a>
+    <a class="navlink" href="#routingCard" onclick="scrollToId('routingCard');return false;" aria-label="Team routing"><span class="ic" aria-hidden="true">👥</span> Team Routing</a>
     <a class="navlink" href="#leadsCard" onclick="scrollToId('leadsCard');return false;" aria-label="Naye Leads section"><span class="ic" aria-hidden="true">🔥</span> Naye Leads</a>
     <a class="navlink" href="#callsCard" onclick="scrollToId('callsCard');return false;" aria-label="Calls ka Hisaab section"><span class="ic" aria-hidden="true">📞</span> Calls ka Hisaab</a>
     <a class="navlink" href="#billingCard" onclick="scrollToId('billingCard');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
-    <a class="navlink" href="#" onclick="toast('Settings','Settings jald aa rahi hai.');return false;" aria-label="Settings (coming soon)"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
+    <a class="navlink" href="#secCard" onclick="scrollToId('secCard');return false;" aria-label="Surakhsha aur Webhooks"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
     <div class="side-foot" aria-label="Account info">
       Aapki AI marketing + voice agent team<br>din-raat kaam kar rahi hai.<br><br>
       <span id="sideClient">Client: demo</span>
@@ -339,9 +348,63 @@
         </div>
       </div>
 
+      <!-- Content approval (agency-grade — Dhanda se aage) -->
+      <div class="card" id="approvalCard" style="margin-bottom:14px;display:none">
+        <div class="card-h">
+          <h2>✅ Post Approval — publish se pehle aapki OK</h2>
+          <span class="pill" id="approvalCount">0 pending</span>
+        </div>
+        <div class="card-b" id="approvalBody"></div>
+      </div>
+
+      <!-- Website tools — mini-site, widget, booking -->
+      <div class="card" id="webToolsCard" style="margin-bottom:14px">
+        <div class="card-h">
+          <h2>🌐 Aapki Website Tools</h2>
+          <span class="pill" id="webToolsSlug">—</span>
+        </div>
+        <div class="card-b" id="webToolsBody">
+          <span class="sm" style="color:var(--muted)">Mini-site, enquiry widget aur booking links load ho rahe hain…</span>
+        </div>
+      </div>
+
+      <!-- Lead round-robin team (NeoDove/TeleCRM parity) -->
+      <div class="card" id="routingCard" style="margin-bottom:14px">
+        <div class="card-h">
+          <h2>👥 Sales Team — leads auto baant-te hain</h2>
+          <span class="pill" id="routingSummary">Round-robin</span>
+        </div>
+        <div class="card-b">
+          <p class="sm" style="color:var(--muted);margin:0 0 10px">2-5 team members daalo — har naya inquiry agle member ko milega (WhatsApp handoff link).</p>
+          <div id="routingMembers"></div>
+          <button class="btn" type="button" onclick="routingAddRow()" style="margin-top:6px">+ Member</button>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn primary" type="button" onclick="routingSave()">💾 Team Save</button>
+            <button class="btn" type="button" onclick="loadRouting()">↻ Refresh</button>
+          </div>
+          <div id="routingAssigns" style="margin-top:12px"></div>
+        </div>
+      </div>
+
       <!-- ===== 2) Quick actions ===== -->
       <div class="sec-title">⚡ Jaldi se</div>
       <div class="actions">
+        <button class="action-card" onclick="scrollToId('contentCard')">
+          <span class="ic">📣</span>
+          <span><span class="t">Aaj ka post</span><br><span class="s">Copy + WhatsApp share — 1-click</span></span>
+        </button>
+        <button class="action-card" onclick="scrollToId('approvalCard')">
+          <span class="ic">✅</span>
+          <span><span class="t">Post approve karo</span><br><span class="s">Agency-style approval queue</span></span>
+        </button>
+        <button class="action-card" onclick="scrollToId('webToolsCard')">
+          <span class="ic">🌐</span>
+          <span><span class="t">Website tools</span><br><span class="s">Mini-site + enquiry widget</span></span>
+        </button>
+        <button class="action-card" onclick="scrollToId('routingCard')">
+          <span class="ic">👥</span>
+          <span><span class="t">Team routing</span><br><span class="s">Leads round-robin + WA handoff</span></span>
+        </button>
         <button class="action-card" onclick="scrollToId('leadsCard')">
           <span class="ic">🔥</span>
           <span><span class="t">Naye Leads dekho</span><br><span class="s">Naam + phone number — call karo</span></span>
@@ -448,6 +511,7 @@
             <option value="busy">🔴 Busy</option>
           </select>
           <span class="fc" id="callsFilterCount" aria-live="polite" aria-atomic="true"></span>
+          <span class="fc" style="color:var(--muted);font-size:11px" title="TRAI promotional calling window">🕐 Calls 10am–7pm IST</span>
           <button class="btn" onclick="clearCallFilters()" aria-label="Clear call filters" style="padding:6px 10px;font-size:11px">✕ Clear</button>
         </div>
         <div class="tbl-scroll" role="region" aria-labelledby="callsHeading">
@@ -484,6 +548,14 @@
             <div><div class="sm" style="color:var(--muted)">Minutes Bache</div><div style="font-weight:800;font-size:18px" id="billMinLeft">—</div></div>
           </div>
           <div id="billNote" class="sm" style="color:var(--muted);margin-top:6px"></div>
+          <!-- UPI payment (screenshot → WA → activate) -->
+          <div id="upiPayBox" style="display:none;margin-top:14px;padding:14px;background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:1px solid #bbf7d0;border-radius:12px">
+            <div style="font-weight:700;font-size:13px;margin-bottom:6px">💳 Plan lena hai? UPI se pay karo</div>
+            <div class="sm" style="color:var(--muted);margin-bottom:10px">QR scan karo → pay karo → WhatsApp pe screenshot bhejo — hum 1 ghante me activate kar denge.</div>
+            <div id="upiQrBox" style="max-width:180px;margin:0 auto 10px;background:#fff;padding:8px;border-radius:8px"></div>
+            <div id="upiVpaLbl" style="font-weight:700;text-align:center;margin-bottom:8px;font-size:14px"></div>
+            <a id="upiWaBtn" href="#" target="_blank" rel="noopener" class="btn primary" style="width:100%;justify-content:center;text-decoration:none">💬 Screenshot WhatsApp karo</a>
+          </div>
         </div>
         <div class="card-h" style="border-top:1px solid var(--line)">
           <h2 style="font-size:13px">Purane Bills</h2>
@@ -769,7 +841,18 @@ function renderAll(){
   const view=filterByCampaign(DATA,camp);
   renderKPIs(view);renderSummary(view);renderCalls(view);renderLeads(view);renderCharts(view);
   renderOnboarding(DATA);
+  pushDataNotifications(view);
   window._VIEW=view;
+}
+
+function pushDataNotifications(view){
+  if(!view || DATA.is_sample_data) return;
+  const hot = (view.leads||[]).filter(l=>l.score==="Hot").length;
+  const calls = (view.calls||[]).length;
+  const qual = view.kpis ? view.kpis.qualified_leads : 0;
+  if(hot > 0) addNotif("🔥", hot+" garam leads", "Aaj hi inko call karo — conversion zyada milta hai.");
+  if(qual > 0 && hot === 0) addNotif("✅", qual+" qualified leads", "Leads table me detail dekho.");
+  if(calls > 0) addNotif("📞", calls+" AI calls", "Calls ka Hisaab section me outcomes dekho.");
 }
 
 function renderOnboarding(d){
@@ -1169,18 +1252,37 @@ async function loadContent(){
     body.innerHTML='<span class="sm" style="color:var(--muted)">Pehle <a href="/app/login" style="color:var(--brand);font-weight:700">login</a> karo — phir yahan roz ka ready post milega (caption + hashtags). Bas copy karke WhatsApp/Instagram pe daalna hai. 📣</span>';
     return;
   }
+  let brandedPosts=[];
+  try{
+    const br=await fetch("/api/customer/branded-feed",{headers:billAuthHdr()});
+    if(br.ok){ const bd=await br.json(); if(bd.ok&&bd.posts) brandedPosts=bd.posts; }
+  }catch(e){}
   try{
     const r=await fetch("/api/customer/auth/portal/content",{headers:billAuthHdr()});
-    if(!r.ok){ cnt.textContent="—"; body.innerHTML='<span class="sm" style="color:var(--muted)">Content load nahi hua — thodi der me page refresh karo.</span>'; return; }
-    const d=await r.json(); const items=d.items||[];
+    if(!r.ok && !brandedPosts.length){ cnt.textContent="—"; body.innerHTML='<span class="sm" style="color:var(--muted)">Content load nahi hua — thodi der me page refresh karo.</span>'; return; }
+    const d=r.ok?await r.json():{items:[],links:{}};
+    const items=d.items||[];
     if(d.links&&d.links.mini_site){
       lk.innerHTML='<a class="btn" href="'+escH(d.links.mini_site)+'" target="_blank">🌐 Mini-Site</a> '
         +'<a class="btn" href="'+escH(d.links.bio_link)+'" target="_blank">🔗 Bio Link</a> '
         +'<a class="btn" href="'+escH(d.links.digital_card)+'" target="_blank">💳 Digital Card</a>';
     }
-    cnt.textContent=items.length+" posts";
-    if(!items.length){ body.innerHTML='<span class="sm" style="color:var(--muted)">Aaj ka content abhi ban raha hai — subah 7 baje tak aa jaata hai. 🌅</span>'; return; }
+    const total=(brandedPosts.length||items.length);
+    cnt.textContent=total+" posts";
+    if(!brandedPosts.length&&!items.length){ body.innerHTML='<span class="sm" style="color:var(--muted)">Aaj ka content abhi ban raha hai — subah 7 baje tak aa jaata hai. 🌅</span>'; return; }
     let h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';
+    brandedPosts.forEach(function(p){
+      const full=(p.caption||"")+"\n\n#"+(p.kind||"post");
+      h+='<div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfaff">'
+        +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span class="niche">'+escH(p.kind||"branded")+'</span><span class="sm" style="color:var(--muted)">frame ✓</span></div>'
+        +'<div style="font-weight:700;margin-bottom:6px">'+escH(p.title||"Aaj ka post")+'</div>'
+        +(p.svg?'<div class="svgwrap">'+p.svg+'</div>':'')
+        +'<div class="sm" style="white-space:pre-wrap;max-height:90px;overflow:auto;margin-top:8px">'+escH(p.caption||"")+'</div>'
+        +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'
+        +'<button class="btn" onclick="copyText('+JSON.stringify(full)+')">📋 Copy</button>'
+        +'<a class="btn primary" target="_blank" href="https://wa.me/?text='+encodeURIComponent(full)+'">📲 WhatsApp</a>'
+        +'</div></div>';
+    });
     items.forEach(function(it){
       const full=(it.caption||"")+"\n\n"+(it.hashtags||[]).join(" ");
       h+='<div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfaff">'
@@ -1189,12 +1291,132 @@ async function loadContent(){
         +'<div class="sm" style="white-space:pre-wrap;max-height:120px;overflow:auto">'+escH(it.caption||"")+'</div>'
         +'<div style="color:var(--brand);margin-top:6px" class="sm">'+escH((it.hashtags||[]).slice(0,6).join(" "))+'</div>'
         +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'
-        +'<button class="btn" onclick="copyText('+escH(JSON.stringify(full))+')">📋 Copy</button>'
+        +'<button class="btn" onclick="copyText('+JSON.stringify(full)+')">📋 Copy</button>'
         +'<a class="btn primary" target="_blank" href="https://wa.me/?text='+encodeURIComponent(full)+'">📲 WhatsApp</a>'
         +'</div></div>';
     });
     body.innerHTML=h+'</div>';
   }catch(e){ cnt.textContent="—"; body.innerHTML='<span class="sm" style="color:var(--muted)">Content load nahi hua — thodi der me page refresh karo.</span>'; }
+}
+
+async function loadWebTools(){
+  const body=document.getElementById("webToolsBody"), slugEl=document.getElementById("webToolsSlug");
+  if(!body) return;
+  if(!billToken()){
+    body.innerHTML='<span class="sm" style="color:var(--muted)">Login ke baad mini-site + widget links dikhengi.</span>';
+    return;
+  }
+  try{
+    const r=await fetch("/api/customer/auth/portal/content",{headers:billAuthHdr()});
+    if(!r.ok){ body.innerHTML='<span class="sm" style="color:var(--muted)">Tools load nahi hue.</span>'; return; }
+    const d=await r.json();
+    const links=d.links||{};
+    const slug=(links.mini_site||"").replace(/^\/b\//,"").replace(/\/$/,"");
+    if(slugEl) slugEl.textContent=slug?("/b/"+slug):"setup pending";
+    const base=location.origin;
+    const widgetLine='<!-- LeadsGenAI --><script src="'+base+'/b/'+slug+'/widget.js" async><\/script>';
+    let h='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px">';
+    if(links.mini_site){
+      h+='<a class="btn primary" href="'+escH(links.mini_site)+'" target="_blank" rel="noopener" style="justify-content:center;text-decoration:none">🌐 Mini-Site</a>';
+      h+='<a class="btn" href="'+escH(links.bio_link||links.mini_site)+'" target="_blank" rel="noopener" style="justify-content:center;text-decoration:none">🔗 Bio Link</a>';
+      h+='<a class="btn" href="'+escH(links.digital_card||links.mini_site)+'" target="_blank" rel="noopener" style="justify-content:center;text-decoration:none">💳 Digital Card</a>';
+      if(slug) h+='<a class="btn" href="/b/'+escH(slug)+'/embed" target="_blank" rel="noopener" style="justify-content:center;text-decoration:none">📋 Booking Page</a>';
+    }else{
+      h+='<span class="sm" style="color:var(--muted)">Mini-site abhi setup nahi — admin se onboarding karvao.</span>';
+    }
+    h+='</div>';
+    if(slug){
+      h+='<div style="background:var(--bg);padding:12px;border-radius:10px;border:1px dashed var(--line)">'
+        +'<div style="font-weight:700;font-size:13px;margin-bottom:6px">🔌 Website Enquiry Widget</div>'
+        +'<div class="sm" style="color:var(--muted);margin-bottom:8px">Apni website ke &lt;/body&gt; se pehle yeh line paste karo — floating enquiry button aa jayega.</div>'
+        +'<pre style="font-size:11px;overflow:auto;background:#fff;padding:10px;border-radius:8px;border:1px solid var(--line);white-space:pre-wrap">'+escH(widgetLine)+'</pre>'
+        +'<button class="btn" style="margin-top:8px" onclick="copyText('+JSON.stringify(widgetLine)+')">📋 Widget Copy</button>'
+        +'</div>';
+    }
+    body.innerHTML=h;
+  }catch(e){ body.innerHTML='<span class="sm" style="color:var(--muted)">Tools load error.</span>'; }
+}
+
+async function loadApprovals(){
+  const card=document.getElementById("approvalCard"), body=document.getElementById("approvalBody"), cnt=document.getElementById("approvalCount");
+  if(!billToken()||!card) return;
+  try{
+    const r=await fetch("/api/customer/approvals/pending",{headers:billAuthHdr()});
+    if(!r.ok){ card.style.display="none"; return; }
+    const d=await r.json(); const rows=d.approvals||[];
+    if(!rows.length){ card.style.display="none"; return; }
+    card.style.display="block";
+    cnt.textContent=rows.length+" pending";
+    body.innerHTML=rows.map(function(a){
+      const c=a.content||{};
+      const cap=escH((c.caption||c.text||"").slice(0,180));
+      return '<div class="approve-card"><div style="font-weight:700">'+escH(c.title||c.occasion||"Naya post")+'</div>'
+        +'<div class="sm" style="margin-top:4px">'+cap+'</div>'
+        +'<div class="acts"><button class="btn primary" onclick="decideApproval(\''+escH(a.id)+'\',\'approve\')">✅ Approve</button>'
+        +'<button class="btn" onclick="decideApproval(\''+escH(a.id)+'\',\'reject\')">❌ Change chahiye</button></div></div>';
+    }).join("");
+  }catch(e){ card.style.display="none"; }
+}
+
+async function decideApproval(id, action){
+  if(!id) return;
+  let note="";
+  if(action==="reject"){ note=prompt("Kya change chahiye? (optional)")||""; }
+  try{
+    const r=await fetch("/api/customer/approvals/"+encodeURIComponent(id)+"/decide",{
+      method:"POST", headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
+      body:JSON.stringify({action:action, note:note})
+    });
+    const d=await r.json();
+    if(r.ok&&d.ok){ toast(action==="approve"?"Approve ho gaya ✅":"Feedback bhej di ✅", action==="approve"?"Post publish queue me hai.":"Team naya version banayegi."); loadApprovals(); loadContent(); }
+    else toast("Nahi hua", d.error||"Dobara try karo");
+  }catch(e){ toast("Error", e.message); }
+}
+
+let _routingRows=[{name:"",phone:""}];
+function routingAddRow(){ _routingRows.push({name:"",phone:""}); renderRoutingForm(); }
+function renderRoutingForm(){
+  const wrap=document.getElementById("routingMembers"); if(!wrap) return;
+  wrap.innerHTML=_routingRows.map(function(m,i){
+    return '<div class="route-row"><input aria-label="Member name" placeholder="Naam" value="'+escH(m.name)+'" oninput="_routingRows['+i+'].name=this.value">'
+      +'<input aria-label="Member phone" placeholder="10-digit phone" value="'+escH(m.phone)+'" oninput="_routingRows['+i+'].phone=this.value">'
+      +'<button class="btn" type="button" onclick="_routingRows.splice('+i+',1);renderRoutingForm()">✕</button></div>';
+  }).join("");
+}
+async function loadRouting(){
+  if(!billToken()) return;
+  renderRoutingForm();
+  try{
+    const r=await fetch("/api/customer/routing",{headers:billAuthHdr()});
+    if(!r.ok) return;
+    const d=await r.json();
+    const cfg=d.config;
+    if(cfg&&cfg.members&&cfg.members.length){ _routingRows=cfg.members.map(function(m){return {name:m.name||"",phone:m.phone||""};}); renderRoutingForm(); }
+    const sum=document.getElementById("routingSummary");
+    if(sum) sum.textContent=(cfg&&cfg.members)?cfg.members.length+" members · round-robin":"Setup karo";
+    const out=document.getElementById("routingAssigns");
+    const recent=d.recent_assignments||[];
+    if(out){
+      if(!recent.length) out.innerHTML='<span class="sm" style="color:var(--muted)">Abhi koi auto-assignment nahi — team save karo, phir naye inquiry pe assign hoga.</span>';
+      else out.innerHTML='<div class="sm" style="font-weight:700;margin-bottom:6px">Recent assignments</div>'
+        +recent.slice(0,5).map(function(a){
+          const m=(a.member||{}).name||"?";
+          const l=(a.lead||{}).name||"Lead";
+          const wa=a.wa_link?('<a class="btn" style="padding:4px 8px;font-size:11px" target="_blank" href="'+escH(a.wa_link)+'">WA</a>'):"";
+          return '<div class="sm" style="padding:6px 0;border-bottom:1px solid var(--line)">'+escH(l)+' → <b>'+escH(m)+'</b> '+wa+'</div>';
+        }).join("");
+    }
+  }catch(e){}
+}
+async function routingSave(){
+  const members=_routingRows.filter(function(m){return (m.name||"").trim()&&(m.phone||"").trim();}).map(function(m){return {name:m.name.trim(),phone:m.phone.trim()};});
+  if(!members.length){ toast("Team khali","Kam se kam 1 member naam+phone daalo."); return; }
+  try{
+    const r=await fetch("/api/customer/routing",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),body:JSON.stringify({members:members})});
+    const d=await r.json();
+    if(r.ok&&d.ok){ toast("Team save ✅","Naye leads ab round-robin me jayenge."); loadRouting(); }
+    else toast("Save fail", d.error||"Phone 10-digit check karo");
+  }catch(e){ toast("Error", e.message); }
 }
 
 async function loadBilling(){
@@ -1228,7 +1450,7 @@ function renderBilling(sub,usage,invoices){
     planEl.textContent="Free / Trial";
     statusEl.textContent="NO PLAN";
     periodEl.textContent="—";
-    noteEl.textContent="Abhi koi paid plan nahi hai. Plan lene ke liye humse baat karein.";
+    noteEl.textContent="Abhi koi paid plan nahi. Neeche UPI se pay karo + WhatsApp screenshot bhejo.";
   }
 
   // minutes (Advanced=metered; others "Unlimited"/0)
@@ -1258,10 +1480,32 @@ function renderBilling(sub,usage,invoices){
   // action buttons (only meaningful with an active sub + a token)
   const hasSub=!!(sub&&sub.plan_id);
   const isPaused=hasSub&&String(sub.status).toLowerCase()==="paused";
-  show("billManageBtn",hasSub);
+  show("billManageBtn",false);
   show("billPauseBtn",hasSub&&!isPaused);
   show("billResumeBtn",hasSub&&isPaused);
   show("billCancelBtn",hasSub&&!isPaused);
+  loadUpiPayBox(!hasSub);
+}
+
+async function loadUpiPayBox(showBox){
+  const box=document.getElementById("upiPayBox");
+  if(!box) return;
+  if(!showBox){ box.style.display="none"; return; }
+  try{
+    const r=await fetch("/api/public/pay-info");
+    if(!r.ok){ box.style.display="none"; return; }
+    const d=await r.json();
+    if(!d.enabled){ box.style.display="none"; return; }
+    box.style.display="";
+    const qr=document.getElementById("upiQrBox");
+    const vpa=document.getElementById("upiVpaLbl");
+    const wa=document.getElementById("upiWaBtn");
+    if(qr && d.qr_svg) qr.innerHTML=d.qr_svg;
+    if(vpa) vpa.textContent=d.vpa||"";
+    const waNum=(d.wa_phone||"918459012607").replace(/\D/g,"");
+    const msg=encodeURIComponent("Maine LeadGen AI plan ki payment ki — screenshot bhej raha hoon. Plan activate kar dijiye.");
+    if(wa) wa.href="https://wa.me/"+waNum+"?text="+msg;
+  }catch(e){ if(box) box.style.display="none"; }
 }
 function show(id,on){ const el=document.getElementById(id); if(el) el.style.display=on?"inline-flex":"none"; }
 
@@ -1295,6 +1539,9 @@ async function billingAction(action){
 
 loadBilling();
 loadContent();
+loadWebTools();
+loadApprovals();
+loadRouting();
 sec2faLoad();
 whLoad();
 
@@ -1497,8 +1744,10 @@ document.addEventListener("click", function(e){
     if(btn) btn.setAttribute("aria-expanded","false");
   }
 });
-// Add a welcome notif on first load
-setTimeout(()=>addNotif("🚀","LeadGen AI ready","Aapka dashboard load ho gaya — leads aur calls dekho below."),800);
+// Welcome notif on first load (demo/offline); real data notifs come from pushDataNotifications
+setTimeout(()=>{
+  if(!DATA || DATA.is_sample_data) addNotif("🚀","LeadGen AI ready","Aapka dashboard load ho gaya — leads aur calls dekho below.");
+},800);
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>

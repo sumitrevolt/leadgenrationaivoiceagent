@@ -28,6 +28,9 @@ _BASE = "/app" if os.path.isdir("/app") else os.path.join(
 )
 _CAMPAIGN_KEY = "admin:campaign:last_run"
 
+# Running campaign subprocess (web process holds child ref for Stop).
+_CAMPAIGN_PROC: dict[str, object] = {}
+
 # ── Redis (optional; graceful skip) ─────────────────────────────────────────
 _r: Optional[object] = None
 
@@ -132,6 +135,67 @@ def _pending_upi_queue(limit: int = 20) -> list[dict]:
         return []
 
 
+# ── Pre-flight: leads ready to call ─────────────────────────────────────────
+def _leads_ready() -> dict:
+    """Uncontacted-with-phone leads — EXACTLY what fire_calls.py would dial.
+
+    Same WHERE clause as scripts/fire_calls.get_prospects so the count matches
+    what a campaign will actually call. Defensive: any failure → available=False.
+    """
+    try:
+        import urllib.parse as up
+
+        import psycopg2
+
+        dburl = os.environ.get("DATABASE_URL", "")
+        if not dburl.startswith("postgres"):
+            return {"available": False, "reason": "no_postgres_dsn"}
+        p = up.urlparse(dburl)
+        conn = psycopg2.connect(
+            host=p.hostname,
+            port=p.port or 5432,
+            dbname=p.path.lstrip("/"),
+            user=p.username,
+            password=p.password,
+            connect_timeout=4,
+        )
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT COALESCE(NULLIF(LOWER(niche),''),'general') AS n, COUNT(*)
+            FROM leads
+            WHERE phone IS NOT NULL AND phone <> ''
+              AND COALESCE(call_attempts,0) = 0
+            GROUP BY 1 ORDER BY 2 DESC LIMIT 15"""
+        )
+        rows = cur.fetchall()
+        conn.close()
+        by_niche = [{"niche": r[0], "count": int(r[1])} for r in rows]
+        total = sum(r["count"] for r in by_niche)
+        return {"available": True, "total": total, "by_niche": by_niche}
+    except Exception as exc:
+        return {"available": False, "reason": str(exc)[:120]}
+
+
+def _call_stats() -> dict:
+    """Recent call outcomes / qualified summary (pure-python, never raises)."""
+    try:
+        from app.platform import call_insights
+
+        return call_insights.quick_stats()
+    except Exception as exc:
+        return {"error": str(exc)[:120]}
+
+
+@router.get("/leads/ready", summary="Uncontacted leads ready to call (campaign pre-flight)")
+async def leads_ready(_user=Depends(require_admin)):
+    return await asyncio.to_thread(_leads_ready)
+
+
+@router.get("/calls/recent", summary="Recent call outcomes / qualified summary")
+async def calls_recent(_user=Depends(require_admin)):
+    return await asyncio.to_thread(_call_stats)
+
+
 # ── Campaign endpoints ────────────────────────────────────────────────────────
 @router.post("/campaign/launch", summary="Launch outbound call campaign")
 async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
@@ -173,6 +237,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
             )
+            _CAMPAIGN_PROC["proc"] = proc
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=320)
             output = (stdout or b"").decode("utf-8", errors="replace")
             _redis_set(
@@ -227,6 +292,27 @@ async def campaign_status(_user=Depends(require_admin)):
     return st if st else {"status": "never_run"}
 
 
+@router.post("/campaign/stop", summary="Stop the currently running campaign")
+async def campaign_stop(_user=Depends(require_admin)):
+    """Terminate the running fire_calls subprocess (stops placing NEW calls).
+
+    In-flight call already on the carrier completes; no new numbers dialed.
+    """
+    proc = _CAMPAIGN_PROC.get("proc")
+    if proc is None or getattr(proc, "returncode", 0) is not None:
+        return {"stopped": False, "reason": "no_running_campaign"}
+    try:
+        proc.terminate()  # type: ignore[union-attr]
+    except ProcessLookupError:
+        return {"stopped": False, "reason": "already_exited"}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)[:200]) from exc
+    st = _redis_get(_CAMPAIGN_KEY) or {}
+    st.update({"status": "stopped", "finished_at": time.time()})
+    _redis_set(_CAMPAIGN_KEY, st)
+    return {"stopped": True}
+
+
 # ── System summary ────────────────────────────────────────────────────────────
 @router.get("/system/summary", summary="System snapshot for God Mode panel")
 async def system_summary(_user=Depends(require_admin)):
@@ -235,9 +321,9 @@ async def system_summary(_user=Depends(require_admin)):
 
     readiness: dict = {}
     try:
-        from app.api.activation import activation_summary_public
+        from app.api.activation import get_activation_summary
 
-        readiness = await activation_summary_public()
+        readiness = await get_activation_summary()
     except Exception as exc:
         readiness = {"error": str(exc)}
 
@@ -248,12 +334,22 @@ async def system_summary(_user=Depends(require_admin)):
 
     last_campaign = _redis_get(_CAMPAIGN_KEY) or {"status": "never_run"}
 
+    provider = (os.environ.get("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
     vobiz_ok = bool(
         os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN")
     )
+    exotel_ok = bool(
+        (os.environ.get("EXOTEL_SID") or os.environ.get("EXOTEL_ACCOUNT_SID"))
+        and (os.environ.get("EXOTEL_API_KEY") or os.environ.get("EXOTEL_SID"))
+        and (os.environ.get("EXOTEL_API_TOKEN") or os.environ.get("EXOTEL_TOKEN"))
+    )
     flags = {
+        "TELEPHONY_PROVIDER": provider,
+        "PROVIDER_CREDS": exotel_ok if provider == "exotel" else vobiz_ok,
         "VOBIZ_CREDS": vobiz_ok,
+        "EXOTEL_CREDS": exotel_ok,
         "VOBIZ_CALLER_ID": bool(os.environ.get("VOBIZ_CALLER_ID", "").strip()),
+        "EXOTEL_CALLER_ID": bool(os.environ.get("EXOTEL_CALLER_ID", "").strip()),
         "VOBIZ_CALL_RECORD": bool(int(os.environ.get("VOBIZ_CALL_RECORD", "0"))),
         "AUTO_EMAIL_OUTREACH": os.environ.get("AUTO_EMAIL_OUTREACH", "").lower()
         in ("1", "true"),
@@ -265,19 +361,35 @@ async def system_summary(_user=Depends(require_admin)):
     telephony = readiness.get("telephony") or {}
     upi = _upi_info()
 
-    caller_id = os.environ.get("VOBIZ_CALLER_ID", "unset")
+    if provider == "exotel":
+        caller_id = os.environ.get("EXOTEL_CALLER_ID", "unset")
+    else:
+        caller_id = os.environ.get("VOBIZ_CALLER_ID", "unset")
+
+    # Pre-flight calling data (blocking DB → thread; never breaks the panel).
+    try:
+        leads_ready = await asyncio.wait_for(asyncio.to_thread(_leads_ready), timeout=6)
+    except Exception:
+        leads_ready = {"available": False, "reason": "timeout"}
+    try:
+        call_stats = await asyncio.wait_for(asyncio.to_thread(_call_stats), timeout=4)
+    except Exception:
+        call_stats = {}
+
     return {
         "readiness": readiness,
         "upi": upi,
         "pending_upi": _pending_upi_queue(15),
+        "leads_ready": leads_ready,
+        "call_stats": call_stats,
         "trai": {
             "calling_open": calling_open,
             "window": f"{trai_start:02d}:00–{trai_end:02d}:00 IST",
             "ist_hour": ist_now.hour,
         },
-        "telephony_provider": os.environ.get("TELEPHONY_PROVIDER", "vobiz"),
-        "vobiz_caller_id": caller_id,
-        "exotel_caller_id": caller_id,  # JS compat alias
+        "telephony_provider": provider,
+        "vobiz_caller_id": os.environ.get("VOBIZ_CALLER_ID", "unset"),
+        "exotel_caller_id": os.environ.get("EXOTEL_CALLER_ID", "unset"),
         # Razorpay: user using UPI for now; stub for JS compat
         "razorpay": {"key_set": False, "live_key": False, "key_prefix": "skipped"},
         "telephony_score": telephony.get("score", 0),

@@ -1450,3 +1450,19 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
 **Live smoke proof** (post-deploy): C1 IDOR → 401 ✓ · C4 SSRF cloud-metadata → rejected ✓ · 13-probe readiness live · `/.well-known/agent.json` advertises 3 capabilities all implemented · container healthy.
 
 **Memory hygiene**: 1 lean line in CLAUDE.md (tab-count). Detail in this entry. All flags additive + INERT default → bit-for-bit prod behaviour unchanged until operator activates per runbook.
+
+---
+
+## 2026-06-17 — Competitive battlecard (in-app) + lean dashboard audit + competitor intel refresh
+
+**Session: design-doc review + `/sales:competitive-intelligence` (god mode) + live integration.**
+
+- **Design-doc review** (Kiro "Dashboard Assessment & Gap Analysis", 7-module framework): verdict = OVER-ENGINEERED for 2 static HTML files. 8 hand-written gap docs already exist; static analysis can't detect feature broken/complete; parser+regression+CI premature; MoSCoW algo referenced fields absent from `Gap` dataclass. Recommended lean manual audit — and shipped it (below).
+- **Competitive battlecard** (god mode): refreshed June-2026 web intel on 5 head-to-head competitors — Dhanda(EZO), AdBanao, MyOperator, Vodex.ai, GoHighLevel. Reused existing 26-competitor research (`Competitor_Top20_Feature_Gap_2026`) — NO re-derive. Honest "where they win" (AdBanao 50L+ template scale, live-transfer gap, no SOC2/ISO certs) + 15-row matrix + Hinglish talk tracks + landmine questions.
+  - Refreshed facts: MyOperator AI ₹10–20k/mo + ₹20k onboarding on ₹52k base (enterprise, 12k+ incl Amazon/Dominos/TCS); Vodex = Bengaluru-HQ but US-collections-first, English, USD, foreign-trunk = India-domestic ILLEGAL (landmine); GHL $97 platform + $97 AI Employee (USD, agency, no native India/DLT/Hinglish).
+  - Asset: `docs/LeadGenAI_Battlecard_2026-06-17.html` (standalone share) + `frontend/battlecard.html` (served).
+- **LIVE app integration** (additive, low-risk):
+  - New page route `GET /app/battlecard` in `app/main.py` (FileResponse, static, no API/secrets). Grep-verified no route shadow.
+  - Admin sidebar link added (`frontend/admin_dashboard.html` → new "Sales" section, `⚔ Competitive Battlecard`). Rule honoured: admin feature = UI tab saath.
+- **Lean dashboard audit** (recommended substitute, NOT the framework): `scripts/dashboard_audit.py` — single-file stdlib static heuristic scan → `docs/DASHBOARD_ASSESSMENT_REPORT.md`. Findings: customer 58.5 KB / admin 48.6 KB; both 6/8 UX heuristics (75%) — genuine gaps = ARIA labels + keyboard-focus missing on both. Recs tied to existing backlog (P0 #7 speed-to-lead badge, #10 lead round-robin, P1 #11 GEO visibility score).
+- **No prod behaviour change** beyond one additive static page route. CLAUDE.md memory: 1 line (pages list += `/app/battlecard`).

@@ -596,6 +596,29 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     except Exception as e:
         logger.debug(f"[public] ntfy push skip: {e}")
 
+    # ── lead round-robin: mini-site inquiry → client team member ─────────────
+    # NeoDove/TeleCRM parity — config set ho to auto-assign + WA handoff link.
+    if mini_client_id:
+        try:
+            from app.platform import lead_distribution as _ld
+
+            assign_out = _ld.maybe_assign(
+                mini_client_id,
+                {
+                    "name": rec.get("name") or rec.get("business_name") or "",
+                    "phone": rec.get("phone") or "",
+                    "message": rec.get("message") or "",
+                    "source": rec.get("source") or "inquiry",
+                },
+            )
+            if assign_out:
+                rec["lead_assignment"] = {
+                    "member": assign_out.get("assigned_to"),
+                    "wa_link": assign_out.get("wa_link"),
+                }
+        except Exception as e:
+            logger.debug(f"[public] lead_distribution skip: {e}")
+
     # ── sales pipeline: inquiry = new deal ───────────────────────────────────
     # CRM-style deal tracking: inquiry aate hi "new" stage me deal ban jata.
     # GATED: SALES_ENGINE=1 ke bina dormant (sales_pipeline guard karta hai internally).
@@ -833,6 +856,8 @@ async def pay_info():
         return {"enabled": False}
 
     out: dict[str, Any] = {"enabled": True, "vpa": vpa}
+    wa = (os.environ.get("UPI_VERIFY_WA") or "918459012607").strip().lstrip("+")
+    out["wa_phone"] = wa
     try:
         from app.marketing.upi_kit import payment_kit
 

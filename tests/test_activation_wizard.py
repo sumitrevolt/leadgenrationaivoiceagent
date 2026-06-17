@@ -39,13 +39,12 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
 # --------------------------------------------------------------------------- #
 # Next-step picking
 # --------------------------------------------------------------------------- #
-async def test_empty_env_picks_razorpay_first() -> None:
-    """Razorpay is the audit's #1 blocker — wizard MUST surface it first.
-    Without payments live, nothing else matters."""
+async def test_empty_env_picks_sentry_first() -> None:
+    """Razorpay deferred (NEUTRAL) — wizard surfaces first WARN (Sentry)."""
     out = await ax.activation_wizard(_user=None)  # type: ignore[arg-type]
     assert out["all_done"] is False
-    assert out["next_step"]["key"] == "razorpay"
-    assert out["next_step"]["status"] == "BLOCKER"
+    assert out["next_step"]["key"] == "sentry"
+    assert out["next_step"]["status"] == "WARN"
     assert out["next_step"]["phase"]["n"] == 1
 
 
@@ -87,19 +86,11 @@ async def test_phase1_green_jumps_to_phase2(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 async def test_warn_only_items_still_surface_as_next(monkeypatch: pytest.MonkeyPatch) -> None:
-    """WARN-status items are real action items (e.g. Sentry DSN set but
-    ENVIRONMENT not 'production' -> WARN, not OK)."""
-    # Razorpay BLOCKER (default empty) — picks Razorpay first; this just
-    # confirms the wizard doesn't filter WARN out.
-    monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_live_realkey")
-    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "real-secret")
-    monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "whs")
+    """WARN-status items are real action items (e.g. Sentry)."""
     monkeypatch.setenv("SENTRY_DSN", "https://x@o.ingest.sentry.io/1")
-    # ENVIRONMENT NOT set -> Sentry probe returns NEUTRAL (not WARN), so
-    # this confirms: wizard advances past NEUTRAL items.
     out = await ax.activation_wizard(_user=None)  # type: ignore[arg-type]
     assert out["next_step"] is not None
-    assert out["next_step"]["key"] != "sentry"  # neutral, skipped
+    assert out["next_step"]["key"] != "sentry"  # neutral without ENVIRONMENT=production
     assert out["next_step"]["key"] in {"posthog", "turnstile"}
 
 

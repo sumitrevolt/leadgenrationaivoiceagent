@@ -1,12 +1,10 @@
 """Telephony Readiness Monitor (Tara) — calling launch ke liye system HAR WAQT
 taiyaar hai ya nahi, hourly verify.
 
-Telephony aa rahi hai (Exotel KYC/DLT process me) — jab bhi green-light mile,
-system pe koi surprise na ho. Checks (sab local/config — koi paid API call nahi):
-  provider creds (Exotel sid/key/token) · caller-ID set · webhook secrets ·
-  DND-checker config · TTS (edge-tts importable) · STT (GROQ key) · LLM chain
-  (providers configured + llm_metrics ok-rate) · voice flags status · compliance
-  (AMD/DND fail-closed flags).
+Telephony aa rahi hai (Vobiz) — calling start se pehle system taiyaar hai ya nahi, hourly verify.
+Checks (sab local/config — koi paid API call nahi):
+  Vobiz creds (VOBIZ_AUTH_ID/TOKEN) · caller-ID (VOBIZ_CALLER_ID) ·
+  TTS (edge-tts) · STT (GROQ key) · LLM chain · compliance flags.
 
 Score 0-100 + missing list + Hinglish next-actions. Watchdog-job me wired (Tara
 log_event). Alert sirf score-drop pe, gated `TELEPHONY_READY_ALERTS=1`.
@@ -39,6 +37,11 @@ def _env(name: str) -> str:
         return ""
 
 
+def _active_provider() -> str:
+    """Live telephony provider — vobiz (outbound stream) or exotel (voicebot)."""
+    return (_env("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
+
+
 def _alerts_enabled() -> bool:
     return os.environ.get("TELEPHONY_READY_ALERTS", "0").strip().lower() in ("1", "true", "yes")
 
@@ -50,18 +53,38 @@ def run_checks() -> dict[str, Any]:
     def add(key: str, ok: bool, why: str, weight: int = 10) -> None:
         checks[key] = {"ok": bool(ok), "why": why, "weight": weight}
 
-    # Provider creds
-    sid, api_key, token = _env("EXOTEL_SID"), _env("EXOTEL_API_KEY"), _env("EXOTEL_API_TOKEN")
-    add("exotel_creds", bool(sid and api_key and token), "EXOTEL_SID + API_KEY + API_TOKEN", 15)
-    add("caller_id", bool(_env("EXOTEL_CALLER_ID")), "EXOTEL_CALLER_ID (Exophone)", 10)
-    add("exotel_app", bool(_env("EXOTEL_APP_ID")), "EXOTEL_APP_ID (connect applet)", 5)
-    # Webhooks
-    add(
-        "webhook_secrets",
-        bool(_env("EXOTEL_WEBHOOK_SECRET") or _env("TWILIO_AUTH_TOKEN") or sid),
-        "webhook signature verify config",
-        5,
-    )
+    provider = _active_provider()
+    vobiz_id = _env("VOBIZ_AUTH_ID")
+    vobiz_tok = _env("VOBIZ_AUTH_TOKEN")
+    exotel_sid = _env("EXOTEL_SID") or _env("EXOTEL_ACCOUNT_SID")
+    exotel_key = _env("EXOTEL_API_KEY") or _env("EXOTEL_SID")
+    exotel_token = _env("EXOTEL_API_TOKEN") or _env("EXOTEL_TOKEN")
+
+    if provider == "exotel":
+        add(
+            "provider_creds",
+            bool(exotel_sid and exotel_key and exotel_token),
+            "EXOTEL_SID + EXOTEL_API_KEY + EXOTEL_API_TOKEN",
+            20,
+        )
+        add(
+            "caller_id",
+            bool(_env("EXOTEL_CALLER_ID")),
+            "EXOTEL_CALLER_ID (ExoPhone)",
+            15,
+        )
+        add("provider_app", bool(_env("EXOTEL_APP_ID")), "EXOTEL_APP_ID (voicebot applet)", 5)
+        telephony_ok = bool(exotel_sid and exotel_key and exotel_token)
+    else:
+        add(
+            "provider_creds",
+            bool(vobiz_id and vobiz_tok),
+            "VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN",
+            20,
+        )
+        add("caller_id", bool(_env("VOBIZ_CALLER_ID")), "VOBIZ_CALLER_ID (140 DID)", 15)
+        add("vobiz_trunk", bool(_env("VOBIZ_TRUNK_ID") or vobiz_id), "VOBIZ trunk / account", 5)
+        telephony_ok = bool(vobiz_id and vobiz_tok)
     # Voice AI chain
     tts_ok = False
     try:
@@ -94,7 +117,7 @@ def run_checks() -> dict[str, Any]:
     except Exception:
         add("llm_health", True, "no data yet", 5)
     # Compliance posture
-    add("dnd_config", bool(api_key and token), "DND checker creds (Exotel reuse)", 5)
+    add("dnd_config", telephony_ok, "compliance gate creds available", 5)
     add(
         "compliance_flags",
         os.environ.get("WHATSAPP_AUTO_SEND", "0") != "1",
@@ -108,17 +131,28 @@ def run_checks() -> dict[str, Any]:
     total = sum(c["weight"] for c in checks.values())
     missing = [k for k, c in checks.items() if not c["ok"]]
     actions = []
-    if "exotel_creds" in missing:
-        actions.append("Exotel API key/token set karo (.env)")
+    if "provider_creds" in missing:
+        if provider == "exotel":
+            actions.append("EXOTEL_SID + EXOTEL_API_KEY + EXOTEL_API_TOKEN set karo (.env)")
+        else:
+            actions.append("VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN set karo (.env)")
     if "stt_groq" in missing:
         actions.append("GROQ_API_KEY set karo — STT weak link")
     if "tts_edge" in missing:
         actions.append("pip install edge-tts>=7.2.0 (image rebuild)")
     if "caller_id" in missing:
-        actions.append("EXOTEL_CALLER_ID set karo (Exophone)")
+        if provider == "exotel":
+            actions.append("EXOTEL_CALLER_ID set karo (ExoPhone recharge ke baad)")
+        else:
+            actions.append("VOBIZ_CALLER_ID set karo (140 DID recharge ke baad)")
+    if "provider_app" in missing and provider == "exotel":
+        actions.append("EXOTEL_APP_ID set karo (voicebot applet)")
     if not actions:
-        actions.append("System ready — KYC/DLT milte hi calling chalu ho sakti hai ✅")
+        actions.append(
+            f"{provider.title()} calling ready — kal 10am–7pm IST window me test karo ✅"
+        )
     return {
+        "provider": provider,
         "score": round(100 * score / max(total, 1)),
         "checks": checks,
         "missing": missing,
@@ -131,24 +165,15 @@ async def run_watch() -> dict[str, Any]:
     """Hourly (watchdog) — log under Tara; score girne pe gated alert. Kabhi raise nahi."""
     try:
         res = run_checks()
-        # Live Exotel credits (cached 30min) — readiness me dikhe + low-balance alert.
+        # Vobiz balance snapshot (best-effort)
         try:
-            from app.telephony import exotel_account
+            from app.telephony.vobiz_handler import VobizClient
 
-            bal = await exotel_account.balance()
-            if bal is not None:
-                res["exotel_balance"] = round(bal, 2)
-                low_at = float(os.environ.get("EXOTEL_LOW_BALANCE", "100") or 100)
-                if bal < low_at and _alerts_enabled():
-                    notify = os.environ.get("NOTIFY_EMAIL", "").strip()
-                    if notify:
-                        from app.integrations.email_sender import email_sender
-
-                        await email_sender.send_email(
-                            [notify],
-                            f"⚠️ Exotel balance low: ₹{round(bal, 2)}",
-                            f"Credits ₹{round(bal, 2)} bache (threshold ₹{low_at}). Recharge karo warna calling rukegi.",
-                        )
+            vc = VobizClient()
+            if vc.available():
+                bal = await vc.get_balance()
+                if isinstance(bal, dict):
+                    res["vobiz_balance"] = bal.get("body") or bal
         except Exception:
             pass
         prev_score = None

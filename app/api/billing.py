@@ -405,11 +405,15 @@ async def calculate_plan_pricing(
 
 
 def _razorpay_ready() -> bool:
-    """Real Razorpay creds set? Placeholder (rzp_test_your.../your-...) ya empty =
-    NOT configured → checkout gracefully 503 (broken 500 ke bajay UPI/contact fallback)."""
+    """Real Razorpay creds set? Placeholder keys → NOT configured.
+    Production requires rzp_live_* (test keys OK only in non-production)."""
     kid = (settings.razorpay_key_id or "").strip().lower()
     ksec = (settings.razorpay_key_secret or "").strip().lower()
-    return kid.startswith("rzp_") and "your" not in kid and bool(ksec) and "your" not in ksec
+    if not kid.startswith("rzp_") or "your" in kid or not ksec or "your" in ksec:
+        return False
+    if settings.is_production and not kid.startswith("rzp_live_"):
+        return False
+    return True
 
 
 @router.post("/billing/checkout", response_model=CheckoutResponse, tags=["Billing"])

@@ -198,6 +198,7 @@
       <a class="active" href="#top" role="menuitem" aria-current="page" aria-label="Dashboard overview"><span class="ic" aria-hidden="true">▦</span> Dashboard</a>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">10</span></a>
       <a href="#sec-godmode" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> God Mode <span class="badge" style="background:#ef4444">NEW</span></a>
+      <a href="#sec-automation" role="menuitem" aria-label="Automation workflows hub"><span class="ic" aria-hidden="true">🎛</span> Automation Hub <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
       <a href="#sec-launch-calls" role="menuitem" aria-label="Launch outbound campaign"><span class="ic" aria-hidden="true">🚀</span> Launch Campaign</a>
       <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">8</span></a>
       <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">⚙</span> AI Agents <span class="badge" id="nav-ag">6</span></a>
@@ -257,10 +258,10 @@
         <div class="bd" id="onbForm" style="display:none">
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:8px">
             <div><label style="font-size:11px;color:#94a3b8">Product *</label>
-              <select id="onbProduct" onchange="onbProductChange()" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px">
+              <select id="onbProduct" onchange="onbProductChange()" aria-label="Product type" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px">
                 <option value="marketing">AI Marketing</option>
                 <option value="voice">AI Voice Agent</option>
-                <option value="combo">Both — AI Growth Suite</option>
+                <option value="combo">Dono products (alag SKUs)</option>
               </select>
             </div>
             <div><label for="onbBiz" style="font-size:11px;color:#94a3b8">Business name *</label><input id="onbBiz" placeholder="Sharma Solar" aria-required="true" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
@@ -439,18 +440,14 @@
             </div>
             <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px">
               <div style="font-size:11px;font-weight:700;color:#991b1b;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">⚠️ Prerequisites</div>
-              <div style="font-size:12px;color:var(--ink);line-height:1.6">
-                ✅ VOBIZ_CALL_RECORD=1 set<br>
-                ❌ Razorpay live keys unset<br>
-                ⏳ Exotel KYC pending
-              </div>
+              <div id="camp-prereq" style="font-size:12px;color:var(--ink);line-height:1.6">Loading…</div>
             </div>
           </div>
 
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;margin-bottom:14px">
             <div>
-              <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Calls to fire</label>
-              <select id="campLimit" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:600;background:#fff">
+              <label for="campLimit" style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Calls to fire</label>
+              <select id="campLimit" aria-label="Number of calls to fire in campaign" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:600;background:#fff">
                 <option value="5">5 calls (test)</option>
                 <option value="10" selected>10 calls</option>
                 <option value="25">25 calls</option>
@@ -464,6 +461,7 @@
             </div>
             <button class="btn" onclick="fireCampaign()" style="background:#10b981;padding:9px 20px;font-size:13px">🚀 Fire Campaign</button>
             <button class="btn" onclick="loadCampaignStatus()" style="background:#6366f1;padding:9px 14px;font-size:12px">↻ Status</button>
+            <button class="btn" id="campStopBtn" onclick="stopCampaign()" style="background:#ef4444;padding:9px 14px;font-size:12px;display:none">⏹ Stop</button>
           </div>
 
           <div id="campOut" style="font-size:12px;padding:12px 14px;background:#f8fafc;border:1px solid var(--line);border-radius:8px;min-height:40px;color:var(--muted)">
@@ -530,6 +528,56 @@
       <div class="card" id="sec-api">
         <div class="hd"><h3>API Usage &amp; Infra Flags</h3><span class="right" id="api-summary">Automation + rate limits</span></div>
         <div class="bd" id="apiBody"><span style="color:var(--muted)">Loading…</span></div>
+      </div>
+
+      <!-- Automation Workflows Hub (Mission Control inline) -->
+      <div class="card" id="sec-automation" style="scroll-margin-top:80px;border:1px solid #6366f1">
+        <div class="hd" style="background:linear-gradient(90deg,#0f172a,#1e1b4b);border-bottom:1px solid #334155">
+          <h3 style="color:#e0e7ff">🎛 Automation Workflows</h3>
+          <span class="right" id="auto-summary" style="color:#a5b4fc;font-size:11px">—</span>
+          <button class="btn" onclick="loadAutomationHub()" style="margin-left:8px;padding:6px 12px;font-size:12px;background:#6366f1">↻ Refresh</button>
+          <a href="/app/automation" class="btn" style="margin-left:6px;padding:6px 12px;font-size:12px;text-decoration:none;background:#334155" target="_blank">Full Mission Control →</a>
+        </div>
+        <div class="bd">
+          <div id="autoTodayHead" style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--ink)">Loading automation status…</div>
+          <div id="autoProblems" style="margin-bottom:14px"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px;max-height:320px;overflow:auto">
+              <h4 style="margin:0 0 8px;font-size:13px">⏰ Scheduled Jobs <span class="sm" style="color:var(--muted);font-weight:400">(dead-man)</span></h4>
+              <div id="autoJobs" class="mut">—</div>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px;max-height:320px;overflow:auto">
+              <h4 style="margin:0 0 8px;font-size:13px">👥 AI Staff <span class="sm" style="color:var(--muted);font-weight:400">(manual run)</span></h4>
+              <div id="autoStaff" class="mut">—</div>
+            </div>
+          </div>
+          <div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px">
+            <h4 style="margin:0 0 10px;font-size:13px">⚡ Workflow Actions</h4>
+            <div style="display:flex;gap:8px;flex-wrap:wrap" id="autoActions">
+              <button class="btn" onclick="autoAction('selfimprove')" style="font-size:11px;padding:6px 10px">🔄 Self-Improve Tick</button>
+              <button class="btn" onclick="autoAction('optimizer')" style="font-size:11px;padding:6px 10px">📈 Optimizer Run</button>
+              <button class="btn" onclick="autoAction('prospect')" style="font-size:11px;padding:6px 10px">🔍 Scrape Prospects</button>
+              <button class="btn" onclick="autoAction('email')" style="font-size:11px;padding:6px 10px">📧 Email Outreach</button>
+              <button class="btn" onclick="autoAction('dunning')" style="font-size:11px;padding:6px 10px">💳 Dunning Sweep</button>
+              <button class="btn" onclick="autoAction('digest')" style="font-size:11px;padding:6px 10px">📊 Revenue Digest</button>
+              <button class="btn" onclick="autoAction('health')" style="font-size:11px;padding:6px 10px">❤️ Client Health</button>
+            </div>
+            <div id="autoActionOut" style="margin-top:10px;font-size:12px;color:var(--muted)">Action output yahan dikhega.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px">
+              <h4 style="margin:0 0 8px;font-size:13px">📥 Pending Approvals</h4>
+              <div id="autoApprovals" class="mut">—</div>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px">
+              <h4 style="margin:0 0 8px;font-size:13px">🎯 Queue Task <span class="sm" style="color:var(--muted)">(self-improve loop)</span></h4>
+              <input id="autoSiTask" placeholder="Pune solar se 10 leads lao…" aria-label="Self-improve task goal"
+                style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12px;margin-bottom:8px">
+              <button class="btn" onclick="autoQueueTask()" style="font-size:11px;padding:6px 12px;background:#6366f1">+ Queue for next tick</button>
+              <div id="autoSiStatus" style="margin-top:8px;font-size:11px;color:var(--muted)"></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- P0 competitive differentiators (AdBanao / NeoDove / agency) -->
@@ -1057,7 +1105,7 @@ function renderCampaigns(list){
 function renderHealth(h, ts){
   const items = [
     {nm:"API Server", k:"api"}, {nm:"Database", k:"db"},
-    {nm:"Telephony (Twilio/Exotel)", k:"telephony"}, {nm:"Scrapers (Maps/JustDial/IndiaMart)", k:"scrapers"}
+    {nm:"Telephony (Vobiz)", k:"telephony"}, {nm:"Scrapers (Maps/JustDial/IndiaMart)", k:"scrapers"}
   ];
   $("health").innerHTML = items.map(it=>{
     const up = h[it.k]==="up";
@@ -1155,7 +1203,7 @@ async function loadDashboard(){
   try{
     const ctrl = new AbortController();
     const t = setTimeout(()=>ctrl.abort(), 8000);
-    const res = await fetch("/api/admin/dashboard", {signal:ctrl.signal, cache:"no-store"});
+    const res = await fetch("/api/admin/dashboard", {headers:abAuthHdr(), signal:ctrl.signal, cache:"no-store"});
     clearTimeout(t);
     if(!res.ok) throw new Error("bad status "+res.status);
     const data = await res.json();
@@ -1172,6 +1220,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores();
   loadRevenueAnalytics(); loadProspectsPanel(); loadActivityFeed();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail();
+  loadAutomationHub();
   loadRecordings();
   loadGodMode();
   loadCampaignStatus();
@@ -1312,7 +1361,7 @@ function onbRefreshPlans(){
     opts=[["combo_pilot","Free Pilot — 7 din / 50 calls"],
           ["combo_"+t.key+"_monthly","Combo "+t.key+" · Monthly — "+onbInr(t.m)+"/mo"],
           ["combo_"+t.key+"_annual","Combo "+t.key+" · Annual — "+onbInr(t.y)+"/yr"]];
-    if(hint) hint.textContent="Band "+b2+" → Combo "+t.key+" (Marketing + Voice bundle).";
+    if(hint) hint.textContent="Band "+b2+" → Combo "+t.key+" (Marketing + Voice alag SKUs).";
   }
   sel.innerHTML = opts.map(function(o){ return '<option value="'+escH(o[0])+'">'+escH(o[1])+'</option>'; }).join("");
 }
@@ -1454,6 +1503,124 @@ async function adminBilling(action){
   }catch(e){ alert("Network error."); }
 }
 
+/* ====== Automation Workflows Hub ====== */
+async function autoFetch(path, opts){
+  const r=await fetch(path,Object.assign({headers:abAuthHdr(),cache:"no-store"},opts||{}));
+  if(r.status===401||r.status===403) throw new Error("admin token chahiye");
+  return r.json().catch(()=>({}));
+}
+async function loadAutomationHub(){
+  const head=$("autoTodayHead"), probs=$("autoProblems"), jobs=$("autoJobs"), staff=$("autoStaff");
+  const appr=$("autoApprovals"), siSt=$("autoSiStatus"), summ=$("auto-summary");
+  if(head) head.textContent="Loading…";
+  try{
+    const [today, health, team, si, proc]=await Promise.all([
+      autoFetch("/api/growth/overview/today").catch(()=>({})),
+      autoFetch("/api/growth/infra/automation-health").catch(()=>({})),
+      autoFetch("/api/platform/team").catch(()=>({})),
+      autoFetch("/api/growth/selfimprove/status").catch(()=>({})),
+      autoFetch("/api/growth/process/runs").catch(()=>({})),
+    ]);
+    if(head) head.textContent=today.headline||"🏠 Automation status";
+    if(probs){
+      const ps=today.problems||[];
+      probs.innerHTML=ps.length?ps.map(p=>'<div style="font-size:12px;padding:8px 10px;margin-bottom:6px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px"><b style="color:#b45309">'+escH(p.kya)+'</b><div style="color:#92400e;font-size:11px;margin-top:3px">Fix: '+escH(p.fix||"")+'</div></div>').join("")
+        :'<div style="font-size:12px;color:var(--green);padding:8px;background:#f0fdf4;border-radius:8px">✅ Koi automation problem nahi</div>';
+    }
+    const jrows=health.jobs||health.heartbeats||[];
+    if(jobs){
+      jobs.innerHTML=jrows.length?jrows.slice(0,14).map(j=>{
+        const od=j.overdue||j.is_overdue;
+        return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:11.5px">'
+          +'<span><b>'+escH(j.label||j.job||j.key||"?")+'</b><div class="sm" style="color:var(--muted)">'+escH(j.last_run||j.last||"never")+'</div></span>'
+          +'<span style="color:'+(od?"var(--red)":"var(--green)")+';font-weight:700">'+(od?"OVERDUE":"OK")+'</span></div>';
+      }).join(""):'<span class="mut">Job heartbeat data nahi — worker/beat check karo</span>';
+    }
+    const members=team.members||team.staff||[];
+    if(staff){
+      staff.innerHTML=members.length?members.slice(0,12).map(m=>{
+        const id=m.id||m.key||m.name||"";
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:11.5px">'
+          +'<span style="flex:1"><b>'+escH((m.emoji||"")+" "+(m.name||id))+'</b> · '+escH(m.status||m.state||"—")+'</span>'
+          +'<button class="btn" style="font-size:10px;padding:4px 8px" onclick="autoStaffRun(\''+escH(id)+'\')">▶ Run</button></div>';
+      }).join(""):'<span class="mut">Staff roster load nahi hua</span>';
+    }
+    let apprHtml="";
+    let pending=0;
+    try{
+      const ap=await autoFetch("/api/growth/selfimprove/approvals-pending");
+      const rows=ap.pending||[];
+      if(ap.approval_required&&rows.length){
+        pending+=rows.length;
+        apprHtml+=rows.slice(0,5).map(t=>'<div style="font-size:11px;padding:6px 0;border-bottom:1px solid var(--line)"><b>Self-improve</b> · '+escH((t.task||t.action||"").slice(0,60))+' <button class="btn" style="font-size:10px;padding:3px 7px" onclick="autoApprSi(\''+escH(t.id||t.task_id||"")+'\',\'approve\')">✓</button> <button class="btn" style="font-size:10px;padding:3px 7px" onclick="autoApprSi(\''+escH(t.id||t.task_id||"")+'\',\'reject\')">✕</button></div>').join("");
+      }
+    }catch(e){}
+    const waits=(proc.runs||[]).filter(r=>(r.status||"").toLowerCase().includes("wait"));
+    pending+=waits.length;
+    if(waits.length){
+      apprHtml+=waits.slice(0,4).map(r=>'<div style="font-size:11px;padding:6px 0;border-bottom:1px solid var(--line)"><b>Process</b> · '+escH(r.process||"")+' · '+escH(String(r.id||"").slice(0,10))+' <button class="btn" style="font-size:10px;padding:3px 7px" onclick="autoProcAppr(\''+escH(r.id||"")+'\')">✓ Approve</button></div>').join("");
+    }
+    if(appr) appr.innerHTML=apprHtml||'<span style="color:var(--green)">✅ Koi pending approval nahi</span>';
+    const navAp=$("nav-auto-appr");
+    if(navAp){ navAp.textContent=pending; navAp.style.display=pending>0?"inline":"none"; }
+    if(siSt) siSt.textContent="Loop: "+(si.state||si.status||"?")+" · runs aaj: "+(si.runs_today||0)+" · queue: "+(si.queue_pending||0);
+    if(summ) summ.textContent=(jrows.filter(j=>j.overdue||j.is_overdue).length||0)+" overdue · "+pending+" approvals";
+  }catch(e){
+    if(head) head.textContent="Automation load fail — admin login check karo";
+    if(probs) probs.innerHTML='<span style="color:var(--red)">'+escH(e.message)+'</span>';
+  }
+}
+async function autoStaffRun(member){
+  const out=$("autoActionOut"); if(out) out.innerHTML='<span style="color:var(--amber)">⏳ '+escH(member)+' chal raha…</span>';
+  try{
+    const d=await autoFetch("/api/platform/team/run/"+encodeURIComponent(member),{method:"POST"});
+    if(out) out.innerHTML='<span style="color:var(--green)">✅ '+escH(member)+' done</span> <pre style="font-size:10px;max-height:80px;overflow:auto">'+escH(JSON.stringify(d).slice(0,400))+'</pre>';
+    loadAutomationHub();
+  }catch(e){ if(out) out.innerHTML='<span style="color:var(--red)">'+escH(e.message)+'</span>'; }
+}
+async function autoAction(kind){
+  const out=$("autoActionOut"); if(out) out.innerHTML='<span style="color:var(--amber)">⏳ Running '+escH(kind)+'…</span>';
+  const map={
+    selfimprove:{url:"/api/growth/selfimprove/run",method:"POST"},
+    optimizer:{url:"/api/growth/optimizer/run",method:"POST"},
+    prospect:{url:"/api/growth/niche/scrape",method:"POST",body:{}},
+    email:{url:"/api/platform/team/run/rohan",method:"POST"},
+    dunning:{url:"/api/growth/revenue/dunning/run",method:"POST"},
+    digest:{url:"/api/growth/revenue/digest/run",method:"POST"},
+    health:{url:"/api/growth/revenue/health/run",method:"POST"},
+  };
+  const spec=map[kind]; if(!spec){ return; }
+  try{
+    const opts={method:spec.method||"POST"};
+    if(spec.body) opts.body=JSON.stringify(spec.body), opts.headers=Object.assign({"Content-Type":"application/json"},abAuthHdr());
+    const d=await autoFetch(spec.url,opts);
+    if(out) out.innerHTML='<span style="color:var(--green)">✅ '+escH(kind)+' queued/done</span> <pre style="font-size:10px;max-height:100px;overflow:auto">'+escH(JSON.stringify(d).slice(0,500))+'</pre>';
+    loadAutomationHub();
+  }catch(e){ if(out) out.innerHTML='<span style="color:var(--red)">'+escH(e.message)+'</span>'; }
+}
+async function autoQueueTask(){
+  const task=($("autoSiTask")||{}).value||""; if(!task.trim()){ alert("Task likho"); return; }
+  try{
+    const d=await autoFetch("/api/growth/selfimprove/task",{method:"POST",body:JSON.stringify({task:task.trim()}),headers:Object.assign({"Content-Type":"application/json"},abAuthHdr())});
+    $("autoSiStatus").textContent="Queued ✅ — agle tick pe uthayega";
+    loadAutomationHub();
+  }catch(e){ $("autoSiStatus").textContent="Fail: "+e.message; }
+}
+async function autoApprSi(id,action){
+  if(!id||!confirm(action+" task "+id.slice(0,8)+"?")) return;
+  try{
+    await autoFetch("/api/growth/selfimprove/approval/"+encodeURIComponent(id)+"/"+action,{method:"PATCH",body:JSON.stringify({reason:""}),headers:Object.assign({"Content-Type":"application/json"},abAuthHdr())});
+    loadAutomationHub();
+  }catch(e){ alert(e.message); }
+}
+async function autoProcAppr(id){
+  if(!id||!confirm("Process step approve?")) return;
+  try{
+    await autoFetch("/api/growth/process/run/"+encodeURIComponent(id)+"/approve",{method:"POST",body:JSON.stringify({note:"admin dashboard"}),headers:Object.assign({"Content-Type":"application/json"},abAuthHdr())});
+    loadAutomationHub();
+  }catch(e){ alert(e.message); }
+}
+
 /* ══════════════════════════════════════════════════════════════════
    GOD MODE — production readiness + system snapshot
    ══════════════════════════════════════════════════════════════════ */
@@ -1481,15 +1648,18 @@ function renderGodMode(sys, camp){
   const passedCount = Object.values(probes).filter(v=>v).length;
   const totalCount = Object.keys(probes).length || 13;
   const ready = rd.ready_for_first_paid_customer;
-  const rzp = sys.razorpay || {};
+  const callReady = sys.ready_for_calling || (sys.telephony_score||0) >= 70;
+  const telScore = sys.telephony_score || (rd.telephony||{}).score || 0;
+  const upi = sys.upi || {};
   const trai = sys.trai || {};
   const flags = sys.flags || {};
 
   // — Readiness header ─────────────────────────────────────────────
   let html = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-    <div style="font-size:24px;font-weight:800;color:${ready?'#4ade80':'#fbbf24'}">
-      ${ready ? '🟢 LAUNCH READY' : `⚠️ ${passedCount}/${totalCount} probes`}
+    <div style="font-size:24px;font-weight:800;color:${callReady?'#4ade80':(ready?'#fbbf24':'#f87171')}">
+      ${callReady ? '🟢 CALLING READY' : (ready ? '⚠️ OPS OK · CALLING GAP' : `⚠️ ${passedCount}/${totalCount} probes`)}
     </div>
+    <div style="font-size:13px;color:#94a3b8">Telephony score: <b style="color:${telScore>=70?'#4ade80':'#fbbf24'}">${telScore}/100</b></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
       <a href="/app/test-call" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#7c3aed" target="_blank">📞 Test Call</a>
       <a href="#sec-launch-calls" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#10b981">🚀 Launch Campaign</a>
@@ -1514,14 +1684,49 @@ function renderGodMode(sys, camp){
 
   // — Critical blockers ─────────────────────────────────────────────
   const blockers = [];
-  if(!rzp.key_set) blockers.push('🚨 Razorpay: placeholder keys in .env — set rzp_live_… keys + restart');
-  else if(!rzp.live_key) blockers.push('⚠️ Razorpay: test key set ('+escH(rzp.key_prefix||'')+') — use live key before launch');
-  if(!trai.calling_open) blockers.push(`🕐 TRAI window CLOSED (${trai.window||'10:00–19:00 IST'}) — IST time: ${trai.ist_hour||'?'}:xx`);
-  const telephony = sys.telephony_provider || 'unset';
-  if(telephony === 'unset') blockers.push('📞 TELEPHONY_PROVIDER not set');
+  const prov = (sys.telephony_provider || 'vobiz').toLowerCase();
+  const credFlag = prov === 'exotel' ? flags.EXOTEL_CREDS : flags.VOBIZ_CREDS;
+  const cidFlag = prov === 'exotel' ? flags.EXOTEL_CALLER_ID : flags.VOBIZ_CALLER_ID;
+  const callerDisp = prov === 'exotel' ? (sys.exotel_caller_id||'—') : (sys.vobiz_caller_id||'—');
+  if(!callReady) blockers.push(`📞 ${prov} score ${telScore}/100 — ${(sys.telephony_actions||[])[0]||'creds + GROQ + CALLER_ID check karo'}`);
+  if(!upi.enabled) blockers.push('💳 UPI_VPA unset — .env me apna UPI ID daalo');
+  if(!trai.calling_open) blockers.push(`🕐 TRAI window CLOSED (${trai.window||'10:00–19:00 IST'}) — IST ${trai.ist_hour||'?'}:xx`);
+  if(!credFlag) blockers.push(`📞 ${prov.toUpperCase()} creds missing`);
+  if(!cidFlag) blockers.push(`📞 ${prov.toUpperCase()} CALLER_ID missing — DID recharge ke baad`);
+  if(!flags.GROQ_STT) blockers.push('🎤 GROQ_API_KEY missing — STT weak');
   if(blockers.length){
     html += `<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:10px 14px;margin-bottom:14px">
       ${blockers.map(b=>`<div style="font-size:11.5px;color:#fbbf24;margin-bottom:3px">${b}</div>`).join('')}
+    </div>`;
+  }
+
+  // — Leads ready to call (campaign pre-flight) ─────────────────────
+  const lr = sys.leads_ready || {};
+  if(lr.available){
+    const tot = lr.total || 0;
+    const chips = (lr.by_niche||[]).slice(0,8).map(n=>
+      `<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:rgba(96,165,250,.15);color:#93c5fd;font-weight:600">${escH(n.niche)}: ${n.count}</span>`
+    ).join(' ');
+    html += `<div style="margin-bottom:12px;padding:12px 14px;border-radius:8px;background:${tot>0?'rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.3)':'rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.35)'}">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;color:${tot>0?'#4ade80':'#f87171'};text-transform:uppercase">📋 Leads ready to call</span>
+        <span style="font-size:20px;font-weight:800;color:${tot>0?'#4ade80':'#f87171'}">${tot}</span>
+        ${tot>0?'':'<a href="/app/automation" target="_blank" class="btn" style="font-size:11px;padding:4px 10px;text-decoration:none;background:#f59e0b">⚙ Scrape leads pehle</a>'}
+      </div>
+      ${tot>0?'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+chips+'</div>':'<div style="margin-top:6px;font-size:11.5px;color:#fca5a5">Campaign abhi 0 calls karegi — leads scrape karo (Automation → prospector) ya CSV import karo.</div>'}
+    </div>`;
+  }
+
+  // — Call outcomes (recent qualified) ──────────────────────────────
+  const cs = (sys.call_stats||{}).calls_qualified || {};
+  if(cs && (cs.total||0) > 0){
+    html += `<div style="margin-bottom:12px;padding:10px 14px;border-radius:8px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);display:flex;gap:18px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:11px;font-weight:700;color:#a5b4fc;text-transform:uppercase">📞 Call outcomes</span>
+      <span style="font-size:12px;color:#cbd5e1">Total: <b style="color:#e2e8f0">${cs.total||0}</b></span>
+      <span style="font-size:12px;color:#cbd5e1">Qualified: <b style="color:#4ade80">${cs.qualified||0}</b></span>
+      <span style="font-size:12px;color:#cbd5e1">Appointments: <b style="color:#fbbf24">${cs.appointments_requested||0}</b></span>
+      <span style="font-size:12px;color:#cbd5e1">Avg interest: <b style="color:#60a5fa">${cs.avg_interest_score||0}/5</b></span>
+      <a href="#sec-recordings" class="btn" style="font-size:11px;padding:4px 10px;text-decoration:none;background:#6366f1;margin-left:auto">🎙 Recordings</a>
     </div>`;
   }
 
@@ -1531,7 +1736,36 @@ function renderGodMode(sys, camp){
   Object.entries(flags).forEach(([k,v])=>{
     html += `<span style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;background:${v?'rgba(74,222,128,.15)':'rgba(248,113,113,.12)'};color:${v?'#4ade80':'#f87171'}">${k}</span>`;
   });
-  html += `<span style="margin-left:auto;font-size:11px;color:#94a3b8">Provider: <b style="color:#60a5fa">${escH(telephony)}</b> · ExoPhone: <b style="color:#60a5fa">${escH(sys.exotel_caller_id||'—')}</b></span>`;
+  html += `<span style="margin-left:auto;font-size:11px;color:#94a3b8">Provider: <b style="color:#60a5fa">${escH(prov)}</b> · DID: <b style="color:#60a5fa">${escH(callerDisp)}</b></span>`;
+  html += '</div>';
+
+  if((sys.telephony_missing||[]).length){
+    html += `<div style="font-size:11px;color:#fbbf24;margin-bottom:10px;padding:8px 10px;background:rgba(251,191,36,.08);border-radius:6px">
+      Missing: ${(sys.telephony_missing||[]).map(escH).join(' · ')}
+    </div>`;
+  }
+
+  // — UPI payment queue (screenshot → activate) ─────────────────────
+  const pending = sys.pending_upi || [];
+  html += `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:8px">
+    <div style="font-size:11px;font-weight:700;color:#a5b4fc;margin-bottom:8px;text-transform:uppercase">💳 UPI Payment (screenshot → activate)</div>
+    <div style="font-size:12px;color:#cbd5e1;margin-bottom:8px">${upi.enabled ? 'VPA: <b>'+escH(upi.vpa)+'</b>' : '❌ UPI_VPA unset in .env'}</div>`;
+  if(upi.wa_link) html += `<a href="${escH(upi.wa_link)}" target="_blank" rel="noopener" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#25d366;margin-bottom:10px;display:inline-block">💬 WA screenshot inbox</a>`;
+  if(pending.length){
+    html += '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">';
+    pending.slice(0,8).forEach(p=>{
+      html += `<div style="display:flex;align-items:center;gap:8px;font-size:11px;padding:6px 8px;background:rgba(0,0,0,.2);border-radius:6px">
+        <span style="flex:1;color:#e2e8f0">${escH(p.business_name||p.client_id)} · ${escH(p.phone||'')}</span>
+        <select id="upiPlan_${escH(p.client_id)}" aria-label="Plan to activate for ${escH(p.business_name||p.client_id)}" style="font-size:10px;padding:3px 6px;border-radius:4px">
+          <option value="starter">Starter</option><option value="growth">Growth</option><option value="advanced">Advanced</option>
+        </select>
+        <button class="btn" onclick="upiActivate('${escH(p.client_id)}')" style="font-size:10px;padding:4px 8px;background:#10b981">✓ Activate</button>
+      </div>`;
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="font-size:11px;color:#64748b;margin-top:6px">Koi pending trial client nahi — naya signup aane par yahan dikhega.</div>';
+  }
   html += '</div>';
 
   // — TRAI window + last campaign ───────────────────────────────────
@@ -1557,7 +1791,49 @@ function renderGodMode(sys, camp){
   }
   html += '</div>';
 
+  // — Campaign prerequisites chip (shared panel) ────────────────────
+  renderCampaignPrereq(sys);
+
   body.innerHTML = html;
+}
+
+function renderCampaignPrereq(sys){
+  const el = $("camp-prereq");
+  if(!el) return;
+  const flags = sys.flags || {};
+  const trai = sys.trai || {};
+  const telScore = sys.telephony_score || 0;
+  const prov = (sys.telephony_provider || 'vobiz').toLowerCase();
+  const credOk = prov === 'exotel' ? flags.EXOTEL_CREDS : flags.VOBIZ_CREDS;
+  const cidOk = prov === 'exotel' ? flags.EXOTEL_CALLER_ID : flags.VOBIZ_CALLER_ID;
+  const items = [
+    [credOk, prov.toUpperCase()+' creds'],
+    [cidOk, (prov==='exotel'?'EXOTEL':'VOBIZ')+'_CALLER_ID (DID)'],
+    [flags.GROQ_STT, 'GROQ STT (call sunne ke liye)'],
+    [trai.calling_open, 'TRAI window open (10am–7pm IST)'],
+    [telScore >= 70, `Readiness ≥70 (abhi ${telScore})`],
+    [flags.VOBIZ_CALL_RECORD, 'Call recording ON (optional)'],
+    [flags.UPI_VPA, 'UPI_VPA set (payment flow)'],
+  ];
+  el.innerHTML = items.map(([ok,label])=>
+    `<div style="margin-bottom:3px">${ok?'✅':'❌'} ${escH(label)}</div>`
+  ).join('');
+}
+
+async function upiActivate(clientId){
+  const sel = document.getElementById('upiPlan_'+clientId);
+  const plan = sel ? sel.value : 'starter';
+  if(!confirm('UPI screenshot verify ho gaya? Plan '+plan+' activate karein?')) return;
+  try{
+    const r = await fetch('/api/admin/upi/activate',{
+      method:'POST',
+      headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),
+      body: JSON.stringify({client_id:clientId, plan:plan})
+    });
+    const d = await r.json();
+    if(r.ok && d.ok){ alert('✅ Activated: '+clientId+' → '+plan); loadGodMode(); }
+    else alert('Error: '+(d.detail||JSON.stringify(d)));
+  }catch(e){ alert('Network error'); }
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1585,6 +1861,8 @@ function renderCampaignStatus(d){
   }
   $("campOut").innerHTML = html;
   $("camp-summary").textContent = d.status;
+  const stopBtn = $("campStopBtn");
+  if(stopBtn) stopBtn.style.display = (d.status==="running") ? "inline-block" : "none";
 
   // Update TRAI window chip
   const traiFetch = fetch("/api/admin/system/summary",{headers:abAuthHdr()}).then(r=>r.json()).catch(()=>({}));
@@ -1592,6 +1870,7 @@ function renderCampaignStatus(d){
     const trai = sys.trai||{};
     const el = $("camp-trai");
     if(el) el.innerHTML = `<b style="color:${trai.calling_open?'var(--green)':'var(--red)'}">${trai.calling_open?'🟢 OPEN — calls jaayenge':'🔴 CLOSED — '+escH(trai.window||'10:00–19:00 IST')}</b><br><span style="font-size:11px;color:var(--muted)">${escH(trai.window||'')} · IST ${trai.ist_hour||'?'}:xx</span>`;
+    renderCampaignPrereq(sys);
   });
 }
 
@@ -1610,6 +1889,7 @@ async function fireCampaign(){
     if(d.queued){
       $("campOut").innerHTML = `<span style="color:var(--green)">✅ Campaign queued (limit=${d.limit}, dry_run=${d.dry_run}) — polling status…</span>`;
       $("camp-summary").textContent = "running";
+      if(!d.dry_run){ const sb=$("campStopBtn"); if(sb) sb.style.display="inline-block"; }
       if(!_campPolling) _pollCampaign();
     } else {
       $("campOut").innerHTML = `<span style="color:var(--red)">Error: ${escH(JSON.stringify(d))}</span>`;
@@ -1617,6 +1897,17 @@ async function fireCampaign(){
   }catch(e){
     $("campOut").innerHTML = `<span style="color:var(--red)">Network error: ${escH(String(e))}</span>`;
   }
+}
+
+async function stopCampaign(){
+  if(!confirm("Running campaign rokein? Naye numbers dial nahi honge (jo call abhi chal rahi woh complete hogi).")) return;
+  try{
+    const r = await fetch("/api/admin/campaign/stop",{method:"POST",headers:abAuthHdr()});
+    const d = await r.json();
+    if(d.stopped){ $("campOut").innerHTML='<span style="color:var(--amber)">⏹ Campaign stopped — naye calls ruk gaye.</span>'; }
+    else alert("Stop nahi hua: "+(d.reason||JSON.stringify(d)));
+  }catch(e){ alert("Network error"); }
+  loadCampaignStatus();
 }
 
 async function _pollCampaign(){

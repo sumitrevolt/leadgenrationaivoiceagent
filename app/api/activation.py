@@ -4,8 +4,7 @@ The 2026-06-16 billionaire-scale audit named **activation debt** as the #1 hidde
 liability: ~25 capabilities sit wired-but-OFF in the repo, waiting on env vars or
 credentials. There's no single pane that says "here is what is BLOCKING the first
 paid customer right now" — `/api/growth/infra/flags` lists 80 flags, but doesn't
-distinguish a launch-blocker (Razorpay live keys, Turnstile arming) from an
-opt-in growth lever (`CHANNEL_EXPERIMENTS`).
+distinguish a launch-blocker (Turnstile arming) from an opt-in growth lever (`CHANNEL_EXPERIMENTS`).
 
 This module fills exactly that gap. It returns a curated list of activation-
 gated items grouped by category, each with `status` (BLOCKER / WARN / OK /
@@ -15,10 +14,8 @@ Plus a top-level `ready_for_first_paid_customer` boolean.
 Design rules:
 - READ-ONLY (admin). Never mutates env. Never makes outbound calls — purely
   shape-checks os.environ. Cheap to call from a dashboard polling loop.
-- Format-aware: e.g. Razorpay status is BLOCKER if `RAZORPAY_KEY_ID` is the
-  literal placeholder (`rzp_test_you...` from .env.example) OR doesn't start
-  with `rzp_live_`. This catches the exact root cause CLAUDE.md proved on
-  2026-06-14 (`.env` has placeholder values, not real keys).
+- Format-aware shape checks. Razorpay is **deferred by default** (NEUTRAL) —
+  paid checkout baad me; marketing launch is not blocked on missing keys.
 - INERT for not-yet-activated items: unset = NEUTRAL (waiting), not BLOCKER.
   Only the things that gate first revenue / customer trust escalate to BLOCKER.
 
@@ -73,7 +70,7 @@ def _is_placeholder(value: str) -> bool:
 # Per-item probes
 # --------------------------------------------------------------------------- #
 def _razorpay() -> dict[str, Any]:
-    """Revenue-blocker: live keys + webhook secret."""
+    """Paid checkout — deferred until operator arms live keys (NEUTRAL, not BLOCKER)."""
     kid, ksec, whs = _v("RAZORPAY_KEY_ID"), _v("RAZORPAY_KEY_SECRET"), _v("RAZORPAY_WEBHOOK_SECRET")
     checks = {
         "key_id_set": bool(kid),
@@ -82,29 +79,35 @@ def _razorpay() -> dict[str, Any]:
         "secret_set": bool(ksec),
         "secret_placeholder": _is_placeholder(ksec),
         "webhook_secret_set": bool(whs),
+        "deferred": True,
     }
-    blocked = (
-        not checks["key_id_set"]
-        or not checks["key_id_live"]
-        or checks["key_id_placeholder"]
-        or not checks["secret_set"]
-        or checks["secret_placeholder"]
+    armed = (
+        checks["key_id_live"]
+        and checks["secret_set"]
+        and not checks["key_id_placeholder"]
+        and not checks["secret_placeholder"]
     )
+    if armed and checks["webhook_secret_set"]:
+        status, action = _OK, ""
+        checks["deferred"] = False
+    elif armed:
+        status = _WARN
+        action = "Set RAZORPAY_WEBHOOK_SECRET to harden against forged callbacks"
+        checks["deferred"] = False
+    elif checks["key_id_placeholder"] or checks["secret_placeholder"]:
+        status = _NEUTRAL
+        action = "Placeholder keys hatao ya ignore — paid checkout baad me (rzp_live_* + webhook)"
+    else:
+        status = _NEUTRAL
+        action = "Deferred — jab paid checkout chahiye tab rzp_live_* + webhook set karo"
     return {
         "key": "razorpay",
-        "label": "Razorpay live payments",
+        "label": "Razorpay live payments (deferred)",
         "category": "revenue",
-        "status": _BLOCKER if blocked else (_OK if checks["webhook_secret_set"] else _WARN),
+        "status": status,
         "env_vars": ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"],
         "checks": checks,
-        "action": (
-            "Set real rzp_live_* keys in .env + register webhook at "
-            "https://leadsgenai.in/api/billing/webhooks/razorpay"
-            if blocked
-            else "Set RAZORPAY_WEBHOOK_SECRET to harden against forged callbacks"
-            if not checks["webhook_secret_set"]
-            else ""
-        ),
+        "action": action,
         "doc": "docs/ACTIVATION_RUNBOOK_2026_06_16.md#B4",
     }
 
@@ -494,6 +497,26 @@ async def activation_wizard(_user=Depends(require_admin)) -> dict[str, Any]:
     }
 
 
+@router.get("/summary")
+async def activation_summary_public() -> dict[str, Any]:
+    """Public launch snapshot for explorer + status widgets (no secrets, no auth)."""
+    items = [p() for p in _PROBES]
+    blockers = [it["key"] for it in items if it["status"] == _BLOCKER]
+    warns = [it["key"] for it in items if it["status"] == _WARN]
+    payments_ready = next((it for it in items if it["key"] == "razorpay"), {}).get("status") == _OK
+    launch_ready = not blockers
+    return {
+        "ready_for_launch": launch_ready,
+        "ready_for_first_paid_customer": launch_ready and payments_ready,
+        "payments_ready": payments_ready,
+        "payments_deferred": not payments_ready,
+        "blocker_count": len(blockers),
+        "warn_count": len(warns),
+        "blockers": blockers,
+        "graph_version": "2026-06-17-v3",
+    }
+
+
 @router.get("/readiness")
 async def activation_readiness(_user=Depends(require_admin)) -> dict[str, Any]:
     """Activation-debt snapshot for /app/automation Mission Control.
@@ -504,14 +527,67 @@ async def activation_readiness(_user=Depends(require_admin)) -> dict[str, Any]:
     items = [p() for p in _PROBES]
     blockers = [it["key"] for it in items if it["status"] == _BLOCKER]
     warns = [it["key"] for it in items if it["status"] == _WARN]
+    payments_ready = next((it for it in items if it["key"] == "razorpay"), {}).get("status") == _OK
+    launch_ready = not blockers
+
+    telephony: dict[str, Any] = {}
+    try:
+        from app.telephony.telephony_readiness import run_checks
+
+        telephony = run_checks()
+    except Exception as exc:
+        telephony = {"score": 0, "error": str(exc)[:120]}
+
     return {
-        "ready_for_first_paid_customer": not blockers,
+        "ready_for_launch": launch_ready,
+        "ready_for_first_paid_customer": launch_ready and payments_ready,
+        "payments_ready": payments_ready,
+        "payments_deferred": not payments_ready,
         "blocker_count": len(blockers),
         "blockers": blockers,
         "warn_count": len(warns),
         "warns": warns,
         "items": items,
+        "telephony": telephony,
+        "ready_for_calling": int(telephony.get("score") or 0) >= 70,
     }
 
 
-__all__ = ["router"]
+async def get_activation_summary() -> dict[str, Any]:
+    """Compact readiness snapshot for God Mode (/api/admin/system/summary).
+
+    Returns boolean ``probes`` map (True = OK) plus telephony score for calling
+    launch checks. Never raises.
+    """
+    items = [p() for p in _PROBES]
+    blockers = [it for it in items if it["status"] == _BLOCKER]
+    warns = [it for it in items if it["status"] == _WARN]
+    payments_ready = next((it for it in items if it["key"] == "razorpay"), {}).get("status") == _OK
+    launch_ready = not blockers
+    probes = {it["key"]: it["status"] == _OK for it in items}
+
+    telephony: dict[str, Any] = {}
+    try:
+        from app.telephony.telephony_readiness import run_checks
+
+        telephony = run_checks()
+    except Exception as exc:
+        telephony = {"score": 0, "error": str(exc)[:120]}
+
+    return {
+        "ready_for_launch": launch_ready,
+        "ready_for_first_paid_customer": launch_ready and payments_ready,
+        "payments_ready": payments_ready,
+        "payments_deferred": not payments_ready,
+        "blocker_count": len(blockers),
+        "warn_count": len(warns),
+        "blockers": [b["key"] for b in blockers],
+        "warns": [w["key"] for w in warns],
+        "probes": probes,
+        "items": items,
+        "telephony": telephony,
+        "ready_for_calling": int(telephony.get("score") or 0) >= 70,
+    }
+
+
+__all__ = ["router", "get_activation_summary"]

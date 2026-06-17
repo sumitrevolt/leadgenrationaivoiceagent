@@ -186,6 +186,17 @@ def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
         }
         _append(update)
         merged = {**rec, **update}
+        if status == "approved":
+            try:
+                from app.marketing import auto_content
+
+                auto_content.enqueue_approved(
+                    str(merged.get("client_id") or ""),
+                    merged.get("content") or {},
+                    str(merged.get("id") or ""),
+                )
+            except Exception:
+                pass
         # Best-effort team event — dashboard pe dikhe (kabhi raise nahi).
         try:
             from app.platform.team import log_event
@@ -228,6 +239,24 @@ def pending(client_id: str = "") -> list[dict[str, Any]]:
     except Exception as e:
         logger.warning(f"[content_approval] pending failed: {e}")
         return []
+
+
+def _by_id_for_client(client_id: str, approval_id: str) -> dict[str, Any] | None:
+    rec = _latest_states().get(str(approval_id or "").strip())
+    if not rec or str(rec.get("client_id") or "") != str(client_id or "").strip():
+        return None
+    return rec
+
+
+def decide_for_client(client_id: str, approval_id: str, action: str, note: str = "") -> dict[str, Any]:
+    """Authenticated customer portal — id se approve/reject (token expose nahi)."""
+    rec = _by_id_for_client(client_id, approval_id)
+    if rec is None:
+        return {"ok": False, "error": "approval nahi mila."}
+    token = str(rec.get("token") or "")
+    if action == "reject":
+        return reject(token, note)
+    return approve(token)
 
 
 def list_all(client_id: str = "", limit: int = 100) -> list[dict[str, Any]]:
@@ -283,6 +312,7 @@ __all__ = [
     "pending",
     "list_all",
     "get_by_token",
+    "decide_for_client",
     "wa_share_text",
     "approval_url",
     "decision_html",

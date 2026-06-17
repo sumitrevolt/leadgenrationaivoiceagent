@@ -476,6 +476,32 @@ def list_queue(client_id: str, status: str | None = None, limit: int = 60) -> li
 _VALID_STATUS = {"draft", "approved", "posted", "skipped"}
 
 
+def enqueue_approved(client_id: str, content: dict[str, Any], approval_id: str = "") -> bool:
+    """Client ne approve kiya content → queue me status=approved (publish-ready)."""
+    try:
+        client_id = str(client_id or "").strip()
+        if not client_id or not isinstance(content, dict):
+            return False
+        today_s = date.today().strftime("%Y-%m-%d")
+        item = {
+            "id": str(approval_id or uuid.uuid4().hex[:12])[:16],
+            "client_id": client_id,
+            "date": today_s,
+            "type": str(content.get("kind") or content.get("type") or "branded")[:40],
+            "title": str(content.get("title") or content.get("occasion") or "Approved post")[:120],
+            "caption": str(content.get("caption") or content.get("text") or "")[:2000],
+            "hashtags": content.get("hashtags") or [],
+            "svg": content.get("svg") or "",
+            "status": "approved",
+            "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "approval_id": approval_id or "",
+        }
+        return _append_items(client_id, [item]) > 0
+    except Exception as e:
+        logger.debug(f"[auto_content] enqueue_approved skip: {e}")
+        return False
+
+
 def mark_item(client_id: str, item_id: str, status: str) -> bool:
     """Queue item ka status badlo (draft→approved→posted, ya skipped). True
     agar update hua. Kabhi raise nahi karta."""

@@ -111,6 +111,8 @@ def check_routes() -> None:
         "/app/test-call",
         "/app/customer",
         "/app/admin",
+        "/app/explorer",
+        "/app/automation",
     ]
     for exp in expected:
         if not any(p == exp or p.startswith(exp + "/") or p.startswith(exp) for p in paths):

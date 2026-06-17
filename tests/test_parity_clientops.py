@@ -218,9 +218,35 @@ def test_assignment_without_config(tmp_path, monkeypatch):
     monkeypatch.setattr(ld, "_ASSIGN_FILE", str(tmp_path / "a2.jsonl"))
     res = ld.assign("no-config-client", {"name": "x", "phone": "9000000000"})
     assert res["ok"] is False and "routing" in res["error"]
+    assert ld.maybe_assign("no-config-client", {"name": "x"}) is None
     # invalid members reject
     bad = ld.set_config("c", [{"name": "NoPhone", "phone": "12"}])
     assert bad["ok"] is False
+
+
+def test_maybe_assign_when_configured(tmp_path, monkeypatch):
+    from app.platform import lead_distribution as ld
+
+    monkeypatch.setattr(ld, "_ROUTING_FILE", str(tmp_path / "r3.jsonl"))
+    monkeypatch.setattr(ld, "_ASSIGN_FILE", str(tmp_path / "a3.jsonl"))
+    ld.set_config("c1", [{"name": "A", "phone": "9876543210"}])
+    out = ld.maybe_assign("c1", {"name": "Lead", "phone": "9000000001"})
+    assert out and out.get("ok") is True
+    assert out["assigned_to"]["name"] == "A"
+
+
+def test_approval_decide_for_client(tmp_path, monkeypatch):
+    from app.marketing import content_approval as ca
+
+    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "ap.jsonl"))
+    sub = ca.submit("client-x", {"title": "Test", "caption": "Hello"})
+    assert sub["ok"] is True
+    aid = sub["approval"]["id"]
+    bad = ca.decide_for_client("other", aid, "approve")
+    assert bad["ok"] is False
+    ok = ca.decide_for_client("client-x", aid, "approve")
+    assert ok["ok"] is True
+    assert ok["approval"]["status"] == "approved"
 
 
 # --------------------------------------------------------------------------- #

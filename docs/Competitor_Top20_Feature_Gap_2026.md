@@ -66,5 +66,10 @@ Privyr-style unofficial WA auto-responder on own number (ban) · Justdial/IndiaM
 - Synup ka Agency-OS model (white-label + SMB lead credits + prospect audit reports as sales tool) humare reseller/partnership track ka template hai.
 - Humara unique combo intact: koi competitor ₹999-5,999 me marketing+leadgen+voice nahi deta. P0 list close karne ke baad feature-parity story har category me "equal or better at 1/5th price" ho jayegi.
 
+## 6. 2026-06-17 refresh (battlecard build)
+- 5 head-to-head competitors web-reverified (June 2026): **MyOperator** AI module ₹10–20k/mo + ₹20k onboarding on ₹52k base (enterprise; 12k+ incl Amazon/Dominos/TCS). **Vodex.ai** = Bengaluru-HQ but US-collections-first, English, USD, pay-per-connected-call — India-domestic = foreign-trunk ILLEGAL (biggest landmine). **GoHighLevel** $97 platform + $97 AI Employee add-on (USD, agency, no native India/Hinglish/DLT). **Dhanda(EZO)** free+premium, GBP-only, ~59k installs/mo. **AdBanao** 4.5M users, 50L+ creative library = our honest template-scale gap.
+- **Pricing note (truth):** CLAUDE.md current = Marketing **₹1,199 / 2,999 / 6,999**; Voice = per-10-qualified-leads (**₹3,999+**). Use these — §2 ke purane ₹999/2,499/5,999 NAHI.
+- **Interactive battlecard asset:** `docs/LeadGenAI_Battlecard_2026-06-17.html` (standalone) + served in-app at `/app/battlecard` (admin sidebar → Sales).
+
 ## Sources
 Predis/AdBanao/Dhanda/Simplified/SocialPilot/Canva/Jasper pricing+feature pages; Vodex/Sarv SuperBot/Rezo/Gnani/MyOperator/Exotel product pages; GHL/Apollo/Smartlead/Instantly/Privyr/NeoDove/TeleCRM/AiSensy/Wati/Interakt pricing pages; Birdeye/Podium/Synup/SOCi/Thryv/NiceJob pricing+platform pages (sab June 2026 fetched; detailed URLs research agents ke reports me).

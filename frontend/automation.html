@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<link rel="icon" type="image/svg+xml" href="/site/icons/icon.svg">
+<link rel="apple-touch-icon" href="/site/icons/icon-192.png">
 <title>🤖 Automation Mission Control — LeadGen AI</title>
 <style>
 :root{--bg:#0f1117;--card:#181b25;--line:#2a2f3e;--txt:#e6e8ef;--mut:#8b91a5;--ok:#34d399;--warn:#fbbf24;--bad:#f87171;--acc:#8b5cf6}
@@ -55,6 +57,7 @@ a{color:var(--acc)}
 <nav class="side" id="sidebar">
   <button id="tab-today" onclick="show('today')">🏠 Aaj</button>
   <a href="/app/explorer" style="display:block;padding:8px 10px;font-size:.85rem;color:var(--acc);text-decoration:none;border-radius:8px;margin:1px 0">🗺 Flow Explorer</a>
+  <button id="tab-launch" onclick="show('launch')">🚀 Launch</button>
   <button id="tab-schedule" onclick="show('schedule')">🗓️ Schedule</button>
   <button id="tab-agents" onclick="show('agents')">🤖 Agents</button>
   <button id="tab-scraping" onclick="show('scraping')">🕷️ Scraping</button>
@@ -686,6 +689,14 @@ a{color:var(--acc)}
     <div class="mut">Yeh features abhi OFF hain — matlab neeche likha kaam NAHI ho raha. ON karna ho to VPS .env me flag=1 + restart.</div>
     <div id="tdFlags">...</div>
   </div>
+  <div class="card" style="margin-top:14px;border-color:#5b4a1d">
+    <h2>🚀 Production Launch Status</h2>
+    <div class="mut">Marketing launch ke liye sab BLOCKER green hona chahiye. Razorpay = baad me (deferred).</div>
+    <button class="btn2" onclick="launchLoad()">🔄 Check readiness</button>
+    <a href="/app/dashboards" class="btn2" style="display:inline-block;text-decoration:none;margin-left:4px">Full dashboards →</a>
+    <div id="launchBanner" style="margin-top:10px"></div>
+    <div id="launchBody" class="mut" style="margin-top:8px">Load karo...</div>
+  </div>
   <div class="card" style="margin-top:14px">
     <h2>⚡ Speed-to-Lead</h2>
     <div class="mut">Inquiry aane ke baad pehla touch kitni der me? 2-min target = 21x conversion.
@@ -693,6 +704,31 @@ a{color:var(--acc)}
       &nbsp;<label style="font-size:0.85rem">Days:</label><input id="stlDays" type="number" value="30" style="max-width:70px;display:inline-block">
     </div>
     <div id="stlOut"></div>
+  </div>
+</section>
+
+<!-- ================= LAUNCH (production readiness) ================= -->
+<section class="tabsec" id="sec-launch">
+  <div class="card">
+    <h2>🚀 Production Launch Checklist</h2>
+    <div class="mut">13 probes — BLOCKER = launch rok sakta hai. WARN = recommended. NEUTRAL = optional / deferred (Razorpay).</div>
+    <button class="btn" onclick="launchLoad()">🔄 Refresh readiness</button>
+    <a href="/app/dashboards" class="btn2" style="display:inline-block;text-decoration:none">Unified dashboards →</a>
+    <div id="launchTabBanner" style="margin-top:12px"></div>
+    <div id="launchTabBody" class="mut" style="margin-top:10px">Token save karo upar, phir Refresh.</div>
+  </div>
+  <div class="card">
+    <h2>📋 Operator next step (wizard)</h2>
+    <div id="launchWizard" class="mut">...</div>
+  </div>
+  <div class="card">
+    <h2>🛠️ Quick fixes (no secrets in UI)</h2>
+    <div class="mut" style="line-height:1.7;font-size:.85rem">
+      <b>P1 Visibility:</b> Sentry DSN · PostHog key · Turnstile keys (lead forms)<br>
+      <b>P1 Hardening:</b> <code>PLAN_RATE_LIMIT=1</code> · <code>ENVIRONMENT=production</code><br>
+      <b>Payments (baad me):</b> Razorpay <code>rzp_live_*</code> + webhook jab checkout chalu karo<br>
+      <b>Verify:</b> <code>python scripts/production_ready.py</code> on VPS (exit 0 = green)
+    </div>
   </div>
 </section>
 
@@ -1060,6 +1096,7 @@ function show(tab){
   document.querySelectorAll('.side button').forEach(function(b){b.classList.remove('act')});
   $('sec-'+tab).style.display='block';$('tab-'+tab).classList.add('act');
   try{location.hash=tab}catch(e){}
+  if(tab==='launch') launchLoad();
 }
 /* generic renderers */
 function jpre(d){return '<pre>'+esc(JSON.stringify(d,null,2))+'</pre>'}
@@ -2439,9 +2476,64 @@ function evStartSSE(){
 // SSE start when events tab is shown (AUTOLOAD me add kiya hai neeche)
 
 
+/* ---------------- Launch / production readiness ---------------- */
+async function launchLoad(){
+  var banner=$('launchBanner'), body=$('launchBody'), tabB=$('launchTabBanner'), tabBody=$('launchTabBody'), wiz=$('launchWizard');
+  try{
+    var d=await api('/api/activation/readiness');
+    if(d.__auth===false){
+      var msg='<div class="bad">Admin token chahiye — upar Save karo.</div>';
+      if(banner) banner.innerHTML=msg;
+      if(tabB) tabB.innerHTML=msg;
+      if(body) body.innerHTML='';
+      if(tabBody) tabBody.innerHTML='';
+      return;
+    }
+    if(d.__err) throw new Error(d.__err);
+    var launch=!!d.ready_for_launch;
+    var paid=!!d.ready_for_first_paid_customer;
+    var callReady=!!d.ready_for_calling;
+    var tel=d.telephony||{};
+    var telScore=tel.score||0;
+    var top=launch
+      ?'<div class="ok" style="font-size:16px;padding:10px;border-radius:8px;background:#123524">✅ LAUNCH READY — marketing/ops ke liye koi BLOCKER nahi'
+        +(paid?'':' <span class="mut">(Razorpay deferred)</span>')+'</div>'
+      :'<div class="bad" style="font-size:16px;padding:10px;border-radius:8px;background:#3a1d24">⛔ NOT READY — '+esc(d.blocker_count||0)+' blocker(s) fix karo</div>';
+    var callBanner=callReady
+      ?'<div class="ok" style="margin-top:8px;padding:8px;border-radius:8px;background:#123524">📞 CALLING READY — telephony score '+esc(String(telScore))+'/100 ('+esc(tel.provider||'vobiz')+')</div>'
+      :'<div class="warn" style="margin-top:8px;padding:8px;border-radius:8px;background:#3a2f12">📞 Calling gap — score '+esc(String(telScore))+'/100. '+(tel.actions&&tel.actions[0]?esc(tel.actions[0]):'VOBIZ/EXOTEL + GROQ check karo')+'</div>';
+    if(banner) banner.innerHTML=top+callBanner;
+    if(tabB) tabB.innerHTML=top+callBanner;
+    var html='<table><tr><th>Item</th><th>Status</th><th>Action</th></tr>';
+    (d.items||[]).forEach(function(it){
+      var cls=it.status==='BLOCKER'?'bad':(it.status==='WARN'?'warn':'ok');
+      html+='<tr><td>'+esc(it.label||it.key)+'</td><td class="'+cls+'">'+esc(it.status)+'</td><td class="mut" style="font-size:.78rem">'+esc(it.action||'—')+'</td></tr>';
+    });
+    html+='</table>';
+    if(body) body.innerHTML=html;
+    if(tabBody) tabBody.innerHTML=html;
+    try{
+      var w=await api('/api/activation/wizard');
+      if(w.all_done){
+        if(wiz) wiz.innerHTML='<div class="ok">✅ Sab phases complete — optional WARN items dekh lo.</div>';
+      }else if(w.next_step){
+        var s=w.next_step;
+        if(wiz) wiz.innerHTML='<div class="result warn"><b>Phase '+esc(String(s.phase&&s.phase.n||'?'))+' · '+esc((s.phase&&s.phase.name)||'')+'</b><br>'
+          +'<span class="bad">'+esc(s.label)+' ('+esc(s.status)+')</span><br><span class="mut">'+esc(s.action||'')+'</span>'
+          +(s.env_vars?'<br><span class="mut">Env: '+esc(s.env_vars.join(', '))+'</span>':'')+'</div>';
+      }
+    }catch(we){ if(wiz) wiz.innerHTML='<div class="mut">Wizard: '+esc(we.message)+'</div>'; }
+  }catch(e){
+    var err='<div class="bad">'+esc(e.message)+'</div>';
+    if(banner) banner.innerHTML=err;
+    if(tabB) tabB.innerHTML=err;
+  }
+}
+
 /* ---------------- 0. Aaj (plain-Hinglish home) ---------------- */
 async function tdLoad(){
   try{
+    launchLoad();
     var d=await api('/api/growth/overview/today');
     $('tdHead').textContent=d.headline||'🏠 Aaj';
     var ph='';
