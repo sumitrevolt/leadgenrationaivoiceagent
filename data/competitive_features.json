@@ -1,0 +1,49 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-06-17",
+  "customer_dashboard": {
+    "table_stakes": [
+      {"name": "Real-time notifications center", "description": "Centralized notification panel showing new leads, system alerts, billing events, activity feed. Mark as read, filter by type.", "prevalence": 6, "competitors": ["HubSpot", "Stripe", "Mixpanel", "Intercom", "Salesforce", "ChartMogul"], "category": "real_time", "backend_dependency": true, "proposed_endpoint": "GET /api/notifications"},
+      {"name": "Global search bar", "description": "Unified search across leads, calls, campaigns, invoices. Instant results, keyboard shortcut Cmd+K.", "prevalence": 6, "competitors": ["HubSpot", "Stripe", "Mixpanel", "Intercom", "Salesforce", "ChartMogul"], "category": "navigation", "backend_dependency": true, "proposed_endpoint": "GET /api/search"},
+      {"name": "Date range picker (dynamic filtering)", "description": "Reusable date range selector: Today, This Week, This Month, This Quarter, Custom Range.", "prevalence": 6, "competitors": ["HubSpot", "Stripe", "Mixpanel", "Intercom", "Salesforce", "ChartMogul"], "category": "action", "backend_dependency": false},
+      {"name": "Export to CSV/PDF", "description": "One-click export of leads table, calls log, invoices to CSV or PDF.", "prevalence": 6, "competitors": ["HubSpot", "Stripe", "Mixpanel", "Intercom", "Salesforce", "ChartMogul"], "category": "action", "backend_dependency": false},
+      {"name": "Empty state illustrations with helpful CTAs", "description": "When table/chart is empty: illustration + helpful message + primary CTA button.", "prevalence": 6, "competitors": ["HubSpot", "Stripe", "Mixpanel", "Intercom", "Salesforce", "ChartMogul"], "category": "action", "backend_dependency": false},
+      {"name": "Skeleton screen loading states", "description": "Animated skeleton rows/cards while API data loads instead of blank space.", "prevalence": 6, "competitors": ["HubSpot", "Stripe", "Mixpanel", "Intercom", "Salesforce", "ChartMogul"], "category": "action", "backend_dependency": false}
+    ],
+    "standard": [
+      {"name": "Saved views / custom dashboard layouts", "description": "Save filter combinations as named views. Switch between views quickly.", "prevalence": 4, "competitors": ["HubSpot", "Mixpanel", "Salesforce", "ChartMogul"], "category": "action", "backend_dependency": true, "proposed_endpoint": "POST /api/customer/views"},
+      {"name": "Bulk actions on table rows", "description": "Multi-select rows with checkbox, then apply action (export, delete, assign) to all.", "prevalence": 5, "competitors": ["HubSpot", "Stripe", "Mixpanel", "Intercom", "Salesforce"], "category": "action", "backend_dependency": true},
+      {"name": "Dark mode toggle", "description": "Switch between light and dark theme. Persists in localStorage.", "prevalence": 4, "competitors": ["Stripe", "Mixpanel", "Intercom", "ChartMogul"], "category": "action", "backend_dependency": false},
+      {"name": "Keyboard shortcuts panel", "description": "Press ? to open keyboard shortcuts overlay. Quick navigation via keyboard.", "prevalence": 3, "competitors": ["HubSpot", "Mixpanel", "Intercom"], "category": "navigation", "backend_dependency": false},
+      {"name": "Onboarding checklist / getting started wizard", "description": "Step-by-step checklist: Connect CRM → Import leads → Run first campaign. Progress bar.", "prevalence": 4, "competitors": ["HubSpot", "Intercom", "Salesforce", "ChartMogul"], "category": "action", "backend_dependency": false},
+      {"name": "Inline lead status editing", "description": "Click a lead status cell to edit inline without opening a modal.", "prevalence": 3, "competitors": ["HubSpot", "Salesforce", "Intercom"], "category": "data_table", "backend_dependency": true, "proposed_endpoint": "PATCH /api/customer/leads/{id}"}
+    ],
+    "advanced": [
+      {"name": "Collaborative comments on leads", "description": "Add comments/notes to individual leads, visible to team.", "prevalence": 2, "competitors": ["HubSpot", "Salesforce"], "category": "action", "backend_dependency": true},
+      {"name": "AI-powered anomaly detection", "description": "AI flags unusual patterns: lead spike, conversion drop, budget overspend.", "prevalence": 2, "competitors": ["Mixpanel", "Salesforce"], "category": "analytics", "backend_dependency": true},
+      {"name": "Custom dashboard widgets (drag-and-drop)", "description": "Rearrange KPI cards and charts via drag-and-drop. Save layout.", "prevalence": 2, "competitors": ["Mixpanel", "ChartMogul"], "category": "visualization", "backend_dependency": false}
+    ]
+  },
+  "admin_dashboard": {
+    "table_stakes": [
+      {"name": "Client search with instant filtering", "description": "Search bar filtering client list by name, email, plan, status instantly.", "prevalence": 6, "competitors": ["Retool", "Forest Admin", "Django Admin", "Zendesk", "Grafana", "Datadog"], "category": "navigation", "backend_dependency": true, "proposed_endpoint": "GET /api/admin/clients/search"},
+      {"name": "Bulk client actions (multi-select)", "description": "Select multiple clients, apply bulk action: suspend, email, export, change plan.", "prevalence": 6, "competitors": ["Retool", "Forest Admin", "Django Admin", "Zendesk", "Grafana", "Datadog"], "category": "action", "backend_dependency": true},
+      {"name": "Advanced multi-condition filters", "description": "Filter clients by plan AND status AND signup date AND usage range.", "prevalence": 6, "competitors": ["Retool", "Forest Admin", "Django Admin", "Zendesk", "Grafana", "Datadog"], "category": "action", "backend_dependency": false},
+      {"name": "Client activity timeline / audit log", "description": "Per-client timeline: login events, plan changes, API calls, support tickets.", "prevalence": 6, "competitors": ["Retool", "Forest Admin", "Zendesk", "Grafana", "Datadog", "Django Admin"], "category": "analytics", "backend_dependency": true, "proposed_endpoint": "GET /api/admin/clients/{id}/activity"},
+      {"name": "Revenue analytics (MRR trend, churn rate, LTV)", "description": "Charts showing MRR over time, churn rate %, customer LTV distribution.", "prevalence": 6, "competitors": ["Retool", "Forest Admin", "Zendesk", "Grafana", "Datadog", "Django Admin"], "category": "visualization", "backend_dependency": true, "proposed_endpoint": "GET /api/admin/revenue/analytics"},
+      {"name": "Alert rules / threshold configuration", "description": "Admin sets: alert when churn > 5%, or MRR drops > 10%, via email/ntfy.", "prevalence": 5, "competitors": ["Retool", "Grafana", "Datadog", "Zendesk", "Forest Admin"], "category": "action", "backend_dependency": true},
+      {"name": "Export clients to CSV with active filters", "description": "Export current filtered client view to CSV.", "prevalence": 6, "competitors": ["Retool", "Forest Admin", "Django Admin", "Zendesk", "Grafana", "Datadog"], "category": "action", "backend_dependency": false}
+    ],
+    "standard": [
+      {"name": "Role-based access control (RBAC) UI", "description": "Visual RBAC interface: assign roles, view permissions matrix, manage team access.", "prevalence": 4, "competitors": ["Retool", "Forest Admin", "Zendesk", "Grafana"], "category": "action", "backend_dependency": true},
+      {"name": "API usage analytics / rate limit view", "description": "Per-client API usage chart, rate limit status, top endpoints.", "prevalence": 3, "competitors": ["Retool", "Grafana", "Datadog"], "category": "analytics", "backend_dependency": true},
+      {"name": "Webhook delivery dashboard", "description": "List of webhook deliveries, status (success/failed), retry controls.", "prevalence": 3, "competitors": ["Stripe", "Retool", "Zendesk"], "category": "analytics", "backend_dependency": true, "proposed_endpoint": "GET /api/admin/webhooks/deliveries"},
+      {"name": "System health monitoring panel", "description": "Live service health: API latency, DB connections, queue depth, error rate.", "prevalence": 4, "competitors": ["Grafana", "Datadog", "Retool", "Forest Admin"], "category": "real_time", "backend_dependency": true},
+      {"name": "Impersonation mode (login as customer)", "description": "Admin can log in as any customer to debug issues.", "prevalence": 3, "competitors": ["Zendesk", "Intercom", "Forest Admin"], "category": "action", "backend_dependency": true, "proposed_endpoint": "POST /api/admin/impersonate/{client_id}"}
+    ],
+    "advanced": [
+      {"name": "Multi-tenancy operator account switcher", "description": "Switch between multiple reseller accounts in one interface.", "prevalence": 1, "competitors": ["Retool"], "category": "navigation", "backend_dependency": true},
+      {"name": "Scheduled reports via email", "description": "Admin schedules daily/weekly report emails with key metrics.", "prevalence": 2, "competitors": ["Grafana", "Datadog"], "category": "action", "backend_dependency": true}
+    ]
+  }
+}

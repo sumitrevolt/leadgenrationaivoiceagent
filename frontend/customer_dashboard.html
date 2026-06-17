@@ -147,6 +147,77 @@
   .toast.show{opacity:1;transform:translateY(0)}
   .toast .t{font-weight:700;margin-bottom:2px}
 
+  /* ===== WCAG: Keyboard focus indicators ===== */
+  :focus-visible{outline:3px solid var(--brand);outline-offset:2px;border-radius:4px}
+  button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+
+  /* ===== Skeleton loading animation ===== */
+  @keyframes shimmer{0%{background-position:-600px 0}100%{background-position:600px 0}}
+  .skeleton{background:linear-gradient(90deg,#ede9fe 25%,#d8b4fe 50%,#ede9fe 75%);
+    background-size:600px 100%;animation:shimmer 1.4s ease-in-out infinite;border-radius:6px;display:inline-block}
+  .skeleton-row td{padding:10px 14px}
+  .sk-text{height:13px;width:80%;display:inline-block}
+  .sk-badge{height:20px;width:50px;border-radius:999px;display:inline-block}
+
+  /* ===== Search / filter bar ===== */
+  .filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid var(--line);background:#faf9fe}
+  .filter-bar input[type=search]{flex:1;min-width:160px;padding:8px 12px 8px 34px;border:1px solid var(--line);
+    border-radius:9px;font-size:13px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") no-repeat 10px center}
+  .filter-bar input[type=search]:focus{border-color:var(--brand);outline:2px solid var(--brand-soft)}
+  .filter-bar select{padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:12.5px;font-weight:600;background:#fff;min-height:36px}
+  .filter-bar .fc{font-size:12px;color:var(--muted);white-space:nowrap}
+
+  /* ===== Dark mode ===== */
+  body.dark{
+    --brand:#a78bfa;--brand-2:#818cf8;--brand-soft:#3b1f6e;
+    --ink:#e2e0f0;--muted:#9b8dcc;--line:#2e2646;
+    --bg:#0f0b1e;--card:#1a1530;--shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  body.dark .sidebar{background:linear-gradient(180deg,#0d0a1a,#1a103d)}
+  body.dark thead th{background:#1a1530}
+  body.dark select{background:#1a1530;color:var(--ink);border-color:var(--line)}
+  body.dark .filter-bar{background:#150e2a}
+  body.dark .filter-bar input[type=search]{background:#1a1530;color:var(--ink);border-color:var(--line)}
+  body.dark .action-card:hover{background:#1e1540;border-color:#7c3aed}
+  body.dark .btn{background:#1a1530;border-color:var(--line);color:var(--ink)}
+
+  /* ===== Notification bell ===== */
+  .notif-btn{position:relative;background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--muted);font-size:20px;display:flex;align-items:center;min-height:44px;min-width:44px;justify-content:center}
+  .notif-btn:hover{background:var(--brand-soft);color:var(--brand)}
+  .notif-badge{position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;font-size:9px;font-weight:800;
+    width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;display:none}
+  .notif-badge.show{display:flex}
+  .notif-panel{position:absolute;top:58px;right:12px;width:320px;background:var(--card);border:1px solid var(--line);
+    border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.14);z-index:50;display:none;max-height:380px;overflow-y:auto}
+  .notif-panel.open{display:block}
+  .notif-item{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+  .notif-item:last-child{border-bottom:none}
+  .notif-item .ni{font-size:18px}
+  .notif-item .nb{font-size:12.5px}
+  .notif-item .nt{font-weight:700;margin-bottom:2px}
+  .notif-item .ns{color:var(--muted);font-size:11.5px}
+
+  /* ===== Date range picker ===== */
+  .date-range{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+  .date-range input[type=date]{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-size:12px;min-height:36px;background:var(--card);color:var(--ink)}
+  .date-range label{font-weight:600;white-space:nowrap}
+
+  /* ===== Onboarding checklist ===== */
+  .onboard-card{background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1px solid #ddd6fe;border-radius:14px;padding:16px 18px;margin-bottom:6px}
+  .onboard-card h3{font-size:14px;font-weight:700;margin:0 0 8px;color:var(--brand)}
+  .onboard-steps{display:flex;flex-direction:column;gap:6px}
+  .onboard-step{display:flex;align-items:center;gap:10px;font-size:13px}
+  .onboard-step .ic{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;flex:0 0 22px}
+  .onboard-step.done .ic{background:#dcfce7;color:#15803d}
+  .onboard-step.todo .ic{background:#f1f5f9;color:#6b7280}
+  .onboard-step.done{color:var(--muted);text-decoration:line-through}
+
+  /* ===== Speed-to-lead SLA badge ===== */
+  .stl-badge{display:inline-flex;align-items:center;gap:6px;margin-top:10px;padding:6px 12px;
+    border-radius:999px;font-size:12px;font-weight:700;background:#ecfdf5;color:#15803d;border:1px solid #bbf7d0}
+  .stl-badge.warn{background:#fffbeb;color:#b45309;border-color:#fde68a}
+  .stl-badge.bad{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+
   /* responsive */
   @media (max-width:1080px){
     .kpis{grid-template-columns:repeat(2,1fr)}
@@ -178,15 +249,15 @@
 <body>
 <div class="app">
   <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="brand"><span class="logo">🎙️</span> LeadGen AI</div>
-    <a class="navlink active"><span class="ic">🏠</span> Home</a>
-    <a class="navlink" onclick="scrollToId('contentCard')"><span class="ic">📣</span> Aaj ka Post</a>
-    <a class="navlink" onclick="scrollToId('leadsCard')"><span class="ic">🔥</span> Naye Leads</a>
-    <a class="navlink" onclick="scrollToId('callsCard')"><span class="ic">📞</span> Calls ka Hisaab</a>
-    <a class="navlink" onclick="scrollToId('billingCard')"><span class="ic">💳</span> Bill / Plan</a>
-    <a class="navlink" onclick="toast('Settings','Settings jald aa rahi hai.')"><span class="ic">⚙️</span> Settings</a>
-    <div class="side-foot">
+  <aside class="sidebar" role="navigation" aria-label="Main navigation">
+    <div class="brand" aria-label="LeadGen AI"><span class="logo" aria-hidden="true">🎙️</span> LeadGen AI</div>
+    <a class="navlink active" href="#" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home</a>
+    <a class="navlink" href="#contentCard" onclick="scrollToId('contentCard');return false;" aria-label="Aaj ka Post section"><span class="ic" aria-hidden="true">📣</span> Aaj ka Post</a>
+    <a class="navlink" href="#leadsCard" onclick="scrollToId('leadsCard');return false;" aria-label="Naye Leads section"><span class="ic" aria-hidden="true">🔥</span> Naye Leads</a>
+    <a class="navlink" href="#callsCard" onclick="scrollToId('callsCard');return false;" aria-label="Calls ka Hisaab section"><span class="ic" aria-hidden="true">📞</span> Calls ka Hisaab</a>
+    <a class="navlink" href="#billingCard" onclick="scrollToId('billingCard');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
+    <a class="navlink" href="#" onclick="toast('Settings','Settings jald aa rahi hai.');return false;" aria-label="Settings (coming soon)"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
+    <div class="side-foot" aria-label="Account info">
       Aapki AI marketing + voice agent team<br>din-raat kaam kar rahi hai.<br><br>
       <span id="sideClient">Client: demo</span>
     </div>
@@ -194,20 +265,44 @@
 
   <!-- Main -->
   <div class="main">
-    <div class="topbar">
+    <div class="topbar" role="banner">
       <div class="hi">
         <h1>Namaste 👋</h1>
         <p id="genAt">Aapke business ka pura haal — ek nazar me.</p>
       </div>
       <div class="spacer"></div>
-      <span class="badge-demo" id="demoBadge">Demo Data</span>
+      <span class="badge-demo" id="demoBadge" aria-label="Ye demo data hai">Demo Data</span>
+      <!-- Date range filter -->
+      <div class="date-range" role="group" aria-label="Date range filter">
+        <label for="drFrom">Se:</label>
+        <input type="date" id="drFrom" aria-label="Start date" onchange="applyDateRange()">
+        <label for="drTo">Tak:</label>
+        <input type="date" id="drTo" aria-label="End date" onchange="applyDateRange()">
+        <button class="btn" onclick="clearDateRange()" aria-label="Clear date range filter" style="padding:6px 10px;font-size:11px">✕</button>
+      </div>
       <div class="ctl">
         <label for="campaign">Campaign chuno</label>
-        <select id="campaign"></select>
+        <select id="campaign" aria-label="Filter by campaign"></select>
       </div>
+      <!-- Notification bell -->
+      <div style="position:relative">
+        <button class="notif-btn" id="notifBtn" onclick="toggleNotifPanel()" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" aria-controls="notifPanel">
+          🔔
+          <span class="notif-badge" id="notifBadge" aria-label="Unread notifications">0</span>
+        </button>
+        <div class="notif-panel" id="notifPanel" role="dialog" aria-label="Notifications panel" aria-modal="false">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-weight:700;font-size:13px">Notifications</span>
+            <button onclick="markAllRead()" style="font-size:11px;color:var(--brand);background:none;border:none;cursor:pointer;font-weight:600" aria-label="Mark all notifications as read">Sab padha</button>
+          </div>
+          <div id="notifList"><div class="notif-item"><div class="ni" aria-hidden="true">ℹ️</div><div class="nb"><div class="nt">Abhi koi notification nahi</div><div class="ns">Leads aane par yahan dikhengi</div></div></div></div>
+        </div>
+      </div>
+      <!-- Dark mode toggle -->
+      <button class="btn" id="darkBtn" onclick="toggleDark()" aria-label="Toggle dark mode" aria-pressed="false" style="padding:8px 10px;font-size:16px;min-width:44px">🌙</button>
     </div>
 
-    <div class="content">
+    <div class="content" role="main" id="mainContent">
 
       <!-- ===== 1) AAJ KE LIYE — sabse upar, sabse zaroori ===== -->
       <div class="sec-title">☀️ Aaj ke liye</div>
@@ -229,7 +324,18 @@
           <div class="lab">🔥 Naye Leads</div>
           <div class="big" id="todayLeads">—</div>
           <div class="sub" id="todayHot">Pakke customers jo baat karne ko taiyaar hain.</div>
+          <div class="stl-badge" id="stlBadge" style="display:none" aria-live="polite" aria-label="Speed to lead SLA">
+            ⚡ <span id="stlText">2-min jawab</span>
+          </div>
           <button class="btn" onclick="scrollToId('leadsCard')">Leads dekho ↓</button>
+        </div>
+      </div>
+
+      <!-- Onboarding checklist (hidden when complete) -->
+      <div id="onboardWrap" style="display:none;margin-bottom:14px">
+        <div class="onboard-card" role="region" aria-label="Getting started checklist">
+          <h3>🚀 Shuru karne ke steps <span id="onboardPct" style="font-weight:600;color:var(--muted);font-size:12px"></span></h3>
+          <div class="onboard-steps" id="onboardSteps"></div>
         </div>
       </div>
 
@@ -254,18 +360,40 @@
       <div class="sec-title">🔥 Aapke Leads</div>
       <div class="card" id="leadsCard">
         <div class="card-h">
-          <h2>Naye Leads — inko call karo</h2>
-          <span class="pill" id="leadsCount">0 leads</span>
+          <h2 id="leadsHeading">Naye Leads — inko call karo</h2>
+          <span class="pill" id="leadsCount" aria-live="polite" aria-atomic="true">0 leads</span>
           <div class="grow"></div>
-          <button class="btn" onclick="downloadCSV()">⬇️ List Download</button>
-          <button class="btn primary" onclick="sendToCRM()">📲 WhatsApp pe bhejo</button>
+          <button class="btn" onclick="downloadCSV()" aria-label="Leads list CSV mein download karo">⬇️ List Download</button>
+          <button class="btn primary" onclick="sendToCRM()" aria-label="Leads CRM mein sync karo">🧩 CRM me Sync</button>
         </div>
-        <div class="tbl-scroll">
-          <table>
+        <!-- Search + filter bar -->
+        <div class="filter-bar" role="search" aria-label="Leads filter">
+          <input type="search" id="leadsSearch" placeholder="Business ya sheher dhundho…" aria-label="Search leads by business name or city" oninput="filterLeads()" autocomplete="off">
+          <select id="leadsScoreFilter" aria-label="Filter by lead score" onchange="filterLeads()">
+            <option value="">Sab leads</option>
+            <option value="Hot">🔥 Garam (Hot)</option>
+            <option value="Warm">🌤 Warm</option>
+            <option value="Cold">❄ Thande (Cold)</option>
+          </select>
+          <select id="leadsCityFilter" aria-label="Filter by city" onchange="filterLeads()">
+            <option value="">Sab sheher</option>
+          </select>
+          <span class="fc" id="leadsFilterCount" aria-live="polite" aria-atomic="true"></span>
+          <button class="btn" onclick="clearLeadFilters()" aria-label="Clear all lead filters" style="padding:6px 10px;font-size:11px">✕ Clear</button>
+        </div>
+        <div class="tbl-scroll" role="region" aria-labelledby="leadsHeading" aria-live="polite">
+          <table aria-label="Qualified leads table">
             <thead><tr>
-              <th>Business</th><th>Naam</th><th>Phone</th><th>Sheher</th><th>Kaam</th><th>Kitna Garam</th><th>Customer kya bola</th><th>Kab</th>
+              <th scope="col">Business</th><th scope="col">Naam</th><th scope="col">Phone</th>
+              <th scope="col">Sheher</th><th scope="col">Kaam</th><th scope="col">Kitna Garam</th>
+              <th scope="col">Customer kya bola</th><th scope="col">Kab</th>
             </tr></thead>
-            <tbody id="leadsBody"></tbody>
+            <tbody id="leadsBody">
+              <!-- skeleton loading state -->
+              <tr class="skeleton-row"><td><span class="skeleton sk-text"></span></td><td><span class="skeleton sk-text" style="width:60%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text" style="width:50%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text"></span></td><td><span class="skeleton sk-badge"></span></td></tr>
+              <tr class="skeleton-row"><td><span class="skeleton sk-text" style="width:70%"></span></td><td><span class="skeleton sk-text" style="width:55%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text" style="width:45%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text" style="width:90%"></span></td><td><span class="skeleton sk-badge"></span></td></tr>
+              <tr class="skeleton-row"><td><span class="skeleton sk-text" style="width:85%"></span></td><td><span class="skeleton sk-text" style="width:65%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text" style="width:60%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text" style="width:75%"></span></td><td><span class="skeleton sk-badge"></span></td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -305,16 +433,33 @@
       <!-- ===== 5) Calls table ===== -->
       <div class="card" id="callsCard" style="margin-bottom:18px">
         <div class="card-h">
-          <h2>📞 Calls ka Hisaab</h2>
-          <span class="pill" id="callsCount">0 calls</span>
+          <h2 id="callsHeading">📞 Calls ka Hisaab</h2>
+          <span class="pill" id="callsCount" aria-live="polite" aria-atomic="true">0 calls</span>
           <div class="grow"></div>
+          <button class="btn" onclick="downloadCallsCSV()" aria-label="Calls log CSV mein download karo" style="font-size:12px">⬇️ Calls Download</button>
         </div>
-        <div class="tbl-scroll">
-          <table>
+        <!-- Calls search -->
+        <div class="filter-bar" role="search" aria-label="Calls filter">
+          <input type="search" id="callsSearch" placeholder="Business ya sheher dhundho…" aria-label="Search calls" oninput="filterCalls()" autocomplete="off">
+          <select id="callsStatusFilter" aria-label="Filter by call status" onchange="filterCalls()">
+            <option value="">Sab calls</option>
+            <option value="connected">✅ Connected</option>
+            <option value="no-answer">📵 No Answer</option>
+            <option value="busy">🔴 Busy</option>
+          </select>
+          <span class="fc" id="callsFilterCount" aria-live="polite" aria-atomic="true"></span>
+          <button class="btn" onclick="clearCallFilters()" aria-label="Clear call filters" style="padding:6px 10px;font-size:11px">✕ Clear</button>
+        </div>
+        <div class="tbl-scroll" role="region" aria-labelledby="callsHeading">
+          <table aria-label="Calls log table">
             <thead><tr>
-              <th>Kab</th><th>Business</th><th>Phone</th><th>Sheher</th><th>Kitni Der</th><th>Phone Utha?</th><th>Kya Hua</th>
+              <th scope="col">Kab</th><th scope="col">Business</th><th scope="col">Phone</th>
+              <th scope="col">Sheher</th><th scope="col">Kitni Der</th><th scope="col">Phone Utha?</th><th scope="col">Kya Hua</th>
             </tr></thead>
-            <tbody id="callsBody"></tbody>
+            <tbody id="callsBody">
+              <tr class="skeleton-row"><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text" style="width:50%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text" style="width:80%"></span></td></tr>
+              <tr class="skeleton-row"><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text" style="width:70%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text" style="width:40%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-text" style="width:65%"></span></td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -418,7 +563,7 @@
   </div>
 </div>
 
-<div class="toast" id="toast"><div class="t" id="toastT"></div><div id="toastM"></div></div>
+<div class="toast" id="toast" role="alert" aria-live="assertive" aria-atomic="true"><div class="t" id="toastT"></div><div id="toastM"></div></div>
 
 <script>
 /* ============================================================
@@ -623,7 +768,58 @@ function renderAll(){
   const camp=document.getElementById("campaign").value;
   const view=filterByCampaign(DATA,camp);
   renderKPIs(view);renderSummary(view);renderCalls(view);renderLeads(view);renderCharts(view);
+  renderOnboarding(DATA);
   window._VIEW=view;
+}
+
+function renderOnboarding(d){
+  const ob = d && d.onboarding;
+  const wrap = document.getElementById("onboardWrap");
+  const stepsEl = document.getElementById("onboardSteps");
+  const pctEl = document.getElementById("onboardPct");
+  if(!wrap || !stepsEl || !ob || !ob.steps) return;
+  if(ob.complete || ob.done >= ob.total){
+    wrap.style.display = "none";
+    return;
+  }
+  wrap.style.display = "";
+  if(pctEl) pctEl.textContent = `(${ob.done}/${ob.total} · ${Math.round(ob.pct||0)}%)`;
+  stepsEl.innerHTML = ob.steps.map(s=>{
+    const cls = s.done ? "done" : "todo";
+    const ic = s.done ? "✓" : "○";
+    const link = s.link ? ` <a href="${escH(s.link)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--brand);font-weight:600">dekho →</a>` : "";
+    const hint = s.hint && !s.done ? ` <span style="color:var(--muted);font-size:11px">— ${escH(s.hint)}</span>` : "";
+    return `<div class="onboard-step ${cls}"><span class="ic" aria-hidden="true">${ic}</span><span>${escH(s.label)}${link}${hint}</span></div>`;
+  }).join("");
+}
+
+async function loadSpeedToLead(){
+  const badge = document.getElementById("stlBadge");
+  const text = document.getElementById("stlText");
+  if(!badge || !text) return;
+  try{
+    const r = await fetch("/api/customer/speed-to-lead?days=30", {headers: Object.assign({Accept:"application/json"}, billAuthHdr())});
+    if(!r.ok) return;
+    const d = await r.json();
+    if(!d.ok) return;
+    badge.style.display = "inline-flex";
+    badge.classList.remove("warn","bad");
+    const pct = d.under_2min_pct;
+    const avg = d.avg_seconds != null ? Math.round(d.avg_seconds/60) : null;
+    if(d.total_inquiries === 0){
+      text.textContent = "2-min jawab = zyada conversion";
+      badge.classList.add("warn");
+    }else if(pct >= 80){
+      text.textContent = pct + "% inquiries 2-min me · avg " + (avg!=null?avg+"m":"—");
+    }else if(pct >= 50){
+      text.textContent = pct + "% 2-min SLA · avg " + (avg!=null?avg+"m":"—");
+      badge.classList.add("warn");
+    }else{
+      text.textContent = (avg!=null?"Avg "+avg+"m":"Slow") + " · target 2 min";
+      badge.classList.add("bad");
+    }
+    badge.title = d.verdict || "";
+  }catch(e){/* offline — hide badge */}
 }
 
 function setMeta(d){
@@ -653,8 +849,39 @@ function downloadCSV(){
   toast("List Ready ✅",rows.length+" leads download ho gaye.");
 }
 function sendToCRM(){
-  const n=(window._VIEW||DATA).leads.length;
-  toast("Bhej diya 🚀",n+" leads aapke WhatsApp par sync ho rahe hain. (Demo mode)");
+  return (async()=>{
+    const token=billToken();
+    if(!token){
+      toast("Login required","CRM sync ke liye pehle login karo.");
+      return;
+    }
+    const camp=(document.getElementById("campaign")||{}).value||"all";
+    const qs = camp && camp!=="all" ? ("?campaign="+encodeURIComponent(camp)) : "";
+    try{
+      const r=await fetch("/api/customer/dashboard/send-to-crm"+qs,{
+        method:"POST",
+        headers:Object.assign({Accept:"application/json"},billAuthHdr()),
+      });
+      if(r.status===401||r.status===403){
+        toast("Session expired","Dobara login karke CRM sync karo.");
+        return;
+      }
+      const d=await r.json();
+      if(!r.ok || !d){
+        toast("CRM sync failed","Server error aaya. Thodi der baad retry karo.");
+        return;
+      }
+      if(d.delivered>0){
+        toast("CRM sync ho gaya ✅",`${d.delivered}/${d.attempted} leads ${d.provider||"CRM"} me gayi.`);
+      }else if(d.skipped>0){
+        toast("CRM configured nahi","Admin se Zoho/HubSpot connect karvao.");
+      }else{
+        toast("CRM sync complete",d.message||"Koi lead sync nahi hui.");
+      }
+    }catch(e){
+      toast("CRM sync failed","Network issue. Retry karo.");
+    }
+  })();
 }
 function scrollToId(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});}
 
@@ -682,11 +909,14 @@ const BILL = { cid: "demo", token: "" };
     /* BUGFIX 2026-06-12: pehle client_id resolve karo (login token -> /me),
        warna logged-in customer ko bhi hamesha "demo" sample data dikhta tha. */
     BILL.cid = await resolveClientId();
-    const res=await fetch("/api/customer/dashboard?client_id="+encodeURIComponent(BILL.cid),{headers:Object.assign({Accept:"application/json"},billAuthHdr())});
+    const camp=(document.getElementById("campaign")||{}).value||"all";
+    const qs = camp && camp!=="all" ? ("?campaign="+encodeURIComponent(camp)) : "";
+    const res=await fetch("/api/customer/dashboard"+qs,{headers:Object.assign({Accept:"application/json"},billAuthHdr())});
     if(!res.ok) throw new Error("bad status "+res.status);
     const live=await res.json();
     if(live&&live.kpis&&Array.isArray(live.calls)&&Array.isArray(live.leads)){
       boot(live);
+      loadSpeedToLead();
       if(!live.is_sample_data) toast("Live data ✅","Server se aapka asli data load ho gaya.");
     }
   }catch(e){
@@ -1067,6 +1297,208 @@ loadBilling();
 loadContent();
 sec2faLoad();
 whLoad();
+
+/* ============================================================
+   DARK MODE
+   ============================================================ */
+function toggleDark(){
+  const on = document.body.classList.toggle("dark");
+  localStorage.setItem("lgai_dark", on?"1":"0");
+  const btn = document.getElementById("darkBtn");
+  if(btn){ btn.textContent = on ? "☀️" : "🌙"; btn.setAttribute("aria-pressed", on?"true":"false"); }
+}
+(function initDark(){
+  if(localStorage.getItem("lgai_dark")==="1"){
+    document.body.classList.add("dark");
+    const btn=document.getElementById("darkBtn");
+    if(btn){ btn.textContent="☀️"; btn.setAttribute("aria-pressed","true"); }
+  }
+})();
+
+/* ============================================================
+   LEADS SEARCH + FILTER
+   ============================================================ */
+let _leadsAll = [];  // full unfiltered list after each renderLeads call
+
+function _origRenderLeads(d){
+  _leadsAll = d.leads || [];
+  // populate city filter
+  const cities = [...new Set(_leadsAll.map(l=>l.city).filter(Boolean))].sort();
+  const cf = document.getElementById("leadsCityFilter");
+  if(cf && cf.options.length <= 1){
+    cities.forEach(c=>{ const o=document.createElement("option"); o.value=o.textContent=c; cf.appendChild(o); });
+  }
+  _renderLeadsFiltered();
+}
+
+function _renderLeadsFiltered(){
+  const q = (document.getElementById("leadsSearch")||{}).value || "";
+  const score = (document.getElementById("leadsScoreFilter")||{}).value || "";
+  const city = (document.getElementById("leadsCityFilter")||{}).value || "";
+  const drFrom = (document.getElementById("drFrom")||{}).value || "";
+  const drTo = (document.getElementById("drTo")||{}).value || "";
+
+  let rows = _leadsAll;
+  if(q){ const ql=q.toLowerCase(); rows=rows.filter(l=>(l.business||"").toLowerCase().includes(ql)||(l.city||"").toLowerCase().includes(ql)||(l.contact||"").toLowerCase().includes(ql)); }
+  if(score) rows=rows.filter(l=>l.score===score);
+  if(city) rows=rows.filter(l=>l.city===city);
+  if(drFrom) rows=rows.filter(l=>l.date>=drFrom);
+  if(drTo) rows=rows.filter(l=>l.date<=drTo);
+
+  const count = document.getElementById("leadsFilterCount");
+  if(count) count.textContent = rows.length < _leadsAll.length ? rows.length+" dikha rahe hain / "+_leadsAll.length+" total" : "";
+
+  const body = document.getElementById("leadsBody");
+  document.getElementById("leadsCount").textContent = rows.length+" leads";
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="8" class="empty-row">'+(q||score||city||drFrom||drTo ? '🔍 Filter mein koi lead nahi mili — filter hatao.' : 'Abhi koi lead nahi — aaj ka post daalo, leads aayengi 👍')+'</td></tr>';
+    return;
+  }
+  body.innerHTML=rows.map(l=>`
+    <tr>
+      <td><span class="biz">${escH(l.business)}</span></td>
+      <td>${escH(l.contact)}</td>
+      <td class="sm">${escH(l.phone)}</td>
+      <td>${escH(l.city)}</td>
+      <td><span class="niche">${escH(l.niche)}</span></td>
+      <td><span class="score ${escH(l.score)}" aria-label="Lead score: ${escH(l.score)}">${escH(l.score)}</span></td>
+      <td class="sm">${escH(l.qualification)}</td>
+      <td class="sm">${escH(l.date)}</td>
+    </tr>`).join("");
+}
+
+function filterLeads(){ _renderLeadsFiltered(); }
+function clearLeadFilters(){
+  ["leadsSearch","drFrom","drTo"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+  ["leadsScoreFilter","leadsCityFilter"].forEach(id=>{ const el=document.getElementById(id); if(el) el.selectedIndex=0; });
+  _renderLeadsFiltered();
+}
+
+// Patch original renderLeads to feed _origRenderLeads
+const _origRenderLeadsOld = renderLeads;
+function renderLeads(d){ _origRenderLeads(d); }
+
+/* ============================================================
+   CALLS SEARCH + FILTER
+   ============================================================ */
+let _callsAll = [];
+
+function _patchRenderCalls(d){
+  _callsAll = d.calls || [];
+  _renderCallsFiltered();
+}
+function _renderCallsFiltered(){
+  const q = (document.getElementById("callsSearch")||{}).value || "";
+  const st = (document.getElementById("callsStatusFilter")||{}).value || "";
+  let rows = _callsAll;
+  if(q){ const ql=q.toLowerCase(); rows=rows.filter(c=>(c.business||"").toLowerCase().includes(ql)||(c.city||"").toLowerCase().includes(ql)); }
+  if(st) rows=rows.filter(c=>c.status===st);
+
+  const count = document.getElementById("callsFilterCount");
+  if(count) count.textContent = rows.length < _callsAll.length ? rows.length+" / "+_callsAll.length : "";
+
+  document.getElementById("callsCount").textContent = rows.length+" calls";
+  const body = document.getElementById("callsBody");
+  if(!rows.length){
+    body.innerHTML='<tr><td colspan="7" class="empty-row">'+(q||st?'🔍 Filter mein koi call nahi — filter hatao.':'Abhi koi call nahi hui — AI team jald shuru karegi. 📞')+'</td></tr>';
+    return;
+  }
+  body.innerHTML=rows.map(c=>`
+    <tr>
+      <td class="sm">${escH(c.time)}</td>
+      <td><span class="biz">${escH(c.business)}</span></td>
+      <td class="sm">${escH(c.phone_masked)}</td>
+      <td>${escH(c.city)}</td>
+      <td class="sm">${escH(c.duration)}</td>
+      <td><span class="tag ${escH(c.status)}" aria-label="Call status: ${escH(c.status)}">${escH(c.status)}</span></td>
+      <td class="sm">${escH(c.outcome)}</td>
+    </tr>`).join("");
+}
+
+function filterCalls(){ _renderCallsFiltered(); }
+function clearCallFilters(){
+  ["callsSearch"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+  ["callsStatusFilter"].forEach(id=>{ const el=document.getElementById(id); if(el) el.selectedIndex=0; });
+  _renderCallsFiltered();
+}
+
+// Patch renderCalls
+const _origRenderCallsOld = renderCalls;
+function renderCalls(d){ _patchRenderCalls(d); }
+
+/* ============================================================
+   DATE RANGE FILTER
+   ============================================================ */
+function applyDateRange(){ _renderLeadsFiltered(); _renderCallsFiltered(); }
+function clearDateRange(){
+  ["drFrom","drTo"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+  _renderLeadsFiltered(); _renderCallsFiltered();
+}
+
+/* ============================================================
+   CALLS CSV DOWNLOAD
+   ============================================================ */
+function downloadCallsCSV(){
+  const rows = _callsAll.length ? _callsAll : (DATA||{}).calls || [];
+  const head = ["Time","Business","Phone","City","Duration","Status","Outcome"];
+  const esc = v => `"${(""+v).replace(/"/g,'""')}"`;
+  const csv = [head.join(",")].concat(rows.map(c=>
+    [c.time,c.business,c.phone_masked,c.city,c.duration,c.status,c.outcome].map(esc).join(","))).join("\n");
+  const blob = new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const a = document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="leadgen_calls_log.csv"; a.click(); URL.revokeObjectURL(a.href);
+  toast("Calls Download ✅", rows.length+" calls ka log download ho gaya.");
+}
+
+/* ============================================================
+   NOTIFICATIONS
+   ============================================================ */
+const _notifs = [];
+function addNotif(icon, title, sub){
+  _notifs.unshift({icon, title, sub, read:false});
+  const badge = document.getElementById("notifBadge");
+  const unread = _notifs.filter(n=>!n.read).length;
+  if(badge){ badge.textContent = unread; badge.classList.toggle("show", unread>0); }
+  _renderNotifs();
+}
+function _renderNotifs(){
+  const list = document.getElementById("notifList");
+  if(!list) return;
+  if(!_notifs.length){
+    list.innerHTML='<div class="notif-item"><div class="ni" aria-hidden="true">ℹ️</div><div class="nb"><div class="nt">Abhi koi notification nahi</div><div class="ns">Leads aane par yahan dikhengi</div></div></div>';
+    return;
+  }
+  list.innerHTML = _notifs.slice(0,10).map(n=>`
+    <div class="notif-item" style="${n.read?'opacity:.55':''}">
+      <div class="ni" aria-hidden="true">${escH(n.icon)}</div>
+      <div class="nb"><div class="nt">${escH(n.title)}</div><div class="ns">${escH(n.sub)}</div></div>
+    </div>`).join("");
+}
+function toggleNotifPanel(){
+  const panel = document.getElementById("notifPanel");
+  const btn = document.getElementById("notifBtn");
+  if(!panel) return;
+  const open = panel.classList.toggle("open");
+  if(btn) btn.setAttribute("aria-expanded", open?"true":"false");
+  if(open){ markAllRead(); }
+}
+function markAllRead(){
+  _notifs.forEach(n=>n.read=true);
+  const badge=document.getElementById("notifBadge");
+  if(badge){ badge.textContent="0"; badge.classList.remove("show"); }
+  _renderNotifs();
+}
+// Close notif panel when clicking outside
+document.addEventListener("click", function(e){
+  const panel=document.getElementById("notifPanel");
+  const btn=document.getElementById("notifBtn");
+  if(panel && panel.classList.contains("open") && !panel.contains(e.target) && e.target!==btn && !btn.contains(e.target)){
+    panel.classList.remove("open");
+    if(btn) btn.setAttribute("aria-expanded","false");
+  }
+});
+// Add a welcome notif on first load
+setTimeout(()=>addNotif("🚀","LeadGen AI ready","Aapka dashboard load ho gaya — leads aur calls dekho below."),800);
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>

@@ -538,6 +538,12 @@ except Exception as _e:  # pragma: no cover
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
 app.include_router(admin_router, prefix="/api", tags=["Admin"])
 try:
+    from app.api.assessment import router as assessment_router
+
+    app.include_router(assessment_router, prefix="/api")  # /api/assessment/* (dashboard gap analysis)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Assessment router not mounted: {_e}")
+try:
     from app.api.team_access import router as team_access_router
 
     app.include_router(team_access_router, prefix="/api")  # /api/team-access/* (sub-admins + module grants)
@@ -822,6 +828,14 @@ async def conversations_page():
 async def dialer_page():
     """Human telecaller dialer mode (NeoDove-style) — lead queue, tel:/wa.me 1-click, dispositions."""
     return FileResponse(str(FRONTEND_DIR / "dialer.html"))
+
+
+@app.get("/app/battlecard", tags=["Frontend"])
+async def battlecard_page():
+    """Internal sales battlecard — LeadGen AI vs Dhanda / AdBanao / MyOperator /
+    Vodex.ai / GoHighLevel. Static competitive-intel asset (comparison matrix +
+    talk tracks + landmine questions). Admin/sales internal; no API/secrets."""
+    return FileResponse(str(FRONTEND_DIR / "battlecard.html"))
 
 
 @app.get("/audit", tags=["Frontend"])

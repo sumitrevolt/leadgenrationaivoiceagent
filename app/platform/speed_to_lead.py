@@ -211,4 +211,144 @@ def summary(days: int = 30) -> dict[str, Any]:
         return {"ok": False, "error": str(e)[:160]}
 
 
-__all__ = ["per_inquiry", "summary"]
+def _inquiry_matches_client(rec: dict, client_id: str, client_rec: dict | None) -> bool:
+    """Same matching rules as customer_dashboard._inquiries_for_client (single row)."""
+    cid = (client_id or "").strip().lower()
+    slug = str((client_rec or {}).get("slug") or "").strip().lower()
+    rec_id = str((client_rec or {}).get("id") or "").strip().lower()
+    biz = str((client_rec or {}).get("business_name") or "").strip().lower()
+    phone_d = "".join(ch for ch in str((client_rec or {}).get("phone") or "") if ch.isdigit())[-10:]
+    r_slug = str(rec.get("source_slug") or "").strip().lower()
+    r_cid = str(rec.get("client_id") or "").strip().lower()
+    r_biz = str(rec.get("business_name") or "").strip().lower()
+    r_ph = "".join(ch for ch in str(rec.get("phone") or "") if ch.isdigit())[-10:]
+    if slug and r_slug == slug:
+        return True
+    if rec_id and r_cid == rec_id:
+        return True
+    if cid and r_cid == cid:
+        return True
+    if biz and r_biz == biz:
+        return True
+    if phone_d and r_ph and r_ph == phone_d:
+        return True
+    return False
+
+
+def per_inquiry_for_client(
+    client_id: str,
+    client_rec: dict | None = None,
+    days: int = 30,
+) -> list[dict[str, Any]]:
+    """per_inquiry() filtered to one client's inquiries. Never raises."""
+    try:
+        days = max(1, min(int(days or 30), 365))
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).timestamp()
+        evidence = _evidence_epochs()
+        rows: list[dict[str, Any]] = []
+        for rec in _read_jsonl(_INQUIRIES_FILE):
+            ph = _phone10(rec.get("phone"))
+            inq_ep = _to_epoch(rec.get("at"))
+            if not ph or not inq_ep or inq_ep < cutoff:
+                continue
+            if client_id and client_id not in ("", "demo"):
+                if not _inquiry_matches_client(rec, client_id, client_rec):
+                    continue
+            best: tuple[float, str] | None = None
+            for ep, via in evidence.get(ph, []):
+                if ep >= inq_ep - 60 and (best is None or ep < best[0]):
+                    best = (ep, via)
+            rows.append(
+                {
+                    "phone": ph,
+                    "inquiry_at": rec.get("at"),
+                    "source": rec.get("source") or "",
+                    "first_touch_seconds": (
+                        max(0, round(best[0] - inq_ep)) if best else None
+                    ),
+                    "via": best[1] if best else None,
+                }
+            )
+        return rows
+    except Exception as e:
+        logger.warning(f"[speed_to_lead] per_inquiry_for_client failed: {e}")
+        return []
+
+
+def summary_for_client(
+    client_id: str,
+    client_rec: dict | None = None,
+    days: int = 30,
+) -> dict[str, Any]:
+    """Client-scoped speed-to-lead summary (same shape as summary()). Never raises."""
+    try:
+        rows = per_inquiry_for_client(client_id, client_rec, days)
+        touched = [
+            r["first_touch_seconds"]
+            for r in rows
+            if r.get("first_touch_seconds") is not None
+        ]
+        total = len(rows)
+        if not touched:
+            return {
+                "ok": True,
+                "client_id": client_id,
+                "days": days,
+                "total_inquiries": total,
+                "touched": 0,
+                "untouched": total,
+                "avg_seconds": None,
+                "median_seconds": None,
+                "under_2min_pct": 0.0,
+                "target_seconds": _TARGET_SECONDS,
+                "verdict": (
+                    "Abhi koi inquiry response data nahi — enquiry aate hi 2 minute me "
+                    "jawab dena conversion badhata hai."
+                ),
+                "inquiries": rows[-20:],
+            }
+        touched_sorted = sorted(touched)
+        n = len(touched_sorted)
+        median = (
+            touched_sorted[n // 2]
+            if n % 2
+            else (touched_sorted[n // 2 - 1] + touched_sorted[n // 2]) / 2
+        )
+        avg = sum(touched_sorted) / n
+        under = sum(1 for s in touched_sorted if s <= _TARGET_SECONDS)
+        under_pct = round(100.0 * under / n, 1)
+        avg_min = avg / 60.0
+        if under_pct >= 80:
+            verdict = (
+                f"Zabardast! {under_pct}% inquiries ko 2 min ke andar touch — "
+                f"avg {avg_min:.1f} min. 🏆"
+            )
+        elif under_pct >= 50:
+            verdict = (
+                f"Theek — avg {avg_min:.1f} min me jawab, {under_pct}% 2-min target ke andar."
+            )
+        else:
+            verdict = (
+                f"Avg {avg_min:.1f} min me jawab — 2-min target rakho; "
+                f"auto-callback/alert se yeh number badhega."
+            )
+        return {
+            "ok": True,
+            "client_id": client_id,
+            "days": days,
+            "total_inquiries": total,
+            "touched": n,
+            "untouched": total - n,
+            "avg_seconds": round(avg, 1),
+            "median_seconds": round(float(median), 1),
+            "under_2min_pct": under_pct,
+            "target_seconds": _TARGET_SECONDS,
+            "verdict": verdict,
+            "inquiries": rows[-20:],
+        }
+    except Exception as e:
+        logger.warning(f"[speed_to_lead] summary_for_client failed: {e}")
+        return {"ok": False, "client_id": client_id, "error": str(e)[:160]}
+
+
+__all__ = ["per_inquiry", "summary", "per_inquiry_for_client", "summary_for_client"]

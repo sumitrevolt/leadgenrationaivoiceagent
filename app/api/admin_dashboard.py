@@ -28,7 +28,7 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -53,6 +53,7 @@ class KPIs(BaseModel):
 
 
 class Client(BaseModel):
+    client_id: str = ""
     company: str
     niche: str
     plan: str
@@ -304,6 +305,29 @@ def _collect_live_stats() -> dict:
     return stats
 
 
+def _inquiry_count_for_client(c: dict) -> int:
+    """Count inquiries.jsonl rows matched to this client record."""
+    cid = str(c.get("id") or "").strip().lower()
+    slug = str(c.get("slug") or "").strip().lower()
+    biz = str(c.get("business_name") or "").strip().lower()
+    phone_d = "".join(ch for ch in str(c.get("phone") or "") if ch.isdigit())[-10:]
+    n = 0
+    for r in _read_inquiries():
+        r_slug = str(r.get("source_slug") or "").strip().lower()
+        r_cid = str(r.get("client_id") or "").strip().lower()
+        r_biz = str(r.get("business_name") or "").strip().lower()
+        r_ph = "".join(ch for ch in str(r.get("phone") or "") if ch.isdigit())[-10:]
+        if slug and r_slug == slug:
+            n += 1
+        elif cid and r_cid == cid:
+            n += 1
+        elif biz and r_biz == biz:
+            n += 1
+        elif phone_d and r_ph and r_ph == phone_d:
+            n += 1
+    return n
+
+
 def _real_clients() -> list[Client]:
     """Real marketing clients → Client rows (empty list if none). No samples."""
     out: list[Client] = []
@@ -316,10 +340,11 @@ def _real_clients() -> list[Client]:
             mrr = _plan_price(plan) if status == "active" else 0
             out.append(
                 Client(
+                    client_id=str(c.get("id") or ""),
                     company=str(c.get("business_name") or "Client"),
                     niche=str(c.get("niche") or "-"),
                     plan=plan.title(),
-                    leads_delivered=0,
+                    leads_delivered=_inquiry_count_for_client(c),
                     status=status,
                     mrr=mrr,
                 )
@@ -526,6 +551,7 @@ def _build_from_db() -> "DashboardResponse | None":
                 total_mrr += mrr if (c.status and c.status.value == "active") else 0
                 clients.append(
                     Client(
+                        client_id=str(c.id or ""),
                         company=c.business_name or "Unknown",
                         niche=c.industry or "-",
                         plan=(c.plan.value.title() if c.plan else "Starter"),
@@ -753,6 +779,97 @@ async def get_admin_dashboard() -> DashboardResponse:
     # NAHI. (Future: jab relational tables me asli clients aayein, _build_from_db
     # ko sirf empty panels bharne ke liye merge karna, KPIs replace karne ke liye nahi.)
     return resp
+
+
+@router.get("/revenue-analytics")
+async def get_revenue_analytics() -> dict:
+    """MRR, churn-risk, LTV estimate — powers admin revenue analytics panel."""
+    out: dict = {
+        "mrr": 0,
+        "subscriptions": {},
+        "churn_risk_pct": 0.0,
+        "clients_red": 0,
+        "clients_yellow": 0,
+        "clients_green": 0,
+        "ltv_estimate_inr": 0,
+        "hot_leads": 0,
+        "health_top_risk": [],
+    }
+    try:
+        from app.platform import client_health, revenue_digest
+
+        stats = await revenue_digest._collect()
+        out["mrr"] = int(stats.get("mrr") or 0)
+        out["subscriptions"] = stats.get("subscriptions") or {}
+        out["hot_leads"] = int(stats.get("hot_leads") or 0)
+        out["deals"] = stats.get("deals") or {}
+        out["dunning"] = stats.get("dunning") or {}
+        health = await client_health.health_report()
+        reds = sum(1 for h in health if h.get("band") == "red")
+        yellows = sum(1 for h in health if h.get("band") == "yellow")
+        greens = sum(1 for h in health if h.get("band") == "green")
+        total = len(health) or 1
+        active = int((out["subscriptions"] or {}).get("active") or 0) or total
+        out["clients_red"] = reds
+        out["clients_yellow"] = yellows
+        out["clients_green"] = greens
+        out["churn_risk_pct"] = round((reds + yellows) / total * 100, 1)
+        out["ltv_estimate_inr"] = int(out["mrr"] * 12 / max(1, active))
+        out["health_top_risk"] = [
+            {
+                "client_id": h.get("client_id"),
+                "business_name": h.get("business_name"),
+                "score": h.get("score"),
+                "band": h.get("band"),
+                "action": h.get("action"),
+            }
+            for h in health[:8]
+        ]
+    except Exception as e:
+        logger.warning("admin_dashboard: revenue-analytics failed (%s)", e)
+        out["error"] = str(e)[:160]
+    return out
+
+
+@router.get("/activity-feed")
+def get_activity_feed(limit: int = Query(40, ge=1, le=100)) -> dict:
+    """Agent events timeline for admin activity panel."""
+    try:
+        from app.platform.team import recent_events
+
+        events = recent_events(limit=limit)
+        return {"events": events, "count": len(events)}
+    except Exception as e:
+        logger.warning("admin_dashboard: activity-feed failed (%s)", e)
+        return {"events": [], "count": 0, "error": str(e)[:120]}
+
+
+@router.get("/prospects-preview")
+def get_prospects_preview(limit: int = Query(40, ge=1, le=200)) -> dict:
+    """Prospect pipeline preview for admin leads section."""
+    try:
+        from app.platform import prospector
+
+        rows = prospector.list_prospects(limit=limit) or []
+        by_status: dict[str, int] = {}
+        for r in rows:
+            st = str(r.get("status") or "ready").lower()
+            by_status[st] = by_status.get(st, 0) + 1
+        preview = [
+            {
+                "business": r.get("business_name") or r.get("name") or "-",
+                "city": r.get("city") or "-",
+                "niche": r.get("niche") or "-",
+                "status": r.get("status") or "ready",
+                "phone": r.get("phone") or "",
+                "email": r.get("email") or "",
+            }
+            for r in rows[:limit]
+        ]
+        return {"prospects": preview, "by_status": by_status, "total": len(rows)}
+    except Exception as e:
+        logger.warning("admin_dashboard: prospects-preview failed (%s)", e)
+        return {"prospects": [], "by_status": {}, "total": 0, "error": str(e)[:120]}
 
 
 @router.get("/live-stats")

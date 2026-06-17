@@ -1,6 +1,7 @@
 """P2 Customer login portal tests — hashing, credential store, JWT role gate, routes."""
 
 from app.api import customer_auth as CA
+from fastapi.testclient import TestClient
 
 
 def test_hash_verify_roundtrip():
@@ -49,4 +50,69 @@ def test_routes_mounted():
     assert "/api/customer/auth/login" in paths
     assert "/api/customer/auth/set-password" in paths
     assert "/api/customer/auth/portal/dashboard" in paths
+    assert "/api/customer/dashboard" in paths
+    assert "/api/customer/dashboard/send-to-crm" in paths
+    assert "/api/customer/speed-to-lead" in paths
     assert "/app/login" in paths
+
+
+def test_customer_dashboard_requires_auth():
+    from app.main import app
+
+    c = TestClient(app)
+    r = c.get("/api/customer/dashboard")
+    assert r.status_code in (401, 403)
+
+
+def test_customer_dashboard_accepts_customer_token():
+    from app.api.admin import create_access_token
+    from app.main import app
+
+    c = TestClient(app)
+    tok = create_access_token("client42", "c42@example.com", "customer")
+    r = c.get("/api/customer/dashboard", headers={"Authorization": f"Bearer {tok}"})
+    assert r.status_code == 200
+    data = r.json()
+    assert "kpis" in data and "leads" in data and "calls" in data
+    assert "onboarding" in data
+    ob = data["onboarding"]
+    assert ob and isinstance(ob.get("steps"), list) and ob.get("total", 0) >= 4
+
+
+def test_speed_to_lead_requires_auth():
+    from app.main import app
+
+    c = TestClient(app)
+    r = c.get("/api/customer/speed-to-lead")
+    assert r.status_code in (401, 403)
+
+
+def test_speed_to_lead_accepts_customer_token():
+    from app.api.admin import create_access_token
+    from app.main import app
+
+    c = TestClient(app)
+    tok = create_access_token("client42", "c42@example.com", "customer")
+    r = c.get("/api/customer/speed-to-lead", headers={"Authorization": f"Bearer {tok}"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("ok") is True
+    assert "under_2min_pct" in data
+
+
+def test_onboarding_checklist_builder():
+    from app.api.customer_dashboard import _build_onboarding_checklist
+
+    ob = _build_onboarding_checklist("test-client", None, leads_count=0, content_count=0)
+    assert ob.total == 6
+    assert ob.done == 0
+    assert ob.complete is False
+    assert len(ob.steps) == 6
+
+
+def test_send_to_crm_requires_auth():
+    from app.main import app
+
+    c = TestClient(app)
+    r = c.post("/api/customer/dashboard/send-to-crm")
+    assert r.status_code in (401, 403)

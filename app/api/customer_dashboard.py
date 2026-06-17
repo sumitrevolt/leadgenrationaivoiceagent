@@ -30,8 +30,9 @@ import logging
 import os
 from datetime import datetime
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
+from app.api.customer_auth import require_customer
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,22 @@ class Campaign(BaseModel):
     name: str
 
 
+class OnboardingStep(BaseModel):
+    id: str
+    label: str
+    done: bool
+    hint: str = ""
+    link: str | None = None
+
+
+class OnboardingChecklist(BaseModel):
+    steps: list[OnboardingStep]
+    done: int
+    total: int
+    pct: float
+    complete: bool
+
+
 class DashboardResponse(BaseModel):
     is_sample_data: bool = Field(
         True, description="True => placeholder data, NOT real client results"
@@ -101,6 +118,112 @@ class DashboardResponse(BaseModel):
     leads: list[LeadRow]
     charts: ChartsData
     branding: dict | None = None  # reseller white-label (set from Host on subdomains)
+    onboarding: OnboardingChecklist | None = None
+
+
+class CrmSyncLeadResult(BaseModel):
+    business: str
+    ok: bool
+    provider: str | None = None
+    record_id: str | None = None
+    contact_id: str | None = None
+    skipped: str | None = None
+    error: str | None = None
+
+
+class CrmSyncResponse(BaseModel):
+    ok: bool
+    client_id: str
+    campaign: str | None = None
+    attempted: int
+    delivered: int
+    skipped: int
+    failed: int
+    provider: str | None = None
+    message: str
+    results: list[CrmSyncLeadResult] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# Onboarding checklist — drives customer portal getting-started wizard         #
+# --------------------------------------------------------------------------- #
+def _build_onboarding_checklist(
+    client_id: str,
+    client_rec: dict | None,
+    leads_count: int,
+    content_count: int,
+) -> OnboardingChecklist:
+    """Compute setup progress from existing stores (no new deps)."""
+    try:
+        from app.api.customer_auth import client_has_login
+    except Exception:
+        def client_has_login(_cid: str) -> bool:  # type: ignore[misc]
+            return False
+
+    rec = client_rec or _client_record(client_id)
+    slug = str((rec or {}).get("slug") or "").strip()
+    steps = [
+        OnboardingStep(
+            id="login",
+            label="Portal login set",
+            done=client_has_login(client_id),
+            hint="Admin se login email+password issue karvao",
+        ),
+        OnboardingStep(
+            id="profile",
+            label="Business profile complete",
+            done=bool(rec and rec.get("business_name") and rec.get("phone")),
+            hint="Business naam + phone add karo",
+        ),
+        OnboardingStep(
+            id="setup",
+            label="AI setup (website → knowledge base)",
+            done=bool(rec and rec.get("setup_done")),
+            hint="Website URL do — hum KB auto-seed karenge",
+        ),
+        OnboardingStep(
+            id="minisite",
+            label="Mini-site live",
+            done=bool(slug),
+            hint="Aapka /b/slug page customer ko dikhega",
+            link=f"/b/{slug}" if slug else None,
+        ),
+        OnboardingStep(
+            id="content",
+            label="Pehla marketing post ready",
+            done=content_count > 0,
+            hint="Roz ka post yahan dikhega jab content queue bharegi",
+        ),
+        OnboardingStep(
+            id="leads",
+            label="Pehli lead / enquiry aayi",
+            done=leads_count > 0,
+            hint="Mini-site ya widget se enquiry bhej kar test karo",
+        ),
+    ]
+    done = sum(1 for s in steps if s.done)
+    total = len(steps)
+    pct = round(done / total * 100, 1) if total else 0.0
+    return OnboardingChecklist(
+        steps=steps,
+        done=done,
+        total=total,
+        pct=pct,
+        complete=done >= total,
+    )
+
+
+def _enrich_dashboard(resp: DashboardResponse, client_id: str) -> DashboardResponse:
+    """Attach onboarding checklist using real client_id from JWT."""
+    client_rec = _client_record(client_id)
+    content_count = _content_posts_count(client_id, client_rec)
+    onboarding = _build_onboarding_checklist(
+        client_id,
+        client_rec,
+        len(resp.leads or []),
+        content_count,
+    )
+    return resp.model_copy(update={"client_id": client_id, "onboarding": onboarding})
 
 
 # --------------------------------------------------------------------------- #
@@ -532,8 +655,8 @@ def _build_from_db(client_id: str, campaign: str | None) -> DashboardResponse | 
 @router.get("/dashboard", response_model=DashboardResponse)
 def get_customer_dashboard(
     request: Request,
-    client_id: str = Query("demo", description="The client/business identifier"),
     campaign: str | None = Query(None, description="Optional campaign id to filter by"),
+    client_id: str = Depends(require_customer),
 ) -> DashboardResponse:
     """
     Return the full dashboard payload for a customer — REAL data only.
@@ -549,12 +672,149 @@ def get_customer_dashboard(
     resp = _build_from_db(client_id=client_id, campaign=campaign)
     if resp is None:
         resp = _build_from_files(client_id=client_id, campaign=campaign)
+    resp = _enrich_dashboard(resp, client_id)
     # White-label: on a reseller subdomain the middleware set request.state.tenant.
     try:
         resp.branding = getattr(request.state, "tenant", None)
     except Exception:
         pass
     return resp
+
+
+@router.get("/speed-to-lead")
+def customer_speed_to_lead(
+    days: int = Query(30, ge=1, le=365, description="Lookback window in days"),
+    client_id: str = Depends(require_customer),
+) -> dict:
+    """Client-scoped speed-to-lead SLA metric for dashboard badge."""
+    from app.platform import speed_to_lead
+
+    client_rec = _client_record(client_id)
+    return speed_to_lead.summary_for_client(client_id, client_rec, days)
+
+
+@router.post("/dashboard/send-to-crm", response_model=CrmSyncResponse)
+async def send_dashboard_leads_to_crm(
+    campaign: str | None = Query(None, description="Optional campaign id to filter by"),
+    client_id: str = Depends(require_customer),
+) -> CrmSyncResponse:
+    """Customer ke visible dashboard leads ko configured CRM me push karo.
+
+    AuthZ: client_id JWT se aata hai (query-param tenancy nahi).
+    """
+    resp = _build_from_db(client_id=client_id, campaign=campaign)
+    if resp is None:
+        resp = _build_from_files(client_id=client_id, campaign=campaign)
+    leads = list(resp.leads or [])[:100]
+    if not leads:
+        return CrmSyncResponse(
+            ok=False,
+            client_id=client_id,
+            campaign=campaign,
+            attempted=0,
+            delivered=0,
+            skipped=0,
+            failed=0,
+            provider=None,
+            message="Sync karne ke liye leads nahi mili.",
+            results=[],
+        )
+    try:
+        from app.platform import crm_sync
+    except Exception as e:
+        return CrmSyncResponse(
+            ok=False,
+            client_id=client_id,
+            campaign=campaign,
+            attempted=len(leads),
+            delivered=0,
+            skipped=0,
+            failed=len(leads),
+            provider=None,
+            message="CRM module unavailable.",
+            results=[
+                CrmSyncLeadResult(
+                    business=(l.business or "-"),
+                    ok=False,
+                    error=str(e)[:140],
+                )
+                for l in leads
+            ],
+        )
+
+    status = crm_sync.status(client_id=client_id)
+    provider = str(status.get("provider") or "none")
+    if provider == "none":
+        return CrmSyncResponse(
+            ok=False,
+            client_id=client_id,
+            campaign=campaign,
+            attempted=len(leads),
+            delivered=0,
+            skipped=len(leads),
+            failed=0,
+            provider=provider,
+            message="CRM configured nahi hai. Admin se Zoho/HubSpot connect karvao.",
+            results=[
+                CrmSyncLeadResult(
+                    business=(l.business or "-"),
+                    ok=False,
+                    provider=provider,
+                    skipped="no CRM configured",
+                )
+                for l in leads
+            ],
+        )
+
+    results: list[CrmSyncLeadResult] = []
+    delivered = skipped = failed = 0
+    for l in leads:
+        payload = {
+            "business_name": l.business or "",
+            "contact_name": l.contact or "",
+            "phone": l.phone or "",
+            "city": l.city or "",
+            "niche": l.niche or "",
+            "score": l.score or "",
+            "qualification": l.qualification or "",
+            "source": "customer_dashboard",
+        }
+        out = await crm_sync.push_lead(payload, client_id=client_id, note=l.qualification or "")
+        ok = bool(out.get("ok"))
+        if ok:
+            delivered += 1
+        elif out.get("skipped"):
+            skipped += 1
+        else:
+            failed += 1
+        results.append(
+            CrmSyncLeadResult(
+                business=l.business or "-",
+                ok=ok,
+                provider=str(out.get("provider") or provider),
+                record_id=(str(out.get("record_id")) if out.get("record_id") else None),
+                contact_id=(str(out.get("contact_id")) if out.get("contact_id") else None),
+                skipped=(str(out.get("skipped")) if out.get("skipped") else None),
+                error=(str(out.get("error")) if out.get("error") else None),
+            )
+        )
+    message = (
+        f"{delivered} lead CRM me sync hui."
+        if delivered
+        else ("CRM configured hai, par koi lead sync nahi hui." if failed else "CRM sync skipped.")
+    )
+    return CrmSyncResponse(
+        ok=delivered > 0,
+        client_id=client_id,
+        campaign=campaign,
+        attempted=len(leads),
+        delivered=delivered,
+        skipped=skipped,
+        failed=failed,
+        provider=provider,
+        message=message,
+        results=results,
+    )
 
 
 @router.get("/health")
