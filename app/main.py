@@ -838,6 +838,12 @@ async def battlecard_page():
     return FileResponse(str(FRONTEND_DIR / "battlecard.html"))
 
 
+@app.get("/app/explorer", tags=["Frontend"])
+async def architecture_explorer_page():
+    """Interactive architecture + automation flow explorer (graph, builder, IST schedule)."""
+    return FileResponse(str(FRONTEND_DIR / "explorer.html"))
+
+
 @app.get("/audit", tags=["Frontend"])
 async def public_audit_page():
     """PUBLIC lead-magnet: FREE GBP audit funnel (questions → score → inquiry)."""

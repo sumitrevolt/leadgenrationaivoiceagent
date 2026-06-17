@@ -202,6 +202,8 @@
       <a href="#sec-niches" role="menuitem" aria-label="Niches and Pricing"><span class="ic" aria-hidden="true">◆</span> Niches &amp; Pricing <span class="badge" id="nav-niche">25</span></a>
       <div class="sec" role="presentation">Sales</div>
       <a href="/app/battlecard" role="menuitem" aria-label="Competitive Battlecard"><span class="ic" aria-hidden="true">⚔</span> Competitive Battlecard</a>
+      <a href="/app/explorer" role="menuitem" aria-label="Architecture Explorer"><span class="ic" aria-hidden="true">🗺</span> Architecture Explorer</a>
+      <a href="#sec-diff" role="menuitem" aria-label="P0 differentiators branded feed approvals routing"><span class="ic" aria-hidden="true">🎯</span> P0 Differentiators</a>
       <div class="sec" role="presentation">Operations</div>
       <a href="/app/impersonate" role="menuitem" aria-label="Login as customer (support)"><span class="ic" aria-hidden="true">🕵️</span> Login as Customer</a>
       <a href="/app/team-access" role="menuitem" aria-label="Team RBAC"><span class="ic" aria-hidden="true">🔐</span> Team &amp; RBAC</a>
@@ -455,6 +457,33 @@
       <div class="card" id="sec-api">
         <div class="hd"><h3>API Usage &amp; Infra Flags</h3><span class="right" id="api-summary">Automation + rate limits</span></div>
         <div class="bd" id="apiBody"><span style="color:var(--muted)">Loading…</span></div>
+      </div>
+
+      <!-- P0 competitive differentiators (AdBanao / NeoDove / agency) -->
+      <div class="card" id="sec-diff">
+        <div class="hd"><h3>P0 Differentiators</h3><span class="right">Branded feed · Approval · Round-robin</span></div>
+        <div class="bd">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+            <label for="diffCid" class="sr-only">Client slug or ID</label>
+            <input id="diffCid" placeholder="client slug / id" aria-label="Client slug or ID"
+              style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:13px"/>
+            <button class="btn" onclick="loadDiffPanel()">Load client</button>
+          </div>
+          <div class="grid-2" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px">
+              <h4 style="margin:0 0 8px">🖼 Branded Daily Feed</h4>
+              <div id="diffFeed" class="mut">Client select karo</div>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:10px;padding:12px">
+              <h4 style="margin:0 0 8px">✅ Content Approvals</h4>
+              <div id="diffApprovals" class="mut">—</div>
+            </div>
+          </div>
+          <div style="margin-top:14px;border:1px solid var(--line);border-radius:10px;padding:12px">
+            <h4 style="margin:0 0 8px">👥 Lead Round-Robin</h4>
+            <div id="diffRouting" class="mut">—</div>
+          </div>
+        </div>
       </div>
 
       <!-- Billing & Revenue (per-client lookup) -->
@@ -848,6 +877,42 @@ async function loadInfraFlags(){
       <p style="font-size:12px;margin-top:6px"><a href="/app/automation" style="color:var(--indigo)">Mission Control →</a> sab flags toggle karne ke liye</p>`;
     if(sum) sum.textContent=on.length+" automation flags ON";
   }catch(e){ if(body) body.innerHTML=`<span style="color:var(--muted)">Infra flags load fail</span>`; }
+}
+
+async function loadDiffPanel(){
+  const slug=($("diffCid")&&$("diffCid").value||"").trim();
+  const feed=$("diffFeed"), ap=$("diffApprovals"), rt=$("diffRouting");
+  if(!slug){ if(feed) feed.textContent="Client slug/id daalo"; return; }
+  if(feed) feed.textContent="Loading…";
+  try{
+    const [fd, al, rg]=await Promise.all([
+      fetch("/api/brand/frames/daily?slug="+encodeURIComponent(slug),{headers:abAuthHdr()}),
+      fetch("/api/clientops/approvals?status=pending&client_id="+encodeURIComponent(slug),{headers:abAuthHdr()}),
+      fetch("/api/clientops/routing?client_id="+encodeURIComponent(slug),{headers:abAuthHdr()}),
+    ]);
+    if(feed){
+      if(fd.ok){
+        const d=await fd.json();
+        if(d.ok&&d.posts&&d.posts.length){
+          feed.innerHTML=d.posts.map(p=>'<div style="margin-bottom:10px"><b>'+escH(p.title||p.kind)+'</b><div class="sm">'+escH((p.caption||"").slice(0,120))+'</div></div>').join("");
+        }else feed.textContent=d.error||"Koi post nahi — brand kit check karo";
+      }else feed.textContent="Feed API fail";
+    }
+    if(ap){
+      if(al.ok){
+        const d=await al.json(); const rows=d.approvals||[];
+        ap.innerHTML=rows.length?rows.map(r=>'<div class="sm" style="padding:6px 0;border-bottom:1px solid var(--line)">'+escH((r.content||{}).title||"post")+' · '+escH(r.created_at||"")+'</div>').join(""):"Koi pending approval nahi ✅";
+      }else ap.textContent="Approvals load fail";
+    }
+    if(rt){
+      if(rg.ok){
+        const d=await rg.json(); const cfg=d.config;
+        if(cfg&&cfg.members){
+          rt.innerHTML='<div class="chip-row">'+cfg.members.map(m=>'<span class="chip">'+escH(m.name)+' · '+escH(m.phone)+'</span>').join("")+'</div>';
+        }else rt.innerHTML='<span class="mut">Routing config nahi — customer portal se team save karo ya POST /api/clientops/routing</span>';
+      }else rt.textContent="Routing load fail";
+    }
+  }catch(e){ if(feed) feed.textContent="Error: "+e.message; }
 }
 
 /* ====== Enhanced health from /health/ready ====== */

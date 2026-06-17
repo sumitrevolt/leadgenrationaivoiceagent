@@ -1,0 +1,1874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadGen AI — Architecture Explorer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;user-select:none}
+
+#topbar{height:46px;background:#111113;border-bottom:1px solid #1e2028;display:flex;align-items:center;padding:0 14px;gap:0;flex-shrink:0;z-index:200}
+.brand{font-size:13px;font-weight:700;color:#fff;margin-right:20px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.brand .dot{width:8px;height:8px;border-radius:50%;background:#f59e0b}
+.nav-tabs{display:flex;gap:1px}
+.nav-tab{padding:4px 11px;border-radius:4px;font-size:11px;cursor:pointer;color:#64748b;transition:all .12s;border:none;background:transparent;white-space:nowrap}
+.nav-tab:hover{color:#e2e8f0;background:#1a1c22}
+.nav-tab.active{background:#f59e0b;color:#000;font-weight:700}
+.nav-tab.active2{background:#1a2a42;color:#60a5fa;border:1px solid #1e3a5f}
+.nav-div{width:1px;height:22px;background:#1e2028;margin:0 8px;flex-shrink:0}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.tr-btn{padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;color:#64748b;border:1px solid #2d3748;background:#161618;display:flex;align-items:center;gap:4px;white-space:nowrap;transition:all .12s}
+.tr-btn:hover{color:#e2e8f0;border-color:#4b5563}
+.tr-btn.on{border-color:#2563eb;color:#60a5fa;background:#1a2a42}
+
+#searchbar{padding:8px 14px;flex-shrink:0;background:#0d0d0f;border-bottom:1px solid #181a20;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sw{position:relative;display:inline-flex;align-items:center;width:100%;max-width:420px;flex:1}
+.sw input{width:100%;padding:7px 12px 7px 32px;background:#161618;border:1px solid #2d3748;border-radius:5px;color:#e2e8f0;font-size:12px;outline:none}
+.sw input:focus{border-color:#3b82f6}
+.sw .si{position:absolute;left:10px;color:#3d4756;font-size:13px;pointer-events:none}
+.badge-counts{display:inline-flex;gap:6px;align-items:center}
+.bc{font-size:10px;padding:2px 8px;border-radius:4px;background:#1e2028;color:#64748b;border:1px solid #2d3748}
+.flow-pick{display:flex;gap:4px;flex-wrap:wrap}
+.fp-btn{font-size:10px;padding:4px 9px;border-radius:4px;border:1px solid #2d3748;background:#161618;color:#64748b;cursor:pointer;transition:all .12s}
+.fp-btn:hover{color:#e2e8f0;border-color:#4b5563}
+.fp-btn.on{background:#451a03;border-color:#92400e;color:#fbbf24;font-weight:600}
+
+#main{display:flex;flex:1;overflow:hidden;position:relative}
+
+#cw{flex:1;position:relative;overflow:hidden;background:#0a0a0c;cursor:grab;background-image:radial-gradient(circle,#1a1d26 1px,transparent 1px);background-size:24px 24px}
+#cw:active{cursor:grabbing}
+#viewport{position:absolute;top:0;left:0;transform-origin:0 0}
+#nodes-layer{position:absolute;top:0;left:0;z-index:10}
+#edgesvg{position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:15}
+
+.node{position:absolute;border-radius:8px;padding:10px 12px;cursor:pointer;transition:box-shadow .15s,transform .1s,opacity .2s}
+.node:hover{z-index:25}
+.node-inner{pointer-events:none}
+.node-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;gap:4px;flex-wrap:wrap}
+.node-badge{font-size:9px;font-weight:700;letter-spacing:.8px;padding:2px 7px;border-radius:3px;text-transform:uppercase}
+.node-complexity,.node-sched{font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px}
+.node-sched{background:#1a1420;color:#a78bfa;border:1px solid #3d2a5a}
+.cx-simple{background:#052e16;color:#4ade80}
+.cx-moderate{background:#451a03;color:#fbbf24}
+.cx-complex{background:#450a0a;color:#f87171}
+.node-title{font-size:13px;font-weight:700;color:#fff;line-height:1.3;margin-bottom:4px}
+.node-desc{font-size:10px;line-height:1.5;margin-bottom:8px}
+.node-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px}
+.node-files{font-size:9px;color:#4b5563}
+.node-flag{font-size:8px;padding:1px 5px;border-radius:3px;background:#1e2028;color:#64748b;font-family:monospace}
+
+.nt-platform{background:#13141a;border:1px solid #2d3748;color:#94a3b8}
+.nt-platform .node-badge{background:#1e2a3d;color:#60a5fa}
+.nt-platform .node-desc{color:#64748b}
+.nt-platform:hover{box-shadow:0 0 0 1.5px #3b82f6;transform:translateY(-2px)}
+
+.nt-marketing{background:#0d1a2e;border:1px solid #1d4ed8;color:#93c5fd}
+.nt-marketing .node-badge{background:#172554;color:#60a5fa}
+.nt-marketing .node-desc{color:#5b8cc4}
+.nt-marketing:hover{box-shadow:0 0 0 1.5px #2563eb,0 4px 20px rgba(37,99,235,.2);transform:translateY(-2px)}
+
+.nt-voice{background:#1a0d06;border:1px solid #9a3412;color:#fdba74}
+.nt-voice .node-badge{background:#3d1505;color:#fb923c}
+.nt-voice .node-desc{color:#7d4a2a}
+.nt-voice:hover{box-shadow:0 0 0 1.5px #ea580c;transform:translateY(-2px)}
+
+.nt-ai{background:#0e0c1e;border:1px solid #4338ca;color:#a5b4fc}
+.nt-ai .node-badge{background:#1e1b4b;color:#818cf8}
+.nt-ai .node-desc{color:#5b5a8e}
+.nt-ai:hover{box-shadow:0 0 0 1.5px #6366f1;transform:translateY(-2px)}
+
+.nt-data{background:#050f14;border:1px solid #0e7490;color:#22d3ee}
+.nt-data .node-badge{background:#0c1f2e;color:#06b6d4}
+.nt-data .node-desc{color:#2a5a6b}
+.nt-data:hover{box-shadow:0 0 0 1.5px #0891b2;transform:translateY(-2px)}
+
+.nt-external{background:#071512;border:1px solid #166534;color:#4ade80}
+.nt-external .node-badge{background:#052e16;color:#22c55e}
+.nt-external .node-desc{color:#2a5a3d}
+.nt-external:hover{box-shadow:0 0 0 1.5px #16a34a;transform:translateY(-2px)}
+
+.nt-monitor{background:#130f04;border:1px solid #92400e;color:#fbbf24}
+.nt-monitor .node-badge{background:#261800;color:#f59e0b}
+.nt-monitor .node-desc{color:#6b4f1a}
+.nt-monitor:hover{box-shadow:0 0 0 1.5px #d97706;transform:translateY(-2px)}
+
+.nt-loop{background:#1a0f1e;border:2px solid #a855f7;color:#d8b4fe;box-shadow:0 0 12px rgba(168,85,247,.15)}
+.nt-loop .node-badge{background:#3b0764;color:#e879f9}
+.nt-loop .node-desc{color:#7c3aed}
+.nt-loop:hover{box-shadow:0 0 0 2px #a855f7,0 4px 24px rgba(168,85,247,.25);transform:translateY(-2px)}
+
+.node.selected{z-index:30}
+.node.dimmed{opacity:.22}
+.node.disabled-node{opacity:.35;border-style:dashed}
+
+.node.selected.nt-platform{box-shadow:0 0 0 2px #3b82f6,0 4px 24px rgba(59,130,246,.3)}
+.node.selected.nt-marketing{box-shadow:0 0 0 2px #2563eb,0 4px 24px rgba(37,99,235,.3)}
+.node.selected.nt-ai{box-shadow:0 0 0 2px #6366f1,0 4px 24px rgba(99,102,241,.3)}
+.node.selected.nt-loop{box-shadow:0 0 0 2px #a855f7,0 4px 24px rgba(168,85,247,.35)}
+.node.trace-node{box-shadow:0 0 0 1.5px #4ade80,0 0 12px rgba(74,222,128,.2)}
+
+.port{position:absolute;width:8px;height:8px;border-radius:50%;background:#374151;border:2px solid #0a0a0c;z-index:12;pointer-events:none;opacity:0;transition:opacity .15s}
+.node.selected .port,.node:hover .port{opacity:1}
+.port-out{bottom:-4px;left:50%;transform:translateX(-50%)}
+.port-in{top:-4px;left:50%;transform:translateX(-50%)}
+.builder-mode .port{opacity:.85;pointer-events:auto;cursor:crosshair;background:#60a5fa}
+.builder-mode .port-out{background:#f59e0b}
+.builder-mode .port-in{background:#4ade80}
+.builder-mode .port.linking{box-shadow:0 0 8px #f59e0b;transform:translateX(-50%) scale(1.3)}
+.node-del{position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;background:#450a0a;border:1px solid #f87171;color:#f87171;font-size:11px;line-height:16px;text-align:center;cursor:pointer;z-index:35;pointer-events:auto;display:none}
+.builder-mode .node.selected .node-del{display:block}
+.node-del:hover{background:#f87171;color:#000}
+.palette-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:5px;border:1px solid #2d3748;background:#161820;cursor:pointer;margin-bottom:5px;font-size:10px}
+.palette-item:hover{border-color:#3b82f6;background:#1a1c28}
+.palette-item .pi-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.builder-field{width:100%;padding:6px 8px;margin-bottom:6px;background:#0d0e12;border:1px solid #2d3748;border-radius:4px;color:#e2e8f0;font-size:11px}
+.builder-field:focus{border-color:#3b82f6;outline:none}
+.edge-path.builder-edge{cursor:pointer}
+.edge-path.builder-edge:hover{stroke-width:3!important;filter:drop-shadow(0 0 4px #f87171)}
+#link-preview{display:none}
+.builder-banner{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:50;background:#451a03cc;border:1px solid #92400e;border-radius:6px;padding:6px 14px;font-size:10px;color:#fbbf24;backdrop-filter:blur(4px);display:none}
+.builder-mode .builder-banner{display:block}
+
+#zc{position:absolute;left:12px;bottom:70px;z-index:50;display:flex;flex-direction:column;gap:3px}
+.zb{width:28px;height:28px;background:#161618;border:1px solid #2d3748;border-radius:5px;color:#94a3b8;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.zb:hover{background:#1e2028;color:#e2e8f0}
+#zoom-pct{font-size:9px;color:#4b5563;text-align:center}
+
+#minimap{position:absolute;right:14px;bottom:14px;width:160px;height:96px;background:#0d0e12;border:1px solid #2d3748;border-radius:6px;z-index:50;overflow:hidden}
+#mm-canvas{display:block;width:100%;height:100%}
+.mm-label{position:absolute;bottom:4px;left:6px;font-size:9px;color:#2d3748}
+
+#legend{position:absolute;top:12px;right:14px;z-index:50;background:#161618cc;border:1px solid #2d3748;border-radius:6px;padding:8px 10px;font-size:9px;backdrop-filter:blur(4px)}
+#legend .lg-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;color:#64748b}
+#legend .lg-row:last-child{margin-bottom:0}
+.lg-line{width:28px;height:0;border-top:2px solid}
+.lg-loop{border-top:2px dashed #f59e0b;animation:flowDash 1.2s linear infinite}
+
+#ov-badge{position:absolute;top:12px;left:12px;z-index:50;background:#161618;border:1px solid #2d3748;border-radius:5px;padding:5px 11px;font-size:11px;font-weight:700;color:#64748b}
+
+#sidebar{width:300px;background:#111113;border-left:1px solid #1e2028;display:flex;flex-direction:column;flex-shrink:0;z-index:100}
+.sb-tabs{display:flex;border-bottom:1px solid #1e2028;flex-shrink:0}
+.sb-tab{flex:1;padding:11px 4px;font-size:10px;font-weight:600;text-align:center;cursor:pointer;color:#475569;border-bottom:2px solid transparent}
+.sb-tab.active{color:#f59e0b;border-bottom-color:#f59e0b}
+.sb-body{flex:1;overflow-y:auto;padding:14px}
+.sb-body::-webkit-scrollbar{width:3px}
+.sb-body::-webkit-scrollbar-thumb{background:#2d3748}
+
+.tour-h{margin-bottom:12px}
+.tour-title{font-size:17px;font-weight:700;color:#fff}
+.tour-sub{font-size:11px;color:#475569;margin-top:3px}
+.start-btn{width:100%;padding:9px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:14px;border:none}
+.start-btn.inactive{background:#1a2a42;color:#60a5fa;border:1px solid #1e3a5f}
+.start-btn.running{background:#14532d;color:#4ade80;border:1px solid #166534}
+.steps-hdr{font-size:9px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px}
+.step-row{display:flex;align-items:flex-start;gap:9px;padding:7px 5px;border-radius:5px;cursor:pointer;margin-bottom:1px}
+.step-row:hover{background:#161820}
+.step-row.active-step{background:#161820}
+.sn{width:21px;height:21px;border-radius:50%;background:#161820;border:1px solid #2d3748;font-size:10px;font-weight:700;color:#4b5563;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.st{font-size:11px;color:#94a3b8;line-height:1.35}
+
+.nd-card{background:#161820;border:1px solid #2d3748;border-radius:8px;padding:13px;margin-bottom:10px}
+.nd-type{font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px}
+.nd-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:5px}
+.nd-desc{font-size:11px;color:#64748b;line-height:1.6;margin-bottom:10px}
+.nd-meta{display:flex;gap:5px;flex-wrap:wrap}
+.nm{font-size:9px;background:#1e2028;padding:2px 7px;border-radius:3px;color:#64748b}
+.nm b{color:#e2e8f0}
+
+.step-detail{background:#1a1420;border:1px solid #3d2a5a;border-radius:7px;padding:12px;margin-bottom:10px}
+.sd-title{font-size:13px;font-weight:700;color:#a78bfa;margin-bottom:6px}
+.sd-desc{font-size:11px;color:#7c6aa0;line-height:1.6}
+
+#tour-nav{padding:10px 14px;border-top:1px solid #1e2028;display:none;gap:6px}
+#tour-nav.vis{display:flex}
+.tn-btn{flex:1;padding:7px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid #2d3748;background:#161618;color:#64748b}
+.tn-btn.primary{background:#1a2a42;border-color:#1e3a5f;color:#60a5fa}
+
+.panel-hdr{font-size:9px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px}
+.panel-hdr:first-child{margin-top:0}
+
+.flow-card{background:#0d1420;border:1px solid #1e3a5f;border-radius:7px;padding:10px;margin-bottom:8px;cursor:pointer;transition:all .12s}
+.flow-card:hover{border-color:#2563eb;background:#111827}
+.flow-card.on{border-color:#f59e0b;background:#1a1408}
+.flow-card .fc-title{font-size:12px;font-weight:700;color:#60a5fa;margin-bottom:4px}
+.flow-card .fc-desc{font-size:10px;color:#4b5563;line-height:1.5}
+
+.flag-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1c22;font-size:10px}
+.flag-row:last-child{border-bottom:none}
+.flag-name{color:#94a3b8;font-family:monospace;font-size:9px}
+.flag-toggle{width:36px;height:20px;border-radius:10px;background:#2d3748;cursor:pointer;position:relative;transition:background .15s;flex-shrink:0}
+.flag-toggle.on{background:#166534}
+.flag-toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#64748b;transition:transform .15s}
+.flag-toggle.on::after{transform:translateX(16px);background:#4ade80}
+
+.action-btn{width:100%;padding:8px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #2d3748;background:#161618;color:#94a3b8;margin-bottom:6px;text-align:left;display:flex;align-items:center;gap:6px}
+.action-btn:hover{background:#1e2028;color:#e2e8f0;border-color:#4b5563}
+.action-btn.primary{border-color:#1e3a5f;background:#1a2a42;color:#60a5fa}
+
+.conn-row{font-size:10px;color:#64748b;padding:4px 0;display:flex;align-items:center;gap:5px;cursor:pointer;border-radius:4px;padding-left:4px}
+.conn-row:hover{background:#161820;color:#e2e8f0}
+.conn-row.loop-row{color:#fbbf24}
+.edge-lbl{font-size:9px;fill:#94a3b8;font-family:-apple-system,sans-serif;font-weight:600}
+.edge-lbl-bg{fill:#0a0a0c;opacity:.85}
+
+@keyframes flowDash{to{stroke-dashoffset:-20}}
+.edge-path.loop-edge{stroke:#f59e0b;stroke-width:2.5;stroke-dasharray:8,5;animation:flowDash 1s linear infinite}
+.edge-path.async-edge{stroke:#60a5fa;stroke-dasharray:6,4}
+.edge-path.sync-edge{stroke:#64748b}
+.edge-path.loop-edge.highlight,.edge-path.async-edge.highlight,.edge-path.sync-edge.highlight{stroke-width:3;filter:drop-shadow(0 0 4px currentColor)}
+.edge-path.dimmed-edge{opacity:.12}
+.edge-path.trace-edge{stroke:#4ade80!important;stroke-width:3;filter:drop-shadow(0 0 6px #4ade80)}
+.flow-dot{fill:#fbbf24;filter:drop-shadow(0 0 4px #f59e0b)}
+
+.node.dragging{opacity:.92;cursor:grabbing;z-index:40!important;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+
+#live-status{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:50;font-size:10px;padding:4px 12px;border-radius:20px;border:1px solid #2d3748;background:#161618cc;backdrop-filter:blur(4px);display:flex;align-items:center;gap:6px;color:#64748b}
+#live-status .ls-dot{width:7px;height:7px;border-radius:50%;background:#374151}
+#live-status.ok .ls-dot{background:#4ade80;box-shadow:0 0 6px #4ade80}
+#live-status.warn .ls-dot{background:#fbbf24}
+#live-status.err .ls-dot{background:#f87171}
+
+#schedule-bar{position:absolute;left:12px;top:48px;z-index:50;background:#161618ee;border:1px solid #2d3748;border-radius:6px;padding:8px 10px;max-width:320px;display:none;backdrop-filter:blur(4px)}
+#schedule-bar.vis{display:block}
+.sb-ist{font-size:9px;font-weight:700;color:#a78bfa;margin-bottom:6px;letter-spacing:.5px}
+.sched-row{display:flex;align-items:center;gap:6px;font-size:9px;padding:2px 0;color:#64748b;cursor:pointer}
+.sched-row:hover{color:#e2e8f0}
+.sched-time{color:#f59e0b;font-weight:700;min-width:38px;font-family:monospace}
+.sched-row.active-sched{color:#4ade80}
+
+#help-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:none;align-items:center;justify-content:center}
+#help-modal.vis{display:flex}
+.help-box{background:#111113;border:1px solid #2d3748;border-radius:10px;padding:20px;max-width:420px;width:90%}
+.help-box h3{font-size:14px;margin-bottom:12px;color:#fff}
+.help-kbd{display:inline-block;background:#1e2028;border:1px solid #374151;border-radius:4px;padding:1px 6px;font-size:10px;font-family:monospace;color:#94a3b8;margin-right:4px}
+.help-row{font-size:11px;color:#64748b;margin-bottom:8px;line-height:1.8}
+
+.status-pill{font-size:8px;padding:2px 6px;border-radius:3px;margin-left:auto}
+.status-pill.on{background:#052e16;color:#4ade80}
+.status-pill.off{background:#450a0a;color:#f87171}
+.status-pill.live{background:#1e3a5f;color:#60a5fa}
+
+#mm-canvas{cursor:crosshair}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand"><div class="dot"></div>leadsgenai · explorer</div>
+  <div class="nav-tabs">
+    <button class="nav-tab" data-view="structural" onclick="switchView('structural',this)">Structural</button>
+    <button class="nav-tab active" data-view="automation" onclick="switchView('automation',this)">Automation</button>
+    <button class="nav-tab" data-view="custom" onclick="switchView('custom',this)">Builder</button>
+  </div>
+  <div class="nav-div"></div>
+  <div class="top-right">
+    <button class="tr-btn on" id="btn-play" onclick="toggleFlowPlay()">▶ Play Flow</button>
+    <button class="tr-btn on" id="btn-edges" onclick="toggleEdges()">⟷ Connections</button>
+    <button class="tr-btn on" id="btn-loops" onclick="toggleLoops()">↻ Loops</button>
+    <button class="tr-btn" id="btn-sched" onclick="toggleScheduleBar()">🕐 IST Schedule</button>
+    <button class="tr-btn" onclick="exportFlow()">↓ Export JSON</button>
+    <button class="tr-btn" onclick="showHelp()" title="Shortcuts">?</button>
+    <a class="tr-btn" href="/app/automation" style="text-decoration:none">↗ Mission Control</a>
+  </div>
+</div>
+
+<div id="searchbar">
+  <div class="sw">
+    <span class="si">⌕</span>
+    <input type="text" id="search-input" placeholder="Search nodes..." oninput="doSearch(this.value)">
+  </div>
+  <div class="flow-pick" id="flow-pick"></div>
+  <div class="badge-counts">
+    <span class="bc" id="bc-total">0 nodes</span>
+    <span class="bc" id="bc-edges">0 edges</span>
+    <span class="bc" id="bc-match" style="display:none"></span>
+  </div>
+</div>
+
+<div id="main">
+  <div id="cw">
+    <div id="viewport">
+      <div id="nodes-layer"></div>
+      <svg id="edgesvg">
+        <defs>
+          <marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker>
+          <marker id="ah-blue" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#60a5fa"/></marker>
+          <marker id="ah-amber" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/></marker>
+          <marker id="ah-purple" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#a855f7"/></marker>
+        </defs>
+        <path id="link-preview" d="" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,4" style="display:none"/>
+      </svg>
+    </div>
+    <div class="builder-banner" id="builder-banner">🔗 Drag <b style="color:#f59e0b">orange port</b> → <b style="color:#4ade80">green port</b> to connect · Shift+click 2 nodes · Del = delete</div>
+    <div id="ov-badge">AUTOMATION PIPELINE</div>
+    <div id="live-status"><span class="ls-dot"></span><span id="ls-text">Checking automation health…</span></div>
+    <div id="schedule-bar">
+      <div class="sb-ist">IST DAILY SCHEDULE (team_scheduler)</div>
+      <div id="sched-list"></div>
+    </div>
+    <div id="legend">
+      <div class="lg-row"><span class="lg-line" style="border-color:#64748b"></span> sync</div>
+      <div class="lg-row"><span class="lg-line" style="border-color:#60a5fa;border-style:dashed"></span> async / queue</div>
+      <div class="lg-row"><span class="lg-line lg-loop"></span> feedback loop</div>
+    </div>
+    <div id="zc">
+      <div class="zb" onclick="zoom(1.2)">+</div>
+      <div class="zb" onclick="zoom(0.83)">−</div>
+      <div class="zb" onclick="fitView()" style="font-size:11px">⊡</div>
+      <div class="zb" id="lock-btn" onclick="toggleLock()">🔓</div>
+      <div id="zoom-pct">100%</div>
+    </div>
+    <div id="minimap"><canvas id="mm-canvas" width="320" height="192"></canvas><div class="mm-label">minimap</div></div>
+  </div>
+
+  <div id="sidebar">
+    <div class="sb-tabs">
+      <div class="sb-tab active" onclick="sbTab('info',this)">INFO</div>
+      <div class="sb-tab" onclick="sbTab('flow',this)">FLOW</div>
+      <div class="sb-tab" onclick="sbTab('flags',this)">FLAGS</div>
+      <div class="sb-tab" onclick="sbTab('sched',this)">SCHED</div>
+      <div class="sb-tab" onclick="sbTab('build',this)">BUILD</div>
+    </div>
+    <div class="sb-body" id="sb-content"></div>
+    <div id="tour-nav">
+      <button class="tn-btn" id="prev-btn" onclick="tourNav(-1)">← Prev</button>
+      <button class="tn-btn primary" id="next-btn" onclick="tourNav(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+<div id="help-modal" onclick="if(event.target===this)hideHelp()">
+  <div class="help-box">
+    <h3>Keyboard Shortcuts</h3>
+    <div class="help-row"><span class="help-kbd">F</span> Fit view &nbsp; <span class="help-kbd">Esc</span> Deselect</div>
+    <div class="help-row"><span class="help-kbd">+</span>/<span class="help-kbd">−</span> Zoom &nbsp; <span class="help-kbd">Space</span> Play/pause flow animation</div>
+    <div class="help-row"><span class="help-kbd">1</span> Structural &nbsp; <span class="help-kbd">2</span> Automation &nbsp; <span class="help-kbd">3</span> Builder</div>
+    <div class="help-row"><span class="help-kbd">T</span> Trace downstream &nbsp; <span class="help-kbd">Del</span> Delete node/edge (builder)</div>
+    <div class="help-row"><span class="help-kbd">Shift+click</span> Connect 2 nodes (builder) · Port drag = wire</div>
+    <div class="help-row"><span class="help-kbd">?</span> This help &nbsp; Drag node = reposition (saved locally)</div>
+    <div class="help-row"><span class="help-kbd">Dbl-click</span> node = copy file path to clipboard</div>
+    <button class="action-btn primary" style="margin-top:10px" onclick="hideHelp()">Got it</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════
+// VIEW DATA
+// ════════════════════════════════════
+const VIEWS = {
+  structural: {
+    label: 'Structural Architecture',
+    badge: 'PROJECT OVERVIEW',
+    world: {w: 2200, h: 1600},
+    nodes: [
+      {id:'internet', type:'platform', badge:'ENTRY', cx:'simple', title:'Browser / Internet', desc:'Client browsers · /b/{slug}/widget.js · External webhooks', files:'Public entry', x:750, y:30, w:250, h:100},
+      {id:'caddy', type:'platform', badge:'EDGE', cx:'simple', title:'Caddy TLS Edge Proxy', desc:'HOST process. HTTPS → 127.0.0.1:8000', files:'Caddyfile', x:750, y:190, w:250, h:100},
+      {id:'public_pages', type:'marketing', badge:'LAYER', cx:'moderate', title:'Public Frontend', desc:'/audit · /pricing · /b/{slug} · /blog · /voice-agent', files:'~40 pages', x:80, y:370, w:250, h:100},
+      {id:'admin_ui', type:'platform', badge:'LAYER', cx:'complex', title:'Admin Dashboards', desc:'/app/marketing · /app/automation · /app/team · /app/battlecard', files:'~35 pages', x:680, y:370, w:250, h:100},
+      {id:'customer_portal', type:'marketing', badge:'LAYER', cx:'moderate', title:'Customer Portal', desc:'/app/login → /app/customer. TOTP 2FA. Webhooks', files:'~10 pages', x:1280, y:370, w:250, h:100},
+      {id:'auth', type:'platform', badge:'LAYER', cx:'complex', title:'Auth & RBAC', desc:'Admin JWT + Customer JWT. Module RBAC. Consent ledger', files:'app/auth/', x:680, y:545, w:250, h:100},
+      {id:'fastapi', type:'platform', badge:'LAYER', cx:'complex', title:'FastAPI Monolith', desc:'~761 routes · uvicorn · Middleware · WS + SSE', files:'~200 files', x:360, y:720, w:700, h:110},
+      {id:'ai_staff', type:'ai', badge:'LAYER', cx:'complex', title:'17 AI Staff Team', desc:'Boss · Isha · Dev · Rohan · Swara · Kavya · FDE agents', files:'team.py', x:40, y:920, w:250, h:110},
+      {id:'voice_brain', type:'voice', badge:'LAYER', cx:'complex', title:'Voice Brain Pipeline', desc:'Exotel WS → STT → RAG → LLM → EdgeTTS', files:'voice_agent/', x:360, y:920, w:250, h:110},
+      {id:'celery', type:'platform', badge:'LAYER', cx:'moderate', title:'Celery Queue System', desc:'Beat IST → Redis → Worker. DLQ failed tasks', files:'worker.py', x:680, y:920, w:250, h:110},
+      {id:'external', type:'external', badge:'LAYER', cx:'moderate', title:'External Integrations', desc:'Razorpay · Exotel · SMTP · Google Maps · Pollinations', files:'integrations/', x:1000, y:920, w:250, h:110},
+      {id:'monitoring', type:'monitor', badge:'LAYER', cx:'moderate', title:'Monitoring Stack', desc:'Prometheus · Grafana · Loki · Tempo · ntfy', files:'observability.yml', x:1310, y:920, w:250, h:110},
+      {id:'free_ai', type:'ai', badge:'LAYER', cx:'complex', title:'Free AI Provider Chain', desc:'Mistral → Groq → Cerebras → Gemini. Circuit-breaker', files:'free_ai.py', x:40, y:1110, w:280, h:110},
+      {id:'rag', type:'ai', badge:'LAYER', cx:'complex', title:'RAG / Knowledge Base', desc:'Qdrant kb_main · niche: · client: · skills(241)', files:'knowledge_base.py', x:390, y:1110, w:280, h:110},
+      {id:'data_layer', type:'data', badge:'LAYER', cx:'moderate', title:'Data Layer', desc:'Postgres+PgBouncer · Redis×2 · Qdrant · ./data jsonl', files:'models/', x:740, y:1110, w:520, h:110},
+    ],
+    edges: [
+      {f:'internet', t:'caddy', lbl:'HTTPS', style:'sync'},
+      {f:'caddy', t:'public_pages', lbl:'', style:'sync'},
+      {f:'caddy', t:'admin_ui', lbl:'', style:'sync'},
+      {f:'caddy', t:'customer_portal', lbl:'', style:'sync'},
+      {f:'public_pages', t:'auth', lbl:'JWT', style:'sync'},
+      {f:'admin_ui', t:'auth', lbl:'JWT', style:'sync'},
+      {f:'customer_portal', t:'auth', lbl:'JWT', style:'sync'},
+      {f:'auth', t:'fastapi', lbl:'authed', style:'sync'},
+      {f:'fastapi', t:'ai_staff', lbl:'dispatch', style:'sync'},
+      {f:'fastapi', t:'voice_brain', lbl:'WS', style:'sync'},
+      {f:'fastapi', t:'celery', lbl:'enqueue', style:'async'},
+      {f:'fastapi', t:'external', lbl:'API', style:'sync'},
+      {f:'fastapi', t:'monitoring', lbl:'/metrics', style:'opt'},
+      {f:'fastapi', t:'data_layer', lbl:'R/W', style:'sync'},
+      {f:'ai_staff', t:'free_ai', lbl:'LLM', style:'sync'},
+      {f:'ai_staff', t:'rag', lbl:'RAG', style:'sync'},
+      {f:'voice_brain', t:'free_ai', lbl:'LLM', style:'sync'},
+      {f:'voice_brain', t:'rag', lbl:'KB', style:'sync'},
+      {f:'celery', t:'ai_staff', lbl:'jobs', style:'async'},
+      {f:'celery', t:'data_layer', lbl:'persist', style:'async'},
+      {f:'free_ai', t:'external', lbl:'providers', style:'sync'},
+      {f:'rag', t:'data_layer', lbl:'Qdrant', style:'sync'},
+      {f:'celery', t:'celery', lbl:'beat↻worker', style:'loop'},
+      {f:'ai_staff', t:'celery', lbl:'requeue', style:'loop'},
+    ],
+    tour: [
+      {title:'System Overview', nodeId:null, desc:'LeadGen AI — Marketing + Voice products on single VPS Mumbai.'},
+      {title:'Caddy Edge', nodeId:'caddy', desc:'TLS termination → Docker app :8000'},
+      {title:'Public Pages', nodeId:'public_pages', desc:'Lead magnets /audit, mini-sites /b/{slug}'},
+      {title:'Admin UI', nodeId:'admin_ui', desc:'28-tab marketing + Mission Control automation'},
+      {title:'FastAPI', nodeId:'fastapi', desc:'~761 routes monolith'},
+      {title:'AI Staff', nodeId:'ai_staff', desc:'17 agents coordinated via team_scheduler'},
+      {title:'Celery', nodeId:'celery', desc:'Durable queue with IST beat schedule'},
+      {title:'Data Layer', nodeId:'data_layer', desc:'Postgres + Redis + Qdrant'},
+    ],
+    presets: [{id:'all', label:'Full Stack', nodes:null, edges:null}],
+  },
+
+  automation: {
+    label: 'Complete Automation Pipeline',
+    badge: 'AUTOMATION PIPELINE',
+    world: {w: 2400, h: 1500},
+    nodes: [
+      {id:'beat', type:'platform', badge:'SCHEDULER', cx:'simple', sched:'IST cron', title:'Celery Beat + team_scheduler', desc:'06:30 blog · 07:00 content · 09:30 prospect · 10:30 outreach · hourly triage/ops/onboard · 15min growth-pulse', files:'worker.py · team_scheduler.py', flag:'TEAM_AUTOMATION', x:920, y:20, w:260, h:115},
+      {id:'worker', type:'platform', badge:'QUEUE', cx:'moderate', sched:'concurrency=4', title:'Celery Worker', desc:'Redis broker → staff_jobs queue. DLQ dlq:failed_tasks. Boot-grace on heavy jobs.', files:'app/worker.py', x:920, y:180, w:260, h:100},
+      {id:'prospect', type:'marketing', badge:'SCRAPE', cx:'moderate', sched:'09:30 daily', title:'Prospector + Lead Harvester', desc:'Google Maps · OSM · SearXNG · niche rotation (39 niches). NICHE_ROTATION=1', files:'prospector.py · lead_harvester.py', flag:'NICHE_ROTATION', x:40, y:360, w:240, h:110},
+      {id:'score', type:'ai', badge:'SCORE', cx:'simple', sched:'post-scrape', title:'Lead Scoring Engine', desc:'0-100 score · hot-lead flag · rescore_db after each scrape batch', files:'lead_scoring.py', x:340, y:360, w:220, h:100},
+      {id:'outreach', type:'marketing', badge:'OUTREACH', cx:'moderate', sched:'10:30 daily', title:'Email Outreach (Rohan)', desc:'Hinglish cold-email · Day-3/7 followups · MX verify · cap 25/day', files:'auto_outreach.py', flag:'AUTO_EMAIL_OUTREACH', x:600, y:360, w:240, h:110},
+      {id:'reply', type:'marketing', badge:'TRIAGE', cx:'moderate', sched:'hourly', title:'Reply Agent (IMAP)', desc:'Intent classify → status update → Hinglish draft (1-click send, auto OFF)', files:'reply_agent.py', flag:'REPLY_AGENT', x:880, y:360, w:240, h:110},
+      {id:'content', type:'marketing', badge:'CONTENT', cx:'moderate', sched:'07:00 daily', title:'Content Generator (Isha)', desc:'Daily posts + content_schedule.run_due · festival autoschedule · approval queue', files:'auto_content.py · content_schedule.py', flag:'USE_STRUCTURED_CONTENT', x:1160, y:360, w:240, h:110},
+      {id:'journey', type:'marketing', badge:'JOURNEY', cx:'moderate', sched:'event-driven', title:'Journey / Cadence Engine', desc:'inquiry_received · signup triggers · multi-channel cadence drafts', files:'journeys.py · cadence.py', flag:'JOURNEY_ENGINE', x:1440, y:360, w:240, h:110},
+      {id:'onboard', type:'marketing', badge:'ONBOARD', cx:'moderate', sched:'hourly', title:'Auto Onboard (FDE)', desc:'Website→KB seed · first content pack · mini-site setup', files:'onboarding.py · fde.py', flag:'AUTO_ONBOARD', x:1720, y:360, w:240, h:110},
+      {id:'coordinator', type:'ai', badge:'ORCHESTRATE', cx:'complex', sched:'on-demand', title:'Multi-Agent Coordinator', desc:'Sequential · Parallel · Hierarchical · Reflexion modes. Staff handoff pattern.', files:'coordinator.py', x:340, y:560, w:260, h:110},
+      {id:'process', type:'ai', badge:'PROCESS', cx:'complex', sched:'tick', title:'Process Engine', desc:'Process-as-code · event journal · human breakpoints · lead_campaign workflow', files:'process_engine.py', x:640, y:560, w:260, h:110},
+      {id:'self_improve', type:'loop', badge:'LOOP', cx:'complex', sched:'180s cycle', title:'Self-Improve Loop', desc:'Pick task → execute → learn → Celery requeue. SELF_IMPROVE_LOOP=1', files:'self_improve.py', flag:'SELF_IMPROVE_LOOP', x:960, y:560, w:260, h:110},
+      {id:'sales', type:'marketing', badge:'SALES', cx:'moderate', sched:'on trigger', title:'Sales Team + Closer', desc:'BANT deep-dive · auto-proposal · pipeline stages', files:'sales_team.py', flag:'SALES_TEAM', x:1260, y:560, w:240, h:100},
+      {id:'revenue', type:'monitor', badge:'REVENUE', cx:'moderate', sched:'daily digest', title:'Revenue Ops (Nikhil)', desc:'Dunning · lifecycle nurture · client health · MRR digest', files:'dunning · lifecycle', flag:'DUNNING_ENGINE', x:1540, y:560, w:240, h:100},
+      {id:'ops', type:'monitor', badge:'WATCHDOG', cx:'simple', sched:'hourly', title:'Ops Watchdog + Dead-Man', desc:'heartbeat · revive-beat */20min · automation_health alerts', files:'ops_watchdog.py', flag:'OPS_WATCHDOG', x:1820, y:560, w:240, h:100},
+      {id:'free_ai', type:'ai', badge:'LLM', cx:'complex', title:'Free AI Chain', desc:'Mistral PRIMARY → Groq → Cerebras. Circuit-breaker on 429', files:'free_ai.py', x:40, y:780, w:220, h:95},
+      {id:'data', type:'data', badge:'STORE', cx:'moderate', title:'Data Layer', desc:'Postgres leads/clients · Redis queue · jsonl stores · agent_events', files:'models/ · data/', x:300, y:780, w:280, h:95},
+      {id:'events', type:'platform', badge:'EVENTS', cx:'simple', title:'agent_events + SSE', desc:'Every job logs here → /app/team live dashboard · /api/events/stream', files:'team.py', x:620, y:780, w:240, h:95},
+      {id:'ui', type:'platform', badge:'CONTROL', cx:'simple', title:'Mission Control UI', desc:'/app/automation — flags · schedules · approvals · self-improve audit', files:'automation.html', x:900, y:780, w:260, h:95},
+      {id:'public_in', type:'external', badge:'TRIGGER', cx:'simple', title:'Inbound Triggers', desc:'/api/public/inquiry · signup · audit form → journey emit', files:'public_site.py', x:1200, y:780, w:240, h:95},
+      {id:'customer_wh', type:'external', badge:'WEBHOOK', cx:'simple', title:'Customer Webhooks', desc:'lead.created · lead.qualified · call.completed · payment.received', files:'customer_webhooks.py', x:1480, y:780, w:240, h:95},
+    ],
+    edges: [
+      {f:'beat', t:'worker', lbl:'cron fire', style:'async'},
+      {f:'worker', t:'prospect', lbl:'09:30', style:'async'},
+      {f:'worker', t:'content', lbl:'07:00', style:'async'},
+      {f:'worker', t:'outreach', lbl:'10:30', style:'async'},
+      {f:'worker', t:'reply', lbl:'hourly', style:'async'},
+      {f:'worker', t:'onboard', lbl:'hourly', style:'async'},
+      {f:'worker', t:'ops', lbl:'hourly', style:'async'},
+      {f:'worker', t:'self_improve', lbl:'180s', style:'async'},
+      {f:'prospect', t:'score', lbl:'rescore', style:'sync'},
+      {f:'score', t:'data', lbl:'persist', style:'sync'},
+      {f:'score', t:'outreach', lbl:'hot leads', style:'sync'},
+      {f:'outreach', t:'free_ai', lbl:'draft email', style:'sync'},
+      {f:'outreach', t:'data', lbl:'sent log', style:'sync'},
+      {f:'reply', t:'journey', lbl:'interested', style:'sync'},
+      {f:'reply', t:'sales', lbl:'hot reply', style:'sync'},
+      {f:'content', t:'free_ai', lbl:'generate', style:'sync'},
+      {f:'content', t:'data', lbl:'queue', style:'sync'},
+      {f:'public_in', t:'journey', lbl:'inquiry_received', style:'sync'},
+      {f:'public_in', t:'data', lbl:'lead row', style:'sync'},
+      {f:'public_in', t:'customer_wh', lbl:'lead.created', style:'async'},
+      {f:'journey', t:'outreach', lbl:'cadence step', style:'async'},
+      {f:'journey', t:'sales', lbl:'qualify', style:'sync'},
+      {f:'onboard', t:'data', lbl:'KB+pack', style:'sync'},
+      {f:'onboard', t:'content', lbl:'first pack', style:'sync'},
+      {f:'self_improve', t:'coordinator', lbl:'pick goal', style:'sync'},
+      {f:'coordinator', t:'process', lbl:'workflow', style:'sync'},
+      {f:'coordinator', t:'prospect', lbl:'scrape task', style:'async'},
+      {f:'coordinator', t:'outreach', lbl:'campaign', style:'async'},
+      {f:'process', t:'sales', lbl:'deep-dive', style:'sync'},
+      {f:'process', t:'revenue', lbl:'dunning gate', style:'sync'},
+      {f:'sales', t:'revenue', lbl:'pipeline', style:'sync'},
+      {f:'revenue', t:'data', lbl:'billing', style:'sync'},
+      {f:'ops', t:'beat', lbl:'revive', style:'loop'},
+      {f:'ops', t:'worker', lbl:'health', style:'sync'},
+      {f:'worker', t:'events', lbl:'log', style:'sync'},
+      {f:'events', t:'ui', lbl:'SSE live', style:'sync'},
+      {f:'self_improve', t:'worker', lbl:'requeue', style:'loop'},
+      {f:'worker', t:'self_improve', lbl:'tick', style:'loop'},
+      {f:'reply', t:'outreach', lbl:'followup draft', style:'loop'},
+      {f:'score', t:'prospect', lbl:'niche cursor', style:'loop'},
+      {f:'beat', t:'beat', lbl:'heartbeat', style:'loop'},
+    ],
+    tour: [
+      {title:'Automation Overview', nodeId:null, desc:'Complete lead→outreach→reply→sales loop. Celery Beat drives IST schedule. Self-improve + coordinator nested loops optimize daily.'},
+      {title:'Scheduler', nodeId:'beat', desc:'team_scheduler + Celery Beat fire jobs at IST times. Dead-man trio: heartbeat + revive + watchdog.'},
+      {title:'Prospect Pipeline', nodeId:'prospect', desc:'Daily scrape all 39 niches → score → hot leads to outreach.'},
+      {title:'Outreach Loop', nodeId:'outreach', desc:'Rohan sends 25/day max. Reply agent closes the loop hourly.'},
+      {title:'Self-Improve', nodeId:'self_improve', desc:'180s Celery self-chain. Picks best task, learns, requeues.'},
+      {title:'Mission Control', nodeId:'ui', desc:'Toggle flags, view schedules, approve drafts at /app/automation.'},
+    ],
+    presets: [
+      {id:'full', label:'Full Pipeline', nodes:null, edges:null},
+      {id:'leadgen', label:'Lead Gen Only', nodes:['beat','worker','prospect','score','outreach','reply','data','free_ai','public_in','events','ui'], edges:null},
+      {id:'content', label:'Content Pipeline', nodes:['beat','worker','content','onboard','free_ai','data','events','ui'], edges:null},
+      {id:'revenue', label:'Revenue Ops', nodes:['beat','worker','sales','revenue','journey','data','customer_wh','ui'], edges:null},
+      {id:'loops', label:'Loops Only', nodes:['beat','worker','self_improve','coordinator','process','ops','reply','outreach','score','prospect'], edges:null, loopsOnly:true},
+    ],
+  },
+};
+
+const FLOW_FLAGS = [
+  {key:'TEAM_AUTOMATION', def:true, node:'beat'},
+  {key:'NICHE_ROTATION', def:true, node:'prospect'},
+  {key:'AUTO_EMAIL_OUTREACH', def:true, node:'outreach'},
+  {key:'REPLY_AGENT', def:true, node:'reply'},
+  {key:'AUTO_ONBOARD', def:true, node:'onboard'},
+  {key:'SELF_IMPROVE_LOOP', def:true, node:'self_improve'},
+  {key:'JOURNEY_ENGINE', def:false, node:'journey'},
+  {key:'CADENCE_ENGINE', def:false, node:'journey'},
+  {key:'SALES_TEAM', def:true, node:'sales'},
+  {key:'DUNNING_ENGINE', def:true, node:'revenue'},
+  {key:'OPS_WATCHDOG', def:true, node:'ops'},
+  {key:'LEAD_HARVESTER', def:true, node:'prospect'},
+];
+
+const IST_SCHEDULE = [
+  {time:'06:30', label:'Blog generation', node:'content', job:'blog'},
+  {time:'07:00', label:'Content + client posts', node:'content', job:'content'},
+  {time:'08:30', label:'Daily digest', node:'revenue', job:'digest'},
+  {time:'09:30', label:'Prospect scrape (39 niches)', node:'prospect', job:'prospect'},
+  {time:'10:30', label:'Email outreach (Rohan)', node:'outreach', job:'email_outreach'},
+  {time:'*/15', label:'Growth pulse', node:'coordinator', job:'growth_pulse'},
+  {time:'hourly', label:'Reply triage (IMAP)', node:'reply', job:'reply_triage'},
+  {time:'hourly', label:'Ops watchdog + health', node:'ops', job:'ops_watchdog'},
+  {time:'hourly', label:'Auto-onboard sweep', node:'onboard', job:'auto_onboard'},
+  {time:'180s', label:'Self-improve loop tick', node:'self_improve', job:'self_improve'},
+  {time:'02:30', label:'Arjun voice QA', node:'ops', job:'qa'},
+  {time:'03:00', label:'Meera trainer', node:'ops', job:'trainer'},
+  {time:'*/20', label:'Revive-beat (dead-man)', node:'beat', job:'revive'},
+];
+
+const API_BASES = ['https://leadsgenai.in', 'http://127.0.0.1:8000', 'http://localhost:8000'];
+
+function getApiBases() {
+  const bases = [];
+  if(location.protocol.startsWith('http') && location.host && !location.protocol.startsWith('file'))
+    bases.push(location.origin);
+  API_BASES.forEach(b => { if(!bases.includes(b)) bases.push(b); });
+  return bases;
+}
+
+const NODE_TEMPLATES = [
+  {type:'platform', badge:'TRIGGER', title:'Webhook / Trigger', desc:'Event ya API se flow start', files:'trigger', color:'#60a5fa'},
+  {type:'platform', badge:'SCHEDULER', title:'Cron / Beat', desc:'IST schedule se job fire', files:'team_scheduler.py', color:'#60a5fa'},
+  {type:'marketing', badge:'SCRAPE', title:'Prospector', desc:'Leads scrape + enrich', files:'prospector.py', color:'#3b82f6'},
+  {type:'marketing', badge:'OUTREACH', title:'Email Outreach', desc:'Cold email + followups', files:'auto_outreach.py', color:'#3b82f6'},
+  {type:'marketing', badge:'CONTENT', title:'Content Gen', desc:'Posts + captions generate', files:'auto_content.py', color:'#3b82f6'},
+  {type:'ai', badge:'LLM', title:'AI / LLM Step', desc:'free_ai chain call', files:'free_ai.py', color:'#818cf8'},
+  {type:'ai', badge:'ORCHESTRATE', title:'Coordinator', desc:'Multi-agent handoff', files:'coordinator.py', color:'#818cf8'},
+  {type:'loop', badge:'LOOP', title:'Feedback Loop', desc:'Requeue / retry cycle', files:'self_improve.py', color:'#e879f9'},
+  {type:'data', badge:'STORE', title:'Data / DB', desc:'Postgres · Redis · jsonl', files:'data/', color:'#22d3ee'},
+  {type:'monitor', badge:'WATCHDOG', title:'Ops / Alert', desc:'Health check + notify', files:'ops_watchdog.py', color:'#fbbf24'},
+  {type:'external', badge:'ACTION', title:'External API', desc:'SMTP · WhatsApp · Maps', files:'integrations/', color:'#4ade80'},
+];
+
+const TYPE_COLORS = {platform:'#60a5fa',marketing:'#3b82f6',voice:'#fb923c',ai:'#818cf8',data:'#22d3ee',external:'#4ade80',monitor:'#fbbf24',loop:'#e879f9'};
+
+let customFlowStore = { activeId: null, flows: {} };
+
+// ════════════════════════════════════
+// STATE
+// ════════════════════════════════════
+let currentView = 'automation';
+let currentPreset = 'full';
+let vp = {x:0, y:0, scale:1};
+let dragging=false, dragStart={x:0,y:0}, vpStart={x:0,y:0};
+let nodeDragging=false, nodeDragId=null, nodeDragOff={x:0,y:0};
+let locked=false, selectedNode=null;
+let tourActive=false, tourStep=-1, visitedSteps=new Set();
+let showEdges=true, showLoops=true;
+let flowPlaying=false, flowAnimId=null;
+let tracePathSet=null;
+let liveHealth=null;
+let flagState = {};
+let nodeMap = {}, activeNodes=[], activeEdges=[];
+let edgePathCache = {};
+let linkFrom = null, linkMouse = null, shiftLinkFrom = null, selectedEdge = null;
+
+function isBuilder() { return currentView === 'custom'; }
+
+function initCustomFlows() {
+  try {
+    const raw = localStorage.getItem('explorer_custom_flows');
+    if(raw) customFlowStore = JSON.parse(raw);
+  } catch(e) {}
+  if(!customFlowStore.flows || !Object.keys(customFlowStore.flows).length) {
+    customFlowStore.flows = { default: makeBlankFlow('My Pipeline') };
+    customFlowStore.flows.default.id = 'default';
+  }
+  if(!customFlowStore.activeId || !customFlowStore.flows[customFlowStore.activeId])
+    customFlowStore.activeId = Object.keys(customFlowStore.flows)[0];
+  syncCustomView();
+}
+
+function makeBlankFlow(name) {
+  return { id: 'f_'+Date.now().toString(36), name, nodes: [], edges: [], world: {w:2400,h:1500} };
+}
+
+function syncCustomView() {
+  const flow = customFlowStore.flows[customFlowStore.activeId];
+  if(!flow) return;
+  VIEWS.custom = {
+    label: flow.name,
+    badge: 'FLOW BUILDER · '+flow.name.toUpperCase(),
+    world: flow.world || {w:2400,h:1500},
+    nodes: flow.nodes,
+    edges: flow.edges,
+    presets: [{id:'all', label:'All', nodes:null, edges:null}],
+    tour: [{title:'Custom Flow', nodeId:null, desc:'Apna automation flow banao — nodes palette se add karo, ports se connect karo, save localStorage me.'}],
+  };
+}
+
+function persistCustomFlow() {
+  if(!isBuilder()) return;
+  const flow = customFlowStore.flows[customFlowStore.activeId];
+  if(!flow) return;
+  flow.nodes = VIEWS.custom.nodes;
+  flow.edges = VIEWS.custom.edges;
+  flow.name = VIEWS.custom.label;
+  localStorage.setItem('explorer_custom_flows', JSON.stringify(customFlowStore));
+}
+
+function viewportCenter() {
+  const cw = document.getElementById('cw');
+  return {
+    x: Math.round((cw.offsetWidth/2 - vp.x) / vp.scale - 110),
+    y: Math.round((cw.offsetHeight/2 - vp.y) / vp.scale - 50),
+  };
+}
+
+function addBuilderNode(template, x, y) {
+  if(!isBuilder()) switchView('custom', document.querySelector('[data-view=custom]'));
+  const c = x != null ? {x,y} : viewportCenter();
+  const id = 'n_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const node = {
+    id, type: template.type, badge: template.badge || 'STEP', cx:'moderate',
+    title: template.title, desc: template.desc || '', files: template.files || 'custom',
+    w: 220, h: 95, x: c.x, y: c.y,
+  };
+  getViewData().nodes.push(node);
+  persistCustomFlow();
+  applyPreset();
+  renderNodes();
+  renderEdges();
+  selectNode(id);
+  showBuilderPanel();
+}
+
+function removeBuilderNode(id) {
+  if(!isBuilder()) return;
+  const view = getViewData();
+  view.nodes = view.nodes.filter(n => n.id !== id);
+  view.edges = view.edges.filter(e => e.f !== id && e.t !== id);
+  if(selectedNode === id) selectedNode = null;
+  persistCustomFlow();
+  applyPreset();
+  renderNodes();
+  renderEdges();
+  showBuilderPanel();
+}
+
+function addBuilderEdge(fromId, toId, style, lbl) {
+  if(!fromId || !toId || fromId === toId) return;
+  const view = getViewData();
+  const dup = view.edges.some(e => e.f===fromId && e.t===toId && (e.lbl||'')===(lbl||''));
+  if(dup) return;
+  if(fromId === toId) style = 'loop';
+  view.edges.push({f:fromId, t:toId, lbl: lbl||'', style: style||'sync'});
+  persistCustomFlow();
+  applyPreset();
+  renderEdges(getHighlightSet());
+  document.getElementById('bc-edges').textContent = activeEdges.length + ' edges';
+}
+
+function removeBuilderEdge(idx) {
+  if(!isBuilder()) return;
+  getViewData().edges.splice(idx, 1);
+  selectedEdge = null;
+  persistCustomFlow();
+  applyPreset();
+  renderEdges();
+  showBuilderPanel();
+}
+
+function newCustomFlow() {
+  const name = prompt('Flow name:', 'New Pipeline');
+  if(!name) return;
+  const flow = makeBlankFlow(name);
+  customFlowStore.flows[flow.id] = flow;
+  customFlowStore.activeId = flow.id;
+  syncCustomView();
+  switchView('custom', document.querySelector('[data-view=custom]'));
+}
+
+function loadCustomFlowId(id) {
+  if(!customFlowStore.flows[id]) return;
+  customFlowStore.activeId = id;
+  syncCustomView();
+  if(!isBuilder()) switchView('custom', document.querySelector('[data-view=custom]'));
+  else {
+    applyPreset();
+    renderFlowPick();
+    renderNodes();
+    renderEdges();
+    document.getElementById('ov-badge').textContent = VIEWS.custom.badge;
+    fitView();
+    showBuilderPanel();
+  }
+}
+
+function cloneAutomationToBuilder() {
+  const src = VIEWS.automation;
+  const name = prompt('Clone automation as:', 'Automation Copy');
+  if(!name) return;
+  const flow = makeBlankFlow(name);
+  flow.nodes = JSON.parse(JSON.stringify(src.nodes));
+  flow.edges = JSON.parse(JSON.stringify(src.edges));
+  flow.id = 'f_'+Date.now().toString(36);
+  customFlowStore.flows[flow.id] = flow;
+  customFlowStore.activeId = flow.id;
+  syncCustomView();
+  switchView('custom', document.querySelector('[data-view=custom]'));
+}
+
+function deleteCurrentFlow() {
+  if(!isBuilder()) return;
+  const keys = Object.keys(customFlowStore.flows);
+  if(keys.length <= 1) { alert('Last flow delete nahi ho sakti — naya banao pehle.'); return; }
+  if(!confirm('Delete flow "'+customFlowStore.flows[customFlowStore.activeId].name+'"?')) return;
+  delete customFlowStore.flows[customFlowStore.activeId];
+  customFlowStore.activeId = Object.keys(customFlowStore.flows)[0];
+  localStorage.setItem('explorer_custom_flows', JSON.stringify(customFlowStore));
+  syncCustomView();
+  applyPreset();
+  renderFlowPick();
+  renderNodes();
+  renderEdges();
+  showBuilderPanel();
+}
+
+function updateSelectedNode(field, value) {
+  if(!selectedNode || !isBuilder()) return;
+  const n = nodeMap[selectedNode];
+  if(!n) return;
+  n[field] = value;
+  persistCustomFlow();
+  renderNodes();
+  document.getElementById('node-'+selectedNode)?.classList.add('selected');
+}
+
+function startLinkDrag(e, nodeId, portType) {
+  if(!isBuilder() || portType !== 'out') return;
+  e.stopPropagation();
+  e.preventDefault();
+  linkFrom = nodeId;
+  const n = nodeMap[nodeId];
+  linkMouse = { x: n.x + n.w/2, y: n.y + n.h };
+  document.querySelectorAll('.port-out').forEach(p => p.classList.remove('linking'));
+  e.target.classList.add('linking');
+  showLinkPreview(linkMouse.x, linkMouse.y, linkMouse.x, linkMouse.y);
+}
+
+function showLinkPreview(x1,y1,x2,y2) {
+  const lp = document.getElementById('link-preview');
+  lp.style.display = '';
+  lp.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+}
+
+function hideLinkPreview() {
+  const lp = document.getElementById('link-preview');
+  lp.style.display = 'none';
+  document.querySelectorAll('.port').forEach(p => p.classList.remove('linking'));
+}
+
+function finishLinkDrag(e, targetNodeId, portType) {
+  if(!linkFrom || portType !== 'in') return;
+  e.stopPropagation();
+  addBuilderEdge(linkFrom, targetNodeId, linkFrom === targetNodeId ? 'loop' : 'sync', '');
+  linkFrom = null;
+  hideLinkPreview();
+}
+
+function onLinkDragMove(e) {
+  if(!linkFrom) return;
+  const cw = document.getElementById('cw').getBoundingClientRect();
+  const wx = (e.clientX - cw.left - vp.x) / vp.scale;
+  const wy = (e.clientY - cw.top - vp.y) / vp.scale;
+  const n = nodeMap[linkFrom];
+  if(n) showLinkPreview(n.x + n.w/2, n.y + n.h, wx, wy);
+}
+
+function endLinkDrag() {
+  if(linkFrom) { linkFrom = null; hideLinkPreview(); }
+}
+
+function handleShiftConnect(nodeId) {
+  if(!isBuilder()) return;
+  if(!shiftLinkFrom) {
+    shiftLinkFrom = nodeId;
+    document.getElementById('node-'+nodeId)?.classList.add('selected');
+    return;
+  }
+  if(shiftLinkFrom !== nodeId) addBuilderEdge(shiftLinkFrom, nodeId, 'sync', '');
+  shiftLinkFrom = null;
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+  if(selectedNode) document.getElementById('node-'+selectedNode)?.classList.add('selected');
+}
+
+function loadFlags() {
+  const saved = localStorage.getItem('explorer_flags');
+  if(saved) try { flagState = JSON.parse(saved); } catch(e) { flagState = {}; }
+  FLOW_FLAGS.forEach(f => { if(flagState[f.key] === undefined) flagState[f.key] = f.def; });
+}
+function saveFlags() { localStorage.setItem('explorer_flags', JSON.stringify(flagState)); }
+
+function loadLayout() {
+  const raw = localStorage.getItem('explorer_layout_'+currentView);
+  if(!raw) return;
+  try {
+    const pos = JSON.parse(raw);
+    Object.keys(pos).forEach(id => {
+      const n = VIEWS[currentView].nodes.find(x => x.id === id);
+      if(n && pos[id]) { n.x = pos[id].x; n.y = pos[id].y; }
+    });
+  } catch(e) {}
+}
+
+function saveLayout() {
+  if(isBuilder()) { persistCustomFlow(); return; }
+  const pos = {};
+  getViewData().nodes.forEach(n => { pos[n.id] = {x:n.x, y:n.y}; });
+  localStorage.setItem('explorer_layout_'+currentView, JSON.stringify(pos));
+}
+
+function resetLayout() {
+  localStorage.removeItem('explorer_layout_'+currentView);
+  location.reload();
+}
+
+function getViewData() { return VIEWS[currentView]; }
+
+function applyPreset() {
+  if(currentView !== 'custom') loadLayout();
+  const view = getViewData();
+  const preset = view.presets.find(p => p.id === currentPreset) || view.presets[0];
+  let nodes = view.nodes;
+  let edges = view.edges;
+
+  if(preset.nodes) {
+    const set = new Set(preset.nodes);
+    nodes = view.nodes.filter(n => set.has(n.id));
+    edges = view.edges.filter(e => set.has(e.f) && set.has(e.t));
+  }
+  if(preset.loopsOnly) edges = edges.filter(e => e.style === 'loop');
+  if(!showLoops) edges = edges.filter(e => e.style !== 'loop');
+
+  activeNodes = nodes;
+  activeEdges = showEdges ? edges : [];
+  nodeMap = {};
+  activeNodes.forEach(n => nodeMap[n.id] = n);
+}
+
+// ════════════════════════════════════
+// ANCHOR + PATH
+// ════════════════════════════════════
+function getAnchors(src, tgt) {
+  const scx = src.x + src.w/2, scy = src.y + src.h/2;
+  const tcx = tgt.x + tgt.w/2, tcy = tgt.y + tgt.h/2;
+  const dx = tcx - scx, dy = tcy - scy;
+
+  function anchor(node, outward) {
+    const cx = node.x + node.w/2, cy = node.y + node.h/2;
+    if(Math.abs(dx) >= Math.abs(dy)) {
+      return outward > 0
+        ? [dx > 0 ? node.x + node.w : node.x, cy]
+        : [dx > 0 ? node.x : node.x + node.w, cy];
+    }
+    return outward > 0
+      ? [cx, dy > 0 ? node.y + node.h : node.y]
+      : [cx, dy > 0 ? node.y : node.y + node.h];
+  }
+  return {from: anchor(src, 1), to: anchor(tgt, -1), dx, dy, scx, scy, tcx, tcy};
+}
+
+function buildPath(e, src, tgt) {
+  if(e.style === 'loop' && e.f === e.t) {
+    const cx = src.x + src.w/2, cy = src.y + src.h/2;
+    const r = Math.max(src.w, src.h) * 0.55;
+    return `M ${cx} ${src.y} C ${cx + r*1.8} ${src.y - r} ${cx - r*1.8} ${src.y - r} ${cx} ${src.y}`;
+  }
+
+  const {from, to, dx, dy, scx, scy, tcx, tcy} = getAnchors(src, tgt);
+  const [sx, sy] = from, [tx, ty] = to;
+
+  if(e.style === 'loop') {
+    const bulge = Math.max(80, Math.abs(dx) * 0.35, Math.abs(dy) * 0.35);
+    const side = (scx + tcx) / 2 + (dy >= 0 ? bulge : -bulge);
+    const midY = (scy + tcy) / 2 - bulge * 0.5;
+    return `M ${sx} ${sy} Q ${side} ${midY} ${tx} ${ty}`;
+  }
+
+  const dist = Math.hypot(tx - sx, ty - sy);
+  const ctrl = Math.max(40, dist * 0.35);
+  if(Math.abs(dx) > Math.abs(dy)) {
+    return `M ${sx} ${sy} C ${sx + ctrl*Math.sign(dx||1)} ${sy} ${tx - ctrl*Math.sign(dx||1)} ${ty} ${tx} ${ty}`;
+  }
+  return `M ${sx} ${sy} C ${sx} ${sy + ctrl*Math.sign(dy||1)} ${tx} ${ty - ctrl*Math.sign(dy||1)} ${tx} ${ty}`;
+}
+
+function pathMidpoint(d) {
+  const nums = d.match(/-?\d+\.?\d*/g).map(Number);
+  if(nums.length >= 4) return [(nums[0]+nums[nums.length-2])/2, (nums[1]+nums[nums.length-1])/2];
+  return [0,0];
+}
+
+// ════════════════════════════════════
+// RENDER
+// ════════════════════════════════════
+function renderNodes() {
+  const layer = document.getElementById('nodes-layer');
+  layer.innerHTML = '';
+  const world = getViewData().world;
+  layer.style.width = world.w + 'px';
+  layer.style.height = world.h + 'px';
+
+  activeNodes.forEach(n => {
+    const disabled = !isBuilder() && n.flag && !flagState[n.flag];
+    const div = document.createElement('div');
+    div.className = `node nt-${n.type}${disabled?' disabled-node':''}${selectedNode===n.id?' selected':''}${tracePathSet?.has(n.id)&&selectedNode!==n.id?' trace-node':''}`;
+    div.id = `node-${n.id}`;
+    div.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w}px;min-height:${n.h}px`;
+    div.onmousedown = e => startNodeDrag(e, n.id);
+
+    if(isBuilder()) {
+      div.ondblclick = e => { e.stopPropagation(); selectNode(n.id); showBuilderPanel(); };
+    } else {
+      div.ondblclick = e => { e.stopPropagation(); copyNodePath(n); };
+    }
+
+    let statusHtml = '';
+    if(!isBuilder() && liveHealth && n.flag && liveHealth.flags) {
+      const prod = liveHealth.flags[n.flag];
+      statusHtml = `<span class="status-pill ${prod?'on':'off'}">${prod?'LIVE':'OFF'}</span>`;
+    }
+
+    const delBtn = isBuilder() ? `<div class="node-del" onclick="event.stopPropagation();removeBuilderNode('${n.id}')" title="Delete">×</div>` : '';
+    const schedOrCx = n.sched ? `<span class="node-sched">${n.sched}</span>` : `<span class="node-complexity cx-${n.cx||'moderate'}">${n.cx||'mod'}</span>`;
+
+    div.innerHTML = `
+      ${delBtn}
+      <div class="port port-in" onmousedown="event.stopPropagation()" onmouseup="finishLinkDrag(event,'${n.id}','in')"></div>
+      <div class="port port-out" onmousedown="startLinkDrag(event,'${n.id}','out')"></div>
+      <div class="node-inner">
+        <div class="node-header">
+          <span class="node-badge">${n.badge}</span>
+          ${schedOrCx}
+          ${statusHtml}
+        </div>
+        <div class="node-title">${n.title}</div>
+        <div class="node-desc">${n.desc}</div>
+        <div class="node-footer">
+          <span class="node-files">📄 ${n.files||'custom'}</span>
+          ${n.flag && !isBuilder() ? `<span class="node-flag">${n.flag}</span>` : ''}
+        </div>
+      </div>`;
+    layer.appendChild(div);
+  });
+
+  document.getElementById('bc-total').textContent = activeNodes.length + ' nodes';
+  document.getElementById('bc-edges').textContent = activeEdges.length + ' edges';
+  renderScheduleBar();
+}
+
+function startNodeDrag(e, id) {
+  if(e.button !== 0) return;
+  if(e.shiftKey && isBuilder()) { e.stopPropagation(); handleShiftConnect(id); return; }
+  e.stopPropagation();
+  nodeDragging = true;
+  nodeDragId = id;
+  const n = nodeMap[id];
+  const cw = document.getElementById('cw').getBoundingClientRect();
+  nodeDragOff = {
+    x: (e.clientX - cw.left - vp.x) / vp.scale - n.x,
+    y: (e.clientY - cw.top - vp.y) / vp.scale - n.y
+  };
+  document.getElementById('node-'+id)?.classList.add('dragging');
+  selectNode(id);
+}
+
+function onNodeDragMove(e) {
+  if(!nodeDragging || !nodeDragId) return;
+  const n = nodeMap[nodeDragId];
+  if(!n) return;
+  const cw = document.getElementById('cw').getBoundingClientRect();
+  n.x = Math.round((e.clientX - cw.left - vp.x) / vp.scale - nodeDragOff.x);
+  n.y = Math.round((e.clientY - cw.top - vp.y) / vp.scale - nodeDragOff.y);
+  const el = document.getElementById('node-'+nodeDragId);
+  if(el) { el.style.left = n.x+'px'; el.style.top = n.y+'px'; }
+  renderEdges(getHighlightSet());
+}
+
+function endNodeDrag() {
+  if(nodeDragging && nodeDragId) {
+    document.getElementById('node-'+nodeDragId)?.classList.remove('dragging');
+    if(isBuilder()) persistCustomFlow();
+    else saveLayout();
+    nodeDragging = false;
+    nodeDragId = null;
+  }
+  endLinkDrag();
+}
+
+function copyNodePath(n) {
+  const path = 'app/' + (n.files||'').split('·')[0].trim().replace(/^app\//,'');
+  navigator.clipboard.writeText(path).then(() => {
+    const el = document.getElementById('ls-text');
+    if(el) { el.textContent = 'Copied: '+path; setTimeout(fetchLiveHealth, 2000); }
+  });
+}
+
+function renderEdges(highlightIds) {
+  const svg = document.getElementById('edgesvg');
+  const world = getViewData().world;
+  svg.setAttribute('width', world.w);
+  svg.setAttribute('height', world.h);
+  svg.style.width = world.w + 'px';
+  svg.style.height = world.h + 'px';
+
+  Array.from(svg.querySelectorAll('g.edge-group, circle.flow-dot')).forEach(g => g.remove());
+  edgePathCache = {};
+
+  activeEdges.forEach((e, edgeIdx) => {
+    const src = nodeMap[e.f], tgt = nodeMap[e.t];
+    if(!src || !tgt) return;
+
+    const d = buildPath(e, src, tgt);
+    const key = e.f+'->'+e.t+'-'+(e.lbl||'');
+    edgePathCache[key] = d;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.classList.add('edge-group');
+    g.dataset.from = e.f;
+    g.dataset.to = e.t;
+    g.dataset.edgeIdx = edgeIdx;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-width', e.style === 'loop' ? '2.5' : '2');
+
+    let cls = 'edge-path ';
+    if(isBuilder()) cls += 'builder-edge ';
+    if(selectedEdge === edgeIdx) cls += 'highlight ';
+    else if(tracePathSet && tracePathSet.has(e.f) && tracePathSet.has(e.t)) cls += 'trace-edge';
+    else if(e.style === 'loop') cls += 'loop-edge';
+    else if(e.style === 'async' || e.style === 'opt') cls += 'async-edge';
+    else cls += 'sync-edge';
+
+    const isHi = highlightIds && (highlightIds.has(e.f) || highlightIds.has(e.t));
+    const isDim = highlightIds && !isHi && !tracePathSet && selectedEdge !== edgeIdx;
+    if(isHi && !tracePathSet && selectedEdge !== edgeIdx) cls += ' highlight';
+    if(isDim) cls += ' dimmed-edge';
+    path.setAttribute('class', cls);
+
+    if(isBuilder()) {
+      path.style.pointerEvents = 'stroke';
+      path.onclick = ev => {
+        ev.stopPropagation();
+        selectedEdge = edgeIdx;
+        selectedNode = null;
+        renderEdges();
+        showBuilderPanel();
+      };
+    }
+
+    const marker = e.style === 'loop' ? 'url(#ah-amber)' : (e.style === 'async' ? 'url(#ah-blue)' : 'url(#ah)');
+    path.setAttribute('marker-end', marker);
+    g.appendChild(path);
+
+    if(e.lbl) {
+      const [mx, my] = pathMidpoint(d);
+      const tw = Math.max(40, e.lbl.length * 5.5 + 10);
+      const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      bg.setAttribute('x', mx - tw/2);
+      bg.setAttribute('y', my - 8);
+      bg.setAttribute('width', tw);
+      bg.setAttribute('height', 14);
+      bg.setAttribute('rx', 3);
+      bg.setAttribute('class', 'edge-lbl-bg');
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+      lbl.setAttribute('x', mx);
+      lbl.setAttribute('y', my + 1);
+      lbl.setAttribute('class', 'edge-lbl');
+      lbl.setAttribute('text-anchor', 'middle');
+      lbl.setAttribute('dominant-baseline', 'middle');
+      lbl.textContent = e.lbl;
+      g.appendChild(bg);
+      g.appendChild(lbl);
+    }
+    svg.appendChild(g);
+  });
+
+  if(flowPlaying) startFlowDots();
+}
+
+function renderFlowPick() {
+  const el = document.getElementById('flow-pick');
+  if(currentView === 'custom') {
+    el.innerHTML = Object.values(customFlowStore.flows).map(f =>
+      `<button class="fp-btn${f.id===customFlowStore.activeId?' on':''}" onclick="loadCustomFlowId('${f.id}')">${f.name}</button>`
+    ).join('') + `<button class="fp-btn" onclick="newCustomFlow()">+ New Flow</button>`;
+    return;
+  }
+  const presets = getViewData().presets;
+  el.innerHTML = presets.map(p =>
+    `<button class="fp-btn${p.id===currentPreset?' on':''}" onclick="setPreset('${p.id}')">${p.label}</button>`
+  ).join('');
+}
+
+function setBuilderMode(on) {
+  document.getElementById('cw').classList.toggle('builder-mode', on);
+  document.body.classList.toggle('builder-mode', on);
+}
+
+function switchView(view, btn) {
+  currentView = view;
+  currentPreset = view === 'custom' ? 'all' : 'full';
+  tourActive = false; tourStep = -1;
+  selectedEdge = null; shiftLinkFrom = null; linkFrom = null;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(view === 'custom') syncCustomView();
+  document.getElementById('ov-badge').textContent = getViewData().badge;
+  document.getElementById('tour-nav').className = '';
+  setBuilderMode(view === 'custom');
+  applyPreset();
+  renderFlowPick();
+  renderNodes();
+  renderEdges();
+  applyTransform();
+  if(view === 'custom') showBuilderPanel();
+  else showDefaultSidebar();
+  setTimeout(fitView, 80);
+}
+
+function setPreset(id) {
+  currentPreset = id;
+  applyPreset();
+  renderFlowPick();
+  renderNodes();
+  renderEdges(selectedNode ? getConnectedIds(selectedNode) : null);
+  fitView();
+}
+
+function toggleEdges() {
+  showEdges = !showEdges;
+  document.getElementById('btn-edges').classList.toggle('on', showEdges);
+  applyPreset();
+  renderNodes();
+  renderEdges();
+}
+
+function toggleLoops() {
+  showLoops = !showLoops;
+  document.getElementById('btn-loops').classList.toggle('on', showLoops);
+  applyPreset();
+  renderEdges(selectedNode ? getConnectedIds(selectedNode) : null);
+  document.getElementById('bc-edges').textContent = activeEdges.length + ' edges';
+}
+
+function getConnectedIds(id) {
+  const s = new Set([id]);
+  activeEdges.forEach(e => { if(e.f===id) s.add(e.t); if(e.t===id) s.add(e.f); });
+  return s;
+}
+
+function getHighlightSet() {
+  if(tracePathSet) return tracePathSet;
+  if(selectedNode) return getConnectedIds(selectedNode);
+  return null;
+}
+
+function getDownstreamPath(startId) {
+  const visited = new Set([startId]);
+  const queue = [startId];
+  while(queue.length) {
+    const cur = queue.shift();
+    activeEdges.forEach(e => {
+      if(e.f === cur && !visited.has(e.t)) { visited.add(e.t); queue.push(e.t); }
+    });
+  }
+  return visited;
+}
+
+function traceFromSelected() {
+  if(!selectedNode) { tracePathSet = null; renderEdges(); return; }
+  tracePathSet = getDownstreamPath(selectedNode);
+  renderNodes();
+  renderEdges(tracePathSet);
+  const sb = document.getElementById('sb-content');
+  if(sb && !tourActive) {
+    const extra = document.createElement('div');
+    extra.className = 'step-detail';
+    extra.style.cssText = 'border-color:#166534;background:#071512;margin-top:8px';
+    extra.innerHTML = `<div class="sd-title" style="color:#4ade80">Trace: ${tracePathSet.size} nodes downstream</div>
+      <div class="sd-desc" style="color:#2a5a3d">Press T again or Esc to clear green path.</div>`;
+    sb.appendChild(extra);
+  }
+}
+
+// ════════════════════════════════════
+// VIEWPORT
+// ════════════════════════════════════
+function applyTransform() {
+  document.getElementById('viewport').style.transform = `translate(${vp.x}px,${vp.y}px) scale(${vp.scale})`;
+  document.getElementById('zoom-pct').textContent = Math.round(vp.scale*100)+'%';
+  drawMinimap();
+}
+
+function zoom(factor) {
+  const cw = document.getElementById('cw');
+  const cx = cw.offsetWidth/2, cy = cw.offsetHeight/2;
+  const ns = Math.max(0.12, Math.min(2.5, vp.scale * factor));
+  vp.x += (cx - vp.x) * (1 - ns/vp.scale);
+  vp.y += (cy - vp.y) * (1 - ns/vp.scale);
+  vp.scale = ns;
+  applyTransform();
+}
+
+function fitView() {
+  if(!activeNodes.length) return;
+  const cw = document.getElementById('cw'), pad = 50;
+  const minX = Math.min(...activeNodes.map(n=>n.x));
+  const minY = Math.min(...activeNodes.map(n=>n.y));
+  const maxX = Math.max(...activeNodes.map(n=>n.x+n.w));
+  const maxY = Math.max(...activeNodes.map(n=>n.y+n.h));
+  const gw = maxX-minX, gh = maxY-minY;
+  vp.scale = Math.min((cw.offsetWidth-pad*2)/gw, (cw.offsetHeight-pad*2)/gh, 1.1);
+  vp.x = (cw.offsetWidth - gw*vp.scale)/2 - minX*vp.scale;
+  vp.y = (cw.offsetHeight - gh*vp.scale)/2 - minY*vp.scale;
+  applyTransform();
+}
+
+function toggleLock() {
+  locked = !locked;
+  document.getElementById('lock-btn').textContent = locked ? '🔒' : '🔓';
+}
+
+function setupPanZoom() {
+  const cw = document.getElementById('cw');
+  cw.addEventListener('mousedown', e => {
+    if(locked || e.target.closest('.node')) return;
+    dragging = true;
+    dragStart = {x:e.clientX, y:e.clientY};
+    vpStart = {x:vp.x, y:vp.y};
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if(linkFrom) { onLinkDragMove(e); return; }
+    if(nodeDragging) { onNodeDragMove(e); return; }
+    if(!dragging) return;
+    vp.x = vpStart.x + (e.clientX - dragStart.x);
+    vp.y = vpStart.y + (e.clientY - dragStart.y);
+    applyTransform();
+  });
+  window.addEventListener('mouseup', () => { dragging = false; endNodeDrag(); });
+  cw.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = cw.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const delta = e.deltaY < 0 ? 1.12 : 0.89;
+    const ns = Math.max(0.12, Math.min(2.5, vp.scale * delta));
+    vp.x = mx - (mx - vp.x) * (ns/vp.scale);
+    vp.y = my - (my - vp.y) * (ns/vp.scale);
+    vp.scale = ns;
+    applyTransform();
+  }, {passive:false});
+}
+
+function panToNode(id) {
+  const n = nodeMap[id]; if(!n) return;
+  const cw = document.getElementById('cw');
+  const tx = cw.offsetWidth/2 - (n.x+n.w/2)*vp.scale;
+  const ty = cw.offsetHeight/2 - (n.y+n.h/2)*vp.scale;
+  const sx=vp.x, sy=vp.y, start=performance.now();
+  (function anim(now) {
+    const t = Math.min(1,(now-start)/400);
+    const e = t<0.5?2*t*t:-1+(4-2*t)*t;
+    vp.x = sx+(tx-sx)*e; vp.y = sy+(ty-sy)*e;
+    applyTransform();
+    if(t<1) requestAnimationFrame(anim);
+  })(performance.now());
+}
+
+// ════════════════════════════════════
+// SELECTION + SIDEBAR
+// ════════════════════════════════════
+function selectNode(id) {
+  tracePathSet = null;
+  selectedEdge = null;
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+  document.getElementById('node-'+id)?.classList.add('selected');
+  selectedNode = id;
+  renderEdges(getConnectedIds(id));
+  if(isBuilder()) showBuilderPanel();
+  else showNodeDetail(nodeMap[id]);
+  if(!nodeDragging) panToNode(id);
+}
+
+function showNodeDetail(n) {
+  if(!n) return;
+  const cols = {platform:'#60a5fa',marketing:'#3b82f6',voice:'#fb923c',ai:'#818cf8',data:'#22d3ee',external:'#4ade80',monitor:'#fbbf24',loop:'#e879f9'};
+  const incoming = activeEdges.filter(e => e.t === n.id);
+  const outgoing = activeEdges.filter(e => e.f === n.id);
+  const flagOn = n.flag ? flagState[n.flag] : null;
+
+  let html = `
+    <div class="nd-card">
+      <div class="nd-type" style="color:${cols[n.type]}">${n.badge} · ${n.type.toUpperCase()}</div>
+      <div class="nd-title">${n.title}</div>
+      <div class="nd-desc">${n.desc}</div>
+      <div class="nd-meta">
+        <span class="nm">files <b>${n.files}</b></span>
+        ${n.sched?`<span class="nm">schedule <b>${n.sched}</b></span>`:''}
+        ${n.flag?`<span class="nm">flag <b>${n.flag}</b> ${flagOn?'✅ ON':'⬜ OFF'}</span>`:''}
+      </div>
+    </div>`;
+
+  if(n.flag) {
+    html += `<button class="action-btn primary" onclick="toggleFlag('${n.flag}')">${flagOn?'⏸ Disable':'▶ Enable'} ${n.flag} (draft)</button>`;
+    html += `<div style="font-size:9px;color:#4b5563;margin-bottom:10px">Draft toggle — production me .env + restart chahiye. Mission Control → Flags tab.</div>`;
+  }
+
+  if(outgoing.length || incoming.length) {
+    html += `<div class="panel-hdr">Connections (${incoming.length+outgoing.length})</div>`;
+    html += `<button class="action-btn" onclick="traceFromSelected()">⤵ Trace downstream path (T)</button>`;
+    outgoing.forEach(e => {
+      html += `<div class="conn-row${e.style==='loop'?' loop-row':''}" onclick="selectNode('${e.t}')">
+        → ${nodeMap[e.t]?.title||e.t} ${e.lbl?`<span style="font-size:9px;opacity:.7">${e.lbl}</span>`:''} ${e.style==='loop'?'↻':''}
+      </div>`;
+    });
+    incoming.forEach(e => {
+      html += `<div class="conn-row${e.style==='loop'?' loop-row':''}" onclick="selectNode('${e.f}')">
+        ← ${nodeMap[e.f]?.title||e.f} ${e.lbl?`<span style="font-size:9px;opacity:.7">${e.lbl}</span>`:''} ${e.style==='loop'?'↻':''}
+      </div>`;
+    });
+  }
+
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+}
+
+function showFlowPanel() {
+  const presets = getViewData().presets;
+  let html = `<div class="panel-hdr">Flow Presets</div>`;
+  presets.forEach(p => {
+    html += `<div class="flow-card${p.id===currentPreset?' on':''}" onclick="setPreset('${p.id}')">
+      <div class="fc-title">${p.label}</div>
+      <div class="fc-desc">${p.id==='full'?'Saare nodes + connections':p.id==='loops'?'Sirf feedback loops (amber dashed)':p.id+' pipeline subset'}</div>
+    </div>`;
+  });
+  html += `<div class="panel-hdr">Quick Actions</div>`;
+  html += `<button class="action-btn" onclick="setPreset('loops');switchView('automation',document.querySelector('[data-view=automation]'))">↻ Show All Loops</button>`;
+  html += `<button class="action-btn" onclick="fitView()">⊡ Fit View</button>`;
+  html += `<button class="action-btn primary" onclick="exportFlow()">↓ Export Flow JSON</button>`;
+  html += `<a class="action-btn" href="/app/automation">↗ Open Mission Control (/app/automation)</a>`;
+  html += `<div class="panel-hdr">Complete Automation Checklist</div>`;
+  html += `<div style="font-size:10px;color:#64748b;line-height:1.7">
+    ① Beat schedule ON (TEAM_AUTOMATION)<br>
+    ② Prospect → Score → Outreach chain<br>
+    ③ Reply triage closes email loop<br>
+    ④ Self-improve 180s requeue<br>
+    ⑤ Ops watchdog revive dead jobs<br>
+    ⑥ Journey on inquiry/signup<br>
+    ⑦ Monitor /app/automation health tab
+  </div>`;
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach((t,i)=>t.classList.toggle('active',i===1));
+}
+
+function showFlagsPanel() {
+  let html = `<div class="panel-hdr">Automation Flags (draft)</div>
+    <div style="font-size:9px;color:#4b5563;margin-bottom:10px">Toggle = localStorage draft. Production: .env + docker recreate app.</div>`;
+  FLOW_FLAGS.forEach(f => {
+    const on = flagState[f.key];
+    html += `<div class="flag-row">
+      <span class="flag-name">${f.key}</span>
+      <div class="flag-toggle${on?' on':''}" onclick="toggleFlag('${f.key}')"></div>
+    </div>`;
+  });
+  html += `<button class="action-btn" style="margin-top:12px" onclick="resetFlags()">↺ Reset to defaults</button>`;
+  html += `<button class="action-btn primary" onclick="copyEnvSnippet()">📋 Copy .env snippet</button>`;
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach((t,i)=>t.classList.toggle('active',i===2));
+}
+
+function toggleFlag(key) {
+  flagState[key] = !flagState[key];
+  saveFlags();
+  renderNodes();
+  if(selectedNode) showNodeDetail(nodeMap[selectedNode]);
+  else if(document.querySelector('.sb-tab.active')?.textContent === 'FLAGS') showFlagsPanel();
+}
+
+function resetFlags() {
+  FLOW_FLAGS.forEach(f => flagState[f.key] = f.def);
+  saveFlags();
+  renderNodes();
+  showFlagsPanel();
+}
+
+function copyEnvSnippet() {
+  const lines = FLOW_FLAGS.map(f => `${f.key}=${flagState[f.key]?1:0}`).join('\n');
+  navigator.clipboard.writeText(lines).then(() => alert('Copied .env snippet to clipboard'));
+}
+
+function sbTab(which, el) {
+  document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  if(which === 'info') selectedNode ? showNodeDetail(nodeMap[selectedNode]) : (isBuilder() ? showBuilderPanel() : showDefaultSidebar());
+  else if(which === 'flow') showFlowPanel();
+  else if(which === 'flags') showFlagsPanel();
+  else if(which === 'sched') showSchedulePanel();
+  else if(which === 'build') { if(!isBuilder()) switchView('custom', document.querySelector('[data-view=custom]')); else showBuilderPanel(); }
+}
+
+function showBuilderPanel() {
+  const flow = customFlowStore.flows[customFlowStore.activeId];
+  let html = `<div class="panel-hdr">Flow Builder</div>
+    <input class="builder-field" id="bf-name" value="${flow?.name||'Flow'}" placeholder="Flow name" onchange="updateFlowName(this.value)">
+    <button class="action-btn primary" onclick="persistCustomFlow();alert('Saved!')">💾 Save Flow</button>
+    <button class="action-btn" onclick="importFlowJSON()">↑ Import JSON</button>
+    <input type="file" id="import-flow-file" accept=".json,application/json" style="display:none" onchange="onImportFlowFile(event)">
+    <button class="action-btn" onclick="cloneAutomationToBuilder()">📋 Clone Automation Template</button>
+    <button class="action-btn" onclick="deleteCurrentFlow()">🗑 Delete This Flow</button>
+    <div class="panel-hdr">Add Node (click)</div>`;
+
+  NODE_TEMPLATES.forEach((t,i) => {
+    html += `<div class="palette-item" onclick="addBuilderNode(NODE_TEMPLATES[${i}])">
+      <span class="pi-dot" style="background:${t.color||TYPE_COLORS[t.type]}"></span>
+      <span><b>${t.title}</b><br><span style="opacity:.6">${t.badge}</span></span>
+    </div>`;
+  });
+
+  if(selectedNode && nodeMap[selectedNode]) {
+    const n = nodeMap[selectedNode];
+    html += `<div class="panel-hdr">Edit Selected Node</div>
+      <input class="builder-field" value="${n.title.replace(/"/g,'&quot;')}" onchange="updateSelectedNode('title',this.value)">
+      <input class="builder-field" value="${(n.desc||'').replace(/"/g,'&quot;')}" placeholder="Description" onchange="updateSelectedNode('desc',this.value)">
+      <select class="builder-field" onchange="updateSelectedNode('type',this.value);renderNodes();document.getElementById('node-${n.id}')?.classList.add('selected')">
+        ${Object.keys(TYPE_COLORS).map(t=>`<option value="${t}"${n.type===t?' selected':''}>${t}</option>`).join('')}
+      </select>
+      <select class="builder-field" id="bf-edge-style">
+        <option value="sync">sync edge</option>
+        <option value="async">async edge</option>
+        <option value="loop">loop edge</option>
+      </select>
+      <select class="builder-field" id="bf-edge-target"><option value="">Connect to…</option>
+        ${activeNodes.filter(x=>x.id!==selectedNode).map(x=>`<option value="${x.id}">${x.title}</option>`).join('')}
+      </select>
+      <button class="action-btn" onclick="connectFromSelected()">→ Add Connection</button>
+      <button class="action-btn" style="color:#f87171" onclick="removeBuilderNode('${selectedNode}')">× Delete Node</button>`;
+  }
+
+  html += `<div class="panel-hdr">Edges (${activeEdges.length})</div>`;
+  if(!activeEdges.length) html += `<div style="font-size:10px;color:#4b5563">Abhi koi connection nahi — port drag karo ya Shift+click 2 nodes.</div>`;
+  activeEdges.forEach((e,i) => {
+    const sel = selectedEdge === i ? ' style="background:#1a1408;color:#fbbf24"' : '';
+    html += `<div class="conn-row${e.style==='loop'?' loop-row':''}"${sel} onclick="selectedEdge=${i};selectedNode=null;renderEdges();showBuilderPanel()">
+      ${nodeMap[e.f]?.title||e.f} → ${nodeMap[e.t]?.title||e.t}
+      <span style="font-size:8px;opacity:.6">${e.style}${e.lbl?' · '+e.lbl:''}</span>
+      <span style="margin-left:auto;color:#f87171;cursor:pointer" onclick="event.stopPropagation();removeBuilderEdge(${i})">×</span>
+    </div>`;
+  });
+
+  if(selectedEdge != null && activeEdges[selectedEdge]) {
+    const e = activeEdges[selectedEdge];
+    html += `<button class="action-btn" style="color:#f87171;margin-top:6px" onclick="removeBuilderEdge(${selectedEdge})">× Delete Selected Edge</button>`;
+  }
+
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach(t => t.classList.toggle('active', t.textContent.trim()==='BUILD'));
+}
+
+function updateFlowName(name) {
+  if(!customFlowStore.flows[customFlowStore.activeId]) return;
+  customFlowStore.flows[customFlowStore.activeId].name = name;
+  VIEWS.custom.label = name;
+  VIEWS.custom.badge = 'FLOW BUILDER · '+name.toUpperCase();
+  document.getElementById('ov-badge').textContent = VIEWS.custom.badge;
+  renderFlowPick();
+  persistCustomFlow();
+}
+
+function connectFromSelected() {
+  const tgt = document.getElementById('bf-edge-target')?.value;
+  const style = document.getElementById('bf-edge-style')?.value || 'sync';
+  if(!tgt || !selectedNode) return;
+  addBuilderEdge(selectedNode, tgt, style, '');
+  showBuilderPanel();
+}
+
+function showDefaultSidebar() {
+  const tour = getViewData().tour;
+  document.getElementById('sb-content').innerHTML = `
+    <div class="tour-h">
+      <div class="tour-title">${getViewData().label}</div>
+      <div class="tour-sub" id="tour-sub">${tour.length} steps · Click nodes or Start Tour</div>
+    </div>
+    <button class="start-btn inactive" id="start-btn" onclick="toggleTour()">Start Tour</button>
+    <div class="steps-hdr">STEPS</div>
+    <div id="steps-list"></div>
+    <div class="panel-hdr">Tips</div>
+    <div style="font-size:10px;color:#64748b;line-height:1.6">
+      • Amber dashed = feedback loops · Blue = async queue<br>
+      • Drag node = reposition (auto-saved)<br>
+      • ▶ Play Flow = animated data dots<br>
+      • T = trace downstream · ? = shortcuts<br>
+      • SCHED tab = full IST cron list<br>
+      • Dbl-click node = copy file path
+    </div>`;
+  renderTourSteps();
+}
+
+function showSchedulePanel() {
+  let html = `<div class="panel-hdr">IST Automation Schedule</div>
+    <div style="font-size:9px;color:#4b5563;margin-bottom:10px">Real cron from team_scheduler.py + Celery beat. Click row → jump to node.</div>`;
+  IST_SCHEDULE.forEach(s => {
+    const visible = !s.node || nodeMap[s.node];
+    if(!visible) return;
+    html += `<div class="sched-row" onclick="${s.node?`selectNode('${s.node}')`:''}">
+      <span class="sched-time">${s.time}</span>
+      <span>${s.label}</span>
+      ${s.node?`<span style="font-size:8px;opacity:.5;margin-left:auto">${s.node}</span>`:''}
+    </div>`;
+  });
+  html += `<div class="panel-hdr">Layout</div>`;
+  html += `<button class="action-btn" onclick="resetLayout()">↺ Reset node positions</button>`;
+  html += `<button class="action-btn" onclick="fetchLiveHealth()">🔄 Refresh live health</button>`;
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach((t,i)=>t.classList.toggle('active', t.textContent.trim()==='SCHED'));
+}
+
+function renderScheduleBar() {
+  const el = document.getElementById('sched-list');
+  if(!el) return;
+  el.innerHTML = IST_SCHEDULE.filter(s => !s.node || nodeMap[s.node]).slice(0,8).map(s =>
+    `<div class="sched-row" onclick="${s.node?`selectNode('${s.node}')`:''}"><span class="sched-time">${s.time}</span><span>${s.label}</span></div>`
+  ).join('');
+}
+
+function toggleScheduleBar() {
+  document.getElementById('schedule-bar').classList.toggle('vis');
+  document.getElementById('btn-sched').classList.toggle('on');
+}
+
+// ════════════════════════════════════
+// FLOW ANIMATION
+// ════════════════════════════════════
+function toggleFlowPlay() {
+  flowPlaying = !flowPlaying;
+  const btn = document.getElementById('btn-play');
+  btn.textContent = flowPlaying ? '⏸ Pause' : '▶ Play Flow';
+  btn.classList.toggle('on', flowPlaying);
+  if(flowPlaying) startFlowDots();
+  else stopFlowDots();
+}
+
+function startFlowDots() {
+  stopFlowDots();
+  const svg = document.getElementById('edgesvg');
+  const paths = svg.querySelectorAll('g.edge-group path.edge-path:not(.dimmed-edge)');
+  const dots = [];
+  paths.forEach((pathEl, idx) => {
+    const len = pathEl.getTotalLength();
+    if(len < 20) return;
+    const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('r', '4');
+    dot.setAttribute('class', 'flow-dot');
+    dot._path = pathEl;
+    dot._offset = (idx * 0.17) % 1;
+    svg.appendChild(dot);
+    dots.push(dot);
+  });
+
+  let t0 = performance.now();
+  function anim(now) {
+    if(!flowPlaying) return;
+    const t = (now - t0) / 3000;
+    dots.forEach(d => {
+      const len = d._path.getTotalLength();
+      const pt = d._path.getPointAtLength(((d._offset + t) % 1) * len);
+      d.setAttribute('cx', pt.x);
+      d.setAttribute('cy', pt.y);
+    });
+    flowAnimId = requestAnimationFrame(anim);
+  }
+  flowAnimId = requestAnimationFrame(anim);
+}
+
+function stopFlowDots() {
+  if(flowAnimId) cancelAnimationFrame(flowAnimId);
+  flowAnimId = null;
+  document.querySelectorAll('#edgesvg circle.flow-dot').forEach(d => d.remove());
+}
+
+// ════════════════════════════════════
+// LIVE HEALTH (same-origin or leadsgenai.in)
+// ════════════════════════════════════
+async function fetchLiveHealth() {
+  const el = document.getElementById('live-status');
+  const txt = document.getElementById('ls-text');
+  if(!el || !txt) return;
+
+  for(const base of getApiBases()) {
+    try {
+      const [healthR, flagsR] = await Promise.all([
+        fetch(base+'/api/growth/infra/automation-health', {mode:'cors', credentials:'omit'}),
+        fetch(base+'/api/growth/infra/flags', {mode:'cors', credentials:'omit'}),
+      ]);
+      if(!healthR.ok && !flagsR.ok) continue;
+
+      let health = {}, flags = {};
+      try { health = await healthR.json(); } catch(e) {}
+      try { flags = await flagsR.json(); } catch(e) {}
+
+      const flagMap = {};
+      if(flags.flags) flags.flags.forEach(f => { flagMap[f.name || f.key] = f.on ?? f.enabled ?? false; });
+      else if(Array.isArray(flags)) flags.forEach(f => { flagMap[f.name||f] = true; });
+      else Object.keys(flags).forEach(k => { if(typeof flags[k]==='boolean') flagMap[k]=flags[k]; });
+
+      liveHealth = { base, health, flags: flagMap };
+      const overdue = health.overdue?.length || health.overdue_count || 0;
+      const ok = health.ok !== false && overdue === 0;
+      el.className = ok ? 'ok' : (overdue ? 'warn' : 'ok');
+      txt.textContent = ok
+        ? `Live OK · ${base.replace('https://','')}`
+        : `⚠ ${overdue} overdue jobs · ${base.replace('https://','')}`;
+      renderNodes();
+      return;
+    } catch(e) { continue; }
+  }
+  el.className = 'err';
+  txt.textContent = 'Offline mode · file:// — draft flags only';
+}
+
+// ════════════════════════════════════
+// KEYBOARD + HELP
+// ════════════════════════════════════
+function showHelp() { document.getElementById('help-modal').classList.add('vis'); }
+function hideHelp() { document.getElementById('help-modal').classList.remove('vis'); }
+
+function setupKeyboard() {
+  window.addEventListener('keydown', e => {
+    if(e.target.matches('input,textarea')) return;
+    if(e.key === '?') { showHelp(); return; }
+    if(e.key === 'Escape') {
+      tracePathSet = null; selectedNode = null; selectedEdge = null; shiftLinkFrom = null;
+      linkFrom = null; hideLinkPreview();
+      document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+      renderEdges(); renderNodes(); hideHelp();
+      if(isBuilder()) showBuilderPanel();
+      return;
+    }
+    if((e.key === 'Delete' || e.key === 'Backspace') && isBuilder()) {
+      if(selectedEdge != null) { removeBuilderEdge(selectedEdge); return; }
+      if(selectedNode) { removeBuilderNode(selectedNode); return; }
+    }
+    if(e.key === 'f' || e.key === 'F') { fitView(); return; }
+    if(e.key === '+' || e.key === '=') { zoom(1.15); return; }
+    if(e.key === '-') { zoom(0.87); return; }
+    if(e.key === ' ') { e.preventDefault(); toggleFlowPlay(); return; }
+    if(e.key === '1') switchView('structural', document.querySelector('[data-view=structural]'));
+    if(e.key === '2') switchView('automation', document.querySelector('[data-view=automation]'));
+    if(e.key === '3') switchView('custom', document.querySelector('[data-view=custom]'));
+    if(e.key === 't' || e.key === 'T') traceFromSelected();
+    if(e.key === 'l' || e.key === 'L') toggleLoops();
+  });
+}
+
+function setupMinimapClick() {
+  const canvas = document.getElementById('mm-canvas');
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const world = getViewData().world;
+    const wx = (e.clientX - rect.left) / rect.width * world.w;
+    const wy = (e.clientY - rect.top) / rect.height * world.h;
+    const cw = document.getElementById('cw');
+    vp.x = cw.offsetWidth/2 - wx*vp.scale;
+    vp.y = cw.offsetHeight/2 - wy*vp.scale;
+    applyTransform();
+  });
+}
+
+// ════════════════════════════════════
+// TOUR
+// ════════════════════════════════════
+function renderTourSteps() {
+  const list = document.getElementById('steps-list');
+  if(!list) return;
+  const tour = getViewData().tour;
+  list.innerHTML = tour.map((s,i) => `
+    <div class="step-row${tourStep===i?' active-step':''}" onclick="goToStep(${i})">
+      <div class="sn">${i+1}</div>
+      <div class="st">${s.title}</div>
+    </div>`).join('');
+}
+
+function toggleTour() {
+  tourActive = !tourActive;
+  const nav = document.getElementById('tour-nav');
+  if(tourActive) { nav.className = 'vis'; goToStep(0); }
+  else { tourStep=-1; nav.className=''; showDefaultSidebar(); document.querySelectorAll('.node').forEach(n=>n.classList.remove('selected')); renderEdges(); }
+}
+
+function goToStep(idx) {
+  const tour = getViewData().tour;
+  if(idx<0||idx>=tour.length) return;
+  tourStep = idx;
+  const step = tour[idx];
+  document.getElementById('prev-btn').disabled = idx===0;
+  document.getElementById('next-btn').textContent = idx===tour.length-1?'✓ Finish':'Next →';
+
+  if(step.nodeId) { selectNode(step.nodeId); }
+  else {
+    fitView();
+    document.getElementById('sb-content').innerHTML = `
+      <div class="step-detail"><div class="sd-title">${step.title}</div><div class="sd-desc">${step.desc}</div></div>`;
+    renderEdges();
+  }
+  renderTourSteps();
+}
+
+function tourNav(dir) {
+  if(dir===1 && tourStep>=getViewData().tour.length-1) { toggleTour(); return; }
+  goToStep(tourStep+dir);
+}
+
+// ════════════════════════════════════
+// SEARCH + EXPORT + MINIMAP
+// ════════════════════════════════════
+function doSearch(q) {
+  q = q.trim().toLowerCase();
+  const countEl = document.getElementById('bc-match');
+  if(!q) {
+    document.querySelectorAll('.node').forEach(n=>n.classList.remove('dimmed'));
+    countEl.style.display='none'; return;
+  }
+  let m=0;
+  activeNodes.forEach(n => {
+    const text = (n.title+n.desc+n.badge+n.type+(n.flag||'')).toLowerCase();
+    const match = text.includes(q);
+    document.getElementById('node-'+n.id)?.classList.toggle('dimmed', !match);
+    if(match) m++;
+  });
+  countEl.textContent = m+' matches';
+  countEl.style.display = 'inline-flex';
+}
+
+function exportFlow() {
+  const data = {
+    view: currentView,
+    preset: currentPreset,
+    exported: new Date().toISOString(),
+    flags: flagState,
+    nodes: activeNodes.map(n=>({id:n.id,type:n.type,title:n.title,desc:n.desc,badge:n.badge,files:n.files,flag:n.flag,sched:n.sched,x:n.x,y:n.y,w:n.w,h:n.h})),
+    edges: activeEdges.map(e=>({from:e.f,to:e.t,label:e.lbl,style:e.style})),
+  };
+  if(isBuilder()) data.flowName = customFlowStore.flows[customFlowStore.activeId]?.name;
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `leadgenai-flow-${currentView}-${currentPreset}.json`;
+  a.click();
+}
+
+function importFlowJSON() {
+  document.getElementById('import-flow-file')?.click();
+}
+
+function onImportFlowFile(ev) {
+  const file = ev.target.files?.[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if(!data.nodes?.length) throw new Error('JSON me nodes array chahiye');
+      const name = data.flowName || file.name.replace(/\.json$/i,'') || 'Imported Flow';
+      const flow = makeBlankFlow(name);
+      flow.nodes = data.nodes.map(n => ({
+        id: n.id || ('n_'+Math.random().toString(36).slice(2,8)),
+        type: n.type || 'platform', badge: n.badge || 'STEP', cx: n.cx || 'moderate',
+        title: n.title || 'Step', desc: n.desc || '', files: n.files || 'custom',
+        w: n.w || 220, h: n.h || 95, x: n.x ?? 100, y: n.y ?? 100,
+        sched: n.sched, flag: n.flag,
+      }));
+      flow.edges = (data.edges || []).map(e => ({
+        f: e.from || e.f, t: e.to || e.t, lbl: e.label || e.lbl || '', style: e.style || 'sync',
+      }));
+      flow.id = 'f_'+Date.now().toString(36);
+      customFlowStore.flows[flow.id] = flow;
+      customFlowStore.activeId = flow.id;
+      localStorage.setItem('explorer_custom_flows', JSON.stringify(customFlowStore));
+      syncCustomView();
+      switchView('custom', document.querySelector('[data-view=custom]'));
+    } catch(err) {
+      alert('Import fail: '+err.message);
+    }
+    ev.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function drawMinimap() {
+  const canvas = document.getElementById('mm-canvas');
+  const ctx = canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  const world = getViewData().world;
+  const sx=W/world.w, sy=H/world.h;
+  ctx.clearRect(0,0,W,H);
+
+  activeEdges.forEach(e => {
+    const s=nodeMap[e.f], t=nodeMap[e.t];
+    if(!s||!t) return;
+    ctx.strokeStyle = e.style==='loop'?'#92400e':'#1e3a5f';
+    ctx.lineWidth = e.style==='loop'?1.5:0.8;
+    ctx.beginPath();
+    ctx.moveTo((s.x+s.w/2)*sx,(s.y+s.h)*sy);
+    ctx.lineTo((t.x+t.w/2)*sx,t.y*sy);
+    ctx.stroke();
+  });
+
+  const cols = {platform:'#374151',marketing:'#1d4ed8',voice:'#9a3412',ai:'#4338ca',data:'#0e7490',external:'#166534',monitor:'#92400e',loop:'#7c3aed'};
+  activeNodes.forEach(n => {
+    ctx.fillStyle = cols[n.type]||'#374151';
+    ctx.fillRect(n.x*sx,n.y*sy,n.w*sx,n.h*sy);
+  });
+
+  const cw = document.getElementById('cw');
+  ctx.strokeStyle='#f59e0b'; ctx.lineWidth=1;
+  ctx.strokeRect(-vp.x/vp.scale*sx,-vp.y/vp.scale*sy,cw.offsetWidth/vp.scale*sx,cw.offsetHeight/vp.scale*sy);
+}
+
+// ════════════════════════════════════
+// INIT
+// ════════════════════════════════════
+function init() {
+  initCustomFlows();
+  loadFlags();
+  applyPreset();
+  renderFlowPick();
+  renderNodes();
+  renderEdges();
+  setupPanZoom();
+  setupKeyboard();
+  setupMinimapClick();
+  showDefaultSidebar();
+  fetchLiveHealth();
+  setTimeout(fitView, 120);
+  setInterval(fetchLiveHealth, 120000);
+}
+
+init();
+</script>
+</body>
+</html>

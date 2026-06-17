@@ -54,6 +54,7 @@ a{color:var(--acc)}
 <div class="layout">
 <nav class="side" id="sidebar">
   <button id="tab-today" onclick="show('today')">🏠 Aaj</button>
+  <a href="/app/explorer" style="display:block;padding:8px 10px;font-size:.85rem;color:var(--acc);text-decoration:none;border-radius:8px;margin:1px 0">🗺 Flow Explorer</a>
   <button id="tab-schedule" onclick="show('schedule')">🗓️ Schedule</button>
   <button id="tab-agents" onclick="show('agents')">🤖 Agents</button>
   <button id="tab-scraping" onclick="show('scraping')">🕷️ Scraping</button>
@@ -491,6 +492,25 @@ a{color:var(--acc)}
     <button class="btn" id="coSnapBtn" onclick="coSnapCapture()">📸 Capture</button>
     <button class="btn2" onclick="coSnapList()">List snapshots</button>
     <div id="coSnapOut"></div>
+  </div>
+  <div class="card">
+    <h2>✅ Content Approval</h2>
+    <div class="mut">Draft → client 1-click approve → publish queue (Dhanda se aage — agency-grade).</div>
+    <label>Client ID</label><input id="coApClient" placeholder="client id">
+    <label>Caption / JSON</label><textarea id="coApContent" placeholder='{"title":"Diwali","caption":"..."}'></textarea>
+    <button class="btn" onclick="coApSubmit()">Approval link banao</button>
+    <button class="btn2" onclick="coApList()">Pending load</button>
+    <div id="coApOut"></div>
+  </div>
+  <div class="card">
+    <h2>👥 Lead Round-Robin</h2>
+    <div class="mut">Client team config + manual assign test (NeoDove/TeleCRM parity).</div>
+    <label>Client ID</label><input id="coRtClient" placeholder="client id">
+    <label>Members JSON</label><textarea id="coRtMembers" placeholder='[{"name":"Ravi","phone":"9876543210"},{"name":"Priya","phone":"9123456789"}]'></textarea>
+    <button class="btn" onclick="coRtSave()">Save routing</button>
+    <button class="btn2" onclick="coRtAssign()">Test assign lead</button>
+    <button class="btn2" onclick="coRtList()">Recent assignments</button>
+    <div id="coRtOut"></div>
   </div>
 </section>
 
@@ -1194,6 +1214,41 @@ async function coSnapList(){
   var cid=$('coSnapClient').value.trim();
   try{var d=await api('/api/clientops/snapshots'+(cid?('?client_id='+encodeURIComponent(cid)):''));
     $('coSnapOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('List fail: '+e.message,false)}
+}
+async function coApSubmit(){
+  var cid=$('coApClient').value.trim(), raw=$('coApContent').value.trim();
+  if(!cid||!raw) return toast('Client ID + content chahiye',false);
+  var content; try{content=raw.startsWith('{')?JSON.parse(raw):{title:'Post',caption:raw};}catch(e){content={title:'Post',caption:raw};}
+  try{var d=await api('/api/clientops/approval',{method:'POST',body:JSON.stringify({client_id:cid,content:content})});
+    $('coApOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Approval link ready ✅');
+  }catch(e){toast('Approval fail: '+e.message,false)}
+}
+async function coApList(){
+  var cid=$('coApClient').value.trim();
+  try{var d=await api('/api/clientops/approvals?status=pending'+(cid?('&client_id='+encodeURIComponent(cid)):''));
+    $('coApOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('List fail: '+e.message,false)}
+}
+async function coRtSave(){
+  var cid=$('coRtClient').value.trim(), raw=$('coRtMembers').value.trim();
+  if(!cid||!raw) return toast('Client ID + members JSON chahiye',false);
+  var members; try{members=JSON.parse(raw);}catch(e){return toast('Invalid JSON',false);}
+  try{var d=await api('/api/clientops/routing',{method:'POST',body:JSON.stringify({client_id:cid,members:members})});
+    $('coRtOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Routing saved ✅');
+  }catch(e){toast('Routing fail: '+e.message,false)}
+}
+async function coRtAssign(){
+  var cid=$('coRtClient').value.trim(); if(!cid) return toast('Client ID daalo',false);
+  try{var d=await api('/api/clientops/routing/assign',{method:'POST',body:JSON.stringify({
+      client_id:cid,lead:{name:'Test Lead',phone:'9876543210',message:'Admin test assign',source:'admin'}})});
+    $('coRtOut').innerHTML='<div class="result">'+draftBlocks(d)+jpre(d)+'</div>';toast('Assigned ✅');
+  }catch(e){toast('Assign fail: '+e.message,false)}
+}
+async function coRtList(){
+  var cid=$('coRtClient').value.trim();
+  try{var d=await api('/api/clientops/routing/assignments'+(cid?('?client_id='+encodeURIComponent(cid)):''));
+    $('coRtOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
   }catch(e){toast('List fail: '+e.message,false)}
 }
 
