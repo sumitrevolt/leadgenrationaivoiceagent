@@ -98,6 +98,22 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
 .nt-loop .node-desc{color:#7c3aed}
 .nt-loop:hover{box-shadow:0 0 0 2px #a855f7,0 4px 24px rgba(168,85,247,.25);transform:translateY(-2px)}
 
+.nt-gap{background:#1a1010;border:2px dashed #991b1b;color:#fca5a5;opacity:.92}
+.nt-gap .node-badge{background:#450a0a;color:#f87171}
+.nt-gap .node-desc{color:#9f4a4a}
+.nt-gap:hover{box-shadow:0 0 0 1.5px #ef4444,0 4px 20px rgba(239,68,68,.15);transform:translateY(-2px)}
+
+.node.sku-marketing{box-shadow:0 0 0 2px #1d4ed8,0 0 24px rgba(29,78,216,.12)}
+.node.sku-voice{box-shadow:0 0 0 2px #ea580c,0 0 24px rgba(234,88,12,.12)}
+.node.sku-shared{border-style:dotted;border-color:#4b5563}
+.node.sku-feature{border-style:dashed;border-color:#60a5fa}
+.node.sku-gap-pr{border-style:dashed;border-color:#991b1b}
+
+#product-legend{position:absolute;bottom:52px;left:12px;z-index:40;font-size:9px;padding:8px 12px;border-radius:8px;border:1px solid #2d3748;background:#161618ee;color:#64748b;backdrop-filter:blur(4px);line-height:1.6;display:none}
+#product-legend.vis{display:block}
+#product-legend b{color:#e2e8f0}
+.pl-mkt{color:#60a5fa}.pl-voice{color:#fb923c}.pl-feat{color:#a78bfa}
+
 .node.selected{z-index:30}
 .node.dimmed{opacity:.22}
 .node.disabled-node{opacity:.35;border-style:dashed}
@@ -228,6 +244,9 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
 #live-status.ok .ls-dot{background:#4ade80;box-shadow:0 0 6px #4ade80}
 #live-status.warn .ls-dot{background:#fbbf24}
 #live-status.err .ls-dot{background:#f87171}
+#chg-toast{position:absolute;top:44px;left:50%;transform:translateX(-50%);z-index:51;max-width:520px;font-size:10px;padding:6px 12px;border-radius:8px;border:1px solid #2d3748;background:#161618ee;color:#94a3b8;display:none;backdrop-filter:blur(4px)}
+#chg-toast.vis{display:block}
+#chg-toast b{color:#fbbf24}
 
 #schedule-bar{position:absolute;left:12px;top:48px;z-index:50;background:#161618ee;border:1px solid #2d3748;border-radius:6px;padding:8px 10px;max-width:320px;display:none;backdrop-filter:blur(4px)}
 #schedule-bar.vis{display:block}
@@ -259,6 +278,7 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
   <div class="nav-tabs">
     <button class="nav-tab" data-view="structural" onclick="switchView('structural',this)">Structural</button>
     <button class="nav-tab active" data-view="automation" onclick="switchView('automation',this)">Automation</button>
+    <button class="nav-tab" data-view="products" onclick="switchView('products',this)">Products</button>
     <button class="nav-tab" data-view="custom" onclick="switchView('custom',this)">Builder</button>
   </div>
   <div class="nav-div"></div>
@@ -302,7 +322,8 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     </div>
     <div class="builder-banner" id="builder-banner">🔗 Drag <b style="color:#f59e0b">orange port</b> → <b style="color:#4ade80">green port</b> to connect · Shift+click 2 nodes · Del = delete</div>
     <div id="ov-badge">AUTOMATION PIPELINE</div>
-    <div id="live-status"><span class="ls-dot"></span><span id="ls-text">Checking automation health…</span></div>
+    <div id="live-status"><span class="ls-dot"></span><span id="ls-text">Checking live status…</span></div>
+    <div id="chg-toast"></div>
     <div id="schedule-bar">
       <div class="sb-ist">IST DAILY SCHEDULE (team_scheduler)</div>
       <div id="sched-list"></div>
@@ -318,6 +339,12 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
       <div class="zb" onclick="fitView()" style="font-size:11px">⊡</div>
       <div class="zb" id="lock-btn" onclick="toggleLock()">🔓</div>
       <div id="zoom-pct">100%</div>
+    </div>
+    <div id="product-legend">
+      <b>2 alag products</b> — bundle mat karo<br>
+      <span class="pl-mkt">■ Product 1 Marketing</span> ·
+      <span class="pl-voice">■ Product 2 Voice</span> ·
+      <span class="pl-feat">▪ Advanced = voice FEATURE only</span>
     </div>
     <div id="minimap"><canvas id="mm-canvas" width="320" height="192"></canvas><div class="mm-label">minimap</div></div>
   </div>
@@ -343,7 +370,7 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <h3>Keyboard Shortcuts</h3>
     <div class="help-row"><span class="help-kbd">F</span> Fit view &nbsp; <span class="help-kbd">Esc</span> Deselect</div>
     <div class="help-row"><span class="help-kbd">+</span>/<span class="help-kbd">−</span> Zoom &nbsp; <span class="help-kbd">Space</span> Play/pause flow animation</div>
-    <div class="help-row"><span class="help-kbd">1</span> Structural &nbsp; <span class="help-kbd">2</span> Automation &nbsp; <span class="help-kbd">3</span> Builder</div>
+    <div class="help-row"><span class="help-kbd">1</span> Structural &nbsp; <span class="help-kbd">2</span> Automation &nbsp; <span class="help-kbd">3</span> Builder &nbsp; <span class="help-kbd">4</span> Products</div>
     <div class="help-row"><span class="help-kbd">T</span> Trace downstream &nbsp; <span class="help-kbd">Del</span> Delete node/edge (builder)</div>
     <div class="help-row"><span class="help-kbd">Shift+click</span> Connect 2 nodes (builder) · Port drag = wire</div>
     <div class="help-row"><span class="help-kbd">?</span> This help &nbsp; Drag node = reposition (saved locally)</div>
@@ -360,39 +387,80 @@ const VIEWS = {
   structural: {
     label: 'Structural Architecture',
     badge: 'PROJECT OVERVIEW',
-    world: {w: 2200, h: 1600},
+    world: {w: 2900, h: 1750},
     nodes: [
-      {id:'internet', type:'platform', badge:'ENTRY', cx:'simple', title:'Browser / Internet', desc:'Client browsers · /b/{slug}/widget.js · External webhooks', files:'Public entry', x:750, y:30, w:250, h:100},
-      {id:'caddy', type:'platform', badge:'EDGE', cx:'simple', title:'Caddy TLS Edge Proxy', desc:'HOST process. HTTPS → 127.0.0.1:8000', files:'Caddyfile', x:750, y:190, w:250, h:100},
-      {id:'public_pages', type:'marketing', badge:'LAYER', cx:'moderate', title:'Public Frontend', desc:'/audit · /pricing · /b/{slug} · /blog · /voice-agent', files:'~40 pages', x:80, y:370, w:250, h:100},
-      {id:'admin_ui', type:'platform', badge:'LAYER', cx:'complex', title:'Admin Dashboards', desc:'/app/marketing · /app/automation · /app/team · /app/battlecard', files:'~35 pages', x:680, y:370, w:250, h:100},
-      {id:'customer_portal', type:'marketing', badge:'LAYER', cx:'moderate', title:'Customer Portal', desc:'/app/login → /app/customer. TOTP 2FA. Webhooks', files:'~10 pages', x:1280, y:370, w:250, h:100},
-      {id:'auth', type:'platform', badge:'LAYER', cx:'complex', title:'Auth & RBAC', desc:'Admin JWT + Customer JWT. Module RBAC. Consent ledger', files:'app/auth/', x:680, y:545, w:250, h:100},
-      {id:'fastapi', type:'platform', badge:'LAYER', cx:'complex', title:'FastAPI Monolith', desc:'~761 routes · uvicorn · Middleware · WS + SSE', files:'~200 files', x:360, y:720, w:700, h:110},
-      {id:'ai_staff', type:'ai', badge:'LAYER', cx:'complex', title:'17 AI Staff Team', desc:'Boss · Isha · Dev · Rohan · Swara · Kavya · FDE agents', files:'team.py', x:40, y:920, w:250, h:110},
-      {id:'voice_brain', type:'voice', badge:'LAYER', cx:'complex', title:'Voice Brain Pipeline', desc:'Exotel WS → STT → RAG → LLM → EdgeTTS', files:'voice_agent/', x:360, y:920, w:250, h:110},
-      {id:'celery', type:'platform', badge:'LAYER', cx:'moderate', title:'Celery Queue System', desc:'Beat IST → Redis → Worker. DLQ failed tasks', files:'worker.py', x:680, y:920, w:250, h:110},
-      {id:'external', type:'external', badge:'LAYER', cx:'moderate', title:'External Integrations', desc:'Razorpay · Exotel · SMTP · Google Maps · Pollinations', files:'integrations/', x:1000, y:920, w:250, h:110},
-      {id:'monitoring', type:'monitor', badge:'LAYER', cx:'moderate', title:'Monitoring Stack', desc:'Prometheus · Grafana · Loki · Tempo · ntfy', files:'observability.yml', x:1310, y:920, w:250, h:110},
-      {id:'free_ai', type:'ai', badge:'LAYER', cx:'complex', title:'Free AI Provider Chain', desc:'Mistral → Groq → Cerebras → Gemini. Circuit-breaker', files:'free_ai.py', x:40, y:1110, w:280, h:110},
-      {id:'rag', type:'ai', badge:'LAYER', cx:'complex', title:'RAG / Knowledge Base', desc:'Qdrant kb_main · niche: · client: · skills(241)', files:'knowledge_base.py', x:390, y:1110, w:280, h:110},
-      {id:'data_layer', type:'data', badge:'LAYER', cx:'moderate', title:'Data Layer', desc:'Postgres+PgBouncer · Redis×2 · Qdrant · ./data jsonl', files:'models/', x:740, y:1110, w:520, h:110},
+      {id:'internet', type:'platform', badge:'ENTRY', cx:'simple', title:'Browser / Internet', desc:'Client browsers · /b/{slug}/widget.js · External webhooks', files:'Public entry', x:820, y:30, w:250, h:100},
+      {id:'vps', type:'platform', badge:'HOST', cx:'simple', title:'Hostinger VPS Mumbai', desc:'72.61.245.204 · Docker 13+ containers · /opt/leadgen · Caddy host TLS', files:'docker-compose.vps.yml', x:1120, y:30, w:260, h:100},
+      {id:'caddy', type:'platform', badge:'EDGE', cx:'simple', title:'Caddy TLS Edge Proxy', desc:'HOST process. HTTPS → 127.0.0.1:8000 (leadgen_app)', files:'Caddyfile', x:820, y:190, w:250, h:100},
+      {id:'public_pages', type:'marketing', badge:'LAYER', cx:'moderate', title:'Public Frontend', desc:'/audit · /site-audit · /pricing · /blog · /compare · /voice-agent', files:'~45 pages', x:40, y:370, w:250, h:100},
+      {id:'embed_widget', type:'marketing', badge:'WIDGET', cx:'moderate', title:'Lead-Capture Embed', desc:'/b/{slug}/widget.js + /embed iframe · inquiry → lead + distribution', files:'embed_widget.py', x:40, y:520, w:250, h:100},
+      {id:'admin_ui', type:'platform', badge:'LAYER', cx:'complex', title:'Admin Dashboards', desc:'/app/marketing · /app/automation · /app/explorer · /app/growth-tools · /app/battlecard', files:'~40 pages', x:720, y:370, w:280, h:100},
+      {id:'explorer', type:'monitor', badge:'GRAPH', cx:'moderate', title:'Architecture Explorer', desc:'/app/explorer — live graph · flags sync · launch status · flow builder', files:'explorer.html', x:1040, y:370, w:260, h:100},
+      {id:'growth_hub', type:'monitor', badge:'GROWTH', cx:'moderate', title:'Growth & Ops Hub', desc:'/app/growth-tools · /app/dashboards · /app/outreach · /app/dialer · /app/analytics', files:'growth.py', x:1340, y:370, w:280, h:100},
+      {id:'customer_portal', type:'marketing', badge:'LAYER', cx:'moderate', title:'Customer Portal', desc:'/app/login → /app/customer · TOTP 2FA · content approve · webhooks', files:'customer_dashboard.py', x:1660, y:370, w:260, h:100},
+      {id:'marketing_hub', type:'marketing', badge:'MARKETING', cx:'complex', title:'Marketing Command', desc:'/app/marketing 28 tabs · /api/marketing/* · AI image · scheduler · widget', files:'marketing.py · marketing.html', x:40, y:680, w:260, h:110},
+      {id:'team_ui', type:'platform', badge:'TEAM', cx:'moderate', title:'AI Staff Dashboard', desc:'/app/team · 17 agents live · agent_events SSE · manual job runs', files:'team.py · team.html', x:1660, y:520, w:260, h:100},
+      {id:'auth', type:'platform', badge:'LAYER', cx:'complex', title:'Auth & RBAC', desc:'Admin JWT · Customer JWT · /app/team-access module RBAC · consent ledger', files:'admin.py · rbac.py', x:720, y:520, w:250, h:100},
+      {id:'tenant_wl', type:'platform', badge:'TENANT', cx:'moderate', title:'White-Label Middleware', desc:'Subdomain/custom domain → client branding · FAIL-OPEN apex', files:'middleware/tenant.py', x:420, y:520, w:250, h:100},
+      {id:'billing', type:'monitor', badge:'BILLING', cx:'moderate', title:'Billing & Usage', desc:'packages.py truth · usage ledger · GST invoices · Razorpay deferred', files:'billing.py · usage.py', x:1000, y:520, w:250, h:100},
+      {id:'fastapi', type:'platform', badge:'LAYER', cx:'complex', title:'FastAPI Monolith', desc:'~720 routes · uvicorn · Middleware · WS + SSE · Plan rate-limit', files:'main.py', x:340, y:840, w:720, h:110},
+      {id:'launch', type:'monitor', badge:'LAUNCH', cx:'simple', title:'Production Launch Gate', desc:'ready_for_launch · 13 probes · /api/activation/summary · production_ready.py', files:'activation.py', x:1100, y:840, w:280, h:110},
+      {id:'mcp_product', type:'ai', badge:'MCP', cx:'moderate', title:'MCP-as-Product', desc:'/mcp server · /api/mcp-product/v1 · /.well-known/agent.json A2A card', files:'mcp_product.py', x:1420, y:840, w:260, h:110},
+      {id:'compliance', type:'voice', badge:'LEGAL', cx:'complex', title:'India Telecom Compliance', desc:'TRAI DND fail-closed · consent ledger · AI disclosure · 10am-7pm', files:'compliance.py · dnd_checker.py', x:1720, y:840, w:260, h:110},
+      {id:'ai_staff', type:'ai', badge:'LAYER', cx:'complex', title:'17 AI Staff Team', desc:'Boss · Isha · Rohan · Swara · Kavya · FDE · Pranav/Vidya/Arnav KPI', files:'team.py · team_scheduler.py', x:40, y:1040, w:260, h:110},
+      {id:'voice_brain', type:'voice', badge:'LAYER', cx:'complex', title:'Voice Brain Pipeline', desc:'Exotel/Vobiz WS → Groq STT → RAG → LLM → EdgeTTS · web-call test', files:'voice_agent/', x:340, y:1040, w:260, h:110},
+      {id:'voice_product', type:'voice', badge:'PRODUCT', cx:'moderate', title:'Voice Agent Product', desc:'Standalone SKU /voice-agent · band A/B/C pricing · niche scripts', files:'voice_product.py · voice_packages.py', x:640, y:1040, w:260, h:110},
+      {id:'telephony_hub', type:'voice', badge:'TELEPHONY', cx:'complex', title:'Telephony Webhooks', desc:'Exotel active · Twilio fallback · call state Redis · AMD voicemail', files:'telephony/webhooks.py', x:940, y:1040, w:280, h:110},
+      {id:'celery', type:'platform', badge:'LAYER', cx:'moderate', title:'Celery Queue System', desc:'Beat IST → Redis → Worker×4 · Scheduler container · DLQ', files:'worker.py', x:1260, y:1040, w:250, h:110},
+      {id:'external', type:'external', badge:'LAYER', cx:'moderate', title:'External Integrations', desc:'Exotel · SMTP Hostinger · Google Maps · Pollinations · Telegram', files:'integrations/', x:1560, y:1040, w:260, h:110},
+      {id:'monitoring', type:'monitor', badge:'LAYER', cx:'moderate', title:'Monitoring Stack', desc:'Prometheus · Grafana · Loki · Tempo · ntfy · Flower · Celery exporter', files:'observability.yml', x:1860, y:1040, w:260, h:110},
+      {id:'free_ai', type:'ai', badge:'LAYER', cx:'complex', title:'Free AI Provider Chain', desc:'Mistral → Groq → Cerebras → Gemini · circuit-breaker 429', files:'free_ai.py', x:40, y:1240, w:280, h:110},
+      {id:'rag', type:'ai', badge:'LAYER', cx:'complex', title:'RAG / Knowledge Base', desc:'Qdrant kb_main · niche: · client: · skills(241) · agentic RAG opt-in', files:'knowledge_base.py', x:360, y:1240, w:280, h:110},
+      {id:'data_layer', type:'data', badge:'LAYER', cx:'moderate', title:'Data Layer', desc:'Postgres+PgBouncer · Redis×2 · Qdrant · MinIO opt · ./data jsonl', files:'models/', x:700, y:1240, w:560, h:110},
+      {id:'gap_transfer', type:'gap', badge:'GAP P0', cx:'complex', title:'Live Human Transfer', desc:'NOT BUILT — AI call → owner connect-leg + context whisper (voice moat)', files:'backlog · Advanced tier', x:2140, y:1040, w:240, h:100},
+      {id:'gap_frames', type:'gap', badge:'GAP P0', cx:'moderate', title:'Branded Frame Feed', desc:'NOT BUILT — AdBanao-style daily branded template overlay + feed', files:'backlog', x:2140, y:1160, w:240, h:100},
+      {id:'gap_geo', type:'gap', badge:'GAP P1', cx:'moderate', title:'GEO / AI Visibility', desc:'NOT BUILT — ChatGPT/AI search me business dikhta hai? lead magnet #3', files:'backlog', x:2140, y:1280, w:240, h:100},
+      {id:'gap_meta', type:'gap', badge:'BLOCKED', cx:'complex', title:'Meta FB/IG Auto-Post', desc:'EXTERNAL — Meta app review required · WA auto-send banned', files:'env blocked', x:2400, y:1040, w:240, h:100},
     ],
     edges: [
       {f:'internet', t:'caddy', lbl:'HTTPS', style:'sync'},
+      {f:'internet', t:'vps', lbl:'SSH', style:'sync'},
+      {f:'vps', t:'caddy', lbl:'hosts', style:'sync'},
       {f:'caddy', t:'public_pages', lbl:'', style:'sync'},
       {f:'caddy', t:'admin_ui', lbl:'', style:'sync'},
       {f:'caddy', t:'customer_portal', lbl:'', style:'sync'},
+      {f:'public_pages', t:'embed_widget', lbl:'embed script', style:'sync'},
+      {f:'embed_widget', t:'fastapi', lbl:'/api/public/inquiry', style:'sync'},
+      {f:'admin_ui', t:'explorer', lbl:'graph UI', style:'sync'},
+      {f:'admin_ui', t:'growth_hub', lbl:'ops', style:'sync'},
+      {f:'admin_ui', t:'marketing_hub', lbl:'28 tabs', style:'sync'},
+      {f:'admin_ui', t:'team_ui', lbl:'staff', style:'sync'},
       {f:'public_pages', t:'auth', lbl:'JWT', style:'sync'},
       {f:'admin_ui', t:'auth', lbl:'JWT', style:'sync'},
-      {f:'customer_portal', t:'auth', lbl:'JWT', style:'sync'},
+      {f:'customer_portal', t:'auth', lbl:'JWT+TOTP', style:'sync'},
+      {f:'auth', t:'tenant_wl', lbl:'host→slug', style:'sync'},
+      {f:'tenant_wl', t:'fastapi', lbl:'branding', style:'sync'},
       {f:'auth', t:'fastapi', lbl:'authed', style:'sync'},
+      {f:'customer_portal', t:'billing', lbl:'plan', style:'sync'},
+      {f:'fastapi', t:'billing', lbl:'/api/billing', style:'sync'},
+      {f:'fastapi', t:'launch', lbl:'/api/activation', style:'sync'},
+      {f:'launch', t:'admin_ui', lbl:'🚀 Launch tab', style:'sync'},
+      {f:'launch', t:'growth_hub', lbl:'dashboards', style:'sync'},
+      {f:'vps', t:'fastapi', lbl:'leadgen_app', style:'sync'},
+      {f:'fastapi', t:'mcp_product', lbl:'tools API', style:'sync'},
       {f:'fastapi', t:'ai_staff', lbl:'dispatch', style:'sync'},
       {f:'fastapi', t:'voice_brain', lbl:'WS', style:'sync'},
+      {f:'fastapi', t:'voice_product', lbl:'SKU', style:'sync'},
+      {f:'voice_brain', t:'telephony_hub', lbl:'streams', style:'sync'},
+      {f:'telephony_hub', t:'compliance', lbl:'DND gate', style:'sync'},
+      {f:'telephony_hub', t:'external', lbl:'Exotel', style:'sync'},
+      {f:'voice_brain', t:'gap_transfer', lbl:'missing', style:'opt'},
       {f:'fastapi', t:'celery', lbl:'enqueue', style:'async'},
       {f:'fastapi', t:'external', lbl:'API', style:'sync'},
       {f:'fastapi', t:'monitoring', lbl:'/metrics', style:'opt'},
       {f:'fastapi', t:'data_layer', lbl:'R/W', style:'sync'},
+      {f:'marketing_hub', t:'fastapi', lbl:'/api/marketing', style:'sync'},
+      {f:'marketing_hub', t:'rag', lbl:'client KB', style:'sync'},
       {f:'ai_staff', t:'free_ai', lbl:'LLM', style:'sync'},
       {f:'ai_staff', t:'rag', lbl:'RAG', style:'sync'},
       {f:'voice_brain', t:'free_ai', lbl:'LLM', style:'sync'},
@@ -401,51 +469,74 @@ const VIEWS = {
       {f:'celery', t:'data_layer', lbl:'persist', style:'async'},
       {f:'free_ai', t:'external', lbl:'providers', style:'sync'},
       {f:'rag', t:'data_layer', lbl:'Qdrant', style:'sync'},
+      {f:'external', t:'gap_meta', lbl:'blocked', style:'opt'},
       {f:'celery', t:'celery', lbl:'beat↻worker', style:'loop'},
       {f:'ai_staff', t:'celery', lbl:'requeue', style:'loop'},
+      {f:'team_ui', t:'ai_staff', lbl:'SSE events', style:'sync'},
     ],
     tour: [
-      {title:'System Overview', nodeId:null, desc:'LeadGen AI — Marketing + Voice products on single VPS Mumbai.'},
+      {title:'System Overview', nodeId:null, desc:'LeadGen AI — Marketing + Voice products on single VPS Mumbai. Red dashed = backlog gaps.'},
       {title:'Caddy Edge', nodeId:'caddy', desc:'TLS termination → Docker app :8000'},
-      {title:'Public Pages', nodeId:'public_pages', desc:'Lead magnets /audit, mini-sites /b/{slug}'},
-      {title:'Admin UI', nodeId:'admin_ui', desc:'28-tab marketing + Mission Control automation'},
-      {title:'FastAPI', nodeId:'fastapi', desc:'~761 routes monolith'},
-      {title:'AI Staff', nodeId:'ai_staff', desc:'17 agents coordinated via team_scheduler'},
-      {title:'Celery', nodeId:'celery', desc:'Durable queue with IST beat schedule'},
+      {title:'Embed Widget', nodeId:'embed_widget', desc:'Client site pe 1-line script → inquiry → lead distribution'},
+      {title:'Marketing Hub', nodeId:'marketing_hub', desc:'28-tab marketing command center'},
+      {title:'Growth Hub', nodeId:'growth_hub', desc:'Outreach, dialer, analytics, unified dashboards'},
+      {title:'Explorer', nodeId:'explorer', desc:'Live architecture graph — auto-syncs health + launch'},
+      {title:'Launch Gate', nodeId:'launch', desc:'13 activation probes — ready_for_launch'},
+      {title:'Voice Stack', nodeId:'telephony_hub', desc:'Exotel WS + compliance gates'},
+      {title:'Gap: Transfer', nodeId:'gap_transfer', desc:'P0 backlog — biggest voice differentiator missing'},
       {title:'Data Layer', nodeId:'data_layer', desc:'Postgres + Redis + Qdrant'},
     ],
-    presets: [{id:'all', label:'Full Stack', nodes:null, edges:null}],
+    presets: [
+      {id:'all', label:'Full Stack', nodes:null, edges:null},
+      {id:'products', label:'Products', nodes:['public_pages','marketing_hub','voice_product','customer_portal','billing','embed_widget'], edges:null},
+      {id:'voice', label:'Voice Stack', nodes:['voice_brain','voice_product','telephony_hub','compliance','free_ai','rag','gap_transfer'], edges:null},
+      {id:'gaps', label:'Gap Analysis', nodes:['gap_transfer','gap_frames','gap_geo','gap_meta','launch','monitoring'], edges:null},
+    ],
   },
 
   automation: {
     label: 'Complete Automation Pipeline',
     badge: 'AUTOMATION PIPELINE',
-    world: {w: 2400, h: 1500},
+    world: {w: 2900, h: 1650},
     nodes: [
-      {id:'beat', type:'platform', badge:'SCHEDULER', cx:'simple', sched:'IST cron', title:'Celery Beat + team_scheduler', desc:'06:30 blog · 07:00 content · 09:30 prospect · 10:30 outreach · hourly triage/ops/onboard · 15min growth-pulse', files:'worker.py · team_scheduler.py', flag:'TEAM_AUTOMATION', x:920, y:20, w:260, h:115},
-      {id:'worker', type:'platform', badge:'QUEUE', cx:'moderate', sched:'concurrency=4', title:'Celery Worker', desc:'Redis broker → staff_jobs queue. DLQ dlq:failed_tasks. Boot-grace on heavy jobs.', files:'app/worker.py', x:920, y:180, w:260, h:100},
-      {id:'prospect', type:'marketing', badge:'SCRAPE', cx:'moderate', sched:'09:30 daily', title:'Prospector + Lead Harvester', desc:'Google Maps · OSM · SearXNG · niche rotation (39 niches). NICHE_ROTATION=1', files:'prospector.py · lead_harvester.py', flag:'NICHE_ROTATION', x:40, y:360, w:240, h:110},
-      {id:'score', type:'ai', badge:'SCORE', cx:'simple', sched:'post-scrape', title:'Lead Scoring Engine', desc:'0-100 score · hot-lead flag · rescore_db after each scrape batch', files:'lead_scoring.py', x:340, y:360, w:220, h:100},
-      {id:'outreach', type:'marketing', badge:'OUTREACH', cx:'moderate', sched:'10:30 daily', title:'Email Outreach (Rohan)', desc:'Hinglish cold-email · Day-3/7 followups · MX verify · cap 25/day', files:'auto_outreach.py', flag:'AUTO_EMAIL_OUTREACH', x:600, y:360, w:240, h:110},
-      {id:'reply', type:'marketing', badge:'TRIAGE', cx:'moderate', sched:'hourly', title:'Reply Agent (IMAP)', desc:'Intent classify → status update → Hinglish draft (1-click send, auto OFF)', files:'reply_agent.py', flag:'REPLY_AGENT', x:880, y:360, w:240, h:110},
-      {id:'content', type:'marketing', badge:'CONTENT', cx:'moderate', sched:'07:00 daily', title:'Content Generator (Isha)', desc:'Daily posts + content_schedule.run_due · festival autoschedule · approval queue', files:'auto_content.py · content_schedule.py', flag:'USE_STRUCTURED_CONTENT', x:1160, y:360, w:240, h:110},
-      {id:'journey', type:'marketing', badge:'JOURNEY', cx:'moderate', sched:'event-driven', title:'Journey / Cadence Engine', desc:'inquiry_received · signup triggers · multi-channel cadence drafts', files:'journeys.py · cadence.py', flag:'JOURNEY_ENGINE', x:1440, y:360, w:240, h:110},
-      {id:'onboard', type:'marketing', badge:'ONBOARD', cx:'moderate', sched:'hourly', title:'Auto Onboard (FDE)', desc:'Website→KB seed · first content pack · mini-site setup', files:'onboarding.py · fde.py', flag:'AUTO_ONBOARD', x:1720, y:360, w:240, h:110},
-      {id:'coordinator', type:'ai', badge:'ORCHESTRATE', cx:'complex', sched:'on-demand', title:'Multi-Agent Coordinator', desc:'Sequential · Parallel · Hierarchical · Reflexion modes. Staff handoff pattern.', files:'coordinator.py', x:340, y:560, w:260, h:110},
-      {id:'process', type:'ai', badge:'PROCESS', cx:'complex', sched:'tick', title:'Process Engine', desc:'Process-as-code · event journal · human breakpoints · lead_campaign workflow', files:'process_engine.py', x:640, y:560, w:260, h:110},
-      {id:'self_improve', type:'loop', badge:'LOOP', cx:'complex', sched:'180s cycle', title:'Self-Improve Loop', desc:'Pick task → execute → learn → Celery requeue. SELF_IMPROVE_LOOP=1', files:'self_improve.py', flag:'SELF_IMPROVE_LOOP', x:960, y:560, w:260, h:110},
-      {id:'sales', type:'marketing', badge:'SALES', cx:'moderate', sched:'on trigger', title:'Sales Team + Closer', desc:'BANT deep-dive · auto-proposal · pipeline stages', files:'sales_team.py', flag:'SALES_TEAM', x:1260, y:560, w:240, h:100},
-      {id:'revenue', type:'monitor', badge:'REVENUE', cx:'moderate', sched:'daily digest', title:'Revenue Ops (Nikhil)', desc:'Dunning · lifecycle nurture · client health · MRR digest', files:'dunning · lifecycle', flag:'DUNNING_ENGINE', x:1540, y:560, w:240, h:100},
-      {id:'ops', type:'monitor', badge:'WATCHDOG', cx:'simple', sched:'hourly', title:'Ops Watchdog + Dead-Man', desc:'heartbeat · revive-beat */20min · automation_health alerts', files:'ops_watchdog.py', flag:'OPS_WATCHDOG', x:1820, y:560, w:240, h:100},
-      {id:'free_ai', type:'ai', badge:'LLM', cx:'complex', title:'Free AI Chain', desc:'Mistral PRIMARY → Groq → Cerebras. Circuit-breaker on 429', files:'free_ai.py', x:40, y:780, w:220, h:95},
-      {id:'data', type:'data', badge:'STORE', cx:'moderate', title:'Data Layer', desc:'Postgres leads/clients · Redis queue · jsonl stores · agent_events', files:'models/ · data/', x:300, y:780, w:280, h:95},
-      {id:'events', type:'platform', badge:'EVENTS', cx:'simple', title:'agent_events + SSE', desc:'Every job logs here → /app/team live dashboard · /api/events/stream', files:'team.py', x:620, y:780, w:240, h:95},
-      {id:'ui', type:'platform', badge:'CONTROL', cx:'simple', title:'Mission Control UI', desc:'/app/automation — flags · schedules · approvals · self-improve audit', files:'automation.html', x:900, y:780, w:260, h:95},
-      {id:'public_in', type:'external', badge:'TRIGGER', cx:'simple', title:'Inbound Triggers', desc:'/api/public/inquiry · signup · audit form → journey emit', files:'public_site.py', x:1200, y:780, w:240, h:95},
-      {id:'customer_wh', type:'external', badge:'WEBHOOK', cx:'simple', title:'Customer Webhooks', desc:'lead.created · lead.qualified · call.completed · payment.received', files:'customer_webhooks.py', x:1480, y:780, w:240, h:95},
+      {id:'beat', type:'platform', badge:'SCHEDULER', cx:'simple', sched:'IST cron', title:'Celery Beat + team_scheduler', desc:'06:30 blog · 07:00 content · 09:30 prospect · 10:30 outreach · hourly triage/ops/onboard · 15min growth-pulse', files:'worker.py · team_scheduler.py', flag:'TEAM_AUTOMATION', x:1020, y:20, w:260, h:115},
+      {id:'worker', type:'platform', badge:'QUEUE', cx:'moderate', sched:'concurrency=4', title:'Celery Worker', desc:'Redis broker → staff_jobs queue. DLQ dlq:failed_tasks. Boot-grace on heavy jobs.', files:'app/worker.py', x:1020, y:180, w:260, h:100},
+      {id:'blog', type:'marketing', badge:'BLOG', cx:'simple', sched:'06:30 daily', title:'Programmatic Blog SEO', desc:'Niche×city blog posts · sitemap · IndexNow hook', files:'blog_generator · seo_pages.py', x:40, y:360, w:230, h:100},
+      {id:'prospect', type:'marketing', badge:'SCRAPE', cx:'moderate', sched:'09:30 daily', title:'Prospector + Lead Harvester', desc:'Google Maps · OSM · SearXNG · LEAD_HARVESTER · 39 niches rotation', files:'prospector.py · lead_harvester.py', flag:'NICHE_ROTATION', x:300, y:360, w:250, h:110},
+      {id:'score', type:'ai', badge:'SCORE', cx:'simple', sched:'post-scrape', title:'Lead Scoring Engine', desc:'0-100 score · hot-lead flag · rescore_db after each scrape batch', files:'lead_scoring.py', x:580, y:360, w:220, h:100},
+      {id:'outreach', type:'marketing', badge:'OUTREACH', cx:'moderate', sched:'10:30 daily', title:'Email Outreach (Rohan)', desc:'Hinglish cold-email · Day-3/7 followups · MX verify · cap 25/day', files:'auto_outreach.py', flag:'AUTO_EMAIL_OUTREACH', x:840, y:360, w:240, h:110},
+      {id:'reply', type:'marketing', badge:'TRIAGE', cx:'moderate', sched:'hourly', title:'Reply Agent (IMAP)', desc:'Intent classify → status update → Hinglish draft (1-click send, auto OFF)', files:'reply_agent.py', flag:'REPLY_AGENT', x:1120, y:360, w:240, h:110},
+      {id:'content', type:'marketing', badge:'CONTENT', cx:'moderate', sched:'07:00 daily', title:'Content Generator (Isha)', desc:'Daily posts · content_schedule · festival autoschedule · approval queue', files:'auto_content.py · content_schedule.py', flag:'USE_STRUCTURED_CONTENT', x:1400, y:360, w:250, h:110},
+      {id:'content_approve', type:'marketing', badge:'APPROVE', cx:'moderate', sched:'on submit', title:'Content Approval Loop', desc:'draft → customer portal approve/reject → ready queue (agency-grade)', files:'content_approval.py', x:1680, y:360, w:250, h:110},
+      {id:'journey', type:'marketing', badge:'JOURNEY', cx:'moderate', sched:'event-driven', title:'Journey / Cadence Engine', desc:'inquiry_received · signup · multi-channel cadence drafts', files:'journeys.py · cadence.py', flag:'JOURNEY_ENGINE', x:1960, y:360, w:240, h:110},
+      {id:'onboard', type:'marketing', badge:'ONBOARD', cx:'moderate', sched:'hourly', title:'Auto Onboard + FDE', desc:'Website→KB seed · first content pack · FDE deploy skills', files:'onboarding.py · fde.py', flag:'AUTO_ONBOARD', x:2240, y:360, w:240, h:110},
+      {id:'lead_dist', type:'marketing', badge:'ROUTING', cx:'simple', sched:'on inquiry', title:'Lead Distribution', desc:'Round-robin team assign · wa.me handoff link · per-client routing', files:'lead_distribution.py', x:2520, y:360, w:240, h:110},
+      {id:'stl', type:'monitor', badge:'SLA', cx:'simple', sched:'real-time', title:'Speed-to-Lead', desc:'Inquiry→first-touch SLA · /api/clientops · 2-min target metric', files:'clientops.py', x:2520, y:500, w:240, h:100},
+      {id:'coordinator', type:'ai', badge:'ORCHESTRATE', cx:'complex', sched:'on-demand', title:'Multi-Agent Coordinator', desc:'Sequential · Parallel · Hierarchical · Reflexion · growth-pulse */15', files:'coordinator.py', x:300, y:560, w:260, h:110},
+      {id:'process', type:'ai', badge:'PROCESS', cx:'complex', sched:'tick', title:'Process Engine', desc:'Process-as-code · event journal · human breakpoints · lead_campaign', files:'process_engine.py', x:600, y:560, w:260, h:110},
+      {id:'self_improve', type:'loop', badge:'LOOP', cx:'complex', sched:'180s cycle', title:'Self-Improve Loop', desc:'Pick task → execute → learn → Celery requeue. SELF_IMPROVE_LOOP=1', files:'self_improve.py', flag:'SELF_IMPROVE_LOOP', x:920, y:560, w:260, h:110},
+      {id:'eval_gate', type:'ai', badge:'SAFETY', cx:'moderate', sched:'on eval', title:'Eval Gate', desc:'Regression detection on LLM quality · wired self_improve + CI', files:'eval_gate.py', flag:'EVAL_GATE', x:1220, y:560, w:230, h:100},
+      {id:'sales', type:'marketing', badge:'SALES', cx:'moderate', sched:'on trigger', title:'Sales Team + Closer', desc:'BANT deep-dive · auto-proposal · pipeline stages', files:'sales_team.py', flag:'SALES_TEAM', x:1480, y:560, w:240, h:100},
+      {id:'revenue', type:'monitor', badge:'REVENUE', cx:'moderate', sched:'daily digest', title:'Revenue Ops (Nikhil)', desc:'Dunning · lifecycle nurture · client health · MRR digest', files:'dunning · lifecycle', flag:'DUNNING_ENGINE', x:1760, y:560, w:240, h:100},
+      {id:'growth_opt', type:'ai', badge:'OPTIMIZE', cx:'moderate', sched:'15min', title:'Growth Optimizer', desc:'Funnel snapshot · weakest stage · experiment suggestions', files:'growth_optimizer.py', flag:'GROWTH_OPTIMIZER', x:2040, y:560, w:240, h:100},
+      {id:'channel_exp', type:'marketing', badge:'BANDIT', cx:'moderate', sched:'hourly', title:'Channel Experiments', desc:'17 legal channels · bandit drafts · no auto-post', files:'channel_experiments.py', flag:'CHANNEL_EXPERIMENTS', x:2320, y:560, w:240, h:100},
+      {id:'ops', type:'monitor', badge:'WATCHDOG', cx:'simple', sched:'hourly', title:'Ops Watchdog + Engineers', desc:'heartbeat · revive */20min · Pranav/Vidya/Arnav KPI agents', files:'ops_watchdog.py · engineer_agents', flag:'OPS_WATCHDOG', x:2580, y:560, w:260, h:110},
+      {id:'whatsapp_wa', type:'external', badge:'WHATSAPP', cx:'moderate', sched:'1-click', title:'WhatsApp Campaigns', desc:'Official Cloud API only · 1-click links default · auto gated', files:'whatsapp_campaign.py', flag:'WHATSAPP_AUTO_SEND', x:40, y:720, w:240, h:95},
+      {id:'telegram_pub', type:'external', badge:'TELEGRAM', cx:'simple', sched:'auto', title:'Telegram Auto-Publish', desc:'First TRUE auto-post channel · TELEGRAM_AUTO_PUBLISH=1', files:'telegram integration', flag:'TELEGRAM_AUTO_PUBLISH', x:300, y:720, w:240, h:95},
+      {id:'seo_pages', type:'marketing', badge:'SEO', cx:'moderate', sched:'batch', title:'Programmatic SEO', desc:'Niche×city landing pages · FAQ schema · /audit CTA', files:'seo_pages.py', x:580, y:720, w:230, h:95},
+      {id:'free_ai', type:'ai', badge:'LLM', cx:'complex', title:'Free AI Chain', desc:'Mistral PRIMARY → Groq → Cerebras. Circuit-breaker on 429', files:'free_ai.py', x:860, y:720, w:220, h:95},
+      {id:'data', type:'data', badge:'STORE', cx:'moderate', title:'Data Layer', desc:'Postgres leads/clients · Redis queue · jsonl stores · agent_events', files:'models/ · data/', x:1120, y:720, w:280, h:95},
+      {id:'events', type:'platform', badge:'EVENTS', cx:'simple', title:'agent_events + SSE', desc:'Every job logs here → /app/team · /api/events/stream', files:'team.py · events.py', x:1440, y:720, w:240, h:95},
+      {id:'ui', type:'platform', badge:'CONTROL', cx:'simple', title:'Mission Control UI', desc:'/app/automation — flags · schedules · 🚀 Launch · self-improve', files:'automation.html', x:1720, y:720, w:260, h:95},
+      {id:'launch', type:'monitor', badge:'LAUNCH', cx:'simple', sched:'60s poll', title:'Launch Readiness', desc:'ready_for_launch · payments_deferred · production_ready.py', files:'activation.py', x:2020, y:720, w:250, h:95},
+      {id:'public_in', type:'external', badge:'TRIGGER', cx:'simple', title:'Inbound Triggers', desc:'/api/public/inquiry · signup · audit → journey + lead_dist', files:'public_site.py', x:2300, y:720, w:250, h:95},
+      {id:'customer_wh', type:'external', badge:'WEBHOOK', cx:'simple', title:'Customer Webhooks', desc:'lead.created · lead.qualified · call.completed · Svix HMAC', files:'customer_webhooks.py', x:2580, y:720, w:250, h:95},
+      {id:'gap_transfer', type:'gap', badge:'GAP P0', cx:'complex', title:'Live Human Transfer', desc:'NOT BUILT — Exotel connect-leg transfer + context whisper', files:'voice backlog', x:40, y:880, w:250, h:95},
+      {id:'gap_snapshots', type:'gap', badge:'GAP P0', cx:'moderate', title:'Client Snapshots', desc:'NOT BUILT — GHL-style 1-click niche setup clone JSON', files:'FDE formalize', x:320, y:880, w:250, h:95},
     ],
     edges: [
       {f:'beat', t:'worker', lbl:'cron fire', style:'async'},
+      {f:'worker', t:'blog', lbl:'06:30', style:'async'},
       {f:'worker', t:'prospect', lbl:'09:30', style:'async'},
       {f:'worker', t:'content', lbl:'07:00', style:'async'},
       {f:'worker', t:'outreach', lbl:'10:30', style:'async'},
@@ -453,6 +544,9 @@ const VIEWS = {
       {f:'worker', t:'onboard', lbl:'hourly', style:'async'},
       {f:'worker', t:'ops', lbl:'hourly', style:'async'},
       {f:'worker', t:'self_improve', lbl:'180s', style:'async'},
+      {f:'worker', t:'growth_opt', lbl:'*/15', style:'async'},
+      {f:'blog', t:'seo_pages', lbl:'index', style:'sync'},
+      {f:'blog', t:'data', lbl:'posts', style:'sync'},
       {f:'prospect', t:'score', lbl:'rescore', style:'sync'},
       {f:'score', t:'data', lbl:'persist', style:'sync'},
       {f:'score', t:'outreach', lbl:'hot leads', style:'sync'},
@@ -460,47 +554,166 @@ const VIEWS = {
       {f:'outreach', t:'data', lbl:'sent log', style:'sync'},
       {f:'reply', t:'journey', lbl:'interested', style:'sync'},
       {f:'reply', t:'sales', lbl:'hot reply', style:'sync'},
+      {f:'content', t:'content_approve', lbl:'submit draft', style:'sync'},
+      {f:'content_approve', t:'data', lbl:'approved', style:'sync'},
       {f:'content', t:'free_ai', lbl:'generate', style:'sync'},
       {f:'content', t:'data', lbl:'queue', style:'sync'},
+      {f:'content', t:'telegram_pub', lbl:'publish', style:'async'},
       {f:'public_in', t:'journey', lbl:'inquiry_received', style:'sync'},
+      {f:'public_in', t:'lead_dist', lbl:'assign', style:'sync'},
+      {f:'public_in', t:'stl', lbl:'SLA clock', style:'sync'},
       {f:'public_in', t:'data', lbl:'lead row', style:'sync'},
       {f:'public_in', t:'customer_wh', lbl:'lead.created', style:'async'},
+      {f:'lead_dist', t:'whatsapp_wa', lbl:'wa handoff', style:'sync'},
       {f:'journey', t:'outreach', lbl:'cadence step', style:'async'},
       {f:'journey', t:'sales', lbl:'qualify', style:'sync'},
       {f:'onboard', t:'data', lbl:'KB+pack', style:'sync'},
       {f:'onboard', t:'content', lbl:'first pack', style:'sync'},
+      {f:'onboard', t:'gap_snapshots', lbl:'needs clone', style:'opt'},
       {f:'self_improve', t:'coordinator', lbl:'pick goal', style:'sync'},
+      {f:'self_improve', t:'eval_gate', lbl:'regression', style:'sync'},
       {f:'coordinator', t:'process', lbl:'workflow', style:'sync'},
       {f:'coordinator', t:'prospect', lbl:'scrape task', style:'async'},
       {f:'coordinator', t:'outreach', lbl:'campaign', style:'async'},
+      {f:'coordinator', t:'channel_exp', lbl:'experiments', style:'sync'},
+      {f:'growth_opt', t:'channel_exp', lbl:'weakest→test', style:'sync'},
       {f:'process', t:'sales', lbl:'deep-dive', style:'sync'},
       {f:'process', t:'revenue', lbl:'dunning gate', style:'sync'},
       {f:'sales', t:'revenue', lbl:'pipeline', style:'sync'},
       {f:'revenue', t:'data', lbl:'billing', style:'sync'},
       {f:'ops', t:'beat', lbl:'revive', style:'loop'},
       {f:'ops', t:'worker', lbl:'health', style:'sync'},
+      {f:'ops', t:'launch', lbl:'probes', style:'sync'},
       {f:'worker', t:'events', lbl:'log', style:'sync'},
       {f:'events', t:'ui', lbl:'SSE live', style:'sync'},
+      {f:'ui', t:'launch', lbl:'readiness', style:'sync'},
+      {f:'launch', t:'ui', lbl:'banner', style:'loop'},
       {f:'self_improve', t:'worker', lbl:'requeue', style:'loop'},
       {f:'worker', t:'self_improve', lbl:'tick', style:'loop'},
       {f:'reply', t:'outreach', lbl:'followup draft', style:'loop'},
       {f:'score', t:'prospect', lbl:'niche cursor', style:'loop'},
       {f:'beat', t:'beat', lbl:'heartbeat', style:'loop'},
+      {f:'content_approve', t:'whatsapp_wa', lbl:'1-click post', style:'async'},
+      {f:'sales', t:'gap_transfer', lbl:'needs transfer', style:'opt'},
     ],
     tour: [
-      {title:'Automation Overview', nodeId:null, desc:'Complete lead→outreach→reply→sales loop. Celery Beat drives IST schedule. Self-improve + coordinator nested loops optimize daily.'},
-      {title:'Scheduler', nodeId:'beat', desc:'team_scheduler + Celery Beat fire jobs at IST times. Dead-man trio: heartbeat + revive + watchdog.'},
-      {title:'Prospect Pipeline', nodeId:'prospect', desc:'Daily scrape all 39 niches → score → hot leads to outreach.'},
-      {title:'Outreach Loop', nodeId:'outreach', desc:'Rohan sends 25/day max. Reply agent closes the loop hourly.'},
-      {title:'Self-Improve', nodeId:'self_improve', desc:'180s Celery self-chain. Picks best task, learns, requeues.'},
-      {title:'Mission Control', nodeId:'ui', desc:'Toggle flags, view schedules, approve drafts at /app/automation.'},
+      {title:'Automation Overview', nodeId:null, desc:'Lead→outreach→reply→sales loop + client ops (distribution, approval, SLA). Red dashed = backlog.'},
+      {title:'Scheduler', nodeId:'beat', desc:'IST cron + dead-man trio'},
+      {title:'Lead Distribution', nodeId:'lead_dist', desc:'Inquiry aate hi team me round-robin + WA link'},
+      {title:'Content Approval', nodeId:'content_approve', desc:'Agency workflow — client portal approve'},
+      {title:'Speed-to-Lead', nodeId:'stl', desc:'2-min SLA metric — Privyr-style'},
+      {title:'Self-Improve', nodeId:'self_improve', desc:'180s loop with eval_gate safety'},
+      {title:'Launch Readiness', nodeId:'launch', desc:'Live sync every 60s'},
     ],
     presets: [
       {id:'full', label:'Full Pipeline', nodes:null, edges:null},
-      {id:'leadgen', label:'Lead Gen Only', nodes:['beat','worker','prospect','score','outreach','reply','data','free_ai','public_in','events','ui'], edges:null},
-      {id:'content', label:'Content Pipeline', nodes:['beat','worker','content','onboard','free_ai','data','events','ui'], edges:null},
-      {id:'revenue', label:'Revenue Ops', nodes:['beat','worker','sales','revenue','journey','data','customer_wh','ui'], edges:null},
-      {id:'loops', label:'Loops Only', nodes:['beat','worker','self_improve','coordinator','process','ops','reply','outreach','score','prospect'], edges:null, loopsOnly:true},
+      {id:'leadgen', label:'Lead Gen Only', nodes:['beat','worker','prospect','score','outreach','reply','lead_dist','stl','data','free_ai','public_in','events','ui'], edges:null},
+      {id:'content', label:'Content Pipeline', nodes:['beat','worker','blog','content','content_approve','onboard','telegram_pub','free_ai','data','events','ui'], edges:null},
+      {id:'revenue', label:'Revenue Ops', nodes:['beat','worker','sales','revenue','journey','growth_opt','data','customer_wh','ui'], edges:null},
+      {id:'ops', label:'Launch & Ops', nodes:['beat','worker','ops','ui','launch','events','eval_gate','data'], edges:null},
+      {id:'clientops', label:'Client Ops', nodes:['public_in','lead_dist','stl','content_approve','customer_wh','whatsapp_wa','data','ui'], edges:null},
+      {id:'gaps', label:'Gap Backlog', nodes:['gap_transfer','gap_snapshots','launch','sales','onboard'], edges:null, loopsOnly:false},
+      {id:'loops', label:'Loops Only', nodes:['beat','worker','self_improve','coordinator','process','ops','reply','outreach','score','prospect','launch'], edges:null, loopsOnly:true},
+    ],
+  },
+
+  products: {
+    label: 'Product Split — 2 SKUs (DO NOT BUNDLE)',
+    badge: 'PRODUCTS · MARKETING ≠ VOICE',
+    world: {w: 3400, h: 1500},
+    nodes: [
+      {id:'entry', type:'platform', badge:'ENTRY', cx:'simple', sku:'shared', title:'Acquisition Funnel', desc:'/audit #1 magnet · /site-audit · /pricing · /start · /compare', files:'public pages', x:1480, y:30, w:300, h:100},
+      {id:'page_compare', type:'platform', badge:'COMPARE', cx:'simple', sku:'shared', title:'/compare Page', desc:'Do products side-by-side — marketing vs voice agent (no bundle USP)', files:'compare.html', x:1480, y:170, w:300, h:90},
+
+      {id:'prod_marketing', type:'marketing', badge:'PRODUCT 1', cx:'complex', sku:'marketing', title:'AI Automated Marketing', desc:'MAIN SKU — posts/GBP/festivals/posters/reviews/WA · 39 niches · Dhanda-class', files:'packages.py · /app/marketing', x:80, y:320, w:320, h:120},
+      {id:'m_trial', type:'marketing', badge:'FREE 7d', cx:'simple', sku:'marketing', title:'Marketing Trial', desc:'₹0 · 5 posts · 1 GBP audit · widget · NO voice', files:'TRIAL_PACKAGE', x:40, y:500, w:200, h:95},
+      {id:'m_starter', type:'marketing', badge:'₹1,199/mo', cx:'simple', sku:'marketing', title:'Starter', desc:'Posts · GBP audit · review replies · 4 posters/mo · WA pack · UPI QR', files:'packages.py#starter', x:260, y:500, w:200, h:95},
+      {id:'m_growth', type:'marketing', badge:'₹2,999/mo', cx:'moderate', sku:'marketing', title:'Growth', desc:'+ unlimited posters · calendar · competitor · lead form · reactivation · monthly report', files:'packages.py#growth', x:480, y:500, w:200, h:95},
+      {id:'m_advanced', type:'marketing', badge:'₹6,999/mo', cx:'complex', sku:'marketing', title:'Advanced', desc:'Growth + voice FEATURE: inquiry callback · qualification · 500 min/mo top-ups', files:'packages.py#advanced', x:700, y:500, w:220, h:95},
+
+      {id:'m_content', type:'marketing', badge:'MODULE', cx:'moderate', sku:'marketing', title:'Content Engine', desc:'AI posts · scheduler · festivals · complete-post · AI image · 28 tabs', files:'auto_content · marketing.py', x:40, y:660, w:230, h:95},
+      {id:'m_gbp', type:'marketing', badge:'MODULE', cx:'moderate', sku:'marketing', title:'GBP & Reviews', desc:'/audit lead magnet · review kit · sentiment · review reply drafts', files:'review_kit · gbp', x:290, y:660, w:230, h:95},
+      {id:'m_widget', type:'marketing', badge:'MODULE', cx:'simple', sku:'marketing', title:'Web Widget + Mini-Site', desc:'/b/{slug} · embed widget · booking · minisite builder', files:'embed_widget · mini_site', x:540, y:660, w:240, h:95},
+      {id:'m_outreach', type:'marketing', badge:'MODULE', cx:'moderate', sku:'marketing', title:'Growth Outreach', desc:'Email cold · reply triage · cadence · journeys · /app/outreach', files:'auto_outreach · growth-tools', x:800, y:660, w:240, h:95},
+      {id:'m_voice_feat', type:'voice', badge:'FEATURE', cx:'complex', sku:'feature', title:'Voice Callback (Advanced only)', desc:'NOT Product 2 — inbound inquiry callback · missed-call · NO cold DLT dialer', files:'telephony inbound only', x:700, y:820, w:280, h:100},
+
+      {id:'prod_voice', type:'voice', badge:'PRODUCT 2', cx:'complex', sku:'voice', title:'AI Voice Calling Agent', desc:'STANDALONE telecaller SKU · flat monthly per niche band · unlimited calls', files:'voice_packages.py · /voice-agent', x:2100, y:320, w:320, h:120},
+      {id:'v_pilot', type:'voice', badge:'FREE', cx:'simple', sku:'voice', title:'Voice Pilot', desc:'7 din · 50 calls · zero payment · niche test', files:'voice_pilot', x:1960, y:500, w:200, h:95},
+      {id:'v_band_a', type:'voice', badge:'₹4,999/mo', cx:'simple', sku:'voice', title:'Band A — Volume', desc:'Insurance · coaching · solar · hospital · 39 niches tier-A', files:'voice_a_monthly', x:2180, y:500, w:200, h:95},
+      {id:'v_band_b', type:'voice', badge:'₹9,999/mo', cx:'moderate', sku:'voice', title:'Band B — Mid', desc:'Home loans · study abroad · dental · finance advisory', files:'voice_b_monthly', x:2400, y:500, w:200, h:95},
+      {id:'v_band_c', type:'voice', badge:'₹19,999/mo', cx:'complex', sku:'voice', title:'Band C — Premium', desc:'IVF · immigration · commercial solar · hair transplant', files:'voice_c_monthly', x:2620, y:500, w:210, h:95},
+
+      {id:'v_stack', type:'voice', badge:'STACK', cx:'complex', sku:'voice', title:'Voice Brain Stack', desc:'Exotel WS · Groq STT · RAG · Mistral LLM · EdgeTTS · post-call qualify', files:'voice_agent/', x:2180, y:660, w:280, h:100},
+      {id:'v_dialer', type:'voice', badge:'OPS', cx:'moderate', sku:'voice', title:'Dialer + Test Call', desc:'/app/dialer · /app/test-call FREE tuning · dispositions · leaderboard', files:'dialer · web_call', x:2500, y:660, w:240, h:100},
+      {id:'v_compliance', type:'voice', badge:'DLT', cx:'complex', sku:'voice', title:'TRAI Compliance Gate', desc:'DND fail-closed · AI disclosure · 10am-7pm · consent ledger · DLT blocked=cold', files:'compliance.py', x:2780, y:660, w:250, h:100},
+      {id:'v_pages', type:'voice', badge:'PAGE', cx:'simple', sku:'voice', title:'/voice-agent Landing', desc:'Public pricing · band picker · pilot signup · separate from /pricing', files:'voice-agent page', x:2100, y:500, w:200, h:95},
+
+      {id:'shared_billing', type:'monitor', badge:'BILLING', cx:'moderate', sku:'shared', title:'Billing Hub', desc:'packages.py + voice_packages.py · usage ledger · GST · Razorpay deferred', files:'billing.py', x:1280, y:500, w:260, h:100},
+      {id:'shared_portal', type:'marketing', badge:'PORTAL', cx:'moderate', sku:'shared', title:'Customer Portal', desc:'/app/customer · content approve · webhooks · TOTP · per-product entitlements', files:'customer_dashboard.py', x:1280, y:660, w:260, h:95},
+      {id:'shared_admin', type:'platform', badge:'ADMIN', cx:'complex', sku:'shared', title:'Admin + Mission Control', desc:'/app/marketing · /app/automation · /app/battlecard · team RBAC', files:'admin · automation', x:1280, y:820, w:260, h:100},
+      {id:'shared_data', type:'data', badge:'DATA', cx:'moderate', sku:'shared', title:'Shared Data Layer', desc:'Postgres clients · leads · calls · agent_events · jsonl stores', files:'models/', x:1280, y:980, w:280, h:95},
+
+      {id:'gap_bundle', type:'gap', badge:'WRONG', cx:'simple', sku:'gap', title:'❌ Bundle USP', desc:'GALAT framing — "marketing+voice bundle" mat bolo. Do alag products becho.', files:'sales rule', x:1480, y:980, w:280, h:90},
+      {id:'gap_dlt', type:'gap', badge:'BLOCKED', cx:'complex', sku:'gap', title:'DLT Cold Calling', desc:'USER paperwork — Udyam → DLT. Until then Product 2 = pilot/inbound only', files:'external blocker', x:1780, y:980, w:260, h:90},
+    ],
+    edges: [
+      {f:'entry', t:'page_compare', lbl:'compare', style:'sync'},
+      {f:'entry', t:'prod_marketing', lbl:'/pricing', style:'sync'},
+      {f:'entry', t:'prod_voice', lbl:'/voice-agent', style:'sync'},
+      {f:'page_compare', t:'prod_marketing', lbl:'SKU 1', style:'sync'},
+      {f:'page_compare', t:'prod_voice', lbl:'SKU 2', style:'sync'},
+      {f:'page_compare', t:'gap_bundle', lbl:'avoid', style:'opt'},
+
+      {f:'prod_marketing', t:'m_trial', lbl:'funnel', style:'sync'},
+      {f:'prod_marketing', t:'m_starter', lbl:'tier', style:'sync'},
+      {f:'prod_marketing', t:'m_growth', lbl:'tier', style:'sync'},
+      {f:'prod_marketing', t:'m_advanced', lbl:'tier', style:'sync'},
+      {f:'m_starter', t:'m_content', lbl:'includes', style:'sync'},
+      {f:'m_growth', t:'m_content', lbl:'includes', style:'sync'},
+      {f:'m_growth', t:'m_gbp', lbl:'includes', style:'sync'},
+      {f:'m_growth', t:'m_widget', lbl:'includes', style:'sync'},
+      {f:'m_advanced', t:'m_growth', lbl:'superset', style:'sync'},
+      {f:'m_advanced', t:'m_voice_feat', lbl:'FEATURE', style:'sync'},
+      {f:'m_advanced', t:'m_outreach', lbl:'includes', style:'sync'},
+      {f:'m_voice_feat', t:'v_stack', lbl:'shares stack', style:'async'},
+      {f:'m_voice_feat', t:'gap_dlt', lbl:'no cold', style:'opt'},
+
+      {f:'prod_voice', t:'v_pilot', lbl:'tier', style:'sync'},
+      {f:'prod_voice', t:'v_band_a', lbl:'band', style:'sync'},
+      {f:'prod_voice', t:'v_band_b', lbl:'band', style:'sync'},
+      {f:'prod_voice', t:'v_band_c', lbl:'band', style:'sync'},
+      {f:'prod_voice', t:'v_pages', lbl:'landing', style:'sync'},
+      {f:'v_band_a', t:'v_stack', lbl:'unlimited', style:'sync'},
+      {f:'v_band_b', t:'v_stack', lbl:'unlimited', style:'sync'},
+      {f:'v_band_c', t:'v_stack', lbl:'unlimited', style:'sync'},
+      {f:'v_pilot', t:'v_stack', lbl:'50 calls', style:'sync'},
+      {f:'v_stack', t:'v_compliance', lbl:'gate', style:'sync'},
+      {f:'v_stack', t:'v_dialer', lbl:'ops UI', style:'sync'},
+      {f:'v_compliance', t:'gap_dlt', lbl:'needs DLT', style:'opt'},
+
+      {f:'prod_marketing', t:'shared_billing', lbl:'checkout', style:'sync'},
+      {f:'prod_voice', t:'shared_billing', lbl:'checkout', style:'sync'},
+      {f:'shared_billing', t:'shared_portal', lbl:'entitlements', style:'sync'},
+      {f:'shared_portal', t:'shared_admin', lbl:'ops', style:'sync'},
+      {f:'shared_admin', t:'shared_data', lbl:'R/W', style:'sync'},
+      {f:'m_content', t:'shared_data', lbl:'queue', style:'async'},
+      {f:'v_dialer', t:'shared_data', lbl:'calls', style:'async'},
+      {f:'m_widget', t:'m_voice_feat', lbl:'inquiry→callback', style:'async'},
+    ],
+    tour: [
+      {title:'2 Products Rule', nodeId:null, desc:'Marketing aur Voice ALAG becho. Advanced me voice sirf FEATURE hai — Product 2 nahi.'},
+      {title:'Product 1 Marketing', nodeId:'prod_marketing', desc:'Starter ₹1,199 · Growth ₹2,999 · Advanced ₹6,999'},
+      {title:'Advanced Feature', nodeId:'m_voice_feat', desc:'Inbound callback only — cold DLT dialer Product 2 ka kaam hai'},
+      {title:'Product 2 Voice', nodeId:'prod_voice', desc:'Pilot free · Band A/B/C flat monthly · unlimited calls'},
+      {title:'Compare Page', nodeId:'page_compare', desc:'Sales me /compare use karo — bundle mat bolo'},
+      {title:'Shared Billing', nodeId:'shared_billing', desc:'Ek billing hub, do product SKUs'},
+    ],
+    presets: [
+      {id:'all', label:'Both Products', nodes:null, edges:null},
+      {id:'marketing', label:'Product 1 Only', nodes:['entry','prod_marketing','m_trial','m_starter','m_growth','m_advanced','m_content','m_gbp','m_widget','m_outreach','m_voice_feat','shared_billing','shared_portal','shared_data'], edges:null},
+      {id:'voice', label:'Product 2 Only', nodes:['entry','prod_voice','v_pilot','v_band_a','v_band_b','v_band_c','v_stack','v_dialer','v_compliance','v_pages','shared_billing','shared_data','gap_dlt'], edges:null},
+      {id:'tiers', label:'All Tiers', nodes:['m_trial','m_starter','m_growth','m_advanced','v_pilot','v_band_a','v_band_b','v_band_c','shared_billing'], edges:null},
+      {id:'sales', label:'Sales Compare', nodes:['page_compare','prod_marketing','prod_voice','gap_bundle','m_advanced','m_voice_feat','v_band_b'], edges:null},
     ],
   },
 };
@@ -508,20 +721,25 @@ const VIEWS = {
 const FLOW_FLAGS = [
   {key:'TEAM_AUTOMATION', def:true, node:'beat'},
   {key:'NICHE_ROTATION', def:true, node:'prospect'},
+  {key:'LEAD_HARVESTER', def:true, node:'prospect'},
   {key:'AUTO_EMAIL_OUTREACH', def:true, node:'outreach'},
   {key:'REPLY_AGENT', def:true, node:'reply'},
   {key:'AUTO_ONBOARD', def:true, node:'onboard'},
   {key:'SELF_IMPROVE_LOOP', def:true, node:'self_improve'},
+  {key:'EVAL_GATE', def:true, node:'eval_gate'},
   {key:'JOURNEY_ENGINE', def:false, node:'journey'},
   {key:'CADENCE_ENGINE', def:false, node:'journey'},
   {key:'SALES_TEAM', def:true, node:'sales'},
   {key:'DUNNING_ENGINE', def:true, node:'revenue'},
+  {key:'GROWTH_OPTIMIZER', def:true, node:'growth_opt'},
+  {key:'CHANNEL_EXPERIMENTS', def:true, node:'channel_exp'},
   {key:'OPS_WATCHDOG', def:true, node:'ops'},
-  {key:'LEAD_HARVESTER', def:true, node:'prospect'},
+  {key:'TELEGRAM_AUTO_PUBLISH', def:false, node:'telegram_pub'},
+  {key:'WHATSAPP_AUTO_SEND', def:false, node:'whatsapp_wa'},
 ];
 
 const IST_SCHEDULE = [
-  {time:'06:30', label:'Blog generation', node:'content', job:'blog'},
+  {time:'06:30', label:'Blog generation', node:'blog', job:'blog'},
   {time:'07:00', label:'Content + client posts', node:'content', job:'content'},
   {time:'08:30', label:'Daily digest', node:'revenue', job:'digest'},
   {time:'09:30', label:'Prospect scrape (39 niches)', node:'prospect', job:'prospect'},
@@ -560,7 +778,7 @@ const NODE_TEMPLATES = [
   {type:'external', badge:'ACTION', title:'External API', desc:'SMTP · WhatsApp · Maps', files:'integrations/', color:'#4ade80'},
 ];
 
-const TYPE_COLORS = {platform:'#60a5fa',marketing:'#3b82f6',voice:'#fb923c',ai:'#818cf8',data:'#22d3ee',external:'#4ade80',monitor:'#fbbf24',loop:'#e879f9'};
+const TYPE_COLORS = {platform:'#60a5fa',marketing:'#3b82f6',voice:'#fb923c',ai:'#818cf8',data:'#22d3ee',external:'#4ade80',monitor:'#fbbf24',loop:'#e879f9',gap:'#f87171'};
 
 let customFlowStore = { activeId: null, flows: {} };
 
@@ -578,6 +796,9 @@ let showEdges=true, showLoops=true;
 let flowPlaying=false, flowAnimId=null;
 let tracePathSet=null;
 let liveHealth=null;
+let liveSnapshot=null;
+let prevLiveSnapshot=null;
+let productPricing=null;
 let flagState = {};
 let nodeMap = {}, activeNodes=[], activeEdges=[];
 let edgePathCache = {};
@@ -931,9 +1152,9 @@ function renderNodes() {
   layer.style.height = world.h + 'px';
 
   activeNodes.forEach(n => {
-    const disabled = !isBuilder() && n.flag && !flagState[n.flag];
+    const disabled = !isBuilder() && n.type !== 'gap' && n.flag && !flagState[n.flag];
     const div = document.createElement('div');
-    div.className = `node nt-${n.type}${disabled?' disabled-node':''}${selectedNode===n.id?' selected':''}${tracePathSet?.has(n.id)&&selectedNode!==n.id?' trace-node':''}`;
+    div.className = `node nt-${n.type}${disabled?' disabled-node':''}${selectedNode===n.id?' selected':''}${tracePathSet?.has(n.id)&&selectedNode!==n.id?' trace-node':''}${n.sku?' sku-'+n.sku:''}`;
     div.id = `node-${n.id}`;
     div.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w}px;min-height:${n.h}px`;
     div.onmousedown = e => startNodeDrag(e, n.id);
@@ -945,9 +1166,18 @@ function renderNodes() {
     }
 
     let statusHtml = '';
-    if(!isBuilder() && liveHealth && n.flag && liveHealth.flags) {
-      const prod = liveHealth.flags[n.flag];
-      statusHtml = `<span class="status-pill ${prod?'on':'off'}">${prod?'LIVE':'OFF'}</span>`;
+    if(!isBuilder() && liveHealth) {
+      if(n.id === 'launch' && liveHealth.summary) {
+        const ok = !!liveHealth.summary.ready_for_launch;
+        statusHtml = `<span class="status-pill ${ok?'on':'off'}">${ok?'LAUNCH OK':'BLOCKED'}</span>`;
+      } else if(n.id === 'vps' && liveHealth.health) {
+        statusHtml = `<span class="status-pill on">VPS UP</span>`;
+      } else if(n.id === 'explorer' && liveHealth.base) {
+        statusHtml = `<span class="status-pill live">SYNC</span>`;
+      } else if(n.flag && liveHealth.flags) {
+        const prod = liveHealth.flags[n.flag];
+        statusHtml = `<span class="status-pill ${prod?'on':'off'}">${prod?'LIVE':'OFF'}</span>`;
+      }
     }
 
     const delBtn = isBuilder() ? `<div class="node-del" onclick="event.stopPropagation();removeBuilderNode('${n.id}')" title="Delete">×</div>` : '';
@@ -1131,7 +1361,7 @@ function setBuilderMode(on) {
 
 function switchView(view, btn) {
   currentView = view;
-  currentPreset = view === 'custom' ? 'all' : 'full';
+  currentPreset = view === 'custom' ? 'all' : (view === 'products' ? 'all' : 'full');
   tourActive = false; tourStep = -1;
   selectedEdge = null; shiftLinkFrom = null; linkFrom = null;
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
@@ -1139,6 +1369,7 @@ function switchView(view, btn) {
   if(view === 'custom') syncCustomView();
   document.getElementById('ov-badge').textContent = getViewData().badge;
   document.getElementById('tour-nav').className = '';
+  document.getElementById('product-legend').classList.toggle('vis', view === 'products');
   setBuilderMode(view === 'custom');
   applyPreset();
   renderFlowPick();
@@ -1147,6 +1378,7 @@ function switchView(view, btn) {
   applyTransform();
   if(view === 'custom') showBuilderPanel();
   else showDefaultSidebar();
+  if(view === 'products') fetchProductPricing();
   setTimeout(fitView, 80);
 }
 
@@ -1316,12 +1548,18 @@ function selectNode(id) {
 
 function showNodeDetail(n) {
   if(!n) return;
-  const cols = {platform:'#60a5fa',marketing:'#3b82f6',voice:'#fb923c',ai:'#818cf8',data:'#22d3ee',external:'#4ade80',monitor:'#fbbf24',loop:'#e879f9'};
+  const cols = {platform:'#60a5fa',marketing:'#3b82f6',voice:'#fb923c',ai:'#818cf8',data:'#22d3ee',external:'#4ade80',monitor:'#fbbf24',loop:'#e879f9',gap:'#f87171'};
   const incoming = activeEdges.filter(e => e.t === n.id);
   const outgoing = activeEdges.filter(e => e.f === n.id);
   const flagOn = n.flag ? flagState[n.flag] : null;
 
-  let html = `
+  let html = '';
+  if(n.type === 'gap') {
+    html += `<div class="step-detail" style="border-color:#991b1b;background:#1a1010;margin-bottom:10px">
+      <div class="sd-title" style="color:#f87171">⛔ Backlog / Not built</div>
+      <div class="sd-desc" style="color:#9f4a4a">Competitor gap — see docs/Competitor_Top20_Feature_Gap_2026.md</div></div>`;
+  }
+  html += `
     <div class="nd-card">
       <div class="nd-type" style="color:${cols[n.type]}">${n.badge} · ${n.type.toUpperCase()}</div>
       <div class="nd-title">${n.title}</div>
@@ -1332,6 +1570,52 @@ function showNodeDetail(n) {
         ${n.flag?`<span class="nm">flag <b>${n.flag}</b> ${flagOn?'✅ ON':'⬜ OFF'}</span>`:''}
       </div>
     </div>`;
+
+  if(liveHealth && (n.id === 'launch' || n.id === 'vps' || n.id === 'explorer')) {
+    html += `<div class="panel-hdr">Live sync (auto 60s)</div>`;
+    if(n.id === 'launch' && liveHealth.summary) {
+      const s = liveHealth.summary;
+      html += `<div class="step-detail" style="border-color:${s.ready_for_launch?'#166534':'#92400e'};background:${s.ready_for_launch?'#071512':'#1a1208'}">
+        <div class="sd-title" style="color:${s.ready_for_launch?'#4ade80':'#fbbf24'}">${s.ready_for_launch?'✅ Launch ready':'⛔ '+s.blocker_count+' blocker(s)'}</div>
+        <div class="sd-desc">Payments deferred: ${s.payments_deferred?'yes':'no'} · warns: ${s.warn_count||0}</div>
+      </div>`;
+      html += `<a class="action-btn" href="/app/automation#launch" style="display:block;text-align:center;text-decoration:none">↗ Mission Control Launch</a>`;
+    }
+    if(n.id === 'vps' && liveHealth.health) {
+      html += `<div class="step-detail"><div class="sd-title" style="color:#60a5fa">VPS ${liveHealth.health.status||'up'}</div>
+        <div class="sd-desc">${liveHealth.base||'leadsgenai.in'}</div></div>`;
+    }
+    if(n.id === 'explorer') {
+      html += `<div class="step-detail"><div class="sd-desc">Δ toast dikhata hai jab launch/flags change hote hain.</div></div>`;
+    }
+    html += `<button class="action-btn" onclick="fetchLiveHealth()">🔄 Refresh now</button>`;
+  }
+
+  if(currentView === 'products' && productPricing) {
+    const mPkgs = productPricing.marketing?.packages || (Array.isArray(productPricing.marketing) ? productPricing.marketing : []);
+    const tierMap = {m_starter:'starter', m_growth:'growth', m_advanced:'advanced', m_trial:'trial'};
+    const mKey = tierMap[n.id];
+    if(mKey && mPkgs.length) {
+      const pk = mPkgs.find(p => (p.key||'').toLowerCase() === mKey);
+      if(pk) html += `<div class="step-detail" style="border-color:#1d4ed8;background:#0d1a2e;margin-top:8px"><div class="sd-title" style="color:#60a5fa">Live: ₹${Number(pk.price_inr_month||0).toLocaleString('en-IN')}/mo</div><div class="sd-desc">${pk.tagline||''}</div></div>`;
+    }
+    const vTiers = productPricing.voice?.tiers || [];
+    const vMap = {v_pilot:'voice_pilot', v_band_a:'voice_a_monthly', v_band_b:'voice_b_monthly', v_band_c:'voice_c_monthly'};
+    const vKey = vMap[n.id];
+    if(vKey) {
+      let vk = vTiers.find(t => (t.plan_id||t.key) === vKey);
+      if(!vk && n.id.startsWith('v_band_')) {
+        const band = n.id.replace('v_band_','').toUpperCase();
+        const bi = productPricing.voice?.band_info;
+        if(bi && productPricing.voice?.band === band) vk = {price_inr_month: bi.price_month, tagline: bi.desc};
+        else {
+          const staticP = {A:4999,B:9999,C:19999};
+          vk = {price_inr_month: staticP[band], tagline: 'Flat monthly · unlimited calls'};
+        }
+      }
+      if(vk) html += `<div class="step-detail" style="border-color:#ea580c;background:#1a0d06;margin-top:8px"><div class="sd-title" style="color:#fb923c">Live: ₹${Number(vk.price_inr_month||0).toLocaleString('en-IN')}/mo</div><div class="sd-desc">${vk.tagline||vk.calls_included||''}</div></div>`;
+    }
+  }
 
   if(n.flag) {
     html += `<button class="action-btn primary" onclick="toggleFlag('${n.flag}')">${flagOn?'⏸ Disable':'▶ Enable'} ${n.flag} (draft)</button>`;
@@ -1361,26 +1645,42 @@ function showFlowPanel() {
   const presets = getViewData().presets;
   let html = `<div class="panel-hdr">Flow Presets</div>`;
   presets.forEach(p => {
+    const desc = p.id==='full'||p.id==='all' ? 'Saare nodes + connections'
+      : p.id==='loops' ? 'Sirf feedback loops (amber dashed)'
+      : p.id==='marketing' ? 'Product 1 Marketing SKU only'
+      : p.id==='voice' ? 'Product 2 Voice SKU only'
+      : p.id==='sales' ? 'Compare + anti-bundle'
+      : p.label+' subset';
     html += `<div class="flow-card${p.id===currentPreset?' on':''}" onclick="setPreset('${p.id}')">
       <div class="fc-title">${p.label}</div>
-      <div class="fc-desc">${p.id==='full'?'Saare nodes + connections':p.id==='loops'?'Sirf feedback loops (amber dashed)':p.id+' pipeline subset'}</div>
+      <div class="fc-desc">${desc}</div>
     </div>`;
   });
   html += `<div class="panel-hdr">Quick Actions</div>`;
-  html += `<button class="action-btn" onclick="setPreset('loops');switchView('automation',document.querySelector('[data-view=automation]'))">↻ Show All Loops</button>`;
-  html += `<button class="action-btn" onclick="fitView()">⊡ Fit View</button>`;
-  html += `<button class="action-btn primary" onclick="exportFlow()">↓ Export Flow JSON</button>`;
-  html += `<a class="action-btn" href="/app/automation">↗ Open Mission Control (/app/automation)</a>`;
-  html += `<div class="panel-hdr">Complete Automation Checklist</div>`;
-  html += `<div style="font-size:10px;color:#64748b;line-height:1.7">
-    ① Beat schedule ON (TEAM_AUTOMATION)<br>
-    ② Prospect → Score → Outreach chain<br>
-    ③ Reply triage closes email loop<br>
-    ④ Self-improve 180s requeue<br>
-    ⑤ Ops watchdog revive dead jobs<br>
-    ⑥ Journey on inquiry/signup<br>
-    ⑦ Monitor /app/automation health tab
-  </div>`;
+  if(currentView === 'products') {
+    html += `<button class="action-btn primary" onclick="fetchProductPricing()">💰 Refresh live pricing</button>`;
+    html += `<a class="action-btn" href="/compare" target="_blank">↗ Open /compare</a>`;
+    html += `<a class="action-btn" href="/pricing" target="_blank">↗ Marketing /pricing</a>`;
+    html += `<a class="action-btn" href="/voice-agent" target="_blank">↗ Voice /voice-agent</a>`;
+    html += `<div class="panel-hdr">Sales rules</div>`;
+    html += `<div style="font-size:10px;color:#64748b;line-height:1.7">
+      ① Do alag products — bundle mat bolo<br>
+      ② Advanced = voice FEATURE (inbound only)<br>
+      ③ Product 2 = full telecaller (DLT gated)<br>
+      ④ /compare page use karo pitch me
+    </div>`;
+  } else {
+    html += `<button class="action-btn" onclick="setPreset('loops');switchView('automation',document.querySelector('[data-view=automation]'))">↻ Show All Loops</button>`;
+    html += `<button class="action-btn" onclick="switchView('products',document.querySelector('[data-view=products]'))">📦 Product split view</button>`;
+    html += `<button class="action-btn" onclick="fitView()">⊡ Fit View</button>`;
+    html += `<button class="action-btn primary" onclick="exportFlow()">↓ Export Flow JSON</button>`;
+    html += `<a class="action-btn" href="/app/automation">↗ Mission Control</a>`;
+    html += `<div class="panel-hdr">Complete Automation Checklist</div>`;
+    html += `<div style="font-size:10px;color:#64748b;line-height:1.7">
+      ① Beat schedule ON · ② Prospect→Outreach · ③ Reply triage<br>
+      ④ Self-improve loop · ⑤ Ops watchdog · ⑥ Journey triggers
+    </div>`;
+  }
   document.getElementById('sb-content').innerHTML = html;
   document.querySelectorAll('.sb-tab').forEach((t,i)=>t.classList.toggle('active',i===1));
 }
@@ -1519,12 +1819,9 @@ function showDefaultSidebar() {
     <div id="steps-list"></div>
     <div class="panel-hdr">Tips</div>
     <div style="font-size:10px;color:#64748b;line-height:1.6">
-      • Amber dashed = feedback loops · Blue = async queue<br>
-      • Drag node = reposition (auto-saved)<br>
-      • ▶ Play Flow = animated data dots<br>
-      • T = trace downstream · ? = shortcuts<br>
-      • SCHED tab = full IST cron list<br>
-      • Dbl-click node = copy file path
+      ${currentView==='products'
+        ? '• Blue glow = Product 1 Marketing · Orange = Product 2 Voice<br>• Dashed = Advanced voice FEATURE (not Product 2)<br>• FLOW tab → presets: Product 1 Only / Product 2 Only<br>• Key <b>4</b> = Products view · live pricing on tier click'
+        : '• Amber dashed = feedback loops · Blue = async queue<br>• Drag node = reposition (auto-saved)<br>• ▶ Play Flow = animated data dots<br>• T = trace downstream · Key <b>4</b> = Products<br>• Dbl-click node = copy file path'}
     </div>`;
   renderTourSteps();
 }
@@ -1612,43 +1909,130 @@ function stopFlowDots() {
 }
 
 // ════════════════════════════════════
-// LIVE HEALTH (same-origin or leadsgenai.in)
+// LIVE HEALTH (same-origin or leadsgenai.in) + auto change feed
 // ════════════════════════════════════
+function _parseFlagsPayload(flags) {
+  const flagMap = {};
+  if(flags && flags.flags) flags.flags.forEach(f => { flagMap[f.name || f.key] = f.on ?? f.enabled ?? false; });
+  else if(Array.isArray(flags)) flags.forEach(f => { flagMap[f.name||f] = true; });
+  else if(flags) Object.keys(flags).forEach(k => { if(typeof flags[k]==='boolean') flagMap[k]=flags[k]; });
+  return flagMap;
+}
+
+function _snapshotKey(snap) {
+  if(!snap) return '';
+  const flags = snap.flags || {};
+  const onFlags = Object.keys(flags).filter(k => flags[k]).sort().join(',');
+  return [
+    snap.base || '',
+    snap.health?.status || '',
+    snap.summary?.ready_for_launch ? '1' : '0',
+    snap.summary?.blocker_count ?? '',
+    snap.summary?.warn_count ?? '',
+    onFlags,
+  ].join('|');
+}
+
+function _pushChangeFeed(msg) {
+  const el = document.getElementById('chg-toast');
+  if(!el || !msg) return;
+  el.innerHTML = '<b>Δ update</b> · ' + msg;
+  el.classList.add('vis');
+  clearTimeout(el._hideT);
+  el._hideT = setTimeout(() => el.classList.remove('vis'), 12000);
+}
+
+function _detectLiveChanges(prev, next) {
+  if(!prev || !next) return;
+  const parts = [];
+  if((prev.summary?.ready_for_launch) !== (next.summary?.ready_for_launch)) {
+    parts.push('Launch: ' + (next.summary?.ready_for_launch ? '✅ READY' : '⛔ blocked'));
+  }
+  if((prev.summary?.blocker_count) !== (next.summary?.blocker_count)) {
+    parts.push('Blockers ' + (prev.summary?.blocker_count ?? '?') + '→' + (next.summary?.blocker_count ?? '?'));
+  }
+  const pf = prev.flags || {}, nf = next.flags || {};
+  Object.keys(nf).forEach(k => {
+    if(pf[k] !== undefined && pf[k] !== nf[k]) parts.push(k + ': ' + (nf[k] ? 'ON' : 'OFF'));
+  });
+  if(parts.length) _pushChangeFeed(parts.slice(0, 4).join(' · '));
+}
+
 async function fetchLiveHealth() {
   const el = document.getElementById('live-status');
   const txt = document.getElementById('ls-text');
   if(!el || !txt) return;
 
+  const token = (typeof localStorage !== 'undefined' && localStorage.getItem('accessToken')) || '';
+
   for(const base of getApiBases()) {
     try {
-      const [healthR, flagsR] = await Promise.all([
-        fetch(base+'/api/growth/infra/automation-health', {mode:'cors', credentials:'omit'}),
-        fetch(base+'/api/growth/infra/flags', {mode:'cors', credentials:'omit'}),
-      ]);
-      if(!healthR.ok && !flagsR.ok) continue;
+      const reqs = [
+        fetch(base+'/health', {mode:'cors', credentials:'omit'}),
+        fetch(base+'/api/activation/summary', {mode:'cors', credentials:'omit'}),
+      ];
+      if(token) reqs.push(fetch(base+'/api/growth/infra/flags', {
+        mode:'cors', credentials:'omit',
+        headers: {Authorization: 'Bearer '+token},
+      }));
+      const res = await Promise.all(reqs);
+      const healthR = res[0], summaryR = res[1], flagsR = token ? res[2] : null;
+      if(!healthR.ok && !summaryR.ok) continue;
 
-      let health = {}, flags = {};
+      let health = {}, summary = {}, flags = {};
       try { health = await healthR.json(); } catch(e) {}
-      try { flags = await flagsR.json(); } catch(e) {}
+      try { summary = await summaryR.json(); } catch(e) {}
+      if(flagsR && flagsR.ok) { try { flags = await flagsR.json(); } catch(e) {} }
 
-      const flagMap = {};
-      if(flags.flags) flags.flags.forEach(f => { flagMap[f.name || f.key] = f.on ?? f.enabled ?? false; });
-      else if(Array.isArray(flags)) flags.forEach(f => { flagMap[f.name||f] = true; });
-      else Object.keys(flags).forEach(k => { if(typeof flags[k]==='boolean') flagMap[k]=flags[k]; });
+      const flagMap = _parseFlagsPayload(flags);
+      prevLiveSnapshot = liveSnapshot;
+      liveSnapshot = { base, health, summary, flags: flagMap, ts: Date.now() };
+      liveHealth = liveSnapshot;
+      _detectLiveChanges(prevLiveSnapshot, liveSnapshot);
 
-      liveHealth = { base, health, flags: flagMap };
-      const overdue = health.overdue?.length || health.overdue_count || 0;
-      const ok = health.ok !== false && overdue === 0;
-      el.className = ok ? 'ok' : (overdue ? 'warn' : 'ok');
-      txt.textContent = ok
-        ? `Live OK · ${base.replace('https://','')}`
-        : `⚠ ${overdue} overdue jobs · ${base.replace('https://','')}`;
+      const host = base.replace('https://','').replace('http://','');
+      const launchOk = summary.ready_for_launch;
+      const blockers = summary.blocker_count || 0;
+      const overdue = 0;
+      const ok = health.status === 'healthy' && launchOk;
+      el.className = ok ? 'ok' : (blockers ? 'warn' : 'ok');
+      if(launchOk) {
+        txt.textContent = `✅ Launch ready · ${host}` + (summary.payments_deferred ? ' · payments deferred' : '');
+      } else if(health.status === 'healthy') {
+        txt.textContent = `⚠ ${blockers} blocker(s) · ${host}`;
+      } else {
+        txt.textContent = `Live · ${host}`;
+      }
       renderNodes();
+      if(selectedNode && (selectedNode === 'launch' || selectedNode === 'vps' || selectedNode === 'explorer')) {
+        showNodeDetail(nodeMap[selectedNode]);
+      }
       return;
     } catch(e) { continue; }
   }
   el.className = 'err';
-  txt.textContent = 'Offline mode · file:// — draft flags only';
+  txt.textContent = 'Offline · file:// — open /app/explorer on leadsgenai.in for live sync';
+}
+
+async function fetchProductPricing() {
+  for(const base of getApiBases()) {
+    try {
+      const [mR, vR] = await Promise.all([
+        fetch(base+'/api/marketing/packages', {mode:'cors', credentials:'omit'}),
+        fetch(base+'/api/voice/packages', {mode:'cors', credentials:'omit'}),
+      ]);
+      if(!mR.ok && !vR.ok) continue;
+      productPricing = {
+        base,
+        marketing: mR.ok ? await mR.json() : null,
+        voice: vR.ok ? await vR.json() : null,
+      };
+      if(currentView === 'products' && selectedNode) showNodeDetail(nodeMap[selectedNode]);
+      const el = document.getElementById('chg-toast');
+      if(el) { el.innerHTML = '<b>💰</b> Live pricing loaded from '+base.replace('https://',''); el.classList.add('vis'); setTimeout(()=>el.classList.remove('vis'), 5000); }
+      return;
+    } catch(e) { continue; }
+  }
 }
 
 // ════════════════════════════════════
@@ -1680,6 +2064,7 @@ function setupKeyboard() {
     if(e.key === '1') switchView('structural', document.querySelector('[data-view=structural]'));
     if(e.key === '2') switchView('automation', document.querySelector('[data-view=automation]'));
     if(e.key === '3') switchView('custom', document.querySelector('[data-view=custom]'));
+    if(e.key === '4') switchView('products', document.querySelector('[data-view=products]'));
     if(e.key === 't' || e.key === 'T') traceFromSelected();
     if(e.key === 'l' || e.key === 'L') toggleLoops();
   });
@@ -1865,7 +2250,7 @@ function init() {
   showDefaultSidebar();
   fetchLiveHealth();
   setTimeout(fitView, 120);
-  setInterval(fetchLiveHealth, 120000);
+  setInterval(fetchLiveHealth, 60000);
 }
 
 init();

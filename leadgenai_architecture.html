@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadGen AI — System Architecture v2026-06</title>
+<style>
+  :root {
+    --marketing: #2563eb;
+    --marketing-light: #dbeafe;
+    --voice: #ea580c;
+    --voice-light: #ffedd5;
+    --platform: #475569;
+    --platform-light: #f1f5f9;
+    --ai: #7c3aed;
+    --ai-light: #ede9fe;
+    --data: #0891b2;
+    --data-light: #cffafe;
+    --external: #16a34a;
+    --external-light: #dcfce7;
+    --monitor: #ca8a04;
+    --monitor-light: #fef9c3;
+    --danger: #dc2626;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --bg: #f8fafc;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 12px; }
+
+  /* ── HEADER ── */
+  .arch-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    color: #fff; padding: 24px 32px; display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .arch-header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .arch-header .sub { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+  .arch-header .badges { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+  .badge { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-marketing { background: var(--marketing-light); color: var(--marketing); }
+  .badge-voice { background: var(--voice-light); color: var(--voice); }
+  .badge-live { background: #d1fae5; color: #065f46; }
+  .badge-vps { background: #fef3c7; color: #92400e; }
+
+  /* ── LEGEND ── */
+  .legend { background: #fff; border-bottom: 1px solid var(--border); padding: 10px 32px; display: flex; gap: 20px; flex-wrap: wrap; align-items: center; }
+  .legend-label { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-right: 4px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .legend-line { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
+  .legend-line .lsym { width: 24px; height: 2px; background: #475569; }
+  .legend-line .lsym.dashed { background: repeating-linear-gradient(90deg, #475569 0,#475569 4px,transparent 4px,transparent 8px); }
+  .legend-line .lsym.dotted { background: repeating-linear-gradient(90deg, #94a3b8 0,#94a3b8 2px,transparent 2px,transparent 6px); }
+
+  /* ── MAIN CONTAINER ── */
+  .arch-main { padding: 20px 32px; max-width: 1600px; margin: 0 auto; }
+
+  /* ── LAYER WRAPPER ── */
+  .layer { margin-bottom: 6px; }
+  .layer-header {
+    background: var(--text); color: #fff; padding: 5px 12px; border-radius: 4px 4px 0 0;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .layer-body { border: 1.5px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; background: var(--card); padding: 12px; }
+  .layer-body.bg-marketing { background: var(--marketing-light); }
+  .layer-body.bg-voice { background: var(--voice-light); }
+  .layer-body.bg-ai { background: var(--ai-light); }
+  .layer-body.bg-data { background: var(--data-light); }
+  .layer-body.bg-external { background: var(--external-light); }
+  .layer-body.bg-monitor { background: var(--monitor-light); }
+
+  /* ── SWIMLANE SPLIT ── */
+  .swimlanes { display: grid; gap: 8px; }
+  .swimlanes-3 { grid-template-columns: 1fr 1.4fr 1fr; }
+  .swimlanes-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+  .swimlanes-2 { grid-template-columns: 1fr 1fr; }
+  .swimlanes-5 { grid-template-columns: repeat(5, 1fr); }
+  .swimlane { background: rgba(255,255,255,0.7); border: 1px solid var(--border); border-radius: 6px; padding: 10px; }
+  .swimlane-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+
+  /* ── COMPONENT BOX ── */
+  .comp { border-radius: 5px; padding: 6px 10px; margin-bottom: 4px; font-size: 11px; display: flex; align-items: flex-start; gap: 6px; }
+  .comp:last-child { margin-bottom: 0; }
+  .comp-marketing { background: var(--marketing-light); border-left: 3px solid var(--marketing); }
+  .comp-voice { background: var(--voice-light); border-left: 3px solid var(--voice); }
+  .comp-platform { background: var(--platform-light); border-left: 3px solid var(--platform); }
+  .comp-ai { background: var(--ai-light); border-left: 3px solid var(--ai); }
+  .comp-data { background: var(--data-light); border-left: 3px solid var(--data); }
+  .comp-external { background: var(--external-light); border-left: 3px solid var(--external); }
+  .comp-danger { background: #fef2f2; border-left: 3px solid var(--danger); }
+  .comp-off { background: #f8fafc; border-left: 3px dashed #cbd5e1; opacity: 0.8; }
+  .comp-icon { font-size: 14px; flex-shrink: 0; }
+  .comp-body { flex: 1; }
+  .comp-name { font-weight: 700; color: var(--text); line-height: 1.3; }
+  .comp-detail { color: var(--text-muted); font-size: 10px; margin-top: 2px; line-height: 1.4; }
+  .comp-tag { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; margin-top: 3px; }
+  .tag-live { background: #d1fae5; color: #065f46; }
+  .tag-off { background: #f1f5f9; color: #64748b; }
+  .tag-gated { background: #fef3c7; color: #92400e; }
+  .tag-blocked { background: #fef2f2; color: #991b1b; }
+
+  /* ── ARROW ── */
+  .arrow-row { display: flex; align-items: center; justify-content: center; gap: 0; height: 28px; position: relative; }
+  .arrow-svg { width: 100%; height: 28px; display: block; }
+
+  /* ── STAFF GRID ── */
+  .staff-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+  .staff-card { background: white; border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; text-align: center; transition: transform 0.1s; }
+  .staff-card:hover { transform: translateY(-2px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .staff-card .emoji { font-size: 18px; display: block; }
+  .staff-card .name { font-size: 11px; font-weight: 700; margin-top: 2px; }
+  .staff-card .role { font-size: 9px; color: var(--text-muted); }
+  .staff-card .product-badge { display: inline-block; font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px; margin-top: 3px; }
+  .sb-marketing { background: var(--marketing-light); color: var(--marketing); }
+  .sb-voice { background: var(--voice-light); color: var(--voice); }
+  .sb-platform { background: var(--platform-light); color: var(--platform); }
+
+  /* ── ROUTER TABLE ── */
+  .router-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .router-item { background: var(--platform-light); border-radius: 4px; padding: 6px 8px; border-left: 3px solid var(--platform); }
+  .router-item .path { font-family: monospace; font-size: 10px; font-weight: 700; color: var(--marketing); }
+  .router-item .desc { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── QUEUE FLOW ── */
+  .queue-flow { display: flex; align-items: center; gap: 8px; overflow-x: auto; }
+  .qbox { background: white; border: 1.5px solid var(--border); border-radius: 5px; padding: 6px 10px; flex-shrink: 0; text-align: center; }
+  .qbox .qlabel { font-size: 11px; font-weight: 700; }
+  .qbox .qsub { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+  .qarrow { color: var(--text-muted); font-size: 14px; flex-shrink: 0; }
+  .qqueue { background: #fef3c7; border-color: #f59e0b; }
+  .qworker { background: var(--platform-light); border-color: var(--platform); }
+
+  /* ── DATA ROW ── */
+  .data-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 8px; }
+
+  /* ── EXTERNAL GRID ── */
+  .ext-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .ext-group { border-radius: 6px; padding: 8px; }
+  .ext-group-title { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+
+  /* ── MONITORING ROW ── */
+  .monitor-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mbox { background: white; border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; flex: 1; min-width: 100px; }
+  .mbox .mlabel { font-size: 11px; font-weight: 700; }
+  .mbox .msub { font-size: 9px; color: var(--text-muted); margin-top: 2px; }
+  .mbox.dashed-border { border-style: dashed; opacity: 0.7; }
+
+  /* ── ER DIAGRAM ── */
+  .er-section { margin-top: 16px; }
+  .er-section .layer-header { cursor: pointer; }
+  .er-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 12px; background: var(--card); border: 1.5px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; }
+  .er-table { border: 1px solid var(--border); border-radius: 5px; overflow: hidden; font-size: 10px; }
+  .er-table .et-head { background: var(--data); color: white; padding: 5px 8px; font-weight: 700; }
+  .er-table .et-body { padding: 6px 8px; }
+  .er-table .et-row { padding: 2px 0; color: var(--text-muted); }
+  .er-table .et-fk { color: var(--marketing); font-style: italic; }
+  .er-table .et-pk { color: var(--voice); font-weight: 700; }
+
+  /* ── FLOWS PANEL ── */
+  .flows-section { margin-top: 16px; }
+  .flows-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 12px; background: var(--card); border: 1.5px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; }
+  .flow-card { border-radius: 6px; padding: 10px; border: 1px solid var(--border); }
+  .flow-card .fc-title { font-weight: 700; font-size: 12px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .flow-card .fc-icon { font-size: 16px; }
+  .flow-step { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 4px; font-size: 11px; }
+  .flow-num { background: var(--text-muted); color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .flow-num.m { background: var(--marketing); }
+  .flow-num.v { background: var(--voice); }
+  .flow-num.p { background: var(--platform); }
+
+  /* ── COMPLIANCE ── */
+  .compliance-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .compliance-box { border: 1.5px solid var(--danger); border-radius: 6px; padding: 8px 12px; background: #fef2f2; flex: 1; min-width: 180px; }
+  .compliance-box .ct { font-size: 11px; font-weight: 700; color: var(--danger); margin-bottom: 4px; }
+  .compliance-box .cd { font-size: 10px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ── CONNECTOR ARROWS ── */
+  .connector { text-align: center; height: 20px; color: var(--text-muted); font-size: 18px; line-height: 20px; }
+  .connector.right { transform: rotate(90deg); display: inline-block; }
+
+  /* ── SECTION TITLE ── */
+  .section-note { font-size: 10px; color: var(--text-muted); font-style: italic; }
+
+  /* ── PRODUCT SPLIT BANNER ── */
+  .product-split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 2px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+  .ps-col { padding: 12px 16px; }
+  .ps-col.marketing { background: var(--marketing-light); border-right: 2px solid var(--border); }
+  .ps-col.voice { background: var(--voice-light); }
+  .ps-col .ps-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .ps-col.marketing .ps-title { color: var(--marketing); }
+  .ps-col.voice .ps-title { color: var(--voice); }
+  .ps-col .ps-items { font-size: 11px; color: var(--text-muted); line-height: 1.7; }
+  .ps-col .ps-price { font-size: 11px; font-weight: 700; margin-top: 4px; }
+
+  /* ── HOVER TOOLTIP ── */
+  [data-tip] { position: relative; cursor: help; }
+  [data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    background: #0f172a; color: white; padding: 5px 9px; border-radius: 5px; font-size: 10px;
+    white-space: nowrap; z-index: 100; pointer-events: none; max-width: 260px; white-space: normal; text-align: center;
+  }
+
+  /* ── PRINT ── */
+  @media print { body { font-size: 11px; } .arch-main { padding: 10px; } }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ HEADER ═══════════════════ -->
+<div class="arch-header">
+  <div>
+    <h1>🧠 LeadGen AI — System Architecture</h1>
+    <div class="sub">leadsgenai.in &nbsp;|&nbsp; Hostinger VPS Mumbai (72.61.245.204) &nbsp;|&nbsp; Single-node Docker Compose &nbsp;|&nbsp; v2026-06</div>
+    <div class="sub" style="margin-top:4px;">FastAPI monolith ~761 routes &nbsp;|&nbsp; 17 AI Staff &nbsp;|&nbsp; Postgres 16 + PgBouncer + Redis ×2 + Qdrant &nbsp;|&nbsp; Celery durable queue</div>
+  </div>
+  <div class="badges">
+    <span class="badge badge-live">✅ LIVE</span>
+    <span class="badge badge-vps">🖥 Single VPS</span>
+    <span class="badge badge-marketing">📣 AI Marketing</span>
+    <span class="badge badge-voice">📞 Voice Agent</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ LEGEND ═══════════════════ -->
+<div class="legend">
+  <span class="legend-label">COLOR KEY:</span>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--marketing)"></div> Marketing Product</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--voice)"></div> Voice Product</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--platform)"></div> Platform / Infra</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--ai)"></div> AI / ML Layer</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--data)"></div> Data / Storage</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--external)"></div> External Services</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--monitor)"></div> Monitoring</div>
+  <span style="margin-left:12px;"></span>
+  <div class="legend-line"><div class="lsym"></div> Sync HTTP/WS</div>
+  <div class="legend-line"><div class="lsym dashed"></div> Async Celery</div>
+  <div class="legend-line"><div class="lsym dotted"></div> Optional / Flag-gated</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--danger)"></div> Requires user action</div>
+</div>
+
+<div class="arch-main">
+
+<!-- ═══════════════════ PRODUCT SPLIT ═══════════════════ -->
+<div class="product-split">
+  <div class="ps-col marketing">
+    <div class="ps-title">📣 Product 1 — AI Automated Marketing</div>
+    <div class="ps-items">Social posts · GBP · Reviews · Mini-sites · Embeddable widgets · SEO content · Email sequences · AI images (Pollinations)</div>
+    <div class="ps-price">₹1,199 Starter · ₹2,999 Growth · ₹6,999 Advanced &nbsp;|&nbsp; Voice = Advanced-only feature</div>
+  </div>
+  <div class="ps-col voice">
+    <div class="ps-title">📞 Product 2 — AI Voice Calling Agent</div>
+    <div class="ps-items">Full AI telecaller · UNLIMITED calls per niche · STT+LLM+TTS pipeline · Exotel + DLT-gated · Band A/B/C flat pricing</div>
+    <div class="ps-price">₹4,999 Band A · ₹9,999 Band B · ₹19,999 Band C &nbsp;|&nbsp; FREE 7-day pilot (50 calls)</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ LAYER 1 — EDGE ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <span>LAYER 1 — EDGE &amp; TLS TERMINATION</span>
+    <span class="section-note">Public internet → Caddy (host process) → Docker leadgen_app</span>
+  </div>
+  <div class="layer-body">
+    <div class="swimlanes swimlanes-3">
+      <div class="swimlane">
+        <div class="swimlane-title">Browser / Clients</div>
+        <div class="comp comp-platform"><span class="comp-icon">🌐</span><div class="comp-body"><div class="comp-name">End User Browser</div><div class="comp-detail">leadsgenai.in / b/{slug} / embed widget on client websites</div></div></div>
+        <div class="comp comp-marketing"><span class="comp-icon">🔗</span><div class="comp-body"><div class="comp-name">Embeddable Widget</div><div class="comp-detail">/b/{slug}/widget.js + /b/{slug}/embed injected on client websites</div></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">Edge Proxy (host process — NOT a container)</div>
+        <div class="comp comp-platform" data-tip="Caddy runs on the VPS host, not inside Docker. TLS termination happens here."><span class="comp-icon">🔒</span><div class="comp-body"><div class="comp-name">Caddy TLS Reverse Proxy</div><div class="comp-detail">Terminates HTTPS (Let's Encrypt auto) → proxies to 127.0.0.1:8000 (Docker app port)<br><strong>NOT Nginx / NOT Traefik</strong> — Traefik conflict documented</div><span class="comp-tag tag-live">LIVE HOST PROCESS</span></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">🛡️</span><div class="comp-body"><div class="comp-name">fail2ban + unattended-upgrades</div><div class="comp-detail">Host-level intrusion prevention and auto security patches</div><span class="comp-tag tag-live">LIVE</span></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">External Webhooks → App</div>
+        <div class="comp comp-voice"><span class="comp-icon">📞</span><div class="comp-body"><div class="comp-name">Exotel Webhooks</div><div class="comp-detail">/api/webhooks/exotel/voice + /status (signature-verified, fail-CLOSED in prod)</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">💳</span><div class="comp-body"><div class="comp-name">Razorpay Webhook</div><div class="comp-detail">/api/billing/webhooks/razorpay (HMAC verified)</div><span class="comp-tag tag-blocked">🚨 KEYS UNSET</span></div></div>
+        <div class="comp comp-marketing"><span class="comp-icon">💬</span><div class="comp-body"><div class="comp-name">WhatsApp Cloud API Webhook</div><div class="comp-detail">/api/webhooks/whatsapp (verify token, fail-CLOSED)</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓ HTTPS/WSS</div>
+
+<!-- ═══════════════════ LAYER 2 — FRONTEND ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <span>LAYER 2 — FRONTEND (Vanilla HTML Dashboards · No Native Mobile App)</span>
+    <span class="section-note">Server-rendered pages + SSE live updates + WebSocket demo</span>
+  </div>
+  <div class="layer-body">
+    <div class="swimlanes swimlanes-3">
+      <div class="swimlane">
+        <div class="swimlane-title">🌐 Public / Lead Magnets (unauthenticated)</div>
+        <div class="comp comp-marketing"><span class="comp-icon">🔍</span><div class="comp-body"><div class="comp-name">/audit &amp; /site-audit</div><div class="comp-detail">#1 &amp; #2 lead magnets — AI business audit</div></div></div>
+        <div class="comp comp-marketing"><span class="comp-icon">💰</span><div class="comp-body"><div class="comp-name">/pricing · /start · /compare</div><div class="comp-detail">Both products compare page — DO separate products framing</div></div></div>
+        <div class="comp comp-voice"><span class="comp-icon">📞</span><div class="comp-body"><div class="comp-name">/voice-agent · /demo</div><div class="comp-detail">Standalone voice product page + AI demo</div></div></div>
+        <div class="comp comp-marketing"><span class="comp-icon">✍️</span><div class="comp-body"><div class="comp-name">/blog · /b/{slug}</div><div class="comp-detail">Programmatic SEO blog + per-client mini-site (booking + digital card + bio)</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">⚖️</span><div class="comp-body"><div class="comp-name">/privacy · /terms · /refund · /status</div><div class="comp-detail">Legal pages + public status page</div></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">🔐 Admin Dashboards (JWT admin auth)</div>
+        <div class="comp comp-platform"><span class="comp-icon">🏠</span><div class="comp-body"><div class="comp-name">/app/admin · /app/admin-login</div><div class="comp-detail">Master admin dashboard + RBAC module grants</div></div></div>
+        <div class="comp comp-marketing"><span class="comp-icon">📣</span><div class="comp-body"><div class="comp-name">/app/marketing</div><div class="comp-detail">28-tab marketing studio (content, GBP, SEO, images, social)</div></div></div>
+        <div class="comp comp-marketing"><span class="comp-icon">⚙️</span><div class="comp-body"><div class="comp-name">/app/automation · /app/ops</div><div class="comp-detail">Mission Control (28 tabs) · Growth Lab optimizer · ops watchdog</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">👥</span><div class="comp-body"><div class="comp-name">/app/team · /app/clients · /app/outreach</div><div class="comp-detail">AI Staff live feed · client KPIs · lead outreach</div></div></div>
+        <div class="comp comp-voice"><span class="comp-icon">📞</span><div class="comp-body"><div class="comp-name">/app/test-call · /app/dialer · /app/agents</div><div class="comp-detail">FREE voice tuning · manual dialer · agent config</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">📊</span><div class="comp-body"><div class="comp-name">/app/dashboards · /app/battlecard</div><div class="comp-detail">Unified admin KPI dashboard · internal sales battlecard</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">🔔</span><div class="comp-body"><div class="comp-name">SSE Live Feed · /app/growth-tools</div><div class="comp-detail">/api/events/stream — real-time activity (Celery jobs, agent events) · 18-tab growth toolkit</div></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">👤 Customer Portal (separate customer JWT)</div>
+        <div class="comp comp-marketing"><span class="comp-icon">🔑</span><div class="comp-body"><div class="comp-name">/app/login → /app/customer</div><div class="comp-detail">Client-scoped portal — own KPIs, leads, usage, billing only (IDOR-safe)</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">🔐</span><div class="comp-body"><div class="comp-name">TOTP 2FA</div><div class="comp-detail">/api/customer/totp/* — time-based OTP setup + verify</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">🔗</span><div class="comp-body"><div class="comp-name">Customer Webhooks</div><div class="comp-detail">Svix-style HMAC outbound events: lead.created · lead.qualified · call.completed</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">📡</span><div class="comp-body"><div class="comp-name">WebSocket Demo</div><div class="comp-detail">/api/web-call/ws — live AI voice demo in browser (no phone needed)</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓ Auth check</div>
+
+<!-- ═══════════════════ LAYER 3 — AUTH ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <span>LAYER 3 — AUTHENTICATION &amp; AUTHORIZATION</span>
+    <span class="section-note">Dual auth systems · RBAC module grants · Consent + audit trail</span>
+  </div>
+  <div class="layer-body">
+    <div class="swimlanes swimlanes-2">
+      <div class="swimlane">
+        <div class="swimlane-title">Admin / Staff Auth Path</div>
+        <div class="comp comp-platform"><span class="comp-icon">🔐</span><div class="comp-body"><div class="comp-name">Admin JWT (User model — Postgres)</div><div class="comp-detail">POST /api/admin/login → JWT · Roles: super_admin · admin · manager · agent · viewer</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">🎛️</span><div class="comp-body"><div class="comp-name">RBAC Module Grants</div><div class="comp-detail">/api/team-access/* — per-module grants stored in users.preferences JSON<br>Modules: marketing · growth · leads · agents · clients · billing · telephony · analytics</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">👤</span><div class="comp-body"><div class="comp-name">Super-admin Impersonation</div><div class="comp-detail">/api/impersonate/* (gated, full audit trail)</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">📋</span><div class="comp-body"><div class="comp-name">UserSession + AuditLog tables</div><div class="comp-detail">Every admin action recorded in Postgres — billing mutations especially</div></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">Customer Portal Auth Path</div>
+        <div class="comp comp-marketing"><span class="comp-icon">🔑</span><div class="comp-body"><div class="comp-name">Customer JWT (data/customer_auth.jsonl)</div><div class="comp-detail">POST /api/customer/auth/login → JWT · pbkdf2 password hash · scoped to own client_id</div></div></div>
+        <div class="comp comp-marketing"><span class="comp-icon">📱</span><div class="comp-body"><div class="comp-name">TOTP 2FA</div><div class="comp-detail">/api/customer/totp/setup + /verify — IDOR-safe: every billing mutation checked via _authed_client_id dep (C1 fix)</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">🛡️</span><div class="comp-body"><div class="comp-name">Consent Ledger (DPDP Act 2023)</div><div class="comp-detail">consent_ledger.py — opt-out → INSTANT cross-channel suppression · 90-day recording retention · DPDP purge bridge</div></div></div>
+        <div class="comp comp-off"><span class="comp-icon">🔐</span><div class="comp-body"><div class="comp-name">Cloudflare Turnstile (optional)</div><div class="comp-detail">CLOUDFLARE_TURNSTILE_SECRET_KEY needed — bot protection on public forms</div><span class="comp-tag tag-off">FLAG-GATED OFF</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓ Routed to handler</div>
+
+<!-- ═══════════════════ LAYER 4 — FASTAPI ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <span>LAYER 4 — BACKEND APPLICATION · FastAPI Monolith (leadgen_app container · uvicorn · ~761 routes · WEB_CONCURRENCY=2)</span>
+    <span class="section-note">NOT microservices — single process behind PgBouncer; first-route-wins rule</span>
+  </div>
+  <div class="layer-body">
+    <div style="margin-bottom:10px;">
+      <div class="swimlane-title" style="margin-bottom:8px;">Middleware Stack (applies to ALL requests)</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <div class="comp comp-platform" style="flex:1;min-width:140px;margin:0;"><span class="comp-icon">🔒</span><div class="comp-body"><div class="comp-name">Security Headers + CSP</div></div></div>
+        <div class="comp comp-platform" style="flex:1;min-width:160px;margin:0;"><span class="comp-icon">⏱️</span><div class="comp-body"><div class="comp-name">Plan-Tier Rate Limit</div><div class="comp-detail">Starter 60rpm / Growth 200rpm / Advanced 500rpm (Redis-backed, PLAN_RATE_LIMIT=1)</div></div></div>
+        <div class="comp comp-marketing" style="flex:1;min-width:140px;margin:0;"><span class="comp-icon">🏷️</span><div class="comp-body"><div class="comp-name">Tenant Branding</div><div class="comp-detail">White-label subdomain + custom_domain (FAIL-OPEN)</div></div></div>
+        <div class="comp comp-platform" style="flex:1;min-width:120px;margin:0;"><span class="comp-icon">🔍</span><div class="comp-body"><div class="comp-name">Request Tracing</div><div class="comp-detail">Optional OTel (ENABLE_OTEL=1)</div></div></div>
+      </div>
+    </div>
+    <div class="router-grid">
+      <div class="router-item"><div class="path">/api/admin/* /api/customer/*</div><div class="desc">Dashboards, RBAC, team, billing management</div></div>
+      <div class="router-item"><div class="path">/api/marketing/* /api/creative/* /api/contentauto/*</div><div class="desc">Marketing product — content, images, GBP, SEO, AB test</div></div>
+      <div class="router-item"><div class="path">/api/voice/* /api/voiceai/* /api/web-call/*</div><div class="desc">Voice product — packages, calls, web-demo</div></div>
+      <div class="router-item"><div class="path">/api/billing/* /api/public/pay-info</div><div class="desc">Razorpay checkout, subscriptions, usage, GST invoices SAC 998313</div></div>
+      <div class="router-item"><div class="path">/api/public/* /api/audit/*</div><div class="desc">Signup, inquiry, lead-magnet forms, SSRF-protected site-audit (private IP blocked)</div></div>
+      <div class="router-item"><div class="path">/api/growth/* /api/platform/*</div><div class="desc">Lead scoring, FDE, automation flags registry, readiness probes</div></div>
+      <div class="router-item"><div class="path">/api/webhooks/*</div><div class="desc">Exotel + Twilio + WhatsApp + Razorpay callbacks — signature-verified, fail-CLOSED in prod</div></div>
+      <div class="router-item"><div class="path">/api/mcp-product/v1/* /.well-known/agent.json</div><div class="desc">MCP-as-product API (niches, score-lead, qualifier) · A2A Agent Card</div></div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;">
+      <div class="comp comp-voice" style="flex:1;margin:0;"><span class="comp-icon">🔌</span><div class="comp-body"><div class="comp-name">WebSocket: /ws/exotel-voicebot</div><div class="comp-detail">Exotel Voicebot PCM16 stream → 8k resample → VAD → STT → LLM → TTS pipeline</div></div></div>
+      <div class="comp comp-voice" style="flex:1;margin:0;"><span class="comp-icon">📡</span><div class="comp-body"><div class="comp-name">WebSocket: /api/web-call/ws</div><div class="comp-detail">Browser-based AI voice demo (/app/test-call) — FREE tuning before live calls</div></div></div>
+      <div class="comp comp-platform" style="flex:1;margin:0;"><span class="comp-icon">📺</span><div class="comp-body"><div class="comp-name">SSE: /api/events/stream</div><div class="comp-detail">Real-time admin activity feed — Celery jobs, agent events, live call status</div></div></div>
+      <div class="comp comp-platform" style="flex:1;margin:0;"><span class="comp-icon">🔍</span><div class="comp-body"><div class="comp-name">/api/activation/readiness</div><div class="comp-detail">13-probe readiness gate — single boolean ready_for_first_paid_customer</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓ Dispatch to AI / Async</div>
+
+<!-- ═══════════════════ LAYERS 5+6 — AI AGENTS + QUEUE ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <span>LAYER 5 — AI AGENT LAYER &amp; INTELLIGENCE</span>
+    <span class="section-note">All-free stack: Mistral PRIMARY → Groq → Cerebras → Gemini → OpenRouter (circuit-breaker on 429)</span>
+  </div>
+  <div class="layer-body bg-ai">
+    <div class="swimlanes swimlanes-2" style="margin-bottom:10px;">
+      <div class="swimlane">
+        <div class="swimlane-title">🤖 17 AI Staff Roster (team.py)</div>
+        <div class="staff-grid">
+          <div class="staff-card"><span class="emoji">🧑‍💼</span><div class="name">Boss</div><div class="role">Supervisor</div><span class="product-badge sb-platform">platform</span></div>
+          <div class="staff-card"><span class="emoji">📣</span><div class="name">Isha</div><div class="role">Marketing Exec</div><span class="product-badge sb-marketing">marketing</span></div>
+          <div class="staff-card"><span class="emoji">📚</span><div class="name">Dev</div><div class="role">Data Analyst</div><span class="product-badge sb-marketing">marketing</span></div>
+          <div class="staff-card"><span class="emoji">🎯</span><div class="name">Rohan</div><div class="role">Leads Manager</div><span class="product-badge sb-marketing">marketing</span></div>
+          <div class="staff-card"><span class="emoji">📞</span><div class="name">Swara</div><div class="role">Telecaller</div><span class="product-badge sb-voice">voice</span></div>
+          <div class="staff-card"><span class="emoji">🎙️</span><div class="name">Tara</div><div class="role">Voice Infra</div><span class="product-badge sb-voice">voice</span></div>
+          <div class="staff-card"><span class="emoji">🧪</span><div class="name">Arjun</div><div class="role">QA Engineer</div><span class="product-badge sb-voice">voice</span></div>
+          <div class="staff-card"><span class="emoji">🎓</span><div class="name">Meera</div><div class="role">Trainer</div><span class="product-badge sb-voice">voice</span></div>
+          <div class="staff-card"><span class="emoji">🛡️</span><div class="name">Kavya</div><div class="role">Ops Monitor</div><span class="product-badge sb-platform">platform</span></div>
+          <div class="staff-card"><span class="emoji">🛰️</span><div class="name">Hermes</div><div class="role">Infra Handler</div><span class="product-badge sb-platform">platform</span></div>
+          <div class="staff-card"><span class="emoji">💰</span><div class="name">Nikhil</div><div class="role">Revenue Ops</div><span class="product-badge sb-platform">platform</span></div>
+          <div class="staff-card"><span class="emoji">🛠️</span><div class="name">Vikram</div><div class="role">Code Upgrader</div><span class="product-badge sb-platform">platform</span></div>
+          <div class="staff-card"><span class="emoji">📚</span><div class="name">Guru</div><div class="role">Skill Trainer</div><span class="product-badge sb-platform">platform</span></div>
+          <div class="staff-card"><span class="emoji">🔧</span><div class="name">Pranav</div><div class="role">SRE/DR</div><span class="product-badge sb-platform">platform</span></div>
+          <div class="staff-card"><span class="emoji">💹</span><div class="name">Vidya</div><div class="role">FinOps</div><span class="product-badge sb-platform">platform</span></div>
+          <div class="staff-card"><span class="emoji">🔐</span><div class="name">Arnav</div><div class="role">Security</div><span class="product-badge sb-platform">platform</span></div>
+          <div class="staff-card"><span class="emoji">🏗️</span><div class="name">FDE Agents</div><div class="role">Neo·Isha·Veer·Aarav</div><span class="product-badge sb-marketing">deploy</span></div>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:var(--text-muted);">⏰ IST Schedule: 06:30 blog · 07:00 content · 08:30 digest · 09:30 prospect · 10:30 email outreach · hourly health/triage/watchdog · 02:30 QA · 03:00 trainer · 04:00 backup</div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">🔗 Multi-Agent Orchestration (coordinator.py)</div>
+        <div class="comp comp-ai"><span class="comp-icon">🎯</span><div class="comp-body"><div class="comp-name">coordinator.py — 4 modes</div><div class="comp-detail">Plan → Sequential handoff → Fan-out (parallel) → Hierarchical (growth/ops/sales teams) · Reflexion critique loop</div></div></div>
+        <div class="comp comp-ai"><span class="comp-icon">⚙️</span><div class="comp-body"><div class="comp-name">process_engine.py</div><div class="comp-detail">Process-as-code · event-sourced journal · deterministic gates · human breakpoints</div></div></div>
+        <div class="comp comp-ai"><span class="comp-icon">🔁</span><div class="comp-body"><div class="comp-name">self_improve.py (SELF_IMPROVE_LOOP=1 ON)</div><div class="comp-detail">Continuous improvement — task→task FOREVER Celery requeue · SELFIMPROVE_COST_CAP safety</div><span class="comp-tag tag-live">ON</span></div></div>
+        <div class="comp comp-ai"><span class="comp-icon">💼</span><div class="comp-body"><div class="comp-name">sales_team.py (SALES_TEAM=1 ON)</div><div class="comp-detail">5-agent BANT deep-dive pipeline</div></div></div>
+        <div class="comp comp-ai"><span class="comp-icon">🚀</span><div class="comp-body"><div class="comp-name">fde.py — Forward Deployed Engineer</div><div class="comp-detail">Neo/Isha/Veer/Aarav deploy marketing packs, mini-sites, widgets, client journeys</div></div></div>
+        <div class="comp comp-off"><span class="comp-icon">🕸️</span><div class="comp-body"><div class="comp-name">staff_supervisor.py (LangGraph)</div><div class="comp-detail">USE_LANGGRAPH_SUPERVISOR=1 — opt-in graph supervisor</div><span class="comp-tag tag-off">OPT-IN</span></div></div>
+      </div>
+    </div>
+    <div class="swimlanes swimlanes-3">
+      <div class="swimlane">
+        <div class="swimlane-title">🎙️ Voice Brain Pipeline</div>
+        <div class="comp comp-voice"><span class="comp-icon">🎤</span><div class="comp-body"><div class="comp-name">STT: Groq Whisper-large-v3</div><div class="comp-detail">Primary → Gemini audio → local faster-whisper fallback</div></div></div>
+        <div class="comp comp-voice"><span class="comp-icon">🧠</span><div class="comp-body"><div class="comp-name">telecaller_brain.py + niche_scripts.py</div><div class="comp-detail">KB-grounded ACP pattern · ≤2 sentences/turn · 1 question rule</div></div></div>
+        <div class="comp comp-voice"><span class="comp-icon">🔊</span><div class="comp-body"><div class="comp-name">TTS: EdgeTTS hi-IN-SwaraNeural</div><div class="comp-detail">edge-tts≥7.2.0 required (warna 403) · prosody env knobs PHONE_TTS_RATE/PITCH</div></div></div>
+        <div class="comp comp-voice"><span class="comp-icon">🔍</span><div class="comp-body"><div class="comp-name">Turn Detection (USE_SILERO_VAD=1)</div><div class="comp-detail">SileroSpeechGate + SmartTurnDetector · RMS fallback bina dep</div></div></div>
+        <div class="comp comp-voice"><span class="comp-icon">✅</span><div class="comp-body"><div class="comp-name">call_qualifier.py (AUTO_QUALIFY_CALLS)</div><div class="comp-detail">Post-call qualification scoring</div></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">🔮 RAG / Vector Memory (Qdrant)</div>
+        <div class="comp comp-ai"><span class="comp-icon">📦</span><div class="comp-body"><div class="comp-name">Collection: kb_main</div><div class="comp-detail">Namespaces: niche: · client:{id} · skills · agent_memory</div></div></div>
+        <div class="comp comp-ai"><span class="comp-icon">🔢</span><div class="comp-body"><div class="comp-name">Embedder: fastembed multilingual MiniLM</div><div class="comp-detail">paraphrase-multilingual-MiniLM-L12-v2 dim-384 · BAKED in image (241M) · off-loop asyncio.to_thread + deadline</div></div></div>
+        <div class="comp comp-ai"><span class="comp-icon">💾</span><div class="comp-body"><div class="comp-name">agent_memory (inspect + DPDP purge)</div><div class="comp-detail">Per-agent memory + consent-ledger bridge for DPDP rights</div></div></div>
+        <div class="comp comp-off"><span class="comp-icon">🕸️</span><div class="comp-body"><div class="comp-name">LightRAG graph (USE_LIGHTRAG=1 OFF)</div><div class="comp-detail">Optional knowledge graph RAG</div><span class="comp-tag tag-off">OPT-IN OFF</span></div></div>
+        <div class="comp comp-off"><span class="comp-icon">🔄</span><div class="comp-body"><div class="comp-name">Agentic RAG CRAG (USE_AGENTIC_RAG=1 ON)</div><div class="comp-detail">Corrective RAG pipeline</div><span class="comp-tag tag-live">ON</span></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">🔗 Free AI Provider Chain (free_ai.py)</div>
+        <div class="comp comp-ai"><span class="comp-icon">1️⃣</span><div class="comp-body"><div class="comp-name">Mistral small-latest (PRIMARY ~99%)</div><div class="comp-detail">Production-proven primary LLM</div><span class="comp-tag tag-live">PRIMARY</span></div></div>
+        <div class="comp comp-ai"><span class="comp-icon">2️⃣</span><div class="comp-body"><div class="comp-name">Groq llama-3.1-8b-instant (~96%)</div><div class="comp-detail">TPD can exhaust on content-heavy days</div></div></div>
+        <div class="comp comp-ai"><span class="comp-icon">3️⃣</span><div class="comp-body"><div class="comp-name">Cerebras gpt-oss-120b (429-PRONE)</div><div class="comp-detail">Free 120B but quota-limited</div></div></div>
+        <div class="comp comp-ai"><span class="comp-icon">4️⃣</span><div class="comp-body"><div class="comp-name">Gemini 2.0-flash-lite → SambaNova → OpenRouter</div><div class="comp-detail">deepseek/llama free keys · circuit-breaker: 429 → ESCALATING cooldown 60s→30min</div></div></div>
+        <div class="comp comp-off"><span class="comp-icon">🖥️</span><div class="comp-body"><div class="comp-name">Ollama (optional floor)</div><div class="comp-detail">OLLAMA_PRIMARY flag · local self-hosted fallback</div></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ LAYER 6 — ASYNC/QUEUE ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <span>LAYER 6 — QUEUE &amp; BACKGROUND PROCESSING (Celery durable — --profile celery)</span>
+    <span class="section-note">Beat schedules IST jobs → Redis broker → Worker · APScheduler fallback (RUN_IN_PROCESS_SCHEDULER=1)</span>
+  </div>
+  <div class="layer-body">
+    <div class="queue-flow" style="padding:6px 0;">
+      <div class="qbox"><div class="qlabel">⏰ Celery Beat</div><div class="qsub">leadgen_scheduler container<br>IST timezone cron</div></div>
+      <div class="qarrow">→</div>
+      <div class="qbox qqueue"><div class="qlabel">📨 Redis Broker</div><div class="qsub">leadgen_redis:6379<br>noeviction policy<br>AOF persistence</div></div>
+      <div class="qarrow">→</div>
+      <div class="qbox qworker"><div class="qlabel">⚙️ Celery Worker</div><div class="qsub">leadgen_worker container<br>concurrency=4</div></div>
+      <div class="qarrow">→</div>
+      <div class="qbox"><div class="qlabel">📦 Task Queues</div><div class="qsub">default · scraping<br>calling · reporting<br>sync · heavy</div></div>
+      <div class="qarrow">→</div>
+      <div class="qbox"><div class="qlabel">💀 DLQ</div><div class="qsub">Redis dlq:failed_tasks<br>retry via API</div></div>
+      <div class="qarrow">→</div>
+      <div class="qbox qworker"><div class="qlabel">📊 Flower UI</div><div class="qsub">:5555 (addons.yml)<br>task monitoring</div></div>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+      <div class="comp comp-platform" style="flex:1;min-width:160px;margin:0;"><span class="comp-icon">💀</span><div class="comp-body"><div class="comp-name">Dead-man trio (always-on)</div><div class="comp-detail">heartbeat (data/job_heartbeats.json) + revive-beat */20min + watchdog ensure_alive. Worker recreate ke baad: redis-cli llen celery check (>500 = del celery)</div></div></div>
+      <div class="comp comp-platform" style="flex:1;min-width:160px;margin:0;"><span class="comp-icon">⚕️</span><div class="comp-body"><div class="comp-name">Self-heal cron (vps_selfheal.sh)</div><div class="comp-detail">*/10 min VPS crontab — auto-restart dead containers</div></div></div>
+      <div class="comp comp-voice" style="flex:1;min-width:160px;margin:0;"><span class="comp-icon">🏋️</span><div class="comp-body"><div class="comp-name">Heavy queue jobs (boot-grace protected)</div><div class="comp-detail">qa · trainer · blog · content · digest · prospect · email_outreach — skip on boot if already in active window (restart-storm prevention)</div></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓ Persist / Retrieve</div>
+
+<!-- ═══════════════════ LAYER 7 — DATA ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <span>LAYER 7 — DATA &amp; PERSISTENCE</span>
+    <span class="section-note">All containers on leadgen_net Docker network · no external exposure except 127.0.0.1 host-published ports</span>
+  </div>
+  <div class="layer-body bg-data">
+    <div class="data-row">
+      <div class="swimlane">
+        <div class="swimlane-title">🐘 Postgres 16 (via PgBouncer :6432)</div>
+        <div class="comp comp-data"><span class="comp-icon">👥</span><div class="comp-body"><div class="comp-name">users + user_sessions + audit_logs</div><div class="comp-detail">Admin auth, RBAC module grants, full audit trail</div></div></div>
+        <div class="comp comp-data"><span class="comp-icon">🏢</span><div class="comp-body"><div class="comp-name">clients ↔ leads ↔ calls</div><div class="comp-detail">client_id FK · lead_score · is_hot_lead · call outcome/direction/duration</div></div></div>
+        <div class="comp comp-data"><span class="comp-icon">💰</span><div class="comp-body"><div class="comp-name">subscriptions ↔ payments ↔ invoices ↔ usage_records</div><div class="comp-detail">GST Rule-46 sequential invoices INV/2026-27/0001 · SAC 998313</div></div></div>
+        <div class="comp comp-data"><span class="comp-icon">🤖</span><div class="comp-body"><div class="comp-name">agent_events + agents + campaigns</div><div class="comp-detail">14 staff live activity log → /app/team dashboard SSE</div></div></div>
+        <div class="comp comp-data"><span class="comp-icon">🔗</span><div class="comp-body"><div class="comp-name">api_keys + data_credits</div><div class="comp-detail">Per-client API keys · usage metering (FAIL-OPEN on billing)</div></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">⚡ Redis Broker (leadgen_redis :6379)</div>
+        <div class="comp comp-data"><span class="comp-icon">📨</span><div class="comp-body"><div class="comp-name">Celery broker + result backend</div><div class="comp-detail">noeviction policy · AOF everysec persistence · 256MB maxmemory</div></div></div>
+        <div class="comp comp-data"><span class="comp-icon">📞</span><div class="comp-body"><div class="comp-name">Distributed call state + DLQ</div><div class="comp-detail">Live call sessions · dlq:failed_tasks · scheduler locks</div></div></div>
+        <div class="comp comp-data"><span class="comp-icon">🚦</span><div class="comp-body"><div class="comp-name">Rate limits + distributed locks</div><div class="comp-detail">Plan-tier RPM counters · Celery beat locks</div></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">🔄 Redis Cache (leadgen_redis_cache)</div>
+        <div class="comp comp-data"><span class="comp-icon">💾</span><div class="comp-body"><div class="comp-name">App cache (app.cache.Cache)</div><div class="comp-detail">allkeys-lru policy · no persistence (--save "" --appendonly no) · 256MB maxmemory</div></div></div>
+        <div class="comp comp-data"><span class="comp-icon">🔮</span><div class="comp-body"><div class="comp-name">Semantic LLM cache</div><div class="comp-detail">Qdrant-backed embedding similarity cache — avoids duplicate LLM calls</div></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">🔵 Qdrant :6333</div>
+        <div class="comp comp-ai"><span class="comp-icon">🧮</span><div class="comp-body"><div class="comp-name">kb_main collection</div><div class="comp-detail">niche: namespaces (39 niches) · client:{id} · skills (241 skills) · agent_memory</div></div></div>
+        <div class="comp comp-ai"><span class="comp-icon">📐</span><div class="comp-body"><div class="comp-name">fastembed 241MB (BAKED)</div><div class="comp-detail">MiniLM-L12-v2 dim-384 · Silero VAD torch-CPU baked in /opt/fastembed_cache</div></div></div>
+      </div>
+      <div class="swimlane">
+        <div class="swimlane-title">📁 ./data bind-mount + MinIO</div>
+        <div class="comp comp-platform"><span class="comp-icon">📝</span><div class="comp-body"><div class="comp-name">jsonl stores</div><div class="comp-detail">inquiries · prospects · client_packs · coordination_runs · job_heartbeats</div></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">🖼️</span><div class="comp-body"><div class="comp-name">ai_images/ · logos/</div><div class="comp-detail">Pollinations API cache (sk_ key proxy) · client brand assets</div></div></div>
+        <div class="comp comp-off"><span class="comp-icon">☁️</span><div class="comp-body"><div class="comp-name">MinIO :9000 (addons.yml)</div><div class="comp-detail">S3-compatible · buckets: leadgen-assets + leadgen-private · local disk fallback</div><span class="comp-tag tag-off">ADDONS</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ LAYER 8 — EXTERNAL ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <span>LAYER 8 — EXTERNAL INTEGRATIONS</span>
+    <span class="section-note">All from app → external (no VPC peering — single VPS, public HTTPS APIs)</span>
+  </div>
+  <div class="layer-body bg-external">
+    <div class="ext-grid">
+      <div class="ext-group" style="background:rgba(255,255,255,0.6);border:1px solid var(--border);border-radius:6px;">
+        <div class="ext-group-title">💳 Payments</div>
+        <div class="comp comp-danger"><span class="comp-icon">⚠️</span><div class="comp-body"><div class="comp-name">Razorpay (KEYS UNSET)</div><div class="comp-detail">Checkout · webhooks · GST invoices · TOP-UPS. Root cause: placeholder values in .env. FIX = set rzp_live_ keys + recreate app + webhook register</div><span class="comp-tag tag-blocked">🚨 BLOCKED</span></div></div>
+      </div>
+      <div class="ext-group" style="background:rgba(255,255,255,0.6);border:1px solid var(--border);border-radius:6px;">
+        <div class="ext-group-title">📞 Telephony (India-compliant · 140-series + DLT)</div>
+        <div class="comp comp-voice"><span class="comp-icon">✅</span><div class="comp-body"><div class="comp-name">Exotel (PRIMARY LIVE)</div><div class="comp-detail">Voicebot WS + status callbacks · KYC=notstarted (trial) · Balance ₹494 · DLT= pending Udyam cert</div><span class="comp-tag tag-live">LIVE TRIAL</span></div></div>
+        <div class="comp comp-voice"><span class="comp-icon">🔄</span><div class="comp-body"><div class="comp-name">Twilio (legacy webhook path)</div><div class="comp-detail">Foreign trunk for Indian domestic = ILLEGAL (TRAI) — legacy only</div></div></div>
+        <div class="comp comp-off"><span class="comp-icon">📟</span><div class="comp-body"><div class="comp-name">FreeSWITCH container (opt-in)</div><div class="comp-detail">Own telephony stack · P3 plan (docs/P3_Own_Telephony_Stack_Plan.md)</div><span class="comp-tag tag-off">OPT-IN</span></div></div>
+      </div>
+      <div class="ext-group" style="background:rgba(255,255,255,0.6);border:1px solid var(--border);border-radius:6px;">
+        <div class="ext-group-title">📬 Messaging</div>
+        <div class="comp comp-marketing"><span class="comp-icon">📧</span><div class="comp-body"><div class="comp-name">Hostinger SMTP/IMAP (LIVE)</div><div class="comp-detail">admin@leadsgenai.in · smtp.hostinger.com:465 · SPF/DKIM/DMARC SET · cap 25/day · warmup ramp + bounce auto-pause</div><span class="comp-tag tag-live">LIVE</span></div></div>
+        <div class="comp comp-marketing"><span class="comp-icon">💚</span><div class="comp-body"><div class="comp-name">WhatsApp Cloud API</div><div class="comp-detail">1-click human send default · bulk auto-send = number ban · WHATSAPP_AUTO_SEND gated OFF</div></div></div>
+        <div class="comp comp-off"><span class="comp-icon">📱</span><div class="comp-body"><div class="comp-name">Telegram (TELEGRAM_AUTO_PUBLISH=1)</div><div class="comp-detail">First TRUE auto-post channel · TELEGRAM_BOT_TOKEN needed</div><span class="comp-tag tag-gated">OPT-IN</span></div></div>
+        <div class="comp comp-platform"><span class="comp-icon">🔔</span><div class="comp-body"><div class="comp-name">ntfy push (ntfy.leadsgenai.in)</div><div class="comp-detail">Internal ops alerts — engineer score / eval burst / dead-letter / readiness digest</div><span class="comp-tag tag-live">LIVE</span></div></div>
+      </div>
+      <div class="ext-group" style="background:rgba(255,255,255,0.6);border:1px solid var(--border);border-radius:6px;">
+        <div class="ext-group-title">🔍 Data &amp; Enrichment</div>
+        <div class="comp comp-marketing"><span class="comp-icon">🗺️</span><div class="comp-body"><div class="comp-name">Google Places API (LIVE)</div><div class="comp-detail">Prospector · real phones + reviews · cap PROSPECT_MAX_LOOKUPS=60/run · OSM Overpass fallback</div></div></div>
+        <div class="comp comp-marketing"><span class="comp-icon">🔎</span><div class="comp-body"><div class="comp-name">SearXNG (self-hosted)</div><div class="comp-detail">docker-compose.tools.yml · free web search for lead harvester + AI agents</div></div></div>
+        <div class="comp comp-marketing"><span class="comp-icon">🎨</span><div class="comp-body"><div class="comp-name">Pollinations AI (images)</div><div class="comp-detail">gen.pollinations.ai · pk_=client-safe URL embed · sk_=server-side proxy /api/marketing/ai-image-proxy · disk-cache data/ai_images/</div></div></div>
+        <div class="comp comp-off"><span class="comp-icon">🔗</span><div class="comp-body"><div class="comp-name">Zoho CRM + HubSpot (CRM_SYNC OFF)</div><div class="comp-detail">crm_sync.py · per-client or global creds · India DC Zoho</div><span class="comp-tag tag-off">OPT-IN</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ LAYER 9 — MONITORING ═══════════════════ -->
+<div class="layer">
+  <div class="layer-header">
+    <span>LAYER 9 — MONITORING &amp; OBSERVABILITY (docker-compose.observability.yml sidecar stack)</span>
+    <span class="section-note">~13+ containers total on single VPS</span>
+  </div>
+  <div class="layer-body bg-monitor">
+    <div class="monitor-row">
+      <div class="mbox"><div class="mlabel">📊 Prometheus</div><div class="msub">scrapes /metrics + Celery exporter (:9808) + Flower · prometheus.yml</div></div>
+      <div class="mbox"><div class="mlabel">📈 Grafana</div><div class="msub">auto-provisioned Celery dashboard (monitoring/grafana/provisioning/) · restart pe auto-load</div></div>
+      <div class="mbox"><div class="mlabel">📝 Loki</div><div class="msub">Log aggregation · json-file driver logs</div></div>
+      <div class="mbox"><div class="mlabel">🔍 Tempo</div><div class="msub">Distributed traces via OTel (ENABLE_OTEL=1)</div></div>
+      <div class="mbox"><div class="mlabel">🚨 Alertmanager</div><div class="msub">Alert routing → ntfy / email</div></div>
+      <div class="mbox"><div class="mlabel">🟢 Uptime Kuma</div><div class="msub">Public /status page · external endpoint monitoring</div></div>
+      <div class="mbox"><div class="mlabel">🟡 Gatus</div><div class="msub">Health check dashboards · SLA tracking</div></div>
+      <div class="mbox dashed-border"><div class="mlabel">🔴 Sentry</div><div class="msub">SENTRY_DSN needed · FastApiIntegration wired · flag-gated</div></div>
+      <div class="mbox dashed-border"><div class="mlabel">📡 PostHog</div><div class="msub">POSTHOG_API_KEY needed · product analytics · flag-gated</div></div>
+    </div>
+    <div style="margin-top:8px;display:flex;gap:8px;">
+      <div class="comp comp-platform" style="flex:1;margin:0;"><span class="comp-icon">🌸</span><div class="comp-body"><div class="comp-name">Flower :5555 (addons.yml)</div><div class="comp-detail">Celery task monitoring UI · docker-compose.addons.yml activate</div></div></div>
+      <div class="comp comp-platform" style="flex:1;margin:0;"><span class="comp-icon">🔔</span><div class="comp-body"><div class="comp-name">ops_alerts → ntfy fan-out</div><div class="comp-detail">engineer-score / eval-burst / dead-letter / readiness-digest with cooldowns (G.1 shipped)</div></div></div>
+      <div class="comp comp-off" style="flex:1;margin:0;"><span class="comp-icon">🔒</span><div class="comp-body"><div class="comp-name">Cloudflare Tunnel (optional)</div><div class="comp-detail">CLOUDFLARE_TUNNEL_TOKEN — secure tunnel without port exposure</div><span class="comp-tag tag-off">OPT-IN</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ ER DIAGRAM ═══════════════════ -->
+<div class="er-section">
+  <div class="layer-header" onclick="toggleER()" style="cursor:pointer;border-radius:4px 4px 0 0;">
+    <span>📋 POSTGRES ER RELATIONSHIPS (click to toggle)</span>
+    <span class="section-note">Core FK relationships only — not every column</span>
+  </div>
+  <div class="er-grid" id="erGrid">
+    <div class="er-table">
+      <div class="et-head">users</div>
+      <div class="et-body">
+        <div class="et-row et-pk">id (PK)</div>
+        <div class="et-row">email, role, preferences{}</div>
+        <div class="et-row">password_hash, is_active</div>
+        <div class="et-row et-fk">→ audit_logs.user_id</div>
+        <div class="et-row et-fk">→ user_sessions.user_id</div>
+      </div>
+    </div>
+    <div class="er-table">
+      <div class="et-head">clients</div>
+      <div class="et-body">
+        <div class="et-row et-pk">id (PK)</div>
+        <div class="et-row">slug, niche, tier</div>
+        <div class="et-row">onboarding_status</div>
+        <div class="et-row et-fk">→ leads.client_id</div>
+        <div class="et-row et-fk">→ subscriptions.client_id</div>
+        <div class="et-row et-fk">→ campaigns.client_id</div>
+        <div class="et-row et-fk">→ calls.client_id</div>
+      </div>
+    </div>
+    <div class="er-table">
+      <div class="et-head">leads</div>
+      <div class="et-body">
+        <div class="et-row et-pk">id (PK)</div>
+        <div class="et-row">name, phone, email</div>
+        <div class="et-row">status, source</div>
+        <div class="et-row">lead_score, is_hot_lead</div>
+        <div class="et-row et-fk">client_id → clients.id</div>
+        <div class="et-row et-fk">→ calls.lead_id</div>
+      </div>
+    </div>
+    <div class="er-table">
+      <div class="et-head">subscriptions</div>
+      <div class="et-body">
+        <div class="et-row et-pk">id (PK)</div>
+        <div class="et-row">plan_id, status, tier</div>
+        <div class="et-row">product (marketing/voice)</div>
+        <div class="et-row et-fk">client_id → clients.id</div>
+        <div class="et-row et-fk">→ payments.subscription_id</div>
+        <div class="et-row et-fk">→ invoices.subscription_id</div>
+        <div class="et-row et-fk">→ usage_records.client_id</div>
+      </div>
+    </div>
+    <div class="er-table">
+      <div class="et-head">agent_events</div>
+      <div class="et-body">
+        <div class="et-row et-pk">id (PK)</div>
+        <div class="et-row">member_id (staff key)</div>
+        <div class="et-row">action, detail, status</div>
+        <div class="et-row">created_at (IST)</div>
+        <div class="et-row" style="color:var(--text-muted);font-style:italic;">feeds /app/team SSE live dashboard</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ KEY DATA FLOWS ═══════════════════ -->
+<div class="flows-section">
+  <div class="layer-header" style="border-radius:4px 4px 0 0;">
+    <span>🔄 KEY DATA FLOWS</span>
+    <span class="section-note">7 primary request patterns through the system</span>
+  </div>
+  <div class="flows-grid">
+    <div class="flow-card" style="border-color:var(--marketing);background:var(--marketing-light);">
+      <div class="fc-title" style="color:var(--marketing);"><span class="fc-icon">📧</span> Marketing Automation Flow</div>
+      <div class="flow-step"><div class="flow-num m">1</div><span>Celery Beat 07:00 IST → content job</span></div>
+      <div class="flow-step"><div class="flow-num m">2</div><span>Isha agent → post_generator → free_ai (Mistral PRIMARY)</span></div>
+      <div class="flow-step"><div class="flow-num m">3</div><span>Pollinations API → AI image (pk_ direct / sk_ server proxy)</span></div>
+      <div class="flow-step"><div class="flow-num m">4</div><span>→ approval queue → human 1-click post (auto-post = ban-safe OFF)</span></div>
+      <div class="flow-step"><div class="flow-num m">5</div><span>→ Postgres leads.content_status update + agent_events log</span></div>
+    </div>
+    <div class="flow-card" style="border-color:var(--voice);background:var(--voice-light);">
+      <div class="fc-title" style="color:var(--voice);"><span class="fc-icon">📞</span> Exotel Voice Call Flow</div>
+      <div class="flow-step"><div class="flow-num v">1</div><span>Exotel webhook → /ws/exotel-voicebot PCM16 stream</span></div>
+      <div class="flow-step"><div class="flow-num v">2</div><span>8k resample → SileroVAD turn detect → Groq Whisper STT</span></div>
+      <div class="flow-step"><div class="flow-num v">3</div><span>telecaller_brain → RAG Qdrant client:{id} retrieve</span></div>
+      <div class="flow-step"><div class="flow-num v">4</div><span>Mistral LLM → ≤2 sentences response → EdgeTTS hi-IN</span></div>
+      <div class="flow-step"><div class="flow-num v">5</div><span>→ PCM16 back to Exotel → call_log + usage metering (FAIL-OPEN)</span></div>
+    </div>
+    <div class="flow-card" style="border-color:var(--marketing);background:var(--marketing-light);">
+      <div class="fc-title" style="color:var(--marketing);"><span class="fc-icon">🔍</span> Lead Capture Flow</div>
+      <div class="flow-step"><div class="flow-num m">1</div><span>Client website embed → /b/{slug} widget.js or /api/public/inquiry</span></div>
+      <div class="flow-step"><div class="flow-num m">2</div><span>→ Postgres leads table (lead.created webhook emit)</span></div>
+      <div class="flow-step"><div class="flow-num m">3</div><span>→ optional auto-callback Exotel (Advanced tier)</span></div>
+      <div class="flow-step"><div class="flow-num m">4</div><span>→ customer webhook HMAC POST (if configured)</span></div>
+      <div class="flow-step"><div class="flow-num m">5</div><span>→ NOTIFY_EMAIL alert to admin@leadsgenai.in</span></div>
+    </div>
+    <div class="flow-card" style="border-color:var(--platform);background:var(--platform-light);">
+      <div class="fc-title" style="color:var(--platform);"><span class="fc-icon">📧</span> Email Outreach Flow</div>
+      <div class="flow-step"><div class="flow-num p">1</div><span>Celery Beat 10:30 → Rohan agent auto-outreach job</span></div>
+      <div class="flow-step"><div class="flow-num p">2</div><span>Google Maps prospector → leads → MX verify (OUTREACH_VERIFY_MX=1)</span></div>
+      <div class="flow-step"><div class="flow-num p">3</div><span>free_ai → personalized Hinglish cold email + Day-3/7 followups</span></div>
+      <div class="flow-step"><div class="flow-num p">4</div><span>Hostinger SMTP send (cap 25/day, warmup ramp, bounce auto-pause)</span></div>
+      <div class="flow-step"><div class="flow-num p">5</div><span>→ IMAP reply-triage → intent classify → draft 1-click response</span></div>
+    </div>
+    <div class="flow-card" style="border-color:var(--marketing);background:var(--marketing-light);">
+      <div class="fc-title" style="color:var(--marketing);"><span class="fc-icon">💳</span> Billing / Subscription Flow</div>
+      <div class="flow-step"><div class="flow-num m">1</div><span>/pricing → signup → /api/billing/checkout → Razorpay (🚨 KEYS UNSET)</span></div>
+      <div class="flow-step"><div class="flow-num m">2</div><span>Razorpay webhook → /api/billing/webhooks/razorpay (HMAC)</span></div>
+      <div class="flow-step"><div class="flow-num m">3</div><span>→ subscriptions + usage_records + GST invoice (Rule-46 sequential)</span></div>
+      <div class="flow-step"><div class="flow-num m">4</div><span>→ dunning engine (DUNNING_ENGINE ON) on payment failures</span></div>
+      <div class="flow-step"><div class="flow-num m">5</div><span>→ payment.received webhook emit → customer portal update</span></div>
+    </div>
+    <div class="flow-card" style="border-color:var(--ai);background:var(--ai-light);">
+      <div class="fc-title" style="color:var(--ai);"><span class="fc-icon">🧠</span> AI Staff Loop Flow</div>
+      <div class="flow-step"><div class="flow-num p">1</div><span>team_scheduler IST cron → Celery staff_jobs queue enqueue</span></div>
+      <div class="flow-step"><div class="flow-num p">2</div><span>Celery Worker → coordinator.py dispatch → agent capability</span></div>
+      <div class="flow-step"><div class="flow-num p">3</div><span>Agent → RAG Qdrant retrieve → free_ai LLM → external APIs</span></div>
+      <div class="flow-step"><div class="flow-num p">4</div><span>→ agent_events table log (action, detail, status, IST timestamp)</span></div>
+      <div class="flow-step"><div class="flow-num p">5</div><span>→ /api/events/stream SSE → /app/team live dashboard</span></div>
+    </div>
+    <div class="flow-card" style="border-color:var(--marketing);background:var(--marketing-light);">
+      <div class="fc-title" style="color:var(--marketing);"><span class="fc-icon">🚀</span> Client Onboarding Flow (FDE)</div>
+      <div class="flow-step"><div class="flow-num m">1</div><span>New client signup → auto_onboard (AUTO_ONBOARD=1 ON)</span></div>
+      <div class="flow-step"><div class="flow-num m">2</div><span>Dev agent → website → KB seed client:{id} Qdrant namespace</span></div>
+      <div class="flow-step"><div class="flow-num m">3</div><span>FDE agents (Neo/Isha/Veer/Aarav) → deploy marketing pack + mini-site</span></div>
+      <div class="flow-step"><div class="flow-num m">4</div><span>→ /b/{slug} mini-site LIVE + widget.js embed code generated</span></div>
+      <div class="flow-step"><div class="flow-num m">5</div><span>→ first content pack created → notification to client portal</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ COMPLIANCE ═══════════════════ -->
+<div class="compliance-row">
+  <div class="compliance-box">
+    <div class="ct">⚖️ TRAI Compliance (India Telecom)</div>
+    <div class="cd">140-series numbers · DLT registration · DND scrub mandatory · 10am–7pm only · AI disclosure greeting ("ek AI assistant") wired · ₹10L penalty risk · Foreign trunks (Twilio/Telnyx) = ILLEGAL for India domestic</div>
+  </div>
+  <div class="compliance-box">
+    <div class="ct">🛡️ DPDP Act 2023 (India Data Protection)</div>
+    <div class="cd">Consent ledger (consent_ledger.py) · opt-out = INSTANT cross-channel suppression · 90-day recording retention · DPDP purge bridge in customer portal · Grievance Officer in /privacy</div>
+  </div>
+  <div class="compliance-box">
+    <div class="ct">💸 GST &amp; Billing (India Tax)</div>
+    <div class="cd">GST only when GST_GSTIN SET (unregistered = no tax, &lt;₹20L rule) · Rule-46 sequential invoice INV/2026-27/0001 · SAC 998313 (IT services) · Razorpay keys MUST be set before first paid customer</div>
+  </div>
+  <div class="compliance-box">
+    <div class="ct">📱 WhatsApp &amp; Social Safety</div>
+    <div class="cd">Bulk auto-send = number ban · Only 1-click human send default · Auto-send gated WHATSAPP_AUTO_SEND=1 + approved template required · Cold auto-calls bina DLT = ₹10L risk → inbound auto-callback only safe</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<div style="margin-top:20px;padding:12px 0;border-top:1px solid var(--border);font-size:10px;color:var(--text-muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;">
+  <span>LeadGen AI Architecture · Generated 2026-06-17 · Single VPS deployment (NOT multi-region K8s)</span>
+  <span>Repo: github.com/sumitrevolt/leadgenrationaivoiceagent · Stack: FastAPI + Postgres 16 + Celery + Redis × 2 + Qdrant · 17 AI Staff</span>
+</div>
+
+</div><!-- end arch-main -->
+
+<script>
+function toggleER() {
+  const el = document.getElementById('erGrid');
+  el.style.display = el.style.display === 'none' ? 'grid' : 'none';
+}
+
+// Add hover card effects
+document.querySelectorAll('.staff-card').forEach(card => {
+  const duties = {
+    'Boss': 'Kaam baantna — data/leads agents ko route karna (LangGraph), team coordination',
+    'Isha': 'Clients ke liye AI social posts (FB/Insta captions), Google Business Profile tips, festival/offer content',
+    'Dev': 'Client business profile + niche knowledge KB me seed karna, RAG grounding maintain karna',
+    'Rohan': 'Outreach plan banana, lead qualification criteria set karna, campaigns ke liye targeting',
+    'Swara': 'End-customers ko call karna (phone + web demo), niche scripts se qualify karna, objections handle karna',
+    'Tara': 'Telephony readiness (Exotel auth, caller-ID, webhooks, DND, TTS/STT/LLM chain) har ghante verify karna',
+    'Arjun': 'Voice agent ko scripted conversations se test karna, bugs (double/repeat/slow/long) pakad ke report karna',
+    'Meera': 'Call transcripts padh ke quality analysis (STT failures, repeats, latency), tuning suggestions nikalna',
+    'Kavya': 'System health (service, AI providers, DB, disk), telephony balance/trunk status pe nazar',
+    'Hermes': 'Poore infra ka scan — app readiness (db+redis), disk/memory, dead-man jobs, queue backlog → 0-100 score + Hinglish fix-actions',
+    'Nikhil': 'Dunning recovery, lifecycle nurture funnel, client churn-risk aur MRR digest pe nazar',
+    'Vikram': 'Observability signals se code-upgrade proposals banana — safe skills auto, core code Sumit ke approve pe',
+    'Guru': '35+ project skills ko agents ke runtime context + KB me rakhna, naye agent-authored skills curate karna',
+    'Pranav': 'DR drills, backup-restore integrity, capacity headroom, SLO/error-budget tracking (SRE_AGENT gated)',
+    'Vidya': 'FinOps — LLM provider cost per token tracking, budget alerts, cheapest-provider routing',
+    'Arnav': 'Security agent — vuln scanning, secret detection, suspicious API patterns',
+    'FDE Agents': 'Neo/Isha/Veer/Aarav — deploy marketing packs, mini-sites, widgets, client journeys'
+  };
+  const name = card.querySelector('.name').textContent;
+  if (duties[name]) {
+    card.title = duties[name];
+    card.style.cursor = 'help';
+  }
+});
+
+// Highlight marketing vs voice flows
+document.querySelectorAll('.comp-marketing').forEach(el => {
+  el.addEventListener('mouseenter', () => el.style.transform = 'translateX(2px)');
+  el.addEventListener('mouseleave', () => el.style.transform = '');
+});
+document.querySelectorAll('.comp-voice').forEach(el => {
+  el.addEventListener('mouseenter', () => el.style.transform = 'translateX(2px)');
+  el.addEventListener('mouseleave', () => el.style.transform = '');
+});
+</script>
+</body>
+</html>
