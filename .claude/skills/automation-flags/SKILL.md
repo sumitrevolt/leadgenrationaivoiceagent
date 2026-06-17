@@ -3,9 +3,13 @@ name: automation-flags
 description: The gated env-flag catalog for LeadGen AI automation engines — what each flag does, ban/cost risk, and the safe enable→verify procedure. Use when the user says "flag on/off karo", "enable automation", mentions JOURNEY_ENGINE / CADENCE_ENGINE / SALES_ENGINE / NICHE_ROTATION / AUTO_ONBOARD, "kaunsa flag safe hai", or before flipping any automation switch.
 ---
 
-# Automation Flags (default OFF · additive · safe-to-flip)
+# Automation Flags (additive · safe-to-flip)
 
-Har engine ek env-flag pe gated hai (default OFF = ZERO behaviour change). Set in `.env` (VPS `/opt/leadgen/.env`, gitignored) → **container recreate** (`docker compose -f docker-compose.vps.yml up -d app`, NOT sirf `restart` — env_file reload ke liye recreate chahiye) → verify.
+Har engine ek env-flag pe gated. Set in `.env` (VPS `/opt/leadgen/.env`, gitignored) → **container recreate** (`docker compose -f docker-compose.vps.yml up -d --no-deps app`, NOT sirf `restart` — env_file reload ke liye recreate chahiye) → verify.
+
+**Live registry = `GET /api/growth/infra/flags`** (single source of truth, on/off/unset dikhata). Master list = `AUTOMATION_FLAGS` in `app/api/growth.py` — ab **~100+ flags** (engines + new F–M capabilities + URL-valued integrations). Naya flag wahaan add karo warna flags-endpoint pe nahi dikhega.
+
+⚠️ Default OFF nahi hai sab — **kayi engines ON-by-default** (env unset = ON ya code-default ON): `LEAD_HARVESTER`, `REPLY_AGENT`, `CADENCE_ENGINE`, `SALES_ENGINE`, `SALES_TEAM`, `SELF_IMPROVE_LOOP`, `GROWTH_OPTIMIZER`, `CHANNEL_EXPERIMENTS`, `AUTO_ONBOARD`, `NICHE_ROTATION`, `SKILL_PACK`, `CODE_UPGRADER`, `AUTO_EMAIL_OUTREACH`, `USE_AGENTIC_RAG`, `USE_STRUCTURED_CONTENT`, `TELEGRAM_AUTO_PUBLISH`. Har engine ka exact default code me check karo, assume mat karo.
 
 ## Safe to enable (free, ban-safe)
 | Flag | Engine | Notes |
@@ -28,13 +32,27 @@ Har engine ek env-flag pe gated hai (default OFF = ZERO behaviour change). Set i
 | `SMS_DLT_ENABLED=1` | DLT templates + BSP creds (MSG91/AiSensy/Fast2SMS) |
 | cold-calling | DLT (₹10L TRAI penalty) — Udyam pending |
 
+## New F–M capabilities (2026-06-16, all OFF default = INERT, fail-safe)
+| Flag | What it arms |
+|---|---|
+| `EVAL_GATE` / `EVAL_GATE_HARD` | eval_gate reward signal: records per-action baseline + regression decision (observe-only until HARD set; wired into self_improve loop + DeepEval CI) |
+| `AGENT_MEMORY` | cross-session per-lead/client recall (Qdrant `agent_memory` ns + free LLM, off-loop) + DPDP purge. Tune: `AGENT_MEMORY_MIN_SIM`/`_RECALL_LIMIT`/`_MAX_FACTS` |
+| `SRE_AGENT` / `FINOPS_AGENT` / `SECURITY_AGENT` | engineer agents Pranav (SRE, hourly :45) / Vidya (FinOps, 9am) / Arnav (Security DPDP/TRAI, 9:30) |
+| `OPS_ALERTS` | ntfy fan-out (engineer-score / eval-reject-burst / dead-letter / readiness-digest). Needs `NTFY_URL`+`NTFY_TOPIC`. Thresholds: `OPS_ALERT_*` |
+| `CUSTOMER_WEBHOOKS` | customer-facing Svix-style HMAC-SHA256 webhook fan-out + UI in /app/customer |
+| `MCP_PRODUCT` | arms `/api/mcp-product/v1/*` metered surface (503 when off) + A2A Agent Card `/.well-known/agent.json` |
+| `FEATURE_FLAGS` | master gate for per-tenant runtime feature-flag system (Redis-backed) |
+| `LITELLM_COSTS` | per-tenant LLM spend attribution + warm-DR replica probe (needs `LITELLM_MASTER_KEY`+`LITELLM_GATEWAY_URL`) |
+| `REQUEST_GUARD` / `PLAN_RATE_LIMIT` | per-request timeout + load-shed · tier-based API rpm caps |
+| `TURNSTILE_SITE_KEY`/`_SECRET_KEY` | Cloudflare Turnstile bot-check on /audit /site-audit /demo /inquiry |
+
 ## Procedure
 1. **Backup**: `cp .env .env.bak_$(date +%s)`.
 2. `.env` me flag add (base64-over-ssh se — secret kabhi plain argv pe nahi).
-3. `docker compose -f docker-compose.vps.yml up -d app` (recreate = env reload).
+3. `docker compose -f docker-compose.vps.yml up -d --no-deps app` (recreate = env reload). Worker/scheduler ko flag chahiye to unhe bhi recreate.
 4. `docker exec leadgen_app printenv <FLAG>` → confirm value.
 5. Smoke: manual API trigger ya next scheduled run → `data/*.jsonl` output.
 6. Rollback: `.env.bak_*` restore + recreate.
 
 ## Verify
-`python scripts/setup_status.py` saare flags + readiness dikhata hai. USER-PENDING env (Claude fabricate nahi kar sakta): `UPI_VPA`, `POLLINATIONS_TOKEN`, Exotel KYC/DLT, R2/B2 offsite creds.
+`GET /api/growth/infra/flags` (live on/off/unset) ya `python scripts/setup_status.py` (flags + readiness). USER-PENDING env (Claude fabricate nahi kar sakta): real Razorpay `rzp_live_*` keys, `UPI_VPA`, `POLLINATIONS_API_KEY`, Exotel KYC/DLT, R2/B2 offsite creds.

@@ -1,22 +1,24 @@
 ---
 name: multi-agent-coordination
-description: Coordinator modes (plan/handoff, Reflexion, hierarchical, fanout, debate) vs process-engine vs FDE vs sales_team — kaunsa kab use karo, naya agent/tool/team kaise add karo. Use when assigning multi-agent goals, extending the roster, or choosing the right orchestration primitive.
+description: Sahi orchestration primitive chuno — coordinator 6 modes (plan/handoff, Reflexion-advanced, hierarchical, fanout, debate, agentverse, engineering) vs process-engine vs FDE vs sales_team — kaunsa kab, aur naya agent/tool/team kaise add karo. Use when assigning a multi-agent goal, extending the staff roster, or deciding between coordinator and process-engine.
 ---
 
 # Multi-Agent Coordination — sahi primitive chuno
 
-> Engines: `app/agents/coordinator.py` (free-stack, always-on) · `process_engine.py` (deterministic) · `fde.py` (client deploy) · `sales_team.py` (prospect deep-dive) · `staff_supervisor.py` (langgraph, gated). UI: `/app/agents` + `/app/automation` Agents tab.
+> Engines (`app/agents/`): `coordinator.py` (free-stack, always-on) · `process_engine.py`+`process_library.py` (deterministic) · `fde.py` (client deploy) · `sales_team.py` (prospect deep-dive) · `staff_supervisor.py` (langgraph, `USE_LANGGRAPH_SUPERVISOR=1` gated). API router prefix `/api/agents/*`. UI: `/app/agents` + `/app/automation` Agents tab.
 
 ## Decision matrix (pehla sawaal: output kya hai?)
 | Zaroorat | Use karo | API |
 |---|---|---|
 | Ek goal, ordered sub-tasks, drafts | `coordinate(goal)` — planner + sequential handoff (blackboard) | `POST /api/agents/coordinate` |
-| Quality bar + retry chahiye | `coordinate_advanced` — Reflexion loop + Arjun-critic + episodic memory (max 3 iters, early-stop) | `POST /coordinate-advanced` |
-| Bade goal me ALAG teams parallel | `coordinate_hierarchical` — Boss → sub-teams (growth/ops/sales) gather | `POST /coordinate-hierarchical` |
-| Same prompt, sab agents ka take | `fanout` (asyncio.gather) | `POST /agents/fanout` |
-| Pro/con faisla | `debate(question)` — Rohan vs Kavya → Boss verdict | `POST /agents/debate` |
-| **Order + code-gates + human approval** | process engine (journal, breakpoints, resume) — LLM-opinion gates NAHI | `POST /api/growth/process/start` |
-| Client ke liye stack deploy | FDE (Isha/Veer/Aarav/Neo, 11 skills registry) | `POST /api/growth/fde/deploy` |
+| Quality bar + retry chahiye | `coordinate_advanced` — Reflexion loop + Arjun-critic + episodic memory (max 3 iters, early-stop) | `POST /api/agents/coordinate-advanced` |
+| Bade goal me ALAG teams parallel | `coordinate_hierarchical` — Boss → sub-teams (growth/ops/sales) gather | `POST /api/agents/coordinate-hierarchical` |
+| Task-tailored experts auto-recruit + re-compose | `coordinate_agentverse` — dynamic team, solver-synth, critic feedback → re-compose (rounds) | `POST /api/agents/coordinate-agentverse` |
+| Code/feature ka design+plan+review+tests (DRAFT-only) | `coordinate_engineering` — Architect→Engineer→Reviewer→Tester (auto-apply NAHI) | `POST /api/agents/coordinate-engineering` |
+| Same prompt, sab agents ka take | `fanout` (asyncio.gather) | `POST /api/agents/fanout` |
+| Pro/con faisla | `debate(question)` — Rohan vs Kavya → Boss verdict | `POST /api/agents/debate` |
+| **Order + code-gates + human approval** | process engine (journal, breakpoints, resume) — LLM-opinion gates NAHI; `lead_campaign` etc. `process_library.PROCESSES` | `POST /api/growth/process/start` |
+| Client ke liye stack deploy | FDE (Isha/Veer/Aarav/Neo, 11-skill registry `fde.SKILLS`) | `POST /api/growth/fde/deploy` |
 | Ek prospect ka sales deep-dive | sales_team (Riya/Veer/Dev/Isha/Arjun parallel, BANT) | `POST /api/growth/sales/prospect-analysis` |
 
 Rule of thumb: **ban-risky ya paisa-touching step = process engine** (enforced breakpoint); **creative/strategy = coordinator**; dono ko mila ke (coordinator idea → process execute) bhi chalta hai.
@@ -27,7 +29,7 @@ Rule of thumb: **ban-risky ya paisa-touching step = process engine** (enforced b
 - Naya tool add: `_TOOLS[agent] = fn(task, goal)` — bounded, never-raise, draft-first; roster `executable` flag auto.
 
 ## Naya agent/team add
-1. `team.py` STAFF me member (+`product` field: marketing/voice/platform) — events /app/team pe dikhenge.
+1. `app/platform/team.py` STAFF me member (+`product` field: marketing/voice/platform) — events /app/team pe dikhenge. (Latest additions: KPI engineer-agents Pranav-SRE / Vidya-FinOps / Arnav-Security, F.5.)
 2. Coordinator persona: `coordinator.py` agent map me 1-line persona; heavy = mat banao, existing reuse.
 3. Hierarchical team: `_TEAMS` dict me member add ya naya team (Boss `_assign_teams` LLM-pick karta hai).
 4. Monitor duty dena ho to `team_pulse()` rotation me cheap no-LLM check add karo.

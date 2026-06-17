@@ -1,13 +1,24 @@
 ---
 name: scheduler-job
-description: Engineer a new scheduled/recurring automation job the LeadGen AI way — in-process APScheduler (team_scheduler.py) + optional durable Celery-beat path + DLQ. Use when adding a recurring task, "naya scheduled job", "cron job", "har din/ghante chalao", "celery beat", "background automation job", or wiring a new AI-staff job.
+description: Engineer a new scheduled/recurring automation job the LeadGen AI way — durable Celery-beat (PRIMARY, live) + in-process APScheduler (rollback path) + DLQ. Use when adding a recurring task, "naya scheduled job", "cron job", "har din/ghante chalao", "celery beat", "background automation job", or wiring a new AI-staff job.
 ---
 
 # Scheduler Job (recurring automation · single-instance safe)
 
-2 paths: (a) **in-process** `app/platform/team_scheduler.py` (default, loop + IST windows + single-instance lock) — aaj sab yahin; (b) **durable Celery-beat** `app/tasks/staff_jobs.py` + `worker.py` (opt-in `--profile celery` + `RUN_IN_PROCESS_SCHEDULER=0`, DLQ on failure).
+2 paths, alag primacy:
+- **(a) Durable Celery-beat = PRIMARY / LIVE** (`app/tasks/staff_jobs.py` tasks + `app/worker.py` `beat_schedule`). VPS pe `leadgen_worker` + `leadgen_scheduler` containers chal rahe hain (`--profile celery`), `.env`: `RUN_IN_PROCESS_SCHEDULER=0` + `WEB_CONCURRENCY=2`. Restart-safe, retry, DLQ on failure.
+- **(b) In-process APScheduler = ROLLBACK path** (`app/platform/team_scheduler.py`, loop + IST windows + single-instance lock). Sirf tab active jab `RUN_IN_PROCESS_SCHEDULER=1` + `WEB_CONCURRENCY=1` (rollback config). Default-live me yeh OFF — Celery tick ko team_scheduler khud skip karta (`_run_job_inner` me `RUN_IN_PROCESS_SCHEDULER` check).
 
-## Add an in-process job (team_scheduler.py)
+> Naya job dono jagah register karo taaki rollback pe bhi chale. Production me Celery-beat path hi fire karega.
+
+## Durable Celery job (PRIMARY — yeh pehle)
+1. **Task**: `app/tasks/staff_jobs.py` me `run_staff_job` already generic dispatcher hai — naya staff-job iska `job` key add karke route hota. Custom task = `@celery_app.task(bind=True, max_retries=3)` in `worker.py`.
+2. **Beat entry**: `app/worker.py` `celery_app.conf.beat_schedule` me dict entry — `{"task": "app.tasks.staff_jobs.run_staff_job", "schedule": <crontab/seconds>, "args": ["myjob"], "options": {"queue": ...}}`. Existing `staff-*` entries pattern dekho (`staff-ops-hourly`, `staff-qa-daily`, etc.).
+3. **Heavy job?** → `heavy` queue (`-Q heavy` worker, concurrency=1) taaki light jobs (alerts/dunning/triage) starve na hon. `CELERY_HEAVY_QUEUE=1` send-side routing on karta.
+4. **DLQ**: failure → `worker.py on_task_failure` → Redis `dlq:failed_tasks` (last 1000). Verify wahin.
+
+## In-process job (ROLLBACK path — team_scheduler.py)
+Agar rollback config (`RUN_IN_PROCESS_SCHEDULER=1`) pe bhi chahiye:
 1. **Register key** in `_last_ran` dict: `"myjob": None`.
 2. **Handler** in `_run_job(job)`: `elif job == "myjob": from app.x import y; await y.run()`. **Local import** (ek module fail dusre ko na tode).
 3. **Schedule** in `scheduler_loop()` — IST window + dedupe key:
@@ -19,14 +30,12 @@ description: Engineer a new scheduled/recurring automation job the LeadGen AI wa
    Hourly = `now.minute >= N and _last_ran["myjob"] != hour_key`. 15-min = `slot_key`.
 4. **Gate it** default-OFF: `if os.environ.get("MYJOB","0").lower() in ("1","true"):` (see `automation-flags` skill).
 
-## Durable (Celery, optional)
-`app/tasks/staff_jobs.py` me task + `worker.py` beat entry. Fire tabhi jab `celery beat` chale (`RUN_IN_PROCESS_SCHEDULER=0` se double-run avoid). DLQ: failed → Redis `dlq:failed_tasks` (`worker.py on_task_failure`).
-
 ## Rules (project discipline)
-- **Never-raise**: `_run_job` try/except wrap karta — ek job fail = baaki chalein.
-- **Single-instance lock** (`data/.scheduler.lock`, heartbeat + dead-PID reclaim) double-run rokta — naya job apne aap safe.
+- **Never-raise**: `_run_job`/task try/except wrap karta — ek job fail = baaki chalein.
+- **No double-run**: Celery beat single scheduler container; in-process path beat-mode me khud disable hota. team_scheduler me bhi `data/.scheduler.lock` (heartbeat + dead-PID reclaim).
 - **Gated + default-OFF** = zero behaviour change jab tak flag na ho.
 - Heavy kaam async + timeout; real-time voice path me scheduler kaam mat daalo (latency).
+- **Boot-grace**: heavy daily job ka window agar boot pe active ho to is boot pe SKIP (restart-storm prevent — in-process path). Celery profile me yeh non-issue (dedicated scheduler).
 
 ## Verify
-`import app.main` OK → `scripts/prod_check.py` PASS → flag set → container recreate → next window pe `data/*.jsonl`/team_event. `docker logs leadgen_app | grep "running job: myjob"`.
+`import app.main` OK → `scripts/prod_check.py` PASS → rebuild + recreate (`worker` + `scheduler` bhi: `--profile celery up -d --no-deps worker scheduler`) → beat next window pe fire → `docker logs leadgen_scheduler | grep myjob` + `docker logs leadgen_worker` + `data/*.jsonl`/team_event. After worker recreate: `redis-cli llen celery` (>500 = `del celery`).

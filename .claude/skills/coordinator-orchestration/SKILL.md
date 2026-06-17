@@ -1,6 +1,11 @@
+---
+name: coordinator-orchestration
+description: STAFF coordinator se ek specific multi-agent goal ABHI execute karo — sequential / parallel(fanout) / hierarchical / advanced(Reflexion) modes, draft-safe by default. Use when user says "ye goal run karo", "team se ye karwao", "research + draft + qualify ek saath", ya kisi 2-3 min ke ad-hoc multi-expert goal ke liye (NOT daily loop, NOT compliance workflow).
+---
+
 # Coordinator Orchestration
 
-Orchestrate multi-agent goals using the lightweight STAFF coordinator. Run specific goals via 4 modes (sequential, parallel, hierarchical, advanced).
+Orchestrate multi-agent goals using the lightweight STAFF coordinator (`app/agents/coordinator.py`, free-stack/Cerebras). Run a specific goal via 4 core modes (sequential, parallel/fanout, hierarchical, advanced); 2 specialist modes (`agentverse`, `engineering`) niche cases ke liye — see end.
 
 ## When to Use This Skill
 
@@ -47,7 +52,7 @@ Boss → "Summary + next-action"
 
 **Pros**: Natural workflow, context flows, progressive refinement.
 **Cons**: Slow (agents wait), bottleneck at each step.
-**Cost**: ~$1-2 (5-6 LLM calls).
+**Cost**: ~5-6 LLM calls (free-stack = paisa nahi, sirf latency + quota).
 **Execute mode**: 2 agents (isha=post, dev=research); others draft.
 
 ### Mode B: Parallel (Fan-Out)
@@ -65,7 +70,7 @@ Boss → merges into unified strategy
 
 **Pros**: Fast (3x speedup), agents don't block each other.
 **Cons**: Outputs may conflict, harder to merge.
-**Cost**: ~$1-2 (same as sequential, just concurrent).
+**Cost**: ~same LLM calls as sequential, just concurrent (faster wall-clock).
 **Execute mode**: None (all draft); results merged by Boss.
 
 ### Mode C: Hierarchical (Sub-Teams)
@@ -85,7 +90,7 @@ Boss merges both strategies
 
 **Pros**: Scales to complex goals, teams work in parallel, organized accountability.
 **Cons**: Most LLM calls, needs good team definitions.
-**Cost**: ~$2-3 (more calls, but parallel).
+**Cost**: most LLM calls of any mode, but parallel so wall-clock OK.
 **Execute mode**: Same (2 agents per team execute).
 
 ### Mode D: Advanced (Reflexion + Memory)
@@ -98,10 +103,10 @@ Iteration 1: Plan → Execute → VERIFY (0.62 score) → Weak? "Too generic, no
 Iteration 2: Plan (with reflection hint) → Execute → VERIFY (0.85 score) ✓ DONE
 ```
 
-**Pros**: Quality-gated (loops until quality_bar met), learns from reflection, episodic memory.
-**Cons**: Slower (multiple iterations), uses more LLM.
-**Cost**: ~$2-4 (2-3 iterations).
-**Execute mode**: Same as sequential.
+**Pros**: Quality-gated (loops until quality_bar met), learns from reflection, episodic memory (`data/agent_memory.jsonl`).
+**Cons**: Slower (multiple iterations), uses more LLM calls.
+**Cost**: 2-3 iterations × per-mode calls (early-stop jab quality_bar hit).
+**Execute mode**: Same as sequential. Critic = Arjun persona (parse-fail → 0.6 neutral, infinite-loop guard).
 
 ---
 
@@ -251,6 +256,14 @@ curl ... -d '{
 
 ---
 
+## 2 Specialist Modes (niche use)
+
+Beyond the 4 core modes, `coordinator.py` has two more:
+- **`agentverse`** (`POST /api/agents/coordinate-agentverse`): task-tailored experts ko DYNAMICALLY recruit → collaborate → solver-synth → critic EVALUATE → feedback se team RE-COMPOSE (rounds tak), best-of kept. Use jab fixed STAFF roster goal pe fit na ho.
+- **`engineering`** (`POST /api/agents/coordinate-engineering`): Architect → Engineer → Reviewer → Tester crew → design + impl-plan + review + test-plan. **DRAFT-ONLY (code auto-apply NAHI)** — `code_upgrader` (Vikram) ka goal→design complement.
+
+---
+
 ## References
 
 Detailed material moved to `references/` to keep this guide lean:
@@ -293,7 +306,12 @@ curl -X POST http://localhost:8000/api/agents/coordinate-advanced \
     "max_iterations": 3
   }'
 
-# See recent runs
-curl -X GET http://localhost:8000/api/agents/runs?limit=10 \
-  -H "Authorization: Bearer $ADMIN_TOKEN"
+# Engineering crew (draft design+plan+tests, no auto-apply)
+curl -X POST http://localhost:8000/api/agents/coordinate-engineering \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"goal": "Design webhook retry queue", "context": "existing customer_webhooks.py"}'
+
+# Roster + recent runs (no /runs endpoint — use roster) | episodic memory
+curl -X GET http://localhost:8000/api/agents/roster -H "Authorization: Bearer $ADMIN_TOKEN"
+curl -X GET http://localhost:8000/api/agents/memory?limit=10 -H "Authorization: Bearer $ADMIN_TOKEN"
 ```

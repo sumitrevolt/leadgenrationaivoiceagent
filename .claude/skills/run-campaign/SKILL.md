@@ -9,7 +9,7 @@ Pipeline: scrape -> clean/DND-scrub -> 9am-9pm gate -> WhatsApp warm-up -> AI vo
 
 ## Steps
 
-1. Confirm inputs (ask if missing): client name, niche (see app/niches.py — solar_commercial, dental_implants, real_estate_luxury, hvac_commercial, etc.), cities, lead sources (google_maps, indiamart, justdial, linkedin, web, social), max leads.
+1. Confirm inputs (ask if missing): client name, niche (see app/niches.py — exact keys, e.g. solar_commercial, dental_implants, hvac_commercial, ivf_clinics, immigration, home_loans, etc. — 39 builtin niches), cities, lead sources (google_maps, web; justdial/indiamart/linkedin = ToS-blocked auto-scrape, manual CSV import only), max leads.
 
 2. Run the pipeline:
    ```python

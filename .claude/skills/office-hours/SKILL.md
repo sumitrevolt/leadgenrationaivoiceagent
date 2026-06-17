@@ -1,3 +1,8 @@
+---
+name: office-hours
+description: "Kya yeh worth building hai?" — naya feature/idea ko 6 startup forcing-questions (demand, status-quo pain, specific user, narrowest wedge, evidence, future-fit) se challenge karo aur build/validate/skip recommend karo. Use when user bole "idea hai kya karein", "ye banana worth hai", "office hours chahiye", ya kisi naye feature ko scope karne se PEHLE (`/plan-ceo-review`/`/plan-eng-review` se pehla step).
+---
+
 # Skill: office-hours
 **Adapted from gstack by Garry Tan (YC). MIT License.**
 
@@ -19,7 +24,7 @@ git log --oneline -10
 cat CLAUDE.md | head -50
 ```
 
-User ka current product context pado: Marketing SaaS + Voice Agent, 42 niches, FastAPI/Python, live at leadsgenai.in.
+User ka current product context pado: Marketing SaaS + Voice Agent, 39 builtin niches, FastAPI/Python, live at leadsgenai.in.
 
 ## Phase 2: 6 Forcing Questions (Startup Mode)
 
@@ -95,4 +100,4 @@ Include: Problem, User (specific), Solution, MVP scope, Success metric.
 - Sab questions Hinglish mein poochho
 - Generic "local businesses ke liye helpful hoga" = push back karo
 - Revenue impact of each decision frame karo (₹ terms mein)
-- Existing 42 niches + 465 prospects context yaad rakho
+- Context yaad rakho: DO alag products (Marketing = main, Voice = standalone — koi bundle framing NAHI), 39 builtin niches, live pipeline numbers `/app/admin` se lo (CLAUDE.md me count nahi)

@@ -1,3 +1,8 @@
+---
+name: orchestrate-goal
+description: "Mere paas ek goal hai — kaunsa automation loop?" — self-improve (daily hands-off) vs coordinator (NOW multi-agent) vs process-engine (deterministic + human gates) vs manual/chat me se sahi chuno. Use when deciding HOW to run a goal/task, ya jab confuse ho ki self-improve vs coordinator vs process-engine kaunsa fit hai.
+---
+
 # Orchestrate Goal: Which Loop?
 
 Decision tree: "I have a goal. Which automation loop should I use?"
@@ -49,7 +54,7 @@ START: I have a goal
 |--------|---|---|---|---|
 | **Best for** | Daily tasks | Now-goals + strategy | Workflows + gates | Custom/interactive |
 | **Speed** | Slow (180s) | Fast (1-3 min) | Medium (approval waits) | Real-time |
-| **Cost/day** | $20-50 | $10-40 (varies) | $5-20 | Human labor |
+| **Cost** | High LLM-call volume (free-stack, sirf quota) | Med (5-6+ calls/run) | Low (gates, kam calls) | Human labor |
 | **Automation** | Full | Partial | Full (with gates) | Human |
 | **Repeatability** | Daily | On-demand | Repeatable workflow | Case-by-case |
 | **Learning** | Yes (bandit) | Yes (memory) | No | No |

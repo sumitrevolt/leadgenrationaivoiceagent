@@ -1,6 +1,6 @@
 ---
 name: integration-engineering
-description: Add a new external integration (LLM/telephony/SMS/payment/CRM/storage) the LeadGen AI way — import-safe, flag-gated, INERT-without-creds, graceful fallback, secrets only in .env. Use when wiring a new API/provider/connector, "naya integration", "X service add karo", "provider wire karo", "API key se feature", or "connector banao".
+description: Add a new external integration (LLM/telephony/SMS/payment/CRM/storage/webhook/MCP) the LeadGen AI way — import-safe, flag-gated, INERT-without-creds, graceful fallback, secrets only in .env. Use when wiring a new API/provider/connector, "naya integration", "X service add karo", "provider wire karo", "API key se feature", "CRM sync", "webhook emit", or "connector banao".
 ---
 
 # Integration Engineering (defensive · gated · inert-without-creds)
@@ -23,11 +23,14 @@ Codebase ka signature pattern: har external integration **import-safe + flag/cre
 6. **Gate risky** — auto-send/calling default OFF + loud warning (ban/DLT risk).
 
 ## Reference implementations (copy pattern, REBUILD nahi)
-- LLM: `app/voice_agent/free_ai.py` (Cerebras→Groq→… + circuit-breaker).
-- Telephony: `app/telephony/exotel_handler.py` (`base_url=None` if unconfigured).
+- LLM: `app/voice_agent/free_ai.py` (free multi-provider chain: Mistral mistral-small-latest PRIMARY → Groq llama-3.1-8b-instant → Cerebras gpt-oss-120b 429-prone → Gemini → SambaNova → OpenRouter + escalating circuit-breaker).
+- Telephony: `app/telephony/exotel_handler.py` (`base_url=None` if unconfigured; Exotel = active provider).
 - SMS: `app/integrations/sms_dlt.py` (inert without `SMS_DLT_ENABLED`+BSP creds).
 - WhatsApp: `app/marketing/whatsapp_campaign.py` (default 1-click links; auto-send gated).
-- Rate-limit dep: `app/api/ratelimit.py` (Redis→in-memory fallback, FAIL-OPEN).
+- CRM: `app/integrations/zoho_crm.py` + `hubspot.py` (per-client/global creds, `CRM_SYNC` OFF).
+- Outbound webhooks (HMAC): `app/integrations/webhooks_emitter.py` + `app/platform/customer_webhooks.py` (Svix-style signed, `CUSTOMER_WEBHOOKS`).
+- LiteLLM per-key spend: `LITELLM_COSTS` flag. MCP-as-product: `/api/mcp-product/v1/*` (`MCP_PRODUCT`).
+- Rate-limit dep: `app/api/ratelimit.py` (`rate_limit("name", N, sec)` Depends; Redis→in-memory fallback, FAIL-OPEN).
 
 ## Rules
 - **Grep before building**: `grep '@router' app/api/*.py` — duplicate route prod ko **shadow** karta (FastAPI first-route-wins).

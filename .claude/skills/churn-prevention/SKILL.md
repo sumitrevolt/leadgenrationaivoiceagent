@@ -6,14 +6,14 @@ description: Save-offer / cancel-flow / failed-payment playbooks for LeadGen AI 
 # Churn Prevention (LeadGen AI)
 
 Engines BANE hue hain — yeh skill batati hai unke drafts/offers KAUNSI playbook follow karein. Naya engine mat banao; copy aur offer-logic in files me upgrade karo:
-- **Involuntary (payment fail)**: `app/billing/dunning.py` `_TOUCHES` D0/3/7 recovery + D14 win-back, pre-dunning renewal reminder, `mark_recovered` auto. Gated `DUNNING_ENGINE=1` (ON). Har touch me 1-tap Razorpay link (`payment_links.py`).
+- **Involuntary (payment fail)**: `app/billing/dunning.py` `_TOUCHES` D0/3/7 recovery + D14 win-back, pre-dunning renewal reminder (`RENEWAL_REMINDER_DAYS=5`), `mark_recovered` auto-close. Gated `DUNNING_ENGINE=1` (default OFF — off = case+draft RECORD hota, auto-send nahi). Har touch me 1-tap Razorpay link (`app/billing/payment_links.py`).
 - **Risk detect**: `app/platform/client_health.py` 0-100 → red/yellow/green + Hinglish retention action (alerts `CLIENT_HEALTH_ALERTS=1`).
 - **Early-tenure**: `app/marketing/lifecycle_nurture.py` D0/2/5/7/12 trial→paid. **Upsell-moment**: `app/billing/usage_alerts.py` 80%/100% minutes.
 
 ## Playbook: reason → offer (Hinglish save-offers)
 | Signal/Reason | Primary offer | Fallback |
 |---|---|---|
-| "Mehenga lag raha" | **Downgrade Starter ₹999** — "plan right-size karo, sab data safe" | 25% off 2 mahine |
+| "Mehenga lag raha" | **Downgrade Starter ₹1,199** — "plan right-size karo, sab data safe" | 25% off 2 mahine |
 | "Use nahi ho raha" / yellow health | **Concierge call** — "10-min me setup theek karte hain" + content pack redo | Pause 1 mahina |
 | Seasonal/band dhandha | **Pause 1 mahina** (max 2 — lamba pause wapas nahi aata) | Starter downgrade |
 | "Result nahi dikha" | ROI recap (leads_30d, posts, calls from client data) + free month-1 report | Founder call |

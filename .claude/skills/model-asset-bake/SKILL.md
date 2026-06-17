@@ -1,6 +1,6 @@
 ---
 name: model-asset-bake
-description: ML model assets (fastembed/silero/whisper/onnx) production me kaise rakhein — image-bake, off-loop load, hard deadline, disable-switch. Use jab koi naya model/embedding/VAD/STT asset add ho, ya "app freeze/unhealthy after rebuild" debug karna ho.
+description: ML model assets (fastembed/silero/whisper/onnx) production me kaise rakhein — image-bake, off-loop load, hard deadline, disable-switch. Use jab koi naya model/embedding/VAD/STT asset add ho, "app freeze/unhealthy after rebuild" / "CPU 0% workers stuck" debug karna ho, ya runtime model-download hang suspect ho.
 ---
 
 # Model Asset Bake — runtime download = prod down

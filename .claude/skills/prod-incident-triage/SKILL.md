@@ -16,12 +16,13 @@ description: leadsgenai.in down/unhealthy/freeze — health 000, workers stuck, 
 |---|---|---|
 | Sync ML/KB on event-loop | WS/endpoint hit → dono workers stuck, CPU 0% | `asyncio.to_thread` + hard timeout (`_run_blocking` 15s, KB_EMBED_LOAD_TIMEOUT_S) |
 | Model download at runtime | image rebuild ke baad first hit hang (~250MB HF) | model BAKE in Dockerfile.lock (model-asset-bake skill) + disable-switch |
-| Boot-storm heavy job | deploy qa/trainer window me → boot pe job fire → HTTP starve | boot-grace (scheduler skip on boot) — Celery profile me non-issue |
+| Boot-storm heavy job | deploy qa/trainer window me → boot pe job fire → HTTP starve | (live = Celery durable, dedicated worker → HTTP starve non-issue. Rollback in-process path me boot-grace skip) |
+| Stuck/backed-up Celery worker | "automations broken" but web OK; jobs not firing | `docker logs leadgen_worker` + flower :5555 (tunnel); `redis-cli llen celery` >500 = `del celery` (beat re-schedules); worker recreate |
 
 **RULE: har ML asset = image-bake + off-loop load + deadline + disable-switch.**
 
 ## Job heartbeats green ≠ sab theek
-Prod-down #3 me jobs sab green the par web freeze tha — user ka "automations broken" feel = HTTP path. Hamesha dono check karo: `/api/growth/infra/automation-health` AUR ext health/page curl.
+Prod-down #3 me jobs sab green the par web freeze tha — user ka "automations broken" feel = HTTP path. Hamesha dono check karo: `/api/growth/infra/automation-health` (admin) AUR ext health/page curl. Scheduler ab Celery durable hai → jobs ka asli source = `leadgen_scheduler` (beat) + `leadgen_worker` containers + flower :5555 + `dlq:failed_tasks`, sirf in-process heartbeat file nahi.
 
 ## Baad me (post-incident, skip mat karo)
 1. Root-cause commit + test/guard.

@@ -7,9 +7,9 @@ description: Naya niche add karna ya naya client onboard karna LeadGen platform 
 
 Sab calls admin auth ke saath. Base: `https://leadsgenai.in` (ya local `:8000`).
 
-## Step 1 — Niche add karo (sirf agar builtin 25 me nahi hai)
+## Step 1 — Niche add karo (sirf agar builtin ~39 me nahi hai)
 
-Pehle check: `GET /api/data/niches` — niche already hai (builtin ya custom)? Toh seedha Step 2.
+Pehle check: `GET /api/data/niches` — niche already hai (builtin ya custom)? Toh seedha Step 2. (39 builtin niches `app/niches.py` me; categories marketing/leadgen/both, har niche ka `lead_band` A/B/C jo voice-product band pricing decide karta hai.)
 
 ```
 POST /api/data/niches   (admin)
@@ -21,7 +21,7 @@ Optional fields: `key`, `target_type` (b2c|b2b|both, default b2c), `b2b_client`,
 - **Pricing defaults** (pricing_inr na do toh): qualified_lead ₹300–1,500, appointment ₹800–2,500, monthly_starter ₹12,000. Niche ke ticket-size ke hisab se override karo (high-ticket: QL ₹800–6,000 tak jata hai).
 - Custom niche **turant SAB jagah live**: flow (generic builder), KB auto-seed, agent provisioning resolve, web-call dropdown. Persistence: `data/custom_niches.json` (VPS-local, gitignored).
 - **Verify**: `GET /api/data/niches?tier=C` me naya niche dikhe ([custom] tag, tier "C").
-- **Builtin 25 protected**: `DELETE /api/data/niches/{key}` sirf custom pe chalta hai — builtin pe 403.
+- **Builtin protected**: `DELETE /api/data/niches/{niche_key}` sirf custom pe chalta hai — builtin pe 403.
 
 ## Step 2 — Client create (auto 2 agents milte hain)
 

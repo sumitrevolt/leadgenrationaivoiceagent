@@ -15,7 +15,7 @@ Code touch karne se pehle plan likho — zero-context engineer bhi execute kar s
 ## Step 2: Plan doc likho (lean, `docs/plans/YYYY-MM-DD-<feature>.md` ya TASKS.md section)
 Har plan me ye 4 cheezein MANDATORY:
 - **Goal** (1 line) + approach (2-3 lines).
-- **File map** = ownership matrix. Har file ka EK owner. **Shared files (`main.py`, `app/api/growth.py`, `app/api/marketing.py`, `team_scheduler.py`, `worker.py`, `public_site.py`, compose, requirements) = sirf MAIN session sequentially** — parallel agents kabhi touch nahi karte (file-truncate lesson). Parallel batch ho to har agent: apna naya `app/api/<domain>.py` + apne modules + apna `tests/test_<domain>.py`.
+- **File map** = ownership matrix. Har file ka EK owner. **Shared files (`app/main.py`, `app/api/growth.py`, `app/api/marketing.py`, `app/api/public_site.py`, `app/platform/team_scheduler.py`, `app/worker.py`, `docker-compose.vps.yml`, `requirements*.txt`) = sirf MAIN session sequentially** — parallel agents kabhi touch nahi karte (file-truncate lesson). Parallel batch ho to har agent: apna naya `app/api/<domain>.py` + apne modules + apna `tests/test_<domain>.py`.
 - **Tasks bite-sized** (har task: exact paths, test-first step, run command + expected output, commit point). Placeholder = plan failure: "TBD", "add validation", "similar to Task N" — likhna mana hai, actual code/command likho.
 - **Wiring section alag** — mounts, page routes (HARD RELOAD note), AUTOMATION_FLAGS, scheduler hooks (best-effort try/except) — ye main session ka sequential kaam hai.
 

@@ -1,28 +1,33 @@
 ---
 name: saas-pricing-strategy
-description: Pricing/packaging/discount decisions for LeadGen AI tiers (₹999 Starter / ₹2,499 Growth / ₹5,999 Advanced, annual 2-months-free, topup packs, ₹0 7-din trial). Use jab "pricing change", "naya plan", "discount doon?", "price badhao", "kitna charge karu", "annual offer", "topup", packaging ya tier-mix ki baat ho.
+description: Pricing/packaging/discount decisions for LeadGen AI ke DO products — Marketing (Starter ₹1,199 / Growth ₹2,999 / Advanced ₹6,999, annual 2-mahine-free, min top-ups, ₹0 7-din trial) aur Voice Agent (flat-monthly band A/B/C ₹4,999/9,999/19,999, free pilot). Use jab "pricing change", "naya plan", "discount doon?", "price badhao", "kitna charge karu", "annual offer", "topup", "voice pricing", packaging ya tier-mix ki baat ho.
 ---
 
-# SaaS Pricing Strategy (LeadGen AI)
+# SaaS Pricing Strategy (LeadGen AI — 2 products)
 
-**Single source of truth = `app/marketing/packages.py`** — landing, /pricing, checkout (`subscription.py _sync_plans_from_packages`), JSON-LD sab isi se. **IRON RULE: koi bhi price/tier change = packages.py + `tests/test_billing_truth_2026.py` SAATH me update** (yeh tests legacy ₹15k-plans bug dobara hone se rokte hain).
+**DO alag products, DO source-of-truth files** (`packages.py` = single source for marketing; `subscription.py` inhi se plans sync karta — landing, /pricing, /voice-agent, checkout, JSON-LD sab yahin se):
+- **Product 1 — AI Automated Marketing** (MAIN): `app/marketing/packages.py` (`subscription._sync_plans_from_packages`).
+- **Product 2 — AI Voice Calling Agent** (ALAG standalone, DLT-gated): `app/marketing/voice_packages.py` (`subscription._sync_voice_plans`).
+
+**IRON RULE: koi bhi price/tier change = source file + `tests/test_billing_truth_2026.py` SAATH me update** (yeh tests legacy plan-drift bug dobara hone se rokte hain). **"Marketing + voice bundle / dono ek saath" framing GALAT — alag bech.**
 
 ## Current truth (change se pehle yaad rakho)
-- Starter ₹999/mo (marketing-only) · Growth ₹2,499 (recommended anchor) · Advanced ₹5,999 (+AI voice 500 min = UNIQUE tier).
-- Annual `price_inr_year` = 2 mahine free (9990/24990/59990, one-time order — RBI e-mandate AFA se bachke). Topup `TOPUP_PACKS` 100/250/500 min. ₹0 trial 7-din (signup plan="trial"). GST sirf `GST_GSTIN` set pe.
+**Marketing** (`packages.py`): Starter ₹1,199/mo · Growth ₹2,999 (recommended anchor) · Advanced ₹6,999 (+AI voice 500 min/mo = ek FEATURE, India me UNIQUE). Annual `price_inr_year` = 10× monthly = 2 mahine free (11990/29990/69990). `TOPUP_PACKS` 100/250/500 min = ₹1,499/3,499/5,999 (period-end EXPIRE). FREE trial ₹0, `TRIAL_DAYS=7` (no card, no voice). GST sirf `GST_GSTIN` set pe.
+**Voice** (`voice_packages.py`): FLAT MONTHLY per niche-band — Band A ₹4,999 · Band B ₹9,999 · Band C ₹19,999 (UNLIMITED calls, no lead-counting/disputes). Annual = 10× monthly (49990/99990/1,99,990). FREE pilot 7 din / 50 calls (`voice_pilot`, zero payment). Niche→band = `app/niches.py` `lead_band`. Plan IDs `voice_{a,b,c}_monthly`/`_annual` + `voice_pilot`.
 
 ## Decision frameworks (distilled)
-1. **Value-based, cost-based nahi.** Price floor = next-best alternative, ceiling = perceived value. **Anchor: MyOperator/human telecaller ₹10k+/agent/mo** — Advanced ₹5,999 already "aadhe daam me AI staff" frame me bech do; pricing page pe yeh contrast dikhana = anchoring.
-2. **India price-sensitivity**: SMB owner monthly cash-flow sochta hai. ₹999 entry = psychological "under ₹1000" — Starter ka left-digit mat todo. Mental accounting frame: "₹33/din — ek chai se kam me marketing staff".
-3. **Value metric** = voice minutes (Advanced) + posts/features gating — usage ke saath value scale hoti hai ✓. Naya gate sochte waqt poochho: "zyada use = zyada value?" nahi to galat metric.
-4. **Good-Better-Best discipline**: 3 tiers hi rakho (paradox of choice), Growth highlighted recommended, Advanced = 2.4x anchor. Naya tier add karne se pehle: kya existing tier me limit-gate se kaam chalega?
-5. **Discounts**: 20-30% / 2-3 mahine max, time-bound, reason-bound (festival/save-offer). 50%+ KABHI nahi — customers cancel-for-deal seekh jaate hain. Rule of 100: ₹999 pe "% off" bolo, ₹5,999 pe "₹X bachao".
-6. **Price increase kab**: prospects bina flinch ke haan bole / "itna sasta?!" feedback / churn <2% — tab grandfather-existing + new-price-new-customers.
+1. **Value-based, cost-based nahi.** Floor = next-best alternative, ceiling = perceived value. Anchors: marketing → Dhanda ₹7,999/yr, Predis Lite ~₹2,700/mo · voice → human telecaller ₹10k+/agent/mo. Advanced/voice ko "aadhe daam me AI staff" frame me bech do — pricing page pe yeh contrast = anchoring.
+2. **India price-sensitivity**: SMB owner monthly cash-flow sochta hai. ₹1,199 entry = mental accounting frame "₹40/din — ek chai se kam me marketing staff". Starter left-digit pe khelo.
+3. **Value metric** = marketing me posts/features gating + voice minutes (Advanced); voice product me niche-band (premium niche = premium price). Naya gate sochte waqt: "zyada use = zyada value?" nahi to galat metric.
+4. **Good-Better-Best discipline**: marketing 3 tiers, voice 3 cards (pilot + monthly + annual). Growth/voice-monthly highlighted recommended. Naya tier add karne se pehle: existing tier me limit-gate se kaam chalega?
+5. **Discounts**: 20-30% / 2-3 mahine max, time-bound, reason-bound (festival/save-offer). 50%+ KABHI nahi — customers cancel-for-deal seekh jaate. Rule of 100: ₹1,199 pe "% off" bolo, ₹6,999/₹19,999 pe "₹X bachao".
+6. **Voice flat-model ka USP**: "koi lead-counting nahi, koi surprise invoice nahi" — yeh trust-anchor hai, dispute-free billing bech.
+7. **Price increase kab**: prospects bina flinch ke haan bole / "itna sasta?!" feedback / churn <2% — tab grandfather-existing + new-price-new-customers.
 
 ## Pricing change checklist
-`packages.py` edit → `test_billing_truth_2026.py` expected values update → `pytest tests/test_billing_truth_2026.py` green → pricing.html copy/anchor check (conversion-optimization skill) → prod_check → deploy. Landing + GST invoice (`gst_invoice.py`) auto-follow karte.
+Source file edit (`packages.py` ya `voice_packages.py`) → `test_billing_truth_2026.py` expected values update → `pytest tests/test_billing_truth_2026.py` green → pricing.html / voice-agent copy/anchor check (conversion-optimization skill) → prod_check → deploy. Landing + GST invoice auto-follow karte (`subscription._sync_*` startup pe sync).
 
 ## Red flags
-Hardcoded price kahin aur likhna ❌ (sirf packages.py) · 4th tier ❌ · trial ko 30-din karna ❌ (urgency khatam) · annual ko e-mandate recurring banana ❌ (RBI ₹15k AFA friction) · discount jo unit economics tode (Exotel ~₹0.75/call + LLM free = margin samajh ke do).
+Hardcoded price kahin aur likhna ❌ (sirf source files) · marketing me 4th tier ❌ · trial ko 30-din karna ❌ (urgency khatam) · voice ko per-lead/quota model wapas lana ❌ (flat-monthly = dispute-free, jaan-bujh ke chhoda) · annual ko e-mandate recurring banana ❌ (RBI AFA friction — one-time order rakho) · discount jo unit economics tode (Exotel ~₹0.75/call + LLM free = margin samajh ke do).
 
 Adapted from coreyhaines31/marketingskills (via VoltAgent/awesome-agent-skills)

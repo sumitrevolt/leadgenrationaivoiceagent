@@ -1,3 +1,8 @@
+---
+name: plan-ceo-review
+description: Bada feature ya product-direction faisla CEO-lens se challenge karo — mode (expansion/selective/hold/reduction), 10-star product, scope-cut, revenue-path. Use when user bole "CEO review chahiye", "ye build karein ya nahi", "scope challenge karo", ya `/office-hours` ke baad `/plan-eng-review` se pehle. (gstack-adapted, mostly generic.)
+---
+
 # Skill: plan-ceo-review
 **Adapted from gstack by Garry Tan (YC). MIT License.**
 
@@ -20,18 +25,12 @@ Pehle poochho user se: **"Ab hum kahan hain?"**
 | **HOLD** | Revenue pressure, consolidate karo | Feature freeze, tech debt, reliability |
 | **REDUCTION** | Survival mode | Cut everything non-essential |
 
-**Current reality check (run karo):**
+**Current reality check (run karo):** real pipeline numbers `/app/admin` dashboard ya admin APIs se lo — CLAUDE.md me ab live counts nahi rehte (woh lean working-memory hai).
 ```bash
-# Live stats
-python -c "
-from app.platform.clients_store import get_all_clients
-from app.platform.prospects_store import ProspectStore
-import asyncio
-# Check pipeline
-print('Check admin dashboard for real numbers')
-"
-# Simpler: check CLAUDE.md for pipeline stats
-grep -E "prospects|clients|MRR|revenue" CLAUDE.md | tail -10
+# Prospect/client stores (paths verify): clients = app/marketing/clients_store.py
+grep -rln "def get_all_clients\|def list_clients\|class .*Store" app/marketing/ app/platform/ | head
+# Admin metrics endpoints
+grep -rn "@router" app/api/*.py | grep -iE "metric|dashboard|stats|pipeline" | head
 ```
 
 ---

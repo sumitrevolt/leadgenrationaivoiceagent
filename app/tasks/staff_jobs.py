@@ -6,10 +6,10 @@ ek hi process, app restart pe job miss/double ho sakta. Yeh module wahi jobs
 Celery beat ke through **durable** chalata hai: dedicated worker, restart-safe
 schedule, retry, aur dead-letter (worker.py `on_task_failure` -> Redis DLQ).
 
-DORMANT by default — koi behaviour change nahi:
-  - Yeh beat entries SIRF tab fire hote jab `celery beat` process chale
-    (compose `--profile celery`). Default deployment me beat nahi chalta.
-  - Default path aaj jaisa hi: in-process APScheduler (RUN_IN_PROCESS_SCHEDULER=1).
+ACTIVATION — module import-safe always; beat entries fire only when `celery beat` runs:
+  - LIVE VPS (2026-06-10 se): durable path ON — RUN_IN_PROCESS_SCHEDULER=0 +
+    leadgen_worker + leadgen_scheduler (beat) containers chal rahe.
+  - Beat band ho to in-process APScheduler (RUN_IN_PROCESS_SCHEDULER=1) = rollback fallback.
 
 DURABLE path pe switch (double-run avoid):
     RUN_IN_PROCESS_SCHEDULER=0   # in-process loop band

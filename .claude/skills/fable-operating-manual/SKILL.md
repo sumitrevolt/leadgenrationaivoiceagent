@@ -1,6 +1,6 @@
 ---
 name: fable-operating-manual
-description: Claude Fable 5 ka proven operating playbook is project ke liye — kaise audit karo, root-cause pakdo, kaha verify karo (Windows vs sandbox), loops complete karo, test karo, commit/deploy karo. Use when koi bhi non-trivial change/debug/audit/automation karna ho, ya jab "best kya hai project ke liye" decide karna ho. Hermes/agents iss manual ko default operating-discipline ki tarah follow karein.
+description: Is project ka proven operating playbook — kaise audit karo, root-cause pakdo, kaha verify karo (Windows = truth vs sandbox = stale), loops complete karo, test karo, commit/deploy karo. Use when koi bhi non-trivial change/debug/audit/automation karna ho, "ye theek se wired hai?" check karna ho, ya jab "best kya hai project ke liye" decide karna ho. Agents iss manual ko default operating-discipline ki tarah follow karein.
 ---
 
 # Fable Operating Manual (project ke liye)
@@ -23,7 +23,7 @@ Yeh is project pe kaam karne ka distilled tareeka hai — jisse changes safe, ro
 ## 2. Loops / backend completeness audit (kaise check karo "sab wired hai")
 - **Orphan loops**: har `run_*/run_due/run_if_enabled/*_sweep/pulse/optimize/tick` function ka koi call-site hona chahiye. AST/grep se defs vs call-sites compare karo — 0 orphans = wired.
 - **Scheduler ↔ Celery parity**: `team_scheduler._run_job` ke jobs aur `worker.py` beat_schedule mirror hone chahiye. `automation_health.EXPECTED_GAP_MIN` me har job registered ho (dead-man switch).
-- **FastAPI startup**: `main.py` lifespan me `start_scheduler()` call hota hai (gated `RUN_IN_PROCESS_SCHEDULER`). In-process mode me growth job khud self_improve + process_engine tick chalata hai.
+- **Scheduler reality**: LIVE = **Celery durable** (`leadgen_worker` + `leadgen_scheduler` beat containers, `RUN_IN_PROCESS_SCHEDULER=0`). In-process APScheduler (`team_scheduler`, `main.py` lifespan `start_scheduler()`, gated `RUN_IN_PROCESS_SCHEDULER=1`) = **rollback path**, default nahi. DLQ → Redis `dlq:failed_tasks`.
 - **Truncation guard**: AST se aise functions dhoondo jinka body sirf docstring ho ya last statement ek bare `Name`/`Attribute` ho (jaise `refresh_custom_nic` — `lead_band()` truncation bug). Ye "file truncate" hazard (bade multi-edit me file kat-ti hai) ka signature hai.
 
 ## 3. Naya loop / engine add karne ka pattern
@@ -40,7 +40,7 @@ Yeh is project pe kaam karne ka distilled tareeka hai — jisse changes safe, ro
 - Pricing/contract changes ke baad `test_billing_truth_2026` zaroor green rakho.
 
 ## 5. Deploy loop (detail: leadgen-ops + hostinger-deploy skills)
-`python scripts/prod_check.py` → changed-file tests → Windows git push → VPS pull + **hard reload** (stale .pyc serve hota hai: `systemctl stop leadgen; pkill -9 -f uvicorn; rm -rf __pycache__; systemctl start leadgen`) → `/health` = `environment:production` verify. CI deploy-gated (`DEPLOY_ENABLED`) — push se auto-deploy nahi hota.
+App = **Docker container `leadgen_app`** (`docker-compose.vps.yml`); systemd `leadgen` DISABLED (rollback only). Loop: `python scripts/prod_check.py` → changed-file tests → Windows git push → VPS pull + `docker compose build app` + `up -d --no-deps app` (= **hard reload**, stale .pyc se naya `@app.get` page-route 404 deta — container recreate isko clear karta) → `/health` = `environment:production` verify (sleep 16 + 2x check). `app/`+`frontend/`+`.claude/skills/` image me BAKED (rebuild chahiye); `data/`+`logs/` bind-mount (no rebuild). CI deploy-gated (`DEPLOY_ENABLED`) — push se auto-deploy nahi hota.
 
 ## 6. Commit discipline
 - Ek commit = ek coherent change-set. Critical bug-fix ko bade frontend chunk ke saath bundle mat karo.

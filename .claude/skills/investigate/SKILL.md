@@ -1,3 +1,8 @@
+---
+name: investigate
+description: Root-cause-first debugging — symptom fix se pehle "kyun" pakdo. Use jab error/stack-trace mile, "ye kaam kyun nahi kar raha", "production down hai", "kal tak theek tha", regression dhoondna ho, ya koi bhi root-cause analysis chahiye. Project gotchas (event-loop sync call, stale .pyc, fastembed cache, Windows os.kill) built-in.
+---
+
 # Skill: investigate
 **Adapted from gstack by Garry Tan (YC). MIT License.**
 

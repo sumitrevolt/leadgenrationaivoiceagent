@@ -1,3 +1,8 @@
+---
+name: review
+description: PR/diff code review for the LeadGen AI platform — 5-lens critical pass (bugs · prod-killers · security · tests · perf) + FastAPI project-specific checks (route-shadow, hard-reload, flags, boot-grace) → classified AUTO-FIX/ASK/INFO report. Use before `/ship`, "review this code", PR merge se pehle, ya naya feature complete hone ke baad.
+---
+
 # Skill: review
 **Adapted from gstack by Garry Tan (YC). MIT License.**
 
@@ -45,10 +50,11 @@ Har changed file ke liye inhe dhundo:
 
 ### 3. 🔒 Security
 - User input sanitized hai?
-- Admin endpoint pe auth check hai? (`require_admin`)
-- Public endpoint rate-limited hai? (20-30/60s)
-- SQL injection possible? (raw string nahi, ORM use karo)
-- SSRF possible? (user-provided URLs fetch karne wale code)
+- Admin endpoint pe auth check hai? (`require_admin`); billing/customer mutation `_authed_client_id` scope (IDOR-closed)?
+- Public/LLM endpoint rate-limited hai? (`rate_limit("name",N,sec)`; LLM = `require_admin`+`tier_rate_limit`)
+- SQL injection possible? (raw string nahi, ORM/params use karo)
+- SSRF possible? (user-provided URLs = private-IP block, `website_auditor.py` pattern)
+- Webhook signature verify FIRST + prod fail-CLOSED 503? Secrets sirf `.env` (`check_secrets.py`)?
 
 ### 4. 🧪 Test Coverage
 - Naya code test covered hai?
@@ -76,9 +82,11 @@ python -c "import app.main; print('OK')"
 python -c "from app.api.<new_module> import router"
 ```
 
-- Naya `@app.get` route add kiya? → **HARD RELOAD zaroori** (CLAUDE.md gotcha)
+- Naya route add kiya? → `grep '@router' app/api/<file>.py` se shadow check (FastAPI first-route-wins, ~761 decorators already). Page-route `@app.get` = **HARD RELOAD zaroori** (stale .pyc 404).
 - New env flag? → `app/api/growth.py` ke `AUTOMATION_FLAGS` list mein add kiya?
-- New scheduler job? → boot-grace skip logic check karo
+- New scheduler job? → boot-grace skip logic + Celery worker me chale (web process nahi).
+- Price/plan change? → `app/marketing/packages.py`(ya `voice_packages.py`) + `tests/test_billing_truth_2026.py` SAATH?
+- Marketing feature? → `frontend/marketing.html` (28 tabs) me UI tab bhi add hua?
 
 ---
 

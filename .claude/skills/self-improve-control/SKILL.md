@@ -1,6 +1,11 @@
+---
+name: self-improve-control
+description: Monitor, audit, aur safely control the self-improve forever-loop — health/heartbeat, cost, approvals, lessons, pause/resume, eval_gate regression signal. Use when the user says "self-improve loop healthy?", "loop ne kya seekha", "loop ko pause/resume karo", "loop ne expensive task pick kiya", "selfimprove cost/approvals", "loop govern/audit karo", or for governance/incident on the automation loop.
+---
+
 # Self-Improve Loop Control
 
-Monitor, audit, and safely control the automation self-improvement loop.
+Monitor, audit, and safely control the automation self-improvement loop (`app/agents/self_improve.py`). Source-of-truth details: `self-improve-loop` skill (architecture) — yeh skill OPERATE/audit/govern pe focus karti hai.
 
 ## When to Use This Skill
 
@@ -45,28 +50,37 @@ Status: SUCCESS
 Next task: (pending approval? if SELF_IMPROVE_APPROVAL=1)
 ```
 
+> **Cost = NOTIONAL**: stack 100% free (Cerebras/Groq/Gemini free tiers). `$` figures = CostTracker ka internal estimate (LLM-heavy ≈ $2.5, light ≈ $0.5) jo budget/ROI gates drive karta — real paisa nahi katta. `SELFIMPROVE_COST_CAP` (default $50/day) = velocity throttle.
+
 **What to look for**:
-- Is the cost reasonable? (typically ≤$5/day)
+- Is the (notional) cost reasonable? cap ≈ $50/day, har run $0.5–$2.5
 - Is the outcome linked to the task? (e.g., "scrape → leads" makes sense; "scrape → dunning" would be weird)
 - Is the lesson credible? (does the reflected insight match the data?)
 
 ### 2. Inspect Deeper: Lessons + Skill Library
 
+> **Store-naming note (important)**: LIVE loop ke REAL files = `data/skill_lessons.jsonl` (reflections/lessons), `data/skill_uses.jsonl` (per-action use+outcome), `data/self_improve_runs.jsonl` (run log w/ cost+outcome_value). The `selfimprove_audit.py` tool ka older view `agent_memory.jsonl`/`skill_library.jsonl`/`automation_audit.jsonl` expect karta hai (jab tak script align na ho, woh empty dikha sakta) — manual inspection ke liye REAL files neeche use karo.
+
 **Goal**: See what the loop has learned cumulatively.
 
-View the episodic memory:
+View the lessons (free-LLM reflections):
 ```bash
-cat data/agent_memory.jsonl | tail -5 | jq .
+cat data/skill_lessons.jsonl | tail -5 | jq .
 ```
 
-This shows the **last 5 reflections** the loop made. Example:
+The audit tool's view (may differ until script aligned to live stores):
+```bash
+python scripts/selfimprove_audit.py --memory-audit
+```
+
+Lesson record shape (live, from `skill_library.record_lesson`):
 ```json
 {
-  "run_id": "2026-06-15_092030",
-  "lesson": "email_outreach works better on hot_leads (score >0.7) than cold. consider qualifying first.",
-  "evidence": ["jun-12: 0/8 cold emails → 1 reply", "jun-13: 4/5 hot leads → 3 replies"],
-  "confidence": 0.82,
-  "action_next": "reduce_cold_email_fraction"
+  "topic": "self_improve",
+  "lesson": "email_outreach hot_leads (score >0.7) pe better — pehle qualify karo.",
+  "source": "reflection",
+  "agent": "meera",
+  "at": "2026-06-15T09:20:30+00:00"
 }
 ```
 
@@ -96,22 +110,21 @@ sales_team.run_analysis        0.78 (7/9 runs, $71)
 
 **Goal**: Stop the loop temporarily if something looks wrong.
 
-**To pause**:
+**To pause** (VPS = Docker; systemd `leadgen` DISABLED, recreate karo NOT systemctl):
 ```bash
-# Set environment variable
-echo "SELF_IMPROVE_LOOP=0" >> .env
-# Restart app
-systemctl restart leadgen
+# .env me flag set (VPS /opt/leadgen/.env)
+echo "SELF_IMPROVE_LOOP=0" >> /opt/leadgen/.env
+# loop Celery worker me chalta — worker (+scheduler) recreate karo
+docker compose -f docker-compose.vps.yml up -d --no-deps worker scheduler
 ```
 
 The loop will **not** pick a new task. Existing running tasks finish.
 
 **To resume**:
 ```bash
-# Remove or set to 1
-sed -i '/SELF_IMPROVE_LOOP=/d' .env
-echo "SELF_IMPROVE_LOOP=1" >> .env
-systemctl restart leadgen
+sed -i '/SELF_IMPROVE_LOOP=/d' /opt/leadgen/.env
+echo "SELF_IMPROVE_LOOP=1" >> /opt/leadgen/.env
+docker compose -f docker-compose.vps.yml up -d --no-deps worker scheduler
 ```
 
 **When to pause**:
@@ -123,18 +136,18 @@ systemctl restart leadgen
 
 **Goal**: Tell the loop what to do next, overriding its bandit choice.
 
-If the loop made a bad pick, you can suggest a better task:
+If the loop made a bad pick, queue a preferred task — loop ise auto-pick se PEHLE uthata hai (no `/hint` route exists; this IS the guidance path):
 ```bash
-curl -X POST http://localhost:8000/api/growth/selfimprove/hint \
-  -H "Authorization: Bearer <token>" \
+curl -X POST http://localhost:8000/api/growth/selfimprove/task \
+  -H "Authorization: Bearer <admin-token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "preferred_action": "sales_team.run_analysis",
-    "reason": "hot_leads accumulated, prioritize deep-dive"
+    "task": "hot_leads accumulated, prioritize deep-dive",
+    "action": "sales_deepdive"
   }'
 ```
 
-On the **next cycle** (180s later), the loop respects this hint in its Reflexion pass. Doesn't bypass the loop; guides it.
+`action` must be a valid ACTIONS key (sales_deepdive, harvest_leads, seo_pages, etc. — see `GET /selfimprove/actions`). On the **next cycle** (gap ≈180s), the loop pops this queued task first. Doesn't bypass guards; queued task abhi bhi cost/approval gates se guzarta hai.
 
 **When to use**:
 - You spotted an opportunity the bandit missed (e.g., "we have 50 hot leads, run sales_team analysis")
@@ -161,6 +174,18 @@ Use this for:
 - **Debugging** (was this task actually run?)
 - **Tuning** (measure cost vs. outcome per task type)
 
+### 6. eval_gate — Close-the-Loop Regression Signal (F.3)
+
+**Goal**: Catch when an action's quality silently drifts down.
+
+Har iteration ke baad loop `eval_gate.score_and_gate("self_improve", <action>, current_score=1.0|0.0)` call karta hai. eval_gate har action ka **rolling median baseline** rakhta hai; agar aaj ka score baseline se neeche gira (e.g. `harvest_leads` last-20 runs me 0.9 tha, aaj 0.3) to decision = **reject** → run record me `regression: true` + `baseline` likha jaata hai.
+
+- **INERT by default**: `EVAL_GATE` unset = sirf no-op (project ethos: gated, fail-open). Set `EVAL_GATE=1` to start recording baselines (observe-only).
+- `EVAL_GATE_HARD=1` (sirf baseline trusted hone ke baad) = regression `detail` me `[REGRESSION baseline=X.XX]` mark dikhta hai. **Auto-rollback NAHI** — successful-but-low-baseline action bhi useful hai; yeh drift FLAG karta hai, kaam block nahi.
+- Bursts of rejects → `OPS_ALERTS` ntfy page kar sakta hai (`OPS_ALERT_EVAL_REJECT_BURST`/`_WINDOW`).
+
+**Where to look**: `data/self_improve_runs.jsonl` me `regression`/`baseline` fields; eval_gate ka apna store (`app/agents/eval_gate.py`). Source-of-loop-truth: `self-improve-loop` skill.
+
 ---
 
 ## Safety Checklist
@@ -169,7 +194,7 @@ Before running the loop unsupervised, check:
 
 - [ ] **Cost budget**: Is `SELFIMPROVE_COST_CAP` set? (default: $50/day)
 - [ ] **Approval mode**: Is `SELF_IMPROVE_APPROVAL` set? (OFF = no human gate; ON = requires admin approval)
-- [ ] **Skill library**: Are all actions in `skill_library.jsonl` ones you trust?
+- [ ] **Skill library**: Are all ACTIONS (in `self_improve.py` ACTIONS dict) ones you trust? (success rates: `data/skill_uses.jsonl` via `GET /skills/library`)
 - [ ] **DLT / compliance**: Does the loop ever make calls/SMS? (If yes, must have DLT approval + opt-in tracking)
 - [ ] **Monitor daily**: Are you checking the audit log at least weekly?
 
@@ -185,21 +210,21 @@ See references/self-improve-safety.md for risk matrix.
 - Existing large-spend tasks will be deprioritized by bandit
 
 **"Loop seems stuck (same task every day)"**
-- Check skill_library success rates: `python scripts/selfimprove_audit.py --skill-stats`
-- If one task has 100% success + others <50%, bandit correctly favors it
-- To diversify: manually inject a hint (`preferred_action=different_task`)
-- Or reduce that task's weight: `data/skill_library.jsonl` edit success_rate down (reset after N runs)
+- Check success rates: `GET /api/growth/skills/library` (or `selfimprove_audit.py --skill-stats`). Note: loop me already 2-tier diversity guard hai (last-6 dedup + 20-min cooldown).
+- If one task has high success + others low, epsilon-greedy bandit correctly favors it (30% explore still rotates)
+- To diversify: queue a different action via `POST /selfimprove/task {task, action}`
+- Or down-weight: `data/skill_uses.jsonl` me us action ke recent `ok:true` rows kam karo (Laplace rate recompute hoga)
 
 **"Reflection logic is wrong (lesson doesn't match data)"**
 - This is a free-LLM hallucination (rare but possible)
-- Check evidence in `data/agent_memory.jsonl`
-- If obviously wrong, delete that lesson: `jq 'select(.run_id != "bad_id")' data/agent_memory.jsonl > tmp && mv tmp data/agent_memory.jsonl`
-- Loop will re-learn on next run
+- Check the lesson + recent runs: `tail data/skill_lessons.jsonl` + `tail data/self_improve_runs.jsonl`
+- If obviously wrong, delete that lesson line: `jq -c 'select(.lesson != "bad lesson text")' data/skill_lessons.jsonl > tmp && mv tmp data/skill_lessons.jsonl`
+- Loop will re-learn on next reflection (har 8 runs)
 
 **"Can I manually add a skill/task to the loop?"**
-- Yes: add to `skill_library.jsonl` manually (copy an existing entry, change task name + metadata)
-- Or use the `/api/growth/skills/pack` endpoint to register a new one
-- See `.claude/skills/teach-agent-loop/SKILL.md` for step-by-step
+- New ACTION = code change: `self_improve.py` ACTIONS dict + `_execute()` elif + `_STAGE_ACTIONS` (step-by-step → `teach-agent-loop` skill)
+- Project skill (knowledge, not action) = `POST /api/growth/skills/pack/author` (skill_pack store; `study_skills` action ise padhta)
+- Manual lesson inject: `POST /api/growth/skills/lesson {topic, lesson}`
 
 ---
 

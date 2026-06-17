@@ -14,15 +14,15 @@ Solo dev = koi PR reviewer nahi → khud ke code ko 5 ALAG perspectives se padho
 - Edge: empty list, None phone/email, LLM garbage-JSON parse-fail path, dedupe keys.
 
 ## Pass 2: Security Auditor 🔒
-- **Public endpoint = `rate_limit(...)` dependency hai?** (ratelimit.py pattern, ai/command lesson — open LLM endpoint = abuse surface).
-- Admin action = `require_admin` / customer = `require_customer`? Anonymous fallback to nahi (data.py "demo-client" hole lesson — prod me 401).
-- File serve = **regex-lock** path (`/ai-img-file/{name}` pattern) — kabhi raw user path join nahi (traversal).
-- Secrets sirf `.env` — code/commit/log/CLAUDE.md me kabhi nahi. Webhook = signature-verify (Twilio/Exotel/HMAC pattern).
+- **Public/LLM endpoint = `rate_limit("name",N,sec)` dependency hai?** (`app/api/ratelimit.py` pattern). LLM-backed = `require_admin` + `tier_rate_limit` (`app/api/ai.py` ab gated; open free-LLM = abuse surface).
+- Admin action = `require_admin` / customer = `require_customer`? Billing/customer mutation = `_authed_client_id` scope (IDOR-closed)? Anonymous "demo-client" fallback to nahi (data.py hole → prod me 401).
+- File serve = **regex-lock** path (`/ai-img-file/{name}` pattern, `app/api/marketing.py`) — kabhi raw user path join nahi (traversal). User-URL fetch = SSRF private-IP block (`website_auditor.py` pattern).
+- Secrets sirf `.env` (`check_secrets.py` se verify) — code/commit/log/CLAUDE.md me kabhi nahi. Webhook = signature-verify FIRST + prod fail-CLOSED 503 (Twilio/Exotel/Razorpay/HMAC pattern).
 
 ## Pass 3: Contracts/Signature-drift 📜
 - `free_ai.chat(system, messages)` REAL signature — tuple/str drift = silent static-fallback (growth_optimizer bug). Har LLM call-site check.
 - Sync fn ko await / async ko sync call? Response shape change = `/api/public/*` backward-compat toot raha? Page-route naya = deploy note "HARD RELOAD".
-- packages.py / niches.py = single source of truth — koi naya hardcoded price/plan/niche list to nahi?
+- `app/marketing/packages.py` (marketing price) · `voice_packages.py` (voice price) · `app/niches.py` = single source of truth — koi naya hardcoded price/plan/niche list to nahi? Price touch = `tests/test_billing_truth_2026.py` SAATH.
 
 ## Pass 4: Hot-path 🔥
 - **Endpoint/voice-path me sync ML/KB/SDK?** = event-loop starve, site down (widget-chat lesson). Fix: `asyncio.wait_for(asyncio.to_thread(fn), 10-25s)`.

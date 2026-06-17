@@ -1,3 +1,8 @@
+---
+name: careful
+description: Destructive/irreversible command se pehle RUKO aur confirm karo. Use jab koi rm -rf, DROP/TRUNCATE/DELETE-without-WHERE, git push --force, git reset --hard, docker prune, VPS .env overwrite, ya prod container stop hone wala ho — ya jab user "careful mode" / "production data ko haath laga rahe" bole.
+---
+
 # Skill: careful
 **Adapted from gstack by Garry Tan (YC). MIT License.**
 
@@ -57,7 +62,7 @@ User "haan" bole tab hi proceed karo.
 ### VPS pe kaam karte waqt:
 - `.env` ka backup PEHLE: `cp .env .env.bak_$(date +%Y%m%d_%H%M%S)`
 - Docker recreate se pehle: health check URL note karo
-- DB changes se pehle: `docker exec leadgen_db pg_dump -U postgres leadgendb > /tmp/backup.sql`
+- DB changes se pehle: `docker exec leadgen_db pg_dump -U leadgen leadgen > /tmp/backup.sql` (user+db dono default `leadgen`)
 
 ### Hostinger SSH:
 - `git push --force` = `main` branch ka history rewrite = CI/deploy broken

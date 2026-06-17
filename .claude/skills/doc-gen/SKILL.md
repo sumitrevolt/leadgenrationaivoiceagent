@@ -1,3 +1,8 @@
+---
+name: doc-gen
+description: Technical docs likho (Diataxis — reference / how-to / explanation / runbook) codebase padh ke. Use jab user bole "docs generate karo", naye module/feature/endpoint ke liye README ya API-doc chahiye, ops runbook (enable/health/rollback) banana ho, ya `docs/` outdated ho.
+---
+
 # Skill: doc-gen
 **Adapted from gstack (document-generate) by Garry Tan (YC). MIT License.**
 
@@ -121,11 +126,11 @@ Response:
 
 ## Enable karo
 ```bash
-# VPS pe
+# VPS pe (env-change = recreate, sirf restart se naya env nahi uthta)
 ssh root@72.61.245.204
 cd /opt/leadgen
 echo "FLAG=1" >> .env
-docker compose -f docker-compose.vps.yml restart app
+docker compose -f docker-compose.vps.yml up -d --no-deps app
 ```
 
 ## Health check
@@ -136,7 +141,7 @@ curl https://leadsgenai.in/health
 ## Rollback
 ```bash
 sed -i '/FLAG=1/d' .env
-docker compose -f docker-compose.vps.yml restart app
+docker compose -f docker-compose.vps.yml up -d --no-deps app
 ```
 
 ## Logs dekho

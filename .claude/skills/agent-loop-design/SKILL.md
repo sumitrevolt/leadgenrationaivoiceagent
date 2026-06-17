@@ -14,8 +14,8 @@ description: Naya ALWAYS-ON / recurring agent loop design karne ka generalized p
 4. **Requeue**: Celery `apply_async(countdown=gap)` self-chain — task→task, cron timing nahi. Gap env-tunable (min 180s pattern).
 
 ## Kahan chalega (NON-NEGOTIABLE — 3 prod-downs ka lesson)
-- **SIRF Celery worker** (`app/tasks/staff_jobs.py` me task) — web process me KABHI inline nahi.
-- In-process scheduler path me ho to **boot-grace** respect karo (restart pe heavy job fire = HTTP starve, commit 50749b6 lesson).
+- **SIRF Celery worker** (`app/tasks/staff_jobs.py` me task; `leadgen_worker` = PRIMARY scheduler path, `RUN_IN_PROCESS_SCHEDULER=0`) — web process me KABHI inline nahi.
+- APScheduler (`team_scheduler.py`) = ROLLBACK path only; us path me ho to **boot-grace** respect karo (restart pe heavy job fire = HTTP starve, commit 50749b6 lesson).
 - Loop ke andar ML/KB/embedder = `model-asset-bake` rule: image-bake + off-loop load + deadline + disable-switch.
 
 ## Dead-man trio (loop chup-chaap mar jata hai — hamesha teeno lagao)
@@ -36,7 +36,7 @@ description: Naya ALWAYS-ON / recurring agent loop design karne ka generalized p
 Multi-step workflow jisme **order + gates + human approval** chahiye = `agents/process_engine.py` (event-sourced journal, crash-safe resume, breakpoints) — naya loop mat banao. Loop = open-ended continuous improvement; process = finite workflow.
 
 ## Existing loops inventory (naya banane se pehle dekho — overlap?)
-- `self_improve_tick` (180s chain, 9 actions, bandit) · `growth_engine` 15-min pulse (quantity heal) · `growth_optimizer` daily (strategy) · `process_tick` (10s, running processes) · hourly: reply-triage / ops-watchdog / auto-onboard / Hermes infra / telephony-readiness · daily staff jobs (blog/content/digest/prospect/outreach/qa/trainer).
+- `self_improve_tick` (180s chain, 12 actions, epsilon-greedy bandit + eval_gate) · `growth_engine` 15-min pulse (quantity heal) · `growth_optimizer` daily (strategy) · `process_tick` (running processes) · hourly: reply-triage / ops-watchdog / auto-onboard / Hermes infra / telephony-readiness · daily staff jobs (blog/content/digest/prospect/outreach/qa/trainer) · engineer agents (SRE :45 / FinOps 9am / Security 9:30, gated).
 
 ## Debug: loop mar gaya / restart-storm
 1. `GET /api/growth/infra/automation-health` — heartbeats table (ya /app/automation Schedule tab).

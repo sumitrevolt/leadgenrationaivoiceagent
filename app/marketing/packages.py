@@ -9,7 +9,7 @@ Positioning (June 2026, CLARIFIED): hum DO alag products banate hain —
      hai: inquiry auto-callback, lead qualification calls, missed-call follow-ups.
   2. **AI Voice Calling Agent** (ALAG standalone product) — full AI telecaller
      (outbound/DLT-gated); iski pricing **`voice_packages.py`** me (page /voice-agent),
-     model = per-niche per-10-qualified-leads (ADR-009). Yahan NAHI.
+     model = flat-monthly per niche-band A/B/C (ADR-009; updated 2026-06-12). Yahan NAHI.
 
 Prices (research-revised 2026-06-11, ADR-009): Starter ₹1,199 · Growth ₹2,999 ·
 Advanced ₹6,999 (anchors: Dhanda ₹7,999/yr, Predis Lite ~₹2,700/mo social-only,

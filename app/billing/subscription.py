@@ -170,7 +170,7 @@ PRICING_PLANS = {
     ),
     # NOTE (ADR-009, 2026-06-11): legacy "per_lead" (₹25/lead) + "hybrid_starter"
     # (per-lead overage) plans REMOVED — per-lead pricing system retired.
-    # Voice product plans ab _sync_voice_plans() se aate hain (per-10-leads model).
+    # Voice product plans ab _sync_voice_plans() se aate hain (flat-monthly per niche-band model, updated 2026-06-12).
     # =============================================================================
     # B2B INTELLIGENCE PLATFORM - CREDIT-BASED PLANS
     # =============================================================================

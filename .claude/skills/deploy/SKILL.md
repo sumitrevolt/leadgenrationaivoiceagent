@@ -1,25 +1,39 @@
 ---
 name: deploy
-description: Deploy or update the LeadGen AI platform to production (Railway, Render, or a VPS), and wire env vars/keys. Use when the user says "deploy", "go live", "push to production", "update the server", or "set up hosting".
+description: Deploy or update the LeadGen AI platform to production (Hostinger VPS, Docker, leadsgenai.in) and wire env vars/keys. Use when the user says "deploy", "go live", "push to production", "update the server", or "set up hosting". NOTE - Railway/Render are NOT used; this is Hostinger VPS Docker only.
 ---
 
-# Deploy LeadGen AI
+# Deploy LeadGen AI (Hostinger VPS · Docker)
 
-The app is a FastAPI service (Dockerfile ready) needing Postgres + Redis + a Celery worker + websockets (always-on). Configs exist: railway.json, render.yaml, Procfile, docker-compose.prod.yml.
+App = FastAPI (`Dockerfile.lock`), LIVE at **https://leadsgenai.in** on a single Hostinger KVM VPS (Mumbai, **72.61.245.204**, Ubuntu 24.04, Docker). NO Railway, NO Render, NO PaaS — woh purana plan tha (`railway.json`/`render.yaml`/`Procfile` ab repo me NAHI). Yeh skill = high-level orientation; step-by-step gotchas ke liye sibling skills padho.
 
-## Railway (recommended, easiest)
-1. Push code to GitHub (commit + `git push origin main`).
-2. railway.app -> New Project -> Deploy from GitHub repo -> select this repo (railway.json + Dockerfile auto-detected).
-3. + New -> PostgreSQL, and + New -> Redis.
-4. Web service Variables: APP_ENV=production, DEBUG=false, DATABASE_URL=${{Postgres.DATABASE_URL}}, REDIS_URL=${{Redis.REDIS_URL}}, SECRET_KEY=<random>, GEMINI_API_KEY=<key>, DEFAULT_LLM=gemini-2.5-flash, LLM_PROVIDER=gemini, TIMEZONE=Asia/Kolkata.
-5. Add a worker service (same repo) with start command: `celery -A app.worker worker --loglevel=info --concurrency=2`.
-6. Generate Domain. Test /health, /app/customer, /app/admin, /app/test-call.
+## Stack on the box
+- App container `leadgen_app` :8000 (host Caddy → 127.0.0.1:8000, auto-HTTPS). `docker-compose.vps.yml` = canonical stack.
+- DB = Postgres (`leadgen_db`) via PgBouncer (`pgbouncer:6432`); Redis (`leadgen_redis`); Qdrant. SQLite = rollback-backup only.
+- **Scheduler = Celery durable (PRIMARY/LIVE)**: `leadgen_worker` + `leadgen_scheduler` (beat) containers (`--profile celery`), `.env` me `RUN_IN_PROCESS_SCHEDULER=0` + `WEB_CONCURRENCY=2`. In-process APScheduler = ROLLBACK only.
+- `app/` + `frontend/` + `.claude/skills/` Docker image me BAKED → code/skill change = rebuild. `./data` + `./logs` = bind-mounts (no rebuild).
+- systemd `leadgen` service = DISABLED (rollback path only).
 
-## Render
-Use the included render.yaml blueprint (web + worker + Postgres + Redis). Add GEMINI_API_KEY in dashboard (sync:false secrets).
+## Deploy loop (the real flow)
+1. **Windows = source of truth** (sandbox mount stale ho jata hai). `python scripts/prod_check.py` → `scripts\run_tests.bat` (pytest_run.log Read karo).
+2. Windows git push: `C:\PROGRA~1\Git\cmd\git.exe` (ek `.bat` ke andar).
+3. VPS pe pull + rebuild (Git ka ssh — Windows OpenSSH broken):
+   ```
+   C:\PROGRA~1\Git\usr\bin\ssh.exe -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204 \
+     "cd /opt/leadgen && git fetch --all -q && git reset --hard origin/main -q && \
+      docker compose -f docker-compose.vps.yml build app && \
+      docker compose -f docker-compose.vps.yml up -d --no-deps app"
+   ```
+4. Verify: `https://leadsgenai.in/health` → `environment:production`. `sleep 16` + 2x health-check rakho.
+- **Naya `@app.get` page-route**: fresh image me baked, par hard reload + curl-verify zaroor (stale-pyc 404 lesson).
 
-## VPS (Hetzner/DigitalOcean) — when self-hosting SIP
-`docker compose -f docker-compose.prod.yml up -d`, then Caddy/Nginx for HTTPS + domain.
+## Detailed sibling skills (READ these — yahan duplicate nahi karta)
+- `hostinger-deploy` — VPS gotchas (Caddy-vs-Traefik, .env inline comments, firewalled :8000, ssh quoting).
+- `leadgen-ops` — proven verify→test→push→deploy loop + production triage table.
+- `ship-checklist` — health-gate + rollback discipline per deploy.
+- `observability-ops` — Prometheus/Grafana/Alertmanager + flower/celery-exporter addons.
 
-## Before live
-Telephony (Exotel/Plivo SIP) keys + DLT/TRAI registration + Sentry DSN. Webhook URL = `https://<domain>/telephony/twilio/media-stream`. NEVER commit .env (it is gitignored). Full details: DEPLOY_GUIDE.md.
+## Before first paid customer (BLOCKER)
+- 🚨 **Razorpay**: `.env` me real `rzp_live_...` keys daalo (abhi placeholders → checkout/payment-links/topup/dunning dead). Webhook register + `RAZORPAY_WEBHOOK_SECRET`.
+- Telephony: Exotel keys + DLT/TRAI (cold-calling ke liye; inbound callback ko nahi chahiye).
+- NEVER commit `.env` (gitignored). Full legacy guide: `docs/legacy/DEPLOY_GUIDE.md` (mostly historical).

@@ -16,7 +16,9 @@
 #   docker compose -f docker-compose.vps.yml pull && \
 #   docker compose -f docker-compose.vps.yml up -d
 #
-# Optional Celery workers (OFF by default — in-process scheduler runs today):
+# Celery workers. NOTE: LIVE VPS runs the DURABLE Celery path since 2026-06-10
+# (.env: RUN_IN_PROCESS_SCHEDULER=0 + --profile celery). The :-1 defaults below
+# = rollback-safe in-process fallback. Bring up durable workers:
 #   docker compose -f docker-compose.vps.yml --profile celery up -d
 #
 # Rollback: `docker compose -f docker-compose.vps.yml down` then

@@ -12,7 +12,7 @@ description: Upgrade/extend the /app/automation Mission Control so it stays the 
 ### 1. Automation loops (status + run + control)
 | Loop | Status | Action |
 |---|---|---|
-| Self-improve forever-loop | `GET /api/growth/selfimprove/status` (runs_today, last_action, queue_pending, state) | `POST /selfimprove/run` (manual tick) |
+| Self-improve forever-loop | `GET /api/growth/selfimprove/status` (runs_today, last_action, queue_pending, state) · `/selfimprove/cost-status` · `/selfimprove/approvals-pending` | `POST /selfimprove/run` (manual tick) · `PATCH /selfimprove/approval/{id}/approve\|reject` (SELF_IMPROVE_APPROVAL gate) |
 | Growth optimizer | `GET /optimizer/analysis` · `/optimizer/runs` | `POST /optimizer/run` |
 | Processes (babysitter) | `GET /process/runs` · `/process/run/{id}` | `POST /process/start` · **breakpoint approve/reject** `/process/run/{id}/approve\|reject` |
 | Code upgrader | `GET /upgrader/patches` | `POST /upgrader/scan` · patch status (approve = super-admin) |
@@ -20,7 +20,7 @@ description: Upgrade/extend the /app/automation Mission Control so it stays the 
 | Hermes infra | `GET /infra/hermes` + `/scans` | — (read) |
 
 ### 2. Agent working schedule (kaun kab chalta hai)
-- **Job registry**: `team_scheduler.py` ~13 jobs (growth 15-min · ops/reply_triage/watchdog/onboard hourly · qa/trainer/blog/content/digest/prospect/email_outreach daily IST windows · standup gated).
+- **Job registry**: `team_scheduler.py` ~17 jobs (growth 15-min · ops/reply_triage/watchdog/onboard hourly · qa/trainer/blog/content/digest/prospect/email_outreach daily IST windows · standup gated · NEW engineer agents `engineer_sre` :45 / `engineer_finops` 9am / `engineer_security` 9:30 + `readiness_digest`, gated SRE_AGENT/FINOPS_AGENT/SECURITY_AGENT). Same job logic Celery worker (primary) + APScheduler (rollback) dono me.
 - **Dead-man heartbeats**: `GET /api/growth/infra/automation-health` — har job ka last-run + overdue (EXPECTED_GAP_MIN). Overdue = red badge.
 - **Staff roster + live state**: `GET /api/platform/team` (`?product=marketing|voice`) — working/active/offline 3-tier, `last_active_mins`.
 - **Manual trigger**: `POST /api/platform/team/run/{member}` — kisi bhi staff ka job abhi chalao.
@@ -38,7 +38,7 @@ description: Upgrade/extend the /app/automation Mission Control so it stays the 
 - **Pending approvals = assigned-to-HUMAN tasks**: process breakpoints WAITING + upgrader patches proposed — inhe ek "📥 Approvals" jagah pe surface karo (count badge sidebar pe).
 
 ### 5. Flags (sab gates ek jagah)
-`GET /api/growth/infra/flags` — 34+ automation flags on/off/unset. Control center me read-only pills theek hai; flag FLIP UI se mat karo (env `.env` + restart ka kaam, `automation-flags` skill). Ban-risky flags (WHATSAPP_AUTO_SEND etc.) pe warning text.
+`GET /api/growth/infra/flags` — ~100+ automation flags on/off/unset (incl. new F–M: EVAL_GATE, AGENT_MEMORY, SRE/FINOPS/SECURITY_AGENT, OPS_ALERTS, CUSTOMER_WEBHOOKS, MCP_PRODUCT, FEATURE_FLAGS). Control center me read-only pills theek hai; flag FLIP UI se mat karo (env `.env` + recreate ka kaam, `automation-flags` skill). Ban-risky flags (WHATSAPP_AUTO_SEND etc.) pe warning text.
 
 ## Naya control/tab add karne ka pattern (5 steps)
 

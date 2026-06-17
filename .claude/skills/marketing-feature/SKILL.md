@@ -5,10 +5,10 @@ description: Add a new marketing feature to LeadGen AI the proven way — module
 
 # Add a Marketing Feature (repeatable pattern)
 
-Yeh wahi pattern hai jisse 19 marketing tabs bane. Har naya feature isi 5-step me, taaki re-derive na karna pade.
+Yeh wahi pattern hai jisse marketing.html ke 28 tabs bane. Har naya feature isi 5-step me, taaki re-derive na karna pade. (Marketing routes ~600+ — naya banane se pehle `grep '@router' app/api/marketing.py` se shadow check karo.)
 
 ## Golden rules
-- **Free-stack only** — koi paid API nahi. AI text chahiye to `app/voice_agent/free_ai.py` (Cerebras→Groq→…→Gemini chain).
+- **Free-stack only** — koi paid API nahi. AI text chahiye to `app/voice_agent/free_ai.py` (free multi-provider chain: Mistral primary → Groq → Cerebras → … → Gemini, circuit-breaker + fallback).
 - **LLM-first + never-empty template fallback** — har function LLM try kare, fail/empty pe deterministic template return kare. UI kabhi blank na ho.
 - **Pure-sync + never-raise** jahan ho sake (poster/QR/SVG = pure logic, no API).
 - **Reuse**: QR → `review_kit.py` ka stdlib encoder; poster SVG → `posters.py` (brand colors `brand_kit.py`); festivals → `festivals.py`.

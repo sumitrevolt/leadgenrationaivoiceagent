@@ -1,3 +1,8 @@
+---
+name: spec
+description: Vague feature idea ko concrete, build-ready spec banao — why/user, existing-code check (duplicate-route grep), data-model + API + flag + tests + success-metric, ban-safe defaults. Use when user bole "spec likho", "is feature ka plan banao", "ye idea concrete karo", ya `plan-then-build` se pehle scope nail karna ho.
+---
+
 # Skill: spec
 **Adapted from gstack by Garry Tan (YC). MIT License.**
 
@@ -12,7 +17,7 @@
 ## Phase 1: "Why" Samjho
 
 User se poocho (ek ek karke):
-1. **Kaun use karega?** — "42 niches mein se kaunsa user? Client? Admin? End customer?"
+1. **Kaun use karega?** — "39 builtin niches mein se kaunsa user? Client? Admin? End customer?"
 2. **Ab kya karte hain?** — "Is kaam ke bina kya manually karte hain?"
 3. **Success kaise dikhega?** — "Feature kaamyab hua to kya metric change hoga?"
 

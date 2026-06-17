@@ -15,6 +15,9 @@ Dashboards me data hota hai par TECHNICAL shape me (heartbeat tables, flag names
 4. **Default landing tab**: `/app/automation` ka "🏠 Aaj" — headline ("✅ sab theek / ⚠️ N problems"), problems with fixes, staff table ("aaj kisne kya kiya"), jobs status, band flags with matlab.
 5. **Customer side bhi same**: `/api/customer/auth/portal/content` — customer ko APNA content dikhao (copy + WhatsApp share), demo-data confusion mat chhodo.
 
+## Related
+- **Unified admin overview** (H.5): `/app/dashboards` ek jagah saare admin dashboards. Naya overview/health UI yahin pe surface karo.
+
 ## Rules
 - Har naya admin feature = UI tab SAATH hi (API-only = adhoora) — CLAUDE.md rule.
 - Status emoji-first: ✅/⚠️/❌/⏳ + chhota Hinglish sentence. Raw JSON sirf "details" me.

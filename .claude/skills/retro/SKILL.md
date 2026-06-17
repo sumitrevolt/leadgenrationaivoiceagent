@@ -1,3 +1,8 @@
+---
+name: retro
+description: Weekly engineering retro — git se commits/features/bugs/streak nikaalo, prod-downs + learnings summarize karo, next-week top-3 priorities set karo. Use jab user bole "weekly retro karo", "is week kya kiya", "progress review chahiye", ya hafte ke end pe shipping momentum dekhna ho.
+---
+
 # Skill: retro
 **Adapted from gstack by Garry Tan (YC). MIT License.**
 

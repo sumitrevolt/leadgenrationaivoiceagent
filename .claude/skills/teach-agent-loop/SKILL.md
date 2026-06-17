@@ -1,8 +1,13 @@
-# Skill: teach-agent-loop — Add New Agents & Actions to Self-Improve
+---
+name: teach-agent-loop
+description: Extend the self-improve loop safely — naya AI agent (staff member) ya naya action/task add karo, risk-assessed + tested + gated. Use when the user says "naya agent banao", "loop me action add karo", "self-improve ko X sikhao", "add a new automation task", "new staff member to team", or wiring a new integration into the agent loop.
+---
+
+# teach-agent-loop — Add New Agents & Actions to Self-Improve
 
 **Level**: Advanced  
 **Time**: 30–90 min (new agent) to 15 min (new action)  
-**Purpose**: Extend the self-improve loop safely: add new AI agents or automate new tasks.
+**Purpose**: Extend the self-improve loop safely: add new AI agents or automate new tasks. Companion: `self-improve-loop` (architecture) · `agent-loop-design` (generalized loop pattern) · `self-improve-control` (operate/audit).
 
 ---
 
@@ -101,11 +106,12 @@ For **email/SMS actions**:
 [ ] Verify templates match DLT (if SMS)
 ```
 
-For **LLM-heavy actions**:
+For **LLM-heavy actions** (free_ai chain = Mistral primary → Groq → Cerebras → … → Gemini, circuit-breaker + fallback):
 ```
-[ ] Cost tracking: record_use() called with correct cost
-[ ] Provider fallback: if Groq down, tries Cerebras (then static)
+[ ] Cost tracking: record_use() called (skill_uses.jsonl)
+[ ] Provider fallback: if Mistral down, chain tries Groq→Cerebras→... (then static template)
 [ ] Latency: should complete <30s for draft tasks
+[ ] eval_gate: ok/fail feeds score_and_gate baseline (if EVAL_GATE on)
 ```
 
 For **data-write actions** (e.g., enroll_in_cadence):

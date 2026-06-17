@@ -5,14 +5,14 @@ description: Kisi bhi EXISTING feature me change karne ka production-safe flow �
 
 # Feature-change flow (production-safe, is repo ka proven loop)
 
-## 1. LOCATE (rebuild mat karo — 590+ routes already hain)
-- `grep '@router' app/api/<area>.py` + CLAUDE.md section padho — feature PEHLE se ho sakta hai (festivals-duplicate lesson).
-- Module map: marketing=`app/marketing/*`+`api/marketing.py` · growth/infra=`api/growth.py` · agents=`app/agents/*` · billing=`app/billing/*` (packages.py = pricing TRUTH) · voice=`app/voice_agent/*` · scheduler=`platform/team_scheduler.py`.
+## 1. LOCATE (rebuild mat karo — ~761 route decorators already hain)
+- `grep '@router' app/api/<area>.py` + CLAUDE.md section padho — feature PEHLE se ho sakta hai (festivals-duplicate lesson). FastAPI first-route-wins = duplicate prod ko silently shadow karta.
+- Module map: marketing=`app/marketing/*`+`api/marketing.py` · growth/infra=`api/growth.py` · agents=`app/agents/*` · billing=`app/billing/*` (`app/marketing/packages.py` = marketing-pricing TRUTH, `app/marketing/voice_packages.py` = voice-pricing TRUTH) · voice=`app/voice_agent/*` · scheduler (Celery LIVE)=`worker.py`+beat, rollback APScheduler=`platform/team_scheduler.py`.
 
 ## 2. DESIGN the change
 - **Additive + gated default**: naya behaviour env-flag ke peeche (default OFF = zero change), flag `growth.py AUTOMATION_FLAGS` me register.
 - Side-effect (send/call/post) = ban-safe drafts unless explicit gate; public endpoint me KB/ML = `asyncio.to_thread` + hard timeout (widget-chat prod-down lesson).
-- Pricing change = `packages.py` + `test_billing_truth` SAATH badlo. Schema change = Alembic revision (DB stamped 005+).
+- Pricing change = `app/marketing/packages.py` (ya voice = `voice_packages.py`) + `tests/test_billing_truth_2026.py` SAATH badlo. Marketing feature add = `frontend/marketing.html` (28 tabs) me UI tab bhi SAATH (API-only = adhoora). Schema change = Alembic revision (DB stamped 005+).
 - Access level: `require_admin` (module-limited members pass) vs `require_super_admin` (critical) — backend-rbac skill.
 
 ## 3. VERIFY (Windows = truth)

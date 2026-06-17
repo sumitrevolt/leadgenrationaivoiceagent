@@ -1,3 +1,8 @@
+---
+name: cso-audit
+description: Security + India-compliance audit (OWASP Top 10 + TRAI + DPDP). Use jab user bole "security audit karo", naya public endpoint/auth-route add ho, customer data ya payment handle ho, TRAI/DPDP/DLT compliance check chahiye, ya sensitive feature ko /ship karne se pehle. IDOR/SSRF/secret-scan/rate-limit + AI-disclosure/DND/consent checks built-in.
+---
+
 # Skill: cso-audit
 **Adapted from gstack (CSO skill) by Garry Tan (YC) + India-specific additions. MIT License.**
 

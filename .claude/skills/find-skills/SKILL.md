@@ -1,11 +1,30 @@
 ---
 name: find-skills
-description: Helps users discover and install agent skills when they ask questions like "how do I do X", "find a skill for X", "is there a skill that can...", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill.
+description: Discover skills — FIRST LeadGen's own ~247 skills (66 in .claude/skills + 181 in data/skills_extra via skill_pack), then the open `npx skills` ecosystem. Use when the user asks "how do I do X", "find a skill for X", "is there a skill that can...", "koi skill hai iske liye", or wants to extend capabilities / look up an existing workflow.
 ---
 
 # Find Skills
 
-This skill helps you discover and install skills from the open agent skills ecosystem.
+This skill helps you discover skills — FIRST the LeadGen project's own skill library, THEN (if nothing fits) the open agent skills ecosystem via `npx skills`.
+
+## FIRST: check LeadGen's OWN skills (this repo)
+
+Iss project ke paas pehle se **~247 skills** hain — public ecosystem reach karne se pehle YAHAN dekho:
+- **66 project skills** → `.claude/skills/<name>/SKILL.md` (session bootstrap, ops/verify/deploy, hostinger gotchas, marketing-feature, telephony, automation-flags, FDE, multi-agent-coordination, RBAC, debugging/TDD/review, pricing/copy/churn, voice-humanization, etc.)
+- **181 packed skills** → `data/skills_extra/*.md` (agency-agents pack + ECC pack — data-only, `git pull` pe live, NO rebuild).
+
+In-repo discovery:
+- Browse `.claude/skills/` directory ya `data/skills_extra/`.
+- VPS agents ke liye programmatic: `app/platform/skill_pack.py` (`SKILL_PACK=1` ON) — `find(query, k)` keyword-overlap search + `snippet_for(topic, max_chars)` prompt-injectable text, dono `.claude/skills` + `data/skills_extra` pe. KB "skills" namespace me bhi ingest hota.
+- Naya project skill banana ho → `skill-creator` skill use karo (frontmatter `name`=dir + `description` triggering ke liye).
+
+Agar LeadGen skill mil gaya → wahi follow karo, niche public CLI tak mat jao.
+
+---
+
+## Open ecosystem (npx skills) — jab project me kuch na mile
+
+This section helps you discover and install skills from the open agent skills ecosystem.
 
 ## When to Use This Skill
 

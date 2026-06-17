@@ -15,11 +15,13 @@ description: Red-green-refactor + "contract tests PEHLE" discipline — naya fea
 4. **Full gate** — `scripts\run_tests.bat` chalao, fir **pytest_run.log Read karo** (console truncate hota hai — log = truth). Fir `python scripts/prod_check.py`.
 
 ## CONTRACT tests pehle (billing-truth lesson 🚨)
-/pricing page ₹15k dikhata tha jabki advertised ₹999 tha — legacy plans ne packages.py ko shadow kar diya, checkout 404 + illegal GST. `tests/test_billing_truth_2026.py` ab ye LOCK karta hai. **Naya feature jisme paisa/plan/public promise hai → pehla test = contract assert:**
-- Price/plan: `assert get_packages()[0]["price_inr"] == 999` style — SOURCE of truth (packages.py) vs har surface (API, page, checkout).
+/pricing checkout legacy Cloud-Run plans se ₹15k+18% GST charge karta tha jabki page advertised price dikhata — legacy plans ne `packages.py` ko shadow kar diya, 'advanced' checkout 404 + unregistered hote hue illegal GST. `tests/test_billing_truth_2026.py` ab ye LOCK karta hai. **Naya feature jisme paisa/plan/public promise hai → pehla test = contract assert:**
+- Price/plan (REAL keys, `app/marketing/packages.py`): `assert float(PRICING_PLANS[pkg["key"]].monthly_price) == float(pkg["price_inr_month"])` har pkg pe; advanced = ₹6,999 + `calls_per_month == 500`; starter monthly ₹1,199 / yearly ₹11,990; packages keys `== ["starter","growth","advanced"]`. SOURCE of truth vs har surface (API, page, checkout).
+- GST contract: `GST_GSTIN` unset → total == advertised, tax == 0; set → ×1.18, tax_rate 18 (`test_calculate_price_unregistered_flat`/`_registered_gst`).
+- Voice pricing alag source: `app/marketing/voice_packages.py` (flat band A/B/C ₹4,999/9,999/19,999).
 - Public API shape: response keys/status codes assert karo (`/api/public/*` backward-compat).
 - Flag-OFF = zero change: `monkeypatch.delenv("FLAG")` → assert old behavior bilkul same (gated-feature pattern).
-- Fail-open/fail-closed DELIBERATE assert: compliance DND = fail-CLOSED (block), rate-limit = fail-OPEN — test me yehi contract likho, weaken kabhi nahi.
+- Fail-open/fail-closed DELIBERATE assert: compliance DND = fail-CLOSED (block), rate-limit/billing = fail-OPEN; webhook signature = fail-CLOSED (prod 503 if secret unset) — test me yehi contract likho, weaken kabhi nahi.
 
 ## free_ai mock pattern (LLM tests hermetic rakho)
 ```python
@@ -38,7 +40,7 @@ monkeypatch.setattr(module_under_test.free_ai, "chat", fake_chat)
 | "Simple hai, test nahi chahiye" | Simple code bhi tutta hai; test 30 sec ka hai |
 | "Test baad me likh dunga" | Tests-after = "kya karta hai"; tests-first = "kya karna CHAHIYE" |
 | "Manually test kar liya" | No record, no re-run — har deploy pe dobara manual? |
-| "Pricing page bas UI hai" | ₹15k-vs-₹999 bug bolta hai: UI bhi contract hai |
+| "Pricing page bas UI hai" | ₹15k-checkout-vs-advertised bug bolta hai: UI bhi contract hai |
 
 Bug mila debugging me? → failing test PEHLE (sibling skill `systematic-debugging` Phase 4). Ship flow = `leadgen-ops`.
 

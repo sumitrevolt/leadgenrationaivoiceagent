@@ -1,3 +1,8 @@
+---
+name: plan-eng-review
+description: Naya feature build se pehle ka engineering review — duplicate-route grep, ASCII architecture, state-machine, edge-case + test matrix, phased plan, fail-open/flag-gated checklist. Use when user bole "eng review karo", "architecture decide karo", "ye feature ka design", ya `/plan-ceo-review` ke baad implementation plan se pehle.
+---
+
 # Skill: plan-eng-review
 **Adapted from gstack by Garry Tan (YC). MIT License.**
 

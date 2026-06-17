@@ -1,8 +1,13 @@
-# Skill: audit-automation — Health Check for Automation Loops
+---
+name: audit-automation
+description: Health-check the automation loops without reading code — heartbeat/alive, daily cost vs cap, approvals backlog, anomalies (low success / DLQ / hallucinated lessons), next-action visibility, compliance (DLT/DND/retention). Use when the user says "automation healthy?", "loop alive hai?", "automation cost/budget check", "DLQ status", "loop anomalies", "morning automation standup", or after a deploy to verify automation restarted.
+---
+
+# audit-automation — Health Check for Automation Loops
 
 **Level**: Intermediate  
 **Time**: 5–15 min (daily standup to weekly deep-dive)  
-**Purpose**: Make automation loops auditable without reading code. Health check + early anomaly detection.
+**Purpose**: Make automation loops auditable without reading code. Health check + early anomaly detection. Tool: `scripts/automation_health_audit.py`. Operate/govern deep-dive: `self-improve-control` skill.
 
 ---
 
@@ -76,21 +81,23 @@ Cost spike? Low success rates? Stuck approvals?
 - 🟡 Yellow (`40–80%`): Approaching limit. Check provider degradation.
 - 🔴 Red (`>80%` or capped): Budget exhausted, loop paused or throttled.
 
-**Common reasons for spikes**:
-- Groq STT/LLM quota exhausted → fallback to expensive provider (pay Cerebras)
+**Note**: stack 100% FREE hai (Cerebras/Groq/Gemini free tiers) — "cost" yahaan CostTracker ka NOTIONAL internal estimate hai (LLM-heavy action ≈ $2.5, light ≈ $0.5) jo budget/ROI gates drive karta. Real paisa nahi katta; cap = velocity-throttle proxy.
+
+**Common reasons for high notional spend**:
+- Zyada LLM-heavy actions/day (sales_deepdive, content_pack, seo_pages, optimizer)
 - Coordinator mode=advanced (Critic + Reflexion = 2x LLM calls)
 - Sales-team deep-dive on large prospect list (parallel 5-agent analyze)
 
-**Fix**:
+**Fix** (VPS = Docker; systemd `leadgen` DISABLED — `.env` edit + recreate worker/scheduler):
 ```bash
 # Reset cap (if acceptable):
-export SELFIMPROVE_COST_CAP=100
-systemctl restart leadgen
+sed -i 's/^SELFIMPROVE_COST_CAP=.*/SELFIMPROVE_COST_CAP=100/' /opt/leadgen/.env || echo "SELFIMPROVE_COST_CAP=100" >> /opt/leadgen/.env
+docker compose -f docker-compose.vps.yml up -d --no-deps worker scheduler
 
 # Or pause loop + debug:
-export SELF_IMPROVE_LOOP=0
-systemctl restart leadgen
-# Then investigate logs + LLM metrics
+echo "SELF_IMPROVE_LOOP=0" >> /opt/leadgen/.env
+docker compose -f docker-compose.vps.yml up -d --no-deps worker scheduler
+# Then investigate: docker logs leadgen_worker --tail 100 + LLM metrics
 ```
 
 ---

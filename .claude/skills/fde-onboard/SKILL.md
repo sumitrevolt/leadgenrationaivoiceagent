@@ -14,7 +14,7 @@ description: Full done-for-you client onboarding — website→KB seed, first co
 
 ## Full manual onboarding flow
 1. **Add client**: `clients_store` onboard (admin `/app/clients`) → `client_id` + `slug`.
-2. **Customer login**: `POST /api/customer/auth/set-password {email,password,client_id}` → client `/app/login` se apna dashboard.
+2. **Customer login**: `POST /api/customer/auth/set-password {email,password,client_id}` (admin) → client `/app/login` se apna dashboard. Optional: customer khud TOTP 2FA enroll kar sakta (`/api/customer/2fa/*`) ya magic-link (`MAGIC_LINK=1`).
 3. **Mini-site**: `/b/<slug>` auto-live (booking + reviews). Customize: `/app/minisite-builder` (palette/3-layout/logo).
 4. **Web widget**: `GET /api/marketing/embed-snippet?slug=<slug>` → client apni site pe `<script>` paste kare (CORS-free iframe; leads dashboard me `source_slug` se link).
 5. **Content**: `auto_content` daily queue (1-click copy/PNG/WA). Festivals: `POST /api/marketing/festival-autoschedule`.

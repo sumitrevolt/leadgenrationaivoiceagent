@@ -1,6 +1,6 @@
 ---
 name: voice-humanization
-description: AI voice agent ko human-like banane ka project pattern — STT chain, TelecallerBrain, fillers/backchannels, TTS prosody, turn-taking. Use jab voice quality "robotic/noob" lage ya naya audio path add ho.
+description: PHONE voice agent (vobiz/exotel) ko human-like banane ka project pattern — Groq STT chain, TelecallerBrain, fillers/backchannels, EdgeTTS prosody, turn-taking. Use jab phone-call voice quality "robotic/noob/flat/dead-air" lage ya naya phone audio path add ho. (WEB /app/test-call ke liye web-call-triage skill.)
 ---
 
 # Voice Humanization (Vapi/Retell/SquadStack patterns, free-stack)

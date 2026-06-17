@@ -1,11 +1,15 @@
 ---
 name: memory-vault
-description: Rowboat-style compounding memory — per-prospect/client/topic markdown memory, call-prep briefs, live notes. Use when the user says "memory", "prep brief", "call prep", "live note", "track topic", "prospect history", or agents need long-lived context instead of cold-start. Covers sync job, flags, API, and how to inject memory into any agent.
+description: Rowboat-style compounding memory — per-prospect/client/topic markdown memory, call-prep briefs, live notes (memory_vault), PLUS pointer to vector agent_memory (cross-session lead recall). Use when the user says "memory", "prep brief", "call prep", "live note", "track topic", "prospect history", "agent yaad rakhe", AGENT_MEMORY/MEMORY_VAULT flags, or agents need long-lived context instead of cold-start. Covers sync job, flags, API, and how to inject memory into any agent.
 ---
 
 # Memory Vault (compounding memory, Rowboat-inspired)
 
-Har entity ka LONG-LIVED markdown memory jo events se khud-ba-khud बनta hai — agents ko cold-start nahi.
+Har entity ka LONG-LIVED markdown memory jo events se khud-ba-khud banta hai — agents ko cold-start nahi. (`app/platform/memory_vault.py`)
+
+> **Do alag memory systems — confuse mat karo:**
+> - **memory_vault (YE skill)** = human-readable MARKDOWN per entity, cursor-tail sync se banti, `MEMORY_VAULT=1`. Dialer prep / sales context ke liye.
+> - **agent_memory** (`app/voice_agent/agent_memory.py`, flag `AGENT_MEMORY`) = VECTOR (Qdrant `agent_memory` collection) semantic cross-session lead-recall, voice hot-path prompt-inject (`recall_block`/`remember`, fail-open + off-loop). Admin inspect/DPDP-purge: `/api/agent-memory/{inspect,purge,stats}` (`app/api/agent_memory_admin.py`).
 
 ## Layout
 - `data/memory/prospects/<phone10>.md` · `clients/<client_id>.md` · `topics/<slug>.md`
