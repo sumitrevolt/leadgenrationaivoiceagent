@@ -150,7 +150,10 @@ def main() -> int:
     print("\n## Critical admin APIs (GET, no auth)")
     for path in CRITICAL_GETS:
         code, _ = _req("GET", path)
-        ok = code in (200, 401, 403)
+        # Route-exists semantics: auth (401/403), method/validation (405/422),
+        # rate-limit (429 = alive, just throttled) all prove the route is wired.
+        # Only connection-error/404/5xx are real failures.
+        ok = code in (200, 401, 403, 405, 422, 429)
         print(f"  {'OK' if ok else 'FAIL'} {code:>4} GET {path}")
         if not ok:
             fails.append(f"critical GET {path} -> {code}")
