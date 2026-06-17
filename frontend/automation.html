@@ -771,6 +771,9 @@ a{color:var(--acc)}
       <option value="coordinate-advanced">Advanced — Reflexion + critic</option>
       <option value="coordinate-hierarchical">Hierarchical — teams parallel</option>
       <option value="fanout">Fan-out — sab parallel same goal</option>
+      <option value="coordinate-agentverse">AgentVerse — dynamic expert recruit + re-compose</option>
+      <option value="coordinate-engineering">Engineering crew — design + plan + tests (draft)</option>
+      <option value="debate">Debate — pro vs con + Boss verdict</option>
     </select>
     <label style="margin-top:10px"><input type="checkbox" id="agExec" style="width:auto;max-width:none"> Execute mode (real SAFE tools)</label>
     <button class="btn" id="agRunBtn" onclick="agRun()">🚀 Assign + Run</button>
@@ -2256,8 +2259,9 @@ async function agRun(){
   if(exec&&!confirm('Execute mode: agents real (SAFE) tools chalayenge — content/hashtags/ops/qa. Pakka?'))return;
   busy('agRunBtn',1,'⏳ agents kaam kar rahe (1-3 min)...');
   try{
-    var body={goal:goal};
-    if(mode!=='fanout')body.execute=exec;
+    var body;
+    if(mode==='debate'){ body={question:goal, rounds:1}; }   // debate question+rounds leta hai, goal nahi
+    else { body={goal:goal}; if(mode!=='fanout') body.execute=exec; }
     var d=await api('/api/agents/'+mode,{method:'POST',body:JSON.stringify(body)});
     $('agRunOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';
     toast('Run complete ✅');agLoad();
