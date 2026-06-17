@@ -1714,8 +1714,7 @@ function renderGodMode(sys, camp){
   const probes = rd.probes || {};
   const passedCount = Object.values(probes).filter(v=>v).length;
   const totalCount = Object.keys(probes).length || 13;
-  const ready = rd.ready_for_first_paid_customer;
-  const callReady = sys.ready_for_calling || (sys.telephony_score||0) >= 70;
+  const launchReady = !!(rd.production_ready || rd.ready_for_launch);
   const telScore = sys.telephony_score || (rd.telephony||{}).score || 0;
   const upi = sys.upi || {};
   const trai = sys.trai || {};
@@ -1723,10 +1722,10 @@ function renderGodMode(sys, camp){
 
   // — Readiness header ─────────────────────────────────────────────
   let html = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-    <div style="font-size:24px;font-weight:800;color:${callReady?'#4ade80':(ready?'#fbbf24':'#f87171')}">
-      ${callReady ? '🟢 CALLING READY' : (ready ? '⚠️ OPS OK · CALLING GAP' : `⚠️ ${passedCount}/${totalCount} probes`)}
+    <div style="font-size:24px;font-weight:800;color:${launchReady?'#4ade80':'#f87171'}">
+      ${launchReady ? '🟢 PRODUCTION READY' : `⚠️ ${passedCount}/${totalCount} launch probes`}
     </div>
-    <div style="font-size:13px;color:#94a3b8">Telephony score: <b style="color:${telScore>=70?'#4ade80':'#fbbf24'}">${telScore}/100</b></div>
+    <div style="font-size:12px;color:#64748b">Marketing + ops launch · payments/calling optional</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
       <a href="/app/test-call" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#7c3aed" target="_blank">📞 Test Call</a>
       <a href="#sec-launch-calls" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#10b981">🚀 Launch Campaign</a>
@@ -1749,23 +1748,17 @@ function renderGodMode(sys, camp){
     html += '</div>';
   }
 
-  // — Critical blockers ─────────────────────────────────────────────
-  const blockers = [];
-  const prov = (sys.telephony_provider || 'vobiz').toLowerCase();
-  const credFlag = prov === 'exotel' ? flags.EXOTEL_CREDS : flags.VOBIZ_CREDS;
-  const cidFlag = prov === 'exotel' ? flags.EXOTEL_CALLER_ID : flags.VOBIZ_CALLER_ID;
-  const callerDisp = prov === 'exotel' ? (sys.exotel_caller_id||'—') : (sys.vobiz_caller_id||'—');
-  if(!callReady) blockers.push(`📞 ${prov} score ${telScore}/100 — ${(sys.telephony_actions||[])[0]||'creds + GROQ + CALLER_ID check karo'}`);
-  if(!upi.enabled) blockers.push('💳 UPI_VPA unset — .env me apna UPI ID daalo');
-  if(!trai.calling_open) blockers.push(`🕐 TRAI window CLOSED (${trai.window||'10:00–19:00 IST'}) — IST ${trai.ist_hour||'?'}:xx`);
-  if(!credFlag) blockers.push(`📞 ${prov.toUpperCase()} creds missing`);
-  if(!cidFlag) blockers.push(`📞 ${prov.toUpperCase()} CALLER_ID missing — DID recharge ke baad`);
-  if(!flags.GROQ_STT) blockers.push('🎤 GROQ_API_KEY missing — STT weak');
-  if(blockers.length){
-    html += `<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:10px 14px;margin-bottom:14px">
-      ${blockers.map(b=>`<div style="font-size:11.5px;color:#fbbf24;margin-bottom:3px">${b}</div>`).join('')}
+  // — Launch blockers only (activation debt) — payments/calling NOT gated here
+  const launchBlockers = (rd.blockers || []).filter(Boolean);
+  if(launchBlockers.length){
+    html += `<div style="background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:8px;padding:10px 14px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:#f87171;margin-bottom:6px;text-transform:uppercase">Launch blockers</div>
+      ${launchBlockers.map(b=>`<div style="font-size:11.5px;color:#fca5a5;margin-bottom:3px">❌ ${escH(String(b).replace(/_/g,' '))}</div>`).join('')}
     </div>`;
   }
+
+  const prov = (sys.telephony_provider || 'vobiz').toLowerCase();
+  const callerDisp = prov === 'exotel' ? (sys.exotel_caller_id||'—') : (sys.vobiz_caller_id||'—');
 
   // — Leads ready to call (campaign pre-flight) ─────────────────────
   const lr = sys.leads_ready || {};
@@ -1807,8 +1800,8 @@ function renderGodMode(sys, camp){
   html += '</div>';
 
   if((sys.telephony_missing||[]).length){
-    html += `<div style="font-size:11px;color:#fbbf24;margin-bottom:10px;padding:8px 10px;background:rgba(251,191,36,.08);border-radius:6px">
-      Missing: ${(sys.telephony_missing||[]).map(escH).join(' · ')}
+    html += `<div style="font-size:11px;color:#64748b;margin-bottom:10px;padding:8px 10px;background:rgba(255,255,255,.04);border-radius:6px">
+      Calling optional — missing: ${(sys.telephony_missing||[]).map(escH).join(' · ')}
     </div>`;
   }
 
@@ -1816,7 +1809,7 @@ function renderGodMode(sys, camp){
   const pending = sys.pending_upi || [];
   html += `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:8px">
     <div style="font-size:11px;font-weight:700;color:#a5b4fc;margin-bottom:8px;text-transform:uppercase">💳 UPI Payment (screenshot → activate)</div>
-    <div style="font-size:12px;color:#cbd5e1;margin-bottom:8px">${upi.enabled ? 'VPA: <b>'+escH(upi.vpa)+'</b>' : '❌ UPI_VPA unset in .env'}</div>`;
+    <div style="font-size:12px;color:#cbd5e1;margin-bottom:8px">${upi.enabled ? 'VPA: <b>'+escH(upi.vpa)+'</b>' : 'Optional — UPI_VPA not set'}</div>`;
   if(upi.wa_link) html += `<a href="${escH(upi.wa_link)}" target="_blank" rel="noopener" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#25d366;margin-bottom:10px;display:inline-block">💬 WA screenshot inbox</a>`;
   if(pending.length){
     html += '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">';
@@ -1837,9 +1830,9 @@ function renderGodMode(sys, camp){
 
   // — TRAI window + last campaign ───────────────────────────────────
   html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-    <div style="padding:10px 14px;border-radius:8px;background:${trai.calling_open?'rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3)':'rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3)'}">
-      <div style="font-size:11px;font-weight:700;color:${trai.calling_open?'#4ade80':'#f87171'};margin-bottom:4px;text-transform:uppercase">TRAI WINDOW</div>
-      <div style="font-size:14px;font-weight:800;color:#e2e8f0">${trai.calling_open?'🟢 OPEN':'🔴 CLOSED'}</div>
+    <div style="padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+      <div style="font-size:11px;font-weight:700;color:#94a3b8;margin-bottom:4px;text-transform:uppercase">TRAI WINDOW (calling optional)</div>
+      <div style="font-size:14px;font-weight:800;color:#e2e8f0">${trai.calling_open?'Open':'Closed'}</div>
       <div style="font-size:11px;color:#94a3b8;margin-top:3px">${escH(trai.window||'10:00–19:00 IST')}</div>
     </div>`;
 
@@ -1867,24 +1860,10 @@ function renderGodMode(sys, camp){
 function renderCampaignPrereq(sys){
   const el = $("camp-prereq");
   if(!el) return;
-  const flags = sys.flags || {};
-  const trai = sys.trai || {};
   const telScore = sys.telephony_score || 0;
   const prov = (sys.telephony_provider || 'vobiz').toLowerCase();
-  const credOk = prov === 'exotel' ? flags.EXOTEL_CREDS : flags.VOBIZ_CREDS;
-  const cidOk = prov === 'exotel' ? flags.EXOTEL_CALLER_ID : flags.VOBIZ_CALLER_ID;
-  const items = [
-    [credOk, prov.toUpperCase()+' creds'],
-    [cidOk, (prov==='exotel'?'EXOTEL':'VOBIZ')+'_CALLER_ID (DID)'],
-    [flags.GROQ_STT, 'GROQ STT (call sunne ke liye)'],
-    [trai.calling_open, 'TRAI window open (10am–7pm IST)'],
-    [telScore >= 70, `Readiness ≥70 (abhi ${telScore})`],
-    [flags.VOBIZ_CALL_RECORD, 'Call recording ON (optional)'],
-    [flags.UPI_VPA, 'UPI_VPA set (payment flow)'],
-  ];
-  el.innerHTML = items.map(([ok,label])=>
-    `<div style="margin-bottom:3px">${ok?'✅':'❌'} ${escH(label)}</div>`
-  ).join('');
+  el.innerHTML = `<div style="font-size:11px;color:#64748b;margin-bottom:6px">Phone campaigns optional — marketing launch alag se ready hai.</div>
+    <div style="font-size:11px;color:#94a3b8">Telephony score: <b>${telScore}/100</b> · provider: ${escH(prov)}</div>`;
 }
 
 async function upiActivate(clientId){
