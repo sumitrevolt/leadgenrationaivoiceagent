@@ -1266,9 +1266,27 @@ async function coApSubmit(){
 }
 async function coApList(){
   var cid=$('coApClient').value.trim();
-  try{var d=await api('/api/clientops/approvals?status=pending'+(cid?('&client_id='+encodeURIComponent(cid)):''));
-    $('coApOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  try{
+    var d=await api('/api/clientops/approvals?status=pending'+(cid?('&client_id='+encodeURIComponent(cid)):''));
+    var rows=d.approvals||[];
+    if(!rows.length){$('coApOut').innerHTML='<div class="result mut">Koi pending approval nahi ✅</div>';return;}
+    var h='<div class="result"><table><tr><th>Client</th><th>Content</th><th>When</th><th>Action</th></tr>';
+    rows.forEach(function(r){
+      var title=esc((r.content&&r.content.title)||(r.content&&r.content.caption)||'post').slice(0,50);
+      h+='<tr><td class="mut">'+esc(r.client_id||'')+'</td><td>'+title+'</td><td class="mut">'+esc(String(r.created_at||'').slice(0,16))+'</td><td>'
+        +'<button class="btn2" onclick="coApDecide(\''+esc(r.id||'')+'\',\'approve\')">✓</button> '
+        +'<button class="btnd" onclick="coApDecide(\''+esc(r.id||'')+'\',\'reject\')">✕</button></td></tr>';
+    });
+    $('coApOut').innerHTML=h+'</table></div>';
   }catch(e){toast('List fail: '+e.message,false)}
+}
+async function coApDecide(id,action){
+  if(!id||!confirm(action+' this approval?')) return;
+  try{
+    var d=await api('/api/clientops/approvals/'+encodeURIComponent(id)+'/decide',{method:'POST',body:JSON.stringify({action:action,note:''})});
+    if(d.ok===false) throw new Error(d.error||'fail');
+    toast('Approval '+action+' ✅'); coApList();
+  }catch(e){toast('Decide fail: '+e.message,false)}
 }
 async function coRtSave(){
   var cid=$('coRtClient').value.trim(), raw=$('coRtMembers').value.trim();

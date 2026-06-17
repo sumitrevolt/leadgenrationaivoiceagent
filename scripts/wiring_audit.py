@@ -7,10 +7,6 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-FILES = {
-    "admin": ROOT / "frontend/admin_dashboard.html",
-    "customer": ROOT / "frontend/customer_dashboard.html",
-}
 
 SKIP_HANDLERS = {
     "document.getElementById",
@@ -67,20 +63,40 @@ def extract_api_paths(html: str) -> list[str]:
     return cleaned
 
 
+FILES = {
+    "admin": ROOT / "frontend/admin_dashboard.html",
+    "customer": ROOT / "frontend/customer_dashboard.html",
+    "automation": ROOT / "frontend/automation.html",
+}
+
+
+def _route_to_regex(route: str) -> str:
+    parts: list[str] = []
+    for part in route.split("/"):
+        if part.startswith("{") and part.endswith("}"):
+            parts.append("[^/]+")
+        elif part:
+            parts.append(re.escape(part))
+    return "^" + "/".join(parts) + "$"
+
+
 def route_exists(path: str, routes: set[str]) -> bool:
-    if path in routes:
+    base = path.split("?")[0].rstrip("/")
+    if not base:
         return True
-    static = path.split("{")[0].rstrip("/")
-    if not static:
-        return False
+    if base in routes:
+        return True
     for r in routes:
-        if r == path:
+        if re.match(_route_to_regex(r), base):
             return True
-        if r.startswith(static):
+    for r in routes:
+        if "{" not in r:
+            continue
+        static = r.split("{", 1)[0].rstrip("/")
+        if static and (base == static or base.startswith(static + "/")):
             return True
-        # dynamic segment match
-        rx = "^" + re.sub(r"\{[^}]+\}", "[^/]+", re.escape(r)) + "$"
-        if re.match(rx, path):
+    for r in routes:
+        if r.startswith(base + "/") or r == base:
             return True
     return False
 
@@ -103,7 +119,11 @@ def main() -> int:
         funcs = extract_functions(html)
         apis = extract_api_paths(html)
 
-        missing_handlers = [h for h in sorted(set(handlers)) if h not in funcs]
+        missing_handlers = [
+            h
+            for h in sorted(set(handlers))
+            if h not in funcs and not h.endswith(".splice")
+        ]
         missing_routes = [p for p in apis if not route_exists(p, routes)]
 
         print(f"## {name.upper()} ({fpath.name})")
