@@ -197,6 +197,8 @@
       <a href="/app/onboard" role="menuitem" aria-label="Onboarding Wizard"><span class="ic" aria-hidden="true">✦</span> Onboarding Wizard</a>
       <a class="active" href="#top" role="menuitem" aria-current="page" aria-label="Dashboard overview"><span class="ic" aria-hidden="true">▦</span> Dashboard</a>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">10</span></a>
+      <a href="#sec-godmode" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> God Mode <span class="badge" style="background:#ef4444">NEW</span></a>
+      <a href="#sec-launch-calls" role="menuitem" aria-label="Launch outbound campaign"><span class="ic" aria-hidden="true">🚀</span> Launch Campaign</a>
       <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">8</span></a>
       <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">⚙</span> AI Agents <span class="badge" id="nav-ag">6</span></a>
       <a href="#sec-niches" role="menuitem" aria-label="Niches and Pricing"><span class="ic" aria-hidden="true">◆</span> Niches &amp; Pricing <span class="badge" id="nav-niche">25</span></a>
@@ -294,6 +296,20 @@
           <div class="bd">
             <div class="assess-scores" id="assessScores" role="list" aria-label="Assessment score cards"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════
+           GOD MODE — Production Readiness + Quick Control
+           ══════════════════════════════════════════════════════ -->
+      <div class="card" id="sec-godmode" style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%);border:1px solid #6366f1;margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid rgba(255,255,255,.1)">
+          <h3 style="color:#e0e7ff;font-size:16px;letter-spacing:-.3px">⚡ God Mode — Production Control</h3>
+          <span class="right" id="gm-summary" style="color:#818cf8;font-size:11px">—</span>
+          <button class="btn" onclick="loadGodMode()" style="background:#6366f1;margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="gm-body" style="color:#e2e8f0">
+          <span style="color:#818cf8;font-size:13px">Loading system status…</span>
         </div>
       </div>
 
@@ -397,6 +413,62 @@
             <thead><tr><th scope="col">Campaign</th><th scope="col">Client</th><th scope="col">Niche</th><th scope="col">Sources</th><th scope="col">Progress</th><th scope="col">Leads</th><th scope="col">Status</th></tr></thead>
             <tbody id="campaigns"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════════════════
+           CAMPAIGN LAUNCHER — Outbound AI Calling
+           ══════════════════════════════════════════════════════ -->
+      <div class="card" id="sec-launch-calls" style="scroll-margin-top:80px">
+        <div class="hd" style="background:linear-gradient(90deg,#052e16,#0f172a);border-bottom:1px solid #166534">
+          <h3 style="color:#4ade80">🚀 Outbound Campaign Launcher</h3>
+          <span class="right" id="camp-summary" style="color:#86efac;font-size:11px">—</span>
+        </div>
+        <div class="bd">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px">
+            <div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:14px">
+              <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">ℹ️ How it works</div>
+              <div style="font-size:12px;color:var(--ink);line-height:1.6">
+                Leads DB se top-N phone numbers (high score) → Swara AI call → TRAI 10am–7pm gate.
+                <br>Dry-run = no actual calls, sirf list print.
+              </div>
+            </div>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px">
+              <div style="font-size:11px;font-weight:700;color:#166534;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">🕐 TRAI Window</div>
+              <div id="camp-trai" style="font-size:13px;color:var(--ink)">Checking…</div>
+            </div>
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px">
+              <div style="font-size:11px;font-weight:700;color:#991b1b;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">⚠️ Prerequisites</div>
+              <div style="font-size:12px;color:var(--ink);line-height:1.6">
+                ✅ VOBIZ_CALL_RECORD=1 set<br>
+                ❌ Razorpay live keys unset<br>
+                ⏳ Exotel KYC pending
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;margin-bottom:14px">
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Calls to fire</label>
+              <select id="campLimit" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-weight:600;background:#fff">
+                <option value="5">5 calls (test)</option>
+                <option value="10" selected>10 calls</option>
+                <option value="25">25 calls</option>
+                <option value="50">50 calls</option>
+                <option value="100">100 calls</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;padding:8px 14px;background:#fff;border:1px solid var(--line);border-radius:8px">
+              <input type="checkbox" id="campDry" style="width:16px;height:16px;cursor:pointer">
+              <label for="campDry" style="font-size:13px;font-weight:600;color:var(--ink);cursor:pointer">Dry Run (no actual calls)</label>
+            </div>
+            <button class="btn" onclick="fireCampaign()" style="background:#10b981;padding:9px 20px;font-size:13px">🚀 Fire Campaign</button>
+            <button class="btn" onclick="loadCampaignStatus()" style="background:#6366f1;padding:9px 14px;font-size:12px">↻ Status</button>
+          </div>
+
+          <div id="campOut" style="font-size:12px;padding:12px 14px;background:#f8fafc;border:1px solid var(--line);border-radius:8px;min-height:40px;color:var(--muted)">
+            Abhi koi campaign nahi chali — Fire Campaign dabao.
+          </div>
         </div>
       </div>
 
@@ -1101,6 +1173,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
   loadRevenueAnalytics(); loadProspectsPanel(); loadActivityFeed();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail();
   loadRecordings();
+  loadGodMode();
+  loadCampaignStatus();
 });
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
@@ -1378,6 +1452,184 @@ async function adminBilling(action){
     if(r.ok){ adminLoadBilling(); }
     else{ alert(j.detail||"Action failed (check admin token)."); }
   }catch(e){ alert("Network error."); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   GOD MODE — production readiness + system snapshot
+   ══════════════════════════════════════════════════════════════════ */
+async function loadGodMode(){
+  const body=$("gm-body"), summ=$("gm-summary");
+  if(body) body.innerHTML='<span style="color:#818cf8;font-size:13px">Loading system status…</span>';
+  try{
+    const [sysRes, campRes] = await Promise.all([
+      fetch("/api/admin/system/summary",{headers:abAuthHdr(),cache:"no-store"}).then(r=>r.ok?r.json():{error:"api_unavailable"}),
+      fetch("/api/admin/campaign/status",{headers:abAuthHdr(),cache:"no-store"}).then(r=>r.json()).catch(()=>({}))
+    ]);
+    renderGodMode(sysRes, campRes);
+    if(summ) summ.textContent = sysRes.generated_at || "—";
+  }catch(e){
+    if(body) body.innerHTML='<div style="color:#f87171;font-size:12px">Load failed — VPS se connect karo · '+escH(String(e))+'</div>';
+  }
+}
+
+function renderGodMode(sys, camp){
+  const body=$("gm-body");
+  if(!body) return;
+
+  const rd = sys.readiness || {};
+  const probes = rd.probes || {};
+  const passedCount = Object.values(probes).filter(v=>v).length;
+  const totalCount = Object.keys(probes).length || 13;
+  const ready = rd.ready_for_first_paid_customer;
+  const rzp = sys.razorpay || {};
+  const trai = sys.trai || {};
+  const flags = sys.flags || {};
+
+  // — Readiness header ─────────────────────────────────────────────
+  let html = `<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+    <div style="font-size:24px;font-weight:800;color:${ready?'#4ade80':'#fbbf24'}">
+      ${ready ? '🟢 LAUNCH READY' : `⚠️ ${passedCount}/${totalCount} probes`}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
+      <a href="/app/test-call" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#7c3aed" target="_blank">📞 Test Call</a>
+      <a href="#sec-launch-calls" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#10b981">🚀 Launch Campaign</a>
+      <a href="#sec-recordings" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#6366f1">🎙 Recordings</a>
+      <a href="/app/automation" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#334155" target="_blank">🎛 Automation</a>
+      <a href="/app/explorer" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#1e293b" target="_blank">🗺 Explorer</a>
+      <a href="/app/team" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#1e293b" target="_blank">👥 Staff Team</a>
+    </div>
+  </div>`;
+
+  // — Activation probes ─────────────────────────────────────────────
+  if(Object.keys(probes).length){
+    const sorted = [...Object.entries(probes)].sort((a,b)=>Number(b[1])-Number(a[1]));
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:5px;margin-bottom:14px">';
+    sorted.forEach(([k,v])=>{
+      html += `<div style="padding:5px 10px;border-radius:6px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:5px;background:${v?'rgba(74,222,128,.12);border:1px solid rgba(74,222,128,.3)':'rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.3)'};color:${v?'#4ade80':'#f87171'}">
+        ${v?'✅':'❌'} ${k.replace(/_/g,' ')}
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // — Critical blockers ─────────────────────────────────────────────
+  const blockers = [];
+  if(!rzp.key_set) blockers.push('🚨 Razorpay: placeholder keys in .env — set rzp_live_… keys + restart');
+  else if(!rzp.live_key) blockers.push('⚠️ Razorpay: test key set ('+escH(rzp.key_prefix||'')+') — use live key before launch');
+  if(!trai.calling_open) blockers.push(`🕐 TRAI window CLOSED (${trai.window||'10:00–19:00 IST'}) — IST time: ${trai.ist_hour||'?'}:xx`);
+  const telephony = sys.telephony_provider || 'unset';
+  if(telephony === 'unset') blockers.push('📞 TELEPHONY_PROVIDER not set');
+  if(blockers.length){
+    html += `<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:10px 14px;margin-bottom:14px">
+      ${blockers.map(b=>`<div style="font-size:11.5px;color:#fbbf24;margin-bottom:3px">${b}</div>`).join('')}
+    </div>`;
+  }
+
+  // — Flags & telephony row ─────────────────────────────────────────
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;align-items:center">
+    <span style="font-size:10px;font-weight:700;color:#818cf8;letter-spacing:.05em;text-transform:uppercase;margin-right:4px">FLAGS</span>`;
+  Object.entries(flags).forEach(([k,v])=>{
+    html += `<span style="font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;background:${v?'rgba(74,222,128,.15)':'rgba(248,113,113,.12)'};color:${v?'#4ade80':'#f87171'}">${k}</span>`;
+  });
+  html += `<span style="margin-left:auto;font-size:11px;color:#94a3b8">Provider: <b style="color:#60a5fa">${escH(telephony)}</b> · ExoPhone: <b style="color:#60a5fa">${escH(sys.exotel_caller_id||'—')}</b></span>`;
+  html += '</div>';
+
+  // — TRAI window + last campaign ───────────────────────────────────
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div style="padding:10px 14px;border-radius:8px;background:${trai.calling_open?'rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3)':'rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3)'}">
+      <div style="font-size:11px;font-weight:700;color:${trai.calling_open?'#4ade80':'#f87171'};margin-bottom:4px;text-transform:uppercase">TRAI WINDOW</div>
+      <div style="font-size:14px;font-weight:800;color:#e2e8f0">${trai.calling_open?'🟢 OPEN':'🔴 CLOSED'}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:3px">${escH(trai.window||'10:00–19:00 IST')}</div>
+    </div>`;
+
+  if(camp && camp.status && camp.status !== 'never_run'){
+    const sc = {done:'#4ade80', running:'#fbbf24', error:'#f87171', timeout:'#f87171'}[camp.status] || '#94a3b8';
+    html += `<div style="padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+      <div style="font-size:11px;font-weight:700;color:#818cf8;margin-bottom:4px;text-transform:uppercase">LAST CAMPAIGN</div>
+      <div style="font-size:14px;font-weight:800;color:${sc}">${escH(camp.status.toUpperCase())}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:3px">limit=${camp.limit||'?'} · dry=${camp.dry_run||false}</div>
+    </div>`;
+  } else {
+    html += `<div style="padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+      <div style="font-size:11px;font-weight:700;color:#818cf8;margin-bottom:4px;text-transform:uppercase">LAST CAMPAIGN</div>
+      <div style="font-size:13px;color:#64748b">Never run — use 🚀 below</div>
+    </div>`;
+  }
+  html += '</div>';
+
+  body.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CAMPAIGN LAUNCHER
+   ══════════════════════════════════════════════════════════════════ */
+async function loadCampaignStatus(){
+  try{
+    const d = await fetch("/api/admin/campaign/status",{headers:abAuthHdr(),cache:"no-store"}).then(r=>r.json());
+    renderCampaignStatus(d);
+    $("camp-summary").textContent = d.status || "—";
+  }catch(e){ $("campOut").innerHTML='<span style="color:var(--red)">Status load failed</span>'; }
+}
+
+function renderCampaignStatus(d){
+  if(!d||d.status==="never_run"){
+    $("campOut").innerHTML='<span style="color:var(--muted)">Abhi koi campaign nahi — Fire Campaign dabao.</span>';
+    return;
+  }
+  const sc = {done:'var(--green)', running:'var(--amber)', error:'var(--red)', timeout:'var(--red)'}[d.status]||'var(--muted)';
+  let html = `<div style="margin-bottom:8px"><b style="color:${sc}">${escH((d.status||'').toUpperCase())}</b> &nbsp;·&nbsp; limit=${d.limit||'?'} &nbsp;·&nbsp; dry_run=${d.dry_run||false}`;
+  if(d.exit_code!=null) html += ` &nbsp;·&nbsp; exit=${d.exit_code}`;
+  html += '</div>';
+  if(d.output){
+    html += `<pre style="font-size:10.5px;overflow-x:auto;white-space:pre-wrap;background:#f8fafc;border:1px solid var(--line);padding:10px;border-radius:8px;max-height:180px;overflow-y:auto;color:#0f172a;margin:0">${escH(d.output.slice(-2000))}</pre>`;
+  }
+  $("campOut").innerHTML = html;
+  $("camp-summary").textContent = d.status;
+
+  // Update TRAI window chip
+  const traiFetch = fetch("/api/admin/system/summary",{headers:abAuthHdr()}).then(r=>r.json()).catch(()=>({}));
+  traiFetch.then(sys=>{
+    const trai = sys.trai||{};
+    const el = $("camp-trai");
+    if(el) el.innerHTML = `<b style="color:${trai.calling_open?'var(--green)':'var(--red)'}">${trai.calling_open?'🟢 OPEN — calls jaayenge':'🔴 CLOSED — '+escH(trai.window||'10:00–19:00 IST')}</b><br><span style="font-size:11px;color:var(--muted)">${escH(trai.window||'')} · IST ${trai.ist_hour||'?'}:xx</span>`;
+  });
+}
+
+let _campPolling = false;
+async function fireCampaign(){
+  const limit = parseInt(($("campLimit")||{}).value||"10",10);
+  const dry   = ($("campDry")||{}).checked;
+  $("campOut").innerHTML = `<span style="color:var(--amber)">⏳ Launching campaign (limit=${limit}, dry_run=${dry})…</span>`;
+  try{
+    const r = await fetch("/api/admin/campaign/launch",{
+      method:"POST",
+      headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
+      body: JSON.stringify({limit, dry_run: dry})
+    });
+    const d = await r.json();
+    if(d.queued){
+      $("campOut").innerHTML = `<span style="color:var(--green)">✅ Campaign queued (limit=${d.limit}, dry_run=${d.dry_run}) — polling status…</span>`;
+      $("camp-summary").textContent = "running";
+      if(!_campPolling) _pollCampaign();
+    } else {
+      $("campOut").innerHTML = `<span style="color:var(--red)">Error: ${escH(JSON.stringify(d))}</span>`;
+    }
+  }catch(e){
+    $("campOut").innerHTML = `<span style="color:var(--red)">Network error: ${escH(String(e))}</span>`;
+  }
+}
+
+async function _pollCampaign(){
+  _campPolling = true;
+  for(let i=0;i<100;i++){
+    await new Promise(res=>setTimeout(res,3500));
+    try{
+      const d = await fetch("/api/admin/campaign/status",{headers:abAuthHdr(),cache:"no-store"}).then(r=>r.json());
+      renderCampaignStatus(d);
+      if(d.status !== "running"){ _campPolling=false; loadGodMode(); break; }
+    }catch(e){ break; }
+  }
+  _campPolling=false;
 }
 
 /* ====== Call Recordings ====== */
