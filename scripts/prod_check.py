@@ -10,6 +10,7 @@ Checks:
   3. App imports cleanly
   4. All expected routers are registered
   5. Critical env/config sanity for production
+  6. Frontend wiring — every onclick handler defined + every fetch path routed
 Exit code 0 = ready, 1 = problems found.
 """
 import ast
@@ -39,7 +40,7 @@ def check_sources_parse() -> None:
                 ast.parse(src.decode("utf-8", errors="replace"))
             except SyntaxError as e:
                 PROBLEMS.append(f"SYNTAX {p.relative_to(ROOT)} line {e.lineno}: {e.msg}")
-    print(f"[1/5] {n} source files parsed")
+    print(f"[1/6] {n} source files parsed")
 
 
 def check_stale_pycache() -> None:
@@ -82,7 +83,7 @@ def check_stale_pycache() -> None:
                     pyc.unlink(); removed += 1
             except OSError:
                 PROBLEMS.append(f"PYCACHE: could not inspect/remove {pyc.relative_to(ROOT)}")
-    print(f"[2/5] pycache check done ({removed} stale .pyc removed)")
+    print(f"[2/6] pycache check done ({removed} stale .pyc removed)")
 
 
 def check_app_imports() -> None:
@@ -90,10 +91,10 @@ def check_app_imports() -> None:
     sys.path.insert(0, str(ROOT))
     try:
         from app.main import app  # noqa: F401
-        print("[3/5] app.main imports OK")
+        print("[3/6] app.main imports OK")
     except Exception as e:
         PROBLEMS.append(f"APP IMPORT FAILED: {type(e).__name__}: {e}")
-        print("[3/5] app.main import FAILED")
+        print("[3/6] app.main import FAILED")
 
 
 def check_routes() -> None:
@@ -101,7 +102,7 @@ def check_routes() -> None:
     try:
         from app.main import app
     except Exception:
-        print("[4/5] skipped (app not importable)")
+        print("[4/6] skipped (app not importable)")
         return
     paths = {getattr(r, "path", "") for r in app.routes}
     expected = [
@@ -117,7 +118,36 @@ def check_routes() -> None:
     for exp in expected:
         if not any(p == exp or p.startswith(exp + "/") or p.startswith(exp) for p in paths):
             PROBLEMS.append(f"ROUTE MISSING: {exp}")
-    print(f"[4/5] routes checked ({len(paths)} registered)")
+    print(f"[4/6] routes checked ({len(paths)} registered)")
+
+
+def check_frontend_wiring() -> None:
+    """Every onclick handler must be defined + every fetch path must route.
+
+    Reuses scripts/deep_wiring_audit (deterministic — loads real FastAPI routes).
+    Defensive: if the auditor can't run, skip rather than block the deploy.
+    """
+    try:
+        from scripts.deep_wiring_audit import PAGES, audit_file, load_routes
+
+        routes = load_routes()
+        total = 0
+        for path in PAGES:
+            if not path.exists():
+                continue
+            r = audit_file(path, routes)
+            for h in r["missing_handlers"]:
+                PROBLEMS.append(f"WIRING {path.name}: dead handler {h}()")
+                total += 1
+            for a in r["missing_apis"]:
+                PROBLEMS.append(f"WIRING {path.name}: unrouted fetch {a}")
+                total += 1
+            for anc in r["missing_anchors"]:
+                PROBLEMS.append(f"WIRING {path.name}: broken anchor #{anc}")
+                total += 1
+        print(f"[6/6] frontend wiring checked ({len(PAGES)} pages, {total} gaps)")
+    except Exception as e:
+        print(f"[6/6] wiring audit skipped ({type(e).__name__}: {e})")
 
 
 def check_production_config() -> None:
@@ -125,7 +155,7 @@ def check_production_config() -> None:
     try:
         from app.config import settings
     except Exception:
-        print("[5/5] skipped (config not importable)")
+        print("[5/6] skipped (config not importable)")
         return
     if settings.app_env == "production":
         if settings.debug:
@@ -136,7 +166,7 @@ def check_production_config() -> None:
             PROBLEMS.append("CONFIG: default jwt_secret_key in production")
         if "*" in settings.cors_origins:
             PROBLEMS.append("CONFIG: CORS wildcard in production")
-    print(f"[5/5] config checked (env={settings.app_env})")
+    print(f"[5/6] config checked (env={settings.app_env})")
 
 
 def main() -> int:
@@ -148,6 +178,7 @@ def main() -> int:
     check_app_imports()
     check_routes()
     check_production_config()
+    check_frontend_wiring()
     print("-" * 56)
     if PROBLEMS:
         print(f"[FAIL] {len(PROBLEMS)} problem(s):")
