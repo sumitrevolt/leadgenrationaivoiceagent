@@ -523,6 +523,14 @@ class VobizStreamSession:
         self._thinking = False
         self._bg_tasks: set = set()  # keep refs so tasks aren't GC'd mid-run
 
+        # ── call recording (VOBIZ_CALL_RECORD=1 se enable) ───────────────────
+        # Inbound caller PCM16 chunks collect karo; call khatam hone pe WAV save.
+        # data/call_recordings/YYYY-MM-DD/call_{stream_sid}.wav
+        # Flag OFF by default — storage cost aur privacy (DPDP consent) ke liye.
+        self._rec_enabled: bool = os.environ.get("VOBIZ_CALL_RECORD", "0") == "1"
+        self._rec_inbound: list[bytes] = []   # caller audio  → call_{sid}_caller.wav
+        self._rec_outbound: list[bytes] = []  # bot TTS audio → call_{sid}_bot.wav
+
         # instant-greeting state (pre-synthesized at WS open, before 'start')
         self._greet_pcm: bytes | None = None
         self._pregen_task: asyncio.Task | None = None
@@ -681,6 +689,9 @@ class VobizStreamSession:
             return
         if not pcm16:
             return
+        # Recording: inbound caller audio chunks collect karo (WAV on hangup).
+        if self._rec_enabled:
+            self._rec_inbound.append(pcm16)
         rms = _pcm_rms(pcm16)
         is_speech = rms >= self._vad_rms
         # Silero VAD gate (USE_SILERO_VAD=1): pcm16 is raw 16kHz PCM here, so pass it
@@ -1251,6 +1262,9 @@ class VobizStreamSession:
             frame = pcm[i : i + FRAME_PCM]
             if len(frame) < FRAME_PCM:
                 frame = frame + PCM_SILENCE * (FRAME_PCM - len(frame))
+            # Recording: bot outbound audio collect karo (sab audio yahan se jaata hai).
+            if self._rec_enabled:
+                self._rec_outbound.append(frame)
             # Vobiz playAudio: L16 @16k, base64 payload, NO streamSid field.
             await self._send(
                 {
@@ -1311,6 +1325,7 @@ class VobizStreamSession:
             f"client={self.client_id} dur={dur:.0f}s user_turns={turns} "
             f"msgs={len(self.hist)} stt={self._stt_counts}"
         )
+        self._save_recording()
         self._persist_transcript(ended, dur, turns)
         try:  # Team activity: Swara ki call khatam — dashboard feed ke liye
             from app.platform.team import log_event
@@ -1354,6 +1369,97 @@ class VobizStreamSession:
             logger.info(f"[vobiz-stream] transcript saved -> {path} ({len(self.hist)} msgs)")
         except Exception as e:
             logger.warning(f"[vobiz-stream] transcript persist failed: {e}")
+
+    def _save_recording(self) -> None:
+        """Bidirectional call recording -> 2 WAV files on hangup (VOBIZ_CALL_RECORD=1).
+
+        caller : data/call_recordings/YYYY-MM-DD/call_{sid}_caller.wav
+        bot    : data/call_recordings/YYYY-MM-DD/call_{sid}_bot.wav
+        Format : PCM16 mono 16 kHz — no conversion needed (stream format).
+        Size   : ~1.92 MB/min per side.
+        DPDP   : 90-din ke baad purge karo (consent_ledger retention rule).
+        """
+        if not self._rec_enabled:
+            return
+        if not self._rec_inbound and not self._rec_outbound:
+            return
+        try:
+            import uuid as _uuid
+            import wave
+            from pathlib import Path
+
+            ended = datetime.now(timezone.utc)
+            day_dir = Path("data") / "call_recordings" / ended.strftime("%Y-%m-%d")
+            day_dir.mkdir(parents=True, exist_ok=True)
+            uid = (self.stream_sid or _uuid.uuid4().hex[:8]).replace("/", "_")
+
+            def _write_wav(path: Path, chunks: list) -> int:
+                pcm = b"".join(chunks)
+                with wave.open(str(path), "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2)
+                    wf.setframerate(SAMPLE_RATE)
+                    wf.writeframes(pcm)
+                return len(pcm) // 1024
+
+            if self._rec_inbound:
+                kb = _write_wav(day_dir / f"call_{uid}_caller.wav", self._rec_inbound)
+                logger.info(f"[vobiz-stream] caller rec -> call_{uid}_caller.wav ({kb} KB)")
+            if self._rec_outbound:
+                kb = _write_wav(day_dir / f"call_{uid}_bot.wav", self._rec_outbound)
+          
+                logger.info(f"[vobiz-stream] bot rec    -> call_{uid}_bot.wav ({kb} KB)")
+        except Exception as e:
+            logger.warning(f"[vobiz-stream] recording save failed: {e}")
+
+
+# --------------------------------------------------------------------------- #
+# Module-level STT warmup
+# --------------------------------------------------------------------------- #
+if _LOCAL_STT_OK and os.environ.get("VOBIZ_STT_WARMUP", "1") != "0":
+    try:
+        threading.Thread(target=_get_stt, daemon=True, name="vobiz-stt-warmup").start()
+    except Exception:
+        pass
+
+
+__all__ = ["VobizStreamSession", "STT_AVAILABLE", "TTS_AVAILABLE"]
+
+
+__all__ = ["VobizStreamSession", "STT_AVAILABLE", "TTS_AVAILABLE"]
+        """Caller audio → WAV file on call end (VOBIZ_CALL_RECORD=1).
+
+        Path  : data/call_recordings/YYYY-MM-DD/call_{stream_sid}.wav
+        Format: PCM16 mono 16 kHz — inbound stream ka format, NO conversion.
+        Size  : ~1.92 MB/min (16k * 2 bytes * 60s = 1,920,000 bytes).
+        OFF by default — VOBIZ_CALL_RECORD=1 .env me set karo to enable.
+        DPDP note: consent_ledger retention = 90 din; purani files purge karo.
+        """
+        if not self._rec_enabled or not self._rec_inbound:
+            return
+        try:
+            import uuid as _uuid
+            import wave
+            from pathlib import Path
+
+            ended = datetime.now(timezone.utc)
+            day_dir = Path("data") / "call_recordings" / ended.strftime("%Y-%m-%d")
+            day_dir.mkdir(parents=True, exist_ok=True)
+            uid = (self.stream_sid or _uuid.uuid4().hex[:8]).replace("/", "_")
+            wav_path = day_dir / f"call_{uid}.wav"
+            pcm_all = b"".join(self._rec_inbound)
+            with wave.open(str(wav_path), "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)        # 16-bit LE
+                wf.setframerate(SAMPLE_RATE)  # 16000 Hz
+                wf.writeframes(pcm_all)
+            size_kb = len(pcm_all) // 1024
+            logger.info(
+                f"[vobiz-stream] recording saved → {wav_path} ({size_kb} KB, "
+                f"~{size_kb // 1920:.0f} min)"
+            )
+        except Exception as e:
+            logger.warning(f"[vobiz-stream] recording save failed: {e}")
 
 
 # --------------------------------------------------------------------------- #
