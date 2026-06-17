@@ -145,9 +145,35 @@ def check_frontend_wiring() -> None:
             for anc in r["missing_anchors"]:
                 PROBLEMS.append(f"WIRING {path.name}: broken anchor #{anc}")
                 total += 1
-        print(f"[6/6] frontend wiring checked ({len(PAGES)} pages, {total} gaps)")
+        # Automation-side wiring: every declared flag read + every job dispatchable.
+        auto_gaps = _automation_wiring_gaps()
+        for g in auto_gaps:
+            PROBLEMS.append(f"AUTOMATION {g}")
+        print(
+            f"[6/6] wiring checked ({len(PAGES)} pages {total} gaps; "
+            f"automation {len(auto_gaps)} gaps)"
+        )
     except Exception as e:
         print(f"[6/6] wiring audit skipped ({type(e).__name__}: {e})")
+
+
+def _automation_wiring_gaps() -> list[str]:
+    """Reuse scripts/automation_wiring_audit — flags-wired + jobs-dispatchable."""
+    import contextlib
+    import io
+
+    try:
+        from scripts import automation_wiring_audit as awa
+
+        awa.PROBLEMS.clear()
+        with contextlib.redirect_stdout(io.StringIO()):  # mute the audit's own prints
+            blob = awa._all_app_text()
+            awa.audit_flags(blob)
+            awa.audit_jobs(blob)
+            awa.audit_beat()
+        return list(awa.PROBLEMS)
+    except Exception:
+        return []
 
 
 def check_production_config() -> None:
