@@ -19,6 +19,14 @@ Non-goals:
 ## Preconditions (fast)
 - Site health: `GET /health` → `environment: production`
 - Admin access token set (admin pages use `localStorage.accessToken`)
+- **Code gate (dev/VPS pull ke baad):** `python scripts/final_integration_check.py` → PASS (0 handler gaps, 0 route gaps, tests green)
+
+## Step 0 — Automated wiring gate (optional but recommended)
+```bash
+python scripts/final_integration_check.py
+```
+Ye chalata hai: `wiring_audit.py` + `deep_wiring_audit.py` + `production_ready.py` + parity/portal pytest.
+FAIL = kal se pehle fix karo (dead button ya missing API).
 
 ## Step 1 — God Mode readiness snapshot (P0)
 Open: `/app/admin` → section **⚡ God Mode**
@@ -44,7 +52,11 @@ Option A (Admin Dashboard quick):
 - `/app/admin` → **Automation Hub** → “Pending Approvals” card
 - Jo content approvals dikh rahe hain unpe **✓ / ✕** decide karo
 
-Option B (Mission Control ClientOps):
+Option B (Mission Control Approvals tab):
+- `/app/automation` → tab **📥 Approvals**
+- “Pending load” under **Content Approvals** → **✓ / ✕**
+
+Option C (Mission Control ClientOps):
 - `/app/automation` → tab **🤝 ClientOps**
 - “Pending load” → list me **✓ / ✕**
 
@@ -82,6 +94,11 @@ Use-case driven:
 - **Content/Blog**: “Daily Content” / “SEO Blog”
 - **Growth pulse**: “Growth Pulse”
 - **Reviews**: “Review Monitor”
+- **Journeys**: “Journeys Emit” (test event; `JOURNEY_ENGINE=1` chahiye)
+- **Sales team**: “Sales Team” (BANT deep-dive drafts)
+- **Upgrader**: “Upgrader Scan” (code patch proposals)
+- **QA**: “QA Run” (Arjun)
+- **Prospects**: “Prospects Run” (Rohan scrape batch)
 
 Note:
 - Ye actions **idempotent-ish** hain, par spam avoid: ek hi cheez 2-3 baar back-to-back mat run karo.

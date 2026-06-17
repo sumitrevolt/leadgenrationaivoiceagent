@@ -825,6 +825,13 @@ a{color:var(--acc)}
     <div id="apSelfImpOut" class="mut" style="margin-top:8px"></div>
   </div>
   <div class="card">
+    <h2>✅ Content Approvals (client posts)</h2>
+    <div class="mut">Client ke pending posts — approve/reject yahi se (token link ki zaroorat nahi).</div>
+    <label>Client ID filter (optional)</label><input id="apContentCid" placeholder="client slug / id" style="max-width:280px">
+    <button class="btn2" onclick="apContentList()">🔄 Pending load</button>
+    <div id="apContentOut" class="mut" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
     <h2>📥 Process Breakpoints + Code Patches</h2>
     <div class="mut">Process breakpoints (WAITING runs) + Code-upgrader patch proposals. Patch approve = SUPER_ADMIN only.</div>
     <button class="btn2" onclick="apLoad()">🔄 Refresh</button>
@@ -2410,6 +2417,30 @@ async function apSelfImproveReject(taskId){
 }
 
 /* ---------------- 15. Approvals ---------------- */
+async function apContentList(){
+  var cid=($('apContentCid')&&$('apContentCid').value||'').trim();
+  try{
+    var d=await api('/api/clientops/approvals?status=pending'+(cid?('&client_id='+encodeURIComponent(cid)):''));
+    var rows=d.approvals||[];
+    if(!rows.length){$('apContentOut').innerHTML='<div class="ok">✅ Koi pending content approval nahi.</div>';return;}
+    var h='<table><tr><th>Client</th><th>Content</th><th>When</th><th>Action</th></tr>';
+    rows.forEach(function(r){
+      var title=esc((r.content&&r.content.title)||(r.content&&r.content.caption)||'post').slice(0,50);
+      h+='<tr><td class="mut">'+esc(r.client_id||'')+'</td><td>'+title+'</td><td class="mut">'+esc(String(r.created_at||'').slice(0,16))+'</td><td>'
+        +'<button class="btn2" onclick="apContentDecide(\''+esc(r.id||'')+'\',\'approve\')">✓</button> '
+        +'<button class="btnd" onclick="apContentDecide(\''+esc(r.id||'')+'\',\'reject\')">✕</button></td></tr>';
+    });
+    $('apContentOut').innerHTML=h+'</table>';
+  }catch(e){warnBox('apContentOut','Content approvals fail: '+e.message)}
+}
+async function apContentDecide(id,action){
+  if(!id||!confirm(action+' this content approval?'))return;
+  try{
+    var d=await api('/api/clientops/approvals/'+encodeURIComponent(id)+'/decide',{method:'POST',body:JSON.stringify({action:action,note:''})});
+    if(d.ok===false)throw new Error(d.error||'fail');
+    toast('Content '+action+' ✅');apContentList();
+  }catch(e){toast('Fail: '+e.message,false)}
+}
 async function apLoad(){
   var h='';var pending=0;
   try{
@@ -2444,6 +2475,7 @@ async function apLoad(){
   }catch(e){h+='<div class="bad">Patches fail: '+esc(e.message)+'</div>'}
   $('apOut').innerHTML=h;
   var b=$('tab-approvals'); if(b)b.textContent='📥 Approvals'+(pending?' ('+pending+')':'');
+  if(typeof apContentList==='function')apContentList();
 }
 async function apProc(id,ok){
   var note=prompt(ok?'Approve note (optional)':'Reject reason?')||'';

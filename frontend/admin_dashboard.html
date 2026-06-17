@@ -570,6 +570,11 @@
               <button class="btn" onclick="autoAction('blog')" style="font-size:11px;padding:6px 10px">📝 SEO Blog</button>
               <button class="btn" onclick="autoAction('growth')" style="font-size:11px;padding:6px 10px">📊 Growth Pulse</button>
               <button class="btn" onclick="autoAction('reviews')" style="font-size:11px;padding:6px 10px">⭐ Review Monitor</button>
+              <button class="btn" onclick="autoAction('journeys')" style="font-size:11px;padding:6px 10px">🔀 Journeys Emit</button>
+              <button class="btn" onclick="autoAction('sales')" style="font-size:11px;padding:6px 10px">🧠 Sales Team</button>
+              <button class="btn" onclick="autoAction('upgrader')" style="font-size:11px;padding:6px 10px">🛠️ Upgrader Scan</button>
+              <button class="btn" onclick="autoAction('qa')" style="font-size:11px;padding:6px 10px">✅ QA Run</button>
+              <button class="btn" onclick="autoAction('prospects')" style="font-size:11px;padding:6px 10px">👥 Prospects Run</button>
             </div>
             <div id="autoActionOut" style="margin-top:10px;font-size:12px;color:var(--muted)">Action output yahan dikhega.</div>
           </div>
@@ -1645,6 +1650,11 @@ async function autoAction(kind){
     blog:{url:"/api/platform/team/run/blog",method:"POST"},
     growth:{url:"/api/platform/team/growth/run",method:"POST"},
     reviews:{url:"/api/growth/reviews/monitor-run",method:"POST"},
+    journeys:{url:"/api/journeys/emit",method:"POST",body:{event:"inquiry_received",context:{source:"admin_hub_test"}}},
+    sales:{url:"/api/growth/sales/team-run?limit=3",method:"POST"},
+    upgrader:{url:"/api/growth/upgrader/scan",method:"POST"},
+    qa:{url:"/api/platform/team/run/arjun",method:"POST"},
+    prospects:{url:"/api/platform/team/prospects/run",method:"POST"},
   };
   const spec=map[kind]; if(!spec){ return; }
   try{
