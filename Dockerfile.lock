@@ -28,6 +28,11 @@ RUN pip install --no-cache-dir --retries 10 --upgrade pip wheel setuptools && \
 RUN (pip install --no-cache-dir --retries 10 torch torchaudio --index-url https://download.pytorch.org/whl/cpu \
     && pip install --no-cache-dir --retries 10 silero-vad) \
     || echo "WARN: silero-vad install failed — RMS fallback"
+# Smart Turn v3.2 (USE_SMART_TURN=1) — pipecat bundles ONNX; bake at build so
+# runtime download never blocks the voice event loop. Fail = non-fatal (RMS fallback).
+RUN (pip install --no-cache-dir --retries 10 "pipecat-ai>=0.0.60" \
+    && python -c "from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3; LocalSmartTurnAnalyzerV3()") \
+    || echo "WARN: pipecat/smart-turn bake failed — silence-timer fallback"
 
 FROM python:3.12-slim AS production
 ARG APP_VERSION=latest

@@ -634,7 +634,7 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             hits: list[dict[str, Any]] = []
             for ns in namespaces:
                 try:
-                    hits.extend(kb.retrieve(ut, k=_KB_TOP_K, namespace=ns) or [])
+                    hits.extend(kb.retrieve(ut, k=_KB_TOP_K, namespace=ns, rerank=False) or [])
                 except Exception:
                     pass
             return hits

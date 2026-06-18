@@ -8,8 +8,8 @@
 | # | Item | Area | Impact | Effort | Status |
 |---|------|------|--------|--------|--------|
 | 0 | RFC 8058 one-click unsubscribe on cold outreach | Lead-gen | High (inbox placement) | S | ✅ shipped |
-| 1 | Contextual Retrieval + reranker (content/marketing RAG) | RAG | High (−49%→−67% retrieval miss) | M | proposed |
-| 2 | Smart Turn v3 upgrade (turn detection) | Voice | Med-High (fewer cut-offs) | S | proposed |
+| 1 | Contextual Retrieval + reranker (content/marketing RAG) | RAG | High (−49%→−67% retrieval miss) | M | ✅ shipped |
+| 2 | Smart Turn v3 upgrade (turn detection) | Voice | Med-High (fewer cut-offs) | S | ✅ shipped (bake+flag) |
 | 3 | Kokoro TTS as EdgeTTS fallback | Voice | Med (latency + resilience) | M | proposed |
 | 4 | Hybrid search (semantic + BM25) in Qdrant | RAG | Med | M | proposed |
 | 5 | LangGraph supervisor default for high-stakes flows | Agents | Med (reliability, audit) | M | proposed |
