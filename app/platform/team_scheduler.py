@@ -212,12 +212,7 @@ async def _run_job_inner(job: str) -> None:
             from app.agents import growth_optimizer
 
             await growth_optimizer.optimize()  # daily self-healing profit loop (gated GROWTH_OPTIMIZER)
-            try:
-                from app.billing import payment_recon
-
-                await payment_recon.run_if_enabled()  # Razorpay vs invoices recon (gated PAYMENT_RECON)
-            except Exception:
-                pass
+            # payment_recon removed 2026-06-18 — Razorpay gateway gone (manual UPI).
             try:
                 # Speed-to-lead accountability line (READ-only metric) — Boss event me.
                 from app.platform import speed_to_lead, team

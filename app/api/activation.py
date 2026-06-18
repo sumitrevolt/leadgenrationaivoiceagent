@@ -69,47 +69,9 @@ def _is_placeholder(value: str) -> bool:
 # --------------------------------------------------------------------------- #
 # Per-item probes
 # --------------------------------------------------------------------------- #
-def _razorpay() -> dict[str, Any]:
-    """Paid checkout — deferred until operator arms live keys (NEUTRAL, not BLOCKER)."""
-    kid, ksec, whs = _v("RAZORPAY_KEY_ID"), _v("RAZORPAY_KEY_SECRET"), _v("RAZORPAY_WEBHOOK_SECRET")
-    checks = {
-        "key_id_set": bool(kid),
-        "key_id_live": kid.startswith("rzp_live_"),
-        "key_id_placeholder": _is_placeholder(kid),
-        "secret_set": bool(ksec),
-        "secret_placeholder": _is_placeholder(ksec),
-        "webhook_secret_set": bool(whs),
-        "deferred": True,
-    }
-    armed = (
-        checks["key_id_live"]
-        and checks["secret_set"]
-        and not checks["key_id_placeholder"]
-        and not checks["secret_placeholder"]
-    )
-    if armed and checks["webhook_secret_set"]:
-        status, action = _OK, ""
-        checks["deferred"] = False
-    elif armed:
-        status = _WARN
-        action = "Set RAZORPAY_WEBHOOK_SECRET to harden against forged callbacks"
-        checks["deferred"] = False
-    elif checks["key_id_placeholder"] or checks["secret_placeholder"]:
-        status = _NEUTRAL
-        action = "Placeholder keys hatao ya ignore — paid checkout baad me (rzp_live_* + webhook)"
-    else:
-        status = _NEUTRAL
-        action = "Deferred — jab paid checkout chahiye tab rzp_live_* + webhook set karo"
-    return {
-        "key": "razorpay",
-        "label": "Razorpay live payments (deferred)",
-        "category": "revenue",
-        "status": status,
-        "env_vars": ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET"],
-        "checks": checks,
-        "action": action,
-        "doc": "docs/ACTIVATION_RUNBOOK_2026_06_16.md#B4",
-    }
+# _razorpay() probe removed 2026-06-18 — Razorpay gateway gone (manual UPI only).
+# Payments are no longer an activation gate; payments_ready is hard-coded True
+# (UPI is always available) so the activation summary still builds.
 
 
 def _sentry() -> dict[str, Any]:
@@ -367,8 +329,8 @@ def _warm_dr() -> dict[str, Any]:
 
 
 _PROBES = (
-    # Phase 1: Survival (revenue + visibility + trust + edge)
-    _razorpay, _sentry, _posthog, _turnstile, _cloudflare_tunnel,
+    # Phase 1: Survival (visibility + trust + edge). Razorpay removed 2026-06-18.
+    _sentry, _posthog, _turnstile, _cloudflare_tunnel,
     # Phase 2: AI safety + memory
     _agent_memory, _eval_gate,
     # Phase 3: AI staff + alerting
@@ -398,7 +360,7 @@ _PROBES = (
 #   4 Sellable   — customer_webhooks, mcp_product
 #   5 Margin     — litellm_costs, warm_dr
 _PHASES: tuple[tuple[int, str, tuple[str, ...]], ...] = (
-    (1, "Survival",  ("razorpay", "sentry", "posthog", "turnstile", "cloudflare_tunnel")),
+    (1, "Survival",  ("sentry", "posthog", "turnstile", "cloudflare_tunnel")),
     (2, "Visibility", ("agent_memory", "eval_gate")),
     (3, "AI staff",   ("engineer_agents", "ops_alerts")),
     (4, "Sellable",   ("customer_webhooks", "mcp_product")),
@@ -408,7 +370,6 @@ _PHASES: tuple[tuple[int, str, tuple[str, ...]], ...] = (
 # Lookup the probe function by key so we can call it independently of the
 # read-only readiness endpoint (which always probes everything).
 _PROBE_BY_KEY = {
-    "razorpay": _razorpay,
     "sentry": _sentry,
     "posthog": _posthog,
     "turnstile": _turnstile,
@@ -503,7 +464,7 @@ async def activation_summary_public() -> dict[str, Any]:
     items = [p() for p in _PROBES]
     blockers = [it["key"] for it in items if it["status"] == _BLOCKER]
     warns = [it["key"] for it in items if it["status"] == _WARN]
-    payments_ready = next((it for it in items if it["key"] == "razorpay"), {}).get("status") == _OK
+    payments_ready = True  # Razorpay removed 2026-06-18 — manual UPI always available
     launch_ready = not blockers
     return {
         "ready_for_launch": launch_ready,
@@ -528,7 +489,7 @@ async def activation_readiness(_user=Depends(require_admin)) -> dict[str, Any]:
     items = [p() for p in _PROBES]
     blockers = [it["key"] for it in items if it["status"] == _BLOCKER]
     warns = [it["key"] for it in items if it["status"] == _WARN]
-    payments_ready = next((it for it in items if it["key"] == "razorpay"), {}).get("status") == _OK
+    payments_ready = True  # Razorpay removed 2026-06-18 — manual UPI always available
     launch_ready = not blockers
 
     telephony: dict[str, Any] = {}
@@ -565,7 +526,7 @@ async def get_activation_summary() -> dict[str, Any]:
     items = [p() for p in _PROBES]
     blockers = [it for it in items if it["status"] == _BLOCKER]
     warns = [it for it in items if it["status"] == _WARN]
-    payments_ready = next((it for it in items if it["key"] == "razorpay"), {}).get("status") == _OK
+    payments_ready = True  # Razorpay removed 2026-06-18 — manual UPI always available
     launch_ready = not blockers
     probes = {it["key"]: it["status"] != _BLOCKER for it in items}
 

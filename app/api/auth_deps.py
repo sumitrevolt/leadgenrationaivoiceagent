@@ -145,6 +145,5 @@ def require_permission(permission: str):
 
 
 # NOTE: Webhook signature verification lives in app.api.webhooks
-# (verify_twilio_signature / verify_exotel_signature with real HMAC checks).
-# The always-True stubs that used to live here were removed so nobody
-# accidentally imports a no-op verifier.
+# (verify_twilio_signature with real HMAC checks). The always-True stubs that
+# used to live here were removed so nobody accidentally imports a no-op verifier.

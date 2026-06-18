@@ -201,8 +201,8 @@ def _check_telephony_config() -> dict[str, Any]:
     providers = []
     if settings.twilio_account_sid and settings.twilio_auth_token:
         providers.append("twilio")
-    if settings.exotel_api_key:
-        providers.append("exotel")
+    if settings.vobiz_auth_id and settings.vobiz_auth_token:
+        providers.append("vobiz")
 
     if providers:
         return {"status": "configured", "providers": providers}

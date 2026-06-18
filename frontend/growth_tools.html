@@ -88,8 +88,8 @@ a{color:var(--acc)}
     <div id="upiOut"></div>
   </div>
   <div class="card">
-    <h2>ðŸ’³ Razorpay Payment Link</h2>
-    <div class="mut">Create-only (auto-charge nahi). Razorpay creds unset = graceful error.</div>
+    <h2>ðŸ’³ Payment Link (removed)</h2>
+    <div class="mut">Payment-gateway links removed — ab payments manual UPI se. Yeh tab inactive hai.</div>
     <div class="row"><div>
       <label>Client ID</label><input id="plClient" placeholder="client id">
       <label>Amount (â‚¹)</label><input id="plAmt" type="number" placeholder="2499">
@@ -546,7 +546,7 @@ async function payLinkGo(){
   busy('plBtn',1);
   try{
     var d=await api('/api/clientcrm/payment-link',{method:'POST',body:JSON.stringify({client_id:cid,amount_inr:amt,purpose:pur,customer_name:$('plName').value,customer_phone:$('plPhone').value,business_name:$('plBiz').value})});
-    if(d.ok===false)throw new Error(d.error||'fail (Razorpay creds?)');
+    if(d.ok===false)throw new Error(d.error||'fail (payment links removed — manual UPI use karo)');
     var url=d.short_url||d.url||(d.link&&d.link.short_url)||'';
     var h='<div class="result">';
     if(url){h+='<div class="copybox"><input readonly value="'+esc(url)+'" id="plUrl"><button class="btn2" onclick="copyVal(\'plUrl\')">Copy</button></div>';
@@ -561,7 +561,7 @@ async function payLinksList(){
   try{
     var d=await api('/api/clientcrm/payment-links?client_id='+encodeURIComponent($('plClient').value.trim()));
     var rows=d.links||[];
-    var h='<div class="mut" style="margin-top:8px">configured: '+(d.configured?'<span class="ok">haan</span>':'<span class="bad">nahi (Razorpay creds set karo)</span>')+' Â· '+rows.length+' links</div>';
+    var h='<div class="mut" style="margin-top:8px">configured: '+(d.configured?'<span class="ok">haan</span>':'<span class="bad">nahi (payment links removed — manual UPI use karo)</span>')+' Â· '+rows.length+' links</div>';
     if(rows.length){h+='<table><tr><th>Kab</th><th>Client</th><th>â‚¹</th><th>Purpose</th><th>Link</th></tr>';
       rows.forEach(function(r){h+='<tr><td>'+esc((r.created_at||'').slice(0,16))+'</td><td>'+esc(r.client_id||'')+'</td><td>'+esc(r.amount_inr||r.amount||'')+'</td><td>'+esc(r.purpose||'')+'</td><td>'+(r.short_url?'<a href="'+esc(r.short_url)+'" target="_blank">link</a>':'â€”')+'</td></tr>'});
       h+='</table>';}

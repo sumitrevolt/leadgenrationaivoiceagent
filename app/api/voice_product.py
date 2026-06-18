@@ -5,7 +5,7 @@ Marketing product (/api/marketing/*) se separate handling:
   - GET  /api/voice/niches          PUBLIC — voice-product niches (category leadgen/both)
   - GET  /api/voice/quota           admin  — client ka qualified-lead quota status
   - POST /api/voice/record-lead     admin  — manual qualified-lead record (dispute-fix/override)
-  - POST /api/voice/topup-link      admin  — 10-lead pack ka Razorpay payment link
+  - POST /api/voice/topup-link      admin  — 10-lead pack price (manual UPI collect)
 
 Pricing model: per-NICHE per-10-qualified-leads (voice_packages.py) — PER-LEAD system removed.
 Sab handlers defensive (kabhi 500 nahi on data issues), public endpoints rate-limited.
@@ -88,21 +88,18 @@ class TopupLinkIn(BaseModel):
 
 @router.post("/topup-link")
 async def lead_topup_link(body: TopupLinkIn, _user=Depends(require_admin)):
-    """10-lead top-up pack ka Razorpay payment link (webhook credit karta hai).
+    """10-lead top-up pack info (Band-priced).
 
-    Razorpay creds unset => graceful error (inert) — payment_links pattern.
+    Razorpay removed 2026-06-18 — automated payment links gone. Returns the pack
+    price so the operator can collect via manual UPI and credit leads manually.
     """
-    from app.billing import payment_links
     from app.marketing.voice_packages import lead_topup_price, niche_band, normalize_band
 
     band = normalize_band(body.band) if body.band else niche_band(body.niche)
     price = lead_topup_price(band)
-    res = await payment_links.create_payment_link(
-        body.client_id,
-        price,
-        f"10 extra qualified leads (Band {band})",
-        extra_notes={"plan_id": "lead_pack_10", "band": band, "client_id": body.client_id},
-    )
-    res["band"] = band
-    res["price_inr"] = price
-    return res
+    return {
+        "ok": False,
+        "error": "Online payment links band — manual UPI se collect karo, phir leads credit karo.",
+        "band": band,
+        "price_inr": price,
+    }

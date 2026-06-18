@@ -115,5 +115,5 @@ Kitne consecutive days commit kiya? Streak track karo — momentum matter karta 
 3. [Priority 3]
 
 ### 🚨 Blockers (user action needed)
-- [DLT, Razorpay, etc.]
+- [DLT, UPI, Vobiz, etc.]
 ```

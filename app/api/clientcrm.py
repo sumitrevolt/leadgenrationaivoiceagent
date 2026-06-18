@@ -2,10 +2,10 @@
 
 - End-customer mini-CRM + birthday/anniversary wishes (app/marketing/customer_crm.py)
 - Mini-site product catalog CRUD (app/marketing/product_catalog.py)
-- Razorpay payment links for client's customers (app/billing/payment_links.py)
 
-Sab additive + free-stack + ban-safe (wishes/payment links = DRAFT/1-click,
-KOI auto-send nahi). Writes admin-only. Mount: /api + prefix /clientcrm.
+(Razorpay payment links removed 2026-06-18 — no online gateway; manual UPI.)
+Sab additive + free-stack + ban-safe (wishes = DRAFT/1-click, KOI auto-send
+nahi). Writes admin-only. Mount: /api + prefix /clientcrm.
 """
 
 from __future__ import annotations
@@ -150,48 +150,5 @@ async def catalog_delete(slug: str, product_id: str, _user=Depends(require_admin
     return product_catalog.delete_product(slug, product_id)
 
 
-# ----------------------- F3: Razorpay payment links ---------------------- #
-class PaymentLinkIn(BaseModel):
-    client_id: str
-    amount_inr: float | str
-    purpose: str
-    customer_name: str | None = ""
-    customer_phone: str | None = ""
-    business_name: str | None = ""
-
-
-@router.post("/payment-link")
-async def payment_link_create(body: PaymentLinkIn, _user=Depends(require_admin)):
-    """Razorpay Payment Link banao (CREATE only — auto-charge/auto-send NAHI).
-
-    Returns short_url + wa.me 1-click share link. Creds unset = graceful error.
-    """
-    from app.billing import payment_links
-
-    biz = (body.business_name or "").strip()
-    if not biz:
-        # best-effort: client record se business name utha lo
-        try:
-            from app.marketing import clients_store
-
-            c = clients_store.get_client(body.client_id)
-            biz = str((c or {}).get("business_name") or "").strip()
-        except Exception:
-            biz = ""
-    return await payment_links.create_payment_link(
-        body.client_id,
-        body.amount_inr,
-        body.purpose,
-        customer_name=body.customer_name or "",
-        customer_phone=body.customer_phone or "",
-        business_name=biz,
-    )
-
-
-@router.get("/payment-links")
-async def payment_links_list(client_id: str | None = None, limit: int = 50, _user=Depends(require_admin)):
-    """Banaye gaye payment links (?client_id= filter optional)."""
-    from app.billing import payment_links
-
-    rows = payment_links.list_payment_links(client_id=client_id, limit=limit)
-    return {"count": len(rows), "configured": payment_links.is_configured(), "links": rows}
+# Razorpay payment-link routes (/payment-link, /payment-links) removed 2026-06-18 —
+# no online gateway; clients collect from their customers via manual UPI.

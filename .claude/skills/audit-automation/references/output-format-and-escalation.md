@@ -106,6 +106,6 @@ VERDICT: ✅ ALL GREEN — Loop healthy, no action needed.
    - [ ] Restart and monitor
 
 5. **Compliance alert**:
-   - [ ] DLT not enabled? Set up via Exotel + `ENABLE_DLT=1`
+   - [ ] DLT not enabled? Set up via Vobiz + `ENABLE_DLT=1`
    - [ ] Opt-outs ignored? Rebuild DND cache: `python scripts/dnd_sync.py --rebuild`
    - [ ] Recording retention? Verify `RECORDING_RETENTION_DAYS` set + cron active

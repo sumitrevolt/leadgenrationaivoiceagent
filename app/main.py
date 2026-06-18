@@ -192,15 +192,15 @@ async def lifespan(app: FastAPI):
 
     logger.info("✅ Startup complete - application ready")
 
-    # Outbound call queue processor (Exotel/Twilio) — polls Redis queue and dials.
+    # Outbound call queue processor (Vobiz/Twilio) — polls Redis queue and dials.
     # Gated CALL_PROCESSOR=1 (default ON when telephony provider configured).
     _call_processor_task = None
     if os.environ.get("CALL_PROCESSOR", "1").strip().lower() in ("1", "true", "yes"):
         try:
             provider = (
-                os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "exotel"
+                os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "vobiz"
             ).strip().lower()
-            if provider in ("exotel", "twilio"):
+            if provider in ("vobiz", "twilio"):
                 from app.telephony.call_manager import CallManager
 
                 _cm = CallManager(provider=provider)
@@ -1314,34 +1314,21 @@ async def twilio_media_stream(websocket: WebSocket):
 
 @app.websocket("/ws/exotel-voicebot")
 async def exotel_voicebot_ws(websocket: WebSocket):
-    """Exotel AgentStream Voicebot applet — bidirectional voice stream.
+    """DEPRECATED — Exotel removed 2026-06-18. Provider is now Vobiz.
 
-    Applet URL: wss://leadsgenai.in/ws/exotel-voicebot?sample-rate=16000
-    Optional custom params (Exotel max 3): niche / client_name / client_id.
+    The live conversational voice WS is now the Vobiz stream at
+    ``/api/telephony/vobiz/stream/{token}`` (VobizStreamSession). This legacy
+    Exotel applet endpoint is retained only as an import-safe graceful-close so
+    any stale Exotel applet config doesn't 500 — it accepts then closes cleanly.
     """
     try:
-        from app.voice_agent.exotel_stream import ExotelVoicebotSession
-
-        qp = websocket.query_params
-        sr_raw = qp.get("sample-rate") or qp.get("sample_rate") or "8000"
-        try:
-            sr = int(sr_raw)
-        except (TypeError, ValueError):
-            sr = 8000
-        session = ExotelVoicebotSession(
-            websocket,
-            sample_rate=sr,
-            niche=qp.get("niche") or "general",
-            client_name=qp.get("client_name") or "LeadGen AI",
-            client_id=qp.get("client_id"),
-        )
-        await session.handle()
-    except Exception as e:
-        logger.warning(f"Exotel voicebot stream error: {e}")
-        try:
-            await websocket.close()
-        except Exception:
-            pass
+        await websocket.accept()
+    except Exception:
+        return
+    try:
+        await websocket.close(code=1000, reason="exotel-voicebot retired; use Vobiz stream")
+    except Exception:
+        pass
 
 
 @app.get("/manifest.json", tags=["Frontend"])

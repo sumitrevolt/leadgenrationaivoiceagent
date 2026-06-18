@@ -645,26 +645,22 @@ async def revenue_invoices_csv(fy: str = "", _user=Depends(require_admin)):
 
 @router.post("/revenue/topup-link")
 async def revenue_topup_link(payload: dict, _user=Depends(require_admin)):
-    """Voice-minute top-up payment link banao: {client_id, pack: topup_100|topup_250|topup_500}.
+    """Voice-minute top-up pack info: {client_id, pack: topup_100|topup_250|topup_500}.
 
-    Payment hone par webhook AUTO minutes credit + invoice karta (plan untouched).
+    Razorpay removed 2026-06-18 — automated payment links gone. Returns the pack
+    details so the operator can collect via manual UPI and credit minutes manually.
     """
-    from app.billing import payment_links
     from app.marketing.packages import get_topup_packs, topup_pack
 
     cid = str(payload.get("client_id") or "").strip()
     pack = topup_pack(str(payload.get("pack") or "topup_100"))
     if not cid or not pack:
         return {"ok": False, "error": "client_id + valid pack chahiye", "packs": get_topup_packs()}
-    res = await payment_links.create_payment_link(
-        cid,
-        pack["price_inr"],
-        f"{pack['label']} — AI voice minutes",
-        business_name="LeadsGenAI",
-        extra_notes={"plan_id": pack["key"]},
-    )
-    res["pack"] = pack
-    return res
+    return {
+        "ok": False,
+        "error": "Online payment links band — manual UPI se collect karo, phir minutes credit karo.",
+        "pack": pack,
+    }
 
 
 @router.get("/revenue/topup-packs")
@@ -1899,20 +1895,8 @@ async def nps_request_drafts(limit: int = 20, _user=Depends(require_admin)):
     return {"drafts": nps.request_drafts(limit)}
 
 
-@router.get("/revenue/recon")
-async def payment_recon_last(_user=Depends(require_admin)):
-    """Last payment-reconciliation report (Razorpay vs invoices)."""
-    from app.billing import payment_recon
-
-    return payment_recon.last_report()
-
-
-@router.post("/revenue/recon/run")
-async def payment_recon_run(days: int = 3, _user=Depends(require_admin)):
-    """Razorpay captured payments vs internal invoices — READ-only recon sweep."""
-    from app.billing import payment_recon
-
-    return await payment_recon.run(days)
+# /revenue/recon + /revenue/recon/run routes removed 2026-06-18 — Razorpay gateway
+# gone, so there is no payment rail to reconcile against (payments via manual UPI).
 
 
 class IndexNowIn(BaseModel):

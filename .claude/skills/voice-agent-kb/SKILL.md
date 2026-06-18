@@ -26,7 +26,7 @@ Short (1-2 lines), Hinglish/match-customer-language, acknowledge-then-answer, ON
 `ProviderRegistry` with STT/TTS/LLM (BYOK swap layer, separate from the always-on `free_ai.py` chain). Selected via env `STT_PROVIDER` / `TTS_PROVIDER` / `LLM_PROVIDER`. Free defaults: **STT Groq whisper-large-v3** (Vosk/local fallback), **TTS EdgeTTS hi-IN-SwaraNeural** (`edge-tts>=7.2.0` zaroori), **LLM Mistral mistral-small-latest** primary (chain: → Groq → Cerebras → … → Gemini deep fallback, NOT default). Add a provider by implementing `STTProvider.transcribe` / `TTSProvider.synthesize` and `registry.register(kind, name, factory)`.
 
 ## Telephony: `app/telephony/`
-`telephony_service.py` (`get_telephony_service`) picks provider from env (twilio/exotel/sip/simulation). No keys -> **simulation mode** (safe). `media_stream.py` bridges Twilio Media Streams. Real calls need a SIP trunk + DLT registration (India).
+`telephony_service.py` (`get_telephony_service`) picks provider from env (twilio/vobiz/sip/simulation; Vobiz = active India-native provider). No keys -> **simulation mode** (safe). `media_stream.py` bridges Twilio Media Streams. Real calls need a SIP trunk + DLT registration (India).
 
 ## Automation: `app/automation/`
 `orchestrator_pipeline.py` (`LeadGenPipeline.run_campaign`) = scrape -> clean/DND -> 9am-9pm gate -> WhatsApp -> AI call -> score -> deliver -> bill. `agent_pool.py` runs many clients concurrently.

@@ -70,17 +70,18 @@ def test_usage_topup_guards():
 
 
 # ----------------------- recovery links ----------------------- #
-def test_payment_link_inert_without_creds(monkeypatch):
-    """extra_notes param accepted; creds unset => graceful error (INERT)."""
+def test_payment_link_removed_returns_graceful_error():
+    """Razorpay removed 2026-06-18 — payment links are an inert stub returning
+    a graceful {ok: False} (never raises, never charges)."""
     from app.billing import payment_links
 
-    monkeypatch.setattr(payment_links, "_creds", lambda: ("", ""))
+    assert payment_links.is_configured() is False
     res = asyncio.run(
         payment_links.create_payment_link(
             "c1", 999, "renewal", extra_notes={"plan_id": "starter"}
         )
     )
-    assert res["ok"] is False and "creds" in res["error"].lower() or "razorpay" in res["error"].lower()
+    assert res["ok"] is False and res.get("error")
 
 
 def test_dunning_link_helpers(tmp_path, monkeypatch):

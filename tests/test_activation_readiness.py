@@ -32,48 +32,8 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(k, raising=False)
 
 
-def test_razorpay_unset_is_deferred_neutral() -> None:
-    r = ax._razorpay()
-    assert r["status"] == "NEUTRAL"
-    assert r["checks"]["deferred"] is True
-
-
-def test_razorpay_placeholder_keys_are_neutral_not_blocker(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Placeholder keys = deferred; marketing launch not blocked."""
-    monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_test_you-key-here")
-    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "your-razorpay-secret")
-    monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "anything")
-    r = ax._razorpay()
-    assert r["status"] == "NEUTRAL"
-    assert r["checks"]["key_id_placeholder"] is True
-    assert r["checks"]["secret_placeholder"] is True
-
-
-def test_razorpay_test_keys_deferred(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_test_realLookingKey")
-    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "real-looking-secret")
-    monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "whs")
-    r = ax._razorpay()
-    assert r["status"] == "NEUTRAL"
-    assert r["checks"]["key_id_live"] is False
-
-
-def test_razorpay_live_keys_without_webhook_is_warn(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Live keys set but webhook unset = degraded but not revenue-blocking."""
-    monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_live_realKey")
-    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "real-secret")
-    r = ax._razorpay()
-    assert r["status"] == "WARN"
-    assert "WEBHOOK" in r["action"].upper()
-
-
-def test_razorpay_fully_armed_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_live_realKey")
-    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "real-secret")
-    monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "whs")
-    r = ax._razorpay()
-    assert r["status"] == "OK"
-    assert r["action"] == ""
+# Razorpay activation probe removed 2026-06-18 — gateway gone (manual UPI only).
+# payments_ready is hard-coded True now; the razorpay probe tests were deleted.
 
 
 def test_sentry_unset_is_warn_not_blocker() -> None:
@@ -150,18 +110,18 @@ async def test_activation_summary_public() -> None:
     assert "graph_version" in out
 
 
-async def test_readiness_launch_ready_without_razorpay(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Default empty env -> no BLOCKERs; marketing launch OK; payments deferred."""
+async def test_readiness_launch_ready_default_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default empty env -> no BLOCKERs; marketing launch OK. Razorpay removed
+    2026-06-18 — payments via manual UPI, so payments_ready is always True."""
     out = await ax.activation_readiness(_user=None)  # type: ignore[arg-type]
     assert out["ready_for_launch"] is True
-    assert out["ready_for_first_paid_customer"] is False
-    assert out["payments_deferred"] is True
+    assert out["payments_ready"] is True
     assert out["blocker_count"] == 0
     assert "razorpay" not in out["blockers"]
     keys = {it["key"] for it in out["items"]}
-    # K.1: expanded from 5 -> 13 probes (Phase 1-5 of activation runbook)
+    # Razorpay probe removed 2026-06-18 -> 12 probes (Phase 1-5 of activation runbook)
     expected = {
-        "razorpay", "sentry", "posthog", "turnstile", "cloudflare_tunnel",
+        "sentry", "posthog", "turnstile", "cloudflare_tunnel",
         "agent_memory", "eval_gate",
         "engineer_agents", "ops_alerts",
         "customer_webhooks", "mcp_product",
@@ -180,10 +140,9 @@ async def test_get_activation_summary_has_probes() -> None:
     assert "ready_for_calling" in out
 
 
-async def test_readiness_flips_paid_when_razorpay_ok(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_live_realKey")
-    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "real-secret")
-    monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "whs")
+async def test_readiness_paid_ready_via_manual_upi(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Razorpay removed 2026-06-18 — payments via manual UPI, so the paid-customer
+    gate depends only on zero BLOCKERs (payments_ready is always True)."""
     out = await ax.activation_readiness(_user=None)  # type: ignore[arg-type]
     assert out["ready_for_launch"] is True
     assert out["ready_for_first_paid_customer"] is True

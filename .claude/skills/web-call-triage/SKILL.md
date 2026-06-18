@@ -8,7 +8,7 @@ description: User bole "web call pe agent slow hai / sunta nahi / atak jata / no
 > 2026-06-12 user complaint se derive hua ("atak jata, thik se sunta nahi, slow bolta"). Tab se web path ko phone-parity tak laaya gaya — ab STT chain + fillers WEB pe bhi hain. Yeh skill us updated reality ke liye.
 
 ## Architecture TRUTH (pehle yeh samjho, fir debug)
-| Stage | Web call (`app/api/web_call.py` + `frontend/web_call.html`) | Phone (vobiz/exotel) |
+| Stage | Web call (`app/api/web_call.py` + `frontend/web_call.html`) | Phone (vobiz) |
 |---|---|---|
 | STT | **Server Groq whisper-large-v3 PRIMARY** — frontend MediaRecorder raw audio `{audio_b64}` bhejta, server `_transcribe_audio` → `free_ai.transcribe_audio` (phone-parity). Browser Web Speech API (`webkitSpeechRecognition`, hi-IN) = sirf FALLBACK text jab server STT khali aaye | Groq whisper-large-v3 chain (`_stt_chain`) |
 | Brain | TelecallerBrain PRIMARY → NaturalDialog → pipeline → LLMBrain → echo | TelecallerBrain PRIMARY |
@@ -39,4 +39,4 @@ description: User bole "web call pe agent slow hai / sunta nahi / atak jata / no
 ## Lessons (repeat mat karna)
 - Web-call WS me KOI sync heavy init event-loop pe nahi — `_run_blocking` (15s) pattern use karo (2026-06-12 prod-down: fastembed download ne dono workers freeze kiye).
 - Web path pe naya stage add karo to phone-parity table upar update karo — drift hi "noob web call" ka original root tha.
-- Symptom report Hinglish/typo me aayega — pehle elicit karo: konsa path (web/exotel/vobiz), kya kharab (slow/STT/atak/content/awaaz), example utterance.
+- Symptom report Hinglish/typo me aayega — pehle elicit karo: konsa path (web/vobiz), kya kharab (slow/STT/atak/content/awaaz), example utterance.

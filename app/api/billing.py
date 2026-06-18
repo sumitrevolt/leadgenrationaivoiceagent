@@ -150,15 +150,7 @@ def _stripe_configured() -> bool:
 def _stripe_webhook_configured() -> bool:
     return bool((settings.stripe_webhook_secret or "").strip())
 
-
-def _razorpay_configured() -> bool:
-    return bool(
-        (settings.razorpay_key_id or "").strip() and (settings.razorpay_key_secret or "").strip()
-    )
-
-
-def _razorpay_webhook_configured() -> bool:
-    return bool((settings.razorpay_webhook_secret or "").strip())
+# Razorpay removed 2026-06-18 — no online India gateway (payments via manual UPI).
 
 
 def _provision_usage(client_id: str, plan_id: str | None, period_end: datetime | None,
@@ -404,18 +396,6 @@ async def calculate_plan_pricing(
     }
 
 
-def _razorpay_ready() -> bool:
-    """Real Razorpay creds set? Placeholder keys → NOT configured.
-    Production requires rzp_live_* (test keys OK only in non-production)."""
-    kid = (settings.razorpay_key_id or "").strip().lower()
-    ksec = (settings.razorpay_key_secret or "").strip().lower()
-    if not kid.startswith("rzp_") or "your" in kid or not ksec or "your" in ksec:
-        return False
-    if settings.is_production and not kid.startswith("rzp_live_"):
-        return False
-    return True
-
-
 @router.post("/billing/checkout", response_model=CheckoutResponse, tags=["Billing"])
 async def create_checkout_session(
     request: CreateCheckoutRequest,
@@ -424,7 +404,9 @@ async def create_checkout_session(
 ):
     """
     Create a checkout session for subscription payment.
-    Returns Stripe checkout URL or Razorpay order details.
+    Returns a Stripe checkout URL. (Razorpay removed 2026-06-18 — India payments
+    via manual UPI; if Stripe is not configured the caller gets a clean 503 so
+    the frontend can show the UPI/contact fallback.)
     """
     # Get plan details
     plan = billing_manager.get_plan(request.plan_id)
@@ -442,17 +424,16 @@ async def create_checkout_session(
     amount = pricing["total"]
     currency = request.currency or settings.default_currency
 
-    # Get appropriate gateway
-    gateway = get_payment_gateway(currency=currency)
-
-    # Graceful guard: agar Razorpay keys placeholder/unset hain to broken 500 ke
-    # bajay clean 503 do (frontend UPI/contact fallback dikha sake). Real keys
-    # set hote hi auto-enable.
-    if "razorpay" in str(getattr(gateway, "gateway_type", "")).lower() and not _razorpay_ready():
+    # Stripe is the only online gateway now. If unconfigured -> clean 503 so the
+    # frontend can fall back to manual UPI / contact instead of a broken 500.
+    if not _stripe_configured():
         raise HTTPException(
             status_code=503,
             detail="Online payment abhi setup ho raha hai — UPI ya contact se pay karein.",
         )
+
+    # Get the gateway (always Stripe — Razorpay removed).
+    gateway = get_payment_gateway(currency=currency)
 
     try:
         # Check if customer exists, create if not
@@ -494,61 +475,8 @@ async def create_checkout_session(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/billing/verify-payment", tags=["Billing"])
-async def verify_razorpay_payment(
-    request: VerifyPaymentRequest,
-    client_id: str = Depends(_authed_client_id),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """
-    Verify Razorpay payment signature (called from frontend after payment)
-    """
-    from app.billing.payment_gateway import get_razorpay_gateway
-
-    try:
-        gateway = get_razorpay_gateway()
-        is_valid = await gateway.verify_payment_signature(
-            order_id=request.order_id, payment_id=request.payment_id, signature=request.signature
-        )
-
-        if not is_valid:
-            raise HTTPException(status_code=400, detail="Invalid payment signature")
-
-        # Record the payment as PENDING. A valid signature only proves the order/payment
-        # IDs are linked — it does NOT prove the money was captured or the amount. The
-        # webhook (payment.captured, now idempotent) is the source of truth that flips
-        # this to COMPLETED and fills the real captured amount. (Previously this wrote a
-        # COMPLETED ₹0 row straight from a frontend call.)
-        existing = (
-            await db.execute(
-                select(Payment).where(Payment.gateway_payment_id == request.payment_id)
-            )
-        ).scalar_one_or_none()
-        if existing is None:
-            payment = Payment(
-                id=str(uuid.uuid4()),
-                client_id=client_id,
-                payment_gateway=PaymentGateway.RAZORPAY,
-                gateway_payment_id=request.payment_id,
-                gateway_order_id=request.order_id,
-                amount=Decimal("0"),  # filled by webhook (payment.captured)
-                currency="INR",
-                status=PaymentStatus.PENDING,
-            )
-            db.add(payment)
-            await db.commit()
-
-        return {
-            "success": True,
-            "payment_id": request.payment_id,
-            "message": "Payment verified — confirmation pending",
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Payment verification failed: {e}")
-        raise HTTPException(status_code=500, detail="Payment verification failed")
+# /billing/verify-payment removed 2026-06-18 — Razorpay frontend signature
+# verification gone (no online India gateway; payments via manual UPI).
 
 
 @router.get("/billing/subscription", response_model=SubscriptionResponse, tags=["Billing"])
@@ -644,14 +572,8 @@ async def cancel_subscription(
                 subscription.stripe_subscription_id,
                 cancel_at_period_end=not request.cancel_immediately,
             )
-        elif subscription.razorpay_subscription_id:
-            from app.billing.payment_gateway import get_razorpay_gateway
-
-            gateway = get_razorpay_gateway()
-            await gateway.cancel_subscription(
-                subscription.razorpay_subscription_id,
-                cancel_at_period_end=not request.cancel_immediately,
-            )
+        # Razorpay removed 2026-06-18 — any legacy razorpay_subscription_id row is
+        # cancelled DB-side only (no online gateway call).
 
         # Update database
         subscription.status = SubscriptionStatus.CANCELLED
@@ -906,42 +828,33 @@ async def get_usage_history(
 
 
 # =============================================================================
-# Unified payment webhook (one public URL for both gateways)
+# Unified payment webhook (one public URL for the Stripe gateway)
 # =============================================================================
 @router.post("/billing/webhook", tags=["Billing"])
 async def unified_payment_webhook(
     request: Request,
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Unified payment webhook — ek hi public URL Stripe + Razorpay dono ke liye.
+    """Unified payment webhook — Stripe events.
 
-    Provider request header se detect hota hai:
-      - ``Stripe-Signature``      -> Stripe events  (checkout / invoice / subscription.*)
-      - ``X-Razorpay-Signature``  -> Razorpay events (payment / subscription.*)
+    (Razorpay removed 2026-06-18 — no online India gateway; payments via manual
+    UPI.) Provider request header se detect hota hai:
+      - ``Stripe-Signature`` -> Stripe events (checkout / invoice / subscription.*)
 
-    Verification + event dispatch EXISTING handlers (``app.api.webhooks``) ko delegate
-    hota hai — single source of truth. Wahi handlers subscription renewals/pauses/
-    cancellations + plan minute-provisioning (``usage.activate_plan`` /
-    ``reset_usage_period``) karte hain. Existing ``/api/webhooks/stripe`` aur
-    ``/api/webhooks/razorpay`` bhi as-is chalte (backward compatible).
-
-    Bina valid provider-signature header ke -> 400. Signature galat -> handler 401
-    deta hai (provider retry karega). Koi unhandled 500 nahi (handlers contain errors).
+    Verification + event dispatch EXISTING handler (``app.api.webhooks.stripe_webhook``)
+    ko delegate hota hai. Bina valid Stripe-Signature header ke -> 400.
     """
     from app.api import webhooks as _wh
 
     headers = request.headers
     stripe_sig = headers.get("Stripe-Signature") or headers.get("stripe-signature")
-    rzp_sig = headers.get("X-Razorpay-Signature") or headers.get("x-razorpay-signature")
 
     if stripe_sig:
         return await _wh.stripe_webhook(request=request, stripe_signature=stripe_sig, db=db)
-    if rzp_sig:
-        return await _wh.razorpay_webhook(request=request, x_razorpay_signature=rzp_sig, db=db)
 
     raise HTTPException(
         status_code=400,
-        detail="Unrecognized payment webhook (Stripe-Signature / X-Razorpay-Signature header missing)",
+        detail="Unrecognized payment webhook (Stripe-Signature header missing)",
     )
 
 
@@ -1085,16 +998,7 @@ async def pause_subscription(
             from app.billing.payment_gateway import get_stripe_gateway
 
             await get_stripe_gateway().pause_subscription(subscription.stripe_subscription_id)
-        elif subscription.razorpay_subscription_id and _razorpay_configured():
-            from app.billing.payment_gateway import get_razorpay_gateway
-
-            try:
-                await get_razorpay_gateway().pause_subscription(
-                    subscription.razorpay_subscription_id
-                )
-            except Exception as e:
-                # Razorpay pause may be unavailable for the plan — fall back to DB-only.
-                logger.warning(f"Razorpay pause unavailable, DB-only pause: {e}")
+        # Razorpay removed 2026-06-18 — legacy razorpay rows pause DB-side only.
     except HTTPException:
         raise
     except Exception as e:
@@ -1119,15 +1023,7 @@ async def resume_subscription(
             from app.billing.payment_gateway import get_stripe_gateway
 
             await get_stripe_gateway().resume_subscription(subscription.stripe_subscription_id)
-        elif subscription.razorpay_subscription_id and _razorpay_configured():
-            from app.billing.payment_gateway import get_razorpay_gateway
-
-            try:
-                await get_razorpay_gateway().resume_subscription(
-                    subscription.razorpay_subscription_id
-                )
-            except Exception as e:
-                logger.warning(f"Razorpay resume unavailable, DB-only resume: {e}")
+        # Razorpay removed 2026-06-18 — legacy razorpay rows resume DB-side only.
     except HTTPException:
         raise
     except Exception as e:
@@ -1394,253 +1290,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
     return {"received": True, "event": event_type}
 
 
-@router.post("/billing/webhooks/razorpay", tags=["Billing"])
-async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_async_db)):
-    """Razorpay webhook (HMAC-SHA256 verified). 503 if secret missing; never crashes.
-
-    Handled: payment.captured, subscription.activated/charged/halted/cancelled/
-    paused/resumed. On a successful pay/renew -> mark the Subscription ACTIVE +
-    provision the minute ledger. client_id is read from notes.
-    """
-    if not _razorpay_configured() or not _razorpay_webhook_configured():
-        raise HTTPException(status_code=503, detail="Razorpay gateway not configured")
-
-    payload = await request.body()
-    signature = request.headers.get("X-Razorpay-Signature", "")
-
-    # Verify signature (HMAC) ourselves so we can inspect the full event tree.
-    import hashlib
-    import hmac
-    import json as _json
-
-    try:
-        expected = hmac.new(
-            (settings.razorpay_webhook_secret or "").encode("utf-8"), payload, hashlib.sha256
-        ).hexdigest()
-        if not hmac.compare_digest(expected, signature):
-            raise ValueError("signature mismatch")
-        event = _json.loads(payload.decode("utf-8"))
-    except Exception as e:
-        logger.warning(f"Razorpay webhook verification failed: {e}")
-        raise HTTPException(status_code=400, detail="Invalid signature")
-
-    event_type = event.get("event", "")
-    payload_tree = event.get("payload", {}) or {}
-    sub_entity = (payload_tree.get("subscription", {}) or {}).get("entity", {}) or {}
-    pay_entity = (payload_tree.get("payment", {}) or {}).get("entity", {}) or {}
-
-    notes = sub_entity.get("notes") or pay_entity.get("notes") or {}
-    client_id = (notes.get("client_id") if isinstance(notes, dict) else None) or None
-    plan_id = (notes.get("plan_id") if isinstance(notes, dict) else None) or None
-    rzp_sub_id = sub_entity.get("id")
-    rzp_customer_id = sub_entity.get("customer_id") or pay_entity.get("customer_id")
-    period_start = _period_dt(sub_entity.get("current_start"))
-    period_end = _period_dt(sub_entity.get("current_end"))
-
-    # IDEMPOTENCY (audit): Razorpay events at-least-once RETRY hote — bina dedup ke ek hi
-    # payment.captured do baar process ho sakta → topup leads/minutes DOUBLE credit. Event-id
-    # (header) se exactly-once processing; duplicate = early return (koi side-effect nahi).
-    # Fail-open + never-raise (idempotency.py) → guard kabhi legit webhook block na kare.
-    _evt_id = request.headers.get("X-Razorpay-Event-Id") or ""
-    _idem_key = (
-        f"rzp:{_evt_id}"
-        if _evt_id
-        else f"rzp:{event_type}:{pay_entity.get('id') or sub_entity.get('id') or ''}"
-    )
-    try:
-        from app.billing import idempotency as _idem
-
-        if await _idem.seen_before(_idem_key):
-            logger.info("[razorpay] duplicate event skipped: %s", _idem_key)
-            return {"received": True, "duplicate": True, "event": event_type}
-    except Exception:
-        pass
-
-    try:
-        if event_type in ("subscription.activated", "subscription.charged", "subscription.resumed"):
-            sub = await _activate_subscription_row(
-                db,
-                client_id=client_id,
-                plan_id=plan_id,
-                gateway=PaymentGateway.RAZORPAY.value,
-                razorpay_subscription_id=rzp_sub_id,
-                razorpay_customer_id=rzp_customer_id,
-                period_start=period_start,
-                period_end=period_end,
-            )
-            await db.commit()
-            # Both first-activation and renewals start a fresh metered period -> reset usage.
-            _provision_usage(
-                client_id or (sub.client_id if sub else None),
-                plan_id or (sub.plan_id if sub else None),
-                period_end,
-                rzp_sub_id,
-                reset=True,
-            )
-            # Sales pipeline: paid subscription = deal "won". Best-effort.
-            try:
-                from app.marketing import sales_pipeline as _sp
-                from app.marketing.clients_store import get_client
-
-                _cid_here = client_id or (sub.client_id if sub else None) or ""
-                _client_rec = get_client(_cid_here) if _cid_here else {}
-                if _client_rec:
-                    _sp.upsert_deal(
-                        {
-                            "phone": _client_rec.get("phone") or "",
-                            "email": _client_rec.get("email") or "",
-                            "business_name": _client_rec.get("business_name") or _cid_here,
-                            "niche": _client_rec.get("niche") or "",
-                            "source": "subscription",
-                            "plan": plan_id or "",
-                        },
-                        stage="won",
-                    )
-            except Exception as _spe:
-                logger.debug(f"[billing] sales_pipeline won skip: {_spe}")
-
-        elif event_type == "payment.captured":
-            # Phone push: paisa aaya (self-hosted ntfy, gated — best-effort, kabhi block nahi).
-            try:
-                from app.integrations import ntfy
-
-                _amt = float(pay_entity.get("amount") or 0) / 100.0
-                ntfy.push_bg(
-                    "Payment aaya 💰",
-                    f"₹{_amt:,.0f} captured — client={client_id or '?'} plan={plan_id or '?'}",
-                    priority="high",
-                    tags=["moneybag"],
-                )
-            except Exception:
-                pass
-            # Outbound webhook: payment_captured (Zapier/n8n ke liye). Best-effort.
-            try:
-                from app.platform import outbound_webhooks as _ow_bill
-                import asyncio as _aio_bill
-
-                _aio_bill.create_task(
-                    _ow_bill.emit(
-                        "payment_captured",
-                        {
-                            "client_id": client_id or "",
-                            "plan": plan_id or "",
-                            "amount_inr": float(pay_entity.get("amount") or 0) / 100.0,
-                            "payment_id": str(pay_entity.get("id") or ""),
-                        },
-                    )
-                )
-            except Exception:
-                pass
-            # Voice-minute TOP-UP pack (payment-link/order with notes plan_id="topup_*"):
-            # plan activate NAHI hota — sirf minutes credit + invoice. (Warna activate_plan
-            # client ka plan 'topup_100' kar deta = plan break.)
-            if client_id and str(plan_id or "").startswith("topup"):
-                try:
-                    from app.billing import usage as _usage
-                    from app.marketing.packages import topup_pack
-
-                    pack = topup_pack(str(plan_id))
-                    minutes = int(pack.get("minutes") or 0)
-                    if minutes > 0:
-                        _usage.add_topup_minutes(client_id, minutes)
-                        amount_inr = float(pay_entity.get("amount") or 0) / 100.0
-                        from app.billing import gst_invoice
-
-                        await gst_invoice.on_payment_success(
-                            client_id,
-                            str(plan_id),
-                            payment_ref=str(pay_entity.get("id") or ""),
-                            gateway="razorpay",
-                            amount_inr=amount_inr or float(pack.get("price_inr") or 0),
-                        )
-                        logger.info(f"topup credited: client={client_id} +{minutes} min")
-                except Exception as te:  # pragma: no cover - defensive
-                    logger.warning(f"topup credit failed for {client_id}: {te}")
-            # Qualified-LEAD top-up pack (Product 2: voice agent, ADR-009) —
-            # notes plan_id="lead_pack_10" + band. Plan activate NAHI hota.
-            elif client_id and str(plan_id or "").startswith("lead_pack"):
-                try:
-                    from app.billing import lead_usage as _lead_usage
-                    from app.marketing.voice_packages import LEAD_TOPUP_PACK, lead_topup_price
-
-                    band = str((notes or {}).get("band") or "A").upper()
-                    leads = int(LEAD_TOPUP_PACK.get("leads") or 10)
-                    if _lead_usage.add_topup_leads(
-                        client_id, leads, ref=str(pay_entity.get("id") or "")
-                    ):
-                        amount_inr = float(pay_entity.get("amount") or 0) / 100.0
-                        from app.billing import gst_invoice
-
-                        await gst_invoice.on_payment_success(
-                            client_id,
-                            str(plan_id),
-                            payment_ref=str(pay_entity.get("id") or ""),
-                            gateway="razorpay",
-                            amount_inr=amount_inr or float(lead_topup_price(band)),
-                        )
-                        logger.info(f"lead pack credited: client={client_id} +{leads} leads")
-                except Exception as te:  # pragma: no cover - defensive
-                    logger.warning(f"lead pack credit failed for {client_id}: {te}")
-            # One-off captured payment (e.g. order-based checkout / annual prepay).
-            elif client_id:
-                sub = await _activate_subscription_row(
-                    db,
-                    client_id=client_id,
-                    plan_id=plan_id,
-                    gateway=PaymentGateway.RAZORPAY.value,
-                    period_end=period_end,
-                )
-                await db.commit()
-                _provision_usage(
-                    client_id, plan_id or (sub.plan_id if sub else None), period_end, rzp_sub_id
-                )
-                # Lifecycle nurture: trial/free → paid conversion signal.
-                # run_due() already does paid-check internally — yahan enroll se converted hoga.
-                try:
-                    from app.marketing import lifecycle_nurture as _ln
-
-                    _ln.enroll(client_id)  # idempotent — already enrolled = no-op
-                except Exception as _lne:
-                    logger.debug(f"[billing] lifecycle enroll skip: {_lne}")
-                # Affiliate: referral code se aaya tha to commission mark karo.
-                try:
-                    from app.marketing.affiliate import record_referral
-                    from app.marketing.clients_store import get_client
-
-                    _crec = get_client(client_id) or {}
-                    _rcode = (_crec.get("ref_code") or "").strip()
-                    if _rcode:
-                        record_referral(
-                            _rcode,
-                            {
-                                "client_id": client_id,
-                                "plan": plan_id or "",
-                                "status": "paid",
-                            },
-                        )
-                except Exception as _afe:
-                    logger.debug(f"[billing] affiliate paid record skip: {_afe}")
-
-        elif event_type in ("subscription.halted", "subscription.cancelled"):
-            sub = await _find_subscription_by_gateway_id(db, razorpay_id=rzp_sub_id)
-            if sub:
-                sub.status = (
-                    SubscriptionStatus.PAST_DUE
-                    if event_type.endswith("halted")
-                    else SubscriptionStatus.CANCELLED
-                )
-                if event_type.endswith("cancelled"):
-                    sub.ended_at = datetime.utcnow()
-                sub.updated_at = datetime.utcnow()
-                await db.commit()
-
-        elif event_type == "subscription.paused":
-            sub = await _find_subscription_by_gateway_id(db, razorpay_id=rzp_sub_id)
-            if sub:
-                sub.status = SubscriptionStatus.PAUSED
-                sub.updated_at = datetime.utcnow()
-                await db.commit()
-    except Exception as e:  # never 500 a webhook
-        logger.error(f"Razorpay webhook handling error ({event_type}): {e}")
-
-    return {"received": True, "event": event_type}
+# /billing/webhooks/razorpay route removed 2026-06-18 — Razorpay gateway gone
+# (no online India gateway; payments via manual UPI). Stripe webhook above remains
+# the source of truth for subscription provisioning. Voice-minute / lead-pack
+# top-ups now reconcile via manual UPI + admin tooling, not a payment webhook.

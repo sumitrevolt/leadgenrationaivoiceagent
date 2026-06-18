@@ -38,7 +38,7 @@ def _env(name: str) -> str:
 
 
 def _active_provider() -> str:
-    """Live telephony provider — vobiz (outbound stream) or exotel (voicebot)."""
+    """Live telephony provider — vobiz (outbound stream) or twilio (international)."""
     return (_env("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
 
 
@@ -56,35 +56,16 @@ def run_checks() -> dict[str, Any]:
     provider = _active_provider()
     vobiz_id = _env("VOBIZ_AUTH_ID")
     vobiz_tok = _env("VOBIZ_AUTH_TOKEN")
-    exotel_sid = _env("EXOTEL_SID") or _env("EXOTEL_ACCOUNT_SID")
-    exotel_key = _env("EXOTEL_API_KEY") or _env("EXOTEL_SID")
-    exotel_token = _env("EXOTEL_API_TOKEN") or _env("EXOTEL_TOKEN")
 
-    if provider == "exotel":
-        add(
-            "provider_creds",
-            bool(exotel_sid and exotel_key and exotel_token),
-            "EXOTEL_SID + EXOTEL_API_KEY + EXOTEL_API_TOKEN",
-            20,
-        )
-        add(
-            "caller_id",
-            bool(_env("EXOTEL_CALLER_ID")),
-            "EXOTEL_CALLER_ID (ExoPhone)",
-            15,
-        )
-        add("provider_app", bool(_env("EXOTEL_APP_ID")), "EXOTEL_APP_ID (voicebot applet)", 5)
-        telephony_ok = bool(exotel_sid and exotel_key and exotel_token)
-    else:
-        add(
-            "provider_creds",
-            bool(vobiz_id and vobiz_tok),
-            "VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN",
-            20,
-        )
-        add("caller_id", bool(_env("VOBIZ_CALLER_ID")), "VOBIZ_CALLER_ID (140 DID)", 15)
-        add("vobiz_trunk", bool(_env("VOBIZ_TRUNK_ID") or vobiz_id), "VOBIZ trunk / account", 5)
-        telephony_ok = bool(vobiz_id and vobiz_tok)
+    add(
+        "provider_creds",
+        bool(vobiz_id and vobiz_tok),
+        "VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN",
+        20,
+    )
+    add("caller_id", bool(_env("VOBIZ_CALLER_ID")), "VOBIZ_CALLER_ID (140 DID)", 15)
+    add("vobiz_trunk", bool(_env("VOBIZ_TRUNK_ID") or vobiz_id), "VOBIZ trunk / account", 5)
+    telephony_ok = bool(vobiz_id and vobiz_tok)
     # Voice AI chain
     tts_ok = False
     try:
@@ -132,21 +113,13 @@ def run_checks() -> dict[str, Any]:
     missing = [k for k, c in checks.items() if not c["ok"]]
     actions = []
     if "provider_creds" in missing:
-        if provider == "exotel":
-            actions.append("EXOTEL_SID + EXOTEL_API_KEY + EXOTEL_API_TOKEN set karo (.env)")
-        else:
-            actions.append("VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN set karo (.env)")
+        actions.append("VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN set karo (.env)")
     if "stt_groq" in missing:
         actions.append("GROQ_API_KEY set karo — STT weak link")
     if "tts_edge" in missing:
         actions.append("pip install edge-tts>=7.2.0 (image rebuild)")
     if "caller_id" in missing:
-        if provider == "exotel":
-            actions.append("EXOTEL_CALLER_ID set karo (ExoPhone recharge ke baad)")
-        else:
-            actions.append("VOBIZ_CALLER_ID set karo (140 DID recharge ke baad)")
-    if "provider_app" in missing and provider == "exotel":
-        actions.append("EXOTEL_APP_ID set karo (voicebot applet)")
+        actions.append("VOBIZ_CALLER_ID set karo (140 DID recharge ke baad)")
     if not actions:
         actions.append(
             f"{provider.title()} calling ready — kal 10am–7pm IST window me test karo ✅"

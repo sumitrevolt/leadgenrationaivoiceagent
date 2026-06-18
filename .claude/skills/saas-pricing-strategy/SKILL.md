@@ -28,6 +28,6 @@ description: Pricing/packaging/discount decisions for LeadGen AI ke DO products 
 Source file edit (`packages.py` ya `voice_packages.py`) → `test_billing_truth_2026.py` expected values update → `pytest tests/test_billing_truth_2026.py` green → pricing.html / voice-agent copy/anchor check (conversion-optimization skill) → prod_check → deploy. Landing + GST invoice auto-follow karte (`subscription._sync_*` startup pe sync).
 
 ## Red flags
-Hardcoded price kahin aur likhna ❌ (sirf source files) · marketing me 4th tier ❌ · trial ko 30-din karna ❌ (urgency khatam) · voice ko per-lead/quota model wapas lana ❌ (flat-monthly = dispute-free, jaan-bujh ke chhoda) · annual ko e-mandate recurring banana ❌ (RBI AFA friction — one-time order rakho) · discount jo unit economics tode (Exotel ~₹0.75/call + LLM free = margin samajh ke do).
+Hardcoded price kahin aur likhna ❌ (sirf source files) · marketing me 4th tier ❌ · trial ko 30-din karna ❌ (urgency khatam) · voice ko per-lead/quota model wapas lana ❌ (flat-monthly = dispute-free, jaan-bujh ke chhoda) · annual ko e-mandate recurring banana ❌ (RBI AFA friction — one-time order rakho) · discount jo unit economics tode (Vobiz ~₹0.45/call + LLM free = margin samajh ke do).
 
 Adapted from coreyhaines31/marketingskills (via VoltAgent/awesome-agent-skills)

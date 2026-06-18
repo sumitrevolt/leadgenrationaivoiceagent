@@ -1,6 +1,6 @@
 """
 Call Manager
-Unified call orchestration for Twilio and Exotel
+Unified call orchestration for Twilio and Vobiz
 """
 
 import asyncio
@@ -13,7 +13,6 @@ from typing import Any
 
 from app.config import settings
 from app.telephony.call_state import get_call_store
-from app.telephony.exotel_handler import ExotelHandler
 from app.telephony.twilio_handler import TwilioHandler
 from app.utils.dnd_checker import DNDChecker
 from app.utils.logger import setup_logger
@@ -26,7 +25,7 @@ class TelephonyProvider(Enum):
     """Supported telephony providers"""
 
     TWILIO = "twilio"
-    EXOTEL = "exotel"
+    VOBIZ = "vobiz"
 
 
 @dataclass
@@ -73,7 +72,7 @@ class CallManager:
 
     Handles:
     - Call queue management (Redis-backed for multi-worker scaling)
-    - Provider selection (Twilio/Exotel)
+    - Provider selection (Twilio/Vobiz)
     - Concurrent call limiting
     - DND checking
     - Retry logic
@@ -85,8 +84,10 @@ class CallManager:
 
         if provider == "twilio":
             self.handler = TwilioHandler()
-        elif provider == "exotel":
-            self.handler = ExotelHandler()
+        elif provider == "vobiz":
+            from app.telephony.vobiz_handler import VobizClient
+
+            self.handler = VobizClient()
         else:
             raise ValueError(f"Unknown telephony provider: {provider}")
 
@@ -138,11 +139,26 @@ class CallManager:
 
     @staticmethod
     def _status_webhook_url() -> str | None:
-        """Public Exotel status-callback URL (so connect.json has a destination)."""
+        """Public Vobiz status-callback URL."""
         base = (os.getenv("PUBLIC_BASE_URL") or os.getenv("SITE_BASE") or "").rstrip("/")
         if not base:
             return None
-        return f"{base}/api/webhooks/exotel/status"
+        return f"{base}/api/webhooks/vobiz/status"
+
+    @staticmethod
+    def _answer_url() -> str | None:
+        """Public answer_url for Vobiz outbound calls.
+
+        Vobiz fetches this URL when the call connects and expects VobizXML back.
+        The dedicated conversational path is the Vobiz stream WS
+        (/api/telephony/vobiz/stream/{token}); this best-effort answer_url points
+        at the status webhook host so place_call always has a destination. Calls
+        are DLT/recharge-blocked right now, so this is structural (not call-tested).
+        """
+        base = (os.getenv("PUBLIC_BASE_URL") or os.getenv("SITE_BASE") or "").rstrip("/")
+        if not base:
+            return None
+        return f"{base}/api/webhooks/vobiz/answer"
 
     async def queue_call(self, request: CallRequest) -> str:
         """
@@ -294,14 +310,21 @@ class CallManager:
                     call_sid = await self.handler.make_call(
                         to_number=request.phone_number, call_id=call_id
                     )
-                else:  # Exotel — pass app_id + status webhook so connect.json has a
-                    # valid destination Url (otherwise Exotel returns a connect error).
-                    call_sid = await self.handler.make_call(
-                        to_number=request.phone_number,
-                        call_id=call_id,
-                        app_id=getattr(settings, "exotel_app_id", None),
-                        webhook_url=self._status_webhook_url(),
+                else:  # Vobiz — place_call(to, answer_url, ...). VobizClient never
+                    # raises; success = status_code in 200/201/202, sid = body["id"].
+                    # The compliance gate already ran in queue_call(), so skip the
+                    # duplicate gate here (skip_compliance=True).
+                    answer_url = self._answer_url() or self._status_webhook_url() or ""
+                    result = await self.handler.place_call(
+                        to=request.phone_number,
+                        answer_url=answer_url,
+                        call_type=str(getattr(request, "call_type", "") or "promotional"),
+                        skip_compliance=True,
                     )
+                    if result.get("status_code") in (200, 201, 202):
+                        call_sid = str((result.get("body") or {}).get("id") or call_id)
+                    else:
+                        call_sid = None
 
                 if call_sid:
                     context.status = CallStatus.RINGING
@@ -562,7 +585,7 @@ class CallManager:
                 _row = _CL(
                     id=str(_uuid.uuid4()),
                     call_sid=str(call_id),
-                    provider=getattr(context, "provider", "exotel"),
+                    provider=getattr(context, "provider", "vobiz"),
                     direction=_CD.OUTBOUND,
                     lead_id=getattr(context, "lead_id", None) or None,
                     campaign_id=getattr(context, "campaign_id", None) or None,

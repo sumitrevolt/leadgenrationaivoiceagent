@@ -75,7 +75,7 @@ pip list --outdated | grep -E "fastapi|uvicorn|sqlalchemy|pydantic" | head -10
 ## Phase 2: India-Specific Compliance
 
 ### TRAI Compliance
-- [ ] AI disclosure greeting in voice calls? (`exotel_stream.py`)
+- [ ] AI disclosure greeting in voice calls? (`vobiz_stream.py`)
 - [ ] DND check fail-CLOSED? (compliance.py)
 - [ ] Call timing 10am-7pm enforced?
 - [ ] DLT registration pending? (kab tak manage without DLT?)

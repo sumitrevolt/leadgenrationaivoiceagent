@@ -113,7 +113,7 @@ If your loop ever interacts with **regulated channels** (calls, SMS):
 
 **If loop ever picks a cold-call or bulk-SMS task**:
 1. **Stop**: Set `SELF_IMPROVE_LOOP=0`
-2. **Verify**: Check DLT status (dashboard.exotel.com)
+2. **Verify**: Check DLT status (provider dashboard / Vobiz)
 3. **Clear**: Ensure opt-in list is current
 4. **Resume**: Set flag back to 1
 
@@ -207,7 +207,7 @@ Cost: $1.50/min
 
 Decision:
 → REJECT
-→ Action: Verify Exotel KYC + DLT approval (dashboard)
+→ Action: Verify Vobiz DID + DLT approval (dashboard)
 → Until DLT approved, add call tasks to "APPROVAL_REQUIRED" list in code
 → Document in AUTOMATION.md under "Voice DLT workflow"
 ```

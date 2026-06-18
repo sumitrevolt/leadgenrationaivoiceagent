@@ -11,8 +11,8 @@ HUMAN handoff with context (owner ko blind call nahi milti). Flow:
   request_transfer(call_context, owner_phone) →
     (a) gate: CALL_TRANSFER=1 flag (default OFF = inert, {"ok": False, "reason": "disabled"})
     (b) Hinglish context summary (free_ai, template fallback — LLM down pe bhi kaam)
-    (c) Exotel connect-leg owner↔caller (EXISTING ExotelHandler.make_call reuse,
-        lazy import; creds nahi = draft-only, raise nahi)
+    (c) Vobiz connect-leg owner↔caller (VobizClient.place_call reuse, lazy
+        import; creds nahi = draft-only, raise nahi)
     (d) owner ke liye WhatsApp 1-click summary link (wa.me, draft) + email DRAFT
         (send NAHI — ban-safe)
     (e) log data/call_transfers.jsonl
@@ -165,16 +165,27 @@ def _log(rec: dict[str, Any]) -> None:
 
 
 async def _initiate_connect_leg(owner10: str, call_id: str) -> dict[str, Any]:
-    """Exotel connect-leg: owner ko call lagao (existing applet caller se jodta).
-    Lazy import, creds nahi = graceful skip. Never raises."""
+    """Vobiz connect-leg: owner ko call lagao. Lazy import, creds nahi = graceful
+    skip. Never raises. (Calls DLT/recharge-blocked abhi — structural wiring.)"""
     try:
-        from app.telephony.exotel_handler import ExotelHandler
+        import os
 
-        handler = ExotelHandler()
-        if not getattr(handler, "base_url", None):
-            return {"initiated": False, "reason": "exotel_not_configured"}
-        sid = await handler.make_call(to_number=owner10, call_id=call_id)
-        return {"initiated": bool(sid), "call_sid": sid or ""}
+        from app.telephony.vobiz_handler import VobizClient
+
+        client = VobizClient()
+        if not client.available():
+            return {"initiated": False, "reason": "vobiz_not_configured"}
+        base = (os.getenv("PUBLIC_BASE_URL") or os.getenv("SITE_BASE") or "").rstrip("/")
+        answer_url = f"{base}/api/webhooks/vobiz/answer" if base else ""
+        result = await client.place_call(
+            to=owner10,
+            answer_url=answer_url,
+            call_type="transactional",
+        )
+        if result.get("status_code") in (200, 201, 202):
+            sid = str((result.get("body") or {}).get("id") or "")
+            return {"initiated": True, "call_sid": sid}
+        return {"initiated": False, "reason": f"vobiz status {result.get('status_code')}"}
     except Exception as e:
         logger.warning(f"[call_transfer] connect-leg failed: {e}")
         return {"initiated": False, "reason": str(e)[:200]}
