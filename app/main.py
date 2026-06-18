@@ -894,6 +894,13 @@ async def public_site_audit_page():
     return FileResponse(str(_website_dir / "site-audit.html"))
 
 
+@app.get("/geo-check", tags=["Frontend"])
+async def public_geo_check_page():
+    """PUBLIC lead-magnet #3: AI-search GEO visibility (ChatGPT-style probes).
+    POST /api/localseo/geo-check ko call karta (rate-limited 5/min)."""
+    return FileResponse(str(_website_dir / "geo-check.html"))
+
+
 @app.get("/demo", tags=["Frontend"])
 async def public_demo_page():
     """PUBLIC lead-magnet: AI marketing preview — business naam → real posts/hashtags/offer
@@ -977,7 +984,7 @@ async def sitemap_xml():
     except Exception:
         pass
 
-    static_paths = ["/", "/audit", "/pricing", "/voice-agent", "/compare", "/demo", "/site-audit", "/app/test-call", "/privacy", "/terms", "/refund"]
+    static_paths = ["/", "/audit", "/pricing", "/voice-agent", "/compare", "/demo", "/site-audit", "/geo-check", "/app/test-call", "/privacy", "/terms", "/refund"]
     urls: list[str] = list(static_paths)
     try:
         from app.marketing import seo_blog
