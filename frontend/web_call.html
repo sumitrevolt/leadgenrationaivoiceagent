@@ -240,6 +240,8 @@
   var endAfterSpeak = false;  // should_end -> hang up after bot finishes
   var currentAudio = null;
   var botTurnId = 0;
+  var botQueue = [];           // sequential playback (3-seg opener + sentence chunks)
+  var drainingBot = false;
   var kickTimer = null, safetyTimer = null, timerInt = null, t0 = 0;
 
   // ---- Niche dropdown: load all research-finalized niches --------------
@@ -347,18 +349,22 @@
         awaitingGreeting = true;
         clearTimeout(kickTimer);
         kickTimer = setTimeout(function(){
-          if(callActive && awaitingGreeting && !botSpeaking){
+          if(callActive && awaitingGreeting && !botSpeaking && !botQueue.length){
             awaitingGreeting = false; setState("listening"); startListening();
           }
-        }, 6500);
+        }, 12000);
 
       } else if(data.type === "bot"){
         awaitingGreeting = false; clearTimeout(kickTimer);
         pendingBot = false; clearTimeout(safetyTimer);
-        endAfterSpeak = !!data.should_end;
-        // Server-STT ne jo suna woh caption me dikhao (browser-SR text replace).
+        enqueueBot(data.text, data.audio_b64, {
+          heard: data.heard,
+          should_end: data.should_end
+        });
+
+      } else if(data.type === "filler"){
         if(data.heard){ showUserCaption(data.heard, false); }
-        playBotTurn(data.text || "(no response)", data.audio_b64);
+        if(data.audio_b64){ enqueueBot("…", data.audio_b64, {}); }
 
       } else if(data.type === "info"){
         // Not a spoken turn (e.g. echo-mode start) — start listening if waiting.
@@ -376,6 +382,42 @@
     };
     ws.onclose = function(){ if(callActive){ endCall(); } };
     ws.onerror = function(){ /* onclose will follow */ };
+  }
+
+  // ---- Bot playback queue (3-seg opener + streaming sentence chunks) ----
+  function clearBotQueue(){
+    botQueue = [];
+    drainingBot = false;
+  }
+  function enqueueBot(text, b64, opts){
+    opts = opts || {};
+    botQueue.push({
+      text: (text || "(no response)"),
+      b64: b64 || null,
+      heard: opts.heard || "",
+      should_end: !!opts.should_end
+    });
+    drainBotQueue();
+  }
+  function drainBotQueue(){
+    if(drainingBot || !botQueue.length || !callActive) return;
+    drainingBot = true;
+    stopListening();
+    var item = botQueue.shift();
+    if(item.should_end) endAfterSpeak = true;
+    if(item.heard) showUserCaption(item.heard, false);
+    playBotTurn(item.text, item.b64, function(){
+      drainingBot = false;
+      if(botQueue.length){
+        drainBotQueue();
+        return;
+      }
+      if(endAfterSpeak){ endCall(); return; }
+      if(callActive && !pendingBot){
+        setState("listening");
+        setTimeout(startListening, 300);
+      }
+    });
   }
 
   // ---- Bot turn: pause mic -> play audio -> resume mic -----------------
@@ -410,11 +452,10 @@
     setTimeout(onEnded, ms);
   }
 
-  function playBotTurn(text, b64){
+  function playBotTurn(text, b64, onDone){
     stopListening();              // ECHO GUARD: mic OFF before the bot speaks
     discardRecorder();            // bot ki awaaz record nahi karni
-    // DOUBLE-VOICE GUARD: naya turn shuru hone se pehle purana audio/TTS
-    // poora band karo — warna do awaazein overlap ho jaati hain.
+    // Cancel only overlapping playback on THIS turn (queue waits for onDone).
     if(currentAudio){
       try{ currentAudio.onended = null; currentAudio.onerror = null; currentAudio.pause(); }catch(e){}
       currentAudio = null;
@@ -426,7 +467,7 @@
     showBotCaption(text);
 
     var fellBack = false;
-    function done(){ finishBotTurn(myTurn); }
+    function done(){ finishBotTurn(myTurn, onDone); }
     function fallback(){
       if(fellBack) return; fellBack = true;
       speak(text, done);
@@ -434,15 +475,15 @@
     if(!playAudioB64(b64, done, fallback)){ fallback(); }
   }
 
-  function finishBotTurn(turn){
+  function finishBotTurn(turn, onDone){
     if(turn !== botTurnId) return;     // stale callback from an old turn
     if(!botSpeaking) return;           // already finished / interrupted
     botSpeaking = false;
     currentAudio = null;
+    if(typeof onDone === "function"){ onDone(); return; }
     if(endAfterSpeak){ endCall(); return; }
     if(callActive){
       setState("listening");
-      // ECHO GUARD: 300ms guard after playback before re-opening the mic.
       setTimeout(startListening, 300);
     }
   }
@@ -601,6 +642,7 @@
   function endCall(){
     callActive = false;
     awaitingGreeting = false; pendingBot = false; botSpeaking = false; endAfterSpeak = false;
+    clearBotQueue();
     clearTimeout(kickTimer); clearTimeout(safetyTimer);
     stopListening();
     discardRecorder();
@@ -622,6 +664,7 @@
   // Barge-in: tap the avatar while the bot is speaking to interrupt it.
   avatar.addEventListener("click", function(){
     if(botSpeaking){
+      clearBotQueue();
       try{ if(currentAudio) currentAudio.pause(); }catch(e){}
       try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
       finishBotTurn(botTurnId);
