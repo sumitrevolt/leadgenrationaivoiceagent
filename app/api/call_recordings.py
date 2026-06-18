@@ -5,12 +5,9 @@ GET /api/admin/call-recordings              → list recordings grouped by date
 GET /api/admin/call-recordings/{date}/{fn}  → stream a WAV file (audio/wav)
 
 Recordings are saved by vobiz_stream.py when VOBIZ_CALL_RECORD=1:
-  data/call_recordings/YYYY-MM-DD/call_{sid}_caller.wav   (caller audio)
-  data/call_recordings/YYYY-MM-DD/call_{sid}_bot.wav      (Swara TTS audio)
+  data/call_recordings/YYYY-MM-DD/call_{sid}.wav   (mixed conversation)
 
-Auth: same pattern as admin_dashboard.py — admin token expected by the
-HTML page (abAuthHdr), but no server-side FastAPI Depends (session-cookie
-protected by the admin login page). Consistent with existing dashboard APIs.
+Legacy (pre-merge): call_{sid}_caller.wav + call_{sid}_bot.wav still listed.
 
 Import-safe: never raises at import time.
 """
@@ -29,9 +26,12 @@ router = APIRouter(prefix="/api/admin/call-recordings", tags=["Call Recordings"]
 
 _REC_DIR = os.path.join("data", "call_recordings")
 
-# Strict allow-list patterns to prevent path traversal
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_FILE_RE = re.compile(r"^call_[A-Za-z0-9_\-]+_(caller|bot)\.wav$")
+# Mixed conversation (primary)
+_MERGED_RE = re.compile(r"^call_[A-Za-z0-9_\-]+\.wav$")
+# Legacy split tracks
+_LEGACY_RE = re.compile(r"^call_[A-Za-z0-9_\-]+_(caller|bot)\.wav$")
+_SERVE_RE = re.compile(r"^call_[A-Za-z0-9_\-]+(?:_(?:caller|bot))?\.wav$")
 
 
 def _get_size_kb(path: str) -> int:
@@ -39,6 +39,16 @@ def _get_size_kb(path: str) -> int:
         return os.path.getsize(path) // 1024
     except Exception:
         return 0
+
+
+def _sid_from_merged(fname: str) -> str | None:
+    m = re.match(r"^call_(.+)\.wav$", fname)
+    if not m:
+        return None
+    sid = m.group(1)
+    if sid.endswith("_caller") or sid.endswith("_bot"):
+        return None
+    return sid
 
 
 @router.get("", summary="List call recordings grouped by date")
@@ -55,10 +65,12 @@ async def list_recordings(_user=Depends(require_admin)) -> dict:
           "count": 5,
           "sessions": [
             {
-              "sid": "vb_abc123",
-              "caller_wav": "call_vb_abc123_caller.wav",
-              "bot_wav": "call_vb_abc123_bot.wav",
-              "size_kb": 384
+              "sid": "cd512ca0-...",
+              "wav": "call_cd512ca0-....wav",
+              "caller_wav": null,
+              "bot_wav": null,
+              "size_kb": 384,
+              "legacy_split": false
             }, ...
           ]
         }, ...
@@ -90,7 +102,24 @@ async def list_recordings(_user=Depends(require_admin)) -> dict:
             files = []
 
         for fname in files:
-            if not _FILE_RE.match(fname):
+            if _MERGED_RE.match(fname):
+                sid = _sid_from_merged(fname)
+                if not sid:
+                    continue
+                if sid not in sessions:
+                    sessions[sid] = {
+                        "sid": sid,
+                        "wav": fname,
+                        "caller_wav": None,
+                        "bot_wav": None,
+                        "size_kb": 0,
+                        "legacy_split": False,
+                    }
+                sessions[sid]["wav"] = fname
+                sessions[sid]["size_kb"] += _get_size_kb(os.path.join(day_dir, fname))
+                continue
+
+            if not _LEGACY_RE.match(fname):
                 continue
             m = re.match(r"^call_(.+)_(caller|bot)\.wav$", fname)
             if not m:
@@ -99,11 +128,14 @@ async def list_recordings(_user=Depends(require_admin)) -> dict:
             if sid not in sessions:
                 sessions[sid] = {
                     "sid": sid,
+                    "wav": None,
                     "caller_wav": None,
                     "bot_wav": None,
                     "size_kb": 0,
+                    "legacy_split": True,
                 }
             sessions[sid][f"{side}_wav"] = fname
+            sessions[sid]["legacy_split"] = sessions[sid].get("wav") is None
             sessions[sid]["size_kb"] += _get_size_kb(os.path.join(day_dir, fname))
 
         if sessions:
@@ -124,7 +156,7 @@ async def serve_recording(date: str, filename: str, _user=Depends(require_admin)
     """Download / stream a call recording WAV file."""
     if not _DATE_RE.match(date):
         raise HTTPException(status_code=400, detail="Invalid date format (YYYY-MM-DD)")
-    if not _FILE_RE.match(filename):
+    if not _SERVE_RE.match(filename):
         raise HTTPException(status_code=400, detail="Invalid filename")
 
     path = os.path.join(_REC_DIR, date, filename)

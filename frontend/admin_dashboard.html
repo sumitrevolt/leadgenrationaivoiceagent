@@ -2069,25 +2069,31 @@ async function loadRecordings(){
       for(const s of day.sessions){
         const base="/api/admin/call-recordings/"+encodeURIComponent(day.date)+"/";
         html+=`<div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:13px 16px">
-          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:monospace">SID: ${escH(s.sid)} &nbsp;·&nbsp; ${s.size_kb}KB</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
-        if(s.caller_wav){
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:monospace">SID: ${escH(s.sid)} &nbsp;·&nbsp; ${s.size_kb}KB${s.legacy_split?' &nbsp;·&nbsp; <span style="color:var(--amber)">legacy split</span>':''}</div>`;
+        if(s.wav){
           html+=`<div>
-            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">👤 Caller (prospect)</div>
-            <button class="btn recload" onclick="loadRecAudio(this)" data-url="${base+encodeURIComponent(s.caller_wav)}" style="width:100%;height:36px;font-size:12px;cursor:pointer">▶ Load caller audio</button>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">🎙 Full conversation (caller + Swara)</div>
+            <button class="btn recload" onclick="loadRecAudio(this)" data-url="${base+encodeURIComponent(s.wav)}" style="width:100%;height:36px;font-size:12px;cursor:pointer">▶ Play recording</button>
           </div>`;
+        } else if(s.legacy_split){
+          html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+          if(s.caller_wav){
+            html+=`<div>
+              <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">👤 Caller</div>
+              <button class="btn recload" onclick="loadRecAudio(this)" data-url="${base+encodeURIComponent(s.caller_wav)}" style="width:100%;height:36px;font-size:12px;cursor:pointer">▶ Caller</button>
+            </div>`;
+          }
+          if(s.bot_wav){
+            html+=`<div>
+              <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">🤖 Swara</div>
+              <button class="btn recload" onclick="loadRecAudio(this)" data-url="${base+encodeURIComponent(s.bot_wav)}" style="width:100%;height:36px;font-size:12px;cursor:pointer">▶ Swara</button>
+            </div>`;
+          }
+          html+=`</div>`;
         } else {
-          html+=`<div style="display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:8px;height:46px;font-size:12px;color:var(--muted)">No caller audio</div>`;
+          html+=`<div style="color:var(--muted);font-size:12px">No audio file</div>`;
         }
-        if(s.bot_wav){
-          html+=`<div>
-            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">🤖 Swara (bot)</div>
-            <button class="btn recload" onclick="loadRecAudio(this)" data-url="${base+encodeURIComponent(s.bot_wav)}" style="width:100%;height:36px;font-size:12px;cursor:pointer">▶ Load Swara audio</button>
-          </div>`;
-        } else {
-          html+=`<div style="display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:8px;height:46px;font-size:12px;color:var(--muted)">No bot audio</div>`;
-        }
-        html+=`</div></div>`;
+        html+=`</div>`;
       }
       html+=`</div></div>`;
     }

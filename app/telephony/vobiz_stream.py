@@ -72,6 +72,7 @@ import json
 import os
 import random
 import re
+import struct
 import threading
 from datetime import datetime, timezone
 from typing import Any
@@ -524,12 +525,13 @@ class VobizStreamSession:
         self._bg_tasks: set = set()  # keep refs so tasks aren't GC'd mid-run
 
         # ── call recording (VOBIZ_CALL_RECORD=1 se enable) ───────────────────
-        # Inbound caller PCM16 chunks collect karo; call khatam hone pe WAV save.
+        # Timeline-mixed PCM16 mono 16 kHz → ek WAV (caller + Swara same clock).
         # data/call_recordings/YYYY-MM-DD/call_{stream_sid}.wav
         # Flag OFF by default — storage cost aur privacy (DPDP consent) ke liye.
         self._rec_enabled: bool = os.environ.get("VOBIZ_CALL_RECORD", "0") == "1"
-        self._rec_inbound: list[bytes] = []   # caller audio  → call_{sid}_caller.wav
-        self._rec_outbound: list[bytes] = []  # bot TTS audio → call_{sid}_bot.wav
+        self._rec_mixed: bytearray = bytearray()
+        self._rec_timeline_samples: int = 0  # master clock = inbound media frames
+        self._rec_bot_playhead: int | None = None
 
         # instant-greeting state (pre-synthesized at WS open, before 'start')
         self._greet_pcm: bytes | None = None
@@ -689,9 +691,10 @@ class VobizStreamSession:
             return
         if not pcm16:
             return
-        # Recording: inbound caller audio chunks collect karo (WAV on hangup).
+        # Recording: mix caller audio onto the call timeline (WAV on hangup).
         if self._rec_enabled:
-            self._rec_inbound.append(pcm16)
+            self._rec_mix_caller(self._rec_timeline_samples, pcm16)
+            self._rec_timeline_samples += len(pcm16) // 2
         rms = _pcm_rms(pcm16)
         is_speech = rms >= self._vad_rms
         # Silero VAD gate (USE_SILERO_VAD=1): pcm16 is raw 16kHz PCM here, so pass it
@@ -1166,6 +1169,42 @@ class VobizStreamSession:
         self._barge_frames = 0
         self._play_task = asyncio.create_task(self._say_streaming(text))
 
+    def _rec_ensure_samples(self, n_samples: int) -> None:
+        need_bytes = n_samples * 2
+        if len(self._rec_mixed) < need_bytes:
+            pad = (need_bytes - len(self._rec_mixed)) // 2
+            self._rec_mixed.extend(b"\x00\x00" * pad)
+
+    def _rec_mix_caller(self, pos_samples: int, pcm: bytes) -> None:
+        """Write caller PCM onto the mixed track (overwrites silence at pos)."""
+        if not pcm:
+            return
+        n = len(pcm) // 2
+        self._rec_ensure_samples(pos_samples + n)
+        off = pos_samples * 2
+        self._rec_mixed[off : off + len(pcm)] = pcm
+
+    def _rec_mix_bot(self, pos_samples: int, pcm: bytes) -> None:
+        """Mix Swara TTS PCM onto the mixed track at the live timeline offset."""
+        if not pcm:
+            return
+        n = len(pcm) // 2
+        self._rec_ensure_samples(pos_samples + n)
+        for i in range(0, len(pcm) - 1, 2):
+            idx = pos_samples * 2 + i
+            a = struct.unpack_from("<h", self._rec_mixed, idx)[0]
+            b = struct.unpack_from("<h", pcm, i)[0]
+            s = a + b
+            if s > 32767:
+                s = 32767
+            elif s < -32768:
+                s = -32768
+            struct.pack_into("<h", self._rec_mixed, idx, s)
+
+    def _rec_begin_bot_playback(self) -> None:
+        """Anchor bot audio at the current inbound timeline (when Swara starts speaking)."""
+        self._rec_bot_playhead = self._rec_timeline_samples
+
     async def _say_streaming(self, text: str) -> None:
         """SENTENCE-CHUNKED STREAMING TTS — the low-latency speak path.
 
@@ -1179,6 +1218,8 @@ class VobizStreamSession:
         as a unit: the in-flight AND pending sentence synths are cancelled and
         playback stops. _speaking is owned by the canceller on barge-in (it
         already set it False); only NORMAL completion clears it here."""
+        if self._rec_enabled:
+            self._rec_begin_bot_playback()
         sentences = _split_sentences(text)
         cur_synth: asyncio.Task | None = None
         next_synth: asyncio.Task | None = None
@@ -1262,9 +1303,10 @@ class VobizStreamSession:
             frame = pcm[i : i + FRAME_PCM]
             if len(frame) < FRAME_PCM:
                 frame = frame + PCM_SILENCE * (FRAME_PCM - len(frame))
-            # Recording: bot outbound audio collect karo (sab audio yahan se jaata hai).
-            if self._rec_enabled:
-                self._rec_outbound.append(frame)
+            # Recording: mix bot TTS onto the call timeline (same clock as caller).
+            if self._rec_enabled and self._rec_bot_playhead is not None:
+                self._rec_mix_bot(self._rec_bot_playhead, frame)
+                self._rec_bot_playhead += len(frame) // 2
             # Vobiz playAudio: L16 @16k, base64 payload, NO streamSid field.
             await self._send(
                 {
@@ -1283,6 +1325,8 @@ class VobizStreamSession:
         completion clears _speaking; on cancellation the canceller owns the flag
         (barge-in already set it False), so we leave it untouched."""
         try:
+            if self._rec_enabled:
+                self._rec_begin_bot_playback()
             await self._play_frames(pcm)
             self._speaking = False
         except asyncio.CancelledError:
@@ -1371,17 +1415,14 @@ class VobizStreamSession:
             logger.warning(f"[vobiz-stream] transcript persist failed: {e}")
 
     def _save_recording(self) -> None:
-        """Bidirectional call recording -> 2 WAV files on hangup (VOBIZ_CALL_RECORD=1).
+        """Mixed conversation WAV on hangup (VOBIZ_CALL_RECORD=1).
 
-        caller : data/call_recordings/YYYY-MM-DD/call_{sid}_caller.wav
-        bot    : data/call_recordings/YYYY-MM-DD/call_{sid}_bot.wav
-        Format : PCM16 mono 16 kHz — no conversion needed (stream format).
-        Size   : ~1.92 MB/min per side.
-        DPDP   : 90-din ke baad purge karo (consent_ledger retention rule).
+        call_{sid}.wav — caller + Swara on one timeline (PCM16 mono 16 kHz).
+        DPDP: 90-din ke baad purge karo (consent_ledger retention rule).
         """
         if not self._rec_enabled:
             return
-        if not self._rec_inbound and not self._rec_outbound:
+        if not self._rec_mixed:
             return
         try:
             import uuid as _uuid
@@ -1393,22 +1434,19 @@ class VobizStreamSession:
             day_dir.mkdir(parents=True, exist_ok=True)
             uid = (self.stream_sid or _uuid.uuid4().hex[:8]).replace("/", "_")
 
-            def _write_wav(path: Path, chunks: list) -> int:
-                pcm = b"".join(chunks)
-                with wave.open(str(path), "wb") as wf:
-                    wf.setnchannels(1)
-                    wf.setsampwidth(2)
-                    wf.setframerate(SAMPLE_RATE)
-                    wf.writeframes(pcm)
-                return len(pcm) // 1024
-
-            if self._rec_inbound:
-                kb = _write_wav(day_dir / f"call_{uid}_caller.wav", self._rec_inbound)
-                logger.info(f"[vobiz-stream] caller rec -> call_{uid}_caller.wav ({kb} KB)")
-            if self._rec_outbound:
-                kb = _write_wav(day_dir / f"call_{uid}_bot.wav", self._rec_outbound)
-          
-                logger.info(f"[vobiz-stream] bot rec    -> call_{uid}_bot.wav ({kb} KB)")
+            end_samples = max(
+                self._rec_timeline_samples,
+                self._rec_bot_playhead or 0,
+            )
+            pcm = bytes(self._rec_mixed[: end_samples * 2])
+            out = day_dir / f"call_{uid}.wav"
+            with wave.open(str(out), "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(SAMPLE_RATE)
+                wf.writeframes(pcm)
+            kb = len(pcm) // 1024
+            logger.info(f"[vobiz-stream] conversation rec -> call_{uid}.wav ({kb} KB)")
         except Exception as e:
             logger.warning(f"[vobiz-stream] recording save failed: {e}")
 
