@@ -13,6 +13,15 @@ Yeh is project pe kaam karne ka distilled tareeka hai — jisse changes safe, ro
 3. **Never-raise + gated + inert-without-creds.** Har naya loop/integration: try/except (kabhi crash na kare), env-flag se gated (default OFF = zero behaviour change), creds/flag bina inert.
 4. **Additive > destructive.** Purane working code ko replace karne se pehle confirm. Naya feature add karna safe hai; rewrite risky.
 
+## 0.5 Pre-flight har code task (context-first — Cursor-grade)
+Cursor accha isliye karta hai ki woh pura codebase index karke relevant files khud uthata hai. Wahi **manually** karo — edit se PEHLE:
+1. **Locate (saare touch-points):** `Grep`/`Glob` se feature/function ke saare references dhoondo — definition, callers, routes (`@router`/`@app`), templates/JS, aur related tests. Ek bhi miss = regression.
+2. **Read full, snippet nahi:** jo files chhooni hain unhe PURA padho — imports, padosi functions, error handling, naming convention. Aadha-padha context = galat edit ka #1 reason.
+3. **Intent confirm:** "ye toota hai" assume mat karo — git log / CLAUDE.md / test se dekho behaviour intentional hai ya bug (e.g. 42→39 niche = intentional, regression nahi).
+4. **Touch-point plan:** edit se pehle likho — kaun si files + kya change + kaun se test cover karenge. Bada/multi-file → `plan-then-build`.
+5. **Edit Windows-side, Read-before-Edit:** har Edit se theek pehle file Read (stale-mount safety). Same file pe parallel multi-edit mat do (truncation hazard).
+6. **Verify before done:** `/verify` (prod_check + targeted tests + import). Green = done; warna `systematic-debugging`. Bina proof "ho gaya" mat bolo.
+
 ## 1. Kaha verify karo — Windows = truth, sandbox = STALE
 **Sabse important gotcha.** Sandbox/Linux mount file-tool edits ke baad STALE ho jaata hai — wo TRUNCATED/purani file content serve karta hai. Isse jhoothe "syntax error / unterminated string / incomplete function" dikhte hain jabki Windows pe file bilkul sahi hai.
 - **File content padhne/verify ka source-of-truth = Windows** (Read tool, Desktop Commander, Windows `git`/`python`).

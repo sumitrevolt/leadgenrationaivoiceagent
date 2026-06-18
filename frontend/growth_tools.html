@@ -545,7 +545,7 @@ async function payLinkGo(){
   if(!cid||!amt||!pur)return toast('Client ID + amount + purpose chahiye',false);
   busy('plBtn',1);
   try{
-    var d=await api('/api/clientcrm/payment-link',{method:'POST',body:JSON.stringify({client_id:cid,amount_inr:amt,purpose:pur,customer_name:$('plName').value,customer_phone:$('plPhone').value,business_name:$('plBiz').value})});
+    var d=await api('/api/engage/upi-qr',{method:'POST',body:JSON.stringify({client_id:cid,amount:amt,note:pur})}); if(d&&d.upi_uri&&!d.short_url)d.short_url=d.upi_uri;
     if(d.ok===false)throw new Error(d.error||'fail (payment links removed — manual UPI use karo)');
     var url=d.short_url||d.url||(d.link&&d.link.short_url)||'';
     var h='<div class="result">';
@@ -559,7 +559,7 @@ async function payLinkGo(){
 }
 async function payLinksList(){
   try{
-    var d=await api('/api/clientcrm/payment-links?client_id='+encodeURIComponent($('plClient').value.trim()));
+    var d={configured:false,links:[]};  // /payment-links removed 2026-06-18 (Razorpay gone) - manual UPI
     var rows=d.links||[];
     var h='<div class="mut" style="margin-top:8px">configured: '+(d.configured?'<span class="ok">haan</span>':'<span class="bad">nahi (payment links removed — manual UPI use karo)</span>')+' Â· '+rows.length+' links</div>';
     if(rows.length){h+='<table><tr><th>Kab</th><th>Client</th><th>â‚¹</th><th>Purpose</th><th>Link</th></tr>';

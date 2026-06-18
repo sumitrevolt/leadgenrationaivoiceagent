@@ -1969,7 +1969,7 @@ async function rvWarmup(){
   }catch(e){toast('Warmup fail: '+e.message,false)}
 }
 async function rvRecon(){
-  try{var d=await api('/api/growth/revenue/recon');
+  try{var d={removed:true,note:'Payment recon hata diya gaya - Razorpay gateway gone, payments ab manual UPI (reconcile karne ko koi online rail nahi).'};
     $('rvRcOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
   }catch(e){toast('Recon fail: '+e.message,false)}
 }
@@ -1977,7 +1977,7 @@ async function rvReconRun(){
   busy('rvRcBtn',1);
   try{
     var days=parseInt($('rvReconDays').value)||3;
-    var d=await api('/api/growth/revenue/recon/run?days='+days,{method:'POST'});
+    var d={removed:true,note:'Recon removed 2026-06-18 - no online gateway (payments = manual UPI).'};
     $('rvRcOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Recon done ✅');
   }catch(e){toast('Recon fail: '+e.message,false)}
   busy('rvRcBtn',0);

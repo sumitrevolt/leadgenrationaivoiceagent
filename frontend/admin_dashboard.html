@@ -476,6 +476,10 @@
               <input type="checkbox" id="campDry" style="width:16px;height:16px;cursor:pointer">
               <label for="campDry" style="font-size:13px;font-weight:600;color:var(--ink);cursor:pointer">Dry Run (no actual calls)</label>
             </div>
+            <div>
+              <label for="campClient" style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Client ID (optional)</label>
+              <input id="campClient" placeholder="clients_store id (khali = LeadGen AI brand)" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;min-width:220px">
+            </div>
             <button class="btn" onclick="fireCampaign()" style="background:#10b981;padding:9px 20px;font-size:13px">🚀 Fire Campaign</button>
             <button class="btn" onclick="loadCampaignStatus()" style="background:#6366f1;padding:9px 14px;font-size:12px">↻ Status</button>
             <button class="btn" id="campStopBtn" onclick="stopCampaign()" style="background:#ef4444;padding:9px 14px;font-size:12px;display:none">⏹ Stop</button>
@@ -2003,12 +2007,13 @@ let _campPolling = false;
 async function fireCampaign(){
   const limit = parseInt(($("campLimit")||{}).value||"10",10);
   const dry   = ($("campDry")||{}).checked;
+  const clientId = (($("campClient")||{}).value||"").trim();
   $("campOut").innerHTML = `<span style="color:var(--amber)">⏳ Launching campaign (limit=${limit}, dry_run=${dry})…</span>`;
   try{
     const r = await fetch("/api/admin/campaign/launch",{
       method:"POST",
       headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
-      body: JSON.stringify({limit, dry_run: dry})
+      body: JSON.stringify({limit, dry_run: dry, client_id: clientId||undefined})
     });
     const d = await r.json();
     if(d.queued){

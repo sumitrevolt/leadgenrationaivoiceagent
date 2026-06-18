@@ -27,6 +27,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--limit", type=int, default=10)
 parser.add_argument("--dry-run", action="store_true")
 parser.add_argument("--niche", type=str, default="")
+parser.add_argument("--client-id", type=str, default="", help="Campaign client (clients_store id) -> bot greets as that business + niche")
 parser.add_argument(
     "--transactional",
     action="store_true",
@@ -114,7 +115,7 @@ def mark_called(phone_raw: str) -> None:
         print(f"  [warn] DB mark_called failed: {e}")
 
 
-async def fire_vobiz(prospects: list[dict], dry_run: bool, call_type: str) -> tuple[int, int, int]:
+async def fire_vobiz(prospects: list[dict], dry_run: bool, call_type: str, client_id: str = "") -> tuple[int, int, int]:
     from app.api.telephony_vobiz import start_stream_call
     from app.telephony.vobiz_handler import VobizClient
 
@@ -140,7 +141,7 @@ async def fire_vobiz(prospects: list[dict], dry_run: bool, call_type: str) -> tu
             skip += 1
             continue
 
-        result = await start_stream_call(to="+91" + p10, niche=niche, call_type=call_type)
+        result = await start_stream_call(to="+91" + p10, niche=niche, call_type=call_type, client_id=client_id or None)
         if result.get("placed"):
             print("PLACED OK")
             mark_called(p["phone"])
@@ -222,11 +223,11 @@ async def fire_exotel(prospects: list[dict], dry_run: bool, call_type: str) -> t
     return ok, skip, fail
 
 
-async def fire(prospects: list[dict], dry_run: bool, call_type: str) -> None:
+async def fire(prospects: list[dict], dry_run: bool, call_type: str, client_id: str = "") -> None:
     provider = _provider()
     print(f"Provider: {provider} | call_type={call_type}")
     if provider == "vobiz":
-        ok, skip, fail = await fire_vobiz(prospects, dry_run, call_type)
+        ok, skip, fail = await fire_vobiz(prospects, dry_run, call_type, client_id)
     else:
         ok, skip, fail = await fire_exotel(prospects, dry_run, call_type)
     if not dry_run:
@@ -278,7 +279,7 @@ async def main() -> None:
     if not prospects:
         print("No leads found.")
         return
-    await fire(prospects, args.dry_run, call_type)
+    await fire(prospects, args.dry_run, call_type, args.client_id)
 
 
 if __name__ == "__main__":

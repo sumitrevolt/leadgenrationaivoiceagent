@@ -288,7 +288,24 @@ async def vobiz_stream_ws(
         niche = pend.get("niche") or niche
         client_id = pend.get("client_id") or client_id
 
-    session = VobizStreamSession(websocket, niche=niche, client_id=client_id)
+    # Resolve real client name + niche from client_id so the INSTANT greeting
+    # (played at WS-open) isn't generic "Demo Co" / niche=general. Never-raise.
+    client_name = "LeadGen AI"
+    if client_id:
+        try:
+            from app.marketing import clients_store
+
+            _c = clients_store.get_client(client_id)
+            if _c:
+                client_name = (_c.get("business_name") or "").strip() or client_name
+                if (not niche or niche == "general") and _c.get("niche"):
+                    niche = _c["niche"]
+        except Exception:
+            pass
+
+    session = VobizStreamSession(
+        websocket, niche=niche, client_id=client_id, client_name=client_name
+    )
     await session.handle()
 
 
