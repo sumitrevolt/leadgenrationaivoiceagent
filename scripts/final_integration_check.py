@@ -30,6 +30,7 @@ def main() -> int:
         ("wiring_audit", [sys.executable, "scripts/wiring_audit.py"]),
         ("deep_wiring_audit", [sys.executable, "scripts/deep_wiring_audit.py"]),
         ("cross_path_audit", [sys.executable, "scripts/cross_path_audit.py"]),
+        ("eval_guardrail", [sys.executable, "scripts/eval_guardrail.py"]),
     ]
     if not args.skip_live:
         steps.append(("live_integration_smoke", [sys.executable, "scripts/live_integration_smoke.py"]))
