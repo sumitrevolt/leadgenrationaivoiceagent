@@ -402,6 +402,18 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             pid = p.get("id")
             to_addr = str(p.get("email") or "").strip()
             biz = str(p.get("business_name") or "").strip() or "(unknown)"
+            # RFC 8058 / DPDP: one-click-unsubscribed = skip; baaki sab ko
+            # List-Unsubscribe headers ke saath bhejo (Gmail/Yahoo deliverability).
+            _unsub_hdrs: dict[str, str] = {}
+            try:
+                from app.platform import email_unsub as _eu
+
+                if to_addr and _eu.is_suppressed(to_addr):
+                    result["suppressed"] = result.get("suppressed", 0) + 1
+                    continue
+                _unsub_hdrs = _eu.headers_for(to_addr)
+            except Exception:
+                pass
             try:
                 subject, text, html_body = _email_subject_body(p)
                 try:  # A/B spintax subject (GATED OUTREACH_AB=1; OFF = zero change)
@@ -421,7 +433,9 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                     pass
                 ok = False
                 try:
-                    ok = bool(await sender.send_email([to_addr], subject, text, html_body))
+                    ok = bool(await sender.send_email(
+                        [to_addr], subject, text, html_body, extra_headers=_unsub_hdrs
+                    ))
                 except Exception as e:
                     logger.warning(f"[auto_outreach] send to {to_addr} failed: {e}")
                     ok = False
@@ -568,6 +582,17 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
             pid = p.get("id")
             to_addr = str(p.get("email") or "").strip()
             biz = str(p.get("business_name") or "").strip() or "(unknown)"
+            # RFC 8058 / DPDP: unsubscribed = skip followups too; rest get headers.
+            _unsub_hdrs: dict[str, str] = {}
+            try:
+                from app.platform import email_unsub as _eu
+
+                if to_addr and _eu.is_suppressed(to_addr):
+                    result["suppressed"] = result.get("suppressed", 0) + 1
+                    continue
+                _unsub_hdrs = _eu.headers_for(to_addr)
+            except Exception:
+                pass
             try:
                 subject, text, html_body = _followup_subject_body(p, step)
                 try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON; absent = no-op)
@@ -578,7 +603,9 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                     pass
                 ok = False
                 try:
-                    ok = bool(await sender.send_email([to_addr], subject, text, html_body))
+                    ok = bool(await sender.send_email(
+                        [to_addr], subject, text, html_body, extra_headers=_unsub_hdrs
+                    ))
                 except Exception as e:
                     logger.warning(f"[auto_outreach] followup to {to_addr} failed: {e}")
                     ok = False

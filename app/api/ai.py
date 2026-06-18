@@ -266,14 +266,23 @@ async def ai_health_check():
 # ============================================================================
 import json as _json  # noqa: E402
 
-_CMD_ACTIONS = {"stats", "list_clients", "find_client", "draft_followup", "draft_message", "help"}
+_CMD_ACTIONS = {
+    "stats",
+    "list_clients",
+    "find_client",
+    "draft_followup",
+    "draft_message",
+    "call_insights",
+    "help",
+}
 
 _CMD_SYSTEM = (
     "Tum LeadGenAI CRM ka command-parser ho. User Hinglish/English me request karega. "
     "SIRF ek JSON object lautao, aur kuch nahi: "
-    '{"action":"<stats|list_clients|find_client|draft_followup|draft_message|help>",'
-    '"params":{"query":"<naam/keyword agar ho>","status":"<active|inactive agar ho>",'
+    '{"action":"<stats|list_clients|find_client|draft_followup|draft_message|call_insights|help>",'
+    '"params":{"query":"<naam/keyword/sawaal agar ho>","status":"<active|inactive agar ho>",'
     '"topic":"<message ka topic agar ho>"},"reply":"<ek line Hinglish acknowledgement>"}. '
+    "Call/campaign questions (kitne interested, aaj kitni calls) = call_insights. "
     "Samajh na aaye to action=help. Koi explanation mat do, sirf JSON."
 )
 
@@ -412,6 +421,10 @@ async def nl_command(req: CommandIn, user: User = Depends(require_admin)):
             ]
         elif action in ("draft_followup", "draft_message"):
             data = await _cmd_draft(params.get("topic") or q, params.get("query") or "")
+        elif action == "call_insights":
+            from app.platform import call_insights
+
+            data = await call_insights.ask(params.get("query") or q)
         else:
             action = "help"
             data = {
@@ -421,6 +434,7 @@ async def nl_command(req: CommandIn, user: User = Depends(require_admin)):
                     "'X' naam ka client dhoondo",
                     "'X' client ko follow-up draft karo",
                     "diwali offer ka message draft karo",
+                    "aaj kitne calls interested the? (call insights)",
                 ]
             }
     except Exception as e:
@@ -434,6 +448,7 @@ async def nl_command(req: CommandIn, user: User = Depends(require_admin)):
             "find_client": "Yeh matching clients mile.",
             "draft_followup": "Follow-up draft taiyaar (review karke bhejo).",
             "draft_message": "Message draft taiyaar.",
+            "call_insights": "Call/campaign data se jawab.",
             "help": "Main yeh kar sakta hoon:",
         }.get(action, "Done.")
     return {"ok": True, "action": action, "reply": human, "data": data, "provider": provider}

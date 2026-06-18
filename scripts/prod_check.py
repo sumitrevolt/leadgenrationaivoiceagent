@@ -181,6 +181,7 @@ def _automation_wiring_gaps() -> list[str]:
         cpa.PROBLEMS.clear()
         with contextlib.redirect_stdout(io.StringIO()):
             cpa.audit_vobiz_stream_lifecycle()
+            cpa.audit_call_insights_transcripts()
             cpa.audit_qualified_lead_idempotency()
         gaps.extend(cpa.PROBLEMS)
     except Exception:

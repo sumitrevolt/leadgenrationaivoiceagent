@@ -3,6 +3,7 @@
 "Aaj kitne log interested the?", "callbacks kitne pending?" — admin saadhe sawaal
 pooche, AI call/lead data padh ke jawab de. Sources (sab best-effort, jo mile):
   - data/call_qualifications.jsonl  (post-call AI qualifier — call_manager likhta)
+  - data/call_transcripts/*.jsonl     (LIVE Vobiz stream full transcripts — vobiz_stream)
   - data/dialer_logs.jsonl          (human dialer dispositions — dialer_log.py)
   - data/cadence_runs.jsonl         (omnichannel cadence step drafts — cadence.py)
   - agent_events                    (team.recent_events helper, lazy/DB-optional)
@@ -28,6 +29,7 @@ logger = setup_logger(__name__)
 _QUALIFICATIONS = os.path.join("data", "call_qualifications.jsonl")
 _DIALER_LOGS = os.path.join("data", "dialer_logs.jsonl")
 _CADENCE_RUNS = os.path.join("data", "cadence_runs.jsonl")
+_TRANSCRIPTS_DIR = os.path.join("data", "call_transcripts")
 
 _RECENT_N = 50  # context me kitne recent records
 
@@ -51,6 +53,36 @@ def _read_jsonl_tail(path: str, limit: int = _RECENT_N) -> list[dict[str, Any]]:
     return out[-max(1, min(int(limit or _RECENT_N), 500)) :]
 
 
+def _read_call_transcripts(limit: int = _RECENT_N) -> list[dict[str, Any]]:
+    """LIVE Vobiz stream transcripts (data/call_transcripts/YYYY-MM-DD.jsonl). Never raises."""
+    out: list[dict[str, Any]] = []
+    try:
+        if not os.path.isdir(_TRANSCRIPTS_DIR):
+            return out
+        files = sorted(
+            f
+            for f in os.listdir(_TRANSCRIPTS_DIR)
+            if f.endswith(".jsonl")
+        )
+        # Last ~14 daily files (newest last for tail read)
+        for name in files[-14:]:
+            fp = os.path.join(_TRANSCRIPTS_DIR, name)
+            try:
+                with open(fp, encoding="utf-8") as f:
+                    for ln in f:
+                        try:
+                            rec = json.loads(ln)
+                            if isinstance(rec, dict):
+                                out.append(rec)
+                        except Exception:
+                            continue
+            except Exception:
+                continue
+    except Exception as e:
+        logger.debug(f"[call_insights] read transcripts failed: {e}")
+    return out[-max(1, min(int(limit or _RECENT_N), 200)) :]
+
+
 def _recent_agent_events(limit: int = 30) -> list[dict[str, Any]]:
     """agent_events via EXISTING team.recent_events (lazy, DB na ho = [])."""
     try:
@@ -69,6 +101,7 @@ def quick_stats() -> dict[str, Any]:
         quals = _read_jsonl_tail(_QUALIFICATIONS, 500)
         dialer = _read_jsonl_tail(_DIALER_LOGS, 500)
         cadence = _read_jsonl_tail(_CADENCE_RUNS, 500)
+        transcripts = _read_call_transcripts(500)
 
         today = datetime.now(timezone.utc).date().isoformat()
 
@@ -84,6 +117,10 @@ def quick_stats() -> dict[str, Any]:
 
         c_by_channel = dict(Counter(str(r.get("channel") or "?") for r in cadence))
 
+        t_today = sum(1 for t in transcripts if str(t.get("ts") or "")[:10] == today)
+        t_durs = [float(t.get("duration_s") or 0) for t in transcripts if t.get("duration_s") is not None]
+        t_avg_dur = round(sum(t_durs) / len(t_durs), 1) if t_durs else 0.0
+
         return {
             "calls_qualified": {
                 "total": q_total,
@@ -98,6 +135,12 @@ def quick_stats() -> dict[str, Any]:
                 "by_disposition": d_by,
             },
             "cadence": {"recent_steps": len(cadence), "by_channel": c_by_channel},
+            "live_calls": {
+                "total": len(transcripts),
+                "today": t_today,
+                "avg_duration_s": t_avg_dur,
+                "total_user_turns": sum(int(t.get("user_turns") or 0) for t in transcripts),
+            },
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
     except Exception as e:
@@ -127,6 +170,26 @@ def _build_context() -> str:
                 "- " + _compact(q, ("call_id", "interest_score", "qualified", "appointment_requested", "budget_signal", "summary"))
             )
 
+    transcripts = _read_call_transcripts(_RECENT_N)
+    if transcripts:
+        lines.append("## LIVE phone transcripts (Vobiz stream):")
+        for t in transcripts[-15:]:
+            lines.append(
+                "- "
+                + _compact(
+                    t,
+                    ("stream_sid", "niche", "client_name", "duration_s", "user_turns", "ts"),
+                )
+            )
+            msgs = t.get("messages") or []
+            if isinstance(msgs, list) and msgs:
+                last_user = next(
+                    (m.get("content", "") for m in reversed(msgs) if m.get("role") == "user"),
+                    "",
+                )
+                if last_user:
+                    lines.append(f"  last_caller: {str(last_user)[:120]}")
+
     dialer = _read_jsonl_tail(_DIALER_LOGS, _RECENT_N)
     if dialer:
         lines.append("## Dialer dispositions (human telecaller):")
@@ -154,11 +217,14 @@ def _stats_answer(stats: dict[str, Any]) -> str:
         q = stats.get("calls_qualified") or {}
         d = stats.get("dialer") or {}
         c = stats.get("cadence") or {}
+        lc = stats.get("live_calls") or {}
         disp = d.get("by_disposition") or {}
         return (
             f"📊 Data snapshot: {q.get('total', 0)} AI-qualified calls "
             f"({q.get('qualified', 0)} qualified, {q.get('appointments_requested', 0)} appointment, "
             f"avg interest {q.get('avg_interest_score', 0)}/5). "
+            f"LIVE calls logged: {lc.get('total', 0)} (aaj {lc.get('today', 0)}, "
+            f"avg {lc.get('avg_duration_s', 0)}s). "
             f"Dialer: {d.get('total_logged', 0)} dispositions (aaj {d.get('today', 0)}) — "
             f"interested {disp.get('interested', 0)}, callback {disp.get('callback', 0)}, "
             f"no-answer {disp.get('no-answer', 0)}. "
