@@ -40,6 +40,32 @@ logger = setup_logger(__name__)
 router = APIRouter(prefix="/web-call", tags=["Web Call (Test Mode)"])
 
 
+# Per-IP abuse guard for the PUBLIC web-call WS — anyone can open this socket and
+# burn free LLM/STT/TTS. Cap new sessions per IP. FAIL-OPEN: limiter error/unset
+# never blocks legit traffic. (HTTP rate_limit() dep can't wrap a WebSocket, so we
+# check inline at connect.)
+try:
+    from app.cache import RateLimiter
+
+    _WS_LIMITER: Any = RateLimiter(prefix="rl:webcallws", max_requests=15, window_seconds=60)
+except Exception:  # pragma: no cover - cache layer optional
+    _WS_LIMITER = None
+
+
+def _ws_client_ip(ws: WebSocket) -> str:
+    """Real client IP behind Caddy (X-Forwarded-For/Real-IP) warna socket peer."""
+    try:
+        xff = ws.headers.get("x-forwarded-for")
+        if xff:
+            return xff.split(",")[0].strip()
+        xri = ws.headers.get("x-real-ip")
+        if xri:
+            return xri.strip()
+        return ws.client.host if ws.client else "unknown"
+    except Exception:
+        return "unknown"
+
+
 # ---------------------------------------------------------------------------- #
 # Lazy, import-safe resolvers
 # ---------------------------------------------------------------------------- #
@@ -327,6 +353,15 @@ async def web_call_ws(websocket: WebSocket) -> None:
     server runs the VoicePipeline (or LLM/echo fallback) and streams back bot
     replies. Clearly flagged as TEST MODE — no real phone call.
     """
+    # Per-IP abuse guard (free LLM/STT cost) — reject over-cap before accept.
+    if _WS_LIMITER is not None:
+        try:
+            _allowed, _ = await _WS_LIMITER.is_allowed(_ws_client_ip(websocket))
+        except Exception:
+            _allowed = True
+        if not _allowed:
+            await websocket.close(code=1013)  # Try Again Later
+            return
     await websocket.accept()
 
     # Per-session conversation context. Defaults until the client tells us the
