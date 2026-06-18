@@ -52,8 +52,22 @@
   "use strict";
   var f=document.getElementById("f"), btn=document.getElementById("btn"), msg=document.getElementById("msg");
   function show(t,cls){ msg.textContent=t; msg.className="msg "+cls; }
-  // already logged in? offer to continue
-  if(localStorage.getItem("accessToken")){ show("Pehle se logged in. ","ok"); }
+  function safeNext(){
+    var p=new URLSearchParams(location.search);
+    var n=(p.get("next")||"").trim();
+    if(n&&n.charAt(0)==="/"&&n.indexOf("//")!==0) return n;
+    return "/app/admin";
+  }
+  function authHdr(){
+    var t=localStorage.getItem("accessToken")||localStorage.getItem("adminToken")||"";
+    return t?{Authorization:"Bearer "+t}:{};
+  }
+  // already logged in → admin dashboard (ya ?next=)
+  if(localStorage.getItem("accessToken")||localStorage.getItem("adminToken")){
+    fetch("/api/admin/me",{headers:authHdr(),cache:"no-store"})
+      .then(function(r){ if(r.ok) location.replace(safeNext()); })
+      .catch(function(){});
+  }
   f.onsubmit=async function(e){
     e.preventDefault();
     btn.disabled=true; var lbl=btn.textContent; btn.textContent="Logging in…"; msg.className="msg";
@@ -63,10 +77,8 @@
       var d=await r.json().catch(function(){return {};});
       if(r.ok && d.access_token){
         localStorage.setItem("accessToken", d.access_token);
-        show("Login ✓ — dashboards khul rahe hain…","ok");
-        var _role=(d.user&&d.user.role)||"";
-        var _dest=(_role==="super_admin"||_role==="admin")?"/app/admin":"/app/marketing";
-        setTimeout(function(){ location.href=_dest; }, 700);
+        show("Login ✓ — admin dashboard khul raha hai…","ok");
+        setTimeout(function(){ location.replace(safeNext()); }, 400);
       } else if(r.status===401){
         show("Galat email ya password.","err");
       } else {
