@@ -17,6 +17,7 @@
 3. **Pattern-match + additive:** padosi code ka convention copy karo; working code rewrite risky → additive prefer.
 4. **Verify before "done":** change ke baad `/verify` (prod_check + targeted tests) chalao; "ho gaya" sirf jab green. Bina proof done MAT bolo.
 5. Non-trivial change/debug/audit → pehle skill **`fable-operating-manual`** invoke karo (+ `leadgen-ops` deploy · `marketing-feature` naya feature · `systematic-debugging` bug).
+6. **Improvement ≠ broken** (2026-06-18 lesson — Cursor se piche raha tha): `final_integration_check`/`prod_check` PASS ka matlab "kuch banana nahi" NAHI. Cross-path wiring gaps (hook ek path me par active path me nahi, jaise AUTO_QUALIFY call_manager me tha vobiz_stream me nahi), untested fixes (unit-test add karo), dormant-but-wireable loops — yeh dhoondo + **SHIP karo**. Analysis/AskUserQuestion pe ruk ke "ball tumhare court me" mat bolo jab real wireable value ho. Decide-and-ship.
 
 ## Product (current direction — MARKETING-FIRST pivot)
 - **USER-CLARIFIED (2026-06-11): DO alag products.** (1) **AI Automated Marketing** = MAIN product (Dhanda-jaisa) chhote local businesses ke liye — iske Advanced tier me AI voice agent sirf EK FEATURE hai (inquiry callback, qualification, follow-ups). (2) **AI Voice Calling Agent** = ALAG standalone product (full AI telecaller, DLT-gated). **"Marketing + voice dono ek saath/bundle" USP framing GALAT hai — use mat karo.**
