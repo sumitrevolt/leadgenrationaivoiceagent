@@ -158,22 +158,34 @@ def check_frontend_wiring() -> None:
 
 
 def _automation_wiring_gaps() -> list[str]:
-    """Reuse scripts/automation_wiring_audit — flags-wired + jobs-dispatchable."""
+    """Reuse scripts/automation_wiring_audit + cross_path_audit — flags/jobs + telephony parity."""
     import contextlib
     import io
 
+    gaps: list[str] = []
     try:
         from scripts import automation_wiring_audit as awa
 
         awa.PROBLEMS.clear()
-        with contextlib.redirect_stdout(io.StringIO()):  # mute the audit's own prints
+        with contextlib.redirect_stdout(io.StringIO()):
             blob = awa._all_app_text()
             awa.audit_flags(blob)
             awa.audit_jobs(blob)
             awa.audit_beat()
-        return list(awa.PROBLEMS)
+        gaps.extend(awa.PROBLEMS)
     except Exception:
-        return []
+        pass
+    try:
+        from scripts import cross_path_audit as cpa
+
+        cpa.PROBLEMS.clear()
+        with contextlib.redirect_stdout(io.StringIO()):
+            cpa.audit_vobiz_stream_lifecycle()
+            cpa.audit_qualified_lead_idempotency()
+        gaps.extend(cpa.PROBLEMS)
+    except Exception:
+        pass
+    return gaps
 
 
 def check_production_config() -> None:

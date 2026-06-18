@@ -95,10 +95,25 @@ def _iter_period(client_id: str, period: str | None = None):
         return
 
 
+def _ref_already_recorded(client_id: str, ref: str) -> bool:
+    """Same call/ref qualified twice → skip (idempotent meter + webhook)."""
+    rk = (ref or "").strip()
+    if not rk:
+        return False
+    try:
+        for rec in _iter_period(client_id):
+            if rec.get("kind") == "qualified" and str(rec.get("ref") or "") == rk:
+                return True
+    except Exception:
+        return False
+    return False
+
+
 def record_qualified_lead(client_id: str, ref: str = "", plan: str | None = None) -> bool:
     """Ek AI-qualified lead consume karo (call_qualifier 'interested' verdict pe).
 
     ref = call sid / qualification id (dispute-evidence link). Best-effort.
+    Idempotent on ref within the billing period (duplicate qualify → no-op).
 
     I.2: After the meter row is written, fire-and-forget a `lead.qualified`
     event to the customer's subscribed webhooks (H.1). INERT when
@@ -107,6 +122,8 @@ def record_qualified_lead(client_id: str, ref: str = "", plan: str | None = None
     cid = (client_id or "").strip()
     if not cid:
         return False
+    if _ref_already_recorded(cid, ref):
+        return True
     rec = {
         "client_id": cid,
         "ts": _now().isoformat(),
