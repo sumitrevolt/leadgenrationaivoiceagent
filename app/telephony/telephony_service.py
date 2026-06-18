@@ -8,9 +8,9 @@ provider keys.
 
 Provider selection (in priority order):
     1. TELEPHONY_PROVIDER env / setting, if explicitly set to one of:
-       "twilio" | "exotel" | "sip" | "none" | "simulation".
+       "twilio" | "vobiz" | "sip" | "none" | "simulation".
     2. Auto-detect: pick whichever provider's keys actually exist
-       (sip -> exotel -> twilio).
+       (sip -> vobiz -> twilio).
     3. Else -> "simulation" mode (no keys needed).
 
 Usage:
@@ -52,7 +52,7 @@ class CallResult:
     call_id: str
     status: str  # initiated, connected, no_answer, busy, failed, not_configured, simulated
     duration: int  # seconds
-    provider: str  # twilio | exotel | sip:* | simulation
+    provider: str  # twilio | vobiz | sip:* | simulation
     error: str | None = None
 
 
@@ -72,7 +72,7 @@ class TelephonyService:
     runs. Use validate_config() to inspect the active provider and gaps.
     """
 
-    VALID_PROVIDERS = ("twilio", "exotel", "sip", "none", "simulation")
+    VALID_PROVIDERS = ("twilio", "vobiz", "sip", "none", "simulation")
 
     def __init__(self, provider: str | None = None):
         self.provider = (provider or self._detect_provider()).lower()
@@ -80,7 +80,7 @@ class TelephonyService:
 
         # Try to construct the chosen real handler; on ANY failure, fall back to
         # simulation so we never crash.
-        if self.provider in ("twilio", "exotel", "sip"):
+        if self.provider in ("twilio", "vobiz", "sip"):
             try:
                 self._handler = self._build_handler(self.provider)
             except Exception as e:
@@ -113,11 +113,11 @@ class TelephonyService:
                 f"Valid: {self.VALID_PROVIDERS}. Auto-detecting instead."
             )
 
-        # Auto-detect: cheapest-first (sip), then exotel (India), then twilio.
+        # Auto-detect: cheapest-first (sip), then vobiz (India), then twilio.
         if _env("SIP_HOST") and _env("SIP_USERNAME") and _env("SIP_PASSWORD"):
             return "sip"
-        if _env("EXOTEL_SID") and _env("EXOTEL_TOKEN"):
-            return "exotel"
+        if _env("VOBIZ_AUTH_ID") and _env("VOBIZ_AUTH_TOKEN"):
+            return "vobiz"
         if _env("TWILIO_ACCOUNT_SID") and _env("TWILIO_AUTH_TOKEN"):
             return "twilio"
 
@@ -130,10 +130,10 @@ class TelephonyService:
             from app.telephony.twilio_handler import TwilioHandler
 
             return TwilioHandler()
-        if provider == "exotel":
-            from app.telephony.exotel_handler import ExotelHandler
+        if provider == "vobiz":
+            from app.telephony.vobiz_handler import VobizClient
 
-            return ExotelHandler()
+            return VobizClient()
         if provider == "sip":
             from app.telephony.sip_handler import SIPHandler
 
@@ -215,7 +215,44 @@ class TelephonyService:
                     error=sip_result.error,
                 )
 
-            if self.provider in ("twilio", "exotel"):
+            if self.provider == "vobiz":
+                # VobizClient.place_call(to, answer_url, ...) — never raises;
+                # success = status_code in 200/201/202. Compliance already ran
+                # above, so skip the duplicate gate. answer_url best-effort points
+                # at the public site (calls DLT/recharge-blocked → structural only).
+                call_id = str(uuid.uuid4())
+                base = (
+                    os.getenv("PUBLIC_BASE_URL")
+                    or os.getenv("SITE_BASE")
+                    or settings.public_base_url
+                    or ""
+                ).rstrip("/")
+                answer_url = f"{base}/api/webhooks/vobiz/answer" if base else ""
+                result = await self._handler.place_call(
+                    to=to_number,
+                    answer_url=answer_url,
+                    from_=from_number,
+                    call_type=call_type,
+                    skip_compliance=True,
+                )
+                if result.get("status_code") in (200, 201, 202):
+                    call_sid = str((result.get("body") or {}).get("id") or call_id)
+                    return CallResult(
+                        call_id=call_sid,
+                        status="initiated",
+                        duration=0,
+                        provider=self.provider,
+                        error=None,
+                    )
+                return CallResult(
+                    call_id=call_id,
+                    status="failed",
+                    duration=0,
+                    provider=self.provider,
+                    error=str((result.get("body") or {}).get("error") or "vobiz: no call id"),
+                )
+
+            if self.provider == "twilio":
                 call_id = str(uuid.uuid4())
                 call_sid = await self._handler.make_call(
                     to_number=to_number,
@@ -312,7 +349,7 @@ class TelephonyService:
         # Per-provider key presence (for diagnostics / dashboard).
         available = {
             "twilio": bool(_env("TWILIO_ACCOUNT_SID") and _env("TWILIO_AUTH_TOKEN")),
-            "exotel": bool(_env("EXOTEL_SID") and _env("EXOTEL_TOKEN")),
+            "vobiz": bool(_env("VOBIZ_AUTH_ID") and _env("VOBIZ_AUTH_TOKEN")),
             "sip": bool(_env("SIP_HOST") and _env("SIP_USERNAME") and _env("SIP_PASSWORD")),
         }
 
@@ -320,8 +357,8 @@ class TelephonyService:
             for k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"):
                 if not _env(k):
                     missing.append(k)
-        elif self.provider == "exotel":
-            for k in ("EXOTEL_SID", "EXOTEL_TOKEN", "EXOTEL_SUBDOMAIN", "EXOTEL_CALLER_ID"):
+        elif self.provider == "vobiz":
+            for k in ("VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN", "VOBIZ_CALLER_ID"):
                 if not _env(k):
                     missing.append(k)
         elif self.provider == "sip":

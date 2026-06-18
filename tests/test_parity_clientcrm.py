@@ -211,33 +211,15 @@ def test_minisite_catalog_section(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# payment_links — inert without creds, wa share link, store
+# payment_links — removed 2026-06-18 (Razorpay gone); stub is fully inert
 # --------------------------------------------------------------------------- #
-def test_payment_link_inert_without_creds(tmp_path, monkeypatch):
+def test_payment_link_removed_stub_inert():
     from app.billing import payment_links as pl
-
-    monkeypatch.setattr(pl, "_STORE_PATH", str(tmp_path / "plinks.jsonl"))
-    monkeypatch.setattr(pl, "_creds", lambda: ("", ""))
 
     assert pl.is_configured() is False
     res = asyncio.run(pl.create_payment_link("c1", 499, "June service"))
-    assert res["ok"] is False and "Razorpay" in res["error"]
-
-    # amount validation (creds se pehle hi)
-    bad = asyncio.run(pl.create_payment_link("c1", "abc", "x"))
-    assert bad["ok"] is False
-    too_big = asyncio.run(pl.create_payment_link("c1", 10**7, "x"))
-    assert too_big["ok"] is False
-
-    # inert => store me kuch nahi likha
+    assert res["ok"] is False and res.get("error")
+    # stub stores nothing
     assert pl.list_payment_links() == []
-
-
-def test_payment_link_wa_share_link():
-    from app.billing import payment_links as pl
-
-    link = pl.build_wa_share_link("9876543210", "Ramesh", "Sharma Solar", "Advance", 499, "https://rzp.io/l/x1")
-    assert link.startswith("https://wa.me/919876543210?text=")
-    assert "rzp.io" in link and "Ramesh" in link
-    # phone missing => '' (graceful)
-    assert pl.build_wa_share_link("", "X", "B", "P", 100, "https://rzp.io/l/y") == ""
+    # wa share link is a no-op now
+    assert pl.build_wa_share_link("9876543210", "Ramesh", "B", "P", 499, "https://x") == ""

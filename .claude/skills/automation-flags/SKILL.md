@@ -28,7 +28,7 @@ Har engine ek env-flag pe gated. Set in `.env` (VPS `/opt/leadgen/.env`, gitigno
 | Flag | Risk |
 |---|---|
 | `WHATSAPP_AUTO_SEND=1` | number BAN — sirf official Cloud API + approved template + opt-in |
-| `MISSED_CALL_CALLBACK=1` | Vobiz/Exotel DID + inbound webhook chahiye |
+| `MISSED_CALL_CALLBACK=1` | Vobiz DID + inbound webhook chahiye |
 | `SMS_DLT_ENABLED=1` | DLT templates + BSP creds (MSG91/AiSensy/Fast2SMS) |
 | cold-calling | DLT (₹10L TRAI penalty) — Udyam pending |
 
@@ -55,4 +55,4 @@ Har engine ek env-flag pe gated. Set in `.env` (VPS `/opt/leadgen/.env`, gitigno
 6. Rollback: `.env.bak_*` restore + recreate.
 
 ## Verify
-`GET /api/growth/infra/flags` (live on/off/unset) ya `python scripts/setup_status.py` (flags + readiness). USER-PENDING env (Claude fabricate nahi kar sakta): real Razorpay `rzp_live_*` keys, `UPI_VPA`, `POLLINATIONS_API_KEY`, Exotel KYC/DLT, R2/B2 offsite creds.
+`GET /api/growth/infra/flags` (live on/off/unset) ya `python scripts/setup_status.py` (flags + readiness). USER-PENDING env (Claude fabricate nahi kar sakta): `UPI_VPA` (manual UPI payments), `POLLINATIONS_API_KEY`, Vobiz DID/recharge + DLT, R2/B2 offsite creds.

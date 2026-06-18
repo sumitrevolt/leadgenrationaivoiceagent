@@ -1,11 +1,8 @@
 """
 Payment Gateway Service
-Unified interface for Stripe (International) and Razorpay (India)
+Stripe gateway only. (Razorpay removed 2026-06-18 — India payments via manual UPI.)
 """
 
-import hashlib
-import hmac
-import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime
 from decimal import Decimal
@@ -435,344 +432,20 @@ class StripeGateway(PaymentGatewayBase):
             raise
 
 
-class RazorpayGateway(PaymentGatewayBase):
-    """Razorpay payment gateway implementation (India)"""
-
-    def __init__(self):
-        self.gateway_type = PaymentGateway.RAZORPAY
-        self._client = None
-
-    @property
-    def client(self):
-        """Lazy load Razorpay client"""
-        if self._client is None:
-            try:
-                import razorpay
-
-                self._client = razorpay.Client(
-                    auth=(settings.razorpay_key_id, settings.razorpay_key_secret)
-                )
-                logger.info("? Razorpay client initialized")
-            except ImportError:
-                logger.error("razorpay package not installed")
-                raise ImportError("razorpay package required: pip install razorpay")
-        return self._client
-
-    async def create_customer(
-        self,
-        email: str,
-        name: str,
-        phone: str | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Create a Razorpay customer"""
-        try:
-            customer = self.client.customer.create(
-                {"name": name, "email": email, "contact": phone, "notes": metadata or {}}
-            )
-            logger.info(f"Created Razorpay customer: {customer['id']}")
-            return {
-                "customer_id": customer["id"],
-                "email": customer["email"],
-                "gateway": self.gateway_type.value,
-            }
-        except Exception as e:
-            logger.error(f"Failed to create Razorpay customer: {e}")
-            raise
-
-    async def create_checkout_session(
-        self,
-        customer_id: str,
-        plan_id: str,
-        amount: Decimal,
-        currency: str,
-        success_url: str,
-        cancel_url: str,
-        metadata: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Create a Razorpay order (equivalent to checkout session)"""
-        try:
-            # Razorpay uses paisa (100 paisa = 1 INR)
-            amount_minor = int(round(amount * 100))
-
-            order = self.client.order.create(
-                {
-                    "amount": amount_minor,
-                    "currency": currency.upper(),
-                    "receipt": f"order_{uuid.uuid4().hex[:8]}",
-                    "notes": {
-                        **(metadata or {}),
-                        "plan_id": plan_id,
-                        "success_url": success_url,
-                        "cancel_url": cancel_url,
-                    },
-                }
-            )
-
-            logger.info(f"Created Razorpay order: {order['id']}")
-            return {
-                "order_id": order["id"],
-                "amount": float(amount),
-                "currency": currency,
-                "key_id": settings.razorpay_key_id,
-                "gateway": self.gateway_type.value,
-            }
-        except Exception as e:
-            logger.error(f"Failed to create Razorpay order: {e}")
-            raise
-
-    async def create_subscription(
-        self,
-        customer_id: str,
-        plan_id: str,
-        payment_method_id: str | None = None,
-        trial_days: int = 0,
-        metadata: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Create a Razorpay subscription"""
-        try:
-            params = {
-                "plan_id": plan_id,
-                "customer_id": customer_id,
-                "total_count": 12,  # Maximum billing cycles
-                "notes": metadata or {},
-            }
-
-            if trial_days > 0:
-                params["start_at"] = int((datetime.now().timestamp()) + (trial_days * 86400))
-
-            subscription = self.client.subscription.create(params)
-
-            logger.info(f"Created Razorpay subscription: {subscription['id']}")
-            return {
-                "subscription_id": subscription["id"],
-                "status": subscription["status"],
-                "current_start": (
-                    datetime.fromtimestamp(subscription.get("current_start", 0))
-                    if subscription.get("current_start")
-                    else None
-                ),
-                "current_end": (
-                    datetime.fromtimestamp(subscription.get("current_end", 0))
-                    if subscription.get("current_end")
-                    else None
-                ),
-                "gateway": self.gateway_type.value,
-            }
-        except Exception as e:
-            logger.error(f"Failed to create Razorpay subscription: {e}")
-            raise
-
-    async def cancel_subscription(
-        self, subscription_id: str, cancel_at_period_end: bool = True
-    ) -> dict[str, Any]:
-        """Cancel a Razorpay subscription"""
-        try:
-            subscription = self.client.subscription.cancel(
-                subscription_id, {"cancel_at_cycle_end": 1 if cancel_at_period_end else 0}
-            )
-
-            logger.info(f"Cancelled Razorpay subscription: {subscription_id}")
-            return {
-                "subscription_id": subscription["id"],
-                "status": subscription["status"],
-                "ended_at": (
-                    datetime.fromtimestamp(subscription.get("ended_at", 0))
-                    if subscription.get("ended_at")
-                    else None
-                ),
-                "gateway": self.gateway_type.value,
-            }
-        except Exception as e:
-            logger.error(f"Failed to cancel Razorpay subscription: {e}")
-            raise
-
-    async def pause_subscription(self, subscription_id: str) -> dict[str, Any]:
-        """Pause a Razorpay subscription (pause_at='now'). Raises if SDK lacks the method."""
-        try:
-            pause = getattr(self.client.subscription, "pause", None)
-            if pause is None:
-                raise NotImplementedError("razorpay SDK has no subscription.pause")
-            subscription = pause(subscription_id, {"pause_at": "now"})
-            logger.info(f"Paused Razorpay subscription: {subscription_id}")
-            return {
-                "subscription_id": subscription.get("id", subscription_id),
-                "status": subscription.get("status"),
-                "gateway": self.gateway_type.value,
-            }
-        except Exception as e:
-            logger.error(f"Failed to pause Razorpay subscription: {e}")
-            raise
-
-    async def resume_subscription(self, subscription_id: str) -> dict[str, Any]:
-        """Resume a Razorpay subscription (resume_at='now'). Raises if SDK lacks the method."""
-        try:
-            resume = getattr(self.client.subscription, "resume", None)
-            if resume is None:
-                raise NotImplementedError("razorpay SDK has no subscription.resume")
-            subscription = resume(subscription_id, {"resume_at": "now"})
-            logger.info(f"Resumed Razorpay subscription: {subscription_id}")
-            return {
-                "subscription_id": subscription.get("id", subscription_id),
-                "status": subscription.get("status"),
-                "gateway": self.gateway_type.value,
-            }
-        except Exception as e:
-            logger.error(f"Failed to resume Razorpay subscription: {e}")
-            raise
-
-    async def get_subscription(self, subscription_id: str) -> dict[str, Any]:
-        """Get Razorpay subscription details"""
-        try:
-            subscription = self.client.subscription.fetch(subscription_id)
-            return {
-                "subscription_id": subscription["id"],
-                "status": subscription["status"],
-                "plan_id": subscription.get("plan_id"),
-                "current_start": (
-                    datetime.fromtimestamp(subscription.get("current_start", 0))
-                    if subscription.get("current_start")
-                    else None
-                ),
-                "current_end": (
-                    datetime.fromtimestamp(subscription.get("current_end", 0))
-                    if subscription.get("current_end")
-                    else None
-                ),
-                "gateway": self.gateway_type.value,
-            }
-        except Exception as e:
-            logger.error(f"Failed to get Razorpay subscription: {e}")
-            raise
-
-    async def create_payment_intent(
-        self,
-        amount: Decimal,
-        currency: str,
-        customer_id: str | None = None,
-        payment_method_id: str | None = None,
-        metadata: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """Create a Razorpay order (equivalent to payment intent)"""
-        try:
-            amount_minor = int(round(amount * 100))
-
-            order = self.client.order.create(
-                {
-                    "amount": amount_minor,
-                    "currency": currency.upper(),
-                    "receipt": f"payment_{uuid.uuid4().hex[:8]}",
-                    "notes": metadata or {},
-                }
-            )
-
-            logger.info(f"Created Razorpay order: {order['id']}")
-            return {
-                "order_id": order["id"],
-                "amount": float(amount),
-                "currency": currency,
-                "key_id": settings.razorpay_key_id,
-                "gateway": self.gateway_type.value,
-            }
-        except Exception as e:
-            logger.error(f"Failed to create Razorpay order: {e}")
-            raise
-
-    async def verify_webhook(self, payload: bytes, signature: str) -> dict[str, Any]:
-        """Verify Razorpay webhook signature"""
-        try:
-            # Razorpay uses HMAC SHA256
-            expected_signature = hmac.new(
-                settings.razorpay_webhook_secret.encode("utf-8"), payload, hashlib.sha256
-            ).hexdigest()
-
-            if not hmac.compare_digest(expected_signature, signature):
-                raise ValueError("Invalid webhook signature")
-
-            import json
-
-            event_data = json.loads(payload.decode("utf-8"))
-
-            logger.info(f"Verified Razorpay webhook: {event_data.get('event')}")
-            return {
-                "event_type": event_data.get("event"),
-                "data": event_data.get("payload", {}).get("payment", {}).get("entity", {}),
-                "gateway": self.gateway_type.value,
-            }
-        except Exception as e:
-            logger.error(f"Failed to verify Razorpay webhook: {e}")
-            raise
-
-    async def verify_payment_signature(
-        self, order_id: str, payment_id: str, signature: str
-    ) -> bool:
-        """Verify Razorpay payment signature (for frontend callback)"""
-        try:
-            params = {
-                "razorpay_order_id": order_id,
-                "razorpay_payment_id": payment_id,
-                "razorpay_signature": signature,
-            }
-            self.client.utility.verify_payment_signature(params)
-            return True
-        except Exception as e:
-            logger.error(f"Payment signature verification failed: {e}")
-            return False
-
-    async def get_invoices(self, customer_id: str, limit: int = 10) -> list[dict[str, Any]]:
-        """Get Razorpay invoices for a customer"""
-        try:
-            invoices = self.client.invoice.all({"customer_id": customer_id, "count": limit})
-
-            return [
-                {
-                    "invoice_id": inv["id"],
-                    "status": inv.get("status"),
-                    "amount": inv.get("amount", 0) / 100,
-                    "amount_paid": inv.get("amount_paid", 0) / 100,
-                    "currency": inv.get("currency", "INR"),
-                    "short_url": inv.get("short_url"),
-                    "created_at": datetime.fromtimestamp(inv.get("created_at", 0)),
-                    "gateway": self.gateway_type.value,
-                }
-                for inv in invoices.get("items", [])
-            ]
-        except Exception as e:
-            logger.error(f"Failed to get Razorpay invoices: {e}")
-            raise
-
-    async def refund_payment(
-        self, payment_id: str, amount: Decimal | None = None, reason: str | None = None
-    ) -> dict[str, Any]:
-        """Refund a Razorpay payment"""
-        try:
-            params = {}
-            if amount:
-                params["amount"] = int(round(amount * 100))
-            if reason:
-                params["notes"] = {"reason": reason}
-
-            refund = self.client.payment.refund(payment_id, params)
-
-            logger.info(f"Created Razorpay refund: {refund['id']}")
-            return {
-                "refund_id": refund["id"],
-                "status": refund.get("status"),
-                "amount": refund.get("amount", 0) / 100,
-                "gateway": self.gateway_type.value,
-            }
-        except Exception as e:
-            logger.error(f"Failed to create Razorpay refund: {e}")
-            raise
+# RazorpayGateway removed 2026-06-18 — no online India gateway; payments via
+# manual UPI. The factory below routes everything to Stripe.
 
 
 class PaymentGatewayFactory:
     """
-    Factory to select appropriate payment gateway based on currency/country
+    Payment gateway factory.
+
+    Razorpay removed 2026-06-18 — there is no online India gateway anymore
+    (payments via manual UPI). Stripe is the only online gateway, so every
+    selection routes to Stripe regardless of currency/country.
     """
 
     _stripe: StripeGateway | None = None
-    _razorpay: RazorpayGateway | None = None
 
     @classmethod
     def get_gateway(
@@ -781,37 +454,7 @@ class PaymentGatewayFactory:
         currency: str | None = None,
         country_code: str | None = None,
     ) -> PaymentGatewayBase:
-        """
-        Get appropriate payment gateway.
-
-        Priority:
-        1. Explicitly specified gateway
-        2. Currency-based selection (INR -> Razorpay, others -> Stripe)
-        3. Country-based selection (IN -> Razorpay, others -> Stripe)
-        4. Default from settings
-        """
-        # Explicit gateway
-        if gateway == PaymentGateway.STRIPE:
-            return cls._get_stripe()
-        elif gateway == PaymentGateway.RAZORPAY:
-            return cls._get_razorpay()
-
-        # Auto-detection based on currency
-        if settings.auto_detect_payment_gateway:
-            if currency and currency.upper() == "INR":
-                return cls._get_razorpay()
-            elif currency and currency.upper() in ["USD", "EUR", "GBP", "AUD", "CAD"]:
-                return cls._get_stripe()
-
-            # Country-based fallback
-            if country_code and country_code.upper() == "IN":
-                return cls._get_razorpay()
-            elif country_code:
-                return cls._get_stripe()
-
-        # Default based on settings
-        if settings.default_currency.upper() == "INR":
-            return cls._get_razorpay()
+        """Get the payment gateway. Always Stripe (Razorpay removed)."""
         return cls._get_stripe()
 
     @classmethod
@@ -822,34 +465,11 @@ class PaymentGatewayFactory:
         return cls._stripe
 
     @classmethod
-    def _get_razorpay(cls) -> RazorpayGateway:
-        """Get or create Razorpay gateway instance"""
-        if cls._razorpay is None:
-            cls._razorpay = RazorpayGateway()
-        return cls._razorpay
-
-    @classmethod
     def get_gateway_for_client(
         cls, phone_number: str | None = None, country_code: str | None = None
     ) -> PaymentGatewayBase:
-        """
-        Get gateway based on client's phone number country code.
-        Useful for auto-detecting Indian vs International clients.
-        """
-        if phone_number:
-            try:
-                import phonenumbers
-
-                parsed = phonenumbers.parse(phone_number)
-                if parsed.country_code == 91:  # India
-                    return cls._get_razorpay()
-            except Exception:
-                pass
-
-        if country_code and country_code.upper() == "IN":
-            return cls._get_razorpay()
-
-        return cls.get_gateway()
+        """Get the payment gateway for a client. Always Stripe (Razorpay removed)."""
+        return cls._get_stripe()
 
 
 # Convenience functions
@@ -858,13 +478,8 @@ def get_stripe_gateway() -> StripeGateway:
     return PaymentGatewayFactory._get_stripe()
 
 
-def get_razorpay_gateway() -> RazorpayGateway:
-    """Get Razorpay gateway instance"""
-    return PaymentGatewayFactory._get_razorpay()
-
-
 def get_payment_gateway(
     currency: str | None = None, country_code: str | None = None
 ) -> PaymentGatewayBase:
-    """Get appropriate payment gateway"""
+    """Get the payment gateway (always Stripe — Razorpay removed)."""
     return PaymentGatewayFactory.get_gateway(currency=currency, country_code=country_code)

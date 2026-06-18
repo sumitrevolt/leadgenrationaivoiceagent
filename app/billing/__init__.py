@@ -5,10 +5,8 @@ Handles subscriptions, pricing, and payments
 
 from app.billing.payment_gateway import (
     PaymentGatewayFactory,
-    RazorpayGateway,
     StripeGateway,
     get_payment_gateway,
-    get_razorpay_gateway,
     get_stripe_gateway,
 )
 from app.billing.subscription import (
@@ -35,11 +33,9 @@ __all__ = [
     "BillingCycle",
     "SubscriptionStatus",
     "PaymentStatus",
-    # Payment Gateways
+    # Payment Gateways (Stripe only — Razorpay removed 2026-06-18)
     "PaymentGatewayFactory",
     "StripeGateway",
-    "RazorpayGateway",
     "get_payment_gateway",
     "get_stripe_gateway",
-    "get_razorpay_gateway",
 ]

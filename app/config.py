@@ -71,15 +71,8 @@ class Settings(BaseSettings):
     twilio_phone_number: str = ""
     twilio_webhook_url: str = ""
 
-    exotel_sid: str = ""
-    exotel_token: str = ""
-    exotel_api_key: str = ""
-    exotel_api_token: str = ""
-    exotel_subdomain: str = ""
-    exotel_caller_id: str = ""
-    exotel_app_id: str = ""  # App Bazaar applet id (connect.json Url)
-    exotel_flow_app_id: str = ""  # alt applet id (fallback)
-    default_telephony: str = "twilio"  # twilio, exotel
+    # Exotel removed 2026-06-18 — provider is now Vobiz (see vobiz_* below).
+    default_telephony: str = "vobiz"  # vobiz, twilio
 
     # Vobiz (India-native SIP trunk + voice API — primary trunk for P3)
     vobiz_auth_id: str = ""
@@ -149,10 +142,7 @@ class Settings(BaseSettings):
     stripe_publishable_key: str = ""
     stripe_webhook_secret: str = ""
 
-    # Razorpay (India)
-    razorpay_key_id: str = ""
-    razorpay_key_secret: str = ""
-    razorpay_webhook_secret: str = ""
+    # Razorpay removed 2026-06-18 — no online gateway; payments via manual UPI.
 
     # Payment Settings
     default_currency: str = "INR"  # INR for India, USD for international

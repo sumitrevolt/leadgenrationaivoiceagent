@@ -1,24 +1,17 @@
-"""Exotel Voicebot stream handler tests — protocol shapes + chunking spec.
+"""DEPRECATED — Exotel Voicebot stream removed 2026-06-18 (provider is now Vobiz).
 
-Spec: docs.exotel.com/exotel-agentstream/voicebot-applet
-- inbound/outbound media = base64 PCM16 LE mono (slin), snake_case keys
-- outbound chunks: multiple of 320 bytes, >= 3.2KB
-- clear = {"event": "clear", "stream_sid": ...}
+This whole module is skipped: ``ExotelVoicebotSession`` no longer exists. The live
+conversational voice WS path is now the Vobiz stream (app.telephony.vobiz_stream).
 """
 
 from __future__ import annotations
 
-import asyncio
-import base64
-
 import pytest
 
-from app.voice_agent.exotel_stream import (
-    SUPPORTED_RATES,
-    ExotelVoicebotSession,
-    _chunk_bytes,
+pytest.skip(
+    "Exotel removed 2026-06-18 — provider is now Vobiz (see app.telephony.vobiz_stream).",
+    allow_module_level=True,
 )
-from app.voice_agent.phone_stream import PhoneCallSession
 
 
 class FakeWS:

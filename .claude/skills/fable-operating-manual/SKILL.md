@@ -53,7 +53,7 @@ App = **Docker container `leadgen_app`** (`docker-compose.vps.yml`); systemd `le
 - Marketing product: Starter ₹1,199 / Growth ₹2,999 / Advanced ₹6,999. `packages.py` = single source of truth; pricing change = `packages.py` + `test_billing_truth_2026` SAATH.
 
 ## 8. Decision-making (jab "best kya hai" poocha jaye)
-- Revenue-blocking + user-action (Razorpay/DLT/KYC) = highest priority flag karo, par wo user ke haath me hai.
+- Revenue-blocking + user-action (payments/DLT/KYC) = highest priority flag karo, par wo user ke haath me hai.
 - Code-level: incomplete loops complete karo, hidden bugs (truncation/wiring) fix karo, tests green rakho.
 - Ambiguous product decision (niche count, pricing) = git history/CLAUDE.md se intent confirm karo; nahi to user se 1 focused sawaal.
 - Har session ke end pe: prod_check + targeted tests + commit + user ko deploy step yaad dilao.

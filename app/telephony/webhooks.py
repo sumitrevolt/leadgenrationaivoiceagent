@@ -2,9 +2,11 @@
 Telephony Webhooks
 FastAPI routes for handling telephony provider callbacks.
 
-Security: Twilio routes require a valid X-Twilio-Signature and Exotel routes a valid
-X-Exotel-Signature (verified via app.api.webhooks dependencies). Answering-machine
-detection (AMD) on the Twilio voice callback avoids wasting call credits on voicemail.
+Security: Twilio routes require a valid X-Twilio-Signature (verified via
+app.api.webhooks dependencies). Answering-machine detection (AMD) on the Twilio
+voice callback avoids wasting call credits on voicemail. Vobiz answer/status
+callbacks are public, minimal handlers (no signed payload from Vobiz).
+(Exotel removed 2026-06-18 — provider is now Vobiz.)
 
 Handlers + the shared CallManager are lazy-initialised so importing this module (to
 mount the router) can never crash app startup — CallManager() raises on an unknown
@@ -18,7 +20,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import Response
 
 # Signature-verification dependencies live in the payments/webhooks module.
-from app.api.webhooks import verify_exotel_signature, verify_twilio_signature
+from app.api.webhooks import verify_twilio_signature
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -186,86 +188,80 @@ async def twilio_status_webhook(
         return {"status": "error", "message": str(e)}
 
 
-# NOTE: app/api/webhooks.py ka /exotel/status PEHLE mount hota (first-route-wins)
-# — yeh route effectively shadowed hai. include_in_schema=False = duplicate
-# operation-id warning fix (OpenAPI clients todta tha). Path same rakha (rollback-safe).
-@router.post("/exotel/status", include_in_schema=False)
-async def exotel_status_webhook(
-    request: Request, _sig: bool = Depends(verify_exotel_signature)
-):
-    """
-    Handle Exotel status webhook
+# --------------------------------------------------------------------------- #
+# Vobiz callbacks (provider since 2026-06-18). Vobiz does not sign callbacks, so
+# these are minimal public handlers. The live conversational path is the Vobiz
+# stream WS (/api/telephony/vobiz/stream/{token}); call_manager points outbound
+# answer_url/status at /api/webhooks/vobiz/answer + /vobiz/status.
+# --------------------------------------------------------------------------- #
+@router.post("/vobiz/status")
+async def vobiz_status_webhook(request: Request):
+    """Vobiz status callback — marks a completed call done (minute-metering +
+    qualified-lead billing run via CallManager.handle_call_completed). Idempotent
+    on call_id. Best-effort; never raises a 500."""
+    try:
+        form_data = await request.form()
+    except Exception:
+        form_data = {}
 
-    Exotel sends different parameters than Twilio
-    """
-    form_data = await request.form()
+    call_sid = form_data.get("CallSid") or form_data.get("call_uuid") or form_data.get("id")
+    status = (form_data.get("Status") or form_data.get("call_status") or "").lower()
+    duration = form_data.get("Duration") or form_data.get("duration")
+    recording_url = form_data.get("RecordingUrl") or form_data.get("recording_url")
+    call_id = form_data.get("CallbackData") or form_data.get("call_id") or call_sid
 
-    call_sid = form_data.get("CallSid")
-    status = form_data.get("Status")
-    form_data.get("Leg")  # which leg of the call
-    duration = form_data.get("Duration")
-    recording_url = form_data.get("RecordingUrl")
-
-    logger.info(f"Exotel status webhook - SID: {call_sid}, Status: {status}")
-
-    # Extract call_id from metadata or CallSid
-    call_id = form_data.get("CallbackData") or call_sid
+    logger.info(f"Vobiz status webhook - SID: {call_sid}, Status: {status}")
 
     try:
-        if status == "completed":
-            # Idempotency: Exotel may retry the completed callback. Dedup on call_id so
-            # minute-metering + qualified-lead billing run exactly once (no double-charge).
+        if status in ("completed", "complete", "answered", "hangup"):
+            # Idempotency: dedup on call_id so metering/billing run exactly once.
             try:
                 from app.billing import idempotency as _idem
 
                 if call_id and await _idem.seen_before(f"call_done:{call_id}"):
-                    logger.info(f"Exotel duplicate completion skipped: {call_id}")
+                    logger.info(f"Vobiz duplicate completion skipped: {call_id}")
                     return {"status": "duplicate_skipped"}
             except Exception:
                 pass
 
             cm = _get_call_manager()
             result = None
-            if cm is not None:
+            if cm is not None and call_id:
                 result = await cm.handle_call_completed(
                     call_id=call_id,
                     duration=int(duration) if duration else 0,
                     recording_url=recording_url,
                 )
-
             if result:
-                logger.info(f"Exotel call completed - Outcome: {result.outcome}")
+                logger.info(f"Vobiz call completed - Outcome: {result.outcome}")
 
         return {"status": "received"}
-
     except Exception as e:
-        logger.error(f"Exotel webhook error: {e}")
+        logger.error(f"Vobiz status webhook error: {e}")
         return {"status": "error", "message": str(e)}
 
 
-@router.post("/exotel/voice")
-async def exotel_voice_webhook(
-    request: Request, _sig: bool = Depends(verify_exotel_signature)
-):
+@router.post("/vobiz/answer")
+async def vobiz_answer_webhook(request: Request):
+    """Vobiz answer_url — returns VobizXML when a call connects.
+
+    Default best-effort: AI-disclosure greeting then hang up (the full
+    conversational loop runs over the Vobiz stream WS, not this answer_url).
+    Press-9 opt-out is persisted cross-channel (TCCCPR) when Vobiz posts a digit.
     """
-    Handle Exotel ExoML voice webhook
+    try:
+        form_data = await request.form()
+    except Exception:
+        form_data = {}
 
-    Returns ExoML (similar to TwiML)
-    """
-    form_data = await request.form()
-
-    digits = form_data.get("digits")
-    call_sid = form_data.get("CallSid")
-
-    logger.info(f"Exotel voice webhook - SID: {call_sid}, Digits: {digits}")
+    digits = str(form_data.get("digits") or form_data.get("Digits") or "").strip()
+    call_sid = form_data.get("CallSid") or form_data.get("call_uuid") or ""
 
     if digits == "9":
-        # Opt-out — PERSIST the suppression cross-channel (TCCCPR). Earlier this only
-        # *said* "hata diya" but never recorded it, so the number stayed callable.
         caller = str(
-            form_data.get("CallFrom")
-            or form_data.get("From")
-            or form_data.get("From_Number")
+            form_data.get("From")
+            or form_data.get("CallFrom")
+            or form_data.get("from")
             or ""
         ).strip()
         if caller:
@@ -278,25 +274,22 @@ async def exotel_voice_webhook(
             except Exception as _oe:
                 logger.error(f"press-9 opt-out persist failed: {_oe}")
         else:
-            logger.warning("press-9 opt-out: caller number missing in Exotel payload")
-        exoml = """<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say voice="female" language="hi-IN">
-        Aapka number hamare calling list se hata diya gaya hai. Dhanyavad.
-    </Say>
-    <Hangup/>
-</Response>"""
+            logger.warning("press-9 opt-out: caller number missing in Vobiz payload")
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            "<Response><Speak>"
+            "Aapka number hamare calling list se hata diya gaya hai. Dhanyavad."
+            "</Speak><Hangup/></Response>"
+        )
     else:
-        # Continue conversation
-        exoml = """<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say voice="female" language="hi-IN">
-        Kripya apna jawab bataiye.
-    </Say>
-    <Gather action="/api/webhooks/exotel/voice" method="POST" timeout="5"/>
-</Response>"""
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            "<Response><Speak>"
+            "Namaste. Main ek AI assistant bol rahi hoon."
+            "</Speak><Hangup/></Response>"
+        )
 
-    return Response(content=exoml, media_type="application/xml")
+    return Response(content=xml, media_type="application/xml")
 
 
 @router.get("/health")

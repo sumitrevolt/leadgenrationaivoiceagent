@@ -7,9 +7,6 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-import aiohttp
-
-from app.config import settings
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -35,8 +32,10 @@ class DNDChecker:
     Calling DND numbers for marketing can result in penalties.
 
     This implementation:
-    1. Uses Exotel's DND check API (primary)
-    2. Falls back to local cache
+    1. Local DND cache + opt-out ledger (always-on, authoritative for opt-outs)
+    2. No external DND-lookup provider wired (Exotel removed 2026-06-18) — an
+       un-cached number returns UNVERIFIED so the compliance gate fails CLOSED
+       for promotional calls (TCCCPR-safe).
     3. Supports batch checking
     """
 
@@ -48,10 +47,9 @@ class DNDChecker:
     KNOWN_DND_PREFIXES: set[str] = set()
 
     def __init__(self):
-        self.api_key = settings.exotel_api_key
-        self.api_token = settings.exotel_api_token
-        self.sid = settings.exotel_sid
-        self.base_url = f"https://api.exotel.com/v1/Accounts/{self.sid}"
+        # External DND-lookup provider removed (Exotel deprecated 2026-06-18).
+        # Local cache + consent ledger remain the source of truth for opt-outs.
+        pass
 
     async def check_single(self, phone: str) -> DNDCheckResult:
         """
@@ -68,8 +66,8 @@ class DNDChecker:
         if cached:
             return cached
 
-        # Check via API
-        result = await self._check_via_exotel(phone)
+        # No external lookup provider — return unverified (gate fails CLOSED).
+        result = await self._check_via_registry(phone)
 
         # Cache the result
         self._cache[phone] = result
@@ -140,46 +138,20 @@ class DNDChecker:
         results = await self.check_batch(phones)
         return [phone for phone, result in results.items() if not result.is_dnd]
 
-    async def _check_via_exotel(self, phone: str) -> DNDCheckResult:
-        """Check DND status via Exotel API"""
-        try:
-            # Clean phone number
-            clean_phone = phone.replace("+", "").replace(" ", "").replace("-", "")
-            if not clean_phone.startswith("91"):
-                clean_phone = "91" + clean_phone[-10:]
+    async def _check_via_registry(self, phone: str) -> DNDCheckResult:
+        """No external DND-lookup provider wired (Exotel removed 2026-06-18).
 
-            url = f"{self.base_url}/Numbers/{clean_phone}"
-
-            async with aiohttp.ClientSession() as session:
-                auth = aiohttp.BasicAuth(self.api_key, self.api_token)
-
-                async with session.get(url, auth=auth) as response:
-                    if response.status == 200:
-                        data = await response.json()
-
-                        # Parse Exotel response
-                        number_info = data.get("Number", {})
-                        dnd_status = number_info.get("DND", "No")
-
-                        is_dnd = dnd_status.lower() in ["yes", "true", "full"]
-
-                        return DNDCheckResult(
-                            phone=phone,
-                            is_dnd=is_dnd,
-                            checked_at=datetime.now(),
-                            source="exotel",
-                            category=dnd_status if is_dnd else None,
-                        )
-                    else:
-                        logger.warning(f"Exotel DND check returned {response.status} for {phone}")
-
-        except Exception as e:
-            logger.error(f"Exotel DND check error for {phone}: {e}")
-
-        # Lookup did NOT succeed (exception / non-200). Mark unverified so the
-        # compliance gate fails CLOSED for promotional calls (verified=False).
+        Returns an UNVERIFIED result so the compliance gate fails CLOSED for
+        promotional calls (TCCCPR-safe). Opt-outs are still authoritative via the
+        local cache + consent ledger. Replace with a real registry/provider when
+        one is procured.
+        """
         return DNDCheckResult(
-            phone=phone, is_dnd=False, checked_at=datetime.now(), source="fallback", verified=False
+            phone=phone,
+            is_dnd=False,
+            checked_at=datetime.now(),
+            source="no_provider",
+            verified=False,
         )
 
     def _get_from_cache(self, phone: str) -> DNDCheckResult | None:

@@ -2,9 +2,9 @@
 Multi-Carrier Telephony Router
 ==============================
 
-Wraps existing provider handlers (Exotel, Twilio, Vobiz) under a single
-abstraction so callers can request failover across providers without touching
-the live call path.
+Wraps existing provider handlers (Vobiz, Twilio) under a single abstraction so
+callers can request failover across providers without touching the live call
+path. (Exotel removed 2026-06-18 — provider is now Vobiz.)
 
 GATED: only activates multi-provider failover when env ``MULTI_CARRIER=1``.
 When the flag is OFF (default) ``place_call_failover`` uses the single current
@@ -39,54 +39,15 @@ def _multi_carrier_enabled() -> bool:
 def _carrier_priority() -> list[str]:
     """Ordered provider names from CARRIER_PRIORITY env (csv).
 
-    Default: exotel,twilio,plivo,vobiz
+    Default: vobiz,twilio,plivo
     """
-    raw = _env("CARRIER_PRIORITY", "exotel,twilio,plivo,vobiz")
+    raw = _env("CARRIER_PRIORITY", "vobiz,twilio,plivo")
     return [p.strip().lower() for p in raw.split(",") if p.strip()]
 
 
 # ---------------------------------------------------------------------------
 # Per-provider adapters
 # ---------------------------------------------------------------------------
-
-class _ExotelAdapter:
-    """Wraps app.telephony.exotel_handler.ExotelHandler."""
-
-    name = "exotel"
-
-    def available(self) -> bool:
-        try:
-            # Creds needed: EXOTEL_SID + (EXOTEL_API_KEY or EXOTEL_TOKEN)
-            # + EXOTEL_CALLER_ID for actually placing a call.
-            sid = _env("EXOTEL_SID")
-            key = _env("EXOTEL_API_KEY") or _env("EXOTEL_TOKEN")
-            caller = _env("EXOTEL_CALLER_ID")
-            return bool(sid and key and caller)
-        except Exception:
-            return False
-
-    async def place_call(self, to: str, from_: str, **kw: Any) -> dict:
-        try:
-            from app.telephony.exotel_handler import ExotelHandler
-            h = ExotelHandler()
-            if not h.base_url:
-                return {"ok": False, "reason": "exotel: credentials not configured"}
-            call_id = kw.get("call_id", "cr-" + to[-6:])
-            app_id = kw.get("app_id") or _env("EXOTEL_APP_ID")
-            webhook_url = kw.get("webhook_url")
-            sid = await h.make_call(
-                to_number=to,
-                call_id=call_id,
-                app_id=app_id or None,
-                webhook_url=webhook_url,
-            )
-            if sid:
-                return {"ok": True, "call_sid": sid, "provider": "exotel"}
-            return {"ok": False, "reason": "exotel: make_call returned no SID"}
-        except Exception as exc:
-            logger.debug("exotel adapter error: %s", exc)
-            return {"ok": False, "reason": f"exotel: {exc}"}
-
 
 class _TwilioAdapter:
     """Wraps app.telephony.twilio_handler.TwilioHandler."""
@@ -197,9 +158,8 @@ class _PlivoAdapter:
 # ---------------------------------------------------------------------------
 
 _ADAPTERS: dict[str, Any] = {
-    "exotel": _ExotelAdapter(),
-    "twilio": _TwilioAdapter(),
     "vobiz": _VobizAdapter(),
+    "twilio": _TwilioAdapter(),
     "plivo": _PlivoAdapter(),
 }
 
@@ -220,7 +180,7 @@ class CarrierRouter:
             to="+919876543210",
             from_="+911141189204",
             call_id="abc123",
-            webhook_url="https://leadsgenai.in/api/webhooks/exotel/status",
+            answer_url="https://leadsgenai.in/api/webhooks/vobiz/answer",
         )
 
     When MULTI_CARRIER=1: tries providers in CARRIER_PRIORITY order, first
@@ -288,7 +248,7 @@ class CarrierRouter:
 
         MULTI_CARRIER=0 (default — zero behaviour change):
             Delegates directly to the single provider named by DEFAULT_TELEPHONY.
-            Falls back to exotel if DEFAULT_TELEPHONY is unset or unknown.
+            Falls back to vobiz if DEFAULT_TELEPHONY is unset or unknown.
 
         MULTI_CARRIER=1:
             Tries providers in CARRIER_PRIORITY order. First success wins.
@@ -316,7 +276,7 @@ class CarrierRouter:
             provider_name = (
                 _env("DEFAULT_TELEPHONY")
                 or _env("TELEPHONY_PROVIDER")
-                or "exotel"
+                or "vobiz"
             ).lower()
             adapter = _ADAPTERS.get(provider_name)
             if adapter is None:

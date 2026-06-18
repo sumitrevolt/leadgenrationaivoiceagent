@@ -7,7 +7,7 @@ description: Production readiness + automation ops via Admin God Mode and Missio
 
 **Goal:** Confirm platform **PRODUCTION READY** (marketing + ops) and run automations from UI.
 
-**NOT gated:** Razorpay, Exotel/Vobiz, DLT — optional later.
+**NOT gated:** payments (manual UPI), Vobiz telephony, DLT — optional later. (Razorpay gateway removed.)
 
 ## One command gate
 ```bash
@@ -31,8 +31,8 @@ PASS = prod_check + 33-page wiring audit + live smoke + tests + production_ready
 Self-Improve · Optimizer · Scrape · Email · Dunning · Digest · Health · Harvest · Cadence · Lifecycle · Followups · Reply · Content · Blog · Growth · Reviews · Journeys · Sales · Upgrader · QA · Prospects
 
 ## Optional (ignore for launch)
-- Phone campaigns (`/app/test-call`, Launch Campaign) — telephony creds baad me
-- Paid checkout — Razorpay baad me
+- Phone campaigns (`/app/test-call`, Launch Campaign) — Vobiz telephony creds baad me
+- Paid payments — manual UPI (`UPI_VPA`) baad me
 
 ## If FAIL
 - `final_integration_check.py` output dekho — handler/API gap ya live 404

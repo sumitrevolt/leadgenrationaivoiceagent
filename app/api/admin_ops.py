@@ -338,18 +338,11 @@ async def system_summary(_user=Depends(require_admin)):
     vobiz_ok = bool(
         os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN")
     )
-    exotel_ok = bool(
-        (os.environ.get("EXOTEL_SID") or os.environ.get("EXOTEL_ACCOUNT_SID"))
-        and (os.environ.get("EXOTEL_API_KEY") or os.environ.get("EXOTEL_SID"))
-        and (os.environ.get("EXOTEL_API_TOKEN") or os.environ.get("EXOTEL_TOKEN"))
-    )
     flags = {
         "TELEPHONY_PROVIDER": provider,
-        "PROVIDER_CREDS": exotel_ok if provider == "exotel" else vobiz_ok,
+        "PROVIDER_CREDS": vobiz_ok,
         "VOBIZ_CREDS": vobiz_ok,
-        "EXOTEL_CREDS": exotel_ok,
         "VOBIZ_CALLER_ID": bool(os.environ.get("VOBIZ_CALLER_ID", "").strip()),
-        "EXOTEL_CALLER_ID": bool(os.environ.get("EXOTEL_CALLER_ID", "").strip()),
         "VOBIZ_CALL_RECORD": bool(int(os.environ.get("VOBIZ_CALL_RECORD", "0"))),
         "AUTO_EMAIL_OUTREACH": os.environ.get("AUTO_EMAIL_OUTREACH", "").lower()
         in ("1", "true"),
@@ -361,10 +354,7 @@ async def system_summary(_user=Depends(require_admin)):
     telephony = readiness.get("telephony") or {}
     upi = _upi_info()
 
-    if provider == "exotel":
-        caller_id = os.environ.get("EXOTEL_CALLER_ID", "unset")
-    else:
-        caller_id = os.environ.get("VOBIZ_CALLER_ID", "unset")
+    caller_id = os.environ.get("VOBIZ_CALLER_ID", "unset")
 
     # Pre-flight calling data (blocking DB → thread; never breaks the panel).
     try:
@@ -389,9 +379,8 @@ async def system_summary(_user=Depends(require_admin)):
         },
         "telephony_provider": provider,
         "vobiz_caller_id": os.environ.get("VOBIZ_CALLER_ID", "unset"),
-        "exotel_caller_id": os.environ.get("EXOTEL_CALLER_ID", "unset"),
-        # Razorpay: user using UPI for now; stub for JS compat
-        "razorpay": {"key_set": False, "live_key": False, "key_prefix": "skipped"},
+        # Razorpay removed 2026-06-18 — manual UPI only; stub for JS compat.
+        "razorpay": {"key_set": False, "live_key": False, "key_prefix": "removed"},
         "telephony_score": telephony.get("score", 0),
         "telephony_missing": telephony.get("missing", []),
         "telephony_actions": telephony.get("actions", []),

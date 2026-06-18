@@ -48,13 +48,8 @@ async def test_empty_env_picks_sentry_first() -> None:
     assert out["next_step"]["phase"]["n"] == 1
 
 
-async def test_razorpay_done_surfaces_sentry(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Once Razorpay is OK, the next Phase-1 item (Sentry WARN) becomes the
-    next step. Razorpay's BLOCKER must NOT be skipped while it's the live
-    blocker."""
-    monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_live_realkey")
-    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "real-secret")
-    monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "whs")
+async def test_sentry_is_first_phase1_step() -> None:
+    """Razorpay removed 2026-06-18 — Sentry (WARN) is the first Phase-1 step."""
     out = await ax.activation_wizard(_user=None)  # type: ignore[arg-type]
     assert out["next_step"]["key"] == "sentry"
     assert out["next_step"]["status"] == "WARN"
@@ -63,10 +58,7 @@ async def test_razorpay_done_surfaces_sentry(monkeypatch: pytest.MonkeyPatch) ->
 async def test_phase1_green_jumps_to_phase2(monkeypatch: pytest.MonkeyPatch) -> None:
     """All Phase-1 items OK or NEUTRAL -> wizard skips to Phase-2 actionable
     items. Confirms the phase-by-phase walk, not "all in one place"."""
-    # Phase 1 fully armed where relevant
-    monkeypatch.setenv("RAZORPAY_KEY_ID", "rzp_live_realkey")
-    monkeypatch.setenv("RAZORPAY_KEY_SECRET", "real-secret")
-    monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", "whs")
+    # Phase 1 fully armed where relevant (Razorpay removed 2026-06-18).
     monkeypatch.setenv("SENTRY_DSN", "https://x@o.ingest.sentry.io/1")
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("POSTHOG_API_KEY", "phc_real")

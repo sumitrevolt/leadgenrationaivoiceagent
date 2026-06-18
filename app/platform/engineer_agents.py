@@ -353,13 +353,10 @@ def run_security() -> dict[str, Any]:
 
     # 2) Webhook signing secrets armed (fail-CLOSED only protects when set)
     twilio = bool(os.environ.get("TWILIO_AUTH_TOKEN", "").strip())
-    razorpay = bool(os.environ.get("RAZORPAY_WEBHOOK_SECRET", "").strip())
     whatsapp = bool(os.environ.get("WHATSAPP_APP_SECRET", "").strip())
-    armed = sum([twilio, razorpay, whatsapp])
-    kpis["webhook_secrets_armed"] = {"twilio": twilio, "razorpay": razorpay, "whatsapp": whatsapp}
-    sub_scores.append(armed / 3 * 100.0)
-    if not razorpay:
-        actions.append("RAZORPAY_WEBHOOK_SECRET unset — forged callback risk on revenue path")
+    armed = sum([twilio, whatsapp])
+    kpis["webhook_secrets_armed"] = {"twilio": twilio, "whatsapp": whatsapp}
+    sub_scores.append(armed / 2 * 100.0)
     if not twilio:
         actions.append("TWILIO_AUTH_TOKEN unset — telephony webhooks unauthenticated in prod")
 

@@ -10,7 +10,7 @@ from datetime import datetime
 
 # --- module imports double as a circular-reference / import-health check --------
 from app.api.health import prometheus_metrics  # noqa: F401
-from app.api.webhooks import verify_exotel_signature, verify_twilio_signature
+from app.api.webhooks import verify_twilio_signature  # exotel removed 2026-06-18
 from app.tasks.scraping import enrich_lead_data  # noqa: F401
 from app.telephony.call_manager import CallManager, CallRequest
 from app.telephony.call_state import RedisCallStore
@@ -124,4 +124,5 @@ def test_amd_decision_and_voicemail():
 
 
 def test_verify_signature_deps_callable():
-    assert callable(verify_twilio_signature) and callable(verify_exotel_signature)
+    # Exotel signature verifier removed 2026-06-18 (provider is Vobiz).
+    assert callable(verify_twilio_signature)

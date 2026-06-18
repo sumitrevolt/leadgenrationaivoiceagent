@@ -17,7 +17,7 @@ Solo dev = koi PR reviewer nahi → khud ke code ko 5 ALAG perspectives se padho
 - **Public/LLM endpoint = `rate_limit("name",N,sec)` dependency hai?** (`app/api/ratelimit.py` pattern). LLM-backed = `require_admin` + `tier_rate_limit` (`app/api/ai.py` ab gated; open free-LLM = abuse surface).
 - Admin action = `require_admin` / customer = `require_customer`? Billing/customer mutation = `_authed_client_id` scope (IDOR-closed)? Anonymous "demo-client" fallback to nahi (data.py hole → prod me 401).
 - File serve = **regex-lock** path (`/ai-img-file/{name}` pattern, `app/api/marketing.py`) — kabhi raw user path join nahi (traversal). User-URL fetch = SSRF private-IP block (`website_auditor.py` pattern).
-- Secrets sirf `.env` (`check_secrets.py` se verify) — code/commit/log/CLAUDE.md me kabhi nahi. Webhook = signature-verify FIRST + prod fail-CLOSED 503 (Twilio/Exotel/Razorpay/HMAC pattern).
+- Secrets sirf `.env` (`check_secrets.py` se verify) — code/commit/log/CLAUDE.md me kabhi nahi. Webhook = signature-verify FIRST + prod fail-CLOSED 503 (Twilio/Vobiz/HMAC pattern).
 
 ## Pass 3: Contracts/Signature-drift 📜
 - `free_ai.chat(system, messages)` REAL signature — tuple/str drift = silent static-fallback (growth_optimizer bug). Har LLM call-site check.

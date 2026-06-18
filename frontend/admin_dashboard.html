@@ -1837,7 +1837,7 @@ function renderGodMode(sys, camp){
   }
 
   const prov = (sys.telephony_provider || 'vobiz').toLowerCase();
-  const callerDisp = prov === 'exotel' ? (sys.exotel_caller_id||'—') : (sys.vobiz_caller_id||'—');
+  const callerDisp = (sys.vobiz_caller_id||'—');
 
   // — Leads ready to call (campaign pre-flight) ─────────────────────
   const lr = sys.leads_ready || {};

@@ -19,7 +19,7 @@ Editing landing/`pricing.html`/`audit.html`/blog/mini-site, or investigating slo
    - **Images/posters:** SVG posters are light (good); compress any raster, lazy-load below-fold, set width/height (avoid CLS).
    - **No render-blocking:** inline critical CSS, defer non-critical JS (the vanilla-JS pages are already light — keep them that way; no heavy frameworks).
    - **Fonts:** system-ui stack (already used) — no web-font download.
-   - **3rd-party scripts:** Razorpay/analytics load async/deferred, not blocking.
+   - **3rd-party scripts:** Stripe/analytics load async/deferred, not blocking.
 4. **Server side:** Caddy gzip/brotli on; app responses fast (PgBouncer pooling helps); cache `/api/data/niches` etc. where static.
 5. **Re-measure** after each change — prove the metric moved.
 

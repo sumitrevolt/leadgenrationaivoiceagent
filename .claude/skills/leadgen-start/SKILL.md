@@ -37,4 +37,4 @@ Iska maqsad: naya chat minimum token me oriented ho jaye. `CLAUDE.md` (lean work
 4. Done → `docs/SESSION_LOG.md` me 2-4 line milestone, CLAUDE.md me 1-line status.
 
 ## Blockers (user-action, abhi pending)
-🚨 **Razorpay** `.env` me placeholder keys (real `rzp_live_` set nahi) — checkout/topup/dunning dead jab tak fix na ho (pehle paid customer se pehle MUST). Udyam→DLT re-apply (cold-calling). Exotel KYC + recharge. External-blocked (build nahi kar sakte): missed-call callback, GBP/Meta auto-post. In par token mat jalao.
+**Payments** = manual UPI (`UPI_VPA` set karo) / Stripe — Razorpay gateway HATA diya gaya (purana 401-blocker resolved). Udyam→DLT re-apply (cold-calling). Vobiz DID + recharge. External-blocked (build nahi kar sakte): missed-call callback, GBP/Meta auto-post. In par token mat jalao.

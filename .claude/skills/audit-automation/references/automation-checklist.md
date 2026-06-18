@@ -160,7 +160,7 @@ python scripts/automation_health_audit.py --monthly-report | grep -A 20 "Risk As
 **Document**:
 - [ ] All compliance checks passed? (must be yes)
 - [ ] Any gaps or workarounds? (log for resolution)
-- [ ] Any external blockers? (e.g., Exotel KYC pending)
+- [ ] Any external blockers? (e.g., Vobiz DID/recharge pending)
 
 ### Step 6: Action Items & Recommendations (10 min)
 
@@ -198,7 +198,7 @@ python scripts/automation_health_audit.py --compliance-check
 
 **Verify**:
 1. **DLT setup**
-   - [ ] Template IDs registered with provider (Exotel/Twilio)
+   - [ ] Template IDs registered with provider (Vobiz/Twilio)
    - [ ] Outgoing calls use DLT-approved sender ID
    - [ ] Content matches approved template (no ad-lib)
 
@@ -300,7 +300,7 @@ RISKS:
 NEXT MONTH PRIORITIES:
   1. Test new action: "micro_influencer_outreach" (need 50 runs for learning)
   2. Optimize: sales_deepdive (cost up 8%, try sampling instead of full analysis)
-  3. Compliance: Exotel KYC completion (unblocks cold calls)
+  3. Compliance: Vobiz DID/recharge + DLT (unblocks cold calls)
   4. Lesson quality: Review reflection (3 generic lessons, reduce noise)
 
 APPROVAL METRICS (if enabled):

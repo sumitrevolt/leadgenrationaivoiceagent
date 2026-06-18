@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Pricing & Sign Up — LeadGenAI</title>
 <meta name="description" content="AI Automated Marketing plans — local businesses ka poora marketing auto-pilot pe. Self-serve signup, UPI/card payment. (AI Voice Calling Agent alag product hai — /voice-agent)" />
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<!-- Razorpay checkout removed 2026-06-18 — payments via Stripe / manual UPI -->
 <style>
   :root{--bg:#0b1020;--card:#141a2e;--card2:#1b2440;--ink:#eef2ff;--mut:#9aa6c7;--bd:#26304f;
         --pri:#5b8cff;--pri2:#7aa2ff;--ok:#2ecc71;--gold:#ffd166;--rad:16px}
@@ -290,26 +290,10 @@ async function doSignupPay(){
   }
 
   // 3) open gateway
-  if(co.gateway==="razorpay" && co.key_id && co.order_id){
-    const rzp = new Razorpay({
-      key:co.key_id, order_id:co.order_id, name:"LeadGenAI",
-      description:(SELECTED.name||SELECTED.id)+" — "+CYCLE,
-      prefill:{email, contact:phone}, theme:{color:"#5b8cff"},
-      handler:async function(resp){
-        try{
-          const v = await fetch(API+`/api/billing/verify-payment?client_id=${encodeURIComponent(cid)}`,{
-            method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(token||"")},
-            body:JSON.stringify({order_id:resp.razorpay_order_id,payment_id:resp.razorpay_payment_id,signature:resp.razorpay_signature})});
-          if(v.ok){ setMsg("Payment ho gaya! Redirect…",true); location.href="/app/customer"; }
-          else setMsg("Payment hua par verify pending — humse contact karo.");
-        }catch(e){ setMsg("Verify error — humse contact karo."); }
-      },
-      modal:{ondismiss:function(){busy(false);setMsg("Payment cancel — account bana hua hai, baad me pay kar sakte ho.");}}
-    });
-    rzp.open();
-  } else if(co.gateway==="stripe" && co.checkout_url){
+  if(co.gateway==="stripe" && co.checkout_url){
     location.href = co.checkout_url;
   } else {
+    // Razorpay removed (2026-06-18) — manual UPI / contact fallback
     busy(false); paymentFallback(cid);
   }
 }

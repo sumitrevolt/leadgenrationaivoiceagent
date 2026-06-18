@@ -33,7 +33,7 @@ App = FastAPI (`Dockerfile.lock`), LIVE at **https://leadsgenai.in** on a single
 - `ship-checklist` — health-gate + rollback discipline per deploy.
 - `observability-ops` — Prometheus/Grafana/Alertmanager + flower/celery-exporter addons.
 
-## Before first paid customer (BLOCKER)
-- 🚨 **Razorpay**: `.env` me real `rzp_live_...` keys daalo (abhi placeholders → checkout/payment-links/topup/dunning dead). Webhook register + `RAZORPAY_WEBHOOK_SECRET`.
-- Telephony: Exotel keys + DLT/TRAI (cold-calling ke liye; inbound callback ko nahi chahiye).
+## Before first paid customer
+- **Payments**: Razorpay gateway HATA diya gaya (purana 401-blocker RESOLVED). Payments ab manual UPI (`UPI_VPA` set karo) / Stripe. Koi `rzp_*` key zaroorat nahi.
+- Telephony: Vobiz DID + recharge + DLT/TRAI (cold-calling ke liye; inbound callback ko nahi chahiye). `VOBIZ_CALLER_ID` set.
 - NEVER commit `.env` (gitignored). Full legacy guide: `docs/legacy/DEPLOY_GUIDE.md` (mostly historical).

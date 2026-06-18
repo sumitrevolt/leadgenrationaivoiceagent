@@ -37,42 +37,17 @@ def test_nps_submit_and_stats(tmp_path, monkeypatch):
     assert r3["ok"] and r3["bucket"] == "promoter"
 
 
-# ----------------------------- Payment recon ----------------------------- #
-def _pay(pid, amt_inr, ts, oid=""):
-    return {"id": pid, "order_id": oid, "amount": int(amt_inr * 100), "status": "captured",
-            "created_at": ts, "email": "x@y.in", "contact": "+919800000000"}
-
-
-def test_recon_match_by_id_and_amount():
+# ------------------- Payment recon (removed 2026-06-18) ------------------- #
+# Razorpay gateway removed — payment_recon is now an inert stub (no rail to
+# reconcile; payments via manual UPI). Just verify it never raises.
+def test_recon_removed_stub_inert():
     from app.billing import payment_recon as pr
 
-    ts = 1765800000  # fixed epoch
-    import time
-
-    day = time.strftime("%Y-%m-%d", time.gmtime(ts))
-    invoices = [
-        {"number": "INV/2026-27/0001", "total": 999.0, "date": day, "notes": "pay_AAA111"},
-        {"number": "INV/2026-27/0002", "total": 2499.0, "date": day},
-    ]
-    payments = [
-        _pay("pay_AAA111", 999.0, ts),          # id-match
-        _pay("pay_BBB222", 2499.0, ts),          # amount+day fallback match
-        _pay("pay_CCC333", 5999.0, ts),          # unmatched -> leak candidate
-    ]
-    rep = pr.match_payments(payments, invoices)
-    assert rep["total_payments"] == 3 and rep["matched"] == 2
-    assert len(rep["unmatched"]) == 1 and rep["unmatched"][0]["payment_id"] == "pay_CCC333"
-    assert rep["gross_inr"] == 999.0 + 2499.0 + 5999.0
-
-
-def test_recon_gates(monkeypatch):
-    from app.billing import payment_recon as pr
-
-    monkeypatch.delenv("PAYMENT_RECON", raising=False)
-    assert asyncio.run(pr.run_if_enabled())["skipped"] == "PAYMENT_RECON off"
-    monkeypatch.setenv("PAYMENT_RECON", "1")
-    monkeypatch.setattr(pr, "_creds", lambda: ("", ""))  # creds unset = graceful skip
-    assert asyncio.run(pr.run_if_enabled())["skipped"] == "razorpay creds unset"
+    assert pr.match_payments([], []) == {
+        "total_payments": 0, "gross_inr": 0, "matched": 0, "unmatched": []
+    }
+    assert asyncio.run(pr.run_if_enabled())["ok"] is False
+    assert pr.last_report()["ok"] is False
 
 
 # ----------------------------- IndexNow ----------------------------- #

@@ -925,7 +925,7 @@ a{color:var(--acc)}
     <h2>📞 Missed-call handler</h2>
     <div class="mut">Lead capture + gated MISSED_CALL_CALLBACK instant callback. Phone E.164 ya 10-digit.</div>
     <label>Caller phone</label><input id="telPhone" placeholder="9876543210">
-    <label>Exotel Call SID (optional)</label><input id="telSid">
+    <label>Call SID (optional)</label><input id="telSid">
     <button class="btn" id="telMissBtn" onclick="telMissed()">Trigger</button>
     <div id="telMissOut"></div>
   </div>
@@ -1999,7 +1999,7 @@ async function rvTopup(){
   busy('rvTuBtn',1);
   try{
     var d=await api('/api/growth/revenue/topup-link',{method:'POST',body:JSON.stringify({client_id:cid,pack:$('rvTuPack').value})});
-    if(d.ok===false)throw new Error(d.error||'fail (Razorpay creds?)');
+    if(d.ok===false)throw new Error(d.error||'fail (payment gateway?)');
     var url=d.short_url||d.url||(d.link&&d.link.short_url)||'';
     var h='<div class="result">';
     if(url)h+='<div class="copybox"><input readonly value="'+esc(url)+'" id="rvTuUrl"><button class="btn2" onclick="copyVal(\'rvTuUrl\')">Copy</button></div><div class="mut">Pay hote hi webhook AUTO minutes credit + invoice karega.</div>';

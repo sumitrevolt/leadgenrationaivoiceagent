@@ -24,7 +24,7 @@ Codebase ka signature pattern: har external integration **import-safe + flag/cre
 
 ## Reference implementations (copy pattern, REBUILD nahi)
 - LLM: `app/voice_agent/free_ai.py` (free multi-provider chain: Mistral mistral-small-latest PRIMARY → Groq llama-3.1-8b-instant → Cerebras gpt-oss-120b 429-prone → Gemini → SambaNova → OpenRouter + escalating circuit-breaker).
-- Telephony: `app/telephony/exotel_handler.py` (`base_url=None` if unconfigured; Exotel = active provider).
+- Telephony: `app/telephony/vobiz_handler.py` (`base_url=None` if unconfigured; Vobiz = active provider, India-native SIP).
 - SMS: `app/integrations/sms_dlt.py` (inert without `SMS_DLT_ENABLED`+BSP creds).
 - WhatsApp: `app/marketing/whatsapp_campaign.py` (default 1-click links; auto-send gated).
 - CRM: `app/integrations/zoho_crm.py` + `hubspot.py` (per-client/global creds, `CRM_SYNC` OFF).

@@ -192,13 +192,7 @@ class ProductionConfig:
     def twilio_auth_token(self) -> str:
         return get_secret_or_env(f"{self._prefix}twilio-auth-token", "TWILIO_AUTH_TOKEN")
 
-    @property
-    def exotel_api_key(self) -> str:
-        return get_secret_or_env(f"{self._prefix}exotel-api-key", "EXOTEL_API_KEY")
-
-    @property
-    def exotel_api_token(self) -> str:
-        return get_secret_or_env(f"{self._prefix}exotel-api-token", "EXOTEL_API_TOKEN")
+    # Exotel removed 2026-06-18 — telephony provider is Vobiz (VOBIZ_* env).
 
     def get_all_config(self) -> dict[str, Any]:
         """Get all configuration as dict"""
@@ -210,7 +204,7 @@ class ProductionConfig:
             "openai_configured": bool(self.openai_api_key),
             "gemini_configured": bool(self.gemini_api_key),
             "twilio_configured": bool(self.twilio_account_sid),
-            "exotel_configured": bool(self.exotel_api_key),
+            "vobiz_configured": bool(get_secret_or_env(f"{self._prefix}vobiz-auth-id", "VOBIZ_AUTH_ID")),
         }
 
 

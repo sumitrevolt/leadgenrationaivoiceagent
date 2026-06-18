@@ -76,21 +76,14 @@ class FakeDB:
 # config-gating helpers                                                        #
 # --------------------------------------------------------------------------- #
 def test_gateway_config_helpers(monkeypatch):
+    # Razorpay removed 2026-06-18 — only Stripe config helpers remain.
     monkeypatch.setattr(billing.settings, "stripe_secret_key", "", raising=False)
     monkeypatch.setattr(billing.settings, "stripe_webhook_secret", "", raising=False)
-    monkeypatch.setattr(billing.settings, "razorpay_key_id", "", raising=False)
-    monkeypatch.setattr(billing.settings, "razorpay_key_secret", "", raising=False)
-    monkeypatch.setattr(billing.settings, "razorpay_webhook_secret", "", raising=False)
     assert billing._stripe_configured() is False
     assert billing._stripe_webhook_configured() is False
-    assert billing._razorpay_configured() is False
-    assert billing._razorpay_webhook_configured() is False
 
     monkeypatch.setattr(billing.settings, "stripe_secret_key", "sk_test_x", raising=False)
-    monkeypatch.setattr(billing.settings, "razorpay_key_id", "rzp_id", raising=False)
-    monkeypatch.setattr(billing.settings, "razorpay_key_secret", "rzp_secret", raising=False)
     assert billing._stripe_configured() is True
-    assert billing._razorpay_configured() is True
 
 
 def test_client_email_fallback_for_unknown_client():
@@ -115,79 +108,8 @@ def test_stripe_webhook_503_when_unconfigured(monkeypatch):
     assert ei.value.status_code == 503
 
 
-def test_razorpay_webhook_503_when_unconfigured(monkeypatch):
-    from fastapi import HTTPException
-
-    monkeypatch.setattr(billing, "_razorpay_configured", lambda: False)
-    monkeypatch.setattr(billing, "_razorpay_webhook_configured", lambda: False)
-    req = FakeRequest(b"{}", {"X-Razorpay-Signature": "x"})
-    with pytest.raises(HTTPException) as ei:
-        _run(billing.razorpay_webhook(req, db=FakeDB()))
-    assert ei.value.status_code == 503
-
-
-# --------------------------------------------------------------------------- #
-# Razorpay HMAC verification (no SDK needed — pure stdlib hmac)                 #
-# --------------------------------------------------------------------------- #
-def test_razorpay_webhook_bad_signature_400(monkeypatch):
-    from fastapi import HTTPException
-
-    monkeypatch.setattr(billing, "_razorpay_configured", lambda: True)
-    monkeypatch.setattr(billing, "_razorpay_webhook_configured", lambda: True)
-    monkeypatch.setattr(billing.settings, "razorpay_webhook_secret", "whsec", raising=False)
-    body = json.dumps({"event": "subscription.charged", "payload": {}}).encode()
-    req = FakeRequest(body, {"X-Razorpay-Signature": "deadbeef"})  # wrong sig
-    with pytest.raises(HTTPException) as ei:
-        _run(billing.razorpay_webhook(req, db=FakeDB()))
-    assert ei.value.status_code == 400
-
-
-def test_razorpay_webhook_valid_signature_provisions(monkeypatch):
-    monkeypatch.setattr(billing, "_razorpay_configured", lambda: True)
-    monkeypatch.setattr(billing, "_razorpay_webhook_configured", lambda: True)
-    secret = "whsec"
-    monkeypatch.setattr(billing.settings, "razorpay_webhook_secret", secret, raising=False)
-
-    captured = {}
-
-    def fake_provision(client_id, plan_id, period_end, sub_id, reset=True):
-        captured.update(
-            client_id=client_id, plan_id=plan_id, sub_id=sub_id, reset=reset
-        )
-
-    async def fake_activate(db, **kw):
-        captured["activated"] = kw
-        return None  # no row -> exercises the None-safe provisioning path
-
-    monkeypatch.setattr(billing, "_provision_usage", fake_provision)
-    monkeypatch.setattr(billing, "_activate_subscription_row", fake_activate)
-
-    event = {
-        "event": "subscription.charged",
-        "payload": {
-            "subscription": {
-                "entity": {
-                    "id": "sub_rzp_123",
-                    "customer_id": "cust_9",
-                    "current_start": 1_700_000_000,
-                    "current_end": 1_702_592_000,
-                    "notes": {"client_id": "acme-123", "plan_id": "advanced"},
-                }
-            }
-        },
-    }
-    body = json.dumps(event).encode()
-    sig = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    req = FakeRequest(body, {"X-Razorpay-Signature": sig})
-
-    out = _run(billing.razorpay_webhook(req, db=FakeDB()))
-    assert out["received"] is True
-    assert out["event"] == "subscription.charged"
-    assert captured["client_id"] == "acme-123"
-    assert captured["plan_id"] == "advanced"
-    assert captured["sub_id"] == "sub_rzp_123"
-    assert captured["reset"] is True
-    assert captured["activated"]["razorpay_subscription_id"] == "sub_rzp_123"
+# Razorpay webhook tests removed 2026-06-18 — Razorpay gateway gone (the
+# /billing/webhooks/razorpay route + razorpay_webhook handler were deleted).
 
 
 # --------------------------------------------------------------------------- #
@@ -295,7 +217,7 @@ def test_new_billing_routes_mounted():
 
     paths = {getattr(r, "path", "") for r in app.routes}
     assert "/api/billing/webhooks/stripe" in paths
-    assert "/api/billing/webhooks/razorpay" in paths
+    # /api/billing/webhooks/razorpay removed 2026-06-18 (Razorpay gateway gone)
     assert "/api/billing/portal" in paths
     assert "/api/billing/subscription/pause" in paths
     assert "/api/billing/subscription/resume" in paths
