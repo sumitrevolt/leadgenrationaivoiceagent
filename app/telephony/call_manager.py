@@ -80,16 +80,23 @@ class CallManager:
     """
 
     def __init__(self, provider: str | None = None):
-        provider = provider or settings.default_telephony
+        provider = (provider or settings.default_telephony or "vobiz").strip().lower()
+
+        # Defensive: an unknown/stale provider (e.g. legacy "exotel" still sitting in
+        # .env) must NEVER crash the whole app — fall back to Vobiz (active India
+        # provider) with a warning. Removing Exotel must not become a foot-gun.
+        if provider not in ("twilio", "vobiz"):
+            logger.warning(
+                f"Unknown telephony provider '{provider}' — falling back to vobiz."
+            )
+            provider = "vobiz"
 
         if provider == "twilio":
             self.handler = TwilioHandler()
-        elif provider == "vobiz":
+        else:  # vobiz
             from app.telephony.vobiz_handler import VobizClient
 
             self.handler = VobizClient()
-        else:
-            raise ValueError(f"Unknown telephony provider: {provider}")
 
         self.provider = TelephonyProvider(provider)
         self.voice_agent = VoiceAgent()
