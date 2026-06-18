@@ -159,6 +159,24 @@ def _seed_insights(tmp_path, monkeypatch):
     monkeypatch.setattr(ci, "_DIALER_LOGS", str(df))
     monkeypatch.setattr(ci, "_CADENCE_RUNS", str(cf))
     monkeypatch.setattr(ci, "_recent_agent_events", lambda limit=30: [])
+    tdir = tmp_path / "call_transcripts"
+    tdir.mkdir()
+    tfile = tdir / "2026-06-18.jsonl"
+    _write_jsonl(
+        tfile,
+        [
+            {
+                "stream_sid": "sid-1",
+                "niche": "solar",
+                "client_name": "Acme",
+                "duration_s": 120.5,
+                "user_turns": 3,
+                "ts": _now_iso(),
+                "messages": [{"role": "user", "content": "mujhe solar chahiye"}],
+            }
+        ],
+    )
+    monkeypatch.setattr(ci, "_TRANSCRIPTS_DIR", str(tdir))
     return ci
 
 
@@ -173,6 +191,26 @@ def test_quick_stats_counts(tmp_path, monkeypatch):
     assert s["dialer"]["total_logged"] == 2 and s["dialer"]["today"] == 2
     assert s["dialer"]["by_disposition"]["interested"] == 1
     assert s["cadence"]["by_channel"]["email"] == 1
+    assert s["live_calls"]["total"] == 1
+    assert s["live_calls"]["today"] == 1
+    assert s["live_calls"]["total_user_turns"] == 3
+
+
+def test_ask_includes_transcript_context(tmp_path, monkeypatch):
+    ci = _seed_insights(tmp_path, monkeypatch)
+    import app.voice_agent.free_ai as free_ai
+
+    captured = {}
+
+    async def fake_chat(system=None, messages=None, **kw):
+        captured["user"] = messages[0]["content"]
+        return ("1 live call aaj, solar niche.", "mock")
+
+    monkeypatch.setattr(free_ai, "chat", fake_chat)
+    r = asyncio.run(ci.ask("aaj kitni live calls?"))
+    assert r["ok"] is True
+    assert "LIVE phone transcripts" in captured["user"]
+    assert "mujhe solar chahiye" in captured["user"]
 
 
 def test_quick_stats_missing_files(tmp_path, monkeypatch):

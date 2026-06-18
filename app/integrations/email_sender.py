@@ -65,6 +65,7 @@ class EmailSender:
         html_body: str | None = None,
         cc: list[str] | None = None,
         reply_to: str | None = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> bool:
         """
         Send an email
@@ -76,6 +77,9 @@ class EmailSender:
             html_body: Optional HTML body
             cc: CC recipients
             reply_to: Reply-to address
+            extra_headers: Optional extra MIME headers (e.g. List-Unsubscribe /
+                List-Unsubscribe-Post for promotional mail per RFC 2369/8058).
+                Applied on the SMTP path; transactional callers pass nothing.
         """
         # PREFER email API (Resend/Brevo) — SMTP se zyada reliable, koi mailbox
         # password jhanjhat nahi. Agar key set hai to API se bhejo; warna SMTP.
@@ -110,6 +114,15 @@ class EmailSender:
             msg["Cc"] = ", ".join(cc)
         if reply_to:
             msg["Reply-To"] = reply_to
+
+        # Extra RFC headers (e.g. List-Unsubscribe / List-Unsubscribe-Post for
+        # promotional mail, RFC 2369/8058). Additive + never override core headers.
+        for _hk, _hv in (extra_headers or {}).items():
+            try:
+                if _hk and _hv and _hk not in msg:
+                    msg[_hk] = _hv
+            except Exception:
+                pass
 
         # Attach plain text body
         msg.attach(MIMEText(body, "plain"))

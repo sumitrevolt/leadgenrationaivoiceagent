@@ -29,6 +29,15 @@ def _read(rel: str) -> str:
     return p.read_text(encoding="utf-8", errors="ignore")
 
 
+def audit_call_insights_transcripts() -> None:
+    text = _read("app/platform/call_insights.py")
+    if text and "call_transcripts" not in text:
+        PROBLEMS.append(
+            "INSIGHTS: call_insights missing data/call_transcripts reader "
+            "(LIVE Vobiz calls invisible to Ask AI)"
+        )
+
+
 def audit_vobiz_stream_lifecycle() -> None:
     text = _read("app/telephony/vobiz_stream.py")
     if not text:
@@ -86,6 +95,7 @@ def audit_automation_parity() -> None:
 def main() -> int:
     print("=== CROSS-PATH WIRING AUDIT ===")
     audit_vobiz_stream_lifecycle()
+    audit_call_insights_transcripts()
     audit_qualified_lead_idempotency()
     audit_automation_parity()
     print("-" * 48)

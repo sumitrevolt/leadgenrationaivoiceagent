@@ -134,6 +134,41 @@ async def newsletter_unsub(token: str):
     return HTMLResponse(newsletter.unsub_html(res), status_code=200 if res.get("ok") else 404)
 
 
+async def _outreach_unsub(token: str) -> HTMLResponse:
+    """Suppress a cold-outreach email by one-click token. Never-raise."""
+    from app.platform import email_unsub
+
+    email = email_unsub.verify_token(token or "")
+    if not email:
+        return HTMLResponse("<h3>Invalid or expired unsubscribe link.</h3>", status_code=400)
+    await asyncio.to_thread(email_unsub.suppress, email, "one_click")
+    return HTMLResponse(
+        f"<h3>Unsubscribed ✓</h3><p>{email} ko ab marketing emails nahi aayenge. "
+        "Galti se hua? admin@leadsgenai.in pe reply karo.</p>",
+        status_code=200,
+    )
+
+
+@router.get(
+    "/outreach-unsub/{token}",
+    response_class=HTMLResponse,
+    dependencies=[Depends(rate_limit("outreachunsub", 20, 60))],
+)
+async def outreach_unsub_get(token: str):
+    """PUBLIC cold-outreach unsubscribe — human footer link (GET)."""
+    return await _outreach_unsub(token)
+
+
+@router.post(
+    "/outreach-unsub/{token}",
+    response_class=HTMLResponse,
+    dependencies=[Depends(rate_limit("outreachunsubp", 30, 60))],
+)
+async def outreach_unsub_post(token: str):
+    """RFC 8058 one-click unsubscribe — mail-client POST (List-Unsubscribe-Post)."""
+    return await _outreach_unsub(token)
+
+
 @router.get("/newsletter/rss-digest")
 async def newsletter_rss_digest(
     limit: int = Query(5, ge=1, le=20), _user=Depends(require_admin)
