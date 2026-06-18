@@ -327,6 +327,24 @@ async def handle_stripe_invoice_paid(data: dict, db: AsyncSession):
             stripe_subscription_id,
         )
     logger.info(f"Invoice paid: {stripe_invoice_id}")
+    if subscription and subscription.client_id:
+        try:
+            from app.platform import customer_webhooks
+
+            customer_webhooks.fire_emit(
+                str(subscription.client_id),
+                "payment.received",
+                {
+                    "client_id": str(subscription.client_id),
+                    "plan_id": subscription.plan_id,
+                    "gateway": "stripe",
+                    "invoice_id": stripe_invoice_id,
+                    "amount_paid": float(data.get("amount_paid", 0) or 0) / 100,
+                    "currency": (data.get("currency") or "usd").upper(),
+                },
+            )
+        except Exception:
+            pass
 
 
 async def handle_stripe_invoice_failed(data: dict, db: AsyncSession):
@@ -426,6 +444,21 @@ async def handle_stripe_subscription_created(data: dict, db: AsyncSession):
     _provision_minutes(client_id, plan_id, subscription.current_period_end, stripe_subscription_id)
 
     logger.info(f"Created subscription {subscription.id} from Stripe webhook")
+    try:
+        from app.platform import customer_webhooks
+
+        customer_webhooks.fire_emit(
+            str(client_id),
+            "subscription.activated",
+            {
+                "client_id": str(client_id),
+                "plan_id": plan_id,
+                "gateway": "stripe",
+                "stripe_subscription_id": stripe_subscription_id,
+            },
+        )
+    except Exception:
+        pass
 
 
 async def handle_stripe_subscription_updated(data: dict, db: AsyncSession):
@@ -484,6 +517,21 @@ async def handle_stripe_subscription_deleted(data: dict, db: AsyncSession):
         subscription.ended_at = datetime.utcnow()
         await db.commit()
         logger.info(f"Subscription {subscription.id} cancelled")
+        try:
+            from app.platform import customer_webhooks
+
+            customer_webhooks.fire_emit(
+                str(subscription.client_id),
+                "subscription.cancelled",
+                {
+                    "client_id": str(subscription.client_id),
+                    "plan_id": subscription.plan_id,
+                    "gateway": "stripe",
+                    "stripe_subscription_id": stripe_subscription_id,
+                },
+            )
+        except Exception:
+            pass
 
 
 async def handle_stripe_payment_succeeded(data: dict, db: AsyncSession):
@@ -510,6 +558,24 @@ async def handle_stripe_payment_succeeded(data: dict, db: AsyncSession):
     db.add(payment)
     await db.commit()
     logger.info(f"Payment recorded: {payment_intent_id}")
+    cid = data.get("metadata", {}).get("client_id")
+    if cid:
+        try:
+            from app.platform import customer_webhooks
+
+            customer_webhooks.fire_emit(
+                str(cid),
+                "payment.received",
+                {
+                    "client_id": str(cid),
+                    "gateway": "stripe",
+                    "payment_intent_id": payment_intent_id,
+                    "amount": float(Decimal(str(data.get("amount", 0))) / 100),
+                    "currency": (data.get("currency") or "usd").upper(),
+                },
+            )
+        except Exception:
+            pass
 
 
 async def handle_stripe_payment_failed(data: dict, db: AsyncSession):

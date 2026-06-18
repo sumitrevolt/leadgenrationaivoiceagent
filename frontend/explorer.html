@@ -428,7 +428,7 @@ const VIEWS = {
       {id:'free_ai', type:'ai', badge:'LAYER', cx:'complex', title:'Free AI Provider Chain', desc:'Mistral → Groq → Cerebras → Gemini · circuit-breaker 429', files:'free_ai.py', x:40, y:1240, w:280, h:110},
       {id:'rag', type:'ai', badge:'LAYER', cx:'complex', title:'RAG / Knowledge Base', desc:'Qdrant kb_main · niche: · client: · skills(241) · agentic RAG opt-in', files:'knowledge_base.py', x:360, y:1240, w:280, h:110},
       {id:'data_layer', type:'data', badge:'LAYER', cx:'moderate', title:'Data Layer', desc:'Postgres+PgBouncer · Redis×2 · Qdrant · MinIO opt · ./data jsonl', files:'models/', x:700, y:1240, w:560, h:110},
-      {id:'gap_transfer', type:'gap', badge:'GAP P0', cx:'complex', title:'Live Human Transfer', desc:'NOT BUILT — AI call → owner connect-leg + context whisper (voice moat)', files:'backlog · Advanced tier', x:2140, y:1040, w:240, h:100},
+      {id:'gap_transfer', type:'gap', badge:'GAP P0', cx:'complex', title:'Live Human Transfer', desc:'PARTIAL — call_transfer.py gated CALL_TRANSFER=1 · Vobiz connect-leg · intent detect wired; prod needs DID+recharge', files:'call_transfer.py', x:2140, y:1040, w:240, h:100},
       {id:'gap_frames', type:'gap', badge:'GAP P0', cx:'moderate', title:'Branded Frame Feed', desc:'NOT BUILT — AdBanao-style daily branded template overlay + feed', files:'backlog', x:2140, y:1160, w:240, h:100},
       {id:'gap_geo', type:'gap', badge:'GAP P1', cx:'moderate', title:'GEO / AI Visibility', desc:'NOT BUILT — ChatGPT/AI search me business dikhta hai? lead magnet #3', files:'backlog', x:2140, y:1280, w:240, h:100},
       {id:'gap_meta', type:'gap', badge:'BLOCKED', cx:'complex', title:'Meta FB/IG Auto-Post', desc:'EXTERNAL — Meta app review required · WA auto-send banned', files:'env blocked', x:2400, y:1040, w:240, h:100},
@@ -571,7 +571,7 @@ const VIEWS = {
       {id:'launch', type:'monitor', badge:'LAUNCH', cx:'simple', sched:'60s poll', title:'Production Ready', desc:'production_ready · blocker_count=0 · payments/calling optional', files:'activation.py · final_integration_check.py', x:2020, y:720, w:250, h:95},
       {id:'public_in', type:'external', badge:'TRIGGER', cx:'simple', title:'Inbound Triggers', desc:'/api/public/inquiry · signup · audit → journey + lead_dist', files:'public_site.py', x:2300, y:720, w:250, h:95},
       {id:'customer_wh', type:'external', badge:'WEBHOOK', cx:'simple', title:'Customer Webhooks', desc:'lead.created · lead.qualified · call.completed · Svix HMAC', files:'customer_webhooks.py', x:2580, y:720, w:250, h:95},
-      {id:'gap_transfer', type:'gap', badge:'GAP P0', cx:'complex', title:'Live Human Transfer', desc:'NOT BUILT — Vobiz connect-leg transfer + context whisper', files:'voice backlog', x:40, y:880, w:250, h:95},
+      {id:'gap_transfer', type:'gap', badge:'GAP P0', cx:'complex', title:'Live Human Transfer', desc:'PARTIAL — call_transfer.py + Vobiz connect-leg (CALL_TRANSFER=1) · needs DID recharge', files:'call_transfer.py', x:40, y:880, w:250, h:95},
       {id:'gap_snapshots', type:'gap', badge:'GAP P0', cx:'moderate', title:'Client Snapshots', desc:'NOT BUILT — GHL-style 1-click niche setup clone JSON', files:'FDE formalize', x:320, y:880, w:250, h:95},
       {id:'fire_campaign', type:'marketing', badge:'CAMPAIGN', cx:'moderate', sched:'manual/daily', title:'Outbound Campaign (Swara)', desc:'fire_calls.py · leads DB top-N → AI call [--client-id → client name+niche] → disposition · mark_called · TRAI 10am-7pm gate', files:'scripts/fire_calls.py', flag:'VOBIZ_CALL_RECORD', x:40, y:1010, w:270, h:110},
       {id:'call_review', type:'monitor', badge:'REVIEW', cx:'simple', sched:'async', title:'Recording Review Loop', desc:'WAV caller+bot saved → admin player (auth-header blob fetch, 401-safe) → agent quality tuning feedback loop', files:'app/api/call_recordings.py · admin_dashboard.html', x:360, y:1010, w:270, h:110},
@@ -580,7 +580,7 @@ const VIEWS = {
       {id:'rm_voiceqa', type:'gap', badge:'P2 QA', cx:'complex', title:'Voice QA Sprint', desc:'agent_tester.py baseline -> /app/test-call -> _script_fallback discovery + re-greet fix + latency. Compliance gates untouched.', files:'telecaller_brain.py · agent_tester.py', x:340, y:1280, w:270, h:110},
       {id:'rm_admin', type:'gap', badge:'P3 UX', cx:'moderate', title:'Admin Launch Polish', desc:'PARTIAL - client name+slug dropdown DONE this sprint. Pending: real per-run campaign history (needs run persistence).', files:'admin_dashboard.html', x:640, y:1280, w:270, h:110},
       {id:'rm_upi', type:'gap', badge:'P4 REVENUE', cx:'moderate', title:'UPI Revenue Loop', desc:'DONE this sprint - activation UPI probe + reply-agent interested->UPI draft. Pending: UPI_VPA set + pricing modal live (env).', files:'activation.py · reply_agent.py', x:940, y:1280, w:270, h:110},
-      {id:'rm_postcall', type:'gap', badge:'P5 ENV-FLIP', cx:'simple', sched:'env', title:'Post-Call Intelligence', desc:'AUTO_QUALIFY_CALLS=1 -> per-call interest score + followup draft (call_qualifications.jsonl). Admin UI surface pending.', files:'.env · call_qualifications', x:1240, y:1280, w:270, h:110},
+      {id:'rm_postcall', type:'gap', badge:'P5 ENV-FLIP', cx:'simple', sched:'env', title:'Post-Call Intelligence', desc:'AUTO_QUALIFY_CALLS=1 → per-call score + followup draft. UI: /app/automation Post-Call tab + /api/growth/voice/qualifications', files:'call_qualifier.py · automation.html', x:1240, y:1280, w:270, h:110},
       {id:'rm_obs', type:'gap', badge:'MEDIUM', cx:'simple', sched:'env', title:'Observability', desc:'SENTRY_DSN + POSTHOG_API_KEY -> call-fail / LLM 429 visibility (activation Phase 1).', files:'.env', x:40, y:1420, w:270, h:110},
       {id:'rm_deploy', type:'gap', badge:'MEDIUM', cx:'simple', sched:'env', title:'Deploy Automation', desc:'DEPLOY_ENABLED=true + GHCR secrets -> CI auto-deploy (manual SSH loop kam).', files:'CI · .env', x:340, y:1420, w:270, h:110},
       {id:'rm_sec', type:'gap', badge:'MEDIUM', cx:'moderate', title:'Security Harden', desc:'/api/ai/command pe auth + rate-limit -> public LLM abuse surface band.', files:'middleware', x:640, y:1420, w:270, h:110},
@@ -791,20 +791,27 @@ const FLOW_FLAGS = [
   {key:'LEAD_HARVESTER', def:true, node:'prospect'},
   {key:'AUTO_EMAIL_OUTREACH', def:true, node:'outreach'},
   {key:'REPLY_AGENT', def:true, node:'reply'},
+  {key:'USE_STRUCTURED_CONTENT', def:true, node:'content'},
   {key:'AUTO_ONBOARD', def:true, node:'onboard'},
   {key:'SELF_IMPROVE_LOOP', def:true, node:'self_improve'},
   {key:'EVAL_GATE', def:true, node:'eval_gate'},
-  {key:'JOURNEY_ENGINE', def:false, node:'journey'},
-  {key:'CADENCE_ENGINE', def:false, node:'journey'},
+  {key:'JOURNEY_ENGINE', def:true, node:'journey'},
+  {key:'CADENCE_ENGINE', def:true, node:'journey'},
+  {key:'SALES_ENGINE', def:true, node:'sales'},
   {key:'SALES_TEAM', def:true, node:'sales'},
   {key:'DUNNING_ENGINE', def:true, node:'revenue'},
+  {key:'LIFECYCLE_NURTURE', def:false, node:'content'},
   {key:'GROWTH_OPTIMIZER', def:true, node:'growth_opt'},
   {key:'CHANNEL_EXPERIMENTS', def:true, node:'channel_exp'},
   {key:'OPS_WATCHDOG', def:true, node:'ops'},
+  {key:'AUTO_QUALIFY_CALLS', def:false, node:'rm_postcall'},
+  {key:'AUTO_CALLBACK_INQUIRY', def:true, node:'rm_inbound'},
+  {key:'CRM_SYNC', def:false, node:'crm_sync'},
   {key:'TELEGRAM_AUTO_PUBLISH', def:false, node:'telegram_pub'},
   {key:'WHATSAPP_AUTO_SEND', def:false, node:'whatsapp_wa'},
   {key:'VOBIZ_CALL_RECORD', def:true, node:'fire_campaign'},
-  {key:'PLAN_RATE_LIMIT', def:false, node:'fire_campaign'},
+  {key:'PLAN_RATE_LIMIT', def:false, node:'rate_limit_mw'},
+  {key:'CUSTOMER_WEBHOOKS', def:false, node:'customer_wh'},
 ];
 
 const IST_SCHEDULE = [
@@ -816,7 +823,7 @@ const IST_SCHEDULE = [
   {time:'*/15', label:'Growth pulse', node:'coordinator', job:'growth_pulse'},
   {time:'hourly', label:'Reply triage (IMAP)', node:'reply', job:'reply_triage'},
   {time:'hourly', label:'Ops watchdog + health', node:'ops', job:'ops_watchdog'},
-  {time:'hourly', label:'Auto-onboard sweep', node:'onboard', job:'auto_onboard'},
+  {time:'hourly', label:'Auto-onboard sweep', node:'onboard', job:'onboard'},
   {time:'180s', label:'Self-improve loop tick', node:'self_improve', job:'self_improve'},
   {time:'02:30', label:'Arjun voice QA', node:'ops', job:'qa'},
   {time:'03:00', label:'Meera trainer', node:'ops', job:'trainer'},
@@ -1250,6 +1257,13 @@ function renderNodes() {
         statusHtml = `<span class="status-pill on">VPS UP</span>`;
       } else if(n.id === 'explorer' && liveHealth.base) {
         statusHtml = `<span class="status-pill live">SYNC</span>`;
+      } else if((n.id === 'beat' || n.id === 'worker' || n.id === 'ops') && liveHealth.automationHealth) {
+        const ah = liveHealth.automationHealth;
+        const od = (ah.overdue || []).length;
+        if(od) statusHtml = `<span class="status-pill off">${od} OVERDUE</span>`;
+        else if(ah.status === 'healthy') statusHtml = `<span class="status-pill on">JOBS OK</span>`;
+        else if(ah.status === 'warming_up') statusHtml = `<span class="status-pill">WARMUP</span>`;
+        else statusHtml = `<span class="status-pill off">${ah.status||'?'}</span>`;
       } else if(n.flag && liveHealth.flags) {
         const prod = liveHealth.flags[n.flag];
         statusHtml = `<span class="status-pill ${prod?'on':'off'}">${prod?'LIVE':'OFF'}</span>`;
@@ -1647,7 +1661,7 @@ function showNodeDetail(n) {
       </div>
     </div>`;
 
-  if(liveHealth && (n.id === 'launch' || n.id === 'vps' || n.id === 'explorer')) {
+  if(liveHealth && (n.id === 'launch' || n.id === 'vps' || n.id === 'explorer' || n.id === 'beat' || n.id === 'worker' || n.id === 'ops')) {
     html += `<div class="panel-hdr">Live sync (auto 60s)</div>`;
     if(n.id === 'launch' && liveHealth.summary) {
       const s = liveHealth.summary;
@@ -1663,7 +1677,18 @@ function showNodeDetail(n) {
         <div class="sd-desc">${liveHealth.base||'leadsgenai.in'}</div></div>`;
     }
     if(n.id === 'explorer') {
-      html += `<div class="step-detail"><div class="sd-desc">Δ toast dikhata hai jab launch/flags change hote hain.</div></div>`;
+      html += `<div class="step-detail"><div class="sd-desc">Δ toast · flags + job health (admin login) · Mission Control = prod truth</div></div>`;
+    }
+    if((n.id === 'beat' || n.id === 'worker' || n.id === 'ops') && liveHealth.automationHealth) {
+      const ah = liveHealth.automationHealth;
+      const od = ah.overdue || [];
+      const q = ah.queue || {};
+      html += `<div class="step-detail" style="border-color:${od.length?'#92400e':'#166534'}">
+        <div class="sd-title" style="color:${od.length?'#fbbf24':'#4ade80'}">${od.length?od.length+' overdue job(s)':'Scheduler healthy'}</div>
+        <div class="sd-desc">DLQ ${q.dlq??'?'} · celery queue ${q.celery??'?'} · ${ah.status||'—'}</div>
+        ${od.length?'<div class="sd-desc">'+String(od.join(', ')).replace(/</g,'&lt;')+'</div>':''}
+      </div>`;
+      html += `<a class="action-btn" href="/app/automation#schedule" style="display:block;text-align:center;text-decoration:none">↗ Mission Control Schedule</a>`;
     }
     html += `<button class="action-btn" onclick="fetchLiveHealth()">🔄 Refresh now</button>`;
   }
@@ -1763,8 +1788,10 @@ function showFlowPanel() {
 }
 
 function showFlagsPanel() {
-  let html = `<div class="panel-hdr">Automation Flags (draft)</div>
-    <div style="font-size:9px;color:#4b5563;margin-bottom:10px">Toggle = localStorage draft. Production: .env + docker recreate app.</div>`;
+  const hasToken = !!(typeof localStorage !== 'undefined' && localStorage.getItem('accessToken'));
+  let html = `<div class="panel-hdr">Automation Flags</div>
+    <div style="font-size:9px;color:#4b5563;margin-bottom:10px">${hasToken ? 'Admin login = prod flags auto-sync har 60s. Toggle = local .env draft only.' : '⚠ Admin login karo — prod LIVE/OFF pills + flag sync ke liye. Toggle = local draft.'}</div>
+    <a class="action-btn" href="/app/automation#fflags" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">↗ Mission Control Runtime Flags</a>`;
   FLOW_FLAGS.forEach(f => {
     const on = flagState[f.key];
     html += `<div class="flag-row">
@@ -1996,16 +2023,29 @@ function _parseFlagsPayload(flags) {
   return flagMap;
 }
 
+function _syncFlagsFromServer(flagMap) {
+  if(!flagMap || !Object.keys(flagMap).length) return;
+  FLOW_FLAGS.forEach(f => {
+    if(flagMap[f.key] !== undefined) flagState[f.key] = !!flagMap[f.key];
+  });
+  saveFlags();
+}
+
 function _snapshotKey(snap) {
   if(!snap) return '';
   const flags = snap.flags || {};
   const onFlags = Object.keys(flags).filter(k => flags[k]).sort().join(',');
+  const ah = snap.automationHealth || {};
+  const overdue = (ah.overdue || []).join(',');
   return [
     snap.base || '',
     snap.health?.status || '',
     snap.summary?.production_ready ? '1' : (snap.summary?.ready_for_launch ? '1' : '0'),
     snap.summary?.blocker_count ?? '',
     snap.summary?.warn_count ?? '',
+    ah.status || '',
+    overdue,
+    ah.queue?.dlq ?? '',
     onFlags,
   ].join('|');
 }
@@ -2034,6 +2074,12 @@ function _detectLiveChanges(prev, next) {
   Object.keys(nf).forEach(k => {
     if(pf[k] !== undefined && pf[k] !== nf[k]) parts.push(k + ': ' + (nf[k] ? 'ON' : 'OFF'));
   });
+  const pah = prev.automationHealth || {}, nah = next.automationHealth || {};
+  const pod = (pah.overdue || []).length, nod = (nah.overdue || []).length;
+  if(pod !== nod) parts.push('Overdue jobs ' + pod + '→' + nod);
+  if((pah.queue?.dlq||0) !== (nah.queue?.dlq||0)) {
+    parts.push('DLQ ' + (pah.queue?.dlq||0) + '→' + (nah.queue?.dlq||0));
+  }
   if(parts.length) _pushChangeFeed(parts.slice(0, 4).join(' · '));
 }
 
@@ -2050,40 +2096,61 @@ async function fetchLiveHealth() {
         fetch(base+'/health', {mode:'cors', credentials:'omit'}),
         fetch(base+'/api/activation/summary', {mode:'cors', credentials:'omit'}),
       ];
-      if(token) reqs.push(fetch(base+'/api/growth/infra/flags', {
-        mode:'cors', credentials:'omit',
-        headers: {Authorization: 'Bearer '+token},
-      }));
+      if(token) {
+        reqs.push(fetch(base+'/api/growth/infra/flags', {
+          mode:'cors', credentials:'omit',
+          headers: {Authorization: 'Bearer '+token},
+        }));
+        reqs.push(fetch(base+'/api/growth/infra/automation-health', {
+          mode:'cors', credentials:'omit',
+          headers: {Authorization: 'Bearer '+token},
+        }));
+      }
       const res = await Promise.all(reqs);
-      const healthR = res[0], summaryR = res[1], flagsR = token ? res[2] : null;
+      const healthR = res[0], summaryR = res[1];
+      const flagsR = token ? res[2] : null;
+      const autoHealthR = token ? res[3] : null;
       if(!healthR.ok && !summaryR.ok) continue;
 
-      let health = {}, summary = {}, flags = {};
+      let health = {}, summary = {}, flags = {}, automationHealth = {};
       try { health = await healthR.json(); } catch(e) {}
       try { summary = await summaryR.json(); } catch(e) {}
       if(flagsR && flagsR.ok) { try { flags = await flagsR.json(); } catch(e) {} }
+      if(autoHealthR && autoHealthR.ok) { try { automationHealth = await autoHealthR.json(); } catch(e) {} }
 
       const flagMap = _parseFlagsPayload(flags);
+      if(flags && flags.flags && typeof flags.flags === 'object' && !Array.isArray(flags.flags)) {
+        Object.keys(flags.flags).forEach(k => {
+          const ent = flags.flags[k];
+          if(ent && typeof ent === 'object' && 'on' in ent) flagMap[k] = !!ent.on;
+        });
+      }
+      if(Object.keys(flagMap).length) _syncFlagsFromServer(flagMap);
+
       prevLiveSnapshot = liveSnapshot;
-      liveSnapshot = { base, health, summary, flags: flagMap, ts: Date.now() };
+      liveSnapshot = { base, health, summary, flags: flagMap, automationHealth, ts: Date.now() };
       liveHealth = liveSnapshot;
       _detectLiveChanges(prevLiveSnapshot, liveSnapshot);
 
       const host = base.replace('https://','').replace('http://','');
       const launchOk = !!(summary.production_ready || summary.ready_for_launch);
       const blockers = summary.blocker_count || 0;
-      const overdue = 0;
-      const ok = health.status === 'healthy' && launchOk;
-      el.className = ok ? 'ok' : (blockers ? 'warn' : 'ok');
+      const overdueN = (automationHealth.overdue || []).length;
+      const dlqN = automationHealth.queue?.dlq ?? 0;
+      const ok = health.status === 'healthy' && launchOk && !overdueN;
+      el.className = ok ? 'ok' : (blockers || overdueN ? 'warn' : 'ok');
       if(launchOk) {
-        txt.textContent = `✅ Production ready · ${host}`;
+        let extra = '';
+        if(overdueN) extra = ' · ⚠ '+overdueN+' job overdue';
+        else if(dlqN > 0) extra = ' · DLQ '+dlqN;
+        txt.textContent = `✅ Production ready · ${host}${extra}`;
       } else if(health.status === 'healthy') {
         txt.textContent = `⚠ ${blockers} blocker(s) · ${host}`;
       } else {
         txt.textContent = `Live · ${host}`;
       }
       renderNodes();
-      if(selectedNode && (selectedNode === 'launch' || selectedNode === 'vps' || selectedNode === 'explorer')) {
+      if(selectedNode && (selectedNode === 'launch' || selectedNode === 'vps' || selectedNode === 'explorer' || selectedNode === 'beat' || selectedNode === 'worker' || selectedNode === 'ops')) {
         showNodeDetail(nodeMap[selectedNode]);
       }
       return;

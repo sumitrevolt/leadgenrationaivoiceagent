@@ -45,6 +45,10 @@ STAFF_JOBS = (
     "watchdog",
     "onboard",
     "standup",
+    "engineer_sre",
+    "engineer_finops",
+    "engineer_security",
+    "readiness_digest",
 )
 
 

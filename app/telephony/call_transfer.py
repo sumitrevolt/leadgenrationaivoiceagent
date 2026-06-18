@@ -194,7 +194,7 @@ async def _initiate_connect_leg(owner10: str, call_id: str) -> dict[str, Any]:
 async def request_transfer(call_context: dict[str, Any], owner_phone: str) -> dict[str, Any]:
     """AI call → live human (owner) transfer with Hinglish context. Never raises.
 
-    Flag OFF / owner_phone invalid = inert. Flag ON: summary + Exotel connect-leg
+    Flag OFF / owner_phone invalid = inert. Flag ON: summary + Vobiz connect-leg
     (creds pe) + owner ke liye WA 1-click link + email DRAFT + jsonl log.
     """
     try:

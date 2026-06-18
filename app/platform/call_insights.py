@@ -208,4 +208,14 @@ async def ask(question: str) -> dict[str, Any]:
     return {"ok": True, "answer": _stats_answer(stats), "stats": stats, "provider": ""}
 
 
-__all__ = ["ask", "quick_stats"]
+def list_qualifications(limit: int = 50) -> list[dict[str, Any]]:
+    """Recent post-call AI qualifications (newest first). Never raises."""
+    try:
+        rows = _read_jsonl_tail(_QUALIFICATIONS, max(1, min(int(limit or 50), 200)))
+        return list(reversed(rows))
+    except Exception as e:
+        logger.debug(f"[call_insights] list_qualifications failed: {e}")
+        return []
+
+
+__all__ = ["ask", "quick_stats", "list_qualifications"]

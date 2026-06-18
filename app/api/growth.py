@@ -941,6 +941,29 @@ async def infra_automation_health(_user=Depends(require_admin)):
     return automation_health.health()
 
 
+@router.get("/voice/qualifications")
+async def voice_qualifications_list(limit: int = 50, _user=Depends(require_admin)):
+    """Post-call AI qualifier results (AUTO_QUALIFY_CALLS hook → jsonl)."""
+    from app.platform import call_insights
+
+    stats = call_insights.quick_stats()
+    return {
+        "ok": True,
+        "qualifications": call_insights.list_qualifications(limit),
+        "stats": stats.get("calls_qualified") or {},
+        "flag": "AUTO_QUALIFY_CALLS",
+    }
+
+
+@router.post("/voice/qualifications/ask")
+async def voice_qualifications_ask(body: dict, _user=Depends(require_admin)):
+    """NL question over call qualification + dialer data."""
+    from app.platform import call_insights
+
+    q = str((body or {}).get("question") or "").strip()
+    return await call_insights.ask(q)
+
+
 @router.get("/overview/today")
 async def overview_today(_user=Depends(require_admin)):
     """'Aaj kya hua?' — PLAIN-HINGLISH admin snapshot (staff + jobs + problems +
