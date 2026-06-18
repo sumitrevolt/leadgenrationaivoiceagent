@@ -508,14 +508,6 @@ class VobizStreamSession:
         self.stream_sid: str | None = None
         self.hist: list[dict[str, str]] = []  # {role: user|assistant, content}
         self._closed = False
-        # Post-call lifecycle (minute metering + analytics) must run EXACTLY once
-        # even if _cleanup is reached twice (teardown race) — guards double-billing.
-        self._finalized = False
-        # Last auto-qualify result, stashed so the lifecycle hook can record a real
-        # lead score / outcome on the analytics dashboard (0 / False when
-        # AUTO_QUALIFY_CALLS is off — fully backward compatible).
-        self._qual_score = 0
-        self._qualified = False
         self._started_at = datetime.now(timezone.utc)  # transcript meta
         self._stt_counts: dict[str, int] = {"groq": 0, "gemini": 0, "whisper": 0}
 
