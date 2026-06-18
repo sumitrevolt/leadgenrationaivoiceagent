@@ -1,0 +1,84 @@
+"""Platform pitch flow (ai_marketing outbound) — unit tests."""
+
+from __future__ import annotations
+
+from app.voice_agent.platform_pitch import (
+    PlatformPitchState,
+    classify_interest,
+    initial_state,
+    is_platform_pitch,
+    next_reply,
+    opening_segments,
+)
+from app.voice_agent.niche_scripts import get_script
+
+
+def test_is_platform_pitch_only_ai_marketing():
+    assert is_platform_pitch("ai_marketing") is True
+    assert is_platform_pitch("solar_residential") is False
+    assert is_platform_pitch("") is False
+
+
+def test_opening_segments_three_parts():
+    segs = opening_segments()
+    assert len(segs) == 3
+    assert "LeadGen AI" in segs[0]
+    assert "1,199" in segs[1] or "1199" in segs[1]
+    assert "interested" in segs[2].lower()
+
+
+def test_classify_interest_yes_no_unclear():
+    assert classify_interest("haan") == "yes"
+    assert classify_interest("ji batao") == "yes"
+    assert classify_interest("nahi interest nahi") == "no"
+    assert classify_interest("abhi nahi") == "no"
+    assert classify_interest("kya?") == "unclear"
+    assert classify_interest("") == "unclear"
+
+
+def test_next_reply_yes_to_discovery():
+    st = initial_state()
+    reply, st = next_reply(st, "haan ji")
+    assert st.phase == "discovery"
+    assert "sahi decision" in reply.lower() or "business growth" in reply.lower()
+
+
+def test_next_reply_no_then_convince_then_close():
+    st = initial_state()
+    reply1, st = next_reply(st, "nahi")
+    assert st.convinced_once is True
+    assert st.phase == "await_interest_2"
+    assert "trial" in reply1.lower() or "FREE" in reply1
+
+    reply2, st = next_reply(st, "nahi chahiye")
+    assert st.phase == "closed"
+    assert "shukriya" in reply2.lower()
+
+
+def test_next_reply_discovery_falls_through():
+    st = PlatformPitchState(phase="discovery")
+    reply, st = next_reply(st, "agency use karte hain")
+    assert reply is None
+    assert st.phase == "discovery"
+
+
+def test_ai_marketing_script_has_platform_keys():
+    s = get_script("ai_marketing")
+    for key in (
+        "opening",
+        "pitch_short",
+        "interest_ask",
+        "yes_praise",
+        "no_convince_once",
+        "close_cold",
+    ):
+        assert key in s
+        assert s[key]
+    assert "1,199" in s["pitch_short"]
+
+
+def test_solar_opening_unchanged_not_leadgen_branded():
+    from app.voice_agent.niche_scripts import get_script
+
+    s = get_script("solar_residential")
+    assert "LeadGen AI" not in (s.get("opening") or "")

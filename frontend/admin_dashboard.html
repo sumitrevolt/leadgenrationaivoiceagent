@@ -473,6 +473,10 @@
               </select>
             </div>
             <div style="display:flex;align-items:center;gap:7px;padding:8px 14px;background:#fff;border:1px solid var(--line);border-radius:8px">
+              <input type="checkbox" id="campPlatform" style="width:16px;height:16px;cursor:pointer">
+              <label for="campPlatform" style="font-size:13px;font-weight:600;color:var(--ink);cursor:pointer">Platform pitch (LeadGen AI sales)</label>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;padding:8px 14px;background:#fff;border:1px solid var(--line);border-radius:8px">
               <input type="checkbox" id="campDry" style="width:16px;height:16px;cursor:pointer">
               <label for="campDry" style="font-size:13px;font-weight:600;color:var(--ink);cursor:pointer">Dry Run (no actual calls)</label>
             </div>
@@ -2020,13 +2024,14 @@ let _campPolling = false;
 async function fireCampaign(){
   const limit = parseInt(($("campLimit")||{}).value||"10",10);
   const dry   = ($("campDry")||{}).checked;
-  const clientId = (($("campClient")||{}).value||"").trim();
-  $("campOut").innerHTML = `<span style="color:var(--amber)">⏳ Launching campaign (limit=${limit}, dry_run=${dry})…</span>`;
+  const platform = ($("campPlatform")||{}).checked;
+  const clientId = platform ? "" : (($("campClient")||{}).value||"").trim();
+  $("campOut").innerHTML = `<span style="color:var(--amber)">⏳ Launching campaign (limit=${limit}, dry_run=${dry}, platform=${platform})…</span>`;
   try{
     const r = await fetch("/api/admin/campaign/launch",{
       method:"POST",
       headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
-      body: JSON.stringify({limit, dry_run: dry, client_id: clientId||undefined})
+      body: JSON.stringify({limit, dry_run: dry, platform, client_id: clientId||undefined})
     });
     const d = await r.json();
     if(d.queued){

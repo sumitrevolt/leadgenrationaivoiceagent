@@ -33,6 +33,11 @@ parser.add_argument(
     action="store_true",
     help="Consented/inbound style — looser compliance window (no DLT promo gate)",
 )
+parser.add_argument(
+    "--platform",
+    action="store_true",
+    help="LeadGen AI platform pitch — force niche=ai_marketing (Swara structured opener)",
+)
 args = parser.parse_args()
 
 
@@ -115,7 +120,13 @@ def mark_called(phone_raw: str) -> None:
         print(f"  [warn] DB mark_called failed: {e}")
 
 
-async def fire_vobiz(prospects: list[dict], dry_run: bool, call_type: str, client_id: str = "") -> tuple[int, int, int]:
+async def fire_vobiz(
+    prospects: list[dict],
+    dry_run: bool,
+    call_type: str,
+    client_id: str = "",
+    platform: bool = False,
+) -> tuple[int, int, int]:
     from app.api.telephony_vobiz import start_stream_call
     from app.telephony.vobiz_handler import VobizClient
 
@@ -127,7 +138,8 @@ async def fire_vobiz(prospects: list[dict], dry_run: bool, call_type: str, clien
     ok = fail = skip = 0
     for p in prospects:
         p10 = phone10(p["phone"])
-        niche = p.get("niche") or "general"
+        niche = "ai_marketing" if platform else (p.get("niche") or "general")
+        cid = "" if platform else client_id
         print(
             f'  -> +91{p10} | {p["name"]} | {p["city"]} | niche={niche}',
             end=" ... ",
@@ -141,7 +153,9 @@ async def fire_vobiz(prospects: list[dict], dry_run: bool, call_type: str, clien
             skip += 1
             continue
 
-        result = await start_stream_call(to="+91" + p10, niche=niche, call_type=call_type, client_id=client_id or None)
+        result = await start_stream_call(
+            to="+91" + p10, niche=niche, call_type=call_type, client_id=cid or None
+        )
         if result.get("placed"):
             print("PLACED OK")
             mark_called(p["phone"])
@@ -223,11 +237,11 @@ async def fire_exotel(prospects: list[dict], dry_run: bool, call_type: str) -> t
     return ok, skip, fail
 
 
-async def fire(prospects: list[dict], dry_run: bool, call_type: str, client_id: str = "") -> None:
+async def fire(prospects: list[dict], dry_run: bool, call_type: str, client_id: str = "", platform: bool = False) -> None:
     provider = _provider()
-    print(f"Provider: {provider} | call_type={call_type}")
+    print(f"Provider: {provider} | call_type={call_type} | platform_pitch={platform}")
     if provider == "vobiz":
-        ok, skip, fail = await fire_vobiz(prospects, dry_run, call_type, client_id)
+        ok, skip, fail = await fire_vobiz(prospects, dry_run, call_type, client_id, platform)
     else:
         ok, skip, fail = await fire_exotel(prospects, dry_run, call_type)
     if not dry_run:
@@ -270,16 +284,17 @@ async def main() -> None:
         except Exception as e:
             print(f"WARN: readiness check skip: {e}")
 
-    prospects = get_prospects(args.limit, args.niche)
+    niche_filter = "ai_marketing" if args.platform else args.niche
+    prospects = get_prospects(args.limit, niche_filter)
     print(
         f"Found {len(prospects)} uncontacted leads "
-        f"(limit={args.limit}, dry_run={args.dry_run}, niche={args.niche or 'all'}, "
-        f"call_type={call_type})"
+        f"(limit={args.limit}, dry_run={args.dry_run}, niche={niche_filter or 'all'}, "
+        f"platform={args.platform}, call_type={call_type})"
     )
     if not prospects:
         print("No leads found.")
         return
-    await fire(prospects, args.dry_run, call_type, args.client_id)
+    await fire(prospects, args.dry_run, call_type, args.client_id, args.platform)
 
 
 if __name__ == "__main__":

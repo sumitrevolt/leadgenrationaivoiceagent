@@ -80,6 +80,7 @@ class CampaignLaunchReq(BaseModel):
     dry_run: bool = False
     niche: Optional[str] = None
     client_id: Optional[str] = None
+    platform: bool = False
 
 
 class UpiActivateReq(BaseModel):
@@ -219,6 +220,8 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
         cmd.extend(["--niche", req.niche])
     if req.client_id:
         cmd.extend(["--client-id", req.client_id])
+    if req.platform:
+        cmd.append("--platform")
 
     _redis_set(
         _CAMPAIGN_KEY,
@@ -227,6 +230,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
             "limit": req.limit,
             "dry_run": req.dry_run,
             "niche": req.niche,
+            "platform": req.platform,
             "started_at": time.time(),
             "output": "",
         },
@@ -284,6 +288,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
         "queued": True,
         "limit": req.limit,
         "dry_run": req.dry_run,
+        "platform": req.platform,
         "poll": "/api/admin/campaign/status",
     }
 

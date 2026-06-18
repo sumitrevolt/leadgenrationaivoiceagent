@@ -37,6 +37,10 @@ SCRIPTS = {
         "haan bolo", "health insurance chahiye", "premium kitna hoga",
         "abhi busy hoon",
     ],
+    "ai_marketing": [
+        "haan", "khud post dalte hain", "Google pe dikhta hai kya",
+        "trial kaise milega",
+    ],
 }
 
 BANNED = ["maine pehle", "pehle hi poocha", "unclear", "maaf kij", "[echo", "(no response)"]

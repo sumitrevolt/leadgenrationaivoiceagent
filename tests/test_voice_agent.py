@@ -167,6 +167,16 @@ class TestTelecallerBrainProfessionalism:
         assert "paisa vasool" not in ai_marketing["objections"]["mehenga"]
         assert "aage badhna" not in ai_marketing["objections"]["bharosa"]
         assert "aage badhiye" in ai_marketing["objections"]["bharosa"]
+        assert ai_marketing.get("pitch_short")
+        assert "LeadGen AI" in ai_marketing["opening"]
+
+    def test_telecaller_confirm_interest_appends_note(self):
+        brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+        assert "PLATFORM NOTE" not in brain.system_prompt
+        brain.confirm_interest()
+        assert "PLATFORM NOTE" in brain.system_prompt
+        brain.confirm_interest()  # idempotent
+        assert brain.system_prompt.count("PLATFORM NOTE") == 1
 
 
 class TestNaturalDialogManagerProfessionalism:
