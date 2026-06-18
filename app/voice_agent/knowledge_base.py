@@ -225,8 +225,9 @@ class _KeywordIndex:
     def size(self) -> int:
         return len(self._docs)
 
-    def add(self, text: str, source: str = "") -> None:
-        toks = tokenize(text)
+    def add(self, text: str, source: str = "", embed_prefix: str = "") -> None:
+        index_text = f"{embed_prefix}\n{text}".strip() if embed_prefix else text
+        toks = tokenize(index_text)
         if not toks:
             # still store so retrieve()/answers can fall back, but no tokens
             self._docs.append(_Doc(text=text, source=source, tokens=[], tf={}))
@@ -316,8 +317,9 @@ class _ChromaIndex:
         except Exception:
             return self._count
 
-    def add(self, text: str, source: str = "") -> None:
-        emb = self._store._generate_embedding(text)
+    def add(self, text: str, source: str = "", embed_prefix: str = "") -> None:
+        emb_text = f"{embed_prefix}\n{text}".strip() if embed_prefix else text
+        emb = self._store._generate_embedding(emb_text)
         doc_id = f"{self._namespace}-{self._count}"
         self._count += 1
         self._store.collection.add(
@@ -561,17 +563,18 @@ class _QdrantIndex:
         except Exception:
             return 0
 
-    def add(self, text: str, source: str = "") -> None:
+    def add(self, text: str, source: str = "", embed_prefix: str = "") -> None:
         # raise hone par KnowledgeBase.add_documents chunk skip kar deta hai
         from qdrant_client import models as qmodels
 
+        passage = f"{embed_prefix}\n{text}".strip() if embed_prefix else text
         self._client.upsert(
             collection_name=_QDRANT_COLLECTION,
             points=[
                 qmodels.PointStruct(
                     id=str(uuid.uuid4()),
                     # e5 requirement: documents ko "passage: " prefix
-                    vector=self._embed(f"passage: {text}"),
+                    vector=self._embed(f"passage: {passage}"),
                     payload={
                         "namespace": self._namespace,
                         "text": text,
@@ -615,6 +618,49 @@ class _QdrantIndex:
 _SAFE_FALLBACK = "Achha sawaal — main aapke liye exact detail team se confirm karwa deti hoon."
 # agar query short na ho aur retrieved score is se neeche ho to "no answer" maano.
 _MIN_GROUND_SCORE = 0.04
+
+
+def _env_flag(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _contextual_prefix(chunk: str, namespace: str, source: str) -> str:
+    """Anthropic-style contextual prefix for embedding (display text unchanged)."""
+    ns = namespace or "default"
+    src = source or "kb"
+    meta = f"[{ns}|{src}]"
+    if _env_flag("USE_CONTEXTUAL_INGEST_LLM"):
+        try:
+            import asyncio
+
+            async def _go() -> str:
+                from app.voice_agent import free_ai
+
+                reply, _ = await asyncio.wait_for(
+                    free_ai.chat(
+                        system=(
+                            "Write ONE short sentence describing this knowledge chunk "
+                            "for semantic search. Hinglish or English. No quotes."
+                        ),
+                        messages=[{"role": "user", "content": chunk[:900]}],
+                        max_tokens=45,
+                        temperature=0.0,
+                    ),
+                    timeout=10.0,
+                )
+                return (reply or "").strip()
+
+            try:
+                asyncio.get_running_loop()
+                return meta  # async caller — metadata-only (no nested loop)
+            except RuntimeError:
+                line = asyncio.run(_go())
+                return line or meta
+        except Exception:
+            return meta
+    if _env_flag("USE_CONTEXTUAL_INGEST"):
+        return meta
+    return ""
 
 
 class KnowledgeBase:
@@ -720,6 +766,7 @@ class KnowledgeBase:
             return 0
         index = self._get_index(namespace)
         added = 0
+        ctx_on = _env_flag("USE_CONTEXTUAL_INGEST") or _env_flag("USE_CONTEXTUAL_INGEST_LLM")
         with self._lock:
             for d in docs:
                 if isinstance(d, dict):
@@ -732,7 +779,8 @@ class KnowledgeBase:
                     continue
                 for chunk in chunk_text(text):
                     try:
-                        index.add(chunk, source=src)
+                        prefix = _contextual_prefix(chunk, namespace, src) if ctx_on else ""
+                        index.add(chunk, source=src, embed_prefix=prefix)
                         added += 1
                     except Exception as e:  # pragma: no cover
                         logger.warning(f"KB add failed, skipping chunk: {e}")
@@ -745,20 +793,36 @@ class KnowledgeBase:
         query: str,
         k: int = 3,
         namespace: str = "default",
+        rerank: bool | None = None,
     ) -> list[dict[str, Any]]:
         """
         Query ke top-k most relevant chunks laao.
 
+        ``rerank=None`` (default) → rerank sirf jab ``USE_RERANKER=1`` ho.
+        Voice/live paths ko ``rerank=False`` pass karo (latency).
+
         Returns:
             list[dict] — each: {"text": str, "score": float, "source": str}.
-            Higher score = more relevant. Empty list = kuch relevant nahi mila.
         """
         if not (query or "").strip():
             return []
         index = self._get_index(namespace)
+        use_rerank = rerank if rerank is not None else _env_flag("USE_RERANKER")
+        pool = k
+        if use_rerank:
+            try:
+                pool = max(k, int(os.getenv("RERANK_POOL_SIZE", "50") or 50))
+            except Exception:
+                pool = max(k, 50)
         try:
             with self._lock:
-                results = index.search(query, k=max(1, k))
+                results = index.search(query, k=max(1, pool))
+            if use_rerank and results:
+                from app.ml.reranker import rerank_hits
+
+                results = rerank_hits(query, results, top_k=max(1, k))
+            else:
+                results = (results or [])[: max(1, k)]
             return results or []
         except Exception as e:  # pragma: no cover
             logger.warning(f"KB retrieve failed: {e}")
