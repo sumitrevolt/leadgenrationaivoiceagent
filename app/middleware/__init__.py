@@ -95,6 +95,18 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # web-call demo (/app/test-call) records the caller's voice.
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(self), camera=()"
 
+        # Admin dashboards + SW: browser/SW stale HTML cache se bachao — deploy ke
+        # baad Ctrl+Shift+R ki zaroorat na ho (PWA SW pehle cache-first tha).
+        try:
+            path = request.url.path or ""
+            if request.method == "GET" and (
+                path.startswith("/app/") or path == "/sw.js"
+            ):
+                response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+                response.headers["Pragma"] = "no-cache"
+        except Exception:
+            pass
+
         # Remove server header
         if "server" in response.headers:
             del response.headers["server"]

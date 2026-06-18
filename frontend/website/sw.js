@@ -1,57 +1,64 @@
-// LeadGen AI — Service Worker (offline shell caching)
-const CACHE_NAME = 'leadgen-ai-v1';
-const SHELL_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon.svg'
-];
+// LeadGen AI — Service Worker
+// Public marketing shell = cache-first. /app/* dashboards = network-only (never stale).
+const CACHE_NAME = "leadgen-ai-v2";
 
-// Install: pre-cache the static shell
-self.addEventListener('install', (event) => {
+const SHELL_ASSETS = ["/", "/index.html", "/manifest.json", "/icons/icon.svg"];
+
+function isAppPage(url) {
+  try {
+    const p = new URL(url).pathname;
+    return p.startsWith("/app/") || p === "/sw.js";
+  } catch (_) {
+    return false;
+  }
+}
+
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches
+      .open(CACHE_NAME)
       .then((cache) => cache.addAll(SHELL_ASSETS).catch(() => {}))
       .then(() => self.skipWaiting())
   );
 });
 
-// Activate: clean up old caches
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
       )
-    ).then(() => self.clients.claim())
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch: cache-first for static shell, network fallback (and cache new GETs)
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
   const { request } = event;
-  if (request.method !== 'GET') return;
+  if (request.method !== "GET") return;
+  if (request.url.includes("/api/")) return;
 
+  // Dashboards: always network — deploy/UI changes turant dikhein.
+  if (isAppPage(request.url)) {
+    event.respondWith(fetch(request, { cache: "no-store" }));
+    return;
+  }
+
+  // Marketing shell: cache-first (offline landing).
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
       return fetch(request)
         .then((response) => {
-          // Only cache same-origin successful responses
-          if (
-            response &&
-            response.status === 200 &&
-            response.type === 'basic'
-          ) {
+          if (response && response.status === 200 && response.type === "basic") {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           }
           return response;
         })
         .catch(() => {
-          // Offline fallback: serve the cached landing page for navigations
-          if (request.mode === 'navigate') {
-            return caches.match('/index.html');
+          if (request.mode === "navigate") {
+            return caches.match("/index.html");
           }
         });
     })
@@ -60,13 +67,22 @@ self.addEventListener('fetch', (event) => {
 
 // Web Push (webpush.py) — push notification listener
 self.addEventListener("push", function (e) {
-  var d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) {}
-  e.waitUntil(self.registration.showNotification(d.title || "LeadsGenAI", {
-    body: d.body || "", icon: "/pwa-icon-192.png", badge: "/pwa-icon-192.png",
-    data: { url: d.url || "/" }
-  }));
+  var d = {};
+  try {
+    d = e.data ? e.data.json() : {};
+  } catch (_) {}
+  e.waitUntil(
+    self.registration.showNotification(d.title || "LeadsGenAI", {
+      body: d.body || "",
+      icon: "/pwa-icon-192.png",
+      badge: "/pwa-icon-192.png",
+      data: { url: d.url || "/" },
+    })
+  );
 });
 self.addEventListener("notificationclick", function (e) {
   e.notification.close();
-  e.waitUntil(clients.openWindow((e.notification.data && e.notification.data.url) || "/"));
+  e.waitUntil(
+    clients.openWindow((e.notification.data && e.notification.data.url) || "/")
+  );
 });
