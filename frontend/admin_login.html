@@ -64,7 +64,9 @@
       if(r.ok && d.access_token){
         localStorage.setItem("accessToken", d.access_token);
         show("Login ✓ — dashboards khul rahe hain…","ok");
-        setTimeout(function(){ location.href="/app/marketing"; }, 700);
+        var _role=(d.user&&d.user.role)||"";
+        var _dest=(_role==="super_admin"||_role==="admin")?"/app/admin":"/app/marketing";
+        setTimeout(function(){ location.href=_dest; }, 700);
       } else if(r.status===401){
         show("Galat email ya password.","err");
       } else {
