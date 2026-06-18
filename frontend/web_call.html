@@ -321,9 +321,23 @@
   function withBiz(p){
     // Business naam session me bhejo — agent "Demo Co" ki jagah isi naam se
     // baat karta hai (backend client_name handle karta hai).
+    // ai_marketing platform pitch = hamesha LeadGen AI brand (override mat bhejo).
     var n = (bizName && bizName.value || "").trim();
-    if(n){ p.client_name = n; }
+    if(n && nicheSel.value !== "ai_marketing"){ p.client_name = n; }
     return p;
+  }
+
+  // Chrome autoplay: WS se aane wali awaaz tabhi chale jab user gesture pe unlock ho.
+  var audioUnlocked = false;
+  function unlockAudioPlayback(){
+    if(audioUnlocked) return;
+    try{
+      var sil = new Audio("data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA");
+      sil.volume = 0.01;
+      var p = sil.play();
+      if(p && p.then){ p.then(function(){ audioUnlocked = true; }).catch(function(){}); }
+      else { audioUnlocked = true; }
+    }catch(e){}
   }
 
   function connectWS(){
@@ -430,7 +444,14 @@
       audio.onended = onEnded;
       audio.onerror = onFail;
       var p = audio.play();
-      if(p && p.catch){ p.catch(onFail); }   // autoplay blocked / decode error
+      if(p && p.catch){
+        p.catch(function(err){
+          if(!audioUnlocked){
+            foot.innerHTML = "<b>Audio blocked</b> — browser ne awaaz roki. Green Call button dubara dabao (ya ⌨️ se type karo). <b>TEST MODE</b>";
+          }
+          onFail();
+        });
+      }
       return true;
     }catch(e){ return false; }
   }
@@ -631,6 +652,7 @@
   // ---- Call lifecycle --------------------------------------------------
   function startCall(){
     if(callActive) return;
+    unlockAudioPlayback();
     callActive = true;
     botSpeaking = false; pendingBot = false; endAfterSpeak = false; awaitingGreeting = false;
     clearCaptions();
@@ -692,6 +714,18 @@
   bizName.addEventListener("change", function(){
     try{ localStorage.setItem("lg_bizname", (bizName.value || "").trim()); }catch(e){}
   });
+
+  nicheSel.addEventListener("change", function(){
+    if(nicheSel.value === "ai_marketing"){
+      bizName.placeholder = "Platform pitch — LeadGen AI brand";
+      bizName.disabled = true;
+    } else {
+      bizName.placeholder = "Business naam";
+      if(callActive) bizName.disabled = true;
+      else bizName.disabled = false;
+    }
+  });
+  if(nicheSel.value === "ai_marketing"){ nicheSel.dispatchEvent(new Event("change")); }
 
   // ---- Boot ------------------------------------------------------------
   setControls(false);
