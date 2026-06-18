@@ -23,8 +23,11 @@ GSC → Ownership verification → **Verify** (HTML file ya HTML tag dono me se 
 3. Sitemaps → Submit: `https://leadsgenai.in/sitemap.xml`
 4. URL Inspection → Request indexing:
    - https://leadsgenai.in/
+   - https://leadsgenai.in/geo-check   ← NEW lead magnet (GEO / AI-search visibility) — submit FIRST
    - https://leadsgenai.in/audit
+   - https://leadsgenai.in/site-audit   ← lead magnet #2
    - https://leadsgenai.in/voice-agent
    - https://leadsgenai.in/compare
 
 Note: Rankings 1–4 weeks. File/meta **mat hatao** — warna verification tut jayegi.
+After a new public page goes live, add it here + re-submit (sitemap auto-includes it).
