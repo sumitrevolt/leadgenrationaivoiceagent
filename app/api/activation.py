@@ -328,9 +328,37 @@ def _warm_dr() -> dict[str, Any]:
     }
 
 
+def _upi() -> dict[str, Any]:
+    """Revenue: manual UPI is the primary India payment path (Razorpay removed
+    2026-06-18). UPI_VPA unset = operator cannot collect the first payment, so
+    surface a concrete next step (WARN) instead of a silent pass. No online
+    gateway to configure - just the VPA."""
+    vpa = _v("UPI_VPA")
+    checks = {
+        "vpa_set": bool(vpa),
+        "vpa_format_ok": ("@" in vpa) if vpa else False,
+    }
+    armed = checks["vpa_set"] and checks["vpa_format_ok"]
+    return {
+        "key": "upi",
+        "label": "Manual UPI payments (UPI_VPA)",
+        "category": "revenue",
+        "status": _OK if armed else _WARN,
+        "env_vars": ["UPI_VPA"],
+        "checks": checks,
+        "action": (
+            "Set UPI_VPA=<yourvpa>@bank in .env - pricing modal, /api/public/pay-info "
+            "and the UPI-QR tool collect on this VPA (manual, no gateway)"
+            if not armed
+            else ""
+        ),
+        "doc": "docs/ACTIVATION_RUNBOOK_2026_06_16.md#payments",
+    }
+
+
 _PROBES = (
-    # Phase 1: Survival (visibility + trust + edge). Razorpay removed 2026-06-18.
-    _sentry, _posthog, _turnstile, _cloudflare_tunnel,
+    # Phase 1: Survival (visibility + trust + edge) + first-revenue UPI. Razorpay removed 2026-06-18.
+    _sentry, _posthog, _turnstile, _cloudflare_tunnel, _upi,
     # Phase 2: AI safety + memory
     _agent_memory, _eval_gate,
     # Phase 3: AI staff + alerting
@@ -374,6 +402,7 @@ _PROBE_BY_KEY = {
     "posthog": _posthog,
     "turnstile": _turnstile,
     "cloudflare_tunnel": _cloudflare_tunnel,
+    "upi": _upi,
     "agent_memory": _agent_memory,
     "eval_gate": _eval_gate,
     "engineer_agents": _engineer_agents,

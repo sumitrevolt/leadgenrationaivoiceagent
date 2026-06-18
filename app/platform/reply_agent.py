@@ -196,7 +196,15 @@ async def _draft(biz: str, subject: str, body: str, intent: str) -> str:
             max_tokens=160,
             temperature=0.5,
         )
-        return (reply or "").strip()
+        reply = (reply or "").strip()
+        if intent == "interested" and reply:
+            vpa = os.environ.get("UPI_VPA", "").strip()
+            if vpa:
+                reply += (
+                    "\n\nAage badhne ke liye pricing: https://leadsgenai.in/pricing"
+                    f" - UPI se pay: {vpa}"
+                )
+        return reply
     except Exception:
         return ""
 
