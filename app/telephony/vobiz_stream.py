@@ -508,6 +508,14 @@ class VobizStreamSession:
         self.stream_sid: str | None = None
         self.hist: list[dict[str, str]] = []  # {role: user|assistant, content}
         self._closed = False
+        # Post-call lifecycle (minute metering + analytics) must run EXACTLY once
+        # even if _cleanup is reached twice (teardown race) — guards double-billing.
+        self._finalized = False
+        # Last auto-qualify result, stashed so the lifecycle hook can record a real
+        # lead score / outcome on the analytics dashboard (0 / False when
+        # AUTO_QUALIFY_CALLS is off — fully backward compatible).
+        self._qual_score = 0
+        self._qualified = False
         self._started_at = datetime.now(timezone.utc)  # transcript meta
         self._stt_counts: dict[str, int] = {"groq": 0, "gemini": 0, "whisper": 0}
 
@@ -548,6 +556,7 @@ class VobizStreamSession:
         self._brain_tried = False
         self._ndm = None  # NaturalDialogManager fallback (cached — heavy)
         self._ndm_tried = False
+        self._teardown_done = False  # idempotent _cleanup (WS disconnect + stop)
 
     # ------------------------------------------------------------------ #
     # Main receive loop
@@ -1526,6 +1535,9 @@ class VobizStreamSession:
             self._closed = True
 
     async def _cleanup(self) -> None:
+        if self._teardown_done:
+            return
+        self._teardown_done = True
         self._closed = True
         self._stop_play()
         turns = len([m for m in self.hist if m.get("role") == "user"])
@@ -1538,6 +1550,18 @@ class VobizStreamSession:
         )
         self._save_recording()
         self._persist_transcript(ended, dur, turns)
+        # Minute metering + call.completed webhook (stream path has no CallManager ctx).
+        try:
+            from app.telephony.post_call_hooks import meter_call_completion
+
+            await meter_call_completion(
+                str(self.stream_sid or ""),
+                client_id=str(self.client_id or ""),
+                client_name=self.client_name or "",
+                duration_seconds=int(dur),
+            )
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] meter_call_completion skip: {e}")
         await self._auto_qualify(ended)
         try:  # Team activity: Swara ki call khatam — dashboard feed ke liye
             from app.platform.team import log_event
@@ -1627,6 +1651,19 @@ class VobizStreamSession:
                     _lead_usage.record_qualified_lead(self.client_id, ref=str(self.stream_sid))
                 except Exception:
                     pass
+            try:
+                from app.telephony.post_call_hooks import apply_qualified_downstream
+
+                await apply_qualified_downstream(
+                    q,
+                    client_id=str(self.client_id or ""),
+                    phone=lead_phone,
+                    client_name=self.client_name or "",
+                    call_id=str(self.stream_sid or ""),
+                    niche=self.niche or "",
+                )
+            except Exception:
+                pass
         except Exception as e:
             logger.debug(f"[vobiz-stream] auto-qualify skip: {e}")
 
