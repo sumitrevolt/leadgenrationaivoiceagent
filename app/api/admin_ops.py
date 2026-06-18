@@ -79,6 +79,7 @@ class CampaignLaunchReq(BaseModel):
     limit: int = 10
     dry_run: bool = False
     niche: Optional[str] = None
+    client_id: Optional[str] = None
 
 
 class UpiActivateReq(BaseModel):
@@ -216,6 +217,8 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
         cmd.append("--dry-run")
     if req.niche:
         cmd.extend(["--niche", req.niche])
+    if req.client_id:
+        cmd.extend(["--client-id", req.client_id])
 
     _redis_set(
         _CAMPAIGN_KEY,

@@ -30,8 +30,7 @@ def test_app_imports_and_mounts_telephony_webhooks():
     paths = {getattr(r, "path", "") for r in app.routes}
     assert "/api/webhooks/twilio/voice/{call_id}" in paths
     assert "/api/webhooks/twilio/status/{call_id}" in paths
-    assert "/api/webhooks/exotel/status" in paths
-    assert "/api/webhooks/exotel/voice" in paths
+    # exotel webhook routes removed 2026-06-18 (provider deleted) - Vobiz uses /api/telephony/vobiz/*
     assert "/api/webhooks/health" in paths
 
 

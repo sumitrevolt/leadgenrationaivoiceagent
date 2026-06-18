@@ -8,6 +8,15 @@
 ## User Preferences
 - **Hinglish (Roman script) me HI reply karo** — har baar. Concise + direct, kam formatting.
 - Sab **free stack** — koi paid STT/TTS/LLM nahi (user decision). Phone-call paisa khaata hai → tuning FREE web-call pe.
+- **DLT/Udyam paperwork ko recurring talking-point MAT banao** (2026-06-18) — user ko pata hai; outbound ka focus = product + tech + ops path (caller-ID, balance, campaign glue). NOTE: yeh sirf conversation-preference hai — compliance GATE code (TRAI/DND/AI-disclosure/10am-7pm window) INTACT rakhna, kabhi disable mat karna.
+
+## Work Quality Gate (HAR code task — yeh pehle, warna output galat) — USER-MANDATE 2026-06-18
+> User feedback: same task Cursor sahi karta, main galat. Wajah = Cursor pura repo index karke relevant files khud uthata; mujhe manually. Isliye yeh gate har code task pe MANDATORY.
+1. **Context-first (#1 fix):** edit se PEHLE `Grep`/`Glob` se SAARE touch-points (callers, routes, similar feature, tests) dhoondo + relevant files PURA padho. Aadhe context pe edit = galat. FastAPI first-route-wins → duplicate route check.
+2. **Source-of-truth = Windows:** Edit se theek pehle file Read karo (STALE sandbox content pe edit MAT karo). Memory/code edit sirf Windows file-tools se.
+3. **Pattern-match + additive:** padosi code ka convention copy karo; working code rewrite risky → additive prefer.
+4. **Verify before "done":** change ke baad `/verify` (prod_check + targeted tests) chalao; "ho gaya" sirf jab green. Bina proof done MAT bolo.
+5. Non-trivial change/debug/audit → pehle skill **`fable-operating-manual`** invoke karo (+ `leadgen-ops` deploy · `marketing-feature` naya feature · `systematic-debugging` bug).
 
 ## Product (current direction — MARKETING-FIRST pivot)
 - **USER-CLARIFIED (2026-06-11): DO alag products.** (1) **AI Automated Marketing** = MAIN product (Dhanda-jaisa) chhote local businesses ke liye — iske Advanced tier me AI voice agent sirf EK FEATURE hai (inquiry callback, qualification, follow-ups). (2) **AI Voice Calling Agent** = ALAG standalone product (full AI telecaller, DLT-gated). **"Marketing + voice dono ek saath/bundle" USP framing GALAT hai — use mat karo.**
