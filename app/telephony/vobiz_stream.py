@@ -1538,6 +1538,7 @@ class VobizStreamSession:
         )
         self._save_recording()
         self._persist_transcript(ended, dur, turns)
+        await self._auto_qualify(ended)
         try:  # Team activity: Swara ki call khatam — dashboard feed ke liye
             from app.platform.team import log_event
 
@@ -1580,6 +1581,54 @@ class VobizStreamSession:
             logger.info(f"[vobiz-stream] transcript saved -> {path} ({len(self.hist)} msgs)")
         except Exception as e:
             logger.warning(f"[vobiz-stream] transcript persist failed: {e}")
+
+    async def _auto_qualify(self, ended: datetime) -> None:
+        """Post-call AI qualification for the LIVE Vobiz stream path (mirrors
+        call_manager). GATED AUTO_QUALIFY_CALLS=1 (default off = zero change).
+        Best-effort / never-raise: writes data/call_qualifications.jsonl so the
+        admin Post-Call tab populates for REAL Vobiz calls (not just legacy path)."""
+        try:
+            if os.environ.get("AUTO_QUALIFY_CALLS", "0").strip().lower() not in ("1", "true", "yes"):
+                return
+            if not self.hist:
+                return
+            txt = "\n".join(
+                f"{m.get('role', '?')}: {m.get('content', '')}"
+                for m in self.hist
+                if isinstance(m, dict)
+            )
+            if len(txt) < 10:
+                return
+            from app.voice_agent.call_qualifier import qualify_transcript
+
+            lead_phone = getattr(self, "_lead_phone", "") or ""
+            q = await qualify_transcript(
+                txt, {"name": self.client_name or "", "phone": lead_phone}
+            )
+            rec = {
+                "call_id": self.stream_sid,
+                "lead_id": lead_phone,
+                "client_id": self.client_id or "",
+                "niche": self.niche,
+                "ts": ended.isoformat(timespec="seconds"),
+                **q,
+            }
+            os.makedirs("data", exist_ok=True)
+            with open(os.path.join("data", "call_qualifications.jsonl"), "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            logger.info(
+                f"[vobiz-stream] auto-qualify sid={self.stream_sid} "
+                f"score={q.get('interest_score')} qualified={q.get('qualified')}"
+            )
+            if q.get("qualified") and self.client_id:
+                try:
+                    from app.billing import lead_usage as _lead_usage
+
+                    _lead_usage.record_qualified_lead(self.client_id, ref=str(self.stream_sid))
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] auto-qualify skip: {e}")
 
     def _save_recording(self) -> None:
         """Mixed conversation WAV on hangup (VOBIZ_CALL_RECORD=1).
