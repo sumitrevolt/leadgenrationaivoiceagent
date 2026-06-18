@@ -628,15 +628,18 @@ class CallManager:
         try:
             from app.platform import outbound_webhooks as _ow_cm
             import asyncio as _a
+            # NOTE: the public API is outbound_webhooks.emit(event, payload, client_id)
+            # — there is no fire_event(); the old name silently AttributeError'd under
+            # the except below, so this event never actually fired. Use emit().
             _a.create_task(
-                _ow_cm.fire_event("call_completed", {
+                _ow_cm.emit("call_completed", {
                     "call_id": str(call_id),
                     "outcome": outcome,
                     "duration_seconds": duration,
                     "lead_score": result.lead_score or 0,
                     "phone": context.phone_number,
                     "campaign_id": getattr(context, "campaign_id", None) or "",
-                })
+                }, client_id=getattr(context, "client_id", "") or "")
             )
         except Exception:
             pass
