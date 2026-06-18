@@ -229,6 +229,18 @@ class TextToSpeech:
             return await self._provider.synthesize(text, voice_id)
         except Exception as e:
             logger.error(f"TTS synthesis failed: {e}")
+            # Kokoro self-hosted fallback — only on primary failure, gated
+            # USE_KOKORO_TTS=1, inert until the dep is baked. Never blocks the raise.
+            try:
+                from app.voice_agent import kokoro_tts
+
+                if kokoro_tts.available():
+                    audio = await asyncio.to_thread(kokoro_tts.synthesize, text)
+                    if audio:
+                        logger.info("[tts] kokoro fallback used (primary failed)")
+                        return audio
+            except Exception:
+                pass
             raise
 
     async def synthesize_stream(self, text: str, voice_id: str | None = None):
