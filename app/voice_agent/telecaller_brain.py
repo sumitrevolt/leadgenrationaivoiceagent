@@ -148,6 +148,7 @@ class TelecallerBrain:
         # ke liye call-session set_memory_subject(<lead_id/caller_phone>) bulaaye; jab
         # tak na bulaaye memory INERT (safe). AGENT_MEMORY flag OFF => waise bhi no-op.
         self.memory_subject: str | None = None
+        self._interest_confirmed = False
 
         # Multi-key rotation pool (free-AI resilience): STT + LLM share a Gemini
         # quota PER KEY, so we rotate to the next key on a quota/429 error. The
@@ -222,6 +223,18 @@ class TelecallerBrain:
         AGENT_MEMORY flag OFF ho to iska koi asar nahi (recall/remember no-op)."""
         if subject_id:
             self.memory_subject = str(subject_id).strip() or self.memory_subject
+
+    def confirm_interest(self) -> None:
+        """Platform pitch: customer ne interest confirm kar diya — discovery-only mode."""
+        if self._interest_confirmed:
+            return
+        self._interest_confirmed = True
+        note = (
+            "\n\nPLATFORM NOTE: Customer ne interest confirm kar diya hai — "
+            "ab sirf discovery questions aur closing. Dobara pitch ya interest mat poocho."
+        )
+        if note not in self.system_prompt:
+            self.system_prompt += note
 
     # ------------------------------------------------------------------ #
     # Niche data (pitch_hook + qualification_questions from app.niches)

@@ -199,7 +199,20 @@ NICHE_SCRIPTS: dict[str, dict] = {
         "closing": "Toh sir, ek free consultation fix kar dein — kal subah ya shaam, doctor ke paas aapka slot reserve kar doon?",
     },
     "ai_marketing": {
-        "opening": "Namaste sir, main LeadGen AI se [Name] bol rahi hoon — chhote businesses ki poori marketing AI se sambhalte hain: roz ke posts, festival posters, Google profile aur WhatsApp. Bas 30 second baat kar sakti hoon?",
+        "opening": (
+            "Namaste, main Swara bol rahi hoon LeadGen AI se — "
+            "hum LeadGen AI ki AI assistant hain, chhote businesses ke liye marketing platform."
+        ),
+        "pitch_short": (
+            "Posts, Google profile, festival posters aur inquiry follow-up — "
+            "sab AI se automatic, ₹1,199 se shuru."
+        ),
+        "interest_ask": "Kya aap apne business growth ke liye interested hain?",
+        "yes_praise": "Bahut sahi decision liya aapne apne business growth ke liye!",
+        "no_convince_once": (
+            "Sir, 7 din ka FREE trial hai — pehle result dekho, phir decide kijiye."
+        ),
+        "close_cold": "Theek hai sir, shukriya — din shubh!",
         "discovery": [
             "Abhi aap apni marketing kaise karte ho — khud post dalte ho, staff hai, ya agency?",
             "Google pe aapka business search karne par upar dikhta hai kya?",

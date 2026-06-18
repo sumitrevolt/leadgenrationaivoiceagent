@@ -479,10 +479,41 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 # line so the bot greets FIRST (proves it's alive and human).
                 dialog = None  # force rebuild with fresh state
                 history = []
+                session.pop("pitch_state", None)
+
+                niche = session.get("niche", "general")
+                # Platform pitch (ai_marketing): 3-segment opener — phone parity.
+                try:
+                    from app.voice_agent.platform_pitch import (
+                        initial_state,
+                        is_platform_pitch,
+                        opening_segments,
+                    )
+
+                    if is_platform_pitch(niche):
+                        session["pitch_state"] = {
+                            "phase": initial_state().phase,
+                            "convinced_once": False,
+                        }
+                        if niche == "ai_marketing":
+                            session["client_name"] = "LeadGen AI"
+                        for seg in opening_segments():
+                            history.append({"role": "assistant", "content": seg})
+                            audio_b64 = await _edge_tts_mp3_b64(seg)
+                            await websocket.send_json(
+                                {
+                                    "type": "bot",
+                                    "text": seg,
+                                    "audio_b64": audio_b64,
+                                    "test_mode": True,
+                                }
+                            )
+                        continue
+                except Exception as e:
+                    logger.debug(f"web-call: platform pitch start skip ({e}).")
 
                 # PRIMARY: professional TelecallerBrain opener (same as the phone
                 # agent), spoken in the natural Swara voice (EdgeTTS mp3 b64).
-                niche = session.get("niche", "general")
                 tcbrain = await _run_blocking(_get_tcbrain, niche)
                 if tcbrain is not None:
                     try:
@@ -544,6 +575,45 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     {"type": "error", "text": "Empty message — nothing to process."}
                 )
                 continue
+
+            # Platform pitch interest gate (ai_marketing) — before TelecallerBrain.
+            pitch_raw = session.get("pitch_state")
+            if pitch_raw:
+                try:
+                    from app.voice_agent.platform_pitch import PlatformPitchState, next_reply
+
+                    pst = PlatformPitchState(
+                        phase=str(pitch_raw.get("phase") or "await_interest"),
+                        convinced_once=bool(pitch_raw.get("convinced_once")),
+                    )
+                    gate_reply, pst = next_reply(pst, user_text)
+                    session["pitch_state"] = {
+                        "phase": pst.phase,
+                        "convinced_once": pst.convinced_once,
+                    }
+                    if gate_reply:
+                        history.append({"role": "user", "content": user_text})
+                        history.append({"role": "assistant", "content": gate_reply})
+                        tcbrain = await _run_blocking(
+                            _get_tcbrain, session.get("niche", "general")
+                        )
+                        if pst.phase == "discovery" and tcbrain is not None:
+                            if hasattr(tcbrain, "confirm_interest"):
+                                tcbrain.confirm_interest()
+                        audio_b64 = await _edge_tts_mp3_b64(gate_reply)
+                        await websocket.send_json(
+                            {
+                                "type": "bot",
+                                "text": gate_reply,
+                                "audio_b64": audio_b64,
+                                "heard": user_text,
+                                "test_mode": True,
+                                "should_end": pst.phase == "closed",
+                            }
+                        )
+                        continue
+                except Exception as e:
+                    logger.debug(f"web-call: platform pitch gate skip ({e}).")
 
             # PRIMARY: professional TelecallerBrain (the SAME brain as the phone
             # agent — researched niche scripts + free_ai/Gemini, KB-grounded),

@@ -477,6 +477,8 @@ _GREET_CACHE_MAX = 64
 _FILLER_TEXTS = ("Hmm...", "Achha...", "Ji...")
 _FILLER_PCM: list[bytes] = []
 _FILLER_STARTED = False  # synth fillers once per worker (first session does it)
+_CELEBRATION_PCM: bytes | None = None
+_CELEBRATION_STARTED = False
 
 
 # --------------------------------------------------------------------------- #
@@ -535,7 +537,9 @@ class VobizStreamSession:
 
         # instant-greeting state (pre-synthesized at WS open, before 'start')
         self._greet_pcm: bytes | None = None
+        self._platform_greet_pcms: list[bytes] | None = None
         self._pregen_task: asyncio.Task | None = None
+        self._pitch_state = None  # PlatformPitchState when ai_marketing flow active
 
         # lazy helpers
         self._telecaller = None  # TelecallerBrain — lean phone-tuned (primary)
@@ -567,6 +571,7 @@ class VobizStreamSession:
                 self._bg_tasks.add(self._pregen_task)
                 self._pregen_task.add_done_callback(self._bg_tasks.discard)
                 self._spawn(self._pregen_fillers())
+                self._spawn(self._pregen_celebration_sfx())
         except Exception as e:
             logger.debug(f"[vobiz-stream] pregen spawn failed: {e}")
         # STT WARMUP — whisper/vosk model load 10-30s le sakta hai; abhi (greeting
@@ -937,9 +942,104 @@ class VobizStreamSession:
             return ""
 
     # ------------------------------------------------------------------ #
+    # Platform pitch flow (ai_marketing outbound — LeadGen AI self-sale)
+    # ------------------------------------------------------------------ #
+    async def _platform_pitch_reply(self, text: str) -> str | None:
+        if self._pitch_state is None:
+            return None
+        try:
+            from app.voice_agent.platform_pitch import next_reply
+
+            reply, self._pitch_state = next_reply(self._pitch_state, text)
+            if reply is None:
+                return None
+            if self._pitch_state.phase == "discovery":
+                await self._play_celebration()
+                tc = self._get_telecaller()
+                if tc is not None and hasattr(tc, "confirm_interest"):
+                    tc.confirm_interest()
+            return reply
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] platform_pitch_reply failed: {e}")
+            return None
+
+    async def _play_celebration(self) -> None:
+        """Short celebration SFX before praise line (platform yes-path)."""
+        global _CELEBRATION_PCM
+        pcm = _CELEBRATION_PCM
+        if not pcm:
+            try:
+                from app.voice_agent.platform_pitch import generate_celebration_pcm
+
+                pcm = generate_celebration_pcm()
+            except Exception:
+                return
+        if not pcm or not TTS_AVAILABLE:
+            return
+        try:
+            self._stop_play()
+            self._speaking = True
+            self._barge_frames = 0
+            await self._run_play(pcm)
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] celebration play failed: {e}")
+
+    async def _say_and_wait(self, text: str) -> None:
+        """Speak one line and wait until playback finishes."""
+        await self._say(text)
+        if self._play_task and not self._play_task.done():
+            try:
+                await self._play_task
+            except asyncio.CancelledError:
+                pass
+
+    async def _pregen_celebration_sfx(self) -> None:
+        global _CELEBRATION_PCM, _CELEBRATION_STARTED
+        if _CELEBRATION_STARTED:
+            return
+        _CELEBRATION_STARTED = True
+        try:
+            from app.voice_agent.platform_pitch import (
+                celebration_audio_path,
+                generate_celebration_pcm,
+            )
+
+            path = celebration_audio_path()
+            if path:
+                pcm = await self._load_audio_file_pcm(path)
+                if pcm:
+                    _CELEBRATION_PCM = pcm
+                    return
+            _CELEBRATION_PCM = generate_celebration_pcm()
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] celebration pregen failed: {e}")
+
+    async def _load_audio_file_pcm(self, path: str) -> bytes:
+        """Decode mp3/wav to PCM16 @16 kHz (pydub+ffmpeg when available)."""
+        try:
+            from pydub import AudioSegment
+
+            def _decode() -> bytes:
+                fmt = "mp3" if path.lower().endswith(".mp3") else "wav"
+                seg = AudioSegment.from_file(path, format=fmt)
+                seg = seg.set_frame_rate(SAMPLE_RATE).set_channels(1).set_sample_width(2)
+                return seg.raw_data
+
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, _decode)
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] audio file decode failed ({path!r}): {e}")
+            return b""
+
+    # ------------------------------------------------------------------ #
     # Thinking (LLM) — niche-aware Hinglish reply, defensive fallbacks.
     # ------------------------------------------------------------------ #
     async def _think(self, text: str) -> str:
+        # Platform pitch interest gate (ai_marketing only) — before LLM.
+        pr = await self._platform_pitch_reply(text)
+        if pr is not None:
+            return pr
+
         # 1) TelecallerBrain — lean phone-tuned prompt (max 2 sentences, one
         #    question/turn, niche qualification flow). Empty reply => fall through.
         tc = self._get_telecaller()
@@ -1050,6 +1150,14 @@ class VobizStreamSession:
         NO TelecallerBrain/LLM/genai-import here: opener instant + WS-open par
         pre-synthesizable hona chahiye. (TelecallerBrain sirf _think replies ke
         liye hai.)"""
+        try:
+            from app.voice_agent.platform_pitch import is_platform_pitch, opening_segments
+
+            if is_platform_pitch(self.niche):
+                segs = opening_segments()
+                return segs[0] if segs else ""
+        except Exception:
+            pass
         # 1) Professional script opening (best — niche-specific permission opener).
         try:
             from app.voice_agent.niche_scripts import get_script
@@ -1094,6 +1202,14 @@ class VobizStreamSession:
     def _greet_key(self) -> str:
         """Cache key = voice + exact opener text (niche/client embedded) —
         wrong-greeting collisions impossible by construction."""
+        try:
+            from app.voice_agent.platform_pitch import is_platform_pitch, opening_segments
+
+            if is_platform_pitch(self.niche):
+                segs = opening_segments()
+                return f"{self.voice}|platform|{'|'.join(segs)}"
+        except Exception:
+            pass
         return f"{self.voice}|{self._opening_line()}"
 
     async def _pregen_greeting(self) -> None:
@@ -1102,6 +1218,29 @@ class VobizStreamSession:
         later call) => zero synth at all."""
         if not TTS_AVAILABLE:
             return
+        try:
+            from app.voice_agent.platform_pitch import is_platform_pitch, opening_segments
+
+            if is_platform_pitch(self.niche):
+                key = self._greet_key()
+                cached = _GREET_CACHE.get(key)
+                if isinstance(cached, list) and cached:
+                    self._platform_greet_pcms = cached
+                    return
+                segs = opening_segments()
+                pcms: list[bytes] = []
+                for seg in segs:
+                    pcm = await self._synth_pcm(seg)
+                    if pcm:
+                        pcms.append(pcm)
+                if pcms:
+                    if len(_GREET_CACHE) >= _GREET_CACHE_MAX:
+                        _GREET_CACHE.clear()
+                    _GREET_CACHE[key] = pcms
+                    self._platform_greet_pcms = pcms
+                return
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] platform greeting pregen failed: {e}")
         try:
             key = self._greet_key()
             pcm = _GREET_CACHE.get(key)
@@ -1130,6 +1269,34 @@ class VobizStreamSession:
                 logger.debug(f"[vobiz-stream] filler synth failed ({t!r}): {e}")
 
     async def _greet(self) -> None:
+        try:
+            from app.voice_agent.platform_pitch import (
+                initial_state,
+                is_platform_pitch,
+                opening_segments,
+            )
+
+            if is_platform_pitch(self.niche):
+                self._pitch_state = initial_state()
+                segs = opening_segments()
+                pcms = self._platform_greet_pcms
+                if not pcms:
+                    cached = _GREET_CACHE.get(self._greet_key())
+                    if isinstance(cached, list):
+                        pcms = cached
+                for i, seg in enumerate(segs):
+                    self.hist.append({"role": "assistant", "content": seg})
+                    if TTS_AVAILABLE and pcms and i < len(pcms):
+                        self._stop_play()
+                        self._speaking = True
+                        self._barge_frames = 0
+                        await self._run_play(pcms[i])
+                    else:
+                        await self._say_and_wait(seg)
+                return
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] platform greet failed: {e}")
+
         line = self._opening_line()
         self.hist.append({"role": "assistant", "content": line})
         if TTS_AVAILABLE:
