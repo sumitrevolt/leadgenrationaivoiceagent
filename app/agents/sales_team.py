@@ -303,6 +303,18 @@ async def analyze(p: dict) -> dict[str, Any]:
             max_tokens=120,
         )
         parts["boss_summary"] = boss or f"Grade {qual.get('grade')}: {qual.get('action')}"
+        try:
+            from app.agents.staff_supervisor import high_stakes_enabled, run_high_stakes
+
+            if high_stakes_enabled():
+                hs = run_high_stakes(
+                    f"Sales deep-dive synthesis for {p.get('name') or p.get('business_name') or 'prospect'}: "
+                    f"BANT {qual.get('total')}/100 grade {qual.get('grade')}. Next best action?"
+                )
+                if hs.get("ok") and hs.get("reply"):
+                    parts["langgraph_synthesis"] = str(hs["reply"])[:500]
+        except Exception:
+            pass
 
         pid = _pid(p)
         os.makedirs(_DIR, exist_ok=True)

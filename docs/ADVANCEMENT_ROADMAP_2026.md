@@ -11,11 +11,11 @@
 | 1 | Contextual Retrieval + reranker (content/marketing RAG) | RAG | High (−49%→−67% retrieval miss) | M | ✅ shipped |
 | 2 | Smart Turn v3 upgrade (turn detection) | Voice | Med-High (fewer cut-offs) | S | ✅ shipped (bake+flag) |
 | 3 | Kokoro TTS as EdgeTTS fallback | Voice | Med (latency + resilience) | M | proposed |
-| 4 | Hybrid search (semantic + BM25) in Qdrant | RAG | Med | M | proposed |
-| 5 | LangGraph supervisor default for high-stakes flows | Agents | Med (reliability, audit) | M | proposed |
-| 6 | Expand eval/guardrail coverage (DeepEval + cross-path) | Agents | Med (regression safety) | S-M | proposed |
-| 7 | Hindi STT upgrade eval (Sarvam Saaras V3 / IndicWhisper) | Voice | Med (Hindi WER) | M | proposed (eval) |
-| 8 | Cerebras for bulk content-gen (keep Groq for voice) | Voice/LLM | Low-Med (throughput) | S | proposed |
+| 4 | Hybrid search (semantic + BM25) in Qdrant | RAG | Med | M | ✅ shipped |
+| 5 | LangGraph supervisor default for high-stakes flows | Agents | Med (reliability, audit) | M | ✅ shipped |
+| 6 | Expand eval/guardrail coverage (DeepEval + cross-path) | Agents | Med (regression safety) | S-M | ✅ shipped |
+| 7 | Hindi STT upgrade eval (Sarvam Saaras V3 / IndicWhisper) | Voice | Med (Hindi WER) | M | ✅ eval harness |
+| 8 | Cerebras for bulk content-gen (keep Groq for voice) | Voice/LLM | Low-Med (throughput) | S | ✅ shipped |
 | 9 | TRAI 2025: verbal/DTMF consent-confirm step | Compliance | High (legal) | M | proposed ⚠️ |
 
 S = <½ day · M = 1–3 days. "⚠️" = touches telephony (coordinate; currently owned by the parallel cleanup).
