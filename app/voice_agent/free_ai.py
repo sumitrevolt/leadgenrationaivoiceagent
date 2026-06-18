@@ -346,23 +346,71 @@ def _llm_cache_put(key: str, val: tuple[str, str]) -> None:
         pass
 
 
+def _resolve_llm_profile(profile: str | None, max_tokens: int) -> str:
+    if profile:
+        p = profile.strip().lower()
+        if p in ("bulk", "batch", "content"):
+            return "bulk"
+        if p in ("realtime", "voice", "live"):
+            return "realtime"
+    try:
+        thresh = int(os.getenv("LLM_BULK_TOKEN_THRESHOLD", "180") or 180)
+    except Exception:
+        thresh = 180
+    return "bulk" if max_tokens >= thresh else "realtime"
+
+
+def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
+    """Provider order — realtime favours latency; bulk favours Cerebras throughput."""
+    _ollama_entry = ("ollama", _ollama_model())
+    if profile == "bulk":
+        core = [
+            ("cerebras", _CEREBRAS_LLM_MODEL),
+            ("groq", _GROQ_LLM_MODEL),
+            ("mistral", _MISTRAL_LLM_MODEL),
+        ]
+    else:
+        core = [
+            ("mistral", _MISTRAL_LLM_MODEL),
+            ("groq", _GROQ_LLM_MODEL),
+            ("cerebras", _CEREBRAS_LLM_MODEL),
+        ]
+    chain: list[tuple[str, str]] = []
+    if _ollama_primary():
+        chain.append(_ollama_entry)
+    chain += core
+    if not _ollama_primary():
+        chain.append(_ollama_entry)
+    chain += [
+        ("gemini", _GEMINI_LLM_MODEL),
+        ("sambanova", _SAMBANOVA_LLM_MODEL),
+        ("openrouter", _OPENROUTER_LLM_MODEL),
+        ("openrouter_2", _OPENROUTER_LLM_MODEL),
+        ("openrouter_3", _OPENROUTER_LLM_MODEL),
+        ("openrouter_4", _OPENROUTER_LLM_MODEL),
+        ("openrouter", _OPENROUTER_LLM_MODEL2),
+        ("openrouter_2", _OPENROUTER_LLM_MODEL2),
+        ("openrouter", _OPENROUTER_LLM_MODEL3),
+    ]
+    return chain
+
+
 async def chat(
     system: str,
     messages: list[dict[str, str]],
     max_tokens: int = 90,
     temperature: float = 0.6,
     scope: str = "global",
+    profile: str | None = None,
 ) -> tuple[str, str]:
     """Free LLM chain par ek short reply lo.
 
-    Chain: Cerebras gpt-oss-120b → Groq llama-3.1-8b-instant →
-    OpenRouter deepseek/deepseek-chat:free. Har provider asyncio.wait_for 8s ke
-    andar; pehla non-empty reply jeet jaata hai. Returns (reply, provider) ya
-    ("","") agar SAB fail/absent. Kabhi raise nahi karta.
+    ``profile``: ``realtime`` (voice/low-latency, default) ya ``bulk`` (content/blog).
+    Unset → ``bulk`` auto jab ``max_tokens >= LLM_BULK_TOKEN_THRESHOLD`` (default 180).
 
-    scope: per-tenant/per-loop budget attribution (e.g. client_id / "self_improve").
-           budget_guard (LLM_BUDGET_GUARD flag) is scope ke daily cap enforce karta;
-           flag OFF (default) = zero overhead, koi behaviour change nahi.
+    Chain order:
+      realtime — mistral → groq → cerebras → …
+      bulk     — cerebras → groq → mistral → …  (high-throughput content gen)
     """
     msgs: list[dict[str, str]] = []
     if system and system.strip():
@@ -400,41 +448,8 @@ async def chat(
     except Exception:
         pass  # guard error = proceed normally (fail-open)
 
-    # COMPLETELY FREE chain — no credit card, no paid credits.
-    # OpenRouter 4 keys = 4x rate-limit headroom (each alag circuit-breaker)
-    # ORDER = LIVE measured ok-rate (data/llm_calls.jsonl), NOT theory.
-    # 2026-06-13 audit: mistral 99% · groq 96% · cerebras 9% (429 queue) ·
-    # gemini/sambanova/openrouter ~0% (quota/deprecated). Pehle proven
-    # performers try karo taaki har call me 2-5 dead attempts waste na hon
-    # (aggregate ok 50% -> ~97%, latency bhi girti). Saare providers retain
-    # (fallback headroom) — sirf order badla. Naye keys aayein to wapas tune karo.
-    # SELF-HOSTED own LLM (OLLAMA_URL set hote hi active) — UNLIMITED, no quota, kisi
-    # tier pe nirbhar nahi. OLLAMA_PRIMARY=1 -> sabse pehle (pure self-reliance); warna
-    # proven cloud (mistral/groq/cerebras) ke BAAD + flaky cloud se PEHLE = fast jab
-    # cloud up, par cloud exhaust hote hi OWN LLM guaranteed answer (kabhi fully down nahi).
-    # OLLAMA_URL unset = _client("ollama") None -> instantly skip (zero change).
-    _ollama_entry = ("ollama", _ollama_model())
-    chain: list[tuple[str, str]] = []
-    if _ollama_primary():
-        chain.append(_ollama_entry)
-    chain += [
-        ("mistral",      _MISTRAL_LLM_MODEL),      # LIVE 99% ok — primary workhorse
-        ("groq",         _GROQ_LLM_MODEL),         # LIVE 96% ok, ~1s, 6000 RPM
-        ("cerebras",     _CEREBRAS_LLM_MODEL),     # 120B free but 429-prone; circuit-breaker handles
-    ]
-    if not _ollama_primary():
-        chain.append(_ollama_entry)               # own LLM: reliable floor before flaky cloud
-    chain += [
-        ("gemini",       _GEMINI_LLM_MODEL),       # free, 1500 RPD
-        ("sambanova",    _SAMBANOVA_LLM_MODEL),    # free, 70B fast
-        ("openrouter",   _OPENROUTER_LLM_MODEL),   # key1 deepseek:free
-        ("openrouter_2", _OPENROUTER_LLM_MODEL),   # key2 deepseek:free
-        ("openrouter_3", _OPENROUTER_LLM_MODEL),   # key3 deepseek:free
-        ("openrouter_4", _OPENROUTER_LLM_MODEL),   # key4 deepseek:free
-        ("openrouter",   _OPENROUTER_LLM_MODEL2),  # llama:free
-        ("openrouter_2", _OPENROUTER_LLM_MODEL2),  # llama:free key2
-        ("openrouter",   _OPENROUTER_LLM_MODEL3),  # gemma:free
-    ]
+    prof = _resolve_llm_profile(profile, max_tokens)
+    chain = _build_llm_chain(prof)
     for provider, model in chain:
         if _provider_down(provider):
             continue  # circuit-breaker: provider abhi cooldown me hai

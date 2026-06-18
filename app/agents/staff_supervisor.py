@@ -146,4 +146,18 @@ def get_staff_supervisor() -> StaffSupervisor:
     return _singleton
 
 
-__all__ = ["StaffSupervisor", "get_staff_supervisor"]
+def high_stakes_enabled() -> bool:
+    return _flag("USE_LANGGRAPH_SUPERVISOR") and _flag("USE_LANGGRAPH_HIGH_STAKES")
+
+
+def run_high_stakes(task: str) -> dict[str, Any]:
+    """LangGraph supervisor for sales/process breakpoints. Never raises."""
+    if not high_stakes_enabled():
+        return {"ok": False, "reason": "USE_LANGGRAPH_HIGH_STAKES=1 + USE_LANGGRAPH_SUPERVISOR=1 required"}
+    try:
+        return get_staff_supervisor().run(task)
+    except Exception as exc:
+        return {"ok": False, "reason": str(exc)[:200]}
+
+
+__all__ = ["StaffSupervisor", "get_staff_supervisor", "high_stakes_enabled", "run_high_stakes"]

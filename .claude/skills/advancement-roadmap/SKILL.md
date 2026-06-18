@@ -36,11 +36,11 @@ S = <½ day · M = 1–3 days · ⚠️ = telephony flow — coordinate before e
 | 1 | Ingest: 1-line LLM context prefix per chunk; rerank top-100→10 via `BAAI/bge-reranker-v2-m3` off-loop + deadline. **NOT live voice turn.** | `vector_store.py`, new `reranker.py`, `USE_RERANKER=1` |
 | 2 | Swap Smart Turn checkpoint behind `USE_SMART_TURN=1`; image-bake; tune on FREE web-call first. | `turn_detector.py` (already in vobiz_stream + phone_stream) |
 | 3 | Kokoro 82M CPU fallback when EdgeTTS fails; `USE_KOKORO_TTS=1`. | TTS chain + `agent_tester.py` scorecard |
-| 4 | Qdrant sparse + dense, RRF fuse. | `vector_store.py`, `USE_HYBRID_SEARCH=1` (pairs #1) |
-| 5 | LangGraph for sales/process breakpoints; cheap coordinator for fan-out. | `staff_supervisor.py`, `process_engine.py`, `USE_LANGGRAPH_SUPERVISOR=1` |
-| 6 | DeepEval faithfulness/relevancy on voice-brain + RAG; CI + `final_integration_check`. | `evals/`, `eval_gate`, `cross_path_audit.py` pattern |
-| 7 | Benchmark Sarvam/IndicWhisper on `data/call_transcripts/`; no default swap yet. | `free_ai.py` STT chain |
-| 8 | Task routing: bulk→Cerebras-first, realtime→Groq-first; existing circuit-breaker. | `free_ai.py` |
+| 4 | Qdrant sparse + dense, RRF fuse. | `knowledge_base.py`, `USE_HYBRID_SEARCH=1` |
+| 5 | LangGraph high-stakes on sales deep-dive. | `staff_supervisor.py`, `USE_LANGGRAPH_HIGH_STAKES=1` |
+| 6 | DeepEval faithfulness/relevancy on voice-brain + RAG; CI + `final_integration_check`. | `evals/`, `eval_gate`, `eval_guardrail.py` |
+| 7 | STT eval harness (`scripts/stt_eval.py`); no default swap yet. | `stt_eval.py` |
+| 8 | `chat(profile=)` bulk→Cerebras-first; auto when max_tokens≥180. | `free_ai.py` |
 | 9 | After AI-disclosure opener: verbal/DTMF confirm before continue (promotional only); log `consent_ledger`. | `telecaller_brain` + telephony — flag-gated, web-call verify first |
 
 ## Product gaps (separate from table — still wireable)

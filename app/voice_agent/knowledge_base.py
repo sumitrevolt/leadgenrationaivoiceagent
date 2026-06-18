@@ -686,6 +686,8 @@ class KnowledgeBase:
         self._indexes: dict[str, Any] = {}
         # namespace -> backend label ("qdrant" | "chroma" | "keyword")
         self._backends: dict[str, str] = {}
+        # BM25 mirror for hybrid RRF when USE_HYBRID_SEARCH=1 + qdrant backend
+        self._hybrid_kw: dict[str, _KeywordIndex] = {}
 
     # ----------------------- index management ----------------------- #
     def _get_index(self, namespace: str):
@@ -743,6 +745,22 @@ class KnowledgeBase:
         self._get_index(namespace)
         return self._backends.get(namespace or "default", "keyword")
 
+    def _hybrid_mirror_add(self, namespace: str, chunk: str, source: str) -> None:
+        """Keep a keyword index mirror for RRF hybrid search (qdrant path only)."""
+        try:
+            from app.ml.hybrid_search import hybrid_enabled
+
+            if not hybrid_enabled():
+                return
+            ns = namespace or "default"
+            if self._backends.get(ns) != "qdrant":
+                return
+            if ns not in self._hybrid_kw:
+                self._hybrid_kw[ns] = _KeywordIndex()
+            self._hybrid_kw[ns].add(chunk, source=source)
+        except Exception:
+            pass
+
     # ----------------------- public API ----------------------- #
     def add_documents(
         self,
@@ -781,6 +799,7 @@ class KnowledgeBase:
                     try:
                         prefix = _contextual_prefix(chunk, namespace, src) if ctx_on else ""
                         index.add(chunk, source=src, embed_prefix=prefix)
+                        self._hybrid_mirror_add(namespace, chunk, src)
                         added += 1
                     except Exception as e:  # pragma: no cover
                         logger.warning(f"KB add failed, skipping chunk: {e}")
@@ -808,8 +827,9 @@ class KnowledgeBase:
             return []
         index = self._get_index(namespace)
         use_rerank = rerank if rerank is not None else _env_flag("USE_RERANKER")
+        use_hybrid = _env_flag("USE_HYBRID_SEARCH")
         pool = k
-        if use_rerank:
+        if use_rerank or use_hybrid:
             try:
                 pool = max(k, int(os.getenv("RERANK_POOL_SIZE", "50") or 50))
             except Exception:
@@ -817,6 +837,14 @@ class KnowledgeBase:
         try:
             with self._lock:
                 results = index.search(query, k=max(1, pool))
+            ns = namespace or "default"
+            if use_hybrid and results and self._backends.get(ns) == "qdrant":
+                kw_idx = self._hybrid_kw.get(ns)
+                if kw_idx is not None:
+                    from app.ml.hybrid_search import rrf_merge
+
+                    sparse = kw_idx.search(query, k=max(1, pool))
+                    results = rrf_merge(results, sparse, top_k=max(1, pool))
             if use_rerank and results:
                 from app.ml.reranker import rerank_hits
 
