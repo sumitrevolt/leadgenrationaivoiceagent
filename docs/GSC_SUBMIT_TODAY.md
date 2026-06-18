@@ -1,13 +1,30 @@
 # Google Search Console — aaj submit (5 steps)
 
+## Verification (DONE in repo — deploy ke baad GSC pe Verify dabao)
+
+**Method A — HTML file (recommended):**  
+Live URL: `https://leadsgenai.in/google1d137d4af9dad693.html`  
+File: `frontend/website/google1d137d4af9dad693.html`
+
+**Method B — meta tag (homepage backup):**  
+`frontend/website/index.html` `<head>` me:
+```html
+<meta name="google-site-verification" content="hSuMpSLt2ovH2_nJh-rCbUmAwFoE6AU1NJvwJkuShEE" />
+```
+
+GSC → Ownership verification → **Verify** (HTML file ya HTML tag dono me se ek).
+
+---
+
+## After verified
+
 1. Open https://search.google.com/search-console
-2. Add property → URL prefix → `https://leadsgenai.in`
-3. Verify via DNS TXT (Hostinger DNS) ya HTML file
-4. Sitemaps → Submit: `https://leadsgenai.in/sitemap.xml`
-5. URL Inspection → Request indexing for:
+2. Property: `https://leadsgenai.in` (URL prefix)
+3. Sitemaps → Submit: `https://leadsgenai.in/sitemap.xml`
+4. URL Inspection → Request indexing:
    - https://leadsgenai.in/
    - https://leadsgenai.in/audit
    - https://leadsgenai.in/voice-agent
    - https://leadsgenai.in/compare
 
-Note: Results 1-4 weeks. Sitemap already live (verified by marketing_sprint_today.py).
+Note: Rankings 1–4 weeks. File/meta **mat hatao** — warna verification tut jayegi.
