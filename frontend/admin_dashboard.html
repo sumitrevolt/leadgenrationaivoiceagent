@@ -1995,7 +1995,7 @@ async function loadRecordings(){
         if(s.caller_wav){
           html+=`<div>
             <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">👤 Caller (prospect)</div>
-            <audio controls preload="metadata" style="width:100%;height:36px" src="${base+encodeURIComponent(s.caller_wav)}"></audio>
+            <button class="btn recload" onclick="loadRecAudio(this)" data-url="${base+encodeURIComponent(s.caller_wav)}" style="width:100%;height:36px;font-size:12px;cursor:pointer">▶ Load caller audio</button>
           </div>`;
         } else {
           html+=`<div style="display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:8px;height:46px;font-size:12px;color:var(--muted)">No caller audio</div>`;
@@ -2003,7 +2003,7 @@ async function loadRecordings(){
         if(s.bot_wav){
           html+=`<div>
             <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">🤖 Swara (bot)</div>
-            <audio controls preload="metadata" style="width:100%;height:36px" src="${base+encodeURIComponent(s.bot_wav)}"></audio>
+            <button class="btn recload" onclick="loadRecAudio(this)" data-url="${base+encodeURIComponent(s.bot_wav)}" style="width:100%;height:36px;font-size:12px;cursor:pointer">▶ Load Swara audio</button>
           </div>`;
         } else {
           html+=`<div style="display:flex;align-items:center;justify-content:center;background:#f1f5f9;border-radius:8px;height:46px;font-size:12px;color:var(--muted)">No bot audio</div>`;
@@ -2016,6 +2016,26 @@ async function loadRecordings(){
   }catch(e){
     if(body) body.innerHTML='<div style="color:var(--red)">Network error — '+escH(String(e))+'</div>';
   }
+}
+
+// Recordings playback: <audio src> browser request Bearer header nahi bhej sakta,
+// isliye endpoint (require_admin) 401 deta tha. Yahan auth-header ke saath fetch
+// karke blob object-URL banake play karte hain. Token URL me leak nahi hota.
+async function loadRecAudio(btn){
+  const url = btn && btn.getAttribute('data-url');
+  if(!url) return;
+  btn.disabled = true; btn.textContent = 'Loading…';
+  try{
+    const r = await fetch(url, {headers: abAuthHdr(), cache: 'no-store'});
+    if(!r.ok){ btn.disabled = false; btn.textContent = 'Error '+r.status+' (re-login?)'; return; }
+    const blob = await r.blob();
+    const a = document.createElement('audio');
+    a.controls = true; a.autoplay = true; a.preload = 'auto';
+    a.style.width = '100%'; a.style.height = '36px';
+    a.src = URL.createObjectURL(blob);
+    a.addEventListener('error', function(){ btn.disabled = false; btn.textContent = 'Playback error'; });
+    btn.replaceWith(a);
+  }catch(e){ btn.disabled = false; btn.textContent = 'Network error'; }
 }
 </script>
 </body>
