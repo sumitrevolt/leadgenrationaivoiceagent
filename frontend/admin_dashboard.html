@@ -46,6 +46,13 @@
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
   .btn{background:var(--indigo);color:#fff;border:none;padding:9px 15px;border-radius:9px;font-weight:600;cursor:pointer;font-size:13px}
   .btn:hover{background:var(--indigo-d)}
+  .btn-ghost{background:#f1f5f9;color:var(--ink);border:1px solid var(--line);text-decoration:none;display:inline-flex;align-items:center}
+  .btn-ghost:hover{background:#e2e8f0}
+  .btn-logout{background:#fff;color:var(--muted);border:1px solid var(--line);padding:8px 14px;font-size:12.5px}
+  .btn-logout:hover{background:#fef2f2;color:var(--red);border-color:#fecaca}
+  .sb-foot .logout-btn{margin-top:8px;width:100%;padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fca5a5;font-size:11.5px;font-weight:600;cursor:pointer}
+  .sb-foot .logout-btn:hover{background:rgba(239,68,68,.2);color:#fff}
+  .sb-foot .login-link{display:block;margin-top:6px;font-size:11.5px;color:#a5b4fc;text-decoration:underline}
 
   .content{padding:24px 26px 50px}
 
@@ -226,10 +233,17 @@
       <a href="/app/dashboards" role="menuitem" aria-label="Unified dashboards"><span class="ic" aria-hidden="true">▦</span> Unified Dashboards</a>
       <a href="#sec-health" role="menuitem" aria-label="System Health"><span class="ic" aria-hidden="true">◐</span> System Health</a>
       <a href="/app/ops" role="menuitem" aria-label="Ops mission control"><span class="ic" aria-hidden="true">🛠</span> Ops Control</a>
+      <div class="sec" role="presentation">Account</div>
+      <a href="/app/admin-login" id="navAdminLogin" role="menuitem" aria-label="Admin login"><span class="ic" aria-hidden="true">🔑</span> Admin Login</a>
     </nav>
-    <div class="sb-foot" aria-label="Logged in as Sumit">
-      <div class="av" aria-hidden="true">S</div>
-      <div><b style="color:#fff">Sumit</b><small>Owner / Operator</small></div>
+    <div class="sb-foot" aria-label="Logged in admin user">
+      <div class="av" id="sbAv" aria-hidden="true">A</div>
+      <div style="flex:1;min-width:0">
+        <b style="color:#fff" id="sbUserName">Admin</b>
+        <small id="sbUserRole">Operator</small>
+        <button type="button" class="logout-btn" id="sbLogoutBtn" onclick="adminLogout()" style="display:none">Logout</button>
+        <a href="/app/admin-login" class="login-link" id="sbLoginLink">Login</a>
+      </div>
     </div>
   </aside>
 
@@ -243,6 +257,9 @@
       </div>
       <div class="top-right" role="toolbar" aria-label="Dashboard actions">
         <span class="pill" aria-live="polite" aria-label="Data source status"><span class="live-dot" aria-hidden="true"></span> <span id="src-label">Live Demo</span></span>
+        <span id="adminUserLbl" class="pill" style="background:#f8fafc;color:var(--slate);font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none" title=""></span>
+        <a href="/app/admin-login" id="adminLoginLink" class="btn btn-ghost" style="display:none">🔑 Login</a>
+        <button type="button" id="adminLogoutBtn" class="btn btn-logout" onclick="adminLogout()" style="display:none">Logout</button>
         <button class="btn" onclick="openOnboard()" style="background:#10b981" aria-label="Add a new customer">➕ Add Customer</button>
         <button class="btn" onclick="loadDashboard()" aria-label="Refresh dashboard data">↻ Refresh</button>
       </div>
@@ -1262,6 +1279,7 @@ async function loadDashboard(){
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
+  adminAuthBoot();
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores();
   loadRevenueAnalytics(); loadProspectsPanel(); loadActivityFeed();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail();
@@ -1284,6 +1302,67 @@ let AB_CID = "";
 function abAuthHdr(){
   const t = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
   return t ? {"Authorization":"Bearer "+t} : {};
+}
+
+async function adminAuthBoot(){
+  const t = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
+  const loginLnk = document.getElementById("adminLoginLink");
+  const logoutBtn = document.getElementById("adminLogoutBtn");
+  const sbLogout = document.getElementById("sbLogoutBtn");
+  const sbLogin = document.getElementById("sbLoginLink");
+  const navLogin = document.getElementById("navAdminLogin");
+  const userLbl = document.getElementById("adminUserLbl");
+  function showLoggedOut(){
+    if(loginLnk) loginLnk.style.display = "inline-flex";
+    if(logoutBtn) logoutBtn.style.display = "none";
+    if(sbLogout) sbLogout.style.display = "none";
+    if(sbLogin) sbLogin.style.display = "block";
+    if(navLogin) navLogin.style.display = "flex";
+    if(userLbl){ userLbl.style.display = "none"; userLbl.textContent = ""; }
+  }
+  function showLoggedIn(emailOrName){
+    if(loginLnk) loginLnk.style.display = "none";
+    if(logoutBtn) logoutBtn.style.display = "inline-flex";
+    if(sbLogout) sbLogout.style.display = "block";
+    if(sbLogin) sbLogin.style.display = "none";
+    if(navLogin) navLogin.style.display = "none";
+    if(userLbl && emailOrName){
+      userLbl.style.display = "inline-flex";
+      userLbl.textContent = emailOrName;
+      userLbl.title = emailOrName;
+    }
+  }
+  if(!t){ showLoggedOut(); return; }
+  showLoggedIn("");
+  try{
+    const r = await fetch("/api/admin/me", {headers: abAuthHdr(), cache: "no-store"});
+    if(r.status === 401){
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("adminToken");
+      showLoggedOut();
+      return;
+    }
+    if(!r.ok) return;
+    const u = await r.json();
+    const name = (u.full_name || u.first_name || u.email || "Admin").trim();
+    const initial = (name[0] || "A").toUpperCase();
+    showLoggedIn(u.email || name);
+    const sbName = document.getElementById("sbUserName");
+    const sbRole = document.getElementById("sbUserRole");
+    const sbAv = document.getElementById("sbAv");
+    if(sbName) sbName.textContent = name;
+    if(sbRole) sbRole.textContent = (u.role || "admin").replace(/_/g, " ");
+    if(sbAv) sbAv.textContent = initial;
+  }catch(e){ /* fail-open — logout button still works */ }
+}
+
+async function adminLogout(){
+  try{
+    await fetch("/api/admin/auth/logout", {method: "POST", headers: abAuthHdr()});
+  }catch(e){}
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("adminToken");
+  location.href = "/app/admin-login";
 }
 
 /* ====== S.2 Add Customer (admin onboard) ====== */
