@@ -9,6 +9,7 @@ MULTI-TIER AUTOMATED PLATFORM (marketing-first):
 3. Everything runs 24/7 with minimal human intervention
 """
 
+import asyncio
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -191,10 +192,34 @@ async def lifespan(app: FastAPI):
 
     logger.info("✅ Startup complete - application ready")
 
+    # Outbound call queue processor (Exotel/Twilio) — polls Redis queue and dials.
+    # Gated CALL_PROCESSOR=1 (default ON when telephony provider configured).
+    _call_processor_task = None
+    if os.environ.get("CALL_PROCESSOR", "1").strip().lower() in ("1", "true", "yes"):
+        try:
+            provider = (
+                os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "exotel"
+            ).strip().lower()
+            if provider in ("exotel", "twilio"):
+                from app.telephony.call_manager import CallManager
+
+                _cm = CallManager(provider=provider)
+                app.state.call_manager = _cm
+                _call_processor_task = asyncio.create_task(_cm.start_call_processor())
+                logger.info(f"✅ Call queue processor started ({provider})")
+        except Exception as e:
+            logger.warning(f"Call processor not started: {e}")
+
     yield
 
     # Shutdown
     logger.info("Shutting down application...")
+    if _call_processor_task is not None:
+        _call_processor_task.cancel()
+        try:
+            await _call_processor_task
+        except asyncio.CancelledError:
+            pass
     if ml_scheduler:
         await stop_training_scheduler()
     await close_async_db()

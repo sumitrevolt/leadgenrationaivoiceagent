@@ -137,12 +137,21 @@ class ComplianceGate:
         try:
             from app.config import settings
 
+            prov = (
+                _env("TELEPHONY_PROVIDER")
+                or getattr(settings, "default_telephony", "")
+                or ""
+            ).strip().lower()
+            if prov == "exotel":
+                cid = (getattr(settings, "exotel_caller_id", "") or "").strip()
+                if cid:
+                    return cid
             cid = (getattr(settings, "vobiz_caller_id", "") or "").strip()
             if cid:
                 return cid
         except Exception:
             pass
-        return _env("VOBIZ_CALLER_ID", "")
+        return _env("EXOTEL_CALLER_ID") or _env("VOBIZ_CALLER_ID", "")
 
     def _window(self, call_type: CallType) -> tuple:
         if call_type == CallType.PROMOTIONAL:
@@ -264,7 +273,7 @@ class ComplianceGate:
                 if not self._dlt_approved():
                     reasons.append("dlt_not_approved[set DLT_APPROVED=1 after approval]")
                 if not self._caller_id():
-                    reasons.append("no_140_caller_id[set VOBIZ_CALLER_ID]")
+                    reasons.append("no_caller_id[set EXOTEL_CALLER_ID or VOBIZ_CALLER_ID]")
 
             allowed = not reasons
             if not allowed:
