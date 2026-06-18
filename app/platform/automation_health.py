@@ -32,6 +32,11 @@ EXPECTED_GAP_MIN = {
     "reply_triage": 180,
     "watchdog": 180,
     "onboard": 180,
+    "standup": 30 * 60,      # daily 08:00 IST
+    "engineer_sre": 180,     # hourly :45
+    "engineer_finops": 30 * 60,
+    "engineer_security": 30 * 60,
+    "readiness_digest": 30 * 60,
     "qa": 30 * 60,           # daily (30h)
     "trainer": 30 * 60,
     "blog": 30 * 60,

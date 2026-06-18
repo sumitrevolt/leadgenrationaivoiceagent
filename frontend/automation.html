@@ -81,6 +81,7 @@ a{color:var(--acc)}
   <button id="tab-contentauto" onclick="show('contentauto')">♻️ ContentAuto</button>
   <button id="tab-fde" onclick="show('fde')">🚀 FDE Deploy</button>
   <button id="tab-telephony" onclick="show('telephony')">📞 Telephony</button>
+  <button id="tab-postcall" onclick="show('postcall')">🎯 Post-Call</button>
   <div style="border-top:1px solid var(--line);margin:6px 4px"></div>
   <button id="tab-loyalty" onclick="show('loyalty')">🎟️ Loyalty</button>
   <button id="tab-nps" onclick="show('nps')">📊 NPS</button>
@@ -949,6 +950,24 @@ a{color:var(--acc)}
     <h2>📊 Deliverability check</h2>
     <button class="btn2" onclick="telDeliverability()">SPF/DMARC check abhi</button>
     <div id="telDelOut" class="mut" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<!-- ============ Post-call AI qualify ============ -->
+<section class="tabsec" id="sec-postcall">
+  <div class="card">
+    <h2>🎯 Post-Call Intelligence</h2>
+    <div class="mut">AUTO_QUALIFY_CALLS=1 pe har call ke baad interest score + followup draft (call_qualifications.jsonl). Bina flag = manual qualify API se.</div>
+    <button class="btn2" onclick="pcLoad()">🔄 Refresh list</button>
+    <div id="pcStats" class="mut" style="margin-top:8px"></div>
+    <div id="pcList" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h2>💬 Ask AI (call data)</h2>
+    <label>Sawaal (Hinglish)</label>
+    <input id="pcAskQ" placeholder="Aaj kitne qualified leads? Kaun callback pending?">
+    <button class="btn" id="pcAskBtn" onclick="pcAsk()">Puchho</button>
+    <div id="pcAskOut" class="mut" style="margin-top:8px"></div>
   </div>
 </section>
 
@@ -2796,6 +2815,31 @@ async function fdeDeploy(){
   busy('fdeBtn',0);
 }
 
+/* ---------------- Post-call qualify ---------------- */
+async function pcLoad(){
+  try{
+    var d=await api('/api/growth/voice/qualifications?limit=40');
+    var st=d.stats||{};
+    $('pcStats').innerHTML='<span class="pill">total <b>'+esc(st.total||0)+'</b></span> <span class="pill">qualified <b>'+esc(st.qualified||0)+'</b></span> <span class="pill">avg score <b>'+esc(st.avg_interest_score||0)+'</b></span> <span class="pill">flag <b>AUTO_QUALIFY_CALLS</b></span>';
+    var rows=d.qualifications||[];
+    if(!rows.length){$('pcList').innerHTML='<div class="mut">Abhi koi qualification nahi — AUTO_QUALIFY_CALLS=1 + real call chahiye.</div>';return}
+    var h='<table class="tbl"><tr><th>Call</th><th>Score</th><th>Qualified</th><th>Summary</th></tr>';
+    rows.forEach(function(r){
+      h+='<tr><td class="mut">'+esc((r.call_id||'').slice(0,14))+'</td><td><b>'+esc(r.interest_score||'—')+'</b></td><td>'+(r.qualified?'✅':'—')+'</td><td class="mut">'+esc((r.summary||r.next_action||'').slice(0,80))+'</td></tr>';
+    });
+    $('pcList').innerHTML=h+'</table>';
+  }catch(e){$('pcList').innerHTML='<div class="result warn">'+esc(e.message)+'</div>'}
+}
+async function pcAsk(){
+  var q=$('pcAskQ').value.trim(); if(!q)return toast('Sawaal likho',false);
+  busy('pcAskBtn',1,'⏳ soch raha...');
+  try{
+    var d=await api('/api/growth/voice/qualifications/ask',{method:'POST',body:JSON.stringify({question:q})});
+    $('pcAskOut').innerHTML='<div class="result"><pre>'+esc(d.answer||'—')+'</pre></div>';
+  }catch(e){$('pcAskOut').innerHTML='<div class="result warn">'+esc(e.message)+'</div>'}
+  busy('pcAskBtn',0);
+}
+
 /* ---------------- Telephony ops ---------------- */
 async function telMissed(){
   var ph=$('telPhone').value.trim(); if(!ph)return toast('Phone daalo',false);
@@ -2957,11 +3001,11 @@ async function ffDel(key){
   }catch(e){toast('Delete fail (super-admin needed?): '+e.message);}
 }
 
-var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:function(){apCostStatus();apSelfImprovePending();apLoad();},events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList,cadence:function(){cdLoad();inboxLoad();},fflags:ffLoad};
+var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:function(){apCostStatus();apSelfImprovePending();apLoad();},events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList,cadence:function(){cdLoad();inboxLoad();},fflags:ffLoad,postcall:pcLoad};
 var _origShow=show;
 show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}};
 var start=(location.hash||'').replace('#','');
-var valid=['today','schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus','lifecycle','contentauto','fde','telephony','loyalty','nps','webhooks','reviewmon','clientrep','fflags'];
+var valid=['today','schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus','lifecycle','contentauto','fde','telephony','postcall','loyalty','nps','webhooks','reviewmon','clientrep','fflags'];
 show(valid.indexOf(start)>=0?start:'today');
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>

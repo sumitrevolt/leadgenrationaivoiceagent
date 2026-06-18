@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -419,6 +420,20 @@ async def upi_activate(body: UpiActivateReq, _user=Depends(require_admin)):
             raise HTTPException(status_code=404, detail="client not found")
         usage_mod.activate_plan(cid, plan)
         clients_store.update_client(cid, plan=plan, status="active")
+        try:
+            from app.platform import customer_webhooks
+
+            _payload = {
+                "client_id": cid,
+                "plan": plan,
+                "gateway": "manual_upi",
+                "currency": "INR",
+                "activated_at": datetime.now(timezone.utc).isoformat(),
+            }
+            customer_webhooks.fire_emit(cid, "payment.received", {**_payload, "amount_inr": None})
+            customer_webhooks.fire_emit(cid, "subscription.activated", _payload)
+        except Exception:
+            pass
         try:
             from app.platform.team import log_event
 

@@ -370,6 +370,26 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=8, minute=0),
         "args": ("standup",),
     },
+    "staff-engineer-sre-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=45),
+        "args": ("engineer_sre",),
+    },
+    "staff-engineer-finops-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=9, minute=0),
+        "args": ("engineer_finops",),
+    },
+    "staff-engineer-security-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=9, minute=30),
+        "args": ("engineer_security",),
+    },
+    "staff-readiness-digest-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=8, minute=30),
+        "args": ("readiness_digest",),
+    },
     # Self-improve CONTINUOUS loop ka dead-man REVIVER (loop khud self-requeue
     # chain hai — yeh sirf stale-heartbeat pe restart karta; flag OFF = no-op).
     "staff-selfimprove-revive": {

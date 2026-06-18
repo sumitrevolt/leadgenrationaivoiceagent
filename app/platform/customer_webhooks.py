@@ -524,9 +524,30 @@ async def retry_delivery(webhook_id: str, client_id: str, delivery_id: str) -> d
     )
 
 
+def fire_emit(client_id: str, event_type: str, payload: dict[str, Any]) -> None:
+    """Fire-and-forget customer webhook from billing/sync paths. Never raises."""
+    try:
+        import asyncio as _asyncio
+
+        cid = (client_id or "").strip()
+        if not cid or event_type not in SUPPORTED_EVENTS:
+            return
+        try:
+            _loop = _asyncio.get_running_loop()
+            _loop.create_task(emit(cid, event_type, payload))
+        except RuntimeError:
+            try:
+                _asyncio.run(emit(cid, event_type, payload))
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 __all__ = [
     "enabled",
     "SUPPORTED_EVENTS",
+    "fire_emit",
     "register",
     "list_for",
     "remove",
