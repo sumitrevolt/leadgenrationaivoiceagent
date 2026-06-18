@@ -64,7 +64,7 @@
       <div><label>Product *</label><select id="b-product">
         <option value="marketing">AI Marketing</option>
         <option value="voice">AI Voice Agent</option>
-        <option value="combo">Both — AI Growth Suite</option>
+        <option value="combo">Both — Marketing + Voice (optional combo)</option>
       </select></div>
       <div><label>Business naam *</label><input type="text" id="b-name" placeholder="Sharma Solar" /></div>
       <div><label>Niche</label><select id="b-niche"><option value="general">Loading…</option></select></div>
@@ -244,7 +244,7 @@
       opts=[["combo_pilot","Free Pilot — 7 din / 50 calls"],
             ["combo_"+t.key+"_monthly","Combo "+t.key+" · Monthly — "+wzInr(t.m)+"/mo"],
             ["combo_"+t.key+"_annual","Combo "+t.key+" · Annual — "+wzInr(t.y)+"/yr"]];
-      if(hint) hint.textContent="Band "+b2+" → Combo "+t.key+" (Marketing + Voice bundle).";
+      if(hint) hint.textContent="Band "+b2+" → Combo "+t.key+" (Marketing + Voice, optional combo).";
     }
     sel.innerHTML=opts.map(function(o){ return '<option value="'+esc(o[0])+'">'+esc(o[1])+'</option>'; }).join("");
   }
