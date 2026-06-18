@@ -482,11 +482,16 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
         """Reply niche-opening jaisa hai? (Namaste + greeting-phrase). Non-first turn
         pe ye re-greeting = bug; script discovery-question se replace karte."""
         t = (text or "").lower()
-        if "namaste" not in t and "hello" not in t and "main swara" not in t:
+        intro = (
+            "namaste" in t or "hello" in t or "main swara" in t
+            or "swara bol" in t or "ki taraf se" in t or "ai assistant" in t
+        )
+        if not intro:
             return False
         markers = ("bol rahi hoon", "bol raha hoon", "30 second", "tees second",
                    "baat kar sakti", "baat kar sakta", "do minute", "ek minute de",
-                   "se baat kar rah", "se swara", "minute baat")
+                   "se baat kar rah", "se swara", "minute baat",
+                   "taraf se baat", "ai assistant", "swara bol rah")
         return any(m in t for m in markers)
 
     def _fill(self, text: str) -> str:
@@ -524,7 +529,10 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
         seq = disc + vals + ([closing] if closing else [])
         if not seq:
             return ""
-        line = seq[spoken % len(seq)] if spoken < len(seq) else closing or seq[-1]
+        # opener (first assistant turn) is NOT a discovery step — exclude it so the
+        # first script fallback returns discovery[0], not discovery[1] (skip bug).
+        idx = max(0, spoken - 1)
+        line = seq[idx] if idx < len(seq) else (closing or seq[-1])
         return self._clean(line)
 
     async def _generate(self, prompt: str) -> tuple:
