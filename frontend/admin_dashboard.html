@@ -478,7 +478,7 @@
             </div>
             <div>
               <label for="campClient" style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Client ID (optional)</label>
-              <input id="campClient" placeholder="clients_store id (khali = LeadGen AI brand)" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;min-width:220px">
+              <select id="campClient" aria-label="Campaign client" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;min-width:240px;background:#fff"><option value="">LeadGen AI brand (default)</option></select>
             </div>
             <button class="btn" onclick="fireCampaign()" style="background:#10b981;padding:9px 20px;font-size:13px">🚀 Fire Campaign</button>
             <button class="btn" onclick="loadCampaignStatus()" style="background:#6366f1;padding:9px 14px;font-size:12px">↻ Status</button>
@@ -1264,6 +1264,19 @@ function renderAll(d){
 
 let USING_REAL = false;  // true once the real API responds (stops cosmetic demo nudges)
 
+async function loadCampClients(){
+  try{
+    const r=await fetch("/api/clients",{headers:abAuthHdr(),cache:"no-store"});
+    const d=await r.json();
+    const sel=$("campClient"); if(!sel||!d||!d.clients) return;
+    d.clients.forEach(function(c){
+      const o=document.createElement("option");
+      o.value=c.id||c.client_id||c.slug||"";
+      o.textContent=(c.business_name||c.company||"client")+" ("+(c.slug||o.value)+")";
+      if(o.value) sel.appendChild(o);
+    });
+  }catch(e){}
+}
 async function loadDashboard(){
   $("src-label").textContent = "Loading…";
   try{
@@ -1284,7 +1297,7 @@ async function loadDashboard(){
 
 document.addEventListener("DOMContentLoaded", ()=>{
   adminAuthBoot();
-  loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores();
+  loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients();
   loadRevenueAnalytics(); loadProspectsPanel(); loadActivityFeed();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail();
   loadAutomationHub();

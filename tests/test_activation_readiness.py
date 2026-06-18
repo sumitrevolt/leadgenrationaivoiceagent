@@ -106,7 +106,7 @@ async def test_activation_summary_public() -> None:
 
     out = await activation_summary_public()
     assert out["ready_for_launch"] is True
-    assert out["payments_deferred"] is True
+    assert out["payments_deferred"] is False  # Razorpay removed 2026-06-18 - manual UPI always available
     assert "graph_version" in out
 
 
@@ -119,9 +119,9 @@ async def test_readiness_launch_ready_default_env(monkeypatch: pytest.MonkeyPatc
     assert out["blocker_count"] == 0
     assert "razorpay" not in out["blockers"]
     keys = {it["key"] for it in out["items"]}
-    # Razorpay probe removed 2026-06-18 -> 12 probes (Phase 1-5 of activation runbook)
+    # Razorpay removed 2026-06-18; UPI revenue probe added -> 13 probes (Phase 1-5)
     expected = {
-        "sentry", "posthog", "turnstile", "cloudflare_tunnel",
+        "sentry", "posthog", "turnstile", "cloudflare_tunnel", "upi",
         "agent_memory", "eval_gate",
         "engineer_agents", "ops_alerts",
         "customer_webhooks", "mcp_product",
