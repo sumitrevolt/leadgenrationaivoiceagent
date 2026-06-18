@@ -16,11 +16,11 @@ description: LeadGen AI 2026 advancement backlog — web-researched, codebase-aw
 | 1 | Contextual Retrieval + reranker (content/marketing RAG) | RAG | High (−49%→−67% miss) | M | ✅ shipped (lexical rerank; crossencoder opt-in) |
 | 2 | Smart Turn v3 upgrade | Voice | Med-High (fewer cut-offs) | S | ✅ code+bake ready (`USE_SMART_TURN=1`) |
 | 3 | Kokoro TTS as EdgeTTS fallback | Voice | Med (resilience) | M | proposed |
-| 4 | Hybrid search (semantic + BM25) in Qdrant | RAG | Med | M | proposed |
-| 5 | LangGraph supervisor default (high-stakes flows) | Agents | Med | M | proposed |
-| 6 | Expand eval/guardrail (DeepEval + cross-path) | Agents | Med | S-M | proposed |
-| 7 | Hindi STT upgrade eval (Saaras V3 / IndicWhisper) | Voice | Med | M | eval only |
-| 8 | Cerebras for bulk content-gen (Groq stays voice) | LLM | Low-Med | S | proposed |
+| 4 | Hybrid search (semantic + BM25) in Qdrant | RAG | Med | M | ✅ shipped |
+| 5 | LangGraph supervisor default (high-stakes flows) | Agents | Med | M | ✅ shipped |
+| 6 | Expand eval/guardrail (DeepEval + cross-path) | Agents | Med | S-M | ✅ shipped |
+| 7 | Hindi STT upgrade eval (Saaras V3 / IndicWhisper) | Voice | Med | M | ✅ eval harness |
+| 8 | Cerebras for bulk content-gen (Groq stays voice) | LLM | Low-Med | S | ✅ shipped |
 | 9 | TRAI 2025 verbal/DTMF consent-confirm ⚠️ | Compliance | High (legal) | M | proposed |
 
 S = <½ day · M = 1–3 days · ⚠️ = telephony flow — coordinate before edit.
