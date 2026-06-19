@@ -2489,6 +2489,22 @@ async function apLoad(){
       h+='</table>';
     }
   }catch(e){h+='<div class="bad">Patches fail: '+esc(e.message)+'</div>'}
+  try{
+    var ad=await api('/api/growth/approvals/drafts');
+    var drafts=(ad&&ad.drafts)||[];
+    h+='<h3>🤖 Agent drafts ('+drafts.length+') <span class="mut">— sales · coordinator · fde · risk-tiered 1-click</span></h3>';
+    if(!drafts.length)h+='<div class="mut">Koi pending agent draft nahi.</div>';
+    else{
+      h+='<table><tr><th>Source</th><th>Draft</th><th>Actions</th></tr>';
+      drafts.forEach(function(dr){
+        var id=dr.id||'';var src=dr.source||'';pending++;
+        h+='<tr><td><span class="pill">'+esc(src)+'</span></td>';
+        h+='<td>'+esc(dr.title||id)+(dr.body?'<div class="mut">'+esc(String(dr.body).slice(0,180))+'</div>':'')+'</td>';
+        h+='<td><button class="btn2" onclick="apDraft(\''+esc(src)+'\',\''+esc(id)+'\',\'approve\')">✅ Approve</button><button class="btnd" onclick="apDraft(\''+esc(src)+'\',\''+esc(id)+'\',\'reject\')">❌ Reject</button></td></tr>';
+      });
+      h+='</table>';
+    }
+  }catch(e){h+='<div class="bad">Agent drafts fail: '+esc(e.message)+'</div>'}
   $('apOut').innerHTML=h;
   var b=$('tab-approvals'); if(b)b.textContent='📥 Approvals'+(pending?' ('+pending+')':'');
   if(typeof apContentList==='function')apContentList();
@@ -2507,6 +2523,13 @@ async function apPatch(id,status){
     if(d&&d.ok===false)throw new Error(d.error||'fail');
     toast(status==='approved'?'Approved ✅':'Rejected ❌');apLoad();
   }catch(e){toast('Fail (SUPER_ADMIN token chahiye): '+e.message,false)}
+}
+async function apDraft(source,id,decision){
+  try{
+    var d=await api('/api/growth/approvals/drafts/'+encodeURIComponent(source)+'/'+encodeURIComponent(id)+'/decide',{method:'POST',body:JSON.stringify({decision:decision})});
+    if(d&&d.ok===false)throw new Error(d.error||'fail');
+    toast(decision==='approve'?('Approved ✅'+(d.action?' — '+d.action:'')):'Rejected ❌');apLoad();
+  }catch(e){toast('Fail: '+e.message,false)}
 }
 
 /* ---------------- 16. Events timeline (SSE real-time + API fallback) ---------------- */

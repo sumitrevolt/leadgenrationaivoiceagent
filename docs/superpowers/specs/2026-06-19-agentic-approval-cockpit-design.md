@@ -44,7 +44,7 @@ process_engine → process_runs/*.jsonl      ┘       (approval_decisions.jsonl
   - (`code_upgrader`, `process`, `self_improve` already surface via existing `apLoad()` — D does not duplicate them; the new card is **only** for sales/coordinator/fde.)
 
 ### C2. FDE persistence (additive)
-`app/platform/fde.py` `deploy()` currently returns an in-memory dict and writes nothing. Add an additive append of the report to `data/fde_deploys.jsonl` with a `status` field and an `id` (mirror `prospect_analyses/index.jsonl` shape). Never-raise around the write.
+`app/agents/fde.py` `deploy()` currently returns an in-memory dict and writes nothing. Add an additive append of the report to `data/fde_deploys.jsonl` with a `status` field and an `id` (mirror `prospect_analyses/index.jsonl` shape). Never-raise around the write.
 
 ### C3. API (in `app/api/growth.py`, placed after the process/upgrader block ~line 2312 to inherit `/api/growth` prefix + `require_admin`)
 - `GET /api/growth/approvals/drafts` → `{drafts:[...], counts:{by_source, pending}}`.

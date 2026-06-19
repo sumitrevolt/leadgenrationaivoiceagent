@@ -16,6 +16,9 @@ Import-safe, koi handler kabhi raise nahi karta (deploy report me ok/skip aata).
 from __future__ import annotations
 
 import json
+import os
+import uuid
+from datetime import datetime
 from typing import Any, Awaitable, Callable
 
 from app.utils.logger import setup_logger
@@ -243,8 +246,11 @@ async def deploy(
         steps.append({"skill": key, "title": sk["title"], "category": sk["category"], **res})
 
     ok_n = sum(1 for s in steps if s.get("ok"))
-    return {
+    report = {
         "ok": True,
+        "id": uuid.uuid4().hex[:12],
+        "at": datetime.now().isoformat(),
+        "status": "pending",
         "agent": FDE_AGENTS[agent_key]["name"],
         "role": FDE_AGENTS[agent_key]["role"],
         "client": {"business_name": c["business_name"], "niche": c["niche"], "city": c["city"]},
@@ -252,6 +258,15 @@ async def deploy(
         "total": len(steps),
         "steps": steps,
     }
+    # Additive persistence sink so the deploy report can surface in the unified
+    # approval cockpit (approvals_bridge). Best-effort; never blocks the return.
+    try:
+        os.makedirs("data", exist_ok=True)
+        with open(os.path.join("data", "fde_deploys.jsonl"), "a", encoding="utf-8") as f:
+            f.write(json.dumps(report, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+    return report
 
 
 __all__ = ["SKILLS", "FDE_AGENTS", "list_skills", "list_agents", "plan_deployment", "deploy"]

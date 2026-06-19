@@ -2312,6 +2312,33 @@ async def process_reject(run_id: str, body: ProcessApproveIn, _user=Depends(requ
     return process_engine.reject(run_id, by=getattr(_user, "email", "admin") or "admin", reason=body.note)
 
 
+# --------------------- Agentic-Output Approval Cockpit (sub-project D V1) ----- #
+@router.get("/approvals/drafts")
+async def approvals_drafts(include_decided: bool = False, _user=Depends(require_admin)):
+    """Unified agentic-draft queue (sales/coordinator/fde) — risk-tiered cockpit.
+
+    Bridge-first V1: surfaces the orphan agentic outputs that otherwise rot in
+    data/*.jsonl. code_upgrader/process-breakpoint/self_improve keep their own
+    endpoints. Read-only; inert if no drafts exist."""
+    from app.platform import approvals_bridge
+
+    return approvals_bridge.list_drafts(include_decided=include_decided)
+
+
+class DraftDecideIn(BaseModel):
+    decision: str  # approve | reject
+
+
+@router.post("/approvals/drafts/{source}/{item_id}/decide")
+async def approvals_draft_decide(source: str, item_id: str, body: DraftDecideIn, _user=Depends(require_admin)):
+    """Smart 1-click: stamp status + fire the BOUNDED SAFE next-action per source
+    (sales=mark-reviewed · coordinator=self_improve task · fde=enable disabled drip).
+    Risky real-send stays draft-only by design. Idempotent."""
+    from app.platform import approvals_bridge
+
+    return approvals_bridge.decide(source, item_id, body.decision, by=getattr(_user, "email", "admin") or "admin")
+
+
 # ----------------------------- Self-Improve Approval Gates (Phase 6) -------- #
 
 
