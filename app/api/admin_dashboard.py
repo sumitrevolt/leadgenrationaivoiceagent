@@ -182,6 +182,125 @@ def _plan_price(plan: str) -> int:
         return 999
 
 
+def _sync_db():
+    """Sync SQLAlchemy session (admin aggregates only)."""
+    try:
+        from app.models import base as _b
+
+        _b._get_sync_engine()
+        if _b._SessionLocal is None:
+            return None
+        return _b._SessionLocal()
+    except Exception:
+        return None
+
+
+def _emails_sent_today() -> int:
+    """Sum `sent` from today's Rohan outreach/followup agent_events."""
+    import json
+
+    db = _sync_db()
+    if db is None:
+        return 0
+    total = 0
+    try:
+        from app.models.agent_event import AgentEvent
+
+        rows = (
+            db.query(AgentEvent)
+            .filter(
+                AgentEvent.member == "rohan",
+                AgentEvent.action.in_(["email_outreach_run", "email_followup"]),
+            )
+            .order_by(AgentEvent.created_at.desc())
+            .limit(40)
+            .all()
+        )
+        for r in rows:
+            if r.created_at and not _is_today_iso(r.created_at.isoformat()):
+                continue
+            try:
+                meta = json.loads(r.meta_json or "{}")
+                total += int(meta.get("sent") or 0)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.debug("admin_dashboard: emails_sent_today failed: %s", e)
+    finally:
+        db.close()
+    return total
+
+
+def _real_calls_today() -> int:
+    """Completed/initiated phone calls today (call_logs table)."""
+    from datetime import time
+
+    db = _sync_db()
+    if db is None:
+        return 0
+    try:
+        from app.models.call_log import CallLog
+
+        start = datetime.combine(datetime.utcnow().date(), time.min)
+        return int(db.query(CallLog).filter(CallLog.initiated_at >= start).count() or 0)
+    except Exception as e:
+        logger.debug("admin_dashboard: real_calls_today failed: %s", e)
+        return 0
+    finally:
+        db.close()
+
+
+def _automation_snapshot() -> tuple[list[dict], str, dict]:
+    """Job heartbeats + queue depth for admin hourly timeline."""
+    try:
+        from app.platform.automation_health import health
+        from app.platform.today_overview import JOB_INFO
+
+        h = health()
+        jobs = list(h.get("jobs") or [])
+        order = [
+            "blog",
+            "content",
+            "digest",
+            "prospect",
+            "email_outreach",
+            "reply_triage",
+            "ops",
+            "watchdog",
+            "onboard",
+            "growth",
+            "qa",
+            "trainer",
+        ]
+
+        def _sort_key(j: dict) -> tuple:
+            key = str(j.get("job") or "")
+            try:
+                return (order.index(key), j.get("last_run") or "")
+            except ValueError:
+                return (99, j.get("last_run") or "")
+
+        jobs.sort(key=_sort_key)
+        timeline: list[dict] = []
+        for j in jobs[:16]:
+            key = str(j.get("job") or "")
+            info = JOB_INFO.get(key, {})
+            timeline.append(
+                {
+                    "job": key,
+                    "label": info.get("label") or key.replace("_", " ").title(),
+                    "kya": info.get("kya") or "",
+                    "last_run": j.get("last_run"),
+                    "status": j.get("status") or "unknown",
+                    "duration_s": j.get("duration_s"),
+                }
+            )
+        return timeline, str(h.get("status") or "unknown"), dict(h.get("queue") or {})
+    except Exception as e:
+        logger.debug("admin_dashboard: automation_snapshot failed: %s", e)
+        return [], "unknown", {}
+
+
 def _collect_live_stats() -> dict:
     """The single source of truth for REAL platform numbers. Best-effort."""
     stats: dict = {
@@ -193,6 +312,7 @@ def _collect_live_stats() -> dict:
         "marketing_clients": 0,
         "marketing_clients_active": 0,
         "emails_sent": 0,
+        "emails_sent_today": 0,
         "emails_pending": 0,
         "blog_articles": 0,
         "content_items_generated": 0,
@@ -200,6 +320,10 @@ def _collect_live_stats() -> dict:
         "agent_errors_today": 0,
         "active_staff": 0,
         "calls_today": 0,
+        "real_calls_today": 0,
+        "automation_status": "unknown",
+        "celery_queue": 0,
+        "job_timeline": [],
         "estimated_mrr": 0,
     }
 
@@ -289,20 +413,26 @@ def _collect_live_stats() -> dict:
         stats["agent_actions_today"] = int(totals.get("actions_today") or 0)
         stats["agent_errors_today"] = int(totals.get("errors_today") or 0)
         stats["active_staff"] = int(totals.get("active_members") or 0)
-        # calls today = Swara's call_placed events today
-        try:
-            from app.platform.team import recent_events
-
-            evs = recent_events(limit=300, member="swara")
-            stats["calls_today"] = sum(
-                1
-                for e in evs
-                if str(e.get("action") or "") == "call_placed" and _is_today_iso(e.get("at"))
-            )
-        except Exception:
-            pass
     except Exception as e:
         logger.debug("admin_dashboard: team_status failed: %s", e)
+
+    # --- today's outreach + real telephony + job timeline ---
+    try:
+        stats["emails_sent_today"] = _emails_sent_today()
+    except Exception as e:
+        logger.debug("admin_dashboard: emails_sent_today hook failed: %s", e)
+    try:
+        stats["real_calls_today"] = _real_calls_today()
+        stats["calls_today"] = stats["real_calls_today"]
+    except Exception as e:
+        logger.debug("admin_dashboard: real_calls_today hook failed: %s", e)
+    try:
+        timeline, auto_status, queue = _automation_snapshot()
+        stats["job_timeline"] = timeline
+        stats["automation_status"] = auto_status
+        stats["celery_queue"] = int(queue.get("celery") or 0)
+    except Exception as e:
+        logger.debug("admin_dashboard: automation_snapshot hook failed: %s", e)
 
     return stats
 
@@ -409,7 +539,7 @@ def _real_kpis(live: dict) -> KPIs:
     return KPIs(
         total_clients=int(live.get("marketing_clients") or 0),
         active_campaigns=active_clients,  # active clients = "running" engagements
-        calls_today=int(live.get("calls_today") or 0),
+        calls_today=int(live.get("real_calls_today") or live.get("calls_today") or 0),
         qualified_leads_month=int(live.get("inquiries_total") or 0),
         revenue_month=mrr,
         telephony_cost_month=0,
@@ -442,11 +572,11 @@ def _real_charts(live: dict) -> Charts:
         revenue_cost=RevenueCostSeries(labels=rev_labels, revenue=rev_revenue, cost=rev_cost),
         leads_by_niche=LeadsByNiche(labels=niche_labels, values=niche_values),
         calls_per_day=CallsPerDay(
-            labels=["Actions", "Calls", "Content", "Active Staff"],
+            labels=["Staff actions", "Phone calls", "Emails aaj", "Active staff"],
             values=[
                 int(live.get("agent_actions_today") or 0),
-                int(live.get("calls_today") or 0),
-                int(live.get("content_items_generated") or 0),
+                int(live.get("real_calls_today") or live.get("calls_today") or 0),
+                int(live.get("emails_sent_today") or 0),
                 int(live.get("active_staff") or 0),
             ],
         ),
@@ -457,6 +587,7 @@ def _build_real() -> "DashboardResponse":
     """Build the dashboard ENTIRELY from real platform data. Never raises."""
     live = _collect_live_stats()
     now = datetime.utcnow()
+    live["generated_at"] = now.replace(tzinfo=timezone.utc).isoformat()
     return DashboardResponse(
         is_sample_data=False,
         generated_at=now.replace(tzinfo=timezone.utc).isoformat(),

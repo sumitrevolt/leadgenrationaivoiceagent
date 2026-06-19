@@ -332,6 +332,13 @@
       </div>
 
       <!-- KPIs -->
+      <div class="card" id="sec-hourly-ops" style="margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd">
+          <h3>🕐 Aaj ki automation — hourly jobs</h3>
+          <span class="right" id="hourly-ops-time">—</span>
+        </div>
+        <div class="bd" id="hourlyOps" style="font-size:12px;color:var(--muted)">Loading job timeline…</div>
+      </div>
       <div class="kpis" id="kpis" role="list" aria-label="Key performance indicators"></div>
 
       <!-- Charts row -->
@@ -349,7 +356,7 @@
       <!-- Calls line + Health -->
       <div class="grid g-2">
         <div class="card">
-          <div class="hd"><h3>Aaj ki Activity</h3><span class="right">Today</span></div>
+          <div class="hd"><h3>Aaj ki Activity</h3><span class="right">Staff · calls · emails</span></div>
           <div class="bd"><div class="chart-wrap"><canvas id="chCalls"></canvas></div></div>
         </div>
         <div class="card" id="sec-health">
@@ -749,6 +756,43 @@ const initials = s => s.split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCas
 let charts = {};
 
 /* ----------------------------- render ----------------------------- */
+function renderHourlyOps(live){
+  live = live || {};
+  const el = $("hourlyOps");
+  const ts = $("hourly-ops-time");
+  if(!el) return;
+  const jobs = live.job_timeline || [];
+  const q = Number(live.celery_queue || 0);
+  const st = String(live.automation_status || "ok");
+  let banner = "";
+  if(st === "degraded" || q > 50){
+    banner = '<div style="padding:8px 10px;margin-bottom:10px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:12px">⚠️ Automation degraded — Celery queue: <b>'+q+'</b>. Worker restart ya DLQ sweep chahiye.</div>';
+  } else if(st === "ok"){
+    banner = '<div style="padding:6px 10px;margin-bottom:10px;background:#f0fdf4;border-radius:8px;color:#166534;font-size:12px">✅ Sab scheduled jobs theek — queue '+q+'</div>';
+  }
+  if(!jobs.length){
+    el.innerHTML = banner + '<span class="mut">Job heartbeat data nahi — worker/beat check karo.</span>';
+    return;
+  }
+  const fmt = iso => {
+    if(!iso) return "kabhi nahi";
+    try{ return new Date(iso).toLocaleString("en-IN",{hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"}); }catch(e){ return iso; }
+  };
+  const stColor = s => (s==="ok"?"var(--green)":(s==="overdue"||s==="never_ran"?"var(--red)":"#d97706"));
+  el.innerHTML = banner + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">'
+    + jobs.map(j=>'<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fafafa">'
+      +'<div style="font-weight:700;color:var(--ink);font-size:12px">'+escH(j.label||j.job||"?")+'</div>'
+      +'<div style="font-size:10.5px;color:var(--muted);margin:3px 0 4px">'+escH((j.kya||"").slice(0,70))+'</div>'
+      +'<div style="display:flex;justify-content:space-between;gap:6px;font-size:11px">'
+      +'<span>'+fmt(j.last_run)+'</span>'
+      +'<span style="font-weight:700;color:'+stColor(j.status)+'">'+escH(String(j.status||"").toUpperCase())+'</span>'
+      +'</div></div>').join("")
+    + '</div>';
+  if(ts && live.generated_at){
+    try{ ts.textContent = "updated "+new Date(live.generated_at).toLocaleTimeString("en-IN"); }catch(e){}
+  }
+}
+
 function renderKPIs(k, live){
   live = live || {};
   const num = n => Number(n||0).toLocaleString("en-IN");
@@ -756,10 +800,10 @@ function renderKPIs(k, live){
     {lbl:"Marketing Clients", val:num(k.total_clients), chg:(live.marketing_clients_active!=null?live.marketing_clients_active+" active":"signed up"), up:true, cls:""},
     {lbl:"Prospects Scraped", val:num(live.total_prospects), chg:(live.prospects_with_email!=null?live.prospects_with_email+" with email":"in pipeline"), up:true, cls:""},
     {lbl:"Inquiries (total)", val:num(k.qualified_leads_month), chg:(live.inquiries_today!=null?live.inquiries_today+" aaj":"leads"), up:true, cls:"ok"},
-    {lbl:"Emails Sent", val:num(live.emails_sent), chg:(live.emails_pending!=null?live.emails_pending+" pending":"outreach"), up:true, cls:"ok"},
+    {lbl:"Emails Aaj", val:num(live.emails_sent_today), chg:(live.emails_sent!=null?live.emails_sent+" total lifetime":"outreach"), up:true, cls:"ok"},
     {lbl:"Blog Articles", val:num(live.blog_articles), chg:"SEO published", up:true, cls:""},
     {lbl:"Content Generated", val:num(live.content_items_generated), chg:"posts/posters", up:true, cls:""},
-    {lbl:"Aaj ki Calls", val:num(k.calls_today), chg:(live.agent_actions_today!=null?live.agent_actions_today+" staff actions":"calls"), up:true, cls:"ok"},
+    {lbl:"Phone Calls Aaj", val:num(live.real_calls_today!=null?live.real_calls_today:k.calls_today), chg:(live.agent_actions_today!=null?live.agent_actions_today+" staff actions":"real calls DB"), up:true, cls:"ok"},
     {lbl:"Est. MRR", val:inrShort(k.revenue_month), chg:(k.revenue_month>0?"active plans":"abhi ₹0"), up:k.revenue_month>0, cls:"rev"}
   ];
   $("kpis").innerHTML = cards.map(c=>`
@@ -1258,6 +1302,7 @@ async function loadNiches(){
 
 /* ----------------------------- orchestration ----------------------------- */
 function renderAll(d){
+  renderHourlyOps(d.live);
   renderKPIs(d.kpis, d.live);
   renderClients(d.clients);
   renderAgents(d.agents);
