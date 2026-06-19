@@ -58,6 +58,7 @@ class Client(BaseModel):
     client_id: str = ""
     company: str
     niche: str
+    product: str = "marketing"  # marketing | voice | combo (ADR-009)
     plan: str
     leads_delivered: int
     status: str  # active | paused
@@ -180,6 +181,49 @@ def _plan_price(plan: str) -> int:
         return min([x for x in prices if x > 0] or [1199])
     except Exception:
         return 999
+
+
+def _client_product(c: dict) -> str:
+    """Resolve product lane — delegates to clients_store (single source of truth)."""
+    try:
+        from app.marketing.clients_store import resolve_product
+
+        return resolve_product(c)
+    except Exception:
+        return "marketing"
+
+
+def _client_mrr(c: dict) -> int:
+    """Active client monthly ₹ — product-aware (marketing / voice / combo plans)."""
+    if str(c.get("status") or "active").strip().lower() != "active":
+        return 0
+    plan = str(c.get("plan") or "starter")
+    prod = _client_product(c)
+    try:
+        if prod == "voice":
+            from app.marketing.voice_packages import voice_plan_price
+
+            p = voice_plan_price(plan)
+            if p:
+                return p
+        if prod == "combo":
+            from app.marketing.combo_packages import combo_plan_price
+
+            p = combo_plan_price(plan)
+            if p:
+                return p
+    except Exception:
+        pass
+    return _plan_price(plan)
+
+
+def _clients_by_product(clients: list[dict]) -> dict[str, int]:
+    """Count clients per product lane."""
+    out = {"marketing": 0, "voice": 0, "combo": 0}
+    for c in clients:
+        key = _client_product(c)
+        out[key] = out.get(key, 0) + 1
+    return out
 
 
 def _sync_db():
@@ -329,6 +373,9 @@ def _collect_live_stats() -> dict:
         "ops_problems": [],
         "staff_snapshot": [],
         "estimated_mrr": 0,
+        "clients_by_product": {"marketing": 0, "voice": 0, "combo": 0},
+        "clients_active_by_product": {"marketing": 0, "voice": 0, "combo": 0},
+        "mrr_by_product": {"marketing": 0, "voice": 0, "combo": 0},
     }
 
     # --- prospects ---
@@ -366,10 +413,17 @@ def _collect_live_stats() -> dict:
         from app.marketing import clients_store
 
         clients = clients_store.list_clients()
-        stats["marketing_clients"] = len(clients)
+        stats["marketing_clients"] = len(clients)  # legacy key = total clients (all products)
         active = clients_store.list_clients(status="active")
         stats["marketing_clients_active"] = len(active)
-        stats["estimated_mrr"] = sum(_plan_price(c.get("plan", "starter")) for c in active)
+        stats["clients_by_product"] = _clients_by_product(clients)
+        stats["clients_active_by_product"] = _clients_by_product(active)
+        mrr_by: dict[str, int] = {"marketing": 0, "voice": 0, "combo": 0}
+        for c in active:
+            lane = _client_product(c)
+            mrr_by[lane] = mrr_by.get(lane, 0) + _client_mrr(c)
+        stats["mrr_by_product"] = mrr_by
+        stats["estimated_mrr"] = sum(mrr_by.values())
     except Exception as e:
         logger.debug("admin_dashboard: clients failed: %s", e)
 
@@ -488,13 +542,16 @@ def _real_clients() -> list[Client]:
         for c in clients_store.list_clients():
             plan = str(c.get("plan") or "starter")
             status = str(c.get("status") or "active")
-            mrr = _plan_price(plan) if status == "active" else 0
+            product = _client_product(c)
+            mrr = _client_mrr(c)
+            plan_label = plan.replace("_", " ").title()
             out.append(
                 Client(
                     client_id=str(c.get("id") or ""),
                     company=str(c.get("business_name") or "Client"),
                     niche=str(c.get("niche") or "-"),
-                    plan=plan.title(),
+                    product=product,
+                    plan=plan_label,
                     leads_delivered=_inquiry_count_for_client(c),
                     status=status,
                     mrr=mrr,
@@ -887,7 +944,13 @@ def _build_from_db() -> "DashboardResponse | None":
 # Route
 # ----------------------------------------------------------------------------
 @router.get("/dashboard", response_model=DashboardResponse)
-async def get_admin_dashboard(_user=Depends(require_admin)) -> DashboardResponse:
+async def get_admin_dashboard(
+    product: str | None = Query(
+        None,
+        description="Optional filter: marketing | voice | combo (clients panel only)",
+    ),
+    _user=Depends(require_admin),
+) -> DashboardResponse:
     """
     Owner/operator dashboard payload — REAL data only.
 
@@ -930,6 +993,9 @@ async def get_admin_dashboard(_user=Depends(require_admin)) -> DashboardResponse
     # isliye _build_real() ka result HI return hota hai — DB demo-seed se override
     # NAHI. (Future: jab relational tables me asli clients aayein, _build_from_db
     # ko sirf empty panels bharne ke liye merge karna, KPIs replace karne ke liye nahi.)
+    pf = (product or "").strip().lower()
+    if pf in ("marketing", "voice", "combo"):
+        resp.clients = [c for c in resp.clients if c.product == pf]
     return resp
 
 

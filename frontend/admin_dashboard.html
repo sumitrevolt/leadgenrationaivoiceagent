@@ -95,6 +95,13 @@
   tbody tr:last-child td{border-bottom:none}
   .co{font-weight:600}
   .tag{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--indigo-l);color:var(--indigo-d)}
+  .tag-prod-mkt{background:#eef2ff;color:#4338ca}
+  .tag-prod-voice{background:#ecfdf5;color:#047857}
+  .tag-prod-combo{background:#fff7ed;color:#c2410c}
+  .product-summary{display:flex;gap:8px;flex-wrap:wrap;padding:8px 18px;border-bottom:1px solid var(--line);background:#fff;align-items:center}
+  .product-summary .lbl{font-size:11px;color:var(--muted);font-weight:600;margin-right:4px}
+  .product-chip{font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:20px;border:1px solid var(--line);cursor:pointer;background:#fff}
+  .product-chip.active{border-color:var(--indigo);background:var(--indigo-l);color:var(--indigo-d)}
   .st{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:12px}
   .st .d{width:8px;height:8px;border-radius:50%}
   .st.active .d,.st.up .d{background:var(--green)} .st.active,.st.up{color:var(--green)}
@@ -391,6 +398,12 @@
         <!-- Search + filter bar -->
         <div class="filter-bar" role="search" aria-label="Client search and filter">
           <input type="search" id="clientSearch" placeholder="Company ya niche dhundho…" aria-label="Search clients" oninput="filterClients()" autocomplete="off">
+          <select id="clientProductFilter" aria-label="Filter by product" onchange="filterClients()">
+            <option value="">Sab products</option>
+            <option value="marketing">📣 AI Marketing</option>
+            <option value="voice">📞 Voice Agent</option>
+            <option value="combo">⚡ Combo (dono)</option>
+          </select>
           <select id="clientStatusFilter" aria-label="Filter by client status" onchange="filterClients()">
             <option value="">Sab status</option>
             <option value="active">✅ Active</option>
@@ -413,7 +426,7 @@
           <span class="fc" id="clientFilterCount" aria-live="polite" aria-atomic="true"></span>
           <button class="btn" onclick="clearClientFilters()" aria-label="Clear all client filters" style="padding:6px 10px;font-size:11px">✕ Clear</button>
         </div>
-        <!-- Bulk actions bar (shown when rows selected) -->
+        <div class="product-summary" id="clientProductSummary" aria-label="Clients by product"></div>
         <div class="bulk-bar" id="clientBulkBar" role="toolbar" aria-label="Bulk actions for selected clients">
           <span class="bc" id="bulkCount" aria-live="polite">0 selected</span>
           <button class="btn" onclick="bulkExport()" aria-label="Export selected clients">⬇ Export Selected</button>
@@ -428,7 +441,7 @@
             <thead>
               <tr>
                 <th scope="col" style="width:36px"><input type="checkbox" id="selectAllClients" aria-label="Select all clients" onchange="toggleSelectAll(this)"></th>
-                <th scope="col">Company</th><th scope="col">Niche</th><th scope="col">Plan</th>
+                <th scope="col">Company</th><th scope="col">Product</th><th scope="col">Niche</th><th scope="col">Plan</th>
                 <th scope="col">Leads Delivered</th><th scope="col">Status</th><th scope="col">MRR (₹)</th>
               </tr>
             </thead>
@@ -844,15 +857,27 @@ async function opsDlqSweep(){
 function renderKPIs(k, live){
   live = live || {};
   const num = n => Number(n||0).toLocaleString("en-IN");
+  const bp = live.clients_by_product || {};
+  const mrrBp = live.mrr_by_product || {};
+  const prodChg = [
+    bp.marketing ? `Mktg ${bp.marketing}` : "",
+    bp.voice ? `Voice ${bp.voice}` : "",
+    bp.combo ? `Combo ${bp.combo}` : ""
+  ].filter(Boolean).join(" · ") || (live.marketing_clients_active!=null ? live.marketing_clients_active+" active" : "signed up");
+  const mrrChg = [
+    mrrBp.marketing ? `Mktg ${inrShort(mrrBp.marketing)}` : "",
+    mrrBp.voice ? `Voice ${inrShort(mrrBp.voice)}` : "",
+    mrrBp.combo ? `Combo ${inrShort(mrrBp.combo)}` : ""
+  ].filter(Boolean).join(" · ");
   const cards = [
-    {lbl:"Marketing Clients", val:num(k.total_clients), chg:(live.marketing_clients_active!=null?live.marketing_clients_active+" active":"signed up"), up:true, cls:""},
+    {lbl:"Total Clients", val:num(k.total_clients), chg:prodChg, up:true, cls:""},
     {lbl:"Prospects Scraped", val:num(live.total_prospects), chg:(live.prospects_with_email!=null?live.prospects_with_email+" with email":"in pipeline"), up:true, cls:""},
     {lbl:"Inquiries (total)", val:num(k.qualified_leads_month), chg:(live.inquiries_today!=null?live.inquiries_today+" aaj":"leads"), up:true, cls:"ok"},
     {lbl:"Emails Aaj", val:num(live.emails_sent_today), chg:(live.emails_sent!=null?live.emails_sent+" total lifetime":"outreach"), up:true, cls:"ok"},
     {lbl:"Blog Articles", val:num(live.blog_articles), chg:"SEO published", up:true, cls:""},
     {lbl:"Content Generated", val:num(live.content_items_generated), chg:"posts/posters", up:true, cls:""},
     {lbl:"Phone Calls Aaj", val:num(live.real_calls_today!=null?live.real_calls_today:k.calls_today), chg:(live.agent_actions_today!=null?live.agent_actions_today+" staff actions":"real calls DB"), up:true, cls:"ok"},
-    {lbl:"Est. MRR", val:inrShort(k.revenue_month), chg:(k.revenue_month>0?"active plans":"abhi ₹0"), up:k.revenue_month>0, cls:"rev"}
+    {lbl:"Est. MRR", val:inrShort(k.revenue_month), chg:(mrrChg||(k.revenue_month>0?"active plans":"abhi ₹0")), up:k.revenue_month>0, cls:"rev"}
   ];
   $("kpis").innerHTML = cards.map(c=>`
     <div class="kpi ${c.cls}">
@@ -864,8 +889,36 @@ function renderKPIs(k, live){
 
 let _allClients = [];
 
+function productBadge(p){
+  const x=(p||"marketing").toLowerCase();
+  if(x==="voice") return {cls:"tag-prod-voice", label:"📞 Voice"};
+  if(x==="combo") return {cls:"tag-prod-combo", label:"⚡ Combo"};
+  return {cls:"tag-prod-mkt", label:"📣 Marketing"};
+}
+
+function renderProductSummary(filtered, all){
+  const el=$("clientProductSummary");
+  if(!el) return;
+  const lanes=[{k:"marketing",l:"📣 Marketing"},{k:"voice",l:"📞 Voice"},{k:"combo",l:"⚡ Combo"}];
+  const cur=($("clientProductFilter")||{}).value||"";
+  const count=(list,k)=>list.filter(c=>(c.product||"marketing").toLowerCase()===k).length;
+  const chips=lanes.map(({k,l})=>{
+    const n=count(all,k);
+    const act=cur===k?" active":"";
+    return `<button type="button" class="product-chip${act}" data-product="${k}" onclick="setClientProductFilter('${k}')">${l} <b>${n}</b></button>`;
+  }).join("");
+  el.innerHTML=`<span class="lbl">Product-wise:</span><button type="button" class="product-chip${!cur?" active":""}" data-product="" onclick="setClientProductFilter('')">Sab <b>${all.length}</b></button>${chips}`;
+}
+
+function setClientProductFilter(val){
+  const sel=$("clientProductFilter");
+  if(sel) sel.value=val||"";
+  filterClients();
+}
+
 function _renderClientsFiltered(){
   const q = ($("clientSearch").value||"").toLowerCase().trim();
+  const pr = ($("clientProductFilter").value||"").toLowerCase();
   const sf = ($("clientStatusFilter").value||"").toLowerCase();
   const pf = ($("clientPlanFilter").value||"").toLowerCase();
   const nf = ($("clientNicheFilter").value||"").toLowerCase();
@@ -873,24 +926,34 @@ function _renderClientsFiltered(){
   const minLeads = parseInt(($("clientMinLeads")||{}).value||"0",10)||0;
   const filtered = _allClients.filter(c=>{
     const mq = !q || (c.company||"").toLowerCase().includes(q) || (c.niche||"").toLowerCase().includes(q) || (c.client_id||"").toLowerCase().includes(q);
+    const mpr = !pr || (c.product||"marketing").toLowerCase()===pr;
     const ms = !sf || (c.status||"").toLowerCase()===sf;
     const mp = !pf || (c.plan||"").toLowerCase()===pf;
     const mn = !nf || (c.niche||"").toLowerCase()===nf;
     const mm = !minMrr || (c.mrr||0)>=minMrr;
     const ml = !minLeads || (c.leads_delivered||0)>=minLeads;
-    return mq&&ms&&mp&&mn&&mm&&ml;
+    return mq&&mpr&&ms&&mp&&mn&&mm&&ml;
   });
-  $("clients").innerHTML = filtered.length ? filtered.map(c=>`
-    <tr data-company="${escH(c.company)}" data-client-id="${escH(c.client_id||"")}" data-niche="${escH(c.niche)}" data-status="${escH(c.status)}" data-plan="${escH(c.plan)}" data-mrr="${c.mrr}">
+  renderProductSummary(filtered, _allClients);
+  const head=$("clientsHeading");
+  if(head){
+    const titles={marketing:"AI Marketing Clients",voice:"Voice Agent Clients",combo:"Combo Clients"};
+    head.textContent = pr && titles[pr] ? titles[pr] : "Sabhi Clients";
+  }
+  $("clients").innerHTML = filtered.length ? filtered.map(c=>{
+    const pb=productBadge(c.product);
+    return `<tr data-company="${escH(c.company)}" data-client-id="${escH(c.client_id||"")}" data-product="${escH(c.product||"marketing")}" data-niche="${escH(c.niche)}" data-status="${escH(c.status)}" data-plan="${escH(c.plan)}" data-mrr="${c.mrr}">
       <td><input type="checkbox" class="client-cb" aria-label="Select ${escH(c.company)}" onchange="onClientCbChange()"></td>
       <td class="co">${escH(c.company)}<div style="font-size:10px;color:var(--muted);font-weight:400">${escH(c.client_id||"")}</div></td>
+      <td><span class="tag ${pb.cls}">${escH(pb.label)}</span></td>
       <td><span class="tag">${escH(c.niche)}</span></td>
       <td>${escH(c.plan)}</td>
       <td class="num">${c.leads_delivered}</td>
       <td><span class="st ${escH(c.status)}"><span class="d"></span>${escH(c.status)}</span></td>
       <td class="num">${inr(c.mrr)}</td>
-    </tr>`).join("") :
-    `<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:20px">Koi client nahi mila — filters clear karo.</td></tr>`;
+    </tr>`;
+  }).join("") :
+    `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">Koi client nahi mila — filters clear karo.</td></tr>`;
   const fc=$("clientFilterCount");
   if(fc) fc.textContent = filtered.length<_allClients.length ? `${filtered.length} / ${_allClients.length}` : "";
   const mrr = filtered.reduce((s,c)=>s+c.mrr,0);
@@ -911,7 +974,7 @@ function renderClients(list){
 
 function filterClients(){ _renderClientsFiltered(); }
 function clearClientFilters(){
-  $("clientSearch").value=""; $("clientStatusFilter").value=""; $("clientPlanFilter").value="";
+  $("clientSearch").value=""; $("clientProductFilter").value=""; $("clientStatusFilter").value=""; $("clientPlanFilter").value="";
   if($("clientNicheFilter")) $("clientNicheFilter").value="";
   if($("clientMinMrr")) $("clientMinMrr").value="";
   if($("clientMinLeads")) $("clientMinLeads").value="";
@@ -991,8 +1054,8 @@ function bulkImpersonate(){
 }
 function exportClientsCSV(){
   if(!_allClients.length){adminToast("Dashboard pehle load karo","error");return;}
-  _downloadCSV(_toCSV(["Company","Niche","Plan","Leads Delivered","Status","MRR (INR)"],
-    _allClients.map(c=>[c.company,c.niche,c.plan,c.leads_delivered,c.status,c.mrr])),"all_clients.csv");
+  _downloadCSV(_toCSV(["Company","Product","Niche","Plan","Leads Delivered","Status","MRR (INR)"],
+    _allClients.map(c=>[c.company,c.product||"marketing",c.niche,c.plan,c.leads_delivered,c.status,c.mrr])),"all_clients.csv");
   adminToast(`${_allClients.length} clients exported`,"success");
 }
 

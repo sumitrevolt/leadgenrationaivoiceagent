@@ -14,7 +14,7 @@ Sab admin-auth (marketing.py jaisa pattern). Generators kabhi raise nahi karte;
 phir bhi unexpected par 500 + detail. Har action team-log (isha) — best-effort.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
@@ -115,11 +115,14 @@ async def create_client(
 @router.get("")
 async def list_all_clients(
     status: str | None = None,
+    product: str | None = Query(
+        None, description="Filter by product lane: marketing | voice | combo"
+    ),
     current_user: User = Depends(require_admin),
 ):
-    """Marketing clients list (optional ?status= filter)."""
+    """Marketing clients list (?status= / ?product= filters)."""
     try:
-        rows = clients_store.list_clients(status=status)
+        rows = clients_store.list_clients(status=status, product=product)
         return {"clients": rows, "total": len(rows)}
     except Exception as e:
         logger.error(f"Client list failed: {e}")
