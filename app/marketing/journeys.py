@@ -193,8 +193,8 @@ def seed_defaults() -> int:
 def ensure_active_defaults() -> int:
     """JOURNEY_ENGINE=1 par kam se kam ek inquiry rule ON — warna emit empty loop.
 
-    Pehle seed (disabled), phir sirf tab enable jab koi bhi rule ON na ho.
-    Returns count enabled (0 ya 1). Kabhi raise nahi."""
+    Pehle seed (disabled) jab store khali; phir inquiry rule enable ya naya add.
+    Returns count enabled/added (0 ya 1). Kabhi raise nahi."""
     if not _enabled():
         return 0
     try:
@@ -209,7 +209,18 @@ def ensure_active_defaults() -> int:
                 if set_enabled(str(r.get("id") or ""), True):
                     logger.info("[journeys] auto-enabled default inquiry rule (engine on, none active)")
                     return 1
-        return 0
+        # Rules exist but no inquiry_received (custom-only store) — add one enabled.
+        add_journey(
+            name="Inquiry → WhatsApp + email follow-up draft",
+            trigger="inquiry_received",
+            actions=[
+                {"type": "draft_whatsapp", "params": {"topic": "naye inquiry ka turant follow-up"}},
+                {"type": "draft_email", "params": {"topic": "inquiry thank-you + next step"}},
+            ],
+            enabled=True,
+        )
+        logger.info("[journeys] added+enabled inquiry rule (no inquiry trigger in store)")
+        return 1
     except Exception as e:
         logger.debug(f"[journeys] ensure_active_defaults skip: {e}")
         return 0
