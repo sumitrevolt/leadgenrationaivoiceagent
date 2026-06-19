@@ -363,6 +363,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=10, minute=30),
         "args": ("email_outreach",),
     },
+    "staff-revenue-snapshot-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=0, minute=15),  # B1 MRR snapshot (gated REVENUE_TRENDS)
+        "args": ("revenue_snapshot",),
+    },
     # Boss daily standup — in-process loop ke saath parity (gated AGENT_STANDUP;
     # flag OFF = run_staff_job no-op early return, zero behaviour change).
     "staff-standup-daily": {

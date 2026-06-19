@@ -58,6 +58,7 @@ STAFF_JOBS = (
     "saturday_hygiene",
     "meter_watch",        # SP1 billing meter-failure watcher (gated METER_ALERTS)
     "process_autostart",  # D V1.1 process-engine auto-start (gated PROCESS_AUTOSTART)
+    "revenue_snapshot",   # B1 daily MRR/churn snapshot (gated REVENUE_TRENDS)
 )
 
 

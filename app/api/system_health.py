@@ -1,9 +1,9 @@
 """B3 - system-health drill-down for the admin dashboard. Flag-gated.
 
 HOT-PATH RULE: O(1) reads only - psutil resource probes (same lib /health
-uses), one guarded redis ping, and the cached automation_health snapshot
-(worker status + queue depth). No KB/ML/network-heavy/DB-heavy work.
-Never raises; missing data degrades to -1 / "unknown".
+uses), one guarded redis ping, and the automation_health snapshot (a
+heartbeat-file read + one queue-depth read). NO live DB query, no KB/ML/
+network-heavy work. Never raises; missing data degrades to -1 / "unknown".
 """
 from __future__ import annotations
 
@@ -67,26 +67,19 @@ def _redis_ping_ms() -> int:
         return -1
 
 
-async def _health_ready() -> str:
-    try:
-        from starlette.responses import Response
-
-        from app.api.health import readiness_check
-
-        rr = await readiness_check(Response())
-        if isinstance(rr, dict):
-            return str(rr.get("status") or "unknown")
-    except Exception as e:
-        logger.debug("system_health readiness failed: %s", e)
-    return "unknown"
-
-
 @router.get("/system-health-detail")
 async def system_health_detail(_user=Depends(require_admin)) -> dict:
-    """B3: live infra detail for the admin System Health panel."""
+    """B3: live infra detail for the admin System Health panel.
+
+    Cheap by design: this does NOT call /health/ready (that probe runs a live
+    DB query + extra redis connect, which would turn this admin poll into a
+    hot-path DB load — the project's #1 prod-down pattern). health_ready is
+    derived from the O(1) signals already gathered.
+    """
     if os.getenv("SYS_HEALTH_DETAIL", "0").strip().lower() not in ("1", "true", "yes"):
         return {"enabled": False}
-    out: dict = {"enabled": True, "redis_ping_ms": _redis_ping_ms(), "health_ready": await _health_ready()}
+    out: dict = {"enabled": True, "redis_ping_ms": _redis_ping_ms()}
     out.update(_resources())
     out.update(_worker_and_queue())
+    out["health_ready"] = "ok" if (out["redis_ping_ms"] >= 0 and out["cpu_pct"] >= 0) else "degraded"
     return out

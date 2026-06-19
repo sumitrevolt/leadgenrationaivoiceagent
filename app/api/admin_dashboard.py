@@ -1081,7 +1081,8 @@ def _build_client_timeline(client_id, agent_events, inquiries, audit, limit=50):
         if str(r.get("client_id") or "") != str(client_id):
             continue
         items.append({
-            "ts": str(r.get("ts") or r.get("created_at") or ""),
+            # inquiries.jsonl writes the timestamp under "at" (public_site.py)
+            "ts": str(r.get("at") or r.get("ts") or r.get("created_at") or ""),
             "kind": "lead",
             "source": "lead",
             "summary": f"Enquiry from {r.get('name') or '-'}",
@@ -1091,9 +1092,9 @@ def _build_client_timeline(client_id, agent_events, inquiries, audit, limit=50):
             continue
         items.append({
             "ts": str(a.get("created_at") or ""),
-            "kind": str(a.get("action") or "audit"),
+            "kind": "audit",
             "source": "audit",
-            "summary": str(a.get("action") or ""),
+            "summary": str(a.get("action") or "audit"),
         })
     items.sort(key=lambda x: x["ts"], reverse=True)
     return items[: max(1, min(int(limit), 200))]

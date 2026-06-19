@@ -28,3 +28,20 @@ def test_patch_requires_auth():
     # no customer token → rejected before any mutation
     r = client.patch("/api/customer/leads/x", json={"status": "Won"})
     assert r.status_code in (401, 403, 422)
+
+
+def test_patch_records_under_authed_client_only(tmp_path, monkeypatch):
+    """IDOR guard: override is recorded under the JWT-resolved client_id, never
+    a body/query value — so client A can never write under client B's id."""
+    from app.api.customer_auth import require_customer
+    from app.platform import lead_overrides as lo
+    monkeypatch.setattr(lo, "_OVR_FILE", str(tmp_path / "ovr.jsonl"))
+    app.dependency_overrides[require_customer] = lambda: "client_AUTH"
+    try:
+        r = client.patch("/api/customer/leads/lead9", json={"status": "Won"})
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+        ovr = lo.read_overrides()
+        assert ovr["lead9"]["client_id"] == "client_AUTH"
+    finally:
+        app.dependency_overrides.pop(require_customer, None)
