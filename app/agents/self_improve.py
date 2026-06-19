@@ -178,6 +178,7 @@ ACTIONS: dict[str, tuple[bool, str]] = {
     "reflection": (True, "recent runs pe LLM reflection → lesson save"),
     "study_skills": (True, "project skill padh ke lesson nikalo (skill_pack → skill_library)"),
     "code_scan": (False, "observability signals se code-upgrade proposals (Vikram, gated)"),
+    "voice_eval": (False, "voice agent persona eval smoke (Swara/Arjun, gated VOICE_EVAL_AUTO)"),
 }
 
 # funnel weakest-stage → preferred actions (deterministic bias)
@@ -191,7 +192,7 @@ _STAGE_ACTIONS = {
     "lead_supply": ["harvest_leads", "scrape_leads", "seo_pages", "channel_experiments"],
     "outreach_quality": ["sales_deepdive", "harvest_leads", "channel_experiments", "social_drafts"],
     "inbound": ["seo_pages", "channel_experiments", "social_drafts"],
-    "conversion": ["sales_deepdive", "revenue_sweep", "content_pack"],
+    "conversion": ["sales_deepdive", "revenue_sweep", "content_pack", "voice_eval"],
     "retention": ["revenue_sweep", "content_pack"],
     "scale": ["optimizer", "channel_experiments", "harvest_leads", "study_skills"],
 }
@@ -355,7 +356,46 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         if not res.get("enabled", True):
             return {"ok": True, "detail": "CODE_UPGRADER off (skip)"}
         return {"ok": bool(res.get("ok")), "detail": f"signals={res.get('signals', 0)} proposed={res.get('proposed', 0)}"}
+    if action == "voice_eval":
+        return await _voice_eval()
     return {"ok": False, "detail": f"unknown action '{action}'"}
+
+
+async def _voice_eval() -> dict[str, Any]:
+    """Voice agent persona eval smoke (dormant eval_suite wire). Gated VOICE_EVAL_AUTO.
+    brain=None = LLM-free rule-based run → cheap regression catch (double/repeat/pushy)."""
+    if os.environ.get("VOICE_EVAL_AUTO", "0").strip().lower() not in ("1", "true", "yes"):
+        return {"ok": True, "detail": "VOICE_EVAL_AUTO off (skip)"}
+    try:
+        from app.voice_agent.eval_suite import PERSONAS, run_suite
+        from app.voice_agent.natural_dialog import NaturalDialogManager
+
+        try:
+            from app.marketing.channel_experiments import _pick_niche_city
+
+            niche, _ = _pick_niche_city()
+        except Exception:
+            niche = "solar"
+
+        def _factory():
+            return NaturalDialogManager(niche=niche, brain=None)
+
+        report = await asyncio.wait_for(run_suite(_factory, personas=PERSONAS[:3]), timeout=120)
+        total = report.passed + report.failed
+        try:
+            from app.platform import team
+
+            team.log_event(
+                "swara",
+                "voice_eval",
+                f"🎙️ persona smoke {report.passed}/{total} pass ({report.pass_rate:.0%}) niche={niche}",
+                status="ok" if report.pass_rate >= 0.7 else "warn",
+            )
+        except Exception:
+            pass
+        return {"ok": report.pass_rate >= 0.5, "detail": f"voice eval {report.passed}/{total} ({report.pass_rate:.0%}) {niche}"}
+    except Exception as e:
+        return {"ok": False, "detail": f"voice_eval: {str(e)[:100]}"}
 
 
 async def _study_skills(task: str) -> dict[str, Any]:
