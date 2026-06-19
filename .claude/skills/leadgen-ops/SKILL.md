@@ -5,43 +5,68 @@ description: LeadGen AI ka proven ops loop — verify, test, push, deploy + prod
 
 # LeadGen Ops Loop (verify → test → push → deploy)
 
-Yeh exact 4-step cycle har deploy pe follow karo. Live stack = Hostinger VPS Docker (`leadgen_app` container :8000), NOT systemd. Windows = source of truth (sandbox mount stale ho jata hai).
+Yeh exact cycle har deploy pe follow karo — **gated**: har step ka ek PASS-bar hai; bar fail = **ABORT** (aage mat badho, partial deploy = prod-down). Live stack = Hostinger VPS Docker (`leadgen_app` container :8000, `docker-compose.vps.yml`), NOT systemd. **Windows = source of truth** (sandbox mount file-edits ke baad STALE — verify Windows venv pe).
 
-## The proven loop
+## Step 0 — Pre-flight gate (deploy karna chahiye ya nahi)
+- **Code change hai?** Sirf `./data`/`./logs` (bind-mount) badla → rebuild NAHI, sidha recreate/koi action nahi. Code/`app/`/`frontend/`/`.claude/skills/` badla → full rebuild zaroori (image me BAKED).
+- **Branch**: `main` pe ho? VPS `origin/main` se reset karta hai — feature-branch ka kaam live nahi jaata.
+- **Naya `@app.get` page-route** add kiya? → deploy ke baad **HARD RELOAD** lazmi (stale `.pyc` = 404). Container recreate isko handle karta; warna `scripts/check_route.py` se diagnose.
+- **ABORT pehle hi agar**: uncommitted secret risk, prod abhi incident me hai (pehle `prod-incident-triage`), ya user ne sirf "test/verify" maanga (deploy step skip).
 
-1. **Pre-flight**: `python scripts/prod_check.py` — parse/pycache/import/route/config checks. Koi fail = pehle fix karo, aage mat badho.
-2. **Tests**: `scripts\run_tests.bat` chalao, phir **pytest_run.log Read karo** (console output truncate hota hai — log file hi source of truth). ~80+ green expected (full pytest team_pulse area pe hang ho sakta — targeted suites).
-3. **Git push**: Windows git hi — `C:\PROGRA~1\Git\cmd\git.exe` — aur hamesha ek `.bat` ke andar (DC one-liner quoting mangle karta hai; sandbox git index nahi padh sakta). Reference pattern: `scripts/fix_push_redeploy.bat`.
-4. **VPS pull + rebuild + recreate** (Git ka ssh.exe — Windows OpenSSH is PC pe broken hai). App image me baked hai → **rebuild zaroori** (git-pull-restart kaafi nahi):
+## The proven loop (4 gated steps)
+
+1. **Pre-flight check** — `python scripts/prod_check.py` (parse/pycache/import/route/config). **Route count note karo** (deploy ke baad match karne ke liye). 
+   → **GATE**: koi fail = fix karo, aage NAHI. Green = next.
+2. **Tests** — `scripts\run_tests.bat`, phir **`pytest_run.log` Read karo** (console truncate hota — log = truth). ~80+ green expected. Full pytest `team_pulse` area pe hang ho sakta → targeted suite: `.venv\Scripts\python.exe -m pytest tests\test_X.py -q`. Billing/pricing/route touch hua → `test_billing_truth_2026.py` zaroor.
+   → **GATE**: red test = root-cause (`systematic-debugging`), fix, re-run. Skip-with-reason sirf agar pre-existing-unrelated (log me note).
+3. **Git push** — Windows git hi: `C:\PROGRA~1\Git\cmd\git.exe`, hamesha ek `.bat` ke andar (DC one-liner quoting mangle; sandbox git index unreadable). Reference: `scripts/fix_push_redeploy.bat`. Secrets kabhi committed file me nahi (`scripts/check_secrets.py`).
+   → **GATE**: push success (remote SHA match) confirm karo.
+4. **VPS pull + rebuild + recreate** — Git ka ssh.exe (Windows OpenSSH is PC pe broken). Image me code BAKED → **rebuild lazmi** (git-pull-restart kaafi NAHI). Build pipe `| tail` exit-code maskta → `set -o pipefail`. Compose service naam galat (`worker-heavy` hyphen) = poora `up` ABORT → pehle `docker compose ... config --services`.
    ```
    C:\PROGRA~1\Git\usr\bin\ssh.exe -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204 \
-     "cd /opt/leadgen && git fetch --all -q && git reset --hard origin/main -q && \
+     "set -o pipefail; cd /opt/leadgen && git fetch --all -q && git reset --hard origin/main -q && \
       docker compose -f docker-compose.vps.yml build app && \
       docker compose -f docker-compose.vps.yml up -d --no-deps app"
    ```
-   Phir verify: `https://leadsgenai.in/health` → `environment:production`. `sleep 16` + 2x health-check.
-   - Data-only change (`./data`/`./logs` bind-mount) = rebuild ki zaroorat NAHI.
+   SSH command me `&`/`<` quoting todta (EXIT_9009) → complex logic `.py` me likho, `ssh ... python scripts/x.py` se chalao.
+
+## Step 5 — Verify + done-gate (bina proof "done" mat bolo)
+- `sleep 16` (boot-grace) **+ 2x** `https://leadsgenai.in/health` → **`environment:production`** + 200. Ek-baar pass pe bharosa mat karo.
+- Route count Step-1 se match? Naya page-route 200 de raha (404 nahi)?
+- **Health fail → ROLLBACK** (niche), phir root-cause — broken prod chhod ke mat jao.
+- **Report (structured)**:
+  ```
+  SHIP: ok | rolled-back
+  push:   <SHA>
+  build:  ok | fail:<reason>
+  health: 200 environment:production (2/2)
+  routes: <N> (Δ vs pre)
+  ```
+
+## Rollback (deploy ke baad health red)
+- **Fast**: pichla good image abhi chal raha tha → `git reset --hard <prev-SHA>` + rebuild + recreate (forward-fix-by-revert).
+- **Scheduler/worker se aaya** → `.env`: `RUN_IN_PROCESS_SCHEDULER=1` + `WEB_CONCURRENCY=1`, worker/scheduler stop, app recreate.
+- **systemd `leadgen`** = installed-but-DISABLED (last-resort rollback). Default path Docker hi.
 
 ## Production triage table
 
 | Symptom | Root cause | Fix |
 |---|---|---|
-| App unhealthy + CPU ~0%, WS/endpoint hang | Sync ML/KB init event-loop par freeze (classic prod-down) | `docker logs leadgen_app`; HOST se `py-spy dump --pid $(pgrep -f uvicorn\|head -1)`; `docker restart leadgen_app`. Root: `asyncio.to_thread`+hard-timeout (model-asset-bake + prod-incident-triage skills) |
-| First WS hit after rebuild hangs (~250MB HF download) | ML asset runtime-download instead of baked | Model BAKE in `Dockerfile.lock` + disable-switch (model-asset-bake skill) |
-| Bot rule-based / "[echo / test-mode]" | Free LLM provider cooldown (Cerebras/groq 429) | `docker logs leadgen_app \| grep -iE "429\|quota"`; circuit-breaker usually self-recovers (escalating 60s→30min). Gemini = late fallback, not default |
-| Random 500s (e.g. /api/data/niches) | Stale `__pycache__` — but fresh Docker image has none | Rebuild app (`build app` + recreate). prod_check.py locally yehi class pakadta |
+| App unhealthy + CPU ~0%, WS/endpoint hang | Sync ML/KB init event-loop par freeze (classic prod-down) | `docker logs leadgen_app`; HOST se `py-spy dump --pid $(pgrep -f uvicorn\|head -1)`; `docker restart leadgen_app`. Root: `asyncio.to_thread`+hard-timeout (`model-asset-bake` + `prod-incident-triage`) |
+| First WS hit after rebuild hangs (~250MB HF download) | ML asset runtime-download, baked nahi | Model BAKE in `Dockerfile.lock` + disable-switch (`model-asset-bake`) |
+| Naya page-route 404 after deploy | Stale `.pyc` (page-route hard-reload chahiye) | Container recreate; ya `find /opt/leadgen/app -name __pycache__ -prune -exec rm -rf {} +` + restart. Diagnose: `scripts/check_route.py` |
+| Bot rule-based / "[echo / test-mode]" | Free LLM provider cooldown (Cerebras/Groq 429/TPD) | `docker logs leadgen_app \| grep -iE "429\|quota"`; circuit-breaker self-recovers (60s→30min). Mistral=primary, Gemini=late fallback (`llm-quota-ops`) |
+| Random 500s (e.g. /api/data/niches) | Stale `__pycache__` (fresh image me nahi) | Rebuild app + recreate. `prod_check.py` locally yehi class pakadta |
 | Naye deps import-fail in container | image lock out of date | `requirements.lock.txt` refresh (`scripts/vps_freeze.sh`) → commit → rebuild |
 | celery queue blow-up after worker recreate | transient tasks pile up | `redis-cli llen celery`; >500 = `del celery` (beat re-schedules) |
 
-## Long-running commands (DC ~60s pe process kill kar deta hai)
-
-Launcher-bat pattern: `.bat` me `start /min cmd /c "<long command> > C:\path\to\log.txt 2>&1"` likho — turant return — phir log file poll-Read karo jab tak done-marker na dikhe. pip installs, npm builds, full pytest sab isi se. (`.bat` me npm/git ko `call` se; `timeout /t` ki jagah `ping -n N 127.0.0.1`.)
+## Long-running commands (DC ~60s pe process kill kar deta)
+Launcher-bat: `.bat` me `start /min cmd /c "<long cmd> > C:\path\log.txt 2>&1"` — turant return — phir log file poll-Read karo done-marker tak. pip/npm/full-pytest sab isi se. (`.bat` me npm/git ko `call` se; `timeout /t` → `ping -n N 127.0.0.1`.)
 
 ## Smoke tests
-
-- **Local**: `scripts\smoke_test.bat` — app boot karke key endpoints hit karta hai.
-- **VPS agents** (LangGraph/Qdrant/MCP): `cd /opt/leadgen && docker exec leadgen_app python scripts/vps_agents_test.py`
+- **Local**: `scripts\smoke_test.bat` (app boot + key endpoints).
+- **VPS agents** (LangGraph/Qdrant/MCP): `docker exec leadgen_app python scripts/vps_agents_test.py`
 - **VPS live websocket** (web-call bot): `docker exec leadgen_app python scripts/ws_test.py`
 - **LLM probe**: `docker exec leadgen_app python scripts/llm_probe.py`
 
-VPS-level gotchas (Caddy vs Traefik, .env inline comments, firewalled ports, Docker rebuild, rollback) ke liye sibling skills: `hostinger-deploy`, `ship-checklist`, `prod-incident-triage`.
+Sibling skills (VPS-level: Caddy vs Traefik, .env inline comments, firewalled ports, rollback detail): `hostinger-deploy`, `ship-checklist`, `prod-incident-triage`.
