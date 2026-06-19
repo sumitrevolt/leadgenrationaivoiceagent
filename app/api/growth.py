@@ -933,6 +933,48 @@ async def infra_llm_metrics(window: int = 2000, _user=Depends(require_admin)):
     return llm_metrics.stats(max(100, min(window, 10000)))
 
 
+@router.get("/infra/explorer-drift")
+async def infra_explorer_drift(_user=Depends(require_admin)):
+    """Architecture-graph drift — how much of the codebase the /app/explorer
+    graph reflects (for the explorer's live coverage HUD). Self-contained +
+    never-raises (frontend/explorer.html + app/ are baked into the image)."""
+    try:
+        import pathlib
+        import re
+
+        root = pathlib.Path(__file__).resolve().parent.parent.parent
+        html = (root / "frontend" / "explorer.html").read_text(encoding="utf-8", errors="replace")
+        sched = (root / "app" / "platform" / "team_scheduler.py").read_text(encoding="utf-8", errors="replace")
+        blob = html.lower()
+        drop = {"os", "json", "asyncio", "datetime", "timezone", "time", "random", "typing",
+                "annotations", "contextlib", "io", "logging", "math", "uuid", "re",
+                "logger", "settings", "config", "models", "base"}
+        mods: set[str] = set()
+        for m in re.finditer(r"from\s+(app[\w.]+)\s+import\s+([\w_, ]+)", sched):
+            path, names = m.group(1), m.group(2)
+            parts = path.split(".")
+            if len(parts) >= 3:
+                mods.add(parts[-1])
+            else:
+                for n in names.split(","):
+                    n = n.strip().split(" as ")[0].strip()
+                    if n and n[0].islower():
+                        mods.add(n)
+        mods = {x for x in mods if x not in drop and len(x) > 2}
+        miss = sorted(x for x in mods if x.lower() not in blob)
+        total = len(mods) or 1
+        drawn = total - len(miss)
+        return {
+            "nodes": len(re.findall(r"\{id:'", html)),
+            "edges": len(re.findall(r"\{f:'", html)),
+            "engine_total": total, "engine_drawn": drawn,
+            "coverage_pct": round(100 * drawn / total),
+            "missing": miss[:50],
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:120], "coverage_pct": None}
+
+
 @router.get("/infra/automation-health")
 async def infra_automation_health(_user=Depends(require_admin)):
     """Dead-man switch: har scheduled job ka last-run + overdue status."""

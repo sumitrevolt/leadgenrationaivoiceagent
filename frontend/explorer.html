@@ -614,6 +614,17 @@ const VIEWS = {
       {id:'process_autostart', type:'platform', badge:'SHIPPED', cx:'moderate', sched:'11:30 IST', title:'Process Auto-Start ✓', desc:'Deterministic workflows auto-start (idempotent, capped, breakpoint-paused → cockpit)', files:'process_autostart.py', flag:'PROCESS_AUTOSTART', x:890, y:1560, w:270, h:110},
       {id:'content_distribute', type:'marketing', badge:'SHIPPED', cx:'simple', sched:'content job', title:'Content Auto-Publish ✓', desc:'Self-brand ready content → Telegram + IndexNow/SEO (Meta/GBP stay draft)', files:'content_distribute.py', flag:'CONTENT_AUTOPUBLISH', x:1180, y:1560, w:260, h:110},
       {id:'vobiz_inbound', type:'voice', badge:'SHIPPED', cx:'simple', sched:'on inbound', title:'Vobiz Inbound Webhook ✓', desc:'POST /api/webhooks/vobiz/inbound → missed_call lead capture (callback needs DID) · AMD detect gated', files:'webhooks.py · vobiz_stream.py', flag:'AMD_DETECT', x:1460, y:1560, w:270, h:110},
+      // --- Core engines/ops (completeness pass 2026-06-19) ---
+      {id:'automation_health', type:'monitor', badge:'DEAD-MAN', cx:'simple', sched:'continuous', title:'Automation Health', desc:'Dead-man switch — har scheduled job ka last-run + overdue/failed detection · /api/growth/infra/automation-health', files:'automation_health.py', x:40, y:1720, w:260, h:100},
+      {id:'llm_metrics', type:'monitor', badge:'LLM OBS', cx:'simple', sched:'live', title:'LLM Metrics', desc:'Per-provider calls/ok-rate/latency/fallback + circuit-breaker cooldown state', files:'llm_metrics.py', x:340, y:1720, w:250, h:100},
+      {id:'code_upgrader', type:'ai', badge:'VIKRAM', cx:'moderate', sched:'hourly', title:'Code Upgrader', desc:'Signals → free-LLM patch PROPOSALS (data/code_patches.jsonl) → admin approve · core code KABHI auto-apply nahi', files:'code_upgrader.py', flag:'CODE_UPGRADER', x:620, y:1720, w:260, h:100},
+      {id:'skill_pack', type:'ai', badge:'SKILLS', cx:'simple', sched:'on ingest', title:'Skill Pack', desc:'Agents ko find/snippet_for + KB "skills" ns ingest · 241 skills (project+agency+ECC)', files:'skill_pack.py', flag:'SKILL_PACK', x:920, y:1720, w:260, h:100},
+      {id:'memory_vault', type:'ai', badge:'MEMORY', cx:'simple', sched:'sync job', title:'Memory Vault', desc:'Per-prospect/client markdown memory + call-prep briefs + live notes (compounding context)', files:'memory_vault.py', flag:'MEMORY_VAULT', x:1220, y:1720, w:260, h:100},
+      {id:'consent_ledger', type:'platform', badge:'TRAI', cx:'simple', sched:'on opt-out', title:'Consent Ledger', desc:'Opt-out → INSTANT cross-channel suppression + 90-din recording retention (DPDP/TRAI)', files:'consent_ledger.py', x:1520, y:1720, w:260, h:100},
+      {id:'review_monitor', type:'marketing', badge:'REVIEWS', cx:'simple', sched:'daily', title:'Review Monitor', desc:'Google review monitor → new-review alerts + AI reply drafts (reputation loop)', files:'review_monitor.py', flag:'REVIEW_MONITOR', x:40, y:1840, w:260, h:100},
+      {id:'rank_tracker', type:'marketing', badge:'SEO RANK', cx:'simple', sched:'daily', title:'Rank Tracker', desc:'Free keyword-rank tracking → SEO trend + drop alerts', files:'rank_tracker.py', flag:'RANK_TRACKER', x:340, y:1840, w:250, h:100},
+      {id:'deliverability_monitor', type:'monitor', badge:'INBOX', cx:'simple', sched:'daily', title:'Deliverability Monitor', desc:'Email bounce/spam-rate watch → auto warmup-pause (sender-reputation guard)', files:'deliverability_monitor.py', flag:'DELIVERABILITY_MONITOR', x:620, y:1840, w:270, h:100},
+      {id:'niche_prospector', type:'marketing', badge:'SCRAPE', cx:'moderate', sched:'09:30 + 14:30', title:'Niche Prospector', desc:'Google Maps (Places New) + OSM Overpass → real phones+reviews, cap-limited · niche+city rotation', files:'niche_prospector.py', flag:'NICHE_ROTATION', x:920, y:1840, w:280, h:100},
     ],
     edges: [
       {f:'beat', t:'worker', lbl:'cron fire', style:'async'},
@@ -701,6 +712,13 @@ const VIEWS = {
       {f:'content', t:'content_distribute', lbl:'ready→publish', style:'async'},
       {f:'content_distribute', t:'telegram_pub', lbl:'self-brand', style:'async'},
       {f:'public_in', t:'vobiz_inbound', lbl:'inbound call', style:'opt'},
+      // --- core engines/ops edges ---
+      {f:'worker', t:'automation_health', lbl:'heartbeat', style:'sync'},
+      {f:'automation_health', t:'ntfy_alerts', lbl:'overdue', style:'async'},
+      {f:'free_ai', t:'llm_metrics', lbl:'track', style:'sync'},
+      {f:'ops', t:'code_upgrader', lbl:'scan signals', style:'async'},
+      {f:'review_monitor', t:'ntfy_alerts', lbl:'new review', style:'async'},
+      {f:'prospect', t:'niche_prospector', lbl:'harvest', style:'sync'},
       {f:'launch', t:'ntfy_alerts', lbl:'readiness', style:'async'},
       {f:'eval_gate', t:'ntfy_alerts', lbl:'regression', style:'async'},
       {f:'customer_wh', t:'ntfy_alerts', lbl:'events', style:'async'},
@@ -2140,6 +2158,25 @@ function _detectLiveChanges(prev, next) {
   if(parts.length) _pushChangeFeed(parts.slice(0, 4).join(' · '));
 }
 
+// Advanced: live graph<->code drift coverage in the HUD. Independent + best-effort
+// (own try/catch) so it can NEVER break the main live overlay. Appends "graph N% synced".
+async function _updateDriftHud(base, token) {
+  try {
+    const r = await fetch(base + '/api/growth/infra/explorer-drift', {
+      mode: 'cors', credentials: 'omit', headers: {Authorization: 'Bearer ' + token},
+    });
+    if(!r.ok) return;
+    const d = await r.json();
+    if(d && typeof d.coverage_pct === 'number') {
+      liveHealth && (liveHealth.drift = d);
+      const txt = document.getElementById('ls-text');
+      if(txt && txt.textContent.indexOf('graph ') < 0) {
+        txt.textContent += ` · graph ${d.coverage_pct}% synced`;
+      }
+    }
+  } catch(e) {}
+}
+
 async function fetchLiveHealth() {
   const el = document.getElementById('live-status');
   const txt = document.getElementById('ls-text');
@@ -2207,6 +2244,7 @@ async function fetchLiveHealth() {
         txt.textContent = `Live · ${host}`;
       }
       renderNodes();
+      if(token) _updateDriftHud(base, token);  // advanced: live graph<->code coverage
       if(selectedNode && (selectedNode === 'launch' || selectedNode === 'vps' || selectedNode === 'explorer' || selectedNode === 'beat' || selectedNode === 'worker' || selectedNode === 'ops')) {
         showNodeDetail(nodeMap[selectedNode]);
       }
