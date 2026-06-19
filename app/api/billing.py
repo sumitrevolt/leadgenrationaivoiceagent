@@ -6,6 +6,7 @@ Endpoints for subscription management, payments, and invoices
 import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -1149,6 +1150,21 @@ async def _activate_subscription_row(
     return sub
 
 
+def _emit_billing_customer_webhook(
+    client_id: str | None, event_type: str, payload: dict[str, Any]
+) -> None:
+    """Customer webhook fan-out for billing events (gated CUSTOMER_WEBHOOKS)."""
+    cid = (client_id or "").strip()
+    if not cid:
+        return
+    try:
+        from app.platform import customer_webhooks as _cw
+
+        _cw.fire_emit(cid, event_type, {**payload, "client_id": cid})
+    except Exception as e:
+        logger.debug("[billing] customer webhook emit skip: %s", e)
+
+
 @router.post("/billing/webhooks/stripe", tags=["Billing"])
 async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_db)):
     """Stripe webhook (signature-verified). 503 if keys missing; never crashes.
@@ -1213,6 +1229,27 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
                     sub.current_period_end if sub else None,
                     sub_id,
                 )
+                _cid = client_id or (sub.client_id if sub else None)
+                _emit_billing_customer_webhook(
+                    _cid,
+                    "payment.received",
+                    {
+                        "plan_id": plan_id or (sub.plan_id if sub else None),
+                        "gateway": "stripe",
+                        "event": event_type,
+                        "amount": get("amount_total") or get("amount_subtotal"),
+                        "currency": get("currency"),
+                    },
+                )
+                _emit_billing_customer_webhook(
+                    _cid,
+                    "subscription.created",
+                    {
+                        "plan_id": plan_id or (sub.plan_id if sub else None),
+                        "status": "active",
+                        "stripe_subscription_id": sub_id,
+                    },
+                )
 
         elif event_type in ("invoice.paid", "invoice.payment_succeeded"):
             sub_id = get("subscription")
@@ -1243,6 +1280,19 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
                 period_end,
                 sub_id,
             )
+            _cid = client_id or (sub.client_id if sub else None)
+            _emit_billing_customer_webhook(
+                _cid,
+                "payment.received",
+                {
+                    "plan_id": plan_id or (sub.plan_id if sub else None),
+                    "gateway": "stripe",
+                    "event": event_type,
+                    "amount": get("amount_paid") or get("total"),
+                    "currency": get("currency"),
+                    "invoice_id": get("id"),
+                },
+            )
 
         elif event_type in (
             "customer.subscription.created",
@@ -1270,6 +1320,16 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
                 await db.commit()
                 if sub.status == SubscriptionStatus.ACTIVE:
                     _provision_usage(sub.client_id, sub.plan_id, period_end, sub_id, reset=False)
+                _emit_billing_customer_webhook(
+                    sub.client_id,
+                    "subscription.updated",
+                    {
+                        "plan_id": sub.plan_id,
+                        "status": sub.status.value if sub.status else "",
+                        "stripe_subscription_id": sub_id,
+                        "event": event_type,
+                    },
+                )
 
         elif event_type in ("customer.subscription.deleted", "customer.subscription.paused"):
             sub_id = get("id")
@@ -1284,6 +1344,16 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
                     sub.ended_at = datetime.utcnow()
                 sub.updated_at = datetime.utcnow()
                 await db.commit()
+                _emit_billing_customer_webhook(
+                    sub.client_id,
+                    "subscription.updated",
+                    {
+                        "plan_id": sub.plan_id,
+                        "status": sub.status.value if sub.status else "",
+                        "stripe_subscription_id": sub_id,
+                        "event": event_type,
+                    },
+                )
     except Exception as e:  # never 500 a webhook for a downstream hiccup
         logger.error(f"Stripe webhook handling error ({event_type}): {e}")
 

@@ -1115,6 +1115,7 @@ AUTOMATION_FLAGS = [
     "MAGIC_LINK",  # passwordless customer login (single-use email link) — OFF default
     "IMPERSONATION",  # super-admin "login as customer" support tool (audited) — OFF default
     "PUBLIC_GUARDRAILS",  # PII-redact + prompt-injection block on public chatbot/widget LLM — OFF default, fail-open
+    "CONTENT_APPROVAL_AUTO",  # daily auto_content → client approval queue auto-submit — OFF default
     "OLLAMA_URL", "OLLAMA_PRIMARY",  # self-hosted own LLM (GPU/PC) — URL set = active
     "NEWSLETTER_ENGINE", "WINBACK_ENGINE", "BRAND_PULSE", "TEAM_REPORT",
     "SKILL_PACK", "CODE_UPGRADER", "RECORDING_RETENTION",
@@ -1130,6 +1131,7 @@ AUTOMATION_FLAGS = [
     "SELF_IMPROVE_APPROVAL",  # LLM-heavy self-improve actions human approve gate
     "REQUEST_GUARD",  # per-request timeout + load-shed middleware
     "PLAN_RATE_LIMIT",  # tier-based API rpm limits
+    "CIRCUIT_BREAKER",  # external-service breaker (Pollinations etc.) — OFF default, fast-fail on outage
     # Edge protection (Cloudflare) — URL-valued flags become ON when set.
     "CLOUDFLARE_TUNNEL_TOKEN",  # docker-compose.edge.yml cloudflared — origin-hide + WAF/DDoS
     "TURNSTILE_SITE_KEY",  # public site-key (safe to expose) — widget renders only when set

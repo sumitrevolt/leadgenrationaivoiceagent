@@ -187,6 +187,14 @@ def run_staff_job(self, job: str):
         logger.warning(f"[staff_jobs] unknown job '{job}' — skip")
         return {"ok": False, "job": job, "reason": "unknown"}
     try:
+        from app.platform import boot_grace
+
+        if boot_grace.should_skip_boot_grace(job):
+            logger.info(f"[staff_jobs] boot-grace skip job '{job}' this worker boot")
+            return {"ok": True, "job": job, "skipped": "boot_grace"}
+    except Exception:
+        pass
+    try:
         from app.platform import team_scheduler
 
         _run_async(team_scheduler._run_job(job))

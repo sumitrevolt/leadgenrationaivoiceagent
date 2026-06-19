@@ -418,6 +418,18 @@ async def run_daily_content() -> dict[str, Any]:
             try:
                 items = await generate_for_client(client)
                 added = _append_items(cid, items)
+                if added and os.environ.get("CONTENT_APPROVAL_AUTO", "0").strip().lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                ):
+                    try:
+                        from app.marketing import content_approval
+
+                        for it in items[:5]:
+                            content_approval.submit(cid, it)
+                    except Exception as e:
+                        logger.debug(f"[auto_content] approval auto-submit skip: {e}")
                 if not added:
                     # Aaj ke sab items dedupe ne block kiye (queue dry-ish) —
                     # evergreen recycling se purana top content re-share karo.
