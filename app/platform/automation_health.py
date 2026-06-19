@@ -44,6 +44,9 @@ EXPECTED_GAP_MIN = {
     "digest": 30 * 60,
     "prospect": 30 * 60,
     "email_outreach": 30 * 60,
+    "pipeline": 30 * 60,
+    "email_followup": 30 * 60,
+    "kb_refresh": 8 * 24 * 60,  # weekly Sun
 }
 
 
