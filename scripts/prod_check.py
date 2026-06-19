@@ -208,6 +208,24 @@ def check_production_config() -> None:
     print(f"[5/6] config checked (env={settings.app_env})")
 
 
+def check_explorer_drift() -> None:
+    """INFO only (never fails): how much of the architecture the /app/explorer
+    graph still reflects. Curated graph can't be 100% — this just surfaces drift
+    so it's visible every deploy. Detail + paste-ready stubs: explorer_sync.py."""
+    try:
+        from scripts import explorer_sync as es
+
+        a = es.audit()
+        cov = len(a["mods"]) - len(a["miss_mods"])
+        line = (f"[i] explorer graph: {a['nodes']} nodes · engine coverage "
+                f"{cov}/{len(a['mods'])}")
+        if a["miss_mods"]:
+            line += f" · {len(a['miss_mods'])} not drawn (scripts/explorer_sync.py --stubs)"
+        print(line)
+    except Exception as e:
+        print(f"[i] explorer drift check skipped ({type(e).__name__})")
+
+
 def main() -> int:
     print("=" * 56)
     print("PRODUCTION READINESS CHECK")
@@ -218,6 +236,7 @@ def main() -> int:
     check_routes()
     check_production_config()
     check_frontend_wiring()
+    check_explorer_drift()
     print("-" * 56)
     if PROBLEMS:
         print(f"[FAIL] {len(PROBLEMS)} problem(s):")
