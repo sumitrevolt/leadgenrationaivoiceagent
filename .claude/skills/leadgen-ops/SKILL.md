@@ -29,6 +29,8 @@ Yeh exact cycle har deploy pe follow karo — **gated**: har step ka ek PASS-bar
       docker compose -f docker-compose.vps.yml up -d --no-deps app"
    ```
    SSH command me `&`/`<` quoting todta (EXIT_9009) → complex logic `.py` me likho, `ssh ... python scripts/x.py` se chalao.
+   - **Automation/worker code badla** (`team_scheduler.py` · `self_improve.py` · `worker.py` · `staff_jobs.py` · scheduled engines) → sirf `app` recreate KAAFI NAHI — `worker`/`scheduler` purana code chalate rehte. Build + recreate **app + worker + worker-heavy + scheduler** (`--profile celery up -d --no-deps app worker worker-heavy scheduler`). Pure frontend/page change = sirf `app`.
+   - **Repeated worker recreate (ek session me 3-5×) = celery flood risk**: `self_improve_tick` self-requeue chain multiply ho sakti (`acks_late` redelivery + revive). Recreate ke baad `docker exec leadgen_redis redis-cli llen celery` check — >800 = `redis-cli del celery` (beat re-schedules, revive 1 chain re-seed). `saturday_hygiene` job auto-trims.
 
 ## Step 5 — Verify + done-gate (bina proof "done" mat bolo)
 - `sleep 16` (boot-grace) **+ 2x** `https://leadsgenai.in/health` → **`environment:production`** + 200. Ek-baar pass pe bharosa mat karo.
@@ -58,7 +60,7 @@ Yeh exact cycle har deploy pe follow karo — **gated**: har step ka ek PASS-bar
 | Bot rule-based / "[echo / test-mode]" | Free LLM provider cooldown (Cerebras/Groq 429/TPD) | `docker logs leadgen_app \| grep -iE "429\|quota"`; circuit-breaker self-recovers (60s→30min). Mistral=primary, Gemini=late fallback (`llm-quota-ops`) |
 | Random 500s (e.g. /api/data/niches) | Stale `__pycache__` (fresh image me nahi) | Rebuild app + recreate. `prod_check.py` locally yehi class pakadta |
 | Naye deps import-fail in container | image lock out of date | `requirements.lock.txt` refresh (`scripts/vps_freeze.sh`) → commit → rebuild |
-| celery queue blow-up after worker recreate | transient tasks pile up | `redis-cli llen celery`; >500 = `del celery` (beat re-schedules) |
+| celery queue blow-up after worker recreate (1000s of `self_improve_tick`) | self-improve self-requeue chain MULTIPLIED — repeated recreate × `acks_late` redelivery + revive (no dedup) → parallel chains | `redis-cli llen celery`; >800 = `del celery` (beat re-schedules, revive re-seeds 1 chain). Root-fixed: `self_improve_tick acks_late=False` + `ensure_alive` Redis NX lock (2026-06-19) |
 
 ## Long-running commands (DC ~60s pe process kill kar deta)
 Launcher-bat: `.bat` me `start /min cmd /c "<long cmd> > C:\path\log.txt 2>&1"` — turant return — phir log file poll-Read karo done-marker tak. pip/npm/full-pytest sab isi se. (`.bat` me npm/git ko `call` se; `timeout /t` → `ping -n N 127.0.0.1`.)
