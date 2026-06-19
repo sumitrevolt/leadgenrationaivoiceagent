@@ -3,34 +3,61 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0b1020">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
 <title>Client Login — LeadsGenAI</title>
 <style>
-  :root { --pri:#2563eb; --bg:#0b1020; --card:#fff; --ink:#0f172a; --mut:#64748b; }
+  /* LeadGen AI Design System — Indigo→Violet (tokens inlined for a self-contained page) */
+  :root {
+    --brand-600:#4f46e5; --brand-500:#6366f1; --violet-600:#7c3aed; --violet-500:#8b5cf6;
+    --grad:linear-gradient(135deg,#4f46e5,#7c3aed);
+    --ink-900:#0f172a; --ink-500:#64748b; --border:#e2e8f0;
+    --bg-card:#fff; --bg-subtle:#f8fafc;
+    --radius:16px; --radius-sm:10px;
+    --shadow:0 24px 60px rgba(79,70,229,.28);
+    --font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
   * { box-sizing:border-box; }
-  body { margin:0; min-height:100vh; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-         background:linear-gradient(135deg,#0b1020,#1e293b); display:flex; align-items:center; justify-content:center; padding:18px; }
-  .card { background:var(--card); width:100%; max-width:400px; border-radius:18px; padding:26px 24px; box-shadow:0 24px 60px rgba(0,0,0,.4); }
-  h1 { margin:0 0 2px; font-size:21px; color:var(--ink); }
-  .sub { color:var(--mut); font-size:13px; margin-bottom:18px; }
-  label { display:block; font-size:13px; font-weight:600; color:var(--ink); margin:12px 0 5px; }
-  input { width:100%; padding:11px 12px; border:1px solid #d4d4d8; border-radius:10px; font-size:15px; }
-  input:focus { outline:none; border-color:var(--pri); box-shadow:0 0 0 3px #2563eb22; }
-  button { width:100%; margin-top:18px; padding:12px; border:0; border-radius:10px; background:var(--pri); color:#fff; font-size:16px; font-weight:700; cursor:pointer; }
-  button:disabled { opacity:.6; cursor:default; }
-  .err { color:#b91c1c; font-size:13px; min-height:16px; margin-top:8px; }
+  body { margin:0; min-height:100vh; font-family:var(--font); color:var(--ink-900);
+         background:
+           radial-gradient(1100px 600px at 12% -8%, #6366f155, transparent 60%),
+           radial-gradient(900px 600px at 100% 0%, #8b5cf655, transparent 55%),
+           linear-gradient(135deg,#1e1b4b,#3730a3 55%,#5b21b6);
+         display:flex; align-items:center; justify-content:center; padding:18px; }
+  .card { background:var(--bg-card); width:100%; max-width:410px; border-radius:var(--radius);
+          padding:30px 26px; box-shadow:var(--shadow); position:relative; overflow:hidden; }
+  .card::before { content:""; position:absolute; inset:0 0 auto 0; height:4px; background:var(--grad); }
+  .brand { display:flex; align-items:center; gap:9px; margin-bottom:16px; }
+  .brand .dot { width:30px; height:30px; border-radius:9px; background:var(--grad);
+                display:grid; place-items:center; color:#fff; font-weight:800; font-size:15px; }
+  .brand .name { font-weight:700; font-size:15px; letter-spacing:-.2px; color:var(--ink-900); }
+  .brand .name span { background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h1 { margin:0 0 3px; font-size:23px; font-weight:700; letter-spacing:-.4px; color:var(--ink-900); }
+  .sub { color:var(--ink-500); font-size:13.5px; margin-bottom:20px; line-height:1.5; }
+  label { display:block; font-size:12.5px; font-weight:600; color:var(--ink-900); margin:14px 0 6px; }
+  input { width:100%; padding:12px 13px; border:1px solid var(--border); border-radius:var(--radius-sm);
+          font-size:15px; font-family:inherit; transition:border-color .15s, box-shadow .15s; }
+  input:focus { outline:none; border-color:var(--brand-500); box-shadow:0 0 0 3px #6366f133; }
+  button { width:100%; margin-top:20px; padding:13px; border:0; border-radius:var(--radius-sm);
+           background:var(--grad); color:#fff; font-size:15.5px; font-weight:700; cursor:pointer;
+           font-family:inherit; box-shadow:0 8px 20px rgba(79,70,229,.32);
+           transition:transform .12s, box-shadow .12s, opacity .12s; }
+  button:hover { transform:translateY(-1px); box-shadow:0 12px 26px rgba(79,70,229,.4); }
+  button:disabled { opacity:.6; cursor:default; transform:none; }
+  .err { color:#dc2626; font-size:13px; min-height:16px; margin-top:8px; }
   .acct { display:none; }
-  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0; }
-  .kpi { background:#f1f5f9; border-radius:12px; padding:12px; text-align:center; }
-  .kpi b { display:block; font-size:22px; color:var(--ink); }
-  .kpi span { font-size:12px; color:var(--mut); }
+  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px 0; }
+  .kpi { background:var(--bg-subtle); border:1px solid var(--border); border-radius:12px; padding:14px; text-align:center; }
+  .kpi b { display:block; font-size:23px; font-weight:700; color:var(--brand-600); }
+  .kpi span { font-size:11.5px; color:var(--ink-500); }
   .row { display:flex; gap:10px; }
-  .ghost { background:#f1f5f9; color:var(--ink); }
-  .foot { text-align:center; color:var(--mut); font-size:11px; margin-top:16px; }
+  .ghost { background:var(--bg-subtle); color:var(--ink-900); box-shadow:none; border:1px solid var(--border); }
+  .ghost:hover { box-shadow:none; transform:none; background:#eef2ff; }
+  .foot { text-align:center; color:var(--ink-500); font-size:11px; margin-top:18px; }
 </style>
 </head>
 <body>
 <div class="card">
+  <div class="brand"><div class="dot">L</div><div class="name">LeadsGen<span>AI</span></div></div>
   <div id="loginView">
     <h1>Client Login</h1>
     <div class="sub">Apne LeadsGenAI account me login karein — apni leads, calls aur content dekhein.</div>
