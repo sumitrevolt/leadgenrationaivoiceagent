@@ -56,6 +56,27 @@ def _digits(phone: Any) -> str:
     return d[-10:] if len(d) >= 10 else d
 
 
+def resolve_product(c: dict[str, Any]) -> str:
+    """Product lane: marketing | voice | combo (legacy rows infer from plan key)."""
+    prod = str(c.get("product") or "").strip().lower()
+    if prod in ("both", "combo"):
+        return "combo"
+    if prod in ("marketing", "voice"):
+        return prod
+    plan = str(c.get("plan") or "").strip().lower()
+    try:
+        from app.marketing.combo_packages import is_combo_plan
+        from app.marketing.voice_packages import is_voice_plan
+
+        if is_combo_plan(plan) or plan.startswith("combo_"):
+            return "combo"
+        if is_voice_plan(plan) or plan.startswith("voice_"):
+            return "voice"
+    except Exception:
+        pass
+    return "marketing"
+
+
 def _clean_color(value: Any) -> str:
     c = str(value or "").strip()
     return c if _HEX_RE.match(c) else ""
@@ -240,13 +261,17 @@ def add_client(
         return {"error": str(e)}
 
 
-def list_clients(status: str | None = None) -> list[dict[str, Any]]:
-    """Saare clients (optional status filter). Newest first. Kabhi raise nahi."""
+def list_clients(status: str | None = None, product: str | None = None) -> list[dict[str, Any]]:
+    """Saare clients (optional status / product filter). Newest first. Kabhi raise nahi."""
     try:
         rows = _read_all()
         if status:
             st = status.strip().lower()
             rows = [r for r in rows if str(r.get("status") or "").lower() == st]
+        if product:
+            want = product.strip().lower()
+            if want in ("marketing", "voice", "combo"):
+                rows = [r for r in rows if resolve_product(r) == want]
         rows.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
         return rows
     except Exception as e:  # pragma: no cover
