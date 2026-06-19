@@ -25,8 +25,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-LOG = ROOT / "debug-6e326c.log"
-SESSION = "6e326c"
+LOG = ROOT / "debug-f2166f.log"
+SESSION = "f2166f"
 RUN = os.environ.get("AGENTS_DEBUG_RUN", "agents1")
 
 
@@ -107,7 +107,7 @@ async def probe_fde() -> None:
             broken_handlers.append(sk_key)
     ctx = {"business_name": "Debug Biz", "niche": "solar", "city": "Mumbai", "slug": "debug-slug"}
     dry_ok, dry_fail = [], []
-    for sk_key in list(fde.SKILLS.keys())[:4]:
+    for sk_key in fde.SKILLS.keys():
         try:
             res = await fde.SKILLS[sk_key]["handler"](ctx)
             (dry_ok if res.get("ok") is not False else dry_fail).append(sk_key)
@@ -121,9 +121,9 @@ async def probe_fde() -> None:
             "fde_agents": len(agents),
             "skills": len(fde.SKILLS),
             "broken_handlers": broken_handlers,
-            "dry_sample_ok": dry_ok,
-            "dry_sample_fail": dry_fail,
-            "broken": bool(broken_handlers),
+            "dry_all_ok": dry_ok,
+            "dry_all_fail": dry_fail,
+            "broken": bool(broken_handlers) or bool(dry_fail),
         },
     )
 
@@ -134,7 +134,7 @@ def probe_skill_pack() -> None:
     skills = skill_pack.list_skills()
     empty = [s["name"] for s in skills if int(s.get("chars") or 0) < 50]
     load_fail = []
-    for s in skills[:30]:
+    for s in skills:
         if not skill_pack.load(s["name"]):
             load_fail.append(s["name"])
     dupes: dict[str, int] = {}
@@ -205,6 +205,86 @@ def probe_autonomous() -> None:
     _log("F", "agents:autonomous", "autonomous agent modules", {**out, "broken": False})
 
 
+def probe_automation_wiring() -> None:
+    """H: dead flags / orphan STAFF_JOBS."""
+    try:
+        import subprocess
+
+        r = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "automation_wiring_audit.py")],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+            cwd=str(ROOT),
+        )
+        out = (r.stdout or "") + (r.stderr or "")
+        ok = r.returncode == 0 and ("[OK]" in out or "all automation flags wired" in out)
+        _log(
+            "H",
+            "agents:wiring_audit",
+            "automation wiring audit",
+            {"exit": r.returncode, "ok_line": ok, "broken": not ok},
+        )
+    except Exception as e:
+        _log("H", "agents:wiring_audit", "automation wiring audit", {"error": str(e)[:80], "broken": True})
+
+
+async def probe_self_improve_fast() -> None:
+    """I: self_improve ACTIONS import + gated skip (no network scrape)."""
+    out: dict = {}
+    broken = False
+    try:
+        from app.agents import self_improve as si
+
+        out["actions"] = len(si.ACTIONS)
+        out["enabled"] = si.enabled()
+        for act in ("cadence_sweep", "code_scan", "voice_eval", "rescore_pipeline"):
+            try:
+                res = await asyncio.wait_for(si._execute(act, "debug-smoke"), timeout=15)
+                out[f"exec_{act}"] = {"ok": res.get("ok"), "detail": str(res.get("detail", ""))[:60]}
+            except Exception as e:
+                out[f"exec_{act}"] = {"err": type(e).__name__}
+                broken = True
+    except Exception as e:
+        out["import_err"] = str(e)[:80]
+        broken = True
+    _log("I", "agents:self_improve", "self_improve fast probe", {**out, "broken": broken})
+
+
+def probe_security_kpi() -> None:
+    """J: Arnav security agent KPI shape (post-Razorpay removal)."""
+    import os
+
+    prev = os.environ.get("SECURITY_AGENT")
+    os.environ["SECURITY_AGENT"] = "1"
+    try:
+        from app.platform import engineer_agents as ea
+
+        out = ea.run_security()
+        armed = out.get("kpis", {}).get("webhook_secrets_armed") or {}
+        has_razorpay = "razorpay" in armed
+        _log(
+            "J",
+            "agents:security_kpi",
+            "security webhook_secrets_armed shape",
+            {
+                "keys": list(armed.keys()),
+                "has_razorpay_stale": has_razorpay,
+                "score": out.get("score"),
+                "broken": has_razorpay,
+            },
+        )
+    except Exception as e:
+        _log("J", "agents:security_kpi", "security probe failed", {"error": str(e)[:80], "broken": True})
+    finally:
+        if prev is None:
+            os.environ.pop("SECURITY_AGENT", None)
+        else:
+            os.environ["SECURITY_AGENT"] = prev
+
+
 def probe_engineers() -> None:
     def _on(k: str) -> bool:
         return os.getenv(k, "").strip().lower() in ("1", "true", "yes")
@@ -241,9 +321,22 @@ async def main_async() -> int:
     probe_skill_pack()
     probe_skill_wiring()
     probe_autonomous()
+    probe_automation_wiring()
+    await probe_self_improve_fast()
+    probe_security_kpi()
     probe_engineers()
+    # verdict from log file
+    broken = []
+    try:
+        for line in LOG.read_text(encoding="utf-8").splitlines():
+            row = json.loads(line)
+            if row.get("sessionId") == SESSION and (row.get("data") or {}).get("broken"):
+                broken.append(row.get("hypothesisId"))
+    except Exception:
+        pass
+    print(f"\n=== VERDICT: {len(broken)} broken probe(s) {broken or '(none)'} ===")
     print(f"Logs -> {LOG}")
-    return 0
+    return 1 if broken else 0
 
 
 def main() -> int:

@@ -25,6 +25,8 @@ GBP audit, AI posts/caption/hashtags/carousel/meme/multilang-9, festival calenda
 
 ## 4. GENUINE GAPS — build backlog
 
+> **⚠️ STATUS UPDATE (2026-06-19 docs-audit):** Is backlog ke ~saare free-stack P0/P1 items ab **BUILT + routed + mounted** hain (modules doc-date ke baad ship hue, list update nahi hui — code se grep-verified, evidence `docs/DOCS_AUDIT_2026_06_19.md`). Naya kaam mat samjho — sirf neeche 3 items genuinely OPEN, woh bhi **DLT/telephony-blocked** (build nahi): #5 live human transfer, SMS-DLT live send, RCS rich-cards. Baaki sab parity (§3) me move ho chuke. Examples: #1 `brand_frames.py` · #2 `business_card.py` · #3 `magic_resize.py` · #4 `review_to_post.py` · #6 `/api/voiceai/ask` · #7 `speed_to_lead.py`.
+
 ### P0 (high-impact, free-stack, abhi buildable)
 1. **Branded frames + daily-post feed** (AdBanao signature, 4.5M users) — PIL compositor: client logo+naam+phone auto-overlay festival/daily templates pe → per-client roz ready post (download/1-click WA). Pieces hain (brand_kit, festivals, templates, ai_image) — sirf frame engine + daily feed missing.
 2. **Digital business card** (AdBanao/Thryv) — `/b/{slug}/card` page + .vcf download + QR. mini_site extension, ~1 din.

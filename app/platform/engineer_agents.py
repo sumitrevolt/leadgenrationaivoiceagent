@@ -381,7 +381,7 @@ def run_security() -> dict[str, Any]:
         "score": round(score, 1) if score is not None else None,
         "status": "ok",
         "summary": (
-            f"Compliance posture {score:.0f}/100 · {armed}/3 webhook secrets armed · "
+            f"Compliance posture {score:.0f}/100 · {armed}/2 webhook secrets armed · "
             f"turnstile {'on' if turnstile else 'off'}"
         ),
         "kpis": kpis,

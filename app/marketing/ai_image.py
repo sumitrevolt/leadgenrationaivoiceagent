@@ -97,6 +97,15 @@ async def fetch_image_bytes(
     key = _api_key()
     if not key:
         return None
+    # Circuit breaker (gated CIRCUIT_BREAKER=1, default OFF = pass-through): Pollinations
+    # down ho to har call 45s timeout wait na kare — OPEN pe turant None (caller SVG
+    # fallback leta). docs/GAP_ANALYSIS_SaaS_Infra_Upgrade_2026.md §3.3. Never-raise.
+    from app.infrastructure.circuit_breaker import get_breaker
+
+    _br = get_breaker("pollinations_image", fail_threshold=4, reset_after_s=60.0)
+    if not _br.allow():
+        logger.info("pollinations breaker OPEN — fast fallback (skipping fetch)")
+        return None
     try:
         import httpx
 
@@ -107,6 +116,7 @@ async def fetch_image_bytes(
         async with httpx.AsyncClient(timeout=45) as cx:
             r = await cx.get(url, headers={"Authorization": f"Bearer {key}"}, follow_redirects=True)
         if r.status_code == 200 and len(r.content) > 500:
+            _br.record_success()
             try:
                 os.makedirs(_CACHE_DIR, exist_ok=True)
                 with open(path, "wb") as f:
@@ -114,8 +124,10 @@ async def fetch_image_bytes(
             except Exception:
                 pass
             return r.content
+        _br.record_failure()
         logger.warning(f"pollinations image {r.status_code}: {r.text[:120]}")
     except Exception as e:
+        _br.record_failure()
         logger.warning(f"pollinations fetch failed: {e}")
     return None
 
