@@ -18,10 +18,10 @@ Tum DLT register kar rahe ho → **Voice + SMS + RCS teeno** ek saath legal ho j
 |---|---------|-------------|-------|------|
 | 1 | **Voice / Phone** (set-up ho raha) | 🔴 DLT | `[BUILT]` | AI call → qualify → demo → book → payment-link. **High-intent ke liye IVR**. Sabse bada. |
 | 2 | **Email** | ✅ | `[BUILT, LIVE]` | Cold + Day-3/7 nurture, auto. Reply-triage. Abhi chal raha. |
-| 3 | **SMS (DLT)** | 🔴 DLT | `[TO-BUILD]` | **₹0.10–0.20/msg, 100% reach** (feature-phone + rural Tier-2/3 bhi), **no opt-in**. AI-templated. BSP: MSG91/AiSensy/mTalkz. ★ India ke liye huge |
+| 3 | **SMS (DLT)** | 🔴 DLT | `[BUILT, gated]` | `app/integrations/sms_dlt.py` — BSP creds + `SMS_DLT_ENABLED=1` flip. Draft/auto gated. |
 | 4 | **RCS (DLT)** | 🔴 DLT | `[TO-BUILD]` | Rich cards/carousel/buttons, **no opt-in**, Android (Jio/Airtel/Vi/BSNL). SMS ka premium upgrade. ★ |
 | 5 | **WhatsApp** | ⚠️ opt-in | `[PARTIAL]` | Cold-blast = **BAN**. Sirf **opted-in** (audit/inquiry walon) ko official Cloud API + cold ke liye 1-click. 6-10x CTR. |
-| 6 | **LinkedIn** | ⚠️ limits | `[TO-BUILD]` | B2B owners. **Comment-first (2.5x better)**, 20-30 conn/day, 14-din warmup, cloud-tool. ★ business owners tak |
+| 6 | **LinkedIn** | ⚠️ limits | `[BUILT, draft-only]` | `linkedin_assist.py` — comment+connect+DM drafts; manual send (ban-safe). |
 
 ## B) INBOUND — customer khud aata hai (best long-term, FREE)
 
@@ -48,15 +48,15 @@ Tum DLT register kar rahe ho → **Voice + SMS + RCS teeno** ek saath legal ho j
 | 15 | **Referral engine** | `[BUILT referral_kit]` | Happy client → referral, AI-driven. |
 | 16 | **Review-as-acquisition** | `[BUILT review_engine]` | Reviews → rank → inbound. |
 
-## E) ⭐⭐⭐ META: Omnichannel Cadence Orchestrator `[TO-BUILD]`
-**Yahi "bahut saare approaches" ko EK system me baandhta hai.** Ek agent jo per-lead multi-channel sequence chalata (voice→no-answer→SMS→email→LinkedIn→WhatsApp-if-opted), intent+event triggered, self-A/B. Journey engine extend karke banta. **2026 ka winning pattern.**
+## E) ⭐⭐⭐ META: Omnichannel Cadence Orchestrator `[BUILT, gated]`
+**Yahi "bahut saare approaches" ko EK system me baandhta hai.** `app/marketing/cadence.py` — per-lead multi-channel sequence (email→sms→wa→voice→linkedin…). **Gated `CADENCE_ENGINE=1`**. Journey engine (`journeys.py`) inquiry/signup triggers ke saath.
 
 ---
 
 ## 🎯 Mera build-order (FREE + legal pehle)
-1. **Omnichannel cadence orchestrator** (journey engine extend) — sab channels ko tie karta. FREE.
-2. **SMS-DLT agentic sender** (DLT hote hi) — sabse sasta + widest reach.
-3. **LinkedIn comment-first agent** — B2B owners, free.
+1. ~~Omnichannel cadence orchestrator~~ ✅ **BUILT** — flip `CADENCE_ENGINE=1`.
+2. **SMS-DLT live send** (DLT + BSP creds flip) — code ready, paperwork pending.
+3. ~~LinkedIn comment-first agent~~ ✅ **BUILT** (draft-only) — `linkedin_assist.py`.
 4. **Inbound push:** SEO niche×city pages + audit-magnet promote — compounding, free.
 5. Fir RCS, WhatsApp-opted-in, ads (budget pe).
 

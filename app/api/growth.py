@@ -1169,6 +1169,8 @@ AUTOMATION_FLAGS = [
     "HERMES_HANDOFF",  # Phase-2 future: code_upgrader -> Hostinger Hermes draft-PR executor.
     # Phase-1 (read-only daily health report) hai HOSTINGER sandbox me, flag-independent.
     # Docs: docs/HOSTINGER_HERMES_SETUP.md
+    # Voice DLT unlock ke baad build — spec: voice-consent-confirm skill
+    "CONSENT_CONFIRM",  # in-call "press 1 to confirm consent" gate (TRAI DLT required) — OFF until DLT unlock
 ]
 
 
