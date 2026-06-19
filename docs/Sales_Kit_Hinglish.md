@@ -13,7 +13,26 @@ Yeh line yaad kar lo. Yahi poora business hai. "AI voice agent" mat becho — **
 
 ## 2. Pricing Card (yahi quote karna)
 
-### Per Qualified Lead (main model — isi se shuru karo)
+> **⚠️ Updated 2026-06-12:** Voice product = **flat monthly per niche-band** (unlimited AI calls). Per-qualified-lead counting hat gaya. Source: `app/marketing/voice_packages.py`.
+
+### Voice Agent — Flat Monthly (Product 2)
+| Band | Niches (examples) | Monthly | Annual (10×) |
+|---|---|---|---|
+| **A** | Solar, coaching, insurance (volume) | **₹4,999** | ₹49,990 |
+| **B** | Real estate, study abroad (mid) | **₹9,999** | ₹99,990 |
+| **C** | HNI / premium | **₹19,999** | ₹1,99,990 |
+| **Pilot** | Koi bhi band | **₹0** | 7 din / 50 calls |
+
+**Pitch line:** "Ek flat monthly fee — unlimited AI calls us niche ke liye. Recording + transcript har call pe."
+
+### Marketing Automation (Product 1 — alag product)
+| Plan | Price/mo | Voice feature |
+|---|---|---|
+| Starter | ₹1,199 | ❌ |
+| Growth | ₹2,999 | ❌ |
+| Advanced | ₹6,999 | ✅ 500 min/mo inquiry callback |
+
+### Legacy reference — per-lead market rates (competitor context only, hamara billing model NAHI)
 | Niche | Per Qualified Lead | Appointment/Site-Visit |
 |---|---|---|
 | Real Estate (broker/builder) | ₹800–1,500 | ₹3,000–5,000 (site visit) |
@@ -27,7 +46,7 @@ Yeh line yaad kar lo. Yahi poora business hai. "AI voice agent" mat becho — **
 - Sahi area/budget me hai ✓ + Interest confirm kiya ✓ + Callback/visit ke liye haan boli ✓
 - Saath me proof: call recording + transcript milta hai har lead ke saath
 
-### Monthly Plans (jo client volume chahe)
+### Monthly Plans (legacy per-QL model — **mat quote karo**, sirf competitor context)
 | Plan | Price | Kya milta hai |
 |---|---|---|
 | **Pilot** (pehla mahina) | **₹4,999** | 15 qualified leads tak + recordings + WhatsApp pe daily report |

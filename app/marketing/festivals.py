@@ -305,24 +305,97 @@ def _parse_festival_captions(text: str, names: list[str]) -> dict[str, str]:
 
 
 # --------------------------------------------------------------------------- #
-# FREE public-holidays enrichment (public-apis entry) — defensive, gated, cached.
-# ⚠️ LIVE-TESTED: Nager.Date India support NAHI karta (IN -> HTTP 204, nahi in
-# AvailableCountries) → enrichment static FESTIVALS_2026_27 pe fall back hoti (jo
-# Indian festivals Diwali/Holi/Eid ke liye behtar bhi hai). Yeh scaffold READY-TO-
-# FLIP hai: India live holidays chahiye to keyed source (Calendarific free tier)
-# is fn ke shape me daalo + URL/parse swap. Gated FESTIVALS_LIVE_HOLIDAYS=1
-# (default OFF = zero change). Cached per-year, NEVER raises (204/[] -> static).
+# FREE public-holidays enrichment — two keyed/keyless sources, defensive, cached.
+#
+# Source 1 — Calendarific (free tier, CALENDARIFIC_API_KEY env set):
+#   https://calendarific.com/api/v2/holidays?api_key=KEY&country=IN&year=YEAR
+#   Free plan: 1,000 calls/mo (per-year cache → 2 calls/year plenty).
+#   Returns official + Hindu + Muslim + Sikh + Christian public holidays for India.
+#   PREFERRED when key available — best India coverage.
+#
+# Source 2 — Nager.Date (keyless fallback):
+#   ⚠️ LIVE-TESTED: India (IN) NOT in AvailableCountries → HTTP 204 → empty [].
+#   Effectively a no-op for India; kept for non-IN country future use.
+#
+# Both: gated FESTIVALS_LIVE_HOLIDAYS=1 (default OFF = zero change),
+#        per-year cached, NEVER raises (network/parse fail → []).
+# CALENDARIFIC_API_KEY is env-only (not a boolean AUTOMATION_FLAG — it's a secret key).
 # --------------------------------------------------------------------------- #
 _HOLIDAY_CACHE: dict[int, list[dict[str, str]]] = {}
+_CALENDARIFIC_CACHE: dict[int, list[dict[str, str]]] = {}
+
+
+async def _fetch_calendarific(year: int, api_key: str) -> list[dict[str, str]]:
+    """Calendarific India holidays for `year`. Per-year cached. NEVER raises."""
+    if year in _CALENDARIFIC_CACHE:
+        return _CALENDARIFIC_CACHE[year]
+    out: list[dict[str, str]] = []
+    try:
+        import httpx
+
+        url = "https://calendarific.com/api/v2/holidays"
+        params = {"api_key": api_key, "country": "IN", "year": year}
+        async with httpx.AsyncClient(timeout=8) as c:
+            r = await c.get(url, params=params)
+            if r.status_code == 200:
+                data = r.json() or {}
+                holidays = (data.get("response") or {}).get("holidays") or []
+                for h in holidays:
+                    nm = (h.get("name") or "").strip()
+                    iso = ((h.get("date") or {}).get("iso") or "")[:10]
+                    types = h.get("type") or []
+                    htype = "national"
+                    if isinstance(types, list) and types:
+                        t0 = str(types[0]).lower()
+                        if "hindu" in t0:
+                            htype = "hindu"
+                        elif "muslim" in t0 or "islam" in t0:
+                            htype = "muslim"
+                        elif "sikh" in t0:
+                            htype = "sikh"
+                        elif "christian" in t0:
+                            htype = "christian"
+                        elif "regional" in t0 or "observance" in t0:
+                            htype = "regional"
+                    if nm and iso:
+                        out.append(
+                            {
+                                "name": nm,
+                                "date": iso,
+                                "type": htype,
+                                "marketing_angle": "Chhutti greeting / special offer",
+                                "source": "calendarific",
+                            }
+                        )
+            elif r.status_code == 401:
+                logger.warning("Calendarific: invalid API key — check CALENDARIFIC_API_KEY")
+            else:
+                logger.debug("Calendarific: HTTP %s for year %s", r.status_code, year)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("_fetch_calendarific skip: %s", e)
+    _CALENDARIFIC_CACHE[year] = out
+    return out
 
 
 async def fetch_public_holidays(year: int, country: str = "IN") -> list[dict[str, str]]:
-    """Free public holidays (Nager.Date, NO key) — official national holidays.
+    """Public holidays for `year`/`country`.
 
-    Per-year cached, 5s timeout, NEVER raises (network/parse fail -> []).
+    Priority:
+      1. Calendarific (when CALENDARIFIC_API_KEY set) — best India coverage.
+      2. Nager.Date (keyless) — good for non-IN; India returns [] (unsupported).
+    Per-year cached, 5-8s timeout, NEVER raises (network/parse fail -> []).
     """
     if year in _HOLIDAY_CACHE:
         return _HOLIDAY_CACHE[year]
+
+    # Calendarific preferred when key available (India coverage)
+    cal_key = os.environ.get("CALENDARIFIC_API_KEY", "").strip()
+    if cal_key and country == "IN":
+        out = await _fetch_calendarific(year, cal_key)
+        _HOLIDAY_CACHE[year] = out
+        return out
+
+    # Nager.Date keyless fallback (non-IN countries; India = 204/empty)
     out: list[dict[str, str]] = []
     try:
         import httpx

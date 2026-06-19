@@ -15,9 +15,9 @@
 ## 2. Pricing intel (positioning ammo)
 
 - Transparent INR pricing RARE hai — sirf MyOperator (AI agent **+₹10,000/agent/mo**) aur INR WhatsApp tools publish karte. Vodex $100/mo se. Birdeye $299/loc, Podium ~$500-800/mo, NiceJob $75/mo floor.
-- **Humara ₹999/₹2,499/₹5,999 sabko 5-10x undercut karta** — Advanced (voice) MyOperator ke AI-Voice ₹10k+platform se ~60% sasta. Yeh landing/sales copy me explicitly bolo ("MyOperator AI ₹10,000/agent — hum ₹5,999 all-in").
+- **Humara Marketing ₹1,199 / ₹2,999 / ₹6,999** aur **Voice flat-band ₹4,999 / ₹9,999 / ₹19,999/mo** (band A/B/C) — MyOperator AI-Voice ₹10k+ se materially sasta. Landing copy me explicitly bolo.
 - Patterns copy karne layak: credit add-on packs (topups ✅ hain), "connected calls only billed" framing (Vodex), non-expiring credits + free campaign team (Sarv), free-tier→audit funnel (Dhanda — humara /audit ✅).
-- Dhanda = closest direct competitor (GBP audit + monthly GBP posts + AI review replies, ~₹999/mo) — no voice, no email outreach, no CRM. AdBanao = creative library only. **Koi bhi competitor marketing+leadgen+voice teeno ek saath nahi deta** — yahi moat hai.
+- Dhanda = closest direct competitor (GBP audit + monthly GBP posts + AI review replies, ~₹999/mo) — no voice, no email outreach, no CRM. AdBanao = creative library only. **Marketing aur Voice ab alag products hain** (ADR-009) — bundle framing mat use karo.
 
 ## 3. Parity confirm (REBUILD MAT KARO — already live)
 
@@ -64,11 +64,11 @@ Privyr-style unofficial WA auto-responder on own number (ban) · Justdial/IndiaM
 ## 5. Strategic takeaways
 - 2026 direction = "AI agent jo KAAM kare, sirf draft nahi" (Birdeye BirdAI, Podium Jerry, SOCi Genius, GHL AI Employee) — humari 10-agent AI staff framing on-trend hai; demo me agents ko aur visible karo.
 - Synup ka Agency-OS model (white-label + SMB lead credits + prospect audit reports as sales tool) humare reseller/partnership track ka template hai.
-- Humara unique combo intact: koi competitor ₹999-5,999 me marketing+leadgen+voice nahi deta. P0 list close karne ke baad feature-parity story har category me "equal or better at 1/5th price" ho jayegi.
+- Humara unique combo intact: koi competitor is price band me marketing automation + India-native voice stack nahi deta. P0 list close karne ke baad feature-parity story har category me "equal or better at 1/5th price" ho jayegi.
 
 ## 6. 2026-06-17 refresh (battlecard build)
 - 5 head-to-head competitors web-reverified (June 2026): **MyOperator** AI module ₹10–20k/mo + ₹20k onboarding on ₹52k base (enterprise; 12k+ incl Amazon/Dominos/TCS). **Vodex.ai** = Bengaluru-HQ but US-collections-first, English, USD, pay-per-connected-call — India-domestic = foreign-trunk ILLEGAL (biggest landmine). **GoHighLevel** $97 platform + $97 AI Employee add-on (USD, agency, no native India/Hinglish/DLT). **Dhanda(EZO)** free+premium, GBP-only, ~59k installs/mo. **AdBanao** 4.5M users, 50L+ creative library = our honest template-scale gap.
-- **Pricing note (truth):** CLAUDE.md current = Marketing **₹1,199 / 2,999 / 6,999**; Voice = per-10-qualified-leads (**₹3,999+**). Use these — §2 ke purane ₹999/2,499/5,999 NAHI.
+- **Pricing note (truth):** Marketing **₹1,199 / 2,999 / 6,999** (`packages.py`). Voice = **flat monthly per niche-band** A/B/C **₹4,999 / 9,999 / 19,999** + free pilot 7d/50 calls (`voice_packages.py`). Per-qualified-lead counting **REMOVED** (2026-06-12).
 - **Interactive battlecard asset:** `docs/LeadGenAI_Battlecard_2026-06-17.html` (standalone) + served in-app at `/app/battlecard` (admin sidebar → Sales).
 
 ## Sources

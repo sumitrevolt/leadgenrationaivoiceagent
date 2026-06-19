@@ -485,3 +485,160 @@ def test_weather_angle_logic():
     assert wa._angle(8, "clear")["season"] == "sardi"
     assert wa._angle(28, "clear")["season"] == "suhana"
     assert all(wa._angle(t, c).get("angle") for t, c in [(38, "clear"), (8, "clear"), (25, "rain"), (28, "clear")])
+
+
+# --------------------------------------------------------------------------- #
+# festivals.py — Calendarific integration + defensive behavior
+# --------------------------------------------------------------------------- #
+
+def test_festivals_static_upcoming():
+    """Static upcoming() always returns valid list, no network needed."""
+    from app.marketing.festivals import upcoming, FESTIVALS_2026_27
+
+    result = upcoming(730)
+    # All entries have required fields
+    for f in result:
+        assert "date" in f and "name" in f and "type" in f
+        assert "days_away" in f
+    # Static calendar has entries
+    assert len(FESTIVALS_2026_27) > 0
+
+
+def test_festivals_parse_date():
+    """_parse_date handles valid + invalid inputs gracefully."""
+    from app.marketing.festivals import _parse_date
+    from datetime import date
+
+    assert isinstance(_parse_date("2026-08-15"), date)
+    assert _parse_date("") is None
+    assert _parse_date("not-a-date") is None
+    assert _parse_date(None) is None  # type: ignore[arg-type]
+
+
+def test_festivals_calendarific_parse(monkeypatch):
+    """_fetch_calendarific parses mock API response correctly, maps types."""
+    import asyncio, os
+    from app.marketing import festivals
+
+    # Reset cache for clean test
+    festivals._CALENDARIFIC_CACHE.clear()
+    festivals._HOLIDAY_CACHE.clear()
+
+    mock_response = {
+        "response": {
+            "holidays": [
+                {
+                    "name": "Republic Day",
+                    "date": {"iso": "2027-01-26"},
+                    "type": ["National holiday"],
+                },
+                {
+                    "name": "Holi",
+                    "date": {"iso": "2027-03-22"},
+                    "type": ["Hindu holiday"],
+                },
+                {
+                    "name": "Eid ul-Fitr",
+                    "date": {"iso": "2027-03-10"},
+                    "type": ["Muslim holiday"],
+                },
+            ]
+        }
+    }
+
+    class MockResponse:
+        status_code = 200
+        def json(self): return mock_response
+
+    class MockClient:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): pass
+        async def get(self, url, params=None): return MockResponse()
+
+    import httpx
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: MockClient())
+
+    result = asyncio.run(festivals._fetch_calendarific(2027, "test_key"))
+    assert len(result) == 3
+    names = [h["name"] for h in result]
+    assert "Republic Day" in names and "Holi" in names
+    types = {h["name"]: h["type"] for h in result}
+    assert types["Republic Day"] == "national"
+    assert types["Holi"] == "hindu"
+    assert types["Eid ul-Fitr"] == "muslim"
+    # All have required fields
+    for h in result:
+        assert h["source"] == "calendarific"
+        assert h["date"][:4] == "2027"
+
+
+def test_festivals_calendarific_no_key_fallback(monkeypatch):
+    """When CALENDARIFIC_API_KEY unset, fetch_public_holidays falls back (Nager.Date path, IN returns [])."""
+    import asyncio, os
+    from app.marketing import festivals
+
+    festivals._HOLIDAY_CACHE.clear()
+    monkeypatch.delenv("CALENDARIFIC_API_KEY", raising=False)
+
+    # Nager.Date IN = 204 in real world; mock 204 -> empty list
+    class Mock204:
+        status_code = 204
+        def json(self): return []
+
+    class MockClient:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): pass
+        async def get(self, url, **kw): return Mock204()
+
+    import httpx
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: MockClient())
+
+    result = asyncio.run(festivals.fetch_public_holidays(2027, "IN"))
+    assert result == []  # graceful empty, no raise
+
+
+def test_festivals_calendarific_key_routes_to_calendarific(monkeypatch):
+    """When CALENDARIFIC_API_KEY set, fetch_public_holidays uses Calendarific path."""
+    import asyncio
+    from app.marketing import festivals
+
+    festivals._HOLIDAY_CACHE.clear()
+    festivals._CALENDARIFIC_CACHE.clear()
+    monkeypatch.setenv("CALENDARIFIC_API_KEY", "test_key_123")
+
+    called_urls = []
+
+    class MockResp:
+        status_code = 200
+        def json(self):
+            return {"response": {"holidays": [
+                {"name": "Independence Day", "date": {"iso": "2027-08-15"}, "type": ["National holiday"]}
+            ]}}
+
+    class MockClient:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): pass
+        async def get(self, url, params=None):
+            called_urls.append(url)
+            return MockResp()
+
+    import httpx
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: MockClient())
+
+    result = asyncio.run(festivals.fetch_public_holidays(2027, "IN"))
+    # Should have hit calendarific.com
+    assert any("calendarific" in u for u in called_urls)
+    assert len(result) == 1
+    assert result[0]["source"] == "calendarific"
+
+
+def test_festivals_upcoming_enriched_gated(monkeypatch):
+    """upcoming_enriched() returns static list when FESTIVALS_LIVE_HOLIDAYS off."""
+    import asyncio
+    from app.marketing import festivals
+
+    monkeypatch.delenv("FESTIVALS_LIVE_HOLIDAYS", raising=False)
+    result = asyncio.run(festivals.upcoming_enriched(730))
+    # Should match static upcoming() — no network call needed
+    static = festivals.upcoming(730)
+    assert len(result) == len(static)

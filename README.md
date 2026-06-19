@@ -240,7 +240,7 @@ health = await get_brain_orchestrator().route_request("health_check", {})
 readiness = await get_brain_orchestrator().route_request("production_readiness", {})
 ```
 
-📖 **Full Documentation**: [docs/THREE_BRAIN_ARCHITECTURE.md](docs/THREE_BRAIN_ARCHITECTURE.md)
+📖 **Architecture**: [docs/Architecture_Research_RAG_Agents_MCP.md](docs/Architecture_Research_RAG_Agents_MCP.md) · **Research index**: `docs/Competitor_Top20_Feature_Gap_2026.md` (archived: `docs/legacy/THREE_BRAIN_ARCHITECTURE.md`)
 
 ---
 

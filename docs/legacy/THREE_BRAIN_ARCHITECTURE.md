@@ -1,5 +1,7 @@
 # Three-Brain Architecture
 
+> **⚠️ ARCHIVED (2026-06-19):** Stale pre-pivot doc — AuraLeads, Vertex AI, ChromaDB, Razorpay. Use `docs/Architecture_Research_RAG_Agents_MCP.md` + `CLAUDE.md` instead.
+
 ## Overview
 
 AuraLeads uses a **Three-Brain Architecture** powered by **Vertex AI (Gemini)** to create a self-improving, billionaire-mindset AI system. Each brain serves a distinct purpose and works together through the Brain Orchestrator.
