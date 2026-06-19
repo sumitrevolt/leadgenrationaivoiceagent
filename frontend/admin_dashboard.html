@@ -1500,6 +1500,55 @@ async function loadNiches(){
   }
 }
 
+/* ----------------------------- system sync + client cleanup ----------------------------- */
+async function loadSyncHealth(){
+  try{
+    const r=await fetch("/api/admin/sync-health",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok) throw new Error("status "+r.status);
+    const d=await r.json();
+    const dl=d.deliverability||{}, em=d.email||{}, ju=d.judges||{}, ap=d.approvals||{}, fl=d.flags||{};
+    const pill=(ok,label)=>'<span class="tag" style="background:'+(ok?'#16a34a1a;color:#16a34a':'#ef44441a;color:#ef4444')+';margin-right:6px">'+label+'</span>';
+    const cr=(em.complaint_rate_7d_pct!=null)?em.complaint_rate_7d_pct:'—';
+    const br=(em.bounce_rate_7d_pct!=null)?em.bounce_rate_7d_pct:'—';
+    const jsum=ju.summary||{};
+    let h='<div style="margin-bottom:10px">'
+      +pill(dl.spf_ok,'SPF '+(dl.spf_ok?'✓':'✗'))
+      +pill(dl.dkim_ok,'DKIM '+(dl.dkim_ok?'✓':'✗'))
+      +pill(dl.dmarc_strong,'DMARC '+(dl.dmarc_policy||(dl.dmarc_ok?'p=?':'✗')))
+      +'</div>'
+      +'<div style="font-size:13px;line-height:1.9">'
+      +'📧 Bounce 7d: <b>'+br+'%</b> · Complaint 7d: <b>'+cr+'%</b>'+(em.paused_until?' · <span style="color:#ef4444;font-weight:700">PAUSED</span>':'')+'<br>'
+      +'⚖️ Judges: '+(jsum.reliable||0)+' reliable · '+(jsum.advisory||0)+' advisory · '+(jsum.insufficient||0)+' insufficient<br>'
+      +'📥 Approvals pending: <b>'+(ap.pending||0)+'</b> <a href="/app/automation" style="font-size:11px">→ cockpit</a><br>'
+      +'🚩 Flags ON: <b>'+(fl.on||0)+'</b> / '+(fl.total||0)
+      +'</div>';
+    $("syncBody").innerHTML=h;
+    $("sync-summary").textContent='DKIM '+(dl.dkim_ok?'✓':'✗')+' · complaint '+cr+'%';
+  }catch(e){ if($("syncBody"))$("syncBody").innerHTML='<span style="color:var(--muted)">sync-health unavailable</span>'; if($("sync-summary"))$("sync-summary").textContent='—'; }
+}
+async function dedupeClients(){
+  if(!confirm("Exact-duplicate clients (same phone) hata du? Newest record rahega.")) return;
+  try{
+    const r=await fetch("/api/admin/clients/dedupe",{method:"POST",headers:abAuthHdr()});
+    const d=await r.json();
+    adminToast("Dedupe: "+(d.removed||0)+" removed, "+(d.kept||0)+" kept");
+    loadDashboard();
+  }catch(e){ adminToast("Dedupe fail: "+e.message,"error"); }
+}
+async function bulkDelete(){
+  const sel=_getSelectedRows();
+  if(!sel.length){ adminToast("Koi client select nahi!","error"); return; }
+  if(!confirm(sel.length+" client(s) PERMANENTLY delete? (irreversible)")) return;
+  let ok=0;
+  for(const c of sel){
+    try{
+      const r=await fetch("/api/admin/clients/"+encodeURIComponent(c.client_id)+"/delete",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({confirm:true})});
+      const d=await r.json(); if(d&&d.deleted) ok++;
+    }catch(e){}
+  }
+  adminToast(ok+" client(s) deleted"); clearBulkSelect(); loadDashboard();
+}
+
 /* ----------------------------- orchestration ----------------------------- */
 function renderAll(d){
   renderHourlyOps(d.live);
@@ -1549,6 +1598,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026();
   loadRevenueAnalytics(); loadProspectsPanel(); loadActivityFeed();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail();
+  loadSyncHealth();
   loadAutomationHub();
   loadRecordings();
   loadGodMode();

@@ -1110,6 +1110,74 @@ async def get_live_stats(_user=Depends(require_admin)) -> dict:
         return {"is_sample_data": False, "error": str(e)}
 
 
+@router.get("/sync-health")
+async def admin_sync_health(_user=Depends(require_admin)) -> dict:
+    """Recently-shipped backend features surfaced for the admin dashboard
+    (so the UI stays synced with the project): deliverability (SPF/DKIM/DMARC +
+    bounce/complaint), judge-calibration, approval-queue pending, flags-on.
+    Each leg best-effort — never 500."""
+    out: dict = {}
+    try:
+        from app.platform import deliverability_monitor as _dm
+
+        out["deliverability"] = _dm.check_records()
+    except Exception as e:
+        out["deliverability"] = {"error": str(e)[:120]}
+    try:
+        from app.platform import email_warmup as _ew
+
+        out["email"] = _ew.status()
+    except Exception as e:
+        out["email"] = {"error": str(e)[:120]}
+    try:
+        from app.agents import judge_calibration as _jc
+
+        out["judges"] = _jc.calibrate()
+    except Exception as e:
+        out["judges"] = {"error": str(e)[:120]}
+    try:
+        from app.platform import approvals_bridge as _ab
+
+        out["approvals"] = _ab.list_drafts().get("counts", {})
+    except Exception as e:
+        out["approvals"] = {"error": str(e)[:120]}
+    try:
+        import os as _os
+
+        from app.api.growth import AUTOMATION_FLAGS
+
+        on = [f for f in AUTOMATION_FLAGS if (_os.environ.get(f) or "").strip().lower() in ("1", "true", "yes")]
+        out["flags"] = {"on": len(on), "total": len(AUTOMATION_FLAGS)}
+    except Exception as e:
+        out["flags"] = {"error": str(e)[:120]}
+    out["generated_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
+    return out
+
+
+class ClientDeleteIn(BaseModel):
+    confirm: bool = False
+
+
+@router.post("/clients/{client_id}/delete")
+async def admin_delete_client(client_id: str, body: ClientDeleteIn, _user=Depends(require_admin)) -> dict:
+    """Permanently remove a client record (admin cleanup of test/junk). Irreversible
+    → confirm required. Admin-gated like the other destructive admin actions."""
+    if not body.confirm:
+        return {"ok": False, "error": "confirm required"}
+    from app.marketing import clients_store
+
+    ok = clients_store.delete_client((client_id or "").strip())
+    return {"ok": ok, "client_id": client_id, "deleted": ok}
+
+
+@router.post("/clients/dedupe")
+async def admin_dedupe_clients(_user=Depends(require_admin)) -> dict:
+    """Remove exact-duplicate client records (same phone → keep newest)."""
+    from app.marketing import clients_store
+
+    return {"ok": True, **clients_store.dedupe_clients()}
+
+
 class BulkEmailIn(BaseModel):
     client_ids: list[str] = Field(..., min_length=1, max_length=50)
     subject: str | None = "LeadsGenAI — quick check-in"
