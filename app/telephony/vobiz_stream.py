@@ -1145,6 +1145,17 @@ class VobizStreamSession:
     # Outbound speech — EdgeTTS -> µ-law -> 20 ms frames
     # ------------------------------------------------------------------ #
     def _opening_line(self) -> str:
+        """Public opener — wraps the raw line with the TRAI up-front AI-disclosure
+        gate (always-on, never gated off) so every call discloses it is an AI
+        BEFORE the pitch. All call-sites + the greeting cache-key go through here."""
+        try:
+            from app.voice_agent.niche_scripts import ensure_ai_disclosure
+
+            return ensure_ai_disclosure(self._opening_line_raw())
+        except Exception:
+            return self._opening_line_raw()
+
+    def _opening_line_raw(self) -> str:
         """PURELY STATIC permission-based opener (Gong: ~11% vs 2.3% generic).
         PREFERS the professional niche-script opening (researched, niche-specific)
         with placeholders filled; falls back to the NICHES pitch_hook template.

@@ -975,4 +975,38 @@ def kb_documents(niche_key: str) -> list[str]:
     return docs
 
 
-__all__ = ["NICHE_SCRIPTS", "get_script", "kb_documents"]
+# --------------------------------------------------------------------------- #
+# TRAI up-front AI-disclosure (TCCCPR) — legal gate, ALWAYS-ON
+# --------------------------------------------------------------------------- #
+_AI_DISCLOSURE_TOKENS = ("ai assistant", "ai voice", "automated", "artificial", "a.i.", "ai-")
+
+
+def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:
+    """Guarantee the opener discloses up-front that the caller is an AI.
+
+    TRAI TCCCPR mandates AI promotional calls open with an AI disclosure (not on
+    user-ask). If the line already discloses (contains an AI token), it is left
+    as-is; otherwise an up-front disclosure is injected naturally. Never raises —
+    on any error the original text is returned (the static openers already name
+    the company, so we fail toward speaking rather than silence).
+    """
+    try:
+        t = (text or "").strip()
+        if not t:
+            return t
+        low = t.lower()
+        if any(tok in low for tok in _AI_DISCLOSURE_TOKENS):
+            return t
+        import re
+
+        # Common case: "...main Swara bol rahi hoon..." -> insert ", ek AI assistant,".
+        m = re.search(r"\bmain\s+" + re.escape(name), t, flags=re.IGNORECASE)
+        if m:
+            return t[: m.end()] + ", ek AI assistant," + t[m.end():]
+        # Fallback: prepend a short, clear disclosure sentence.
+        return f"Main ek AI assistant hoon. {t}"
+    except Exception:
+        return text or ""
+
+
+__all__ = ["NICHE_SCRIPTS", "get_script", "kb_documents", "ensure_ai_disclosure"]
