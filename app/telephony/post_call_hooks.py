@@ -121,4 +121,48 @@ async def apply_qualified_downstream(
         pass
 
 
-__all__ = ["meter_call_completion", "apply_qualified_downstream"]
+def emit_call_report(
+    q: dict[str, Any],
+    *,
+    client_id: str = "",
+    phone: str = "",
+    call_id: str = "",
+    niche: str = "",
+    city: str = "",
+    report_ready_at: str = "",
+) -> None:
+    """Fire-and-forget `call.report.ready` customer webhook once a post-call AI
+    qualification report is available.
+
+    Unlike `lead.qualified` (a billing-meter event with a minimal payload), this
+    carries the FULL report (score/summary/next_action) so a customer's CRM or
+    automation can act without polling. Fires for EVERY call that produced a
+    report (qualified or not) — the customer opted in by subscribing to this
+    event; the subscription model does the filtering.
+
+    INERT without CUSTOMER_WEBHOOKS + a matching subscription. Never raises.
+    """
+    cid = (client_id or "").strip()
+    if not cid:
+        return
+    try:
+        from app.platform import customer_webhooks as _cw
+
+        payload = {
+            "client_id": cid,
+            "call_id": str(call_id or ""),
+            "phone": phone or "",
+            "niche": niche or "",
+            "city": city or "",
+            "qualified": bool(q.get("qualified")),
+            "interest_score": q.get("interest_score"),
+            "summary": q.get("summary") or "",
+            "next_action": q.get("next_action") or "",
+            "report_ready_at": report_ready_at or "",
+        }
+        _cw.fire_emit(cid, "call.report.ready", payload)
+    except Exception as e:
+        logger.debug("[post_call] emit_call_report skip: %s", e)
+
+
+__all__ = ["meter_call_completion", "apply_qualified_downstream", "emit_call_report"]

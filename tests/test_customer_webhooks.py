@@ -267,3 +267,59 @@ async def test_emit_skips_disabled_webhook(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(cw, "_deliver_one", _stub)
     result = await cw.emit("client_a", "lead.qualified", {})
     assert result["emitted"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# call.report.ready (roadmap P0) — event + post-call emit helper
+# --------------------------------------------------------------------------- #
+def test_call_report_ready_is_supported_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The new post-call report event must be registrable by a customer."""
+    monkeypatch.setenv("CUSTOMER_WEBHOOK_DENY_PRIVATE", "0")
+    assert "call.report.ready" in cw.SUPPORTED_EVENTS
+    out = cw.register("client_a", "https://example.com/hook", ["call.report.ready"])
+    assert out["ok"] is True
+    assert out["events"] == ["call.report.ready"]
+
+
+def test_emit_call_report_builds_full_report_payload(monkeypatch: pytest.MonkeyPatch) -> None:
+    """emit_call_report() must delegate to fire_emit with the rich report
+    payload under the call.report.ready event."""
+    from app.telephony import post_call_hooks as pch
+
+    captured: dict[str, Any] = {}
+
+    def _fake_fire_emit(cid: str, event_type: str, payload: dict[str, Any]) -> None:
+        captured["cid"] = cid
+        captured["event"] = event_type
+        captured["payload"] = payload
+
+    monkeypatch.setattr(cw, "fire_emit", _fake_fire_emit)
+    pch.emit_call_report(
+        {"qualified": True, "interest_score": 82, "summary": "keen", "next_action": "send quote"},
+        client_id="client_x",
+        phone="+919812345678",
+        call_id="sid_1",
+        niche="gym",
+        city="Pune",
+        report_ready_at="2026-06-19T10:00:00",
+    )
+    assert captured["event"] == "call.report.ready"
+    assert captured["cid"] == "client_x"
+    p = captured["payload"]
+    assert p["qualified"] is True
+    assert p["interest_score"] == 82
+    assert p["summary"] == "keen"
+    assert p["next_action"] == "send quote"
+    assert p["call_id"] == "sid_1"
+    assert p["phone"] == "+919812345678"
+    assert p["report_ready_at"] == "2026-06-19T10:00:00"
+
+
+def test_emit_call_report_noop_without_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No client_id → no emit (avoids firing an unattributable report)."""
+    from app.telephony import post_call_hooks as pch
+
+    calls: list[Any] = []
+    monkeypatch.setattr(cw, "fire_emit", lambda *a, **k: calls.append(a))
+    pch.emit_call_report({"qualified": True}, client_id="")
+    assert calls == []

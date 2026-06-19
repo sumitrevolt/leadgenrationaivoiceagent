@@ -10,13 +10,13 @@
 | 0 | RFC 8058 one-click unsubscribe on cold outreach | Lead-gen | High (inbox placement) | S | ✅ shipped |
 | 1 | Contextual Retrieval + reranker (content/marketing RAG) | RAG | High (−49%→−67% retrieval miss) | M | ✅ shipped |
 | 2 | Smart Turn v3 upgrade (turn detection) | Voice | Med-High (fewer cut-offs) | S | ✅ shipped (bake+flag) |
-| 3 | Kokoro TTS as EdgeTTS fallback | Voice | Med (latency + resilience) | M | proposed |
+| 3 | Kokoro TTS as EdgeTTS fallback | Voice | Med (latency + resilience) | M | ✅ shipped (bake+flag) |
 | 4 | Hybrid search (semantic + BM25) in Qdrant | RAG | Med | M | ✅ shipped |
 | 5 | LangGraph supervisor default for high-stakes flows | Agents | Med (reliability, audit) | M | ✅ shipped |
 | 6 | Expand eval/guardrail coverage (DeepEval + cross-path) | Agents | Med (regression safety) | S-M | ✅ shipped |
 | 7 | Hindi STT upgrade eval (Sarvam Saaras V3 / IndicWhisper) | Voice | Med (Hindi WER) | M | ✅ eval harness |
 | 8 | Cerebras for bulk content-gen (keep Groq for voice) | Voice/LLM | Low-Med (throughput) | S | ✅ shipped |
-| 9 | TRAI 2025: verbal/DTMF consent-confirm step | Compliance | High (legal) | M | proposed ⚠️ |
+| 9 | TRAI 2025: verbal/DTMF consent-confirm step | Compliance | High (legal) | M | 📋 spec ready + flag — build JIT @ DLT-unlock ⚠️ |
 
 S = <½ day · M = 1–3 days. "⚠️" = touches telephony (coordinate; currently owned by the parallel cleanup).
 
@@ -36,10 +36,9 @@ S = <½ day · M = 1–3 days. "⚠️" = touches telephony (coordinate; current
 **How:** Swap the model checkpoint behind the existing `USE_SMART_TURN=1` flag; image-bake the weights; keep RMS fallback when dep/flag absent. **Tune on the FREE web-call path first** (phone = final verify).
 **Integration:** `app/voice_agent/turn_detector.py` (SmartTurnDetector model id) — already wired into `vobiz_stream` (16k) + `phone_stream` (8k). No new wiring.
 
-## 3. Kokoro TTS as EdgeTTS fallback
+## 3. Kokoro TTS as EdgeTTS fallback — ✅ SHIPPED
 **Why:** EdgeTTS (`hi-IN-SwaraNeural`) occasionally 403s and is network-dependent. Kokoro (82M, CPU, low-latency, Apache-2.0) gives a self-hosted fallback → resilience + lower tail-latency. Caveat: weaker Hindi naturalness + no voice cloning — keep EdgeTTS primary.
-**How:** New TTS provider behind `USE_KOKORO_TTS=1`, used only when EdgeTTS fails/times out (mirror the free_ai provider-chain + circuit-breaker pattern). Image-bake the 82M model.
-**Integration:** voice TTS path (alongside `PHONE_TTS_RATE/PITCH`). Compare on `scripts/agent_tester.py` scorecard before promoting.
+**What shipped:** `app/voice_agent/kokoro_tts.py` provider behind `USE_KOKORO_TTS=1`, wired into `app/voice_agent/tts.py` (used only when the EdgeTTS primary fails — off-loop `asyncio.to_thread`, never blocks the raise). Model image-baked in `Dockerfile.lock`; verify in `scripts/vps_verify_deploy.py`. Test: `tests/test_kokoro_tts.py`. Compare on `scripts/agent_tester.py` scorecard before promoting to primary.
 
 ## 4. Hybrid search (semantic + BM25) in Qdrant
 **Why:** Hybrid (dense + sparse/BM25) beats pure-semantic in production RAG and pairs with #1's contextual BM25. Qdrant supports sparse vectors natively.

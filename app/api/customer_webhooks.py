@@ -95,7 +95,7 @@ async def verifier_examples() -> dict[str, Any]:
         "scheme": "HMAC-SHA256",
         "headers": {
             "signature": "X-LeadGen-Signature  (format: sha256=<hex>)",
-            "event": "X-LeadGen-Event  (e.g. lead.qualified, call.completed)",
+            "event": "X-LeadGen-Event  (e.g. lead.qualified, call.completed, call.report.ready)",
             "delivery": "X-LeadGen-Delivery  (unique per attempt — use for idempotency)",
         },
         "important": [

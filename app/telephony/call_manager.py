@@ -493,6 +493,21 @@ class CallManager:
                         f"[call_qualifier] {call_id}: score={_q.get('interest_score')} "
                         f"qualified={_q.get('qualified')}"
                     )
+                    # call.report.ready customer webhook — every report (qualified or
+                    # not); customer opted in via subscription. Inert w/o CUSTOMER_WEBHOOKS.
+                    try:
+                        from app.telephony.post_call_hooks import emit_call_report
+
+                        emit_call_report(
+                            _q,
+                            client_id=getattr(context, "client_id", "") or "",
+                            phone=context.phone_number,
+                            call_id=str(call_id),
+                            niche=getattr(context, "niche", "") or "",
+                            city=getattr(context, "city", "") or "",
+                        )
+                    except Exception:
+                        pass
                     # Voice product (ADR-009) lead-quota meter: qualified lead =
                     # billable unit. Best-effort, FAIL-OPEN (lead_usage kabhi raise nahi).
                     if _q.get("qualified"):
