@@ -97,7 +97,12 @@ def _run_async(coro):
     bind=True,
     name="app.tasks.staff_jobs.self_improve_tick",
     max_retries=0,
-    acks_late=True,
+    # acks_late=False (ack-on-receipt) — DELIBERATE: yeh task khud-ko-requeue karne
+    # wali chain hai. acks_late=True hota to worker-loss (deploy/recreate) pe in-flight
+    # tick REDELIVER hota + chain requeue bhi → DUPLICATE chains → queue flood (2501
+    # self_improve_tick dekha gaya). Chain waise bhi ensure_alive() revive se self-heal
+    # karti, isliye restart pe ek tick lose hona safe hai. Single-chain = no multiply.
+    acks_late=False,
 )
 def self_improve_tick(self):
     """Self-improve CONTINUOUS loop ka ek tick: run_once → khud ko requeue

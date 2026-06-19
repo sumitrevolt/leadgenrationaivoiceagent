@@ -623,9 +623,27 @@ async def run_once() -> dict[str, Any]:
     return {"enabled": True, **rec}
 
 
+def _acquire_revive_lock() -> bool:
+    """Single-chain guard: Redis NX lock taaki concurrent revivers (watchdog hourly +
+    self_improve_revive */20min) ek hi stale-window me DO chains na bana dein → queue
+    flood (2501 self_improve_tick lesson). TTL ~gap*2: chain sach me mari ho to expire
+    hoke agla revive reseed kar lega. Fail-open — Redis na ho to True (purana behaviour)."""
+    try:
+        import redis as _redis
+
+        from app.config import settings
+
+        r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
+        ttl = max(300, gap_seconds() * 2)
+        return bool(r.set("self_improve:revive_lock", str(int(time.time())), nx=True, ex=ttl))
+    except Exception:
+        return True  # fail-open: Redis down → pehle jaisa behave karo
+
+
 def ensure_alive() -> dict[str, Any]:
     """Watchdog hook (light, sync): flag ON + heartbeat stale → Celery tick enqueue.
-    Web process me kabhi inline run nahi (prod-down lesson)."""
+    Web process me kabhi inline run nahi (prod-down lesson). Single-chain locked —
+    concurrent/repeat revivals chain multiply nahi karte."""
     if not enabled():
         return {"enabled": False}
     try:
@@ -634,10 +652,13 @@ def ensure_alive() -> dict[str, Any]:
         stale = (time.time() - last) > max(900, gap_seconds() * 4)
         if not stale:
             return {"enabled": True, "alive": True}
+        # stale → revive, PAR sirf agar koi dusra reviver abhi-abhi na chala ho (NX lock)
+        if not _acquire_revive_lock():
+            return {"enabled": True, "alive": False, "revive_skipped": "lock"}
         from app.tasks.staff_jobs import self_improve_tick
 
         self_improve_tick.delay()
-        logger.info("[self-improve] stale heartbeat — tick re-enqueued")
+        logger.info("[self-improve] stale heartbeat — tick re-enqueued (lock acquired)")
         return {"enabled": True, "alive": False, "revived": True}
     except Exception as e:
         return {"enabled": True, "error": str(e)[:120]}
