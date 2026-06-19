@@ -301,14 +301,6 @@ async def emit_event(event: str, context: dict[str, Any] | None = None) -> list[
     Kabhi raise nahi karta.
     """
     if not _enabled():
-        # #region agent log
-        try:
-            import json as _dj, time as _dt
-            with open("debug-6e326c.log", "a", encoding="utf-8") as _df:
-                _df.write(json.dumps({"sessionId":"6e326c","hypothesisId":"B","location":"journeys.py:emit_event","message":"engine off","data":{"event":event},"timestamp":int(_dt.time()*1000)})+"\n")
-        except Exception:
-            pass
-        # #endregion
         return []
     ensure_active_defaults()
     ctx = context or {}
@@ -335,14 +327,6 @@ async def emit_event(event: str, context: dict[str, Any] | None = None) -> list[
             _append(_RUNS, run)
             runs.append(run)
             logger.info(f"[journeys] '{rule.get('name')}' ran on {event} ({len(results)} actions)")
-        # #region agent log
-        try:
-            import json as _dj, time as _dt
-            with open("debug-6e326c.log", "a", encoding="utf-8") as _df:
-                _df.write(json.dumps({"sessionId":"6e326c","hypothesisId":"B","location":"journeys.py:emit_event","message":"emit done","data":{"event":event,"runs":len(runs),"rules_enabled":sum(1 for r in list_journeys() if r.get("enabled"))},"timestamp":int(_dt.time()*1000)})+"\n")
-        except Exception:
-            pass
-        # #endregion
     except Exception as e:
         logger.warning(f"[journeys] emit '{event}' failed: {e}")
     return runs
