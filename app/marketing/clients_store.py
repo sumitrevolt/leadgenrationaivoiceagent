@@ -383,6 +383,49 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
         return None
 
 
+def delete_client(cid: str) -> bool:
+    """Ek client record permanently hatao (admin cleanup — test/junk). True agar
+    mila + hata. Never-raise. (Irreversible — UI confirm pe hi call karein.)"""
+    try:
+        key = (cid or "").strip()
+        if not key:
+            return False
+        rows = _read_all()
+        new_rows = [r for r in rows if str(r.get("id")) != key]
+        if len(new_rows) == len(rows):
+            return False
+        _rewrite(new_rows)
+        return True
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"[clients_store] delete_client failed: {e}")
+        return False
+
+
+def dedupe_clients() -> dict[str, Any]:
+    """Exact-duplicate client records hatao — same phone (last-10), ya (phone na ho
+    to) same business_name. Newest rakho. Returns {removed, kept}. Never-raise."""
+    try:
+        rows = _read_all()
+        rows_sorted = sorted(rows, key=lambda r: str(r.get("created_at") or ""), reverse=True)
+        seen: set[str] = set()
+        keep: list[dict[str, Any]] = []
+        removed = 0
+        for r in rows_sorted:
+            ph = _digits(r.get("phone"))
+            dkey = ("ph:" + ph) if ph else ("nm:" + str(r.get("business_name") or "").strip().lower())
+            if dkey in seen:
+                removed += 1
+                continue
+            seen.add(dkey)
+            keep.append(r)
+        if removed:
+            _rewrite(keep)
+        return {"removed": removed, "kept": len(keep)}
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"[clients_store] dedupe_clients failed: {e}")
+        return {"removed": 0, "kept": 0, "error": str(e)}
+
+
 __all__ = [
     "add_client",
     "list_clients",
@@ -390,4 +433,6 @@ __all__ = [
     "get_by_slug",
     "set_status",
     "update_client",
+    "delete_client",
+    "dedupe_clients",
 ]
