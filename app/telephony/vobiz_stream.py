@@ -1636,6 +1636,21 @@ class VobizStreamSession:
                 f"[vobiz-stream] auto-qualify sid={self.stream_sid} "
                 f"score={q.get('interest_score')} qualified={q.get('qualified')}"
             )
+            # call.report.ready customer webhook — fires for EVERY report (qualified
+            # or not); customer opted in via subscription. Inert w/o CUSTOMER_WEBHOOKS.
+            try:
+                from app.telephony.post_call_hooks import emit_call_report
+
+                emit_call_report(
+                    q,
+                    client_id=str(self.client_id or ""),
+                    phone=lead_phone,
+                    call_id=str(self.stream_sid or ""),
+                    niche=self.niche or "",
+                    report_ready_at=rec["ts"],
+                )
+            except Exception:
+                pass
             if q.get("qualified") and self.client_id:
                 try:
                     from app.billing import lead_usage as _lead_usage

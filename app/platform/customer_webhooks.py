@@ -68,6 +68,7 @@ SUPPORTED_EVENTS = (
     "lead.created",
     "lead.qualified",
     "call.completed",
+    "call.report.ready",
     "payment.received",
     "subscription.activated",
     "subscription.cancelled",
