@@ -1117,6 +1117,8 @@ AUTOMATION_FLAGS = [
     "OLLAMA_URL", "OLLAMA_PRIMARY",  # self-hosted own LLM (GPU/PC) — URL set = active
     "NEWSLETTER_ENGINE", "WINBACK_ENGINE", "BRAND_PULSE", "TEAM_REPORT",
     "SKILL_PACK", "CODE_UPGRADER", "RECORDING_RETENTION",
+    "VOICE_EVAL_AUTO",  # daily voice persona eval suite (qa job) + self-improve voice_eval action — OFF default
+    "ML_NIGHTLY_TRAINING",  # nightly ML train (intent classifier + lead scorer + prompt-opt) in trainer job — OFF default
     "SEARXNG_URL", "NTFY_URL", "NTFY_TOPIC",  # self-hosted tools stack (URL-valued = set hone pe ON)
     "CRM_SYNC",  # qualified lead -> client ka Zoho/HubSpot auto-push
     "TELEPHONY_READY_ALERTS",  # Tara readiness score-drop email alert

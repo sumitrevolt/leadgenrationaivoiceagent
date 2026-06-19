@@ -186,6 +186,28 @@ async def _run_job_inner(job: str) -> None:
             await staff.run_ops()
         elif job == "qa":
             await staff.run_qa()
+            try:
+                # Arjun/Swara: voice agent persona eval suite — dormant engine wire,
+                # gated VOICE_EVAL_AUTO. brain=None = LLM-free rule-based smoke
+                # (regression catch: double/repeat/pushy/goodbye). Off-loop deadline.
+                if os.environ.get("VOICE_EVAL_AUTO", "0").strip().lower() in ("1", "true", "yes"):
+                    from app.platform import team
+                    from app.voice_agent.eval_suite import run_suite
+                    from app.voice_agent.natural_dialog import NaturalDialogManager
+
+                    def _vfactory():
+                        return NaturalDialogManager(niche="solar", brain=None)
+
+                    _rep = await asyncio.wait_for(run_suite(_vfactory), timeout=300)
+                    _tot = _rep.passed + _rep.failed
+                    team.log_event(
+                        "arjun",
+                        "voice_eval",
+                        f"🎙️ persona suite {_rep.passed}/{_tot} pass ({_rep.pass_rate:.0%})",
+                        status="ok" if _rep.pass_rate >= 0.7 else "warn",
+                    )
+            except Exception:
+                pass
         elif job == "trainer":
             await staff.run_trainer()
             try:
@@ -196,6 +218,23 @@ async def _run_job_inner(job: str) -> None:
                     res = skill_pack.ingest_to_kb()
                     if res.get("ok"):
                         team.log_event("guru", "skill_ingest", f"📚 {res.get('skills', 0)} skills → KB ({res.get('chunks', 0)} chunks, {res.get('backend')})")
+            except Exception:
+                pass
+            try:
+                # Dev/Meera: nightly ML training (intent classifier + lead scorer +
+                # prompt-opt + A/B variants) — dormant engine wire, gated
+                # ML_NIGHTLY_TRAINING. Internally try/excepted; hard deadline 900s.
+                if os.environ.get("ML_NIGHTLY_TRAINING", "0").strip().lower() in ("1", "true", "yes"):
+                    from app.ml.auto_trainer import auto_trainer
+                    from app.platform import team
+
+                    _ml = await asyncio.wait_for(auto_trainer.run_nightly_training(), timeout=900)
+                    team.log_event(
+                        "dev",
+                        "ml_training",
+                        f"🧠 nightly ML train: {_ml.get('status')} ({float(_ml.get('duration_seconds') or 0):.0f}s)",
+                        status="ok" if _ml.get("status") == "success" else "warn",
+                    )
             except Exception:
                 pass
         elif job == "digest":
