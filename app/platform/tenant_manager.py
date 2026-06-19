@@ -270,8 +270,18 @@ class TenantManager:
         """Make calls for a tenant"""
         campaign_manager = self.campaign_managers[tenant.id]
 
-        # Process call queue
-        stats = await campaign_manager.call_manager.process_queue()
+        # Process call queue. CallManager has no process_queue() — drain the
+        # queue for a bounded window then read stats (latent-AttributeError fix).
+        import asyncio as _asyncio
+
+        cm = campaign_manager.call_manager
+        try:
+            await _asyncio.wait_for(cm.start_call_processor(), timeout=50)
+        except (_asyncio.TimeoutError, _asyncio.CancelledError):
+            pass
+        except Exception:
+            pass
+        stats = cm.get_stats() if hasattr(cm, "get_stats") else {}
 
         if stats.get("calls_made", 0) > 0:
             tenant.config.calls_used += stats["calls_made"]

@@ -292,6 +292,55 @@ async def vobiz_answer_webhook(request: Request):
     return Response(content=xml, media_type="application/xml")
 
 
+@router.post("/vobiz/inbound")
+async def vobiz_inbound_webhook(request: Request):
+    """Inbound / no-answer / missed Vobiz call → lead capture (+ gated AI callback).
+
+    Wire this as the Vobiz inbound-DID webhook (and/or the no-answer/hangup
+    callback on an unanswered inbound call). It captures the caller as a lead
+    ALWAYS, and — when MISSED_CALL_CALLBACK=1 + a Vobiz DID is configured —
+    triggers a transactional AI callback (caller rang us first, so ban-safe).
+
+    Lead capture works NOW (no DID needed); the callback leg is flag-gated and
+    inert without a DID. Best-effort; never raises a 500. Public (Vobiz does not
+    sign callbacks). Mirrors the existing admin test route
+    POST /api/growth/missed-call → missed_call.handle_missed_call.
+    """
+    try:
+        form_data = await request.form()
+    except Exception:
+        form_data = {}
+
+    # Vobiz inbound payloads vary; accept the common caller-number field names.
+    from_number = str(
+        form_data.get("From")
+        or form_data.get("CallFrom")
+        or form_data.get("from")
+        or form_data.get("caller")
+        or form_data.get("Caller")
+        or ""
+    ).strip()
+    # Optional context (best-effort): niche/business may be passed as query/extra.
+    niche = str(form_data.get("niche") or request.query_params.get("niche") or "general").strip() or "general"
+    business = str(form_data.get("business") or request.query_params.get("business") or "").strip()
+    status = str(form_data.get("Status") or form_data.get("call_status") or "").lower()
+
+    logger.info(f"Vobiz inbound webhook - From: {from_number}, Status: {status}")
+
+    if not from_number:
+        logger.warning("Vobiz inbound webhook: caller number missing in payload")
+        return {"status": "received", "captured": False, "reason": "no caller number"}
+
+    try:
+        from app.telephony.missed_call import handle_missed_call
+
+        result = await handle_missed_call(from_number, niche, business)
+        return {"status": "received", **(result if isinstance(result, dict) else {})}
+    except Exception as e:
+        logger.error(f"Vobiz inbound webhook error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
 @router.get("/health")
 async def telephony_health():
     """Health check for telephony system"""

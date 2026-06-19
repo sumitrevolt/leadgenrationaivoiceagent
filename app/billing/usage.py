@@ -11,13 +11,41 @@ Everything is best-effort and NEVER raises — a billing hiccup must not break a
 
 from __future__ import annotations
 
+import json
 import math
+import os
 import uuid
 from datetime import datetime
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+
+def _record_meter_failure(rec: dict) -> None:
+    """Minute-meter write fail-open hai (call kabhi block na ho) — par failure SILENT
+    na rahe (revenue-leak risk: marketing-Advanced prepaid-minutes ka billable path).
+    Mirror of lead_usage._record_meter_failure: ERROR log (Loki/alertable) + best-effort
+    DURABLE record main redis (REDIS_URL = noeviction) ki list `billing:meter_failures`
+    me → ops manual replay/reconcile kar sake. Kabhi raise nahi karta.
+    Replay: `redis-cli lrange billing:meter_failures 0 -1`."""
+    try:
+        logger.error(
+            "BILLING minute-meter write FAILED (revenue-leak risk) — manual replay needed: %s",
+            json.dumps(rec, ensure_ascii=False, default=str)[:300],
+        )
+    except Exception:
+        pass
+    try:
+        import redis as _redis
+
+        url = os.environ.get("REDIS_URL")  # main (noeviction) — NOT cache redis (evictable)
+        if url:
+            r = _redis.from_url(url, socket_timeout=2)
+            r.lpush("billing:meter_failures", json.dumps(rec, ensure_ascii=False, default=str))
+            r.ltrim("billing:meter_failures", 0, 4999)  # bounded
+    except Exception:
+        pass
 
 # Included calling minutes per marketing plan (matches packages.py: Advanced = 500/mo).
 PLAN_MINUTES: dict[str, int] = {"starter": 0, "growth": 0, "advanced": 500}
@@ -134,6 +162,23 @@ def record_call_usage(
         return True
     except Exception as e:
         logger.debug("record_call_usage skipped: %s", e)
+        # Fail-OPEN: call kabhi block na ho. Par minute-meter write fail = silent
+        # revenue-leak (Advanced prepaid-minutes path) — durable record karo taaki
+        # ops replay/reconcile kar sake + meter_watch alert utha sake. NEVER raises.
+        try:
+            _record_meter_failure(
+                {
+                    "client_id": (client_id or "").strip(),
+                    "ts": datetime.utcnow().isoformat(),
+                    "kind": "minutes",
+                    "duration_seconds": int(duration_seconds or 0),
+                    "campaign_id": str(campaign_id or ""),
+                    "client_name": str(client_name or ""),
+                    "error": str(e)[:200],
+                }
+            )
+        except Exception:
+            pass
         return False
 
 

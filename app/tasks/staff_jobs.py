@@ -56,6 +56,8 @@ STAFF_JOBS = (
     "evening_wrap",
     "weekly_marketing",
     "saturday_hygiene",
+    "meter_watch",        # SP1 billing meter-failure watcher (gated METER_ALERTS)
+    "process_autostart",  # D V1.1 process-engine auto-start (gated PROCESS_AUTOSTART)
 )
 
 
@@ -191,6 +193,12 @@ def run_staff_job(self, job: str):
 
         if boot_grace.should_skip_boot_grace(job):
             logger.info(f"[staff_jobs] boot-grace skip job '{job}' this worker boot")
+            try:  # SP3: surface the silent boot-grace skip (gated LOOP_SUPERVISOR)
+                from app.platform import loop_supervisor as _ls
+
+                _ls.alert_boot_grace_skip(job)
+            except Exception:
+                pass
             return {"ok": True, "job": job, "skipped": "boot_grace"}
     except Exception:
         pass
