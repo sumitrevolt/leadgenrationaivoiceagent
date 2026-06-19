@@ -380,6 +380,7 @@
         <div class="card" id="sec-health">
           <div class="hd"><h3>System Health</h3><span class="right" id="health-time">—</span></div>
           <div class="bd" id="health"></div>
+          <div class="bd" id="sysHealthDetail" style="padding-top:0"></div>
         </div>
       </div>
 
@@ -559,6 +560,7 @@
         <div class="bd">
           <div class="rev-grid" id="revKpis"></div>
           <div class="chip-row" id="revChips"></div>
+          <div class="chart-wrap" style="height:200px;margin:10px 0"><canvas id="chRevTrend"></canvas></div>
           <div class="tbl-scroll" style="border:1px solid var(--line);border-radius:10px;overflow:hidden">
             <table aria-label="Churn risk clients">
               <thead><tr><th>Client</th><th>Score</th><th>Band</th><th>Action</th></tr></thead>
@@ -982,7 +984,7 @@ function _renderClientsFiltered(){
     const pb=productBadge(c.product);
     return `<tr data-company="${escH(c.company)}" data-client-id="${escH(c.client_id||"")}" data-product="${escH(c.product||"marketing")}" data-niche="${escH(c.niche)}" data-status="${escH(c.status)}" data-plan="${escH(c.plan)}" data-mrr="${c.mrr}">
       <td><input type="checkbox" class="client-cb" aria-label="Select ${escH(c.company)}" onchange="onClientCbChange()"></td>
-      <td class="co">${escH(c.company)}<div style="font-size:10px;color:var(--muted);font-weight:400">${escH(c.client_id||"")}</div></td>
+      <td class="co">${escH(c.company)}<div style="font-size:10px;color:var(--muted);font-weight:400">${escH(c.client_id||"")}</div><button class="btn" style="margin-top:4px;padding:2px 8px;font-size:10px" onclick="openClientTimeline('${escH(c.client_id||'')}')">Timeline</button></td>
       <td><span class="tag ${pb.cls}">${escH(pb.label)}</span></td>
       <td><span class="tag">${escH(c.niche)}</span></td>
       <td>${escH(c.plan)}</td>
@@ -1389,6 +1391,71 @@ async function loadHealthDetail(){
   }catch(e){}
 }
 
+// B1: revenue trend line chart (MRR + churn over time). Inert when REVENUE_TRENDS off.
+let _revTrendChart=null;
+async function loadRevenueTrend(){
+  try{
+    const r=await fetch("/api/admin/revenue-trend?days=90",{headers:abAuthHdr(),cache:"no-store"});
+    const d=await r.json();
+    const cv=$("chRevTrend"); if(!cv) return;
+    if(!d.enabled||!(d.points||[]).length) return;
+    const labels=d.points.map(p=>String(p.date).slice(5));
+    if(_revTrendChart) _revTrendChart.destroy();
+    _revTrendChart=new Chart(cv,{
+      type:"line",
+      data:{labels,datasets:[
+        {label:"MRR (₹)",data:d.points.map(p=>p.mrr),borderColor:"#4f46e5",backgroundColor:"rgba(79,70,229,.08)",tension:.3,fill:true},
+        {label:"Churn %",data:d.points.map(p=>p.churn_pct),borderColor:"#f59e0b",tension:.3,yAxisID:"y1"}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{position:"bottom",labels:{boxWidth:12,usePointStyle:true}}},
+        scales:{y:{beginAtZero:true},y1:{position:"right",beginAtZero:true,grid:{display:false}}}}
+    });
+  }catch(e){}
+}
+
+// B2: per-client activity timeline drawer. Inert when CLIENT_TIMELINE off.
+async function openClientTimeline(cid){
+  if(!cid) return;
+  let drawer=document.getElementById("clientTlDrawer");
+  if(!drawer){
+    drawer=document.createElement("div");
+    drawer.id="clientTlDrawer";
+    drawer.style.cssText="position:fixed;top:0;right:0;width:380px;max-width:92vw;height:100%;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.18);z-index:9999;overflow:auto;padding:18px";
+    document.body.appendChild(drawer);
+  }
+  drawer.style.display="block";
+  drawer.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h3 style="margin:0">Client Timeline</h3><button class="btn" onclick="document.getElementById(\'clientTlDrawer\').style.display=\'none\'">✕</button></div><div id="clientTlBody">Loading…</div>';
+  try{
+    const r=await fetch("/api/admin/clients/"+encodeURIComponent(cid)+"/timeline?limit=50",{headers:abAuthHdr(),cache:"no-store"});
+    const d=await r.json();
+    const body=document.getElementById("clientTlBody");
+    if(!d.enabled){ body.innerHTML="<i style='color:#64748b'>CLIENT_TIMELINE flag off</i>"; return; }
+    const evs=d.events||[];
+    body.innerHTML = evs.length ? evs.map(ev=>`<div class="tl-row"><div class="tl-dot ${ev.source==='audit'?'warn':''}"></div><div><div><b>${escH(ev.kind)}</b> · <span style="color:#64748b">${escH(ev.source)}</span></div><div class="tl-meta">${escH((ev.summary||'').slice(0,140))} · ${String(ev.ts||'').slice(0,19)}</div></div></div>`).join("") : "<i style='color:#64748b'>No events yet</i>";
+  }catch(e){ const b=document.getElementById("clientTlBody"); if(b) b.innerHTML="<i style='color:#dc2626'>Failed to load</i>"; }
+}
+
+// B3: system-health drill-down gauges. Inert when SYS_HEALTH_DETAIL off.
+async function loadSysHealthDetail(){
+  const el=$("sysHealthDetail"); if(!el) return;
+  try{
+    const r=await fetch("/api/admin/system-health-detail",{headers:abAuthHdr(),cache:"no-store"});
+    const d=await r.json();
+    if(!d.enabled){ el.innerHTML="<i style='color:#64748b'>SYS_HEALTH_DETAIL flag off</i>"; return; }
+    const rows=[
+      {l:"CPU",v:(d.cpu_pct<0?"—":d.cpu_pct+"%")},
+      {l:"Memory",v:(d.mem_pct<0?"—":d.mem_pct+"%")},
+      {l:"Disk",v:(d.disk_pct<0?"—":d.disk_pct+"%")},
+      {l:"Redis",v:(d.redis_ping_ms<0?"—":d.redis_ping_ms+"ms")},
+      {l:"Celery queue",v:(d.celery_queue_depth<0?"—":d.celery_queue_depth)},
+      {l:"Worker",v:escH(d.worker_alive||"?")}
+    ];
+    el.className="rev-grid";
+    el.innerHTML=rows.map(x=>`<div class="rev-kpi"><div class="rk-lbl">${x.l}</div><div class="rk-val">${x.v}</div></div>`).join("");
+  }catch(e){}
+}
+
 function renderAgents(list){
   $("agents").innerHTML = list.map(a=>`
     <div class="agent">
@@ -1620,8 +1687,8 @@ async function loadDashboard(){
 document.addEventListener("DOMContentLoaded", ()=>{
   adminAuthBoot();
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026();
-  loadRevenueAnalytics(); loadProspectsPanel(); loadActivityFeed();
-  loadSpeedToLead(); loadInfraFlags(); loadHealthDetail();
+  loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadActivityFeed();
+  loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail();
   loadSyncHealth(); loadAgents();
   loadAutomationHub();
   loadRecordings();
