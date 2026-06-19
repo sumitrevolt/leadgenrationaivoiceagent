@@ -542,6 +542,85 @@ async def chat(
     return "", ""
 
 
+async def chat_stream(
+    system: str,
+    messages: list[dict[str, str]],
+    max_tokens: int = 90,
+    temperature: float = 0.6,
+    scope: str = "global",
+    profile: str | None = None,
+):
+    """Async token deltas from the first working free provider (stream=True).
+
+    Yields str fragments. Empty stream = no provider; caller falls back to chat().
+    Never raises."""
+    msgs: list[dict[str, str]] = []
+    if system and system.strip():
+        msgs.append({"role": "system", "content": system.strip()})
+    for m in messages or []:
+        role = m.get("role") or "user"
+        if role not in ("system", "user", "assistant"):
+            role = "user"
+        content = str(m.get("content") or "").strip()
+        if content:
+            msgs.append({"role": role, "content": content})
+    if not msgs:
+        return
+
+    try:
+        from app.llm import budget_guard
+
+        if budget_guard.active():
+            _ok, _ = await budget_guard.allow(scope)
+            if not _ok:
+                return
+    except Exception:
+        pass
+
+    prof = _resolve_llm_profile(profile, max_tokens)
+    chain = _build_llm_chain(prof)
+    for provider, model in chain:
+        if _provider_down(provider):
+            continue
+        client = _client(provider)
+        if client is None:
+            continue
+        _t0 = time.monotonic()
+        try:
+            stream = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=model,
+                    messages=msgs,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    stream=True,
+                ),
+                timeout=_CALL_TIMEOUT_S,
+            )
+            got = False
+            async for chunk in stream:
+                try:
+                    delta = chunk.choices[0].delta.content or ""
+                except Exception:
+                    delta = ""
+                if delta:
+                    got = True
+                    yield delta
+            if got:
+                _reset_cooldown_streak(provider)
+                try:
+                    from app.platform import llm_metrics
+
+                    llm_metrics.record(provider, True, (time.monotonic() - _t0) * 1000)
+                except Exception:
+                    pass
+                return
+        except Exception as e:
+            _trip_cooldown(provider, str(e))
+            logger.debug("[free_ai] %s chat_stream failed: %s", provider, e)
+            continue
+
+
 def describe() -> dict[str, Any]:
     """/status diagnostics — kaunse free providers configured hain + chains."""
     return {
@@ -565,4 +644,4 @@ def describe() -> dict[str, Any]:
     }
 
 
-__all__ = ["transcribe_audio", "chat", "describe", "PROVIDERS_AVAILABLE"]
+__all__ = ["transcribe_audio", "chat", "chat_stream", "describe", "PROVIDERS_AVAILABLE"]

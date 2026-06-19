@@ -475,6 +475,45 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             logger.warning(f"[telecaller-brain] reply failed: {e}")
             return self._script_fallback(history) or self._safe_fallback(history)
 
+    async def reply_stream_sentences(
+        self, history: list[dict[str, str]], user_text: str
+    ):
+        """Yield spoken sentences as LLM streams (USE_LLM_STREAM_TTS path).
+
+        Falls back to one-shot reply() as a single yield on any failure.
+        """
+        from app.voice_agent.llm_stream_tts import iter_sentences_from_tokens
+
+        try:
+            ut = (user_text or "").strip()
+            facts = await self._kb_facts(ut)
+            prompt = self._build_prompt(history, ut, facts)
+            from app.voice_agent import free_ai
+
+            async def _tokens():
+                async for t in free_ai.chat_stream(
+                    system="",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=int(_GEN_CONFIG["max_output_tokens"]),
+                    temperature=float(_GEN_CONFIG["temperature"]),
+                    profile="realtime",
+                ):
+                    yield t
+
+            got = False
+            async for sent in iter_sentences_from_tokens(_tokens()):
+                cleaned = self._fill(self._clean(sent))
+                if cleaned:
+                    got = True
+                    yield cleaned
+            if got:
+                return
+        except Exception as e:
+            logger.debug("[telecaller-brain] reply_stream_sentences skip: %s", e)
+        one = await self.reply(history, user_text)
+        if one:
+            yield one
+
     # Agent KABHI chup na rahe — LLM slow/empty + script-fallback bhi khali ho to
     # ek safe Hinglish clarify/ack line do (silence = worst UX; test me "NO REPLY" bug).
     _SAFE_LINES = (

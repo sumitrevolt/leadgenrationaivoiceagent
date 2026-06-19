@@ -835,6 +835,22 @@ async def deliverability_check(_user=Depends(require_admin)):
     return await deliverability_monitor.run_check()
 
 
+@router.get("/deliverability/summary")
+async def deliverability_summary(_user=Depends(require_admin)):
+    """DNS + warmup + complaint gate — admin cockpit (2026 deliverability)."""
+    from app.platform import eval_hub
+
+    return await eval_hub.deliverability_summary()
+
+
+@router.post("/infra/rag-retrieval-ab")
+async def infra_rag_retrieval_ab(_user=Depends(require_admin)):
+    """Run offline RAG A/B gate (baseline vs rerank/hybrid/full) — prove before flip."""
+    from app.platform import eval_hub
+
+    return await eval_hub.run_rag_ab_gate(timeout_s=120.0)
+
+
 @router.get("/bookings/upcoming")
 async def bookings_upcoming(all: bool = False, _user=Depends(require_admin)):
     from app.platform import booking_reminders
@@ -1225,6 +1241,7 @@ AUTOMATION_FLAGS = [
     "AMD_DETECT",  # SP7: answering-machine detection on vobiz stream (saves credits) — OFF default
     # --- Research-improvements batch 2026-06-19 ---
     "USE_TEXT_ENDPOINT",  # text-based semantic end-of-turn (complements audio Smart-Turn) — OFF default
+    "USE_LLM_STREAM_TTS",  # LLM token stream → early sentence TTS (vobiz) — OFF default
     "RECONSENT_COOLOFF_DAYS",  # TRAI re-consent cool-off (default 90; 0 disables) — strengthens compliance
 ]
 
