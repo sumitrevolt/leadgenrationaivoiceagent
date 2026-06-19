@@ -1064,6 +1064,102 @@ async def get_revenue_trend(days: int = 90, _user=Depends(require_admin)) -> dic
         return {"enabled": True, "points": [], "note": str(e)[:160]}
 
 
+def _build_client_timeline(client_id, agent_events, inquiries, audit, limit=50):
+    """Pure merge+sort of per-client events from 3 sources. Newest first."""
+    items: list[dict] = []
+    for ev in agent_events or []:
+        meta = ev.get("meta") or {}
+        if str(meta.get("client_id") or "") != str(client_id):
+            continue
+        items.append({
+            "ts": str(ev.get("at") or ""),
+            "kind": str(ev.get("action") or "event"),
+            "source": "agent",
+            "summary": f"{ev.get('member', '')}: {(ev.get('detail') or '')[:120]}".strip(": "),
+        })
+    for r in inquiries or []:
+        if str(r.get("client_id") or "") != str(client_id):
+            continue
+        items.append({
+            "ts": str(r.get("ts") or r.get("created_at") or ""),
+            "kind": "lead",
+            "source": "lead",
+            "summary": f"Enquiry from {r.get('name') or '-'}",
+        })
+    for a in audit or []:
+        if str(a.get("resource_id") or "") != str(client_id):
+            continue
+        items.append({
+            "ts": str(a.get("created_at") or ""),
+            "kind": str(a.get("action") or "audit"),
+            "source": "audit",
+            "summary": str(a.get("action") or ""),
+        })
+    items.sort(key=lambda x: x["ts"], reverse=True)
+    return items[: max(1, min(int(limit), 200))]
+
+
+def _fetch_client_audit(client_id: str, limit: int = 100) -> list[dict]:
+    """Best-effort sync read of AuditLog rows whose resource_id == client_id.
+    Never raises; returns [] if DB unreachable."""
+    try:
+        from app.models.user import AuditLog
+        from app.platform.team import _db
+
+        db = _db()
+        if db is None:
+            return []
+        try:
+            rows = (
+                db.query(AuditLog)
+                .filter(AuditLog.resource_id == str(client_id))
+                .order_by(AuditLog.created_at.desc())
+                .limit(max(1, min(int(limit), 200)))
+                .all()
+            )
+            return [
+                {
+                    "created_at": getattr(r, "created_at", None).isoformat()
+                    if getattr(r, "created_at", None)
+                    else "",
+                    "action": getattr(r, "action", ""),
+                    "resource_id": getattr(r, "resource_id", ""),
+                }
+                for r in rows
+            ]
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug("admin_dashboard: client audit fetch failed (%s)", e)
+        return []
+
+
+@router.get("/clients/{client_id}/timeline")
+async def get_client_timeline(client_id: str, limit: int = 50, _user=Depends(require_admin)) -> dict:
+    """B2: unified per-client event trail (agent_events + inquiries + audit)."""
+    if os.getenv("CLIENT_TIMELINE", "0").strip().lower() not in ("1", "true", "yes"):
+        return {"enabled": False, "client_id": client_id, "events": []}
+    agent_events: list = []
+    inquiries: list = []
+    audit: list = []
+    try:
+        from app.platform.team import recent_events
+
+        agent_events = recent_events(limit=200)
+    except Exception:
+        pass
+    try:
+        inquiries = _read_inquiries()
+    except Exception:
+        pass
+    try:
+        audit = _fetch_client_audit(client_id)
+    except Exception:
+        audit = []
+    events = _build_client_timeline(client_id, agent_events, inquiries, audit, limit)
+    return {"enabled": True, "client_id": client_id, "events": events}
+
+
 @router.get("/activity-feed")
 def get_activity_feed(
     limit: int = Query(40, ge=1, le=100),
