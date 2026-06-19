@@ -597,6 +597,14 @@ app.include_router(ai_router, prefix="/api", tags=["AI"])
 app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /api/customer/*
 app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])  # /api/admin/*
 try:
+    from app.api.system_health import router as system_health_router
+
+    app.include_router(system_health_router)  # /api/admin/system-health-detail (B3, flag-gated)
+except Exception as _e:  # pragma: no cover - never block boot
+    import logging as _lg
+
+    _lg.getLogger(__name__).warning("system_health router not mounted: %s", _e)
+try:
     from app.api.call_recordings import router as call_recordings_router
 
     app.include_router(call_recordings_router)  # /api/admin/call-recordings/*
