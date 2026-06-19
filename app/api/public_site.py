@@ -645,6 +645,14 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     try:
         from app.marketing import cadence as _cadence
 
+        # #region agent log
+        try:
+            import json as _dj, time as _dt
+            with open("debug-6e326c.log", "a", encoding="utf-8") as _df:
+                _df.write(json.dumps({"sessionId":"6e326c","hypothesisId":"A","location":"public_site.py:cadence_enroll","message":"before enroll","data":{"phone":bool(rec.get("phone"))},"timestamp":int(_dt.time()*1000)})+"\n")
+        except Exception:
+            pass
+        # #endregion
         _cadence.enroll(
             lead={
                 "phone": rec.get("phone") or "",
@@ -652,10 +660,26 @@ async def submit_inquiry(body: InquiryIn, request: Request):
                 "name": rec.get("business_name") or rec.get("name") or "",
                 "niche": rec.get("niche") or "",
                 "city": rec.get("city") or "",
+                "source": "inquiry",
             },
-            source="inquiry",
         )
+        # #region agent log
+        try:
+            import json as _dj, time as _dt
+            with open("debug-6e326c.log", "a", encoding="utf-8") as _df:
+                _df.write(json.dumps({"sessionId":"6e326c","hypothesisId":"A","location":"public_site.py:cadence_enroll","message":"enroll ok","data":{},"timestamp":int(_dt.time()*1000)})+"\n")
+        except Exception:
+            pass
+        # #endregion
     except Exception as e:
+        # #region agent log
+        try:
+            import json as _dj, time as _dt
+            with open("debug-6e326c.log", "a", encoding="utf-8") as _df:
+                _df.write(json.dumps({"sessionId":"6e326c","hypothesisId":"A","location":"public_site.py:cadence_enroll","message":"enroll failed","data":{"err":type(e).__name__,"msg":str(e)[:120]},"timestamp":int(_dt.time()*1000)})+"\n")
+        except Exception:
+            pass
+        # #endregion
         logger.debug(f"[public] cadence enroll skip: {e}")
 
     return {"ok": True, "message": _OK_MESSAGE}

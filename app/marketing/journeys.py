@@ -190,6 +190,31 @@ def seed_defaults() -> int:
     return len(rows)
 
 
+def ensure_active_defaults() -> int:
+    """JOURNEY_ENGINE=1 par kam se kam ek inquiry rule ON — warna emit empty loop.
+
+    Pehle seed (disabled), phir sirf tab enable jab koi bhi rule ON na ho.
+    Returns count enabled (0 ya 1). Kabhi raise nahi."""
+    if not _enabled():
+        return 0
+    try:
+        rules = list_journeys()
+        if not rules:
+            seed_defaults()
+            rules = list_journeys()
+        if any(r.get("enabled") for r in rules):
+            return 0
+        for r in rules:
+            if r.get("trigger") == "inquiry_received":
+                if set_enabled(str(r.get("id") or ""), True):
+                    logger.info("[journeys] auto-enabled default inquiry rule (engine on, none active)")
+                    return 1
+        return 0
+    except Exception as e:
+        logger.debug(f"[journeys] ensure_active_defaults skip: {e}")
+        return 0
+
+
 # --------------------------------------------------------------------------- #
 # Action executors — sab ban-safe (draft/note). free-LLM se Hinglish drafts.
 # --------------------------------------------------------------------------- #
@@ -276,7 +301,16 @@ async def emit_event(event: str, context: dict[str, Any] | None = None) -> list[
     Kabhi raise nahi karta.
     """
     if not _enabled():
+        # #region agent log
+        try:
+            import json as _dj, time as _dt
+            with open("debug-6e326c.log", "a", encoding="utf-8") as _df:
+                _df.write(json.dumps({"sessionId":"6e326c","hypothesisId":"B","location":"journeys.py:emit_event","message":"engine off","data":{"event":event},"timestamp":int(_dt.time()*1000)})+"\n")
+        except Exception:
+            pass
+        # #endregion
         return []
+    ensure_active_defaults()
     ctx = context or {}
     runs: list[dict[str, Any]] = []
     try:
@@ -301,6 +335,14 @@ async def emit_event(event: str, context: dict[str, Any] | None = None) -> list[
             _append(_RUNS, run)
             runs.append(run)
             logger.info(f"[journeys] '{rule.get('name')}' ran on {event} ({len(results)} actions)")
+        # #region agent log
+        try:
+            import json as _dj, time as _dt
+            with open("debug-6e326c.log", "a", encoding="utf-8") as _df:
+                _df.write(json.dumps({"sessionId":"6e326c","hypothesisId":"B","location":"journeys.py:emit_event","message":"emit done","data":{"event":event,"runs":len(runs),"rules_enabled":sum(1 for r in list_journeys() if r.get("enabled"))},"timestamp":int(_dt.time()*1000)})+"\n")
+        except Exception:
+            pass
+        # #endregion
     except Exception as e:
         logger.warning(f"[journeys] emit '{event}' failed: {e}")
     return runs
@@ -315,5 +357,6 @@ __all__ = [
     "delete_journey",
     "list_runs",
     "seed_defaults",
+    "ensure_active_defaults",
     "emit_event",
 ]
