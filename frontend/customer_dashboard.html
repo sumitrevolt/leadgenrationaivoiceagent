@@ -861,10 +861,11 @@ function renderLeads(d){
 // B4: inline lead-status edit. Falls back to a static badge when the lead
 // has no stable id (older inquiry rows). Persists via PATCH /api/customer/leads/{id}.
 function leadStatusSelect(l){
-  if(!l.id){ return `<span class="score ${l.score}">${l.score}</span>`; }
+  const cur=l.status||l.score||"";
+  if(!l.id){ return `<span class="score ${escH(cur)}">${escH(cur)}</span>`; }
   const opts=["Hot","Warm","Cold","Won","Lost","Follow-up"];
-  return `<select class="lead-status" data-id="${l.id}" onchange="updateLeadStatus(this)">`+
-    opts.map(s=>`<option value="${s}"${l.score===s?" selected":""}>${s}</option>`).join("")+
+  return `<select class="lead-status" data-id="${escH(l.id)}" onchange="updateLeadStatus(this)">`+
+    opts.map(s=>`<option value="${s}"${cur===s?" selected":""}>${s}</option>`).join("")+
     `</select>`;
 }
 async function updateLeadStatus(sel){
@@ -1696,7 +1697,7 @@ function _renderLeadsFiltered(){
       <td class="sm">${escH(l.phone)}</td>
       <td>${escH(l.city)}</td>
       <td><span class="niche">${escH(l.niche)}</span></td>
-      <td><span class="score ${escH(l.score)}" aria-label="Lead score: ${escH(l.score)}">${escH(l.score)}</span></td>
+      <td>${leadStatusSelect(l)}</td>
       <td class="sm">${escH(l.qualification)}</td>
       <td class="sm">${escH(l.date)}</td>
     </tr>`).join("");

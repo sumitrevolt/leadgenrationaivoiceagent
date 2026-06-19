@@ -65,6 +65,7 @@ class CallRow(BaseModel):
 
 class LeadRow(BaseModel):
     id: str = ""  # B4: stable inquiry UUID; used by inline status edit
+    status: str = ""  # B4: customer-editable status (defaults to AI tier `score`); kept SEPARATE from score so tier charts/filters stay intact
     business: str
     contact: str
     phone: str  # full number (client owns this lead)
@@ -379,6 +380,7 @@ def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse
         leads.append(
             LeadRow(
                 id=str(r.get("id") or ""),
+                status=tier,  # B4: default status = AI tier; overridden below if customer set one
                 business=str(r.get("business_name") or "-")[:80],
                 contact=str(r.get("name") or "-")[:80],
                 phone=(
@@ -431,7 +433,7 @@ def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse
             for _ld in leads:
                 _o = _ovr.get(_ld.id)
                 if _o and str(_o.get("client_id") or "") == str(client_id) and _o.get("status"):
-                    _ld.score = _o["status"]
+                    _ld.status = _o["status"]  # status only; score (tier) untouched so charts/filters stay valid
     except Exception:
         pass
 

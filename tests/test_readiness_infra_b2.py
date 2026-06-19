@@ -27,7 +27,7 @@ def test_timeline_aggregator_merges_and_sorts():
     events = _build_client_timeline(
         client_id="c1",
         agent_events=[{"at": "2026-06-20T10:00:00", "member": "neha", "action": "rescore", "detail": "", "meta": {"client_id": "c1"}}],
-        inquiries=[{"id": "i1", "client_id": "c1", "name": "Ravi", "ts": "2026-06-20T09:00:00"}],
+        inquiries=[{"id": "i1", "client_id": "c1", "name": "Ravi", "at": "2026-06-20T09:00:00"}],  # real inquiries use "at"
         audit=[{"created_at": "2026-06-20T11:00:00", "action": "impersonate.start", "resource_id": "c1"}],
         limit=50,
     )
