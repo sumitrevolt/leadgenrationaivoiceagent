@@ -504,6 +504,12 @@ async def _run_job_inner(job: str) -> None:
 
             self_improve.ensure_alive()  # continuous-loop dead-man revive (gated SELF_IMPROVE_LOOP; sirf Celery enqueue, inline kabhi nahi)
             try:
+                from app.agents import process_engine
+
+                process_engine.ensure_alive()  # stale RUNNING workflows → process_tick revive
+            except Exception:
+                pass
+            try:
                 from app.platform import proposal_tracking
 
                 proposal_tracking.sweep_new_opens()  # "proposal khola" event sweep (file-IO only, no send)

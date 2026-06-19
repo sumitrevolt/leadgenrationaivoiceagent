@@ -304,5 +304,44 @@ def journal(run_id: str, limit: int = 100) -> list[dict[str, Any]]:
     return _read_events(run_id)[-limit:]
 
 
+def ensure_alive(stale_minutes: int = 15) -> dict[str, Any]:
+    """Watchdog: stale RUNNING process runs ko process_tick se revive karo."""
+    revived: list[str] = []
+    active: list[str] = []
+    try:
+        now = datetime.now(timezone.utc)
+        for r in list_runs(limit=50):
+            if r.get("status") != ST_RUNNING:
+                continue
+            run_id = str(r.get("run_id") or "")
+            if not run_id:
+                continue
+            events = _read_events(run_id)
+            if not events:
+                continue
+            last_at = str(events[-1].get("at") or "")
+            try:
+                last = datetime.fromisoformat(last_at.replace("Z", "+00:00"))
+                if last.tzinfo is None:
+                    last = last.replace(tzinfo=timezone.utc)
+                age_min = (now - last).total_seconds() / 60.0
+            except Exception:
+                age_min = float(stale_minutes + 1)
+            if age_min < stale_minutes:
+                active.append(run_id)
+                continue
+            try:
+                from app.tasks.staff_jobs import process_tick
+
+                process_tick.delay(run_id)
+                revived.append(run_id)
+            except Exception as e:
+                logger.debug(f"[process] revive enqueue failed {run_id}: {e}")
+        return {"ok": True, "revived": revived, "active": active}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:120]}
+
+
 __all__ = ["start_run", "advance", "approve", "reject", "replay", "list_runs", "journal",
+           "ensure_alive",
            "ST_RUNNING", "ST_WAITING", "ST_COMPLETED", "ST_FAILED"]

@@ -175,11 +175,11 @@ def _inquiry_phone_exists(phone: str, limit: int = 1000) -> bool:
     return False
 
 
-def _create_inquiry(rec: dict[str, Any]) -> str | None:
-    """EXISTING inquiry path me lead daalo — same stores jaisa public_site.submit_inquiry
-    (jsonl FIRST never-lose + DB best-effort + Rohan team event). lead_id | None."""
+async def _create_inquiry(rec: dict[str, Any]) -> str | None:
+    """Inquiry store + full funnel hooks (shared with public_site.submit_inquiry)."""
     try:
         from app.api.public_site import _append_jsonl, _save_lead_db
+        from app.platform.inquiry_hooks import run_after_inquiry
 
         rec.setdefault("id", str(uuid.uuid4()))
         rec.setdefault("at", datetime.utcnow().isoformat() + "Z")
@@ -187,23 +187,12 @@ def _create_inquiry(rec: dict[str, Any]) -> str | None:
         lead_id = _save_lead_db(rec)
         if lead_id:
             rec["lead_id"] = lead_id
-        try:
-            from app.platform.team import log_event
-
-            log_event(
-                "rohan",
-                "inquiry_received",
-                f"{rec.get('business_name') or 'Unknown'} ({rec.get('source')}) - {rec.get('phone')}",
-                meta={"lead_id": lead_id, "via": rec.get("source"), "client_id": rec.get("client_id")},
-            )
-        except Exception:
-            pass
-        try:
-            from app.platform.lead_alerts import notify_new_lead_bg
-
-            notify_new_lead_bg(rec)  # instant Telegram/email alert (fire-and-forget, gated)
-        except Exception:
-            pass
+        await run_after_inquiry(
+            rec,
+            mini_client_id=str(rec.get("client_id") or "") or None,
+            utm_source=str(rec.get("utm_source") or "") or None,
+            lead_id=lead_id,
+        )
         return lead_id or rec.get("id")
     except Exception as e:
         logger.warning(f"[conversion] inquiry create failed: {e}")
@@ -251,7 +240,7 @@ async def widget_chat(body: WidgetChatIn):
     lead_captured = False
     phone = extract_phone(msg)
     if phone and not _inquiry_phone_exists(phone, limit=500):
-        lead_id = _create_inquiry(
+        lead_id = await _create_inquiry(
             {
                 "name": "Chat Visitor",
                 "business_name": biz or slug.replace("-", " ").title(),
@@ -344,7 +333,7 @@ async def lead_in(request: Request, key: str = ""):
     except Exception:
         client = {}
     src = (mapped.get("source") or "generic").strip().lower()[:40]
-    lead_id = _create_inquiry(
+    lead_id = await _create_inquiry(
         {
             "name": (mapped.get("name") or "Webhook Lead")[:120],
             "business_name": (mapped.get("business_name") or client.get("business_name") or "Unknown")[:200],

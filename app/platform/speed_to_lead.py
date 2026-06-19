@@ -36,8 +36,30 @@ logger = setup_logger(__name__)
 _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 _ALERTS_FILE = os.path.join("data", "lead_alerts.jsonl")
 _DIALER_FILE = os.path.join("data", "dialer_logs.jsonl")
+_CALLBACK_FILE = os.path.join("data", "callback_touches.jsonl")
 
 _TARGET_SECONDS = 120  # 2-min target
+
+
+def log_callback_touch(phone: str, *, placed: bool = True) -> None:
+    """Record AI auto-callback as first-touch evidence (speed-to-lead). Never raises."""
+    if not placed:
+        return
+    ph = _phone10(phone)
+    if not ph:
+        return
+    try:
+        os.makedirs(os.path.dirname(_CALLBACK_FILE) or ".", exist_ok=True)
+        rec = {
+            "phone": ph,
+            "epoch": time.time(),
+            "via": "ai_callback",
+            "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+        with open(_CALLBACK_FILE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception as e:
+        logger.debug(f"[speed_to_lead] callback touch log skip: {e}")
 
 
 def _read_jsonl(path: str) -> list[dict[str, Any]]:
@@ -105,6 +127,12 @@ def _evidence_epochs() -> dict[str, list[tuple[float, str]]]:
         )
         if ph and ep:
             ev.setdefault(ph, []).append((ep, "dialer_call"))
+
+    for rec in _read_jsonl(_CALLBACK_FILE):
+        ph = _phone10(rec.get("phone"))
+        ep = _to_epoch(rec.get("epoch")) or _to_epoch(rec.get("ts"))
+        if ph and ep:
+            ev.setdefault(ph, []).append((ep, "ai_callback"))
 
     return ev
 
@@ -351,4 +379,4 @@ def summary_for_client(
         return {"ok": False, "client_id": client_id, "error": str(e)[:160]}
 
 
-__all__ = ["per_inquiry", "summary", "per_inquiry_for_client", "summary_for_client"]
+__all__ = ["per_inquiry", "summary", "per_inquiry_for_client", "summary_for_client", "log_callback_touch"]

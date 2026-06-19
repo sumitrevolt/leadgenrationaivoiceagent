@@ -116,11 +116,19 @@ async def handle_flow_response(response: dict[str, Any], from_number: str = "") 
         "source": "whatsapp_flow",
     }
     try:
-        from app.api.public_site import _append_jsonl, _save_lead_db
+        import uuid as _uuid
+        from datetime import datetime as _dt
 
+        from app.api.public_site import _append_jsonl, _save_lead_db
+        from app.platform.inquiry_hooks import run_after_inquiry
+
+        rec.setdefault("id", str(_uuid.uuid4()))
+        rec.setdefault("at", _dt.utcnow().isoformat() + "Z")
         _append_jsonl(rec)
         lead_id = _save_lead_db(rec)
-        rec["lead_id"] = lead_id
+        if lead_id:
+            rec["lead_id"] = lead_id
+        await run_after_inquiry(rec, lead_id=lead_id)
         logger.info(f"[wa_flows] flow lead captured: {name} {phone}")
         return {"ok": True, "lead_id": lead_id}
     except Exception as e:

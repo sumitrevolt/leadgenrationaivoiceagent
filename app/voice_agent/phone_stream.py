@@ -48,6 +48,7 @@ import importlib.util
 import io
 import json
 import threading
+from datetime import datetime, timezone
 from collections import deque
 from typing import Any
 
@@ -241,6 +242,9 @@ class PhoneCallSession:
         # Stable per-LEAD id for cross-session agent memory (caller phone / lead_id).
         # customParameters se aata (_handle_start). None = memory INERT (safe, no leak).
         self._lead_phone: str | None = None
+
+        self._started_at = datetime.now(timezone.utc)
+        self._teardown_done = False
 
         # Stream identity (Vobiz 'start' se aata hai)
         self.stream_sid: str | None = None
@@ -888,12 +892,47 @@ class PhoneCallSession:
         return task
 
     async def _cleanup(self) -> None:
+        if self._teardown_done:
+            return
+        self._teardown_done = True
         self._running = False
         self._interrupt = True
         for t in list(self._tasks):
             t.cancel()
         if self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
+        ended = datetime.now(timezone.utc)
+        call_id = str(self.stream_sid or self.call_sid or "")
+        try:
+            from app.telephony.post_call_hooks import finalize_stream_session
+
+            await finalize_stream_session(
+                list(self.history),
+                call_id=call_id,
+                client_id=str(self.client_id or ""),
+                client_name=self.client_name or "",
+                phone=str(self._lead_phone or ""),
+                niche=self.niche or "",
+                started_at=self._started_at,
+                ended_at=ended,
+                extra_transcript={"path": "phone_stream"},
+            )
+        except Exception as e:
+            logger.debug("phone_stream: finalize_stream_session skip: %s", e)
+        try:
+            from app.platform.team import log_event
+
+            dur = max(0.0, (ended - self._started_at).total_seconds())
+            turns = len([m for m in self.history if m.get("role") == "user"])
+            log_event(
+                "swara",
+                "call_finished",
+                f"Web-call done ({dur:.0f}s, {turns} turns, niche {self.niche})",
+                status="ok" if turns > 0 else "warn",
+                meta={"path": "phone_stream", "duration_s": round(dur, 1)},
+            )
+        except Exception:
+            pass
         logger.info("phone_stream: session ended (callSid=%s)", self.call_sid)
 
 

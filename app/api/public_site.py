@@ -250,6 +250,13 @@ async def _auto_callback(phone: str, niche: str, business: str) -> None:
             pass
         if not placed:
             logger.info(f"[public] auto-callback not placed for {phone}: {result.get('error')}")
+        else:
+            try:
+                from app.platform.speed_to_lead import log_callback_touch
+
+                log_callback_touch(phone, placed=True)
+            except Exception:
+                pass
     except Exception as e:  # absolute guard — task me unhandled exception nahi
         logger.warning(f"[public] auto-callback failed for {phone}: {e}")
         try:
@@ -438,225 +445,16 @@ async def submit_inquiry(body: InquiryIn, request: Request):
         # Dono fail — even then log line to bachao (last resort).
         logger.error(f"[public] INQUIRY STORE FAILED — raw: {json.dumps(rec, ensure_ascii=False)}")
     try:
-        from app.platform.lead_alerts import notify_new_lead_bg
+        from app.platform.inquiry_hooks import run_after_inquiry
 
-        notify_new_lead_bg(rec)  # instant Telegram/email alert (fire-and-forget, gated)
-    except Exception:
-        pass
-
-    # K.4: customer-webhook fan-out for `lead.created`. Only fires when the
-    # inquiry resolved to a known client (mini-site path). Platform-level
-    # public-landing inquiries don't have a customer to notify, so they
-    # silently skip — emit() itself short-circuits on empty client_id.
-    if mini_client_id:
-        try:
-            from app.platform import customer_webhooks as _cw
-
-            payload = {
-                "client_id": mini_client_id,
-                "lead_id": lead_id,
-                "business_name": rec["business_name"],
-                "phone": rec["phone"],
-                "city": rec.get("city"),
-                "niche": rec.get("niche"),
-                "source_slug": rec.get("source_slug"),
-                "source": rec.get("source"),
-                "created_at": rec["at"],
-            }
-            # Already in an async handler — no try/RuntimeError needed
-            try:
-                asyncio.create_task(_cw.emit(mini_client_id, "lead.created", payload))
-            except Exception:
-                pass
-        except Exception:
-            pass
-
-    # 5) Team activity (Rohan — Leads Manager) — kabhi raise nahi karta.
-    #    Mini-site se aayi ho to dedicated "mini_site_inquiry" event log hota.
-    try:
-        from app.platform.team import log_event
-
-        if rec.get("source_slug"):
-            log_event(
-                "rohan",
-                "mini_site_inquiry",
-                f"{rec['business_name']} (/b/{rec['source_slug']}) - {rec['phone']}"
-                + (f" · {rec['preferred_time']}" if rec.get("preferred_time") else ""),
-                meta={
-                    "lead_id": lead_id,
-                    "source_slug": rec["source_slug"],
-                    "client_id": rec.get("client_id"),
-                    "preferred_time": rec.get("preferred_time"),
-                    "via": "mini_site",
-                },
-            )
-        else:
-            log_event(
-                "rohan",
-                "inquiry_received",
-                f"{rec['business_name']} ({rec['niche'] or 'unknown'}) - {rec['phone']}",
-                meta={"lead_id": lead_id, "city": rec.get("city"), "via": "website_form"},
-            )
-    except Exception:
-        pass
-
-    # 6) Auto-callback (Swara) — fire-and-forget AI call on the inquiry number.
-    #    AUTO_CALLBACK_INQUIRY=0 se off; telephony na ho to bas error log hota.
-    try:
-        if os.environ.get("AUTO_CALLBACK_INQUIRY", "1").strip() != "0":
-            task = asyncio.create_task(
-                _auto_callback(rec["phone"], rec.get("niche") or "general", rec["business_name"])
-            )
-            _BG_TASKS.add(task)
-            task.add_done_callback(_BG_TASKS.discard)
-    except Exception as e:
-        logger.debug(f"[public] auto-callback task spawn failed: {e}")
-
-    # 7) Owner email alert — fire-and-forget; NOTIFY_EMAIL+SMTP unset = silent skip.
-    try:
-        ntask = asyncio.create_task(_notify_inquiry_email(dict(rec)))
-        _BG_TASKS.add(ntask)
-        ntask.add_done_callback(_BG_TASKS.discard)
-    except Exception as e:
-        logger.debug(f"[public] notify-email task spawn failed: {e}")
-
-    # 7.4) Channel attribution (UTM → experiments bandit) — best-effort, sync-fast.
-    try:
-        utm = (body.utm_source or "").strip().lower()
-        if utm:
-            _UTM_MAP = {
-                "quora": "quora", "reddit": "reddit", "linkedin": "linkedin_article",
-                "medium": "medium", "telegram": "telegram", "whatsapp": "whatsapp_group",
-                "wa": "whatsapp_group", "seo": "seo_page", "google": "seo_page",
-                "organic": "seo_page", "partner": "partnership", "partnership": "partnership",
-            }
-            ch = _UTM_MAP.get(utm)
-            if ch:
-                from app.marketing import channel_experiments
-
-                channel_experiments.record_outcome(ch, "inquiry", 1, f"utm:{utm}")
-    except Exception as e:
-        logger.debug(f"[public] utm attribution skip: {e}")
-
-    # 7.5) Outbound webhooks (Zapier-style) — inert bina registered hooks. Fire-and-forget.
-    try:
-        from app.platform import outbound_webhooks
-
-        wtask = asyncio.create_task(
-            outbound_webhooks.emit(
-                "inquiry_received",
-                {
-                    "business_name": str(rec.get("business_name") or "")[:80],
-                    "name": str(rec.get("name") or "")[:60],
-                    "phone": str(rec.get("phone") or "")[-10:],
-                    "niche": rec.get("niche"),
-                    "city": rec.get("city"),
-                },
-            )
-        )
-        _BG_TASKS.add(wtask)
-        wtask.add_done_callback(_BG_TASKS.discard)
-    except Exception as e:
-        logger.debug(f"[public] webhook emit skip: {e}")
-
-    # 8) Omnichannel journey engine — fire 'inquiry_received' (gated JOURNEY_ENGINE=1;
-    #    default off = kuch nahi hota). Matching rules cross-channel drafts banate.
-    try:
-        from app.marketing import journeys
-
-        jtask = asyncio.create_task(
-            journeys.emit_event(
-                "inquiry_received",
-                {
-                    "business_name": rec.get("business_name"),
-                    "name": rec.get("name"),
-                    "phone": rec.get("phone"),
-                    "niche": rec.get("niche"),
-                    "city": rec.get("city"),
-                },
-            )
-        )
-        _BG_TASKS.add(jtask)
-        jtask.add_done_callback(_BG_TASKS.discard)
-    except Exception as e:
-        logger.debug(f"[public] journey emit spawn failed: {e}")
-
-    # ── ntfy instant phone ping ───────────────────────────────────────────────
-    # Har naya inquiry pe phone pe push notification (ntfy already ON in .env).
-    try:
-        from app.integrations import ntfy as _ntfy
-
-        _ntfy.push_bg(
-            "Naya inquiry aaya 🔔",
-            f"{rec.get('business_name') or rec.get('name') or 'Unknown'} — "
-            f"{rec.get('phone') or rec.get('email') or ''} ({rec.get('niche') or ''}/{rec.get('city') or ''})",
-            priority="default",
-            tags=["bell"],
+        await run_after_inquiry(
+            rec,
+            mini_client_id=mini_client_id,
+            utm_source=(body.utm_source or "").strip().lower() or None,
+            lead_id=lead_id,
         )
     except Exception as e:
-        logger.debug(f"[public] ntfy push skip: {e}")
-
-    # ── lead round-robin: mini-site inquiry → client team member ─────────────
-    # NeoDove/TeleCRM parity — config set ho to auto-assign + WA handoff link.
-    if mini_client_id:
-        try:
-            from app.platform import lead_distribution as _ld
-
-            assign_out = _ld.maybe_assign(
-                mini_client_id,
-                {
-                    "name": rec.get("name") or rec.get("business_name") or "",
-                    "phone": rec.get("phone") or "",
-                    "message": rec.get("message") or "",
-                    "source": rec.get("source") or "inquiry",
-                },
-            )
-            if assign_out:
-                rec["lead_assignment"] = {
-                    "member": assign_out.get("assigned_to"),
-                    "wa_link": assign_out.get("wa_link"),
-                }
-        except Exception as e:
-            logger.debug(f"[public] lead_distribution skip: {e}")
-
-    # ── sales pipeline: inquiry = new deal ───────────────────────────────────
-    # CRM-style deal tracking: inquiry aate hi "new" stage me deal ban jata.
-    # GATED: SALES_ENGINE=1 ke bina dormant (sales_pipeline guard karta hai internally).
-    try:
-        from app.marketing import sales_pipeline as _sp
-
-        _sp.upsert_deal(
-            {
-                "phone": rec.get("phone") or "",
-                "email": rec.get("email") or "",
-                "business_name": rec.get("business_name") or rec.get("name") or "",
-                "niche": rec.get("niche") or "",
-                "city": rec.get("city") or "",
-                "source": "inquiry",
-            },
-            stage="new",
-        )
-    except Exception as e:
-        logger.debug(f"[public] sales_pipeline deal skip: {e}")
-
-    # ── cadence enroll: inquiry → nurture sequence ────────────────────────────
-    # Naya inquiry lead ko multi-channel cadence me enroll karo (email→sms→wa→voice).
-    # GATED: CADENCE_ENGINE=1 bina dormant.
-    try:
-        from app.marketing import cadence as _cadence
-
-        _cadence.enroll(
-            {
-                "phone": rec.get("phone") or "",
-                "email": rec.get("email") or "",
-                "name": rec.get("business_name") or rec.get("name") or "",
-                "niche": rec.get("niche") or "",
-                "city": rec.get("city") or "",
-                "source": "inquiry",
-            },
-        )
-    except Exception as e:
-        logger.debug(f"[public] cadence enroll skip: {e}")
+        logger.debug(f"[public] inquiry funnel hooks skip: {e}")
 
     return {"ok": True, "message": _OK_MESSAGE}
 
