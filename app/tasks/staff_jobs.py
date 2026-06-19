@@ -49,6 +49,9 @@ STAFF_JOBS = (
     "engineer_finops",
     "engineer_security",
     "readiness_digest",
+    "pipeline",
+    "email_followup",
+    "kb_refresh",
 )
 
 

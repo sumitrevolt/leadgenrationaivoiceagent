@@ -170,6 +170,22 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "DPDP + TRAI posture, secret-rotation reminders, CVE triage → patch proposal, DSAR handling. KPI: compliance_posture_score. Spreads across pre-commit/Trivy today; Arnav owns it.",
         "schedule": "Daily (gated SECURITY_AGENT) + on-demand posture report",
     },
+    "ravi": {
+        "product": "marketing",
+        "name": "Ravi",
+        "emoji": "🌐",
+        "title": "SEO Scout",
+        "duties": "Programmatic SEO pages (niche×city), IndexNow sitemap ping, rank-tracker sweep — organic inbound badhao",
+        "schedule": "Roz blog ke saath + Monday SEO batch",
+    },
+    "neha": {
+        "product": "marketing",
+        "name": "Neha",
+        "emoji": "♻️",
+        "title": "Pipeline Ops",
+        "duties": "Lead rescore, hot-lead surfacing Rohan ke liye, journey rules seed — pipeline fresh rakho",
+        "schedule": "Roz 11:00 IST pipeline job",
+    },
 }
 
 
@@ -522,6 +538,23 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         except Exception:
             return "infra watch"
 
+    def _ravi() -> str:
+        try:
+            from app.marketing import seo_pages
+
+            pages = seo_pages.list_pages(limit=200) if hasattr(seo_pages, "list_pages") else []
+            return f"programmatic SEO pages {len(pages or [])} live"
+        except Exception:
+            return "SEO watch"
+
+    def _neha() -> str:
+        try:
+            from app.platform import lead_scoring
+
+            return f"hot threshold ≥{lead_scoring.HOT_THRESHOLD} · pipeline ready"
+        except Exception:
+            return "pipeline watch"
+
     # least-recently-active pehle (rotation) — taaki sab baari-baari pulse hon
     monitors = [
         ("kavya", "ops_pulse", _kavya),
@@ -533,6 +566,8 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         ("vikram", "code_pulse", _vikram),
         ("guru", "skill_pulse", _guru),
         ("hermes", "infra_pulse", _hermes),
+        ("ravi", "seo_pulse", _ravi),
+        ("neha", "pipeline_pulse", _neha),
     ]
     try:
         ts = team_status()

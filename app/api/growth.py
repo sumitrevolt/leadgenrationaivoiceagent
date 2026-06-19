@@ -1106,7 +1106,7 @@ AUTOMATION_FLAGS = [
     "TELEGRAM_AUTO_PUBLISH", "CLIENT_REPORTS", "CUSTOMER_WISHES", "RANK_TRACKER",
     "MEMORY_VAULT", "LIVE_NOTES", "DLQ_AUTO_RETRY", "INTEGRATION_ALERTS", "INFRA_HANDLER",
     "NPS_ALERTS", "INDEXNOW", "SALES_TEAM", "SELF_IMPROVE_LOOP", "LEAD_HARVESTER",
-    "CALL_TRANSFER", "OUTREACH_AB", "SERVICE_REMINDERS", "LLM_CAPACITY_ALERTS", "KB_PREWARM",
+    "CALL_TRANSFER", "OUTREACH_AB", "SERVICE_REMINDERS", "LLM_CAPACITY_ALERTS", "KB_PREWARM", "KB_WEEKLY_REFRESH",
     "SEMANTIC_CACHE",  # semantic LLM response cache (Qdrant+Redis, off-loop) — OFF default, fail-open
     "AGENT_MEMORY",  # cross-session per-lead/client memory (Qdrant+free LLM, off-loop) — OFF default, fail-open
     "LLM_BUDGET_GUARD",  # per-scope LLM daily cost/usage cap + kill-switch — OFF default, fail-open

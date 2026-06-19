@@ -111,6 +111,9 @@ _last_ran: dict[str, str | None] = {
     "engineer_finops": None,    # daily: Vidya margin score
     "engineer_security": None,  # daily: Arnav compliance posture
     "readiness_digest": None,   # G.3: daily activation-readiness ntfy digest (OPS_ALERTS gated)
+    "pipeline": None,           # daily: lead rescore + hot-lead surfacing (Neha/Rohan)
+    "email_followup": None,     # daily afternoon: Day-3/7 followups only
+    "kb_refresh": None,         # weekly Sun: contextual KB re-ingest (gated)
 }
 
 
@@ -206,6 +209,44 @@ async def _run_job_inner(job: str) -> None:
                         f"🎙️ persona suite {_rep.passed}/{_tot} pass ({_rep.pass_rate:.0%})",
                         status="ok" if _rep.pass_rate >= 0.7 else "warn",
                     )
+            except Exception:
+                pass
+            try:
+                import json as _json_eval
+                from pathlib import Path
+
+                from app.agents import eval_gate, eval_metrics
+                from app.platform import team
+
+                _tdir = Path("data/call_transcripts")
+                convos: list[list] = []
+                if _tdir.is_dir():
+                    for fp in sorted(_tdir.glob("*.jsonl"))[-5:]:
+                        try:
+                            for line in fp.read_text(encoding="utf-8", errors="ignore").splitlines():
+                                line = line.strip()
+                                if not line:
+                                    continue
+                                rec = _json_eval.loads(line)
+                                msgs = rec.get("messages")
+                                if isinstance(msgs, list) and msgs:
+                                    convos.append(msgs)
+                        except Exception:
+                            continue
+                if not convos:
+                    convos = [[
+                        {"role": "assistant", "content": "Main LeadGen AI se ek AI assistant hoon."},
+                        {"role": "user", "content": "haan boliye"},
+                    ]]
+                scores = [eval_metrics.transcript_quality(m) for m in convos]
+                mean = round(sum(scores) / len(scores), 4) if scores else 1.0
+                gate = eval_gate.score_and_gate("voice_transcript", mean, meta={"n": len(convos)})
+                team.log_event(
+                    "arjun",
+                    "voice_eval_guardrail",
+                    f"📊 transcript quality {mean:.2f} · gate {gate.get('decision', 'ok')}",
+                    status="ok" if gate.get("decision") != "reject" else "warn",
+                )
             except Exception:
                 pass
         elif job == "trainer":
@@ -379,6 +420,24 @@ async def _run_job_inner(job: str) -> None:
 
             await seo_blog.run_daily_blog(3)
             try:
+                from datetime import datetime as _dt_blog
+
+                # Monday: programmatic SEO landing batch (Ravi — organic inbound).
+                if _dt_blog.now(_IST).weekday() == 0:
+                    from app.marketing import seo_pages
+                    from app.platform import team
+
+                    _seo = await seo_pages.generate_batch(limit=5)
+                    if (_seo or {}).get("ok"):
+                        team.log_event(
+                            "ravi",
+                            "seo_batch",
+                            f"🌐 {len((_seo or {}).get('pages') or [])} programmatic SEO pages",
+                            status="ok",
+                        )
+            except Exception:
+                pass
+            try:
                 from app.marketing import indexnow
 
                 await indexnow.submit_sitemap_if_enabled()  # naye URLs Bing/Yandex pe (gated INDEXNOW)
@@ -483,6 +542,18 @@ async def _run_job_inner(job: str) -> None:
             from app.marketing import onboarding
 
             await onboarding.run_onboarding_sweep()
+        elif job == "pipeline":
+            from app.platform import pipeline_ops
+
+            await pipeline_ops.run_daily()
+        elif job == "email_followup":
+            from app.platform import pipeline_ops
+
+            await pipeline_ops.run_afternoon_followups()
+        elif job == "kb_refresh":
+            from app.platform import kb_refresh
+
+            await kb_refresh.run_weekly_if_enabled()
         elif job == "standup":
             # Boss daily standup — hierarchical team coordination (gated AGENT_STANDUP).
             if os.environ.get("AGENT_STANDUP", "0").strip().lower() in ("1", "true", "yes"):
@@ -522,10 +593,16 @@ async def scheduler_loop() -> None:
                     "digest": ((8, 30), (10, 30)),
                     "prospect": ((9, 30), (11, 30)),
                     "email_outreach": ((10, 30), (12, 30)),
+                    "pipeline": ((11, 0), (12, 0)),
+                    "email_followup": ((16, 0), (17, 30)),
+                    "kb_refresh": ((5, 0), (6, 30)),
                 }
                 for _jk, (_lo, _hi) in _heavy.items():
                     if _lo <= hm < _hi:
-                        _last_ran[_jk] = day_key
+                        if _jk == "kb_refresh":
+                            _last_ran[_jk] = now.strftime("%Y-W%W")
+                        else:
+                            _last_ran[_jk] = day_key
                         logger.info(f"[team-scheduler] boot-grace: {_jk} skipped this boot (window active)")
 
             slot_min = (now.minute // 15) * 15
@@ -558,6 +635,17 @@ async def scheduler_loop() -> None:
             if (10, 30) <= hm < (12, 30) and _last_ran["email_outreach"] != day_key:
                 _last_ran["email_outreach"] = day_key
                 await _run_job("email_outreach")
+            if (11, 0) <= hm < (12, 0) and _last_ran["pipeline"] != day_key:
+                _last_ran["pipeline"] = day_key
+                await _run_job("pipeline")
+            if (16, 0) <= hm < (17, 30) and _last_ran["email_followup"] != day_key:
+                _last_ran["email_followup"] = day_key
+                await _run_job("email_followup")
+            # Sunday 05:00–06:30 IST — weekly KB contextual re-ingest (gated).
+            week_key = now.strftime("%Y-W%W")
+            if now.weekday() == 6 and (5, 0) <= hm < (6, 30) and _last_ran["kb_refresh"] != week_key:
+                _last_ran["kb_refresh"] = week_key
+                await _run_job("kb_refresh")
             # AI reply triage — hourly (read inbox replies, classify, draft). Gated by REPLY_AGENT.
             if now.minute >= 20 and _last_ran["reply_triage"] != hour_key:
                 _last_ran["reply_triage"] = hour_key
