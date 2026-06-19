@@ -38,10 +38,11 @@ RUN (pip install --no-cache-dir --retries 10 "pipecat-ai>=0.0.60" \
 # downloads; Hindi g2p uses espeak-ng (added to the production apt below). Fail =
 # non-fatal → app/voice_agent/kokoro_tts available()=False, EdgeTTS stays primary.
 # GOTCHA (2026-06-19): silero/torch above upgrades numpy to 2.x while lockfile
-# sklearn was installed --no-deps against 1.26.3 → kokoro→transformers→sklearn ABI
-# crash. Fix: force-reinstall scipy+sklearn wheels after kokoro so they match numpy.
+# pandas/sklearn were installed --no-deps against 1.26.3 → kokoro→transformers→sklearn→pandas ABI crash.
+# Fix: after kokoro, force-reinstall numpy+pandas+scipy+sklearn from lock versions together.
 RUN (pip install --no-cache-dir --retries 10 kokoro soundfile \
-    && pip install --no-cache-dir --force-reinstall "scipy==1.16.3" "scikit-learn==1.9.0" \
+    && pip install --no-cache-dir --force-reinstall \
+         "numpy==1.26.3" "pandas==2.2.0" "scipy==1.16.3" "scikit-learn==1.9.0" \
     && python -c "from kokoro import KPipeline; KPipeline(lang_code='a')") \
     || echo "WARN: kokoro bake failed — EdgeTTS-only (USE_KOKORO_TTS inert)"
 
