@@ -20,5 +20,8 @@ def test_collect_live_stats_has_ops_fields():
         "job_timeline",
         "automation_status",
         "celery_queue",
+        "dlq_count",
+        "ops_headline",
+        "staff_snapshot",
     ):
         assert key in stats

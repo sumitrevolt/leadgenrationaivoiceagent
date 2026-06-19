@@ -323,7 +323,11 @@ def _collect_live_stats() -> dict:
         "real_calls_today": 0,
         "automation_status": "unknown",
         "celery_queue": 0,
+        "dlq_count": 0,
         "job_timeline": [],
+        "ops_headline": "",
+        "ops_problems": [],
+        "staff_snapshot": [],
         "estimated_mrr": 0,
     }
 
@@ -431,8 +435,23 @@ def _collect_live_stats() -> dict:
         stats["job_timeline"] = timeline
         stats["automation_status"] = auto_status
         stats["celery_queue"] = int(queue.get("celery") or 0)
+        stats["dlq_count"] = int(queue.get("dlq") or 0)
     except Exception as e:
         logger.debug("admin_dashboard: automation_snapshot hook failed: %s", e)
+
+    # --- today overview glue (Aaj kya hua — same as /app/automation) ---
+    try:
+        from app.platform.today_overview import build as today_build
+
+        ov = today_build()
+        stats["ops_headline"] = str(ov.get("headline") or "")
+        stats["ops_problems"] = list(ov.get("problems") or [])[:6]
+        stats["staff_snapshot"] = list(ov.get("staff") or [])[:12]
+    except Exception as e:
+        logger.debug("admin_dashboard: today_overview hook failed: %s", e)
+        stats.setdefault("ops_headline", "")
+        stats.setdefault("ops_problems", [])
+        stats.setdefault("staff_snapshot", [])
 
     return stats
 
@@ -868,7 +887,7 @@ def _build_from_db() -> "DashboardResponse | None":
 # Route
 # ----------------------------------------------------------------------------
 @router.get("/dashboard", response_model=DashboardResponse)
-async def get_admin_dashboard() -> DashboardResponse:
+async def get_admin_dashboard(_user=Depends(require_admin)) -> DashboardResponse:
     """
     Owner/operator dashboard payload — REAL data only.
 
@@ -965,7 +984,10 @@ async def get_revenue_analytics() -> dict:
 
 
 @router.get("/activity-feed")
-def get_activity_feed(limit: int = Query(40, ge=1, le=100)) -> dict:
+def get_activity_feed(
+    limit: int = Query(40, ge=1, le=100),
+    _user=Depends(require_admin),
+) -> dict:
     """Agent events timeline for admin activity panel."""
     try:
         from app.platform.team import recent_events
@@ -978,7 +1000,10 @@ def get_activity_feed(limit: int = Query(40, ge=1, le=100)) -> dict:
 
 
 @router.get("/prospects-preview")
-def get_prospects_preview(limit: int = Query(40, ge=1, le=200)) -> dict:
+def get_prospects_preview(
+    limit: int = Query(40, ge=1, le=200),
+    _user=Depends(require_admin),
+) -> dict:
     """Prospect pipeline preview for admin leads section."""
     try:
         from app.platform import prospector
@@ -1006,7 +1031,7 @@ def get_prospects_preview(limit: int = Query(40, ge=1, le=200)) -> dict:
 
 
 @router.get("/live-stats")
-async def get_live_stats() -> dict:
+async def get_live_stats(_user=Depends(require_admin)) -> dict:
     """Lightweight REAL aggregates dict (prospects, inquiries, clients, emails,
     blog, content, staff actions, calls). Best-effort — never 500."""
     try:
@@ -1076,3 +1101,48 @@ async def bulk_email_clients(body: BulkEmailIn, _user=Depends(require_admin)) ->
         "smtp_configured": bool(sender.user and sender.password),
         "details": details[:20],
     }
+
+
+class CeleryTrimIn(BaseModel):
+    confirm: bool = False
+    min_depth: int = Field(50, ge=10, le=50000)
+
+
+@router.get("/ops-snapshot")
+async def get_ops_snapshot(_user=Depends(require_admin)) -> dict:
+    """Single admin ops payload — live stats + today overview + recent agent events."""
+    live = _collect_live_stats()
+    live["generated_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
+    try:
+        from app.platform.team import recent_events
+
+        live["recent_events"] = recent_events(limit=25)
+    except Exception as e:
+        live["recent_events"] = []
+        live["recent_events_error"] = str(e)[:120]
+    return live
+
+
+@router.post("/ops/celery-trim")
+async def trim_celery_queue(body: CeleryTrimIn, _user=Depends(require_admin)) -> dict:
+    """Clear stale Celery backlog (beat re-schedules). confirm=true + depth>=min_depth required."""
+    if not body.confirm:
+        return {"ok": False, "error": "confirm:true required — yeh pending tasks delete karta hai"}
+    try:
+        import redis as _redis
+
+        from app.config import settings
+
+        r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
+        depth = int(r.llen("celery") or 0)
+        if depth < body.min_depth:
+            return {
+                "ok": False,
+                "error": f"queue depth {depth} < min_depth {body.min_depth} — trim skip",
+                "depth": depth,
+            }
+        r.delete("celery")
+        return {"ok": True, "cleared": depth, "message": "celery queue cleared — beat will re-queue jobs"}
+    except Exception as e:
+        logger.warning("admin_dashboard: celery-trim failed (%s)", e)
+        return {"ok": False, "error": str(e)[:160]}

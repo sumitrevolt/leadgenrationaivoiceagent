@@ -763,15 +763,35 @@ function renderHourlyOps(live){
   if(!el) return;
   const jobs = live.job_timeline || [];
   const q = Number(live.celery_queue || 0);
+  const dlq = Number(live.dlq_count || 0);
   const st = String(live.automation_status || "ok");
+  const headline = live.ops_headline || "";
+  const problems = live.ops_problems || [];
+  const staff = live.staff_snapshot || [];
   let banner = "";
+  if(headline){
+    banner += '<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--ink)">'+escH(headline)+'</div>';
+  }
   if(st === "degraded" || q > 50){
-    banner = '<div style="padding:8px 10px;margin-bottom:10px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:12px">⚠️ Automation degraded — Celery queue: <b>'+q+'</b>. Worker restart ya DLQ sweep chahiye.</div>';
+    banner += '<div style="padding:8px 10px;margin-bottom:10px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:12px">'
+      +'⚠️ Queue backlog — Celery: <b>'+q+'</b> · DLQ: <b>'+dlq+'</b> '
+      +'<button class="btn" style="font-size:10px;padding:3px 8px;margin-left:6px" onclick="opsCeleryTrim()">🧹 Trim queue</button> '
+      +'<button class="btn" style="font-size:10px;padding:3px 8px" onclick="opsDlqSweep()">↻ DLQ sweep</button>'
+      +'</div>';
   } else if(st === "ok"){
-    banner = '<div style="padding:6px 10px;margin-bottom:10px;background:#f0fdf4;border-radius:8px;color:#166534;font-size:12px">✅ Sab scheduled jobs theek — queue '+q+'</div>';
+    banner += '<div style="padding:6px 10px;margin-bottom:10px;background:#f0fdf4;border-radius:8px;color:#166534;font-size:12px">✅ Automation OK — queue '+q+' · DLQ '+dlq+'</div>';
+  }
+  if(problems.length){
+    banner += problems.slice(0,3).map(p=>'<div style="font-size:11px;padding:6px 8px;margin-bottom:4px;background:#fff7ed;border-left:3px solid #f59e0b;border-radius:4px"><b>'+escH(p.kya||"")+'</b><div style="color:#92400e">Fix: '+escH(p.fix||"")+'</div></div>').join("");
+  }
+  let staffHtml = "";
+  if(staff.length){
+    staffHtml = '<div style="margin:10px 0 12px"><div style="font-size:11px;font-weight:700;margin-bottom:6px;color:var(--muted)">AI Staff aaj</div><div style="display:flex;flex-wrap:wrap;gap:6px">'
+      + staff.slice(0,10).map(s=>'<span class="chip" title="'+escH(s.last||"")+'">'+escH((s.emoji||"")+" "+(s.name||s.member||"?"))+' · '+Number(s.today||0)+'</span>').join("")
+      + '</div></div>';
   }
   if(!jobs.length){
-    el.innerHTML = banner + '<span class="mut">Job heartbeat data nahi — worker/beat check karo.</span>';
+    el.innerHTML = banner + staffHtml + '<span class="mut">Job heartbeat data nahi — worker/beat check karo.</span>';
     return;
   }
   const fmt = iso => {
@@ -779,7 +799,7 @@ function renderHourlyOps(live){
     try{ return new Date(iso).toLocaleString("en-IN",{hour:"2-digit",minute:"2-digit",day:"numeric",month:"short"}); }catch(e){ return iso; }
   };
   const stColor = s => (s==="ok"?"var(--green)":(s==="overdue"||s==="never_ran"?"var(--red)":"#d97706"));
-  el.innerHTML = banner + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">'
+  el.innerHTML = banner + staffHtml + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">'
     + jobs.map(j=>'<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fafafa">'
       +'<div style="font-weight:700;color:var(--ink);font-size:12px">'+escH(j.label||j.job||"?")+'</div>'
       +'<div style="font-size:10.5px;color:var(--muted);margin:3px 0 4px">'+escH((j.kya||"").slice(0,70))+'</div>'
@@ -791,6 +811,24 @@ function renderHourlyOps(live){
   if(ts && live.generated_at){
     try{ ts.textContent = "updated "+new Date(live.generated_at).toLocaleTimeString("en-IN"); }catch(e){}
   }
+}
+
+async function opsCeleryTrim(){
+  if(!confirm("Celery pending queue DELETE karein? (beat dubara schedule karega)")) return;
+  try{
+    const r=await fetch("/api/admin/ops/celery-trim",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({confirm:true,min_depth:50})});
+    const d=await r.json();
+    alert(d.ok ? ("✅ Cleared "+(d.cleared||0)+" tasks") : (d.error||"trim fail"));
+    if(d.ok) loadDashboard();
+  }catch(e){ alert("Network error"); }
+}
+async function opsDlqSweep(){
+  try{
+    const r=await fetch("/api/growth/infra/dlq/sweep?limit=20",{method:"POST",headers:abAuthHdr()});
+    const d=await r.json();
+    alert(d.ok!==false ? "DLQ sweep chala — Mission Control me detail dekho" : (d.error||"fail"));
+    loadDashboard();
+  }catch(e){ alert("DLQ sweep fail"); }
 }
 
 function renderKPIs(k, live){
@@ -1027,7 +1065,7 @@ async function loadRevenueAnalytics(){
 /* ====== Prospects pipeline ====== */
 async function loadProspectsPanel(){
   try{
-    const r=await fetch("/api/admin/prospects-preview?limit=50",{cache:"no-store"});
+    const r=await fetch("/api/admin/prospects-preview?limit=50",{headers:abAuthHdr(),cache:"no-store"});
     if(!r.ok) throw new Error("bad status");
     const d=await r.json();
     const chips=$("prosChips");
@@ -1053,25 +1091,29 @@ async function loadActivityFeed(){
   const tl=$("auditTimeline");
   let html="";
   try{
-    const ar=await fetch("/api/admin/audit-logs?limit=25",{headers:abAuthHdr(),cache:"no-store"});
-    if(ar.ok){
-      const logs=await ar.json();
-      if(Array.isArray(logs)&&logs.length){
-        html+=logs.map(l=>`<div class="tl-row"><div class="tl-dot ${l.severity==="warning"?"warn":l.severity==="error"?"err":""}"></div><div><div><b>${escH(l.action||"")}</b> · ${escH(l.resource_type||"")} ${escH(l.resource_id||"")}</div><div class="tl-meta">${escH(l.user_email||"system")} · ${escH(String(l.created_at||"").slice(0,19))}</div></div></div>`).join("");
-        const as=$("audit-summary"); if(as) as.textContent=logs.length+" audit entries";
+    const r=await fetch("/api/admin/activity-feed?limit=40",{headers:abAuthHdr(),cache:"no-store"});
+    if(r.ok){
+      const d=await r.json();
+      const evs=d.events||[];
+      if(evs.length){
+        html=evs.map(ev=>`<div class="tl-row"><div class="tl-dot ${ev.status==="error"?"err":ev.status==="warn"?"warn":""}"></div><div><div><b>${escH(ev.name||ev.member||"?")}</b> · ${escH(ev.action||"")}</div><div class="tl-meta">${escH((ev.detail||"").slice(0,120))} · ${escH(String(ev.at||"").slice(0,19))}</div></div></div>`).join("");
+        const as=$("audit-summary"); if(as) as.textContent=evs.length+" agent events (live)";
       }
     }
   }catch(e){}
   if(!html){
     try{
-      const r=await fetch("/api/admin/activity-feed?limit=30",{cache:"no-store"});
-      if(r.ok){
-        const d=await r.json();
-        html=(d.events||[]).map(ev=>`<div class="tl-row"><div class="tl-dot"></div><div><div><b>${escH(ev.member||"?")}</b> · ${escH(ev.action||"")}</div><div class="tl-meta">${escH((ev.detail||"").slice(0,100))} · ${escH(String(ev.at||"").slice(0,19))}</div></div></div>`).join("") || `<div style="color:var(--muted)">Koi activity nahi</div>`;
+      const ar=await fetch("/api/admin/audit-logs?limit=25",{headers:abAuthHdr(),cache:"no-store"});
+      if(ar.ok){
+        const logs=await ar.json();
+        if(Array.isArray(logs)&&logs.length){
+          html+=logs.map(l=>`<div class="tl-row"><div class="tl-dot ${l.severity==="warning"?"warn":l.severity==="error"?"err":""}"></div><div><div><b>${escH(l.action||"")}</b> · ${escH(l.resource_type||"")} ${escH(l.resource_id||"")}</div><div class="tl-meta">${escH(l.user_email||"system")} · ${escH(String(l.created_at||"").slice(0,19))}</div></div></div>`).join("");
+          const as=$("audit-summary"); if(as) as.textContent=logs.length+" audit entries";
+        }
       }
     }catch(e){}
   }
-  if(tl) tl.innerHTML=html||`<div style="color:var(--muted)">Activity load nahi hui</div>`;
+  if(tl) tl.innerHTML=html||`<div style="color:var(--muted)">Activity load nahi hui — admin login check karo</div>`;
 }
 
 /* ====== Speed-to-lead ====== */
@@ -1357,7 +1399,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
    never paint fake demo numbers over real ones). Cosmetic random nudges removed. */
-setInterval(()=>{ if(USING_REAL) loadDashboard(); }, 30000);
+setInterval(()=>{ if(USING_REAL){ loadDashboard(); loadActivityFeed(); } }, 60000);
 
 /* ============================================================
    BILLING & SUBSCRIPTIONS — admin per-client lookup.
