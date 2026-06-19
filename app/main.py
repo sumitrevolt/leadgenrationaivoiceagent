@@ -206,9 +206,22 @@ async def lifespan(app: FastAPI):
                 _cm = CallManager(provider=provider)
                 app.state.call_manager = _cm
                 _call_processor_task = asyncio.create_task(_cm.start_call_processor())
+                app.state.call_processor_task = _call_processor_task  # SP3: loop_supervisor handle
                 logger.info(f"✅ Call queue processor started ({provider})")
         except Exception as e:
             logger.warning(f"Call processor not started: {e}")
+
+    # SP3 loop-supervisor watchdog — re-spawns a dead call-processor + boot-grace
+    # skip visibility (gated LOOP_SUPERVISOR; default OFF = not started, no-op).
+    _supervisor_task = None
+    try:
+        from app.platform import loop_supervisor as _ls
+
+        if _ls.enabled():
+            _supervisor_task = asyncio.create_task(_ls.supervisor_loop(app, interval_s=120))
+            logger.info("✅ loop_supervisor watchdog started")
+    except Exception as _e:
+        logger.warning(f"loop_supervisor not started: {_e}")
 
     yield
 
@@ -218,6 +231,12 @@ async def lifespan(app: FastAPI):
         _call_processor_task.cancel()
         try:
             await _call_processor_task
+        except asyncio.CancelledError:
+            pass
+    if _supervisor_task is not None:
+        _supervisor_task.cancel()
+        try:
+            await _supervisor_task
         except asyncio.CancelledError:
             pass
     if ml_scheduler:

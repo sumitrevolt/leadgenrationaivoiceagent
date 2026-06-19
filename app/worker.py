@@ -425,6 +425,17 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=4, minute=0, day_of_week=5),
         "args": ("saturday_hygiene",),
     },
+    # Parallel automation batch 2026-06-19 (jobs no-op until their flag is ON)
+    "staff-meter-watch-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=55),
+        "args": ("meter_watch",),
+    },
+    "staff-process-autostart-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=6, minute=0),  # 06:00 UTC = 11:30 IST
+        "args": ("process_autostart",),
+    },
     # Self-improve CONTINUOUS loop ka dead-man REVIVER (loop khud self-requeue
     # chain hai — yeh sirf stale-heartbeat pe restart karta; flag OFF = no-op).
     "staff-selfimprove-revive": {

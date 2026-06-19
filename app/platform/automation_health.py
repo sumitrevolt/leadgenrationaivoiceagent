@@ -51,6 +51,8 @@ EXPECTED_GAP_MIN = {
     "evening_wrap": 30 * 60,
     "weekly_marketing": 8 * 24 * 60,
     "saturday_hygiene": 8 * 24 * 60,
+    "meter_watch": 180,          # hourly :55 (gated METER_ALERTS), 3h grace
+    "process_autostart": 30 * 60,  # daily ~11:30 IST (gated PROCESS_AUTOSTART)
 }
 
 

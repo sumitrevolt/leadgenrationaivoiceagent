@@ -72,15 +72,24 @@ def make_call_task(self, call_request_data: dict):
             priority=call_request_data.get("priority", 5),
         )
 
-        # Run async call in sync context (proper teardown)
-        result = _run_async(call_manager.initiate_call(request))
+        # Enqueue the call onto the (compliance-gated, Redis-backed) priority queue.
+        # NOTE: CallManager has no `initiate_call`; the public API is `queue_call()`
+        # (enqueue) drained by `start_call_processor()` (long-running). The old name
+        # raised AttributeError if legacy beat fired this task — fixed to queue_call.
+        call_id = _run_async(call_manager.queue_call(request))
 
-        logger.info(f"Call completed: {result.outcome if result else 'failed'}")
+        # queue_call returns a sentinel id ("compliance_blocked_*", "out_of_*") when
+        # the call was rejected by the compliance/billing gate rather than queued.
+        blocked = bool(call_id) and (
+            call_id.startswith("compliance_")
+            or call_id.startswith("out_of_")
+        )
+        logger.info(f"Call enqueued: {call_id} (blocked={blocked})")
 
         return {
-            "status": "completed",
-            "call_id": result.call_id if result else None,
-            "outcome": result.outcome if result else "failed",
+            "status": "blocked" if blocked else "queued",
+            "call_id": call_id,
+            "outcome": "blocked" if blocked else "queued",
         }
 
     except Exception as e:
@@ -89,16 +98,31 @@ def make_call_task(self, call_request_data: dict):
 
 
 @shared_task
-def process_queue():
+def process_queue(max_seconds: int = 50):
     """
-    Process the call queue - runs hourly
+    Drain the call queue for a bounded window (legacy beat path).
+
+    CallManager exposes `start_call_processor()` (an infinite loop), NOT a
+    one-shot `process_queue()` — calling the old name AttributeError'd. We run
+    the processor under a timeout so a periodic Celery task drains pending calls
+    without blocking the worker forever. Each queued call is compliance-gated in
+    queue_call(), so this only dispatches already-vetted requests.
     """
     logger.info("Processing call queue")
 
     call_manager = CallManager()
 
+    async def _drain():
+        try:
+            await asyncio.wait_for(
+                call_manager.start_call_processor(), timeout=max(1, int(max_seconds))
+            )
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            # Expected: the processor loops forever; we stop it after the window.
+            pass
+
     # Run async processing in sync context (proper teardown)
-    _run_async(call_manager.process_queue())
+    _run_async(_drain())
 
     return {"status": "completed", "processed_at": datetime.now().isoformat()}
 

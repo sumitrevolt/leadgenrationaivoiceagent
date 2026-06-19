@@ -549,6 +549,13 @@ class VobizStreamSession:
         self._ndm = None  # NaturalDialogManager fallback (cached — heavy)
         self._ndm_tried = False
         self._teardown_done = False  # idempotent _cleanup (WS disconnect + stop)
+        # AMD (answering-machine detection) parity — GATED AMD_DETECT (default OFF).
+        # Only the FIRST caller utterance is checked (voicemail greeting). When a
+        # machine is detected the call is logged + closed to save credits (mirrors
+        # the legacy Twilio AMD voicemail-drop/hangup in telephony/webhooks.py).
+        # Flag OFF (default) = zero behavior change.
+        self._amd_checked = False
+        self._amd_machine = False
 
     # ------------------------------------------------------------------ #
     # Main receive loop
@@ -812,6 +819,18 @@ class VobizStreamSession:
                 logger.debug(f"[vobiz-stream] dropped duplicate STT: {text!r}")
                 return
             logger.info(f"[vobiz-stream {self.stream_sid}] user: {text}")
+            # AMD parity (GATED AMD_DETECT, default OFF) — check ONLY the first
+            # caller utterance for a voicemail/answering-machine greeting. On a
+            # machine, log + close the stream (saves credits) instead of running
+            # the AI conversation against a recording. Never raises; flag OFF =
+            # no-op so default flow is unchanged.
+            if not self._amd_checked:
+                self._amd_checked = True
+                try:
+                    if await self._amd_check(text):
+                        return
+                except Exception as e:
+                    logger.debug(f"[vobiz-stream] AMD check skip: {e}")
             self.hist.append({"role": "user", "content": text})
             # SPONTANEITY: LLM+TTS se pehle turant cached "Hmm/Achha" filler
             # bajao — 1-3s ki think-window me line dead na lage. Inline await
@@ -834,6 +853,58 @@ class VobizStreamSession:
             logger.warning(f"[vobiz-stream] utterance handling failed: {e}")
         finally:
             self._thinking = False
+
+    async def _amd_check(self, text: str) -> bool:
+        """Answering-machine detection on the first caller utterance.
+
+        GATED `AMD_DETECT` (default OFF). Returns True if a machine/voicemail was
+        detected AND the call should be aborted (caller drops out of the loop);
+        the caller in _on_utterance then returns early. Flag OFF → always False
+        (no-op, default flow preserved). Never raises.
+
+        Mirrors the legacy Twilio AMD in telephony/webhooks.py (machine → hang up
+        / voicemail-drop) but for the LIVE Vobiz stream path, which has no
+        provider AnsweredBy signal — so we use the transcript-based detector on
+        the first greeting.
+        """
+        if os.environ.get("AMD_DETECT", "0").strip().lower() not in ("1", "true", "yes"):
+            return False
+        try:
+            from app.voice_agent.amd import AnsweringMachineDetector
+
+            detector = AnsweringMachineDetector()
+            result = detector.detect_from_transcript(text)
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] AMD detector unavailable: {e}")
+            return False
+        if not result.is_machine:
+            return False
+
+        self._amd_machine = True
+        logger.info(
+            f"[vobiz-stream {self.stream_sid}] AMD: machine detected "
+            f"(conf={result.confidence}, reason={result.reason}) — aborting call"
+        )
+        try:  # Team feed visibility (best-effort)
+            from app.platform.team import log_event
+
+            log_event(
+                "swara",
+                "amd_machine",
+                f"Voicemail/machine detected on call (niche {self.niche}) — aborted",
+                status="warn",
+                meta={"confidence": result.confidence, "reason": result.reason},
+            )
+        except Exception:
+            pass
+        # Close the WS gracefully — _cleanup() (idempotent) runs metering/transcript.
+        try:
+            self._closed = True
+            self._stop_play()
+            await self.ws.close()
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] AMD close failed: {e}")
+        return True
 
     async def _stt(self, pcm16: bytes) -> str:
         # Sub-350ms audio reliably transcribe NAHI hota (whisper blips pe
@@ -1565,6 +1636,31 @@ class VobizStreamSession:
             )
         except Exception as e:
             logger.debug(f"[vobiz-stream] meter_call_completion skip: {e}")
+        # PROVIDER outbound webhook parity — the legacy call_manager path emits a
+        # platform-level `call_completed` event (outbound_webhooks.emit) on every
+        # completed call; the stream path was missing it, so integrations never
+        # saw stream calls. Best-effort, never blocks teardown. (This is the
+        # PLATFORM webhook; the per-customer `call.completed` rides on
+        # meter_call_completion above — both now fire for stream calls.)
+        try:
+            from app.platform import outbound_webhooks as _ow
+
+            await _ow.emit(
+                "call_completed",
+                {
+                    "call_id": str(self.stream_sid or ""),
+                    "outcome": "completed" if turns > 0 else "no_answer",
+                    "duration_seconds": int(dur),
+                    "lead_score": 0,
+                    "phone": getattr(self, "_lead_phone", "") or "",
+                    "niche": self.niche or "",
+                    "client_id": str(self.client_id or ""),
+                    "source": "vobiz_stream",
+                },
+                client_id=str(self.client_id or ""),
+            )
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] call_completed webhook skip: {e}")
         await self._auto_qualify(ended)
         try:  # Team activity: Swara ki call khatam — dashboard feed ke liye
             from app.platform.team import log_event

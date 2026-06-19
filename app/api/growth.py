@@ -1173,6 +1173,14 @@ AUTOMATION_FLAGS = [
     # Docs: docs/HOSTINGER_HERMES_SETUP.md
     # Voice DLT unlock ke baad build — spec: voice-consent-confirm skill
     "CONSENT_CONFIRM",  # in-call "press 1 to confirm consent" gate (TRAI DLT required) — OFF until DLT unlock
+    # --- Parallel automation batch 2026-06-19 (all default OFF / inert) ---
+    "METER_ALERTS",  # SP1: billing meter-failure watcher (reads Redis billing:meter_failures, ntfy)
+    "METER_ALERT_GROWTH_THRESHOLD",  # default 5 (new failures per check before paging)
+    "METER_ALERT_COOLDOWN_SEC",  # default 21600 (6h alert cooldown)
+    "LOOP_SUPERVISOR",  # SP3: call-processor re-spawn watchdog + boot-grace-skip ntfy visibility
+    "PROCESS_AUTOSTART",  # D V1.1: process-engine deterministic workflows auto-start (idempotent, 1/tick)
+    "CONTENT_AUTOPUBLISH",  # SP5: self-brand 'ready' content auto-publish to Telegram (needs TG creds)
+    "AMD_DETECT",  # SP7: answering-machine detection on vobiz stream (saves credits) — OFF default
 ]
 
 

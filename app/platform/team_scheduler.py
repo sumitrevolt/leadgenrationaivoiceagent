@@ -118,6 +118,8 @@ _last_ran: dict[str, str | None] = {
     "evening_wrap": None,       # daily 18:30: EOD summary + hot recap
     "weekly_marketing": None,   # Wed 12:30: S-tier niche pack bank
     "saturday_hygiene": None,   # Sat 04:00: DLQ + celery trim (gated SCHEDULER_HYGIENE)
+    "meter_watch": None,        # hourly :55: billing meter-failure watcher (gated METER_ALERTS)
+    "process_autostart": None,  # daily ~11:30 IST: process-engine auto-start (gated PROCESS_AUTOSTART)
 }
 
 
@@ -337,6 +339,12 @@ async def _run_job_inner(job: str) -> None:
                 from app.marketing import telegram_publish
 
                 await telegram_publish.run_due()  # Telegram channel auto-publish (gated TELEGRAM_AUTO_PUBLISH; inert off)
+            except Exception:
+                pass
+            try:
+                from app.marketing import content_distribute
+
+                await content_distribute.publish_ready_to_telegram()  # SP5 self-brand 'ready'->Telegram (gated CONTENT_AUTOPUBLISH; inert off)
             except Exception:
                 pass
             from app.marketing import cadence
@@ -591,6 +599,14 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import scheduled_ops
 
             await scheduled_ops.run_saturday_hygiene()
+        elif job == "meter_watch":
+            from app.billing import meter_watch
+
+            meter_watch.check_meter_failures()  # sync, never raises; gated METER_ALERTS
+        elif job == "process_autostart":
+            from app.platform import process_autostart
+
+            await process_autostart.run_due()  # gated PROCESS_AUTOSTART; idempotent
         elif job == "standup":
             # Boss daily standup — hierarchical team coordination (gated AGENT_STANDUP).
             if os.environ.get("AGENT_STANDUP", "0").strip().lower() in ("1", "true", "yes"):
@@ -645,6 +661,12 @@ async def scheduler_loop() -> None:
                         else:
                             _last_ran[_jk] = day_key
                         logger.info(f"[team-scheduler] boot-grace: {_jk} skipped this boot (window active)")
+                        try:  # SP3: make the silent skip visible (gated LOOP_SUPERVISOR)
+                            from app.platform import loop_supervisor as _ls
+
+                            _ls.alert_boot_grace_skip(_jk)
+                        except Exception:
+                            pass
 
             slot_min = (now.minute // 15) * 15
             slot_key = now.strftime("%Y-%m-%d %H:") + f"{slot_min:02d}"
@@ -712,6 +734,14 @@ async def scheduler_loop() -> None:
             if now.minute >= 50 and _last_ran["onboard"] != hour_key:
                 _last_ran["onboard"] = hour_key
                 await _run_job("onboard")
+            # SP1 billing meter-failure watcher — hourly :55 (INERT unless METER_ALERTS=1).
+            if now.minute >= 55 and _last_ran.get("meter_watch") != hour_key:
+                _last_ran["meter_watch"] = hour_key
+                await _run_job("meter_watch")
+            # D V1.1 process-engine auto-start — daily 11:30–13:00 IST (INERT unless PROCESS_AUTOSTART=1).
+            if (11, 30) <= hm < (13, 0) and _last_ran.get("process_autostart") != day_key:
+                _last_ran["process_autostart"] = day_key
+                await _run_job("process_autostart")
             # Boss daily standup — morning hierarchical coordination (gated AGENT_STANDUP).
             if (8, 0) <= hm < (9, 30) and _last_ran["standup"] != day_key:
                 _last_ran["standup"] = day_key
