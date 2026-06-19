@@ -31,8 +31,14 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _RUNS = os.path.join("data", "coordination_runs.jsonl")
-# Allowlisted STAFF keys the coordinator may assign work to.
-_AGENTS = ("manager", "rohan", "swara", "dev", "arjun", "meera", "kavya", "isha")
+# Legacy fallback if STAFF import fails.
+_LEGACY_AGENTS = ("manager", "rohan", "swara", "dev", "arjun", "meera", "kavya", "isha")
+
+
+def _agent_keys() -> tuple[str, ...]:
+    """All STAFF keys — planner may assign any; execute uses _TOOLS subset."""
+    roster = _roster()
+    return tuple(roster.keys()) if roster else _LEGACY_AGENTS
 
 
 def _now() -> str:
@@ -185,7 +191,7 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
         "Tum LeadGenAI ke Manager (Boss) ho. Goal ko 2-4 ORDERED sub-tasks me todo, har ek "
         "ek STAFF agent ko assign. SIRF JSON array lautao: "
         '[{"agent":"<key>","task":"<chhota Hinglish task>"}]. '
-        f"Allowed keys: {', '.join(_AGENTS)}. Roster: {roster_desc}. Aur kuch mat likho."
+        f"Allowed keys: {', '.join(_agent_keys())}. Roster: {roster_desc}. Aur kuch mat likho."
     )
     user = f"Goal: {goal}"
     if hint:
@@ -194,7 +200,7 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
     steps = [
         {"agent": s["agent"], "task": str(s["task"])[:240]}
         for s in _extract_list(raw)
-        if isinstance(s, dict) and s.get("agent") in _AGENTS and s.get("task")
+        if isinstance(s, dict) and s.get("agent") in _agent_keys() and s.get("task")
     ][:max_steps]
     if steps:
         return steps
@@ -272,7 +278,7 @@ async def fan_out(goal: str, agents: list[str] | None = None, max_agents: int = 
     goal = (goal or "").strip()
     if len(goal) < 3:
         return {"ok": False, "error": "goal bahut chhota hai"}
-    ags = [a for a in (agents or ["dev", "rohan", "isha", "kavya"]) if a in _AGENTS][:max_agents]
+    ags = [a for a in (agents or ["dev", "rohan", "isha", "kavya"]) if a in _agent_keys()][:max_agents]
     bb = {"goal": goal, "results": []}
 
     async def one(a: str):
@@ -630,7 +636,7 @@ async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
 async def _recruit_experts(goal: str, feedback: str = "", team_size: int = 3) -> list[dict]:
     """Stage 1 — RECRUITER (HR-manager persona) goal ke liye 2-4 TAILORED expert roles
     design karta (fixed roster nahi). feedback (evaluator se) team ko RE-COMPOSE karta."""
-    staff_keys = ", ".join(_AGENTS)
+    staff_keys = ", ".join(_agent_keys())
     sys = (
         "Tum ek RECRUITER ho (HR manager jaisa). Goal ke liye 2-4 EXPERT roles design karo jo "
         "milke ise best solve karein — roles goal ke hisaab se TAILORED hon (generic nahi). "
@@ -649,7 +655,7 @@ async def _recruit_experts(goal: str, feedback: str = "", team_size: int = 3) ->
                 {
                     "role": str(e["role"])[:80],
                     "expertise": str(e.get("expertise") or "")[:160],
-                    "staff": staff if staff in _AGENTS else "",
+                    "staff": staff if staff in _agent_keys() else "",
                 }
             )
     experts = experts[: max(2, min(4, team_size))]

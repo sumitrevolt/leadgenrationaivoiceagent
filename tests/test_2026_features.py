@@ -410,7 +410,7 @@ def test_agent_coordinator(tmp_path, monkeypatch):
 
     # plan fallback (LLM empty) -> sane default chain, allowlisted agents
     steps = asyncio.run(coordinator.plan("leads 2x karo", max_steps=3))
-    assert 1 <= len(steps) <= 3 and all(s["agent"] in coordinator._AGENTS for s in steps)
+    assert 1 <= len(steps) <= 3 and all(s["agent"] in coordinator._agent_keys() for s in steps)
 
     # coordinate (execute=False = drafts) -> structured, results == plan, never raises
     res = asyncio.run(coordinator.coordinate("Sharma Solar ke liye outreach", max_steps=3))
