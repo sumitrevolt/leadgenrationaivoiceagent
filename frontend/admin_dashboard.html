@@ -764,13 +764,27 @@ const DEMO = {
     {company:"QuickLoan Finserv", niche:"Finance", plan:"Scale", leads_delivered:189, status:"active", mrr:78000},
     {company:"GreenScape Landscaping", niche:"Landscaping", plan:"Starter", leads_delivered:44, status:"active", mrr:15000}
   ],
+  // Offline-fallback = the REAL 18-member AI staff roster (team.STAFF) so the
+  // demo never misleads. Live data overrides this via loadAgents()/loadDashboard().
   agents: [
-    {id:"AG-01", name:"Aarav", current_client:"Prestige Realty Group", status:"calling", calls_made:342, leads_found:58},
-    {id:"AG-02", name:"Diya", current_client:"GlobalEdu Abroad", status:"calling", calls_made:298, leads_found:71},
-    {id:"AG-03", name:"Kabir", current_client:"SunVolt Solar Pvt Ltd", status:"scraping", calls_made:156, leads_found:33},
-    {id:"AG-04", name:"Anaya", current_client:"UrbanNest Interiors", status:"idle", calls_made:204, leads_found:41},
-    {id:"AG-05", name:"Vivaan", current_client:"QuickLoan Finserv", status:"calling", calls_made:271, leads_found:49},
-    {id:"AG-06", name:"Ishaan", current_client:"CoolBreeze HVAC", status:"error", calls_made:88, leads_found:12}
+    {id:"🧑‍💼 Manager", name:"Boss", current_client:"Supervisor / coordination", status:"idle", calls_made:0, leads_found:0},
+    {id:"📣 Marketing", name:"Isha", current_client:"Marketing Executive", status:"calling", calls_made:0, leads_found:0},
+    {id:"🎯 Leads", name:"Rohan", current_client:"Leads Manager (outreach)", status:"calling", calls_made:0, leads_found:0},
+    {id:"📚 Data", name:"Dev", current_client:"Data Analyst (scrape)", status:"scraping", calls_made:0, leads_found:0},
+    {id:"♻️ Pipeline", name:"Neha", current_client:"Pipeline Ops", status:"idle", calls_made:0, leads_found:0},
+    {id:"🌐 SEO", name:"Ravi", current_client:"SEO Scout", status:"scraping", calls_made:0, leads_found:0},
+    {id:"📞 Voice", name:"Swara", current_client:"Telecaller", status:"idle", calls_made:0, leads_found:0},
+    {id:"🎙️ VoiceInfra", name:"Tara", current_client:"Voice Infra Ops", status:"idle", calls_made:0, leads_found:0},
+    {id:"🧪 QA", name:"Arjun", current_client:"QA Engineer", status:"idle", calls_made:0, leads_found:0},
+    {id:"🎓 Trainer", name:"Meera", current_client:"Trainer", status:"idle", calls_made:0, leads_found:0},
+    {id:"🛡️ Ops", name:"Kavya", current_client:"Ops Monitor", status:"calling", calls_made:0, leads_found:0},
+    {id:"🛰️ Infra", name:"Hermes", current_client:"Infrastructure Handler", status:"idle", calls_made:0, leads_found:0},
+    {id:"💰 Revenue", name:"Nikhil", current_client:"Revenue Ops", status:"idle", calls_made:0, leads_found:0},
+    {id:"🛠️ Code", name:"Vikram", current_client:"Code Upgrader", status:"idle", calls_made:0, leads_found:0},
+    {id:"📚 Skills", name:"Guru", current_client:"Skill Trainer", status:"idle", calls_made:0, leads_found:0},
+    {id:"🔧 SRE", name:"Pranav", current_client:"SRE / Reliability", status:"idle", calls_made:0, leads_found:0},
+    {id:"💹 FinOps", name:"Vidya", current_client:"FinOps / Cost", status:"idle", calls_made:0, leads_found:0},
+    {id:"🛡️ Security", name:"Arnav", current_client:"Security / Compliance", status:"idle", calls_made:0, leads_found:0}
   ],
   campaigns: [
     {campaign:"Solar Q2 Push", client:"SunVolt Solar Pvt Ltd", niche:"Solar", sources:["Google Maps","JustDial"], calls_done:620, calls_target:1000, leads:88, status:"active"},
@@ -1526,6 +1540,16 @@ async function loadSyncHealth(){
     $("sync-summary").textContent='DKIM '+(dl.dkim_ok?'✓':'✗')+' · complaint '+cr+'%';
   }catch(e){ if($("syncBody"))$("syncBody").innerHTML='<span style="color:var(--muted)">sync-health unavailable</span>'; if($("sync-summary"))$("sync-summary").textContent='—'; }
 }
+async function loadAgents(){
+  // Standalone real-team fetch — keeps the agents panel showing the FULL 18-member
+  // roster even if the heavy /api/admin/dashboard payload is slow/unavailable.
+  try{
+    const r=await fetch("/api/admin/agents",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok) return;  // leave the existing (dashboard/demo) render on auth/err
+    const d=await r.json();
+    if(d && Array.isArray(d.agents) && d.agents.length){ renderAgents(d.agents); }
+  }catch(e){}
+}
 async function dedupeClients(){
   if(!confirm("Exact-duplicate clients (same phone) hata du? Newest record rahega.")) return;
   try{
@@ -1598,7 +1622,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026();
   loadRevenueAnalytics(); loadProspectsPanel(); loadActivityFeed();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail();
-  loadSyncHealth();
+  loadSyncHealth(); loadAgents();
   loadAutomationHub();
   loadRecordings();
   loadGodMode();
@@ -1607,7 +1631,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
    never paint fake demo numbers over real ones). Cosmetic random nudges removed. */
-setInterval(()=>{ if(USING_REAL){ loadDashboard(); loadActivityFeed(); } }, 60000);
+setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); } }, 60000);
 
 /* ============================================================
    BILLING & SUBSCRIPTIONS — admin per-client lookup.
