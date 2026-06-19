@@ -2889,8 +2889,15 @@ async function telReview(){
   busy('telRevBtn',0);
 }
 async function telDeliverability(){
-  try{var d=await api('/api/growth/deliverability');
-    $('telDelOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  try{
+    var d=await api('/api/growth/deliverability/summary');
+    var dns=d.dns||{}, w=d.warmup||{};
+    var html='<div class="result"><p><b>'+(d.healthy?'✅ Deliverability OK':'⚠️ Issues')+'</b></p>';
+    html+='<p>SPF '+(dns.spf_ok?'✅':'❌')+' · DKIM '+(dns.dkim_ok?'✅':'❌')+' · DMARC p='+(dns.dmarc_policy||'—')+'</p>';
+    html+='<p>Warmup cap '+(w.effective_cap||'—')+' · complaints '+(w.complaint_rate_7d_pct||0)+'% (7d)</p>';
+    if(d.problems&&d.problems.length){ html+='<ul>'; d.problems.forEach(function(p){html+='<li>'+(p.kya||'')+'</li>';}); html+='</ul>'; }
+    html+=jpre(d)+'</div>';
+    $('telDelOut').innerHTML=html;
   }catch(e){toast('Deliverability fail: '+e.message,false)}
 }
 

@@ -844,11 +844,16 @@ class VobizStreamSession:
                     await self._run_play(random.choice(_FILLER_PCM))
             except Exception as e:
                 logger.debug(f"[vobiz-stream] filler play failed: {e}")
-            reply = await self._think(text)
-            if reply:
-                logger.info(f"[vobiz-stream {self.stream_sid}] bot: {reply}")
+            reply = await self._think_and_say_stream(text)
+            if not reply:
+                reply = await self._think(text)
+                if reply:
+                    logger.info(f"[vobiz-stream {self.stream_sid}] bot: {reply}")
+                    self.hist.append({"role": "assistant", "content": reply})
+                    await self._say(reply)
+            elif reply:
+                logger.info(f"[vobiz-stream {self.stream_sid}] bot(stream): {reply}")
                 self.hist.append({"role": "assistant", "content": reply})
-                await self._say(reply)
         except Exception as e:
             logger.warning(f"[vobiz-stream] utterance handling failed: {e}")
         finally:
@@ -1152,6 +1157,36 @@ class VobizStreamSession:
 
         return "Maaf kijiye, awaaz thodi clear nahi aayi — aap dobara bata sakte hain?"
 
+    async def _think_and_say_stream(self, text: str) -> str:
+        """LLM stream → sentence TTS pipeline (USE_LLM_STREAM_TTS=1). Returns full reply or ''."""
+        try:
+            from app.voice_agent.llm_stream_tts import stream_tts_enabled
+
+            if not stream_tts_enabled() or not TTS_AVAILABLE:
+                return ""
+        except Exception:
+            return ""
+        pr = await self._platform_pitch_reply(text)
+        if pr is not None:
+            await self._say(pr)
+            return pr
+        tc = self._get_telecaller()
+        if tc is None:
+            return ""
+        parts: list[str] = []
+
+        async def _gen():
+            async for sent in tc.reply_stream_sentences(self.hist, text):
+                parts.append(sent)
+                yield sent
+
+        try:
+            await self._say_from_sentence_gen(_gen())
+            return " ".join(parts).strip()
+        except Exception as e:
+            logger.debug("[vobiz-stream] think_and_say_stream failed: %s", e)
+            return ""
+
     def _get_ndm(self):
         if self._ndm_tried:
             return self._ndm
@@ -1418,6 +1453,62 @@ class VobizStreamSession:
         self._speaking = True  # set early so the synth window also detects barge-in
         self._barge_frames = 0
         self._play_task = asyncio.create_task(self._say_streaming(text))
+
+    async def _say_from_sentence_gen(self, sentence_gen) -> None:
+        """Pipeline TTS from async sentence generator — synth N+1 while N plays."""
+        if not TTS_AVAILABLE:
+            return
+        self._stop_play()
+        self._speaking = True
+        self._barge_frames = 0
+        if self._rec_enabled:
+            self._rec_begin_bot_playback()
+        agen = sentence_gen.__aiter__()
+        cur_synth: asyncio.Task | None = None
+        next_synth: asyncio.Task | None = None
+        cancelled = False
+        try:
+            try:
+                first = await agen.__anext__()
+            except StopAsyncIteration:
+                return
+            next_synth = asyncio.create_task(self._synth_pcm(first))
+            async for sent in agen:
+                cur_synth, next_synth = next_synth, asyncio.create_task(self._synth_pcm(sent))
+                try:
+                    pcm = await cur_synth
+                except asyncio.CancelledError:
+                    cancelled = True
+                    raise
+                except Exception as e:
+                    logger.warning(f"[vobiz-stream] sentence synth failed: {e}")
+                    pcm = b""
+                if not self._speaking or not pcm:
+                    if not self._speaking:
+                        cancelled = True
+                    continue
+                await self._play_frames(pcm)
+            if next_synth:
+                cur_synth = next_synth
+                try:
+                    pcm = await cur_synth
+                except asyncio.CancelledError:
+                    cancelled = True
+                    raise
+                except Exception as e:
+                    logger.warning(f"[vobiz-stream] sentence synth failed: {e}")
+                    pcm = b""
+                if self._speaking and pcm:
+                    await self._play_frames(pcm)
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
+        finally:
+            for t in (cur_synth, next_synth):
+                if t and not t.done():
+                    t.cancel()
+            if not cancelled:
+                self._speaking = False
 
     def _rec_ensure_samples(self, n_samples: int) -> None:
         need_bytes = n_samples * 2

@@ -221,6 +221,7 @@
       <a href="/app/onboard" role="menuitem" aria-label="Onboarding Wizard"><span class="ic" aria-hidden="true">✦</span> Onboarding Wizard</a>
       <a class="active" href="#top" role="menuitem" aria-current="page" aria-label="Dashboard overview"><span class="ic" aria-hidden="true">▦</span> Dashboard</a>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">10</span></a>
+      <a href="#sec-ops2026" role="menuitem" aria-label="Deliverability and eval"><span class="ic" aria-hidden="true">📬</span> Deliverability & Eval</a>
       <a href="#sec-godmode" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> God Mode <span class="badge" style="background:#ef4444">NEW</span></a>
       <a href="#sec-automation" role="menuitem" aria-label="Automation workflows hub"><span class="ic" aria-hidden="true">🎛</span> Automation Hub <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
       <a href="#sec-launch-calls" role="menuitem" aria-label="Launch outbound campaign"><span class="ic" aria-hidden="true">🚀</span> Launch Campaign</a>
@@ -394,6 +395,7 @@
           <h3 id="clientsHeading">Sabhi Clients</h3>
           <span class="right" id="cl-summary" aria-live="polite">—</span>
           <button class="btn" onclick="exportClientsCSV()" aria-label="Export clients to CSV" style="margin-left:10px;padding:6px 12px;font-size:12px">⬇ Export CSV</button>
+          <button class="btn" onclick="dedupeClients()" aria-label="Remove duplicate clients" style="margin-left:6px;padding:6px 12px;font-size:12px">⧉ Dedupe</button>
         </div>
         <!-- Search + filter bar -->
         <div class="filter-bar" role="search" aria-label="Client search and filter">
@@ -434,6 +436,7 @@
           <button class="btn" onclick="bulkPause()" aria-label="Pause selected subscriptions" style="background:var(--amber)">⏸ Pause</button>
           <button class="btn" onclick="bulkResume()" aria-label="Resume selected subscriptions" style="background:var(--green)">▶ Resume</button>
           <button class="btn" onclick="bulkImpersonate()" aria-label="Login as selected client">🕵️ Login As</button>
+          <button class="btn" onclick="bulkDelete()" aria-label="Permanently delete selected clients" style="background:#ef4444;color:#fff">🗑 Delete</button>
           <button class="btn" onclick="clearBulkSelect()" aria-label="Clear selection" style="background:#f1f5f9">✕ Clear</button>
         </div>
         <div class="bd flush tbl-scroll" role="region" aria-labelledby="clientsHeading">
@@ -450,6 +453,18 @@
               <tr><td><span class="skeleton sk-badge" style="width:20px;height:20px;border-radius:4px"></span></td><td><span class="skeleton sk-text" style="width:65%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton" style="height:13px;width:40px;display:inline-block"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton" style="height:13px;width:60px;display:inline-block"></span></td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Deliverability & Eval (2026 deferred backlog — cockpit) -->
+      <div class="card" id="sec-ops2026">
+        <div class="hd">
+          <h3>📬 Deliverability & Eval</h3>
+          <span class="right" id="ops2026-status" aria-live="polite">—</span>
+          <button class="btn" onclick="loadOps2026()" style="margin-left:8px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="ops2026Panel" style="font-size:13px;color:var(--ink)">
+          <p style="color:var(--muted)">Load karo — DNS (SPF/DKIM/DMARC), complaint gate, judge calibration, RAG A/B.</p>
         </div>
       </div>
 
@@ -583,6 +598,15 @@
       <div class="card" id="sec-api">
         <div class="hd"><h3>API Usage &amp; Infra Flags</h3><span class="right" id="api-summary">Automation + rate limits</span></div>
         <div class="bd" id="apiBody"><span style="color:var(--muted)">Loading…</span></div>
+      </div>
+
+      <!-- System Sync — recently-shipped backend surfaced (deliverability/eval/approvals) -->
+      <div class="card" id="sec-sync" style="scroll-margin-top:80px">
+        <div class="hd"><h3>System Sync &amp; Deliverability</h3>
+          <span class="right" id="sync-summary">—</span>
+          <button class="btn" onclick="loadSyncHealth()" style="margin-left:8px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="syncBody"><span style="color:var(--muted)">Loading…</span></div>
       </div>
 
       <!-- Automation Workflows Hub (Mission Control inline) -->
@@ -1059,6 +1083,67 @@ function exportClientsCSV(){
   adminToast(`${_allClients.length} clients exported`,"success");
 }
 
+async function loadOps2026(){
+  const el=$("ops2026Panel"), st=$("ops2026-status");
+  if(!el) return;
+  el.innerHTML='<p style="color:var(--muted)">Loading…</p>';
+  const hdr=abAuthHdr();
+  let html='';
+  try{
+    const [del,judge]=await Promise.all([
+      fetch("/api/growth/deliverability/summary",{headers:hdr,cache:"no-store"}).then(r=>r.ok?r.json():{}),
+      fetch("/api/growth/infra/judge-calibration",{headers:hdr,cache:"no-store"}).then(r=>r.ok?r.json():{})
+    ]);
+    const ok=!!del.healthy;
+    if(st) st.textContent=ok?"✅ Healthy":"⚠️ "+((del.problems||[]).length||"?")+" issue(s)";
+    html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:14px">';
+    const dns=del.dns||{};
+    html+=`<div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:#fafafa">
+      <b>DNS / Inbox</b><br>
+      SPF: ${dns.spf_ok?"✅":"❌"} · DKIM: ${dns.dkim_ok?"✅":"❌"} ${escH(dns.dkim_selector||"")}<br>
+      DMARC: ${dns.dmarc_ok?"✅":"❌"} p=${escH(dns.dmarc_policy||"—")} ${dns.dmarc_strong?"· strong":""}
+    </div>`;
+    const w=del.warmup||{};
+    html+=`<div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:#fafafa">
+      <b>Outreach warmup</b><br>
+      Cap: ${w.effective_cap||"—"}/day · Sent 7d: ${w.sent_7d||0}<br>
+      Complaints: ${w.complaint_rate_7d_pct||0}% (pause @ ${w.complaint_pause_threshold_pct||0.25}%)<br>
+      ${w.paused?"⏸ <b>PAUSED</b>":"▶ Active"}
+    </div>`;
+    html+=`<div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:#fafafa">
+      <b>Judge calibration</b><br>
+      ${(judge.judges||[]).slice(0,3).map(j=>escH(j.name||j.judge||"?")+": κ="+(j.kappa!=null?j.kappa:"—")).join("<br>")||escH(judge.verdict||judge.error||"no data")}
+    </div></div>`;
+    if((del.problems||[]).length){
+      html+='<p><b>⚠️ Fix karo:</b></p><ul style="margin:0 0 12px 18px">';
+      del.problems.forEach(p=>{html+=`<li><b>${escH(p.kya||"")}</b> — ${escH(p.fix||"")}</li>`;});
+      html+='</ul>';
+    }
+    html+=`<button class="btn" type="button" onclick="runRagAbGate()" id="ragAbBtn" style="margin-right:8px">🧪 RAG A/B Gate chalao</button>`;
+    html+=`<span class="mut" style="font-size:11px">Pass hone pe USE_RERANKER + USE_HYBRID_SEARCH flip karo</span>`;
+    html+=`<pre id="ragAbOut" style="margin-top:10px;font-size:11px;max-height:220px;overflow:auto;background:#0f172a;color:#e2e8f0;padding:10px;border-radius:8px;display:none"></pre>`;
+    el.innerHTML=html;
+  }catch(e){
+    el.innerHTML='<p style="color:var(--red)">Load fail: '+escH(e.message)+'</p>';
+    if(st) st.textContent='error';
+  }
+}
+async function runRagAbGate(){
+  const btn=$("ragAbBtn"), out=$("ragAbOut");
+  if(btn) btn.disabled=true;
+  if(out){ out.style.display="block"; out.textContent="Running gate (up to 2 min)…"; }
+  try{
+    const r=await fetch("/api/growth/infra/rag-retrieval-ab",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr())});
+    const d=await r.json();
+    if(out) out.textContent=(d.table||JSON.stringify(d,null,2));
+    adminToast(d.passed?"RAG gate PASS ✅":"RAG gate FAIL — flags OFF", d.passed?"success":"error");
+  }catch(e){
+    if(out) out.textContent=String(e);
+    adminToast("RAG gate error","error");
+  }
+  if(btn) btn.disabled=false;
+}
+
 /* ====== Admin Toast ====== */
 let _atT;
 function adminToast(msg,type){
@@ -1461,7 +1546,7 @@ async function loadDashboard(){
 
 document.addEventListener("DOMContentLoaded", ()=>{
   adminAuthBoot();
-  loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients();
+  loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026();
   loadRevenueAnalytics(); loadProspectsPanel(); loadActivityFeed();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail();
   loadAutomationHub();
