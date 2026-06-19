@@ -42,7 +42,9 @@ def test_opt_out_revokes_consent_and_opt_in_restores():
     assert cl.has_consent("9876500002") is True
     cl.record_opt_out("9876500002")
     assert cl.has_consent("9876500002") is False  # suppression > consent
-    res = cl.opt_back_in("9876500002", source="admin", proof="ticket-1")
+    # 90-day re-consent cool-off now blocks an immediate opt-back-in (TRAI floor);
+    # admin force-override exercises the restore path.
+    res = cl.opt_back_in("9876500002", source="admin", proof="ticket-1", force=True)
     assert res["suppressed"] is False
     assert cl.is_suppressed("9876500002") is False
     assert cl.has_consent("9876500002") is True

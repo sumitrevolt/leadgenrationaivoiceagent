@@ -56,6 +56,43 @@ def _provider() -> Optional[tuple]:
     return None
 
 
+def _strict_model(base_url: str) -> Optional[str]:
+    """Pick a STRICT-capable free model for native ``json_schema`` mode.
+
+    Server-enforced ``response_format={'type':'json_schema', strict:true}`` only
+    works on models that honour the JSON-Schema grammar. ``gpt-oss-120b`` ignores
+    ``strict`` (per project notes), so it is deliberately NOT used here.
+
+    Returns a model id, or ``None`` when the provider has no strict-capable model
+    (caller then skips straight to the existing ``Mode.JSON`` path).
+    """
+    try:
+        bu = (base_url or "").lower()
+        if "cerebras" in bu:
+            # Cerebras strict-capable free model.
+            return os.getenv("STRUCTURED_STRICT_MODEL", "qwen-3-32b")
+        if "groq" in bu:
+            # Groq strict-capable free model.
+            return os.getenv("STRUCTURED_STRICT_MODEL", "llama-3.3-70b-versatile")
+    except Exception:
+        return None
+    return None
+
+
+def _json_schema_mode():
+    """Return ``instructor.Mode.JSON_SCHEMA`` if this instructor build has it, else None.
+
+    Older instructor versions lack the native strict json_schema mode; in that
+    case we transparently skip the strict-first attempt. Never raises.
+    """
+    try:
+        import instructor
+
+        return getattr(instructor.Mode, "JSON_SCHEMA", None)
+    except Exception:
+        return None
+
+
 def available() -> bool:
     try:
         import instructor  # noqa: F401
@@ -82,28 +119,46 @@ def extract(
     if prov is None:
         return None
     base_url, api_key, model = prov
-    try:
+    messages = [
+        {"role": "system", "content": system or ""},
+        {"role": "user", "content": user},
+    ]
+
+    def _run(mode, mdl) -> Optional[T]:
+        # JSON mode = works with Cerebras/Groq (they lack OpenAI tool-calling mode).
         import instructor
         from openai import OpenAI
 
-        # JSON mode = works with Cerebras/Groq (they lack OpenAI tool-calling mode).
         client = instructor.from_openai(
-            OpenAI(base_url=base_url, api_key=api_key), mode=instructor.Mode.JSON
+            OpenAI(base_url=base_url, api_key=api_key), mode=mode
         )
-        with _llm_span("extract", model=model, provider="free") as _obs:
+        with _llm_span("extract", model=mdl, provider="free") as _obs:
             _result = client.chat.completions.create(
-                model=model,
+                model=mdl,
                 response_model=response_model,
                 max_retries=max_retries,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                messages=[
-                    {"role": "system", "content": system or ""},
-                    {"role": "user", "content": user},
-                ],
+                messages=messages,
             )
             _obs.record()
             return _result
+
+    # Attempt 1 (additive): native server-enforced strict json_schema on a
+    # strict-capable model. Falls through silently on any failure.
+    _strict_mode = _json_schema_mode()
+    _strict_mdl = _strict_model(base_url)
+    if _strict_mode is not None and _strict_mdl:
+        try:
+            return _run(_strict_mode, _strict_mdl)
+        except Exception as exc:
+            logger.info("structured.extract strict json_schema failed (%s) — JSON fallback", exc)
+
+    # Attempt 2: existing Mode.JSON path (unchanged behaviour).
+    try:
+        import instructor
+
+        return _run(instructor.Mode.JSON, model)
     except Exception as exc:
         logger.info("structured.extract failed (%s) — caller should use fallback", exc)
         return None
@@ -125,27 +180,44 @@ async def aextract(
     if prov is None:
         return None
     base_url, api_key, model = prov
-    try:
+    messages = [
+        {"role": "system", "content": system or ""},
+        {"role": "user", "content": user},
+    ]
+
+    async def _run(mode, mdl) -> Optional[T]:
         import instructor
         from openai import AsyncOpenAI
 
         client = instructor.from_openai(
-            AsyncOpenAI(base_url=base_url, api_key=api_key), mode=instructor.Mode.JSON
+            AsyncOpenAI(base_url=base_url, api_key=api_key), mode=mode
         )
-        with _llm_span("extract", model=model, provider="free") as _obs:
+        with _llm_span("extract", model=mdl, provider="free") as _obs:
             _result = await client.chat.completions.create(
-                model=model,
+                model=mdl,
                 response_model=response_model,
                 max_retries=max_retries,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                messages=[
-                    {"role": "system", "content": system or ""},
-                    {"role": "user", "content": user},
-                ],
+                messages=messages,
             )
             _obs.record()
             return _result
+
+    # Attempt 1 (additive): native server-enforced strict json_schema mode.
+    _strict_mode = _json_schema_mode()
+    _strict_mdl = _strict_model(base_url)
+    if _strict_mode is not None and _strict_mdl:
+        try:
+            return await _run(_strict_mode, _strict_mdl)
+        except Exception as exc:
+            logger.info("structured.aextract strict json_schema failed (%s) — JSON fallback", exc)
+
+    # Attempt 2: existing Mode.JSON path (unchanged behaviour).
+    try:
+        import instructor
+
+        return await _run(instructor.Mode.JSON, model)
     except Exception as exc:
         logger.info("structured.aextract failed (%s) — caller should use fallback", exc)
         return None

@@ -291,6 +291,14 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
 
                 if intent == "unsubscribe":
                     res["unsubscribed"] += 1
+                    # Deliverability gate: unsubscribe-reply = recipient negative signal.
+                    # Feed spam-complaint-rate tracker (auto-pauses at 0.25% over 7d).
+                    try:
+                        from app.platform import email_warmup
+
+                        email_warmup.record_complaint(frm or "", "reply_unsubscribe")
+                    except Exception:
+                        pass
                 elif intent in ("interested", "question"):
                     res["interested"] += 1
                     # Phone push: HOT reply — sales moment, turant pata chale (gated ntfy).

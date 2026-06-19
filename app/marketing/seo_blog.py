@@ -424,6 +424,15 @@ async def generate_article(niche: str, city: str = "", topic: str | None = None)
 
     if free_ai is not None:
         try:
+            try:  # semantic cache (flag-gated, OFF default; import-safe)
+                from app.cache.semantic_cache import semantic_complete
+            except Exception:  # pragma: no cover
+                async def semantic_complete(_k, _f, **_kw):  # type: ignore
+                    v = _f()
+                    if hasattr(v, "__await__"):
+                        v = await v
+                    return v, {"cache": "disabled"}
+
             system = (
                 "Tu ek expert Indian local-business marketing writer hai. Hinglish "
                 "(Hindi + English mix, Roman script) me ek genuinely useful, "
@@ -442,12 +451,31 @@ async def generate_article(niche: str, city: str = "", topic: str | None = None)
                 + f"Article ka title/topic: {topic}\n"
                 "Is topic par upar diye structure me Hinglish article likho."
             )
-            text, provider = await free_ai.chat(
-                system,
-                [{"role": "user", "content": user}],
-                max_tokens=1100,
-                temperature=0.7,
+
+            async def _gen_article_text() -> str:
+                _txt, _prov = await free_ai.chat(
+                    system,
+                    [{"role": "user", "content": user}],
+                    max_tokens=1100,
+                    temperature=0.7,
+                )
+                # provider closure-capture: cache MISS pe asli provider record ho.
+                if _txt and _txt.strip():
+                    nonlocal provider
+                    provider = _prov
+                return (_txt or "").strip()
+
+            # Bulk programmatic-SEO articles = templated niche×city×topic prompts —
+            # same niche ke similar topics free-LLM TPD/token jaldi jalate hain. Yeh
+            # wrapper near-duplicate prompts ko cache karta (scope=niche isolation).
+            # OFF default (SEMANTIC_CACHE flag) -> _gen_article_text() seedha = byte-
+            # identical behaviour + asli provider. Fail-open. cache-hit pe provider
+            # "llm-cache" (downstream html-quality gate same chalta).
+            text, _cinfo = await semantic_complete(
+                f"{topic}\n{user}", _gen_article_text, scope=niche
             )
+            if (_cinfo.get("cache") or "miss") in ("exact", "semantic"):
+                provider = "llm-cache"
             if text and text.strip():
                 html_body = _llm_to_html(text)
         except Exception as e:  # free_ai.chat khud nahi raise karta, par safety

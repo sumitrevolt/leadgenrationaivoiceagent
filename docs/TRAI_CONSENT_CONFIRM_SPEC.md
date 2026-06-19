@@ -11,7 +11,7 @@ TRAI TCCCPR **Feb-2025 2nd Amendment** expects AI-driven promotional calls to:
 1. Open with a clear **AI disclosure** + company identity. ✅ already wired ("ek AI assistant" greeting).
 2. **Obtain a verbal or DTMF confirmation before continuing** the promotional pitch. ❌ **this is the gap.**
 3. **Timestamp + log** the consent. (consent_ledger exists.)
-4. Honor **opt-out within 24–48h**, DND fail-closed, 10am–7pm, 140/160 series. ✅ already wired.
+4. Honor **opt-out within 24–48h**, DND fail-closed, 10am–7pm, **140-series (promotional) / 1600-series (transactional/service)**. ✅ already wired.
 
 Penalty for violation: ₹1,000–₹1,50,000 per violation; blacklisting on repeat. So #2 is a hard launch gate for the cold-call (Voice Agent) product.
 

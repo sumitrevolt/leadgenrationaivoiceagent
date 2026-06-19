@@ -74,6 +74,15 @@ _GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # free, 6000 RPM, 14k RPD
 _GEMINI_LLM_MODEL = "gemini-2.0-flash-lite"  # free, 1500 RPD, 30 RPM — key already set
 _SAMBANOVA_LLM_MODEL = "Meta-Llama-3.3-70B-Instruct"  # free, fast inference chip
 _MISTRAL_LLM_MODEL = "mistral-small-latest"  # free tier (La Plateforme)
+# 2026 EXTRA low-priority free models — sirf tab hit hote hain jab proven primaries
+# (mistral/groq-8b/cerebras) exhaust ho jaayein (Groq-TPD case jahaan yeh sabse zyada
+# madad karte). Circuit-breaker per-provider hai → provider poora down ho to skip;
+# par jab sirf primary model 429/decommission ho aur provider chalu rahe, yeh strong
+# fallback dete. Widely-known FREE ids — galat/404 id ko breaker graceful sideline karta.
+_GROQ_QWEN3_MODEL = "qwen/qwen3-32b"                  # Groq free Qwen3-32B (strong multilingual)
+_GROQ_LLAMA70B_MODEL = "llama-3.3-70b-versatile"     # Groq free Llama-3.3-70B (high quality)
+_CEREBRAS_QWEN3_MODEL = "qwen-3-32b"                  # Cerebras free Qwen3-32B
+_GROQ_KIMI_K2_MODEL = "moonshotai/kimi-k2-instruct"  # Groq free Kimi K2 (strong multilingual)
 # OpenRouter free models — cascade (deepseek/deepseek-chat:free deprecated 2026-06 → 404)
 _OPENROUTER_LLM_MODEL = "meta-llama/llama-3.1-8b-instruct:free"   # primary (llama 8B free)
 _OPENROUTER_LLM_MODEL2 = "deepseek/deepseek-r1:free"              # deepseek R1 free
@@ -381,6 +390,16 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     chain += core
     if not _ollama_primary():
         chain.append(_ollama_entry)
+    # 2026 EXTRA free models — proven primaries (mistral/groq-8b/cerebras) ke BAAD,
+    # weaker gemini/openrouter-:free tail se PEHLE. Yeh tab kaam aate jab primary model
+    # 429/TPD/decommission ho par provider zinda ho (Groq-TPD ke baad bhi Groq dusre
+    # model serve kar sakta). Pure additive low-priority entries — koi flag nahi.
+    chain += [
+        ("groq", _GROQ_LLAMA70B_MODEL),
+        ("groq", _GROQ_QWEN3_MODEL),
+        ("cerebras", _CEREBRAS_QWEN3_MODEL),
+        ("groq", _GROQ_KIMI_K2_MODEL),
+    ]
     chain += [
         ("gemini", _GEMINI_LLM_MODEL),
         ("sambanova", _SAMBANOVA_LLM_MODEL),
@@ -535,6 +554,10 @@ def describe() -> dict[str, Any]:
             f"gemini:{_GEMINI_LLM_MODEL}",
             f"sambanova:{_SAMBANOVA_LLM_MODEL}",
             f"mistral:{_MISTRAL_LLM_MODEL}",
+            f"groq:{_GROQ_LLAMA70B_MODEL}",
+            f"groq:{_GROQ_QWEN3_MODEL}",
+            f"cerebras:{_CEREBRAS_QWEN3_MODEL}",
+            f"groq:{_GROQ_KIMI_K2_MODEL}",
             f"openrouter:{_OPENROUTER_LLM_MODEL}",
             f"openrouter:{_OPENROUTER_LLM_MODEL2}",
             f"openrouter:{_OPENROUTER_LLM_MODEL3}",
