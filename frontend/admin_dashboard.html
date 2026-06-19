@@ -5,16 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Admin Dashboard — LeadGen AI Marketing + Voice</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="/design-system/styles.css" />
 <style>
+  /* Brand/status/effect names aliased -> LeadGen AI Design System tokens (linked /design-system/styles.css).
+     Admin keeps its SLATE canvas (--bg/--line/--blue/--slate) + deep-indigo sidebar: the DS itself
+     specs the admin console as a slate canvas and ships no slate-neutral tokens. */
   :root{
-    --indigo:#4f46e5; --indigo-d:#4338ca; --indigo-l:#eef2ff;
-    --sidebar:#1e1b4b; --sidebar-2:#312e81; --ink:#0f172a; --muted:#64748b;
-    --line:#e2e8f0; --bg:#f1f5f9; --card:#ffffff;
-    --green:#16a34a; --amber:#d97706; --red:#dc2626; --blue:#2563eb; --slate:#475569;
-    --shadow:0 1px 3px rgba(15,23,42,.08),0 1px 2px rgba(15,23,42,.04);
+    --indigo:   var(--brand);          /* #4f46e5 */
+    --indigo-d: var(--indigo-700);     /* #4338ca */
+    --indigo-l: var(--indigo-50);      /* soft indigo well */
+    --sidebar:#1e1b4b; --sidebar-2:#312e81;   /* admin deep-indigo sidebar (kept) */
+    --ink:      var(--text-strong);    /* near-black */
+    --muted:    var(--neutral);        /* #64748b */
+    --line:#e2e8f0; --bg:#f1f5f9;      /* slate canvas (kept) */
+    --card:     var(--surface-card);   /* #fff */
+    --green: var(--success); --amber: var(--warning); --red: var(--danger);
+    --blue:#2563eb; --slate:#475569;   /* no DS match (kept) */
+    --shadow:   var(--shadow-card);
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  body{font-family:var(--font-body);background:var(--bg);color:var(--ink);font-size:14px}
   a{color:inherit;text-decoration:none;cursor:pointer}
   html{scroll-behavior:smooth}
 
@@ -22,7 +32,7 @@
   .app{display:flex;min-height:100vh}
   .sidebar{width:248px;background:linear-gradient(180deg,var(--sidebar),var(--sidebar-2));color:#c7d2fe;display:flex;flex-direction:column;position:fixed;inset:0 auto 0 0;z-index:20}
   .brand{padding:20px 22px;display:flex;align-items:center;gap:11px;border-bottom:1px solid rgba(255,255,255,.08)}
-  .brand .logo{width:36px;height:36px;border-radius:10px;background:var(--indigo);display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px;box-shadow:0 4px 12px rgba(79,70,229,.5)}
+  .brand .logo{width:36px;height:36px;border-radius:10px;display:block;box-shadow:0 4px 12px rgba(79,70,229,.5)}
   .brand b{color:#fff;font-size:15px;display:block;line-height:1.2}
   .brand small{color:#a5b4fc;font-size:11px}
   .nav{padding:14px 12px;flex:1;overflow:auto}
@@ -64,7 +74,7 @@
   .kpi .val{font-size:25px;font-weight:800;margin-top:8px;letter-spacing:-.5px}
   .kpi .chg{font-size:11.5px;font-weight:600;margin-top:5px}
   .up{color:var(--green)} .down{color:var(--red)}
-  .kpi.ok::before{background:var(--green)} .kpi.warn::before{background:var(--amber)} .kpi.rev::before{background:#7c3aed}
+  .kpi.ok::before{background:var(--green)} .kpi.warn::before{background:var(--amber)} .kpi.rev::before{background:var(--brand-2)}
 
   /* cards / grid */
   .grid{display:grid;gap:18px}
@@ -195,7 +205,7 @@
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar" role="navigation" aria-label="Admin navigation">
     <div class="brand" aria-label="LeadGen AI Admin">
-      <div class="logo" aria-hidden="true">L</div>
+      <img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="36" height="36" />
       <div><b>LeadGen AI</b><small>Admin Console</small></div>
     </div>
     <nav class="nav" role="menubar" aria-label="Main menu">

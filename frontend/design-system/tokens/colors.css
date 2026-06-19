@@ -1,0 +1,76 @@
+/* LeadGen AI — Color tokens
+   Signature: indigo→violet gradient brand, warm Hinglish-friendly neutrals,
+   and a lead-temperature semantic scale (Hot/Warm/Cold). */
+:root {
+  /* ---- Brand: indigo → violet ---- */
+  --indigo-400: #818cf8;
+  --indigo-500: #6366f1;
+  --indigo-600: #4f46e5;   /* primary brand */
+  --indigo-700: #4338ca;
+  --violet-500: #7c3aed;   /* secondary brand */
+  --violet-600: #6d28d9;
+  --violet-700: #5b21b6;
+  --violet-800: #4c1d95;   /* sidebar gradient end */
+  --violet-900: #2e1065;   /* sidebar gradient start */
+  --indigo-50:  #eef0ff;   /* soft brand tint (chips, icon wells) */
+  --violet-50:  #ede9fe;   /* soft violet tint */
+  --violet-100: #ddd6fe;
+
+  /* Signature gradient */
+  --grad-brand: linear-gradient(135deg, var(--indigo-600), var(--violet-500));
+  --grad-sidebar: linear-gradient(180deg, var(--violet-900), var(--violet-800));
+
+  /* ---- Ink / neutrals ---- */
+  --ink-900: #0f1024;   /* primary text, dark CTA bg */
+  --ink-800: #1b1c3a;
+  --ink-700: #1e1b2e;
+  --slate-500: #64647e; /* muted body text */
+  --slate-400: #6b7280;
+  --slate-300: #a0a0bb; /* faint labels, placeholder logos */
+
+  /* ---- Surfaces & lines ---- */
+  --white: #ffffff;
+  --bg: #ffffff;
+  --bg-soft: #f6f6fb;   /* section / app canvas */
+  --bg-soft-2: #faf9ff; /* hover wash on cards */
+  --line: #e8e8f2;
+  --line-2: #f1eff8;
+
+  /* ---- Lead temperature (signature semantic scale) ---- */
+  --hot: #ef4444;       --hot-bg: #fef2f2;
+  --warm: #f59e0b;      --warm-bg: #fffbeb;
+  --cold: #3b82f6;      --cold-bg: #eff6ff;
+
+  /* ---- Status / feedback ---- */
+  --success: #16a34a;   --success-bg: #dcfce7;   --success-ink: #15803d;
+  --warning: #d97706;   --warning-bg: #fef3c7;   --warning-ink: #b45309;
+  --danger: #b91c1c;    --danger-bg: #fef2f2;
+  --info: #0ea5e9;      --info-bg: #e0f2fe;
+  --neutral: #64748b;   --neutral-bg: #f1f5f9;   /* "no answer" */
+  --whatsapp: #1fa855;  --whatsapp-hover: #188f47;
+  --star: #f59e0b;
+
+  /* ===================== Semantic aliases ===================== */
+  --brand: var(--indigo-600);
+  --brand-2: var(--violet-500);
+  --brand-strong: var(--violet-600);
+
+  --text-strong: var(--ink-900);
+  --text-body: var(--ink-800);
+  --text-muted: var(--slate-500);
+  --text-faint: var(--slate-300);
+  --text-on-brand: #ffffff;
+
+  --surface-page: var(--bg);
+  --surface-canvas: var(--bg-soft);
+  --surface-card: var(--white);
+  --surface-tint: var(--indigo-50);
+  --surface-hover: var(--bg-soft-2);
+
+  --border-subtle: var(--line);
+  --border-faint: var(--line-2);
+  --border-focus: var(--indigo-600);
+
+  --accent-soft-bg: var(--indigo-50);
+  --accent-soft-ink: var(--indigo-600);
+}
