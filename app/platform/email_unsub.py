@@ -116,6 +116,14 @@ def suppress(email: str, reason: str = "one_click") -> bool:
         with open(_STORE, "a", encoding="utf-8") as f:
             f.write(json.dumps({"email": e, "reason": reason, "ts": int(time.time())}) + "\n")
         logger.info("[email_unsub] suppressed %s (%s)", e, reason)
+        # Deliverability gate: one-click opt-out = strongest recipient negative signal
+        # → feed spam-complaint-rate tracker (auto-pauses outreach at 0.25% over 7d).
+        try:
+            from app.platform import email_warmup
+
+            email_warmup.record_complaint(e, f"unsub_{reason}")
+        except Exception:
+            pass
         return True
     except Exception as ex:  # pragma: no cover — never-raise
         logger.debug("[email_unsub] suppress failed: %s", ex)

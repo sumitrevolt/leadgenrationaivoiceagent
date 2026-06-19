@@ -27,6 +27,8 @@ Env flags:
   USE_SMART_TURN=1        # turn on Smart Turn v3 end-of-turn (needs pipecat)
   SMART_TURN_MODEL_PATH   # optional path to a local smart-turn ONNX model
   SMART_TURN_THRESHOLD    # endpoint probability >= this == "turn complete" (default 0.55)
+  USE_TEXT_ENDPOINT=1     # turn on the zero-dep text/semantic endpoint check on
+                          # the partial transcript (complements audio Smart-Turn)
 
 Shared turn-taking knobs (read by the stream files + pipeline so a single env
 controls every audio path; sane defaults keep prod identical until set):
@@ -261,16 +263,109 @@ def get_smart_turn() -> SmartTurnDetector:
     return _smart_turn
 
 
-def confirm_end_of_turn(silence_ended: bool, pcm16: bytes = b"", sample_rate: int = 16000) -> bool:
-    """Combine the silence-timer end-of-turn with the Smart Turn v3 semantic check.
+# --------------------------------------------------------------------------- #
+# Text-based semantic endpointing — zero-dep, rule-first. Runs on the PARTIAL
+# transcript to complement the audio Smart-Turn: a caller can pause AFTER a
+# dangling conjunction ("...kyunki—") and the silence-timer would wrongly end
+# the turn; the words say "not done". Cheap pure-string heuristics, no model.
+# --------------------------------------------------------------------------- #
+
+# Trailing tokens that strongly signal the caller is MID-thought (more coming):
+# Hinglish conjunctions + thinking-fillers (Roman + a few Devanagari). If the
+# transcript ends on one of these, the turn is almost certainly NOT complete.
+_INCOMPLETE_TAIL_WORDS = frozenset(
+    {
+        # conjunctions / connectives (Roman)
+        "aur", "lekin", "kyunki", "kyuki", " kyun", "kyon", "ya", "magar", "par",
+        "toh", "to", "ki", "jo", "agar", "kyonki", "isliye", "phir", "fir",
+        "aurr", "kintu", "parantu", "taaki", "taki", "jab", "tab", "jaise",
+        # thinking-fillers / hesitations (Roman)
+        "matlab", "woh", "wo", "uh", "um", "umm", "hmm", "mtlb", "yaani",
+        "yani", "bas", "ki", "vo", "aise", "jaise", "ek", "thoda", "abhi",
+        # Devanagari conjunctions / fillers
+        "और", "लेकिन", "क्योंकि", "या", "मगर", "पर", "तो", "कि", "जो", "अगर",
+        "मतलब", "वो", "यानी",
+    }
+)
+
+# Terminal punctuation that signals a COMPLETE sentence (incl. Hindi danda).
+_TERMINAL_PUNCT = (".", "?", "!", "।", "॥")
+
+
+def text_end_of_turn(text: str) -> Optional[bool]:
+    """Rule-first text/semantic endpoint check on a partial transcript.
+
+    Returns:
+      * ``True``  — the words look COMPLETE (ends on terminal . ? ! danda).
+      * ``False`` — the words look INCOMPLETE (ends on a dangling Hinglish
+        conjunction like aur/lekin/kyunki/ya or a thinking-filler matlab/woh/uh).
+      * ``None``  — undecided / empty (caller should fall back to the audio
+        silence-timer + Smart-Turn). Never raises.
+
+    Zero-dep, no model, no network. Designed to *complement* the audio
+    Smart-Turn: even when audio energy says "silence", a dangling conjunction
+    means keep listening, and a clean sentence-final punctuation lets the turn
+    end immediately. Conservative by default (None) so it only nudges on a
+    clear signal.
+    """
+    try:
+        t = (text or "").strip()
+        if not t:
+            return None
+        # 1) Clean sentence-final punctuation -> complete.
+        if t.endswith(_TERMINAL_PUNCT):
+            return True
+        # A bare trailing comma/dash (attached or space-separated) reads as
+        # "more coming" -> incomplete.
+        if t[-1] in {",", "-", "–", "—"}:
+            return False
+        # 2) Look at the last word (strip trailing non-word punctuation like
+        #    comma/dash/ellipsis that don't terminate a sentence).
+        last = t.split()[-1] if t.split() else ""
+        last_clean = last.strip(",;:-–—…\"'()[]{}").lower()
+        if not last_clean:
+            return None
+        if last_clean in _INCOMPLETE_TAIL_WORDS:
+            return False  # dangling conjunction / filler -> keep listening
+        # 3) Otherwise undecided — let audio/silence decide.
+        return None
+    except Exception:
+        return None
+
+
+def confirm_end_of_turn(
+    silence_ended: bool,
+    pcm16: bytes = b"",
+    sample_rate: int = 16000,
+    text: str = "",
+) -> bool:
+    """Combine the silence-timer end-of-turn with the Smart Turn v3 semantic check
+    and (optionally) the zero-dep text endpoint on the partial transcript.
 
     ``silence_ended=False`` -> caller still talking, return False. ``silence_ended=True``
     -> Smart Turn (USE_SMART_TURN=1) se poochho: agar woh kahe turn ABHI complete nahi
     (caller ne sochne ko pause liya) to False (sun-te raho, beech me mat toko); complete
-    ya uncertain/disabled (None) to silence-timer honor karo -> True. Never raises.
+    ya uncertain/disabled (None) to silence-timer honor karo -> True.
+
+    TEXT layer (USE_TEXT_ENDPOINT=1, default OFF): jab ``text`` partial transcript
+    diya ho — agar woh ek dangling conjunction/filler pe khatam ho (aur/lekin/matlab)
+    to False (abhi mat toko), terminal . ? ! danda pe khatam ho to turn complete maano.
+    Undecided/empty/flag-off = no effect (audio + silence-timer authoritative).
+    Never raises.
     """
     if not silence_ended:
         return False
+    # Text/semantic layer (opt-in). Only an INCOMPLETE verdict overrides the
+    # silence-timer to keep listening; a COMPLETE verdict simply confirms the
+    # already-ended silence (returns True like before). Flag OFF / no text /
+    # undecided = zero change.
+    try:
+        if _flag("USE_TEXT_ENDPOINT") and text:
+            tv = text_end_of_turn(text)
+            if tv is False:
+                return False  # dangling conjunction/filler -> keep listening
+    except Exception:
+        pass
     try:
         ep = get_smart_turn().is_endpoint(pcm16, sample_rate=sample_rate)
         if ep is False:
@@ -321,6 +416,7 @@ __all__ = [
     "SmartTurnDetector",
     "get_speech_gate",
     "get_smart_turn",
+    "text_end_of_turn",
     "confirm_end_of_turn",
     "turn_silence_ms",
     "turn_vad_rms",

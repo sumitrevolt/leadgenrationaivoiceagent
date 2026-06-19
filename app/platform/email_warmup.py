@@ -29,8 +29,14 @@ logger = setup_logger(__name__)
 _STATE = os.path.join("data", "email_warmup.json")
 
 BOUNCE_PAUSE_PCT = 1.8  # Smartlead/Instantly auto-pause trigger
+# Spam-complaint rate = #1 2026 Gmail/Yahoo deliverability gate. Google "Spammy"
+# threshold 0.30% (hard), 0.10% = ideal ceiling. Auto-pause buffer = 0.25% (pause
+# BEFORE Google flags the domain — recovery is slow/expensive once flagged).
+COMPLAINT_PAUSE_PCT = 0.25
 PAUSE_HOURS = 24
 _MIN_SENDS_FOR_RATE = 20  # chhote sample pe pause mat karo (1 bounce / 5 sends != crisis)
+# Complaint sample bigger — 0.25% of <400 sends = <1 complaint, so rate noisy at low N.
+_MIN_SENDS_FOR_COMPLAINT_RATE = 100
 # (week_index_from_1, cap) — wk4+ = base cap (caller ka).
 _RAMP = {1: 5, 2: 15, 3: 25}
 
@@ -113,6 +119,15 @@ def bounce_rate_7d(state: dict[str, Any] | None = None) -> tuple[float, int, int
     return round(rate, 2), sent, bounced
 
 
+def complaint_rate_7d(state: dict[str, Any] | None = None) -> tuple[float, int, int]:
+    """(rate_pct, sent_7d, complaints_7d) rolling 7 din — spam-complaint gate (<0.3%)."""
+    st = state if state is not None else _load()
+    sent = sum(int(e.get("n") or 1) for e in _trim_7d(list(st.get("sent_events") or [])))
+    complaints = len(_trim_7d(list(st.get("complaint_events") or [])))
+    rate = (complaints / sent * 100.0) if sent > 0 else 0.0
+    return round(rate, 3), sent, complaints
+
+
 def effective_cap(base_cap: int) -> int:
     """Outreach ka aaj ka cap. Flag OFF => base_cap as-is (zero behaviour change)."""
     try:
@@ -169,6 +184,35 @@ def record_bounce(email: str = "", reason: str = "") -> dict[str, Any]:
     return out
 
 
+def record_complaint(email: str = "", reason: str = "") -> dict[str, Any]:
+    """Spam-complaint / unsubscribe-as-complaint report — threshold cross pe 24h auto-pause + alert.
+
+    Spam-complaint rate = #1 2026 Gmail/Yahoo deliverability gate (must stay <0.3%;
+    we auto-pause at 0.25% buffer). Feed from reply-agent 'unsubscribe' intent +
+    email_unsub one-click opt-out (both = recipient-side negative signal). Never raises.
+    """
+    out: dict[str, Any] = {"recorded": False, "paused": False}
+    try:
+        st = _load()
+        events = _trim_7d(list(st.get("complaint_events") or []))
+        events.append({"at": _now().isoformat(), "email": (email or "")[:120], "reason": (reason or "")[:200]})
+        st["complaint_events"] = events
+        out["recorded"] = True
+        rate, sent, complaints = complaint_rate_7d(st)
+        out.update({"rate_pct": rate, "sent_7d": sent, "complaints_7d": complaints})
+        if sent >= _MIN_SENDS_FOR_COMPLAINT_RATE and rate >= COMPLAINT_PAUSE_PCT and not is_paused(st):
+            st["paused_until"] = (_now() + timedelta(hours=PAUSE_HOURS)).isoformat()
+            st["paused_reason"] = f"complaint rate {rate}% >= {COMPLAINT_PAUSE_PCT}% ({complaints}/{sent} in 7d)"
+            out["paused"] = True
+            logger.warning(f"[warmup] AUTO-PAUSE (complaints): {st['paused_reason']}")
+        _save(st)
+        if out["paused"]:
+            _alert(st.get("paused_reason", ""))
+    except Exception as e:
+        logger.debug(f"[warmup] record_complaint skipped: {e}")
+    return out
+
+
 def _alert(reason: str) -> None:
     """NOTIFY_EMAIL ko pause-alert (best-effort, fire-and-forget)."""
     try:
@@ -215,6 +259,7 @@ def resume() -> bool:
 def status() -> dict[str, Any]:
     st = _load()
     rate, sent, bounced = bounce_rate_7d(st)
+    c_rate, _c_sent, complaints = complaint_rate_7d(st)
     days = max(0, (_now().date() - _start_date(st)).days) if st.get("start_date") or os.environ.get("WARMUP_START_DATE") else 0
     week = days // 7 + 1
     return {
@@ -229,10 +274,14 @@ def status() -> dict[str, Any]:
         "sent_7d": sent,
         "bounced_7d": bounced,
         "pause_threshold_pct": BOUNCE_PAUSE_PCT,
+        "complaint_rate_7d_pct": c_rate,
+        "complaints_7d": complaints,
+        "complaint_pause_threshold_pct": COMPLAINT_PAUSE_PCT,
     }
 
 
 __all__ = [
-    "effective_cap", "record_sent", "record_bounce", "bounce_rate_7d",
-    "is_paused", "resume", "status", "BOUNCE_PAUSE_PCT",
+    "effective_cap", "record_sent", "record_bounce", "record_complaint",
+    "bounce_rate_7d", "complaint_rate_7d", "is_paused", "resume", "status",
+    "BOUNCE_PAUSE_PCT", "COMPLAINT_PAUSE_PCT",
 ]

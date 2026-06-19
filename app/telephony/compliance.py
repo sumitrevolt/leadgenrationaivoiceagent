@@ -227,10 +227,30 @@ class ComplianceGate:
             #      Transactional pe block nahi (user ne khud callback manga ho sakta),
             #      sirf note. Defensive: ledger error = no change.
             try:
-                from app.telephony.consent_ledger import is_suppressed
+                from app.telephony.consent_ledger import (
+                    blocked_until,
+                    days_since_opt_out,
+                    is_suppressed,
+                    reconsent_blocked,
+                )
 
                 if is_suppressed(phone_d):
                     checks["suppressed"] = True
+                    # TRAI 90-din re-consent cool-off visibility: record how recent
+                    # the opt-out is + until when a re-consent is blocked. This
+                    # STRENGTHENS the gate (audit + makes a too-soon re-add visible
+                    # in the decision) without changing the existing block.
+                    try:
+                        since = days_since_opt_out(phone_d)
+                        if since is not None:
+                            checks["days_since_opt_out"] = round(since, 1)
+                        if reconsent_blocked(phone_d):
+                            checks["reconsent_blocked"] = True
+                            bu = blocked_until(phone_d)
+                            if bu:
+                                checks["reconsent_blocked_until"] = bu
+                    except Exception:
+                        pass
                     if ct == CallType.PROMOTIONAL:
                         reasons.append("opted_out")
                         return ComplianceDecision(False, ct.value, phone, reasons, checks)

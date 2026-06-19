@@ -24,6 +24,19 @@ _LOG = os.path.join("data", "deliverability_checks.jsonl")
 DOMAIN = os.environ.get("OUTREACH_DOMAIN", "leadsgenai.in")
 _DNSBLS = ["zen.spamhaus.org", "bl.spamcop.net"]
 
+# Common DKIM selectors to probe (env DKIM_SELECTOR can be CSV to override/extend).
+# Hostinger uses "hostingermail" style; default list covers the usual ESPs too.
+_DEFAULT_DKIM_SELECTORS = ["hostingermail", "default", "dkim", "mail", "selector1", "selector2", "google", "s1", "s2", "k1"]
+
+
+def _dkim_selectors() -> list[str]:
+    raw = os.environ.get("DKIM_SELECTOR", "").strip()
+    if raw:
+        sels = [s.strip() for s in raw.replace(";", ",").split(",") if s.strip()]
+        if sels:
+            return sels
+    return list(_DEFAULT_DKIM_SELECTORS)
+
 
 def _enabled_alerts() -> bool:
     return os.environ.get("DELIVERABILITY_MONITOR", "0").strip().lower() in ("1", "true", "yes")
@@ -64,12 +77,59 @@ def _public_ip() -> str:
         return ""
 
 
+def _dmarc_policy(records: list[str]) -> str:
+    """DMARC record se p= tag nikaalo (none/quarantine/reject). Mile na to ''."""
+    try:
+        for t in records:
+            tl = t.lower()
+            if "v=dmarc1" not in tl:
+                continue
+            for part in tl.split(";"):
+                part = part.strip()
+                if part.startswith("p="):
+                    return part.split("=", 1)[1].strip()
+    except Exception:
+        pass
+    return ""
+
+
+def check_dkim(domain: str = DOMAIN) -> dict[str, Any]:
+    """DKIM presence check — common/configured selectors try karo (pure DNS, kabhi raise nahi)."""
+    out: dict[str, Any] = {"dkim_ok": False, "dkim_selector": "", "dkim_tried": []}
+    try:
+        for sel in _dkim_selectors():
+            out["dkim_tried"].append(sel)
+            recs = _txt_lookup(f"{sel}._domainkey.{domain}")
+            if any("v=dkim1" in t.lower() or "p=" in t.lower() for t in recs):
+                out["dkim_ok"] = True
+                out["dkim_selector"] = sel
+                break
+    except Exception:
+        pass
+    return out
+
+
 def check_records(domain: str = DOMAIN) -> dict[str, Any]:
-    """SPF + DMARC presence check (pure DNS, kabhi raise nahi)."""
-    out: dict[str, Any] = {"domain": domain, "spf_ok": False, "dmarc_ok": False}
+    """SPF presence + DMARC presence/policy-strength + DKIM presence (pure DNS, kabhi raise nahi)."""
+    out: dict[str, Any] = {
+        "domain": domain,
+        "spf_ok": False,
+        "dmarc_ok": False,
+        "dmarc_policy": "",
+        "dmarc_strong": False,
+        "dkim_ok": False,
+        "dkim_selector": "",
+        "dkim_tried": [],
+    }
     try:
         out["spf_ok"] = any("v=spf1" in t.lower() for t in _txt_lookup(domain))
-        out["dmarc_ok"] = any("v=dmarc1" in t.lower() for t in _txt_lookup(f"_dmarc.{domain}"))
+        dmarc_recs = _txt_lookup(f"_dmarc.{domain}")
+        out["dmarc_ok"] = any("v=dmarc1" in t.lower() for t in dmarc_recs)
+        pol = _dmarc_policy(dmarc_recs)
+        out["dmarc_policy"] = pol
+        # p=quarantine ya p=reject = enforcing/strong; p=none ya missing = weak.
+        out["dmarc_strong"] = pol in ("quarantine", "reject")
+        out.update(check_dkim(domain))
     except Exception:
         pass
     return out
@@ -106,6 +166,10 @@ async def run_check() -> dict[str, Any]:
             problems.append("SPF record missing/broken")
         if not rec.get("dmarc_ok"):
             problems.append("DMARC record missing/broken")
+        elif not rec.get("dmarc_strong"):
+            problems.append(f"DMARC policy weak (p={rec.get('dmarc_policy') or 'none'}) — quarantine/reject recommended")
+        if not rec.get("dkim_ok"):
+            problems.append("DKIM record missing (no signing selector found)")
         if rec["blacklist"].get("listed_on"):
             problems.append(f"IP blacklisted: {', '.join(rec['blacklist']['listed_on'])}")
         rec["problems"] = problems

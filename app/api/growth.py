@@ -1223,6 +1223,9 @@ AUTOMATION_FLAGS = [
     "PROCESS_AUTOSTART",  # D V1.1: process-engine deterministic workflows auto-start (idempotent, 1/tick)
     "CONTENT_AUTOPUBLISH",  # SP5: self-brand 'ready' content auto-publish to Telegram (needs TG creds)
     "AMD_DETECT",  # SP7: answering-machine detection on vobiz stream (saves credits) — OFF default
+    # --- Research-improvements batch 2026-06-19 ---
+    "USE_TEXT_ENDPOINT",  # text-based semantic end-of-turn (complements audio Smart-Turn) — OFF default
+    "RECONSENT_COOLOFF_DAYS",  # TRAI re-consent cool-off (default 90; 0 disables) — strengthens compliance
 ]
 
 
@@ -1655,6 +1658,18 @@ async def infra_flags(_user=Depends(require_admin)):
         out[f] = {"set": v is not None, "on": (v or "").strip().lower() in ("1", "true", "yes"), "value": v}
     on = [k for k, d in out.items() if d["on"]]
     return {"on_count": len(on), "on": on, "flags": out}
+
+
+@router.get("/infra/judge-calibration")
+async def infra_judge_calibration(_user=Depends(require_admin)):
+    """Per-judge agreement + Cohen's kappa vs human approve/reject ground-truth.
+    Offline read of data/*.jsonl; verdict = reliable | advisory | insufficient-data."""
+    try:
+        from app.agents import judge_calibration
+
+        return judge_calibration.calibrate()
+    except Exception as e:  # never break the cockpit
+        return {"ok": False, "error": str(e)[:200], "judges": []}
 
 
 # ------------- Per-tenant Feature Flags (Phase 1 SaaS infra upgrade) ------------- #

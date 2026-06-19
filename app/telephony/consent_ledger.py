@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 import os
 import time as _time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +39,13 @@ SUPPRESSION_FILE = Path("data") / "voice_suppression.jsonl"
 RECORDINGS_DIR = Path("data") / "recordings"
 
 DEFAULT_RETENTION_DAYS = 90  # TRAI/QoS guidance: call recordings 90 din, fir delete
+
+# Re-consent cool-off (TRAI/TCCCPR): once a subscriber opts out, a fresh
+# consent / opt-back-in must NOT be honoured for a floor period — this guards
+# against a number being scrubbed and immediately re-added (which would defeat
+# the opt-out). 90 days mirrors the recording-retention floor. Override window
+# via env RECONSENT_COOLOFF_DAYS; admin can still force a re-consent with proof.
+DEFAULT_RECONSENT_COOLOFF_DAYS = 90
 
 
 # --------------------------------------------------------------------------- #
@@ -244,17 +251,147 @@ def is_suppressed(phone: str) -> bool:
         return False
 
 
-def opt_back_in(phone: str, source: str = "admin", proof: str = "") -> dict[str, Any]:
-    """Re-consent: suppression se hatao + fresh consent record (admin/explicit only)."""
+def _cooloff_days() -> int:
+    """Re-consent cool-off window (days). Env-overridable, never raises."""
+    try:
+        v = (os.environ.get("RECONSENT_COOLOFF_DAYS", "") or "").strip()
+        if v:
+            n = int(v)
+            if n >= 0:
+                return n
+    except Exception:
+        pass
+    return DEFAULT_RECONSENT_COOLOFF_DAYS
+
+
+def last_opt_out_at(phone: str) -> str | None:
+    """ISO timestamp of the most-recent opt_out for this number (last-10 match),
+    or None. Reads both the suppression store (current opt-out) and the ledger
+    opt_out entries (history), returning the latest. Never raises."""
+    try:
+        k = _key(phone)
+        if not k:
+            return None
+        latest: str | None = None
+        for it in _read(SUPPRESSION_FILE):
+            if it.get("phone") == k:
+                at = str(it.get("at") or "")
+                if at and (latest is None or at > latest):
+                    latest = at
+        for it in _read(LEDGER_FILE):
+            if it.get("phone") == k and it.get("type") == "opt_out":
+                at = str(it.get("at") or "")
+                if at and (latest is None or at > latest):
+                    latest = at
+        return latest
+    except Exception:
+        return None
+
+
+def days_since_opt_out(phone: str) -> float | None:
+    """Days elapsed since the last opt_out, or None if never opted out / unknown.
+    Never raises."""
+    try:
+        latest = last_opt_out_at(phone)
+        if not latest:
+            return None
+        ts = datetime.fromisoformat(latest)
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - ts).total_seconds() / 86400.0
+    except Exception:
+        return None
+
+
+def blocked_until(phone: str, cooloff_days: int | None = None) -> str | None:
+    """ISO timestamp until which a re-consent is blocked (last opt_out + cool-off),
+    or None if there is no opt_out on record. Returns the timestamp even if it is
+    already in the past (caller compares to now). Never raises."""
+    try:
+        latest = last_opt_out_at(phone)
+        if not latest:
+            return None
+        days = _cooloff_days() if cooloff_days is None else max(0, int(cooloff_days))
+        ts = datetime.fromisoformat(latest)
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return (ts + timedelta(days=days)).isoformat()
+    except Exception:
+        return None
+
+
+def reconsent_blocked(phone: str, cooloff_days: int | None = None) -> bool:
+    """True agar number ne haal hi me (cool-off window ke andar) opt-out kiya hai
+    — re-consent abhi honour NAHI hona chahiye (TRAI 90-din floor). Never raises."""
+    try:
+        days = _cooloff_days() if cooloff_days is None else max(0, int(cooloff_days))
+        if days <= 0:
+            return False
+        elapsed = days_since_opt_out(phone)
+        if elapsed is None:
+            return False
+        return elapsed < days
+    except Exception:
+        return False
+
+
+def opt_back_in(
+    phone: str,
+    source: str = "admin",
+    proof: str = "",
+    force: bool = False,
+    cooloff_days: int | None = None,
+) -> dict[str, Any]:
+    """Re-consent: suppression se hatao + fresh consent record (admin/explicit only).
+
+    TRAI 90-din re-consent cool-off: agar number ne cool-off window ke andar
+    opt-out kiya hai to re-consent REJECT hota hai (number callable nahi banta)
+    unless ``force=True`` (admin override, audit-logged). Additive — purane
+    callers (force default False) ke liye ab cool-off enforce hota hai, jo gate
+    ko STRENGTHEN karta hai (number ko turant re-add karke opt-out defeat nahi
+    kar sakte)."""
     k = _key(phone)
     if not k:
         return {"error": "bad_phone"}
+    # 90-din floor — recent opt-out ko turant reverse mat hone do.
+    if not force and reconsent_blocked(k, cooloff_days=cooloff_days):
+        until = blocked_until(k, cooloff_days=cooloff_days)
+        elapsed = days_since_opt_out(k)
+        logger.warning(
+            f"🚫 re-consent BLOCKED ***{k[-4:]} — within cool-off "
+            f"({elapsed:.1f}d since opt-out, blocked_until={until}). "
+            f"Use force=True to override."
+        )
+        return {
+            "phone": k,
+            "suppressed": True,
+            "reconsent_blocked": True,
+            "blocked_until": until,
+            "days_since_opt_out": elapsed,
+            "cooloff_days": _cooloff_days() if cooloff_days is None else cooloff_days,
+            "error": "reconsent_cooloff",
+        }
     items = _read(SUPPRESSION_FILE)
     keep = [i for i in items if i.get("phone") != k]
     if len(keep) != len(items):
         _write_all(SUPPRESSION_FILE, keep)
     rec = record_consent(k, scope="all", source=source, proof=proof)
-    return {"phone": k, "suppressed": False, "consent": rec}
+    if force and reconsent_blocked(k, cooloff_days=cooloff_days):
+        # Override is a compliance event — leave an audit breadcrumb in the ledger.
+        try:
+            _append(
+                LEDGER_FILE,
+                {
+                    "type": "reconsent_override",
+                    "phone": k,
+                    "source": (source or "admin")[:80],
+                    "proof": (proof or "")[:160],
+                    "at": _now(),
+                },
+            )
+        except Exception:
+            pass
+    return {"phone": k, "suppressed": False, "reconsent_blocked": False, "consent": rec}
 
 
 def suppression_list(limit: int = 500) -> list[dict]:
@@ -313,6 +450,10 @@ __all__ = [
     "record_opt_out",
     "is_suppressed",
     "opt_back_in",
+    "last_opt_out_at",
+    "days_since_opt_out",
+    "blocked_until",
+    "reconsent_blocked",
     "suppression_list",
     "retention_sweep",
     "LEDGER_FILE",
