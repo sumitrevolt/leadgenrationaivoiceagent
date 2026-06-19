@@ -60,7 +60,21 @@ async def _seed_kb_from_website(cid: str, website: str) -> dict:
         data = await extract_url(website)
         text = (data.get("text") or data.get("markdown") or "").strip()
         if len(text) < 150:
-            return out
+            # Fallback: MarkItDown handles PDF/Office brochures + JS-thin pages that
+            # deep_extract missed. Off-loop (sync convert), inert without markitdown
+            # (returns ""). Closes the to_markdown orphan (docs/Automation_Marketing_Repos.md).
+            try:
+                import asyncio
+
+                from app.lead_scraper.to_markdown import to_markdown
+
+                md = (await asyncio.to_thread(to_markdown, website) or "").strip()
+                if len(md) > len(text):
+                    text = md
+            except Exception as exc:
+                logger.info("onboard to_markdown fallback skip: %s", exc)
+            if len(text) < 150:
+                return out
         ns = _namespace(cid)
         try:
             from app.voice_agent.knowledge_base import get_knowledge_base

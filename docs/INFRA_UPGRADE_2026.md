@@ -27,7 +27,7 @@ Tera existing stack **surprisingly mature** hai — rate limiting, security head
 | Multi-tenant white-label | `app/middleware/tenant.py` | ✅ Built, ON | Active |
 | GZip compression | `app/middleware/__init__.py` | ✅ Built, ON | Active |
 | RequestGuard (timeout + shed) | `app/middleware/__init__.py` | ✅ Built, OFF | Set `REQUEST_GUARD=1` |
-| OpenTelemetry traces | `app/observability_otel.py` | ✅ Built, OFF | Set `ENABLE_OTEL=1` + `OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317` |
+| OpenTelemetry traces | `app/observability_otel.py` | ⚠️ Built, OFF — exporter deps NOT baked | **`ENABLE_OTEL=1` alone = silent no-op.** Lock me sirf `opentelemetry-api` baked; OTLP exporter + FastAPI/SQLAlchemy/Redis/httpx instrumentation `requirements-otel.txt` (un-baked) me → `ImportError`. Pehle in deps ko lock me add + image rebuild, PHIR `ENABLE_OTEL=1` + `OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317` |
 | Full observability stack | `docker-compose.observability.yml` | ✅ LIVE | Prometheus+Grafana+Loki+Tempo+Gatus+Uptime Kuma |
 | Node/cAdvisor/Postgres/Redis exporters | `docker-compose.observability.yml` | ✅ LIVE | Scraping active |
 
@@ -154,16 +154,17 @@ docker compose -f docker-compose.vps.yml up -d --no-deps app
 ## Part 4 — CRITICAL Blocker (Must Fix Before First Customer)
 
 ```
-🚨 RAZORPAY_KEY_ID=rzp_test_you...  ← PLACEHOLDER
-🚨 RAZORPAY_KEY_SECRET=your-razorpa...  ← PLACEHOLDER
+🚨 UPI_VPA=  ← UNSET (manual-UPI = primary India payment path)
 ```
 
+> **UPDATED 2026-06-18: Razorpay REMOVED entirely** (gateway/webhook/verify-payment code all deleted).
+> India payments ab **manual UPI** (`UPI_VPA` standalone modal). Stripe path international ke liye intact.
+
 **Action:**
-1. Razorpay Dashboard → Settings → API Keys → Generate Live Key
-2. `.env` me: `RAZORPAY_KEY_ID=rzp_live_xxx` + `RAZORPAY_KEY_SECRET=xxx`
+1. `.env` me apna UPI VPA set karo: `UPI_VPA=yourname@okhdfcbank` (checkout UPI modal isi se banta hai)
+2. (Optional, international) `STRIPE_SECRET_KEY=sk_live_xxx`
 3. `docker compose -f docker-compose.vps.yml up -d --no-deps app`
-4. Register webhook: `POST https://leadsgenai.in/api/billing/webhooks/razorpay` + set `RAZORPAY_WEBHOOK_SECRET`
-5. Run `scripts/test_billing_truth_2026.py` to verify
+4. Run `scripts/test_billing_truth_2026.py` to verify pricing-truth
 
 ---
 
@@ -226,7 +227,7 @@ bash /opt/leadgen/scripts/pg_restore_drill.sh
 | **Kong API Gateway** | Heavier than APISIX. Caddy + PLAN_RATE_LIMIT=1 covers 95% of need at zero cost. |
 | **Doppler secrets** | Not open source. Infisical Cloud free tier better. |
 | **PostHog self-host** | Needs ClickHouse (4GB+ RAM alone). Use PostHog Cloud free tier (1M events/mo). |
-| **Kill Bill** | Java, enterprise-complexity. Razorpay + custom subscription.py good enough at current scale. |
+| **Kill Bill** | Java, enterprise-complexity. UPI/Stripe + custom subscription.py good enough at current scale. |
 | **Separate analytics DB** | Qdrant + Postgres already handle analytics queries for current scale. |
 
 ---
@@ -234,7 +235,7 @@ bash /opt/leadgen/scripts/pg_restore_drill.sh
 ## Part 8 — Activation Checklist (Priority Order)
 
 ```
-[ ] 1. Razorpay real keys → .env → app restart (REVENUE BLOCKER)
+[ ] 1. UPI_VPA → .env → app restart (REVENUE BLOCKER; Razorpay removed 2026-06-18)
 [ ] 2. docker compose -f docker-compose.addons.yml up -d   (Celery visibility + MinIO)
 [ ] 3. PostHog API key → .env → app restart (product analytics ON)
 [ ] 4. Sentry DSN → .env → app restart (error tracking ON)

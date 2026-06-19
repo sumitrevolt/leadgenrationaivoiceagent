@@ -14,6 +14,7 @@ from app.voice_agent import free_ai
 def _env(monkeypatch):
     monkeypatch.delenv("PUBLIC_GUARDRAILS", raising=False)
     monkeypatch.delenv("SEMANTIC_CACHE", raising=False)  # semantic_complete -> direct factory
+    monkeypatch.delenv("USE_AGENTIC_RAG", raising=False)  # CRAG fallback OFF by default
     # No KB (avoid fastembed/qdrant); deterministic.
     monkeypatch.setattr(chatbot, "_kb_context_sync", lambda q, c, n, k: [])
     yield
@@ -76,4 +77,60 @@ async def test_clean_query_unaffected(monkeypatch):
     monkeypatch.setattr(free_ai, "chat", _mock_chat(cap))
     out = await chatbot.reply("aap kitne baje khulte ho?", client_id="c1")
     assert out["answer"] == "Humari cleaning ₹500 se shuru hoti hai."  # normal query passes
+    assert "messages" in cap
+
+
+# ---------------- agentic-RAG (CRAG) corrective fallback ---------------- #
+# Closes the wiring gap from docs/RAG_KnowledgeGraph_Agentic.md: the module had
+# zero call-sites. It now fires ONLY on the empty-KB path, gated USE_AGENTIC_RAG.
+
+
+def _mock_agentic(answer="Solar subsidy ₹78,000 tak milti hai.", grounded=True, ok=True):
+    class _AR:
+        async def answer(self, q, namespace="default", k=3, max_rewrites=1):
+            return {
+                "ok": ok, "grounded": grounded, "answer": answer,
+                "sources": [{"source": "kb", "score": 0.81}], "namespace": namespace,
+            }
+    return _AR()
+
+
+@pytest.mark.asyncio
+async def test_agentic_rag_off_no_fallback(monkeypatch):
+    """Flag OFF (default) => CRAG never consulted; normal LLM path serves (byte-identical)."""
+    cap = {}
+    monkeypatch.setattr(free_ai, "chat", _mock_chat(cap))
+    import app.agents.agentic_rag as ar_mod
+    called = {"n": 0}
+    monkeypatch.setattr(ar_mod, "get_agentic_rag", lambda: (called.__setitem__("n", called["n"] + 1) or _mock_agentic()))
+    out = await chatbot.reply("solar subsidy kitni milti hai?", client_id="c1")
+    assert called["n"] == 0                                   # CRAG NOT called
+    assert out["answer"] == "Humari cleaning ₹500 se shuru hoti hai."
+    assert "messages" in cap                                  # LLM path used
+
+
+@pytest.mark.asyncio
+async def test_agentic_rag_fallback_serves_grounded_answer(monkeypatch):
+    """Flag ON + empty KB + grounded CRAG hit => CRAG answer short-circuits the LLM path."""
+    monkeypatch.setenv("USE_AGENTIC_RAG", "1")
+    cap = {}
+    monkeypatch.setattr(free_ai, "chat", _mock_chat(cap))
+    import app.agents.agentic_rag as ar_mod
+    monkeypatch.setattr(ar_mod, "get_agentic_rag", lambda: _mock_agentic())
+    out = await chatbot.reply("solar subsidy kitni milti hai?", client_id="c1")
+    assert out["answer"] == "Solar subsidy ₹78,000 tak milti hai."  # CRAG served
+    assert "messages" not in cap                                    # main LLM SKIPPED
+    assert out["sources"] == 1
+
+
+@pytest.mark.asyncio
+async def test_agentic_rag_not_grounded_falls_through(monkeypatch):
+    """Flag ON but CRAG not grounded => no regression, falls through to the normal LLM path."""
+    monkeypatch.setenv("USE_AGENTIC_RAG", "1")
+    cap = {}
+    monkeypatch.setattr(free_ai, "chat", _mock_chat(cap))
+    import app.agents.agentic_rag as ar_mod
+    monkeypatch.setattr(ar_mod, "get_agentic_rag", lambda: _mock_agentic(grounded=False))
+    out = await chatbot.reply("kuch aam sa sawaal", client_id="c1")
+    assert out["answer"] == "Humari cleaning ₹500 se shuru hoti hai."  # LLM fallback
     assert "messages" in cap

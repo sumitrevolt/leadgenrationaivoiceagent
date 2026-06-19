@@ -37,6 +37,7 @@ KNOWN_INDIRECT = {
 # with a "# Phase-N future" comment in the registry — not a wiring bug.
 RESERVED_FUTURE = {
     "HERMES_HANDOFF",  # Phase-2: code_upgrader -> Hostinger Hermes draft-PR executor
+    "CONSENT_CONFIRM",  # TRAI verbal/DTMF consent-confirm gate — ships at DLT unlock (docs/TRAI_CONSENT_CONFIRM_SPEC.md)
 }
 
 

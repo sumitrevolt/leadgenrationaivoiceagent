@@ -222,6 +222,17 @@ def campaign_plan(
             if v and v not in seen:
                 seen.add(v)
                 keywords.append(v)
+    # SEM keyword matrix (advertools via seo_tools) — additive + defensive. advertools
+    # VPS pe opt-in installed; missing/locally => [] (naive `keywords` list upar already
+    # deta). Closes the seo_tools orphan (docs/Automation_Marketing_Repos.md). Never-raise.
+    keyword_matrix: list[dict[str, Any]] = []
+    try:
+        from app.marketing import seo_tools
+
+        _mods = [m for m in [c, "near me", "best", "price"] if m] or ["near me", "best"]
+        keyword_matrix = seo_tools.generate_keywords(seeds[:6], _mods)[:60]
+    except Exception:  # pragma: no cover - never break the plan
+        keyword_matrix = []
     return {
         "budget_split": {
             "google_pct": 60,
@@ -240,6 +251,7 @@ def campaign_plan(
             "👀 Lookalike: enquiry/call kar chuke logon ka 1% lookalike (Meta).",
         ],
         "keywords": keywords[:10],
+        "keyword_matrix": keyword_matrix,
         "negative_keywords": ["free", "sasta", "jobs", "salary", "vacancy", "diy", "kaise kare"],
         "measurement": [
             "🔗 Har ad-link par UTM lagayein (utm_source=google/meta) — lead ka source pata chale.",

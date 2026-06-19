@@ -31,6 +31,14 @@ def _guardrails_on() -> bool:
     return (os.getenv("PUBLIC_GUARDRAILS", "") or "").strip().lower() in ("1", "true", "yes", "on")
 
 
+def _agentic_rag_on() -> bool:
+    """Corrective (CRAG) retrieval fallback for the public chatbot — query-rewrite +
+    retry + grounded answer when the cheap KB retrieval comes back EMPTY. GATED
+    USE_AGENTIC_RAG=1 (default OFF = byte-identical). Closes the wiring gap noted in
+    docs/RAG_KnowledgeGraph_Agentic.md (the module had zero call-sites). Never-raise."""
+    return (os.getenv("USE_AGENTIC_RAG", "") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def _kb_context_sync(q: str, client_id: str, niche: str, k: int) -> list[str]:
     """SYNC KB retrieval — SIRF thread me chalao (model first-load + embed = heavy
     sync CPU/network; event loop pe chala to HTTP starve — qa-job prod-down lesson)."""
@@ -86,6 +94,30 @@ async def reply(question: str, client_id: str = "", niche: str = "general", k: i
         )
     except (asyncio.TimeoutError, Exception) as e:
         logger.info("chatbot KB skip (timeout/err): %s", e)
+
+    # Corrective fallback (CRAG): agar cheap multi-ns retrieval KHAALI aaya AND
+    # USE_AGENTIC_RAG on, to agentic loop (grade → query-rewrite → retry → grounded
+    # answer) try karo. SIRF is weak/empty path pe — common path (context mil gaya)
+    # bilkul unchanged + zero extra latency. Gated + bounded + never-raise.
+    if not ctx and _agentic_rag_on():
+        try:
+            from app.agents.agentic_rag import get_agentic_rag
+
+            _ns = f"client:{client_id}" if client_id else f"niche:{niche}"
+            _ar = await asyncio.wait_for(
+                get_agentic_rag().answer(q, namespace=_ns, k=k), timeout=20.0
+            )
+            _ans = (_ar.get("answer") or "").strip() if isinstance(_ar, dict) else ""
+            if _ar.get("ok") and _ar.get("grounded") and _ans:
+                if _guard is not None:
+                    try:
+                        _go = _guard.check_output(_ans)
+                        _ans = (_go.text or _ans).strip()
+                    except Exception as e:
+                        logger.debug("chatbot agentic-RAG output guard skip: %s", e)
+                return {"answer": _ans, "ask_contact": False, "sources": len(_ar.get("sources") or [])}
+        except Exception as e:
+            logger.info("chatbot agentic-RAG fallback skip (fail-open): %s", e)
 
     context = "\n".join(f"- {c}" for c in ctx[:k])
     try:
