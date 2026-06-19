@@ -52,6 +52,10 @@ STAFF_JOBS = (
     "pipeline",
     "email_followup",
     "kb_refresh",
+    "midday_prospect",
+    "evening_wrap",
+    "weekly_marketing",
+    "saturday_hygiene",
 )
 
 
