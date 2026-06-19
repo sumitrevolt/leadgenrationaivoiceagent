@@ -1243,6 +1243,10 @@ AUTOMATION_FLAGS = [
     "USE_TEXT_ENDPOINT",  # text-based semantic end-of-turn (complements audio Smart-Turn) — OFF default
     "USE_LLM_STREAM_TTS",  # LLM token stream → early sentence TTS (vobiz) — OFF default
     "RECONSENT_COOLOFF_DAYS",  # TRAI re-consent cool-off (default 90; 0 disables) — strengthens compliance
+    # --- Readiness + dashboard batch 2026-06-20 (all default OFF / inert) ---
+    "REVENUE_TRENDS",  # B1: admin revenue time-series (/revenue-trend + daily snapshot job) — OFF default
+    "CLIENT_TIMELINE",  # B2: per-client activity timeline endpoint — OFF default
+    "SYS_HEALTH_DETAIL",  # B3: admin system-health drill-down endpoint — OFF default
 ]
 
 
