@@ -120,6 +120,7 @@ _last_ran: dict[str, str | None] = {
     "saturday_hygiene": None,   # Sat 04:00: DLQ + celery trim (gated SCHEDULER_HYGIENE)
     "meter_watch": None,        # hourly :55: billing meter-failure watcher (gated METER_ALERTS)
     "process_autostart": None,  # daily ~11:30 IST: process-engine auto-start (gated PROCESS_AUTOSTART)
+    "revenue_snapshot": None,   # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
 }
 
 
@@ -616,6 +617,12 @@ async def _run_job_inner(job: str) -> None:
                     "Aaj ka team plan: growth (naye leads + outreach) aur ops (system health + QA) — "
                     "priorities aur next-actions nikalo"
                 )
+        elif job == "revenue_snapshot":
+            # B1: daily MRR/churn/LTV snapshot for the admin revenue trend chart.
+            if os.environ.get("REVENUE_TRENDS", "0").strip().lower() in ("1", "true", "yes"):
+                from app.platform import revenue_snapshots
+
+                await revenue_snapshots.snapshot_today()
     except Exception as e:
         logger.warning(f"[team-scheduler] job {job} failed: {e}")
 
@@ -677,6 +684,9 @@ async def scheduler_loop() -> None:
             if now.minute >= 5 and _last_ran["ops"] != hour_key:
                 _last_ran["ops"] = hour_key
                 await _run_job("ops")
+            if (0, 5) <= hm < (0, 35) and _last_ran["revenue_snapshot"] != day_key:
+                _last_ran["revenue_snapshot"] = day_key
+                await _run_job("revenue_snapshot")  # B1 daily MRR snapshot (light, gated REVENUE_TRENDS)
             if (2, 30) <= hm < (4, 0) and _last_ran["qa"] != day_key:
                 _last_ran["qa"] = day_key
                 await _run_job("qa")
