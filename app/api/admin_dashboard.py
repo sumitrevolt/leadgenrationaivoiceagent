@@ -1049,6 +1049,21 @@ async def get_revenue_analytics() -> dict:
     return out
 
 
+@router.get("/revenue-trend")
+async def get_revenue_trend(days: int = 90, _user=Depends(require_admin)) -> dict:
+    """B1: MRR/churn/LTV time-series for the admin revenue chart. Flag-gated."""
+    if os.getenv("REVENUE_TRENDS", "0").strip().lower() not in ("1", "true", "yes"):
+        return {"enabled": False, "points": [], "note": "REVENUE_TRENDS off"}
+    try:
+        from app.platform import revenue_snapshots
+
+        pts = revenue_snapshots.read_trend(days=days, price_fn=_client_mrr)
+        return {"enabled": True, "points": pts, "note": ""}
+    except Exception as e:
+        logger.warning("admin_dashboard: revenue-trend failed (%s)", e)
+        return {"enabled": True, "points": [], "note": str(e)[:160]}
+
+
 @router.get("/activity-feed")
 def get_activity_feed(
     limit: int = Query(40, ge=1, le=100),
