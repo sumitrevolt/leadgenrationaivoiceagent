@@ -626,6 +626,13 @@ _website_dir = FRONTEND_DIR / "website"
 if _website_dir.is_dir():
     app.mount("/site", StaticFiles(directory=str(_website_dir), html=True), name="website")
 
+# Design System — shared brand tokens/styles + assets. styles.css @imports tokens/*.css.
+# Every frontend page links /design-system/styles.css, so one DS export re-themes the
+# whole product. Mounted here (before the catch-all "/" mount) so it takes precedence.
+_ds_dir = FRONTEND_DIR / "design-system"
+if _ds_dir.is_dir():
+    app.mount("/design-system", StaticFiles(directory=str(_ds_dir)), name="design_system")
+
 
 @app.get("/app/login", tags=["Frontend"])
 async def customer_login_page():
