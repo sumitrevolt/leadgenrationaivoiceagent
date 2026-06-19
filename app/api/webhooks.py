@@ -208,6 +208,21 @@ async def stripe_webhook(
 
     logger.info(f"Stripe webhook received: {event_type}")
 
+    # Idempotency: Stripe delivers at-least-once and RETRIES the same event id.
+    # Without this guard the balance_topup branch (handle_stripe_checkout_completed)
+    # does `balance += amount` on every delivery → double-credit. Atomic claim;
+    # fail-open (Redis down = process anyway); released below on processing failure.
+    evt_id = getattr(event, "id", "") or ""
+    idem_key = f"stripe:{evt_id}"
+    try:
+        from app.billing import idempotency as _idem
+
+        if evt_id and await _idem.seen_before(idem_key):
+            logger.info(f"Stripe event {evt_id} already processed — skipping (idempotent)")
+            return {"status": "duplicate_skipped", "event_type": event_type}
+    except Exception:
+        pass
+
     try:
         if event_type == "checkout.session.completed":
             await handle_stripe_checkout_completed(event_data, db)
@@ -239,6 +254,14 @@ async def stripe_webhook(
         return {"status": "success", "event_type": event_type}
 
     except Exception as e:
+        # Processing failed AFTER the idempotency claim — release it so Stripe's
+        # retry reprocesses (never silently lose a payment event).
+        try:
+            from app.billing import idempotency as _idem
+
+            await _idem.forget(idem_key)
+        except Exception:
+            pass
         logger.error(f"Error processing Stripe webhook {event_type}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
