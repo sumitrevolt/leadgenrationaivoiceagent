@@ -260,7 +260,7 @@
      Served as: /app/customer (combo) · /app/customer/marketing · /app/customer/voice.
      Hides the other product's sections/nav/quick-actions by id, class & onclick target. */
   .prod-marketing #routingCard, .prod-marketing #leadsCard, .prod-marketing #callsCard,
-  .prod-marketing .hero-leads, .prod-marketing .kpis, .prod-marketing .grid-2, .prod-marketing .grid-3,
+  .prod-marketing .hero-leads, .prod-marketing .kpis:not(.marketing-only), .prod-marketing .grid-2, .prod-marketing .grid-3,
   .prod-marketing .voice-only,
   .prod-marketing .navlink[href="#routingCard"], .prod-marketing .navlink[href="#leadsCard"], .prod-marketing .navlink[href="#callsCard"],
   .prod-marketing .action-card[onclick*="routingCard"], .prod-marketing .action-card[onclick*="leadsCard"], .prod-marketing .action-card[onclick*="callsCard"]
@@ -380,6 +380,15 @@
           </div>
           <button class="btn" onclick="scrollToId('leadsCard')">Leads dekho ↓</button>
         </div>
+      </div>
+
+      <!-- Marketing KPIs — marketing + combo only (hidden on voice) -->
+      <div class="sec-title marketing-only">📣 Marketing — ek nazar</div>
+      <div class="kpis marketing-only" id="mktKpis">
+        <div class="kpi"><div class="lab">📣 Posts Taiyaar</div><div class="val" id="mkPosts">—</div><div class="sub">Ready-to-share content</div></div>
+        <div class="kpi"><div class="lab">✅ Approval Pending</div><div class="val" id="mkApprovals">—</div><div class="sub">Publish se pehle aapki OK</div></div>
+        <div class="kpi"><div class="lab">🔥 Naye Enquiries</div><div class="val" id="mkLeads">—</div><div class="sub">Website / mini-site se aaye</div></div>
+        <div class="kpi"><div class="lab">📊 Campaigns</div><div class="val" id="mkCampaigns">—</div><div class="sub">Chal rahe campaigns</div></div>
       </div>
 
       <!-- Onboarding checklist (hidden when complete) -->
@@ -878,12 +887,23 @@ function drawChart(id,type,data,opts){
     options:Object.assign({responsive:true,maintainAspectRatio:false},opts)});
 }
 
+function renderMarketingKPIs(){
+  var D = DATA || {};
+  function setK(id,v){ var e=document.getElementById(id); if(e) e.textContent=(v==null?"—":v); }
+  function pillNum(id){ var e=document.getElementById(id); if(!e) return null; var m=(e.textContent||"").match(/\d+/); return m?m[0]:null; }
+  setK("mkLeads", (D.leads||[]).length);
+  setK("mkCampaigns", (D.campaigns||[]).length);
+  var ap=pillNum("approvalCount"); if(ap!=null) setK("mkApprovals", ap);
+  var ct=pillNum("contentCount"); if(ct!=null) setK("mkPosts", ct);
+}
+
 function renderAll(){
   const camp=document.getElementById("campaign").value;
   const view=filterByCampaign(DATA,camp);
   renderKPIs(view);renderSummary(view);renderCalls(view);renderLeads(view);renderCharts(view);
   renderOnboarding(DATA);
   pushDataNotifications(view);
+  renderMarketingKPIs(); setTimeout(renderMarketingKPIs, 1800);
   window._VIEW=view;
 }
 

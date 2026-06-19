@@ -86,7 +86,7 @@
     <div class="sub" id="acctSub">Aapka account overview</div>
     <div class="kpis" id="kpis"></div>
     <div class="row">
-      <button class="ghost" onclick="window.location.href='/app/customer?client_id='+encodeURIComponent(localStorage.getItem('lgai_cid')||'')">Full dashboard ↗</button>
+      <button class="ghost" onclick="goToDashboard()">Full dashboard ↗</button>
       <button class="ghost" id="logout">Logout</button>
     </div>
   </div>
@@ -99,6 +99,15 @@
   function show(view){ document.getElementById("loginView").style.display = view==="login"?"block":"none";
     document.getElementById("acctView").style.display = view==="acct"?"block":"none"; }
   function authHdr(){ return {"Authorization":"Bearer "+(localStorage.getItem("lgai_token")||"")}; }
+
+  // After login, go straight to the client's product dashboard (no /app/customer hop).
+  async function goToDashboard(){
+    var product="marketing";
+    try{ var r=await fetch("/api/customer/auth/me",{headers:authHdr()}); if(r.ok){ var j=await r.json(); product=(j.product||"marketing"); } }catch(e){}
+    window.location.href = product==="voice" ? "/app/customer/voice"
+                         : product==="combo" ? "/app/customer"
+                         : "/app/customer/marketing";
+  }
 
   async function loadAccount(){
     try{
@@ -130,7 +139,7 @@
       if(!r.ok) throw new Error(j.detail||"Login failed");
       localStorage.setItem("lgai_token", j.access_token);
       localStorage.setItem("lgai_cid", j.client_id||"");
-      await loadAccount();
+      await goToDashboard();
     }catch(e){ err.textContent = e.message; }
     finally{ btn.disabled=false; btn.textContent="Login"; }
   });
@@ -166,7 +175,7 @@
       if(r.ok && j.access_token){
         localStorage.setItem("lgai_token", j.access_token);
         localStorage.setItem("lgai_cid", j.client_id||"");
-        await loadAccount(); return true;
+        await goToDashboard(); return true;
       }
       err.textContent = j.detail || "Login link invalid ya expire ho gaya.";
     }catch(e){}
