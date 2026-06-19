@@ -114,6 +114,10 @@ _last_ran: dict[str, str | None] = {
     "pipeline": None,           # daily: lead rescore + hot-lead surfacing (Neha/Rohan)
     "email_followup": None,     # daily afternoon: Day-3/7 followups only
     "kb_refresh": None,         # weekly Sun: contextual KB re-ingest (gated)
+    "midday_prospect": None,    # daily 14:30: 2nd free lead-supply pass (gated MIDDAY_PROSPECT)
+    "evening_wrap": None,       # daily 18:30: EOD summary + hot recap
+    "weekly_marketing": None,   # Wed 12:30: S-tier niche pack bank
+    "saturday_hygiene": None,   # Sat 04:00: DLQ + celery trim (gated SCHEDULER_HYGIENE)
 }
 
 
@@ -554,6 +558,33 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import kb_refresh
 
             await kb_refresh.run_weekly_if_enabled()
+        elif job == "midday_prospect":
+            # 2nd daily lead-supply pass — FREE harvest (websearch/opendata/enrich),
+            # different niche/city rotation than 09:30 prospect. Gated MIDDAY_PROSPECT
+            # (default ON; no paid Places API — lead_harvester respects LEAD_HARVESTER).
+            if os.environ.get("MIDDAY_PROSPECT", "1").strip().lower() in ("1", "true", "yes"):
+                from app.platform import lead_harvester, team
+
+                _h = await lead_harvester.run_harvest()
+                if _h.get("ok"):
+                    team.log_event(
+                        "rohan",
+                        "midday_harvest",
+                        f"🌾 midday +{_h.get('new_leads', 0)} leads (dedup {_h.get('deduped', 0)})",
+                        status="ok",
+                    )
+        elif job == "evening_wrap":
+            from app.platform import scheduled_ops
+
+            await scheduled_ops.run_evening_wrap()
+        elif job == "weekly_marketing":
+            from app.platform import scheduled_ops
+
+            await scheduled_ops.run_weekly_marketing()
+        elif job == "saturday_hygiene":
+            from app.platform import scheduled_ops
+
+            await scheduled_ops.run_saturday_hygiene()
         elif job == "standup":
             # Boss daily standup — hierarchical team coordination (gated AGENT_STANDUP).
             if os.environ.get("AGENT_STANDUP", "0").strip().lower() in ("1", "true", "yes"):
@@ -596,6 +627,10 @@ async def scheduler_loop() -> None:
                     "pipeline": ((11, 0), (12, 0)),
                     "email_followup": ((16, 0), (17, 30)),
                     "kb_refresh": ((5, 0), (6, 30)),
+                    "midday_prospect": ((14, 30), (15, 30)),
+                    "evening_wrap": ((18, 30), (19, 30)),
+                    "weekly_marketing": ((12, 30), (13, 30)),
+                    "saturday_hygiene": ((4, 0), (5, 30)),
                 }
                 for _jk, (_lo, _hi) in _heavy.items():
                     if _lo <= hm < _hi:
@@ -641,6 +676,19 @@ async def scheduler_loop() -> None:
             if (16, 0) <= hm < (17, 30) and _last_ran["email_followup"] != day_key:
                 _last_ran["email_followup"] = day_key
                 await _run_job("email_followup")
+            # 14:30–15:30 IST — 2nd free lead-supply pass (harvest). Gated MIDDAY_PROSPECT.
+            if (14, 30) <= hm < (15, 30) and _last_ran["midday_prospect"] != day_key:
+                _last_ran["midday_prospect"] = day_key
+                await _run_job("midday_prospect")
+            if (18, 30) <= hm < (19, 30) and _last_ran["evening_wrap"] != day_key:
+                _last_ran["evening_wrap"] = day_key
+                await _run_job("evening_wrap")
+            if now.weekday() == 2 and (12, 30) <= hm < (13, 30) and _last_ran["weekly_marketing"] != day_key:
+                _last_ran["weekly_marketing"] = day_key
+                await _run_job("weekly_marketing")
+            if now.weekday() == 5 and (4, 0) <= hm < (5, 30) and _last_ran["saturday_hygiene"] != day_key:
+                _last_ran["saturday_hygiene"] = day_key
+                await _run_job("saturday_hygiene")
             # Sunday 05:00–06:30 IST — weekly KB contextual re-ingest (gated).
             week_key = now.strftime("%Y-W%W")
             if now.weekday() == 6 and (5, 0) <= hm < (6, 30) and _last_ran["kb_refresh"] != week_key:

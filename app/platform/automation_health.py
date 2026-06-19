@@ -47,6 +47,10 @@ EXPECTED_GAP_MIN = {
     "pipeline": 30 * 60,
     "email_followup": 30 * 60,
     "kb_refresh": 8 * 24 * 60,  # weekly Sun
+    "midday_prospect": 30 * 60,  # daily 14:30
+    "evening_wrap": 30 * 60,
+    "weekly_marketing": 8 * 24 * 60,
+    "saturday_hygiene": 8 * 24 * 60,
 }
 
 

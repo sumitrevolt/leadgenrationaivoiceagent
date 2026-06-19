@@ -25,5 +25,30 @@ async def test_kb_refresh_disabled_by_default(monkeypatch):
 def test_staff_jobs_include_new_pipeline_jobs():
     from app.tasks.staff_jobs import STAFF_JOBS
 
-    for j in ("pipeline", "email_followup", "kb_refresh"):
+    for j in (
+        "pipeline",
+        "email_followup",
+        "kb_refresh",
+        "midday_prospect",
+        "evening_wrap",
+        "weekly_marketing",
+        "saturday_hygiene",
+    ):
         assert j in STAFF_JOBS
+
+
+@pytest.mark.asyncio
+async def test_scheduled_ops_evening_wrap():
+    from app.platform import scheduled_ops
+
+    out = await scheduled_ops.run_evening_wrap()
+    assert out.get("ok") is True
+
+
+@pytest.mark.asyncio
+async def test_scheduled_ops_weekly_marketing_skippable(monkeypatch):
+    from app.platform import scheduled_ops
+
+    monkeypatch.setenv("WEEKLY_MARKETING_PACK", "0")
+    out = await scheduled_ops.run_weekly_marketing()
+    assert out.get("skipped")

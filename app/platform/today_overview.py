@@ -56,6 +56,39 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Rohan — cold email (subah 10:30)",
         "kya": "Roz 25 tak personalized cold emails + follow-ups bhejta hai",
     },
+    "pipeline": {
+        "label": "Neha — pipeline (11:00)",
+        "kya": "Leads rescore + hot leads Rohan ko surface",
+    },
+    "midday_prospect": {
+        "label": "Rohan — midday harvest (14:30)",
+        "kya": "Dusra free lead-supply pass (websearch/opendata)",
+    },
+    "email_followup": {
+        "label": "Rohan — afternoon followup (16:00)",
+        "kya": "Day-3/Day-7 email follow-ups (naya cold batch nahi)",
+    },
+    "evening_wrap": {
+        "label": "Boss — evening wrap (18:30)",
+        "kya": "Din ka summary + hot leads EOD recap",
+    },
+    "weekly_marketing": {
+        "label": "Isha — weekly packs (Wed 12:30)",
+        "kya": "S-tier niche marketing content bank top-up",
+    },
+    "kb_refresh": {
+        "label": "Dev — KB refresh (Sun 05:00)",
+        "kya": "Client websites se contextual KB re-ingest",
+    },
+    "saturday_hygiene": {
+        "label": "Kavya — Sat hygiene (04:00)",
+        "kya": "DLQ sweep + stale celery queue trim",
+    },
+    "standup": {"label": "Boss standup (08:00)", "kya": "Team priorities plan (gated AGENT_STANDUP)"},
+    "engineer_sre": {"label": "Pranav SRE (hourly)", "kya": "Backup/DR/capacity score"},
+    "engineer_finops": {"label": "Vidya FinOps (09:00)", "kya": "Margin + LLM cost digest"},
+    "engineer_security": {"label": "Arnav security (09:30)", "kya": "Compliance posture"},
+    "readiness_digest": {"label": "Activation digest (08:30)", "kya": "First-paid-customer readiness ntfy"},
 }
 
 # Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason)
