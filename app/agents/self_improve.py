@@ -179,6 +179,8 @@ ACTIONS: dict[str, tuple[bool, str]] = {
     "study_skills": (True, "project skill padh ke lesson nikalo (skill_pack → skill_library)"),
     "code_scan": (False, "observability signals se code-upgrade proposals (Vikram, gated)"),
     "voice_eval": (False, "voice agent persona eval smoke (Swara/Arjun, gated VOICE_EVAL_AUTO)"),
+    "rescore_pipeline": (False, "DB leads rescore + hot-lead surface (Neha/Rohan, revenue)"),
+    "cadence_sweep": (False, "omnichannel cadence due-steps advance (gated CADENCE_ENGINE)"),
 }
 
 # funnel weakest-stage → preferred actions (deterministic bias)
@@ -190,9 +192,9 @@ ACTIONS: dict[str, tuple[bool, str]] = {
 # (periodic learning). Outbound velocity ↑, self-monitoring noise ↓.
 _STAGE_ACTIONS = {
     "lead_supply": ["harvest_leads", "scrape_leads", "seo_pages", "channel_experiments"],
-    "outreach_quality": ["sales_deepdive", "harvest_leads", "channel_experiments", "social_drafts"],
+    "outreach_quality": ["sales_deepdive", "harvest_leads", "channel_experiments", "social_drafts", "cadence_sweep"],
     "inbound": ["seo_pages", "channel_experiments", "social_drafts"],
-    "conversion": ["sales_deepdive", "revenue_sweep", "content_pack", "voice_eval"],
+    "conversion": ["sales_deepdive", "revenue_sweep", "content_pack", "voice_eval", "rescore_pipeline"],
     "retention": ["revenue_sweep", "content_pack"],
     "scale": ["optimizer", "channel_experiments", "harvest_leads", "study_skills"],
 }
@@ -358,6 +360,20 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         return {"ok": bool(res.get("ok")), "detail": f"signals={res.get('signals', 0)} proposed={res.get('proposed', 0)}"}
     if action == "voice_eval":
         return await _voice_eval()
+    if action == "rescore_pipeline":
+        from app.platform import pipeline_ops
+
+        res = await pipeline_ops.run_daily()
+        _rc = (res.get("rescore") or {}) if isinstance(res, dict) else {}
+        _ht = (res.get("hot") or {}) if isinstance(res, dict) else {}
+        return {"ok": bool(res.get("ok", True)), "detail": f"rescored={_rc.get('updated', 0)} hot={_ht.get('hot_count', 0)}"}
+    if action == "cadence_sweep":
+        from app.marketing import cadence
+
+        res = await cadence.run_due()
+        if not res.get("ok"):
+            return {"ok": True, "detail": f"cadence: {res.get('reason', 'skip')}"}
+        return {"ok": True, "detail": f"cadence advanced={res.get('advanced', res.get('processed', res.get('count', 0)))}"}
     return {"ok": False, "detail": f"unknown action '{action}'"}
 
 
