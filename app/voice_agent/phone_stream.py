@@ -655,6 +655,13 @@ class PhoneCallSession:
         try:
             await asyncio.sleep(0.3)  # stream ko settle hone do
             text = await self._greeting_text()
+            # TRAI up-front AI-disclosure gate (always-on) — parity with vobiz_stream.
+            try:
+                from app.voice_agent.niche_scripts import ensure_ai_disclosure
+
+                text = ensure_ai_disclosure(text)
+            except Exception:
+                pass
             self.history.append({"role": "assistant", "content": text})
             await self._speak(text)
         except Exception as e:
