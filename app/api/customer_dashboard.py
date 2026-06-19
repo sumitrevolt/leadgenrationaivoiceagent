@@ -30,7 +30,7 @@ import logging
 import os
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from app.api.customer_auth import require_customer
 
@@ -64,6 +64,7 @@ class CallRow(BaseModel):
 
 
 class LeadRow(BaseModel):
+    id: str = ""  # B4: stable inquiry UUID; used by inline status edit
     business: str
     contact: str
     phone: str  # full number (client owns this lead)
@@ -377,6 +378,7 @@ def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse
             qual_bits.append(str(r["message"])[:70])
         leads.append(
             LeadRow(
+                id=str(r.get("id") or ""),
                 business=str(r.get("business_name") or "-")[:80],
                 contact=str(r.get("name") or "-")[:80],
                 phone=(
@@ -418,6 +420,20 @@ def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse
     ]
 
     campaigns = [Campaign(id="all", name="All Campaigns")]
+
+    # B4: apply this client's OWN lead-status overrides (IDOR-safe: skip
+    # overrides set by any other client_id). Source inquiries stay immutable.
+    try:
+        from app.platform.lead_overrides import read_overrides
+
+        _ovr = read_overrides()
+        if _ovr:
+            for _ld in leads:
+                _o = _ovr.get(_ld.id)
+                if _o and str(_o.get("client_id") or "") == str(client_id) and _o.get("status"):
+                    _ld.score = _o["status"]
+    except Exception:
+        pass
 
     return DashboardResponse(
         is_sample_data=not has_real,  # honest: zeros + flag jab kuch na ho
@@ -691,6 +707,23 @@ def customer_speed_to_lead(
 
     client_rec = _client_record(client_id)
     return speed_to_lead.summary_for_client(client_id, client_rec, days)
+
+
+@router.patch("/leads/{lead_id}")
+async def patch_lead_status(
+    lead_id: str,
+    status: str = Body(..., embed=True),
+    client_id: str = Depends(require_customer),
+) -> dict:
+    """B4: customer updates a lead's status inline. require_customer resolves
+    client_id from the JWT, so a client can only ever record an override under
+    its own id (IDOR-safe). Override applies only to this client's leads."""
+    from app.platform.lead_overrides import ALLOWED_STATUSES, set_status
+
+    if status not in ALLOWED_STATUSES:
+        raise HTTPException(status_code=422, detail=f"status must be one of {sorted(ALLOWED_STATUSES)}")
+    ok = set_status(lead_id, client_id, status)
+    return {"ok": ok, "lead_id": lead_id, "status": status}
 
 
 @router.post("/dashboard/send-to-crm", response_model=CrmSyncResponse)

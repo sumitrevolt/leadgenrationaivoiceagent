@@ -852,10 +852,33 @@ function renderLeads(d){
       <td class="sm">${l.phone}</td>
       <td>${l.city}</td>
       <td><span class="niche">${l.niche}</span></td>
-      <td><span class="score ${l.score}">${l.score}</span></td>
+      <td>${leadStatusSelect(l)}</td>
       <td class="sm">${l.qualification}</td>
       <td class="sm">${l.date}</td>
     </tr>`).join("");
+}
+
+// B4: inline lead-status edit. Falls back to a static badge when the lead
+// has no stable id (older inquiry rows). Persists via PATCH /api/customer/leads/{id}.
+function leadStatusSelect(l){
+  if(!l.id){ return `<span class="score ${l.score}">${l.score}</span>`; }
+  const opts=["Hot","Warm","Cold","Won","Lost","Follow-up"];
+  return `<select class="lead-status" data-id="${l.id}" onchange="updateLeadStatus(this)">`+
+    opts.map(s=>`<option value="${s}"${l.score===s?" selected":""}>${s}</option>`).join("")+
+    `</select>`;
+}
+async function updateLeadStatus(sel){
+  const id=sel.getAttribute("data-id"), status=sel.value;
+  if(!id) return;
+  try{
+    const r=await fetch("/api/customer/leads/"+encodeURIComponent(id),{
+      method:"PATCH",
+      headers:Object.assign({"Content-Type":"application/json"}, billAuthHdr()),
+      body:JSON.stringify({status})
+    });
+    if(!r.ok) throw new Error("status "+r.status);
+    sel.style.outline="2px solid #16a34a"; setTimeout(()=>{sel.style.outline="";},800);
+  }catch(e){ sel.style.outline="2px solid #dc2626"; }
 }
 
 function renderCharts(d){
