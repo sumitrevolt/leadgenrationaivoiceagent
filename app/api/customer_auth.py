@@ -319,7 +319,17 @@ async def customer_signup(req: SignupIn):
 
 @router.get("/me")
 async def me(client_id: str = Depends(require_customer)):
-    return {"client_id": client_id, "business_name": _biz_name(client_id)}
+    # product drives which customer dashboard the client lands on
+    # (marketing | voice | combo). ADR-009 two-product split.
+    try:
+        from app.marketing.clients_store import get_client
+
+        product = str((get_client(client_id) or {}).get("product") or "marketing").strip().lower()
+    except Exception:
+        product = "marketing"
+    if product not in ("marketing", "voice", "combo"):
+        product = "marketing"
+    return {"client_id": client_id, "business_name": _biz_name(client_id), "product": product}
 
 
 @router.get("/portal/content")

@@ -737,8 +737,21 @@ async def pwa_icon(size: int):
 
 @app.get("/app/customer", tags=["Frontend"])
 async def customer_dashboard_page():
-    """Customer dashboard (leads, calls, final qualified leads)."""
+    """Customer dashboard — combo (both products: leads, calls, content, posters).
+    Marketing-only / voice-only clients are auto-routed to their product page by JS."""
     return FileResponse(str(FRONTEND_DIR / "customer_dashboard.html"))
+
+
+@app.get("/app/customer/marketing", tags=["Frontend"])
+async def customer_marketing_page():
+    """AI Marketing customer dashboard — content, approvals, website tools (voice sections hidden)."""
+    return FileResponse(str(FRONTEND_DIR / "customer_marketing.html"))
+
+
+@app.get("/app/customer/voice", tags=["Frontend"])
+async def customer_voice_page():
+    """AI Voice Agent customer dashboard — leads, calls, transcripts, routing (marketing sections hidden)."""
+    return FileResponse(str(FRONTEND_DIR / "customer_voice.html"))
 
 
 @app.get("/app/admin", tags=["Frontend"])
