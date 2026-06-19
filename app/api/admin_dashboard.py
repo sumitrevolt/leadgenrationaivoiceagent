@@ -1178,6 +1178,15 @@ async def admin_dedupe_clients(_user=Depends(require_admin)) -> dict:
     return {"ok": True, **clients_store.dedupe_clients()}
 
 
+@router.get("/agents")
+async def admin_agents(_user=Depends(require_admin)) -> dict:
+    """Real AI staff roster (team_status → 18 members) as a STANDALONE fast call —
+    so the dashboard's agents panel always shows the FULL team even if the heavy
+    /api/admin/dashboard payload is slow/unavailable. Never 500."""
+    ags = _real_agents()
+    return {"agents": ags, "count": len(ags)}
+
+
 class BulkEmailIn(BaseModel):
     client_ids: list[str] = Field(..., min_length=1, max_length=50)
     subject: str | None = "LeadsGenAI — quick check-in"
