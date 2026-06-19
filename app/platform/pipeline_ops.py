@@ -52,11 +52,17 @@ async def run_daily() -> dict[str, Any]:
             from app.marketing import journeys
 
             seeded = journeys.seed_defaults()
-            if seeded:
+            activated = journeys.ensure_active_defaults()
+            if seeded or activated:
                 from app.platform import team
 
-                team.log_event("neha", "journey_seed", f"📋 {seeded} starter journey rules (disabled — review ON karo)")
+                team.log_event(
+                    "neha",
+                    "journey_seed",
+                    f"📋 journeys seeded={seeded} activated={activated}",
+                )
             out["journeys_seeded"] = seeded
+            out["journeys_activated"] = activated
     except Exception as e:
         logger.debug(f"[pipeline_ops] journey seed skip: {e}")
 

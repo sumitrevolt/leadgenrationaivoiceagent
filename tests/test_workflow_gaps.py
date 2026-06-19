@@ -18,16 +18,16 @@ def test_cadence_enroll_accepts_source_in_lead_dict():
     assert r.get("id")
 
 
-def test_journey_ensure_active_when_engine_on(monkeypatch):
+def test_journey_ensure_adds_inquiry_when_only_custom_rules(monkeypatch):
     from app.marketing import journeys
 
     monkeypatch.setenv("JOURNEY_ENGINE", "1")
-    # fresh store
     import os
 
     for p in ("data/journeys.jsonl", "data/journey_runs.jsonl"):
         if os.path.exists(p):
             os.remove(p)
+    journeys.add_journey("Custom manual", "manual", [{"type": "notify", "params": {}}], enabled=False)
     n = journeys.ensure_active_defaults()
     assert n == 1
-    assert any(r.get("enabled") for r in journeys.list_journeys())
+    assert any(r.get("enabled") and r.get("trigger") == "inquiry_received" for r in journeys.list_journeys())
