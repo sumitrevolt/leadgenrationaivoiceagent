@@ -1443,9 +1443,14 @@ async def api_status():
     }
 
 
-@app.get("/health")
-async def health_check():
-    """Detailed health check"""
+@app.get("/health/platform", operation_id="platform_detailed_health", tags=["Health"])
+async def platform_detailed_health():
+    """Detailed platform/ML health.
+
+    NOTE: `/health` (liveness, `environment:production`) is served by
+    `app.api.health` (mounted first at module load) — this richer view lives
+    at a distinct path so it stays reachable and avoids the duplicate-route /
+    OpenAPI operation-id collision (audit 2026-06-21)."""
     global ml_scheduler
 
     return {
