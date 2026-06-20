@@ -489,11 +489,18 @@ a{color:var(--acc)}
     <div id="coTpOut"></div>
   </div>
   <div class="card">
-    <h2>📸 Client KB Snapshots</h2>
-    <div class="mut">Client ka pura setup snapshot — naye similar client pe apply ke liye.</div>
-    <label>Client ID</label><input id="coSnapClient" placeholder="client id">
-    <label>Snapshot naam (optional)</label><input id="coSnapName" placeholder="solar-template">
-    <button class="btn" id="coSnapBtn" onclick="coSnapCapture()">📸 Capture</button>
+    <h2>📸 Client Snapshots (GHL-style)</h2>
+    <div class="mut">Golden client se capture YA niche se 1-click template — naye client pe apply.</div>
+    <div class="row"><div>
+      <label>Client ID (capture from client)</label><input id="coSnapClient" placeholder="client id">
+      <label>Snapshot naam (optional)</label><input id="coSnapName" placeholder="solar-template">
+      <button class="btn" id="coSnapBtn" onclick="coSnapCapture()">📸 Capture client</button>
+    </div><div>
+      <label>Niche key (template capture / apply)</label><input id="coSnapNiche" placeholder="solar">
+      <label>Target client ID (apply)</label><input id="coSnapTarget" placeholder="new client id">
+      <button class="btn2" onclick="coSnapNicheCap()">🎯 Capture niche template</button>
+      <button class="btn" onclick="coSnapApplyNiche()">⚡ 1-click apply niche</button>
+    </div></div>
     <button class="btn2" onclick="coSnapList()">List snapshots</button>
     <div id="coSnapOut"></div>
   </div>
@@ -1273,10 +1280,37 @@ async function coSnapCapture(){
   }catch(e){toast('Capture fail: '+e.message,false)}
   busy('coSnapBtn',0);
 }
+async function coSnapNicheCap(){
+  var nk=$('coSnapNiche').value.trim();if(!nk)return toast('Niche key daalo',false);
+  try{var d=await api('/api/clientops/snapshots/capture-niche',{method:'POST',body:JSON.stringify({
+      niche:nk,name:$('coSnapName').value.trim()})});
+    $('coSnapOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Niche template ✅');
+  }catch(e){toast('Niche capture fail: '+e.message,false)}
+}
+async function coSnapApplyNiche(){
+  var tgt=$('coSnapTarget').value.trim();if(!tgt)return toast('Target client ID daalo',false);
+  try{var d=await api('/api/clientops/snapshots/apply-niche',{method:'POST',body:JSON.stringify({
+      target_client_id:tgt,niche:$('coSnapNiche').value.trim()})});
+    $('coSnapOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Niche applied ✅');
+  }catch(e){toast('Apply fail: '+e.message,false)}
+}
+async function coSnapApply(sid){
+  var tgt=$('coSnapTarget').value.trim();if(!tgt)return toast('Target client ID daalo',false);
+  try{var d=await api('/api/clientops/snapshots/'+encodeURIComponent(sid)+'/apply',{method:'POST',body:JSON.stringify({target_client_id:tgt})});
+    $('coSnapOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Snapshot applied ✅');
+  }catch(e){toast('Apply fail: '+e.message,false)}
+}
 async function coSnapList(){
-  var cid=$('coSnapClient').value.trim();
-  try{var d=await api('/api/clientops/snapshots'+(cid?('?client_id='+encodeURIComponent(cid)):''));
-    $('coSnapOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  var nk=$('coSnapNiche').value.trim();
+  try{var d=await api('/api/clientops/snapshots'+(nk?('?niche='+encodeURIComponent(nk)):''));
+    var rows=d.snapshots||[];
+    if(!rows.length){$('coSnapOut').innerHTML='<div class="result mut">Koi snapshot nahi</div>';return;}
+    var h='<div class="result"><table><tr><th>Name</th><th>Kind</th><th>Niche</th><th>Sections</th><th>Action</th></tr>';
+    rows.forEach(function(r){
+      var secs=(r.sections||[]).join(', ');
+      h+='<tr><td>'+esc(r.name||r.id)+'</td><td class="mut">'+esc(r.kind||'client')+'</td><td>'+esc(r.niche_key||'')+'</td><td class="mut">'+esc(secs.slice(0,40))+'</td><td><button class="btn2" onclick="coSnapApply(\''+esc(r.id||'')+'\')">Apply</button></td></tr>';
+    });
+    $('coSnapOut').innerHTML=h+'</table>'+jpre(d)+'</div>';
   }catch(e){toast('List fail: '+e.message,false)}
 }
 async function coApSubmit(){

@@ -59,6 +59,36 @@ NEW_EDGES = [
     "      {f:'worker', t:'client_report', lbl:'monthly', style:'async'},",
 ]
 
+# connectivity pass — wire 5 real engine ORPHANS (0 edges) into pipelines +
+# give the 6 new retention nodes their downstream edges (were incoming-only leaves).
+# every f/t is an existing automation node id (no dangling introduced).
+CONNECT_EDGES = [
+    # --- orphan engines wired in ---
+    "      {f:'public_in', t:'consent_ledger', lbl:'opt-out', style:'sync'},",
+    "      {f:'consent_ledger', t:'data', lbl:'suppress', style:'sync'},",
+    "      {f:'worker', t:'deliverability_monitor', lbl:'daily', style:'async'},",
+    "      {f:'deliverability_monitor', t:'outreach', lbl:'warmup pause', style:'loop'},",
+    "      {f:'worker', t:'memory_vault', lbl:'sync', style:'async'},",
+    "      {f:'memory_vault', t:'coordinator', lbl:'context', style:'sync'},",
+    "      {f:'worker', t:'rank_tracker', lbl:'daily', style:'async'},",
+    "      {f:'rank_tracker', t:'ntfy_alerts', lbl:'rank drop', style:'async'},",
+    "      {f:'worker', t:'skill_pack', lbl:'ingest', style:'async'},",
+    "      {f:'skill_pack', t:'data', lbl:'KB skills ns', style:'sync'},",
+    # --- new retention nodes: downstream pipeline edges ---
+    "      {f:'auto_trainer', t:'data', lbl:'persist model', style:'sync'},",
+    "      {f:'auto_trainer', t:'eval_gate', lbl:'model regression', style:'sync'},",
+    "      {f:'booking_reminders', t:'data', lbl:'bookings', style:'sync'},",
+    "      {f:'booking_reminders', t:'whatsapp_wa', lbl:'1-click reminder', style:'async'},",
+    "      {f:'service_reminders', t:'data', lbl:'service log', style:'sync'},",
+    "      {f:'service_reminders', t:'whatsapp_wa', lbl:'repeat nudge', style:'async'},",
+    "      {f:'customer_crm', t:'data', lbl:'end-customers', style:'sync'},",
+    "      {f:'customer_crm', t:'whatsapp_wa', lbl:'wish 1-click', style:'async'},",
+    "      {f:'newsletter', t:'free_ai', lbl:'generate', style:'sync'},",
+    "      {f:'newsletter', t:'data', lbl:'subscriber log', style:'sync'},",
+    "      {f:'client_report', t:'data', lbl:'read activity', style:'sync'},",
+    "      {f:'client_report', t:'customer_wh', lbl:'report.ready', style:'async'},",
+]
+
 # anchors (must be unique in the file)
 NODE_ANCHOR = re.compile(r"(\{id:'niche_prospector',[^\n]*\},\n)")
 EDGE_ANCHOR = "{f:'beat', t:'worker', lbl:'cron fire', style:'async'},\n"
@@ -105,6 +135,12 @@ def main() -> int:
         print(f"  +{len(NEW_EDGES)} new edges")
     else:
         print("  new edges already present or anchor missing (skip)")
+
+    if "t:'consent_ledger'" not in html and EDGE_ANCHOR in html:
+        html = html.replace(EDGE_ANCHOR, EDGE_ANCHOR + "".join(x + "\n" for x in CONNECT_EDGES), 1)
+        print(f"  +{len(CONNECT_EDGES)} connectivity edges (orphans + new-node downstream)")
+    else:
+        print("  connectivity edges already present or anchor missing (skip)")
 
     F.write_text(html, encoding="utf-8")
     after_nodes = len(re.findall(r"\{id:'", html))

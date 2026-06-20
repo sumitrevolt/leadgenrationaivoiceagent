@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (773 operations)
+## Endpoint Index — auto-generated from OpenAPI (776 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -518,7 +518,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientcrm/wishes/drafts` — Wishes Drafts
 - `POST  ` `/api/clientcrm/wishes/run` — Wishes Run
 
-### ClientOps  (15)
+### ClientOps  (18)
 
 - `POST  ` `/api/clientops/approval` — Submit Approval
 - `GET   ` `/api/clientops/approvals` — List Approvals
@@ -531,7 +531,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/clientops/routing/assign` — Routing Assign
 - `GET   ` `/api/clientops/routing/assignments` — Routing Assignments
 - `GET   ` `/api/clientops/snapshots` — Snapshot List
+- `POST  ` `/api/clientops/snapshots/apply-niche` — Snapshot Apply Niche
 - `POST  ` `/api/clientops/snapshots/capture` — Snapshot Capture
+- `POST  ` `/api/clientops/snapshots/capture-niche` — Snapshot Capture Niche
+- `GET   ` `/api/clientops/snapshots/{snapshot_id}` — Snapshot Get
 - `POST  ` `/api/clientops/snapshots/{snapshot_id}/apply` — Snapshot Apply
 - `GET   ` `/api/clientops/speed-to-lead` — Speed To Lead
 - `POST  ` `/api/clientops/track-proposal` — Track Proposal
