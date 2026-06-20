@@ -9,6 +9,7 @@ tests import `from app.api.growth import AUTOMATION_FLAGS`).
 AUTOMATION_FLAGS = [
     "FLOW_RUNNER",  # visual builder -> process-as-code execution (admin, linear+DAG, default OFF)
     "FLOW_AUTO_TRIGGERS",  # Phase 3: cron + event auto-fire for saved flows (needs FLOW_RUNNER too, default OFF)
+    "FLOW_RUNNER_CUSTOMER",  # Phase 7: per-client flow builder in customer portal (needs FLOW_RUNNER too, draft-only, default OFF)
     "FEATURE_FLAGS",  # SaaS infra Phase-1: per-tenant runtime feature-flag system master gate (default OFF)
     "TEAM_AUTOMATION",
     "RUN_IN_PROCESS_SCHEDULER",

@@ -836,6 +836,12 @@ async def customer_marketing_page():
     return FileResponse(str(FRONTEND_DIR / "customer_marketing.html"))
 
 
+@app.get("/app/customer/flows", tags=["Frontend"])
+async def customer_flows_page():
+    """Phase 7: per-client flow builder (draft-only, gated FLOW_RUNNER_CUSTOMER)."""
+    return FileResponse(str(FRONTEND_DIR / "customer_flows.html"))
+
+
 @app.get("/app/customer/voice", tags=["Frontend"])
 async def customer_voice_page():
     """AI Voice Agent customer dashboard — leads, calls, transcripts, routing (marketing sections hidden)."""
