@@ -866,154 +866,16 @@ async def experiments_outcome(body: OutcomeIn, _user=Depends(require_admin)):
     )
 
 
-# ---------------- Competitor-parity content (carousel/meme/multilang) ---------------- #
-class CarouselIn(BaseModel):
-    business_name: str
-    niche: str | None = "general"
-    topic: str | None = ""
-    slides: int | None = 4
+# content endpoints extracted to app/api/growth_content.py (2026-06-20); paths unchanged.
+from app.api.growth_content import router as _content_router  # noqa: E402
+
+router.include_router(_content_router)
 
 
-@router.post("/content/carousel")
-async def content_carousel(body: CarouselIn, _user=Depends(require_admin)):
-    """Predis-style carousel pack: 3-5 branded SVG slides + caption."""
-    from app.marketing import carousel
+# deliverability endpoints extracted to app/api/growth_deliverability.py (2026-06-20); paths unchanged.
+from app.api.growth_deliverability import router as _deliverability_router  # noqa: E402
 
-    return await carousel.generate_carousel(
-        body.business_name, body.niche or "general", body.topic or "", body.slides or 4
-    )
-
-
-class MemeIn(BaseModel):
-    business_name: str | None = ""
-    niche: str | None = "general"
-    topic: str | None = ""
-
-
-@router.post("/content/meme")
-async def content_meme(body: MemeIn, _user=Depends(require_admin)):
-    """Desi business meme (SVG + caption + hashtags)."""
-    from app.marketing import meme_gen
-
-    return await meme_gen.generate_meme(
-        body.business_name or "", body.niche or "general", body.topic or ""
-    )
-
-
-class MultilangIn(BaseModel):
-    caption: str
-    langs: list[str] | None = None
-
-
-@router.post("/content/multilang")
-async def content_multilang(body: MultilangIn, _user=Depends(require_admin)):
-    """Caption → Hindi/Marathi/Hinglish versions (local reach 2-3x)."""
-    from app.marketing import multilang_post
-
-    return await multilang_post.translate_post(body.caption, body.langs)
-
-
-# ---------------- Deliverability / bookings / reviews / webhooks ---------------- #
-@router.get("/deliverability")
-async def deliverability_check(_user=Depends(require_admin)):
-    """SPF/DMARC + IP blacklist check abhi chalao (Smartlead-pattern)."""
-    from app.platform import deliverability_monitor
-
-    return await deliverability_monitor.run_check()
-
-
-@router.get("/deliverability/summary")
-async def deliverability_summary(_user=Depends(require_admin)):
-    """DNS + warmup + complaint gate — admin cockpit (2026 deliverability)."""
-    from app.platform import eval_hub
-
-    return await eval_hub.deliverability_summary()
-
-
-@router.post("/infra/rag-retrieval-ab")
-async def infra_rag_retrieval_ab(_user=Depends(require_admin)):
-    """Run offline RAG A/B gate (baseline vs rerank/hybrid/full) — prove before flip."""
-    from app.platform import eval_hub
-
-    return await eval_hub.run_rag_ab_gate(timeout_s=120.0)
-
-
-@router.get("/bookings/upcoming")
-async def bookings_upcoming(all: bool = False, _user=Depends(require_admin)):
-    from app.platform import booking_reminders
-
-    if all:
-        return booking_reminders.list_all(50)
-    return booking_reminders.upcoming(30)
-
-
-@router.post("/bookings/remind-run")
-async def bookings_remind_run(_user=Depends(require_admin)):
-    """Booking reminders sweep (gated BOOKING_REMINDERS)."""
-    from app.platform import booking_reminders
-
-    return await booking_reminders.run_due()
-
-
-class BookingNoShowIn(BaseModel):
-    booking_id: str
-
-
-@router.post("/bookings/no-show")
-async def bookings_no_show(body: BookingNoShowIn, _user=Depends(require_admin)):
-    """Appointment no-show mark + journey drafts (gated JOURNEY_ENGINE)."""
-    from app.platform import booking_reminders
-
-    return await booking_reminders.mark_no_show(body.booking_id.strip())
-
-
-@router.post("/reviews/monitor-run")
-async def reviews_monitor_run(_user=Depends(require_admin)):
-    """Naye Google reviews check + AI reply drafts (gated REVIEW_MONITOR)."""
-    from app.marketing import review_monitor
-
-    return await review_monitor.run_check()
-
-
-@router.get("/reviews/drafts")
-async def reviews_drafts(_user=Depends(require_admin)):
-    from app.marketing import review_monitor
-
-    return review_monitor.recent_drafts(30)
-
-
-class WebhookIn(BaseModel):
-    url: str
-    events: list[str] | None = None
-    client_id: str | None = ""
-    secret: str | None = ""
-
-
-@router.post("/webhooks/register")
-async def webhooks_register(body: WebhookIn, _user=Depends(require_admin)):
-    """Zapier-style outbound webhook register (https only, HMAC-signed)."""
-    from app.platform import outbound_webhooks
-
-    return outbound_webhooks.register(
-        body.url, body.events, body.client_id or "", body.secret or ""
-    )
-
-
-@router.get("/webhooks")
-async def webhooks_list(_user=Depends(require_admin)):
-    from app.platform import outbound_webhooks
-
-    return {
-        "webhooks": outbound_webhooks.list_webhooks(),
-        "deliveries": outbound_webhooks.recent_deliveries(20),
-    }
-
-
-@router.delete("/webhooks/{webhook_id}")
-async def webhooks_remove(webhook_id: str, _user=Depends(require_admin)):
-    from app.platform import outbound_webhooks
-
-    return {"removed": outbound_webhooks.remove(webhook_id)}
+router.include_router(_deliverability_router)
 
 
 # ---------------- PUBLIC: AI website audit (lead magnet) ---------------- #
@@ -1267,57 +1129,10 @@ from app.api.automation_flags import (  # noqa: E402,F401  (registry moved out; 
     AUTOMATION_FLAGS,
 )
 
+# crm endpoints extracted to app/api/growth_crm.py (2026-06-20); paths unchanged.
+from app.api.growth_crm import router as _crm_router  # noqa: E402
 
-# ------------- Native CRM sync (Zoho/HubSpot — Indian SMB) ------------- #
-@router.get("/crm/status")
-async def crm_status(client_id: str = "", user=Depends(require_admin)):
-    """CRM sync armed status (global ya per-client). Creds kabhi expose nahi hote."""
-    from app.platform import crm_sync
-
-    return crm_sync.status(client_id)
-
-
-@router.post("/crm/config")
-async def crm_config(payload: dict, user=Depends(require_admin)):
-    """Client ka CRM connect karo. Body: {client_id, provider: zoho|hubspot,
-    zoho_client_id, zoho_client_secret, zoho_refresh_token, zoho_dc?, hubspot_token?}"""
-    from app.platform import crm_sync
-
-    client_id = str((payload or {}).get("client_id") or "").strip()
-    if not client_id:
-        return {"ok": False, "error": "client_id required"}
-    return crm_sync.save_client_config(client_id, payload or {})
-
-
-@router.post("/crm/test")
-async def crm_test(payload: dict | None = None, user=Depends(require_admin)):
-    """Configured CRM creds verify (kuch create nahi hota)."""
-    from app.platform import crm_sync
-
-    return await crm_sync.test_connection(str((payload or {}).get("client_id") or ""))
-
-
-@router.post("/crm/sync-lead")
-async def crm_sync_lead(payload: dict, user=Depends(require_admin)):
-    """Manual lead push. Body: {client_id?, note?, lead: {business_name, phone, email, ...}}"""
-    from app.platform import crm_sync
-
-    lead = (payload or {}).get("lead") or {}
-    if not (lead.get("phone") or lead.get("email")):
-        return {"ok": False, "error": "lead.phone ya lead.email chahiye"}
-    return await crm_sync.push_lead(
-        lead,
-        client_id=str((payload or {}).get("client_id") or ""),
-        note=str((payload or {}).get("note") or ""),
-    )
-
-
-@router.get("/crm/log")
-async def crm_log(limit: int = 50, user=Depends(require_admin)):
-    """Recent CRM pushes (ops visibility)."""
-    from app.platform import crm_sync
-
-    return {"recent": crm_sync.recent(limit)}
+router.include_router(_crm_router)
 
 
 # ------------- Self-hosted tools: free web research (SearXNG) ------------- #
