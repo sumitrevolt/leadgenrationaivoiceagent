@@ -87,6 +87,61 @@ def audit() -> dict:
     }
 
 
+def parse_views(html: str) -> dict[str, dict]:
+    """Split explorer.html into its VIEWS (structural/automation/products/builder)
+    and collect each view's node-id set + edge (f,t) list. Edges only connect
+    WITHIN a view, so dangling/orphan checks are per-view."""
+    keys = ["structural", "automation", "products", "builder"]
+    marks: list[tuple[int, str]] = []
+    for k in keys:
+        m = re.search(r"\n  " + k + r": \{", html)
+        if m:
+            marks.append((m.start(), k))
+    marks.sort()
+    views: dict[str, dict] = {}
+    for i, (pos, k) in enumerate(marks):
+        end = marks[i + 1][0] if i + 1 < len(marks) else len(html)
+        seg = html[pos:end]
+        # node ids ONLY from the nodes:[...] block (presets/tour also use {id:'..'})
+        nb = re.search(r"nodes:\s*\[(.*?)\n    \],", seg, re.S)
+        ids = set(re.findall(r"\{id:'([\w]+)'", nb.group(1))) if nb else set()
+        edges = re.findall(r"\{f:'([\w]+)',\s*t:'([\w]+)'", seg)
+        if ids or edges:
+            views[k] = {"ids": ids, "edges": edges}
+    return views
+
+
+def edge_audit(html: str) -> dict[str, dict]:
+    """Per-view connection health: dangling edges (f/t not a node in that view),
+    orphan nodes (degree 0 — on the graph but wired to nothing), leaf nodes
+    (degree 1 — likely missing downstream/upstream)."""
+    out: dict[str, dict] = {}
+    for k, v in parse_views(html).items():
+        ids, edges = v["ids"], v["edges"]
+        if not edges:
+            continue
+        deg = {i: 0 for i in ids}
+        dangling = []
+        for f, t in edges:
+            if f not in ids or t not in ids:
+                dangling.append((f, t))
+            if f in deg:
+                deg[f] += 1
+            if t in deg:
+                deg[t] += 1
+        # rm_*/gap_* = intentional roadmap/status marker tiles → allowed standalone
+        _marker = lambda i: i.startswith(("rm_", "gap_"))
+        out[k] = {
+            "nodes": len(ids),
+            "edges": len(edges),
+            "dangling": dangling,
+            "orphans": sorted(i for i, d in deg.items() if d == 0 and not _marker(i)),
+            "markers": sorted(i for i, d in deg.items() if d == 0 and _marker(i)),
+            "leaves": sorted(i for i, d in deg.items() if d == 1),
+        }
+    return out
+
+
 def _stub(name: str, i: int) -> str:
     x = 40 + (i % 6) * 300
     y = 1700 + (i // 6) * 140
@@ -111,17 +166,40 @@ def main(argv: list[str]) -> int:
           + (f" -> {', '.join(a['miss_jobs'])}" if a["miss_jobs"] else ""))
     print(f"flags tagged on graph (info): {len(a['flags']) - len(a['miss_flags'])}/{len(a['flags'])}")
 
+    ea = edge_audit(_read(EXPLORER))
+    print("\n--- connection health (per view) ---")
+    for view, r in ea.items():
+        print(f"{view}: {r['nodes']} nodes · {r['edges']} edges"
+              + (f" · DANGLING {len(r['dangling'])}" if r["dangling"] else "")
+              + (f" · orphans {len(r['orphans'])}" if r["orphans"] else "")
+              + (f" · markers {len(r['markers'])}" if r["markers"] else "")
+              + (f" · leaves {len(r['leaves'])}" if r["leaves"] else ""))
+        if r["dangling"]:
+            print(f"    DANGLING (f/t not a node): {', '.join(f'{f}->{t}' for f, t in r['dangling'])}")
+        if r["orphans"]:
+            print(f"    ORPHAN (0 edges): {', '.join(r['orphans'])}")
+        if r["leaves"]:
+            print(f"    leaf (1 edge — maybe needs more): {', '.join(r['leaves'])}")
+
     if "--stubs" in argv and a["miss_mods"]:
         print("\n--- paste-ready node stubs (place + edit coords/desc) ---")
         for i, name in enumerate(a["miss_mods"]):
             print(_stub(name, i))
 
     if "--check" in argv:
+        dangling = {v: r["dangling"] for v, r in ea.items() if r["dangling"]}
+        orphans = {v: r["orphans"] for v, r in ea.items() if r["orphans"]}
         if a["miss_mods"]:
             print(f"\n[FAIL] {len(a['miss_mods'])} scheduled engine module(s) not on the graph "
                   "— add nodes (--stubs) or this drift was intentional.")
             return 1
-        print("\n[OK] every scheduled engine module is represented on the graph")
+        if dangling:
+            print(f"\n[FAIL] dangling edges (target/source node missing): {dangling}")
+            return 1
+        if orphans:
+            print(f"\n[FAIL] orphan nodes (on graph, 0 edges): {orphans}")
+            return 1
+        print("\n[OK] every engine module represented · no dangling edges · no orphan nodes")
     return 0
 
 
