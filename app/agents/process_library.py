@@ -220,7 +220,23 @@ PROCESSES: dict[str, dict[str, Any]] = {
 
 
 def get_process(key: str) -> dict[str, Any] | None:
-    return PROCESSES.get((key or "").strip().lower())
+    key = (key or "").strip()
+    if key.lower().startswith("flow:"):
+        import os
+
+        if os.getenv("FLOW_RUNNER", "0") not in ("1", "true", "True"):
+            return None
+        try:
+            from app.automation import flow_compiler, flow_store
+
+            fl = flow_store.get_flow(key[5:])
+            if not fl:
+                return None
+            proc, _errs = flow_compiler.compile_flow(fl)
+            return proc  # None if compile errors
+        except Exception:
+            return None
+    return PROCESSES.get(key.lower())
 
 
 def list_keys() -> list[str]:

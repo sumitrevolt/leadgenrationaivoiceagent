@@ -7,6 +7,7 @@ tests import `from app.api.growth import AUTOMATION_FLAGS`).
 
 # Saare gated automation flags ka registry — live env status ek jagah.
 AUTOMATION_FLAGS = [
+    "FLOW_RUNNER",  # visual builder -> process-as-code execution (admin, linear V1, default OFF)
     "FEATURE_FLAGS",  # SaaS infra Phase-1: per-tenant runtime feature-flag system master gate (default OFF)
     "TEAM_AUTOMATION",
     "RUN_IN_PROCESS_SCHEDULER",
