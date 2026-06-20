@@ -1033,6 +1033,7 @@ const NODE_TEMPLATES = [
   {type:'marketing', badge:'CADENCE', title:'Cadence Run', desc:'Omnichannel touches (gated)', action:'cadence_run', files:'cadence.py', color:'#3b82f6'},
   {type:'monitor', badge:'OPTIMIZE', title:'Growth Optimizer', desc:'Funnel weakest-stage', action:'optimizer', files:'growth_optimizer.py', color:'#fbbf24'},
   {type:'platform', badge:'REVENUE', title:'Revenue Sweep', desc:'Dunning + nurture (draft)', action:'revenue_sweep', files:'dunning.py', color:'#60a5fa'},
+  {type:'data', badge:'MERGE', title:'Merge / Join', desc:'Join parallel branches (all/any)', kind:'merge', join:'all', files:'dag_engine.py', color:'#22d3ee'},
   {type:'loop', badge:'APPROVE', title:'Human Approval', desc:'Breakpoint — admin approve to continue', kind:'breakpoint', files:'process_engine.py', color:'#e879f9'},
 ];
 
@@ -1121,7 +1122,7 @@ function addBuilderNode(template, x, y) {
   const node = {
     id, type: template.type, badge: template.badge || 'STEP', cx:'moderate',
     title: template.title, desc: template.desc || '', files: template.files || 'custom',
-    action: template.action || '', kind: template.kind,
+    action: template.action || '', kind: template.kind, join: template.join,
     w: 220, h: 95, x: c.x, y: c.y,
   };
   getViewData().nodes.push(node);
@@ -2069,7 +2070,21 @@ function showBuilderPanel() {
 
   if(selectedEdge != null && activeEdges[selectedEdge]) {
     const e = activeEdges[selectedEdge];
-    html += `<button class="action-btn" style="color:#f87171;margin-top:6px" onclick="removeBuilderEdge(${selectedEdge})">× Delete Selected Edge</button>`;
+    const w = (e.when && e.when.field) ? e.when : {field:'', op:'>=', value:''};
+    const ops = ['>=','<=','>','<','==','!=','truthy','falsy','exists'];
+    html += `<div class="panel-hdr">Edge Condition (when)</div>
+      <div style="font-size:9px;color:#6b7280;margin-bottom:4px">Blank field = unconditional edge. Source result keys: count · ok · detail</div>
+      <select class="builder-field" id="ec-field" onchange="setEdgeWhen(${selectedEdge})">
+        <option value=""${!w.field?' selected':''}>(unconditional)</option>
+        <option value="count"${w.field==='count'?' selected':''}>count</option>
+        <option value="ok"${w.field==='ok'?' selected':''}>ok</option>
+        <option value="detail"${w.field==='detail'?' selected':''}>detail</option>
+      </select>
+      <select class="builder-field" id="ec-op" onchange="setEdgeWhen(${selectedEdge})">
+        ${ops.map(o=>`<option value="${o}"${w.op===o?' selected':''}>${o}</option>`).join('')}
+      </select>
+      <input class="builder-field" id="ec-value" placeholder="value" value="${(w.value!==undefined&&w.value!==null)?String(w.value).replace(/"/g,'&quot;'):''}" onchange="setEdgeWhen(${selectedEdge})">
+      <button class="action-btn" style="color:#f87171;margin-top:6px" onclick="removeBuilderEdge(${selectedEdge})">× Delete Selected Edge</button>`;
   }
 
   document.getElementById('sb-content').innerHTML = html;
@@ -2092,6 +2107,21 @@ function connectFromSelected() {
   if(!tgt || !selectedNode) return;
   addBuilderEdge(selectedNode, tgt, style, '');
   showBuilderPanel();
+}
+
+function setEdgeWhen(idx) {
+  const e = getViewData().edges[idx];
+  if(!e) return;
+  const field = document.getElementById('ec-field')?.value || '';
+  const op = document.getElementById('ec-op')?.value || '>=';
+  const valRaw = (document.getElementById('ec-value')?.value || '').trim();
+  if(!field || op === 'truthy' || op === 'falsy' || op === 'exists') {
+    e.when = field ? {field, op} : null;
+  } else {
+    const num = Number(valRaw);
+    e.when = {field, op, value: (valRaw !== '' && !isNaN(num)) ? num : valRaw};
+  }
+  persistCustomFlow();
 }
 
 function showDefaultSidebar() {
@@ -2509,8 +2539,8 @@ function _frPayload() {
   return {
     id: frFlowId || undefined,
     name: f.name || 'Untitled flow',
-    nodes: (v.nodes || []).map(n => ({id:n.id, action:n.action||'', kind:n.kind, title:n.title, question:n.question})),
-    edges: (v.edges || []).map(e => ({f:e.f, t:e.t})),
+    nodes: (v.nodes || []).map(n => ({id:n.id, action:n.action||'', kind:n.kind, join:n.join, title:n.title, question:n.question})),
+    edges: (v.edges || []).map(e => ({f:e.f, t:e.t, when:e.when || null})),
   };
 }
 
@@ -2527,10 +2557,21 @@ async function _frApi(path, opts) {
 function _frStatus(msg){ const el=document.getElementById('flowRunStatus'); if(el) el.innerHTML=msg; }
 
 function _frPaint(st) {
-  const done = new Set((st.steps_done||[]).map(s => s.step));
+  const nodes = st.nodes || null;  // dag -> per-node map; linear -> undefined
+  const linearDone = new Set((st.steps_done||[]).map(s => s.step));
+  const COLORS = {done:'2px solid #4ade80', running:'2px solid #fbbf24',
+                  skipped:'2px dashed #6b7280', waiting:'2px solid #e879f9',
+                  failed:'2px solid #f87171', pending:''};
   (getViewData().nodes||[]).forEach(n => {
     const el = document.getElementById('node-'+n.id);
-    if(el) el.style.outline = done.has(n.id) ? '2px solid #4ade80' : '';
+    if(!el) return;
+    if(nodes && nodes[n.id]) {
+      el.style.outline = COLORS[nodes[n.id].state] || '';
+      el.style.opacity = nodes[n.id].state === 'skipped' ? '0.45' : '1';
+    } else {
+      el.style.outline = linearDone.has(n.id) ? COLORS.done : '';
+      el.style.opacity = '1';
+    }
   });
 }
 
@@ -2562,9 +2603,12 @@ function _frPollStart() {
     const st = (r.body && r.body.state) || {};
     _frPaint(st);
     if(st.status==='waiting_approval'){
-      _frStatus('WAITING approval <button class="tr-btn" onclick="approveRun()">✓ Approve</button>');
+      _frStatus('WAITING approval'+(st.waiting?' @'+st.waiting:'')+' <button class="tr-btn" onclick="approveRun()">✓ Approve</button>');
     } else {
-      _frStatus('run '+(st.status||'?')+' · step '+(st.step_index||0));
+      const prog = st.nodes
+        ? Object.values(st.nodes).filter(x=>['done','skipped'].includes(x.state)).length + '/' + Object.keys(st.nodes).length + ' nodes'
+        : 'step ' + (st.step_index||0);
+      _frStatus('run '+(st.status||'?')+' · '+prog);
     }
     if(st.status==='completed'||st.status==='failed'){ clearInterval(frPoll); frPoll=null; }
   }, 2000);
