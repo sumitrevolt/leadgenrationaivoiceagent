@@ -145,6 +145,15 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
         report["steps"]["kb_website"] = await _seed_kb_from_website(cid, _website(client))
         report["steps"]["content_pack"] = await _first_content_pack(client)
 
+        # GHL-style niche template — mini-site palette, journeys, festival schedule (best-effort)
+        try:
+            from app.platform import client_snapshots
+
+            report["steps"]["niche_snapshot"] = client_snapshots.apply_niche_to_client(cid)
+        except Exception as exc:
+            logger.debug("onboard niche_snapshot skip: %s", exc)
+            report["steps"]["niche_snapshot"] = {"ok": False, "skipped": str(exc)[:80]}
+
         try:
             clients_store.update_client(
                 cid, setup_done=True, setup_at=datetime.now(timezone.utc).isoformat()

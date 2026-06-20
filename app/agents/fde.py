@@ -188,6 +188,28 @@ async def _sk_content_schedule(ctx: Ctx) -> dict[str, Any]:
     }
 
 
+async def _sk_niche_snapshot(ctx: Ctx) -> dict[str, Any]:
+    """GHL-style niche template → client (mini-site, widget, journeys, festivals)."""
+    from app.platform import client_snapshots
+
+    cid = str(ctx.get("client_id") or "").strip()
+    if not cid:
+        cap = client_snapshots.capture_from_niche(ctx["niche"])
+        return {
+            "ok": cap.get("ok", False),
+            "summary": f"Niche template captured: {ctx['niche']}" if cap.get("ok") else cap.get("error", "fail"),
+            "data": cap,
+        }
+    res = client_snapshots.apply_niche_to_client(cid, ctx.get("niche"))
+    return {
+        "ok": res.get("ok", False),
+        "summary": f"Niche snapshot applied ({res.get('niche_key', ctx['niche'])})"
+        if res.get("ok")
+        else res.get("error", "apply fail"),
+        "data": res,
+    }
+
+
 # Skill registry: key -> {category, title, desc, handler}
 SKILLS: dict[str, dict[str, Any]] = {
     # ---- marketing ----
@@ -235,6 +257,11 @@ SKILLS: dict[str, dict[str, Any]] = {
         "category": "automation",
         "title": "Content calendar",
         "handler": _sk_content_schedule,
+    },
+    "niche_snapshot": {
+        "category": "automation",
+        "title": "Niche setup snapshot (GHL clone)",
+        "handler": _sk_niche_snapshot,
     },
 }
 
