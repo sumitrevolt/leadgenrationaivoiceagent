@@ -54,8 +54,9 @@ def main() -> int:
 
     code, body = _get("/health/ready")
     if isinstance(body, dict):
-        db = (body.get("database") or {}).get("status")
-        redis = (body.get("redis") or {}).get("status")
+        checks = body.get("checks") or {}
+        db = (checks.get("database") or {}).get("status")
+        redis = (checks.get("redis") or {}).get("status")
         ok = db == "healthy" and redis == "healthy"
         print(f"{'OK' if ok else 'FAIL'} /health/ready db={db} redis={redis}")
         if not ok:
