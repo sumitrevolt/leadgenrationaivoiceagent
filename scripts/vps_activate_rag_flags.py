@@ -26,6 +26,21 @@ def main() -> int:
             text.append(f"{k}={v}")
     ENV.write_text("\n".join(text).rstrip() + "\n", encoding="utf-8")
     print("OK flags:", ", ".join(FLAGS))
+    try:
+        import subprocess
+
+        subprocess.run(
+            [
+                "bash",
+                "-lc",
+                "cd /opt/leadgen && docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps app worker worker-heavy",
+            ],
+            check=True,
+            timeout=120,
+        )
+        print("RECREATE app+workers OK")
+    except Exception as e:
+        print(f"WARN recreate skipped: {e}")
     return 0
 
 
