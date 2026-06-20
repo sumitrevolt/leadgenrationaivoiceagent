@@ -1,0 +1,16 @@
+---
+description: Composer 2.5 primary agent for LeadGen AI — context-first, Hinglish, council decisions, free stack. Auto-loads leadgen-composer skill.
+alwaysApply: true
+---
+
+# Composer 2.5 — LeadGen AI
+
+**Primary skill:** `.cursor/skills/leadgen-composer/SKILL.md` — har task pe follow karo.
+
+**Deep workflows:** `.cursor/skills/leadgen-composer/skills-index.md` → `.claude/skills/<name>/SKILL.md` on demand.
+
+**Memory:** `CLAUDE.md` (truth) · **Reply:** Hinglish Roman · **Verify:** `scripts/prod_check.py` before done.
+
+**Decisions:** ambiguous strategy → `llm-council-decision` protocol (multi-opinion → peer rank → Chairman).
+
+**Composer edge:** parallel Grep/Read BEFORE edit — yahi Claude se better output deta hai.
