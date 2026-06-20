@@ -17,6 +17,8 @@ description: Sahi orchestration primitive chuno — coordinator 6 modes (plan/ha
 | Code/feature ka design+plan+review+tests (DRAFT-only) | `coordinate_engineering` — Architect→Engineer→Reviewer→Tester (auto-apply NAHI) | `POST /api/agents/coordinate-engineering` |
 | Same prompt, sab agents ka take | `fanout` (asyncio.gather) | `POST /api/agents/fanout` |
 | Pro/con faisla | `debate(question)` — Rohan vs Kavya → Boss verdict | `POST /api/agents/debate` |
+| **Ambiguous strategy / multi-option rank** | **`council(question)`** — cross-model opinions → anonymized peer rank → Chairman (`llm_council.py`) | `POST /api/agents/council` |
+| **Claude session decision protocol** | Skill **`llm-council-decision`** — recruit experts → opinions → peer review → Chairman verdict (subagents ya LIVE API) | — |
 | **Order + code-gates + human approval** | process engine (journal, breakpoints, resume) — LLM-opinion gates NAHI; `lead_campaign` etc. `process_library.PROCESSES` | `POST /api/growth/process/start` |
 | Client ke liye stack deploy | FDE (Isha/Veer/Aarav/Neo, 11-skill registry `fde.SKILLS`) | `POST /api/growth/fde/deploy` |
 | Ek prospect ka sales deep-dive | sales_team (Riya/Veer/Dev/Isha/Arjun parallel, BANT) | `POST /api/growth/sales/prospect-analysis` |

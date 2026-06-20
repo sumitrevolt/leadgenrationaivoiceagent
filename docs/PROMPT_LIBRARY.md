@@ -18,6 +18,7 @@
 | **Reply triage** | `reply_agent.py` | Inbound email intent + Hinglish draft |
 | **Hinglish copy kits** | `Sales_Kit_Hinglish.md`, `Marketing_Kit_LeadGenAI.md` | Human sales/marketing copy |
 | **241 skills** | `.claude/skills/` + `data/skills_extra/` | Agent runtime via `skill_pack.py` |
+| **Council decision** | `.claude/skills/llm-council-decision/SKILL.md` + `llm_council.py` | Claude session + `POST /api/agents/council` — multi-opinion → peer rank → Chairman |
 
 ---
 
