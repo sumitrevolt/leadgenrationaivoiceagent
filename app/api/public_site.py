@@ -472,7 +472,7 @@ class SignupIn(BaseModel):
     website: str | None = ""  # honeypot — insaan kabhi nahi bharta
 
 
-@router.post("/signup", dependencies=[Depends(rate_limit("signup", 10, 60))])
+@router.post("/signup", dependencies=[Depends(rate_limit("signup", 10, 60)), Depends(verify_turnstile)])
 async def public_signup(body: SignupIn, request: Request):
     """NO AUTH self-serve signup: client + customer-login banao -> client_id + JWT.
 
