@@ -442,6 +442,115 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     return chain
 
 
+async def chat_provider(
+    provider: str,
+    model: str,
+    system: str,
+    messages: list[dict[str, str]],
+    max_tokens: int = 512,
+    temperature: float = 0.5,
+    scope: str = "council",
+    timeout_s: float | None = None,
+) -> tuple[str, str]:
+    """Single forced provider+model call — LLM Council diversity ke liye.
+
+    Chain fallback NAHI; provider down/missing ho to ("", provider). Never raises.
+    """
+    if not _OPENAI_OK:
+        return "", provider or "none"
+    p = (provider or "").strip()
+    if _provider_down(p):
+        return "", p
+    client = _client(p)
+    if client is None:
+        return "", p
+    msgs: list[dict[str, str]] = []
+    if system and system.strip():
+        msgs.append({"role": "system", "content": system.strip()})
+    for m in messages or []:
+        role = m.get("role") or "user"
+        if role not in ("system", "user", "assistant"):
+            role = "user"
+        content = str(m.get("content") or "").strip()
+        if content:
+            msgs.append({"role": role, "content": content})
+    if not msgs:
+        return "", p
+    try:
+        from app.llm import budget_guard
+
+        if budget_guard.active():
+            _ok, _bi = await budget_guard.allow(scope)
+            if not _ok:
+                logger.warning(
+                    "[free_ai] budget guard blocked scope=%s reason=%s", scope, _bi.get("reason")
+                )
+                return "", p
+    except Exception:
+        pass
+    tlim = timeout_s if timeout_s and timeout_s > 0 else max(_CALL_TIMEOUT_S, 30.0)
+    _t0 = time.monotonic()
+    try:
+        with _llm_span("chat_provider", model=model, provider=p) as _obs:
+            resp = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=model,
+                    messages=msgs,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                ),
+                timeout=tlim,
+            )
+            text = ""
+            try:
+                text = (resp.choices[0].message.content or "").strip()
+            except Exception:
+                text = ""
+            try:
+                _u = getattr(resp, "usage", None)
+                _obs.record(
+                    prompt_tokens=getattr(_u, "prompt_tokens", None),
+                    completion_tokens=getattr(_u, "completion_tokens", None),
+                    latency_ms=(time.monotonic() - _t0) * 1000.0,
+                    output_preview=text,
+                    ok=bool(text),
+                )
+            except Exception:
+                pass
+        if text:
+            _reset_cooldown_streak(p)
+            try:
+                from app.platform import llm_metrics
+
+                llm_metrics.record(p, True, (time.monotonic() - _t0) * 1000)
+            except Exception:
+                pass
+            try:
+                from app.llm import budget_guard
+
+                if budget_guard.is_enabled():
+                    _bu = getattr(resp, "usage", None)
+                    await budget_guard.record(
+                        scope,
+                        calls=1,
+                        prompt_tokens=getattr(_bu, "prompt_tokens", 0) or 0,
+                        completion_tokens=getattr(_bu, "completion_tokens", 0) or 0,
+                    )
+            except Exception:
+                pass
+            return text, p
+    except Exception as e:
+        _trip_cooldown(p, str(e))
+        try:
+            from app.platform import llm_metrics
+
+            llm_metrics.record(p, False, (time.monotonic() - _t0) * 1000, str(e))
+        except Exception:
+            pass
+        logger.warning(f"[free_ai] chat_provider {p}/{model} failed: {e}")
+    return "", p
+
+
 async def chat(
     system: str,
     messages: list[dict[str, str]],
@@ -674,4 +783,11 @@ def describe() -> dict[str, Any]:
     }
 
 
-__all__ = ["transcribe_audio", "chat", "chat_stream", "describe", "PROVIDERS_AVAILABLE"]
+__all__ = [
+    "transcribe_audio",
+    "chat",
+    "chat_provider",
+    "chat_stream",
+    "describe",
+    "PROVIDERS_AVAILABLE",
+]

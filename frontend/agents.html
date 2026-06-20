@@ -122,6 +122,13 @@
   /* debate two-column */
   .debate{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:640px){.debate{grid-template-columns:1fr}}
+  /* council tabs */
+  .tabs{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 12px}
+  .tabbtn{font-size:.78rem;font-weight:700;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--ink-2)}
+  .tabbtn.on{background:var(--indigo);color:#fff;border-color:var(--indigo)}
+  .tabpane{display:none}.tabpane.on{display:block}
+  .rankrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:#fff;font-size:.88rem}
+  .rankrow .nm{font-weight:700}.rankrow .sc{color:var(--violet);font-weight:800;font-size:.82rem}
   .side{border:1px solid var(--line);border-radius:13px;padding:14px 16px;background:#fff}
   .side.pro{border-top:4px solid var(--ok)}
   .side.con{border-top:4px solid var(--bad)}
@@ -169,7 +176,7 @@
 <main class="page">
   <div class="hero">
     <h1>🧠 Multi-Agent Coordination</h1>
-    <p class="sub">Boss 8-agent AI staff ko orchestrate karta hai — Reflexion (plan → execute → critic verify → reflect → retry), parallel fan-out, aur debate/consensus. Free-stack, ban-safe (default = drafts).</p>
+    <p class="sub">Boss 8-agent AI staff ko orchestrate karta hai — Reflexion, parallel fan-out, debate/consensus, aur LLM Council (cross-model peer review). Free-stack, ban-safe (default = drafts).</p>
     <div class="authnote"><span id="authDot" class="dot"></span><span id="authMsg">Admin token check ho raha hai…</span></div>
   </div>
 
@@ -203,6 +210,21 @@
       </div>
       <button id="coordBtn" class="btn" onclick="runCoordinate()">⚡ Coordinate (Reflexion)</button>
       <div id="coordRes" class="res"></div>
+    </div>
+  </section>
+
+  <!-- LLM COUNCIL -->
+  <section>
+    <div class="sec-head">
+      <h2>LLM Council</h2>
+      <span class="hint">Karpathy-style — multi-model opinions → peer rank → Chairman</span>
+    </div>
+    <div class="card">
+      <label class="fld" for="cq">Question (strategy / content / decision)</label>
+      <textarea id="cq" placeholder="e.g. Pune solar businesses ke liye pehle email outreach ya WhatsApp 1-click links?"></textarea>
+      <div id="councilMembers" class="chips" style="margin-top:10px"></div>
+      <button id="councilBtn" class="btn" onclick="runCouncil()">🏛️ Run Council</button>
+      <div id="councilRes" class="res"></div>
     </div>
   </section>
 
@@ -337,6 +359,7 @@ async function loadRoster(){
 /* recent_runs derive a pattern label (shape varies by run type) */
 function runPattern(r){
   if(r.pattern) return r.pattern;
+  if(r.pattern === "llm_council") return "llm-council";
   if(r.mode === "parallel") return "fan-out";
   if(Array.isArray(r.rounds) && "verdict" in r) return "debate";
   if(Array.isArray(r.plan)) return "coordinate";
@@ -346,7 +369,7 @@ function renderRuns(runs){
   const box = document.getElementById("runs");
   if(!runs.length){ box.innerHTML = '<div class="empty">Abhi koi run nahi hua.</div>'; return; }
   box.innerHTML = runs.map(r => {
-    const txt = r.summary || r.verdict || "";
+    const txt = r.summary || r.verdict || (r.stage3 && r.stage3.response) || "";
     return '<div class="run">'
       + '<div class="pat">'+esc(runPattern(r))+'</div>'
       + '<div class="goal">'+esc(r.goal || r.question || "(goal)")+'</div>'
@@ -442,7 +465,56 @@ async function runCoordinate(){
   finally{ busy(btn, false, "⚡ Coordinate (Reflexion)"); }
 }
 
-/* ---------- 4. DEBATE (admin) ---------- */
+/* ---------- 4. LLM COUNCIL (admin) ---------- */
+async function loadCouncilMembers(){
+  const box = document.getElementById("councilMembers");
+  if(!box) return;
+  if(!tok()){ box.innerHTML = '<span class="chip"><span class="k">members</span>login ke baad dikhenge</span>'; return; }
+  try{
+    const d = await getJSON("/api/agents/council/members", true);
+    const list = Array.isArray(d.members) ? d.members : [];
+    if(!list.length){ box.innerHTML = '<span class="chip"><span class="k">members</span>0 — API keys check karo</span>'; return; }
+    box.innerHTML = list.map(m => '<span class="chip"><span class="k">'+esc(m.label||m.provider)+'</span>'+esc(m.provider)+'</span>').join("");
+  }catch(e){ box.innerHTML = '<span class="chip">members load fail</span>'; }
+}
+
+async function runCouncil(){
+  const q = document.getElementById("cq").value.trim();
+  const out = document.getElementById("councilRes");
+  if(q.length < 3){ out.className="res show"; out.innerHTML='<div class="err">Question thoda lamba likho.</div>'; return; }
+  const btn = document.getElementById("councilBtn");
+  busy(btn, true, "Council chal raha hai…");
+  out.className = "res show";
+  out.innerHTML = '<div class="loading">'+spin()+' Stage 1→2→3 (multi-model, 1-3 min)…</div>';
+  try{
+    const d = await postJSON("/api/agents/council", {question:q});
+    if(!d.ok){ showErr("councilRes", new Error(d.error||"Council fail")); return; }
+    let h = '<div class="summary"><div class="lbl">Chairman — Final Answer</div><div class="txt">'+esc((d.stage3&&d.stage3.response)||d.summary||"")+'</div></div>';
+    const agg = (d.metadata&&d.metadata.aggregate_rankings)||[];
+    if(agg.length){
+      h += '<div class="sub-lbl">Aggregate peer rankings</div>';
+      agg.forEach((a,i) => { h += '<div class="rankrow"><span class="nm">#'+(i+1)+' '+esc(a.model)+'</span><span class="sc">avg '+esc(a.average_rank)+'</span></div>'; });
+    }
+    const s1 = Array.isArray(d.stage1) ? d.stage1 : [];
+    if(s1.length){
+      h += '<div class="sub-lbl">Stage 1 — Individual opinions</div><div class="tabs" id="councilTabs">';
+      s1.forEach((s,i) => { h += '<button type="button" class="tabbtn'+(i===0?' on':'')+'" onclick="councilTab('+i+')">'+esc(s.label||s.provider)+'</button>'; });
+      h += '</div>';
+      s1.forEach((s,i) => {
+        h += '<div class="tabpane'+(i===0?' on':'')+'" id="councilPane'+i+'"><div class="step"><div class="hd"><span class="ag">'+esc(s.label||s.provider)+'</span></div><div class="out">'+esc(s.response||"")+'</div></div></div>';
+      });
+    }
+    out.innerHTML = h;
+    loadRoster();
+  }catch(e){ showErr("councilRes", e); }
+  finally{ busy(btn, false, "🏛️ Run Council"); }
+}
+function councilTab(i){
+  document.querySelectorAll("#councilTabs .tabbtn").forEach((b,j)=>b.classList.toggle("on", j===i));
+  document.querySelectorAll("[id^=councilPane]").forEach((p,j)=>p.classList.toggle("on", j===i));
+}
+
+/* ---------- 5. DEBATE (admin) ---------- */
 async function runDebate(){
   const q = document.getElementById("dq").value.trim();
   const out = document.getElementById("debateRes");
@@ -468,7 +540,7 @@ async function runDebate(){
   finally{ busy(btn, false, "⚖️ Debate"); }
 }
 
-/* ---------- 5. FAN-OUT (admin) ---------- */
+/* ---------- 6. FAN-OUT (admin) ---------- */
 async function runFanout(){
   const q = document.getElementById("fq").value.trim();
   const out = document.getElementById("fanRes");
@@ -491,7 +563,7 @@ async function runFanout(){
 function initAuthBanner(){
   const dot = document.getElementById("authDot");
   const msg = document.getElementById("authMsg");
-  if(tok()){ dot.className = "dot on"; msg.innerHTML = "Admin token mila — coordinate / debate / memory ready."; }
+  if(tok()){ dot.className = "dot on"; msg.innerHTML = "Admin token mila — coordinate / council / debate / memory ready."; }
   else { dot.className = "dot off"; msg.innerHTML = 'Admin token nahi — roster public hai, baaki ke liye <a href="/app/login">/app/login</a>.'; }
 }
 
@@ -499,6 +571,7 @@ document.addEventListener("DOMContentLoaded", function(){
   initAuthBanner();
   loadRoster();
   loadMemory();
+  loadCouncilMembers();
 });
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>

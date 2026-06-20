@@ -149,6 +149,29 @@ async def debate_agents(req: DebateRequest, user: User = Depends(require_admin))
     return await coordinator.debate(req.question, rounds=req.rounds)
 
 
+class CouncilRequest(BaseModel):
+    """Question for LLM Council (cross-model peer-review consensus)."""
+
+    question: str = Field(..., min_length=3, max_length=2000)
+
+
+@router.get("/council/members")
+async def council_members(user: User = Depends(require_admin)) -> dict[str, Any]:
+    """Available free-stack council members (keys set hone par)."""
+    from app.agents import llm_council
+
+    return {
+        "enabled": llm_council.council_enabled(),
+        "members": llm_council.available_members(),
+    }
+
+
+@router.post("/council", dependencies=[Depends(rate_limit("agents", 5, 60))])
+async def council_agents(req: CouncilRequest, user: User = Depends(require_admin)) -> dict[str, Any]:
+    """LLM Council — parallel multi-model opinions → anonymized peer rank → Chairman synthesis."""
+    return await coordinator.council(req.question)
+
+
 @router.get("/memory")
 async def agents_memory(limit: int = 30, user: User = Depends(require_admin)) -> dict[str, Any]:
     """Recent episodic agent memory (Reflexion reflections + scores)."""
