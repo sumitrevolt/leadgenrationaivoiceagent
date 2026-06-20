@@ -10,10 +10,13 @@ from fastapi.testclient import TestClient
 
 
 class TestPayInfo:
-    def test_pay_info_disabled_by_default(self, client: TestClient, monkeypatch):
-        """UPI_VPA unset => {"enabled": false} — public, no auth, no crash."""
+    def test_pay_info_disabled_by_default(self, client: TestClient, monkeypatch, tmp_path):
+        """UPI_VPA unset + no data file => {"enabled": false}."""
         from app.config import settings
+        from app.platform import upi_config as uc
 
+        monkeypatch.setattr(uc, "_STORE", str(tmp_path / "missing_upi.json"))
+        monkeypatch.delenv("UPI_VPA", raising=False)
         monkeypatch.setattr(settings, "upi_vpa", "", raising=False)
         res = client.get("/api/public/pay-info")
         assert res.status_code == 200
@@ -23,9 +26,10 @@ class TestPayInfo:
 
     def test_pay_info_enabled_with_vpa(self, client: TestClient, monkeypatch):
         """UPI_VPA set => QR + VPA + packages (key/name/price)."""
-        from app.config import settings
+        from app.platform import upi_config as uc
 
-        monkeypatch.setattr(settings, "upi_vpa", "9876543210@ybl", raising=False)
+        monkeypatch.setenv("UPI_VPA", "9876543210@ybl")
+        monkeypatch.setattr(uc, "get_vpa", lambda: "9876543210@ybl")
         res = client.get("/api/public/pay-info")
         assert res.status_code == 200
         data = res.json()

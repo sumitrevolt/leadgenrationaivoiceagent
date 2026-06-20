@@ -43,7 +43,7 @@ Yeh gate isliye hai kyunki aadhe context pe edit = galat output. Sequence:
 
 ## A3. Naya feature / route add karne ka SOP
 
-1. `grep '@router' app/api/marketing.py` (ya relevant file) se existing routes dekho — duplicate route shadow karta hai.
+1. `grep '@router' app/api/marketing.py` (ya relevant file) se existing routes dekho — duplicate route shadow karta hai. **Refactor 2026-06-20 (main):** routes ab split modules me bhi (`growth_revenue`/`growth_crm`/`growth_deliverability`/`growth_feature_flags` + `marketing_tools`/`marketing_models`) — duplicate-route grep IN SAB karo.
 2. Naya **admin feature = UI tab SAATH** banao. API-only = adhoora.
 3. Naya `@app.get` **page-route** add kiya → deploy ke baad **HARD RELOAD** zaroori (warna stale `.pyc` 404): container recreate, ya `pkill uvicorn` + `__pycache__` clear + restart. Diagnostic: `scripts/check_route.py`.
 4. Har ML/KB asset = **image-bake + off-loop load** (`asyncio.to_thread`) + deadline + disable-switch. Public endpoint me KB/ML = thread + hard timeout (3 prod-downs isi se hue).
@@ -63,7 +63,9 @@ Yeh gate isliye hai kyunki aadhe context pe edit = galat output. Sequence:
 ```
 
 **Gotchas:**
+- 🚨 **CI `deploy-vps.yml` = GATE-ONLY** (`DEPLOY_ENABLED` unset) → `git push` se prod auto-deploy NAHI hota. Gate: import+prod_check+billing-truth = BLOCKING; ruff+full-pytest = non-blocking. **Actual deploy = MANUAL SSH (step 4)** — CI ka wait mat karo.
 - Code change = `build app` + `up -d --no-deps app` recreate (app/ + frontend/ + skills image me BAKED). Data-only (`./data`,`./logs`) bind-mount change ko recreate NAHI chahiye.
+- **Automation/loop code change = recreate app + worker + worker-heavy + scheduler** (sirf app NAHI — team_scheduler/self_improve worker+beat me chalte). Repeated worker recreate = celery flood risk → `redis-cli llen celery` check.
 - Build pipe `| tail` exit-code maskta → `set -o pipefail`.
 - compose service naam galat pe poora `up` ABORT → pehle `docker compose config --services`.
 - SSH command me `&`/`<` quoting todta (EXIT_9009) → smoke `.py` file me likho, `ssh ... python scripts/x.py`.
@@ -149,7 +151,7 @@ Plus hourly: Kavya health, reply-triage, ops-watchdog, auto-onboard, growth-puls
 
 ## B5. Billing & Payments SOP
 
-- **Primary path = manual UPI** (Razorpay REMOVED 2026-06-18). `UPI_VPA` env set karna zaroori → standalone UPI modal.
+- **Primary path = manual UPI** (Razorpay REMOVED 2026-06-18). `UPI_VPA` env set karna zaroori → standalone UPI modal. **(2026-06-20 IN-FLIGHT: admin-config path — VPA `POST /api/admin/upi/configure` se set ho, container recreate nahi chahiye; module `app/platform/upi_config.py`.)**
 - **Stripe** = international only.
 - **GST:** SIRF `GST_GSTIN` set hone pe charge (unregistered = no tax, <₹20L truth). Invoice Rule-46 sequential `INV/2026-27/0001`, SAC 998313.
 - **Truth file:** `packages.py` = single source. Pricing change = `packages.py` + `test_billing_truth_2026.py` SAATH update.
@@ -237,3 +239,4 @@ python scripts/check_route.py
 
 *Revision history:*
 - *2026-06-20 — v1 created (engineering + business + compliance + pricing).*
+- *2026-06-20 PM — v1.1: godfile split (split-module route grep), CI gate-only deploy gotcha, automation-recreate scope, UPI admin-config in-flight.*
