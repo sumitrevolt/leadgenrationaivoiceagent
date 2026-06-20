@@ -1,7 +1,7 @@
 # PROJECT HANDOFF — LeadGenAI (leadgenrationaivoiceagent)
 
 > **Purpose:** Complete all-in-one handoff. Ek naya developer YA naya AI-agent isse padh ke poora project samajh sake aur takeover kar sake — product, tech, infra, deploy, blockers, legal, gotchas, sab.
-> **Generated:** 2026-06-20 · **Last updated:** 2026-06-20 PM — **UPI payments LIVE (first customer payable)** · Architecture Explorer (`/app/explorer`) + enterprise doc-pack added · godfile wave-1 merged · **Explorer + backend audited GREEN** (169 nodes/316 edges · 70/70 engine coverage · 0 orphans/dangling · 0 unwired loops) + **reverse graph→code file-sync gate added** (see §21) · Source of truth: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
+> **Generated:** 2026-06-20 · **Last updated:** 2026-06-20 PM — **UPI payments LIVE (first customer payable)** · Architecture Explorer (`/app/explorer`) + enterprise doc-pack added · godfile wave-1 merged · **Explorer + backend audited GREEN** (169 nodes/316 edges · 70/70 engine coverage · 0 orphans/dangling · 0 unwired loops) + **reverse graph→code file-sync gate added** (see §21) · **4-agent council re-audit GREEN-confirmed + 7 wireable fixes shipped (see §22)** · Source of truth: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
 > **Language:** Hinglish (project convention) — technical terms/commands/paths English me.
 
 ---
@@ -456,6 +456,37 @@ Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sa
 - **2 genuine label drifts fixed** in `frontend/explorer.html` (caught by the new gate): `team.html`→`team_dashboard.html`, `observability.yml`→`docker-compose.observability.yml`. 183 explicit file-claims now 100% resolve.
 
 **Note on the task's "load test / security audit / UAT" asks:** the explorer is a static documentation graph — those apply to the backend, which is already gated by `final_integration_check.py` + `cross_path_audit.py` + `prod_check.py` (all green). No new prod-load/security defects surfaced.
+
+---
+
+## 22. Council Re-Audit (2026-06-20 PM — 4-agent + Chairman)
+
+> Full re-run of the "broken connections / missing loops / non-functional pipelines / missing workflows / broken node-functions / sync-gaps" checklist, decided **council-style** (multi-agent opinions → Chairman verdict). **Method:** Windows working tree = source of truth — the sandbox mount was mid-sync/stale (129-line vs 256-line `explorer_sync.py`, corrupted `py_compile`), so EVERYTHING was verified via file-Read/Grep, NOT sandbox script-runs (the §13 gotcha in action).
+
+**Council = 4 read-only specialist auditors (parallel):** Infrastructure (connections/loops/pipelines) · Workflow (end-to-end lead lifecycle) · Node-functionality (explorer node → real backing code) · Sync (graph↔code drift, both directions).
+
+**VERDICT: GREEN on all 6 checklist dimensions — §21 independently RE-CONFIRMED against the NEWER working tree** (not just committed/sandbox state):
+- **Sync:** 0 missing engine modules (70/70), 0 dangling edges, 0 orphan nodes, all `files:` refs resolve. 3 wired views (structural 45n / automation ~78n / products ~29n).
+- **Node-functionality:** ~30-file sample across all views → 100% backing files exist + real impl (0 stubs/0 dead). Pricing nodes match `packages.py`/`voice_packages.py` to the rupee. `gap_*`/`rm_*` nodes honestly self-labelled.
+- **Loops:** self-improve forever-loop + beat + dead-man trio all have attempted-always requeue + independent revive (worst case total worker loss self-heals via stale-heartbeat revival). **No permanent-stall path.**
+- **Pipelines:** `lead.created`/`lead.qualified`/`call.completed` emit→consume closed; vobiz_stream `_cleanup`→meter + `_auto_qualify`→downstream confirmed at the asserted call sites.
+- **Reminder:** the Explorer is an architecture *visualization* (hand-curated nodes), NOT an executable workflow engine — "node executes its task" = its backing backend module runs (route/Celery), which all do.
+
+**7 real wireable gaps shipped this session (improvement ≠ broken; additive · gated · never-raise).** Note: a 2nd council pass corrected gap #5's premise — `/audit` (#1 magnet) ALREADY captures (own form → `/api/public/inquiry`); the real leak was `/site-audit` (#2 magnet, zero capture). Shipped the safe FRONTEND-ONLY fix (cloned `/audit`'s proven form), no backend change:
+
+| # | Gap (evidence) | Fix | Status |
+|---|---|---|---|
+| 1 | Inbound web/widget/webhook leads never auto-push to client CRM — only the voice path (`call_manager.py:526`) did; `inquiry_hooks.run_after_inquiry` had no `crm_sync` call (cross-path parity gap). | Gated `crm_sync.push_lead` spawn added in `inquiry_hooks.py` (gated `CRM_SYNC`, fire-and-forget, never-raise). | ✅ SHIPPED (working tree) |
+| 2 | `revenue_snapshot` job (daily 00:15 IST, in STAFF_JOBS + beat) was absent from the dead-man dict → a silent stop would never be flagged overdue. | `"revenue_snapshot": 30*60` added to `automation_health.EXPECTED_GAP_MIN`. | ✅ SHIPPED |
+| 3 | `explorer_sync.py::automation_flags()` regexed `AUTOMATION_FLAGS` out of `growth.py`, but the 06-20 refactor moved the literal to `automation_flags.py` → flag-coverage audit signal silently dead (`0/0`). | Flag-source repointed to `automation_flags.py` (growth.py fallback). | ✅ SHIPPED |
+| 4 | Explorer doc-drift: `fastapi` node "~733 routes" + `explorer` node "33-page" (stale vs prod_check 756 routes / 35 pages). | Both node `desc` strings refreshed (756 / 35). | ✅ SHIPPED |
+| 5 | Lead-magnet capture leak — `/site-audit` (#2 magnet) showed score + outbound CTAs but had NO contact form → interested visitors lost. (`/audit` already captures via its own form, so left untouched.) | Optional capture form added to `frontend/website/site-audit.html` — clones `/audit`: name+business+phone → `/api/public/inquiry`, reuses honeypot `website` + turnstile + rate-limit, never-gate UX. **Frontend-only, zero backend change.** | ✅ SHIPPED (working tree) |
+| 6 | Auto-BANT not in funnel — `sales_qualify.bant_score` (pure-Python A–D grade + Hinglish next-action) only ran on-demand, never on inbound or pipeline leads. | Wired into `inquiry_hooks` (every inbound lead graded → team `lead_qualified` feed + CRM note carries grade) + `pipeline_ops.run_daily` (hot-leads feed shows grade). Pure-Python, never-raise. | ✅ SHIPPED |
+| 7 | `ops_watchdog` prod false-alarm — `scheduler_stalled` critical fired off `.scheduler.lock` age, but that lock is touched ONLY by the in-process scheduler; on the durable-Celery path it's never refreshed → false "automation stopped" email/ntfy every 6h. | Alert now gated on the cross-path `job_heartbeats.json` signal (written by `_run_job` on BOTH paths). Stale lock alone no longer alerts; real stalls still caught. | ✅ SHIPPED |
+
+**Remaining (env/ops action — only via SSH, not code):** set `REVENUE_TRENDS=1` in `/opt/leadgen/.env` + recreate app → daily MRR/churn/LTV time-series accrue karega (compute already built; history dormant till the flag flips). One-liner; nothing else pending on the code side.
+
+**On the task's "load test / security audit / UAT / prod-push" asks:** the Explorer is a static documentation graph — those apply to the BACKEND, already gated by `final_integration_check.py` + `cross_path_audit.py` + `prod_check.py` (all green per §21). No live load-test / pentest / prod-push was performed this session (needs the user's go/no-go + can't run safely from this env). The 7 shipped fixes are in the **Windows working tree, syntax-verified by inspection** (sandbox mount too stale to run the suite from here). Run `scripts\run_tests.bat` + `python scripts/prod_check.py`, then deploy via §9 (manual SSH — `docker compose build app` re-bakes `frontend/`, so the `/site-audit` page change ships with it) to go live.
 
 ---
 
