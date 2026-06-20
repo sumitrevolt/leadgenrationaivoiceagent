@@ -551,6 +551,12 @@ async def _run_job_inner(job: str) -> None:
             except Exception:
                 pass
             try:
+                from app.agents import dag_engine
+
+                dag_engine.ensure_alive()  # stale RUNNING dag flows → process_tick revive (separate index, no double-revive)
+            except Exception:
+                pass
+            try:
                 from app.platform import proposal_tracking
 
                 proposal_tracking.sweep_new_opens()  # "proposal khola" event sweep (file-IO only, no send)

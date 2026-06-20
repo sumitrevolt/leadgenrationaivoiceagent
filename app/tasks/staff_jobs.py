@@ -146,9 +146,9 @@ def process_tick(self, run_id: str):
     Kabhi raise nahi."""
     res = {}
     try:
-        from app.agents import process_engine
+        from app.agents import flow_dispatch
 
-        res = _run_async(process_engine.advance(run_id)) or {}
+        res = _run_async(flow_dispatch.advance(run_id)) or {}
     except Exception as e:
         logger.warning(f"[process] tick failed {run_id}: {e}")
         return {"ok": False, "run_id": run_id, "error": str(e)[:150]}
