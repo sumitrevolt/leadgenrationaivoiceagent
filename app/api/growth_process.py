@@ -149,7 +149,8 @@ async def flow_save(body: FlowIn, _user=Depends(require_admin)):
     if not saved.get("ok"):
         return saved
     _proc, errs, kind = flow_compiler.compile_flow(saved["flow"])
-    return {"ok": True, "flow": saved["flow"], "compile_errors": errs, "runnable": not errs, "kind": kind}
+    return {"ok": True, "flow": saved["flow"], "compile_errors": errs, "runnable": not errs,
+            "kind": kind, "warnings": (_proc or {}).get("warnings", [])}
 
 
 @router.get("/flow/{flow_id}")
@@ -164,7 +165,7 @@ async def flow_get(flow_id: str, _user=Depends(require_admin)):
         return JSONResponse({"error": "not found"}, status_code=404)
     proc, errs, kind = flow_compiler.compile_flow(fl)
     return {"flow": fl, "compile_errors": errs, "steps": (proc or {}).get("steps", []),
-            "kind": kind, "runnable": not errs}
+            "kind": kind, "runnable": not errs, "warnings": (proc or {}).get("warnings", [])}
 
 
 @router.delete("/flow/{flow_id}")
