@@ -19,8 +19,6 @@ File stores are isolated with ``monkeypatch.chdir(tmp_path)``.
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import hmac
 import importlib.util
 import json
 import os
@@ -134,31 +132,16 @@ def test_billing_webhook_unrecognized_provider_400(c):
     assert r.status_code == 400
 
 
-def test_billing_webhook_razorpay_bad_signature_401(c, monkeypatch):
-    monkeypatch.setattr(settings, "razorpay_webhook_secret", "test_secret", raising=False)
+def test_billing_webhook_razorpay_header_rejected_after_removal(c):
+    """Razorpay gateway removed 2026-06-18 (manual UPI only). An X-Razorpay-Signature
+    webhook is no longer a recognized provider, so the unified route rejects it with
+    400 — guarding against razorpay being silently re-accepted/re-wired later."""
     r = c.post(
         "/api/billing/webhook",
         headers={"X-Razorpay-Signature": "deadbeef"},
         content=b'{"event":"subscription.paused"}',
     )
-    assert r.status_code == 401
-
-
-def test_billing_webhook_razorpay_valid_signature_dispatches(c, db, monkeypatch):
-    """Valid Razorpay signature -> unified route dispatches to the handler (no row -> no-op)."""
-    secret = "test_secret"
-    monkeypatch.setattr(settings, "razorpay_webhook_secret", secret, raising=False)
-    payload = json.dumps(
-        {"event": "subscription.paused", "payload": {"subscription": {"entity": {"id": "sub_x"}}}}
-    ).encode()
-    sig = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
-    r = c.post(
-        "/api/billing/webhook",
-        headers={"X-Razorpay-Signature": sig, "Content-Type": "application/json"},
-        content=payload,
-    )
-    assert r.status_code == 200, r.text
-    assert r.json().get("event_type") == "subscription.paused"
+    assert r.status_code == 400
 
 
 def test_billing_webhook_stripe_unconfigured_is_safe(c, monkeypatch):

@@ -1398,7 +1398,17 @@ async function loadRevenueTrend(){
     const r=await fetch("/api/admin/revenue-trend?days=90",{headers:abAuthHdr(),cache:"no-store"});
     const d=await r.json();
     const cv=$("chRevTrend"); if(!cv) return;
-    if(!d.enabled||!(d.points||[]).length) return;
+    if(!d.enabled||!(d.points||[]).length){
+      const wrap=cv.parentElement;
+      if(wrap){
+        cv.style.display="none";
+        let note=wrap.querySelector(".rev-trend-note");
+        if(!note){ note=document.createElement("div"); note.className="rev-trend-note"; note.style.cssText="font-size:12px;color:#64748b;padding:8px 0"; wrap.appendChild(note); }
+        note.innerHTML=d.enabled?"📈 Abhi itni revenue history nahi — kuch din baad chart apne aap ban jayega.":"📈 Revenue trend chart abhi band hai — on karne ke liye <code>REVENUE_TRENDS=1</code> set karo.";
+      }
+      return;
+    }
+    cv.style.display="";
     const labels=d.points.map(p=>String(p.date).slice(5));
     if(_revTrendChart) _revTrendChart.destroy();
     _revTrendChart=new Chart(cv,{
@@ -1430,29 +1440,41 @@ async function openClientTimeline(cid){
     const r=await fetch("/api/admin/clients/"+encodeURIComponent(cid)+"/timeline?limit=50",{headers:abAuthHdr(),cache:"no-store"});
     const d=await r.json();
     const body=document.getElementById("clientTlBody");
-    if(!d.enabled){ body.innerHTML="<i style='color:#64748b'>CLIENT_TIMELINE flag off</i>"; return; }
+    if(!d.enabled){ body.innerHTML="<div style='color:#64748b;font-size:12px'>Client timeline abhi band hai — on karne ke liye <code>CLIENT_TIMELINE=1</code> set karo (.env).</div>"; return; }
+    const SRC={agent:"Team",lead:"Lead",audit:"System"};
     const evs=d.events||[];
-    body.innerHTML = evs.length ? evs.map(ev=>`<div class="tl-row"><div class="tl-dot ${ev.source==='audit'?'warn':''}"></div><div><div><b>${escH(ev.kind)}</b> · <span style="color:#64748b">${escH(ev.source)}</span></div><div class="tl-meta">${escH((ev.summary||'').slice(0,140))} · ${String(ev.ts||'').slice(0,19)}</div></div></div>`).join("") : "<i style='color:#64748b'>No events yet</i>";
+    body.innerHTML = evs.length ? evs.map(ev=>`<div class="tl-row"><div class="tl-dot ${ev.source==='audit'?'warn':''}"></div><div><div><b>${escH(ev.kind)}</b> · <span style="color:#64748b">${escH(SRC[ev.source]||ev.source)}</span></div><div class="tl-meta">${escH((ev.summary||'').slice(0,140))} · ${String(ev.ts||'').slice(0,19)}</div></div></div>`).join("") : "<div style='color:#64748b'>Is client ki abhi koi activity record nahi hui.</div>";
   }catch(e){ const b=document.getElementById("clientTlBody"); if(b) b.innerHTML="<i style='color:#dc2626'>Failed to load</i>"; }
 }
 
 // B3: system-health drill-down gauges. Inert when SYS_HEALTH_DETAIL off.
+// Admin-friendly: emoji-first status + plain-Hinglish summary + fix-hint on warn/bad.
+const _HMOJI={ok:"✅",warn:"⚠️",bad:"❌",unknown:"❓"};
+const _HCOL={ok:"#16a34a",warn:"#d97706",bad:"#dc2626",unknown:"#64748b"};
 async function loadSysHealthDetail(){
   const el=$("sysHealthDetail"); if(!el) return;
   try{
     const r=await fetch("/api/admin/system-health-detail",{headers:abAuthHdr(),cache:"no-store"});
     const d=await r.json();
-    if(!d.enabled){ el.innerHTML="<i style='color:#64748b'>SYS_HEALTH_DETAIL flag off</i>"; return; }
-    const rows=[
-      {l:"CPU",v:(d.cpu_pct<0?"—":d.cpu_pct+"%")},
-      {l:"Memory",v:(d.mem_pct<0?"—":d.mem_pct+"%")},
-      {l:"Disk",v:(d.disk_pct<0?"—":d.disk_pct+"%")},
-      {l:"Redis",v:(d.redis_ping_ms<0?"—":d.redis_ping_ms+"ms")},
-      {l:"Celery queue",v:(d.celery_queue_depth<0?"—":d.celery_queue_depth)},
-      {l:"Worker",v:escH(d.worker_alive||"?")}
+    if(!d.enabled){ el.className=""; el.innerHTML="<div style='color:#64748b;font-size:12px'>Detailed health view abhi band hai — on karne ke liye <code>SYS_HEALTH_DETAIL=1</code> set karo (.env).</div>"; return; }
+    // Prefer graded rows from backend; fallback to flat fields (older backend = no grading).
+    const rows=(d.rows&&d.rows.length)?d.rows:[
+      {label:"CPU",value:(d.cpu_pct<0?"—":d.cpu_pct+"%"),status:"unknown",hint:""},
+      {label:"Memory",value:(d.mem_pct<0?"—":d.mem_pct+"%"),status:"unknown",hint:""},
+      {label:"Disk",value:(d.disk_pct<0?"—":d.disk_pct+"%"),status:"unknown",hint:""},
+      {label:"Redis",value:(d.redis_ping_ms<0?"—":d.redis_ping_ms+"ms"),status:"unknown",hint:""},
+      {label:"Task queue",value:(d.celery_queue_depth<0?"—":d.celery_queue_depth),status:"unknown",hint:""},
+      {label:"Worker",value:(d.worker_alive||"?"),status:"unknown",hint:""}
     ];
-    el.className="rev-grid";
-    el.innerHTML=rows.map(x=>`<div class="rev-kpi"><div class="rk-lbl">${x.l}</div><div class="rk-val">${x.v}</div></div>`).join("");
+    const grid=rows.map(x=>{
+      const em=_HMOJI[x.status]||"", col=_HCOL[x.status]||"#0f172a";
+      const showHint=x.hint&&(x.status==="warn"||x.status==="bad");
+      const hint=showHint?`<div style="font-size:10px;color:#64748b;margin-top:2px;line-height:1.3">${escH(x.hint)}</div>`:"";
+      return `<div class="rev-kpi"><div class="rk-lbl">${escH(x.label)}</div><div class="rk-val" style="color:${col}">${em} ${escH(String(x.value))}</div>${hint}</div>`;
+    }).join("");
+    const sumCol=_HCOL[d.status]||"#64748b";
+    el.className="";
+    el.innerHTML=(d.summary?`<div style="margin:2px 0 10px;font-weight:700;color:${sumCol}">${escH(d.summary)}</div>`:"")+`<div class="rev-grid">${grid}</div>`;
   }catch(e){}
 }
 

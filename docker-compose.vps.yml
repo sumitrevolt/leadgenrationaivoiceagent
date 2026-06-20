@@ -64,6 +64,10 @@ services:
       REDIS_URL: redis://redis:6379/0
       CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
       CELERY_HEAVY_QUEUE: "1"   # app bhi sender hai (API dlq retry/sweep dispatch) — routing consistent rahe
+      # Host pe standalone Qdrant (127.0.0.1:6333) — container localhost use nahi kar sakta
+      QDRANT_URL: ${QDRANT_URL:-http://host.docker.internal:6333}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:8000:8080"   # host Caddy proxies leadsgenai.in -> here
     depends_on:
@@ -245,6 +249,9 @@ services:
       CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
       RUN_IN_PROCESS_SCHEDULER: "0"
       CELERY_HEAVY_QUEUE: "1"   # heavy staff-jobs alag 'heavy' queue me (worker-heavy consume karta)
+      QDRANT_URL: ${QDRANT_URL:-http://host.docker.internal:6333}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
@@ -294,6 +301,9 @@ services:
       CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
       RUN_IN_PROCESS_SCHEDULER: "0"
       CELERY_HEAVY_QUEUE: "1"
+      QDRANT_URL: ${QDRANT_URL:-http://host.docker.internal:6333}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
