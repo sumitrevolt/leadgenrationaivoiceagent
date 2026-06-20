@@ -59,6 +59,7 @@ STAFF_JOBS = (
     "meter_watch",  # SP1 billing meter-failure watcher (gated METER_ALERTS)
     "process_autostart",  # D V1.1 process-engine auto-start (gated PROCESS_AUTOSTART)
     "revenue_snapshot",  # B1 daily MRR/churn snapshot (gated REVENUE_TRENDS)
+    "flow_cron",  # Phase-3 Flow Runner cron scan (gated FLOW_RUNNER + FLOW_AUTO_TRIGGERS)
 )
 
 
