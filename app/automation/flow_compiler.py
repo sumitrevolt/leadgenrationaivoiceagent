@@ -99,14 +99,16 @@ def compile_flow(flow: dict) -> tuple[dict | None, list[str], str]:
             outdeg[str(e["f"])] += 1
             indeg[str(e["t"])] += 1
 
-        # ---- decide kind: linear iff Phase-1-shaped (no branching primitives) ----
+        # ---- decide kind: linear iff Phase-1-shaped (no branching/data-passing primitives) ----
         has_when = any(isinstance(e.get("when"), dict) and e.get("when") for e in valid_edges)
         has_merge = any(nmap[i].get("kind") == "merge" for i in idset)
+        has_inputs_map = any(isinstance(nmap[i].get("inputs_map"), dict) and nmap[i].get("inputs_map")
+                             for i in idset)
         max_in = max(indeg.values()) if indeg else 0
         max_out = max(outdeg.values()) if outdeg else 0
         roots = [i for i in idset if indeg[i] == 0]
-        is_linear = (not has_when and not has_merge and max_in <= 1 and max_out <= 1
-                     and len(roots) == 1)
+        is_linear = (not has_when and not has_merge and not has_inputs_map
+                     and max_in <= 1 and max_out <= 1 and len(roots) == 1)
 
         if is_linear:
             return _compile_linear(flow, nmap, idset, valid_edges, roots, errors)
@@ -207,6 +209,44 @@ def _compile_dag(flow, nmap, idset, valid_edges, indeg, roots, edge_condition, e
         if i not in reach:
             errors.append(f"node '{i}' unreachable from any start node")
 
+    # Phase 4: inputs_map validation — source must be a topological ANCESTOR; key valid.
+    rev: dict[str, list[str]] = defaultdict(list)
+    for e in valid_edges:
+        rev[str(e["t"])].append(str(e["f"]))
+
+    def _ancestors(nid: str) -> set[str]:
+        seen: set[str] = set()
+        stack = list(rev.get(nid, []))
+        while stack:
+            u = stack.pop()
+            if u in seen:
+                continue
+            seen.add(u)
+            stack.extend(rev.get(u, []))
+        return seen
+
+    for i in sorted(idset):
+        imap = nmap[i].get("inputs_map")
+        if not isinstance(imap, dict) or not imap:
+            continue
+        anc = _ancestors(i)
+        for tgt, spec in imap.items():
+            if not isinstance(spec, dict):
+                errors.append(f"node '{i}' input '{tgt}': map entry must be an object")
+                continue
+            if "value" in spec:
+                continue  # literal always valid
+            frm = str(spec.get("from") or "")
+            key = str(spec.get("key") or "")
+            if frm not in idset:
+                errors.append(f"node '{i}' input '{tgt}': 'from' node '{frm}' does not exist")
+                continue
+            if frm not in anc:
+                errors.append(f"node '{i}' input '{tgt}': 'from' '{frm}' is not an ancestor")
+                continue
+            if key not in ("ok", "count", "detail"):
+                errors.append(f"node '{i}' input '{tgt}': unknown key '{key}' (ok|count|detail)")
+
     if errors:
         return None, errors, "dag"
 
@@ -229,6 +269,8 @@ def _compile_dag(flow, nmap, idset, valid_edges, indeg, roots, edge_condition, e
                 spec["gate"] = n["gate"]
             if n.get("max_retries") is not None:
                 spec["max_retries"] = int(n["max_retries"])
+            if isinstance(n.get("inputs_map"), dict) and n.get("inputs_map"):
+                spec["inputs_map"] = n["inputs_map"]
         elif k == "merge":
             spec["join"] = "any" if str(n.get("join", "all")).lower() == "any" else "all"
         elif k == "breakpoint":
