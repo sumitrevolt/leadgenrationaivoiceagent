@@ -173,7 +173,12 @@ async def stripe_webhook(
     Handles: checkout.session.completed, invoice.paid, customer.subscription.*
     """
     if not settings.stripe_webhook_secret:
-        logger.warning("STRIPE_WEBHOOK_SECRET not set - skipping webhook processing")
+        # Fail-CLOSED in production (mirror Twilio): an unverified payment webhook
+        # could be forged to grant balance/plan. Dev keeps the graceful skip.
+        if settings.is_production:
+            logger.error("STRIPE_WEBHOOK_SECRET not set in production — refusing unverified webhook")
+            raise HTTPException(status_code=503, detail="Webhook verification not configured")
+        logger.warning("STRIPE_WEBHOOK_SECRET not set - skipping webhook processing (dev only)")
         return {"status": "webhook_secret_not_configured"}
 
     if not stripe_signature:
