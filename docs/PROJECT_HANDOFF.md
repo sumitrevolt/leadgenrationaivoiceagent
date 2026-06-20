@@ -1,7 +1,7 @@
 # PROJECT HANDOFF — LeadGenAI (leadgenrationaivoiceagent)
 
 > **Purpose:** Complete all-in-one handoff. Ek naya developer YA naya AI-agent isse padh ke poora project samajh sake aur takeover kar sake — product, tech, infra, deploy, blockers, legal, gotchas, sab.
-> **Generated:** 2026-06-20 · **Last updated:** 2026-06-20 PM — godfile wave-1 merged · UPI admin-config in-flight · 06-20 hardening shipped · Source of truth: `CLAUDE.md` (lean working memory) + `docs/SESSION_LOG.md` (full dated history).
+> **Generated:** 2026-06-20 · **Last updated:** 2026-06-20 PM — **UPI payments LIVE (first customer payable)** · Architecture Explorer (`/app/explorer`) + enterprise doc-pack added · godfile wave-1 merged · **Explorer + backend audited GREEN** (169 nodes/316 edges · 70/70 engine coverage · 0 orphans/dangling · 0 unwired loops) + **reverse graph→code file-sync gate added** (see §21) · Source of truth: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
 > **Language:** Hinglish (project convention) — technical terms/commands/paths English me.
 
 ---
@@ -15,9 +15,10 @@ LeadGenAI = **do alag SaaS products** chhote Indian local businesses ke liye, ek
 
 - **LIVE:** https://leadsgenai.in (Hostinger VPS Mumbai, Docker).
 - **Repo:** github.com/sumitrevolt/leadgenrationaivoiceagent (`main` branch).
-- **Stack:** FastAPI · Postgres+PgBouncer+Redis · Qdrant · Celery · ~464 Python files · ~761 routes · 50 HTML pages.
+- **Stack:** FastAPI · Postgres+PgBouncer+Redis · Qdrant · Celery · ~464 Python files · ~753 routes (prod_check) · 50 HTML pages.
 - **AI = 100% FREE stack** (koi paid STT/TTS/LLM nahi — hard user decision).
-- **Status:** Platform live + marketing tiers sellable ABHI. Voice cold-calling **DLT + Vobiz recharge pe blocked** (neeche dekho).
+- **Status:** Platform live + **marketing tiers sellable + UPI payments LIVE** (`ready_for_first_paid_customer`=true). Voice cold-calling **DLT + Vobiz recharge pe blocked** (neeche dekho).
+- **Visual map:** Architecture Explorer `/app/explorer` (4 views) + product-wise companion `docs/PRODUCT_HANDOFF_SOP.md`.
 
 **⚠️ Sabse pehle padho:** Section 11 (Blockers), Section 13 (Gotchas), Section 14 (Onboarding Day-1).
 
@@ -66,7 +67,7 @@ FREE pilot: 7 din / 50 calls (`voice_pilot`, ₹0). Niche→band mapping = `app/
 ### Billing infra
 - `/billing/plans` sirf public 3 marketing tiers dikhata.
 - **GST sirf `GST_GSTIN` env set hone pe charge** (unregistered <₹20L = no tax — legally correct). Invoice: Rule-46 sequential `INV/2026-27/0001` (atomic, `threading.Lock`), SAC 998313.
-- **Payments = manual UPI** (`UPI_VPA` env). **Razorpay ENTIRELY REMOVED 2026-06-18** (code-level — gateway/webhooks/verify sab deleted ya inert stub). Stripe path intact (international only). Unconfigured checkout → clean 503 + UPI fallback.
+- **Payments = manual UPI — ✅ LIVE.** `UPI_VPA` configured on VPS + admin-config API (`POST /api/admin/upi/configure`, no container restart); `GET /api/public/pay-info` enabled (QR + VPA + plans), `is_armed()`=true. Module `app/platform/upi_config.py` (env → settings → data-file fallback). Admin flow: `/upi/pending` → `/upi/activate` (screenshot verify). **Razorpay ENTIRELY REMOVED 2026-06-18.** Stripe path intact (international only) + webhook fail-CLOSED in prod (06-20 hardening).
 
 ---
 
@@ -85,8 +86,8 @@ FREE pilot: 7 din / 50 calls (`voice_pilot`, ₹0). Niche→band mapping = `app/
 | Container | Docker Compose (`docker-compose.vps.yml` + profiles) |
 | MCP | `/mcp` server mounted (MCP-as-product `/api/mcp-product/v1/*` + A2A card `/.well-known/agent.json`) |
 
-**Route layout (~761 `@router`/`@app` decorators):**
-- Naya marketing feature add karne se pehle: `grep '@router' app/api/marketing.py` — **FastAPI first-route-wins**, duplicate route silently shadow karta.
+**Route layout (~753 routes; FastAPI first-route-wins):**
+- Naya marketing feature add karne se pehle: `grep '@router' app/api/marketing.py` — **FastAPI first-route-wins**, duplicate route silently shadow karta. **Godfile-split (06-20):** routes ab `growth_revenue`/`growth_crm`/`growth_deliverability`/`growth_feature_flags` + `marketing_tools`/`marketing_models` + `admin_dashboard_models`/`customer_dashboard_builders` me bhi — duplicate-route grep IN SAB karo.
 - `marketing.html` = 28 tabs · `/app/automation` Mission Control = 28 tabs (Growth Lab = optimizer+experiments) · `/app/growth-tools` = 18 tabs.
 - **RULE:** naya admin feature = UI tab SAATH banao. API-only = adhoora.
 
@@ -150,10 +151,10 @@ FREE pilot: 7 din / 50 calls (`voice_pilot`, ₹0). Niche→band mapping = `app/
 
 ## 7. AI Staff Team & Automation
 
-**`app/platform/team.py` + `team_scheduler.py` — 15+ AI staff** (split by `product`):
-- **Marketing:** Isha · Dev · Rohan · Neha (pipeline_ops)
-- **Voice:** Swara · Tara · Arjun · Meera
-- **Platform:** Boss · Kavya · Nikhil · Hermes (infra) · Guru/Vikram (code_upgrader) · Pranav/Vidya/Arnav (KPI engineers) · hostinger_hermes (apprentice)
+**`app/platform/team.py` + `team_scheduler.py` — 17 AI staff** (split by `product`; full I/O in `docs/AGENT_REGISTRY.md`):
+- **Marketing (5):** Isha (social/GBP) · Dev (KB/RAG) · Rohan (outreach/leads) · Ravi (SEO scout) · Neha (pipeline ops)
+- **Voice (4):** Swara (telecaller) · Tara (telephony infra) · Arjun (QA) · Meera (trainer)
+- **Platform (9, shared):** Boss · Kavya · Hermes (infra) · Nikhil (revenue) · Vikram (code upgrader) · Guru (skills) · Pranav (SRE) · Vidya (FinOps) · Arnav (security)
 
 Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `agent_events` table. Dashboard `/app/team`. 3-tier status (working ≤20min / active ≤16h / offline).
 
@@ -228,14 +229,14 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 
 | Blocker | State | USER-ACTION needed |
 |---|---|---|
-| **Payments** | Razorpay removed 2026-06-18; manual UPI ab PRIMARY. **UPI admin-config path wiring IN-FLIGHT** (06-20, Section 19) — VPA dashboard se set, no recreate. | Feature verify+ship → `UPI_VPA` (ya admin UI) set karo. Pehle paid customer se pehle zaroori. |
+| **Payments** | ✅ **RESOLVED — UPI LIVE** (06-20): `UPI_VPA` configured on VPS + admin-config API; `/api/public/pay-info` enabled; `ready_for_first_paid_customer`=true. Razorpay removed. | Koi action nahi — ab **pehla customer acquire** karo (sales/ops). |
 | **DLT** | Individual request REJECTED | Udyam (MSME, FREE, udyamregistration.gov.in) cert se Proprietorship re-apply. Cert ready hai. DLT sirf cold-calling (Advanced) ke liye. |
 | **Vobiz telephony** | Trial ~khatam | Recharge → DID kharido → `VOBIZ_CALLER_ID=+91<DID>` + restart. Cost ladder: Plivo ₹0.60 → Vobiz ₹0.45 → operator-direct ₹0.30-0.40. |
 | **Calls untestable** | Vobiz recharge + DLT dono pending | Dono unlock hone tak outbound calling test nahi ho sakti. |
 
 **External-blocked (user paperwork/approval — abhi mat chhuo):** missed-call callback (Vobiz DID + webhook) · GBP API auto-post (Google 60-day approval) · Meta/FB-IG auto-posting (app-review) · R2/B2 offsite (creds) · HA/2nd-server (spend).
 
-**✅ Launch NOW possible:** Marketing tiers + inbound callbacks ko DLT/telephony NAHI chahiye. Sirf voice cold-calling DLT pe atki.
+**✅ Revenue UNBLOCKED:** Marketing tiers sellable + UPI LIVE ABHI. Sirf voice cold-calling DLT pe atki.
 
 ---
 
@@ -277,7 +278,7 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 3. **Health check:** `curl https://leadsgenai.in/health` → `environment: production` hona chahiye.
 4. **Local setup:** repo clone → `requirements.txt` → `python scripts/prod_check.py` se sanity.
 5. **Samajh:** `app/main.py` (route mounts) → `app/api/marketing.py` (28-tab backend) → `app/billing/packages.py` (pricing truth) → `app/voice_agent/free_ai.py` (AI chain) → `app/platform/team.py` (staff).
-6. **Pehla revenue unblock:** `UPI_VPA` set → marketing tiers sellable. (Voice = DLT + Vobiz recharge ka wait.)
+6. **Revenue:** UPI already LIVE — marketing tiers payable. Ab pehla customer **acquire** karo. (Voice = DLT + Vobiz recharge ka wait.)
 7. **Flags dekho:** `GET /api/growth/infra/flags` = saare automation flags live on/off.
 8. **Activation runbook:** `docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md` (5 phases, env key + verify curl per item).
 
@@ -298,6 +299,10 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 **Must-read docs:**
 - `CLAUDE.md` — lean working memory (authoritative current state)
 - `docs/SESSION_LOG.md` — full dated history
+- **`docs/PRODUCT_HANDOFF_SOP.md`** — product-wise + automation-wise combined handoff+SOP (+ Architecture Explorer mirror)
+- **`docs/PROJECT_SOP.md`** — engineering + business + compliance SOP
+- **`docs/ENTERPRISE_DOC_INDEX.md`** — 10-doc enterprise pack map · **`docs/AGENT_REGISTRY.md`** — full staff I/O · **`docs/WORKFLOW_MAPS.md`** — Mermaid pipelines
+- **Architecture Explorer** `/app/explorer` (live system graph, 4 views; source `frontend/explorer.html`, drift audit `scripts/explorer_sync.py` — gates code→graph engine coverage, intra-view connectivity (orphans/dangling), AND graph→code `files:` reverse-sync; test `tests/test_explorer_sync.py`)
 - `docs/ADR_2026_06_11_Product_Split_Pricing.md` — pricing decision
 - `docs/AUTOMATION.md` — automation loops decision tree
 - `docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md` — go-live checklist
@@ -320,8 +325,8 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 
 ## 17. Roadmap / Backlog (priority order)
 
-**P0 (revenue-unblock, ₹0 cost):**
-1. UPI admin-config feature verify+commit+deploy → VPA set → marketing tiers live-sellable (in-flight, Section 19).
+**P0 (revenue NOW — ₹0 cost, payment rail shipped):**
+1. ✅ UPI LIVE — pehla customer **acquire** karo (AI staff auto-prospect + outreach already chal rahe).
 2. Godfile wave-2 merge + Dependabot triage · Dashboard MUST-HAVEs remaining: filters · bulk actions · activity timeline. *(Speed-to-lead / round-robin / revenue-analytics already built per 06-20 audit.)*
 
 **P1 (after DLT/Vobiz unlock):**
@@ -342,10 +347,10 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sab AI free-stack pe — taaki industry-grade features competitor se sasta diye ja sakein (Dhanda/EZO · AdBanao · MyOperator · Vodex · GoHighLevel). Do products: Marketing automation + AI voice telecaller.
 
 ### Current standing (honest assessment)
-- **Platform LIVE + stable:** leadsgenai.in, ~761 route-decorators (prod_check 752 routes), ~464 py files, 50 pages, Postgres+Celery+Qdrant, 13+ containers, monitoring + self-heal + backups.
+- **Platform LIVE + stable:** leadsgenai.in, ~753 routes (prod_check), ~464 py files, 50 pages, Postgres+Celery+Qdrant, 13+ containers, monitoring + self-heal + backups.
 - **"Sab free-buildable features DONE"** — SESSION_LOG repeated audits ka verdict (06-20 audit: NO HIGH security defects; speed-to-lead, lead round-robin, revenue analytics MRR/churn/LTV **already built+wired**). Jo bacha = external-blocked (paperwork/approval) YA polish.
-- **Recent (06-20):** godfile refactor wave-1 main me merged (growth/marketing split) · Stripe webhook fail-CLOSED + 3 HIGH audit gaps closed (`test_hardening_gaps_2026.py`) · **UPI admin-config path wiring IN-FLIGHT** (Section 19).
-- **Product 1 (Marketing): sellable ABHI.** Sirf UPI VPA unset = first-payment block (wiring in-flight). Sab content/social/mini-site/lead-capture/AI-image engines live.
+- **Recent (06-20):** **UPI payments LIVE** (admin-config shipped+committed, `ready_for_first_paid_customer`=true) · godfile refactor wave-1 main me merged · Stripe webhook fail-CLOSED + 3 HIGH audit gaps closed · Architecture Explorer + enterprise doc-pack added.
+- **Product 1 (Marketing): sellable + payable ABHI.** UPI live; ab sirf customer-acquisition baaki. Sab content/social/mini-site/lead-capture/AI-image engines live.
 - **Product 2 (Voice): code production-ready + cross-path-verified**, par commercially blocked — DLT (rejected → Udyam re-apply) + Vobiz recharge+DID. Calls tab tak untestable.
 - **AI staff automation chal raha:** 24 scheduled jobs, self-improve forever-loop, multi-agent coordinator, daily email outreach + lead harvester + Telegram auto-post.
 
@@ -369,27 +374,27 @@ Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sa
 
 ---
 
-## 19. Files In Flight — WIP (as of 2026-06-20 PM)
+## 19. Files In Flight — WIP (as of 2026-06-20 PM, latest sync)
 
-### 🔴 Uncommitted — UPI admin-config feature (addresses #1 blocker; NOT committed yet)
-Active in-flight work taaki UPI **bina redeploy** payable ho — yeh seedha first-revenue unblock karta:
-- **`app/platform/upi_config.py`** (NEW, 127 lines) — runtime UPI VPA: env-first (`UPI_VPA`) + admin data-file fallback (`data/platform_upi.json` via `POST /api/admin/upi/configure`), taaki VPA dashboard se set ho — container recreate nahi chahiye.
-- **`scripts/vps_set_upi_smoke.py`** + **`tests/test_upi_config.py`** (NEW) — smoke + unit tests.
-- Modified (same feature): `app/api/activation.py` · `admin_ops.py` · `growth.py` · `marketing.py` · `public_site.py` · `webhooks.py` · `frontend/admin_dashboard.html` · `scripts/production_ready.py` · `tests/test_activation_readiness.py` · `tests/test_production_gaps.py`.
-- **Next:** verify (prod_check + tests) → commit → deploy → VPA set → pehla customer payable.
+### ✅ Shipped since last sync
+- **UPI admin-config feature — COMMITTED + LIVE:** `app/platform/upi_config.py` (env→settings→data-file), `POST /api/admin/upi/configure` · `/upi/pending` · `/upi/activate`, `GET /api/public/pay-info` (QR+VPA+plans). VPA configured on VPS → first-revenue unblock done.
+- **Refactor commits on main:** `admin_dashboard_models.py` (response models) · `customer_dashboard_builders.py` (data-assembly helpers) · explorer edge-validator + full graph connectivity + `client_snapshots`.
+- **Ops hardening:** Qdrant healthcheck (bash `/dev/tcp`, curl absent) + API.md drift gate.
+- **Enterprise doc-pack added:** `PRODUCT_HANDOFF_SOP.md` · `ENTERPRISE_DOC_INDEX.md` · `AGENT_REGISTRY.md` · `WORKFLOW_MAPS.md` · `frontend/explorer.html` + `scripts/explorer_sync.py`.
 
-### Other uncommitted
-- **`scripts/vps_deploy_automation_fix.py`** (untracked) — one-shot deploy helper: boot-grace fix `52a27c4` cherry-pick + worker/app rebuild + catch-up jobs.
-- **`docs/PROJECT_HANDOFF.md`** (yeh doc) · `.superpowers/` (tooling dir) · `CLAUDE.md` + `docs/SESSION_LOG.md` modified (06-20 entries logged).
-- **`docs/PROJECT_SOP.md` ab COMMITTED hai** (repo me tracked) — pehle uncommitted tha.
+### Uncommitted (working tree)
+- Polish-in-progress: `CLAUDE.md`, `docs/PROJECT_HANDOFF.md` (yeh), `docs/PROJECT_SOP.md`, `docs/SESSION_LOG.md`, niche files (`niches.py`, `niche_knowledge.py`, `niche_scripts.py`), `frontend/explorer.html`/`automation.html`, `scripts/explorer_sync.py`.
+- **Test consolidation:** kuch legacy test files staged-deleted (`test_track_*`, `test_turnstile`, `test_vobiz`, `test_voice_*`, `test_upi_config`) — commit se pehle coverage-merge verify karo.
+- `scripts/vps_deploy_automation_fix.py`, `.superpowers/` (untracked helpers).
+- ⚠️ **Sandbox git index flaky** (null-sha1 / index.lock) — Windows git use karo (gotcha §13).
 
-### Godfile refactor — wave-1 MERGED ✓, wave-2 branch pe
-- **Wave-1 (MERGED to main @ `32c229f`):** `growth.py` −797 / `marketing.py` −1060 → split into `growth_revenue` / `growth_crm` / `growth_deliverability` / `growth_feature_flags` + `marketing_tools` / `marketing_models`. **Landmine avoided** — branch main ke LLM-stream-TTS prod commits se PEHLE fork hua tha; isolated worktree me reconcile (pehle main→branch merge, symbols verify, fir ff-promote). Ab main pe live.
-- **Wave-2 (`refactor/godfiles-2026-06-20`, 4 commits, UNMERGED):** data-dict extraction — `NICHES` → `niches_data.py` · `NICHE_KNOWLEDGE` → `niche_knowledge_data.py` · `NICHE_SCRIPTS`/`NICHE_CALL_SCHEMA` → `*_data.py`. Verify + merge pending.
+### Godfile refactor — wave-1 merged, wave-2 in progress
+- **Wave-1 (MERGED to main):** `growth.py`/`marketing.py` split → `growth_revenue`/`growth_crm`/`growth_deliverability`/`growth_feature_flags` + `marketing_tools`/`marketing_models`.
+- **Wave-2 (`refactor/godfiles-2026-06-20`):** data-dict extraction — `NICHES`→`niches_data.py` · `NICHE_KNOWLEDGE`→`niche_knowledge_data.py` · `NICHE_SCRIPTS`/`NICHE_CALL_SCHEMA`→`*_data.py` (+ origin/main merges). Verify + finalize merge.
 
-### Other branches / Dependabot
-- `feature/readiness-infra-2026-06-20` (0 unmerged vs main) · `2026-06-17-yezh`, `copilot/vscode-mjy4va0d-lafx` (stale) · 2× `worktree-2026-01-03T*` (stale Jan → cleanup).
-- **Dependabot PRs (origin):** python 3.14-slim · elevenlabs 2.53.0 · mypy 2.1.0 · packaging 26.2 · appleboy/ssh-action 1.2.5 · docker/login-action 4 · setup-buildx-action 4 · google deploy-cloudrun 3 · setup-gcloud 3 · 2× python-minor-patch → review/merge ya close.
+### Branches / Dependabot
+- `refactor/godfiles-2026-06-20` (active) · `feature/readiness-infra-2026-06-20` · `2026-06-17-yezh`, `copilot/*` (stale) · 2× `worktree-2026-01-03T*` (cleanup).
+- **Dependabot PRs:** python 3.14-slim · elevenlabs · mypy · packaging · ssh-action · login-action · buildx · deploy-cloudrun · setup-gcloud · 2× python-minor-patch → triage.
 
 ---
 
@@ -435,6 +440,25 @@ Active in-flight work taaki UPI **bina redeploy** payable ho — yeh seedha firs
 
 ---
 
+## 21. Explorer + Backend Wiring Audit (2026-06-20 PM)
+
+> Full audit of the Architecture Explorer (`/app/explorer`) and the backend it represents, against the "broken connections / missing loops / non-functional pipelines / sync gaps" checklist. Method = MEASURE-first (operating-manual golden rule), two independent evidence lines.
+
+**Verdict: GREEN — no broken loops, no missing connections, no dormant pipelines.** The explorer is a hand-curated *architecture-visualization* graph (not an executable workflow engine), and it already passes its own connectivity + drift gates; the backend it maps is fully wired.
+
+**What was measured (evidence):**
+- `scripts/explorer_sync.py` drift audit: **169 nodes · 316 edges · 70/70 engine modules on graph (100%) · 0 orphans · 0 dangling edges** across all 3 wired views (structural 45/98, automation 75/171, products 27/47). `--check` exit 0; `tests/test_explorer_sync.py` green.
+- `scripts/prod_check.py`: **756 routes · 35 pages 0 gaps · automation 0 gaps · API.md in sync** → ALL CHECKS PASSED.
+- Independent backend orphan-loop sweep (482 files in `app/`): **0 genuine orphan loops · 0 dormant unwired engines · 0 truncation bugs**. All 17 engine entrypoints + Celery `@shared_task` chains + HTTP-route + dict-dispatch loops reach a live dispatcher.
+
+**Gaps found & shipped (1 real, additive):**
+- **NEW reverse-sync gate** — the drift auditor checked code→graph (modules represented) + intra-graph connectivity, but NOT graph→code. Added `files_ref_audit()` to `explorer_sync.py`: every explicit `files:'x.py'` claim must resolve to a real repo file (loose capability-labels/routes/plan-ids ignored). Wired into `--check` CI gate + `test_explorer_sync.py::test_files_refs_resolve` + surfaced (INFO) in `prod_check.py`.
+- **2 genuine label drifts fixed** in `frontend/explorer.html` (caught by the new gate): `team.html`→`team_dashboard.html`, `observability.yml`→`docker-compose.observability.yml`. 183 explicit file-claims now 100% resolve.
+
+**Note on the task's "load test / security audit / UAT" asks:** the explorer is a static documentation graph — those apply to the backend, which is already gated by `final_integration_check.py` + `cross_path_audit.py` + `prod_check.py` (all green). No new prod-load/security defects surfaced.
+
+---
+
 ## Appendix — Quick Reference Card
 
 ```
@@ -447,10 +471,11 @@ SECRETS       : /opt/leadgen/.env (VPS) — NEVER in repo/CLAUDE.md
 PRICING TRUTH : app/billing/packages.py
 AI CHAIN      : app/voice_agent/free_ai.py
 FLAGS         : GET /api/growth/infra/flags
+EXPLORER      : /app/explorer (live system map, 4 views)  |  PRODUCT DOC: docs/PRODUCT_HANDOFF_SOP.md
 DEPLOY        : prod_check → run_tests.bat → git push → VPS pull+build+recreate app → /health
 PROVIDER      : Vobiz (telephony) · Mistral (LLM) · Groq (STT) · EdgeTTS (TTS) — ALL FREE
-PAYMENTS      : Manual UPI (Razorpay removed) · Stripe international
-BLOCKERS      : UPI_VPA unset · DLT rejected (Udyam re-apply) · Vobiz recharge pending
+PAYMENTS      : Manual UPI ✅ LIVE (Razorpay removed) · Stripe international
+BLOCKERS      : UPI ✅ done · DLT rejected (Udyam re-apply) · Vobiz recharge pending (voice only)
 ```
 
 ---
