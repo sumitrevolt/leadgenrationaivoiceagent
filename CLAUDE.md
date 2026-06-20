@@ -80,7 +80,7 @@
 
 ## Active Blockers / USER-ACTION pending (env-unset = dormant, graceful skip)
 - **Razorpay REMOVED entirely 2026-06-18** (code-level): koi online India gateway nahi — payments = **manual UPI** (`UPI_VPA`). RazorpayGateway/`get_razorpay_gateway`/`/billing/webhooks/razorpay`/`verify-payment`/payment_links/payment_recon sab deleted ya inert stub. Stripe path intact (international). DB columns `razorpay_*` dormant (kept). Checkout = Stripe-only; unconfigured → clean 503 (UPI fallback). `requirements.txt` se `razorpay` hata.
-- **UPI_VPA = ab PRIMARY payment path** (Razorpay removed 2026-06-18) — set karna zaroori (standalone UPI modal). **NOTIFY_EMAIL=admin@leadsgenai.in** SET (inquiry alerts).
+- **UPI = ab PRIMARY payment path** (Razorpay removed 2026-06-18) — ✅ **ARMED 2026-06-20** (`app/platform/upi_config.py` env→settings→data-file fallback; admin `POST /api/admin/upi/configure` = no-restart set; VPA live, `/api/public/pay-info` `enabled:true` → first paid customer UNBLOCKED). **NOTIFY_EMAIL=admin@leadsgenai.in** SET (inquiry alerts).
 - **DLT**: individual request REJECTED → user ko **Udyam (MSME, FREE, udyamregistration.gov.in)** cert se Proprietorship re-apply (Udyam cert ready). DLT sirf cold-calling (Advanced) ke liye.
 - **Vobiz telephony**: trial ~khatam. Recharge → DID kharido → `VOBIZ_CALLER_ID=+91<DID>` + restart. Cost ladder: Plivo ₹0.60 → Vobiz ₹0.45 → operator-direct ₹0.30-0.40.
 - **Exotel REMOVED 2026-06-18** (provider ab Vobiz). Vobiz: trial ~khatam → recharge + DID + DLT user-side pending (calls untestable till then). Twilio = international fallback only (India-domestic foreign-trunk ILLEGAL).
