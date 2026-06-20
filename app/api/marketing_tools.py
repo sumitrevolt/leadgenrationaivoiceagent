@@ -36,6 +36,7 @@ from app.api.marketing_models import (
     UPIQRRequest,
     WhatsAppPackRequest,
 )
+from app.models.user import User
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
