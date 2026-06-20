@@ -349,14 +349,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (791 operations)
+## Endpoint Index — auto-generated from OpenAPI (792 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
-### (untagged)  (2)
+### (untagged)  (1)
 
 - `GET   ` `/api/status` — Api Status
-- `GET   ` `/health` — Health Check
 
 ### AI  (7)
 
@@ -937,11 +936,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `DELETE` `/api/growth/webhooks/{webhook_id}` — Webhooks Remove
 - `POST  ` `/api/growth/whatsapp/flow/send` — Whatsapp Flow Send
 
-### Health  (5)
+### Health  (7)
 
 - `GET   ` `/api/v1/status` — Api Status
+- `GET   ` `/health` — Health Check
 - `GET   ` `/health/deep` — Deep Health Check
 - `GET   ` `/health/live` — Liveness Check
+- `GET   ` `/health/platform` — Platform Detailed Health
 - `GET   ` `/health/ready` — Readiness Check
 - `GET   ` `/metrics` — Prometheus Metrics
 

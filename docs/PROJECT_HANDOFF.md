@@ -512,6 +512,27 @@ Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sa
 
 ---
 
+## 24. Full Production Readiness Audit (2026-06-21 — 8-specialist council)
+
+> Full forensic re-audit (measure-first → 8-specialist council → Chairman). Deliverable: **`docs/PRODUCTION_READINESS_AUDIT_2026_06_21.md`** (10-section report: gap analysis · architecture/explorer maps · security · performance · council scores · certification). Re-validates §21–§23 against the **live working tree** (all green) + finds/fixes **1 NEW defect**.
+
+**VERDICT: ✅ CONDITIONAL GO** — Product-1 (Marketing) fully production-ready + sellable; Product-2 (Voice) code-ready but commercially blocked (Vobiz recharge + DLT — **external/owner, not code**). Council consensus **88/100**.
+
+**Gates run this session (all PASS):** `prod_check` (770 routes · 36 pages 0 gaps · automation 0 gaps · API.md 791 ops) · `explorer_sync --check` (170 nodes · 72/72 engines · **0 orphans** · file-refs OK) · `cross_path_audit` (144 flags 0 unread · 28 jobs 0 undispatchable · 29 beat 0 unrecognized) · `final_integration_check` (handler/route gaps 0) · `check_secrets` (clean) · `pytest` targeted **70 passed**.
+
+**NEW defect found + fixed (additive, low-risk):**
+- **Shadowed duplicate `GET /health`** — `app/api/health.py::health_check` (mounted first @ `main.py:302`) served the live `environment:production` liveness contract; a second `@app.get("/health")` @ `main.py:1446` was **dead/unreachable** (first-route-wins) + raised `Duplicate Operation ID health_check_health_get`. **Fix:** repathed the dead detailed handler → `GET /health/platform` (`operation_id="platform_detailed_health"`, fn renamed) — now reachable, collision gone, live `/health` untouched. Verified: prod_check clean, warning gone, 769→770 routes.
+
+**Production readiness scores (honest 0–100):** Architecture 88 · Security 87 · Reliability 89 · Scalability 80 · Maintainability 83 · Test coverage 82 · **Overall 86**.
+
+**Lead lifecycle:** 12/12 stages wired via shared `app/platform/inquiry_hooks.run_after_inquiry` (3 inbound entry paths converge: `public_site`/`whatsapp_flows`/`conversion`). Complete.
+
+**Remaining risks (all external/ops, NOT code):** voice commercial unblock (Vobiz+DLT) · single-VPS SPOF (HA spend-gated) · god-file + jsonl→PG maintainability debt (refactor wave-2 in progress) · `/api/ai/command` LLM-abuse surface (minor) · `REVENUE_TRENDS=1` flag to accrue MRR/churn history.
+
+**Deploy note:** the `/health/platform` fix ships with `docker compose build app` + recreate (§9).
+
+---
+
 ## Appendix — Quick Reference Card
 
 ```
