@@ -230,6 +230,33 @@ def start_run(process_key: str, inputs: dict[str, Any] | None = None) -> dict[st
         return {"ok": False, "error": str(e)[:200]}
 
 
+def _resolve_inputs(node: dict, run_inputs: dict, nodes: dict) -> dict:
+    """Phase 4 data-passing: merge resolved upstream outputs + literals over run inputs.
+    FAIL-CLOSED — a missing/not-done source or absent key is OMITTED (never garbage).
+    Source nodes are compiler-guaranteed ancestors, so they are `done` by the time
+    this node runs. Never raises."""
+    eff = dict(run_inputs or {})
+    imap = node.get("inputs_map")
+    if not isinstance(imap, dict):
+        return eff
+    for tgt, spec in imap.items():
+        try:
+            if not isinstance(spec, dict):
+                continue
+            if "value" in spec:
+                eff[tgt] = spec["value"]
+                continue
+            src = nodes.get(spec.get("from")) or {}
+            res = src.get("result")
+            key = spec.get("key")
+            if src.get("state") == "done" and isinstance(res, dict) and key in res:
+                eff[tgt] = res[key]
+            # else: fail-closed — omit
+        except Exception:
+            pass
+    return eff
+
+
 def _emit_out(run_id: str, graph: dict, nid: str, result: dict) -> None:
     """Emit edge_taken for fired out-edges (UI/audit; replay recomputes anyway)."""
     from app.automation import edge_condition
@@ -303,12 +330,13 @@ async def advance(run_id: str, max_steps: int = 16) -> dict[str, Any]:
                 done += 1
                 continue
 
-            # task node
+            # task node — Phase 4: resolve per-node inputs (upstream outputs + literals)
+            eff_inputs = _resolve_inputs(node, inputs, nodes)
             _append_event(run_id, "node_started", {"node": nid})
             t0 = time.monotonic()
             try:
                 result = await asyncio.wait_for(
-                    process_library.execute_step(node, inputs), timeout=_STEP_TIMEOUT_S
+                    process_library.execute_step(node, eff_inputs), timeout=_STEP_TIMEOUT_S
                 )
             except asyncio.TimeoutError:
                 result = {"ok": False, "detail": f"timeout {_STEP_TIMEOUT_S}s"}
