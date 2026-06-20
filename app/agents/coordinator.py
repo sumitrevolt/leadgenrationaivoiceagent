@@ -893,6 +893,32 @@ async def coordinate_engineering(goal: str, context: str = "") -> dict:
     return out
 
 
+async def council(question: str) -> dict:
+    """Karpathy LLM Council — cross-model opinions → anonymized peer rank → Chairman synthesis."""
+    from app.agents import llm_council
+
+    question = (question or "").strip()
+    if len(question) < 3:
+        return {"ok": False, "error": "question bahut chhota hai"}
+    run_id = uuid.uuid4().hex[:12]
+    _log("manager", "council_start", question[:100])
+    result = await llm_council.run_full_council(question)
+    stage3 = result.get("stage3") or {}
+    summary = stage3.get("response") or ""
+    out: dict[str, Any] = {
+        "run_id": run_id,
+        "question": question,
+        "pattern": "llm_council",
+        "summary": summary,
+        "at": _now(),
+        **result,
+    }
+    if result.get("ok"):
+        _log("manager", "council_done", summary[:80] if summary else "done")
+        _persist(out)
+    return out
+
+
 __all__ = [
     "roster",
     "plan",
@@ -903,6 +929,7 @@ __all__ = [
     "coordinate_engineering",
     "fan_out",
     "debate",
+    "council",
     "recent_runs",
     "memory_log",
 ]
