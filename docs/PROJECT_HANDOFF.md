@@ -1,7 +1,7 @@
 # PROJECT HANDOFF — LeadGenAI (leadgenrationaivoiceagent)
 
 > **Purpose:** Complete all-in-one handoff. Ek naya developer YA naya AI-agent isse padh ke poora project samajh sake aur takeover kar sake — product, tech, infra, deploy, blockers, legal, gotchas, sab.
-> **Generated:** 2026-06-20 · Source of truth: `CLAUDE.md` (lean working memory) + `docs/SESSION_LOG.md` (full dated history).
+> **Generated:** 2026-06-20 · **Last updated:** 2026-06-20 PM — godfile wave-1 merged · UPI admin-config in-flight · 06-20 hardening shipped · Source of truth: `CLAUDE.md` (lean working memory) + `docs/SESSION_LOG.md` (full dated history).
 > **Language:** Hinglish (project convention) — technical terms/commands/paths English me.
 
 ---
@@ -205,7 +205,7 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 - compose service `worker-heavy` (hyphen) — galat naam pe poora `up` ABORT; pehle `config --services`.
 - `Dockerfile RUN chown -R /app` slow/stall-prone — future fix `COPY --chown`.
 - **Repeated worker recreate = celery flood risk** → `redis-cli llen celery` check.
-- **CI** (`deploy-vps.yml`): billing-truth test = BLOCKING gate (pricing regression deploy-block).
+- **CI** (`deploy-vps.yml`) = **GATE-ONLY**: build+deploy jobs `if: vars.DEPLOY_ENABLED=='true'` (UNSET) → `git push` se prod auto-deploy NAHI hota. Gate me import+prod_check+billing-truth = BLOCKING; ruff + full-pytest = non-blocking. Actual deploy = **MANUAL SSH (step 4)** — CI ka wait mat karo.
 
 ---
 
@@ -228,7 +228,7 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 
 | Blocker | State | USER-ACTION needed |
 |---|---|---|
-| **Payments** | Razorpay removed 2026-06-18; manual UPI ab PRIMARY | `UPI_VPA` env set karo (standalone UPI modal). Pehle paid customer se pehle zaroori. |
+| **Payments** | Razorpay removed 2026-06-18; manual UPI ab PRIMARY. **UPI admin-config path wiring IN-FLIGHT** (06-20, Section 19) — VPA dashboard se set, no recreate. | Feature verify+ship → `UPI_VPA` (ya admin UI) set karo. Pehle paid customer se pehle zaroori. |
 | **DLT** | Individual request REJECTED | Udyam (MSME, FREE, udyamregistration.gov.in) cert se Proprietorship re-apply. Cert ready hai. DLT sirf cold-calling (Advanced) ke liye. |
 | **Vobiz telephony** | Trial ~khatam | Recharge → DID kharido → `VOBIZ_CALLER_ID=+91<DID>` + restart. Cost ladder: Plivo ₹0.60 → Vobiz ₹0.45 → operator-direct ₹0.30-0.40. |
 | **Calls untestable** | Vobiz recharge + DLT dono pending | Dono unlock hone tak outbound calling test nahi ho sakti. |
@@ -321,8 +321,8 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 ## 17. Roadmap / Backlog (priority order)
 
 **P0 (revenue-unblock, ₹0 cost):**
-1. `UPI_VPA` set → marketing tiers live-sellable.
-2. Speed-to-lead badge (backlog #7) · lead round-robin (#10).
+1. UPI admin-config feature verify+commit+deploy → VPA set → marketing tiers live-sellable (in-flight, Section 19).
+2. Godfile wave-2 merge + Dependabot triage · Dashboard MUST-HAVEs remaining: filters · bulk actions · activity timeline. *(Speed-to-lead / round-robin / revenue-analytics already built per 06-20 audit.)*
 
 **P1 (after DLT/Vobiz unlock):**
 3. Voice cold-calling go-live (Udyam → DLT re-apply → Vobiz recharge + DID).
@@ -342,17 +342,18 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sab AI free-stack pe — taaki industry-grade features competitor se sasta diye ja sakein (Dhanda/EZO · AdBanao · MyOperator · Vodex · GoHighLevel). Do products: Marketing automation + AI voice telecaller.
 
 ### Current standing (honest assessment)
-- **Platform LIVE + stable:** leadsgenai.in, ~761 routes, ~464 py files, 50 pages, Postgres+Celery+Qdrant, 13+ containers, monitoring + self-heal + backups.
-- **"Sab free-buildable features DONE"** — SESSION_LOG ke repeated audits ka verdict. Jo bacha = external-blocked (paperwork/approval) YA in-flight refactor.
-- **Product 1 (Marketing): sellable ABHI.** Sirf `UPI_VPA` unset = first-payment block. Sab content/social/mini-site/lead-capture/AI-image engines live.
+- **Platform LIVE + stable:** leadsgenai.in, ~761 route-decorators (prod_check 752 routes), ~464 py files, 50 pages, Postgres+Celery+Qdrant, 13+ containers, monitoring + self-heal + backups.
+- **"Sab free-buildable features DONE"** — SESSION_LOG repeated audits ka verdict (06-20 audit: NO HIGH security defects; speed-to-lead, lead round-robin, revenue analytics MRR/churn/LTV **already built+wired**). Jo bacha = external-blocked (paperwork/approval) YA polish.
+- **Recent (06-20):** godfile refactor wave-1 main me merged (growth/marketing split) · Stripe webhook fail-CLOSED + 3 HIGH audit gaps closed (`test_hardening_gaps_2026.py`) · **UPI admin-config path wiring IN-FLIGHT** (Section 19).
+- **Product 1 (Marketing): sellable ABHI.** Sirf UPI VPA unset = first-payment block (wiring in-flight). Sab content/social/mini-site/lead-capture/AI-image engines live.
 - **Product 2 (Voice): code production-ready + cross-path-verified**, par commercially blocked — DLT (rejected → Udyam re-apply) + Vobiz recharge+DID. Calls tab tak untestable.
 - **AI staff automation chal raha:** 24 scheduled jobs, self-improve forever-loop, multi-agent coordinator, daily email outreach + lead harvester + Telegram auto-post.
 
 ### Immediate goals (revenue-first, priority order)
-1. **Pehla paid customer (Product 1)** — `UPI_VPA` set → marketing tiers bech do. ₹0 cost, ~30 min (activation runbook Phase 1).
+1. **Pehla paid customer (Product 1)** — UPI admin-config feature verify+commit+deploy (Section 19) → VPA set → marketing tiers bech do. ₹0 cost.
 2. **Voice unblock** — Udyam cert → DLT re-apply → Vobiz recharge + DID kharido → end-to-end call test → Product 2 go-live.
-3. **In-flight godfiles refactor complete** (`growth.py`/`marketing.py` split) → verify → merge to main (Section 19).
-4. **Dashboard MUST-HAVEs** (backlog Sprint-1): multi-condition filters · bulk client actions · client activity timeline/audit log · revenue analytics (MRR/churn/LTV).
+3. **Godfile refactor wave-2 merge** (niches/niche_knowledge/niche_scripts data-dict extraction — 4 commits on branch) → verify → merge to main.
+4. **Dashboard MUST-HAVEs (remaining):** multi-condition filters · bulk client actions · client activity timeline/audit log. *(Speed-to-lead, round-robin, revenue analytics MRR/churn/LTV — already built per 06-20 audit.)*
 
 ### Medium-term goals
 - Cold-email deliverability harden (dedicated cold-email domain + warmup; SPF/DKIM/DMARC already set).
@@ -368,23 +369,27 @@ Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sa
 
 ---
 
-## 19. Files In Flight — WIP (as of 2026-06-20)
+## 19. Files In Flight — WIP (as of 2026-06-20 PM)
 
-### Uncommitted (working tree — `git status`)
-- **`docs/PROJECT_SOP.md`** (NEW, 239 lines, created 2026-06-20) — full engineering + business SOP. CLAUDE.md ka companion (SOP = *procedure*; CLAUDE.md = *current-state truth*). Commit pending.
-- **`scripts/vps_deploy_automation_fix.py`** (NEW, 40 lines) — one-shot deploy helper: boot-grace fix commit `52a27c4` cherry-pick + worker/app rebuild + catch-up jobs. **Implies a pending VPS deploy** of the boot-grace fix.
-- **`docs/PROJECT_HANDOFF.md`** (NEW — yeh doc).
-- `.superpowers/` (untracked tooling dir).
-- Baaki working tree clean — bulk "recently modified" list branch-checkout mtime artifact hai, real edit nahi.
+### 🔴 Uncommitted — UPI admin-config feature (addresses #1 blocker; NOT committed yet)
+Active in-flight work taaki UPI **bina redeploy** payable ho — yeh seedha first-revenue unblock karta:
+- **`app/platform/upi_config.py`** (NEW, 127 lines) — runtime UPI VPA: env-first (`UPI_VPA`) + admin data-file fallback (`data/platform_upi.json` via `POST /api/admin/upi/configure`), taaki VPA dashboard se set ho — container recreate nahi chahiye.
+- **`scripts/vps_set_upi_smoke.py`** + **`tests/test_upi_config.py`** (NEW) — smoke + unit tests.
+- Modified (same feature): `app/api/activation.py` · `admin_ops.py` · `growth.py` · `marketing.py` · `public_site.py` · `webhooks.py` · `frontend/admin_dashboard.html` · `scripts/production_ready.py` · `tests/test_activation_readiness.py` · `tests/test_production_gaps.py`.
+- **Next:** verify (prod_check + tests) → commit → deploy → VPA set → pehla customer payable.
 
-### Unmerged feature branches (main pe NAHI)
-- **`refactor/godfiles-2026-06-20`** (7 commits ahead) — **ACTIVE god-file refactor**: monolithic `growth.py` + `marketing.py` ko modules me tod rahe (`marketing_tools.py`, `marketing_models.py`, revenue/GST router, feature-flags router, content/deliverability/CRM routers). Verify + merge pending. **Risk:** parallel-merge conflict (ek commit "reverted by parallel merge" ko re-apply karta) — merge dhyan se.
-- `feature/readiness-infra-2026-06-20` — infra-readiness branch (abhi main vs 0 unmerged — just-branched ya merged-base).
-- `2026-06-17-yezh`, `copilot/vscode-mjy4va0d-lafx` — experimental/stale, 0 unmerged commits.
-- 2× `worktree-2026-01-03T*` — stale January worktree branches → cleanup candidate.
+### Other uncommitted
+- **`scripts/vps_deploy_automation_fix.py`** (untracked) — one-shot deploy helper: boot-grace fix `52a27c4` cherry-pick + worker/app rebuild + catch-up jobs.
+- **`docs/PROJECT_HANDOFF.md`** (yeh doc) · `.superpowers/` (tooling dir) · `CLAUDE.md` + `docs/SESSION_LOG.md` modified (06-20 entries logged).
+- **`docs/PROJECT_SOP.md` ab COMMITTED hai** (repo me tracked) — pehle uncommitted tha.
 
-### Pending Dependabot PRs (origin pe — review/merge ya close karo)
-python 3.14-slim (Docker base) · elevenlabs 2.53.0 · mypy 2.1.0 · packaging 26.2 · appleboy/ssh-action 1.2.5 · docker/login-action 4 · setup-buildx-action 4 · google deploy-cloudrun 3 · setup-gcloud 3 · 2× python-minor-patch.
+### Godfile refactor — wave-1 MERGED ✓, wave-2 branch pe
+- **Wave-1 (MERGED to main @ `32c229f`):** `growth.py` −797 / `marketing.py` −1060 → split into `growth_revenue` / `growth_crm` / `growth_deliverability` / `growth_feature_flags` + `marketing_tools` / `marketing_models`. **Landmine avoided** — branch main ke LLM-stream-TTS prod commits se PEHLE fork hua tha; isolated worktree me reconcile (pehle main→branch merge, symbols verify, fir ff-promote). Ab main pe live.
+- **Wave-2 (`refactor/godfiles-2026-06-20`, 4 commits, UNMERGED):** data-dict extraction — `NICHES` → `niches_data.py` · `NICHE_KNOWLEDGE` → `niche_knowledge_data.py` · `NICHE_SCRIPTS`/`NICHE_CALL_SCHEMA` → `*_data.py`. Verify + merge pending.
+
+### Other branches / Dependabot
+- `feature/readiness-infra-2026-06-20` (0 unmerged vs main) · `2026-06-17-yezh`, `copilot/vscode-mjy4va0d-lafx` (stale) · 2× `worktree-2026-01-03T*` (stale Jan → cleanup).
+- **Dependabot PRs (origin):** python 3.14-slim · elevenlabs 2.53.0 · mypy 2.1.0 · packaging 26.2 · appleboy/ssh-action 1.2.5 · docker/login-action 4 · setup-buildx-action 4 · google deploy-cloudrun 3 · setup-gcloud 3 · 2× python-minor-patch → review/merge ya close.
 
 ---
 

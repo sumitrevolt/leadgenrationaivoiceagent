@@ -4,7 +4,7 @@
 
 RESTful API for the LeadGen AI Voice Agent platform. All endpoints return JSON responses.
 
-**Base URL**: `https://api.leadgenai.com` (production) or `http://localhost:8000` (development)
+**Base URL**: `https://leadsgenai.in` (production) or `http://localhost:8000` (development)
 
 ## Authentication
 
@@ -13,7 +13,7 @@ RESTful API for the LeadGen AI Voice Agent platform. All endpoints return JSON r
 Include the API key in the `X-API-Key` header:
 
 ```bash
-curl -H "X-API-Key: your-api-key" https://api.leadgenai.com/api/leads/
+curl -H "X-API-Key: your-api-key" https://leadsgenai.in/api/leads/
 ```
 
 ### Rate Limits
@@ -299,7 +299,7 @@ All errors follow this format:
 import httpx
 
 client = httpx.Client(
-    base_url="https://api.leadgenai.com",
+    base_url="https://leadsgenai.in",
     headers={"X-API-Key": "your-api-key"}
 )
 
@@ -315,7 +315,7 @@ campaigns = client.get("/api/campaigns/").json()
 
 ### JavaScript
 ```javascript
-const response = await fetch('https://api.leadgenai.com/api/leads/', {
+const response = await fetch('https://leadsgenai.in/api/leads/', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -333,7 +333,7 @@ const lead = await response.json();
 ### cURL
 ```bash
 # Create a lead
-curl -X POST https://api.leadgenai.com/api/leads/ \
+curl -X POST https://leadsgenai.in/api/leads/ \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-api-key" \
   -d '{"company_name": "Test", "phone": "+919876543210"}'
