@@ -72,7 +72,7 @@ def main() -> int:
             [
                 "bash",
                 "-lc",
-                "cd /opt/leadgen && docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps app worker scheduler",
+                "cd /opt/leadgen && docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps app worker worker-heavy scheduler",
             ],
             check=True,
         )
