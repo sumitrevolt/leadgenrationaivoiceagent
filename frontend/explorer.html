@@ -300,6 +300,7 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <button class="tr-btn" onclick="exportFlow()">↓ Export JSON</button>
     <button class="tr-btn" onclick="saveFlowToServer()" title="Save active flow to server (Flow Runner)">💾 Save</button>
     <button class="tr-btn" onclick="runFlow()" id="runFlowBtn" title="Run active flow (FLOW_RUNNER)">▶ Run</button>
+    <button class="tr-btn" onclick="showRunsPanel()" title="Run history + inspector (Flow Runner)">📋 Runs</button>
     <span id="flowRunStatus" style="margin-left:6px;color:#9ca3af;font-size:12px"></span>
     <button class="tr-btn" onclick="showHelp()" title="Shortcuts">?</button>
     <a class="tr-btn tr-link" href="/app/automation">↗ Mission Control</a>
@@ -2713,9 +2714,66 @@ function _frPollStart() {
   }, 2000);
 }
 
-async function approveRun() {
-  await _frApi('/api/growth/process/run/'+frRunId+'/approve', {method:'POST', body: JSON.stringify({note:'ok'})});
+async function approveRun(nodeId) {
+  await _frApi('/api/growth/process/run/'+frRunId+'/approve', {method:'POST', body: JSON.stringify({note:'ok', node_id:nodeId||''})});
   _frStatus('approved · resuming…');
+  if(document.getElementById('runs-inspecting')) setTimeout(()=>inspectRun(frRunId), 700);
+}
+
+// ── Phase 6: Execution UX — run history + per-node inspector (reuses run APIs) ──
+async function showRunsPanel() {
+  if(!isBuilder()){ _frStatus('builder view me jao'); return; }
+  const r = await _frApi('/api/growth/process/runs?limit=25', {method:'GET'});
+  if(r.status===503){ _frStatus('FLOW_RUNNER off (admin .env)'); return; }
+  const runs = (r.body && r.body.runs) || [];
+  let html = `<div class="panel-hdr">Flow Runs <span style="float:right;cursor:pointer;color:#60a5fa" onclick="showBuilderPanel()">← Builder</span></div>`;
+  if(!runs.length) html += `<div style="font-size:10px;color:#4b5563">Abhi koi run nahi — builder se ▶ Run karo.</div>`;
+  runs.forEach(rn => {
+    const col = rn.status==='completed'?'#4ade80':(rn.status==='failed'?'#f87171':(rn.status==='waiting_approval'?'#e879f9':'#fbbf24'));
+    const prog = rn.engine==='dag' ? ((rn.done||0)+'/'+(rn.nodes||0)+' nodes') : ('step '+(rn.step_index||0));
+    html += `<div class="conn-row" style="cursor:pointer" onclick="inspectRun('${rn.run_id}')">
+      <span style="color:${col}">●</span> ${String(rn.process||'').slice(0,22)}
+      <span style="font-size:8px;opacity:.6;margin-left:4px">${rn.status} · ${prog} · ${rn.engine||'linear'}</span></div>`;
+  });
+  document.getElementById('sb-content').innerHTML = html;
+}
+
+async function inspectRun(runId) {
+  frRunId = runId;
+  const r = await _frApi('/api/growth/process/run/'+runId, {method:'GET'});
+  const st = (r.body && r.body.state) || {};
+  const jrnl = (r.body && r.body.journal) || [];
+  _frPaint(st);  // paint canvas with this run's per-node states
+  let html = `<div id="runs-inspecting"></div><div class="panel-hdr">Run …${String(runId).slice(-8)} <span style="float:right;cursor:pointer;color:#60a5fa" onclick="showRunsPanel()">← Runs</span></div>
+    <div style="font-size:11px;margin-bottom:6px">status: <b>${st.status||'?'}</b> · ${st.engine||'linear'}${st.last_error?(' · <span style="color:#f87171">'+String(st.last_error).slice(0,40)+'</span>'):''}</div>`;
+  if(st.status==='waiting_approval'){
+    html += `<button class="action-btn primary" onclick="approveRun('${st.waiting||''}')">✓ Approve${st.waiting?(' ('+st.waiting+')'):''}</button>
+      <button class="action-btn" style="color:#f87171" onclick="rejectRun('${st.waiting||''}')">✗ Reject</button>`;
+  }
+  if(st.status==='completed'||st.status==='failed'){
+    html += `<button class="action-btn" onclick="showBuilderPanel();runFlow()">↻ Re-run this flow</button>`;
+  }
+  if(st.nodes && Object.keys(st.nodes).length){
+    html += `<div class="panel-hdr">Nodes</div>`;
+    Object.keys(st.nodes).forEach(nid => {
+      const n = st.nodes[nid] || {};
+      const det = (n.result && n.result.detail) ? (' · '+String(n.result.detail).slice(0,30)) : '';
+      html += `<div class="conn-row">${nid}<span style="margin-left:auto;font-size:9px;opacity:.7">${n.state}${det}</span></div>`;
+    });
+  }
+  html += `<div class="panel-hdr">Journal (${jrnl.length})</div>`;
+  jrnl.slice(-40).forEach(ev => {
+    const at = String(ev.at||'').slice(11,19);
+    const d = ev.data || {};
+    const lbl = d.node ? (ev.type+' · '+d.node) : ev.type;
+    html += `<div style="font-size:9px;color:#94a3b8;padding:1px 0">${at} ${lbl}</div>`;
+  });
+  document.getElementById('sb-content').innerHTML = html;
+}
+
+async function rejectRun(nodeId) {
+  await _frApi('/api/growth/process/run/'+frRunId+'/reject', {method:'POST', body: JSON.stringify({note:'rejected from runs panel', node_id:nodeId||''})});
+  inspectRun(frRunId);
 }
 
 function exportFlow() {
