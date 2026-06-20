@@ -43,9 +43,11 @@ Ran project's own pipeline across `app/` + `tests/`:
 - ✅ **growth.py → `/process/*` routes extracted** to `app/api/growth_process.py` (92 lines, sub-router via `include_router`); paths unchanged, prod_check **752 routes intact**, 6 process routes confirmed present.
 - ✅ **growth.py → `/prospects/*` routes extracted** to `app/api/growth_prospects.py` (158 lines, 4 local models, sub-router include); 16 tests green. (commit 38cc5e0)
 - ✅ **growth.py → agent automation-ops tail extracted** to `app/api/growth_automation.py` (350 lines, 9 models: self-improve/skills/upgrader/social/harvester/approvals/gates); `/process` rides transitively (growth→automation→process). prod_check 752 intact, 31 tests green. (commit 09bdc98)
-- growth.py: **2741 → 2000 lines** (−741 / −27%, 4 modules extracted: automation_flags, growth_process, growth_prospects, growth_automation). Verification each step: black/isort/ruff + compileall + prod_check (752 routes, 0 gaps) + targeted tests (175+ green total).
-- **Deployed (main 8e7c35f):** Phase 1 + self_improve + flags + /process. **Committed not-yet-deployed (feature):** /prospects (38cc5e0) + automation (09bdc98). NOTE: branch also carries 2 PARALLEL user commits (d69204f, 2577f23 — readiness/ops_watchdog/docker-compose) that a deploy would bundle.
-- **Remaining growth.py groups** (sub-router pattern): revenue/GST (548-784) · AI-infra/observability (1035-1271) · feature-flags/CRM/research · marketing-AI/loyalty/reports · sales-team. Then other god-files per table below.
+- ✅ **growth.py → marketing-AI/loyalty/reports/keys/NPS feature cluster extracted** to `app/api/growth_features.py` (265 lines, 10 local models); prod_check 752 intact. (commit 5e1ba31)
+- growth.py: **2741 → 1740 lines** (−1001 / **−37%**, 5 modules extracted: automation_flags, growth_process, growth_prospects, growth_automation, growth_features). Verification each step: black/isort/ruff + compileall + prod_check (752 routes, 0 gaps) + targeted tests (180+ green total).
+- **Live on prod (VPS 2577f23):** Phase 1 + self_improve + flags + /process + /prospects (carried in via user's parallel deploy). **Committed on feature, ahead of main by 3:** automation (09bdc98) + doc (61ec3fa) + features (5e1ba31) — flow to prod on next feature→main deploy.
+- **NOT cleanly extractable as-is** (skip / careful-later): AI-infra/observability cluster (AUTOMATION_FLAGS re-export embedded + scattered + mixed /voice+/overview concerns); revenue/GST (billing-careful zone — do last).
+- **Remaining growth.py groups** (sub-router pattern, future): sales-team · CRM-sync · research/notify · feature-flags · deliverability/bookings/reviews · revenue/GST (last). Then other god-files: vobiz_stream 1730, marketing.py, admin_dashboard.py, billing.py (last).
 
 ## HIGH-VALUE FINDING — duplicate `run_once()` in self_improve.py  ✅ FIXED (Phase 2)
 `app/agents/self_improve.py` me `async def run_once()` **do baar** defined hai:
