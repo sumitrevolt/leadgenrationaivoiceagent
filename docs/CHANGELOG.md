@@ -11,6 +11,8 @@
 - Enterprise doc pack: PRD, Architecture, Agent Registry, Prompt Library index, Client Onboarding Kit, Security Playbook, DR, Workflow Maps, KPI Spec, RACI, this CHANGELOG
 - Admin UPI configure API (`POST /api/admin/upi/configure`) + `data/platform_upi.json` fallback
 - Honest `ready_for_first_paid_customer` gate (requires armed UPI VPA)
+- Architecture Explorer 100% engine coverage (60%→70/70): 6 new retention-engine nodes + accurate `files:` mapping · `scripts/explorer_apply_engines.py`
+- `scripts/sync_api_docs.py` — auto-regenerate API.md endpoint index (773 ops) from `app.openapi()` (`--check` CI drift gate)
 
 ### Changed
 - `production_ready.py` — payments readiness uses UPI not Razorpay
