@@ -85,6 +85,10 @@ class CampaignLaunchReq(BaseModel):
     platform: bool = False
 
 
+class UpiConfigureReq(BaseModel):
+    vpa: str
+
+
 class UpiActivateReq(BaseModel):
     client_id: str
     plan: str = "starter"
@@ -92,23 +96,17 @@ class UpiActivateReq(BaseModel):
 
 def _upi_info() -> dict:
     """UPI VPA + WA screenshot verify link (no Razorpay)."""
-    vpa = (os.environ.get("UPI_VPA") or "").strip()
-    wa = (os.environ.get("UPI_VERIFY_WA") or "918459012607").strip().lstrip("+")
-    wa_link = f"https://wa.me/{wa}?text=" + __import__("urllib.parse").quote(
-        "Payment screenshot — plan activate karo please"
-    )
-    out = {"enabled": bool(vpa), "vpa": vpa, "wa_phone": wa, "wa_link": wa_link}
-    if vpa:
-        try:
-            from app.marketing.upi_kit import payment_kit
+    try:
+        from app.platform import upi_config
 
-            kit = payment_kit("LeadGen AI", vpa)
-            out["upi_link"] = kit.get("upi_link") or ""
-            out["qr_svg"] = kit.get("qr_svg") or ""
-        except Exception:
-            out["upi_link"] = ""
-            out["qr_svg"] = ""
-    return out
+        return upi_config.info()
+    except Exception:
+        vpa = (os.environ.get("UPI_VPA") or "").strip()
+        wa = (os.environ.get("UPI_VERIFY_WA") or "918459012607").strip().lstrip("+")
+        wa_link = f"https://wa.me/{wa}?text=" + __import__("urllib.parse").quote(
+            "Payment screenshot — plan activate karo please"
+        )
+        return {"enabled": bool(vpa), "vpa": vpa, "wa_phone": wa, "wa_link": wa_link}
 
 
 def _pending_upi_queue(limit: int = 20) -> list[dict]:
@@ -399,6 +397,28 @@ async def system_summary(_user=Depends(require_admin)):
 @router.get("/upi/pending", summary="Clients waiting for UPI screenshot activation")
 async def upi_pending(_user=Depends(require_admin)):
     return {"pending": _pending_upi_queue(30), "upi": _upi_info()}
+
+
+@router.post("/upi/configure", summary="Set platform UPI VPA (data file — no container restart)")
+async def upi_configure(body: UpiConfigureReq, _user=Depends(require_admin)):
+    """Admin dashboard se UPI VPA save — ``data/platform_upi.json``. Env ``UPI_VPA`` still wins if set."""
+    from app.platform import upi_config
+
+    result = upi_config.set_vpa(body.vpa, set_by="admin_dashboard")
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "invalid VPA")
+    try:
+        from app.platform.team import log_event
+
+        log_event(
+            "kavya",
+            "upi_configured",
+            f"Platform UPI VPA set ({result.get('source', 'file')})",
+            meta={"vpa_suffix": (body.vpa or "").split("@")[-1][:20]},
+        )
+    except Exception:
+        pass
+    return {"ok": True, "upi": upi_config.info()}
 
 
 @router.post("/upi/activate", summary="Activate plan after UPI screenshot verified")
