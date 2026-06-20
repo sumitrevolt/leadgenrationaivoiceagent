@@ -298,6 +298,9 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <button class="tr-btn on" id="btn-loops" onclick="toggleLoops()">↻ Loops</button>
     <button class="tr-btn" id="btn-sched" onclick="toggleScheduleBar()">🕐 IST Schedule</button>
     <button class="tr-btn" onclick="exportFlow()">↓ Export JSON</button>
+    <button class="tr-btn" onclick="saveFlowToServer()" title="Save active flow to server (Flow Runner)">💾 Save</button>
+    <button class="tr-btn" onclick="runFlow()" id="runFlowBtn" title="Run active flow (FLOW_RUNNER)">▶ Run</button>
+    <span id="flowRunStatus" style="margin-left:6px;color:#9ca3af;font-size:12px"></span>
     <button class="tr-btn" onclick="showHelp()" title="Shortcuts">?</button>
     <a class="tr-btn tr-link" href="/app/automation">↗ Mission Control</a>
   </div>
@@ -405,7 +408,7 @@ const VIEWS = {
       {id:'public_pages', type:'marketing', badge:'LAYER', cx:'moderate', title:'Public Frontend', desc:'/audit · /site-audit · /pricing · /blog · /compare · /voice-agent', files:'~45 pages', x:40, y:370, w:250, h:100},
       {id:'embed_widget', type:'marketing', badge:'WIDGET', cx:'moderate', title:'Lead-Capture Embed', desc:'/b/{slug}/widget.js + /embed iframe · inquiry → lead + distribution', files:'embed_widget.py', x:40, y:520, w:250, h:100},
       {id:'admin_ui', type:'platform', badge:'LAYER', cx:'complex', title:'Admin Dashboards', desc:'/app/admin God Mode · Automation Hub 21 workflows · /app/marketing · /app/automation · battlecard', files:'admin_dashboard.html', x:720, y:370, w:300, h:100},
-      {id:'explorer', type:'monitor', badge:'GRAPH', cx:'moderate', title:'Architecture Explorer', desc:'/app/explorer — 33-page wiring audit · live production_ready sync · flow builder', files:'explorer.html', x:1040, y:370, w:280, h:100},
+      {id:'explorer', type:'monitor', badge:'GRAPH', cx:'moderate', title:'Architecture Explorer', desc:'/app/explorer — 35-page wiring audit · live production_ready sync · flow builder', files:'explorer.html', x:1040, y:370, w:280, h:100},
       {id:'growth_hub', type:'monitor', badge:'GROWTH', cx:'moderate', title:'Growth & Ops Hub', desc:'/app/growth-tools · /app/dashboards · /app/outreach · /app/dialer · /app/analytics', files:'growth.py', x:1340, y:370, w:280, h:100},
       {id:'customer_portal', type:'marketing', badge:'LAYER', cx:'moderate', title:'Customer Portal', desc:'/app/login → /app/customer · TOTP 2FA · content approve · webhooks', files:'customer_dashboard.py', x:1660, y:370, w:260, h:100},
       {id:'marketing_hub', type:'marketing', badge:'MARKETING', cx:'complex', title:'Marketing Command', desc:'/app/marketing 28 tabs · /api/marketing/* · AI image · scheduler · widget', files:'marketing.py · marketing.html', x:40, y:680, w:260, h:110},
@@ -413,7 +416,7 @@ const VIEWS = {
       {id:'auth', type:'platform', badge:'LAYER', cx:'complex', title:'Auth & RBAC', desc:'Admin JWT · Customer JWT · /app/team-access module RBAC · consent ledger', files:'admin.py · rbac.py', x:720, y:520, w:250, h:100},
       {id:'tenant_wl', type:'platform', badge:'TENANT', cx:'moderate', title:'White-Label Middleware', desc:'Subdomain/custom domain → client branding · FAIL-OPEN apex', files:'middleware/tenant.py', x:420, y:520, w:250, h:100},
       {id:'billing', type:'monitor', badge:'BILLING', cx:'moderate', title:'Billing & Usage', desc:'packages.py truth · usage ledger · GST invoices · checkout optional', files:'billing.py · usage.py', x:1000, y:520, w:250, h:100},
-      {id:'fastapi', type:'platform', badge:'LAYER', cx:'complex', title:'FastAPI Monolith', desc:'~733 routes · uvicorn · Middleware · WS + SSE · Plan rate-limit', files:'main.py', x:340, y:840, w:720, h:110},
+      {id:'fastapi', type:'platform', badge:'LAYER', cx:'complex', title:'FastAPI Monolith', desc:'~756 routes · uvicorn · Middleware · WS + SSE · Plan rate-limit', files:'main.py', x:340, y:840, w:720, h:110},
       {id:'launch', type:'monitor', badge:'LAUNCH', cx:'simple', title:'Production Ready Gate', desc:'production_ready=true · /api/activation/summary · final_integration_check.py', files:'activation.py · scripts/', x:1100, y:840, w:300, h:110},
       {id:'integration_gate', type:'monitor', badge:'GATE', cx:'simple', title:'Final Integration Check', desc:'wiring + deep_wiring + cross_path_audit + live_smoke + pytest — one command PASS', files:'final_integration_check.py · cross_path_audit.py', x:1420, y:980, w:280, h:100},
       {id:'mcp_product', type:'ai', badge:'MCP', cx:'moderate', title:'MCP-as-Product', desc:'/mcp server · /api/mcp-product/v1 · /.well-known/agent.json A2A card', files:'mcp_product.py', x:1420, y:840, w:260, h:110},
@@ -423,6 +426,7 @@ const VIEWS = {
       {id:'voice_product', type:'voice', badge:'PRODUCT', cx:'moderate', title:'Voice Agent Product', desc:'Standalone SKU /voice-agent · band A/B/C pricing · niche scripts', files:'voice_product.py · voice_packages.py', x:640, y:1040, w:260, h:110},
       {id:'telephony_hub', type:'voice', badge:'TELEPHONY', cx:'complex', title:'Telephony Webhooks', desc:'Vobiz active · Twilio fallback · call state Redis · AMD voicemail', files:'telephony/webhooks.py', x:940, y:1040, w:280, h:110},
       {id:'celery', type:'platform', badge:'LAYER', cx:'moderate', title:'Celery Queue System', desc:'Beat IST → Redis → Worker×4 · Scheduler container · DLQ', files:'worker.py', x:1260, y:1040, w:250, h:110},
+      {id:'flow_runner', type:'platform', badge:'FLOW', cx:'moderate', title:'Flow Runner', desc:'Visual builder → process-as-code execution · FLOW_RUNNER · admin · linear V1', files:'flow_store.py · flow_compiler.py · growth_process.py', flag:'FLOW_RUNNER', x:1320, y:1240, w:260, h:100},
       {id:'external', type:'external', badge:'LAYER', cx:'moderate', title:'External Integrations', desc:'Vobiz · SMTP Hostinger · Google Maps · Pollinations · Telegram', files:'integrations/', x:1560, y:1040, w:260, h:110},
       {id:'monitoring', type:'monitor', badge:'LAYER', cx:'moderate', title:'Monitoring Stack', desc:'Prometheus · Grafana · Loki · Tempo · ntfy · Flower · Celery exporter', files:'docker-compose.observability.yml', x:1860, y:1040, w:260, h:110},
       {id:'free_ai', type:'ai', badge:'LAYER', cx:'complex', title:'Free AI Provider Chain', desc:'Mistral → Groq → Cerebras → Gemini · circuit-breaker 429', files:'free_ai.py', x:40, y:1240, w:280, h:110},
@@ -454,6 +458,9 @@ const VIEWS = {
       {f:'caddy', t:'customer_portal', lbl:'', style:'sync'},
       {f:'public_pages', t:'embed_widget', lbl:'embed script', style:'sync'},
       {f:'embed_widget', t:'fastapi', lbl:'/api/public/inquiry', style:'sync'},
+      {f:'explorer', t:'flow_runner', lbl:'builder', style:'sync'},
+      {f:'flow_runner', t:'celery', lbl:'compile→run', style:'async'},
+      {f:'flow_runner', t:'data_layer', lbl:'flows.jsonl', style:'sync'},
       {f:'admin_ui', t:'explorer', lbl:'graph UI', style:'sync'},
       {f:'admin_ui', t:'growth_hub', lbl:'ops', style:'sync'},
       {f:'admin_ui', t:'marketing_hub', lbl:'28 tabs', style:'sync'},
@@ -1014,18 +1021,19 @@ function getApiBases() {
   return bases;
 }
 
+// Flow Runner palette — each task node maps to a real EXECUTORS action; APPROVE = breakpoint.
 const NODE_TEMPLATES = [
-  {type:'platform', badge:'TRIGGER', title:'Webhook / Trigger', desc:'Event ya API se flow start', files:'trigger', color:'#60a5fa'},
-  {type:'platform', badge:'SCHEDULER', title:'Cron / Beat', desc:'IST schedule se job fire', files:'team_scheduler.py', color:'#60a5fa'},
-  {type:'marketing', badge:'SCRAPE', title:'Prospector', desc:'Leads scrape + enrich', files:'prospector.py', color:'#3b82f6'},
-  {type:'marketing', badge:'OUTREACH', title:'Email Outreach', desc:'Cold email + followups', files:'auto_outreach.py', color:'#3b82f6'},
-  {type:'marketing', badge:'CONTENT', title:'Content Gen', desc:'Posts + captions generate', files:'auto_content.py', color:'#3b82f6'},
-  {type:'ai', badge:'LLM', title:'AI / LLM Step', desc:'free_ai chain call', files:'free_ai.py', color:'#818cf8'},
-  {type:'ai', badge:'ORCHESTRATE', title:'Coordinator', desc:'Multi-agent handoff', files:'coordinator.py', color:'#818cf8'},
-  {type:'loop', badge:'LOOP', title:'Feedback Loop', desc:'Requeue / retry cycle', files:'self_improve.py', color:'#e879f9'},
-  {type:'data', badge:'STORE', title:'Data / DB', desc:'Postgres · Redis · jsonl', files:'data/', color:'#22d3ee'},
-  {type:'monitor', badge:'WATCHDOG', title:'Ops / Alert', desc:'Health check + notify', files:'ops_watchdog.py', color:'#fbbf24'},
-  {type:'external', badge:'ACTION', title:'External API', desc:'SMTP · WhatsApp · Maps', files:'integrations/', color:'#4ade80'},
+  {type:'platform', badge:'TRIGGER', title:'Manual Start', desc:'Run button se flow start', action:'', files:'trigger', color:'#60a5fa'},
+  {type:'marketing', badge:'SCRAPE', title:'Prospector', desc:'Leads scrape + enrich', action:'scrape', files:'niche_prospector.py', color:'#3b82f6'},
+  {type:'marketing', badge:'HARVEST', title:'Lead Harvester', desc:'Multi-source harvest', action:'harvest', files:'lead_harvester.py', color:'#3b82f6'},
+  {type:'data', badge:'SCORE', title:'Re-score Leads', desc:'lead_scoring rescore', action:'rescore', files:'lead_scoring.py', color:'#22d3ee'},
+  {type:'ai', badge:'ANALYZE', title:'Sales Deep-dive', desc:'BANT analysis (draft)', action:'sales_analysis', files:'sales_team.py', color:'#818cf8'},
+  {type:'marketing', badge:'CONTENT', title:'Content Pack', desc:'Niche content pack', action:'content_pack', files:'niche_pack.py', color:'#3b82f6'},
+  {type:'marketing', badge:'SOCIAL', title:'Social Drafts', desc:'Draft social posts', action:'social_drafts', files:'social_channels.py', color:'#3b82f6'},
+  {type:'marketing', badge:'CADENCE', title:'Cadence Run', desc:'Omnichannel touches (gated)', action:'cadence_run', files:'cadence.py', color:'#3b82f6'},
+  {type:'monitor', badge:'OPTIMIZE', title:'Growth Optimizer', desc:'Funnel weakest-stage', action:'optimizer', files:'growth_optimizer.py', color:'#fbbf24'},
+  {type:'platform', badge:'REVENUE', title:'Revenue Sweep', desc:'Dunning + nurture (draft)', action:'revenue_sweep', files:'dunning.py', color:'#60a5fa'},
+  {type:'loop', badge:'APPROVE', title:'Human Approval', desc:'Breakpoint — admin approve to continue', kind:'breakpoint', files:'process_engine.py', color:'#e879f9'},
 ];
 
 const TYPE_COLORS = {platform:'#60a5fa',marketing:'#3b82f6',voice:'#fb923c',ai:'#818cf8',data:'#22d3ee',external:'#4ade80',monitor:'#fbbf24',loop:'#e879f9',gap:'#f87171'};
@@ -1113,6 +1121,7 @@ function addBuilderNode(template, x, y) {
   const node = {
     id, type: template.type, badge: template.badge || 'STEP', cx:'moderate',
     title: template.title, desc: template.desc || '', files: template.files || 'custom',
+    action: template.action || '', kind: template.kind,
     w: 220, h: 95, x: c.x, y: c.y,
   };
   getViewData().nodes.push(node);
@@ -2487,6 +2496,83 @@ function doSearch(q) {
   });
   countEl.textContent = m+' matches';
   countEl.classList.add('vis');
+}
+
+// ════════════════════════════════════
+// FLOW RUNNER — save/run/poll the active builder flow on the server (FLOW_RUNNER)
+// ════════════════════════════════════
+let frFlowId = null, frRunId = null, frPoll = null;
+
+function _frPayload() {
+  const v = getViewData();
+  const f = customFlowStore.flows[customFlowStore.activeId] || {};
+  return {
+    id: frFlowId || undefined,
+    name: f.name || 'Untitled flow',
+    nodes: (v.nodes || []).map(n => ({id:n.id, action:n.action||'', kind:n.kind, title:n.title, question:n.question})),
+    edges: (v.edges || []).map(e => ({f:e.f, t:e.t})),
+  };
+}
+
+async function _frApi(path, opts) {
+  for (const base of getApiBases()) {
+    try {
+      const r = await fetch(base + path, Object.assign({headers:{'Content-Type':'application/json'}}, opts||{}));
+      if (r.status !== 404) return {status:r.status, body: await r.json().catch(()=>null)};
+    } catch(e) {}
+  }
+  return {status:0, body:null};
+}
+
+function _frStatus(msg){ const el=document.getElementById('flowRunStatus'); if(el) el.innerHTML=msg; }
+
+function _frPaint(st) {
+  const done = new Set((st.steps_done||[]).map(s => s.step));
+  (getViewData().nodes||[]).forEach(n => {
+    const el = document.getElementById('node-'+n.id);
+    if(el) el.style.outline = done.has(n.id) ? '2px solid #4ade80' : '';
+  });
+}
+
+async function saveFlowToServer() {
+  if(!isBuilder()){ _frStatus('builder view me jao'); return null; }
+  const r = await _frApi('/api/growth/flow', {method:'POST', body: JSON.stringify(_frPayload())});
+  if(r.status===503){ _frStatus('FLOW_RUNNER off (admin .env)'); return null; }
+  if(r.body && r.body.flow){
+    frFlowId = r.body.flow.id;
+    _frStatus(r.body.runnable ? 'saved ✓ runnable' : 'saved — '+(r.body.compile_errors||[]).join('; '));
+    return r.body;
+  }
+  _frStatus('save failed (admin login?)'); return null;
+}
+
+async function runFlow() {
+  if(!isBuilder()){ _frStatus('builder view me jao'); return; }
+  const saved = await saveFlowToServer();
+  if(!saved || !saved.runnable){ return; }
+  const r = await _frApi('/api/growth/process/start', {method:'POST', body: JSON.stringify({process:'flow:'+frFlowId, inputs:{}})});
+  if(r.body && r.body.run_id){ frRunId = r.body.run_id; _frPollStart(); }
+  else { _frStatus('run failed: '+JSON.stringify(r.body)); }
+}
+
+function _frPollStart() {
+  if(frPoll) clearInterval(frPoll);
+  frPoll = setInterval(async () => {
+    const r = await _frApi('/api/growth/process/run/'+frRunId, {method:'GET'});
+    const st = (r.body && r.body.state) || {};
+    _frPaint(st);
+    if(st.status==='waiting_approval'){
+      _frStatus('WAITING approval <button class="tr-btn" onclick="approveRun()">✓ Approve</button>');
+    } else {
+      _frStatus('run '+(st.status||'?')+' · step '+(st.step_index||0));
+    }
+    if(st.status==='completed'||st.status==='failed'){ clearInterval(frPoll); frPoll=null; }
+  }, 2000);
+}
+
+async function approveRun() {
+  await _frApi('/api/growth/process/run/'+frRunId+'/approve', {method:'POST', body: JSON.stringify({note:'ok'})});
+  _frStatus('approved · resuming…');
 }
 
 function exportFlow() {

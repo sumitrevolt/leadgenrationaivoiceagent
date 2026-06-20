@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (776 operations)
+## Endpoint Index — auto-generated from OpenAPI (782 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -418,13 +418,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/upi/configure` — Set platform UPI VPA (data file — no container restart)
 - `GET   ` `/api/admin/upi/pending` — Clients waiting for UPI screenshot activation
 
-### Agents  (11)
+### Agents  (13)
 
 - `POST  ` `/api/agents/coordinate` — Coordinate Agents
 - `POST  ` `/api/agents/coordinate-advanced` — Coordinate Advanced Agents
 - `POST  ` `/api/agents/coordinate-agentverse` — Coordinate Agentverse Agents
 - `POST  ` `/api/agents/coordinate-engineering` — Coordinate Engineering Agents
 - `POST  ` `/api/agents/coordinate-hierarchical` — Coordinate Hierarchical Agents
+- `POST  ` `/api/agents/council` — Council Agents
+- `GET   ` `/api/agents/council/members` — Council Members
 - `POST  ` `/api/agents/debate` — Debate Agents
 - `POST  ` `/api/agents/fanout` — Fanout Agents
 - `GET   ` `/api/agents/memory` — Agents Memory
@@ -741,7 +743,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/terms` — Terms Page
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (175)
+### Growth  (179)
 
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats
@@ -781,6 +783,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/experiments/run` — Experiments Run
 - `GET   ` `/api/growth/fde/agents` — Fde Agents
 - `POST  ` `/api/growth/fde/deploy` — Fde Deploy
+- `POST  ` `/api/growth/flow` — Flow Save
+- `DELETE` `/api/growth/flow/{flow_id}` — Flow Delete
+- `GET   ` `/api/growth/flow/{flow_id}` — Flow Get
+- `GET   ` `/api/growth/flows` — Flows List
 - `POST  ` `/api/growth/harvest/enrich` — Harvest Enrich
 - `POST  ` `/api/growth/harvest/run` — Harvest Run
 - `GET   ` `/api/growth/harvest/runs` — Harvest Runs

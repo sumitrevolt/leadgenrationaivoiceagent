@@ -6,7 +6,10 @@ Mounted via growth.router.include_router(); paths unchanged (/api/growth/process
 
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.api.auth_deps import require_admin
@@ -106,3 +109,63 @@ async def process_reject(run_id: str, body: ProcessApproveIn, _user=Depends(requ
     return process_engine.reject(
         run_id, by=getattr(_user, "email", "admin") or "admin", reason=body.note
     )
+
+
+# ------------- Flow Runner (visual builder -> process-as-code, flag-gated) ------------- #
+def _flow_runner_on() -> bool:
+    return os.getenv("FLOW_RUNNER", "0") in ("1", "true", "True")
+
+
+class FlowIn(BaseModel):
+    id: str | None = None
+    name: str = "Untitled flow"
+    nodes: list[dict] = []
+    edges: list[dict] = []
+
+
+@router.get("/flows")
+async def flows_list(_user=Depends(require_admin)):
+    """List saved builder flows (Flow Runner)."""
+    if not _flow_runner_on():
+        return JSONResponse({"error": "FLOW_RUNNER disabled"}, status_code=503)
+    from app.automation import flow_store
+
+    return {"flows": flow_store.list_flows()}
+
+
+@router.post("/flow")
+async def flow_save(body: FlowIn, _user=Depends(require_admin)):
+    """Create/update a flow + return compile preview (runnable?)."""
+    if not _flow_runner_on():
+        return JSONResponse({"error": "FLOW_RUNNER disabled"}, status_code=503)
+    from app.automation import flow_compiler, flow_store
+
+    saved = flow_store.save_flow(body.model_dump(), by=getattr(_user, "email", "admin") or "admin")
+    if not saved.get("ok"):
+        return saved
+    _proc, errs = flow_compiler.compile_flow(saved["flow"])
+    return {"ok": True, "flow": saved["flow"], "compile_errors": errs, "runnable": not errs}
+
+
+@router.get("/flow/{flow_id}")
+async def flow_get(flow_id: str, _user=Depends(require_admin)):
+    """Get a flow + compiled steps + compile errors."""
+    if not _flow_runner_on():
+        return JSONResponse({"error": "FLOW_RUNNER disabled"}, status_code=503)
+    from app.automation import flow_compiler, flow_store
+
+    fl = flow_store.get_flow(flow_id)
+    if not fl:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    proc, errs = flow_compiler.compile_flow(fl)
+    return {"flow": fl, "compile_errors": errs, "steps": (proc or {}).get("steps", []), "runnable": not errs}
+
+
+@router.delete("/flow/{flow_id}")
+async def flow_delete(flow_id: str, _user=Depends(require_admin)):
+    """Delete a flow."""
+    if not _flow_runner_on():
+        return JSONResponse({"error": "FLOW_RUNNER disabled"}, status_code=503)
+    from app.automation import flow_store
+
+    return {"ok": flow_store.delete_flow(flow_id)}
