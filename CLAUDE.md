@@ -7,6 +7,7 @@
 
 ## User Preferences
 - **Hinglish (Roman script) me HI reply karo** — har baar. Concise + direct, kam formatting.
+- **Cursor Composer 2.5** = primary builder — skill `.cursor/skills/leadgen-composer/SKILL.md` + rule `.cursor/rules/leadgen-composer.mdc`; deep workflows `.claude/skills/` via `skills-index.md`.
 - Sab **free stack** — koi paid STT/TTS/LLM nahi (user decision). Phone-call paisa khaata hai → tuning FREE web-call pe.
 - **DLT/Udyam paperwork ko recurring talking-point MAT banao** (2026-06-18) — user ko pata hai; outbound ka focus = product + tech + ops path (caller-ID, balance, campaign glue). NOTE: yeh sirf conversation-preference hai — compliance GATE code (TRAI/DND/AI-disclosure/10am-7pm window) INTACT rakhna, kabhi disable mat karna.
 
