@@ -49,7 +49,11 @@ async def score_one(body: ScoreOneIn, _user=Depends(require_admin)):
     from app.platform import lead_scoring
 
     s = lead_scoring.score_lead(body.lead)
-    return {"score": s, "is_hot": lead_scoring.is_hot(s), "components": lead_scoring.score_components(body.lead)}
+    return {
+        "score": s,
+        "is_hot": lead_scoring.is_hot(s),
+        "components": lead_scoring.score_components(body.lead),
+    }
 
 
 # ----------------------------- Review engine ---------------------------- #
@@ -160,7 +164,9 @@ async def niche_scrape(body: NicheScrapeIn, _user=Depends(require_admin)):
 
 
 @router.get("/niche/pack/{niche_key}")
-async def niche_pack_one(niche_key: str, count: int = 4, city: str = "", _user=Depends(require_admin)):
+async def niche_pack_one(
+    niche_key: str, count: int = 4, city: str = "", _user=Depends(require_admin)
+):
     """Ek niche ka poora marketing pack (content_focus posts + hashtags + offer)."""
     from app.marketing import niche_pack
 
@@ -195,8 +201,8 @@ class FdeDeployIn(BaseModel):
     city: str | None = ""
     slug: str | None = None
     client_id: str | None = None
-    agent: str | None = "neo"   # isha_fde | veer | aarav | neo
-    brief: str | None = ""      # NL brief — FDE plan isi se banata
+    agent: str | None = "neo"  # isha_fde | veer | aarav | neo
+    brief: str | None = ""  # NL brief — FDE plan isi se banata
 
 
 @router.post("/fde/deploy")
@@ -221,7 +227,7 @@ async def fde_deploy(body: FdeDeployIn, _user=Depends(require_admin)):
 # ---------------- Omnichannel Cadence Orchestrator --------------------- #
 class CadenceEnrollIn(BaseModel):
     leads: list[dict] | None = None
-    from_prospects: int = 0   # >0 → top N prospects auto-enroll
+    from_prospects: int = 0  # >0 → top N prospects auto-enroll
 
 
 @router.post("/cadence/enroll")
@@ -254,7 +260,11 @@ async def cadence_run(_user=Depends(require_admin)):
 async def cadence_status(_user=Depends(require_admin)):
     from app.marketing import cadence
 
-    return {"stats": cadence.stats(), "cadence": cadence.DEFAULT_CADENCE, "recent_runs": cadence.list_runs(30)}
+    return {
+        "stats": cadence.stats(),
+        "cadence": cadence.DEFAULT_CADENCE,
+        "recent_runs": cadence.list_runs(30),
+    }
 
 
 # ---------------- SMS (DLT) / LinkedIn / SEO channels ------------------ #
@@ -283,7 +293,9 @@ async def linkedin_draft(body: LinkedInIn, _user=Depends(require_admin)):
     """LinkedIn comment + connect-note + DM drafts (ban-safe, manual send)."""
     from app.marketing import linkedin_assist
 
-    return await linkedin_assist.draft_outreach(body.target_name, body.company or "", body.niche or "general")
+    return await linkedin_assist.draft_outreach(
+        body.target_name, body.company or "", body.niche or "general"
+    )
 
 
 class SeoPageIn(BaseModel):
@@ -330,7 +342,9 @@ async def partnership_types(_user=Depends(require_admin)):
 async def partnership_draft(body: PartnerIn, _user=Depends(require_admin)):
     from app.marketing import partnerships
 
-    return await partnerships.draft_partnership(body.partner_type, body.partner_name or "", body.city or "")
+    return await partnerships.draft_partnership(
+        body.partner_type, body.partner_name or "", body.city or ""
+    )
 
 
 @router.post("/partnership/batch")
@@ -347,7 +361,11 @@ class MissedCallIn2(BaseModel):
     close_rate: float = 0.2
 
 
-@router.post("/tools/missed-call-revenue", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))])
+@router.post(
+    "/tools/missed-call-revenue",
+    tags=["Public Tools"],
+    dependencies=[Depends(rate_limit("tools", 20, 60))],
+)
 async def tool_missed_call(body: MissedCallIn2):
     """PUBLIC lead-magnet: missed-call revenue calculator."""
     from app.marketing import lead_tools
@@ -360,7 +378,9 @@ class LeadCostIn(BaseModel):
     leads_per_month: float
 
 
-@router.post("/tools/lead-cost", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))])
+@router.post(
+    "/tools/lead-cost", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))]
+)
 async def tool_lead_cost(body: LeadCostIn):
     """PUBLIC: lead-cost savings calculator."""
     from app.marketing import lead_tools
@@ -373,7 +393,11 @@ class GoogleScoreIn(BaseModel):
     city: str | None = ""
 
 
-@router.post("/tools/google-score", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))])
+@router.post(
+    "/tools/google-score",
+    tags=["Public Tools"],
+    dependencies=[Depends(rate_limit("tools", 20, 60))],
+)
 async def tool_google_score(body: GoogleScoreIn):
     """PUBLIC: Google-presence checker."""
     from app.marketing import lead_tools
@@ -388,7 +412,11 @@ class AffiliateIn(BaseModel):
     phone: str | None = ""
 
 
-@router.post("/affiliate/register", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))])
+@router.post(
+    "/affiliate/register",
+    tags=["Public Tools"],
+    dependencies=[Depends(rate_limit("tools", 20, 60))],
+)
 async def affiliate_register(body: AffiliateIn):
     """PUBLIC: koi bhi affiliate ban sakta → referral link + commission."""
     from app.marketing import affiliate
@@ -396,7 +424,9 @@ async def affiliate_register(body: AffiliateIn):
     return affiliate.register_affiliate(body.name, body.email or "", body.phone or "")
 
 
-@router.get("/weather-angle", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))])
+@router.get(
+    "/weather-angle", tags=["Public Tools"], dependencies=[Depends(rate_limit("tools", 20, 60))]
+)
 async def weather_angle_ep(city: str = "Mumbai"):
     """PUBLIC: city ka aaj ka mausam → marketing content angle (Open-Meteo, free, no key, India)."""
     from app.marketing import weather_angle as wa
@@ -422,14 +452,18 @@ class CommunityIn(BaseModel):
 async def community_draft(body: CommunityIn, _user=Depends(require_admin)):
     from app.marketing import community_content
 
-    return await community_content.draft_content(body.platform, body.topic or "", body.niche or "general")
+    return await community_content.draft_content(
+        body.platform, body.topic or "", body.niche or "general"
+    )
 
 
 @router.post("/community/batch")
 async def community_batch(body: CommunityIn, _user=Depends(require_admin)):
     from app.marketing import community_content
 
-    return await community_content.draft_batch(topic=body.topic or "", niche=body.niche or "general")
+    return await community_content.draft_batch(
+        topic=body.topic or "", niche=body.niche or "general"
+    )
 
 
 # ==================== SALES AUTOMATION (conversion) =================== #
@@ -463,8 +497,11 @@ async def sales_stage(deal_id: str, body: StageIn, _user=Depends(require_admin))
 async def sales_deals(stage: str | None = None, _user=Depends(require_admin)):
     from app.marketing import sales_pipeline
 
-    return {"stats": sales_pipeline.stats(), "deals": sales_pipeline.list_deals(stage),
-            "recent_actions": sales_pipeline.list_actions(30)}
+    return {
+        "stats": sales_pipeline.stats(),
+        "deals": sales_pipeline.list_deals(stage),
+        "recent_actions": sales_pipeline.list_actions(30),
+    }
 
 
 @router.post("/sales/run")
@@ -487,7 +524,9 @@ async def sales_proposal(body: ProposalIn, _user=Depends(require_admin)):
     """Auto personalized proposal + payment/demo links."""
     from app.marketing import proposal
 
-    return await proposal.generate_proposal(body.business_name, body.niche or "general", body.city or "", body.plan or "growth")
+    return await proposal.generate_proposal(
+        body.business_name, body.niche or "general", body.city or "", body.plan or "growth"
+    )
 
 
 class SalesMsgIn(BaseModel):
@@ -501,7 +540,9 @@ async def sales_assistant_reply(body: SalesMsgIn, _user=Depends(require_admin)):
     """AI sales-closer: prospect message → objection-aware reply + CTA."""
     from app.marketing import sales_assistant
 
-    return await sales_assistant.handle_message(body.message, body.business_name or "", body.niche or "general")
+    return await sales_assistant.handle_message(
+        body.message, body.business_name or "", body.niche or "general"
+    )
 
 
 # ------------------- Revenue automation (dunning/health/lifecycle/digest) ------------------- #
@@ -517,7 +558,9 @@ async def dunning_open_case(body: DunningCaseIn, _user=Depends(require_admin)):
     """Manual dunning case (webhook ke bahar se) — recovery sequence shuru."""
     from app.billing import dunning
 
-    return await dunning.on_payment_failed(body.client_id, body.amount, body.gateway or "", body.reason or "")
+    return await dunning.on_payment_failed(
+        body.client_id, body.amount, body.gateway or "", body.reason or ""
+    )
 
 
 @router.post("/revenue/dunning/run")
@@ -564,7 +607,9 @@ async def lifecycle_enroll(body: LifecycleEnrollIn, _user=Depends(require_admin)
     """Manually kisi signup ko nurture sequence me daalo."""
     from app.marketing import lifecycle_nurture
 
-    return lifecycle_nurture.enroll(body.email, body.business_name or "", body.client_id or "", body.plan or "starter")
+    return lifecycle_nurture.enroll(
+        body.email, body.business_name or "", body.client_id or "", body.plan or "starter"
+    )
 
 
 @router.post("/revenue/lifecycle/run")
@@ -630,16 +675,52 @@ async def revenue_invoices_csv(fy: str = "", _user=Depends(require_admin)):
         rows = [r for r in rows if r.get("fy") == fy.strip()]
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["number", "date", "fy", "client_id", "recipient", "recipient_gstin", "plan",
-                "description", "sac_code", "taxable_value", "cgst", "sgst", "igst",
-                "gross_inr", "place_of_supply", "tax_mode", "payment_ref", "gateway"])
+    w.writerow(
+        [
+            "number",
+            "date",
+            "fy",
+            "client_id",
+            "recipient",
+            "recipient_gstin",
+            "plan",
+            "description",
+            "sac_code",
+            "taxable_value",
+            "cgst",
+            "sgst",
+            "igst",
+            "gross_inr",
+            "place_of_supply",
+            "tax_mode",
+            "payment_ref",
+            "gateway",
+        ]
+    )
     for r in rows:
         rec = r.get("recipient", {}) or {}
-        w.writerow([r.get("number"), r.get("date"), r.get("fy"), r.get("client_id"),
-                    rec.get("name"), rec.get("gstin"), r.get("plan"), r.get("description"),
-                    r.get("sac_code"), r.get("taxable_value"), r.get("cgst"), r.get("sgst"),
-                    r.get("igst"), r.get("gross_inr"), r.get("place_of_supply"),
-                    r.get("tax_mode"), r.get("payment_ref"), r.get("gateway")])
+        w.writerow(
+            [
+                r.get("number"),
+                r.get("date"),
+                r.get("fy"),
+                r.get("client_id"),
+                rec.get("name"),
+                rec.get("gstin"),
+                r.get("plan"),
+                r.get("description"),
+                r.get("sac_code"),
+                r.get("taxable_value"),
+                r.get("cgst"),
+                r.get("sgst"),
+                r.get("igst"),
+                r.get("gross_inr"),
+                r.get("place_of_supply"),
+                r.get("tax_mode"),
+                r.get("payment_ref"),
+                r.get("gateway"),
+            ]
+        )
     return PlainTextResponse(buf.getvalue(), media_type="text/csv")
 
 
@@ -780,7 +861,9 @@ async def experiments_outcome(body: OutcomeIn, _user=Depends(require_admin)):
     """Channel outcome record karo (inquiry/reply/signup attribution) — bandit seekhta."""
     from app.marketing import channel_experiments
 
-    return channel_experiments.record_outcome(body.channel, body.kind or "inquiry", body.value or 1, body.note or "")
+    return channel_experiments.record_outcome(
+        body.channel, body.kind or "inquiry", body.value or 1, body.note or ""
+    )
 
 
 # ---------------- Competitor-parity content (carousel/meme/multilang) ---------------- #
@@ -796,7 +879,9 @@ async def content_carousel(body: CarouselIn, _user=Depends(require_admin)):
     """Predis-style carousel pack: 3-5 branded SVG slides + caption."""
     from app.marketing import carousel
 
-    return await carousel.generate_carousel(body.business_name, body.niche or "general", body.topic or "", body.slides or 4)
+    return await carousel.generate_carousel(
+        body.business_name, body.niche or "general", body.topic or "", body.slides or 4
+    )
 
 
 class MemeIn(BaseModel):
@@ -810,7 +895,9 @@ async def content_meme(body: MemeIn, _user=Depends(require_admin)):
     """Desi business meme (SVG + caption + hashtags)."""
     from app.marketing import meme_gen
 
-    return await meme_gen.generate_meme(body.business_name or "", body.niche or "general", body.topic or "")
+    return await meme_gen.generate_meme(
+        body.business_name or "", body.niche or "general", body.topic or ""
+    )
 
 
 class MultilangIn(BaseModel):
@@ -907,14 +994,19 @@ async def webhooks_register(body: WebhookIn, _user=Depends(require_admin)):
     """Zapier-style outbound webhook register (https only, HMAC-signed)."""
     from app.platform import outbound_webhooks
 
-    return outbound_webhooks.register(body.url, body.events, body.client_id or "", body.secret or "")
+    return outbound_webhooks.register(
+        body.url, body.events, body.client_id or "", body.secret or ""
+    )
 
 
 @router.get("/webhooks")
 async def webhooks_list(_user=Depends(require_admin)):
     from app.platform import outbound_webhooks
 
-    return {"webhooks": outbound_webhooks.list_webhooks(), "deliveries": outbound_webhooks.recent_deliveries(20)}
+    return {
+        "webhooks": outbound_webhooks.list_webhooks(),
+        "deliveries": outbound_webhooks.recent_deliveries(20),
+    }
 
 
 @router.delete("/webhooks/{webhook_id}")
@@ -960,11 +1052,32 @@ async def infra_explorer_drift(_user=Depends(require_admin)):
 
         root = pathlib.Path(__file__).resolve().parent.parent.parent
         html = (root / "frontend" / "explorer.html").read_text(encoding="utf-8", errors="replace")
-        sched = (root / "app" / "platform" / "team_scheduler.py").read_text(encoding="utf-8", errors="replace")
+        sched = (root / "app" / "platform" / "team_scheduler.py").read_text(
+            encoding="utf-8", errors="replace"
+        )
         blob = html.lower()
-        drop = {"os", "json", "asyncio", "datetime", "timezone", "time", "random", "typing",
-                "annotations", "contextlib", "io", "logging", "math", "uuid", "re",
-                "logger", "settings", "config", "models", "base"}
+        drop = {
+            "os",
+            "json",
+            "asyncio",
+            "datetime",
+            "timezone",
+            "time",
+            "random",
+            "typing",
+            "annotations",
+            "contextlib",
+            "io",
+            "logging",
+            "math",
+            "uuid",
+            "re",
+            "logger",
+            "settings",
+            "config",
+            "models",
+            "base",
+        }
         mods: set[str] = set()
         for m in re.finditer(r"from\s+(app[\w.]+)\s+import\s+([\w_, ]+)", sched):
             path, names = m.group(1), m.group(2)
@@ -983,7 +1096,8 @@ async def infra_explorer_drift(_user=Depends(require_admin)):
         return {
             "nodes": len(re.findall(r"\{id:'", html)),
             "edges": len(re.findall(r"\{f:'", html)),
-            "engine_total": total, "engine_drawn": drawn,
+            "engine_total": total,
+            "engine_drawn": drawn,
             "coverage_pct": round(100 * drawn / total),
             "missing": miss[:50],
         }
@@ -1113,7 +1227,9 @@ async def infra_dlq_retry(limit: int = 10, _user=Depends(require_admin)):
             try:
                 rec = _json.loads(raw)
                 args_s = str(rec.get("args") or "")
-                job = next((j for j in STAFF_JOBS if f"'{j}'" in args_s or f'"{j}"' in args_s), None)
+                job = next(
+                    (j for j in STAFF_JOBS if f"'{j}'" in args_s or f'"{j}"' in args_s), None
+                )
             except Exception:
                 pass
             if job:
@@ -1147,107 +1263,9 @@ async def infra_dlq_purge(_user=Depends(require_admin)):
         return {"error": str(e)[:120]}
 
 
-# Saare gated automation flags ka registry — live env status ek jagah.
-AUTOMATION_FLAGS = [
-    "FEATURE_FLAGS",  # SaaS infra Phase-1: per-tenant runtime feature-flag system master gate (default OFF)
-    "TEAM_AUTOMATION", "RUN_IN_PROCESS_SCHEDULER", "NICHE_ROTATION", "AUTO_EMAIL_OUTREACH",
-    "JOURNEY_ENGINE", "AUTO_QUALIFY_CALLS", "REPLY_AGENT", "OPS_WATCHDOG", "AUTO_ONBOARD",
-    "USE_STRUCTURED_CONTENT", "USE_AGENTIC_RAG", "USE_RERANKER", "USE_CONTEXTUAL_INGEST",
-    "USE_CONTEXTUAL_INGEST_LLM", "USE_HYBRID_SEARCH", "USE_LANGGRAPH_SUPERVISOR",
-    "USE_LANGGRAPH_HIGH_STAKES", "AGENT_STANDUP",
-    "SALES_ENGINE", "CADENCE_ENGINE", "DUNNING_ENGINE", "LIFECYCLE_NURTURE",
-    "CLIENT_HEALTH_ALERTS", "REVENUE_DIGEST", "GROWTH_OPTIMIZER", "CHANNEL_EXPERIMENTS",
-    "AUTO_INVOICE", "EMAIL_WARMUP", "USAGE_ALERTS",
-    "REVIEW_MONITOR", "BOOKING_REMINDERS", "DELIVERABILITY_MONITOR", "AUTOMATION_HEALTH_ALERTS",
-    "WHATSAPP_AUTO_SEND", "MISSED_CALL_CALLBACK", "SMS_DLT_ENABLED", "USE_SILERO_VAD",
-    "USE_SMART_TURN", "USE_LIGHTRAG", "ENABLE_OTEL", "ENABLE_LEGACY_BEAT", "FESTIVALS_LIVE_HOLIDAYS",
-    "TELEGRAM_AUTO_PUBLISH", "CLIENT_REPORTS", "CUSTOMER_WISHES", "RANK_TRACKER",
-    "MEMORY_VAULT", "LIVE_NOTES", "DLQ_AUTO_RETRY", "INTEGRATION_ALERTS", "INFRA_HANDLER",
-    "NPS_ALERTS", "INDEXNOW", "SALES_TEAM", "SELF_IMPROVE_LOOP", "LEAD_HARVESTER",
-    "CALL_TRANSFER", "OUTREACH_AB", "SERVICE_REMINDERS", "LLM_CAPACITY_ALERTS", "KB_PREWARM", "KB_WEEKLY_REFRESH",
-    "MIDDAY_PROSPECT", "WEEKLY_MARKETING_PACK", "SCHEDULER_HYGIENE", "CELERY_TRIM_MIN_DEPTH",
-    "SEMANTIC_CACHE",  # semantic LLM response cache (Qdrant+Redis, off-loop) — OFF default, fail-open
-    "AGENT_MEMORY",  # cross-session per-lead/client memory (Qdrant+free LLM, off-loop) — OFF default, fail-open
-    "LLM_BUDGET_GUARD",  # per-scope LLM daily cost/usage cap + kill-switch — OFF default, fail-open
-    "LLM_BUDGET_HARD_KILL",  # emergency manual stop: ALL LLM block (fail-closed) — OFF default
-    "MAGIC_LINK",  # passwordless customer login (single-use email link) — OFF default
-    "IMPERSONATION",  # super-admin "login as customer" support tool (audited) — OFF default
-    "PUBLIC_GUARDRAILS",  # PII-redact + prompt-injection block on public chatbot/widget LLM — OFF default, fail-open
-    "CONTENT_APPROVAL_AUTO",  # daily auto_content → client approval queue auto-submit — OFF default
-    "OLLAMA_URL", "OLLAMA_PRIMARY",  # self-hosted own LLM (GPU/PC) — URL set = active
-    "NEWSLETTER_ENGINE", "WINBACK_ENGINE", "BRAND_PULSE", "TEAM_REPORT",
-    "SKILL_PACK", "CODE_UPGRADER", "RECORDING_RETENTION",
-    "VOICE_EVAL_AUTO",  # daily voice persona eval suite (qa job) + self-improve voice_eval action — OFF default
-    "ML_NIGHTLY_TRAINING",  # nightly ML train (intent classifier + lead scorer + prompt-opt) in trainer job — OFF default
-    "SEARXNG_URL", "NTFY_URL", "NTFY_TOPIC",  # self-hosted tools stack (URL-valued = set hone pe ON)
-    "CRM_SYNC",  # qualified lead -> client ka Zoho/HubSpot auto-push
-    "TELEPHONY_READY_ALERTS",  # Tara readiness score-drop email alert
-    "SOCIAL_AUTOPOST",  # Meta Graph real publish (content job)
-    "AUTO_CALLBACK_INQUIRY",  # inquiry submit pe instant AI callback
-    "WHATSAPP_LEAD_FLOW_ID",  # Meta Flow in-chat lead capture (URL-valued = set hone pe ON)
-    "REPLY_AUTO_SEND",  # interested reply auto-send (ban-risk — default OFF)
-    "SELF_IMPROVE_APPROVAL",  # LLM-heavy self-improve actions human approve gate
-    "REQUEST_GUARD",  # per-request timeout + load-shed middleware
-    "PLAN_RATE_LIMIT",  # tier-based API rpm limits
-    "CIRCUIT_BREAKER",  # external-service breaker (Pollinations etc.) — OFF default, fast-fail on outage
-    # Edge protection (Cloudflare) — URL-valued flags become ON when set.
-    "CLOUDFLARE_TUNNEL_TOKEN",  # docker-compose.edge.yml cloudflared — origin-hide + WAF/DDoS
-    "TURNSTILE_SITE_KEY",  # public site-key (safe to expose) — widget renders only when set
-    "TURNSTILE_SECRET_KEY",  # server secret — present = bot-check armed on /audit /site-audit /demo /inquiry
-    # F.3 eval_gate close-the-loop reward signal for self_improve + DeepEval CI
-    "EVAL_GATE",  # records baseline + decides; observe-only until HARD set
-    "EVAL_GATE_HARD",  # makes reject decisions actually block (after baseline trusted)
-    # F.5 engineer agents (Pranav SRE / Vidya FinOps / Arnav Security)
-    "SRE_AGENT",  # Pranav reliability score (hourly :45)
-    "FINOPS_AGENT",  # Vidya margin score + LiteLLM-attributed cost-per-tenant
-    "SECURITY_AGENT",  # Arnav DPDP/TRAI posture
-    # G.1 ops_alerts ntfy fan-out (engineer-score / eval-reject / readiness-digest / dead-letter)
-    "OPS_ALERTS",  # master gate — needs NTFY_URL+NTFY_TOPIC already set
-    "OPS_ALERT_ENGINEER_THRESHOLD",  # default 60 (engineer score below this pages)
-    "OPS_ALERT_EVAL_REJECT_BURST",  # default 3 (rejects-per-window before paging)
-    "OPS_ALERT_EVAL_REJECT_WINDOW",  # default 86400s (window for burst count)
-    "OPS_ALERT_WEBHOOK_DEAD_LETTER_THRESHOLD",  # default 3 (consecutive failures before page)
-    # H.1 customer-facing webhooks (Svix-style HMAC-SHA256 fan-out)
-    "CUSTOMER_WEBHOOKS",  # master gate for emit()
-    "CUSTOMER_WEBHOOK_DENY_PRIVATE",  # default 1; set 0 only for dev SSRF tests
-    # H.2 customer-side 2FA — opt-in per customer; TOTP_CHALLENGE_KEY optional
-    "TOTP_CHALLENGE_KEY",  # HMAC key for login-challenge token; unset = per-process random
-    # H.3 MCP-as-product + A2A Agent Card metered surface
-    "MCP_PRODUCT",  # arms /api/mcp-product/v1/* (503 when off)
-    # H.4 LiteLLM per-tenant cost + warm-DR replica probe
-    "LITELLM_COSTS",  # master gate; needs LITELLM_MASTER_KEY + LITELLM_GATEWAY_URL
-    "LITELLM_MASTER_KEY",  # bearer for /spend/keys probe
-    "LITELLM_GATEWAY_URL",  # e.g. http://litellm:4000 once edge.yml --profile gateway up
-    "DR_REPLICA_URL",  # postgres://... Neon/Supabase replica for warm-DR
-    "DR_LAG_WARN_S",  # default 60 (replica lag WARN threshold)
-    "DR_LAG_FAIL_S",  # default 600 (replica lag FAIL threshold)
-    # F.4 agent_memory cross-session lead recall (Qdrant agent_memory collection)
-    "MEM0_BACKEND",  # "mem0" to use pip-installed Mem0 SDK; else native (default)
-    "AGENT_MEMORY_MIN_SIM",  # default 0.35 (recall similarity cutoff)
-    "AGENT_MEMORY_RECALL_LIMIT",  # default 4 (recall row cap)
-    "AGENT_MEMORY_MAX_FACTS",  # default 4 (extract-store cap per turn)
-    "HERMES_HANDOFF",  # Phase-2 future: code_upgrader -> Hostinger Hermes draft-PR executor.
-    # Phase-1 (read-only daily health report) hai HOSTINGER sandbox me, flag-independent.
-    # Docs: docs/HOSTINGER_HERMES_SETUP.md
-    # Voice DLT unlock ke baad build — spec: voice-consent-confirm skill
-    "CONSENT_CONFIRM",  # in-call "press 1 to confirm consent" gate (TRAI DLT required) — OFF until DLT unlock
-    # --- Parallel automation batch 2026-06-19 (all default OFF / inert) ---
-    "METER_ALERTS",  # SP1: billing meter-failure watcher (reads Redis billing:meter_failures, ntfy)
-    "METER_ALERT_GROWTH_THRESHOLD",  # default 5 (new failures per check before paging)
-    "METER_ALERT_COOLDOWN_SEC",  # default 21600 (6h alert cooldown)
-    "LOOP_SUPERVISOR",  # SP3: call-processor re-spawn watchdog + boot-grace-skip ntfy visibility
-    "PROCESS_AUTOSTART",  # D V1.1: process-engine deterministic workflows auto-start (idempotent, 1/tick)
-    "CONTENT_AUTOPUBLISH",  # SP5: self-brand 'ready' content auto-publish to Telegram (needs TG creds)
-    "AMD_DETECT",  # SP7: answering-machine detection on vobiz stream (saves credits) — OFF default
-    # --- Research-improvements batch 2026-06-19 ---
-    "USE_TEXT_ENDPOINT",  # text-based semantic end-of-turn (complements audio Smart-Turn) — OFF default
-    "USE_LLM_STREAM_TTS",  # LLM token stream → early sentence TTS (vobiz) — OFF default
-    "RECONSENT_COOLOFF_DAYS",  # TRAI re-consent cool-off (default 90; 0 disables) — strengthens compliance
-    # --- Readiness + dashboard batch 2026-06-20 (all default OFF / inert) ---
-    "REVENUE_TRENDS",  # B1: admin revenue time-series (/revenue-trend + daily snapshot job) — OFF default
-    "CLIENT_TIMELINE",  # B2: per-client activity timeline endpoint — OFF default
-    "SYS_HEALTH_DETAIL",  # B3: admin system-health drill-down endpoint — OFF default
-]
+from app.api.automation_flags import (  # noqa: E402,F401  (registry moved out; re-export)
+    AUTOMATION_FLAGS,
+)
 
 
 # ------------- Native CRM sync (Zoho/HubSpot — Indian SMB) ------------- #
@@ -1312,7 +1330,11 @@ async def research_search(q: str, count: int = 10, user=Depends(require_admin)):
     from app.integrations import searxng
 
     if not searxng.enabled():
-        return {"enabled": False, "hint": "SEARXNG_URL env set karo (docker-compose.tools.yml)", "results": []}
+        return {
+            "enabled": False,
+            "hint": "SEARXNG_URL env set karo (docker-compose.tools.yml)",
+            "results": [],
+        }
     results = await searxng.search(q, count=count)
     return {"enabled": True, "query": q, "count": len(results), "results": results}
 
@@ -1324,7 +1346,12 @@ async def notify_test(user=Depends(require_admin)):
 
     if not ntfy.enabled():
         return {"enabled": False, "hint": "NTFY_URL + NTFY_TOPIC env set karo"}
-    ok = await ntfy.push("Test 🔔", "LeadGen AI ntfy push kaam kar raha hai!", priority="default", tags=["white_check_mark"])
+    ok = await ntfy.push(
+        "Test 🔔",
+        "LeadGen AI ntfy push kaam kar raha hai!",
+        priority="default",
+        tags=["white_check_mark"],
+    )
     return {"enabled": True, "sent": ok}
 
 
@@ -1419,10 +1446,12 @@ async def prospects_find_email_batch(
 ):
     """Bulk email enrichment: DB leads with phone but no email -> waterfall find -> update."""
     import asyncio as _asyncio
+
+    from sqlalchemy import select as _select
+
     from app.models.base import get_async_session
     from app.models.lead import Lead
     from app.platform import email_finder
-    from sqlalchemy import select as _select
 
     found = 0
     not_found = 0
@@ -1504,8 +1533,15 @@ async def reply_feedback(
 
     _DRAFTS = "data/reply_drafts.jsonl"
     _FEEDBACK = "data/reply_feedback.jsonl"
-    _VALID = {"interested", "question", "objection", "not_interested",
-               "unsubscribe", "ooo", "other"}
+    _VALID = {
+        "interested",
+        "question",
+        "objection",
+        "not_interested",
+        "unsubscribe",
+        "ooo",
+        "other",
+    }
 
     if body.correct_intent not in _VALID:
         raise HTTPException(400, f"intent must be one of {sorted(_VALID)}")
@@ -1586,11 +1622,11 @@ async def reply_feedback_stats(_user=Depends(require_admin)):
                     total += 1
                 except Exception:
                     pass
-    return {"ok": True, "total_corrections": total,
-            "corrections": dict(corrections.most_common(20))}
-
-
-
+    return {
+        "ok": True,
+        "total_corrections": total,
+        "corrections": dict(corrections.most_common(20)),
+    }
 
 
 @router.get("/speed-to-lead/summary")
@@ -1601,6 +1637,7 @@ async def speed_to_lead_summary(
     """Speed-to-lead metric: avg/median response time + Hinglish verdict.
     dashboard badge + ops page ke liye."""
     from app.platform import speed_to_lead
+
     return speed_to_lead.summary(days)
 
 
@@ -1611,8 +1648,10 @@ async def speed_to_lead_breakdown(
 ):
     """Per-inquiry breakdown: kitne seconds me pehla touch hua."""
     from app.platform import speed_to_lead
+
     rows = speed_to_lead.per_inquiry(days)
     return {"ok": True, "days": days, "inquiries": rows, "count": len(rows)}
+
 
 @router.get("/revenue/summary")
 async def revenue_summary(_user=Depends(require_admin)):
@@ -1676,7 +1715,11 @@ async def infra_flags(_user=Depends(require_admin)):
     out = {}
     for f in AUTOMATION_FLAGS:
         v = _os.environ.get(f)
-        out[f] = {"set": v is not None, "on": (v or "").strip().lower() in ("1", "true", "yes"), "value": v}
+        out[f] = {
+            "set": v is not None,
+            "on": (v or "").strip().lower() in ("1", "true", "yes"),
+            "value": v,
+        }
     on = [k for k, d in out.items() if d["on"]]
     return {"on_count": len(on), "on": on, "flags": out}
 
@@ -1715,7 +1758,8 @@ async def list_feature_flags(_user=Depends(require_admin)):
 
     flags = await feature_flags.get_all_flags()
     return {
-        "system_active": _os.environ.get("FEATURE_FLAGS", "0").strip().lower() in ("1", "true", "yes"),
+        "system_active": _os.environ.get("FEATURE_FLAGS", "0").strip().lower()
+        in ("1", "true", "yes"),
         "count": len(flags),
         "flags": [f.to_dict() for f in flags],
     }
@@ -1754,7 +1798,12 @@ async def check_feature_flag(
     from app.infrastructure.feature_flags import feature_flags
 
     enabled = await feature_flags.is_enabled(key, tenant_id or None, user_id or None)
-    return {"key": key, "tenant_id": tenant_id or None, "user_id": user_id or None, "enabled": enabled}
+    return {
+        "key": key,
+        "tenant_id": tenant_id or None,
+        "user_id": user_id or None,
+        "enabled": enabled,
+    }
 
 
 @router.get("/infra/feature-flags/{key}")
@@ -1805,7 +1854,9 @@ async def content_feedback_stats(niche: str = "", _user=Depends(require_admin)):
 
 
 @router.get("/content/trends")
-async def content_trends(niche: str = "general", business_name: str = "", _user=Depends(require_admin)):
+async def content_trends(
+    niche: str = "general", business_name: str = "", _user=Depends(require_admin)
+):
     """Google Trends (IN) → niche ke liye fresh Hinglish content angles."""
     from app.marketing import trends
 
@@ -1886,7 +1937,9 @@ async def loyalty_create(body: CouponIn, _user=Depends(require_admin)):
     """SMB ke end-customers ke liye coupon campaign (share_text 1-click WA)."""
     from app.marketing import loyalty
 
-    return loyalty.create_campaign(body.client_id, body.title, body.kind, body.value, body.expiry_days, body.max_redemptions)
+    return loyalty.create_campaign(
+        body.client_id, body.title, body.kind, body.value, body.expiry_days, body.max_redemptions
+    )
 
 
 @router.get("/loyalty")
@@ -1977,7 +2030,11 @@ async def client_data_summary(key: str):
     if not cid:
         raise HTTPException(status_code=401, detail="invalid api key")
     client = clients_store.get_client(cid) or {}
-    return {"client_id": cid, "business_name": client.get("business_name"), "stats": client_report.collect_stats(client)}
+    return {
+        "client_id": cid,
+        "business_name": client.get("business_name"),
+        "stats": client_report.collect_stats(client),
+    }
 
 
 # ------------- Prod-batch 2026-06-10: NPS + payment recon + IndexNow ------------- #
@@ -1989,12 +2046,16 @@ class NPSIn(BaseModel):
     client_slug: str | None = ""
 
 
-@router.post("/nps/submit", tags=["Public Tools"], dependencies=[Depends(rate_limit("nps", 10, 60))])
+@router.post(
+    "/nps/submit", tags=["Public Tools"], dependencies=[Depends(rate_limit("nps", 10, 60))]
+)
 async def nps_submit(body: NPSIn):
     """PUBLIC: NPS/CSAT response (0-10). Detractor alert gated NPS_ALERTS=1."""
     from app.platform import nps
 
-    return await nps.submit(body.score, body.comment or "", body.name or "", body.phone or "", body.client_slug or "")
+    return await nps.submit(
+        body.score, body.comment or "", body.name or "", body.phone or "", body.client_slug or ""
+    )
 
 
 @router.get("/nps/stats")
@@ -2034,7 +2095,7 @@ async def seo_indexnow(body: IndexNowIn, _user=Depends(require_admin)):
 # ------------- Sales team: 5-agent prospect deep-dive (ai-sales-team adapt) ------------- #
 class ProspectAnalysisIn(BaseModel):
     prospect: dict | None = None  # direct record do...
-    phone: str | None = None      # ...ya phone se prospects me dhundo
+    phone: str | None = None  # ...ya phone se prospects me dhundo
 
 
 @router.post("/sales/prospect-analysis")
@@ -2111,7 +2172,12 @@ async def selfimprove_run(_user=Depends(require_admin)):
             res = await self_improve.run_once()
             return {"ok": True, "queued": False, "fallback": "in_process", "result": res}
         except Exception as e2:
-            return {"ok": False, "queued": False, "error": str(e2)[:200], "hint": "celery worker chal raha hai?"}
+            return {
+                "ok": False,
+                "queued": False,
+                "error": str(e2)[:200],
+                "hint": "celery worker chal raha hai?",
+            }
 
 
 class SelfImproveTaskIn(BaseModel):
@@ -2133,7 +2199,11 @@ async def selfimprove_actions(_user=Depends(require_admin)):
     """Available loop actions + descriptions."""
     from app.agents import self_improve
 
-    return {"actions": [{"key": k, "llm_heavy": v[0], "desc": v[1]} for k, v in self_improve.ACTIONS.items()]}
+    return {
+        "actions": [
+            {"key": k, "llm_heavy": v[0], "desc": v[1]} for k, v in self_improve.ACTIONS.items()
+        ]
+    }
 
 
 @router.get("/skills/library")
@@ -2208,7 +2278,9 @@ async def upgrader_scan(_user=Depends(require_admin)):
 
 
 @router.get("/upgrader/patches")
-async def upgrader_patches(status: str | None = None, limit: int = 50, _user=Depends(require_admin)):
+async def upgrader_patches(
+    status: str | None = None, limit: int = 50, _user=Depends(require_admin)
+):
     from app.agents import code_upgrader
 
     return {"patches": code_upgrader.list_patches(status, limit)}
@@ -2220,7 +2292,9 @@ class PatchStatusIn(BaseModel):
 
 
 @router.post("/upgrader/patches/{patch_id}/status")
-async def upgrader_patch_status(patch_id: str, body: PatchStatusIn, _user=Depends(require_super_admin)):
+async def upgrader_patch_status(
+    patch_id: str, body: PatchStatusIn, _user=Depends(require_super_admin)
+):
     """Hybrid gate: core-code patch approve/reject — SUPER_ADMIN only (RBAC design)."""
     from app.agents import code_upgrader
 
@@ -2263,7 +2337,9 @@ async def social_batch(body: SocialBatchIn, _user=Depends(require_admin)):
     """Multiple naye channels ka draft pack."""
     from app.marketing import social_channels
 
-    return await social_channels.draft_batch(body.niche, body.city, body.business_name, body.channels, body.limit)
+    return await social_channels.draft_batch(
+        body.niche, body.city, body.business_name, body.channels, body.limit
+    )
 
 
 # ------------- Lead harvester (multi-source, legal-only, automated loop) ------------- #
@@ -2308,94 +2384,11 @@ async def harvest_enrich(limit: int = 10, _user=Depends(require_admin)):
     return await lead_harvester.enrich_missing_emails(limit)
 
 
-# ------------- Process engine (babysitter-pattern: deterministic + breakpoints) ------------- #
-@router.get("/process/definitions")
-async def process_definitions(_user=Depends(require_admin)):
-    """Available process-as-code workflows (steps + gates + breakpoints)."""
-    from app.agents import process_library
+# Process-engine endpoints extracted to app/api/growth_process.py (2026-06-20);
+# included below so /api/growth/process/* paths stay unchanged.
+from app.api.growth_process import router as _process_router  # noqa: E402
 
-    return {"processes": process_library.list_processes()}
-
-
-class ProcessStartIn(BaseModel):
-    process: str
-    inputs: dict = {}
-
-
-@router.post("/process/start")
-async def process_start(body: ProcessStartIn, _user=Depends(require_admin)):
-    """Run start + Celery worker me advance enqueue; worker down ho to inline advance."""
-    from app.agents import process_engine
-
-    r = process_engine.start_run(body.process, body.inputs)
-    if r.get("ok"):
-        run_id = r.get("run_id") or ""
-        try:
-            from app.tasks.staff_jobs import process_tick
-
-            process_tick.delay(run_id)
-            r["queued"] = True
-        except Exception:
-            try:
-                adv = await process_engine.advance(run_id)
-                r["queued"] = False
-                r["fallback"] = "in_process"
-                r["advance"] = adv
-            except Exception as e2:
-                r["queued"] = False
-                r["hint"] = f"worker+inline fail: {str(e2)[:100]}"
-    return r
-
-
-@router.get("/process/runs")
-async def process_runs(limit: int = 20, _user=Depends(require_admin)):
-    """Recent runs + journal-derived live status."""
-    from app.agents import process_engine
-
-    return {"runs": process_engine.list_runs(limit)}
-
-
-@router.get("/process/run/{run_id}")
-async def process_run_detail(run_id: str, _user=Depends(require_admin)):
-    """Run state (replay) + full immutable journal."""
-    from app.agents import process_engine
-
-    return {"state": process_engine.replay(run_id), "journal": process_engine.journal(run_id)}
-
-
-class ProcessApproveIn(BaseModel):
-    note: str = ""
-
-
-@router.post("/process/run/{run_id}/approve")
-async def process_approve(run_id: str, body: ProcessApproveIn, _user=Depends(require_admin)):
-    """Breakpoint APPROVE → run resume (Celery tick)."""
-    from app.agents import process_engine
-
-    r = process_engine.approve(run_id, approved_by=getattr(_user, "email", "admin") or "admin", note=body.note)
-    if r.get("ok"):
-        try:
-            from app.tasks.staff_jobs import process_tick
-
-            process_tick.delay(run_id)
-            r["queued"] = True
-        except Exception:
-            try:
-                adv = await process_engine.advance(run_id)
-                r["queued"] = False
-                r["fallback"] = "in_process"
-                r["advance"] = adv
-            except Exception:
-                r["queued"] = False
-    return r
-
-
-@router.post("/process/run/{run_id}/reject")
-async def process_reject(run_id: str, body: ProcessApproveIn, _user=Depends(require_admin)):
-    """Breakpoint REJECT → run failed (audit trail)."""
-    from app.agents import process_engine
-
-    return process_engine.reject(run_id, by=getattr(_user, "email", "admin") or "admin", reason=body.note)
+router.include_router(_process_router)
 
 
 # --------------------- Agentic-Output Approval Cockpit (sub-project D V1) ----- #
@@ -2416,13 +2409,17 @@ class DraftDecideIn(BaseModel):
 
 
 @router.post("/approvals/drafts/{source}/{item_id}/decide")
-async def approvals_draft_decide(source: str, item_id: str, body: DraftDecideIn, _user=Depends(require_admin)):
+async def approvals_draft_decide(
+    source: str, item_id: str, body: DraftDecideIn, _user=Depends(require_admin)
+):
     """Smart 1-click: stamp status + fire the BOUNDED SAFE next-action per source
     (sales=mark-reviewed · coordinator=self_improve task · fde=enable disabled drip).
     Risky real-send stays draft-only by design. Idempotent."""
     from app.platform import approvals_bridge
 
-    return approvals_bridge.decide(source, item_id, body.decision, by=getattr(_user, "email", "admin") or "admin")
+    return approvals_bridge.decide(
+        source, item_id, body.decision, by=getattr(_user, "email", "admin") or "admin"
+    )
 
 
 # ----------------------------- Self-Improve Approval Gates (Phase 6) -------- #
