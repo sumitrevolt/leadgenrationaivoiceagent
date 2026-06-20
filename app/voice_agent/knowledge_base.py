@@ -737,6 +737,12 @@ class KnowledgeBase:
         except Exception as e:
             # deps missing / server down — is process me dobara probe mat karo
             _QDRANT_DISABLED = True
+            try:
+                from app.platform.integration_health import record_failure
+
+                record_failure("qdrant", str(e)[:80])
+            except Exception:
+                pass
             logger.info(f"KB: Qdrant unavailable ({e}); falling back to Chroma/keyword.")
             return None
 
