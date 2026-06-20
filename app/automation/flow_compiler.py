@@ -12,6 +12,50 @@ from __future__ import annotations
 from collections import defaultdict, deque
 from typing import Any
 
+# Phase 5: actions that can have an external side effect when their flag is on.
+# A NON-FATAL warning is attached when one has no upstream Approval (breakpoint).
+SIDE_EFFECT_ACTIONS = {"telegram_draft", "crm_queue"}
+
+
+def _warn_text(nid: str, action: str) -> str:
+    return f"'{nid}' ({action}) has no upstream Approval — add a breakpoint before it"
+
+
+def _linear_warnings(order: list[str], nmap: dict) -> list[str]:
+    warns: list[str] = []
+    seen_bp = False
+    for nid in order:
+        n = nmap[nid]
+        if n.get("kind") == "breakpoint":
+            seen_bp = True
+            continue
+        act = str(n.get("action") or "")
+        if act in SIDE_EFFECT_ACTIONS and not seen_bp:
+            warns.append(_warn_text(nid, act))
+    return warns
+
+
+def _dag_warnings(gnodes: dict, in_map: dict) -> list[str]:
+    warns: list[str] = []
+    for nid, spec in gnodes.items():
+        if spec.get("kind") != "task" or spec.get("action") not in SIDE_EFFECT_ACTIONS:
+            continue
+        seen: set[str] = set()
+        stack = [e["f"] for e in in_map.get(nid, [])]
+        has_bp = False
+        while stack:
+            u = stack.pop()
+            if u in seen:
+                continue
+            seen.add(u)
+            if gnodes.get(u, {}).get("kind") == "breakpoint":
+                has_bp = True
+                break
+            stack.extend(e["f"] for e in in_map.get(u, []))
+        if not has_bp:
+            warns.append(_warn_text(nid, spec["action"]))
+    return warns
+
 
 def compile_flow(flow: dict) -> tuple[dict | None, list[str], str]:
     """(result, errors, kind). See module docstring."""
@@ -103,7 +147,11 @@ def _compile_linear(flow, nmap, idset, valid_edges, roots, errors):
             if n.get("max_retries") is not None:
                 step["max_retries"] = int(n["max_retries"])
             steps.append(step)
-    return {"name": str(flow.get("name") or "flow"), "steps": steps}, [], "linear"
+    proc: dict[str, Any] = {"name": str(flow.get("name") or "flow"), "steps": steps}
+    w = _linear_warnings(order, nmap)
+    if w:
+        proc["warnings"] = w
+    return proc, [], "linear"
 
 
 def _compile_dag(flow, nmap, idset, valid_edges, indeg, roots, edge_condition, errors):
@@ -198,4 +246,7 @@ def _compile_dag(flow, nmap, idset, valid_edges, indeg, roots, edge_condition, e
         "out": out_map,
         "roots": sorted(roots),
     }
+    w = _dag_warnings(gnodes, in_map)
+    if w:
+        graph["warnings"] = w
     return graph, [], "dag"
