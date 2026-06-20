@@ -42,7 +42,7 @@ def _enabled() -> bool:
 
 
 def _pid(p: dict) -> str:
-    raw = (p.get("phone") or p.get("email") or p.get("name") or p.get("business_name") or "anon")
+    raw = p.get("phone") or p.get("email") or p.get("name") or p.get("business_name") or "anon"
     return re.sub(r"[^a-zA-Z0-9]+", "_", str(raw)).strip("_")[:60] or "anon"
 
 
@@ -74,18 +74,21 @@ async def _llm(system: str, user: str, max_tokens: int = 350, ground: str = "") 
         from app.voice_agent import free_ai
 
         sys2 = (_persona_prefix(ground) + system) if ground else system
-        reply, _ = await free_ai.chat(sys2, [{"role": "user", "content": user}],
-                                      max_tokens=max_tokens, temperature=0.5)
+        reply, _ = await free_ai.chat(
+            sys2, [{"role": "user", "content": user}], max_tokens=max_tokens, temperature=0.5
+        )
         return (reply or "").strip()
     except Exception:
         return ""
 
 
 def _pdesc(p: dict) -> str:
-    return (f"Business: {p.get('name') or p.get('business_name') or '?'} | "
-            f"Niche: {p.get('niche') or '?'} | City: {p.get('city') or '?'} | "
-            f"Rating: {p.get('rating') or '?'} ({p.get('reviews') or p.get('user_ratings_total') or 0} reviews) | "
-            f"Website: {p.get('website') or 'NAHI'} | Status: {p.get('status') or 'new'}")
+    return (
+        f"Business: {p.get('name') or p.get('business_name') or '?'} | "
+        f"Niche: {p.get('niche') or '?'} | City: {p.get('city') or '?'} | "
+        f"Rating: {p.get('rating') or '?'} ({p.get('reviews') or p.get('user_ratings_total') or 0} reviews) | "
+        f"Website: {p.get('website') or 'NAHI'} | Status: {p.get('status') or 'new'}"
+    )
 
 
 # ----------------------------- Agents ----------------------------- #
@@ -108,14 +111,25 @@ async def _research(p: dict) -> dict[str, Any]:
     brief = await _llm(
         "Tum Riya ho — sales research analyst. 3 short Hinglish bullets me prospect brief do: "
         "kya bechte hain, kitne serious/established lagte hain, marketing me kya GAP dikhta hai. Sirf bullets.",
-        _pdesc(p) + (f"\n\nWebsite text:\n{site_text}" if site_text else "\n\n(Website nahi hai / fetch fail)"),
+        _pdesc(p)
+        + (
+            f"\n\nWebsite text:\n{site_text}"
+            if site_text
+            else "\n\n(Website nahi hai / fetch fail)"
+        ),
         ground="sales account research prospect discovery qualification",
     )
     if not brief:
-        brief = (f"- {p.get('niche') or 'local'} business, {p.get('city') or '?'}\n"
-                 f"- {'Website hai' if url else 'Website NAHI — digital gap'}\n"
-                 f"- Reviews: {p.get('reviews') or p.get('user_ratings_total') or 0} — Google presence "
-                 + ("theek" if int(float(p.get("reviews") or p.get("user_ratings_total") or 0)) >= 10 else "WEAK"))
+        brief = (
+            f"- {p.get('niche') or 'local'} business, {p.get('city') or '?'}\n"
+            f"- {'Website hai' if url else 'Website NAHI — digital gap'}\n"
+            f"- Reviews: {p.get('reviews') or p.get('user_ratings_total') or 0} — Google presence "
+            + (
+                "theek"
+                if int(float(p.get("reviews") or p.get("user_ratings_total") or 0)) >= 10
+                else "WEAK"
+            )
+        )
     return {"agent": "riya", "brief": brief, "website_found": bool(site_text)}
 
 
@@ -139,9 +153,11 @@ async def _competitive(p: dict) -> dict[str, Any]:
         ground="sales competitive positioning differentiation deal strategy",
     )
     if not txt:
-        txt = ("- Abhi: word-of-mouth + kabhi-kabhi boosted post\n"
-               "- Compare karega: local agency (₹8-15k/mo) ya DIY apps\n"
-               "- Humara edge: agency-level kaam ₹1,199 se + AI callback jo koi nahi deta")
+        txt = (
+            "- Abhi: word-of-mouth + kabhi-kabhi boosted post\n"
+            "- Compare karega: local agency (₹8-15k/mo) ya DIY apps\n"
+            "- Humara edge: agency-level kaam ₹1,199 se + AI callback jo koi nahi deta"
+        )
     return {"agent": "dev", "competitive": txt}
 
 
@@ -151,21 +167,41 @@ def build_sequence_fallback(p: dict) -> list[dict[str, str]]:
     niche = p.get("niche") or "business"
     city = p.get("city") or "aapke area"
     return [
-        {"day": "1", "channel": "email", "title": "Hook",
-         "draft": f"Namaste {nm}! {city} me aapka {niche} dekha — Google pe aapki listing me kuch quick "
-                  f"improvements dikhe jo naye customer la sakte hain. 2-min ka FREE audit bhejun? leadsgenai.in/audit"},
-        {"day": "2", "channel": "whatsapp", "title": "WA nudge",
-         "draft": f"Namaste {nm} 🙏 Kal email bheja tha — aapke {niche} ke liye FREE Google audit ready hai. "
-                  f"Haan bolo to abhi link bhej deta hoon."},
-        {"day": "7", "channel": "email", "title": "Social proof",
-         "draft": f"{nm}, {city} ke ek {niche} ne humare AI marketing se 30 din me inquiries double ki — "
-                  f"posts+reviews+missed-call callback sab automatic. ₹1,199/mo se start. Demo: leadsgenai.in/demo"},
-        {"day": "14", "channel": "email", "title": "Different angle",
-         "draft": f"{nm}, ek sawaal — jab koi customer call karta hai aur aap busy ho, woh kahan jata hai? "
-                  f"Competitor ke paas. Humara AI 2-min me callback karta hai. Dekho: leadsgenai.in/pricing"},
-        {"day": "21", "channel": "email", "title": "Breakup",
-         "draft": f"{nm}, lagta hai abhi sahi time nahi. Koi baat nahi! Yeh FREE audit link rakh lijiye — "
-                  f"jab bhi marketing badhani ho, 2 minute me report milegi: leadsgenai.in/audit. Shubhkamnayein!"},
+        {
+            "day": "1",
+            "channel": "email",
+            "title": "Hook",
+            "draft": f"Namaste {nm}! {city} me aapka {niche} dekha — Google pe aapki listing me kuch quick "
+            f"improvements dikhe jo naye customer la sakte hain. 2-min ka FREE audit bhejun? leadsgenai.in/audit",
+        },
+        {
+            "day": "2",
+            "channel": "whatsapp",
+            "title": "WA nudge",
+            "draft": f"Namaste {nm} 🙏 Kal email bheja tha — aapke {niche} ke liye FREE Google audit ready hai. "
+            f"Haan bolo to abhi link bhej deta hoon.",
+        },
+        {
+            "day": "7",
+            "channel": "email",
+            "title": "Social proof",
+            "draft": f"{nm}, {city} ke ek {niche} ne humare AI marketing se 30 din me inquiries double ki — "
+            f"posts+reviews+missed-call callback sab automatic. ₹1,199/mo se start. Demo: leadsgenai.in/demo",
+        },
+        {
+            "day": "14",
+            "channel": "email",
+            "title": "Different angle",
+            "draft": f"{nm}, ek sawaal — jab koi customer call karta hai aur aap busy ho, woh kahan jata hai? "
+            f"Competitor ke paas. Humara AI 2-min me callback karta hai. Dekho: leadsgenai.in/pricing",
+        },
+        {
+            "day": "21",
+            "channel": "email",
+            "title": "Breakup",
+            "draft": f"{nm}, lagta hai abhi sahi time nahi. Koi baat nahi! Yeh FREE audit link rakh lijiye — "
+            f"jab bhi marketing badhani ho, 2 minute me report milegi: leadsgenai.in/audit. Shubhkamnayein!",
+        },
     ]
 
 
@@ -186,7 +222,7 @@ async def _outreach(p: dict, qual: dict | None = None) -> dict[str, Any]:
     try:
         i, j = raw.find("["), raw.rfind("]")
         if i != -1 and j != -1:
-            cand = json.loads(raw[i: j + 1])
+            cand = json.loads(raw[i : j + 1])
             if isinstance(cand, list) and len(cand) >= 3 and all(c.get("draft") for c in cand):
                 seq = cand[:5]
     except Exception:
@@ -195,26 +231,41 @@ async def _outreach(p: dict, qual: dict | None = None) -> dict[str, Any]:
 
 
 OBJECTION_PLAYBOOK = [
-    {"objection": "Mehenga hai / budget nahi", "category": "price",
-     "laer": "Acknowledge: bilkul sahi sawaal. Explore: abhi marketing pe mahine ka kitna jata hai? "
-             "Respond: ₹1,199 me jo milta hai uska agency rate ₹8-10k hai; ek naya customer bhi aaya to paisa vasool. "
-             "Redirect: Starter se shuru karo, kabhi bhi band kar sakte ho."},
-    {"objection": "Pehle se koi (agency/ladka) sambhal raha hai", "category": "competition",
-     "laer": "Acknowledge: badhiya, matlab marketing ki value samajhte ho. Explore: results se khush ho? reviews/callback "
-             "bhi karta hai? Respond: hum replace nahi, AUTOMATE karte hain — roz ka content+review reply+missed-call "
-             "callback 24/7. Redirect: ek mahina saath chala ke compare kar lo."},
-    {"objection": "Time nahi hai / baad me", "category": "timing",
-     "laer": "Acknowledge: samajh sakta hoon, dhandha pehle. Explore: kaunsa season busy hai? Respond: isiliye to yeh hai — "
-             "setup 10 minute, baaki sab AI khud karta hai; busy season me hi naye customer sabse zyada milte hain. "
-             "Redirect: abhi sirf FREE audit dekh lo, 2 minute."},
-    {"objection": "Khud kar lenge / bhatija kar dega", "category": "diy",
-     "laer": "Acknowledge: bilkul ho sakta hai. Explore: roz post + har review ka reply + har missed call pe turant "
-             "callback — consistently ho pa raha hai? Respond: consistency hi game hai, AI kabhi chutti nahi leta. "
-             "Redirect: demo dekho — leadsgenai.in/demo pe apne business ka naam daalo."},
-    {"objection": "AI pe bharosa nahi / gimmick lagta hai", "category": "trust",
-     "laer": "Acknowledge: sahi soch, naya hai. Explore: sabse bada dar kya hai — galat post ya paisa waste? "
-             "Respond: har post aap approve karte ho (1-click), kuch bhi auto-publish nahi hota; pehla hafta result "
-             "khud dekho. Redirect: ₹0 me /demo try karo, card bhi nahi chahiye."},
+    {
+        "objection": "Mehenga hai / budget nahi",
+        "category": "price",
+        "laer": "Acknowledge: bilkul sahi sawaal. Explore: abhi marketing pe mahine ka kitna jata hai? "
+        "Respond: ₹1,199 me jo milta hai uska agency rate ₹8-10k hai; ek naya customer bhi aaya to paisa vasool. "
+        "Redirect: Starter se shuru karo, kabhi bhi band kar sakte ho.",
+    },
+    {
+        "objection": "Pehle se koi (agency/ladka) sambhal raha hai",
+        "category": "competition",
+        "laer": "Acknowledge: badhiya, matlab marketing ki value samajhte ho. Explore: results se khush ho? reviews/callback "
+        "bhi karta hai? Respond: hum replace nahi, AUTOMATE karte hain — roz ka content+review reply+missed-call "
+        "callback 24/7. Redirect: ek mahina saath chala ke compare kar lo.",
+    },
+    {
+        "objection": "Time nahi hai / baad me",
+        "category": "timing",
+        "laer": "Acknowledge: samajh sakta hoon, dhandha pehle. Explore: kaunsa season busy hai? Respond: isiliye to yeh hai — "
+        "setup 10 minute, baaki sab AI khud karta hai; busy season me hi naye customer sabse zyada milte hain. "
+        "Redirect: abhi sirf FREE audit dekh lo, 2 minute.",
+    },
+    {
+        "objection": "Khud kar lenge / bhatija kar dega",
+        "category": "diy",
+        "laer": "Acknowledge: bilkul ho sakta hai. Explore: roz post + har review ka reply + har missed call pe turant "
+        "callback — consistently ho pa raha hai? Respond: consistency hi game hai, AI kabhi chutti nahi leta. "
+        "Redirect: demo dekho — leadsgenai.in/demo pe apne business ka naam daalo.",
+    },
+    {
+        "objection": "AI pe bharosa nahi / gimmick lagta hai",
+        "category": "trust",
+        "laer": "Acknowledge: sahi soch, naya hai. Explore: sabse bada dar kya hai — galat post ya paisa waste? "
+        "Respond: har post aap approve karte ho (1-click), kuch bhi auto-publish nahi hota; pehla hafta result "
+        "khud dekho. Redirect: ₹0 me /demo try karo, card bhi nahi chahiye.",
+    },
 ]
 
 
@@ -231,7 +282,7 @@ async def _objections(p: dict) -> dict[str, Any]:
     try:
         i, j = raw.find("["), raw.rfind("]")
         if i != -1 and j != -1:
-            cand = json.loads(raw[i: j + 1])
+            cand = json.loads(raw[i : j + 1])
             if isinstance(cand, list) and len(cand) >= 3 and all(c.get("objection") for c in cand):
                 out = cand[:5]
     except Exception:
@@ -250,14 +301,18 @@ def _render_md(p: dict, parts: dict[str, Any]) -> str:
         f"B {q.get('budget', 0)}/25 · A {q.get('authority', 0)}/25 · N {q.get('need', 0)}/25 · T {q.get('timeline', 0)}/25",
         f"**Action:** {q.get('action', '')}",
         "",
-        "## 🔍 Research (Riya)", parts.get("research", {}).get("brief", ""),
+        "## 🔍 Research (Riya)",
+        parts.get("research", {}).get("brief", ""),
         "",
-        "## 🥊 Competitive (Dev)", parts.get("competitive", {}).get("competitive", ""),
+        "## 🥊 Competitive (Dev)",
+        parts.get("competitive", {}).get("competitive", ""),
         "",
         "## ✉️ Outreach sequence (Isha) — drafts, 1-click send",
     ]
     for s in parts.get("outreach", {}).get("sequence", []):
-        lines.append(f"- **Day {s.get('day')} [{s.get('channel')}] {s.get('title')}**: {s.get('draft')}")
+        lines.append(
+            f"- **Day {s.get('day')} [{s.get('channel')}] {s.get('title')}**: {s.get('draft')}"
+        )
     lines += ["", "## 🛡️ Objection playbook (Arjun)"]
     for o in parts.get("objections", {}).get("playbook", []):
         lines.append(f"- **\"{o.get('objection')}\"** → {o.get('laer')}")
@@ -281,7 +336,10 @@ async def analyze(p: dict) -> dict[str, Any]:
     try:
         qual = await _qualify(p)  # pehle — outreach ko hints milte
         research, competitive, outreach, objections = await asyncio.gather(
-            _research(p), _competitive(p), _outreach(p, qual), _objections(p),
+            _research(p),
+            _competitive(p),
+            _outreach(p, qual),
+            _objections(p),
             return_exceptions=True,
         )
 
@@ -321,19 +379,32 @@ async def analyze(p: dict) -> dict[str, Any]:
         md_path = os.path.join(_DIR, f"{pid}.md")
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(_render_md(p, parts))
-        row = {"ts": int(time.time()), "pid": pid, "name": p.get("name") or p.get("business_name"),
-               "phone": p.get("phone"), "niche": p.get("niche"), "city": p.get("city"),
-               "score": qual.get("total"), "grade": qual.get("grade"), "md": md_path}
+        row = {
+            "ts": int(time.time()),
+            "pid": pid,
+            "name": p.get("name") or p.get("business_name"),
+            "phone": p.get("phone"),
+            "niche": p.get("niche"),
+            "city": p.get("city"),
+            "score": qual.get("total"),
+            "grade": qual.get("grade"),
+            "md": md_path,
+        }
         with open(_INDEX, "a", encoding="utf-8") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
         try:
             from app.platform import team
 
-            team.log_event("swara", "sales_deepdive",
-                           f"Prospect deep-dive: {row['name']} → {row['score']}/100 (grade {row['grade']})")
+            team.log_event(
+                "swara",
+                "sales_deepdive",
+                f"Prospect deep-dive: {row['name']} → {row['score']}/100 (grade {row['grade']})",
+            )
         except Exception:
             pass
-        logger.info(f"[sales-team] analyzed {pid}: {qual.get('total')}/100 grade {qual.get('grade')}")
+        logger.info(
+            f"[sales-team] analyzed {pid}: {qual.get('total')}/100 grade {qual.get('grade')}"
+        )
         return {"ok": True, **row, "analysis": parts}
     except Exception as e:
         logger.warning(f"[sales-team] analyze fail: {e}")
@@ -364,9 +435,10 @@ async def run_auto(limit: int = 3) -> dict[str, Any]:
     try:
         leads: list = []
         try:
+            from sqlalchemy import select as _select
+
             from app.models.base import get_async_session
             from app.models.lead import Lead
-            from sqlalchemy import select as _select
 
             async with get_async_session() as session:
                 q = (
@@ -394,6 +466,7 @@ async def run_auto(limit: int = 3) -> dict[str, Any]:
         except Exception as _db_e:
             logger.debug(f"[sales-team] DB query fallback: {_db_e}")
             from app.platform import lead_scoring
+
             res = await lead_scoring.top_hot_leads(15)
             leads = res.get("leads") if isinstance(res, dict) else (res or [])
 
@@ -411,4 +484,3 @@ async def run_auto(limit: int = 3) -> dict[str, Any]:
     except Exception as e:
         logger.warning(f"[sales-team] run_auto fail: {e}")
         return {"ok": False, "error": str(e)[:160]}
-

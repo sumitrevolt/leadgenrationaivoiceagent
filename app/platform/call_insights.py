@@ -59,11 +59,7 @@ def _read_call_transcripts(limit: int = _RECENT_N) -> list[dict[str, Any]]:
     try:
         if not os.path.isdir(_TRANSCRIPTS_DIR):
             return out
-        files = sorted(
-            f
-            for f in os.listdir(_TRANSCRIPTS_DIR)
-            if f.endswith(".jsonl")
-        )
+        files = sorted(f for f in os.listdir(_TRANSCRIPTS_DIR) if f.endswith(".jsonl"))
         # Last ~14 daily files (newest last for tail read)
         for name in files[-14:]:
             fp = os.path.join(_TRANSCRIPTS_DIR, name)
@@ -118,7 +114,9 @@ def quick_stats() -> dict[str, Any]:
         c_by_channel = dict(Counter(str(r.get("channel") or "?") for r in cadence))
 
         t_today = sum(1 for t in transcripts if str(t.get("ts") or "")[:10] == today)
-        t_durs = [float(t.get("duration_s") or 0) for t in transcripts if t.get("duration_s") is not None]
+        t_durs = [
+            float(t.get("duration_s") or 0) for t in transcripts if t.get("duration_s") is not None
+        ]
         t_avg_dur = round(sum(t_durs) / len(t_durs), 1) if t_durs else 0.0
 
         return {
@@ -167,7 +165,18 @@ def _build_context() -> str:
         lines.append("## Call qualifications (post-call AI):")
         for q in quals[-25:]:
             lines.append(
-                "- " + _compact(q, ("call_id", "interest_score", "qualified", "appointment_requested", "budget_signal", "summary"))
+                "- "
+                + _compact(
+                    q,
+                    (
+                        "call_id",
+                        "interest_score",
+                        "qualified",
+                        "appointment_requested",
+                        "budget_signal",
+                        "summary",
+                    ),
+                )
             )
 
     transcripts = _read_call_transcripts(_RECENT_N)

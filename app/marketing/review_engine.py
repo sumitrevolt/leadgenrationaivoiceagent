@@ -83,7 +83,9 @@ async def request_review(
     """
     biz = (business_name or "Hamari team").strip()
     name = (customer_name or "").strip()
-    happy = sentiment_score is None or (isinstance(sentiment_score, int) and sentiment_score >= HAPPY_THRESHOLD)
+    happy = sentiment_score is None or (
+        isinstance(sentiment_score, int) and sentiment_score >= HAPPY_THRESHOLD
+    )
 
     message = ""
     review_link = None

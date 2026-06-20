@@ -97,7 +97,9 @@ def test_newsletter_run_flag_off_record_only(nl_store, monkeypatch):
     from app.marketing import clients_store
 
     monkeypatch.setattr(
-        clients_store, "list_clients", lambda *a, **k: [{"id": "c1", "business_name": "Sharma Solar"}]
+        clients_store,
+        "list_clients",
+        lambda *a, **k: [{"id": "c1", "business_name": "Sharma Solar"}],
     )
     newsletter.add_subscribers("c1", [{"name": "Amit", "email": "amit@example.com"}])
     out = asyncio.run(newsletter.run_due_if_enabled())
@@ -123,10 +125,13 @@ def test_newsletter_run_flag_on_sends_and_month_dedupes(nl_store, monkeypatch):
     from app.marketing import clients_store
 
     monkeypatch.setattr(
-        clients_store, "list_clients", lambda *a, **k: [{"id": "c1", "business_name": "Sharma Solar"}]
+        clients_store,
+        "list_clients",
+        lambda *a, **k: [{"id": "c1", "business_name": "Sharma Solar"}],
     )
     newsletter.add_subscribers(
-        "c1", [{"name": "Amit", "email": "amit@example.com"}, {"name": "R", "email": "r@example.com"}]
+        "c1",
+        [{"name": "Amit", "email": "amit@example.com"}, {"name": "R", "email": "r@example.com"}],
     )
     out = asyncio.run(newsletter.run_due_if_enabled())
     assert out["enabled"] is True and out["sent"] == 2
@@ -143,8 +148,18 @@ def test_newsletter_rss_to_email(nl_store, monkeypatch):
         seo_blog,
         "list_articles",
         lambda *a, **k: [
-            {"slug": "post-1", "title": "Post 1", "meta_description": "d1", "created_at": "2026-06-01"},
-            {"slug": "post-2", "title": "Post 2", "meta_description": "d2", "created_at": "2026-06-02"},
+            {
+                "slug": "post-1",
+                "title": "Post 1",
+                "meta_description": "d1",
+                "created_at": "2026-06-01",
+            },
+            {
+                "slug": "post-2",
+                "title": "Post 2",
+                "meta_description": "d2",
+                "created_at": "2026-06-02",
+            },
         ],
     )
     d = newsletter.rss_to_email()
@@ -172,12 +187,28 @@ def test_winback_find_inactive(wb_store, monkeypatch):
     from app.platform import prospector
 
     rows = [
-        {"id": "p1", "business_name": "Old Gym", "phone": "9876543210",
-         "email": "gym@example.com", "status": "ready", "created_at": _iso_days_ago(90)},
-        {"id": "p2", "business_name": "Fresh Cafe", "phone": "9876500000",
-         "status": "ready", "created_at": _iso_days_ago(5)},
-        {"id": "p3", "business_name": "Dead Co", "phone": "9876511111",
-         "status": "dead", "created_at": _iso_days_ago(200)},
+        {
+            "id": "p1",
+            "business_name": "Old Gym",
+            "phone": "9876543210",
+            "email": "gym@example.com",
+            "status": "ready",
+            "created_at": _iso_days_ago(90),
+        },
+        {
+            "id": "p2",
+            "business_name": "Fresh Cafe",
+            "phone": "9876500000",
+            "status": "ready",
+            "created_at": _iso_days_ago(5),
+        },
+        {
+            "id": "p3",
+            "business_name": "Dead Co",
+            "phone": "9876511111",
+            "status": "dead",
+            "created_at": _iso_days_ago(200),
+        },
         {"id": "p4", "business_name": "No Date", "phone": "9876522222", "status": "ready"},
     ]
     monkeypatch.setattr(prospector, "list_prospects", lambda *a, **k: rows)
@@ -188,8 +219,13 @@ def test_winback_find_inactive(wb_store, monkeypatch):
 
 def test_winback_draft_shapes(wb_store):
     d = winback.draft(
-        {"type": "customer", "name": "Amit", "phone": "9876543210",
-         "business_name": "Sharma Salon", "days_inactive": 65}
+        {
+            "type": "customer",
+            "name": "Amit",
+            "phone": "9876543210",
+            "business_name": "Sharma Salon",
+            "days_inactive": 65,
+        }
     )
     assert d["ok"] is True and d["status"] == "draft"
     assert "wa.me/919876543210" in d["wa_link"]
@@ -205,8 +241,14 @@ def test_winback_run_gated_and_dedupes(wb_store, monkeypatch):
     from app.platform import prospector
 
     rows = [
-        {"id": "p1", "business_name": "Old Gym", "phone": "9876543210",
-         "email": "gym@example.com", "status": "ready", "created_at": _iso_days_ago(90)},
+        {
+            "id": "p1",
+            "business_name": "Old Gym",
+            "phone": "9876543210",
+            "email": "gym@example.com",
+            "status": "ready",
+            "created_at": _iso_days_ago(90),
+        },
     ]
     monkeypatch.setattr(prospector, "list_prospects", lambda *a, **k: rows)
     monkeypatch.delenv("WINBACK_ENGINE", raising=False)
@@ -228,11 +270,20 @@ def test_winback_run_gated_and_dedupes(wb_store, monkeypatch):
 def test_email_signature_branded(monkeypatch):
     from app.marketing import clients_store
 
-    fake = {"id": "c9", "business_name": "Sharma Solar", "slug": "sharma-solar",
-            "phone": "9876543210", "niche": "solar"}
-    monkeypatch.setattr(clients_store, "get_by_slug", lambda s: fake if s == "sharma-solar" else None)
+    fake = {
+        "id": "c9",
+        "business_name": "Sharma Solar",
+        "slug": "sharma-solar",
+        "phone": "9876543210",
+        "niche": "solar",
+    }
+    monkeypatch.setattr(
+        clients_store, "get_by_slug", lambda s: fake if s == "sharma-solar" else None
+    )
     monkeypatch.setattr(clients_store, "get_client", lambda c: None)
-    kit = email_signature.generate(slug="sharma-solar", campaign_banner_text="Diwali offer — 20% off!")
+    kit = email_signature.generate(
+        slug="sharma-solar", campaign_banner_text="Diwali offer — 20% off!"
+    )
     assert kit["ok"] is True
     assert "Sharma Solar" in kit["html"]
     assert "wa.me/919876543210" in kit["html"]

@@ -46,7 +46,9 @@ async def push(
 
         headers = {
             "Title": (title or "LeadGen AI").encode("ascii", "ignore").decode() or "LeadGen AI",
-            "Priority": priority if priority in ("min", "low", "default", "high", "urgent") else "default",
+            "Priority": (
+                priority if priority in ("min", "low", "default", "high", "urgent") else "default"
+            ),
         }
         if tags:
             headers["Tags"] = ",".join(str(t) for t in tags[:5])
@@ -61,7 +63,9 @@ async def push(
         return False
 
 
-def push_bg(title: str, message: str, priority: str = "default", tags: list[str] | None = None) -> None:
+def push_bg(
+    title: str, message: str, priority: str = "default", tags: list[str] | None = None
+) -> None:
     """Fire-and-forget from async context (task create; sync context = skip)."""
     try:
         import asyncio

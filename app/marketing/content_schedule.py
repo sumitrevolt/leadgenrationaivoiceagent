@@ -137,7 +137,11 @@ async def run_due(limit: int = 20) -> dict[str, Any]:
         try:
             from app.platform.team import log_event
 
-            log_event("isha", "content_scheduled", f"{res['prepared']} posts prepared (of {res['due']} due)")
+            log_event(
+                "isha",
+                "content_scheduled",
+                f"{res['prepared']} posts prepared (of {res['due']} due)",
+            )
         except Exception:
             pass
         return res

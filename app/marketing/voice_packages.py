@@ -31,8 +31,8 @@ Pure-data module — koi heavy import nahi. Kabhi raise nahi karta.
 from __future__ import annotations
 
 PILOT_DAYS: int = 7
-PILOT_CALL_CAP: int = 50        # fair-use pilot cap
-UNLIMITED_QUOTA: int = 9_999    # lead_usage.py me "unlimited" signal
+PILOT_CALL_CAP: int = 50  # fair-use pilot cap
+UNLIMITED_QUOTA: int = 9_999  # lead_usage.py me "unlimited" signal
 
 # Band metadata
 BANDS: dict[str, dict] = {
@@ -43,7 +43,7 @@ BANDS: dict[str, dict] = {
         "price_month": 4_999,
         "price_year": 49_990,
         "plan_monthly": "voice_a_monthly",
-        "plan_annual":  "voice_a_annual",
+        "plan_annual": "voice_a_annual",
     },
     "B": {
         "name": "Band B — Mid-premium niches",
@@ -52,7 +52,7 @@ BANDS: dict[str, dict] = {
         "price_month": 9_999,
         "price_year": 99_990,
         "plan_monthly": "voice_b_monthly",
-        "plan_annual":  "voice_b_annual",
+        "plan_annual": "voice_b_annual",
     },
     "C": {
         "name": "Band C — Premium niches",
@@ -61,14 +61,14 @@ BANDS: dict[str, dict] = {
         "price_month": 19_999,
         "price_year": 1_99_990,
         "plan_monthly": "voice_c_monthly",
-        "plan_annual":  "voice_c_annual",
+        "plan_annual": "voice_c_annual",
     },
 }
 
 # All valid plan IDs (used by subscription._sync_voice_plans)
 VOICE_PLAN_IDS: list[str] = (
     [BANDS[b]["plan_monthly"] for b in BANDS]
-    + [BANDS[b]["plan_annual"]  for b in BANDS]
+    + [BANDS[b]["plan_annual"] for b in BANDS]
     + ["voice_pilot"]
 )
 
@@ -82,6 +82,7 @@ _BASE_FEATURES: list[str] = [
     "WhatsApp follow-up drafts har interested lead ke liye",
     "CRM / webhook integration (leads seedha aapke system me)",
 ]
+
 
 # Tier-display list for the /voice-agent page (3 cards, band-resolved)
 def _make_tiers(band: str) -> list[dict]:
@@ -123,10 +124,11 @@ def _make_tiers(band: str) -> list[dict]:
             "name": f"Annual — {band} band",
             "tagline": "2 mahine free — ek baar pay karo, saal bhar tension nahi.",
             "billing": "annual",
-            "price_inr_month": b["price_month"],   # shown as "per month equivalent"
+            "price_inr_month": b["price_month"],  # shown as "per month equivalent"
             "price_inr_year": b["price_year"],
             "calls_included": "Unlimited calls",
-            "features": _BASE_FEATURES + [
+            "features": _BASE_FEATURES
+            + [
                 "2 mahine free (vs monthly billing)",
                 "Priority support + dedicated review call",
             ],
@@ -147,6 +149,7 @@ def niche_band(niche_key: str | None) -> str:
     """Niche key -> band letter (niches.py lead_band se; unknown => 'A')."""
     try:
         from app.niches import NICHES
+
         cfg = NICHES.get((niche_key or "").strip().lower()) or {}
         return normalize_band(cfg.get("lead_band"))
     except Exception:
@@ -179,6 +182,7 @@ def get_voice_packages(band: str | None = None, niche: str | None = None) -> dic
 # ---------------------------------------------------------------------------
 # Backward-compat helpers (lead_usage.py / subscription.py ke liye)
 # ---------------------------------------------------------------------------
+
 
 def voice_plan_parts(plan_id: str | None) -> tuple[str, str]:
     """plan_id -> (base_key, band). e.g. 'voice_b_monthly' -> ('voice_b_monthly','B').
@@ -232,11 +236,9 @@ def plan_lead_quota(plan_id: str | None) -> int:
 
 
 # Legacy aliases — koi bhi old import toot na jaye
-PACK_SIZE = 1           # no longer meaningful; kept for import compat
-PLAN_LEADS: dict[str, int] = {
-    info["plan_monthly"]: UNLIMITED_QUOTA
-    for info in BANDS.values()
-} | {
-    info["plan_annual"]: UNLIMITED_QUOTA
-    for info in BANDS.values()
-} | {"voice_pilot": PILOT_CALL_CAP}
+PACK_SIZE = 1  # no longer meaningful; kept for import compat
+PLAN_LEADS: dict[str, int] = (
+    {info["plan_monthly"]: UNLIMITED_QUOTA for info in BANDS.values()}
+    | {info["plan_annual"]: UNLIMITED_QUOTA for info in BANDS.values()}
+    | {"voice_pilot": PILOT_CALL_CAP}
+)

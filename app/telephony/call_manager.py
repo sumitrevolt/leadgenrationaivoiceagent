@@ -86,9 +86,7 @@ class CallManager:
         # .env) must NEVER crash the whole app — fall back to Vobiz (active India
         # provider) with a warning. Removing Exotel must not become a foot-gun.
         if provider not in ("twilio", "vobiz"):
-            logger.warning(
-                f"Unknown telephony provider '{provider}' — falling back to vobiz."
-            )
+            logger.warning(f"Unknown telephony provider '{provider}' — falling back to vobiz.")
             provider = "vobiz"
 
         if provider == "twilio":
@@ -414,7 +412,10 @@ class CallManager:
                 from app.telephony.consent_ledger import record_opt_out
 
                 record_opt_out(
-                    context.phone_number, reason="call_outcome", channel="voice", call_id=str(call_id)
+                    context.phone_number,
+                    reason="call_outcome",
+                    channel="voice",
+                    call_id=str(call_id),
                 )
             except Exception:
                 pass
@@ -564,17 +565,23 @@ class CallManager:
                         try:
                             import os as _os2
 
-                            if _os2.environ.get("CADENCE_ENGINE", "").strip() in ("1", "true", "yes"):
+                            if _os2.environ.get("CADENCE_ENGINE", "").strip() in (
+                                "1",
+                                "true",
+                                "yes",
+                            ):
                                 from app.marketing import cadence as _cad
 
-                                _cad.enroll({
-                                    "phone": context.phone_number,
-                                    "business_name": getattr(context, "client_name", "") or "",
-                                    "niche": getattr(context, "niche", "") or "",
-                                    "city": getattr(context, "city", "") or "",
-                                    "email": "",
-                                    "source": "AI Voice Call",
-                                })
+                                _cad.enroll(
+                                    {
+                                        "phone": context.phone_number,
+                                        "business_name": getattr(context, "client_name", "") or "",
+                                        "niche": getattr(context, "niche", "") or "",
+                                        "city": getattr(context, "city", "") or "",
+                                        "email": "",
+                                        "source": "AI Voice Call",
+                                    }
+                                )
                         except Exception:
                             pass
         except Exception as _qe:
@@ -587,8 +594,11 @@ class CallManager:
         # padhta hai). Best-effort, kabhi result return block nahi karta.
         try:
             import uuid as _uuid
+
             from app.models.base import get_db_session
-            from app.models.call_log import CallLog as _CL, CallOutcome as _CO, CallDirection as _CD
+            from app.models.call_log import CallDirection as _CD
+            from app.models.call_log import CallLog as _CL
+            from app.models.call_log import CallOutcome as _CO
 
             _outcome_map = {
                 "appointment": "APPOINTMENT",
@@ -627,34 +637,43 @@ class CallManager:
         # ── analytics_store.record_call (in-memory, fast dashboard) ──────────
         try:
             from app.api.analytics import analytics_store as _ast
-            _ast.record_call({
-                "completed_at": result.completed_at,
-                "duration_seconds": duration,
-                "status": "completed" if duration > 0 else "failed",
-                "outcome": outcome,
-                "lead_score": result.lead_score or 0,
-                "campaign_id": getattr(context, "campaign_id", None) or "unknown",
-                "agent_id": getattr(context, "agent_id", None) or "unassigned",
-            })
+
+            _ast.record_call(
+                {
+                    "completed_at": result.completed_at,
+                    "duration_seconds": duration,
+                    "status": "completed" if duration > 0 else "failed",
+                    "outcome": outcome,
+                    "lead_score": result.lead_score or 0,
+                    "campaign_id": getattr(context, "campaign_id", None) or "unknown",
+                    "agent_id": getattr(context, "agent_id", None) or "unassigned",
+                }
+            )
         except Exception as _ast_e:
             logger.debug(f"[call_manager] analytics_store.record_call skip: {_ast_e}")
 
         # ── outbound webhook: call_completed event ────────────────────────────
         try:
-            from app.platform import outbound_webhooks as _ow_cm
             import asyncio as _a
+
+            from app.platform import outbound_webhooks as _ow_cm
+
             # NOTE: the public API is outbound_webhooks.emit(event, payload, client_id)
             # — there is no fire_event(); the old name silently AttributeError'd under
             # the except below, so this event never actually fired. Use emit().
             _a.create_task(
-                _ow_cm.emit("call_completed", {
-                    "call_id": str(call_id),
-                    "outcome": outcome,
-                    "duration_seconds": duration,
-                    "lead_score": result.lead_score or 0,
-                    "phone": context.phone_number,
-                    "campaign_id": getattr(context, "campaign_id", None) or "",
-                }, client_id=getattr(context, "client_id", "") or "")
+                _ow_cm.emit(
+                    "call_completed",
+                    {
+                        "call_id": str(call_id),
+                        "outcome": outcome,
+                        "duration_seconds": duration,
+                        "lead_score": result.lead_score or 0,
+                        "phone": context.phone_number,
+                        "campaign_id": getattr(context, "campaign_id", None) or "",
+                    },
+                    client_id=getattr(context, "client_id", "") or "",
+                )
             )
         except Exception:
             pass
@@ -680,13 +699,16 @@ class CallManager:
                 if result.callback_time:
                     try:
                         from datetime import datetime as _dt
+
                         _cb_dt = _dt.fromisoformat(result.callback_time)
                         _diff = (_cb_dt - _dt.now()).total_seconds() / 3600
                         _cb_hours = max(1, int(_diff))
                     except Exception:
                         pass
-                from app.platform.niche_database import update_after_call as _ndb_update
                 import asyncio as _asyncio
+
+                from app.platform.niche_database import update_after_call as _ndb_update
+
                 _asyncio.create_task(
                     _ndb_update(
                         lead_id=_lead_id,

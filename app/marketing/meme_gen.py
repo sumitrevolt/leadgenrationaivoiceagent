@@ -40,7 +40,9 @@ def _meme_svg(top: str, bottom: str, brand: str) -> str:
     )
 
 
-async def generate_meme(business_name: str = "", niche: str = "general", topic: str = "") -> dict[str, Any]:
+async def generate_meme(
+    business_name: str = "", niche: str = "general", topic: str = ""
+) -> dict[str, Any]:
     """Ek meme: top/bottom text (free-LLM, fallback) + SVG + caption. Kabhi raise nahi."""
     business = (business_name or "leadsgenai.in").strip()[:60]
     top = bottom = ""
@@ -52,7 +54,12 @@ async def generate_meme(business_name: str = "", niche: str = "general", topic: 
                 "Tu Indian small-business meme writer hai. Relatable, funny, clean. "
                 'JSON de: {"top": "<setup <10 words>", "bottom": "<punchline <10 words>"} Hinglish.'
             ),
-            [{"role": "user", "content": f"Niche: {niche} | Topic: {topic or 'customer/leads ka struggle'}"}],
+            [
+                {
+                    "role": "user",
+                    "content": f"Niche: {niche} | Topic: {topic or 'customer/leads ka struggle'}",
+                }
+            ],
             max_tokens=120,
         )
         s, e = raw.find("{"), raw.rfind("}")
@@ -68,5 +75,10 @@ async def generate_meme(business_name: str = "", niche: str = "general", topic: 
         "bottom": bottom,
         "svg": _meme_svg(top, bottom, business),
         "caption": f"{top} {bottom} 😂 | Tag karo us dost ko jiska dhandha aisa hi hai | {business}",
-        "hashtags": ["#SmallBusinessMemes", "#DhandaMemes", "#LocalBusiness", "#" + (niche or "business").replace("_", "")],
+        "hashtags": [
+            "#SmallBusinessMemes",
+            "#DhandaMemes",
+            "#LocalBusiness",
+            "#" + (niche or "business").replace("_", ""),
+        ],
     }

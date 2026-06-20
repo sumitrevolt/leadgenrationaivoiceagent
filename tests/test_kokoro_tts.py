@@ -3,6 +3,7 @@
 No network, no real kokoro dep: we exercise the inert path and monkeypatch the
 fallback into the TextToSpeech facade.
 """
+
 from __future__ import annotations
 
 import asyncio

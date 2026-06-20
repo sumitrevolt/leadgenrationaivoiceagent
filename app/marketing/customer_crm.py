@@ -44,10 +44,34 @@ _MAX_LLM_WISHES_PER_RUN = 15  # token discipline — baaki template se
 
 # ---- import alias mapping (Apollo/Excel/Google-Contacts style headers) ---- #
 _FIELD_ALIASES: dict[str, tuple[str, ...]] = {
-    "name": ("name", "full name", "customer name", "first name", "naam", "client name", "contact name"),
-    "phone": ("phone", "mobile", "phone number", "mobile number", "contact", "contact number", "whatsapp", "number"),
+    "name": (
+        "name",
+        "full name",
+        "customer name",
+        "first name",
+        "naam",
+        "client name",
+        "contact name",
+    ),
+    "phone": (
+        "phone",
+        "mobile",
+        "phone number",
+        "mobile number",
+        "contact",
+        "contact number",
+        "whatsapp",
+        "number",
+    ),
     "birthday": ("birthday", "dob", "date of birth", "birth date", "birthdate", "janamdin", "bday"),
-    "anniversary": ("anniversary", "anniv", "marriage anniversary", "wedding anniversary", "shaadi", "anniversary date"),
+    "anniversary": (
+        "anniversary",
+        "anniv",
+        "marriage anniversary",
+        "wedding anniversary",
+        "shaadi",
+        "anniversary date",
+    ),
     "tags": ("tags", "tag", "labels", "label", "group", "segment", "category"),
 }
 
@@ -88,7 +112,15 @@ def add_customer(
 
         res = crm_lite.add_customers(
             client_id,
-            [{"name": name, "phone": phone, "birthday": birthday, "anniversary": anniversary, "tags": tags or []}],
+            [
+                {
+                    "name": name,
+                    "phone": phone,
+                    "birthday": birthday,
+                    "anniversary": anniversary,
+                    "tags": tags or [],
+                }
+            ],
         )
         return {"ok": res.get("added", 0) > 0, **res}
     except Exception as e:
@@ -124,7 +156,10 @@ def import_rows(
         mapped = [_map_row(r) for r in parsed]
         mapped = [m for m in mapped if m.get("phone")]
         if not mapped:
-            return {"ok": False, "error": "Kisi row me phone nahi mila (Phone/Mobile column zaroori)."}
+            return {
+                "ok": False,
+                "error": "Kisi row me phone nahi mila (Phone/Mobile column zaroori).",
+            }
 
         from app.marketing import crm_lite
 
@@ -225,7 +260,9 @@ async def _llm_wish(name: str, biz: str, occasion: str, niche: str) -> str:
     try:
         from app.voice_agent import free_ai
 
-        occ_hi = "janamdin (birthday)" if occasion == "birthday" else "shaadi ki salgirah (anniversary)"
+        occ_hi = (
+            "janamdin (birthday)" if occasion == "birthday" else "shaadi ki salgirah (anniversary)"
+        )
         system = (
             "Tu ek Indian local business ka friendly social-media writer hai. "
             "Customer ke liye EK chhota (max 35 shabd) warm Hinglish (Roman script) "
@@ -301,7 +338,7 @@ def _read_drafts(limit: int = 100) -> list[dict[str, Any]]:
                         continue
     except Exception as e:
         logger.warning(f"[customer_crm] drafts read failed: {e}")
-    return rows[-max(1, min(int(limit or 100), 1000)):]
+    return rows[-max(1, min(int(limit or 100), 1000)) :]
 
 
 def list_wish_drafts(limit: int = 100, date: str | None = None) -> list[dict[str, Any]]:
@@ -309,7 +346,7 @@ def list_wish_drafts(limit: int = 100, date: str | None = None) -> list[dict[str
     rows = _read_drafts(limit=1000)
     if date:
         rows = [r for r in rows if r.get("date") == date]
-    return rows[-max(1, min(int(limit or 100), 1000)):]
+    return rows[-max(1, min(int(limit or 100), 1000)) :]
 
 
 async def run_wishes(execute: bool = False) -> dict[str, Any]:

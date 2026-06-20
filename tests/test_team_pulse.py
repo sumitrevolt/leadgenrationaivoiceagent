@@ -9,12 +9,22 @@ def test_team_pulse_logs_and_never_raises(monkeypatch):
     from app.platform import team
 
     logged: list[tuple] = []
-    monkeypatch.setattr(team, "log_event", lambda m, a, d="", status="ok", meta=None: logged.append((m, a)))
+    monkeypatch.setattr(
+        team, "log_event", lambda m, a, d="", status="ok", meta=None: logged.append((m, a))
+    )
     # team_status DB-dependent — stub recency to deterministic
-    monkeypatch.setattr(team, "team_status", lambda: {"members": [
-        {"key": "kavya", "last_active_mins": 500}, {"key": "tara", "last_active_mins": 10},
-        {"key": "arjun", "last_active_mins": None}, {"key": "meera", "last_active_mins": 300},
-    ]})
+    monkeypatch.setattr(
+        team,
+        "team_status",
+        lambda: {
+            "members": [
+                {"key": "kavya", "last_active_mins": 500},
+                {"key": "tara", "last_active_mins": 10},
+                {"key": "arjun", "last_active_mins": None},
+                {"key": "meera", "last_active_mins": 300},
+            ]
+        },
+    )
 
     res = team.team_pulse(max_members=3)
     assert res["count"] >= 1 and res["count"] <= 3
@@ -29,7 +39,9 @@ def test_team_pulse_monitor_failure_isolated(monkeypatch):
     from app.platform import team
 
     logged = []
-    monkeypatch.setattr(team, "log_event", lambda m, a, d="", status="ok", meta=None: logged.append(m))
+    monkeypatch.setattr(
+        team, "log_event", lambda m, a, d="", status="ok", meta=None: logged.append(m)
+    )
     monkeypatch.setattr(team, "team_status", lambda: {"members": []})
     # ek monitor module import-fail kare to bhi baaki pulse hon (defensive _safe)
     res = team.team_pulse(max_members=6)

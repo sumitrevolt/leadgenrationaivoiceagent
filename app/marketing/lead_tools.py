@@ -16,7 +16,9 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
-def missed_call_revenue(missed_per_day: float, avg_deal_value: float, close_rate: float = 0.2) -> dict[str, Any]:
+def missed_call_revenue(
+    missed_per_day: float, avg_deal_value: float, close_rate: float = 0.2
+) -> dict[str, Any]:
     """Roz missed inquiries × deal-value × close-rate → mahine/saal ka khoya revenue."""
     try:
         m = max(0.0, float(missed_per_day))
@@ -83,9 +85,21 @@ async def google_presence_score(business_name: str, city: str = "") -> dict[str,
 
 def list_tools() -> list[dict[str, str]]:
     return [
-        {"key": "missed_call_revenue", "title": "Missed-Call Revenue Calculator", "desc": "Kitna paisa missed inquiries se ja raha"},
-        {"key": "lead_cost_savings", "title": "Lead-Cost Savings Calculator", "desc": "AI se kitna bacha sakte ho"},
-        {"key": "google_presence_score", "title": "Google Presence Checker", "desc": "Aapka Google score + fixes"},
+        {
+            "key": "missed_call_revenue",
+            "title": "Missed-Call Revenue Calculator",
+            "desc": "Kitna paisa missed inquiries se ja raha",
+        },
+        {
+            "key": "lead_cost_savings",
+            "title": "Lead-Cost Savings Calculator",
+            "desc": "AI se kitna bacha sakte ho",
+        },
+        {
+            "key": "google_presence_score",
+            "title": "Google Presence Checker",
+            "desc": "Aapka Google score + fixes",
+        },
     ]
 
 

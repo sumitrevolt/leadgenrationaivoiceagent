@@ -47,6 +47,7 @@ except Exception:  # pragma: no cover
 
         yield _NoopSpan()
 
+
 # --- openai SDK guard (requirements me hai, par import-safe rakho) --- #
 try:
     from openai import AsyncOpenAI  # type: ignore
@@ -62,14 +63,14 @@ except Exception:  # pragma: no cover - SDK missing
 _GROQ_BASE = "https://api.groq.com/openai/v1"
 _CEREBRAS_BASE = "https://api.cerebras.ai/v1"
 _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
-_XAI_BASE = "https://api.x.ai/v1"          # credits-based, kept for config compat only
+_XAI_BASE = "https://api.x.ai/v1"  # credits-based, kept for config compat only
 _GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
-_SAMBANOVA_BASE = "https://api.sambanova.ai/v1"   # 100% free, no card — cloud.sambanova.ai
-_MISTRAL_BASE = "https://api.mistral.ai/v1"       # free tier La Plateforme — console.mistral.ai
+_SAMBANOVA_BASE = "https://api.sambanova.ai/v1"  # 100% free, no card — cloud.sambanova.ai
+_MISTRAL_BASE = "https://api.mistral.ai/v1"  # free tier La Plateforme — console.mistral.ai
 
 # Models — all free tier.
 _GROQ_STT_MODEL = "whisper-large-v3-turbo"
-_CEREBRAS_LLM_MODEL = "gpt-oss-120b"       # free, fastest 120B
+_CEREBRAS_LLM_MODEL = "gpt-oss-120b"  # free, fastest 120B
 _GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # free, 6000 RPM, 14k RPD
 _GEMINI_LLM_MODEL = "gemini-2.0-flash-lite"  # free, 1500 RPD, 30 RPM — key already set
 _SAMBANOVA_LLM_MODEL = "Meta-Llama-3.3-70B-Instruct"  # free, fast inference chip
@@ -79,15 +80,16 @@ _MISTRAL_LLM_MODEL = "mistral-small-latest"  # free tier (La Plateforme)
 # madad karte). Circuit-breaker per-provider hai → provider poora down ho to skip;
 # par jab sirf primary model 429/decommission ho aur provider chalu rahe, yeh strong
 # fallback dete. Widely-known FREE ids — galat/404 id ko breaker graceful sideline karta.
-_GROQ_QWEN3_MODEL = "qwen/qwen3-32b"                  # Groq free Qwen3-32B (strong multilingual)
-_GROQ_LLAMA70B_MODEL = "llama-3.3-70b-versatile"     # Groq free Llama-3.3-70B (high quality)
-_CEREBRAS_QWEN3_MODEL = "qwen-3-32b"                  # Cerebras free Qwen3-32B
+_GROQ_QWEN3_MODEL = "qwen/qwen3-32b"  # Groq free Qwen3-32B (strong multilingual)
+_GROQ_LLAMA70B_MODEL = "llama-3.3-70b-versatile"  # Groq free Llama-3.3-70B (high quality)
+_CEREBRAS_QWEN3_MODEL = "qwen-3-32b"  # Cerebras free Qwen3-32B
 _GROQ_KIMI_K2_MODEL = "moonshotai/kimi-k2-instruct"  # Groq free Kimi K2 (strong multilingual)
 # OpenRouter free models — cascade (deepseek/deepseek-chat:free deprecated 2026-06 → 404)
-_OPENROUTER_LLM_MODEL = "meta-llama/llama-3.1-8b-instruct:free"   # primary (llama 8B free)
-_OPENROUTER_LLM_MODEL2 = "deepseek/deepseek-r1:free"              # deepseek R1 free
-_OPENROUTER_LLM_MODEL3 = "google/gemma-2-9b-it:free"              # gemma fallback
+_OPENROUTER_LLM_MODEL = "meta-llama/llama-3.1-8b-instruct:free"  # primary (llama 8B free)
+_OPENROUTER_LLM_MODEL2 = "deepseek/deepseek-r1:free"  # deepseek R1 free
+_OPENROUTER_LLM_MODEL3 = "google/gemma-2-9b-it:free"  # gemma fallback
 _XAI_LLM_MODEL = "grok-3-mini"  # credits-based — NOT in chain, kept for key compat
+
 
 # --------------------------------------------------------------------------- #
 # SELF-HOSTED LLM (OWN STACK — kisi free/paid tier pe NIRBHAR nahi). Ollama
@@ -100,16 +102,19 @@ _XAI_LLM_MODEL = "grok-3-mini"  # credits-based — NOT in chain, kept for key c
 # --------------------------------------------------------------------------- #
 def _ollama_url() -> str:
     import os as _os
+
     return (_os.environ.get("OLLAMA_URL") or "").strip()
 
 
 def _ollama_model() -> str:
     import os as _os
+
     return (_os.environ.get("OLLAMA_MODEL") or "qwen2.5:3b-instruct").strip()
 
 
 def _ollama_timeout() -> float:
     import os as _os
+
     try:
         return float(_os.environ.get("OLLAMA_TIMEOUT_S", "30") or 30)
     except Exception:
@@ -118,7 +123,13 @@ def _ollama_timeout() -> float:
 
 def _ollama_primary() -> bool:
     import os as _os
-    return bool(_ollama_url()) and _os.environ.get("OLLAMA_PRIMARY", "0").strip().lower() in ("1", "true", "yes")
+
+    return bool(_ollama_url()) and _os.environ.get("OLLAMA_PRIMARY", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
 
 # Hard per-call latency cap. 8s: Cerebras normally 4-5s; 6s ne use beech me
 # kaat ke weak generic fallback ("samajh gayi, aur bataiye") + repeats paida
@@ -149,10 +160,19 @@ def _trip_cooldown(p: str, err: str) -> None:
     # variants rotate → 404). DONO ko LONG cooldown (max, ~restart tak) do — warna dead
     # endpoint har chat() fallback pe dobara retry hota hai (LIVE: openrouter :free 404
     # → 52% LLM fallback waste). Provider-agnostic dead-model sideline.
-    if any(k in e for k in (
-        "403", "permission-denied", "permission denied",
-        "404", "not found", "no endpoints", "model_not_found", "no allowed providers",
-    )):
+    if any(
+        k in e
+        for k in (
+            "403",
+            "permission-denied",
+            "permission denied",
+            "404",
+            "not found",
+            "no endpoints",
+            "model_not_found",
+            "no allowed providers",
+        )
+    ):
         _LLM_TRIP_STREAK[p] = 99  # force max cooldown
         _LLM_COOLDOWN_UNTIL[p] = time.time() + _LLM_COOLDOWN_MAX_S
         return
@@ -161,7 +181,9 @@ def _trip_cooldown(p: str, err: str) -> None:
     streak = _LLM_TRIP_STREAK.get(p, 0) + 1
     _LLM_TRIP_STREAK[p] = streak
     cd = min(_LLM_COOLDOWN_S * (2 ** (streak - 1)), _LLM_COOLDOWN_MAX_S)
-    if any(k in e for k in ("per day", "daily", "tpd", "tokens per day", "limit reached for model")):
+    if any(
+        k in e for k in ("per day", "daily", "tpd", "tokens per day", "limit reached for model")
+    ):
         cd = _LLM_COOLDOWN_MAX_S
     _LLM_COOLDOWN_UNTIL[p] = time.time() + cd
 
@@ -177,8 +199,14 @@ def _or_keys() -> list[str]:
     """Return all non-empty OpenRouter keys in order."""
     try:
         from app.config import settings
+
         keys = []
-        for attr in ("openrouter_api_key", "openrouter_api_key_2", "openrouter_api_key_3", "openrouter_api_key_4"):
+        for attr in (
+            "openrouter_api_key",
+            "openrouter_api_key_2",
+            "openrouter_api_key_3",
+            "openrouter_api_key_4",
+        ):
             v = (getattr(settings, attr, "") or "").strip()
             if v:
                 keys.append(v)
@@ -189,16 +217,16 @@ def _or_keys() -> list[str]:
 
 # provider -> (settings attr, base_url)
 _PROVIDER_CFG: dict[str, tuple[str, str]] = {
-    "groq":         ("groq_api_key",          _GROQ_BASE),
-    "cerebras":     ("cerebras_api_key",       _CEREBRAS_BASE),
-    "openrouter":   ("openrouter_api_key",     _OPENROUTER_BASE),
-    "openrouter_2": ("openrouter_api_key_2",   _OPENROUTER_BASE),
-    "openrouter_3": ("openrouter_api_key_3",   _OPENROUTER_BASE),
-    "openrouter_4": ("openrouter_api_key_4",   _OPENROUTER_BASE),
-    "xai":          ("xai_api_key",            _XAI_BASE),  # credits-based, chain me nahi
-    "gemini":     ("gemini_api_key",    _GEMINI_BASE),
-    "sambanova":  ("sambanova_api_key", _SAMBANOVA_BASE),  # free — cloud.sambanova.ai
-    "mistral":    ("mistral_api_key",   _MISTRAL_BASE),    # free tier — console.mistral.ai
+    "groq": ("groq_api_key", _GROQ_BASE),
+    "cerebras": ("cerebras_api_key", _CEREBRAS_BASE),
+    "openrouter": ("openrouter_api_key", _OPENROUTER_BASE),
+    "openrouter_2": ("openrouter_api_key_2", _OPENROUTER_BASE),
+    "openrouter_3": ("openrouter_api_key_3", _OPENROUTER_BASE),
+    "openrouter_4": ("openrouter_api_key_4", _OPENROUTER_BASE),
+    "xai": ("xai_api_key", _XAI_BASE),  # credits-based, chain me nahi
+    "gemini": ("gemini_api_key", _GEMINI_BASE),
+    "sambanova": ("sambanova_api_key", _SAMBANOVA_BASE),  # free — cloud.sambanova.ai
+    "mistral": ("mistral_api_key", _MISTRAL_BASE),  # free tier — console.mistral.ai
 }
 
 
@@ -462,7 +490,9 @@ async def chat(
         if budget_guard.active():
             _ok, _bi = await budget_guard.allow(scope)
             if not _ok:
-                logger.warning("[free_ai] budget guard blocked scope=%s reason=%s", scope, _bi.get("reason"))
+                logger.warning(
+                    "[free_ai] budget guard blocked scope=%s reason=%s", scope, _bi.get("reason")
+                )
                 return "", ""
     except Exception:
         pass  # guard error = proceed normally (fail-open)

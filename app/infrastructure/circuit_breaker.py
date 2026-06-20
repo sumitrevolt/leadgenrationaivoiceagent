@@ -51,8 +51,16 @@ def enabled() -> bool:
 class CircuitBreaker:
     """Per-service breaker. Never raises; cheap; in-memory."""
 
-    __slots__ = ("name", "fail_threshold", "reset_after_s", "half_open_max",
-                 "_fails", "_state", "_opened_at", "_half_calls")
+    __slots__ = (
+        "name",
+        "fail_threshold",
+        "reset_after_s",
+        "half_open_max",
+        "_fails",
+        "_state",
+        "_opened_at",
+        "_half_calls",
+    )
 
     def __init__(
         self,
@@ -109,7 +117,9 @@ class CircuitBreaker:
             if self._state != "open":
                 logger.warning(
                     "circuit %s: → OPEN (%d fails, cooldown %.0fs)",
-                    self.name, self._fails, self.reset_after_s,
+                    self.name,
+                    self._fails,
+                    self.reset_after_s,
                 )
             self._state = "open"
             self._opened_at = time.monotonic()
@@ -118,8 +128,11 @@ class CircuitBreaker:
     def snapshot(self) -> dict:
         """Observability — current state (for /api/growth health surfaces)."""
         return {
-            "name": self.name, "state": self._state, "fails": self._fails,
-            "fail_threshold": self.fail_threshold, "reset_after_s": self.reset_after_s,
+            "name": self.name,
+            "state": self._state,
+            "fails": self._fails,
+            "fail_threshold": self.fail_threshold,
+            "reset_after_s": self.reset_after_s,
             "enforced": enabled(),
         }
 

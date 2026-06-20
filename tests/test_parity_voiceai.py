@@ -140,10 +140,22 @@ def _seed_insights(tmp_path, monkeypatch):
     _write_jsonl(
         qf,
         [
-            {"call_id": "c1", "interest_score": 4, "qualified": True, "appointment_requested": True,
-             "budget_signal": "high", "summary": "solar chahiye"},
-            {"call_id": "c2", "interest_score": 2, "qualified": False, "appointment_requested": False,
-             "budget_signal": "unknown", "summary": "baad me"},
+            {
+                "call_id": "c1",
+                "interest_score": 4,
+                "qualified": True,
+                "appointment_requested": True,
+                "budget_signal": "high",
+                "summary": "solar chahiye",
+            },
+            {
+                "call_id": "c2",
+                "interest_score": 2,
+                "qualified": False,
+                "appointment_requested": False,
+                "budget_signal": "unknown",
+                "summary": "baad me",
+            },
         ],
     )
     _write_jsonl(
@@ -275,11 +287,21 @@ def test_leaderboard_ranks_and_score(tmp_path, monkeypatch):
         df,
         [
             # Priya: 2 calls, 2 connects, 1 interested = 2+4+5 = 11
-            {"phone": "9000000001", "disposition": "interested", "caller": "Priya", "at": _now_iso()},
+            {
+                "phone": "9000000001",
+                "disposition": "interested",
+                "caller": "Priya",
+                "at": _now_iso(),
+            },
             {"phone": "9000000002", "disposition": "callback", "caller": "Priya", "at": _now_iso()},
             # Amit: 2 calls, 0 connects = 2
             {"phone": "9000000003", "disposition": "no-answer", "caller": "Amit", "at": _now_iso()},
-            {"phone": "9000000004", "disposition": "wrong-number", "caller": "Amit", "at": _now_iso()},
+            {
+                "phone": "9000000004",
+                "disposition": "wrong-number",
+                "caller": "Amit",
+                "at": _now_iso(),
+            },
             # caller field nahi → "Team" bucket: 1 call + connect = 3
             {"phone": "9000000005", "disposition": "not-interested", "at": _now_iso()},
         ],
@@ -303,8 +325,18 @@ def test_leaderboard_days_filter_and_empty(tmp_path, monkeypatch):
     _write_jsonl(
         df,
         [
-            {"phone": "9000000001", "disposition": "interested", "caller": "Priya", "at": _now_iso(days_ago=5)},
-            {"phone": "9000000002", "disposition": "callback", "caller": "Amit", "at": _now_iso(days_ago=0.1)},
+            {
+                "phone": "9000000001",
+                "disposition": "interested",
+                "caller": "Priya",
+                "at": _now_iso(days_ago=5),
+            },
+            {
+                "phone": "9000000002",
+                "disposition": "callback",
+                "caller": "Amit",
+                "at": _now_iso(days_ago=0.1),
+            },
         ],
     )
     monkeypatch.setattr(lb, "_DIALER_LOGS", str(df))

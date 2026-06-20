@@ -102,7 +102,9 @@ def leaderboard(days: int = 1) -> dict[str, Any]:
         ranking = [
             {"caller": name, **vals}
             for name, vals in sorted(
-                per.items(), key=lambda kv: (kv[1]["score"], kv[1]["interested"], kv[1]["calls"]), reverse=True
+                per.items(),
+                key=lambda kv: (kv[1]["score"], kv[1]["interested"], kv[1]["calls"]),
+                reverse=True,
             )
         ]
         for i, row in enumerate(ranking, start=1):
@@ -126,7 +128,13 @@ def leaderboard(days: int = 1) -> dict[str, Any]:
         }
     except Exception as e:
         logger.warning(f"[leaderboard] failed: {e}")
-        return {"period_days": days, "total_calls": 0, "ranking": [], "shoutout": "", "error": str(e)[:200]}
+        return {
+            "period_days": days,
+            "total_calls": 0,
+            "ranking": [],
+            "shoutout": "",
+            "error": str(e)[:200],
+        }
 
 
 __all__ = ["leaderboard"]

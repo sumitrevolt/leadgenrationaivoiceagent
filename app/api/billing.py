@@ -151,11 +151,17 @@ def _stripe_configured() -> bool:
 def _stripe_webhook_configured() -> bool:
     return bool((settings.stripe_webhook_secret or "").strip())
 
+
 # Razorpay removed 2026-06-18 — no online India gateway (payments via manual UPI).
 
 
-def _provision_usage(client_id: str, plan_id: str | None, period_end: datetime | None,
-                     subscription_id: str | None, reset: bool = True) -> None:
+def _provision_usage(
+    client_id: str,
+    plan_id: str | None,
+    period_end: datetime | None,
+    subscription_id: str | None,
+    reset: bool = True,
+) -> None:
     """Provision/refresh the minute ledger after a successful pay/renew. Never raises."""
     try:
         from app.billing import usage as usage_mod

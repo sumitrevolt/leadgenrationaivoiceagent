@@ -12,7 +12,15 @@ def test_page_kit_complete_without_llm(monkeypatch):
         return None
 
     monkeypatch.setattr(spk, "_llm_bios", _no_llm)
-    kit = asyncio.run(spk.build_page_kit("Sharma Solar", niche="solar_residential", city="Pune", phone="98XXXXXX07", posts_count=3))
+    kit = asyncio.run(
+        spk.build_page_kit(
+            "Sharma Solar",
+            niche="solar_residential",
+            city="Pune",
+            phone="98XXXXXX07",
+            posts_count=3,
+        )
+    )
     pages = kit["pages"]
     for platform in ("facebook", "instagram", "linkedin", "x_twitter", "gbp", "whatsapp_business"):
         assert isinstance(pages.get(platform), dict) and pages[platform], platform

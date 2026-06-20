@@ -110,10 +110,19 @@ async def push_lead(
     """
     lead = lead or {}
     provider, creds = _resolve(client_id)
-    base = {"ts": _now(), "client_id": client_id, "provider": provider,
-            "lead_ref": str(lead.get("business_name") or lead.get("company_name") or lead.get("phone") or "?")[:80]}
+    base = {
+        "ts": _now(),
+        "client_id": client_id,
+        "provider": provider,
+        "lead_ref": str(
+            lead.get("business_name") or lead.get("company_name") or lead.get("phone") or "?"
+        )[:80],
+    }
     if not provider:
-        return {"ok": False, "skipped": "no CRM configured (client crm config ya global ZOHO_*/HUBSPOT_API_KEY)"}
+        return {
+            "ok": False,
+            "skipped": "no CRM configured (client crm config ya global ZOHO_*/HUBSPOT_API_KEY)",
+        }
     try:
         if provider == "zoho":
             from app.integrations.zoho_crm import ZohoCRM
@@ -143,7 +152,10 @@ async def push_lead(
             "email": lead.get("email", ""),
             "contact_name": lead.get("contact_name") or lead.get("contact") or "",
             "phone": lead.get("phone", ""),
-            "company_name": lead.get("business_name") or lead.get("company_name") or lead.get("business") or "",
+            "company_name": lead.get("business_name")
+            or lead.get("company_name")
+            or lead.get("business")
+            or "",
             "city": lead.get("city", ""),
             "source": lead.get("source", "LeadGen AI"),
             "lead_score": int(float(lead.get("score") or lead.get("lead_score") or 0) or 0),
@@ -192,7 +204,11 @@ async def test_connection(client_id: str = "") -> dict[str, Any]:
         if not hs.headers:
             return {"ok": False, "provider": provider, "error": "token missing"}
         found = await hs.find_contact_by_phone("0000000000")  # auth check (None result fine)
-        return {"ok": True, "provider": provider, "note": "auth ok" if found is None or found else "auth ok"}
+        return {
+            "ok": True,
+            "provider": provider,
+            "note": "auth ok" if found is None or found else "auth ok",
+        }
     except Exception as exc:
         return {"ok": False, "provider": provider, "error": str(exc)[:150]}
 
@@ -203,7 +219,11 @@ def status(client_id: str = "") -> dict[str, Any]:
     return {
         "auto_sync": auto_enabled(),
         "provider": provider or "none",
-        "scope": "client" if (client_id and _client_crm(client_id)) else ("global" if provider else "none"),
+        "scope": (
+            "client"
+            if (client_id and _client_crm(client_id))
+            else ("global" if provider else "none")
+        ),
         "recent_pushes": len(recent(20)),
     }
 
@@ -215,8 +235,13 @@ def save_client_config(client_id: str, config: dict[str, Any]) -> dict[str, Any]
     if provider not in ("zoho", "hubspot"):
         return {"ok": False, "error": "provider must be zoho|hubspot"}
     allowed = {
-        "provider", "zoho_client_id", "zoho_client_secret", "zoho_refresh_token",
-        "zoho_dc", "hubspot_token", "create_deal",
+        "provider",
+        "zoho_client_id",
+        "zoho_client_secret",
+        "zoho_refresh_token",
+        "zoho_dc",
+        "hubspot_token",
+        "create_deal",
     }
     clean = {k: v for k, v in (config or {}).items() if k in allowed}
     try:

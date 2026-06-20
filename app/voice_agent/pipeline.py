@@ -445,7 +445,11 @@ class VoicePipeline:
                 self.state.flow_state["transfer_requested"] = True
                 _ctx = {
                     "history": list(self.state.history[-12:]),
-                    **{k: v for k, v in self.state.flow_state.items() if isinstance(v, (str, int, float))},
+                    **{
+                        k: v
+                        for k, v in self.state.flow_state.items()
+                        if isinstance(v, (str, int, float))
+                    },
                 }
                 _owner = str(self.state.flow_state.get("owner_phone") or "")
                 asyncio.get_running_loop().create_task(_ct.request_transfer(_ctx, _owner))

@@ -60,8 +60,14 @@ def _is_placeholder(value: str) -> bool:
         return False
     lower = value.lower()
     markers = (
-        "your-", "your_", "change-me", "change_me", "xxxxxxxx",
-        "rzp_test_you", "rzp_live_xxxxx", "placeholder",
+        "your-",
+        "your_",
+        "change-me",
+        "change_me",
+        "xxxxxxxx",
+        "rzp_test_you",
+        "rzp_live_xxxxx",
+        "placeholder",
     )
     return any(m in lower for m in markers)
 
@@ -88,15 +94,19 @@ def _sentry() -> dict[str, Any]:
         "key": "sentry",
         "label": "Sentry error tracking",
         "category": "visibility",
-        "status": _OK if armed and checks["env_is_production"] else (_WARN if not armed else _NEUTRAL),
+        "status": (
+            _OK if armed and checks["env_is_production"] else (_WARN if not armed else _NEUTRAL)
+        ),
         "env_vars": ["SENTRY_DSN", "ENVIRONMENT"],
         "checks": checks,
         "action": (
             "Set SENTRY_DSN in .env (sentry.io project DSN)"
             if not armed
-            else "Sentry init is gated on ENVIRONMENT=production — set it on prod box"
-            if not checks["env_is_production"]
-            else ""
+            else (
+                "Sentry init is gated on ENVIRONMENT=production — set it on prod box"
+                if not checks["env_is_production"]
+                else ""
+            )
         ),
         "doc": "docs/ACTIVATION_RUNBOOK_2026_06_16.md#B2",
     }
@@ -215,9 +225,12 @@ def _engineer_agents() -> dict[str, Any]:
     on_count = sum([sre, fin, sec])
     status = _OK if on_count == 3 else (_WARN if on_count else _NEUTRAL)
     missing = []
-    if not sre: missing.append("SRE_AGENT")
-    if not fin: missing.append("FINOPS_AGENT")
-    if not sec: missing.append("SECURITY_AGENT")
+    if not sre:
+        missing.append("SRE_AGENT")
+    if not fin:
+        missing.append("FINOPS_AGENT")
+    if not sec:
+        missing.append("SECURITY_AGENT")
     return {
         "key": "engineer_agents",
         "label": "Engineer agents Pranav/Vidya/Arnav (F.5)",
@@ -226,8 +239,7 @@ def _engineer_agents() -> dict[str, Any]:
         "env_vars": ["SRE_AGENT", "FINOPS_AGENT", "SECURITY_AGENT"],
         "checks": {"sre": sre, "finops": fin, "security": sec, "on_count": on_count},
         "action": (
-            f"Set {', '.join(missing)}=1 to wake the remaining engineer agent(s)"
-            if missing else ""
+            f"Set {', '.join(missing)}=1 to wake the remaining engineer agent(s)" if missing else ""
         ),
         "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#31",
     }
@@ -250,9 +262,11 @@ def _ops_alerts() -> dict[str, Any]:
         "action": (
             "Set OPS_ALERTS=1 + NTFY_URL + NTFY_TOPIC to wake low-score / regression alerts"
             if not fully_armed and not on
-            else "OPS_ALERTS on but NTFY_URL/NTFY_TOPIC missing — pushes will no-op"
-            if on and not fully_armed
-            else ""
+            else (
+                "OPS_ALERTS on but NTFY_URL/NTFY_TOPIC missing — pushes will no-op"
+                if on and not fully_armed
+                else ""
+            )
         ),
         "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#32",
     }
@@ -283,7 +297,11 @@ def _mcp_product() -> dict[str, Any]:
         "status": _OK if on else _NEUTRAL,
         "env_vars": ["MCP_PRODUCT"],
         "checks": {"enabled": on},
-        "action": "Set MCP_PRODUCT=1 + issue keys via /app/dashboards to enable revenue surface" if not on else "",
+        "action": (
+            "Set MCP_PRODUCT=1 + issue keys via /app/dashboards to enable revenue surface"
+            if not on
+            else ""
+        ),
         "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#43",
     }
 
@@ -305,9 +323,11 @@ def _litellm_costs() -> dict[str, Any]:
         "action": (
             "Set LITELLM_COSTS=1 + LITELLM_MASTER_KEY + LITELLM_GATEWAY_URL (after docker compose -f docker-compose.edge.yml --profile gateway up)"
             if not fully_armed and not on
-            else "LITELLM_COSTS on but MASTER_KEY or GATEWAY_URL missing — Vidya will report unavailable"
-            if on and not fully_armed
-            else ""
+            else (
+                "LITELLM_COSTS on but MASTER_KEY or GATEWAY_URL missing — Vidya will report unavailable"
+                if on and not fully_armed
+                else ""
+            )
         ),
         "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#51",
     }
@@ -323,7 +343,11 @@ def _warm_dr() -> dict[str, Any]:
         "status": _OK if on else _NEUTRAL,
         "env_vars": ["DR_REPLICA_URL"],
         "checks": {"configured": on},
-        "action": "Set DR_REPLICA_URL to a Neon/Supabase replica for warm-DR (SPOF mitigation)" if not on else "",
+        "action": (
+            "Set DR_REPLICA_URL to a Neon/Supabase replica for warm-DR (SPOF mitigation)"
+            if not on
+            else ""
+        ),
         "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#52",
     }
 
@@ -358,15 +382,23 @@ def _upi() -> dict[str, Any]:
 
 _PROBES = (
     # Phase 1: Survival (visibility + trust + edge) + first-revenue UPI. Razorpay removed 2026-06-18.
-    _sentry, _posthog, _turnstile, _cloudflare_tunnel, _upi,
+    _sentry,
+    _posthog,
+    _turnstile,
+    _cloudflare_tunnel,
+    _upi,
     # Phase 2: AI safety + memory
-    _agent_memory, _eval_gate,
+    _agent_memory,
+    _eval_gate,
     # Phase 3: AI staff + alerting
-    _engineer_agents, _ops_alerts,
+    _engineer_agents,
+    _ops_alerts,
     # Phase 4: Sellable capabilities
-    _customer_webhooks, _mcp_product,
+    _customer_webhooks,
+    _mcp_product,
     # Phase 5: Margin + survival
-    _litellm_costs, _warm_dr,
+    _litellm_costs,
+    _warm_dr,
 )
 
 
@@ -388,11 +420,11 @@ _PROBES = (
 #   4 Sellable   — customer_webhooks, mcp_product
 #   5 Margin     — litellm_costs, warm_dr
 _PHASES: tuple[tuple[int, str, tuple[str, ...]], ...] = (
-    (1, "Survival",  ("sentry", "posthog", "turnstile", "cloudflare_tunnel")),
+    (1, "Survival", ("sentry", "posthog", "turnstile", "cloudflare_tunnel")),
     (2, "Visibility", ("agent_memory", "eval_gate")),
-    (3, "AI staff",   ("engineer_agents", "ops_alerts")),
-    (4, "Sellable",   ("customer_webhooks", "mcp_product")),
-    (5, "Margin",     ("litellm_costs", "warm_dr")),
+    (3, "AI staff", ("engineer_agents", "ops_alerts")),
+    (4, "Sellable", ("customer_webhooks", "mcp_product")),
+    (5, "Margin", ("litellm_costs", "warm_dr")),
 )
 
 # Lookup the probe function by key so we can call it independently of the

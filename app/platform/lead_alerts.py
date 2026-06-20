@@ -93,7 +93,9 @@ def _alert_text(rec: dict[str, Any], client: dict[str, Any]) -> tuple[str, str]:
     """(subject, body) — Hinglish, action-ready (wa.me + dashboard link)."""
     name = str(rec.get("name") or "Naya lead").strip()[:80]
     phone_d = _digits(rec.get("phone") or "")
-    source = str(rec.get("source") or rec.get("source_slug") or rec.get("utm_source") or "website").strip()[:60]
+    source = str(
+        rec.get("source") or rec.get("source_slug") or rec.get("utm_source") or "website"
+    ).strip()[:60]
     niche = str(rec.get("niche") or client.get("niche") or "").strip()[:60]
     msg = str(rec.get("message") or "").strip()[:200]
     biz = str(client.get("business_name") or "").strip()[:80]
@@ -128,9 +130,10 @@ async def _send_telegram(text: str, client: dict[str, Any]) -> bool:
     try:
         from app.marketing import telegram_publish
 
-        chat_id = str(client.get("telegram_chat_id") or "").strip() or (
-            os.getenv("TELEGRAM_ADMIN_CHAT_ID") or ""
-        ).strip()
+        chat_id = (
+            str(client.get("telegram_chat_id") or "").strip()
+            or (os.getenv("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
+        )
         if not chat_id:
             return False
         res = await telegram_publish.send_post(chat_id, text)
@@ -215,9 +218,7 @@ def notify_new_lead_bg(rec: dict[str, Any]) -> None:
             return
         except RuntimeError:
             pass  # koi running loop nahi (sync context)
-        threading.Thread(
-            target=lambda: asyncio.run(notify_new_lead(rec)), daemon=True
-        ).start()
+        threading.Thread(target=lambda: asyncio.run(notify_new_lead(rec)), daemon=True).start()
     except Exception as e:
         logger.debug(f"lead_alerts bg schedule skipped: {e}")
 

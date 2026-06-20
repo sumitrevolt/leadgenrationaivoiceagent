@@ -14,6 +14,7 @@ Two metrics:
 
 All pure + side-effect-free + never-raise → trivially unit-testable.
 """
+
 from __future__ import annotations
 
 import re

@@ -42,10 +42,20 @@ def test_repurpose_composes_all_formats(monkeypatch):
     monkeypatch.setattr(hashtags, "research", fake_tags)
     monkeypatch.setattr(free_ai, "chat", fake_chat)
 
-    out = asyncio.run(repurpose.repurpose("Diwali offer", niche="solar_residential", business_name="Sharma Solar"))
+    out = asyncio.run(
+        repurpose.repurpose("Diwali offer", niche="solar_residential", business_name="Sharma Solar")
+    )
     assert out["ok"] is True
     f = out["formats"]
-    assert set(f) == {"post", "carousel", "reel", "gbp_post", "whatsapp_status", "email_paragraph", "hashtags"}
+    assert set(f) == {
+        "post",
+        "carousel",
+        "reel",
+        "gbp_post",
+        "whatsapp_status",
+        "email_paragraph",
+        "hashtags",
+    }
     assert out["formats_ok"] == 7
     assert f["gbp_post"]["text"] == "gbp post 1"
     assert "Status line" in f["whatsapp_status"]
@@ -119,7 +129,19 @@ def test_pulse_parsers():
     assert news[0]["url"] == "https://news.example/a"
 
     reddit = brand_pulse.parse_reddit_json(
-        {"data": {"children": [{"data": {"title": "Review of Sharma Solar", "permalink": "/r/pune/1", "selftext": "good"}}]}}
+        {
+            "data": {
+                "children": [
+                    {
+                        "data": {
+                            "title": "Review of Sharma Solar",
+                            "permalink": "/r/pune/1",
+                            "selftext": "good",
+                        }
+                    }
+                ]
+            }
+        }
     )
     assert len(reddit) == 1 and reddit[0]["url"].startswith("https://www.reddit.com/r/")
     assert brand_pulse.parse_reddit_json({}) == []  # defensive
@@ -182,7 +204,11 @@ def test_month_plan_dry_run(monkeypatch):
     assert out["ok"] is True and len(out["plan"]) == 30
     assert out["dry_run"] is True and out["committed"] == 0
     # Friday = offer day
-    fridays = [p for p in out["plan"] if date.fromisoformat(p["date"]).weekday() == 4 and not p["is_festival"]]
+    fridays = [
+        p
+        for p in out["plan"]
+        if date.fromisoformat(p["date"]).weekday() == 4 and not p["is_festival"]
+    ]
     assert all(p["theme"] == "Offer / Deal" and p["offer"] for p in fridays)
     # future dates only
     assert min(p["date"] for p in out["plan"]) > date.today().isoformat()
@@ -206,11 +232,15 @@ def test_month_plan_commit_dedupes(tmp_path, monkeypatch):
     from app.marketing import content_schedule, month_planner
 
     monkeypatch.setattr(content_schedule, "_FILE", str(tmp_path / "sched.jsonl"))
-    out1 = month_planner.plan_month(niche="gym", business_name="FitZone", days=10, commit=True, dry_run=False)
+    out1 = month_planner.plan_month(
+        niche="gym", business_name="FitZone", days=10, commit=True, dry_run=False
+    )
     assert out1["committed"] == 10 and out1["skipped"] == 0
     assert len(content_schedule.list_scheduled()) == 10
     # repeat commit → sab dup-skip
-    out2 = month_planner.plan_month(niche="gym", business_name="FitZone", days=10, commit=True, dry_run=False)
+    out2 = month_planner.plan_month(
+        niche="gym", business_name="FitZone", days=10, commit=True, dry_run=False
+    )
     assert out2["committed"] == 0 and out2["skipped"] == 10
     assert len(content_schedule.list_scheduled()) == 10
 
@@ -225,7 +255,13 @@ def _fake_events():
 
     now = datetime.now(timezone.utc).isoformat()
     mk = lambda action: {"action": action, "at": now, "member": "isha", "detail": ""}  # noqa: E731
-    return [mk("content_generated"), mk("post_created"), mk("lead_scored"), mk("review_drafted"), mk("email_outreach")]
+    return [
+        mk("content_generated"),
+        mk("post_created"),
+        mk("lead_scored"),
+        mk("review_drafted"),
+        mk("email_outreach"),
+    ]
 
 
 def test_team_report_narrative(monkeypatch):

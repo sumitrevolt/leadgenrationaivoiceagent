@@ -34,10 +34,10 @@ logger = setup_logger(__name__)
 
 _STORE = Path("data") / "infra_scans.jsonl"
 _MAX_ROWS = 500
-ALERT_SCORE = 70          # isse neeche => (gated) email alert
-ALERT_DEDUPE_HOURS = 6    # baar-baar same alert mat bhejo
-DISK_WARN, DISK_CRIT = 85, 92   # % used
-MEM_WARN = 90                    # % used
+ALERT_SCORE = 70  # isse neeche => (gated) email alert
+ALERT_DEDUPE_HOURS = 6  # baar-baar same alert mat bhejo
+DISK_WARN, DISK_CRIT = 85, 92  # % used
+MEM_WARN = 90  # % used
 BACKUP_STALE_HOURS = 48
 
 
@@ -93,7 +93,11 @@ async def _check_ready() -> dict[str, Any]:
                 async with httpx.AsyncClient(timeout=4) as c:
                     r = await c.get(url)
                 if r.status_code == 200:
-                    d = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+                    d = (
+                        r.json()
+                        if r.headers.get("content-type", "").startswith("application/json")
+                        else {}
+                    )
                     checks = d.get("checks") or {}
                     return {
                         "ok": (d.get("status") == "healthy"),
@@ -131,7 +135,11 @@ def _check_llm() -> dict[str, Any]:
 
         st = llm_metrics.stats(window=200) or {}
         rate = float(st.get("fallback_or_fail_rate") or 0)
-        return {"ok": rate < 0.5, "fallback_or_fail_rate": rate, "providers": len(st.get("providers") or {})}
+        return {
+            "ok": rate < 0.5,
+            "fallback_or_fail_rate": rate,
+            "providers": len(st.get("providers") or {}),
+        }
     except Exception:
         return {"ok": None}
 
@@ -156,7 +164,10 @@ def _check_embedder() -> dict[str, Any]:
                 onnx = list(Path(d).rglob("*.onnx"))
                 if onnx:
                     return {"ok": True, "cache_dir": d, "models": len(onnx)}
-        return {"ok": False, "note": "fastembed model cache MISSING — image bake/redeploy karo (runtime HF download = freeze risk)"}
+        return {
+            "ok": False,
+            "note": "fastembed model cache MISSING — image bake/redeploy karo (runtime HF download = freeze risk)",
+        }
     except Exception:
         return {"ok": None}
 
@@ -197,16 +208,22 @@ async def snapshot() -> dict[str, Any]:
     r = checks["ready"]
     if r.get("ok") is False:
         score -= 40
-        actions.append("App /health/ready unhealthy — `docker ps` + `docker logs leadgen_app` dekho, db/redis container check karo.")
+        actions.append(
+            "App /health/ready unhealthy — `docker ps` + `docker logs leadgen_app` dekho, db/redis container check karo."
+        )
 
     d = checks["disk"]
     if isinstance(d.get("pct_used"), (int, float)):
         if d["pct_used"] >= DISK_CRIT:
             score -= 35
-            actions.append(f"DISK CRITICAL {d['pct_used']}% — purane backups/media-cache साफ karo (`du -sh /opt/leadgen/*`).")
+            actions.append(
+                f"DISK CRITICAL {d['pct_used']}% — purane backups/media-cache साफ karo (`du -sh /opt/leadgen/*`)."
+            )
         elif d["pct_used"] >= DISK_WARN:
             score -= 20
-            actions.append(f"Disk {d['pct_used']}% — jaldi cleanup plan karo (backups rotate, docker image prune).")
+            actions.append(
+                f"Disk {d['pct_used']}% — jaldi cleanup plan karo (backups rotate, docker image prune)."
+            )
 
     m = checks["memory"]
     if m.get("ok") is False:
@@ -216,25 +233,37 @@ async def snapshot() -> dict[str, Any]:
     j = checks["jobs"]
     if j.get("overdue"):
         score -= min(30, 10 * len(j["overdue"]))
-        actions.append("Overdue jobs: " + ", ".join(j["overdue"][:5]) + " — worker/scheduler containers check karo.")
+        actions.append(
+            "Overdue jobs: "
+            + ", ".join(j["overdue"][:5])
+            + " — worker/scheduler containers check karo."
+        )
     if j.get("queue_backlogged"):
         score -= 15
-        actions.append(f"Celery backlog {j.get('queue', {}).get('celery')} — worker slow/dead (`docker logs leadgen_worker`).")
+        actions.append(
+            f"Celery backlog {j.get('queue', {}).get('celery')} — worker slow/dead (`docker logs leadgen_worker`)."
+        )
 
     llm = checks["llm"]
     if llm.get("ok") is False:
         score -= 10
-        actions.append(f"LLM fail/fallback rate {llm.get('fallback_or_fail_rate')} — provider keys/quota dekho (/api/growth/infra/llm).")
+        actions.append(
+            f"LLM fail/fallback rate {llm.get('fallback_or_fail_rate')} — provider keys/quota dekho (/api/growth/infra/llm)."
+        )
 
     b = checks["backups"]
     if b.get("ok") is False:
         score -= 10
-        actions.append(f"Backup {b.get('age_hours')}h purana — pg_backup cron + offsite mail check karo.")
+        actions.append(
+            f"Backup {b.get('age_hours')}h purana — pg_backup cron + offsite mail check karo."
+        )
 
     e = checks["embedder"]
     if e.get("ok") is False:
         score -= 10
-        actions.append("Voice-KB embedding model cache missing — image rebuild/bake karo (runtime download = freeze risk).")
+        actions.append(
+            "Voice-KB embedding model cache missing — image rebuild/bake karo (runtime download = freeze risk)."
+        )
 
     score = max(0, score)
 
@@ -259,9 +288,16 @@ async def snapshot() -> dict[str, Any]:
             _seen: set[str] = set()
             for _k, _ok_is_false in (
                 ("ready", checks["ready"].get("ok") is False),
-                ("disk", isinstance(checks["disk"].get("pct_used"), (int, float)) and checks["disk"]["pct_used"] >= DISK_WARN),
+                (
+                    "disk",
+                    isinstance(checks["disk"].get("pct_used"), (int, float))
+                    and checks["disk"]["pct_used"] >= DISK_WARN,
+                ),
                 ("memory", checks["memory"].get("ok") is False),
-                ("jobs", bool(checks["jobs"].get("overdue") or checks["jobs"].get("queue_backlogged"))),
+                (
+                    "jobs",
+                    bool(checks["jobs"].get("overdue") or checks["jobs"].get("queue_backlogged")),
+                ),
                 ("llm", checks["llm"].get("ok") is False),
                 ("backups", checks["backups"].get("ok") is False),
                 ("embedder", checks["embedder"].get("ok") is False),
@@ -272,21 +308,34 @@ async def snapshot() -> dict[str, Any]:
                     nm = s.get("name")
                     if nm and nm not in _seen:
                         _seen.add(nm)
-                        skills_suggested.append({"issue": _k, "skill": nm, "why": (s.get("description") or "")[:120]})
+                        skills_suggested.append(
+                            {"issue": _k, "skill": nm, "why": (s.get("description") or "")[:120]}
+                        )
             # Healthy bhi ho to bhi "fable operating manual" hamesha point-of-reference
             if not skills_suggested:
                 for s in skill_pack.find("fable operating manual project discipline", k=1):
                     if s.get("name"):
-                        skills_suggested.append({"issue": "general", "skill": s["name"], "why": (s.get("description") or "")[:120]})
+                        skills_suggested.append(
+                            {
+                                "issue": "general",
+                                "skill": s["name"],
+                                "why": (s.get("description") or "")[:120],
+                            }
+                        )
     except Exception:
         pass
     if skills_suggested:
-        actions.append("📚 Relevant skills (padho phir act): " + ", ".join(sorted({x["skill"] for x in skills_suggested})))
+        actions.append(
+            "📚 Relevant skills (padho phir act): "
+            + ", ".join(sorted({x["skill"] for x in skills_suggested}))
+        )
 
     return {
         "agent": "hermes",
         "score": score,
-        "status": "healthy" if score >= 85 else ("attention" if score >= ALERT_SCORE else "critical"),
+        "status": (
+            "healthy" if score >= 85 else ("attention" if score >= ALERT_SCORE else "critical")
+        ),
         "checks": checks,
         "actions": actions or ["Sab theek — koi action nahi chahiye."],
         "skills": skills_suggested,
@@ -302,7 +351,7 @@ def _append_scan(row: dict[str, Any]) -> None:
         _STORE.parent.mkdir(parents=True, exist_ok=True)
         lines: list[str] = []
         if _STORE.exists():
-            lines = _STORE.read_text(encoding="utf-8").splitlines()[-(_MAX_ROWS - 1):]
+            lines = _STORE.read_text(encoding="utf-8").splitlines()[-(_MAX_ROWS - 1) :]
         lines.append(json.dumps(row, ensure_ascii=False))
         _STORE.write_text("\n".join(lines) + "\n", encoding="utf-8")
     except Exception:
@@ -358,19 +407,30 @@ async def run_watch() -> dict[str, Any]:
                         await email_sender.send_email(
                             [notify],
                             f"🛰️ Hermes INFRA alert: score {snap['score']}/100 ({snap['status']})",
-                            "Infra issues:\n\n- " + "\n- ".join(snap["actions"]) + "\n\n(Hermes infra_handler hourly scan)",
+                            "Infra issues:\n\n- "
+                            + "\n- ".join(snap["actions"])
+                            + "\n\n(Hermes infra_handler hourly scan)",
                         )
                         alerted = True
                     except Exception as e:
                         logger.warning(f"[hermes] alert email failed: {e}")
-        _append_scan({"at": snap["at"], "score": snap["score"], "status": snap["status"], "alerted": alerted, "actions": snap["actions"][:5]})
+        _append_scan(
+            {
+                "at": snap["at"],
+                "score": snap["score"],
+                "status": snap["status"],
+                "alerted": alerted,
+                "actions": snap["actions"][:5],
+            }
+        )
         try:
             from app.platform import team
 
             team.log_event(
                 "hermes",
                 "infra_scan",
-                f"infra {snap['score']}/100 ({snap['status']})" + (" · ALERT sent" if alerted else ""),
+                f"infra {snap['score']}/100 ({snap['status']})"
+                + (" · ALERT sent" if alerted else ""),
                 status="ok" if snap["score"] >= ALERT_SCORE else "error",
             )
         except Exception:

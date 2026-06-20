@@ -148,8 +148,16 @@ def test_social_channels_fallback_drafts(monkeypatch):
 def test_bandit_includes_new_channels():
     from app.marketing import channel_experiments as ce
 
-    for ch in ("instagram_comment", "youtube_shorts", "gbp_qna", "whatsapp_status",
-               "micro_influencer", "local_pr", "event_outreach", "listing_optimizer"):
+    for ch in (
+        "instagram_comment",
+        "youtube_shorts",
+        "gbp_qna",
+        "whatsapp_status",
+        "micro_influencer",
+        "local_pr",
+        "event_outreach",
+        "listing_optimizer",
+    ):
         assert ch in ce.CHANNELS
         assert ch in ce._SOCIAL_V2
     # stats sab channels cover karta

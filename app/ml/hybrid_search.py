@@ -2,6 +2,7 @@
 
 Gated via ``USE_HYBRID_SEARCH=1`` in ``knowledge_base.retrieve``. Never raises.
 """
+
 from __future__ import annotations
 
 import os

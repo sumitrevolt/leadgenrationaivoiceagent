@@ -7,7 +7,13 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    for k in ("CRM_SYNC", "ZOHO_CLIENT_ID", "ZOHO_CLIENT_SECRET", "ZOHO_REFRESH_TOKEN", "HUBSPOT_API_KEY"):
+    for k in (
+        "CRM_SYNC",
+        "ZOHO_CLIENT_ID",
+        "ZOHO_CLIENT_SECRET",
+        "ZOHO_REFRESH_TOKEN",
+        "HUBSPOT_API_KEY",
+    ):
         monkeypatch.delenv(k, raising=False)
     # settings cached ho sakta hai — direct blank override
     try:
@@ -84,7 +90,9 @@ def test_lead_delivery_zoho_channel_skips():
     from app.integrations.lead_delivery import LeadDelivery
 
     d = LeadDelivery()
-    res = asyncio.run(d.deliver_lead({"business": "T", "phone": "9876543210"}, {"channels": ["zoho"]}))
+    res = asyncio.run(
+        d.deliver_lead({"business": "T", "phone": "9876543210"}, {"channels": ["zoho"]})
+    )
     assert "zoho" in res.skipped
     assert res.failed == {}
 

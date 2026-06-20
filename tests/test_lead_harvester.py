@@ -25,8 +25,12 @@ def test_blocked_domains_tos_policy():
     from app.platform import lead_harvester as lh
 
     # ToS-risky directories/socials KABHI fetch nahi
-    for url in ("https://www.justdial.com/pune/x", "https://dir.indiamart.com/y",
-                "https://linkedin.com/in/z", "https://facebook.com/p"):
+    for url in (
+        "https://www.justdial.com/pune/x",
+        "https://dir.indiamart.com/y",
+        "https://linkedin.com/in/z",
+        "https://facebook.com/p",
+    ):
         assert lh._blocked(url) is True
     assert lh._blocked("https://sharmasolar.in/contact") is False
 
@@ -51,9 +55,15 @@ def test_phone_email_validation(monkeypatch):
     # email verify stub (MX env-dependence hatao)
     from app.lead_scraper import email_verify
 
-    monkeypatch.setattr(email_verify, "verify", lambda e, check_mx=True: {"ok": True, "email": e, "reason": ""})
+    monkeypatch.setattr(
+        email_verify, "verify", lambda e, check_mx=True: {"ok": True, "email": e, "reason": ""}
+    )
     assert asyncio.run(lh._valid_email("INFO@Sharma.in")) == "info@sharma.in"
-    monkeypatch.setattr(email_verify, "verify", lambda e, check_mx=True: {"ok": False, "email": e, "reason": "no mx"})
+    monkeypatch.setattr(
+        email_verify,
+        "verify",
+        lambda e, check_mx=True: {"ok": False, "email": e, "reason": "no mx"},
+    )
     assert asyncio.run(lh._valid_email("x@nope.invalid")) == ""
     assert asyncio.run(lh._valid_email("notanemail")) == ""
 
@@ -66,13 +76,30 @@ def test_run_harvest_dedupe_and_persist(tmp_path, monkeypatch):
     monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "prospects.jsonl"))
     monkeypatch.setattr(prospector, "_persist_prospect_to_db", lambda rec: True)
     # seed existing prospect (dedupe target)
-    prospector._append({"id": "old1", "business_name": "Old Biz", "phone": "+919876543210", "email": "old@biz.in"})
+    prospector._append(
+        {"id": "old1", "business_name": "Old Biz", "phone": "+919876543210", "email": "old@biz.in"}
+    )
 
     async def fake_src(niche, city, limit):
-        return {"source": "fake", "leads": [
-            {"business_name": "Old Biz", "phone": "9876543210", "email": "", "website": "", "source": "fake"},  # dup
-            {"business_name": "Naya Solar", "phone": "9123456780", "email": "", "website": "https://nayasolar.in", "source": "fake"},
-        ]}
+        return {
+            "source": "fake",
+            "leads": [
+                {
+                    "business_name": "Old Biz",
+                    "phone": "9876543210",
+                    "email": "",
+                    "website": "",
+                    "source": "fake",
+                },  # dup
+                {
+                    "business_name": "Naya Solar",
+                    "phone": "9123456780",
+                    "email": "",
+                    "website": "https://nayasolar.in",
+                    "source": "fake",
+                },
+            ],
+        }
 
     monkeypatch.setattr(lh, "SOURCES", {"fake": fake_src})
 

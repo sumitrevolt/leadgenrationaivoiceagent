@@ -414,10 +414,17 @@ def retention_sweep(days: int | None = None) -> dict[str, Any]:
             except Exception:
                 days = DEFAULT_RETENTION_DAYS
         delete_on = (os.environ.get("RECORDING_RETENTION", "") or "").strip() in (
-            "1", "true", "yes", "on",
+            "1",
+            "true",
+            "yes",
+            "on",
         )
         result: dict[str, Any] = {
-            "days": days, "delete_enabled": delete_on, "expired": 0, "deleted": 0, "errors": 0,
+            "days": days,
+            "delete_enabled": delete_on,
+            "expired": 0,
+            "deleted": 0,
+            "errors": 0,
         }
         root = RECORDINGS_DIR
         if not root.exists():
@@ -435,9 +442,7 @@ def retention_sweep(days: int | None = None) -> dict[str, Any]:
             except Exception:
                 result["errors"] += 1
         if result["deleted"]:
-            logger.info(
-                f"🗑️ recording retention: {result['deleted']} files deleted (>{days}d old)"
-            )
+            logger.info(f"🗑️ recording retention: {result['deleted']} files deleted (>{days}d old)")
         return result
     except Exception as e:
         return {"error": str(e)[:120]}

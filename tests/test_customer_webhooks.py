@@ -144,8 +144,12 @@ async def test_delivery_records_success(monkeypatch: pytest.MonkeyPatch) -> None
         status_code = 200
 
     class _Client:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return None
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
         async def post(self, url, content, headers):  # noqa: ANN001
             # Verify the request shape the customer will receive
             assert headers["X-LeadGen-Event"] == "lead.qualified"
@@ -172,11 +176,16 @@ async def test_delivery_retries_on_5xx(monkeypatch: pytest.MonkeyPatch) -> None:
     state = {"calls": 0}
 
     class _Resp:
-        def __init__(self, code): self.status_code = code
+        def __init__(self, code):
+            self.status_code = code
 
     class _Client:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return None
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
         async def post(self, url, content, headers):  # noqa: ANN001
             state["calls"] += 1
             if state["calls"] < 3:
@@ -204,8 +213,12 @@ async def test_delivery_exhausts_retries_then_logs_failure(
         status_code = 500
 
     class _Client:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return None
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
         async def post(self, url, content, headers):  # noqa: ANN001
             return _Resp()
 

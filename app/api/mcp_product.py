@@ -85,8 +85,7 @@ async def _require_key(
     x_leadgen_key: str | None,
 ) -> dict:
     if not mcp_keys.enabled():
-        raise HTTPException(status_code=503,
-                            detail="MCP-as-product paused (MCP_PRODUCT unset)")
+        raise HTTPException(status_code=503, detail="MCP-as-product paused (MCP_PRODUCT unset)")
     if not x_leadgen_key:
         raise HTTPException(status_code=401, detail="X-LeadGen-Key header required")
     row = mcp_keys.authenticate(x_leadgen_key)
@@ -98,8 +97,9 @@ async def _require_key(
         headers = {}
         if code == 429 and verdict.get("retry_after_s"):
             headers["Retry-After"] = str(verdict["retry_after_s"])
-        raise HTTPException(status_code=code, detail=verdict.get("error", "denied"),
-                            headers=headers)
+        raise HTTPException(
+            status_code=code, detail=verdict.get("error", "denied"), headers=headers
+        )
     return verdict
 
 
@@ -132,6 +132,7 @@ class ScoreLeadIn(BaseModel):
 class QualifierRunIn(BaseModel):
     """Prospect shape accepted by sales_qualify.bant_score — every field is
     optional. The richer the input, the more accurate the score."""
+
     business_name: str | None = Field("", max_length=200)
     niche: str | None = Field("", max_length=80)
     city: str | None = Field("", max_length=80)

@@ -4,6 +4,7 @@ Identifies missing features, scores impact/effort, and returns Gap objects.
 
 Data source: data/competitive_features.json
 """
+
 from __future__ import annotations
 
 import json
@@ -22,7 +23,7 @@ COMPETITIVE_FEATURES_PATH = ROOT / "data" / "competitive_features.json"
 # ---------------------------------------------------------------------------
 # Keyword synonym maps — competitive feature name → scanner feature_name tokens
 # ---------------------------------------------------------------------------
-_CUSTOMER_SYNONYMS: Dict[str, List[str]] = {
+_CUSTOMER_SYNONYMS: dict[str, list[str]] = {
     "real-time notifications center": ["notification", "notif", "bell", "inbox", "unread", "alert"],
     "global search bar": ["search", "filter", "query", "khojo"],
     "date range picker": ["date", "daterange", "datepicker", "flatpickr", "daterangepicker"],
@@ -33,20 +34,35 @@ _CUSTOMER_SYNONYMS: Dict[str, List[str]] = {
     "bulk actions on table rows": ["bulk", "select-all", "selectall", "checkbox"],
     "dark mode toggle": ["dark", "theme", "mode", "prefers-color-scheme"],
     "keyboard shortcuts panel": ["keyboard", "shortcut", "hotkey", "keybind"],
-    "onboarding checklist / getting started wizard": ["onboard", "checklist", "wizard", "getting started"],
+    "onboarding checklist / getting started wizard": [
+        "onboard",
+        "checklist",
+        "wizard",
+        "getting started",
+    ],
     "inline lead status editing": ["inline", "lead.*edit", "edit.*lead", "patch.*lead"],
     "collaborative comments on leads": ["comment", "note", "collab"],
     "ai-powered anomaly detection": ["anomaly", "ai.*detect", "detect.*pattern"],
     "custom dashboard widgets (drag-and-drop)": ["drag", "drop", "sortable", "widget"],
 }
 
-_ADMIN_SYNONYMS: Dict[str, List[str]] = {
+_ADMIN_SYNONYMS: dict[str, list[str]] = {
     "client search with instant filtering": ["search", "filter", "query", "client.*search"],
     "bulk client actions (multi-select)": ["bulk", "multi.*select", "select.*all", "checkbox"],
-    "advanced multi-condition filters": ["filter", "condition", "advanced.*filter", "multi.*filter"],
+    "advanced multi-condition filters": [
+        "filter",
+        "condition",
+        "advanced.*filter",
+        "multi.*filter",
+    ],
     "client activity timeline / audit log": ["timeline", "audit", "activity", "log", "history"],
     "revenue analytics (mrr trend, churn rate, ltv)": ["mrr", "churn", "ltv", "revenue", "arr"],
-    "alert rules / threshold configuration": ["alert.*rule", "threshold", "trigger", "rule.*engine"],
+    "alert rules / threshold configuration": [
+        "alert.*rule",
+        "threshold",
+        "trigger",
+        "rule.*engine",
+    ],
     "export clients to csv with active filters": ["export", "csv", "download"],
     "role-based access control (rbac) ui": ["rbac", "role", "permission", "access.*control"],
     "api usage analytics / rate limit view": ["api.*usage", "rate.*limit", "endpoint.*stat"],
@@ -58,19 +74,17 @@ _ADMIN_SYNONYMS: Dict[str, List[str]] = {
 }
 
 
-def _load_competitive_features() -> Dict:
+def _load_competitive_features() -> dict:
     """Load competitive_features.json; raise RuntimeError if missing."""
     try:
-        with open(COMPETITIVE_FEATURES_PATH, "r", encoding="utf-8") as fh:
+        with open(COMPETITIVE_FEATURES_PATH, encoding="utf-8") as fh:
             return json.load(fh)
     except FileNotFoundError as exc:
         raise RuntimeError(
             f"competitive_features.json not found at {COMPETITIVE_FEATURES_PATH}"
         ) from exc
     except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            f"competitive_features.json is malformed: {exc}"
-        ) from exc
+        raise RuntimeError(f"competitive_features.json is malformed: {exc}") from exc
 
 
 def _normalise(text: str) -> str:
@@ -78,10 +92,10 @@ def _normalise(text: str) -> str:
     return re.sub(r"[^a-z0-9 ]", " ", text.lower())
 
 
-def _scanned_feature_names(inventory: Dict) -> List[str]:
+def _scanned_feature_names(inventory: dict) -> list[str]:
     """Return normalised feature_name strings from scanner output dict."""
     features = inventory.get("features", [])
-    names: List[str] = []
+    names: list[str] = []
     for f in features:
         raw = f.get("feature_name", "")
         if raw:
@@ -95,8 +109,8 @@ def _scanned_feature_names(inventory: Dict) -> List[str]:
 
 def _feature_detected(
     competitive_name: str,
-    synonym_map: Dict[str, List[str]],
-    scanned_texts: List[str],
+    synonym_map: dict[str, list[str]],
+    scanned_texts: list[str],
 ) -> bool:
     """
     Return True if any scanned feature text matches the competitive feature
@@ -114,10 +128,28 @@ def _feature_detected(
                         return True
 
     # 2. Direct keyword overlap: split competitive name into significant words (≥4 chars)
-    words = [w for w in key.split() if len(w) >= 4 and w not in {
-        "with", "from", "this", "that", "have", "been", "will", "your", "then",
-        "than", "mode", "view", "type", "show",
-    }]
+    words = [
+        w
+        for w in key.split()
+        if len(w) >= 4
+        and w
+        not in {
+            "with",
+            "from",
+            "this",
+            "that",
+            "have",
+            "been",
+            "will",
+            "your",
+            "then",
+            "than",
+            "mode",
+            "view",
+            "type",
+            "show",
+        }
+    ]
     if words:
         for txt in scanned_texts:
             matched = sum(1 for w in words if w in txt)
@@ -149,8 +181,16 @@ def estimate_effort(gap: Gap, backend_dependency: bool) -> Effort:
         return Effort.HIGH
 
     # Heuristic: features with proposed endpoints that aren't trivial = MEDIUM
-    css_only_keywords = {"dark mode", "skeleton", "empty state", "illustration",
-                         "keyboard shortcut", "date range", "export", "bulk action"}
+    css_only_keywords = {
+        "dark mode",
+        "skeleton",
+        "empty state",
+        "illustration",
+        "keyboard shortcut",
+        "date range",
+        "export",
+        "bulk action",
+    }
     name_lower = gap.name.lower()
     for kw in css_only_keywords:
         if kw in name_lower:
@@ -159,7 +199,7 @@ def estimate_effort(gap: Gap, backend_dependency: bool) -> Effort:
     return Effort.MEDIUM
 
 
-def calculate_parity_score(gaps: List[Gap], total_competitive: int) -> float:
+def calculate_parity_score(gaps: list[Gap], total_competitive: int) -> float:
     """
     Parity score = (competitive features present) / total_competitive × 100.
     Presence = total_competitive - gaps detected.
@@ -173,7 +213,7 @@ def calculate_parity_score(gaps: List[Gap], total_competitive: int) -> float:
     return round(max(0.0, min(100.0, score)), 1)
 
 
-def identify_gaps(inventory: Dict, dashboard_name: str) -> List[Gap]:
+def identify_gaps(inventory: dict, dashboard_name: str) -> list[Gap]:
     """
     Compare scanner inventory against competitive benchmarks for a single
     dashboard.  Returns List[Gap] for every missing competitive feature.
@@ -200,7 +240,7 @@ def identify_gaps(inventory: Dict, dashboard_name: str) -> List[Gap]:
 
     scanned_texts = _scanned_feature_names(inventory)
 
-    gaps: List[Gap] = []
+    gaps: list[Gap] = []
     gap_counter = 0
 
     tiers_ordered = ["table_stakes", "standard", "advanced"]
@@ -220,8 +260,8 @@ def identify_gaps(inventory: Dict, dashboard_name: str) -> List[Gap]:
 
             prevalence: int = feat.get("prevalence", 1)
             backend_dep: bool = feat.get("backend_dependency", False)
-            proposed_ep: Optional[str] = feat.get("proposed_endpoint")
-            competitors: List[str] = feat.get("competitors", [])
+            proposed_ep: str | None = feat.get("proposed_endpoint")
+            competitors: list[str] = feat.get("competitors", [])
             category: str = feat.get("category", "")
             description: str = feat.get("description", "")
 
@@ -231,9 +271,9 @@ def identify_gaps(inventory: Dict, dashboard_name: str) -> List[Gap]:
                 dashboard=name_lower,
                 competitive_reference=competitors,
                 prevalence=prevalence,
-                impact=Impact.MEDIUM,      # will be updated below
-                effort=Effort.MEDIUM,      # will be updated below
-                moscow=MoSCoW.SHOULD_HAVE, # prioritizer sets final value
+                impact=Impact.MEDIUM,  # will be updated below
+                effort=Effort.MEDIUM,  # will be updated below
+                moscow=MoSCoW.SHOULD_HAVE,  # prioritizer sets final value
                 category=category,
                 description=description,
                 backend_dependency=backend_dep,
@@ -250,9 +290,9 @@ def identify_gaps(inventory: Dict, dashboard_name: str) -> List[Gap]:
 
 
 def get_all_gaps(
-    customer_inventory: Dict,
-    admin_inventory: Dict,
-) -> Dict[str, List[Gap]]:
+    customer_inventory: dict,
+    admin_inventory: dict,
+) -> dict[str, list[Gap]]:
     """
     Main entry point.  Runs gap analysis for both dashboards.
 
@@ -281,6 +321,7 @@ def get_all_gaps(
 # ---------------------------------------------------------------------------
 # Convenience: competitive feature counts (for parity score denominator)
 # ---------------------------------------------------------------------------
+
 
 def competitive_feature_count(dashboard_name: str) -> int:
     """Return total number of competitive features benchmarked for a dashboard."""

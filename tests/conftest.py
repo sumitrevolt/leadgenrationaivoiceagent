@@ -43,9 +43,11 @@ _socket.setdefaulttimeout(10)
 if os.environ.get("PYTEST_NETGUARD", "0").strip().lower() in ("1", "true", "yes"):
     try:
         from tests._netguard import enable as _netguard_enable
+
         _netguard_enable()
     except Exception as _ng_exc:
         import warnings as _warnings
+
         _warnings.warn(
             f"[conftest] netguard could not be enabled: {_ng_exc!r}.",
             RuntimeWarning,
@@ -409,8 +411,10 @@ def netguard_session():
     interactively where you want real network after the session).
     """
     try:
-        from tests._netguard import enable as _ng_enable, disable as _ng_disable
-        _ng_enable()   # idempotent if already active
+        from tests._netguard import disable as _ng_disable
+        from tests._netguard import enable as _ng_enable
+
+        _ng_enable()  # idempotent if already active
         yield
         _ng_disable()  # restore originals so pytest's own cleanup can work
     except Exception:

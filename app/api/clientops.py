@@ -44,9 +44,7 @@ router = APIRouter(prefix="/clientops", tags=["ClientOps"])
 
 # ------------------------- F1: speed-to-lead (admin) ----------------------- #
 @router.get("/speed-to-lead")
-async def speed_to_lead(
-    days: int = Query(30, ge=1, le=365), _user=Depends(require_admin)
-):
+async def speed_to_lead(days: int = Query(30, ge=1, le=365), _user=Depends(require_admin)):
     """Inquiry → first-touch time (alerts/dialer evidence se, READ-only) + verdict."""
     from app.platform import speed_to_lead as stl
 
@@ -103,9 +101,7 @@ async def admin_decide_approval(
     return content_approval.decide_by_id(approval_id, act, body.note or "")
 
 
-@router.get(
-    "/approve/{token}", dependencies=[Depends(rate_limit("approval", 10, 60))]
-)
+@router.get("/approve/{token}", dependencies=[Depends(rate_limit("approval", 10, 60))])
 async def public_approve(
     token: str,
     action: str = Query("approve", max_length=10),
@@ -151,9 +147,7 @@ class SnapshotApplyIn(BaseModel):
 
 
 @router.post("/snapshots/{snapshot_id}/apply")
-async def snapshot_apply(
-    snapshot_id: str, body: SnapshotApplyIn, _user=Depends(require_admin)
-):
+async def snapshot_apply(snapshot_id: str, body: SnapshotApplyIn, _user=Depends(require_admin)):
     """Snapshot naye client pe lagao — naye records append, source untouched."""
     from app.platform import client_snapshots
 
@@ -172,9 +166,7 @@ async def routing_set(body: RoutingConfigIn, _user=Depends(require_admin)):
     """Client ki team set karo — leads round-robin me bantenge."""
     from app.platform import lead_distribution
 
-    return lead_distribution.set_config(
-        body.client_id, body.members, body.mode or "round_robin"
-    )
+    return lead_distribution.set_config(body.client_id, body.members, body.mode or "round_robin")
 
 
 @router.get("/routing")
@@ -244,9 +236,7 @@ async def proposal_open(token: str, request: Request):
             ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
                 request.client.host if request.client else ""
             )
-            proposal_tracking.record_view(
-                token, ua=request.headers.get("user-agent", ""), ip=ip
-            )
+            proposal_tracking.record_view(token, ua=request.headers.get("user-agent", ""), ip=ip)
             if target.get("html"):
                 return HTMLResponse(target["html"])
             if target.get("url"):
@@ -257,9 +247,7 @@ async def proposal_open(token: str, request: Request):
 
 
 @router.get("/proposal-views")
-async def proposal_views(
-    token: str = Query("", max_length=64), _user=Depends(require_admin)
-):
+async def proposal_views(token: str = Query("", max_length=64), _user=Depends(require_admin)):
     """?token= se ek proposal ke views; bina token = sab tracked proposals."""
     from app.platform import proposal_tracking
 

@@ -51,16 +51,27 @@ async def draft_content(platform: str, topic: str = "", niche: str = "general") 
             "Sirf content text, koi meta."
         )
         prompt = f"Platform: {plat}. Topic: {topic}. Niche: {niche}."
-        txt, _ = await free_ai.chat(sys, [{"role": "user", "content": prompt}], max_tokens=320, temperature=0.7)
+        txt, _ = await free_ai.chat(
+            sys, [{"role": "user", "content": prompt}], max_tokens=320, temperature=0.7
+        )
         if txt and txt.strip():
             text = txt.strip()
     except Exception as e:
         logger.debug(f"[community_content] llm skip: {e}")
-    return {"ok": True, "platform": plat, "topic": topic, "niche": niche, "content": text,
-            "cta": "leadsgenai.in/audit", "auto_posted": False}
+    return {
+        "ok": True,
+        "platform": plat,
+        "topic": topic,
+        "niche": niche,
+        "content": text,
+        "cta": "leadsgenai.in/audit",
+        "auto_posted": False,
+    }
 
 
-async def draft_batch(topic: str = "", niche: str = "general", platforms: list[str] | None = None) -> dict[str, Any]:
+async def draft_batch(
+    topic: str = "", niche: str = "general", platforms: list[str] | None = None
+) -> dict[str, Any]:
     """Multiple platforms ke liye content pack (ek topic → har jagah)."""
     plats = platforms or ["quora", "reddit", "whatsapp_group", "linkedin_article"]
     out = []

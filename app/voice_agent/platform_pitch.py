@@ -114,9 +114,7 @@ def line_no_convince() -> str:
 
 
 def line_close_cold() -> str:
-    return (_script().get("close_cold") or "").strip() or (
-        "Theek hai sir, shukriya — din shubh!"
-    )
+    return (_script().get("close_cold") or "").strip() or ("Theek hai sir, shukriya — din shubh!")
 
 
 def line_clarify() -> str:

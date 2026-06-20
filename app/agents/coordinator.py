@@ -160,7 +160,10 @@ async def _llm(system: str, user: str, max_tokens: int = 260, temperature: float
         from app.voice_agent import free_ai
 
         reply, prov = await free_ai.chat(
-            system, [{"role": "user", "content": user}], max_tokens=max_tokens, temperature=temperature
+            system,
+            [{"role": "user", "content": user}],
+            max_tokens=max_tokens,
+            temperature=temperature,
         )
         return (reply or "").strip(), prov
     except Exception as e:  # pragma: no cover - defensive
@@ -232,7 +235,11 @@ async def _run_agent(agent: str, task: str, blackboard: dict, execute: bool) -> 
         max_tokens=240,
         temperature=0.5,
     )
-    return {"mode": "draft", "output": out or f"({agent} ka draft abhi nahi bana)", "provider": prov}
+    return {
+        "mode": "draft",
+        "output": out or f"({agent} ka draft abhi nahi bana)",
+        "provider": prov,
+    }
 
 
 async def coordinate(goal: str, execute: bool = False, max_steps: int = 5) -> dict:
@@ -278,7 +285,9 @@ async def fan_out(goal: str, agents: list[str] | None = None, max_agents: int = 
     goal = (goal or "").strip()
     if len(goal) < 3:
         return {"ok": False, "error": "goal bahut chhota hai"}
-    ags = [a for a in (agents or ["dev", "rohan", "isha", "kavya"]) if a in _agent_keys()][:max_agents]
+    ags = [a for a in (agents or ["dev", "rohan", "isha", "kavya"]) if a in _agent_keys()][
+        :max_agents
+    ]
     bb = {"goal": goal, "results": []}
 
     async def one(a: str):
@@ -374,7 +383,12 @@ def _remember(topic: str, reflection: str, score: float) -> None:
         with open(_MEMORY, "a", encoding="utf-8") as f:
             f.write(
                 json.dumps(
-                    {"topic": topic[:120], "reflection": reflection[:600], "score": score, "at": _now()},
+                    {
+                        "topic": topic[:120],
+                        "reflection": reflection[:600],
+                        "score": score,
+                        "at": _now(),
+                    },
                     ensure_ascii=False,
                 )
                 + "\n"
@@ -471,7 +485,12 @@ async def coordinate_advanced(
         results = bb["results"]
         critique = await _verify(goal, results)
         iterations.append(
-            {"iteration": it, "score": critique["score"], "weak": critique["weak"], "steps": len(steps)}
+            {
+                "iteration": it,
+                "score": critique["score"],
+                "weak": critique["weak"],
+                "steps": len(steps),
+            }
         )
         if critique["score"] >= quality_bar:
             break
@@ -529,7 +548,13 @@ async def debate(question: str, rounds: int = 1) -> dict:
         max_tokens=200,
         temperature=0.3,
     )
-    out = {"ok": True, "question": question, "rounds": transcript, "verdict": verdict or "(verdict nahi bana)", "at": _now()}
+    out = {
+        "ok": True,
+        "question": question,
+        "rounds": transcript,
+        "verdict": verdict or "(verdict nahi bana)",
+        "at": _now(),
+    }
     _persist(out)
     return out
 
@@ -677,12 +702,19 @@ async def _expert_contribution(expert: dict, goal: str, board: str, execute: boo
             res = await _TOOLS[staff](goal, goal)
             return {"role": expert["role"], "staff": staff, "mode": "executed", "output": res}
         except Exception as e:  # pragma: no cover - defensive
-            return {"role": expert["role"], "staff": staff, "mode": "executed", "error": str(e)[:200]}
+            return {
+                "role": expert["role"],
+                "staff": staff,
+                "mode": "executed",
+                "error": str(e)[:200],
+            }
     sys = (
         f"Tum '{expert['role']}' ho — expertise: {expert.get('expertise', '')}. Apne expert lens se "
         "goal pe concrete, actionable contribution do (3-5 line Hinglish). Sirf apna output."
     )
-    out, prov = await _llm(sys, f"Goal: {goal}\nAb tak team ne: {board[:1200]}", max_tokens=240, temperature=0.5)
+    out, prov = await _llm(
+        sys, f"Goal: {goal}\nAb tak team ne: {board[:1200]}", max_tokens=240, temperature=0.5
+    )
     return {
         "role": expert["role"],
         "staff": staff,
@@ -727,7 +759,13 @@ async def coordinate_agentverse(
     feedback = " | ".join(recalled)
     _log("manager", "agentverse_start", f"{goal} (mem:{len(recalled)})")
     rounds: list[dict] = []
-    best: dict[str, Any] = {"solution": "", "score": -1.0, "experts": [], "critique": {}, "contributions": []}
+    best: dict[str, Any] = {
+        "solution": "",
+        "score": -1.0,
+        "experts": [],
+        "critique": {},
+        "contributions": [],
+    }
     for rnd in range(max(1, min(3, max_rounds))):
         experts = await _recruit_experts(goal, feedback=feedback, team_size=team_size)
         _log("manager", "av_recruit", f"r{rnd}: " + ", ".join(e["role"] for e in experts))

@@ -204,7 +204,9 @@ class ProductionConfig:
             "openai_configured": bool(self.openai_api_key),
             "gemini_configured": bool(self.gemini_api_key),
             "twilio_configured": bool(self.twilio_account_sid),
-            "vobiz_configured": bool(get_secret_or_env(f"{self._prefix}vobiz-auth-id", "VOBIZ_AUTH_ID")),
+            "vobiz_configured": bool(
+                get_secret_or_env(f"{self._prefix}vobiz-auth-id", "VOBIZ_AUTH_ID")
+            ),
         }
 
 

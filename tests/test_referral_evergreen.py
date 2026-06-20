@@ -57,7 +57,7 @@ class TestMakeReferral:
 
     def test_svg_escapes_injection(self):
         # malicious business name must be escaped in the card SVG
-        r = referral_kit.make_referral('Evil<script>alert(1)</script>', reward='"x"&y')
+        r = referral_kit.make_referral("Evil<script>alert(1)</script>", reward='"x"&y')
         assert "<script>" not in r["card_svg"]
         assert "&lt;script&gt;" in r["card_svg"]
         # escaped reward (quotes/amp) — raw quote/amp pair must not appear unescaped
@@ -140,9 +140,21 @@ class TestRecyclableItems:
         new = datetime.now(timezone.utc).isoformat()
         rows = [
             # old + posted + has caption => eligible
-            {"id": "a", "type": "post", "status": "posted", "caption": "Old hit", "created_at": old},
+            {
+                "id": "a",
+                "type": "post",
+                "status": "posted",
+                "caption": "Old hit",
+                "created_at": old,
+            },
             # old + approved => eligible
-            {"id": "b", "type": "post", "status": "approved", "caption": "Liked", "created_at": old},
+            {
+                "id": "b",
+                "type": "post",
+                "status": "approved",
+                "caption": "Liked",
+                "created_at": old,
+            },
             # old but draft => NOT eligible
             {"id": "c", "type": "post", "status": "draft", "caption": "Draft", "created_at": old},
             # posted but too new => NOT eligible

@@ -608,8 +608,12 @@ class TestAdsCopy:
         # persona-grounded campaign plan (deterministic, never-empty)
         plan = result["plan"]
         assert set(plan) >= {
-            "budget_split", "targeting", "keywords",
-            "negative_keywords", "measurement", "pro_tip",
+            "budget_split",
+            "targeting",
+            "keywords",
+            "negative_keywords",
+            "measurement",
+            "pro_tip",
         }
         assert plan["budget_split"]["google_pct"] + plan["budget_split"]["meta_pct"] == 100
         assert 0 < len(plan["keywords"]) <= 10

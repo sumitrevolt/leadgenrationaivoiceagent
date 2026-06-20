@@ -181,7 +181,8 @@ async def publish_ready_to_telegram(limit: int = _MAX_PER_RUN) -> dict[str, Any]
                 from app.platform import team
 
                 team.log_event(
-                    "isha", "content_distribute",
+                    "isha",
+                    "content_distribute",
                     f"📣 Self content Telegram pe publish: {sent} items",
                 )
             except Exception:

@@ -551,7 +551,10 @@ async def magic_link_request(req: MagicRequestIn):
     generic (chahe email registered ho ya na ho). GATED MAGIC_LINK=1."""
     if not _magic_enabled():
         raise HTTPException(status_code=404, detail="Not found")
-    generic = {"ok": True, "message": "Agar ye email registered hai, to login link bhej diya gaya hai."}
+    generic = {
+        "ok": True,
+        "message": "Agar ye email registered hai, to login link bhej diya gaya hai.",
+    }
 
     email = (req.email or "").strip().lower()
     if "@" not in email or "." not in email.rsplit("@", 1)[-1]:

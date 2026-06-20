@@ -32,8 +32,18 @@ DEFAULT_ALERT_N = 5
 
 # Known integration names (free-form bhi chalta — yeh sirf docs/UI ordering)
 KNOWN = (
-    "smtp", "email_api", "imap", "exotel", "twilio", "places", "telegram",
-    "whatsapp", "pollinations", "qdrant", "razorpay", "stripe",
+    "smtp",
+    "email_api",
+    "imap",
+    "exotel",
+    "twilio",
+    "places",
+    "telegram",
+    "whatsapp",
+    "pollinations",
+    "qdrant",
+    "razorpay",
+    "stripe",
 )
 
 
@@ -89,7 +99,11 @@ def record_success(integration: str) -> None:
 
 def snapshot(hours: int = 24) -> dict[str, Any]:
     """Pichle N ghante ke per-integration fail/ok counts + last errors. Never raise."""
-    out: dict[str, Any] = {"hours": hours, "integrations": {}, "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    out: dict[str, Any] = {
+        "hours": hours,
+        "integrations": {},
+        "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
     try:
         r = _redis()
         now = datetime.now(timezone.utc)

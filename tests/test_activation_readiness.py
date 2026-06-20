@@ -23,10 +23,16 @@ from app.api import activation as ax
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Strip every env var any probe might read so each test starts from zero."""
     for k in (
-        "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET",
-        "SENTRY_DSN", "ENVIRONMENT", "APP_ENV",
-        "POSTHOG_API_KEY", "POSTHOG_HOST",
-        "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY",
+        "RAZORPAY_KEY_ID",
+        "RAZORPAY_KEY_SECRET",
+        "RAZORPAY_WEBHOOK_SECRET",
+        "SENTRY_DSN",
+        "ENVIRONMENT",
+        "APP_ENV",
+        "POSTHOG_API_KEY",
+        "POSTHOG_HOST",
+        "TURNSTILE_SITE_KEY",
+        "TURNSTILE_SECRET_KEY",
         "CLOUDFLARE_TUNNEL_TOKEN",
     ):
         monkeypatch.delenv(k, raising=False)
@@ -106,7 +112,9 @@ async def test_activation_summary_public() -> None:
 
     out = await activation_summary_public()
     assert out["ready_for_launch"] is True
-    assert out["payments_deferred"] is False  # Razorpay removed 2026-06-18 - manual UPI always available
+    assert (
+        out["payments_deferred"] is False
+    )  # Razorpay removed 2026-06-18 - manual UPI always available
     assert "graph_version" in out
 
 
@@ -121,11 +129,19 @@ async def test_readiness_launch_ready_default_env(monkeypatch: pytest.MonkeyPatc
     keys = {it["key"] for it in out["items"]}
     # Razorpay removed 2026-06-18; UPI revenue probe added -> 13 probes (Phase 1-5)
     expected = {
-        "sentry", "posthog", "turnstile", "cloudflare_tunnel", "upi",
-        "agent_memory", "eval_gate",
-        "engineer_agents", "ops_alerts",
-        "customer_webhooks", "mcp_product",
-        "litellm_costs", "warm_dr",
+        "sentry",
+        "posthog",
+        "turnstile",
+        "cloudflare_tunnel",
+        "upi",
+        "agent_memory",
+        "eval_gate",
+        "engineer_agents",
+        "ops_alerts",
+        "customer_webhooks",
+        "mcp_product",
+        "litellm_costs",
+        "warm_dr",
     }
     assert keys == expected
 

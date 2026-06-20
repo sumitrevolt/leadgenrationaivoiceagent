@@ -204,7 +204,7 @@ def staff_for_product(product: str) -> dict[str, dict[str, Any]]:
 # Status windows (realism): "working" = abhi-abhi active; "active" = aaj kaam kiya
 # (resting); "offline" = aaj kuch nahi. Pehle 2-min working/20-min offline tha →
 # din me kaam karne wale bhi grey "idle" dikhte the. Ab schedule-cycles reflect hote.
-_WORKING_AFTER_MIN = 20      # is window me event = abhi kaam kar raha (green pulse)
+_WORKING_AFTER_MIN = 20  # is window me event = abhi kaam kar raha (green pulse)
 _ACTIVE_TODAY_MIN = 16 * 60  # aaj-bhar active mana (blue), warna offline (grey)
 _IDLE_AFTER_MIN = _ACTIVE_TODAY_MIN  # backward-compat alias
 
@@ -278,6 +278,7 @@ def log_event(
 
         async def _pub() -> None:
             from app.api.events import publish_to_redis
+
             await publish_to_redis(event_payload)
 
         try:
@@ -406,7 +407,7 @@ def team_status() -> dict[str, Any]:
                 if mins <= _WORKING_AFTER_MIN:
                     state = "working"
                 elif mins <= _ACTIVE_TODAY_MIN:
-                    state = "active"   # aaj kaam kiya, abhi rest — grey nahi
+                    state = "active"  # aaj kaam kiya, abhi rest — grey nahi
                 else:
                     state = "offline"
         members.append(
@@ -571,7 +572,10 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
     ]
     try:
         ts = team_status()
-        recency = {m["key"]: (m.get("last_active_mins") if m.get("last_active_mins") is not None else 1e9) for m in ts.get("members", [])}
+        recency = {
+            m["key"]: (m.get("last_active_mins") if m.get("last_active_mins") is not None else 1e9)
+            for m in ts.get("members", [])
+        }
         monitors.sort(key=lambda x: recency.get(x[0], 1e9), reverse=True)  # sabse purana pehle
     except Exception:
         pass

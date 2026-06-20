@@ -81,8 +81,7 @@ def make_call_task(self, call_request_data: dict):
         # queue_call returns a sentinel id ("compliance_blocked_*", "out_of_*") when
         # the call was rejected by the compliance/billing gate rather than queued.
         blocked = bool(call_id) and (
-            call_id.startswith("compliance_")
-            or call_id.startswith("out_of_")
+            call_id.startswith("compliance_") or call_id.startswith("out_of_")
         )
         logger.info(f"Call enqueued: {call_id} (blocked={blocked})")
 

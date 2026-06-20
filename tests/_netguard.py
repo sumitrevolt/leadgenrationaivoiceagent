@@ -31,20 +31,18 @@ Usage (called from conftest.py at import time)::
 
 from __future__ import annotations
 
-import socket as _socket_module
 import builtins
+import socket as _socket_module
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-_LOCAL_HOSTS = frozenset(
-    {"localhost", "127.0.0.1", "::1", "0.0.0.0", ""}
-)
+_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0", ""})
 
 # These AF_* constants are always present on every platform
-_AF_INET  = _socket_module.AF_INET
+_AF_INET = _socket_module.AF_INET
 _AF_INET6 = _socket_module.AF_INET6
 try:
-    _AF_UNIX = _socket_module.AF_UNIX   # not on Windows, but safe guard
+    _AF_UNIX = _socket_module.AF_UNIX  # not on Windows, but safe guard
 except AttributeError:
     _AF_UNIX = None
 
@@ -80,15 +78,16 @@ def _block(address):
 
 # ── original references (stored once, restored on disable()) ──────────────
 
-_orig_connect    = None
+_orig_connect = None
 _orig_connect_ex = None
 _orig_create_connection = None
-_orig_getaddrinfo       = None
+_orig_getaddrinfo = None
 
 _enabled = False
 
 
 # ── patched implementations ───────────────────────────────────────────────
+
 
 def _patched_connect(self, address):
     if not _addr_is_local(address):
@@ -102,15 +101,18 @@ def _patched_connect_ex(self, address):
     return _orig_connect_ex(self, address)
 
 
-def _patched_create_connection(address, timeout=_socket_module._GLOBAL_DEFAULT_TIMEOUT,
-                                source_address=None, *, all_errors=False):
+def _patched_create_connection(
+    address,
+    timeout=_socket_module._GLOBAL_DEFAULT_TIMEOUT,
+    source_address=None,
+    *,
+    all_errors=False,
+):
     if not _addr_is_local(address):
         _block(address)
     # Forward to original — signature varies across Python 3.10/3.11/3.12
     try:
-        return _orig_create_connection(
-            address, timeout, source_address, all_errors=all_errors
-        )
+        return _orig_create_connection(address, timeout, source_address, all_errors=all_errors)
     except TypeError:
         return _orig_create_connection(address, timeout, source_address)
 
@@ -126,7 +128,7 @@ def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
         # numeric addresses like "127.0.0.1").
         is_numeric = False
         try:
-            _socket_module.inet_aton(host_str)   # IPv4 numeric
+            _socket_module.inet_aton(host_str)  # IPv4 numeric
             is_numeric = True
         except Exception:
             pass
@@ -143,6 +145,7 @@ def _patched_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
 
 # ── public API ────────────────────────────────────────────────────────────
 
+
 def enable() -> None:
     """Install the network guard. Safe to call multiple times (idempotent)."""
     global _enabled, _orig_connect, _orig_connect_ex
@@ -152,20 +155,21 @@ def enable() -> None:
         return
 
     try:
-        _orig_connect    = _socket_module.socket.connect
+        _orig_connect = _socket_module.socket.connect
         _orig_connect_ex = _socket_module.socket.connect_ex
         _orig_create_connection = _socket_module.create_connection
-        _orig_getaddrinfo       = _socket_module.getaddrinfo
+        _orig_getaddrinfo = _socket_module.getaddrinfo
 
-        _socket_module.socket.connect    = _patched_connect
+        _socket_module.socket.connect = _patched_connect
         _socket_module.socket.connect_ex = _patched_connect_ex
         _socket_module.create_connection = _patched_create_connection
-        _socket_module.getaddrinfo       = _patched_getaddrinfo
+        _socket_module.getaddrinfo = _patched_getaddrinfo
 
         _enabled = True
     except Exception as exc:
         # NEVER break pytest collection — silently log and give up
         import warnings
+
         warnings.warn(
             f"[netguard] Could not install network guard: {exc!r}. "
             "Tests may hang on real network calls.",
@@ -183,14 +187,15 @@ def disable() -> None:
 
     try:
         if _orig_connect is not None:
-            _socket_module.socket.connect    = _orig_connect
+            _socket_module.socket.connect = _orig_connect
         if _orig_connect_ex is not None:
             _socket_module.socket.connect_ex = _orig_connect_ex
         if _orig_create_connection is not None:
             _socket_module.create_connection = _orig_create_connection
         if _orig_getaddrinfo is not None:
-            _socket_module.getaddrinfo       = _orig_getaddrinfo
+            _socket_module.getaddrinfo = _orig_getaddrinfo
         _enabled = False
     except Exception as exc:
         import warnings
+
         warnings.warn(f"[netguard] Could not restore originals: {exc!r}", RuntimeWarning)

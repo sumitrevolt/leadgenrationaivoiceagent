@@ -29,17 +29,17 @@ _BEATS = os.path.join("data", "job_heartbeats.json")
 
 # job -> max-gap (minutes) jiske baad OVERDUE (cadence + generous grace)
 EXPECTED_GAP_MIN = {
-    "growth": 60,            # 15-min job, 1h grace
-    "ops": 180,              # hourly
+    "growth": 60,  # 15-min job, 1h grace
+    "ops": 180,  # hourly
     "reply_triage": 180,
     "watchdog": 180,
     "onboard": 180,
-    "standup": 30 * 60,      # daily 08:00 IST
-    "engineer_sre": 180,     # hourly :45
+    "standup": 30 * 60,  # daily 08:00 IST
+    "engineer_sre": 180,  # hourly :45
     "engineer_finops": 30 * 60,
     "engineer_security": 30 * 60,
     "readiness_digest": 30 * 60,
-    "qa": 30 * 60,           # daily (30h)
+    "qa": 30 * 60,  # daily (30h)
     "trainer": 30 * 60,
     "blog": 30 * 60,
     "content": 30 * 60,
@@ -53,7 +53,7 @@ EXPECTED_GAP_MIN = {
     "evening_wrap": 30 * 60,
     "weekly_marketing": 8 * 24 * 60,
     "saturday_hygiene": 8 * 24 * 60,
-    "meter_watch": 180,          # hourly :55 (gated METER_ALERTS), 3h grace
+    "meter_watch": 180,  # hourly :55 (gated METER_ALERTS), 3h grace
     "process_autostart": 30 * 60,  # daily ~11:30 IST (gated PROCESS_AUTOSTART)
 }
 
@@ -175,7 +175,9 @@ def health() -> dict[str, Any]:
         q.get("celery", -1) > QUEUE_BACKLOG_ALERT or q.get("heavy", -1) > QUEUE_BACKLOG_ALERT
     )
     return {
-        "status": "degraded" if (overdue or backlogged) else ("warming_up" if never_ran else "healthy"),
+        "status": (
+            "degraded" if (overdue or backlogged) else ("warming_up" if never_ran else "healthy")
+        ),
         "overdue": overdue,
         "never_ran": never_ran,
         "queue": q,

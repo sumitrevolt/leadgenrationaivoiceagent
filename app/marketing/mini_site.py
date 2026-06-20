@@ -143,9 +143,7 @@ def _about_blurb(name: str, niche_label: str, city: str, tagline: str) -> str:
 def _btn_row(phone_disp: str, wa: str) -> str:
     parts: list[str] = []
     if phone_disp:
-        parts.append(
-            f'<a class="cta call" href="tel:{_e(phone_disp)}">📞 Call karein</a>'
-        )
+        parts.append(f'<a class="cta call" href="tel:{_e(phone_disp)}">📞 Call karein</a>')
     if wa:
         parts.append(
             f'<a class="cta wa" href="https://wa.me/{_e(wa)}" '
@@ -200,7 +198,11 @@ def _catalog_section(slug: str, name: str, wa: str) -> str:
             )
             order_btn = ""
             if wa:
-                msg = f"Mujhe {pname}" + (f" ({price})" if price else "") + f" order karna hai — {name}"
+                msg = (
+                    f"Mujhe {pname}"
+                    + (f" ({price})" if price else "")
+                    + f" order karna hai — {name}"
+                )
                 order_btn = (
                     f'<a class="porder" href="https://wa.me/{_e(wa)}?text={_e(_q(msg))}" '
                     'target="_blank" rel="noopener">💬 WhatsApp pe order karein</a>'
@@ -342,14 +344,24 @@ def _socials_section(socials: dict[str, Any]) -> str:
     fb = _url(s.get("facebook"), "https://facebook.com/")
     gb = str(s.get("gbp") or "").strip()
     if ig:
-        links.append(f'<a class="soc ig" href="{_e(ig)}" target="_blank" rel="noopener">📸 Instagram</a>')
+        links.append(
+            f'<a class="soc ig" href="{_e(ig)}" target="_blank" rel="noopener">📸 Instagram</a>'
+        )
     if fb:
-        links.append(f'<a class="soc fb" href="{_e(fb)}" target="_blank" rel="noopener">👍 Facebook</a>')
+        links.append(
+            f'<a class="soc fb" href="{_e(fb)}" target="_blank" rel="noopener">👍 Facebook</a>'
+        )
     if gb.startswith("http"):
-        links.append(f'<a class="soc gb" href="{_e(gb)}" target="_blank" rel="noopener">🔎 Google</a>')
+        links.append(
+            f'<a class="soc gb" href="{_e(gb)}" target="_blank" rel="noopener">🔎 Google</a>'
+        )
     if not links:
         return ""
-    return '<section class="sec socials"><h2>Follow karein</h2><div class="soclist">' + "".join(links) + "</div></section>"
+    return (
+        '<section class="sec socials"><h2>Follow karein</h2><div class="soclist">'
+        + "".join(links)
+        + "</div></section>"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -519,7 +531,9 @@ def _booking_js(slug: str) -> str:
     import json
 
     slug_js = json.dumps(str(slug or ""))
-    biz_js = json.dumps("")  # business_name page se nahi — server slug se resolve karta; safe default
+    biz_js = json.dumps(
+        ""
+    )  # business_name page se nahi — server slug se resolve karta; safe default
     return (
         "<script>(function(){"
         "var f=document.getElementById('bform');if(!f)return;"
@@ -545,8 +559,7 @@ def _booking_js(slug: str) -> str:
         "btn.disabled=false;}})"
         ".catch(function(){msg.className='bmsg err';"
         "msg.textContent='Network issue — dobara try karein.';btn.disabled=false;});"
-        "});})();</script>"
-        % (slug_js, biz_js)
+        "});})();</script>" % (slug_js, biz_js)
     )
 
 
@@ -585,7 +598,7 @@ def _calendar_js() -> str:
         "if(!arr.length){msg.textContent='Is din koi slot free nahi — doosra din chuniye.';return;}"
         "msg.textContent='';var html='';"
         "for(var i=0;i<arr.length;i++){var s=arr[i];var iso=(typeof s==='string')?s:(s&&(s.when||s.start||s.iso||s.slot));"
-        "if(!iso)continue;html+='<button type=\"button\" class=\"slot\" data-iso=\"'"
+        'if(!iso)continue;html+=\'<button type="button" class="slot" data-iso="\''
         "+encodeURIComponent(iso)+'\">'+fmtTime(iso)+'</button>';}"
         "slotsEl.innerHTML=html;"
         "var sn=slotsEl.querySelectorAll('.slot');"
@@ -640,7 +653,7 @@ def _reviews_js(slug: str) -> str:
         "+'</span> '+d.avg_rating+' / 5 · '+arr.length+' reviews'):'';}"
         "if(!listEl)return;if(!arr.length){listEl.innerHTML='';return;}"
         "var html='';for(var i=0;i<arr.length;i++){var rv=arr[i];"
-        "html+='<div class=\"rvcard\"><div class=\"rvtop\"><span class=\"rvname\">'+esc(rv.name)"
+        'html+=\'<div class="rvcard"><div class="rvtop"><span class="rvname">\'+esc(rv.name)'
         "+'</span><span class=\"rvstars\">'+stars(rv.rating)+'</span></div>'"
         "+(rv.text?'<div class=\"rvtext\">'+esc(rv.text)+'</div>':'')+'</div>';}"
         "listEl.innerHTML=html;}).catch(function(){});}"
@@ -658,8 +671,7 @@ def _reviews_js(slug: str) -> str:
         "btn.disabled=false;}).catch(function(){msg.className='bmsg err';"
         "msg.textContent='Network issue — dobara try karein.';btn.disabled=false;});});}"
         "load();"
-        "})();</script>"
-        % (slug_js,)
+        "})();</script>" % (slug_js,)
     )
 
 
@@ -711,8 +723,10 @@ def render_site(client: dict[str, Any] | None) -> str:
         )
 
         # ----- HERO ----- #
-        nb = f'<span class="nb">{_e(niche_label)}{(" · " + _e(city)) if city else ""}</span>' if (niche_label or city) else (
-            f'<span class="nb">📍 {_e(city)}</span>' if city else ""
+        nb = (
+            f'<span class="nb">{_e(niche_label)}{(" · " + _e(city)) if city else ""}</span>'
+            if (niche_label or city)
+            else (f'<span class="nb">📍 {_e(city)}</span>' if city else "")
         )
         tag_html = f'<p class="tag">{_e(tagline)}</p>' if tagline else ""
         # Logo: real uploaded/linked image if configured (validated upstream),

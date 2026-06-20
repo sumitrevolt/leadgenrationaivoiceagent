@@ -52,7 +52,12 @@ def resolve_branding(host: str) -> dict | None:
                 from app.marketing.clients_store import list_clients
 
                 client = next(
-                    (c for c in list_clients() if str(c.get("custom_domain") or "").strip().lower() == h), None
+                    (
+                        c
+                        for c in list_clients()
+                        if str(c.get("custom_domain") or "").strip().lower() == h
+                    ),
+                    None,
                 )
         if not client:
             return None
@@ -61,7 +66,9 @@ def resolve_branding(host: str) -> dict | None:
         return {
             "slug": sub,
             "title": str(client.get("business_name") or sub.title()),
-            "logo_text": str((brand or {}).get("logo_text") or client.get("business_name") or sub.title()),
+            "logo_text": str(
+                (brand or {}).get("logo_text") or client.get("business_name") or sub.title()
+            ),
             "primary_color": str((brand or {}).get("primary") or "#2563eb"),
             "accent_color": str((brand or {}).get("accent") or "#1f7a3d"),
             "tagline": str((brand or {}).get("tagline") or ""),

@@ -64,7 +64,9 @@ async def run_weekly_marketing() -> dict[str, Any]:
         res = await niche_pack.build_all(tier="S", limit=4)
         n = int(res.get("count") or len(res.get("packs") or []))
         if n:
-            team.log_event("isha", "weekly_pack", f"📦 {n} S-tier niche marketing packs ready", status="ok")
+            team.log_event(
+                "isha", "weekly_pack", f"📦 {n} S-tier niche marketing packs ready", status="ok"
+            )
         return {"ok": True, **res}
     except Exception as e:
         logger.warning(f"[scheduled_ops] weekly marketing failed: {e}")

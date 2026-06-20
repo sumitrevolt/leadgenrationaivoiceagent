@@ -78,7 +78,11 @@ async def handle_missed_call(
 
         starter = getattr(telephony_vobiz, "start_stream_call", None)
         if starter is None:
-            return {"ok": True, "callback": False, "reason": "telephony start_stream_call unavailable"}
+            return {
+                "ok": True,
+                "callback": False,
+                "reason": "telephony start_stream_call unavailable",
+            }
         _RECENT[num] = time.time()
         # transactional callback to a number that rang us
         await starter(num, niche or "general", business or "Aapki missed call")

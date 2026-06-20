@@ -125,10 +125,16 @@ def _drafts_sales(smap: dict) -> list[dict[str, Any]]:
                     "source": "sales",
                     "id": pid,
                     "title": f"{r.get('name') or pid} — {r.get('grade') or '?'} ({r.get('score') or 0}/100)",
-                    "body": body or f"{r.get('niche') or ''} · {r.get('city') or ''} · {r.get('phone') or ''}",
+                    "body": body
+                    or f"{r.get('niche') or ''} · {r.get('city') or ''} · {r.get('phone') or ''}",
                     "created_at": r.get("ts") or "",
                     "status": _status_for("sales", pid, smap),
-                    "meta": {"phone": r.get("phone"), "niche": r.get("niche"), "city": r.get("city"), "score": r.get("score")},
+                    "meta": {
+                        "phone": r.get("phone"),
+                        "niche": r.get("niche"),
+                        "city": r.get("city"),
+                        "score": r.get("score"),
+                    },
                 }
             )
     except Exception as e:
@@ -140,12 +146,16 @@ def _drafts_coordinator(smap: dict) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     try:
         rows = _read_jsonl(_COORD_RUNS)
+
         # Draft runs only (execute falsy) with substance; recent cap = noise control.
         # NOTE: engineering_crew runs carry design/implementation_plan (NOT
         # summary/solution) — include those keys or the flagship mode is dropped.
         def _has_substance(r: dict) -> bool:
             return bool(
-                r.get("summary") or r.get("solution") or r.get("design") or r.get("implementation_plan")
+                r.get("summary")
+                or r.get("solution")
+                or r.get("design")
+                or r.get("implementation_plan")
             )
 
         rows = [r for r in rows if not r.get("execute") and _has_substance(r)]
@@ -168,7 +178,10 @@ def _drafts_coordinator(smap: dict) -> list[dict[str, Any]]:
                     "created_at": r.get("at") or "",
                     "status": _status_for("coordinator", rid, smap),
                     # persisted runs use `pattern` (engineering_crew/hierarchical/...) not `mode`
-                    "meta": {"mode": r.get("pattern") or r.get("mode") or "sequential", "goal": r.get("goal")},
+                    "meta": {
+                        "mode": r.get("pattern") or r.get("mode") or "sequential",
+                        "goal": r.get("goal"),
+                    },
                 }
             )
     except Exception as e:
@@ -196,7 +209,11 @@ def _drafts_fde(smap: dict) -> list[dict[str, Any]]:
                     "body": summ,
                     "created_at": r.get("at") or "",
                     "status": _status_for("fde", rid, smap),
-                    "meta": {"client": client, "deployed": r.get("deployed"), "total": r.get("total")},
+                    "meta": {
+                        "client": client,
+                        "deployed": r.get("deployed"),
+                        "total": r.get("total"),
+                    },
                 }
             )
     except Exception as e:
@@ -232,7 +249,11 @@ def _action_coordinator(item_id: str) -> str:
         from app.agents import self_improve
 
         d = next((x for x in _drafts_coordinator(_status_map()) if x["id"] == item_id), None)
-        goal = ((d or {}).get("meta") or {}).get("goal") or (d or {}).get("title") or "coordinator plan"
+        goal = (
+            ((d or {}).get("meta") or {}).get("goal")
+            or (d or {}).get("title")
+            or "coordinator plan"
+        )
         self_improve.add_task(f"Approved coordinator plan — follow up: {goal}", source="approval")
         return "queued to self_improve"
     except Exception as e:

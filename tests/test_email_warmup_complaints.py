@@ -7,6 +7,7 @@ Covers the #1 2026 Gmail/Yahoo deliverability gate (<0.3% spam-complaint rate):
 
 No network/DB/LLM — state file redirected to a tmp path, alert email stubbed out.
 """
+
 from __future__ import annotations
 
 import importlib
@@ -105,7 +106,9 @@ def test_status_surfaces_complaint_fields(warmup):
 
 def test_record_complaint_never_raises_on_bad_state(warmup, monkeypatch):
     ew = warmup
-    monkeypatch.setattr(ew, "_load", lambda: (_ for _ in ()).throw(RuntimeError("boom")), raising=True)
+    monkeypatch.setattr(
+        ew, "_load", lambda: (_ for _ in ()).throw(RuntimeError("boom")), raising=True
+    )
     out = ew.record_complaint("z@z.com", "spam")
     assert out["recorded"] is False
     assert out["paused"] is False

@@ -57,7 +57,13 @@ def _get_call_manager():
 
 
 # Machine AMD: Twilio AnsweredBy values that mean "not a live human".
-_MACHINE_ANSWERS = {"machine_start", "machine_end_beep", "machine_end_silence", "machine_end_other", "fax"}
+_MACHINE_ANSWERS = {
+    "machine_start",
+    "machine_end_beep",
+    "machine_end_silence",
+    "machine_end_other",
+    "fax",
+}
 
 
 def _amd_twiml(call_id: str, answered_by: str) -> str:
@@ -259,10 +265,7 @@ async def vobiz_answer_webhook(request: Request):
 
     if digits == "9":
         caller = str(
-            form_data.get("From")
-            or form_data.get("CallFrom")
-            or form_data.get("from")
-            or ""
+            form_data.get("From") or form_data.get("CallFrom") or form_data.get("from") or ""
         ).strip()
         if caller:
             try:
@@ -321,7 +324,10 @@ async def vobiz_inbound_webhook(request: Request):
         or ""
     ).strip()
     # Optional context (best-effort): niche/business may be passed as query/extra.
-    niche = str(form_data.get("niche") or request.query_params.get("niche") or "general").strip() or "general"
+    niche = (
+        str(form_data.get("niche") or request.query_params.get("niche") or "general").strip()
+        or "general"
+    )
     business = str(form_data.get("business") or request.query_params.get("business") or "").strip()
     status = str(form_data.get("Status") or form_data.get("call_status") or "").lower()
 

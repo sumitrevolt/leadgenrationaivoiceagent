@@ -133,7 +133,9 @@ async def magic_resize_endpoint(
                     {"ok": False, "error": "sirf png/jpg/webp upload karo."}, status_code=400
                 )
             if len(data) > 8_000_000:
-                return JSONResponse({"ok": False, "error": "file 8MB se badi hai."}, status_code=400)
+                return JSONResponse(
+                    {"ok": False, "error": "file 8MB se badi hai."}, status_code=400
+                )
             os.makedirs(_RESIZED_DIR, exist_ok=True)
             image_path = os.path.join(_RESIZED_DIR, f"upload_{uuid.uuid4().hex[:10]}.{ext}")
             with open(image_path, "wb") as f:
@@ -158,7 +160,9 @@ async def resize_file(name: str):
     for d in (_RESIZED_DIR, _FRAMES_DIR):
         p = os.path.join(d, name)
         if os.path.isfile(p):
-            return _FR(p, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"})
+            return _FR(
+                p, media_type="image/png", headers={"Cache-Control": "public, max-age=604800"}
+            )
     raise HTTPException(status_code=404, detail="not found")
 
 
@@ -193,15 +197,11 @@ async def stickers(body: StickersIn, _user=Depends(require_admin)):
     out = sticker_pack.generate_stickers(body.slug, body.business_name, body.niche)
     if out.get("ok") and isinstance(out.get("files"), list):
         tag = os.path.basename(out.get("dir", ""))
-        out["urls"] = [
-            f"/api/brand/sticker-file/{tag}/{os.path.basename(p)}" for p in out["files"]
-        ]
+        out["urls"] = [f"/api/brand/sticker-file/{tag}/{os.path.basename(p)}" for p in out["files"]]
     return out
 
 
-@router.get(
-    "/sticker-file/{slug}/{name}", dependencies=[Depends(rate_limit("stkf", 60, 60))]
-)
+@router.get("/sticker-file/{slug}/{name}", dependencies=[Depends(rate_limit("stkf", 60, 60))])
 async def sticker_file(slug: str, name: str):
     """Sticker PNG serve (public, slug+filename regex-locked)."""
     from fastapi.responses import FileResponse as _FR

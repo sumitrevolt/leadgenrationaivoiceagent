@@ -631,6 +631,7 @@ async def get_monthly_report(
 def _iso_week_buckets(calls: list[dict[str, Any]], year: int, month: int) -> list[dict[str, Any]]:
     """Month ke calls ko ISO-week buckets me group karo."""
     from collections import defaultdict as _dd
+
     buckets: dict[str, int] = _dd(int)
     for c in calls:
         dt = analytics_store._as_dt(c.get("completed_at"))
@@ -644,6 +645,7 @@ def _iso_week_buckets(calls: list[dict[str, Any]], year: int, month: int) -> lis
 def _month_comparison(calls_this: int, leads_this: int, year: int, month: int) -> dict[str, Any]:
     """Is month vs previous month % change."""
     import calendar as _cal
+
     prev_month = month - 1 if month > 1 else 12
     prev_year = year if month > 1 else year - 1
     _, last_day = _cal.monthrange(prev_year, prev_month)
@@ -668,6 +670,7 @@ def _month_comparison(calls_this: int, leads_this: int, year: int, month: int) -
 def _week_trends(week_calls: list, week_leads: list, week_start) -> dict[str, Any]:
     """Is week vs previous week % change."""
     from datetime import timedelta as _td
+
     prev_end = datetime.combine(week_start, datetime.min.time()) - _td(seconds=1)
     prev_start = prev_end - _td(days=6)
     prev_calls = _in_range(_calls_source(), "completed_at", prev_start, prev_end)
@@ -692,10 +695,12 @@ def _week_trends(week_calls: list, week_leads: list, week_start) -> dict[str, An
     prev_end = datetime.combine(week_start - timedelta(days=1), datetime.max.time())
     prev_calls = _in_range(_calls_source(), "completed_at", prev_start, prev_end)
     prev_leads = _in_range(_leads_source(), "created_at", prev_start, prev_end)
+
     def _pct(cur: int, prev: int) -> float:
         if prev == 0:
             return 100.0 if cur > 0 else 0.0
         return round((cur - prev) / prev * 100, 1)
+
     prev_appts = [c for c in prev_calls if c.get("outcome") == "appointment"]
     cur_appts = [c for c in week_calls if c.get("outcome") == "appointment"]
     return {

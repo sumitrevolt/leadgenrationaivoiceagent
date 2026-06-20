@@ -82,12 +82,16 @@ async def start_platform_api(
     global _scheduler_running
     try:
         from app.platform import growth_engine
+
         background_tasks.add_task(growth_engine.pulse)
         _scheduler_running = True
     except Exception as _e:
         logger.warning(f"[platform/start] growth pulse trigger failed: {_e}")
     logger.info("🚀 Platform pulse triggered via API")
-    return {"status": "started", "message": "Growth pulse triggered — team_scheduler handles full automation"}
+    return {
+        "status": "started",
+        "message": "Growth pulse triggered — team_scheduler handles full automation",
+    }
 
 
 @router.post("/stop")
@@ -98,7 +102,10 @@ async def stop_platform_api(current_user: User = Depends(require_super_admin)):
     """
     global _scheduler_running
     _scheduler_running = False
-    return {"status": "stopped", "message": "Flag cleared — to fully stop, bring down the container"}
+    return {
+        "status": "stopped",
+        "message": "Flag cleared — to fully stop, bring down the container",
+    }
 
 
 @router.get("/stats", response_model=PlatformStatsResponse)
@@ -125,6 +132,7 @@ async def get_dashboard(current_user: User = Depends(require_admin)):
     """
     try:
         from app.platform import growth_engine
+
         pulse = growth_engine.latest_pulse()
     except Exception:
         pulse = {}
@@ -413,6 +421,7 @@ async def trigger_platform_scrape(background_tasks: BackgroundTasks):
     """
     try:
         from app.platform import niche_prospector as _np
+
         background_tasks.add_task(_np.run)
     except Exception as _e:
         raise HTTPException(status_code=500, detail=f"Scrape trigger failed: {_e}")

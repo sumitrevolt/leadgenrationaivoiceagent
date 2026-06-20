@@ -106,14 +106,18 @@ def grid_points(lat: float, lng: float, radius_km: float = 2.0) -> list[dict[str
 def point_label(row: int, col: int) -> str:
     if row == 0 and col == 0:
         return "Center"
-    return ("-".join(x for x in (_ROW_LABEL.get(row, ""), _COL_LABEL.get(col, "")) if x)) or "Center"
+    return (
+        "-".join(x for x in (_ROW_LABEL.get(row, ""), _COL_LABEL.get(col, "")) if x)
+    ) or "Center"
 
 
 def runs_today() -> int:
     """Aaj kitne grid-runs ho chuke (daily cap counter). Never raises."""
     try:
         today = _today()
-        return sum(1 for r in _read_jsonl(_RUNS_FILE) if str(r.get("checked_at", "")).startswith(today))
+        return sum(
+            1 for r in _read_jsonl(_RUNS_FILE) if str(r.get("checked_at", "")).startswith(today)
+        )
     except Exception:
         return 0
 
@@ -147,7 +151,9 @@ def _api_key() -> str:
     try:
         from app.config import settings
 
-        return getattr(settings, "google_maps_api_key", None) or os.getenv("GOOGLE_MAPS_API_KEY", "")
+        return getattr(settings, "google_maps_api_key", None) or os.getenv(
+            "GOOGLE_MAPS_API_KEY", ""
+        )
     except Exception:
         return os.getenv("GOOGLE_MAPS_API_KEY", "")
 
@@ -189,7 +195,8 @@ async def _places_search_at(
                     out.append(
                         {
                             "name": name,
-                            "phone": p.get("nationalPhoneNumber") or p.get("internationalPhoneNumber"),
+                            "phone": p.get("nationalPhoneNumber")
+                            or p.get("internationalPhoneNumber"),
                         }
                     )
                 except Exception:

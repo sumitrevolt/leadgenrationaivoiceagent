@@ -62,7 +62,9 @@ class AgenticRAG:
 
             reply, _ = await free_ai.chat(
                 system="You grade whether the CONTEXT can answer the QUESTION. Reply with only YES or NO.",
-                messages=[{"role": "user", "content": f"QUESTION: {query}\n\nCONTEXT:\n{self._ctx(hits)}"}],
+                messages=[
+                    {"role": "user", "content": f"QUESTION: {query}\n\nCONTEXT:\n{self._ctx(hits)}"}
+                ],
                 max_tokens=3,
                 temperature=0.0,
             )
@@ -98,7 +100,9 @@ class AgenticRAG:
                 system="Answer the question ONLY from the context, concise (max 2 sentences), in "
                 "Hinglish (Roman script). If the context does not contain the answer, say you'll "
                 "confirm with the team. Do not invent facts.",
-                messages=[{"role": "user", "content": f"QUESTION: {query}\n\nCONTEXT:\n{self._ctx(hits)}"}],
+                messages=[
+                    {"role": "user", "content": f"QUESTION: {query}\n\nCONTEXT:\n{self._ctx(hits)}"}
+                ],
                 max_tokens=120,
                 temperature=0.3,
             )
@@ -116,8 +120,13 @@ class AgenticRAG:
     ) -> dict:
         """Run retrieve→grade→(rewrite→retry)→generate. Never raises."""
         out = {
-            "ok": False, "answer": _SAFE, "grounded": False,
-            "used_query": query, "rewrites": 0, "sources": [], "namespace": namespace,
+            "ok": False,
+            "answer": _SAFE,
+            "grounded": False,
+            "used_query": query,
+            "rewrites": 0,
+            "sources": [],
+            "namespace": namespace,
         }
         if not (query or "").strip():
             return out
@@ -129,8 +138,10 @@ class AgenticRAG:
             # corrective loop: grade, and rewrite+retry while weak
             while True:
                 hits = kb.retrieve(cur, k=k, namespace=namespace) or []
-                good = await self._grade(query, hits) if self._enabled else bool(
-                    hits and (hits[0].get("score", 0.0) or 0.0) >= _MIN_SCORE
+                good = (
+                    await self._grade(query, hits)
+                    if self._enabled
+                    else bool(hits and (hits[0].get("score", 0.0) or 0.0) >= _MIN_SCORE)
                 )
                 if good or rewrites >= max_rewrites or not self._enabled:
                     break
@@ -140,7 +151,10 @@ class AgenticRAG:
             out["used_query"] = cur
             out["rewrites"] = rewrites
             out["sources"] = [
-                {"source": h.get("source", ""), "score": round(float(h.get("score", 0.0) or 0.0), 3)}
+                {
+                    "source": h.get("source", ""),
+                    "score": round(float(h.get("score", 0.0) or 0.0), 3),
+                }
                 for h in hits[:k]
             ]
             grounded = bool(hits and (hits[0].get("score", 0.0) or 0.0) >= _MIN_SCORE)
@@ -153,7 +167,7 @@ class AgenticRAG:
             return out
 
 
-_singleton: Optional[AgenticRAG] = None
+_singleton: AgenticRAG | None = None
 
 
 def get_agentic_rag() -> AgenticRAG:

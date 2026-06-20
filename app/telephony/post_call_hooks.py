@@ -226,9 +226,7 @@ async def auto_qualify_and_downstream(
         if not history:
             return
         txt = "\n".join(
-            f"{m.get('role', '?')}: {m.get('content', '')}"
-            for m in history
-            if isinstance(m, dict)
+            f"{m.get('role', '?')}: {m.get('content', '')}" for m in history if isinstance(m, dict)
         )
         if len(txt) < 10:
             return

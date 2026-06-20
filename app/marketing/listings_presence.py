@@ -199,15 +199,18 @@ def score(present: dict[str, Any] | None) -> dict[str, Any]:
                 gaps.append(d)
         gaps.sort(key=lambda d: -d["weight"])
         tips = [
-            f"{d['name']} pe FREE listing banao ({d['listing_url']}) — {d['why']}"
-            for d in gaps[:5]
+            f"{d['name']} pe FREE listing banao ({d['listing_url']}) — {d['why']}" for d in gaps[:5]
         ]
         if total >= 80:
             verdict = "Listings presence solid hai — ab reviews + posts pe focus karo."
         elif total >= 50:
-            verdict = "Theek hai, par gaps hain — missing directories pe listing banao (sab FREE hain)."
+            verdict = (
+                "Theek hai, par gaps hain — missing directories pe listing banao (sab FREE hain)."
+            )
         else:
-            verdict = "Listings presence weak hai — customers aur AI search dono ko aap mil nahi rahe."
+            verdict = (
+                "Listings presence weak hai — customers aur AI search dono ko aap mil nahi rahe."
+            )
         return {
             "ok": True,
             "score": min(100, total),
@@ -240,7 +243,11 @@ def save_status(client_id: str, present: dict[str, Any]) -> dict[str, Any]:
             "updated_at": _now(),
         }
         _append_jsonl(_STATUS_FILE, rec)
-        return {"ok": True, "saved": rec, **{k: scored.get(k) for k in ("verdict", "tips", "missing")}}
+        return {
+            "ok": True,
+            "saved": rec,
+            **{k: scored.get(k) for k in ("verdict", "tips", "missing")},
+        }
     except Exception as e:  # pragma: no cover - defensive
         logger.warning(f"[listings] save_status failed: {e}")
         return {"ok": False, "error": str(e)}
@@ -260,7 +267,12 @@ def get_status(client_id: str) -> dict[str, Any]:
             }
         rows.sort(key=lambda r: str(r.get("updated_at") or ""), reverse=True)
         latest = rows[0]
-        return {"ok": True, "client_id": client_id, "status": latest, **score(latest.get("present"))}
+        return {
+            "ok": True,
+            "client_id": client_id,
+            "status": latest,
+            **score(latest.get("present")),
+        }
     except Exception as e:  # pragma: no cover - defensive
         logger.warning(f"[listings] get_status failed: {e}")
         return {"ok": False, "error": str(e)}

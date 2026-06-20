@@ -65,7 +65,9 @@ def test_require_admin_module_enforcement():
     from app.api import auth_deps
 
     def _req(path):
-        return Request({"type": "http", "method": "GET", "path": path, "headers": [], "query_string": b""})
+        return Request(
+            {"type": "http", "method": "GET", "path": path, "headers": [], "query_string": b""}
+        )
 
     admin = _FakeUser(is_admin=True)
     member = _FakeUser(preferences={"modules": ["marketing"]})

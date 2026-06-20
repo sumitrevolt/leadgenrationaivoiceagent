@@ -46,7 +46,7 @@ class FakeBackend:
 
     def vsearch(self, vec, scope):
         best = None
-        for (v, s, resp, ts) in self.vecs:
+        for v, s, resp, ts in self.vecs:
             if s != scope:
                 continue
             score = _cos(v, vec)
@@ -117,7 +117,9 @@ async def test_semantic_hit(monkeypatch):
         calls["n"] += 1
         return "ANSWER_PRICE"
 
-    await sc.semantic_complete("what is your pricing", factory, scope="t", min_similarity=0.97, backend=be)
+    await sc.semantic_complete(
+        "what is your pricing", factory, scope="t", min_similarity=0.97, backend=be
+    )
     val, info = await sc.semantic_complete(
         "what's your price", factory, scope="t", min_similarity=0.97, backend=be
     )
@@ -137,7 +139,9 @@ async def test_semantic_miss_below_threshold(monkeypatch):
         calls["n"] += 1
         return f"R{calls['n']}"
 
-    await sc.semantic_complete("what is your pricing", factory, scope="t", min_similarity=0.97, backend=be)
+    await sc.semantic_complete(
+        "what is your pricing", factory, scope="t", min_similarity=0.97, backend=be
+    )
     val, info = await sc.semantic_complete(
         "tell me a joke", factory, scope="t", min_similarity=0.97, backend=be
     )
@@ -157,7 +161,9 @@ async def test_scope_isolation(monkeypatch):
     async def f_b():
         return "B"
 
-    await sc.semantic_complete("what is your pricing", f_a, scope="nicheA", min_similarity=0.97, backend=be)
+    await sc.semantic_complete(
+        "what is your pricing", f_a, scope="nicheA", min_similarity=0.97, backend=be
+    )
     # same text, different scope -> must NOT serve nicheA's answer
     val, info = await sc.semantic_complete(
         "what is your pricing", f_b, scope="nicheB", min_similarity=0.97, backend=be
@@ -186,5 +192,7 @@ async def test_failopen_on_embed_error(monkeypatch):
 async def test_sync_factory_supported(monkeypatch):
     monkeypatch.setenv("SEMANTIC_CACHE", "1")
     be = FakeBackend(VECMAP)
-    val, info = await sc.semantic_complete("tell me a joke", lambda: "SYNC_VAL", scope="t", backend=be)
+    val, info = await sc.semantic_complete(
+        "tell me a joke", lambda: "SYNC_VAL", scope="t", backend=be
+    )
     assert val == "SYNC_VAL"

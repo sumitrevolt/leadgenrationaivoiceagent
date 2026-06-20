@@ -3,6 +3,7 @@
 Pure-python: token HMAC + header builders + suppression store (tmp) + a
 monkeypatched SMTP send. NO network, NO real DB.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -41,7 +42,7 @@ def test_suppress_then_is_suppressed(tmp_path, monkeypatch):
     monkeypatch.setattr(eu, "_STORE", tmp_path / "sup.jsonl")
     assert eu.is_suppressed("x@y.com") is False
     assert eu.suppress("X@Y.com", "one_click") is True
-    assert eu.is_suppressed("x@y.com") is True          # case-normalized match
+    assert eu.is_suppressed("x@y.com") is True  # case-normalized match
     assert eu.is_suppressed("other@z.com") is False
 
 

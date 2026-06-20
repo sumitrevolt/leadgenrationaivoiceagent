@@ -7,6 +7,7 @@ and assert the recall/precision/delta + PASS/FAIL gate arithmetic.
 Run:
   .venv\\Scripts\\python.exe -m pytest tests/test_rag_retrieval_ab.py -q
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -155,9 +156,7 @@ def test_compute_deltas_passes_when_upgrade_beats_baseline():
 
 def test_compute_deltas_fails_when_no_improvement():
     # both baseline and candidate identical -> delta 0 -> below margin -> fail
-    report = ab.compute_deltas(
-        {"baseline": fn_perfect, "rerank": fn_perfect}, k=3, margin=0.05
-    )
+    report = ab.compute_deltas({"baseline": fn_perfect, "rerank": fn_perfect}, k=3, margin=0.05)
     assert report["configs"]["rerank"]["recall_delta"] == 0.0
     assert report["configs"]["rerank"]["passed"] is False
     assert report["winner"] is None
@@ -231,9 +230,7 @@ def test_margin_boundary_inclusive():
 # format_delta_table + run_gate rc
 # --------------------------------------------------------------------------- #
 def test_format_delta_table_contains_configs_and_verdict():
-    report = ab.compute_deltas(
-        {"baseline": fn_empty, "full": fn_perfect}, k=3, margin=0.05
-    )
+    report = ab.compute_deltas({"baseline": fn_empty, "full": fn_perfect}, k=3, margin=0.05)
     table = ab.format_delta_table(report)
     assert "baseline" in table
     assert "full" in table

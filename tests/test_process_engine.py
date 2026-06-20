@@ -45,7 +45,10 @@ def test_happy_path_completes(tmp_path, monkeypatch):
     _fake_process(
         monkeypatch,
         [{"id": "a", "action": "x"}, {"id": "b", "action": "y"}],
-        [{"ok": True, "count": 5, "detail": "a done"}, {"ok": True, "count": 2, "detail": "b done"}],
+        [
+            {"ok": True, "count": 5, "detail": "a done"},
+            {"ok": True, "count": 2, "detail": "b done"},
+        ],
     )
     r = pe.start_run("testproc", {"niche": "solar"})
     assert r["ok"] is True
@@ -67,6 +70,7 @@ def test_gate_fail_retry_then_failed(tmp_path, monkeypatch):
         [{"ok": True, "count": 0, "detail": "kam"}],
     )
     from app.agents import process_library as pl
+
     # real check_gate use karo (deterministic logic test)
     r = pe.start_run("testproc")
     out = asyncio.run(pe.advance(r["run_id"]))

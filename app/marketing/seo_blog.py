@@ -427,6 +427,7 @@ async def generate_article(niche: str, city: str = "", topic: str | None = None)
             try:  # semantic cache (flag-gated, OFF default; import-safe)
                 from app.cache.semantic_cache import semantic_complete
             except Exception:  # pragma: no cover
+
                 async def semantic_complete(_k, _f, **_kw):  # type: ignore
                     v = _f()
                     if hasattr(v, "__await__"):

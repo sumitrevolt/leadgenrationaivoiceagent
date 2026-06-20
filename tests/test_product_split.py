@@ -26,8 +26,13 @@ def test_voice_packages_catalog():
         assert vp.BANDS[b]["price_year"] == vp.BANDS[b]["price_month"] * 10
     # plan-id registry: 3 monthly + 3 annual + free pilot
     assert set(vp.VOICE_PLAN_IDS) == {
-        "voice_a_monthly", "voice_b_monthly", "voice_c_monthly",
-        "voice_a_annual", "voice_b_annual", "voice_c_annual", "voice_pilot",
+        "voice_a_monthly",
+        "voice_b_monthly",
+        "voice_c_monthly",
+        "voice_a_annual",
+        "voice_b_annual",
+        "voice_c_annual",
+        "voice_pilot",
     }
     # flat plans = unlimited quota signal; pilot = fair-use call cap
     assert vp.plan_lead_quota("voice_a_monthly") == vp.UNLIMITED_QUOTA
@@ -133,7 +138,7 @@ def test_billing_plans_two_products():
     assert float(sub.PRICING_PLANS["growth"].monthly_price) == 2999.0
     assert float(sub.PRICING_PLANS["advanced"].monthly_price) == 6999.0
     # voice (Product 2) — flat per-band plans (monthly + annual) + free pilot
-    from app.marketing.voice_packages import BANDS, VOICE_PLAN_IDS, UNLIMITED_QUOTA
+    from app.marketing.voice_packages import BANDS, UNLIMITED_QUOTA, VOICE_PLAN_IDS
 
     for pid in VOICE_PLAN_IDS:
         plan = sub.PRICING_PLANS.get(pid)

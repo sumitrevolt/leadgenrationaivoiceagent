@@ -43,9 +43,9 @@ _DEALS = os.path.join("data", "deals.jsonl")
 
 KINDS = ("prospects", "clients", "topics")
 
-_MAX_FILE_BYTES = 64 * 1024          # edit_memory hard cap
-_COMPACT_AT = 80                     # timeline bullets isse zyada → compact
-_KEEP_AFTER_COMPACT = 30             # compact ke baad itne recent bullets rakho
+_MAX_FILE_BYTES = 64 * 1024  # edit_memory hard cap
+_COMPACT_AT = 80  # timeline bullets isse zyada → compact
+_KEEP_AFTER_COMPACT = 30  # compact ke baad itne recent bullets rakho
 _MAX_PROFILE_FACTS = 40
 
 _IST = timezone(timedelta(hours=5, minutes=30))
@@ -213,7 +213,9 @@ def list_entities(kind: str) -> list[dict[str, Any]]:
                         "key": name[:-3],
                         "kind": kind,
                         "size": st.st_size,
-                        "updated_at": datetime.fromtimestamp(st.st_mtime, tz=timezone.utc).isoformat(),
+                        "updated_at": datetime.fromtimestamp(
+                            st.st_mtime, tz=timezone.utc
+                        ).isoformat(),
                     }
                 )
             except Exception:
@@ -322,12 +324,17 @@ async def regen_summary(kind: str, key: str) -> dict[str, Any]:
         return {"ok": False, "error": str(e)}
 
 
-def context_snippet(phone: str | None = None, client_id: str | None = None, max_chars: int = 1200) -> str:
+def context_snippet(
+    phone: str | None = None, client_id: str | None = None, max_chars: int = 1200
+) -> str:
     """Agents ke liye fast context: Summary + Profile + last 10 timeline bullets.
     Pure sync, no LLM, max 2 file reads. Memory na ho to ''. Kabhi raise nahi."""
     try:
         parts: list[str] = []
-        for kind, key in (("prospects", phone10(phone) if phone else ""), ("clients", client_id or "")):
+        for kind, key in (
+            ("prospects", phone10(phone) if phone else ""),
+            ("clients", client_id or ""),
+        ):
             if not key:
                 continue
             p = _path(kind, key)
@@ -433,12 +440,18 @@ def sync_all(limit_per_store: int = 500) -> dict[str, Any]:
                         ("Package interest", r.get("package")),
                     ):
                         if val:
-                            upsert_profile_fact("prospects", ph, f"{label}: {str(val).strip()[:80]}")
+                            upsert_profile_fact(
+                                "prospects", ph, f"{label}: {str(val).strip()[:80]}"
+                            )
                 cid = str(r.get("client_id") or "").strip()
                 if cid:
                     who = str(r.get("name") or ph or "lead").strip()[:60]
-                    if add_event("clients", cid, f"Mini-site inquiry: {who}" + (f" — {msg[:60]}" if msg else ""),
-                                 title=f"Client {cid}"):
+                    if add_event(
+                        "clients",
+                        cid,
+                        f"Mini-site inquiry: {who}" + (f" — {msg[:60]}" if msg else ""),
+                        title=f"Client {cid}",
+                    ):
                         n += 1
             summary["inquiries"] = n
         except Exception as e:

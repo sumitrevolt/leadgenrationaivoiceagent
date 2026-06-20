@@ -59,7 +59,9 @@ def _quiet(monkeypatch):
     alerts: list[tuple] = []
     beats: list[tuple] = []
     monkeypatch.setattr(ls, "_alert", lambda title, body, **kw: alerts.append((title, body)))
-    monkeypatch.setattr(ls, "_heartbeat", lambda job, ok=True, note="": beats.append((job, ok, note)))
+    monkeypatch.setattr(
+        ls, "_heartbeat", lambda job, ok=True, note="": beats.append((job, ok, note))
+    )
     # reset in-process cooldowns between tests
     ls._last_alert.clear()
     return {"alerts": alerts, "beats": beats}

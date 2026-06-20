@@ -8,6 +8,7 @@ Exit-code contract:
   2 — WCAG critical violations count increased
   3 — must_have backlog items count increased
 """
+
 from __future__ import annotations
 
 import datetime
@@ -22,7 +23,7 @@ from .assessment_models import RegressionReport
 log = logging.getLogger(__name__)
 
 # Status severity order (higher index = worse)
-_STATUS_RANK: Dict[str, int] = {
+_STATUS_RANK: dict[str, int] = {
     "complete": 2,
     "partial": 1,
     "broken": 0,
@@ -103,9 +104,9 @@ class AssessmentComparator:
 
     def detect_regressions(
         self,
-        baseline_features: List[Dict],
-        current_features: List[Dict],
-    ) -> List[Dict]:
+        baseline_features: list[dict],
+        current_features: list[dict],
+    ) -> list[dict]:
         """
         Match features by name (case-insensitive) across dashboards, find
         status regressions (complete→broken or complete→partial or
@@ -121,13 +122,13 @@ class AssessmentComparator:
         }
         """
         # Build lookup: (name_lower, dashboard) -> status
-        baseline_map: Dict[tuple, str] = {}
+        baseline_map: dict[tuple, str] = {}
         for feat in baseline_features:
             key = (feat.get("name", "").lower(), feat.get("dashboard", "").lower())
             if key[0]:
                 baseline_map[key] = feat.get("status", "").lower()
 
-        regressions: List[Dict] = []
+        regressions: list[dict] = []
         for feat in current_features:
             name = feat.get("name", "")
             dashboard = feat.get("dashboard", "").lower()
@@ -144,21 +145,23 @@ class AssessmentComparator:
 
             if c_rank < b_rank:
                 regression_type = f"{baseline_status}->{current_status}"
-                regressions.append({
-                    "feature_name": name,
-                    "dashboard": dashboard,
-                    "baseline_status": baseline_status,
-                    "current_status": current_status,
-                    "regression_type": regression_type,
-                })
+                regressions.append(
+                    {
+                        "feature_name": name,
+                        "dashboard": dashboard,
+                        "baseline_status": baseline_status,
+                        "current_status": current_status,
+                        "regression_type": regression_type,
+                    }
+                )
 
         return regressions
 
     def detect_improvements(
         self,
-        baseline_gaps: List[Dict],
-        current_gaps: List[Dict],
-    ) -> List[Dict]:
+        baseline_gaps: list[dict],
+        current_gaps: list[dict],
+    ) -> list[dict]:
         """
         Find gaps that existed in the baseline but are absent in the current
         assessment (i.e., closed/resolved gaps).
@@ -178,25 +181,27 @@ class AssessmentComparator:
             if g.get("name")
         }
 
-        improvements: List[Dict] = []
+        improvements: list[dict] = []
         for gap in baseline_gaps:
             name = gap.get("name", "")
             dashboard = gap.get("dashboard", "").lower()
             key = (name.lower(), dashboard)
             if key[0] and key not in current_set:
-                improvements.append({
-                    "gap_name": name,
-                    "dashboard": dashboard,
-                    "baseline_moscow": gap.get("moscow", ""),
-                })
+                improvements.append(
+                    {
+                        "gap_name": name,
+                        "dashboard": dashboard,
+                        "baseline_moscow": gap.get("moscow", ""),
+                    }
+                )
 
         return improvements
 
     def calculate_score_deltas(
         self,
-        baseline_scores: Dict[str, float],
-        current_scores: Dict[str, float],
-    ) -> Dict[str, float]:
+        baseline_scores: dict[str, float],
+        current_scores: dict[str, float],
+    ) -> dict[str, float]:
         """
         Compute (current - baseline) for every score key present in either dict.
 
@@ -204,7 +209,7 @@ class AssessmentComparator:
         Returns dict mapping score_key → delta (float).
         """
         all_keys = set(baseline_scores) | set(current_scores)
-        deltas: Dict[str, float] = {}
+        deltas: dict[str, float] = {}
         for key in sorted(all_keys):
             b_val = float(baseline_scores.get(key, 0.0))
             c_val = float(current_scores.get(key, 0.0))
@@ -229,36 +234,27 @@ class AssessmentComparator:
         # --- Exit 3: must_have backlog items increased ---
         must_have_delta = report.score_deltas.get("must_have_count", None)
         if must_have_delta is not None and must_have_delta > 0:
-            log.warning(
-                "CI exit 3: must_have backlog count increased by %.0f", must_have_delta
-            )
+            log.warning("CI exit 3: must_have backlog count increased by %.0f", must_have_delta)
             return 3
 
         # --- Exit 2: WCAG critical violations increased ---
         wcag_delta = report.score_deltas.get("wcag_critical_count", None)
         if wcag_delta is not None and wcag_delta > 0:
-            log.warning(
-                "CI exit 2: WCAG critical violations increased by %.0f", wcag_delta
-            )
+            log.warning("CI exit 2: WCAG critical violations increased by %.0f", wcag_delta)
             return 2
 
         # --- Exit 1: overall feature completeness dropped > threshold ---
         # Check both customer and admin completeness keys
-        completeness_keys = [
-            k for k in report.score_deltas if "completeness" in k.lower()
-        ]
+        completeness_keys = [k for k in report.score_deltas if "completeness" in k.lower()]
         for key in completeness_keys:
             delta = report.score_deltas[key]
             if delta < -_COMPLETENESS_DROP_THRESHOLD:
-                log.warning(
-                    "CI exit 1: %s dropped by %.1f%%", key, abs(delta)
-                )
+                log.warning("CI exit 1: %s dropped by %.1f%%", key, abs(delta))
                 return 1
 
         # --- Exit 1 fallback: any complete->broken regressions ---
         critical_regressions = [
-            r for r in report.regressions
-            if r.get("regression_type", "") == "complete->broken"
+            r for r in report.regressions if r.get("regression_type", "") == "complete->broken"
         ]
         if critical_regressions:
             log.warning(
@@ -274,7 +270,7 @@ class AssessmentComparator:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _load(path: str) -> Dict:
+    def _load(path: str) -> dict:
         """Load and parse a JSON assessment file."""
         p = pathlib.Path(path)
         if not p.exists():
@@ -286,7 +282,7 @@ class AssessmentComparator:
 
 
 def save_baseline(
-    assessment_data: Dict,
+    assessment_data: dict,
     data_dir: pathlib.Path,
 ) -> pathlib.Path:
     """
@@ -309,7 +305,9 @@ def save_baseline(
     history_dir.mkdir(parents=True, exist_ok=True)
 
     assessment_id = assessment_data.get("assessment_id", str(uuid.uuid4()))
-    json_bytes = json.dumps(_serialise(assessment_data), indent=2, ensure_ascii=False).encode("utf-8")
+    json_bytes = json.dumps(_serialise(assessment_data), indent=2, ensure_ascii=False).encode(
+        "utf-8"
+    )
 
     # Write snapshot file
     snapshot_path = history_dir / f"{assessment_id}.json"
@@ -326,7 +324,7 @@ def save_baseline(
 def load_baseline(
     data_dir: pathlib.Path,
     baseline_id: str = "latest",
-) -> Optional[Dict]:
+) -> dict | None:
     """
     Load a baseline JSON from data_dir/assessment_history/.
 
@@ -356,6 +354,7 @@ def load_baseline(
 # Private helpers
 # ---------------------------------------------------------------------------
 
+
 def _atomic_write(path: pathlib.Path, data: bytes) -> None:
     """Write data to a temp file then rename — avoids partial-write corruption."""
     tmp = path.with_suffix(".tmp")
@@ -380,5 +379,6 @@ def _serialise(obj):
         return obj.value
     if hasattr(obj, "__dataclass_fields__"):
         import dataclasses
+
         return _serialise(dataclasses.asdict(obj))
     return obj

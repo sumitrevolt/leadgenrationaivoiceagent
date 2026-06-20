@@ -437,7 +437,9 @@ class LeadDelivery:
                 logger.info(f"{channel}: skipped (not configured)")
                 result.mark_skipped(channel)
                 return
-            rid = await z.upsert_lead(lead, note=str(lead.get("qualification") or lead.get("notes") or ""))
+            rid = await z.upsert_lead(
+                lead, note=str(lead.get("qualification") or lead.get("notes") or "")
+            )
             if rid:
                 logger.info(f"{channel}: lead upserted id={rid}")
                 result.mark_success(channel, {"record_id": rid})

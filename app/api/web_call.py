@@ -629,9 +629,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     if gate_reply:
                         history.append({"role": "user", "content": user_text})
                         history.append({"role": "assistant", "content": gate_reply})
-                        tcbrain = await _run_blocking(
-                            _get_tcbrain, session.get("niche", "general")
-                        )
+                        tcbrain = await _run_blocking(_get_tcbrain, session.get("niche", "general"))
                         if pst.phase == "discovery" and tcbrain is not None:
                             if hasattr(tcbrain, "confirm_interest"):
                                 tcbrain.confirm_interest()

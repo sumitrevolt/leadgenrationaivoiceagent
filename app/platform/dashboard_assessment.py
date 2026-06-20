@@ -8,6 +8,7 @@ Usage:
     python app/platform/dashboard_assessment.py --mode diff
     python app/platform/dashboard_assessment.py --mode ci
 """
+
 from __future__ import annotations
 
 import argparse
@@ -22,6 +23,7 @@ from typing import Dict, List, Optional
 
 from .assessment_models import (
     AssessmentData,
+    Evidence,
     Feature,
     FeatureCategory,
     FeatureStatus,
@@ -29,20 +31,20 @@ from .assessment_models import (
     MoSCoW,
     Severity,
     UXIssue,
-    Evidence,
 )
-from .scanner import scan_all_dashboards
-from .gap_analyzer import get_all_gaps, competitive_feature_count
+from .gap_analyzer import competitive_feature_count, get_all_gaps
 from .prioritizer import build_backlog, generate_roadmap
+from .regression_detector import AssessmentComparator, load_baseline, save_baseline
 from .report_generator import save_reports
 from .report_parser import AssessmentReportParser
-from .regression_detector import AssessmentComparator, save_baseline, load_baseline
+from .scanner import scan_all_dashboards
 
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # UX evaluator — optional module; graceful stub if not present
 # ---------------------------------------------------------------------------
+
 
 def _load_ux_evaluator():
     """
@@ -51,7 +53,8 @@ def _load_ux_evaluator():
     that return safe empty defaults if the module does not exist yet.
     """
     try:
-        from .ux_evaluator import get_all_ux_issues, calculate_ux_score  # type: ignore
+        from .ux_evaluator import calculate_ux_score, get_all_ux_issues  # type: ignore
+
         return get_all_ux_issues, calculate_ux_score
     except ImportError:
         log.debug("ux_evaluator not found — using stub (no UX issues will be detected)")
@@ -59,12 +62,12 @@ def _load_ux_evaluator():
         def _stub_get_all_ux_issues(
             customer_path: pathlib.Path,
             admin_path: pathlib.Path,
-        ) -> List[UXIssue]:
+        ) -> list[UXIssue]:
             """
             Lightweight heuristic UX evaluation when ux_evaluator module is absent.
             Reads both dashboard files and checks for common WCAG/UX patterns.
             """
-            issues: List[UXIssue] = []
+            issues: list[UXIssue] = []
             import re
 
             checks = [
@@ -82,72 +85,80 @@ def _load_ux_evaluator():
                 has_aria = bool(re.search(r'aria-label|role="[a-z]+"', html, re.I))
                 if not has_aria:
                     counter += 1
-                    issues.append(UXIssue(
-                        id=f"{prefix}_{counter:03d}",
-                        name="Missing ARIA labels",
-                        dashboard=dash,
-                        dimension="accessibility",
-                        severity=Severity.CRITICAL,
-                        wcag_violation=True,
-                        wcag_criterion="4.1.2 Name, Role, Value",
-                        user_impact="Screen readers cannot identify interactive elements",
-                        evidence=Evidence(),
-                        remediation="Add aria-label or aria-labelledby to all interactive elements",
-                    ))
+                    issues.append(
+                        UXIssue(
+                            id=f"{prefix}_{counter:03d}",
+                            name="Missing ARIA labels",
+                            dashboard=dash,
+                            dimension="accessibility",
+                            severity=Severity.CRITICAL,
+                            wcag_violation=True,
+                            wcag_criterion="4.1.2 Name, Role, Value",
+                            user_impact="Screen readers cannot identify interactive elements",
+                            evidence=Evidence(),
+                            remediation="Add aria-label or aria-labelledby to all interactive elements",
+                        )
+                    )
 
                 # WCAG: focus indicators suppressed
-                outline_none = bool(re.search(r'outline\s*:\s*(?:0|none)', html, re.I))
-                has_focus = bool(re.search(r':focus\b', html, re.I))
+                outline_none = bool(re.search(r"outline\s*:\s*(?:0|none)", html, re.I))
+                has_focus = bool(re.search(r":focus\b", html, re.I))
                 if outline_none and not has_focus:
                     counter += 1
-                    issues.append(UXIssue(
-                        id=f"{prefix}_{counter:03d}",
-                        name="Keyboard focus indicators suppressed",
-                        dashboard=dash,
-                        dimension="accessibility",
-                        severity=Severity.CRITICAL,
-                        wcag_violation=True,
-                        wcag_criterion="2.4.7 Focus Visible",
-                        user_impact="Keyboard-only users cannot navigate the dashboard",
-                        evidence=Evidence(),
-                        remediation="Remove outline:none; add visible :focus styles",
-                    ))
+                    issues.append(
+                        UXIssue(
+                            id=f"{prefix}_{counter:03d}",
+                            name="Keyboard focus indicators suppressed",
+                            dashboard=dash,
+                            dimension="accessibility",
+                            severity=Severity.CRITICAL,
+                            wcag_violation=True,
+                            wcag_criterion="2.4.7 Focus Visible",
+                            user_impact="Keyboard-only users cannot navigate the dashboard",
+                            evidence=Evidence(),
+                            remediation="Remove outline:none; add visible :focus styles",
+                        )
+                    )
 
                 # Major: no empty-state handling
-                has_empty = bool(re.search(r'empty[- _]state|no.data|nothing.here', html, re.I))
+                has_empty = bool(re.search(r"empty[- _]state|no.data|nothing.here", html, re.I))
                 if not has_empty:
                     counter += 1
-                    issues.append(UXIssue(
-                        id=f"{prefix}_{counter:03d}",
-                        name="Missing empty-state illustrations",
-                        dashboard=dash,
-                        dimension="feedback",
-                        severity=Severity.MAJOR,
-                        wcag_violation=False,
-                        user_impact="Users see blank sections with no guidance",
-                        evidence=Evidence(),
-                        remediation="Add friendly empty-state messages for each data section",
-                    ))
+                    issues.append(
+                        UXIssue(
+                            id=f"{prefix}_{counter:03d}",
+                            name="Missing empty-state illustrations",
+                            dashboard=dash,
+                            dimension="feedback",
+                            severity=Severity.MAJOR,
+                            wcag_violation=False,
+                            user_impact="Users see blank sections with no guidance",
+                            evidence=Evidence(),
+                            remediation="Add friendly empty-state messages for each data section",
+                        )
+                    )
 
                 # Minor: no keyboard shortcuts
-                has_kbd = bool(re.search(r'keydown|hotkey|shortcut|keybind', html, re.I))
+                has_kbd = bool(re.search(r"keydown|hotkey|shortcut|keybind", html, re.I))
                 if not has_kbd:
                     counter += 1
-                    issues.append(UXIssue(
-                        id=f"{prefix}_{counter:03d}",
-                        name="No keyboard shortcuts",
-                        dashboard=dash,
-                        dimension="efficiency",
-                        severity=Severity.MINOR,
-                        wcag_violation=False,
-                        user_impact="Power users cannot navigate efficiently",
-                        evidence=Evidence(),
-                        remediation="Add keyboard shortcut panel (e.g. ? key for help overlay)",
-                    ))
+                    issues.append(
+                        UXIssue(
+                            id=f"{prefix}_{counter:03d}",
+                            name="No keyboard shortcuts",
+                            dashboard=dash,
+                            dimension="efficiency",
+                            severity=Severity.MINOR,
+                            wcag_violation=False,
+                            user_impact="Power users cannot navigate efficiently",
+                            evidence=Evidence(),
+                            remediation="Add keyboard shortcut panel (e.g. ? key for help overlay)",
+                        )
+                    )
 
             return issues
 
-        def _stub_calculate_ux_score(issues: List[UXIssue]) -> float:
+        def _stub_calculate_ux_score(issues: list[UXIssue]) -> float:
             """
             UX quality = 100 − (critical×10 + major×4 + minor×1), clamped to [0, 100].
             """
@@ -168,9 +179,10 @@ def _load_ux_evaluator():
 # Score helpers
 # ---------------------------------------------------------------------------
 
-def _build_features_from_inventory(inventory: Dict, dashboard: str) -> List[Feature]:
+
+def _build_features_from_inventory(inventory: dict, dashboard: str) -> list[Feature]:
     """Convert scanner inventory dict into Feature model objects."""
-    features: List[Feature] = []
+    features: list[Feature] = []
     for raw in inventory.get("features", []):
         try:
             cat = FeatureCategory(raw.get("category", "action"))
@@ -186,40 +198,44 @@ def _build_features_from_inventory(inventory: Dict, dashboard: str) -> List[Feat
             line_numbers=ev_raw.get("line_numbers", []),
             code_snippets=ev_raw.get("code_snippets", []),
         )
-        features.append(Feature(
-            id=raw.get("id", f"feat_{dashboard[:3]}_{len(features):03d}"),
-            name=raw.get("feature_name", raw.get("name", "Unknown")),
-            dashboard=dashboard,
-            category=cat,
-            status=status,
-            description=raw.get("description", ""),
-            ui_elements=raw.get("ui_elements", []),
-            api_endpoints=raw.get("api_endpoints", []),
-            evidence=evidence,
-            requirement_mapping=raw.get("requirement_mapping", []),
-        ))
+        features.append(
+            Feature(
+                id=raw.get("id", f"feat_{dashboard[:3]}_{len(features):03d}"),
+                name=raw.get("feature_name", raw.get("name", "Unknown")),
+                dashboard=dashboard,
+                category=cat,
+                status=status,
+                description=raw.get("description", ""),
+                ui_elements=raw.get("ui_elements", []),
+                api_endpoints=raw.get("api_endpoints", []),
+                evidence=evidence,
+                requirement_mapping=raw.get("requirement_mapping", []),
+            )
+        )
     return features
 
 
-def _build_backend_dependencies(gaps: List[Gap]) -> List[Dict]:
+def _build_backend_dependencies(gaps: list[Gap]) -> list[dict]:
     """Extract proposed API endpoints and backend dependencies from gap list."""
     deps = []
     for gap in gaps:
         if gap.backend_dependency:
-            dep: Dict = {"type": "backend_logic", "component": gap.name, "effort": gap.effort.value}
+            dep: dict = {"type": "backend_logic", "component": gap.name, "effort": gap.effort.value}
             deps.append(dep)
         if gap.proposed_endpoint:
-            deps.append({
-                "type": "new_endpoint",
-                "method": "GET",
-                "path": gap.proposed_endpoint,
-                "description": gap.description or gap.name,
-                "effort": gap.effort.value,
-            })
+            deps.append(
+                {
+                    "type": "new_endpoint",
+                    "method": "GET",
+                    "path": gap.proposed_endpoint,
+                    "description": gap.description or gap.name,
+                    "effort": gap.effort.value,
+                }
+            )
     return deps
 
 
-def _assessment_to_dict(assessment: AssessmentData) -> Dict:
+def _assessment_to_dict(assessment: AssessmentData) -> dict:
     """
     Serialise AssessmentData to a JSON-compatible dict for baseline storage
     and regression comparisons.
@@ -232,7 +248,7 @@ def _assessment_to_dict(assessment: AssessmentData) -> Dict:
             return {k: _ser(v) for k, v in obj.items()}
         if isinstance(obj, list):
             return [_ser(v) for v in obj]
-        if hasattr(obj, "value"):          # Enum
+        if hasattr(obj, "value"):  # Enum
             return obj.value
         if hasattr(obj, "__dataclass_fields__"):
             return _ser(dataclasses.asdict(obj))
@@ -240,55 +256,63 @@ def _assessment_to_dict(assessment: AssessmentData) -> Dict:
 
     features_list = []
     for f in assessment.features:
-        features_list.append({
-            "id": f.id,
-            "name": f.name,
-            "dashboard": f.dashboard,
-            "category": f.category.value,
-            "status": f.status.value,
-            "description": f.description,
-            "ui_elements": f.ui_elements,
-            "api_endpoints": f.api_endpoints,
-        })
+        features_list.append(
+            {
+                "id": f.id,
+                "name": f.name,
+                "dashboard": f.dashboard,
+                "category": f.category.value,
+                "status": f.status.value,
+                "description": f.description,
+                "ui_elements": f.ui_elements,
+                "api_endpoints": f.api_endpoints,
+            }
+        )
 
     gaps_list = []
     for g in assessment.gaps:
-        gaps_list.append({
-            "id": g.id,
-            "name": g.name,
-            "dashboard": g.dashboard,
-            "impact": g.impact.value,
-            "effort": g.effort.value,
-            "moscow": g.moscow.value,
-            "prevalence": g.prevalence,
-            "category": g.category,
-            "backend_dependency": g.backend_dependency,
-        })
+        gaps_list.append(
+            {
+                "id": g.id,
+                "name": g.name,
+                "dashboard": g.dashboard,
+                "impact": g.impact.value,
+                "effort": g.effort.value,
+                "moscow": g.moscow.value,
+                "prevalence": g.prevalence,
+                "category": g.category,
+                "backend_dependency": g.backend_dependency,
+            }
+        )
 
     issues_list = []
     for i in assessment.issues:
-        issues_list.append({
-            "id": i.id,
-            "name": i.name,
-            "dashboard": i.dashboard,
-            "dimension": i.dimension,
-            "severity": i.severity.value,
-            "wcag_violation": i.wcag_violation,
-            "wcag_criterion": i.wcag_criterion,
-        })
+        issues_list.append(
+            {
+                "id": i.id,
+                "name": i.name,
+                "dashboard": i.dashboard,
+                "dimension": i.dimension,
+                "severity": i.severity.value,
+                "wcag_violation": i.wcag_violation,
+                "wcag_criterion": i.wcag_criterion,
+            }
+        )
 
     backlog_list = []
     for b in assessment.backlog:
-        backlog_list.append({
-            "item": b.item,
-            "dashboard": b.dashboard,
-            "category": b.category,
-            "moscow": b.moscow.value,
-            "impact_score": b.impact_score,
-            "effort_score": b.effort_score,
-            "priority_rank": b.priority_rank,
-            "estimated_days": b.estimated_days,
-        })
+        backlog_list.append(
+            {
+                "item": b.item,
+                "dashboard": b.dashboard,
+                "category": b.category,
+                "moscow": b.moscow.value,
+                "impact_score": b.impact_score,
+                "effort_score": b.effort_score,
+                "priority_rank": b.priority_rank,
+                "estimated_days": b.estimated_days,
+            }
+        )
 
     # Augment scores with CI-relevant counters so regression_detector can use them
     scores = dict(assessment.scores)
@@ -313,6 +337,7 @@ def _assessment_to_dict(assessment: AssessmentData) -> Dict:
 # ---------------------------------------------------------------------------
 # Main orchestrator
 # ---------------------------------------------------------------------------
+
 
 class DashboardAssessment:
     """
@@ -357,7 +382,9 @@ class DashboardAssessment:
           6. generate_roadmap()    — sprint roadmap
           7. Assemble AssessmentData
         """
-        assessment_id = f"assess_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+        assessment_id = (
+            f"assess_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+        )
         generated_at = datetime.datetime.now().isoformat()
 
         log.info("Assessment %s: scanning dashboards ...", assessment_id)
@@ -370,19 +397,15 @@ class DashboardAssessment:
         # Step 2: Gap analysis
         log.info("Assessment %s: running gap analysis ...", assessment_id)
         gaps_by_dash = get_all_gaps(customer_inventory, admin_inventory)
-        all_gaps: List[Gap] = gaps_by_dash.get("customer", []) + gaps_by_dash.get("admin", [])
+        all_gaps: list[Gap] = gaps_by_dash.get("customer", []) + gaps_by_dash.get("admin", [])
 
         # Step 3: UX issues
         log.info("Assessment %s: evaluating UX ...", assessment_id)
-        ux_result = self._get_all_ux_issues(
-            self.customer_path, self.admin_path
-        )
+        ux_result = self._get_all_ux_issues(self.customer_path, self.admin_path)
         # get_all_ux_issues returns either List[UXIssue] (stub) or
         # Dict[str, List[UXIssue]] (real ux_evaluator) — normalise to flat list
         if isinstance(ux_result, dict):
-            all_issues: List[UXIssue] = (
-                ux_result.get("customer", []) + ux_result.get("admin", [])
-            )
+            all_issues: list[UXIssue] = ux_result.get("customer", []) + ux_result.get("admin", [])
         else:
             all_issues = list(ux_result)
 
@@ -427,7 +450,7 @@ class DashboardAssessment:
             backend_dependencies=backend_deps,
         )
 
-    def generate_reports(self, assessment: AssessmentData) -> Dict:
+    def generate_reports(self, assessment: AssessmentData) -> dict:
         """
         Write Markdown and JSON reports to docs_dir.
 
@@ -456,7 +479,7 @@ class DashboardAssessment:
 
         return assessment
 
-    def run_diff(self, baseline_id: str = "latest") -> Dict:
+    def run_diff(self, baseline_id: str = "latest") -> dict:
         """
         Load the specified baseline, run a fresh assessment, compare them,
         and return the regression report as a plain dict.
@@ -573,11 +596,11 @@ class DashboardAssessment:
 
     def _calculate_scores(
         self,
-        customer_inventory: Dict,
-        admin_inventory: Dict,
-        all_gaps: List[Gap],
-        all_issues: List[UXIssue],
-    ) -> Dict[str, float]:
+        customer_inventory: dict,
+        admin_inventory: dict,
+        all_gaps: list[Gap],
+        all_issues: list[UXIssue],
+    ) -> dict[str, float]:
         """
         Compute all assessment scores.
 
@@ -586,7 +609,7 @@ class DashboardAssessment:
         competitive_parity:    (all competitive features − gaps) / all × 100
         ux_quality:            100 − weighted issue penalty
         """
-        scores: Dict[str, float] = {}
+        scores: dict[str, float] = {}
 
         # Completeness scores
         for dash, inv in (("customer", customer_inventory), ("admin", admin_inventory)):
@@ -677,8 +700,10 @@ if __name__ == "__main__":
         if report.get("regressions"):
             print("\nRegressions:")
             for r in report["regressions"]:
-                print(f"  [{r.get('dashboard','?')}] {r.get('feature_name','?')} "
-                      f"{r.get('regression_type','?')}")
+                print(
+                    f"  [{r.get('dashboard','?')}] {r.get('feature_name','?')} "
+                    f"{r.get('regression_type','?')}"
+                )
         if report.get("improvements"):
             print("\nImprovements (gaps closed):")
             for imp in report["improvements"]:

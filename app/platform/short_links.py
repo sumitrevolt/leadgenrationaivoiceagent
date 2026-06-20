@@ -204,7 +204,11 @@ def stats(code: str = "") -> dict[str, Any]:
             "by_channel": by_channel,
             "by_day": dict(sorted(by_day.items())[-30:]),
             "links": [
-                {**r, "short_url": short_url(str(r.get("code") or "")), "clicks": by_code.get(str(r.get("code") or ""), 0)}
+                {
+                    **r,
+                    "short_url": short_url(str(r.get("code") or "")),
+                    "clicks": by_code.get(str(r.get("code") or ""), 0),
+                }
                 for r in links[-100:]
             ],
         }

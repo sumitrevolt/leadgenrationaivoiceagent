@@ -39,9 +39,12 @@ def test_dkim_selectors_default(monkeypatch):
 
 def test_check_dkim_found(monkeypatch):
     monkeypatch.delenv("DKIM_SELECTOR", raising=False)
-    _patch_txt(monkeypatch, {
-        "default._domainkey.example.com": ["v=DKIM1; k=rsa; p=MIGfMA0..."],
-    })
+    _patch_txt(
+        monkeypatch,
+        {
+            "default._domainkey.example.com": ["v=DKIM1; k=rsa; p=MIGfMA0..."],
+        },
+    )
     out = dm.check_dkim("example.com")
     assert out["dkim_ok"] is True
     assert out["dkim_selector"] == "default"
@@ -58,9 +61,12 @@ def test_check_dkim_missing(monkeypatch):
 
 def test_check_dkim_custom_selector(monkeypatch):
     monkeypatch.setenv("DKIM_SELECTOR", "mysel")
-    _patch_txt(monkeypatch, {
-        "mysel._domainkey.example.com": ["v=DKIM1; p=abc"],
-    })
+    _patch_txt(
+        monkeypatch,
+        {
+            "mysel._domainkey.example.com": ["v=DKIM1; p=abc"],
+        },
+    )
     out = dm.check_dkim("example.com")
     assert out["dkim_ok"] is True
     assert out["dkim_selector"] == "mysel"
@@ -69,11 +75,14 @@ def test_check_dkim_custom_selector(monkeypatch):
 
 def test_check_records_full_strong(monkeypatch):
     monkeypatch.delenv("DKIM_SELECTOR", raising=False)
-    _patch_txt(monkeypatch, {
-        "example.com": ["v=spf1 include:_spf.hostinger.com ~all"],
-        "_dmarc.example.com": ["v=DMARC1; p=reject"],
-        "hostingermail._domainkey.example.com": ["v=DKIM1; p=xyz"],
-    })
+    _patch_txt(
+        monkeypatch,
+        {
+            "example.com": ["v=spf1 include:_spf.hostinger.com ~all"],
+            "_dmarc.example.com": ["v=DMARC1; p=reject"],
+            "hostingermail._domainkey.example.com": ["v=DKIM1; p=xyz"],
+        },
+    )
     out = dm.check_records("example.com")
     assert out["spf_ok"] is True
     assert out["dmarc_ok"] is True
@@ -84,10 +93,13 @@ def test_check_records_full_strong(monkeypatch):
 
 def test_check_records_weak_dmarc(monkeypatch):
     monkeypatch.delenv("DKIM_SELECTOR", raising=False)
-    _patch_txt(monkeypatch, {
-        "example.com": ["v=spf1 ~all"],
-        "_dmarc.example.com": ["v=DMARC1; p=none"],
-    })
+    _patch_txt(
+        monkeypatch,
+        {
+            "example.com": ["v=spf1 ~all"],
+            "_dmarc.example.com": ["v=DMARC1; p=none"],
+        },
+    )
     out = dm.check_records("example.com")
     assert out["dmarc_ok"] is True
     assert out["dmarc_policy"] == "none"
@@ -107,14 +119,20 @@ def test_check_records_all_missing(monkeypatch):
 
 def test_run_check_problems_weak_dmarc_and_no_dkim(monkeypatch):
     import asyncio
+
     monkeypatch.delenv("DKIM_SELECTOR", raising=False)
-    monkeypatch.setattr(dm, "check_blacklists", lambda ip="": {"ip": "", "listed_on": [], "checked": []})
+    monkeypatch.setattr(
+        dm, "check_blacklists", lambda ip="": {"ip": "", "listed_on": [], "checked": []}
+    )
     monkeypatch.setattr(dm, "_enabled_alerts", lambda: False)
     monkeypatch.setattr(dm, "_LOG", "data/_test_deliverability_check.jsonl")
-    _patch_txt(monkeypatch, {
-        "leadsgenai.in": ["v=spf1 ~all"],
-        "_dmarc.leadsgenai.in": ["v=DMARC1; p=none"],
-    })
+    _patch_txt(
+        monkeypatch,
+        {
+            "leadsgenai.in": ["v=spf1 ~all"],
+            "_dmarc.leadsgenai.in": ["v=DMARC1; p=none"],
+        },
+    )
     rec = asyncio.run(dm.run_check())
     probs = " | ".join(rec.get("problems", []))
     assert "DMARC policy weak" in probs
@@ -124,14 +142,20 @@ def test_run_check_problems_weak_dmarc_and_no_dkim(monkeypatch):
 
 def test_run_check_no_problems_when_all_strong(monkeypatch):
     import asyncio
+
     monkeypatch.delenv("DKIM_SELECTOR", raising=False)
-    monkeypatch.setattr(dm, "check_blacklists", lambda ip="": {"ip": "", "listed_on": [], "checked": []})
+    monkeypatch.setattr(
+        dm, "check_blacklists", lambda ip="": {"ip": "", "listed_on": [], "checked": []}
+    )
     monkeypatch.setattr(dm, "_enabled_alerts", lambda: False)
     monkeypatch.setattr(dm, "_LOG", "data/_test_deliverability_check.jsonl")
-    _patch_txt(monkeypatch, {
-        "leadsgenai.in": ["v=spf1 ~all"],
-        "_dmarc.leadsgenai.in": ["v=DMARC1; p=quarantine"],
-        "hostingermail._domainkey.leadsgenai.in": ["v=DKIM1; p=abc"],
-    })
+    _patch_txt(
+        monkeypatch,
+        {
+            "leadsgenai.in": ["v=spf1 ~all"],
+            "_dmarc.leadsgenai.in": ["v=DMARC1; p=quarantine"],
+            "hostingermail._domainkey.leadsgenai.in": ["v=DKIM1; p=abc"],
+        },
+    )
     rec = asyncio.run(dm.run_check())
     assert rec.get("problems") == []

@@ -153,7 +153,13 @@ def record_lesson(topic: str, lesson: str, source: str = "auto", agent: str = ""
         body = (lesson or "").strip()
         if not body:
             return {"ok": False, "error": "empty lesson"}
-        rec = {"topic": t, "lesson": body[:500], "source": source[:20], "agent": (agent or "")[:30], "at": _now()}
+        rec = {
+            "topic": t,
+            "lesson": body[:500],
+            "source": source[:20],
+            "agent": (agent or "")[:30],
+            "at": _now(),
+        }
         _append(_LESSONS, rec)
         return {"ok": True, "lesson": rec}
     except Exception as e:

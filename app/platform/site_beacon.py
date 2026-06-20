@@ -164,7 +164,9 @@ def stats(slug: str, days: int = 7) -> dict[str, Any]:
                         pageviews += 1
                         visitors.add((str(rec.get("ip")), str(rec.get("ua")), ts[:10]))
                         paths[str(rec.get("path") or "/")] += 1
-                        src = str(rec.get("source") or "").strip() or _ref_source(str(rec.get("ref") or ""))
+                        src = str(rec.get("source") or "").strip() or _ref_source(
+                            str(rec.get("ref") or "")
+                        )
                         if src:
                             sources[src[:40]] += 1
                     elif rec.get("type") == "click":

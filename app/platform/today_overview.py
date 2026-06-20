@@ -44,13 +44,17 @@ def _job_due_today(job: str) -> bool:
         return True
     return wd == _WEEKLY_ON[job]
 
+
 # Har scheduled job ka insaani naam + "yeh kya karta hai" — admin-friendly.
 JOB_INFO: dict[str, dict[str, str]] = {
     "growth": {
         "label": "Growth pulse (har 15 min)",
         "kya": "Funnel ki sehat check karke chhote auto-fix karta hai",
     },
-    "ops": {"label": "Kavya — system health (hourly)", "kya": "Server/DB/queue sab theek hai ya nahi"},
+    "ops": {
+        "label": "Kavya — system health (hourly)",
+        "kya": "Server/DB/queue sab theek hai ya nahi",
+    },
     "reply_triage": {
         "label": "Reply agent (hourly)",
         "kya": "Aaye hue email replies padh ke hot leads flag + jawab draft karta hai",
@@ -59,7 +63,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Ops watchdog (hourly)",
         "kya": "Kuch critical toote to Sumit ko email alert",
     },
-    "onboard": {"label": "Auto onboarding (hourly)", "kya": "Naye paid client ka setup khud kar deta hai"},
+    "onboard": {
+        "label": "Auto onboarding (hourly)",
+        "kya": "Naye paid client ka setup khud kar deta hai",
+    },
     "qa": {"label": "Arjun — QA (raat 2:30)", "kya": "Voice agent ki quality test karta hai"},
     "trainer": {"label": "Meera — trainer (raat 3)", "kya": "Agents ko naya seekhata hai"},
     "blog": {"label": "SEO blog (subah 6:30)", "kya": "Roz ek SEO blog post banata hai"},
@@ -104,11 +111,17 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Kavya — Sat hygiene (04:00)",
         "kya": "DLQ sweep + stale celery queue trim",
     },
-    "standup": {"label": "Boss standup (08:00)", "kya": "Team priorities plan (gated AGENT_STANDUP)"},
+    "standup": {
+        "label": "Boss standup (08:00)",
+        "kya": "Team priorities plan (gated AGENT_STANDUP)",
+    },
     "engineer_sre": {"label": "Pranav SRE (hourly)", "kya": "Backup/DR/capacity score"},
     "engineer_finops": {"label": "Vidya FinOps (09:00)", "kya": "Margin + LLM cost digest"},
     "engineer_security": {"label": "Arnav security (09:30)", "kya": "Compliance posture"},
-    "readiness_digest": {"label": "Activation digest (08:30)", "kya": "First-paid-customer readiness ntfy"},
+    "readiness_digest": {
+        "label": "Activation digest (08:30)",
+        "kya": "First-paid-customer readiness ntfy",
+    },
     "revenue_snapshot": {
         "label": "Revenue snapshot (raat 00:15)",
         "kya": "Roz ka MRR/churn record karta hai (admin revenue chart ke liye)",
@@ -198,7 +211,10 @@ def build() -> dict[str, Any]:
             elif status == "last_failed":
                 line = f"❌ Pichhla run FAIL hua ({_ago_str(mins)})"
                 problems.append(
-                    {"kya": f"{info['label']} pichhli baar fail hua", "fix": "Events tab me error dekho"}
+                    {
+                        "kya": f"{info['label']} pichhli baar fail hua",
+                        "fix": "Events tab me error dekho",
+                    }
                 )
             elif status == "never_ran":
                 if key in _WEEKLY_ON and not _job_due_today(key):

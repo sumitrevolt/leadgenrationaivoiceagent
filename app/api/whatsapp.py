@@ -64,7 +64,9 @@ async def wa_status(current_user: User = Depends(require_admin)) -> dict[str, An
 # Templates
 # --------------------------------------------------------------------------- #
 @router.get("/templates")
-async def list_templates(status: str = "", current_user: User = Depends(require_admin)) -> dict[str, Any]:
+async def list_templates(
+    status: str = "", current_user: User = Depends(require_admin)
+) -> dict[str, Any]:
     from app.marketing import wa_campaign_runner as runner
 
     return {"templates": runner.list_templates(status or None)}
@@ -80,7 +82,9 @@ class TemplateIn(BaseModel):
 
 
 @router.post("/templates")
-async def register_template(req: TemplateIn, current_user: User = Depends(require_admin)) -> dict[str, Any]:
+async def register_template(
+    req: TemplateIn, current_user: User = Depends(require_admin)
+) -> dict[str, Any]:
     from app.marketing import wa_campaign_runner as runner
 
     return runner.register_template(
@@ -126,7 +130,9 @@ class SuppressIn(BaseModel):
 
 
 @router.post("/suppression")
-async def edit_suppression(req: SuppressIn, current_user: User = Depends(require_admin)) -> dict[str, Any]:
+async def edit_suppression(
+    req: SuppressIn, current_user: User = Depends(require_admin)
+) -> dict[str, Any]:
     from app.marketing import wa_campaign_runner as runner
 
     if req.remove:
@@ -138,7 +144,9 @@ async def edit_suppression(req: SuppressIn, current_user: User = Depends(require
 # Campaigns
 # --------------------------------------------------------------------------- #
 @router.get("/campaigns")
-async def list_campaigns(status: str = "", current_user: User = Depends(require_admin)) -> dict[str, Any]:
+async def list_campaigns(
+    status: str = "", current_user: User = Depends(require_admin)
+) -> dict[str, Any]:
     from app.marketing import wa_campaign_runner as runner
 
     return {"campaigns": runner.list_campaigns(status or None)}
@@ -162,7 +170,9 @@ class CampaignIn(BaseModel):
 
 
 @router.post("/campaign/schedule")
-async def schedule_campaign(req: CampaignIn, current_user: User = Depends(require_admin)) -> dict[str, Any]:
+async def schedule_campaign(
+    req: CampaignIn, current_user: User = Depends(require_admin)
+) -> dict[str, Any]:
     from app.marketing import wa_campaign_runner as runner
 
     return runner.schedule_campaign(
@@ -229,7 +239,9 @@ async def webhook_inbound(request: Request) -> dict[str, Any]:
     try:
         from app.integrations.whatsapp import verify_meta_signature
 
-        sig = request.headers.get("X-Hub-Signature-256") or request.headers.get("x-hub-signature-256")
+        sig = request.headers.get("X-Hub-Signature-256") or request.headers.get(
+            "x-hub-signature-256"
+        )
         if not verify_meta_signature(raw, sig):
             logger.warning("wa webhook: bad signature, ignoring payload")
             return {"ok": False, "reason": "bad_signature"}
@@ -276,7 +288,9 @@ async def webhook_inbound(request: Request) -> dict[str, Any]:
                     if st.get("status") == "failed":
                         recipient = str(st.get("recipient_id", "")).strip()
                         errs = st.get("errors") or []
-                        reason = (errs[0].get("title") if errs else "delivery_failed") or "delivery_failed"
+                        reason = (
+                            errs[0].get("title") if errs else "delivery_failed"
+                        ) or "delivery_failed"
                         runner.record_failure(recipient, str(reason))
     except Exception as e:
         logger.info("wa webhook parse err: %s", e)

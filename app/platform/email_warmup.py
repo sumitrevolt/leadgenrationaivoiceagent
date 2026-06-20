@@ -166,14 +166,18 @@ def record_bounce(email: str = "", reason: str = "") -> dict[str, Any]:
     try:
         st = _load()
         events = _trim_7d(list(st.get("bounce_events") or []))
-        events.append({"at": _now().isoformat(), "email": (email or "")[:120], "reason": (reason or "")[:200]})
+        events.append(
+            {"at": _now().isoformat(), "email": (email or "")[:120], "reason": (reason or "")[:200]}
+        )
         st["bounce_events"] = events
         out["recorded"] = True
         rate, sent, bounced = bounce_rate_7d(st)
         out.update({"rate_pct": rate, "sent_7d": sent, "bounced_7d": bounced})
         if sent >= _MIN_SENDS_FOR_RATE and rate >= BOUNCE_PAUSE_PCT and not is_paused(st):
             st["paused_until"] = (_now() + timedelta(hours=PAUSE_HOURS)).isoformat()
-            st["paused_reason"] = f"bounce rate {rate}% >= {BOUNCE_PAUSE_PCT}% ({bounced}/{sent} in 7d)"
+            st["paused_reason"] = (
+                f"bounce rate {rate}% >= {BOUNCE_PAUSE_PCT}% ({bounced}/{sent} in 7d)"
+            )
             out["paused"] = True
             logger.warning(f"[warmup] AUTO-PAUSE: {st['paused_reason']}")
         _save(st)
@@ -195,14 +199,22 @@ def record_complaint(email: str = "", reason: str = "") -> dict[str, Any]:
     try:
         st = _load()
         events = _trim_7d(list(st.get("complaint_events") or []))
-        events.append({"at": _now().isoformat(), "email": (email or "")[:120], "reason": (reason or "")[:200]})
+        events.append(
+            {"at": _now().isoformat(), "email": (email or "")[:120], "reason": (reason or "")[:200]}
+        )
         st["complaint_events"] = events
         out["recorded"] = True
         rate, sent, complaints = complaint_rate_7d(st)
         out.update({"rate_pct": rate, "sent_7d": sent, "complaints_7d": complaints})
-        if sent >= _MIN_SENDS_FOR_COMPLAINT_RATE and rate >= COMPLAINT_PAUSE_PCT and not is_paused(st):
+        if (
+            sent >= _MIN_SENDS_FOR_COMPLAINT_RATE
+            and rate >= COMPLAINT_PAUSE_PCT
+            and not is_paused(st)
+        ):
             st["paused_until"] = (_now() + timedelta(hours=PAUSE_HOURS)).isoformat()
-            st["paused_reason"] = f"complaint rate {rate}% >= {COMPLAINT_PAUSE_PCT}% ({complaints}/{sent} in 7d)"
+            st["paused_reason"] = (
+                f"complaint rate {rate}% >= {COMPLAINT_PAUSE_PCT}% ({complaints}/{sent} in 7d)"
+            )
             out["paused"] = True
             logger.warning(f"[warmup] AUTO-PAUSE (complaints): {st['paused_reason']}")
         _save(st)
@@ -260,7 +272,11 @@ def status() -> dict[str, Any]:
     st = _load()
     rate, sent, bounced = bounce_rate_7d(st)
     c_rate, _c_sent, complaints = complaint_rate_7d(st)
-    days = max(0, (_now().date() - _start_date(st)).days) if st.get("start_date") or os.environ.get("WARMUP_START_DATE") else 0
+    days = (
+        max(0, (_now().date() - _start_date(st)).days)
+        if st.get("start_date") or os.environ.get("WARMUP_START_DATE")
+        else 0
+    )
     week = days // 7 + 1
     return {
         "enabled": _enabled(),
@@ -281,7 +297,15 @@ def status() -> dict[str, Any]:
 
 
 __all__ = [
-    "effective_cap", "record_sent", "record_bounce", "record_complaint",
-    "bounce_rate_7d", "complaint_rate_7d", "is_paused", "resume", "status",
-    "BOUNCE_PAUSE_PCT", "COMPLAINT_PAUSE_PCT",
+    "effective_cap",
+    "record_sent",
+    "record_bounce",
+    "record_complaint",
+    "bounce_rate_7d",
+    "complaint_rate_7d",
+    "is_paused",
+    "resume",
+    "status",
+    "BOUNCE_PAUSE_PCT",
+    "COMPLAINT_PAUSE_PCT",
 ]

@@ -44,9 +44,14 @@ def _persona_prefix(topic: str, max_chars: int = 300) -> str:
         return ""
     try:
         snip = skill_pack.snippet_for(topic, max_chars=max_chars) or ""
-        return (f"Expert social-media strategist guidance (APPLY, copy mat kar): {snip}\n\n") if snip else ""
+        return (
+            (f"Expert social-media strategist guidance (APPLY, copy mat kar): {snip}\n\n")
+            if snip
+            else ""
+        )
     except Exception:
         return ""
+
 
 # --- niche registry (import-safe; {} => generic flavor) --- #
 try:
@@ -438,6 +443,7 @@ async def generate_post(
             _theme_hint = ""
             try:
                 from app.marketing.content_feedback import best_themes as _best_themes
+
                 _top = _best_themes(niche=niche, n=3)  # list[str] — past winners
                 if _top:
                     _theme_hint = (
@@ -455,8 +461,7 @@ async def generate_post(
                 "Output EXACTLY is format me de, koi extra commentary nahi:\n"
                 "CAPTION: <2-3 chhoti lines, emojis ke saath>\n"
                 "HASHTAGS: <8-12 relevant hashtags, space-separated, # ke saath>\n"
-                "IMAGE: <1-line photo/creative idea>"
-                + _theme_hint
+                "IMAGE: <1-line photo/creative idea>" + _theme_hint
             )
             user = (
                 f"Business: {business_name}\n"

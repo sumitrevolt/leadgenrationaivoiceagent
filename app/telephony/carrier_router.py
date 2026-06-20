@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _env(key: str, default: str = "") -> str:
     return (os.environ.get(key) or "").strip() or default
 
@@ -49,6 +50,7 @@ def _carrier_priority() -> list[str]:
 # Per-provider adapters
 # ---------------------------------------------------------------------------
 
+
 class _TwilioAdapter:
     """Wraps app.telephony.twilio_handler.TwilioHandler."""
 
@@ -63,6 +65,7 @@ class _TwilioAdapter:
     async def place_call(self, to: str, from_: str, **kw: Any) -> dict:
         try:
             from app.telephony.twilio_handler import TwilioHandler
+
             h = TwilioHandler()
             if not h.client:
                 return {"ok": False, "reason": "twilio: client not initialized"}
@@ -95,6 +98,7 @@ class _VobizAdapter:
     async def place_call(self, to: str, from_: str, **kw: Any) -> dict:
         try:
             from app.telephony.vobiz_handler import VobizClient
+
             c = VobizClient()
             if not c.available():
                 return {"ok": False, "reason": "vobiz: credentials not configured"}
@@ -113,7 +117,11 @@ class _VobizAdapter:
             blocked = result.get("blocked", False)
             if blocked:
                 return {"ok": False, "reason": "vobiz: blocked by compliance", "result": result}
-            return {"ok": False, "reason": f"vobiz: status {result.get('status_code')}", "result": result}
+            return {
+                "ok": False,
+                "reason": f"vobiz: status {result.get('status_code')}",
+                "result": result,
+            }
         except Exception as exc:
             logger.debug("vobiz adapter error: %s", exc)
             return {"ok": False, "reason": f"vobiz: {exc}"}
@@ -138,6 +146,7 @@ class _PlivoAdapter:
             # Guard: refuse to claim available if no real handler exists.
             try:
                 import importlib
+
                 importlib.util.find_spec("app.telephony.plivo_handler")
             except Exception:
                 pass
@@ -167,6 +176,7 @@ _ADAPTERS: dict[str, Any] = {
 # ---------------------------------------------------------------------------
 # CarrierRouter
 # ---------------------------------------------------------------------------
+
 
 class CarrierRouter:
     """
@@ -229,14 +239,11 @@ class CarrierRouter:
                     avail = False
                 out[name] = {
                     "available": avail,
-                    "priority_position": priority.index(name) + 1
-                    if name in priority
-                    else None,
+                    "priority_position": priority.index(name) + 1 if name in priority else None,
                 }
         except Exception as exc:
             logger.debug("status() error: %s", exc)
         return out
-
 
     async def place_call_failover(
         self,
@@ -268,15 +275,11 @@ class CarrierRouter:
     # Internal helpers
     # ------------------------------------------------------------------ #
 
-    async def _single_provider_call(
-        self, to: str, from_: str, **kw: Any
-    ) -> dict[str, Any]:
+    async def _single_provider_call(self, to: str, from_: str, **kw: Any) -> dict[str, Any]:
         """Route to the single configured provider (MULTI_CARRIER off path)."""
         try:
             provider_name = (
-                _env("DEFAULT_TELEPHONY")
-                or _env("TELEPHONY_PROVIDER")
-                or "vobiz"
+                _env("DEFAULT_TELEPHONY") or _env("TELEPHONY_PROVIDER") or "vobiz"
             ).lower()
             adapter = _ADAPTERS.get(provider_name)
             if adapter is None:
@@ -296,9 +299,7 @@ class CarrierRouter:
             logger.debug("_single_provider_call error: %s", exc)
             return {"ok": False, "reason": f"single-provider dispatch error: {exc}"}
 
-    async def _failover_call(
-        self, to: str, from_: str, **kw: Any
-    ) -> dict[str, Any]:
+    async def _failover_call(self, to: str, from_: str, **kw: Any) -> dict[str, Any]:
         """Try providers in priority order, return first success."""
         tried: list[dict[str, Any]] = []
         try:

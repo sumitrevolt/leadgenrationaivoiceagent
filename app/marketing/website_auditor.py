@@ -72,14 +72,23 @@ def analyze_html(html_text: str, final_url: str = "") -> dict[str, Any]:
         "meta_description": 'name="description"' in hl or "name='description'" in hl,
         "h1": "<h1" in hl,
         "viewport": 'name="viewport"' in hl or "name='viewport'" in hl,
-        "phone_visible": bool(re.search(r"(\+91[\s-]?\d{5}[\s-]?\d{5})|(?<!\d)[6-9]\d{9}(?!\d)", h)),
+        "phone_visible": bool(
+            re.search(r"(\+91[\s-]?\d{5}[\s-]?\d{5})|(?<!\d)[6-9]\d{9}(?!\d)", h)
+        ),
         "whatsapp_link": "wa.me" in hl or "api.whatsapp.com" in hl,
         "contact_form": "<form" in hl,
         "light_page": len(h) < 600_000,
     }
     weights = {
-        "https": 10, "title": 10, "meta_description": 15, "h1": 10, "viewport": 15,
-        "phone_visible": 15, "whatsapp_link": 10, "contact_form": 10, "light_page": 5,
+        "https": 10,
+        "title": 10,
+        "meta_description": 15,
+        "h1": 10,
+        "viewport": 15,
+        "phone_visible": 15,
+        "whatsapp_link": 10,
+        "contact_form": 10,
+        "light_page": 5,
     }
     score = sum(weights[k] for k, ok in checks.items() if ok)
     missing = [k for k, ok in checks.items() if not ok]
@@ -120,7 +129,10 @@ async def audit_url(url: str) -> dict[str, Any]:
         ) as client:
             for _hop in range(5):
                 if not await asyncio.to_thread(_safe_audit_target, cur):
-                    return {"ok": False, "error": "Yeh URL allowed nahi — sirf public website audit hoti hai"}
+                    return {
+                        "ok": False,
+                        "error": "Yeh URL allowed nahi — sirf public website audit hoti hai",
+                    }
                 resp = await client.get(cur, timeout=12.0)
                 loc = resp.headers.get("location")
                 if resp.is_redirect and loc:
@@ -143,14 +155,23 @@ async def audit_url(url: str) -> dict[str, Any]:
 
             raw, _ = await chat(
                 "Tu website conversion expert hai. EK chhota Hinglish tip de (<25 words) is site ke liye.",
-                [{"role": "user", "content": f"Site: {final_url}, score {result['score']}/100, missing: {result['missing']}"}],
+                [
+                    {
+                        "role": "user",
+                        "content": f"Site: {final_url}, score {result['score']}/100, missing: {result['missing']}",
+                    }
+                ],
                 max_tokens=60,
             )
             if raw and len(raw) > 10:
                 tips.append(raw.strip()[:160])
     except Exception:
         pass
-    grade = "A" if result["score"] >= 80 else ("B" if result["score"] >= 60 else ("C" if result["score"] >= 40 else "D"))
+    grade = (
+        "A"
+        if result["score"] >= 80
+        else ("B" if result["score"] >= 60 else ("C" if result["score"] >= 40 else "D"))
+    )
     return {
         "ok": True,
         "url": final_url,

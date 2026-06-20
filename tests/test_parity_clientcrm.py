@@ -19,7 +19,12 @@ def test_customer_crm_import_alias_mapping(tmp_path, monkeypatch):
     res = customer_crm.import_rows(
         "client_x",
         rows=[
-            {"Full Name": "Ramesh Kumar", "Mobile Number": "+91 98765 43210", "DOB": "1990-06-10", "Tags": "vip, regular"},
+            {
+                "Full Name": "Ramesh Kumar",
+                "Mobile Number": "+91 98765 43210",
+                "DOB": "1990-06-10",
+                "Tags": "vip, regular",
+            },
             {"Name": "Sita", "Phone": "08459012607", "Anniversary": "12/25"},
             {"Name": "NoPhone Guy"},  # phone nahi => drop
         ],
@@ -91,7 +96,9 @@ def test_run_wishes_creates_drafts_and_dedupes(tmp_path, monkeypatch):
                 "client_id": "c9",
                 "business_name": "Sharma Sweets",
                 "niche": "sweet_shop",
-                "occasions": [{"name": "Pooja", "phone": "9876501234", "occasion": "birthday", "tags": []}],
+                "occasions": [
+                    {"name": "Pooja", "phone": "9876501234", "occasion": "birthday", "tags": []}
+                ],
             }
         ],
     )
@@ -142,12 +149,16 @@ def test_product_catalog_crud(tmp_path, monkeypatch):
 
     monkeypatch.setattr(pc, "_CAT_DIR", str(tmp_path / "catalogs"))
 
-    r1 = pc.add_product("sharma-solar", "Solar Panel 5kW", price_inr="₹1,25,000".replace(",", ""), desc="Best panel")
+    r1 = pc.add_product(
+        "sharma-solar", "Solar Panel 5kW", price_inr="₹1,25,000".replace(",", ""), desc="Best panel"
+    )
     assert r1["ok"] is True
     pid = r1["product"]["id"]
     assert r1["product"]["price_inr"] == 125000.0
 
-    r2 = pc.add_product("sharma-solar", "Inverter", price_inr=15000, photo_url="javascript:alert(1)")
+    r2 = pc.add_product(
+        "sharma-solar", "Inverter", price_inr=15000, photo_url="javascript:alert(1)"
+    )
     assert r2["ok"] is True
     assert r2["product"]["photo_url"] == ""  # unsafe URL blocked
 

@@ -1,7 +1,8 @@
 """P2 Customer login portal tests — hashing, credential store, JWT role gate, routes."""
 
-from app.api import customer_auth as CA
 from fastapi.testclient import TestClient
+
+from app.api import customer_auth as CA
 
 
 def test_hash_verify_roundtrip():

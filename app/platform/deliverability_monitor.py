@@ -26,7 +26,18 @@ _DNSBLS = ["zen.spamhaus.org", "bl.spamcop.net"]
 
 # Common DKIM selectors to probe (env DKIM_SELECTOR can be CSV to override/extend).
 # Hostinger uses "hostingermail" style; default list covers the usual ESPs too.
-_DEFAULT_DKIM_SELECTORS = ["hostingermail", "default", "dkim", "mail", "selector1", "selector2", "google", "s1", "s2", "k1"]
+_DEFAULT_DKIM_SELECTORS = [
+    "hostingermail",
+    "default",
+    "dkim",
+    "mail",
+    "selector1",
+    "selector2",
+    "google",
+    "s1",
+    "s2",
+    "k1",
+]
 
 
 def _dkim_selectors() -> list[str]:
@@ -46,7 +57,9 @@ def _txt_lookup(name: str) -> list[str]:
     try:
         import dns.resolver
 
-        return [b"".join(r.strings).decode("utf-8", "ignore") for r in dns.resolver.resolve(name, "TXT")]
+        return [
+            b"".join(r.strings).decode("utf-8", "ignore") for r in dns.resolver.resolve(name, "TXT")
+        ]
     except Exception:
         return []
 
@@ -167,7 +180,9 @@ async def run_check() -> dict[str, Any]:
         if not rec.get("dmarc_ok"):
             problems.append("DMARC record missing/broken")
         elif not rec.get("dmarc_strong"):
-            problems.append(f"DMARC policy weak (p={rec.get('dmarc_policy') or 'none'}) — quarantine/reject recommended")
+            problems.append(
+                f"DMARC policy weak (p={rec.get('dmarc_policy') or 'none'}) — quarantine/reject recommended"
+            )
         if not rec.get("dkim_ok"):
             problems.append("DKIM record missing (no signing selector found)")
         if rec["blacklist"].get("listed_on"):
@@ -188,7 +203,8 @@ async def run_check() -> dict[str, Any]:
                     await email_sender.send_email(
                         [notify],
                         f"⚠️ Email deliverability problem ({len(problems)})",
-                        "Outreach sender-reputation issues:\n\n- " + "\n- ".join(problems)
+                        "Outreach sender-reputation issues:\n\n- "
+                        + "\n- ".join(problems)
                         + "\n\nJaldi fix karo warna cold emails spam me jayengi. (deliverability_monitor)",
                     )
                 except Exception as e:
@@ -196,7 +212,12 @@ async def run_check() -> dict[str, Any]:
         try:
             from app.platform import team
 
-            team.log_event("kavya", "deliverability_check", "OK" if not problems else "; ".join(problems)[:200], status="ok" if not problems else "warn")
+            team.log_event(
+                "kavya",
+                "deliverability_check",
+                "OK" if not problems else "; ".join(problems)[:200],
+                status="ok" if not problems else "warn",
+            )
         except Exception:
             pass
         return rec

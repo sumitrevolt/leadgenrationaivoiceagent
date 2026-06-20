@@ -64,7 +64,9 @@ def _coerce(d: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def qualify_transcript(transcript: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+async def qualify_transcript(
+    transcript: str, context: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Transcript -> structured qualification + follow-up draft. Kabhi raise nahi.
 
     Returns dict with keys: interest_score, qualified, appointment_requested,
@@ -100,7 +102,9 @@ async def qualify_transcript(transcript: str, context: dict[str, Any] | None = N
     parsed["provider"] = provider
     parsed["ok"] = bool(provider) and bool(parsed.get("summary"))
     if not parsed["followup_draft"]:
-        parsed["followup_draft"] = f"Namaste {who}! Call ke liye dhanyawad. Aapki zaroorat ke hisaab se hum aapse jald follow-up karenge."
+        parsed["followup_draft"] = (
+            f"Namaste {who}! Call ke liye dhanyawad. Aapki zaroorat ke hisaab se hum aapse jald follow-up karenge."
+        )
     return parsed
 
 

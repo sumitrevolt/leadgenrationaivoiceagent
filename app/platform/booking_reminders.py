@@ -57,7 +57,9 @@ def _append(path: str, rec: dict[str, Any]) -> None:
         pass
 
 
-def record_booking(slot_iso: str, name: str = "", phone: str = "", email: str = "", notes: str = "", slug: str = "") -> dict[str, Any]:
+def record_booking(
+    slot_iso: str, name: str = "", phone: str = "", email: str = "", notes: str = "", slug: str = ""
+) -> dict[str, Any]:
     """Booking API hook — persistent record (dedupe by slot+phone). Kabhi raise nahi."""
     try:
         key_phone = "".join(c for c in str(phone or "") if c.isdigit())[-10:]
@@ -119,10 +121,17 @@ async def run_due() -> dict[str, Any]:
                     try:
                         from app.integrations.email_sender import email_sender
 
-                        ok = bool(await email_sender.send_email([rec["email"]], msg["subject"], msg["body"]))
+                        ok = bool(
+                            await email_sender.send_email(
+                                [rec["email"]], msg["subject"], msg["body"]
+                            )
+                        )
                     except Exception:
                         ok = False
-                _append(_RUNS, {"booking_id": rec.get("id"), "auto_sent": ok, **msg, "at": _now().isoformat()})
+                _append(
+                    _RUNS,
+                    {"booking_id": rec.get("id"), "auto_sent": ok, **msg, "at": _now().isoformat()},
+                )
                 rec["reminded"] = True
                 sent += 1
                 changed = True

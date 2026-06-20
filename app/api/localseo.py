@@ -99,7 +99,11 @@ async def grid_rank_check(body: GridRankIn, _user=Depends(require_admin)):
             timeout=25,
         )
     except asyncio.TimeoutError:
-        return {"ok": False, "error": "timeout", "message": "Grid check slow chal raha — dobara try karo."}
+        return {
+            "ok": False,
+            "error": "timeout",
+            "message": "Grid check slow chal raha — dobara try karo.",
+        }
     except Exception as e:  # pragma: no cover - module khud never-raise hai
         logger.warning(f"[localseo] grid-rank failed: {e}")
         return {"ok": False, "error": str(e)}

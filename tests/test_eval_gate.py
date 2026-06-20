@@ -131,8 +131,11 @@ def test_score_and_gate_persists_decision_in_extra() -> None:
     for s in (0.85, 0.86, 0.85, 0.87, 0.86):
         eval_gate.record_score("rag", "faithfulness", s)
     verdict = eval_gate.score_and_gate(
-        "rag", "faithfulness", 0.50,
-        agent="self_improve", artifact="task-42",
+        "rag",
+        "faithfulness",
+        0.50,
+        agent="self_improve",
+        artifact="task-42",
     )
     assert verdict["decision"] == "reject"
     # The history row must carry the decision for downstream observability

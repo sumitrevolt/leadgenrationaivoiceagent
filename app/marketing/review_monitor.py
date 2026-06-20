@@ -79,10 +79,17 @@ async def fetch_reviews(business_name: str, city: str = "") -> list[dict[str, An
             "X-Goog-Api-Key": key,
             "X-Goog-FieldMask": "places.id,places.displayName,places.rating,places.userRatingCount,places.reviews",
         }
-        body = {"textQuery": f"{business_name} {city}".strip(), "maxResultCount": 1, "regionCode": "IN"}
+        body = {
+            "textQuery": f"{business_name} {city}".strip(),
+            "maxResultCount": 1,
+            "regionCode": "IN",
+        }
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                "https://places.googleapis.com/v1/places:searchText", headers=headers, json=body, timeout=20.0
+                "https://places.googleapis.com/v1/places:searchText",
+                headers=headers,
+                json=body,
+                timeout=20.0,
             )
             if resp.status_code != 200:
                 logger.debug(f"[review_monitor] HTTP {resp.status_code}: {resp.text[:120]}")
@@ -97,7 +104,9 @@ async def fetch_reviews(business_name: str, city: str = "") -> list[dict[str, An
                         "review_id": str(rv.get("name", ""))[-40:],
                         "rating": rv.get("rating"),
                         "text": str(((rv.get("text") or {}).get("text")) or "")[:500],
-                        "author": str(((rv.get("authorAttribution") or {}).get("displayName")) or "")[:80],
+                        "author": str(
+                            ((rv.get("authorAttribution") or {}).get("displayName")) or ""
+                        )[:80],
                     }
                 )
             return out
@@ -126,13 +135,22 @@ async def run_check(max_clients: int = 15) -> dict[str, Any]:
                     if not rid or rid in seen_ids:
                         continue
                     seen_ids.add(rid)
-                    _append(_SEEN, {"review_id": rid, "client_id": c.get("id"), "at": datetime.now(timezone.utc).isoformat()})
+                    _append(
+                        _SEEN,
+                        {
+                            "review_id": rid,
+                            "client_id": c.get("id"),
+                            "at": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
                     # AI reply draft (EXISTING engine reuse)
                     drafts = []
                     try:
                         from app.marketing import review_replies
 
-                        res = await review_replies.generate_replies(biz, rv.get("text", ""), rv.get("rating"))
+                        res = await review_replies.generate_replies(
+                            biz, rv.get("text", ""), rv.get("rating")
+                        )
                         drafts = res.get("replies") or res.get("drafts") or []
                     except Exception:
                         pass
@@ -153,7 +171,9 @@ async def run_check(max_clients: int = 15) -> dict[str, Any]:
             try:
                 from app.platform import team
 
-                team.log_event("isha", "review_monitor", f"{new_drafts} naye reviews — reply drafts ready")
+                team.log_event(
+                    "isha", "review_monitor", f"{new_drafts} naye reviews — reply drafts ready"
+                )
             except Exception:
                 pass
         return {"enabled": True, "new_reviews": new_drafts}

@@ -24,9 +24,9 @@ _DIALER_LOGS = os.path.join("data", "dialer_logs.jsonl")
 # Telecaller dispositions → prospector VALID_STATUSES ("ready","sent","replied","client","dead")
 DISPOSITIONS = ("interested", "callback", "no-answer", "wrong-number", "not-interested")
 _STATUS_MAP = {
-    "interested": "replied",      # hot — follow-up pipeline me
-    "callback": None,             # status mat chhedo; callback_at field set hota
-    "no-answer": None,            # status same; attempt count field me
+    "interested": "replied",  # hot — follow-up pipeline me
+    "callback": None,  # status mat chhedo; callback_at field set hota
+    "no-answer": None,  # status same; attempt count field me
     "wrong-number": "dead",
     "not-interested": "dead",
 }
@@ -116,7 +116,7 @@ def stats_today() -> dict[str, Any]:
     """Aaj ke calls by disposition (UTC date). Never raises."""
     try:
         today = datetime.now(timezone.utc).date().isoformat()
-        by: dict[str, int] = {d: 0 for d in DISPOSITIONS}
+        by: dict[str, int] = dict.fromkeys(DISPOSITIONS, 0)
         total = 0
         for r in _read_logs():
             if str(r.get("at") or "")[:10] != today:

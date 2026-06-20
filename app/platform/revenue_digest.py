@@ -188,7 +188,9 @@ async def run(force: bool = False) -> dict[str, Any]:
         try:
             from app.platform import team
 
-            team.log_event("boss", "revenue_digest", f"{week}: MRR ₹{stats.get('mrr', 0)}, sent={sent}")
+            team.log_event(
+                "boss", "revenue_digest", f"{week}: MRR ₹{stats.get('mrr', 0)}, sent={sent}"
+            )
         except Exception:
             pass
         return {"enabled": True, "week": week, "sent": sent, "stats": stats, "subject": subject}

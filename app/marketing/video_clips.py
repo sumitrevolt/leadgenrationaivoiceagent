@@ -87,10 +87,18 @@ def _probe_duration(path: str) -> float | None:
     try:
         res = subprocess.run(
             [
-                "ffprobe", "-v", "error", "-show_entries", "format=duration",
-                "-of", "default=noprint_wrappers=1:nokey=1", path,
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                path,
             ],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         return float((res.stdout or "").strip())
     except Exception as e:
@@ -113,8 +121,12 @@ def make_clips(
     try:
         avail = available()
         if not avail["ok"]:
-            return {"ok": False, "reason": "ffmpeg_missing", "available": avail,
-                    "hint": "VPS pe `apt install ffmpeg` — phir clips ban payenge."}
+            return {
+                "ok": False,
+                "reason": "ffmpeg_missing",
+                "available": avail,
+                "hint": "VPS pe `apt install ffmpeg` — phir clips ban payenge.",
+            }
         path = str(video_path or "").strip()
         if not path or not os.path.isfile(path):
             return {"ok": False, "reason": "file_not_found", "path": path}
@@ -139,15 +151,40 @@ def make_clips(
         for i, (start, dur) in enumerate(segments, start=1):
             out_file = os.path.join(out_dir, f"clip_{i}.mp4")
             cmd = [
-                "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-                "-ss", str(start), "-i", path, "-t", str(dur),
-                "-vf", vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", "26",
-                "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart",
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-ss",
+                str(start),
+                "-i",
+                path,
+                "-t",
+                str(dur),
+                "-vf",
+                vf,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "26",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "96k",
+                "-movflags",
+                "+faststart",
                 out_file,
             ]
             try:
                 res = subprocess.run(cmd, capture_output=True, text=True, timeout=_FFMPEG_TIMEOUT_S)
-                if res.returncode == 0 and os.path.isfile(out_file) and os.path.getsize(out_file) > 0:
+                if (
+                    res.returncode == 0
+                    and os.path.isfile(out_file)
+                    and os.path.getsize(out_file) > 0
+                ):
                     files.append(os.path.basename(out_file))
                 else:
                     errors.append((res.stderr or "ffmpeg fail")[:200])
@@ -174,8 +211,12 @@ def make_clips(
 def _append_job(job_id: str, status: str, extra: dict[str, Any] | None = None) -> None:
     try:
         os.makedirs(os.path.dirname(_JOBS_PATH) or ".", exist_ok=True)
-        rec = {"job_id": job_id, "status": status,
-               "ts": datetime.now(timezone.utc).isoformat(), **(extra or {})}
+        rec = {
+            "job_id": job_id,
+            "status": status,
+            "ts": datetime.now(timezone.utc).isoformat(),
+            **(extra or {}),
+        }
         with open(_JOBS_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:
@@ -209,12 +250,18 @@ def start_clip_job(
         job_id = uuid.uuid4().hex[:12]
         _append_job(job_id, "queued", {"path": path, "n": int(n), "duration": int(duration)})
         t = threading.Thread(
-            target=_run_job, args=(job_id, path, int(n), int(duration), bool(vertical)),
-            daemon=True, name=f"clipjob-{job_id}",
+            target=_run_job,
+            args=(job_id, path, int(n), int(duration), bool(vertical)),
+            daemon=True,
+            name=f"clipjob-{job_id}",
         )
         t.start()
-        return {"ok": True, "job_id": job_id, "status": "queued",
-                "status_url": f"/api/contentplus/clips/{job_id}"}
+        return {
+            "ok": True,
+            "job_id": job_id,
+            "status": "queued",
+            "status_url": f"/api/contentplus/clips/{job_id}",
+        }
     except Exception as e:
         logger.warning(f"[video_clips] start_clip_job failed: {e}")
         return {"ok": False, "reason": "error", "error": str(e)[:200]}

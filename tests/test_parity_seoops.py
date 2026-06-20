@@ -41,8 +41,13 @@ def test_rank_track_config_upsert_and_history(tmp_path, monkeypatch):
     monkeypatch.setattr(rt, "_CONFIG_FILE", str(tmp_path / "rank_tracking.jsonl"))
     monkeypatch.setattr(rt, "_HISTORY_FILE", str(tmp_path / "rank_history.jsonl"))
 
-    out = rt.track("c1", ["solar installer", "solar panel dealer"], "Pune",
-                   business_name="Sharma Solar", phone="9845022222")
+    out = rt.track(
+        "c1",
+        ["solar installer", "solar panel dealer"],
+        "Pune",
+        business_name="Sharma Solar",
+        phone="9845022222",
+    )
     assert out.get("ok") is True
     assert out["config"]["keywords"] == ["solar installer", "solar panel dealer"]
 
@@ -58,7 +63,9 @@ def test_rank_track_config_upsert_and_history(tmp_path, monkeypatch):
 
     # history read (empty + after manual append)
     assert rt.history("c1") == []
-    rt._append_jsonl(rt._HISTORY_FILE, {"client_id": "c1", "position": 3, "checked_at": "2026-06-10T00:00:00"})
+    rt._append_jsonl(
+        rt._HISTORY_FILE, {"client_id": "c1", "position": 3, "checked_at": "2026-06-10T00:00:00"}
+    )
     h = rt.history("c1")
     assert len(h) == 1 and h[0]["position"] == 3
     assert rt.history("other") == []
@@ -110,17 +117,38 @@ def test_conversations_aggregate_and_reply_draft(tmp_path, monkeypatch):
 
     # seed: inquiry (phone) + email reply + widget chat (session)
     with open(cv._INQUIRIES, "w", encoding="utf-8") as f:
-        f.write(json.dumps({"at": "2026-06-10T05:00:00", "name": "Ramesh",
-                            "phone": "+919876543210", "message": "Solar lagwana hai",
-                            "niche": "solar", "city": "Pune"}) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "at": "2026-06-10T05:00:00",
+                    "name": "Ramesh",
+                    "phone": "+919876543210",
+                    "message": "Solar lagwana hai",
+                    "niche": "solar",
+                    "city": "Pune",
+                }
+            )
+            + "\n"
+        )
     with open(cv._REPLY_DRAFTS, "w", encoding="utf-8") as f:
-        f.write(json.dumps({"from": "owner@biz.in", "subject": "Re: pricing",
-                            "intent": "interested", "draft": "Haan bilkul!",
-                            "at": "2026-06-10T06:00:00"}) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "from": "owner@biz.in",
+                    "subject": "Re: pricing",
+                    "intent": "interested",
+                    "draft": "Haan bilkul!",
+                    "at": "2026-06-10T06:00:00",
+                }
+            )
+            + "\n"
+        )
         f.write("NOT-JSON-LINE\n")  # corrupt line skip hoti hai
     with open(cv._WIDGET_CHATS, "w", encoding="utf-8") as f:
-        f.write(json.dumps({"session_id": "s9", "text": "price kya hai?",
-                            "at": "2026-06-10T07:00:00"}) + "\n")
+        f.write(
+            json.dumps({"session_id": "s9", "text": "price kya hai?", "at": "2026-06-10T07:00:00"})
+            + "\n"
+        )
 
     threads = cv.list_threads()
     keys = {t["key"] for t in threads}

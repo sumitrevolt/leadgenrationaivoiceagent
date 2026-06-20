@@ -35,9 +35,9 @@ def test_calling_tasks_use_real_callmanager_api():
 
     make_src = inspect.getsource(calling.make_call_task)
     assert "call_manager.queue_call" in make_src, "make_call_task must enqueue via queue_call()"
-    assert "call_manager.initiate_call" not in make_src, (
-        "initiate_call does not exist on CallManager"
-    )
+    assert (
+        "call_manager.initiate_call" not in make_src
+    ), "initiate_call does not exist on CallManager"
 
     pq_src = inspect.getsource(calling.process_queue)
     assert "start_call_processor" in pq_src, "process_queue must drain via start_call_processor()"
@@ -61,8 +61,11 @@ def test_process_queue_signature_bounded():
     """process_queue is bounded (max_seconds) so the worker never blocks forever."""
     import app.tasks.calling as calling
 
-    sig = inspect.signature(calling.process_queue.__wrapped__ if hasattr(
-        calling.process_queue, "__wrapped__") else calling.process_queue)
+    sig = inspect.signature(
+        calling.process_queue.__wrapped__
+        if hasattr(calling.process_queue, "__wrapped__")
+        else calling.process_queue
+    )
     # Celery wraps the function; fall back to source check if signature is opaque.
     src = inspect.getsource(calling.process_queue)
     assert "wait_for" in src and "timeout" in src, "drain must be time-bounded"
@@ -141,7 +144,9 @@ def test_amd_check_aborts_on_machine_when_flag_on(monkeypatch):
     """AMD_DETECT=1 + voicemail greeting → _amd_check aborts (True) and closes WS."""
     monkeypatch.setenv("AMD_DETECT", "1")
     sess = _make_session()
-    out = asyncio.run(sess._amd_check("You have reached the voicemail. Leave a message after the tone."))
+    out = asyncio.run(
+        sess._amd_check("You have reached the voicemail. Leave a message after the tone.")
+    )
     assert out is True
     assert sess._amd_machine is True
     assert sess.ws.closed is True
@@ -167,8 +172,8 @@ def test_amd_state_initialized():
 # 4) missed-call lead capture (target of /api/webhooks/vobiz/inbound)
 # --------------------------------------------------------------------------- #
 def test_missed_call_lead_capture_no_callback(monkeypatch):
-    from app.telephony import missed_call
     import app.api.public_site as ps
+    from app.telephony import missed_call
 
     monkeypatch.setattr(ps, "_append_jsonl", lambda r: True, raising=False)
     monkeypatch.setattr(ps, "_save_lead_db", lambda r: None, raising=False)
@@ -188,8 +193,8 @@ def test_missed_call_rejects_empty_number():
 
 
 def test_missed_call_dedupe(monkeypatch):
-    from app.telephony import missed_call
     import app.api.public_site as ps
+    from app.telephony import missed_call
 
     monkeypatch.setattr(ps, "_append_jsonl", lambda r: True, raising=False)
     monkeypatch.setattr(ps, "_save_lead_db", lambda r: None, raising=False)
@@ -197,6 +202,7 @@ def test_missed_call_dedupe(monkeypatch):
     missed_call._RECENT.clear()
     # mark as recently called → dedupe path
     import time as _t
+
     missed_call._RECENT["+919800000000"] = _t.time()
     res = asyncio.run(missed_call.handle_missed_call("+919800000000", "solar"))
     assert res["ok"] is True

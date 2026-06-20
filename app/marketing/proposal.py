@@ -17,9 +17,21 @@ logger = setup_logger(__name__)
 
 BASE = "https://leadsgenai.in"
 PLANS = {
-    "starter": {"name": "Starter", "price": 1199, "for": "marketing only (posts, GBP, reviews, WhatsApp)"},
-    "growth": {"name": "Growth", "price": 2999, "for": "+ content calendar, competitor, lead-form, monthly report"},
-    "advanced": {"name": "Advanced", "price": 6999, "for": "+ AI voice agent (inquiry call 2-min, qualification, 500 min/mo)"},
+    "starter": {
+        "name": "Starter",
+        "price": 1199,
+        "for": "marketing only (posts, GBP, reviews, WhatsApp)",
+    },
+    "growth": {
+        "name": "Growth",
+        "price": 2999,
+        "for": "+ content calendar, competitor, lead-form, monthly report",
+    },
+    "advanced": {
+        "name": "Advanced",
+        "price": 6999,
+        "for": "+ AI voice agent (inquiry call 2-min, qualification, 500 min/mo)",
+    },
 }
 
 
@@ -90,7 +102,9 @@ async def generate_proposal(
         )
         if history:
             prompt += f"\nIs prospect ki history (personalize karo): {history}"
-        txt, _ = await free_ai.chat(sys, [{"role": "user", "content": prompt}], max_tokens=320, temperature=0.6)
+        txt, _ = await free_ai.chat(
+            sys, [{"role": "user", "content": prompt}], max_tokens=320, temperature=0.6
+        )
         if txt and txt.strip():
             proposal = txt.strip()
     except Exception as e:

@@ -29,7 +29,14 @@ _RUNS = os.path.join("data", "journey_runs.jsonl")
 # Valid trigger events (jis par rules fire ho sakte).
 TRIGGERS = {"inquiry_received", "signup", "no_show", "email_reply", "manual"}
 # Valid actions (sab ban-safe: draft/note; koi auto-send default me nahi).
-ACTIONS = {"draft_whatsapp", "draft_email", "schedule_callback", "notify", "add_tag", "request_review"}
+ACTIONS = {
+    "draft_whatsapp",
+    "draft_email",
+    "schedule_callback",
+    "notify",
+    "add_tag",
+    "request_review",
+}
 
 
 def _now() -> str:
@@ -163,7 +170,9 @@ def seed_defaults() -> int:
             "name": "Signup → welcome WhatsApp draft",
             "trigger": "signup",
             "condition": {},
-            "actions": [{"type": "draft_whatsapp", "params": {"topic": "welcome + onboarding next step"}}],
+            "actions": [
+                {"type": "draft_whatsapp", "params": {"topic": "welcome + onboarding next step"}}
+            ],
             "enabled": False,
         },
         {
@@ -171,7 +180,10 @@ def seed_defaults() -> int:
             "trigger": "no_show",
             "condition": {},
             "actions": [
-                {"type": "schedule_callback", "params": {"reason": "missed appointment reschedule"}},
+                {
+                    "type": "schedule_callback",
+                    "params": {"reason": "missed appointment reschedule"},
+                },
                 {"type": "draft_whatsapp", "params": {"topic": "missed call, reschedule offer"}},
             ],
             "enabled": False,
@@ -207,7 +219,9 @@ def ensure_active_defaults() -> int:
         for r in rules:
             if r.get("trigger") == "inquiry_received":
                 if set_enabled(str(r.get("id") or ""), True):
-                    logger.info("[journeys] auto-enabled default inquiry rule (engine on, none active)")
+                    logger.info(
+                        "[journeys] auto-enabled default inquiry rule (engine on, none active)"
+                    )
                     return 1
         # Rules exist but no inquiry_received (custom-only store) — add one enabled.
         add_journey(
@@ -263,7 +277,12 @@ async def _run_action(action: dict[str, Any], context: dict[str, Any]) -> dict[s
         return {"action": t, **(await _do_draft("Email", topic, context))}
     if t == "schedule_callback":
         # ban-safe: sirf suggestion note (real call existing AUTO_CALLBACK path par hi).
-        return {"action": t, "note": f"Callback suggested: {topic}", "phone": context.get("phone"), "auto_called": False}
+        return {
+            "action": t,
+            "note": f"Callback suggested: {topic}",
+            "phone": context.get("phone"),
+            "auto_called": False,
+        }
     if t == "notify":
         return {"action": t, "note": str(p.get("text") or "notify"), "to": p.get("to")}
     if t == "add_tag":
@@ -331,7 +350,9 @@ async def emit_event(event: str, context: dict[str, Any] | None = None) -> list[
                 "journey_id": rule.get("id"),
                 "journey_name": rule.get("name"),
                 "event": event,
-                "context": {k: ctx.get(k) for k in ("business_name", "name", "phone", "niche", "city")},
+                "context": {
+                    k: ctx.get(k) for k in ("business_name", "name", "phone", "niche", "city")
+                },
                 "results": results,
                 "at": _now(),
             }

@@ -25,7 +25,16 @@ logger = setup_logger(__name__)
 
 _DEALS = os.path.join("data", "deals.jsonl")
 _ACTIONS = os.path.join("data", "deal_actions.jsonl")
-STAGES = ["new", "contacted", "interested", "demo_sent", "proposal_sent", "negotiating", "won", "lost"]
+STAGES = [
+    "new",
+    "contacted",
+    "interested",
+    "demo_sent",
+    "proposal_sent",
+    "negotiating",
+    "won",
+    "lost",
+]
 BASE = "https://leadsgenai.in"
 
 
@@ -90,10 +99,13 @@ def upsert_deal(lead: dict[str, Any], stage: str = "interested") -> dict[str, An
     rec = {
         "id": uuid.uuid4().hex[:12],
         "business_name": lead.get("business_name") or lead.get("name") or "Lead",
-        "phone": phone, "email": email,
-        "niche": lead.get("niche") or "general", "city": lead.get("city") or "",
+        "phone": phone,
+        "email": email,
+        "niche": lead.get("niche") or "general",
+        "city": lead.get("city") or "",
         "stage": stage if stage in STAGES else "interested",
-        "created_at": _now(), "updated_at": _now(),
+        "created_at": _now(),
+        "updated_at": _now(),
     }
     rows.append(rec)
     _write_all(_DEALS, rows)
@@ -123,27 +135,46 @@ async def next_action(deal: dict[str, Any]) -> dict[str, Any]:
     city = deal.get("city", "")
     try:
         if stage in ("new", "contacted"):
-            return {"action": "send_intro", "channel": "email/cadence",
-                    "content": f"{biz} ko intro + free-audit ({BASE}/audit)"}
+            return {
+                "action": "send_intro",
+                "channel": "email/cadence",
+                "content": f"{biz} ko intro + free-audit ({BASE}/audit)",
+            }
         if stage == "interested":
-            return {"action": "send_demo_booking", "channel": "whatsapp/email",
-                    "content": f"Namaste {biz}! 2-min live demo: {BASE}/app/test-call — ya apna pasand ka time batao, booking: {BASE}/audit",
-                    "demo_link": f"{BASE}/app/test-call"}
+            return {
+                "action": "send_demo_booking",
+                "channel": "whatsapp/email",
+                "content": f"Namaste {biz}! 2-min live demo: {BASE}/app/test-call — ya apna pasand ka time batao, booking: {BASE}/audit",
+                "demo_link": f"{BASE}/app/test-call",
+            }
         if stage == "demo_sent":
             from app.marketing import proposal
 
             p = await proposal.generate_proposal(biz, niche, city)
-            return {"action": "send_proposal", "channel": "email/whatsapp",
-                    "content": p.get("proposal"), "payment_link": p.get("payment_link")}
+            return {
+                "action": "send_proposal",
+                "channel": "email/whatsapp",
+                "content": p.get("proposal"),
+                "payment_link": p.get("payment_link"),
+            }
         if stage in ("proposal_sent", "negotiating"):
-            return {"action": "send_payment_followup", "channel": "whatsapp/email",
-                    "content": f"{biz} ji, ready ho? Yahan se 2-min me account + 10 leads FREE: {BASE}/pricing",
-                    "payment_link": f"{BASE}/pricing"}
+            return {
+                "action": "send_payment_followup",
+                "channel": "whatsapp/email",
+                "content": f"{biz} ji, ready ho? Yahan se 2-min me account + 10 leads FREE: {BASE}/pricing",
+                "payment_link": f"{BASE}/pricing",
+            }
         if stage == "won":
-            return {"action": "onboard", "channel": "auto",
-                    "content": f"{biz} won — auto-onboard (KB + first content)."}
-        return {"action": "nurture", "channel": "email",
-                "content": f"{biz} ko monthly value-content me daalo (re-engage)."}
+            return {
+                "action": "onboard",
+                "channel": "auto",
+                "content": f"{biz} won — auto-onboard (KB + first content).",
+            }
+        return {
+            "action": "nurture",
+            "channel": "email",
+            "content": f"{biz} ko monthly value-content me daalo (re-engage).",
+        }
     except Exception as e:  # noqa: BLE001
         return {"action": "skip", "error": str(e)[:100]}
 
@@ -159,8 +190,16 @@ async def run_pipeline(limit: int = 100) -> dict[str, Any]:
         if d.get("stage") in ("won", "lost"):
             continue
         act = await next_action(d)
-        _append(_ACTIONS, {"deal_id": d["id"], "business_name": d["business_name"],
-                           "stage": d.get("stage"), **act, "at": _now()})
+        _append(
+            _ACTIONS,
+            {
+                "deal_id": d["id"],
+                "business_name": d["business_name"],
+                "stage": d.get("stage"),
+                **act,
+                "at": _now(),
+            },
+        )
         produced += 1
 
         # Auto-execute safe actions (draft/enroll — auto-send kabhi nahi):
@@ -169,13 +208,16 @@ async def run_pipeline(limit: int = 100) -> dict[str, Any]:
             if action_type == "send_intro" and d.get("stage") in ("new", "contacted"):
                 # New deal → cadence enroll (email intro sequence)
                 from app.marketing import cadence as _cad
-                _cad.enroll({
-                    "phone": d.get("phone") or "",
-                    "email": d.get("email") or "",
-                    "business_name": d.get("business_name") or "",
-                    "niche": d.get("niche") or "",
-                    "city": d.get("city") or "",
-                })
+
+                _cad.enroll(
+                    {
+                        "phone": d.get("phone") or "",
+                        "email": d.get("email") or "",
+                        "business_name": d.get("business_name") or "",
+                        "niche": d.get("niche") or "",
+                        "city": d.get("city") or "",
+                    }
+                )
                 if d.get("stage") == "new":
                     set_stage(d["id"], "contacted")
                 executed += 1
@@ -185,7 +227,9 @@ async def run_pipeline(limit: int = 100) -> dict[str, Any]:
                 if cid:
                     try:
                         import asyncio as _aio_sp
+
                         from app.marketing.onboarding import onboard_client
+
                         _aio_sp.create_task(onboard_client(cid))
                         executed += 1
                     except Exception:
@@ -210,10 +254,22 @@ def list_actions(limit: int = 50) -> list[dict[str, Any]]:
 def stats() -> dict[str, Any]:
     rows = _read(_DEALS)
     by_stage = {s: sum(1 for r in rows if r.get("stage") == s) for s in STAGES}
-    return {"total": len(rows), "by_stage": by_stage, "won": by_stage.get("won", 0),
-            "open": sum(1 for r in rows if r.get("stage") not in ("won", "lost")),
-            "engine_on": _enabled()}
+    return {
+        "total": len(rows),
+        "by_stage": by_stage,
+        "won": by_stage.get("won", 0),
+        "open": sum(1 for r in rows if r.get("stage") not in ("won", "lost")),
+        "engine_on": _enabled(),
+    }
 
 
-__all__ = ["STAGES", "upsert_deal", "set_stage", "next_action", "run_pipeline",
-           "list_deals", "list_actions", "stats"]
+__all__ = [
+    "STAGES",
+    "upsert_deal",
+    "set_stage",
+    "next_action",
+    "run_pipeline",
+    "list_deals",
+    "list_actions",
+    "stats",
+]

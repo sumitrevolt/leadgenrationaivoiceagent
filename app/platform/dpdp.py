@@ -229,7 +229,9 @@ def _iter_stores() -> list[tuple[str, str]]:
 # --------------------------------------------------------------------------- #
 # Audit log — subject sirf HASH (DPDP audit khud PII leak na kare)
 # --------------------------------------------------------------------------- #
-def _audit(action: str, phone: Any, email: Any, stores: list[str], actor: str, **extra: Any) -> None:
+def _audit(
+    action: str, phone: Any, email: Any, stores: list[str], actor: str, **extra: Any
+) -> None:
     try:
         rec = {
             "ts": _now(),
@@ -307,7 +309,9 @@ async def _db_lead_query(phone10: str, em: str) -> tuple[list[dict[str, Any]] | 
             rows = []
             for lead in res.scalars().all():
                 try:
-                    rows.append(lead.to_dict() if hasattr(lead, "to_dict") else {"id": str(lead.id)})
+                    rows.append(
+                        lead.to_dict() if hasattr(lead, "to_dict") else {"id": str(lead.id)}
+                    )
                 except Exception:
                     continue
             return rows, "ok"
@@ -414,7 +418,12 @@ def _erase_file(path: str, phone10: str, em: str, dry_run: bool) -> dict[str, An
         bak = f"{path}.bak_dpdp_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
         shutil.copy2(path, bak)
         _atomic_write_lines(path, keep)
-        return {"skipped": False, "removed": removed, "dry_run": False, "backup": os.path.basename(bak)}
+        return {
+            "skipped": False,
+            "removed": removed,
+            "dry_run": False,
+            "backup": os.path.basename(bak),
+        }
     except Exception as e:
         logger.warning(f"[dpdp] erase rewrite failed for {path}: {e}")
         return {"skipped": True, "removed": 0, "error": str(e)[:120]}

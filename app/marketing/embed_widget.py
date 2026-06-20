@@ -138,9 +138,19 @@ def _effective_fields(slug: str) -> list[dict]:
         names = {f["name"] for f in cfg}
         prepend: list[dict] = []
         if "name" not in names:
-            prepend.append({"name": "name", "label": "Naam *", "type": "text", "required": True, "options": []})
+            prepend.append(
+                {"name": "name", "label": "Naam *", "type": "text", "required": True, "options": []}
+            )
         if "phone" not in names:
-            prepend.append({"name": "phone", "label": "Phone *", "type": "tel", "required": True, "options": []})
+            prepend.append(
+                {
+                    "name": "phone",
+                    "label": "Phone *",
+                    "type": "tel",
+                    "required": True,
+                    "options": [],
+                }
+            )
         return prepend + cfg
     except Exception:
         return default_fields()
@@ -166,7 +176,9 @@ def _field_html(f: dict) -> str:
         )
         return f'<label for="{fid}">{label}</label><select {attrs}><option value="">-- choose --</option>{opts}</select>'
     extra = ' inputmode="numeric" placeholder="10-digit mobile"' if ftype == "tel" else ""
-    return f'<label for="{fid}">{label}</label><input {attrs} type="{ftype}" maxlength="200"{extra} />'
+    return (
+        f'<label for="{fid}">{label}</label><input {attrs} type="{ftype}" maxlength="200"{extra} />'
+    )
 
 
 # --------------------------------------------------------------------------- #

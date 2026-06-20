@@ -191,7 +191,9 @@ def _cache_get(key: str) -> dict[str, Any] | None:
         return None
 
 
-async def scan(business_name: str, city: str | None = None, niche: str | None = None) -> dict[str, Any]:
+async def scan(
+    business_name: str, city: str | None = None, niche: str | None = None
+) -> dict[str, Any]:
     """Brand mentions scan → digest. Cached 6hr, never raises."""
     business = (business_name or "").strip()[:120]
     if not business:

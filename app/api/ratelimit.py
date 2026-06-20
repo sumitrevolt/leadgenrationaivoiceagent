@@ -96,7 +96,10 @@ def _client_tier(request: Request) -> str:
             return h
         tenant = getattr(request.state, "tenant", None)
         if tenant:
-            t = str((tenant.get("plan") if isinstance(tenant, dict) else getattr(tenant, "plan", "")) or "").lower()
+            t = str(
+                (tenant.get("plan") if isinstance(tenant, dict) else getattr(tenant, "plan", ""))
+                or ""
+            ).lower()
             for key in _TIER_MULT:
                 if key in t:
                     return key
@@ -113,7 +116,9 @@ def tier_rate_limit(prefix: str, base_max: int = 20, window_seconds: int = 60):
         try:
             tier = _client_tier(request)
             cap = max(1, int(base_max * _TIER_MULT.get(tier, 1.0)))
-            limiter = RateLimiter(prefix=f"rl:{prefix}:{tier}", max_requests=cap, window_seconds=window_seconds)
+            limiter = RateLimiter(
+                prefix=f"rl:{prefix}:{tier}", max_requests=cap, window_seconds=window_seconds
+            )
             ident = _client_ip(request)
             allowed, _rem = await limiter.is_allowed(ident)
         except Exception as exc:  # defensive fail-open

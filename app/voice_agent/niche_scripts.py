@@ -845,7 +845,6 @@ NICHE_SCRIPTS: dict[str, dict] = {
         ],
         "closing": "Toh sir, ek free Google audit fix karein — 15 minute mein exact opportunity aur action plan clear ho jaayega, kab convenient hai?",
     },
-
     # ====================================================================== #
     # GENERAL FALLBACK — baaki saare niches (real_estate_luxury, modular_kitchen,
     # hair_transplant, immigration, custom niches, etc.) yahi use karte hain.
@@ -1002,7 +1001,7 @@ def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:
         # Common case: "...main Swara bol rahi hoon..." -> insert ", ek AI assistant,".
         m = re.search(r"\bmain\s+" + re.escape(name), t, flags=re.IGNORECASE)
         if m:
-            return t[: m.end()] + ", ek AI assistant," + t[m.end():]
+            return t[: m.end()] + ", ek AI assistant," + t[m.end() :]
         # Fallback: prepend a short, clear disclosure sentence.
         return f"Main ek AI assistant hoon. {t}"
     except Exception:

@@ -38,12 +38,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from app.security.turnstile import site_key as _turnstile_site_key
-from app.security.turnstile import verify_turnstile
-
 from app.api.auth_deps import require_admin
 from app.api.ratelimit import rate_limit
 from app.models.user import User
+from app.security.turnstile import site_key as _turnstile_site_key
+from app.security.turnstile import verify_turnstile
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -469,7 +468,7 @@ class SignupIn(BaseModel):
     niche: str | None = "general"
     city: str | None = ""
     plan: str | None = "starter"
-    ref_code: str | None = ""   # affiliate referral code (optional, from ?ref= URL param)
+    ref_code: str | None = ""  # affiliate referral code (optional, from ?ref= URL param)
     website: str | None = ""  # honeypot — insaan kabhi nahi bharta
 
 
@@ -593,6 +592,7 @@ async def public_signup(body: SignupIn, request: Request):
         ref = (body.ref_code or "").strip()
         if ref:
             from app.marketing.affiliate import record_referral
+
             record_referral(ref, {"business_name": biz, "email": email, "phone": body.phone or ""})
     except Exception as e:
         logger.debug(f"[signup] referral record skip: {e}")
@@ -603,7 +603,8 @@ async def public_signup(body: SignupIn, request: Request):
 
         st = asyncio.create_task(
             journeys.emit_event(
-                "signup", {"business_name": biz, "name": biz, "phone": body.phone, "plan": body.plan}
+                "signup",
+                {"business_name": biz, "name": biz, "phone": body.phone, "plan": body.plan},
             )
         )
         _BG_TASKS.add(st)
@@ -616,7 +617,15 @@ async def public_signup(body: SignupIn, request: Request):
         from app.platform import outbound_webhooks as _ow
 
         _ow_t = asyncio.create_task(
-            _ow.emit("signup", {"business_name": biz, "phone": body.phone or "", "plan": body.plan or "starter", "client_id": cid})
+            _ow.emit(
+                "signup",
+                {
+                    "business_name": biz,
+                    "phone": body.phone or "",
+                    "plan": body.plan or "starter",
+                    "client_id": cid,
+                },
+            )
         )
         _BG_TASKS.add(_ow_t)
         _ow_t.add_done_callback(_BG_TASKS.discard)

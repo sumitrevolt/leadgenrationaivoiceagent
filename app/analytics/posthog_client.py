@@ -18,6 +18,7 @@ Use:
   if ph.feature_enabled("new_pricing_page", distinct_id=client_id):
       ...
 """
+
 from __future__ import annotations
 
 import logging
@@ -61,7 +62,7 @@ def _get() -> Any:
     return _client
 
 
-def capture(distinct_id: str, event: str, properties: Optional[dict] = None) -> None:
+def capture(distinct_id: str, event: str, properties: dict | None = None) -> None:
     c = _get()
     if c is None:
         return

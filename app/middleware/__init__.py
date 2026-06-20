@@ -81,8 +81,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # direct render hote hain.
         _frame = "frame-ancestors *; " if embeddable else ""
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; " + _frame +
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            "default-src 'self'; "
+            + _frame
+            + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: blob: https://api.qrserver.com https://gen.pollinations.ai "
@@ -99,9 +100,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # baad Ctrl+Shift+R ki zaroorat na ho (PWA SW pehle cache-first tha).
         try:
             path = request.url.path or ""
-            if request.method == "GET" and (
-                path.startswith("/app/") or path == "/sw.js"
-            ):
+            if request.method == "GET" and (path.startswith("/app/") or path == "/sw.js"):
                 response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
                 response.headers["Pragma"] = "no-cache"
         except Exception:
@@ -451,23 +450,23 @@ class RequestGuardMiddleware(BaseHTTPMiddleware):
 
 _PLAN_LIMITS: dict[str, int] = {
     # Marketing tiers (packages.py)
-    "starter":        60,
-    "growth":         200,
-    "advanced":       500,
+    "starter": 60,
+    "growth": 200,
+    "advanced": 500,
     # Voice tiers (voice_packages.py)
-    "vstarter":       60,
-    "vgrowth":        200,
-    "vpro":           500,
+    "vstarter": 60,
+    "vgrowth": 200,
+    "vpro": 500,
     # Combo tiers
-    "combo_starter":  100,
-    "combo_growth":   300,
+    "combo_starter": 100,
+    "combo_growth": 300,
     "combo_advanced": 600,
     # Admin / internal
-    "admin":          9999,
-    "internal":       9999,
+    "admin": 9999,
+    "internal": 9999,
 }
 _DEFAULT_RPM_AUTHED = 100
-_DEFAULT_RPM_ANON   = 20
+_DEFAULT_RPM_ANON = 20
 
 
 def _plan_prefix(plan: str | None) -> str:
@@ -498,20 +497,30 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
     Completely FAIL-OPEN. GATED: PLAN_RATE_LIMIT=1 (default OFF).
     """
 
-    _SKIP = ("/health", "/metrics", "/ws", "/api/web-call/stream",
-             "/api/voiceai", "/status", "/robots.txt", "/sitemap.xml")
+    _SKIP = (
+        "/health",
+        "/metrics",
+        "/ws",
+        "/api/web-call/stream",
+        "/api/voiceai",
+        "/status",
+        "/robots.txt",
+        "/sitemap.xml",
+    )
 
     async def _resolve_plan(self, request: Request) -> tuple[str | None, str | None]:
         try:
             tenant = getattr(request.state, "tenant", None)
             if isinstance(tenant, dict) and tenant.get("slug"):
                 from app.marketing.clients_store import get_by_slug
+
                 c = get_by_slug(tenant["slug"])
                 if c:
                     return str(c.get("id", tenant["slug"])), str(c.get("plan") or "")
             cid = request.headers.get("X-Client-ID", "").strip()
             if cid:
                 from app.marketing.clients_store import get_client
+
                 c = get_client(cid)
                 return cid, str((c or {}).get("plan") or "")
         except Exception:
@@ -521,6 +530,7 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
     async def _redis_check(self, key: str, limit: int) -> tuple[bool, int]:
         try:
             from app.cache import get_redis_client
+
             r = await get_redis_client()
             pipe = r.pipeline()
             pipe.incr(key)

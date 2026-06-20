@@ -178,13 +178,21 @@ async def _generate(channel: str, niche: str, city: str) -> dict[str, Any]:
         # SEO page = LIVE own-site page → auto-record as outcome (fully legal/safe)
         if page and (page.get("url") or page.get("slug")):
             record_outcome("seo_page", value=1)
-        return {"kind": "live_page", "assets": 1, "detail": str(page.get("url") or page.get("slug") or "")[:200]}
+        return {
+            "kind": "live_page",
+            "assets": 1,
+            "detail": str(page.get("url") or page.get("slug") or "")[:200],
+        }
     if channel == "partnership":
         from app.marketing import partnerships
 
         res = await partnerships.draft_batch(city=city)
         drafts = res.get("drafts") or res.get("results") or []
-        return {"kind": "draft", "assets": max(1, len(drafts)), "detail": f"{len(drafts)} partner pitches"}
+        return {
+            "kind": "draft",
+            "assets": max(1, len(drafts)),
+            "detail": f"{len(drafts)} partner pitches",
+        }
     if channel == "linkedin_dm":
         from app.marketing import linkedin_assist
 
@@ -198,8 +206,14 @@ async def _generate(channel: str, niche: str, city: str) -> dict[str, Any]:
     # community platforms (quora/reddit/whatsapp_group/telegram/linkedin_article/medium)
     from app.marketing import community_content
 
-    res = await community_content.draft_content(channel, topic=f"{niche} ko naye customer kaise milein ({city})", niche=niche)
-    return {"kind": "draft", "assets": 1, "detail": str(res.get("draft") or res.get("content") or "")[:150]}
+    res = await community_content.draft_content(
+        channel, topic=f"{niche} ko naye customer kaise milein ({city})", niche=niche
+    )
+    return {
+        "kind": "draft",
+        "assets": 1,
+        "detail": str(res.get("draft") or res.get("content") or "")[:150],
+    }
 
 
 async def run_daily(n: int = 3) -> dict[str, Any]:
@@ -241,7 +255,9 @@ async def run_daily(n: int = 3) -> dict[str, Any]:
         return {"enabled": True, "error": str(e)}
 
 
-def record_outcome(channel: str, kind: str = "inquiry", value: int = 1, note: str = "") -> dict[str, Any]:
+def record_outcome(
+    channel: str, kind: str = "inquiry", value: int = 1, note: str = ""
+) -> dict[str, Any]:
     """Outcome attribute karo (inquiry/reply/signup jo bhi channel se aaya) —
     bandit isi se seekhta. Kabhi raise nahi."""
     try:
@@ -250,7 +266,13 @@ def record_outcome(channel: str, kind: str = "inquiry", value: int = 1, note: st
             return {"ok": False, "error": f"unknown channel (valid: {CHANNELS})"}
         _append(
             _OUTCOMES,
-            {"channel": ch, "kind": (kind or "inquiry")[:30], "value": max(1, int(value)), "note": note[:200], "at": _now().isoformat()},
+            {
+                "channel": ch,
+                "kind": (kind or "inquiry")[:30],
+                "value": max(1, int(value)),
+                "note": note[:200],
+                "at": _now().isoformat(),
+            },
         )
         return {"ok": True, "stats": stats()[ch]}
     except Exception as e:

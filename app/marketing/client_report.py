@@ -35,7 +35,9 @@ def collect_stats(client: dict[str, Any], month: str = "") -> dict[str, Any]:
     month = month or _month()
     cid = str(client.get("id") or "")
     slug = str(client.get("slug") or "")
-    in_month = lambda r, k="ts": str(r.get(k) or r.get("created_at") or "").startswith(month)  # noqa: E731
+    in_month = lambda r, k="ts": str(r.get(k) or r.get("created_at") or "").startswith(
+        month
+    )  # noqa: E731
     stats = {
         "month": month,
         "inquiries": _count_jsonl(
@@ -46,7 +48,8 @@ def collect_stats(client: dict[str, Any], month: str = "") -> dict[str, Any]:
             os.path.join("data", "bookings.jsonl"), lambda r: in_month(r) and r.get("slug") == slug
         ),
         "review_requests": _count_jsonl(
-            os.path.join("data", "review_requests.jsonl"), lambda r: in_month(r) and r.get("client_id") == cid
+            os.path.join("data", "review_requests.jsonl"),
+            lambda r: in_month(r) and r.get("client_id") == cid,
         ),
         "coupon_redemptions": 0,
         "content_pack": os.path.exists(os.path.join("data", "client_packs", f"{cid}.html")),

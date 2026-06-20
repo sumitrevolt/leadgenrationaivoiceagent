@@ -11,6 +11,7 @@ GET /api/events/stream  → text/event-stream
 team.log_event() ab Redis PUBLISH bhi karta hai (non-blocking, fail-open).
 Dashboard.EventSource('/api/events/stream') se live updates milenge bina 60s polling.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -60,7 +61,9 @@ async def _redis_pubsub_stream(request: Request) -> AsyncGenerator[str, None]:
 
             # Non-blocking message check (timeout=0.5s)
             try:
-                msg = await asyncio.wait_for(pubsub.get_message(ignore_subscribe_messages=True), timeout=0.5)
+                msg = await asyncio.wait_for(
+                    pubsub.get_message(ignore_subscribe_messages=True), timeout=0.5
+                )
             except asyncio.TimeoutError:
                 msg = None
             except Exception:

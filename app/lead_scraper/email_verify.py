@@ -53,7 +53,11 @@ def verify(email: str, check_mx: bool = True) -> dict:
 
         try:
             info = validate_email(raw, check_deliverability=check_mx)
-            return {"ok": True, "email": info.normalized, "reason": "valid (mx)" if check_mx else "valid"}
+            return {
+                "ok": True,
+                "email": info.normalized,
+                "reason": "valid (mx)" if check_mx else "valid",
+            }
         except EmailNotValidError as exc:
             return {"ok": False, "email": raw, "reason": str(exc)}
     except Exception:

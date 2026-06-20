@@ -108,8 +108,12 @@ async def _freshen_caption(old_caption: str, business_name: str, niche: str) -> 
     KABHI empty/raise nahi — fallback hamesha kuch deta hai."""
     base = (old_caption or "").strip()
     # Template tweak (never-empty fallback) — re-share framing.
-    tweak = "\U0001f501 Phir se yaad dila rahe hain:\n" + base if base else (
-        f"\U0001f501 {business_name or 'Hum'} aapke liye phir hazir — aaj hi judiye! \U0001f4de"
+    tweak = (
+        "\U0001f501 Phir se yaad dila rahe hain:\n" + base
+        if base
+        else (
+            f"\U0001f501 {business_name or 'Hum'} aapke liye phir hazir — aaj hi judiye! \U0001f4de"
+        )
     )
 
     if free_ai is None or not base:

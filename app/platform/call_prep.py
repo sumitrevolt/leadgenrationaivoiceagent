@@ -50,7 +50,9 @@ def _static_brief(ph10: str, rec: dict[str, Any], snippet: str, client_id: str) 
     kaun = biz or (f"Client {client_id}" if client_id else f"Prospect {ph10 or '?'}")
     if niche or city:
         kaun += f" ({niche}{', ' + city if city else ''})"
-    history = snippet.splitlines()[-1][:200] if snippet else "Pehli baar baat ho rahi — koi history nahi."
+    history = (
+        snippet.splitlines()[-1][:200] if snippet else "Pehli baar baat ho rahi — koi history nahi."
+    )
     return {
         "kaun_hai": kaun,
         "history_summary": history,
@@ -65,8 +67,14 @@ def _static_brief(ph10: str, rec: dict[str, Any], snippet: str, client_id: str) 
             "Free GBP audit abhi bhej sakta hoon — leadsgenai.in/audit",
         ],
         "objections": [
-            {"objection": "Mehnga lagega", "jawab": "Ek missed inquiry ₹15-20K ki hoti — ₹1,199/mo us se kam, pehle 10 leads FREE."},
-            {"objection": "AI pe bharosa nahi", "jawab": "2-min live demo karke khud sun lo — leadsgenai.in/app/test-call. Cancel anytime."},
+            {
+                "objection": "Mehnga lagega",
+                "jawab": "Ek missed inquiry ₹15-20K ki hoti — ₹1,199/mo us se kam, pehle 10 leads FREE.",
+            },
+            {
+                "objection": "AI pe bharosa nahi",
+                "jawab": "2-min live demo karke khud sun lo — leadsgenai.in/app/test-call. Cancel anytime.",
+            },
         ],
         "next_action": "Free audit link WhatsApp karo + 2-min demo offer karo",
         "best_time_hint": "11am-1pm ya 4-6pm (business khula, rush kam)",
@@ -108,15 +116,20 @@ async def prep_brief(phone: str | None = None, client_id: str | None = None) -> 
             )
             sys = (
                 "Tum ek sales call-prep assistant ho (India, Hinglish). Prospect ka data + history "
-                "doonga. SIRF ek JSON lautao: {\"kaun_hai\":\"1 line\",\"history_summary\":\"1-2 line\","
-                "\"pain_points\":[2-3],\"talking_points\":[3-5 short],"
-                "\"objections\":[{\"objection\":\"..\",\"jawab\":\"..\"} x2-3],"
-                "\"next_action\":\"1 line\",\"best_time_hint\":\"1 line\"}. Hinglish, confident, koi extra text nahi."
+                'doonga. SIRF ek JSON lautao: {"kaun_hai":"1 line","history_summary":"1-2 line",'
+                '"pain_points":[2-3],"talking_points":[3-5 short],'
+                '"objections":[{"objection":"..","jawab":".."} x2-3],'
+                '"next_action":"1 line","best_time_hint":"1 line"}. Hinglish, confident, koi extra text nahi.'
             )
             raw, provider = await asyncio.wait_for(
                 free_ai.chat(
                     sys,
-                    [{"role": "user", "content": f"Data: {facts}\nHistory:\n{(snippet or 'koi history nahi')[:1200]}"}],
+                    [
+                        {
+                            "role": "user",
+                            "content": f"Data: {facts}\nHistory:\n{(snippet or 'koi history nahi')[:1200]}",
+                        }
+                    ],
                     max_tokens=450,
                     temperature=0.4,
                 ),
@@ -135,7 +148,12 @@ async def prep_brief(phone: str | None = None, client_id: str | None = None) -> 
                     objs = []
                     for o in d["objections"][:3]:
                         if isinstance(o, dict) and o.get("objection") and o.get("jawab"):
-                            objs.append({"objection": str(o["objection"])[:150], "jawab": str(o["jawab"])[:250]})
+                            objs.append(
+                                {
+                                    "objection": str(o["objection"])[:150],
+                                    "jawab": str(o["jawab"])[:250],
+                                }
+                            )
                     if objs:
                         brief["objections"] = objs
         except Exception as e:

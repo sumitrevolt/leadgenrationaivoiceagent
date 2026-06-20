@@ -35,7 +35,7 @@ def _flag(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _provider() -> Optional[tuple]:
+def _provider() -> tuple | None:
     """(base_url, api_key, model) for a free OpenAI-compatible provider, or None."""
     cb = os.getenv("CEREBRAS_API_KEY")
     if cb:
@@ -62,9 +62,9 @@ class StaffSupervisor:
             return self._graph
         self._loaded = True
         try:
-            from langgraph_supervisor import create_supervisor
-            from langgraph.prebuilt import create_react_agent
             from langchain_openai import ChatOpenAI
+            from langgraph.prebuilt import create_react_agent
+            from langgraph_supervisor import create_supervisor
 
             from app.platform.team import STAFF
 
@@ -88,9 +88,7 @@ class StaffSupervisor:
                     f"for Indian small businesses). Your duties: {duties}. Only handle tasks that "
                     f"fit your role; otherwise say so briefly. Reply concisely in Hinglish (Roman script)."
                 )
-                agents.append(
-                    create_react_agent(model=model, tools=[], name=key, prompt=prompt)
-                )
+                agents.append(create_react_agent(model=model, tools=[], name=key, prompt=prompt))
 
             supervisor_prompt = (
                 "You are the Manager (Boss) of LeadGen AI's AI staff. Read the task, route it to "
@@ -135,7 +133,7 @@ class StaffSupervisor:
             return {"ok": False, "task": task, "reason": f"run error: {exc}"}
 
 
-_singleton: Optional[StaffSupervisor] = None
+_singleton: StaffSupervisor | None = None
 
 
 def get_staff_supervisor() -> StaffSupervisor:
@@ -153,7 +151,10 @@ def high_stakes_enabled() -> bool:
 def run_high_stakes(task: str) -> dict[str, Any]:
     """LangGraph supervisor for sales/process breakpoints. Never raises."""
     if not high_stakes_enabled():
-        return {"ok": False, "reason": "USE_LANGGRAPH_HIGH_STAKES=1 + USE_LANGGRAPH_SUPERVISOR=1 required"}
+        return {
+            "ok": False,
+            "reason": "USE_LANGGRAPH_HIGH_STAKES=1 + USE_LANGGRAPH_SUPERVISOR=1 required",
+        }
     try:
         return get_staff_supervisor().run(task)
     except Exception as exc:

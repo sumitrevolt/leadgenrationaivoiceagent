@@ -25,10 +25,8 @@ def _iso(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from app.api import customer_auth
     from app.marketing import clients_store
 
-    monkeypatch.setattr(clients_store, "_FILE", tmp_path / "clients.jsonl",
-                        raising=False)
-    monkeypatch.setattr(customer_auth, "_FILE", tmp_path / "customer_logins.jsonl",
-                        raising=False)
+    monkeypatch.setattr(clients_store, "_FILE", tmp_path / "clients.jsonl", raising=False)
+    monkeypatch.setattr(customer_auth, "_FILE", tmp_path / "customer_logins.jsonl", raising=False)
     # Bypass admin auth in tests — onboard is admin-only, but the dep is the
     # same one already covered by test_billing_auth_idor.py.
     from app.api import customer_onboard
@@ -36,9 +34,7 @@ def _iso(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     async def _noop_admin(*a: Any, **kw: Any) -> Any:
         return None
 
-    monkeypatch.setattr(
-        customer_onboard, "require_admin", _noop_admin, raising=False
-    )
+    monkeypatch.setattr(customer_onboard, "require_admin", _noop_admin, raising=False)
 
     # Clear MAGIC_LINK so the hint is empty (deterministic)
     monkeypatch.delenv("MAGIC_LINK", raising=False)
@@ -73,8 +69,7 @@ def test_short_business_name_is_422() -> None:
 def test_invalid_plan_is_422() -> None:
     r = _client().post(
         "/api/admin/customers/onboard",
-        json={"business_name": "Sharma Solar", "phone": "9876543210",
-              "plan": "diamond"},
+        json={"business_name": "Sharma Solar", "phone": "9876543210", "plan": "diamond"},
     )
     assert r.status_code == 422
 
@@ -82,8 +77,7 @@ def test_invalid_plan_is_422() -> None:
 def test_invalid_email_is_422() -> None:
     r = _client().post(
         "/api/admin/customers/onboard",
-        json={"business_name": "Sharma Solar", "phone": "9876543210",
-              "email": "not-an-email"},
+        json={"business_name": "Sharma Solar", "phone": "9876543210", "email": "not-an-email"},
     )
     assert r.status_code == 422
 
@@ -94,8 +88,13 @@ def test_invalid_email_is_422() -> None:
 def test_profile_only_no_email_returns_dashboard_url() -> None:
     r = _client().post(
         "/api/admin/customers/onboard",
-        json={"business_name": "Sharma Solar", "niche": "solar",
-              "city": "Pune", "phone": "9876543210", "plan": "trial"},
+        json={
+            "business_name": "Sharma Solar",
+            "niche": "solar",
+            "city": "Pune",
+            "phone": "9876543210",
+            "plan": "trial",
+        },
     )
     assert r.status_code == 200
     d = r.json()
@@ -109,8 +108,11 @@ def test_profile_only_no_email_returns_dashboard_url() -> None:
 def test_with_email_returns_generated_password() -> None:
     r = _client().post(
         "/api/admin/customers/onboard",
-        json={"business_name": "Sharma Solar", "phone": "9876543210",
-              "email": "owner@sharmasolar.in"},
+        json={
+            "business_name": "Sharma Solar",
+            "phone": "9876543210",
+            "email": "owner@sharmasolar.in",
+        },
     )
     assert r.status_code == 200
     d = r.json()
@@ -124,9 +126,12 @@ def test_with_email_returns_generated_password() -> None:
 def test_with_email_and_custom_password_returns_custom() -> None:
     r = _client().post(
         "/api/admin/customers/onboard",
-        json={"business_name": "Sharma Solar", "phone": "9876543210",
-              "email": "owner@sharmasolar.in",
-              "password": "my-chosen-password-1"},
+        json={
+            "business_name": "Sharma Solar",
+            "phone": "9876543210",
+            "email": "owner@sharmasolar.in",
+            "password": "my-chosen-password-1",
+        },
     )
     assert r.status_code == 200
     d = r.json()
@@ -141,13 +146,15 @@ def test_login_actually_works_after_onboard(
     This is the end-to-end property — without it, the form is broken UX."""
     from app.api import customer_auth
 
-    monkeypatch.setattr(customer_auth, "_FILE", tmp_path / "logins.jsonl",
-                        raising=False)
+    monkeypatch.setattr(customer_auth, "_FILE", tmp_path / "logins.jsonl", raising=False)
     client = _client()
     r = client.post(
         "/api/admin/customers/onboard",
-        json={"business_name": "Sharma Solar", "phone": "9876543211",
-              "email": "auth-check@sharmasolar.in"},
+        json={
+            "business_name": "Sharma Solar",
+            "phone": "9876543211",
+            "email": "auth-check@sharmasolar.in",
+        },
     )
     d = r.json()
     assert r.status_code == 200
@@ -172,13 +179,11 @@ def test_repeat_onboard_returns_existing_client_id() -> None:
     c = _client()
     r1 = c.post(
         "/api/admin/customers/onboard",
-        json={"business_name": "Sharma Solar", "phone": "9876543299",
-              "email": "owner@x.com"},
+        json={"business_name": "Sharma Solar", "phone": "9876543299", "email": "owner@x.com"},
     )
     r2 = c.post(
         "/api/admin/customers/onboard",
-        json={"business_name": "Sharma Solar", "phone": "9876543299",
-              "email": "owner@x.com"},
+        json={"business_name": "Sharma Solar", "phone": "9876543299", "email": "owner@x.com"},
     )
     assert r1.status_code == r2.status_code == 200
     assert r1.json()["client_id"] == r2.json()["client_id"]

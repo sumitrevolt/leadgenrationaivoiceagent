@@ -184,7 +184,9 @@ def capture(client_id: str, name: str = "") -> dict[str, Any]:
 
         snap = {
             "id": uuid.uuid4().hex[:12],
-            "name": (str(name or "").strip() or f"Snapshot of {client.get('business_name') or client_id}")[:120],
+            "name": (
+                str(name or "").strip() or f"Snapshot of {client.get('business_name') or client_id}"
+            )[:120],
             "source_client_id": client_id,
             "source_slug": slug,
             "created_at": _now(),

@@ -135,7 +135,9 @@ async def _gather_signals() -> list[dict[str, Any]]:
         try:
             p = os.path.join(_PACKS_DIR, f"{cid}.html")
             if os.path.exists(p):
-                pack_age = (_now() - datetime.fromtimestamp(os.path.getmtime(p), tz=timezone.utc)).days
+                pack_age = (
+                    _now() - datetime.fromtimestamp(os.path.getmtime(p), tz=timezone.utc)
+                ).days
         except Exception:
             pass
         age_days = 0
@@ -212,7 +214,12 @@ async def run_check() -> dict[str, Any]:
             )
         except Exception:
             pass
-        return {"clients": len(report), "red": len(reds), "yellow": len(yellows), "alerted": alerted}
+        return {
+            "clients": len(report),
+            "red": len(reds),
+            "yellow": len(yellows),
+            "alerted": alerted,
+        }
     except Exception as e:
         logger.warning(f"[client_health] run_check failed: {e}")
         return {"error": str(e)}

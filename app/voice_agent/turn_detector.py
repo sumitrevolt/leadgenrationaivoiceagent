@@ -106,7 +106,7 @@ class SileroSpeechGate:
             return self._model is not None
         self._loaded = True
         try:
-            from silero_vad import load_silero_vad, get_speech_timestamps
+            from silero_vad import get_speech_timestamps, load_silero_vad
 
             # onnx=True keeps it light; silero-vad pulls torch as a dependency.
             self._model = load_silero_vad(onnx=True)
@@ -123,7 +123,7 @@ class SileroSpeechGate:
     def active(self) -> bool:
         return self._ensure()
 
-    def is_speech(self, pcm16: bytes, sample_rate: int = 16000) -> Optional[bool]:
+    def is_speech(self, pcm16: bytes, sample_rate: int = 16000) -> bool | None:
         """True/False if active; None if disabled/unavailable/error (use RMS)."""
         if not self._ensure():
             return None
@@ -202,7 +202,7 @@ class SmartTurnDetector:
     def active(self) -> bool:
         return self._ensure()
 
-    def is_endpoint(self, pcm16: bytes, sample_rate: int = 16000) -> Optional[bool]:
+    def is_endpoint(self, pcm16: bytes, sample_rate: int = 16000) -> bool | None:
         """True if the caller's turn looks complete, False if they only paused
         mid-sentence, None when disabled/unavailable/uncertain (silence-timer decides).
 
@@ -243,8 +243,8 @@ class SmartTurnDetector:
             return None
 
 
-_speech_gate: Optional[SileroSpeechGate] = None
-_smart_turn: Optional[SmartTurnDetector] = None
+_speech_gate: SileroSpeechGate | None = None
+_smart_turn: SmartTurnDetector | None = None
 
 
 def get_speech_gate() -> SileroSpeechGate:
@@ -276,15 +276,63 @@ def get_smart_turn() -> SmartTurnDetector:
 _INCOMPLETE_TAIL_WORDS = frozenset(
     {
         # conjunctions / connectives (Roman)
-        "aur", "lekin", "kyunki", "kyuki", " kyun", "kyon", "ya", "magar", "par",
-        "toh", "to", "ki", "jo", "agar", "kyonki", "isliye", "phir", "fir",
-        "aurr", "kintu", "parantu", "taaki", "taki", "jab", "tab", "jaise",
+        "aur",
+        "lekin",
+        "kyunki",
+        "kyuki",
+        " kyun",
+        "kyon",
+        "ya",
+        "magar",
+        "par",
+        "toh",
+        "to",
+        "ki",
+        "jo",
+        "agar",
+        "kyonki",
+        "isliye",
+        "phir",
+        "fir",
+        "aurr",
+        "kintu",
+        "parantu",
+        "taaki",
+        "taki",
+        "jab",
+        "tab",
+        "jaise",
         # thinking-fillers / hesitations (Roman)
-        "matlab", "woh", "wo", "uh", "um", "umm", "hmm", "mtlb", "yaani",
-        "yani", "bas", "ki", "vo", "aise", "jaise", "ek", "thoda", "abhi",
+        "matlab",
+        "woh",
+        "wo",
+        "uh",
+        "um",
+        "umm",
+        "hmm",
+        "mtlb",
+        "yaani",
+        "yani",
+        "bas",
+        "vo",
+        "aise",
+        "ek",
+        "thoda",
+        "abhi",
         # Devanagari conjunctions / fillers
-        "और", "लेकिन", "क्योंकि", "या", "मगर", "पर", "तो", "कि", "जो", "अगर",
-        "मतलब", "वो", "यानी",
+        "और",
+        "लेकिन",
+        "क्योंकि",
+        "या",
+        "मगर",
+        "पर",
+        "तो",
+        "कि",
+        "जो",
+        "अगर",
+        "मतलब",
+        "वो",
+        "यानी",
     }
 )
 
@@ -292,7 +340,7 @@ _INCOMPLETE_TAIL_WORDS = frozenset(
 _TERMINAL_PUNCT = (".", "?", "!", "।", "॥")
 
 
-def text_end_of_turn(text: str) -> Optional[bool]:
+def text_end_of_turn(text: str) -> bool | None:
     """Rule-first text/semantic endpoint check on a partial transcript.
 
     Returns:

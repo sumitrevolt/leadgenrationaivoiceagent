@@ -130,7 +130,7 @@ def set_cycle(
             return {"ok": False, "error": "interval_days number do (din me)"}
         last = _parse_date(last_service_date) or date.today()
         next_due = (last + timedelta(days=interval)).isoformat()
-        cid = hashlib.sha1(f"{client_id}|{phone}|{service.lower()}".encode("utf-8")).hexdigest()[:12]
+        cid = hashlib.sha1(f"{client_id}|{phone}|{service.lower()}".encode()).hexdigest()[:12]
         rec = {
             "type": "cycle",
             "id": cid,
@@ -245,7 +245,13 @@ def run_due(days_ahead: int = 3) -> dict[str, Any]:
             d = draft(r)
             if not d.get("ok"):
                 continue
-            _append({"type": "reminded", "id": str(r.get("id") or ""), "next_due": str(r.get("next_due") or "")})
+            _append(
+                {
+                    "type": "reminded",
+                    "id": str(r.get("id") or ""),
+                    "next_due": str(r.get("next_due") or ""),
+                }
+            )
             drafts.append(d)
             try:
                 from app.platform.team import log_event

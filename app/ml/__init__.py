@@ -72,14 +72,12 @@ from app.ml.vertex_continuous_trainer import (
     TrainingPriority,
     VertexContinuousTrainer,
     VertexTrainingConfig,
-)
-from app.ml.vertex_continuous_trainer import get_training_status as vertex_get_training_status
-from app.ml.vertex_continuous_trainer import (
     get_vertex_continuous_trainer,
     record_brain_behavior,
     start_continuous_training,
     stop_continuous_training,
 )
+from app.ml.vertex_continuous_trainer import get_training_status as vertex_get_training_status
 from app.ml.vertex_continuous_trainer import train_all_now as vertex_train_all_now
 from app.ml.voice_agent_brain import (
     CallIntent,

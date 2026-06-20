@@ -19,9 +19,11 @@ async def test_inquiry_hooks_runs_cadence_when_enabled(monkeypatch):
         enroll_calls.append(dict(lead))
         return {"id": "x", "status": "active"}
 
-    with patch("app.platform.lead_alerts.notify_new_lead_bg", lambda r: None), patch(
-        "app.api.public_site._notify_inquiry_email", new=AsyncMock()
-    ), patch("app.marketing.cadence.enroll", side_effect=_enroll):
+    with (
+        patch("app.platform.lead_alerts.notify_new_lead_bg", lambda r: None),
+        patch("app.api.public_site._notify_inquiry_email", new=AsyncMock()),
+        patch("app.marketing.cadence.enroll", side_effect=_enroll),
+    ):
         from app.platform.inquiry_hooks import run_after_inquiry
 
         rec = {
@@ -79,9 +81,11 @@ def test_process_engine_ensure_alive_revives_stale():
         with open(os.path.join(runs_dir, "index.jsonl"), "w", encoding="utf-8") as f:
             f.write('{"run_id":"testrun123","process":"demo","at":"2020-01-01T00:00:00+00:00"}\n')
 
-        with patch.object(process_engine, "_RUNS_DIR", runs_dir), patch.object(
-            process_engine, "_INDEX", os.path.join(runs_dir, "index.jsonl")
-        ), patch("app.tasks.staff_jobs.process_tick") as mock_tick:
+        with (
+            patch.object(process_engine, "_RUNS_DIR", runs_dir),
+            patch.object(process_engine, "_INDEX", os.path.join(runs_dir, "index.jsonl")),
+            patch("app.tasks.staff_jobs.process_tick") as mock_tick,
+        ):
             mock_tick.delay = lambda rid: {"queued": rid}
             out = process_engine.ensure_alive(stale_minutes=1)
         assert out.get("ok") is True

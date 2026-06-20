@@ -412,7 +412,9 @@ def dedupe_clients() -> dict[str, Any]:
         removed = 0
         for r in rows_sorted:
             ph = _digits(r.get("phone"))
-            dkey = ("ph:" + ph) if ph else ("nm:" + str(r.get("business_name") or "").strip().lower())
+            dkey = (
+                ("ph:" + ph) if ph else ("nm:" + str(r.get("business_name") or "").strip().lower())
+            )
             if dkey in seen:
                 removed += 1
                 continue

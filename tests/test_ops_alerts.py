@@ -22,8 +22,9 @@ def captured(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> list[tuple[str,
     monkeypatch.setattr(ops_alerts, "_STATE_PATH", tmp_path / "ops_alerts_state.jsonl")
     pushes: list[tuple[str, str, str]] = []
 
-    def _capture(title: str, message: str, priority: str = "default",
-                 tags: list[str] | None = None) -> None:
+    def _capture(
+        title: str, message: str, priority: str = "default", tags: list[str] | None = None
+    ) -> None:
         pushes.append((title, message, priority))
 
     monkeypatch.setattr(ops_alerts, "_ntfy", _capture)
@@ -34,9 +35,7 @@ def captured(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> list[tuple[str,
 # --------------------------------------------------------------------------- #
 # Master flag
 # --------------------------------------------------------------------------- #
-def test_disabled_master_flag_silences_all(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_disabled_master_flag_silences_all(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(ops_alerts, "_DATA_DIR", tmp_path)
     monkeypatch.setattr(ops_alerts, "_STATE_PATH", tmp_path / "ops_alerts_state.jsonl")
     pushes: list = []
@@ -76,9 +75,7 @@ def test_engineer_no_score_skipped(captured: list) -> None:
     assert out["reason"] == "no_score"
 
 
-def test_engineer_threshold_env_override(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_engineer_threshold_env_override(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """The threshold MUST be env-controllable so the operator can tune signal noise."""
     monkeypatch.setenv("OPS_ALERT_ENGINEER_THRESHOLD", "90")
     # Force re-import of the threshold (module-level)
@@ -100,23 +97,26 @@ def test_engineer_threshold_env_override(
 # --------------------------------------------------------------------------- #
 # eval_gate burst alert
 # --------------------------------------------------------------------------- #
-def test_eval_reject_below_burst_no_alert(captured: list, monkeypatch: pytest.MonkeyPatch,
-                                          tmp_path: Path) -> None:
+def test_eval_reject_below_burst_no_alert(
+    captured: list, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """A single isolated reject must NOT page (audit insight: one bad run is noise)."""
     # Empty history -> 0 recent rejects -> below burst (3)
     from app.agents import eval_gate
 
     monkeypatch.setattr(eval_gate, "_HISTORY_PATH", tmp_path / "empty.jsonl")
     out = ops_alerts.maybe_alert_eval_reject(
-        "rag", "faithfulness",
+        "rag",
+        "faithfulness",
         {"decision": "reject", "current": 0.3, "baseline": 0.9},
     )
     assert out["alerted"] is False
     assert out["reason"] == "below_burst"
 
 
-def test_eval_reject_burst_alerts(captured: list, monkeypatch: pytest.MonkeyPatch,
-                                  tmp_path: Path) -> None:
+def test_eval_reject_burst_alerts(
+    captured: list, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """3 rejects in window -> page."""
     from app.agents import eval_gate
 
@@ -126,11 +126,15 @@ def test_eval_reject_burst_alerts(captured: list, monkeypatch: pytest.MonkeyPatc
     # Plant 3 rejects in recent history
     for _ in range(3):
         eval_gate.record_score(
-            "rag", "faithfulness", 0.2,
-            agent="ci", extra={"decision": "reject", "ratio": 0.2},
+            "rag",
+            "faithfulness",
+            0.2,
+            agent="ci",
+            extra={"decision": "reject", "ratio": 0.2},
         )
     out = ops_alerts.maybe_alert_eval_reject(
-        "rag", "faithfulness",
+        "rag",
+        "faithfulness",
         {"decision": "reject", "current": 0.2, "baseline": 0.9},
     )
     assert out["alerted"] is True
@@ -140,7 +144,8 @@ def test_eval_reject_burst_alerts(captured: list, monkeypatch: pytest.MonkeyPatc
 
 def test_eval_accept_decision_never_alerts(captured: list) -> None:
     out = ops_alerts.maybe_alert_eval_reject(
-        "rag", "faithfulness",
+        "rag",
+        "faithfulness",
         {"decision": "accept", "current": 0.95, "baseline": 0.9},
     )
     assert out["alerted"] is False
@@ -150,14 +155,13 @@ def test_eval_accept_decision_never_alerts(captured: list) -> None:
 # --------------------------------------------------------------------------- #
 # Daily readiness digest
 # --------------------------------------------------------------------------- #
-def test_digest_silent_when_no_blockers(
-    monkeypatch: pytest.MonkeyPatch, captured: list
-) -> None:
+def test_digest_silent_when_no_blockers(monkeypatch: pytest.MonkeyPatch, captured: list) -> None:
     """No BLOCKER -> no push (quiet-by-design)."""
     from app.api import activation as ax
 
     monkeypatch.setattr(
-        ax, "_PROBES",
+        ax,
+        "_PROBES",
         (lambda: {"status": "OK", "label": "all good"},),
     )
     out = ops_alerts.daily_readiness_digest()
@@ -169,7 +173,8 @@ def test_digest_pages_on_blocker(monkeypatch: pytest.MonkeyPatch, captured: list
     from app.api import activation as ax
 
     monkeypatch.setattr(
-        ax, "_PROBES",
+        ax,
+        "_PROBES",
         (
             lambda: {"status": "BLOCKER", "label": "Razorpay live", "action": "set keys"},
             lambda: {"status": "OK", "label": "Sentry"},
@@ -186,7 +191,8 @@ def test_digest_cooldown_blocks_repeat(monkeypatch: pytest.MonkeyPatch, captured
     from app.api import activation as ax
 
     monkeypatch.setattr(
-        ax, "_PROBES",
+        ax,
+        "_PROBES",
         (lambda: {"status": "BLOCKER", "label": "X", "action": "y"},),
     )
     ops_alerts.daily_readiness_digest()  # first call: alerts

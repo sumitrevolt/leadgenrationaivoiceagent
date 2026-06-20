@@ -93,9 +93,13 @@ def enroll(lead: dict[str, Any]) -> dict[str, Any]:
             return r  # already enrolled
     rec = {
         "id": uuid.uuid4().hex[:12],
-        "business_name": biz, "phone": phone, "email": email,
-        "niche": (lead.get("niche") or "general"), "city": (lead.get("city") or ""),
-        "step_idx": 0, "status": "active",
+        "business_name": biz,
+        "phone": phone,
+        "email": email,
+        "niche": (lead.get("niche") or "general"),
+        "city": (lead.get("city") or ""),
+        "step_idx": 0,
+        "status": "active",
         "enrolled_at": _now().isoformat(),
     }
     rows.append(rec)
@@ -115,7 +119,9 @@ async def _execute_step(rec: dict[str, Any], step: dict[str, Any]) -> dict[str, 
     out: dict[str, Any] = {"channel": ch, "action": action, "auto_sent": False}
     try:
         if ch == "email":
-            out["draft"] = f"[Email/{action}] {biz} — AI marketing + 2-min inquiry calling. Free audit: leadsgenai.in/audit"
+            out["draft"] = (
+                f"[Email/{action}] {biz} — AI marketing + 2-min inquiry calling. Free audit: leadsgenai.in/audit"
+            )
             out["note"] = "auto via AUTO_EMAIL_OUTREACH (Rohan)"
         elif ch == "sms":
             from app.integrations import sms_dlt
@@ -123,7 +129,9 @@ async def _execute_step(rec: dict[str, Any], step: dict[str, Any]) -> dict[str, 
             msg = sms_dlt.render(action if action in sms_dlt.TEMPLATES else "intro", biz=biz)
             out["draft"] = msg
             if phone:
-                res = await sms_dlt.send_template(phone, action if action in sms_dlt.TEMPLATES else "intro", biz=biz)
+                res = await sms_dlt.send_template(
+                    phone, action if action in sms_dlt.TEMPLATES else "intro", biz=biz
+                )
                 out["auto_sent"] = bool(res.get("ok"))
                 out["sms"] = res
         elif ch == "whatsapp":
@@ -137,7 +145,9 @@ async def _execute_step(rec: dict[str, Any], step: dict[str, Any]) -> dict[str, 
                 pitch = f"Namaste {biz}! LeadGen AI — AI se leads. Free audit: leadsgenai.in/audit"
             out["draft"] = pitch
             if phone:
-                out["wa_link"] = "https://wa.me/91" + phone + "?text=" + urllib.parse.quote(pitch[:320])
+                out["wa_link"] = (
+                    "https://wa.me/91" + phone + "?text=" + urllib.parse.quote(pitch[:320])
+                )
             out["note"] = "1-click human send (cold auto = ban)"
         elif ch == "voice":
             out["note"] = "AI callback queued (telephony+DLT live hone par auto)"
@@ -173,10 +183,16 @@ async def run_due(limit: int = 100) -> dict[str, Any]:
         while idx < len(DEFAULT_CADENCE) and DEFAULT_CADENCE[idx]["day"] <= days:
             step = DEFAULT_CADENCE[idx]
             res = await _execute_step(rec, step)
-            _append(_RUNS, {
-                "lead_id": rec["id"], "business_name": rec["business_name"],
-                "step": idx, **res, "at": _now().isoformat(),
-            })
+            _append(
+                _RUNS,
+                {
+                    "lead_id": rec["id"],
+                    "business_name": rec["business_name"],
+                    "step": idx,
+                    **res,
+                    "at": _now().isoformat(),
+                },
+            )
             idx += 1
             progressed = True
         if progressed:

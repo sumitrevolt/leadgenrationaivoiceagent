@@ -83,9 +83,9 @@ async def test_request_no_enumeration(monkeypatch):
     for _ in range(5):
         await asyncio.sleep(0)
 
-    assert r_unknown == r_known          # zero signal leak
+    assert r_unknown == r_known  # zero signal leak
     assert r_unknown["ok"] is True
-    assert sent == ["real@x.com"]        # email only to the real account
+    assert sent == ["real@x.com"]  # email only to the real account
 
 
 @pytest.mark.asyncio

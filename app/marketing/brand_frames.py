@@ -117,7 +117,11 @@ def resolve_brand(slug_or_id: str) -> dict[str, Any]:
         bk = brand_kit.get_brand(out["client_id"] or key)
         if bk:
             colors = bk.get("colors") or {}
-            out["business_name"] = out["business_name"] if out["business_name"] != "Aapka Business" else (bk.get("business_name") or out["business_name"])
+            out["business_name"] = (
+                out["business_name"]
+                if out["business_name"] != "Aapka Business"
+                else (bk.get("business_name") or out["business_name"])
+            )
             out["phone"] = out["phone"] or str(bk.get("phone") or "")
             out["tagline"] = out["tagline"] or str(bk.get("tagline") or "")
             out["primary"] = out["primary"] or _safe_color(colors.get("primary"), "")
@@ -147,7 +151,12 @@ def _find_logo_data_uri(slug: str, client_id: str = "") -> str:
         if os.path.getsize(newest) > 1_000_000:
             return ""
         ext = newest.rsplit(".", 1)[-1].lower()
-        mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}.get(ext, "image/png")
+        mime = {
+            "png": "image/png",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "webp": "image/webp",
+        }.get(ext, "image/png")
         with open(newest, "rb") as f:
             b64 = base64.b64encode(f.read()).decode("ascii")
         return f"data:{mime};base64,{b64}"
@@ -295,9 +304,13 @@ def _fallback_captions(brand: dict[str, Any], items: list[dict[str, str]]) -> li
                 f"taraf se aapko khushiyon bhara tyohar mubarak. \U0001fa94{tail}"
             )
         elif kind == "quote":
-            caps.append(f"\U0001f4ad {it.get('title')}\n— {name}. Aaj ka vichaar, roz ki mehnat.{tail}")
+            caps.append(
+                f"\U0001f4ad {it.get('title')}\n— {name}. Aaj ka vichaar, roz ki mehnat.{tail}"
+            )
         else:
-            caps.append(f"\U0001f525 {it.get('title')} {name} par aaj hi visit karein — offer limited hai!{tail}")
+            caps.append(
+                f"\U0001f525 {it.get('title')} {name} par aaj hi visit karein — offer limited hai!{tail}"
+            )
     return caps
 
 
@@ -310,7 +323,7 @@ async def _llm_captions(brand: dict[str, Any], items: list[dict[str, str]]) -> l
         raw, _ = await free_ai.chat(
             (
                 "Tu Indian local business ka social media caption writer hai. Har item ke "
-                'liye chhota Hinglish caption (2 lines, emojis, halka CTA). Output SIRF JSON: '
+                "liye chhota Hinglish caption (2 lines, emojis, halka CTA). Output SIRF JSON: "
                 '["caption1","caption2","caption3"]'
             ),
             [

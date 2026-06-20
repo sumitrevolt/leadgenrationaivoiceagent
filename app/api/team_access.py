@@ -48,9 +48,13 @@ async def list_modules(_user: User = Depends(require_admin)):
 
 
 @router.get("/members")
-async def list_members(user: User = Depends(require_admin), db: AsyncSession = Depends(get_async_db)):
+async def list_members(
+    user: User = Depends(require_admin), db: AsyncSession = Depends(get_async_db)
+):
     """Saare team members + unke module grants (merged view)."""
-    rows = (await db.execute(select(User).order_by(User.created_at.desc()).limit(200))).scalars().all()
+    rows = (
+        (await db.execute(select(User).order_by(User.created_at.desc()).limit(200))).scalars().all()
+    )
     return {"members": [_member_view(u) for u in rows], "your_role": user.role.value}
 
 
@@ -97,10 +101,18 @@ async def create_member(
     from app.api.admin import log_audit
 
     await log_audit(
-        db, admin.id, "team.member_create", "user", u.id,
+        db,
+        admin.id,
+        "team.member_create",
+        "user",
+        u.id,
         new_value={"email": u.email, "role": body.role, "modules": granted},
     )
-    return {"ok": True, "member": _member_view(u), "note": "temp password member ko alag se do; pehla login pe change forced"}
+    return {
+        "ok": True,
+        "member": _member_view(u),
+        "note": "temp password member ko alag se do; pehla login pe change forced",
+    }
 
 
 class ModulesIn(BaseModel):
@@ -128,8 +140,13 @@ async def set_modules(
     from app.api.admin import log_audit
 
     await log_audit(
-        db, admin.id, "team.modules_update", "user", u.id,
-        old_value={"modules": old}, new_value={"modules": granted},
+        db,
+        admin.id,
+        "team.modules_update",
+        "user",
+        u.id,
+        old_value={"modules": old},
+        new_value={"modules": granted},
     )
     return {"ok": True, "modules": granted}
 

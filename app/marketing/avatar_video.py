@@ -91,7 +91,7 @@ async def avatar_post(topic: str, niche: str = "general", slug: str = "") -> dic
                 "ok": False,
                 "reason": "key_missing",
                 "hint": "POLLINATIONS_API_KEY set karo (enter.pollinations.ai, free) — "
-                        "phir AI avatar video live ho jayega.",
+                "phir AI avatar video live ho jayega.",
             }
 
         biz = _brand_name(slug) if slug else ""
@@ -134,7 +134,7 @@ async def avatar_post(topic: str, niche: str = "general", slug: str = "") -> dic
             "hashtags": hashtags,
             "post_text": post_text,
             "note": "Video URL open karke download karo — reel/status pe 1-click "
-                    "human post (auto-publish nahi).",
+            "human post (auto-publish nahi).",
         }
     except Exception as e:  # absolute guard
         logger.warning(f"[avatar_video] avatar_post failed: {e}")

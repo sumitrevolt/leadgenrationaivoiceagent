@@ -47,14 +47,18 @@ def _record_meter_failure(rec: dict) -> None:
     except Exception:
         pass
 
+
 # Included calling minutes per marketing plan (matches packages.py: Advanced = 500/mo).
 PLAN_MINUTES: dict[str, int] = {"starter": 0, "growth": 0, "advanced": 500}
 
 # Combo plans (Product 3) — marketing+voice bundle; voice minutes same as advanced tier
 _COMBO_PLAN_MINUTES: dict[str, int] = {
-    "combo_starter_monthly": 500, "combo_starter_annual": 500,
-    "combo_growth_monthly": 1000, "combo_growth_annual": 1000,
-    "combo_pro_monthly": 2000, "combo_pro_annual": 2000,
+    "combo_starter_monthly": 500,
+    "combo_starter_annual": 500,
+    "combo_growth_monthly": 1000,
+    "combo_growth_annual": 1000,
+    "combo_pro_monthly": 2000,
+    "combo_pro_annual": 2000,
     "combo_pilot": 0,  # pilot = 50 calls cap, not minute-metered
 }
 
@@ -210,7 +214,11 @@ def minutes_used_this_period(client_id: str) -> int:
                 BillingRecord.period_month == now.month,
             )
             # A mid-month paid renewal zeroes usage from the renewal instant onward.
-            if watermark is not None and watermark.year == now.year and watermark.month == now.month:
+            if (
+                watermark is not None
+                and watermark.year == now.year
+                and watermark.month == now.month
+            ):
                 q = q.filter(BillingRecord.created_at >= watermark)
             total = q.scalar()
         return int(total or 0)

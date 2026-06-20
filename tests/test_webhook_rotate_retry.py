@@ -37,8 +37,7 @@ def test_rotate_secret_returns_new_value() -> None:
 def test_rotate_secret_preserves_subscription_id_and_events() -> None:
     """Rotation MUST keep the webhook id + events list intact (the only
     thing changing is the secret + the rotated_at timestamp)."""
-    reg = cw.register("client_a", "https://example.com/h",
-                      ["lead.qualified", "payment.received"])
+    reg = cw.register("client_a", "https://example.com/h", ["lead.qualified", "payment.received"])
     cw.rotate_secret(reg["id"], "client_a")
     after = cw.list_for("client_a")[0]
     assert after["id"] == reg["id"]
@@ -66,24 +65,30 @@ def test_rotate_persists_rotated_at() -> None:
 async def test_retry_failed_delivery(monkeypatch: pytest.MonkeyPatch) -> None:
     reg = cw.register("client_a", "https://example.com/h", ["lead.qualified"])
     # Seed a failed delivery row by hand
-    cw._append_delivery({
-        "id": "del_failed1",
-        "webhook_id": reg["id"],
-        "client_id": "client_a",
-        "event_type": "lead.qualified",
-        "url": reg["url"],
-        "attempts": 3,
-        "last_status": 500,
-        "delivered": False,
-        "at": 1700000000,
-    })
+    cw._append_delivery(
+        {
+            "id": "del_failed1",
+            "webhook_id": reg["id"],
+            "client_id": "client_a",
+            "event_type": "lead.qualified",
+            "url": reg["url"],
+            "attempts": 3,
+            "last_status": 500,
+            "delivered": False,
+            "at": 1700000000,
+        }
+    )
 
     class _Resp:
         status_code = 200
 
     class _Client:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return None
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
         async def post(self, url, content, headers):  # noqa: ANN001
             assert headers["X-LeadGen-Event"] == "lead.qualified"
             return _Resp()
@@ -104,31 +109,38 @@ async def test_retry_unknown_delivery_returns_error() -> None:
 async def test_retry_succeeded_delivery_refuses() -> None:
     """Already-succeeded deliveries must NOT be re-fired (idempotency)."""
     reg = cw.register("client_a", "https://example.com/h", ["lead.qualified"])
-    cw._append_delivery({
-        "id": "del_ok",
-        "webhook_id": reg["id"],
-        "client_id": "client_a",
-        "event_type": "lead.qualified",
-        "url": reg["url"],
-        "attempts": 1,
-        "last_status": 200,
-        "delivered": True,
-        "at": 1700000000,
-    })
+    cw._append_delivery(
+        {
+            "id": "del_ok",
+            "webhook_id": reg["id"],
+            "client_id": "client_a",
+            "event_type": "lead.qualified",
+            "url": reg["url"],
+            "attempts": 1,
+            "last_status": 200,
+            "delivered": True,
+            "at": 1700000000,
+        }
+    )
     out = await cw.retry_delivery(reg["id"], "client_a", "del_ok")
     assert out.get("error") == "delivery_already_succeeded"
 
 
 async def test_retry_cross_tenant_rejected() -> None:
     reg = cw.register("client_a", "https://example.com/h", ["lead.qualified"])
-    cw._append_delivery({
-        "id": "del_xfail",
-        "webhook_id": reg["id"],
-        "client_id": "client_a",
-        "event_type": "lead.qualified",
-        "url": reg["url"],
-        "attempts": 3, "last_status": 500, "delivered": False, "at": 1700000000,
-    })
+    cw._append_delivery(
+        {
+            "id": "del_xfail",
+            "webhook_id": reg["id"],
+            "client_id": "client_a",
+            "event_type": "lead.qualified",
+            "url": reg["url"],
+            "attempts": 3,
+            "last_status": 500,
+            "delivered": False,
+            "at": 1700000000,
+        }
+    )
     out = await cw.retry_delivery(reg["id"], "client_b", "del_xfail")
     # client_b doesn't own the webhook -> get_one returns None -> webhook_not_found
     assert out.get("error") == "webhook_not_found"

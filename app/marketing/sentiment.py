@@ -14,8 +14,34 @@ from collections import Counter
 
 logger = logging.getLogger(__name__)
 
-_POS = {"good", "great", "best", "love", "excellent", "amazing", "accha", "badhiya", "mast", "behtreen", "👍", "🙏", "❤"}
-_NEG = {"bad", "worst", "poor", "terrible", "ganda", "bekaar", "slow", "rude", "kharab", "late", "👎"}
+_POS = {
+    "good",
+    "great",
+    "best",
+    "love",
+    "excellent",
+    "amazing",
+    "accha",
+    "badhiya",
+    "mast",
+    "behtreen",
+    "👍",
+    "🙏",
+    "❤",
+}
+_NEG = {
+    "bad",
+    "worst",
+    "poor",
+    "terrible",
+    "ganda",
+    "bekaar",
+    "slow",
+    "rude",
+    "kharab",
+    "late",
+    "👎",
+}
 
 
 def _rule(text: str) -> str:

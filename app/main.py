@@ -198,8 +198,10 @@ async def lifespan(app: FastAPI):
     if os.environ.get("CALL_PROCESSOR", "1").strip().lower() in ("1", "true", "yes"):
         try:
             provider = (
-                os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "vobiz"
-            ).strip().lower()
+                (os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "vobiz")
+                .strip()
+                .lower()
+            )
             if provider in ("vobiz", "twilio"):
                 from app.telephony.call_manager import CallManager
 
@@ -348,13 +350,17 @@ except Exception as _e:  # pragma: no cover
 try:
     from app.api.customer_auth import router as customer_auth_router
 
-    app.include_router(customer_auth_router, prefix="/api")  # /api/customer/auth/* (client login portal)
+    app.include_router(
+        customer_auth_router, prefix="/api"
+    )  # /api/customer/auth/* (client login portal)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Customer auth router not mounted: {_e}")
 try:
     from app.api.impersonation import router as impersonation_router
 
-    app.include_router(impersonation_router, prefix="/api")  # /api/impersonate/* (super-admin login-as-customer, GATED)
+    app.include_router(
+        impersonation_router, prefix="/api"
+    )  # /api/impersonate/* (super-admin login-as-customer, GATED)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Impersonation router not mounted: {_e}")
 try:
@@ -374,7 +380,9 @@ except Exception as _e:  # pragma: no cover
 try:
     from app.api.minisite_builder import router as minisite_builder_router
 
-    app.include_router(minisite_builder_router, prefix="/api")  # /api/minisite/* (mini-site builder)
+    app.include_router(
+        minisite_builder_router, prefix="/api"
+    )  # /api/minisite/* (mini-site builder)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Mini-site builder router not mounted: {_e}")
 try:
@@ -386,7 +394,9 @@ except Exception as _e:  # pragma: no cover
 try:
     from app.api.growth import router as growth_router
 
-    app.include_router(growth_router, prefix="/api")  # /api/growth/* (lead-score, review, flows, missed-call)
+    app.include_router(
+        growth_router, prefix="/api"
+    )  # /api/growth/* (lead-score, review, flows, missed-call)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Growth router not mounted: {_e}")
 try:
@@ -465,33 +475,45 @@ except Exception as _e:  # pragma: no cover
 try:
     from app.api import conversion as _conversion
 
-    app.include_router(_conversion.public_router, prefix="/api")  # /api/public/widget-chat, /lead-in, /trial-status
-    app.include_router(_conversion.admin_router, prefix="/api")  # /api/conversion/* (widget form builder)
+    app.include_router(
+        _conversion.public_router, prefix="/api"
+    )  # /api/public/widget-chat, /lead-in, /trial-status
+    app.include_router(
+        _conversion.admin_router, prefix="/api"
+    )  # /api/conversion/* (widget form builder)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Conversion router not mounted: {_e}")
 try:
     from app.api.creative import router as creative_router
 
-    app.include_router(creative_router, prefix="/api")  # /api/creative/* (jingle, bg-remove, multilang status)
+    app.include_router(
+        creative_router, prefix="/api"
+    )  # /api/creative/* (jingle, bg-remove, multilang status)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Creative router not mounted: {_e}")
 try:
     from app.api.clientcrm import router as clientcrm_router
 
-    app.include_router(clientcrm_router, prefix="/api")  # /api/clientcrm/* (end-customer CRM, catalog, payment links)
+    app.include_router(
+        clientcrm_router, prefix="/api"
+    )  # /api/clientcrm/* (end-customer CRM, catalog, payment links)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"ClientCRM router not mounted: {_e}")
 try:
     from app.api.seoops import router as seoops_router
 
-    app.include_router(seoops_router, prefix="/api")  # /api/seoops/* (rank tracker, conversations, dialer)
+    app.include_router(
+        seoops_router, prefix="/api"
+    )  # /api/seoops/* (rank tracker, conversations, dialer)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"SeoOps router not mounted: {_e}")
 try:
     from app.api.engage import redirect_router as _redirect_router
     from app.api.engage import router as engage_router
 
-    app.include_router(engage_router, prefix="/api")  # /api/engage/* (upi-qr, short-links, reviews-widget, alerts)
+    app.include_router(
+        engage_router, prefix="/api"
+    )  # /api/engage/* (upi-qr, short-links, reviews-widget, alerts)
     app.include_router(_redirect_router)  # /r/{code} short-link redirect (NO prefix)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Engage router not mounted: {_e}")
@@ -504,7 +526,9 @@ except Exception as _e:  # pragma: no cover
 try:
     from app.api.memory_api import router as memory_router
 
-    app.include_router(memory_router, prefix="/api")  # /api/memory/* (compounding memory, call-prep, live notes)
+    app.include_router(
+        memory_router, prefix="/api"
+    )  # /api/memory/* (compounding memory, call-prep, live notes)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Memory router not mounted: {_e}")
 try:
@@ -516,67 +540,89 @@ except Exception as _e:  # pragma: no cover
 try:
     from app.api.brandassets import router as brandassets_router
 
-    app.include_router(brandassets_router, prefix="/api")  # /api/brand/* (frames, card, resize, review-post, stickers)
+    app.include_router(
+        brandassets_router, prefix="/api"
+    )  # /api/brand/* (frames, card, resize, review-post, stickers)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"BrandAssets router not mounted: {_e}")
 try:
     from app.api.clientops import router as clientops_router
 
-    app.include_router(clientops_router, prefix="/api")  # /api/clientops/* (speed-to-lead, approvals, snapshots, routing, proposals)
+    app.include_router(
+        clientops_router, prefix="/api"
+    )  # /api/clientops/* (speed-to-lead, approvals, snapshots, routing, proposals)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"ClientOps router not mounted: {_e}")
 try:
     from app.api.voiceai import router as voiceai_router
 
-    app.include_router(voiceai_router, prefix="/api")  # /api/voiceai/* (transfer, ask-AI, leaderboard)
+    app.include_router(
+        voiceai_router, prefix="/api"
+    )  # /api/voiceai/* (transfer, ask-AI, leaderboard)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"VoiceAI router not mounted: {_e}")
 try:
     from app.api.voice_product import router as voice_product_router
 
-    app.include_router(voice_product_router, prefix="/api")  # /api/voice/* (Product 2: packages, quota, lead packs — ADR-009)
+    app.include_router(
+        voice_product_router, prefix="/api"
+    )  # /api/voice/* (Product 2: packages, quota, lead packs — ADR-009)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Voice Product router not mounted: {_e}")
 try:
     from app.api.combo_product import router as combo_product_router
 
-    app.include_router(combo_product_router, prefix="/api")  # /api/combo/* (Product 3: AI Growth Suite combo)
+    app.include_router(
+        combo_product_router, prefix="/api"
+    )  # /api/combo/* (Product 3: AI Growth Suite combo)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Combo Product router not mounted: {_e}")
 try:
     from app.api.niche_db import router as niche_db_router
 
-    app.include_router(niche_db_router, prefix="/api")  # /api/niche/* (niche prospect database + call queue)
+    app.include_router(
+        niche_db_router, prefix="/api"
+    )  # /api/niche/* (niche prospect database + call queue)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Niche DB router not mounted: {_e}")
 try:
     from app.api.localseo import router as localseo_router
 
-    app.include_router(localseo_router, prefix="/api")  # /api/localseo/* (geo-visibility, grid-rank, listings)
+    app.include_router(
+        localseo_router, prefix="/api"
+    )  # /api/localseo/* (geo-visibility, grid-rank, listings)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"LocalSEO router not mounted: {_e}")
 try:
     from app.api.contentplus import router as contentplus_router
 
-    app.include_router(contentplus_router, prefix="/api")  # /api/contentplus/* (clips, gif, avatar, service-reminders, A/B)
+    app.include_router(
+        contentplus_router, prefix="/api"
+    )  # /api/contentplus/* (clips, gif, avatar, service-reminders, A/B)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"ContentPlus router not mounted: {_e}")
 try:
     from app.api.widgets import router as widgets_router
 
-    app.include_router(widgets_router, prefix="/api")  # /api/widgets/* (popup pack, bio-link, beacon analytics)
+    app.include_router(
+        widgets_router, prefix="/api"
+    )  # /api/widgets/* (popup pack, bio-link, beacon analytics)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Widgets router not mounted: {_e}")
 try:
     from app.api.lifecycle import router as lifecycle_router
 
-    app.include_router(lifecycle_router, prefix="/api")  # /api/lifecycle/* (newsletter, winback, signature, lead-magnet)
+    app.include_router(
+        lifecycle_router, prefix="/api"
+    )  # /api/lifecycle/* (newsletter, winback, signature, lead-magnet)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Lifecycle router not mounted: {_e}")
 try:
     from app.api.contentauto import router as contentauto_router
 
-    app.include_router(contentauto_router, prefix="/api")  # /api/contentauto/* (repurpose, pulse, month-plan, team-report, push)
+    app.include_router(
+        contentauto_router, prefix="/api"
+    )  # /api/contentauto/* (repurpose, pulse, month-plan, team-report, push)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"ContentAuto router not mounted: {_e}")
 app.include_router(ml_router, prefix="/api", tags=["ML Training"])
@@ -584,13 +630,17 @@ app.include_router(admin_router, prefix="/api", tags=["Admin"])
 try:
     from app.api.assessment import router as assessment_router
 
-    app.include_router(assessment_router, prefix="/api")  # /api/assessment/* (dashboard gap analysis)
+    app.include_router(
+        assessment_router, prefix="/api"
+    )  # /api/assessment/* (dashboard gap analysis)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Assessment router not mounted: {_e}")
 try:
     from app.api.team_access import router as team_access_router
 
-    app.include_router(team_access_router, prefix="/api")  # /api/team-access/* (sub-admins + module grants)
+    app.include_router(
+        team_access_router, prefix="/api"
+    )  # /api/team-access/* (sub-admins + module grants)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Team-access router not mounted: {_e}")
 app.include_router(ai_router, prefix="/api", tags=["AI"])
@@ -754,7 +804,12 @@ async def pwa_icon(size: int):
             except Exception:
                 font = ImageFont.load_default()
             bb = dr.textbbox((0, 0), "LG", font=font)
-            dr.text(((size - bb[2] + bb[0]) / 2, (size - bb[3] + bb[1]) / 2 - bb[1]), "LG", fill="white", font=font)
+            dr.text(
+                ((size - bb[2] + bb[0]) / 2, (size - bb[3] + bb[1]) / 2 - bb[1]),
+                "LG",
+                fill="white",
+                font=font,
+            )
             icon_path.parent.mkdir(parents=True, exist_ok=True)
             img.save(icon_path)
         return FileResponse(str(icon_path), media_type="image/png")
@@ -1031,7 +1086,20 @@ async def sitemap_xml():
     except Exception:
         pass
 
-    static_paths = ["/", "/audit", "/pricing", "/voice-agent", "/compare", "/demo", "/site-audit", "/geo-check", "/app/test-call", "/privacy", "/terms", "/refund"]
+    static_paths = [
+        "/",
+        "/audit",
+        "/pricing",
+        "/voice-agent",
+        "/compare",
+        "/demo",
+        "/site-audit",
+        "/geo-check",
+        "/app/test-call",
+        "/privacy",
+        "/terms",
+        "/refund",
+    ]
     urls: list[str] = list(static_paths)
     try:
         from app.marketing import seo_blog

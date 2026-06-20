@@ -30,8 +30,15 @@ def _fresh(monkeypatch, tmp_path):
 
 def test_skill_pack_list_find_snippet(tmp_path, monkeypatch):
     sp, skills_dir = _fresh(monkeypatch, tmp_path)
-    _mk_skill(skills_dir, "cold-email-craft", "Rohan ke cold email frameworks", "Subject lines chhote rakho. Personalize first line.")
-    _mk_skill(skills_dir, "seo-growth", "programmatic SEO pages", "Niche x city landing pages banao.")
+    _mk_skill(
+        skills_dir,
+        "cold-email-craft",
+        "Rohan ke cold email frameworks",
+        "Subject lines chhote rakho. Personalize first line.",
+    )
+    _mk_skill(
+        skills_dir, "seo-growth", "programmatic SEO pages", "Niche x city landing pages banao."
+    )
 
     skills = sp.list_skills()
     assert len(skills) == 2 and {s["name"] for s in skills} == {"cold-email-craft", "seo-growth"}
@@ -80,9 +87,13 @@ def test_upgrader_propose_and_status(tmp_path, monkeypatch):
     monkeypatch.delenv("CODE_UPGRADER", raising=False)
     monkeypatch.delenv("NOTIFY_EMAIL", raising=False)
     # signals stub — ek failing provider
-    monkeypatch.setattr(cu, "_collect_signals", lambda: [
-        {"key": "llm_groq", "issue": "groq ok-rate 0.2", "area": "app/voice_agent/free_ai.py"},
-    ])
+    monkeypatch.setattr(
+        cu,
+        "_collect_signals",
+        lambda: [
+            {"key": "llm_groq", "issue": "groq ok-rate 0.2", "area": "app/voice_agent/free_ai.py"},
+        ],
+    )
 
     async def _no_llm(issue, area):
         return {"title": f"Fix: {issue}", "rationale": issue, "sketch": "cooldown badhao"}

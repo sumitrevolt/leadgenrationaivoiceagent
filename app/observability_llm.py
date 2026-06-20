@@ -32,6 +32,7 @@ ENV:
   ENABLE_OTEL=1                      (+ pip install -r requirements-otel.txt) -> Tempo
   OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317
 """
+
 from __future__ import annotations
 
 import base64
@@ -67,11 +68,11 @@ def _now_iso() -> str:
 class _LangfuseSender:
     """Singleton background sender — queue + daemon thread + httpx (sync POST)."""
 
-    _instance: "Optional[_LangfuseSender]" = None
+    _instance: _LangfuseSender | None = None
     _lock = threading.Lock()
 
     @classmethod
-    def get(cls) -> "Optional[_LangfuseSender]":
+    def get(cls) -> _LangfuseSender | None:
         if cls._instance is not None:
             return cls._instance
         with cls._lock:
@@ -92,7 +93,7 @@ class _LangfuseSender:
         token = base64.b64encode(f"{pk}:{sk}".encode()).decode()
         self._headers = {"Authorization": f"Basic {token}", "Content-Type": "application/json"}
         self._client = httpx.Client(timeout=5.0)
-        self._q: "queue.Queue[dict]" = queue.Queue(maxsize=2000)
+        self._q: queue.Queue[dict] = queue.Queue(maxsize=2000)
         threading.Thread(target=self._worker, name="langfuse-sender", daemon=True).start()
 
     def enqueue(self, event: dict) -> None:
@@ -125,8 +126,20 @@ def _event(etype: str, body: dict) -> dict:
 
 class _Span:
     __slots__ = (
-        "op", "model", "provider", "_t0", "_start_iso", "trace_id", "obs_id",
-        "_pt", "_ct", "_tt", "_latency", "_out", "_ok", "_extra",
+        "op",
+        "model",
+        "provider",
+        "_t0",
+        "_start_iso",
+        "trace_id",
+        "obs_id",
+        "_pt",
+        "_ct",
+        "_tt",
+        "_latency",
+        "_out",
+        "_ok",
+        "_extra",
     )
 
     def __init__(self, op: str, model, provider, attrs: dict) -> None:
@@ -143,8 +156,18 @@ class _Span:
         self._ok = None
         self._extra = dict(attrs or {})
 
-    def record(self, *, prompt_tokens=None, completion_tokens=None, total_tokens=None,
-               latency_ms=None, response_model=None, output_preview=None, ok=None, **attrs) -> None:
+    def record(
+        self,
+        *,
+        prompt_tokens=None,
+        completion_tokens=None,
+        total_tokens=None,
+        latency_ms=None,
+        response_model=None,
+        output_preview=None,
+        ok=None,
+        **attrs,
+    ) -> None:
         self._pt, self._ct, self._tt = prompt_tokens, completion_tokens, total_tokens
         self._latency = latency_ms
         self._out = output_preview
@@ -179,15 +202,31 @@ class _Span:
             out = str(self._out)[:1000] if self._out else None
             name = f"{self.op}:{self.provider}" if self.provider else self.op
             env = os.environ.get("ENVIRONMENT", "production")
-            sender.enqueue(_event("trace-create", {
-                "id": self.trace_id, "timestamp": self._start_iso, "name": name,
-                "output": out, "metadata": meta, "tags": ["llm", self.provider or "unknown"],
-                "environment": env,
-            }))
+            sender.enqueue(
+                _event(
+                    "trace-create",
+                    {
+                        "id": self.trace_id,
+                        "timestamp": self._start_iso,
+                        "name": name,
+                        "output": out,
+                        "metadata": meta,
+                        "tags": ["llm", self.provider or "unknown"],
+                        "environment": env,
+                    },
+                )
+            )
             gen = {
-                "id": self.obs_id, "traceId": self.trace_id, "type": "GENERATION",
-                "name": name, "model": self.model, "startTime": self._start_iso,
-                "endTime": _now_iso(), "output": out, "metadata": meta, "environment": env,
+                "id": self.obs_id,
+                "traceId": self.trace_id,
+                "type": "GENERATION",
+                "name": name,
+                "model": self.model,
+                "startTime": self._start_iso,
+                "endTime": _now_iso(),
+                "output": out,
+                "metadata": meta,
+                "environment": env,
             }
             if usage is not None:
                 gen["usage"] = usage
@@ -251,7 +290,7 @@ def _otel_start(operation: str, model: Any, provider: Any) -> Any:
         return None
 
 
-def _otel_finish(sp: Any, span: "_Span", ok: bool) -> None:
+def _otel_finish(sp: Any, span: _Span, ok: bool) -> None:
     """Span ko recorded tokens/latency/ok ke saath close karo. Never-raise."""
     if sp is None:
         return
@@ -277,8 +316,9 @@ def _otel_finish(sp: Any, span: "_Span", ok: bool) -> None:
 
 
 @contextmanager
-def llm_span(operation: str, *, model: Optional[str] = None,
-             provider: Optional[str] = None, **attrs: Any) -> Iterator[Any]:
+def llm_span(
+    operation: str, *, model: str | None = None, provider: str | None = None, **attrs: Any
+) -> Iterator[Any]:
     """LLM call ke around. DO independent sinks:
       * Langfuse REST  -> _enabled()       (ENABLE_LLM_OBS + LANGFUSE_*_KEY)
       * OTel -> Tempo  -> _otel_enabled()  (ENABLE_OTEL + opentelemetry installed)
@@ -311,8 +351,13 @@ def llm_span(operation: str, *, model: Optional[str] = None,
         _otel_finish(otsp, span, ok=True)
 
 
-def observe_llm(operation: str = "chat", *, model: Optional[str] = None,
-                provider: Optional[str] = None, **static_attrs: Any) -> Callable:
+def observe_llm(
+    operation: str = "chat",
+    *,
+    model: str | None = None,
+    provider: str | None = None,
+    **static_attrs: Any,
+) -> Callable:
     """Decorator (sync/async) — function ko LLM-span me wrap karta; result se token
     usage best-effort auto-record. Kabhi raise nahi karta."""
 
@@ -320,12 +365,14 @@ def observe_llm(operation: str = "chat", *, model: Optional[str] = None,
         import asyncio
 
         if asyncio.iscoroutinefunction(fn):
+
             @functools.wraps(fn)
             async def _aw(*a, **k):
                 with llm_span(operation, model=model, provider=provider, **static_attrs) as s:
                     r = await fn(*a, **k)
                     _auto_record(s, r)
                     return r
+
             return _aw
 
         @functools.wraps(fn)
@@ -334,6 +381,7 @@ def observe_llm(operation: str = "chat", *, model: Optional[str] = None,
                 r = fn(*a, **k)
                 _auto_record(s, r)
                 return r
+
         return _w
 
     return _decorate

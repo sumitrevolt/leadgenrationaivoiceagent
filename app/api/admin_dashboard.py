@@ -580,7 +580,11 @@ def _real_agents() -> list[Agent]:
             mins = m.get("last_active_mins")
             when = ""
             if isinstance(mins, (int, float)):
-                when = "abhi" if mins < 2 else (f"{int(mins)}m pehle" if mins < 60 else f"{int(mins // 60)}h pehle")
+                when = (
+                    "abhi"
+                    if mins < 2
+                    else (f"{int(mins)}m pehle" if mins < 60 else f"{int(mins // 60)}h pehle")
+                )
             line = (f"{detail} · {when}" if when else detail)[:72]
             errs = int(m.get("today_errors") or 0)
             state = str(m.get("state") or "offline")
@@ -1071,31 +1075,37 @@ def _build_client_timeline(client_id, agent_events, inquiries, audit, limit=50):
         meta = ev.get("meta") or {}
         if str(meta.get("client_id") or "") != str(client_id):
             continue
-        items.append({
-            "ts": str(ev.get("at") or ""),
-            "kind": str(ev.get("action") or "event"),
-            "source": "agent",
-            "summary": f"{ev.get('member', '')}: {(ev.get('detail') or '')[:120]}".strip(": "),
-        })
+        items.append(
+            {
+                "ts": str(ev.get("at") or ""),
+                "kind": str(ev.get("action") or "event"),
+                "source": "agent",
+                "summary": f"{ev.get('member', '')}: {(ev.get('detail') or '')[:120]}".strip(": "),
+            }
+        )
     for r in inquiries or []:
         if str(r.get("client_id") or "") != str(client_id):
             continue
-        items.append({
-            # inquiries.jsonl writes the timestamp under "at" (public_site.py)
-            "ts": str(r.get("at") or r.get("ts") or r.get("created_at") or ""),
-            "kind": "lead",
-            "source": "lead",
-            "summary": f"Enquiry from {r.get('name') or '-'}",
-        })
+        items.append(
+            {
+                # inquiries.jsonl writes the timestamp under "at" (public_site.py)
+                "ts": str(r.get("at") or r.get("ts") or r.get("created_at") or ""),
+                "kind": "lead",
+                "source": "lead",
+                "summary": f"Enquiry from {r.get('name') or '-'}",
+            }
+        )
     for a in audit or []:
         if str(a.get("resource_id") or "") != str(client_id):
             continue
-        items.append({
-            "ts": str(a.get("created_at") or ""),
-            "kind": "audit",
-            "source": "audit",
-            "summary": str(a.get("action") or "audit"),
-        })
+        items.append(
+            {
+                "ts": str(a.get("created_at") or ""),
+                "kind": "audit",
+                "source": "audit",
+                "summary": str(a.get("action") or "audit"),
+            }
+        )
     items.sort(key=lambda x: x["ts"], reverse=True)
     return items[: max(1, min(int(limit), 200))]
 
@@ -1120,9 +1130,11 @@ def _fetch_client_audit(client_id: str, limit: int = 100) -> list[dict]:
             )
             return [
                 {
-                    "created_at": getattr(r, "created_at", None).isoformat()
-                    if getattr(r, "created_at", None)
-                    else "",
+                    "created_at": (
+                        getattr(r, "created_at", None).isoformat()
+                        if getattr(r, "created_at", None)
+                        else ""
+                    ),
                     "action": getattr(r, "action", ""),
                     "resource_id": getattr(r, "resource_id", ""),
                 }
@@ -1136,7 +1148,9 @@ def _fetch_client_audit(client_id: str, limit: int = 100) -> list[dict]:
 
 
 @router.get("/clients/{client_id}/timeline")
-async def get_client_timeline(client_id: str, limit: int = 50, _user=Depends(require_admin)) -> dict:
+async def get_client_timeline(
+    client_id: str, limit: int = 50, _user=Depends(require_admin)
+) -> dict:
     """B2: unified per-client event trail (agent_events + inquiries + audit)."""
     if os.getenv("CLIENT_TIMELINE", "0").strip().lower() not in ("1", "true", "yes"):
         return {"enabled": False, "client_id": client_id, "events": []}
@@ -1258,7 +1272,11 @@ async def admin_sync_health(_user=Depends(require_admin)) -> dict:
 
         from app.api.growth import AUTOMATION_FLAGS
 
-        on = [f for f in AUTOMATION_FLAGS if (_os.environ.get(f) or "").strip().lower() in ("1", "true", "yes")]
+        on = [
+            f
+            for f in AUTOMATION_FLAGS
+            if (_os.environ.get(f) or "").strip().lower() in ("1", "true", "yes")
+        ]
         out["flags"] = {"on": len(on), "total": len(AUTOMATION_FLAGS)}
     except Exception as e:
         out["flags"] = {"error": str(e)[:120]}
@@ -1271,7 +1289,9 @@ class ClientDeleteIn(BaseModel):
 
 
 @router.post("/clients/{client_id}/delete")
-async def admin_delete_client(client_id: str, body: ClientDeleteIn, _user=Depends(require_admin)) -> dict:
+async def admin_delete_client(
+    client_id: str, body: ClientDeleteIn, _user=Depends(require_admin)
+) -> dict:
     """Permanently remove a client record (admin cleanup of test/junk). Irreversible
     → confirm required. Admin-gated like the other destructive admin actions."""
     if not body.confirm:
@@ -1397,7 +1417,11 @@ async def trim_celery_queue(body: CeleryTrimIn, _user=Depends(require_admin)) ->
                 "depth": depth,
             }
         r.delete("celery")
-        return {"ok": True, "cleared": depth, "message": "celery queue cleared — beat will re-queue jobs"}
+        return {
+            "ok": True,
+            "cleared": depth,
+            "message": "celery queue cleared — beat will re-queue jobs",
+        }
     except Exception as e:
         logger.warning("admin_dashboard: celery-trim failed (%s)", e)
         return {"ok": False, "error": str(e)[:160]}

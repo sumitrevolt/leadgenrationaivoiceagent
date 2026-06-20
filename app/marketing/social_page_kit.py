@@ -96,7 +96,9 @@ def _template_bios(biz: str, niche_name: str, city: str, phone: str) -> dict[str
     }
 
 
-async def _llm_bios(biz: str, niche_name: str, city: str, phone: str, pitch: str) -> dict[str, Any] | None:
+async def _llm_bios(
+    biz: str, niche_name: str, city: str, phone: str, pitch: str
+) -> dict[str, Any] | None:
     """free-LLM se better bios (JSON) — fail => None (template use hoga)."""
     try:
         from app.voice_agent.free_ai import chat
@@ -151,16 +153,34 @@ async def build_page_kit(
 
     # first posts + hashtags (existing engines, parallel)
     posts_count = max(1, min(int(posts_count or 5), 7))
-    occasions = ["page launch / welcome", "services intro", "customer trust / reviews", "offer teaser", "behind the scenes", "FAQ", "festival wish"][:posts_count]
+    occasions = [
+        "page launch / welcome",
+        "services intro",
+        "customer trust / reviews",
+        "offer teaser",
+        "behind the scenes",
+        "FAQ",
+        "festival wish",
+    ][:posts_count]
 
     async def _post(occ: str) -> dict:
         try:
             from app.marketing.post_generator import generate_post
 
             p = await generate_post(biz, niche=niche, occasion=occ)
-            return {"occasion": occ, "caption": p.get("caption", ""), "hashtags": p.get("hashtags", []), "image_idea": p.get("image_idea", "")}
+            return {
+                "occasion": occ,
+                "caption": p.get("caption", ""),
+                "hashtags": p.get("hashtags", []),
+                "image_idea": p.get("image_idea", ""),
+            }
         except Exception:
-            return {"occasion": occ, "caption": f"{biz} — {niche_name} me aapka apna bharosemand naam. {occ}!", "hashtags": [], "image_idea": ""}
+            return {
+                "occasion": occ,
+                "caption": f"{biz} — {niche_name} me aapka apna bharosemand naam. {occ}!",
+                "hashtags": [],
+                "image_idea": "",
+            }
 
     async def _tags() -> dict:
         try:

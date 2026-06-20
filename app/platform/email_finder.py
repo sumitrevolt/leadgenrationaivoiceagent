@@ -36,7 +36,10 @@ def candidates(domain: str, owner_name: str = "") -> list[str]:
     """Pattern-based guesses (pure fn — testable). Free-mail domains skip
     (gmail pe pattern-guess bekaar)."""
     d = _domain_of(domain)
-    if not d or any(d.endswith(f) for f in ("gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "rediffmail.com")):
+    if not d or any(
+        d.endswith(f)
+        for f in ("gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "rediffmail.com")
+    ):
         return []
     out = [f"{p}@{d}" for p in _PATTERNS]
     nm = re.sub(r"[^a-z]", "", (owner_name or "").strip().lower().split(" ")[0])
@@ -55,7 +58,9 @@ async def _site_emails(domain: str) -> list[str]:
 
         from app.lead_scraper.web_extract import find_contacts
 
-        async with httpx.AsyncClient(follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}) as client:
+        async with httpx.AsyncClient(
+            follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}
+        ) as client:
             for url in (f"https://{d}", f"https://{d}/contact"):
                 try:
                     r = await client.get(url, timeout=10.0)
@@ -70,7 +75,9 @@ async def _site_emails(domain: str) -> list[str]:
     return []
 
 
-async def find(website_or_domain: str, owner_name: str = "", max_results: int = 3) -> dict[str, Any]:
+async def find(
+    website_or_domain: str, owner_name: str = "", max_results: int = 3
+) -> dict[str, Any]:
     """Waterfall: site-extract → patterns → MX-verify. Returns
     {ok, emails: [{email, source, verified}], domain}. Kabhi raise nahi."""
     d = _domain_of(website_or_domain)

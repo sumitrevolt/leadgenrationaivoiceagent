@@ -127,14 +127,13 @@ async def erase(body: EraseIn, _user=Depends(require_admin)):
             ),
         }
     actor = getattr(_user, "email", None) or "admin"
-    return await dpdp.erase_subject(
-        body.phone, body.email, dry_run=body.dry_run, actor=str(actor)
-    )
+    return await dpdp.erase_subject(body.phone, body.email, dry_run=body.dry_run, actor=str(actor))
 
 
 # ---------------------------------------------------------------------------
 # DSAR bundle — data_privacy.py wrapper endpoints
 # ---------------------------------------------------------------------------
+
 
 class DsarExportIn(BaseModel):
     identifier: str  # phone (10-digit) or email

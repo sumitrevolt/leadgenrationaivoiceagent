@@ -1,4 +1,5 @@
 """Workflow connection gaps — cadence enroll + journey defaults."""
+
 from __future__ import annotations
 
 import pytest
@@ -27,7 +28,12 @@ def test_journey_ensure_adds_inquiry_when_only_custom_rules(monkeypatch):
     for p in ("data/journeys.jsonl", "data/journey_runs.jsonl"):
         if os.path.exists(p):
             os.remove(p)
-    journeys.add_journey("Custom manual", "manual", [{"type": "notify", "params": {}}], enabled=False)
+    journeys.add_journey(
+        "Custom manual", "manual", [{"type": "notify", "params": {}}], enabled=False
+    )
     n = journeys.ensure_active_defaults()
     assert n == 1
-    assert any(r.get("enabled") and r.get("trigger") == "inquiry_received" for r in journeys.list_journeys())
+    assert any(
+        r.get("enabled") and r.get("trigger") == "inquiry_received"
+        for r in journeys.list_journeys()
+    )

@@ -48,9 +48,9 @@ _USAGE_PATH = _DATA_DIR / "mcp_keys_usage.jsonl"
 _DEFAULT_DAILY = 1000
 
 SUPPORTED_CAPABILITIES = (
-    "niches.list",         # GET 42-niche catalog
-    "lead.score",          # POST score a lead from text/json
-    "qualifier.run",       # POST run BANT qualifier (placeholder until billing)
+    "niches.list",  # GET 42-niche catalog
+    "lead.score",  # POST score a lead from text/json
+    "qualifier.run",  # POST run BANT qualifier (placeholder until billing)
 )
 
 
@@ -111,7 +111,7 @@ def _atomic_rewrite_keys(rows: list[dict]) -> bool:
 def _append_usage(key_hash: str, capability: str) -> None:
     _ensure_dir()
     rec = {
-        "kh": key_hash[:16],   # only the prefix — file can be shared if needed
+        "kh": key_hash[:16],  # only the prefix — file can be shared if needed
         "ymd": time.strftime("%Y-%m-%d"),
         "cap": capability,
         "ts": int(time.time()),
@@ -161,14 +161,14 @@ def _today_count(key_hash: str) -> int:
 def _redact(row: dict) -> dict:
     r = dict(row)
     r.pop("key_hash", None)
-    r["key_preview"] = r.pop("key_preview", "lgmcp_..." )
+    r["key_preview"] = r.pop("key_preview", "lgmcp_...")
     return r
 
 
 def issue(
     label: str,
     daily_limit: int = _DEFAULT_DAILY,
-    capabilities: Optional[list[str]] = None,
+    capabilities: list[str] | None = None,
 ) -> dict:
     """Create a new API key. Returns plaintext key ONCE — store it client-side
     immediately."""
@@ -232,7 +232,7 @@ def revoke(key_id: str) -> bool:
 # --------------------------------------------------------------------------- #
 # Auth + metering (called from app/api/mcp_product.py)
 # --------------------------------------------------------------------------- #
-def authenticate(key_plain: str) -> Optional[dict]:
+def authenticate(key_plain: str) -> dict | None:
     """Resolve a plaintext key to its row. None on bad/disabled key."""
     if not key_plain or not key_plain.startswith("lgmcp_"):
         return None
@@ -257,9 +257,12 @@ def check_and_meter(key_row: dict, capability: str) -> dict:
     used = _today_count(key_row["key_hash"])
     limit = int(key_row.get("daily_limit", _DEFAULT_DAILY))
     if used >= limit:
-        return {"ok": False, "code": 429,
-                "error": f"daily quota exceeded ({used}/{limit})",
-                "retry_after_s": _seconds_until_midnight_utc()}
+        return {
+            "ok": False,
+            "code": 429,
+            "error": f"daily quota exceeded ({used}/{limit})",
+            "retry_after_s": _seconds_until_midnight_utc(),
+        }
     _append_usage(key_row["key_hash"], capability)
     return {"ok": True, "remaining": max(0, limit - used - 1)}
 
@@ -269,20 +272,22 @@ def _seconds_until_midnight_utc() -> int:
     return int((now // 86400 + 1) * 86400 - now)
 
 
-def usage_summary(key_id: Optional[str] = None) -> dict:
+def usage_summary(key_id: str | None = None) -> dict:
     """Aggregate: per-key calls today + last 7d. For the admin dashboard."""
     keys = _read_keys()
     out_keys = []
     for r in keys:
         today = _today_count(r["key_hash"])
-        out_keys.append({
-            "id": r["id"],
-            "label": r.get("label"),
-            "enabled": r.get("enabled", True),
-            "calls_today": today,
-            "daily_limit": r.get("daily_limit"),
-            "remaining_today": max(0, int(r.get("daily_limit", _DEFAULT_DAILY)) - today),
-        })
+        out_keys.append(
+            {
+                "id": r["id"],
+                "label": r.get("label"),
+                "enabled": r.get("enabled", True),
+                "calls_today": today,
+                "daily_limit": r.get("daily_limit"),
+                "remaining_today": max(0, int(r.get("daily_limit", _DEFAULT_DAILY)) - today),
+            }
+        )
     return {"keys": out_keys, "total_keys": len(out_keys)}
 
 

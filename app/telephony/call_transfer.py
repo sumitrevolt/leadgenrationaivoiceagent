@@ -208,7 +208,9 @@ async def request_transfer(call_context: dict[str, Any], owner_phone: str) -> di
         ctx = call_context if isinstance(call_context, dict) else {}
         summary, provider = await _summarize(ctx)
 
-        call_id = str(ctx.get("call_id") or f"transfer-{int(datetime.now(timezone.utc).timestamp())}")
+        call_id = str(
+            ctx.get("call_id") or f"transfer-{int(datetime.now(timezone.utc).timestamp())}"
+        )
         leg = await _initiate_connect_leg(owner10, call_id)
 
         wa_link = f"https://wa.me/91{owner10}?text={urllib.parse.quote(summary[:320])}"

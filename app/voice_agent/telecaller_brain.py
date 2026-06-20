@@ -91,9 +91,28 @@ def _short_hook(hook: str, max_len: int = 90) -> str:
     if not h:
         return ""
     _low = " " + h.lower() + " "
-    _en = (" your ", " the ", " before ", " with ", " every ", " you ", " not ", " of ",
-           " who ", " and ", "qualified", "homeowners", "borrowers", "patients",
-           "aspirants", "suppliers", "inquiries", "booked", "replaced", "calendar")
+    _en = (
+        " your ",
+        " the ",
+        " before ",
+        " with ",
+        " every ",
+        " you ",
+        " not ",
+        " of ",
+        " who ",
+        " and ",
+        "qualified",
+        "homeowners",
+        "borrowers",
+        "patients",
+        "aspirants",
+        "suppliers",
+        "inquiries",
+        "booked",
+        "replaced",
+        "calendar",
+    )
     if sum(1 for m in _en if m in _low) >= 2:
         return ""  # English B2B hook — greeting me mat daalo
     for sep in ("—", " - ", ";"):
@@ -447,7 +466,9 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             # openrouter 404) to cascade 10-14s tak chala jaata tha = voice me dead-air
             # ("reply nahi deta"). Timeout pe instant script_fallback (niche discovery-Q).
             try:
-                text, prov = await asyncio.wait_for(self._generate(prompt), timeout=_REPLY_TIMEOUT_S)
+                text, prov = await asyncio.wait_for(
+                    self._generate(prompt), timeout=_REPLY_TIMEOUT_S
+                )
             except Exception:
                 text, prov = "", ""
 
@@ -455,7 +476,9 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             # ~6s tak badha deta tha ("reply nahi deta" feel = dead-air). Repeat/empty/
             # re-greet ab seedha script_fallback se handle (instant + niche discovery-Q).
             prev = self._prev_assistant(history)
-            text = self._fill(self._clean(text))  # brevity cap + placeholder fill ([Company] leak guard)
+            text = self._fill(
+                self._clean(text)
+            )  # brevity cap + placeholder fill ([Company] leak guard)
             # RE-GREETING GUARD — LLM cold/first-turn pe niche opening PARROT kar deta
             # (user ke sawaal ka jawab nahi, sirf dobara greet → "reply nahi deta" feel).
             # Non-first turn pe greeting-like reply = chhodo, script ka asli
@@ -475,9 +498,7 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             logger.warning(f"[telecaller-brain] reply failed: {e}")
             return self._script_fallback(history) or self._safe_fallback(history)
 
-    async def reply_stream_sentences(
-        self, history: list[dict[str, str]], user_text: str
-    ):
+    async def reply_stream_sentences(self, history: list[dict[str, str]], user_text: str):
         """Yield spoken sentences as LLM streams (USE_LLM_STREAM_TTS path).
 
         Falls back to one-shot reply() as a single yield on any failure.
@@ -535,15 +556,31 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
         pe ye re-greeting = bug; script discovery-question se replace karte."""
         t = (text or "").lower()
         intro = (
-            "namaste" in t or "hello" in t or "main swara" in t
-            or "swara bol" in t or "ki taraf se" in t or "ai assistant" in t
+            "namaste" in t
+            or "hello" in t
+            or "main swara" in t
+            or "swara bol" in t
+            or "ki taraf se" in t
+            or "ai assistant" in t
         )
         if not intro:
             return False
-        markers = ("bol rahi hoon", "bol raha hoon", "30 second", "tees second",
-                   "baat kar sakti", "baat kar sakta", "do minute", "ek minute de",
-                   "se baat kar rah", "se swara", "minute baat",
-                   "taraf se baat", "ai assistant", "swara bol rah")
+        markers = (
+            "bol rahi hoon",
+            "bol raha hoon",
+            "30 second",
+            "tees second",
+            "baat kar sakti",
+            "baat kar sakta",
+            "do minute",
+            "ek minute de",
+            "se baat kar rah",
+            "se swara",
+            "minute baat",
+            "taraf se baat",
+            "ai assistant",
+            "swara bol rah",
+        )
         return any(m in t for m in markers)
 
     def _fill(self, text: str) -> str:

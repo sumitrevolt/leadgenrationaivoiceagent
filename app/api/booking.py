@@ -43,7 +43,9 @@ async def get_slots(date: str = "", duration_min: int = 15):
         from app.integrations.calendar_booking import get_calendar
 
         cal = get_calendar()
-        slots = await cal.check_availability(date or None, duration_min=max(5, min(int(duration_min), 120)))
+        slots = await cal.check_availability(
+            date or None, duration_min=max(5, min(int(duration_min), 120))
+        )
         return {"date": date, "slots": [_ser(s) for s in (slots or [])]}
     except Exception as e:
         logger.error(f"booking slots failed: {e}")
@@ -71,7 +73,11 @@ async def book_slot(req: BookIn):
 
             slot_iso = ""
             try:
-                slot_iso = req.slot.get("iso") or req.slot.get("start") or str(req.slot) if isinstance(req.slot, dict) else str(req.slot)
+                slot_iso = (
+                    req.slot.get("iso") or req.slot.get("start") or str(req.slot)
+                    if isinstance(req.slot, dict)
+                    else str(req.slot)
+                )
             except Exception:
                 slot_iso = str(req.slot)
             booking_reminders.record_booking(slot_iso, req.name, req.phone, notes=req.notes)
@@ -84,7 +90,10 @@ async def book_slot(req: BookIn):
             from app.platform import outbound_webhooks
 
             _aio.get_event_loop().create_task(
-                outbound_webhooks.emit("booking", {"name": req.name, "phone": req.phone[-10:], "slot": str(req.slot)[:60]})
+                outbound_webhooks.emit(
+                    "booking",
+                    {"name": req.name, "phone": req.phone[-10:], "slot": str(req.slot)[:60]},
+                )
             )
         except Exception:
             pass

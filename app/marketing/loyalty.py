@@ -69,13 +69,21 @@ def create_campaign(
         "kind": kind if kind in ("percent", "flat", "freebie") else "percent",
         "value": max(0, int(value)),
         "created_at": _now(),
-        "expires_at": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(time.time() + max(1, expiry_days) * 86400)),
+        "expires_at": time.strftime(
+            "%Y-%m-%dT%H:%M:%S", time.localtime(time.time() + max(1, expiry_days) * 86400)
+        ),
         "max_redemptions": max(1, int(max_redemptions)),
         "active": True,
     }
     _append(_CAMPAIGNS, rec)
-    off = f"{rec['value']}% off" if rec["kind"] == "percent" else (f"₹{rec['value']} off" if rec["kind"] == "flat" else title)
-    rec["share_text"] = f"🎁 {title}! Code *{code}* dikhao aur {off} pao. Valid till {rec['expires_at'][:10]}."
+    off = (
+        f"{rec['value']}% off"
+        if rec["kind"] == "percent"
+        else (f"₹{rec['value']} off" if rec["kind"] == "flat" else title)
+    )
+    rec["share_text"] = (
+        f"🎁 {title}! Code *{code}* dikhao aur {off} pao. Valid till {rec['expires_at'][:10]}."
+    )
     return {"ok": True, "campaign": rec}
 
 
@@ -92,10 +100,18 @@ def check_code(code: str) -> dict[str, Any]:
     used = sum(1 for r in _read(_REDEMPTIONS) if r.get("code") == code)
     if used >= int(camp.get("max_redemptions", 100)):
         return {"valid": False, "reason": "limit reached"}
-    return {"valid": True, "title": camp.get("title"), "kind": camp.get("kind"), "value": camp.get("value"), "used": used}
+    return {
+        "valid": True,
+        "title": camp.get("title"),
+        "kind": camp.get("kind"),
+        "value": camp.get("value"),
+        "used": used,
+    }
 
 
-def redeem(code: str, customer_phone: str = "", referrer_phone: str = "", note: str = "") -> dict[str, Any]:
+def redeem(
+    code: str, customer_phone: str = "", referrer_phone: str = "", note: str = ""
+) -> dict[str, Any]:
     chk = check_code(code)
     if not chk.get("valid"):
         return {"ok": False, **chk}
