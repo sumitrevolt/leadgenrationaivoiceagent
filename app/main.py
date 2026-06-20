@@ -645,6 +645,12 @@ except Exception as _e:  # pragma: no cover
     logger.warning(f"Team-access router not mounted: {_e}")
 app.include_router(ai_router, prefix="/api", tags=["AI"])
 app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /api/customer/*
+try:
+    from app.api.customer_flows import router as customer_flows_router
+
+    app.include_router(customer_flows_router)  # /api/customer/flow* (Phase 7 per-client builder)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Customer flows router not mounted: {_e}")
 app.include_router(admin_dashboard_router, tags=["Admin Dashboard"])  # /api/admin/*
 try:
     from app.api.system_health import router as system_health_router
