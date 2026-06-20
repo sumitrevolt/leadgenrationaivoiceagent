@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (782 operations)
+## Endpoint Index — auto-generated from OpenAPI (791 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -624,6 +624,17 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/routing` — Customer Routing Set
 - `GET   ` `/api/customer/speed-to-lead` — Customer Speed To Lead
 
+### Customer Flows  (8)
+
+- `POST  ` `/api/customer/flow` — Cf Save
+- `GET   ` `/api/customer/flow/run/{run_id}` — Cf Run Status
+- `POST  ` `/api/customer/flow/run/{run_id}/approve` — Cf Approve
+- `POST  ` `/api/customer/flow/run/{run_id}/reject` — Cf Reject
+- `DELETE` `/api/customer/flow/{flow_id}` — Cf Delete
+- `GET   ` `/api/customer/flow/{flow_id}` — Cf Get
+- `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
+- `GET   ` `/api/customer/flows` — Cf List
+
 ### Customer Portal  (11)
 
 - `POST  ` `/api/customer/auth/login` — Customer Login
@@ -693,7 +704,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (47)
+### Frontend  (48)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
@@ -707,6 +718,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/command-center` — Command Center Page
 - `GET   ` `/app/conversations` — Conversations Page
 - `GET   ` `/app/customer` — Customer Dashboard Page
+- `GET   ` `/app/customer/flows` — Customer Flows Page
 - `GET   ` `/app/customer/marketing` — Customer Marketing Page
 - `GET   ` `/app/customer/voice` — Customer Voice Page
 - `GET   ` `/app/dashboards` — Dashboards Page
