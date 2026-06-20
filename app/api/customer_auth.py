@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
 from app.api.ratelimit import rate_limit
+from app.security.turnstile import verify_turnstile
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -240,7 +241,7 @@ class SignupIn(BaseModel):
     plan: str = Field("starter", max_length=30)
 
 
-@router.post("/signup", dependencies=[Depends(rate_limit("cust_signup", 5, 300))])
+@router.post("/signup", dependencies=[Depends(rate_limit("cust_signup", 5, 300)), Depends(verify_turnstile)])
 async def customer_signup(req: SignupIn):
     """PUBLIC self-serve signup — naya client profile + login ek shot me (no admin).
 

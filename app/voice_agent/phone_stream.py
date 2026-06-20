@@ -489,6 +489,11 @@ class PhoneCallSession:
                 return
             logger.info("phone_stream caller: %s", text)
 
+            reply = await self._think_and_say_stream(text)
+            if reply:
+                logger.info("phone_stream bot(stream): %s", reply)
+                return
+
             # HUMANIZATION: LLM ko background me sochne do; agar FILLER_AFTER_MS
             # se zyada lage to ek chhota natural ack ("Hmm.../Achha...") bolo —
             # dead-air = robotic feel (Vapi/Retell filler-audio pattern).
@@ -615,6 +620,45 @@ class PhoneCallSession:
         self.history.append({"role": "assistant", "content": text})
         return text
 
+    async def _think_and_say_stream(self, user_text: str) -> str:
+        """LLM token stream → sentence TTS (USE_LLM_STREAM_TTS=1). vobiz_stream parity."""
+        try:
+            from app.voice_agent.llm_stream_tts import stream_tts_enabled
+
+            if not stream_tts_enabled() or not TTS_AVAILABLE:
+                return ""
+        except Exception:
+            return ""
+        self.history.append({"role": "user", "content": user_text})
+        self._trim_history()
+        try:
+            tc = await asyncio.wait_for(asyncio.to_thread(self._get_telecaller), timeout=10.0)
+        except Exception as e:
+            logger.debug("phone_stream: telecaller init for stream failed (%s)", e)
+            tc = self._telecaller
+        if tc is None:
+            self.history.pop()  # user turn — fallback _llm_reply will re-append
+            return ""
+        parts: list[str] = []
+
+        async def _gen():
+            async for sent in tc.reply_stream_sentences(self.history, user_text):
+                parts.append(sent)
+                yield sent
+
+        try:
+            await self._speak_from_sentence_gen(_gen())
+            reply = " ".join(parts).strip()
+            if reply:
+                self.history.append({"role": "assistant", "content": reply})
+                return reply
+        except Exception as e:
+            logger.debug("phone_stream: think_and_say_stream failed (%s)", e)
+        # Roll back user turn so _llm_reply can own history append.
+        if self.history and self.history[-1].get("role") == "user":
+            self.history.pop()
+        return ""
+
     def _get_telecaller(self) -> Any:
         """Lazy per-session TelecallerBrain (start ke baad niche/client final)."""
         if self._telecaller_tried:
@@ -716,6 +760,38 @@ class PhoneCallSession:
             return
         async with self._speak_lock:
             await self._send_audio(ulaw)
+
+    async def _speak_from_sentence_gen(self, sentence_gen) -> None:
+        """Pipeline TTS from async sentence generator — synth N+1 while N plays."""
+        if not self._running or not TTS_AVAILABLE:
+            return
+        agen = sentence_gen.__aiter__()
+        next_synth: asyncio.Task | None = None
+        async with self._speak_lock:
+            try:
+                first = await agen.__anext__()
+            except StopAsyncIteration:
+                return
+            next_synth = asyncio.create_task(self._synthesize(first))
+            async for sent in agen:
+                cur, next_synth = next_synth, asyncio.create_task(self._synthesize(sent))
+                try:
+                    ulaw = await cur
+                except asyncio.CancelledError:
+                    raise
+                except Exception as e:
+                    logger.debug("phone_stream: sentence synth failed (%s)", e)
+                    ulaw = b""
+                if ulaw and self._running:
+                    await self._send_audio(ulaw)
+            if next_synth:
+                try:
+                    ulaw = await next_synth
+                except Exception as e:
+                    logger.debug("phone_stream: final sentence synth failed (%s)", e)
+                    ulaw = b""
+                if ulaw and self._running:
+                    await self._send_audio(ulaw)
 
     async def _synthesize(self, text: str) -> bytes:
         """EdgeTTS mp3 stream collect karo, phir executor me µ-law 8k decode.

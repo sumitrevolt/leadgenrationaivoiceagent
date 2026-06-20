@@ -127,8 +127,11 @@ async def test_readiness_launch_ready_default_env(monkeypatch: pytest.MonkeyPatc
     assert out["blocker_count"] == 0
     assert "razorpay" not in out["blockers"]
     keys = {it["key"] for it in out["items"]}
-    # Razorpay removed 2026-06-18; UPI revenue probe added -> 13 probes (Phase 1-5)
-    expected = {
+    # Launch-critical probes that MUST be present. Asserted as a SUBSET (not exact
+    # match) so adding new probes over time (e.g. qdrant_rag, track_b_admin) does
+    # not break this guard — the point is "no blockers + core probes present".
+    # Razorpay removed 2026-06-18; UPI revenue probe added.
+    required = {
         "sentry",
         "posthog",
         "turnstile",
@@ -143,7 +146,7 @@ async def test_readiness_launch_ready_default_env(monkeypatch: pytest.MonkeyPatc
         "litellm_costs",
         "warm_dr",
     }
-    assert keys == expected
+    assert required <= keys, f"missing launch-critical probes: {required - keys}"
 
 
 async def test_get_activation_summary_has_probes() -> None:
