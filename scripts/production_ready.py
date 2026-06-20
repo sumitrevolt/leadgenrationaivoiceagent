@@ -5,13 +5,14 @@ Usage:
     python scripts/production_ready.py
     python scripts/production_ready.py --json
 
-Exit 0 = zero BLOCKERs (ready for marketing launch; Razorpay deferred OK).
+Exit 0 = zero BLOCKERs (marketing launch green; UPI armed = paid-customer ready).
 Exit 1 = one or more BLOCKERs remain.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -55,20 +56,29 @@ def _activation_snapshot() -> dict:
         if next_step:
             break
 
+    payments_ready = _payments_ready()
     return {
         "ready_for_launch": not blockers,
         "production_ready": not blockers,
-        "ready_for_first_paid_customer": not blockers and any(
-            it["key"] == "razorpay" and it["status"] == ax._OK for it in items
-        ),
-        "payments_ready": any(it["key"] == "razorpay" and it["status"] == ax._OK for it in items),
-        "payments_deferred": not any(it["key"] == "razorpay" and it["status"] == ax._OK for it in items),
+        "ready_for_first_paid_customer": not blockers and payments_ready,
+        "payments_ready": payments_ready,
+        "payments_deferred": not payments_ready,
         "blocker_count": len(blockers),
         "warn_count": len(warns),
         "blockers": [{"key": b["key"], "label": b["label"], "action": b["action"]} for b in blockers],
         "warns": [{"key": w["key"], "label": w["label"], "action": w["action"]} for w in warns],
         "next_step": next_step,
     }
+
+
+def _payments_ready() -> bool:
+    try:
+        from app.api import activation as ax
+
+        return ax._payments_ready()
+    except Exception:
+        vpa = (os.environ.get("UPI_VPA") or "").strip()
+        return bool(vpa and "@" in vpa)
 
 
 def main() -> int:

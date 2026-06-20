@@ -2316,8 +2316,17 @@ function renderGodMode(sys, camp){
   // — UPI payment queue (screenshot → activate) ─────────────────────
   const pending = sys.pending_upi || [];
   html += `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:8px">
-    <div style="font-size:11px;font-weight:700;color:#a5b4fc;margin-bottom:8px;text-transform:uppercase">💳 UPI Payment (screenshot → activate)</div>
-    <div style="font-size:12px;color:#cbd5e1;margin-bottom:8px">${upi.enabled ? 'VPA: <b>'+escH(upi.vpa)+'</b>' : 'Optional — UPI_VPA not set'}</div>`;
+    <div style="font-size:11px;font-weight:700;color:#a5b4fc;margin-bottom:8px;text-transform:uppercase">💳 UPI Payment (screenshot → activate)</div>`;
+  if(upi.enabled){
+    html += `<div style="font-size:12px;color:#cbd5e1;margin-bottom:8px">VPA: <b>${escH(upi.vpa)}</b>${upi.source?(' · '+escH(upi.source)):''}${upi.env_locked?' · env locked':''}</div>`;
+  } else {
+    html += `<div style="font-size:12px;color:#fbbf24;margin-bottom:8px">⚠️ UPI VPA set nahi — pehla payment collect nahi ho sakta</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+        <input id="upiVpaInput" type="text" placeholder="shop@ybl" aria-label="UPI VPA" style="flex:1;min-width:160px;padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#e2e8f0;font-size:12px">
+        <button class="btn" onclick="saveUpiVpa()" style="font-size:11px;padding:6px 12px;background:#6366f1">💾 Save VPA</button>
+      </div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">Bina container restart — data/platform_upi.json me save hota hai</div>`;
+  }
   if(upi.wa_link) html += `<a href="${escH(upi.wa_link)}" target="_blank" rel="noopener" class="btn" style="font-size:11px;padding:5px 10px;text-decoration:none;background:#25d366;margin-bottom:10px;display:inline-block">💬 WA screenshot inbox</a>`;
   if(pending.length){
     html += '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">';
@@ -2386,6 +2395,22 @@ async function upiActivate(clientId){
     });
     const d = await r.json();
     if(r.ok && d.ok){ alert('✅ Activated: '+clientId+' → '+plan); loadGodMode(); }
+    else alert('Error: '+(d.detail||JSON.stringify(d)));
+  }catch(e){ alert('Network error'); }
+}
+
+async function saveUpiVpa(){
+  const inp = document.getElementById('upiVpaInput');
+  const vpa = inp ? (inp.value||'').trim() : '';
+  if(!vpa || vpa.indexOf('@')<1){ alert('Valid UPI VPA daalo — jaise shop@ybl'); return; }
+  try{
+    const r = await fetch('/api/admin/upi/configure',{
+      method:'POST',
+      headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),
+      body: JSON.stringify({vpa})
+    });
+    const d = await r.json();
+    if(r.ok && d.ok){ alert('✅ UPI VPA save — /pricing aur pay-info ab live'); loadGodMode(); }
     else alert('Error: '+(d.detail||JSON.stringify(d)));
   }catch(e){ alert('Network error'); }
 }
