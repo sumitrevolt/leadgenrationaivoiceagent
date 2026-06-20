@@ -125,6 +125,7 @@ class FlowIn(BaseModel):
     name: str = "Untitled flow"
     nodes: list[dict] = []
     edges: list[dict] = []
+    trigger: dict | None = None  # Phase 3: {type: manual|cron|event, cron?/event?}
 
 
 @router.get("/flows")
