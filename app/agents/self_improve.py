@@ -159,7 +159,9 @@ def _next_queued() -> dict[str, Any] | None:
 
 
 def _mark_done(task_id: str, result: str = "") -> None:
-    _append(_QUEUE, {"id": task_id, "status": "done", "result": result[:200], "at": _now().isoformat()})
+    _append(
+        _QUEUE, {"id": task_id, "status": "done", "result": result[:200], "at": _now().isoformat()}
+    )
 
 
 # ---------------------------------------------------------------- actions (SAB reuse)
@@ -192,9 +194,21 @@ ACTIONS: dict[str, tuple[bool, str]] = {
 # (periodic learning). Outbound velocity ↑, self-monitoring noise ↓.
 _STAGE_ACTIONS = {
     "lead_supply": ["harvest_leads", "scrape_leads", "seo_pages", "channel_experiments"],
-    "outreach_quality": ["sales_deepdive", "harvest_leads", "channel_experiments", "social_drafts", "cadence_sweep"],
+    "outreach_quality": [
+        "sales_deepdive",
+        "harvest_leads",
+        "channel_experiments",
+        "social_drafts",
+        "cadence_sweep",
+    ],
     "inbound": ["seo_pages", "channel_experiments", "social_drafts"],
-    "conversion": ["sales_deepdive", "revenue_sweep", "content_pack", "voice_eval", "rescore_pipeline"],
+    "conversion": [
+        "sales_deepdive",
+        "revenue_sweep",
+        "content_pack",
+        "voice_eval",
+        "rescore_pipeline",
+    ],
     "retention": ["revenue_sweep", "content_pack"],
     "scale": ["optimizer", "channel_experiments", "harvest_leads", "study_skills"],
 }
@@ -209,7 +223,9 @@ def _llm_healthy() -> bool:
         provs = st.get("providers") or {}
         if not provs:
             return True
-        ok_any = any((p.get("ok_rate") or p.get("ok", 0)) for p in provs.values() if isinstance(p, dict))
+        ok_any = any(
+            (p.get("ok_rate") or p.get("ok", 0)) for p in provs.values() if isinstance(p, dict)
+        )
         return bool(ok_any)
     except Exception:
         return True  # fail-open: metrics na ho to normal
@@ -220,7 +236,12 @@ async def _pick_next() -> dict[str, Any]:
     epsilon-greedy. LLM sirf task-text refine ke liye (fallback static)."""
     q = _next_queued()
     if q:
-        return {"task": q["task"], "action": q.get("action") or "", "queued_id": q["id"], "source": "queue"}
+        return {
+            "task": q["task"],
+            "action": q.get("action") or "",
+            "queued_id": q["id"],
+            "source": "queue",
+        }
 
     stage = "lead_supply"
     try:
@@ -249,7 +270,9 @@ async def _pick_next() -> dict[str, Any]:
         pass
     # Cooldown: agar koi action 20 min pehle chala to deprioritize (hata do, fallback nahi)
     try:
-        from datetime import datetime, timedelta, timezone as _tz
+        from datetime import datetime, timedelta
+        from datetime import timezone as _tz
+
         cutoff = datetime.now(_tz.utc) - timedelta(minutes=20)
         recent_runs_all = _read_jsonl(_RUNS)[-20:]
         hot = set()
@@ -294,7 +317,10 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         from app.platform import lead_harvester
 
         res = await lead_harvester.run_harvest()
-        return {"ok": bool(res.get("ok")), "detail": f"+{res.get('new_leads', 0)} leads (dedup {res.get('deduped', 0)}, enrich {((res.get('enrich') or {}).get('found', 0))})"}
+        return {
+            "ok": bool(res.get("ok")),
+            "detail": f"+{res.get('new_leads', 0)} leads (dedup {res.get('deduped', 0)}, enrich {((res.get('enrich') or {}).get('found', 0))})",
+        }
     if action == "channel_experiments":
         from app.marketing import channel_experiments
 
@@ -312,19 +338,28 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         from app.marketing import seo_pages
 
         res = await seo_pages.generate_batch(limit=2)
-        return {"ok": bool(res.get("pages") or res.get("count")), "detail": f"{res.get('count', 0)} pages"}
+        return {
+            "ok": bool(res.get("pages") or res.get("count")),
+            "detail": f"{res.get('count', 0)} pages",
+        }
     if action == "sales_deepdive":
         from app.agents import sales_team
 
         res = await sales_team.run_auto(2)
-        return {"ok": bool(res.get("ok", True)), "detail": f"analyzed={res.get('analyzed', res.get('count', 0))}"}
+        return {
+            "ok": bool(res.get("ok", True)),
+            "detail": f"analyzed={res.get('analyzed', res.get('count', 0))}",
+        }
     if action == "social_drafts":
         from app.marketing import social_channels
         from app.marketing.channel_experiments import _pick_niche_city
 
         niche, city = _pick_niche_city()
         res = await social_channels.draft_batch(niche=niche, city=city, channels=None, limit=3)
-        return {"ok": bool(res.get("count")), "detail": f"{res.get('count', 0)} social drafts ({niche}/{city})"}
+        return {
+            "ok": bool(res.get("count")),
+            "detail": f"{res.get('count', 0)} social drafts ({niche}/{city})",
+        }
     if action == "revenue_sweep":
         out = []
         try:
@@ -346,7 +381,10 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         from app.agents import growth_optimizer
 
         res = await growth_optimizer.optimize()
-        return {"ok": bool(res.get("enabled", True)), "detail": f"stage={res.get('weakest', {}).get('stage', '?')}"}
+        return {
+            "ok": bool(res.get("enabled", True)),
+            "detail": f"stage={res.get('weakest', {}).get('stage', '?')}",
+        }
     if action == "reflection":
         return await _reflect()
     if action == "study_skills":
@@ -357,7 +395,10 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         res = await code_upgrader.run_if_enabled()
         if not res.get("enabled", True):
             return {"ok": True, "detail": "CODE_UPGRADER off (skip)"}
-        return {"ok": bool(res.get("ok")), "detail": f"signals={res.get('signals', 0)} proposed={res.get('proposed', 0)}"}
+        return {
+            "ok": bool(res.get("ok")),
+            "detail": f"signals={res.get('signals', 0)} proposed={res.get('proposed', 0)}",
+        }
     if action == "voice_eval":
         return await _voice_eval()
     if action == "rescore_pipeline":
@@ -366,14 +407,20 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         res = await pipeline_ops.run_daily()
         _rc = (res.get("rescore") or {}) if isinstance(res, dict) else {}
         _ht = (res.get("hot") or {}) if isinstance(res, dict) else {}
-        return {"ok": bool(res.get("ok", True)), "detail": f"rescored={_rc.get('updated', 0)} hot={_ht.get('hot_count', 0)}"}
+        return {
+            "ok": bool(res.get("ok", True)),
+            "detail": f"rescored={_rc.get('updated', 0)} hot={_ht.get('hot_count', 0)}",
+        }
     if action == "cadence_sweep":
         from app.marketing import cadence
 
         res = await cadence.run_due()
         if not res.get("ok"):
             return {"ok": True, "detail": f"cadence: {res.get('reason', 'skip')}"}
-        return {"ok": True, "detail": f"cadence advanced={res.get('advanced', res.get('processed', res.get('count', 0)))}"}
+        return {
+            "ok": True,
+            "detail": f"cadence advanced={res.get('advanced', res.get('processed', res.get('count', 0)))}",
+        }
     return {"ok": False, "detail": f"unknown action '{action}'"}
 
 
@@ -409,7 +456,10 @@ async def _voice_eval() -> dict[str, Any]:
             )
         except Exception:
             pass
-        return {"ok": report.pass_rate >= 0.5, "detail": f"voice eval {report.passed}/{total} ({report.pass_rate:.0%}) {niche}"}
+        return {
+            "ok": report.pass_rate >= 0.5,
+            "detail": f"voice eval {report.passed}/{total} ({report.pass_rate:.0%}) {niche}",
+        }
     except Exception as e:
         return {"ok": False, "detail": f"voice_eval: {str(e)[:100]}"}
 
@@ -523,106 +573,6 @@ async def _reflect() -> dict[str, Any]:
     return {"ok": True, "detail": f"lesson: {lesson[:120]}"}
 
 
-# ---------------------------------------------------------------- main loop tick
-
-
-async def run_once() -> dict[str, Any]:
-    """EK iteration: pick → execute → learn. Loop continuation Celery requeue se
-    (tasks/staff_jobs.self_improve_tick). Kabhi raise nahi."""
-    if not enabled():
-        return {"enabled": False}
-
-    st = _load_state()
-    day = _now().strftime("%Y-%m-%d")
-    runs_today = int(st.get("runs_today", 0) or 0) if st.get("day") == day else 0
-    if runs_today >= max_per_day():
-        _heartbeat({"status": "daily_cap"})
-        return {"enabled": True, "skipped": "daily_cap", "runs_today": runs_today}
-
-    picked = await _pick_next()
-    action = picked.get("action") or "channel_experiments"
-    if action not in ACTIONS:
-        action = "channel_experiments"
-
-    t0 = time.monotonic()
-    try:
-        result = await asyncio.wait_for(_execute(action, picked.get("task", "")), timeout=_ITER_TIMEOUT_S)
-    except asyncio.TimeoutError:
-        result = {"ok": False, "detail": f"timeout {_ITER_TIMEOUT_S}s"}
-    except Exception as e:
-        result = {"ok": False, "detail": str(e)[:200]}
-    ms = (time.monotonic() - t0) * 1000
-
-    # learn — har run skill_library me
-    try:
-        from app.platform import skill_library
-
-        skill_library.record_use(action, bool(result.get("ok")), result.get("detail", ""), ms, agent="boss")
-    except Exception:
-        pass
-
-    if picked.get("queued_id"):
-        _mark_done(picked["queued_id"], result.get("detail", ""))
-
-    rec = {
-        "id": uuid.uuid4().hex[:10],
-        "task": picked.get("task", ""),
-        "action": action,
-        "source": picked.get("source", "auto"),
-        "ok": bool(result.get("ok")),
-        "detail": str(result.get("detail", ""))[:300],
-        "ms": round(ms, 1),
-        "at": _now().isoformat(),
-    }
-
-    # F.3 eval_gate close-the-loop: score this iteration against rolling baseline
-    # of the same action. Binary reward (ok->1.0, fail->0.0) is enough for
-    # eval_gate's regression detection — if "harvest_leads" was 0.9 across last
-    # 20 runs and today drops to 0.3, the median-baseline ratio surfaces it as
-    # a REJECT decision so the operator notices BEFORE quality drift compounds.
-    # INERT when EVAL_GATE unset (project ethos); never raises.
-    try:
-        from app.agents import eval_gate as _eg
-
-        _verdict = _eg.score_and_gate(
-            "self_improve", action,
-            current_score=1.0 if rec["ok"] else 0.0,
-            agent="self_improve",
-            artifact=rec["id"],
-        )
-        if _verdict.get("decision") == "reject":
-            rec["regression"] = True
-            rec["baseline"] = _verdict.get("baseline")
-            # Hard-mode = surface visibly in detail; auto-rollback is intentionally
-            # NOT done here (a successful action with a low baseline is still
-            # useful — we're flagging the drift, not preventing the work).
-            if _eg.hard_mode():
-                rec["detail"] = f"[REGRESSION baseline={_verdict.get('baseline'):.2f}] " + rec["detail"]
-    except Exception:
-        pass
-
-    _append(_RUNS, rec)
-    _heartbeat({"runs_today": runs_today + 1, "last_action": action, "status": "ok"})
-
-    # periodic reflection (auto-learn never stops)
-    total = runs_today + 1
-    if action != "reflection" and total % _REFLECT_EVERY == 0:
-        try:
-            await asyncio.wait_for(_reflect(), timeout=60)
-        except Exception:
-            pass
-
-    try:
-        from app.platform import team
-
-        team.log_event("manager", "self_improve", f"{action}: {'OK' if rec['ok'] else 'FAIL'} — {rec['detail'][:80]}")
-        team.team_pulse(max_members=2)  # har tick 2 under-active staff ko bhi heartbeat
-    except Exception:
-        pass
-
-    return {"enabled": True, **rec}
-
-
 def _acquire_revive_lock() -> bool:
     """Single-chain guard: Redis NX lock taaki concurrent revivers (watchdog hourly +
     self_improve_revive */20min) ek hi stale-window me DO chains na bana dein → queue
@@ -671,7 +621,9 @@ def status() -> dict[str, Any]:
         "enabled": enabled(),
         "gap_seconds": gap_seconds(),
         "max_per_day": max_per_day(),
-        "state": {k: st.get(k) for k in ("day", "runs_today", "last_tick_at", "last_action", "status")},
+        "state": {
+            k: st.get(k) for k in ("day", "runs_today", "last_tick_at", "last_action", "status")
+        },
         "queue_pending": 0,
         "recent_runs": _read_jsonl(_RUNS)[-10:][::-1],
     }
@@ -679,7 +631,9 @@ def status() -> dict[str, Any]:
         out["queue_pending"] = 1 if _next_queued() else 0
         rows = _read_jsonl(_QUEUE)
         done = {r.get("id") for r in rows if r.get("status") == "done"}
-        out["queue_pending"] = sum(1 for r in rows if r.get("status") == "pending" and r.get("id") not in done)
+        out["queue_pending"] = sum(
+            1 for r in rows if r.get("status") == "pending" and r.get("id") not in done
+        )
     except Exception:
         pass
     try:
@@ -697,15 +651,15 @@ def status() -> dict[str, Any]:
 
 # Phase 7: Outcome weighting for deterministic feedback gates
 OUTCOME_WEIGHTS = {
-    "lead_quality": 0.40,      # hot-lead score (0-1)
-    "revenue": 0.40,           # MRR impact ($)
-    "cost": -0.20,             # penalize expensive ($/outcome)
+    "lead_quality": 0.40,  # hot-lead score (0-1)
+    "revenue": 0.40,  # MRR impact ($)
+    "cost": -0.20,  # penalize expensive ($/outcome)
 }
 
 DETERMINISTIC_GATES = {
-    "budget": True,                # Skip if over daily budget
-    "expensive_risky": True,       # Skip if cost>$5 AND success<60%
-    "low_roi": True,               # Skip if neutral outcome AND cost>$3
+    "budget": True,  # Skip if over daily budget
+    "expensive_risky": True,  # Skip if cost>$5 AND success<60%
+    "low_roi": True,  # Skip if neutral outcome AND cost>$3
 }
 
 
@@ -737,9 +691,9 @@ def compute_outcome_value(outcome_dict: dict[str, Any]) -> float:
 
         # Weighted sum (cost is negative = penalizes expensive)
         score = (
-            OUTCOME_WEIGHTS["lead_quality"] * lead_quality +
-            OUTCOME_WEIGHTS["revenue"] * revenue_score +
-            OUTCOME_WEIGHTS["cost"] * cost_score
+            OUTCOME_WEIGHTS["lead_quality"] * lead_quality
+            + OUTCOME_WEIGHTS["revenue"] * revenue_score
+            + OUTCOME_WEIGHTS["cost"] * cost_score
         )
 
         return max(0, min(1, score))  # clamp to 0-1
@@ -768,11 +722,13 @@ class CostTracker:
         """Log cost for task."""
         self._reset_if_new_day()
         self.today_cost += actual_cost
-        self.tasks_today.append({
-            "task": task_name,
-            "cost": round(actual_cost, 2),
-            "time": _now().isoformat(),
-        })
+        self.tasks_today.append(
+            {
+                "task": task_name,
+                "cost": round(actual_cost, 2),
+                "time": _now().isoformat(),
+            }
+        )
 
     def get_daily_status(self) -> dict[str, Any]:
         """Return today's budget status."""
@@ -782,7 +738,9 @@ class CostTracker:
             "cap": self.daily_cap,
             "spent": round(self.today_cost, 2),
             "remaining": round(self.daily_cap - self.today_cost, 2),
-            "pct_used": round(100 * self.today_cost / self.daily_cap, 1) if self.daily_cap > 0 else 0,
+            "pct_used": (
+                round(100 * self.today_cost / self.daily_cap, 1) if self.daily_cap > 0 else 0
+            ),
             "tasks": self.tasks_today,
         }
 
@@ -794,7 +752,9 @@ class CostTracker:
             self.tasks_today = []
 
 
-def should_skip_task(task_name: str, cost_remaining: float, last_outcome: dict[str, Any] | None = None) -> tuple[bool, str]:
+def should_skip_task(
+    task_name: str, cost_remaining: float, last_outcome: dict[str, Any] | None = None
+) -> tuple[bool, str]:
     """
     Phase 7: Deterministic gates that skip expensive low-ROI tasks.
 
@@ -915,7 +875,11 @@ def _get_cost_tracker() -> CostTracker:
 def _get_approval_queue() -> ApprovalQueue:
     global _approval_queue
     if _approval_queue is None:
-        approval_mode = os.environ.get("SELF_IMPROVE_APPROVAL", "0").strip().lower() in ("1", "true", "yes")
+        approval_mode = os.environ.get("SELF_IMPROVE_APPROVAL", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         _approval_queue = ApprovalQueue(approval_required=approval_mode)
     return _approval_queue
 
@@ -988,7 +952,9 @@ async def run_once() -> dict[str, Any]:
     # ========== PHASE 6: COST + APPROVAL GATES ==========
     if not ct.can_afford(action, estimated_cost):
         _heartbeat({"status": "budget_cap"})
-        logger.info(f"[self-improve] budget cap: spent ${ct.today_cost:.2f}, need ${estimated_cost:.2f}")
+        logger.info(
+            f"[self-improve] budget cap: spent ${ct.today_cost:.2f}, need ${estimated_cost:.2f}"
+        )
         return {
             "enabled": True,
             "skipped": "budget_cap",
@@ -1014,7 +980,9 @@ async def run_once() -> dict[str, Any]:
     # ========== EXECUTE ==========
     t0 = time.monotonic()
     try:
-        result = await asyncio.wait_for(_execute(action, picked.get("task", "")), timeout=_ITER_TIMEOUT_S)
+        result = await asyncio.wait_for(
+            _execute(action, picked.get("task", "")), timeout=_ITER_TIMEOUT_S
+        )
     except asyncio.TimeoutError:
         result = {"ok": False, "detail": f"timeout {_ITER_TIMEOUT_S}s"}
     except Exception as e:
@@ -1041,7 +1009,9 @@ async def run_once() -> dict[str, Any]:
     try:
         from app.platform import skill_library
 
-        skill_library.record_use(action, bool(result.get("ok")), result.get("detail", ""), ms, agent="boss")
+        skill_library.record_use(
+            action, bool(result.get("ok")), result.get("detail", ""), ms, agent="boss"
+        )
     except Exception:
         pass
 
