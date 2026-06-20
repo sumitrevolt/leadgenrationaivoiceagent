@@ -67,6 +67,74 @@ def _redis_ping_ms() -> int:
         return -1
 
 
+# --- Admin-friendly grading: raw numbers -> emoji-able status + Hinglish hint ---
+# (A non-technical admin should not have to know that "queue 1200" is bad.)
+def _band(value: float, warn: float, bad: float, display: str, hints: dict) -> dict:
+    """value vs warn/bad thresholds (higher = worse). Negative value = data nahi mila."""
+    if value is None or value < 0:
+        return {"value": "—", "status": "unknown", "hint": "Data nahi mila"}
+    if value >= bad:
+        return {"value": display, "status": "bad", "hint": hints["bad"]}
+    if value >= warn:
+        return {"value": display, "status": "warn", "hint": hints["warn"]}
+    return {"value": display, "status": "ok", "hint": hints.get("ok", "Theek hai")}
+
+
+def _grade(res: dict, wq: dict, redis_ms: int) -> dict:
+    """Pure: build plain-Hinglish rows + overall status + summary. Never raises."""
+    cpu, mem, disk = res.get("cpu_pct", -1), res.get("mem_pct", -1), res.get("disk_pct", -1)
+    qd = wq.get("celery_queue_depth", -1)
+    worker = str(wq.get("worker_alive") or "unknown")
+
+    rows: list[dict] = []
+    rows.append({"key": "cpu", "label": "CPU load", **_band(
+        cpu, 75, 90, f"{cpu}%",
+        {"bad": "CPU bahut busy — server slow ho sakta", "warn": "CPU thoda high", "ok": "Theek hai"})})
+    rows.append({"key": "mem", "label": "Memory", **_band(
+        mem, 82, 92, f"{mem}%",
+        {"bad": "Memory lagbhag full — crash/OOM risk", "warn": "Memory thodi high", "ok": "Theek hai"})})
+    rows.append({"key": "disk", "label": "Disk", **_band(
+        disk, 80, 90, f"{disk}%",
+        {"bad": "Disk bhar raha — space khaali karo (logs/backups)", "warn": "Disk thodi bhar rahi", "ok": "Theek hai"})})
+
+    # Redis: -1 = connection nahi (bad), warna ping ms (higher = worse).
+    if redis_ms is None or redis_ms < 0:
+        rows.append({"key": "redis", "label": "Redis", "value": "down", "status": "bad",
+                     "hint": "Redis se connection nahi — queue/cache atak sakte"})
+    else:
+        rows.append({"key": "redis", "label": "Redis", **_band(
+            redis_ms, 60, 250, f"{redis_ms}ms",
+            {"bad": "Redis slow respond kar raha", "warn": "Redis thoda slow", "ok": "Theek hai"})})
+
+    # Celery queue depth: CLAUDE.md rule — >500 backlog = del celery.
+    rows.append({"key": "queue", "label": "Task queue", **_band(
+        qd, 200, 500, str(qd),
+        {"bad": "Queue me bahut kaam atka — worker restart ya DLQ clear",
+         "warn": "Queue thoda bhara hai", "ok": "Theek hai"})})
+
+    # Worker liveness (string status from automation_health, not numeric).
+    _wmap = {
+        "ok": ("ok", "Chal raha hai"),
+        "overdue": ("warn", "Time par nahi chala — worker container check"),
+        "last_failed": ("bad", "Pichhla run fail — Events tab me error dekho"),
+        "never_ran": ("warn", "Abhi tak nahi chala (naya deploy ke baad normal)"),
+    }
+    wst, whint = _wmap.get(worker, ("unknown", "Status pata nahi"))
+    rows.append({"key": "worker", "label": "Worker", "value": worker, "status": wst, "hint": whint})
+
+    order = {"bad": 3, "warn": 2, "ok": 1, "unknown": 0}
+    overall = max((r["status"] for r in rows), key=lambda s: order.get(s, 0)) if rows else "unknown"
+    if overall == "bad":
+        summary = "❌ Server me dikkat hai — neeche laal cheez fix karo"
+    elif overall == "warn":
+        summary = "⚠️ Chal raha hai par kuch cheezein dhyan maangti hain"
+    elif overall == "ok":
+        summary = "✅ Server bilkul theek chal raha hai"
+    else:
+        summary = "❓ Server ka data abhi nahi mila"
+    return {"rows": rows, "status": overall, "summary": summary}
+
+
 @router.get("/system-health-detail")
 async def system_health_detail(_user=Depends(require_admin)) -> dict:
     """B3: live infra detail for the admin System Health panel.
@@ -78,8 +146,19 @@ async def system_health_detail(_user=Depends(require_admin)) -> dict:
     """
     if os.getenv("SYS_HEALTH_DETAIL", "0").strip().lower() not in ("1", "true", "yes"):
         return {"enabled": False}
-    out: dict = {"enabled": True, "redis_ping_ms": _redis_ping_ms()}
-    out.update(_resources())
-    out.update(_worker_and_queue())
-    out["health_ready"] = "ok" if (out["redis_ping_ms"] >= 0 and out["cpu_pct"] >= 0) else "degraded"
+    redis_ms = _redis_ping_ms()
+    res = _resources()
+    wq = _worker_and_queue()
+    out: dict = {"enabled": True, "redis_ping_ms": redis_ms}
+    out.update(res)
+    out.update(wq)
+    out["health_ready"] = "ok" if (redis_ms >= 0 and out["cpu_pct"] >= 0) else "degraded"
+    # Admin-friendly layer: emoji-able rows + plain-Hinglish summary (never raises).
+    try:
+        out.update(_grade(res, wq, redis_ms))
+    except Exception as e:
+        logger.debug("system_health grade failed: %s", e)
+        out.setdefault("rows", [])
+        out.setdefault("status", "unknown")
+        out.setdefault("summary", "❓ Status nahi mila")
     return out
