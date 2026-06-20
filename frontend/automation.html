@@ -2216,7 +2216,7 @@ async function scLoad(){
     h+='<table><tr><th>Job</th><th>Kya karta hai</th><th>Last run (IST)</th><th>Took</th><th>Status</th></tr>';
     (d.jobs||[]).forEach(function(j){
       var st=String(j.status||'');
-      var cls=st==='ok'?'ok':(st==='overdue'||st==='last_failed'?'bad':'warn');
+      var cls=st==='ok'?'ok':(st==='scheduled_off'?'mut':(st==='overdue'||st==='last_failed'?'bad':'warn'));
       h+='<tr><td>'+esc(j.job)+'</td><td class="mut">'+esc(JOB_DESC[j.job]||'')+'</td><td class="mut">'+esc(fmtTime(j.last_run))+'</td><td class="mut">'+(j.duration_s!=null?esc(j.duration_s)+'s':'')+'</td><td class="'+cls+'">'+esc(st)+'</td></tr>';
     });
     $('scHealthOut').innerHTML=h+'</table></div>';
@@ -2633,7 +2633,9 @@ async function tdLoad(){
     $('tdStaff').innerHTML=sh+'</table>';
     var jh='';
     (d.jobs||[]).forEach(function(j){
-      jh+='<div style="margin-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line)"><b>'+esc(j.label)+'</b><div class="mut" style="font-size:.8rem">'+esc(j.kya||'')+'</div><div>'+esc(j.line)+'</div></div>';
+      var st=String(j.status||'');
+      var cls=st==='ok'?'ok':(st==='scheduled_off'?'mut':(st==='overdue'||st==='last_failed'||st==='never_ran'?'bad':'warn'));
+      jh+='<div style="margin-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line)"><b>'+esc(j.label)+'</b><div class="mut" style="font-size:.8rem">'+esc(j.kya||'')+'</div><div class="'+cls+'">'+esc(j.line)+'</div></div>';
     });
     $('tdJobs').innerHTML=jh||'<div class="mut">Koi job data nahi.</div>';
     var fh='';

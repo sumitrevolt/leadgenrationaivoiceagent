@@ -60,6 +60,8 @@ def test_boot_grace_skips_qa_in_window(monkeypatch):
     )
     assert boot_grace.should_skip_boot_grace("qa") is True
     assert boot_grace.should_skip_boot_grace("growth") is False
+    ds = boot_grace.defer_seconds("qa")
+    assert ds >= 120
 
 
 def test_process_engine_ensure_alive_revives_stale():

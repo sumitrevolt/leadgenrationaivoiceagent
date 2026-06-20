@@ -193,14 +193,21 @@ def run_staff_job(self, job: str):
         from app.platform import boot_grace
 
         if boot_grace.should_skip_boot_grace(job):
-            logger.info(f"[staff_jobs] boot-grace skip job '{job}' this worker boot")
+            delay = boot_grace.defer_seconds(job)
+            logger.info(
+                f"[staff_jobs] boot-grace skip job '{job}' — deferred retry in {delay}s"
+            )
+            try:
+                run_staff_job.apply_async(args=[job], countdown=delay)
+            except Exception as e:
+                logger.warning(f"[staff_jobs] boot-grace defer enqueue failed: {e}")
             try:  # SP3: surface the silent boot-grace skip (gated LOOP_SUPERVISOR)
                 from app.platform import loop_supervisor as _ls
 
                 _ls.alert_boot_grace_skip(job)
             except Exception:
                 pass
-            return {"ok": True, "job": job, "skipped": "boot_grace"}
+            return {"ok": True, "job": job, "skipped": "boot_grace", "deferred_in_s": delay}
     except Exception:
         pass
     try:
