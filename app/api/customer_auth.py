@@ -22,6 +22,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
+from app.api.ratelimit import rate_limit
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -178,7 +179,7 @@ class LoginIn(BaseModel):
     password: str = Field(..., min_length=1, max_length=128)
 
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(rate_limit("cust_login", 10, 60))])
 async def customer_login(req: LoginIn):
     """Client login → JWT (role=customer, sub=client_id).
 
@@ -239,7 +240,7 @@ class SignupIn(BaseModel):
     plan: str = Field("starter", max_length=30)
 
 
-@router.post("/signup")
+@router.post("/signup", dependencies=[Depends(rate_limit("cust_signup", 5, 300))])
 async def customer_signup(req: SignupIn):
     """PUBLIC self-serve signup — naya client profile + login ek shot me (no admin).
 
@@ -545,7 +546,7 @@ async def magic_link_config():
     return {"enabled": _magic_enabled()}
 
 
-@router.post("/magic-link/request")
+@router.post("/magic-link/request", dependencies=[Depends(rate_limit("magic_req", 5, 300))])
 async def magic_link_request(req: MagicRequestIn):
     """Email pe ek single-use login link bhejo. ENUMERATION-SAFE: response hamesha
     generic (chahe email registered ho ya na ho). GATED MAGIC_LINK=1."""
@@ -583,7 +584,7 @@ class MagicVerifyIn(BaseModel):
     token: str = Field(..., min_length=10, max_length=4000)
 
 
-@router.post("/magic-link/verify")
+@router.post("/magic-link/verify", dependencies=[Depends(rate_limit("magic_vrf", 10, 60))])
 async def magic_link_verify(req: MagicVerifyIn):
     """Magic-link token verify → customer JWT (login.html ?magic= se POST hota). GATED."""
     if not _magic_enabled():

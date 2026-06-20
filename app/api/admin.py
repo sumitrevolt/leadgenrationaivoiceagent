@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from app.api.ratelimit import rate_limit
 from pydantic import BaseModel, EmailStr, Field
 
 from app.config import settings
@@ -263,7 +265,11 @@ async def log_audit(
 # ============================================================================
 
 
-@router.post("/auth/login", response_model=LoginResponse)
+@router.post(
+    "/auth/login",
+    response_model=LoginResponse,
+    dependencies=[Depends(rate_limit("admin_login", 8, 60))],
+)
 async def login(request: LoginRequest, db: AsyncSession = Depends(get_async_db)):
     """
     Authenticate user and return JWT tokens

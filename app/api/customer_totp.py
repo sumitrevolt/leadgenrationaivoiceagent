@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.api.customer_auth import require_customer
+from app.api.ratelimit import rate_limit
 from app.platform import customer_totp as ct
 
 router = APIRouter(prefix="/api/customer/2fa", tags=["Customer Auth"])
@@ -63,7 +64,7 @@ async def disable(body: DisableIn, client_id: str = Depends(require_customer)) -
     return out
 
 
-@router.post("/verify")
+@router.post("/verify", dependencies=[Depends(rate_limit("cust_2fa", 10, 60))])
 async def verify(body: VerifyIn) -> dict:
     """No JWT yet — the customer is between password and full token. We take
     the signed challenge issued by /api/customer/login and the TOTP code, and
