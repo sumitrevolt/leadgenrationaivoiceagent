@@ -328,6 +328,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=50),
         "args": ("onboard",),
     },
+    "staff-flow-cron": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute="*/5"),
+        "args": ("flow_cron",),
+    },
     "staff-qa-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=2, minute=30),

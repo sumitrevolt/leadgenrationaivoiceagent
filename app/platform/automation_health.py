@@ -55,6 +55,8 @@ EXPECTED_GAP_MIN = {
     "saturday_hygiene": 8 * 24 * 60,
     "meter_watch": 180,  # hourly :55 (gated METER_ALERTS), 3h grace
     "process_autostart": 30 * 60,  # daily ~11:30 IST (gated PROCESS_AUTOSTART)
+    "revenue_snapshot": 30 * 60,  # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
+    "flow_cron": 30,  # every 5 min: Flow Runner cron scan (self-gates; beat always heartbeats)
 }
 
 
