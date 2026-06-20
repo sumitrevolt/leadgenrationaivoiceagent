@@ -41,6 +41,17 @@ def test_invalid_flow_reports_compile_errors(tmp_path, monkeypatch):
     assert r.json()["compile_errors"]
 
 
+def test_flow_trigger_persists_through_api(tmp_path, monkeypatch):
+    c = _client(tmp_path, monkeypatch)
+    r = c.post("/api/growth/flow", json={"name": "Cron",
+        "nodes": [{"id": "a", "action": "scrape"}], "edges": [],
+        "trigger": {"type": "cron", "cron": "*/30 * * * *"}})
+    assert r.status_code == 200 and r.json()["runnable"] is True
+    fid = r.json()["flow"]["id"]
+    got = c.get(f"/api/growth/flow/{fid}").json()
+    assert got["flow"]["trigger"] == {"type": "cron", "cron": "*/30 * * * *"}
+
+
 def test_dag_flow_runs_through_api(tmp_path, monkeypatch):
     c = _client(tmp_path, monkeypatch)  # FLOW_RUNNER=1, admin bypassed
     # isolate engine journals so the test worker doesn't enqueue real Celery

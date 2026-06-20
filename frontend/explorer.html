@@ -426,7 +426,7 @@ const VIEWS = {
       {id:'voice_product', type:'voice', badge:'PRODUCT', cx:'moderate', title:'Voice Agent Product', desc:'Standalone SKU /voice-agent · band A/B/C pricing · niche scripts', files:'voice_product.py · voice_packages.py', x:640, y:1040, w:260, h:110},
       {id:'telephony_hub', type:'voice', badge:'TELEPHONY', cx:'complex', title:'Telephony Webhooks', desc:'Vobiz active · Twilio fallback · call state Redis · AMD voicemail', files:'telephony/webhooks.py', x:940, y:1040, w:280, h:110},
       {id:'celery', type:'platform', badge:'LAYER', cx:'moderate', title:'Celery Queue System', desc:'Beat IST → Redis → Worker×4 · Scheduler container · DLQ', files:'worker.py', x:1260, y:1040, w:250, h:110},
-      {id:'flow_runner', type:'platform', badge:'FLOW', cx:'moderate', title:'Flow Runner', desc:'Visual builder → process-as-code execution · FLOW_RUNNER · admin · linear+DAG (branch/merge/conditions)', files:'flow_store.py · flow_compiler.py · dag_engine.py · edge_condition.py · flow_dispatch.py · growth_process.py', flag:'FLOW_RUNNER', x:1320, y:1240, w:260, h:100},
+      {id:'flow_runner', type:'platform', badge:'FLOW', cx:'moderate', title:'Flow Runner', desc:'Visual builder → process-as-code execution · FLOW_RUNNER · admin · linear+DAG (branch/merge/conditions)', files:'flow_store.py · flow_compiler.py · dag_engine.py · edge_condition.py · flow_dispatch.py · flow_triggers.py · growth_process.py', flag:'FLOW_RUNNER', x:1320, y:1240, w:260, h:100},
       {id:'external', type:'external', badge:'LAYER', cx:'moderate', title:'External Integrations', desc:'Vobiz · SMTP Hostinger · Google Maps · Pollinations · Telegram', files:'integrations/', x:1560, y:1040, w:260, h:110},
       {id:'monitoring', type:'monitor', badge:'LAYER', cx:'moderate', title:'Monitoring Stack', desc:'Prometheus · Grafana · Loki · Tempo · ntfy · Flower · Celery exporter', files:'docker-compose.observability.yml', x:1860, y:1040, w:260, h:110},
       {id:'free_ai', type:'ai', badge:'LAYER', cx:'complex', title:'Free AI Provider Chain', desc:'Mistral → Groq → Cerebras → Gemini · circuit-breaker 429', files:'free_ai.py', x:40, y:1240, w:280, h:110},
@@ -1617,9 +1617,11 @@ function renderEdges(highlightIds) {
 function renderFlowPick() {
   const el = document.getElementById('flow-pick');
   if(currentView === 'custom') {
-    el.innerHTML = Object.values(customFlowStore.flows).map(f =>
-      `<button class="fp-btn${f.id===customFlowStore.activeId?' on':''}" onclick="loadCustomFlowId('${f.id}')">${f.name}</button>`
-    ).join('') + `<button class="fp-btn" onclick="newCustomFlow()">+ New Flow</button>`;
+    el.innerHTML = Object.values(customFlowStore.flows).map(f => {
+      const tt = (f.trigger && f.trigger.type) || 'manual';
+      const badge = tt === 'cron' ? ' ⏰' : (tt === 'event' ? ' ⚡' : '');
+      return `<button class="fp-btn${f.id===customFlowStore.activeId?' on':''}" onclick="loadCustomFlowId('${f.id}')">${f.name}${badge}</button>`;
+    }).join('') + `<button class="fp-btn" onclick="newCustomFlow()">+ New Flow</button>`;
     return;
   }
   const presets = getViewData().presets;
@@ -2027,8 +2029,30 @@ function showBuilderPanel() {
     <button class="action-btn" onclick="importFlowJSON()">↑ Import JSON</button>
     <input type="file" id="import-flow-file" accept=".json,application/json" style="display:none" onchange="onImportFlowFile(event)">
     <button class="action-btn" onclick="cloneAutomationToBuilder()">📋 Clone Automation Template</button>
-    <button class="action-btn" onclick="deleteCurrentFlow()">🗑 Delete This Flow</button>
-    <div class="panel-hdr">Add Node (click)</div>`;
+    <button class="action-btn" onclick="deleteCurrentFlow()">🗑 Delete This Flow</button>`;
+
+  const trg = (flow && flow.trigger) || {type:'manual'};
+  html += `<div class="panel-hdr">Trigger</div>
+    <select class="builder-field" id="bf-trigger-type" onchange="setFlowTrigger()">
+      <option value="manual"${trg.type==='manual'?' selected':''}>Manual (Run button)</option>
+      <option value="cron"${trg.type==='cron'?' selected':''}>⏰ Cron (schedule)</option>
+      <option value="event"${trg.type==='event'?' selected':''}>⚡ Event</option>
+    </select>`;
+  if(trg.type==='cron'){
+    html += `<input class="builder-field" id="bf-trigger-cron" placeholder="*/15 * * * *  or  09:30" value="${(trg.cron||'').replace(/"/g,'&quot;')}" onchange="setFlowTrigger()">
+      <div style="font-size:9px;color:#6b7280">IST · one start per 5-min slot</div>`;
+  }
+  if(trg.type==='event'){
+    const evs = ['lead.created','lead.qualified','call.completed','payment.received'];
+    html += `<select class="builder-field" id="bf-trigger-event" onchange="setFlowTrigger()">
+      ${evs.map(e=>`<option value="${e}"${trg.event===e?' selected':''}>${e}</option>`).join('')}
+    </select>`;
+  }
+  if(trg.type!=='manual'){
+    html += `<div style="font-size:9px;color:#9ca3af">Auto-fires only when FLOW_AUTO_TRIGGERS is enabled platform-wide.</div>`;
+  }
+
+  html += `<div class="panel-hdr">Add Node (click)</div>`;
 
   NODE_TEMPLATES.forEach((t,i) => {
     html += `<div class="palette-item" onclick="addBuilderNode(NODE_TEMPLATES[${i}])">
@@ -2107,6 +2131,18 @@ function connectFromSelected() {
   if(!tgt || !selectedNode) return;
   addBuilderEdge(selectedNode, tgt, style, '');
   showBuilderPanel();
+}
+
+function setFlowTrigger() {
+  const flow = customFlowStore.flows[customFlowStore.activeId];
+  if(!flow) return;
+  const type = document.getElementById('bf-trigger-type')?.value || 'manual';
+  const t = {type};
+  if(type === 'cron') t.cron = (document.getElementById('bf-trigger-cron')?.value || '').trim();
+  if(type === 'event') t.event = document.getElementById('bf-trigger-event')?.value || 'lead.created';
+  flow.trigger = t;
+  localStorage.setItem('explorer_custom_flows', JSON.stringify(customFlowStore));
+  showBuilderPanel();  // re-render so cron/event sub-field shows/hides
 }
 
 function setEdgeWhen(idx) {
@@ -2541,6 +2577,7 @@ function _frPayload() {
     name: f.name || 'Untitled flow',
     nodes: (v.nodes || []).map(n => ({id:n.id, action:n.action||'', kind:n.kind, join:n.join, title:n.title, question:n.question})),
     edges: (v.edges || []).map(e => ({f:e.f, t:e.t, when:e.when || null})),
+    trigger: f.trigger || {type:'manual'},
   };
 }
 
