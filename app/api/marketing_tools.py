@@ -39,7 +39,44 @@ from app.api.marketing_models import (
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+from app.marketing import (
+    ads_copy,
+    brand_kit,
+    catalog,
+    competitor,
+    content_pack,
+    crm_lite,
+    drip,
+    evergreen,
+    festivals,
+    gbp_audit,
+    gbp_text,
+    lead_scoring,
+    missed_call,
+    monthly_report,
+    posters,
+    reactivation,
+    reels,
+    referral_kit,
+    review_kit,
+    review_replies,
+    seo_blog,
+    upi_kit,
+    upi_qr,
+    whatsapp_pack,
+)
+
 router = APIRouter(tags=["Marketing"])
+
+
+def _log_isha(action: str, detail: str) -> None:
+    """Team activity log (best-effort — kabhi request fail nahi karata)."""
+    try:
+        from app.platform.team import log_event
+
+        log_event("isha", action, detail)
+    except Exception:
+        pass
 
 
 # --------------------------------------------------------------------------- #
