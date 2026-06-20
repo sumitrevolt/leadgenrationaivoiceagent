@@ -43,6 +43,28 @@ def _age_min(path: str):
         return None
 
 
+def _redis_ok() -> bool | None:
+    """Ping Redis — Celery broker + cache + rate-limit + distributed call-state.
+    True = reachable · False = configured-but-unreachable (REAL outage) · None =
+    can't assess (redis lib missing / no URL). Never raises. False is the only
+    state that alerts, so a dev box without redis (None) stays quiet."""
+    try:
+        import redis as _redis
+
+        from app.config import settings
+
+        url = str(getattr(settings, "redis_url", "") or os.getenv("REDIS_URL", "")).strip()
+        if not url:
+            return None
+        r = _redis.Redis.from_url(url, socket_connect_timeout=2, socket_timeout=2)
+        r.ping()
+        return True
+    except ImportError:
+        return None
+    except Exception:
+        return False
+
+
 def _signals() -> dict[str, Any]:
     s: dict[str, Any] = {}
     s["scheduler_age_min"] = _age_min(_LOCK)
@@ -63,6 +85,8 @@ def _signals() -> dict[str, Any]:
         s["disk_pct"] = round(du.used / du.total * 100, 1)
     except Exception:
         s["disk_pct"] = None
+    # redis (Celery broker + cache + rate-limit + call-state): down = critical
+    s["redis_ok"] = _redis_ok()
     # db present
     try:
         for p in ("leadgen.db", "/opt/leadgen/leadgen.db"):
@@ -94,6 +118,15 @@ def _detect(s: dict[str, Any]) -> list[dict]:
                 "key": "llm_down",
                 "sev": "critical",
                 "msg": "Koi LLM provider available nahi (key/quota) — AI features down",
+            }
+        )
+    if s.get("redis_ok") is False:
+        issues.append(
+            {
+                "key": "redis_down",
+                "sev": "critical",
+                "msg": "Redis down — Celery queue/cache/rate-limit/call-state ruk gaye. "
+                "Check: docker ps | grep redis (ya container restart)",
             }
         )
     dp = s.get("disk_pct")
