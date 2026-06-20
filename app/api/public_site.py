@@ -649,16 +649,21 @@ async def public_signup(body: SignupIn, request: Request):
 
 @router.get("/pay-info")
 async def pay_info():
-    """Landing page ka payment modal — NO AUTH. UPI_VPA env set ho tabhi
+    """Landing page ka payment modal — NO AUTH. UPI VPA set ho tabhi
     enabled; QR upi_kit (pure-python encoder) se banta hai, packages
     app.marketing.packages se (key/name/price only). Kabhi raise nahi karta."""
     vpa = ""
     try:
-        from app.config import settings
+        from app.platform import upi_config
 
-        vpa = (getattr(settings, "upi_vpa", "") or "").strip()
+        vpa = upi_config.get_vpa()
     except Exception:
-        vpa = ""
+        try:
+            from app.config import settings
+
+            vpa = (getattr(settings, "upi_vpa", "") or "").strip()
+        except Exception:
+            vpa = ""
     if not vpa:
         return {"enabled": False}
 

@@ -159,13 +159,22 @@ async def test_get_activation_summary_has_probes() -> None:
     assert "ready_for_calling" in out
 
 
-async def test_readiness_paid_ready_via_manual_upi(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Razorpay removed 2026-06-18 — payments via manual UPI, so the paid-customer
-    gate depends only on zero BLOCKERs (payments_ready is always True)."""
+async def test_readiness_paid_ready_requires_upi(monkeypatch: pytest.MonkeyPatch) -> None:
+    """First paid customer needs armed UPI VPA (env or admin data file)."""
+    from app.platform import upi_config as uc
+
+    monkeypatch.setattr(uc, "is_armed", lambda: False)
     out = await ax.activation_readiness(_user=None)  # type: ignore[arg-type]
     assert out["ready_for_launch"] is True
+    assert out["ready_for_first_paid_customer"] is False
+    assert out["payments_ready"] is False
+    assert out["blockers"] == []
+
+
+async def test_readiness_paid_ready_when_upi_armed(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.platform import upi_config as uc
+
+    monkeypatch.setattr(uc, "is_armed", lambda: True)
+    out = await ax.activation_readiness(_user=None)  # type: ignore[arg-type]
     assert out["ready_for_first_paid_customer"] is True
     assert out["payments_ready"] is True
-    assert out["blockers"] == []
-    assert "telephony" in out
-    assert "ready_for_calling" in out

@@ -429,17 +429,36 @@ def _track_b_admin() -> dict[str, Any]:
     }
 
 
+def _payments_ready() -> bool:
+    """First paid customer needs a collectable UPI VPA (env or admin data file)."""
+    try:
+        from app.platform import upi_config
+
+        return upi_config.is_armed()
+    except Exception:
+        vpa = _v("UPI_VPA")
+        return bool(vpa and "@" in vpa)
+
+
 def _upi() -> dict[str, Any]:
     """Revenue: manual UPI is the primary India payment path (Razorpay removed
-    2026-06-18). UPI_VPA unset = operator cannot collect the first payment, so
-    surface a concrete next step (WARN) instead of a silent pass. No online
-    gateway to configure - just the VPA."""
-    vpa = _v("UPI_VPA")
+    2026-06-18). No VPA = operator cannot collect the first payment."""
+    try:
+        from app.platform import upi_config
+
+        info = upi_config.info()
+        vpa = info.get("vpa") or ""
+        src = info.get("source") or "none"
+        armed = bool(info.get("enabled"))
+    except Exception:
+        vpa = _v("UPI_VPA")
+        src = "env" if vpa else "none"
+        armed = bool(vpa and "@" in vpa)
     checks = {
         "vpa_set": bool(vpa),
         "vpa_format_ok": ("@" in vpa) if vpa else False,
+        "source": src,
     }
-    armed = checks["vpa_set"] and checks["vpa_format_ok"]
     return {
         "key": "upi",
         "label": "Manual UPI payments (UPI_VPA)",
@@ -448,8 +467,8 @@ def _upi() -> dict[str, Any]:
         "env_vars": ["UPI_VPA"],
         "checks": checks,
         "action": (
-            "Set UPI_VPA=<yourvpa>@bank in .env - pricing modal, /api/public/pay-info "
-            "and the UPI-QR tool collect on this VPA (manual, no gateway)"
+            "Admin dashboard → God Mode → UPI section me VPA save karo, "
+            "ya .env me UPI_VPA=<yourvpa>@bank set karo (pricing modal + pay-info)"
             if not armed
             else ""
         ),
@@ -606,7 +625,7 @@ async def activation_summary_public() -> dict[str, Any]:
     items = [p() for p in _PROBES]
     blockers = [it["key"] for it in items if it["status"] == _BLOCKER]
     warns = [it["key"] for it in items if it["status"] == _WARN]
-    payments_ready = True  # Razorpay removed 2026-06-18 — manual UPI always available
+    payments_ready = _payments_ready()
     launch_ready = not blockers
     return {
         "ready_for_launch": launch_ready,
@@ -617,6 +636,7 @@ async def activation_summary_public() -> dict[str, Any]:
         "blocker_count": len(blockers),
         "warn_count": len(warns),
         "blockers": blockers,
+        "warns": warns,
         "graph_version": "2026-06-17-v3",
     }
 
@@ -631,7 +651,7 @@ async def activation_readiness(_user=Depends(require_admin)) -> dict[str, Any]:
     items = [p() for p in _PROBES]
     blockers = [it["key"] for it in items if it["status"] == _BLOCKER]
     warns = [it["key"] for it in items if it["status"] == _WARN]
-    payments_ready = True  # Razorpay removed 2026-06-18 — manual UPI always available
+    payments_ready = _payments_ready()
     launch_ready = not blockers
 
     telephony: dict[str, Any] = {}
@@ -668,7 +688,7 @@ async def get_activation_summary() -> dict[str, Any]:
     items = [p() for p in _PROBES]
     blockers = [it for it in items if it["status"] == _BLOCKER]
     warns = [it for it in items if it["status"] == _WARN]
-    payments_ready = True  # Razorpay removed 2026-06-18 — manual UPI always available
+    payments_ready = _payments_ready()
     launch_ready = not blockers
     probes = {it["key"]: it["status"] != _BLOCKER for it in items}
 
