@@ -21,6 +21,20 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _norm_trigger(t) -> dict:
+    """Normalise a flow trigger block. Default + invalid -> manual (Phase 3)."""
+    t = t if isinstance(t, dict) else {}
+    typ = str(t.get("type") or "manual").lower()
+    if typ not in ("manual", "cron", "event"):
+        typ = "manual"
+    out = {"type": typ}
+    if typ == "cron":
+        out["cron"] = str(t.get("cron") or "").strip()[:64]   # "*/5 * * * *" OR "HH:MM" IST
+    if typ == "event":
+        out["event"] = str(t.get("event") or "").strip()[:40]  # one of the 4 dotted events
+    return out
+
+
 def _read_all() -> dict[str, dict]:
     out: dict[str, dict] = {}
     try:
@@ -66,6 +80,7 @@ def save_flow(flow: dict, by: str = "admin") -> dict:
             "name": str(flow.get("name") or "Untitled flow")[:120],
             "nodes": flow.get("nodes") or [],
             "edges": flow.get("edges") or [],
+            "trigger": _norm_trigger(flow.get("trigger")),
             "created_by": str(flow.get("created_by") or by)[:60],
             "updated_at": _now(),
         }
@@ -90,9 +105,15 @@ def list_flows() -> list[dict]:
             "name": rec.get("name"),
             "nodes": len(rec.get("nodes") or []),
             "edges": len(rec.get("edges") or []),
+            "trigger": (rec.get("trigger") or {}).get("type", "manual"),
             "updated_at": rec.get("updated_at"),
         })
     return sorted(out, key=lambda r: r.get("updated_at") or "", reverse=True)
+
+
+def list_flows_full() -> list[dict]:
+    """Raw flow records (incl. nodes/edges/trigger) — for the cron scanner."""
+    return list(_read_all().values())
 
 
 def delete_flow(flow_id: str) -> bool:

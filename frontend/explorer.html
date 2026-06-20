@@ -300,6 +300,7 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <button class="tr-btn" onclick="exportFlow()">↓ Export JSON</button>
     <button class="tr-btn" onclick="saveFlowToServer()" title="Save active flow to server (Flow Runner)">💾 Save</button>
     <button class="tr-btn" onclick="runFlow()" id="runFlowBtn" title="Run active flow (FLOW_RUNNER)">▶ Run</button>
+    <button class="tr-btn" onclick="showRunsPanel()" title="Run history + inspector (Flow Runner)">📋 Runs</button>
     <span id="flowRunStatus" style="margin-left:6px;color:#9ca3af;font-size:12px"></span>
     <button class="tr-btn" onclick="showHelp()" title="Shortcuts">?</button>
     <a class="tr-btn tr-link" href="/app/automation">↗ Mission Control</a>
@@ -426,7 +427,7 @@ const VIEWS = {
       {id:'voice_product', type:'voice', badge:'PRODUCT', cx:'moderate', title:'Voice Agent Product', desc:'Standalone SKU /voice-agent · band A/B/C pricing · niche scripts', files:'voice_product.py · voice_packages.py', x:640, y:1040, w:260, h:110},
       {id:'telephony_hub', type:'voice', badge:'TELEPHONY', cx:'complex', title:'Telephony Webhooks', desc:'Vobiz active · Twilio fallback · call state Redis · AMD voicemail', files:'telephony/webhooks.py', x:940, y:1040, w:280, h:110},
       {id:'celery', type:'platform', badge:'LAYER', cx:'moderate', title:'Celery Queue System', desc:'Beat IST → Redis → Worker×4 · Scheduler container · DLQ', files:'worker.py', x:1260, y:1040, w:250, h:110},
-      {id:'flow_runner', type:'platform', badge:'FLOW', cx:'moderate', title:'Flow Runner', desc:'Visual builder → process-as-code execution · FLOW_RUNNER · admin · linear V1', files:'flow_store.py · flow_compiler.py · growth_process.py', flag:'FLOW_RUNNER', x:1320, y:1240, w:260, h:100},
+      {id:'flow_runner', type:'platform', badge:'FLOW', cx:'moderate', title:'Flow Runner', desc:'Visual builder → process-as-code execution · FLOW_RUNNER · admin · linear+DAG (branch/merge/conditions)', files:'flow_store.py · flow_compiler.py · dag_engine.py · edge_condition.py · flow_dispatch.py · flow_triggers.py · flow_http.py · growth_process.py', flag:'FLOW_RUNNER', x:1320, y:1240, w:260, h:100},
       {id:'external', type:'external', badge:'LAYER', cx:'moderate', title:'External Integrations', desc:'Vobiz · SMTP Hostinger · Google Maps · Pollinations · Telegram', files:'integrations/', x:1560, y:1040, w:260, h:110},
       {id:'monitoring', type:'monitor', badge:'LAYER', cx:'moderate', title:'Monitoring Stack', desc:'Prometheus · Grafana · Loki · Tempo · ntfy · Flower · Celery exporter', files:'docker-compose.observability.yml', x:1860, y:1040, w:260, h:110},
       {id:'free_ai', type:'ai', badge:'LAYER', cx:'complex', title:'Free AI Provider Chain', desc:'Mistral → Groq → Cerebras → Gemini · circuit-breaker 429', files:'free_ai.py', x:40, y:1240, w:280, h:110},
@@ -1033,6 +1034,16 @@ const NODE_TEMPLATES = [
   {type:'marketing', badge:'CADENCE', title:'Cadence Run', desc:'Omnichannel touches (gated)', action:'cadence_run', files:'cadence.py', color:'#3b82f6'},
   {type:'monitor', badge:'OPTIMIZE', title:'Growth Optimizer', desc:'Funnel weakest-stage', action:'optimizer', files:'growth_optimizer.py', color:'#fbbf24'},
   {type:'platform', badge:'REVENUE', title:'Revenue Sweep', desc:'Dunning + nurture (draft)', action:'revenue_sweep', files:'dunning.py', color:'#60a5fa'},
+  {type:'platform', badge:'DIGEST', title:'Revenue Digest', desc:'Compose admin ops digest (draft)', action:'email_digest', files:'revenue_digest.py', color:'#60a5fa'},
+  {type:'external', badge:'TELEGRAM', title:'Telegram Publish', desc:'Auto-post draft (publish-capable — add Approval!)', action:'telegram_draft', files:'telegram_publish.py', color:'#4ade80', warn:'breakpoint'},
+  {type:'external', badge:'WHATSAPP', title:'WhatsApp Draft', desc:'wa.me links (ban-safe default)', action:'whatsapp_draft', files:'whatsapp_campaign.py', color:'#4ade80'},
+  {type:'data', badge:'CRM', title:'CRM Queue', desc:'Push to Zoho/HubSpot (gated — add Approval!)', action:'crm_queue', files:'crm_sync.py', color:'#22d3ee', warn:'breakpoint'},
+  {type:'marketing', badge:'BLOG', title:'SEO Blog Draft', desc:'Generate article (no publish)', action:'seo_blog_draft', files:'seo_blog.py', color:'#3b82f6'},
+  {type:'monitor', badge:'PULSE', title:'Brand Pulse', desc:'Mentions scan + reply drafts', action:'brand_pulse', files:'brand_pulse.py', color:'#fbbf24'},
+  {type:'monitor', badge:'REVIEWS', title:'Review Scan', desc:'Reviews → reply drafts', action:'review_scan', files:'review_monitor.py', color:'#fbbf24'},
+  {type:'marketing', badge:'REPORT', title:'Client Report', desc:'Build report HTML (send=False)', action:'client_report_draft', files:'client_report.py', color:'#3b82f6'},
+  {type:'external', badge:'HTTP', title:'HTTP Request', desc:'Allowlisted GET/POST (admin)', action:'http_request', files:'flow_http.py', color:'#4ade80'},
+  {type:'data', badge:'MERGE', title:'Merge / Join', desc:'Join parallel branches (all/any)', kind:'merge', join:'all', files:'dag_engine.py', color:'#22d3ee'},
   {type:'loop', badge:'APPROVE', title:'Human Approval', desc:'Breakpoint — admin approve to continue', kind:'breakpoint', files:'process_engine.py', color:'#e879f9'},
 ];
 
@@ -1121,7 +1132,7 @@ function addBuilderNode(template, x, y) {
   const node = {
     id, type: template.type, badge: template.badge || 'STEP', cx:'moderate',
     title: template.title, desc: template.desc || '', files: template.files || 'custom',
-    action: template.action || '', kind: template.kind,
+    action: template.action || '', kind: template.kind, join: template.join,
     w: 220, h: 95, x: c.x, y: c.y,
   };
   getViewData().nodes.push(node);
@@ -1616,9 +1627,11 @@ function renderEdges(highlightIds) {
 function renderFlowPick() {
   const el = document.getElementById('flow-pick');
   if(currentView === 'custom') {
-    el.innerHTML = Object.values(customFlowStore.flows).map(f =>
-      `<button class="fp-btn${f.id===customFlowStore.activeId?' on':''}" onclick="loadCustomFlowId('${f.id}')">${f.name}</button>`
-    ).join('') + `<button class="fp-btn" onclick="newCustomFlow()">+ New Flow</button>`;
+    el.innerHTML = Object.values(customFlowStore.flows).map(f => {
+      const tt = (f.trigger && f.trigger.type) || 'manual';
+      const badge = tt === 'cron' ? ' ⏰' : (tt === 'event' ? ' ⚡' : '');
+      return `<button class="fp-btn${f.id===customFlowStore.activeId?' on':''}" onclick="loadCustomFlowId('${f.id}')">${f.name}${badge}</button>`;
+    }).join('') + `<button class="fp-btn" onclick="newCustomFlow()">+ New Flow</button>`;
     return;
   }
   const presets = getViewData().presets;
@@ -2026,8 +2039,30 @@ function showBuilderPanel() {
     <button class="action-btn" onclick="importFlowJSON()">↑ Import JSON</button>
     <input type="file" id="import-flow-file" accept=".json,application/json" style="display:none" onchange="onImportFlowFile(event)">
     <button class="action-btn" onclick="cloneAutomationToBuilder()">📋 Clone Automation Template</button>
-    <button class="action-btn" onclick="deleteCurrentFlow()">🗑 Delete This Flow</button>
-    <div class="panel-hdr">Add Node (click)</div>`;
+    <button class="action-btn" onclick="deleteCurrentFlow()">🗑 Delete This Flow</button>`;
+
+  const trg = (flow && flow.trigger) || {type:'manual'};
+  html += `<div class="panel-hdr">Trigger</div>
+    <select class="builder-field" id="bf-trigger-type" onchange="setFlowTrigger()">
+      <option value="manual"${trg.type==='manual'?' selected':''}>Manual (Run button)</option>
+      <option value="cron"${trg.type==='cron'?' selected':''}>⏰ Cron (schedule)</option>
+      <option value="event"${trg.type==='event'?' selected':''}>⚡ Event</option>
+    </select>`;
+  if(trg.type==='cron'){
+    html += `<input class="builder-field" id="bf-trigger-cron" placeholder="*/15 * * * *  or  09:30" value="${(trg.cron||'').replace(/"/g,'&quot;')}" onchange="setFlowTrigger()">
+      <div style="font-size:9px;color:#6b7280">IST · one start per 5-min slot</div>`;
+  }
+  if(trg.type==='event'){
+    const evs = ['lead.created','lead.qualified','call.completed','payment.received'];
+    html += `<select class="builder-field" id="bf-trigger-event" onchange="setFlowTrigger()">
+      ${evs.map(e=>`<option value="${e}"${trg.event===e?' selected':''}>${e}</option>`).join('')}
+    </select>`;
+  }
+  if(trg.type!=='manual'){
+    html += `<div style="font-size:9px;color:#9ca3af">Auto-fires only when FLOW_AUTO_TRIGGERS is enabled platform-wide.</div>`;
+  }
+
+  html += `<div class="panel-hdr">Add Node (click)</div>`;
 
   NODE_TEMPLATES.forEach((t,i) => {
     html += `<div class="palette-item" onclick="addBuilderNode(NODE_TEMPLATES[${i}])">
@@ -2054,6 +2089,31 @@ function showBuilderPanel() {
       </select>
       <button class="action-btn" onclick="connectFromSelected()">→ Add Connection</button>
       <button class="action-btn" style="color:#f87171" onclick="removeBuilderNode('${selectedNode}')">× Delete Node</button>`;
+
+    // Phase 4: per-node Inputs (data-passing) editor — task nodes only
+    if(n.action){
+      const imap = n.inputs_map || {};
+      html += `<div class="panel-hdr">Inputs (data-passing)</div>
+        <div style="font-size:9px;color:#6b7280;margin-bottom:4px">Pull an upstream node's output (ok/count/detail) or set a literal.</div>`;
+      Object.keys(imap).forEach(k => {
+        const e = imap[k] || {};
+        const desc = ('value' in e) ? `= "${String(e.value).slice(0,24)}"` : `← ${e.from}.${e.key}`;
+        html += `<div class="conn-row">${k} ${desc}
+          <span style="margin-left:auto;color:#f87171;cursor:pointer" onclick="removeNodeInput('${n.id}','${k}')">×</span></div>`;
+      });
+      const others = activeNodes.filter(x=>x.id!==n.id && x.action);
+      html += `<input class="builder-field" id="ni-key" placeholder="input name (e.g. leads)">
+        <select class="builder-field" id="ni-mode" onchange="document.getElementById('ni-from-wrap').style.display=this.value==='from'?'block':'none';document.getElementById('ni-val-wrap').style.display=this.value==='value'?'block':'none'">
+          <option value="from">From node output</option>
+          <option value="value">Literal value</option>
+        </select>
+        <div id="ni-from-wrap">
+          <select class="builder-field" id="ni-from"><option value="">from node…</option>${others.map(x=>`<option value="${x.id}">${x.title}</option>`).join('')}</select>
+          <select class="builder-field" id="ni-srckey"><option value="detail">detail</option><option value="count">count</option><option value="ok">ok</option></select>
+        </div>
+        <div id="ni-val-wrap" style="display:none"><input class="builder-field" id="ni-val" placeholder="literal value"></div>
+        <button class="action-btn" onclick="addNodeInput('${n.id}')">+ Add Input</button>`;
+    }
   }
 
   html += `<div class="panel-hdr">Edges (${activeEdges.length})</div>`;
@@ -2069,7 +2129,21 @@ function showBuilderPanel() {
 
   if(selectedEdge != null && activeEdges[selectedEdge]) {
     const e = activeEdges[selectedEdge];
-    html += `<button class="action-btn" style="color:#f87171;margin-top:6px" onclick="removeBuilderEdge(${selectedEdge})">× Delete Selected Edge</button>`;
+    const w = (e.when && e.when.field) ? e.when : {field:'', op:'>=', value:''};
+    const ops = ['>=','<=','>','<','==','!=','truthy','falsy','exists'];
+    html += `<div class="panel-hdr">Edge Condition (when)</div>
+      <div style="font-size:9px;color:#6b7280;margin-bottom:4px">Blank field = unconditional edge. Source result keys: count · ok · detail</div>
+      <select class="builder-field" id="ec-field" onchange="setEdgeWhen(${selectedEdge})">
+        <option value=""${!w.field?' selected':''}>(unconditional)</option>
+        <option value="count"${w.field==='count'?' selected':''}>count</option>
+        <option value="ok"${w.field==='ok'?' selected':''}>ok</option>
+        <option value="detail"${w.field==='detail'?' selected':''}>detail</option>
+      </select>
+      <select class="builder-field" id="ec-op" onchange="setEdgeWhen(${selectedEdge})">
+        ${ops.map(o=>`<option value="${o}"${w.op===o?' selected':''}>${o}</option>`).join('')}
+      </select>
+      <input class="builder-field" id="ec-value" placeholder="value" value="${(w.value!==undefined&&w.value!==null)?String(w.value).replace(/"/g,'&quot;'):''}" onchange="setEdgeWhen(${selectedEdge})">
+      <button class="action-btn" style="color:#f87171;margin-top:6px" onclick="removeBuilderEdge(${selectedEdge})">× Delete Selected Edge</button>`;
   }
 
   document.getElementById('sb-content').innerHTML = html;
@@ -2092,6 +2166,61 @@ function connectFromSelected() {
   if(!tgt || !selectedNode) return;
   addBuilderEdge(selectedNode, tgt, style, '');
   showBuilderPanel();
+}
+
+function setFlowTrigger() {
+  const flow = customFlowStore.flows[customFlowStore.activeId];
+  if(!flow) return;
+  const type = document.getElementById('bf-trigger-type')?.value || 'manual';
+  const t = {type};
+  if(type === 'cron') t.cron = (document.getElementById('bf-trigger-cron')?.value || '').trim();
+  if(type === 'event') t.event = document.getElementById('bf-trigger-event')?.value || 'lead.created';
+  flow.trigger = t;
+  localStorage.setItem('explorer_custom_flows', JSON.stringify(customFlowStore));
+  showBuilderPanel();  // re-render so cron/event sub-field shows/hides
+}
+
+function addNodeInput(nodeId) {
+  const node = (getViewData().nodes || []).find(n => n.id === nodeId);
+  if(!node) return;
+  const key = (document.getElementById('ni-key')?.value || '').trim();
+  if(!key) return;
+  const mode = document.getElementById('ni-mode')?.value || 'from';
+  node.inputs_map = node.inputs_map || {};
+  if(mode === 'value') {
+    node.inputs_map[key] = {value: document.getElementById('ni-val')?.value || ''};
+  } else {
+    const from = document.getElementById('ni-from')?.value || '';
+    if(!from) return;
+    node.inputs_map[key] = {from, key: document.getElementById('ni-srckey')?.value || 'detail'};
+  }
+  persistCustomFlow();
+  showBuilderPanel();
+}
+
+function removeNodeInput(nodeId, key) {
+  const node = (getViewData().nodes || []).find(n => n.id === nodeId);
+  if(node && node.inputs_map) {
+    delete node.inputs_map[key];
+    if(!Object.keys(node.inputs_map).length) delete node.inputs_map;
+    persistCustomFlow();
+    showBuilderPanel();
+  }
+}
+
+function setEdgeWhen(idx) {
+  const e = getViewData().edges[idx];
+  if(!e) return;
+  const field = document.getElementById('ec-field')?.value || '';
+  const op = document.getElementById('ec-op')?.value || '>=';
+  const valRaw = (document.getElementById('ec-value')?.value || '').trim();
+  if(!field || op === 'truthy' || op === 'falsy' || op === 'exists') {
+    e.when = field ? {field, op} : null;
+  } else {
+    const num = Number(valRaw);
+    e.when = {field, op, value: (valRaw !== '' && !isNaN(num)) ? num : valRaw};
+  }
+  persistCustomFlow();
 }
 
 function showDefaultSidebar() {
@@ -2509,8 +2638,9 @@ function _frPayload() {
   return {
     id: frFlowId || undefined,
     name: f.name || 'Untitled flow',
-    nodes: (v.nodes || []).map(n => ({id:n.id, action:n.action||'', kind:n.kind, title:n.title, question:n.question})),
-    edges: (v.edges || []).map(e => ({f:e.f, t:e.t})),
+    nodes: (v.nodes || []).map(n => ({id:n.id, action:n.action||'', kind:n.kind, join:n.join, title:n.title, question:n.question, inputs_map:n.inputs_map || undefined})),
+    edges: (v.edges || []).map(e => ({f:e.f, t:e.t, when:e.when || null})),
+    trigger: f.trigger || {type:'manual'},
   };
 }
 
@@ -2527,10 +2657,21 @@ async function _frApi(path, opts) {
 function _frStatus(msg){ const el=document.getElementById('flowRunStatus'); if(el) el.innerHTML=msg; }
 
 function _frPaint(st) {
-  const done = new Set((st.steps_done||[]).map(s => s.step));
+  const nodes = st.nodes || null;  // dag -> per-node map; linear -> undefined
+  const linearDone = new Set((st.steps_done||[]).map(s => s.step));
+  const COLORS = {done:'2px solid #4ade80', running:'2px solid #fbbf24',
+                  skipped:'2px dashed #6b7280', waiting:'2px solid #e879f9',
+                  failed:'2px solid #f87171', pending:''};
   (getViewData().nodes||[]).forEach(n => {
     const el = document.getElementById('node-'+n.id);
-    if(el) el.style.outline = done.has(n.id) ? '2px solid #4ade80' : '';
+    if(!el) return;
+    if(nodes && nodes[n.id]) {
+      el.style.outline = COLORS[nodes[n.id].state] || '';
+      el.style.opacity = nodes[n.id].state === 'skipped' ? '0.45' : '1';
+    } else {
+      el.style.outline = linearDone.has(n.id) ? COLORS.done : '';
+      el.style.opacity = '1';
+    }
   });
 }
 
@@ -2562,17 +2703,77 @@ function _frPollStart() {
     const st = (r.body && r.body.state) || {};
     _frPaint(st);
     if(st.status==='waiting_approval'){
-      _frStatus('WAITING approval <button class="tr-btn" onclick="approveRun()">✓ Approve</button>');
+      _frStatus('WAITING approval'+(st.waiting?' @'+st.waiting:'')+' <button class="tr-btn" onclick="approveRun()">✓ Approve</button>');
     } else {
-      _frStatus('run '+(st.status||'?')+' · step '+(st.step_index||0));
+      const prog = st.nodes
+        ? Object.values(st.nodes).filter(x=>['done','skipped'].includes(x.state)).length + '/' + Object.keys(st.nodes).length + ' nodes'
+        : 'step ' + (st.step_index||0);
+      _frStatus('run '+(st.status||'?')+' · '+prog);
     }
     if(st.status==='completed'||st.status==='failed'){ clearInterval(frPoll); frPoll=null; }
   }, 2000);
 }
 
-async function approveRun() {
-  await _frApi('/api/growth/process/run/'+frRunId+'/approve', {method:'POST', body: JSON.stringify({note:'ok'})});
+async function approveRun(nodeId) {
+  await _frApi('/api/growth/process/run/'+frRunId+'/approve', {method:'POST', body: JSON.stringify({note:'ok', node_id:nodeId||''})});
   _frStatus('approved · resuming…');
+  if(document.getElementById('runs-inspecting')) setTimeout(()=>inspectRun(frRunId), 700);
+}
+
+// ── Phase 6: Execution UX — run history + per-node inspector (reuses run APIs) ──
+async function showRunsPanel() {
+  if(!isBuilder()){ _frStatus('builder view me jao'); return; }
+  const r = await _frApi('/api/growth/process/runs?limit=25', {method:'GET'});
+  if(r.status===503){ _frStatus('FLOW_RUNNER off (admin .env)'); return; }
+  const runs = (r.body && r.body.runs) || [];
+  let html = `<div class="panel-hdr">Flow Runs <span style="float:right;cursor:pointer;color:#60a5fa" onclick="showBuilderPanel()">← Builder</span></div>`;
+  if(!runs.length) html += `<div style="font-size:10px;color:#4b5563">Abhi koi run nahi — builder se ▶ Run karo.</div>`;
+  runs.forEach(rn => {
+    const col = rn.status==='completed'?'#4ade80':(rn.status==='failed'?'#f87171':(rn.status==='waiting_approval'?'#e879f9':'#fbbf24'));
+    const prog = rn.engine==='dag' ? ((rn.done||0)+'/'+(rn.nodes||0)+' nodes') : ('step '+(rn.step_index||0));
+    html += `<div class="conn-row" style="cursor:pointer" onclick="inspectRun('${rn.run_id}')">
+      <span style="color:${col}">●</span> ${String(rn.process||'').slice(0,22)}
+      <span style="font-size:8px;opacity:.6;margin-left:4px">${rn.status} · ${prog} · ${rn.engine||'linear'}</span></div>`;
+  });
+  document.getElementById('sb-content').innerHTML = html;
+}
+
+async function inspectRun(runId) {
+  frRunId = runId;
+  const r = await _frApi('/api/growth/process/run/'+runId, {method:'GET'});
+  const st = (r.body && r.body.state) || {};
+  const jrnl = (r.body && r.body.journal) || [];
+  _frPaint(st);  // paint canvas with this run's per-node states
+  let html = `<div id="runs-inspecting"></div><div class="panel-hdr">Run …${String(runId).slice(-8)} <span style="float:right;cursor:pointer;color:#60a5fa" onclick="showRunsPanel()">← Runs</span></div>
+    <div style="font-size:11px;margin-bottom:6px">status: <b>${st.status||'?'}</b> · ${st.engine||'linear'}${st.last_error?(' · <span style="color:#f87171">'+String(st.last_error).slice(0,40)+'</span>'):''}</div>`;
+  if(st.status==='waiting_approval'){
+    html += `<button class="action-btn primary" onclick="approveRun('${st.waiting||''}')">✓ Approve${st.waiting?(' ('+st.waiting+')'):''}</button>
+      <button class="action-btn" style="color:#f87171" onclick="rejectRun('${st.waiting||''}')">✗ Reject</button>`;
+  }
+  if(st.status==='completed'||st.status==='failed'){
+    html += `<button class="action-btn" onclick="showBuilderPanel();runFlow()">↻ Re-run this flow</button>`;
+  }
+  if(st.nodes && Object.keys(st.nodes).length){
+    html += `<div class="panel-hdr">Nodes</div>`;
+    Object.keys(st.nodes).forEach(nid => {
+      const n = st.nodes[nid] || {};
+      const det = (n.result && n.result.detail) ? (' · '+String(n.result.detail).slice(0,30)) : '';
+      html += `<div class="conn-row">${nid}<span style="margin-left:auto;font-size:9px;opacity:.7">${n.state}${det}</span></div>`;
+    });
+  }
+  html += `<div class="panel-hdr">Journal (${jrnl.length})</div>`;
+  jrnl.slice(-40).forEach(ev => {
+    const at = String(ev.at||'').slice(11,19);
+    const d = ev.data || {};
+    const lbl = d.node ? (ev.type+' · '+d.node) : ev.type;
+    html += `<div style="font-size:9px;color:#94a3b8;padding:1px 0">${at} ${lbl}</div>`;
+  });
+  document.getElementById('sb-content').innerHTML = html;
+}
+
+async function rejectRun(nodeId) {
+  await _frApi('/api/growth/process/run/'+frRunId+'/reject', {method:'POST', body: JSON.stringify({note:'rejected from runs panel', node_id:nodeId||''})});
+  inspectRun(frRunId);
 }
 
 function exportFlow() {

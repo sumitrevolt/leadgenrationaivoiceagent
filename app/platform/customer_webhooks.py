@@ -422,6 +422,16 @@ async def emit(client_id: str, event_type: str, payload: dict[str, Any]) -> dict
     in background. Callers (Razorpay webhook handler, qualifier flow) are
     never blocked.
     """
+    # Phase-3 Flow Runner event trigger (additive, self-gated, never-raise).
+    # Runs regardless of CUSTOMER_WEBHOOKS — flow triggers must not depend on a
+    # customer having registered an HTTP webhook. fire_event self-gates on
+    # FLOW_RUNNER + FLOW_AUTO_TRIGGERS, so it is inert until both flags are on.
+    try:
+        from app.automation import flow_triggers
+
+        flow_triggers.fire_event(event_type, payload or {}, (client_id or "").strip())
+    except Exception:
+        pass
     if not enabled():
         return {"emitted": 0, "skipped": 0, "disabled": True}
     cid = (client_id or "").strip()
