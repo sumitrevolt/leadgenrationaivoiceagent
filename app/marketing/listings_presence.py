@@ -265,8 +265,14 @@ def get_status(client_id: str) -> dict[str, Any]:
                 "status": None,
                 "note": "Abhi koi status saved nahi — pehle checklist se manual check karo.",
             }
-        rows.sort(key=lambda r: str(r.get("updated_at") or ""), reverse=True)
-        latest = rows[0]
+        # Newest-wins, deterministically. The jsonl is append-only so file order IS
+        # chronological; sort ASCENDING by updated_at (stable) and take the LAST row.
+        # Don't sort desc + take rows[0]: on coarse-resolution clocks (Windows ~15ms
+        # tick) two rapid saves can share a timestamp, and the tie then returns the
+        # OLDER record. Ascending + rows[-1] keeps append order as the tiebreak so the
+        # most-recently-saved status always wins.
+        rows.sort(key=lambda r: str(r.get("updated_at") or ""))
+        latest = rows[-1]
         return {
             "ok": True,
             "client_id": client_id,
