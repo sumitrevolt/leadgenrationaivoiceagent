@@ -215,6 +215,53 @@ def test_snapshot_missing(tmp_path, monkeypatch):
     assert snaps.capture("", "")["ok"] is False
 
 
+def test_niche_snapshot_capture_and_apply(tmp_path, monkeypatch):
+    from app.marketing import content_schedule, journeys
+    from app.platform import client_snapshots as snaps
+
+    snap_dir = str(tmp_path / "snapshots")
+    monkeypatch.setattr(snaps, "_SNAP_DIR", snap_dir)
+    monkeypatch.setattr(snaps, "_INDEX_FILE", os.path.join(snap_dir, "index.jsonl"))
+    monkeypatch.setattr(journeys, "_JOURNEYS", str(tmp_path / "journeys.jsonl"))
+    monkeypatch.setattr(content_schedule, "_FILE", str(tmp_path / "schedule.jsonl"))
+
+    clients = {
+        "tgt-3": {
+            "id": "tgt-3",
+            "business_name": "Sharma Coaching",
+            "slug": "sharma-coaching",
+            "niche": "coaching",
+            "city": "Surat",
+        },
+    }
+    monkeypatch.setattr("app.marketing.clients_store.get_client", lambda cid: clients.get(cid))
+
+    cap = snaps.capture_from_niche("coaching", "Coaching starter")
+    assert cap["ok"] is True
+    assert cap.get("niche_key") == "coaching"
+    assert "journeys" in cap["sections"]
+    assert "mini_site" in cap["sections"]
+    sid = cap["snapshot_id"]
+    assert snaps.find_niche_snapshot("coaching") == sid
+
+    before = len(journeys.list_journeys())
+    res = snaps.apply_niche_to_client("tgt-3", "coaching")
+    assert res["ok"] is True
+    assert len(journeys.list_journeys()) == before + 2
+    assert res.get("auto_captured") is False
+
+    res2 = snaps.apply_niche_to_client("tgt-3", "coaching")
+    assert res2["ok"] is True
+
+
+def test_niche_snapshot_unknown_niche(tmp_path, monkeypatch):
+    from app.platform import client_snapshots as snaps
+
+    monkeypatch.setattr(snaps, "_SNAP_DIR", str(tmp_path / "s3"))
+    monkeypatch.setattr(snaps, "_INDEX_FILE", str(tmp_path / "s3" / "index.jsonl"))
+    assert snaps.capture_from_niche("not_a_real_niche_xyz")["ok"] is False
+
+
 # --------------------------------------------------------------------------- #
 # F4: lead_distribution
 # --------------------------------------------------------------------------- #
@@ -337,5 +384,8 @@ def test_router_imports_and_routes():
     assert "/clientops/speed-to-lead" in paths
     assert "/clientops/approve/{token}" in paths
     assert "/clientops/snapshots/capture" in paths
+    assert "/clientops/snapshots/capture-niche" in paths
+    assert "/clientops/snapshots/apply-niche" in paths
+    assert "/clientops/snapshots/{snapshot_id}" in paths
     assert "/clientops/routing/assign" in paths
     assert "/clientops/p/{token}" in paths

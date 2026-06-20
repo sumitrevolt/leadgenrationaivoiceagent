@@ -7,8 +7,11 @@ snapshots, lead routing, proposal tracking).
   GET  /api/clientops/approve/{token}             (PUBLIC, 10/60s) client 1-click
                                                   approve|reject — Hinglish HTML
   POST /api/clientops/snapshots/capture           (admin)  GHL-style setup snapshot
+  POST /api/clientops/snapshots/capture-niche     (admin)  niche template snapshot
   GET  /api/clientops/snapshots                   (admin)  list snapshots
+  GET  /api/clientops/snapshots/{id}              (admin)  snapshot detail
   POST /api/clientops/snapshots/{id}/apply        (admin)  apply on target client
+  POST /api/clientops/snapshots/apply-niche       (admin)  1-click niche → client
   POST /api/clientops/routing                     (admin)  team round-robin config
   GET  /api/clientops/routing                     (admin)  config view
   POST /api/clientops/routing/assign              (admin)  assign lead → member + wa link
@@ -126,6 +129,11 @@ class SnapshotCaptureIn(BaseModel):
     name: str | None = ""
 
 
+class SnapshotNicheCaptureIn(BaseModel):
+    niche: str
+    name: str | None = ""
+
+
 @router.post("/snapshots/capture")
 async def snapshot_capture(body: SnapshotCaptureIn, _user=Depends(require_admin)):
     """Client ka reusable setup snapshot lo (mini-site/widget/journeys/schedule)."""
@@ -134,12 +142,36 @@ async def snapshot_capture(body: SnapshotCaptureIn, _user=Depends(require_admin)
     return client_snapshots.capture(body.client_id, body.name or "")
 
 
+@router.post("/snapshots/capture-niche")
+async def snapshot_capture_niche(body: SnapshotNicheCaptureIn, _user=Depends(require_admin)):
+    """Niche se GHL-style template snapshot — golden client ki zaroorat nahi."""
+    from app.platform import client_snapshots
+
+    return client_snapshots.capture_from_niche(body.niche, body.name or "")
+
+
 @router.get("/snapshots")
-async def snapshot_list(_user=Depends(require_admin)):
+async def snapshot_list(
+    niche: str = Query("", max_length=60),
+    _user=Depends(require_admin),
+):
     from app.platform import client_snapshots
 
     rows = client_snapshots.list_snapshots()
+    if niche:
+        nk = niche.strip().lower()
+        rows = [r for r in rows if str(r.get("niche_key") or "").lower() == nk]
     return {"ok": True, "count": len(rows), "snapshots": rows}
+
+
+@router.get("/snapshots/{snapshot_id}")
+async def snapshot_get(snapshot_id: str, _user=Depends(require_admin)):
+    from app.platform import client_snapshots
+
+    snap = client_snapshots.get_snapshot(snapshot_id)
+    if snap is None:
+        return {"ok": False, "error": "snapshot nahi mila."}
+    return {"ok": True, "snapshot": snap}
 
 
 class SnapshotApplyIn(BaseModel):
@@ -152,6 +184,21 @@ async def snapshot_apply(snapshot_id: str, body: SnapshotApplyIn, _user=Depends(
     from app.platform import client_snapshots
 
     return client_snapshots.apply(snapshot_id, body.target_client_id)
+
+
+class SnapshotApplyNicheIn(BaseModel):
+    target_client_id: str
+    niche: str | None = ""
+
+
+@router.post("/snapshots/apply-niche")
+async def snapshot_apply_niche(body: SnapshotApplyNicheIn, _user=Depends(require_admin)):
+    """1-click: client ke niche ka template lagao (auto-capture agar missing)."""
+    from app.platform import client_snapshots
+
+    return client_snapshots.apply_niche_to_client(
+        body.target_client_id, body.niche or None
+    )
 
 
 # --------------------- F4: lead distribution (round-robin) ----------------- #
