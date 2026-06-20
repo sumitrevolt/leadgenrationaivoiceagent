@@ -64,7 +64,10 @@ def staff_jobs() -> list[str]:
 
 
 def automation_flags() -> list[str]:
-    m = re.search(r"AUTOMATION_FLAGS\s*=\s*\[(.*?)\]", _read(GROWTH), re.S)
+    # AUTOMATION_FLAGS literal moved to app/api/automation_flags.py (2026-06-20 refactor);
+    # growth.py now only re-exports it, so read the new home (growth.py fallback).
+    src = _read(ROOT / "app" / "api" / "automation_flags.py") or _read(GROWTH)
+    m = re.search(r"AUTOMATION_FLAGS\s*=\s*\[(.*?)\]", src, re.S)
     return re.findall(r'"([A-Z][A-Z0-9_]+)"', m.group(1)) if m else []
 
 

@@ -33,10 +33,13 @@ async def run_daily() -> dict[str, Any]:
         hot = await lead_scoring.top_hot_leads(10)
         out["hot"] = {"ok": hot.get("ok"), "hot_count": hot.get("hot_count", 0)}
         if hot.get("ok") and int(hot.get("hot_count") or 0) > 0:
+            from app.platform import sales_qualify as _bant
+
             tops = []
             for ld in (hot.get("leads") or [])[:3]:
                 label = (ld.get("name") or ld.get("business_name") or ld.get("phone") or "?")[:40]
-                tops.append(f"{label}({ld.get('lead_score', 0)})")
+                _g = _bant.bant_score(ld).get("grade", "?")
+                tops.append(f"{label}({ld.get('lead_score', 0)}/{_g})")
             team.log_event(
                 "rohan",
                 "hot_leads",

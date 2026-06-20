@@ -39,6 +39,35 @@ async def run_after_inquiry(
     cid = (mini_client_id or rec.get("client_id") or "").strip() or None
     lid = lead_id or rec.get("lead_id")
 
+    # BANT auto-qualify (sales_qualify) — pure-Python, never-raise. Har inbound lead ko
+    # A-D grade + Hinglish next-action turant (rep ko speed-to-lead priority milti).
+    try:
+        from app.platform import sales_qualify as _bant
+
+        _bq = _bant.bant_score(rec)
+        rec["bant"] = _bq
+        rec["bant_grade"] = _bq.get("grade")
+        try:
+            from app.platform.team import log_event as _le
+
+            _le(
+                "neha",
+                "lead_qualified",
+                f"{rec.get('business_name') or rec.get('name') or 'Lead'} → BANT "
+                f"{_bq.get('grade')} ({_bq.get('total')}/100) · {_bq.get('action')}",
+                meta={
+                    "lead_id": lid,
+                    "grade": _bq.get("grade"),
+                    "total": _bq.get("total"),
+                    "source": rec.get("source"),
+                },
+                status="ok",
+            )
+        except Exception:
+            pass
+    except Exception as e:
+        logger.debug(f"[inquiry_hooks] bant skip: {e}")
+
     try:
         from app.platform.lead_alerts import notify_new_lead_bg
 
@@ -229,6 +258,31 @@ async def run_after_inquiry(
         )
     except Exception:
         pass
+
+    try:
+        from app.platform import crm_sync as _crm
+
+        # Inbound web/widget/webhook lead → client (ya global) CRM me auto-push.
+        # Pehle sirf voice path (call_manager) push karta tha; yeh cross-path
+        # parity gap close karta. Gated CRM_SYNC (default OFF), never-raise.
+        if _crm.auto_enabled():
+            _spawn(
+                _crm.push_lead(
+                    {
+                        "business_name": rec.get("business_name") or rec.get("name") or "",
+                        "name": rec.get("name") or "",
+                        "phone": rec.get("phone") or "",
+                        "email": rec.get("email") or "",
+                        "niche": rec.get("niche") or "",
+                        "city": rec.get("city") or "",
+                        "source": rec.get("source") or "inquiry",
+                    },
+                    client_id=cid or "",
+                    note=f"Inbound inquiry (web/widget/webhook) · BANT {rec.get('bant_grade') or '?'}",
+                )
+            )
+    except Exception as e:
+        logger.debug(f"[inquiry_hooks] crm_sync spawn skip: {e}")
 
     try:
         from app.marketing import cadence as _cadence
