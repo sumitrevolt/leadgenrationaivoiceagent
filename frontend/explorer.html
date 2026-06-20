@@ -2088,6 +2088,31 @@ function showBuilderPanel() {
       </select>
       <button class="action-btn" onclick="connectFromSelected()">→ Add Connection</button>
       <button class="action-btn" style="color:#f87171" onclick="removeBuilderNode('${selectedNode}')">× Delete Node</button>`;
+
+    // Phase 4: per-node Inputs (data-passing) editor — task nodes only
+    if(n.action){
+      const imap = n.inputs_map || {};
+      html += `<div class="panel-hdr">Inputs (data-passing)</div>
+        <div style="font-size:9px;color:#6b7280;margin-bottom:4px">Pull an upstream node's output (ok/count/detail) or set a literal.</div>`;
+      Object.keys(imap).forEach(k => {
+        const e = imap[k] || {};
+        const desc = ('value' in e) ? `= "${String(e.value).slice(0,24)}"` : `← ${e.from}.${e.key}`;
+        html += `<div class="conn-row">${k} ${desc}
+          <span style="margin-left:auto;color:#f87171;cursor:pointer" onclick="removeNodeInput('${n.id}','${k}')">×</span></div>`;
+      });
+      const others = activeNodes.filter(x=>x.id!==n.id && x.action);
+      html += `<input class="builder-field" id="ni-key" placeholder="input name (e.g. leads)">
+        <select class="builder-field" id="ni-mode" onchange="document.getElementById('ni-from-wrap').style.display=this.value==='from'?'block':'none';document.getElementById('ni-val-wrap').style.display=this.value==='value'?'block':'none'">
+          <option value="from">From node output</option>
+          <option value="value">Literal value</option>
+        </select>
+        <div id="ni-from-wrap">
+          <select class="builder-field" id="ni-from"><option value="">from node…</option>${others.map(x=>`<option value="${x.id}">${x.title}</option>`).join('')}</select>
+          <select class="builder-field" id="ni-srckey"><option value="detail">detail</option><option value="count">count</option><option value="ok">ok</option></select>
+        </div>
+        <div id="ni-val-wrap" style="display:none"><input class="builder-field" id="ni-val" placeholder="literal value"></div>
+        <button class="action-btn" onclick="addNodeInput('${n.id}')">+ Add Input</button>`;
+    }
   }
 
   html += `<div class="panel-hdr">Edges (${activeEdges.length})</div>`;
@@ -2152,6 +2177,34 @@ function setFlowTrigger() {
   flow.trigger = t;
   localStorage.setItem('explorer_custom_flows', JSON.stringify(customFlowStore));
   showBuilderPanel();  // re-render so cron/event sub-field shows/hides
+}
+
+function addNodeInput(nodeId) {
+  const node = (getViewData().nodes || []).find(n => n.id === nodeId);
+  if(!node) return;
+  const key = (document.getElementById('ni-key')?.value || '').trim();
+  if(!key) return;
+  const mode = document.getElementById('ni-mode')?.value || 'from';
+  node.inputs_map = node.inputs_map || {};
+  if(mode === 'value') {
+    node.inputs_map[key] = {value: document.getElementById('ni-val')?.value || ''};
+  } else {
+    const from = document.getElementById('ni-from')?.value || '';
+    if(!from) return;
+    node.inputs_map[key] = {from, key: document.getElementById('ni-srckey')?.value || 'detail'};
+  }
+  persistCustomFlow();
+  showBuilderPanel();
+}
+
+function removeNodeInput(nodeId, key) {
+  const node = (getViewData().nodes || []).find(n => n.id === nodeId);
+  if(node && node.inputs_map) {
+    delete node.inputs_map[key];
+    if(!Object.keys(node.inputs_map).length) delete node.inputs_map;
+    persistCustomFlow();
+    showBuilderPanel();
+  }
 }
 
 function setEdgeWhen(idx) {
@@ -2584,7 +2637,7 @@ function _frPayload() {
   return {
     id: frFlowId || undefined,
     name: f.name || 'Untitled flow',
-    nodes: (v.nodes || []).map(n => ({id:n.id, action:n.action||'', kind:n.kind, join:n.join, title:n.title, question:n.question})),
+    nodes: (v.nodes || []).map(n => ({id:n.id, action:n.action||'', kind:n.kind, join:n.join, title:n.title, question:n.question, inputs_map:n.inputs_map || undefined})),
     edges: (v.edges || []).map(e => ({f:e.f, t:e.t, when:e.when || null})),
     trigger: f.trigger || {type:'manual'},
   };
