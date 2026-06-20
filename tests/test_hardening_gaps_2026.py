@@ -131,8 +131,8 @@ def test_vobiz_status_dedup_runs_completion_once(monkeypatch):
 def test_portal_invoices_filters_to_own_tenant(monkeypatch):
     """gst_invoice.list_invoices returns ALL tenants' rows; the handler's
     client_id filter is the only IDOR guard — pin it."""
-    from app.api import customer_auth
     import app.billing.gst_invoice as gi
+    from app.api import customer_auth
 
     all_rows = [
         {
@@ -161,8 +161,8 @@ def test_portal_invoices_filters_to_own_tenant(monkeypatch):
 
 def test_portal_invoice_html_blocks_other_tenant(monkeypatch):
     """clientA requesting clientB's invoice number = not found (no render)."""
-    from app.api import customer_auth
     import app.billing.gst_invoice as gi
+    from app.api import customer_auth
 
     monkeypatch.setattr(
         gi,
@@ -180,8 +180,8 @@ def test_portal_invoice_html_allows_own_tenant(monkeypatch):
     """Owner DOES get their own invoice rendered (HTMLResponse)."""
     from fastapi.responses import HTMLResponse
 
-    from app.api import customer_auth
     import app.billing.gst_invoice as gi
+    from app.api import customer_auth
 
     monkeypatch.setattr(
         gi,
