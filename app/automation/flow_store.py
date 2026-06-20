@@ -70,17 +70,24 @@ def _rewrite(flows: dict[str, dict]) -> bool:
         return False
 
 
-def save_flow(flow: dict, by: str = "admin") -> dict:
+def save_flow(flow: dict, by: str = "admin", owner_client_id: str = "") -> dict:
+    """Persist a flow. owner_client_id scopes it to a customer (Phase 7); admin
+    flows pass "". On upsert, owner is preserved from the existing record unless a
+    non-blank owner_client_id is supplied (callers must never let a customer's id
+    be derived from the flow body — pass it explicitly from require_customer)."""
     try:
         if not isinstance(flow, dict):
             return {"ok": False, "error": "flow must be an object"}
         fid = str(flow.get("id") or "").strip() or f"flow_{uuid.uuid4().hex[:8]}"
+        existing = _read_all().get(fid)
+        owner = str(owner_client_id or (existing or {}).get("owner_client_id") or "")[:60]
         rec = {
             "id": fid,
             "name": str(flow.get("name") or "Untitled flow")[:120],
             "nodes": flow.get("nodes") or [],
             "edges": flow.get("edges") or [],
             "trigger": _norm_trigger(flow.get("trigger")),
+            "owner_client_id": owner,
             "created_by": str(flow.get("created_by") or by)[:60],
             "updated_at": _now(),
         }
@@ -97,23 +104,42 @@ def get_flow(flow_id: str) -> dict | None:
     return _read_all().get((flow_id or "").strip())
 
 
-def list_flows() -> list[dict]:
+def list_flows(owner: str | None = None) -> list[dict]:
+    """List flow summaries. owner=None -> all (admin); owner="cli" -> only that
+    customer's flows (Phase 7 tenant scoping)."""
     out = []
     for rec in _read_all().values():
+        if owner is not None and str(rec.get("owner_client_id") or "") != owner:
+            continue
         out.append({
             "id": rec.get("id"),
             "name": rec.get("name"),
             "nodes": len(rec.get("nodes") or []),
             "edges": len(rec.get("edges") or []),
             "trigger": (rec.get("trigger") or {}).get("type", "manual"),
+            "owner": rec.get("owner_client_id") or "",
             "updated_at": rec.get("updated_at"),
         })
     return sorted(out, key=lambda r: r.get("updated_at") or "", reverse=True)
 
 
-def list_flows_full() -> list[dict]:
-    """Raw flow records (incl. nodes/edges/trigger) — for the cron scanner."""
-    return list(_read_all().values())
+def list_flows_full(owner: str | None = None) -> list[dict]:
+    """Raw flow records (incl. nodes/edges/trigger). owner filters by tenant."""
+    recs = list(_read_all().values())
+    if owner is not None:
+        recs = [r for r in recs if str(r.get("owner_client_id") or "") == owner]
+    return recs
+
+
+def owned_by(flow_id: str, client_id: str) -> bool:
+    """True iff flow exists AND is owned by client_id (Phase 7 tenant isolation)."""
+    rec = _read_all().get((flow_id or "").strip())
+    return bool(rec) and str(rec.get("owner_client_id") or "") == str(client_id or "")
+
+
+def count_for_owner(client_id: str) -> int:
+    cid = str(client_id or "")
+    return sum(1 for r in _read_all().values() if str(r.get("owner_client_id") or "") == cid)
 
 
 def delete_flow(flow_id: str) -> bool:
