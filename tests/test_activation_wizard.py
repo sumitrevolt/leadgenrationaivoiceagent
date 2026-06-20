@@ -48,6 +48,11 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "GRIEVANCE_OFFICER_EMAIL",
         "TWILIO_AUTH_TOKEN",
         "WHATSAPP_APP_SECRET",
+        "UPI_VPA",
+        "QDRANT_URL",
+        "REVENUE_TRENDS",
+        "CLIENT_TIMELINE",
+        "SYS_HEALTH_DETAIL",
     ):
         monkeypatch.delenv(k, raising=False)
 
@@ -80,6 +85,11 @@ async def test_phase1_green_jumps_to_phase2(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setenv("POSTHOG_API_KEY", "phc_real")
     monkeypatch.setenv("TURNSTILE_SITE_KEY", "pk")
     monkeypatch.setenv("TURNSTILE_SECRET_KEY", "sk")
+    monkeypatch.setenv("UPI_VPA", "merchant@upi")
+    monkeypatch.setenv("QDRANT_URL", "http://host.docker.internal:6333")
+    monkeypatch.setenv("REVENUE_TRENDS", "1")
+    monkeypatch.setenv("CLIENT_TIMELINE", "1")
+    monkeypatch.setenv("SYS_HEALTH_DETAIL", "1")
     # cloudflare_tunnel intentionally left NEUTRAL (opt-in)
 
     out = await ax.activation_wizard(_user=None)  # type: ignore[arg-type]

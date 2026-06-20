@@ -22,6 +22,7 @@ WANT = {
     "CUSTOMER_WEBHOOKS": "1",  # H.1 product webhooks (inert until registered)
     "AUTOMATION_HEALTH_ALERTS": "1",  # dead-man email on overdue jobs
     "PLAN_RATE_LIMIT": "1",  # Starter/Growth/Advanced rpm caps
+    "INTEGRATION_ALERTS": "1",  # SMTP/Qdrant/etc silent-failure email alerts
 }
 
 

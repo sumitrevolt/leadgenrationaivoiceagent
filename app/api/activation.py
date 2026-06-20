@@ -352,6 +352,83 @@ def _warm_dr() -> dict[str, Any]:
     }
 
 
+def _qdrant_url() -> str:
+    u = _v("QDRANT_URL")
+    if u:
+        return u
+    try:
+        from app.config import settings
+
+        return (getattr(settings, "qdrant_url", "") or "").strip()
+    except Exception:
+        return ""
+
+
+def _qdrant_rag() -> dict[str, Any]:
+    """Semantic RAG backend — shape-only check (no outbound HTTP on hot path)."""
+    url = _qdrant_url()
+    trap = bool(url and ("127.0.0.1" in url or "localhost" in url))
+    checks = {"url_set": bool(url), "docker_localhost_trap": trap}
+    if not checks["url_set"]:
+        status, action = (
+            _WARN,
+            "Set QDRANT_URL in .env — bina iske KB keyword fallback pe chalega (weaker chat/voice grounding)",
+        )
+    elif trap:
+        status, action = (
+            _WARN,
+            "QDRANT_URL=127.0.0.1 container ke andar unreachable — Docker VPS pe "
+            "http://host.docker.internal:6333 use karo (docker-compose.vps.yml wired)",
+        )
+    else:
+        status, action = _OK, ""
+    return {
+        "key": "qdrant_rag",
+        "label": "Qdrant vector RAG (semantic KB)",
+        "category": "ai",
+        "status": status,
+        "env_vars": ["QDRANT_URL"],
+        "checks": checks,
+        "action": action,
+        "doc": "docs/RAG_KnowledgeGraph_Agentic.md",
+    }
+
+
+def _track_b_admin() -> dict[str, Any]:
+    """Track B admin UX flags — WARN on production when still OFF."""
+    flags = ("REVENUE_TRENDS", "CLIENT_TIMELINE", "SYS_HEALTH_DETAIL")
+    checks = {f.lower(): _set(f) for f in flags}
+    on_count = sum(1 for v in checks.values() if v)
+    env = (_v("ENVIRONMENT") or _v("APP_ENV")).lower()
+    if env != "production":
+        return {
+            "key": "track_b_admin",
+            "label": "Admin readiness panels (Track B)",
+            "category": "visibility",
+            "status": _NEUTRAL,
+            "env_vars": list(flags),
+            "checks": {**checks, "on_count": on_count},
+            "action": "",
+            "doc": "docs/superpowers/specs/2026-06-20-readiness-infra-improvement-design.md",
+        }
+    status = _OK if on_count == 3 else _WARN
+    missing = [f for f in flags if not _set(f)]
+    return {
+        "key": "track_b_admin",
+        "label": "Admin readiness panels (Track B)",
+        "category": "visibility",
+        "status": status,
+        "env_vars": list(flags),
+        "checks": {**checks, "on_count": on_count},
+        "action": (
+            f"VPS pe run: python3 scripts/vps_enable_readiness_flags.py (missing: {', '.join(missing)})"
+            if missing
+            else ""
+        ),
+        "doc": "docs/superpowers/specs/2026-06-20-readiness-infra-improvement-design.md",
+    }
+
+
 def _upi() -> dict[str, Any]:
     """Revenue: manual UPI is the primary India payment path (Razorpay removed
     2026-06-18). UPI_VPA unset = operator cannot collect the first payment, so
@@ -387,7 +464,9 @@ _PROBES = (
     _turnstile,
     _cloudflare_tunnel,
     _upi,
-    # Phase 2: AI safety + memory
+    _qdrant_rag,
+    # Phase 2: AI safety + memory + admin UX
+    _track_b_admin,
     _agent_memory,
     _eval_gate,
     # Phase 3: AI staff + alerting
@@ -420,8 +499,8 @@ _PROBES = (
 #   4 Sellable   — customer_webhooks, mcp_product
 #   5 Margin     — litellm_costs, warm_dr
 _PHASES: tuple[tuple[int, str, tuple[str, ...]], ...] = (
-    (1, "Survival", ("sentry", "posthog", "turnstile", "cloudflare_tunnel")),
-    (2, "Visibility", ("agent_memory", "eval_gate")),
+    (1, "Survival", ("sentry", "posthog", "turnstile", "cloudflare_tunnel", "upi", "qdrant_rag")),
+    (2, "Visibility", ("track_b_admin", "agent_memory", "eval_gate")),
     (3, "AI staff", ("engineer_agents", "ops_alerts")),
     (4, "Sellable", ("customer_webhooks", "mcp_product")),
     (5, "Margin", ("litellm_costs", "warm_dr")),
@@ -435,6 +514,8 @@ _PROBE_BY_KEY = {
     "turnstile": _turnstile,
     "cloudflare_tunnel": _cloudflare_tunnel,
     "upi": _upi,
+    "qdrant_rag": _qdrant_rag,
+    "track_b_admin": _track_b_admin,
     "agent_memory": _agent_memory,
     "eval_gate": _eval_gate,
     "engineer_agents": _engineer_agents,
