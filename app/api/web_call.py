@@ -184,6 +184,34 @@ def _split_sentences(text: str) -> list[str]:
     return sentences or [text]
 
 
+async def _send_tcbrain_sentence_chunks(
+    websocket: WebSocket,
+    *,
+    sentences: list[str],
+    user_text: str,
+    full_reply: str,
+    llm_stream: bool = False,
+) -> None:
+    """EdgeTTS + WS JSON for one or more spoken sentences (import-safe)."""
+    total = len(sentences)
+    for i, sentence in enumerate(sentences):
+        audio_b64 = await _edge_tts_mp3_b64(sentence)
+        payload: dict[str, Any] = {
+            "type": "bot",
+            "text": sentence,
+            "audio_b64": audio_b64,
+            "heard": user_text if i == 0 else None,
+            "chunk_index": i,
+            "test_mode": True,
+            "llm_stream": llm_stream,
+        }
+        if i == 0:
+            payload["full_text"] = full_reply
+        if total > 1:
+            payload["chunk_total"] = total
+        await websocket.send_json(payload)
+
+
 async def _edge_tts_mp3_b64(text: str) -> str | None:
     """
     Synthesize `text` to the SAME natural Hindi voice as the phone agent
@@ -320,9 +348,17 @@ async def web_call_config() -> dict[str, Any]:
     except Exception:
         natural_voice_available = False
 
+    try:
+        from app.voice_agent.llm_stream_tts import stream_tts_enabled
+
+        llm_stream_tts = stream_tts_enabled()
+    except Exception:
+        llm_stream_tts = False
+
     return {
         "test_mode": True,
         "note": "Web Call is TEST MODE — talk to the bot in the browser, no real phone call is placed.",
+        "llm_stream_tts": llm_stream_tts,
         "telecaller_available": telecaller_available,
         "natural_voice_available": natural_voice_available,
         "voice": "hi-IN-SwaraNeural" if natural_voice_available else None,
@@ -669,32 +705,54 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 except Exception:
                     pass  # filler fail = ignore, LLM reply abhi bhi aayega
 
+                tc_reply = ""
+                use_llm_stream = False
                 try:
-                    tc_reply = await tcbrain.reply(history, user_text)
-                except Exception as e:
-                    tc_reply = ""
-                    logger.warning(f"web-call: TelecallerBrain reply failed, using fallback: {e}")
+                    from app.voice_agent.llm_stream_tts import stream_tts_enabled
+
+                    use_llm_stream = stream_tts_enabled()
+                except Exception:
+                    use_llm_stream = False
+
+                if use_llm_stream:
+                    # Token stream → sentence TTS (lower TTFT vs wait-for-full reply).
+                    streamed: list[str] = []
+                    try:
+                        async for sentence in tcbrain.reply_stream_sentences(history, user_text):
+                            streamed.append(sentence)
+                            await _send_tcbrain_sentence_chunks(
+                                websocket,
+                                sentences=[sentence],
+                                user_text=user_text,
+                                full_reply=" ".join(streamed).strip(),
+                                llm_stream=True,
+                            )
+                        tc_reply = " ".join(streamed).strip()
+                    except Exception as e:
+                        tc_reply = ""
+                        logger.warning(
+                            f"web-call: TelecallerBrain stream reply failed, using fallback: {e}"
+                        )
+                else:
+                    try:
+                        tc_reply = await tcbrain.reply(history, user_text)
+                    except Exception as e:
+                        tc_reply = ""
+                        logger.warning(
+                            f"web-call: TelecallerBrain reply failed, using fallback: {e}"
+                        )
+                    if tc_reply:
+                        await _send_tcbrain_sentence_chunks(
+                            websocket,
+                            sentences=_split_sentences(tc_reply),
+                            user_text=user_text,
+                            full_reply=tc_reply,
+                            llm_stream=False,
+                        )
+
                 if tc_reply:
                     history.append({"role": "user", "content": user_text})
                     history.append({"role": "assistant", "content": tc_reply})
-
-                    # SENTENCE-SPLIT STREAMING — har sentence ka audio alag bhejo
-                    # taaki user pehla sentence lete lete baaki synthesize ho.
-                    sentences = _split_sentences(tc_reply)
-                    for i, sentence in enumerate(sentences):
-                        audio_b64 = await _edge_tts_mp3_b64(sentence)
-                        await websocket.send_json(
-                            {
-                                "type": "bot",
-                                "text": sentence,
-                                "full_text": tc_reply if i == 0 else None,  # first chunk full reply
-                                "audio_b64": audio_b64,
-                                "heard": user_text if i == 0 else None,
-                                "chunk_index": i,
-                                "chunk_total": len(sentences),
-                                "test_mode": True,
-                            }
-                        )
                     continue
 
             # FALLBACK: human-like natural dialog (listen -> understand -> answer).
