@@ -232,8 +232,8 @@ def get_process(key: str) -> dict[str, Any] | None:
             fl = flow_store.get_flow(key[5:])
             if not fl:
                 return None
-            proc, _errs = flow_compiler.compile_flow(fl)
-            return proc  # None if compile errors
+            proc, _errs, kind = flow_compiler.compile_flow(fl)
+            return proc if kind == "linear" else None  # DAG flows resolved by dag_engine
         except Exception:
             return None
     return PROCESSES.get(key.lower())
