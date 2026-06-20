@@ -16,6 +16,13 @@ from typing import Any
 # A NON-FATAL warning is attached when one has no upstream Approval (breakpoint).
 SIDE_EFFECT_ACTIONS = {"telegram_draft", "crm_queue"}
 
+# Phase 7: the ONLY actions a customer-portal flow may use — draft-only, no send,
+# no cost-scrape, no SSRF. Compiler customer_safe=True rejects everything else.
+CUSTOMER_SAFE_ACTIONS = {
+    "content_pack", "social_drafts", "seo_blog_draft",
+    "brand_pulse", "review_scan", "client_report_draft",
+}
+
 
 def _warn_text(nid: str, action: str) -> str:
     return f"'{nid}' ({action}) has no upstream Approval — add a breakpoint before it"
@@ -57,8 +64,9 @@ def _dag_warnings(gnodes: dict, in_map: dict) -> list[str]:
     return warns
 
 
-def compile_flow(flow: dict) -> tuple[dict | None, list[str], str]:
-    """(result, errors, kind). See module docstring."""
+def compile_flow(flow: dict, customer_safe: bool = False) -> tuple[dict | None, list[str], str]:
+    """(result, errors, kind). See module docstring. customer_safe=True (Phase 7)
+    additionally rejects any task action not in CUSTOMER_SAFE_ACTIONS."""
     errors: list[str] = []
     try:
         from app.agents.process_library import EXECUTORS
@@ -69,6 +77,14 @@ def compile_flow(flow: dict) -> tuple[dict | None, list[str], str]:
         edges = flow.get("edges") or []
         if not nodes:
             return None, ["flow has no nodes"], "linear"
+
+        if customer_safe:
+            for n in nodes:
+                if n.get("kind") in ("breakpoint", "merge"):
+                    continue
+                act = str(n.get("action") or "")
+                if act not in CUSTOMER_SAFE_ACTIONS:
+                    errors.append(f"action '{act}' not allowed for customer flows")
 
         ids = [str(n.get("id")) for n in nodes if n.get("id")]
         idset = set(ids)
