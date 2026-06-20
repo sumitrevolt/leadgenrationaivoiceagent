@@ -31,6 +31,20 @@ _HEAVY_WINDOWS: dict[str, tuple[tuple[int, int], tuple[int, int]]] = {
 }
 
 
+def defer_seconds(job: str) -> int:
+    """Seconds until heavy-window ends (+ buffer) — boot-grace skip ke baad retry."""
+    win = _HEAVY_WINDOWS.get(job)
+    if not win:
+        return 600
+    _, hi = win
+    hm = datetime.now(_IST)
+    cur_s = hm.hour * 3600 + hm.minute * 60 + getattr(hm, "second", 0)
+    end_s = hi[0] * 3600 + hi[1] * 60
+    if cur_s >= end_s:
+        return 300
+    return max(120, end_s - cur_s + 45)
+
+
 def should_skip_boot_grace(job: str) -> bool:
     """True = skip this staff job run (worker booted inside heavy window)."""
     win = _HEAVY_WINDOWS.get(job)
@@ -45,4 +59,4 @@ def should_skip_boot_grace(job: str) -> bool:
     return lo <= cur < hi
 
 
-__all__ = ["should_skip_boot_grace"]
+__all__ = ["should_skip_boot_grace", "defer_seconds"]

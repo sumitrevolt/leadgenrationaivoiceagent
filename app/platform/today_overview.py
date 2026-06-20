@@ -24,6 +24,26 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# weekday() 0=Mon … 6=Sun — weekly staff jobs (baaki daily = har din due)
+_WEEKLY_ON: dict[str, int] = {
+    "weekly_marketing": 2,  # Budh
+    "saturday_hygiene": 5,  # Shani
+    "kb_refresh": 6,  # Ravi
+}
+_DAY_HI = ("Som", "Mangal", "Budh", "Guru", "Shukr", "Shani", "Ravi")
+
+
+def _job_due_today(job: str) -> bool:
+    try:
+        from zoneinfo import ZoneInfo
+
+        wd = datetime.now(ZoneInfo("Asia/Kolkata")).weekday()
+    except Exception:
+        wd = datetime.now(timezone.utc).weekday()
+    if job not in _WEEKLY_ON:
+        return True
+    return wd == _WEEKLY_ON[job]
+
 # Har scheduled job ka insaani naam + "yeh kya karta hai" — admin-friendly.
 JOB_INFO: dict[str, dict[str, str]] = {
     "growth": {
@@ -89,6 +109,18 @@ JOB_INFO: dict[str, dict[str, str]] = {
     "engineer_finops": {"label": "Vidya FinOps (09:00)", "kya": "Margin + LLM cost digest"},
     "engineer_security": {"label": "Arnav security (09:30)", "kya": "Compliance posture"},
     "readiness_digest": {"label": "Activation digest (08:30)", "kya": "First-paid-customer readiness ntfy"},
+    "revenue_snapshot": {
+        "label": "Revenue snapshot (raat 00:15)",
+        "kya": "Roz ka MRR/churn record karta hai (admin revenue chart ke liye)",
+    },
+    "meter_watch": {
+        "label": "Billing meter-watch (har ghante :55)",
+        "kya": "Minute-billing meter fail ho to alert",
+    },
+    "process_autostart": {
+        "label": "Process auto-start (~11:30)",
+        "kya": "Process-engine workflows auto-shuru karta hai (gated)",
+    },
 }
 
 # Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason)
@@ -152,20 +184,37 @@ def build() -> dict[str, Any]:
             if status == "ok":
                 line = f"✅ Chal raha hai — pichhli baar {_ago_str(mins)}"
             elif status == "overdue":
-                line = f"⚠️ Time par nahi chala (pichhli baar {_ago_str(mins)})"
-                problems.append(
-                    {
-                        "kya": f"{info['label']} time par nahi chala",
-                        "fix": "Worker/scheduler container check karo — /app/ops me ya 'docker ps' se",
-                    }
-                )
+                if _job_due_today(key):
+                    line = f"⚠️ Time par nahi chala (pichhli baar {_ago_str(mins)})"
+                    problems.append(
+                        {
+                            "kya": f"{info['label']} time par nahi chala",
+                            "fix": "Worker/scheduler container check karo — /app/ops me ya 'docker ps' se",
+                        }
+                    )
+                else:
+                    line = f"📅 Weekly job — agle din schedule ({_DAY_HI[_WEEKLY_ON[key]]})"
+                    status = "scheduled_off"
             elif status == "last_failed":
                 line = f"❌ Pichhla run FAIL hua ({_ago_str(mins)})"
                 problems.append(
                     {"kya": f"{info['label']} pichhli baar fail hua", "fix": "Events tab me error dekho"}
                 )
             elif status == "never_ran":
-                line = "⏳ Abhi tak kabhi nahi chala (naya deploy ke baad normal)"
+                if key in _WEEKLY_ON and not _job_due_today(key):
+                    line = f"📅 Aaj schedule nahi — har {_DAY_HI[_WEEKLY_ON[key]]} ko chalega"
+                    status = "scheduled_off"
+                else:
+                    line = "⏳ Abhi tak nahi chala — deploy ke baad pehli run pending"
+                    problems.append(
+                        {
+                            "kya": f"{info['label']} abhi tak heartbeat nahi mila",
+                            "fix": "Scheduler/worker up hai? Mission Control se manual trigger ya worker logs dekho",
+                        }
+                    )
+            elif status == "scheduled_off":
+                day = _DAY_HI[_WEEKLY_ON[key]] if key in _WEEKLY_ON else "?"
+                line = f"📅 Aaj schedule nahi — har {day} ko chalega"
             else:
                 line = "❓ Status pata nahi"
             jobs_out.append({**info, "job": key, "status": status, "line": line})
