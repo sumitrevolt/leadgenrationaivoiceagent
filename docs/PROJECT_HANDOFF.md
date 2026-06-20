@@ -1,7 +1,7 @@
 # PROJECT HANDOFF — LeadGenAI (leadgenrationaivoiceagent)
 
 > **Purpose:** Complete all-in-one handoff. Ek naya developer YA naya AI-agent isse padh ke poora project samajh sake aur takeover kar sake — product, tech, infra, deploy, blockers, legal, gotchas, sab.
-> **Generated:** 2026-06-20 · **Last updated:** 2026-06-20 PM — **UPI payments LIVE (first customer payable)** · Architecture Explorer (`/app/explorer`) + enterprise doc-pack added · godfile wave-1 merged · **Explorer + backend audited GREEN** (169 nodes/316 edges · 70/70 engine coverage · 0 orphans/dangling · 0 unwired loops) + **reverse graph→code file-sync gate added** (see §21) · **4-agent council re-audit GREEN-confirmed + 7 wireable fixes shipped (see §22)** · Source of truth: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
+> **Generated:** 2026-06-20 · **Last updated:** 2026-06-21 — **Flow Runner ALL 7 phases COMPLETE + DEPLOYED LIVE** (visual automation builder, n8n + per-client parity; PR #18+#19 → main `118ff53`; flags OFF=inert; 168 tests green — see §23) · UPI payments LIVE · Architecture Explorer + enterprise doc-pack · **Explorer + backend audited GREEN** (§21) · **4-agent council re-audit + 7 wireable fixes shipped (§22)** · Source of truth: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
 > **Language:** Hinglish (project convention) — technical terms/commands/paths English me.
 
 ---
@@ -487,6 +487,28 @@ Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sa
 **Remaining (env/ops action — only via SSH, not code):** set `REVENUE_TRENDS=1` in `/opt/leadgen/.env` + recreate app → daily MRR/churn/LTV time-series accrue karega (compute already built; history dormant till the flag flips). One-liner; nothing else pending on the code side.
 
 **On the task's "load test / security audit / UAT / prod-push" asks:** the Explorer is a static documentation graph — those apply to the BACKEND, already gated by `final_integration_check.py` + `cross_path_audit.py` + `prod_check.py` (all green per §21). No live load-test / pentest / prod-push was performed this session (needs the user's go/no-go + can't run safely from this env). The 7 shipped fixes are in the **Windows working tree, syntax-verified by inspection** (sandbox mount too stale to run the suite from here). Run `scripts\run_tests.bat` + `python scripts/prod_check.py`, then deploy via §9 (manual SSH — `docker compose build app` re-bakes `frontend/`, so the `/site-audit` page change ships with it) to go live.
+
+---
+
+## 23. Flow Runner — Visual Automation Builder (Phases 1-7 COMPLETE + LIVE, 2026-06-21)
+
+> The explorer's visual "builder" view made into a real **executable workflow engine** (n8n / GoHighLevel-parity) over the existing `process_engine`. Council-validated own-stack (n8n itself REJECTED — compliance foot-gun + second-system cost). **All 7 phases merged to `main` (PR #18 + #19, commit `118ff53`) + DEPLOYED LIVE.** Every layer is **flag-gated OFF by default = inert** (zero behavior change until enabled). `process_engine.py` was kept **byte-unchanged** across all 7 phases (prod-proven linear engine never bent).
+
+| Phase | What | Key flag |
+|---|---|---|
+| 1 Linear | builder → process-as-code, journal/replay, breakpoints, Celery `process_tick` | `FLOW_RUNNER` |
+| 2 DAG | branching (conditional edges `when`), parallel fan-out, merge/join — new `dag_engine.py` alongside; `flow_dispatch` routes linear vs dag | `FLOW_RUNNER` |
+| 3 Triggers | cron (`flow_cron` beat */5) + event (tail in `customer_webhooks.emit`) auto-fire, loop-guarded | `FLOW_AUTO_TRIGGERS` |
+| 4 Data-passing | node output → downstream input (`inputs_map`, ancestor-validated, fail-closed) | `FLOW_RUNNER` |
+| 5 Rich palette | 9 draft-safe executors (digest/telegram/wa/crm/blog/pulse/review/report) + allowlisted SSRF-guarded HTTP node | `FLOW_RUNNER` (+`FLOW_HTTP_ALLOWLIST`) |
+| 6 Execution UX | run-history + per-node inspector + journal timeline + approve/reject/re-run ("📋 Runs" in builder) | `FLOW_RUNNER` |
+| 7 Per-client builder | customer-portal builder `/app/customer/flows` — **tenant-isolated** (cross-tenant=404, anti-hijack), **draft-only restricted palette** (`CUSTOMER_SAFE_ACTIONS`), per-client cap | `FLOW_RUNNER_CUSTOMER` |
+
+**Key files:** `app/agents/dag_engine.py` · `app/agents/flow_dispatch.py` · `app/agents/process_engine.py` (linear, untouched) · `app/automation/flow_compiler.py` (3-tuple `(result,errors,kind)` + `customer_safe`) · `flow_store.py` (`owner_client_id` scoping) · `flow_triggers.py` · `flow_http.py` · `edge_condition.py` · `app/api/growth_process.py` (admin API) · `app/api/customer_flows.py` (customer API) · `frontend/explorer.html` (admin builder) · `frontend/customer_flows.html` (customer builder) · `app/agents/process_library.py` (EXECUTORS). **Tests:** ~21 `tests/test_flow_*` / `test_dag_*` / `test_edge_condition` / `test_customer_flows_api` files (168 green).
+
+**Activate (per need) in `/opt/leadgen/.env`:** `FLOW_RUNNER=1` (master — admin builder runnable) · `FLOW_AUTO_TRIGGERS=1` (cron/event) · `FLOW_HTTP_ALLOWLIST=leadsgenai.in,ntfy.leadsgenai.in` (HTTP node) · `FLOW_RUNNER_CUSTOMER=1` (customer builder). Then `docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps app worker scheduler`. Rollback = unset the flag (each layer independently reversible). Specs/plans: `docs/superpowers/specs/2026-06-2*-flow-runner-*` + `docs/superpowers/plans/2026-06-2*-flow-runner-*`.
+
+**Safety invariants (all phases):** flag-gated default-OFF · admin/customer-auth scoped · whitelist executors only · draft-safe or breakpoint-gated · fail-closed conditions · never-raise · no new deps · compliance gates server-side untouched · `process_engine.py` byte-unchanged.
 
 ---
 
