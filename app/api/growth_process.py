@@ -33,10 +33,11 @@ class ProcessStartIn(BaseModel):
 
 @router.post("/process/start")
 async def process_start(body: ProcessStartIn, _user=Depends(require_admin)):
-    """Run start + Celery worker me advance enqueue; worker down ho to inline advance."""
-    from app.agents import process_engine
+    """Run start + Celery worker me advance enqueue; worker down ho to inline advance.
+    Routes through flow_dispatch -> linear (process_engine) ya dag (dag_engine)."""
+    from app.agents import flow_dispatch
 
-    r = process_engine.start_run(body.process, body.inputs)
+    r = flow_dispatch.start(body.process, body.inputs)
     if r.get("ok"):
         run_id = r.get("run_id") or ""
         try:
@@ -46,7 +47,7 @@ async def process_start(body: ProcessStartIn, _user=Depends(require_admin)):
             r["queued"] = True
         except Exception:
             try:
-                adv = await process_engine.advance(run_id)
+                adv = await flow_dispatch.advance(run_id)
                 r["queued"] = False
                 r["fallback"] = "in_process"
                 r["advance"] = adv
@@ -58,31 +59,33 @@ async def process_start(body: ProcessStartIn, _user=Depends(require_admin)):
 
 @router.get("/process/runs")
 async def process_runs(limit: int = 20, _user=Depends(require_admin)):
-    """Recent runs + journal-derived live status."""
-    from app.agents import process_engine
+    """Recent runs + journal-derived live status (both engines)."""
+    from app.agents import flow_dispatch
 
-    return {"runs": process_engine.list_runs(limit)}
+    return {"runs": flow_dispatch.list_runs(limit)}
 
 
 @router.get("/process/run/{run_id}")
 async def process_run_detail(run_id: str, _user=Depends(require_admin)):
     """Run state (replay) + full immutable journal."""
-    from app.agents import process_engine
+    from app.agents import flow_dispatch
 
-    return {"state": process_engine.replay(run_id), "journal": process_engine.journal(run_id)}
+    return {"state": flow_dispatch.replay(run_id), "journal": flow_dispatch.journal(run_id)}
 
 
 class ProcessApproveIn(BaseModel):
     note: str = ""
+    node_id: str = ""  # DAG: which breakpoint node (linear ignores it)
 
 
 @router.post("/process/run/{run_id}/approve")
 async def process_approve(run_id: str, body: ProcessApproveIn, _user=Depends(require_admin)):
     """Breakpoint APPROVE → run resume (Celery tick)."""
-    from app.agents import process_engine
+    from app.agents import flow_dispatch
 
-    r = process_engine.approve(
-        run_id, approved_by=getattr(_user, "email", "admin") or "admin", note=body.note
+    r = flow_dispatch.approve(
+        run_id, approved_by=getattr(_user, "email", "admin") or "admin",
+        note=body.note, node_id=body.node_id,
     )
     if r.get("ok"):
         try:
@@ -92,7 +95,7 @@ async def process_approve(run_id: str, body: ProcessApproveIn, _user=Depends(req
             r["queued"] = True
         except Exception:
             try:
-                adv = await process_engine.advance(run_id)
+                adv = await flow_dispatch.advance(run_id)
                 r["queued"] = False
                 r["fallback"] = "in_process"
                 r["advance"] = adv
@@ -104,10 +107,11 @@ async def process_approve(run_id: str, body: ProcessApproveIn, _user=Depends(req
 @router.post("/process/run/{run_id}/reject")
 async def process_reject(run_id: str, body: ProcessApproveIn, _user=Depends(require_admin)):
     """Breakpoint REJECT → run failed (audit trail)."""
-    from app.agents import process_engine
+    from app.agents import flow_dispatch
 
-    return process_engine.reject(
-        run_id, by=getattr(_user, "email", "admin") or "admin", reason=body.note
+    return flow_dispatch.reject(
+        run_id, by=getattr(_user, "email", "admin") or "admin",
+        reason=body.note, node_id=body.node_id,
     )
 
 
@@ -121,6 +125,7 @@ class FlowIn(BaseModel):
     name: str = "Untitled flow"
     nodes: list[dict] = []
     edges: list[dict] = []
+    trigger: dict | None = None  # Phase 3: {type: manual|cron|event, cron?/event?}
 
 
 @router.get("/flows")
@@ -143,8 +148,9 @@ async def flow_save(body: FlowIn, _user=Depends(require_admin)):
     saved = flow_store.save_flow(body.model_dump(), by=getattr(_user, "email", "admin") or "admin")
     if not saved.get("ok"):
         return saved
-    _proc, errs = flow_compiler.compile_flow(saved["flow"])
-    return {"ok": True, "flow": saved["flow"], "compile_errors": errs, "runnable": not errs}
+    _proc, errs, kind = flow_compiler.compile_flow(saved["flow"])
+    return {"ok": True, "flow": saved["flow"], "compile_errors": errs, "runnable": not errs,
+            "kind": kind, "warnings": (_proc or {}).get("warnings", [])}
 
 
 @router.get("/flow/{flow_id}")
@@ -157,8 +163,9 @@ async def flow_get(flow_id: str, _user=Depends(require_admin)):
     fl = flow_store.get_flow(flow_id)
     if not fl:
         return JSONResponse({"error": "not found"}, status_code=404)
-    proc, errs = flow_compiler.compile_flow(fl)
-    return {"flow": fl, "compile_errors": errs, "steps": (proc or {}).get("steps", []), "runnable": not errs}
+    proc, errs, kind = flow_compiler.compile_flow(fl)
+    return {"flow": fl, "compile_errors": errs, "steps": (proc or {}).get("steps", []),
+            "kind": kind, "runnable": not errs, "warnings": (proc or {}).get("warnings", [])}
 
 
 @router.delete("/flow/{flow_id}")

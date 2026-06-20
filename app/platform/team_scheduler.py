@@ -124,6 +124,7 @@ _last_ran: dict[str, str | None] = {
     "meter_watch": None,  # hourly :55: billing meter-failure watcher (gated METER_ALERTS)
     "process_autostart": None,  # daily ~11:30 IST: process-engine auto-start (gated PROCESS_AUTOSTART)
     "revenue_snapshot": None,  # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
+    "flow_cron": None,  # every 5 min: Flow Runner cron scan (gated FLOW_RUNNER + FLOW_AUTO_TRIGGERS)
 }
 
 
@@ -551,6 +552,12 @@ async def _run_job_inner(job: str) -> None:
             except Exception:
                 pass
             try:
+                from app.agents import dag_engine
+
+                dag_engine.ensure_alive()  # stale RUNNING dag flows → process_tick revive (separate index, no double-revive)
+            except Exception:
+                pass
+            try:
                 from app.platform import proposal_tracking
 
                 proposal_tracking.sweep_new_opens()  # "proposal khola" event sweep (file-IO only, no send)
@@ -640,6 +647,10 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import process_autostart
 
             await process_autostart.run_due()  # gated PROCESS_AUTOSTART; idempotent
+        elif job == "flow_cron":
+            from app.automation import flow_triggers
+
+            flow_triggers.run_cron_due()  # sync, never-raise, self-gated (FLOW_RUNNER + FLOW_AUTO_TRIGGERS)
         elif job == "standup":
             # Boss daily standup — hierarchical team coordination (gated AGENT_STANDUP).
             if os.environ.get("AGENT_STANDUP", "0").strip().lower() in ("1", "true", "yes"):
@@ -714,6 +725,13 @@ async def scheduler_loop() -> None:
             if _last_ran.get("growth") != slot_key:
                 _last_ran["growth"] = slot_key
                 await _run_job("growth")
+
+            # Flow Runner cron scan — 5-min slot (in-process / rollback path; durable = beat)
+            fc_min = (now.minute // 5) * 5
+            fc_slot = now.strftime("%Y-%m-%d %H:") + f"{fc_min:02d}"
+            if _last_ran.get("flow_cron") != fc_slot:
+                _last_ran["flow_cron"] = fc_slot
+                await _run_job("flow_cron")
 
             if now.minute >= 5 and _last_ran["ops"] != hour_key:
                 _last_ran["ops"] = hour_key

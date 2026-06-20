@@ -140,6 +140,138 @@ async def _exec_harvest(inputs: dict) -> dict:
     }
 
 
+# ---- Phase 5: richer palette (draft-safe / breakpoint-gated wrappers) ----
+
+
+async def _exec_email_digest(inputs: dict) -> dict:
+    from app.platform import revenue_digest
+
+    try:
+        res = await revenue_digest.run(force=bool(inputs.get("force", True)))
+    except Exception as e:
+        return {"ok": False, "count": 0, "detail": f"digest err: {e}"[:150]}
+    sent = bool((res or {}).get("sent"))
+    return {"ok": True, "count": 1 if sent else 0,
+            "detail": f"digest {(res or {}).get('week', '')}: {'emailed-admin' if sent else 'composed'}"}
+
+
+async def _exec_telegram_draft(inputs: dict) -> dict:
+    # Posts only if TELEGRAM_AUTO_PUBLISH=1 + token. Default = inert draft.
+    from app.marketing import telegram_publish
+
+    try:
+        res = await telegram_publish.run_due()
+    except Exception as e:
+        return {"ok": False, "count": 0, "detail": f"telegram err: {e}"[:150]}
+    if not (res or {}).get("ran"):
+        return {"ok": True, "count": 0, "detail": f"telegram inert ({(res or {}).get('reason', 'off')})"}
+    return {"ok": True, "count": int((res or {}).get("sent", 0) or 0),
+            "detail": f"telegram published={(res or {}).get('sent', 0)} (AUTO_PUBLISH on)"}
+
+
+async def _exec_whatsapp_draft(inputs: dict) -> dict:
+    # Default (WHATSAPP_AUTO_SEND unset) = wa.me links only, no Cloud API.
+    from app.marketing import whatsapp_campaign
+
+    items = inputs.get("items") or []
+    if not isinstance(items, list):
+        items = []
+    try:
+        res = await whatsapp_campaign.send_campaign(items[:50])
+    except Exception as e:
+        return {"ok": False, "count": 0, "detail": f"wa err: {e}"[:150]}
+    live = bool((res or {}).get("live"))
+    n = int((res or {}).get("links", (res or {}).get("sent", 0)) or 0)
+    return {"ok": True, "count": n, "detail": f"whatsapp {'SENT' if live else 'links'}={n}"}
+
+
+async def _exec_crm_queue(inputs: dict) -> dict:
+    # Side-effecting: pushes ONLY when CRM_SYNC on (use breakpoint upstream). Default = draft summary.
+    import os as _os
+
+    from app.platform import crm_sync
+
+    leads = inputs.get("leads") or []
+    if not isinstance(leads, list):
+        leads = []
+    flag_on = _os.environ.get("CRM_SYNC", "0").strip().lower() in ("1", "true", "yes")
+    if not flag_on:
+        return {"ok": True, "count": 0, "detail": f"crm draft: {len(leads)} eligible (CRM_SYNC off — no push)"}
+    pushed = 0
+    for ld in leads[:25]:
+        try:
+            r = await crm_sync.push_lead(ld, client_id=str(inputs.get("client_id", "")))
+            if (r or {}).get("ok"):
+                pushed += 1
+        except Exception:
+            pass
+    return {"ok": True, "count": pushed, "detail": f"crm pushed={pushed} (flag on)"}
+
+
+async def _exec_seo_blog_draft(inputs: dict) -> dict:
+    from app.marketing import seo_blog
+
+    try:
+        art = await seo_blog.generate_article(
+            niche=str(inputs.get("niche", "general")),
+            city=str(inputs.get("city", "")),
+            topic=inputs.get("topic"),
+        )
+    except Exception as e:
+        return {"ok": False, "count": 0, "detail": f"blog err: {e}"[:150]}
+    title = (art or {}).get("title", "")
+    return {"ok": bool(title), "count": 1 if title else 0, "detail": f"blog draft: {title[:80]}"}
+
+
+async def _exec_brand_pulse(inputs: dict) -> dict:
+    from app.platform import brand_pulse
+
+    bn = str(inputs.get("business_name") or inputs.get("brand") or "")
+    if not bn:
+        return {"ok": False, "count": 0, "detail": "brand_pulse: business_name required"}
+    try:
+        res = await brand_pulse.scan(bn, city=inputs.get("city"), niche=inputs.get("niche"))
+    except Exception as e:
+        return {"ok": False, "count": 0, "detail": f"pulse err: {e}"[:150]}
+    m = len((res or {}).get("mentions") or [])
+    return {"ok": bool((res or {}).get("ok", True)), "count": m,
+            "detail": f"brand mentions={m}, drafts={len((res or {}).get('reply_drafts') or [])}"}
+
+
+async def _exec_review_scan(inputs: dict) -> dict:
+    from app.marketing import review_monitor
+
+    try:
+        res = await review_monitor.run_check(max_clients=int(inputs.get("max_clients", 15)))
+    except Exception as e:
+        return {"ok": False, "count": 0, "detail": f"review err: {e}"[:150]}
+    if not (res or {}).get("enabled"):
+        return {"ok": True, "count": 0, "detail": "review_monitor off (REVIEW_MONITOR unset)"}
+    n = int((res or {}).get("new_reviews", 0) or 0)
+    return {"ok": True, "count": n, "detail": f"review drafts +{n}"}
+
+
+async def _exec_client_report_draft(inputs: dict) -> dict:
+    from app.marketing import client_report
+
+    cid = str(inputs.get("client_id", ""))
+    if not cid:
+        return {"ok": False, "count": 0, "detail": "client_report: client_id required"}
+    try:
+        res = await client_report.build_report(cid, month=str(inputs.get("month", "")), send=False)
+    except Exception as e:
+        return {"ok": False, "count": 0, "detail": f"report err: {e}"[:150]}
+    return {"ok": bool((res or {}).get("ok")), "count": 1 if (res or {}).get("ok") else 0,
+            "detail": f"client report: {(res or {}).get('path', '')} (send=False)"}
+
+
+async def _exec_http_request(inputs: dict) -> dict:
+    # Allowlisted, admin-only, GET/POST, timeout-bounded, never-raise. See flow_http.
+    from app.automation import flow_http
+
+    return await flow_http.run(inputs or {})
+
+
 EXECUTORS = {
     "scrape": _exec_scrape,
     "harvest": _exec_harvest,
@@ -150,6 +282,16 @@ EXECUTORS = {
     "cadence_run": _exec_cadence_run,
     "optimizer": _exec_optimizer,
     "revenue_sweep": _exec_revenue_sweep,
+    # Phase 5 (draft-safe / breakpoint-gated)
+    "email_digest": _exec_email_digest,
+    "telegram_draft": _exec_telegram_draft,
+    "whatsapp_draft": _exec_whatsapp_draft,
+    "crm_queue": _exec_crm_queue,
+    "seo_blog_draft": _exec_seo_blog_draft,
+    "brand_pulse": _exec_brand_pulse,
+    "review_scan": _exec_review_scan,
+    "client_report_draft": _exec_client_report_draft,
+    "http_request": _exec_http_request,
 }
 
 
@@ -232,8 +374,8 @@ def get_process(key: str) -> dict[str, Any] | None:
             fl = flow_store.get_flow(key[5:])
             if not fl:
                 return None
-            proc, _errs = flow_compiler.compile_flow(fl)
-            return proc  # None if compile errors
+            proc, _errs, kind = flow_compiler.compile_flow(fl)
+            return proc if kind == "linear" else None  # DAG flows resolved by dag_engine
         except Exception:
             return None
     return PROCESSES.get(key.lower())

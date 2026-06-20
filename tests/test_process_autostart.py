@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import pytest
 
@@ -105,7 +105,9 @@ def test_idempotency_skips_active_run(monkeypatch):
 
 def test_idempotency_skips_today_run(monkeypatch):
     monkeypatch.setenv("PROCESS_AUTOSTART", "1")
-    today = datetime.now(timezone.utc).date().isoformat()
+    # process_autostart._today_str() uses date.today() (LOCAL tz) — match it here,
+    # else this assert flakes in the UTC-evening / IST-next-day divergence window.
+    today = date.today().isoformat()
     existing = [
         {
             "process": "lead_campaign",
