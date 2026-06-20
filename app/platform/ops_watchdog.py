@@ -98,18 +98,31 @@ def _signals() -> dict[str, Any]:
     # daily digest freshness (did the 08:30 job run?)
     digest_age = _age_min(os.path.join("data", "daily_digest.txt"))
     s["digest_age_h"] = round(digest_age / 60, 1) if digest_age is not None else None
+    # cross-path job heartbeat: automation_health writes data/job_heartbeats.json on BOTH the
+    # in-process AND durable-Celery paths (team_scheduler._run_job), whereas .scheduler.lock is
+    # touched ONLY by the in-process scheduler. On prod (Celery) the lock is intentionally stale,
+    # so heartbeat freshness is the real cross-path liveness signal.
+    hb_age = _age_min(os.path.join("data", "job_heartbeats.json"))
+    s["heartbeat_age_min"] = hb_age
     return s
 
 
 def _detect(s: dict[str, Any]) -> list[dict]:
     issues: list[dict] = []
     age = s.get("scheduler_age_min")
-    if age is not None and age > 20:
+    hb = s.get("heartbeat_age_min")
+    # .scheduler.lock is in-process-only; on the durable-Celery path it's intentionally never
+    # refreshed, so a stale lock ALONE is a false alarm. Require the cross-path job-heartbeat to
+    # ALSO be stale (>30 min) before flagging a real stall (heartbeat = both-path liveness truth).
+    lock_stale = age is not None and age > 20
+    hb_stale = hb is not None and hb > 30
+    if hb_stale or (lock_stale and hb is None and age > 60):
+        shown = hb if hb is not None else age
         issues.append(
             {
                 "key": "scheduler_stalled",
                 "sev": "critical",
-                "msg": f"Scheduler heartbeat {age} min purana — automation ruk gaya ho sakta hai",
+                "msg": f"Automation heartbeat {shown} min purana — jobs ruk gaye ho sakte hain",
             }
         )
     if s.get("any_llm") is False:
