@@ -226,6 +226,25 @@ def check_explorer_drift() -> None:
         print(f"[i] explorer drift check skipped ({type(e).__name__})")
 
 
+def check_api_docs_drift() -> None:
+    """INFO only (never fails): is docs/API.md endpoint index in sync with the
+    live OpenAPI spec? Regenerate: scripts/sync_api_docs.py. Locks docs↔code."""
+    try:
+        import re as _re
+
+        from scripts import sync_api_docs as sad
+
+        block = sad.build_index()
+        current = sad.API_MD.read_text(encoding="utf-8") if sad.API_MD.exists() else ""
+        if current.strip() != sad._splice(current, block).strip():
+            print("[i] API.md endpoint index OUT OF DATE — run scripts/sync_api_docs.py")
+        else:
+            n = len(_re.findall(r"^- `(GET|POST|PUT|PATCH|DELETE)", current, _re.M))
+            print(f"[i] API.md endpoint index in sync ({n} ops)")
+    except Exception as e:
+        print(f"[i] API docs drift check skipped ({type(e).__name__})")
+
+
 def main() -> int:
     print("=" * 56)
     print("PRODUCTION READINESS CHECK")
@@ -237,6 +256,7 @@ def main() -> int:
     check_production_config()
     check_frontend_wiring()
     check_explorer_drift()
+    check_api_docs_drift()
     print("-" * 56)
     if PROBLEMS:
         print(f"[FAIL] {len(PROBLEMS)} problem(s):")
