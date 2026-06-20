@@ -91,6 +91,21 @@ def main() -> int:
     except Exception as e:
         print(f"WARN qdrant check skipped: {e}")
 
+    try:
+        r = subprocess.run(
+            ["docker", "exec", "leadgen_app", "printenv", "USE_LLM_STREAM_TTS"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        stt = (r.stdout or "").strip()
+        if stt == "1":
+            print("OK USE_LLM_STREAM_TTS=1")
+        else:
+            print(f"WARN USE_LLM_STREAM_TTS={stt or 'unset'} (web-call latency path off)")
+    except Exception as e:
+        print(f"WARN stream TTS env check skipped: {e}")
+
     print("---")
     if FAIL:
         print(f"RESULT: {FAIL} check(s) FAILED — rollback ya fix before calling deploy done")

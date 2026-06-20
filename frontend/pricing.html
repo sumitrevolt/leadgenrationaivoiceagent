@@ -156,6 +156,7 @@
     <div class="field"><label>Email</label><input id="f-email" type="email" placeholder="you@business.com" /></div>
     <div class="field"><label>WhatsApp / Phone</label><input id="f-phone" placeholder="+91…" /></div>
     <div class="field"><label>Password</label><input id="f-pass" type="password" placeholder="min 6 chars" /></div>
+    <div data-turnstile-host></div>
     <button class="cta" id="m-go" onclick="doSignupPay()">Sign up & Pay</button>
     <p class="msg" id="m-msg"></p>
   </div>
@@ -255,11 +256,12 @@ async function doSignupPay(){
   if(!email.includes("@")) return setMsg("Valid email do.");
   if(pass.length<6) return setMsg("Password min 6 chars.");
   busy(true);
+  const tok = window.turnstileToken ? await window.turnstileToken() : "";
   // 1) self-serve signup -> client_id + token
   let cid, token;
   try{
     const r = await fetch(API+"/api/public/signup",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({business_name:biz,email,password:pass,phone,plan:(SELECTED.id||"starter")})});
+      body:JSON.stringify({business_name:biz,email,password:pass,phone,plan:(SELECTED.id||"starter"),_turnstile_token:tok})});
     const d = await r.json();
     if(!r.ok){ busy(false); return setMsg(d.detail||"Signup fail — shayad email already registered. <a href='/app/login'>Login</a>"); }
     cid=d.client_id; token=d.access_token;
@@ -367,6 +369,7 @@ function renderCombo(){
 
 loadComboPlan();
 </script>
+<script src="/site/turnstile.js" defer></script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
 </body>
 </html>

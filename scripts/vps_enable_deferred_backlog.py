@@ -9,13 +9,15 @@ import sys
 
 ENV_PATH = "/opt/leadgen/.env"
 
-# Safe wins first; USE_LLM_STREAM_TTS stays OFF until web-call verified
+# Safe wins first; USE_LLM_STREAM_TTS via --stream-tts after voice_stream_tts_smoke.py PASS
 WANT = {
     "SEMANTIC_CACHE": "1",
     "SEMANTIC_CACHE_MIN_SIM": "0.97",
     "SEMANTIC_CACHE_TTL_S": "21600",
     "USE_TEXT_ENDPOINT": "1",
 }
+
+STREAM_TTS_KEY = "USE_LLM_STREAM_TTS"
 
 
 def _read_env() -> str:
@@ -46,6 +48,24 @@ def main() -> int:
             changed = True
 
     run_rag = "--rag-gate" in sys.argv
+    run_stream = "--stream-tts" in sys.argv
+    if run_stream:
+        print("=== LLM stream TTS smoke (in-container) ===")
+        r = subprocess.run(
+            ["docker", "exec", "leadgen_app", "python", "scripts/voice_stream_tts_smoke.py"],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        print(r.stdout or r.stderr)
+        if r.returncode == 0:
+            text, ch = _set_kv(text, STREAM_TTS_KEY, "1")
+            if ch:
+                print(f"SET {STREAM_TTS_KEY}=1 (smoke PASS)")
+                changed = True
+        else:
+            print("Stream TTS smoke FAIL — flag unchanged")
+            return 1
     if run_rag:
         print("=== RAG A/B gate ===")
         r = subprocess.run(
@@ -72,7 +92,7 @@ def main() -> int:
             [
                 "bash",
                 "-lc",
-                "cd /opt/leadgen && docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps app worker scheduler",
+                "cd /opt/leadgen && docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps app worker worker-heavy scheduler",
             ],
             check=True,
         )

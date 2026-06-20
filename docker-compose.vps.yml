@@ -366,7 +366,7 @@ services:
   # Migrate: stop standalone `qdrant` container, then `up -d qdrant` (scripts/vps_migrate_qdrant.sh).
   # ---------------------------------------------------------------------------
   qdrant:
-    image: qdrant/qdrant:v1.13.4
+    image: qdrant/qdrant:v1.18.0
     container_name: leadgen_qdrant
     mem_limit: 768m
     cpus: "1.0"
