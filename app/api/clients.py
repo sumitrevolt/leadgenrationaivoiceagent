@@ -105,7 +105,10 @@ async def create_client(
             socials=req.socials.model_dump(),
             product=req.product,
         )
-        _log_isha("client_added", f"{req.business_name} ({req.product}/{req.niche or 'general'}, {req.plan})")
+        _log_isha(
+            "client_added",
+            f"{req.business_name} ({req.product}/{req.niche or 'general'}, {req.plan})",
+        )
         return {"client": client}
     except Exception as e:
         logger.error(f"Client add failed: {e}")

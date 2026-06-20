@@ -20,6 +20,7 @@ async def get_team_status(product: str | None = None, current_user: User = Depen
     """?product=marketing|voice => sirf us product ke agents + shared platform staff (ADR-009)."""
     try:
         from app.platform import team
+
         status = team.team_status()
         p = (product or "").strip().lower()
         if p in ("marketing", "voice") and isinstance(status.get("members"), list):
@@ -33,9 +34,12 @@ async def get_team_status(product: str | None = None, current_user: User = Depen
 
 
 @router.get("/events")
-async def get_team_events(limit: int = 60, member: str | None = None, current_user: User = Depends(require_admin)):
+async def get_team_events(
+    limit: int = 60, member: str | None = None, current_user: User = Depends(require_admin)
+):
     try:
         from app.platform import team
+
         return {"events": team.recent_events(limit=limit, member=member)}
     except Exception as e:
         logger.warning(f"[team-api] events failed: {e}")
@@ -47,6 +51,7 @@ async def run_team_member(member: str, current_user: User = Depends(require_admi
     try:
         from app.agents import staff
         from app.platform import team
+
         team.log_event("manager", "task_assigned", f"manual run: {member}")
         return await staff.run_member(member)
     except Exception as e:
@@ -59,9 +64,12 @@ class ProspectStatusIn(BaseModel):
 
 
 @router.get("/prospects")
-async def get_prospects(status: str | None = None, limit: int = 100, current_user: User = Depends(require_admin)):
+async def get_prospects(
+    status: str | None = None, limit: int = 100, current_user: User = Depends(require_admin)
+):
     try:
         from app.platform import prospector
+
         return {"prospects": prospector.list_prospects(status=status, limit=limit)}
     except Exception as e:
         logger.warning(f"[team-api] prospects list failed: {e}")
@@ -72,6 +80,7 @@ async def get_prospects(status: str | None = None, limit: int = 100, current_use
 async def run_prospecting_now(current_user: User = Depends(require_admin)):
     try:
         from app.platform import prospector, team
+
         team.log_event("manager", "task_assigned", "manual run: prospecting (rohan)")
         return await prospector.run_prospecting()
     except Exception as e:
@@ -80,9 +89,12 @@ async def run_prospecting_now(current_user: User = Depends(require_admin)):
 
 
 @router.post("/prospects/{pid}/status")
-async def set_prospect_status(pid: str, body: ProspectStatusIn, current_user: User = Depends(require_admin)):
+async def set_prospect_status(
+    pid: str, body: ProspectStatusIn, current_user: User = Depends(require_admin)
+):
     try:
         from app.platform import prospector
+
         ok = prospector.mark_prospect(pid, body.status)
         return {"ok": ok, "id": pid, "status": body.status if ok else None}
     except Exception as e:
@@ -94,6 +106,7 @@ async def set_prospect_status(pid: str, body: ProspectStatusIn, current_user: Us
 async def run_email_outreach_now(current_user: User = Depends(require_admin)):
     try:
         from app.platform import auto_outreach, team
+
         team.log_event("manager", "task_assigned", "manual run: email outreach (rohan)")
         return await auto_outreach.run_email_outreach()
     except Exception as e:
@@ -105,6 +118,7 @@ async def run_email_outreach_now(current_user: User = Depends(require_admin)):
 async def get_email_outreach_stats(current_user: User = Depends(require_admin)):
     try:
         from app.platform import auto_outreach
+
         return auto_outreach.outreach_stats()
     except Exception as e:
         logger.warning(f"[team-api] email-outreach stats failed: {e}")
@@ -115,6 +129,7 @@ async def get_email_outreach_stats(current_user: User = Depends(require_admin)):
 async def run_email_followups_now(current_user: User = Depends(require_admin)):
     try:
         from app.platform import auto_outreach, team
+
         team.log_event("manager", "task_assigned", "manual run: email follow-ups (rohan)")
         return await auto_outreach.run_email_followups()
     except Exception as e:
@@ -126,6 +141,7 @@ async def run_email_followups_now(current_user: User = Depends(require_admin)):
 async def run_reply_triage_now(current_user: User = Depends(require_admin)):
     try:
         from app.platform import reply_agent, team
+
         team.log_event("manager", "task_assigned", "manual run: reply triage")
         return await reply_agent.run_reply_triage()
     except Exception as e:
@@ -137,6 +153,7 @@ async def run_reply_triage_now(current_user: User = Depends(require_admin)):
 async def get_growth(current_user: User = Depends(require_admin)):
     try:
         from app.platform import growth_engine
+
         return {"pulse": growth_engine.latest_pulse(), "history": growth_engine.history(30)}
     except Exception as e:
         logger.warning(f"[team-api] growth get failed: {e}")
@@ -147,6 +164,7 @@ async def get_growth(current_user: User = Depends(require_admin)):
 async def run_growth_now(current_user: User = Depends(require_admin)):
     try:
         from app.platform import growth_engine, team
+
         team.log_event("manager", "task_assigned", "manual run: growth pulse")
         return await growth_engine.pulse()
     except Exception as e:

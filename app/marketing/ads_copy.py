@@ -263,7 +263,7 @@ def campaign_plan(
             f"{name or 'Aapka business'}: pehle ₹3,000-5,000 ka 2-hafte test budget chalayein, "
             "winner ad + winner keyword nikalein, phir scale karein. Ek saath 3-4 creative "
             "variants test karein (creative-strategist rule)."
-            + (f" Offer highlight: {offer.strip()}." if (offer or '').strip() else "")
+            + (f" Offer highlight: {offer.strip()}." if (offer or "").strip() else "")
         ),
     }
 

@@ -203,7 +203,12 @@ def test_lead_alert_send_and_dedupe(tmp_path, monkeypatch):
     monkeypatch.setattr(telegram_publish, "send_post", fake_send_post)
     monkeypatch.setattr(lead_alerts, "_send_email", fake_email)
 
-    rec = {"name": "Ravi Kumar", "phone": "9876543210", "source": "widget", "message": "solar chahiye"}
+    rec = {
+        "name": "Ravi Kumar",
+        "phone": "9876543210",
+        "source": "widget",
+        "message": "solar chahiye",
+    }
     res = asyncio.run(lead_alerts.notify_new_lead(rec))
     assert res["ok"] is True and res["deduped"] is False
     assert res["telegram_sent"] is True and res["email_sent"] is True
@@ -219,7 +224,9 @@ def test_lead_alert_send_and_dedupe(tmp_path, monkeypatch):
     assert len(sent) == n_before
 
     # alert log persisted
-    lines = [json.loads(x) for x in (tmp_path / "alerts.jsonl").read_text(encoding="utf-8").splitlines()]
+    lines = [
+        json.loads(x) for x in (tmp_path / "alerts.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
     assert lines and lines[0]["phone"] == "9876543210"
 
 

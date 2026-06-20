@@ -29,7 +29,15 @@ def test_lead_scoring_hot_vs_cold():
     assert 0 <= sc <= 100 and 0 <= sh <= 100
     assert sh > sc
     comp = lead_scoring.score_components(hot)
-    for key in ("status", "source", "verification", "recency", "qualification", "niche_fit", "engagement"):
+    for key in (
+        "status",
+        "source",
+        "verification",
+        "recency",
+        "qualification",
+        "niche_fit",
+        "engagement",
+    ):
         assert key in comp
 
 
@@ -64,7 +72,9 @@ def test_qualifier_async_fallback():
     short = asyncio.run(call_qualifier.qualify_transcript("hi"))
     assert short["ok"] is False
     long = asyncio.run(
-        call_qualifier.qualify_transcript("user: mujhe solar chahiye\nagent: budget kya hai?\nuser: 2 lakh")
+        call_qualifier.qualify_transcript(
+            "user: mujhe solar chahiye\nagent: budget kya hai?\nuser: 2 lakh"
+        )
     )
     assert long["followup_draft"]  # never empty (fallback)
     assert 0 <= long["interest_score"] <= 5
@@ -80,7 +90,9 @@ def test_journeys_crud_and_match(tmp_path, monkeypatch):
     monkeypatch.setattr(journeys, "_RUNS", str(tmp_path / "r.jsonl"))
     assert journeys.seed_defaults() == 3
     assert len(journeys.list_journeys()) == 3
-    j = journeys.add_journey("t", "inquiry_received", [{"type": "draft_whatsapp", "params": {}}], enabled=True)
+    j = journeys.add_journey(
+        "t", "inquiry_received", [{"type": "draft_whatsapp", "params": {}}], enabled=True
+    )
     assert j["enabled"] is True
     assert journeys.set_enabled(j["id"], False) is True
     assert journeys.delete_journey(j["id"]) is True
@@ -95,7 +107,9 @@ def test_journeys_emit_gated(tmp_path, monkeypatch):
 
     monkeypatch.setattr(journeys, "_JOURNEYS", str(tmp_path / "j.jsonl"))
     monkeypatch.setattr(journeys, "_RUNS", str(tmp_path / "r.jsonl"))
-    journeys.add_journey("t", "signup", [{"type": "notify", "params": {"text": "hi"}}], enabled=True)
+    journeys.add_journey(
+        "t", "signup", [{"type": "notify", "params": {"text": "hi"}}], enabled=True
+    )
     monkeypatch.delenv("JOURNEY_ENGINE", raising=False)
     assert asyncio.run(journeys.emit_event("signup", {})) == []  # gated off
     monkeypatch.setenv("JOURNEY_ENGINE", "1")
@@ -114,7 +128,9 @@ def test_review_engine_sentiment_gate(tmp_path, monkeypatch):
     happy = asyncio.run(review_engine.request_review("Sharma Solar", sentiment_score=5))
     assert happy["gate"] == "google_review"
     assert happy["message"]
-    unhappy = asyncio.run(review_engine.request_review("Sharma Solar", customer_name="Ravi", sentiment_score=2))
+    unhappy = asyncio.run(
+        review_engine.request_review("Sharma Solar", customer_name="Ravi", sentiment_score=2)
+    )
     assert unhappy["gate"] == "private_feedback"
     assert unhappy["message"]
 
@@ -137,10 +153,9 @@ def test_whatsapp_flows_inert_without_creds(monkeypatch):
 # missed_call (Vobiz-gated)
 # --------------------------------------------------------------------------- #
 def test_missed_call_gated(monkeypatch):
-    from app.telephony import missed_call
-
     # avoid real side-effects (jsonl/db) — patch the lazily-imported savers
     import app.api.public_site as ps
+    from app.telephony import missed_call
 
     monkeypatch.setattr(ps, "_append_jsonl", lambda r: True, raising=False)
     monkeypatch.setattr(ps, "_save_lead_db", lambda r: None, raising=False)
@@ -215,7 +230,12 @@ def test_fde_deploy_website_skills():
 
     r = asyncio.run(
         fde.deploy(
-            {"business_name": "Sharma Solar", "niche": "solar_residential", "city": "Pune", "slug": "sharma-solar-7b6f"},
+            {
+                "business_name": "Sharma Solar",
+                "niche": "solar_residential",
+                "city": "Pune",
+                "slug": "sharma-solar-7b6f",
+            },
             agent="veer",
             skills=["minisite", "embed_widget"],
         )
@@ -258,7 +278,14 @@ def test_cadence_orchestrator(tmp_path, monkeypatch):
 
     monkeypatch.setattr(cadence, "_LEADS", str(tmp_path / "cl.jsonl"))
     monkeypatch.setattr(cadence, "_RUNS", str(tmp_path / "cr.jsonl"))
-    rec = cadence.enroll({"business_name": "Test", "phone": "+919876543210", "niche": "solar_residential", "city": "Pune"})
+    rec = cadence.enroll(
+        {
+            "business_name": "Test",
+            "phone": "+919876543210",
+            "niche": "solar_residential",
+            "city": "Pune",
+        }
+    )
     assert rec["step_idx"] == 0
     assert cadence.enroll({"phone": "+919876543210"})["id"] == rec["id"]  # dedupe
     assert cadence.stats()["enrolled"] == 1
@@ -318,7 +345,9 @@ def test_community_content():
 def test_proposal():
     from app.marketing import proposal
 
-    r = asyncio.run(proposal.generate_proposal("Sharma Solar", "solar_residential", "Pune", "growth"))
+    r = asyncio.run(
+        proposal.generate_proposal("Sharma Solar", "solar_residential", "Pune", "growth")
+    )
     assert r["ok"] and r["proposal"]
     assert r["payment_link"].endswith("/pricing") and r["price_inr"] == 2999
 
@@ -335,7 +364,9 @@ def test_sales_pipeline(tmp_path, monkeypatch):
 
     monkeypatch.setattr(sales_pipeline, "_DEALS", str(tmp_path / "d.jsonl"))
     monkeypatch.setattr(sales_pipeline, "_ACTIONS", str(tmp_path / "da.jsonl"))
-    d = sales_pipeline.upsert_deal({"business_name": "X", "phone": "+919876543210", "niche": "solar_residential"}, "interested")
+    d = sales_pipeline.upsert_deal(
+        {"business_name": "X", "phone": "+919876543210", "niche": "solar_residential"}, "interested"
+    )
     assert d["stage"] == "interested"
     assert sales_pipeline.set_stage(d["id"], "demo_sent") is True
     deal = sales_pipeline.list_deals()[0]
@@ -351,8 +382,9 @@ def test_sales_pipeline(tmp_path, monkeypatch):
 # Security: per-IP rate-limit dependency (abuse/cost guard)
 # --------------------------------------------------------------------------- #
 def test_rate_limit_dependency(monkeypatch):
-    import app.api.ratelimit as rl
     from fastapi import HTTPException
+
+    import app.api.ratelimit as rl
 
     class _Req:
         def __init__(self, headers, host="1.2.3.4"):
@@ -450,14 +482,18 @@ def test_agent_coordinator_advanced(tmp_path, monkeypatch):
 
     # early-stop: critic 0.6 >= quality_bar 0.5 -> exactly 1 iteration (convergence guardrail)
     res = asyncio.run(
-        coordinator.coordinate_advanced("Pune solar leads", max_iterations=2, quality_bar=0.5, max_steps=3)
+        coordinator.coordinate_advanced(
+            "Pune solar leads", max_iterations=2, quality_bar=0.5, max_steps=3
+        )
     )
     assert res["ok"] and res["pattern"] == "reflexion" and len(res["iterations"]) == 1
     assert isinstance(res["final_score"], float) and res["results"] and "critique" in res
 
     # high bar -> runs full max_iterations (2) + persists episodic reflections
     res2 = asyncio.run(
-        coordinator.coordinate_advanced("Mumbai gym leads", max_iterations=2, quality_bar=0.95, max_steps=2)
+        coordinator.coordinate_advanced(
+            "Mumbai gym leads", max_iterations=2, quality_bar=0.95, max_steps=2
+        )
     )
     assert len(res2["iterations"]) == 2
     assert len(coordinator.memory_log()) >= 1  # reflection remembered
@@ -484,16 +520,20 @@ def test_weather_angle_logic():
     assert wa._angle(25, "rain")["season"] == "barish"
     assert wa._angle(8, "clear")["season"] == "sardi"
     assert wa._angle(28, "clear")["season"] == "suhana"
-    assert all(wa._angle(t, c).get("angle") for t, c in [(38, "clear"), (8, "clear"), (25, "rain"), (28, "clear")])
+    assert all(
+        wa._angle(t, c).get("angle")
+        for t, c in [(38, "clear"), (8, "clear"), (25, "rain"), (28, "clear")]
+    )
 
 
 # --------------------------------------------------------------------------- #
 # festivals.py — Calendarific integration + defensive behavior
 # --------------------------------------------------------------------------- #
 
+
 def test_festivals_static_upcoming():
     """Static upcoming() always returns valid list, no network needed."""
-    from app.marketing.festivals import upcoming, FESTIVALS_2026_27
+    from app.marketing.festivals import FESTIVALS_2026_27, upcoming
 
     result = upcoming(730)
     # All entries have required fields
@@ -506,8 +546,9 @@ def test_festivals_static_upcoming():
 
 def test_festivals_parse_date():
     """_parse_date handles valid + invalid inputs gracefully."""
-    from app.marketing.festivals import _parse_date
     from datetime import date
+
+    from app.marketing.festivals import _parse_date
 
     assert isinstance(_parse_date("2026-08-15"), date)
     assert _parse_date("") is None
@@ -517,7 +558,9 @@ def test_festivals_parse_date():
 
 def test_festivals_calendarific_parse(monkeypatch):
     """_fetch_calendarific parses mock API response correctly, maps types."""
-    import asyncio, os
+    import asyncio
+    import os
+
     from app.marketing import festivals
 
     # Reset cache for clean test
@@ -548,14 +591,22 @@ def test_festivals_calendarific_parse(monkeypatch):
 
     class MockResponse:
         status_code = 200
-        def json(self): return mock_response
+
+        def json(self):
+            return mock_response
 
     class MockClient:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): pass
-        async def get(self, url, params=None): return MockResponse()
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
+        async def get(self, url, params=None):
+            return MockResponse()
 
     import httpx
+
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: MockClient())
 
     result = asyncio.run(festivals._fetch_calendarific(2027, "test_key"))
@@ -574,7 +625,9 @@ def test_festivals_calendarific_parse(monkeypatch):
 
 def test_festivals_calendarific_no_key_fallback(monkeypatch):
     """When CALENDARIFIC_API_KEY unset, fetch_public_holidays falls back (Nager.Date path, IN returns [])."""
-    import asyncio, os
+    import asyncio
+    import os
+
     from app.marketing import festivals
 
     festivals._HOLIDAY_CACHE.clear()
@@ -583,14 +636,22 @@ def test_festivals_calendarific_no_key_fallback(monkeypatch):
     # Nager.Date IN = 204 in real world; mock 204 -> empty list
     class Mock204:
         status_code = 204
-        def json(self): return []
+
+        def json(self):
+            return []
 
     class MockClient:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): pass
-        async def get(self, url, **kw): return Mock204()
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
+        async def get(self, url, **kw):
+            return Mock204()
 
     import httpx
+
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: MockClient())
 
     result = asyncio.run(festivals.fetch_public_holidays(2027, "IN"))
@@ -600,6 +661,7 @@ def test_festivals_calendarific_no_key_fallback(monkeypatch):
 def test_festivals_calendarific_key_routes_to_calendarific(monkeypatch):
     """When CALENDARIFIC_API_KEY set, fetch_public_holidays uses Calendarific path."""
     import asyncio
+
     from app.marketing import festivals
 
     festivals._HOLIDAY_CACHE.clear()
@@ -610,19 +672,33 @@ def test_festivals_calendarific_key_routes_to_calendarific(monkeypatch):
 
     class MockResp:
         status_code = 200
+
         def json(self):
-            return {"response": {"holidays": [
-                {"name": "Independence Day", "date": {"iso": "2027-08-15"}, "type": ["National holiday"]}
-            ]}}
+            return {
+                "response": {
+                    "holidays": [
+                        {
+                            "name": "Independence Day",
+                            "date": {"iso": "2027-08-15"},
+                            "type": ["National holiday"],
+                        }
+                    ]
+                }
+            }
 
     class MockClient:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): pass
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            pass
+
         async def get(self, url, params=None):
             called_urls.append(url)
             return MockResp()
 
     import httpx
+
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: MockClient())
 
     result = asyncio.run(festivals.fetch_public_holidays(2027, "IN"))
@@ -635,6 +711,7 @@ def test_festivals_calendarific_key_routes_to_calendarific(monkeypatch):
 def test_festivals_upcoming_enriched_gated(monkeypatch):
     """upcoming_enriched() returns static list when FESTIVALS_LIVE_HOLIDAYS off."""
     import asyncio
+
     from app.marketing import festivals
 
     monkeypatch.delenv("FESTIVALS_LIVE_HOLIDAYS", raising=False)

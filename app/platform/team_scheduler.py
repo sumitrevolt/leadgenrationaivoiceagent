@@ -36,7 +36,9 @@ def _pid_alive(pid: int) -> bool:
             import ctypes
 
             PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-            h = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+            h = ctypes.windll.kernel32.OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid)
+            )
             if not h:
                 return False
             ctypes.windll.kernel32.CloseHandle(h)
@@ -92,6 +94,7 @@ def _refresh_lock() -> None:
     except Exception:
         pass
 
+
 _last_ran: dict[str, str | None] = {
     "growth": None,
     "ops": None,
@@ -107,20 +110,20 @@ _last_ran: dict[str, str | None] = {
     "onboard": None,
     "standup": None,
     # F.5 engineer agents — gated by per-role flag inside run_X() (INERT default).
-    "engineer_sre": None,       # hourly: Pranav reliability score
-    "engineer_finops": None,    # daily: Vidya margin score
+    "engineer_sre": None,  # hourly: Pranav reliability score
+    "engineer_finops": None,  # daily: Vidya margin score
     "engineer_security": None,  # daily: Arnav compliance posture
-    "readiness_digest": None,   # G.3: daily activation-readiness ntfy digest (OPS_ALERTS gated)
-    "pipeline": None,           # daily: lead rescore + hot-lead surfacing (Neha/Rohan)
-    "email_followup": None,     # daily afternoon: Day-3/7 followups only
-    "kb_refresh": None,         # weekly Sun: contextual KB re-ingest (gated)
-    "midday_prospect": None,    # daily 14:30: 2nd free lead-supply pass (gated MIDDAY_PROSPECT)
-    "evening_wrap": None,       # daily 18:30: EOD summary + hot recap
-    "weekly_marketing": None,   # Wed 12:30: S-tier niche pack bank
-    "saturday_hygiene": None,   # Sat 04:00: DLQ + celery trim (gated SCHEDULER_HYGIENE)
-    "meter_watch": None,        # hourly :55: billing meter-failure watcher (gated METER_ALERTS)
+    "readiness_digest": None,  # G.3: daily activation-readiness ntfy digest (OPS_ALERTS gated)
+    "pipeline": None,  # daily: lead rescore + hot-lead surfacing (Neha/Rohan)
+    "email_followup": None,  # daily afternoon: Day-3/7 followups only
+    "kb_refresh": None,  # weekly Sun: contextual KB re-ingest (gated)
+    "midday_prospect": None,  # daily 14:30: 2nd free lead-supply pass (gated MIDDAY_PROSPECT)
+    "evening_wrap": None,  # daily 18:30: EOD summary + hot recap
+    "weekly_marketing": None,  # Wed 12:30: S-tier niche pack bank
+    "saturday_hygiene": None,  # Sat 04:00: DLQ + celery trim (gated SCHEDULER_HYGIENE)
+    "meter_watch": None,  # hourly :55: billing meter-failure watcher (gated METER_ALERTS)
     "process_autostart": None,  # daily ~11:30 IST: process-engine auto-start (gated PROCESS_AUTOSTART)
-    "revenue_snapshot": None,   # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
+    "revenue_snapshot": None,  # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
 }
 
 
@@ -170,19 +173,29 @@ async def _run_job_inner(job: str) -> None:
             try:
                 from app.agents import self_improve
 
-                _celery_off = os.environ.get("RUN_IN_PROCESS_SCHEDULER", "1").strip() in ("1", "true", "yes")
+                _celery_off = os.environ.get("RUN_IN_PROCESS_SCHEDULER", "1").strip() in (
+                    "1",
+                    "true",
+                    "yes",
+                )
                 if _celery_off and self_improve.enabled():
                     result = await self_improve.run_once()
-                    logger.debug(f"[scheduler] self_improve in-process: {result.get('action','?')} ok={result.get('ok')}")
+                    logger.debug(
+                        f"[scheduler] self_improve in-process: {result.get('action','?')} ok={result.get('ok')}"
+                    )
             except Exception as _si_e:
                 logger.debug(f"[scheduler] self_improve in-process skip: {_si_e}")
             # Process engine in-process tick —
             # Celery pe `process_tick` Celery task handle karta hai.
             # In-process mode me RUNNING processes (non-breakpoint steps) yahan advance hote hain.
             try:
-                _celery_off2 = os.environ.get("RUN_IN_PROCESS_SCHEDULER", "1").strip() in ("1", "true", "yes")
+                _celery_off2 = os.environ.get("RUN_IN_PROCESS_SCHEDULER", "1").strip() in (
+                    "1",
+                    "true",
+                    "yes",
+                )
                 if _celery_off2:
-                    from app.agents.process_engine import list_runs, advance
+                    from app.agents.process_engine import advance, list_runs
 
                     _running = [r for r in list_runs() if r.get("status") == "running"]
                     for _pr in _running[:3]:  # max 3 per tick — no runaway
@@ -230,7 +243,9 @@ async def _run_job_inner(job: str) -> None:
                 if _tdir.is_dir():
                     for fp in sorted(_tdir.glob("*.jsonl"))[-5:]:
                         try:
-                            for line in fp.read_text(encoding="utf-8", errors="ignore").splitlines():
+                            for line in fp.read_text(
+                                encoding="utf-8", errors="ignore"
+                            ).splitlines():
                                 line = line.strip()
                                 if not line:
                                     continue
@@ -241,10 +256,15 @@ async def _run_job_inner(job: str) -> None:
                         except Exception:
                             continue
                 if not convos:
-                    convos = [[
-                        {"role": "assistant", "content": "Main LeadGen AI se ek AI assistant hoon."},
-                        {"role": "user", "content": "haan boliye"},
-                    ]]
+                    convos = [
+                        [
+                            {
+                                "role": "assistant",
+                                "content": "Main LeadGen AI se ek AI assistant hoon.",
+                            },
+                            {"role": "user", "content": "haan boliye"},
+                        ]
+                    ]
                 scores = [eval_metrics.transcript_quality(m) for m in convos]
                 mean = round(sum(scores) / len(scores), 4) if scores else 1.0
                 gate = eval_gate.score_and_gate("voice_transcript", mean, meta={"n": len(convos)})
@@ -265,14 +285,22 @@ async def _run_job_inner(job: str) -> None:
                 if skill_pack.enabled():
                     res = skill_pack.ingest_to_kb()
                     if res.get("ok"):
-                        team.log_event("guru", "skill_ingest", f"📚 {res.get('skills', 0)} skills → KB ({res.get('chunks', 0)} chunks, {res.get('backend')})")
+                        team.log_event(
+                            "guru",
+                            "skill_ingest",
+                            f"📚 {res.get('skills', 0)} skills → KB ({res.get('chunks', 0)} chunks, {res.get('backend')})",
+                        )
             except Exception:
                 pass
             try:
                 # Dev/Meera: nightly ML training (intent classifier + lead scorer +
                 # prompt-opt + A/B variants) — dormant engine wire, gated
                 # ML_NIGHTLY_TRAINING. Internally try/excepted; hard deadline 900s.
-                if os.environ.get("ML_NIGHTLY_TRAINING", "0").strip().lower() in ("1", "true", "yes"):
+                if os.environ.get("ML_NIGHTLY_TRAINING", "0").strip().lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                ):
                     from app.ml.auto_trainer import auto_trainer
                     from app.platform import team
 
@@ -362,7 +390,9 @@ async def _run_job_inner(job: str) -> None:
             await lifecycle_nurture.run_due()  # signup->paid nurture (gated LIFECYCLE_NURTURE; inert off)
             from app.marketing import channel_experiments
 
-            await channel_experiments.run_daily(3)  # naye approach-channel experiments (gated CHANNEL_EXPERIMENTS)
+            await channel_experiments.run_daily(
+                3
+            )  # naye approach-channel experiments (gated CHANNEL_EXPERIMENTS)
             from app.platform import booking_reminders
 
             await booking_reminders.run_due()  # kal ki bookings ke reminders (gated BOOKING_REMINDERS)
@@ -414,7 +444,9 @@ async def _run_job_inner(job: str) -> None:
             try:
                 from app.agents import sales_team
 
-                await sales_team.run_auto(3)  # 5-agent prospect deep-dives on hot leads (gated SALES_TEAM)
+                await sales_team.run_auto(
+                    3
+                )  # 5-agent prospect deep-dives on hot leads (gated SALES_TEAM)
             except Exception:
                 pass
             try:
@@ -667,7 +699,9 @@ async def scheduler_loop() -> None:
                             _last_ran[_jk] = now.strftime("%Y-W%W")
                         else:
                             _last_ran[_jk] = day_key
-                        logger.info(f"[team-scheduler] boot-grace: {_jk} skipped this boot (window active)")
+                        logger.info(
+                            f"[team-scheduler] boot-grace: {_jk} skipped this boot (window active)"
+                        )
                         try:  # SP3: make the silent skip visible (gated LOOP_SUPERVISOR)
                             from app.platform import loop_supervisor as _ls
 
@@ -686,7 +720,9 @@ async def scheduler_loop() -> None:
                 await _run_job("ops")
             if (0, 5) <= hm < (0, 35) and _last_ran["revenue_snapshot"] != day_key:
                 _last_ran["revenue_snapshot"] = day_key
-                await _run_job("revenue_snapshot")  # B1 daily MRR snapshot (light, gated REVENUE_TRENDS)
+                await _run_job(
+                    "revenue_snapshot"
+                )  # B1 daily MRR snapshot (light, gated REVENUE_TRENDS)
             if (2, 30) <= hm < (4, 0) and _last_ran["qa"] != day_key:
                 _last_ran["qa"] = day_key
                 await _run_job("qa")
@@ -721,15 +757,27 @@ async def scheduler_loop() -> None:
             if (18, 30) <= hm < (19, 30) and _last_ran["evening_wrap"] != day_key:
                 _last_ran["evening_wrap"] = day_key
                 await _run_job("evening_wrap")
-            if now.weekday() == 2 and (12, 30) <= hm < (13, 30) and _last_ran["weekly_marketing"] != day_key:
+            if (
+                now.weekday() == 2
+                and (12, 30) <= hm < (13, 30)
+                and _last_ran["weekly_marketing"] != day_key
+            ):
                 _last_ran["weekly_marketing"] = day_key
                 await _run_job("weekly_marketing")
-            if now.weekday() == 5 and (4, 0) <= hm < (5, 30) and _last_ran["saturday_hygiene"] != day_key:
+            if (
+                now.weekday() == 5
+                and (4, 0) <= hm < (5, 30)
+                and _last_ran["saturday_hygiene"] != day_key
+            ):
                 _last_ran["saturday_hygiene"] = day_key
                 await _run_job("saturday_hygiene")
             # Sunday 05:00–06:30 IST — weekly KB contextual re-ingest (gated).
             week_key = now.strftime("%Y-W%W")
-            if now.weekday() == 6 and (5, 0) <= hm < (6, 30) and _last_ran["kb_refresh"] != week_key:
+            if (
+                now.weekday() == 6
+                and (5, 0) <= hm < (6, 30)
+                and _last_ran["kb_refresh"] != week_key
+            ):
                 _last_ran["kb_refresh"] = week_key
                 await _run_job("kb_refresh")
             # AI reply triage — hourly (read inbox replies, classify, draft). Gated by REPLY_AGENT.
@@ -786,7 +834,9 @@ def start_scheduler() -> asyncio.Task[Any] | None:
         try:
             from app.config import settings
 
-            flag = str(getattr(settings, "team_automation", None) or os.environ.get("TEAM_AUTOMATION", "1"))
+            flag = str(
+                getattr(settings, "team_automation", None) or os.environ.get("TEAM_AUTOMATION", "1")
+            )
         except Exception:
             flag = os.environ.get("TEAM_AUTOMATION", "1")
         if flag.strip() == "0":
@@ -794,13 +844,17 @@ def start_scheduler() -> asyncio.Task[Any] | None:
             return None
         # Single-instance: sirf EK worker scheduler chalaye (warna double jobs).
         if not _acquire_lock():
-            logger.info("[team-scheduler] another worker owns the scheduler — skip (single-instance)")
+            logger.info(
+                "[team-scheduler] another worker owns the scheduler — skip (single-instance)"
+            )
             return None
         task = asyncio.create_task(scheduler_loop(), name="team-scheduler")
         try:
             from app.platform import team
 
-            team.log_event("manager", "automation_started", "Team scheduler on (growth 15min + dailies)")
+            team.log_event(
+                "manager", "automation_started", "Team scheduler on (growth 15min + dailies)"
+            )
         except Exception:
             pass
         logger.info("[team-scheduler] started")

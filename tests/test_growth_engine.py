@@ -122,10 +122,20 @@ class TestCollectMetrics:
         assert isinstance(data, dict) and "prospects" in data
 
     def test_counts_seeded_prospects(self, tmp_env):
-        _seed_prospect(tmp_env["pros"], {"id": "1", "niche": "solar", "status": "ready",
-                                          "email": "a@b.com", "found_at": "2026-06-08T10:00:00Z"})
-        _seed_prospect(tmp_env["pros"], {"id": "2", "niche": "solar", "status": "client",
-                                          "found_at": "2026-06-08T10:00:00Z"})
+        _seed_prospect(
+            tmp_env["pros"],
+            {
+                "id": "1",
+                "niche": "solar",
+                "status": "ready",
+                "email": "a@b.com",
+                "found_at": "2026-06-08T10:00:00Z",
+            },
+        )
+        _seed_prospect(
+            tmp_env["pros"],
+            {"id": "2", "niche": "solar", "status": "client", "found_at": "2026-06-08T10:00:00Z"},
+        )
         snap = growth_engine.collect_metrics()
         assert snap["prospects"]["total"] == 2
         assert snap["prospects"]["ready"] == 1
@@ -152,15 +162,33 @@ class TestPulse:
         # 'solar' niche: 4 prospects, 2 converted (replied+client) → ratio 0.5
         # 'dental' niche: 3 prospects, 0 converted → ratio 0.0
         for i in range(2):
-            _seed_prospect(tmp_env["pros"], {"id": f"s{i}", "niche": "solar",
-                                              "status": "ready", "found_at": "2026-06-08T10:00:00Z"})
-        _seed_prospect(tmp_env["pros"], {"id": "s2", "niche": "solar", "status": "replied",
-                                          "found_at": "2026-06-08T10:00:00Z"})
-        _seed_prospect(tmp_env["pros"], {"id": "s3", "niche": "solar", "status": "client",
-                                          "found_at": "2026-06-08T10:00:00Z"})
+            _seed_prospect(
+                tmp_env["pros"],
+                {
+                    "id": f"s{i}",
+                    "niche": "solar",
+                    "status": "ready",
+                    "found_at": "2026-06-08T10:00:00Z",
+                },
+            )
+        _seed_prospect(
+            tmp_env["pros"],
+            {"id": "s2", "niche": "solar", "status": "replied", "found_at": "2026-06-08T10:00:00Z"},
+        )
+        _seed_prospect(
+            tmp_env["pros"],
+            {"id": "s3", "niche": "solar", "status": "client", "found_at": "2026-06-08T10:00:00Z"},
+        )
         for i in range(3):
-            _seed_prospect(tmp_env["pros"], {"id": f"d{i}", "niche": "dental",
-                                              "status": "ready", "found_at": "2026-06-08T10:00:00Z"})
+            _seed_prospect(
+                tmp_env["pros"],
+                {
+                    "id": f"d{i}",
+                    "niche": "dental",
+                    "status": "ready",
+                    "found_at": "2026-06-08T10:00:00Z",
+                },
+            )
         res = await growth_engine.pulse()
         assert res.get("best_niche") == "solar"
         assert res.get("best_niche_ratio") == 0.5

@@ -75,7 +75,9 @@ async def bg_remove_endpoint(file: UploadFile = File(...), _user=Depends(require
     except Exception:
         data = b""
     if not data:
-        return JSONResponse({"ok": False, "error": "photo missing — file choose karo."}, status_code=400)
+        return JSONResponse(
+            {"ok": False, "error": "photo missing — file choose karo."}, status_code=400
+        )
 
     out = bg_remove.remove_bg(data)
     if isinstance(out, dict):

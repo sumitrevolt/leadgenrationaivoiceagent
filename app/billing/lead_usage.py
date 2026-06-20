@@ -171,7 +171,13 @@ def add_topup_leads(client_id: str, leads: int, ref: str = "") -> bool:
         return False
     if not cid or n <= 0:
         return False
-    rec = {"client_id": cid, "ts": _now().isoformat(), "kind": "topup", "leads": n, "ref": str(ref or "")}
+    rec = {
+        "client_id": cid,
+        "ts": _now().isoformat(),
+        "kind": "topup",
+        "leads": n,
+        "ref": str(ref or ""),
+    }
     ok = _append(rec)
     if not ok:
         # topup failure = customer ne PAY kiya par credit nahi mila — aur bhi critical
@@ -181,14 +187,22 @@ def add_topup_leads(client_id: str, leads: int, ref: str = "") -> bool:
 
 def leads_used_this_period(client_id: str, period: str | None = None) -> int:
     try:
-        return sum(int(r.get("leads") or 0) for r in _iter_period(client_id, period) if r.get("kind") == "qualified")
+        return sum(
+            int(r.get("leads") or 0)
+            for r in _iter_period(client_id, period)
+            if r.get("kind") == "qualified"
+        )
     except Exception:
         return 0
 
 
 def topup_leads_this_period(client_id: str, period: str | None = None) -> int:
     try:
-        return sum(int(r.get("leads") or 0) for r in _iter_period(client_id, period) if r.get("kind") == "topup")
+        return sum(
+            int(r.get("leads") or 0)
+            for r in _iter_period(client_id, period)
+            if r.get("kind") == "topup"
+        )
     except Exception:
         return 0
 
@@ -197,12 +211,14 @@ def plan_quota(plan: str | None) -> int:
     """Voice ya combo plan -> leads/month (UNLIMITED_QUOTA for flat plans; non-voice => 0)."""
     try:
         from app.marketing.combo_packages import combo_plan_quota, is_combo_plan
+
         if is_combo_plan(plan):
             return combo_plan_quota(plan)
     except Exception:
         pass
     try:
         from app.marketing.voice_packages import plan_lead_quota
+
         return plan_lead_quota(plan)
     except Exception:
         return 0
@@ -225,6 +241,7 @@ def has_lead_quota(client_id: str | None, plan: str | None = None) -> bool:
     """
     try:
         from app.marketing.voice_packages import UNLIMITED_QUOTA
+
         cid = (client_id or "").strip()
         if not cid:
             return True

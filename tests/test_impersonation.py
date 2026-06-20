@@ -34,14 +34,15 @@ def test_token_is_customer_role_with_imp_markers(monkeypatch):
     from app.api.admin import decode_token
 
     p = decode_token(tok)
-    assert p["role"] == "customer"     # works in customer portal
+    assert p["role"] == "customer"  # works in customer portal
     assert p["sub"] == "cli9"
     assert p["imp"] is True
     assert p["imp_by"] == "admin-1"
 
     # and require_customer (the portal gate) accepts it
-    from app.api.customer_auth import require_customer
     from fastapi.security import HTTPAuthorizationCredentials
+
+    from app.api.customer_auth import require_customer
 
     cid = require_customer(HTTPAuthorizationCredentials(scheme="Bearer", credentials=tok))
     assert cid == "cli9"

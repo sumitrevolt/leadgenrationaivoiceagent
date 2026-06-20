@@ -124,8 +124,15 @@ def _collect_messages() -> list[dict[str, Any]]:
             channel = r.get("channel") or "email"
             text = r.get("text") or r.get("subject") or ""
             msgs.append(
-                _msg(k, r.get("at"), str(channel), "in", str(text),
-                     intent=str(r.get("intent") or ""), draft=str(r.get("draft") or ""))
+                _msg(
+                    k,
+                    r.get("at"),
+                    str(channel),
+                    "in",
+                    str(text),
+                    intent=str(r.get("intent") or ""),
+                    draft=str(r.get("draft") or ""),
+                )
             )
     except Exception as e:
         logger.debug(f"[conv] reply_drafts parse: {e}")
@@ -144,18 +151,28 @@ def _collect_messages() -> list[dict[str, Any]]:
                         continue
                     role = str(m.get("role") or m.get("from") or "user")
                     msgs.append(
-                        _msg(k, m.get("at") or m.get("ts") or r.get("at") or r.get("ts"),
-                             "webchat", "in" if role in ("user", "visitor", "customer") else "draft",
-                             str(m.get("text") or m.get("message") or m.get("content") or ""),
-                             name=str(r.get("name") or ""))
+                        _msg(
+                            k,
+                            m.get("at") or m.get("ts") or r.get("at") or r.get("ts"),
+                            "webchat",
+                            "in" if role in ("user", "visitor", "customer") else "draft",
+                            str(m.get("text") or m.get("message") or m.get("content") or ""),
+                            name=str(r.get("name") or ""),
+                        )
                     )
             else:
                 txt = r.get("text") or r.get("message") or r.get("question") or ""
                 if str(txt).strip():
                     msgs.append(
-                        _msg(k, r.get("at") or r.get("ts") or r.get("created_at"), "webchat",
-                             "in", str(txt), name=str(r.get("name") or ""),
-                             draft=str(r.get("reply") or r.get("answer") or ""))
+                        _msg(
+                            k,
+                            r.get("at") or r.get("ts") or r.get("created_at"),
+                            "webchat",
+                            "in",
+                            str(txt),
+                            name=str(r.get("name") or ""),
+                            draft=str(r.get("reply") or r.get("answer") or ""),
+                        )
                     )
     except Exception as e:
         logger.debug(f"[conv] widget_chats parse: {e}")
@@ -181,8 +198,15 @@ def _collect_messages() -> list[dict[str, Any]]:
             k = str(r.get("key") or "")
             if not k:
                 continue
-            msgs.append(_msg(k, r.get("at"), str(r.get("channel") or "manual"), "draft",
-                             str(r.get("text") or "")))
+            msgs.append(
+                _msg(
+                    k,
+                    r.get("at"),
+                    str(r.get("channel") or "manual"),
+                    "draft",
+                    str(r.get("text") or ""),
+                )
+            )
     except Exception as e:
         logger.debug(f"[conv] our replies parse: {e}")
 
@@ -196,8 +220,14 @@ def list_threads(limit: int = 50) -> list[dict[str, Any]]:
         for m in sorted(_collect_messages(), key=lambda x: x.get("at") or ""):
             t = threads.setdefault(
                 m["key"],
-                {"key": m["key"], "channels": [], "name": "", "last_message": "",
-                 "last_at": "", "count": 0},
+                {
+                    "key": m["key"],
+                    "channels": [],
+                    "name": "",
+                    "last_message": "",
+                    "last_at": "",
+                    "count": 0,
+                },
             )
             t["count"] += 1
             if m["channel"] not in t["channels"]:

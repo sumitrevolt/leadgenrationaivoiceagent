@@ -51,7 +51,11 @@ def test_compliance_fails_closed_on_unverified_dnd():
     class _FakeDND:
         async def check_single(self, phone):
             return DNDCheckResult(
-                phone=phone, is_dnd=False, checked_at=datetime.now(), source="fallback", verified=False
+                phone=phone,
+                is_dnd=False,
+                checked_at=datetime.now(),
+                source="fallback",
+                verified=False,
             )
 
     gate = ComplianceGate(dnd_checker=_FakeDND())

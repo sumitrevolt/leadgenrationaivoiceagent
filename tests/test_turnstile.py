@@ -34,8 +34,13 @@ def _build_app() -> FastAPI:
     return app
 
 
-def _patch_siteverify(monkeypatch: pytest.MonkeyPatch, *, success: bool = True,
-                      status: int = 200, raise_exc: bool = False) -> dict[str, Any]:
+def _patch_siteverify(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    success: bool = True,
+    status: int = 200,
+    raise_exc: bool = False,
+) -> dict[str, Any]:
     """Replace httpx.AsyncClient.post on the Turnstile module with a stub."""
     captured: dict[str, Any] = {}
 
@@ -51,14 +56,15 @@ def _patch_siteverify(monkeypatch: pytest.MonkeyPatch, *, success: bool = True,
         def __init__(self, *a: Any, **kw: Any) -> None:  # noqa: ANN401
             pass
 
-        async def __aenter__(self) -> "_Client":
+        async def __aenter__(self) -> _Client:
             return self
 
         async def __aexit__(self, *a: Any) -> None:  # noqa: ANN401
             return None
 
-        async def post(self, url: str, data: dict[str, Any] | None = None,
-                       **kw: Any) -> _Resp:  # noqa: ANN401
+        async def post(
+            self, url: str, data: dict[str, Any] | None = None, **kw: Any
+        ) -> _Resp:  # noqa: ANN401
             if raise_exc:
                 raise httpx.ConnectError("simulated")
             captured["url"] = url

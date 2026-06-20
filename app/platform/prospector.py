@@ -425,15 +425,18 @@ def _append(rec: dict[str, Any]) -> bool:
         # real data dikha sake (DB fallback bhi hai, par in-memory = zero-lag).
         try:
             from app.api.analytics import analytics_store as _ast_p
-            _ast_p.record_lead({
-                "created_at": rec.get("created_at"),
-                "status": rec.get("status") or "new",
-                "lead_score": rec.get("lead_score") or 0,
-                "lead_tier": "hot" if rec.get("is_hot_lead") else None,
-                "niche": rec.get("niche") or "",
-                "city": rec.get("city") or "",
-                "source": rec.get("source") or "scrape",
-            })
+
+            _ast_p.record_lead(
+                {
+                    "created_at": rec.get("created_at"),
+                    "status": rec.get("status") or "new",
+                    "lead_score": rec.get("lead_score") or 0,
+                    "lead_tier": "hot" if rec.get("is_hot_lead") else None,
+                    "niche": rec.get("niche") or "",
+                    "city": rec.get("city") or "",
+                    "source": rec.get("source") or "scrape",
+                }
+            )
         except Exception:
             pass
         # ── niche_database mirror ─────────────────────────────────────────────
@@ -445,7 +448,9 @@ def _append(rec: dict[str, Any]) -> bool:
             client_id = rec.get("client_id") or "platform"
             if niche and niche != "general":
                 import asyncio as _asyncio
+
                 from app.platform.niche_database import bulk_import as _ndb_bulk
+
                 _row = {
                     "phone": rec.get("phone") or "",
                     "company": rec.get("name") or rec.get("business_name") or "",
@@ -823,12 +828,17 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
         try:
             import os as _os
 
-            if _os.environ.get("CADENCE_ENGINE", "").strip() in ("1", "true", "yes") and summary.get("new", 0) > 0:
+            if (
+                _os.environ.get("CADENCE_ENGINE", "").strip() in ("1", "true", "yes")
+                and summary.get("new", 0) > 0
+            ):
                 from app.marketing import cadence as _cadence
 
                 _total_new = int(summary.get("new") or 0)
                 _all = _read_all()
-                _fresh = [r for r in _all[-(_total_new + 30):] if r.get("status") == "ready"][:_total_new]
+                _fresh = [r for r in _all[-(_total_new + 30) :] if r.get("status") == "ready"][
+                    :_total_new
+                ]
                 if _fresh:
                     cadence_enrolled = _cadence.enroll_many(_fresh)
                     logger.debug(f"[prospector] cadence enrolled {cadence_enrolled} leads")

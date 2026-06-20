@@ -32,6 +32,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+
 from app.api.customer_auth import require_customer
 
 logger = logging.getLogger(__name__)
@@ -65,7 +66,9 @@ class CallRow(BaseModel):
 
 class LeadRow(BaseModel):
     id: str = ""  # B4: stable inquiry UUID; used by inline status edit
-    status: str = ""  # B4: customer-editable status (defaults to AI tier `score`); kept SEPARATE from score so tier charts/filters stay intact
+    status: str = (
+        ""  # B4: customer-editable status (defaults to AI tier `score`); kept SEPARATE from score so tier charts/filters stay intact
+    )
     business: str
     contact: str
     phone: str  # full number (client owns this lead)
@@ -159,6 +162,7 @@ def _build_onboarding_checklist(
     try:
         from app.api.customer_auth import client_has_login
     except Exception:
+
         def client_has_login(_cid: str) -> bool:  # type: ignore[misc]
             return False
 
@@ -335,9 +339,16 @@ def _mask_full_phone_local(num) -> str:
 
 def _parse_dt(rec: dict) -> datetime:
     raw = str(rec.get("at") or rec.get("created_at") or "")
-    for fmt in ("%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"):
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S",
+    ):
         try:
-            return datetime.strptime(raw.split("+")[0].rstrip("Z") + ("Z" if raw.endswith("Z") else ""), fmt)
+            return datetime.strptime(
+                raw.split("+")[0].rstrip("Z") + ("Z" if raw.endswith("Z") else ""), fmt
+            )
         except Exception:
             continue
     try:
@@ -433,7 +444,9 @@ def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse
             for _ld in leads:
                 _o = _ovr.get(_ld.id)
                 if _o and str(_o.get("client_id") or "") == str(client_id) and _o.get("status"):
-                    _ld.status = _o["status"]  # status only; score (tier) untouched so charts/filters stay valid
+                    _ld.status = _o[
+                        "status"
+                    ]  # status only; score (tier) untouched so charts/filters stay valid
     except Exception:
         pass
 
@@ -469,7 +482,9 @@ def _calls_from_events(client_id: str, client_rec: dict | None):
                 total = (
                     db.query(AgentEvent)
                     .filter(AgentEvent.member == "swara")
-                    .filter(AgentEvent.action.in_(["call_placed", "call_finished", "auto_callback"]))
+                    .filter(
+                        AgentEvent.action.in_(["call_placed", "call_finished", "auto_callback"])
+                    )
                     .count()
                 )
             except Exception:
@@ -723,7 +738,9 @@ async def patch_lead_status(
     from app.platform.lead_overrides import ALLOWED_STATUSES, set_status
 
     if status not in ALLOWED_STATUSES:
-        raise HTTPException(status_code=422, detail=f"status must be one of {sorted(ALLOWED_STATUSES)}")
+        raise HTTPException(
+            status_code=422, detail=f"status must be one of {sorted(ALLOWED_STATUSES)}"
+        )
     ok = set_status(lead_id, client_id, status)
     return {"ok": ok, "lead_id": lead_id, "status": status}
 
@@ -912,9 +929,7 @@ def customer_decide_approval(
     """Portal se approve/reject — token link ki zaroorat nahi."""
     from app.marketing import content_approval
 
-    return content_approval.decide_for_client(
-        client_id, approval_id, body.action, body.note or ""
-    )
+    return content_approval.decide_for_client(client_id, approval_id, body.action, body.note or "")
 
 
 @router.get("/routing")

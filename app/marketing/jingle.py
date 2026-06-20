@@ -135,7 +135,19 @@ def _normalize_audio(path: str) -> bool:
     try:
         from app.marketing.reel_video import _ffmpeg  # reuse, duplicate nahi
 
-        ok = _ffmpeg(["-i", path, "-af", "loudnorm=I=-16:TP=-1.5:LRA=11", "-c:a", "libmp3lame", "-q:a", "4", tmp])
+        ok = _ffmpeg(
+            [
+                "-i",
+                path,
+                "-af",
+                "loudnorm=I=-16:TP=-1.5:LRA=11",
+                "-c:a",
+                "libmp3lame",
+                "-q:a",
+                "4",
+                tmp,
+            ]
+        )
         if ok and os.path.exists(tmp) and os.path.getsize(tmp) > 100:
             os.replace(tmp, path)
             return True
@@ -161,14 +173,22 @@ async def generate_jingle(
     ya {ok: False, error}. Kabhi raise nahi karta."""
     avail = available()
     if not avail["ok"]:
-        return {"ok": False, "error": "edge-tts installed nahi — jingle audio nahi ban sakta.", "available": avail}
+        return {
+            "ok": False,
+            "error": "edge-tts installed nahi — jingle audio nahi ban sakta.",
+            "available": avail,
+        }
 
     t0 = time.time()
     try:
-        script = await _llm_script(niche or "", business_name or "", offer or "", lang or "hinglish")
+        script = await _llm_script(
+            niche or "", business_name or "", offer or "", lang or "hinglish"
+        )
         provider = "llm" if script else "fallback"
         if not script:
-            script = _fallback_script(niche or "", business_name or "", offer or "", lang or "hinglish")
+            script = _fallback_script(
+                niche or "", business_name or "", offer or "", lang or "hinglish"
+            )
 
         vo = pick_voice(lang, voice)
         name = f"jingle_{uuid.uuid4().hex[:10]}.mp3"

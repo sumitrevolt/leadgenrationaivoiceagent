@@ -154,11 +154,9 @@ def _env_num(name: str, default: float) -> float:
 # (~700 ms silence, RMS 300, ~100 ms barge-in). Import is defensive: if
 # turn_detector can't load we keep literal fallbacks (zero behaviour change).
 try:  # pragma: no cover - import-safety
-    from app.voice_agent.turn_detector import (
-        barge_in_frames as _shared_barge_frames,
-        turn_silence_ms as _shared_silence_ms,
-        turn_vad_rms as _shared_vad_rms,
-    )
+    from app.voice_agent.turn_detector import barge_in_frames as _shared_barge_frames
+    from app.voice_agent.turn_detector import turn_silence_ms as _shared_silence_ms
+    from app.voice_agent.turn_detector import turn_vad_rms as _shared_vad_rms
 
     _DEF_VAD_RMS = _shared_vad_rms(300)
     _DEF_SILENCE_MS = _shared_silence_ms(650.0)  # keep snappy 650 ms vobiz default
@@ -1226,7 +1224,9 @@ class VobizStreamSession:
                 from app.voice_agent import agent_memory
 
                 if agent_memory.is_enabled() and self._lead_phone:
-                    self._telecaller.set_memory_subject(f"{self.client_id or 'na'}:{self._lead_phone}")
+                    self._telecaller.set_memory_subject(
+                        f"{self.client_id or 'na'}:{self._lead_phone}"
+                    )
             except Exception:
                 pass
         except Exception as e:
@@ -1802,7 +1802,11 @@ class VobizStreamSession:
         Best-effort / never-raise: writes data/call_qualifications.jsonl so the
         admin Post-Call tab populates for REAL Vobiz calls (not just legacy path)."""
         try:
-            if os.environ.get("AUTO_QUALIFY_CALLS", "0").strip().lower() not in ("1", "true", "yes"):
+            if os.environ.get("AUTO_QUALIFY_CALLS", "0").strip().lower() not in (
+                "1",
+                "true",
+                "yes",
+            ):
                 return
             if not self.hist:
                 return
@@ -1816,9 +1820,7 @@ class VobizStreamSession:
             from app.voice_agent.call_qualifier import qualify_transcript
 
             lead_phone = getattr(self, "_lead_phone", "") or ""
-            q = await qualify_transcript(
-                txt, {"name": self.client_name or "", "phone": lead_phone}
-            )
+            q = await qualify_transcript(txt, {"name": self.client_name or "", "phone": lead_phone})
             rec = {
                 "call_id": self.stream_sid,
                 "lead_id": lead_phone,
@@ -1828,7 +1830,9 @@ class VobizStreamSession:
                 **q,
             }
             os.makedirs("data", exist_ok=True)
-            with open(os.path.join("data", "call_qualifications.jsonl"), "a", encoding="utf-8") as f:
+            with open(
+                os.path.join("data", "call_qualifications.jsonl"), "a", encoding="utf-8"
+            ) as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
             logger.info(
                 f"[vobiz-stream] auto-qualify sid={self.stream_sid} "

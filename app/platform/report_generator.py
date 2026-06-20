@@ -5,6 +5,7 @@ and JSON (dashboard_metrics.json) from an AssessmentData object.
 
 All output is stdlib-only (no Jinja2, no third-party deps).
 """
+
 from __future__ import annotations
 
 import json
@@ -31,7 +32,7 @@ from app.platform.prioritizer import build_backlog, generate_roadmap
 # ---------------------------------------------------------------------------
 
 
-def md_table(headers: List[str], rows: List[List[str]]) -> str:
+def md_table(headers: list[str], rows: list[list[str]]) -> str:
     """Render a GitHub-flavoured Markdown table."""
     sep = "| " + " | ".join("---" for _ in headers) + " |"
     header_row = "| " + " | ".join(headers) + " |"
@@ -54,7 +55,7 @@ def _moscow_label(m: MoSCoW) -> str:
     return m.value.replace("_", " ").title()
 
 
-def _feature_rows(features: List[Feature], dashboard: str) -> List[List[str]]:
+def _feature_rows(features: list[Feature], dashboard: str) -> list[list[str]]:
     return [
         [f.name, f.category.value.replace("_", " ").title(), f.status.value.title()]
         for f in features
@@ -62,7 +63,7 @@ def _feature_rows(features: List[Feature], dashboard: str) -> List[List[str]]:
     ]
 
 
-def _gap_rows(gaps: List[Gap], dashboard: str) -> List[List[str]]:
+def _gap_rows(gaps: list[Gap], dashboard: str) -> list[list[str]]:
     return [
         [
             g.name,
@@ -77,7 +78,7 @@ def _gap_rows(gaps: List[Gap], dashboard: str) -> List[List[str]]:
     ]
 
 
-def _ux_rows_by_severity(issues: List[UXIssue], severity: Severity) -> List[List[str]]:
+def _ux_rows_by_severity(issues: list[UXIssue], severity: Severity) -> list[list[str]]:
     filtered = [i for i in issues if i.severity == severity]
     return [
         [
@@ -92,7 +93,7 @@ def _ux_rows_by_severity(issues: List[UXIssue], severity: Severity) -> List[List
     ]
 
 
-def _backlog_section(items: List[BacklogItem]) -> str:
+def _backlog_section(items: list[BacklogItem]) -> str:
     if not items:
         return "_No items in this category._\n"
     lines = []
@@ -106,14 +107,11 @@ def _backlog_section(items: List[BacklogItem]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _sprint_section(label: str, items: List[BacklogItem]) -> str:
+def _sprint_section(label: str, items: list[BacklogItem]) -> str:
     if not items:
         return f"### {label}\n\n_No items._\n\n"
     total = sum(b.estimated_days for b in items)
-    rows = [
-        [b.item, b.dashboard, b.category, f"{b.estimated_days}d"]
-        for b in items
-    ]
+    rows = [[b.item, b.dashboard, b.category, f"{b.estimated_days}d"] for b in items]
     table = md_table(["Item", "Dashboard", "Category", "Effort"], rows)
     return f"### {label}\n\n**Total effort:** {total} dev-days\n\n{table}\n\n"
 
@@ -128,10 +126,10 @@ def generate_markdown_report(assessment: AssessmentData) -> str:  # noqa: C901
     Generate full DASHBOARD_ASSESSMENT_REPORT.md content as a string.
     """
     a = assessment
-    gaps: List[Gap] = a.gaps
-    issues: List[UXIssue] = a.issues
-    features: List[Feature] = a.features
-    backlog: List[BacklogItem] = a.backlog or build_backlog(gaps, issues)
+    gaps: list[Gap] = a.gaps
+    issues: list[UXIssue] = a.issues
+    features: list[Feature] = a.features
+    backlog: list[BacklogItem] = a.backlog or build_backlog(gaps, issues)
     roadmap = generate_roadmap(backlog)
 
     scores = a.scores
@@ -149,7 +147,7 @@ def generate_markdown_report(assessment: AssessmentData) -> str:  # noqa: C901
     cust_ver = scores.get("customer_version", "N/A")
     admin_ver = scores.get("admin_version", "N/A")
 
-    lines: List[str] = []
+    lines: list[str] = []
 
     # ── 1. Header ──────────────────────────────────────────────────────────
     lines += [
@@ -290,7 +288,7 @@ def generate_markdown_report(assessment: AssessmentData) -> str:  # noqa: C901
     # ── 8. Backend Dependencies ────────────────────────────────────────────
     lines += ["## Backend Dependencies", ""]
 
-    backend_deps: List[Dict] = a.backend_dependencies
+    backend_deps: list[dict] = a.backend_dependencies
     new_endpoints = [d for d in backend_deps if d.get("type") == "new_endpoint"]
     backend_changes = [d for d in backend_deps if d.get("type") == "backend_logic"]
 
@@ -323,7 +321,7 @@ def generate_markdown_report(assessment: AssessmentData) -> str:  # noqa: C901
 
     # ── 9. Appendices ─────────────────────────────────────────────────────
     lines += ["## Appendix A: Full API Endpoint Catalog", ""]
-    all_endpoints: List[str] = []
+    all_endpoints: list[str] = []
     for f in features:
         all_endpoints.extend(f.api_endpoints)
     all_endpoints = sorted(set(all_endpoints))
@@ -357,14 +355,14 @@ def generate_markdown_report(assessment: AssessmentData) -> str:  # noqa: C901
     return "\n".join(lines) + "\n"
 
 
-def generate_prioritized_backlog_md(backlog: List[BacklogItem], roadmap: Dict) -> str:
+def generate_prioritized_backlog_md(backlog: list[BacklogItem], roadmap: dict) -> str:
     """Standalone PRIORITIZED_BACKLOG.md content."""
     must = [b for b in backlog if b.moscow == MoSCoW.MUST_HAVE]
     should = [b for b in backlog if b.moscow == MoSCoW.SHOULD_HAVE]
     could = [b for b in backlog if b.moscow == MoSCoW.COULD_HAVE]
     wont = [b for b in backlog if b.moscow == MoSCoW.WONT_HAVE]
 
-    def _section(title: str, items: List[BacklogItem]) -> str:
+    def _section(title: str, items: list[BacklogItem]) -> str:
         if not items:
             return f"## {title}\n\n_No items._\n\n"
         rows = [
@@ -412,7 +410,11 @@ def generate_prioritized_backlog_md(backlog: List[BacklogItem], roadmap: Dict) -
     summary_rows = [
         ["Sprint 1 (Must Have, 2 wks)", str(len(roadmap["sprint_1"])), str(sprint1_days) + "d"],
         ["Sprint 2 (Should Have, 2 wks)", str(len(roadmap["sprint_2"])), str(sprint2_days) + "d"],
-        ["Sprint 3+ (Remaining, 4 wks)", str(len(roadmap["sprint_3_plus"])), str(sprint3_days) + "d"],
+        [
+            "Sprint 3+ (Remaining, 4 wks)",
+            str(len(roadmap["sprint_3_plus"])),
+            str(sprint3_days) + "d",
+        ],
         ["**Total**", str(len(backlog)), f"**{roadmap['total_days']}d**"],
     ]
     lines += [md_table(["Phase", "Items", "Effort"], summary_rows), ""]
@@ -420,7 +422,7 @@ def generate_prioritized_backlog_md(backlog: List[BacklogItem], roadmap: Dict) -
     return "\n".join(lines) + "\n"
 
 
-def generate_json_metrics(assessment: AssessmentData) -> Dict:
+def generate_json_metrics(assessment: AssessmentData) -> dict:
     """
     Returns a JSON-serialisable dict with all key assessment metrics.
     """
@@ -437,9 +439,7 @@ def generate_json_metrics(assessment: AssessmentData) -> Dict:
     complete_features = [f for f in features if f.status == FeatureStatus.COMPLETE]
 
     new_endpoints = [d for d in a.backend_dependencies if d.get("type") == "new_endpoint"]
-    backend_days = sum(
-        _effort_days_str(d.get("effort", "medium")) for d in a.backend_dependencies
-    )
+    backend_days = sum(_effort_days_str(d.get("effort", "medium")) for d in a.backend_dependencies)
 
     scores = a.scores
     cust_ver = scores.get("customer_version", "unknown")
@@ -499,7 +499,7 @@ def _effort_days_str(effort_str: str) -> int:
 def save_reports(
     assessment: AssessmentData,
     docs_dir: pathlib.Path,
-) -> Dict[str, pathlib.Path]:
+) -> dict[str, pathlib.Path]:
     """
     Write all three report files to docs_dir.
 
@@ -529,9 +529,7 @@ def save_reports(
 
     # 3. Prioritized backlog markdown
     backlog_path = docs_dir / "PRIORITIZED_BACKLOG.md"
-    backlog_path.write_text(
-        generate_prioritized_backlog_md(backlog, roadmap), encoding="utf-8"
-    )
+    backlog_path.write_text(generate_prioritized_backlog_md(backlog, roadmap), encoding="utf-8")
 
     return {
         "assessment_report": report_path.resolve(),

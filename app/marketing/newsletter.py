@@ -50,8 +50,18 @@ _SITE_URL = "https://leadsgenai.in"
 _UNSUB_BASE = _SITE_URL + "/api/lifecycle/newsletter/unsub/"
 
 _MONTH_HI = {
-    1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
-    7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December",
+    1: "January",
+    2: "February",
+    3: "March",
+    4: "April",
+    5: "May",
+    6: "June",
+    7: "July",
+    8: "August",
+    9: "September",
+    10: "October",
+    11: "November",
+    12: "December",
 }
 
 
@@ -188,7 +198,9 @@ def unsub_html(result: dict[str, Any] | None) -> str:
     """Tiny Hinglish confirmation page (never raises)."""
     ok = bool((result or {}).get("ok"))
     if ok:
-        msg = "Aap newsletter list se hata diye gaye hain. Ab aage emails nahi aayenge. Dhanyawad! 🙏"
+        msg = (
+            "Aap newsletter list se hata diye gaye hain. Ab aage emails nahi aayenge. Dhanyawad! 🙏"
+        )
     else:
         msg = "Yeh link valid nahi hai ya pehle hi use ho chuka hai."
     return (
@@ -555,9 +567,7 @@ def rss_to_email(limit: int = 5) -> dict[str, Any]:
             f"<p><a href='{e(_SITE_URL)}/blog'>Saare posts dekhein</a></p>"
             "</body></html>"
         )
-        text = "\n".join(
-            f"- {a.get('title')}: {_SITE_URL}/blog/{a.get('slug')}" for a in fresh
-        )
+        text = "\n".join(f"- {a.get('title')}: {_SITE_URL}/blog/{a.get('slug')}" for a in fresh)
         _append(
             _RUNS_PATH,
             {

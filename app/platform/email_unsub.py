@@ -23,6 +23,7 @@ Env (all optional):
   PUBLIC_BASE_URL     public base (default https://leadsgenai.in)
   OUTREACH_UNSUB_MAILTO  mailto fallback (default admin@leadsgenai.in)
 """
+
 from __future__ import annotations
 
 import base64
@@ -38,9 +39,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _SECRET = (
-    os.environ.get("EMAIL_UNSUB_SECRET")
-    or os.environ.get("SECRET_KEY")
-    or "leadsgenai-unsub-v1"
+    os.environ.get("EMAIL_UNSUB_SECRET") or os.environ.get("SECRET_KEY") or "leadsgenai-unsub-v1"
 ).encode()
 _STORE = Path("data") / "email_suppression.jsonl"
 # Path lives on the lifecycle router: app.include_router(..., prefix="/api") +

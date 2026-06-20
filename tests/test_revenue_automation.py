@@ -59,7 +59,9 @@ def test_dunning_run_due_touches(tmp_path, monkeypatch):
     dunning._write_all(dunning._CASES, rows)
     out = asyncio.run(dunning.run_due())
     assert out["enabled"] is True
-    assert out["touches"] >= 2  # reminder + urgent (email send fail ho sakta — draft phir bhi recorded)
+    assert (
+        out["touches"] >= 2
+    )  # reminder + urgent (email send fail ho sakta — draft phir bhi recorded)
     runs = dunning._read(dunning._RUNS)
     keys = {r["touch"] for r in runs}
     assert {"failed_now", "reminder", "urgent"} <= keys

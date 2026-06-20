@@ -60,10 +60,10 @@ def run_startup_migrations() -> dict:
     if _flag("SKIP_DB_MIGRATIONS"):
         return {"skipped": "SKIP_DB_MIGRATIONS"}
     try:
+        from alembic.runtime.migration import MigrationContext
         from sqlalchemy import create_engine, inspect
 
         from alembic import command
-        from alembic.runtime.migration import MigrationContext
 
         engine = create_engine(_sync_url())
         try:

@@ -134,9 +134,7 @@ def test_stripe_webhook_checkout_completed_provisions(monkeypatch):
         async def verify_webhook(self, payload, signature):
             return fake_event
 
-    monkeypatch.setattr(
-        "app.billing.payment_gateway.get_stripe_gateway", lambda: FakeStripeGW()
-    )
+    monkeypatch.setattr("app.billing.payment_gateway.get_stripe_gateway", lambda: FakeStripeGW())
 
     captured = {}
 
@@ -173,9 +171,7 @@ def test_stripe_webhook_invalid_signature_400(monkeypatch):
         async def verify_webhook(self, payload, signature):
             raise ValueError("bad sig")
 
-    monkeypatch.setattr(
-        "app.billing.payment_gateway.get_stripe_gateway", lambda: FakeStripeGW()
-    )
+    monkeypatch.setattr("app.billing.payment_gateway.get_stripe_gateway", lambda: FakeStripeGW())
     req = FakeRequest(b"{}", {"Stripe-Signature": "bad"})
     with pytest.raises(HTTPException) as ei:
         _run(billing.stripe_webhook(req, db=FakeDB()))
@@ -205,7 +201,9 @@ def test_provision_usage_swallows_errors(monkeypatch):
     # If the underlying usage module blows up, _provision_usage must not raise.
     import app.billing.usage as u
 
-    monkeypatch.setattr(u, "activate_plan", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        u, "activate_plan", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
+    )
     billing._provision_usage("c", "advanced", None, "sub_x")  # should not raise
 
 

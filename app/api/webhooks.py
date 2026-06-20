@@ -68,9 +68,7 @@ async def verify_twilio_signature(
 
     if not auth_token:
         if settings.is_production:
-            logger.error(
-                "TWILIO_AUTH_TOKEN not set in production — refusing unverified webhook"
-            )
+            logger.error("TWILIO_AUTH_TOKEN not set in production — refusing unverified webhook")
             raise HTTPException(status_code=503, detail="Webhook verification not configured")
         logger.warning("TWILIO_AUTH_TOKEN not set - skipping signature verification (dev only)")
         return True
@@ -102,9 +100,7 @@ async def verify_twilio_signature(
         digest = hmac.new(
             auth_token.encode("utf-8"), data_string.encode("utf-8"), hashlib.sha1
         ).digest()
-        valid = hmac.compare_digest(
-            base64.b64encode(digest).decode("utf-8"), x_twilio_signature
-        )
+        valid = hmac.compare_digest(base64.b64encode(digest).decode("utf-8"), x_twilio_signature)
 
     if not valid:
         logger.warning("Invalid Twilio signature received")
@@ -748,11 +744,17 @@ async def whatsapp_webhook_inbound(request: Request):
                         interactive = msg.get("interactive") or {}
                         if interactive.get("type") == "nfm_reply":
                             try:
-                                from app.marketing.whatsapp_flows import handle_flow_response
                                 import json as _json
+
+                                from app.marketing.whatsapp_flows import handle_flow_response
+
                                 nfm = interactive.get("nfm_reply") or {}
                                 resp_json = nfm.get("response_json") or "{}"
-                                flow_data = _json.loads(resp_json) if isinstance(resp_json, str) else resp_json
+                                flow_data = (
+                                    _json.loads(resp_json)
+                                    if isinstance(resp_json, str)
+                                    else resp_json
+                                )
                                 await handle_flow_response(flow_data, from_number=frm)
                             except Exception as e:
                                 logger.info("wa flow response err: %s", e)

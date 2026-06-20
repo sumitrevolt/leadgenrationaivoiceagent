@@ -52,9 +52,8 @@ _HTTP_TIMEOUT_S = 5.0
 
 def enabled() -> bool:
     """Master flag + master-key set. Both required for any /spend call."""
-    return (
-        os.environ.get(_FLAG, "0").strip().lower() in ("1", "true", "yes")
-        and bool(os.environ.get(_MASTER_KEY_ENV, "").strip())
+    return os.environ.get(_FLAG, "0").strip().lower() in ("1", "true", "yes") and bool(
+        os.environ.get(_MASTER_KEY_ENV, "").strip()
     )
 
 
@@ -161,13 +160,15 @@ async def per_key_spend(hours: int = 24) -> dict[str, Any]:
         spend = float(it.get("spend") or it.get("spend_usd") or 0.0)
         calls = int(it.get("call_count") or it.get("requests") or 0)
         mapping = keymap.get(vkey, {})
-        rows.append({
-            "vkey": vkey[:8] + "..." if len(vkey) > 8 else vkey,
-            "client_id": mapping.get("client_id"),
-            "niche": mapping.get("niche"),
-            "spend_usd": round(spend, 4),
-            "calls": calls,
-        })
+        rows.append(
+            {
+                "vkey": vkey[:8] + "..." if len(vkey) > 8 else vkey,
+                "client_id": mapping.get("client_id"),
+                "niche": mapping.get("niche"),
+                "spend_usd": round(spend, 4),
+                "calls": calls,
+            }
+        )
         total += spend
     return {
         "available": True,
@@ -216,13 +217,15 @@ def per_key_spend_sync(hours: int = 24) -> dict[str, Any]:
         spend = float(it.get("spend") or it.get("spend_usd") or 0.0)
         calls = int(it.get("call_count") or it.get("requests") or 0)
         mapping = keymap.get(vkey, {})
-        rows.append({
-            "vkey": vkey[:8] + "..." if len(vkey) > 8 else vkey,
-            "client_id": mapping.get("client_id"),
-            "niche": mapping.get("niche"),
-            "spend_usd": round(spend, 4),
-            "calls": calls,
-        })
+        rows.append(
+            {
+                "vkey": vkey[:8] + "..." if len(vkey) > 8 else vkey,
+                "client_id": mapping.get("client_id"),
+                "niche": mapping.get("niche"),
+                "spend_usd": round(spend, 4),
+                "calls": calls,
+            }
+        )
         total += spend
     return {
         "available": True,
@@ -251,13 +254,15 @@ async def margin_alerts(revenue_per_client_usd: dict[str, float] | None = None) 
             continue
         rev = float(revenue.get(cid, 0.0))
         if rev > 0 and row["spend_usd"] >= rev:
-            flagged.append({
-                "client_id": cid,
-                "revenue_usd": rev,
-                "spend_usd": row["spend_usd"],
-                "ratio": round(row["spend_usd"] / rev, 2),
-                "niche": row.get("niche"),
-            })
+            flagged.append(
+                {
+                    "client_id": cid,
+                    "revenue_usd": rev,
+                    "spend_usd": row["spend_usd"],
+                    "ratio": round(row["spend_usd"] / rev, 2),
+                    "niche": row.get("niche"),
+                }
+            )
     return {"available": True, "flagged": flagged, "total_clients_checked": len(spend["spend"])}
 
 

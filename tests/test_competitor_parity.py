@@ -67,5 +67,7 @@ def test_ai_image_cache_name_safety():
     from app.marketing import ai_image
 
     assert ai_image.cache_file_path("../../etc/passwd") is None
-    assert ai_image.cache_file_path("aaaaaaaaaaaaaaaaaaaaaaaa.jpg") is None or True  # not exists → None
+    assert (
+        ai_image.cache_file_path("aaaaaaaaaaaaaaaaaaaaaaaa.jpg") is None or True
+    )  # not exists → None
     assert ai_image.cache_file_path("ZZ.jpg") is None

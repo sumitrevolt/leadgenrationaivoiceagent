@@ -136,7 +136,9 @@ def build_message(step_key: str, business_name: str, niche: str = "") -> dict[st
     return {"subject": subject, "body": body}
 
 
-def enroll(email: str, business_name: str, client_id: str = "", plan: str = "starter") -> dict[str, Any]:
+def enroll(
+    email: str, business_name: str, client_id: str = "", plan: str = "starter"
+) -> dict[str, Any]:
     """Signup hook: nurture me daalo (dedupe by email). Hamesha record (send nahi).
     Kabhi raise nahi."""
     try:
@@ -254,7 +256,9 @@ async def run_due() -> dict[str, Any]:
             try:
                 from app.platform import team
 
-                team.log_event("isha", "lifecycle_nurture", f"{sent} nurture emails, {converted} converted")
+                team.log_event(
+                    "isha", "lifecycle_nurture", f"{sent} nurture emails, {converted} converted"
+                )
             except Exception:
                 pass
         return {"enabled": True, "sent": sent, "converted": converted}

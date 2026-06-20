@@ -191,7 +191,9 @@ async def impersonation_start(
 
     logger.warning(
         "IMPERSONATION start: admin=%s -> client=%s ip=%s",
-        getattr(admin, "email", admin.id), cid, _client_ip(request),
+        getattr(admin, "email", admin.id),
+        cid,
+        _client_ip(request),
     )
     return {
         "access_token": token,

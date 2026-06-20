@@ -129,7 +129,7 @@ def _normalize(text: str) -> str:
 
 
 def _l1_key(scope: str, norm: str) -> str:
-    h = hashlib.sha256(f"{scope}|{norm}".encode("utf-8")).hexdigest()[:32]
+    h = hashlib.sha256(f"{scope}|{norm}".encode()).hexdigest()[:32]
     return f"sem:{h}"
 
 
@@ -141,7 +141,7 @@ async def _call_factory(factory: Callable[[], Any] | Awaitable[Any]) -> Any:
     return res
 
 
-async def _safe_embed(backend: Any, text: str) -> Optional[list[float]]:
+async def _safe_embed(backend: Any, text: str) -> list[float] | None:
     """Off-loop embed with hard timeout. Fail = None (semantic skip, fail-open)."""
     try:
         return await asyncio.wait_for(asyncio.to_thread(backend.embed, text), _embed_timeout())
@@ -165,7 +165,9 @@ class _ProdBackend:
     (L1 exact, evictable cache instance). Sab lazy + best-effort."""
 
     def __init__(self) -> None:
-        self.collection = (os.getenv("SEMANTIC_CACHE_COLLECTION", "") or "llm_semantic_cache").strip()
+        self.collection = (
+            os.getenv("SEMANTIC_CACHE_COLLECTION", "") or "llm_semantic_cache"
+        ).strip()
         self._l1 = None
 
     # -- L1 exact (Redis evictable cache; fail-soft already) -- #
@@ -176,7 +178,7 @@ class _ProdBackend:
             self._l1 = Cache(prefix="llmsem", default_ttl=_ttl())
         return self._l1
 
-    async def l1_get(self, key: str) -> Optional[str]:
+    async def l1_get(self, key: str) -> str | None:
         val = await self._cache().get(key)
         return val if isinstance(val, str) else (None if val is None else str(val))
 
@@ -214,7 +216,7 @@ class _ProdBackend:
             except Exception:
                 pass
 
-    def vsearch(self, vec: list[float], scope: str) -> Optional[dict[str, Any]]:
+    def vsearch(self, vec: list[float], scope: str) -> dict[str, Any] | None:
         from qdrant_client import models as qm
 
         client = self._client()
@@ -240,7 +242,9 @@ class _ProdBackend:
             "ts": float(pl.get("ts", 0.0) or 0.0),
         }
 
-    def vupsert(self, vec: list[float], scope: str, key_text: str, response: str, ts: float) -> None:
+    def vupsert(
+        self, vec: list[float], scope: str, key_text: str, response: str, ts: float
+    ) -> None:
         from qdrant_client import models as qm
 
         client = self._client()
@@ -257,7 +261,7 @@ class _ProdBackend:
         )
 
 
-_DEFAULT_BACKEND: Optional[_ProdBackend] = None
+_DEFAULT_BACKEND: _ProdBackend | None = None
 
 
 def _default_backend() -> _ProdBackend:
@@ -273,8 +277,8 @@ async def semantic_complete(
     factory: Callable[[], Any] | Awaitable[Any],
     *,
     scope: str = "global",
-    ttl: Optional[int] = None,
-    min_similarity: Optional[float] = None,
+    ttl: int | None = None,
+    min_similarity: float | None = None,
     backend: Any = None,
 ) -> tuple[Any, dict[str, Any]]:
     """LLM response ko semantically cache karo.
@@ -338,7 +342,9 @@ async def semantic_complete(
         if isinstance(value, str) and value.strip():
             await be.l1_set(l1key, value, ttl_v)
             if vec is not None:
-                await _safe_thread(be.vupsert, vec, scope, norm, value, now, timeout=_store_timeout())
+                await _safe_thread(
+                    be.vupsert, vec, scope, norm, value, now, timeout=_store_timeout()
+                )
     except Exception:
         pass
     return value, info

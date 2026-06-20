@@ -7,6 +7,7 @@ GET  /api/admin/system/summary   → activation readiness + system snapshot
 
 Auth: require_admin (Bearer JWT from /app/admin-login).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -24,8 +25,10 @@ from app.api.auth_deps import require_admin
 
 router = APIRouter(prefix="/api/admin", tags=["Admin Ops"])
 
-_BASE = "/app" if os.path.isdir("/app") else os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+_BASE = (
+    "/app"
+    if os.path.isdir("/app")
+    else os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 )
 _CAMPAIGN_KEY = "admin:campaign:last_run"
 
@@ -33,10 +36,10 @@ _CAMPAIGN_KEY = "admin:campaign:last_run"
 _CAMPAIGN_PROC: dict[str, object] = {}
 
 # ── Redis (optional; graceful skip) ─────────────────────────────────────────
-_r: Optional[object] = None
+_r: object | None = None
 
 
-def _redis() -> Optional[object]:
+def _redis() -> object | None:
     global _r
     if _r is not None:
         return _r
@@ -44,9 +47,7 @@ def _redis() -> Optional[object]:
         import redis as _redis_lib
 
         url = (os.environ.get("REDIS_URL") or "redis://127.0.0.1:6379/0").strip()
-        client = _redis_lib.Redis.from_url(
-            url, socket_connect_timeout=2, decode_responses=True
-        )
+        client = _redis_lib.Redis.from_url(url, socket_connect_timeout=2, decode_responses=True)
         client.ping()
         _r = client
         return _r
@@ -79,8 +80,8 @@ def _redis_get(key: str) -> dict:
 class CampaignLaunchReq(BaseModel):
     limit: int = 10
     dry_run: bool = False
-    niche: Optional[str] = None
-    client_id: Optional[str] = None
+    niche: str | None = None
+    client_id: str | None = None
     platform: bool = False
 
 
@@ -163,13 +164,11 @@ def _leads_ready() -> dict:
             connect_timeout=4,
         )
         cur = conn.cursor()
-        cur.execute(
-            """SELECT COALESCE(NULLIF(LOWER(niche),''),'general') AS n, COUNT(*)
+        cur.execute("""SELECT COALESCE(NULLIF(LOWER(niche),''),'general') AS n, COUNT(*)
             FROM leads
             WHERE phone IS NOT NULL AND phone <> ''
               AND COALESCE(call_attempts,0) = 0
-            GROUP BY 1 ORDER BY 2 DESC LIMIT 15"""
-        )
+            GROUP BY 1 ORDER BY 2 DESC LIMIT 15""")
         rows = cur.fetchall()
         conn.close()
         by_niche = [{"niche": r[0], "count": int(r[1])} for r in rows]
@@ -344,17 +343,14 @@ async def system_summary(_user=Depends(require_admin)):
     last_campaign = _redis_get(_CAMPAIGN_KEY) or {"status": "never_run"}
 
     provider = (os.environ.get("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
-    vobiz_ok = bool(
-        os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN")
-    )
+    vobiz_ok = bool(os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN"))
     flags = {
         "TELEPHONY_PROVIDER": provider,
         "PROVIDER_CREDS": vobiz_ok,
         "VOBIZ_CREDS": vobiz_ok,
         "VOBIZ_CALLER_ID": bool(os.environ.get("VOBIZ_CALLER_ID", "").strip()),
         "VOBIZ_CALL_RECORD": bool(int(os.environ.get("VOBIZ_CALL_RECORD", "0"))),
-        "AUTO_EMAIL_OUTREACH": os.environ.get("AUTO_EMAIL_OUTREACH", "").lower()
-        in ("1", "true"),
+        "AUTO_EMAIL_OUTREACH": os.environ.get("AUTO_EMAIL_OUTREACH", "").lower() in ("1", "true"),
         "REPLY_AGENT": os.environ.get("REPLY_AGENT", "").lower() in ("1", "true"),
         "GROQ_STT": bool(os.environ.get("GROQ_API_KEY", "").strip()),
         "UPI_VPA": bool(os.environ.get("UPI_VPA", "").strip()),

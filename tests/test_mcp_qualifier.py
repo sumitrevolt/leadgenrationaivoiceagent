@@ -60,8 +60,7 @@ def test_qualifier_rich_input_outperforms_sparse() -> None:
     key = _issue()
     headers = {"X-LeadGen-Key": key}
 
-    bare = client.post("/api/mcp-product/v1/qualifier",
-                       headers=headers, json={}).json()
+    bare = client.post("/api/mcp-product/v1/qualifier", headers=headers, json={}).json()
     rich = client.post(
         "/api/mcp-product/v1/qualifier",
         headers=headers,

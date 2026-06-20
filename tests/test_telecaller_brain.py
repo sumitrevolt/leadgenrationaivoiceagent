@@ -8,6 +8,7 @@ and lock in:
 These guard against silent regression of fixes that otherwise only have
 integration coverage (scripts/agent_tester.py needs a running app).
 """
+
 from app.voice_agent.telecaller_brain import TelecallerBrain
 
 

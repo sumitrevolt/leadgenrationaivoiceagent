@@ -108,11 +108,15 @@ def test_coordinator_reliable(tmp_path, monkeypatch):
     # 6 substantive runs the human approved (judge 1, human 1)
     for i in range(6):
         runs.append({"run_id": f"r{i}", "summary": "real plan", "execute": False})
-        decisions.append({"source": "coordinator", "item_id": f"r{i}", "status": "approved", "by": "admin"})
+        decisions.append(
+            {"source": "coordinator", "item_id": f"r{i}", "status": "approved", "by": "admin"}
+        )
     # 4 empty runs the human rejected (judge 0, human 0)
     for i in range(6, 10):
         runs.append({"run_id": f"r{i}", "execute": False})  # no substance
-        decisions.append({"source": "coordinator", "item_id": f"r{i}", "status": "rejected", "by": "admin"})
+        decisions.append(
+            {"source": "coordinator", "item_id": f"r{i}", "status": "rejected", "by": "admin"}
+        )
     _write_jsonl(coord, runs)
     _write_jsonl(dec, decisions)
 

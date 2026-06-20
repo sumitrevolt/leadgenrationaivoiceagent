@@ -31,12 +31,14 @@ def _get_memory_usage() -> str:
     try:
         import os
         import resource  # POSIX-only; Windows fallback below
+
         usage_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         return f"{usage_kb // 1024} MB"
     except Exception:
         pass
     try:
         import os
+
         # /proc/self/status on Linux
         with open("/proc/self/status") as f:
             for line in f:
@@ -52,6 +54,7 @@ def _get_db_health() -> str:
     """Quick DB ping — returns 'OK' or 'ERROR: <reason>'. Never raises."""
     try:
         from app.database import engine
+
         with engine.connect() as conn:
             conn.execute(__import__("sqlalchemy").text("SELECT 1"))
         return "OK"
@@ -375,9 +378,11 @@ class PlatformOrchestrator:
         # Send email report to admin (NOTIFY_EMAIL se, ops_watchdog pattern)
         try:
             import os
+
             notify = os.environ.get("NOTIFY_EMAIL", "").strip()
             if notify:
                 from app.platform.auto_outreach import send_email
+
                 lines = [f"{k}: {v}" for k, v in stats.items()]
                 body = "Platform Stats Report\n\n" + "\n".join(lines)
                 await send_email(

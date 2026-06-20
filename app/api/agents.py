@@ -113,7 +113,9 @@ class AdvancedRequest(BaseModel):
     """Goal for the Reflexion-style self-correcting agent team."""
 
     goal: str = Field(..., min_length=3, max_length=2000)
-    max_iterations: int = Field(2, ge=1, le=3, description="Reflexion retries (critic<quality_bar pe)")
+    max_iterations: int = Field(
+        2, ge=1, le=3, description="Reflexion retries (critic<quality_bar pe)"
+    )
     quality_bar: float = Field(0.7, ge=0.0, le=1.0, description="Early-stop score threshold")
     execute: bool = Field(False, description="True = agents ki SAFE capabilities bhi chalao")
     max_steps: int = Field(4, ge=1, le=8)
@@ -210,7 +212,9 @@ class EngineeringRequest(BaseModel):
     """Goal for the engineering crew (draft-only design/plan/tests)."""
 
     goal: str = Field(..., min_length=3, max_length=2000)
-    context: str = Field("", max_length=4000, description="Optional existing-code/constraints context")
+    context: str = Field(
+        "", max_length=4000, description="Optional existing-code/constraints context"
+    )
 
 
 @router.post("/coordinate-engineering", dependencies=[Depends(rate_limit("agents", 10, 60))])

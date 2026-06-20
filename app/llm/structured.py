@@ -43,10 +43,11 @@ except Exception:  # pragma: no cover
 
         yield _NoopSpan()
 
+
 T = TypeVar("T")
 
 
-def _provider() -> Optional[tuple]:
+def _provider() -> tuple | None:
     cb = os.getenv("CEREBRAS_API_KEY")
     if cb:
         return "https://api.cerebras.ai/v1", cb, os.getenv("DEFAULT_LLM", "gpt-oss-120b")
@@ -56,7 +57,7 @@ def _provider() -> Optional[tuple]:
     return None
 
 
-def _strict_model(base_url: str) -> Optional[str]:
+def _strict_model(base_url: str) -> str | None:
     """Pick a STRICT-capable free model for native ``json_schema`` mode.
 
     Server-enforced ``response_format={'type':'json_schema', strict:true}`` only
@@ -104,13 +105,13 @@ def available() -> bool:
 
 
 def extract(
-    response_model: Type[T],
+    response_model: type[T],
     system: str,
     user: str,
     max_tokens: int = 800,
     max_retries: int = 2,
     temperature: float = 0.4,
-) -> Optional[T]:
+) -> T | None:
     """Return a validated `response_model` instance from a free LLM, or None.
 
     Never raises. Caller should treat None as "use the existing template fallback".
@@ -124,14 +125,12 @@ def extract(
         {"role": "user", "content": user},
     ]
 
-    def _run(mode, mdl) -> Optional[T]:
+    def _run(mode, mdl) -> T | None:
         # JSON mode = works with Cerebras/Groq (they lack OpenAI tool-calling mode).
         import instructor
         from openai import OpenAI
 
-        client = instructor.from_openai(
-            OpenAI(base_url=base_url, api_key=api_key), mode=mode
-        )
+        client = instructor.from_openai(OpenAI(base_url=base_url, api_key=api_key), mode=mode)
         with _llm_span("extract", model=mdl, provider="free") as _obs:
             _result = client.chat.completions.create(
                 model=mdl,
@@ -165,13 +164,13 @@ def extract(
 
 
 async def aextract(
-    response_model: Type[T],
+    response_model: type[T],
     system: str,
     user: str,
     max_tokens: int = 800,
     max_retries: int = 2,
     temperature: float = 0.4,
-) -> Optional[T]:
+) -> T | None:
     """Async variant of extract() for async flows (e.g. marketing generators).
 
     Returns a validated `response_model` instance or None. Never raises.
@@ -185,13 +184,11 @@ async def aextract(
         {"role": "user", "content": user},
     ]
 
-    async def _run(mode, mdl) -> Optional[T]:
+    async def _run(mode, mdl) -> T | None:
         import instructor
         from openai import AsyncOpenAI
 
-        client = instructor.from_openai(
-            AsyncOpenAI(base_url=base_url, api_key=api_key), mode=mode
-        )
+        client = instructor.from_openai(AsyncOpenAI(base_url=base_url, api_key=api_key), mode=mode)
         with _llm_span("extract", model=mdl, provider="free") as _obs:
             _result = await client.chat.completions.create(
                 model=mdl,

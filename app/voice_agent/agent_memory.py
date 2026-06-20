@@ -25,6 +25,7 @@ USAGE:
 
 Top-level imports SIRF stdlib — app.* sab lazy (module bina poore app ke import/test ho).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -137,10 +138,24 @@ def _subject(subject_id: Any, scope: str) -> str:
 # get re-injected into later prompts. Drop any "fact" that looks like an instruction /
 # meta-directive so an attacker can't plant a persistent injection via spoken memory.
 _INJECTION_MARKERS = (
-    "ignore previous", "ignore all", "disregard previous", "forget previous",
-    "system prompt", "your instructions", "reveal your", "disclose all", "pretend to be",
-    "act as", "you are now", "developer mode", "jailbreak", "override your",
-    "bypass your", "new instructions", "tum ab", "purane instructions bhul",
+    "ignore previous",
+    "ignore all",
+    "disregard previous",
+    "forget previous",
+    "system prompt",
+    "your instructions",
+    "reveal your",
+    "disclose all",
+    "pretend to be",
+    "act as",
+    "you are now",
+    "developer mode",
+    "jailbreak",
+    "override your",
+    "bypass your",
+    "new instructions",
+    "tum ab",
+    "purane instructions bhul",
 )
 
 
@@ -203,7 +218,7 @@ class _NativeBackend:
             with_payload=True,
         )
         out: list[dict[str, Any]] = []
-        for p in (getattr(res, "points", None) or []):
+        for p in getattr(res, "points", None) or []:
             pl = getattr(p, "payload", None) or {}
             out.append(
                 {
@@ -285,7 +300,7 @@ class _NativeBackend:
         return n
 
 
-_BACKEND: Optional[Any] = None
+_BACKEND: Any | None = None
 
 
 def _backend() -> Any:
@@ -335,7 +350,13 @@ class _Mem0Backend:
         items = res.get("results", res) if isinstance(res, dict) else res
         out = []
         for it in items or []:
-            out.append({"fact": (it or {}).get("memory") or (it or {}).get("text"), "score": float((it or {}).get("score", 0.0) or 0.0), "ts": 0.0})
+            out.append(
+                {
+                    "fact": (it or {}).get("memory") or (it or {}).get("text"),
+                    "score": float((it or {}).get("score", 0.0) or 0.0),
+                    "ts": 0.0,
+                }
+            )
         return out
 
     def mem0_list(self, subject: str, limit: int) -> list[dict[str, Any]]:
@@ -357,8 +378,8 @@ _EXTRACT_SYS = (
     "You extract DURABLE memory facts about the LEAD/customer from a conversation. "
     "Keep only stable, reusable facts (budget, timeline, specific need, identity, "
     "location, decision-maker, objection). IGNORE greetings/smalltalk. Each fact "
-    "<= 12 words. Return ONLY a JSON array of strings (e.g. [\"budget ~50k\", "
-    "\"wants bridal package in December\"]). Nothing worth keeping -> []."
+    '<= 12 words. Return ONLY a JSON array of strings (e.g. ["budget ~50k", '
+    '"wants bridal package in December"]). Nothing worth keeping -> [].'
 )
 
 
@@ -402,7 +423,7 @@ async def recall(
     query: str,
     *,
     scope: str = "lead",
-    limit: Optional[int] = None,
+    limit: int | None = None,
     backend: Any = None,
 ) -> list[str]:
     """Subject ke durable facts jo `query` se relevant — fact-strings list. Fail = []."""
@@ -468,7 +489,9 @@ async def remember(
     try:
         # mem0 backend khud extract karta — seedha add.
         if isinstance(be, _Mem0Backend):
-            await _safe_thread(be.mem0_add, list(messages or []), subject, timeout=_op_timeout() * 2)
+            await _safe_thread(
+                be.mem0_add, list(messages or []), subject, timeout=_op_timeout() * 2
+            )
             await _record("stored")
             return {"stored": 1, "backend": "mem0"}
 
@@ -513,8 +536,12 @@ async def list_facts(
     be = backend or _backend()
     try:
         if isinstance(be, _Mem0Backend):
-            return await _safe_thread(be.mem0_list, subject, int(limit), timeout=_op_timeout()) or []
-        return await _safe_thread(be.scroll_subject, subject, int(limit), timeout=_op_timeout()) or []
+            return (
+                await _safe_thread(be.mem0_list, subject, int(limit), timeout=_op_timeout()) or []
+            )
+        return (
+            await _safe_thread(be.scroll_subject, subject, int(limit), timeout=_op_timeout()) or []
+        )
     except Exception as e:
         logger.debug("agent_memory list_facts skipped: %s", e)
         return []

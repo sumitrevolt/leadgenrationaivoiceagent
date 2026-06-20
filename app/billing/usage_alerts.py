@@ -72,7 +72,8 @@ def _append(rec: dict[str, Any]) -> None:
 
 def _already_alerted(client_id: str, threshold: int, period: str) -> bool:
     return any(
-        r.get("client_id") == client_id and int(r.get("threshold") or 0) == threshold
+        r.get("client_id") == client_id
+        and int(r.get("threshold") or 0) == threshold
         and r.get("period") == period
         for r in _read()
     )
@@ -193,8 +194,13 @@ async def run_check() -> dict[str, Any]:
                         continue
                     msg = build_message(th, str(cl.get("business_name") or ""), used, cap)
                     rec = {
-                        "at": _now().isoformat(), "client_id": cid, "period": period,
-                        "threshold": th, "used": used, "cap": cap, "sent": False,
+                        "at": _now().isoformat(),
+                        "client_id": cid,
+                        "period": period,
+                        "threshold": th,
+                        "used": used,
+                        "cap": cap,
+                        "sent": False,
                     }
                     out["alerts"] += 1
                     if _enabled():
@@ -219,8 +225,11 @@ async def run_check() -> dict[str, Any]:
                     try:
                         from app.platform import team
 
-                        team.log_event("nikhil", "usage_alert",
-                                       f"{cl.get('business_name')} {th}% minutes ({used}/{cap})")
+                        team.log_event(
+                            "nikhil",
+                            "usage_alert",
+                            f"{cl.get('business_name')} {th}% minutes ({used}/{cap})",
+                        )
                     except Exception:
                         pass
                     break  # ek run me ek (highest) threshold per client
@@ -232,7 +241,7 @@ async def run_check() -> dict[str, Any]:
 
 
 def recent(limit: int = 50) -> list[dict[str, Any]]:
-    return _read()[-max(1, min(int(limit or 50), 500)):][::-1]
+    return _read()[-max(1, min(int(limit or 50), 500)) :][::-1]
 
 
 __all__ = ["run_check", "recent", "build_message", "THRESHOLDS"]

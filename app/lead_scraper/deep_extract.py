@@ -31,7 +31,15 @@ _UA = (
 
 
 def _empty(url: str) -> dict[str, Any]:
-    return {"ok": False, "url": url, "markdown": "", "text": "", "emails": [], "phones": [], "engine": "none"}
+    return {
+        "ok": False,
+        "url": url,
+        "markdown": "",
+        "text": "",
+        "emails": [],
+        "phones": [],
+        "engine": "none",
+    }
 
 
 async def _via_crawl4ai(url: str) -> dict[str, Any] | None:
@@ -50,8 +58,13 @@ async def _via_crawl4ai(url: str) -> dict[str, Any] | None:
 
         c = find_contacts(html or md)
         return {
-            "ok": True, "url": url, "markdown": md.strip(), "text": md.strip(),
-            "emails": c["emails"], "phones": c["phones"], "engine": "crawl4ai",
+            "ok": True,
+            "url": url,
+            "markdown": md.strip(),
+            "text": md.strip(),
+            "emails": c["emails"],
+            "phones": c["phones"],
+            "engine": "crawl4ai",
         }
     except Exception as exc:
         logger.info("deep_extract crawl4ai unavailable (%s) — falling back", exc)
@@ -72,8 +85,13 @@ async def _via_trafilatura(url: str) -> dict[str, Any]:
         text = clean_text(html)
         c = find_contacts(html)
         return {
-            "ok": bool(text), "url": url, "markdown": text, "text": text,
-            "emails": c["emails"], "phones": c["phones"], "engine": "trafilatura",
+            "ok": bool(text),
+            "url": url,
+            "markdown": text,
+            "text": text,
+            "emails": c["emails"],
+            "phones": c["phones"],
+            "engine": "trafilatura",
         }
     except Exception as exc:
         logger.info("deep_extract trafilatura fallback failed (%s)", exc)

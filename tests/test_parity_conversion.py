@@ -99,7 +99,12 @@ def test_form_config_save_get(tmp_path, monkeypatch):
         [
             {"name": "name", "label": "Naam *", "type": "text", "required": True},
             {"name": "phone", "label": "Phone *", "type": "tel", "required": True},
-            {"name": "Service Type!", "label": "Service", "type": "select", "options": ["AC", "Fridge"]},
+            {
+                "name": "Service Type!",
+                "label": "Service",
+                "type": "select",
+                "options": ["AC", "Fridge"],
+            },
             {"name": "bad type", "type": "weird"},  # name sanitized, type→text
         ],
     )
@@ -143,7 +148,9 @@ def test_embed_page_html_form_and_chat(tmp_path, monkeypatch):
     assert "/api/public/widget-chat" in page
     assert "mode=chat" in page and "lgaiChat" in page
     # custom field renders
-    embed_widget.save_form_config("sharma-solar-7b6f", [{"name": "budget", "label": "Aapka Budget", "type": "text"}])
+    embed_widget.save_form_config(
+        "sharma-solar-7b6f", [{"name": "budget", "label": "Aapka Budget", "type": "text"}]
+    )
     page2 = embed_widget.embed_page_html(client)
     assert "Aapka Budget" in page2 and 'data-lgf="budget"' in page2
 

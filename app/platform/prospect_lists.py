@@ -107,12 +107,18 @@ def search(
     return out[: max(1, min(int(limit), 500))]
 
 
-def create_list(name: str, prospect_ids: list[str] | None = None, filters: dict[str, Any] | None = None) -> dict[str, Any]:
+def create_list(
+    name: str, prospect_ids: list[str] | None = None, filters: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Saved list — explicit ids YA filters-snapshot se. Kabhi raise nahi."""
     try:
         ids = list(prospect_ids or [])
         if not ids and filters:
-            ids = [str(r.get("id")) for r in search(**{k: v for k, v in filters.items() if v is not None}) if r.get("id")]
+            ids = [
+                str(r.get("id"))
+                for r in search(**{k: v for k, v in filters.items() if v is not None})
+                if r.get("id")
+            ]
         rec = {
             "id": uuid.uuid4().hex[:10],
             "name": (name or "list")[:80],
@@ -159,7 +165,14 @@ _FIELD_ALIASES = {
     "business_name": ["business_name", "company", "company name", "organization", "account name"],
     "name": ["name", "full name", "first name", "contact"],
     "email": ["email", "work email", "email address"],
-    "phone": ["phone", "mobile", "phone number", "work direct phone", "mobile phone", "corporate phone"],
+    "phone": [
+        "phone",
+        "mobile",
+        "phone number",
+        "work direct phone",
+        "mobile phone",
+        "corporate phone",
+    ],
     "city": ["city", "location", "company city"],
     "niche": ["niche", "industry", "keywords"],
     "website": ["website", "company website", "website url", "domain"],
@@ -186,7 +199,9 @@ def import_rows(rows: list[dict[str, Any]], source: str = "apollo_import") -> di
         from app.platform import prospector
 
         existing = prospector.list_prospects(limit=5000)
-        seen_phones = {"".join(c for c in str(r.get("phone") or "") if c.isdigit())[-10:] for r in existing}
+        seen_phones = {
+            "".join(c for c in str(r.get("phone") or "") if c.isdigit())[-10:] for r in existing
+        }
         seen_emails = {str(r.get("email") or "").lower() for r in existing if r.get("email")}
         for raw in rows or []:
             m = _map_row(raw)
@@ -222,7 +237,9 @@ def import_rows(rows: list[dict[str, Any]], source: str = "apollo_import") -> di
         try:
             from app.platform import team
 
-            team.log_event("rohan", "prospects_imported", f"{added} imported ({source}), {skipped} dup/skip")
+            team.log_event(
+                "rohan", "prospects_imported", f"{added} imported ({source}), {skipped} dup/skip"
+            )
         except Exception:
             pass
     except Exception as e:

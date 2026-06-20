@@ -42,12 +42,24 @@ def _condition(code: int) -> str:
 def _angle(temp: float, cond: str) -> dict[str, str]:
     """Temp + condition → season + Hinglish marketing angle."""
     if cond in ("rain", "storm"):
-        return {"season": "barish", "angle": "Baarish ka mausam — ghar-baithe order/booking, indoor service ya monsoon-special offer push karo. ☔"}
+        return {
+            "season": "barish",
+            "angle": "Baarish ka mausam — ghar-baithe order/booking, indoor service ya monsoon-special offer push karo. ☔",
+        }
     if cond == "snow" or temp <= 12:
-        return {"season": "sardi", "angle": "Thand badh rahi — heater/garam-cheez/winter-care offer ya 'ghar pe service' angle chalao. 🧥"}
+        return {
+            "season": "sardi",
+            "angle": "Thand badh rahi — heater/garam-cheez/winter-care offer ya 'ghar pe service' angle chalao. 🧥",
+        }
     if temp >= 34:
-        return {"season": "garmi", "angle": f"Garmi tez ({int(temp)}°C) — AC/cooler/thanda/cold-drink/summer-care offer ka best time. 🌞"}
-    return {"season": "suhana", "angle": "Mausam suhana — outdoor/visit-driven offer, footfall badhao, fresh content daalo. 🌤️"}
+        return {
+            "season": "garmi",
+            "angle": f"Garmi tez ({int(temp)}°C) — AC/cooler/thanda/cold-drink/summer-care offer ka best time. 🌞",
+        }
+    return {
+        "season": "suhana",
+        "angle": "Mausam suhana — outdoor/visit-driven offer, footfall badhao, fresh content daalo. 🌤️",
+    }
 
 
 async def weather_angle(city: str = "Mumbai") -> dict[str, Any]:
@@ -73,12 +85,22 @@ async def weather_angle(city: str = "Mumbai") -> dict[str, Any]:
             lat, lon = res[0].get("latitude"), res[0].get("longitude")
             w = await c.get(
                 "https://api.open-meteo.com/v1/forecast",
-                params={"latitude": lat, "longitude": lon, "current": "temperature_2m,weather_code"},
+                params={
+                    "latitude": lat,
+                    "longitude": lon,
+                    "current": "temperature_2m,weather_code",
+                },
             )
             cur = (w.json().get("current") if w.status_code == 200 else None) or {}
             temp = float(cur.get("temperature_2m"))
             cond = _condition(int(cur.get("weather_code", 0)))
-            out = {"ok": True, "city": city, "temp_c": round(temp, 1), "condition": cond, **_angle(temp, cond)}
+            out = {
+                "ok": True,
+                "city": city,
+                "temp_c": round(temp, 1),
+                "condition": cond,
+                **_angle(temp, cond),
+            }
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("weather_angle skip: %s", e)
         out = {"ok": False, "city": city}

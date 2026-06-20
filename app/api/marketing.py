@@ -422,18 +422,26 @@ async def photo_poster(
     from app.marketing import ai_image
 
     if not ai_image.has_key():
-        raise HTTPException(status_code=402, detail="POLLINATIONS_API_KEY set karo (enter.pollinations.ai free)")
+        raise HTTPException(
+            status_code=402, detail="POLLINATIONS_API_KEY set karo (enter.pollinations.ai free)"
+        )
     photo = await file.read()
     if not photo or len(photo) > 8 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="photo missing ya >8MB")
-    full_prompt = (prompt or "").strip() or "turn this photo into a professional social-media marketing poster"
+    full_prompt = (
+        prompt or ""
+    ).strip() or "turn this photo into a professional social-media marketing poster"
     if style:
         full_prompt += f", {style} style, high quality, space for text"
     data, name = await ai_image.edit_image_bytes(full_prompt, photo)
     if not data:
         raise HTTPException(status_code=502, detail="image edit failed (upstream)")
     _log_isha("photo_poster", f"{file.filename} → poster")
-    return {"url": f"/api/marketing/ai-img-file/{name}", "prompt": full_prompt, "provider": "pollinations-kontext"}
+    return {
+        "url": f"/api/marketing/ai-img-file/{name}",
+        "prompt": full_prompt,
+        "provider": "pollinations-kontext",
+    }
 
 
 @router.get("/ai-img-file/{name}", dependencies=[Depends(rate_limit("aiimgf", 60, 60))])
@@ -462,7 +470,9 @@ async def ai_image_proxy(prompt: str, w: int = 1024, h: int = 1024, seed: int | 
     data = await ai_image.fetch_image_bytes(prompt[:480], w, h, seed)
     if not data:
         raise HTTPException(status_code=502, detail="image generation unavailable (key/upstream)")
-    return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+    return Response(
+        content=data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"}
+    )
 
 
 class CompletePostRequest(BaseModel):
@@ -490,12 +500,19 @@ async def generate_complete_post(
 
         post, img = await asyncio.gather(
             post_generator.generate_post(
-                business_name=req.business_name, niche=req.niche,
-                occasion=req.occasion, offer=req.offer, language=req.language,
+                business_name=req.business_name,
+                niche=req.niche,
+                occasion=req.occasion,
+                offer=req.offer,
+                language=req.language,
             ),
             ai_image.marketing_image(
-                req.business_name, req.niche, req.occasion, req.offer,
-                width=req.width, height=req.height,
+                req.business_name,
+                req.niche,
+                req.occasion,
+                req.offer,
+                width=req.width,
+                height=req.height,
             ),
         )
         _log_isha("complete_post", f"{req.business_name} ({req.occasion or req.niche})")
@@ -528,8 +545,11 @@ async def generate_post_variations(
         posts = await asyncio.gather(
             *[
                 post_generator.generate_post(
-                    business_name=req.business_name, niche=req.niche,
-                    occasion=req.occasion, offer=req.offer, language=req.language,
+                    business_name=req.business_name,
+                    niche=req.niche,
+                    occasion=req.occasion,
+                    offer=req.offer,
+                    language=req.language,
                 )
                 for _ in range(req.count)
             ]
@@ -646,7 +666,13 @@ async def schedule_content(req: ScheduleRequest, current_user: User = Depends(re
         from app.marketing import content_schedule
 
         item = content_schedule.schedule(
-            req.business_name, req.niche, req.date, req.occasion, req.offer, req.channel, req.client_id
+            req.business_name,
+            req.niche,
+            req.date,
+            req.occasion,
+            req.offer,
+            req.channel,
+            req.client_id,
         )
         _log_isha("schedule_add", f"{req.business_name} @ {item.get('date')}")
         return item
@@ -689,7 +715,9 @@ class FestivalScheduleRequest(BaseModel):
 
 
 @router.post("/festival-autoschedule")
-async def festival_autoschedule(req: FestivalScheduleRequest, current_user: User = Depends(require_admin)):
+async def festival_autoschedule(
+    req: FestivalScheduleRequest, current_user: User = Depends(require_admin)
+):
     """Existing festival calendar ke upcoming festivals ko content scheduler me dup-safe queue."""
     try:
         from app.marketing import content_schedule

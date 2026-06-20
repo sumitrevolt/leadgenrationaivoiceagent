@@ -36,7 +36,11 @@ def _flag(name: str) -> bool:
 def _website(client: dict) -> str:
     w = client.get("website") or ""
     if not w:
-        w = (client.get("socials") or {}).get("website", "") if isinstance(client.get("socials"), dict) else ""
+        w = (
+            (client.get("socials") or {}).get("website", "")
+            if isinstance(client.get("socials"), dict)
+            else ""
+        )
     return str(w or "").strip()
 
 
@@ -108,7 +112,9 @@ async def _first_content_pack(client: dict) -> dict:
         html = pack.get("html") or ""
         if html:
             os.makedirs(_PACK_DIR, exist_ok=True)
-            with open(os.path.join(_PACK_DIR, f"{client.get('id','client')}.html"), "w", encoding="utf-8") as f:
+            with open(
+                os.path.join(_PACK_DIR, f"{client.get('id','client')}.html"), "w", encoding="utf-8"
+            ) as f:
                 f.write(html)
         return pack.get("counts", {})
     except Exception as exc:

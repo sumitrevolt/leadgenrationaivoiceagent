@@ -151,5 +151,14 @@ def bant_score(p: dict) -> dict[str, Any]:
         }
     except Exception as e:  # pragma: no cover
         logger.warning(f"[qualify] fail: {e}")
-        return {"total": 0, "grade": "D", "budget": 0, "authority": 0, "need": 0,
-                "timeline": 0, "reasons": [], "action": _ACTIONS["D"], "error": str(e)[:120]}
+        return {
+            "total": 0,
+            "grade": "D",
+            "budget": 0,
+            "authority": 0,
+            "need": 0,
+            "timeline": 0,
+            "reasons": [],
+            "action": _ACTIONS["D"],
+            "error": str(e)[:120],
+        }

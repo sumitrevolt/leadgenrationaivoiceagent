@@ -54,7 +54,12 @@ def issue(client_id: str, name: str = "default") -> dict[str, Any]:
             f.write(json.dumps(rec) + "\n")
     except Exception as e:
         return {"ok": False, "error": str(e)[:120]}
-    return {"ok": True, "api_key": key, "client_id": client_id, "note": "Key ko safe rakho — dobara nahi dikhegi."}
+    return {
+        "ok": True,
+        "api_key": key,
+        "client_id": client_id,
+        "note": "Key ko safe rakho — dobara nahi dikhegi.",
+    }
 
 
 def revoke(key_hash_prefix: str) -> dict[str, Any]:
@@ -80,7 +85,15 @@ def list_keys(client_id: str = "") -> list[dict[str, Any]]:
     for r in _read():
         if client_id and r.get("client_id") != client_id:
             continue
-        out.append({"hash_prefix": r.get("hash", "")[:12], "client_id": r.get("client_id"), "name": r.get("name"), "active": r.get("active"), "created_at": r.get("created_at")})
+        out.append(
+            {
+                "hash_prefix": r.get("hash", "")[:12],
+                "client_id": r.get("client_id"),
+                "name": r.get("name"),
+                "active": r.get("active"),
+                "created_at": r.get("created_at"),
+            }
+        )
     return out
 
 

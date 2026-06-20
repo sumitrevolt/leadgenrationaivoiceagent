@@ -54,9 +54,9 @@ _ENABLED_FLAG = "EVAL_GATE"
 _HARD_FLAG = "EVAL_GATE_HARD"
 
 # Defaults
-_DEFAULT_TOLERANCE = 0.95   # current must be >= 95% of baseline
+_DEFAULT_TOLERANCE = 0.95  # current must be >= 95% of baseline
 _DEFAULT_BASELINE_WINDOW = 20  # last 20 runs feed the baseline median
-_MIN_HISTORY_FOR_BASELINE = 5   # need at least 5 prior runs before gating
+_MIN_HISTORY_FOR_BASELINE = 5  # need at least 5 prior runs before gating
 
 
 # --------------------------------------------------------------------------- #
@@ -64,14 +64,14 @@ _MIN_HISTORY_FOR_BASELINE = 5   # need at least 5 prior runs before gating
 # --------------------------------------------------------------------------- #
 def enabled() -> bool:
     """Master gate. OFF (default) = pure pass-through; no recording, no decisions."""
-    return (os.environ.get(_ENABLED_FLAG, "0").strip().lower() in ("1", "true", "yes"))
+    return os.environ.get(_ENABLED_FLAG, "0").strip().lower() in ("1", "true", "yes")
 
 
 def hard_mode() -> bool:
     """When true, `gate_decision()` returning 'reject' should cause callers to
     actually block (e.g. raise / roll back). When false, decision is logged
     only — observability without enforcement (recommended starting state)."""
-    return (os.environ.get(_HARD_FLAG, "0").strip().lower() in ("1", "true", "yes"))
+    return os.environ.get(_HARD_FLAG, "0").strip().lower() in ("1", "true", "yes")
 
 
 # --------------------------------------------------------------------------- #
@@ -90,8 +90,8 @@ def record_score(
     score: float,
     *,
     agent: str = "ci",
-    artifact: Optional[str] = None,
-    extra: Optional[dict[str, Any]] = None,
+    artifact: str | None = None,
+    extra: dict[str, Any] | None = None,
 ) -> None:
     """Append a single (suite, metric, score) sample. Best-effort, never raises.
 
@@ -160,8 +160,10 @@ def recent_scores(
     judged) so it can't bootstrap-pollute its own baseline.
     """
     rows = [
-        r for r in _read_history(limit=max(n * 4, 200))
-        if r.get("suite") == suite and r.get("metric") == metric
+        r
+        for r in _read_history(limit=max(n * 4, 200))
+        if r.get("suite") == suite
+        and r.get("metric") == metric
         and isinstance(r.get("score"), (int, float))
     ]
     if exclude_last and exclude_last > 0:
@@ -176,7 +178,7 @@ def baseline(
     *,
     window: int = _DEFAULT_BASELINE_WINDOW,
     exclude_last: int = 0,
-) -> Optional[float]:
+) -> float | None:
     """Median score across the recent window. None if too few samples.
 
     Median (not mean) so a single anomalous spike doesn't move the bar.
@@ -239,7 +241,7 @@ def score_and_gate(
     current_score: float,
     *,
     agent: str = "ci",
-    artifact: Optional[str] = None,
+    artifact: str | None = None,
     tolerance: float = _DEFAULT_TOLERANCE,
     window: int = _DEFAULT_BASELINE_WINDOW,
 ) -> dict[str, Any]:
@@ -258,12 +260,18 @@ def score_and_gate(
             rollback(task_id)
     """
     verdict = gate_decision(
-        suite, metric, current_score,
-        tolerance=tolerance, window=window,
+        suite,
+        metric,
+        current_score,
+        tolerance=tolerance,
+        window=window,
     )
     record_score(
-        suite, metric, current_score,
-        agent=agent, artifact=artifact,
+        suite,
+        metric,
+        current_score,
+        agent=agent,
+        artifact=artifact,
         extra={"decision": verdict["decision"], "ratio": verdict["ratio"]},
     )
     # G.1: burst-of-rejects alert (best-effort — INERT when OPS_ALERTS unset).
@@ -303,7 +311,8 @@ def summary(window: int = _DEFAULT_BASELINE_WINDOW) -> dict[str, Any]:
         ext = latest.get("extra") if isinstance(latest.get("extra"), dict) else {}
         for k in rec_counts:
             rec_counts[k] += sum(
-                1 for i in items
+                1
+                for i in items
                 if isinstance(i.get("extra"), dict) and i["extra"].get("decision") == k
             )
         suites.setdefault(suite, {})[metric] = {
@@ -337,18 +346,20 @@ def reset_baseline(suite: str, metric: str) -> dict[str, Any]:
         return {"ok": True, "removed": 0, "remaining": 0, "note": "no history yet"}
     try:
         all_rows = _read_history(limit=10**9)  # full file
-        keep = [
-            r for r in all_rows
-            if not (r.get("suite") == suite and r.get("metric") == metric)
-        ]
+        keep = [r for r in all_rows if not (r.get("suite") == suite and r.get("metric") == metric)]
         removed = len(all_rows) - len(keep)
         tmp = _HISTORY_PATH.with_suffix(".jsonl.tmp")
         with tmp.open("w", encoding="utf-8") as f:
             for r in keep:
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
         tmp.replace(_HISTORY_PATH)
-        return {"ok": True, "removed": removed, "remaining": len(keep),
-                "suite": suite, "metric": metric}
+        return {
+            "ok": True,
+            "removed": removed,
+            "remaining": len(keep),
+            "suite": suite,
+            "metric": metric,
+        }
     except Exception as exc:
         logger.error("eval_gate reset_baseline failed: %s", exc)
         return {"ok": False, "error": str(exc)[:120]}

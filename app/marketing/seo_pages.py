@@ -42,7 +42,11 @@ def _schema(title: str, city: str, faqs: list[dict[str, str]]) -> dict[str, Any]
         "name": title,
         "areaServed": city,
         "mainEntity": [
-            {"@type": "Question", "name": q["q"], "acceptedAnswer": {"@type": "Answer", "text": q["a"]}}
+            {
+                "@type": "Question",
+                "name": q["q"],
+                "acceptedAnswer": {"@type": "Answer", "text": q["a"]},
+            }
             for q in faqs
         ],
     }
@@ -84,13 +88,19 @@ async def generate_page(niche: str, city: str) -> dict[str, Any]:
 
     body = ""
     faqs = [
-        {"q": f"{label} ko {city} me naye leads kaise milein?",
-         "a": f"AI voice agent har inquiry ko 2-min me call karke qualify karta hai + social posts, "
-              f"Google ranking, aur WhatsApp follow-up automate hote hain. Free audit: leadsgenai.in/audit"},
-        {"q": "Kitna kharcha aata hai?",
-         "a": "₹1,199/mo Starter se shuru. Pehle 10 qualified leads free. Advanced tier me AI calling (500 min/mo)."},
-        {"q": "Result kitne din me?",
-         "a": "Pehle hafte me naye leads + content live. Cancel anytime."},
+        {
+            "q": f"{label} ko {city} me naye leads kaise milein?",
+            "a": "AI voice agent har inquiry ko 2-min me call karke qualify karta hai + social posts, "
+            "Google ranking, aur WhatsApp follow-up automate hote hain. Free audit: leadsgenai.in/audit",
+        },
+        {
+            "q": "Kitna kharcha aata hai?",
+            "a": "₹1,199/mo Starter se shuru. Pehle 10 qualified leads free. Advanced tier me AI calling (500 min/mo).",
+        },
+        {
+            "q": "Result kitne din me?",
+            "a": "Pehle hafte me naye leads + content live. Cancel anytime.",
+        },
     ]
     try:
         from app.voice_agent import free_ai
@@ -100,7 +110,9 @@ async def generate_page(niche: str, city: str) -> dict[str, Any]:
             "word Hinglish landing-page intro likho — keyword '" + kw + "' natural use karo, pain "
             "+ AI-solution + free-audit CTA. Genuinely useful, no spam. Sirf paragraph text."
         )
-        txt, _ = await free_ai.chat(sys, [{"role": "user", "content": kw}], max_tokens=320, temperature=0.6)
+        txt, _ = await free_ai.chat(
+            sys, [{"role": "user", "content": kw}], max_tokens=320, temperature=0.6
+        )
         body = (txt or "").strip()
     except Exception as e:
         logger.debug(f"[seo_pages] llm skip: {e}")
@@ -113,23 +125,35 @@ async def generate_page(niche: str, city: str) -> dict[str, Any]:
         )
 
     page = {
-        "niche": niche, "city": city, "slug": _slug(f"{label}-{city}"),
-        "title": title, "h1": h1, "keyword": kw,
-        "body": body, "faqs": faqs, "schema": _schema(title, city, faqs),
+        "niche": niche,
+        "city": city,
+        "slug": _slug(f"{label}-{city}"),
+        "title": title,
+        "h1": h1,
+        "keyword": kw,
+        "body": body,
+        "faqs": faqs,
+        "schema": _schema(title, city, faqs),
         "cta": {"text": "Free Google Audit lein", "url": "/audit"},
     }
     _track({k: page[k] for k in ("niche", "city", "slug", "title")})
     return {"ok": True, "page": page}
 
 
-async def generate_batch(tier: str | None = None, cities: list[str] | None = None, limit: int = 8) -> dict[str, Any]:
+async def generate_batch(
+    tier: str | None = None, cities: list[str] | None = None, limit: int = 8
+) -> dict[str, Any]:
     """Multiple niche×city pages (LLM-heavy → default limit 8)."""
     try:
         from app.niches import NICHES
     except Exception:
         return {"ok": False, "reason": "NICHES unavailable", "pages": []}
     cities = cities or DEFAULT_CITIES[:3]
-    keys = [k for k, c in NICHES.items() if isinstance(c, dict) and (not tier or str(c.get("tier", "")).upper() == tier.upper())]
+    keys = [
+        k
+        for k, c in NICHES.items()
+        if isinstance(c, dict) and (not tier or str(c.get("tier", "")).upper() == tier.upper())
+    ]
     pages, n = [], 0
     for k in keys:
         for city in cities:
@@ -137,7 +161,14 @@ async def generate_batch(tier: str | None = None, cities: list[str] | None = Non
                 break
             r = await generate_page(k, city)
             if r.get("ok"):
-                pages.append({"niche": k, "city": city, "slug": r["page"]["slug"], "title": r["page"]["title"]})
+                pages.append(
+                    {
+                        "niche": k,
+                        "city": city,
+                        "slug": r["page"]["slug"],
+                        "title": r["page"]["title"],
+                    }
+                )
                 n += 1
         if n >= limit:
             break

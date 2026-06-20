@@ -163,9 +163,7 @@ def widget_js(slug: str) -> str:
 def snippet(slug: str) -> str:
     """Client ko dene ke liye copy-paste one-liner."""
     slug = (slug or "").strip().lower()
-    return (
-        f'<!-- LeadsGenAI Reviews --><script src="{_site_base()}/api/engage/reviews-widget.js/{slug}" async></script>'
-    )
+    return f'<!-- LeadsGenAI Reviews --><script src="{_site_base()}/api/engage/reviews-widget.js/{slug}" async></script>'
 
 
 __all__ = ["reviews_widget_html", "widget_js", "snippet"]

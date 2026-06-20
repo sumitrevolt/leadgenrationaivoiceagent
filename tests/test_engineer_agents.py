@@ -89,7 +89,8 @@ def test_sre_score_lifts_on_fresh_backup(monkeypatch: pytest.MonkeyPatch, tmp_pa
 
 def test_sre_score_drops_on_stale_backup(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Stale (>48h) backup should NOT score the same as fresh one."""
-    import os, time
+    import os
+    import time
 
     monkeypatch.setenv("SRE_AGENT", "1")
     _stub_psutil_unavailable(monkeypatch)
@@ -149,12 +150,17 @@ def test_finops_flags_litellm_inactive(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_security_unarmed_secrets_flagged(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SECURITY_AGENT", "1")
     # All webhook secrets unset (Razorpay removed 2026-06-18 — twilio+whatsapp only)
-    for k in ("TWILIO_AUTH_TOKEN", "WHATSAPP_APP_SECRET",
-              "TURNSTILE_SECRET_KEY", "GRIEVANCE_OFFICER_EMAIL"):
+    for k in (
+        "TWILIO_AUTH_TOKEN",
+        "WHATSAPP_APP_SECRET",
+        "TURNSTILE_SECRET_KEY",
+        "GRIEVANCE_OFFICER_EMAIL",
+    ):
         monkeypatch.delenv(k, raising=False)
     out = ea.run_security()
     assert out["kpis"]["webhook_secrets_armed"] == {
-        "twilio": False, "whatsapp": False,
+        "twilio": False,
+        "whatsapp": False,
     }
     actions = " ".join(out["actions"]).lower()
     assert "twilio" in actions

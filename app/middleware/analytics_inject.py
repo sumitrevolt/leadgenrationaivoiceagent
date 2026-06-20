@@ -10,6 +10,7 @@ Register (main.py app-factory me, middleware stack ke END me — sabse bahar):
     from app.middleware.analytics_inject import PostHogInjectMiddleware
     app.add_middleware(PostHogInjectMiddleware)
 """
+
 from __future__ import annotations
 
 import os
@@ -36,19 +37,19 @@ def _posthog_head() -> str:
     return (
         "\n<script>\n"
         "!function(t,e){var o,n,p,r=e.__SV;if(window.posthog||(window.posthog=[]),!r){"
-        "r=window.posthog,r.toString=function(t){var e=\"posthog\";return\"posthog\"!==t&&(e+=\".\"+t),e},"
-        "r.people=r.people||[],r.people.toString=function(){return r.toString(1)+\".people (stub)\"},"
-        "o=\"capture identify alias people.set people.set_once set_config register register_once "
+        'r=window.posthog,r.toString=function(t){var e="posthog";return"posthog"!==t&&(e+="."+t),e},'
+        'r.people=r.people||[],r.people.toString=function(){return r.toString(1)+".people (stub)"},'
+        'o="capture identify alias people.set people.set_once set_config register register_once '
         "unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled "
         "onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment "
         "getEarlyAccessFeatures getActiveMatchingSurveys getSurveys captureException loadToolbar get_distinct_id "
-        "getGroups get_session_id get_session_replay_url alias set_config\".split(\" \"),"
+        'getGroups get_session_id get_session_replay_url alias set_config".split(" "),'
         "n=function(t){var e=r;for(var a=0;a<o.length;a++)e[o[a]]=function(t){return function(){"
         "e.push([t].concat(Array.prototype.slice.call(arguments,0)))}}(o[a])}}(0),r._i=[],"
-        "r.init=function(t,e,a){function s(t,e){var a=e.split(\".\");2==a.length&&(t=t[a[0]],e=a[1]),"
-        "t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}var u=e;void 0!==a?u=r[a]=[]:a=\"posthog\","
-        "u.people=u.people||[],u.toString=function(t){var e=\"posthog\";return\"posthog\"!==a&&(e+=\".\"+a),"
-        "t||(e+=\" (stub)\"),e},u._i.push([t,e,a]),r.__SV=1}}(document,window.posthog||[]);\n"
+        'r.init=function(t,e,a){function s(t,e){var a=e.split(".");2==a.length&&(t=t[a[0]],e=a[1]),'
+        't[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}var u=e;void 0!==a?u=r[a]=[]:a="posthog",'
+        'u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),'
+        't||(e+=" (stub)"),e},u._i.push([t,e,a]),r.__SV=1}}(document,window.posthog||[]);\n'
         f"posthog.init('{key}',{{api_host:'{host}',person_profiles:'identified_only',"
         "capture_pageview:true,session_recording:{maskAllInputs:true}});\n"
         "</script>\n"

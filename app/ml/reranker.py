@@ -7,6 +7,7 @@ installed and ``RERANKER_BACKEND=crossencoder``, uses
 
 Never raises; on any failure returns the input list truncated to top_k.
 """
+
 from __future__ import annotations
 
 import logging

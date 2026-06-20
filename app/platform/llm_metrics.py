@@ -122,14 +122,27 @@ async def run_capacity_watch() -> dict[str, Any]:
         rate = float(st.get("fallback_or_fail_rate", 0) or 0)
         provs = st.get("providers", {}) or {}
         healthy = [
-            p for p, v in provs.items()
-            if isinstance(v, dict) and float(v.get("ok_rate", 0) or 0) >= 0.5 and int(v.get("calls", 0) or 0) >= 3
+            p
+            for p, v in provs.items()
+            if isinstance(v, dict)
+            and float(v.get("ok_rate", 0) or 0) >= 0.5
+            and int(v.get("calls", 0) or 0) >= 3
         ]
         exhausted = [
-            p for p, v in provs.items()
-            if isinstance(v, dict) and any(
+            p
+            for p, v in provs.items()
+            if isinstance(v, dict)
+            and any(
                 k in str(v.get("last_error", "")).lower()
-                for k in ("quota", "tpd", "per day", "rate limit", "exhaust", "429", "resource_exhausted")
+                for k in (
+                    "quota",
+                    "tpd",
+                    "per day",
+                    "rate limit",
+                    "exhaust",
+                    "429",
+                    "resource_exhausted",
+                )
             )
         ]
         degraded = total >= 30 and (rate >= 0.4 or len(healthy) <= 1)
@@ -140,7 +153,11 @@ async def run_capacity_watch() -> dict[str, Any]:
             "healthy_providers": healthy,
             "exhausted": exhausted,
         }
-        if degraded and _os.environ.get("LLM_CAPACITY_ALERTS", "0").strip().lower() in ("1", "true", "yes"):
+        if degraded and _os.environ.get("LLM_CAPACITY_ALERTS", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        ):
             try:
                 from app.platform import ops_watchdog
 
@@ -151,7 +168,9 @@ async def run_capacity_watch() -> dict[str, Any]:
                         f"Asar: voice latency badhti (script-fallback), content quality template pe girti.\n"
                         f"Fix (highest ROI): ek headroom/paid LLM key add karo — Groq Dev tier ya 1 paid provider."
                     )
-                    await ops_watchdog._alert("⚠️ LeadGenAI: LLM capacity low (voice/content affected)", body)
+                    await ops_watchdog._alert(
+                        "⚠️ LeadGenAI: LLM capacity low (voice/content affected)", body
+                    )
                     res["alerted"] = True
             except Exception:
                 pass

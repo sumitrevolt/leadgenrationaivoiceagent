@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+
 def _is_enabled() -> bool:
     """Return True only when USE_SOPS=1 is explicitly set."""
     return os.getenv("USE_SOPS", "0").strip() == "1"
@@ -100,6 +101,7 @@ def _parse_dotenv_output(text: str) -> dict[str, str]:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def load_encrypted_env(
     enc_file: str | None = None,
     sops_config: str | None = None,
@@ -149,8 +151,10 @@ def load_encrypted_env(
         # Build sops command
         cmd = [
             "sops",
-            "--input-type", "yaml",
-            "--output-type", "dotenv",
+            "--input-type",
+            "yaml",
+            "--output-type",
+            "dotenv",
             "--decrypt",
         ]
         if _cfg and _cfg.exists():
@@ -187,9 +191,7 @@ def load_encrypted_env(
                 os.environ[k] = v
                 loaded += 1
 
-        logger.info(
-            "secrets: loaded %d vars from encrypted env (%s).", loaded, _enc.name
-        )
+        logger.info("secrets: loaded %d vars from encrypted env (%s).", loaded, _enc.name)
         return True
 
     except subprocess.TimeoutExpired:
@@ -216,6 +218,7 @@ def get_secret(name: str, default: str = "") -> str:
 # ---------------------------------------------------------------------------
 # Dev/debug helper — not imported by production paths
 # ---------------------------------------------------------------------------
+
 
 def _print_status() -> None:  # pragma: no cover
     """Print secrets subsystem status. For debugging only."""

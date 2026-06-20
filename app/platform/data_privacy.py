@@ -39,9 +39,22 @@ _PRIVACY_OPS_LOG = Path("data") / "privacy_ops.jsonl"
 
 # PII keys (case-insensitive) whose values we aggressively mask in dicts
 _PII_KEYS = frozenset(
-    {"phone", "mobile", "contact", "whatsapp", "email", "mail",
-     "name", "contact_name", "customer_name", "full_name", "first_name",
-     "last_name", "address", "location"}
+    {
+        "phone",
+        "mobile",
+        "contact",
+        "whatsapp",
+        "email",
+        "mail",
+        "name",
+        "contact_name",
+        "customer_name",
+        "full_name",
+        "first_name",
+        "last_name",
+        "address",
+        "location",
+    }
 )
 
 # Regex to find 10+ consecutive digit runs (phone numbers in free text)
@@ -58,6 +71,7 @@ _DEFAULT_RETENTION_DAYS = int(os.getenv("RETENTION_DAYS", "365"))
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -152,6 +166,7 @@ def _anonymize_dict(d: dict[str, Any], depth: int = 0) -> dict[str, Any]:
 # PUBLIC API
 # ---------------------------------------------------------------------------
 
+
 def anonymize_pii(value: Any) -> Any:
     """Mask PII in a string or dict (recursive).
 
@@ -193,7 +208,9 @@ async def export_subject_data(identifier: str) -> dict[str, Any]:
         else:
             phone = identifier
 
-        result = await dpdp.export_subject(phone=phone, email=email, include_db=True, actor="dsar_api")
+        result = await dpdp.export_subject(
+            phone=phone, email=email, include_db=True, actor="dsar_api"
+        )
         # Normalise to expected shape
         records_dict: dict[str, list[dict]] = result.get("records", {})
         flat_records: list[dict[str, Any]] = []
@@ -251,7 +268,7 @@ async def delete_subject_data(identifier: str, confirm: bool = False) -> dict[st
     # Explain why dry-run if caller asked for real but gate is missing
     gate_msg: str | None = None
     if confirm and not erasure_enabled:
-        gate_msg = f"DATA_ERASURE=1 env gate set nahi hai — dry-run mode me chal raha hai."
+        gate_msg = "DATA_ERASURE=1 env gate set nahi hai — dry-run mode me chal raha hai."
 
     try:
         from app.platform import dpdp
@@ -272,10 +289,14 @@ async def delete_subject_data(identifier: str, confirm: bool = False) -> dict[st
         )
 
         action = "delete_real" if real_run else "delete_dryrun"
-        _log_op(action, identifier, {
-            "dry_run": not real_run,
-            "stores_touched": list(result.get("stores", {}).keys()),
-        })
+        _log_op(
+            action,
+            identifier,
+            {
+                "dry_run": not real_run,
+                "stores_touched": list(result.get("stores", {}).keys()),
+            },
+        )
 
         out = {**result, "dry_run": not real_run}
         if gate_msg:
@@ -310,8 +331,8 @@ def enforce_retention(dry_run: bool = True) -> dict[str, Any]:
 
     cutoff_days = _DEFAULT_RETENTION_DAYS
     try:
-        from datetime import timedelta
         import shutil
+        from datetime import timedelta
 
         cutoff = datetime.now(timezone.utc) - timedelta(days=cutoff_days)
         cutoff_iso = cutoff.isoformat()
@@ -380,7 +401,9 @@ def enforce_retention(dry_run: bool = True) -> dict[str, Any]:
                 report[store_name] = {"old_records": old_count, "purged": 0, "path": path}
                 if real_run:
                     try:
-                        bak = f"{path}.bak_ret_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+                        bak = (
+                            f"{path}.bak_ret_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+                        )
                         shutil.copy2(path, bak)
                         tmp = path + ".tmp_ret"
                         with open(tmp, "w", encoding="utf-8") as f:
@@ -395,12 +418,16 @@ def enforce_retention(dry_run: bool = True) -> dict[str, Any]:
                         report[store_name]["error"] = str(exc)[:120]
 
         action = "retention_real" if real_run else "retention_dryrun"
-        _log_op(action, "system", {
-            "cutoff_days": cutoff_days,
-            "total_old": total_old,
-            "total_purged": total_purged,
-            "dry_run": not real_run,
-        })
+        _log_op(
+            action,
+            "system",
+            {
+                "cutoff_days": cutoff_days,
+                "total_old": total_old,
+                "total_purged": total_purged,
+                "dry_run": not real_run,
+            },
+        )
 
         out: dict[str, Any] = {
             "ok": True,

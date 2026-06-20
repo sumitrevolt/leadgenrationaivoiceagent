@@ -37,9 +37,24 @@ _CACHE_TTL = 3600  # 1 hr
 
 # Generic tokens jo business-name match me count nahi hote (false positives)
 _GENERIC = {
-    "the", "and", "of", "in", "for", "ltd", "pvt", "private", "limited",
-    "co", "company", "services", "service", "shop", "store", "enterprises",
-    "india", "new",
+    "the",
+    "and",
+    "of",
+    "in",
+    "for",
+    "ltd",
+    "pvt",
+    "private",
+    "limited",
+    "co",
+    "company",
+    "services",
+    "service",
+    "shop",
+    "store",
+    "enterprises",
+    "india",
+    "new",
 }
 
 
@@ -188,7 +203,9 @@ async def check(business_name: str, niche: str, city: str) -> dict[str, Any]:
                 hit = _mentions(answer, business_name)
                 if hit:
                     mentioned += 1
-            results.append({"question": q, "answered": bool(answer), "mentioned": hit, "snippet": answer[:200]})
+            results.append(
+                {"question": q, "answered": bool(answer), "mentioned": hit, "snippet": answer[:200]}
+            )
 
         if answered == 0:
             # Deterministic fallback — galat 0-score kabhi report nahi karte

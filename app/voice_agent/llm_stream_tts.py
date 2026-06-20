@@ -3,6 +3,7 @@
 Gated ``USE_LLM_STREAM_TTS=1`` (default OFF). Works with free_ai.chat_stream;
 never raises.
 """
+
 from __future__ import annotations
 
 import os

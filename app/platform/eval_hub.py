@@ -1,4 +1,5 @@
 """Eval + deliverability hub — admin cockpit helpers (never-raise)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -15,9 +16,11 @@ async def deliverability_summary() -> dict[str, Any]:
         from app.platform import deliverability_monitor
 
         out["dns"] = await deliverability_monitor.run_check()
-        for p in (out["dns"].get("problems") or []):
+        for p in out["dns"].get("problems") or []:
             if isinstance(p, str):
-                out["problems"].append({"kya": p, "fix": "Hostinger DNS / deliverability_monitor doc"})
+                out["problems"].append(
+                    {"kya": p, "fix": "Hostinger DNS / deliverability_monitor doc"}
+                )
     except Exception as e:
         out["dns"] = {"error": str(e)[:200]}
         out["problems"].append({"kya": "DNS check fail", "fix": str(e)[:120]})

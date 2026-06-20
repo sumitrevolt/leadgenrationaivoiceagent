@@ -70,8 +70,9 @@ async def handle_message(
             history = ""
 
     try:
-        from app.voice_agent import free_ai
         import json
+
+        from app.voice_agent import free_ai
 
         sys = (
             "Tum LeadGen AI ke sales-closer ho. Prospect ka message do. Ek JSON lautao: "
@@ -82,8 +83,10 @@ async def handle_message(
         if history:
             user_content = f"History (is prospect ki):\n{history}\n\n{user_content}"
         raw, _ = await free_ai.chat(
-            sys, [{"role": "user", "content": user_content}],
-            max_tokens=200, temperature=0.4,
+            sys,
+            [{"role": "user", "content": user_content}],
+            max_tokens=200,
+            temperature=0.4,
         )
         i, j = raw.find("{"), raw.rfind("}")
         if i != -1 and j != -1:
@@ -104,8 +107,14 @@ async def handle_message(
         "intent": intent,
         "reply": reply,
         "cta_url": BASE + cta,
-        "cta_text": {"price": "Pricing dekhein", "trust": "Live demo", "works": "Live demo",
-                     "timing": "Free audit", "info": "Live demo", "ready": "Abhi shuru karein"}.get(intent, "Live demo"),
+        "cta_text": {
+            "price": "Pricing dekhein",
+            "trust": "Live demo",
+            "works": "Live demo",
+            "timing": "Free audit",
+            "info": "Live demo",
+            "ready": "Abhi shuru karein",
+        }.get(intent, "Live demo"),
         "auto_sent": False,
     }
 

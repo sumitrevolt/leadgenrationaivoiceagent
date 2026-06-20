@@ -75,7 +75,9 @@ def _code(business_name: str) -> str:
     import hashlib
 
     prefix = _initials(business_name)
-    digest = hashlib.md5((business_name or "x").strip().lower().encode("utf-8", "ignore")).hexdigest()
+    digest = hashlib.md5(
+        (business_name or "x").strip().lower().encode("utf-8", "ignore")
+    ).hexdigest()
     # Base-36-ish 4-char suffix from the hex digest (A-Z0-9, no ambiguous chars).
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no I/O/0/1 confusion
     n = int(digest[:8], 16)

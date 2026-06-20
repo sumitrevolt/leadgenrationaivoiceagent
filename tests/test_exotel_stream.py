@@ -58,9 +58,7 @@ def test_inbound_media_resample_and_alignment():
     s = ExotelVoicebotSession(FakeWS(), sample_rate=16000)
     pcm16k = b"\x00\x01" * 1600  # 100ms @ 16k PCM16
     asyncio.run(
-        s._handle_media(
-            {"event": "media", "media": {"payload": base64.b64encode(pcm16k).decode()}}
-        )
+        s._handle_media({"event": "media", "media": {"payload": base64.b64encode(pcm16k).decode()}})
     )
     assert len(s._inbound_rem) < 320  # 320B frame alignment maintained
 

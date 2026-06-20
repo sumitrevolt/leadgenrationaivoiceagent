@@ -306,7 +306,12 @@ def _valid_email(addr: str) -> bool:
 
         from app.lead_scraper.email_verify import verify
 
-        check_mx = os.getenv("OUTREACH_VERIFY_MX", "1").strip().lower() not in {"0", "false", "no", "off"}
+        check_mx = os.getenv("OUTREACH_VERIFY_MX", "1").strip().lower() not in {
+            "0",
+            "false",
+            "no",
+            "off",
+        }
         r = verify(a, check_mx=check_mx)
         if "absent" not in r.get("reason", ""):  # verifier actually ran -> trust it
             return bool(r.get("ok"))
@@ -419,7 +424,12 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                 try:  # A/B spintax subject (GATED OUTREACH_AB=1; OFF = zero change)
                     import os as _os
 
-                    if (_os.getenv("OUTREACH_AB") or "").strip().lower() in {"1", "true", "yes", "on"}:
+                    if (_os.getenv("OUTREACH_AB") or "").strip().lower() in {
+                        "1",
+                        "true",
+                        "yes",
+                        "on",
+                    }:
                         from app.marketing.outreach_variants import apply_ab
 
                         subject, text, html_body = apply_ab(p, subject, text, html_body)
@@ -433,9 +443,11 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                     pass
                 ok = False
                 try:
-                    ok = bool(await sender.send_email(
-                        [to_addr], subject, text, html_body, extra_headers=_unsub_hdrs
-                    ))
+                    ok = bool(
+                        await sender.send_email(
+                            [to_addr], subject, text, html_body, extra_headers=_unsub_hdrs
+                        )
+                    )
                 except Exception as e:
                     logger.warning(f"[auto_outreach] send to {to_addr} failed: {e}")
                     ok = False
@@ -603,9 +615,11 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                     pass
                 ok = False
                 try:
-                    ok = bool(await sender.send_email(
-                        [to_addr], subject, text, html_body, extra_headers=_unsub_hdrs
-                    ))
+                    ok = bool(
+                        await sender.send_email(
+                            [to_addr], subject, text, html_body, extra_headers=_unsub_hdrs
+                        )
+                    )
                 except Exception as e:
                     logger.warning(f"[auto_outreach] followup to {to_addr} failed: {e}")
                     ok = False

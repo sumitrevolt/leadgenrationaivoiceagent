@@ -33,11 +33,39 @@ _CATS = ["interested", "question", "objection", "not_interested", "unsubscribe",
 
 # Bulk/marketing senders — unknown sender + inme se koi signal = junk skip.
 _BULK_LOCALPARTS = {
-    "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply", "notifications",
-    "notification", "notify", "alerts", "alert", "updates", "update", "newsletter",
-    "newsletters", "marketing", "mailer", "bounce", "bounces", "postmaster",
-    "mailer-daemon", "promo", "promotions", "offers", "billing", "receipts", "hello",
-    "support", "info", "news", "team", "digest", "feedback", "survey",
+    "noreply",
+    "no-reply",
+    "no_reply",
+    "donotreply",
+    "do-not-reply",
+    "notifications",
+    "notification",
+    "notify",
+    "alerts",
+    "alert",
+    "updates",
+    "update",
+    "newsletter",
+    "newsletters",
+    "marketing",
+    "mailer",
+    "bounce",
+    "bounces",
+    "postmaster",
+    "mailer-daemon",
+    "promo",
+    "promotions",
+    "offers",
+    "billing",
+    "receipts",
+    "hello",
+    "support",
+    "info",
+    "news",
+    "team",
+    "digest",
+    "feedback",
+    "survey",
 }
 
 
@@ -64,6 +92,8 @@ def _is_bulk_sender(frm: str, msg: Any) -> bool:
     except Exception:
         pass
     return False
+
+
 # intent -> prospect status
 _STATUS = {
     "interested": "replied_hot",
@@ -96,7 +126,11 @@ def _creds() -> tuple[str, str, str]:
     pw = pw or os.getenv("SMTP_PASSWORD", "").strip()
     host = os.getenv("IMAP_HOST", "").strip()
     if not host:
-        host = smtp_host.replace("smtp.", "imap.") if smtp_host.startswith("smtp.") else "imap.hostinger.com"
+        host = (
+            smtp_host.replace("smtp.", "imap.")
+            if smtp_host.startswith("smtp.")
+            else "imap.hostinger.com"
+        )
     return host, user, pw
 
 
@@ -166,8 +200,8 @@ async def _classify(subject: str, body: str) -> str:
             "  unsubscribe = unsubscribe/remove/stop chahta\n"
             "  ooo         = out of office auto-reply\n"
             "  other       = baaki sab (generic ack, spam, irrelevant)\n"
-            + examples +
-            "\nSIRF ek label reply karo, kuch aur nahi."
+            + examples
+            + "\nSIRF ek label reply karo, kuch aur nahi."
         )
         reply, _ = await free_ai.chat(
             system=system,
@@ -192,7 +226,12 @@ async def _draft(biz: str, subject: str, body: str, intent: str) -> str:
             system="Tu LeadGen AI ka helpful sales rep hai. Is reply ka chhota, warm, "
             "professional Hinglish jawab likh (max 4 lines). Free Google audit + demo offer "
             "kar; pushy mat ban. Sirf reply text de.",
-            messages=[{"role": "user", "content": f"Business: {biz}\nIntent: {intent}\nSubject: {subject}\n\n{body[:1200]}"}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Business: {biz}\nIntent: {intent}\nSubject: {subject}\n\n{body[:1200]}",
+                }
+            ],
             max_tokens=160,
             temperature=0.5,
         )
@@ -320,8 +359,12 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             from app.marketing import sales_pipeline
 
                             sales_pipeline.upsert_deal(
-                                {"business_name": p.get("business_name"), "email": frm,
-                                 "phone": p.get("phone"), "niche": p.get("niche")},
+                                {
+                                    "business_name": p.get("business_name"),
+                                    "email": frm,
+                                    "phone": p.get("phone"),
+                                    "niche": p.get("niche"),
+                                },
                                 stage="interested",
                             )
                         except Exception:
@@ -329,13 +372,16 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         # Cadence enroll: interested reply -> follow-up sequence (gated CADENCE_ENGINE)
                         try:
                             from app.marketing import cadence as _cadence
-                            _cadence.enroll({
-                                "business_name": p.get("business_name") or "",
-                                "phone": p.get("phone") or "",
-                                "email": frm,
-                                "niche": p.get("niche") or "",
-                                "source": "reply_interested",
-                            })
+
+                            _cadence.enroll(
+                                {
+                                    "business_name": p.get("business_name") or "",
+                                    "phone": p.get("phone") or "",
+                                    "email": frm,
+                                    "niche": p.get("niche") or "",
+                                    "source": "reply_interested",
+                                }
+                            )
                         except Exception:
                             pass
                         # Journey: email_reply trigger (gated JOURNEY_ENGINE=1)
@@ -378,6 +424,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 if _auto_send and draft and intent in ("interested", "question") and p is not None:
                     try:
                         from app.integrations.email_sender import EmailSender
+
                         sender = EmailSender()
                         re_subj = subj if subj.lower().startswith("re:") else f"Re: {subj}"
                         ok = await sender.send_email(
@@ -388,7 +435,9 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         )
                         if ok:
                             res["auto_sent"] = res.get("auto_sent", 0) + 1
-                            logger.info("[reply_agent] auto-sent reply to %s (intent=%s)", frm, intent)
+                            logger.info(
+                                "[reply_agent] auto-sent reply to %s (intent=%s)", frm, intent
+                            )
                     except Exception as _ae:
                         logger.info("[reply_agent] auto_send failed: %s", _ae)
 

@@ -16,7 +16,13 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_COLORS = [("#6d28d9", "#ede9fe"), ("#0e7490", "#cffafe"), ("#b45309", "#fef3c7"), ("#be123c", "#ffe4e6"), ("#166534", "#dcfce7")]
+_COLORS = [
+    ("#6d28d9", "#ede9fe"),
+    ("#0e7490", "#cffafe"),
+    ("#b45309", "#fef3c7"),
+    ("#be123c", "#ffe4e6"),
+    ("#166534", "#dcfce7"),
+]
 
 
 def _slide_svg(idx: int, total: int, title: str, body: str, brand: str) -> str:
@@ -44,16 +50,33 @@ def _slide_svg(idx: int, total: int, title: str, body: str, brand: str) -> str:
 def _fallback_slides(business: str, niche: str, topic: str, n: int) -> list[dict[str, str]]:
     nm = (niche or "business").replace("_", " ")
     base = [
-        {"title": topic or f"{nm} growth ka raaz", "body": f"{business} — yeh carousel aapke kaam ka hai. Swipe karo →"},
-        {"title": "80% leads kyu khoti hain?", "body": "Inquiry ke 5 minute me jawab na mile to customer agle ko call kar leta hai."},
-        {"title": "Fix: 2-minute auto-callback", "body": "AI har inquiry ko turant call/WhatsApp karta hai — aap sirf garam leads se baat karo."},
-        {"title": "Roz ka content autopilot", "body": "Festival posts, offers, reviews — sab AI banata hai, aap 1-click post karte ho."},
-        {"title": "Shuru karo FREE me", "body": "Apna Google profile audit 2 minute me — link bio me ya leadsgenai.in/audit"},
+        {
+            "title": topic or f"{nm} growth ka raaz",
+            "body": f"{business} — yeh carousel aapke kaam ka hai. Swipe karo →",
+        },
+        {
+            "title": "80% leads kyu khoti hain?",
+            "body": "Inquiry ke 5 minute me jawab na mile to customer agle ko call kar leta hai.",
+        },
+        {
+            "title": "Fix: 2-minute auto-callback",
+            "body": "AI har inquiry ko turant call/WhatsApp karta hai — aap sirf garam leads se baat karo.",
+        },
+        {
+            "title": "Roz ka content autopilot",
+            "body": "Festival posts, offers, reviews — sab AI banata hai, aap 1-click post karte ho.",
+        },
+        {
+            "title": "Shuru karo FREE me",
+            "body": "Apna Google profile audit 2 minute me — link bio me ya leadsgenai.in/audit",
+        },
     ]
     return base[: max(3, min(n, 5))]
 
 
-async def generate_carousel(business_name: str, niche: str = "general", topic: str = "", slides: int = 4) -> dict[str, Any]:
+async def generate_carousel(
+    business_name: str, niche: str = "general", topic: str = "", slides: int = 4
+) -> dict[str, Any]:
     """Carousel pack: slide texts (free-LLM, fallback) + per-slide SVG. Kabhi raise nahi."""
     business = (business_name or "Aapka Business").strip()[:80]
     n = max(3, min(int(slides or 4), 5))
@@ -67,7 +90,12 @@ async def generate_carousel(business_name: str, niche: str = "general", topic: s
                 'JSON list: [{"title": "<6 words>", "body": "<25 words Hinglish>"}]. '
                 "Slide 1 = hook, last = CTA (free audit). Salesy nahi, value-first."
             ),
-            [{"role": "user", "content": f"Business: {business} | Niche: {niche} | Topic: {topic or 'naye customer kaise laaye'} | {n} slides"}],
+            [
+                {
+                    "role": "user",
+                    "content": f"Business: {business} | Niche: {niche} | Topic: {topic or 'naye customer kaise laaye'} | {n} slides",
+                }
+            ],
             max_tokens=420,
         )
         s, e = raw.find("["), raw.rfind("]")
@@ -84,7 +112,8 @@ async def generate_carousel(business_name: str, niche: str = "general", topic: s
         texts = _fallback_slides(business, niche, topic, n)
     total = len(texts)
     out_slides = [
-        {**t, "svg": _slide_svg(i, total, t["title"], t["body"], business)} for i, t in enumerate(texts)
+        {**t, "svg": _slide_svg(i, total, t["title"], t["body"], business)}
+        for i, t in enumerate(texts)
     ]
     return {
         "business_name": business,

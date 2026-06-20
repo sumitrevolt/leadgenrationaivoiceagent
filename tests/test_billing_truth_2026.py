@@ -77,9 +77,7 @@ def test_payment_link_removed_returns_graceful_error():
 
     assert payment_links.is_configured() is False
     res = asyncio.run(
-        payment_links.create_payment_link(
-            "c1", 999, "renewal", extra_notes={"plan_id": "starter"}
-        )
+        payment_links.create_payment_link("c1", 999, "renewal", extra_notes={"plan_id": "starter"})
     )
     assert res["ok"] is False and res.get("error")
 

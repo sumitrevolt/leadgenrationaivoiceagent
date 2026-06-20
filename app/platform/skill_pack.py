@@ -51,7 +51,11 @@ def _parse_skill(path: str, source: str) -> dict[str, Any] | None:
             text = f.read()
         if not text.strip():
             return None
-        name = os.path.basename(os.path.dirname(path)) if source == "project" else os.path.splitext(os.path.basename(path))[0]
+        name = (
+            os.path.basename(os.path.dirname(path))
+            if source == "project"
+            else os.path.splitext(os.path.basename(path))[0]
+        )
         desc = ""
         m = re.search(r"^description:\s*(.+)$", text, re.MULTILINE)
         if m:
@@ -62,7 +66,13 @@ def _parse_skill(path: str, source: str) -> dict[str, Any] | None:
                 if line and not line.startswith(("#", "---", "name:")):
                     desc = line[:300]
                     break
-        return {"name": name, "description": desc, "text": text, "source": source, "chars": len(text)}
+        return {
+            "name": name,
+            "description": desc,
+            "text": text,
+            "source": source,
+            "chars": len(text),
+        }
     except Exception:
         return None
 
@@ -122,7 +132,15 @@ def find(query: str, k: int = 2) -> list[dict[str, Any]]:
         if score > 0:
             scored.append((score, s))
     scored.sort(key=lambda t: -t[0])
-    return [{"name": s["name"], "description": s["description"], "score": round(sc, 1), "source": s["source"]} for sc, s in scored[: max(1, k)]]
+    return [
+        {
+            "name": s["name"],
+            "description": s["description"],
+            "score": round(sc, 1),
+            "source": s["source"],
+        }
+        for sc, s in scored[: max(1, k)]
+    ]
 
 
 def snippet_for(topic: str, max_chars: int = 1200) -> str:
@@ -169,7 +187,13 @@ def ingest_to_kb() -> dict[str, Any]:
 
         kb = KnowledgeBase()
         skills = _load_all()
-        docs = [{"text": f"SKILL {s['name']}: {s['description']}\n\n{s['text'][:8000]}", "source": f"skill:{s['name']}"} for s in skills]
+        docs = [
+            {
+                "text": f"SKILL {s['name']}: {s['description']}\n\n{s['text'][:8000]}",
+                "source": f"skill:{s['name']}",
+            }
+            for s in skills
+        ]
         added = kb.add_documents(docs, namespace="skills")
         return {"ok": True, "skills": len(skills), "chunks": added, "backend": kb.backend("skills")}
     except Exception as e:

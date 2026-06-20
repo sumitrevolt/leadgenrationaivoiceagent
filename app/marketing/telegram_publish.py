@@ -34,7 +34,11 @@ def enabled() -> bool:
 def auto_enabled() -> bool:
     """Auto-publish loop gate. Token AUR TELEGRAM_AUTO_PUBLISH=1 dono chahiye —
     warna run_due() inert (zero behaviour change). Manual/API send isse independent."""
-    return enabled() and os.getenv("TELEGRAM_AUTO_PUBLISH", "0").strip().lower() in ("1", "true", "yes")
+    return enabled() and os.getenv("TELEGRAM_AUTO_PUBLISH", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
 
 
 _STATE = os.path.join("data", ".telegram_autopub.json")
@@ -177,7 +181,9 @@ async def run_due() -> dict[str, Any]:
             try:
                 from app.platform import team
 
-                team.log_event("isha", "telegram_autopublish", f"📣 Telegram auto-publish: {sent} clients")
+                team.log_event(
+                    "isha", "telegram_autopublish", f"📣 Telegram auto-publish: {sent} clients"
+                )
             except Exception:
                 pass
         return {"ran": True, "sent": sent, "skipped": skipped, "failed": failed}

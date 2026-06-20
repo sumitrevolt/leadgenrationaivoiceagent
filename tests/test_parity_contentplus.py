@@ -138,8 +138,11 @@ def test_service_cycle_due_run_dedupe(tmp_path, monkeypatch):
     monkeypatch.setattr(sr, "_PATH", str(tmp_path / "sr.jsonl"))
     past = (date.today() - timedelta(days=200)).isoformat()
     res = sr.set_cycle(
-        "client-1", {"name": "Sharma", "phone": "9876543210"},
-        "AC service", 180, last_service_date=past,
+        "client-1",
+        {"name": "Sharma", "phone": "9876543210"},
+        "AC service",
+        180,
+        last_service_date=past,
     )
     assert res["ok"] and res["cycle"]["next_due"] < date.today().isoformat()
 

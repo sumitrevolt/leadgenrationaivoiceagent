@@ -54,7 +54,12 @@ def is_enabled() -> bool:
 
 def _hard_kill() -> bool:
     """Emergency global stop — fail-CLOSED by design (admin ne manually set kiya)."""
-    return (os.getenv("LLM_BUDGET_HARD_KILL", "") or "").strip().lower() in ("1", "true", "yes", "on")
+    return (os.getenv("LLM_BUDGET_HARD_KILL", "") or "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 def active() -> bool:
@@ -179,8 +184,8 @@ async def record(
     scope: str = "global",
     *,
     calls: int = 1,
-    prompt_tokens: Optional[int] = 0,
-    completion_tokens: Optional[int] = 0,
+    prompt_tokens: int | None = 0,
+    completion_tokens: int | None = 0,
 ) -> None:
     """Ek LLM call ka usage count karo (best-effort, never-raise)."""
     if not is_enabled():

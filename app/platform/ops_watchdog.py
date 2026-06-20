@@ -36,7 +36,9 @@ def _flag(name: str) -> bool:
 
 def _age_min(path: str):
     try:
-        return round((time.time() - os.path.getmtime(path)) / 60, 1) if os.path.exists(path) else None
+        return (
+            round((time.time() - os.path.getmtime(path)) / 60, 1) if os.path.exists(path) else None
+        )
     except Exception:
         return None
 
@@ -79,18 +81,33 @@ def _detect(s: dict[str, Any]) -> list[dict]:
     issues: list[dict] = []
     age = s.get("scheduler_age_min")
     if age is not None and age > 20:
-        issues.append({"key": "scheduler_stalled", "sev": "critical",
-                       "msg": f"Scheduler heartbeat {age} min purana — automation ruk gaya ho sakta hai"})
+        issues.append(
+            {
+                "key": "scheduler_stalled",
+                "sev": "critical",
+                "msg": f"Scheduler heartbeat {age} min purana — automation ruk gaya ho sakta hai",
+            }
+        )
     if s.get("any_llm") is False:
-        issues.append({"key": "llm_down", "sev": "critical",
-                       "msg": "Koi LLM provider available nahi (key/quota) — AI features down"})
+        issues.append(
+            {
+                "key": "llm_down",
+                "sev": "critical",
+                "msg": "Koi LLM provider available nahi (key/quota) — AI features down",
+            }
+        )
     dp = s.get("disk_pct")
     if dp is not None and dp > 90:
         issues.append({"key": "disk_high", "sev": "warning", "msg": f"Disk {dp}% bhar gaya"})
     dh = s.get("digest_age_h")
     if dh is not None and dh > 30:
-        issues.append({"key": "digest_stale", "sev": "warning",
-                       "msg": f"Daily digest {dh}h purana — 08:30 wala job shayad nahi chala"})
+        issues.append(
+            {
+                "key": "digest_stale",
+                "sev": "warning",
+                "msg": f"Daily digest {dh}h purana — 08:30 wala job shayad nahi chala",
+            }
+        )
     return issues
 
 
@@ -101,7 +118,12 @@ async def _diagnose(issues: list[dict], signals: dict) -> str:
         reply, _ = await free_ai.chat(
             system="Tu ek senior SRE hai. In system issues ka 2-line Hinglish summary + sabse "
             "zaroori ek action de. Concise.",
-            messages=[{"role": "user", "content": json.dumps({"issues": issues, "signals": signals})[:1500]}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": json.dumps({"issues": issues, "signals": signals})[:1500],
+                }
+            ],
             max_tokens=120,
             temperature=0.2,
         )
@@ -190,7 +212,9 @@ async def run_watchdog() -> dict[str, Any]:
                     )
                     if sent:
                         report["alerted"].append(i["key"])
-            _log("watchdog_issues", f"{len(issues)} issue(s): " + ", ".join(i["key"] for i in issues))
+            _log(
+                "watchdog_issues", f"{len(issues)} issue(s): " + ", ".join(i["key"] for i in issues)
+            )
         return report
     except Exception as exc:
         logger.info("run_watchdog err: %s", exc)

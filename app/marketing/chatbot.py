@@ -21,7 +21,9 @@ _FALLBACK = (
     "kar dijiye, hum turant contact karenge. 🙏"
 )
 
-_GUARDRAIL_BLOCK = "Maaf kijiye, is request me main madad nahi kar sakti. Koi aur sawaal ho to poochhiye. 🙏"
+_GUARDRAIL_BLOCK = (
+    "Maaf kijiye, is request me main madad nahi kar sakti. Koi aur sawaal ho to poochhiye. 🙏"
+)
 
 
 def _guardrails_on() -> bool:
@@ -64,7 +66,11 @@ def _kb_context_sync(q: str, client_id: str, niche: str, k: int) -> list[str]:
 async def reply(question: str, client_id: str = "", niche: str = "general", k: int = 3) -> dict:
     q = (question or "").strip()
     if not q:
-        return {"answer": "Namaste! Boliye, main aapki kaise madad karu?", "ask_contact": False, "sources": 0}
+        return {
+            "answer": "Namaste! Boliye, main aapki kaise madad karu?",
+            "ask_contact": False,
+            "sources": 0,
+        }
 
     # PRE-LLM guardrails (public unauth surface): PII redact + prompt-injection block.
     # GATED PUBLIC_GUARDRAILS=1 (default OFF). Fail-open. Block -> LLM call hi nahi hoti;
@@ -115,14 +121,18 @@ async def reply(question: str, client_id: str = "", niche: str = "general", k: i
                         _ans = (_go.text or _ans).strip()
                     except Exception as e:
                         logger.debug("chatbot agentic-RAG output guard skip: %s", e)
-                return {"answer": _ans, "ask_contact": False, "sources": len(_ar.get("sources") or [])}
+                return {
+                    "answer": _ans,
+                    "ask_contact": False,
+                    "sources": len(_ar.get("sources") or []),
+                }
         except Exception as e:
             logger.info("chatbot agentic-RAG fallback skip (fail-open): %s", e)
 
     context = "\n".join(f"- {c}" for c in ctx[:k])
     try:
-        from app.voice_agent import free_ai
         from app.cache.semantic_cache import semantic_complete
+        from app.voice_agent import free_ai
 
         async def _gen_answer() -> str:
             ans_text, _ = await asyncio.wait_for(
@@ -130,7 +140,12 @@ async def reply(question: str, client_id: str = "", niche: str = "general", k: i
                     system="Tu ek business ka friendly customer-support + sales assistant hai. CONTEXT se hi, "
                     "concise Hinglish me (max 3 lines) jawab de. Agar customer buy/visit/price me interested lage "
                     "ya answer context me na ho, to politely uska number/WhatsApp maang (lead capture). Pushy mat ban.",
-                    messages=[{"role": "user", "content": f"CONTEXT:\n{context or '(none)'}\n\nCUSTOMER: {q}"}],
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": f"CONTEXT:\n{context or '(none)'}\n\nCUSTOMER: {q}",
+                        }
+                    ],
                     max_tokens=120,
                     temperature=0.4,
                 ),

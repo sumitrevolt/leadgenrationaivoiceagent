@@ -348,25 +348,39 @@ async def prometheus_metrics():
         providers = (llm or {}).get("providers", {}) or {}
 
         metrics.append("")
-        metrics.append("# HELP leadgen_llm_provider_calls Total LLM attempts per provider (rolling window)")
+        metrics.append(
+            "# HELP leadgen_llm_provider_calls Total LLM attempts per provider (rolling window)"
+        )
         metrics.append("# TYPE leadgen_llm_provider_calls gauge")
         for p, v in providers.items():
-            metrics.append(f'leadgen_llm_provider_calls{{provider="{p}"}} {int(v.get("calls", 0) or 0)}')
+            metrics.append(
+                f'leadgen_llm_provider_calls{{provider="{p}"}} {int(v.get("calls", 0) or 0)}'
+            )
 
         metrics.append("")
-        metrics.append("# HELP leadgen_llm_provider_ok_rate LLM provider success rate 0-1 (rolling window)")
+        metrics.append(
+            "# HELP leadgen_llm_provider_ok_rate LLM provider success rate 0-1 (rolling window)"
+        )
         metrics.append("# TYPE leadgen_llm_provider_ok_rate gauge")
         for p, v in providers.items():
-            metrics.append(f'leadgen_llm_provider_ok_rate{{provider="{p}"}} {float(v.get("ok_rate", 0) or 0):.3f}')
+            metrics.append(
+                f'leadgen_llm_provider_ok_rate{{provider="{p}"}} {float(v.get("ok_rate", 0) or 0):.3f}'
+            )
 
         metrics.append("")
-        metrics.append("# HELP leadgen_llm_provider_avg_latency_ms LLM provider avg latency ms (successful calls)")
+        metrics.append(
+            "# HELP leadgen_llm_provider_avg_latency_ms LLM provider avg latency ms (successful calls)"
+        )
         metrics.append("# TYPE leadgen_llm_provider_avg_latency_ms gauge")
         for p, v in providers.items():
-            metrics.append(f'leadgen_llm_provider_avg_latency_ms{{provider="{p}"}} {float(v.get("avg_ms", 0) or 0):.1f}')
+            metrics.append(
+                f'leadgen_llm_provider_avg_latency_ms{{provider="{p}"}} {float(v.get("avg_ms", 0) or 0):.1f}'
+            )
 
         metrics.append("")
-        metrics.append("# HELP leadgen_llm_fallback_rate Fraction of LLM attempts that failed/fell through 0-1")
+        metrics.append(
+            "# HELP leadgen_llm_fallback_rate Fraction of LLM attempts that failed/fell through 0-1"
+        )
         metrics.append("# TYPE leadgen_llm_fallback_rate gauge")
         metrics.append(
             f'leadgen_llm_fallback_rate {float((llm or {}).get("fallback_or_fail_rate", 0) or 0):.3f}'
@@ -413,10 +427,14 @@ async def prometheus_metrics():
         metrics.append("# HELP leadgen_agent_memory_events_total Agent memory events by kind")
         metrics.append("# TYPE leadgen_agent_memory_events_total counter")
         for _mk in ("recall_hit", "recall_miss", "stored", "error", "disabled"):
-            metrics.append(f'leadgen_agent_memory_events_total{{kind="{_mk}"}} {int(ms.get(_mk, 0))}')
+            metrics.append(
+                f'leadgen_agent_memory_events_total{{kind="{_mk}"}} {int(ms.get(_mk, 0))}'
+            )
 
         metrics.append("")
-        metrics.append("# HELP leadgen_agent_memory_recall_rate Memory recall hit rate 0-1 (hit/(hit+miss))")
+        metrics.append(
+            "# HELP leadgen_agent_memory_recall_rate Memory recall hit rate 0-1 (hit/(hit+miss))"
+        )
         metrics.append("# TYPE leadgen_agent_memory_recall_rate gauge")
         metrics.append(f"leadgen_agent_memory_recall_rate {_mrate:.3f}")
     except Exception:
@@ -437,8 +455,12 @@ async def prometheus_metrics():
         metrics.append("")
         metrics.append("# HELP leadgen_llm_budget_global_today Global LLM usage today (all scopes)")
         metrics.append("# TYPE leadgen_llm_budget_global_today gauge")
-        metrics.append(f'leadgen_llm_budget_global_today{{unit="calls"}} {int(bs.get("global_calls", 0))}')
-        metrics.append(f'leadgen_llm_budget_global_today{{unit="tokens"}} {int(bs.get("global_tokens", 0))}')
+        metrics.append(
+            f'leadgen_llm_budget_global_today{{unit="calls"}} {int(bs.get("global_calls", 0))}'
+        )
+        metrics.append(
+            f'leadgen_llm_budget_global_today{{unit="tokens"}} {int(bs.get("global_tokens", 0))}'
+        )
 
         metrics.append("")
         metrics.append("# HELP leadgen_llm_budget_events_total Budget guard decisions by kind")

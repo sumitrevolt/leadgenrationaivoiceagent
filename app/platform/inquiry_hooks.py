@@ -87,7 +87,11 @@ async def run_after_inquiry(
                 "rohan",
                 "inquiry_received",
                 f"{rec.get('business_name')} ({rec.get('niche') or 'unknown'}) - {rec.get('phone')}",
-                meta={"lead_id": lid, "city": rec.get("city"), "via": rec.get("source") or "inquiry"},
+                meta={
+                    "lead_id": lid,
+                    "city": rec.get("city"),
+                    "via": rec.get("source") or "inquiry",
+                },
             )
     except Exception:
         pass

@@ -222,6 +222,7 @@ def collect_metrics() -> dict[str, Any]:
                 snap["prospects"]["total"] = _total
                 # status breakdown
                 from app.models.lead import LeadStatus
+
                 for _ls in LeadStatus:
                     _cnt = _db.query(Lead).filter(Lead.status == _ls).count()
                     _key = _ls.value.lower()
@@ -388,9 +389,7 @@ def _learn_best_niche() -> dict[str, Any]:
         # Inquiries → demand by niche/package (jo log khud aaye).
         inq_niches: dict[str, int] = {}
         for r in _inquiry_rows():
-            key = str(
-                r.get("niche") or r.get("package") or r.get("interest") or ""
-            ).strip().lower()
+            key = str(r.get("niche") or r.get("package") or r.get("interest") or "").strip().lower()
             if key:
                 inq_niches[key] = inq_niches.get(key, 0) + 1
         out["inquiry_niches"] = inq_niches
@@ -412,8 +411,7 @@ def _learn_best_niche() -> dict[str, Any]:
             )
         elif best_niche:
             insights.append(
-                f"Sabse zyada demand '{best_niche}' niche me dikh rahi hai — "
-                "ispe focus badhao."
+                f"Sabse zyada demand '{best_niche}' niche me dikh rahi hai — " "ispe focus badhao."
             )
         # Dead-heavy niches → pitch revisit.
         for niche, d in by_niche.items():
@@ -562,16 +560,21 @@ async def pulse() -> dict[str, Any]:
                 summary += f" | healed: {', '.join(healed)}"
             if merged.get("best_niche"):
                 summary += f" | best: {merged['best_niche']}"
-            team.log_event("manager", "growth_pulse", summary[:480], meta={
-                "prospects": p,
-                "inquiries": merged.get("inquiries"),
-                "emails": merged.get("emails"),
-                "blog_articles": merged.get("blog_articles"),
-                "content_items": merged.get("content_items"),
-                "actions_today": merged.get("actions_today"),
-                "healed": healed,
-                "best_niche": merged.get("best_niche"),
-            })
+            team.log_event(
+                "manager",
+                "growth_pulse",
+                summary[:480],
+                meta={
+                    "prospects": p,
+                    "inquiries": merged.get("inquiries"),
+                    "emails": merged.get("emails"),
+                    "blog_articles": merged.get("blog_articles"),
+                    "content_items": merged.get("content_items"),
+                    "actions_today": merged.get("actions_today"),
+                    "healed": healed,
+                    "best_niche": merged.get("best_niche"),
+                },
+            )
         except Exception as e:
             logger.debug(f"[growth] pulse event log failed: {e}")
 

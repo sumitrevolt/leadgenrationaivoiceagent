@@ -91,8 +91,9 @@ def test_idempotency_skips_active_run(monkeypatch):
     from app.agents import process_engine
 
     # lead_campaign already RUNNING → guard must skip it.
-    existing = [{"process": "lead_campaign", "status": "running",
-                 "started_at": "2020-01-01T00:00:00+00:00"}]
+    existing = [
+        {"process": "lead_campaign", "status": "running", "started_at": "2020-01-01T00:00:00+00:00"}
+    ]
     monkeypatch.setattr(process_engine, "start_run", _start)
     monkeypatch.setattr(process_engine, "list_runs", lambda limit=50: list(existing))
 
@@ -106,10 +107,16 @@ def test_idempotency_skips_today_run(monkeypatch):
     monkeypatch.setenv("PROCESS_AUTOSTART", "1")
     today = datetime.now(timezone.utc).date().isoformat()
     existing = [
-        {"process": "lead_campaign", "status": "completed",
-         "started_at": today + "T01:00:00+00:00"},
-        {"process": "client_content", "status": "completed",
-         "started_at": today + "T01:00:00+00:00"},
+        {
+            "process": "lead_campaign",
+            "status": "completed",
+            "started_at": today + "T01:00:00+00:00",
+        },
+        {
+            "process": "client_content",
+            "status": "completed",
+            "started_at": today + "T01:00:00+00:00",
+        },
     ]
 
     def _start(key, inputs):
@@ -162,8 +169,7 @@ def test_inline_fallback_when_worker_down(monkeypatch):
         advanced["n"] += 1
         return {"run_id": run_id, "status": "running"}
 
-    monkeypatch.setattr(process_engine, "start_run",
-                        lambda k, i: {"ok": True, "run_id": f"{k}-f"})
+    monkeypatch.setattr(process_engine, "start_run", lambda k, i: {"ok": True, "run_id": f"{k}-f"})
     monkeypatch.setattr(process_engine, "list_runs", lambda limit=50: [])
     monkeypatch.setattr(process_engine, "advance", _adv)
 
@@ -194,10 +200,10 @@ def test_never_raises_on_list_runs_error(monkeypatch):
 
     from app.agents import process_engine
 
-    monkeypatch.setattr(process_engine, "list_runs",
-                        lambda limit=50: (_ for _ in ()).throw(RuntimeError("db down")))
-    monkeypatch.setattr(process_engine, "start_run",
-                        lambda k, i: {"ok": True, "run_id": f"{k}-x"})
+    monkeypatch.setattr(
+        process_engine, "list_runs", lambda limit=50: (_ for _ in ()).throw(RuntimeError("db down"))
+    )
+    monkeypatch.setattr(process_engine, "start_run", lambda k, i: {"ok": True, "run_id": f"{k}-x"})
 
     # list_runs throw → recent=[] fallback, still starts (no crash).
     res = _run(pa.run_due())

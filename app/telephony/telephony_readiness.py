@@ -94,7 +94,12 @@ def run_checks() -> dict[str, Any]:
 
         st = llm_metrics.stats(500)
         rate = 1.0 - float(st.get("fallback_or_fail_rate", 0) or 0)
-        add("llm_health", rate >= 0.5 or st.get("total_calls", 0) == 0, f"recent ok-rate {round(rate, 2)}", 5)
+        add(
+            "llm_health",
+            rate >= 0.5 or st.get("total_calls", 0) == 0,
+            f"recent ok-rate {round(rate, 2)}",
+            5,
+        )
     except Exception:
         add("llm_health", True, "no data yet", 5)
     # Compliance posture
@@ -106,7 +111,12 @@ def run_checks() -> dict[str, Any]:
         5,
     )
     # Latency knobs present (Phase-3)
-    add("turn_knobs", bool(os.environ.get("TURN_SILENCE_MS") or True), "turn-taking env knobs available", 5)
+    add(
+        "turn_knobs",
+        bool(os.environ.get("TURN_SILENCE_MS") or True),
+        "turn-taking env knobs available",
+        5,
+    )
 
     score = sum(c["weight"] for c in checks.values() if c["ok"])
     total = sum(c["weight"] for c in checks.values())
@@ -161,7 +171,10 @@ async def run_watch() -> dict[str, Any]:
         try:
             os.makedirs(os.path.dirname(_LOG) or ".", exist_ok=True)
             with open(_LOG, "a", encoding="utf-8") as f:
-                f.write(json.dumps({"score": res["score"], "missing": res["missing"], "at": res["at"]}) + "\n")
+                f.write(
+                    json.dumps({"score": res["score"], "missing": res["missing"], "at": res["at"]})
+                    + "\n"
+                )
         except Exception:
             pass
         dropped = prev_score is not None and res["score"] < prev_score
@@ -174,7 +187,10 @@ async def run_watch() -> dict[str, Any]:
                     await email_sender.send_email(
                         [notify],
                         f"⚠️ Telephony readiness gira: {prev_score} → {res['score']}",
-                        "Missing: " + ", ".join(res["missing"]) + "\nActions:\n- " + "\n- ".join(res["actions"]),
+                        "Missing: "
+                        + ", ".join(res["missing"])
+                        + "\nActions:\n- "
+                        + "\n- ".join(res["actions"]),
                     )
                 except Exception:
                     pass
@@ -184,7 +200,12 @@ async def run_watch() -> dict[str, Any]:
             team.log_event(
                 "tara",
                 "telephony_readiness",
-                f"score {res['score']}/100" + (f" | missing: {', '.join(res['missing'][:4])}" if res["missing"] else " | READY ✅"),
+                f"score {res['score']}/100"
+                + (
+                    f" | missing: {', '.join(res['missing'][:4])}"
+                    if res["missing"]
+                    else " | READY ✅"
+                ),
                 status="ok" if res["score"] >= 80 else "warn",
             )
         except Exception:

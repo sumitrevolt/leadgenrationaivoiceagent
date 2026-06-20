@@ -132,7 +132,7 @@ async def repurpose(
     if _is_url(raw):
         text = await _fetch_url_text(raw)
         source = {"type": "url", "url": raw[:300], "extracted_chars": len(text)}
-        topic = (text[:300] or raw)  # fetch fail → URL hi topic, partial OK
+        topic = text[:300] or raw  # fetch fail → URL hi topic, partial OK
     topic = (topic or "naye customers kaise laaye").strip()
 
     async def _post():

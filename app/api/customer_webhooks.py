@@ -61,7 +61,7 @@ def verify(body: bytes, signature_header: str) -> bool:
 #     ...
 '''
 
-_VERIFIER_NODE = '''// Node.js (Express) — verify a LeadsGenAI webhook
+_VERIFIER_NODE = """// Node.js (Express) — verify a LeadsGenAI webhook
 const crypto = require("crypto");
 const WEBHOOK_SECRET = "whsec_xxxxxxxx";   // value shown ONCE at registration
 
@@ -84,7 +84,7 @@ function verify(rawBody, signatureHeader) {
 //   const payload = JSON.parse(req.body.toString());
 //   ...
 // });
-'''
+"""
 
 
 @router.get("/_verifier-examples")
@@ -173,9 +173,7 @@ async def update(
 
 
 @router.post("/{webhook_id}/rotate-secret")
-async def rotate_secret(
-    webhook_id: str, client_id: str = Depends(require_customer)
-) -> dict:
+async def rotate_secret(webhook_id: str, client_id: str = Depends(require_customer)) -> dict:
     """K.3: rotate the signing secret in-place. Returns new secret ONCE."""
     out = cw.rotate_secret(webhook_id, client_id)
     if not out.get("ok"):
@@ -193,7 +191,9 @@ async def retry_delivery(
     fresh delivery_id; the original failure record stays intact for audit."""
     out = await cw.retry_delivery(webhook_id, client_id, delivery_id)
     if not out.get("delivered") and out.get("error") in (
-        "webhook_not_found", "delivery_not_found", "delivery_already_succeeded"
+        "webhook_not_found",
+        "delivery_not_found",
+        "delivery_already_succeeded",
     ):
         raise HTTPException(status_code=404, detail=out["error"])
     return out

@@ -303,7 +303,7 @@ def _sync_voice_plans() -> None:
     Defensive — kabhi raise nahi.
     """
     try:
-        from app.marketing.voice_packages import BANDS, UNLIMITED_QUOTA, PILOT_CALL_CAP
+        from app.marketing.voice_packages import BANDS, PILOT_CALL_CAP, UNLIMITED_QUOTA
 
         for band, info in BANDS.items():
             # Monthly plan
@@ -360,7 +360,7 @@ def _sync_combo_plans() -> None:
     Defensive — kabhi raise nahi.
     """
     try:
-        from app.marketing.combo_packages import COMBO_TIERS, UNLIMITED_QUOTA, PILOT_CALL_CAP
+        from app.marketing.combo_packages import COMBO_TIERS, PILOT_CALL_CAP, UNLIMITED_QUOTA
 
         for tier_key, t in COMBO_TIERS.items():
             pid_m = t["plan_monthly"]
@@ -372,7 +372,9 @@ def _sync_combo_plans() -> None:
                 calls_per_month=UNLIMITED_QUOTA,
                 leads_per_month=UNLIMITED_QUOTA,
                 concurrent_campaigns=5,
-                features=[f"Combo {tier_key} — Marketing + Voice {t['voice_band']} band, flat monthly"],
+                features=[
+                    f"Combo {tier_key} — Marketing + Voice {t['voice_band']} band, flat monthly"
+                ],
                 yearly_discount=0.0,
             )
             pid_a = t["plan_annual"]

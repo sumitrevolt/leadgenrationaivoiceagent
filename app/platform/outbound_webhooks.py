@@ -35,7 +35,16 @@ _RETRY = os.path.join("data", "webhook_retry_queue.jsonl")  # outbox: pending re
 _DLQ = os.path.join("data", "webhook_dlq.jsonl")  # dead after max attempts
 _MAX_ATTEMPTS = 6
 _FLUSH_LOCK = asyncio.Lock()  # ek hi flush per-process (concurrent flush avoid)
-EVENTS = ["inquiry_received", "signup", "lead_hot", "booking", "payment_failed", "payment_captured", "call_completed", "review_new"]
+EVENTS = [
+    "inquiry_received",
+    "signup",
+    "lead_hot",
+    "booking",
+    "payment_failed",
+    "payment_captured",
+    "call_completed",
+    "review_new",
+]
 
 
 def _backoff_s(attempts: int) -> float:
@@ -70,7 +79,9 @@ def _write_all(path: str, rows: list[dict[str, Any]]) -> None:
         pass
 
 
-def register(url: str, events: list[str] | None = None, client_id: str = "", secret: str = "") -> dict[str, Any]:
+def register(
+    url: str, events: list[str] | None = None, client_id: str = "", secret: str = ""
+) -> dict[str, Any]:
     """Webhook add/update (dedupe by url). https only. Kabhi raise nahi."""
     try:
         u = (url or "").strip()
@@ -96,7 +107,11 @@ def register(url: str, events: list[str] | None = None, client_id: str = "", sec
         }
         rows.append(rec)
         _write_all(_STORE, rows)
-        return {"ok": True, "webhook": {k: v for k, v in rec.items() if k != "secret"}, "secret": rec["secret"]}
+        return {
+            "ok": True,
+            "webhook": {k: v for k, v in rec.items() if k != "secret"},
+            "secret": rec["secret"],
+        }
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
@@ -122,7 +137,8 @@ async def emit(event: str, payload: dict[str, Any], client_id: str = "") -> int:
         hooks = [
             r
             for r in _read(_STORE)
-            if r.get("active") and event in (r.get("events") or [])
+            if r.get("active")
+            and event in (r.get("events") or [])
             and (not r.get("client_id") or not client_id or r.get("client_id") == client_id)
         ]
         if not hooks:
@@ -143,7 +159,9 @@ async def emit(event: str, payload: dict[str, Any], client_id: str = "") -> int:
         async with httpx.AsyncClient() as client:
             for h in hooks:
                 try:
-                    sig = hmac.new(str(h.get("secret", "")).encode(), body.encode(), hashlib.sha256).hexdigest()
+                    sig = hmac.new(
+                        str(h.get("secret", "")).encode(), body.encode(), hashlib.sha256
+                    ).hexdigest()
                     resp = await client.post(
                         h["url"],
                         content=body,
@@ -255,7 +273,10 @@ async def retry_pending(max_items: int = 50) -> dict[str, Any]:
                         resp = await client.post(
                             h["url"],
                             content=body,
-                            headers={"Content-Type": "application/json", "X-LeadsGenAI-Signature": sig},
+                            headers={
+                                "Content-Type": "application/json",
+                                "X-LeadsGenAI-Signature": sig,
+                            },
                             timeout=5.0,
                         )
                         if 200 <= resp.status_code < 300:
@@ -272,7 +293,9 @@ async def retry_pending(max_items: int = 50) -> dict[str, Any]:
                             done_ids.add(iid)
                             dead.append(item)
                             res["dlq"] += 1
-                            _log_delivery(h, item.get("event", ""), 0, f"DLQ after {attempts} attempts")
+                            _log_delivery(
+                                h, item.get("event", ""), 0, f"DLQ after {attempts} attempts"
+                            )
                         else:
                             item["next_at"] = now + _backoff_s(attempts)
                             updates[iid] = item
@@ -284,7 +307,11 @@ async def retry_pending(max_items: int = 50) -> dict[str, Any]:
 
             with file_lock(_RETRY):
                 current = _read(_RETRY)
-                merged = [updates.get(r.get("id", ""), r) for r in current if r.get("id", "") not in done_ids]
+                merged = [
+                    updates.get(r.get("id", ""), r)
+                    for r in current
+                    if r.get("id", "") not in done_ids
+                ]
                 _write_all(_RETRY, merged[-2000:])
                 res["pending"] = len(merged)
             if dead:

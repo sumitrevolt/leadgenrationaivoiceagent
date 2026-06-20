@@ -105,9 +105,16 @@ def replay(run_id: str) -> dict[str, Any]:
     for ev in events:
         t, d = ev.get("type"), ev.get("data") or {}
         if t == "run_started":
-            st.update(status=ST_RUNNING, process=d.get("process", ""), inputs=d.get("inputs", {}), started_at=ev.get("at", ""))
+            st.update(
+                status=ST_RUNNING,
+                process=d.get("process", ""),
+                inputs=d.get("inputs", {}),
+                started_at=ev.get("at", ""),
+            )
         elif t == "step_completed":
-            st["steps_done"].append({"step": d.get("step"), "detail": str(d.get("detail", ""))[:200]})
+            st["steps_done"].append(
+                {"step": d.get("step"), "detail": str(d.get("detail", ""))[:200]}
+            )
             st["step_index"] = int(d.get("index", st["step_index"])) + 1
             st["retries"] = 0
         elif t == "gate_failed":
@@ -198,14 +205,27 @@ async def advance(run_id: str, max_steps: int = 10) -> dict[str, Any]:
 
             # ---- breakpoint: ENFORCED human gate (approve hone tak run yahi rukta)
             if step.get("kind") == "breakpoint":
-                _append_event(run_id, "breakpoint_waiting", {"index": idx, "step": sid, "question": step.get("question", "Approve?")})
+                _append_event(
+                    run_id,
+                    "breakpoint_waiting",
+                    {"index": idx, "step": sid, "question": step.get("question", "Approve?")},
+                )
                 try:
                     from app.platform import team
 
-                    team.log_event("manager", "process_breakpoint", f"{run_id}: {step.get('question', '')[:80]}")
+                    team.log_event(
+                        "manager",
+                        "process_breakpoint",
+                        f"{run_id}: {step.get('question', '')[:80]}",
+                    )
                 except Exception:
                     pass
-                return {"run_id": run_id, "status": ST_WAITING, "breakpoint": step.get("question", ""), "step": sid}
+                return {
+                    "run_id": run_id,
+                    "status": ST_WAITING,
+                    "breakpoint": step.get("question", ""),
+                    "step": sid,
+                }
 
             # ---- task step
             _append_event(run_id, "step_started", {"index": idx, "step": sid})
@@ -223,21 +243,37 @@ async def advance(run_id: str, max_steps: int = 10) -> dict[str, Any]:
             # ---- deterministic gate (code check, LLM nahi)
             gate_ok, reason = process_library.check_gate(step, result)
             if gate_ok:
-                _append_event(run_id, "step_completed", {"index": idx, "step": sid, "detail": result.get("detail", ""), "ms": ms})
+                _append_event(
+                    run_id,
+                    "step_completed",
+                    {"index": idx, "step": sid, "detail": result.get("detail", ""), "ms": ms},
+                )
                 st = replay(run_id)
                 done += 1
                 continue
 
             retries = st["retries"] + 1
             max_r = int(step.get("max_retries", 1))
-            _append_event(run_id, "gate_failed", {"index": idx, "step": sid, "reason": reason, "retries": retries})
+            _append_event(
+                run_id,
+                "gate_failed",
+                {"index": idx, "step": sid, "reason": reason, "retries": retries},
+            )
             if retries > max_r:
-                _append_event(run_id, "run_failed", {"error": f"step '{sid}' gate fail after {retries} tries: {reason}"})
+                _append_event(
+                    run_id,
+                    "run_failed",
+                    {"error": f"step '{sid}' gate fail after {retries} tries: {reason}"},
+                )
                 return {"run_id": run_id, "status": ST_FAILED, "error": reason, "step": sid}
             st = replay(run_id)
             done += 1  # retry bhi budget kha ta hai (infinite loop guard)
 
-        return {"run_id": run_id, "status": replay(run_id)["status"], "note": "step budget — tick continue karega"}
+        return {
+            "run_id": run_id,
+            "status": replay(run_id)["status"],
+            "note": "step budget — tick continue karega",
+        }
     except Exception as e:
         logger.warning(f"[process] advance failed {run_id}: {e}")
         return {"run_id": run_id, "status": ST_FAILED, "error": str(e)[:200]}
@@ -249,8 +285,15 @@ def approve(run_id: str, approved_by: str = "admin", note: str = "") -> dict[str
     try:
         st = replay(run_id)
         if st["status"] != ST_WAITING:
-            return {"ok": False, "error": f"run status '{st['status']}' — koi breakpoint pending nahi"}
-        _append_event(run_id, "breakpoint_approved", {"index": st["step_index"], "by": approved_by[:40], "note": note[:200]})
+            return {
+                "ok": False,
+                "error": f"run status '{st['status']}' — koi breakpoint pending nahi",
+            }
+        _append_event(
+            run_id,
+            "breakpoint_approved",
+            {"index": st["step_index"], "by": approved_by[:40], "note": note[:200]},
+        )
         return {"ok": True, "run_id": run_id, "resumed_at_step": st["step_index"] + 1}
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}
@@ -342,6 +385,17 @@ def ensure_alive(stale_minutes: int = 15) -> dict[str, Any]:
         return {"ok": False, "error": str(e)[:120]}
 
 
-__all__ = ["start_run", "advance", "approve", "reject", "replay", "list_runs", "journal",
-           "ensure_alive",
-           "ST_RUNNING", "ST_WAITING", "ST_COMPLETED", "ST_FAILED"]
+__all__ = [
+    "start_run",
+    "advance",
+    "approve",
+    "reject",
+    "replay",
+    "list_runs",
+    "journal",
+    "ensure_alive",
+    "ST_RUNNING",
+    "ST_WAITING",
+    "ST_COMPLETED",
+    "ST_FAILED",
+]

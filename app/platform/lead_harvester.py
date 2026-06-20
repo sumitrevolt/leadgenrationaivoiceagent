@@ -29,15 +29,29 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _RUNS = os.path.join("data", "harvest_runs.jsonl")
-_FETCH_CAP = 6          # per websearch run site fetches
+_FETCH_CAP = 6  # per websearch run site fetches
 _HTTP_TIMEOUT = 10.0
 _UA = "LeadGenAI/1.0 (business contact discovery; admin@leadsgenai.in)"
 
 # In domains ko AUTO kabhi fetch/scrape nahi karte (ToS / ban / personal-data)
 _BLOCKED_DOMAINS = (
-    "justdial.com", "indiamart.com", "sulekha.com", "linkedin.com", "facebook.com",
-    "instagram.com", "youtube.com", "twitter.com", "x.com", "quora.com", "reddit.com",
-    "google.com", "wikipedia.org", "amazon.", "flipkart.", "olx.", "quikr.",
+    "justdial.com",
+    "indiamart.com",
+    "sulekha.com",
+    "linkedin.com",
+    "facebook.com",
+    "instagram.com",
+    "youtube.com",
+    "twitter.com",
+    "x.com",
+    "quora.com",
+    "reddit.com",
+    "google.com",
+    "wikipedia.org",
+    "amazon.",
+    "flipkart.",
+    "olx.",
+    "quikr.",
 )
 
 _PHONE_RE = re.compile(r"(?:\+91[\-\s]?|0)?([6-9]\d{9})")
@@ -126,7 +140,12 @@ async def _src_prospector(niche: str, city: str, limit: int) -> dict[str, Any]:
         from app.platform import niche_prospector
 
         res = await niche_prospector.run(batch=2, limit_per_query=max(2, limit // 2))
-        return {"source": "prospector", "persisted_internally": True, "detail": f"covered={res.get('covered', [])}", "leads": []}
+        return {
+            "source": "prospector",
+            "persisted_internally": True,
+            "detail": f"covered={res.get('covered', [])}",
+            "leads": [],
+        }
     except Exception as e:
         return {"source": "prospector", "error": str(e)[:120], "leads": []}
 
@@ -165,7 +184,9 @@ async def _web_results(q: str) -> tuple[str, list[dict[str, Any]]]:
 async def _src_websearch(niche: str, city: str, limit: int) -> dict[str, Any]:
     """Web search (SearXNG self-hosted FREE → Brave fallback) → business websites
     → public contacts. Directory/social domains SKIP (ToS). Bina dono = inert."""
-    if not (os.environ.get("SEARXNG_URL", "").strip() or os.environ.get("BRAVE_API_KEY", "").strip()):
+    if not (
+        os.environ.get("SEARXNG_URL", "").strip() or os.environ.get("BRAVE_API_KEY", "").strip()
+    ):
         return {"source": "websearch", "skipped": "no SEARXNG_URL/BRAVE_API_KEY", "leads": []}
     leads: list[dict[str, Any]] = []
     try:
@@ -174,7 +195,11 @@ async def _src_websearch(niche: str, city: str, limit: int) -> dict[str, Any]:
         q = f"{niche.replace('_', ' ')} {city} contact phone"
         provider, results = await _web_results(q)
         if not results:
-            return {"source": "websearch", "error": f"no results (provider={provider or 'none'})", "leads": []}
+            return {
+                "source": "websearch",
+                "error": f"no results (provider={provider or 'none'})",
+                "leads": [],
+            }
         async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT, headers={"User-Agent": _UA}) as client:
             fetched = 0
             for item in results:
@@ -233,10 +258,24 @@ async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
             if r.status_code != 200:
                 return {"source": "opendata", "error": f"ogd {r.status_code}", "leads": []}
             for rec in (r.json().get("records") or [])[:limit]:
-                name = str(rec.get("enterprise_name") or rec.get("name_of_enterprise") or rec.get("name") or "").strip()
+                name = str(
+                    rec.get("enterprise_name")
+                    or rec.get("name_of_enterprise")
+                    or rec.get("name")
+                    or ""
+                ).strip()
                 if name:
-                    leads.append({"business_name": name[:150], "phone": "", "email": "", "website": "",
-                                  "city": city, "niche": niche, "source": "opendata"})
+                    leads.append(
+                        {
+                            "business_name": name[:150],
+                            "phone": "",
+                            "email": "",
+                            "website": "",
+                            "city": city,
+                            "niche": niche,
+                            "source": "opendata",
+                        }
+                    )
     except Exception as e:
         return {"source": "opendata", "error": str(e)[:120], "leads": leads}
     return {"source": "opendata", "leads": leads}
@@ -257,7 +296,9 @@ async def enrich_missing_emails(limit: int = 8) -> dict[str, Any]:
                 continue
             tried += 1
             try:
-                res = await email_finder.find(r["website"], owner_name=str(r.get("business_name") or ""))
+                res = await email_finder.find(
+                    r["website"], owner_name=str(r.get("business_name") or "")
+                )
                 best = (res.get("emails") or [None])[0] if isinstance(res, dict) else None
                 email = best.get("email") if isinstance(best, dict) else best
                 if email:
@@ -295,7 +336,9 @@ async def run_harvest(
             city = city or c2
 
         keys = [s for s in (sources or list(SOURCES.keys())) if s in SOURCES]
-        results = await asyncio.gather(*(SOURCES[s](niche, city, limit) for s in keys), return_exceptions=True)
+        results = await asyncio.gather(
+            *(SOURCES[s](niche, city, limit) for s in keys), return_exceptions=True
+        )
 
         known_phones, known_emails = _existing_keys()
         new = 0
@@ -313,7 +356,11 @@ async def run_harvest(
                 phone = _valid_phone(str(lead.get("phone") or ""))
                 email = await _valid_email(str(lead.get("email") or ""))
                 p10 = phone[-10:] if phone else ""
-                if (p10 and p10 in known_phones) or (email and email in known_emails) or (not p10 and not email and not lead.get("business_name")):
+                if (
+                    (p10 and p10 in known_phones)
+                    or (email and email in known_emails)
+                    or (not p10 and not email and not lead.get("business_name"))
+                ):
                     skipped += 1
                     continue
                 name = str(lead.get("business_name") or "Unknown")[:200]
@@ -367,8 +414,10 @@ async def run_harvest(
                 # prospects.jsonl se last N+10 rows padho, naye niche/city/ready wale chuno
                 _all = _p._read_all()  # full jsonl, sorted by insertion
                 _recent = [
-                    r for r in _all[-(new + 20):]
-                    if r.get("niche") == niche and r.get("city") == city
+                    r
+                    for r in _all[-(new + 20) :]
+                    if r.get("niche") == niche
+                    and r.get("city") == city
                     and r.get("status") == "ready"
                 ][:new]
                 if _recent:
@@ -378,17 +427,24 @@ async def run_harvest(
             logger.debug(f"[harvester] cadence enroll skip: {_cad_e}")
 
         summary = {
-            "ok": True, "niche": niche, "city": city, "sources": per_source,
-            "new_leads": new, "deduped": skipped, "enrich": enr,
-            "cadence_enrolled": cadence_enrolled, "at": _now(),
+            "ok": True,
+            "niche": niche,
+            "city": city,
+            "sources": per_source,
+            "new_leads": new,
+            "deduped": skipped,
+            "enrich": enr,
+            "cadence_enrolled": cadence_enrolled,
+            "at": _now(),
         }
         _append_run(summary)
         try:
             from app.platform import team
 
             team.log_event(
-                "dev", "lead_harvest",
-                f"{niche}/{city}: +{new} naye leads (dedup {skipped}, enrich {enr.get('found', 0)}, cadence {cadence_enrolled})"
+                "dev",
+                "lead_harvest",
+                f"{niche}/{city}: +{new} naye leads (dedup {skipped}, enrich {enr.get('found', 0)}, cadence {cadence_enrolled})",
             )
         except Exception:
             pass
@@ -429,9 +485,18 @@ def source_status() -> dict[str, Any]:
         "websearch": bool(
             os.environ.get("SEARXNG_URL", "").strip() or os.environ.get("BRAVE_API_KEY", "").strip()
         ),
-        "opendata": bool(os.environ.get("DATA_GOV_IN_API_KEY", "").strip()) and bool(os.environ.get("DATA_GOV_RESOURCE_ID", "").strip()),
+        "opendata": bool(os.environ.get("DATA_GOV_IN_API_KEY", "").strip())
+        and bool(os.environ.get("DATA_GOV_RESOURCE_ID", "").strip()),
         "blocked_domains_policy": list(_BLOCKED_DOMAINS[:6]) + ["..."],
     }
 
 
-__all__ = ["run_harvest", "run_loop_sweep", "enrich_missing_emails", "recent_runs", "source_status", "enabled", "SOURCES"]
+__all__ = [
+    "run_harvest",
+    "run_loop_sweep",
+    "enrich_missing_emails",
+    "recent_runs",
+    "source_status",
+    "enabled",
+    "SOURCES",
+]

@@ -4,6 +4,7 @@ Source inquiries (data/inquiries.jsonl) stay immutable; this is a thin
 overlay keyed by lead id. Each record carries the setting client_id so the
 dashboard can apply only the owning client's overrides (IDOR-safe).
 """
+
 from __future__ import annotations
 
 import json

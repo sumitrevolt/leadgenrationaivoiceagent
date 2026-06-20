@@ -175,7 +175,9 @@ class VoiceAgent:
         except Exception as e:
             logger.error(f"Failed to generate opening for call {call_id}: {e}")
             # Return fallback opening
-            fallback = f"Namaste! Yeh {context.client_name} ki taraf se ek AI call hai. Aap kaise hain?"
+            fallback = (
+                f"Namaste! Yeh {context.client_name} ki taraf se ek AI call hai. Aap kaise hain?"
+            )
             context.conversation_history.append({"role": "assistant", "content": fallback})
             return fallback
 

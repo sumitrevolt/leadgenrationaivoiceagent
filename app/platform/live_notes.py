@@ -197,7 +197,9 @@ async def refresh_topic(t: dict[str, Any]) -> dict[str, Any]:
         try:
             from app.marketing import trends
 
-            res = await asyncio.wait_for(trends.trend_angles(niche or topic, topic, n=3), timeout=25)
+            res = await asyncio.wait_for(
+                trends.trend_angles(niche or topic, topic, n=3), timeout=25
+            )
             angles = list(res.get("angles") or [])
             trending = list(res.get("trending") or [])[:5]
         except Exception as e:
@@ -211,7 +213,9 @@ async def refresh_topic(t: dict[str, Any]) -> dict[str, Any]:
 
                 w = await asyncio.wait_for(_wa.weather_angle(city), timeout=10)
                 if isinstance(w, dict) and w.get("ok"):
-                    weather_line = f"Mausam ({city}): {w.get('angle') or w.get('season') or ''}".strip()
+                    weather_line = (
+                        f"Mausam ({city}): {w.get('angle') or w.get('season') or ''}".strip()
+                    )
             except Exception as e:
                 logger.debug(f"[notes] weather skip: {e}")
 
@@ -240,7 +244,9 @@ async def refresh_topic(t: dict[str, Any]) -> dict[str, Any]:
         except Exception as e:
             logger.debug(f"[notes] llm skip: {e}")
         if not para:
-            para = "Aaj ke angles: " + ("; ".join(angles) if angles else "fresh content + seasonal offer push karo.")
+            para = "Aaj ke angles: " + (
+                "; ".join(angles) if angles else "fresh content + seasonal offer push karo."
+            )
             provider = "fallback"
 
         body_lines = [para]

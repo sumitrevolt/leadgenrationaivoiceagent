@@ -49,9 +49,7 @@ async def enroll(client_id: str = Depends(require_customer)) -> dict:
 
 @router.post("/confirm")
 async def confirm(body: ConfirmIn, client_id: str = Depends(require_customer)) -> dict:
-    out = ct.confirm_enroll(
-        client_id, body.secret, body.code, list(body.recovery_codes)
-    )
+    out = ct.confirm_enroll(client_id, body.secret, body.code, list(body.recovery_codes))
     if not out.get("ok"):
         raise HTTPException(status_code=400, detail=out.get("error", "confirm failed"))
     return out

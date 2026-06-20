@@ -211,7 +211,9 @@ def create_wheel_coupons(client_id: str, slug: str, offers: list[dict] | None) -
         key = _slug_key(slug)
         if not client_id or not key:
             return {"ok": False, "error": "client_id + slug required"}
-        offers = [o for o in (offers or []) if isinstance(o, dict) and str(o.get("title") or "").strip()]
+        offers = [
+            o for o in (offers or []) if isinstance(o, dict) and str(o.get("title") or "").strip()
+        ]
         offers = offers[:_MAX_SEGMENTS]
         if len(offers) < _MIN_SEGMENTS:
             return {"ok": False, "error": f"kam se kam {_MIN_SEGMENTS} offers chahiye"}
@@ -226,7 +228,12 @@ def create_wheel_coupons(client_id: str, slug: str, offers: list[dict] | None) -
                 value=int(o.get("value") or 10),
             )
             camp = (res or {}).get("campaign") or {}
-            segments.append({"label": str(o.get("title")).strip()[:40], "coupon_code": str(camp.get("id") or "")})
+            segments.append(
+                {
+                    "label": str(o.get("title")).strip()[:40],
+                    "coupon_code": str(camp.get("id") or ""),
+                }
+            )
         cfg = get_config(key)
         cfg["wheel"] = {"enabled": True, "segments": segments}
         saved = save_config(key, cfg)

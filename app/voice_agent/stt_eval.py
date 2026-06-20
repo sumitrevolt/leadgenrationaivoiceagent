@@ -3,6 +3,7 @@
 Benchmarks available STT backends on WAV bytes or ``data/call_transcripts/``
 fixtures. Use before promoting a Hindi STT upgrade (#7 roadmap).
 """
+
 from __future__ import annotations
 
 import json

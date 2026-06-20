@@ -93,9 +93,7 @@ async def service_due(
 
 
 @router.post("/service-run")
-async def service_run(
-    days_ahead: int = Query(3, ge=0, le=60), _user=Depends(require_admin)
-):
+async def service_run(days_ahead: int = Query(3, ge=0, le=60), _user=Depends(require_admin)):
     """Due cycles → Hinglish WA reminder DRAFTS (1-click wa.me; auto-send KABHI nahi)."""
     from app.platform import service_reminders
 
@@ -118,8 +116,12 @@ async def start_clips(
 
     avail = video_clips.available()
     if not avail.get("ok"):
-        return {"ok": False, "reason": "ffmpeg_missing", "available": avail,
-                "hint": "Server pe ffmpeg/ffprobe install karo."}
+        return {
+            "ok": False,
+            "reason": "ffmpeg_missing",
+            "available": avail,
+            "hint": "Server pe ffmpeg/ffprobe install karo.",
+        }
 
     video_path = (path or "").strip()
     if file is not None and getattr(file, "filename", ""):

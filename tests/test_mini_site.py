@@ -34,7 +34,9 @@ def tmp_store(monkeypatch, tmp_path):
 # --------------------------------------------------------------------------- #
 class TestSlug:
     def test_add_client_gets_slug(self, tmp_store):
-        rec = clients_store.add_client("Sharma Solar Solutions", "solar_residential", phone="9000000001")
+        rec = clients_store.add_client(
+            "Sharma Solar Solutions", "solar_residential", phone="9000000001"
+        )
         assert rec.get("slug")
         # kebab base + id suffix
         assert rec["slug"].startswith("sharma-solar-solutions-")
@@ -65,7 +67,10 @@ class TestSlug:
         path = clients_store._CLIENTS_FILE
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            f.write(json.dumps({"id": "legacy123abc", "business_name": "Old Biz", "status": "active"}) + "\n")
+            f.write(
+                json.dumps({"id": "legacy123abc", "business_name": "Old Biz", "status": "active"})
+                + "\n"
+            )
         listed = clients_store.list_clients()
         assert len(listed) == 1
         assert listed[0].get("slug")  # backfilled on read

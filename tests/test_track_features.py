@@ -26,7 +26,11 @@ def test_send_campaign_links_when_off(monkeypatch):
     from app.marketing import whatsapp_campaign as WC
 
     monkeypatch.delenv("WHATSAPP_AUTO_SEND", raising=False)
-    res = _run(WC.send_campaign([{"phone": "9000000001", "message": "a"}, {"phone": "9000000002", "message": "b"}]))
+    res = _run(
+        WC.send_campaign(
+            [{"phone": "9000000001", "message": "a"}, {"phone": "9000000002", "message": "b"}]
+        )
+    )
     assert res["total"] == 2 and res["links"] == 2 and res["sent"] == 0 and res["auto"] is False
 
 
@@ -34,8 +38,14 @@ def test_call_request_call_type():
     from app.telephony.call_manager import CallRequest
 
     base = dict(
-        lead_id="l", phone_number="p", campaign_id="c", niche="n",
-        client_name="cn", client_service="cs", script_name="s", lead_data={},
+        lead_id="l",
+        phone_number="p",
+        campaign_id="c",
+        niche="n",
+        client_name="cn",
+        client_service="cs",
+        script_name="s",
+        lead_data={},
     )
     assert CallRequest(**base).call_type == "promotional"
     assert CallRequest(**base, call_type="transactional").call_type == "transactional"

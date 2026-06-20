@@ -1,4 +1,5 @@
 """RAG advancement tests — reranker + contextual ingest (no network/Qdrant)."""
+
 from __future__ import annotations
 
 import os

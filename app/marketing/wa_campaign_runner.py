@@ -159,7 +159,10 @@ def list_templates(status: str | None = None) -> list[dict]:
 
 def get_template(name: str, language: str = "en") -> dict | None:
     for it in _read(_TEMPLATES_FILE):
-        if it.get("name") == (name or "").strip() and it.get("language") == (language or "en").strip():
+        if (
+            it.get("name") == (name or "").strip()
+            and it.get("language") == (language or "en").strip()
+        ):
             return it
     return None
 
@@ -438,7 +441,11 @@ async def run_due(limit: int = 20) -> dict[str, Any]:
             from app.platform.team import log_event
 
             mode = "auto-sent" if wac.auto_ready() else "prepared (1-click links)"
-            log_event("isha", "wa_campaign_run", f"{res['processed']} campaigns {mode}: {res['sent']} sent")
+            log_event(
+                "isha",
+                "wa_campaign_run",
+                f"{res['processed']} campaigns {mode}: {res['sent']} sent",
+            )
         except Exception:
             pass
         return res

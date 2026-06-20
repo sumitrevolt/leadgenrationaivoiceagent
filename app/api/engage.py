@@ -98,9 +98,7 @@ async def short_redirect(code: str, request: Request):
 
 
 # --------------------- F3: reviews/testimonial widget ---------------------- #
-@router.get(
-    "/reviews-widget/{slug}", dependencies=[Depends(rate_limit("rvwidget", 60, 60))]
-)
+@router.get("/reviews-widget/{slug}", dependencies=[Depends(rate_limit("rvwidget", 60, 60))])
 async def reviews_widget_page(slug: str):
     """Approved-reviews social-proof strip (iframe content, PUBLIC)."""
     from fastapi.responses import HTMLResponse
@@ -116,9 +114,7 @@ async def reviews_widget_page(slug: str):
     )
 
 
-@router.get(
-    "/reviews-widget.js/{slug}", dependencies=[Depends(rate_limit("rvwidget", 60, 60))]
-)
+@router.get("/reviews-widget.js/{slug}", dependencies=[Depends(rate_limit("rvwidget", 60, 60))])
 async def reviews_widget_js(slug: str):
     """JS injector — client site pe inline iframe insert (PUBLIC)."""
     from fastapi.responses import Response

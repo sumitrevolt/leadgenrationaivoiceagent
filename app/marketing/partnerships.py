@@ -18,18 +18,36 @@ logger = setup_logger(__name__)
 
 # Partner type -> (kya woh karte, kyun fit, model)
 PARTNER_TYPES: dict[str, dict[str, str]] = {
-    "ca": {"label": "Chartered Accountant / Accountant", "serves": "har local business (filing/GST)",
-           "model": "refer — har client jo marketing-help maange, hamein bhejo; commission per close"},
-    "web_designer": {"label": "Web Designer / Developer", "serves": "businesses jinko website chahiye",
-                     "model": "bundle — website ke saath hamara AI lead-gen bechо; revenue-share"},
-    "it_vendor": {"label": "IT / Software Vendor", "serves": "SMBs ka tech setup",
-                  "model": "add-on — apne clients ko hamara AI marketing offer karo"},
-    "business_consultant": {"label": "Business Consultant / Coach", "serves": "growth chahne wale businesses",
-                            "model": "refer — growth-advice ke saath hamein recommend karo"},
-    "marketing_agency": {"label": "Small Marketing Agency", "serves": "clients jinko marketing chahiye",
-                         "model": "WHITE-LABEL — hamara AI voice-agent apne brand me bechо (B2B2B)"},
-    "printer": {"label": "Printing / Signage Shop", "serves": "local shop-owners",
-                "model": "refer — har shop-owner ko hamara Google/marketing audit bhejo"},
+    "ca": {
+        "label": "Chartered Accountant / Accountant",
+        "serves": "har local business (filing/GST)",
+        "model": "refer — har client jo marketing-help maange, hamein bhejo; commission per close",
+    },
+    "web_designer": {
+        "label": "Web Designer / Developer",
+        "serves": "businesses jinko website chahiye",
+        "model": "bundle — website ke saath hamara AI lead-gen bechо; revenue-share",
+    },
+    "it_vendor": {
+        "label": "IT / Software Vendor",
+        "serves": "SMBs ka tech setup",
+        "model": "add-on — apne clients ko hamara AI marketing offer karo",
+    },
+    "business_consultant": {
+        "label": "Business Consultant / Coach",
+        "serves": "growth chahne wale businesses",
+        "model": "refer — growth-advice ke saath hamein recommend karo",
+    },
+    "marketing_agency": {
+        "label": "Small Marketing Agency",
+        "serves": "clients jinko marketing chahiye",
+        "model": "WHITE-LABEL — hamara AI voice-agent apne brand me bechо (B2B2B)",
+    },
+    "printer": {
+        "label": "Printing / Signage Shop",
+        "serves": "local shop-owners",
+        "model": "refer — har shop-owner ko hamara Google/marketing audit bhejo",
+    },
 }
 
 
@@ -50,7 +68,9 @@ def _tpl(ptype: str, name: str) -> str:
     )
 
 
-async def draft_partnership(partner_type: str, partner_name: str = "", city: str = "") -> dict[str, Any]:
+async def draft_partnership(
+    partner_type: str, partner_name: str = "", city: str = ""
+) -> dict[str, Any]:
     """Ek partner ke liye partnership/white-label pitch draft. free-LLM, fallback template."""
     ptype = (partner_type or "ca").strip().lower()
     cfg = PARTNER_TYPES.get(ptype, PARTNER_TYPES["ca"])
@@ -65,14 +85,21 @@ async def draft_partnership(partner_type: str, partner_name: str = "", city: str
             "jo inquiries ko call karke qualified leads laata. Sirf message text."
         )
         prompt = f"Partner type: {cfg['label']} ({cfg['serves']}). Model: {cfg['model']}. Name: {partner_name or 'unknown'}. City: {city}."
-        txt, _ = await free_ai.chat(sys, [{"role": "user", "content": prompt}], max_tokens=200, temperature=0.7)
+        txt, _ = await free_ai.chat(
+            sys, [{"role": "user", "content": prompt}], max_tokens=200, temperature=0.7
+        )
         if txt and txt.strip():
             pitch = txt.strip()
     except Exception as e:
         logger.debug(f"[partnerships] llm skip: {e}")
     return {
-        "ok": True, "partner_type": ptype, "partner_name": partner_name or cfg["label"],
-        "model": cfg["model"], "pitch": pitch, "cta": "leadsgenai.in/audit", "auto_sent": False,
+        "ok": True,
+        "partner_type": ptype,
+        "partner_name": partner_name or cfg["label"],
+        "model": cfg["model"],
+        "pitch": pitch,
+        "cta": "leadsgenai.in/audit",
+        "auto_sent": False,
     }
 
 

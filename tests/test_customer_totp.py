@@ -57,8 +57,9 @@ def test_confirm_enroll_persists_row() -> None:
 
 def test_enroll_blocked_if_already_enabled() -> None:
     enrol = ct.begin_enroll("client_a", "x")
-    ct.confirm_enroll("client_a", enrol["secret"], totp_now(enrol["secret"]),
-                      enrol["recovery_codes"])
+    ct.confirm_enroll(
+        "client_a", enrol["secret"], totp_now(enrol["secret"]), enrol["recovery_codes"]
+    )
     out = ct.begin_enroll("client_a", "x")
     assert out["ok"] is False
     assert "already" in out["error"]
@@ -69,22 +70,25 @@ def test_enroll_blocked_if_already_enabled() -> None:
 # --------------------------------------------------------------------------- #
 def test_verify_accepts_current_totp() -> None:
     enrol = ct.begin_enroll("client_a", "x")
-    ct.confirm_enroll("client_a", enrol["secret"], totp_now(enrol["secret"]),
-                      enrol["recovery_codes"])
+    ct.confirm_enroll(
+        "client_a", enrol["secret"], totp_now(enrol["secret"]), enrol["recovery_codes"]
+    )
     assert ct.verify("client_a", totp_now(enrol["secret"])) is True
 
 
 def test_verify_rejects_wrong_totp() -> None:
     enrol = ct.begin_enroll("client_a", "x")
-    ct.confirm_enroll("client_a", enrol["secret"], totp_now(enrol["secret"]),
-                      enrol["recovery_codes"])
+    ct.confirm_enroll(
+        "client_a", enrol["secret"], totp_now(enrol["secret"]), enrol["recovery_codes"]
+    )
     assert ct.verify("client_a", "000000") is False
 
 
 def test_recovery_code_works_once_then_consumed() -> None:
     enrol = ct.begin_enroll("client_a", "x")
-    ct.confirm_enroll("client_a", enrol["secret"], totp_now(enrol["secret"]),
-                      enrol["recovery_codes"])
+    ct.confirm_enroll(
+        "client_a", enrol["secret"], totp_now(enrol["secret"]), enrol["recovery_codes"]
+    )
     rc = enrol["recovery_codes"][0]
     # First use succeeds
     assert ct.verify("client_a", rc) is True
@@ -103,8 +107,9 @@ def test_verify_returns_false_for_unenrolled_client() -> None:
 # --------------------------------------------------------------------------- #
 def test_disable_with_totp_code() -> None:
     enrol = ct.begin_enroll("client_a", "x")
-    ct.confirm_enroll("client_a", enrol["secret"], totp_now(enrol["secret"]),
-                      enrol["recovery_codes"])
+    ct.confirm_enroll(
+        "client_a", enrol["secret"], totp_now(enrol["secret"]), enrol["recovery_codes"]
+    )
     out = ct.disable("client_a", totp_now(enrol["secret"]))
     assert out["ok"] is True
     assert ct.is_enabled("client_a") is False
@@ -113,16 +118,18 @@ def test_disable_with_totp_code() -> None:
 def test_disable_with_recovery_code() -> None:
     """Customer who lost authenticator MUST be able to recover."""
     enrol = ct.begin_enroll("client_a", "x")
-    ct.confirm_enroll("client_a", enrol["secret"], totp_now(enrol["secret"]),
-                      enrol["recovery_codes"])
+    ct.confirm_enroll(
+        "client_a", enrol["secret"], totp_now(enrol["secret"]), enrol["recovery_codes"]
+    )
     out = ct.disable("client_a", enrol["recovery_codes"][3])
     assert out["ok"] is True
 
 
 def test_disable_rejects_wrong_code() -> None:
     enrol = ct.begin_enroll("client_a", "x")
-    ct.confirm_enroll("client_a", enrol["secret"], totp_now(enrol["secret"]),
-                      enrol["recovery_codes"])
+    ct.confirm_enroll(
+        "client_a", enrol["secret"], totp_now(enrol["secret"]), enrol["recovery_codes"]
+    )
     out = ct.disable("client_a", "000000")
     assert out["ok"] is False
     assert ct.is_enabled("client_a") is True

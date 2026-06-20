@@ -188,9 +188,13 @@ def run_sre() -> dict[str, Any]:
         "score": round(score, 1) if score is not None else None,
         "status": "ok",
         "summary": (
-            f"Reliability score {score:.0f}/100 — "
-            + ("all green" if score and score >= 80 else "needs attention")
-        ) if score is not None else "no signals",
+            (
+                f"Reliability score {score:.0f}/100 — "
+                + ("all green" if score and score >= 80 else "needs attention")
+            )
+            if score is not None
+            else "no signals"
+        ),
         "kpis": kpis,
         "actions": actions,
         "ts": int(time.time()),
@@ -280,9 +284,7 @@ def run_finops() -> dict[str, Any]:
     litellm_active = bool(os.environ.get("LITELLM_MASTER_KEY", "").strip())
     kpis["litellm_active"] = litellm_active
     if not litellm_active:
-        actions.append(
-            "Activate LiteLLM (LITELLM_MASTER_KEY) for true per-tenant cost attribution"
-        )
+        actions.append("Activate LiteLLM (LITELLM_MASTER_KEY) for true per-tenant cost attribution")
 
     # I.1: when LiteLLM data is available, REAL per-tenant cost replaces the
     # token-volume proxy. Flag margin-negative clients (spend > ₹0 + no client_id

@@ -24,7 +24,7 @@ router = APIRouter(prefix="/clientcrm", tags=["ClientCRM"])
 class CustomerIn(BaseModel):
     name: str
     phone: str
-    birthday: str | None = ""      # "MM-DD" ya "YYYY-MM-DD"
+    birthday: str | None = ""  # "MM-DD" ya "YYYY-MM-DD"
     anniversary: str | None = ""
     tags: list[str] | None = None
 
@@ -72,7 +72,11 @@ async def occasions_today(_user=Depends(require_admin)):
     from app.marketing import customer_crm
 
     groups = customer_crm.all_clients_todays_occasions()
-    return {"clients": len(groups), "total_occasions": sum(len(g.get("occasions", [])) for g in groups), "groups": groups}
+    return {
+        "clients": len(groups),
+        "total_occasions": sum(len(g.get("occasions", [])) for g in groups),
+        "groups": groups,
+    }
 
 
 @router.post("/wishes/run")
@@ -134,7 +138,9 @@ class ProductUpdateIn(BaseModel):
 
 
 @router.post("/catalog/{slug}/{product_id}")
-async def catalog_update(slug: str, product_id: str, body: ProductUpdateIn, _user=Depends(require_admin)):
+async def catalog_update(
+    slug: str, product_id: str, body: ProductUpdateIn, _user=Depends(require_admin)
+):
     """Product partial update (price/stock/photo/desc)."""
     from app.marketing import product_catalog
 

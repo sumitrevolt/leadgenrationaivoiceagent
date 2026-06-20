@@ -44,7 +44,10 @@ def test_recon_removed_stub_inert():
     from app.billing import payment_recon as pr
 
     assert pr.match_payments([], []) == {
-        "total_payments": 0, "gross_inr": 0, "matched": 0, "unmatched": []
+        "total_payments": 0,
+        "gross_inr": 0,
+        "matched": 0,
+        "unmatched": [],
     }
     assert asyncio.run(pr.run_if_enabled())["ok"] is False
     assert pr.last_report()["ok"] is False
@@ -55,7 +58,9 @@ def test_indexnow_payload_and_sitemap_parse(tmp_path, monkeypatch):
     from app.marketing import indexnow as ix
 
     monkeypatch.setenv("INDEXNOW_KEY", "k" * 32)
-    p = ix.build_payload(["/blog/solar-pune", "https://leadsgenai.in/audit", "https://evil.com/x", ""])
+    p = ix.build_payload(
+        ["/blog/solar-pune", "https://leadsgenai.in/audit", "https://evil.com/x", ""]
+    )
     assert p["host"] == "leadsgenai.in" and p["key"] == "k" * 32
     assert p["keyLocation"].endswith("/indexnow-key.txt")
     assert p["urlList"] == ["https://leadsgenai.in/blog/solar-pune", "https://leadsgenai.in/audit"]

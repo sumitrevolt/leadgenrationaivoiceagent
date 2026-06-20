@@ -1,4 +1,5 @@
 """Tests for new pipeline/kb automation modules."""
+
 from __future__ import annotations
 
 import pytest

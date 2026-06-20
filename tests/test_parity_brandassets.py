@@ -62,7 +62,9 @@ def test_compose_frame_never_raises():
     assert brand_frames.compose_frame("", {})["ok"] is False
     assert brand_frames.compose_frame("not-a-path.xyz", None)["ok"] is False
     # garbage brand bhi crash nahi karta
-    out = brand_frames.compose_frame("<svg width=\"100\" height=\"100\"></svg>", {"primary": "javascript:alert(1)"})
+    out = brand_frames.compose_frame(
+        '<svg width="100" height="100"></svg>', {"primary": "javascript:alert(1)"}
+    )
     assert out["ok"] is True and "javascript:" not in out["svg"]  # invalid color = default
 
 
@@ -131,7 +133,7 @@ def test_card_html_escapes_injection(tmp_path, monkeypatch):
     from app.marketing import business_card, clients_store
 
     _setup_client(tmp_path, monkeypatch)
-    rec = clients_store.add_client('Evil <img src=x onerror=alert(1)>', "gym", phone="9123456780")
+    rec = clients_store.add_client("Evil <img src=x onerror=alert(1)>", "gym", phone="9123456780")
     res = business_card.render_card_html(rec["slug"])
     assert res["ok"] is True
     assert "<img src=x" not in res["html"] and "&lt;img" in res["html"]
@@ -209,7 +211,9 @@ def test_review_post_ok_and_escaped(tmp_path, monkeypatch):
     rec = _setup_client(tmp_path, monkeypatch)
     monkeypatch.setattr(free_ai, "chat", _broken_chat)  # fallback caption path
     out = asyncio.run(
-        review_to_post.from_review('Zabardast kaam <script>alert(1)</script>', "Priya", 5, rec["slug"])
+        review_to_post.from_review(
+            "Zabardast kaam <script>alert(1)</script>", "Priya", 5, rec["slug"]
+        )
     )
     assert out["ok"] is True and out["svg"].startswith("<svg")
     assert "<script>" not in out["svg"] and "&lt;script&gt;" in out["svg"]

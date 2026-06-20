@@ -94,7 +94,7 @@ def _atomic_rewrite(rows: list[dict]) -> bool:
         return False
 
 
-def _row(client_id: str) -> Optional[dict]:
+def _row(client_id: str) -> dict | None:
     cid = (client_id or "").strip()
     for r in _read_all():
         if r.get("client_id") == cid:
@@ -163,8 +163,7 @@ def begin_enroll(client_id: str, email: str) -> dict:
     }
 
 
-def confirm_enroll(client_id: str, secret: str, code: str,
-                   recovery_codes: list[str]) -> dict:
+def confirm_enroll(client_id: str, secret: str, code: str, recovery_codes: list[str]) -> dict:
     """Customer scanned the QR and typed the first code from their app +
     saved their recovery codes — verify + persist. Both `secret` and
     `recovery_codes` came from begin_enroll(); the customer is the trust
@@ -238,14 +237,17 @@ def _challenge_key() -> bytes:
 def create_challenge(client_id: str) -> str:
     """Issue a signed (client_id, expiry, nonce) blob. Customer posts this
     back with their TOTP code in /verify."""
-    payload = {"cid": client_id, "exp": int(time.time()) + _CHALLENGE_TTL_S,
-               "n": uuid.uuid4().hex[:12]}
+    payload = {
+        "cid": client_id,
+        "exp": int(time.time()) + _CHALLENGE_TTL_S,
+        "n": uuid.uuid4().hex[:12],
+    }
     body = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
     sig = hmac.new(_challenge_key(), body, hashlib.sha256).hexdigest()
     return base64.urlsafe_b64encode(body).decode() + "." + sig
 
 
-def consume_challenge(token: str) -> Optional[str]:
+def consume_challenge(token: str) -> str | None:
     """Verify the challenge signature + expiry. Return client_id or None.
     NB: not actually single-use — verifying the TOTP code is what gates the
     JWT issuance, and TOTP codes are themselves single-use per step."""

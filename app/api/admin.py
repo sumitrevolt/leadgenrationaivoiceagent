@@ -521,6 +521,7 @@ async def create_user(
     # Send verification email (best-effort, never block create)
     try:
         from app.platform.auto_outreach import EmailSender as _ES
+
         _es = _ES()
         _es.send(
             to=user.email,
@@ -844,6 +845,7 @@ async def get_admin_stats(
         total_clients = _tc_r.scalar() or 0
 
         from app.models.client import ClientStatus as _CS
+
         _ac_r = await db.execute(
             select(_func.count(Client.id)).where(Client.status.in_([_CS.ACTIVE, _CS.TRIAL]))
         )
@@ -864,9 +866,7 @@ async def get_admin_stats(
         total_appointments = _appt_r.scalar() or 0
 
         _rev_r = await db.execute(
-            select(_func.sum(BillingRecord.amount)).where(
-                BillingRecord.status == _BRS.PAID
-            )
+            select(_func.sum(BillingRecord.amount)).where(BillingRecord.status == _BRS.PAID)
         )
         # amount stored in paise → convert to INR
         total_revenue_inr = float((_rev_r.scalar() or 0) / 100.0)

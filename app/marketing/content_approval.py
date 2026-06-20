@@ -120,7 +120,9 @@ def wa_share_text(rec: dict[str, Any]) -> dict[str, str]:
     )
     phone = _client_phone(str(rec.get("client_id") or ""))
     wa_link = (
-        f"https://wa.me/91{phone}?text={quote(msg)}" if phone else f"https://wa.me/?text={quote(msg)}"
+        f"https://wa.me/91{phone}?text={quote(msg)}"
+        if phone
+        else f"https://wa.me/?text={quote(msg)}"
     )
     return {"message": msg, "wa_link": wa_link}
 
@@ -231,8 +233,7 @@ def pending(client_id: str = "") -> list[dict[str, Any]]:
         rows = [
             r
             for r in _latest_states().values()
-            if r.get("status") == "pending"
-            and (not client_id or r.get("client_id") == client_id)
+            if r.get("status") == "pending" and (not client_id or r.get("client_id") == client_id)
         ]
         rows.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
         return rows
@@ -248,7 +249,9 @@ def _by_id_for_client(client_id: str, approval_id: str) -> dict[str, Any] | None
     return rec
 
 
-def decide_for_client(client_id: str, approval_id: str, action: str, note: str = "") -> dict[str, Any]:
+def decide_for_client(
+    client_id: str, approval_id: str, action: str, note: str = ""
+) -> dict[str, Any]:
     """Authenticated customer portal — id se approve/reject (token expose nahi)."""
     rec = _by_id_for_client(client_id, approval_id)
     if rec is None:
@@ -277,9 +280,7 @@ def list_all(client_id: str = "", limit: int = 100) -> list[dict[str, Any]]:
     try:
         client_id = str(client_id or "").strip()
         rows = [
-            r
-            for r in _latest_states().values()
-            if not client_id or r.get("client_id") == client_id
+            r for r in _latest_states().values() if not client_id or r.get("client_id") == client_id
         ]
         rows.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
         return rows[: max(1, min(int(limit or 100), 500))]
@@ -291,7 +292,10 @@ def list_all(client_id: str = "", limit: int = 100) -> list[dict[str, Any]]:
 def decision_html(result: dict[str, Any], action: str) -> str:
     """Tiny Hinglish HTML — public approve/reject link ka response page."""
     if not result.get("ok"):
-        title, body = "Link sahi nahi", "Yeh approval link galat ya expire ho chuka hai. Apni agency se naya link maang lo."
+        title, body = (
+            "Link sahi nahi",
+            "Yeh approval link galat ya expire ho chuka hai. Apni agency se naya link maang lo.",
+        )
         emoji = "🤔"
     elif result.get("already_decided"):
         st = (result.get("approval") or {}).get("status")

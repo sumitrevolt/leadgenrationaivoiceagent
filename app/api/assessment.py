@@ -5,9 +5,14 @@ GET /api/assessment/latest — return latest assessment JSON metrics
 GET /api/assessment/history — list past assessments
 GET /api/assessment/diff  — compare latest vs baseline
 """
+
 from __future__ import annotations
-import json, pathlib, logging
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends
+
+import json
+import logging
+import pathlib
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from app.api.admin import require_admin
 
@@ -34,6 +39,7 @@ def _run_assessment_bg():
     """Background task: import orchestrator lazily to avoid startup overhead."""
     try:
         from app.platform.dashboard_assessment import DashboardAssessment
+
         assessor = DashboardAssessment()
         assessor.run_full()
         log.info("Background assessment complete.")
@@ -60,8 +66,7 @@ async def get_latest():
     data = _latest_metrics()
     if not data:
         raise HTTPException(
-            status_code=404,
-            detail="No assessment found. Run POST /api/assessment/run first."
+            status_code=404, detail="No assessment found. Run POST /api/assessment/run first."
         )
     return data
 
@@ -84,12 +89,14 @@ async def list_history():
     for f in files[:20]:
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
-            items.append({
-                "assessment_id": data.get("assessment_id", f.stem),
-                "generated_at": data.get("generated_at"),
-                "scores": data.get("scores", {}),
-                "file": f.name,
-            })
+            items.append(
+                {
+                    "assessment_id": data.get("assessment_id", f.stem),
+                    "generated_at": data.get("generated_at"),
+                    "scores": data.get("scores", {}),
+                    "file": f.name,
+                }
+            )
         except Exception:
             pass
     return {"history": items, "count": len(items)}
@@ -100,6 +107,7 @@ async def get_diff(baseline: str = "latest", _admin=Depends(require_admin)):
     """Compare current assessment against a baseline. Returns regression report."""
     try:
         from app.platform.dashboard_assessment import DashboardAssessment
+
         assessor = DashboardAssessment()
         result = assessor.run_diff(baseline_id=baseline)
         return result

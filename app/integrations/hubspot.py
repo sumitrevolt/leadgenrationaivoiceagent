@@ -443,6 +443,7 @@ class ZohoCRMIntegration:
         if all([self.client_id, self.client_secret, self.refresh_token]):
             try:
                 from app.integrations.zoho_crm import ZohoCRM
+
                 self._zoho = ZohoCRM(
                     client_id=self.client_id,
                     client_secret=self.client_secret,

@@ -48,8 +48,8 @@ import importlib.util
 import io
 import json
 import threading
-from datetime import datetime, timezone
 from collections import deque
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -108,11 +108,9 @@ FRAME_SLEEP = 0.02  # pace outbound audio ~realtime (20 ms/frame)
 FRAME_MS = 20.0  # each inbound media frame ~= 20 ms (8 kHz µ-law, 160 B)
 
 try:  # pragma: no cover - import-safety
-    from app.voice_agent.turn_detector import (
-        barge_in_frames as _shared_barge_frames,
-        turn_silence_ms as _shared_silence_ms,
-        turn_vad_rms as _shared_vad_rms,
-    )
+    from app.voice_agent.turn_detector import barge_in_frames as _shared_barge_frames
+    from app.voice_agent.turn_detector import turn_silence_ms as _shared_silence_ms
+    from app.voice_agent.turn_detector import turn_vad_rms as _shared_vad_rms
 
     VAD_RMS_THRESHOLD = _shared_vad_rms(300)  # PCM16 rms isse upar = speech
     VAD_SILENCE_FRAMES = max(1, int(round(_shared_silence_ms(700.0) / FRAME_MS)))  # ~0.7 s silence
@@ -636,7 +634,9 @@ class PhoneCallSession:
                 from app.voice_agent import agent_memory
 
                 if agent_memory.is_enabled() and self._lead_phone:
-                    self._telecaller.set_memory_subject(f"{self.client_id or 'na'}:{self._lead_phone}")
+                    self._telecaller.set_memory_subject(
+                        f"{self.client_id or 'na'}:{self._lead_phone}"
+                    )
             except Exception:
                 pass
         except Exception as e:

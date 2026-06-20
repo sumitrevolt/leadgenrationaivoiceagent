@@ -108,9 +108,7 @@ def generate_upi_poster(
 # Engage-batch additions (additive) — client-record-driven payment QR pack.
 # upi_kit.payment_kit REUSE hota hai (slip/WA msg duplicate nahi banate).
 # =========================================================================== #
-def build_upi_uri(
-    vpa: str, name: str, amount: Any | None = None, note: str | None = None
-) -> str:
+def build_upi_uri(vpa: str, name: str, amount: Any | None = None, note: str | None = None) -> str:
     """NPCI-spec `upi://pay` deep link — URL-encoded, VPA validated (x@y).
 
     Invalid VPA = "" (caller error dikhaye). Kabhi raise nahi.
@@ -123,7 +121,10 @@ def build_upi_uri(
             return ""
         amount_str = upi_kit._fmt_amount(amount)
         return upi_kit._build_upi_link(
-            vpa_clean, (name or "").strip()[:120] or "Business", amount_str, (note or "").strip()[:100]
+            vpa_clean,
+            (name or "").strip()[:120] or "Business",
+            amount_str,
+            (note or "").strip()[:100],
         )
     except Exception as e:  # pragma: no cover - sab deterministic
         logger.warning(f"build_upi_uri failed: {e}")

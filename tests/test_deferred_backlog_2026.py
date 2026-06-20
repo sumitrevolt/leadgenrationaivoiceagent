@@ -1,4 +1,5 @@
 """Deferred backlog helpers — deliverability summary + LLM stream sentence split."""
+
 from __future__ import annotations
 
 import pytest
@@ -24,7 +25,13 @@ async def test_deliverability_summary_shape(monkeypatch):
     import app.platform.email_warmup as ew
 
     async def _dns():
-        return {"spf_ok": True, "dkim_ok": True, "dmarc_ok": True, "dmarc_policy": "none", "problems": []}
+        return {
+            "spf_ok": True,
+            "dkim_ok": True,
+            "dmarc_ok": True,
+            "dmarc_policy": "none",
+            "problems": [],
+        }
 
     monkeypatch.setattr(dm, "run_check", _dns)
     monkeypatch.setattr(

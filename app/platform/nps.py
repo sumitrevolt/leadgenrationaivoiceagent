@@ -75,7 +75,9 @@ def _read_all() -> list[dict]:
         return []
 
 
-async def submit(score: int, comment: str = "", name: str = "", phone: str = "", client_slug: str = "") -> dict[str, Any]:
+async def submit(
+    score: int, comment: str = "", name: str = "", phone: str = "", client_slug: str = ""
+) -> dict[str, Any]:
     """Response record + detractor alert (gated). Public route se aata hai."""
     try:
         score = max(0, min(10, int(score)))
@@ -145,12 +147,16 @@ def request_drafts(limit: int = 20) -> list[dict]:
                 f"service ko 0-10 me kitna score denge? Reply me number bhej dijiye, ya yahan rate karein: "
                 f"{base}/api/public/nps?slug={quote(slug)}"
             )
-            drafts.append({
-                "client": c.get("business_name"),
-                "slug": slug,
-                "wa_link": f"https://wa.me/{phone.lstrip('+')}?text={quote(msg)}" if phone else None,
-                "message": msg,
-            })
+            drafts.append(
+                {
+                    "client": c.get("business_name"),
+                    "slug": slug,
+                    "wa_link": (
+                        f"https://wa.me/{phone.lstrip('+')}?text={quote(msg)}" if phone else None
+                    ),
+                    "message": msg,
+                }
+            )
         return drafts
     except Exception as e:
         logger.warning(f"[nps] drafts fail: {e}")

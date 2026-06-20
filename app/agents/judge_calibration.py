@@ -193,10 +193,7 @@ def _coord_score_map() -> dict[str, int]:
         if not rid:
             continue
         substance = bool(
-            r.get("summary")
-            or r.get("solution")
-            or r.get("design")
-            or r.get("implementation_plan")
+            r.get("summary") or r.get("solution") or r.get("design") or r.get("implementation_plan")
         )
         out[rid] = 1 if substance else 0
     return out
@@ -217,7 +214,9 @@ def _decision_map() -> dict[str, list[dict[str, Any]]]:
     return grouped
 
 
-def _pairs_coordinator(decisions: dict[str, list[dict[str, Any]]]) -> tuple[list[tuple[int, int]], str]:
+def _pairs_coordinator(
+    decisions: dict[str, list[dict[str, Any]]],
+) -> tuple[list[tuple[int, int]], str]:
     """coordinator judge (substance-detector) vs human approve/reject."""
     rows = decisions.get("coordinator", [])
     if not rows:

@@ -36,7 +36,12 @@ FLOW_LEAD_CAPTURE: dict[str, Any] = {
                 "children": [
                     {"type": "TextHeading", "text": "Apni detail bhar dijiye 🙏"},
                     {"type": "TextInput", "name": "name", "label": "Naam", "required": True},
-                    {"type": "TextInput", "name": "service", "label": "Kya chahiye?", "required": True},
+                    {
+                        "type": "TextInput",
+                        "name": "service",
+                        "label": "Kya chahiye?",
+                        "required": True,
+                    },
                     {"type": "TextInput", "name": "city", "label": "City", "required": False},
                     {
                         "type": "Footer",
@@ -54,22 +59,33 @@ def _flow_id() -> str:
     return os.environ.get("WHATSAPP_LEAD_FLOW_ID", "").strip()
 
 
-async def send_flow(to_number: str, flow_token: str = "lead", flow_cta: str = "Enquiry karein") -> dict[str, Any]:
+async def send_flow(
+    to_number: str, flow_token: str = "lead", flow_cta: str = "Enquiry karein"
+) -> dict[str, Any]:
     """Interactive Flow message bhejo (GATED). flow_id/creds na ho -> inert + reason."""
     flow_id = _flow_id()
     if not flow_id:
-        return {"ok": False, "reason": "WHATSAPP_LEAD_FLOW_ID unset (Meta Flow publish karke set karo)", "inert": True}
+        return {
+            "ok": False,
+            "reason": "WHATSAPP_LEAD_FLOW_ID unset (Meta Flow publish karke set karo)",
+            "inert": True,
+        }
     try:
         from app.config import settings
 
-        if not (getattr(settings, "whatsapp_business_token", "") and getattr(settings, "whatsapp_phone_number_id", "")):
+        if not (
+            getattr(settings, "whatsapp_business_token", "")
+            and getattr(settings, "whatsapp_phone_number_id", "")
+        ):
             return {"ok": False, "reason": "WhatsApp Cloud API creds unset", "inert": True}
         from app.integrations.whatsapp import WhatsAppIntegration
 
         wa = WhatsAppIntegration()
         payload = {
             "messaging_product": "whatsapp",
-            "to": wa._normalize_number(to_number) if hasattr(wa, "_normalize_number") else to_number,
+            "to": (
+                wa._normalize_number(to_number) if hasattr(wa, "_normalize_number") else to_number
+            ),
             "type": "interactive",
             "interactive": {
                 "type": "flow",

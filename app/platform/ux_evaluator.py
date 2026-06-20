@@ -5,6 +5,7 @@ Evaluates 9 UX dimensions and produces UXIssue objects with WCAG metadata.
 
 Data source: data/ux_checklist.json
 """
+
 from __future__ import annotations
 
 import json
@@ -29,15 +30,14 @@ _TOTAL_CHECKS = 9
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _load_ux_checklist() -> Dict:
+
+def _load_ux_checklist() -> dict:
     """Load ux_checklist.json; raises RuntimeError if missing or malformed."""
     try:
-        with open(UX_CHECKLIST_PATH, "r", encoding="utf-8") as fh:
+        with open(UX_CHECKLIST_PATH, encoding="utf-8") as fh:
             return json.load(fh)
     except FileNotFoundError as exc:
-        raise RuntimeError(
-            f"ux_checklist.json not found at {UX_CHECKLIST_PATH}"
-        ) from exc
+        raise RuntimeError(f"ux_checklist.json not found at {UX_CHECKLIST_PATH}") from exc
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"ux_checklist.json is malformed: {exc}") from exc
 
@@ -59,8 +59,8 @@ def _count_pattern(pattern: str, html: str, flags: int = re.IGNORECASE) -> int:
 def _find_evidence(pattern: str, html: str, max_snippets: int = 3) -> Evidence:
     """Build Evidence object: line numbers + code snippets for first few matches."""
     lines = html.split("\n")
-    found_lines: List[int] = []
-    snippets: List[str] = []
+    found_lines: list[int] = []
+    snippets: list[str] = []
 
     for i, line in enumerate(lines, 1):
         if re.search(pattern, line, re.IGNORECASE):
@@ -73,7 +73,7 @@ def _find_evidence(pattern: str, html: str, max_snippets: int = 3) -> Evidence:
     return Evidence(line_numbers=found_lines, code_snippets=snippets)
 
 
-def _next_id(counter: List[int]) -> str:
+def _next_id(counter: list[int]) -> str:
     """Thread-unsafe monotonic ID generator via mutable list trick."""
     counter[0] += 1
     return f"ux_{counter[0]:03d}"
@@ -84,9 +84,16 @@ def _next_id(counter: List[int]) -> str:
 # Each returns Optional[UXIssue] — None means check passed.
 # ---------------------------------------------------------------------------
 
-def _check_loading_states(html: str, dashboard: str, counter: List[int]) -> Optional[UXIssue]:
+
+def _check_loading_states(html: str, dashboard: str, counter: list[int]) -> UXIssue | None:
     """MAJOR: missing spinner/skeleton loading indicators."""
-    patterns = [r"spinner", r"skeleton", r"aria-busy", r"\.loading\b", r"class=[\"'][^\"']*\bloading\b"]
+    patterns = [
+        r"spinner",
+        r"skeleton",
+        r"aria-busy",
+        r"\.loading\b",
+        r"class=[\"'][^\"']*\bloading\b",
+    ]
     found = any(re.search(p, html, re.IGNORECASE) for p in patterns)
     if found:
         return None
@@ -116,7 +123,7 @@ def _check_loading_states(html: str, dashboard: str, counter: List[int]) -> Opti
     )
 
 
-def _check_empty_states(html: str, dashboard: str, counter: List[int]) -> Optional[UXIssue]:
+def _check_empty_states(html: str, dashboard: str, counter: list[int]) -> UXIssue | None:
     """MINOR: no empty-state illustrations or messages."""
     patterns = [
         r"empty[\-_]state",
@@ -151,7 +158,7 @@ def _check_empty_states(html: str, dashboard: str, counter: List[int]) -> Option
     )
 
 
-def _check_error_handling(html: str, dashboard: str, counter: List[int]) -> Optional[UXIssue]:
+def _check_error_handling(html: str, dashboard: str, counter: list[int]) -> UXIssue | None:
     """MAJOR: no .catch() or error handler in JS fetch calls."""
     # Look for .catch(), try/catch, onerror, window.onerror, error callback patterns
     patterns = [
@@ -187,13 +194,13 @@ def _check_error_handling(html: str, dashboard: str, counter: List[int]) -> Opti
     )
 
 
-def _check_aria_labels(html: str, dashboard: str, counter: List[int]) -> Optional[UXIssue]:
+def _check_aria_labels(html: str, dashboard: str, counter: list[int]) -> UXIssue | None:
     """MAJOR WCAG 4.1.2: fewer than 5 aria-label occurrences."""
-    count = _count_pattern(r'aria-label\s*=', html)
+    count = _count_pattern(r"aria-label\s*=", html)
     if count >= 5:
         return None
 
-    evidence = _find_evidence(r'aria-label\s*=', html)
+    evidence = _find_evidence(r"aria-label\s*=", html)
     return UXIssue(
         id=_next_id(counter),
         name="Insufficient ARIA Labels",
@@ -215,18 +222,14 @@ def _check_aria_labels(html: str, dashboard: str, counter: List[int]) -> Optiona
     )
 
 
-def _check_keyboard_focus(html: str, dashboard: str, counter: List[int]) -> Optional[UXIssue]:
+def _check_keyboard_focus(html: str, dashboard: str, counter: list[int]) -> UXIssue | None:
     """
     CRITICAL WCAG 2.4.7: outline:none or outline:0 present AND :focus styles absent
     or insufficient.
     """
     # Detect outline suppression
-    has_outline_none = bool(
-        re.search(r"outline\s*:\s*(?:none|0\s*;?)", html, re.IGNORECASE)
-    )
-    has_outline_zero = bool(
-        re.search(r"outline\s*:\s*0\b", html, re.IGNORECASE)
-    )
+    has_outline_none = bool(re.search(r"outline\s*:\s*(?:none|0\s*;?)", html, re.IGNORECASE))
+    has_outline_zero = bool(re.search(r"outline\s*:\s*0\b", html, re.IGNORECASE))
     outline_suppressed = has_outline_none or has_outline_zero
 
     if not outline_suppressed:
@@ -234,7 +237,11 @@ def _check_keyboard_focus(html: str, dashboard: str, counter: List[int]) -> Opti
 
     # Check if there's a compensating :focus override
     has_focus_override = bool(
-        re.search(r":focus(?:-visible)?\s*\{[^}]*(?:outline|box-shadow|border)", html, re.IGNORECASE | re.DOTALL)
+        re.search(
+            r":focus(?:-visible)?\s*\{[^}]*(?:outline|box-shadow|border)",
+            html,
+            re.IGNORECASE | re.DOTALL,
+        )
     )
     if has_focus_override:
         return None
@@ -261,7 +268,7 @@ def _check_keyboard_focus(html: str, dashboard: str, counter: List[int]) -> Opti
     )
 
 
-def _check_semantic_html(html: str, dashboard: str, counter: List[int]) -> Optional[UXIssue]:
+def _check_semantic_html(html: str, dashboard: str, counter: list[int]) -> UXIssue | None:
     """MINOR: missing <main>, <nav>, or <header> landmark elements."""
     has_main = bool(re.search(r"<main\b", html, re.IGNORECASE))
     has_nav = bool(re.search(r"<nav\b", html, re.IGNORECASE))
@@ -292,18 +299,18 @@ def _check_semantic_html(html: str, dashboard: str, counter: List[int]) -> Optio
         ),
         evidence=Evidence(line_numbers=[], code_snippets=[]),
         remediation=(
-            f"Wrap the main content area in <main>, wrap the sidebar in <nav>, "
+            "Wrap the main content area in <main>, wrap the sidebar in <nav>, "
             "and wrap the topbar in <header>. "
             "These replace <div id='main'> / <div id='nav'> patterns."
         ),
     )
 
 
-def _check_alt_text(html: str, dashboard: str, counter: List[int]) -> Optional[UXIssue]:
+def _check_alt_text(html: str, dashboard: str, counter: list[int]) -> UXIssue | None:
     """MAJOR WCAG 1.1.1: <img> tags without alt attribute."""
     # All <img> tags
     img_tags = re.findall(r"<img\b[^>]*>", html, re.IGNORECASE | re.DOTALL)
-    bad_imgs = [tag for tag in img_tags if not re.search(r'\balt\s*=', tag, re.IGNORECASE)]
+    bad_imgs = [tag for tag in img_tags if not re.search(r"\balt\s*=", tag, re.IGNORECASE)]
 
     if not bad_imgs:
         return None
@@ -313,7 +320,9 @@ def _check_alt_text(html: str, dashboard: str, counter: List[int]) -> Optional[U
     lines = html.split("\n")
     found_lines = []
     for i, line in enumerate(lines, 1):
-        if re.search(r"<img\b", line, re.IGNORECASE) and not re.search(r'\balt\s*=', line, re.IGNORECASE):
+        if re.search(r"<img\b", line, re.IGNORECASE) and not re.search(
+            r"\balt\s*=", line, re.IGNORECASE
+        ):
             found_lines.append(i)
         if len(found_lines) >= 5:
             break
@@ -340,7 +349,7 @@ def _check_alt_text(html: str, dashboard: str, counter: List[int]) -> Optional[U
     )
 
 
-def _check_form_labels(html: str, dashboard: str, counter: List[int]) -> Optional[UXIssue]:
+def _check_form_labels(html: str, dashboard: str, counter: list[int]) -> UXIssue | None:
     """MAJOR WCAG 1.3.1: <input> elements without associated <label> or aria-label."""
     # Count inputs excluding hidden/submit/button/image types
     inputs = re.findall(
@@ -351,8 +360,8 @@ def _check_form_labels(html: str, dashboard: str, counter: List[int]) -> Optiona
     unlabelled = []
     for tag in inputs:
         has_id = re.search(r'\bid\s*=\s*["\']([^"\']+)["\']', tag, re.IGNORECASE)
-        has_aria_label = re.search(r'aria-label(?:ledby)?\s*=', tag, re.IGNORECASE)
-        has_title = re.search(r'\btitle\s*=', tag, re.IGNORECASE)
+        has_aria_label = re.search(r"aria-label(?:ledby)?\s*=", tag, re.IGNORECASE)
+        has_title = re.search(r"\btitle\s*=", tag, re.IGNORECASE)
 
         if has_aria_label or has_title:
             continue  # has programmatic label
@@ -373,7 +382,9 @@ def _check_form_labels(html: str, dashboard: str, counter: List[int]) -> Optiona
     lines = html.split("\n")
     found_lines = []
     for i, line in enumerate(lines, 1):
-        if re.search(r"<input\b", line, re.IGNORECASE) and not re.search(r'aria-label|<label', line, re.IGNORECASE):
+        if re.search(r"<input\b", line, re.IGNORECASE) and not re.search(
+            r"aria-label|<label", line, re.IGNORECASE
+        ):
             found_lines.append(i)
         if len(found_lines) >= 5:
             break
@@ -400,12 +411,12 @@ def _check_form_labels(html: str, dashboard: str, counter: List[int]) -> Optiona
     )
 
 
-def _check_responsive(html: str, dashboard: str, counter: List[int]) -> Optional[UXIssue]:
+def _check_responsive(html: str, dashboard: str, counter: list[int]) -> UXIssue | None:
     """MAJOR: missing @media query or viewport meta tag."""
     has_viewport = bool(re.search(r'name\s*=\s*["\']viewport["\']', html, re.IGNORECASE))
     has_media = bool(re.search(r"@media\b", html, re.IGNORECASE))
 
-    issues: List[str] = []
+    issues: list[str] = []
     if not has_viewport:
         issues.append("missing viewport meta tag")
     if not has_media:
@@ -439,7 +450,8 @@ def _check_responsive(html: str, dashboard: str, counter: List[int]) -> Optional
 # Public API
 # ---------------------------------------------------------------------------
 
-def evaluate_dashboard(filepath: pathlib.Path, dashboard_name: str) -> List[UXIssue]:
+
+def evaluate_dashboard(filepath: pathlib.Path, dashboard_name: str) -> list[UXIssue]:
     """
     Run all UX heuristic checks against a dashboard HTML file.
 
@@ -467,7 +479,7 @@ def evaluate_dashboard(filepath: pathlib.Path, dashboard_name: str) -> List[UXIs
             )
         ]
 
-    counter: List[int] = [0]
+    counter: list[int] = [0]
     dash = dashboard_name.lower()
 
     # Run all checks in order; None return = passed
@@ -493,7 +505,7 @@ def evaluate_dashboard(filepath: pathlib.Path, dashboard_name: str) -> List[UXIs
     return issues
 
 
-def calculate_ux_score(issues: List[UXIssue]) -> float:
+def calculate_ux_score(issues: list[UXIssue]) -> float:
     """
     Score = (total_checks - critical*3 - major*2 - minor*1) / (total_checks*3) * 100
     Clamped to [0, 100].
@@ -515,7 +527,7 @@ def calculate_ux_score(issues: List[UXIssue]) -> float:
 def get_all_ux_issues(
     customer_path: pathlib.Path,
     admin_path: pathlib.Path,
-) -> Dict[str, List[UXIssue]]:
+) -> dict[str, list[UXIssue]]:
     """
     Main entry point. Evaluates both dashboards.
 

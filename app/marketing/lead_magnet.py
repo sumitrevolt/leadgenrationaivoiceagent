@@ -180,9 +180,7 @@ def _render_html(
     if len(wa_digits) == 10:
         wa_digits = "91" + wa_digits
     wa_url = f"https://wa.me/{wa_digits}" if wa_digits else ""
-    items = "".join(
-        f"<li style='margin:0 0 14px;padding-left:6px;'>{e(p)}</li>" for p in points
-    )
+    items = "".join(f"<li style='margin:0 0 14px;padding-left:6px;'>{e(p)}</li>" for p in points)
     ctas = []
     if minisite:
         ctas.append(
@@ -246,9 +244,7 @@ def _try_pdf(html_path: str, html_content: str) -> str:
     return ""
 
 
-async def generate(
-    niche: str, city: str, business_name: str, slug: str = ""
-) -> dict[str, Any]:
+async def generate(niche: str, city: str, business_name: str, slug: str = "") -> dict[str, Any]:
     """Branded lead-magnet guide banao + save karo. Never raises.
     Returns {ok, name, file, url, pdf, points, capture_note}."""
     try:
@@ -301,7 +297,9 @@ async def generate(
             "file": path,
             "url": f"/api/lifecycle/lead-magnet-file/{name}",
             "pdf": os.path.basename(pdf_path) if pdf_path else "",
-            "pdf_url": f"/api/lifecycle/lead-magnet-file/{os.path.basename(pdf_path)}" if pdf_path else "",
+            "pdf_url": (
+                f"/api/lifecycle/lead-magnet-file/{os.path.basename(pdf_path)}" if pdf_path else ""
+            ),
             "title": title,
             "points": points,
             "points_source": source,

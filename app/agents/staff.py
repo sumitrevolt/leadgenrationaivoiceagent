@@ -620,14 +620,20 @@ async def run_member(member: str) -> dict[str, Any]:
     KABHI raise nahi karta."""
     key = (member or "").strip().lower()
     table = {
-        "arjun": run_qa, "qa": run_qa,
-        "meera": run_trainer, "trainer": run_trainer,
-        "kavya": run_ops, "ops": run_ops,
-        "digest": run_digest, "manager": run_digest,
-        "isha": run_content, "content": run_content,
+        "arjun": run_qa,
+        "qa": run_qa,
+        "meera": run_trainer,
+        "trainer": run_trainer,
+        "kavya": run_ops,
+        "ops": run_ops,
+        "digest": run_digest,
+        "manager": run_digest,
+        "isha": run_content,
+        "content": run_content,
         "blog": run_blog,
         "growth": run_growth,
-        "rohan": run_email_outreach, "email_outreach": run_email_outreach,
+        "rohan": run_email_outreach,
+        "email_outreach": run_email_outreach,
     }
     fn = table.get(key)
     if fn is None:
@@ -640,6 +646,13 @@ async def run_member(member: str) -> dict[str, Any]:
 
 
 __all__ = [
-    "run_qa", "run_trainer", "run_ops", "run_digest", "run_content",
-    "run_blog", "run_email_outreach", "run_growth", "run_member",
+    "run_qa",
+    "run_trainer",
+    "run_ops",
+    "run_digest",
+    "run_content",
+    "run_blog",
+    "run_email_outreach",
+    "run_growth",
+    "run_member",
 ]

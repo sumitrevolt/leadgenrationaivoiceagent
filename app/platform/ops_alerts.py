@@ -43,10 +43,10 @@ _STATE_PATH = _DATA_DIR / "ops_alerts_state.jsonl"
 
 # Cooldowns (seconds) per alert kind — picked to balance signal and noise.
 _COOLDOWN = {
-    "engineer_score": 4 * 3600,      # at most one per role per 4h
-    "eval_reject": 6 * 3600,         # at most one per suite/metric per 6h
-    "readiness_digest": 20 * 3600,   # at most one daily-style digest per 20h
-    "webhook_dead_letter": 6 * 3600, # at most one per webhook per 6h (L.3)
+    "engineer_score": 4 * 3600,  # at most one per role per 4h
+    "eval_reject": 6 * 3600,  # at most one per suite/metric per 6h
+    "readiness_digest": 20 * 3600,  # at most one daily-style digest per 20h
+    "webhook_dead_letter": 6 * 3600,  # at most one per webhook per 6h (L.3)
 }
 
 # Thresholds — override via env if the operator wants tighter/looser.

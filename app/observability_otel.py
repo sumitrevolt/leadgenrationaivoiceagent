@@ -64,7 +64,9 @@ def setup_otel(app) -> bool:
         trace.set_tracer_provider(provider)
 
         # FastAPI request spans (health endpoints excluded from noise).
-        FastAPIInstrumentor.instrument_app(app, excluded_urls="/health,/health/ready,/health/live,/metrics")
+        FastAPIInstrumentor.instrument_app(
+            app, excluded_urls="/health,/health/ready,/health/live,/metrics"
+        )
 
         # Best-effort downstream instrumentation — har ek alag try (ek missing baaki na rok de).
         for mod, fn in (
@@ -81,7 +83,9 @@ def setup_otel(app) -> bool:
         logger.info(f"✅ OpenTelemetry tracing ON -> {endpoint} (service={svc})")
         return True
     except ImportError:
-        logger.warning("ENABLE_OTEL=1 par opentelemetry packages missing — `pip install` karo. Skipping.")
+        logger.warning(
+            "ENABLE_OTEL=1 par opentelemetry packages missing — `pip install` karo. Skipping."
+        )
         return False
     except Exception as e:  # noqa: BLE001
         logger.warning(f"OTel setup failed (non-fatal): {e}")

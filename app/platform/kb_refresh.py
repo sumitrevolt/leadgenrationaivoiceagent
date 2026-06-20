@@ -48,7 +48,9 @@ async def run_weekly_if_enabled(limit: int = 5) -> dict[str, Any]:
         from app.marketing import clients_store, onboarding
         from app.platform import team
 
-        clients = [c for c in (clients_store.list_clients() or []) if (c.get("website") or "").strip()]
+        clients = [
+            c for c in (clients_store.list_clients() or []) if (c.get("website") or "").strip()
+        ]
         if not clients:
             return {"ok": True, "processed": 0, "reason": "no clients with website"}
 

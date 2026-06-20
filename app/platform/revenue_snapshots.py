@@ -5,6 +5,7 @@ Real history grows one row/day via the scheduled ``revenue_snapshot`` job
 *approximate* curve from client start-dates + plan price (clearly marked
 ``estimated=True``). Defensive: never raises on read.
 """
+
 from __future__ import annotations
 
 import json
@@ -126,14 +127,16 @@ def _estimate_curve(days: int, clients: list[dict], price_fn) -> list[dict]:
         if active == 0:
             continue
         mrr = sum(p for (d, p) in parsed if d <= day)
-        pts.append({
-            "date": day.strftime("%Y-%m-%d"),
-            "mrr": mrr,
-            "active": active,
-            "churn_pct": 0.0,
-            "ltv": int(mrr * 12 / max(1, active)),
-            "estimated": True,
-        })
+        pts.append(
+            {
+                "date": day.strftime("%Y-%m-%d"),
+                "mrr": mrr,
+                "active": active,
+                "churn_pct": 0.0,
+                "ltv": int(mrr * 12 / max(1, active)),
+                "estimated": True,
+            }
+        )
     return pts
 
 

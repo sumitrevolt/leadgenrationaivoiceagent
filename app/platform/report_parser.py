@@ -2,6 +2,7 @@
 Report Parser — parses DASHBOARD_ASSESSMENT_REPORT.md back into structured data.
 Supports round-trip: parse → format_summary → parse preserves scores dict.
 """
+
 from __future__ import annotations
 
 import logging
@@ -27,7 +28,7 @@ class AssessmentReportParser:
     # Public API
     # ------------------------------------------------------------------
 
-    def parse(self, report_path: str) -> Dict:
+    def parse(self, report_path: str) -> dict:
         """
         Parse report into dict with keys:
             scores    – Dict[str, float]   (metric → value)
@@ -56,7 +57,7 @@ class AssessmentReportParser:
             "backlog": backlog,
         }
 
-    def parse_table(self, table_markdown: str) -> List[Dict]:
+    def parse_table(self, table_markdown: str) -> list[dict]:
         """
         Parse a markdown table (pipe-delimited rows) into a list of dicts.
 
@@ -85,7 +86,7 @@ class AssessmentReportParser:
             if sep == "" or all(c in "-: " for c in table_lines[1].replace("|", "")):
                 data_start = 2
 
-        rows: List[Dict] = []
+        rows: list[dict] = []
         for line in table_lines[data_start:]:
             cells = [c.strip() for c in line.strip("|").split("|")]
             # Pad or truncate to match header count
@@ -145,7 +146,7 @@ class AssessmentReportParser:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _parse_scores(self, content: str) -> Dict[str, float]:
+    def _parse_scores(self, content: str) -> dict[str, float]:
         """
         Extract numeric scores from the Scoreboard table or inline metrics.
         Returns a dict like:
@@ -157,7 +158,7 @@ class AssessmentReportParser:
             ...
           }
         """
-        scores: Dict[str, float] = {}
+        scores: dict[str, float] = {}
 
         scoreboard_raw = self.extract_section(content, "Scoreboard")
         if scoreboard_raw:
@@ -169,7 +170,9 @@ class AssessmentReportParser:
                 for col, val in row.items():
                     if col == "Dashboard":
                         continue
-                    metric_key = f"{dashboard_key}_{col.lower().replace(' ', '_').replace('/', '_')}"
+                    metric_key = (
+                        f"{dashboard_key}_{col.lower().replace(' ', '_').replace('/', '_')}"
+                    )
                     # Extract numeric part (e.g. "6/8 (75%)" → 75.0, "58.5 KB" → 58.5, "4" → 4.0)
                     pct_m = re.search(r"\((\d+(?:\.\d+)?)%\)", val)
                     if pct_m:
@@ -205,16 +208,17 @@ class AssessmentReportParser:
                 # Try to find "X/8 (Y%)" pattern in the heuristics section
                 m = re.search(
                     rf"\b{dash.capitalize()}\b.*?(\d+)/(\d+)\s*\((\d+)%\)",
-                    content, re.IGNORECASE | re.DOTALL
+                    content,
+                    re.IGNORECASE | re.DOTALL,
                 )
                 if m:
                     scores[heur_key] = float(m.group(3))
 
         return scores
 
-    def _parse_all_features(self, content: str) -> List[Dict]:
+    def _parse_all_features(self, content: str) -> list[dict]:
         """Parse inventory rows from Customer + Admin Dashboard sections."""
-        features: List[Dict] = []
+        features: list[dict] = []
         for dash in ("Customer", "Admin"):
             dash_content = self.extract_section(content, f"{dash} Dashboard")
             if not dash_content:
@@ -227,12 +231,12 @@ class AssessmentReportParser:
                     features.append(row)
         return features
 
-    def _parse_ux_issues(self, content: str) -> List[Dict]:
+    def _parse_ux_issues(self, content: str) -> list[dict]:
         """
         Parse UX heuristics tables and return a list of issues
         (only rows where Present? indicates a problem: ⚠️/missing/no/❌).
         """
-        issues: List[Dict] = []
+        issues: list[dict] = []
         for dash in ("Customer", "Admin"):
             dash_content = self.extract_section(content, f"{dash} Dashboard")
             if not dash_content:
@@ -247,18 +251,26 @@ class AssessmentReportParser:
                 if any(kw in present_val for kw in ["missing", "no ", "⚠", "❌", "warn"]):
                     check = row.get("Check", "")
                     if check:
-                        issues.append({
-                            "name": check,
-                            "dashboard": dash.lower(),
-                            "present": row.get("Present?", ""),
-                            "is_wcag": any(
-                                kw in check.lower()
-                                for kw in ["aria", "focus", "keyboard", "screen reader", "contrast"]
-                            ),
-                        })
+                        issues.append(
+                            {
+                                "name": check,
+                                "dashboard": dash.lower(),
+                                "present": row.get("Present?", ""),
+                                "is_wcag": any(
+                                    kw in check.lower()
+                                    for kw in [
+                                        "aria",
+                                        "focus",
+                                        "keyboard",
+                                        "screen reader",
+                                        "contrast",
+                                    ]
+                                ),
+                            }
+                        )
         return issues
 
-    def _parse_recommendations(self, content: str) -> List[Dict]:
+    def _parse_recommendations(self, content: str) -> list[dict]:
         """
         Parse numbered recommendations from the Recommendations section.
         Returns list of dicts with keys: rank (int), title (str), detail (str).
@@ -267,11 +279,10 @@ class AssessmentReportParser:
         if not rec_content:
             return []
 
-        gaps: List[Dict] = []
+        gaps: list[dict] = []
         # Match numbered items: "1. **Title** — description"
         for m in re.finditer(
-            r"(\d+)\.\s+\*\*([^\*]+)\*\*\s*(?:—|-|:)?\s*(.*?)(?=\n\d+\.|$)",
-            rec_content, re.DOTALL
+            r"(\d+)\.\s+\*\*([^\*]+)\*\*\s*(?:—|-|:)?\s*(.*?)(?=\n\d+\.|$)", rec_content, re.DOTALL
         ):
             rank = int(m.group(1))
             title = m.group(2).strip()
@@ -280,7 +291,7 @@ class AssessmentReportParser:
 
         return gaps
 
-    def _parse_backlog(self, content: str) -> List[Dict]:
+    def _parse_backlog(self, content: str) -> list[dict]:
         """
         Attempt to parse a Backlog section table if present.
         Falls back to empty list if section does not exist.
@@ -297,7 +308,7 @@ class AssessmentReportParser:
 class AssessmentReportPrinter:
     """Format parsed assessment data back to a Markdown summary."""
 
-    def format_summary(self, data: Dict) -> str:
+    def format_summary(self, data: dict) -> str:
         """
         Format parsed data (as returned by AssessmentReportParser.parse) back
         into a Markdown report string.
@@ -305,11 +316,11 @@ class AssessmentReportPrinter:
         Round-trip guarantee: parse → format_summary → parse preserves the
         scores dict (numeric values survive the text serialisation → re-parse).
         """
-        lines: List[str] = []
+        lines: list[str] = []
         lines.append("# Dashboard Assessment Report (Lean)")
         lines.append("")
 
-        scores: Dict[str, float] = data.get("scores", {})
+        scores: dict[str, float] = data.get("scores", {})
 
         # ---- Scoreboard ----
         lines.append("## Scoreboard")
@@ -319,23 +330,21 @@ class AssessmentReportPrinter:
         a_ux = scores.get("admin_ux_heuristics", 0.0)
         c_size = scores.get("customer_file_size", 0.0)
         a_size = scores.get("admin_file_size", 0.0)
-        c_charts = int(scores.get("customer_charts_(chart.js_canvas)", scores.get("customer_charts", 0)))
+        c_charts = int(
+            scores.get("customer_charts_(chart.js_canvas)", scores.get("customer_charts", 0))
+        )
         a_charts = int(scores.get("admin_charts_(chart.js_canvas)", scores.get("admin_charts", 0)))
         c_tables = int(scores.get("customer_tables", 0))
         a_tables = int(scores.get("admin_tables", 0))
 
         lines.append("| Dashboard | Size | Charts | Tables | UX heuristics |")
         lines.append("| --- | --- | --- | --- | --- |")
-        lines.append(
-            f"| Customer | {c_size} KB | {c_charts} | {c_tables} | {c_ux:.0f}% |"
-        )
-        lines.append(
-            f"| Admin | {a_size} KB | {a_charts} | {a_tables} | {a_ux:.0f}% |"
-        )
+        lines.append(f"| Customer | {c_size} KB | {c_charts} | {c_tables} | {c_ux:.0f}% |")
+        lines.append(f"| Admin | {a_size} KB | {a_charts} | {a_tables} | {a_ux:.0f}% |")
         lines.append("")
 
         # ---- Per-dashboard inventory ----
-        features: List[Dict] = data.get("features", [])
+        features: list[dict] = data.get("features", [])
         for dash in ("customer", "admin"):
             dash_features = [f for f in features if f.get("_dashboard") == dash]
             lines.append(f"## {dash.capitalize()} Dashboard")
@@ -352,7 +361,7 @@ class AssessmentReportPrinter:
             lines.append("")
 
         # ---- UX Issues ----
-        issues: List[Dict] = data.get("issues", [])
+        issues: list[dict] = data.get("issues", [])
         if issues:
             lines.append("## UX Issues")
             lines.append("")
@@ -367,7 +376,7 @@ class AssessmentReportPrinter:
             lines.append("")
 
         # ---- Recommendations (gaps) ----
-        gaps: List[Dict] = data.get("gaps", [])
+        gaps: list[dict] = data.get("gaps", [])
         if gaps:
             lines.append("## Recommendations")
             lines.append("")
@@ -382,7 +391,7 @@ class AssessmentReportPrinter:
             lines.append("")
 
         # ---- Backlog ----
-        backlog: List[Dict] = data.get("backlog", [])
+        backlog: list[dict] = data.get("backlog", [])
         if backlog:
             lines.append("## Backlog")
             lines.append("")

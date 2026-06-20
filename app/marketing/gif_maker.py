@@ -124,8 +124,11 @@ def make_gif(text: str = "", slug: str = "default", style: str = "pulse") -> dic
     """
     try:
         if not available()["pillow"]:
-            return {"ok": False, "reason": "pillow_missing",
-                    "hint": "Pillow install karo — `pip install Pillow`."}
+            return {
+                "ok": False,
+                "reason": "pillow_missing",
+                "hint": "Pillow install karo — `pip install Pillow`.",
+            }
         text = str(text or "").strip() or PRESETS[0]
         text = text[:40]
         slug = _safe_slug(slug)
@@ -154,7 +157,7 @@ def make_gif(text: str = "", slug: str = "default", style: str = "pulse") -> dic
 
         out_dir = os.path.join(_GIF_DIR, slug)
         os.makedirs(out_dir, exist_ok=True)
-        name = hashlib.sha1(f"{text}|{style}|{primary}".encode("utf-8")).hexdigest()[:10] + ".gif"
+        name = hashlib.sha1(f"{text}|{style}|{primary}".encode()).hexdigest()[:10] + ".gif"
         path = os.path.join(out_dir, name)
         frames[0].save(
             path, save_all=True, append_images=frames[1:], duration=90, loop=0, optimize=True

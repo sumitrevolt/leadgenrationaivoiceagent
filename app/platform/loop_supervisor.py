@@ -44,8 +44,8 @@ _FLAG = "LOOP_SUPERVISOR"
 # In-process cooldowns (seconds) so a re-spawn loop or repeated boot-grace skip
 # doesn't storm the operator's phone. ops_alerts has its own file ledger; these
 # are a cheap in-memory guard local to this supervisor.
-_RESPAWN_COOLDOWN_S = 600        # at most one re-spawn alert per 10 min
-_BOOT_GRACE_COOLDOWN_S = 3600    # at most one boot-grace alert per job per hour
+_RESPAWN_COOLDOWN_S = 600  # at most one re-spawn alert per 10 min
+_BOOT_GRACE_COOLDOWN_S = 3600  # at most one boot-grace alert per job per hour
 _last_alert: dict[str, float] = {}
 
 

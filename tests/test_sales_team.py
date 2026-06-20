@@ -7,9 +7,19 @@ import asyncio
 
 
 def _prospect(**kw):
-    base = {"name": "Sharma Solar", "niche": "solar", "city": "Pune", "phone": "+919812345678",
-            "rating": 4.5, "reviews": 80, "website": "", "email": "x@sharma.in",
-            "status": "interested", "source": "inquiry", "tier": "S"}
+    base = {
+        "name": "Sharma Solar",
+        "niche": "solar",
+        "city": "Pune",
+        "phone": "+919812345678",
+        "rating": 4.5,
+        "reviews": 80,
+        "website": "",
+        "email": "x@sharma.in",
+        "status": "interested",
+        "source": "inquiry",
+        "tier": "S",
+    }
     base.update(kw)
     return base
 
@@ -34,7 +44,12 @@ def test_bant_weak_prospect_low_grade():
     q = sq.bant_score(weak)
     strong = sq.bant_score(_prospect())
     assert q["total"] < strong["total"]
-    assert sq.grade_of(80) == "A" and sq.grade_of(60) == "B" and sq.grade_of(40) == "C" and sq.grade_of(10) == "D"
+    assert (
+        sq.grade_of(80) == "A"
+        and sq.grade_of(60) == "B"
+        and sq.grade_of(40) == "C"
+        and sq.grade_of(10) == "D"
+    )
 
 
 def test_bant_need_inverts_digital_gap():

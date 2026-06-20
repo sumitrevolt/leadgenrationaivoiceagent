@@ -181,10 +181,14 @@ async def rescore_db(limit: int = 500) -> dict[str, Any]:
         if hot > 0:
             try:
                 import asyncio as _aio_ls
+
                 from app.platform import outbound_webhooks as _ow_ls
 
                 _aio_ls.create_task(
-                    _ow_ls.emit("lead_hot", {"hot_count": hot, "updated": updated, "threshold": HOT_THRESHOLD})
+                    _ow_ls.emit(
+                        "lead_hot",
+                        {"hot_count": hot, "updated": updated, "threshold": HOT_THRESHOLD},
+                    )
                 )
             except Exception:
                 pass

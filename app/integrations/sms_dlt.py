@@ -58,7 +58,9 @@ def render(template_key: str, **params: Any) -> str:
     """Template render (safe — missing var blank)."""
     tpl = TEMPLATES.get(template_key, TEMPLATES["intro"])
     try:
-        return tpl.format_map({k: str(v) for k, v in params.items()} | {"biz": params.get("biz", "ji")})
+        return tpl.format_map(
+            {k: str(v) for k, v in params.items()} | {"biz": params.get("biz", "ji")}
+        )
     except Exception:
         return tpl.replace("{biz}", str(params.get("biz", "ji")))
 
@@ -77,7 +79,11 @@ async def send_sms(to: str, message: str, template_id: str | None = None) -> dic
         return {"ok": False, "inert": True, "reason": "SMS_DLT_ENABLED off (DLT register karo)"}
     url, key, sender = _creds()
     if not (url and key and sender):
-        return {"ok": False, "inert": True, "reason": "SMS BSP creds unset (SMS_PROVIDER_URL/API_KEY/SENDER_ID)"}
+        return {
+            "ok": False,
+            "inert": True,
+            "reason": "SMS BSP creds unset (SMS_PROVIDER_URL/API_KEY/SENDER_ID)",
+        }
     try:
         import httpx
 

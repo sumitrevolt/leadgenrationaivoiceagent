@@ -124,7 +124,9 @@ def _clean_block(b: Any, idx: int) -> dict[str, Any] | None:
     return {"id": bid, "type": btype, "label": label, "value": value, "emoji": emoji}
 
 
-def save_bio(slug: str, blocks: list[dict] | None, title: str = "", subtitle: str = "") -> dict[str, Any]:
+def save_bio(
+    slug: str, blocks: list[dict] | None, title: str = "", subtitle: str = ""
+) -> dict[str, Any]:
     """Bio page blocks save (append-only, latest-wins). Duplicate ids dedupe."""
     try:
         key = _slug_key(slug)
@@ -220,7 +222,9 @@ def _block_target(block: dict[str, Any], slug: str, client: dict[str, Any]) -> s
     if btype == "catalog" and not value:
         return f"/b/{slug}"  # mini-site catalog default
     # link | video | offer | catalog-with-url — http(s) ya own-relative hi
-    if value.startswith(("http://", "https://")) or (value.startswith("/") and not value.startswith("//")):
+    if value.startswith(("http://", "https://")) or (
+        value.startswith("/") and not value.startswith("//")
+    ):
         return value
     return None
 
@@ -349,9 +353,20 @@ def render_bio_html(slug: str) -> dict[str, Any]:
                 return {"ok": False, "error": "bio config nahi mila"}
             default_blocks = []
             if phone:
-                default_blocks.append({"type": "whatsapp", "label": "WhatsApp karein", "value": phone, "emoji": "💬"})
-                default_blocks.append({"type": "call", "label": "Call karein", "value": phone, "emoji": "📞"})
-            default_blocks.append({"type": "link", "label": "Hamari website", "value": f"{_site_base()}/b/{key}", "emoji": "🌐"})
+                default_blocks.append(
+                    {"type": "whatsapp", "label": "WhatsApp karein", "value": phone, "emoji": "💬"}
+                )
+                default_blocks.append(
+                    {"type": "call", "label": "Call karein", "value": phone, "emoji": "📞"}
+                )
+            default_blocks.append(
+                {
+                    "type": "link",
+                    "label": "Hamari website",
+                    "value": f"{_site_base()}/b/{key}",
+                    "emoji": "🌐",
+                }
+            )
             saved = save_bio(key, default_blocks)
             if not saved.get("ok"):
                 return {"ok": False, "error": "bio config nahi mila"}
@@ -360,8 +375,12 @@ def render_bio_html(slug: str) -> dict[str, Any]:
                 return {"ok": False, "error": "bio config nahi mila"}
         client = _load_client(key)
         primary, _accent = _brand_colors(key, client)
-        title = str(cfg.get("title") or client.get("business_name") or key.replace("-", " ").title())[:80]
-        subtitle = str(cfg.get("subtitle") or client.get("tagline") or "Saare links ek jagah 👇")[:120]
+        title = str(
+            cfg.get("title") or client.get("business_name") or key.replace("-", " ").title()
+        )[:80]
+        subtitle = str(cfg.get("subtitle") or client.get("tagline") or "Saare links ek jagah 👇")[
+            :120
+        ]
         rows: list[str] = []
         for b in cfg.get("blocks") or []:
             bid = html.escape(str(b.get("id") or ""))

@@ -68,7 +68,8 @@ async def test_customer_token_missing_sub_is_401(
     from app.api import billing
 
     monkeypatch.setattr(
-        billing, "_decode_or_401",
+        billing,
+        "_decode_or_401",
         lambda _creds: {"role": "customer", "sub": ""},
     )
     with pytest.raises(HTTPException) as exc:
@@ -84,7 +85,8 @@ async def test_admin_token_requires_explicit_client_id(
     from app.api import billing
 
     monkeypatch.setattr(
-        billing, "_decode_or_401",
+        billing,
+        "_decode_or_401",
         lambda _creds: {"role": "admin", "sub": "admin1"},
     )
     # No ?client_id= -> 400 (admin must say who they're acting on behalf of)
@@ -99,7 +101,8 @@ async def test_admin_token_with_client_id_works(
     from app.api import billing
 
     monkeypatch.setattr(
-        billing, "_decode_or_401",
+        billing,
+        "_decode_or_401",
         lambda _creds: {"role": "super_admin", "sub": "boss"},
     )
     cid = await _authed_client_id(client_id="target_client", creds=_Creds("x"))
@@ -114,7 +117,8 @@ async def test_unknown_role_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.api import billing
 
     monkeypatch.setattr(
-        billing, "_decode_or_401",
+        billing,
+        "_decode_or_401",
         lambda _creds: {"role": "agent", "sub": "x"},
     )
     with pytest.raises(HTTPException) as exc:
@@ -135,7 +139,8 @@ async def test_admin_dep_rejects_customer_token(
     from app.api import billing
 
     monkeypatch.setattr(
-        billing, "_decode_or_401",
+        billing,
+        "_decode_or_401",
         lambda _creds: {"role": "customer", "sub": "victim_or_owner"},
     )
     with pytest.raises(HTTPException) as exc:
@@ -149,7 +154,8 @@ async def test_admin_dep_accepts_admin_token(
     from app.api import billing
 
     monkeypatch.setattr(
-        billing, "_decode_or_401",
+        billing,
+        "_decode_or_401",
         lambda _creds: {"role": "admin", "sub": "boss"},
     )
     cid = await _authed_admin_client_id(client_id="target", creds=_Creds("x"))
@@ -182,6 +188,7 @@ def test_billing_balance_route_is_auth_gated() -> None:
     client = TestClient(app)
     r = client.get("/api/billing/balance?client_id=somebodys_id")
     assert r.status_code != 200
-    assert r.status_code in {401, 403}, (
-        f"REGRESSION: billing/balance returned {r.status_code} without auth"
-    )
+    assert r.status_code in {
+        401,
+        403,
+    }, f"REGRESSION: billing/balance returned {r.status_code} without auth"

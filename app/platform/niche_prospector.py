@@ -31,8 +31,21 @@ _DEFAULT_CITIES = ["Pune", "Mumbai", "Nagpur", "Nashik", "Thane"]
 # window of `_CITY_WINDOW` cities — kuch dino me poora pool cover (over-scrape
 # ya billing-surprise ke bina).
 _CITY_POOL = [
-    "Pune", "Mumbai", "Nagpur", "Nashik", "Thane", "Aurangabad", "Solapur",
-    "Kolhapur", "Indore", "Surat", "Ahmedabad", "Jaipur", "Lucknow", "Bhopal", "Hyderabad",
+    "Pune",
+    "Mumbai",
+    "Nagpur",
+    "Nashik",
+    "Thane",
+    "Aurangabad",
+    "Solapur",
+    "Kolhapur",
+    "Indore",
+    "Surat",
+    "Ahmedabad",
+    "Jaipur",
+    "Lucknow",
+    "Bhopal",
+    "Hyderabad",
 ]
 _CITY_WINDOW = 4
 
@@ -41,7 +54,9 @@ def city_rotation(window: int = _CITY_WINDOW, day_ordinal: int | None = None) ->
     """Aaj ke scrape ke liye rotating city window (deterministic by date — testable).
     PROSPECT_CITIES env set ho to wahi pool. Kabhi raise nahi."""
     try:
-        pool = [c.strip() for c in os.environ.get("PROSPECT_CITIES", "").split(",") if c.strip()] or list(_CITY_POOL)
+        pool = [
+            c.strip() for c in os.environ.get("PROSPECT_CITIES", "").split(",") if c.strip()
+        ] or list(_CITY_POOL)
         if window >= len(pool):
             return pool
         from datetime import date
@@ -185,10 +200,14 @@ async def run(
             from app.platform import prospector as _p
 
             # Last scraped batch se fresh "ready" leads chuno (result me by_niche count hai)
-            _total_new = sum((result or {}).get("by_niche", {}).values()) if isinstance(result, dict) else 0
+            _total_new = (
+                sum((result or {}).get("by_niche", {}).values()) if isinstance(result, dict) else 0
+            )
             if _total_new > 0:
                 _all = _p._read_all()
-                _fresh = [r for r in _all[-(_total_new + 30):] if r.get("status") == "ready"][:_total_new]
+                _fresh = [r for r in _all[-(_total_new + 30) :] if r.get("status") == "ready"][
+                    :_total_new
+                ]
                 if _fresh:
                     cadence_enrolled = _cadence.enroll_many(_fresh)
                     logger.debug(f"[niche_prospector] cadence enrolled {cadence_enrolled} leads")
@@ -196,8 +215,13 @@ async def run(
         logger.debug(f"[niche_prospector] cadence enroll skip: {_ce}")
 
     logger.info(f"[niche_prospector] scraped niches: {covered}")
-    return {"ok": True, "covered": covered, "targets": len(targets), "result": result,
-            "cadence_enrolled": cadence_enrolled}
+    return {
+        "ok": True,
+        "covered": covered,
+        "targets": len(targets),
+        "result": result,
+        "cadence_enrolled": cadence_enrolled,
+    }
 
 
 __all__ = ["build_targets", "run", "_all_niche_keys", "city_rotation"]

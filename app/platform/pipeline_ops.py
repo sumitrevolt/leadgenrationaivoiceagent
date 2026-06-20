@@ -77,7 +77,9 @@ async def run_afternoon_followups() -> dict[str, Any]:
         res = await auto_outreach.run_email_followups()
         sent = int((res or {}).get("sent") or 0)
         if sent:
-            team.log_event("rohan", "email_followup", f"📧 afternoon followups sent: {sent}", status="ok")
+            team.log_event(
+                "rohan", "email_followup", f"📧 afternoon followups sent: {sent}", status="ok"
+            )
         return {"ok": True, **(res or {})}
     except Exception as e:
         logger.warning(f"[pipeline_ops] afternoon followups failed: {e}")

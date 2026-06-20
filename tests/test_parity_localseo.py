@@ -140,7 +140,9 @@ def test_grid_daily_cap(tmp_path, monkeypatch):
     monkeypatch.setattr(gr, "_api_key", lambda: "test-key")
     today = gr._today()
     for i in range(3):
-        gr._append_jsonl(gr._RUNS_FILE, {"keyword": f"k{i}", "checked_at": f"{today}T0{i}:00:00+00:00"})
+        gr._append_jsonl(
+            gr._RUNS_FILE, {"keyword": f"k{i}", "checked_at": f"{today}T0{i}:00:00+00:00"}
+        )
     assert gr.runs_today() == 3
     res = asyncio.run(gr.grid_check("solar", 18.52, 73.85, "Sharma Solar"))
     assert res["ok"] is False and res["reason"] == "daily_cap_reached"
@@ -200,8 +202,18 @@ def test_listings_checklist_links(tmp_path, monkeypatch):
     dirs = res["directories"]
     assert len(dirs) == 10
     keys = {d["key"] for d in dirs}
-    assert {"google_business", "justdial", "sulekha", "indiamart", "tradeindia",
-            "facebook", "instagram", "apple_maps", "bing_places", "mapmyindia"} == keys
+    assert {
+        "google_business",
+        "justdial",
+        "sulekha",
+        "indiamart",
+        "tradeindia",
+        "facebook",
+        "instagram",
+        "apple_maps",
+        "bing_places",
+        "mapmyindia",
+    } == keys
     jd = [d for d in dirs if d["key"] == "justdial"][0]
     # quoted business name + city deep-link me (LINK only — koi fetch nahi)
     assert "justdial.com" in jd["search_url"] and "Sharma+Solar" in jd["search_url"]

@@ -109,7 +109,9 @@ def _append(rec: dict[str, Any]) -> None:
 
 def record_send(variant_id: str, recipient: str = "") -> None:
     """Variant send hua — track karo. Never raises."""
-    _append({"type": "send", "variant": str(variant_id or "A"), "recipient": str(recipient or "")[:120]})
+    _append(
+        {"type": "send", "variant": str(variant_id or "A"), "recipient": str(recipient or "")[:120]}
+    )
 
 
 def record_reply(variant_id: str) -> None:

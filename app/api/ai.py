@@ -338,7 +338,8 @@ async def _cmd_draft(topic: str, who: str) -> dict:
         sys, [{"role": "user", "content": prompt}], max_tokens=160, temperature=0.7
     )
     return {
-        "draft": reply or "Namaste! Aapki inquiry ke baare me follow-up kar rahe hain. Kaise help karein?",
+        "draft": reply
+        or "Namaste! Aapki inquiry ke baare me follow-up kar rahe hain. Kaise help karein?",
         "provider": prov,
         "auto_sent": False,
     }

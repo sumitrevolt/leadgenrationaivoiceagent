@@ -55,8 +55,18 @@ def test_evaluate_percentage_distribution():
 
 def test_evaluate_percentage_key_isolates_buckets():
     # same tenant, different flag-key -> independent buckets (ek flag dusre ko leak na kare)
-    a = [evaluate_flag({"key": "A", "state": "enabled_percentage", "percentage": 50}, tenant_id=f"t{i}") for i in range(200)]
-    b = [evaluate_flag({"key": "B", "state": "enabled_percentage", "percentage": 50}, tenant_id=f"t{i}") for i in range(200)]
+    a = [
+        evaluate_flag(
+            {"key": "A", "state": "enabled_percentage", "percentage": 50}, tenant_id=f"t{i}"
+        )
+        for i in range(200)
+    ]
+    b = [
+        evaluate_flag(
+            {"key": "B", "state": "enabled_percentage", "percentage": 50}, tenant_id=f"t{i}"
+        )
+        for i in range(200)
+    ]
     assert a != b  # extremely unlikely to be identical if buckets are key-salted
 
 
@@ -78,7 +88,10 @@ async def test_set_get_delete_roundtrip(monkeypatch):
     monkeypatch.setenv("FEATURE_FLAGS", "1")
     svc = _mem_service()
     assert await svc.get_flag("x") is None
-    assert await svc.set_flag(FeatureFlag(key="x", state=FeatureState.ENABLED_ALL, description="d")) is True
+    assert (
+        await svc.set_flag(FeatureFlag(key="x", state=FeatureState.ENABLED_ALL, description="d"))
+        is True
+    )
     got = await svc.get_flag("x")
     assert got is not None and got.state == FeatureState.ENABLED_ALL and got.description == "d"
     assert any(f.key == "x" for f in await svc.get_all_flags())
@@ -99,7 +112,9 @@ async def test_is_enabled_respects_master_gate(monkeypatch):
 async def test_is_enabled_tenant_targeting(monkeypatch):
     monkeypatch.setenv("FEATURE_FLAGS", "1")
     svc = _mem_service()
-    await svc.set_flag(FeatureFlag(key="beta", state=FeatureState.ENABLED_TENANTS, enabled_tenants=["good"]))
+    await svc.set_flag(
+        FeatureFlag(key="beta", state=FeatureState.ENABLED_TENANTS, enabled_tenants=["good"])
+    )
     assert await svc.is_enabled("beta", tenant_id="good") is True
     assert await svc.is_enabled("beta", tenant_id="bad") is False
     assert await svc.is_enabled("no-such-flag", tenant_id="good") is False  # unknown -> default-off
@@ -132,7 +147,9 @@ async def test_created_at_preserved_on_update(monkeypatch):
 async def test_percentage_rollout_via_service(monkeypatch):
     monkeypatch.setenv("FEATURE_FLAGS", "1")
     svc = _mem_service()
-    await svc.set_flag(FeatureFlag(key="grad", state=FeatureState.ENABLED_PERCENTAGE, percentage=100))
+    await svc.set_flag(
+        FeatureFlag(key="grad", state=FeatureState.ENABLED_PERCENTAGE, percentage=100)
+    )
     assert await svc.is_enabled("grad", tenant_id="anyone") is True
     await svc.set_flag(FeatureFlag(key="grad", state=FeatureState.ENABLED_PERCENTAGE, percentage=0))
     assert await svc.is_enabled("grad", tenant_id="anyone") is False

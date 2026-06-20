@@ -97,11 +97,11 @@ def _draw_sticker(big: str, small: str, brand_name: str, primary: str, accent: s
     a_rgb = _hex_rgb(accent)
 
     # Badge: rounded rect with white border (sticker look)
-    draw.rounded_rectangle([26, 96, 486, 416], radius=70, fill=p_rgb + (255,),
-                           outline=(255, 255, 255, 255), width=10)
+    draw.rounded_rectangle(
+        [26, 96, 486, 416], radius=70, fill=p_rgb + (255,), outline=(255, 255, 255, 255), width=10
+    )
     # Accent star (top-left) + dot (bottom-right)
-    draw.polygon(_star_points(88, 96, 44, 18), fill=a_rgb + (255,),
-                 outline=(255, 255, 255, 255))
+    draw.polygon(_star_points(88, 96, 44, 18), fill=a_rgb + (255,), outline=(255, 255, 255, 255))
     draw.ellipse([432, 380, 488, 436], fill=a_rgb + (255,), outline=(255, 255, 255, 255), width=6)
 
     # Texts (centered)
@@ -123,9 +123,7 @@ def _draw_sticker(big: str, small: str, brand_name: str, primary: str, accent: s
     return img
 
 
-def generate_stickers(
-    slug: str = "", business_name: str = "", niche: str = ""
-) -> dict[str, Any]:
+def generate_stickers(slug: str = "", business_name: str = "", niche: str = "") -> dict[str, Any]:
     """6 WhatsApp stickers (512x512 transparent PNG) brand colors me banao.
 
     slug se brand auto-resolve (clients_store/brand_kit); business_name override

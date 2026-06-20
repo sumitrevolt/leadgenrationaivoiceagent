@@ -114,7 +114,9 @@ def _client_info(client_id: str) -> dict[str, Any]:
         return {}
 
 
-def build_message(touch_key: str, business_name: str, amount: Any = None, plan: str = "") -> dict[str, str]:
+def build_message(
+    touch_key: str, business_name: str, amount: Any = None, plan: str = ""
+) -> dict[str, str]:
     """Hinglish recovery message (subject + body + WA text). Pure function — testable."""
     biz = (business_name or "Aapka business").strip()
     amt = f"₹{amount}" if amount else "payment"
@@ -149,7 +151,9 @@ def build_message(touch_key: str, business_name: str, amount: Any = None, plan: 
             f"renew karne par hum onboarding dobara FREE karenge:\n\n  {PRICING_URL}\n\n"
             f"Sawal ho to seedha reply karo.\n"
         )
-    wa_text = f"Namaste! {biz} ki LeadsGenAI service ka payment pending hai. 1-click renew: {PRICING_URL}"
+    wa_text = (
+        f"Namaste! {biz} ki LeadsGenAI service ka payment pending hai. 1-click renew: {PRICING_URL}"
+    )
     return {"subject": subject, "body": body, "wa_text": wa_text}
 
 
@@ -273,7 +277,12 @@ async def on_payment_failed(
         try:
             from app.platform import team
 
-            team.log_event("kavya", "dunning_case_opened", f"{biz}: payment failed ({gateway})", meta={"client_id": cid})
+            team.log_event(
+                "kavya",
+                "dunning_case_opened",
+                f"{biz}: payment failed ({gateway})",
+                meta={"client_id": cid},
+            )
         except Exception:
             pass
         return {"ok": True, "case": case, "auto_sent": sent}
@@ -424,7 +433,11 @@ async def run_due() -> dict[str, Any]:
             try:
                 from app.platform import team
 
-                team.log_event("nikhil", "dunning_sweep", f"{touched} recovery touches, {renewals} renewal reminders")
+                team.log_event(
+                    "nikhil",
+                    "dunning_sweep",
+                    f"{touched} recovery touches, {renewals} renewal reminders",
+                )
             except Exception:
                 pass
         return {"enabled": True, "touches": touched, "renewal_reminders": renewals}

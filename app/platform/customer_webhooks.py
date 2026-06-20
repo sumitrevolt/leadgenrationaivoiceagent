@@ -105,8 +105,20 @@ def _is_url_safe(url: str) -> tuple[bool, str]:
     if not _deny_private():
         return True, ""
     # Refuse obvious docker-network names
-    if host in {"localhost", "leadgen_app", "leadgen_db", "leadgen_redis", "pgbouncer", "qdrant",
-                "redis", "postgres", "tempo", "loki", "prometheus", "grafana"}:
+    if host in {
+        "localhost",
+        "leadgen_app",
+        "leadgen_db",
+        "leadgen_redis",
+        "pgbouncer",
+        "qdrant",
+        "redis",
+        "postgres",
+        "tempo",
+        "loki",
+        "prometheus",
+        "grafana",
+    }:
         return False, "internal_hostname"
     # Resolve and refuse private/loopback/link-local/reserved IPs.
     try:
@@ -229,11 +241,17 @@ def register(
     evs = [e.strip() for e in (events or []) if e.strip()]
     bad = [e for e in evs if e not in SUPPORTED_EVENTS]
     if bad:
-        return {"ok": False, "error": f"unknown event types: {bad}",
-                "supported": list(SUPPORTED_EVENTS)}
+        return {
+            "ok": False,
+            "error": f"unknown event types: {bad}",
+            "supported": list(SUPPORTED_EVENTS),
+        }
     if not evs:
-        return {"ok": False, "error": "at least one event required",
-                "supported": list(SUPPORTED_EVENTS)}
+        return {
+            "ok": False,
+            "error": "at least one event required",
+            "supported": list(SUPPORTED_EVENTS),
+        }
 
     wh_id = "wh_" + uuid.uuid4().hex[:18]
     secret = "whsec_" + secrets.token_urlsafe(24)
@@ -262,7 +280,7 @@ def list_for(client_id: str) -> list[dict[str, Any]]:
     return [_redact(r) for r in _read_registrations() if r.get("client_id") == cid]
 
 
-def get_one(webhook_id: str, client_id: str) -> Optional[dict[str, Any]]:
+def get_one(webhook_id: str, client_id: str) -> dict[str, Any] | None:
     """Return raw row (incl. secret) IF the caller owns it. Else None."""
     cid = (client_id or "").strip()
     for r in _read_registrations():
@@ -287,7 +305,8 @@ def recent_deliveries(webhook_id: str, client_id: str, limit: int = 50) -> list[
     if not get_one(webhook_id, cid):
         return []
     out = [
-        r for r in _read_deliveries(limit=_DELIVERIES_TAIL)
+        r
+        for r in _read_deliveries(limit=_DELIVERIES_TAIL)
         if r.get("webhook_id") == webhook_id and r.get("client_id") == cid
     ]
     return out[-max(1, int(limit)) :]
@@ -305,7 +324,7 @@ async def _deliver_one(
     row: dict[str, Any],
     event_type: str,
     payload: dict[str, Any],
-    delivery_id: Optional[str] = None,
+    delivery_id: str | None = None,
     *,
     schedule: tuple[float, ...] = _RETRY_BACKOFF_S,
 ) -> dict[str, Any]:
@@ -337,19 +356,25 @@ async def _deliver_one(
                 resp = await client.post(row["url"], content=body_bytes, headers=headers)
                 last_status = resp.status_code
                 if 200 <= resp.status_code < 300:
-                    _append_delivery({
-                        "id": delivery_id,
-                        "webhook_id": row["id"],
-                        "client_id": row["client_id"],
-                        "event_type": event_type,
-                        "url": row["url"],
-                        "attempts": attempt_idx + 1,
-                        "last_status": last_status,
+                    _append_delivery(
+                        {
+                            "id": delivery_id,
+                            "webhook_id": row["id"],
+                            "client_id": row["client_id"],
+                            "event_type": event_type,
+                            "url": row["url"],
+                            "attempts": attempt_idx + 1,
+                            "last_status": last_status,
+                            "delivered": True,
+                            "at": int(time.time()),
+                        }
+                    )
+                    return {
                         "delivered": True,
-                        "at": int(time.time()),
-                    })
-                    return {"delivered": True, "attempts": attempt_idx + 1,
-                            "status": last_status, "id": delivery_id}
+                        "attempts": attempt_idx + 1,
+                        "status": last_status,
+                        "id": delivery_id,
+                    }
                 last_error = f"http_{resp.status_code}"
         except Exception as exc:
             last_error = type(exc).__name__
@@ -360,18 +385,20 @@ async def _deliver_one(
             except Exception:
                 break
     # All attempts failed
-    _append_delivery({
-        "id": delivery_id,
-        "webhook_id": row["id"],
-        "client_id": row["client_id"],
-        "event_type": event_type,
-        "url": row["url"],
-        "attempts": len(schedule),
-        "last_status": last_status,
-        "last_error": last_error,
-        "delivered": False,
-        "at": int(time.time()),
-    })
+    _append_delivery(
+        {
+            "id": delivery_id,
+            "webhook_id": row["id"],
+            "client_id": row["client_id"],
+            "event_type": event_type,
+            "url": row["url"],
+            "attempts": len(schedule),
+            "last_status": last_status,
+            "last_error": last_error,
+            "delivered": False,
+            "at": int(time.time()),
+        }
+    )
     # L.3 dead-letter alert — best-effort; never blocks delivery completion.
     try:
         from app.platform import ops_alerts as _oa
@@ -379,8 +406,13 @@ async def _deliver_one(
         _oa.maybe_alert_webhook_dead_letter(row["id"], row["client_id"], row["url"])
     except Exception as exc:
         logger.debug("dead-letter alert hook swallowed: %s", exc)
-    return {"delivered": False, "attempts": len(schedule),
-            "status": last_status, "error": last_error, "id": delivery_id}
+    return {
+        "delivered": False,
+        "attempts": len(schedule),
+        "status": last_status,
+        "error": last_error,
+        "id": delivery_id,
+    }
 
 
 async def emit(client_id: str, event_type: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -394,11 +426,11 @@ async def emit(client_id: str, event_type: str, payload: dict[str, Any]) -> dict
         return {"emitted": 0, "skipped": 0, "disabled": True}
     cid = (client_id or "").strip()
     if not cid or event_type not in SUPPORTED_EVENTS:
-        return {"emitted": 0, "skipped": 0,
-                "error": "bad_args" if cid else "no_client_id"}
+        return {"emitted": 0, "skipped": 0, "error": "bad_args" if cid else "no_client_id"}
     rows = _read_registrations()
     targets = [
-        r for r in rows
+        r
+        for r in rows
         if r.get("client_id") == cid
         and r.get("enabled", True)
         and event_type in (r.get("events") or [])
@@ -458,8 +490,9 @@ def consecutive_failure_count(webhook_id: str) -> int:
     """L.3: count of consecutive failed deliveries for one webhook ending at
     the most-recent attempt. Resets to 0 on the first successful delivery
     walking back from newest. Used by the dead-letter alert hook."""
-    rows = [r for r in _read_deliveries(limit=_DELIVERIES_TAIL)
-            if r.get("webhook_id") == webhook_id]
+    rows = [
+        r for r in _read_deliveries(limit=_DELIVERIES_TAIL) if r.get("webhook_id") == webhook_id
+    ]
     n = 0
     for r in reversed(rows):
         if r.get("delivered"):

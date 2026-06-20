@@ -55,8 +55,14 @@ def _ctx_norm(ctx: Ctx) -> Ctx:
 async def _sk_marketing_pack(ctx: Ctx) -> dict[str, Any]:
     from app.marketing import niche_pack
 
-    p = await niche_pack.build_pack(ctx["niche"], business_name=ctx["business_name"], city=ctx["city"], count=3)
-    return {"ok": True, "summary": f"{len(p.get('posts', []))} themed posts + {len(p.get('hashtags', []))} hashtags + offer", "data": p}
+    p = await niche_pack.build_pack(
+        ctx["niche"], business_name=ctx["business_name"], city=ctx["city"], count=3
+    )
+    return {
+        "ok": True,
+        "summary": f"{len(p.get('posts', []))} themed posts + {len(p.get('hashtags', []))} hashtags + offer",
+        "data": p,
+    }
 
 
 async def _sk_social_posts(ctx: Ctx) -> dict[str, Any]:
@@ -65,7 +71,13 @@ async def _sk_social_posts(ctx: Ctx) -> dict[str, Any]:
     posts = []
     for occ in ("offer post", "customer trust post"):
         p = await generate_post(ctx["business_name"], ctx["niche"], occasion=occ)
-        posts.append({"occasion": occ, "caption": p.get("caption") or p.get("post_text"), "hashtags": p.get("hashtags")})
+        posts.append(
+            {
+                "occasion": occ,
+                "caption": p.get("caption") or p.get("post_text"),
+                "hashtags": p.get("hashtags"),
+            }
+        )
     return {"ok": True, "summary": f"{len(posts)} ready social posts", "data": posts}
 
 
@@ -88,14 +100,22 @@ async def _sk_festival_posts(ctx: Ctx) -> dict[str, Any]:
     from app.marketing import festivals
 
     up = festivals.upcoming(45)
-    return {"ok": True, "summary": f"{len(up)} upcoming festivals queued for greeting posts", "data": up[:6]}
+    return {
+        "ok": True,
+        "summary": f"{len(up)} upcoming festivals queued for greeting posts",
+        "data": up[:6],
+    }
 
 
 async def _sk_review_kit(ctx: Ctx) -> dict[str, Any]:
     from app.marketing import review_engine
 
     r = await review_engine.request_review(ctx["business_name"], place_query=ctx["business_name"])
-    return {"ok": True, "summary": "Google review-request kit (WhatsApp msg + link)", "data": {"message": r.get("message"), "review_link": r.get("review_link")}}
+    return {
+        "ok": True,
+        "summary": "Google review-request kit (WhatsApp msg + link)",
+        "data": {"message": r.get("message"), "review_link": r.get("review_link")},
+    }
 
 
 async def _sk_competitor(ctx: Ctx) -> dict[str, Any]:
@@ -108,8 +128,15 @@ async def _sk_competitor(ctx: Ctx) -> dict[str, Any]:
 async def _sk_minisite(ctx: Ctx) -> dict[str, Any]:
     slug = ctx.get("slug")
     if not slug:
-        return {"ok": False, "summary": "client slug missing — pehle client onboard karo (auto mini-site)"}
-    return {"ok": True, "summary": f"Mini-site live: /b/{slug} (booking + reviews + posts)", "data": {"url": f"/b/{slug}"}}
+        return {
+            "ok": False,
+            "summary": "client slug missing — pehle client onboard karo (auto mini-site)",
+        }
+    return {
+        "ok": True,
+        "summary": f"Mini-site live: /b/{slug} (booking + reviews + posts)",
+        "data": {"url": f"/b/{slug}"},
+    }
 
 
 async def _sk_embed_widget(ctx: Ctx) -> dict[str, Any]:
@@ -119,7 +146,11 @@ async def _sk_embed_widget(ctx: Ctx) -> dict[str, Any]:
     from app.marketing import embed_widget
 
     snip = embed_widget.snippet(slug)
-    return {"ok": True, "summary": "Website lead-capture widget snippet ready (1-line embed)", "data": {"snippet": snip}}
+    return {
+        "ok": True,
+        "summary": "Website lead-capture widget snippet ready (1-line embed)",
+        "data": {"snippet": snip},
+    }
 
 
 async def _sk_drip_journey(ctx: Ctx) -> dict[str, Any]:
@@ -128,12 +159,18 @@ async def _sk_drip_journey(ctx: Ctx) -> dict[str, Any]:
     rec = journeys.add_journey(
         f"{ctx['business_name']} — inquiry follow-up",
         "inquiry_received",
-        [{"type": "draft_whatsapp", "params": {"topic": "naye inquiry ka turant follow-up"}},
-         {"type": "draft_email", "params": {"topic": "thank-you + next step"}}],
+        [
+            {"type": "draft_whatsapp", "params": {"topic": "naye inquiry ka turant follow-up"}},
+            {"type": "draft_email", "params": {"topic": "thank-you + next step"}},
+        ],
         condition={},
         enabled=False,
     )
-    return {"ok": True, "summary": "Inquiry→WhatsApp+email drip rule created (disabled, review karke ON)", "data": {"journey_id": rec.get("id")}}
+    return {
+        "ok": True,
+        "summary": "Inquiry→WhatsApp+email drip rule created (disabled, review karke ON)",
+        "data": {"journey_id": rec.get("id")},
+    }
 
 
 async def _sk_content_schedule(ctx: Ctx) -> dict[str, Any]:
@@ -144,25 +181,61 @@ async def _sk_content_schedule(ctx: Ctx) -> dict[str, Any]:
     except Exception:
         pass
     items = content_schedule.list_scheduled(limit=5)
-    return {"ok": True, "summary": f"Content calendar set up ({len(items)} items queued)", "data": items[:5]}
+    return {
+        "ok": True,
+        "summary": f"Content calendar set up ({len(items)} items queued)",
+        "data": items[:5],
+    }
 
 
 # Skill registry: key -> {category, title, desc, handler}
 SKILLS: dict[str, dict[str, Any]] = {
     # ---- marketing ----
-    "marketing_pack": {"category": "marketing", "title": "Niche marketing pack", "handler": _sk_marketing_pack},
+    "marketing_pack": {
+        "category": "marketing",
+        "title": "Niche marketing pack",
+        "handler": _sk_marketing_pack,
+    },
     "social_posts": {"category": "marketing", "title": "Social posts", "handler": _sk_social_posts},
     "hashtags": {"category": "marketing", "title": "Trending hashtags", "handler": _sk_hashtags},
-    "gbp_content": {"category": "marketing", "title": "Google Business Profile content", "handler": _sk_gbp_content},
-    "festival_posts": {"category": "marketing", "title": "Festival greeting posts", "handler": _sk_festival_posts},
-    "review_kit": {"category": "marketing", "title": "Review-generation kit", "handler": _sk_review_kit},
-    "competitor": {"category": "marketing", "title": "Competitor edge analysis", "handler": _sk_competitor},
+    "gbp_content": {
+        "category": "marketing",
+        "title": "Google Business Profile content",
+        "handler": _sk_gbp_content,
+    },
+    "festival_posts": {
+        "category": "marketing",
+        "title": "Festival greeting posts",
+        "handler": _sk_festival_posts,
+    },
+    "review_kit": {
+        "category": "marketing",
+        "title": "Review-generation kit",
+        "handler": _sk_review_kit,
+    },
+    "competitor": {
+        "category": "marketing",
+        "title": "Competitor edge analysis",
+        "handler": _sk_competitor,
+    },
     # ---- website ----
     "minisite": {"category": "website", "title": "Mini-site (/b/slug)", "handler": _sk_minisite},
-    "embed_widget": {"category": "website", "title": "Website lead-capture widget", "handler": _sk_embed_widget},
+    "embed_widget": {
+        "category": "website",
+        "title": "Website lead-capture widget",
+        "handler": _sk_embed_widget,
+    },
     # ---- automation ----
-    "drip_journey": {"category": "automation", "title": "Inquiry drip journey", "handler": _sk_drip_journey},
-    "content_schedule": {"category": "automation", "title": "Content calendar", "handler": _sk_content_schedule},
+    "drip_journey": {
+        "category": "automation",
+        "title": "Inquiry drip journey",
+        "handler": _sk_drip_journey,
+    },
+    "content_schedule": {
+        "category": "automation",
+        "title": "Content calendar",
+        "handler": _sk_content_schedule,
+    },
 }
 
 # FDE personas — har ek apni category(s) ke skills deploy karta.
@@ -170,7 +243,11 @@ FDE_AGENTS: dict[str, dict[str, Any]] = {
     "isha_fde": {"name": "Isha", "role": "Marketing FDE", "categories": ["marketing"]},
     "veer": {"name": "Veer", "role": "Website FDE", "categories": ["website"]},
     "aarav": {"name": "Aarav", "role": "Automation FDE", "categories": ["automation"]},
-    "neo": {"name": "Neo", "role": "Full-stack FDE", "categories": ["automation", "marketing", "website"]},
+    "neo": {
+        "name": "Neo",
+        "role": "Full-stack FDE",
+        "categories": ["automation", "marketing", "website"],
+    },
 }
 
 
@@ -186,7 +263,15 @@ def list_agents() -> list[dict[str, Any]]:
     out = []
     for k, v in FDE_AGENTS.items():
         skills = [sk for sk, sv in SKILLS.items() if sv["category"] in v["categories"]]
-        out.append({"key": k, "name": v["name"], "role": v["role"], "categories": v["categories"], "skills": skills})
+        out.append(
+            {
+                "key": k,
+                "name": v["name"],
+                "role": v["role"],
+                "categories": v["categories"],
+                "skills": skills,
+            }
+        )
     return out
 
 
@@ -208,7 +293,9 @@ async def plan_deployment(brief: str, skill_keys: list[str]) -> list[str]:
             "User ke brief ke hisaab se SIRF ek JSON array lautao relevant skill-keys ka, "
             'priority order me, e.g. ["marketing_pack","review_kit"]. Sirf JSON array, aur kuch nahi.'
         )
-        raw, _ = await free_ai.chat(sys, [{"role": "user", "content": brief}], max_tokens=120, temperature=0.1)
+        raw, _ = await free_ai.chat(
+            sys, [{"role": "user", "content": brief}], max_tokens=120, temperature=0.1
+        )
         i, j = raw.find("["), raw.rfind("]")
         if i != -1 and j != -1:
             picked = json.loads(raw[i : j + 1])
@@ -221,7 +308,11 @@ async def plan_deployment(brief: str, skill_keys: list[str]) -> list[str]:
 
 
 async def deploy(
-    ctx: Ctx, agent: str = "neo", brief: str = "", skills: list[str] | None = None, max_steps: int = 8
+    ctx: Ctx,
+    agent: str = "neo",
+    brief: str = "",
+    skills: list[str] | None = None,
+    max_steps: int = 8,
 ) -> dict[str, Any]:
     """FDE deployment: client ke liye plan banao + skills execute karo + report do.
 

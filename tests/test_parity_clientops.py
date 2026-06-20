@@ -143,12 +143,22 @@ def test_snapshot_capture_and_apply(tmp_path, monkeypatch):
     monkeypatch.setattr(content_schedule, "_FILE", str(tmp_path / "schedule.jsonl"))
 
     clients = {
-        "src-1": {"id": "src-1", "business_name": "Sharma Solar", "slug": "sharma-solar", "niche": "solar", "city": "Pune"},
-        "tgt-2": {"id": "tgt-2", "business_name": "Verma Gym", "slug": "verma-gym", "niche": "gym", "city": "Nashik"},
+        "src-1": {
+            "id": "src-1",
+            "business_name": "Sharma Solar",
+            "slug": "sharma-solar",
+            "niche": "solar",
+            "city": "Pune",
+        },
+        "tgt-2": {
+            "id": "tgt-2",
+            "business_name": "Verma Gym",
+            "slug": "verma-gym",
+            "niche": "gym",
+            "city": "Nashik",
+        },
     }
-    monkeypatch.setattr(
-        "app.marketing.clients_store.get_client", lambda cid: clients.get(cid)
-    )
+    monkeypatch.setattr("app.marketing.clients_store.get_client", lambda cid: clients.get(cid))
 
     # source data: ek journey rule (client-linked) + ek FUTURE scheduled item
     journeys.add_journey(
@@ -158,8 +168,13 @@ def test_snapshot_capture_and_apply(tmp_path, monkeypatch):
         condition={"client_id": "src-1"},
     )
     content_schedule.schedule(
-        "Sharma Solar", niche="solar", date_iso="2099-01-01",
-        occasion="New Year", offer="10% off", channel="instagram", client_id="src-1",
+        "Sharma Solar",
+        niche="solar",
+        date_iso="2099-01-01",
+        occasion="New Year",
+        offer="10% off",
+        channel="instagram",
+        client_id="src-1",
     )
 
     cap = snaps.capture("src-1", "Solar starter setup")
@@ -277,7 +292,9 @@ def test_proposal_tracking_url(tmp_path, monkeypatch):
     monkeypatch.setattr(pt, "_VIEWS_FILE", str(tmp_path / "views.jsonl"))
     monkeypatch.setattr(pt, "_HTML_DIR", str(tmp_path / "html"))
 
-    res = pt.make_tracked(url="https://example.com/proposal.pdf", phone="9876543210", label="Sharma proposal")
+    res = pt.make_tracked(
+        url="https://example.com/proposal.pdf", phone="9876543210", label="Sharma proposal"
+    )
     assert res["ok"] is True
     token = res["token"]
     assert f"/api/clientops/p/{token}" in res["tracking_url"]

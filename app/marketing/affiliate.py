@@ -69,11 +69,22 @@ def register_affiliate(name: str, email: str = "", phone: str = "") -> dict[str,
         if (email and r.get("email") == email) or (phone and r.get("phone") == phone):
             return {"ok": True, "existing": True, **r, "link": f"{BASE_URL}/?ref={r['code']}"}
     code = _code(name)
-    rec = {"id": uuid.uuid4().hex[:12], "name": name, "email": email, "phone": phone,
-           "code": code, "created_at": _now()}
+    rec = {
+        "id": uuid.uuid4().hex[:12],
+        "name": name,
+        "email": email,
+        "phone": phone,
+        "code": code,
+        "created_at": _now(),
+    }
     _append(_AFFILIATES, rec)
-    return {"ok": True, "existing": False, **rec, "link": f"{BASE_URL}/?ref={code}",
-            "commission": f"{COMMISSION_PCT}% of first month per paying customer"}
+    return {
+        "ok": True,
+        "existing": False,
+        **rec,
+        "link": f"{BASE_URL}/?ref={code}",
+        "commission": f"{COMMISSION_PCT}% of first month per paying customer",
+    }
 
 
 def record_referral(code: str, lead: dict[str, Any], status: str = "lead") -> dict[str, Any]:
@@ -82,10 +93,14 @@ def record_referral(code: str, lead: dict[str, Any], status: str = "lead") -> di
     if not code:
         return {"ok": False, "reason": "no code"}
     rec = {
-        "id": uuid.uuid4().hex[:12], "code": code, "status": status,
+        "id": uuid.uuid4().hex[:12],
+        "code": code,
+        "status": status,
         "business_name": lead.get("business_name") or lead.get("name"),
-        "email": lead.get("email"), "phone": lead.get("phone"),
-        "amount": lead.get("amount", 0), "at": _now(),
+        "email": lead.get("email"),
+        "phone": lead.get("phone"),
+        "amount": lead.get("amount", 0),
+        "at": _now(),
     }
     _append(_REFERRALS, rec)
     return {"ok": True, "referral": rec}

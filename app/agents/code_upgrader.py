@@ -92,7 +92,11 @@ def set_status(patch_id: str, status: str, note: str = "") -> dict[str, Any]:
     try:
         from app.platform import team
 
-        team.log_event("vikram", "patch_" + status, f"🛠️ patch {patch_id[:8]} {status}: {cur.get('title', '')[:80]}")
+        team.log_event(
+            "vikram",
+            "patch_" + status,
+            f"🛠️ patch {patch_id[:8]} {status}: {cur.get('title', '')[:80]}",
+        )
     except Exception:
         pass
     return {"ok": True, "id": patch_id, "status": status}
@@ -110,11 +114,13 @@ def _collect_signals() -> list[dict[str, str]]:
         st = llm_metrics.stats(window=300) or {}
         for prov, d in (st.get("providers") or {}).items():
             if isinstance(d, dict) and d.get("calls", 0) >= 5 and (d.get("ok_rate") or 1.0) < 0.5:
-                sigs.append({
-                    "key": f"llm_{prov}",
-                    "issue": f"LLM provider '{prov}' ok-rate {d.get('ok_rate')} (last error: {str(d.get('last_error', ''))[:120]})",
-                    "area": "app/voice_agent/free_ai.py",
-                })
+                sigs.append(
+                    {
+                        "key": f"llm_{prov}",
+                        "issue": f"LLM provider '{prov}' ok-rate {d.get('ok_rate')} (last error: {str(d.get('last_error', ''))[:120]})",
+                        "area": "app/voice_agent/free_ai.py",
+                    }
+                )
     except Exception:
         pass
     try:
@@ -124,11 +130,13 @@ def _collect_signals() -> list[dict[str, str]]:
         for d in h.get("jobs") or []:
             if isinstance(d, dict) and d.get("status") in ("overdue", "last_failed"):
                 job = d.get("job", "?")
-                sigs.append({
-                    "key": f"job_{job}",
-                    "issue": f"Scheduled job '{job}' {d.get('status')} (last run: {str(d.get('last_run', ''))[:40]})",
-                    "area": "app/platform/team_scheduler.py",
-                })
+                sigs.append(
+                    {
+                        "key": f"job_{job}",
+                        "issue": f"Scheduled job '{job}' {d.get('status')} (last run: {str(d.get('last_run', ''))[:40]})",
+                        "area": "app/platform/team_scheduler.py",
+                    }
+                )
     except Exception:
         pass
     try:
@@ -136,11 +144,13 @@ def _collect_signals() -> list[dict[str, str]]:
 
         for w in skill_library.worst(3):
             if (w.get("uses") or 0) >= 5 and (w.get("rate") or w.get("success_rate") or 1.0) < 0.35:
-                sigs.append({
-                    "key": f"action_{w.get('skill')}",
-                    "issue": f"self_improve action '{w.get('skill')}' success-rate low ({w.get('rate') or w.get('success_rate')}) over {w.get('uses')} uses",
-                    "area": "app/agents/self_improve.py",
-                })
+                sigs.append(
+                    {
+                        "key": f"action_{w.get('skill')}",
+                        "issue": f"self_improve action '{w.get('skill')}' success-rate low ({w.get('rate') or w.get('success_rate')}) over {w.get('uses')} uses",
+                        "area": "app/agents/self_improve.py",
+                    }
+                )
     except Exception:
         pass
     return sigs
@@ -148,7 +158,11 @@ def _collect_signals() -> list[dict[str, str]]:
 
 async def _propose(issue: str, area: str) -> dict[str, str]:
     """free-LLM se patch-proposal sketch. LLM fail = static template (kabhi empty nahi)."""
-    title, rationale, sketch = f"Fix: {issue[:80]}", issue, "Investigate karo aur targeted fix + test add karo."
+    title, rationale, sketch = (
+        f"Fix: {issue[:80]}",
+        issue,
+        "Investigate karo aur targeted fix + test add karo.",
+    )
     try:
         from app.voice_agent import free_ai
 
@@ -156,7 +170,12 @@ async def _propose(issue: str, area: str) -> dict[str, str]:
             free_ai.chat(
                 "Tu ek senior Python engineer hai. Ek production issue diya hai. JSON-only output: "
                 '{"title": "...", "rationale": "kya/kyun (2 lines)", "sketch": "suggested code change ka concrete sketch — file, function, kya badle (5-8 lines)"}',
-                [{"role": "user", "content": f"Issue: {issue}\nLikely area: {area}\nRepo: FastAPI leadgen platform, free-stack, never-raise/gated patterns."}],
+                [
+                    {
+                        "role": "user",
+                        "content": f"Issue: {issue}\nLikely area: {area}\nRepo: FastAPI leadgen platform, free-stack, never-raise/gated patterns.",
+                    }
+                ],
                 max_tokens=400,
                 temperature=0.3,
             ),
@@ -165,7 +184,7 @@ async def _propose(issue: str, area: str) -> dict[str, str]:
         if text:
             s = text.strip()
             if "{" in s:
-                s = s[s.index("{"): s.rindex("}") + 1]
+                s = s[s.index("{") : s.rindex("}") + 1]
             d = json.loads(s)
             title = str(d.get("title") or title)[:120]
             rationale = str(d.get("rationale") or rationale)[:500]
@@ -190,7 +209,9 @@ async def scan_and_propose() -> dict[str, Any]:
     # Sirf CLOSED (rejected/applied) signals re-propose ho sakte, woh bhi same-day nahi.
     open_keys = {r.get("signal_key") for r in recent if r.get("status") in ("proposed", "approved")}
     seen_today = {r.get("signal_key") for r in recent if str(r.get("at", "")).startswith(day)}
-    new = [s for s in sigs if s["key"] not in open_keys and s["key"] not in seen_today][:_MAX_PROPOSALS_PER_SCAN]
+    new = [s for s in sigs if s["key"] not in open_keys and s["key"] not in seen_today][
+        :_MAX_PROPOSALS_PER_SCAN
+    ]
 
     proposed = []
     for s in new:
@@ -222,7 +243,8 @@ async def scan_and_propose() -> dict[str, Any]:
                 from app.integrations.email_sender import email_sender
 
                 body = "\n\n".join(
-                    f"[{r['id']}] {r['title']}\nIssue: {r['issue']}\nSketch: {r['sketch'][:400]}" for r in proposed
+                    f"[{r['id']}] {r['title']}\nIssue: {r['issue']}\nSketch: {r['sketch'][:400]}"
+                    for r in proposed
                 )
                 await email_sender.send_email(
                     [notify],
@@ -231,7 +253,12 @@ async def scan_and_propose() -> dict[str, Any]:
                 )
             except Exception:
                 pass
-    return {"ok": True, "signals": len(sigs), "proposed": len(proposed), "ids": [r["id"] for r in proposed]}
+    return {
+        "ok": True,
+        "signals": len(sigs),
+        "proposed": len(proposed),
+        "ids": [r["id"] for r in proposed],
+    }
 
 
 async def run_if_enabled() -> dict[str, Any]:

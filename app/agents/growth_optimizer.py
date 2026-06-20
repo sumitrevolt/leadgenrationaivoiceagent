@@ -159,12 +159,14 @@ async def _direct_actions(stage: str) -> list[str]:
             # Channel experiments (gated, may no-op) + always: SEO pages + social drafts
             try:
                 from app.marketing import channel_experiments
+
                 res = await channel_experiments.run_daily(3)
                 done.append(f"channel experiments x{len(res.get('launched') or [])}")
             except Exception:
                 pass
             try:
                 from app.marketing import seo_pages
+
                 res2 = await seo_pages.generate_batch(limit=3)
                 done.append(f"seo pages +{res2.get('count', len(res2.get('pages') or []))}")
             except Exception:
@@ -172,6 +174,7 @@ async def _direct_actions(stage: str) -> list[str]:
             try:
                 from app.marketing import social_channels
                 from app.marketing.channel_experiments import _pick_niche_city
+
                 niche, city = _pick_niche_city()
                 res3 = await social_channels.draft_batch(niche=niche, city=city, limit=2)
                 done.append(f"social drafts +{res3.get('count', 0)}")
@@ -181,9 +184,12 @@ async def _direct_actions(stage: str) -> list[str]:
             from app.marketing import seo_pages
 
             res = await seo_pages.generate_batch(limit=8)
-            done.append(f"seo pages +{res.get('count', len(res.get('pages') or res.get('generated') or []))}")
+            done.append(
+                f"seo pages +{res.get('count', len(res.get('pages') or res.get('generated') or []))}"
+            )
             try:
                 from app.marketing import channel_experiments
+
                 res2 = await channel_experiments.run_daily(2)
                 done.append(f"experiments x{len(res2.get('launched') or [])}")
             except Exception:
@@ -224,7 +230,12 @@ async def suggest_new_ways(niche: str = "general") -> list[str]:
                 "tarike de (koi paid ads, koi scraping-ToS-violation, koi WhatsApp bulk). "
                 'JSON list de: ["idea1", ...] — 5 ideas, har ek <15 words, Hinglish.'
             ),
-            [{"role": "user", "content": f"Niche: {niche}. leadsgenai.in ke liye naye customer-approach channels?"}],
+            [
+                {
+                    "role": "user",
+                    "content": f"Niche: {niche}. leadsgenai.in ke liye naye customer-approach channels?",
+                }
+            ],
             max_tokens=220,
         )
         txt = raw if isinstance(raw, str) else str(raw)
@@ -312,7 +323,13 @@ async def optimize() -> dict[str, Any]:
             )
         except Exception:
             pass
-        return {"enabled": True, "weakest": weak, "direct_actions": actions, "ideas": ideas, "snapshot": snap}
+        return {
+            "enabled": True,
+            "weakest": weak,
+            "direct_actions": actions,
+            "ideas": ideas,
+            "snapshot": snap,
+        }
     except Exception as e:
         logger.warning(f"[optimizer] optimize failed: {e}")
         return {"enabled": True, "error": str(e)}

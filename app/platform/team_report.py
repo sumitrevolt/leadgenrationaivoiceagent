@@ -26,18 +26,36 @@ _OUT_DIR = os.path.join("data", "team_reports")
 
 # action keyword → (category, Hinglish line template "{n}" ke saath)
 _CATEGORIES: list[tuple[tuple[str, ...], str, str]] = [
-    (("content", "post", "blog", "repurpose", "month_plan", "reel", "carousel"), "content",
-     "📣 Isha ne {n} content pieces banaye (posts/calendars/reels drafts)"),
-    (("lead", "score", "prospect", "scrape", "harvest"), "leads",
-     "🎯 Dev & Rohan ne {n} lead actions kiye (scrape, scoring, research)"),
-    (("review", "brand_pulse", "sentiment"), "reviews",
-     "⭐ Reviews/reputation pe {n} kaam hue (drafts, monitoring)"),
-    (("call", "qualif", "voice", "telephony"), "calls",
-     "📞 Swara/Tara ne {n} call-side actions kiye (calls, qualification, readiness)"),
-    (("email", "outreach", "reply", "followup", "nurture", "dunning"), "emails",
-     "✉️ Rohan/Nikhil ne {n} email/outreach actions kiye"),
-    (("ops", "health", "pulse", "qa", "train", "watchdog"), "ops",
-     "🛡️ Kavya/Arjun ne {n} baar system health/QA check kiya"),
+    (
+        ("content", "post", "blog", "repurpose", "month_plan", "reel", "carousel"),
+        "content",
+        "📣 Isha ne {n} content pieces banaye (posts/calendars/reels drafts)",
+    ),
+    (
+        ("lead", "score", "prospect", "scrape", "harvest"),
+        "leads",
+        "🎯 Dev & Rohan ne {n} lead actions kiye (scrape, scoring, research)",
+    ),
+    (
+        ("review", "brand_pulse", "sentiment"),
+        "reviews",
+        "⭐ Reviews/reputation pe {n} kaam hue (drafts, monitoring)",
+    ),
+    (
+        ("call", "qualif", "voice", "telephony"),
+        "calls",
+        "📞 Swara/Tara ne {n} call-side actions kiye (calls, qualification, readiness)",
+    ),
+    (
+        ("email", "outreach", "reply", "followup", "nurture", "dunning"),
+        "emails",
+        "✉️ Rohan/Nikhil ne {n} email/outreach actions kiye",
+    ),
+    (
+        ("ops", "health", "pulse", "qa", "train", "watchdog"),
+        "ops",
+        "🛡️ Kavya/Arjun ne {n} baar system health/QA check kiya",
+    ),
 ]
 
 
@@ -74,7 +92,9 @@ def _lines(counts: dict[str, int]) -> list[str]:
         if n > 0:
             out.append(tpl.format(n=n))
     if not out:
-        out.append("🤖 Team standby pe rahi — naye kaam ke liye taiyaar (KB, scripts, monitors sab ready).")
+        out.append(
+            "🤖 Team standby pe rahi — naye kaam ke liye taiyaar (KB, scripts, monitors sab ready)."
+        )
     return out
 
 
@@ -90,7 +110,12 @@ async def _polish_intro(business: str, total: int) -> str:
         text, _p = await free_ai.chat(
             "Tu friendly Hinglish copywriter hai. 2 line ka warm weekly-report intro likh "
             "(client ko 'aapki AI team' ka kaam dikhana hai). Sirf intro, koi list nahi.",
-            [{"role": "user", "content": f"Business: {business}. Is hafte total {total} automated actions."}],
+            [
+                {
+                    "role": "user",
+                    "content": f"Business: {business}. Is hafte total {total} automated actions.",
+                }
+            ],
             max_tokens=90,
             temperature=0.7,
         )
@@ -230,7 +255,11 @@ async def run_weekly_if_enabled(max_clients: int = 20, send: bool | None = None)
         try:
             from app.platform.team import log_event
 
-            log_event("isha", "team_report", f"{out['built']} weekly reports built, {out['emailed']} emailed")
+            log_event(
+                "isha",
+                "team_report",
+                f"{out['built']} weekly reports built, {out['emailed']} emailed",
+            )
         except Exception:
             pass
     except Exception as e:

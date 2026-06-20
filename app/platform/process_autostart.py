@@ -194,8 +194,13 @@ async def run_due() -> dict[str, Any]:
             disp = await _enqueue_or_inline(run_id)
             started.append({"process": key, "run_id": run_id, "inputs": inputs, **disp})
             # naya run recent list me add — same tick double-start guard.
-            recent.append({"process": key, "status": "running",
-                           "started_at": datetime.now(timezone.utc).isoformat()})
+            recent.append(
+                {
+                    "process": key,
+                    "status": "running",
+                    "started_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
 
         return {"ok": True, "started": started, "skipped": skipped}
     except Exception as e:

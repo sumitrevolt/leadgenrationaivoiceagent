@@ -170,9 +170,7 @@ async def outreach_unsub_post(token: str):
 
 
 @router.get("/newsletter/rss-digest")
-async def newsletter_rss_digest(
-    limit: int = Query(5, ge=1, le=20), _user=Depends(require_admin)
-):
+async def newsletter_rss_digest(limit: int = Query(5, ge=1, le=20), _user=Depends(require_admin)):
     """Apne blog ke naye posts -> email digest DRAFT (send nahi karta)."""
     from app.marketing import newsletter
 
@@ -231,9 +229,7 @@ async def email_signature(
 
     if not slug and not client_id:
         raise HTTPException(status_code=422, detail="slug ya client_id me se ek do")
-    return await asyncio.to_thread(
-        sig.generate, client_id or None, slug or None, banner or None
-    )
+    return await asyncio.to_thread(sig.generate, client_id or None, slug or None, banner or None)
 
 
 # --------------------------------------------------------------------------- #
@@ -263,9 +259,7 @@ async def lead_magnet_generate(body: LeadMagnetIn, _user=Depends(require_admin))
         return {"ok": False, "error": str(e)[:200]}
 
 
-@router.get(
-    "/lead-magnet-file/{name}", dependencies=[Depends(rate_limit("lmfile", 30, 60))]
-)
+@router.get("/lead-magnet-file/{name}", dependencies=[Depends(rate_limit("lmfile", 30, 60))])
 async def lead_magnet_file(name: str):
     """PUBLIC guide serve (filename regex-locked, dir-locked — ai-img-file pattern)."""
     from app.marketing import lead_magnet

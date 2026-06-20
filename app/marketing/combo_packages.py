@@ -47,11 +47,11 @@ COMBO_TIERS: dict[str, dict] = {
         "marketing_plan": "starter",
         "marketing_price_month": 1_199,
         "voice_price_month": 4_999,
-        "price_separately": 6_198,          # if bought independently
-        "price_month": 4_999,               # COMBO price (marketing almost FREE)
-        "price_year": 49_990,               # 10× (2 mahine free)
+        "price_separately": 6_198,  # if bought independently
+        "price_month": 4_999,  # COMBO price (marketing almost FREE)
+        "price_year": 49_990,  # 10× (2 mahine free)
         "savings_month": 1_199,
-        "savings_year": 14_388,             # 12 × savings_month
+        "savings_year": 14_388,  # 12 × savings_month
         "plan_monthly": "combo_starter_monthly",
         "plan_annual": "combo_starter_annual",
         "niches_note": "Band A niches: Insurance, Coaching, Solar, Hospital Appointments, Upskilling, Travel",
@@ -175,6 +175,7 @@ COMBO_PILOT: dict = {
 # Public API helpers
 # --------------------------------------------------------------------------- #
 
+
 def get_combo_packages() -> dict:
     """Combo product ka full pricing payload — /api/combo/packages ke liye.
 
@@ -184,34 +185,36 @@ def get_combo_packages() -> dict:
     """
     tiers_out = []
     for tier_key, t in COMBO_TIERS.items():
-        tiers_out.append({
-            "key": t["key"],
-            "name": t["name"],
-            "tagline": t["tagline"],
-            "voice_band": t["voice_band"],
-            "marketing_plan": t["marketing_plan"],
-            "price_month": t["price_month"],
-            "price_year": t["price_year"],
-            "price_separately": t["price_separately"],
-            "savings_month": t["savings_month"],
-            "savings_year": t["savings_year"],
-            "plan_monthly": t["plan_monthly"],
-            "plan_annual": t["plan_annual"],
-            "niches_note": t["niches_note"],
-            "features": t["features"],
-            "highlight": t["highlight"],
-            "badge": t["badge"],
-            "billing_monthly": {
-                "price": t["price_month"],
-                "plan_id": t["plan_monthly"],
-            },
-            "billing_annual": {
-                "price": t["price_year"],
-                "price_monthly_equiv": t["price_month"],
-                "plan_id": t["plan_annual"],
-                "note": "2 mahine FREE (10× monthly rate)",
-            },
-        })
+        tiers_out.append(
+            {
+                "key": t["key"],
+                "name": t["name"],
+                "tagline": t["tagline"],
+                "voice_band": t["voice_band"],
+                "marketing_plan": t["marketing_plan"],
+                "price_month": t["price_month"],
+                "price_year": t["price_year"],
+                "price_separately": t["price_separately"],
+                "savings_month": t["savings_month"],
+                "savings_year": t["savings_year"],
+                "plan_monthly": t["plan_monthly"],
+                "plan_annual": t["plan_annual"],
+                "niches_note": t["niches_note"],
+                "features": t["features"],
+                "highlight": t["highlight"],
+                "badge": t["badge"],
+                "billing_monthly": {
+                    "price": t["price_month"],
+                    "plan_id": t["plan_monthly"],
+                },
+                "billing_annual": {
+                    "price": t["price_year"],
+                    "price_monthly_equiv": t["price_month"],
+                    "plan_id": t["plan_annual"],
+                    "note": "2 mahine FREE (10× monthly rate)",
+                },
+            }
+        )
 
     return {
         "product": "combo",

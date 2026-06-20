@@ -82,8 +82,11 @@ def fake_redis(monkeypatch):
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     for k in (
-        "LLM_BUDGET_GUARD", "LLM_BUDGET_HARD_KILL", "LLM_BUDGET_DAILY_CALLS",
-        "LLM_BUDGET_DAILY_TOKENS", "LLM_BUDGET_GLOBAL_DAILY_CALLS",
+        "LLM_BUDGET_GUARD",
+        "LLM_BUDGET_HARD_KILL",
+        "LLM_BUDGET_DAILY_CALLS",
+        "LLM_BUDGET_DAILY_TOKENS",
+        "LLM_BUDGET_GLOBAL_DAILY_CALLS",
     ):
         monkeypatch.delenv(k, raising=False)
     yield
@@ -110,7 +113,7 @@ async def test_hard_kill_blocks_all(monkeypatch, fake_redis):
 async def test_scope_call_cap_blocks_after_limit(monkeypatch, fake_redis):
     monkeypatch.setenv("LLM_BUDGET_GUARD", "1")
     monkeypatch.setenv("LLM_BUDGET_DAILY_CALLS", "2")
-    monkeypatch.setenv("LLM_BUDGET_DAILY_TOKENS", "0")     # token cap off
+    monkeypatch.setenv("LLM_BUDGET_DAILY_TOKENS", "0")  # token cap off
     monkeypatch.setenv("LLM_BUDGET_GLOBAL_DAILY_CALLS", "0")  # global off
 
     assert (await bg.allow("a"))[0] is True
@@ -130,8 +133,8 @@ async def test_scope_isolation(monkeypatch, fake_redis):
     monkeypatch.setenv("LLM_BUDGET_GLOBAL_DAILY_CALLS", "0")
 
     await bg.record("a", calls=1)
-    assert (await bg.allow("a"))[0] is False   # a exhausted
-    assert (await bg.allow("b"))[0] is True     # b untouched
+    assert (await bg.allow("a"))[0] is False  # a exhausted
+    assert (await bg.allow("b"))[0] is True  # b untouched
 
 
 @pytest.mark.asyncio
@@ -172,7 +175,7 @@ async def test_fail_open_on_redis_error(monkeypatch):
     monkeypatch.setattr(bg, "_redis", _boom)
     bg.reset_local()
     ok, info = await bg.allow("a")
-    assert ok is True                      # FAIL-OPEN
+    assert ok is True  # FAIL-OPEN
     assert info["reason"] == "error_failopen"
 
 
@@ -202,7 +205,7 @@ async def test_record_counts_on_inmemory_fallback(monkeypatch):
     monkeypatch.setenv("LLM_BUDGET_DAILY_TOKENS", "0")
     monkeypatch.setenv("LLM_BUDGET_GLOBAL_DAILY_CALLS", "0")
 
-    await bg.record("a", calls=1)          # get+set fallback (no pipeline/incrby on InMemLike)
+    await bg.record("a", calls=1)  # get+set fallback (no pipeline/incrby on InMemLike)
     ok, info = await bg.allow("a")
-    assert ok is False                      # counter actually incremented => cap trips
+    assert ok is False  # counter actually incremented => cap trips
     assert info["reason"] == "scope_calls"

@@ -97,18 +97,26 @@ def test_consecutive_failure_count_resets_on_success(_cw_iso) -> None:
     wh_id = reg["id"]
     # Seed: failed, failed, succeeded, failed, failed
     for delivered in (False, False, True, False, False):
-        cw._append_delivery({
-            "id": f"del_{delivered}", "webhook_id": wh_id, "client_id": "client_a",
-            "event_type": "lead.qualified", "url": reg["url"], "attempts": 3,
-            "last_status": 200 if delivered else 500,
-            "delivered": delivered, "at": 1700000000,
-        })
+        cw._append_delivery(
+            {
+                "id": f"del_{delivered}",
+                "webhook_id": wh_id,
+                "client_id": "client_a",
+                "event_type": "lead.qualified",
+                "url": reg["url"],
+                "attempts": 3,
+                "last_status": 200 if delivered else 500,
+                "delivered": delivered,
+                "at": 1700000000,
+            }
+        )
     # Only the trailing 2 failures count (the success in the middle resets)
     assert cw.consecutive_failure_count(wh_id) == 2
 
 
-def test_dead_letter_alert_threshold(_cw_iso, monkeypatch: pytest.MonkeyPatch,
-                                    tmp_path: Path) -> None:
+def test_dead_letter_alert_threshold(
+    _cw_iso, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """3 consecutive failures should page; 2 should not."""
     monkeypatch.setenv("OPS_ALERTS", "1")
     monkeypatch.setattr(ops_alerts, "_DATA_DIR", tmp_path)
@@ -119,21 +127,37 @@ def test_dead_letter_alert_threshold(_cw_iso, monkeypatch: pytest.MonkeyPatch,
 
     reg = cw.register("client_a", "https://example.com/h", ["lead.qualified"])
     for i in range(2):
-        cw._append_delivery({
-            "id": f"d{i}", "webhook_id": reg["id"], "client_id": "client_a",
-            "event_type": "lead.qualified", "url": reg["url"], "attempts": 3,
-            "last_status": 500, "delivered": False, "at": 1700000000,
-        })
+        cw._append_delivery(
+            {
+                "id": f"d{i}",
+                "webhook_id": reg["id"],
+                "client_id": "client_a",
+                "event_type": "lead.qualified",
+                "url": reg["url"],
+                "attempts": 3,
+                "last_status": 500,
+                "delivered": False,
+                "at": 1700000000,
+            }
+        )
     out = ops_alerts.maybe_alert_webhook_dead_letter(reg["id"], "client_a", reg["url"])
     assert out["alerted"] is False
     assert out["consecutive_failures"] == 2
 
     # 3rd failure -> page
-    cw._append_delivery({
-        "id": "d2", "webhook_id": reg["id"], "client_id": "client_a",
-        "event_type": "lead.qualified", "url": reg["url"], "attempts": 3,
-        "last_status": 500, "delivered": False, "at": 1700000000,
-    })
+    cw._append_delivery(
+        {
+            "id": "d2",
+            "webhook_id": reg["id"],
+            "client_id": "client_a",
+            "event_type": "lead.qualified",
+            "url": reg["url"],
+            "attempts": 3,
+            "last_status": 500,
+            "delivered": False,
+            "at": 1700000000,
+        }
+    )
     out = ops_alerts.maybe_alert_webhook_dead_letter(reg["id"], "client_a", reg["url"])
     assert out["alerted"] is True
     assert out["consecutive_failures"] == 3
@@ -164,9 +188,7 @@ def test_reset_baseline_clears_only_targeted_combo(
     assert len(eval_gate.recent_scores("rag", "faithfulness", n=10)) == 0
 
 
-def test_reset_baseline_no_history_safe(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_reset_baseline_no_history_safe(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(eval_gate, "_DATA_DIR", tmp_path)
     monkeypatch.setattr(eval_gate, "_HISTORY_PATH", tmp_path / "hist.jsonl")
     out = eval_gate.reset_baseline("rag", "faithfulness")

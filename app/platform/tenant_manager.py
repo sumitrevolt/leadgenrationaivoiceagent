@@ -296,11 +296,9 @@ class TenantManager:
         hot_leads = []
         try:
             from app.platform.lead_scoring import top_hot_leads as _thl
+
             _result = await _thl(limit=20)
-            hot_leads = [
-                ld for ld in (_result.get("leads") or [])
-                if ld.get("is_hot_lead")
-            ]
+            hot_leads = [ld for ld in (_result.get("leads") or []) if ld.get("is_hot_lead")]
         except Exception as _hl_e:
             logger.debug(f"[tenant_mgr] hot_leads fetch skip: {_hl_e}")
 

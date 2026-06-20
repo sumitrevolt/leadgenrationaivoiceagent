@@ -51,7 +51,7 @@ class FeatureState(str, Enum):
     ENABLED_TENANTS = "enabled_tenants"
 
     @classmethod
-    def coerce(cls, v: Any) -> "FeatureState":
+    def coerce(cls, v: Any) -> FeatureState:
         try:
             return cls(str(v).strip().lower())
         except Exception:
@@ -88,7 +88,7 @@ class FeatureFlag:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "FeatureFlag":
+    def from_dict(cls, d: dict[str, Any]) -> FeatureFlag:
         d = d or {}
         try:
             pct = max(0, min(100, int(d.get("percentage", 0) or 0)))
@@ -123,8 +123,8 @@ def _bucket(flag_key: str, ident: str) -> int:
 
 def evaluate_flag(
     flag: dict[str, Any] | None,
-    tenant_id: Optional[str] = None,
-    user_id: Optional[str] = None,
+    tenant_id: str | None = None,
+    user_id: str | None = None,
 ) -> bool:
     """PURE eval (storage-independent, testable). Kabhi raise nahi → False on doubt.
 
@@ -165,7 +165,7 @@ def _system_active() -> bool:
 class FeatureFlagService:
     """Redis-backed flag store. redis_getter injectable (tests me InMemoryCache)."""
 
-    def __init__(self, redis_getter: Optional[Callable] = None):
+    def __init__(self, redis_getter: Callable | None = None):
         self._redis_getter = redis_getter
         self._cache: dict[str, Any] | None = None
         self._cache_at: float = 0.0
@@ -188,11 +188,7 @@ class FeatureFlagService:
 
     async def _load_store(self, force: bool = False) -> dict[str, Any]:
         """Whole {key: flag_dict} store. 60s in-process cache. Never raises → {} (ya last-good)."""
-        if (
-            not force
-            and self._cache is not None
-            and (time.time() - self._cache_at) < _CACHE_TTL_S
-        ):
+        if not force and self._cache is not None and (time.time() - self._cache_at) < _CACHE_TTL_S:
             return self._cache
         store: dict[str, Any] = {}
         try:
@@ -228,8 +224,8 @@ class FeatureFlagService:
     async def is_enabled(
         self,
         flag_key: str,
-        tenant_id: Optional[str] = None,
-        user_id: Optional[str] = None,
+        tenant_id: str | None = None,
+        user_id: str | None = None,
     ) -> bool:
         """Master-gated, fail-safe (False on unknown/broken/off). Never raises."""
         try:
@@ -240,7 +236,7 @@ class FeatureFlagService:
         except Exception:
             return False
 
-    async def get_flag(self, flag_key: str) -> Optional[FeatureFlag]:
+    async def get_flag(self, flag_key: str) -> FeatureFlag | None:
         try:
             store = await self._load_store()
             d = store.get(flag_key)
@@ -290,7 +286,7 @@ feature_flags = FeatureFlagService()
 
 
 async def is_enabled(
-    flag_key: str, tenant_id: Optional[str] = None, user_id: Optional[str] = None
+    flag_key: str, tenant_id: str | None = None, user_id: str | None = None
 ) -> bool:
     """Module-level convenience over the shared singleton."""
     return await feature_flags.is_enabled(flag_key, tenant_id, user_id)

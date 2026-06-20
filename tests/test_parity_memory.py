@@ -21,9 +21,13 @@ def _setup_vault(tmp_path, monkeypatch):
 def test_add_event_and_profile(tmp_path, monkeypatch):
     mv = _setup_vault(tmp_path, monkeypatch)
 
-    assert mv.add_event("prospects", "9876543210", "Inquiry via website: solar chahiye", title="Sharma Solar")
+    assert mv.add_event(
+        "prospects", "9876543210", "Inquiry via website: solar chahiye", title="Sharma Solar"
+    )
     assert mv.upsert_profile_fact("prospects", "9876543210", "City: Pune")
-    assert mv.upsert_profile_fact("prospects", "9876543210", "city: pune")  # dedupe (case-insensitive)
+    assert mv.upsert_profile_fact(
+        "prospects", "9876543210", "city: pune"
+    )  # dedupe (case-insensitive)
 
     md = mv.get_memory("prospects", "9876543210")
     assert md is not None
@@ -97,26 +101,75 @@ def test_sync_all_cursor(tmp_path, monkeypatch):
     monkeypatch.setattr(mv, "_DIALER", str(dialer))
     monkeypatch.setattr(mv, "_DEALS", str(deals))
 
-    _write_jsonl(inq, [
-        {"phone": "+919876543210", "name": "Ravi", "business_name": "Ravi Solar",
-         "niche": "solar", "city": "Pune", "message": "subsidy wala lagwana hai",
-         "source": "website", "client_id": None},
-        {"phone": "+919812345678", "name": "Sita", "business_name": "Sita Gym",
-         "message": "pricing?", "source": "mini_site", "client_id": "cl-77", "source_slug": "sita-gym"},
-    ])
-    _write_jsonl(chats, [
-        {"ts": "t", "slug": "s", "session_id": "A", "role": "user", "text": "price kya hai?"},
-        {"ts": "t", "slug": "s", "session_id": "A", "role": "user", "text": "mera number 9876543210"},
-        {"ts": "t", "slug": "s", "session_id": "A", "role": "bot", "text": "₹999 se"},
-        {"ts": "t", "slug": "s", "session_id": "B", "role": "user", "text": "no phone here"},  # skip
-    ])
-    _write_jsonl(dialer, [
-        {"phone": "9876543210", "disposition": "interested", "notes": "demo chahiye", "at": "2026-06-10T10:00:00"},
-    ])
-    _write_jsonl(deals, [
-        {"id": "d1", "business_name": "Ravi Solar", "phone": "9876543210", "stage": "interested",
-         "niche": "solar", "city": "Pune"},
-    ])
+    _write_jsonl(
+        inq,
+        [
+            {
+                "phone": "+919876543210",
+                "name": "Ravi",
+                "business_name": "Ravi Solar",
+                "niche": "solar",
+                "city": "Pune",
+                "message": "subsidy wala lagwana hai",
+                "source": "website",
+                "client_id": None,
+            },
+            {
+                "phone": "+919812345678",
+                "name": "Sita",
+                "business_name": "Sita Gym",
+                "message": "pricing?",
+                "source": "mini_site",
+                "client_id": "cl-77",
+                "source_slug": "sita-gym",
+            },
+        ],
+    )
+    _write_jsonl(
+        chats,
+        [
+            {"ts": "t", "slug": "s", "session_id": "A", "role": "user", "text": "price kya hai?"},
+            {
+                "ts": "t",
+                "slug": "s",
+                "session_id": "A",
+                "role": "user",
+                "text": "mera number 9876543210",
+            },
+            {"ts": "t", "slug": "s", "session_id": "A", "role": "bot", "text": "₹999 se"},
+            {
+                "ts": "t",
+                "slug": "s",
+                "session_id": "B",
+                "role": "user",
+                "text": "no phone here",
+            },  # skip
+        ],
+    )
+    _write_jsonl(
+        dialer,
+        [
+            {
+                "phone": "9876543210",
+                "disposition": "interested",
+                "notes": "demo chahiye",
+                "at": "2026-06-10T10:00:00",
+            },
+        ],
+    )
+    _write_jsonl(
+        deals,
+        [
+            {
+                "id": "d1",
+                "business_name": "Ravi Solar",
+                "phone": "9876543210",
+                "stage": "interested",
+                "niche": "solar",
+                "city": "Pune",
+            },
+        ],
+    )
 
     res = mv.sync_all()
     assert res["ok"] is True
@@ -172,22 +225,38 @@ def test_prep_brief_llm_and_fallback(tmp_path, monkeypatch):
     from app.platform import prospector
 
     pfile = tmp_path / "prospects.jsonl"
-    _write_jsonl(pfile, [{"id": "p1", "business_name": "Ravi Solar", "phone": "+919876543210",
-                          "niche": "solar", "city": "Pune", "status": "ready"}])
+    _write_jsonl(
+        pfile,
+        [
+            {
+                "id": "p1",
+                "business_name": "Ravi Solar",
+                "phone": "+919876543210",
+                "niche": "solar",
+                "city": "Pune",
+                "status": "ready",
+            }
+        ],
+    )
     monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(pfile))
 
     import app.voice_agent.free_ai as free_ai
 
     async def fake_chat(sys, msgs, **kw):
-        return (json.dumps({
-            "kaun_hai": "Ravi Solar, Pune ka solar installer",
-            "history_summary": "Website se inquiry aayi thi",
-            "pain_points": ["leads miss hote"],
-            "talking_points": ["Subsidy angle", "Free audit", "Demo"],
-            "objections": [{"objection": "mehnga", "jawab": "10 leads free"}],
-            "next_action": "Demo book karo",
-            "best_time_hint": "Shaam 5 baje",
-        }), "mock")
+        return (
+            json.dumps(
+                {
+                    "kaun_hai": "Ravi Solar, Pune ka solar installer",
+                    "history_summary": "Website se inquiry aayi thi",
+                    "pain_points": ["leads miss hote"],
+                    "talking_points": ["Subsidy angle", "Free audit", "Demo"],
+                    "objections": [{"objection": "mehnga", "jawab": "10 leads free"}],
+                    "next_action": "Demo book karo",
+                    "best_time_hint": "Shaam 5 baje",
+                }
+            ),
+            "mock",
+        )
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
 
@@ -232,7 +301,10 @@ def test_live_notes_topics_and_refresh(tmp_path, monkeypatch):
     from app.marketing import trends
 
     async def fake_angles(niche, biz, n=3):
-        return {"angles": ["Subsidy push karo", "Garmi me solar ROI"], "trending": ["IPL", "Budget"]}
+        return {
+            "angles": ["Subsidy push karo", "Garmi me solar ROI"],
+            "trending": ["IPL", "Budget"],
+        }
 
     monkeypatch.setattr(trends, "trend_angles", fake_angles)
 
@@ -295,7 +367,11 @@ def test_sales_assistant_phone_param(tmp_path, monkeypatch):
     assert "History" not in captured["user"]
 
     # with phone — memory context prompt me prepend
-    r2 = asyncio.run(sales_assistant.handle_message("kitna mehnga hai?", "Ravi Solar", "solar", phone="9876543210"))
+    r2 = asyncio.run(
+        sales_assistant.handle_message(
+            "kitna mehnga hai?", "Ravi Solar", "solar", phone="9876543210"
+        )
+    )
     assert r2["ok"] is True
     assert "History" in captured["user"] and "price poocha" in captured["user"]
 

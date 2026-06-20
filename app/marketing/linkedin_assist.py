@@ -43,7 +43,9 @@ def _tpl(name: str, company: str, niche: str) -> dict[str, str]:
     }
 
 
-async def draft_outreach(target_name: str, company: str = "", niche: str = "general") -> dict[str, Any]:
+async def draft_outreach(
+    target_name: str, company: str = "", niche: str = "general"
+) -> dict[str, Any]:
     """Ek LinkedIn target ke liye comment + connect-note + DM draft. free-LLM, fallback template."""
     name = (target_name or "there").strip()
     company = (company or "aapki company").strip()
@@ -61,7 +63,9 @@ async def draft_outreach(target_name: str, company: str = "", niche: str = "gene
             "leads laata. Sirf JSON."
         )
         prompt = f"Target: {name}, Company: {company}, Niche: {niche}."
-        raw, _ = await free_ai.chat(sys, [{"role": "user", "content": prompt}], max_tokens=300, temperature=0.6)
+        raw, _ = await free_ai.chat(
+            sys, [{"role": "user", "content": prompt}], max_tokens=300, temperature=0.6
+        )
         import json
 
         i, j = raw.find("{"), raw.rfind("}")

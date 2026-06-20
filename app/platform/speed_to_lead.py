@@ -122,8 +122,8 @@ def _evidence_epochs() -> dict[str, list[tuple[float, str]]]:
 
     for rec in _read_jsonl(_DIALER_FILE):
         ph = _phone10(rec.get("phone"))
-        ep = _to_epoch(rec.get("ts")) or _to_epoch(rec.get("at")) or _to_epoch(
-            rec.get("created_at")
+        ep = (
+            _to_epoch(rec.get("ts")) or _to_epoch(rec.get("at")) or _to_epoch(rec.get("created_at"))
         )
         if ph and ep:
             ev.setdefault(ph, []).append((ep, "dialer_call"))
@@ -159,9 +159,7 @@ def per_inquiry(days: int = 30) -> list[dict[str, Any]]:
                     "phone": ph,
                     "inquiry_at": rec.get("at"),
                     "source": rec.get("source") or "",
-                    "first_touch_seconds": (
-                        max(0, round(best[0] - inq_ep)) if best else None
-                    ),
+                    "first_touch_seconds": (max(0, round(best[0] - inq_ep)) if best else None),
                     "via": best[1] if best else None,
                 }
             )
@@ -175,7 +173,9 @@ def summary(days: int = 30) -> dict[str, Any]:
     """Avg / median / under-2-min % + Hinglish verdict. Never raises."""
     try:
         rows = per_inquiry(days)
-        touched = [r["first_touch_seconds"] for r in rows if r.get("first_touch_seconds") is not None]
+        touched = [
+            r["first_touch_seconds"] for r in rows if r.get("first_touch_seconds") is not None
+        ]
         total = len(rows)
         if not touched:
             return {
@@ -291,9 +291,7 @@ def per_inquiry_for_client(
                     "phone": ph,
                     "inquiry_at": rec.get("at"),
                     "source": rec.get("source") or "",
-                    "first_touch_seconds": (
-                        max(0, round(best[0] - inq_ep)) if best else None
-                    ),
+                    "first_touch_seconds": (max(0, round(best[0] - inq_ep)) if best else None),
                     "via": best[1] if best else None,
                 }
             )
@@ -312,9 +310,7 @@ def summary_for_client(
     try:
         rows = per_inquiry_for_client(client_id, client_rec, days)
         touched = [
-            r["first_touch_seconds"]
-            for r in rows
-            if r.get("first_touch_seconds") is not None
+            r["first_touch_seconds"] for r in rows if r.get("first_touch_seconds") is not None
         ]
         total = len(rows)
         if not touched:
@@ -352,9 +348,7 @@ def summary_for_client(
                 f"avg {avg_min:.1f} min. 🏆"
             )
         elif under_pct >= 50:
-            verdict = (
-                f"Theek — avg {avg_min:.1f} min me jawab, {under_pct}% 2-min target ke andar."
-            )
+            verdict = f"Theek — avg {avg_min:.1f} min me jawab, {under_pct}% 2-min target ke andar."
         else:
             verdict = (
                 f"Avg {avg_min:.1f} min me jawab — 2-min target rakho; "
@@ -379,4 +373,10 @@ def summary_for_client(
         return {"ok": False, "client_id": client_id, "error": str(e)[:160]}
 
 
-__all__ = ["per_inquiry", "summary", "per_inquiry_for_client", "summary_for_client", "log_callback_touch"]
+__all__ = [
+    "per_inquiry",
+    "summary",
+    "per_inquiry_for_client",
+    "summary_for_client",
+    "log_callback_touch",
+]

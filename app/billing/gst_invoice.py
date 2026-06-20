@@ -161,7 +161,9 @@ def _tax_lines(gross: float, recipient_state: str, supplier: dict[str, str]) -> 
         return {
             "tax_mode": "unregistered",
             "taxable_value": round(gross, 2),
-            "cgst": 0.0, "sgst": 0.0, "igst": 0.0,
+            "cgst": 0.0,
+            "sgst": 0.0,
+            "igst": 0.0,
             "note": "GST not applicable — supplier not registered under GST (turnover below threshold).",
         }
     taxable = round(gross / (1 + GST_RATE), 2)
@@ -169,10 +171,22 @@ def _tax_lines(gross: float, recipient_state: str, supplier: dict[str, str]) -> 
     intra = (not recipient_state) or recipient_state == supplier.get("state_code")
     if intra:
         half = round(tax / 2, 2)
-        return {"tax_mode": "intra", "taxable_value": taxable,
-                "cgst": half, "sgst": round(tax - half, 2), "igst": 0.0, "note": ""}
-    return {"tax_mode": "inter", "taxable_value": taxable,
-            "cgst": 0.0, "sgst": 0.0, "igst": tax, "note": ""}
+        return {
+            "tax_mode": "intra",
+            "taxable_value": taxable,
+            "cgst": half,
+            "sgst": round(tax - half, 2),
+            "igst": 0.0,
+            "note": "",
+        }
+    return {
+        "tax_mode": "inter",
+        "taxable_value": taxable,
+        "cgst": 0.0,
+        "sgst": 0.0,
+        "igst": tax,
+        "note": "",
+    }
 
 
 def create_invoice(
@@ -234,15 +248,23 @@ def invoice_html(inv: dict[str, Any]) -> str:
 
         e = _h.escape
         sup, rec = inv.get("supplier", {}), inv.get("recipient", {})
-        rows = f'<tr><td>{e(str(inv.get("description", "")))}<br><small>SAC: {e(str(inv.get("sac_code", "")))}</small></td>' \
-               f'<td style="text-align:right">₹{inv.get("taxable_value", 0):,.2f}</td></tr>'
+        rows = (
+            f'<tr><td>{e(str(inv.get("description", "")))}<br><small>SAC: {e(str(inv.get("sac_code", "")))}</small></td>'
+            f'<td style="text-align:right">₹{inv.get("taxable_value", 0):,.2f}</td></tr>'
+        )
         tax_rows = ""
         if inv.get("tax_mode") == "intra":
-            tax_rows = (f'<tr><td>CGST @ 9%</td><td style="text-align:right">₹{inv.get("cgst", 0):,.2f}</td></tr>'
-                        f'<tr><td>SGST @ 9%</td><td style="text-align:right">₹{inv.get("sgst", 0):,.2f}</td></tr>')
+            tax_rows = (
+                f'<tr><td>CGST @ 9%</td><td style="text-align:right">₹{inv.get("cgst", 0):,.2f}</td></tr>'
+                f'<tr><td>SGST @ 9%</td><td style="text-align:right">₹{inv.get("sgst", 0):,.2f}</td></tr>'
+            )
         elif inv.get("tax_mode") == "inter":
             tax_rows = f'<tr><td>IGST @ 18%</td><td style="text-align:right">₹{inv.get("igst", 0):,.2f}</td></tr>'
-        note = f'<p style="color:#777;font-size:12px">{e(str(inv.get("note", "")))}</p>' if inv.get("note") else ""
+        note = (
+            f'<p style="color:#777;font-size:12px">{e(str(inv.get("note", "")))}</p>'
+            if inv.get("note")
+            else ""
+        )
         gstin_line = f'GSTIN: {e(sup.get("gstin", ""))}<br>' if sup.get("gstin") else ""
         rec_gstin = f'GSTIN: {e(rec.get("gstin", ""))}<br>' if rec.get("gstin") else ""
         return f"""<!doctype html><html><head><meta charset="utf-8"><title>{e(str(inv.get("number", "")))}</title>
@@ -287,7 +309,11 @@ def _already_invoiced(client_id: str, plan: str, payment_ref: str) -> bool:
 
 
 async def on_payment_success(
-    client_id: str, plan: str, payment_ref: str = "", gateway: str = "", amount_inr: float | None = None
+    client_id: str,
+    plan: str,
+    payment_ref: str = "",
+    gateway: str = "",
+    amount_inr: float | None = None,
 ) -> dict[str, Any]:
     """Pay/renew hook (billing._provision_usage se) — invoice record + gated email. Never raises."""
     try:
@@ -296,7 +322,9 @@ async def on_payment_success(
             return {}
         if _already_invoiced(cid, plan, payment_ref):
             return {"deduped": True}
-        inv = create_invoice(cid, plan, amount_inr=amount_inr, payment_ref=payment_ref, gateway=gateway)
+        inv = create_invoice(
+            cid, plan, amount_inr=amount_inr, payment_ref=payment_ref, gateway=gateway
+        )
         if not inv:
             return {}
         if _send_enabled() and inv.get("recipient", {}).get("email"):
@@ -304,9 +332,11 @@ async def on_payment_success(
                 from app.integrations.email_sender import email_sender
 
                 html = invoice_html(inv)
-                body = (f"Namaste {inv['recipient']['name']},\n\n"
-                        f"Aapki payment mil gayi — dhanyavaad! Invoice {inv['number']} "
-                        f"(₹{inv['gross_inr']:,.2f}) attached/below hai.\n\n— Team LeadsGenAI")
+                body = (
+                    f"Namaste {inv['recipient']['name']},\n\n"
+                    f"Aapki payment mil gayi — dhanyavaad! Invoice {inv['number']} "
+                    f"(₹{inv['gross_inr']:,.2f}) attached/below hai.\n\n— Team LeadsGenAI"
+                )
                 sent = await email_sender.send_email(
                     [inv["recipient"]["email"]],
                     f"Invoice {inv['number']} — LeadsGenAI",
@@ -324,7 +354,7 @@ async def on_payment_success(
 
 def list_invoices(limit: int = 50) -> list[dict[str, Any]]:
     rows = _read()
-    return rows[-max(1, min(int(limit or 50), 500)):][::-1]
+    return rows[-max(1, min(int(limit or 50), 500)) :][::-1]
 
 
 def get_by_number(number: str) -> dict[str, Any]:
@@ -349,6 +379,12 @@ def stats() -> dict[str, Any]:
 
 
 __all__ = [
-    "create_invoice", "invoice_html", "on_payment_success",
-    "list_invoices", "get_by_number", "stats", "next_number", "fy_label",
+    "create_invoice",
+    "invoice_html",
+    "on_payment_success",
+    "list_invoices",
+    "get_by_number",
+    "stats",
+    "next_number",
+    "fy_label",
 ]

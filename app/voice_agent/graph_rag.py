@@ -77,8 +77,8 @@ class GraphRAG:
         return self._embedder
 
     def _make_embedding_func(self):
-        from lightrag.utils import EmbeddingFunc
         import numpy as np
+        from lightrag.utils import EmbeddingFunc
 
         async def _embed(texts: list[str]):
             emb = self._get_embedder()
@@ -158,7 +158,7 @@ class GraphRAG:
             return {"ok": False, "answer": "", "namespace": namespace, "mode": mode}
 
 
-_singleton: Optional[GraphRAG] = None
+_singleton: GraphRAG | None = None
 
 
 def get_graph_rag() -> GraphRAG:

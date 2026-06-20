@@ -43,22 +43,43 @@ def test_dr_lag_bands(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DR_LAG_FAIL_S", "600")
 
     class _Cursor:
-        def __init__(self, value): self._v = value
-        def execute(self, *a, **kw): pass
-        def fetchone(self): return (self._v,)
-        def __enter__(self): return self
-        def __exit__(self, *a): return None
+        def __init__(self, value):
+            self._v = value
+
+        def execute(self, *a, **kw):
+            pass
+
+        def fetchone(self):
+            return (self._v,)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return None
 
     class _Conn:
-        def __init__(self, value): self._v = value
-        def cursor(self): return _Cursor(self._v)
-        def close(self): pass
-        def __enter__(self): return self
-        def __exit__(self, *a): return None
+        def __init__(self, value):
+            self._v = value
+
+        def cursor(self):
+            return _Cursor(self._v)
+
+        def close(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return None
 
     class _PG:
-        def __init__(self, val): self.val = val
-        def connect(self, *a, **kw): return _Conn(self.val)
+        def __init__(self, val):
+            self.val = val
+
+        def connect(self, *a, **kw):
+            return _Conn(self.val)
 
     import sys
 
@@ -133,8 +154,12 @@ async def test_per_key_spend_aggregates_and_maps_clients(
             }
 
     class _Client:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return None
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
         async def get(self, url, **kw):  # noqa: ANN001
             return _Resp()
 
@@ -162,12 +187,18 @@ async def test_per_key_spend_gateway_5xx_inert(monkeypatch: pytest.MonkeyPatch) 
     class _Resp:
         status_code = 503
 
-        def json(self) -> dict: return {}
+        def json(self) -> dict:
+            return {}
 
     class _Client:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return None
-        async def get(self, *a, **kw): return _Resp()
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
+        async def get(self, *a, **kw):
+            return _Resp()
 
     import httpx as _httpx
 
@@ -195,15 +226,22 @@ async def test_margin_alerts_flags_negative_margin(
         status_code = 200
 
         def json(self) -> dict[str, Any]:
-            return {"data": [
-                {"key": "sk-aaa", "spend": 5.0, "call_count": 50},
-                {"key": "sk-bbb", "spend": 1.0, "call_count": 10},
-            ]}
+            return {
+                "data": [
+                    {"key": "sk-aaa", "spend": 5.0, "call_count": 50},
+                    {"key": "sk-bbb", "spend": 1.0, "call_count": 10},
+                ]
+            }
 
     class _Client:
-        async def __aenter__(self): return self
-        async def __aexit__(self, *a): return None
-        async def get(self, *a, **kw): return _Resp()
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
+        async def get(self, *a, **kw):
+            return _Resp()
 
     import httpx as _httpx
 

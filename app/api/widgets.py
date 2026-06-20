@@ -87,7 +87,9 @@ async def popup_js(slug: str = Query("", max_length=64)):
 
 
 @router.get("/popup-config")
-async def popup_config_get(slug: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)):
+async def popup_config_get(
+    slug: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)
+):
     """Effective popup-pack config (admin)."""
     from app.marketing import popup_widgets
 
@@ -120,7 +122,9 @@ async def popup_wheel_coupons(body: WheelCouponsIn, _user=Depends(require_admin)
 
 
 @router.get("/popup-snippet")
-async def popup_snippet(slug: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)):
+async def popup_snippet(
+    slug: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)
+):
     """Client ko dene ka copy-paste one-liner (admin)."""
     from app.marketing import popup_widgets
 
@@ -139,7 +143,9 @@ class BioConfigIn(BaseModel):
 
 
 @router.get("/bio-config")
-async def bio_config_get(slug: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)):
+async def bio_config_get(
+    slug: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)
+):
     """Saved bio-link config + page URL (admin)."""
     from app.marketing import bio_link
     from app.marketing.embed_widget import site_base
@@ -185,7 +191,9 @@ async def bio_click(slug: str, block_id: str, request: Request):
 
 
 @router.get("/bio-stats")
-async def bio_stats(slug: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)):
+async def bio_stats(
+    slug: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)
+):
     """Bio-link clicks per block (admin)."""
     from app.marketing import bio_link
 
@@ -253,7 +261,9 @@ async def site_stats(
 
 
 @router.get("/beacon-snippet")
-async def beacon_snippet(slug: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)):
+async def beacon_snippet(
+    slug: str = Query(..., min_length=1, max_length=64), _user=Depends(require_admin)
+):
     """Beacon ka copy-paste one-liner (admin)."""
     from app.platform import site_beacon
 

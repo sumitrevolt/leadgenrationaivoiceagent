@@ -42,7 +42,9 @@ def _is_secret() -> bool:
     return _api_key().startswith("sk_")
 
 
-def image_url(prompt: str, width: int = 1024, height: int = 1024, seed: int | None = None, model: str = "flux") -> str:
+def image_url(
+    prompt: str, width: int = 1024, height: int = 1024, seed: int | None = None, model: str = "flux"
+) -> str:
     """Direct Pollinations image URL. sk_ key NEVER embedded (sirf pk_). Never raises."""
     try:
         p = urllib.parse.quote((prompt or "marketing poster").strip()[:480], safe="")
@@ -73,7 +75,12 @@ def video_url(prompt: str, model: str = "wan-fast", duration: int = 4) -> str:
 def proxy_path(prompt: str, width: int = 1024, height: int = 1024, seed: int | None = None) -> str:
     """Hamare server ka proxy URL (sk_ key server-side header me lagti hai)."""
     q = urllib.parse.urlencode(
-        {"prompt": (prompt or "")[:480], "w": int(width), "h": int(height), **({"seed": int(seed)} if seed is not None else {})}
+        {
+            "prompt": (prompt or "")[:480],
+            "w": int(width),
+            "h": int(height),
+            **({"seed": int(seed)} if seed is not None else {}),
+        }
     )
     return f"/api/marketing/ai-image-proxy?{q}"
 
@@ -148,14 +155,18 @@ async def upload_media(data: bytes, filename: str = "photo.jpg") -> str | None:
             )
         if r.status_code == 200:
             j = r.json()
-            return j.get("url") or (f"https://media.pollinations.ai/{j['hash']}" if j.get("hash") else None)
+            return j.get("url") or (
+                f"https://media.pollinations.ai/{j['hash']}" if j.get("hash") else None
+            )
         logger.warning(f"media upload {r.status_code}: {r.text[:120]}")
     except Exception as e:
         logger.warning(f"media upload failed: {e}")
     return None
 
 
-async def edit_image_bytes(prompt: str, photo: bytes, model: str = "kontext", width: int = 1024, height: int = 1024) -> tuple[bytes | None, str]:
+async def edit_image_bytes(
+    prompt: str, photo: bytes, model: str = "kontext", width: int = 1024, height: int = 1024
+) -> tuple[bytes | None, str]:
     """Photo→poster (image-to-image): user photo upload → AI edit. Returns (bytes|None, cache_name)."""
     img_url = await upload_media(photo)
     if not img_url:
@@ -169,7 +180,9 @@ async def edit_image_bytes(prompt: str, photo: bytes, model: str = "kontext", wi
                 return f.read(), os.path.basename(path)
         import httpx
 
-        p = urllib.parse.quote((prompt or "make this a professional marketing poster").strip()[:400], safe="")
+        p = urllib.parse.quote(
+            (prompt or "make this a professional marketing poster").strip()[:400], safe=""
+        )
         url = f"{_BASE}{p}?model={model}&width={int(width)}&height={int(height)}&nologo=true&image={urllib.parse.quote(img_url, safe='')}"
         async with httpx.AsyncClient(timeout=60) as cx:
             r = await cx.get(url, headers={"Authorization": f"Bearer {key}"}, follow_redirects=True)
@@ -204,7 +217,9 @@ def _template_prompt(business: str, niche: str, occasion: str, offer: str, style
     bits.append(f"for a {niche.replace('_', ' ')} business '{business}' in India")
     if offer:
         bits.append(f"highlighting the offer: {offer}")
-    bits.append("vibrant colors, professional, high quality, clean space for text, Indian festive aesthetic")
+    bits.append(
+        "vibrant colors, professional, high quality, clean space for text, Indian festive aesthetic"
+    )
     return ", ".join(bits)
 
 
@@ -216,7 +231,12 @@ async def _craft_prompt(business: str, niche: str, occasion: str, offer: str, st
             system="Tu ek pro graphic designer hai. Diye gaye business ke liye ek vivid ENGLISH "
             "image-generation prompt likh (max 40 words) jo ek attractive marketing poster banaye. "
             "Sirf prompt de, aur kuch nahi (no quotes).",
-            messages=[{"role": "user", "content": f"Business: {business}\nNiche: {niche}\nOccasion: {occasion or 'general'}\nOffer: {offer or 'none'}\nStyle: {style}"}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"Business: {business}\nNiche: {niche}\nOccasion: {occasion or 'general'}\nOffer: {offer or 'none'}\nStyle: {style}",
+                }
+            ],
             max_tokens=70,
             temperature=0.7,
         )
@@ -240,7 +260,9 @@ async def marketing_image(
     """Craft prompt + ready image URL. sk_ key → proxy URL (key-safe). Never raises."""
     business_name = (business_name or "Aapka Business").strip()
     niche = (niche or "general").strip()
-    prompt = await _craft_prompt(business_name, niche, (occasion or "").strip(), (offer or "").strip(), style)
+    prompt = await _craft_prompt(
+        business_name, niche, (occasion or "").strip(), (offer or "").strip(), style
+    )
     url = proxy_path(prompt, width, height) if _is_secret() else image_url(prompt, width, height)
     return {
         "url": url,
@@ -263,4 +285,12 @@ def logo_url(business_name: str, niche: str = "general", style: str = "modern mi
     return image_url(prompt, width=512, height=512)
 
 
-__all__ = ["image_url", "video_url", "marketing_image", "logo_url", "fetch_image_bytes", "proxy_path", "has_key"]
+__all__ = [
+    "image_url",
+    "video_url",
+    "marketing_image",
+    "logo_url",
+    "fetch_image_bytes",
+    "proxy_path",
+    "has_key",
+]

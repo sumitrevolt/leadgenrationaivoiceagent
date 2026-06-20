@@ -91,8 +91,10 @@ def generate(
         e = _html.escape
         rows: list[str] = []
         name_line = e(owner) if owner else e(biz)
-        sub_line = f"{e(biz)}" + (f" · {e(niche.title())}" if niche else "") if owner else (
-            e(niche.title()) if niche else ""
+        sub_line = (
+            f"{e(biz)}" + (f" · {e(niche.title())}" if niche else "")
+            if owner
+            else (e(niche.title()) if niche else "")
         )
         rows.append(
             f"<div style='font-weight:bold;font-size:15px;color:{e(primary)};'>{name_line}</div>"
@@ -114,7 +116,9 @@ def generate(
             )
         if links:
             rows.append(
-                "<div style='margin-top:4px;font-size:13px;'>" + " &nbsp;|&nbsp; ".join(links) + "</div>"
+                "<div style='margin-top:4px;font-size:13px;'>"
+                + " &nbsp;|&nbsp; ".join(links)
+                + "</div>"
             )
         if banner:
             banner_link = minisite or (_SITE_URL + "?" + _UTM)

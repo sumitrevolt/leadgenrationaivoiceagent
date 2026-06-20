@@ -22,7 +22,9 @@ class FakeBackend:
         return [0.1, 0.2, 0.3]
 
     def search(self, vec, subject: str, limit: int):
-        return [{"fact": f, "score": self.score, "ts": 0.0} for f in self.store.get(subject, [])[:limit]]
+        return [
+            {"fact": f, "score": self.score, "ts": 0.0} for f in self.store.get(subject, [])[:limit]
+        ]
 
     def upsert(self, vec, subject: str, fact: str, ts: float):
         self.store.setdefault(subject, []).append(fact)
@@ -57,7 +59,7 @@ async def test_remember_then_recall(monkeypatch):
     be = FakeBackend()
 
     res = await am.remember("lead9", [{"role": "user", "content": "..."}], backend=be)
-    assert res["stored"] == 2                      # accurate count (real successes)
+    assert res["stored"] == 2  # accurate count (real successes)
 
     facts = await am.recall("lead9", "what is the budget", backend=be)
     assert "budget ~50k" in facts
@@ -78,7 +80,7 @@ async def test_min_similarity_filter(monkeypatch):
     """Score below AGENT_MEMORY_MIN_SIM => fact dropped."""
     monkeypatch.setenv("AGENT_MEMORY", "1")
     monkeypatch.setenv("AGENT_MEMORY_MIN_SIM", "0.9")
-    be = FakeBackend(score=0.5)                     # below 0.9 threshold
+    be = FakeBackend(score=0.5)  # below 0.9 threshold
     be.store["lead:lead7"] = ["irrelevant fact"]
     assert await am.recall("lead7", "q", backend=be) == []
 
@@ -91,7 +93,7 @@ async def test_recall_fail_open_on_backend_error(monkeypatch):
         def embed(self, text):
             raise RuntimeError("backend down")
 
-    assert await am.recall("lead1", "q", backend=Boom()) == []   # never raises
+    assert await am.recall("lead1", "q", backend=Boom()) == []  # never raises
 
 
 @pytest.mark.asyncio

@@ -116,7 +116,9 @@ async def send_one(phone: str, message: str) -> dict:
         out["sent"] = ok
         out["mode"] = "cloud_api"
         if not ok:
-            _record_failure(phone, str((res or {}).get("error") if isinstance(res, dict) else "send_failed"))
+            _record_failure(
+                phone, str((res or {}).get("error") if isinstance(res, dict) else "send_failed")
+            )
     except Exception as e:
         logger.warning(f"whatsapp auto-send failed ({e}); falling back to 1-click link.")
         out["mode"] = "link_error"
@@ -174,7 +176,9 @@ async def send_template(
             except Exception:
                 pass
         if not ok:
-            _record_failure(phone, str((res or {}).get("error") if isinstance(res, dict) else "send_failed"))
+            _record_failure(
+                phone, str((res or {}).get("error") if isinstance(res, dict) else "send_failed")
+            )
     except Exception as e:
         logger.warning(f"whatsapp template send failed ({e}); falling back to 1-click link.")
         out["mode"] = "link_error"
@@ -215,7 +219,9 @@ async def send_campaign(items: list[dict], delay_s: float | None = None) -> dict
     for i, it in enumerate(items):
         if live and sent_today >= cap:
             res["skipped"] += 1
-            res["items"].append({"phone": str(it.get("phone", "")), "sent": False, "mode": "daily_cap"})
+            res["items"].append(
+                {"phone": str(it.get("phone", "")), "sent": False, "mode": "daily_cap"}
+            )
             continue
         r = await send_one(str(it.get("phone", "")), str(it.get("message", "")))
         res["items"].append(r)
@@ -231,7 +237,8 @@ async def send_campaign(items: list[dict], delay_s: float | None = None) -> dict
             await asyncio.sleep(delay)  # spacing = ban-safety
     if not auto_send_enabled():
         logger.info(
-            "whatsapp_campaign: WHATSAPP_AUTO_SEND off -> %d 1-click links (ban-safe).", res["links"]
+            "whatsapp_campaign: WHATSAPP_AUTO_SEND off -> %d 1-click links (ban-safe).",
+            res["links"],
         )
     return res
 

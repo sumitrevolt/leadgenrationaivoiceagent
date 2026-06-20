@@ -29,8 +29,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
-from app.api.ratelimit import rate_limit
 from app.api.auth_deps import require_admin
+from app.api.ratelimit import rate_limit
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -40,6 +40,7 @@ router = APIRouter(prefix="/niche", tags=["Niche Database"])
 # ---------------------------------------------------------------------------
 # Request / Response models
 # ---------------------------------------------------------------------------
+
 
 class ProspectIn(BaseModel):
     phone: str = Field(..., description="Phone number (E.164 ya 10-digit)")
@@ -63,7 +64,9 @@ class BulkImportIn(BaseModel):
 
 
 class PostCallUpdateIn(BaseModel):
-    outcome: str = Field(..., description="qualified | callback | not_interested | wrong_number | dnd | voicemail")
+    outcome: str = Field(
+        ..., description="qualified | callback | not_interested | wrong_number | dnd | voicemail"
+    )
     notes: str = Field("", description="Agent notes from call")
     niche_data: dict = Field(default_factory=dict, description="Collected qualification data")
     callback_hours: int = Field(24, description="Hours until callback (outcome=callback pe)")
@@ -72,6 +75,7 @@ class PostCallUpdateIn(BaseModel):
 # ---------------------------------------------------------------------------
 # GET /niche/schema/{niche_key} — niche call schema (public, rate-limited)
 # ---------------------------------------------------------------------------
+
 
 @router.get("/schema/{niche_key}", summary="Get niche call schema")
 async def get_niche_schema(
@@ -82,6 +86,7 @@ async def get_niche_schema(
     """AI agent ko call se pehle kya context chahiye — per-niche field definitions."""
     try:
         from app.platform.niche_database import get_niche_schema
+
         return {"ok": True, "schema": get_niche_schema(niche_key)}
     except Exception as e:
         logger.warning(f"get_niche_schema error: {e}")
@@ -97,6 +102,7 @@ async def all_niche_schemas(
     """Saare voice niches ke schemas ek saath."""
     try:
         from app.platform.niche_database import NICHE_CALL_SCHEMA, get_niche_schema
+
         return {
             "ok": True,
             "schemas": {k: get_niche_schema(k) for k in NICHE_CALL_SCHEMA},
@@ -110,6 +116,7 @@ async def all_niche_schemas(
 # POST /niche/prospects — add single prospect
 # ---------------------------------------------------------------------------
 
+
 @router.post("/prospects", summary="Add single prospect")
 async def add_prospect(
     body: ProspectIn,
@@ -120,6 +127,7 @@ async def add_prospect(
     """Single prospect add karo prospect database me."""
     try:
         from app.platform.niche_database import bulk_import
+
         row = {
             "phone": body.phone,
             "company": body.company_name,
@@ -139,6 +147,7 @@ async def add_prospect(
 # ---------------------------------------------------------------------------
 # POST /niche/prospects/bulk — bulk import
 # ---------------------------------------------------------------------------
+
 
 @router.post("/prospects/bulk", summary="Bulk import prospects")
 async def bulk_import_prospects(
@@ -175,6 +184,7 @@ async def bulk_import_prospects(
 # GET /niche/prospects — list with filters
 # ---------------------------------------------------------------------------
 
+
 @router.get("/prospects", summary="List prospects")
 async def list_prospects(
     request: Request,
@@ -191,9 +201,10 @@ async def list_prospects(
 ):
     """Prospects list karo — niche/status/city/score filters ke saath."""
     try:
+        from sqlalchemy import and_, select
+
         from app.models.base import get_async_session
         from app.models.lead import Lead, LeadStatus
-        from sqlalchemy import and_, select
 
         filters = [Lead.assigned_to == client_id]
         if niche:
@@ -228,26 +239,40 @@ async def list_prospects(
             items = []
             for lead in rows:
                 try:
-                    qd = json.loads(lead.qualification_data or "{}") if lead.qualification_data else {}
+                    qd = (
+                        json.loads(lead.qualification_data or "{}")
+                        if lead.qualification_data
+                        else {}
+                    )
                 except Exception:
                     qd = {}
-                items.append({
-                    "id": lead.id,
-                    "company_name": lead.company_name,
-                    "contact_name": lead.contact_name,
-                    "phone": lead.phone,
-                    "email": lead.email,
-                    "city": lead.city,
-                    "niche": lead.niche,
-                    "status": lead.status.value if lead.status else None,
-                    "lead_score": lead.lead_score,
-                    "is_hot_lead": lead.is_hot_lead,
-                    "call_attempts": lead.call_attempts,
-                    "last_called_at": lead.last_called_at.isoformat() if lead.last_called_at else None,
-                    "next_call_at": lead.next_call_at.isoformat() if lead.next_call_at else None,
-                    "qualification_data": qd,
-                    "created_at": lead.created_at.isoformat() if hasattr(lead, "created_at") and lead.created_at else None,
-                })
+                items.append(
+                    {
+                        "id": lead.id,
+                        "company_name": lead.company_name,
+                        "contact_name": lead.contact_name,
+                        "phone": lead.phone,
+                        "email": lead.email,
+                        "city": lead.city,
+                        "niche": lead.niche,
+                        "status": lead.status.value if lead.status else None,
+                        "lead_score": lead.lead_score,
+                        "is_hot_lead": lead.is_hot_lead,
+                        "call_attempts": lead.call_attempts,
+                        "last_called_at": (
+                            lead.last_called_at.isoformat() if lead.last_called_at else None
+                        ),
+                        "next_call_at": (
+                            lead.next_call_at.isoformat() if lead.next_call_at else None
+                        ),
+                        "qualification_data": qd,
+                        "created_at": (
+                            lead.created_at.isoformat()
+                            if hasattr(lead, "created_at") and lead.created_at
+                            else None
+                        ),
+                    }
+                )
 
         return {
             "ok": True,
@@ -265,6 +290,7 @@ async def list_prospects(
 # GET /niche/prospects/next-to-call — call queue
 # ---------------------------------------------------------------------------
 
+
 @router.get("/prospects/next-to-call", summary="Next prospects to call")
 async def next_to_call(
     request: Request,
@@ -277,6 +303,7 @@ async def next_to_call(
     """AI dialer ke liye next-to-call queue — priority ordered (callbacks first, hot leads, new, retry)."""
     try:
         from app.platform.niche_database import call_queue_next
+
         items = await call_queue_next(client_id, niche, limit)
         return {"ok": True, "total": len(items), "items": items, "niche": niche}
     except Exception as e:
@@ -287,6 +314,7 @@ async def next_to_call(
 # ---------------------------------------------------------------------------
 # PATCH /niche/prospects/{id} — post-call update
 # ---------------------------------------------------------------------------
+
 
 @router.patch("/prospects/{lead_id}", summary="Post-call update")
 async def post_call_update(
@@ -308,6 +336,7 @@ async def post_call_update(
     """
     try:
         from app.platform.niche_database import update_after_call
+
         result = await update_after_call(
             lead_id=lead_id,
             outcome=body.outcome,
@@ -325,6 +354,7 @@ async def post_call_update(
 # GET /niche/stats — prospects count by niche + status
 # ---------------------------------------------------------------------------
 
+
 @router.get("/stats", summary="Niche prospects stats")
 async def niche_stats(
     request: Request,
@@ -336,6 +366,7 @@ async def niche_stats(
     """Per-niche prospect counts, status breakdown, avg score, callable count."""
     try:
         from app.platform.niche_database import niche_stats as _stats
+
         return await _stats(client_id, niche)
     except Exception as e:
         return {"ok": False, "error": str(e)}
@@ -344,6 +375,7 @@ async def niche_stats(
 # ---------------------------------------------------------------------------
 # GET /niche/voice-niches — list all voice niches with schema summary
 # ---------------------------------------------------------------------------
+
 
 @router.get("/voice-niches", summary="All voice niches list")
 async def voice_niches_list(
@@ -360,19 +392,21 @@ async def voice_niches_list(
         for k in sorted(voice_keys):
             n = NICHES[k]
             schema = NICHE_CALL_SCHEMA.get(k, {})
-            result.append({
-                "key": k,
-                "display": schema.get("display") or n.get("name", k),
-                "tier": n.get("tier", "B"),
-                "band": n.get("lead_band", "A"),
-                "category": n.get("category", "voice"),
-                "pitch_hook": n.get("pitch_hook", ""),
-                "avg_deal_value": n.get("avg_deal_value", 0),
-                "qualification_questions": n.get("qualification_questions", []),
-                "collect_during_fields": len(schema.get("collect_during", [])),
-                "pre_call_fields": len(schema.get("pre_call_fields", [])),
-                "has_schema": k in NICHE_CALL_SCHEMA,
-            })
+            result.append(
+                {
+                    "key": k,
+                    "display": schema.get("display") or n.get("name", k),
+                    "tier": n.get("tier", "B"),
+                    "band": n.get("lead_band", "A"),
+                    "category": n.get("category", "voice"),
+                    "pitch_hook": n.get("pitch_hook", ""),
+                    "avg_deal_value": n.get("avg_deal_value", 0),
+                    "qualification_questions": n.get("qualification_questions", []),
+                    "collect_during_fields": len(schema.get("collect_during", [])),
+                    "pre_call_fields": len(schema.get("pre_call_fields", [])),
+                    "has_schema": k in NICHE_CALL_SCHEMA,
+                }
+            )
 
         result.sort(key=lambda x: (x["tier"], x["key"]))
         return {"ok": True, "niches": result, "total": len(result)}
@@ -383,6 +417,7 @@ async def voice_niches_list(
 # ---------------------------------------------------------------------------
 # POST /niche/queue-call — niche DB prospects ko Exotel call queue me push karo
 # ---------------------------------------------------------------------------
+
 
 class QueueCallIn(BaseModel):
     client_id: str = Field(..., description="Client ID")
@@ -414,6 +449,7 @@ async def queue_call_batch(
 
     try:
         from app.platform.niche_database import call_queue_next
+
         prospects = await call_queue_next(body.client_id, body.niche, body.limit)
     except Exception as e:
         return {"ok": False, "error": f"call_queue_next failed: {e}"}
@@ -423,6 +459,7 @@ async def queue_call_batch(
 
     try:
         from app.telephony.call_manager import CallManager, CallRequest
+
         cm = CallManager()
     except Exception as e:
         return {"ok": False, "error": f"CallManager init failed: {e}"}

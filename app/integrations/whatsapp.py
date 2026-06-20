@@ -37,9 +37,7 @@ def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool
     ``True`` so local/dev still works — production MUST set the secret. Never raises.
     """
     secret = (
-        os.getenv("WHATSAPP_APP_SECRET", "")
-        or getattr(settings, "whatsapp_app_secret", "")
-        or ""
+        os.getenv("WHATSAPP_APP_SECRET", "") or getattr(settings, "whatsapp_app_secret", "") or ""
     ).strip()
     if not secret:
         # Fail-CLOSED in production: an unverified opt-out/inbound webhook could suppress
@@ -247,7 +245,11 @@ class WhatsAppIntegration:
                 except Exception:
                     pass
                 logger.error(f"WhatsApp API error: {body}")
-                return {"error": "http_error", "status": getattr(e.response, "status_code", 0), "detail": body[:500]}
+                return {
+                    "error": "http_error",
+                    "status": getattr(e.response, "status_code", 0),
+                    "detail": body[:500],
+                }
             except Exception as e:
                 logger.error(f"WhatsApp error: {e}")
                 return {"error": "request_failed", "detail": str(e)[:300]}

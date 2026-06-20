@@ -50,7 +50,9 @@ def test_automation_health_heartbeat_and_overdue(tmp_path, monkeypatch):
     import json
 
     beats = json.load(open(ah._BEATS, encoding="utf-8"))
-    beats["growth"]["at"] = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat(timespec="seconds")
+    beats["growth"]["at"] = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat(
+        timespec="seconds"
+    )
     json.dump(beats, open(ah._BEATS, "w", encoding="utf-8"))
     h2 = ah.health()
     assert "growth" in h2["overdue"] and h2["status"] == "degraded"

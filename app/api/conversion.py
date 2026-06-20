@@ -91,16 +91,42 @@ def _log_chat(slug: str, session_id: str, role: str, text: str, **extra: Any) ->
 # Field-alias map (lowercased key → canonical) — Zapier/Pabbly/IndiaMART/JustDial sab
 # alag naam bhejte hain.
 _ALIASES: dict[str, str] = {
-    "name": "name", "full_name": "name", "fullname": "name", "contact_name": "name",
-    "your name": "name", "lead_name": "name", "sender_name": "name",
-    "phone": "phone", "mobile": "phone", "phone_number": "phone", "mobile_number": "phone",
-    "contact": "phone", "contact_number": "phone", "whatsapp": "phone", "sender_mobile": "phone",
-    "email": "email", "work_email": "email", "email_address": "email", "sender_email": "email",
-    "city": "city", "location": "city", "sender_city": "city",
-    "source": "source", "platform": "source", "lead_source": "source",
-    "message": "message", "notes": "message", "note": "message", "comments": "message",
-    "query": "message", "enquiry": "message", "inquiry": "message", "requirement": "message",
-    "business": "business_name", "business_name": "business_name", "company": "business_name",
+    "name": "name",
+    "full_name": "name",
+    "fullname": "name",
+    "contact_name": "name",
+    "your name": "name",
+    "lead_name": "name",
+    "sender_name": "name",
+    "phone": "phone",
+    "mobile": "phone",
+    "phone_number": "phone",
+    "mobile_number": "phone",
+    "contact": "phone",
+    "contact_number": "phone",
+    "whatsapp": "phone",
+    "sender_mobile": "phone",
+    "email": "email",
+    "work_email": "email",
+    "email_address": "email",
+    "sender_email": "email",
+    "city": "city",
+    "location": "city",
+    "sender_city": "city",
+    "source": "source",
+    "platform": "source",
+    "lead_source": "source",
+    "message": "message",
+    "notes": "message",
+    "note": "message",
+    "comments": "message",
+    "query": "message",
+    "enquiry": "message",
+    "inquiry": "message",
+    "requirement": "message",
+    "business": "business_name",
+    "business_name": "business_name",
+    "company": "business_name",
     "company_name": "business_name",
 }
 
@@ -156,7 +182,9 @@ def map_lead_fields(payload: Any) -> dict[str, str]:
 
         if extras:
             joined = " | ".join(extras)[:800]
-            out["message"] = (out.get("message", "") + ("\n" if out.get("message") else "") + joined).strip()
+            out["message"] = (
+                out.get("message", "") + ("\n" if out.get("message") else "") + joined
+            ).strip()
     except Exception as e:
         logger.debug(f"[conversion] map_lead_fields err: {e}")
     return out
@@ -321,8 +349,12 @@ async def lead_in(request: Request, key: str = ""):
 
     # 4) Dedupe by phone
     if _inquiry_phone_exists(phone):
-        return {"ok": True, "deduped": True, "lead_id": None,
-                "message": "Yeh phone already lead-list me hai (duplicate skip)."}
+        return {
+            "ok": True,
+            "deduped": True,
+            "lead_id": None,
+            "message": "Yeh phone already lead-list me hai (duplicate skip).",
+        }
 
     # 5) Client resolve (business/niche/city auto-fill) + inquiry create
     client: dict[str, Any] = {}
@@ -336,7 +368,9 @@ async def lead_in(request: Request, key: str = ""):
     lead_id = await _create_inquiry(
         {
             "name": (mapped.get("name") or "Webhook Lead")[:120],
-            "business_name": (mapped.get("business_name") or client.get("business_name") or "Unknown")[:200],
+            "business_name": (
+                mapped.get("business_name") or client.get("business_name") or "Unknown"
+            )[:200],
             "phone": phone,
             "email": (mapped.get("email") or None),
             "niche": client.get("niche"),

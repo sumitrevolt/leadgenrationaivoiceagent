@@ -69,14 +69,22 @@ def test_wheel_segments_clamped(stores):
     assert len(r["config"]["wheel"]["segments"]) == 6  # max 6
     assert r["config"]["wheel"]["enabled"] is True
     # <2 segments = wheel render-disable
-    r2 = popup_widgets.save_config("sharma-solar", {"wheel": {"enabled": True, "segments": segs[:1]}})
+    r2 = popup_widgets.save_config(
+        "sharma-solar", {"wheel": {"enabled": True, "segments": segs[:1]}}
+    )
     assert r2["config"]["wheel"]["enabled"] is False
 
 
 def test_render_js_escapes_and_embed_contract(stores):
     popup_widgets.save_config(
         "sharma-solar",
-        {"popup": {"enabled": True, "title": '</script><img src=x onerror="x">', "body": 'He said "hi"'}},
+        {
+            "popup": {
+                "enabled": True,
+                "title": '</script><img src=x onerror="x">',
+                "body": 'He said "hi"',
+            }
+        },
     )
     js = popup_widgets.render_js("sharma-solar")
     # user text json-escaped — raw </script> breakout kabhi nahi
@@ -101,7 +109,9 @@ def test_snippet_and_wheel_coupons_reuse_loyalty(stores):
     snip = popup_widgets.snippet("sharma-solar")
     assert "/api/widgets/popup.js?slug=sharma-solar" in snip
     res = popup_widgets.create_wheel_coupons(
-        "c-test-1", "sharma-solar", [{"title": "Solar 20", "value": 20}, {"title": "Free Visit", "kind": "freebie"}]
+        "c-test-1",
+        "sharma-solar",
+        [{"title": "Solar 20", "value": 20}, {"title": "Free Visit", "kind": "freebie"}],
     )
     assert res["ok"] is True
     codes = [s["coupon_code"] for s in res["segments"]]
@@ -174,8 +184,8 @@ def test_bio_clicks_logged_and_stats(stores):
 def test_render_bio_html_escapes_and_tracking(stores):
     bio_link.save_bio(
         "sharma-solar",
-        [{"id": "wa", "type": "whatsapp", "label": '<script>alert(1)</script>'}],
-        title='Sharma & Sons <b>',
+        [{"id": "wa", "type": "whatsapp", "label": "<script>alert(1)</script>"}],
+        title="Sharma & Sons <b>",
     )
     res = bio_link.render_bio_html("sharma-solar")
     assert res["ok"] is True
@@ -203,7 +213,13 @@ def test_render_bio_html_escapes_and_tracking(stores):
 # -------------------------------- site_beacon ------------------------------ #
 def test_beacon_record_coarse_privacy(stores):
     r = site_beacon.record_event(
-        {"slug": "sharma-solar", "type": "pageview", "path": "/", "ref": "https://instagram.com/x", "source": ""},
+        {
+            "slug": "sharma-solar",
+            "type": "pageview",
+            "path": "/",
+            "ref": "https://instagram.com/x",
+            "source": "",
+        },
         ip="103.21.45.67",
         ua="Mozilla/5.0 Test",
     )
@@ -220,13 +236,25 @@ def test_beacon_record_coarse_privacy(stores):
 def test_beacon_stats_and_summary(stores):
     for i in range(4):
         site_beacon.record_event(
-            {"slug": "sharma-solar", "type": "pageview", "path": "/" if i < 3 else "/pricing",
-             "ref": "https://www.instagram.com/p/x", "source": "instagram" if i == 0 else ""},
-            ip=f"1.2.3.{i}", ua=f"UA-{i}",
+            {
+                "slug": "sharma-solar",
+                "type": "pageview",
+                "path": "/" if i < 3 else "/pricing",
+                "ref": "https://www.instagram.com/p/x",
+                "source": "instagram" if i == 0 else "",
+            },
+            ip=f"1.2.3.{i}",
+            ua=f"UA-{i}",
         )
-    site_beacon.record_event({"slug": "sharma-solar", "type": "click", "kind": "wa"}, ip="1.2.3.1", ua="UA-1")
-    site_beacon.record_event({"slug": "sharma-solar", "type": "click", "kind": "tel"}, ip="1.2.3.1", ua="UA-1")
-    site_beacon.record_event({"slug": "sharma-solar", "type": "click", "kind": "track", "name": "cta_hero"})
+    site_beacon.record_event(
+        {"slug": "sharma-solar", "type": "click", "kind": "wa"}, ip="1.2.3.1", ua="UA-1"
+    )
+    site_beacon.record_event(
+        {"slug": "sharma-solar", "type": "click", "kind": "tel"}, ip="1.2.3.1", ua="UA-1"
+    )
+    site_beacon.record_event(
+        {"slug": "sharma-solar", "type": "click", "kind": "track", "name": "cta_hero"}
+    )
     st = site_beacon.stats("sharma-solar", days=7)
     assert st["pageviews"] == 4
     assert st["visitors"] == 4  # 4 alag (ip,ua) same day... approx unique
@@ -244,7 +272,9 @@ def test_beacon_trim(stores, monkeypatch):
     monkeypatch.setattr(site_beacon, "_TRIM_EVERY", 1)
     for i in range(9):
         site_beacon.record_event({"slug": "sharma-solar", "type": "pageview", "path": f"/p{i}"})
-    lines = [x for x in open(site_beacon._EVENTS_FILE, encoding="utf-8").read().splitlines() if x.strip()]
+    lines = [
+        x for x in open(site_beacon._EVENTS_FILE, encoding="utf-8").read().splitlines() if x.strip()
+    ]
     assert len(lines) <= 5
     assert json.loads(lines[-1])["path"] == "/p8"  # newest kept
 

@@ -45,6 +45,7 @@ async def test_semcache_wrapper_invoked_and_falls_through_when_off(monkeypatch):
 
     monkeypatch.setattr(seo_blog.free_ai, "chat", fake_chat)
     import app.cache.semantic_cache as sc
+
     monkeypatch.setattr(sc, "semantic_complete", fake_semantic_complete)
 
     art = await seo_blog.generate_article("salon_spa", "Pune", "test topic")
@@ -78,6 +79,7 @@ async def test_semcache_hit_sets_llm_cache_provider(monkeypatch):
 
     monkeypatch.setattr(seo_blog.free_ai, "chat", fake_chat)
     import app.cache.semantic_cache as sc
+
     monkeypatch.setattr(sc, "semantic_complete", fake_semantic_complete)
 
     art = await seo_blog.generate_article("salon_spa", "Pune", "test topic")

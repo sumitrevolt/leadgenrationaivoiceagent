@@ -94,9 +94,7 @@ def _get_async_engine():
                 # contention/queueing deta tha (audit P1-2). recycle = PgBouncer/PG
                 # idle-close se aayi stale conn pre-empt; timeout = exhaust pe 30s
                 # hang ki jagah 10s me fail-fast (request stall na ho).
-                kwargs.update(
-                    pool_size=5, max_overflow=5, pool_recycle=1800, pool_timeout=10
-                )
+                kwargs.update(pool_size=5, max_overflow=5, pool_recycle=1800, pool_timeout=10)
 
             _async_engine = create_async_engine(url, **kwargs)
             _async_session = async_sessionmaker(

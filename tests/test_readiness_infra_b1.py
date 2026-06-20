@@ -1,4 +1,5 @@
 """B1 - revenue time-series snapshot store + /revenue-trend endpoint."""
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -18,6 +19,7 @@ def _admin_auth():
 
 def test_snapshot_roundtrip(tmp_path, monkeypatch):
     from app.platform import revenue_snapshots as rs
+
     f = tmp_path / "revenue_snapshots.jsonl"
     monkeypatch.setattr(rs, "_SNAP_FILE", str(f))
     rs._append_row({"date": "2026-06-19", "mrr": 1000, "active": 2, "churn_pct": 0.0, "ltv": 6000})
@@ -30,6 +32,7 @@ def test_snapshot_roundtrip(tmp_path, monkeypatch):
 
 def test_estimate_curve_from_clients(tmp_path, monkeypatch):
     from app.platform import revenue_snapshots as rs
+
     monkeypatch.setattr(rs, "_SNAP_FILE", str(tmp_path / "none.jsonl"))
     clients = [
         {"created_at": "2026-06-01", "plan_price_inr": 2999, "status": "active"},

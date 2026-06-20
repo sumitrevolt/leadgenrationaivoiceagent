@@ -56,9 +56,9 @@ STAFF_JOBS = (
     "evening_wrap",
     "weekly_marketing",
     "saturday_hygiene",
-    "meter_watch",        # SP1 billing meter-failure watcher (gated METER_ALERTS)
+    "meter_watch",  # SP1 billing meter-failure watcher (gated METER_ALERTS)
     "process_autostart",  # D V1.1 process-engine auto-start (gated PROCESS_AUTOSTART)
-    "revenue_snapshot",   # B1 daily MRR/churn snapshot (gated REVENUE_TRENDS)
+    "revenue_snapshot",  # B1 daily MRR/churn snapshot (gated REVENUE_TRENDS)
 )
 
 
@@ -79,9 +79,7 @@ def _run_async(coro):
             for t in pending:
                 t.cancel()
             if pending:
-                loop.run_until_complete(
-                    asyncio.gather(*pending, return_exceptions=True)
-                )
+                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
             loop.run_until_complete(loop.shutdown_asyncgens())
         except Exception:
             pass
@@ -130,7 +128,10 @@ def self_improve_tick(self):
             self_improve_tick.apply_async(countdown=gap)
     except Exception as e:
         logger.warning(f"[self-improve] requeue failed (watchdog revive karega): {e}")
-    return {"ok": bool(res.get("ok", res.get("enabled", False))), "action": res.get("action", res.get("skipped", ""))}
+    return {
+        "ok": bool(res.get("ok", res.get("enabled", False))),
+        "action": res.get("action", res.get("skipped", "")),
+    }
 
 
 @shared_task(
@@ -152,7 +153,10 @@ def process_tick(self, run_id: str):
         logger.warning(f"[process] tick failed {run_id}: {e}")
         return {"ok": False, "run_id": run_id, "error": str(e)[:150]}
     try:
-        if res.get("status") == "running" or res.get("note") == "step budget — tick continue karega":
+        if (
+            res.get("status") == "running"
+            or res.get("note") == "step budget — tick continue karega"
+        ):
             process_tick.apply_async(args=[run_id], countdown=10)
     except Exception:
         pass
@@ -194,9 +198,7 @@ def run_staff_job(self, job: str):
 
         if boot_grace.should_skip_boot_grace(job):
             delay = boot_grace.defer_seconds(job)
-            logger.info(
-                f"[staff_jobs] boot-grace skip job '{job}' — deferred retry in {delay}s"
-            )
+            logger.info(f"[staff_jobs] boot-grace skip job '{job}' — deferred retry in {delay}s")
             try:
                 run_staff_job.apply_async(args=[job], countdown=delay)
             except Exception as e:

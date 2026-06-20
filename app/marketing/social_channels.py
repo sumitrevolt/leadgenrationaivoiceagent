@@ -121,7 +121,14 @@ async def draft(
             text = out.strip()
     except Exception as e:
         logger.debug(f"[social] LLM skip ({ch}): {e}")
-    return {"ok": True, "channel": ch, "niche": niche, "city": city, "draft": text, "note": "ban-safe: manual 1-click post"}
+    return {
+        "ok": True,
+        "channel": ch,
+        "niche": niche,
+        "city": city,
+        "draft": text,
+        "note": "ban-safe: manual 1-click post",
+    }
 
 
 async def draft_batch(

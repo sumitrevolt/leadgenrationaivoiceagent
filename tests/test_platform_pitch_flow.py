@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.voice_agent.niche_scripts import get_script
 from app.voice_agent.platform_pitch import (
     PlatformPitchState,
     classify_interest,
@@ -10,7 +11,6 @@ from app.voice_agent.platform_pitch import (
     next_reply,
     opening_segments,
 )
-from app.voice_agent.niche_scripts import get_script
 
 
 def test_is_platform_pitch_only_ai_marketing():

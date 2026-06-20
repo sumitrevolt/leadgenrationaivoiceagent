@@ -70,13 +70,23 @@ def test_weakest_stage_rules():
 
     # leads theek, replies kam -> outreach_quality
     w = go.weakest_stage(
-        {"prospects": {"ready": 50, "replied": 0}, "emails": {"emailed": 100}, "inquiries": {"total": 20}, "seo_pages": 50}
+        {
+            "prospects": {"ready": 50, "replied": 0},
+            "emails": {"emailed": 100},
+            "inquiries": {"total": 20},
+            "seo_pages": 50,
+        }
     )
     assert w["stage"] == "outreach_quality"
 
     # inbound kamzor
     w = go.weakest_stage(
-        {"prospects": {"ready": 50, "replied": 5}, "emails": {"emailed": 50}, "inquiries": {"total": 2}, "seo_pages": 3}
+        {
+            "prospects": {"ready": 50, "replied": 5},
+            "emails": {"emailed": 50},
+            "inquiries": {"total": 2},
+            "seo_pages": 3,
+        }
     )
     assert w["stage"] == "inbound"
 
@@ -133,6 +143,7 @@ def test_suggest_new_ways_fallback(tmp_path, monkeypatch):
     assert len(ideas) == 5  # LLM fail -> static fallback, phir bhi 5 ideas
     # ideas _IDEAS ledger me persist hote hain (recent_ideas helper removed)
     import os
+
     assert os.path.isfile(go._IDEAS)
     with open(go._IDEAS, encoding="utf-8") as f:
         assert len([ln for ln in f if ln.strip()]) >= 1

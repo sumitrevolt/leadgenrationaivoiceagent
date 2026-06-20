@@ -81,7 +81,9 @@ class StorageClient:
                 endpoint_url=self._url,
                 aws_access_key_id=self._user,
                 aws_secret_access_key=self._pass,
-                config=Config(signature_version="s3v4", connect_timeout=3, retries={"max_attempts": 2}),
+                config=Config(
+                    signature_version="s3v4", connect_timeout=3, retries={"max_attempts": 2}
+                ),
             )
             _log.info("MinIO storage client initialized: %s", self._url)
         except Exception as e:
@@ -183,7 +185,9 @@ class StorageClient:
             return f"{self._public_url}/{self._bucket}/{key}"
         return f"/api/storage/file/{key}"  # local serve fallback
 
-    async def presigned_url(self, key: str, expires: int = 3600, private: bool = False) -> str | None:
+    async def presigned_url(
+        self, key: str, expires: int = 3600, private: bool = False
+    ) -> str | None:
         """Temporary presigned URL (private bucket or time-limited access)."""
         bucket = self._private_bucket if private else self._bucket
         s3 = await asyncio.to_thread(self._get_s3)

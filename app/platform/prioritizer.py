@@ -2,6 +2,7 @@
 MoSCoW prioritization engine for dashboard assessment backlog.
 Works on Gap and UXIssue objects produced by gap_analyzer / ux_evaluator.
 """
+
 from __future__ import annotations
 
 import math
@@ -25,7 +26,7 @@ _Item = Union[Gap, UXIssue]
 # ---------------------------------------------------------------------------
 # Effort → estimated days mapping
 # ---------------------------------------------------------------------------
-_EFFORT_DAYS: Dict[Effort, int] = {
+_EFFORT_DAYS: dict[Effort, int] = {
     Effort.LOW: 1,
     Effort.MEDIUM: 3,
     Effort.HIGH: 7,
@@ -34,9 +35,9 @@ _EFFORT_DAYS: Dict[Effort, int] = {
 # ---------------------------------------------------------------------------
 # Score maps used for priority rank
 # ---------------------------------------------------------------------------
-_IMPACT_MAP: Dict[str, int] = {"high": 10, "medium": 5, "low": 2}
-_EFFORT_MAP: Dict[str, int] = {"high": 8, "medium": 4, "low": 1}
-_MOSCOW_MAP: Dict[str, int] = {
+_IMPACT_MAP: dict[str, int] = {"high": 10, "medium": 5, "low": 2}
+_EFFORT_MAP: dict[str, int] = {"high": 8, "medium": 4, "low": 1}
+_MOSCOW_MAP: dict[str, int] = {
     "must_have": 100,
     "should_have": 50,
     "could_have": 20,
@@ -185,14 +186,14 @@ def _make_backlog_item(item: _Item) -> BacklogItem:
     return bi
 
 
-def build_backlog(gaps: List[Gap], ux_issues: List[UXIssue]) -> List[BacklogItem]:
+def build_backlog(gaps: list[Gap], ux_issues: list[UXIssue]) -> list[BacklogItem]:
     """
     Combine gaps + ux_issues into a ranked BacklogItem list.
 
     1. Convert each item to BacklogItem (MoSCoW + score computation).
     2. Sort descending by priority_rank.
     """
-    items: List[BacklogItem] = []
+    items: list[BacklogItem] = []
     for g in gaps:
         items.append(_make_backlog_item(g))
     for u in ux_issues:
@@ -202,7 +203,7 @@ def build_backlog(gaps: List[Gap], ux_issues: List[UXIssue]) -> List[BacklogItem
     return items
 
 
-def generate_roadmap(backlog: List[BacklogItem]) -> Dict:
+def generate_roadmap(backlog: list[BacklogItem]) -> dict:
     """
     Allocate backlog items to sprints:
 
@@ -218,10 +219,10 @@ def generate_roadmap(backlog: List[BacklogItem]) -> Dict:
     # WONT HAVE items are excluded from the roadmap
 
     # Sprint 2: fill up to 15 dev-days from should_have (already sorted by rank)
-    sprint2: List[BacklogItem] = []
+    sprint2: list[BacklogItem] = []
     sprint2_days = 0
     sprint2_cap = 15
-    remaining_should: List[BacklogItem] = []
+    remaining_should: list[BacklogItem] = []
     for item in should_have:
         if sprint2_days + item.estimated_days <= sprint2_cap:
             sprint2.append(item)

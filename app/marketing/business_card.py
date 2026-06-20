@@ -100,7 +100,13 @@ def card_data(slug: str) -> dict[str, Any]:
 
 
 def _vcf_escape(v: str) -> str:
-    return str(v or "").replace("\\", "\\\\").replace(";", r"\;").replace(",", r"\,").replace("\n", r"\n")
+    return (
+        str(v or "")
+        .replace("\\", "\\\\")
+        .replace(";", r"\;")
+        .replace(",", r"\,")
+        .replace("\n", r"\n")
+    )
 
 
 def render_vcf(slug: str) -> dict[str, Any]:
@@ -151,7 +157,9 @@ def render_card_html(slug: str) -> dict[str, Any]:
         primary = d["primary"]
         accent = d["accent"]
         tel_href = escape("tel:" + re.sub(r"[^\d+]", "", d["phone"] or ""), quote=True)
-        wa_href = escape(f"https://wa.me/{d['wa_number']}?text=Namaste! Aapka card dekha.", quote=True)
+        wa_href = escape(
+            f"https://wa.me/{d['wa_number']}?text=Namaste! Aapka card dekha.", quote=True
+        )
         site_href = escape(d["minisite_url"], quote=True)
         vcf_href = escape(d["vcf_url"], quote=True)
 
@@ -172,7 +180,9 @@ def render_card_html(slug: str) -> dict[str, Any]:
             logo_html = f'<div class="logo initials">{initials}</div>'
 
         call_btn = (
-            f'<a class="btn call" href="{tel_href}">\U0001f4de Call karein</a>' if d["phone"] else ""
+            f'<a class="btn call" href="{tel_href}">\U0001f4de Call karein</a>'
+            if d["phone"]
+            else ""
         )
         wa_btn = (
             f'<a class="btn wa" href="{wa_href}">\U0001f4ac WhatsApp</a>' if d["wa_number"] else ""

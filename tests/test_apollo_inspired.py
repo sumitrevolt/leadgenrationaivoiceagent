@@ -32,7 +32,14 @@ def test_import_rows_mapping_dedupe(tmp_path, monkeypatch):
 
     monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "p.jsonl"))
     rows = [
-        {"Company": "Sharma Solar", "Email": "ramesh@sharmasolar.in", "Phone": "+91 98765 43210", "City": "Pune", "Industry": "solar", "Title": "Owner"},
+        {
+            "Company": "Sharma Solar",
+            "Email": "ramesh@sharmasolar.in",
+            "Phone": "+91 98765 43210",
+            "City": "Pune",
+            "Industry": "solar",
+            "Title": "Owner",
+        },
         {"Company": "Dup Solar", "Email": "RAMESH@sharmasolar.in"},  # email dup
         {"Name": "Bina Company Wala"},  # name-only -> business_name fallback
         {"foo": "bar"},  # kuch nahi -> skip
@@ -64,7 +71,12 @@ def test_search_filters_and_lists(tmp_path, monkeypatch):
     pl.import_rows(
         [
             {"Company": "Solar A", "Email": "a@solara.in", "City": "Pune", "Industry": "solar"},
-            {"Company": "Gym B", "Phone": "9000000001", "City": "Nashik", "Industry": "gym_fitness"},
+            {
+                "Company": "Gym B",
+                "Phone": "9000000001",
+                "City": "Nashik",
+                "Industry": "gym_fitness",
+            },
         ]
     )
     # niche filter

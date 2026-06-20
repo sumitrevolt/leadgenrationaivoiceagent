@@ -619,7 +619,9 @@ class LatencyOptimizer:
             except Exception as e:
                 logger.debug(f"presynth greeting '{key}' skipped: {e}")
         if cached:
-            logger.info(f"🔊 LatencyOptimizer: pre-cached {cached} greeting clip(s) for instant TTFT.")
+            logger.info(
+                f"🔊 LatencyOptimizer: pre-cached {cached} greeting clip(s) for instant TTFT."
+            )
         return cached
 
     # -- the end-to-end fast path -----------------------------------------

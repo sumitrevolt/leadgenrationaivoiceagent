@@ -51,8 +51,12 @@ class ZohoCRM:
         from app.config import settings
 
         self.client_id = (client_id or getattr(settings, "zoho_client_id", "") or "").strip()
-        self.client_secret = (client_secret or getattr(settings, "zoho_client_secret", "") or "").strip()
-        self.refresh_token = (refresh_token or getattr(settings, "zoho_refresh_token", "") or "").strip()
+        self.client_secret = (
+            client_secret or getattr(settings, "zoho_client_secret", "") or ""
+        ).strip()
+        self.refresh_token = (
+            refresh_token or getattr(settings, "zoho_refresh_token", "") or ""
+        ).strip()
         dc = (dc or os.environ.get("ZOHO_DC", "in") or "in").strip().lower()
         self.accounts_base, self.api_base = _DCS.get(dc, _DCS["in"])
         self._access_token = ""
@@ -97,7 +101,11 @@ class ZohoCRM:
         if not self.enabled:
             return {"ok": False, "error": "creds missing"}
         tok = await self._token()
-        return {"ok": bool(tok), "dc": self.api_base, "error": "" if tok else "token refresh failed (creds/DC check karo)"}
+        return {
+            "ok": bool(tok),
+            "dc": self.api_base,
+            "error": "" if tok else "token refresh failed (creds/DC check karo)",
+        }
 
     async def upsert_lead(self, lead: dict[str, Any], note: str = "") -> str | None:
         """Lead upsert (Phone/Email duplicate-check). Returns Zoho record id ya None.
@@ -108,7 +116,12 @@ class ZohoCRM:
         tok = await self._token()
         if not tok:
             return None
-        business = str(lead.get("business_name") or lead.get("company_name") or lead.get("business") or "Unknown Business")
+        business = str(
+            lead.get("business_name")
+            or lead.get("company_name")
+            or lead.get("business")
+            or "Unknown Business"
+        )
         contact = str(lead.get("contact_name") or lead.get("contact") or "").strip()
         record: dict[str, Any] = {
             # Zoho Leads me Last_Name REQUIRED — contact nahi to business name.
@@ -118,7 +131,9 @@ class ZohoCRM:
             "Email": str(lead.get("email") or "")[:100],
             "City": str(lead.get("city") or "")[:50],
             "Lead_Source": str(lead.get("source") or "LeadGen AI")[:100],
-            "Description": str(note or lead.get("description") or lead.get("qualification") or "")[:2000],
+            "Description": str(note or lead.get("description") or lead.get("qualification") or "")[
+                :2000
+            ],
         }
         if contact and len(contact.split()) > 1:
             record["First_Name"] = " ".join(contact.split()[:-1])[:40]
@@ -144,7 +159,7 @@ class ZohoCRM:
                 if r.status_code not in (200, 201, 202):
                     logger.info("zoho upsert %s: %s", r.status_code, r.text[:200])
                     return None
-                rows = (r.json().get("data") or [{}])
+                rows = r.json().get("data") or [{}]
                 details = rows[0].get("details") or {}
                 rid = str(details.get("id") or "")
                 if rid:

@@ -19,19 +19,35 @@ from app.api import activation as ax
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Strip every env key any probe might read so each test starts at zero."""
     for k in (
-        "RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET",
-        "SENTRY_DSN", "ENVIRONMENT", "APP_ENV",
-        "POSTHOG_API_KEY", "POSTHOG_HOST",
-        "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY",
+        "RAZORPAY_KEY_ID",
+        "RAZORPAY_KEY_SECRET",
+        "RAZORPAY_WEBHOOK_SECRET",
+        "SENTRY_DSN",
+        "ENVIRONMENT",
+        "APP_ENV",
+        "POSTHOG_API_KEY",
+        "POSTHOG_HOST",
+        "TURNSTILE_SITE_KEY",
+        "TURNSTILE_SECRET_KEY",
         "CLOUDFLARE_TUNNEL_TOKEN",
-        "AGENT_MEMORY", "EVAL_GATE", "EVAL_GATE_HARD",
-        "SRE_AGENT", "FINOPS_AGENT", "SECURITY_AGENT",
-        "OPS_ALERTS", "NTFY_URL", "NTFY_TOPIC",
-        "CUSTOMER_WEBHOOKS", "MCP_PRODUCT",
-        "LITELLM_COSTS", "LITELLM_MASTER_KEY", "LITELLM_GATEWAY_URL",
+        "AGENT_MEMORY",
+        "EVAL_GATE",
+        "EVAL_GATE_HARD",
+        "SRE_AGENT",
+        "FINOPS_AGENT",
+        "SECURITY_AGENT",
+        "OPS_ALERTS",
+        "NTFY_URL",
+        "NTFY_TOPIC",
+        "CUSTOMER_WEBHOOKS",
+        "MCP_PRODUCT",
+        "LITELLM_COSTS",
+        "LITELLM_MASTER_KEY",
+        "LITELLM_GATEWAY_URL",
         "DR_REPLICA_URL",
         "GRIEVANCE_OFFICER_EMAIL",
-        "TWILIO_AUTH_TOKEN", "WHATSAPP_APP_SECRET",
+        "TWILIO_AUTH_TOKEN",
+        "WHATSAPP_APP_SECRET",
     ):
         monkeypatch.delenv(k, raising=False)
 
@@ -89,8 +105,7 @@ async def test_warn_only_items_still_surface_as_next(monkeypatch: pytest.MonkeyP
 async def test_phases_done_and_remaining_account_for_all_phases() -> None:
     """Sum of phases_done + phases_remaining == total phases (no missed)."""
     out = await ax.activation_wizard(_user=None)  # type: ignore[arg-type]
-    assert (len(out["phases_done"]) + len(out["phases_remaining"])
-            == out["total_phases"])
+    assert len(out["phases_done"]) + len(out["phases_remaining"]) == out["total_phases"]
 
 
 async def test_verify_curl_in_payload() -> None:

@@ -90,9 +90,7 @@ async def brand_pulse_scan(body: PulseIn, _user=Depends(require_admin)):
 
 
 @router.get("/pulse/runs")
-async def brand_pulse_runs(
-    limit: int = Query(30, ge=1, le=200), _user=Depends(require_admin)
-):
+async def brand_pulse_runs(limit: int = Query(30, ge=1, le=200), _user=Depends(require_admin)):
     """Weekly brand-pulse sweep records (gated BRAND_PULSE=1 sweep)."""
     from app.platform import brand_pulse
 
@@ -140,9 +138,7 @@ async def month_plan(body: MonthPlanIn, _user=Depends(require_admin)):
 
 # ------------------------------ 4) Team report ------------------------------- #
 @router.get("/team-report")
-async def team_report(
-    client_id: str = Query("", max_length=64), _user=Depends(require_admin)
-):
+async def team_report(client_id: str = Query("", max_length=64), _user=Depends(require_admin)):
     """'Aapki AI team ne is hafte yeh kiya' — Hinglish narrative HTML."""
     from app.platform import team_report as tr
 

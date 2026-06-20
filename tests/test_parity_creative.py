@@ -51,7 +51,9 @@ def test_jingle_pick_voice():
 
 
 def test_jingle_missing_dep_error_dict(monkeypatch):
-    monkeypatch.setattr(jingle, "available", lambda: {"ffmpeg": False, "edge_tts": False, "ok": False})
+    monkeypatch.setattr(
+        jingle, "available", lambda: {"ffmpeg": False, "edge_tts": False, "ok": False}
+    )
     res = asyncio.run(jingle.generate_jingle("solar", "Test Biz"))
     assert res["ok"] is False and "error" in res
 
@@ -116,7 +118,9 @@ def test_multilang_new_langs_parsed(monkeypatch):
         return '{"gujarati": "દિવાળી ઓફર!", "telugu": "దీపావళి ఆఫర్!"}', "fake"
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
-    res = asyncio.run(multilang_post.translate_post("Diwali offer!", ["gujarati", "telugu", "badlang"]))
+    res = asyncio.run(
+        multilang_post.translate_post("Diwali offer!", ["gujarati", "telugu", "badlang"])
+    )
     assert res["ok"] is True
     assert res["langs"] == ["gujarati", "telugu"]  # unknown filtered
     assert res["versions"]["gujarati"] == "દિવાળી ઓફર!"

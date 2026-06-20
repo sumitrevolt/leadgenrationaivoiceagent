@@ -168,8 +168,7 @@ async def onboard_customer(body: OnboardIn, _user=Depends(require_admin)) -> dic
     customer_dashboard = f"/app/customer?client_id={client_id}"
     magic_link_hint = (
         "MAGIC_LINK=1 set — customer can ALSO use /app/login passwordless"
-        if (__import__("os").environ.get("MAGIC_LINK", "0").strip()
-            .lower() in ("1", "true", "yes"))
+        if (__import__("os").environ.get("MAGIC_LINK", "0").strip().lower() in ("1", "true", "yes"))
         else ""
     )
 

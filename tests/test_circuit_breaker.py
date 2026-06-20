@@ -33,10 +33,10 @@ def test_trips_open_after_threshold(monkeypatch):
     assert br.allow() is True
     br.record_failure()
     br.record_failure()
-    assert br.allow() is True            # still below threshold
-    br.record_failure()                  # 3rd failure → trip
+    assert br.allow() is True  # still below threshold
+    br.record_failure()  # 3rd failure → trip
     assert br.state == "open"
-    assert br.allow() is False           # fast-fail while OPEN
+    assert br.allow() is False  # fast-fail while OPEN
 
 
 def test_half_open_then_close_on_success(monkeypatch):
@@ -44,12 +44,12 @@ def test_half_open_then_close_on_success(monkeypatch):
     clock = {"t": 1000.0}
     monkeypatch.setattr(cb.time, "monotonic", lambda: clock["t"])
     br = cb.get_breaker("svc", fail_threshold=1, reset_after_s=30)
-    br.record_failure()                  # OPEN
+    br.record_failure()  # OPEN
     assert br.allow() is False
-    clock["t"] += 31                     # cooldown elapsed
-    assert br.allow() is True            # one HALF_OPEN trial granted
+    clock["t"] += 31  # cooldown elapsed
+    assert br.allow() is True  # one HALF_OPEN trial granted
     assert br.state == "half_open"
-    assert br.allow() is False           # only half_open_max=1 trial
+    assert br.allow() is False  # only half_open_max=1 trial
     br.record_success()
     assert br.state == "closed"
     assert br.allow() is True
@@ -60,10 +60,10 @@ def test_half_open_failure_reopens(monkeypatch):
     clock = {"t": 0.0}
     monkeypatch.setattr(cb.time, "monotonic", lambda: clock["t"])
     br = cb.get_breaker("svc", fail_threshold=1, reset_after_s=10)
-    br.record_failure()                  # OPEN
+    br.record_failure()  # OPEN
     clock["t"] += 11
-    assert br.allow() is True            # HALF_OPEN trial
-    br.record_failure()                  # trial fails → OPEN again
+    assert br.allow() is True  # HALF_OPEN trial
+    br.record_failure()  # trial fails → OPEN again
     assert br.state == "open"
     assert br.allow() is False
 

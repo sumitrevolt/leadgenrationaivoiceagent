@@ -422,9 +422,9 @@ def test_startup_migrations_stamps_existing_schema(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "database_url", url, raising=False)
     monkeypatch.setenv("DATABASE_URL", url)
 
-    import app.models  # noqa: F401
     from sqlalchemy import create_engine
 
+    import app.models  # noqa: F401
     from app.models.base import Base
 
     eng = create_engine(url)

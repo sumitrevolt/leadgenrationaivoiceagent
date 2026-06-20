@@ -133,7 +133,11 @@ def save_subscription(slug: str, sub_json: dict[str, Any]) -> dict[str, Any]:
             }
         )
         _write_all(_SUBS_FILE, items)
-        return {"ok": True, "saved": True, "total_for_slug": sum(1 for i in items if i.get("slug") == slug)}
+        return {
+            "ok": True,
+            "saved": True,
+            "total_for_slug": sum(1 for i in items if i.get("slug") == slug),
+        }
     except Exception as e:
         logger.debug(f"[webpush] save_subscription err: {e}")
         return {"ok": False, "error": str(e)[:160]}
@@ -177,7 +181,10 @@ def send_push(slug: str, title: str, body: str, url: str = "") -> dict[str, Any]
         for sub in targets:
             try:
                 webpush(
-                    subscription_info={"endpoint": sub.get("endpoint"), "keys": sub.get("keys") or {}},
+                    subscription_info={
+                        "endpoint": sub.get("endpoint"),
+                        "keys": sub.get("keys") or {},
+                    },
                     data=data,
                     vapid_private_key=_vapid_private(),
                     vapid_claims=dict(claims),

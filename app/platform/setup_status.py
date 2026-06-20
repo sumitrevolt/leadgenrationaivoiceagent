@@ -113,7 +113,10 @@ def pending_actions() -> list[str]:
 
 
 def audit() -> dict[str, Any]:
-    flags = {k: {"on": _flag(k, dflt), "desc": desc, "default_on": dflt} for k, (desc, dflt) in FLAGS.items()}
+    flags = {
+        k: {"on": _flag(k, dflt), "desc": desc, "default_on": dflt}
+        for k, (desc, dflt) in FLAGS.items()
+    }
     deps = {k: {"installed": _has_dep(k), "feature": v} for k, v in DEPS.items()}
     keys = {k: {"set": _has_key(k), "purpose": v} for k, v in KEYS.items()}
     flags_on = sum(1 for f in flags.values() if f["on"])
