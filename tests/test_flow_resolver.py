@@ -24,3 +24,16 @@ def test_flow_none_when_flag_off(tmp_path, monkeypatch):
 
 def test_static_process_still_resolves():
     assert process_library.get_process("growth_audit") is not None
+
+
+def test_dag_flow_resolves_to_none_here(tmp_path, monkeypatch):
+    monkeypatch.setattr(fs, "_DIR", str(tmp_path / "fr"))
+    monkeypatch.setattr(fs, "_PATH", str(tmp_path / "fr" / "flows.jsonl"))
+    monkeypatch.setenv("FLOW_RUNNER", "1")
+    fs.save_flow({"id": "dagf", "name": "d",
+                  "nodes": [{"id": "a", "action": "scrape"},
+                            {"id": "b", "action": "rescore"},
+                            {"id": "c", "action": "harvest"}],
+                  "edges": [{"f": "a", "t": "b"}, {"f": "a", "t": "c"}]})
+    # DAG flow -> get_process returns None (dag_engine owns it, not process_library)
+    assert process_library.get_process("flow:dagf") is None
