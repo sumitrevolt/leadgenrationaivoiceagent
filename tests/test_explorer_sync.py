@@ -18,5 +18,12 @@ def test_no_orphan_nodes_or_dangling_edges():
         assert not r["orphans"], f"{view} orphans: {r['orphans']}"
 
 
+def test_files_refs_resolve():
+    """Reverse-sync gate: every explicit `files:'x.py'` claim must be a real file."""
+    html = es.EXPLORER.read_text(encoding="utf-8")
+    missing = es.files_ref_audit(html)
+    assert not missing, f"explorer `files:` refs not on disk: {missing}"
+
+
 def test_explorer_sync_check_exit_zero():
     assert es.main(["--check"]) == 0

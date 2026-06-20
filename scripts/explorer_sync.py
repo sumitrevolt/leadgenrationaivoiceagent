@@ -68,6 +68,41 @@ def automation_flags() -> list[str]:
     return re.findall(r'"([A-Z][A-Z0-9_]+)"', m.group(1)) if m else []
 
 
+SRC_EXT = (".py", ".html", ".js", ".yml", ".yaml", ".sh")
+
+
+def _real_filenames() -> set[str]:
+    """All real source filenames in the repo (excl. venv/cache/git/worktrees)."""
+    names: set[str] = set()
+    for p in ROOT.rglob("*"):
+        sp = p.parts
+        if any(seg in sp for seg in (".venv", "node_modules", "__pycache__", ".git")):
+            continue
+        if "worktrees" in sp:  # stale .claude/worktrees copies
+            continue
+        try:
+            if p.is_file():
+                names.add(p.name)
+        except OSError:
+            continue
+    return names
+
+
+def files_ref_audit(html: str) -> list[str]:
+    """Reverse-sync (graph -> code): explorer `files:` tokens that EXPLICITLY name
+    a source file (ext in SRC_EXT) but don't resolve to a real repo file = drift.
+    Loose capability labels / routes / plan-ids (no extension) are ignored on
+    purpose — product-view nodes use them as human descriptions, not file claims."""
+    real = _real_filenames()
+    missing: set[str] = set()
+    for fld in re.findall(r"files:'([^']*)'", html):
+        for tok in re.split(r"[·,]", fld):
+            base = tok.strip().split("/")[-1].split("#")[0].strip()
+            if base.lower().endswith(SRC_EXT) and base not in real:
+                missing.add(base)
+    return sorted(missing)
+
+
 def audit() -> dict:
     html = _read(EXPLORER)
     blob = html.lower()
@@ -84,6 +119,7 @@ def audit() -> dict:
         "mods": mods, "miss_mods": miss_mods,
         "jobs": jobs, "miss_jobs": miss_jobs,
         "flags": flags, "miss_flags": miss_flags,
+        "miss_files": files_ref_audit(html),
     }
 
 
@@ -165,6 +201,10 @@ def main(argv: list[str]) -> int:
     print(f"staff jobs not named on graph (info): {len(a['miss_jobs'])}/{len(a['jobs'])}"
           + (f" -> {', '.join(a['miss_jobs'])}" if a["miss_jobs"] else ""))
     print(f"flags tagged on graph (info): {len(a['flags']) - len(a['miss_flags'])}/{len(a['flags'])}")
+    if a["miss_files"]:
+        print(f"  DRIFT — `files:` refs not on disk ({len(a['miss_files'])}): {', '.join(a['miss_files'])}")
+    else:
+        print("file refs (graph -> code): all resolve to real files")
 
     ea = edge_audit(_read(EXPLORER))
     print("\n--- connection health (per view) ---")
@@ -199,7 +239,11 @@ def main(argv: list[str]) -> int:
         if orphans:
             print(f"\n[FAIL] orphan nodes (on graph, 0 edges): {orphans}")
             return 1
-        print("\n[OK] every engine module represented · no dangling edges · no orphan nodes")
+        if a["miss_files"]:
+            print(f"\n[FAIL] explorer `files:` references not found on disk: {a['miss_files']}")
+            return 1
+        print("\n[OK] every engine module represented · no dangling edges · no orphan nodes "
+              "· all file refs resolve")
     return 0
 
 

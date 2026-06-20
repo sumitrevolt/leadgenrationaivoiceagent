@@ -224,6 +224,8 @@ def check_explorer_drift() -> None:
         ea = es.edge_audit(es._read(es.EXPLORER))
         orphans = sum(len(r.get("orphans") or []) for r in ea.values())
         line += f" · {a['edges']} edges · orphans {orphans}"
+        mf = a.get("miss_files") or []
+        line += " · file-refs OK" if not mf else f" · {len(mf)} file-ref DRIFT ({', '.join(mf)})"
         print(line)
     except Exception as e:
         print(f"[i] explorer drift check skipped ({type(e).__name__})")
