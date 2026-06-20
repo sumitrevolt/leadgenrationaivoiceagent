@@ -32,6 +32,7 @@
 | KPI Dashboard Spec | [`KPI_DASHBOARD_SPEC.md`](KPI_DASHBOARD_SPEC.md) | Calls, leads, conversion, MRR |
 | RACI Matrix | [`RACI_MATRIX.md`](RACI_MATRIX.md) | Human + AI staff accountability |
 | Change Log | [`CHANGELOG.md`](CHANGELOG.md) | Releases, features, fixes |
+| **Product Handoff + SOP** | [`PRODUCT_HANDOFF_SOP.md`](PRODUCT_HANDOFF_SOP.md) | Product-wise + automation map · mirrors [`/app/explorer`](https://leadsgenai.in/app/explorer) |
 | Activation Runbook | [`SESSION_ACTIVATION_RUNBOOK_2026_06_16.md`](SESSION_ACTIVATION_RUNBOOK_2026_06_16.md) | Env keys + go-live phases |
 | Knowledge / troubleshooting | [`OPERATIONAL_RUNBOOKS.md`](OPERATIONAL_RUNBOOKS.md) + [`SESSION_LOG.md`](SESSION_LOG.md) | Incidents + dated history |
 
