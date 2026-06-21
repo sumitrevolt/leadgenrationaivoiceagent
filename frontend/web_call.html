@@ -484,7 +484,11 @@
 
       } else if(data.type === "bot"){
         awaitingGreeting = false; clearTimeout(kickTimer);
-        pendingBot = false; clearTimeout(safetyTimer);
+        var isLastChunk = !data.chunk_total || data.chunk_index == null
+          || data.chunk_index >= (data.chunk_total - 1);
+        if(isLastChunk){
+          pendingBot = false; clearTimeout(safetyTimer);
+        }
         enqueueBot(data.text, data.audio_b64, {
           heard: data.heard,
           should_end: data.should_end

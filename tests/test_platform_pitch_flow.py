@@ -22,7 +22,8 @@ def test_is_platform_pitch_only_ai_marketing():
 def test_opening_segments_three_parts():
     segs = opening_segments()
     assert len(segs) == 3
-    assert "LeadGen AI" in segs[0]
+    assert "Leads Generation AI" in segs[0]
+    assert "grow karna" in segs[0]
     assert "1,199" in segs[1] or "1199" in segs[1]
     assert "interested" in segs[2].lower()
 
@@ -40,7 +41,8 @@ def test_next_reply_yes_to_discovery():
     st = initial_state()
     reply, st = next_reply(st, "haan ji")
     assert st.phase == "discovery"
-    assert "sahi decision" in reply.lower() or "business growth" in reply.lower()
+    low = (reply or "").lower()
+    assert "marketing" in low or "agency" in low or "staff" in low
 
 
 def test_next_reply_no_then_convince_then_close():
@@ -77,8 +79,24 @@ def test_ai_marketing_script_has_platform_keys():
     assert "1,199" in s["pitch_short"]
 
 
-def test_solar_opening_unchanged_not_leadgen_branded():
-    from app.voice_agent.niche_scripts import get_script
+def test_customer_qa_answers_price_before_discovery():
+    from app.voice_agent.telecaller_brain import TelecallerBrain
 
+    brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    brain.confirm_interest()
+    ans = brain._customer_qa_reply("kitna paisa lagega mahine me?")
+    assert ans
+    assert "1,199" in ans or "1199" in ans
+
+
+def test_kaun_ho_returns_reply_not_none():
+    st = initial_state()
+    reply, st = next_reply(st, "aap kaun ho")
+    assert reply
+    assert st.phase == "discovery"
+    assert "swara" in reply.lower() or "leadgen" in reply.lower()
+
+
+def test_solar_opening_unchanged_not_leadgen_branded():
     s = get_script("solar_residential")
     assert "LeadGen AI" not in (s.get("opening") or "")
