@@ -387,10 +387,9 @@ def _script_opening(niche: str, client_name: str = "Demo Co") -> str:
             .replace("[Project]", "hamare project")
         )
         return opening.strip()
-    return (
-        f"Namaste! Main Swara bol rahi hoon {client_name or 'hamari company'} ki taraf se — "
-        "bas ek minute baat kar sakti hoon?"
-    )
+    from app.voice_agent.universal_pitch import UNIVERSAL_AGENT_INTRO
+
+    return UNIVERSAL_AGENT_INTRO
 
 
 async def _maybe_await(value: Any) -> Any:
@@ -581,7 +580,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
     # Per-session conversation context. Defaults until the client tells us the
     # niche/flow (via 'start' or the first 'user' message).
     session: dict[str, Any] = {
-        "niche": "general",
+        "niche": "ai_marketing",
         "flow": "qualify",
         "client_name": "Demo Co",
         "client_service": "",
