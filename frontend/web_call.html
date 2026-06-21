@@ -199,11 +199,10 @@
       <option value="insurance">Insurance</option>
       <option value="general">General</option>
     </select>
-    <select id="flow" title="Flow">
-      <option value="qualify">Qualify</option>
-      <option value="appointment">Appointment</option>
-      <option value="callback">Callback</option>
-      <option value="survey">Survey</option>
+    <select id="flow" title="Voice agent role">
+      <option value="qualify">Swara — Telecaller</option>
+      <option value="booking">Ananya — Appointment</option>
+      <option value="reception">Riya — Receptionist</option>
     </select>
     <div class="kbd" id="kbdToggle" title="Type instead">⌨️</div>
   </div>
@@ -215,7 +214,7 @@
       <div class="ring r2"></div>
       <div class="avatar" id="avatar" title="Tap to interrupt while the agent is speaking">S</div>
     </div>
-    <div class="agent-name">Swara</div>
+    <div class="agent-name" id="agentName">Swara</div>
     <div class="status-line" id="statusLine">Call shuru karne ke liye green button dabayein</div>
     <div class="timer hidden" id="timer">00:00</div>
 
@@ -285,6 +284,54 @@
   var callCap   = document.getElementById("callCap");
   var nicheSel  = document.getElementById("niche");
   var flowSel   = document.getElementById("flow");
+  var agentNameEl = document.getElementById("agentName");
+
+  // Voice agent personas (sync with /api/voice/agents)
+  var VOICE_AGENTS = {
+    qualify:    { name: "Swara",  emoji: "S", label: "Swara — Telecaller" },
+    booking:    { name: "Ananya", emoji: "A", label: "Ananya — Appointment" },
+    reception:  { name: "Riya",   emoji: "R", label: "Riya — Receptionist" },
+    telecaller: { name: "Swara",  emoji: "S", label: "Swara — Telecaller" },
+    appointment:{ name: "Ananya", emoji: "A", label: "Ananya — Appointment" },
+    receptionist:{ name: "Riya", emoji: "R", label: "Riya — Receptionist" }
+  };
+  function agentForFlow(flow){
+    return VOICE_AGENTS[flow] || VOICE_AGENTS.qualify;
+  }
+  function updateAgentDisplay(){
+    var a = agentForFlow(flowSel.value);
+    agentNameEl.textContent = a.name;
+    avatar.textContent = a.emoji;
+    avatar.title = a.name + " — tap to interrupt while speaking";
+  }
+  function loadVoiceAgents(){
+    fetch("/api/voice/agents")
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if(!data || !data.agents || !data.agents.length) return;
+        var current = flowSel.value;
+        flowSel.innerHTML = "";
+        data.agents.forEach(function(ag){
+          var val = ag.role === "telecaller" ? "qualify"
+            : ag.role === "booking_agent" ? "booking"
+            : ag.role === "receptionist" ? "reception" : ag.role;
+          var letter = (ag.name || "?").charAt(0).toUpperCase();
+          var opt = document.createElement("option");
+          opt.value = val;
+          opt.textContent = (ag.emoji ? ag.emoji + " " : "") + ag.name + " — " + (ag.title || ag.role);
+          flowSel.appendChild(opt);
+          VOICE_AGENTS[val] = { name: ag.name, emoji: letter, label: opt.textContent };
+        });
+        for(var i=0;i<flowSel.options.length;i++){
+          if(flowSel.options[i].value === current){ flowSel.selectedIndex = i; break; }
+        }
+        updateAgentDisplay();
+      })
+      .catch(function(){ updateAgentDisplay(); });
+  }
+  loadVoiceAgents();
+  flowSel.addEventListener("change", updateAgentDisplay);
+  updateAgentDisplay();
   var bizName   = document.getElementById("bizName");
   var kbdToggle = document.getElementById("kbdToggle");
   var typedRow  = document.getElementById("typedRow");
@@ -876,7 +923,7 @@
     if(!turns || !turns.length) return '<div class="hist-empty">Koi transcript nahi</div>';
     return turns.map(function(t){
       var role = (t.role === "user") ? "user" : "bot";
-      var lbl = role === "user" ? "Aap" : "Swara";
+      var lbl = role === "user" ? "Aap" : agentForFlow(flowSel.value).name;
       var ts = t.ts ? '<span class="ts">' + escHist(formatIstTime(t.ts)) + "</span>" : "";
       return '<div class="hist-turn ' + role + '"><b>' + lbl + "</b>" + ts + " — " + escHist(t.text || "") + "</div>";
     }).join("");

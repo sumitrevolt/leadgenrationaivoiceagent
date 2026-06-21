@@ -626,29 +626,30 @@ async def web_call_ws(websocket: WebSocket) -> None:
 
     def _get_tcbrain(niche: str) -> Any | None:
         """
-        Lazy, per-session TelecallerBrain — the SAME professional brain the phone
-        agent uses (researched niche scripts + free_ai Cerebras/Groq/Gemini,
-        KB-grounded). Cached per niche on the session so each niche builds once;
-        a failed build is cached as None (no AI key / import error) so the caller
-        degrades to the natural-dialog/_respond chain without retrying. Never raises.
+        Lazy, per-session TelecallerBrain — niche + voice_role (flow) aware.
+        Cached so each (niche, role) builds once; failed build cached as None.
         """
         niche = niche or "general"
+        flow = session.get("flow", "qualify")
+        cache_key = f"{niche}:{flow}"
         cache = session.setdefault("tcbrains", {})
-        if niche in cache:
-            return cache[niche]
+        if cache_key in cache:
+            return cache[cache_key]
         tcb = None
         try:
             from app.voice_agent.telecaller_brain import TelecallerBrain  # type: ignore
+            from app.voice_agent.voice_roles import normalize_role
 
             tcb = TelecallerBrain(
                 niche=niche,
                 client_name=session.get("client_name", "Demo Co"),
+                voice_role=normalize_role(flow),
             )
             _apply_memory_subject(tcb, session)
         except Exception as e:
             logger.debug(f"web-call: TelecallerBrain unavailable for '{niche}' ({e}).")
             tcb = None
-        cache[niche] = tcb
+        cache[cache_key] = tcb
         return tcb
 
     await _run_blocking(_ensure_dialog)
@@ -668,6 +669,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 "type": "ready",
                 "test_mode": True,
                 "responder": responder,
+                "voice_role": session.get("flow", "qualify"),
                 "pipeline": pipeline is not None,
                 "providers": _get_registry_describe() or {},
                 "note": "TEST MODE — no real call. Say hello to talk to the bot.",
@@ -705,6 +707,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 session["niche"] = str(data["niche"])
             if data.get("flow"):
                 session["flow"] = str(data["flow"])
+            if data.get("voice_role"):
+                session["flow"] = str(data["voice_role"])
             # Business identity — agent ISI naam se baat karta hai (default
             # "Demo Co" tha jo demo-jaisa lagta tha). Change par cached brains
             # invalid: fresh build naye client_name ke saath hota hai.
@@ -753,13 +757,16 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 session["started_at"] = _now_iso()
                 session["turns"] = []
                 session["saved"] = False
-                try:  # Team activity: Swara web-demo session
+                try:  # Team activity: voice agent web-demo session
                     from app.platform.team import log_event
+                    from app.voice_agent.voice_roles import staff_for_role
 
+                    staff_id = staff_for_role(session.get("flow", "qualify"))
                     log_event(
-                        "swara",
+                        staff_id,
                         "web_demo",
-                        f"Web-call demo started (niche: {session.get('niche', 'general')})",
+                        f"Web-call demo started (niche: {session.get('niche', 'general')}, "
+                        f"role: {session.get('flow', 'qualify')})",
                     )
                 except Exception:
                     pass

@@ -25,6 +25,14 @@ router = APIRouter(prefix="/voice", tags=["Voice Product"])
 
 
 # ----------------------------- PUBLIC pricing ----------------------------- #
+@router.get("/agents", dependencies=[Depends(rate_limit("voice_agents", 30, 60))])
+async def voice_agents():
+    """Voice product personas — telecaller, booking agent, receptionist."""
+    from app.voice_agent.voice_roles import list_voice_agents
+
+    return {"product": "voice_agent", "agents": list_voice_agents(), "count": 3}
+
+
 @router.get("/packages", dependencies=[Depends(rate_limit("voice_pkg", 30, 60))])
 async def voice_packages(band: str | None = None, niche: str | None = None):
     """Voice product tiers + 10-lead top-up pack — band ya niche se prices resolve."""

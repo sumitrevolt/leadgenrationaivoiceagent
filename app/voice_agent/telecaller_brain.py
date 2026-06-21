@@ -188,11 +188,25 @@ def _short_hook(hook: str, max_len: int = 90) -> str:
 # --------------------------------------------------------------------------- #
 _KB_SINGLETON: Any = None
 _KB_TRIED = False
+_KB_LOADED_AT = 0.0
 
 
 def _get_kb():
-    """Cached, bootstrapped KnowledgeBase (None agar bootstrap fail)."""
-    global _KB_SINGLETON, _KB_TRIED
+    """Cached, bootstrapped KnowledgeBase (None agar bootstrap fail).
+
+    D-12: optional TTL refresh — set `KB_REFRESH_SEC` (default 0 = never, current
+    behaviour) to re-bootstrap the singleton after that many seconds so KB data
+    changes are picked up without a restart. Opt-in keeps the hot path unchanged
+    by default (re-bootstrap is synchronous, so use a generous TTL like 3600)."""
+    global _KB_SINGLETON, _KB_TRIED, _KB_LOADED_AT
+    import time
+
+    try:
+        ttl = float(os.environ.get("KB_REFRESH_SEC", "0") or "0")
+    except Exception:
+        ttl = 0.0
+    if _KB_TRIED and ttl > 0 and (time.time() - _KB_LOADED_AT) >= ttl:
+        _KB_TRIED = False  # TTL elapsed -> allow one re-bootstrap on this call
     if _KB_TRIED:
         return _KB_SINGLETON
     _KB_TRIED = True
@@ -200,6 +214,7 @@ def _get_kb():
         from app.voice_agent.kb_loader import bootstrap_default_kb
 
         _KB_SINGLETON = bootstrap_default_kb()
+        _KB_LOADED_AT = time.time()
     except Exception as e:  # pragma: no cover
         logger.debug(f"[telecaller-brain] KB bootstrap failed: {e}")
         _KB_SINGLETON = None
@@ -213,11 +228,21 @@ class TelecallerBrain:
     Gemini NOR a free provider key is configured (caller falls back)."""
 
     def __init__(
-        self, niche: str = "general", client_name: str = "Demo Co", client_id: str | None = None
+        self,
+        niche: str = "general",
+        client_name: str = "Demo Co",
+        client_id: str | None = None,
+        voice_role: str = "telecaller",
     ) -> None:
         self.niche = (niche or "general").strip() or "general"
         self.client_name = (client_name or "Demo Co").strip() or "Demo Co"
         self.client_id = (str(client_id).strip() or None) if client_id else None
+        try:
+            from app.voice_agent.voice_roles import normalize_role
+
+            self.voice_role = normalize_role(voice_role)
+        except Exception:
+            self.voice_role = "telecaller"
         # Agent memory (cross-session lead recall) subject — None by DEFAULT.
         # 🔒 SECURITY: client_id ko default subject MAT banao — warna ek client ke
         # SAARE leads ek hi bucket (lead:<client_id>) share karte => Lead A ka PII
@@ -290,6 +315,28 @@ class TelecallerBrain:
 
         self._load_niche()
         self.system_prompt = self._build_system_prompt()
+        # Booking/reception roles: append appointment-tool hint when focused on slots.
+        try:
+            from app.voice_agent.voice_roles import build_role_system_prompt, is_booking_focused
+
+            role_prompt = build_role_system_prompt(
+                self.voice_role,
+                client_name=self.client_name,
+                niche_name=self.niche_name,
+                niche_script_context=getattr(self, "niche_script_context", ""),
+                discovery_questions=self.questions,
+            )
+            if role_prompt:
+                self.system_prompt = role_prompt
+            if is_booking_focused(self.voice_role):
+                book_note = (
+                    "\n\nAPPOINTMENT TOOLS: jab caller date/time agree kare to "
+                    "book_appointment / check_availability use karo (sim mode bhi OK)."
+                )
+                if book_note not in self.system_prompt:
+                    self.system_prompt += book_note
+        except Exception:
+            pass
         # POLITE-NO hard rule (D-8) — append the India 2-strike de-escalation rule
         # so the LLM honours it on edge cases too (the deterministic gate in reply()
         # is the hard backstop). Gated SOFTNO_DEESCALATE (default ON).
@@ -307,9 +354,9 @@ class TelecallerBrain:
         except Exception:
             pass
         logger.info(
-            f"[telecaller-brain] ready niche={self.niche} model={self.model} "
-            f"gemini_keys={self._key_count()} free_ai={self._free_ai_providers or 'none'} "
-            f"client_id={self.client_id}"
+            f"[telecaller-brain] ready niche={self.niche} role={self.voice_role} "
+            f"model={self.model} gemini_keys={self._key_count()} "
+            f"free_ai={self._free_ai_providers or 'none'} client_id={self.client_id}"
         )
 
     def set_memory_subject(self, subject_id: str | None) -> None:
@@ -498,6 +545,18 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     # ends with a yes/no question. Used by vobiz_stream._opening_line().
     # ------------------------------------------------------------------ #
     def opening_line(self) -> str:
+        try:
+            from app.voice_agent.voice_roles import build_role_opening
+
+            role_opener = build_role_opening(
+                self.voice_role,
+                client_name=self.client_name,
+                niche_name=self.niche_name,
+            )
+            if role_opener:
+                return role_opener
+        except Exception:
+            pass
         hook = _short_hook(self.pitch_hook)
         if hook:
             return (
