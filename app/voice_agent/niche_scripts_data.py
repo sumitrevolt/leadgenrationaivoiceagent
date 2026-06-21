@@ -171,38 +171,40 @@ NICHE_SCRIPTS: dict[str, dict] = {
     },
     "ai_marketing": {
         "opening": (
-            "Namaste, main Swara bol rahi hoon LeadGen AI se — "
-            "hum LeadGen AI ki AI assistant hain, chhote businesses ke liye marketing platform."
+            "Namaste sir, main Swara bol rahi hoon LeadGen AI se — ek AI assistant hoon, "
+            "chhote business ke marketing me madad karti hoon."
         ),
         "pitch_short": (
             "Posts, Google profile, festival posters aur inquiry follow-up — "
-            "sab AI se automatic, ₹1,199 se shuru."
+            "sab AI se automatic, ₹1,199 mahine se."
         ),
-        "interest_ask": "Kya aap apne business growth ke liye interested hain?",
-        "yes_praise": "Bahut sahi decision liya aapne apne business growth ke liye!",
+        "interest_ask": "Growth ke liye interested hain — haan ya nahi?",
+        "yes_praise": (
+            "Theek sir — marketing abhi khud karte ho, staff se, ya agency?"
+        ),
         "no_convince_once": (
-            "Sir, 7 din ka FREE trial hai — pehle result dekho, phir decide kijiye."
+            "Samajh sakti hoon sir — 7 din ka FREE trial hai, pehle result dekho phir decide."
         ),
         "close_cold": "Theek hai sir, shukriya — din shubh!",
         "discovery": [
-            "Abhi aap apni marketing kaise karte ho — khud post dalte ho, staff hai, ya agency?",
-            "Google pe aapka business search karne par upar dikhta hai kya?",
-            "Social media pe regular post daal paate ho, ya time nahi milta?",
-            "Mahine me marketing pe approx kitna kharcha ho jaata hai?",
+            "Marketing abhi khud karte ho, staff se, ya agency?",
+            "Google pe search karne par upar dikhta hai kya?",
+            "Social pe regular post ho paata hai, ya time nahi milta?",
+            "Mahine me marketing pe approx kitna kharcha?",
         ],
         "objections": {
-            "mehenga": "Sir, plan ₹1,199/mahina se shuru hota hai — yaani ₹40/din se kam me poora marketing department. Ek bhi extra customer aaye toh kharcha nikal jaata hai.",
-            "abhi_nahi": "Koi baat nahi sir, tab tak ek FREE Google Business audit karwa lijiye — aapka score aur top fixes saamne aa jayenge, koi charge nahi.",
-            "soch_ke": "Bilkul sochiye sir — main aapka FREE GBP audit bhej deti hoon, aur 7-din ka free trial bhi hai, dekh ke aaram se decide kijiye.",
-            "pehle_se_hai": "Achha sir, agency to ₹15-25K/mahina leti hai — hum ₹1,199 se shuru karte hain. Aur Advanced plan me AI aapki website/Google inquiries ko khud call karke follow-up bhi karta hai.",
-            "bharosa": "Sahi sawaal hai sir — pehle FREE audit aur 7-din free trial le lijiye, kaam pasand aaye tabhi aage badhiye. Card ki bhi zarurat nahi.",
+            "mehenga": "Sir, ₹1,199/mahina se shuru — din me ₹40 se kam. Ek extra customer se kharcha nikal jaata hai.",
+            "abhi_nahi": "Koi baat nahi sir — tab tak FREE Google audit karwa doon? Score aur fixes, koi charge nahi.",
+            "soch_ke": "Bilkul sochiye sir — FREE audit bhej deti hoon, 7-din trial bhi hai, aaram se decide kijiye.",
+            "pehle_se_hai": "Achha sir — agency ₹15-25K leti hai, hum ₹1,199 se. Inquiry follow-up bhi AI se ho jaata hai.",
+            "bharosa": "Sahi sawaal sir — pehle FREE audit aur trial lijiye, pasand aaye tabhi aage badhiye.",
         },
         "value_lines": [
-            "Roz ke social media posts, festival posters aur Google Business profile — sab automatic, aapka time zero lagta hai.",
-            "7 din ka FREE trial — bina credit card, pehle results dekho phir decide karo.",
-            "Advanced plan me AI receptionist bhi — har website/Google inquiry ko 2 minute me khud call karke follow-up.",
+            "Roz ke posts, festival posters aur Google profile — sab automatic, aapka time bachta hai.",
+            "7 din FREE trial — bina card, pehle result dekho.",
+            "Advanced me inquiry pe 2 minute me AI callback bhi — koi lead miss nahi.",
         ],
-        "closing": "Toh sir, main abhi aapka FREE Google Business audit kar deti hoon — score aur top fixes saamne aa jayenge. Saath me 7-din ka free trial set kar doon, aaj ya kal?",
+        "closing": "Toh sir, FREE Google audit abhi bhej doon? Saath me 7-din trial — aaj ya kal set kar doon?",
     },
     # ====================================================================== #
     # ADDITIONAL NICHE SCRIPTS (29 niches — professionally researched Hinglish)
@@ -821,7 +823,10 @@ NICHE_SCRIPTS: dict[str, dict] = {
     # hair_transplant, immigration, custom niches, etc.) yahi use karte hain.
     # ====================================================================== #
     "general": {
-        "opening": "Namaste sir, main [Company] se [Name] bol raha hoon — aapne hamari service ke baare me poocha tha, bas 1 minute baat ho sakti hai?",
+        "opening": (
+            "Namaste sir, main Swara bol rahi hoon LeadGen AI se — "
+            "chhote business ke liye AI marketing platform, bas 30 second sunenge?"
+        ),
         "discovery": [
             "Aap exactly kis cheez ki talaash me hain?",
             "Budget ya timeline kya soch rahe hain?",

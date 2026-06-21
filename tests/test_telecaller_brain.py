@@ -60,13 +60,25 @@ def test_script_fallback_starts_at_first_discovery() -> None:
 
 
 def test_script_fallback_advances_each_turn() -> None:
+    from app.voice_agent.niche_scripts import get_script
+
     niche = "solar_residential"
     b = _brain(niche)
+    disc = [d for d in ((get_script(niche) or {}).get("discovery") or []) if d]
+    if len(disc) < 2:
+        return
 
     def fb(n_assistant: int) -> str:
-        h = [{"role": "assistant", "content": "x"} for _ in range(n_assistant)]
+        h = [{"role": "assistant", "content": disc[i]} for i in range(min(n_assistant, len(disc)))]
         h.append({"role": "user", "content": "haan"})
         return b._script_fallback(h)
 
     # Each extra bot turn must advance the pointer (no immediate repeat).
     assert fb(1) and fb(2) and fb(1) != fb(2)
+
+
+def test_clean_rejects_meta_junk() -> None:
+    bad = "Yeh thoda unclear hai, maaf kijiye main phir se poochti hoon?"
+    assert TelecallerBrain._clean(bad) == ""
+    ok = "Google pe upar dikhta hai kya?"
+    assert TelecallerBrain._clean(ok) == ok

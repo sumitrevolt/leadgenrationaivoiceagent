@@ -88,28 +88,33 @@ def opening_segments() -> list[str]:
     ask = (s.get("interest_ask") or "").strip()
     if not intro:
         intro = (
-            "Namaste, main Swara bol rahi hoon LeadGen AI se — "
-            "hum LeadGen AI ki AI assistant hain, chhote businesses ke liye marketing platform."
+            "Namaste sir, main Swara bol rahi hoon LeadGen AI se — ek AI assistant hoon, "
+            "chhote business ke marketing me madad karti hoon."
         )
     if not pitch:
         pitch = (
             "Posts, Google profile, festival posters aur inquiry follow-up — "
-            "sab AI se automatic, ₹1,199 se shuru."
+            "sab AI se automatic, ₹1,199 mahine se."
         )
     if not ask:
-        ask = "Kya aap apne business growth ke liye interested hain?"
+        ask = "Growth ke liye interested hain — haan ya nahi?"
     return [intro, pitch, ask]
 
 
 def line_yes_praise() -> str:
-    return (_script().get("yes_praise") or "").strip() or (
-        "Bahut sahi decision liya aapne apne business growth ke liye!"
-    )
+    s = _script()
+    praise = (s.get("yes_praise") or "").strip()
+    if praise:
+        return praise
+    disc = [str(q).strip() for q in (s.get("discovery") or []) if str(q).strip()]
+    if disc:
+        return f"Bahut achha sir — {disc[0]}"
+    return "Theek sir — marketing abhi khud karte ho, staff se, ya agency?"
 
 
 def line_no_convince() -> str:
     return (_script().get("no_convince_once") or "").strip() or (
-        "Sir, 7 din ka FREE trial hai — pehle result dekho, phir decide kijiye."
+        "Samajh sakti hoon sir — 7 din ka FREE trial hai, pehle result dekho phir decide."
     )
 
 
@@ -118,7 +123,7 @@ def line_close_cold() -> str:
 
 
 def line_clarify() -> str:
-    return "Ji, interested hain ya abhi nahi — haan ya nahi boliye?"
+    return "Ji sir — interested ho to haan, warna seedha nahi bata dijiye?"
 
 
 def classify_interest(text: str) -> InterestVerdict:
@@ -127,6 +132,8 @@ def classify_interest(text: str) -> InterestVerdict:
     if len(t) < 2:
         return "unclear"
     low = re.sub(r"\s+", " ", t.lower()).strip()
+    if low in ("kya", "kya?", "huh", "what"):
+        return "unclear"
     if not re.search(r"[0-9a-zऀ-ॿ]", low):
         return "unclear"
     for pat in _NO_PATTERNS:
@@ -143,6 +150,29 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
     if state.phase not in ("await_interest", "await_interest_2"):
         if state.phase == "closed":
             return line_close_cold(), state
+        return None, state
+
+    low = re.sub(r"\s+", " ", (user_text or "").lower()).strip()
+    if any(w in low for w in ("busy", "meeting", "time nahi")):
+        return "Bilkul sir — shaam paanch ya kal subah gyarah, callback kab theek rahega?", state
+    if low in ("kya", "kya?", "huh", "what"):
+        return (
+            "LeadGen AI se Swara — posts, Google profile, festival posters AI se, ₹1,199 se. "
+            "Interested hain?",
+            state,
+        )
+    if "samjha nahi" in low:
+        return (
+            "Simple me — posts, Google listing aur leads automatic, ₹1,199 se. Try karna chahenge?",
+            state,
+        )
+    if "kaun ho" in low or "aap kaun" in low:
+        state.phase = "discovery"
+        return None, state
+    if state.phase == "await_interest_2" and any(
+        w in low for w in ("agency", "mehenga", "mahnga", "soch ke", "pehle se", "trial")
+    ):
+        state.phase = "discovery"
         return None, state
 
     verdict = classify_interest(user_text)

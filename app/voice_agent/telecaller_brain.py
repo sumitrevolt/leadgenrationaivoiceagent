@@ -66,10 +66,31 @@ _GENERIC_QUESTIONS = [
 
 _MAX_HISTORY_TURNS = 8  # last ~8 turns to keep prompt (and latency) small
 _GEN_CONFIG = {
-    "temperature": 0.5,
-    "max_output_tokens": 60,
-}  # brevity (phone) — 60 so closes don't truncate
+    "temperature": 0.45,
+    "max_output_tokens": 45,
+}  # brevity (phone) — short crisp turns; script_fallback on truncate
 _REPLY_TIMEOUT_S = 4.5  # itne me LLM reply nahi => "" -> instant script_fallback (voice me 6s+ = dead-air "reply nahi deta"; mistral warm ~1-2s)
+
+# LLM kabhi-kabhi meta/noob phrases bol deta hai — _clean inhe reject karta hai
+# taaki script_fallback (professional niche line) turant aaye.
+_META_BANNED = (
+    "maine pehle",
+    "pehle hi poocha",
+    "detail nahi suni",
+    "samajh nahi payi",
+    "thoda unclear",
+    "yeh unclear",
+    "maaf kijiye",
+    "maaf kij",
+    "phir se pooch",
+    "dobara pooch",
+    "main samajh nahi",
+    "aapne kaha jo",
+    "yeh detail",
+    "great choice",
+    "bahut sahi decision",
+    "wonderful question",
+)
 
 # KB-grounding (Qdrant niche + client KB) — phone hot path, so keep it tight:
 # top-2 facts, short timeout, low score gate (works for both e5-cosine and
@@ -168,6 +189,7 @@ class TelecallerBrain:
         # tak na bulaaye memory INERT (safe). AGENT_MEMORY flag OFF => waise bhi no-op.
         self.memory_subject: str | None = None
         self._interest_confirmed = False
+        self._discovery_skip = 0
 
         # Multi-key rotation pool (free-AI resilience): STT + LLM share a Gemini
         # quota PER KEY, so we rotate to the next key on a quota/429 error. The
@@ -248,6 +270,8 @@ class TelecallerBrain:
         if self._interest_confirmed:
             return
         self._interest_confirmed = True
+        # yes_praise already asks discovery[0] — skip duplicate on next turn.
+        self._discovery_skip = 1 if self.niche == "ai_marketing" else 0
         note = (
             "\n\nPLATFORM NOTE: Customer ne interest confirm kar diya hai — "
             "ab sirf discovery questions aur closing. Dobara pitch ya interest mat poocho."
@@ -364,7 +388,7 @@ class TelecallerBrain:
             else ""
         )
 
-        return f"""Tum "Swara" ho — {self.client_name} ki professional Indian female telecaller. Tum ek TOP professional Indian telecaller ho (noob nahi). Confident, warm, crisp. Customer ke har jawab ko sun ke uske hisab se aage badho — ratta-maar nahi. Tum ek LIVE PHONE CALL par ho (text chat nahi); bhasha natural Hinglish (Hindi-English mix), awaaz bilkul insaan jaisi.
+        return f"""Tum "Swara" ho — {self.client_name} ki professional Indian female telecaller. Tum 5+ saal experienced telecaller ho — confident, warm, crisp, kabhi robotic/template nahi. Customer ke har jawab ko sun ke uske hisab se aage badho — ratta-maar nahi. Tum ek LIVE PHONE CALL par ho (text chat nahi); bhasha natural Hinglish (Hindi-English mix), awaaz bilkul insaan jaisi.
 
 CLIENT: {self.client_name} | NICHE: {self.niche_name}{niche_ctx_block}
 VALUE LINE (pitch hook): {hook}
@@ -378,23 +402,26 @@ OBJECTION HANDLING (agar customer aise bole to aise jawab do, phir aage badho):
 ALLOWED NUMBERS/PRICES (sirf yehi bol sakti ho): {numbers_line}
 
 HARD RULES (har turn, bina exception):
-1. Tum phone par ho. Insaan ki tarah baat karo: CHHOTA, seedha, turant. EK reply = MAX 1 vakya, 8-15 shabd. KABHI do sentence nahi.
+1. Tum phone par ho. Insaan ki tarah baat karo: CHHOTA, seedha, turant. EK reply = MAX 1 vakya, 10-18 shabd. KABHI do sentence nahi.
 2. KABHI apne baare me meta baat mat karo — "maine pehle poocha", "yeh maine nahi suna", "yeh detail nahi suni", "unclear hai", "thoda unclear", "maaf kijiye" jaisi cheezein BANNED. Bas aage badho.
 3. User ka jawab unclear/aadha lage to sirf chhota sa poocho: "ji, zara dobara boliye?" — bas. Lamba explanation kabhi nahi.
-4. Ek baar me EK hi sawaal. Jo user ne bola usko 2-3 shabd me acknowledge karke turant agla chhota sawaal. Sawaal reply ke END me.
+4. Ek baar me EK hi sawaal. User ke 2-3 shabd mirror karke turant agla chhota sawaal. Sawaal reply ke END me.
 5. Discovery questions UPAR diye order me, ek-ek. Jo user PEHLE bata chuka (history padho) woh sawaal dobara mat poocho — agle pe badho.
 6. "Busy hoon" → ek line + do callback time options (jaise "shaam paanch ya kal subah gyarah?").
 7. "Interest nahi" → ek chhoti value-line, shukriya, call khatam. Manana/pushy BANNED.
 8. Numbers/prices SIRF ALLOWED list ya neeche FACTS se. Apne se koi figure/discount/promise kabhi nahi.
 9. User ki bhasha mirror karo. "AI/bot ho?" poochhe to sach: haan AI assistant hoon — phir ek line value.
 10. Output me SIRF bola jaane wala text — koi "Swara:" prefix, emoji, markdown, bullet nahi.
-11. Hamesha customer ko izzat se 'aap' aur 'sir/madam' bolkar address karo. KABHI 'tum', 'tu', 'yaar', 'bhai' ya informal slang/tone ka use mat karo. Swara ki tone hamesha respectful, polite, aur highly professional honi chahiye.
+11. Hamesha customer ko izzat se 'aap' aur 'sir/madam' bolkar address karo — tone respectful aur professional. KABHI 'tum', 'tu', 'yaar', 'bhai' ya informal slang mat karo.
+12. "Zara dobara boliye" poori call me MAX ek baar — baar-baar mat bolo. User ne kuch bhi partial bola ho to usme se jo samjho use karo, seedha agla sawaal.
+13. Generic praise BANNED ("bahut achha sir", "great choice", "wonderful") — seedha relevant discovery ya value pe aao.
+14. User ne jawab diya ho to uski 2-4 key words repeat karke acknowledge karo, phir agla sawaal (template/ratta nahi).
 
 GOOD vs BAD (hamesha GOOD jaisa — chhota, human, ek sawaal):
 
 User: Haan leads aati hain par conversion bahut kam hai.
 BAD: Yeh detail maine abhi tak nahi suni thi, lekin aapne conversion ki baat ki jo thodi unclear hai, toh maaf kijiye main phir se poochti hoon...
-GOOD: Samajh gayi, conversion gap. {first_q}
+GOOD: Conversion gap samajh gayi — {first_q}
 
 User: वटाने (aadha/unclear)
 BAD: Yeh thoda unclear hai, aapne वटाने kaha jo main samajh nahi payi, maaf kijiye.
@@ -404,7 +431,7 @@ User: Abhi busy hoon.
 GOOD: Bilkul, shaam paanch ya kal subah gyarah — kab theek rahega?
 
 User: Nahi, interest nahi hai.
-GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukriya, din shubh!"""
+GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din shubh!"""
 
     # ------------------------------------------------------------------ #
     # Permission-based opener (Gong: ~11% vs 2.3% generic) — 2 sentences,
@@ -422,6 +449,104 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             "Kya main do minute le sakti hoon?"
         )
 
+    def _mirror_ack(self, ut: str) -> str:
+        """2-4 user words mirror — human telecaller feel (varied, not always 'Achha sir')."""
+        words = [w for w in re.sub(r"[^\w\s]", " ", ut).split() if w][:4]
+        acks = ("Achha —", "Samajh gayi —", "Ji sir —", "Theek —", "Haan —")
+        pick = acks[len(ut) % len(acks)]
+        if len(words) >= 2:
+            return f"{pick} {' '.join(words[:3])} —"
+        return pick
+
+    def _user_substantive(self, ut: str) -> bool:
+        low = ut.lower().strip()
+        if len(low) >= 8:
+            return True
+        return low in (
+            "haan",
+            "ji",
+            "yes",
+            "nahi",
+            "khud",
+            "agency",
+            "staff",
+            "google",
+            "trial",
+            "busy",
+            "meeting",
+        ) or any(
+            w in low
+            for w in (
+                "post",
+                "marketing",
+                "agency",
+                "google",
+                "trial",
+                "busy",
+                "mehenga",
+                "mahnga",
+                "staff",
+                "khud",
+            )
+        )
+
+    def _last_bot_line(self, history: list[dict[str, str]]) -> str:
+        for m in reversed(history or []):
+            if m.get("role") == "assistant":
+                return str(m.get("content") or "").strip()
+        return ""
+
+    def _fast_path_reply(self, history: list[dict[str, str]], ut: str) -> str:
+        """Deterministic pro replies — LLM se pehle (latency + repeat guard)."""
+        low = ut.lower().strip()
+        try:
+            from app.voice_agent.niche_scripts import get_script
+
+            s = get_script(self.niche) or {}
+        except Exception:
+            s = {}
+
+        if any(w in low for w in ("trial", "free trial", "demo", "test karna", "try karna")):
+            return self._clean(
+                "Bilkul sir — 7 din ka FREE trial hai, bina credit card. "
+                "Aaj setup kar doon ya kal subah?"
+            )
+        if any(w in low for w in ("busy", "meeting", "abhi nahi", "time nahi")):
+            return self._clean("Samajh gayi sir — shaam paanch baje ya kal subah gyarah, kab theek rahega?")
+        if any(w in low for w in ("mehenga", "mahnga", "costly", "zyada paisa", "budget zyada")):
+            obj = (s.get("objections") or {}).get("mehenga") or ""
+            if obj:
+                return self._clean(str(obj))
+        if any(w in low for w in ("agency", "pehle se agency")):
+            obj = (s.get("objections") or {}).get("pehle_se_hai") or ""
+            if obj:
+                return self._clean(str(obj))
+        if "kaun ho" in low or "aap kaun" in low or "who are you" in low:
+            return self._clean(
+                "Main Swara hoon LeadGen AI se — chhote business ke liye AI marketing platform, posts aur Google profile automatic."
+            )
+
+        # User ne discovery ka jawab diya → mirror + agla unasked sawaal (repeat mat).
+        if self._user_substantive(ut):
+            nxt = self._next_discovery_line(history)
+            last = self._last_bot_line(history)
+            if nxt and "?" in nxt:
+                # Agar last bot line already yehi sawaal tha, seedha next do.
+                if self._already_asked(nxt, history) or (
+                    last and self._too_similar(nxt, last)
+                ):
+                    disc = [d for d in (s.get("discovery") or self.questions or []) if d]
+                    for q in disc:
+                        if not self._already_asked(q, history):
+                            nxt = self._clean(q)
+                            break
+                ack = self._mirror_ack(ut)
+                combined = f"{ack} {nxt}".strip()
+                if "?" not in combined:
+                    combined = f"{combined} {nxt}"
+                return self._clean(combined)
+        return ""
+
     # ------------------------------------------------------------------ #
     # Reply — system prompt + last ~8 turns → ONE short spoken line.
     # ------------------------------------------------------------------ #
@@ -434,6 +559,9 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
         Repeated-answer guard: bot pichhli line dohraye to ek nudged retry."""
         try:
             ut = (user_text or "").strip()
+            fast = self._fast_path_reply(history, ut)
+            if fast:
+                return fast
             facts = await self._kb_facts(ut)
             # Agent memory (cross-session lead recall) — flag-gated, off-loop+deadline
             # (recall khud bounded). OFF (AGENT_MEMORY unset) => instant []. Never blocks.
@@ -507,6 +635,10 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
 
         try:
             ut = (user_text or "").strip()
+            fast = self._fast_path_reply(history, ut)
+            if fast:
+                yield fast
+                return
             facts = await self._kb_facts(ut)
             prompt = self._build_prompt(history, ut, facts)
             from app.voice_agent import free_ai
@@ -538,17 +670,27 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
     # Agent KABHI chup na rahe — LLM slow/empty + script-fallback bhi khali ho to
     # ek safe Hinglish clarify/ack line do (silence = worst UX; test me "NO REPLY" bug).
     _SAFE_LINES = (
-        "Ji, main sun rahi hoon — zara dobara boliye?",
         "Achha sir, thoda detail me bataaiye?",
-        "Samajh gayi sir — ek minute, aap boliye?",
+        "Samajh gayi sir — aage bataye?",
+        "Ji sir, sun rahi hoon — boliye?",
     )
+    _CLARIFY_LINE = "Ji sir, ek baar phir short me boliye?"
 
     def _safe_fallback(self, history: list[dict[str, str]]) -> str:
         try:
-            n = sum(1 for m in (history or []) if (m.get("role") or "") == "assistant")
+            hist = history or []
+            clarify_used = any(
+                "dobara boliye" in str(m.get("content") or "").lower()
+                or "phir short" in str(m.get("content") or "").lower()
+                for m in hist
+                if m.get("role") == "assistant"
+            )
+            if not clarify_used and len(hist) >= 2:
+                return self._CLARIFY_LINE
+            n = sum(1 for m in hist if (m.get("role") or "") == "assistant")
             return self._SAFE_LINES[n % len(self._SAFE_LINES)]
         except Exception:
-            return "Ji, boliye?"
+            return "Ji sir, boliye?"
 
     @staticmethod
     def _looks_like_greeting(text: str) -> bool:
@@ -600,29 +742,89 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
         except Exception:
             return text or ""
 
+    @staticmethod
+    def _question_signature(q: str) -> set[str]:
+        """Discovery question ka chhota token-set — repeat-detect ke liye."""
+        t = re.sub(r"[^a-z0-9ऀ-ॿ ]", " ", (q or "").lower())
+        stop = {
+            "aap",
+            "ap",
+            "apne",
+            "hai",
+            "hain",
+            "kya",
+            "ka",
+            "ke",
+            "ki",
+            "ko",
+            "me",
+            "se",
+            "ya",
+            "aur",
+            "abhi",
+            "kitna",
+            "kitni",
+            "kahan",
+            "kaise",
+            "the",
+            "a",
+            "an",
+        }
+        return {w for w in t.split() if len(w) > 2 and w not in stop}
+
+    def _already_asked(self, question: str, history: list[dict[str, str]]) -> bool:
+        """Bot ne ye sawaal (ya bahut similar) pehle poocha?"""
+        sig = self._question_signature(question)
+        if not sig:
+            return False
+        for m in reversed(history or []):
+            if m.get("role") != "assistant":
+                continue
+            prev = str(m.get("content") or "")
+            ps = self._question_signature(prev)
+            if not ps:
+                continue
+            overlap = len(sig & ps) / max(len(sig | ps), 1)
+            if overlap >= 0.55 or question.strip().lower() in prev.lower():
+                return True
+        return False
+
+    def _next_discovery_line(self, history: list[dict[str, str]]) -> str:
+        """Pehla unasked discovery → value → close."""
+        try:
+            from app.voice_agent.niche_scripts import get_script
+
+            s = get_script(self.niche) or {}
+        except Exception:
+            s = {}
+        disc = [d for d in (s.get("discovery") or self.questions or []) if d]
+        skip = int(getattr(self, "_discovery_skip", 0) or 0)
+        if skip > 0:
+            disc = disc[skip:]
+        vals = [v for v in (s.get("value_lines") or []) if v]
+        closing = (s.get("closing") or "").strip()
+        for q in disc:
+            if not self._already_asked(q, history):
+                return self._clean(q)
+        for v in vals:
+            if not self._already_asked(v, history):
+                return self._clean(v)
+        return self._clean(closing) if closing else ""
+
     def _script_fallback(self, history: list[dict[str, str]]) -> str:
         """Deterministic professional line from the niche script (no LLM).
-        Rotates through discovery questions by how many bot turns happened,
-        then a value line, then the close — so it advances + never repeats."""
+        Skips discovery questions already asked in history."""
+        line = self._next_discovery_line(history)
+        if line:
+            return line
         try:
             from app.voice_agent.niche_scripts import get_script
 
             s = get_script(self.niche) or {}
         except Exception:
             return ""
-        disc = [d for d in (s.get("discovery") or []) if d]
-        vals = [v for v in (s.get("value_lines") or []) if v]
         closing = (s.get("closing") or "").strip()
-        # how many times bot already spoke = our position in the flow
-        spoken = sum(1 for m in (history or []) if m.get("role") == "assistant")
-        seq = disc + vals + ([closing] if closing else [])
-        if not seq:
-            return ""
-        # opener (first assistant turn) is NOT a discovery step — exclude it so the
-        # first script fallback returns discovery[0], not discovery[1] (skip bug).
-        idx = max(0, spoken - 1)
-        line = seq[idx] if idx < len(seq) else (closing or seq[-1])
-        return self._clean(line)
+        return self._clean(closing) if closing else ""
 
     async def _generate(self, prompt: str) -> tuple:
         """(reply_text, provider). free_ai.chat (Cerebras->Groq->OpenRouter) pehle
@@ -656,6 +858,20 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             return False
         return (len(ta & tb) / len(ta | tb)) >= 0.8
 
+    def _voice_lessons_block(self) -> str:
+        """Past live-call mistakes from skill_library (Meera voice_learn)."""
+        try:
+            from app.platform.skill_library import lessons_snippet
+
+            snip = lessons_snippet(f"voice_{self.niche}", k=3)
+            if not snip.strip():
+                snip = lessons_snippet("voice_general", k=2)
+            if snip.strip():
+                return f"PAST CALL LESSONS (in galtiyan mat dobara karo):\n{snip}"
+        except Exception:
+            pass
+        return ""
+
     # ------------------------------------------------------------------ #
     # Prompt assembly (system + KB facts + recent turns)
     # ------------------------------------------------------------------ #
@@ -664,6 +880,9 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
     ) -> str:
         turns = list(history or [])[-_MAX_HISTORY_TURNS:]
         lines: list[str] = [self.system_prompt]
+        vl = self._voice_lessons_block()
+        if vl:
+            lines.append(vl)
         if facts:
             # KB facts as ONE short line (phone hot path — no paragraphs). Use
             # only if relevant; never invent numbers/claims beyond these.
@@ -785,6 +1004,7 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=int(_GEN_CONFIG["max_output_tokens"]),
                 temperature=float(_GEN_CONFIG["temperature"]),
+                profile="realtime",
             )
             if text:
                 logger.info(
@@ -796,25 +1016,32 @@ GOOD: Koi baat nahi — "{hook_short}" se hamare clients ko fayda hua hai. Shukr
             return ""
 
     @staticmethod
+    def _has_meta_junk(text: str) -> bool:
+        """True if reply contains banned meta/noob telecaller phrases."""
+        low = (text or "").lower()
+        return any(b in low for b in _META_BANNED)
+
+    @staticmethod
     def _clean(text: str) -> str:
         """TTS-safe + HARD BREVITY: strip role prefixes/markdown, collapse
-        whitespace, AND cap to ~2 sentences / 28 words (phone par lambi reply =
-        bura UX; QA-tester ne 36-word replies pakdi thi). Last reliable safety
-        net even if the model ignores the prompt's length rule."""
+        whitespace, cap to 1 sentence / ~20 words (phone par lambi reply =
+        bura UX). Meta/noob phrases => '' (caller uses script_fallback)."""
         t = (text or "").strip()
         t = re.sub(r"^(swara|agent|assistant)\s*:\s*", "", t, flags=re.IGNORECASE)
         t = t.replace("*", "").replace("`", "").replace("#", "")
         t = re.sub(r"\s+", " ", t).strip()
         if not t:
             return t
-        # 1-2 sentences max (Hindi danda + . ? !)
+        if TelecallerBrain._has_meta_junk(t):
+            return ""
+        # 1 sentence max (Hindi danda + . ? !)
         parts = re.split(r"(?<=[।.?!])\s+", t)
-        if len(parts) > 2:
-            t = " ".join(parts[:2]).strip()
-        # hard word cap (~28) — trim at a clause boundary if possible
+        if len(parts) > 1:
+            t = parts[0].strip()
+        # hard word cap (~20) — trim at a clause boundary if possible
         words = t.split()
-        if len(words) > 28:
-            t = " ".join(words[:28]).rstrip(" ,;—-")
+        if len(words) > 20:
+            t = " ".join(words[:20]).rstrip(" ,;—-")
             if not re.search(r"[।.?!]$", t):
                 t += "?"
         return t
