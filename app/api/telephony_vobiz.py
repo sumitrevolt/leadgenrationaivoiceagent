@@ -13,11 +13,12 @@ NOTE (DLT pending): test calls sirf own/known numbers pe (transactional);
 promo cold-calls 140-DID + DLT ke baad hi.
 """
 
+import json
 import uuid
 from typing import Any
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Response, WebSocket
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
@@ -34,8 +35,62 @@ router = APIRouter(prefix="/telephony/vobiz", tags=["Telephony"])
 # fine for admin test calls (Vobiz fetches the answer_url within seconds).
 _PENDING_MESSAGES: dict[str, str] = {}
 # Streaming calls: token -> {"niche", "client_id"} (answer-stream + WS read it).
+# In-memory = same-process fallback; Redis = cross-process (docker exec fire_calls
+# vs uvicorn worker — bina Redis niche hamesha general ho jati thi).
 _PENDING_STREAMS: dict[str, dict[str, Any]] = {}
 _MAX_PENDING = 200
+_STREAM_REDIS_PREFIX = "vobiz:pending:"
+_STREAM_REDIS_TTL_S = 600
+
+
+def _answer_stream_qs(niche: str, client_id: str | None) -> str:
+    """Query string embedded in answer_url — survives cross-process pending loss."""
+    qs: dict[str, str] = {"niche": (niche or "general").strip() or "general"}
+    if client_id:
+        qs["client_id"] = str(client_id)
+    return urlencode(qs)
+
+
+async def _store_pending(token: str, data: dict[str, Any]) -> None:
+    _PENDING_STREAMS[token] = data
+    if len(_PENDING_STREAMS) > _MAX_PENDING:
+        _PENDING_STREAMS.clear()
+        _PENDING_STREAMS[token] = data
+    try:
+        from app.cache import get_redis_client
+
+        r = await get_redis_client()
+        await r.setex(f"{_STREAM_REDIS_PREFIX}{token}", _STREAM_REDIS_TTL_S, json.dumps(data))
+    except Exception as e:
+        logger.debug("pending stream redis store skip: %s", e)
+
+
+async def _peek_pending(token: str) -> dict[str, Any]:
+    try:
+        from app.cache import get_redis_client
+
+        r = await get_redis_client()
+        raw = await r.get(f"{_STREAM_REDIS_PREFIX}{token}")
+        if raw:
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8", errors="ignore")
+            return json.loads(raw)
+    except Exception:
+        pass
+    return _PENDING_STREAMS.get(token) or {}
+
+
+async def _pop_pending(token: str) -> dict[str, Any] | None:
+    pend = await _peek_pending(token)
+    _PENDING_STREAMS.pop(token, None)
+    try:
+        from app.cache import get_redis_client
+
+        r = await get_redis_client()
+        await r.delete(f"{_STREAM_REDIS_PREFIX}{token}")
+    except Exception:
+        pass
+    return pend or None
 
 _FALLBACK_GREETING = (
     "Namaste! Yeh LeadGen AI ki taraf se ek AI demo call hai. "
@@ -183,14 +238,16 @@ async def start_stream_call(
             return {"placed": False, "error": "vobiz_not_configured"}
 
         token = uuid.uuid4().hex[:10]
-        if len(_PENDING_STREAMS) >= _MAX_PENDING:  # bounded memory
-            _PENDING_STREAMS.clear()
-        _PENDING_STREAMS[token] = {"niche": niche or "general", "client_id": client_id}
+        niche_key = (niche or "general").strip() or "general"
+        await _store_pending(token, {"niche": niche_key, "client_id": client_id})
 
-        answer_url = f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
+        answer_url = (
+            f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
+            f"?{_answer_stream_qs(niche_key, client_id)}"
+        )
         result = await client.place_call(to=to, answer_url=answer_url, call_type=call_type)
         if result.get("blocked"):
-            _PENDING_STREAMS.pop(token, None)
+            await _pop_pending(token)
             return {"placed": False, "error": "compliance_blocked", "vobiz_response": result}
         placed = 200 <= int(result.get("status_code") or 0) < 300
         return {
@@ -219,16 +276,18 @@ async def place_stream_call(
         )
 
     token = uuid.uuid4().hex[:10]
-    if len(_PENDING_STREAMS) >= _MAX_PENDING:  # bounded memory
-        _PENDING_STREAMS.clear()
-    _PENDING_STREAMS[token] = {"niche": request.niche, "client_id": request.client_id}
+    niche_key = (request.niche or "general").strip() or "general"
+    await _store_pending(token, {"niche": niche_key, "client_id": request.client_id})
 
-    answer_url = f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
+    answer_url = (
+        f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
+        f"?{_answer_stream_qs(niche_key, request.client_id)}"
+    )
     result = await client.place_call(
         to=request.to, answer_url=answer_url, call_type=request.call_type
     )
     if result.get("blocked"):
-        _PENDING_STREAMS.pop(token, None)
+        await _pop_pending(token)
         raise HTTPException(
             status_code=422,
             detail={
@@ -259,14 +318,16 @@ async def place_stream_call(
 
 
 @router.api_route("/answer-stream/{token}", methods=["GET", "POST"], include_in_schema=False)
-async def answer_stream_xml(token: str) -> Response:
+async def answer_stream_xml(token: str, request: Request) -> Response:
     """Answer-URL webhook for streamed calls (NO auth). Returns VobizXML that
     bridges the call to our WebSocket. Unknown tokens still get a valid stream
     (niche=general) — the call is already live when Vobiz fetches this."""
-    pend = _PENDING_STREAMS.get(token) or {}
-    qs = {"niche": pend.get("niche") or "general"}
-    if pend.get("client_id"):
-        qs["client_id"] = pend["client_id"]
+    pend = await _peek_pending(token)
+    niche = (request.query_params.get("niche") or pend.get("niche") or "general").strip()
+    client_id = request.query_params.get("client_id") or pend.get("client_id")
+    qs: dict[str, str] = {"niche": niche or "general"}
+    if client_id:
+        qs["client_id"] = str(client_id)
     ws_url = f"wss://{_wss_host()}/api/telephony/vobiz/stream/{token}?{urlencode(qs)}"
     return Response(content=build_stream_xml(ws_url), media_type="application/xml")
 
@@ -283,7 +344,7 @@ async def vobiz_stream_ws(
     store (filled by /stream-call); customParameters in the start event win."""
     from app.telephony.vobiz_stream import VobizStreamSession
 
-    pend = _PENDING_STREAMS.pop(token, None)
+    pend = await _pop_pending(token)
     if pend:
         niche = pend.get("niche") or niche
         client_id = pend.get("client_id") or client_id
