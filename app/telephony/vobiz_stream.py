@@ -1341,16 +1341,25 @@ class VobizStreamSession:
             from app.voice_agent.platform_pitch import next_reply
 
             reply, self._pitch_state = next_reply(self._pitch_state, text)
-            if reply is None:
-                return None
+            if reply is not None:
+                if self._pitch_state.phase == "discovery":
+                    if os.environ.get("PHONE_CELEBRATION", "0").strip().lower() in (
+                        "1",
+                        "true",
+                        "yes",
+                    ):
+                        await self._play_celebration()
+                    tc = self._get_telecaller()
+                    if tc is not None and hasattr(tc, "confirm_interest"):
+                        tc.confirm_interest()
+                    self._pitch_state = None
+                return reply
             if self._pitch_state.phase == "discovery":
-                # Phone cold-call: celebration chime = unprofessional; web-call only.
-                if os.environ.get("PHONE_CELEBRATION", "0").strip().lower() in ("1", "true", "yes"):
-                    await self._play_celebration()
                 tc = self._get_telecaller()
                 if tc is not None and hasattr(tc, "confirm_interest"):
                     tc.confirm_interest()
-            return reply
+                self._pitch_state = None
+            return None
         except Exception as e:
             logger.debug(f"[vobiz-stream] platform_pitch_reply failed: {e}")
             return None
@@ -1634,10 +1643,9 @@ class VobizStreamSession:
                 f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
                 f"Aapke kaam ki ek choti si baat hai — {hook} — kya main tees second me bata doon?"
             )
-        return (
-            f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
-            "Kya main do minute le sakti hoon?"
-        )
+        from app.voice_agent.universal_pitch import UNIVERSAL_AGENT_INTRO
+
+        return UNIVERSAL_AGENT_INTRO
 
     def _greet_key(self) -> str:
         """Cache key = voice + exact opener text (niche/client embedded) —

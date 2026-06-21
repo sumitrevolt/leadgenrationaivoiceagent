@@ -70,7 +70,7 @@ _GEN_CONFIG = {
     "temperature": 0.45,
     "max_output_tokens": 45,
 }  # brevity (phone) — short crisp turns; script_fallback on truncate
-_REPLY_TIMEOUT_S = 4.5  # itne me LLM reply nahi => "" -> instant script_fallback (voice me 6s+ = dead-air "reply nahi deta"; mistral warm ~1-2s)
+_REPLY_TIMEOUT_S = 8.0  # free LLM chain (Mistral/Groq) — 4.5s = zyada fallback/wrong jawab
 
 # LLM kabhi-kabhi meta/noob phrases bol deta hai — _clean inhe reject karta hai
 # taaki script_fallback (professional niche line) turant aaye.
@@ -557,16 +557,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 return role_opener
         except Exception:
             pass
-        hook = _short_hook(self.pitch_hook)
-        if hook:
-            return (
-                f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
-                f"Aapke kaam ki ek choti si baat hai — {hook} — kya main tees second me bata doon?"
-            )
-        return (
-            f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
-            "Kya main do minute le sakti hoon?"
-        )
+        from app.voice_agent.universal_pitch import UNIVERSAL_AGENT_INTRO
+
+        return UNIVERSAL_AGENT_INTRO
 
     def _mirror_ack(self, ut: str) -> str:
         """Short, professional, VARIED acknowledgment — human consultant feel.
@@ -624,9 +617,101 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 return str(m.get("content") or "").strip()
         return ""
 
+    @staticmethod
+    def _looks_like_question(ut: str) -> bool:
+        """Customer ne sawaal poocha? — pehle jawab, phir discovery checklist."""
+        low = (ut or "").lower()
+        if "?" in ut:
+            return True
+        qwords = (
+            "kya ",
+            "kaise",
+            "kab ",
+            "kahan",
+            "kyun",
+            "kitna",
+            "kitne",
+            "price",
+            "cost",
+            "free",
+            "trial",
+            "samjhao",
+            "samjha",
+            "batao",
+            "matlab",
+            "explain",
+            "detail",
+        )
+        return any(w in low for w in qwords)
+
+    def _customer_qa_reply(self, ut: str) -> str:
+        """Customer ke sawaal ka seedha jawab — LLM se pehle (free, instant)."""
+        low = (ut or "").lower().strip()
+        if not low or not self._looks_like_question(ut):
+            return ""
+        platform = self.niche == "ai_marketing" or self._interest_confirmed
+        if platform:
+            if any(
+                w in low
+                for w in (
+                    "kitne ka",
+                    "kitna paisa",
+                    "kitna lag",
+                    "price",
+                    "pricing",
+                    "mahina",
+                    "cost",
+                    "rate",
+                    "rupaye",
+                    "rupee",
+                    "₹",
+                )
+            ):
+                return self._clean(
+                    "Starter ₹1,199 mahine se — roz posts, ads, Google boost AI se; "
+                    "7 din FREE trial bhi hai."
+                )
+            if any(
+                w in low
+                for w in (
+                    "kya karte",
+                    "kya hai ye",
+                    "kya hota",
+                    "kaise kaam",
+                    "samjhao",
+                    "samjha",
+                    "matlab kya",
+                    "explain",
+                    "detail me",
+                )
+            ):
+                return self._clean(
+                    "Simple sir — Instagram Facebook WhatsApp pe posts aur ads AI banati hai, "
+                    "Google pe upar aana, inquiry follow-up — sab automatic, aap dhanda pe focus."
+                )
+            if any(w in low for w in ("free trial", "trial", "demo", "try karna")):
+                return self._clean("Haan sir — 7 din FREE trial, bina card. Aaj setup kar doon ya kal?")
+            if any(w in low for w in ("social", "instagram", "facebook", "whatsapp", "post", "ads")):
+                return self._clean(
+                    "Roz ke posts aur ads AI banati hai — aapki industry aur city ke hisaab se, "
+                    "aap sirf approve ya copy-paste karo."
+                )
+        try:
+            from app.voice_agent.niche_scripts import get_script
+
+            vals = [str(v).strip() for v in (get_script(self.niche).get("value_lines") or []) if str(v).strip()]
+            if vals:
+                return self._clean(vals[0][:200])
+        except Exception:
+            pass
+        return ""
+
     def _fast_path_reply(self, history: list[dict[str, str]], ut: str) -> str:
         """Deterministic pro replies — LLM se pehle (latency + repeat guard)."""
         low = ut.lower().strip()
+        qa = self._customer_qa_reply(ut)
+        if qa:
+            return qa
         try:
             from app.voice_agent.niche_scripts import get_script
 
@@ -654,8 +739,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 "Main Swara hoon LeadGen AI se — chhote business ke liye AI marketing platform, posts aur Google profile automatic."
             )
 
-        # User ne discovery ka jawab diya → mirror + agla unasked sawaal (repeat mat).
-        if self._user_substantive(ut):
+        # User ne discovery ka jawab diya → mirror + agla unasked sawaal (sawaal ho to skip).
+        if self._user_substantive(ut) and not self._looks_like_question(ut):
             nxt = self._next_discovery_line(history)
             last = self._last_bot_line(history)
             if nxt and "?" in nxt:
@@ -858,22 +943,20 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         if not intro:
             return False
         markers = (
-            "bol rahi hoon",
-            "bol raha hoon",
             "30 second",
             "tees second",
-            "baat kar sakti",
-            "baat kar sakta",
+            "2 minute",
             "do minute",
             "ek minute de",
-            "se baat kar rah",
-            "se swara",
-            "minute baat",
-            "taraf se baat",
-            "ai assistant",
-            "swara bol rah",
+            "baat kar sakti",
+            "baat kar sakta",
+            "baat kar lein",
+            "time milega",
+            "theek hai na",
+            "denge?",
+            "de sakte",
         )
-        return any(m in t for m in markers)
+        return intro and any(m in t for m in markers)
 
     def _fill(self, text: str) -> str:
         """Template placeholders ([Company]/[Name]/[Project]) ko real values se

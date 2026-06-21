@@ -162,7 +162,11 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
         )
     if "kaun ho" in low or "aap kaun" in low:
         state.phase = "discovery"
-        return None, state
+        return (
+            "Main Swara hoon LeadGen AI se — AI se social posts, ads aur Google boost; "
+            "marketing abhi aap khud karte ho ya koi aur?",
+            state,
+        )
     if state.phase == "await_interest_2" and any(
         w in low for w in ("agency", "mehenga", "mahnga", "soch ke", "pehle se", "trial")
     ):
@@ -171,6 +175,10 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
 
     verdict = classify_interest(user_text)
     if verdict == "unclear":
+        # Substantive reply (not yes/no) = customer bol raha hai — discovery pe le jao.
+        if len(low) >= 12 and not low in ("haan", "ji", "ok", "okay", "theek"):
+            state.phase = "discovery"
+            return None, state
         return line_clarify(), state
     if verdict == "yes":
         state.phase = "discovery"

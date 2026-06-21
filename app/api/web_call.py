@@ -125,6 +125,38 @@ def _log_turn(session: dict[str, Any], role: str, text: str) -> None:
     turns.append({"ts": _now_iso(), "role": role, "text": t[:2000]})
 
 
+def _history_from_session(session: dict[str, Any], *, exclude_last_user: str | None = None) -> list[dict[str, str]]:
+    """Turn log = source of truth — WS handler history desync se wrong jawab na aaye."""
+    out: list[dict[str, str]] = []
+    for t in session.get("turns") or []:
+        if not isinstance(t, dict):
+            continue
+        role = str(t.get("role") or "user")
+        text = str(t.get("text") or t.get("content") or "").strip()
+        if text:
+            out.append({"role": role, "content": text})
+    if (
+        exclude_last_user
+        and out
+        and out[-1].get("role") == "user"
+        and out[-1].get("content") == exclude_last_user.strip()
+    ):
+        out = out[:-1]
+    return out
+
+
+def _pitch_discovery_handoff(session: dict[str, Any], tcbrain: Any | None, pst: Any) -> None:
+    """Interest gate khatam — ab TelecallerBrain customer ke hisaab se chale."""
+    if pst is None or getattr(pst, "phase", "") != "discovery":
+        return
+    if tcbrain is not None and hasattr(tcbrain, "confirm_interest"):
+        try:
+            tcbrain.confirm_interest()
+        except Exception:
+            pass
+    session.pop("pitch_state", None)
+
+
 def _persist_session(session: dict[str, Any]) -> None:
     if session.get("saved"):
         return
@@ -902,6 +934,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 continue
 
             _log_turn(session, "user", user_text)
+            history = _history_from_session(session, exclude_last_user=user_text)
             pitch_raw = session.get("pitch_state")
             if pitch_raw:
                 try:
@@ -916,14 +949,13 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         "phase": pst.phase,
                         "convinced_once": pst.convinced_once,
                     }
+                    tcbrain = await _run_blocking(_get_tcbrain, session.get("niche", "general"))
+                    if pst.phase == "discovery":
+                        _pitch_discovery_handoff(session, tcbrain, pst)
                     if gate_reply:
                         history.append({"role": "user", "content": user_text})
                         history.append({"role": "assistant", "content": gate_reply})
                         _log_turn(session, "assistant", gate_reply)
-                        tcbrain = await _run_blocking(_get_tcbrain, session.get("niche", "general"))
-                        if pst.phase == "discovery" and tcbrain is not None:
-                            if hasattr(tcbrain, "confirm_interest"):
-                                tcbrain.confirm_interest()
                         await websocket.send_json(
                             {
                                 "type": "bot",
@@ -937,6 +969,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         continue
                 except Exception as e:
                     logger.debug(f"web-call: platform pitch gate skip ({e}).")
+
+            history = _history_from_session(session, exclude_last_user=user_text)
 
             # PRIMARY: professional TelecallerBrain (the SAME brain as the phone
             # agent — researched niche scripts + free_ai/Gemini, KB-grounded),
@@ -1008,10 +1042,10 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     return tc_reply
 
                 try:
-                    tc_reply = await asyncio.wait_for(_brain_turn(), timeout=8.0)
+                    tc_reply = await asyncio.wait_for(_brain_turn(), timeout=18.0)
                 except asyncio.TimeoutError:
                     tc_reply = ""
-                    logger.warning("web-call: TelecallerBrain turn timed out (8s)")
+                    logger.warning("web-call: TelecallerBrain turn timed out (18s)")
                 if not tc_reply:
                     try:
                         tc_reply = tcbrain._safe_fallback(history) or ""
@@ -1027,10 +1061,22 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         )
 
                 if tc_reply:
-                    history.append({"role": "user", "content": user_text})
-                    history.append({"role": "assistant", "content": tc_reply})
                     _log_turn(session, "assistant", tc_reply)
                     continue
+
+                # Never hang — customer ko hamesha kuch sunai de.
+                tc_reply = "Ji sir, sun rahi hoon — thoda detail me bataye?"
+                _log_turn(session, "assistant", tc_reply)
+                await websocket.send_json(
+                    {
+                        "type": "bot",
+                        "text": tc_reply,
+                        "audio_b64": None,
+                        "heard": user_text,
+                        "test_mode": True,
+                    }
+                )
+                continue
 
             # FALLBACK: human-like natural dialog (listen -> understand -> answer).
             await _run_blocking(_ensure_dialog)
