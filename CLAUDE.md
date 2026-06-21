@@ -17,7 +17,7 @@
 2. **Source-of-truth = Windows:** Edit se theek pehle file Read karo (STALE sandbox content pe edit MAT karo). Memory/code edit sirf Windows file-tools se.
 3. **Pattern-match + additive:** padosi code ka convention copy karo; working code rewrite risky → additive prefer.
 4. **Verify before "done":** change ke baad `/verify` (prod_check + targeted tests) chalao; "ho gaya" sirf jab green. Bina proof done MAT bolo.
-5. Non-trivial change/debug/audit → pehle skill **`fable-operating-manual`** invoke karo (+ `leadgen-ops` deploy · `marketing-feature` naya feature · `systematic-debugging` bug). **Ambiguous strategy/go-no-go** → **`llm-council-decision`** (multi-agent opinions → peer review → Chairman verdict; LIVE: `/api/agents/council`).
+5. Non-trivial change/debug/audit → pehle skill **`fable-operating-manual`** invoke karo (+ `leadgen-ops` deploy · `marketing-feature` naya feature · `systematic-debugging` bug). **Code edit** → **`context-first`** pehle (parallel Grep/Read). **Ambiguous strategy/go-no-go** → **`llm-council-decision`** (multi-agent opinions → peer review → Chairman verdict; LIVE: `/api/agents/council`).
 6. **Improvement ≠ broken** (2026-06-18 lesson — Cursor se piche raha tha): `final_integration_check`/`prod_check` PASS ka matlab "kuch banana nahi" NAHI. Cross-path wiring gaps (hook ek path me par active path me nahi, jaise AUTO_QUALIFY call_manager me tha vobiz_stream me nahi), untested fixes (unit-test add karo), dormant-but-wireable loops — yeh dhoondo + **SHIP karo**. Analysis/AskUserQuestion pe ruk ke "ball tumhare court me" mat bolo jab real wireable value ho. Decide-and-ship.
 
 ## Product (current direction — MARKETING-FIRST pivot)
@@ -119,6 +119,7 @@
 - **Secrets kabhi committed file/CLAUDE.md/scripts me mat likho — sirf .env** (gitignored). `scripts/check_secrets.py` (/verify step-4 me WIRED; false-positive = line pe `nosecret`).
 
 ## Skills (`.claude/skills/` + `data/skills_extra/` — workflow invoke karo, re-derive mat karo)
+- **Claude code task protocol:** `context-first` (parallel Grep/Read before edit) → `leadgen-composer` → one domain skill. Launch/readiness → `production-ready`. Parity map `SKILLS_PARITY.md`.
 - **skill_pack** (`platform/skill_pack.py`, `SKILL_PACK=1` ON): VPS agents ko `find/snippet_for` + KB "skills" ns ingest. Total **241 skills** = 61 project + 141 agency-agents pack + 39 ECC pack (`data/skills_extra/*.md`, data-only = git pull pe live, NO rebuild). Project skills cover: session bootstrap, ops/verify/deploy, hostinger gotchas, marketing-feature, telephony, automation-pipeline/flags, FDE, multi-agent-coordination, agent-loop-design, self-improve, parity/parallel-batch, RBAC, debugging/TDD/review, pricing/copy/churn, voice-humanization, web-call-triage, etc.
 - **Slash commands** (`.claude/commands/`, 7): `/verify` `/ship` `/checkpoint` `/learn` `/compact-check` `/optimize` `/test-expand`.
 - **Automation loops doc**: `docs/AUTOMATION.md` (self-improve · coordinator 4-modes · process-engine — decision tree). `self-improve-control` skill (monitor + safety matrix + `scripts/selfimprove_audit.py`). Safety: `SELFIMPROVE_COST_CAP=50`, `SELF_IMPROVE_APPROVAL=1` (optional).

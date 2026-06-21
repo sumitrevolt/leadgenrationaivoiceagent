@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (792 operations)
+## Endpoint Index — auto-generated from OpenAPI (795 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1275,17 +1275,20 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/voiceai/transfer` — Transfer Call
 - `GET   ` `/api/voiceai/transfers` — Recent Transfers
 
-### Voice Product  (5)
+### Voice Product  (6)
 
+- `GET   ` `/api/voice/agents` — Voice Agents
 - `GET   ` `/api/voice/niches` — Voice Niches
 - `GET   ` `/api/voice/packages` — Voice Packages
 - `GET   ` `/api/voice/quota` — Voice Quota
 - `POST  ` `/api/voice/record-lead` — Record Lead
 - `POST  ` `/api/voice/topup-link` — Lead Topup Link
 
-### Web Call (Test Mode)  (1)
+### Web Call (Test Mode)  (3)
 
 - `GET   ` `/api/web-call/config` — Web Call Config
+- `GET   ` `/api/web-call/history` — Web Call History
+- `GET   ` `/api/web-call/session/{session_id}` — Web Call Session Detail
 
 ### Webhooks  (5)
 

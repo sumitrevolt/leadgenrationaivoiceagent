@@ -1,11 +1,11 @@
 ---
 name: leadgen-composer
-description: LeadGen AI project ka primary Composer 2.5 operating skill — context-first edits, Hinglish replies, free-stack, council decisions, deploy verify. Use for ANY task on leadsgenai.in repo (code, debug, deploy, marketing feature, voice, agents). Read skills-index.md for deep .claude/skills workflows.
+description: LeadGen AI project ka primary Composer 2.5 operating skill — context-first edits, Hinglish replies, free-stack, council decisions, deploy verify. Use for ANY task on leadsgenai.in repo (code, debug, deploy, marketing feature, voice, agents). Canonical copy .claude/skills/leadgen-composer/SKILL.md — keep in sync.
 ---
 
 # LeadGen Composer 2.5 — Project Brain
 
-> **Model:** Cursor Composer 2.5 · **Canonical skills:** `.claude/skills/` (Claude Code + Composer share). **Index:** [skills-index.md](skills-index.md) · [SKILLS_PARITY.md](../SKILLS_PARITY.md)
+> **Canonical:** `.claude/skills/leadgen-composer/SKILL.md` (Claude PRIMARY). **Index:** [skills-index.md](skills-index.md) · [SKILLS_PARITY.md](../../.claude/skills/SKILLS_PARITY.md)
 
 ## User rules (non-negotiable)
 
@@ -14,69 +14,46 @@ description: LeadGen AI project ka primary Composer 2.5 operating skill — cont
 - **DO alag products** — Marketing (main) vs Voice Agent (standalone); bundle framing mat use karo.
 - **Commit/push** sirf jab user bole.
 
----
-
 ## Composer superpower — context-first (mandatory har code task)
 
 Composer Claude se fast + accurate isliye hai ki pehle poora context uthata hai. **Edit se PEHLE:**
 
 ```
-1. Grep/Glob  → saare touch-points (callers, routes, tests, UI)
+1. Grep/Glob  → saare touch-points (callers, routes, tests, UI) — PARALLEL batch
 2. Read FULL  → jin files ko chhoona hai (snippet blind edit = bug)
 3. Plan       → kaun si files, minimal diff
 4. Edit       → Windows file-tools; same file pe parallel edit MAT
 5. Verify     → prod_check + targeted pytest; green = done
 ```
 
+Claude ke liye same: Read `.claude/skills/context-first/SKILL.md` har code task pe.
+
 **FastAPI gotcha:** `grep '@router'` pehle — duplicate route = first-route-wins shadow.
 
 **Windows = truth** — sandbox stale ho sakta; verify `.venv\Scripts\python.exe`.
-
----
 
 ## Task router (pehle yeh, phir deep skill Read)
 
 | User ask | Read skill |
 |----------|------------|
+| **Har code edit** | `.claude/skills/context-first/SKILL.md` |
 | Deploy / push / prod error | `.claude/skills/leadgen-ops/SKILL.md` |
+| Production ready / launch | `.claude/skills/production-ready/SKILL.md` |
 | VPS / Caddy / Docker | `.claude/skills/hostinger-deploy/SKILL.md` |
 | Debug / bug | `.claude/skills/systematic-debugging/SKILL.md` |
 | Naya marketing tab/API | `.claude/skills/marketing-feature/SKILL.md` |
 | Multi-agent / council decision | `.claude/skills/llm-council-decision/SKILL.md` |
-| Coordinator run | `.claude/skills/coordinator-orchestration/SKILL.md` |
 | Voice agent tune | `.claude/skills/voice-agent-kb/SKILL.md` + `test-agent` |
-| Session start / orientation | `.claude/skills/leadgen-start/SKILL.md` |
+| Session start | `.claude/skills/leadgen-start/SKILL.md` |
 | Non-trivial discipline | `.claude/skills/fable-operating-manual/SKILL.md` |
 
 Full list → [skills-index.md](skills-index.md)
 
----
+## Production state (2026-06-21)
 
-## Council decisions (ambiguous / high-stakes)
-
-Trigger: strategy, go/no-go, architecture fork, priority trade-off.
-
-**Composer session protocol** (skill detail: `llm-council-decision`):
-1. **Recruit** 2–4 tailored expert lenses (parallel Read/subagent only if disjoint heavy research)
-2. **Opinions** — parallel short takes
-3. **Peer rank** — Response A/B/C anonymized
-4. **Chairman** — one Decision + Kyon + Next action
-
-**LIVE API:** `POST /api/agents/council` (admin) · UI `/app/agents`
-
-Chhote bugfix / exact user instruction → council skip.
-
----
-
-## Code conventions
-
-- **Additive > rewrite** — working code mat todo.
-- **Gated + never-raise** — naye loops env-flag, try/except.
-- **Ban-safe** — auto-send/call/post kabhi coordinator se nahi.
-- **Pricing truth** — `app/marketing/packages.py` + `test_billing_truth_2026.py`.
-- **UI feature** = API + admin tab saath (adhoora mat chhod).
-
----
+- P1 Marketing: **GO** — `ready_for_first_paid_customer=true` live
+- P2 Voice: code GO; Vobiz/DLT owner-blocked
+- Probe: `curl.exe https://leadsgenai.in/api/activation/summary`
 
 ## Verify before "done"
 
@@ -87,16 +64,11 @@ Chhote bugfix / exact user instruction → council skip.
 
 Deploy loop: `leadgen-ops` → push → VPS `docker compose build app && up -d --no-deps app` → `/health` production 2×.
 
----
-
 ## Live facts (quick)
 
 - **URL:** https://leadsgenai.in · VPS `72.61.245.204` · Docker `leadgen_app`
-- **DB:** Postgres via PgBouncer · **Scheduler:** Celery worker+beat
 - **LLM Council LIVE:** `app/agents/llm_council.py` · `POST /api/agents/council`
 - **Payments:** UPI primary (`UPI_VPA`) · Razorpay removed
-
----
 
 ## Anti-patterns (Composer avoid)
 

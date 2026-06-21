@@ -8,6 +8,8 @@ description: Prevent FastAPI duplicate routes (first-route-wins shadow). Grep al
 
 ## Before ANY new route
 
+**Claude:** `context-first` skill — parallel grep batch pehle.
+
 ```bash
 # Marketing (split godfiles — sab grep karo)
 rg "@router\.(get|post|put|delete|patch)" app/api/marketing.py app/api/marketing_tools.py app/api/marketing_models.py

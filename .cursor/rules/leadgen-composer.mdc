@@ -1,5 +1,5 @@
 ---
-description: Composer 2.5 primary agent for LeadGen AI — context-first, Hinglish, council decisions, free stack. Auto-loads leadgen-composer skill.
+description: Composer 2.5 primary agent for LeadGen AI — context-first, Hinglish, council decisions, free stack. Auto-loads leadgen-composer skill. Claude Code: also read context-first skill before code edits.
 alwaysApply: true
 ---
 
@@ -7,10 +7,14 @@ alwaysApply: true
 
 **Primary skill:** `.claude/skills/leadgen-composer/SKILL.md` (canonical) · mirror `.cursor/skills/leadgen-composer/SKILL.md`
 
+**Code edits:** `.claude/skills/context-first/SKILL.md` — parallel Grep/Read BEFORE edit (Claude + Composer)
+
 **Deep workflows:** `.claude/skills/leadgen-composer/skills-index.md` · parity map `SKILLS_PARITY.md`
 
 **Memory:** `CLAUDE.md` (truth) · **Reply:** Hinglish Roman · **Verify:** `scripts/prod_check.py` before done.
 
+**Production probe:** `curl.exe https://leadsgenai.in/api/activation/summary`
+
 **Decisions:** ambiguous strategy → `llm-council-decision` protocol (multi-opinion → peer rank → Chairman).
 
-**Composer edge:** parallel Grep/Read BEFORE edit — yahi Claude se better output deta hai.
+**Composer edge:** parallel Grep/Read BEFORE edit — Claude must Read `context-first` skill to match.
