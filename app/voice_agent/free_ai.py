@@ -300,11 +300,14 @@ async def transcribe_audio(
     language: str = "hi",
     filename: str = "audio.wav",
     mime: str = "audio/wav",
+    prompt: str = "",
 ) -> tuple[str, str]:
     """Groq whisper-large-v3 se audio bytes transcribe karo.
 
     Default WAV (phone paths unchanged); web-call webm/ogg bhi bhej sakta hai
     (`filename`/`mime` se format batao — Groq extension se pehchanta hai).
+    `prompt` (D-11, optional): niche/brand bias string — Whisper isse domain
+    entities + Hinglish register ki taraf bias hota hai (default "" = unchanged).
     Returns (text, "groq") on success, ya ("","") on any failure/absence.
     (Gemini audio-in + local faster-whisper caller ke agle links hain.)
     """
@@ -314,11 +317,13 @@ async def transcribe_audio(
     if client is None:
         return "", ""
     try:
+        _kw = {"prompt": prompt} if (prompt or "").strip() else {}
         resp = await asyncio.wait_for(
             client.audio.transcriptions.create(
                 model=_GROQ_STT_MODEL,
                 file=(filename or "audio.wav", wav_bytes, mime or "audio/wav"),
                 language=language or "hi",
+                **_kw,
             ),
             timeout=_CALL_TIMEOUT_S,
         )
