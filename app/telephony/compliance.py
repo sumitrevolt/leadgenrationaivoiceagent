@@ -4,7 +4,9 @@ Compliance Gate — the ONE chokepoint every outbound call must pass (India TCCC
 
 India's TCCCPR (TRAI) rules for automated/commercial voice calls:
   * DND scrub        — promotional calls to NDNC/DND numbers are illegal.
-  * Calling window   — promotional 10:00–19:00 IST (service/transactional wider).
+  * Calling window   — TRAI telemarketing window is 09:00–21:00 IST; we keep
+                       promotional conservative at 09:00–19:00 IST (a safe subset)
+                       and transactional/service wider (09:00–21:00).
   * 140-series + DLT — promotional calls need a registered 140 caller-id and a
                        DLT-approved principal entity.
   * AI disclosure    — the call must disclose it is an automated/AI call.
@@ -23,7 +25,7 @@ Config (env, all optional with safe defaults):
   COMPLIANCE_ENABLED      "1" (default) | "0" to bypass the gate (logs a warning)
   COMPLIANCE_ALLOWLIST    comma list of own/consented/test numbers -> always allowed
   DLT_APPROVED            "1" once your DLT principal-entity approval is live
-  COMPLIANCE_PROMO_START  promotional window start, "HH:MM" IST (default 10:00)
+  COMPLIANCE_PROMO_START  promotional window start, "HH:MM" IST (default 09:00)
   COMPLIANCE_PROMO_END    promotional window end,   "HH:MM" IST (default 19:00)
   COMPLIANCE_TXN_START    transactional window start (default 09:00)
   COMPLIANCE_TXN_END      transactional window end   (default 21:00)
@@ -148,7 +150,10 @@ class ComplianceGate:
 
     def _window(self, call_type: CallType) -> tuple:
         if call_type == CallType.PROMOTIONAL:
-            start = _parse_hhmm(_env("COMPLIANCE_PROMO_START"), time(10, 0))
+            # TRAI telemarketing window is 09:00–21:00 IST; we default promotional
+            # to a conservative 09:00–19:00 subset (env-overridable). 09:00 start
+            # (not 10:00) restores the legal 9–10am hour while staying safe.
+            start = _parse_hhmm(_env("COMPLIANCE_PROMO_START"), time(9, 0))
             end = _parse_hhmm(_env("COMPLIANCE_PROMO_END"), time(19, 0))
         else:
             start = _parse_hhmm(_env("COMPLIANCE_TXN_START"), time(9, 0))

@@ -480,6 +480,22 @@ class VoicePipeline:
         self.state.turn_count += 1
         self.state.last_metrics = metrics
         logger.debug(f"Turn {self.state.turn_count} metrics: {metrics.as_dict()}")
+        # P1 observability: persist this turn's latency to the shared per-turn
+        # store so web-call (the live tuning surface) feeds the same P50/P95
+        # rollups as the phone paths. TURN_METRICS-gated; never raises.
+        try:
+            from app.voice_agent import turn_metrics as _tm
+
+            _tm.record_turn(
+                {
+                    "path": "web_pipeline",
+                    "turn": self.state.turn_count,
+                    "outcome": "ok" if reply else "no_reply",
+                    **metrics.as_dict(),
+                }
+            )
+        except Exception:
+            pass
         return reply, metrics
 
     # -- public API: streaming loop ---------------------------------------
