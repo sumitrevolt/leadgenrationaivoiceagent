@@ -49,6 +49,8 @@ Anchors: Dhanda ₹7,999/yr (≈₹667/mo, features humse kam) · Predis Lite $3
 | Growth | **₹2,999** | ₹29,990 | Predis Lite (₹2,700, social-only) ke barabar me full stack |
 | Advanced | **₹6,999** | ₹69,990 | voice FEATURE (500 min/mo) + uniqueness premium; agency retainer ka ~1/2–1/3 |
 
+Full per-tier feature bullets live in **`app/marketing/packages.py`** (synced to `/api/marketing/packages`, `/pricing`, landing JSON-LD).
+
 Minute top-up packs (Advanced feature ke liye) unchanged: 100/250/500 min = ₹1,499/3,499/5,999.
 Repricing risk low: abhi 10 clients, pre-traction. Annual "2 mahine free" pattern retained.
 

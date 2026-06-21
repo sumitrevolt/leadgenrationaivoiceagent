@@ -28,9 +28,12 @@ Yeh line yaad kar lo. Yahi poora business hai. "AI voice agent" mat becho — **
 ### Marketing Automation (Product 1 — alag product)
 | Plan | Price/mo | Voice feature |
 |---|---|---|
-| Starter | ₹1,199 | ❌ |
-| Growth | ₹2,999 | ❌ |
-| Advanced | ₹6,999 | ✅ 500 min/mo inquiry callback |
+| Trial | ₹0 (7 din) | ❌ — 5 posts, GBP audit, widget, portal |
+| Starter | ₹1,199 | ❌ — roz posts, branded frames, festival calendar, GBP, reviews, 4 posters, WA pack, UPI QR, approval, portal |
+| Growth | ₹2,999 | ❌ — + unlimited posters, AI image, calendar, competitor, mini-site, widget, chatbot, drip, CRM, report |
+| Advanced | ₹6,999 | ✅ 500 min/mo inquiry callback + qualify + booking + follow-ups + transcripts |
+
+Full bullet list: `app/marketing/packages.py` (15 Starter · 18 Growth · 14 Advanced features).
 
 ### Legacy reference — per-lead market rates (competitor context only, hamara billing model NAHI)
 | Niche | Per Qualified Lead | Appointment/Site-Visit |
