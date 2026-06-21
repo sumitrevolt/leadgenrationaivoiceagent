@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 _STORE = Path("data") / "web_call_sessions.jsonl"
+_TRANSCRIPTS_DIR = Path("data") / "call_transcripts"
 _LOCK = threading.Lock()
 _LEAD_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
 _SID_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
@@ -33,6 +34,118 @@ def _valid_lead(lead_key: str | None) -> str | None:
 def _valid_sid(session_id: str | None) -> str | None:
     s = (session_id or "").strip()
     return s if s and _SID_RE.match(s) else None
+
+
+def _turns_to_messages(turns: list[Any] | None) -> list[dict[str, str]]:
+    """Web-call turns {role,text} → vobiz-style {role,content} for training."""
+    msgs: list[dict[str, str]] = []
+    for t in turns or []:
+        if not isinstance(t, dict):
+            continue
+        role = str(t.get("role") or "user").lower()
+        if role not in ("user", "assistant"):
+            role = "assistant" if role in ("bot", "swara", "agent") else "user"
+        content = str(t.get("text") or t.get("content") or "").strip()
+        if content:
+            msgs.append({"role": role, "content": content[:2000]})
+    return msgs
+
+
+def _training_transcript_exists(session_id: str) -> bool:
+    """Dedupe — same web session do baar training me na aaye."""
+    sid = (session_id or "").strip()
+    if not sid or not _TRANSCRIPTS_DIR.is_dir():
+        return False
+    try:
+        files = sorted(_TRANSCRIPTS_DIR.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+        for fp in files[:21]:
+            with open(fp, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except Exception:
+                        continue
+                    if str(rec.get("stream_sid") or "") == sid:
+                        return True
+                    if str(rec.get("session_id") or "") == sid:
+                        return True
+    except Exception:
+        return False
+    return False
+
+
+def mirror_session_to_training_transcript(row: dict[str, Any]) -> bool:
+    """Web test-call → data/call_transcripts/YYYY-MM-DD.jsonl (Meera/voice_learn fuel).
+
+    Same shape as vobiz_stream._persist_transcript so training scripts pick it up.
+    Never raises.
+    """
+    try:
+        sid = str(row.get("session_id") or "").strip()
+        if not sid or _training_transcript_exists(sid):
+            return False
+        messages = _turns_to_messages(row.get("turns"))
+        if not messages:
+            return False
+        ended = str(row.get("ended_at") or _now_iso())
+        day = ended[:10] if len(ended) >= 10 else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        user_turns = sum(1 for m in messages if m.get("role") == "user")
+        rec = {
+            "ts": ended,
+            "started_at": row.get("started_at") or ended,
+            "duration_s": float(row.get("duration_s") or 0),
+            "stream_sid": sid,
+            "session_id": sid,
+            "niche": row.get("niche") or "general",
+            "client_id": None,
+            "client_name": row.get("client_name") or "Demo Co",
+            "voice": "hi-IN-SwaraNeural",
+            "user_turns": user_turns,
+            "stt_counts": {"web_call": user_turns},
+            "messages": messages,
+            "source": "web_call_test",
+            "flow": row.get("flow") or "qualify",
+            "lead_key": row.get("lead_key"),
+        }
+        _TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+        out = _TRANSCRIPTS_DIR / f"{day}.jsonl"
+        with _LOCK:
+            with open(out, "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        return True
+    except Exception:
+        return False
+
+
+def backfill_training_transcripts(*, limit: int = 200) -> dict[str, int]:
+    """Existing web_call_sessions.jsonl → call_transcripts (one-time / repair)."""
+    scanned = mirrored = skipped = 0
+    if not _STORE.is_file():
+        return {"scanned": 0, "mirrored": 0, "skipped": 0}
+    limit = max(1, min(int(limit or 200), 2000))
+    try:
+        with _LOCK:
+            lines = _STORE.read_text(encoding="utf-8", errors="ignore").splitlines()
+        for line in lines[-limit:]:
+            line = line.strip()
+            if not line:
+                continue
+            scanned += 1
+            try:
+                row = json.loads(line)
+            except Exception:
+                skipped += 1
+                continue
+            if mirror_session_to_training_transcript(row):
+                mirrored += 1
+            else:
+                skipped += 1
+    except Exception:
+        pass
+    return {"scanned": scanned, "mirrored": mirrored, "skipped": skipped}
 
 
 def append_session(record: dict[str, Any]) -> bool:
@@ -60,6 +173,7 @@ def append_session(record: dict[str, Any]) -> bool:
         with _LOCK:
             with open(_STORE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        mirror_session_to_training_transcript(row)
         return True
     except Exception:
         return False

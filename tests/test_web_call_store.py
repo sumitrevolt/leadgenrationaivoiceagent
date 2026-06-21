@@ -13,7 +13,9 @@ from app.voice_agent import web_call_store as store
 @pytest.fixture
 def isolated_store(tmp_path, monkeypatch):
     path = tmp_path / "web_call_sessions.jsonl"
+    tdir = tmp_path / "call_transcripts"
     monkeypatch.setattr(store, "_STORE", path)
+    monkeypatch.setattr(store, "_TRANSCRIPTS_DIR", tdir)
     return path
 
 
@@ -51,3 +53,32 @@ def test_get_session_scoped_to_lead(isolated_store):
     row = store.get_session(sid, lead)
     assert row and row["session_id"] == sid
     assert store.get_session(sid, "wc_otherkey9") is None
+
+
+def test_mirror_writes_call_transcripts_for_training(isolated_store, tmp_path):
+    lead = "wc_trainkey01"
+    sid = "sess-train-01"
+    ok = store.append_session(
+        {
+            "session_id": sid,
+            "lead_key": lead,
+            "started_at": "2026-06-21T10:00:00+00:00",
+            "ended_at": "2026-06-21T10:02:00+00:00",
+            "duration_s": 120,
+            "niche": "solar_residential",
+            "turns": [
+                {"role": "assistant", "text": "Namaste"},
+                {"role": "user", "text": "Solar chahiye"},
+            ],
+        }
+    )
+    assert ok
+    tfile = tmp_path / "call_transcripts" / "2026-06-21.jsonl"
+    assert tfile.is_file()
+    rec = json.loads(tfile.read_text(encoding="utf-8").strip().splitlines()[-1])
+    assert rec["stream_sid"] == sid
+    assert rec["source"] == "web_call_test"
+    assert rec["messages"][-1]["content"] == "Solar chahiye"
+    assert rec["user_turns"] == 1
+    row = store.get_session(sid, lead)
+    assert row and store.mirror_session_to_training_transcript(row) is False
