@@ -9,7 +9,7 @@
 - **Hinglish (Roman script) me HI reply karo** — har baar. Concise + direct, kam formatting.
 - **Cursor Composer 2.5** = primary builder — skill `.cursor/skills/leadgen-composer/SKILL.md` + rule `.cursor/rules/leadgen-composer.mdc`; deep workflows `.claude/skills/` via `skills-index.md`.
 - Sab **free stack** — koi paid STT/TTS/LLM nahi (user decision). Phone-call paisa khaata hai → tuning FREE web-call pe.
-- **DLT/Udyam paperwork ko recurring talking-point MAT banao** (2026-06-18) — user ko pata hai; outbound ka focus = product + tech + ops path (caller-ID, balance, campaign glue). NOTE: yeh sirf conversation-preference hai — compliance GATE code (TRAI/DND/AI-disclosure/10am-7pm window) INTACT rakhna, kabhi disable mat karna.
+- **DLT/Udyam paperwork ko recurring talking-point MAT banao** (2026-06-18) — user ko pata hai; outbound ka focus = product + tech + ops path (caller-ID, balance, campaign glue). NOTE: yeh sirf conversation-preference hai — compliance GATE code (TRAI/DND/AI-disclosure/**9am–7pm** calling-window) INTACT rakhna, kabhi disable mat karna.
 
 ## Work Quality Gate (HAR code task — yeh pehle, warna output galat) — USER-MANDATE 2026-06-18
 > User feedback: same task Cursor sahi karta, main galat. Wajah = Cursor pura repo index karke relevant files khud uthata; mujhe manually. Isliye yeh gate har code task pe MANDATORY.
@@ -99,7 +99,7 @@
 - **Activation**: `docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md` (5 phases, env keys + verify curl per item). `/api/growth/infra/flags` shows full set incl. all F-M flags.
 
 ## Legal (CONFIRMED)
-- TRAI: 140-series + DLT + DND scrub + 10am-7pm + AI disclosure mandatory, penalty ₹10L. Foreign trunks (Twilio/Telnyx/Vonage) India-domestic = ILLEGAL. AI-disclosure greetings wired ("ek AI assistant"). DPDP Act 2023 rights + Grievance Officer in /privacy.
+- TRAI: 140-series + DLT + DND scrub + calling-window (**TRAI actual 9am–9pm**; code default promo **9am–7pm** conservative, fixed 2026-06-21) + AI disclosure. **₹10L framing fix:** ₹2L/5L/10L-per-UCC-misreport penalty is on **ACCESS PROVIDERS** (telco), cap ₹50L/mo/area — NOT a standalone "AI-disclosure = ₹10L" fine (vendor-blog myth); sender breach → 140-bar → disconnect. AI-disclosure-at-start = correct practice (robocall clause + DPDP), greetings wired ("ek AI assistant"). Foreign trunks (Twilio/Telnyx/Vonage) India-domestic = ILLEGAL. DPDP Act 2023 rights + Grievance Officer in /privacy. (Full detail: `docs/SWARA_HANDOFF_SOP.md` Part E.)
 - Pure minutes-resale bina license = Telegraph Act violation. Legal resale = **SaaS bundle** (DLT/140 CLIENT ke naam) — industry standard.
 - WhatsApp bulk auto-send = number ban. Cold auto-calls bina DLT = ₹10L risk → sirf inbound auto-callback.
 
