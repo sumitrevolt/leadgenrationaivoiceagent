@@ -45,6 +45,7 @@ Cursor auto-indexes; Claude must **manually batch parallel Grep/Read** before ed
 | Debug | `systematic-debugging` |
 | Marketing tab/API | `marketing-feature` |
 | Strategy / go-no-go | `llm-council-decision` |
+| Advancement council / ROI roadmap | `executive-council` (+ `docs/EXECUTIVE_ADVANCEMENT_COUNCIL_PROMPT.md`) |
 | Voice tune | `voice-agent-kb` + `test-agent` |
 | Discipline / audit | `fable-operating-manual` |
 | PR babysit | `babysit` |

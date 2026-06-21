@@ -2,16 +2,17 @@
 
 > **Goal:** Claude Code is **PRIMARY** for this repo — skills encode Cursor's parallel context-first edge explicitly.
 > **Start every code task:** `context-first` → `leadgen-composer` → one domain skill.
-> **Project skills:** ~93 folders in `.claude/skills/` + ~181 in `data/skills_extra/`.
+> **Project skills:** ~94 folders in `.claude/skills/` + ~181 in `data/skills_extra/`.
 
 ## Claude loading protocol (MANDATORY)
 
 1. `CLAUDE.md` auto-loads each turn (lean memory).
 2. **Any code/debug/edit** → Read `.claude/skills/context-first/SKILL.md` FIRST.
 3. Task match → Read **one** domain `.claude/skills/<name>/SKILL.md`.
-4. Ambiguous strategy → `llm-council-decision`.
-5. Skill missing → `find-skills` → `data/skills_extra/`.
-6. **Never** load entire skills folder (token burn).
+4. Ambiguous single decision → `llm-council-decision`.
+5. Full advancement / ROI / competitive / moat → `executive-council` (NOT generic audit).
+6. Skill missing → `find-skills` → `data/skills_extra/`.
+7. **Never** load entire skills folder (token burn).
 
 ## P0 — Claude beats Cursor (2026-06-21 update)
 
@@ -25,6 +26,7 @@
 | `windows-dev-gotchas` | Windows git/SSH/VPS |
 | `product-split-adr` | Marketing vs Voice split |
 | `voice-roles` | Swara / Ananya / Riya |
+| `executive-council` | ROI roadmap · competitive · moat (Phases 1–6, NOT repo audit) |
 
 ## Cursor built-in → Claude repo skill
 
@@ -62,6 +64,7 @@
 | `/compact-check` | `leadgen-start` token rules |
 | `/optimize` | growth-optimizer |
 | `/test-expand` | `tdd-contract-first` |
+| `/council-advancement` | `executive-council` + `docs/EXECUTIVE_ADVANCEMENT_COUNCIL_PROMPT.md` |
 
 ## VPS
 
