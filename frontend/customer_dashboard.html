@@ -308,6 +308,7 @@
     <a class="navlink" href="#callsCard" onclick="scrollToId('callsCard');return false;" aria-label="Calls ka Hisaab section"><span class="ic" aria-hidden="true">📞</span> Calls ka Hisaab</a>
     <a class="navlink" href="#billingCard" onclick="scrollToId('billingCard');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
     <a class="navlink" href="#secCard" onclick="scrollToId('secCard');return false;" aria-label="Surakhsha aur Webhooks"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
+    <a class="navlink" id="navAutomations" href="/app/customer/flows" style="display:none" aria-label="My Automations flow builder"><span class="ic" aria-hidden="true">🧩</span> My Automations</a>
     <div class="side-foot" aria-label="Account info">
       Aapki AI marketing + voice agent team<br>din-raat kaam kar rahi hai.<br><br>
       <span id="sideClient">Client: demo</span>
@@ -1839,5 +1840,18 @@ setTimeout(()=>{
 },800);
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+<script>
+/* Reveal "My Automations" nav link only when the Flow Runner customer feature is
+   actually live (FLOW_RUNNER + FLOW_RUNNER_CUSTOMER on). Probe-gated so customers
+   never see a dead link to a disabled feature. Self-contained, never-throw. */
+(function(){
+  try{
+    var t=localStorage.getItem("lgai_token"); if(!t) return;
+    fetch("/api/customer/flow-templates",{headers:{Authorization:"Bearer "+t}})
+      .then(function(r){ if(r.status===200){ var el=document.getElementById("navAutomations"); if(el) el.style.display=""; } })
+      .catch(function(){});
+  }catch(e){}
+})();
+</script>
 </body>
 </html>
