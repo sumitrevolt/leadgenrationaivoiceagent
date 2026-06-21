@@ -19,6 +19,11 @@ import time
 
 import aiohttp
 
+try:  # D-13 conversation QA judges (pushy-after-softno / talk-listen / permission / literal)
+    from app.voice_agent import qa_checks as _qc
+except Exception:  # pragma: no cover - script may run before path set
+    _qc = None
+
 # Host/local default. IN-CONTAINER the app listens on :8080 (compose maps host
 # 127.0.0.1:8000 -> container 8080), so run inside the container with:
 #   AGENT_TESTER_WS=ws://127.0.0.1:8080/api/web-call/ws python scripts/agent_tester.py
@@ -47,13 +52,18 @@ BANNED = ["maine pehle", "pehle hi poocha", "unclear", "maaf kij", "[echo", "(no
 
 
 async def run_niche(session, niche, turns, report):
+    transcript: list[dict] = []  # role-tagged turns for D-13 conversation checks
     async with session.ws_connect(WS, timeout=30) as ws:
         await ws.send_json({"type": "start", "niche": niche, "flow": "qualify"})
         last_reply = ""
-        # drain greeting (ready + first bot)
-        await _collect_bots(ws, settle=3.0)
+        # drain greeting (ready + first bot) — keep it as the opener turn so the
+        # permission/missing-permission check sees the opener.
+        greeting = await _collect_bots(ws, settle=3.0)
+        if greeting:
+            transcript.append({"role": "assistant", "content": (greeting[0] or "").strip()})
         for turn in turns:
             await ws.send_json({"type": "user", "text": turn, "niche": niche})
+            transcript.append({"role": "user", "content": turn})
             t0 = time.time()
             # Realistic: wait up to 12s for the FIRST reply, then 2.5s settle to
             # catch any (buggy) second reply — matches phone's turn-based pacing.
@@ -61,6 +71,8 @@ async def run_niche(session, niche, turns, report):
             dt = time.time() - t0
             n = len(bots)
             reply = (bots[0] if bots else "").strip()
+            if reply:
+                transcript.append({"role": "assistant", "content": reply})
             # CHECKS
             if n == 0:
                 report.append(f"[{niche}] NO REPLY for: {turn!r}")
@@ -80,6 +92,11 @@ async def run_niche(session, niche, turns, report):
                 report.append(f"[{niche}] SLOW {dt:.1f}s for {turn!r}")
             last_reply = reply
             print(f"  [{niche}] U: {turn}\n           B({n}, {dt:.1f}s): {reply[:90]}")
+        # Conversation-level D-13 checks over the whole transcript (pushy-after-
+        # softno / talk-listen-ratio / missing-permission / literal-translation).
+        if _qc is not None:
+            for finding in _qc.run_all(transcript):
+                report.append(f"[{niche}] {finding}")
 
 
 async def _collect_bots(ws, first_timeout=12.0, settle=2.5):
