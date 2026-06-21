@@ -1,0 +1,48 @@
+---
+name: windows-dev-gotchas
+description: Windows dev environment gotchas for LeadGen — stale sandbox, Git ssh, VPS deploy quoting, bat logs, venv truth. Use on any terminal/git/SSH/deploy task on Windows.
+---
+# Windows Dev Gotchas
+
+## Source of truth
+
+- **File edits:** Cursor/Windows file tools — sandbox mount STALE ho sakta hai
+- **Verify:** `.venv\Scripts\python.exe` on Windows, not sandbox bash alone
+- **Tests:** `scripts\run_tests.bat` → Read **`pytest_run.log`**
+
+## Git / SSH
+
+- OpenSSH broken → **Git ka ssh:**
+  `C:\PROGRA~1\Git\usr\bin\ssh.exe -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204`
+- Git: `C:\PROGRA~1\Git\cmd\git.exe`
+- Git index unreadable in sandbox → Windows git only
+
+## SSH quoting (CRITICAL)
+
+PowerShell `&`, `<`, `{{}}` todta → complex VPS smoke = **`scripts/x.py` file** + ssh run python
+
+Deploy one-liner OK:
+```powershell
+ssh ... "cd /opt/leadgen && git reset --hard origin/main -q && docker compose -f docker-compose.vps.yml build app && docker compose -f docker-compose.vps.yml up -d --no-deps app"
+```
+
+## .bat rules
+
+- `call npm.cmd` / `call git.cmd`
+- `timeout /t` fail → `ping -n N 127.0.0.1`
+- Long commands → `.bat` file, output log, Read log
+
+## Parallel edits
+
+Same file pe parallel agent edit = **truncate** — sequential only
+
+## Memory files
+
+`CLAUDE.md` / SESSION_LOG — **bash append MAT** (corruption) — Edit tool only
+
+## VPS quick smoke
+
+```bash
+curl -s https://leadsgenai.in/health
+curl -s https://leadsgenai.in/api/voice/agents
+```

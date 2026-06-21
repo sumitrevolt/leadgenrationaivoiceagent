@@ -28,6 +28,16 @@
 | `update-cursor-settings` | `update-claude-settings/` | `CLAUDE.md` / project memory |
 | `update-cli-config` | `update-cli-config/` | CLI config |
 
+## P0 — Claude project accuracy (added 2026-06-21)
+
+| Skill | When |
+|-------|------|
+| `verify-ship` | prod_check + deploy gate |
+| `duplicate-route-guard` | new FastAPI routes |
+| `windows-dev-gotchas` | Windows git/SSH/VPS |
+| `product-split-adr` | Marketing vs Voice split |
+| `voice-roles` | Swara / Ananya / Riya |
+
 ## LeadGen domain skills (already in `.claude/skills/`)
 
 See `leadgen-composer/skills-index.md` — ops, voice, marketing, agents, infra, business.
