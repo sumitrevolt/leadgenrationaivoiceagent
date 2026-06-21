@@ -180,6 +180,10 @@ MAX_UTTER_MS = 15000.0  # hard cap so a long monologue still gets processed
 # ~100 ms of speech while we talk = barge-in. Env: VOBIZ_BARGE_MIN_FRAMES wins,
 # else TURN_BARGE_MIN_MS (via shared helper), else 5 frames.
 BARGE_MIN_FRAMES = max(1, int(_env_num("VOBIZ_BARGE_MIN_FRAMES", _DEF_BARGE_FRAMES)))
+# D-13 no-input/silence policy (gated NOINPUT_POLICY, default OFF): caller silent
+# this long after the bot finishes -> reprompt; after MAX reprompts -> graceful close.
+NOINPUT_MS = _env_num("VOBIZ_NOINPUT_MS", 12000.0)  # 12 s of pure silence = no-input
+NOINPUT_MAX_REPROMPTS = max(1, int(_env_num("VOBIZ_NOINPUT_MAX_REPROMPTS", 2)))
 
 
 # --------------------------------------------------------------------------- #
@@ -536,6 +540,9 @@ class VobizStreamSession:
         # Cleared on opener-playback completion or a hard safety deadline.
         self._disclosure_active = False
         self._disclosure_deadline_ms = 0.0
+        # D-13 no-input watchdog state (NOINPUT_POLICY, default OFF).
+        self._last_activity_ms = 0.0
+        self._noinput_reprompts = 0
 
         # turn-taking / VAD state
         self._speech_buf: list[bytes] = []
@@ -764,6 +771,14 @@ class VobizStreamSession:
                     is_speech = _sil
         except Exception:
             pass
+        # D-13 no-input watchdog: user speech resets timer + reprompt count; bot
+        # playback resets the timer only (idle counts from when the bot STOPS).
+        _na_now = _now_ms()
+        if is_speech:
+            self._last_activity_ms = _na_now
+            self._noinput_reprompts = 0
+        elif self._speaking:
+            self._last_activity_ms = _na_now
         dur_ms = (len(pcm16) / 2) / SAMPLE_RATE * 1000.0  # 640 bytes == 20 ms
 
         # While we're speaking: only watch for barge-in (D-6: gated + disclosure-lock).
@@ -836,6 +851,19 @@ class VobizStreamSession:
             utt = b"".join(self._speech_buf)
             self._reset_speech()
             self._spawn(self._on_utterance(utt))
+            return
+
+        # D-13 no-input watchdog (gated NOINPUT_POLICY, default OFF): caller silent
+        # too long while idle (bot not speaking/thinking, no utterance in progress)
+        # -> reprompt, then graceful close. Debounced via _last_activity_ms reset.
+        if (
+            not self._had_speech
+            and self._last_activity_ms > 0
+            and (_na_now - self._last_activity_ms) >= NOINPUT_MS
+            and self._noinput_enabled()
+        ):
+            self._last_activity_ms = _na_now
+            self._spawn(self._noinput_handle())
 
     def _spawn(self, coro) -> None:
         """Fire-and-forget a coroutine, holding a ref until it finishes."""
@@ -893,6 +921,48 @@ class VobizStreamSession:
         cap. Called right before the greeting plays."""
         self._disclosure_active = True
         self._disclosure_deadline_ms = _now_ms() + 6000.0
+
+    @staticmethod
+    def _noinput_enabled() -> bool:
+        """D-13 no-input/silence policy gate (default OFF)."""
+        return (os.environ.get("NOINPUT_POLICY", "0") or "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+
+    async def _noinput_handle(self) -> None:
+        """D-13: caller silent too long. Reprompt up to NOINPUT_MAX_REPROMPTS, then
+        close gracefully. Best-effort / never raises. The caller (_on_media) already
+        checked the flag + idle window; we re-check liveness to dodge a late race."""
+        try:
+            if self._closed or self._speaking or self._thinking or self._had_speech:
+                return
+            if self._noinput_reprompts < NOINPUT_MAX_REPROMPTS:
+                self._noinput_reprompts += 1
+                logger.info(
+                    f"[vobiz-stream {self.stream_sid}] no-input reprompt "
+                    f"#{self._noinput_reprompts}"
+                )
+                await self._say("Hello, kya aap line par hain? Boliye, main sun rahi hoon.")
+            else:
+                logger.info(f"[vobiz-stream {self.stream_sid}] no-input — graceful close")
+                try:
+                    await self._say_and_wait(
+                        "Lagta hai abhi awaaz nahi aa rahi — main baad me try karungi. "
+                        "Aapka din shubh rahe!"
+                    )
+                except Exception:
+                    pass
+                self._closed = True
+                self._stop_play()
+                try:
+                    await self.ws.close()
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] no-input handle failed: {e}")
 
     @staticmethod
     def _is_junk(text: str) -> bool:

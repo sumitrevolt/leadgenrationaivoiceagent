@@ -57,3 +57,46 @@ def test_barge_master_switch_off(monkeypatch):
     monkeypatch.setenv("BARGE_IN_ENABLED", "0")
     s = _session()
     assert s._barge_allowed() is False  # bot cannot be interrupted at all
+
+
+def test_noinput_policy_gate(monkeypatch):
+    monkeypatch.delenv("NOINPUT_POLICY", raising=False)
+    assert VobizStreamSession._noinput_enabled() is False  # default OFF
+    monkeypatch.setenv("NOINPUT_POLICY", "1")
+    assert VobizStreamSession._noinput_enabled() is True
+
+
+def test_noinput_reprompts_then_graceful_close():
+    """D-13: reprompt up to MAX, then graceful goodbye + close."""
+    import asyncio
+
+    s = _session()
+    said = []
+
+    async def _fake_say(text):
+        said.append(("say", text))
+
+    async def _fake_wait(text):
+        said.append(("wait", text))
+
+    s._say = _fake_say  # type: ignore[assignment]
+    s._say_and_wait = _fake_wait  # type: ignore[assignment]
+
+    asyncio.run(s._noinput_handle())
+    assert s._noinput_reprompts == 1
+    asyncio.run(s._noinput_handle())
+    assert s._noinput_reprompts == 2
+    # next call exceeds MAX (default 2) -> graceful close
+    asyncio.run(s._noinput_handle())
+    assert s._closed is True
+    assert any(kind == "wait" for kind, _ in said)  # spoke a goodbye before closing
+
+
+def test_noinput_handle_skips_when_busy():
+    """No reprompt if the bot is mid-speech / mid-think / caller talking."""
+    import asyncio
+
+    s = _session()
+    s._speaking = True
+    asyncio.run(s._noinput_handle())
+    assert s._noinput_reprompts == 0  # bailed out, no reprompt
