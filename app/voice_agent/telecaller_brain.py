@@ -65,6 +65,17 @@ _GENERIC_QUESTIONS = [
     "Agar ready qualified leads milne lagein, toh kab se shuru karna chahenge?",
 ]
 
+# When discovery + niche value/closing lines are all covered, the conversation must
+# still ADVANCE — warna agent ko "aage kya karna nahi pata" (dead-air / wahi line
+# repeat) ho jaata hai 2-3 turns ke baad. Ye niche-agnostic next-step closers ek
+# concrete action pe le jaate hain (callback/follow-up) bina koi invented
+# number/price ke. _already_asked se rotate karte hain — kabhi robot-repeat nahi.
+_UNIVERSAL_CLOSE = [
+    "Toh sir, agla step rakhte hain — ek short callback aaj ya kal, kab theek rahega?",
+    "Main aapko details bhej ke ek quick follow-up fix kar deti hoon — subah ya shaam?",
+    "Aapki baat clear hai sir — ek next-step call rakhte hain, aaj ya kal convenient?",
+]
+
 _MAX_HISTORY_TURNS = 8  # last ~8 turns to keep prompt (and latency) small
 _GEN_CONFIG = {
     "temperature": 0.45,
@@ -519,6 +530,7 @@ HARD RULES (har turn, bina exception):
 15. PEHLE JAWAB, PHIR SAWAAL: customer ne kuch poocha ho to uska seedha, clear jawab ek line me do — apni discovery-checklist chalane ke liye uska sawaal IGNORE mat karo. Jawab ke baad hi agla chhota sawaal.
 16. FEATURE NAHI, FAYDA: baat customer ke result/fayde me karo, technical feature me nahi — ho sake to unki situation se jod ke ("aap jaise businesses ko isse...").
 17. CONFIDENT raho: "shayad", "lagta hai", "pata nahi", "ho sakta hai" jaise unsure shabd avoid karo. Koi number/fact na pata ho to ek clear next-step do (FREE audit/trial jaisa), guess kabhi nahi.
+18. DISCOVERY-DONE → CLOSE: jab 2-3 zaroori sawaal pooch liye ho ya unke jawaab history me aa chuke ho, to NAYE discovery sawaal mat dhoondo aur baat ko circle me mat ghumao — seedha ek concrete next-step pe le aao (FREE trial/audit aaj ya kal set karoon? ya appointment/callback slot) aur warmly wrap karo. Interested lage to slot/trial confirm karke band karo; har turn ka ek clear maqsad ho.
 
 GOOD vs BAD (hamesha GOOD jaisa — chhota, human, ek sawaal):
 
@@ -1065,7 +1077,15 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         for v in vals:
             if not self._already_asked(v, history):
                 return self._clean(v)
-        return self._clean(closing) if closing else ""
+        if closing and not self._already_asked(closing, history):
+            return self._clean(closing)
+        # Discovery + value + niche-closing sab ho chuke → conversation ROKO mat:
+        # ek concrete next-step do (warna "aage kya" = dead-air ya wahi line repeat).
+        for c in _UNIVERSAL_CLOSE:
+            if not self._already_asked(c, history):
+                return self._clean(c)
+        # Absolute last resort — phir bhi kabhi blank nahi.
+        return self._clean(closing) if closing else self._clean(_UNIVERSAL_CLOSE[0])
 
     def _script_fallback(self, history: list[dict[str, str]]) -> str:
         """Deterministic professional line from the niche script (no LLM).
