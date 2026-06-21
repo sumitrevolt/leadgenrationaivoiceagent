@@ -158,10 +158,9 @@ _FILLER_TEXTS = ("Hmm...", "Achha...", "Ji sir...", "Samajh gayi...", "Ek second
 _FILLER_MP3: list[bytes] = []
 _FILLER_SYNTH_STARTED = False
 
-_FALLBACK_GREETING = (
-    "Namaste! Main LeadGen AI ki taraf se baat kar rahi hoon. "
-    "Aapse bas do minute baat kar sakti hoon?"
-)
+_FALLBACK_GREETING = __import__(
+    "app.voice_agent.universal_pitch", fromlist=["UNIVERSAL_AGENT_INTRO"]
+).UNIVERSAL_AGENT_INTRO
 
 
 # --------------------------------------------------------------------------- #
@@ -271,6 +270,7 @@ class PhoneCallSession:
         # LLMBrain (heavy/verbose) ab sirf fallback hai — vobiz_stream parity.
         self._telecaller: Any = None
         self._telecaller_tried = False
+        self._pitch_state = None  # PlatformPitchState when ai_marketing flow active
 
         # Per-session filler audio cache (wire-format converted from _FILLER_MP3)
         self._filler_audio: list[bytes] = []
@@ -503,6 +503,14 @@ class PhoneCallSession:
                 return
             logger.info("phone_stream caller: %s", text)
 
+            pitch_reply = await self._platform_pitch_reply(text)
+            if pitch_reply:
+                self.history.append({"role": "user", "content": text})
+                self.history.append({"role": "assistant", "content": pitch_reply})
+                logger.info("phone_stream bot(pitch): %s", pitch_reply)
+                await self._speak(pitch_reply)
+                return
+
             reply = await self._think_and_say_stream(text)
             if reply:
                 logger.info("phone_stream bot(stream): %s", reply)
@@ -715,6 +723,35 @@ class PhoneCallSession:
     async def _greeting(self) -> None:
         try:
             await asyncio.sleep(0.3)  # stream ko settle hone do
+            try:
+                from app.voice_agent.platform_pitch import (
+                    initial_state,
+                    is_platform_pitch,
+                    opening_segments,
+                )
+
+                if is_platform_pitch(self.niche):
+                    self._pitch_state = initial_state()
+                    for i, seg in enumerate(opening_segments()):
+                        text = (seg or "").strip()
+                        if not text:
+                            continue
+                        if i == 0:
+                            try:
+                                from app.voice_agent.niche_scripts import (
+                                    ensure_ai_disclosure,
+                                    ensure_permission_ask,
+                                )
+
+                                text = ensure_permission_ask(ensure_ai_disclosure(text))
+                            except Exception:
+                                pass
+                        self.history.append({"role": "assistant", "content": text})
+                        await self._speak(text)
+                    return
+            except Exception as e:
+                logger.debug("phone_stream: platform greet skip (%s)", e)
+
             text = await self._greeting_text()
             # TRAI up-front AI-disclosure gate (always-on) + permission/timing ask
             # (D-9, PERMISSION_OPENER) — parity with vobiz_stream.
@@ -728,6 +765,24 @@ class PhoneCallSession:
             await self._speak(text)
         except Exception as e:
             logger.warning("phone_stream: greeting failed (%s)", e)
+
+    async def _platform_pitch_reply(self, text: str) -> str | None:
+        if self._pitch_state is None:
+            return None
+        try:
+            from app.voice_agent.platform_pitch import next_reply
+
+            reply, self._pitch_state = next_reply(self._pitch_state, text)
+            if reply is None:
+                return None
+            if self._pitch_state.phase == "discovery":
+                tc = self._get_telecaller()
+                if tc is not None and hasattr(tc, "confirm_interest"):
+                    tc.confirm_interest()
+            return reply
+        except Exception as e:
+            logger.debug("phone_stream: platform_pitch_reply failed (%s)", e)
+            return None
 
     async def _greeting_text(self) -> str:
         """STATIC professional permission-based opener (Gong: ~11% vs 2.3%) —

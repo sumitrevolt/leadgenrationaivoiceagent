@@ -3,6 +3,12 @@
 Extracted from app/voice_agent/niche_scripts.py (2026-06-20 refactor) — pure data, re-exported.
 """
 
+from app.voice_agent.universal_pitch import (
+    INTEREST_ASK,
+    PITCH_SHORT,
+    UNIVERSAL_AGENT_INTRO,
+)
+
 NICHE_SCRIPTS: dict[str, dict] = {
     # ====================================================================== #
     # PRIORITY NICHES (researched, niche-specific)
@@ -170,15 +176,9 @@ NICHE_SCRIPTS: dict[str, dict] = {
         "closing": "Toh sir, ek free consultation fix kar dein — kal subah ya shaam, doctor ke paas aapka slot reserve kar doon?",
     },
     "ai_marketing": {
-        "opening": (
-            "Namaste sir, main Swara bol rahi hoon LeadGen AI se — ek AI assistant hoon, "
-            "chhote business ke marketing me madad karti hoon."
-        ),
-        "pitch_short": (
-            "Posts, Google profile, festival posters aur inquiry follow-up — "
-            "sab AI se automatic, ₹1,199 mahine se."
-        ),
-        "interest_ask": "Growth ke liye interested hain — haan ya nahi?",
+        "opening": UNIVERSAL_AGENT_INTRO,
+        "pitch_short": PITCH_SHORT,
+        "interest_ask": INTEREST_ASK,
         "yes_praise": (
             "Theek sir — marketing abhi khud karte ho, staff se, ya agency?"
         ),
@@ -823,10 +823,7 @@ NICHE_SCRIPTS: dict[str, dict] = {
     # hair_transplant, immigration, custom niches, etc.) yahi use karte hain.
     # ====================================================================== #
     "general": {
-        "opening": (
-            "Namaste sir, main Swara bol rahi hoon LeadGen AI se — "
-            "chhote business ke liye AI marketing platform, bas 30 second sunenge?"
-        ),
+        "opening": UNIVERSAL_AGENT_INTRO,
         "discovery": [
             "Aap exactly kis cheez ki talaash me hain?",
             "Budget ya timeline kya soch rahe hain?",

@@ -82,22 +82,16 @@ def _script() -> dict:
 
 def opening_segments() -> list[str]:
     """Three-part greet: intro → short pitch → interest yes/no."""
+    from app.voice_agent.universal_pitch import (
+        INTEREST_ASK,
+        PITCH_SHORT,
+        UNIVERSAL_AGENT_INTRO,
+    )
+
     s = _script()
-    intro = (s.get("opening") or "").strip()
-    pitch = (s.get("pitch_short") or "").strip()
-    ask = (s.get("interest_ask") or "").strip()
-    if not intro:
-        intro = (
-            "Namaste sir, main Swara bol rahi hoon LeadGen AI se — ek AI assistant hoon, "
-            "chhote business ke marketing me madad karti hoon."
-        )
-    if not pitch:
-        pitch = (
-            "Posts, Google profile, festival posters aur inquiry follow-up — "
-            "sab AI se automatic, ₹1,199 mahine se."
-        )
-    if not ask:
-        ask = "Growth ke liye interested hain — haan ya nahi?"
+    intro = (s.get("opening") or "").strip() or UNIVERSAL_AGENT_INTRO
+    pitch = (s.get("pitch_short") or "").strip() or PITCH_SHORT
+    ask = (s.get("interest_ask") or "").strip() or INTEREST_ASK
     return [intro, pitch, ask]
 
 
