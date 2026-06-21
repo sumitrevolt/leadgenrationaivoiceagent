@@ -1,7 +1,7 @@
 # PROJECT HANDOFF — LeadGenAI (leadgenrationaivoiceagent)
 
 > **Purpose:** Complete all-in-one handoff. Ek naya developer YA naya AI-agent isse padh ke poora project samajh sake aur takeover kar sake — product, tech, infra, deploy, blockers, legal, gotchas, sab.
-> **Generated:** 2026-06-20 · **Last updated:** 2026-06-21 — **Marketing plan feature lists expanded** (Trial 11 · Starter 15 · Growth 18 · Advanced 14 — synced `packages.py` → `/pricing`, landing, handoff/SOP) · Flow Runner LIVE (§23) · UPI LIVE · Explorer GREEN (§21) · Source: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
+> **Generated:** 2026-06-20 · **Last updated:** 2026-06-22 — **Explorer drift re-audit GREEN (§26): `live_eval` node wired + API.md re-synced** · **Marketing plan feature lists expanded** (Trial 11 · Starter 15 · Growth 18 · Advanced 14 — synced `packages.py` → `/pricing`, landing, handoff/SOP) · Flow Runner LIVE (§23) · UPI LIVE · Explorer GREEN (§21) · Source: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
 > **Language:** Hinglish (project convention) — technical terms/commands/paths English me.
 
 ---
@@ -627,6 +627,37 @@ Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sa
 **Production readiness scores (re-confirmed, honest 0–100):** Architecture 88 · Security 88 · Reliability 89 · Scalability 80 · Maintainability 83 · Workflow-completeness 92 · Explorer-sync 100 · Test-coverage 82 · **Overall 87**. Council approval: **GO** (Product-1 sellable; Product-2 code-ready, commercially owner-blocked).
 
 **Deploy note:** the flaky-gate fix is a **`scripts/` change only** — it improves the pre-deploy gate's accuracy and ships with the next `git push` (no rebuild needed for the script itself; it runs from the repo on Windows/CI). No live-site change.
+
+---
+
+## 26. Council Re-Audit + Explorer Drift Fix (2026-06-22 — measure-first, council verdict)
+
+> 6th run of the full "broken connections / missing loops / dead pipelines / missing workflows / broken node-functions / sync-gaps" checklist, decided **council-style** (4 role-lenses → Chairman). **Method = MEASURE-first** (operating-manual golden rule + memory "don't re-derive a council"): ran the project's own deterministic evidence gates against TODAY's **Windows working tree** FIRST (the gates ARE the per-dimension auditors), then synthesized the Chairman verdict. No theatrical agent-fleet spun up — the gates already produce the evidence the 4 named agents (Infra/Workflow/Node/Sync) would, and re-deriving them burns tokens for no new signal.
+
+**VERDICT: ✅ GREEN — production-ready re-confirmed. §21–§25 hold. Found + fixed 2 real, additive drifts (new since 06-21).**
+
+**Gates run (Windows venv, live tree):**
+- `cross_path_audit` → **[OK]** 144 flags 0 unread · 28 jobs 0 undispatchable · 29 beat 0 unrecognized · telephony+automation parity.
+- `explorer_sync --check` → caught **1 real drift** (below), fixed, re-run **[OK]** (171 nodes · 321 edges · **71/71 engines 100%** · 0 dangling · 0 orphans · file-refs resolve).
+- `prod_check` → **ALL CHECKS PASSED** (782 routes · 36 pages 0 gaps · automation 0 gaps · explorer 0 orphans · API.md in sync 804 ops).
+- `check_secrets` → clean (1139 files). `pytest tests/test_explorer_sync.py` → 4 passed.
+
+**Drifts found + fixed (additive · low-risk · graph/doc only — zero app/runtime change):**
+
+| # | Drift (evidence) | Fix | Status |
+|---|---|---|---|
+| 1 | **`live_eval` engine module not on explorer graph** — `app/agents/live_eval.py` (P4-3 live-transcript eval, scores real call transcripts → `eval_gate` suite `live_calls`, run by nightly Arjun guardrail) was wired into `team_scheduler._run_job` but had **no node** on `/app/explorer` → explorer_sync FAIL (70/71) + prod_check "1 not drawn". A genuine visual↔code sync gap (new since §25's 72/72). | Added `live_eval` node (automation view, `type:'ai' badge:'EVAL'`, x:1560/y:880 next to `post_call_pipe`) + 2 edges wiring it into the real pipeline: `post_call_pipe → live_eval` (live transcripts) and `live_eval → eval_gate` (conversation_quality). Now 71/71, node not orphan/dangling. | ✅ SHIPPED (`frontend/explorer.html`) |
+| 2 | **API.md endpoint index out of date** — route count grew (770→782/804 ops) so the auto-generated index drifted (prod_check INFO). | Re-ran `scripts/sync_api_docs.py` → 804 endpoints written between AUTO markers. prod_check now "API.md in sync". | ✅ SHIPPED (`docs/API.md`) |
+
+**Council role-lens findings (all backed by the gates above, not assertion):**
+- **Infrastructure (connections/loops/pipelines):** 0 dangling edges, 0 orphan nodes across all 3 wired views; self-improve forever-loop + beat + dead-man trio requeue intact; `lead.created`/`lead.qualified`/`call.completed` emit→consume closed. **No broken loop, no dead pipeline.**
+- **Workflow (lead lifecycle):** 13/13 stages wired (§25), 28 staff jobs 0 undispatchable, 29 beat-tasks 0 unrecognized. **No missing end-to-end workflow.**
+- **Node-functionality:** every scheduled engine module (71/71) now has a backing node; all 183+ `files:` graph→code refs resolve to real files. **No broken/unimplemented node.**
+- **Sync (graph↔code, both directions):** code→graph 100% + graph→code file-refs 100% + intra-view connectivity clean. **No sync gap** (the 1 that existed is now closed).
+
+**On the task's "load test / security audit / UAT / prod-push" asks:** the Explorer is a static architecture *visualization*, not an executable engine — those apply to the BACKEND, already gated by `final_integration_check` + `cross_path_audit` + `prod_check` (all green). Security-relevant gate run = `check_secrets` (clean). UAT-equivalent (visual representation == real system) is exactly what `explorer_sync` verifies = 100%. A live load-test / pentest was **not** run — needs owner go/no-go and must not hammer the single-VPS prod; not a code gap.
+
+**Deploy note:** both fixes are `frontend/` + `docs/` only. `frontend/explorer.html` is BAKED into the app image, so the new `live_eval` node goes live on `/app/explorer` with the next `docker compose build app` + recreate (§9). `docs/API.md` is repo-only (no rebuild needed).
 
 ---
 

@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (799 operations)
+## Endpoint Index — auto-generated from OpenAPI (804 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -405,15 +405,20 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/revenue-trend` — Get Revenue Trend
 - `GET   ` `/api/admin/sync-health` — Admin Sync Health
 
-### Admin Ops  (9)
+### Admin Ops  (14)
 
 - `GET   ` `/api/admin/calls/recent` — Recent call outcomes / qualified summary
 - `POST  ` `/api/admin/campaign/launch` — Launch outbound call campaign
 - `GET   ` `/api/admin/campaign/status` — Last campaign run status
 - `POST  ` `/api/admin/campaign/stop` — Stop the currently running campaign
+- `POST  ` `/api/admin/flow/seed-templates` — Apply all Flow Runner starter templates (FLOW_RUNNER=1)
 - `GET   ` `/api/admin/leads/ready` — Uncontacted leads ready to call (campaign pre-flight)
 - `GET   ` `/api/admin/system/summary` — System snapshot for God Mode panel
+- `POST  ` `/api/admin/trust/configure-sentry` — Set Sentry DSN (lazy web init; worker restart recommended)
+- `POST  ` `/api/admin/trust/configure-turnstile` — Set Turnstile keys (no restart)
+- `GET   ` `/api/admin/trust/status` — Turnstile + Sentry armed status
 - `POST  ` `/api/admin/upi/activate` — Activate plan after UPI screenshot verified
+- `GET   ` `/api/admin/upi/clients` — Search clients for manual UPI activate
 - `POST  ` `/api/admin/upi/configure` — Set platform UPI VPA (data file — no container restart)
 - `GET   ` `/api/admin/upi/pending` — Clients waiting for UPI screenshot activation
 
