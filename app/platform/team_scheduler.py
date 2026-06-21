@@ -233,47 +233,21 @@ async def _run_job_inner(job: str) -> None:
             except Exception:
                 pass
             try:
-                import json as _json_eval
-                from pathlib import Path
-
-                from app.agents import eval_gate, eval_metrics
+                # P4-3: score the last 5 LIVE call transcripts (voice_turn_score +
+                # D-13 qa_checks) and feed the mean to eval_gate. (Replaces a broken
+                # eval_gate.score_and_gate call that silently TypeError'd.)
+                from app.agents import live_eval
                 from app.platform import team
 
-                _tdir = Path("data/call_transcripts")
-                convos: list[list] = []
-                if _tdir.is_dir():
-                    for fp in sorted(_tdir.glob("*.jsonl"))[-5:]:
-                        try:
-                            for line in fp.read_text(
-                                encoding="utf-8", errors="ignore"
-                            ).splitlines():
-                                line = line.strip()
-                                if not line:
-                                    continue
-                                rec = _json_eval.loads(line)
-                                msgs = rec.get("messages")
-                                if isinstance(msgs, list) and msgs:
-                                    convos.append(msgs)
-                        except Exception:
-                            continue
-                if not convos:
-                    convos = [
-                        [
-                            {
-                                "role": "assistant",
-                                "content": "Main LeadGen AI se ek AI assistant hoon.",
-                            },
-                            {"role": "user", "content": "haan boliye"},
-                        ]
-                    ]
-                scores = [eval_metrics.transcript_quality(m) for m in convos]
-                mean = round(sum(scores) / len(scores), 4) if scores else 1.0
-                gate = eval_gate.score_and_gate("voice_transcript", mean, meta={"n": len(convos)})
+                res = live_eval.eval_recent_calls(5)
+                mean = res.get("mean_score", 1.0)
+                decision = (res.get("gate") or {}).get("decision", "ok")
                 team.log_event(
                     "arjun",
                     "voice_eval_guardrail",
-                    f"📊 transcript quality {mean:.2f} · gate {gate.get('decision', 'ok')}",
-                    status="ok" if gate.get("decision") != "reject" else "warn",
+                    f"📊 live-call quality {mean:.2f} · {res.get('n', 0)} calls · "
+                    f"{res.get('total_qa_findings', 0)} QA findings · gate {decision}",
+                    status="ok" if decision != "reject" else "warn",
                 )
             except Exception:
                 pass
