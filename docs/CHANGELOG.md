@@ -15,7 +15,7 @@
 - `scripts/sync_api_docs.py` — auto-regenerate API.md endpoint index (773 ops) from `app.openapi()` (`--check` CI drift gate)
 
 ### Changed
-- `production_ready.py` — payments readiness uses UPI not Razorpay
+- **Marketing plan feature lists expanded** — `app/marketing/packages.py` (Trial 11 · Starter 15 · Growth 18 · Advanced 14) synced to `/pricing`, landing, explorer, sales kits, **`PROJECT_HANDOFF.md` §2**, **`PRODUCT_HANDOFF_SOP.md` §1.3**, `PROJECT_SOP.md` PART D, `CLIENT_ONBOARDING_KIT.md` §5 (deploy `7745725`)
 - `/api/public/pay-info` reads unified `upi_config`
 - Godfile refactor merged to main: `growth.py` −55% / `marketing.py` −62% → split into `growth_revenue`/`growth_crm`/`growth_deliverability`/`growth_feature_flags` + `marketing_tools`/`marketing_models` (routes unchanged)
 - `docs/API.md` base URL → `https://leadsgenai.in`

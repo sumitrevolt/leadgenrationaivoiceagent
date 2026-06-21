@@ -62,13 +62,22 @@
 
 ## 5. Deliverables by tier
 
-| Tier | Deliverables |
-|------|--------------|
-| **Trial ₹0 (7 din)** | 5 AI posts, 1 GBP audit, enquiry widget (+ AI chat), mini-site preview, branded frames, portal access, WhatsApp basic pack, onboarding checklist |
-| **Starter ₹1,199** | Roz AI posts + branded frames + festival calendar + GBP audit + review replies + 4 posters/mo + WhatsApp pack + UPI QR + hashtags + post approval + customer portal + GST invoices |
-| **Growth ₹2,999** | Starter + unlimited posters + AI image/Complete Post + A/B variations + calendar/scheduler + competitor + mini-site + widget + chatbot + reactivation + drip + review kit + team routing + CRM/webhooks + ads/reels + monthly report + 2FA |
-| **Advanced ₹6,999** | Growth + AI voice callback (~2 min) + qualification + booking + missed-call (DID) + 500 min/mo + follow-ups + transcripts + post-call qualify + speed-to-lead SLA |
-| **Voice Band A–C** | Unlimited AI calls/niche (flat band pricing) |
+> **Source of truth:** `app/marketing/packages.py` · Full bullets: `docs/PROJECT_HANDOFF.md` §2 · SOP: `docs/PRODUCT_HANDOFF_SOP.md` §1.3
+
+### Trial ₹0 (7 din) — 11 items
+5 AI posts (Hinglish) · 1 GBP audit · enquiry widget (+ AI chat) · mini-site preview · branded frames · customer portal 7d · WhatsApp basic pack · onboarding checklist · 1-click share · no payment · **no voice**
+
+### Starter ₹1,199/mo — 15 items
+Roz AI posts (39 niches) · branded frames · portal (roz ~7 baje, WA share) · festival calendar · tyohar posts · GBP audit + fixes · review reply drafts · 4 posters/mo · WhatsApp pack · UPI QR · hashtags · post approval · onboarding dashboard · GST invoices · marketing-only (no calling)
+
+### Growth ₹2,999/mo — 18 items (Starter +)
+Unlimited posters · AI image + Complete Post · A/B variations · calendar/scheduler · competitor · mini-site + booking · enquiry widget · AI chatbot · reactivation · WhatsApp drip · review kit · team routing · CRM + webhooks · ads/reels · catalog/referral · monthly report · 2FA
+
+### Advanced ₹6,999/mo — 14 items (Growth + voice FEATURE)
+AI voice callback (~2 min) · qualification · booking · missed-call (DID) · 500 min/mo · weekly follow-ups · transcripts · post-call qualify · speed-to-lead · multi-lingual · TRAI disclosure · unified portal · minute tracker
+
+### Voice Band A–C (Product 2, alag)
+Unlimited AI calls/niche — flat band pricing (`voice_packages.py`)
 
 Pricing truth: `app/marketing/packages.py` · Voice: `voice_packages.py`
 

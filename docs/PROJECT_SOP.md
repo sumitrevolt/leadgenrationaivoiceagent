@@ -187,6 +187,15 @@ Plus hourly: Kavya health, reply-triage, ops-watchdog, auto-onboard, growth-puls
 
 Minute top-ups: 100 / 250 / 500 min = ₹1,499 / ₹3,499 / ₹5,999.
 
+**Full feature bullets:** `app/marketing/packages.py` (single source of truth). Sync handoff: `PROJECT_HANDOFF.md` §2 · `PRODUCT_HANDOFF_SOP.md` §1.3.
+
+| Tier | Count | One-line |
+|------|-------|----------|
+| Trial ₹0 | 11 | 5 posts, GBP audit, widget, mini-site preview, portal 7d — no voice |
+| Starter | 15 | Roz posts, frames, festival, GBP, reviews, posters, WA, UPI QR, approval, portal, GST |
+| Growth | 18 | Starter + AI image, calendar, competitor, mini-site, widget, chatbot, drip, CRM, report |
+| Advanced | 14 | Growth + voice callback, qualify, booking, 500 min, follow-ups, transcripts, SLA |
+
 **Product 2 — Voice Agent** (`voice_packages.py`, page `/voice-agent`) — flat monthly per niche-band, UNLIMITED AI calls:
 
 | Band | Monthly | Annual (10×) |
@@ -197,7 +206,7 @@ Minute top-ups: 100 / 250 / 500 min = ₹1,499 / ₹3,499 / ₹5,999.
 
 FREE pilot: 7 din / 50 calls (`voice_pilot`, ₹0). Niche→band mapping: `app/niches.py` `lead_band` A/B/C.
 
-> ⚠️ Purana per-qualified-lead / ₹10k-25k package system **REMOVED**. `Business_Playbook_Hinglish.md` me jo old pricing hai woh STALE — yeh table use karo.
+> ⚠️ Purana per-qualified-lead / ₹10k-25k package system **REMOVED**. `Business_Playbook_Hinglish.md` me jo old pricing hai woh STALE — yeh table + `packages.py` use karo.
 
 ---
 

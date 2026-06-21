@@ -45,7 +45,7 @@ Anchors: Dhanda ₹7,999/yr (≈₹667/mo, features humse kam) · Predis Lite $3
 | Tier | Monthly | Yearly (2 mahine FREE) | Notes |
 |---|---|---|---|
 | Trial | ₹0 / 7 din | — | unchanged |
-| Starter | **₹1,199** | ₹11,990 | Dhanda se premium justified (GBP+WhatsApp+widget+reviews, sirf posters nahi) |
+| Starter | **₹1,199** | ₹11,990 | Dhanda se premium justified — full 15-feature list in `packages.py` (GBP+WhatsApp+approval+portal, sirf posters nahi) |
 | Growth | **₹2,999** | ₹29,990 | Predis Lite (₹2,700, social-only) ke barabar me full stack |
 | Advanced | **₹6,999** | ₹69,990 | voice FEATURE (500 min/mo) + uniqueness premium; agency retainer ka ~1/2–1/3 |
 

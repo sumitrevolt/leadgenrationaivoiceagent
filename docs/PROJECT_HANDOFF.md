@@ -1,7 +1,7 @@
 # PROJECT HANDOFF — LeadGenAI (leadgenrationaivoiceagent)
 
 > **Purpose:** Complete all-in-one handoff. Ek naya developer YA naya AI-agent isse padh ke poora project samajh sake aur takeover kar sake — product, tech, infra, deploy, blockers, legal, gotchas, sab.
-> **Generated:** 2026-06-20 · **Last updated:** 2026-06-21 — **Flow Runner ALL 7 phases COMPLETE + DEPLOYED LIVE** (visual automation builder, n8n + per-client parity; PR #18+#19 → main `118ff53`; flags OFF=inert; 168 tests green — see §23) · UPI payments LIVE · Architecture Explorer + enterprise doc-pack · **Explorer + backend audited GREEN** (§21) · **4-agent council re-audit + 7 wireable fixes shipped (§22)** · Source of truth: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
+> **Generated:** 2026-06-20 · **Last updated:** 2026-06-21 — **Marketing plan feature lists expanded** (Trial 11 · Starter 15 · Growth 18 · Advanced 14 — synced `packages.py` → `/pricing`, landing, handoff/SOP) · Flow Runner LIVE (§23) · UPI LIVE · Explorer GREEN (§21) · Source: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
 > **Language:** Hinglish (project convention) — technical terms/commands/paths English me.
 
 ---
@@ -54,14 +54,75 @@ Full AI telecaller — outbound cold-calling, qualification, CRM push. **DLT-gat
 
 Top-up minute packs (`TOPUP_PACKS`): 100/250/500 min = ₹1,499 / ₹3,499 / ₹5,999.
 
-**Feature lists (full copy = `app/marketing/packages.py`):**
+**Feature lists — canonical copy lives in `app/marketing/packages.py`** (also `/api/marketing/packages`, `/pricing`, landing `#pricingGrid`). Pricing/marketing copy change = edit `packages.py` first, then sync handoff/SOP/landing.
 
-| Tier | Highlights |
-|------|------------|
-| **Trial ₹0** | 5 posts, GBP audit, widget, mini-site preview, branded frames, portal 7d |
-| **Starter** | Roz AI posts, branded frames, festival calendar, GBP, reviews, 4 posters, WA pack, UPI QR, approval, portal, GST |
-| **Growth** | + unlimited posters, AI image, calendar, competitor, mini-site, widget, chatbot, drip, CRM, report, 2FA |
-| **Advanced** | + AI voice callback, qualify, booking, 500 min/mo, follow-ups, transcripts, speed-to-lead |
+#### 7-Din FREE Trial — ₹0 (11 features)
+- 5 AI social posts — Hinglish caption + hashtags, copy/share ready
+- 1 Google Business Profile audit (0–100 score + fix list)
+- Website lead-capture widget — enquiry form (+ optional AI chat mode)
+- Mini-site preview link (`/b/aapka-slug`) + bio link
+- Branded post frame sample — logo + business naam
+- Customer login portal — 7 din full dashboard access
+- WhatsApp content — basic broadcast/status pack
+- Onboarding checklist — setup steps portal me
+- 1-click copy + WhatsApp share har post pe
+- Koi card/payment nahi — pasand aaye to Starter ₹1,199/mo se shuru
+- Voice calling nahi (Advanced tier me AI callback milta hai)
+
+#### Marketing Starter — ₹1,199/mo (15 features, 100% marketing-only)
+- Roz AI social posts — Hinglish caption + hashtags (39 niches)
+- Branded post frames — logo + business naam har post pe
+- Customer portal — roz ~7 baje content, 1-click WhatsApp/Insta share
+- Festival calendar auto — Diwali, Holi, Rakhi, Independence Day sab covered
+- Tyohar/offer posts — sale day ke liye ready creatives + captions
+- Google Business Profile audit (0–100) + top 5 fix suggestions
+- Google reviews ke Hinglish reply drafts — copy-paste, rating bachao
+- 4 branded posters/mo — naam, phone, offer (SVG, print-ready)
+- WhatsApp content pack — broadcast + status messages ready
+- UPI Scan & Pay QR card — counter/display ke liye branded
+- Hashtag suggestions har post ke saath
+- Post approval workflow — publish se pehle aapki OK (portal me)
+- Onboarding checklist + customer dashboard (leads, content, bills)
+- GST invoice download portal se
+- 100% marketing-only — koi calling charge / minute limit nahi
+
+#### Growth — ₹2,999/mo (18 features, Starter + growth stack)
+- Starter ke saare features included
+- Unlimited posters + festival creatives
+- AI image generation + Complete Post one-shot (caption + hashtags + image)
+- Post variations A/B — ek idea se 2–4 alag versions
+- Content calendar + scheduler — mahine bhar ka plan + festival auto-schedule
+- Competitor analysis — unki posts/strengths dekho, gaps exploit karo
+- Mini-site `/b/aapka-slug` — bio link + digital card + booking page
+- Website enquiry widget — 1-line script, form seedha dashboard me
+- AI website chatbot — FAQ + lead capture (widget mode)
+- Database reactivation — purane customers ke liye win-back campaigns
+- WhatsApp drip nurture — naye leads ko spaced follow-up messages
+- Review kit — khush customer ko Google review, unhappy ko private feedback
+- Team lead routing — 2–5 members round-robin + WhatsApp handoff
+- CRM sync (Zoho/HubSpot) + programmable webhooks (lead/call events)
+- Ads copy pack + Reels script drafts + sentiment/hashtag research
+- Catalog + UPI payment links + referral program tools
+- Monthly marketing report — kya chala, kya nahi, agla mahina kya karein
+- Customer 2FA + hot leads dashboard
+
+#### Advanced AI Agent — ₹6,999/mo (14 features, Growth + voice FEATURE)
+- Growth ke saare features included
+- AI Voice Agent — har website/GBP inquiry ko ~2-minute me AI call (insaan jaisi Hindi awaaz)
+- Lead qualification — budget, timeline, interest score AI capture karta hai
+- Appointment booking — AI calendar slots offer + confirm karta hai
+- Missed-call auto-callback (DID active hone par) — koi enquiry miss nahi
+- 500 calling minutes/mo included — top-up packs (100/250/500 min) available
+- Weekly 50 follow-up calls — purani leads garam rakho
+- Sab call transcripts + AI summary aapke dashboard me
+- Post-call AI qualification — interest score + next-action draft
+- Speed-to-lead SLA badge — kitni der me pehli call hui, track karo
+- Multi-lingual — Hindi, Hinglish, English (aur regional jahan script ho)
+- TRAI-compliant AI disclosure greeting har call pe
+- Calls + leads ek hi portal — marketing content bhi, voice bhi
+- Minute usage tracker — kitna use hua, kitna bacha, renewal date
+
+**Customer portal surfaces (all paid tiers):** `/app/login` → `/app/customer/marketing` — Aaj ka Post · Post Approval · Website Tools (mini-site/widget) · Team Routing · Leads · Billing · Webhooks · 2FA · `/app/customer/flows` (draft automations).
 
 ### Product 2 — Voice Agent (`voice_packages.py`, `/api/voice/packages`, page `/voice-agent`)
 **FLAT MONTHLY per niche-band** (unlimited AI calls, no lead-counting/disputes):
