@@ -31,10 +31,20 @@ Iska maqsad: naya chat minimum token me oriented ho jaye. `CLAUDE.md` (lean work
 - Lead-gen campaign chalao → **`run-campaign`**. Pipeline safai → **`pipeline-hygiene`**.
 
 ## Pehla step har task me
-1. User ka exact ask samjho. Ambiguous ho to 1 chhota AskUserQuestion (token-cheap), warna seedha kaam.
-2. Relevant skill upar se pick karo → uske steps follow karo.
-3. Code change → `leadgen-ops` loop se ship + verify (`docker compose build app` + `up -d --no-deps app` → `/health`=production).
-4. Done → `docs/SESSION_LOG.md` me 2-4 line milestone, CLAUDE.md me 1-line status.
+
+1. User ka exact ask samjho. Ambiguous ho to 1 chhota sawaal, warna seedha kaam.
+2. **Code task** → Read `context-first` skill → phir relevant domain skill.
+3. **Launch/readiness** → `production-ready` skill (live probe + gates).
+4. Code change → `verify-ship` → `leadgen-ops` deploy loop.
+5. Done → `docs/SESSION_LOG.md` milestone (Edit only), CLAUDE.md 1-line if needed.
+
+## Production state (2026-06-21)
+
+- **P1 Marketing GO** — live `ready_for_first_paid_customer=true`, UPI armed
+- **P2 Voice** — code ready; Vobiz recharge + DLT = owner blocker
+- Probe: `curl.exe https://leadsgenai.in/api/activation/summary`
+- Audit doc: `docs/PRODUCTION_READINESS_AUDIT_2026_06_21.md`
 
 ## Blockers (user-action, abhi pending)
-**Payments** = manual UPI (`UPI_VPA` set karo) / Stripe — Razorpay gateway HATA diya gaya (purana 401-blocker resolved). Udyam→DLT re-apply (cold-calling). Vobiz DID + recharge. External-blocked (build nahi kar sakte): missed-call callback, GBP/Meta auto-post. In par token mat jalao.
+
+**Payments** = UPI LIVE on prod (Razorpay removed). Voice: Udyam→DLT, Vobiz DID. Optional WARN: Sentry, Turnstile (not GO blockers). External-blocked: missed-call callback, GBP/Meta auto-post.

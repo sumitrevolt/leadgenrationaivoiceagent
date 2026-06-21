@@ -1,66 +1,77 @@
 # Skills Parity — Cursor/Composer ↔ Claude Code
 
-> **Goal:** Jo capabilities Cursor Composer me hain, wahi `.claude/skills/` me documented hon taaki Claude Code bina gap ke kaam kare.
-> **Primary brain:** `.claude/skills/leadgen-composer/SKILL.md` (Composer skill ka Claude mirror).
-> **Project skills:** ~69 folders in `.claude/skills/` + ~181 in `data/skills_extra/` (skill_pack).
+> **Goal:** Claude Code is **PRIMARY** for this repo — skills encode Cursor's parallel context-first edge explicitly.
+> **Start every code task:** `context-first` → `leadgen-composer` → one domain skill.
+> **Project skills:** ~93 folders in `.claude/skills/` + ~181 in `data/skills_extra/`.
 
-## Cursor built-in → Claude repo skill
+## Claude loading protocol (MANDATORY)
 
-| Cursor (`~/.cursor/skills-cursor/`) | Claude (repo) | Notes |
-|-------------------------------------|---------------|-------|
-| *(leadgen-composer)* | `leadgen-composer/` | Primary LeadGen brain |
-| `automate` | `automate/` | LeadGen = Celery/scheduler; Cursor = Automations UI |
-| `babysit` | `babysit/` | PR merge-ready loop (`gh`) |
-| `canvas` | `canvas/` | Cursor `.canvas.tsx`; Claude = markdown/HTML fallback |
-| `create-hook` | `create-hook/` | `.cursor/hooks.json` |
-| `create-rule` | `create-rule/` | `.cursor/rules/*.mdc` + `CLAUDE.md` |
-| `create-skill` | `create-skill/` | `.claude/skills/<name>/SKILL.md` |
-| `create-subagent` | `create-subagent/` | Claude `Task` tool |
-| `loop` | `loop/` | Recurring shell sentinel |
-| `migrate-to-skills` | `migrate-to-skills/` | Rules/commands → SKILL.md |
-| `review` | `review/` | *(existing)* code review |
-| `review-bugbot` | `review-bugbot/` | Bugbot-style local review |
-| `review-security` | `security-review/` | *(existing)* |
-| `shell` | `shell/` | Literal `/shell` command |
-| `split-to-prs` | `split-to-prs/` | Multi-PR split |
-| `sdk` | `agent-sdk/` | Agent SDK apps |
-| `statusline` | `statusline/` | Cursor IDE only (reference) |
-| `update-cursor-settings` | `update-claude-settings/` | `CLAUDE.md` / project memory |
-| `update-cli-config` | `update-cli-config/` | CLI config |
+1. `CLAUDE.md` auto-loads each turn (lean memory).
+2. **Any code/debug/edit** → Read `.claude/skills/context-first/SKILL.md` FIRST.
+3. Task match → Read **one** domain `.claude/skills/<name>/SKILL.md`.
+4. Ambiguous strategy → `llm-council-decision`.
+5. Skill missing → `find-skills` → `data/skills_extra/`.
+6. **Never** load entire skills folder (token burn).
 
-## P0 — Claude project accuracy (added 2026-06-21)
+## P0 — Claude beats Cursor (2026-06-21 update)
 
 | Skill | When |
 |-------|------|
+| `context-first` | **Every code task — parallel Grep/Read before edit** |
+| `leadgen-composer` | Primary brain + task router |
 | `verify-ship` | prod_check + deploy gate |
+| `production-ready` | launch / readiness / GO certification |
 | `duplicate-route-guard` | new FastAPI routes |
 | `windows-dev-gotchas` | Windows git/SSH/VPS |
 | `product-split-adr` | Marketing vs Voice split |
 | `voice-roles` | Swara / Ananya / Riya |
 
-## LeadGen domain skills (already in `.claude/skills/`)
+## Cursor built-in → Claude repo skill
 
-See `leadgen-composer/skills-index.md` — ops, voice, marketing, agents, infra, business.
+| Cursor (`~/.cursor/skills-cursor/`) | Claude (repo) | Notes |
+|-------------------------------------|---------------|-------|
+| *(leadgen-composer)* | `leadgen-composer/` | Primary brain |
+| *(parallel index)* | `context-first/` | **NEW** — Cursor default behavior for Claude |
+| `automate` | `automate/` | Celery/scheduler |
+| `babysit` | `babysit/` | PR merge-ready |
+| `canvas` | `canvas/` | Claude = markdown/HTML |
+| `create-hook` | `create-hook/` | `.cursor/hooks.json` |
+| `create-rule` | `create-rule/` | rules + CLAUDE.md |
+| `create-skill` | `create-skill/` | new SKILL.md |
+| `create-subagent` | `create-subagent/` | Task tool |
+| `loop` | `loop/` | recurring shell |
+| `migrate-to-skills` | `migrate-to-skills/` | rules → skills |
+| `review` | `review/` | code review |
+| `review-bugbot` | `review-bugbot/` | bug-style review |
+| `review-security` | `security-review/` | security |
+| `shell` | `shell/` | `/shell` command |
+| `split-to-prs` | `split-to-prs/` | multi-PR |
+| `sdk` | `agent-sdk/` | Agent SDK |
+| `statusline` | `statusline/` | Cursor IDE only |
+| `update-cursor-settings` | `update-claude-settings/` | CLAUDE.md |
+| `update-cli-config` | `update-cli-config/` | CLI config |
 
 ## Slash commands → skills
 
-| Command | File | Skill equivalent |
-|---------|------|------------------|
-| `/verify` | `.claude/commands/verify.md` | leadgen-ops |
-| `/ship` | `.claude/commands/ship.md` | deploy + ship-checklist |
-| `/checkpoint` | `.claude/commands/checkpoint.md` | memory-vault |
-| `/learn` | `.claude/commands/learn.md` | SESSION_LOG append |
-| `/compact-check` | `.claude/commands/compact-check.md` | token discipline |
-| `/optimize` | `.claude/commands/optimize.md` | growth-optimizer |
-| `/test-expand` | `.claude/commands/test-expand.md` | tdd-contract-first |
-
-## How Claude should load skills
-
-1. Har turn: `CLAUDE.md` (auto).
-2. Task match → Read **one** `.claude/skills/<name>/SKILL.md` (poora 247 mat load).
-3. Ambiguous strategy → `llm-council-decision`.
-4. Skill missing → `find-skills` → `data/skills_extra/`.
+| Command | Skill equivalent |
+|---------|------------------|
+| `/verify` | `verify-ship` (quick) |
+| `/ship` | `verify-ship` + `leadgen-ops` |
+| `/checkpoint` | `memory-vault` |
+| `/learn` | SESSION_LOG append (Edit only) |
+| `/compact-check` | `leadgen-start` token rules |
+| `/optimize` | growth-optimizer |
+| `/test-expand` | `tdd-contract-first` |
 
 ## VPS
 
-Skills baked in Docker image (`.claude/skills/` COPY). Data-only extras in `./data/skills_extra/` bind-mount — git pull pe live, rebuild NAHI.
+Skills baked in Docker image (`.claude/skills/` COPY). `data/skills_extra/` bind-mount — git pull live, no rebuild.
+
+## Production truth probe
+
+```text
+curl.exe https://leadsgenai.in/api/activation/summary
+→ ready_for_first_paid_customer, blocker_count, warns
+```
+
+Detail: `production-ready` skill.

@@ -1,65 +1,91 @@
 ---
 name: leadgen-composer
-description: LeadGen AI primary agent brain — context-first edits, Hinglish replies, free-stack, council decisions, deploy verify. Use for ANY task on leadsgenai.in (Claude Code, Cursor Composer, or CLI). Read skills-index.md for deep workflows.
+description: LeadGen AI primary agent brain — context-first edits, Hinglish replies, free-stack, council decisions, deploy verify. Use for ANY task on leadsgenai.in (Claude Code PRIMARY — read this first; Cursor mirror). Invoke context-first skill before every code edit.
 ---
 
-# LeadGen Agent Brain (Claude Code + Composer parity)
+# LeadGen Agent Brain (Claude Code PRIMARY)
 
-> **Memory:** `CLAUDE.md` + `AGENTS.md` auto-load. **Deep skills:** `.claude/skills/` — on-demand Read via [skills-index.md](skills-index.md). **Cursor parity:** `.claude/skills/SKILLS_PARITY.md`.
+> **Claude:** Har code task → Read `context-first` skill PEHLE. **Memory:** `CLAUDE.md` auto. **Index:** [skills-index.md](skills-index.md) · **Parity:** [../SKILLS_PARITY.md](../SKILLS_PARITY.md)
 
 ## User rules (non-negotiable)
 
-- **Hinglish Roman** replies — concise, direct.
-- **Free stack only** — no paid LLM/STT/TTS suggestions.
-- **DO alag products** — Marketing (main) vs Voice Agent (standalone); bundle framing mat use karo.
-- **Commit/push** sirf jab user bole.
+- **Hinglish Roman** — concise, direct
+- **Free stack only** — no paid LLM/STT/TTS
+- **DO alag products** — Marketing vs Voice standalone; bundle framing mat
+- **Commit/push** sirf jab user bole
 
-## Context-first (mandatory har code task)
+## Claude superpower — context-first (MANDATORY)
 
-**Edit se PEHLE:**
+Cursor auto-indexes; Claude must **manually batch parallel Grep/Read** before edit.
 
 ```
-1. Grep/Glob  → saare touch-points (callers, routes, tests, UI)
-2. Read FULL  → jin files ko chhoona hai
-3. Plan       → minimal diff
-4. Edit       → Windows file-tools; same file parallel MAT
-5. Verify     → prod_check + targeted pytest; green = done
+1. context-first skill → parallel Grep/Glob (routes, callers, tests, UI)
+2. Read FULL files to touch
+3. Plan minimal diff
+4. Edit (Windows tools; same file parallel MAT)
+5. verify-ship → green = done
 ```
 
-**FastAPI:** `grep '@router'` pehle — duplicate = first-route-wins shadow. **Windows = truth** — `.venv\Scripts\python.exe`.
+**FastAPI:** `grep '@router'` — duplicate = first-route-wins shadow. **Windows = truth** — `.venv\Scripts\python.exe`.
 
-## Task router
+## Task router (Read ONE matching skill)
 
-| User ask | Read skill |
-|----------|------------|
-| Session bootstrap | `.claude/skills/leadgen-start/SKILL.md` |
-| Done / deploy | `.claude/skills/verify-ship/SKILL.md` |
-| Deploy / prod | `.claude/skills/leadgen-ops/SKILL.md` |
-| New API route | `.claude/skills/duplicate-route-guard/SKILL.md` |
-| Windows terminal | `.claude/skills/windows-dev-gotchas/SKILL.md` |
-| Pricing / 2 products | `.claude/skills/product-split-adr/SKILL.md` |
-| Voice personas | `.claude/skills/voice-roles/SKILL.md` |
-| VPS / Docker | `.claude/skills/hostinger-deploy/SKILL.md` |
-| Debug | `.claude/skills/systematic-debugging/SKILL.md` |
-| Marketing feature | `.claude/skills/marketing-feature/SKILL.md` |
-| Council / strategy | `.claude/skills/llm-council-decision/SKILL.md` |
-| Voice tune | `.claude/skills/voice-agent-kb/SKILL.md` + `test-agent` |
-| PR babysit | `.claude/skills/babysit/SKILL.md` |
-| Split PRs | `.claude/skills/split-to-prs/SKILL.md` |
-| Recurring task | `.claude/skills/loop/SKILL.md` |
-| New skill | `.claude/skills/create-skill/SKILL.md` |
+| User ask | Skill |
+|----------|-------|
+| **Har code edit** | `context-first` |
+| Session start | `leadgen-start` |
+| Production ready / launch | `production-ready` |
+| Done / deploy | `verify-ship` |
+| Deploy / prod error | `leadgen-ops` |
+| New API route | `duplicate-route-guard` |
+| Windows git/SSH | `windows-dev-gotchas` |
+| Pricing / 2 products | `product-split-adr` |
+| Voice personas | `voice-roles` |
+| VPS / Docker | `hostinger-deploy` |
+| Debug | `systematic-debugging` |
+| Marketing tab/API | `marketing-feature` |
+| Strategy / go-no-go | `llm-council-decision` |
+| Voice tune | `voice-agent-kb` + `test-agent` |
+| Discipline / audit | `fable-operating-manual` |
+| PR babysit | `babysit` |
+| Find workflow | `find-skills` |
 
-Full index → [skills-index.md](skills-index.md) · Cursor parity → [../SKILLS_PARITY.md](../SKILLS_PARITY.md)
+Full list → [skills-index.md](skills-index.md)
+
+## Production state (2026-06-21)
+
+- **Live:** https://leadsgenai.in · VPS `72.61.245.204` · Docker `leadgen_app`
+- **P1 Marketing:** `ready_for_first_paid_customer=true` (UPI live)
+- **P2 Voice:** code ready; Vobiz/DLT = owner blocker
+- **Scheduler:** Celery worker+beat (`RUN_IN_PROCESS_SCHEDULER=0`)
+- **Council:** `POST /api/agents/council` · `/app/agents`
+- **Payments:** UPI primary; Razorpay removed
+
+Probe: `curl.exe https://leadsgenai.in/api/activation/summary`
 
 ## Verify before "done"
 
 ```bat
 .venv\Scripts\python.exe scripts\prod_check.py
-.venv\Scripts\python.exe -m pytest tests\test_<relevant>.py -q
+.venv\Scripts\python.exe -m pytest tests\test_<area>.py -q
 ```
 
-## Live quick facts
+Detail: `verify-ship`
 
-- **URL:** https://leadsgenai.in · VPS `72.61.245.204` · Docker `leadgen_app`
-- **Council:** `POST /api/agents/council` · UI `/app/agents`
-- **Payments:** UPI primary (`UPI_VPA`)
+## Claude vs Cursor — stay ahead
+
+| Cursor edge | Claude match |
+|-------------|--------------|
+| Always-on rule | `leadgen-composer` + `context-first` Read each task |
+| Parallel tools | **Batch Grep/Read in one turn** |
+| Fast iteration | **Don't** subagent small fixes |
+| prod_check habit | `verify-ship` mandatory |
+
+## Anti-patterns
+
+- Edit bina Grep/Read
+- Subagent har chhoti cheez
+- "Ho gaya" bina prod_check
+- Duplicate marketing routes
+- Secrets in committed files
+- SESSION_LOG bash append
