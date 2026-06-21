@@ -4,6 +4,7 @@ Check if phone numbers are on Do Not Disturb list
 """
 
 import asyncio
+import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -139,13 +140,60 @@ class DNDChecker:
         return [phone for phone, result in results.items() if not result.is_dnd]
 
     async def _check_via_registry(self, phone: str) -> DNDCheckResult:
-        """No external DND-lookup provider wired (Exotel removed 2026-06-18).
+        """External DND lookup when configured; else carrier-delegated (Vobiz) or unverified.
 
-        Returns an UNVERIFIED result so the compliance gate fails CLOSED for
-        promotional calls (TCCCPR-safe). Opt-outs are still authoritative via the
-        local cache + consent ledger. Replace with a real registry/provider when
-        one is procured.
+        Vobiz scrubs NDNC on outbound path (docs.vobiz.ai/compliance/india/ucc).
+        When ``DND_CARRIER_SCRUB=1`` + Vobiz creds, treat as verified (carrier scrubs).
+        Without either, return UNVERIFIED → compliance gate fails CLOSED for promo.
         """
+        url = (os.environ.get("DND_API_URL") or "").strip()
+        key = (os.environ.get("DND_API_KEY") or "").strip()
+        if url and key:
+            try:
+                import httpx
+
+                async with httpx.AsyncClient(timeout=8.0) as client:
+                    resp = await client.post(
+                        url,
+                        json={"phone": phone, "api_key": key},
+                        headers={"Authorization": f"Bearer {key}"},
+                    )
+                if resp.status_code == 200:
+                    data = resp.json() if resp.content else {}
+                    is_dnd = bool(
+                        data.get("is_dnd")
+                        or data.get("dnd")
+                        or data.get("on_dnd")
+                        or str(data.get("status", "")).lower() in ("dnd", "registered", "yes")
+                    )
+                    return DNDCheckResult(
+                        phone=phone,
+                        is_dnd=is_dnd,
+                        checked_at=datetime.now(),
+                        source="dnd_api",
+                        verified=True,
+                    )
+            except Exception as e:
+                logger.debug(f"DND API lookup failed for {phone[-4:]}: {e}")
+
+        carrier_scrub = os.environ.get("DND_CARRIER_SCRUB", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        provider = (os.environ.get("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
+        vobiz_ok = bool(
+            os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN")
+        )
+        if carrier_scrub and provider == "vobiz" and vobiz_ok:
+            return DNDCheckResult(
+                phone=phone,
+                is_dnd=False,
+                checked_at=datetime.now(),
+                source="vobiz_carrier_scrub",
+                verified=True,
+            )
+
         return DNDCheckResult(
             phone=phone,
             is_dnd=False,

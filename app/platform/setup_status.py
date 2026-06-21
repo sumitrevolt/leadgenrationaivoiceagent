@@ -103,7 +103,9 @@ def pending_actions() -> list[str]:
     out: list[str] = []
     if not _has_key("GROQ_API_KEY"):
         out.append("GROQ_API_KEY (console.groq.com, free) — STT hearing fix")
-    out.append("Udyam (MSME, free) cert -> DLT re-apply (cold-calling legal)")
+    dlt_ok = os.getenv("DLT_APPROVED", "").strip().lower() in ("1", "true", "yes")
+    if not dlt_ok:
+        out.append("Udyam (MSME, free) cert -> DLT re-apply (cold-calling legal)")
     if not _has_key("VOBIZ_CALLER_ID"):
         out.append("Vobiz recharge + DID -> VOBIZ_CALLER_ID (voice cold-calls)")
     if not _has_key("UPI_VPA"):
