@@ -79,6 +79,11 @@ from typing import Any
 
 from app.utils.logger import setup_logger
 
+# Per-turn latency metrics (P1 observability) — import-safe, stdlib-only deps.
+# now_ms() is monotonic ms; record helper is gated (TURN_METRICS) + never-raises.
+from app.voice_agent.turn_metrics import now_ms as _now_ms
+from app.voice_agent.turn_metrics import record_turn as _record_turn_metric
+
 logger = setup_logger(__name__)
 
 
@@ -509,6 +514,15 @@ class VobizStreamSession:
         self._started_at = datetime.now(timezone.utc)  # transcript meta
         self._stt_counts: dict[str, int] = {"groq": 0, "gemini": 0, "whisper": 0}
 
+        # ── per-turn latency metrics (P1; TURN_METRICS, default on, log-only) ──
+        # Stamped opportunistically by the hot path: _turn_t0_ms set per utterance,
+        # _llm_first/_tts_first stamped by the LLM-stream gen + _play_frames. None
+        # outside a turn so unrelated playback (greeting) never mis-stamps.
+        self._turn_t0_ms: float | None = None
+        self._turn_llm_first_ms: float | None = None
+        self._turn_tts_first_ms: float | None = None
+        self._turn_metrics: list[dict] = []  # accumulated for the transcript record
+
         # turn-taking / VAD state
         self._speech_buf: list[bytes] = []
         self._speech_ms = 0.0
@@ -830,14 +844,31 @@ class VobizStreamSession:
         if self._thinking:
             return
         self._thinking = True
+        # ── per-turn latency metrics (P1; TURN_METRICS, default on, log-only) ──
+        # t0 = "user stopped talking". stt_ms is timed directly; llm_first/tts_first
+        # are stamped by the LLM-stream gen + _play_frames; turn_ms computed at the
+        # end. _record decides if this utterance is a real turn worth recording
+        # (junk/duplicate STT noise is skipped). Never changes call behaviour.
+        self._turn_t0_ms = _now_ms()
+        self._turn_llm_first_ms = None
+        self._turn_tts_first_ms = None
+        _stt_ms: float | None = None
+        _outcome = "ok"
+        _record = False
+        _reply_text = ""
         try:
+            _t_stt = _now_ms()
             text = (await self._stt(pcm16) or "").strip()
+            _stt_ms = _now_ms() - _t_stt
             if not text:
+                _outcome = "empty_stt"
+                _record = True
                 return
             # JUNK GUARD — don't spend an LLM call (or speak) on garbage STT.
             # Too-short / punctuation-only / noise → drop silently, keep listening.
             if self._is_junk(text):
                 logger.debug(f"[vobiz-stream] dropped junk STT: {text!r}")
+                _outcome = "junk"
                 return
             # Skip an exact repeat of the last user turn (STT echo / duplicate).
             last_user = next(
@@ -845,14 +876,18 @@ class VobizStreamSession:
             )
             if text == (last_user or "").strip():
                 logger.debug(f"[vobiz-stream] dropped duplicate STT: {text!r}")
+                _outcome = "dup"
                 return
             logger.info(f"[vobiz-stream {self.stream_sid}] user: {text}")
+            _record = True
             # IVR / voicemail gate — structured message, "dobara boliye" mat bolo.
             if self._is_ivr_prompt(text):
                 reply = self._ivr_voicemail_reply()
                 self.hist.append({"role": "user", "content": text})
                 self.hist.append({"role": "assistant", "content": reply})
                 logger.info(f"[vobiz-stream {self.stream_sid}] bot(ivr): {reply[:80]}...")
+                _outcome = "ivr"
+                _reply_text = reply
                 await self._say(reply)
                 return
             # AMD parity (GATED AMD_DETECT, default OFF) — check ONLY the first
@@ -864,6 +899,7 @@ class VobizStreamSession:
                 self._amd_checked = True
                 try:
                     if await self._amd_check(text):
+                        _outcome = "amd"
                         return
                 except Exception as e:
                     logger.debug(f"[vobiz-stream] AMD check skip: {e}")
@@ -883,22 +919,76 @@ class VobizStreamSession:
             reply = await self._think_and_say_stream(text)
             if not reply:
                 reply = await self._think(text)
+                # Non-stream path has no token streaming → first-token == reply-ready.
+                if self._turn_llm_first_ms is None and self._turn_t0_ms is not None:
+                    self._turn_llm_first_ms = _now_ms() - self._turn_t0_ms
                 if reply:
                     logger.info(f"[vobiz-stream {self.stream_sid}] bot: {reply}")
                     self.hist.append({"role": "assistant", "content": reply})
+                    _reply_text = reply
                     await self._say(reply)
+                else:
+                    _outcome = "no_reply"
             elif reply:
                 logger.info(f"[vobiz-stream {self.stream_sid}] bot(stream): {reply}")
                 self.hist.append({"role": "assistant", "content": reply})
+                _reply_text = reply
             elif text.strip():
                 # Last-resort — user ne bola par koi reply generate nahi hua.
                 fallback = "Ji sir, sun pa rahi hoon — haan boliye, kya help chahiye?"
                 self.hist.append({"role": "assistant", "content": fallback})
+                _outcome = "fallback"
+                _reply_text = fallback
                 await self._say(fallback)
         except Exception as e:
             logger.warning(f"[vobiz-stream] utterance handling failed: {e}")
+            _outcome = "error"
         finally:
             self._thinking = False
+            if _record:
+                try:
+                    turn_ms = (
+                        _now_ms() - self._turn_t0_ms if self._turn_t0_ms is not None else None
+                    )
+                    self._record_turn(_stt_ms, turn_ms, _outcome, _reply_text)
+                except Exception:
+                    pass
+            self._turn_t0_ms = None
+
+    def _record_turn(
+        self,
+        stt_ms: float | None,
+        turn_ms: float | None,
+        outcome: str,
+        reply_text: str,
+    ) -> None:
+        """Build + persist one per-turn latency record (P1). Best-effort; the
+        accumulated list rides on the transcript and each turn is also appended
+        to data/turn_metrics/ for cross-call P50/P95 rollups. Never raises."""
+        rec = {
+            "path": "vobiz_stream",
+            "call_id": self.stream_sid or "",
+            "niche": self.niche or "",
+            "client_id": str(self.client_id or ""),
+            "outcome": outcome,
+            "stt_ms": round(stt_ms, 1) if stt_ms is not None else None,
+            "llm_first_ms": (
+                round(self._turn_llm_first_ms, 1)
+                if self._turn_llm_first_ms is not None
+                else None
+            ),
+            "tts_first_ms": (
+                round(self._turn_tts_first_ms, 1)
+                if self._turn_tts_first_ms is not None
+                else None
+            ),
+            "turn_ms": round(turn_ms, 1) if turn_ms is not None else None,
+            "reply_words": len((reply_text or "").split()),
+        }
+        # Keep the in-memory list bounded (a call won't reach this, but be safe).
+        if len(self._turn_metrics) < 500:
+            self._turn_metrics.append({k: v for k, v in rec.items() if v is not None})
+        _record_turn_metric(rec)
 
     async def _amd_check(self, text: str) -> bool:
         """Answering-machine detection on the first caller utterance.
@@ -1220,6 +1310,9 @@ class VobizStreamSession:
 
         async def _gen():
             async for sent in tc.reply_stream_sentences(self.hist, text):
+                # P1: first streamed sentence → time-to-first-token for this turn.
+                if self._turn_llm_first_ms is None and self._turn_t0_ms is not None:
+                    self._turn_llm_first_ms = _now_ms() - self._turn_t0_ms
                 parts.append(sent)
                 yield sent
 
@@ -1689,6 +1782,11 @@ class VobizStreamSession:
             frame = pcm[i : i + FRAME_PCM]
             if len(frame) < FRAME_PCM:
                 frame = frame + PCM_SILENCE * (FRAME_PCM - len(frame))
+            # P1: first bot audio frame of this turn (filler or reply) → perceived
+            # time-to-first-audio. Guarded by _turn_t0_ms so non-turn playback
+            # (greeting) never mis-stamps; set once per turn.
+            if self._turn_tts_first_ms is None and self._turn_t0_ms is not None:
+                self._turn_tts_first_ms = _now_ms() - self._turn_t0_ms
             # Recording: mix bot TTS onto the call timeline (same clock as caller).
             if self._rec_enabled and self._rec_bot_playhead is not None:
                 self._rec_mix_bot(self._rec_bot_playhead, frame)
@@ -1832,6 +1930,16 @@ class VobizStreamSession:
                 "stt_counts": dict(self._stt_counts),
                 "messages": self.hist,
             }
+            # P1 observability: per-turn latency + call-level P50/P95 rollup so the
+            # transcript itself is tunable without joining a separate file.
+            if self._turn_metrics:
+                rec["turn_metrics"] = self._turn_metrics
+                try:
+                    from app.voice_agent.turn_metrics import rollup as _tm_rollup
+
+                    rec["turn_rollup"] = _tm_rollup(self._turn_metrics)
+                except Exception:
+                    pass
             out_dir = os.path.join("data", "call_transcripts")
             os.makedirs(out_dir, exist_ok=True)
             path = os.path.join(out_dir, ended.strftime("%Y-%m-%d") + ".jsonl")
