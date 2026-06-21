@@ -253,6 +253,7 @@ services:
       RUN_IN_PROCESS_SCHEDULER: "0"
       CELERY_HEAVY_QUEUE: "1"   # heavy staff-jobs alag 'heavy' queue me (worker-heavy consume karta)
       QDRANT_URL: http://qdrant:6333
+      OUTREACH_AB: "1"         # spintax A/B on Celery email_outreach job
     depends_on:
       db:
         condition: service_healthy
