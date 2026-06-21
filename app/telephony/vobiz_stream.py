@@ -472,7 +472,7 @@ def _split_sentences(text: str) -> list[str]:
 # --------------------------------------------------------------------------- #
 _GREET_CACHE: dict[str, bytes] = {}
 _GREET_CACHE_MAX = 64
-_FILLER_TEXTS = ("Hmm...", "Achha...", "Ji...")
+_FILLER_TEXTS = ("Hmm...", "Achha...", "Ji sir...", "Samajh gayi...", "Ek second...")
 _FILLER_PCM: list[bytes] = []
 _FILLER_STARTED = False  # synth fillers once per worker (first session does it)
 _CELEBRATION_PCM: bytes | None = None
@@ -754,6 +754,9 @@ class VobizStreamSession:
         # lone short word still goes through once the caller clearly stops
         # (≥2× SILENCE_MS) so "haan"/"ji" are never permanently dropped.
         substantial = self._speech_segments >= 2 or self._speech_ms >= 400.0
+        # Short "hello/haan/ji" — 1 segment + ≥250ms is enough once silence ends.
+        if not substantial and self._speech_ms >= 250.0 and self._silence_ms >= SILENCE_MS:
+            substantial = True
         ended = (
             self._had_speech
             and self._silence_ms >= SILENCE_MS
@@ -796,6 +799,33 @@ class VobizStreamSession:
             return True
         return re.search(r"[0-9A-Za-zऀ-ॿ]", t) is None
 
+    @staticmethod
+    def _is_ivr_prompt(text: str) -> bool:
+        """US/IN office IVR — record name / leave message (not a live human)."""
+        low = (text or "").lower()
+        markers = (
+            "record your name",
+            "reason for calling",
+            "leave a message",
+            "after the tone",
+            "after the beep",
+            "voicemail",
+            "not available",
+            "press 1",
+            "press one",
+            "extension",
+            "mailbox",
+        )
+        return any(m in low for m in markers)
+
+    @staticmethod
+    def _ivr_voicemail_reply() -> str:
+        return (
+            "Namaste, main Swara LeadGen AI se bol rahi hoon. "
+            "Chhote business ke liye AI marketing — posts, Google profile, festival posters, "
+            "₹1,199 se shuru. Callback ke liye leadsgenai.in ya is number par reply kijiye. Dhanyavaad."
+        )
+
     async def _on_utterance(self, pcm16: bytes) -> None:
         if self._thinking:
             return
@@ -817,6 +847,14 @@ class VobizStreamSession:
                 logger.debug(f"[vobiz-stream] dropped duplicate STT: {text!r}")
                 return
             logger.info(f"[vobiz-stream {self.stream_sid}] user: {text}")
+            # IVR / voicemail gate — structured message, "dobara boliye" mat bolo.
+            if self._is_ivr_prompt(text):
+                reply = self._ivr_voicemail_reply()
+                self.hist.append({"role": "user", "content": text})
+                self.hist.append({"role": "assistant", "content": reply})
+                logger.info(f"[vobiz-stream {self.stream_sid}] bot(ivr): {reply[:80]}...")
+                await self._say(reply)
+                return
             # AMD parity (GATED AMD_DETECT, default OFF) — check ONLY the first
             # caller utterance for a voicemail/answering-machine greeting. On a
             # machine, log + close the stream (saves credits) instead of running
@@ -852,6 +890,11 @@ class VobizStreamSession:
             elif reply:
                 logger.info(f"[vobiz-stream {self.stream_sid}] bot(stream): {reply}")
                 self.hist.append({"role": "assistant", "content": reply})
+            elif text.strip():
+                # Last-resort — user ne bola par koi reply generate nahi hua.
+                fallback = "Ji sir, sun pa rahi hoon — haan boliye, kya help chahiye?"
+                self.hist.append({"role": "assistant", "content": fallback})
+                await self._say(fallback)
         except Exception as e:
             logger.warning(f"[vobiz-stream] utterance handling failed: {e}")
         finally:
@@ -1029,7 +1072,9 @@ class VobizStreamSession:
             if reply is None:
                 return None
             if self._pitch_state.phase == "discovery":
-                await self._play_celebration()
+                # Phone cold-call: celebration chime = unprofessional; web-call only.
+                if os.environ.get("PHONE_CELEBRATION", "0").strip().lower() in ("1", "true", "yes"):
+                    await self._play_celebration()
                 tc = self._get_telecaller()
                 if tc is not None and hasattr(tc, "confirm_interest"):
                     tc.confirm_interest()

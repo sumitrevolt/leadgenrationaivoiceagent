@@ -154,7 +154,7 @@ except Exception:
 # Short natural acks — LLM sochte waqt dead-air mask (Retell/Vapi "filler audio"
 # pattern). MP3 module-level cache (worker me EK baar synth); har session apne
 # wire-format (ulaw/pcm) me lazily convert+cache karta hai.
-_FILLER_TEXTS = ("Hmm...", "Achha...", "Ji...", "Haan...")
+_FILLER_TEXTS = ("Hmm...", "Achha...", "Ji sir...", "Samajh gayi...", "Ek second...")
 _FILLER_MP3: list[bytes] = []
 _FILLER_SYNTH_STARTED = False
 
