@@ -299,11 +299,8 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 
 ### P3 — Conversation intelligence (the India differentiator; web-call safe)
 - **P3-1 [DONE 2026-06-21 — LIVE]** **Polite-No detector + 2-strike de-escalation** — `app/voice_agent/intent_softno.py` (reuses `qa_checks.is_soft_no`) wired into `telecaller_brain.reply()` + `reply_stream_sentences()` for ALL niches; 2nd soft-no → graceful async-exit (deterministic, no extra LLM call) + hard system-prompt rule. Gated `SOFTNO_DEESCALATE` (default ON). `platform_pitch` ka ai_marketing gate ab generalise ho gaya.
-- **P3-2 [PARTIAL — permission DONE 2026-06-21]** Opener → AI-disclosure → permission → source flow. **Done:** `niche_scripts.ensure_permission_ask` (do-minute permission clause, gated `PERMISSION_OPENER`) wired in vobiz + phone openers — ALL niches. **Pending:** source line ("aapka number website/inquiry se mila") + web-call opener parity.
-- **P3-3 [OPEN]** Talk-listen governor ("ask, then stop").
-- **P3-4 [OPEN]** Objection structure: agree→explore→reframe + rate-incumbent /10.
-- **P3-5 [OPEN]** "WhatsApp pe bhej do" = qualify-before-send gate.
-- **P3-6 [OPEN]** Hinglish mirroring (mix + formality + tech-nouns-English).
+- **P3-2 [DONE 2026-06-21 — LIVE]** Opener → AI-disclosure → permission → source flow. Permission = `niche_scripts.ensure_permission_ask` (do-minute clause, gated `PERMISSION_OPENER`) in vobiz + phone openers (ALL niches); source-line = `_CONVO_DISCIPLINE` prompt rule. Minor follow-up: web-call opener helper parity.
+- **P3-3..3-6 [DONE 2026-06-21 — LIVE, prompt-level]** Talk-listen governor + objection 3-step (agree→explore→reframe + incumbent rating trick, no trashing) + WhatsApp qualify-before-send gate + Hinglish-mirror (mix/formality/tech-nouns-English, literal-translation banned) — shipped as the `_CONVO_DISCIPLINE` block in `telecaller_brain` system prompt (gated `CONVO_DISCIPLINE`, default ON). Runtime-verifiable via `qa_checks.check_talk_listen_ratio` + `check_literal_translation`.
 - **P3-7 [OPEN]** STT `initial_prompt` niche-biasing for **Groq + Gemini** (abhi sirf faster-whisper).
 - **P3-8 [PARTIAL — threshold DONE 2026-06-21]** KB `min_score` 0.05→**0.35** DONE (env-tunable `KB_MIN_SCORE`, telecaller_brain). **Pending:** singleton periodic/TTL refresh.
 
@@ -390,14 +387,14 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **Behavior:** 1st soft-no → ONE value-anchored re-ask allowed. **2nd soft-no → mandatory de-escalate** (stop pitch, graceful exit + async option): *"Bilkul ji, samajh gayi — aap busy hain. Ek choti si baat WhatsApp pe bhej deti hoon, time ho to dekh lijiyega. Aapka din achha rahe!"* Brain prompt me hard rule: *"2 baar polite refusal = push KABHI nahi (India me rude + trust-tod)."*
 - **Test:** new persona `polite_no_indian` (D-11) PASS = 2nd ke baad no re-pitch; `pushy_after_softno` check (D-12).
 
-### D-9 (P3-2) Opener + disclosure + permission + source flow **[PARTIAL — permission DONE/LIVE 2026-06-21; source-line pending]**
+### D-9 (P3-2) Opener + disclosure + permission + source flow **[DONE 2026-06-21 — LIVE]** (permission = opener helper; source-line = `_CONVO_DISCIPLINE` prompt rule)
 - **Already shipped (partial):** `platform_pitch.opening_segments` + `ensure_ai_disclosure` in vobiz/web-call for `ai_marketing`.
 - **Still planned:**
 - **File:** `niche_scripts.py` per-niche `opening` + `ensure_ai_disclosure()` (extend to also assert a permission-clause); `telecaller_brain` opening turn.
 - **Change:** single ≤2-sentence opener: *"Namaste ji, main Swara — [Company] se ek AI assistant. [niche problem hook]. Do minute baat kar sakti hoon ya abhi busy hain?"* → engagement pe source line *"Aapka number [website/inquiry] se mila tha."*
 - **Test:** `test_ai_disclosure.py` extend — opener me disclosure + permission dono; `missing_permission` check.
 
-### D-10 (P3-3..3-6) Talk-listen + objection + WhatsApp-gate + Hinglish-mirror **[OPEN]**
+### D-10 (P3-3..3-6) Talk-listen + objection + WhatsApp-gate + Hinglish-mirror **[DONE 2026-06-21 — LIVE, prompt-level]**
 - **File:** `telecaller_brain.py` system prompt + `niche_scripts.py` rebuttals.
 - **Changes:** (a) prompt: "ask karo phir CHUP raho; agent ≤55% bole; ≤2 sentence/1 question" (already partial — strengthen). (b) Objection 3-beat template (agree→explore→reframe-with-number; incumbent "10 me kitne number?" trick) — flat strings ko template se replace. (c) "WhatsApp bhej do" → pehle 1 qualifying Q, fir send. (d) Hinglish: "caller ka exact mix + formality mirror karo; tech-nouns (demo/budget/slot) English; 'aap'+'ji'; literal-translation ban."
 - **Test:** personas `whatsapp_brushoff`, `incumbent_user`, `formal_hindi_speaker`, `english_dominant`; checks `talk_listen_ratio`, `literal_translation`.
