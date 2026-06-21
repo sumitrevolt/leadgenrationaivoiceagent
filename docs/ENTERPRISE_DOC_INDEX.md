@@ -2,7 +2,7 @@
 
 > **Purpose:** Single map of the **minimum 10-doc enterprise pack** + supporting docs. Naya owner / investor / enterprise client ko yahi se start karo.
 > **Live:** https://leadsgenai.in · **Repo:** github.com/sumitrevolt/leadgenrationaivoiceagent
-> **Updated:** 2026-06-20
+> **Updated:** 2026-06-21 (marketing tier features synced to `packages.py`)
 
 ---
 

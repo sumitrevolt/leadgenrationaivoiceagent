@@ -2,7 +2,7 @@
 
 > **Yeh doc kya hai:** Handoff + SOP ka **combination**, **dono products ke hisaab se** + har product ka **automation map** + **[Architecture Explorer](https://leadsgenai.in/app/explorer) mirror**.
 > **Generated:** 2026-06-20 (PM, explorer-sync + handoff-lockstep pass) · **Live:** https://leadsgenai.in · **Explorer:** https://leadsgenai.in/app/explorer
-> **Latest sync:** UPI payments LIVE · godfile refactor wave-2 in progress · `client_snapshots` shipped · `PROJECT_HANDOFF.md` in lockstep.
+> **Latest sync:** 2026-06-21 — **Marketing tier feature lists expanded** (packages.py → handoff/SOP/onboarding/sales) · UPI LIVE · godfile refactor · `client_snapshots` shipped · `PROJECT_HANDOFF.md` lockstep.
 > **Repo:** github.com/sumitrevolt/leadgenrationaivoiceagent (main) · **VPS:** Hostinger Mumbai `72.61.245.204`
 > **Source of truth:** `CLAUDE.md` (current-state facts) — conflict ho to CLAUDE.md jeetta. Detail: `docs/PROJECT_HANDOFF.md` · `docs/PROJECT_SOP.md` · `docs/ENTERPRISE_DOC_INDEX.md`. History: `docs/SESSION_LOG.md`.
 > **Graph source (code):** `frontend/explorer.html` — drift audit: `python scripts/explorer_sync.py`
@@ -252,14 +252,29 @@ Engines: AI image (Pollinations) · scheduler · mini-site · onboarding · embe
 
 Top-ups: 100/250/500 min = ₹1,499 / ₹3,499 / ₹5,999.
 
-**Features (full lists):** `app/marketing/packages.py` — Trial (11) · Starter (15) · Growth (18) · Advanced (14).
+**Canonical feature copy:** `app/marketing/packages.py` (counts: Trial 11 · Starter 15 · Growth 18 · Advanced 14). Public API: `GET /api/marketing/packages`. **SOP rule:** pricing/marketing copy change = `packages.py` pehle → phir yeh doc + `PROJECT_HANDOFF.md` + landing/pricing HTML.
 
-| Tier | Customer-facing highlights |
-|------|----------------------------|
-| Trial | 5 posts, GBP audit, widget, mini-site preview, portal 7d |
-| Starter | Roz posts, branded frames, festival calendar, GBP, reviews, posters, WA, UPI QR, approval, portal |
-| Growth | + AI image, calendar, competitor, mini-site, widget, chatbot, drip, CRM, report, 2FA |
-| Advanced | + voice callback, qualify, booking, 500 min, follow-ups, transcripts, speed-to-lead |
+#### Trial ₹0 (7 din)
+5 AI posts · 1 GBP audit · enquiry widget (+ AI chat) · mini-site preview · branded frames · portal 7d · WhatsApp basic · onboarding checklist · 1-click share · **no voice**
+
+#### Starter ₹1,199/mo — poori list
+Roz AI Hinglish posts (39 niches) · branded frames · customer portal (roz ~7 baje, WhatsApp share) · festival calendar · tyohar/offer posts · GBP audit + top 5 fixes · review reply drafts · 4 posters/mo · WhatsApp pack · UPI QR card · hashtags · post approval · onboarding dashboard · GST invoices · **100% marketing-only**
+
+#### Growth ₹2,999/mo — Starter + yeh
+Unlimited posters · AI image + Complete Post · A/B variations · content calendar/scheduler · competitor analysis · mini-site (bio/card/booking) · enquiry widget · AI chatbot · database reactivation · WhatsApp drip · review kit · team lead routing · CRM sync + webhooks · ads/reels + sentiment/hashtag · catalog + referral · monthly report · 2FA + hot leads
+
+#### Advanced ₹6,999/mo — Growth + voice FEATURE
+AI voice ~2-min inquiry callback · lead qualification · appointment booking · missed-call callback (DID) · 500 min/mo + top-ups · weekly 50 follow-ups · call transcripts + AI summary · post-call qualify · speed-to-lead SLA · multi-lingual · TRAI AI disclosure · ek portal (marketing + voice) · minute usage tracker
+
+#### Customer deliverables SOP (kya client ko milta hai)
+| Tier | Portal | Done-for-you (Isha daily) | Client action |
+|------|--------|---------------------------|---------------|
+| Trial | `/app/customer/marketing` 7d | 5 posts + 1 audit + widget setup | Copy/share posts · widget paste |
+| Starter | portal + approvals | Roz content queue ~07:00 IST · 4 posters/mo · festival posts | Approve posts · copy to WA/Insta |
+| Growth | + mini-site `/b/{slug}` · flows | + calendar · competitor report · drip drafts | Widget embed · team routing setup |
+| Advanced | + calls/leads tabs | + inquiry callback (when telephony armed) | Review transcripts · follow hot leads |
+
+**Honest limits (sales SOP):** Meta/GBP auto-publish blocked (human 1-click post). Advanced outbound voice needs Vobiz recharge + DLT for cold-call; inbound callback = marketing Advanced feature only.
 
 ### 1.4 Automation map — Marketing staff + IST schedule
 
