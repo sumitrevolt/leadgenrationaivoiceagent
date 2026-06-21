@@ -303,6 +303,7 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <button class="tr-btn" onclick="showRunsPanel()" title="Run history + inspector (Flow Runner)">📋 Runs</button>
     <span id="flowRunStatus" style="margin-left:6px;color:#9ca3af;font-size:12px"></span>
     <button class="tr-btn" onclick="showHelp()" title="Shortcuts">?</button>
+    <a class="tr-btn tr-link" href="/app/admin">↗ Admin Dashboard</a>
     <a class="tr-btn tr-link" href="/app/automation">↗ Mission Control</a>
   </div>
 </div>
@@ -1984,7 +1985,7 @@ function showFlowPanel() {
 }
 
 function showFlagsPanel() {
-  const hasToken = !!(typeof localStorage !== 'undefined' && localStorage.getItem('accessToken'));
+  const hasToken = !!(typeof localStorage !== 'undefined' && (localStorage.getItem('accessToken') || localStorage.getItem('adminToken')));
   let html = `<div class="panel-hdr">Automation Flags</div>
     <div style="font-size:9px;color:#4b5563;margin-bottom:10px">${hasToken ? 'Admin login = prod flags auto-sync har 60s. Toggle = local .env draft only.' : '⚠ Admin login karo — prod LIVE/OFF pills + flag sync ke liye. Toggle = local draft.'}</div>
     <a class="action-btn" href="/app/automation#fflags" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">↗ Mission Control Runtime Flags</a>`;
@@ -2419,7 +2420,7 @@ async function fetchLiveHealth() {
   const txt = document.getElementById('ls-text');
   if(!el || !txt) return;
 
-  const token = (typeof localStorage !== 'undefined' && localStorage.getItem('accessToken')) || '';
+  const token = (typeof localStorage !== 'undefined' && (localStorage.getItem('accessToken') || localStorage.getItem('adminToken'))) || '';
 
   for(const base of getApiBases()) {
     try {
@@ -2489,7 +2490,7 @@ async function fetchLiveHealth() {
     } catch(e) { continue; }
   }
   el.className = 'err';
-  txt.textContent = 'Offline · file:// — open /app/explorer on leadsgenai.in for live sync';
+  txt.textContent = token ? 'Live sync unavailable — API not reachable right now' : 'Admin login needed for live sync (flags + health) — /app/admin-login';
 }
 
 async function fetchProductPricing() {
