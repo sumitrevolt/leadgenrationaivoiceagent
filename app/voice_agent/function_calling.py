@@ -593,15 +593,35 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
     # ---------------- get_pricing_info ---------------- #
     async def _get_pricing_info(args: dict[str, Any]) -> ToolResult:
         niche = args.get("niche") or ctx.get("niche") or ""
-        # Grounded pricing — per qualified lead model (matches project pitch).
-        pricing = {
-            "model": "per_qualified_lead",
-            "price_per_lead_inr": "₹200-500",
-            "summary": (
-                "Pricing per qualified lead hoti hai (₹200-500/lead) — aap sirf "
-                "result ke paise dete ho, koi fixed monthly kharcha nahi. Demo free hai."
-            ),
-        }
+        # Grounded pricing — FLAT monthly per niche-band (voice_packages.py = source of truth).
+        try:
+            from app.marketing.voice_packages import (
+                BANDS,
+                PILOT_CALL_CAP,
+                PILOT_DAYS,
+                niche_band,
+            )
+
+            band = niche_band(niche) if niche else "A"
+            price = BANDS[band]["price_month"]
+            pricing = {
+                "model": "flat_monthly_per_band",
+                "price_inr_month": price,
+                "band": band,
+                "summary": (
+                    f"Flat ₹{price:,}/mo (Band {band}) — UNLIMITED AI calls aapke niche pe, "
+                    f"koi per-lead ya per-minute charge nahi. Pehle {PILOT_DAYS}-din free pilot "
+                    f"({PILOT_CALL_CAP} calls, ₹0, koi card nahi). Cancel anytime."
+                ),
+            }
+        except Exception:
+            pricing = {
+                "model": "flat_monthly_per_band",
+                "summary": (
+                    "Flat monthly per niche-band — Band A ₹4,999, B ₹9,999, C ₹19,999/mo. "
+                    "UNLIMITED AI calls, koi per-lead/per-minute charge nahi. Free 7-din pilot."
+                ),
+            }
         # Enrich with niche deal value from niches.py if available.
         try:
             from app.niches import NICHES
@@ -620,7 +640,7 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
             name="get_pricing_info",
             description=(
                 "Get the grounded pricing details to quote to the lead "
-                "(per-qualified-lead model). Use when the lead asks about cost."
+                "(flat monthly per niche-band model). Use when the lead asks about cost."
             ),
             parameters={
                 "type": "object",
