@@ -299,13 +299,13 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 
 ### P3 — Conversation intelligence (the India differentiator; web-call safe)
 - **P3-1 [DONE 2026-06-21 — LIVE]** **Polite-No detector + 2-strike de-escalation** — `app/voice_agent/intent_softno.py` (reuses `qa_checks.is_soft_no`) wired into `telecaller_brain.reply()` + `reply_stream_sentences()` for ALL niches; 2nd soft-no → graceful async-exit (deterministic, no extra LLM call) + hard system-prompt rule. Gated `SOFTNO_DEESCALATE` (default ON). `platform_pitch` ka ai_marketing gate ab generalise ho gaya.
-- **P3-2 [PARTIAL]** Opener → AI-disclosure → permission → source flow — `platform_pitch` opener segments for `ai_marketing`; other niches pending.
+- **P3-2 [PARTIAL — permission DONE 2026-06-21]** Opener → AI-disclosure → permission → source flow. **Done:** `niche_scripts.ensure_permission_ask` (do-minute permission clause, gated `PERMISSION_OPENER`) wired in vobiz + phone openers — ALL niches. **Pending:** source line ("aapka number website/inquiry se mila") + web-call opener parity.
 - **P3-3 [OPEN]** Talk-listen governor ("ask, then stop").
 - **P3-4 [OPEN]** Objection structure: agree→explore→reframe + rate-incumbent /10.
 - **P3-5 [OPEN]** "WhatsApp pe bhej do" = qualify-before-send gate.
 - **P3-6 [OPEN]** Hinglish mirroring (mix + formality + tech-nouns-English).
 - **P3-7 [OPEN]** STT `initial_prompt` niche-biasing for **Groq + Gemini** (abhi sirf faster-whisper).
-- **P3-8 [OPEN]** KB `min_score` 0.05→**0.35** + singleton periodic refresh.
+- **P3-8 [PARTIAL — threshold DONE 2026-06-21]** KB `min_score` 0.05→**0.35** DONE (env-tunable `KB_MIN_SCORE`, telecaller_brain). **Pending:** singleton periodic/TTL refresh.
 
 ### P4 — Eval / QA harness (P2/P3 shipping ka prerequisite)
 - **P4-1 [DONE 2026-06-21]** Nayi eval personas in `eval_suite.EXTENDED_PERSONAS` (separate from default baseline; aspirational — drive D-8/D-10): `polite_no_indian`, `whatsapp_brushoff`, `incumbent_user`, `formal_hindi_speaker`, `english_dominant`.
@@ -390,7 +390,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **Behavior:** 1st soft-no → ONE value-anchored re-ask allowed. **2nd soft-no → mandatory de-escalate** (stop pitch, graceful exit + async option): *"Bilkul ji, samajh gayi — aap busy hain. Ek choti si baat WhatsApp pe bhej deti hoon, time ho to dekh lijiyega. Aapka din achha rahe!"* Brain prompt me hard rule: *"2 baar polite refusal = push KABHI nahi (India me rude + trust-tod)."*
 - **Test:** new persona `polite_no_indian` (D-11) PASS = 2nd ke baad no re-pitch; `pushy_after_softno` check (D-12).
 
-### D-9 (P3-2) Opener + disclosure + permission + source flow **[PARTIAL — platform_pitch opener for ai_marketing]**
+### D-9 (P3-2) Opener + disclosure + permission + source flow **[PARTIAL — permission DONE/LIVE 2026-06-21; source-line pending]**
 - **Already shipped (partial):** `platform_pitch.opening_segments` + `ensure_ai_disclosure` in vobiz/web-call for `ai_marketing`.
 - **Still planned:**
 - **File:** `niche_scripts.py` per-niche `opening` + `ensure_ai_disclosure()` (extend to also assert a permission-clause); `telecaller_brain` opening turn.
@@ -407,7 +407,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **Change:** per-niche brand/keyterm string (Qdrant niche namespace se top terms) → Groq `prompt=` / Gemini context me pass (jaise faster-whisper already karta line ~261). +20–30% rel accuracy on entities.
 - **Test:** known Hinglish brand utterance → transcription improve (manual A/B).
 
-### D-12 (P3-8) KB threshold + refresh **[OPEN]**
+### D-12 (P3-8) KB threshold + refresh **[PARTIAL — threshold DONE/LIVE 2026-06-21; refresh pending]**
 - **File:** `telecaller_brain.py` `_KB_MIN_SCORE` 0.05 → **0.35**; singleton ko time/TTL refresh (e.g. 1hr) ya reload hook.
 - **Test:** off-topic query → top-2 chunk relevance up; stale-after-update gone.
 
