@@ -67,6 +67,16 @@
   }
   .badge-demo{font-size:11px;font-weight:700;color:#9333ea;background:var(--brand-soft);
     padding:5px 10px;border-radius:999px;border:1px solid #ddd6fe}
+  .trial-banner{
+    margin:0 24px 0;padding:12px 16px;border-radius:12px;display:none;align-items:center;
+    gap:12px;flex-wrap:wrap;border:1px solid #fcd34d;background:linear-gradient(90deg,#fffbeb,#fef3c7);
+  }
+  .trial-banner.show{display:flex}
+  .trial-banner.expired{border-color:#fca5a5;background:linear-gradient(90deg,#fef2f2,#fee2e2)}
+  .trial-banner .msg{flex:1;font-size:13px;font-weight:600;color:#78350f}
+  .trial-banner.expired .msg{color:#991b1b}
+  .trial-banner .btn-pay{background:#16a34a;color:#fff;border:none;padding:10px 14px;border-radius:9px;
+    font-weight:700;cursor:pointer;font-size:12px}
 
   .content{padding:22px 24px 40px;max-width:1320px;width:100%}
 
@@ -352,6 +362,11 @@
       </div>
       <!-- Dark mode toggle -->
       <button class="btn" id="darkBtn" onclick="toggleDark()" aria-label="Toggle dark mode" aria-pressed="false" style="padding:8px 10px;font-size:16px;min-width:44px">🌙</button>
+    </div>
+
+    <div id="trialBanner" class="trial-banner" role="status" aria-live="polite">
+      <div class="msg" id="trialBannerMsg"></div>
+      <button type="button" class="btn-pay" id="trialBannerPay" onclick="scrollToId('billingCard')">💳 Ab pay karo</button>
     </div>
 
     <div class="content" role="main" id="mainContent">
@@ -1067,7 +1082,20 @@ function toast(t,m){
    BOOT: render demo instantly, then try live fetch (fallback safe)
    ============================================================ */
 function boot(data){
-  DATA=data;setMeta(data);initCampaigns();renderAll();
+  DATA=data;setMeta(data);initCampaigns();renderAll();renderTrialBanner(data);
+}
+function renderTrialBanner(data){
+  const el=document.getElementById("trialBanner");
+  const msg=document.getElementById("trialBannerMsg");
+  if(!el||!msg) return;
+  const tb=(data&&data.trial_banner)||null;
+  if(!tb||!tb.show_pay_cta||data.is_sample_data){
+    el.classList.remove("show","expired");
+    return;
+  }
+  msg.textContent=tb.message||"Trial khatam hone wala hai — plan upgrade karo.";
+  el.classList.add("show");
+  el.classList.toggle("expired",!!tb.expired);
 }
 boot(buildDemo());  // instant render, works offline
 

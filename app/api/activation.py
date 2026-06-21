@@ -83,6 +83,13 @@ def _is_placeholder(value: str) -> bool:
 def _sentry() -> dict[str, Any]:
     """Visibility: error tracking. Funnel survives without it (WARN, not BLOCKER)."""
     dsn = _v("SENTRY_DSN")
+    try:
+        from app.platform import trust_config
+
+        if not dsn:
+            dsn = trust_config.get_sentry_dsn()
+    except Exception:
+        pass
     env = _v("ENVIRONMENT") or _v("APP_ENV")
     checks = {
         "dsn_set": bool(dsn),
@@ -140,6 +147,15 @@ def _posthog() -> dict[str, Any]:
 def _turnstile() -> dict[str, Any]:
     """Trust: bot-protection on lead-magnets. WARN until armed."""
     sk, ssk = _v("TURNSTILE_SITE_KEY"), _v("TURNSTILE_SECRET_KEY")
+    try:
+        from app.platform import trust_config
+
+        if not sk:
+            sk = trust_config.get_turnstile_site_key()
+        if not ssk:
+            ssk = trust_config.get_turnstile_secret()
+    except Exception:
+        pass
     checks = {
         "site_key_set": bool(sk),
         "secret_set": bool(ssk),

@@ -2416,6 +2416,50 @@ function renderGodMode(sys, camp){
   }
   html += '</div>';
 
+  // — Trust layer (Turnstile + Sentry) — no-restart configure ─────────
+  const trust = sys.trust || {};
+  const ts = trust.turnstile || {};
+  const se = trust.sentry || {};
+  html += `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:8px">
+    <div style="font-size:11px;font-weight:700;color:#6ee7b7;margin-bottom:8px;text-transform:uppercase">🛡 Trust Layer</div>
+    <div style="font-size:11px;color:#cbd5e1;margin-bottom:8px">
+      Turnstile: <b>${ts.armed?'✅ armed':'⚠️ off'}</b> · Sentry: <b>${se.armed?'✅ armed':'⚠️ off'}</b>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <input id="tsSiteKey" placeholder="Turnstile site key" aria-label="Turnstile site key" style="padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#e2e8f0;font-size:11px">
+      <input id="tsSecretKey" type="password" placeholder="Turnstile secret" aria-label="Turnstile secret" style="padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#e2e8f0;font-size:11px">
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn" onclick="saveTurnstile()" style="font-size:10px;padding:5px 10px;background:#10b981">💾 Turnstile save</button>
+      <input id="sentryDsn" placeholder="Sentry DSN (https://…)" aria-label="Sentry DSN" style="flex:1;min-width:180px;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#e2e8f0;font-size:11px">
+      <button class="btn" onclick="saveSentry()" style="font-size:10px;padding:5px 10px;background:#6366f1">💾 Sentry save</button>
+    </div>
+    <div style="font-size:10px;color:#94a3b8">Cloudflare dashboard se free keys — bina container restart (Sentry worker ke liye restart recommended).</div>
+  </div>`;
+
+  // — Manual UPI activate (search any client) ───────────────────────
+  html += `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:8px">
+    <div style="font-size:11px;font-weight:700;color:#fde047;margin-bottom:8px;text-transform:uppercase">⚡ Quick Activate (manual)</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <input id="upiSearchQ" placeholder="Client id / naam / phone" aria-label="Search client" style="flex:1;min-width:140px;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#e2e8f0;font-size:11px">
+      <button class="btn" onclick="upiSearchClients()" style="font-size:10px;padding:5px 10px">🔍 Search</button>
+      <select id="upiManualClient" aria-label="Client to activate" style="font-size:10px;padding:6px;border-radius:6px;min-width:160px"></select>
+      <select id="upiManualPlan" aria-label="Plan" style="font-size:10px;padding:6px;border-radius:6px">
+        <option value="starter">Starter</option><option value="growth">Growth</option><option value="advanced">Advanced</option>
+      </select>
+      <button class="btn" onclick="upiManualActivate()" style="font-size:10px;padding:5px 10px;background:#10b981">✓ Activate</button>
+    </div>
+    <div id="upiSearchHint" style="font-size:10px;color:#94a3b8;margin-top:6px">Screenshot verify ke baad yahan se turant activate — queue ke alawa bhi.</div>
+  </div>`;
+
+  // — Flow Runner starter templates ─────────────────────────────────
+  html += `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(139,92,246,.08);border:1px solid rgba(139,92,246,.25);border-radius:8px">
+    <div style="font-size:11px;font-weight:700;color:#c4b5fd;margin-bottom:8px;text-transform:uppercase">🧩 Flow Runner Templates</div>
+    <div style="font-size:11px;color:#cbd5e1;margin-bottom:8px">3 starter automations (content / reputation / festival) — agency demo ke liye.</div>
+    <button class="btn" onclick="seedFlowTemplates()" style="font-size:10px;padding:6px 12px;background:#8b5cf6">🌱 Seed all templates</button>
+    <span id="flowSeedHint" style="font-size:10px;color:#94a3b8;margin-left:8px"></span>
+  </div>`;
+
   // — TRAI window + last campaign ───────────────────────────────────
   html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
     <div style="padding:10px 14px;border-radius:8px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
@@ -2461,13 +2505,87 @@ async function upiActivate(clientId){
   try{
     const r = await fetch('/api/admin/upi/activate',{
       method:'POST',
-      headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),
-      body: JSON.stringify({client_id:clientId, plan:plan})
+      headers:Object.assign({'Content-Type':'application/json'}, abAuthHdr()),
+      body:JSON.stringify({client_id:clientId, plan:plan, clear_trial:true})
     });
-    const d = await r.json();
+    const d=await r.json();
     if(r.ok && d.ok){ alert('✅ Activated: '+clientId+' → '+plan); loadGodMode(); }
-    else alert('Error: '+(d.detail||JSON.stringify(d)));
-  }catch(e){ alert('Network error'); }
+    else alert('Fail: '+(d.detail||d.error||r.status));
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+async function upiSearchClients(){
+  const q=(document.getElementById('upiSearchQ')||{}).value||'';
+  const sel=document.getElementById('upiManualClient');
+  const hint=document.getElementById('upiSearchHint');
+  if(!sel) return;
+  try{
+    const r=await fetch('/api/admin/upi/clients?q='+encodeURIComponent(q)+'&limit=20',{headers:abAuthHdr()});
+    const d=await r.json();
+    const rows=d.clients||[];
+    sel.innerHTML=rows.map(function(c){
+      return '<option value="'+escH(c.client_id)+'">'+escH(c.business_name||c.client_id)+' · '+escH(c.plan||'')+'</option>';
+    }).join('')||'<option value="">Koi client nahi</option>';
+    if(hint) hint.textContent=rows.length+' client mile — plan choose karke Activate dabao.';
+  }catch(e){ if(hint) hint.textContent='Search fail: '+e.message; }
+}
+
+async function upiManualActivate(){
+  const sel=document.getElementById('upiManualClient');
+  const planEl=document.getElementById('upiManualPlan');
+  const cid=sel?sel.value:'';
+  const plan=planEl?planEl.value:'starter';
+  if(!cid){ alert('Pehle client search karo'); return; }
+  if(!confirm('UPI verify ho gaya? '+cid+' → '+plan+' activate?')) return;
+  try{
+    const r=await fetch('/api/admin/upi/activate',{
+      method:'POST',
+      headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),
+      body:JSON.stringify({client_id:cid,plan:plan,clear_trial:true})
+    });
+    const d=await r.json();
+    if(r.ok&&d.ok){ alert('✅ Activated'); loadGodMode(); }
+    else alert('Fail: '+(d.detail||d.error||r.status));
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+async function saveTurnstile(){
+  const site=(document.getElementById('tsSiteKey')||{}).value||'';
+  const secret=(document.getElementById('tsSecretKey')||{}).value||'';
+  if(!site||!secret){ alert('Site + secret dono chahiye'); return; }
+  try{
+    const r=await fetch('/api/admin/trust/configure-turnstile',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),body:JSON.stringify({site_key:site,secret_key:secret})});
+    const d=await r.json();
+    if(r.ok&&d.ok){ alert('✅ Turnstile armed'); loadGodMode(); }
+    else alert('Fail: '+(d.detail||r.status));
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+async function saveSentry(){
+  const dsn=(document.getElementById('sentryDsn')||{}).value||'';
+  if(!dsn){ alert('Sentry DSN chahiye'); return; }
+  try{
+    const r=await fetch('/api/admin/trust/configure-sentry',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),body:JSON.stringify({dsn:dsn})});
+    const d=await r.json();
+    if(r.ok&&d.ok){ alert('✅ Sentry saved'+(d.restart_recommended?' — worker restart recommended':'')); loadGodMode(); }
+    else alert('Fail: '+(d.detail||r.status));
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+async function seedFlowTemplates(){
+  const hint=document.getElementById('flowSeedHint');
+  if(hint) hint.textContent='Seeding…';
+  try{
+    const r=await fetch('/api/admin/flow/seed-templates',{method:'POST',headers:abAuthHdr()});
+    const d=await r.json();
+    if(r.ok&&d.ok){
+      if(hint) hint.textContent='✅ '+d.count+' flows created';
+      alert('✅ '+d.count+' starter flows ready — /app/automation → Processes dekho');
+    }else{
+      if(hint) hint.textContent='Fail';
+      alert('Fail: '+(d.detail||d.error||r.status));
+    }
+  }catch(e){ if(hint) hint.textContent='Error'; alert('Error: '+e.message); }
 }
 
 async function saveUpiVpa(){

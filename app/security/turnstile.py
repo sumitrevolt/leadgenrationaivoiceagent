@@ -38,7 +38,12 @@ _TIMEOUT_S = 5.0
 
 
 def _secret() -> str:
-    return os.getenv("TURNSTILE_SECRET_KEY", "").strip()
+    try:
+        from app.platform import trust_config
+
+        return trust_config.get_turnstile_secret()
+    except Exception:
+        return os.getenv("TURNSTILE_SECRET_KEY", "").strip()
 
 
 def _enabled() -> bool:
@@ -47,7 +52,12 @@ def _enabled() -> bool:
 
 def site_key() -> str:
     """Public site-key for the client widget (safe to expose)."""
-    return os.getenv("TURNSTILE_SITE_KEY", "").strip()
+    try:
+        from app.platform import trust_config
+
+        return trust_config.get_turnstile_site_key()
+    except Exception:
+        return os.getenv("TURNSTILE_SITE_KEY", "").strip()
 
 
 def _client_ip(request: Request) -> str:

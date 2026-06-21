@@ -92,6 +92,16 @@ class UpiConfigureReq(BaseModel):
 class UpiActivateReq(BaseModel):
     client_id: str
     plan: str = "starter"
+    clear_trial: bool = True
+
+
+class TrustTurnstileReq(BaseModel):
+    site_key: str
+    secret_key: str
+
+
+class TrustSentryReq(BaseModel):
+    dsn: str
 
 
 def _upi_info() -> dict:
@@ -135,6 +145,15 @@ def _pending_upi_queue(limit: int = 20) -> list[dict]:
         return pending
     except Exception:
         return []
+
+
+def _trust_summary() -> dict:
+    try:
+        from app.platform import trust_config
+
+        return trust_config.status()
+    except Exception:
+        return {}
 
 
 # ── Pre-flight: leads ready to call ─────────────────────────────────────────
@@ -373,6 +392,7 @@ async def system_summary(_user=Depends(require_admin)):
         "readiness": readiness,
         "upi": upi,
         "pending_upi": _pending_upi_queue(15),
+        "trust": _trust_summary(),
         "leads_ready": leads_ready,
         "call_stats": call_stats,
         "trai": {
@@ -435,7 +455,10 @@ async def upi_activate(body: UpiActivateReq, _user=Depends(require_admin)):
         if not clients_store.get_client(cid):
             raise HTTPException(status_code=404, detail="client not found")
         usage_mod.activate_plan(cid, plan)
-        clients_store.update_client(cid, plan=plan, status="active")
+        upd = {"plan": plan, "status": "active"}
+        if body.clear_trial:
+            upd["trial"] = False
+        clients_store.update_client(cid, **upd)
         try:
             from app.platform import customer_webhooks
 
@@ -466,3 +489,103 @@ async def upi_activate(body: UpiActivateReq, _user=Depends(require_admin)):
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)[:200]) from exc
+
+
+@router.get("/upi/clients", summary="Search clients for manual UPI activate")
+async def upi_clients_search(q: str = "", limit: int = 20, _user=Depends(require_admin)):
+    """God Mode — client id / naam / phone se dhoondo."""
+    try:
+        from app.marketing import clients_store
+
+        needle = (q or "").strip().lower()
+        rows = clients_store.list_clients()
+        out: list[dict] = []
+        for c in rows:
+            cid = str(c.get("id") or "")
+            name = str(c.get("business_name") or "")
+            phone = str(c.get("phone") or "")
+            plan = str(c.get("plan") or "trial").lower()
+            hay = f"{cid} {name} {phone}".lower()
+            if needle and needle not in hay:
+                continue
+            out.append(
+                {
+                    "client_id": cid,
+                    "business_name": name,
+                    "phone": phone,
+                    "plan": plan,
+                    "trial": bool(c.get("trial")),
+                }
+            )
+            if len(out) >= max(1, min(limit, 50)):
+                break
+        return {"clients": out, "count": len(out)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)[:120]) from exc
+
+
+@router.get("/trust/status", summary="Turnstile + Sentry armed status")
+async def trust_status(_user=Depends(require_admin)):
+    from app.platform import trust_config
+
+    return {"ok": True, **trust_config.status()}
+
+
+@router.post("/trust/configure-turnstile", summary="Set Turnstile keys (no restart)")
+async def trust_configure_turnstile(body: TrustTurnstileReq, _user=Depends(require_admin)):
+    from app.platform import trust_config
+
+    result = trust_config.set_turnstile(
+        site_key=body.site_key, secret_key=body.secret_key, set_by="admin_dashboard"
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "save failed")
+    try:
+        from app.platform.team import log_event
+
+        log_event("kavya", "turnstile_configured", "Turnstile armed via admin (file)", meta={})
+    except Exception:
+        pass
+    return {"ok": True, "trust": trust_config.status()}
+
+
+@router.post("/trust/configure-sentry", summary="Set Sentry DSN (lazy web init; worker restart recommended)")
+async def trust_configure_sentry(body: TrustSentryReq, _user=Depends(require_admin)):
+    from app.platform import trust_config
+
+    result = trust_config.set_sentry_dsn(body.dsn, set_by="admin_dashboard")
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "save failed")
+    return {"ok": True, "trust": trust_config.status(), **result}
+
+
+@router.post("/flow/seed-templates", summary="Apply all Flow Runner starter templates (FLOW_RUNNER=1)")
+async def flow_seed_templates(_user=Depends(require_admin)):
+    """Council ship-now — 3 starter flows ek click me (draft-safe)."""
+    if os.getenv("FLOW_RUNNER", "0") not in ("1", "true", "True"):
+        raise HTTPException(
+            status_code=503,
+            detail="FLOW_RUNNER disabled — docker-compose / .env me FLOW_RUNNER=1 set karo",
+        )
+    from app.automation import flow_compiler, flow_store, flow_templates
+
+    created: list[dict] = []
+    for tpl in flow_templates.list_templates():
+        tid = tpl.get("tid") or ""
+        body = flow_templates.to_flow(tid)
+        if not body:
+            continue
+        saved = flow_store.save_flow(body, by="admin_seed")
+        if not saved.get("ok"):
+            continue
+        _proc, errs, kind = flow_compiler.compile_flow(saved["flow"])
+        created.append(
+            {
+                "tid": tid,
+                "flow_id": (saved.get("flow") or {}).get("id"),
+                "name": tpl.get("name"),
+                "runnable": not errs,
+                "kind": kind,
+            }
+        )
+    return {"ok": True, "created": created, "count": len(created)}
