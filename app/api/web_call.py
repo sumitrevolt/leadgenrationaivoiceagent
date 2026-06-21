@@ -293,6 +293,42 @@ async def _filler_b64() -> str | None:
     return await _edge_tts_mp3_b64(text)
 
 
+def _web_call_edge_enabled() -> bool:
+    """FREE EdgeTTS Swara voice on test-call — default ON; WEB_CALL_EDGE_TTS=0 se band."""
+    import os
+
+    v = os.environ.get("WEB_CALL_EDGE_TTS", "1").strip().lower()
+    return v not in ("0", "false", "no", "off")
+
+
+async def _bot_audio_b64(text: str) -> str | None:
+    """EdgeTTS mp3 b64 with deadline — fail = browser TTS fallback."""
+    if not _web_call_edge_enabled() or not (text or "").strip():
+        return None
+    import asyncio
+
+    try:
+        return await asyncio.wait_for(_edge_tts_mp3_b64(text), timeout=5.5)
+    except Exception:
+        return None
+
+
+async def _send_bot_message(websocket: WebSocket, text: str, **extra: Any) -> None:
+    """Unified bot turn — text + optional Swara mp3 (phone-parity, free)."""
+    t = (text or "").strip()
+    if not t:
+        return
+    audio_b64 = await _bot_audio_b64(t)
+    payload: dict[str, Any] = {
+        "type": "bot",
+        "text": t,
+        "audio_b64": audio_b64,
+        "test_mode": True,
+    }
+    payload.update(extra)
+    await websocket.send_json(payload)
+
+
 def _split_sentences(text: str) -> list[str]:
     """
     Split bot reply into sentences for streaming TTS.
@@ -305,7 +341,6 @@ def _split_sentences(text: str) -> list[str]:
         p = p.strip()
         if not p:
             continue
-        # Very short fragment (<= 8 chars) — append to previous sentence
         if sentences and len(p) <= 8:
             sentences[-1] = sentences[-1] + " " + p
         else:
@@ -321,21 +356,25 @@ async def _send_tcbrain_sentence_chunks(
     full_reply: str,
     llm_stream: bool = False,
 ) -> None:
-    """EdgeTTS + WS JSON for one or more spoken sentences (import-safe).
+    """EdgeTTS Swara + WS JSON — mp3 attached when synth succeeds (default ON)."""
+    import asyncio
 
-    TEXT FIRST: pehle turant text bhejo (audio_b64=None) taaki test-call / WS
-    tester 14s TTS wait pe hang na ho; browser speechSynthesis fallback instant.
-    Edge TTS optional background (WEB_CALL_EDGE_TTS=1) — quality mode, non-blocking.
-    """
-    import os
-
-    use_edge = os.environ.get("WEB_CALL_EDGE_TTS", "0").strip().lower() in ("1", "true", "yes")
     total = len(sentences)
+    audio_list: list[str | None] = [None] * total
+    if _web_call_edge_enabled():
+
+        async def _one(s: str) -> str | None:
+            try:
+                return await asyncio.wait_for(_edge_tts_mp3_b64(s), timeout=5.0)
+            except Exception:
+                return None
+
+        audio_list = list(await asyncio.gather(*[_one(s) for s in sentences]))
     for i, sentence in enumerate(sentences):
         payload: dict[str, Any] = {
             "type": "bot",
             "text": sentence,
-            "audio_b64": None,
+            "audio_b64": audio_list[i] if _web_call_edge_enabled() else None,
             "heard": user_text if i == 0 else None,
             "chunk_index": i,
             "test_mode": True,
@@ -346,14 +385,6 @@ async def _send_tcbrain_sentence_chunks(
         if total > 1:
             payload["chunk_total"] = total
         await websocket.send_json(payload)
-        if use_edge and sentence.strip():
-            async def _bg_tts(txt: str = sentence) -> None:
-                try:
-                    await _edge_tts_mp3_b64(txt)
-                except Exception:
-                    pass
-
-            asyncio.create_task(_bg_tts())
 
 
 async def _edge_tts_mp3_b64(text: str) -> str | None:
@@ -823,17 +854,15 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         }
                         if niche == "ai_marketing":
                             session["client_name"] = "LeadGen AI"
-                        for seg in opening_segments():
+                        segs = opening_segments()
+                        for i, seg in enumerate(segs):
                             history.append({"role": "assistant", "content": seg})
                             _log_turn(session, "assistant", seg)
-                            await websocket.send_json(
-                                {
-                                    "type": "bot",
-                                    "text": seg,
-                                    "audio_b64": None,
-                                    "test_mode": True,
-                                }
-                            )
+                            extra: dict[str, Any] = {}
+                            if len(segs) > 1:
+                                extra["chunk_index"] = i
+                                extra["chunk_total"] = len(segs)
+                            await _send_bot_message(websocket, seg, **extra)
                         try:
                             await websocket.send_json(
                                 {
@@ -876,13 +905,9 @@ async def web_call_ws(websocket: WebSocket) -> None:
                             pass
                         history.append({"role": "assistant", "content": opening})
                         _log_turn(session, "assistant", opening)
-                        await websocket.send_json(
-                            {
-                                "type": "bot",
-                                "text": opening,
-                                "audio_b64": None,
-                                "test_mode": True,
-                            }
+                        await _send_bot_message(
+                            websocket,
+                            opening,
                         )
                         try:
                             await websocket.send_json(
@@ -956,15 +981,11 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         history.append({"role": "user", "content": user_text})
                         history.append({"role": "assistant", "content": gate_reply})
                         _log_turn(session, "assistant", gate_reply)
-                        await websocket.send_json(
-                            {
-                                "type": "bot",
-                                "text": gate_reply,
-                                "audio_b64": None,
-                                "heard": user_text,
-                                "test_mode": True,
-                                "should_end": pst.phase == "closed",
-                            }
+                        await _send_bot_message(
+                            websocket,
+                            gate_reply,
+                            heard=user_text,
+                            should_end=pst.phase == "closed",
                         )
                         continue
                 except Exception as e:
@@ -1067,15 +1088,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 # Never hang — customer ko hamesha kuch sunai de.
                 tc_reply = "Ji sir, sun rahi hoon — thoda detail me bataye?"
                 _log_turn(session, "assistant", tc_reply)
-                await websocket.send_json(
-                    {
-                        "type": "bot",
-                        "text": tc_reply,
-                        "audio_b64": None,
-                        "heard": user_text,
-                        "test_mode": True,
-                    }
-                )
+                await _send_bot_message(websocket, tc_reply, heard=user_text)
                 continue
 
             # FALLBACK: human-like natural dialog (listen -> understand -> answer).
@@ -1120,6 +1133,13 @@ async def web_call_ws(websocket: WebSocket) -> None:
             pass
     finally:
         _persist_session(session)
+        try:
+            if session.get("saved") and len(session.get("turns") or []) >= 4:
+                from app.voice_agent.web_call_learn import analyze_web_session
+
+                asyncio.create_task(analyze_web_session(dict(session)))
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------- #

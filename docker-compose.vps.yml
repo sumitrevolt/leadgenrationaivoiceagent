@@ -66,6 +66,7 @@ services:
       CELERY_HEAVY_QUEUE: "1"   # app bhi sender hai (API dlq retry/sweep dispatch) — routing consistent rahe
       # In-stack Qdrant DNS — .env ka 127.0.0.1 override (container localhost trap)
       QDRANT_URL: http://qdrant:6333
+      WEB_CALL_EDGE_TTS: "1"   # test-call = real Swara voice (free EdgeTTS)
     ports:
       - "127.0.0.1:8000:8080"   # host Caddy proxies leadsgenai.in -> here
     depends_on:

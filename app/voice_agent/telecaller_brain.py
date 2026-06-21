@@ -691,6 +691,19 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 )
             if any(w in low for w in ("free trial", "trial", "demo", "try karna")):
                 return self._clean("Haan sir — 7 din FREE trial, bina card. Aaj setup kar doon ya kal?")
+            if any(w in low for w in ("google", "gbp", "listing", "profile", "search pe")):
+                return self._clean(
+                    "Google Business audit + fix suggestions dete hain — search pe upar aane me madad, "
+                    "reviews ke reply drafts bhi."
+                )
+            if any(w in low for w in ("cancel", "band karna", "paise wapas", "refund")):
+                return self._clean(
+                    "Monthly plan hai — cancel anytime. Pehle 7 din FREE trial se result dekho, pressure nahi."
+                )
+            if any(w in low for w in ("kitne din", "result kab", "time lagega", "kab tak")):
+                return self._clean(
+                    "Pehle posts aur audit 24-48 ghante me ready — roz ka content subah ~7 baje portal me."
+                )
             if any(w in low for w in ("social", "instagram", "facebook", "whatsapp", "post", "ads")):
                 return self._clean(
                     "Roz ke posts aur ads AI banati hai — aapki industry aur city ke hisaab se, "
@@ -734,6 +747,16 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             obj = (s.get("objections") or {}).get("pehle_se_hai") or ""
             if obj:
                 return self._clean(str(obj))
+        if self._interest_confirmed or self.niche == "ai_marketing":
+            for key, words in (
+                ("soch_ke", ("soch", "baad me", "kal baat")),
+                ("abhi_nahi", ("abhi nahi", "not now", "baad me call")),
+                ("bharosa", ("bharosa", "trust", "vishwas")),
+            ):
+                if any(w in low for w in words):
+                    obj = (s.get("objections") or {}).get(key) or ""
+                    if obj:
+                        return self._clean(str(obj))
         if "kaun ho" in low or "aap kaun" in low or "who are you" in low:
             return self._clean(
                 "Main Swara hoon LeadGen AI se — chhote business ke liye AI marketing platform, posts aur Google profile automatic."
