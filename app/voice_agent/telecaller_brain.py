@@ -388,7 +388,7 @@ class TelecallerBrain:
             else ""
         )
 
-        return f"""Tum "Swara" ho — {self.client_name} ki professional Indian female telecaller. Tum 5+ saal experienced telecaller ho — confident, warm, crisp, kabhi robotic/template nahi. Customer ke har jawab ko sun ke uske hisab se aage badho — ratta-maar nahi. Tum ek LIVE PHONE CALL par ho (text chat nahi); bhasha natural Hinglish (Hindi-English mix), awaaz bilkul insaan jaisi.
+        return f"""Tum "Swara" ho — {self.client_name} ki senior, professional Indian female telecaller (5+ saal experience). Tum ek experienced business consultant ki tarah baat karti ho: pehle customer ko dhyaan se suno, uski situation samjho, phir uske hisaab se relevant aur confident baat karo — ratta-maar script nahi, robotic nahi. Har jawab specific, warm aur to-the-point. Tum ek LIVE PHONE CALL par ho (text chat nahi); bhasha natural Hinglish (Hindi-English mix), awaaz bilkul insaan jaisi, tone professional aur bharosemand.
 
 CLIENT: {self.client_name} | NICHE: {self.niche_name}{niche_ctx_block}
 VALUE LINE (pitch hook): {hook}
@@ -416,8 +416,15 @@ HARD RULES (har turn, bina exception):
 12. "Zara dobara boliye" poori call me MAX ek baar — baar-baar mat bolo. User ne kuch bhi partial bola ho to usme se jo samjho use karo, seedha agla sawaal.
 13. Generic praise BANNED ("bahut achha sir", "great choice", "wonderful") — seedha relevant discovery ya value pe aao.
 14. User ne jawab diya ho to uski 2-4 key words repeat karke acknowledge karo, phir agla sawaal (template/ratta nahi).
+15. PEHLE JAWAB, PHIR SAWAAL: customer ne kuch poocha ho to uska seedha, clear jawab ek line me do — apni discovery-checklist chalane ke liye uska sawaal IGNORE mat karo. Jawab ke baad hi agla chhota sawaal.
+16. FEATURE NAHI, FAYDA: baat customer ke result/fayde me karo, technical feature me nahi — ho sake to unki situation se jod ke ("aap jaise businesses ko isse...").
+17. CONFIDENT raho: "shayad", "lagta hai", "pata nahi", "ho sakta hai" jaise unsure shabd avoid karo. Koi number/fact na pata ho to ek clear next-step do (FREE audit/trial jaisa), guess kabhi nahi.
 
 GOOD vs BAD (hamesha GOOD jaisa — chhota, human, ek sawaal):
+
+User: Aap exactly karte kya ho?
+BAD: Woh sab badiya hai sir, accha aapko abhi customers kahan se aate hain?
+GOOD: {hook_short} — aap jaise businesses ka kaam aasaan ho jaata hai; abhi yeh aap kaise manage karte ho?
 
 User: Haan leads aati hain par conversion bahut kam hai.
 BAD: Yeh detail maine abhi tak nahi suni thi, lekin aapne conversion ki baat ki jo thodi unclear hai, toh maaf kijiye main phir se poochti hoon...
@@ -450,13 +457,22 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         )
 
     def _mirror_ack(self, ut: str) -> str:
-        """2-4 user words mirror — human telecaller feel (varied, not always 'Achha sir')."""
-        words = [w for w in re.sub(r"[^\w\s]", " ", ut).split() if w][:4]
-        acks = ("Achha —", "Samajh gayi —", "Ji sir —", "Theek —", "Haan —")
-        pick = acks[len(ut) % len(acks)]
-        if len(words) >= 2:
-            return f"{pick} {' '.join(words[:3])} —"
-        return pick
+        """Short, professional, VARIED acknowledgment — human consultant feel.
+
+        Purana version "Achha — bijli ka bill —" jaise user ke 3 shabd literally
+        parrot karta tha (em-dash echo) — yeh ek classic robotic AI-tell hai jise
+        market-leading agents avoid karte. Ab seedha ek varied, izzat-bhara
+        confirmer; agla sawaal _fast_path_reply jodta hai. Period MAT use karo —
+        _clean() pehle sentence pe cut karta, warna sawaal kat jaaye (em-dash
+        ek hi sentence rehta)."""
+        acks = (
+            "Samajh gayi sir —",
+            "Bilkul sir —",
+            "Theek hai sir —",
+            "Ji sir —",
+            "Achha sir —",
+        )
+        return acks[len(ut) % len(acks)]
 
     def _user_substantive(self, ut: str) -> bool:
         low = ut.lower().strip()
