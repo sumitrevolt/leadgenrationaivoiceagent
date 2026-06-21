@@ -408,8 +408,8 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **File:** `telecaller_brain.py` `_KB_MIN_SCORE` 0.05 → **0.35**; singleton ko time/TTL refresh (e.g. 1hr) ya reload hook.
 - **Test:** off-topic query → top-2 chunk relevance up; stale-after-update gone.
 
-### D-13 (P4) Eval/QA harness **[PARTIAL 2026-06-21 — personas + checks DONE/LIVE]**
-**Shipped:** `EXTENDED_PERSONAS` (5) + `qa_checks.py` (4 checks + `run_all`) wired into `agent_tester`; unit-tested. Silence/no-input policy (P4-4) DONE. Web-call disclosure+permission parity (P4-5/D-14) DONE. **Still OPEN:** P4-3 only — `eval_gate` → live transcripts, false-vs-missed interruption split, LLM-judge with rationale.
+### D-13 (P4) Eval/QA harness **[DONE 2026-06-21 — LIVE]**
+**Shipped:** `EXTENDED_PERSONAS` (5) + `qa_checks.py` (4 checks + `run_all`) in `agent_tester`. Silence/no-input policy (P4-4) DONE. Web-call disclosure+permission parity (P4-5/D-14) DONE. **P4-3 DONE:** `app/agents/live_eval.py` scores real `call_transcripts` (voice_turn_score × qa_checks) → `eval_gate` (suite `live_calls`); LLM-judge with rationale (gated `LLM_JUDGE`); per-call `barge_count` interruption tracking (also FIXED a broken nightly `score_and_gate` call). **Lone remnant:** false-vs-missed interruption CLASSIFICATION needs STT-validated barge (same arch as D-6 backchannel allowlist).
 - **File:** `app/voice_agent/eval_suite.py` (personas) + `scripts/agent_tester.py` (checks) + `eval_gate` wiring.
 - **Changes:** personas `polite_no_indian`/`whatsapp_brushoff`/`incumbent_user`/`formal_hindi_speaker`/`english_dominant`; checks `pushy_after_softno`/`talk_listen_ratio`/`missing_permission`/`literal_translation`; `eval_gate` → live transcripts, false-vs-missed interruption alag, LLM-judge with rationale; silence/no-input policy (reprompt→wait→escalate→hangup) in turn loop.
 - **Test:** har naya check apne fixture pe pass/fail prove kare.
