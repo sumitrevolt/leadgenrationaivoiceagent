@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (795 operations)
+## Endpoint Index — auto-generated from OpenAPI (799 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -623,9 +623,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/routing` — Customer Routing Set
 - `GET   ` `/api/customer/speed-to-lead` — Customer Speed To Lead
 
-### Customer Flows  (8)
+### Customer Flows  (10)
 
 - `POST  ` `/api/customer/flow` — Cf Save
+- `GET   ` `/api/customer/flow-templates` — Cf Templates
+- `POST  ` `/api/customer/flow-templates/{tid}/apply` — Cf Apply Template
 - `GET   ` `/api/customer/flow/run/{run_id}` — Cf Run Status
 - `POST  ` `/api/customer/flow/run/{run_id}/approve` — Cf Approve
 - `POST  ` `/api/customer/flow/run/{run_id}/reject` — Cf Reject
@@ -754,7 +756,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/terms` — Terms Page
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (179)
+### Growth  (181)
 
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats
@@ -795,6 +797,8 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/growth/fde/agents` — Fde Agents
 - `POST  ` `/api/growth/fde/deploy` — Fde Deploy
 - `POST  ` `/api/growth/flow` — Flow Save
+- `GET   ` `/api/growth/flow-templates` — Flow Templates List
+- `POST  ` `/api/growth/flow-templates/{tid}/apply` — Flow Template Apply
 - `DELETE` `/api/growth/flow/{flow_id}` — Flow Delete
 - `GET   ` `/api/growth/flow/{flow_id}` — Flow Get
 - `GET   ` `/api/growth/flows` — Flows List

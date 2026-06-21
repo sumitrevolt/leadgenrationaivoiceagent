@@ -45,6 +45,10 @@ class ApproveIn(BaseModel):
     node_id: str = ""
 
 
+class ApplyTemplateIn(BaseModel):
+    name: str = ""
+
+
 @router.get("/flows")
 async def cf_list(cid: str = Depends(require_customer)):
     g = _gate()
@@ -53,6 +57,40 @@ async def cf_list(cid: str = Depends(require_customer)):
     from app.automation import flow_store
 
     return {"flows": flow_store.list_flows(owner=cid)}
+
+
+@router.get("/flow-templates")
+async def cf_templates(cid: str = Depends(require_customer)):
+    """Starter flow templates — 1-click apply seeds a real, runnable flow."""
+    g = _gate()
+    if g:
+        return g
+    from app.automation import flow_templates
+
+    return {"templates": flow_templates.list_templates()}
+
+
+@router.post("/flow-templates/{tid}/apply")
+async def cf_apply_template(tid: str, body: ApplyTemplateIn, cid: str = Depends(require_customer)):
+    """Create an owner-scoped flow from a starter template (validated first)."""
+    g = _gate()
+    if g:
+        return g
+    from app.automation import flow_compiler, flow_store, flow_templates
+
+    flow_body = flow_templates.to_flow(tid, name_override=body.name)
+    if flow_body is None:
+        return _not_found()
+    if flow_store.count_for_owner(cid) >= _MAX_CUSTOMER_FLOWS:
+        return {"ok": False, "error": f"flow limit reached ({_MAX_CUSTOMER_FLOWS})"}
+    # defense-in-depth: validate under the strict customer gate BEFORE persisting
+    _proc, errs, _kind = flow_compiler.compile_flow(flow_body, customer_safe=True)
+    if errs:
+        return {"ok": False, "error": "template not runnable", "compile_errors": errs}
+    saved = flow_store.save_flow(flow_body, by=f"customer:{cid}", owner_client_id=cid)
+    if not saved.get("ok"):
+        return saved
+    return {"ok": True, "flow": saved["flow"], "from_template": tid}
 
 
 @router.post("/flow")

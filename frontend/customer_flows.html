@@ -58,6 +58,11 @@
     </div>
   </div>
 
+  <div class="card" id="tplcard">
+    <div class="hdr">✨ Starter Templates — ek click me ready flow</div>
+    <div id="templates"><span class="muted">loading…</span></div>
+  </div>
+
   <div class="card">
     <div class="hdr">My flows</div>
     <div id="flows"><span class="muted">loading…</span></div>
@@ -185,8 +190,31 @@ async function delFlow(id){
   loadFlows();
 }
 
+async function loadTemplates(){
+  const r=await api('/api/customer/flow-templates',{method:'GET'});
+  const el=document.getElementById('templates');
+  if(r.status===503){ el.innerHTML='<span class="muted">Feature abhi off hai (admin enable karega).</span>'; return; }
+  const tpls=(r.body&&r.body.templates)||[];
+  if(!tpls.length){ el.innerHTML='<span class="muted">Koi template nahi.</span>'; return; }
+  el.innerHTML=tpls.map(t=>`<div class="flowrow" style="cursor:default;align-items:flex-start"><div><b>${t.name}</b> <span class="pill">${t.steps} steps · ${t.trigger}</span><div class="muted" style="margin-top:3px">${t.description}</div><div class="muted" style="font-size:11px;margin-top:2px">niche: ${t.niche_hint}</div></div><button style="margin-left:auto" onclick="useTemplate('${t.tid}')">Use →</button></div>`).join('');
+}
+
+async function useTemplate(tid){
+  const r=await api('/api/customer/flow-templates/'+tid+'/apply',{method:'POST',body:JSON.stringify({})});
+  if(r.status===503){ setStatus('feature off — admin se enable karwao','warn'); return; }
+  if(r.status===401){ setStatus('login chahiye','err'); return; }
+  if(r.body && r.body.ok && r.body.flow){
+    setStatus('template added ✓ — niche edit ya Run karo','ok');
+    loadFlows();
+    openFlow(r.body.flow.id);
+    window.scrollTo({top:0,behavior:'smooth'});
+  } else {
+    setStatus('template apply failed: '+((r.body&&r.body.error)||'?'),'err');
+  }
+}
+
 renderSteps();
-if(TOKEN) loadFlows();
+if(TOKEN){ loadFlows(); loadTemplates(); }
 </script>
 </body>
 </html>
