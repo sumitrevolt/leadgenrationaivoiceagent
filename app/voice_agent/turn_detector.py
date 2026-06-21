@@ -131,7 +131,10 @@ class SileroSpeechGate:
             import torch
 
             audio = _pcm16_to_float32(pcm16)
-            if audio is None or len(audio) < 512:
+            # Silero needs a full window: 512 samples @16k, 256 @8k. Below that,
+            # defer to RMS (None) — the caller buffers up to this floor (D-5).
+            min_samples = 512 if sample_rate >= 16000 else 256
+            if audio is None or len(audio) < min_samples:
                 return None
             ts = self._get_ts(
                 torch.from_numpy(audio),
