@@ -312,9 +312,9 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 
 ## 12. Legal & Compliance (CONFIRMED — compliance GATE code KABHI disable mat karo)
 
-> NOTE: DLT/Udyam paperwork ko outbound conversation me recurring talking-point mat banao (user ko pata hai). PAR compliance GATE code (TRAI/DND/AI-disclosure/10am-7pm window) hamesha INTACT rakhna.
+> NOTE: DLT/Udyam paperwork ko outbound conversation me recurring talking-point mat banao (user ko pata hai). PAR compliance GATE code (TRAI/DND/AI-disclosure/**9am–7pm** calling-window) hamesha INTACT rakhna.
 
-- **TRAI:** 140-series + DLT + DND scrub + 10am-7pm window + AI disclosure mandatory. Penalty ₹10L. AI-disclosure greetings wired ("ek AI assistant").
+- **TRAI:** 140-series + DLT + DND scrub + calling-window (**TRAI actual 9am–9pm**; code promo **9am–7pm** conservative, fixed 2026-06-21) + AI disclosure. **₹10L = UCC-misreport penalty on ACCESS PROVIDERS** (telco), cap ₹50L/mo/area — NOT a standalone "AI-disclosure = ₹10L" fine; sender breach → 140-bar → disconnect. AI-disclosure-at-start = correct practice; greetings wired ("ek AI assistant"). Detail: `SWARA_HANDOFF_SOP.md` Part E.
 - **Foreign trunks** (Twilio/Telnyx/Vonage) India-domestic = ILLEGAL.
 - **Pure minutes-resale bina license** = Telegraph Act violation. Legal resale = SaaS bundle (DLT/140 CLIENT ke naam) — industry standard.
 - **WhatsApp bulk auto-send** = number ban. Cold auto-calls bina DLT = ₹10L risk → sirf inbound auto-callback.

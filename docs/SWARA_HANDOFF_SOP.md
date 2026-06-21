@@ -284,7 +284,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 
 ### P0 — Legal/correctness hygiene (turant, ~1 din, near-zero effort)
 - **P0-1 [DONE 2026-06-21 — LIVE]** Calling-window: promo default ab **`09:00–19:00`** (safe subset of TRAI 9–21; 9–10am legal hour wapas) + docstring reason fixed (§E). *LEGAL-GATE, gate intact.* `compliance.py` `_window` = `time(9,0)`; `tests/test_compliance.py` covers 09:30-allowed / 19:30-blocked / env-override. Prod-verified `promo_window 09:00-19:00`.
-- **P0-2 [OPEN]** `CLAUDE.md` / `PROJECT_HANDOFF.md` memory fix: "10am-7pm TRAI" + "₹10L AI-disclosure fine" dono galat → correct (§E).
+- **P0-2 [DONE 2026-06-21]** `CLAUDE.md` (lines 12, 102) + `PROJECT_HANDOFF.md` (lines 315, 317) corrected: TRAI window is 9am–9pm (code promo 9am–7pm conservative, not "10am-7pm"); ₹10L = UCC-misreport penalty on access providers, NOT a standalone "AI-disclosure = ₹10L" fine. Gate code untouched (§E).
 - **P0-3 [DONE 2026-06-21 — LIVE]** `COMPLIANCE_ENABLED=0` kill-switch ab LOUD: escalated `logger.error` per-call + cooldown'd ops page (`ops_alerts.alert_compliance_disabled`, OPS_ALERTS-gated). Default always-on, behaviour unchanged.
 
 ### P1 — Observability (turant, small effort, UNBLOCKS sab) — **unanimous #1**
