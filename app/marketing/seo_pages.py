@@ -95,7 +95,7 @@ async def generate_page(niche: str, city: str) -> dict[str, Any]:
         },
         {
             "q": "Kitna kharcha aata hai?",
-            "a": "₹1,199/mo Starter se shuru. Pehle 10 qualified leads free. Advanced tier me AI calling (500 min/mo).",
+            "a": "₹1,199/mo Starter se shuru, ₹0 me 7-din trial. Advanced tier me AI calling (500 min/mo). Alag AI voice agent flat ₹4,999/mo se (unlimited calls).",
         },
         {
             "q": "Result kitne din me?",
