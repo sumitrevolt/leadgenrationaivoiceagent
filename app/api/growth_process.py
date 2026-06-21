@@ -128,6 +128,10 @@ class FlowIn(BaseModel):
     trigger: dict | None = None  # Phase 3: {type: manual|cron|event, cron?/event?}
 
 
+class ApplyTemplateIn(BaseModel):
+    name: str = ""
+
+
 @router.get("/flows")
 async def flows_list(_user=Depends(require_admin)):
     """List saved builder flows (Flow Runner)."""
@@ -136,6 +140,34 @@ async def flows_list(_user=Depends(require_admin)):
     from app.automation import flow_store
 
     return {"flows": flow_store.list_flows()}
+
+
+@router.get("/flow-templates")
+async def flow_templates_list(_user=Depends(require_admin)):
+    """Starter flow templates for the Flow Runner builder (1-click apply)."""
+    if not _flow_runner_on():
+        return JSONResponse({"error": "FLOW_RUNNER disabled"}, status_code=503)
+    from app.automation import flow_templates
+
+    return {"templates": flow_templates.list_templates()}
+
+
+@router.post("/flow-templates/{tid}/apply")
+async def flow_template_apply(tid: str, body: ApplyTemplateIn, _user=Depends(require_admin)):
+    """Create an admin flow from a starter template + return compile preview."""
+    if not _flow_runner_on():
+        return JSONResponse({"error": "FLOW_RUNNER disabled"}, status_code=503)
+    from app.automation import flow_compiler, flow_store, flow_templates
+
+    flow_body = flow_templates.to_flow(tid, name_override=body.name)
+    if flow_body is None:
+        return JSONResponse({"error": "unknown template"}, status_code=404)
+    saved = flow_store.save_flow(flow_body, by=getattr(_user, "email", "admin") or "admin")
+    if not saved.get("ok"):
+        return saved
+    _proc, errs, kind = flow_compiler.compile_flow(saved["flow"])
+    return {"ok": True, "flow": saved["flow"], "from_template": tid,
+            "compile_errors": errs, "runnable": not errs, "kind": kind}
 
 
 @router.post("/flow")
