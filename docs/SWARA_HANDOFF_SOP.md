@@ -13,7 +13,7 @@
 
 ## 0. Ek-line summary (TL;DR)
 
-Swara = **Product 2 (AI Voice Calling Agent)** ka telecaller persona — **free-stack, cascade (STT→LLM→TTS) Hindi/Hinglish AI telecaller** jo Vobiz telephony pe chalti hai. Core working hai; **`platform_pitch`** (`ai_marketing` niche) aur **post-call hooks** (meter + qualify downstream) **shipped**; bahut saare *best-in-world* features **code me WIRED hain par flag se OFF** (streaming-TTS, Smart-Turn, Silero VAD, AMD). Sabse bada gap = **general polite-no detect (all niches) aur turn-taking fluidity** (observability/per-turn latency log + 9am calling-window = **SHIPPED 2026-06-21, LIVE**; PR1 done). Phone abhi DLT/Vobiz-recharge pe blocked → **tuning ka surface = web-call** (`/app/test-call`, `/demo`). Roadmap P0→P5 me phased hai — status Part C/D me tagged.
+Swara = **Product 2 (AI Voice Calling Agent)** ka telecaller persona — **free-stack, cascade (STT→LLM→TTS) Hindi/Hinglish AI telecaller** jo Vobiz telephony pe chalti hai. Core working hai; **`platform_pitch`** (`ai_marketing` niche) aur **post-call hooks** (meter + qualify downstream) **shipped**; bahut saare *best-in-world* features **code me WIRED hain par flag se OFF** (streaming-TTS, Smart-Turn, Silero VAD, AMD). Sabse bada gap (bacha hua) = **turn-taking fluidity + streaming-TTS flip** (observability/per-turn latency log + 9am calling-window + **polite-no detector all niches** + eval/QA harness = **SHIPPED 2026-06-21, LIVE**; PR1+PR2+D-8 done). Phone abhi DLT/Vobiz-recharge pe blocked → **tuning ka surface = web-call** (`/app/test-call`, `/demo`). Roadmap P0→P5 me phased hai — status Part C/D me tagged.
 
 ---
 
@@ -162,7 +162,7 @@ flowchart LR
 
 ## A11. Capabilities vs gaps (snapshot)
 **✅ Shipped:** cascade pipeline, free LLM/STT/TTS chain + circuit-breaker, RMS turn-end, barge-in (ungated), ComplianceGate (fail-closed promo), AI-disclosure always-on, consent ledger, AMD engine, QA scorecard + 7 eval personas, streaming-TTS & Smart-Turn **coded**, **post-call hooks** (meter + qualify downstream on vobiz path, 2026-06-18), **platform_pitch** for `ai_marketing` (interest gate + opener chain), cross-path audit in `final_integration_check`.
-**❌ Gaps (OPEN):** (1) ~~per-turn latency logging~~ **[DONE 2026-06-21]** — `turn_metrics.py` LIVE (vobiz + web pipeline; P50/P95 rollup). (2) Smart-Turn vobiz me wire nahi. (3) streaming-TTS flag OFF. (4) **general polite-no detect nahi** — `platform_pitch` = ai_marketing only (P3-1 PARTIAL). (5) backchannel/filler nahi. (6) barge-in ungated + disclosure-leg interruptible. (7) Silero frame-size bug (per-20 ms call ⇒ ≥512 samples chahiye ⇒ silent RMS fallback). (8) STT niche-biasing sirf faster-whisper pe (Groq/Gemini pe nahi). (9) KB `min_score=0.05` noisy + no refresh. (10) web-call surface **ComplianceGate bypass** karta (sirf `place_call` pe gate).
+**❌ Gaps (OPEN):** (1) ~~per-turn latency logging~~ **[DONE 2026-06-21]** — `turn_metrics.py` LIVE (vobiz + web pipeline; P50/P95 rollup). (2) Smart-Turn vobiz me wire nahi. (3) streaming-TTS flag OFF. (4) ~~general polite-no detect~~ **[DONE 2026-06-21]** — `intent_softno.py` all-niche 2-strike de-escalation LIVE. (5) backchannel/filler nahi. (6) barge-in ungated + disclosure-leg interruptible. (7) Silero frame-size bug (per-20 ms call ⇒ ≥512 samples chahiye ⇒ silent RMS fallback). (8) STT niche-biasing sirf faster-whisper pe (Groq/Gemini pe nahi). (9) KB `min_score=0.05` noisy + no refresh. (10) web-call surface **ComplianceGate bypass** karta (sirf `place_call` pe gate).
 
 ---
 
@@ -298,7 +298,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **P2-5 [OPEN]** Filler/ack phrase while LLM thinks ("Ek second…", "Dekhta hoon…").
 
 ### P3 — Conversation intelligence (the India differentiator; web-call safe)
-- **P3-1 [PARTIAL]** **Polite-No detector + 2-strike de-escalation** — `platform_pitch` covers `ai_marketing` interest/no only; general `intent_softno.py` still planned (sabse bada persuasion ROI).
+- **P3-1 [DONE 2026-06-21 — LIVE]** **Polite-No detector + 2-strike de-escalation** — `app/voice_agent/intent_softno.py` (reuses `qa_checks.is_soft_no`) wired into `telecaller_brain.reply()` + `reply_stream_sentences()` for ALL niches; 2nd soft-no → graceful async-exit (deterministic, no extra LLM call) + hard system-prompt rule. Gated `SOFTNO_DEESCALATE` (default ON). `platform_pitch` ka ai_marketing gate ab generalise ho gaya.
 - **P3-2 [PARTIAL]** Opener → AI-disclosure → permission → source flow — `platform_pitch` opener segments for `ai_marketing`; other niches pending.
 - **P3-3 [OPEN]** Talk-listen governor ("ask, then stop").
 - **P3-4 [OPEN]** Objection structure: agree→explore→reframe + rate-incumbent /10.
@@ -383,7 +383,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **Flag:** `USE_THINKING_FILLER=1`.
 - **Test:** `agent_tester` repeat-check pass (filler rotate); no double-reply.
 
-### D-8 (P3-1) Polite-No detector + 2-strike de-escalation — **flagship** **[PARTIAL — platform_pitch covers ai_marketing only]**
+### D-8 (P3-1) Polite-No detector + 2-strike de-escalation — **flagship** **[DONE 2026-06-21 — LIVE]**
 - **Already shipped (partial):** `platform_pitch.py` interest/no gate for `ai_marketing` niche — do NOT rebuild.
 - **Still planned:** naya `app/voice_agent/intent_softno.py` (cheap regex/keyword classifier, **no extra LLM call**) → inject in `telecaller_brain.reply()` for **all niches**.
 - **Triggers:** `dekhte hain`, `soch ke bata(ta|ti) hoon`, `baad me baat`, `abhi nahi`, `time nahi`, `zarurat nahi`, rushed `theek hai theek hai`, `whatsapp pe bhej do` (jab <1 qualifying answer).
