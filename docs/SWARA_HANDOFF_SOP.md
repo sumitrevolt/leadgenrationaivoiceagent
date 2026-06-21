@@ -301,7 +301,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **P3-1 [DONE 2026-06-21 — LIVE]** **Polite-No detector + 2-strike de-escalation** — `app/voice_agent/intent_softno.py` (reuses `qa_checks.is_soft_no`) wired into `telecaller_brain.reply()` + `reply_stream_sentences()` for ALL niches; 2nd soft-no → graceful async-exit (deterministic, no extra LLM call) + hard system-prompt rule. Gated `SOFTNO_DEESCALATE` (default ON). `platform_pitch` ka ai_marketing gate ab generalise ho gaya.
 - **P3-2 [DONE 2026-06-21 — LIVE]** Opener → AI-disclosure → permission → source flow. Permission = `niche_scripts.ensure_permission_ask` (do-minute clause, gated `PERMISSION_OPENER`) in vobiz + phone openers (ALL niches); source-line = `_CONVO_DISCIPLINE` prompt rule. Minor follow-up: web-call opener helper parity.
 - **P3-3..3-6 [DONE 2026-06-21 — LIVE, prompt-level]** Talk-listen governor + objection 3-step (agree→explore→reframe + incumbent rating trick, no trashing) + WhatsApp qualify-before-send gate + Hinglish-mirror (mix/formality/tech-nouns-English, literal-translation banned) — shipped as the `_CONVO_DISCIPLINE` block in `telecaller_brain` system prompt (gated `CONVO_DISCIPLINE`, default ON). Runtime-verifiable via `qa_checks.check_talk_listen_ratio` + `check_literal_translation`.
-- **P3-7 [OPEN]** STT `initial_prompt` niche-biasing for **Groq + Gemini** (abhi sirf faster-whisper).
+- **P3-7 [DONE 2026-06-21 — LIVE]** STT niche-biasing for **Groq + Gemini** — `niche_scripts.stt_keyterms` (client+niche+Hinglish) → Groq `prompt=` + Gemini context; vobiz session computes once. Gated `STT_BIAS` (default ON).
 - **P3-8 [PARTIAL — threshold DONE 2026-06-21]** KB `min_score` 0.05→**0.35** DONE (env-tunable `KB_MIN_SCORE`, telecaller_brain). **Pending:** singleton periodic/TTL refresh.
 
 ### P4 — Eval / QA harness (P2/P3 shipping ka prerequisite)
@@ -399,7 +399,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **Changes:** (a) prompt: "ask karo phir CHUP raho; agent ≤55% bole; ≤2 sentence/1 question" (already partial — strengthen). (b) Objection 3-beat template (agree→explore→reframe-with-number; incumbent "10 me kitne number?" trick) — flat strings ko template se replace. (c) "WhatsApp bhej do" → pehle 1 qualifying Q, fir send. (d) Hinglish: "caller ka exact mix + formality mirror karo; tech-nouns (demo/budget/slot) English; 'aap'+'ji'; literal-translation ban."
 - **Test:** personas `whatsapp_brushoff`, `incumbent_user`, `formal_hindi_speaker`, `english_dominant`; checks `talk_listen_ratio`, `literal_translation`.
 
-### D-11 (P3-7) STT niche-biasing (Groq + Gemini) **[OPEN]**
+### D-11 (P3-7) STT niche-biasing (Groq + Gemini) **[DONE 2026-06-21 — LIVE]**
 - **File:** `free_ai.py` `transcribe`/Groq call (~line 321) + vobiz Gemini STT.
 - **Change:** per-niche brand/keyterm string (Qdrant niche namespace se top terms) → Groq `prompt=` / Gemini context me pass (jaise faster-whisper already karta line ~261). +20–30% rel accuracy on entities.
 - **Test:** known Hinglish brand utterance → transcription improve (manual A/B).
