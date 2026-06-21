@@ -210,9 +210,22 @@ class ComplianceGate:
         checks: dict[str, Any] = {"call_type": ct.value}
 
         try:
-            # 0) kill switch (explicit opt-out; logs so it is never silent).
+            # 0) kill switch (explicit opt-out). LEGAL-GATE LIABILITY: a disabled
+            #    gate lets promotional calls bypass DND/window/DLT (₹-penalty risk),
+            #    so it must NEVER be silent — escalated per-call log + a cooldown'd,
+            #    OPS_ALERTS-gated ops page so it can't be quietly left off in prod.
             if not self._enabled():
-                logger.warning("⚠️ ComplianceGate DISABLED (COMPLIANCE_ENABLED=0) — allowing call.")
+                logger.error(
+                    "🚨 ComplianceGate DISABLED (COMPLIANCE_ENABLED=0) — call BYPASSING "
+                    "TCCCPR/TRAI gate (DND/window/DLT). LEGAL LIABILITY; unset "
+                    "COMPLIANCE_ENABLED to re-arm."
+                )
+                try:
+                    from app.platform.ops_alerts import alert_compliance_disabled
+
+                    alert_compliance_disabled(f"call_type={ct.value}")
+                except Exception:
+                    pass
                 return ComplianceDecision(
                     True, ct.value, phone, ["compliance_disabled"], {"enabled": False}
                 )

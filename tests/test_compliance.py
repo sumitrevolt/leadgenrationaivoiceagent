@@ -141,6 +141,25 @@ def test_kill_switch_allows(monkeypatch):
     assert "compliance_disabled" in d.reasons
 
 
+def test_kill_switch_alerts_without_raising(monkeypatch):
+    """D-1: with the gate disabled AND ops-alerts on, the call still returns
+    allowed and the alert path never raises (loud log + best-effort ntfy)."""
+    monkeypatch.setenv("COMPLIANCE_ENABLED", "0")
+    monkeypatch.setenv("OPS_ALERTS", "1")
+    g = ComplianceGate(dnd_checker=_FakeDND(True))
+    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=LATE))
+    assert d.allowed
+    assert "compliance_disabled" in d.reasons
+
+
+def test_alert_compliance_disabled_gated(monkeypatch):
+    """The ops-alert helper is OPS_ALERTS-gated and never raises."""
+    from app.platform.ops_alerts import alert_compliance_disabled
+
+    monkeypatch.delenv("OPS_ALERTS", raising=False)
+    assert alert_compliance_disabled("x")["alerted"] is False  # gated off → inert
+
+
 def test_invalid_number_blocked():
     g = ComplianceGate(dnd_checker=_FakeDND(False))
     d = _run(g.check("123", CallType.TRANSACTIONAL, now=IN_HOURS))

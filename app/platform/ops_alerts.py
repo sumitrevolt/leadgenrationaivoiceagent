@@ -47,6 +47,7 @@ _COOLDOWN = {
     "eval_reject": 6 * 3600,  # at most one per suite/metric per 6h
     "readiness_digest": 20 * 3600,  # at most one daily-style digest per 20h
     "webhook_dead_letter": 6 * 3600,  # at most one per webhook per 6h (L.3)
+    "compliance_disabled": 1 * 3600,  # legal kill-switch page, at most one per 1h
 }
 
 # Thresholds — override via env if the operator wants tighter/looser.
@@ -129,6 +130,30 @@ def _ntfy(title: str, message: str, priority: str = "high", tags: list[str] | No
                 pass
     except Exception as exc:
         logger.debug("ops_alerts ntfy swallowed: %s", exc)
+
+
+# --------------------------------------------------------------------------- #
+# Alert 0 — ComplianceGate kill-switch active (legal liability) [D-1 / P0-3]
+# --------------------------------------------------------------------------- #
+def alert_compliance_disabled(detail: str = "") -> dict[str, Any]:
+    """Page ops when COMPLIANCE_ENABLED=0 lets a call bypass the TCCCPR/TRAI gate
+    (DND + calling-window + DLT) — a legal liability that must never be silent.
+    Cooldown'd so a call-storm can't spam the channel. OPS_ALERTS-gated +
+    never raises (the loud per-call log in compliance.py is the always-on path)."""
+    if not enabled():
+        return {"alerted": False, "reason": "disabled"}
+    key = "compliance_disabled"
+    if _cooldown_active(key, "compliance_disabled"):
+        return {"alerted": False, "reason": "cooldown"}
+    title = "🚨 ComplianceGate DISABLED (legal liability)"
+    body = (
+        "COMPLIANCE_ENABLED=0 — outbound calls are BYPASSING the TCCCPR/TRAI gate "
+        "(DND / calling-window / DLT). Re-arm immediately by unsetting "
+        "COMPLIANCE_ENABLED. " + (detail or "")
+    )[:480]
+    _ntfy(title, body, priority="urgent", tags=["rotating_light", "compliance"])
+    _record_fire(key)
+    return {"alerted": True}
 
 
 # --------------------------------------------------------------------------- #

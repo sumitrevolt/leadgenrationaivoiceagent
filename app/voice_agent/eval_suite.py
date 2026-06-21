@@ -35,6 +35,11 @@ except Exception:  # pragma: no cover
 
     logger = logging.getLogger(__name__)
 
+try:  # D-13 conversation QA judges (pure, import-safe) — reused in criteria.
+    from app.voice_agent import qa_checks as _qc
+except Exception:  # pragma: no cover
+    _qc = None  # type: ignore[assignment]
+
 
 # --------------------------------------------------------------------------- #
 # Persona definition
@@ -308,6 +313,138 @@ PERSONAS: list[Persona] = [
 
 
 # --------------------------------------------------------------------------- #
+# EXTENDED personas (D-13 / P4) — the India failure-modes that drive D-8/D-10.
+# Kept SEPARATE from the default PERSONAS so the baseline suite contract stays
+# stable; these are ASPIRATIONAL (some FAIL against today's rule-based bot — that
+# is the signal). Opt in: run_suite(factory, personas=PERSONAS + EXTENDED_PERSONAS).
+# --------------------------------------------------------------------------- #
+def _bot_turns_text(run: EvalRun) -> str:
+    return " ".join(t["content"].lower() for t in run.transcript if t["role"] == "assistant")
+
+
+def _no_refusal(run: EvalRun) -> bool:
+    txt = _bot_turns_text(run)
+    return not any(m in txt for m in ("as an ai", "i cannot", "i can't", "language model"))
+
+
+def _polite_no_next(bot_text: str, turn: int) -> str:
+    # Escalating soft-no's — a good bot stops pitching after the 2nd.
+    seq = ["Haan boliye?", "Achha... dekhte hain baad me.", "Abhi nahi, time nahi hai.",
+           "Nahi bhai, zarurat nahi hai abhi."]
+    return seq[turn] if turn < len(seq) else ""
+
+
+def _whatsapp_brushoff_next(bot_text: str, turn: int) -> str:
+    if turn == 0:
+        return "Haan, WhatsApp pe bhej do na details."
+    if turn == 1:
+        return "Bas WhatsApp pe bhej do, baad me dekh lunga."
+    return ""
+
+
+def _incumbent_next(bot_text: str, turn: int) -> str:
+    if turn == 0:
+        return "Hum already ek dusri company se marketing karwa rahe hain."
+    if turn == 1:
+        return "Wo theek chal raha hai, aap kya alag dete ho?"
+    if turn == 2:
+        return "Achha, thoda interest hai. Aur batao."
+    return "Theek hai, demo dekh lunga."
+
+
+def _formal_hindi_next(bot_text: str, turn: int) -> str:
+    if turn == 0:
+        return "Namaskar, kripya bataiye aap kaun bol rahe hain?"
+    if turn == 1:
+        return "Aap kaun si seva pradan karte hain? Vistaar se bataiye."
+    if turn == 2:
+        return "Achha, mujhe ruchi hai. Aage kahiye."
+    return "Theek hai, demo nirdharit kar dijiye."
+
+
+def _english_dominant_next(bot_text: str, turn: int) -> str:
+    if turn == 0:
+        return "Yeah hi, who is this? What is this regarding?"
+    if turn == 1:
+        return "Okay so what exactly do you guys do?"
+    if turn == 2:
+        return "Hmm interesting, tell me more about pricing."
+    return "Alright, let's set up a demo then."
+
+
+EXTENDED_PERSONAS: list[Persona] = [
+    Persona(
+        name="polite_no_indian",
+        description="2+ soft refusals — bot ko 2nd soft-no ke baad push BAND karna hai.",
+        opening="Haan boliye?",
+        next_line=_polite_no_next,
+        expected_outcome="not_interested",
+        success_criteria=lambda run: (
+            (not _qc.check_pushy_after_softno(run.transcript)) if _qc else (run.turns <= 8),
+            "2nd soft-no ke baad bot ne push nahi karna chahiye (India: rude + trust-tod)",
+        ),
+    ),
+    Persona(
+        name="whatsapp_brushoff",
+        description="'WhatsApp pe bhej do' brush-off — bot ko qualify-before-send karna hai.",
+        opening="Haan, WhatsApp pe bhej do na details.",
+        next_line=_whatsapp_brushoff_next,
+        expected_outcome="callback",
+        success_criteria=lambda run: (
+            any("?" in t["content"] for t in run.transcript if t["role"] == "assistant"),
+            "WhatsApp brush-off pe bot ko kam se kam 1 qualifying sawal puchna chahiye",
+        ),
+    ),
+    Persona(
+        name="incumbent_user",
+        description="Already dusri company use karta — bot ko incumbent trash NAHI karna.",
+        opening="Hum already ek dusri company se marketing karwa rahe hain.",
+        next_line=_incumbent_next,
+        expected_outcome="qualified",
+        success_criteria=lambda run: (
+            not any(
+                w in _bot_turns_text(run)
+                for w in ("bekaar", "ghatiya", "faltu", "worst", "bakwas")
+            )
+            and any("?" in t["content"] for t in run.transcript if t["role"] == "assistant"),
+            "incumbent ko gaali nahi (agree-explore-reframe), aur ek sawal se explore",
+        ),
+    ),
+    Persona(
+        name="formal_hindi_speaker",
+        description="Shuddh formal Hindi — bot natural register mirror kare, robotic nahi.",
+        opening="Namaskar, kripya bataiye aap kaun bol rahe hain?",
+        next_line=_formal_hindi_next,
+        expected_outcome="qualified",
+        success_criteria=lambda run: (
+            _no_refusal(run)
+            and (
+                not any(
+                    _qc.check_literal_translation(t["content"])
+                    for t in run.transcript
+                    if t["role"] == "assistant"
+                )
+                if _qc
+                else True
+            ),
+            "formal Hindi pe bot natural (no refusal, no robotic translationese)",
+        ),
+    ),
+    Persona(
+        name="english_dominant",
+        description="English-heavy caller — bot ko Hindi-only force NAHI karna, engage kare.",
+        opening="Yeah hi, who is this? What is this regarding?",
+        next_line=_english_dominant_next,
+        expected_outcome="qualified",
+        success_criteria=lambda run: (
+            _no_refusal(run) and run.turns >= 2,
+            "English caller ke saath bot engage kare (Hindi-only force / refusal nahi)",
+        ),
+    ),
+]
+
+
+# --------------------------------------------------------------------------- #
 # Runner
 # --------------------------------------------------------------------------- #
 def _coerce_criteria(result: Any) -> (bool, str):
@@ -455,6 +592,7 @@ __all__ = [
     "EvalRun",
     "EvalReport",
     "PERSONAS",
+    "EXTENDED_PERSONAS",
     "run_persona",
     "run_suite",
     "demo",
