@@ -543,6 +543,7 @@ class VobizStreamSession:
         # D-13 no-input watchdog state (NOINPUT_POLICY, default OFF).
         self._last_activity_ms = 0.0
         self._noinput_reprompts = 0
+        self._interruptions = 0  # P4-3: barge-in count (interruption tracking)
 
         # turn-taking / VAD state
         self._speech_buf: list[bytes] = []
@@ -2015,6 +2016,7 @@ class VobizStreamSession:
     async def _barge_in(self) -> None:
         """User started talking over us — stop playback and flush Vobiz buffer."""
         self._barge_frames = 0
+        self._interruptions += 1  # P4-3 interruption tracking
         self._stop_play()
         self._speaking = False
         await self._send({"event": "clearAudio"})
@@ -2116,6 +2118,7 @@ class VobizStreamSession:
                 "voice": self.voice,
                 "user_turns": user_turns,
                 "stt_counts": dict(self._stt_counts),
+                "barge_count": self._interruptions,  # P4-3 interruption tracking
                 "messages": self.hist,
             }
             # P1 observability: per-turn latency + call-level P50/P95 rollup so the
