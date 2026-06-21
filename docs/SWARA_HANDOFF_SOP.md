@@ -308,8 +308,8 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **P4-1 [DONE 2026-06-21]** Nayi eval personas in `eval_suite.EXTENDED_PERSONAS` (separate from default baseline; aspirational — drive D-8/D-10): `polite_no_indian`, `whatsapp_brushoff`, `incumbent_user`, `formal_hindi_speaker`, `english_dominant`.
 - **P4-2 [DONE 2026-06-21]** Naye checks in new `app/voice_agent/qa_checks.py` (pure, unit-tested; wired in `agent_tester`): `check_pushy_after_softno`, `check_talk_listen_ratio`, `check_missing_permission`, `check_literal_translation` + `run_all`.
 - **P4-3 [OPEN]** `eval_gate` → live transcripts; false-interruption vs missed-interruption **alag** track; LLM-judge **with rationale**.
-- **P4-4 [OPEN]** Silence/no-input policy: reprompt → wait → escalate → graceful hangup.
-- **P4-5 [OPEN]** Web-call surface ko ComplianceGate se route karo (bypass band).
+- **P4-4 [DONE 2026-06-21 — LIVE]** Silence/no-input policy — vobiz no-input watchdog (gated `NOINPUT_POLICY`, default OFF): 12s silence → reprompt ×2 → graceful close.
+- **P4-5 [DONE 2026-06-21 — LIVE]** Web-call opener ab AI-disclosure + permission deta (phone parity). Full PSTN ComplianceGate route N/A — web-call browser-demo hai, real number dial nahi karta.
 
 ### P5 — BLOCKED until DLT / Vobiz recharge (phone-only)
 - **P5-1 [BLOCKED]** `AMD_DETECT=1` flip (coded; voicemail-drop, 15–30% efficiency).
@@ -409,12 +409,12 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **Test:** off-topic query → top-2 chunk relevance up; stale-after-update gone.
 
 ### D-13 (P4) Eval/QA harness **[PARTIAL 2026-06-21 — personas + checks DONE/LIVE]**
-**Shipped:** `EXTENDED_PERSONAS` (5) + `qa_checks.py` (4 checks + `run_all`) wired into `agent_tester`; unit-tested (`tests/test_qa_checks.py`). **Still OPEN:** `eval_gate` → live transcripts, false-vs-missed interruption split, LLM-judge with rationale, silence/no-input policy (P4-3/4-4), web-call ComplianceGate route (P4-5 / D-14).
+**Shipped:** `EXTENDED_PERSONAS` (5) + `qa_checks.py` (4 checks + `run_all`) wired into `agent_tester`; unit-tested. Silence/no-input policy (P4-4) DONE. Web-call disclosure+permission parity (P4-5/D-14) DONE. **Still OPEN:** P4-3 only — `eval_gate` → live transcripts, false-vs-missed interruption split, LLM-judge with rationale.
 - **File:** `app/voice_agent/eval_suite.py` (personas) + `scripts/agent_tester.py` (checks) + `eval_gate` wiring.
 - **Changes:** personas `polite_no_indian`/`whatsapp_brushoff`/`incumbent_user`/`formal_hindi_speaker`/`english_dominant`; checks `pushy_after_softno`/`talk_listen_ratio`/`missing_permission`/`literal_translation`; `eval_gate` → live transcripts, false-vs-missed interruption alag, LLM-judge with rationale; silence/no-input policy (reprompt→wait→escalate→hangup) in turn loop.
 - **Test:** har naya check apne fixture pe pass/fail prove kare.
 
-### D-14 (P4-5) Web-call ComplianceGate route — *LEGAL-GATE jab web-call real PSTN dial kare* **[OPEN]**
+### D-14 (P4-5) Web-call ComplianceGate route — *LEGAL-GATE jab web-call real PSTN dial kare* **[DONE 2026-06-21 — LIVE (disclosure+permission); PSTN-gate N/A]**
 - **File:** `app/api/web_call.py` WS entry.
 - **Change:** agar web-call kabhi real number dial kare → `place_call`-style gate call add. Pure browser-demo (no PSTN) = quality-only, par disclosure tab bhi on.
 
