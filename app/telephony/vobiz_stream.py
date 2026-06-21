@@ -142,6 +142,7 @@ except Exception:  # pragma: no cover
 SAMPLE_RATE = 16000  # Vobiz L16 stream rate (contentType audio/x-l16;rate=16000)
 STT_RATE = 16000  # STT models want 16 kHz PCM16 (== SAMPLE_RATE: no resample)
 FRAME_PCM = 640  # 20 ms of PCM16 @ 16 kHz (16000 * 0.02 * 2 bytes)
+_SIL_WIN_BYTES = 1024  # 512 samples @16k — Silero VAD min window (D-5 buffer floor)
 PCM_SILENCE = b"\x00"  # PCM16 silence == zero bytes
 
 
@@ -528,6 +529,12 @@ class VobizStreamSession:
         self._turn_tts_first_ms: float | None = None
         self._turn_metrics: list[dict] = []  # accumulated for the transcript record
         self._stt_bias: str | None = None  # D-11 niche/brand STT bias (lazy, once)
+        self._sil_buf = bytearray()  # D-5 per-session Silero rolling window (>=512 samples)
+        # D-6 disclosure-leg lock: while the opener (which carries the TRAI AI
+        # disclosure) plays, barge-in is ignored so the disclosure is always heard.
+        # Cleared on opener-playback completion or a hard safety deadline.
+        self._disclosure_active = False
+        self._disclosure_deadline_ms = 0.0
 
         # turn-taking / VAD state
         self._speech_buf: list[bytes] = []
@@ -728,22 +735,29 @@ class VobizStreamSession:
             self._rec_timeline_samples += len(pcm16) // 2
         rms = _pcm_rms(pcm16)
         is_speech = rms >= self._vad_rms
-        # Silero VAD gate (USE_SILERO_VAD=1): pcm16 is raw 16kHz PCM here, so pass it
-        # straight to the gate to filter ambient noise/echo from false speech states.
-        # Returns None when disabled/unavailable -> keep the RMS decision.
+        # Silero VAD gate (USE_SILERO_VAD=1): filters ambient noise/echo from false
+        # speech states. D-5 FIX: Silero needs >=512 samples @16k, but a frame is only
+        # 320 (20 ms) -> the old per-frame call always fell back to RMS (Silero dead).
+        # Buffer per-session to a small rolling window (PER SESSION, not the shared
+        # singleton, so concurrent calls never mix audio) and gate on that. Returns
+        # None when disabled/unavailable -> keep the RMS decision (zero change at default).
         try:
             from app.voice_agent.turn_detector import get_speech_gate
 
-            _sil = get_speech_gate().is_speech(pcm16)
-            if _sil is not None:
-                is_speech = _sil
+            self._sil_buf += pcm16
+            if len(self._sil_buf) > _SIL_WIN_BYTES * 2:
+                del self._sil_buf[: -_SIL_WIN_BYTES * 2]  # keep last ~64 ms
+            if len(self._sil_buf) >= _SIL_WIN_BYTES:
+                _sil = get_speech_gate().is_speech(bytes(self._sil_buf))
+                if _sil is not None:
+                    is_speech = _sil
         except Exception:
             pass
         dur_ms = (len(pcm16) / 2) / SAMPLE_RATE * 1000.0  # 640 bytes == 20 ms
 
-        # While we're speaking: only watch for barge-in.
+        # While we're speaking: only watch for barge-in (D-6: gated + disclosure-lock).
         if self._speaking:
-            if is_speech:
+            if is_speech and self._barge_allowed():
                 self._barge_frames += 1
                 if self._barge_frames < BARGE_MIN_FRAMES:
                     return
@@ -783,15 +797,31 @@ class VobizStreamSession:
             and self._speech_ms >= MIN_SPEECH_MS
             and substantial
         )
-        if (
-            not ended
-            and self._had_speech
+        # HARD end = 2x silence — always finalizes (also the Smart-Turn safety floor
+        # so a "never endpoint" verdict can't hold a turn forever).
+        hard_end = (
+            self._had_speech
             and self._speech_ms >= MIN_SPEECH_MS
             and self._silence_ms >= SILENCE_MS * 2
-        ):
+        )
+        if hard_end:
             ended = True
         too_long = self._speech_ms >= MAX_UTTER_MS
         if ended or too_long:
+            # D-4: semantic end-of-turn confirm (USE_SMART_TURN). ONLY on a normal
+            # silence-end (not the hard 2x-silence floor or the too_long cap): if
+            # Smart-Turn says the caller only paused mid-sentence, keep listening.
+            # Inert without pipecat/flag -> confirm_end_of_turn returns True -> unchanged.
+            if ended and not too_long and not hard_end:
+                try:
+                    from app.voice_agent.turn_detector import confirm_end_of_turn
+
+                    if not confirm_end_of_turn(
+                        True, pcm16=b"".join(self._speech_buf), sample_rate=SAMPLE_RATE
+                    ):
+                        return  # mid-sentence pause — keep buffering this turn
+                except Exception:
+                    pass
             utt = b"".join(self._speech_buf)
             self._reset_speech()
             self._spawn(self._on_utterance(utt))
@@ -808,6 +838,50 @@ class VobizStreamSession:
         self._silence_ms = 0.0
         self._had_speech = False
         self._speech_segments = 0
+
+    def _disclosure_locked(self) -> bool:
+        """D-6: True while the opener/AI-disclosure leg is playing and the lock is
+        on (DISCLOSURE_LOCK, default ON) — barge-in is suppressed so the TRAI
+        disclosure is always heard. Auto-clears past a hard safety deadline so it
+        can never stick. Never raises."""
+        try:
+            if not self._disclosure_active:
+                return False
+            if (os.environ.get("DISCLOSURE_LOCK", "1") or "1").strip().lower() in (
+                "0",
+                "false",
+                "no",
+                "off",
+            ):
+                return False
+            if _now_ms() > self._disclosure_deadline_ms:
+                self._disclosure_active = False  # safety: never hold past the cap
+                return False
+            return True
+        except Exception:
+            return False
+
+    def _barge_allowed(self) -> bool:
+        """D-6: barge-in master gate. OFF when BARGE_IN_ENABLED=0 (bot can't be
+        cut) or while the disclosure leg is locked. Default ON = current behaviour
+        except the disclosure-leg protection."""
+        try:
+            if (os.environ.get("BARGE_IN_ENABLED", "1") or "1").strip().lower() in (
+                "0",
+                "false",
+                "no",
+                "off",
+            ):
+                return False
+            return not self._disclosure_locked()
+        except Exception:
+            return True
+
+    def _begin_disclosure(self) -> None:
+        """Mark the opener/disclosure leg active (barge-locked) with a 6 s safety
+        cap. Called right before the greeting plays."""
+        self._disclosure_active = True
+        self._disclosure_deadline_ms = _now_ms() + 6000.0
 
     @staticmethod
     def _is_junk(text: str) -> bool:
@@ -915,11 +989,17 @@ class VobizStreamSession:
             # (~0.5s, acceptable); _run_play har frame pe _speaking check karta
             # hai, isliye barge-in (jo flag girata hai) filler ko bhi kaat deta.
             try:
-                if _FILLER_PCM and TTS_AVAILABLE and not self._speaking:
+                _filler_on = (os.environ.get("USE_THINKING_FILLER", "1") or "1").strip().lower() not in (
+                    "0",
+                    "false",
+                    "no",
+                    "off",
+                )
+                if _filler_on and _FILLER_PCM and TTS_AVAILABLE and not self._speaking:
                     self._stop_play()
                     self._speaking = True
                     self._barge_frames = 0
-                    await self._run_play(random.choice(_FILLER_PCM))
+                    await self._run_play(random.choice(_FILLER_PCM))  # D-7 thinking filler
             except Exception as e:
                 logger.debug(f"[vobiz-stream] filler play failed: {e}")
             reply = await self._think_and_say_stream(text)
@@ -1561,6 +1641,7 @@ class VobizStreamSession:
                     cached = _GREET_CACHE.get(self._greet_key())
                     if isinstance(cached, list):
                         pcms = cached
+                self._begin_disclosure()  # D-6: barge-lock the opener (disclosure)
                 for i, seg in enumerate(segs):
                     self.hist.append({"role": "assistant", "content": seg})
                     if TTS_AVAILABLE and pcms and i < len(pcms):
@@ -1570,12 +1651,14 @@ class VobizStreamSession:
                         await self._run_play(pcms[i])
                     else:
                         await self._say_and_wait(seg)
+                self._disclosure_active = False
                 return
         except Exception as e:
             logger.debug(f"[vobiz-stream] platform greet failed: {e}")
 
         line = self._opening_line()
         self.hist.append({"role": "assistant", "content": line})
+        self._begin_disclosure()  # D-6: barge-lock the opener (disclosure)
         if TTS_AVAILABLE:
             try:
                 pcm = self._greet_pcm or _GREET_CACHE.get(self._greet_key())
@@ -1834,11 +1917,13 @@ class VobizStreamSession:
                 self._rec_begin_bot_playback()
             await self._play_frames(pcm)
             self._speaking = False
+            self._disclosure_active = False  # D-6: opener finished -> unlock barge
         except asyncio.CancelledError:
             pass  # barge-in / superseded — canceller owns _speaking
         except Exception as e:
             logger.debug(f"[vobiz-stream] playback error: {e}")
             self._speaking = False
+            self._disclosure_active = False
 
     def _stop_play(self) -> None:
         if self._play_task and not self._play_task.done():

@@ -280,6 +280,7 @@ class PhoneCallSession:
         self._consec_speech = 0
         self._speech_frames = 0
         self._silence_frames = 0
+        self._sil_buf = bytearray()  # D-5 per-session Silero rolling window (8k)
         self._utterance = bytearray()  # PCM16 @ 8kHz collected
         self._preroll: deque[bytes] = deque(maxlen=VAD_START_FRAMES)  # leading speech na cut ho
 
@@ -419,15 +420,20 @@ class PhoneCallSession:
         except Exception:
             return
         is_speech = rms >= VAD_RMS_THRESHOLD
-        # Silero VAD gate (USE_SILERO_VAD=1): pcm8k is 8kHz PCM (Silero supports 8k/16k),
-        # so pass sample_rate=8000 to filter ambient noise/echo. None when disabled
-        # /unavailable -> keep the RMS decision.
+        # Silero VAD gate (USE_SILERO_VAD=1): Silero needs >=256 samples @8k (512
+        # bytes), but a frame is smaller -> D-5 buffer per-session to a small rolling
+        # window (PER SESSION, not the shared singleton) before gating. None when
+        # disabled/unavailable -> keep the RMS decision (zero change at default).
         try:
             from app.voice_agent.turn_detector import get_speech_gate
 
-            _sil = get_speech_gate().is_speech(pcm8k, sample_rate=8000)
-            if _sil is not None:
-                is_speech = _sil
+            self._sil_buf += pcm8k
+            if len(self._sil_buf) > 1024:
+                del self._sil_buf[:-1024]  # keep last ~64 ms @8k
+            if len(self._sil_buf) >= 512:  # 256 samples @8k = Silero min window
+                _sil = get_speech_gate().is_speech(bytes(self._sil_buf), sample_rate=8000)
+                if _sil is not None:
+                    is_speech = _sil
         except Exception:
             pass
 
