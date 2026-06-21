@@ -566,6 +566,18 @@
   // ---- Continuous, hands-free speech recognition -----------------------
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var recog = null;
+  // Endpointing debounce — webkitSpeechRecognition har chhote pause pe isFinal
+  // deta; pehle turant send hota tha to ruk-ruk ke boli sentence ka sirf PEHLA
+  // tukda jaata (mic OFF -> baaki DROP) = "dhang se nahi sunta". Ab finals
+  // accumulate karke ~850ms silence-grace baad POORI utterance + full audio
+  // bhejte (Groq full audio pe accurate). Competitor-grade endpointing.
+  var pendingFinal = "", endpointTimer = null;
+  var ENDPOINT_MS = 850;
+  function flushUserTurn(){
+    clearTimeout(endpointTimer); endpointTimer = null;
+    var t = (pendingFinal || "").trim(); pendingFinal = "";
+    if(t) sendUserText(t);
+  }
   if(SR){
     recog = new SR();
     recog.lang = "hi-IN";
@@ -579,15 +591,24 @@
       if(callActive && !botSpeaking && !pendingBot) setState("listening");
     };
     recog.onresult = function(ev){
-      if(!callActive || botSpeaking) return;
+      if(!callActive || botSpeaking || pendingBot) return;
       var interim = "", finalText = "";
       for(var i = ev.resultIndex; i < ev.results.length; i++){
         var res = ev.results[i];
         if(res.isFinal) finalText += res[0].transcript;
         else interim += res[0].transcript;
       }
-      if(interim) showUserCaption(interim, true);
-      if(finalText.trim()) sendUserText(finalText);   // FINAL -> send a user turn
+      if(finalText.trim()){
+        pendingFinal = (pendingFinal + " " + finalText).trim();   // accumulate, send mat karo
+      }
+      var cap = (pendingFinal + " " + interim).trim();            // live caption = jo ab tak bola
+      if(cap) showUserCaption(cap, true);
+      // Debounced endpoint: koi bhi speech aane pe timer reset; user sach me ruke
+      // (~850ms silence) tabhi poori utterance + full audio ek turn me jaaye.
+      if(pendingFinal){
+        clearTimeout(endpointTimer);
+        endpointTimer = setTimeout(flushUserTurn, ENDPOINT_MS);
+      }
     };
     recog.onerror = function(e){
       recognizing = false;
@@ -610,6 +631,9 @@
     try{ recog.start(); }catch(e){ /* already starting / transient */ }
   }
   function stopListening(){
+    // turn/echo-guard pe mic OFF — pending endpoint timer + accumulated text saaf
+    // karo taaki bot-turn ke baad stale/aadha-utterance flush na ho jaaye.
+    clearTimeout(endpointTimer); endpointTimer = null; pendingFinal = "";
     if(!SR || !recog || !recognizing) return;
     try{ recog.stop(); }catch(e){}
   }
