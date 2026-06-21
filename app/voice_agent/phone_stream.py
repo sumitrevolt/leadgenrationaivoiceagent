@@ -237,6 +237,7 @@ class PhoneCallSession:
         self.niche = niche or "general"
         self.client_name = client_name or "LeadGen AI"
         self.client_id = client_id  # optional — drop-in compat with /stream WS endpoint
+        self.voice_role = "telecaller"
         # Stable per-LEAD id for cross-session agent memory (caller phone / lead_id).
         # customParameters se aata (_handle_start). None = memory INERT (safe, no leak).
         self._lead_phone: str | None = None
@@ -375,6 +376,13 @@ class PhoneCallSession:
                 self.client_name = str(params["client_name"])
             if params.get("client_id"):
                 self.client_id = str(params["client_id"])
+            try:
+                from app.voice_agent.voice_roles import normalize_role
+
+                raw_role = params.get("voice_role") or params.get("flow") or "telecaller"
+                self.voice_role = normalize_role(raw_role)
+            except Exception:
+                self.voice_role = "telecaller"
             # Optional stable lead id for agent memory (outbound dialer passes the
             # lead; inbound carries 'from'). Pure read — memory is flag-gated, so
             # zero behaviour change jab tak AGENT_MEMORY=1 na ho.
@@ -674,7 +682,10 @@ class PhoneCallSession:
             from app.voice_agent.telecaller_brain import TelecallerBrain
 
             self._telecaller = TelecallerBrain(
-                niche=self.niche, client_name=self.client_name, client_id=self.client_id
+                niche=self.niche,
+                client_name=self.client_name,
+                client_id=self.client_id,
+                voice_role=getattr(self, "voice_role", "telecaller"),
             )
             # Agent memory (AGENT_MEMORY flag): per-(client+lead) subject so brain.reply()
             # ka recall/remember cross-session fire kare. STABLE lead id chahiye —

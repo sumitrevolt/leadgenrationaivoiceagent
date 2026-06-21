@@ -54,6 +54,22 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "End-customers ko call karna (phone + web demo), niche scripts se qualify karna, objections handle karna",
         "schedule": "On-demand (calls/demos)",
     },
+    "ananya": {
+        "product": "voice",
+        "name": "Ananya",
+        "emoji": "📅",
+        "title": "Appointment Booker",
+        "duties": "Har niche ke end-customers ke liye appointment, site-visit ya demo slot book karna — calendar + reminders",
+        "schedule": "On-demand (booking campaigns / callbacks)",
+    },
+    "riya": {
+        "product": "voice",
+        "name": "Riya",
+        "emoji": "🛎️",
+        "title": "AI Receptionist",
+        "duties": "Inbound customer calls — greeting, department route, message lena, appointment book karna (sales pitch nahi)",
+        "schedule": "On-demand (inbound / mini-site widget)",
+    },
     "dev": {
         "product": "marketing",
         "name": "Dev",

@@ -509,6 +509,7 @@ class VobizStreamSession:
         self.niche = (niche or "general").strip() or "general"
         self.client_id = client_id
         self.client_name = client_name or "Demo Co"
+        self.voice_role = "telecaller"
         # Stable per-LEAD id for cross-session agent memory (customParameters se).
         # None = memory INERT (safe). call_sid use NAHI karte (har call naya).
         self._lead_phone: str | None = None
@@ -689,12 +690,22 @@ class VobizStreamSession:
             params = start.get("customParameters") or {}
             self.niche = (params.get("niche") or self.niche).strip() or "general"
             self.client_id = params.get("client_id") or self.client_id
+            try:
+                from app.voice_agent.voice_roles import normalize_role
+
+                raw_role = params.get("voice_role") or params.get("flow") or "telecaller"
+                self.voice_role = normalize_role(raw_role)
+            except Exception:
+                self.voice_role = "telecaller"
             # Optional stable lead id for agent memory (flag-gated; pure read).
             for _k in ("lead_phone", "lead_id", "from", "From", "caller", "customer_phone"):
                 if params.get(_k):
                     self._lead_phone = str(params[_k]).strip()
                     break
-            logger.info(f"[vobiz-stream] start streamId={self.stream_sid} niche={self.niche}")
+            logger.info(
+                f"[vobiz-stream] start streamId={self.stream_sid} "
+                f"niche={self.niche} role={self.voice_role}"
+            )
             await self._maybe_greet()
         elif event == "dtmf":
             digit = (data.get("dtmf") or {}).get("digit")
@@ -1455,6 +1466,7 @@ class VobizStreamSession:
                 niche=self.niche,
                 client_name=self.client_name,
                 client_id=self.client_id,
+                voice_role=getattr(self, "voice_role", "telecaller"),
             )
             # Agent memory (AGENT_MEMORY flag): per-(client+lead) subject -> cross-session
             # recall/remember in brain.reply(). Stable lead id na ho to inert (no leak).
