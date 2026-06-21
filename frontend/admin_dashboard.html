@@ -220,6 +220,7 @@
       <a href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic" aria-hidden="true">➕</span> Add Customer</a>
       <a href="/app/onboard" role="menuitem" aria-label="Onboarding Wizard"><span class="ic" aria-hidden="true">✦</span> Onboarding Wizard</a>
       <a class="active" href="#top" role="menuitem" aria-current="page" aria-label="Dashboard overview"><span class="ic" aria-hidden="true">▦</span> Dashboard</a>
+      <a href="#sec-today-biz" role="menuitem" aria-label="Aaj ka business summary"><span class="ic" aria-hidden="true">🏠</span> Aaj ka business</a>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">10</span></a>
       <a href="#sec-ops2026" role="menuitem" aria-label="Deliverability and eval"><span class="ic" aria-hidden="true">📬</span> Deliverability & Eval</a>
       <a href="#sec-godmode" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> God Mode <span class="badge" style="background:#ef4444">NEW</span></a>
@@ -274,7 +275,7 @@
         <div class="sub" aria-label="Page description">Saare clients ka overview &amp; control — ek hi jagah</div>
       </div>
       <div class="top-right" role="toolbar" aria-label="Dashboard actions">
-        <span class="pill" aria-live="polite" aria-label="Data source status"><span class="live-dot" aria-hidden="true"></span> <span id="src-label">Live Demo</span></span>
+        <span class="pill" aria-live="polite" aria-label="Data source status"><span class="live-dot" id="src-dot" aria-hidden="true" style="background:#94a3b8;animation:none"></span> <span id="src-label">Connecting…</span></span>
         <span id="adminUserLbl" class="pill" style="background:#f8fafc;color:var(--slate);font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none" title=""></span>
         <a href="/app/admin-login" id="adminLoginLink" class="btn btn-ghost" style="display:none">🔑 Login</a>
         <button type="button" id="adminLogoutBtn" class="btn btn-logout" onclick="adminLogout()" style="display:none">Logout</button>
@@ -284,6 +285,18 @@
     </div>
 
     <div class="content" id="top">
+      <!-- ═══ Aaj ka business — plain-Hinglish owner summary (business FIRST, above infra/God Mode) ═══ -->
+      <div class="card" id="sec-today-biz" style="margin-bottom:14px;background:linear-gradient(135deg,#ecfdf5 0%,#eff6ff 100%);border:1px solid #6ee7b7;scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid rgba(16,185,129,.22)">
+          <h3 style="color:#065f46;font-size:16px;letter-spacing:-.3px">🏠 Aaj ka business — ek nazar me</h3>
+          <span class="right" id="todayBizAt" style="color:#059669;font-size:11px">—</span>
+          <button class="btn" onclick="loadTodayBiz()" aria-label="Refresh today summary" style="background:#10b981;color:#fff;border:0;margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="todayBizBody" style="color:#0f172a">
+          <span style="color:#64748b;font-size:13px">Loading aaj ka summary…</span>
+        </div>
+      </div>
+
       <!-- S.2 Add Customer — top of admin pane, single highest-volume operator action -->
       <div class="card" id="onboardCard" style="margin-bottom:14px;background:linear-gradient(90deg,#0f172a,#1e1b4b);border:1px solid #6366f1">
         <div class="hd" style="display:flex;justify-content:space-between;align-items:center">
@@ -362,7 +375,7 @@
       <!-- Charts row -->
       <div class="grid g-2">
         <div class="card">
-          <div class="hd"><h3>Growth Pipeline</h3><span class="right">Live counts</span></div>
+          <div class="hd"><h3>Revenue vs Cost</h3><span class="right">₹ live</span></div>
           <div class="bd"><div class="chart-wrap"><canvas id="chRev"></canvas></div></div>
         </div>
         <div class="card">
@@ -1493,7 +1506,7 @@ function renderAgents(list){
       <div class="cl">▸ ${a.current_client}</div>
       <div class="mx">
         <div><b>${a.calls_made}</b><span>Aaj ke kaam</span></div>
-        <div><b>${a.leads_found}</b><span>Errors</span></div>
+        <div><b>${a.leads_found}</b><span>Leads</span></div>
       </div>
     </div>`).join("");
   const active = list.filter(a=>a.status==='calling'||a.status==='scraping').length;
@@ -1542,8 +1555,8 @@ function renderCharts(c){
     type:"bar",
     data:{ labels:c.revenue_cost.labels,
       datasets:[
-        {label:"Total", data:c.revenue_cost.revenue, backgroundColor:"#4f46e5", borderRadius:6, maxBarThickness:36},
-        {label:"Pending", data:c.revenue_cost.cost, backgroundColor:"#f59e0b", borderRadius:6, maxBarThickness:36}
+        {label:"Revenue", data:c.revenue_cost.revenue, backgroundColor:"#4f46e5", borderRadius:6, maxBarThickness:36},
+        {label:"Cost", data:c.revenue_cost.cost, backgroundColor:"#f59e0b", borderRadius:6, maxBarThickness:36}
       ]},
     options:{responsive:true, maintainAspectRatio:false,
       plugins:{legend:{position:"bottom", labels:{boxWidth:12, usePointStyle:true}},
@@ -1700,14 +1713,72 @@ async function loadDashboard(){
     USING_REAL = true;                 // real data wins — never overwrite with demo
     renderAll(data);
     $("src-label").textContent = data.is_sample_data ? "Live · API (sample)" : "Live · API";
+    { const d=$("src-dot"); if(d){ d.style.background="var(--green)"; d.style.animation="pulse 2s infinite"; } }
   }catch(e){
     // API unreachable (offline preview) — show demo only as a last resort.
-    if(!USING_REAL){ renderAll(DEMO); $("src-label").textContent = "Demo (offline)"; }
+    if(!USING_REAL){ renderAll(DEMO); $("src-label").textContent = "Demo (offline)";
+      const d=$("src-dot"); if(d){ d.style.background="#f59e0b"; d.style.animation="none"; } }
+  }
+}
+
+/* 🏠 Aaj ka business — plain-Hinglish owner summary at the TOP.
+   Reuses the proven /api/growth/overview/today aggregator (no LLM, never-raise).
+   Business-first: kya hua aaj, kya dhyan maangta hai + actionable fix. */
+function statChip(label, val){
+  return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 14px;min-width:92px;text-align:center">'
+       + '<div style="font-size:22px;font-weight:800;color:#0f172a;line-height:1.1">'+val+'</div>'
+       + '<div style="font-size:11px;color:#64748b;margin-top:2px">'+label+'</div></div>';
+}
+async function loadTodayBiz(){
+  const body = $("todayBizBody"); if(!body) return;
+  try{
+    const r = await fetch("/api/growth/overview/today", {headers:abAuthHdr(), cache:"no-store"});
+    if(!r.ok){
+      if(r.status===401||r.status===403){
+        body.innerHTML = '<span style="color:#64748b;font-size:13px">🔑 Admin login karo — aaj ka business summary dikhane ke liye. <a href="/app/admin-login" style="color:#4f46e5">Login →</a></span>';
+      } else {
+        body.innerHTML = '<span style="color:#b45309;font-size:13px">Summary abhi load nahi hua (status '+r.status+'). <a href="#" onclick="loadTodayBiz();return false" style="color:#4f46e5">Retry</a></span>';
+      }
+      return;
+    }
+    const d = await r.json();
+    const t = d.totals || {};
+    const hasProb = !!(d.problems && d.problems.length);
+    const headColor = hasProb ? '#b45309' : '#065f46';
+    let html = '<div style="font-size:15px;font-weight:700;color:'+headColor+';margin-bottom:12px">'+(d.headline||'')+'</div>';
+    html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+          + statChip('📋 Aaj ke kaam', t.events_today||0)
+          + statChip('🤖 Active agents', t.working||0)
+          + statChip('👥 Staff', t.staff||0)
+          + '</div>';
+    if(hasProb){
+      html += '<div style="margin-bottom:8px;font-weight:600;color:#b45309">⚠️ Dhyan dene wali cheezein</div>';
+      d.problems.forEach(p=>{
+        html += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-bottom:6px">'
+              + '<div style="font-size:13px;color:#92400e"><b>'+(p.kya||'')+'</b></div>'
+              + (p.fix ? '<div style="font-size:12px;color:#475569;margin-top:2px">🔧 '+p.fix+'</div>' : '')
+              + '</div>';
+      });
+    } else {
+      html += '<div style="background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;padding:8px 10px;color:#065f46;font-size:13px">✅ Koi problem nahi — sab automations theek chal rahe hain.</div>';
+    }
+    if(d.flags_off && d.flags_off.length){
+      html += '<div style="margin-top:12px;font-size:12px;color:#64748b">⚙️ Band features: '
+            + d.flags_off.map(f=>'<span title="'+(f.matlab||'')+'" style="background:#f1f5f9;border-radius:5px;padding:1px 7px;margin:0 4px 4px 0;display:inline-block;cursor:help">'+(f.flag||'')+'</span>').join('')
+            + '</div>';
+    }
+    html += '<div style="margin-top:12px"><a href="/app/automation" style="font-size:12px;color:#4f46e5;text-decoration:none;font-weight:600">Poori detail dekho — staff · jobs · Aaj tab →</a></div>';
+    body.innerHTML = html;
+    const at = $("todayBizAt");
+    if(at && d.at){ try{ at.textContent = 'Updated '+new Date(d.at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); }catch(e){} }
+  }catch(e){
+    body.innerHTML = '<span style="color:#b45309;font-size:13px">Summary load nahi hua (network). <a href="#" onclick="loadTodayBiz();return false" style="color:#4f46e5">Retry</a></span>';
   }
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
   adminAuthBoot();
+  loadTodayBiz();
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026();
   loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadActivityFeed();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail();
@@ -1720,7 +1791,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
    never paint fake demo numbers over real ones). Cosmetic random nudges removed. */
-setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); } }, 60000);
+setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); loadTodayBiz(); } }, 60000);
 
 /* ============================================================
    BILLING & SUBSCRIPTIONS — admin per-client lookup.
