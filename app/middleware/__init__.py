@@ -466,7 +466,7 @@ _PLAN_LIMITS: dict[str, int] = {
     "internal": 9999,
 }
 _DEFAULT_RPM_AUTHED = 100
-_DEFAULT_RPM_ANON = 20
+_DEFAULT_RPM_ANON = 60  # was 20 — admin SPA logout ke baad login page block na ho
 
 
 def _plan_prefix(plan: str | None) -> str:
@@ -507,6 +507,50 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
         "/robots.txt",
         "/sitemap.xml",
     )
+    # Auth + login surfaces — never block HTML login or credential POST (brute-force
+    # has dedicated rate_limit deps on those routes).
+    _AUTH_SKIP = (
+        "/api/admin/auth/",
+        "/api/customer/auth/",
+        "/api/team-access/auth/",
+    )
+    _APP_HTML_PREFIX = "/app/"
+
+    def _should_skip(self, path: str) -> bool:
+        if any(path == p or path.startswith(p + "/") for p in self._SKIP):
+            return True
+        if path.startswith(self._AUTH_SKIP):
+            return True
+        # Plan limits = API abuse guard; static /app/* HTML pages never 429 here.
+        if path.startswith(self._APP_HTML_PREFIX):
+            return True
+        return False
+
+    def _rpm_from_bearer(self, request: Request) -> int | None:
+        """Valid admin JWT → internal tier (logout se pehle dashboard burst safe)."""
+        auth = (request.headers.get("authorization") or "").strip()
+        if not auth.lower().startswith("bearer "):
+            return None
+        token = auth.split(" ", 1)[1].strip()
+        if not token:
+            return None
+        try:
+            import jwt
+            from jwt.exceptions import PyJWTError
+
+            from app.api.admin import JWT_ALGORITHM, JWT_SECRET
+
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            if payload.get("type") != "access":
+                return None
+            role = str(payload.get("role") or "").lower()
+            if role in ("admin", "super_admin"):
+                return _PLAN_LIMITS["admin"]
+            if role == "customer":
+                return _DEFAULT_RPM_AUTHED
+        except Exception:
+            return None
+        return None
 
     async def _resolve_plan(self, request: Request) -> tuple[str | None, str | None]:
         try:
@@ -544,11 +588,15 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
         if os.environ.get("PLAN_RATE_LIMIT", "0") not in ("1", "true", "yes"):
             return await call_next(request)
         path = request.url.path
-        if path.startswith(self._SKIP):
+        if self._should_skip(path):
+            return await call_next(request)
+        # Non-API assets (/, /audit, /blog, /b/, frontend static) — skip plan tier.
+        if not path.startswith("/api/"):
             return await call_next(request)
         try:
+            bearer_rpm = self._rpm_from_bearer(request)
             client_id, plan = await self._resolve_plan(request)
-            rpm = _rpm_for_plan(plan, client_id)
+            rpm = bearer_rpm if bearer_rpm is not None else _rpm_for_plan(plan, client_id)
             identity = client_id or _real_client_ip(request)
             minute = int(time.time() / 60)
             key = f"plantier:{identity}:{minute}"
