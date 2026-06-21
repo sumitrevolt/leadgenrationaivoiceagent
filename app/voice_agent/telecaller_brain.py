@@ -107,6 +107,36 @@ except Exception:
     _KB_MIN_SCORE = 0.35
 
 
+# D-9 (source-line) + D-10 (talk-listen / objection 3-beat / WhatsApp-gate /
+# Hinglish-mirror). Appended to the system prompt (gated CONVO_DISCIPLINE, default
+# ON). Kept TIGHT — these are the genuine gaps NOT already in the 17 hard rules.
+_CONVO_DISCIPLINE = (
+    "\n\nEXTRA DISCIPLINE:\n"
+    "A. SUNO ZYADA, BOLO KAM: har turn = ek chhota jawab + ek sawaal, phir CHUP. "
+    "Customer se zyada NA bolo (listen >= talk).\n"
+    "B. SOURCE: shuru me ek baar jaldi bata do number kahan se mila "
+    "(website / inquiry / Google) — cold na lage.\n"
+    "C. OBJECTION 3-STEP: (1) pehle agree/empathy (2) ek sawaal se explore "
+    "(3) result/number se reframe. Incumbent ya dusri company ko KABHI bura mat "
+    "bolo — pucho 'unhe 10 me kitne number doge?', phir us gap pe baat karo.\n"
+    "D. WHATSAPP-GATE: 'WhatsApp pe bhej do' aaye to pehle EK qualifying sawaal "
+    "pucho (kya chahiye / kab / budget), phir bhejne ka kaho — blindly mat bhejo.\n"
+    "E. HINGLISH MIRROR: caller ka exact Hindi-English mix aur formality copy karo; "
+    "demo/budget/slot/plan jaise tech-shabd English me; word-by-word literal Hindi "
+    "translation (sahayata/uplabdh/pradan jaisa) BANNED — natural bolchaal."
+)
+
+
+def _convo_discipline_enabled() -> bool:
+    """CONVO_DISCIPLINE gate (default ON). Set 0 to disable the D-9/D-10 block."""
+    return (os.environ.get("CONVO_DISCIPLINE", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
 def _short_hook(hook: str, max_len: int = 90) -> str:
     """pitch_hook ka pehla, chhota hissa — opener me poora English hook lamba
     lagta hai. Split on em-dash/hyphen clause, cap length.
@@ -268,6 +298,12 @@ class TelecallerBrain:
 
             if _softno_on() and SYSTEM_RULE not in self.system_prompt:
                 self.system_prompt += SYSTEM_RULE
+        except Exception:
+            pass
+        # D-9 source-line + D-10 talk-listen/objection/whatsapp/Hinglish discipline.
+        try:
+            if _convo_discipline_enabled() and _CONVO_DISCIPLINE not in self.system_prompt:
+                self.system_prompt += _CONVO_DISCIPLINE
         except Exception:
             pass
         logger.info(
