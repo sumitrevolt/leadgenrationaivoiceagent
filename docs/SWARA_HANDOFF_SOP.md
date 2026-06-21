@@ -292,10 +292,10 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 
 ### P2 — Latency / fluidity (web-call safe; zyada-tar already coded)
 - **P2-1 [OPEN]** `USE_LLM_STREAM_TTS=1` flip — **free money, coded** (−60–80% perceived).
-- **P2-2 [OPEN]** Smart-Turn ko **vobiz me wire** (`confirm_end_of_turn` call) + `USE_SMART_TURN=1`+`USE_TEXT_ENDPOINT=1` + `VOBIZ_SILENCE_MS` 650→350.
-- **P2-3 [OPEN]** Silero **frame-size fix** (≥512 samples buffer) → Silero actually kaam kare.
-- **P2-4 [OPEN]** Barge-in **gate** (`BARGE_IN_ENABLED`) + disclosure-leg non-interruptible + **backchannel allowlist** (haan/accha/theek hai/ji = no barge).
-- **P2-5 [OPEN]** Filler/ack phrase while LLM thinks ("Ek second…", "Dekhta hoon…").
+- **P2-2 [DONE 2026-06-21 — LIVE]** Smart-Turn **vobiz me wired** — `confirm_end_of_turn` on normal silence-end (hard 2x-silence + too_long always finalize). Activate: `USE_SMART_TURN=1`+`USE_TEXT_ENDPOINT=1` (needs pipecat dep); inert till then.
+- **P2-3 [DONE 2026-06-21 — LIVE]** Silero **frame-size fix** — per-session rolling buffer (vobiz 512@16k / phone 256@8k) + sr-aware gate floor. Silero ab actually chalega jab `USE_SILERO_VAD=1`.
+- **P2-4 [PARTIAL — gate+lock DONE 2026-06-21]** Barge-in **gate** (`BARGE_IN_ENABLED`) + disclosure-leg non-interruptible (`DISCLOSURE_LOCK`, default ON, 6 s safety cap) DONE. **Pending:** STT-validated backchannel allowlist (haan/accha = no barge) — needs STT-in-loop.
+- **P2-5 [DONE 2026-06-21 — LIVE]** Filler/ack phrase while LLM thinks — vobiz cached rotating filler ab gated `USE_THINKING_FILLER` (default ON).
 
 ### P3 — Conversation intelligence (the India differentiator; web-call safe)
 - **P3-1 [DONE 2026-06-21 — LIVE]** **Polite-No detector + 2-strike de-escalation** — `app/voice_agent/intent_softno.py` (reuses `qa_checks.is_soft_no`) wired into `telecaller_brain.reply()` + `reply_stream_sentences()` for ALL niches; 2nd soft-no → graceful async-exit (deterministic, no extra LLM call) + hard system-prompt rule. Gated `SOFTNO_DEESCALATE` (default ON). `platform_pitch` ka ai_marketing gate ab generalise ho gaya.
@@ -356,25 +356,25 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **Gotcha:** `web_call.py:947` comment — stream path pe fast_path skip + 14s hang tune-loop. Pehle web-call pe verify, fir vobiz.
 - **Test:** `agent_tester.py` slow-metric pehle/baad compare (perceived latency down).
 
-### D-4 (P2-2) Smart-Turn ko vobiz me wire **[OPEN]**
+### D-4 (P2-2) Smart-Turn ko vobiz me wire **[DONE 2026-06-21 — LIVE, pipecat-gated]**
 - **File:** `app/telephony/vobiz_stream.py` `_on_media` ka `ended` block (~line 774 area).
 - **Change:** finalize se pehle route: `from app.voice_agent.turn_detector import confirm_end_of_turn` → `if not confirm_end_of_turn(silence_ended=ended, pcm16=trailing_buf, text=partial): keep_listening`. (Pattern `pipeline.py:310–312` se copy.)
 - **Flag:** `USE_SMART_TURN=1` + `USE_TEXT_ENDPOINT=1`; `VOBIZ_SILENCE_MS=350`.
 - **Dep:** pipecat (Smart-Turn). Bina dep = graceful fallback (already).
 - **Test:** `tests/test_phase3_voice.py` + `test_text_endpoint.py` extend for vobiz path; false/missed-interruption track (D-9).
 
-### D-5 (P2-3) Silero frame-size fix **[OPEN]**
+### D-5 (P2-3) Silero frame-size fix **[DONE 2026-06-21 — LIVE]**
 - **File:** `turn_detector.py` `SileroSpeechGate.is_speech()` + caller `vobiz_stream.py:717`, `phone_stream.py:428`.
 - **Change:** 20 ms frame (320 samples @16k) Silero ke liye chhota (≥512 chahiye) → 2 frames buffer karke gate call karo (ya internal ring-buffer). Warna `None` → silent RMS fallback (Silero no-op aaj).
 - **Flag:** `USE_SILERO_VAD=1` (fix ke baad).
 - **Test:** unit — 512-sample buffer pe `is_speech` non-None.
 
-### D-6 (P2-4) Barge-in gate + disclosure-leg lock + backchannel allowlist **[OPEN]**
+### D-6 (P2-4) Barge-in gate + disclosure-leg lock + backchannel allowlist **[PARTIAL — gate+lock DONE/LIVE 2026-06-21; backchannel pending]**
 - **File:** `vobiz_stream.py` barge-in (`_barge_in`/clearAudio ~line 176 logic) + `_opening_line`/`_run_play` (disclosure leg ~1303); allowlist `turn_detector.py` (reuse `_INCOMPLETE_TAIL_WORDS` pattern).
 - **Change:** (a) `BARGE_IN_ENABLED` flag (default ON) — on/off knob; (b) disclosure/greeting leg pe `interruptible=False` → barge ignore jab tak disclosure complete; (c) backchannel allowlist set `{haan, accha, theek hai, ji, hmm, sahi}` → in tokens pe barge **mat** karo (STT-validate, raw RMS nahi).
 - **Test:** `test_voice_fixes.py` extend — "haan" mid-bot → no clearAudio; disclosure leg → no barge.
 
-### D-7 (P2-5) Filler/thinking phrase **[OPEN]**
+### D-7 (P2-5) Filler/thinking phrase **[DONE 2026-06-21 — LIVE]**
 - **File:** `telecaller_brain.py` (reply start) ya `vobiz_stream` pre-LLM.
 - **Change:** LLM call shuru hote hi ek short ack TTS chunk ("Ek second…", "Dekhta hoon…") stream karo jab tak first token na aaye; gap >800 ms cover. Rotate 3–4 phrases (repeat na ho).
 - **Flag:** `USE_THINKING_FILLER=1`.
