@@ -1,7 +1,8 @@
 # PRODUCT HANDOFF + SOP — LeadGenAI (product-wise + automation-wise)
 
 > **Yeh doc kya hai:** Handoff + SOP ka **combination**, **dono products ke hisaab se** + har product ka **automation map** + **[Architecture Explorer](https://leadsgenai.in/app/explorer) mirror**.
-> **Generated:** 2026-06-20 (PM, explorer-sync pass) · **Live:** https://leadsgenai.in · **Explorer:** https://leadsgenai.in/app/explorer
+> **Generated:** 2026-06-20 (PM, explorer-sync + handoff-lockstep pass) · **Live:** https://leadsgenai.in · **Explorer:** https://leadsgenai.in/app/explorer
+> **Latest sync:** UPI payments LIVE · godfile refactor wave-2 in progress · `client_snapshots` shipped · `PROJECT_HANDOFF.md` in lockstep.
 > **Repo:** github.com/sumitrevolt/leadgenrationaivoiceagent (main) · **VPS:** Hostinger Mumbai `72.61.245.204`
 > **Source of truth:** `CLAUDE.md` (current-state facts) — conflict ho to CLAUDE.md jeetta. Detail: `docs/PROJECT_HANDOFF.md` · `docs/PROJECT_SOP.md` · `docs/ENTERPRISE_DOC_INDEX.md`. History: `docs/SESSION_LOG.md`.
 > **Graph source (code):** `frontend/explorer.html` — drift audit: `python scripts/explorer_sync.py`
@@ -195,7 +196,7 @@ Yeh doc ka **visual twin** hai — naya owner pehle explorer kholo, phir yeh doc
 
 **Automation presets:** Full Pipeline · Lead Gen Only · Content · Revenue Ops · Launch & Ops · Client Ops · Outbound Campaign · Roadmap/Next · Loops Only
 
-**Gap nodes (red — explorer roadmap tab):** `gap_transfer` · `gap_snapshots` · `rm_ops` (Vobiz DID) · `rm_inbound` · `rm_obs` (Sentry/PostHog) · `rm_deploy` (CI auto-deploy)
+**Gap nodes (red — explorer roadmap tab):** `gap_transfer` (live human transfer, needs DID) · `rm_ops` (Vobiz DID) · `rm_inbound` · `rm_obs` (Sentry/PostHog) · `rm_deploy` (CI auto-deploy). *(`gap_snapshots` ✅ resolved — `client_snapshots` shipped 06-20.)*
 
 #### 0.6.4 Products view — 2 SKU map (explorer `VIEWS.products`)
 
@@ -250,6 +251,15 @@ Engines: AI image (Pollinations) · scheduler · mini-site · onboarding · embe
 | Advanced (+ voice feature, 500 min) | ₹6,999 | ₹69,990 |
 
 Top-ups: 100/250/500 min = ₹1,499 / ₹3,499 / ₹5,999.
+
+**Features (full lists):** `app/marketing/packages.py` — Trial (11) · Starter (15) · Growth (18) · Advanced (14).
+
+| Tier | Customer-facing highlights |
+|------|----------------------------|
+| Trial | 5 posts, GBP audit, widget, mini-site preview, portal 7d |
+| Starter | Roz posts, branded frames, festival calendar, GBP, reviews, posters, WA, UPI QR, approval, portal |
+| Growth | + AI image, calendar, competitor, mini-site, widget, chatbot, drip, CRM, report, 2FA |
+| Advanced | + voice callback, qualify, booking, 500 min, follow-ups, transcripts, speed-to-lead |
 
 ### 1.4 Automation map — Marketing staff + IST schedule
 

@@ -868,10 +868,10 @@ const VIEWS = {
       {id:'page_compare', type:'platform', badge:'COMPARE', cx:'simple', sku:'shared', title:'/compare Page', desc:'Do products side-by-side — marketing vs voice agent (no bundle USP)', files:'compare.html', x:1480, y:170, w:300, h:90},
 
       {id:'prod_marketing', type:'marketing', badge:'PRODUCT 1', cx:'complex', sku:'marketing', title:'AI Automated Marketing', desc:'MAIN SKU — posts/GBP/festivals/posters/reviews/WA · 39 niches · Dhanda-class', files:'packages.py · /app/marketing', x:80, y:320, w:320, h:120},
-      {id:'m_trial', type:'marketing', badge:'FREE 7d', cx:'simple', sku:'marketing', title:'Marketing Trial', desc:'₹0 · 5 posts · 1 GBP audit · widget · NO voice', files:'TRIAL_PACKAGE', x:40, y:500, w:200, h:95},
-      {id:'m_starter', type:'marketing', badge:'₹1,199/mo', cx:'simple', sku:'marketing', title:'Starter', desc:'Posts · GBP audit · review replies · 4 posters/mo · WA pack · UPI QR', files:'packages.py#starter', x:260, y:500, w:200, h:95},
-      {id:'m_growth', type:'marketing', badge:'₹2,999/mo', cx:'moderate', sku:'marketing', title:'Growth', desc:'+ unlimited posters · calendar · competitor · lead form · reactivation · monthly report', files:'packages.py#growth', x:480, y:500, w:200, h:95},
-      {id:'m_advanced', type:'marketing', badge:'₹6,999/mo', cx:'complex', sku:'marketing', title:'Advanced', desc:'Growth + voice FEATURE: inquiry callback · qualification · 500 min/mo top-ups', files:'packages.py#advanced', x:700, y:500, w:220, h:95},
+      {id:'m_trial', type:'marketing', badge:'FREE 7d', cx:'simple', sku:'marketing', title:'Marketing Trial', desc:'₹0 · 5 posts · GBP audit · widget · mini-site · branded frames · portal · NO voice', files:'TRIAL_PACKAGE', x:40, y:500, w:200, h:95},
+      {id:'m_starter', type:'marketing', badge:'₹1,199/mo', cx:'simple', sku:'marketing', title:'Starter', desc:'Roz AI posts · branded frames · festival calendar · GBP audit · review replies · 4 posters · WA pack · UPI QR · approval · portal', files:'packages.py#starter', x:260, y:500, w:200, h:95},
+      {id:'m_growth', type:'marketing', badge:'₹2,999/mo', cx:'moderate', sku:'marketing', title:'Growth', desc:'+ unlimited posters · AI image · calendar/scheduler · competitor · mini-site · widget · chatbot · drip · CRM · report', files:'packages.py#growth', x:480, y:500, w:200, h:95},
+      {id:'m_advanced', type:'marketing', badge:'₹6,999/mo', cx:'complex', sku:'marketing', title:'Advanced', desc:'Growth + voice FEATURE: 2-min callback · qualify · booking · 500 min/mo · follow-ups · transcripts · speed-to-lead', files:'packages.py#advanced', x:700, y:500, w:220, h:95},
 
       {id:'m_content', type:'marketing', badge:'MODULE', cx:'moderate', sku:'marketing', title:'Content Engine', desc:'AI posts · scheduler · festivals · complete-post · AI image · 28 tabs', files:'auto_content · marketing.py', x:40, y:660, w:230, h:95},
       {id:'m_gbp', type:'marketing', badge:'MODULE', cx:'moderate', sku:'marketing', title:'GBP & Reviews', desc:'/audit lead magnet · review kit · sentiment · review reply drafts', files:'review_kit · gbp', x:290, y:660, w:230, h:95},
@@ -1896,7 +1896,12 @@ function showNodeDetail(n) {
     const mKey = tierMap[n.id];
     if(mKey && mPkgs.length) {
       const pk = mPkgs.find(p => (p.key||'').toLowerCase() === mKey);
-      if(pk) html += `<div class="step-detail" style="border-color:#1d4ed8;background:#0d1a2e;margin-top:8px"><div class="sd-title" style="color:#60a5fa">Live: ₹${Number(pk.price_inr_month||0).toLocaleString('en-IN')}/mo</div><div class="sd-desc">${pk.tagline||''}</div></div>`;
+      if(pk) {
+        html += `<div class="step-detail" style="border-color:#1d4ed8;background:#0d1a2e;margin-top:8px"><div class="sd-title" style="color:#60a5fa">Live: ₹${Number(pk.price_inr_month||0).toLocaleString('en-IN')}/mo</div><div class="sd-desc">${pk.tagline||''}</div>`;
+        const feats = (pk.features||[]).slice(0,8);
+        if(feats.length) html += `<ul style="margin:8px 0 0;padding-left:16px;font-size:11px;color:#93c5fd;line-height:1.45">${feats.map(f=>`<li>${f}</li>`).join('')}</ul>`;
+        html += `</div>`;
+      }
     }
     const vTiers = productPricing.voice?.tiers || [];
     const vMap = {v_pilot:'voice_pilot', v_band_a:'voice_a_monthly', v_band_b:'voice_b_monthly', v_band_c:'voice_c_monthly'};

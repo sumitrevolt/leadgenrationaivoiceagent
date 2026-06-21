@@ -64,12 +64,13 @@
 
 | Tier | Deliverables |
 |------|--------------|
-| **Starter ₹1,199** | Posts, GBP audit tips, reviews kit, WhatsApp copy |
-| **Growth ₹2,999** | + unlimited posters, calendar, competitor, widget, reports |
-| **Advanced ₹6,999** | + voice callback feature, 500 min/mo, speed-to-lead |
+| **Trial ₹0 (7 din)** | 5 AI posts, 1 GBP audit, enquiry widget (+ AI chat), mini-site preview, branded frames, portal access, WhatsApp basic pack, onboarding checklist |
+| **Starter ₹1,199** | Roz AI posts + branded frames + festival calendar + GBP audit + review replies + 4 posters/mo + WhatsApp pack + UPI QR + hashtags + post approval + customer portal + GST invoices |
+| **Growth ₹2,999** | Starter + unlimited posters + AI image/Complete Post + A/B variations + calendar/scheduler + competitor + mini-site + widget + chatbot + reactivation + drip + review kit + team routing + CRM/webhooks + ads/reels + monthly report + 2FA |
+| **Advanced ₹6,999** | Growth + AI voice callback (~2 min) + qualification + booking + missed-call (DID) + 500 min/mo + follow-ups + transcripts + post-call qualify + speed-to-lead SLA |
 | **Voice Band A–C** | Unlimited AI calls/niche (flat band pricing) |
 
-Pricing truth: `app/billing/packages.py` · Voice: `voice_packages.py`
+Pricing truth: `app/marketing/packages.py` · Voice: `voice_packages.py`
 
 ---
 

@@ -100,7 +100,7 @@
   <div class="plan" style="margin-top:18px;border-color:var(--ok);flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap">
     <div style="flex:1;min-width:220px">
       <div class="pname">🎁 7-Din FREE Trial</div>
-      <div style="font-size:14px;color:var(--mut);margin-top:4px">Bina card, bina payment — 5 AI posts + GBP audit + lead-capture widget (AI chat). Pasand aaye to plan lo.</div>
+      <div style="font-size:14px;color:var(--mut);margin-top:4px">Bina card, bina payment — 5 AI posts + GBP audit + enquiry widget + mini-site preview + branded frames + customer portal (7 din). Voice nahi.</div>
     </div>
     <button class="cta" style="width:auto;background:var(--ok)" onclick="startTrial()">Start FREE Trial</button>
   </div>
@@ -170,9 +170,42 @@ let SELECTED = null;
 
 // fallback static plans (agar /api/billing/plans fail ho)
 const FALLBACK = [
-  {id:"starter", name:"Starter", monthly_price:1199, features:["AI social posts","GBP audit","Review replies","WhatsApp 1-click","Posters"]},
-  {id:"growth",  name:"Growth",  monthly_price:2999, features:["Sab Starter +","Unlimited posters","Content calendar","Competitor watch","Lead-form","Monthly report"]},
-  {id:"advanced",name:"Advanced",monthly_price:6999, features:["Sab Growth +","AI Voice Agent","Inquiry call 2-min","Lead qualification","Appointments","500 min/mo calling"]}
+  {id:"starter", name:"Starter", monthly_price:1199, features:[
+    "Roz AI posts — Hinglish caption + hashtags (39 niches)",
+    "Branded post frames — logo + business naam",
+    "Customer portal — roz ~7 baje content, 1-click WhatsApp share",
+    "Festival calendar + tyohar/offer posts",
+    "GBP audit (0–100) + top 5 fixes",
+    "Review Hinglish reply drafts",
+    "4 branded posters/mo + WhatsApp content pack",
+    "UPI Scan & Pay QR card + hashtag suggestions",
+    "Post approval workflow + onboarding dashboard",
+    "GST invoice download · 100% marketing-only"
+  ]},
+  {id:"growth", name:"Growth", monthly_price:2999, features:[
+    "Starter ke saare features included",
+    "Unlimited posters + AI image + Complete Post one-shot",
+    "Post variations A/B + content calendar/scheduler",
+    "Competitor analysis + festival auto-schedule",
+    "Mini-site + bio link + digital card + booking",
+    "Website enquiry widget + AI chatbot FAQ",
+    "Database reactivation + WhatsApp drip nurture",
+    "Review kit + team lead routing (round-robin)",
+    "CRM sync + webhooks + ads/reels drafts",
+    "Catalog + referral tools + monthly report + 2FA"
+  ]},
+  {id:"advanced", name:"Advanced", monthly_price:6999, features:[
+    "Growth ke saare features included",
+    "AI Voice Agent — inquiry pe ~2-min AI call (Hindi)",
+    "Lead qualification + appointment booking",
+    "Missed-call auto-callback (DID active hone par)",
+    "500 calling min/mo + top-up packs",
+    "Weekly 50 follow-up calls",
+    "Call transcripts + post-call AI qualification",
+    "Speed-to-lead SLA badge + minute usage tracker",
+    "Multi-lingual + TRAI AI disclosure greeting",
+    "Marketing + voice ek hi customer portal"
+  ]}
 ];
 
 function inr(n){return "₹"+Number(n||0).toLocaleString("en-IN");}
@@ -203,7 +236,7 @@ function render(){
     const feat = (String(p.id).toLowerCase().includes("growth") || i===1);
     const isAdv = String(p.id).toLowerCase().includes("advanced");
     const pr = priceFor(p);
-    const feats = (p.features||[]).slice(0,7).map(f=>`<li>${f}</li>`).join("");
+    const feats = (p.features||[]).map(f=>`<li>${f}</li>`).join("");
     el.insertAdjacentHTML("beforeend", `
       <div class="plan ${feat?'feat':''}">
         ${feat?'<div class="badge">POPULAR</div>':''}

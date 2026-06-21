@@ -69,8 +69,9 @@ Interested ho to bas "AUDIT" reply kar dijiye.
 
 ## 7) Pricing — 3 Packages (confident bolo, jhijhak nahi)
 
-- **Marketing Starter — ₹1,199/mahina**: roz ke AI posts + festival calendar, GBP audit + fixes, review replies, 4 posters/mahina, WhatsApp content pack. **100% marketing-only — koi calling charge nahi.**
-- **Growth — ₹2,999/mahina**: Starter ka sab + unlimited posters, content calendar, competitor analysis, lead-capture form, monthly report. **100% marketing-only.**
-- **Advanced AI Agent — ₹6,999/mahina** (🚀 India me sirf hamare paas): Growth ka sab + **AI voice agent** — har inquiry ko 2-min me AI call, qualification, appointment booking, missed-call callback, 50 weekly follow-ups, 500 min/mo included.
+- **7-Din FREE Trial — ₹0**: 5 AI posts, 1 GBP audit, enquiry widget (+ AI chat), mini-site preview, branded frames, customer portal 7 din, WhatsApp basic pack, onboarding checklist, 1-click share. **Voice nahi.**
+- **Marketing Starter — ₹1,199/mahina**: roz AI Hinglish posts (39 niches) + branded frames + customer portal (roz ~7 baje content, WhatsApp share) + festival calendar + tyohar posts + GBP audit + review reply drafts + 4 posters/mo + WhatsApp pack + UPI QR card + hashtags + post approval + onboarding dashboard + GST invoices. **100% marketing-only — koi calling charge nahi.**
+- **Growth — ₹2,999/mahina**: Starter sab + unlimited posters + AI image/Complete Post + A/B variations + content calendar/scheduler + competitor analysis + mini-site (bio/card/booking) + enquiry widget + AI chatbot + reactivation + WhatsApp drip + review kit + team routing + CRM/webhooks + ads/reels drafts + catalog/referral + monthly report + 2FA. **100% marketing-only.**
+- **Advanced AI Agent — ₹6,999/mahina** (🚀 India me sirf hamare paas): Growth sab + **AI voice agent** — ~2-min inquiry callback, lead qualification, appointment booking, missed-call callback (DID pe), 500 min/mo + top-ups, weekly 50 follow-ups, transcripts + post-call qualify, speed-to-lead SLA, multi-lingual, TRAI AI disclosure, ek hi portal.
 - **Free hook**: FREE GBP audit + sample posters — "pasand na aaye, ek rupaya mat dena."
 - **Killer line**: "Agency ₹15-25K/mahina leti hai sirf posts ke liye. Hum ₹100/din me poori marketing — aur upar wala plan lo to AI aapke inquiries ko khud call bhi karega. Yeh combo India me kisi ke paas nahi."

@@ -40,14 +40,22 @@ Advanced Marketing tier includes voice as **one feature** (500 min/mo) — not a
 
 | Feature | Tier | Module / route |
 |---------|------|----------------|
-| AI social posts + hashtags | Starter+ | `post_generator`, `/app/marketing` |
-| AI image (Pollinations) | Growth+ | `ai_image.py`, env `POLLINATIONS_API_KEY` |
-| Mini-site + booking | Growth+ | `mini_site.py`, `/b/{slug}` |
-| Web lead widget | Growth+ | `embed_widget.py` |
-| Content scheduler | Growth+ | `content_schedule.py` |
-| Competitor / GBP tools | Growth+ | marketing tabs |
-| AI voice callback (inbound) | Advanced | `vobiz_stream`, DLT for cold only |
-| Lead round-robin + speed-to-lead | Advanced | `lead_distribution`, `speed_to_lead` |
+| AI social posts + hashtags + branded frames | Starter+ | `post_generator`, `brand_frames`, `/app/customer/marketing` |
+| Festival calendar + tyohar/offer posts | Starter+ | `festivals.py`, `auto_content.py` |
+| GBP audit + review reply drafts | Starter+ | `marketing_tools`, `review_kit.py` |
+| 4 posters/mo + WhatsApp content pack + UPI QR | Starter+ | `poster`, `whatsapp_campaign`, marketing tabs |
+| Post approval + customer portal + GST invoices | Starter+ | `content_approval`, `customer_auth`, `gst_invoice` |
+| AI image + Complete Post + A/B variations | Growth+ | `ai_image.py`, `post_generator` |
+| Content calendar + scheduler + festival auto-schedule | Growth+ | `content_schedule.py` |
+| Competitor analysis + sentiment/hashtag research | Growth+ | marketing tabs |
+| Mini-site + booking + bio/card | Growth+ | `mini_site.py`, `/b/{slug}` |
+| Web lead widget + AI chatbot | Growth+ | `embed_widget.py`, `chatbot.py` |
+| Reactivation + WhatsApp drip + review kit | Growth+ | `reactivation`, `drip`, `review_engine.py` |
+| Team lead routing + CRM sync + webhooks | Growth+ | `lead_distribution`, `crm_sync`, `customer_webhooks` |
+| Ads/reels drafts + catalog + referral + monthly report | Growth+ | marketing tabs |
+| AI voice callback (inbound) + 500 min/mo | Advanced | `vobiz_stream`, `usage.py` |
+| Lead qualification + booking + follow-ups + transcripts | Advanced | `call_qualifier`, `calendar_booking` |
+| Speed-to-lead SLA + post-call qualify | Advanced | `speed_to_lead`, `call_qualifier` |
 
 ### Voice (Product 2)
 
