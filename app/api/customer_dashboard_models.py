@@ -74,6 +74,19 @@ class OnboardingChecklist(BaseModel):
     complete: bool
 
 
+class TrialBanner(BaseModel):
+    """7-day trial → paid conversion nudge (customer portal)."""
+
+    trial: bool = False
+    active: bool = False
+    expired: bool = False
+    days_left: int = 0
+    expires_at: str | None = None
+    show_pay_cta: bool = False
+    starter_price_inr: int = 1199
+    message: str = ""
+
+
 class DashboardResponse(BaseModel):
     is_sample_data: bool = Field(
         True, description="True => placeholder data, NOT real client results"
@@ -87,6 +100,7 @@ class DashboardResponse(BaseModel):
     charts: ChartsData
     branding: dict | None = None  # reseller white-label (set from Host on subdomains)
     onboarding: OnboardingChecklist | None = None
+    trial_banner: TrialBanner | None = None
 
 
 class CrmSyncLeadResult(BaseModel):

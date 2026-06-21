@@ -422,6 +422,12 @@ a{color:var(--acc)}
     <div id="rvTuOut"></div>
   </div>
   <div class="card">
+    <h2>✉️ Cold-email A/B (Spintax)</h2>
+    <div class="mut">Smartlead-style subject variants — gated <b>OUTREACH_AB=1</b>. Reply-rate winner Laplace score.</div>
+    <button class="btn2" onclick="rvOutreachAb()">📊 Variant stats load</button>
+    <div id="rvAbOut"></div>
+  </div>
+  <div class="card">
     <h2>🎯 Affiliate / Referral Program</h2>
     <div class="mut">Affiliate register karo (ya khud public /audit pe ban sakte) + stats dekho.</div>
     <div class="row"><div>
@@ -2021,6 +2027,25 @@ async function rvWarmup(){
   try{var d=await api('/api/growth/outreach/warmup');
     $('rvWuOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';
   }catch(e){toast('Warmup fail: '+e.message,false)}
+}
+async function rvOutreachAb(){
+  try{
+    var d=await api('/api/contentplus/outreach-variants');
+    var vars=d.variants||{};
+    var keys=Object.keys(vars);
+    var h='<div class="result">Total sends: <b>'+(d.total_sends||0)+'</b> · replies: <b>'+(d.total_replies||0)+'</b>';
+    if(d.winner) h+=' · 🏆 winner: <b>'+esc(d.winner)+'</b>';
+    if(keys.length){
+      h+='<table style="margin-top:8px"><tr><th>Variant</th><th>Sends</th><th>Replies</th><th>Rate</th><th>Laplace</th></tr>';
+      keys.forEach(function(k){
+        var v=vars[k]||{};
+        h+='<tr><td>'+esc(k)+'</td><td>'+esc(v.sends)+'</td><td>'+esc(v.replies)+'</td><td>'+esc((v.reply_rate*100).toFixed(1))+'%</td><td>'+esc(v.laplace)+'</td></tr>';
+      });
+      h+='</table>';
+    }else h+='<div class="mut" style="margin-top:6px">Abhi data nahi — OUTREACH_AB=1 + email outreach chalao.</div>';
+    h+='</div>';
+    $('rvAbOut').innerHTML=h;
+  }catch(e){toast('A/B stats fail: '+e.message,false)}
 }
 async function rvRecon(){
   try{var d={removed:true,note:'Payment recon hata diya gaya - Razorpay gateway gone, payments ab manual UPI (reconcile karne ko koi online rail nahi).'};

@@ -93,6 +93,54 @@ def _build_onboarding_checklist(
     )
 
 
+def _trial_banner(client_rec: dict | None, *, has_paid_plan: bool = False) -> "TrialBanner | None":
+    """Trial expiry nudge — day 5+ ya expired pe pay CTA."""
+    from app.api.customer_dashboard_models import TrialBanner
+    from app.marketing.packages import PACKAGES, trial_status
+
+    try:
+        if has_paid_plan:
+            return None
+        st = trial_status(client_rec)
+        if not st.get("trial") and not st.get("expired"):
+            return None
+        days = int(st.get("days_left") or 0)
+        expired = bool(st.get("expired"))
+        show = expired or days <= 7
+        starter = 1199
+        for p in PACKAGES:
+            if str(p.get("key") or "") == "starter":
+                starter = int(p.get("price_inr_month") or p.get("price_inr") or 1199)
+                break
+        if expired:
+            msg = (
+                f"Aapka FREE trial khatam ho gaya — Starter ₹{starter:,}/mahina se "
+                "phir se shuru karo. Neeche UPI se pay karo."
+            )
+        elif days <= 2:
+            msg = (
+                f"Trial {days} din me khatam — abhi pay karo taaki roz ka content "
+                f"band na ho. Starter sirf ₹{starter:,}/mahina."
+            )
+        else:
+            msg = (
+                f"Trial me {days} din bache — pasand aaye to Starter ₹{starter:,}/mahina "
+                "pe upgrade karo (UPI neeche)."
+            )
+        return TrialBanner(
+            trial=bool(st.get("trial")),
+            active=bool(st.get("active")),
+            expired=expired,
+            days_left=days,
+            expires_at=st.get("expires_at"),
+            show_pay_cta=show,
+            starter_price_inr=starter,
+            message=msg,
+        )
+    except Exception:
+        return None
+
+
 def _enrich_dashboard(resp: DashboardResponse, client_id: str) -> DashboardResponse:
     """Attach onboarding checklist using real client_id from JWT."""
     client_rec = _client_record(client_id)
@@ -103,7 +151,12 @@ def _enrich_dashboard(resp: DashboardResponse, client_id: str) -> DashboardRespo
         len(resp.leads or []),
         content_count,
     )
-    return resp.model_copy(update={"client_id": client_id, "onboarding": onboarding})
+    plan = str((client_rec or {}).get("plan") or "").lower()
+    has_paid = plan not in ("", "trial", "free")
+    trial = _trial_banner(client_rec, has_paid_plan=has_paid)
+    return resp.model_copy(
+        update={"client_id": client_id, "onboarding": onboarding, "trial_banner": trial}
+    )
 
 
 # --------------------------------------------------------------------------- #
