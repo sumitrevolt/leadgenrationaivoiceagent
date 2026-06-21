@@ -302,7 +302,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **P3-2 [DONE 2026-06-21 — LIVE]** Opener → AI-disclosure → permission → source flow. Permission = `niche_scripts.ensure_permission_ask` (do-minute clause, gated `PERMISSION_OPENER`) in vobiz + phone openers (ALL niches); source-line = `_CONVO_DISCIPLINE` prompt rule. Minor follow-up: web-call opener helper parity.
 - **P3-3..3-6 [DONE 2026-06-21 — LIVE, prompt-level]** Talk-listen governor + objection 3-step (agree→explore→reframe + incumbent rating trick, no trashing) + WhatsApp qualify-before-send gate + Hinglish-mirror (mix/formality/tech-nouns-English, literal-translation banned) — shipped as the `_CONVO_DISCIPLINE` block in `telecaller_brain` system prompt (gated `CONVO_DISCIPLINE`, default ON). Runtime-verifiable via `qa_checks.check_talk_listen_ratio` + `check_literal_translation`.
 - **P3-7 [DONE 2026-06-21 — LIVE]** STT niche-biasing for **Groq + Gemini** — `niche_scripts.stt_keyterms` (client+niche+Hinglish) → Groq `prompt=` + Gemini context; vobiz session computes once. Gated `STT_BIAS` (default ON).
-- **P3-8 [threshold DONE/LIVE; refresh code-ready, UNCOMMITTED]** KB `min_score` 0.05→**0.35** (env-tunable `KB_MIN_SCORE`) LIVE. TTL refresh (`KB_REFRESH_SEC`, default 0=off) written in `telecaller_brain._get_kb` but NOT yet committed — that file currently shares uncommitted in-progress voice-roles work; ships when that file is committed.
+- **P3-8 [DONE 2026-06-21 — LIVE]** KB `min_score` 0.05→**0.35** (env-tunable `KB_MIN_SCORE`) + singleton TTL refresh (`KB_REFRESH_SEC`, default 0=off, opt-in re-bootstrap so KB data changes load without restart). Both deployed (refresh rode along with the voice-roles commit `c425fcb`).
 
 ### P4 — Eval / QA harness (P2/P3 shipping ka prerequisite)
 - **P4-1 [DONE 2026-06-21]** Nayi eval personas in `eval_suite.EXTENDED_PERSONAS` (separate from default baseline; aspirational — drive D-8/D-10): `polite_no_indian`, `whatsapp_brushoff`, `incumbent_user`, `formal_hindi_speaker`, `english_dominant`.
@@ -404,7 +404,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **Change:** per-niche brand/keyterm string (Qdrant niche namespace se top terms) → Groq `prompt=` / Gemini context me pass (jaise faster-whisper already karta line ~261). +20–30% rel accuracy on entities.
 - **Test:** known Hinglish brand utterance → transcription improve (manual A/B).
 
-### D-12 (P3-8) KB threshold + refresh **[threshold DONE/LIVE; refresh code-ready UNCOMMITTED]**
+### D-12 (P3-8) KB threshold + refresh **[DONE 2026-06-21 — LIVE]**
 - **File:** `telecaller_brain.py` `_KB_MIN_SCORE` 0.05 → **0.35**; singleton ko time/TTL refresh (e.g. 1hr) ya reload hook.
 - **Test:** off-topic query → top-2 chunk relevance up; stale-after-update gone.
 
