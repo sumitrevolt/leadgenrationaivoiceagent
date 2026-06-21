@@ -2,7 +2,17 @@
 
 Relevant row ka path **Read** karo jab task match ho. **Cursor parity table:** [../SKILLS_PARITY.md](../SKILLS_PARITY.md)
 
-## Platform / Cursor parity (NEW)
+## P0 — Claude accuracy (use often)
+
+| Skill | Path | When |
+|-------|------|------|
+| **verify-ship** | `.claude/skills/verify-ship/SKILL.md` | done bolne se pehle / deploy |
+| **duplicate-route-guard** | `.claude/skills/duplicate-route-guard/SKILL.md` | naya API route |
+| **windows-dev-gotchas** | `.claude/skills/windows-dev-gotchas/SKILL.md` | git/ssh/bat/terminal |
+| **product-split-adr** | `.claude/skills/product-split-adr/SKILL.md` | pricing/copy/features |
+| **voice-roles** | `.claude/skills/voice-roles/SKILL.md` | Swara/Ananya/Riya |
+
+## Platform / Cursor parity
 
 | Skill | Path | When |
 |-------|------|------|

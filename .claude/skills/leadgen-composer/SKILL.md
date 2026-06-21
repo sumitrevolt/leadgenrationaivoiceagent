@@ -33,7 +33,12 @@ description: LeadGen AI primary agent brain — context-first edits, Hinglish re
 | User ask | Read skill |
 |----------|------------|
 | Session bootstrap | `.claude/skills/leadgen-start/SKILL.md` |
+| Done / deploy | `.claude/skills/verify-ship/SKILL.md` |
 | Deploy / prod | `.claude/skills/leadgen-ops/SKILL.md` |
+| New API route | `.claude/skills/duplicate-route-guard/SKILL.md` |
+| Windows terminal | `.claude/skills/windows-dev-gotchas/SKILL.md` |
+| Pricing / 2 products | `.claude/skills/product-split-adr/SKILL.md` |
+| Voice personas | `.claude/skills/voice-roles/SKILL.md` |
 | VPS / Docker | `.claude/skills/hostinger-deploy/SKILL.md` |
 | Debug | `.claude/skills/systematic-debugging/SKILL.md` |
 | Marketing feature | `.claude/skills/marketing-feature/SKILL.md` |
