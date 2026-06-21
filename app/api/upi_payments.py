@@ -1,0 +1,117 @@
+"""Self-serve UPI payment API — "maine pay kiya" submission + admin review.
+
+Public POST ``/upi/submit`` lets a customer report a UPI payment (ref + plan)
+without waiting for a WhatsApp-screenshot + manual admin activation. Admins
+review the pending queue and approve/reject. With ``UPI_AUTO_ACTIVATE=1`` the
+plan auto-activates instantly on submit.
+
+NO prefix here — the main app mounts this at ``/api`` (so routes become
+``/api/upi/...``). Auth is enforced PER-ROUTE via ``require_admin`` (not via a
+router-level dependency), so the public submit route stays open. Defensive:
+import never fails, handlers never 500.
+"""
+
+from __future__ import annotations
+
+import logging
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+
+from app.api.auth_deps import require_admin
+from app.api.ratelimit import rate_limit
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(tags=["upi-payments"])
+
+
+class UpiSubmitIn(BaseModel):
+    plan: str
+    upi_ref: str
+    amount: float = 0
+    payer_name: str = ""
+    payer_contact: str = ""
+    client_id: str = ""
+
+
+@router.post(
+    "/upi/submit",
+    summary="Customer self-serve: maine pay kiya (UPI ref submit)",
+    dependencies=[Depends(rate_limit("upi_submit", 10, 60))],
+)
+async def upi_submit(body: UpiSubmitIn):
+    """Public — customer apna UPI payment report karta hai. Never 500."""
+    try:
+        from app.platform import upi_payments
+
+        res = upi_payments.submit_payment(
+            client_id=body.client_id,
+            plan=body.plan,
+            upi_ref=body.upi_ref,
+            amount=body.amount,
+            payer_name=body.payer_name,
+            payer_contact=body.payer_contact,
+        )
+        if not res.get("ok"):
+            return {
+                "ok": False,
+                "error": res.get("error") or "Submit fail",
+                "message": res.get("error") or "Submit fail — dobara try karo",
+            }
+        status = res.get("status", "pending")
+        if status == "auto_activated":
+            message = "Plan activate ho gaya — dhanyavaad!"
+        else:
+            message = "Mil gaya! Verify ho raha hai, jaldi activate."
+        return {
+            "ok": True,
+            "status": status,
+            "id": res.get("id"),
+            "message": message,
+        }
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("upi_submit failed: %s", e)
+        return {
+            "ok": False,
+            "error": "internal",
+            "message": "Kuch gadbad — thodi der baad try karo.",
+        }
+
+
+@router.get("/upi/pending", summary="Admin: pending UPI submissions queue")
+async def upi_pending_list(_user=Depends(require_admin)):
+    """Admin-only — saare pending self-serve submissions."""
+    try:
+        from app.platform import upi_payments
+
+        return {"ok": True, "pending": upi_payments.list_payments("pending")}
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("upi_pending_list failed: %s", e)
+        return {"ok": False, "pending": []}
+
+
+@router.post("/upi/pending/{pid}/approve", summary="Admin: approve a UPI submission")
+async def upi_approve(pid: str, _user=Depends(require_admin)):
+    """Admin-only — approve + activate plan (if client_id present)."""
+    try:
+        from app.platform import upi_payments
+
+        rec = upi_payments.decide(pid, True, decided_by="admin")
+        return {"ok": rec.get("ok", True), "record": rec}
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("upi_approve failed: %s", e)
+        return {"ok": False, "error": "internal"}
+
+
+@router.post("/upi/pending/{pid}/reject", summary="Admin: reject a UPI submission")
+async def upi_reject(pid: str, _user=Depends(require_admin)):
+    """Admin-only — reject submission (no activation)."""
+    try:
+        from app.platform import upi_payments
+
+        rec = upi_payments.decide(pid, False, decided_by="admin")
+        return {"ok": rec.get("ok", True), "record": rec}
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("upi_reject failed: %s", e)
+        return {"ok": False, "error": "internal"}

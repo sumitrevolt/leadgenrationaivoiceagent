@@ -378,6 +378,22 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"WhatsApp router not mounted: {_e}")
 try:
+    from app.api.upi_payments import router as upi_payments_router
+
+    app.include_router(
+        upi_payments_router, prefix="/api", tags=["UPI Payments"]
+    )  # /api/upi/* (self-serve "maine pay kiya" submit + admin queue)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"UPI payments router not mounted: {_e}")
+try:
+    from app.api.reseller import router as reseller_router
+
+    app.include_router(
+        reseller_router, prefix="/api", tags=["Reseller"]
+    )  # /api/reseller/* (agency/reseller program)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Reseller router not mounted: {_e}")
+try:
     from app.api.minisite_builder import router as minisite_builder_router
 
     app.include_router(
@@ -916,6 +932,12 @@ async def pricing_page():
 async def start_alias_page():
     """CTA-friendly alias for /pricing."""
     return FileResponse(str(FRONTEND_DIR / "pricing.html"))
+
+
+@app.get("/reseller", tags=["Frontend"])
+async def reseller_page():
+    """PUBLIC reseller/agency program — apply form posts to /api/reseller/apply."""
+    return FileResponse(str(FRONTEND_DIR / "reseller.html"))
 
 
 @app.get("/app/assistant", tags=["Frontend"])
