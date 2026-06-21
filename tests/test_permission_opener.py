@@ -78,3 +78,17 @@ def test_stt_keyterms_gated_off(monkeypatch):
     from app.voice_agent.niche_scripts import stt_keyterms
 
     assert stt_keyterms("solar", "Acme") == ""
+
+
+def test_web_call_opener_discloses_ai(monkeypatch):
+    """D-14: the web-call opener (brain.opening_line wrapped, as web_call does) must
+    disclose AI + carry permission — parity with the phone opener."""
+    monkeypatch.setenv("PERMISSION_OPENER", "1")
+    from app.voice_agent.niche_scripts import ensure_ai_disclosure, ensure_permission_ask
+    from app.voice_agent.telecaller_brain import TelecallerBrain
+
+    brain = TelecallerBrain(niche="solar", client_name="Acme")
+    opener = ensure_permission_ask(ensure_ai_disclosure(brain.opening_line()))
+    low = opener.lower()
+    assert "ai assistant" in low  # AI disclosure injected
+    assert ("minute" in low) or ("busy" in low)  # permission/timing present
