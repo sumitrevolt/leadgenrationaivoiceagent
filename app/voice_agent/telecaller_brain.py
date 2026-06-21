@@ -27,6 +27,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 from typing import Any
 
@@ -93,11 +94,17 @@ _META_BANNED = (
 )
 
 # KB-grounding (Qdrant niche + client KB) — phone hot path, so keep it tight:
-# top-2 facts, short timeout, low score gate (works for both e5-cosine and
-# keyword TF-IDF backends; LLM ko bola jata hai ki sirf relevant ho to use kare).
+# top-2 facts, short timeout, score gate. D-12: default raised 0.05 -> 0.35 to cut
+# noisy/irrelevant chunks (PRIMARY backend = fastembed cosine). Env-tunable
+# (KB_MIN_SCORE) as a safety valve: the keyword/TF-IDF fallback backend scores on a
+# different scale, so if grounding starves there, dial it down without a redeploy.
+# Worst case = facts=[] -> graceful niche-script fallback (no crash).
 _KB_TOP_K = 2
 _KB_TIMEOUT_S = 1.5
-_KB_MIN_SCORE = 0.05
+try:
+    _KB_MIN_SCORE = float(os.environ.get("KB_MIN_SCORE", "0.35") or "0.35")
+except Exception:
+    _KB_MIN_SCORE = 0.35
 
 
 def _short_hook(hook: str, max_len: int = 90) -> str:

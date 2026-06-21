@@ -173,4 +173,56 @@ def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:
         return text or ""
 
 
-__all__ = ["NICHE_SCRIPTS", "get_script", "kb_documents", "ensure_ai_disclosure"]
+# Permission/timing markers already present -> don't double-ask.
+_PERMISSION_TOKENS = (
+    "do minute",
+    "ek minute",
+    "baat kar sak",
+    "abhi busy",
+    "abhi sahi samay",
+    "convenient",
+    "baat karne ka samay",
+    "baat karne ka time",
+)
+
+
+def _permission_enabled() -> bool:
+    """PERMISSION_OPENER gate (default ON). Set 0 to disable."""
+    import os
+
+    return (os.environ.get("PERMISSION_OPENER", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+def ensure_permission_ask(text: str, name: str = "Swara") -> str:
+    """Guarantee the opener ends with a short permission/timing ask (D-9 / P3-2).
+
+    Gong: a permission opener ("do minute baat kar sakti hoon ya busy?") converts
+    several times better than diving straight into a pitch. Appends one only if the
+    opener doesn't already ask. Gated PERMISSION_OPENER (default ON). Never raises —
+    on any error the original text is returned (fail toward speaking)."""
+    try:
+        if not _permission_enabled():
+            return text
+        t = (text or "").strip()
+        if not t:
+            return t
+        if any(tok in t.lower() for tok in _PERMISSION_TOKENS):
+            return t  # already asks permission/timing
+        sep = "" if t.endswith(("?", ".", "!", "…")) else "."
+        return f"{t}{sep} Do minute baat kar sakti hoon ya abhi busy hain?"
+    except Exception:
+        return text or ""
+
+
+__all__ = [
+    "NICHE_SCRIPTS",
+    "get_script",
+    "kb_documents",
+    "ensure_ai_disclosure",
+    "ensure_permission_ask",
+]

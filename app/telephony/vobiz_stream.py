@@ -1393,9 +1393,10 @@ class VobizStreamSession:
         gate (always-on, never gated off) so every call discloses it is an AI
         BEFORE the pitch. All call-sites + the greeting cache-key go through here."""
         try:
-            from app.voice_agent.niche_scripts import ensure_ai_disclosure
+            from app.voice_agent.niche_scripts import ensure_ai_disclosure, ensure_permission_ask
 
-            return ensure_ai_disclosure(self._opening_line_raw())
+            # AI disclosure (always-on) + permission/timing ask (D-9, PERMISSION_OPENER).
+            return ensure_permission_ask(ensure_ai_disclosure(self._opening_line_raw()))
         except Exception:
             return self._opening_line_raw()
 
