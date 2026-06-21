@@ -5,9 +5,9 @@ alwaysApply: true
 
 # Composer 2.5 — LeadGen AI
 
-**Primary skill:** `.cursor/skills/leadgen-composer/SKILL.md` — har task pe follow karo.
+**Primary skill:** `.claude/skills/leadgen-composer/SKILL.md` (canonical) · mirror `.cursor/skills/leadgen-composer/SKILL.md`
 
-**Deep workflows:** `.cursor/skills/leadgen-composer/skills-index.md` → `.claude/skills/<name>/SKILL.md` on demand.
+**Deep workflows:** `.claude/skills/leadgen-composer/skills-index.md` · parity map `SKILLS_PARITY.md`
 
 **Memory:** `CLAUDE.md` (truth) · **Reply:** Hinglish Roman · **Verify:** `scripts/prod_check.py` before done.
 
