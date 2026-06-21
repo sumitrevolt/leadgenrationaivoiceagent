@@ -60,6 +60,77 @@ def _from_name() -> str:
         return "Sumit — LeadGen AI"
 
 
+def _audit_led_on() -> bool:
+    """OUTREACH_AUDIT_LED gate (default OFF). Env OR settings attr — truthy check.
+
+    Default-OFF => first-touch email unchanged (byte-for-byte). Read at call-time
+    (not cached) so admin/env flips take effect without restart. NEVER raises.
+    """
+    try:
+        import os as _os
+
+        if (_os.getenv("OUTREACH_AUDIT_LED") or "").strip().lower() in {"1", "true", "yes", "on"}:
+            return True
+    except Exception:
+        pass
+    try:
+        from app.config import settings
+
+        return bool(getattr(settings, "outreach_audit_led", False))
+    except Exception:
+        return False
+
+
+def _audit_gap(prospect: dict[str, Any]) -> str:
+    """Ek SHORT, specific, believable Hinglish "audit gap" line prospect ke
+    in-memory fields se derive karo (NO network). Pehla jo apply ho wahi return,
+    warna "". KABHI raise nahi karta (any issue -> "").
+
+    Priority:
+      1. website missing       -> online discoverability gap
+      2. rating present & <4.0 -> rating-behind-competitors gap
+      3. reviews very low (<5) -> trust/social-proof gap
+      4. niche/category present -> niche-flavored generic gap
+      5. else                  -> ""
+    """
+    try:
+        p = prospect or {}
+
+        # 1) Website missing? Prefer explicit has_website flag, else website string.
+        has_site_flag = p.get("has_website")
+        website = str(p.get("website") or "").strip()
+        if has_site_flag is False or (has_site_flag is None and not website):
+            return "website link missing — customers aapko online dhund nahi paa rahe"
+
+        # 2) Low rating (present and < 4.0).
+        try:
+            rating = p.get("rating")
+            rating = float(rating) if rating is not None and str(rating).strip() != "" else None
+        except Exception:
+            rating = None
+        if rating is not None and 0 < rating < 4.0:
+            return f"rating {rating}★ hai — top competitors 4.5★+ pe hain"
+
+        # 3) Very low reviews (present and < 5).
+        try:
+            reviews = p.get("reviews_count")
+            reviews = int(reviews) if reviews is not None and str(reviews).strip() != "" else None
+        except Exception:
+            reviews = None
+        if reviews is not None and reviews < 5:
+            return "Google reviews bahut kam — naye customers trust nahi karte"
+
+        # 4) Niche/category-flavored generic gap.
+        niche = str(p.get("niche") or p.get("category") or "").strip()
+        if niche:
+            label = niche.replace("_", " ")
+            return f"{label} jaise businesses online consistent posts ke bina customers miss karte hain"
+
+        return ""
+    except Exception:
+        return ""
+
+
 def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
     """Personalized Hinglish+English cold email — (subject, text, html).
 
@@ -103,6 +174,18 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             opener = f"Maine {city} me {name} ka Google profile dekha."
         else:
             opener = f"Maine {name} ka Google profile dekha."
+
+        # --- audit-led hook (GATED OUTREACH_AUDIT_LED; OFF = zero change) ---
+        # Flag ON + ek specific gap mile to subject + body ki PEHLI line me gap
+        # weave karo (audit link / unsub / footer sab waise hi rehte hain).
+        if _audit_led_on():
+            try:
+                gap = _audit_gap(prospect)
+            except Exception:
+                gap = ""
+            if gap:
+                subject = f"{name} — {gap}"
+                opener = f"Maine {name} ka Google profile dekha — {gap}. " + opener
 
         # --- plain text body ---
         text_lines = [

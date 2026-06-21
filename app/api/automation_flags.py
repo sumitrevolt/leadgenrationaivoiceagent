@@ -69,6 +69,8 @@ AUTOMATION_FLAGS = [
     "LEAD_HARVESTER",
     "CALL_TRANSFER",
     "OUTREACH_AB",
+    "OUTREACH_AUDIT_LED",  # cold-email leads with a personalized audit-gap hook (additive, no cap change) — OFF default
+    "UPI_AUTO_ACTIVATE",  # self-serve UPI submit auto-activates plan immediately (reconcile later) — OFF default
     "SERVICE_REMINDERS",
     "LLM_CAPACITY_ALERTS",
     "KB_PREWARM",

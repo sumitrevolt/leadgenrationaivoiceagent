@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (804 operations)
+## Endpoint Index — auto-generated from OpenAPI (814 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -710,7 +710,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (48)
+### Frontend  (49)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
@@ -754,6 +754,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/pricing` — Pricing Page
 - `GET   ` `/privacy` — Privacy Page
 - `GET   ` `/refund` — Refund Page
+- `GET   ` `/reseller` — Reseller Page
 - `GET   ` `/site-audit` — Public Site Audit Page
 - `GET   ` `/start` — Start Alias Page
 - `GET   ` `/status` — Status Page
@@ -1217,6 +1218,14 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/public/signup` — Public Signup
 - `GET   ` `/api/public/turnstile/config` — Turnstile Config
 
+### Reseller  (5)
+
+- `GET   ` `/api/reseller/applications` — Reseller Applications
+- `POST  ` `/api/reseller/applications/{aid}/approve` — Reseller Approve
+- `POST  ` `/api/reseller/applications/{aid}/reject` — Reseller Reject
+- `POST  ` `/api/reseller/apply` — Reseller Apply
+- `GET   ` `/api/reseller/info` — Reseller Info
+
 ### SEO-Ops  (10)
 
 - `GET   ` `/api/seoops/conversations` — Conversations List
@@ -1269,6 +1278,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/webhooks/vobiz/answer` — Vobiz Answer Webhook
 - `POST  ` `/api/webhooks/vobiz/inbound` — Vobiz Inbound Webhook
 - `POST  ` `/api/webhooks/vobiz/status` — Vobiz Status Webhook
+
+### UPI Payments  (4)
+
+- `GET   ` `/api/upi/pending` — Admin: pending UPI submissions queue
+- `POST  ` `/api/upi/pending/{pid}/approve` — Admin: approve a UPI submission
+- `POST  ` `/api/upi/pending/{pid}/reject` — Admin: reject a UPI submission
+- `POST  ` `/api/upi/submit` — Customer self-serve: maine pay kiya (UPI ref submit)
 
 ### Voice AI  (11)
 
