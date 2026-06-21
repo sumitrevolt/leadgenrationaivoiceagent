@@ -29,9 +29,13 @@ Import-safe: degrades gracefully if the VoicePipeline or providers are missing �
 falls back to a simple LLM responder, and if even that is unavailable, an echo.
 """
 
+from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+import asyncio
+
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from app.utils.logger import setup_logger
 
@@ -47,7 +51,7 @@ router = APIRouter(prefix="/web-call", tags=["Web Call (Test Mode)"])
 try:
     from app.cache import RateLimiter
 
-    _WS_LIMITER: Any = RateLimiter(prefix="rl:webcallws", max_requests=15, window_seconds=60)
+    _WS_LIMITER: Any = RateLimiter(prefix="rl:webcallws", max_requests=40, window_seconds=60)
 except Exception:  # pragma: no cover - cache layer optional
     _WS_LIMITER = None
 
@@ -64,6 +68,99 @@ def _ws_client_ip(ws: WebSocket) -> str:
         return ws.client.host if ws.client else "unknown"
     except Exception:
         return "unknown"
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _normalize_lead_key(raw: str | None) -> str | None:
+    try:
+        from app.voice_agent.web_call_store import normalize_lead_key
+
+        return normalize_lead_key(raw)
+    except Exception:
+        k = (raw or "").strip()
+        return k if len(k) >= 8 else None
+
+
+def _apply_memory_subject(tcb: Any, session: dict[str, Any]) -> None:
+    """Cross-session recall — stable browser lead_key (web:{key}), phone parity."""
+    lead = _normalize_lead_key(session.get("lead_key"))
+    if not lead or tcb is None:
+        return
+    try:
+        from app.voice_agent import agent_memory
+
+        if agent_memory.is_enabled():
+            tcb.set_memory_subject(f"web:{lead}")
+            session["memory_subject"] = f"web:{lead}"
+    except Exception:
+        pass
+
+
+def _memory_meta(session: dict[str, Any]) -> dict[str, Any]:
+    lead = _normalize_lead_key(session.get("lead_key"))
+    enabled = False
+    try:
+        from app.voice_agent import agent_memory
+
+        enabled = agent_memory.is_enabled()
+    except Exception:
+        pass
+    return {
+        "lead_key": lead,
+        "session_id": session.get("session_id"),
+        "memory_enabled": enabled,
+        "memory_active": bool(enabled and lead),
+        "memory_subject": session.get("memory_subject") if enabled and lead else None,
+    }
+
+
+def _log_turn(session: dict[str, Any], role: str, text: str) -> None:
+    t = (text or "").strip()
+    if not t:
+        return
+    turns = session.setdefault("turns", [])
+    turns.append({"ts": _now_iso(), "role": role, "text": t[:2000]})
+
+
+def _persist_session(session: dict[str, Any]) -> None:
+    if session.get("saved"):
+        return
+    turns = session.get("turns") or []
+    if not turns:
+        return
+    try:
+        from app.voice_agent.web_call_store import append_session
+
+        started = session.get("started_at") or _now_iso()
+        ended = _now_iso()
+        try:
+            t0 = datetime.fromisoformat(str(started).replace("Z", "+00:00"))
+            t1 = datetime.fromisoformat(str(ended).replace("Z", "+00:00"))
+            dur = max(0, int((t1 - t0).total_seconds()))
+        except Exception:
+            dur = 0
+        ok = append_session(
+            {
+                "session_id": session.get("session_id"),
+                "lead_key": session.get("lead_key"),
+                "started_at": started,
+                "ended_at": ended,
+                "duration_s": dur,
+                "niche": session.get("niche"),
+                "flow": session.get("flow"),
+                "client_name": session.get("client_name"),
+                "memory_subject": session.get("memory_subject"),
+                "turns": turns,
+                "turn_count": len(turns),
+            }
+        )
+        if ok:
+            session["saved"] = True
+    except Exception as e:
+        logger.debug(f"web-call: persist session skip ({e})")
 
 
 # ---------------------------------------------------------------------------- #
@@ -192,14 +289,21 @@ async def _send_tcbrain_sentence_chunks(
     full_reply: str,
     llm_stream: bool = False,
 ) -> None:
-    """EdgeTTS + WS JSON for one or more spoken sentences (import-safe)."""
+    """EdgeTTS + WS JSON for one or more spoken sentences (import-safe).
+
+    TEXT FIRST: pehle turant text bhejo (audio_b64=None) taaki test-call / WS
+    tester 14s TTS wait pe hang na ho; browser speechSynthesis fallback instant.
+    Edge TTS optional background (WEB_CALL_EDGE_TTS=1) — quality mode, non-blocking.
+    """
+    import os
+
+    use_edge = os.environ.get("WEB_CALL_EDGE_TTS", "0").strip().lower() in ("1", "true", "yes")
     total = len(sentences)
     for i, sentence in enumerate(sentences):
-        audio_b64 = await _edge_tts_mp3_b64(sentence)
         payload: dict[str, Any] = {
             "type": "bot",
             "text": sentence,
-            "audio_b64": audio_b64,
+            "audio_b64": None,
             "heard": user_text if i == 0 else None,
             "chunk_index": i,
             "test_mode": True,
@@ -210,6 +314,14 @@ async def _send_tcbrain_sentence_chunks(
         if total > 1:
             payload["chunk_total"] = total
         await websocket.send_json(payload)
+        if use_edge and sentence.strip():
+            async def _bg_tts(txt: str = sentence) -> None:
+                try:
+                    await _edge_tts_mp3_b64(txt)
+                except Exception:
+                    pass
+
+            asyncio.create_task(_bg_tts())
 
 
 async def _edge_tts_mp3_b64(text: str) -> str | None:
@@ -355,11 +467,20 @@ async def web_call_config() -> dict[str, Any]:
     except Exception:
         llm_stream_tts = False
 
+    memory_enabled = False
+    try:
+        from app.voice_agent import agent_memory
+
+        memory_enabled = agent_memory.is_enabled()
+    except Exception:
+        pass
+
     return {
         "test_mode": True,
         "note": "Web Call is TEST MODE — talk to the bot in the browser, no real phone call is placed.",
         "llm_stream_tts": llm_stream_tts,
         "telecaller_available": telecaller_available,
+        "memory_enabled": memory_enabled,
         "natural_voice_available": natural_voice_available,
         "voice": "hi-IN-SwaraNeural" if natural_voice_available else None,
         "natural_dialog_available": natural_available,
@@ -377,6 +498,61 @@ async def web_call_config() -> dict[str, Any]:
             )
         ),
     }
+
+
+@router.get("/history")
+async def web_call_history(
+    lead_key: str = Query(..., min_length=8, max_length=64),
+    limit: int = Query(25, ge=1, le=50),
+    include_turns: bool = Query(False, description="Full transcript per row (heavy)"),
+) -> dict[str, Any]:
+    """Past test-call transcripts for this browser lead_key (newest first)."""
+    try:
+        from app.voice_agent.web_call_store import list_sessions, normalize_lead_key
+
+        lk = normalize_lead_key(lead_key)
+        if not lk:
+            return {"lead_key": None, "sessions": [], "total": 0}
+        sessions = list_sessions(lk, limit=limit, include_turns=include_turns)
+        return {"lead_key": lk, "sessions": sessions, "total": len(sessions)}
+    except Exception as e:
+        logger.debug(f"web-call: history list failed ({e})")
+        return {"lead_key": lead_key, "sessions": [], "total": 0}
+
+
+@router.get("/session/{session_id}")
+async def web_call_session_detail(
+    session_id: str,
+    lead_key: str = Query(..., min_length=8, max_length=64),
+) -> dict[str, Any]:
+    """One saved test-call session + full transcript (lead_key must match)."""
+    try:
+        from app.voice_agent.web_call_store import get_session, normalize_lead_key, normalize_session_id
+
+        lk = normalize_lead_key(lead_key)
+        sid = normalize_session_id(session_id)
+        if not lk or not sid:
+            return {"ok": False, "session": None}
+        row = get_session(sid, lk)
+        if not row:
+            return {"ok": False, "session": None}
+        return {
+            "ok": True,
+            "session": {
+                "session_id": row.get("session_id"),
+                "started_at": row.get("started_at"),
+                "ended_at": row.get("ended_at"),
+                "duration_s": row.get("duration_s"),
+                "niche": row.get("niche"),
+                "flow": row.get("flow"),
+                "client_name": row.get("client_name"),
+                "turn_count": row.get("turn_count") or len(row.get("turns") or []),
+                "turns": row.get("turns") or [],
+            },
+        }
+    except Exception as e:
+        logger.debug(f"web-call: session detail failed ({e})")
+        return {"ok": False, "session": None}
 
 
 # ---------------------------------------------------------------------------- #
@@ -400,6 +576,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
             return
     await websocket.accept()
 
+    lead_from_qs = _normalize_lead_key(websocket.query_params.get("lead_key"))
+
     # Per-session conversation context. Defaults until the client tells us the
     # niche/flow (via 'start' or the first 'user' message).
     session: dict[str, Any] = {
@@ -407,6 +585,12 @@ async def web_call_ws(websocket: WebSocket) -> None:
         "flow": "qualify",
         "client_name": "Demo Co",
         "client_service": "",
+        "lead_key": lead_from_qs,
+        "session_id": str(uuid4()),
+        "started_at": _now_iso(),
+        "turns": [],
+        "saved": False,
+        "memory_subject": None,
     }
 
     # PRIMARY responder: the human-like NaturalDialogManager. It LISTENS,
@@ -460,6 +644,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 niche=niche,
                 client_name=session.get("client_name", "Demo Co"),
             )
+            _apply_memory_subject(tcb, session)
         except Exception as e:
             logger.debug(f"web-call: TelecallerBrain unavailable for '{niche}' ({e}).")
             tcb = None
@@ -486,6 +671,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 "pipeline": pipeline is not None,
                 "providers": _get_registry_describe() or {},
                 "note": "TEST MODE — no real call. Say hello to talk to the bot.",
+                **_memory_meta(session),
             }
         )
     except Exception:
@@ -530,12 +716,43 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     dialog = None
             if data.get("client_service") and str(data["client_service"]).strip():
                 session["client_service"] = str(data["client_service"]).strip()[:120]
+            if data.get("lead_key"):
+                lk = _normalize_lead_key(str(data.get("lead_key")))
+                if lk and lk != session.get("lead_key"):
+                    session["lead_key"] = lk
+                    session["tcbrains"] = {}
+            if data.get("session_id"):
+                try:
+                    from app.voice_agent.web_call_store import normalize_session_id
+
+                    sid = normalize_session_id(str(data.get("session_id")))
+                    if sid:
+                        session["session_id"] = sid
+                except Exception:
+                    pass
 
             if mtype == "ping":
                 await websocket.send_json({"type": "pong"})
                 continue
 
+            if mtype == "end":
+                _persist_session(session)
+                try:
+                    await websocket.send_json(
+                        {
+                            "type": "session_saved",
+                            "session_id": session.get("session_id"),
+                            "turn_count": len(session.get("turns") or []),
+                        }
+                    )
+                except Exception:
+                    pass
+                break
+
             if mtype == "start":
+                session["started_at"] = _now_iso()
+                session["turns"] = []
+                session["saved"] = False
                 try:  # Team activity: Swara web-demo session
                     from app.platform.team import log_event
 
@@ -570,15 +787,28 @@ async def web_call_ws(websocket: WebSocket) -> None:
                             session["client_name"] = "LeadGen AI"
                         for seg in opening_segments():
                             history.append({"role": "assistant", "content": seg})
-                            audio_b64 = await _edge_tts_mp3_b64(seg)
+                            _log_turn(session, "assistant", seg)
                             await websocket.send_json(
                                 {
                                     "type": "bot",
                                     "text": seg,
-                                    "audio_b64": audio_b64,
+                                    "audio_b64": None,
                                     "test_mode": True,
                                 }
                             )
+                        try:
+                            await websocket.send_json(
+                                {
+                                    "type": "session",
+                                    **_memory_meta(session),
+                                    "recall_note": (
+                                        "Isi browser pe pehli calls yaad rahengi — "
+                                        "AGENT_MEMORY ON ho to Swara recall karegi."
+                                    ),
+                                }
+                            )
+                        except Exception:
+                            pass
                         continue
                 except Exception as e:
                     logger.debug(f"web-call: platform pitch start skip ({e}).")
@@ -595,15 +825,21 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         opening = _script_opening(niche, session.get("client_name", "Demo Co"))
                     if opening:
                         history.append({"role": "assistant", "content": opening})
-                        audio_b64 = await _edge_tts_mp3_b64(opening)
+                        _log_turn(session, "assistant", opening)
                         await websocket.send_json(
                             {
                                 "type": "bot",
                                 "text": opening,
-                                "audio_b64": audio_b64,
+                                "audio_b64": None,
                                 "test_mode": True,
                             }
                         )
+                        try:
+                            await websocket.send_json(
+                                {"type": "session", **_memory_meta(session)}
+                            )
+                        except Exception:
+                            pass
                         continue
 
                 # FALLBACK: natural-dialog opening (browser TTS), then info.
@@ -647,7 +883,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 )
                 continue
 
-            # Platform pitch interest gate (ai_marketing) — before TelecallerBrain.
+            _log_turn(session, "user", user_text)
             pitch_raw = session.get("pitch_state")
             if pitch_raw:
                 try:
@@ -665,16 +901,16 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     if gate_reply:
                         history.append({"role": "user", "content": user_text})
                         history.append({"role": "assistant", "content": gate_reply})
+                        _log_turn(session, "assistant", gate_reply)
                         tcbrain = await _run_blocking(_get_tcbrain, session.get("niche", "general"))
                         if pst.phase == "discovery" and tcbrain is not None:
                             if hasattr(tcbrain, "confirm_interest"):
                                 tcbrain.confirm_interest()
-                        audio_b64 = await _edge_tts_mp3_b64(gate_reply)
                         await websocket.send_json(
                             {
                                 "type": "bot",
                                 "text": gate_reply,
-                                "audio_b64": audio_b64,
+                                "audio_b64": None,
                                 "heard": user_text,
                                 "test_mode": True,
                                 "should_end": pst.phase == "closed",
@@ -690,32 +926,50 @@ async def web_call_ws(websocket: WebSocket) -> None:
             # we drop through to the existing natural-dialog/_respond chain.
             tcbrain = await _run_blocking(_get_tcbrain, session.get("niche", "general"))
             if tcbrain is not None:
-                # FILLER ACK — LLM ke sochne se pehle instant thinking sound bhejo
-                # taaki user ko dead silence na milein.
-                try:
-                    filler_audio = await _filler_b64()
-                    await websocket.send_json(
-                        {
-                            "type": "filler",
-                            "audio_b64": filler_audio,
-                            "heard": user_text,  # caption sync immediately
-                            "test_mode": True,
-                        }
-                    )
-                except Exception:
-                    pass  # filler fail = ignore, LLM reply abhi bhi aayega
+                # FILLER — sirf mic/audio turns pe; text test-call pe EdgeTTS filler
+                # 6s block karta hai → WS tester timeout / dead air.
+                if data.get("audio_b64"):
+                    try:
+                        filler_audio = await _filler_b64()
+                        await websocket.send_json(
+                            {
+                                "type": "filler",
+                                "audio_b64": filler_audio,
+                                "heard": user_text,
+                                "test_mode": True,
+                            }
+                        )
+                    except Exception:
+                        pass  # filler fail = ignore, LLM reply abhi bhi aayega
 
                 tc_reply = ""
+                # Web-call TEST MODE = text-first; LLM stream+TTS phone ke liye hai.
+                # USE_LLM_STREAM_TTS=1 pe stream path fast_path skip + 14s hang (tune loop).
                 use_llm_stream = False
-                try:
-                    from app.voice_agent.llm_stream_tts import stream_tts_enabled
 
-                    use_llm_stream = stream_tts_enabled()
-                except Exception:
-                    use_llm_stream = False
+                async def _brain_turn() -> str:
+                    nonlocal tc_reply
+                    if use_llm_stream:
+                        return await _brain_turn_stream()
+                    try:
+                        tc_reply = await tcbrain.reply(history, user_text)
+                    except Exception as e:
+                        tc_reply = ""
+                        logger.warning(
+                            f"web-call: TelecallerBrain reply failed, using fallback: {e}"
+                        )
+                    if tc_reply:
+                        await _send_tcbrain_sentence_chunks(
+                            websocket,
+                            sentences=_split_sentences(tc_reply),
+                            user_text=user_text,
+                            full_reply=tc_reply,
+                            llm_stream=False,
+                        )
+                    return tc_reply
 
-                if use_llm_stream:
-                    # Token stream → sentence TTS (lower TTFT vs wait-for-full reply).
+                async def _brain_turn_stream() -> str:
+                    nonlocal tc_reply
                     streamed: list[str] = []
                     try:
                         async for sentence in tcbrain.reply_stream_sentences(history, user_text):
@@ -733,18 +987,22 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         logger.warning(
                             f"web-call: TelecallerBrain stream reply failed, using fallback: {e}"
                         )
-                else:
+                    return tc_reply
+
+                try:
+                    tc_reply = await asyncio.wait_for(_brain_turn(), timeout=8.0)
+                except asyncio.TimeoutError:
+                    tc_reply = ""
+                    logger.warning("web-call: TelecallerBrain turn timed out (8s)")
+                if not tc_reply:
                     try:
-                        tc_reply = await tcbrain.reply(history, user_text)
-                    except Exception as e:
+                        tc_reply = tcbrain._safe_fallback(history) or ""
+                    except Exception:
                         tc_reply = ""
-                        logger.warning(
-                            f"web-call: TelecallerBrain reply failed, using fallback: {e}"
-                        )
                     if tc_reply:
                         await _send_tcbrain_sentence_chunks(
                             websocket,
-                            sentences=_split_sentences(tc_reply),
+                            sentences=[tc_reply],
                             user_text=user_text,
                             full_reply=tc_reply,
                             llm_stream=False,
@@ -753,6 +1011,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 if tc_reply:
                     history.append({"role": "user", "content": user_text})
                     history.append({"role": "assistant", "content": tc_reply})
+                    _log_turn(session, "assistant", tc_reply)
                     continue
 
             # FALLBACK: human-like natural dialog (listen -> understand -> answer).
@@ -760,6 +1019,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
             if dialog is not None and dstate is not None:
                 try:
                     reply = await dialog.respond(user_text, dstate)
+                    _log_turn(session, "assistant", reply.text)
                     await websocket.send_json(
                         {
                             "type": "bot",
@@ -778,6 +1038,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
             history.append({"role": "user", "content": user_text})
             bot_text, audio_b64 = await _respond(pipeline, brain, history, session, user_text)
             history.append({"role": "assistant", "content": bot_text})
+            _log_turn(session, "assistant", bot_text)
             await websocket.send_json(
                 {
                     "type": "bot",
@@ -793,6 +1054,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
             await websocket.send_json({"type": "error", "text": "Server error — session ended."})
         except Exception:
             pass
+    finally:
+        _persist_session(session)
 
 
 # ---------------------------------------------------------------------------- #
