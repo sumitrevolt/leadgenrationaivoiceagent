@@ -5,7 +5,7 @@ description: LeadGen AI project ka primary Composer 2.5 operating skill — cont
 
 # LeadGen Composer 2.5 — Project Brain
 
-> **Model:** Cursor Composer 2.5 (primary builder). **Memory:** `CLAUDE.md` + `AGENTS.md` auto-load. **Deep skills:** `.claude/skills/` (242+) — on-demand Read via [skills-index.md](skills-index.md).
+> **Model:** Cursor Composer 2.5 · **Canonical skills:** `.claude/skills/` (Claude Code + Composer share). **Index:** [skills-index.md](skills-index.md) · [SKILLS_PARITY.md](../SKILLS_PARITY.md)
 
 ## User rules (non-negotiable)
 

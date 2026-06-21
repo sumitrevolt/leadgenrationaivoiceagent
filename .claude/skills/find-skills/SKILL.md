@@ -9,9 +9,10 @@ This skill helps you discover skills — FIRST the LeadGen project's own skill l
 
 ## FIRST: check LeadGen's OWN skills (this repo)
 
-Iss project ke paas pehle se **~247 skills** hain — public ecosystem reach karne se pehle YAHAN dekho:
-- **66 project skills** → `.claude/skills/<name>/SKILL.md` (session bootstrap, ops/verify/deploy, hostinger gotchas, marketing-feature, telephony, automation-flags, FDE, multi-agent-coordination, RBAC, debugging/TDD/review, pricing/copy/churn, voice-humanization, etc.)
-- **181 packed skills** → `data/skills_extra/*.md` (agency-agents pack + ECC pack — data-only, `git pull` pe live, NO rebuild).
+Iss project ke paas pehle se **~250+ skills** hain — public ecosystem reach karne se pehle YAHAN dekho:
+- **~85 project skills** → `.claude/skills/<name>/SKILL.md` (leadgen-composer brain + Cursor parity + domain skills)
+- **Cursor parity map** → `.claude/skills/SKILLS_PARITY.md`
+- **181 packed skills** → `data/skills_extra/*.md` (agency-agents + ECC — git pull pe live)
 
 In-repo discovery:
 - Browse `.claude/skills/` directory ya `data/skills_extra/`.
