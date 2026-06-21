@@ -219,10 +219,40 @@ def ensure_permission_ask(text: str, name: str = "Swara") -> str:
         return text or ""
 
 
+def stt_keyterms(niche: str = "", client_name: str = "") -> str:
+    """Short biasing string for STT (Whisper `prompt=` / Gemini context) — pushes
+    the recogniser toward this call's Hinglish register + brand/niche entities so
+    proper nouns (client + domain) transcribe right (D-11). Gated STT_BIAS
+    (default ON); returns "" when off. Kept short (Whisper biases on a short
+    prompt). Never raises."""
+    try:
+        import os
+
+        if (os.environ.get("STT_BIAS", "1") or "1").strip().lower() in (
+            "0",
+            "false",
+            "no",
+            "off",
+        ):
+            return ""
+        terms: list[str] = []
+        cn = (client_name or "").strip()
+        if cn and cn.lower() not in ("demo co", "demo", "demo company"):
+            terms.append(cn)
+        nm = (niche or "").replace("_", " ").strip()
+        if nm and nm.lower() != "general":
+            terms.append(nm)
+        hint = "Yeh ek Hindi-English (Hinglish) business call hai."
+        return f"{hint} Vishay: {', '.join(terms)}." if terms else hint
+    except Exception:
+        return ""
+
+
 __all__ = [
     "NICHE_SCRIPTS",
     "get_script",
     "kb_documents",
     "ensure_ai_disclosure",
     "ensure_permission_ask",
+    "stt_keyterms",
 ]

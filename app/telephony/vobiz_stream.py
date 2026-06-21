@@ -403,16 +403,21 @@ def _pcm_to_wav(pcm16: bytes, rate: int = SAMPLE_RATE) -> bytes:
     return buf.getvalue()
 
 
-def _gemini_stt_sync(client: Any, model: str, wav_bytes: bytes) -> str:
+def _gemini_stt_sync(client: Any, model: str, wav_bytes: bytes, bias: str = "") -> str:
     """Blocking Gemini audio transcription (runs in executor). Raises on API
-    error — async caller catch karke "" return karta hai (whisper fallback)."""
+    error — async caller catch karke "" return karta hai (whisper fallback).
+    `bias` (D-11, optional): niche/brand context appended to the prompt so
+    domain entities transcribe right (default "" = unchanged)."""
     from google.genai import types  # type: ignore
 
+    prompt = _GEMINI_STT_PROMPT
+    if (bias or "").strip():
+        prompt = f"{prompt}\nContext (likely entities/register, bias spelling): {bias}"
     resp = client.models.generate_content(
         model=model,
         contents=[
             types.Part.from_bytes(data=wav_bytes, mime_type="audio/wav"),
-            _GEMINI_STT_PROMPT,
+            prompt,
         ],
         config=types.GenerateContentConfig(temperature=0.0),
     )
@@ -522,6 +527,7 @@ class VobizStreamSession:
         self._turn_llm_first_ms: float | None = None
         self._turn_tts_first_ms: float | None = None
         self._turn_metrics: list[dict] = []  # accumulated for the transcript record
+        self._stt_bias: str | None = None  # D-11 niche/brand STT bias (lazy, once)
 
         # turn-taking / VAD state
         self._speech_buf: list[bytes] = []
@@ -1042,6 +1048,18 @@ class VobizStreamSession:
             logger.debug(f"[vobiz-stream] AMD close failed: {e}")
         return True
 
+    def _get_stt_bias(self) -> str:
+        """D-11 STT bias string for THIS call (niche + client), computed once.
+        Niche/client are final after the 'start' event, so build lazily."""
+        if self._stt_bias is None:
+            try:
+                from app.voice_agent.niche_scripts import stt_keyterms
+
+                self._stt_bias = stt_keyterms(self.niche, self.client_name) or ""
+            except Exception:
+                self._stt_bias = ""
+        return self._stt_bias
+
     async def _stt(self, pcm16: bytes) -> str:
         # Sub-350ms audio reliably transcribe NAHI hota (whisper blips pe
         # hallucinate karta hai — mishearing source) — drop early.
@@ -1083,7 +1101,7 @@ class VobizStreamSession:
 
             wav = _pcm_to_wav(pcm16)
             lang = (os.environ.get("GROQ_STT_LANG", "") or "hi").strip()
-            text, _provider = await transcribe_audio(wav, language=lang)
+            text, _provider = await transcribe_audio(wav, language=lang, prompt=self._get_stt_bias())
             return (text or "").strip().strip("\"'` ").strip()
         except Exception as e:
             logger.warning(f"[vobiz-stream] Groq STT failed ({e}) — fallback")
@@ -1118,7 +1136,9 @@ class VobizStreamSession:
                 if client is None:
                     return ""
                 text = await asyncio.wait_for(
-                    loop.run_in_executor(None, _gemini_stt_sync, client, model, wav),
+                    loop.run_in_executor(
+                        None, _gemini_stt_sync, client, model, wav, self._get_stt_bias()
+                    ),
                     timeout=_GEMINI_STT_TIMEOUT,
                 )
                 return (text or "").strip()

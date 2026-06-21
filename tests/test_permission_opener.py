@@ -50,3 +50,31 @@ def test_kb_min_score_default():
     from app.voice_agent import telecaller_brain as tb
 
     assert tb._KB_MIN_SCORE == 0.35
+
+
+def test_stt_keyterms_biases_on_entities(monkeypatch):
+    """D-11: STT bias string carries client + niche + Hinglish register."""
+    monkeypatch.setenv("STT_BIAS", "1")
+    from app.voice_agent.niche_scripts import stt_keyterms
+
+    out = stt_keyterms("solar", "Acme Solar")
+    assert "Acme Solar" in out
+    assert "solar" in out.lower()
+    assert "hinglish" in out.lower()
+
+
+def test_stt_keyterms_excludes_demo_and_general(monkeypatch):
+    monkeypatch.setenv("STT_BIAS", "1")
+    from app.voice_agent.niche_scripts import stt_keyterms
+
+    out = stt_keyterms("general", "Demo Co")
+    assert "Demo Co" not in out
+    assert "general" not in out.lower()
+    assert out  # still returns the Hinglish hint
+
+
+def test_stt_keyterms_gated_off(monkeypatch):
+    monkeypatch.setenv("STT_BIAS", "0")
+    from app.voice_agent.niche_scripts import stt_keyterms
+
+    assert stt_keyterms("solar", "Acme") == ""
