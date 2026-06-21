@@ -12,7 +12,7 @@
 #
 # NOTE: GitHub scheduled crons ~5-15min jitter le sakte (best-effort), aur repo
 # 60-din inactive ho to auto-disable ho jaate — ye "VPS down" detection ke liye
-# theek hai (sub-minute SLA ke liye nahi). Flap-noise se bachne ke liye 3x retry
+# theek hai (sub-minute SLA ke liye nahi). Flap-noise se bachne ke liye 5x retry
 # + backoff; sab fail hone par hi DOWN declare hota.
 # =============================================================================
 name: uptime
@@ -31,11 +31,11 @@ permissions:
 
 env:
   TARGET_URL: "https://leadsgenai.in/health"
-  EXPECT_SUBSTR: "production"   # /health body me hona chahiye (environment:production)
-  MAX_TRIES: "3"
-  RETRY_SLEEP: "20"            # seconds between tries (transient blip absorb)
-  CONNECT_TIMEOUT: "10"
-  MAX_TIME: "25"
+  EXPECT_SUBSTR: '"environment":"production"'  # app.api.health liveness contract (not /health/platform)
+  MAX_TRIES: "5"
+  RETRY_SLEEP: "25"            # docker recreate / Caddy blip (~1-2 min) absorb
+  CONNECT_TIMEOUT: "20"
+  MAX_TIME: "45"
 
 jobs:
   probe:
@@ -53,8 +53,9 @@ jobs:
           for i in $(seq 1 "$MAX_TRIES"); do
             echo "::group::Attempt $i/$MAX_TRIES"
             body="$(curl -fsS --connect-timeout "$CONNECT_TIMEOUT" --max-time "$MAX_TIME" \
+                    --retry 2 --retry-delay 3 --retry-all-errors \
                     -A 'leadgen-uptime-watchdog/1.0 (GitHub Actions)' \
-                    -w '\n__HTTP_CODE__%{http_code}' "$TARGET_URL" 2>/dev/null)"
+                    -w '\n__HTTP_CODE__%{http_code}' "$TARGET_URL" 2>&1 | tail -c 8192)"
             rc=$?
             last_code="$(printf '%s' "$body" | sed -n 's/.*__HTTP_CODE__//p' | tail -n1)"
             clean="$(printf '%s' "$body" | sed 's/__HTTP_CODE__[0-9]*$//')"
@@ -62,7 +63,7 @@ jobs:
             echo "curl_rc=$rc http_code=$last_code"
             echo "body(head): $last_body"
             echo "::endgroup::"
-            if [ "$rc" -eq 0 ] && [ "$last_code" = "200" ] && printf '%s' "$clean" | grep -q "$EXPECT_SUBSTR"; then
+            if [ "$rc" -eq 0 ] && [ "$last_code" = "200" ] && printf '%s' "$clean" | grep -qF "$EXPECT_SUBSTR"; then
               ok=1
               break
             fi
@@ -73,6 +74,14 @@ jobs:
             echo "http_code=$last_code"
           } >> "$GITHUB_OUTPUT"
           if [ "$ok" -ne 1 ]; then
+            {
+              echo "### External probe failed"
+              echo ""
+              echo "- URL: $TARGET_URL"
+              echo "- Last HTTP: $last_code"
+              echo "- Expected substring: $EXPECT_SUBSTR"
+              echo "- Body (head): \`${last_body}\`"
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "DOWN: $TARGET_URL did not return 200 with '$EXPECT_SUBSTR' after $MAX_TRIES tries (last code: $last_code)"
           else
             echo "UP: $TARGET_URL healthy (200, '$EXPECT_SUBSTR' present)"
