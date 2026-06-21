@@ -95,6 +95,7 @@ User ko pehle individual opinions dikha sakte ho (tabs/sections), phir final —
 
 | Situation | Engine |
 |-----------|--------|
+| Full advancement · ROI Top 20 · competitive · moat roadmap · revenue journey | **`executive-council` skill** + `docs/EXECUTIVE_ADVANCEMENT_COUNCIL_PROMPT.md` (Phases 1–6) |
 | Ambiguous strategy, user admin hai | **`POST /api/agents/council`** (best — real multi-model) |
 | Pro vs con binary | `POST /api/agents/debate` |
 | Goal → subtasks → drafts | `POST /api/agents/coordinate` or `-advanced` |

@@ -10,7 +10,7 @@ This skill helps you discover skills — FIRST the LeadGen project's own skill l
 ## FIRST: check LeadGen's OWN skills (this repo)
 
 Iss project ke paas pehle se **~270+ skills** hain — public ecosystem reach karne se pehle YAHAN dekho:
-- **~93 project skills** → `.claude/skills/<name>/SKILL.md` (context-first + leadgen-composer brain + domain)
+- **~94 project skills** → `.claude/skills/<name>/SKILL.md` (context-first + executive-council + domain)
 - **Cursor parity map** → `.claude/skills/SKILLS_PARITY.md`
 - **181 packed skills** → `data/skills_extra/*.md` (agency-agents + ECC — git pull pe live)
 

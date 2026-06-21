@@ -53,6 +53,7 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 | Skill | Path | When |
 |-------|------|------|
 | **llm-council-decision** | `.claude/skills/llm-council-decision/SKILL.md` | strategy, go/no-go |
+| **executive-council** | `.claude/skills/executive-council/SKILL.md` | ROI roadmap · competitive · moat (NOT repo audit) |
 | multi-agent-coordination | `.claude/skills/multi-agent-coordination/SKILL.md` | kaunsa primitive |
 | coordinator-orchestration | `.claude/skills/coordinator-orchestration/SKILL.md` | goal run abhi |
 | automation-pipeline | `.claude/skills/automation-pipeline/SKILL.md` | Celery jobs |
@@ -110,6 +111,8 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 
 | Skill | Path | When |
 |-------|------|------|
+| advancement-roadmap | `.claude/skills/advancement-roadmap/SKILL.md` | technical advancement items |
+| executive-council | `.claude/skills/executive-council/SKILL.md` | full council Phases 1–6 |
 | saas-pricing-strategy | `.claude/skills/saas-pricing-strategy/SKILL.md` | pricing strategy |
 | churn-prevention | `.claude/skills/churn-prevention/SKILL.md` | retention |
 | admin-friendly-ux | `.claude/skills/admin-friendly-ux/SKILL.md` | admin UI |
@@ -126,5 +129,6 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 1. `CLAUDE.md` auto each turn
 2. Code task → **Read `context-first`** then **one** row from table above
 3. Ambiguous strategy → `llm-council-decision`
-4. Missing skill → `find-skills`
+4. Advancement council / ROI roadmap → `executive-council`
+5. Missing skill → `find-skills`
 5. **Poora folder mat load** — ek SKILL.md enough
