@@ -831,6 +831,18 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     if not opening:
                         opening = _script_opening(niche, session.get("client_name", "Demo Co"))
                     if opening:
+                        # D-14/D-9 web-call parity: even the browser demo opener must
+                        # disclose it is an AI (TRAI good-practice) + ask permission —
+                        # phone wraps these; web-call did not. Idempotent + never-raise.
+                        try:
+                            from app.voice_agent.niche_scripts import (
+                                ensure_ai_disclosure,
+                                ensure_permission_ask,
+                            )
+
+                            opening = ensure_permission_ask(ensure_ai_disclosure(opening))
+                        except Exception:
+                            pass
                         history.append({"role": "assistant", "content": opening})
                         _log_turn(session, "assistant", opening)
                         await websocket.send_json(
