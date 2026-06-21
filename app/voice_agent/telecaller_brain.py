@@ -253,6 +253,16 @@ class TelecallerBrain:
 
         self._load_niche()
         self.system_prompt = self._build_system_prompt()
+        # POLITE-NO hard rule (D-8) — append the India 2-strike de-escalation rule
+        # so the LLM honours it on edge cases too (the deterministic gate in reply()
+        # is the hard backstop). Gated SOFTNO_DEESCALATE (default ON).
+        try:
+            from app.voice_agent.intent_softno import SYSTEM_RULE, enabled as _softno_on
+
+            if _softno_on() and SYSTEM_RULE not in self.system_prompt:
+                self.system_prompt += SYSTEM_RULE
+        except Exception:
+            pass
         logger.info(
             f"[telecaller-brain] ready niche={self.niche} model={self.model} "
             f"gemini_keys={self._key_count()} free_ai={self._free_ai_providers or 'none'} "
@@ -575,6 +585,18 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         Repeated-answer guard: bot pichhli line dohraye to ek nudged retry."""
         try:
             ut = (user_text or "").strip()
+            # POLITE-NO 2-strike de-escalation (D-8): caller ka 2nd soft refusal =>
+            # push BAND, graceful async-exit. Deterministic backstop (no LLM call),
+            # runs BEFORE fast-path/LLM so the trust-rule always wins. Gated
+            # SOFTNO_DEESCALATE (default ON); any error = no change.
+            try:
+                from app.voice_agent import intent_softno
+
+                if intent_softno.should_deescalate(history, ut):
+                    logger.debug("[telecaller-brain] polite-no de-escalation (2nd soft refusal)")
+                    return intent_softno.deescalation_reply(self.niche, self.client_name)
+            except Exception:
+                pass
             fast = self._fast_path_reply(history, ut)
             if fast:
                 return fast
@@ -651,6 +673,16 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
         try:
             ut = (user_text or "").strip()
+            # POLITE-NO 2-strike de-escalation (D-8) — same backstop as reply(),
+            # yielded as a single sentence so the stream path also de-escalates.
+            try:
+                from app.voice_agent import intent_softno
+
+                if intent_softno.should_deescalate(history, ut):
+                    yield intent_softno.deescalation_reply(self.niche, self.client_name)
+                    return
+            except Exception:
+                pass
             fast = self._fast_path_reply(history, ut)
             if fast:
                 yield fast
