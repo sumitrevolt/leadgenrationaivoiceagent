@@ -138,6 +138,46 @@
 
   .foot{padding:9px 14px 12px;font-size:10.5px;color:var(--muted);text-align:center}
   .foot b{color:var(--warn)}
+
+  /* Call history (transcript log — newest first, IST time) */
+  .history-panel{
+    border-top:1px solid var(--line);background:#faf9ff;padding:10px 14px 12px;
+    max-height:min(38vh,280px);overflow-y:auto;flex-shrink:0;
+  }
+  .history-hd{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    font-size:12px;font-weight:800;color:var(--ink);margin-bottom:8px;
+  }
+  .history-hd span{color:var(--muted);font-weight:600;font-size:11px}
+  .hist-empty{font-size:12px;color:var(--muted);padding:4px 0 2px}
+  .hist-day{font-size:11px;font-weight:800;color:var(--brand);margin:10px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+  .hist-day:first-child{margin-top:0}
+  .hist-row{
+    border:1px solid var(--line);border-radius:10px;background:#fff;
+    margin-bottom:8px;overflow:hidden;
+  }
+  .hist-head{
+    display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;
+    padding:9px 11px;cursor:pointer;user-select:none;
+  }
+  .hist-head:hover{background:var(--brand-soft)}
+  .hist-time{font-weight:800;font-size:12.5px;font-variant-numeric:tabular-nums}
+  .hist-dur{
+    font-size:11px;font-weight:700;color:var(--brand);background:var(--brand-soft);
+    padding:2px 7px;border-radius:999px;
+  }
+  .hist-meta{font-size:11px;color:var(--muted);flex:1;min-width:120px}
+  .hist-chev{font-size:10px;color:var(--muted)}
+  .hist-body{
+    display:none;border-top:1px solid var(--line);padding:8px 11px 10px;
+    background:#f8fafc;max-height:160px;overflow-y:auto;
+  }
+  .hist-row.open .hist-body{display:block}
+  .hist-row.open .hist-chev{transform:rotate(90deg)}
+  .hist-turn{font-size:11.5px;line-height:1.35;margin-bottom:6px;word-break:break-word}
+  .hist-turn b{color:var(--brand);font-size:10px;text-transform:uppercase}
+  .hist-turn.user b{color:#334155}
+  .hist-turn .ts{color:var(--muted);font-size:10px;margin-left:4px}
 </style>
 </head>
 <body>
@@ -199,6 +239,14 @@
     </div>
 
     <div class="foot" id="foot"><b>TEST MODE</b> — koi real phone call / charge nahi. Browser me hi bot se baat ho rahi hai.</div>
+
+    <div class="history-panel" id="historyPanel">
+      <div class="history-hd">
+        <span>📋 Call History</span>
+        <span id="histSummary">—</span>
+      </div>
+      <div id="historyList"><div class="hist-empty">Loading…</div></div>
+    </div>
   </div>
 </div>
 
@@ -209,7 +257,21 @@
   // ---- WebSocket URL (auto-detect host) -------------------------------
   var proto = location.protocol === "https:" ? "wss:" : "ws:";
   var host  = location.host || "localhost:8000";
-  var WS_URL = proto + "//" + host + "/api/web-call/ws";
+
+  // Stable browser identity — bina iske backend session save NAHI karta.
+  function getLeadKey(){
+    var k = "";
+    try{ k = localStorage.getItem("lg_webcall_lead") || ""; }catch(e){}
+    if(k && k.length >= 8) return k;
+    var chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    k = "wc_";
+    for(var i = 0; i < 14; i++){ k += chars.charAt(Math.floor(Math.random() * chars.length)); }
+    try{ localStorage.setItem("lg_webcall_lead", k); }catch(e){}
+    return k;
+  }
+  var LEAD_KEY = getLeadKey();
+  var WS_URL = proto + "//" + host + "/api/web-call/ws?lead_key=" + encodeURIComponent(LEAD_KEY);
+  var currentSessionId = null;
 
   // ---- DOM refs --------------------------------------------------------
   var screenEl  = document.getElementById("callScreen");
@@ -229,6 +291,8 @@
   var input     = document.getElementById("input");
   var sendBtn   = document.getElementById("sendBtn");
   var foot      = document.getElementById("foot");
+  var historyList = document.getElementById("historyList");
+  var histSummary = document.getElementById("histSummary");
 
   // ---- Call state ------------------------------------------------------
   var ws = null;
@@ -324,6 +388,8 @@
     // ai_marketing platform pitch = hamesha LeadGen AI brand (override mat bhejo).
     var n = (bizName && bizName.value || "").trim();
     if(n && nicheSel.value !== "ai_marketing"){ p.client_name = n; }
+    p.lead_key = LEAD_KEY;
+    if(currentSessionId){ p.session_id = currentSessionId; }
     return p;
   }
 
@@ -354,6 +420,7 @@
 
       if(data.type === "ready"){
         setState("connected");
+        if(data.session_id){ currentSessionId = data.session_id; }
         startTimer();
         if(data.responder){
           foot.innerHTML = "<b>TEST MODE</b> · responder: " + data.responder +
@@ -387,6 +454,9 @@
           if(callActive && !botSpeaking){ setState("listening"); startListening(); }
         }
 
+      } else if(data.type === "session_saved"){
+        loadCallHistory();
+
       } else if(data.type === "error"){
         if(pendingBot){ pendingBot = false; clearTimeout(safetyTimer); }
         showBotCaption("⚠ " + (data.text || "error"));
@@ -394,7 +464,7 @@
       }
       /* pong: keepalive, ignore */
     };
-    ws.onclose = function(){ if(callActive){ endCall(); } };
+    ws.onclose = function(){ if(callActive && !endingCall){ endCall(); } };
     ws.onerror = function(){ /* onclose will follow */ };
   }
 
@@ -674,6 +744,7 @@
   }
 
   // ---- Call lifecycle --------------------------------------------------
+  var endingCall = false;
   function startCall(){
     if(callActive) return;
     unlockAudioPlayback();
@@ -685,9 +756,11 @@
     initMic();                    // raw-audio capture (server Groq STT) ke liye
     connectWS();
   }
-  function endCall(){
+  function finishEndCall(){
+    endingCall = false;
     callActive = false;
     awaitingGreeting = false; pendingBot = false; botSpeaking = false; endAfterSpeak = false;
+    currentSessionId = null;
     clearBotQueue();
     clearTimeout(kickTimer); clearTimeout(safetyTimer);
     stopListening();
@@ -700,7 +773,19 @@
     setControls(false);
     setState("ended");
     timerEl.classList.add("hidden");
+    loadCallHistory();
     setTimeout(function(){ if(!callActive){ setState("idle"); clearCaptions(); } }, 1600);
+  }
+  function endCall(){
+    if(!callActive || endingCall) return;
+    endingCall = true;
+    stopListening();
+    if(ws && ws.readyState === WebSocket.OPEN){
+      sendJSON({type:"end"});
+      setTimeout(finishEndCall, 700);
+    } else {
+      finishEndCall();
+    }
   }
 
   // ---- Events ----------------------------------------------------------
@@ -751,7 +836,125 @@
   });
   if(nicheSel.value === "ai_marketing"){ nicheSel.dispatchEvent(new Event("change")); }
 
+  // ---- Call history (transcript log, IST time, newest first) -----------
+  function escHist(s){
+    return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;");
+  }
+  function toIstDate(iso){
+    if(!iso) return null;
+    try{
+      var d = new Date(iso);
+      if(isNaN(d.getTime())) return null;
+      return new Date(d.getTime() + (5 * 60 + 30) * 60000);
+    }catch(e){ return null; }
+  }
+  function formatIstTime(iso){
+    var d = toIstDate(iso);
+    if(!d) return "—";
+    var h = d.getUTCHours(), m = d.getUTCMinutes();
+    return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+  }
+  function formatIstDayLabel(iso){
+    var d = toIstDate(iso);
+    if(!d) return "Unknown";
+    var now = toIstDate(new Date().toISOString());
+    if(!now) return d.toISOString().slice(0, 10);
+    var y = d.getUTCFullYear(), mo = d.getUTCMonth(), da = d.getUTCDate();
+    var ny = now.getUTCFullYear(), nmo = now.getUTCMonth(), nda = now.getUTCDate();
+    if(y === ny && mo === nmo && da === nda) return "Aaj";
+    var yest = new Date(now.getTime() - 86400000);
+    if(y === yest.getUTCFullYear() && mo === yest.getUTCMonth() && da === yest.getUTCDate()) return "Kal";
+    var months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return da + " " + months[mo] + " " + y;
+  }
+  function formatDur(sec){
+    sec = Math.max(0, parseInt(sec, 10) || 0);
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+  }
+  function renderTurns(turns){
+    if(!turns || !turns.length) return '<div class="hist-empty">Koi transcript nahi</div>';
+    return turns.map(function(t){
+      var role = (t.role === "user") ? "user" : "bot";
+      var lbl = role === "user" ? "Aap" : "Swara";
+      var ts = t.ts ? '<span class="ts">' + escHist(formatIstTime(t.ts)) + "</span>" : "";
+      return '<div class="hist-turn ' + role + '"><b>' + lbl + "</b>" + ts + " — " + escHist(t.text || "") + "</div>";
+    }).join("");
+  }
+  function toggleHistRow(rowEl, sid){
+    if(!rowEl || !sid) return;
+    var open = rowEl.classList.contains("open");
+    if(open){ rowEl.classList.remove("open"); return; }
+    rowEl.classList.add("open");
+    var body = rowEl.querySelector(".hist-body");
+    if(!body || body.getAttribute("data-loaded") === "1") return;
+    body.innerHTML = '<div class="hist-empty">Loading transcript…</div>';
+    fetch("/api/web-call/session/" + encodeURIComponent(sid) + "?lead_key=" + encodeURIComponent(LEAD_KEY))
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if(!body) return;
+        if(!d || !d.ok || !d.session){
+          body.innerHTML = '<div class="hist-empty">Transcript load nahi hua</div>';
+          return;
+        }
+        body.setAttribute("data-loaded", "1");
+        body.innerHTML = renderTurns(d.session.turns || []);
+      })
+      .catch(function(){
+        if(body) body.innerHTML = '<div class="hist-empty">Network error</div>';
+      });
+  }
+  function renderCallHistory(sessions){
+    if(!sessions || !sessions.length){
+      historyList.innerHTML = '<div class="hist-empty">Abhi koi call save nahi — ek test call karo, transcript yahan dikhega.</div>';
+      if(histSummary) histSummary.textContent = "0 calls";
+      return;
+    }
+    if(histSummary) histSummary.textContent = sessions.length + " call" + (sessions.length === 1 ? "" : "s");
+    var groups = {}, order = [];
+    sessions.forEach(function(s){
+      var day = formatIstDayLabel(s.started_at);
+      if(!groups[day]){ groups[day] = []; order.push(day); }
+      groups[day].push(s);
+    });
+    var html = "";
+    order.forEach(function(day){
+      html += '<div class="hist-day">' + escHist(day) + "</div>";
+      groups[day].forEach(function(s){
+        var sid = s.session_id || "";
+        var niche = s.niche || "general";
+        var flow = s.flow || "qualify";
+        var biz = s.client_name && s.client_name !== "Demo Co" ? " · " + s.client_name : "";
+        html += '<div class="hist-row" data-sid="' + escHist(sid) + '">' +
+          '<div class="hist-head">' +
+          '<span class="hist-time">' + escHist(formatIstTime(s.started_at)) + "</span>" +
+          '<span class="hist-dur">' + escHist(formatDur(s.duration_s)) + "</span>" +
+          '<span class="hist-meta">' + escHist(niche) + " · " + escHist(flow) + escHist(biz) +
+          " · " + (s.turn_count || 0) + " turns</span>" +
+          '<span class="hist-chev">▶</span></div>' +
+          '<div class="hist-body"></div></div>';
+      });
+    });
+    historyList.innerHTML = html;
+    historyList.querySelectorAll(".hist-row").forEach(function(row){
+      row.querySelector(".hist-head").addEventListener("click", function(){
+        toggleHistRow(row, row.getAttribute("data-sid"));
+      });
+    });
+  }
+  function loadCallHistory(){
+    if(histSummary) histSummary.textContent = "Loading…";
+    fetch("/api/web-call/history?lead_key=" + encodeURIComponent(LEAD_KEY) + "&limit=30")
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){ renderCallHistory(d && d.sessions ? d.sessions : []); })
+      .catch(function(){
+        historyList.innerHTML = '<div class="hist-empty">History load fail — refresh karo</div>';
+        if(histSummary) histSummary.textContent = "—";
+      });
+  }
+
   // ---- Boot ------------------------------------------------------------
+  loadCallHistory();
   setControls(false);
   setState("idle");
 })();
