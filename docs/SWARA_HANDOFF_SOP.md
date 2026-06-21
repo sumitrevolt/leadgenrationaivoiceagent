@@ -291,7 +291,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **P1-1 [DONE 2026-06-21 — LIVE]** Per-turn metrics: `stt_ms`/`llm_first_ms`/`tts_first_ms`/`turn_ms`+outcome → `data/turn_metrics/*.jsonl` + transcript `turn_metrics`+`turn_rollup` (P50/P95). New `app/voice_agent/turn_metrics.py` (gated `TURN_METRICS`, default on, log-only); wired vobiz_stream (prod) + pipeline (web-call). *Caveat:* `tts_first_ms` reliable only on stream-TTS path → populates fully after D-3. *"Jo measure nahi kar sakte woh tune nahi kar sakte."*
 
 ### P2 — Latency / fluidity (web-call safe; zyada-tar already coded)
-- **P2-1 [OPEN]** `USE_LLM_STREAM_TTS=1` flip — **free money, coded** (−60–80% perceived).
+- **P2-1 [DONE 2026-06-21 — LIVE]** `USE_LLM_STREAM_TTS=1` flipped on prod (.env, both app+worker verified). Affects vobiz/phone path (web-call hardcodes off to dodge a 14s tune-loop hang). −60–80% perceived latency once phone live.
 - **P2-2 [DONE 2026-06-21 — LIVE]** Smart-Turn **vobiz me wired** — `confirm_end_of_turn` on normal silence-end (hard 2x-silence + too_long always finalize). Activate: `USE_SMART_TURN=1`+`USE_TEXT_ENDPOINT=1` (needs pipecat dep); inert till then.
 - **P2-3 [DONE 2026-06-21 — LIVE]** Silero **frame-size fix** — per-session rolling buffer (vobiz 512@16k / phone 256@8k) + sr-aware gate floor. Silero ab actually chalega jab `USE_SILERO_VAD=1`.
 - **P2-4 [PARTIAL — gate+lock DONE 2026-06-21]** Barge-in **gate** (`BARGE_IN_ENABLED`) + disclosure-leg non-interruptible (`DISCLOSURE_LOCK`, default ON, 6 s safety cap) DONE. **Pending:** STT-validated backchannel allowlist (haan/accha = no barge) — needs STT-in-loop.
@@ -302,7 +302,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **P3-2 [DONE 2026-06-21 — LIVE]** Opener → AI-disclosure → permission → source flow. Permission = `niche_scripts.ensure_permission_ask` (do-minute clause, gated `PERMISSION_OPENER`) in vobiz + phone openers (ALL niches); source-line = `_CONVO_DISCIPLINE` prompt rule. Minor follow-up: web-call opener helper parity.
 - **P3-3..3-6 [DONE 2026-06-21 — LIVE, prompt-level]** Talk-listen governor + objection 3-step (agree→explore→reframe + incumbent rating trick, no trashing) + WhatsApp qualify-before-send gate + Hinglish-mirror (mix/formality/tech-nouns-English, literal-translation banned) — shipped as the `_CONVO_DISCIPLINE` block in `telecaller_brain` system prompt (gated `CONVO_DISCIPLINE`, default ON). Runtime-verifiable via `qa_checks.check_talk_listen_ratio` + `check_literal_translation`.
 - **P3-7 [DONE 2026-06-21 — LIVE]** STT niche-biasing for **Groq + Gemini** — `niche_scripts.stt_keyterms` (client+niche+Hinglish) → Groq `prompt=` + Gemini context; vobiz session computes once. Gated `STT_BIAS` (default ON).
-- **P3-8 [PARTIAL — threshold DONE 2026-06-21]** KB `min_score` 0.05→**0.35** DONE (env-tunable `KB_MIN_SCORE`, telecaller_brain). **Pending:** singleton periodic/TTL refresh.
+- **P3-8 [threshold DONE/LIVE; refresh code-ready, UNCOMMITTED]** KB `min_score` 0.05→**0.35** (env-tunable `KB_MIN_SCORE`) LIVE. TTL refresh (`KB_REFRESH_SEC`, default 0=off) written in `telecaller_brain._get_kb` but NOT yet committed — that file currently shares uncommitted in-progress voice-roles work; ships when that file is committed.
 
 ### P4 — Eval / QA harness (P2/P3 shipping ka prerequisite)
 - **P4-1 [DONE 2026-06-21]** Nayi eval personas in `eval_suite.EXTENDED_PERSONAS` (separate from default baseline; aspirational — drive D-8/D-10): `polite_no_indian`, `whatsapp_brushoff`, `incumbent_user`, `formal_hindi_speaker`, `english_dominant`.
@@ -351,7 +351,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **Test:** unit — metric dict shape; transcript line me keys present.
 - **Verify:** web-call karke JSONL me numbers dikhe; P95 compute.
 
-### D-3 (P2-1) Streaming-TTS enable **[OPEN]**
+### D-3 (P2-1) Streaming-TTS enable **[DONE 2026-06-21 — LIVE]**
 - **File:** sirf env. `USE_LLM_STREAM_TTS=1`. Path already: `llm_stream_tts.py` + `telecaller_brain.reply_stream_sentences` (~646) + `vobiz_stream._think_and_say_stream` (~1204) + `phone_stream` (~624).
 - **Gotcha:** `web_call.py:947` comment — stream path pe fast_path skip + 14s hang tune-loop. Pehle web-call pe verify, fir vobiz.
 - **Test:** `agent_tester.py` slow-metric pehle/baad compare (perceived latency down).
@@ -404,7 +404,7 @@ For non-trivial debug → `systematic-debugging` skill; ambiguous go/no-go → `
 - **Change:** per-niche brand/keyterm string (Qdrant niche namespace se top terms) → Groq `prompt=` / Gemini context me pass (jaise faster-whisper already karta line ~261). +20–30% rel accuracy on entities.
 - **Test:** known Hinglish brand utterance → transcription improve (manual A/B).
 
-### D-12 (P3-8) KB threshold + refresh **[PARTIAL — threshold DONE/LIVE 2026-06-21; refresh pending]**
+### D-12 (P3-8) KB threshold + refresh **[threshold DONE/LIVE; refresh code-ready UNCOMMITTED]**
 - **File:** `telecaller_brain.py` `_KB_MIN_SCORE` 0.05 → **0.35**; singleton ko time/TTL refresh (e.g. 1hr) ya reload hook.
 - **Test:** off-topic query → top-2 chunk relevance up; stale-after-update gone.
 
