@@ -18,6 +18,7 @@ API notes (IMPORTANT — discovered the hard way):
 Import-safe: no network at import time; httpx is imported lazily inside methods.
 """
 
+import os
 from typing import Any
 from xml.sax.saxutils import escape
 
@@ -185,10 +186,15 @@ def build_stream_xml(ws_url: str, greeting: str = "") -> str:
     opens; normally left empty because the bot greets over the socket itself.
     """
     speak = f"<Speak>{escape(greeting.strip())}</Speak>" if (greeting and greeting.strip()) else ""
+    # audioTrack env-overridable (VOBIZ_AUDIO_TRACK): "inbound" = caller's audio only
+    # (correct per docs, default). If Vobiz delivers ZERO inbound media frames despite
+    # ACKing tracks:['inbound'] (observed 2026-06-22: inbound_frames=0 on a 54s answered
+    # call), try "both" to confirm whether media can flow at all. Valid: inbound|both.
+    track = (os.environ.get("VOBIZ_AUDIO_TRACK", "inbound") or "inbound").strip() or "inbound"
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
         f"<Response>{speak}"
         '<Stream bidirectional="true" keepCallAlive="true" '
-        'audioTrack="inbound" contentType="audio/x-l16;rate=16000">'
+        f'audioTrack="{escape(track)}" contentType="audio/x-l16;rate=16000">'
         f"{escape(ws_url or '')}</Stream></Response>"
     )
