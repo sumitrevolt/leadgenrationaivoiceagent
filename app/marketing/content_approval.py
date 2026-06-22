@@ -199,6 +199,23 @@ def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
                 )
             except Exception:
                 pass
+            # Video-ad approve -> publish-queue mark (scheduler hi publish karta; web light).
+            try:
+                if (merged.get("content") or {}).get("type") == "video_ad":
+                    from app.marketing import video_ad_cycle
+
+                    video_ad_cycle.on_approved(merged)
+            except Exception:
+                pass
+        # Video-ad "change chahiye" (reject) -> changes_requested mark (scheduler regen).
+        if status == "rejected":
+            try:
+                if (merged.get("content") or {}).get("type") == "video_ad":
+                    from app.marketing import video_ad_cycle
+
+                    video_ad_cycle.on_changes_requested(merged)
+            except Exception:
+                pass
         # Best-effort team event — dashboard pe dikhe (kabhi raise nahi).
         try:
             from app.platform.team import log_event

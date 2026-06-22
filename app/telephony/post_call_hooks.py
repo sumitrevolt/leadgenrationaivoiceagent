@@ -19,6 +19,22 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+def classify_stream_outcome(
+    *,
+    user_turns: int,
+    turn_metrics: list[dict[str, Any]] | None = None,
+) -> str:
+    """Normalize WS-call result so dead/no-audio sessions are not marked completed."""
+    metrics = [str((r or {}).get("outcome") or "").strip().lower() for r in (turn_metrics or [])]
+    if any(m == "ok" for m in metrics):
+        return "completed"
+    if int(user_turns or 0) <= 0:
+        return "no_answer"
+    if any(m in {"think_timeout", "no_reply", "empty_stt"} for m in metrics):
+        return "failed"
+    return "completed"
+
+
 async def meter_call_completion(
     call_id: str,
     *,
@@ -289,12 +305,14 @@ async def finalize_stream_session(
     ended_at: datetime | None = None,
     extra_transcript: dict[str, Any] | None = None,
     campaign_variant_id: str = "",
+    turn_metrics: list[dict[str, Any]] | None = None,
 ) -> None:
     """Meter + transcript + qualify — one call for WS stream cleanup paths."""
     ended = ended_at or datetime.now(timezone.utc)
     started = started_at or ended
     dur = max(0.0, (ended - started).total_seconds())
     turns = len([m for m in history if m.get("role") == "user"])
+    outcome = classify_stream_outcome(user_turns=turns, turn_metrics=turn_metrics)
     persist_transcript(
         history,
         call_id=call_id,
@@ -342,9 +360,9 @@ async def finalize_stream_session(
             phone=phone or "",
             client_id=str(client_id or ""),
             body_summary=f"call {int(dur)}s · {turns} user turns",
-            outcome="completed",
+            outcome=outcome,
             campaign_variant_id=campaign_variant_id,
-            meta={"call_id": call_id, "niche": niche},
+            meta={"call_id": call_id, "niche": niche, "source": "stream_session"},
         )
     except Exception:
         pass
@@ -366,5 +384,6 @@ __all__ = [
     "emit_call_report",
     "persist_transcript",
     "auto_qualify_and_downstream",
+    "classify_stream_outcome",
     "finalize_stream_session",
 ]

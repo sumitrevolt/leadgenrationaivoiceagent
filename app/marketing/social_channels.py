@@ -1,6 +1,6 @@
 """Naye customer-approach channels (2026) — sab BAN-SAFE drafts, human 1-click post.
 
-community_content.py (quora/reddit/wa-group/telegram/li-article/medium) ke UPAR
+community_content.py (quora/reddit/wa-group/li-article/medium) ke UPAR
 8 NAYE methods — koi auto-post/auto-send NAHI (Insta/YT/Meta ToS + WA ban-safety):
   instagram_comment  — local pages pe value-comment + DM follow-up draft
   youtube_shorts     — 30-sec Hinglish Shorts script (hook/value/CTA)

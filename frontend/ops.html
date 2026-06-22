@@ -169,7 +169,7 @@ async function checkFF(){
     $('ffckmsg').innerHTML=r.enabled?'<span class="ok">✅ ENABLED</span>':'<span class="bad">⛔ disabled</span>';
   }catch(e){$('ffckmsg').textContent='— (token?)'}
 }
-const CHANNELS=['seo_page','quora','reddit','whatsapp_group','telegram','linkedin_article','medium','partnership','linkedin_dm'];
+const CHANNELS=['seo_page','quora','reddit','whatsapp_group','linkedin_article','medium','partnership','linkedin_dm'];
 $('outbtns').innerHTML=CHANNELS.map(c=>`<button style="margin:2px;padding:4px 10px;font-size:.75rem" onclick="rec('${c}')">${c}</button>`).join('');
 async function rec(ch){try{const r=await fetch('/api/growth/experiments/outcome',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok()},body:JSON.stringify({channel:ch,kind:'inquiry'})});const d=await r.json();$('outmsg').textContent=d.ok?`✅ ${ch} +1 (score ${d.stats.score})`:(d.error||'fail')}catch(e){$('outmsg').textContent='token?'}}
 async function dlqAct(act){$('dlqmsg').textContent='⏳...';try{const r=await fetch('/api/growth/infra/dlq/'+act,{method:'POST',headers:{Authorization:'Bearer '+tok()}});const d=await r.json();$('dlqmsg').textContent='✅ '+JSON.stringify(d).slice(0,120);load();}catch(e){$('dlqmsg').textContent='fail/token?'}}

@@ -6,7 +6,11 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.billing import lead_usage
-from app.telephony.post_call_hooks import apply_qualified_downstream, meter_call_completion
+from app.telephony.post_call_hooks import (
+    apply_qualified_downstream,
+    classify_stream_outcome,
+    meter_call_completion,
+)
 from app.telephony.vobiz_stream import VobizStreamSession
 
 
@@ -85,3 +89,33 @@ def test_apply_qualified_downstream_enrolls_when_flagged(monkeypatch):
     )
     assert len(enrolled) == 1
     assert enrolled[0]["stage"] == "interested"
+
+
+def test_classify_stream_outcome_marks_zero_turn_call_as_no_answer():
+    assert classify_stream_outcome(user_turns=0, turn_metrics=[]) == "no_answer"
+
+
+def test_vobiz_cleanup_logs_no_answer_for_dead_call(monkeypatch):
+    meter = AsyncMock(return_value=True)
+    recorded: list[dict] = []
+    emitted: list[tuple[str, dict]] = []
+    monkeypatch.setattr("app.telephony.post_call_hooks.meter_call_completion", meter)
+    monkeypatch.setattr(
+        "app.platform.interaction_log.record",
+        AsyncMock(side_effect=lambda **kw: recorded.append(kw) or {"ok": True}),
+    )
+    monkeypatch.setattr(
+        "app.platform.outbound_webhooks.emit",
+        AsyncMock(side_effect=lambda event, payload, client_id="": emitted.append((event, payload))),
+    )
+
+    sess = VobizStreamSession(MagicMock(), client_id="cid-1", client_name="Test Co")
+    sess.stream_sid = "stream-99"
+    sess._turn_metrics = [{"outcome": "think_timeout"}]
+    monkeypatch.setattr(sess, "_auto_qualify", AsyncMock())
+    monkeypatch.setattr(sess, "_save_recording", lambda: None)
+    monkeypatch.setattr(sess, "_persist_transcript", lambda *a, **k: None)
+    _run(sess._cleanup())
+
+    assert recorded and recorded[-1]["outcome"] == "no_answer"
+    assert emitted and emitted[-1][1]["outcome"] == "no_answer"

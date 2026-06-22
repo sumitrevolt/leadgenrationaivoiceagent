@@ -1,10 +1,7 @@
 """Instant lead alerts (speed-to-lead) — naya inquiry/lead aate hi MALIK ko turant
-Telegram + email ping. GHL ka killer feature, free-stack me.
+email ping. GHL ka killer feature, free-stack me.
 
-Channels (dono gated, dono fail-soft):
-  - Telegram: TELEGRAM_BOT_TOKEN gated (telegram_publish.send_post REUSE) —
-    chat_id = client record `telegram_chat_id` (rec me client_id/source_slug ho to),
-    warna env `TELEGRAM_ADMIN_CHAT_ID` (Sumit ka apna chat).
+Channel (gated, fail-soft):
   - Email: NOTIFY_EMAIL pe (EmailSender reuse — ops_watchdog wala pattern).
     NOTIFY_EMAIL unset = silent skip.
 
@@ -125,24 +122,6 @@ def _alert_text(rec: dict[str, Any], client: dict[str, Any]) -> tuple[str, str]:
     return subject, "\n".join(lines)
 
 
-async def _send_telegram(text: str, client: dict[str, Any]) -> bool:
-    """telegram_publish.send_post reuse — token unset = inert (sent=False)."""
-    try:
-        from app.marketing import telegram_publish
-
-        chat_id = (
-            str(client.get("telegram_chat_id") or "").strip()
-            or (os.getenv("TELEGRAM_ADMIN_CHAT_ID") or "").strip()
-        )
-        if not chat_id:
-            return False
-        res = await telegram_publish.send_post(chat_id, text)
-        return bool(res.get("sent"))
-    except Exception as e:
-        logger.debug(f"lead_alerts telegram skipped: {e}")
-        return False
-
-
 def _notify_email_to() -> str:
     try:
         from app.config import settings
@@ -171,12 +150,12 @@ async def _send_email(subject: str, body: str) -> bool:
 async def _do_notify(rec: dict[str, Any]) -> dict[str, Any]:
     client = _lookup_client(rec)
     subject, body = _alert_text(rec, client)
-    tg, em = await asyncio.gather(
-        _send_telegram(body, client), _send_email(subject, body), return_exceptions=True
-    )
+    try:
+        em = await _send_email(subject, body)
+    except Exception:
+        em = False
     return {
         "ok": True,
-        "telegram_sent": tg is True,
         "email_sent": em is True,
         "deduped": False,
     }
@@ -188,7 +167,7 @@ async def notify_new_lead(rec: dict[str, Any]) -> dict[str, Any]:
         rec = rec if isinstance(rec, dict) else {}
         phone_d = _digits(rec.get("phone") or "")
         if phone_d and _recently_alerted(phone_d):
-            return {"ok": True, "deduped": True, "telegram_sent": False, "email_sent": False}
+            return {"ok": True, "deduped": True, "email_sent": False}
         # pehle log (concurrent double-alert window chhota karo), fir send
         _log_alert(
             {

@@ -65,6 +65,32 @@ def _read_json(path: str) -> dict[str, Any]:
     return {}
 
 
+def _flag(name: str, default: bool = False) -> bool:
+    v = (os.environ.get(name, "") or "").strip().lower()
+    if not v:
+        return default
+    return v in ("1", "true", "yes", "on")
+
+
+def _known_heartbeat_times(beats: dict[str, Any]) -> list[datetime]:
+    rows: list[datetime] = []
+    known = set(getattr(automation_health, "EXPECTED_GAP_MIN", {}).keys()) if automation_health else set()
+    for job, rec in beats.items():
+        if known and job not in known:
+            continue
+        try:
+            raw = str((rec or {}).get("at") or "")
+            if not raw:
+                continue
+            ts = datetime.fromisoformat(raw)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            rows.append(ts)
+        except Exception:
+            pass
+    return rows
+
+
 # ============================================================================
 # CHECKS
 # ============================================================================
@@ -80,25 +106,61 @@ def check_alive() -> dict[str, Any]:
     worker_ping_ms = -1
     detail = ""
 
-    if state.get("last_tick"):
+    self_improve_on = _flag("SELF_IMPROVE_LOOP", False)
+    team_auto_on = _flag("TEAM_AUTOMATION", False)
+
+    if state.get("last_tick_at") or state.get("last_tick"):
         try:
-            last_tick_time = datetime.fromisoformat(state.get("last_tick_at", "")).replace(tzinfo=timezone.utc)
+            raw = state.get("last_tick_at", "")
+            if raw:
+                last_tick_time = datetime.fromisoformat(raw)
+                if last_tick_time.tzinfo is None:
+                    last_tick_time = last_tick_time.replace(tzinfo=timezone.utc)
+            else:
+                last_tick_time = datetime.fromtimestamp(float(state.get("last_tick", 0)), timezone.utc)
             last_tick_min = int(((_now() - last_tick_time).total_seconds()) / 60)
 
             if last_tick_min < 10:
                 status = "green"
-                detail = f"Loop ticking normally ({last_tick_min}m ago)"
+                detail = f"Self-improve loop ticking normally ({last_tick_min}m ago)"
             elif last_tick_min < 30:
                 status = "yellow"
-                detail = f"Loop running but slow ({last_tick_min}m ago)"
+                detail = f"Self-improve loop running but slow ({last_tick_min}m ago)"
             else:
                 status = "red"
-                detail = f"Loop stuck or paused ({last_tick_min}m ago)"
+                detail = f"Self-improve loop stuck or paused ({last_tick_min}m ago)"
+            return {
+                "status": status,
+                "last_tick_min": last_tick_min,
+                "worker_ping_ms": worker_ping_ms,
+                "detail": detail,
+            }
         except Exception:
             pass
-    else:
+
+    beat_times = _known_heartbeat_times(beats)
+    if beat_times:
+        newest = max(beat_times)
+        last_tick_min = int(((_now() - newest).total_seconds()) / 60)
+        if last_tick_min < 30:
+            status = "green"
+            detail = f"Scheduler heartbeat fresh ({last_tick_min}m ago)"
+        elif last_tick_min < 120:
+            status = "yellow"
+            detail = f"Scheduler heartbeat slow ({last_tick_min}m ago)"
+        else:
+            if self_improve_on or team_auto_on:
+                status = "red"
+                detail = f"Scheduler heartbeat stale ({last_tick_min}m ago)"
+            else:
+                status = "green"
+                detail = f"Historical scheduler heartbeat stale ({last_tick_min}m ago); loop not enabled now"
+    elif self_improve_on or team_auto_on:
         status = "red"
-        detail = "No heartbeat found (loop never started?)"
+        detail = "No heartbeat found even though always-on automation is enabled"
+    else:
+        status = "green"
+        detail = "No always-on loop enabled in this environment"
 
     return {
         "status": status,
@@ -249,38 +311,44 @@ def check_next_action() -> dict[str, Any]:
 
 def check_compliance() -> dict[str, Any]:
     """DLT, opt-out, recording, approvals."""
-    dlt_enabled = os.environ.get("ENABLE_DLT", "0").lower() in ("1", "true")
+    dlt_enabled = _flag("DLT_APPROVED", False) or _flag("ENABLE_DLT", False)
     opt_out_sync = os.path.getmtime("data/dnd_cache.json") if os.path.exists("data/dnd_cache.json") else 0
     opt_out_recent = (datetime.now().timestamp() - opt_out_sync) < (24 * 3600) if opt_out_sync else False
 
-    retention_enabled = os.environ.get("RECORDING_RETENTION", "0").lower() in ("1", "true")
-    approval_mode = os.environ.get("SELF_IMPROVE_APPROVAL", "0").lower() in ("1", "true")
+    retention_enabled = _flag("RECORDING_RETENTION", False)
+    approval_mode = _flag("SELF_IMPROVE_APPROVAL", False)
+    email_outreach_on = _flag("AUTO_EMAIL_OUTREACH", False)
+    sms_dlt_on = _flag("SMS_DLT_ENABLED", False)
+    self_improve_on = _flag("SELF_IMPROVE_LOOP", False)
+    telephony_configured = bool((os.environ.get("VOBIZ_AUTH_ID", "") or "").strip())
+    cold_calling_on = dlt_enabled and bool((os.environ.get("VOBIZ_CALLER_ID", "") or "").strip())
+    outbound_scope = email_outreach_on or sms_dlt_on or cold_calling_on
 
     status = "green"
     issues = []
 
-    if not dlt_enabled:
+    if cold_calling_on and not dlt_enabled:
         issues.append("DLT not enabled (need for cold calls)")
         status = "yellow"
 
-    if not opt_out_recent:
+    if outbound_scope and not opt_out_recent:
         issues.append("Opt-out list stale (>24h)")
         status = "yellow"
 
-    if not retention_enabled:
+    if telephony_configured and not retention_enabled:
         issues.append("Recording retention not active")
         status = "yellow"
 
-    if not approval_mode:
+    if self_improve_on and not approval_mode:
         issues.append("High-risk approval mode OFF (consider enabling)")
         status = "yellow"
 
     return {
         "status": status,
-        "dlt_enabled": dlt_enabled,
-        "optout_enforced": opt_out_recent,
-        "retention_active": retention_enabled,
-        "approval_mode": approval_mode,
+        "dlt_enabled": dlt_enabled if cold_calling_on else True,
+        "optout_enforced": opt_out_recent if outbound_scope else True,
+        "retention_active": retention_enabled if telephony_configured else True,
+        "approval_mode": approval_mode if self_improve_on else True,
         "issues": issues,
     }
 

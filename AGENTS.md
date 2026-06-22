@@ -65,7 +65,7 @@
 - **AI reply triage** (`reply_agent.py`, `REPLY_AGENT=1` ON): IMAP → intent classify → status update + Hinglish draft (1-click send, auto-send OFF ban-safe). `_is_bulk_sender()` guard (unknown+bulk = skip, deal sirf known prospect).
 - **Omnichannel cadence** (`cadence.py`, `CADENCE_ENGINE=1` ON): per-lead multi-channel sequence drafts. **Sales pipeline** (`SALES_ENGINE=1` ON) + auto-proposal + AI sales-closer. **Apollo-style**: prospect search/saved-lists/CSV-import/email-finder.
 - **Revenue automation** (ON): dunning (`DUNNING_ENGINE`), lifecycle nurture, client-health alerts, revenue digest. Channel experiments bandit (`CHANNEL_EXPERIMENTS=1` ON, 17 free+legal channels, auto-POST kahin NAHI). Growth optimizer (`GROWTH_OPTIMIZER=1` ON).
-- **WhatsApp = 1-click human send** (bulk auto = ban). Cloud API official-only, auto-send gated `WHATSAPP_AUTO_SEND=1`+creds+approved-template (OFF). **Telegram** = pehla TRUE auto-post (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_AUTO_PUBLISH=1`).
+- **WhatsApp = 1-click human send** (bulk auto = ban). Cloud API official-only, auto-send gated `WHATSAPP_AUTO_SEND=1`+creds+approved-template (OFF). **Telegram REMOVED 2026-06-22** (module/flag/endpoint/lead-alert channel sab deleted — koi auto-post channel nahi).
 - **Native CRM sync** (`crm_sync.py`, `CRM_SYNC` OFF): Zoho (India DC) + HubSpot, per-client ya global creds. UI: growth-tools "CRM Sync" tab.
 - **Self-hosted tools** (`docker-compose.tools.yml`): SearXNG (free web-search, ON) · ntfy phone-push (`https://ntfy.leadsgenai.in`, ON) · changedetection.io.
 - Per-client: `clients_store.py` + `auto_content.py` + `mini_site.py` (`/b/{slug}`) + `onboarding.py` (`AUTO_ONBOARD=1` ON: website→KB seed + first content pack).

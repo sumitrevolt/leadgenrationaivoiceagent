@@ -9,7 +9,7 @@ Har engine ek env-flag pe gated. Set in `.env` (VPS `/opt/leadgen/.env`, gitigno
 
 **Live registry = `GET /api/growth/infra/flags`** (single source of truth, on/off/unset dikhata). Master list = `AUTOMATION_FLAGS` in `app/api/growth.py` — ab **~100+ flags** (engines + new F–M capabilities + URL-valued integrations). Naya flag wahaan add karo warna flags-endpoint pe nahi dikhega.
 
-⚠️ Default OFF nahi hai sab — **kayi engines ON-by-default** (env unset = ON ya code-default ON): `LEAD_HARVESTER`, `REPLY_AGENT`, `CADENCE_ENGINE`, `SALES_ENGINE`, `SALES_TEAM`, `SELF_IMPROVE_LOOP`, `GROWTH_OPTIMIZER`, `CHANNEL_EXPERIMENTS`, `AUTO_ONBOARD`, `NICHE_ROTATION`, `SKILL_PACK`, `CODE_UPGRADER`, `AUTO_EMAIL_OUTREACH`, `USE_AGENTIC_RAG`, `USE_STRUCTURED_CONTENT`, `TELEGRAM_AUTO_PUBLISH`. Har engine ka exact default code me check karo, assume mat karo.
+⚠️ Default OFF nahi hai sab — **kayi engines ON-by-default** (env unset = ON ya code-default ON): `LEAD_HARVESTER`, `REPLY_AGENT`, `CADENCE_ENGINE`, `SALES_ENGINE`, `SALES_TEAM`, `SELF_IMPROVE_LOOP`, `GROWTH_OPTIMIZER`, `CHANNEL_EXPERIMENTS`, `AUTO_ONBOARD`, `NICHE_ROTATION`, `SKILL_PACK`, `CODE_UPGRADER`, `AUTO_EMAIL_OUTREACH`, `USE_AGENTIC_RAG`, `USE_STRUCTURED_CONTENT`. Har engine ka exact default code me check karo, assume mat karo.
 
 ## Safe to enable (free, ban-safe)
 | Flag | Engine | Notes |

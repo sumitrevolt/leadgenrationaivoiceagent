@@ -943,7 +943,7 @@ async def infra_hermes_scans(limit: int = 20, _user=Depends(require_admin)):
 @router.get("/infra/integrations")
 async def infra_integrations(hours: int = 24, _user=Depends(require_admin)):
     """Integration silent-failure counters: per-integration fail/ok/last-error
-    (email/exotel/telegram...). Alert gated INTEGRATION_ALERTS=1."""
+    (smtp/places/qdrant...). Alert gated INTEGRATION_ALERTS=1."""
     from app.platform import integration_health
 
     return integration_health.snapshot(hours=hours)

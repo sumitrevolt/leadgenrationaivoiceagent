@@ -1109,6 +1109,7 @@ class PhoneCallSession:
                 ended_at=ended,
                 extra_transcript={"path": "phone_stream"},
                 campaign_variant_id=str(getattr(self, "_voice_variant_id", "") or ""),
+                turn_metrics=list(getattr(self, "_turn_metrics", []) or []),
             )
         except Exception as e:
             logger.debug("phone_stream: finalize_stream_session skip: %s", e)

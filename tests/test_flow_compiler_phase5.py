@@ -6,7 +6,7 @@ def _flow(nodes, edges, name="t"):
 
 
 def test_side_effect_actions_set():
-    assert "telegram_draft" in SIDE_EFFECT_ACTIONS and "crm_queue" in SIDE_EFFECT_ACTIONS
+    assert "crm_queue" in SIDE_EFFECT_ACTIONS
 
 
 def test_new_phase5_action_compiles():
@@ -33,17 +33,17 @@ def test_linear_side_effect_with_breakpoint_no_warn():
 
 def test_dag_side_effect_without_breakpoint_warns():
     proc, errs, kind = compile_flow(_flow(
-        [{"id": "a", "action": "scrape"}, {"id": "b", "action": "telegram_draft"}, {"id": "c", "action": "rescore"}],
+        [{"id": "a", "action": "scrape"}, {"id": "b", "action": "crm_queue"}, {"id": "c", "action": "rescore"}],
         [{"f": "a", "t": "b"}, {"f": "a", "t": "c"}]))
     assert kind == "dag" and errs == []
-    assert proc.get("warnings") and any("telegram_draft" in w for w in proc["warnings"])
+    assert proc.get("warnings") and any("crm_queue" in w for w in proc["warnings"])
 
 
 def test_dag_side_effect_with_breakpoint_ancestor_no_warn():
     proc, errs, kind = compile_flow(_flow(
         [{"id": "a", "action": "scrape"},
          {"id": "g", "kind": "breakpoint", "question": "ok?"},
-         {"id": "b", "action": "telegram_draft"},
+         {"id": "b", "action": "crm_queue"},
          {"id": "c", "action": "rescore"}],
         [{"f": "a", "t": "g"}, {"f": "g", "t": "b"}, {"f": "a", "t": "c"}]))
     assert kind == "dag" and errs == [] and not proc.get("warnings")

@@ -184,23 +184,17 @@ def test_reviews_widget_js_and_snippet():
 # F4: lead_alerts — dedupe + gating + bg scheduler
 # --------------------------------------------------------------------------- #
 def test_lead_alert_send_and_dedupe(tmp_path, monkeypatch):
-    from app.marketing import telegram_publish
     from app.platform import lead_alerts
 
     monkeypatch.setattr(lead_alerts, "_PATH", str(tmp_path / "alerts.jsonl"))
-    monkeypatch.setenv("TELEGRAM_ADMIN_CHAT_ID", "12345")
+    monkeypatch.setattr(lead_alerts, "_lookup_client", lambda rec: {})
 
     sent = []
 
-    async def fake_send_post(chat_id, text, image_url=""):
-        sent.append((chat_id, text))
-        return {"sent": True}
-
     async def fake_email(subject, body):
-        sent.append(("email", subject))
+        sent.append((subject, body))
         return True
 
-    monkeypatch.setattr(telegram_publish, "send_post", fake_send_post)
     monkeypatch.setattr(lead_alerts, "_send_email", fake_email)
 
     rec = {
@@ -211,11 +205,11 @@ def test_lead_alert_send_and_dedupe(tmp_path, monkeypatch):
     }
     res = asyncio.run(lead_alerts.notify_new_lead(rec))
     assert res["ok"] is True and res["deduped"] is False
-    assert res["telegram_sent"] is True and res["email_sent"] is True
+    assert res["email_sent"] is True
     # Hinglish alert body: phone + wa.me + naam
-    tg = [s for s in sent if s[0] == "12345"][0][1]
-    assert "9876543210" in tg and "wa.me/919876543210" in tg and "Ravi Kumar" in tg
-    assert "NAYA LEAD" in tg
+    body = sent[0][1]
+    assert "9876543210" in body and "wa.me/919876543210" in body and "Ravi Kumar" in body
+    assert "NAYA LEAD" in body
 
     # same phone within hour → dedupe, no extra sends
     n_before = len(sent)
@@ -234,14 +228,12 @@ def test_lead_alert_gated_silent_skip(tmp_path, monkeypatch):
     from app.platform import lead_alerts
 
     monkeypatch.setattr(lead_alerts, "_PATH", str(tmp_path / "alerts.jsonl"))
-    monkeypatch.delenv("TELEGRAM_ADMIN_CHAT_ID", raising=False)
-    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.setattr(lead_alerts, "_notify_email_to", lambda: "")  # NOTIFY_EMAIL unset
     monkeypatch.setattr(lead_alerts, "_lookup_client", lambda rec: {})
 
     res = asyncio.run(lead_alerts.notify_new_lead({"name": "X", "phone": "9812345678"}))
     assert res["ok"] is True
-    assert res["telegram_sent"] is False and res["email_sent"] is False  # silent skip
+    assert res["email_sent"] is False  # silent skip
 
 
 def test_lead_alert_bg_never_raises(tmp_path, monkeypatch):

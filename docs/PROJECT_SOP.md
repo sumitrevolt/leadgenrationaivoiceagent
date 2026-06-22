@@ -138,7 +138,6 @@ Plus hourly: Kavya health, reply-triage, ops-watchdog, auto-onboard, growth-puls
 |---|---|
 | **Email** | LIVE. Hostinger SMTP `admin@leadsgenai.in`. Rohan roz 10:30 auto-send (Hinglish cold + Day-3/7 followup). **Cap 25/day**, MX-verified, warmup ramp, bounce auto-pause. SPF/DKIM/DMARC set. |
 | **WhatsApp** | **1-click human send only.** Bulk auto = number BAN. Cloud API official-only, auto gated OFF. |
-| **Telegram** | Pehla TRUE auto-post allowed (`TELEGRAM_AUTO_PUBLISH=1`). |
 | **Reply triage** | IMAP → intent classify → status update + Hinglish draft (1-click send; auto-send OFF, ban-safe). |
 | **Voice cold-call** | **DLT-gated — abhi BLOCKED.** Sirf inbound auto-callback DLT-free hai. |
 

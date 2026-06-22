@@ -153,7 +153,7 @@ Yeh doc ka **visual twin** hai — naya owner pehle explorer kholo, phir yeh doc
 | `reply` | hourly | Reply Agent IMAP | `REPLY_AGENT` |
 | `content` | 07:00 | Content Generator (Isha) | `USE_STRUCTURED_CONTENT` |
 | `content_approve` | on submit | Content Approval Loop | clientops |
-| `content_distribute` | content job | Telegram + IndexNow publish | `CONTENT_AUTOPUBLISH` |
+| `content_distribute` | on demand | IndexNow (Bing/Yandex) URL ping | — |
 | `journey` | event | Journey / Cadence | `JOURNEY_ENGINE`, `CADENCE_ENGINE` |
 | `onboard` | hourly | Auto Onboard + FDE | `AUTO_ONBOARD` |
 | `lead_dist` | on inquiry | Lead Round-Robin | — |
@@ -178,7 +178,6 @@ Yeh doc ka **visual twin** hai — naya owner pehle explorer kholo, phir yeh doc
 | `fire_campaign` | manual | Outbound Swara campaign | `fire_calls.py` |
 | `post_call_pipe` | on hangup | Post-call pipeline | `AUTO_QUALIFY_CALLS` |
 | `vobiz_inbound` | inbound | Vobiz inbound webhook | `AMD_DETECT` |
-| `telegram_pub` | auto | Telegram auto-post | `TELEGRAM_AUTO_PUBLISH` |
 | `whatsapp_wa` | 1-click | WhatsApp campaigns | `WHATSAPP_AUTO_SEND` OFF default |
 | `launch` | 60s poll | Production Ready | activation probes |
 | `public_in` | trigger | Inbound inquiry/signup | `public_site.py` |
@@ -385,7 +384,7 @@ Explorer automation view + PART 0–2 merged. Status = designed ON on VPS unless
 | # | Automation | P | Flag | Schedule |
 |---|------------|---|------|----------|
 | 1 | Blog / programmatic SEO | M | — | 06:30 |
-| 2 | Content + approval + distribute | M | `USE_STRUCTURED_CONTENT`, `CONTENT_AUTOPUBLISH` | 07:00 |
+| 2 | Content + approval + distribute | M | `USE_STRUCTURED_CONTENT` | 07:00 |
 | 3 | Lead harvester / niche prospect | M | `LEAD_HARVESTER`, `NICHE_ROTATION` | 09:30, 14:30 |
 | 4 | Email outreach + RFC8058 unsub | M | `AUTO_EMAIL_OUTREACH`, `EMAIL_WARMUP` | 10:30, 16:00 |
 | 5 | Pipeline ops (Neha) | M | — | 11:00, 16:00 |
@@ -395,8 +394,7 @@ Explorer automation view + PART 0–2 merged. Status = designed ON on VPS unless
 | 9 | Lead round-robin + STL | M | — | on inquiry |
 | 10 | Sales + revenue ops | M/P | `SALES_TEAM`, `DUNNING_ENGINE` | daily |
 | 11 | Growth optimizer + channel bandit | M | `GROWTH_OPTIMIZER`, `CHANNEL_EXPERIMENTS` | */15 / hourly |
-| 12 | Telegram auto-post | M | `TELEGRAM_AUTO_PUBLISH` | on content |
-| 13 | KB weekly refresh | M | `KB_WEEKLY_REFRESH` | Sun 05:00 |
+| 12 | KB weekly refresh | M | `KB_WEEKLY_REFRESH` | Sun 05:00 |
 | 14 | SEO rank + review monitor | M | `RANK_TRACKER`, `REVIEW_MONITOR` | daily |
 | 15 | CRM sync | M | `CRM_SYNC` | **OFF** |
 | 16 | WhatsApp auto | M | `WHATSAPP_AUTO_SEND` | **OFF** (1-click) |

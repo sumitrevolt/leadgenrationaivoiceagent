@@ -130,7 +130,7 @@ async function load(){
   // experiments + 1-click outcome
   const ex=ib.recent_experiments||[];
   COUNTS.exp=ex.length;
-  const CHANNELS=['seo_page','quora','reddit','whatsapp_group','telegram','linkedin_article','medium','partnership','linkedin_dm'];
+  const CHANNELS=['seo_page','quora','reddit','whatsapp_group','linkedin_article','medium','partnership','linkedin_dm'];
   let eh='<div class="card"><b class="t">🎯 Channel outcome (1-click)</b>'+
     '<div class="mut" style="margin-bottom:6px">Inquiry kahan se aayi? Click karo — bandit seekhega:</div>'+
     CHANNELS.map(function(c){return '<button class="outbtn" onclick="rec(\''+c+'\',this)">'+c+'</button>'}).join('')+
