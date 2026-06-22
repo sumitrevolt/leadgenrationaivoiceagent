@@ -29,7 +29,7 @@ Short (1-2 lines), Hinglish/match-customer-language, acknowledge-then-answer, ON
 `telephony_service.py` (`get_telephony_service`) picks provider from env (twilio/vobiz/sip/simulation; Vobiz = active India-native provider). No keys -> **simulation mode** (safe). `media_stream.py` bridges Twilio Media Streams. Real calls need a SIP trunk + DLT registration (India).
 
 ## Automation: `app/automation/`
-`orchestrator_pipeline.py` (`LeadGenPipeline.run_campaign`) = scrape -> clean/DND -> 9am-9pm gate -> WhatsApp -> AI call -> score -> deliver -> bill. `agent_pool.py` runs many clients concurrently.
+`orchestrator_pipeline.py` (`LeadGenPipeline.run_campaign`) = scrape -> clean/DND -> calling-window gate (pipeline `CALL_WINDOW` 9-21; promo calls still bound to 9am-7pm by `compliance.py`) -> WhatsApp -> AI call -> score -> deliver -> bill. `agent_pool.py` runs many clients concurrently.
 
 ## Test before shipping
 - Eval suite (7 personas): `python -m app.voice_agent.eval_suite` (expect ~100% pass).

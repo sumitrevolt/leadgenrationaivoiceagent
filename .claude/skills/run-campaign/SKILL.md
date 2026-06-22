@@ -5,7 +5,7 @@ description: Run a lead-generation voice campaign for a client — scrape prospe
 
 # Run a Lead-Gen Campaign
 
-Pipeline: scrape -> clean/DND-scrub -> 9am-9pm gate -> WhatsApp warm-up -> AI voice call (qualify) -> score -> deliver -> bill.
+Pipeline: scrape -> clean/DND-scrub -> 9am-7pm promo gate -> WhatsApp warm-up -> AI voice call (qualify) -> score -> deliver -> bill.
 
 ## Steps
 
@@ -18,7 +18,7 @@ Pipeline: scrape -> clean/DND-scrub -> 9am-9pm gate -> WhatsApp warm-up -> AI vo
    pipe = LeadGenPipeline()
    result = asyncio.run(pipe.run_campaign(
        client_id="<client-id>", niche="<niche>",
-       cities=["Pune","Mumbai"], sources=["justdial","web"],
+       cities=["Pune","Mumbai"], sources=["google_maps","web"],
        max_leads=50, channels=["whatsapp","voice"],
    ))
    print(result)

@@ -6,12 +6,12 @@ description: Untapped prospect phones (~90% prospects ke paas phone hai) ko huma
 # Dialer Sprint Ops (sabse bada untapped asset)
 
 ## Kyun yeh, kyun ab
-Pipeline truth (2026-06-12 snapshot): ~465 prospects "ready" stage pe stuck (stage-progression ~0), inbound ~0, email coverage sirf ~28% — par PHONE coverage **~91%** (sabse bada untapped asset). AI cold-calling DLT-gated hai; **HUMAN dialing legal hai** (TRAI 10am-7pm, DND respect). Sprint = Sumit/team khud dial kare, system assist kare. (Live counts ke liye `/api/growth/prospects/search` ya `/app/automation` Prospects tab dekho — number badalta rehta hai.)
+Pipeline truth (2026-06-12 snapshot): ~465 prospects "ready" stage pe stuck (stage-progression ~0), inbound ~0, email coverage sirf ~28% — par PHONE coverage **~91%** (sabse bada untapped asset). AI cold-calling DLT-gated hai; **HUMAN dialing legal hai** (TRAI window 9am-7pm conservative, DND respect). Sprint = Sumit/team khud dial kare, system assist kare. (Live counts ke liye `/api/growth/prospects/search` ya `/app/automation` Prospects tab dekho — number badalta rehta hai.)
 
 ## Sprint loop (roz 45-60 min)
 1. **List banao**: `/app/automation` → Prospects tab → search filters (niche/city/min_score/has_email) YA `GET /api/growth/prospects/search?min_score=60` (params: niche, city, status, has_email, q, min_score, limit — phone-presence backend score me factor hota). Top 20-30 hot-score pehle (`/api/growth/leads/hot`).
 2. **Prep**: har number pe dialer ka **📋 Prep** button (memory_api brief: talking points, objections+jawab, next action). Niche pitch = sales-team analysis (`POST /api/growth/sales/prospect-analysis` for deep-dive on A-grade).
-3. **Dial**: `/app/dialer` — 10am-7pm IST hi. Disposition HAR call pe set karo (interested/callback/not_interested/wrong_number) — prospector sync hota hai, scoring seekhती hai.
+3. **Dial**: `/app/dialer` — 9am-7pm IST hi. Disposition HAR call pe set karo (interested/callback/not_interested/wrong_number) — prospector sync hota hai, scoring seekhती hai.
 4. **Interested →** turant: WA 1-click send (proposal/demo link) + `sales_pipeline` deal banao + cadence enroll. Speed-to-lead metric track ho raha hai.
 5. **End of day**: leaderboard (`/api/voiceai/` dialer leaderboard) + dispositions review — kal ki list disposition-informed.
 

@@ -49,7 +49,7 @@ Live server facts (memorize):
 Edit `/opt/leadgen/.env` (NO inline comments!), then recreate the app: `docker compose -f docker-compose.vps.yml up -d --no-deps app`. Verify `docker logs leadgen_app -n 10` for "Application startup complete".
 
 ## LLM quota note
-LLM chain is FREE multi-provider (`app/voice_agent/free_ai.py`): **Cerebras `gpt-oss-120b` PRIMARY** → groq → openrouter → Gemini. Escalating circuit-breaker handles 429s. If bot suddenly rule-based / "[echo / test-mode]", check `docker logs leadgen_app | grep -iE "429|quota|ResourceExhausted"` — usually a provider cooldown that self-recovers; Gemini is only a late fallback, not the default.
+LLM chain is FREE multi-provider (`app/voice_agent/free_ai.py`): **Mistral `mistral-small-latest` PRIMARY** → Groq `llama-3.1-8b-instant` → Cerebras `gpt-oss-120b` (429-prone, NOT primary) → Ollama floor → Gemini → SambaNova → OpenRouter. Escalating circuit-breaker handles 429s. If bot suddenly rule-based / "[echo / test-mode]", check `docker logs leadgen_app | grep -iE "429|quota|ResourceExhausted"` — usually a provider cooldown that self-recovers; Gemini is only a late fallback, not the default.
 
 ## Rollback path (if a deploy goes red)
 `.env`: set `RUN_IN_PROCESS_SCHEDULER=1` + `WEB_CONCURRENCY=1`, stop worker/scheduler, recreate app. Last resort: `docker compose -f docker-compose.vps.yml down` + `systemctl start leadgen` (old SQLite service still installed). See `ship-checklist` for health-gate + rollback discipline.

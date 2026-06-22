@@ -17,7 +17,7 @@ Any change touching: auth/JWT, user input, `/api/public/*` (no-auth), payment we
 3. **Payment integrity** — Razorpay HATA diya gaya; payments ab manual UPI (`UPI_VPA`) / Stripe. Jo bhi payment-webhook ho uska signature verify MANDATORY before acting; signature fail-CLOSED. Never trust client-sent amounts. Server-side verify + idempotent (PENDING→PAID). (Purana Razorpay-401 blocker ab RESOLVED — gateway integration removed.)
 4. **Secrets** — only in `.env` (gitignored). NEVER in code/CLAUDE.md/scripts/commits. New secret? Confirm it's `.env`-only + `.env.example` documents the NAME (not value). Check `git diff` for accidental secret leak.
 5. **Injection / input** — SQLAlchemy params (no f-string SQL), validate phone/email, sanitize anything rendered to HTML (XSS), cap upload sizes.
-6. **Telephony/messaging compliance (₹10L risk)** — DLT + 140-series + DND scrub + 10am-7pm + AI-disclosure for cold calls; DND fail-CLOSED. WhatsApp bulk auto-send = ban → 1-click/official-API only. No foreign trunks for India-domestic.
+6. **Telephony/messaging compliance (₹10L risk)** — DLT + 140-series + DND scrub + 9am-7pm calling-window + AI-disclosure for cold calls; DND fail-CLOSED. WhatsApp bulk auto-send = ban → 1-click/official-API only. No foreign trunks for India-domestic.
 7. **Dependency + headers** — new dep? check it's maintained. CORS not `*` in prod. Security headers via middleware.
 
 ## N.1 hardening LOCKED (verify present, NEVER weaken)

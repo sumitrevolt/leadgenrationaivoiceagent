@@ -76,7 +76,8 @@
 - **Grafana auto-provisioning**: `monitoring/grafana/provisioning/` + `monitoring/grafana/dashboards/celery_tasks.json` (restart karne pe Celery dashboard auto-load).
 - **`app/middleware/__init__.py`**: `PlanTierRateLimitMiddleware` ADDED (Starter 60rpm / Growth 200rpm / Advanced 500rpm). Activate: `PLAN_RATE_LIMIT=1` in `.env`.
 - **`app/storage/minio_client.py`** (NEW): S3-compatible storage layer, local-disk fallback. `from app.storage import get_storage`.
-- **Wired-but-OFF (just need .env keys)**: PostHog (`POSTHOG_API_KEY`), Sentry (`SENTRY_DSN`), LiteLLM (`LITELLM_MASTER_KEY`), Cloudflare (`CLOUDFLARE_TUNNEL_TOKEN`), OTel (`ENABLE_OTEL=1`), RequestGuard (`REQUEST_GUARD=1`).
+- **Sentry ARMED (live 2026-06-22)**: `SENTRY_DSN` SET in VPS `.env`, errors capturing. (No longer wired-but-OFF.)
+- **Wired-but-OFF (just need .env keys)**: PostHog (`POSTHOG_API_KEY`), LiteLLM (`LITELLM_MASTER_KEY`), Cloudflare (`CLOUDFLARE_TUNNEL_TOKEN`), OTel (`ENABLE_OTEL=1`), RequestGuard (`REQUEST_GUARD=1`).
 - **Activation checklist**: `docs/INFRA_UPGRADE_2026.md` Part 8.
 
 ## Active Blockers / USER-ACTION pending (env-unset = dormant, graceful skip)
