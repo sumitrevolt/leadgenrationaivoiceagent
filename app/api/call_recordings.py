@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import re
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
@@ -25,6 +26,24 @@ from app.api.auth_deps import require_admin
 router = APIRouter(prefix="/api/admin/call-recordings", tags=["Call Recordings"])
 
 _REC_DIR = os.path.join("data", "call_recordings")
+_IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _mtime(path: str) -> float:
+    try:
+        return os.path.getmtime(path)
+    except Exception:
+        return 0.0
+
+
+def _fmt_ist(epoch: float) -> str:
+    """File mtime (call end time) → HH:MM:SS IST. '' if unknown."""
+    if not epoch:
+        return ""
+    try:
+        return datetime.fromtimestamp(epoch, tz=timezone.utc).astimezone(_IST).strftime("%H:%M:%S")
+    except Exception:
+        return ""
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Mixed conversation (primary)
@@ -97,7 +116,12 @@ async def list_recordings(_user=Depends(require_admin)) -> dict:
 
         sessions: dict[str, dict] = {}
         try:
-            files = sorted(os.listdir(day_dir))
+            # Chronological (call end time) — so the dashboard lists calls
+            # serial-wise, not by random UUID filename.
+            files = sorted(
+                os.listdir(day_dir),
+                key=lambda fn: _mtime(os.path.join(day_dir, fn)),
+            )
         except Exception:
             files = []
 
@@ -106,6 +130,7 @@ async def list_recordings(_user=Depends(require_admin)) -> dict:
                 sid = _sid_from_merged(fname)
                 if not sid:
                     continue
+                _mt = _mtime(os.path.join(day_dir, fname))
                 if sid not in sessions:
                     sessions[sid] = {
                         "sid": sid,
@@ -114,6 +139,8 @@ async def list_recordings(_user=Depends(require_admin)) -> dict:
                         "bot_wav": None,
                         "size_kb": 0,
                         "legacy_split": False,
+                        "_mtime": _mt,
+                        "time": _fmt_ist(_mt),
                     }
                 sessions[sid]["wav"] = fname
                 sessions[sid]["size_kb"] += _get_size_kb(os.path.join(day_dir, fname))
@@ -125,6 +152,7 @@ async def list_recordings(_user=Depends(require_admin)) -> dict:
             if not m:
                 continue
             sid, side = m.group(1), m.group(2)
+            _mt = _mtime(os.path.join(day_dir, fname))
             if sid not in sessions:
                 sessions[sid] = {
                     "sid": sid,
@@ -133,17 +161,27 @@ async def list_recordings(_user=Depends(require_admin)) -> dict:
                     "bot_wav": None,
                     "size_kb": 0,
                     "legacy_split": True,
+                    "_mtime": _mt,
+                    "time": _fmt_ist(_mt),
                 }
             sessions[sid][f"{side}_wav"] = fname
             sessions[sid]["legacy_split"] = sessions[sid].get("wav") is None
             sessions[sid]["size_kb"] += _get_size_kb(os.path.join(day_dir, fname))
 
         if sessions:
+            # Newest call first so the dashboard reads by call time, not filename.
+            ordered = sorted(
+                sessions.values(),
+                key=lambda s: (s.get("_mtime") or 0.0, s.get("sid") or ""),
+                reverse=True,
+            )
+            for s in ordered:
+                s.pop("_mtime", None)
             dates_out.append(
                 {
                     "date": date,
-                    "count": len(sessions),
-                    "sessions": list(sessions.values()),
+                    "count": len(ordered),
+                    "sessions": ordered,
                 }
             )
 
