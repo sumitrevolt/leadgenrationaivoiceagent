@@ -713,7 +713,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             try:
                 from app.platform import campaign_variants
 
-                result["auto_promote"] = await campaign_variants.auto_promote_if_ready("cold_email")
+                result["auto_promote"] = await campaign_variants.auto_promote_all()
             except Exception:
                 pass
         return result

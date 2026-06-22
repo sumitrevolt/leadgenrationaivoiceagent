@@ -476,8 +476,10 @@ a{color:var(--acc)}
     <button class="btn2" onclick="kirStatus()">📊 Status</button>
     <button class="btn2" onclick="kirRuns()">📜 Runs</button>
     <button class="btn2" onclick="kirProposals()">📋 Proposals</button>
-    <button class="btn2" onclick="kirVariants()">📈 Variants</button>
-    <button class="btn2" onclick="kirPromote()">🏆 Promote</button>
+    <button class="btn2" onclick="kirVariants('cold_email')">📈 Email</button>
+    <button class="btn2" onclick="kirVariants('voice_opening')">📞 Voice</button>
+    <button class="btn2" onclick="kirPromote('cold_email')">🏆 Promote Email</button>
+    <button class="btn2" onclick="kirPromote('voice_opening')">🏆 Promote Voice</button>
     <button class="btn" id="kirRunBtn" onclick="kirRun()">▶️ Optimize</button>
     <div id="kirOut"></div>
   </div>
@@ -1242,9 +1244,10 @@ async function kirApprove(id){
     toast('Proposal approved ✅');
   }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
-async function kirVariants(){
+async function kirVariants(scriptId){
+  scriptId=scriptId||'cold_email';
   try{
-    var d=await api('/api/growth/campaign/variants/summary?script_id=cold_email');
+    var d=await api('/api/growth/campaign/variants/summary?script_id='+encodeURIComponent(scriptId));
     var rows=d.variants||[];
     var gate=d.gate||{};
     var html='<div class="result">';
@@ -1268,10 +1271,11 @@ async function kirVariants(){
     $('kirOut').innerHTML=html;
   }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
-async function kirPromote(){
-  if(!confirm('cold_email challenger promote karna hai? (sirf jab gate PASS ho)'))return;
+async function kirPromote(scriptId){
+  scriptId=scriptId||'cold_email';
+  if(!confirm(scriptId+' challenger promote karna hai? (sirf jab gate PASS ho)'))return;
   try{
-    var d=await api('/api/growth/campaign/variants/promote?script_id=cold_email',{method:'POST'});
+    var d=await api('/api/growth/campaign/variants/promote?script_id='+encodeURIComponent(scriptId),{method:'POST'});
     $('kirOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
     if(d.promoted)toast('Challenger promoted 🏆'); else toast('Gate not met — stats dekho','warn');
   }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}

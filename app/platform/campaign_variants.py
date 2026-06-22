@@ -248,6 +248,15 @@ async def auto_promote_if_ready(script_id: str = "cold_email") -> dict[str, Any]
         return {"ok": False, "error": str(e)[:150]}
 
 
+async def auto_promote_all(script_ids: list[str] | None = None) -> dict[str, Any]:
+    """Try promote for each script (email + voice by default)."""
+    ids = script_ids or ["cold_email", "voice_opening"]
+    out: dict[str, Any] = {}
+    for sid in ids:
+        out[sid] = await auto_promote_if_ready(sid)
+    return {"ok": True, "results": out}
+
+
 __all__ = [
     "register_variant",
     "record_event",
@@ -256,4 +265,5 @@ __all__ = [
     "pick_for_outreach",
     "promotion_summary",
     "auto_promote_if_ready",
+    "auto_promote_all",
 ]

@@ -39,6 +39,7 @@ AUTOMATION_FLAGS = [
     "CHANNEL_EXPERIMENTS",
     "CAMPAIGN_OPTIMIZER",  # Kiran: orchestrates optimizer+bandit+feedback every 100 interactions
     "OUTREACH_CAMPAIGN_VARIANTS",  # cold email uses Kiran champion/challenger copy (impression/reply tracked)
+    "VOICE_CAMPAIGN_VARIANTS",  # Swara phone/web greeting uses voice_opening champion/challenger
     "PROCESS_ENGINE",  # deterministic process-as-code workflows (complement to PROCESS_AUTOSTART)
     "AUTO_INVOICE",
     "EMAIL_WARMUP",

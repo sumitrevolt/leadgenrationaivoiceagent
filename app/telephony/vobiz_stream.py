@@ -618,9 +618,13 @@ class VobizStreamSession:
         self._amd_checked = False
         self._amd_machine = False
 
+        # Kiran flywheel voice_opening (VOICE_CAMPAIGN_VARIANTS=1)
+        self._flywheel_opening_override: str | None = None
+        self._voice_variant_id: str | None = None
+        self._voice_variant_resolved = False
+
     # ------------------------------------------------------------------ #
     # Main receive loop
-    # ------------------------------------------------------------------ #
     async def handle(self) -> None:
         try:
             await self.ws.accept()
@@ -1686,6 +1690,9 @@ class VobizStreamSession:
                 return segs[0] if segs else ""
         except Exception:
             pass
+        override = getattr(self, "_flywheel_opening_override", None)
+        if override:
+            return override
         # 1) Professional script opening (best — niche-specific permission opener).
         try:
             from app.voice_agent.niche_scripts import get_script
@@ -1738,6 +1745,31 @@ class VobizStreamSession:
         except Exception:
             pass
         return f"{self.voice}|{self._opening_line()}"
+
+    async def _resolve_voice_variant(self) -> None:
+        """Pick Kiran voice_opening variant once lead phone/niche known."""
+        if self._voice_variant_resolved:
+            return
+        self._voice_variant_resolved = True
+        try:
+            from app.platform import voice_opening_variants as vov
+
+            r = await vov.resolve(
+                phone=self._lead_phone or "",
+                niche=self.niche,
+                client_name=self.client_name,
+            )
+            if not r.get("opening_line"):
+                return
+            self._flywheel_opening_override = r["opening_line"]
+            self._voice_variant_id = str(r.get("variant_id") or "") or None
+            if TTS_AVAILABLE and self._flywheel_opening_override:
+                pcm = await self._synth_pcm(self._opening_line())
+                if pcm:
+                    self._greet_pcm = pcm
+                    _GREET_CACHE[self._greet_key()] = pcm
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] flywheel opener skip: {e}")
 
     async def _pregen_greeting(self) -> None:
         """Synthesize the opener PCM at WS open (Vobiz 'start' se PEHLE) so
@@ -1826,8 +1858,14 @@ class VobizStreamSession:
         except Exception as e:
             logger.debug(f"[vobiz-stream] platform greet failed: {e}")
 
+        await self._resolve_voice_variant()
         line = self._opening_line()
         self.hist.append({"role": "assistant", "content": line})
+        vid = getattr(self, "_voice_variant_id", None)
+        if vid:
+            from app.platform import voice_opening_variants as vov
+
+            self._spawn(vov.record_impression(vid))
         self._begin_disclosure()  # D-6: barge-lock the opener (disclosure)
         if TTS_AVAILABLE:
             try:
@@ -2190,6 +2228,25 @@ class VobizStreamSession:
             )
         except Exception as e:
             logger.debug(f"[vobiz-stream] call_completed webhook skip: {e}")
+        try:
+            from app.platform import interaction_log
+
+            await interaction_log.record(
+                channel="voice",
+                direction="out",
+                phone=getattr(self, "_lead_phone", "") or "",
+                client_id=str(self.client_id or ""),
+                body_summary=f"call {int(dur)}s · {turns} user turns",
+                outcome="completed",
+                campaign_variant_id=str(getattr(self, "_voice_variant_id", "") or ""),
+                meta={
+                    "call_id": self.stream_sid,
+                    "niche": self.niche,
+                    "source": "vobiz_stream",
+                },
+            )
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] interaction_log skip: {e}")
         await self._auto_qualify(ended)
         try:  # Team activity: Swara ki call khatam — dashboard feed ke liye
             from app.platform.team import log_event
@@ -2322,6 +2379,19 @@ class VobizStreamSession:
                 )
             except Exception:
                 pass
+            vid = getattr(self, "_voice_variant_id", None)
+            if vid:
+                user_turns = len([m for m in self.hist if m.get("role") == "user"])
+                try:
+                    from app.platform import voice_opening_variants as vov
+
+                    await vov.record_outcome(
+                        vid,
+                        answered=user_turns > 0,
+                        interested=bool(q.get("qualified")),
+                    )
+                except Exception:
+                    pass
         except Exception as e:
             logger.debug(f"[vobiz-stream] auto-qualify skip: {e}")
 
