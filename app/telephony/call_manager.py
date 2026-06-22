@@ -237,6 +237,27 @@ class CallManager:
         except Exception as e:
             logger.debug(f"lead-quota enforcement skipped: {e}")
 
+        # Lead-score gate (CALL_MIN_SCORE, default 0 = off). Scores low-quality
+        # leads out before queueing a call. Fail-open: error -> never block.
+        _min_score = 0
+        try:
+            _min_score = int(os.environ.get("CALL_MIN_SCORE", "0") or "0")
+        except Exception:
+            pass
+        if _min_score > 0 and request.lead_data:
+            try:
+                from app.platform.lead_scoring import score_lead
+
+                _score = score_lead(request.lead_data)
+                if _score < _min_score:
+                    logger.info(
+                        f"Call to {request.phone_number} blocked — lead score "
+                        f"{_score} < CALL_MIN_SCORE {_min_score}."
+                    )
+                    return f"below_min_score_{call_id}"
+            except Exception as _e:
+                logger.debug(f"lead-score gate skipped: {_e}")
+
         # Add to the (Redis-backed) priority queue (lower number = higher priority).
         await self.call_state.enqueue(request.priority, call_id, self._request_to_payload(request))
 

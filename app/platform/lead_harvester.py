@@ -28,6 +28,10 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# Per-niche asyncio locks — prevents concurrent harvests for the same niche
+# from racing on _existing_keys() → _append() dedupe check.
+_niche_locks: dict[str, asyncio.Lock] = {}
+
 _RUNS = os.path.join("data", "harvest_runs.jsonl")
 _FETCH_CAP = 6  # per websearch run site fetches
 _HTTP_TIMEOUT = 10.0
@@ -340,57 +344,60 @@ async def run_harvest(
             *(SOURCES[s](niche, city, limit) for s in keys), return_exceptions=True
         )
 
-        known_phones, known_emails = _existing_keys()
         new = 0
         skipped = 0
         per_source: dict[str, Any] = {}
         from app.platform import prospector
 
-        for res in results:
-            if isinstance(res, Exception):
-                continue
-            src = res.get("source", "?")
-            per_source[src] = {k: v for k, v in res.items() if k != "leads"}
-            src_new = 0
-            for lead in res.get("leads") or []:
-                phone = _valid_phone(str(lead.get("phone") or ""))
-                email = await _valid_email(str(lead.get("email") or ""))
-                p10 = phone[-10:] if phone else ""
-                if (
-                    (p10 and p10 in known_phones)
-                    or (email and email in known_emails)
-                    or (not p10 and not email and not lead.get("business_name"))
-                ):
-                    skipped += 1
+        # Per-niche lock: dedupe+persist under lock so concurrent harvests
+        # for the same niche don't insert duplicates (M3 fix).
+        async with _niche_locks.setdefault(niche, asyncio.Lock()):
+            known_phones, known_emails = _existing_keys()
+            for res in results:
+                if isinstance(res, Exception):
                     continue
-                name = str(lead.get("business_name") or "Unknown")[:200]
-                rec = {
-                    "id": str(uuid.uuid4()),
-                    "found_at": _now(),
-                    "business_name": name,
-                    "phone": phone,
-                    "address": "",
-                    "city": city,
-                    "niche": niche,
-                    "rating": None,
-                    "reviews_count": None,
-                    "website": str(lead.get("website") or "")[:300],
-                    "has_website": bool(lead.get("website")),
-                    "email": email,
-                    "source_query": f"harvest:{lead.get('source', '?')}",
-                    "pitch": prospector.build_pitch(name, niche, city),
-                    "wa_link": "",
-                    "google_search_link": "",
-                    "status": "ready" if (p10 or email) else "needs_enrich",
-                }
-                if prospector._append(rec):
-                    new += 1
-                    src_new += 1
-                    if p10:
-                        known_phones.add(p10)
-                    if email:
-                        known_emails.add(email)
-            per_source[src]["new"] = src_new
+                src = res.get("source", "?")
+                per_source[src] = {k: v for k, v in res.items() if k != "leads"}
+                src_new = 0
+                for lead in res.get("leads") or []:
+                    phone = _valid_phone(str(lead.get("phone") or ""))
+                    email = await _valid_email(str(lead.get("email") or ""))
+                    p10 = phone[-10:] if phone else ""
+                    if (
+                        (p10 and p10 in known_phones)
+                        or (email and email in known_emails)
+                        or (not p10 and not email and not lead.get("business_name"))
+                    ):
+                        skipped += 1
+                        continue
+                    name = str(lead.get("business_name") or "Unknown")[:200]
+                    rec = {
+                        "id": str(uuid.uuid4()),
+                        "found_at": _now(),
+                        "business_name": name,
+                        "phone": phone,
+                        "address": "",
+                        "city": city,
+                        "niche": niche,
+                        "rating": None,
+                        "reviews_count": None,
+                        "website": str(lead.get("website") or "")[:300],
+                        "has_website": bool(lead.get("website")),
+                        "email": email,
+                        "source_query": f"harvest:{lead.get('source', '?')}",
+                        "pitch": prospector.build_pitch(name, niche, city),
+                        "wa_link": "",
+                        "google_search_link": "",
+                        "status": "ready" if (p10 or email) else "needs_enrich",
+                    }
+                    if prospector._append(rec):
+                        new += 1
+                        src_new += 1
+                        if p10:
+                            known_phones.add(p10)
+                        if email:
+                            known_emails.add(email)
+                per_source[src]["new"] = src_new
 
         enr = await enrich_missing_emails(limit=6)
 

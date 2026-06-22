@@ -376,8 +376,22 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
         from app.social_engine import engine as _social_engine
 
         if _social_engine.enabled():
+            media_url = ""
+            try:
+                from app.storage.minio_client import get_storage
+
+                _storage = get_storage()
+                if video_path and os.path.isfile(video_path):
+                    _key = f"video_ads/{cid}/{os.path.basename(video_path)}"
+                    with open(video_path, "rb") as _fh:
+                        _vdata = _fh.read()
+                    await _storage.put(_key, _vdata, content_type="video/mp4")
+                    media_url = _storage.public_url(_key)
+            except Exception as _ue:
+                logger.debug(f"[video_ad] MinIO upload skip (fail-open): {_ue}")
             ids = _social_engine.enqueue_publish(
-                cid, caption=caption, media_path=video_path, media_type="video"
+                cid, caption=caption, media_path=video_path,
+                media_url=media_url, media_type="video"
             )
             return {"any_sent": bool(ids), "channels": {"engine": {"queued_jobs": ids}}}
     except Exception as e:

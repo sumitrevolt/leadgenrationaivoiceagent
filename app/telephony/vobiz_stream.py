@@ -716,7 +716,14 @@ class VobizStreamSession:
         if self._event_count <= 6 and data.get("event") != "media":
             logger.info(f"[vobiz-stream] raw#{self._event_count}: {str(data)[:300]}")
         elif self._event_count <= 3:
-            logger.info(f"[vobiz-stream] raw#{self._event_count} media keys: {list(data.keys())}")
+            _msub = data.get("media") or {}
+            logger.info(
+                f"[vobiz-stream] raw#{self._event_count} media "
+                f"keys={list(data.keys())} "
+                f"subkeys={list(_msub.keys()) if isinstance(_msub, dict) else type(_msub).__name__} "
+                f"top_payload={bool(data.get('payload'))} "
+                f"nested_payload={bool(isinstance(_msub, dict) and _msub.get('payload'))}"
+            )
 
         event = data.get("event")
         # Vobiz stream id field = "streamId" (NOT Twilio's streamSid). Capture
@@ -735,7 +742,7 @@ class VobizStreamSession:
             self.stream_sid = sid
 
         if event == "media":
-            payload = (data.get("media") or {}).get("payload")
+            payload = (data.get("media") or {}).get("payload") or data.get("payload")
             if payload:
                 # Greet on first audio too (in case start was missed); NOT gated
                 # on sid — Vobiz playAudio carries no stream id.
@@ -833,13 +840,29 @@ class VobizStreamSession:
             self._last_activity_ms = _na_now
         dur_ms = (len(pcm16) / 2) / SAMPLE_RATE * 1000.0  # 640 bytes == 20 ms
 
-        # While we're speaking: only watch for barge-in (D-6: gated + disclosure-lock).
+        # While we're speaking: watch for barge-in; buffer speech so caller's first
+        # words during the greeting aren't lost (C1 fix — was silently dropping all
+        # frames while _speaking=True, causing user_turns=0 when caller speaks early).
         if self._speaking:
             if is_speech and self._barge_allowed():
                 self._barge_frames += 1
+                self._speech_buf.append(pcm16)
+                self._speech_ms += dur_ms
+                if not self._had_speech:
+                    self._speech_segments += 1
+                self._had_speech = True
                 if self._barge_frames < self._barge_commit_frames():
                     return
                 await self._barge_in()  # cancels playback, sends clearAudio, falls through
+            elif is_speech:
+                # Disclosure window (barge locked): buffer caller's speech so STT
+                # can process it after the greeting ends.
+                self._speech_buf.append(pcm16)
+                self._speech_ms += dur_ms
+                if not self._had_speech:
+                    self._speech_segments += 1
+                self._had_speech = True
+                self._barge_frames = 0
             else:
                 self._barge_frames = 0
                 return
@@ -2338,6 +2361,27 @@ class VobizStreamSession:
         except Exception as e:
             logger.debug(f"[vobiz-stream] interaction_log skip: {e}")
         await self._auto_qualify(ended)
+        # DB-backed call analytics row — fires for EVERY call (q optional / None
+        # when AUTO_QUALIFY_CALLS off), idempotent + FK-safe + never-raise.
+        try:
+            from app.telephony.post_call_hooks import persist_call_log
+
+            await persist_call_log(
+                call_id=str(self.stream_sid or ""),
+                provider="vobiz",
+                phone=getattr(self, "_lead_phone", "") or "",
+                client_id=str(self.client_id or ""),
+                client_name=self.client_name or "",
+                niche=self.niche or "",
+                duration_s=dur,
+                user_turns=turns,
+                outcome=stream_outcome,
+                started_at=self._started_at,
+                ended_at=ended,
+                q=getattr(self, "_last_qual", None),
+            )
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] persist_call_log skip: {e}")
         try:  # Team activity: Swara ki call khatam — dashboard feed ke liye
             from app.platform.team import log_event
 
@@ -2417,6 +2461,7 @@ class VobizStreamSession:
 
             lead_phone = getattr(self, "_lead_phone", "") or ""
             q = await qualify_transcript(txt, {"name": self.client_name or "", "phone": lead_phone})
+            self._last_qual = q  # captured for persist_call_log (DB analytics row)
             rec = {
                 "call_id": self.stream_sid,
                 "lead_id": lead_phone,
