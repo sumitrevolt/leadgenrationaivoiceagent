@@ -643,8 +643,12 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                         )
                     )
                 except Exception as e:
+                    _es = str(e)
                     logger.warning(f"[auto_outreach] send to {to_addr} failed: {e}")
                     ok = False
+                    if "554" in _es or "Disabled by user" in _es:
+                        result["error"] = "smtp_account_disabled"
+                        break  # account blocked — stop the loop
 
                 if ok:
                     # Mark so it's never re-emailed (keep status "ready" so the
@@ -848,8 +852,12 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                         )
                     )
                 except Exception as e:
+                    _es = str(e)
                     logger.warning(f"[auto_outreach] followup to {to_addr} failed: {e}")
                     ok = False
+                    if "554" in _es or "Disabled by user" in _es:
+                        result["error"] = "smtp_account_disabled"
+                        break  # stop retrying all leads — account is blocked
 
                 if ok:
                     try:

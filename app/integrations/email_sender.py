@@ -146,8 +146,12 @@ class EmailSender:
             return True
 
         except Exception as e:
+            err_str = str(e)
             logger.error(f"Failed to send email: {e}")
-            _integ_fail("smtp", str(e))
+            _integ_fail("smtp", err_str)
+            # Account-level block (554 Disabled): re-raise so callers can fail-fast.
+            if "554" in err_str or "Disabled by user" in err_str:
+                raise
             return False
 
     async def send_lead_alert(self, to_emails: list[str], lead_data: dict[str, Any]) -> bool:
