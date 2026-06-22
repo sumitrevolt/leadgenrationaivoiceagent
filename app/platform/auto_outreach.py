@@ -764,7 +764,10 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
 
         _DONE = {"replied", "client", "dead"}
         candidates: list[tuple[dict[str, Any], int]] = []  # (prospect, step)
-        for p in prospector.list_prospects(limit=500):
+        # _read_all() instead of list_prospects: followup needs ALL emailed leads,
+        # not just the newest 500 (list_prospects hard-caps + sorts newest-first,
+        # so old emailed leads were never seen by this function).
+        for p in prospector._read_all():
             try:
                 if str(p.get("status") or "ready").lower() in _DONE:
                     continue
