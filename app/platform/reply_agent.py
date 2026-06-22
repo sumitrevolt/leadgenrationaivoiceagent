@@ -218,18 +218,39 @@ async def _classify(subject: str, body: str) -> str:
     return "other"
 
 
-async def _draft(biz: str, subject: str, body: str, intent: str) -> str:
+async def _draft(
+    biz: str, subject: str, body: str, intent: str, *, niche: str = "general"
+) -> str:
     try:
         from app.voice_agent import free_ai
+
+        objection_ctx = ""
+        if intent in ("objection", "question", "not_interested"):
+            try:
+                from app.platform import objection_extractor
+
+                hits = await objection_extractor.retrieve_rebuttals(
+                    body or subject, niche=niche or "general", k=3
+                )
+                if hits:
+                    objection_ctx = (
+                        "\n\nObjection KB (use tone/angles, don't copy verbatim):\n"
+                        + "\n".join(f"- {h}" for h in hits)
+                    )
+            except Exception:
+                pass
 
         reply, _ = await free_ai.chat(
             system="Tu LeadGen AI ka helpful sales rep hai. Is reply ka chhota, warm, "
             "professional Hinglish jawab likh (max 4 lines). Free Google audit + demo offer "
-            "kar; pushy mat ban. Sirf reply text de.",
+            "kar; pushy mat ban. Objection ho to empathetic + specific jawab do. Sirf reply text de.",
             messages=[
                 {
                     "role": "user",
-                    "content": f"Business: {biz}\nIntent: {intent}\nSubject: {subject}\n\n{body[:1200]}",
+                    "content": (
+                        f"Business: {biz}\nNiche: {niche}\nIntent: {intent}\n"
+                        f"Subject: {subject}\n\n{body[:1200]}{objection_ctx}"
+                    ),
                 }
             ],
             max_tokens=160,
@@ -340,6 +361,18 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         pass
                 elif intent in ("interested", "question"):
                     res["interested"] += 1
+                    try:
+                        from app.platform import revenue_attribution
+
+                        revenue_attribution.record_touch(
+                            client_id="",
+                            channel="email_reply",
+                            utm_source="reply_agent",
+                            event=intent,
+                            meta={"email": frm, "business": (p or {}).get("business_name")},
+                        )
+                    except Exception:
+                        pass
                     # Phone push: HOT reply — sales moment, turant pata chale (gated ntfy).
                     try:
                         from app.integrations import ntfy
@@ -404,7 +437,13 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
 
                 draft = ""
                 if intent in ("interested", "question", "objection"):
-                    draft = await _draft((p or {}).get("business_name", ""), subj, body, intent)
+                    draft = await _draft(
+                        (p or {}).get("business_name", ""),
+                        subj,
+                        body,
+                        intent,
+                        niche=str((p or {}).get("niche") or "general"),
+                    )
                     if draft:
                         res["drafted"] += 1
 
