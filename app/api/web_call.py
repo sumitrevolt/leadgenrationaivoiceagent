@@ -714,16 +714,24 @@ async def web_call_ws(websocket: WebSocket) -> None:
         cache[cache_key] = tcb
         return tcb
 
-    await _run_blocking(_ensure_dialog)
+    # Decide the responder WITHOUT eagerly building the NaturalDialog manager.
+    # Its FIRST (cold) build is ~23s (embedder/KB load) and it is only a FALLBACK
+    # used when TelecallerBrain is unavailable. Building it here blocked the WS
+    # `ready` ~23s on every fresh session, so the greeting/first reply felt dead.
+    # TelecallerBrain is the primary path; the dialog is built lazily at its
+    # fallback use-sites (_ensure_dialog is idempotent). Priority order unchanged:
+    # telecaller > natural > pipeline > llm > echo.
     if await _run_blocking(_get_tcbrain, session.get("niche", "general")) is not None:
         responder = "telecaller"
-    elif dialog is not None:
-        responder = "natural"
-    elif pipeline is not None:
-        responder = "pipeline"
     else:
-        brain = _get_llm_brain()
-        responder = "llm" if brain is not None else "echo"
+        await _run_blocking(_ensure_dialog)  # only now pay the cold dialog build
+        if dialog is not None:
+            responder = "natural"
+        elif pipeline is not None:
+            responder = "pipeline"
+        else:
+            brain = _get_llm_brain()
+            responder = "llm" if brain is not None else "echo"
 
     try:
         await websocket.send_json(
