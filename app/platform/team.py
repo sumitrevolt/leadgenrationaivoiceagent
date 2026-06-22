@@ -600,6 +600,65 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         except Exception:
             return "AI receptionist agent standby"
 
+    def _manager() -> str:
+        try:
+            evts = recent_events(hours=1)
+            return f"task routing active · {len(evts)} dispatches last hour"
+        except Exception:
+            return "manager standby"
+
+    def _pranav() -> str:
+        if not os.environ.get("SRE_AGENT"):
+            return "SRE agent off (SRE_AGENT unset)"
+        try:
+            import json as _j, time as _t
+            hb_file = os.path.join("data", "job_heartbeats.json")
+            if os.path.isfile(hb_file):
+                age = _t.time() - os.path.getmtime(hb_file)
+                return f"SRE watch · heartbeats {int(age)}s ago"
+            return "SRE watch · heartbeat file absent"
+        except Exception:
+            return "SRE watch standby"
+
+    def _vidya() -> str:
+        if not os.environ.get("FINOPS_AGENT"):
+            return "FinOps agent off (FINOPS_AGENT unset)"
+        try:
+            from app.marketing import clients_store
+            clients = clients_store.get_active_clients() or []
+            return f"FinOps watch · {len(clients)} active clients tracked"
+        except Exception:
+            return "FinOps watch standby"
+
+    def _arnav() -> str:
+        if not os.environ.get("SECURITY_AGENT"):
+            return "Security agent off (SECURITY_AGENT unset)"
+        try:
+            from app.telephony.consent_ledger import OptOutStore
+            store = OptOutStore()
+            count = len(store._load_all())
+            return f"Security/compliance watch · {count} opt-outs in ledger"
+        except Exception:
+            return "Security watch standby"
+
+    def _kiran() -> str:
+        if not os.environ.get("CAMPAIGN_OPTIMIZER"):
+            return "Campaign optimizer off (CAMPAIGN_OPTIMIZER unset)"
+        try:
+            runs_file = os.path.join("data", "harvest_runs.jsonl")
+            n = sum(1 for _ in open(runs_file)) if os.path.isfile(runs_file) else 0
+            return f"campaign optimizer · {n} harvest runs analysed"
+        except Exception:
+            return "campaign optimizer standby"
+
+    def _isha() -> str:
+        try:
+            q_dir = os.path.join("data", "content_queue")
+            n = sum(1 for _ in os.scandir(q_dir)) if os.path.isdir(q_dir) else 0
+            return f"marketing exec · content queue {n} clients"
+        except Exception:
+            return "marketing exec standby"
+
     # least-recently-active pehle (rotation) — taaki sab baari-baari pulse hon
     monitors = [
         ("kavya", "ops_pulse", _kavya),
@@ -615,6 +674,12 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         ("neha", "pipeline_pulse", _neha),
         ("ananya", "booking_pulse", _ananya),
         ("riya", "receptionist_pulse", _riya),
+        ("manager", "dispatch_pulse", _manager),
+        ("pranav", "sre_pulse", _pranav),
+        ("vidya", "finops_pulse", _vidya),
+        ("arnav", "security_pulse", _arnav),
+        ("kiran", "optimizer_pulse", _kiran),
+        ("isha", "content_pulse", _isha),
     ]
     try:
         ts = team_status()
