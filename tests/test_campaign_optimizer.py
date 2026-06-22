@@ -101,6 +101,22 @@ async def test_approve_proposal_registers_variant(monkeypatch, tmp_path):
     assert again.get("already") is True
 
 
+def test_merge_flywheel_variant():
+    from app.platform.auto_outreach import _merge_flywheel_variant
+
+    prospect = {"business_name": "Sharma Solar"}
+    subject, text, html = _merge_flywheel_variant(
+        prospect,
+        "old subject",
+        "Namaste,\n\nOld opener.\n\nMain Sumit se hoon.",
+        "<p>Namaste,</p><p>Old opener.</p>",
+        {"content": "New subject line\n\nNew opener body"},
+    )
+    assert subject == "New subject line"
+    assert "New opener body" in text
+    assert "New opener body" in html
+
+
 def test_revenue_attribution_record(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from app.platform import revenue_attribution

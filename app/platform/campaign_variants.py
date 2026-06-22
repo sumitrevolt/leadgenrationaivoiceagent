@@ -151,4 +151,54 @@ async def list_variants(script_id: str = "") -> list[dict[str, Any]]:
         return []
 
 
-__all__ = ["register_variant", "record_event", "try_promote_challenger", "list_variants"]
+async def pick_for_outreach(
+    script_id: str,
+    *,
+    email: str,
+    niche: str = "general",
+) -> dict[str, Any] | None:
+    """Stable champion/challenger pick for cold email. None if <2 active arms."""
+    import hashlib
+
+    try:
+        from sqlalchemy import select
+
+        from app.models.base import get_async_session
+        from app.models.campaign_variant import CampaignVariant
+
+        async with get_async_session() as session:
+            rows = (
+                await session.execute(
+                    select(CampaignVariant).where(
+                        CampaignVariant.script_id == script_id,
+                        CampaignVariant.status.in_(["champion", "challenger"]),
+                    )
+                )
+            ).scalars().all()
+        if len(rows) < 2:
+            return None
+        niche_key = (niche or "general").strip()
+        filtered = [
+            r
+            for r in rows
+            if not (r.niche or "").strip() or r.niche in (niche_key, "general")
+        ]
+        pool = filtered if len(filtered) >= 2 else list(rows)
+        if len(pool) < 2:
+            return None
+        key = (email or "anon").strip().lower()
+        chosen = pool[int(hashlib.md5(key.encode("utf-8")).hexdigest(), 16) % len(pool)]
+        return {
+            "id": chosen.id,
+            "variant_key": chosen.variant_key,
+            "status": chosen.status,
+            "content": chosen.content or "",
+            "niche": chosen.niche,
+            "script_id": chosen.script_id,
+        }
+    except Exception as e:
+        logger.debug("[campaign_variants] pick_for_outreach skip: %s", e)
+        return None
+
+
+__all__ = ["register_variant", "record_event", "try_promote_challenger", "list_variants", "pick_for_outreach"]
