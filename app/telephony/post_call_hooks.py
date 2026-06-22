@@ -9,8 +9,10 @@ Never raises. All side-effects are best-effort and flag-gated where applicable.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -293,6 +295,181 @@ async def auto_qualify_and_downstream(
         return None
 
 
+def _map_call_outcome(stream_outcome: str, q: dict[str, Any] | None, user_turns: int):
+    """Map (classify_stream_outcome string + qualification dict) → CallOutcome enum.
+    Returns None when nothing definitive is known (column is nullable)."""
+    try:
+        from app.models.call_log import CallOutcome
+    except Exception:
+        return None
+    if q and q.get("appointment_requested"):
+        return CallOutcome.APPOINTMENT
+    if q and q.get("qualified"):
+        return CallOutcome.INTERESTED
+    so = (stream_outcome or "").strip().lower()
+    if so == "no_answer" or int(user_turns or 0) <= 0:
+        return CallOutcome.NO_ANSWER
+    if so == "failed":
+        return CallOutcome.FAILED
+    if q is not None and not q.get("qualified"):
+        return CallOutcome.NOT_INTERESTED
+    return None
+
+
+def build_call_log(
+    *,
+    call_id: str,
+    provider: str,
+    phone: str,
+    client_id: str = "",
+    client_name: str = "",
+    niche: str = "",
+    duration_s: float = 0.0,
+    user_turns: int = 0,
+    outcome: str = "",
+    started_at: datetime | None = None,
+    ended_at: datetime | None = None,
+    q: dict[str, Any] | None = None,
+    caller_id: str = "",
+    direction: str = "outbound",
+) -> Any | None:
+    """Construct an UNSAVED ``CallLog`` row from call metadata + optional
+    qualification. Pure (no DB/session) so the score/outcome mapping is unit
+    testable. Returns None when CALL_LOG_DB is off or the model is unavailable.
+
+    ``q`` is the ``call_qualifier.qualify_transcript`` dict (interest_score 1-5,
+    qualified, appointment_requested, summary, ...) or None when qualification
+    was skipped (AUTO_QUALIFY_CALLS off) — the row is still useful for
+    outcome/duration analytics.
+    """
+    if os.environ.get("CALL_LOG_DB", "1").strip().lower() not in ("1", "true", "yes"):
+        return None
+    try:
+        from app.models.call_log import CallDirection, CallLog
+    except Exception:
+        return None
+    ended = ended_at or datetime.now(timezone.utc)
+    started = started_at or ended
+    score = 0
+    summary = ""
+    appt = False
+    if q:
+        try:
+            # qualify_transcript returns a 1-5 interest_score; CallLog.lead_score is 0-100.
+            score = max(0, min(100, int(q.get("interest_score") or 0) * 20))
+        except Exception:
+            score = 0
+        summary = str(q.get("summary") or "")[:1000]
+        appt = bool(q.get("appointment_requested"))
+    try:
+        qual_json = json.dumps(
+            {**(q or {}), "raw_client_id": client_id or "", "raw_phone": phone or ""},
+            ensure_ascii=False,
+        )
+    except Exception:
+        qual_json = None
+    return CallLog(
+        id=uuid.uuid4().hex,
+        call_sid=(str(call_id or "").strip() or None),
+        provider=(str(provider or "")[:20] or None),
+        direction=(
+            CallDirection.INBOUND
+            if str(direction or "").strip().lower() == "inbound"
+            else CallDirection.OUTBOUND
+        ),
+        to_number=(str(phone or "").strip()[:20] or "unknown"),  # column is NOT NULL
+        from_number=(str(caller_id or "").strip()[:20] or None),
+        initiated_at=started,
+        answered_at=(started if int(user_turns or 0) > 0 else None),
+        ended_at=ended,
+        duration_seconds=int(duration_s or 0),
+        talk_duration=int(duration_s or 0),
+        status="completed",
+        outcome=_map_call_outcome(outcome, q, user_turns),
+        lead_score=score,
+        is_hot_lead=score >= 70,
+        qualification_data=qual_json,
+        summary=(summary or None),
+        appointment_scheduled=appt,
+    )
+
+
+async def persist_call_log(
+    *,
+    call_id: str,
+    provider: str,
+    phone: str,
+    client_id: str = "",
+    client_name: str = "",
+    niche: str = "",
+    duration_s: float = 0.0,
+    user_turns: int = 0,
+    outcome: str = "",
+    started_at: datetime | None = None,
+    ended_at: datetime | None = None,
+    q: dict[str, Any] | None = None,
+    caller_id: str = "",
+    direction: str = "outbound",
+) -> None:
+    """Write ONE structured ``call_logs`` row so the (already-built) DB-backed
+    analytics dashboard (`/api/analytics/*`, /app/analytics) lights up with real
+    data instead of falling back to the empty in-memory store.
+
+    Independent of AUTO_QUALIFY_CALLS — fires for EVERY completed call (q optional).
+    Off-loop sync INSERT (`asyncio.to_thread`, never blocks the event loop),
+    idempotent on ``call_sid``, FK-safe (``client_id`` linked only when it exists
+    in ``clients``). GATED CALL_LOG_DB (default ON). Never raises.
+    """
+    row = build_call_log(
+        call_id=call_id,
+        provider=provider,
+        phone=phone,
+        client_id=client_id,
+        client_name=client_name,
+        niche=niche,
+        duration_s=duration_s,
+        user_turns=user_turns,
+        outcome=outcome,
+        started_at=started_at,
+        ended_at=ended_at,
+        q=q,
+        caller_id=caller_id,
+        direction=direction,
+    )
+    if row is None:
+        return
+
+    def _insert_sync() -> None:
+        from app.models.base import get_db_session
+        from app.models.call_log import CallLog
+
+        with get_db_session() as db:
+            # Idempotency: skip if a row for this call_sid already exists.
+            if row.call_sid:
+                exists = (
+                    db.query(CallLog.id).filter(CallLog.call_sid == row.call_sid).first()
+                )
+                if exists:
+                    return
+            # FK-safe: link client_id only when it really exists in `clients`,
+            # else leave NULL (raw id is already in qualification_data).
+            cid = (client_id or "").strip()
+            if cid:
+                try:
+                    from app.models.client import Client
+
+                    if db.get(Client, cid) is not None:
+                        row.client_id = cid
+                except Exception:
+                    pass
+            db.add(row)  # get_db_session commits on context exit
+
+    try:
+        await asyncio.to_thread(_insert_sync)
+    except Exception as e:
+        logger.debug("[post_call] persist_call_log skip: %s", e)
+
+
 async def finalize_stream_session(
     history: list[dict[str, Any]],
     *,
@@ -340,6 +517,22 @@ async def finalize_stream_session(
         niche=niche or "",
         ended_at=ended,
     )
+    # DB-backed call analytics row (mirrors JSONL into the structured call_logs
+    # table the analytics dashboard reads). Covers phone_stream cleanup path.
+    await persist_call_log(
+        call_id=str(call_id or ""),
+        provider="phone",
+        phone=phone or "",
+        client_id=str(client_id or ""),
+        client_name=client_name or "",
+        niche=niche or "",
+        duration_s=dur,
+        user_turns=turns,
+        outcome=outcome,
+        started_at=started,
+        ended_at=ended,
+        q=q,
+    )
     if campaign_variant_id:
         try:
             from app.platform import voice_opening_variants as vov
@@ -386,4 +579,6 @@ __all__ = [
     "auto_qualify_and_downstream",
     "classify_stream_outcome",
     "finalize_stream_session",
+    "build_call_log",
+    "persist_call_log",
 ]

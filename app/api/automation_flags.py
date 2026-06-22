@@ -18,6 +18,7 @@ AUTOMATION_FLAGS = [
     "JOURNEY_ENGINE",
     "AUTO_QUALIFY_CALLS",
     "REPLY_AGENT",
+    "CALL_LOG_DB",  # write structured call_logs row per call -> DB-backed analytics dashboard (default ON)
     "OPS_WATCHDOG",
     "AUTO_ONBOARD",
     "USE_STRUCTURED_CONTENT",
