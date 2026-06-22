@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#6d28d9">
+<title>FREE Website Audit — 10 second me apni website ka report card | LeadsGenAI</title>
+<meta name="description" content="Apni business website ka FREE AI audit — SEO, mobile, WhatsApp, contact — score + Hinglish tips 10 second me. LeadsGenAI.">
+<style>
+:root{--acc:#6d28d9;--bg:#faf8ff;--txt:#1f2430;--mut:#6b7280;--ok:#059669;--bad:#dc2626}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,Arial;background:var(--bg);color:var(--txt);padding:20px;max-width:680px;margin:auto}
+h1{font-size:1.5rem;margin:18px 0 6px} .sub{color:var(--mut);margin-bottom:18px}
+.card{background:#fff;border:1px solid #e7e3f4;border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 2px 10px rgba(109,40,217,.06)}
+input{width:100%;padding:12px;border:1.5px solid #ddd6f3;border-radius:10px;font-size:1rem}
+button{width:100%;margin-top:10px;padding:12px;background:var(--acc);color:#fff;border:0;border-radius:10px;font-size:1.05rem;cursor:pointer;font-weight:600}
+button:disabled{opacity:.6}
+.score{font-size:3rem;font-weight:800;text-align:center} .grade{text-align:center;font-size:1.1rem;color:var(--mut);margin-bottom:10px}
+.chk{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1eefb;font-size:.92rem}
+.tip{background:#f5f1ff;border-left:4px solid var(--acc);padding:10px 12px;border-radius:8px;margin:8px 0;font-size:.92rem}
+.cta{display:block;text-align:center;background:#059669;color:#fff;text-decoration:none;padding:12px;border-radius:10px;font-weight:700;margin-top:10px}
+.cta.alt{background:var(--acc)} .err{color:var(--bad);margin-top:8px} .foot{text-align:center;color:var(--mut);font-size:.8rem;margin:16px 0}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<h1>🔍 FREE Website Audit</h1>
+<div class="sub">Apni website ka URL daalo — 10 second me AI report card: SEO, mobile, WhatsApp, contact + sudhaar ke tips (Hinglish me).</div>
+<div class="card">
+  <input id="url" type="url" placeholder="aapkiwebsite.in" autofocus>
+  <div data-turnstile-host></div>
+  <button id="go" onclick="run()">Audit Karo (FREE)</button>
+  <div id="err" class="err"></div>
+</div>
+<div id="res" style="display:none">
+  <div class="card">
+    <div class="score" id="score">—</div>
+    <div class="grade" id="grade"></div>
+    <div id="checks"></div>
+  </div>
+  <div class="card">
+    <h3 style="margin-bottom:8px">🛠️ Sudhaar ke tips</h3>
+    <div id="tips"></div>
+    <a class="cta" id="ctaAudit" href="/audit?utm_source=seo">Aage badho: FREE Google Profile Audit →</a>
+    <a class="cta alt" href="/pricing?utm_source=seo">₹1,199/mo se AI marketing autopilot →</a>
+  </div>
+</div>
+<div class="foot">Koi signup nahi, koi spam nahi. Made in 🇮🇳 by <a href="/">LeadsGenAI</a></div>
+<script>
+const $=id=>document.getElementById(id);
+const NAMES={https:'HTTPS (secure)',title:'Page title',meta_description:'Meta description (SEO)',h1:'H1 heading',viewport:'Mobile-friendly tag',phone_visible:'Phone number dikh raha',whatsapp_link:'WhatsApp button',contact_form:'Inquiry form',light_page:'Page speed (weight)'};
+async function run(){
+  const u=$('url').value.trim(); if(!u){$('err').textContent='URL daalo';return}
+  $('go').disabled=true;$('go').textContent='AI audit chal raha…';$('err').textContent='';
+  try{
+    const tok = window.turnstileToken ? await window.turnstileToken() : "";
+    const r=await fetch('/api/growth/tools/website-audit',{method:'POST',headers:{'Content-Type':'application/json','X-Turnstile-Token':tok},body:JSON.stringify({url:u})});
+    const d=await r.json();
+    if(!d.ok){$('err').textContent=d.error||'Kuch galat hua, dobara try karo';return}
+    $('res').style.display='block';
+    $('score').textContent=d.score+'/100';$('score').style.color=d.score>=70?'#059669':(d.score>=40?'#d97706':'#dc2626');
+    $('grade').textContent='Grade '+d.grade+' — '+d.url;
+    $('checks').innerHTML=Object.entries(d.checks).map(([k,ok])=>`<div class="chk"><span>${NAMES[k]||k}</span><b>${ok?'✅':'❌'}</b></div>`).join('');
+    $('tips').innerHTML=(d.tips||[]).map(t=>`<div class="tip">💡 ${t}</div>`).join('');
+    window.scrollTo({top:200,behavior:'smooth'});
+  }catch(e){$('err').textContent='Network issue — dobara try karo'}
+  finally{$('go').disabled=false;$('go').textContent='Audit Karo (FREE)'}
+}
+$('url').addEventListener('keydown',e=>{if(e.key==='Enter')run()});
+</script>
+<script src="/site/turnstile.js" defer></script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+</body>
+</html>

@@ -25,31 +25,41 @@ GBP audit, AI posts/caption/hashtags/carousel/meme/multilang-9, festival calenda
 
 ## 4. GENUINE GAPS — build backlog
 
-> **⚠️ STATUS UPDATE (2026-06-19 docs-audit):** Is backlog ke ~saare free-stack P0/P1 items ab **BUILT + routed + mounted** hain (modules doc-date ke baad ship hue, list update nahi hui — code se grep-verified, evidence `docs/DOCS_AUDIT_2026_06_19.md`). Naya kaam mat samjho — sirf neeche 3 items genuinely OPEN, woh bhi **DLT/telephony-blocked** (build nahi): #5 live human transfer, SMS-DLT live send, RCS rich-cards. Baaki sab parity (§3) me move ho chuke. Examples: #1 `brand_frames.py` · #2 `business_card.py` · #3 `magic_resize.py` · #4 `review_to_post.py` · #6 `/api/voiceai/ask` · #7 `speed_to_lead.py`.
+> **STATUS UPDATE (2026-06-22 launch audit):** P0 items **#1–#4, #6–#10** aur P1 **#11–#20** (except telephony-live) = **SHIPPED + LIVE** (grep + `frontend/explorer.html` + prod_check). **Marketing Product-1 launch = GO** (`/api/activation/summary` blocker_count=0).  
+> **Genuinely OPEN (external/DLT only):** #5 live human transfer (`CALL_TRANSFER` coded, needs Vobiz DID+DLT) · SMS-DLT live send · RCS rich-cards · Meta/GBP auto-post (§EXTERNAL-BLOCKED).  
+> **Do NOT rebuild:** `brand_frames.py` · `business_card.py` · `magic_resize.py` · `review_to_post.py` · `speed_to_lead.py` · `content_approval.py` · `client_snapshots.py` · `lead_distribution.py` · `campaign_variants.py` · `revenue_attribution.py`.
 
-### P0 (high-impact, free-stack, abhi buildable)
-1. **Branded frames + daily-post feed** (AdBanao signature, 4.5M users) — PIL compositor: client logo+naam+phone auto-overlay festival/daily templates pe → per-client roz ready post (download/1-click WA). Pieces hain (brand_kit, festivals, templates, ai_image) — sirf frame engine + daily feed missing.
-2. **Digital business card** (AdBanao/Thryv) — `/b/{slug}/card` page + .vcf download + QR. mini_site extension, ~1 din.
-3. **Magic resize / multi-format export** (Canva/Predis) — 1 design → square/story/banner/WA-status sizes (PIL).
-4. **Review→post marketing** (SocialPilot/NiceJob) — 5★ review → branded poster auto-draft. Reviews + poster gen dono hain, glue missing.
-5. **Live human transfer w/ context** (voice — ≥4 competitors) — AI call me "owner se baat karwao" → Exotel connect-leg transfer + Hinglish summary whisper. Advanced tier ka biggest missing piece.
-6. **"Ask AI" over call/campaign data** (Vodex Ask-AI) — NL command bar ko call transcripts/qualifications/campaign stats pe extend karo.
-7. **Speed-to-lead SLA metric + auto-engage** (Privyr/Podium "<2 min") — inquiry→first-touch time measure + dashboard badge "2-min me jawab"; AUTO_CALLBACK + lead_alerts already hain, ek unified pipeline + metric banao. Marketing copy gold.
-8. **Client content-approval workflow** (agency-grade) — draft → client portal/WA approve link → status=approved → ready queue. Portal hai, approval loop missing.
-9. **Snapshots / niche-setup clone** (GHL signature) — FDE deploy ko formalize karo: saved snapshot JSON (journeys+cadence+calendar+widget+mini-site config) → naya client = 1-click apply.
-10. **Lead distribution round-robin** — client ke staff me leads auto-assign (NeoDove/TeleCRM core). Confirmed missing.
+### P0 — ✅ SHIPPED (2026-06-11+, verified 2026-06-22)
+1. **Branded frames + daily-post feed** — ✅ `brand_frames.py`, `/api/brand/frames/*`
+2. **Digital business card** — ✅ `/b/{slug}/card` + `.vcf` + QR
+3. **Magic resize** — ✅ `magic_resize.py`
+4. **Review→post** — ✅ `review_to_post.py`
+5. **Live human transfer** — ⏳ coded (`call_transfer.py`, `CALL_TRANSFER`); **BLOCKED**: Vobiz DID + DLT
+6. **Ask AI over call data** — ✅ `/api/voiceai/ask`
+7. **Speed-to-lead SLA** — ✅ `speed_to_lead.py` + clientops API + Boss digest
+8. **Content-approval workflow** — ✅ `content_approval.py` + automation Approvals tab
+9. **Snapshots / niche clone** — ✅ `client_snapshots.py` + `/api/clientops/snapshots`
+10. **Lead round-robin** — ✅ `lead_distribution.py`
 
-### P1 (differentiating, moderate effort)
-11. **AI-search/GEO visibility report** (Birdeye early-mover) — "ChatGPT/AI me aapka business dikhta hai?" free-LLM probe → score+tips. Lead magnet #3 banao (audit, site-audit ke baad).
-12. **Local grid rank tracker** (Synup $5/loc) — existing rank tracker ko 3×3 geo-grid (Places locationBias, cost-capped).
-13. **India listings presence score** — Justdial/Sulekha/IndiaMART/Google presence checklist-audit (auto-sync ToS-blocked; report+guide enough). GBP-audit me section add.
-14. **Cold-email spintax/A-B + per-variant stats** (Smartlead) — outreach templates me variants + reply-rate tracking.
-15. **Telecaller gamification leaderboard** (NeoDove) — dialer dispositions → daily leaderboard card.
-16. **Trackable proposals** (Privyr) — proposal/short-link pe view-pixel → "client ne proposal khola" alert.
-17. **WhatsApp sticker pack + GIF maker** (AdBanao) — PIL/webp, viral feature, low effort.
-18. **Repeat-service reminders** (NiceJob) — customer CRM me service-due cycles (AC/pest/salon) → wish-draft pattern reuse.
-19. **Long-video→clips repurposing** (Simplified/Predis) — ffmpeg scene-cut+subtitles, HEAVY → worker-only, opt-in (qa-job lesson).
-20. **Connected-call billing + competitor price-compare section** — pricing page copy (Vodex framing + MyOperator anchor). 1 ghanta.
+### P1 — ✅ SHIPPED (2026-06-11+, verified 2026-06-22)
+11. **GEO visibility report** — ✅ `/api/localseo/geo-check`
+12. **Grid rank tracker** — ✅ `grid_rank.py`
+13. **India listings presence** — ✅ `listings_presence.py`
+14. **Cold-email A/B + stats** — ✅ `outreach_variants.py` + `campaign_variants.py`
+15. **Dialer leaderboard** — ✅ growth-tools tab
+16. **Trackable proposals** — ✅ proposal tracking
+17. **WA sticker + GIF** — ✅ shipped
+18. **Repeat-service reminders** — ✅ `service_reminders.py`
+19. **Video→clips** — ✅ `video_clips.py` (ffmpeg, worker-only)
+20. **Pricing compare strip** — ✅ `/pricing` + `/compare`
+
+### P0/P1 archive (original research text — historical)
+<details>
+<summary>Original gap descriptions (2026-06-10 research)</summary>
+
+Original P0 list items 1–10 and P1 items 11–20 described competitor features that are now implemented. See git history for full spec text.
+
+</details>
 
 ### P2 (baad me)
 21. Inbox rotation / 2nd sending domain (Smartlead) — partially external (domain kharidna).

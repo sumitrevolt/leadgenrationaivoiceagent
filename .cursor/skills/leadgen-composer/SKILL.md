@@ -43,6 +43,7 @@ Claude ke liye same: Read `.claude/skills/context-first/SKILL.md` har code task 
 | Debug / bug | `.claude/skills/systematic-debugging/SKILL.md` |
 | Naya marketing tab/API | `.claude/skills/marketing-feature/SKILL.md` |
 | Multi-agent / council decision | `.claude/skills/llm-council-decision/SKILL.md` |
+| Advancement council / ROI roadmap | `.claude/skills/executive-council/SKILL.md` |
 | Voice agent tune | `.claude/skills/voice-agent-kb/SKILL.md` + `test-agent` |
 | Session start | `.claude/skills/leadgen-start/SKILL.md` |
 | Non-trivial discipline | `.claude/skills/fable-operating-manual/SKILL.md` |

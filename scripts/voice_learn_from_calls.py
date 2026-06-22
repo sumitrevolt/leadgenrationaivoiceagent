@@ -170,20 +170,22 @@ async def learn_from_recent(limit: int = 3) -> dict[str, Any]:
 
 
 async def place_calls(limit: int, platform: bool) -> dict[str, Any]:
-    import importlib.util
+    import subprocess
 
-    fc_path = os.path.join(_BASE, "scripts", "fire_calls.py")
-    spec = importlib.util.spec_from_file_location("fire_calls", fc_path)
-    fc = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(fc)
-
-    niche = "ai_marketing" if platform else ""
-    prospects = fc.get_prospects(limit, niche)
-    if not prospects:
-        return {"ok": False, "reason": "no_prospects"}
+    cmd = [sys.executable, os.path.join(_BASE, "scripts", "fire_calls.py"), "--limit", str(limit)]
+    if platform:
+        cmd.append("--platform")
     before = len(_latest_transcript_records(50))
-    await fc.fire(prospects, dry_run=False, call_type="promotional", platform=platform)
-    return {"ok": True, "placed": len(prospects), "transcripts_before": before}
+    proc = subprocess.run(cmd, cwd=_BASE, capture_output=True, text=True, timeout=600)
+    print(proc.stdout[-2000:] if proc.stdout else "")
+    if proc.stderr:
+        print(proc.stderr[-800:])
+    return {
+        "ok": proc.returncode == 0,
+        "exit_code": proc.returncode,
+        "placed": limit if proc.returncode == 0 else 0,
+        "transcripts_before": before,
+    }
 
 
 async def wait_for_new_transcript(before_count: int, timeout_s: int = 180) -> bool:

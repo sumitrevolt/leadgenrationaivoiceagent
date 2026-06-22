@@ -6,6 +6,7 @@ import pytest
 
 from app.voice_agent.llm_stream_tts import (
     iter_sentences_from_tokens,
+    pop_clause,
     pop_sentence,
     stream_tts_enabled,
 )
@@ -121,3 +122,58 @@ async def test_phone_stream_think_and_say_stream_mock(monkeypatch):
     reply = await sess._think_and_say_stream("hello")
     assert "Pehla" in reply
     assert spoken == ["Pehla sentence.", "Doosra sentence."]
+
+
+# --------------------------------------------------------------------------- #
+# Hindi danda + early clause-flush (time-to-first-audio improvements).
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_iter_sentences_splits_on_hindi_danda():
+    """A Hindi/Hinglish reply ending in danda (।) chunks per sentence so the
+    first audio doesn't wait for the whole reply."""
+
+    async def _tok():
+        for part in ("Namaste ji। ", "Aap kaise hain?"):
+            yield part
+
+    out = [s async for s in iter_sentences_from_tokens(_tok())]
+    assert out == ["Namaste ji।", "Aap kaise hain?"]
+
+
+def test_pop_clause_breaks_on_comma():
+    head, rest = pop_clause("dekhiye sir, aapka business kaisa hai")
+    assert head == "dekhiye sir"
+    assert rest == "aapka business kaisa hai"
+
+
+def test_pop_clause_no_break_without_separator():
+    head, rest = pop_clause("ek lambi line bina comma ke")
+    assert head == ""
+    assert rest == "ek lambi line bina comma ke"
+
+
+@pytest.mark.asyncio
+async def test_clause_flush_first_chunk_only(monkeypatch):
+    monkeypatch.setenv("STREAM_TTS_CLAUSE_FLUSH", "1")
+    monkeypatch.setenv("STREAM_TTS_CLAUSE_MIN", "20")
+
+    async def _tok():
+        yield "dekhiye sir yeh ek lambi shuruaat hai, "
+        yield "phir baaki baat poori hoti hai."
+
+    out = [s async for s in iter_sentences_from_tokens(_tok())]
+    assert out[0] == "dekhiye sir yeh ek lambi shuruaat hai"
+    assert out[-1].endswith("hoti hai.")
+
+
+@pytest.mark.asyncio
+async def test_clause_flush_off_by_default(monkeypatch):
+    monkeypatch.delenv("STREAM_TTS_CLAUSE_FLUSH", raising=False)
+
+    async def _tok():
+        yield "dekhiye sir yeh ek lambi shuruaat hai, phir baaki baat poori hoti hai."
+
+    out = [s async for s in iter_sentences_from_tokens(_tok())]
+    assert out == [
+        "dekhiye sir yeh ek lambi shuruaat hai, phir baaki baat poori hoti hai."
+    ]

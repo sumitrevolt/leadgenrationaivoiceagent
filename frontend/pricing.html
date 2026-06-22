@@ -76,6 +76,21 @@
         border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
   @keyframes s{to{transform:rotate(360deg)}}
   .foot{text-align:center;color:var(--mut);font-size:12px;margin-top:40px}
+  /* trial banner + voice callout + combo (moved from inline styles) */
+  .plan.trial-banner{margin-top:18px;border-color:var(--ok);flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap}
+  .trial-info{flex:1;min-width:220px}
+  .trial-desc{font-size:14px;color:var(--mut);margin-top:4px}
+  .cta.trial-btn{width:auto;background:var(--ok)}
+  .note.voice-callout{background:#eef2ff;border-radius:12px;padding:14px;margin-top:10px}
+  .lk-bold{font-weight:700}
+  #combo-section{margin-top:46px}
+  .combo-tag-row{text-align:center;margin-bottom:8px}
+  .combo-tag{background:#eef2ff;color:#64748b;font-size:11px;font-weight:700;padding:4px 14px;border-radius:999px;letter-spacing:.4px}
+  .combo-h2{text-align:center;font-size:20px;margin:6px 0 4px;color:var(--mut);font-weight:700}
+  .combo-sub{text-align:center;color:var(--mut);font-size:14px;margin:0 0 24px}
+  .toggle.combo-toggle{margin-bottom:16px}
+  .note.combo-fine{margin-top:16px}
+  .pdesc.savings{color:#2ecc71;font-size:13px}
 </style>
 </head>
 <body>
@@ -97,36 +112,36 @@
     <button id="tg-yearly" onclick="setCycle('yearly')">Yearly <span class="save">2 mahine FREE</span></button>
   </div>
 
-  <div class="plan" style="margin-top:18px;border-color:var(--ok);flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap">
-    <div style="flex:1;min-width:220px">
+  <div class="plan trial-banner">
+    <div class="trial-info">
       <div class="pname">🎁 7-Din FREE Trial</div>
-      <div style="font-size:14px;color:var(--mut);margin-top:4px">Bina card, bina payment — 5 AI posts + GBP audit + enquiry widget + mini-site preview + branded frames + customer portal (7 din). Voice nahi.</div>
+      <div class="trial-desc">Bina card, bina payment — 5 AI posts + GBP audit + enquiry widget + mini-site preview + branded frames + customer portal (7 din). Voice nahi.</div>
     </div>
-    <button class="cta" style="width:auto;background:var(--ok)" onclick="startTrial()">Start FREE Trial</button>
+    <button class="cta trial-btn" onclick="startTrial()">Start FREE Trial</button>
   </div>
 
   <div id="plans" class="grid"><div class="note">Plans load ho rahe hain…</div></div>
 
   <p class="note">Sab plans me GST rules apply. Kabhi bhi cancel karo. Advanced tier me AI voice calling feature (500 min/mo).</p>
 
-  <div class="note" style="background:#eef2ff;border-radius:12px;padding:14px;margin-top:10px">📞 <b>Full AI telecaller chahiye?</b> Wo hamara ALAG product hai — <a href="/voice-agent" style="font-weight:700">AI Voice Calling Agent</a>: Hinglish AI jo unlimited calls karta hai aapke niche ke liye (flat monthly).</div>
+  <div class="note voice-callout">📞 <b>Full AI telecaller chahiye?</b> Wo hamara ALAG product hai — <a href="/voice-agent" class="lk-bold">AI Voice Calling Agent</a>: Hinglish AI jo unlimited calls karta hai aapke niche ke liye (flat monthly).</div>
 
   <!-- ===== OPTIONAL COMBO (Marketing + Voice convenience) ===== -->
-  <section id="combo-section" style="margin-top:46px">
-    <div style="text-align:center;margin-bottom:8px">
-      <span style="background:#eef2ff;color:#64748b;font-size:11px;font-weight:700;padding:4px 14px;border-radius:999px;letter-spacing:.4px">OPTIONAL — DONO CHAHIYE TO</span>
+  <section id="combo-section">
+    <div class="combo-tag-row">
+      <span class="combo-tag">OPTIONAL — DONO CHAHIYE TO</span>
     </div>
-    <h2 style="text-align:center;font-size:20px;margin:6px 0 4px;color:var(--mut);font-weight:700">Marketing + Voice — optional combo</h2>
-    <p style="text-align:center;color:var(--mut);font-size:14px;margin:0 0 24px">Dono products alag-alag hain — jo chahiye wahi lo. Sirf agar aapko Marketing aur Voice <b>dono</b> chahiye, to convenience ke liye ek single combo plan available hai. Koi obligation nahi.</p>
+    <h2 class="combo-h2">Marketing + Voice — optional combo</h2>
+    <p class="combo-sub">Dono products alag-alag hain — jo chahiye wahi lo. Sirf agar aapko Marketing aur Voice <b>dono</b> chahiye, to convenience ke liye ek single combo plan available hai. Koi obligation nahi.</p>
 
-    <div class="toggle" style="margin-bottom:16px">
+    <div class="toggle combo-toggle">
       <button id="ctg-monthly" class="on" onclick="setCombo('monthly')">Monthly</button>
       <button id="ctg-yearly" onclick="setCombo('yearly')">Yearly <span class="save">2 mahine FREE</span></button>
     </div>
 
     <div id="combo-plans" class="grid"><div class="note">Combo plans load ho rahe hain…</div></div>
 
-    <p class="note" style="margin-top:16px">7-din free pilot included · Koi lead-counting nahi · TRAI AI-disclosure built-in</p>
+    <p class="note combo-fine">7-din free pilot included · Koi lead-counting nahi · TRAI AI-disclosure built-in</p>
   </section>
 
   <!-- Hum vs Doosre — compare strip -->
@@ -138,7 +153,7 @@
       <div class="cmp-card"><div class="cmp-name">Practina/GHL-type all-in-one</div><div class="cmp-price">~₹8,300+<small>/mo + usage</small></div><div class="cmp-what">US-focus, setup aapka, Hinglish/festival nahi</div></div>
       <div class="cmp-card us"><div class="cmp-name">LeadsGenAI</div><div class="cmp-price">₹6,999<small>/mo</small></div><div class="cmp-what">Poora AI marketing — posts + leads + reviews; Advanced me AI voice feature bhi (₹1,199 se shuru)</div></div>
     </div>
-    <p class="cmp-fine">* Competitor prices unki public pricing pages se, June 2026. Naam sirf category samjhane ke liye hain. <a href="/compare" style="font-weight:700">Poora comparison dekho →</a></p>
+    <p class="cmp-fine">* Competitor prices unki public pricing pages se, June 2026. Naam sirf category samjhane ke liye hain. <a href="/compare" class="lk-bold">Poora comparison dekho →</a></p>
   </section>
 
   <div class="foot">
@@ -393,7 +408,7 @@ function renderCombo(){
         ${t.badge ? `<div class="badge">${t.badge}</div>` : ''}
         <div class="pname">${t.name}</div>
         <div class="price">${inrFmt(dispPrice)}<small>${suf}</small></div>
-        <div class="pdesc" style="color:#2ecc71;font-size:13px">${savMsg}</div>
+        <div class="pdesc savings">${savMsg}</div>
         <ul class="feats">${feats}</ul>
         <button class="cta ${t.highlight?'':'ghost'}" onclick='openModal(${JSON.stringify(JSON.stringify({id:planId,name:t.name,monthly_price:t.price_month}))})'>Get Started</button>
       </div>`);

@@ -119,7 +119,7 @@
 - **Secrets kabhi committed file/CLAUDE.md/scripts me mat likho — sirf .env** (gitignored). `scripts/check_secrets.py` (/verify step-4 me WIRED; false-positive = line pe `nosecret`).
 
 ## Skills (`.claude/skills/` + `data/skills_extra/` — workflow invoke karo, re-derive mat karo)
-- **Claude code task protocol:** `context-first` (parallel Grep/Read before edit) → `leadgen-composer` → one domain skill. Launch/readiness → `production-ready`. Parity map `SKILLS_PARITY.md`.
+- **Claude code task protocol:** `context-first` → `leadgen-composer` → one domain skill. Launch/readiness → `production-ready`. Strategic ROI/competitive/moat → `executive-council` + `docs/EXECUTIVE_ADVANCEMENT_COUNCIL_PROMPT.md`. Parity map `SKILLS_PARITY.md`.
 - **skill_pack** (`platform/skill_pack.py`, `SKILL_PACK=1` ON): VPS agents ko `find/snippet_for` + KB "skills" ns ingest. Total **241 skills** = 61 project + 141 agency-agents pack + 39 ECC pack (`data/skills_extra/*.md`, data-only = git pull pe live, NO rebuild). Project skills cover: session bootstrap, ops/verify/deploy, hostinger gotchas, marketing-feature, telephony, automation-pipeline/flags, FDE, multi-agent-coordination, agent-loop-design, self-improve, parity/parallel-batch, RBAC, debugging/TDD/review, pricing/copy/churn, voice-humanization, web-call-triage, etc.
 - **Slash commands** (`.claude/commands/`, 7): `/verify` `/ship` `/checkpoint` `/learn` `/compact-check` `/optimize` `/test-expand`.
 - **Automation loops doc**: `docs/AUTOMATION.md` (self-improve · coordinator 4-modes · process-engine — decision tree). `self-improve-control` skill (monitor + safety matrix + `scripts/selfimprove_audit.py`). Safety: `SELFIMPROVE_COST_CAP=50`, `SELF_IMPROVE_APPROVAL=1` (optional).

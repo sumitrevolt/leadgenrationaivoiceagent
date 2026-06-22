@@ -157,3 +157,51 @@ If `--dry-run` works but no email arrives → check SMTP creds in `~/.hermes/con
 - If Phase 2 produces a bad PR: close PR, no harm done. Investigate, fix `code_upgrader`
   proposal logic, or revoke Hermes deploy key from GitHub repo settings.
 - Permanently: just stop the Hostinger plan; nothing in main project depends on it.
+
+---
+
+# Conversational ops-assistant usage (merged from HERMES_MANAGED_SETUP, 2026-06-20)
+
+> Upar wala = automated daily-report setup. Yeh section = Hermes ko **conversational infra-ops assistant** ki tarah use karna (chat/Telegram se diagnose-explain-runbook).
+> NOTE: In-app **Hermes 🛰️** (`app/platform/infra_handler.py`, hourly score) + Kavya/Tara monitoring alag hain — yeh external Managed Hermes unka conversational complement hai, DUPLICATE nahi.
+
+## Role prompt (paste-ready — Hermes identity/system-prompt me daalo)
+
+```
+Tum LeadsGenAI (leadsgenai.in) ke INFRASTRUCTURE HANDLER ho. Hinglish me jawab do, concise.
+
+STACK FACTS:
+- FastAPI app, Docker pe Hostinger KVM VPS (Mumbai). Containers: leadgen_app (:8000),
+  leadgen_db (Postgres), leadgen_redis, leadgen_worker/scheduler (Celery), pgbouncer,
+  observability (Prometheus/Grafana/Alertmanager/Loki/Uptime/Gatus).
+- Public health: https://leadsgenai.in/health aur /health/ready (db+redis JSON). Status: /status
+- In-app monitoring already hai (Hermes hourly score, Kavya watchdog, Tara telephony, self-heal cron).
+  Tum unka DUPLICATE nahi — conversational ops-assistant: diagnose, explain, runbook suggest.
+
+TUMHARA KAAM:
+1. Health/error/downtime poochne pe — pehle /health/ready fetch karke REAL state, phir diagnosis.
+2. Runbook steps suggest karo (docker logs/restart) — EXECUTE sirf explicit bolne pe; destructive
+   (rm/prune/down) khud KABHI mat chalao.
+3. Deploy: repo github.com/sumitrevolt/leadgenrationaivoiceagent; deploy = git pull +
+   docker compose -f docker-compose.vps.yml build app + up -d --force-recreate. Naye page-routes pe HARD RELOAD yaad dilana.
+4. Weekly poochho: backups offsite gaye? disk %? CI green?
+
+BOUNDARIES: VPS pe SSH/exec access NAHI (sirf advise) · secrets kabhi store/repeat mat karo ·
+paid action (recharge/purchase) sirf suggest, karo mat.
+```
+
+**(Optional) Telegram:** Hermes Settings → Connectors → Telegram → phone se infra sawal pooch sako.
+
+## 1-month value plan (plan kharida hai to poora nichodo)
+> Funda: Managed Hermes wahi kaam kare jo HAMARA stack nahi karta — background research, external watch, Telegram-ops. Jo platform already karta (content/posts/monitoring) us pe credits MAT jalao. FREE model (Groq key = ₹0).
+
+- **Week 1 — infra assistant:** role prompt + Telegram + daily task "9 baje /health/ready + /status fetch karke unhealthy ho to Telegram pe batao, warna ✅ ek line. Action khud mat lena."
+- **Week 2 — competitor watch:** har Somvaar predis.ai/dhanda.app/adbanao.com + "AI telecaller India pricing" + caller.digital/myoperator pricing-changes (sirf CHANGES, source link).
+- **Week 3 — lead research (drafts only):** city-wise no-website businesses → naam/city/phone/website-status table → `/api/growth/prospects/import`. Outreach khud mat karna.
+- **Week 4 — content/SEO research:** low-comp high-intent blog topics + H2s (niches: solar/real-estate/coaching/dental).
+- **Month-end decide:** aadat bani + credits free-tier me → renew; warna cancel (in-app stack sab zaroori kaam karta).
+
+## Security rules
+1. Managed Hermes ko VPS ka **SSH/root access MAT do** (autonomous agent + prod root = ek bhool me site down). Advise-only.
+2. Admin password rotate karo (chat me aa chuka tha).
+3. nexos.ai/Gemini credits khatam = Hermes chup; balance Docker Manager → Projects me dikhta.

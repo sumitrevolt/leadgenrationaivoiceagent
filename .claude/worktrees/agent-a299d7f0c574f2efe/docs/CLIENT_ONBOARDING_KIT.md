@@ -1,0 +1,98 @@
+# Client Onboarding Kit — LeadGenAI
+
+> **For:** Marketing + Voice clients after payment · **Admin tools:** `/app/clients`, FDE API, `/app/minisite-builder`
+> **Auto path:** `AUTO_ONBOARD=1` → `app/marketing/onboarding.py`
+
+---
+
+## 1. Pre-onboarding (sales → signup)
+
+| Step | Action | Owner |
+|------|--------|-------|
+| 1 | Plan chosen on `/pricing` | Client |
+| 2 | Signup `/start` → account created | System |
+| 3 | UPI payment + screenshot to WA | Client |
+| 4 | Admin **Activate** plan (God Mode UPI panel) | Sumit |
+| 5 | `POST /api/customer/auth/set-password` — login creds | Admin |
+
+---
+
+## 2. Day-0 setup checklist (Marketing)
+
+| # | Task | How | Done when |
+|---|------|-----|-----------|
+| 1 | Client record + niche | Admin `/app/clients` | `client_id` exists |
+| 2 | Business name, phone, city, website | Client form | KB seed input ready |
+| 3 | Auto-onboard sweep | Hourly job or manual trigger | `setup_done=true` |
+| 4 | KB seeded from website | `onboarding.py` → Qdrant `client:{id}` | RAG queries return content |
+| 5 | Mini-site live | `/b/{slug}` | Public 200 |
+| 6 | First content pack | `data/client_packs/{id}.html` | Client dashboard shows posts |
+| 7 | Web widget snippet | Marketing tab "Web Widget" | `widget.js` on client site |
+| 8 | Customer login sent | `/app/login` creds | Client can access portal |
+
+**FDE one-shot:** `POST /api/growth/fde/deploy` {business_name, niche, city, brief}
+
+---
+
+## 3. Day-0 setup checklist (Voice add-on / Product 2)
+
+| # | Task | Blocker |
+|---|------|---------|
+| 1 | Niche + band confirmed | `lead_band()` A/B/C |
+| 2 | `VOBIZ_CALLER_ID` + DLT | User paperwork |
+| 3 | Test web-call | `/app/test-call` (free) |
+| 4 | 1 real phone test | After recharge |
+| 5 | Post-call qualify ON | `AUTO_QUALIFY_CALLS=1` optional |
+
+---
+
+## 4. Client training (self-serve)
+
+| Topic | Where |
+|-------|-------|
+| Dashboard KPIs | `/app/customer` |
+| Marketing tools | `/app/marketing` (28 tabs) |
+| Lead status edit | Customer dashboard inline PATCH |
+| Team round-robin | Customer dashboard → routing section |
+| WhatsApp 1-click send | Copy buttons (no bulk auto) |
+
+**Video scripts (record locally):** 5×3-min Loom on: login → first post → widget install → lead inbox → WA send.
+
+---
+
+## 5. Deliverables by tier
+
+| Tier | Deliverables |
+|------|--------------|
+| **Starter ₹1,199** | Posts, GBP audit tips, reviews kit, WhatsApp copy |
+| **Growth ₹2,999** | + unlimited posters, calendar, competitor, widget, reports |
+| **Advanced ₹6,999** | + voice callback feature, 500 min/mo, speed-to-lead |
+| **Voice Band A–C** | Unlimited AI calls/niche (flat band pricing) |
+
+Pricing truth: `app/billing/packages.py` · Voice: `voice_packages.py`
+
+---
+
+## 6. Support channels
+
+| Channel | Contact |
+|---------|---------|
+| WhatsApp verify | `UPI_VERIFY_WA` env (default 8459012607) |
+| Email | admin@leadsgenai.in |
+| Grievance | `/privacy` DPDP officer |
+
+---
+
+## 7. Offboarding / pause
+
+1. Admin pause client → status `paused`
+2. `usage.py` blocks new calls if out of minutes
+3. DPDP purge: consent ledger + `agent_memory` purge API (admin)
+
+---
+
+## 8. Internal references
+
+- Sales talk track: [`Sales_Kit_Hinglish.md`](Sales_Kit_Hinglish.md)
+- Marketing copy: [`Marketing_Kit_LeadGenAI.md`](Marketing_Kit_LeadGenAI.md)
+- Sample client kit: [`page_kits/SAMPLE_client_Sharma_Solar_kit.md`](page_kits/SAMPLE_client_Sharma_Solar_kit.md)

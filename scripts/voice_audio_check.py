@@ -3,7 +3,20 @@ Brain (text) theek ho sakta hai par AUDIO toot-ta hai: STT (sunna) ya TTS (bolna
 Run: docker cp scripts/voice_audio_check.py leadgen_app:/tmp/ && docker exec leadgen_app python /tmp/voice_audio_check.py
 """
 from __future__ import annotations
-import os, asyncio, traceback
+import asyncio
+import os
+import sys
+from pathlib import Path
+import traceback
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 def _sec(t): print("\n=== " + t + " ===")
 

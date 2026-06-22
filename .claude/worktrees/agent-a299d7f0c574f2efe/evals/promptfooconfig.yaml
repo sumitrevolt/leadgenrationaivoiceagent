@@ -1,0 +1,39 @@
+# =============================================================================
+# promptfooconfig.yaml — declarative LLM/prompt eval (G8). ADVISORY (llm-eval.yml
+# se chalta, build block nahi karta). Ye ek STARTER template hai — apne real
+# prompts/asserts yahan add karo (telecaller greeting, qualification JSON, etc.).
+# Docs: https://promptfoo.dev/docs/configuration/guide/
+#
+# Local run:  npx promptfoo@latest eval -c evals/promptfooconfig.yaml
+# =============================================================================
+description: "LeadGen AI — prompt/agent regression checks (free-stack, advisory)"
+
+prompts:
+  - "You are a concise Hindi-English sales assistant for {{business}}. Reply in <=2 sentences with one question. User said: {{message}}"
+
+providers:
+  # Cerebras OpenAI-compatible (free). llm-eval.yml OPENAI_API_KEY/BASE_URL set karta.
+  - id: openai:chat:gpt-oss-120b
+    config:
+      temperature: 0.4
+      max_tokens: 200
+
+tests:
+  - vars: { business: "Sharma Dental Clinic", message: "kitne ka hai cleaning?" }
+    assert:
+      - type: contains-any           # relevant raha
+        value: ["appointment", "book", "clinic", "cleaning", "price", "₹"]
+      - type: javascript             # 2-sentence / short-reply guard
+        value: "output.split(/[.?!]/).filter(s=>s.trim()).length <= 3"
+      - type: llm-rubric             # tone/quality (needs key)
+        value: "Reply is polite, in Hinglish, asks exactly one question, no hallucinated price."
+
+  - vars: { business: "Glow Salon", message: "do you do bridal makeup?" }
+    assert:
+      - type: contains-any
+        value: ["bridal", "makeup", "book", "appointment", "haan", "yes"]
+      - type: not-contains           # AI-disclosure / honesty guard example
+        value: "I am a human"
+
+# TODO: add tests for qualification-JSON (structured.py), niche scripts, RAG-grounded
+#       answers (faithfulness via llm-rubric), and red-team prompts (jailbreak/PII).

@@ -279,6 +279,7 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
 .status-pill.live{background:#1e3a5f;color:#60a5fa}
 
 #mm-canvas{cursor:crosshair}
+#flowRunStatus{margin-left:6px;color:#9ca3af;font-size:12px}
 </style>
 </head>
 <body>
@@ -301,7 +302,7 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <button class="tr-btn" onclick="saveFlowToServer()" title="Save active flow to server (Flow Runner)">💾 Save</button>
     <button class="tr-btn" onclick="runFlow()" id="runFlowBtn" title="Run active flow (FLOW_RUNNER)">▶ Run</button>
     <button class="tr-btn" onclick="showRunsPanel()" title="Run history + inspector (Flow Runner)">📋 Runs</button>
-    <span id="flowRunStatus" style="margin-left:6px;color:#9ca3af;font-size:12px"></span>
+    <span id="flowRunStatus"></span>
     <button class="tr-btn" onclick="showHelp()" title="Shortcuts">?</button>
     <a class="tr-btn tr-link" href="/app/admin">↗ Admin Dashboard</a>
     <a class="tr-btn tr-link" href="/app/automation">↗ Mission Control</a>

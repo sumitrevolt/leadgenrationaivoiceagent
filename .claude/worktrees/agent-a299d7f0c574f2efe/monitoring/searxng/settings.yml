@@ -1,0 +1,17 @@
+# SearXNG minimal config — JSON API enabled (app integration ke liye zaroori).
+# Internal-only (127.0.0.1 + docker network), isliye limiter OFF.
+use_default_settings: true
+
+server:
+  limiter: false
+  image_proxy: false
+
+search:
+  safe_search: 1
+  formats:
+    - html
+    - json
+
+# India-relevant defaults
+ui:
+  default_locale: en

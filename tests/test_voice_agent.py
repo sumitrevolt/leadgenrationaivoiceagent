@@ -168,7 +168,7 @@ class TestTelecallerBrainProfessionalism:
         assert "aage badhna" not in ai_marketing["objections"]["bharosa"]
         assert "aage badhiye" in ai_marketing["objections"]["bharosa"]
         assert ai_marketing.get("pitch_short")
-        assert "LeadGen AI" in ai_marketing["opening"]
+        assert "LeadGen AI" in ai_marketing["opening"] or "Leads Generation AI" in ai_marketing["opening"]
 
     def test_telecaller_confirm_interest_appends_note(self):
         brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")

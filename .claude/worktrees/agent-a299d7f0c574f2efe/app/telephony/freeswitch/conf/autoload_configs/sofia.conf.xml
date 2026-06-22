@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!-- mod_sofia loader — sip_profiles/ directory se SIP profiles (external.xml = Vobiz) uthata hai. -->
+<configuration name="sofia.conf" description="sofia Endpoint">
+  <global_settings>
+    <param name="log-level" value="0"/>
+    <param name="debug-presence" value="0"/>
+  </global_settings>
+  <profiles>
+    <X-PRE-PROCESS cmd="include" data="../sip_profiles/*.xml"/>
+  </profiles>
+</configuration>
