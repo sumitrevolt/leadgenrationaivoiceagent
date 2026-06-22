@@ -23,22 +23,6 @@ def test_email_digest_never_raises(monkeypatch):
     assert r["ok"] is False
 
 
-def test_telegram_draft_inert_when_off(monkeypatch):
-    async def fake():
-        return {"ran": False, "reason": "off"}
-    monkeypatch.setattr("app.marketing.telegram_publish.run_due", fake)
-    r = _run("telegram_draft", {})
-    assert r["ok"] and r["count"] == 0 and "inert" in r["detail"]
-
-
-def test_telegram_draft_published(monkeypatch):
-    async def fake():
-        return {"ran": True, "sent": 3}
-    monkeypatch.setattr("app.marketing.telegram_publish.run_due", fake)
-    r = _run("telegram_draft", {})
-    assert r["count"] == 3
-
-
 def test_whatsapp_draft_links_default(monkeypatch):
     async def fake(items, delay_s=None):
         return {"live": False, "links": 5}
@@ -135,6 +119,6 @@ def test_http_request_delegates_to_flow_http(monkeypatch):
 
 
 def test_new_actions_registered():
-    for k in ("email_digest", "telegram_draft", "whatsapp_draft", "crm_queue",
+    for k in ("email_digest", "whatsapp_draft", "crm_queue",
               "seo_blog_draft", "brand_pulse", "review_scan", "client_report_draft", "http_request"):
         assert k in process_library.EXECUTORS

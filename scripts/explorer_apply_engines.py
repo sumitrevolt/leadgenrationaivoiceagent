@@ -33,7 +33,6 @@ APPENDS: dict[str, list[str]] = {
     "sales": ["sales_pipeline.py", "proposal_tracking.py"],
     "blog": ["seo_blog.py"],
     "stl": ["speed_to_lead.py"],
-    "telegram_pub": ["telegram_publish.py"],
     "meter_watch": ["usage_alerts.py"],
     "whatsapp_wa": ["wa_campaign_runner.py"],
     "review_monitor": ["brand_pulse.py"],

@@ -1,6 +1,6 @@
 """Community / Q&A content drafter — inbound via communities (telephony-free).
 
-Quora/Reddit answers, WhatsApp/Telegram/FB-group value posts, LinkedIn articles,
+Quora/Reddit answers, WhatsApp/FB-group value posts, LinkedIn articles,
 Medium syndication — sab VALUE-first (spam nahi), soft CTA → /audit. AI platform-
 appropriate draft deta (insaan khud post kare — ban-safe). free-LLM, template fallback.
 """
@@ -17,7 +17,6 @@ PLATFORMS = {
     "quora": "Quora answer — detailed, helpful, 1 soft mention at end",
     "reddit": "Reddit comment — genuine, no salesy tone, value-first (r/india business)",
     "whatsapp_group": "WhatsApp business-group post — short, useful tip + free-audit offer",
-    "telegram": "Telegram channel post — punchy tip + CTA",
     "linkedin_article": "LinkedIn article — 150-200 word professional, thought-leadership",
     "medium": "Medium blog intro — SEO-friendly, useful, CTA at end",
 }

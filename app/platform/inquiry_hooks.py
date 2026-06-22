@@ -154,7 +154,6 @@ async def run_after_inquiry(
                 "reddit": "reddit",
                 "linkedin": "linkedin_article",
                 "medium": "medium",
-                "telegram": "telegram",
                 "whatsapp": "whatsapp_group",
                 "wa": "whatsapp_group",
                 "seo": "seo_page",

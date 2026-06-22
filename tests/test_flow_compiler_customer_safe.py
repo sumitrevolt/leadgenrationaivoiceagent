@@ -6,7 +6,7 @@ def _flow(nodes, edges, name="t"):
 
 
 def test_customer_safe_set_excludes_dangerous():
-    for bad in ("http_request", "crm_queue", "telegram_draft", "whatsapp_draft", "scrape", "harvest"):
+    for bad in ("http_request", "crm_queue", "whatsapp_draft", "scrape", "harvest"):
         assert bad not in CUSTOMER_SAFE_ACTIONS
     for good in ("content_pack", "social_drafts", "seo_blog_draft", "brand_pulse", "review_scan", "client_report_draft"):
         assert good in CUSTOMER_SAFE_ACTIONS
@@ -23,7 +23,7 @@ def test_http_request_rejected_under_customer_safe():
 
 
 def test_crm_and_scrape_rejected_under_customer_safe():
-    for act in ("crm_queue", "scrape", "telegram_draft"):
+    for act in ("crm_queue", "scrape", "harvest"):
         proc, errs, kind = compile_flow(_flow([{"id": "a", "action": act}], []), customer_safe=True)
         assert proc is None and errs, act
 

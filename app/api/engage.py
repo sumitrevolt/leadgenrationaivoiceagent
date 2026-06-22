@@ -145,7 +145,7 @@ class AlertTestIn(BaseModel):
 
 @router.post("/alerts/test")
 async def alerts_test(body: AlertTestIn, _user=Depends(require_admin)):
-    """Test alert bhejo — Telegram/email setup verify karne ke liye (admin).
+    """Test alert bhejo — email setup verify karne ke liye (admin).
 
     Dedupe bypass ke liye unique test phone use hota hai."""
     import time as _t
@@ -156,16 +156,12 @@ async def alerts_test(body: AlertTestIn, _user=Depends(require_admin)):
         "name": "Test Lead (setup check)",
         "phone": f"9{int(_t.time()) % 1000000000:09d}",  # unique → dedupe skip
         "source": "alerts-test",
-        "message": "Yeh test alert hai — Telegram/email setup verify.",
+        "message": "Yeh test alert hai — email setup verify.",
     }
     if body.client_id:
         rec["client_id"] = body.client_id
     res = await lead_alerts.notify_new_lead(rec)
     hints = []
-    if not res.get("telegram_sent"):
-        hints.append(
-            "Telegram nahi gaya: TELEGRAM_BOT_TOKEN + (client.telegram_chat_id ya TELEGRAM_ADMIN_CHAT_ID) set karo."
-        )
     if not res.get("email_sent"):
         hints.append("Email nahi gaya: NOTIFY_EMAIL (+ SMTP creds) set karo.")
     return {**res, "hints": hints}

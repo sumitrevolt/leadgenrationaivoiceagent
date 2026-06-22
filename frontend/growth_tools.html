@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="hi">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -233,7 +233,7 @@ a{color:var(--acc)}
     <label>Long URL</label><input id="slUrl" placeholder="https://leadsgenai.in/pricing">
     <label>Label (optional)</label><input id="slLabel" placeholder="June pricing push">
     <label>Channel (optional)</label>
-    <select id="slChannel"><option value="">â€” none â€”</option><option>seo_page</option><option>quora</option><option>reddit</option><option>whatsapp_group</option><option>telegram</option><option>linkedin_article</option><option>medium</option><option>partnership</option><option>linkedin_dm</option></select>
+    <select id="slChannel"><option value="">â€” none â€”</option><option>seo_page</option><option>quora</option><option>reddit</option><option>whatsapp_group</option><option>linkedin_article</option><option>medium</option><option>partnership</option><option>linkedin_dm</option></select>
     <button class="btn" onclick="slCreate()">Short link banao</button>
     <div id="slOut"></div>
   </div>
@@ -305,7 +305,7 @@ a{color:var(--acc)}
       <b>FB Lead Ads:</b> Zapier ka "Facebook Lead Ads â†’ New Lead" trigger + upar wala POST action â€” FB ka field_data format bhi auto-handle hota hai.<br>
       <b>IndiaMART/JustDial:</b> unke panel me "Push API / webhook URL" me yahi URL daalo.<br>
       <b>Test (curl):</b> <code>curl -X POST "URL" -H "Content-Type: application/json" -d '{"name":"Test","phone":"9876543210","source":"zapier-test"}'</code><br>
-      Duplicate phone auto-skip hota hai. Lead aate hi instant alert (Telegram/email) bhi fire hota hai.
+      Duplicate phone auto-skip hota hai. Lead aate hi instant alert (email) bhi fire hota hai.
     </div>
     <h3>4) Alert setup verify</h3>
     <button class="btn" id="alBtn" onclick="alertTest()">ðŸ”” Test alert bhejo</button>
@@ -891,7 +891,7 @@ async function alertTest(){
   busy('alBtn',1,'â³ bhej raha...');
   try{
     var d=await api('/api/engage/alerts/test',{method:'POST',body:JSON.stringify({client_id:$('wkClient').value.trim()})});
-    var h='<div class="result">Telegram: '+(d.telegram_sent?'<span class="ok">âœ… gaya</span>':'<span class="bad">âŒ</span>')+' Â· Email: '+(d.email_sent?'<span class="ok">âœ… gaya</span>':'<span class="bad">âŒ</span>');
+    var h='<div class="result">Email: '+(d.email_sent?'<span class="ok">âœ… gaya</span>':'<span class="bad">âŒ</span>');
     (d.hints||[]).forEach(function(x){h+='<div class="warn" style="margin-top:4px">â†’ '+esc(x)+'</div>'});
     $('alOut').innerHTML=h+'</div>';
   }catch(e){toast('Test fail: '+e.message,false)}

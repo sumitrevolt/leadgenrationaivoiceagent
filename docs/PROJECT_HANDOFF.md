@@ -248,7 +248,7 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 - **AI reply triage** (`reply_agent.py`, `REPLY_AGENT=1` ON): IMAP → intent classify → status + Hinglish draft (auto-send OFF ban-safe).
 - **Omnichannel cadence** (`cadence.py`, ON) · **Sales pipeline** (`SALES_ENGINE=1` ON) + auto-proposal + AI closer.
 - **Revenue automation** (ON): dunning · lifecycle nurture · client-health alerts · revenue digest · channel-experiments bandit (17 free+legal channels, auto-POST kahin NAHI) · growth optimizer.
-- **WhatsApp = 1-click human send** (bulk auto = ban). **Telegram = first TRUE auto-post** (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_AUTO_PUBLISH=1`).
+- **WhatsApp = 1-click human send** (bulk auto = ban). **Telegram REMOVED 2026-06-22** (no auto-post channel).
 - **Native CRM sync** (`crm_sync.py`, `CRM_SYNC` OFF): Zoho (India DC) + HubSpot. UI: growth-tools "CRM Sync" tab.
 - **Self-hosted tools** (`docker-compose.tools.yml`): SearXNG (ON) · ntfy phone-push `https://ntfy.leadsgenai.in` (ON) · changedetection.io.
 - **Per-client:** `clients_store.py` + `auto_content.py` + `mini_site.py` (`/b/{slug}`) + `onboarding.py` (`AUTO_ONBOARD=1` ON: website → KB seed + first content pack).
@@ -570,7 +570,7 @@ Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sa
 | 2 DAG | branching (conditional edges `when`), parallel fan-out, merge/join — new `dag_engine.py` alongside; `flow_dispatch` routes linear vs dag | `FLOW_RUNNER` |
 | 3 Triggers | cron (`flow_cron` beat */5) + event (tail in `customer_webhooks.emit`) auto-fire, loop-guarded | `FLOW_AUTO_TRIGGERS` |
 | 4 Data-passing | node output → downstream input (`inputs_map`, ancestor-validated, fail-closed) | `FLOW_RUNNER` |
-| 5 Rich palette | 9 draft-safe executors (digest/telegram/wa/crm/blog/pulse/review/report) + allowlisted SSRF-guarded HTTP node | `FLOW_RUNNER` (+`FLOW_HTTP_ALLOWLIST`) |
+| 5 Rich palette | 8 draft-safe executors (digest/wa/crm/blog/pulse/review/report) + allowlisted SSRF-guarded HTTP node | `FLOW_RUNNER` (+`FLOW_HTTP_ALLOWLIST`) |
 | 6 Execution UX | run-history + per-node inspector + journal timeline + approve/reject/re-run ("📋 Runs" in builder) | `FLOW_RUNNER` |
 | 7 Per-client builder | customer-portal builder `/app/customer/flows` — **tenant-isolated** (cross-tenant=404, anti-hijack), **draft-only restricted palette** (`CUSTOMER_SAFE_ACTIONS`), per-client cap | `FLOW_RUNNER_CUSTOMER` |
 

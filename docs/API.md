@@ -796,7 +796,6 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/content/multilang` — Content Multilang
 - `POST  ` `/api/growth/content/personalize` — Content Personalize
 - `POST  ` `/api/growth/content/reel-video` — Content Reel Video
-- `POST  ` `/api/growth/content/telegram-send` — Content Telegram Send
 - `GET   ` `/api/growth/content/templates` — Content Templates
 - `GET   ` `/api/growth/content/trends` — Content Trends
 - `POST  ` `/api/growth/crm/config` — Crm Config

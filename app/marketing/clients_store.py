@@ -325,7 +325,6 @@ _ALLOWED_FIELDS = {
     "trial",  # free-trial flag (bool) — conversion funnel
     "trial_expires",  # ISO timestamp — trial khatam kab
     "upi_vpa",  # client ka UPI ID (naam@bank) — payment QR poster (engage/upi-qr)
-    "telegram_chat_id",  # client ka Telegram chat — lead-alerts + telegram_publish
 }
 
 

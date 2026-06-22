@@ -8,7 +8,7 @@ tha kaunsa channel kaam kar raha. Yeh engine roz kuch channels pick karta
 ban-safe drafts ya live SEO pages), aur outcome ratio se agli baar better pick.
 
 Channels (sab free + legal, ToS-safe — auto-POST kahin nahi, sirf draft/own-site):
-  seo_page (live niche×city landing) · quora · reddit · whatsapp_group · telegram ·
+  seo_page (live niche×city landing) · quora · reddit · whatsapp_group ·
   linkedin_article · medium · partnership (CA/web-designer/IT pitch) · linkedin_dm
 
 GATED `CHANNEL_EXPERIMENTS=1` (default OFF = run_daily no-op). Reuse only:
@@ -39,7 +39,6 @@ CHANNELS = [
     "quora",
     "reddit",
     "whatsapp_group",
-    "telegram",
     "linkedin_article",
     "medium",
     "partnership",
@@ -203,7 +202,7 @@ async def _generate(channel: str, niche: str, city: str) -> dict[str, Any]:
 
         res = await social_channels.draft(channel, niche=niche, city=city)
         return {"kind": "draft", "assets": 1, "detail": str(res.get("draft") or "")[:150]}
-    # community platforms (quora/reddit/whatsapp_group/telegram/linkedin_article/medium)
+    # community platforms (quora/reddit/whatsapp_group/linkedin_article/medium)
     from app.marketing import community_content
 
     res = await community_content.draft_content(

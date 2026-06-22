@@ -333,7 +333,7 @@ a{color:var(--acc)}
   <div class="card">
     <h2>🌐 Community / Q&amp;A draft</h2>
     <label>Platform</label>
-    <select id="dtCPlat"><option>quora</option><option>reddit</option><option>whatsapp_group</option><option>telegram</option><option>linkedin_article</option><option>medium</option></select>
+    <select id="dtCPlat"><option>quora</option><option>reddit</option><option>whatsapp_group</option><option>linkedin_article</option><option>medium</option></select>
     <label>Topic (optional)</label><input id="dtCTopic" placeholder="missed calls se business loss">
     <label>Niche</label><input id="dtCNiche" placeholder="solar">
     <button class="btn" id="dtCBtn" onclick="dtCommunity()">Draft banao</button>
@@ -460,7 +460,7 @@ a{color:var(--acc)}
     <button class="btn" id="ceRunBtn" onclick="ceRun()">▶️ Experiments run</button>
     <h3>➕ Outcome record (bandit attribution)</h3>
     <div class="row"><div>
-      <label>Channel</label><input id="ceCh" placeholder="telegram / email / gbp">
+      <label>Channel</label><input id="ceCh" placeholder="quora / email / gbp">
       <label>Kind</label>
       <select id="ceKind"><option>inquiry</option><option>reply</option><option>signup</option></select>
     </div><div>
@@ -639,18 +639,6 @@ a{color:var(--acc)}
     <label>Offer (optional)</label><input id="ctPOffer" placeholder="10% off">
     <button class="btn" id="ctPerBtn" onclick="ctPersonalize()">Post banao</button>
     <div id="ctPerOut"></div>
-  </div>
-  <div class="card">
-    <h2>✈️ Telegram Publish (TRUE auto channel)</h2>
-    <div class="mut">Gated TELEGRAM_BOT_TOKEN. Client ID do (record ke chat_id pe content) YA chat_id+text manually.</div>
-    <div class="row"><div>
-      <label>Client ID (auto content)</label><input id="ctTgClient">
-    </div><div>
-      <label>YA chat_id</label><input id="ctTgChat" placeholder="@mychannel ya -100...">
-      <label>Text</label><textarea id="ctTgText" style="min-height:60px"></textarea>
-    </div></div>
-    <button class="btn" id="ctTgBtn" onclick="ctTelegram()">Send karo</button>
-    <div id="ctTgOut"></div>
   </div>
   <div class="card">
     <h2>📊 Content Feedback Loop</h2>
@@ -2354,18 +2342,6 @@ async function ctPersonalize(){
     $('ctPerOut').innerHTML='<div class="result">'+draftBlocks(d)+'</div>';toast('Post ready ✅');
   }catch(e){toast('Personalize fail: '+e.message,false)}
   busy('ctPerBtn',0);
-}
-async function ctTelegram(){
-  var cid=$('ctTgClient').value.trim(),chat=$('ctTgChat').value.trim(),txt=$('ctTgText').value.trim();
-  if(!cid&&!(chat&&txt))return toast('Client ID YA chat_id+text chahiye',false);
-  busy('ctTgBtn',1,'⏳ bhej raha...');
-  try{
-    var body=cid?{client_id:cid}:{chat_id:chat,text:txt};
-    var d=await api('/api/growth/content/telegram-send',{method:'POST',body:JSON.stringify(body)});
-    if(d.ok===false){warnBox('ctTgOut',(d.error||'fail')+' — TELEGRAM_BOT_TOKEN / chat_id check karo.')}
-    else{$('ctTgOut').innerHTML='<div class="result">'+pills(d)+jpre(d)+'</div>';toast('Sent ✅')}
-  }catch(e){toast('Telegram fail: '+e.message,false)}
-  busy('ctTgBtn',0);
 }
 async function ctFbStats(){
   try{

@@ -57,7 +57,7 @@ AUTOMATION_FLAGS = [
     "ENABLE_OTEL",
     "ENABLE_LEGACY_BEAT",
     "FESTIVALS_LIVE_HOLIDAYS",
-    "TELEGRAM_AUTO_PUBLISH",
+    "VIDEO_AD_CYCLE",  # har 5 din per-client AI video ad -> approval -> social publish (default OFF)
     "CLIENT_REPORTS",
     "CUSTOMER_WISHES",
     "RANK_TRACKER",
@@ -163,7 +163,6 @@ AUTOMATION_FLAGS = [
     "METER_ALERT_COOLDOWN_SEC",  # default 21600 (6h alert cooldown)
     "LOOP_SUPERVISOR",  # SP3: call-processor re-spawn watchdog + boot-grace-skip ntfy visibility
     "PROCESS_AUTOSTART",  # D V1.1: process-engine deterministic workflows auto-start (idempotent, 1/tick)
-    "CONTENT_AUTOPUBLISH",  # SP5: self-brand 'ready' content auto-publish to Telegram (needs TG creds)
     "AMD_DETECT",  # SP7: answering-machine detection on vobiz stream (saves credits) — OFF default
     # --- Research-improvements batch 2026-06-19 ---
     "USE_TEXT_ENDPOINT",  # text-based semantic end-of-turn (complements audio Smart-Turn) — OFF default

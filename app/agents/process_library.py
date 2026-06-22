@@ -155,20 +155,6 @@ async def _exec_email_digest(inputs: dict) -> dict:
             "detail": f"digest {(res or {}).get('week', '')}: {'emailed-admin' if sent else 'composed'}"}
 
 
-async def _exec_telegram_draft(inputs: dict) -> dict:
-    # Posts only if TELEGRAM_AUTO_PUBLISH=1 + token. Default = inert draft.
-    from app.marketing import telegram_publish
-
-    try:
-        res = await telegram_publish.run_due()
-    except Exception as e:
-        return {"ok": False, "count": 0, "detail": f"telegram err: {e}"[:150]}
-    if not (res or {}).get("ran"):
-        return {"ok": True, "count": 0, "detail": f"telegram inert ({(res or {}).get('reason', 'off')})"}
-    return {"ok": True, "count": int((res or {}).get("sent", 0) or 0),
-            "detail": f"telegram published={(res or {}).get('sent', 0)} (AUTO_PUBLISH on)"}
-
-
 async def _exec_whatsapp_draft(inputs: dict) -> dict:
     # Default (WHATSAPP_AUTO_SEND unset) = wa.me links only, no Cloud API.
     from app.marketing import whatsapp_campaign
@@ -284,7 +270,6 @@ EXECUTORS = {
     "revenue_sweep": _exec_revenue_sweep,
     # Phase 5 (draft-safe / breakpoint-gated)
     "email_digest": _exec_email_digest,
-    "telegram_draft": _exec_telegram_draft,
     "whatsapp_draft": _exec_whatsapp_draft,
     "crm_queue": _exec_crm_queue,
     "seo_blog_draft": _exec_seo_blog_draft,

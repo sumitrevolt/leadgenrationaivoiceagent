@@ -6,7 +6,18 @@ pure parts test hote).
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+
+def _load_automation_health_audit():
+    path = Path(__file__).resolve().parent.parent / "scripts" / "automation_health_audit.py"
+    spec = importlib.util.spec_from_file_location("automation_health_audit_testmod", path)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec and spec.loader
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def test_llm_metrics_record_and_stats(tmp_path, monkeypatch):
@@ -95,3 +106,47 @@ def test_scheduler_heartbeat_wrapper():
     assert hasattr(ts, "_run_job") and hasattr(ts, "_run_job_inner")
     # unknown job -> inner kuch nahi karta, wrapper heartbeat record karta, no raise
     asyncio.run(ts._run_job("nonexistent_job_xyz"))
+
+
+def test_automation_health_audit_uses_last_tick_at(tmp_path, monkeypatch):
+    aha = _load_automation_health_audit()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    (data_dir / "self_improve_state.json").write_text(
+        '{"last_tick_at":"2026-06-22T12:00:00+00:00","last_tick":1719057600}',
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(aha, "_now", lambda: datetime(2026, 6, 22, 12, 5, tzinfo=timezone.utc))
+    out = aha.check_alive()
+    assert out["status"] == "green"
+    assert out["last_tick_min"] == 5
+
+
+def test_automation_health_audit_dev_mode_without_loops_is_not_red(tmp_path, monkeypatch):
+    aha = _load_automation_health_audit()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("SELF_IMPROVE_LOOP", raising=False)
+    monkeypatch.delenv("TEAM_AUTOMATION", raising=False)
+    out = aha.check_alive()
+    assert out["status"] == "green"
+    assert "enabled" in out["detail"].lower()
+
+
+def test_automation_health_audit_compliance_skips_inactive_outbound(tmp_path, monkeypatch):
+    aha = _load_automation_health_audit()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("AUTO_EMAIL_OUTREACH", raising=False)
+    monkeypatch.delenv("SMS_DLT_ENABLED", raising=False)
+    monkeypatch.delenv("DLT_APPROVED", raising=False)
+    monkeypatch.setenv("VOBIZ_AUTH_ID", "test-id")
+    monkeypatch.delenv("RECORDING_RETENTION", raising=False)
+    out = aha.check_compliance()
+    assert out["dlt_enabled"] is True
+    assert out["optout_enforced"] is True
+    assert out["retention_active"] is False
+    assert out["status"] == "yellow"

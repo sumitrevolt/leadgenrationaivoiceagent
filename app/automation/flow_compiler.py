@@ -14,7 +14,7 @@ from typing import Any
 
 # Phase 5: actions that can have an external side effect when their flag is on.
 # A NON-FATAL warning is attached when one has no upstream Approval (breakpoint).
-SIDE_EFFECT_ACTIONS = {"telegram_draft", "crm_queue"}
+SIDE_EFFECT_ACTIONS = {"crm_queue"}
 
 # Phase 7: the ONLY actions a customer-portal flow may use — draft-only, no send,
 # no cost-scrape, no SSRF. Compiler customer_safe=True rejects everything else.

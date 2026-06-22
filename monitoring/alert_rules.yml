@@ -1,6 +1,6 @@
 # =============================================================================
 # Prometheus alert rules — LeadGen stack.
-# Loaded by prometheus.yml (rule_files). Alerts -> Alertmanager -> email/Telegram.
+# Loaded by prometheus.yml (rule_files). Alerts -> Alertmanager -> email.
 #
 # `up`-based alerts har setup me kaam karte (Prometheus scrape se aata).
 # HTTP-rate alerts tabhi fire honge jab app `http_requests_total` /

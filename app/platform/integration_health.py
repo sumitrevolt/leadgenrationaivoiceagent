@@ -1,16 +1,16 @@
-"""Integration silent-failure counters + alert (SMTP/Exotel/Places/Telegram...).
+"""Integration silent-failure counters + alert (SMTP/Places/Qdrant...).
 
 PROBLEM: zyada-tar integration hooks best-effort try/except hain (sahi design —
 prod kabhi girna nahi chahiye), PAR fail hone pe sirf ek log line aati hai.
-SMTP creds expire ho jayein ya Exotel API girne lage to hafton pata nahi chalta
+SMTP creds expire ho jayein ya koi API girne lage to hafton pata nahi chalta
 ("emails ja rahe honge" maan ke baithe rehte).
 
 YEH MODULE: ultra-light counters — integrations apni failure/success
 `record_failure("smtp", note)` / `record_success("smtp")` se report karte
 (Redis hourly buckets, 26h TTL; Redis down = silent skip, hot-path pe ZERO
 load). Watchdog (hourly) `run_watch()`: pichle ~1h me kisi integration ke
-fails >= threshold (env `INTEGRATION_FAIL_ALERT_N`, default 5) to email +
-Telegram-admin alert — gated `INTEGRATION_ALERTS=1` (off = sirf counters,
+fails >= threshold (env `INTEGRATION_FAIL_ALERT_N`, default 5) to email
+alert — gated `INTEGRATION_ALERTS=1` (off = sirf counters,
 `GET /api/growth/infra/integrations` se inspect). Per-integration alert
 dedupe 6h. Import-safe, KABHI raise nahi. (automation_health pattern.)
 """
@@ -38,7 +38,6 @@ KNOWN = (
     "exotel",
     "twilio",
     "places",
-    "telegram",
     "whatsapp",
     "pollinations",
     "qdrant",
@@ -195,8 +194,8 @@ async def run_watch() -> dict[str, Any]:
             )
             sent = False
             notify = os.environ.get("NOTIFY_EMAIL", "").strip()
-            # NOTE: smtp khud fail ho raha ho to email alert nahi jayega —
-            # isliye Telegram-admin secondary channel bhi try hota.
+            # NOTE: smtp khud fail ho raha ho to yeh alert email bhi nahi jayega —
+            # last-resort try anyway (chahe smtp failing ho).
             if notify and name not in ("smtp", "email_api"):
                 try:
                     from app.integrations.email_sender import email_sender
@@ -204,13 +203,6 @@ async def run_watch() -> dict[str, Any]:
                     sent = await email_sender.send_email([notify], subject, body)
                 except Exception:
                     sent = False
-            try:
-                from app.platform.lead_alerts import _send_telegram
-
-                await _send_telegram(f"{subject}\n\n{body}", {})
-                sent = True
-            except Exception:
-                pass
             if not sent and notify:
                 # last resort: email try karo chahe smtp hi failing ho
                 try:

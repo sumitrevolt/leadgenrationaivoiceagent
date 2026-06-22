@@ -1,5 +1,5 @@
-"""Growth feature endpoints — marketing-AI upgrades (feedback/trends/reel/personalize/
-telegram), loyalty/coupons, client reports, client API keys, NPS, IndexNow.
+"""Growth feature endpoints — marketing-AI upgrades (feedback/trends/reel/personalize),
+loyalty/coupons, client reports, client API keys, NPS, IndexNow.
 
 Extracted from app/api/growth.py (2026-06-20 refactor) to shrink the god-router.
 Mounted via growth.router.include_router(); paths unchanged (/api/growth/...).
@@ -16,7 +16,7 @@ from app.api.ratelimit import rate_limit
 router = APIRouter(tags=["Growth"])
 
 
-# ------------- Marketing AI upgrades: feedback loop / trends / reel / KB-post / telegram ------------- #
+# ------------- Marketing AI upgrades: feedback loop / trends / reel / KB-post ------------- #
 class FeedbackIn(BaseModel):
     theme: str
     worked: bool
@@ -84,25 +84,6 @@ async def content_personalize(body: PersonalizeIn, _user=Depends(require_admin))
     from app.marketing import kb_personalize
 
     return await kb_personalize.personalized_post(body.client_id, body.occasion, body.offer)
-
-
-class TelegramIn(BaseModel):
-    chat_id: str = ""
-    text: str = ""
-    image_url: str = ""
-    client_id: str = ""
-    occasion: str = ""
-    offer: str = ""
-
-
-@router.post("/content/telegram-send")
-async def content_telegram_send(body: TelegramIn, _user=Depends(require_admin)):
-    """Telegram channel pe publish — TRUE auto channel (TELEGRAM_BOT_TOKEN gated)."""
-    from app.marketing import telegram_publish
-
-    if body.client_id and not body.text:
-        return await telegram_publish.send_for_client(body.client_id, body.occasion, body.offer)
-    return await telegram_publish.send_post(body.chat_id, body.text, body.image_url)
 
 
 # ------------- Competitor-parity batch-2: templates / loyalty / reports / client API keys ------------- #

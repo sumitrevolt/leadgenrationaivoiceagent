@@ -2289,6 +2289,16 @@ class VobizStreamSession:
         # saw stream calls. Best-effort, never blocks teardown. (This is the
         # PLATFORM webhook; the per-customer `call.completed` rides on
         # meter_call_completion above — both now fire for stream calls.)
+        stream_outcome = "completed"
+        try:
+            from app.telephony.post_call_hooks import classify_stream_outcome
+
+            stream_outcome = classify_stream_outcome(
+                user_turns=turns,
+                turn_metrics=list(self._turn_metrics),
+            )
+        except Exception:
+            stream_outcome = "completed" if turns > 0 else "no_answer"
         try:
             from app.platform import outbound_webhooks as _ow
 
@@ -2296,7 +2306,7 @@ class VobizStreamSession:
                 "call_completed",
                 {
                     "call_id": str(self.stream_sid or ""),
-                    "outcome": "completed" if turns > 0 else "no_answer",
+                    "outcome": stream_outcome,
                     "duration_seconds": int(dur),
                     "lead_score": 0,
                     "phone": getattr(self, "_lead_phone", "") or "",
@@ -2317,7 +2327,7 @@ class VobizStreamSession:
                 phone=getattr(self, "_lead_phone", "") or "",
                 client_id=str(self.client_id or ""),
                 body_summary=f"call {int(dur)}s · {turns} user turns",
-                outcome="completed",
+                outcome=stream_outcome,
                 campaign_variant_id=str(getattr(self, "_voice_variant_id", "") or ""),
                 meta={
                     "call_id": self.stream_sid,

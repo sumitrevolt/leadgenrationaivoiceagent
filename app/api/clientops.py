@@ -304,4 +304,52 @@ async def proposal_views(token: str = Query("", max_length=64), _user=Depends(re
     return {"ok": True, "count": len(rows), "proposals": rows}
 
 
+# ----------------------- F6: AI video-ad cycle (every-N-day) ---------------- #
+@router.get("/video-ads")
+async def video_ads_list(
+    client_id: str = Query("", max_length=60), _user=Depends(require_admin)
+):
+    """AI video ads list (admin) — ?client_id= filter. Status: pending/approved/
+    published/changes_requested/held_max_revisions."""
+    from app.marketing import video_ad_cycle
+
+    rows = video_ad_cycle.list_for_client(client_id) if client_id else video_ad_cycle.list_all()
+    return {"ok": True, "count": len(rows), "video_ads": rows}
+
+
+class VideoAdGenIn(BaseModel):
+    client_id: str
+
+
+@router.post("/video-ads/generate")
+async def video_ads_generate(body: VideoAdGenIn, _user=Depends(require_admin)):
+    """Admin manual: ek client ka video ad banao + approval bhejo. HEAVY build_reel
+    background THREAD me (web event-loop block na ho); ~30-60s me approval link aata."""
+    import asyncio
+
+    from app.marketing import video_ad_cycle
+
+    cid = (body.client_id or "").strip()
+    if not cid:
+        return {"ok": False, "error": "client_id zaroori hai."}
+    asyncio.create_task(
+        asyncio.to_thread(lambda: asyncio.run(video_ad_cycle.generate_for_client(cid)))
+    )
+    return {"ok": True, "queued": True, "client_id": cid}
+
+
+class VideoAdChangesIn(BaseModel):
+    note: str | None = ""
+
+
+@router.post("/video-ads/{approval_id}/request-changes")
+async def video_ads_request_changes(
+    approval_id: str, body: VideoAdChangesIn, _user=Depends(require_admin)
+):
+    """Client ne change maanga (admin/support entry) — reject + naya version queue."""
+    from app.marketing import video_ad_cycle
+
+    return await video_ad_cycle.request_changes(approval_id, body.note or "")
+
+
 __all__ = ["router"]

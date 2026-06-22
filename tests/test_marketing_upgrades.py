@@ -1,12 +1,11 @@
-"""Tests — 5 marketing AI upgrades (content_feedback, trends, kb_personalize,
-telegram_publish, reel_video). No network, no LLM — sab defensive paths."""
+"""Tests — marketing AI upgrades (content_feedback, trends, kb_personalize,
+reel_video). No network, no LLM — sab defensive paths."""
 
 from __future__ import annotations
 
 import asyncio
-import os
 
-from app.marketing import content_feedback, kb_personalize, reel_video, telegram_publish, trends
+from app.marketing import content_feedback, kb_personalize, reel_video, trends
 
 
 def test_feedback_record_and_stats(tmp_path, monkeypatch):
@@ -23,8 +22,8 @@ def test_feedback_record_and_stats(tmp_path, monkeypatch):
 
 def test_tracked_link_adds_utm(monkeypatch):
     monkeypatch.setattr(content_feedback, "shorten", lambda u: u)
-    out = content_feedback.tracked_link("https://leadsgenai.in/audit", "telegram", "june")
-    assert "utm_source=telegram" in out and "utm_campaign=june" in out
+    out = content_feedback.tracked_link("https://leadsgenai.in/audit", "quora", "june")
+    assert "utm_source=quora" in out and "utm_campaign=june" in out
     assert content_feedback.tracked_link("", "x") == ""
 
 
@@ -50,13 +49,6 @@ def test_kb_context_defensive():
     # bina KB seed / bad id — empty list, no raise
     assert kb_personalize.client_context("") == []
     assert isinstance(kb_personalize.client_context("nonexistent-xyz"), list)
-
-
-def test_telegram_inert_without_token(monkeypatch):
-    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
-    assert not telegram_publish.enabled()
-    res = asyncio.run(telegram_publish.send_post("123", "hello"))
-    assert res["sent"] is False and "TELEGRAM_BOT_TOKEN" in res["reason"]
 
 
 def test_reel_available_and_missing_dep(monkeypatch):
