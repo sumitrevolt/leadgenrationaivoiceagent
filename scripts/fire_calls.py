@@ -38,7 +38,6 @@ parser.add_argument(
     action="store_true",
     help="LeadGen AI platform pitch — force niche=ai_marketing (Swara structured opener)",
 )
-args = parser.parse_args()
 
 
 def phone10(ph: str) -> str:
@@ -249,6 +248,7 @@ async def fire(prospects: list[dict], dry_run: bool, call_type: str, client_id: 
 
 
 async def main() -> None:
+    args = parser.parse_args()
     import datetime
 
     ist = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
