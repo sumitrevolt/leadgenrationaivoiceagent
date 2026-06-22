@@ -2728,7 +2728,7 @@ async function loadRecordings(){
       for(const s of day.sessions){
         const base="/api/admin/call-recordings/"+encodeURIComponent(day.date)+"/";
         html+=`<div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:13px 16px">
-          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:monospace">SID: ${escH(s.sid)} &nbsp;·&nbsp; ${s.size_kb}KB${s.legacy_split?' &nbsp;·&nbsp; <span style="color:var(--amber)">legacy split</span>':''}</div>`;
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:monospace">${s.time?'🕐 '+escH(s.time)+' &nbsp;·&nbsp; ':''}SID: ${escH(s.sid)} &nbsp;·&nbsp; ${s.size_kb}KB${s.legacy_split?' &nbsp;·&nbsp; <span style="color:var(--amber)">legacy split</span>':''}</div>`;
         if(s.wav){
           html+=`<div>
             <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">🎙 Full conversation (caller + Swara)</div>

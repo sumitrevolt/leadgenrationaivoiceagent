@@ -603,6 +603,15 @@ class VobizStreamSession:
         self._rec_timeline_samples: int = 0  # master clock = inbound media frames
         self._rec_bot_playhead: int | None = None
 
+        # Inbound-audio diagnostics — surfaced in the call summary so a single
+        # controlled call reveals whether caller audio actually reaches us:
+        #   frames≈0  -> Vobiz never streamed inbound (carrier/voicemail/route)
+        #   frames OK + caller_rms_max < vad_thr -> only silence (no human speech)
+        #   caller_rms_max >> vad_thr but stt=0   -> VAD/STT pipeline bug
+        self._media_frames: int = 0
+        self._media_bytes: int = 0
+        self._caller_rms_max: int = 0
+
         # instant-greeting state (pre-synthesized at WS open, before 'start')
         self._greet_pcm: bytes | None = None
         self._platform_greet_pcms: list[bytes] | None = None
@@ -786,11 +795,15 @@ class VobizStreamSession:
             return
         if not pcm16:
             return
+        self._media_frames += 1
+        self._media_bytes += len(pcm16)
         # Recording: mix caller audio onto the call timeline (WAV on hangup).
         if self._rec_enabled:
             self._rec_mix_caller(self._rec_timeline_samples, pcm16)
             self._rec_timeline_samples += len(pcm16) // 2
         rms = _pcm_rms(pcm16)
+        if rms > self._caller_rms_max:
+            self._caller_rms_max = rms
         is_speech = rms >= self._vad_rms
         # Silero VAD gate (USE_SILERO_VAD=1): filters ambient noise/echo from false
         # speech states. D-5 FIX: Silero needs >=512 samples @16k, but a frame is only
@@ -2248,10 +2261,13 @@ class VobizStreamSession:
         turns = len([m for m in self.hist if m.get("role") == "user"])
         ended = datetime.now(timezone.utc)
         dur = max(0.0, (ended - self._started_at).total_seconds())
+        inbound_s = round(self._media_bytes / 2 / SAMPLE_RATE, 1)
         logger.info(
             f"[vobiz-stream] call summary sid={self.stream_sid} niche={self.niche} "
             f"client={self.client_id} dur={dur:.0f}s user_turns={turns} "
-            f"msgs={len(self.hist)} stt={self._stt_counts}"
+            f"msgs={len(self.hist)} stt={self._stt_counts} "
+            f"inbound_frames={self._media_frames} inbound_audio={inbound_s}s "
+            f"caller_rms_max={self._caller_rms_max} vad_thr={self._vad_rms}"
         )
         self._save_recording()
         self._persist_transcript(ended, dur, turns)
