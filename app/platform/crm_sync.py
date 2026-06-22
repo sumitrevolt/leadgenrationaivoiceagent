@@ -255,4 +255,48 @@ def save_client_config(client_id: str, config: dict[str, Any]) -> dict[str, Any]
         return {"ok": False, "error": str(exc)[:150]}
 
 
-__all__ = ["push_lead", "test_connection", "status", "save_client_config", "recent", "auto_enabled"]
+async def pull_lead_status(
+    *,
+    phone: str = "",
+    email: str = "",
+    client_id: str = "",
+) -> dict[str, Any]:
+    """Bidirectional sync (pull): CRM se lead status read karo. GATED CRM_SYNC_PULL=1."""
+    if os.environ.get("CRM_SYNC_PULL", "0").strip().lower() not in ("1", "true", "yes"):
+        return {"ok": False, "skipped": "CRM_SYNC_PULL off"}
+    provider, creds = _resolve(client_id)
+    if not provider:
+        return {"ok": False, "skipped": "no CRM configured"}
+    try:
+        if provider == "hubspot":
+            from app.integrations.hubspot import HubSpotIntegration
+
+            hs = HubSpotIntegration(api_key=str(creds.get("hubspot_token") or "") or None)
+            if not hs.headers:
+                return {"ok": False, "error": "hubspot token missing"}
+            found = await hs.find_contact_by_phone(phone) if phone else None
+            if not found and email:
+                found = await hs.find_contact_by_phone(email)  # best-effort
+            out = {
+                "ok": bool(found),
+                "provider": provider,
+                "status": (found or {}).get("properties", {}).get("hs_lead_status") if found else None,
+                "record": found,
+            }
+            _log({"ts": _now(), "direction": "pull", "client_id": client_id, **out})
+            return out
+        # Zoho pull — search by phone (best-effort stub until full Zoho search wired)
+        return {"ok": False, "provider": provider, "skipped": "zoho pull search not configured"}
+    except Exception as exc:
+        return {"ok": False, "provider": provider, "error": str(exc)[:150]}
+
+
+__all__ = [
+    "push_lead",
+    "pull_lead_status",
+    "test_connection",
+    "status",
+    "save_client_config",
+    "recent",
+    "auto_enabled",
+]

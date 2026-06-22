@@ -41,10 +41,34 @@ Events logged → `agent_events` table · Dashboard 3-tier status: working / act
 | `arnav` | Arnav | platform | Security | Daily 9:30 (`SECURITY_AGENT`) | In: CVE/compliance → Out: posture report |
 | `ravi` | Ravi | marketing | SEO scout | Blog + Mon batch | In: niches×cities → Out: SEO pages |
 | `neha` | Neha | marketing | Pipeline ops | 11:00 IST | In: leads DB → Out: rescore + hot list |
+| `kiran` | Kiran | marketing | Campaign Optimizer | Weekly + 100-interaction threshold | In: transcripts/replies/outcomes → Out: A/B proposals (gated `CAMPAIGN_OPTIMIZER`) |
 
 ---
 
-## 3. Multi-agent engines (not in STAFF UI but registered)
+## 3. Enterprise flywheel agent map (Jun 2026)
+
+| Flywheel stage | Agent / module | Store |
+|----------------|----------------|-------|
+| Lead discovery | Rohan + Dev (`prospector`, `lead_harvester`) | `prospects.jsonl`, `leads` |
+| Deduplication | `identity_resolver.py` | `identity_merge_log.jsonl` |
+| Enrichment | Dev (`email_finder`, `web_extract`) | contact.enriched_at |
+| Lead scoring | Neha (`lead_scoring`, `pipeline_ops`) | `leads.lead_score` |
+| Email outreach | Rohan (`auto_outreach`) | `interactions.jsonl` |
+| WhatsApp | Isha (`whatsapp_campaign`) | campaign runs |
+| Voice | Swara (`vobiz_stream`, `telecaller_brain`) | `call_transcripts/` |
+| Follow-up | Rohan (`cadence`, followups) | `cadence_runs.jsonl` |
+| Appointment | Ananya (`booking`) | calendar_booking |
+| CRM | Nikhil (`crm_sync` push + `CRM_SYNC_PULL`) | `crm_sync.jsonl` |
+| Analytics | Neha + Vidya (`growth_engine`, `revenue_attribution`) | `agent_events` |
+| Learning | Meera + Guru (`skill_library`, `objection_extractor`) | Qdrant `objections:{niche}` |
+| Campaign optimization | **Kiran** (`campaign_optimizer.py`) | `campaign_optimization/` |
+| Compliance | Arnav (`compliance`, `consent_ledger`) | `consent_ledger.jsonl` |
+
+Orchestration: `process_engine` (deterministic) + `coordinator` (LLM) + `eval_gate` (safety).
+
+---
+
+## 4. Multi-agent engines (not in STAFF UI but registered)
 
 | Engine | Module | Mode | Flag |
 |--------|--------|------|------|

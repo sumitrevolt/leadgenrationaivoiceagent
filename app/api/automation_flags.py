@@ -37,6 +37,8 @@ AUTOMATION_FLAGS = [
     "REVENUE_DIGEST",
     "GROWTH_OPTIMIZER",
     "CHANNEL_EXPERIMENTS",
+    "CAMPAIGN_OPTIMIZER",  # Kiran: orchestrates optimizer+bandit+feedback every 100 interactions
+    "PROCESS_ENGINE",  # deterministic process-as-code workflows (complement to PROCESS_AUTOSTART)
     "AUTO_INVOICE",
     "EMAIL_WARMUP",
     "USAGE_ALERTS",
@@ -102,6 +104,7 @@ AUTOMATION_FLAGS = [
     "NTFY_URL",
     "NTFY_TOPIC",  # self-hosted tools stack (URL-valued = set hone pe ON)
     "CRM_SYNC",  # qualified lead -> client ka Zoho/HubSpot auto-push
+    "CRM_SYNC_PULL",  # pull lead status back from HubSpot/Zoho (bidirectional, OFF default)
     "TELEPHONY_READY_ALERTS",  # Tara readiness score-drop email alert
     "SOCIAL_AUTOPOST",  # Meta Graph real publish (content job)
     "AUTO_CALLBACK_INQUIRY",  # inquiry submit pe instant AI callback
@@ -163,7 +166,8 @@ AUTOMATION_FLAGS = [
     # --- Research-improvements batch 2026-06-19 ---
     "USE_TEXT_ENDPOINT",  # text-based semantic end-of-turn (complements audio Smart-Turn) — OFF default
     "USE_LLM_STREAM_TTS",  # LLM token stream → early sentence TTS (vobiz) — OFF default
-    "RECONSENT_COOLOFF_DAYS",  # TRAI re-consent cool-off (default 90; 0 disables) — strengthens compliance
+    "OBJECTION_KB",  # transcript/reply objection extraction → Qdrant objections:{niche} (default ON)
+    "INTERACTION_LOG",  # omnichannel interaction timeline DB+jsonl (default ON)
     # --- Readiness + dashboard batch 2026-06-20 (all default OFF / inert) ---
     "REVENUE_TRENDS",  # B1: admin revenue time-series (/revenue-trend + daily snapshot job) — OFF default
     "CLIENT_TIMELINE",  # B2: per-client activity timeline endpoint — OFF default

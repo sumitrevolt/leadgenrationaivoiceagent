@@ -418,6 +418,25 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     }
                 )
 
+                try:
+                    from app.platform import interaction_log, objection_extractor
+
+                    await interaction_log.record(
+                        channel="email",
+                        direction="in",
+                        phone=(p or {}).get("phone") or "",
+                        email=frm,
+                        body_summary=(body or subj or "")[:200],
+                        outcome=intent,
+                    )
+                    await objection_extractor.extract_from_reply(
+                        body or subj or "",
+                        niche=(p or {}).get("niche") or "general",
+                        intent=intent,
+                    )
+                except Exception:
+                    pass
+
                 # REPLY_AUTO_SEND=1 → interested/question replies auto-send (Smartlead-style)
                 # Only for known prospects (p is not None) — safety guard
                 _auto_send = os.environ.get("REPLY_AUTO_SEND", "").strip() == "1"

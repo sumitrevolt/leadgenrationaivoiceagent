@@ -28,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import html as _html
 import random
+import re
 from datetime import datetime
 from typing import Any
 
@@ -49,6 +50,39 @@ _UNSUB_LINE = (
     "Agar yeh emails nahi chahiye to is mail ka reply REMOVE likh ke kar dijiye "
     "— hum turant hata denge."
 )
+
+_SPINTAX_RE = re.compile(r"\{([^{}]+)\}")
+
+
+def _track_url(url: str, campaign: str = "cold_email") -> str:
+    """UTM attribution via content_feedback.tracked_link (fail-open)."""
+    try:
+        from app.marketing.content_feedback import tracked_link
+
+        return tracked_link(url, "email_outreach", campaign)
+    except Exception:
+        return url
+
+
+def _pick_spintax(text: str) -> str:
+    """Expand {a|b|c} spintax — one random choice per slot."""
+    if not text or "{" not in text:
+        return text
+
+    def _one(m: re.Match) -> str:
+        parts = m.group(1).split("|")
+        return random.choice(parts).strip() if parts else ""
+
+    out = text
+    for _ in range(8):
+        if not _SPINTAX_RE.search(out):
+            break
+        out = _SPINTAX_RE.sub(_one, out)
+    return out
+
+
+_AUDIT_URL_TRACKED = _track_url(_AUDIT_URL)
+_SITE_URL_TRACKED = _track_url(_SITE_URL, "site_footer")
 
 
 def _from_name() -> str:
@@ -204,14 +238,14 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             "Pasand aaye to poora marketing sirf ₹2,999/mahina se shuru hota "
             "hai — koi lambi commitment nahi.",
             "",
-            "2 minute me apna free audit yahan le lijiye: " + _AUDIT_URL,
+            "2 minute me apna free audit yahan le lijiye: " + _AUDIT_URL_TRACKED,
             "Ya WhatsApp pe baat kijiye: " + _WA_LINK,
             "",
             _UNSUB_LINE,
             "",
             "Shukriya,",
             from_name,
-            "LeadGen AI — " + _SITE_URL,
+            "LeadGen AI — " + _SITE_URL_TRACKED,
         ]
         text = "\n".join(text_lines)
 
@@ -232,17 +266,17 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             "</ul>"
             "<p>Pasand aaye to poora marketing sirf <b>₹2,999/mahina</b> se "
             "shuru hota hai — koi lambi commitment nahi.</p>"
-            f'<p><a href="{e(_AUDIT_URL)}" '
+            f'<p><a href="{e(_AUDIT_URL_TRACKED)}" '
             'style="background:#4f46e5;color:#fff;padding:10px 18px;'
             'border-radius:6px;text-decoration:none;display:inline-block;">'
             "Free Audit le lijiye</a></p>"
             f'<p>Ya WhatsApp pe baat kijiye: <a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
             f'<p style="color:#888;font-size:12px;">{e(_UNSUB_LINE)}</p>'
             f"<p>Shukriya,<br>{e(from_name)}<br>"
-            f'LeadGen AI — <a href="{e(_SITE_URL)}">{e(_SITE_URL)}</a></p>'
+            f'LeadGen AI — <a href="{e(_SITE_URL_TRACKED)}">{e(_SITE_URL_TRACKED)}</a></p>'
             "</body></html>"
         )
-        return subject, text, html_body
+        return _pick_spintax(subject), text, html_body
     except Exception as e:  # absolute guard — never raise
         logger.debug(f"[auto_outreach] subject/body build failed: {e}")
         fb_name = str((prospect or {}).get("business_name") or "aapke business")
@@ -252,10 +286,10 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             "Namaste,\n\n"
             f"Main {from_name} se hoon. Hum chhote businesses ka online marketing "
             "sambhalte hain. Free Google profile audit + 3 sample posters bhej "
-            f"sakta hoon. Yahan le lijiye: {_AUDIT_URL}\n\n"
-            f"{_UNSUB_LINE}\n\nShukriya,\n{from_name}\nLeadGen AI — {_SITE_URL}"
+            f"sakta hoon. Yahan le lijiye: {_AUDIT_URL_TRACKED}\n\n"
+            f"{_UNSUB_LINE}\n\nShukriya,\n{from_name}\nLeadGen AI — {_SITE_URL_TRACKED}"
         )
-        return subject, text, text
+        return _pick_spintax(subject), text, text
 
 
 def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, str, str]:
@@ -286,14 +320,14 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
                 "(score + kya improve karein) + 3 sample posters ka offer abhi bhi "
                 "khula hai. Koi charge nahi, koi commitment nahi.",
                 "",
-                "2 minute me yahan le lijiye: " + _AUDIT_URL,
+                "2 minute me yahan le lijiye: " + _AUDIT_URL_TRACKED,
                 "Ya WhatsApp pe ek 'Hi' bhej dijiye: " + _WA_LINK,
                 "",
                 _UNSUB_LINE,
                 "",
                 "Shukriya,",
                 from_name,
-                "LeadGen AI — " + _SITE_URL,
+                "LeadGen AI — " + _SITE_URL_TRACKED,
             ]
             text = "\n".join(text_lines)
             html_body = (
@@ -305,7 +339,7 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
                 "<p>Bas yaad dilana chahta tha: aapke Google profile ka ek "
                 "<b>FREE audit</b> (score + kya improve karein) + 3 sample posters "
                 "ka offer abhi bhi khula hai. Koi charge nahi, koi commitment nahi.</p>"
-                f'<p><a href="{e(_AUDIT_URL)}" '
+                f'<p><a href="{e(_AUDIT_URL_TRACKED)}" '
                 'style="background:#4f46e5;color:#fff;padding:10px 18px;'
                 'border-radius:6px;text-decoration:none;display:inline-block;">'
                 "Free Audit le lijiye</a></p>"
@@ -313,10 +347,10 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
                 f'<a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
                 f'<p style="color:#888;font-size:12px;">{e(_UNSUB_LINE)}</p>'
                 f"<p>Shukriya,<br>{e(from_name)}<br>"
-                f'LeadGen AI — <a href="{e(_SITE_URL)}">{e(_SITE_URL)}</a></p>'
+                f'LeadGen AI — <a href="{e(_SITE_URL_TRACKED)}">{e(_SITE_URL_TRACKED)}</a></p>'
                 "</body></html>"
             )
-            return subject, text, html_body
+            return _pick_spintax(subject), text, html_body
 
         # ---- Follow-up #2: last reminder + concrete sample idea ---- #
         subject = f"{name} ji — aakhri reminder + ek poster idea"
@@ -332,14 +366,14 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
             "Ek chhota idea jo aapke kaam aa sakta hai:",
             idea,
             "",
-            "Aisa free sample + Google profile audit dekhna ho to 2 minute lagenge: " + _AUDIT_URL,
+            "Aisa free sample + Google profile audit dekhna ho to 2 minute lagenge: " + _AUDIT_URL_TRACKED,
             "Ya seedha WhatsApp: " + _WA_LINK,
             "",
             _UNSUB_LINE,
             "",
             "Shukriya,",
             from_name,
-            "LeadGen AI — " + _SITE_URL,
+            "LeadGen AI — " + _SITE_URL_TRACKED,
         ]
         text = "\n".join(text_lines)
         html_body = (
@@ -351,17 +385,17 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
             "<p>Ek chhota idea jo aapke kaam aa sakta hai:</p>"
             f'<p style="background:#f4f4ff;border-left:3px solid #4f46e5;'
             f'padding:10px 14px;border-radius:4px;">{e(idea)}</p>'
-            f'<p><a href="{e(_AUDIT_URL)}" '
+            f'<p><a href="{e(_AUDIT_URL_TRACKED)}" '
             'style="background:#4f46e5;color:#fff;padding:10px 18px;'
             'border-radius:6px;text-decoration:none;display:inline-block;">'
             "Free sample + audit dekhein</a></p>"
             f'<p>Ya seedha WhatsApp: <a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
             f'<p style="color:#888;font-size:12px;">{e(_UNSUB_LINE)}</p>'
             f"<p>Shukriya,<br>{e(from_name)}<br>"
-            f'LeadGen AI — <a href="{e(_SITE_URL)}">{e(_SITE_URL)}</a></p>'
+            f'LeadGen AI — <a href="{e(_SITE_URL_TRACKED)}">{e(_SITE_URL_TRACKED)}</a></p>'
             "</body></html>"
         )
-        return subject, text, html_body
+        return _pick_spintax(subject), text, html_body
     except Exception as ex:  # absolute guard — never raise
         logger.debug(f"[auto_outreach] followup subject/body build failed: {ex}")
         fb_name = str((prospect or {}).get("business_name") or "aapke business")
@@ -371,10 +405,10 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
             "Namaste,\n\n"
             f"{fb_name} ji, pichle email ka reminder — free Google profile audit "
             f"+ 3 sample posters ka offer abhi bhi khula hai. Yahan le lijiye: "
-            f"{_AUDIT_URL}\n\n{_UNSUB_LINE}\n\nShukriya,\n{from_name}\n"
-            f"LeadGen AI — {_SITE_URL}"
+            f"{_AUDIT_URL_TRACKED}\n\n{_UNSUB_LINE}\n\nShukriya,\n{from_name}\n"
+            f"LeadGen AI — {_SITE_URL_TRACKED}"
         )
-        return subject, text, text
+        return _pick_spintax(subject), text, text
 
 
 def _valid_email(addr: str) -> bool:
@@ -549,6 +583,19 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                         pass
                     result["sent"] += 1
                     _log_event("email_sent", f"{biz} ({to_addr})")
+                    try:
+                        from app.platform import interaction_log
+
+                        await interaction_log.record(
+                            channel="email",
+                            direction="out",
+                            phone=str(p.get("phone") or ""),
+                            email=to_addr,
+                            body_summary=subject[:200],
+                            outcome="sent",
+                        )
+                    except Exception:
+                        pass
                 else:
                     result["failed"] += 1
             except Exception as e:

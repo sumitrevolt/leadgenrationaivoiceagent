@@ -44,6 +44,11 @@ ST_COMPLETED = "completed"
 ST_FAILED = "failed"
 
 
+def engine_enabled() -> bool:
+    """Master gate for process-as-code execution (PROCESS_ENGINE=1)."""
+    return os.environ.get("PROCESS_ENGINE", "0").strip().lower() in ("1", "true", "yes")
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -141,6 +146,8 @@ def replay(run_id: str) -> dict[str, Any]:
 def start_run(process_key: str, inputs: dict[str, Any] | None = None) -> dict[str, Any]:
     """Naya run start (journal me run_started). Advance Celery tick se hota.
     Kabhi raise nahi."""
+    if not engine_enabled():
+        return {"ok": False, "skipped": "PROCESS_ENGINE off"}
     try:
         from app.agents import process_library
 
@@ -170,6 +177,8 @@ async def advance(run_id: str, max_steps: int = 10) -> dict[str, Any]:
     """Run ko aage badhao: next step execute → gate check → journal. Rukta hai:
     breakpoint / completion / gate-fail (retries khatam) / step-budget pe.
     State sirf journal-replay se — crash-safe resume. Kabhi raise nahi."""
+    if not engine_enabled():
+        return {"ok": True, "skipped": "PROCESS_ENGINE off", "run_id": run_id}
     try:
         from app.agents import process_library
 

@@ -1,0 +1,132 @@
+"""Interaction log — append omnichannel touches to DB + jsonl audit.
+
+Every outreach/call/reply writes here when INTERACTION_LOG=1 (default ON).
+Never raises.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
+_JSONL = os.path.join("data", "interactions.jsonl")
+
+
+def _enabled() -> bool:
+    v = os.environ.get("INTERACTION_LOG", "1").strip().lower()
+    return v not in ("0", "false", "no", "off")
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+async def record(
+    *,
+    channel: str,
+    direction: str = "out",
+    phone: str = "",
+    email: str = "",
+    client_id: str = "",
+    lead_id: str = "",
+    body_summary: str = "",
+    outcome: str = "",
+    campaign_variant_id: str = "",
+    meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Record one interaction — jsonl always, Postgres best-effort."""
+    if not _enabled():
+        return {"skipped": "INTERACTION_LOG off"}
+    iid = str(uuid.uuid4())
+    rec = {
+        "id": iid,
+        "channel": channel[:30],
+        "direction": direction[:10],
+        "phone": phone,
+        "email": email,
+        "client_id": client_id,
+        "lead_id": lead_id,
+        "body_summary": (body_summary or "")[:2000],
+        "outcome": outcome[:50],
+        "campaign_variant_id": campaign_variant_id,
+        "meta": meta or {},
+        "occurred_at": _now().isoformat(),
+    }
+    try:
+        os.makedirs("data", exist_ok=True)
+        with open(_JSONL, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
+    except Exception:
+        pass
+    try:
+        from sqlalchemy import select
+
+        from app.models.base import get_async_session
+        from app.models.contact import Contact
+        from app.models.interaction import Interaction
+        from app.platform.identity_resolver import _phone10
+
+        contact_id = None
+        ph10 = _phone10(phone)
+        async with get_async_session() as session:
+            if ph10:
+                row = (
+                    await session.execute(
+                        select(Contact).where(Contact.phone_e164.contains(ph10)).limit(1)
+                    )
+                ).scalar_one_or_none()
+                if row:
+                    contact_id = row.id
+            session.add(
+                Interaction(
+                    id=iid,
+                    client_id=client_id or "",
+                    contact_id=contact_id,
+                    lead_id=lead_id or None,
+                    channel=channel[:30],
+                    direction=direction[:10],
+                    body_summary=(body_summary or "")[:2000],
+                    outcome=outcome[:50],
+                    campaign_variant_id=campaign_variant_id or None,
+                    meta_json=json.dumps(meta or {}, ensure_ascii=False)[:4000],
+                    occurred_at=_now().replace(tzinfo=None),
+                )
+            )
+            await session.commit()
+    except Exception as e:
+        logger.debug("[interaction_log] db skip: %s", e)
+    return {"ok": True, "id": iid}
+
+
+def list_for_phone(phone: str, limit: int = 50) -> list[dict[str, Any]]:
+    """Read jsonl interactions for phone (fallback when DB unavailable)."""
+    from app.platform.identity_resolver import _phone10
+
+    ph10 = _phone10(phone)
+    if not ph10:
+        return []
+    rows: list[dict[str, Any]] = []
+    try:
+        if os.path.isfile(_JSONL):
+            with open(_JSONL, encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            r = json.loads(line)
+                            if _phone10(r.get("phone")) == ph10:
+                                rows.append(r)
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+    return rows[-limit:]
+
+
+__all__ = ["record", "list_for_phone"]

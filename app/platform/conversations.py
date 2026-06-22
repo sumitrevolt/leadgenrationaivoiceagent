@@ -210,6 +210,76 @@ def _collect_messages() -> list[dict[str, Any]]:
     except Exception as e:
         logger.debug(f"[conv] our replies parse: {e}")
 
+    # 5) voice call transcripts (disposition summary)
+    try:
+        tdir = os.path.join("data", "call_transcripts")
+        if os.path.isdir(tdir):
+            for fn in sorted(os.listdir(tdir), reverse=True)[:40]:
+                if not fn.endswith(".jsonl"):
+                    continue
+                for r in _read_jsonl(os.path.join(tdir, fn))[:5]:
+                    k = thread_key(
+                        {
+                            "phone": r.get("phone") or r.get("to"),
+                            "email": r.get("email"),
+                        }
+                    )
+                    if not k:
+                        continue
+                    outcome = str(r.get("outcome") or r.get("disposition") or "call")
+                    summary = str(r.get("summary") or "")[:300]
+                    if not summary and r.get("messages"):
+                        summary = str((r.get("messages") or [{}])[-1].get("content", ""))[:200]
+                    msgs.append(
+                        _msg(
+                            k,
+                            r.get("ended_at") or r.get("at"),
+                            "voice",
+                            "out",
+                            summary or f"Call {outcome}",
+                            intent=outcome,
+                        )
+                    )
+    except Exception as e:
+        logger.debug(f"[conv] call_transcripts parse: {e}")
+
+    # 6) cadence runs (multi-touch touches)
+    try:
+        for r in _read_jsonl(os.path.join("data", "cadence_runs.jsonl")):
+            k = thread_key(r)
+            if not k:
+                continue
+            msgs.append(
+                _msg(
+                    k,
+                    r.get("at"),
+                    str(r.get("channel") or "cadence"),
+                    "draft",
+                    str(r.get("action") or r.get("template") or "cadence step"),
+                )
+            )
+    except Exception as e:
+        logger.debug(f"[conv] cadence_runs parse: {e}")
+
+    # 7) interaction log jsonl (enterprise flywheel timeline)
+    try:
+        for r in _read_jsonl(os.path.join("data", "interactions.jsonl")):
+            k = thread_key({"phone": r.get("phone"), "email": r.get("email")})
+            if not k:
+                continue
+            msgs.append(
+                _msg(
+                    k,
+                    r.get("occurred_at"),
+                    str(r.get("channel") or "touch"),
+                    str(r.get("direction") or "out"),
+                    str(r.get("body_summary") or ""),
+                    intent=str(r.get("outcome") or ""),
+                )
+            )
+    except Exception as e:
+        logger.debug(f"[conv] interactions parse: {e}")
+
     return msgs
 
 

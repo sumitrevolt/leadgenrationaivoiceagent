@@ -410,6 +410,7 @@
           <span class="right" id="cl-summary" aria-live="polite">—</span>
           <button class="btn" onclick="exportClientsCSV()" aria-label="Export clients to CSV" style="margin-left:10px;padding:6px 12px;font-size:12px">⬇ Export CSV</button>
           <button class="btn" onclick="dedupeClients()" aria-label="Remove duplicate clients" style="margin-left:6px;padding:6px 12px;font-size:12px">⧉ Dedupe</button>
+          <button class="btn" onclick="flywheelIdentity()" aria-label="Cross-store identity duplicates" style="margin-left:6px;padding:6px 12px;font-size:12px">🔗 Flywheel ID</button>
         </div>
         <!-- Search + filter bar -->
         <div class="filter-bar" role="search" aria-label="Client search and filter">
@@ -1660,6 +1661,19 @@ async function dedupeClients(){
     adminToast("Dedupe: "+(d.removed||0)+" removed, "+(d.kept||0)+" kept");
     loadDashboard();
   }catch(e){ adminToast("Dedupe fail: "+e.message,"error"); }
+}
+async function flywheelIdentity(){
+  try{
+    const r=await fetch("/api/growth/identity/duplicates",{headers:abAuthHdr()});
+    const d=await r.json();
+    const n=(d.groups||[]).length;
+    adminToast("Flywheel: "+n+" cross-store duplicate group(s) — /app/automation → Identity");
+    if(n&&confirm("Backfill accounts/contacts from jsonl (200 rows)?")){
+      const b=await fetch("/api/growth/identity/backfill?limit=200",{method:"POST",headers:abAuthHdr()});
+      const bd=await b.json();
+      adminToast("Backfill: +"+(bd.accounts_created||0)+" accounts, +"+(bd.contacts_created||0)+" contacts");
+    }
+  }catch(e){ adminToast("Flywheel ID fail: "+e.message,"error"); }
 }
 async function bulkDelete(){
   const sel=_getSelectedRows();
