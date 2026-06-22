@@ -60,6 +60,8 @@ STAFF_JOBS = (
     "process_autostart",  # D V1.1 process-engine auto-start (gated PROCESS_AUTOSTART)
     "revenue_snapshot",  # B1 daily MRR/churn snapshot (gated REVENUE_TRENDS)
     "flow_cron",  # Phase-3 Flow Runner cron scan (gated FLOW_RUNNER + FLOW_AUTO_TRIGGERS)
+    "afternoon_content",  # 2nd daily content-gen pass (gated AFTERNOON_CONTENT)
+    "evening_prospect",  # 3rd daily free lead-harvest pass (gated EVENING_PROSPECT)
 )
 
 
