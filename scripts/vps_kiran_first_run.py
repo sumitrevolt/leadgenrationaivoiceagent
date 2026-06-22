@@ -15,7 +15,7 @@ async def _admin_token() -> str:
     from sqlalchemy import select
 
     from app.api.admin import create_access_token
-    from app.database import get_async_session
+    from app.models.base import get_async_session
     from app.models.user import User, UserRole
 
     async with get_async_session() as db:
@@ -38,7 +38,7 @@ async def run_optimize_http(force: bool = True) -> dict:
     import httpx
 
     token = await _admin_token()
-    url = "http://127.0.0.1:8000/api/growth/campaign/optimize"
+    url = "http://127.0.0.1:8080/api/growth/campaign/optimize"
     async with httpx.AsyncClient(timeout=120.0) as client:
         r = await client.post(
             url,
