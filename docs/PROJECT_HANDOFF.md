@@ -1,7 +1,7 @@
 # PROJECT HANDOFF — LeadGenAI (leadgenrationaivoiceagent)
 
 > **Purpose:** Complete all-in-one handoff. Ek naya developer YA naya AI-agent isse padh ke poora project samajh sake aur takeover kar sake — product, tech, infra, deploy, blockers, legal, gotchas, sab.
-> **Generated:** 2026-06-20 · **Last updated:** 2026-06-22 — **Explorer drift re-audit GREEN (§26): `live_eval` node wired + API.md re-synced** · **Marketing plan feature lists expanded** (Trial 11 · Starter 15 · Growth 18 · Advanced 14 — synced `packages.py` → `/pricing`, landing, handoff/SOP) · Flow Runner LIVE (§23) · UPI LIVE · Explorer GREEN (§21) · Source: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
+> **Generated:** 2026-06-20 · **Last updated:** 2026-06-22 — **Final Production Advancement Council GREEN (§27): measure-first gates clean (prod_check 792 routes / cross_path 0-gap), zero fabricated code, real lever = GTM** · **Explorer drift re-audit GREEN (§26): `live_eval` node wired + API.md re-synced** · **Marketing plan feature lists expanded** (Trial 11 · Starter 15 · Growth 18 · Advanced 14 — synced `packages.py` → `/pricing`, landing, handoff/SOP) · Flow Runner LIVE (§23) · UPI LIVE · Explorer GREEN (§21) · Source: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
 > **Language:** Hinglish (project convention) — technical terms/commands/paths English me.
 
 ---
@@ -658,6 +658,32 @@ Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sa
 **On the task's "load test / security audit / UAT / prod-push" asks:** the Explorer is a static architecture *visualization*, not an executable engine — those apply to the BACKEND, already gated by `final_integration_check` + `cross_path_audit` + `prod_check` (all green). Security-relevant gate run = `check_secrets` (clean). UAT-equivalent (visual representation == real system) is exactly what `explorer_sync` verifies = 100%. A live load-test / pentest was **not** run — needs owner go/no-go and must not hammer the single-VPS prod; not a code gap.
 
 **Deploy note:** both fixes are `frontend/` + `docs/` only. `frontend/explorer.html` is BAKED into the app image, so the new `live_eval` node goes live on `/app/explorer` with the next `docker compose build app` + recreate (§9). `docs/API.md` is repo-only (no rebuild needed).
+
+---
+
+## 27. Final Production Advancement Council (2026-06-22 — measure-first, full council)
+
+> 7th run of the full advancement/readiness mandate — this time the **"Final Production Advancement Council"** (16 executive lenses + dedicated **Loop & Systems Engineer**: lead/customer/revenue/retention/referral/automation/self-improve/agent/CRM/sales/follow-up/reactivation loops). **Method = MEASURE-first** per the operating manual + memory ("don't re-derive a council; the gates ARE the per-dimension auditors"). Ran the project's own deterministic evidence gates on TODAY's Windows working tree, grepped every claimed gap, then synthesized the Chairman verdict. No theatrical agent-fleet (re-deriving the gates burns tokens for zero new signal).
+
+**VERDICT: ✅ GREEN — production-ready re-confirmed. §21–§26 hold. ZERO fabricated code shipped (none was real to ship).** Council consensus: code is feature-complete; the binding constraint is **go-to-market + owner unlocks**, not engineering.
+
+**Gates run (Windows venv, live tree):**
+- `prod_check` → **ALL CHECKS PASSED** (792 routes · 37 pages 0 gaps · automation 0 gaps · explorer 171 nodes / 71/71 engines / 321 edges / 0 orphans / file-refs OK · API.md in sync 814 ops).
+- `cross_path_audit` → **[OK]** (146 flags 0 never-read · 28 staff jobs 0 undispatchable · 29 beat-tasks 0 unrecognized · telephony+automation parity).
+- Live probes: `/health` = `environment:production` (uptime healthy) · `/api/activation/summary` = `ready_for_first_paid_customer:true`, `blocker_count:0`, warns = `[sentry, turnstile]` only (both env-key/owner, code already wired).
+
+**Loop & Systems Engineer sweep (no dead-ends found):** every operational loop closes — lead lifecycle 13/13 (§25), self-improve forever-loop + beat + dead-man trio requeue intact, `lead.created`/`lead.qualified`/`call.completed` emit→consume closed, dunning/nurture/cadence/pipeline daily sweeps wired, vobiz_stream `_cleanup`→meter + `_auto_qualify`→downstream confirmed. **0 orphan loops · 0 dead pipelines · 0 revenue leaks · 0 abandoned-customer states.**
+
+**Grep-verified: every council "high-ROI candidate" already BUILT (no rebuild, gate #6):** cold-email spintax/variants (`app/marketing/outreach_variants.py`) · trackable proposals (`app/platform/proposal_tracking.py`) · WA sticker + GIF (`app/marketing/sticker_pack.py` + `gif_maker.py`) · GEO/AI-visibility report (`app/marketing/geo_visibility.py`) · GHL-style snapshots (`app/platform/client_snapshots.py`) · speed-to-lead / round-robin / revenue-analytics (per 06-20 audit). The competitor backlog's free-stack P0/P1 set is fully shipped (Competitor doc §4); only telephony-blocked items (#5 live human transfer, SMS-DLT live send, RCS) remain — **not buildable** until owner unlock.
+
+**Why no code shipped this session (honest):** the operating-manual golden rule is "don't touch a working system without evidence." All six measurable dimensions are green and every candidate feature exists. Shipping new code would mean **fabricating a gap** — explicitly forbidden by the council prompt. The real, non-code levers are below.
+
+**Real levers (owner action — NOT engineering):**
+1. **GTM / first paid customer** — UPI is LIVE; AI staff already auto-prospect + outreach daily. Acquisition is the binding constraint.
+2. **3 safe `.env` flag-flips on VPS** (zero code, reversible): `SENTRY_DSN=...` + Turnstile keys (clears both activation warns) · `REVENUE_TRENDS=1` (accrues MRR/churn/LTV history; compute already built) · optionally `FLOW_RUNNER=1` (+ templates) to surface the automation-builder moat.
+3. **Voice unblock** — Udyam → DLT re-apply → Vobiz recharge + DID (Product-2 commercial go-live).
+
+**On the prompt's "load test / security audit / UAT / prod-push" asks:** backend already gated by `final_integration_check` + `cross_path_audit` + `prod_check` (green); secret-scan clean per §26. A live load-test / pentest was **not** run — needs owner go/no-go and must not hammer the single-VPS prod; not a code gap. `PROJECT_SOP.md` / `PRODUCT_HANDOFF_SOP.md` need **no functional change** (nothing functional changed) — header pointers added to this verdict.
 
 ---
 

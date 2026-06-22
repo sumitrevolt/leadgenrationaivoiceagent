@@ -1,0 +1,71 @@
+# Prometheus scrape config for the LeadGen stack.
+# The app already exposes Prometheus-format metrics at /metrics (app/api/health.py).
+global:
+  scrape_interval: 30s
+  scrape_timeout: 10s
+
+# Alert rules (availability / latency / errors / resources).
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+
+# Send firing alerts to Alertmanager (added in docker-compose.observability.yml).
+# Alertmanager na chale to Prometheus bas warn karta — scrape/rules chalte rehte.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["leadgen_alertmanager:9093"]
+
+scrape_configs:
+  - job_name: leadgen-app
+    metrics_path: /metrics
+    static_configs:
+      # container_name from docker-compose.vps.yml, reachable on the shared network
+      - targets: ["leadgen_app:8080"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["leadgen_alertmanager:9093"]
+
+  # --- Infra exporters (audit infra-upgrade) — USE metrics ---
+  # Host (CPU/mem/disk/load) + per-container (cAdvisor) volatile → 10s scrape.
+  - job_name: node
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["leadgen_node_exporter:9100"]
+
+  - job_name: cadvisor
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["leadgen_cadvisor:8080"]
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["leadgen_pg_exporter:9187"]
+
+  - job_name: redis            # main redis (noeviction) — broker/state
+    static_configs:
+      - targets: ["leadgen_redis_exporter:9121"]
+
+  - job_name: redis-cache      # cache redis (allkeys-lru)
+    static_configs:
+      - targets: ["leadgen_redis_exporter_cache:9121"]
+
+  # --- Celery exporters (docker-compose.addons.yml) --------------------------
+  # celery-exporter: task counts/states/runtimes, worker count, queue lengths.
+  # docker-compose.addons.yml up hone ke baad hi active (graceful: missing target
+  # = Prometheus bas warn karta, scrape FAIL nahi hota).
+  - job_name: celery
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["leadgen_celery_exporter:9808"]
+
+  # Flower bhi /metrics expose karta (task history, worker metrics).
+  - job_name: flower
+    metrics_path: /metrics
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["leadgen_flower:5555"]

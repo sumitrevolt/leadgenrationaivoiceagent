@@ -82,3 +82,17 @@ def test_clean_rejects_meta_junk() -> None:
     assert TelecallerBrain._clean(bad) == ""
     ok = "Google pe upar dikhta hai kya?"
     assert TelecallerBrain._clean(ok) == ok
+
+
+def test_terminal_kya_question_is_detected() -> None:
+    g = TelecallerBrain._looks_like_question
+    assert g("Google pe dikhta hai kya") is True
+    assert g("Aap kya bechte ho") is True
+
+
+def test_terminal_kya_triggers_customer_qa_reply() -> None:
+    b = _brain("ai_marketing")
+    b._interest_confirmed = False
+    ans = TelecallerBrain._customer_qa_reply(b, "Google pe dikhta hai kya")
+    assert ans
+    assert "google" in ans.lower() or "audit" in ans.lower()

@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LeadGen AI">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Phone handset -->
+  <path d="M196 150c-10-10-26-9-34 3l-18 26c-8 11-7 26 2 36 46 56 100 110 156 156 10 9 25 10 36 2l26-18c12-8 13-24 3-34l-34-34c-8-8-21-9-31-3l-18 11c-3 2-7 2-10-1-22-20-42-40-62-62-3-3-3-7-1-10l11-18c6-10 5-23-3-31l-30-23z" fill="#ffffff"/>
+  <!-- AI voice waves -->
+  <g stroke="#ffffff" stroke-width="20" stroke-linecap="round" fill="none" opacity="0.95">
+    <path d="M338 150c34 0 62 28 62 62" opacity="0.55"/>
+    <path d="M338 196c14 0 26 12 26 26" opacity="0.85"/>
+  </g>
+  <!-- Sound bars -->
+  <g fill="#ffffff" opacity="0.9">
+    <rect x="120" y="356" width="16" height="36" rx="8"/>
+    <rect x="148" y="338" width="16" height="72" rx="8"/>
+    <rect x="176" y="320" width="16" height="108" rx="8"/>
+    <rect x="204" y="344" width="16" height="60" rx="8"/>
+  </g>
+</svg>

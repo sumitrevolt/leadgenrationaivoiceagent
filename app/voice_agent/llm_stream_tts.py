@@ -10,7 +10,31 @@ import os
 import re
 from collections.abc import AsyncIterator
 
-_SENT_END = re.compile(r"(?<=[.!?؟])\s+|\n+")
+# Sentence terminators — Latin (. ! ?), Arabic question mark (؟), AND the Hindi
+# danda (। ॥). Without the danda a Hinglish/Hindi reply ("namaste ji।") never
+# chunks mid-stream, so the FIRST audio waits for the whole reply -> higher
+# time-to-first-audio (the #1 voice-latency metric). The trailing-\s+ requirement
+# stays so decimals like "3.5" don't split.
+_SENT_END = re.compile(r"(?<=[.!?؟।॥])\s+|\n+")
+
+# Clause separators for the optional early FIRST-chunk flush (TTFA boost): comma,
+# semicolon, colon, Hindi/Arabic comma, and spaced dashes — natural micro-pauses
+# a TTS can speak. Used only when STREAM_TTS_CLAUSE_FLUSH=1 (default OFF).
+_CLAUSE_END = re.compile(r"(?<=[,;:।،])\s+|\s[—–-]\s")
+
+
+def _env_flag(name: str) -> bool:
+    return (os.getenv(name, "") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _clause_min_chars(default: int = 60) -> int:
+    """First-chunk clause flush only fires once the buffer reaches this many chars
+    (avoids choppy 2-word fragments). Env: STREAM_TTS_CLAUSE_MIN."""
+    try:
+        raw = os.getenv("STREAM_TTS_CLAUSE_MIN", "")
+        return int(float(raw)) if raw.strip() else default
+    except Exception:
+        return default
 
 
 def stream_tts_enabled() -> bool:
@@ -36,11 +60,37 @@ def pop_sentence(buf: str) -> tuple[str, str]:
     return "", b
 
 
+def pop_clause(buf: str) -> tuple[str, str]:
+    """Like pop_sentence but breaks at the first CLAUSE boundary (comma/dash/danda).
+    Used only to flush the FIRST chunk early so audio starts sooner."""
+    b = buf or ""
+    if not b.strip():
+        return "", b
+    m = _CLAUSE_END.search(b)
+    if m:
+        # Drop the trailing clause separator itself (comma/dash) — the chunk reads
+        # cleaner for TTS; the pause is implied by the chunk boundary.
+        head = b[: m.start()].strip(" ,;:।،—–-")
+        rest = b[m.end() :]
+        if head:
+            return head, rest
+    return "", b
+
+
 async def iter_sentences_from_tokens(
     token_stream: AsyncIterator[str],
 ) -> AsyncIterator[str]:
-    """Buffer token deltas; yield on sentence boundaries."""
+    """Buffer token deltas; yield on sentence boundaries.
+
+    With STREAM_TTS_CLAUSE_FLUSH=1 (default OFF) the FIRST chunk may also flush
+    early at a clause boundary once it reaches STREAM_TTS_CLAUSE_MIN chars — this
+    cuts time-to-first-audio on a long opening sentence without making the rest of
+    the reply choppy (only the first chunk is eligible). Default OFF = unchanged.
+    """
     buf = ""
+    first_done = False
+    clause_flush = _env_flag("STREAM_TTS_CLAUSE_FLUSH")
+    clause_min = _clause_min_chars()
     async for tok in token_stream:
         if not tok:
             continue
@@ -48,12 +98,24 @@ async def iter_sentences_from_tokens(
         while True:
             sent, buf = pop_sentence(buf)
             if sent:
+                first_done = True
                 yield sent
-            else:
-                break
+                continue
+            if clause_flush and not first_done and len(buf) >= clause_min:
+                head, buf = pop_clause(buf)
+                if head:
+                    first_done = True
+                    yield head
+                    continue
+            break
     tail = (buf or "").strip()
     if tail:
         yield tail
 
 
-__all__ = ["stream_tts_enabled", "pop_sentence", "iter_sentences_from_tokens"]
+__all__ = [
+    "stream_tts_enabled",
+    "pop_sentence",
+    "pop_clause",
+    "iter_sentences_from_tokens",
+]

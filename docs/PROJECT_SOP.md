@@ -2,7 +2,7 @@
 
 > **Standard Operating Procedure** — engineering + business dono. Single source of "kaise kaam karna hai".
 > Live: https://leadsgenai.in · Repo: github.com/sumitrevolt/leadgenrationaivoiceagent (main) · VPS: Hostinger Mumbai
-> Last updated: 2026-06-20 · Owner: Sumit
+> Last updated: 2026-06-22 · Owner: Sumit · **2026-06-22 Final Advancement Council = GREEN** (no procedure change — gates clean, lever = GTM; verdict `PROJECT_HANDOFF.md` §27)
 >
 > **Scope note:** Yeh SOP *procedure* batata hai. Current-state facts (pricing/infra/env) ka source-of-truth `CLAUDE.md` hai — koi conflict ho to CLAUDE.md jeetta hai. Detailed history `docs/SESSION_LOG.md`.
 

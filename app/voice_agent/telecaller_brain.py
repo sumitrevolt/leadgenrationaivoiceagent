@@ -583,11 +583,11 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         _clean() pehle sentence pe cut karta, warna sawaal kat jaaye (em-dash
         ek hi sentence rehta)."""
         acks = (
-            "Samajh gayi sir —",
-            "Bilkul sir —",
-            "Theek hai sir —",
-            "Ji sir —",
-            "Achha sir —",
+            "Samajh gayi ji —",
+            "Bilkul ji —",
+            "Theek hai ji —",
+            "Ji —",
+            "Achha ji —",
         )
         return acks[len(ut) % len(acks)]
 
@@ -632,29 +632,30 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     @staticmethod
     def _looks_like_question(ut: str) -> bool:
         """Customer ne sawaal poocha? — pehle jawab, phir discovery checklist."""
-        low = (ut or "").lower()
+        low = re.sub(r"\s+", " ", (ut or "").lower()).strip()
         if "?" in ut:
             return True
         qwords = (
-            "kya ",
-            "kaise",
-            "kab ",
-            "kahan",
-            "kyun",
-            "kitna",
-            "kitne",
-            "price",
-            "cost",
-            "free",
-            "trial",
-            "samjhao",
-            "samjha",
-            "batao",
-            "matlab",
-            "explain",
-            "detail",
+            r"\bkya\b",
+            r"\bkaise\b",
+            r"\bkab\b",
+            r"\bkahan\b",
+            r"\bkyun\b",
+            r"\bkyon\b",
+            r"\bkitna\b",
+            r"\bkitne\b",
+            r"\bprice\b",
+            r"\bcost\b",
+            r"\bfree\b",
+            r"\btrial\b",
+            r"\bsamjhao\b",
+            r"\bsamjha\b",
+            r"\bbatao\b",
+            r"\bmatlab\b",
+            r"\bexplain\b",
+            r"\bdetail\b",
         )
-        return any(w in low for w in qwords)
+        return any(re.search(pat, low) for pat in qwords)
 
     def _customer_qa_reply(self, ut: str) -> str:
         """Customer ke sawaal ka seedha jawab — LLM se pehle (free, instant)."""
@@ -991,7 +992,14 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             "denge?",
             "de sakte",
         )
-        return intro and any(m in t for m in markers)
+        if any(m in t for m in markers):
+            return True
+        return bool(
+            re.search(r"\bbol\s+(rahi|raha|rahe)\b", t)
+            or "se baat kar rahi" in t
+            or "se baat kar raha" in t
+            or "aapse" in t
+        )
 
     def _fill(self, text: str) -> str:
         """Template placeholders ([Company]/[Name]/[Project]) ko real values se

@@ -1,0 +1,8 @@
+@echo off
+cd /d C:\Users\Ratanshila\Documents\leadgenrationaiagent
+set SSH=C:\PROGRA~1\Git\usr\bin\ssh.exe
+set KEY=C:\Users\Ratanshila\.ssh\id_rsa
+del /q scripts\hermes_inspect.log 2>nul
+%SSH% -i %KEY% -o BatchMode=yes -o ConnectTimeout=20 root@72.61.245.204 "echo ZWNobyAiPT09IGNvbnRhaW5lcnMgKGhlcm1lcz8pID09PSIKZG9ja2VyIHBzIC1hIC0tZm9ybWF0ICd7ey5OYW1lc319IHwge3suSW1hZ2V9fSB8IHt7LlN0YXR1c319IHwge3suUG9ydHN9fScgfCBncmVwIC1pRSAnaGVybWVzfG5vdXN8cGVhZm93bCcgfHwgZWNobyAibm8gaGVybWVzIGNvbnRhaW5lciIKZWNobyAiPT09IGFsbCBjb250YWluZXJzIGNvdW50ICsgbWVtID09PSIKZG9ja2VyIHBzIC0tZm9ybWF0ICd7ey5OYW1lc319JyB8IHdjIC1sCmZyZWUgLW0gfCBoZWFkIC0yCmRmIC1oIC8gfCB0YWlsIC0xCmVjaG8gIj09PSBob3N0aW5nZXIgYXBwIGRpcnMgPT09IgpscyAvZG9ja2VyIDI+L2Rldi9udWxsIHx8IHRydWUKbHMgL29wdCAyPi9kZXYvbnVsbApmaW5kIC8gLW1heGRlcHRoIDMgLWluYW1lICcqaGVybWVzKicgLW5vdCAtcGF0aCAnL3Byb2MvKicgLW5vdCAtcGF0aCAnL3N5cy8qJyAyPi9kZXYvbnVsbCB8IGhlYWQgLTEwCmVjaG8gSU5TUEVDVF9ET05FCg== | base64 -d | bash" > scripts\hermes_inspect.log 2>&1
+echo BAT_EXIT_%ERRORLEVEL% >> scripts\hermes_inspect.log
+echo BATDONE

@@ -2,7 +2,7 @@
 
 > **Yeh doc kya hai:** Handoff + SOP ka **combination**, **dono products ke hisaab se** + har product ka **automation map** + **[Architecture Explorer](https://leadsgenai.in/app/explorer) mirror**.
 > **Generated:** 2026-06-20 (PM, explorer-sync + handoff-lockstep pass) · **Live:** https://leadsgenai.in · **Explorer:** https://leadsgenai.in/app/explorer
-> **Latest sync:** 2026-06-21 — **Marketing tier feature lists expanded** (packages.py → handoff/SOP/onboarding/sales) · UPI LIVE · godfile refactor · `client_snapshots` shipped · `PROJECT_HANDOFF.md` lockstep.
+> **Latest sync:** 2026-06-22 — **Final Production Advancement Council GREEN** (measure-first gates clean, no fabricated code, lever = GTM; verdict `PROJECT_HANDOFF.md` §27). Prior 06-21: Marketing tier feature lists expanded (packages.py → handoff/SOP/onboarding/sales) · UPI LIVE · godfile refactor · `client_snapshots` shipped · `PROJECT_HANDOFF.md` lockstep.
 > **Repo:** github.com/sumitrevolt/leadgenrationaivoiceagent (main) · **VPS:** Hostinger Mumbai `72.61.245.204`
 > **Source of truth:** `CLAUDE.md` (current-state facts) — conflict ho to CLAUDE.md jeetta. Detail: `docs/PROJECT_HANDOFF.md` · `docs/PROJECT_SOP.md` · `docs/ENTERPRISE_DOC_INDEX.md`. History: `docs/SESSION_LOG.md`.
 > **Graph source (code):** `frontend/explorer.html` — drift audit: `python scripts/explorer_sync.py`

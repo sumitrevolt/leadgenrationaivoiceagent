@@ -1,0 +1,2599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LeadGen AI — Architecture Explorer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none}
+
+#topbar{height:46px;background:#111113;border-bottom:1px solid #1e2028;display:flex;align-items:center;padding:0 14px;gap:0;flex-shrink:0;z-index:200}
+.brand{font-size:13px;font-weight:700;color:#fff;margin-right:20px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.brand .dot{width:8px;height:8px;border-radius:50%;background:#f59e0b}
+.nav-tabs{display:flex;gap:1px}
+.nav-tab{padding:4px 11px;border-radius:4px;font-size:11px;cursor:pointer;color:#64748b;transition:all .12s;border:none;background:transparent;white-space:nowrap}
+.nav-tab:hover{color:#e2e8f0;background:#1a1c22}
+.nav-tab.active{background:#f59e0b;color:#000;font-weight:700}
+.nav-tab.active2{background:#1a2a42;color:#60a5fa;border:1px solid #1e3a5f}
+.nav-div{width:1px;height:22px;background:#1e2028;margin:0 8px;flex-shrink:0}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.tr-btn{padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;color:#64748b;border:1px solid #2d3748;background:#161618;display:flex;align-items:center;gap:4px;white-space:nowrap;transition:all .12s}
+.tr-btn:hover{color:#e2e8f0;border-color:#4b5563}
+.tr-btn.tr-link{text-decoration:none}
+.tr-btn.on{border-color:#2563eb;color:#60a5fa;background:#1a2a42}
+
+#searchbar{padding:8px 14px;flex-shrink:0;background:#0d0d0f;border-bottom:1px solid #181a20;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sw{position:relative;display:inline-flex;align-items:center;width:100%;max-width:420px;flex:1}
+.sw input{width:100%;padding:7px 12px 7px 32px;background:#161618;border:1px solid #2d3748;border-radius:5px;color:#e2e8f0;font-size:12px;outline:none}
+.sw input:focus{border-color:#3b82f6}
+.sw .si{position:absolute;left:10px;color:#3d4756;font-size:13px;pointer-events:none}
+.badge-counts{display:inline-flex;gap:6px;align-items:center}
+.bc{font-size:10px;padding:2px 8px;border-radius:4px;background:#1e2028;color:#64748b;border:1px solid #2d3748}
+#bc-match{display:none}
+#bc-match.vis{display:inline-flex}
+.flow-pick{display:flex;gap:4px;flex-wrap:wrap}
+.fp-btn{font-size:10px;padding:4px 9px;border-radius:4px;border:1px solid #2d3748;background:#161618;color:#64748b;cursor:pointer;transition:all .12s}
+.fp-btn:hover{color:#e2e8f0;border-color:#4b5563}
+.fp-btn.on{background:#451a03;border-color:#92400e;color:#fbbf24;font-weight:600}
+
+#main{display:flex;flex:1;overflow:hidden;position:relative}
+
+#cw{flex:1;position:relative;overflow:hidden;background:#0a0a0c;cursor:grab;background-image:radial-gradient(circle,#1a1d26 1px,transparent 1px);background-size:24px 24px}
+#cw:active{cursor:grabbing}
+#viewport{position:absolute;top:0;left:0;transform-origin:0 0}
+#nodes-layer{position:absolute;top:0;left:0;z-index:10}
+#edgesvg{position:absolute;top:0;left:0;overflow:visible;pointer-events:none;z-index:15}
+
+.node{position:absolute;border-radius:8px;padding:10px 12px;cursor:pointer;transition:box-shadow .15s,transform .1s,opacity .2s}
+.node:hover{z-index:25}
+.node-inner{pointer-events:none}
+.node-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;gap:4px;flex-wrap:wrap}
+.node-badge{font-size:9px;font-weight:700;letter-spacing:.8px;padding:2px 7px;border-radius:3px;text-transform:uppercase}
+.node-complexity,.node-sched{font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px}
+.node-sched{background:#1a1420;color:#a78bfa;border:1px solid #3d2a5a}
+.cx-simple{background:#052e16;color:#4ade80}
+.cx-moderate{background:#451a03;color:#fbbf24}
+.cx-complex{background:#450a0a;color:#f87171}
+.node-title{font-size:13px;font-weight:700;color:#fff;line-height:1.3;margin-bottom:4px}
+.node-desc{font-size:10px;line-height:1.5;margin-bottom:8px}
+.node-footer{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px}
+.node-files{font-size:9px;color:#4b5563}
+.node-flag{font-size:8px;padding:1px 5px;border-radius:3px;background:#1e2028;color:#64748b;font-family:monospace}
+
+.nt-platform{background:#13141a;border:1px solid #2d3748;color:#94a3b8}
+.nt-platform .node-badge{background:#1e2a3d;color:#60a5fa}
+.nt-platform .node-desc{color:#64748b}
+.nt-platform:hover{box-shadow:0 0 0 1.5px #3b82f6;transform:translateY(-2px)}
+
+.nt-marketing{background:#0d1a2e;border:1px solid #1d4ed8;color:#93c5fd}
+.nt-marketing .node-badge{background:#172554;color:#60a5fa}
+.nt-marketing .node-desc{color:#5b8cc4}
+.nt-marketing:hover{box-shadow:0 0 0 1.5px #2563eb,0 4px 20px rgba(37,99,235,.2);transform:translateY(-2px)}
+
+.nt-voice{background:#1a0d06;border:1px solid #9a3412;color:#fdba74}
+.nt-voice .node-badge{background:#3d1505;color:#fb923c}
+.nt-voice .node-desc{color:#7d4a2a}
+.nt-voice:hover{box-shadow:0 0 0 1.5px #ea580c;transform:translateY(-2px)}
+
+.nt-ai{background:#0e0c1e;border:1px solid #4338ca;color:#a5b4fc}
+.nt-ai .node-badge{background:#1e1b4b;color:#818cf8}
+.nt-ai .node-desc{color:#5b5a8e}
+.nt-ai:hover{box-shadow:0 0 0 1.5px #6366f1;transform:translateY(-2px)}
+
+.nt-data{background:#050f14;border:1px solid #0e7490;color:#22d3ee}
+.nt-data .node-badge{background:#0c1f2e;color:#06b6d4}
+.nt-data .node-desc{color:#2a5a6b}
+.nt-data:hover{box-shadow:0 0 0 1.5px #0891b2;transform:translateY(-2px)}
+
+.nt-external{background:#071512;border:1px solid #166534;color:#4ade80}
+.nt-external .node-badge{background:#052e16;color:#22c55e}
+.nt-external .node-desc{color:#2a5a3d}
+.nt-external:hover{box-shadow:0 0 0 1.5px #16a34a;transform:translateY(-2px)}
+
+.nt-monitor{background:#130f04;border:1px solid #92400e;color:#fbbf24}
+.nt-monitor .node-badge{background:#261800;color:#f59e0b}
+.nt-monitor .node-desc{color:#6b4f1a}
+.nt-monitor:hover{box-shadow:0 0 0 1.5px #d97706;transform:translateY(-2px)}
+
+.nt-loop{background:#1a0f1e;border:2px solid #a855f7;color:#d8b4fe;box-shadow:0 0 12px rgba(168,85,247,.15)}
+.nt-loop .node-badge{background:#3b0764;color:#e879f9}
+.nt-loop .node-desc{color:#7c3aed}
+.nt-loop:hover{box-shadow:0 0 0 2px #a855f7,0 4px 24px rgba(168,85,247,.25);transform:translateY(-2px)}
+
+.nt-gap{background:#1a1010;border:2px dashed #991b1b;color:#fca5a5;opacity:.92}
+.nt-gap .node-badge{background:#450a0a;color:#f87171}
+.nt-gap .node-desc{color:#9f4a4a}
+.nt-gap:hover{box-shadow:0 0 0 1.5px #ef4444,0 4px 20px rgba(239,68,68,.15);transform:translateY(-2px)}
+
+.node.sku-marketing{box-shadow:0 0 0 2px #1d4ed8,0 0 24px rgba(29,78,216,.12)}
+.node.sku-voice{box-shadow:0 0 0 2px #ea580c,0 0 24px rgba(234,88,12,.12)}
+.node.sku-shared{border-style:dotted;border-color:#4b5563}
+.node.sku-feature{border-style:dashed;border-color:#60a5fa}
+.node.sku-gap-pr{border-style:dashed;border-color:#991b1b}
+
+#product-legend{position:absolute;bottom:52px;left:12px;z-index:40;font-size:9px;padding:8px 12px;border-radius:8px;border:1px solid #2d3748;background:#161618ee;color:#64748b;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);line-height:1.6;display:none}
+#product-legend.vis{display:block}
+#product-legend b{color:#e2e8f0}
+.pl-mkt{color:#60a5fa}.pl-voice{color:#fb923c}.pl-feat{color:#a78bfa}
+
+.node.selected{z-index:30}
+.node.dimmed{opacity:.22}
+.node.disabled-node{opacity:.35;border-style:dashed}
+
+.node.selected.nt-platform{box-shadow:0 0 0 2px #3b82f6,0 4px 24px rgba(59,130,246,.3)}
+.node.selected.nt-marketing{box-shadow:0 0 0 2px #2563eb,0 4px 24px rgba(37,99,235,.3)}
+.node.selected.nt-ai{box-shadow:0 0 0 2px #6366f1,0 4px 24px rgba(99,102,241,.3)}
+.node.selected.nt-loop{box-shadow:0 0 0 2px #a855f7,0 4px 24px rgba(168,85,247,.35)}
+.node.trace-node{box-shadow:0 0 0 1.5px #4ade80,0 0 12px rgba(74,222,128,.2)}
+
+.port{position:absolute;width:8px;height:8px;border-radius:50%;background:#374151;border:2px solid #0a0a0c;z-index:12;pointer-events:none;opacity:0;transition:opacity .15s}
+.node.selected .port,.node:hover .port{opacity:1}
+.port-out{bottom:-4px;left:50%;transform:translateX(-50%)}
+.port-in{top:-4px;left:50%;transform:translateX(-50%)}
+.builder-mode .port{opacity:.85;pointer-events:auto;cursor:crosshair;background:#60a5fa}
+.builder-mode .port-out{background:#f59e0b}
+.builder-mode .port-in{background:#4ade80}
+.builder-mode .port.linking{box-shadow:0 0 8px #f59e0b;transform:translateX(-50%) scale(1.3)}
+.node-del{position:absolute;top:-8px;right:-8px;width:18px;height:18px;border-radius:50%;background:#450a0a;border:1px solid #f87171;color:#f87171;font-size:11px;line-height:16px;text-align:center;cursor:pointer;z-index:35;pointer-events:auto;display:none}
+.builder-mode .node.selected .node-del{display:block}
+.node-del:hover{background:#f87171;color:#000}
+.palette-item{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:5px;border:1px solid #2d3748;background:#161820;cursor:pointer;margin-bottom:5px;font-size:10px}
+.palette-item:hover{border-color:#3b82f6;background:#1a1c28}
+.palette-item .pi-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.builder-field{width:100%;padding:6px 8px;margin-bottom:6px;background:#0d0e12;border:1px solid #2d3748;border-radius:4px;color:#e2e8f0;font-size:11px}
+.builder-field:focus{border-color:#3b82f6;outline:none}
+.edge-path.builder-edge{cursor:pointer}
+.edge-path.builder-edge:hover{stroke-width:3!important;filter:drop-shadow(0 0 4px #f87171)}
+#link-preview{display:none}
+#link-preview.vis{display:block}
+.builder-banner{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:50;background:#451a03cc;border:1px solid #92400e;border-radius:6px;padding:6px 14px;font-size:10px;color:#fbbf24;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:none}
+.builder-mode .builder-banner{display:block}
+
+#zc{position:absolute;left:12px;bottom:70px;z-index:50;display:flex;flex-direction:column;gap:3px}
+.zb{width:28px;height:28px;background:#161618;border:1px solid #2d3748;border-radius:5px;color:#94a3b8;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.zb:hover{background:#1e2028;color:#e2e8f0}
+#zoom-pct{font-size:9px;color:#4b5563;text-align:center}
+
+#minimap{position:absolute;right:14px;bottom:14px;width:160px;height:96px;background:#0d0e12;border:1px solid #2d3748;border-radius:6px;z-index:50;overflow:hidden}
+#mm-canvas{display:block;width:100%;height:100%}
+.mm-label{position:absolute;bottom:4px;left:6px;font-size:9px;color:#2d3748}
+
+#legend{position:absolute;top:12px;right:14px;z-index:50;background:#161618cc;border:1px solid #2d3748;border-radius:6px;padding:8px 10px;font-size:9px;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+#legend .lg-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;color:#64748b}
+#legend .lg-row:last-child{margin-bottom:0}
+.bb-amber{color:#f59e0b}
+.bb-green{color:#4ade80}
+.lg-line{width:28px;height:0;border-top:2px solid}
+.lg-sync{border-color:#64748b}
+.lg-async{border-color:#60a5fa;border-style:dashed}
+.zb-sm{font-size:11px}
+.help-close{margin-top:10px}
+.lg-loop{border-top:2px dashed #f59e0b;animation:flowDash 1.2s linear infinite}
+
+#ov-badge{position:absolute;top:12px;left:12px;z-index:50;background:#161618;border:1px solid #2d3748;border-radius:5px;padding:5px 11px;font-size:11px;font-weight:700;color:#64748b}
+
+#sidebar{width:300px;background:#111113;border-left:1px solid #1e2028;display:flex;flex-direction:column;flex-shrink:0;z-index:100}
+.sb-tabs{display:flex;border-bottom:1px solid #1e2028;flex-shrink:0}
+.sb-tab{flex:1;padding:11px 4px;font-size:10px;font-weight:600;text-align:center;cursor:pointer;color:#475569;border-bottom:2px solid transparent}
+.sb-tab.active{color:#f59e0b;border-bottom-color:#f59e0b}
+.sb-body{flex:1;overflow-y:auto;padding:14px}
+.sb-body::-webkit-scrollbar{width:3px}
+.sb-body::-webkit-scrollbar-thumb{background:#2d3748}
+
+.tour-h{margin-bottom:12px}
+.tour-title{font-size:17px;font-weight:700;color:#fff}
+.tour-sub{font-size:11px;color:#475569;margin-top:3px}
+.start-btn{width:100%;padding:9px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:14px;border:none}
+.start-btn.inactive{background:#1a2a42;color:#60a5fa;border:1px solid #1e3a5f}
+.start-btn.running{background:#14532d;color:#4ade80;border:1px solid #166534}
+.steps-hdr{font-size:9px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px}
+.step-row{display:flex;align-items:flex-start;gap:9px;padding:7px 5px;border-radius:5px;cursor:pointer;margin-bottom:1px}
+.step-row:hover{background:#161820}
+.step-row.active-step{background:#161820}
+.sn{width:21px;height:21px;border-radius:50%;background:#161820;border:1px solid #2d3748;font-size:10px;font-weight:700;color:#4b5563;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.st{font-size:11px;color:#94a3b8;line-height:1.35}
+
+.nd-card{background:#161820;border:1px solid #2d3748;border-radius:8px;padding:13px;margin-bottom:10px}
+.nd-type{font-size:9px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;margin-bottom:5px}
+.nd-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:5px}
+.nd-desc{font-size:11px;color:#64748b;line-height:1.6;margin-bottom:10px}
+.nd-meta{display:flex;gap:5px;flex-wrap:wrap}
+.nm{font-size:9px;background:#1e2028;padding:2px 7px;border-radius:3px;color:#64748b}
+.nm b{color:#e2e8f0}
+
+.step-detail{background:#1a1420;border:1px solid #3d2a5a;border-radius:7px;padding:12px;margin-bottom:10px}
+.sd-title{font-size:13px;font-weight:700;color:#a78bfa;margin-bottom:6px}
+.sd-desc{font-size:11px;color:#7c6aa0;line-height:1.6}
+
+#tour-nav{padding:10px 14px;border-top:1px solid #1e2028;display:none;gap:6px}
+#tour-nav.vis{display:flex}
+.tn-btn{flex:1;padding:7px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid #2d3748;background:#161618;color:#64748b}
+.tn-btn.primary{background:#1a2a42;border-color:#1e3a5f;color:#60a5fa}
+
+.panel-hdr{font-size:9px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px}
+.panel-hdr:first-child{margin-top:0}
+
+.flow-card{background:#0d1420;border:1px solid #1e3a5f;border-radius:7px;padding:10px;margin-bottom:8px;cursor:pointer;transition:all .12s}
+.flow-card:hover{border-color:#2563eb;background:#111827}
+.flow-card.on{border-color:#f59e0b;background:#1a1408}
+.flow-card .fc-title{font-size:12px;font-weight:700;color:#60a5fa;margin-bottom:4px}
+.flow-card .fc-desc{font-size:10px;color:#4b5563;line-height:1.5}
+
+.flag-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1a1c22;font-size:10px}
+.flag-row:last-child{border-bottom:none}
+.flag-name{color:#94a3b8;font-family:monospace;font-size:9px}
+.flag-toggle{width:36px;height:20px;border-radius:10px;background:#2d3748;cursor:pointer;position:relative;transition:background .15s;flex-shrink:0}
+.flag-toggle.on{background:#166534}
+.flag-toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#64748b;transition:transform .15s}
+.flag-toggle.on::after{transform:translateX(16px);background:#4ade80}
+
+.action-btn{width:100%;padding:8px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid #2d3748;background:#161618;color:#94a3b8;margin-bottom:6px;text-align:left;display:flex;align-items:center;gap:6px}
+.action-btn:hover{background:#1e2028;color:#e2e8f0;border-color:#4b5563}
+.action-btn.primary{border-color:#1e3a5f;background:#1a2a42;color:#60a5fa}
+
+.conn-row{font-size:10px;color:#64748b;padding:4px 0;display:flex;align-items:center;gap:5px;cursor:pointer;border-radius:4px;padding-left:4px}
+.conn-row:hover{background:#161820;color:#e2e8f0}
+.conn-row.loop-row{color:#fbbf24}
+.edge-lbl{font-size:9px;fill:#94a3b8;font-family:-apple-system,sans-serif;font-weight:600}
+.edge-lbl-bg{fill:#0a0a0c;opacity:.85}
+
+@keyframes flowDash{to{stroke-dashoffset:-20}}
+.edge-path.loop-edge{stroke:#f59e0b;stroke-width:2.5;stroke-dasharray:8,5;animation:flowDash 1s linear infinite}
+.edge-path.async-edge{stroke:#60a5fa;stroke-dasharray:6,4}
+.edge-path.sync-edge{stroke:#64748b}
+.edge-path.loop-edge.highlight,.edge-path.async-edge.highlight,.edge-path.sync-edge.highlight{stroke-width:3;filter:drop-shadow(0 0 4px currentColor)}
+.edge-path.dimmed-edge{opacity:.12}
+.edge-path.trace-edge{stroke:#4ade80!important;stroke-width:3;filter:drop-shadow(0 0 6px #4ade80)}
+.flow-dot{fill:#fbbf24;filter:drop-shadow(0 0 4px #f59e0b)}
+
+.node.dragging{opacity:.92;cursor:grabbing;z-index:40!important;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+
+#live-status{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:50;font-size:10px;padding:4px 12px;border-radius:20px;border:1px solid #2d3748;background:#161618cc;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);display:flex;align-items:center;gap:6px;color:#64748b}
+#live-status .ls-dot{width:7px;height:7px;border-radius:50%;background:#374151}
+#live-status.ok .ls-dot{background:#4ade80;box-shadow:0 0 6px #4ade80}
+#live-status.warn .ls-dot{background:#fbbf24}
+#live-status.err .ls-dot{background:#f87171}
+#chg-toast{position:absolute;top:44px;left:50%;transform:translateX(-50%);z-index:51;max-width:520px;font-size:10px;padding:6px 12px;border-radius:8px;border:1px solid #2d3748;background:#161618ee;color:#94a3b8;display:none;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+#chg-toast.vis{display:block}
+#chg-toast b{color:#fbbf24}
+
+#schedule-bar{position:absolute;left:12px;top:48px;z-index:50;background:#161618ee;border:1px solid #2d3748;border-radius:6px;padding:8px 10px;max-width:320px;display:none;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+#schedule-bar.vis{display:block}
+.sb-ist{font-size:9px;font-weight:700;color:#a78bfa;margin-bottom:6px;letter-spacing:.5px}
+.sched-row{display:flex;align-items:center;gap:6px;font-size:9px;padding:2px 0;color:#64748b;cursor:pointer}
+.sched-row:hover{color:#e2e8f0}
+.sched-time{color:#f59e0b;font-weight:700;min-width:38px;font-family:monospace}
+.sched-row.active-sched{color:#4ade80}
+
+#help-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:none;align-items:center;justify-content:center}
+#help-modal.vis{display:flex}
+.help-box{background:#111113;border:1px solid #2d3748;border-radius:10px;padding:20px;max-width:420px;width:90%}
+.help-box h3{font-size:14px;margin-bottom:12px;color:#fff}
+.help-kbd{display:inline-block;background:#1e2028;border:1px solid #374151;border-radius:4px;padding:1px 6px;font-size:10px;font-family:monospace;color:#94a3b8;margin-right:4px}
+.help-row{font-size:11px;color:#64748b;margin-bottom:8px;line-height:1.8}
+
+.status-pill{font-size:8px;padding:2px 6px;border-radius:3px;margin-left:auto}
+.status-pill.on{background:#052e16;color:#4ade80}
+.status-pill.off{background:#450a0a;color:#f87171}
+.status-pill.live{background:#1e3a5f;color:#60a5fa}
+
+#mm-canvas{cursor:crosshair}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="brand"><div class="dot"></div>leadsgenai · explorer</div>
+  <div class="nav-tabs">
+    <button class="nav-tab" data-view="structural" onclick="switchView('structural',this)">Structural</button>
+    <button class="nav-tab active" data-view="automation" onclick="switchView('automation',this)">Automation</button>
+    <button class="nav-tab" data-view="products" onclick="switchView('products',this)">Products</button>
+    <button class="nav-tab" data-view="custom" onclick="switchView('custom',this)">Builder</button>
+  </div>
+  <div class="nav-div"></div>
+  <div class="top-right">
+    <button class="tr-btn on" id="btn-play" onclick="toggleFlowPlay()">▶ Play Flow</button>
+    <button class="tr-btn on" id="btn-edges" onclick="toggleEdges()">⟷ Connections</button>
+    <button class="tr-btn on" id="btn-loops" onclick="toggleLoops()">↻ Loops</button>
+    <button class="tr-btn" id="btn-sched" onclick="toggleScheduleBar()">🕐 IST Schedule</button>
+    <button class="tr-btn" onclick="exportFlow()">↓ Export JSON</button>
+    <button class="tr-btn" onclick="showHelp()" title="Shortcuts">?</button>
+    <a class="tr-btn tr-link" href="/app/automation">↗ Mission Control</a>
+  </div>
+</div>
+
+<div id="searchbar">
+  <div class="sw">
+    <span class="si">⌕</span>
+    <input type="text" id="search-input" placeholder="Search nodes..." oninput="doSearch(this.value)">
+  </div>
+  <div class="flow-pick" id="flow-pick"></div>
+  <div class="badge-counts">
+    <span class="bc" id="bc-total">0 nodes</span>
+    <span class="bc" id="bc-edges">0 edges</span>
+    <span class="bc" id="bc-match"></span>
+  </div>
+</div>
+
+<div id="main">
+  <div id="cw">
+    <div id="viewport">
+      <div id="nodes-layer"></div>
+      <svg id="edgesvg">
+        <defs>
+          <marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#64748b"/></marker>
+          <marker id="ah-blue" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#60a5fa"/></marker>
+          <marker id="ah-amber" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/></marker>
+          <marker id="ah-purple" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#a855f7"/></marker>
+        </defs>
+        <path id="link-preview" d="" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,4"/>
+      </svg>
+    </div>
+    <div class="builder-banner" id="builder-banner">🔗 Drag <b class="bb-amber">orange port</b> → <b class="bb-green">green port</b> to connect · Shift+click 2 nodes · Del = delete</div>
+    <div id="ov-badge">AUTOMATION PIPELINE</div>
+    <div id="live-status"><span class="ls-dot"></span><span id="ls-text">Checking live status…</span></div>
+    <div id="chg-toast"></div>
+    <div id="schedule-bar">
+      <div class="sb-ist">IST DAILY SCHEDULE (team_scheduler)</div>
+      <div id="sched-list"></div>
+    </div>
+    <div id="legend">
+      <div class="lg-row"><span class="lg-line lg-sync"></span> sync</div>
+      <div class="lg-row"><span class="lg-line lg-async"></span> async / queue</div>
+      <div class="lg-row"><span class="lg-line lg-loop"></span> feedback loop</div>
+    </div>
+    <div id="zc">
+      <div class="zb" onclick="zoom(1.2)">+</div>
+      <div class="zb" onclick="zoom(0.83)">−</div>
+      <div class="zb zb-sm" onclick="fitView()">⊡</div>
+      <div class="zb" id="lock-btn" onclick="toggleLock()">🔓</div>
+      <div id="zoom-pct">100%</div>
+    </div>
+    <div id="product-legend">
+      <b>2 alag products</b> — bundle mat karo<br>
+      <span class="pl-mkt">■ Product 1 Marketing</span> ·
+      <span class="pl-voice">■ Product 2 Voice</span> ·
+      <span class="pl-feat">▪ Advanced = voice FEATURE only</span>
+    </div>
+    <div id="minimap"><canvas id="mm-canvas" width="320" height="192"></canvas><div class="mm-label">minimap</div></div>
+  </div>
+
+  <div id="sidebar">
+    <div class="sb-tabs">
+      <div class="sb-tab active" onclick="sbTab('info',this)">INFO</div>
+      <div class="sb-tab" onclick="sbTab('flow',this)">FLOW</div>
+      <div class="sb-tab" onclick="sbTab('flags',this)">FLAGS</div>
+      <div class="sb-tab" onclick="sbTab('sched',this)">SCHED</div>
+      <div class="sb-tab" onclick="sbTab('build',this)">BUILD</div>
+    </div>
+    <div class="sb-body" id="sb-content"></div>
+    <div id="tour-nav">
+      <button class="tn-btn" id="prev-btn" onclick="tourNav(-1)">← Prev</button>
+      <button class="tn-btn primary" id="next-btn" onclick="tourNav(1)">Next →</button>
+    </div>
+  </div>
+</div>
+
+<div id="help-modal" onclick="if(event.target===this)hideHelp()">
+  <div class="help-box">
+    <h3>Keyboard Shortcuts</h3>
+    <div class="help-row"><span class="help-kbd">F</span> Fit view &nbsp; <span class="help-kbd">Esc</span> Deselect</div>
+    <div class="help-row"><span class="help-kbd">+</span>/<span class="help-kbd">−</span> Zoom &nbsp; <span class="help-kbd">Space</span> Play/pause flow animation</div>
+    <div class="help-row"><span class="help-kbd">1</span> Structural &nbsp; <span class="help-kbd">2</span> Automation &nbsp; <span class="help-kbd">3</span> Builder &nbsp; <span class="help-kbd">4</span> Products</div>
+    <div class="help-row"><span class="help-kbd">T</span> Trace downstream &nbsp; <span class="help-kbd">Del</span> Delete node/edge (builder)</div>
+    <div class="help-row"><span class="help-kbd">Shift+click</span> Connect 2 nodes (builder) · Port drag = wire</div>
+    <div class="help-row"><span class="help-kbd">?</span> This help &nbsp; Drag node = reposition (saved locally)</div>
+    <div class="help-row"><span class="help-kbd">Dbl-click</span> node = copy file path to clipboard</div>
+    <button class="action-btn primary help-close" onclick="hideHelp()">Got it</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════
+// VIEW DATA
+// ════════════════════════════════════
+const VIEWS = {
+  structural: {
+    label: 'Structural Architecture',
+    badge: 'PROJECT OVERVIEW',
+    world: {w: 2900, h: 1750},
+    nodes: [
+      {id:'internet', type:'platform', badge:'ENTRY', cx:'simple', title:'Browser / Internet', desc:'Client browsers · /b/{slug}/widget.js · External webhooks', files:'Public entry', x:820, y:30, w:250, h:100},
+      {id:'vps', type:'platform', badge:'HOST', cx:'simple', title:'Hostinger VPS Mumbai', desc:'72.61.245.204 · Docker 13+ containers · /opt/leadgen · Caddy host TLS', files:'docker-compose.vps.yml', x:1120, y:30, w:260, h:100},
+      {id:'caddy', type:'platform', badge:'EDGE', cx:'simple', title:'Caddy TLS Edge Proxy', desc:'HOST process. HTTPS → 127.0.0.1:8000 (leadgen_app)', files:'Caddyfile', x:820, y:190, w:250, h:100},
+      {id:'public_pages', type:'marketing', badge:'LAYER', cx:'moderate', title:'Public Frontend', desc:'/audit · /site-audit · /pricing · /blog · /compare · /voice-agent', files:'~45 pages', x:40, y:370, w:250, h:100},
+      {id:'embed_widget', type:'marketing', badge:'WIDGET', cx:'moderate', title:'Lead-Capture Embed', desc:'/b/{slug}/widget.js + /embed iframe · inquiry → lead + distribution', files:'embed_widget.py', x:40, y:520, w:250, h:100},
+      {id:'admin_ui', type:'platform', badge:'LAYER', cx:'complex', title:'Admin Dashboards', desc:'/app/admin God Mode · Automation Hub 21 workflows · /app/marketing · /app/automation · battlecard', files:'admin_dashboard.html', x:720, y:370, w:300, h:100},
+      {id:'explorer', type:'monitor', badge:'GRAPH', cx:'moderate', title:'Architecture Explorer', desc:'/app/explorer — 33-page wiring audit · live production_ready sync · flow builder', files:'explorer.html', x:1040, y:370, w:280, h:100},
+      {id:'growth_hub', type:'monitor', badge:'GROWTH', cx:'moderate', title:'Growth & Ops Hub', desc:'/app/growth-tools · /app/dashboards · /app/outreach · /app/dialer · /app/analytics', files:'growth.py', x:1340, y:370, w:280, h:100},
+      {id:'customer_portal', type:'marketing', badge:'LAYER', cx:'moderate', title:'Customer Portal', desc:'/app/login → /app/customer · TOTP 2FA · content approve · webhooks', files:'customer_dashboard.py', x:1660, y:370, w:260, h:100},
+      {id:'marketing_hub', type:'marketing', badge:'MARKETING', cx:'complex', title:'Marketing Command', desc:'/app/marketing 28 tabs · /api/marketing/* · AI image · scheduler · widget', files:'marketing.py · marketing.html', x:40, y:680, w:260, h:110},
+      {id:'team_ui', type:'platform', badge:'TEAM', cx:'moderate', title:'AI Staff Dashboard', desc:'/app/team · 17 agents live · agent_events SSE · manual job runs', files:'team.py · team.html', x:1660, y:520, w:260, h:100},
+      {id:'auth', type:'platform', badge:'LAYER', cx:'complex', title:'Auth & RBAC', desc:'Admin JWT · Customer JWT · /app/team-access module RBAC · consent ledger', files:'admin.py · rbac.py', x:720, y:520, w:250, h:100},
+      {id:'tenant_wl', type:'platform', badge:'TENANT', cx:'moderate', title:'White-Label Middleware', desc:'Subdomain/custom domain → client branding · FAIL-OPEN apex', files:'middleware/tenant.py', x:420, y:520, w:250, h:100},
+      {id:'billing', type:'monitor', badge:'BILLING', cx:'moderate', title:'Billing & Usage', desc:'packages.py truth · usage ledger · GST invoices · checkout optional', files:'billing.py · usage.py', x:1000, y:520, w:250, h:100},
+      {id:'fastapi', type:'platform', badge:'LAYER', cx:'complex', title:'FastAPI Monolith', desc:'~733 routes · uvicorn · Middleware · WS + SSE · Plan rate-limit', files:'main.py', x:340, y:840, w:720, h:110},
+      {id:'launch', type:'monitor', badge:'LAUNCH', cx:'simple', title:'Production Ready Gate', desc:'production_ready=true · /api/activation/summary · final_integration_check.py', files:'activation.py · scripts/', x:1100, y:840, w:300, h:110},
+      {id:'integration_gate', type:'monitor', badge:'GATE', cx:'simple', title:'Final Integration Check', desc:'wiring + deep_wiring + cross_path_audit + live_smoke + pytest — one command PASS', files:'final_integration_check.py · cross_path_audit.py', x:1420, y:980, w:280, h:100},
+      {id:'mcp_product', type:'ai', badge:'MCP', cx:'moderate', title:'MCP-as-Product', desc:'/mcp server · /api/mcp-product/v1 · /.well-known/agent.json A2A card', files:'mcp_product.py', x:1420, y:840, w:260, h:110},
+      {id:'compliance', type:'voice', badge:'LEGAL', cx:'complex', title:'India Telecom Compliance', desc:'TRAI DND fail-closed · consent ledger · AI disclosure · 10am-7pm', files:'compliance.py · dnd_checker.py', x:1720, y:840, w:260, h:110},
+      {id:'ai_staff', type:'ai', badge:'LAYER', cx:'complex', title:'17 AI Staff Team', desc:'Boss · Isha · Rohan · Swara · Kavya · FDE · Pranav/Vidya/Arnav KPI', files:'team.py · team_scheduler.py', x:40, y:1040, w:260, h:110},
+      {id:'voice_brain', type:'voice', badge:'LAYER', cx:'complex', title:'Voice Brain Pipeline', desc:'Vobiz WS → Groq STT → RAG → LLM → EdgeTTS · web-call test', files:'voice_agent/ · natural_dialog.py', x:340, y:1040, w:260, h:110},
+      {id:'voice_product', type:'voice', badge:'PRODUCT', cx:'moderate', title:'Voice Agent Product', desc:'Standalone SKU /voice-agent · band A/B/C pricing · niche scripts', files:'voice_product.py · voice_packages.py', x:640, y:1040, w:260, h:110},
+      {id:'telephony_hub', type:'voice', badge:'TELEPHONY', cx:'complex', title:'Telephony Webhooks', desc:'Vobiz active · Twilio fallback · call state Redis · AMD voicemail', files:'telephony/webhooks.py', x:940, y:1040, w:280, h:110},
+      {id:'celery', type:'platform', badge:'LAYER', cx:'moderate', title:'Celery Queue System', desc:'Beat IST → Redis → Worker×4 · Scheduler container · DLQ', files:'worker.py', x:1260, y:1040, w:250, h:110},
+      {id:'external', type:'external', badge:'LAYER', cx:'moderate', title:'External Integrations', desc:'Vobiz · SMTP Hostinger · Google Maps · Pollinations · Telegram', files:'integrations/', x:1560, y:1040, w:260, h:110},
+      {id:'monitoring', type:'monitor', badge:'LAYER', cx:'moderate', title:'Monitoring Stack', desc:'Prometheus · Grafana · Loki · Tempo · ntfy · Flower · Celery exporter', files:'observability.yml', x:1860, y:1040, w:260, h:110},
+      {id:'free_ai', type:'ai', badge:'LAYER', cx:'complex', title:'Free AI Provider Chain', desc:'Mistral → Groq → Cerebras → Gemini · circuit-breaker 429', files:'free_ai.py', x:40, y:1240, w:280, h:110},
+      {id:'rag', type:'ai', badge:'LAYER', cx:'complex', title:'RAG / Knowledge Base', desc:'Qdrant kb_main · niche: · client: · skills(241) · agentic RAG opt-in', files:'knowledge_base.py', x:360, y:1240, w:280, h:110},
+      {id:'data_layer', type:'data', badge:'LAYER', cx:'moderate', title:'Data Layer', desc:'Postgres+PgBouncer · Redis×2 · Qdrant · MinIO opt · ./data jsonl', files:'models/', x:700, y:1240, w:560, h:110},
+      {id:'gap_transfer', type:'gap', badge:'GAP P0', cx:'complex', title:'Live Human Transfer', desc:'PARTIAL — call_transfer.py gated CALL_TRANSFER=1 · Vobiz connect-leg · intent detect wired; prod needs DID+recharge', files:'call_transfer.py', x:2140, y:1040, w:240, h:100},
+      {id:'brand_frames', type:'marketing', badge:'LIVE', cx:'moderate', title:'Branded Frames + Daily Feed', desc:'AdBanao-style logo overlay · daily_feed per client · /api/brand/frames · customer portal tab', files:'brand_frames.py · brandassets.py', x:2400, y:1040, w:260, h:100},
+      {id:'geo_vis', type:'marketing', badge:'GEO', cx:'moderate', title:'GEO / AI Visibility', desc:'API + public /geo-check lead magnet LIVE · ChatGPT/AI-search probe', files:'geo_visibility.py · localseo.py · geo-check.html', x:2400, y:1160, w:260, h:100},
+      {id:'gap_meta', type:'gap', badge:'BLOCKED', cx:'complex', title:'Meta FB/IG Auto-Post', desc:'EXTERNAL — Meta app review required · WA auto-send banned', files:'env blocked', x:2400, y:1040, w:240, h:100},
+      {id:'call_recordings', type:'platform', badge:'RECORDINGS', cx:'moderate', title:'Call Recordings API', desc:'WAV caller+bot per session · VOBIZ_CALL_RECORD=1 · admin player FIXED: auth-header blob fetch (browser <audio> 401 trap solved)', files:'app/api/call_recordings.py', x:1960, y:370, w:270, h:100},
+      {id:'crm_sync', type:'external', badge:'CRM', cx:'moderate', title:'Native CRM Sync', desc:'Zoho (India DC) + HubSpot · per-client ya global creds · growth-tools CRM Sync tab · CRM_SYNC flag', files:'app/platform/crm_sync.py', x:40, y:1480, w:280, h:100},
+      {id:'agent_memory', type:'ai', badge:'MEMORY', cx:'moderate', title:'Agent Memory + DPDP', desc:'Per-agent memory inspect · consent-ledger bridge · DPDP purge (admin)', files:'app/api/agent_memory_admin.py', x:360, y:1480, w:280, h:100},
+      {id:'turnstile', type:'platform', badge:'BOT GATE', cx:'simple', title:'Cloudflare Turnstile', desc:'Lead-magnet bot protection (/audit, /start) · TURNSTILE_* · flag-gated', files:'app/security/turnstile.py', x:700, y:1480, w:260, h:100},
+      {id:'vobiz_stream', type:'voice', badge:'WS STREAM', cx:'complex', title:'Vobiz WS Stream', desc:'PCM16 → STT → LLM → TTS · _cleanup→post_call_hooks (meter+qualify) · transcripts jsonl · Turn detector opt-in', files:'app/telephony/vobiz_stream.py', x:2200, y:840, w:280, h:110},
+      {id:'post_call_hooks', type:'voice', badge:'POST-CALL', cx:'moderate', title:'Post-Call Hooks', desc:'meter_call_completion (idempotent) · apply_qualified_downstream · emit_call_report · billing minutes + call.completed + call.report.ready', files:'post_call_hooks.py', x:2200, y:970, w:280, h:100},
+      {id:'call_insights', type:'ai', badge:'ASK AI', cx:'moderate', title:'Call Insights NL', desc:'Qualifications + dialer + LIVE transcripts · /api/voiceai/ask · /api/ai/command call_insights', files:'call_insights.py · voiceai.py · ai.py', x:1920, y:970, w:270, h:100},
+      {id:'cross_path_audit', type:'monitor', badge:'GUARD', cx:'simple', title:'Cross-Path Audit', desc:'Telephony lifecycle parity gate · wired prod_check + final_integration_check', files:'scripts/cross_path_audit.py', x:1680, y:980, w:250, h:95},
+      {id:'fire_calls', type:'marketing', badge:'CAMPAIGN', cx:'moderate', title:'Outbound Call Campaign', desc:'fire_calls.py · leads DB top-N → Swara AI call [--client-id → real client name + niche] → mark_called · TRAI 10am-7pm gated', files:'scripts/fire_calls.py', x:1570, y:1160, w:270, h:100},
+      {id:'minio', type:'data', badge:'S3 STORAGE', cx:'simple', title:'MinIO S3 Storage', desc:'docker-compose.addons.yml :9000/:9001 console · minio_client.py · local-disk fallback (get_storage)', files:'app/storage/minio_client.py', x:1320, y:1240, w:270, h:100},
+      {id:'rate_limit_mw', type:'platform', badge:'MIDDLEWARE', cx:'simple', title:'Plan Rate Limit MW', desc:'PlanTierRateLimitMiddleware · Starter 60rpm · Growth 200rpm · Advanced 500rpm · PLAN_RATE_LIMIT=1', files:'app/middleware/__init__.py', x:430, y:680, w:260, h:90},
+      {id:'client_snapshots', type:'marketing', badge:'GHL LIVE', cx:'moderate', title:'Client Snapshots', desc:'capture_from_niche + apply · mini-site/widget/journeys · AUTO_ONBOARD · /api/clientops/snapshots', files:'client_snapshots.py · clientops.py', x:2660, y:680, w:270, h:90},
+    ],
+    edges: [
+      {f:'internet', t:'caddy', lbl:'HTTPS', style:'sync'},
+      {f:'internet', t:'vps', lbl:'SSH', style:'sync'},
+      {f:'vps', t:'caddy', lbl:'hosts', style:'sync'},
+      {f:'caddy', t:'public_pages', lbl:'', style:'sync'},
+      {f:'caddy', t:'admin_ui', lbl:'', style:'sync'},
+      {f:'caddy', t:'customer_portal', lbl:'', style:'sync'},
+      {f:'public_pages', t:'embed_widget', lbl:'embed script', style:'sync'},
+      {f:'embed_widget', t:'fastapi', lbl:'/api/public/inquiry', style:'sync'},
+      {f:'admin_ui', t:'explorer', lbl:'graph UI', style:'sync'},
+      {f:'admin_ui', t:'growth_hub', lbl:'ops', style:'sync'},
+      {f:'admin_ui', t:'marketing_hub', lbl:'28 tabs', style:'sync'},
+      {f:'admin_ui', t:'team_ui', lbl:'staff', style:'sync'},
+      {f:'public_pages', t:'auth', lbl:'JWT', style:'sync'},
+      {f:'admin_ui', t:'auth', lbl:'JWT', style:'sync'},
+      {f:'customer_portal', t:'auth', lbl:'JWT+TOTP', style:'sync'},
+      {f:'auth', t:'tenant_wl', lbl:'host→slug', style:'sync'},
+      {f:'tenant_wl', t:'fastapi', lbl:'branding', style:'sync'},
+      {f:'auth', t:'fastapi', lbl:'authed', style:'sync'},
+      {f:'customer_portal', t:'billing', lbl:'plan', style:'sync'},
+      {f:'fastapi', t:'billing', lbl:'/api/billing', style:'sync'},
+      {f:'fastapi', t:'launch', lbl:'/api/activation', style:'sync'},
+      {f:'fastapi', t:'integration_gate', lbl:'audit scripts', style:'sync'},
+      {f:'integration_gate', t:'cross_path_audit', lbl:'guard', style:'sync'},
+      {f:'cross_path_audit', t:'vobiz_stream', lbl:'parity', style:'opt'},
+      {f:'cross_path_audit', t:'call_insights', lbl:'transcripts', style:'opt'},
+      {f:'integration_gate', t:'launch', lbl:'PASS gate', style:'sync'},
+      {f:'integration_gate', t:'explorer', lbl:'graph sync', style:'sync'},
+      {f:'launch', t:'admin_ui', lbl:'🚀 Launch tab', style:'sync'},
+      {f:'launch', t:'growth_hub', lbl:'dashboards', style:'sync'},
+      {f:'vps', t:'fastapi', lbl:'leadgen_app', style:'sync'},
+      {f:'fastapi', t:'mcp_product', lbl:'tools API', style:'sync'},
+      {f:'fastapi', t:'ai_staff', lbl:'dispatch', style:'sync'},
+      {f:'fastapi', t:'voice_brain', lbl:'WS', style:'sync'},
+      {f:'fastapi', t:'voice_product', lbl:'SKU', style:'sync'},
+      {f:'voice_brain', t:'telephony_hub', lbl:'streams', style:'sync'},
+      {f:'telephony_hub', t:'compliance', lbl:'DND gate', style:'sync'},
+      {f:'telephony_hub', t:'external', lbl:'Vobiz', style:'sync'},
+      {f:'voice_brain', t:'gap_transfer', lbl:'missing', style:'opt'},
+      {f:'fastapi', t:'celery', lbl:'enqueue', style:'async'},
+      {f:'fastapi', t:'external', lbl:'API', style:'sync'},
+      {f:'fastapi', t:'monitoring', lbl:'/metrics', style:'opt'},
+      {f:'fastapi', t:'data_layer', lbl:'R/W', style:'sync'},
+      {f:'marketing_hub', t:'fastapi', lbl:'/api/marketing', style:'sync'},
+      {f:'marketing_hub', t:'rag', lbl:'client KB', style:'sync'},
+      {f:'ai_staff', t:'free_ai', lbl:'LLM', style:'sync'},
+      {f:'ai_staff', t:'rag', lbl:'RAG', style:'sync'},
+      {f:'voice_brain', t:'free_ai', lbl:'LLM', style:'sync'},
+      {f:'voice_brain', t:'rag', lbl:'KB', style:'sync'},
+      {f:'celery', t:'ai_staff', lbl:'jobs', style:'async'},
+      {f:'celery', t:'data_layer', lbl:'persist', style:'async'},
+      {f:'free_ai', t:'external', lbl:'providers', style:'sync'},
+      {f:'rag', t:'data_layer', lbl:'Qdrant', style:'sync'},
+      {f:'external', t:'gap_meta', lbl:'blocked', style:'opt'},
+      {f:'celery', t:'celery', lbl:'beat↻worker', style:'loop'},
+      {f:'ai_staff', t:'celery', lbl:'requeue', style:'loop'},
+      {f:'team_ui', t:'ai_staff', lbl:'SSE events', style:'sync'},
+      {f:'admin_ui', t:'call_recordings', lbl:'🎙 recordings', style:'sync'},
+      {f:'call_recordings', t:'data_layer', lbl:'WAV files', style:'sync'},
+      {f:'voice_brain', t:'vobiz_stream', lbl:'WS sessions', style:'sync'},
+      {f:'vobiz_stream', t:'post_call_hooks', lbl:'_cleanup', style:'sync'},
+      {f:'post_call_hooks', t:'billing', lbl:'meter minutes', style:'async'},
+      {f:'post_call_hooks', t:'data_layer', lbl:'qualifications', style:'sync'},
+      {f:'vobiz_stream', t:'data_layer', lbl:'transcripts', style:'sync'},
+      {f:'vobiz_stream', t:'call_recordings', lbl:'save WAV', style:'async'},
+      {f:'call_insights', t:'data_layer', lbl:'read tail', style:'sync'},
+      {f:'growth_hub', t:'call_insights', lbl:'Ask AI', style:'sync'},
+      {f:'admin_ui', t:'call_insights', lbl:'/api/ai/command', style:'sync'},
+      {f:'telephony_hub', t:'post_call_hooks', lbl:'legacy path', style:'sync'},
+      {f:'marketing_hub', t:'brand_frames', lbl:'daily feed', style:'sync'},
+      {f:'growth_hub', t:'geo_vis', lbl:'geo-check', style:'sync'},
+      {f:'fastapi', t:'crm_sync', lbl:'lead sync', style:'opt'},
+      {f:'crm_sync', t:'external', lbl:'Zoho/HubSpot', style:'sync'},
+      {f:'ai_staff', t:'agent_memory', lbl:'memory', style:'async'},
+      {f:'public_pages', t:'turnstile', lbl:'bot gate', style:'opt'},
+      {f:'vobiz_stream', t:'telephony_hub', lbl:'events', style:'sync'},
+      {f:'celery', t:'fire_calls', lbl:'campaign', style:'async'},
+      {f:'fire_calls', t:'telephony_hub', lbl:'outbound', style:'sync'},
+      {f:'fire_calls', t:'data_layer', lbl:'call log', style:'async'},
+      {f:'minio', t:'data_layer', lbl:'S3 objects', style:'sync'},
+      {f:'fastapi', t:'rate_limit_mw', lbl:'plan check', style:'sync'},
+      {f:'rate_limit_mw', t:'billing', lbl:'quota R', style:'sync'},
+      {f:'marketing_hub', t:'client_snapshots', lbl:'clone setup', style:'sync'},
+      {f:'client_snapshots', t:'data_layer', lbl:'data/snapshots', style:'sync'},
+      {f:'client_snapshots', t:'rag', lbl:'onboard KB', style:'async'},
+      {f:'brand_frames', t:'data_layer', lbl:'daily feed', style:'sync'},
+      {f:'geo_vis', t:'public_pages', lbl:'/geo-check', style:'sync'},
+      {f:'mcp_product', t:'rag', lbl:'score-lead KB', style:'sync'},
+      {f:'monitoring', t:'vps', lbl:'host metrics', style:'sync'},
+      {f:'monitoring', t:'external', lbl:'ntfy alerts', style:'async'},
+      {f:'turnstile', t:'fastapi', lbl:'verify token', style:'sync'},
+      {f:'voice_product', t:'voice_brain', lbl:'telecaller', style:'sync'},
+      {f:'voice_product', t:'billing', lbl:'voice_packages', style:'sync'},
+      {f:'compliance', t:'data_layer', lbl:'consent/DND log', style:'sync'},
+      {f:'agent_memory', t:'data_layer', lbl:'memory purge', style:'sync'},
+      {f:'gap_transfer', t:'telephony_hub', lbl:'connect-leg', style:'opt'},
+      {f:'marketing_hub', t:'embed_widget', lbl:'widget tab', style:'sync'},
+      {f:'fastapi', t:'minio', lbl:'get_storage', style:'opt'},
+      {f:'marketing_hub', t:'gap_meta', lbl:'auto-post blocked', style:'opt'},
+    ],
+    tour: [
+      {title:'System Overview', nodeId:null, desc:'LeadGen AI — Marketing + Voice products on single VPS Mumbai. Red dashed = backlog gaps.'},
+      {title:'Caddy Edge', nodeId:'caddy', desc:'TLS termination → Docker app :8000'},
+      {title:'Embed Widget', nodeId:'embed_widget', desc:'Client site pe 1-line script → inquiry → lead distribution'},
+      {title:'Marketing Hub', nodeId:'marketing_hub', desc:'28-tab marketing command center'},
+      {title:'Growth Hub', nodeId:'growth_hub', desc:'Outreach, dialer, analytics, unified dashboards'},
+      {title:'Explorer', nodeId:'explorer', desc:'Live architecture graph — auto-syncs health + launch'},
+      {title:'Launch Gate', nodeId:'launch', desc:'production_ready — marketing+ops green (payments/calling optional)'},
+      {title:'Integration Gate', nodeId:'integration_gate', desc:'python scripts/final_integration_check.py'},
+      {title:'Voice Stack', nodeId:'telephony_hub', desc:'Vobiz WS + compliance gates'},
+      {title:'Gap: Transfer', nodeId:'gap_transfer', desc:'P0 backlog — biggest voice differentiator missing'},
+      {title:'Data Layer', nodeId:'data_layer', desc:'Postgres + Redis + Qdrant'},
+    ],
+    presets: [
+      {id:'all', label:'Full Stack', nodes:null, edges:null},
+      {id:'products', label:'Products', nodes:['public_pages','marketing_hub','voice_product','customer_portal','billing','embed_widget'], edges:null},
+      {id:'voice', label:'Voice Stack', nodes:['voice_brain','vobiz_stream','post_call_hooks','call_insights','voice_product','telephony_hub','compliance','free_ai','rag','call_recordings','fire_calls','gap_transfer'], edges:null},
+      {id:'gaps', label:'Gap Analysis', nodes:['gap_transfer','gap_meta','launch','monitoring','cross_path_audit'], edges:null},
+      {id:'new', label:'New Features', nodes:['call_recordings','vobiz_stream','post_call_hooks','call_insights','cross_path_audit','brand_frames','geo_vis','fire_calls','minio','rate_limit_mw','crm_sync','agent_memory','turnstile','admin_ui','data_layer','fastapi'], edges:null},
+    ],
+  },
+
+  automation: {
+    label: 'Complete Automation Pipeline',
+    badge: 'AUTOMATION PIPELINE',
+    world: {w: 2900, h: 1650},
+    nodes: [
+      {id:'beat', type:'platform', badge:'SCHEDULER', cx:'simple', sched:'IST cron', title:'Celery Beat + team_scheduler', desc:'06:30 blog · 07:00 content · 09:30+14:30 prospect · 10:30 outreach · 11:00 pipeline · 16:00 email_followup · 18:30 wrap · 08:00 standup · hourly engineer_sre/finops/security · readiness_digest · 15min growth-pulse', files:'worker.py · team_scheduler.py · staff_jobs.py', flag:'TEAM_AUTOMATION', x:1020, y:20, w:260, h:115},
+      {id:'worker', type:'platform', badge:'QUEUE', cx:'moderate', sched:'concurrency=4', title:'Celery Worker', desc:'Redis broker → staff_jobs queue. DLQ dlq:failed_tasks. Boot-grace on heavy jobs.', files:'app/worker.py', x:1020, y:180, w:260, h:100},
+      {id:'blog', type:'marketing', badge:'BLOG', cx:'simple', sched:'06:30 daily', title:'Programmatic Blog SEO', desc:'Niche×city blog posts · sitemap · IndexNow hook', files:'blog_generator · seo_pages.py · seo_blog.py', x:40, y:360, w:230, h:100},
+      {id:'prospect', type:'marketing', badge:'SCRAPE', cx:'moderate', sched:'09:30 daily', title:'Prospector + Lead Harvester', desc:'Google Maps · OSM · SearXNG · LEAD_HARVESTER · 39 niches rotation', files:'prospector.py · lead_harvester.py', flag:'NICHE_ROTATION', x:300, y:360, w:250, h:110},
+      {id:'score', type:'ai', badge:'SCORE', cx:'simple', sched:'post-scrape', title:'Lead Scoring Engine', desc:'0-100 score · hot-lead flag · rescore_db after each scrape batch', files:'lead_scoring.py', x:580, y:360, w:220, h:100},
+      {id:'outreach', type:'marketing', badge:'OUTREACH', cx:'moderate', sched:'10:30 daily', title:'Email Outreach (Rohan)', desc:'Hinglish cold-email · Day-3/7 followups · MX verify · RFC8058 List-Unsubscribe · cap 25/day', files:'auto_outreach.py · email_unsub.py', flag:'AUTO_EMAIL_OUTREACH', x:840, y:360, w:240, h:110},
+      {id:'email_unsub', type:'marketing', badge:'RFC8058', cx:'simple', sched:'on send', title:'One-Click Unsubscribe', desc:'List-Unsubscribe header + POST /api/lifecycle/outreach-unsub · suppression jsonl', files:'email_unsub.py · lifecycle.py', x:1080, y:360, w:260, h:100},
+      {id:'reply', type:'marketing', badge:'TRIAGE', cx:'moderate', sched:'hourly', title:'Reply Agent (IMAP)', desc:'Intent classify → status update → Hinglish draft (1-click send, auto OFF)', files:'reply_agent.py', flag:'REPLY_AGENT', x:1120, y:360, w:240, h:110},
+      {id:'content', type:'marketing', badge:'CONTENT', cx:'moderate', sched:'07:00 daily', title:'Content Generator (Isha)', desc:'Daily posts · content_schedule · festival autoschedule · approval queue', files:'auto_content.py · content_schedule.py', flag:'USE_STRUCTURED_CONTENT', x:1400, y:360, w:250, h:110},
+      {id:'content_approve', type:'marketing', badge:'APPROVE', cx:'moderate', sched:'on submit', title:'Content Approval Loop', desc:'clientops decide API · admin God Mode ✓/✕ · customer portal · automation Approvals tab', files:'content_approval.py · clientops.py', x:1680, y:360, w:280, h:110},
+      {id:'journey', type:'marketing', badge:'JOURNEY', cx:'moderate', sched:'event-driven', title:'Journey / Cadence Engine', desc:'inquiry_received · signup · multi-channel cadence drafts', files:'journeys.py · cadence.py', flag:'JOURNEY_ENGINE', x:1960, y:360, w:240, h:110},
+      {id:'onboard', type:'marketing', badge:'ONBOARD', cx:'moderate', sched:'hourly', title:'Auto Onboard + FDE', desc:'Website→KB seed · first content pack · FDE deploy skills', files:'onboarding.py · fde.py', flag:'AUTO_ONBOARD', x:2240, y:360, w:240, h:110},
+      {id:'lead_dist', type:'marketing', badge:'ROUTING', cx:'simple', sched:'on inquiry', title:'Lead Distribution', desc:'Round-robin team assign · wa.me handoff link · per-client routing', files:'lead_distribution.py', x:2520, y:360, w:240, h:110},
+      {id:'stl', type:'monitor', badge:'SLA', cx:'simple', sched:'real-time', title:'Speed-to-Lead', desc:'Inquiry→first-touch SLA · /api/clientops · 2-min target metric', files:'clientops.py · speed_to_lead.py', x:2520, y:500, w:240, h:100},
+      {id:'coordinator', type:'ai', badge:'ORCHESTRATE', cx:'complex', sched:'on-demand', title:'Multi-Agent Coordinator', desc:'Sequential · Parallel · Hierarchical · Reflexion · growth-pulse */15', files:'coordinator.py', x:300, y:560, w:260, h:110},
+      {id:'process', type:'ai', badge:'PROCESS', cx:'complex', sched:'tick', title:'Process Engine', desc:'Process-as-code · event journal · human breakpoints · lead_campaign', files:'process_engine.py', x:600, y:560, w:260, h:110},
+      {id:'self_improve', type:'loop', badge:'LOOP', cx:'complex', sched:'180s cycle', title:'Self-Improve Loop', desc:'Pick task → execute → learn → Celery requeue · 15 actions incl voice_eval · rescore_pipeline · cadence_sweep. SELF_IMPROVE_LOOP=1', files:'self_improve.py', flag:'SELF_IMPROVE_LOOP', x:920, y:560, w:260, h:110},
+      {id:'eval_gate', type:'ai', badge:'SAFETY', cx:'moderate', sched:'on eval', title:'Eval Gate', desc:'Regression detection on LLM quality · wired self_improve + CI', files:'eval_gate.py · eval_metrics.py · eval_suite.py', flag:'EVAL_GATE', x:1220, y:560, w:230, h:100},
+      {id:'sales', type:'marketing', badge:'SALES', cx:'moderate', sched:'on trigger', title:'Sales Team + Closer', desc:'BANT deep-dive · auto-proposal · pipeline stages', files:'sales_team.py · sales_pipeline.py · proposal_tracking.py', flag:'SALES_TEAM', x:1480, y:560, w:240, h:100},
+      {id:'revenue', type:'monitor', badge:'REVENUE', cx:'moderate', sched:'daily digest', title:'Revenue Ops (Nikhil)', desc:'Dunning · lifecycle nurture · client health · MRR digest', files:'dunning · lifecycle · client_health.py · revenue_digest.py · revenue_snapshots.py · reporting.py · winback.py', flag:'DUNNING_ENGINE', x:1760, y:560, w:240, h:100},
+      {id:'growth_opt', type:'ai', badge:'OPTIMIZE', cx:'moderate', sched:'15min', title:'Growth Optimizer', desc:'Funnel snapshot · weakest stage · experiment suggestions', files:'growth_optimizer.py · growth_engine.py', flag:'GROWTH_OPTIMIZER', x:2040, y:560, w:240, h:100},
+      {id:'channel_exp', type:'marketing', badge:'BANDIT', cx:'moderate', sched:'hourly', title:'Channel Experiments', desc:'17 legal channels · bandit drafts · no auto-post', files:'channel_experiments.py', flag:'CHANNEL_EXPERIMENTS', x:2320, y:560, w:240, h:100},
+      {id:'ops', type:'monitor', badge:'WATCHDOG', cx:'simple', sched:'hourly', title:'Ops Watchdog + Engineers', desc:'heartbeat · revive */20min · engineer_sre hourly :45 · engineer_finops 09:00 · engineer_security 09:30 · readiness_digest · integration_health probes', files:'ops_watchdog.py · engineer_agents · infra_handler.py · integration_health.py', flag:'OPS_WATCHDOG', x:2580, y:560, w:260, h:110},
+      {id:'whatsapp_wa', type:'external', badge:'WHATSAPP', cx:'moderate', sched:'1-click', title:'WhatsApp Campaigns', desc:'Official Cloud API only · 1-click links default · auto gated', files:'whatsapp_campaign.py · wa_campaign_runner.py', flag:'WHATSAPP_AUTO_SEND', x:40, y:720, w:240, h:95},
+      {id:'telegram_pub', type:'external', badge:'TELEGRAM', cx:'simple', sched:'auto', title:'Telegram Auto-Publish', desc:'First TRUE auto-post channel · TELEGRAM_AUTO_PUBLISH=1', files:'telegram integration · telegram_publish.py', flag:'TELEGRAM_AUTO_PUBLISH', x:300, y:720, w:240, h:95},
+      {id:'seo_pages', type:'marketing', badge:'SEO', cx:'moderate', sched:'batch', title:'Programmatic SEO', desc:'Niche×city landing pages · FAQ schema · /audit CTA', files:'seo_pages.py', x:580, y:720, w:230, h:95},
+      {id:'free_ai', type:'ai', badge:'LLM', cx:'complex', title:'Free AI Chain', desc:'Mistral PRIMARY → Groq → Cerebras. Circuit-breaker on 429', files:'free_ai.py', x:860, y:720, w:220, h:95},
+      {id:'data', type:'data', badge:'STORE', cx:'moderate', title:'Data Layer', desc:'Postgres leads/clients · Redis queue · jsonl stores · agent_events', files:'models/ · data/', x:1120, y:720, w:280, h:95},
+      {id:'events', type:'platform', badge:'EVENTS', cx:'simple', title:'agent_events + SSE', desc:'Every job logs here → /app/team · /api/events/stream', files:'team.py · events.py', x:1440, y:720, w:240, h:95},
+      {id:'ui', type:'platform', badge:'CONTROL', cx:'simple', title:'Mission Control UI', desc:'/app/automation 28 tabs · Approvals · ClientOps · Launch · self-improve', files:'automation.html', x:1720, y:720, w:260, h:95},
+      {id:'admin_hub', type:'platform', badge:'GOD MODE', cx:'simple', title:'Admin Automation Hub', desc:'/app/admin — PRODUCTION READY · 21 workflow buttons · bulk email · campaign optional', files:'admin_dashboard.html', x:1480, y:720, w:270, h:95},
+      {id:'launch', type:'monitor', badge:'LAUNCH', cx:'simple', sched:'60s poll', title:'Production Ready', desc:'production_ready · blocker_count=0 · payments/calling optional', files:'activation.py · final_integration_check.py', x:2020, y:720, w:250, h:95},
+      {id:'public_in', type:'external', badge:'TRIGGER', cx:'simple', title:'Inbound Triggers', desc:'/api/public/inquiry · signup · audit → journey + lead_dist', files:'public_site.py', x:2300, y:720, w:250, h:95},
+      {id:'customer_wh', type:'external', badge:'WEBHOOK', cx:'simple', title:'Customer Webhooks', desc:'lead.created · lead.qualified · call.completed · call.report.ready · Svix HMAC', files:'customer_webhooks.py', x:2580, y:720, w:250, h:95},
+      {id:'gap_transfer', type:'gap', badge:'GAP P0', cx:'complex', title:'Live Human Transfer', desc:'PARTIAL — call_transfer.py + Vobiz connect-leg (CALL_TRANSFER=1) · needs DID recharge', files:'call_transfer.py', x:40, y:880, w:250, h:95},
+      {id:'client_snapshots', type:'marketing', badge:'LIVE', cx:'moderate', title:'Client Snapshots (GHL)', desc:'capture_from_niche + client capture → apply — mini-site/widget/journeys/festivals · AUTO_ONBOARD wired · /app/automation ClientOps', files:'client_snapshots.py · clientops.py', x:320, y:880, w:280, h:95},
+      {id:'fire_campaign', type:'marketing', badge:'CAMPAIGN', cx:'moderate', sched:'manual/daily', title:'Outbound Campaign (Swara)', desc:'fire_calls.py · leads DB top-N → AI call [--client-id → client name+niche] → disposition · mark_called · TRAI 10am-7pm gate', files:'scripts/fire_calls.py', flag:'VOBIZ_CALL_RECORD', x:40, y:1010, w:270, h:110},
+      {id:'call_review', type:'monitor', badge:'REVIEW', cx:'simple', sched:'async', title:'Recording Review Loop', desc:'WAV caller+bot saved → admin player (auth-header blob fetch, 401-safe) → agent quality tuning feedback loop', files:'app/api/call_recordings.py · admin_dashboard.html', x:360, y:1010, w:270, h:110},
+      {id:'ntfy_alerts', type:'external', badge:'PUSH', cx:'simple', sched:'event-driven', title:'ntfy Push Alerts', desc:'https://ntfy.leadsgenai.in · ops_alerts fan-out · engineer score / eval burst / dead-letter / readiness digest', files:'app/platform/ops_alerts.py', x:680, y:1010, w:270, h:110},
+      {id:'rm_ops', type:'gap', badge:'P1 OPS', cx:'simple', sched:'user .env', title:'Ops Unlock - First Real Call', desc:'VOBIZ_CALLER_ID + Vobiz balance -> readiness 70+ -> dry-run -> 1 live test call. USER .env action, code nahi.', files:'.env · telephony_readiness.py', x:40, y:1280, w:270, h:110},
+      {id:'rm_voiceqa', type:'gap', badge:'P2 QA', cx:'complex', title:'Voice QA Sprint', desc:'agent_tester.py baseline -> /app/test-call -> _script_fallback discovery + re-greet fix + latency. Compliance gates untouched.', files:'telecaller_brain.py · agent_tester.py', x:340, y:1280, w:270, h:110},
+      {id:'rm_admin', type:'gap', badge:'P3 UX', cx:'moderate', title:'Admin Launch Polish', desc:'PARTIAL - client name+slug dropdown DONE this sprint. Pending: real per-run campaign history (needs run persistence).', files:'admin_dashboard.html', x:640, y:1280, w:270, h:110},
+      {id:'rm_upi', type:'platform', badge:'SHIPPED', cx:'moderate', sched:'live', title:'UPI Revenue Loop ✓', desc:'UPI_VPA live · /api/public/pay-info enabled · ready_for_first_paid_customer · admin configure API', files:'upi_config.py · activation.py', x:940, y:1280, w:270, h:110},
+      {id:'post_call_pipe', type:'voice', badge:'POST-CALL', cx:'moderate', sched:'on hangup', title:'Post-Call Pipeline', desc:'vobiz _cleanup → meter_call_completion → auto_qualify → outbound call.completed + CRM downstream', files:'post_call_hooks.py · vobiz_stream.py', flag:'AUTO_QUALIFY_CALLS', x:1240, y:880, w:280, h:110},
+      {id:'rm_postcall', type:'platform', badge:'SHIPPED', cx:'simple', sched:'live', title:'Post-Call Intelligence ✓', desc:'AUTO_QUALIFY_CALLS ON · post_call_hooks metering · call_insights reads transcripts · customer call.completed', files:'post_call_hooks.py · call_insights.py', x:1240, y:1280, w:270, h:110},
+      {id:'rm_obs', type:'gap', badge:'MEDIUM', cx:'simple', sched:'env', title:'Observability', desc:'SENTRY_DSN + POSTHOG_API_KEY -> call-fail / LLM 429 visibility (activation Phase 1).', files:'.env', x:40, y:1420, w:270, h:110},
+      {id:'rm_deploy', type:'gap', badge:'MEDIUM', cx:'simple', sched:'env', title:'Deploy Automation', desc:'DEPLOY_ENABLED=true + GHCR secrets -> CI auto-deploy (manual SSH loop kam).', files:'CI · .env', x:340, y:1420, w:270, h:110},
+      {id:'rm_sec', type:'platform', badge:'SHIPPED', cx:'simple', title:'NL Command Auth ✓', desc:'/api/ai/command require_admin + tier rate-limit · call_insights action wired', files:'ai.py · auth_deps.py', x:640, y:1420, w:270, h:110},
+      {id:'rm_inbound', type:'gap', badge:'MEDIUM', cx:'moderate', sched:'flag', title:'Inbound Auto-Callback', desc:'AUTO_CALLBACK_INQUIRY transactional -> cold-call ke bina voice demo (consent already hai).', files:'missed_call.py', x:940, y:1420, w:270, h:110},
+      {id:'rm_seo', type:'gap', badge:'MEDIUM', cx:'simple', title:'SEO Follow-through', desc:'GSC_SUBMIT_TODAY.md follow -> organic inbound (free leads, marketing+voice dono).', files:'seo_pages.py', x:1240, y:1420, w:270, h:110},
+      {id:'pipeline_ops', type:'marketing', badge:'PIPELINE', cx:'moderate', sched:'11:00 + 16:00', title:'Pipeline Ops (Neha)', desc:'Daily 11:00 lead rescore + hot-lead surfacing for Rohan · 16:00 Day-3/7 followup pass · journey seed (gated)', files:'pipeline_ops.py', x:1560, y:1010, w:270, h:110},
+      {id:'sched_ops', type:'platform', badge:'SCHEDULE', cx:'moderate', sched:'18:30 · Wed · Sat', title:'Secondary Schedule', desc:'evening_wrap 18:30 EOD recap · weekly_marketing Wed 12:30 S-tier packs · saturday_hygiene 04:00 DLQ+celery trim', files:'scheduled_ops.py · dlq_retry.py', flag:'WEEKLY_MARKETING_PACK', x:1860, y:1010, w:270, h:110},
+      {id:'kb_weekly', type:'ai', badge:'KB SYNC', cx:'simple', sched:'Sun 05:00', title:'Weekly KB Refresh', desc:'Client website → KB contextual re-ingest (cursor-rotate, 5/week) · keeps RAG grounding fresh', files:'kb_refresh.py', flag:'KB_WEEKLY_REFRESH', x:2160, y:1010, w:250, h:110},
+      // --- Sprint 2026-06-19 (shipped this session; flags noted) ---
+      {id:'approvals_cockpit', type:'platform', badge:'SHIPPED', cx:'moderate', sched:'live', title:'Agentic Approval Cockpit ✓', desc:'Unified 1-click queue — sales/coordinator/fde drafts → risk-tiered approve (safe-auto, risky manual) · /app/automation Approvals tab', files:'approvals_bridge.py', flag:'CUSTOMER_WEBHOOKS', x:40, y:1560, w:280, h:110},
+      {id:'meter_watch', type:'platform', badge:'SHIPPED', cx:'simple', sched:'hourly :55', title:'Billing Meter Watch ✓', desc:'minute/lead meter-failure → Redis billing:meter_failures → ntfy (revenue-leak visibility)', files:'meter_watch.py · usage.py · usage_alerts.py', flag:'METER_ALERTS', x:340, y:1560, w:260, h:110},
+      {id:'loop_supervisor', type:'platform', badge:'SHIPPED', cx:'simple', sched:'120s', title:'Loop Supervisor ✓', desc:'Re-spawns dead call-processor + boot-grace-skip ntfy visibility (SPOF hardening)', files:'loop_supervisor.py', flag:'LOOP_SUPERVISOR', x:620, y:1560, w:250, h:110},
+      {id:'process_autostart', type:'platform', badge:'SHIPPED', cx:'moderate', sched:'11:30 IST', title:'Process Auto-Start ✓', desc:'Deterministic workflows auto-start (idempotent, capped, breakpoint-paused → cockpit)', files:'process_autostart.py', flag:'PROCESS_AUTOSTART', x:890, y:1560, w:270, h:110},
+      {id:'content_distribute', type:'marketing', badge:'SHIPPED', cx:'simple', sched:'content job', title:'Content Auto-Publish ✓', desc:'Self-brand ready content → Telegram + IndexNow/SEO (Meta/GBP stay draft)', files:'content_distribute.py', flag:'CONTENT_AUTOPUBLISH', x:1180, y:1560, w:260, h:110},
+      {id:'vobiz_inbound', type:'voice', badge:'SHIPPED', cx:'simple', sched:'on inbound', title:'Vobiz Inbound Webhook ✓', desc:'POST /api/webhooks/vobiz/inbound → missed_call lead capture (callback needs DID) · AMD detect gated', files:'webhooks.py · vobiz_stream.py', flag:'AMD_DETECT', x:1460, y:1560, w:270, h:110},
+      // --- Core engines/ops (completeness pass 2026-06-19) ---
+      {id:'automation_health', type:'monitor', badge:'DEAD-MAN', cx:'simple', sched:'continuous', title:'Automation Health', desc:'Dead-man switch — har scheduled job ka last-run + overdue/failed detection · /api/growth/infra/automation-health', files:'automation_health.py', x:40, y:1720, w:260, h:100},
+      {id:'llm_metrics', type:'monitor', badge:'LLM OBS', cx:'simple', sched:'live', title:'LLM Metrics', desc:'Per-provider calls/ok-rate/latency/fallback + circuit-breaker cooldown state', files:'llm_metrics.py', x:340, y:1720, w:250, h:100},
+      {id:'code_upgrader', type:'ai', badge:'VIKRAM', cx:'moderate', sched:'hourly', title:'Code Upgrader', desc:'Signals → free-LLM patch PROPOSALS (data/code_patches.jsonl) → admin approve · core code KABHI auto-apply nahi', files:'code_upgrader.py', flag:'CODE_UPGRADER', x:620, y:1720, w:260, h:100},
+      {id:'skill_pack', type:'ai', badge:'SKILLS', cx:'simple', sched:'on ingest', title:'Skill Pack', desc:'Agents ko find/snippet_for + KB "skills" ns ingest · 241 skills (project+agency+ECC)', files:'skill_pack.py', flag:'SKILL_PACK', x:920, y:1720, w:260, h:100},
+      {id:'memory_vault', type:'ai', badge:'MEMORY', cx:'simple', sched:'sync job', title:'Memory Vault', desc:'Per-prospect/client markdown memory + call-prep briefs + live notes (compounding context)', files:'memory_vault.py · live_notes.py', flag:'MEMORY_VAULT', x:1220, y:1720, w:260, h:100},
+      {id:'consent_ledger', type:'platform', badge:'TRAI', cx:'simple', sched:'on opt-out', title:'Consent Ledger', desc:'Opt-out → INSTANT cross-channel suppression + 90-din recording retention (DPDP/TRAI)', files:'consent_ledger.py', x:1520, y:1720, w:260, h:100},
+      {id:'review_monitor', type:'marketing', badge:'REVIEWS', cx:'simple', sched:'daily', title:'Review Monitor', desc:'Google review monitor → new-review alerts + AI reply drafts (reputation loop)', files:'review_monitor.py · brand_pulse.py', flag:'REVIEW_MONITOR', x:40, y:1840, w:260, h:100},
+      {id:'rank_tracker', type:'marketing', badge:'SEO RANK', cx:'simple', sched:'daily', title:'Rank Tracker', desc:'Free keyword-rank tracking → SEO trend + drop alerts', files:'rank_tracker.py', flag:'RANK_TRACKER', x:340, y:1840, w:250, h:100},
+      {id:'deliverability_monitor', type:'monitor', badge:'INBOX', cx:'simple', sched:'daily', title:'Deliverability Monitor', desc:'Email bounce/spam-rate watch → auto warmup-pause (sender-reputation guard)', files:'deliverability_monitor.py', flag:'DELIVERABILITY_MONITOR', x:620, y:1840, w:270, h:100},
+      {id:'niche_prospector', type:'marketing', badge:'SCRAPE', cx:'moderate', sched:'09:30 + 14:30', title:'Niche Prospector', desc:'Google Maps (Places New) + OSM Overpass → real phones+reviews, cap-limited · niche+city rotation', files:'niche_prospector.py', flag:'NICHE_ROTATION', x:920, y:1840, w:280, h:100},
+      {id:'auto_trainer', type:'ai', badge:'ML TRAIN', cx:'moderate', sched:'03:00 nightly', title:'Auto Trainer (Meera)', desc:'Nightly batch ML model train/improve from collected data · ML_NIGHTLY_TRAINING', files:'auto_trainer.py', flag:'ML_NIGHTLY_TRAINING', x:1240, y:1840, w:260, h:100},
+      {id:'booking_reminders', type:'marketing', badge:'REMIND', cx:'simple', sched:'daily', title:'Booking Reminders', desc:'Calendly/HighLevel-pattern booking + no-show reminders (no-show kam karo)', files:'booking_reminders.py', x:1520, y:1840, w:260, h:100},
+      {id:'service_reminders', type:'marketing', badge:'REPEAT', cx:'simple', sched:'daily', title:'Service Reminders', desc:'Repeat-service reminders (NiceJob parity) — recurring-revenue nudges', files:'service_reminders.py', x:40, y:1960, w:260, h:100},
+      {id:'customer_crm', type:'marketing', badge:'CRM', cx:'simple', sched:'daily', title:'Customer Mini-CRM + Wishes', desc:'End-customer mini-CRM + birthday/anniversary WISH engine (per-client retention)', files:'customer_crm.py', x:320, y:1960, w:270, h:100},
+      {id:'newsletter', type:'marketing', badge:'NEWSLETTER', cx:'simple', sched:'scheduled', title:'Auto Newsletter', desc:'Mailchimp-lite per-client newsletter to THEIR customers', files:'newsletter.py', x:620, y:1960, w:260, h:100},
+      {id:'client_report', type:'marketing', badge:'REPORT', cx:'simple', sched:'monthly/weekly', title:'Client Report + Team Story', desc:'White-label monthly client report + weekly AI-team story (retention #1)', files:'client_report.py · team_report.py', x:920, y:1960, w:280, h:100},
+    ],
+    edges: [
+      {f:'beat', t:'worker', lbl:'cron fire', style:'async'},
+      {f:'worker', t:'auto_trainer', lbl:'nightly', style:'async'},
+      {f:'worker', t:'booking_reminders', lbl:'daily', style:'async'},
+      {f:'worker', t:'service_reminders', lbl:'daily', style:'async'},
+      {f:'worker', t:'customer_crm', lbl:'daily', style:'async'},
+      {f:'worker', t:'newsletter', lbl:'sched', style:'async'},
+      {f:'worker', t:'client_report', lbl:'monthly', style:'async'},
+      {f:'worker', t:'blog', lbl:'06:30', style:'async'},
+      {f:'worker', t:'prospect', lbl:'09:30', style:'async'},
+      {f:'worker', t:'content', lbl:'07:00', style:'async'},
+      {f:'worker', t:'outreach', lbl:'10:30', style:'async'},
+      {f:'worker', t:'reply', lbl:'hourly', style:'async'},
+      {f:'worker', t:'onboard', lbl:'hourly', style:'async'},
+      {f:'worker', t:'ops', lbl:'hourly', style:'async'},
+      {f:'worker', t:'self_improve', lbl:'180s', style:'async'},
+      {f:'worker', t:'growth_opt', lbl:'*/15', style:'async'},
+      {f:'blog', t:'seo_pages', lbl:'index', style:'sync'},
+      {f:'blog', t:'data', lbl:'posts', style:'sync'},
+      {f:'prospect', t:'score', lbl:'rescore', style:'sync'},
+      {f:'score', t:'data', lbl:'persist', style:'sync'},
+      {f:'score', t:'outreach', lbl:'hot leads', style:'sync'},
+      {f:'outreach', t:'free_ai', lbl:'draft email', style:'sync'},
+      {f:'outreach', t:'email_unsub', lbl:'List-Unsub hdr', style:'sync'},
+      {f:'email_unsub', t:'data', lbl:'suppression', style:'sync'},
+      {f:'outreach', t:'data', lbl:'sent log', style:'sync'},
+      {f:'reply', t:'journey', lbl:'interested', style:'sync'},
+      {f:'reply', t:'sales', lbl:'hot reply', style:'sync'},
+      {f:'content', t:'content_approve', lbl:'submit draft', style:'sync'},
+      {f:'content_approve', t:'data', lbl:'approved', style:'sync'},
+      {f:'content', t:'free_ai', lbl:'generate', style:'sync'},
+      {f:'content', t:'data', lbl:'queue', style:'sync'},
+      {f:'content', t:'telegram_pub', lbl:'publish', style:'async'},
+      {f:'public_in', t:'journey', lbl:'inquiry_received', style:'sync'},
+      {f:'public_in', t:'lead_dist', lbl:'assign', style:'sync'},
+      {f:'public_in', t:'stl', lbl:'SLA clock', style:'sync'},
+      {f:'public_in', t:'data', lbl:'lead row', style:'sync'},
+      {f:'public_in', t:'customer_wh', lbl:'lead.created', style:'async'},
+      {f:'lead_dist', t:'whatsapp_wa', lbl:'wa handoff', style:'sync'},
+      {f:'journey', t:'outreach', lbl:'cadence step', style:'async'},
+      {f:'journey', t:'sales', lbl:'qualify', style:'sync'},
+      {f:'onboard', t:'data', lbl:'KB+pack', style:'sync'},
+      {f:'onboard', t:'content', lbl:'first pack', style:'sync'},
+      {f:'onboard', t:'client_snapshots', lbl:'niche clone', style:'sync'},
+      {f:'self_improve', t:'coordinator', lbl:'pick goal', style:'sync'},
+      {f:'self_improve', t:'eval_gate', lbl:'regression', style:'sync'},
+      {f:'coordinator', t:'process', lbl:'workflow', style:'sync'},
+      {f:'coordinator', t:'prospect', lbl:'scrape task', style:'async'},
+      {f:'coordinator', t:'outreach', lbl:'campaign', style:'async'},
+      {f:'coordinator', t:'channel_exp', lbl:'experiments', style:'sync'},
+      {f:'growth_opt', t:'channel_exp', lbl:'weakest→test', style:'sync'},
+      {f:'process', t:'sales', lbl:'deep-dive', style:'sync'},
+      {f:'process', t:'revenue', lbl:'dunning gate', style:'sync'},
+      {f:'sales', t:'revenue', lbl:'pipeline', style:'sync'},
+      {f:'revenue', t:'data', lbl:'billing', style:'sync'},
+      {f:'ops', t:'beat', lbl:'revive', style:'loop'},
+      {f:'ops', t:'worker', lbl:'health', style:'sync'},
+      {f:'ops', t:'launch', lbl:'probes', style:'sync'},
+      {f:'worker', t:'events', lbl:'log', style:'sync'},
+      {f:'events', t:'ui', lbl:'SSE live', style:'sync'},
+      {f:'events', t:'admin_hub', lbl:'God Mode', style:'sync'},
+      {f:'admin_hub', t:'launch', lbl:'readiness', style:'sync'},
+      {f:'ui', t:'launch', lbl:'readiness', style:'sync'},
+      {f:'launch', t:'ui', lbl:'banner', style:'loop'},
+      {f:'self_improve', t:'worker', lbl:'requeue', style:'loop'},
+      {f:'worker', t:'self_improve', lbl:'tick', style:'loop'},
+      {f:'reply', t:'outreach', lbl:'followup draft', style:'loop'},
+      {f:'score', t:'prospect', lbl:'niche cursor', style:'loop'},
+      {f:'beat', t:'beat', lbl:'heartbeat', style:'loop'},
+      {f:'content_approve', t:'whatsapp_wa', lbl:'1-click post', style:'async'},
+      {f:'sales', t:'gap_transfer', lbl:'needs transfer', style:'opt'},
+      {f:'worker', t:'fire_campaign', lbl:'campaign', style:'async'},
+      {f:'fire_campaign', t:'free_ai', lbl:'Swara brain', style:'sync'},
+      {f:'fire_campaign', t:'data', lbl:'call log', style:'sync'},
+      {f:'fire_campaign', t:'post_call_pipe', lbl:'hangup', style:'sync'},
+      {f:'post_call_pipe', t:'customer_wh', lbl:'call.completed', style:'async'},
+      {f:'post_call_pipe', t:'data', lbl:'transcripts+quals', style:'sync'},
+      {f:'post_call_pipe', t:'call_review', lbl:'qualify signal', style:'async'},
+      {f:'post_call_pipe', t:'sales', lbl:'qualified lead', style:'async'},
+      {f:'call_review', t:'self_improve', lbl:'quality signal', style:'loop'},
+      {f:'ops', t:'ntfy_alerts', lbl:'push alert', style:'async'},
+      // --- Sprint 2026-06-19 edges ---
+      {f:'process_autostart', t:'process', lbl:'start_run', style:'async'},
+      {f:'process', t:'approvals_cockpit', lbl:'breakpoint', style:'sync'},
+      {f:'sales', t:'approvals_cockpit', lbl:'deep-dive draft', style:'async'},
+      {f:'coordinator', t:'approvals_cockpit', lbl:'plan draft', style:'async'},
+      {f:'approvals_cockpit', t:'ui', lbl:'1-click', style:'sync'},
+      {f:'meter_watch', t:'ntfy_alerts', lbl:'leak alert', style:'async'},
+      {f:'loop_supervisor', t:'ntfy_alerts', lbl:'SPOF alert', style:'async'},
+      {f:'content', t:'content_distribute', lbl:'ready→publish', style:'async'},
+      {f:'content_distribute', t:'telegram_pub', lbl:'self-brand', style:'async'},
+      {f:'public_in', t:'vobiz_inbound', lbl:'inbound call', style:'opt'},
+      // --- core engines/ops edges ---
+      {f:'worker', t:'automation_health', lbl:'heartbeat', style:'sync'},
+      {f:'automation_health', t:'ntfy_alerts', lbl:'overdue', style:'async'},
+      {f:'free_ai', t:'llm_metrics', lbl:'track', style:'sync'},
+      {f:'ops', t:'code_upgrader', lbl:'scan signals', style:'async'},
+      {f:'review_monitor', t:'ntfy_alerts', lbl:'new review', style:'async'},
+      {f:'prospect', t:'niche_prospector', lbl:'harvest', style:'sync'},
+      {f:'launch', t:'ntfy_alerts', lbl:'readiness', style:'async'},
+      {f:'eval_gate', t:'ntfy_alerts', lbl:'regression', style:'async'},
+      {f:'customer_wh', t:'ntfy_alerts', lbl:'events', style:'async'},
+      {f:'worker', t:'pipeline_ops', lbl:'11:00 + 16:00', style:'async'},
+      {f:'pipeline_ops', t:'score', lbl:'rescore', style:'sync'},
+      {f:'pipeline_ops', t:'data', lbl:'hot leads', style:'sync'},
+      {f:'pipeline_ops', t:'outreach', lbl:'followup pass', style:'loop'},
+      {f:'pipeline_ops', t:'events', lbl:'log', style:'sync'},
+      {f:'worker', t:'prospect', lbl:'14:30 2nd pass', style:'async'},
+      {f:'worker', t:'sched_ops', lbl:'18:30 · Wed · Sat', style:'async'},
+      {f:'sched_ops', t:'events', lbl:'EOD wrap', style:'sync'},
+      {f:'sched_ops', t:'data', lbl:'S-tier packs', style:'sync'},
+      {f:'sched_ops', t:'worker', lbl:'queue trim', style:'loop'},
+      {f:'worker', t:'kb_weekly', lbl:'Sun 05:00', style:'async'},
+      {f:'kb_weekly', t:'data', lbl:'KB re-ingest', style:'sync'},
+      // --- connection completeness (orphans + loops + staff jobs) ---
+      {f:'beat', t:'ops', lbl:'standup 08:00', style:'async'},
+      {f:'ops', t:'launch', lbl:'readiness_digest', style:'sync'},
+      {f:'worker', t:'skill_pack', lbl:'skill ingest', style:'async'},
+      {f:'skill_pack', t:'data', lbl:'skills ns', style:'sync'},
+      {f:'coordinator', t:'skill_pack', lbl:'find skill', style:'sync'},
+      {f:'coordinator', t:'memory_vault', lbl:'call brief', style:'sync'},
+      {f:'memory_vault', t:'data', lbl:'vault md', style:'sync'},
+      {f:'sales', t:'memory_vault', lbl:'prep', style:'sync'},
+      {f:'reply', t:'memory_vault', lbl:'notes', style:'sync'},
+      {f:'outreach', t:'deliverability_monitor', lbl:'reputation', style:'sync'},
+      {f:'deliverability_monitor', t:'outreach', lbl:'warmup pause', style:'loop'},
+      {f:'outreach', t:'consent_ledger', lbl:'opt-out', style:'sync'},
+      {f:'reply', t:'consent_ledger', lbl:'unsub', style:'sync'},
+      {f:'fire_campaign', t:'consent_ledger', lbl:'DND gate', style:'sync'},
+      {f:'consent_ledger', t:'data', lbl:'suppress log', style:'sync'},
+      {f:'blog', t:'rank_tracker', lbl:'keywords', style:'sync'},
+      {f:'rank_tracker', t:'ntfy_alerts', lbl:'rank drop', style:'async'},
+      {f:'worker', t:'review_monitor', lbl:'daily', style:'async'},
+      {f:'worker', t:'meter_watch', lbl:':55 hourly', style:'async'},
+      {f:'worker', t:'process_autostart', lbl:'11:30', style:'async'},
+      {f:'worker', t:'loop_supervisor', lbl:'120s', style:'async'},
+      {f:'ops', t:'loop_supervisor', lbl:'SPOF watch', style:'sync'},
+      {f:'client_snapshots', t:'data', lbl:'snapshots/', style:'sync'},
+      {f:'client_snapshots', t:'journey', lbl:'template rules', style:'sync'},
+      {f:'stl', t:'data', lbl:'SLA log', style:'sync'},
+      {f:'niche_prospector', t:'data', lbl:'prospect batch', style:'sync'},
+      {f:'auto_trainer', t:'data', lbl:'train set', style:'sync'},
+      {f:'auto_trainer', t:'self_improve', lbl:'quality', style:'loop'},
+      {f:'booking_reminders', t:'customer_crm', lbl:'no-show', style:'sync'},
+      {f:'service_reminders', t:'customer_crm', lbl:'repeat svc', style:'sync'},
+      {f:'customer_crm', t:'data', lbl:'end customers', style:'sync'},
+      {f:'newsletter', t:'data', lbl:'subscribers', style:'sync'},
+      {f:'client_report', t:'revenue', lbl:'retention', style:'sync'},
+      {f:'seo_pages', t:'data', lbl:'landing pages', style:'sync'},
+      {f:'pipeline_ops', t:'events', lbl:'midday_prospect log', style:'sync'},
+      {f:'launch', t:'rm_upi', lbl:'payments ✓', style:'sync'},
+      {f:'launch', t:'rm_obs', lbl:'Sentry/PostHog', style:'opt'},
+      {f:'launch', t:'rm_deploy', lbl:'CI deploy', style:'opt'},
+      {f:'revenue', t:'rm_upi', lbl:'UPI armed', style:'sync'},
+      {f:'ops', t:'rm_ops', lbl:'Vobiz DID', style:'opt'},
+      {f:'auto_trainer', t:'rm_voiceqa', lbl:'QA sprint', style:'sync'},
+      {f:'admin_hub', t:'rm_admin', lbl:'UX polish', style:'sync'},
+      {f:'post_call_pipe', t:'rm_postcall', lbl:'shipped ✓', style:'sync'},
+      {f:'ui', t:'rm_sec', lbl:'auth ✓', style:'sync'},
+      {f:'vobiz_inbound', t:'rm_inbound', lbl:'callback path', style:'opt'},
+      {f:'seo_pages', t:'rm_seo', lbl:'GSC organic', style:'sync'},
+      {f:'ops', t:'rm_obs', lbl:'obs keys', style:'opt'},
+      {f:'rm_upi', t:'revenue', lbl:'UPI live', style:'sync'},
+      {f:'rm_postcall', t:'post_call_pipe', lbl:'parity ✓', style:'sync'},
+      {f:'rm_sec', t:'ui', lbl:'/api/ai/command', style:'sync'},
+      {f:'rm_inbound', t:'vobiz_inbound', lbl:'needs DID', style:'opt'},
+      {f:'rm_seo', t:'blog', lbl:'organic', style:'sync'},
+      {f:'rm_ops', t:'fire_campaign', lbl:'test call', style:'opt'},
+      {f:'rm_voiceqa', t:'call_review', lbl:'agent_tester', style:'sync'},
+      {f:'rm_admin', t:'ui', lbl:'God Mode', style:'sync'},
+      {f:'rm_deploy', t:'launch', lbl:'DEPLOY_ENABLED', style:'opt'},
+      {f:'rm_obs', t:'ntfy_alerts', lbl:'Sentry fan-out', style:'async'},
+      {f:'code_upgrader', t:'data', lbl:'code_patches', style:'sync'},
+      {f:'gap_transfer', t:'sales', lbl:'human handoff', style:'opt'},
+      {f:'llm_metrics', t:'ops', lbl:'provider health', style:'sync'},
+    ],
+    tour: [
+      {title:'Automation Overview', nodeId:null, desc:'Lead→outreach→reply→sales loop + client ops (distribution, approval, SLA). Red dashed = backlog.'},
+      {title:'Scheduler', nodeId:'beat', desc:'IST cron + dead-man trio'},
+      {title:'Lead Distribution', nodeId:'lead_dist', desc:'Inquiry aate hi team me round-robin + WA link'},
+      {title:'Content Approval', nodeId:'content_approve', desc:'Agency workflow — client portal approve'},
+      {title:'Speed-to-Lead', nodeId:'stl', desc:'2-min SLA metric — Privyr-style'},
+      {title:'Self-Improve', nodeId:'self_improve', desc:'180s loop with eval_gate safety'},
+      {title:'Launch Readiness', nodeId:'launch', desc:'production_ready live sync every 60s'},
+      {title:'Admin Hub', nodeId:'admin_hub', desc:'21 manual workflows — scrape, email, journeys, QA, etc.'},
+    ],
+    presets: [
+      {id:'full', label:'Full Pipeline', nodes:null, edges:null},
+      {id:'leadgen', label:'Lead Gen Only', nodes:['beat','worker','prospect','score','outreach','email_unsub','reply','lead_dist','stl','data','free_ai','public_in','events','ui'], edges:null},
+      {id:'content', label:'Content Pipeline', nodes:['beat','worker','blog','content','content_approve','onboard','telegram_pub','free_ai','data','events','ui'], edges:null},
+      {id:'revenue', label:'Revenue Ops', nodes:['beat','worker','sales','revenue','journey','growth_opt','data','customer_wh','ui'], edges:null},
+      {id:'ops', label:'Launch & Ops', nodes:['beat','worker','ops','ui','admin_hub','launch','events','eval_gate','data'], edges:null},
+      {id:'clientops', label:'Client Ops', nodes:['public_in','lead_dist','stl','content_approve','customer_wh','whatsapp_wa','client_snapshots','onboard','data','ui'], edges:null},
+      {id:'gaps', label:'Gap Backlog', nodes:['gap_transfer','launch','sales','onboard'], edges:null, loopsOnly:false},
+      {id:'loops', label:'Loops Only', nodes:['beat','worker','self_improve','coordinator','process','ops','reply','outreach','score','prospect','launch'], edges:null, loopsOnly:true},
+      {id:'campaign', label:'Outbound Campaign', nodes:['beat','worker','fire_campaign','post_call_pipe','call_review','customer_wh','ntfy_alerts','free_ai','data','ops','launch'], edges:null},
+      {id:'roadmap', label:'Roadmap / Next', nodes:['rm_ops','rm_voiceqa','rm_admin','rm_upi','rm_obs','rm_deploy','rm_inbound','rm_seo','gap_transfer'], edges:null},
+    ],
+  },
+
+  products: {
+    label: 'Product Split — 2 SKUs (DO NOT BUNDLE)',
+    badge: 'PRODUCTS · MARKETING ≠ VOICE',
+    world: {w: 3400, h: 1500},
+    nodes: [
+      {id:'entry', type:'platform', badge:'ENTRY', cx:'simple', sku:'shared', title:'Acquisition Funnel', desc:'/audit #1 magnet · /site-audit · /pricing · /start · /compare', files:'public pages', x:1480, y:30, w:300, h:100},
+      {id:'page_compare', type:'platform', badge:'COMPARE', cx:'simple', sku:'shared', title:'/compare Page', desc:'Do products side-by-side — marketing vs voice agent (no bundle USP)', files:'compare.html', x:1480, y:170, w:300, h:90},
+
+      {id:'prod_marketing', type:'marketing', badge:'PRODUCT 1', cx:'complex', sku:'marketing', title:'AI Automated Marketing', desc:'MAIN SKU — posts/GBP/festivals/posters/reviews/WA · 39 niches · Dhanda-class', files:'packages.py · /app/marketing', x:80, y:320, w:320, h:120},
+      {id:'m_trial', type:'marketing', badge:'FREE 7d', cx:'simple', sku:'marketing', title:'Marketing Trial', desc:'₹0 · 5 posts · 1 GBP audit · widget · NO voice', files:'TRIAL_PACKAGE', x:40, y:500, w:200, h:95},
+      {id:'m_starter', type:'marketing', badge:'₹1,199/mo', cx:'simple', sku:'marketing', title:'Starter', desc:'Posts · GBP audit · review replies · 4 posters/mo · WA pack · UPI QR', files:'packages.py#starter', x:260, y:500, w:200, h:95},
+      {id:'m_growth', type:'marketing', badge:'₹2,999/mo', cx:'moderate', sku:'marketing', title:'Growth', desc:'+ unlimited posters · calendar · competitor · lead form · reactivation · monthly report', files:'packages.py#growth', x:480, y:500, w:200, h:95},
+      {id:'m_advanced', type:'marketing', badge:'₹6,999/mo', cx:'complex', sku:'marketing', title:'Advanced', desc:'Growth + voice FEATURE: inquiry callback · qualification · 500 min/mo top-ups', files:'packages.py#advanced', x:700, y:500, w:220, h:95},
+
+      {id:'m_content', type:'marketing', badge:'MODULE', cx:'moderate', sku:'marketing', title:'Content Engine', desc:'AI posts · scheduler · festivals · complete-post · AI image · 28 tabs', files:'auto_content · marketing.py', x:40, y:660, w:230, h:95},
+      {id:'m_gbp', type:'marketing', badge:'MODULE', cx:'moderate', sku:'marketing', title:'GBP & Reviews', desc:'/audit lead magnet · review kit · sentiment · review reply drafts', files:'review_kit · gbp', x:290, y:660, w:230, h:95},
+      {id:'m_widget', type:'marketing', badge:'MODULE', cx:'simple', sku:'marketing', title:'Web Widget + Mini-Site', desc:'/b/{slug} · embed widget · booking · minisite builder', files:'embed_widget · mini_site', x:540, y:660, w:240, h:95},
+      {id:'m_outreach', type:'marketing', badge:'MODULE', cx:'moderate', sku:'marketing', title:'Growth Outreach', desc:'Email cold · reply triage · cadence · journeys · /app/outreach', files:'auto_outreach · growth-tools', x:800, y:660, w:240, h:95},
+      {id:'m_voice_feat', type:'voice', badge:'FEATURE', cx:'complex', sku:'feature', title:'Voice Callback (Advanced only)', desc:'NOT Product 2 — inbound inquiry callback · missed-call · NO cold DLT dialer', files:'telephony inbound only', x:700, y:820, w:280, h:100},
+
+      {id:'prod_voice', type:'voice', badge:'PRODUCT 2', cx:'complex', sku:'voice', title:'AI Voice Calling Agent', desc:'STANDALONE telecaller SKU · flat monthly per niche band · unlimited calls', files:'voice_packages.py · /voice-agent', x:2100, y:320, w:320, h:120},
+      {id:'v_pilot', type:'voice', badge:'FREE', cx:'simple', sku:'voice', title:'Voice Pilot', desc:'7 din · 50 calls · zero payment · niche test', files:'voice_pilot', x:1960, y:500, w:200, h:95},
+      {id:'v_band_a', type:'voice', badge:'₹4,999/mo', cx:'simple', sku:'voice', title:'Band A — Volume', desc:'Insurance · coaching · solar · hospital · 39 niches tier-A', files:'voice_a_monthly', x:2180, y:500, w:200, h:95},
+      {id:'v_band_b', type:'voice', badge:'₹9,999/mo', cx:'moderate', sku:'voice', title:'Band B — Mid', desc:'Home loans · study abroad · dental · finance advisory', files:'voice_b_monthly', x:2400, y:500, w:200, h:95},
+      {id:'v_band_c', type:'voice', badge:'₹19,999/mo', cx:'complex', sku:'voice', title:'Band C — Premium', desc:'IVF · immigration · commercial solar · hair transplant', files:'voice_c_monthly', x:2620, y:500, w:210, h:95},
+
+      {id:'v_stack', type:'voice', badge:'STACK', cx:'complex', sku:'voice', title:'Voice Brain Stack', desc:'Vobiz WS · Groq STT · RAG · Mistral LLM · EdgeTTS · post_call_hooks meter+qualify · call_insights', files:'voice_agent/ · post_call_hooks.py', x:2180, y:660, w:280, h:100},
+      {id:'v_dialer', type:'voice', badge:'OPS', cx:'moderate', sku:'voice', title:'Dialer + Test Call', desc:'/app/dialer · /app/test-call FREE tuning · dispositions · leaderboard', files:'dialer · web_call', x:2500, y:660, w:240, h:100},
+      {id:'v_compliance', type:'voice', badge:'DLT', cx:'complex', sku:'voice', title:'TRAI Compliance Gate', desc:'DND fail-closed · AI disclosure · 10am-7pm · consent ledger · DLT blocked=cold', files:'compliance.py', x:2780, y:660, w:250, h:100},
+      {id:'v_pages', type:'voice', badge:'PAGE', cx:'simple', sku:'voice', title:'/voice-agent Landing', desc:'Public pricing · band picker · pilot signup · separate from /pricing', files:'voice-agent page', x:2100, y:500, w:200, h:95},
+
+      {id:'shared_billing', type:'monitor', badge:'BILLING', cx:'moderate', sku:'shared', title:'Billing Hub', desc:'packages.py + voice_packages.py · usage ledger · GST · checkout optional', files:'billing.py', x:1280, y:500, w:260, h:100},
+      {id:'shared_portal', type:'marketing', badge:'PORTAL', cx:'moderate', sku:'shared', title:'Customer Portal', desc:'/app/customer · content approve · webhooks · TOTP · per-product entitlements', files:'customer_dashboard.py', x:1280, y:660, w:260, h:95},
+      {id:'shared_admin', type:'platform', badge:'ADMIN', cx:'complex', sku:'shared', title:'Admin + Mission Control', desc:'/app/marketing · /app/automation · /app/battlecard · team RBAC', files:'admin · automation', x:1280, y:820, w:260, h:100},
+      {id:'shared_data', type:'data', badge:'DATA', cx:'moderate', sku:'shared', title:'Shared Data Layer', desc:'Postgres clients · leads · calls · agent_events · jsonl stores', files:'models/', x:1280, y:980, w:280, h:95},
+
+      {id:'gap_bundle', type:'gap', badge:'WRONG', cx:'simple', sku:'gap', title:'❌ Bundle USP', desc:'GALAT framing — "marketing+voice bundle" mat bolo. Do alag products becho.', files:'sales rule', x:1480, y:980, w:280, h:90},
+      {id:'gap_dlt', type:'gap', badge:'LATER', cx:'moderate', sku:'gap', title:'DLT Cold Calling (optional)', desc:'Product 2 cold dial — paperwork later. Marketing launch + inbound ready NOW.', files:'optional · not a launch blocker', x:1780, y:980, w:280, h:90},
+    ],
+    edges: [
+      {f:'entry', t:'page_compare', lbl:'compare', style:'sync'},
+      {f:'entry', t:'prod_marketing', lbl:'/pricing', style:'sync'},
+      {f:'entry', t:'prod_voice', lbl:'/voice-agent', style:'sync'},
+      {f:'page_compare', t:'prod_marketing', lbl:'SKU 1', style:'sync'},
+      {f:'page_compare', t:'prod_voice', lbl:'SKU 2', style:'sync'},
+      {f:'page_compare', t:'gap_bundle', lbl:'avoid', style:'opt'},
+
+      {f:'prod_marketing', t:'m_trial', lbl:'funnel', style:'sync'},
+      {f:'prod_marketing', t:'m_starter', lbl:'tier', style:'sync'},
+      {f:'prod_marketing', t:'m_growth', lbl:'tier', style:'sync'},
+      {f:'prod_marketing', t:'m_advanced', lbl:'tier', style:'sync'},
+      {f:'m_starter', t:'m_content', lbl:'includes', style:'sync'},
+      {f:'m_growth', t:'m_content', lbl:'includes', style:'sync'},
+      {f:'m_growth', t:'m_gbp', lbl:'includes', style:'sync'},
+      {f:'m_growth', t:'m_widget', lbl:'includes', style:'sync'},
+      {f:'m_advanced', t:'m_growth', lbl:'superset', style:'sync'},
+      {f:'m_advanced', t:'m_voice_feat', lbl:'FEATURE', style:'sync'},
+      {f:'m_advanced', t:'m_outreach', lbl:'includes', style:'sync'},
+      {f:'m_voice_feat', t:'v_stack', lbl:'shares stack', style:'async'},
+      {f:'m_voice_feat', t:'gap_dlt', lbl:'no cold', style:'opt'},
+
+      {f:'prod_voice', t:'v_pilot', lbl:'tier', style:'sync'},
+      {f:'prod_voice', t:'v_band_a', lbl:'band', style:'sync'},
+      {f:'prod_voice', t:'v_band_b', lbl:'band', style:'sync'},
+      {f:'prod_voice', t:'v_band_c', lbl:'band', style:'sync'},
+      {f:'prod_voice', t:'v_pages', lbl:'landing', style:'sync'},
+      {f:'v_band_a', t:'v_stack', lbl:'unlimited', style:'sync'},
+      {f:'v_band_b', t:'v_stack', lbl:'unlimited', style:'sync'},
+      {f:'v_band_c', t:'v_stack', lbl:'unlimited', style:'sync'},
+      {f:'v_pilot', t:'v_stack', lbl:'50 calls', style:'sync'},
+      {f:'v_stack', t:'v_compliance', lbl:'gate', style:'sync'},
+      {f:'v_stack', t:'v_dialer', lbl:'ops UI', style:'sync'},
+      {f:'v_compliance', t:'gap_dlt', lbl:'needs DLT', style:'opt'},
+
+      {f:'prod_marketing', t:'shared_billing', lbl:'checkout', style:'sync'},
+      {f:'prod_voice', t:'shared_billing', lbl:'checkout', style:'sync'},
+      {f:'shared_billing', t:'shared_portal', lbl:'entitlements', style:'sync'},
+      {f:'shared_portal', t:'shared_admin', lbl:'ops', style:'sync'},
+      {f:'shared_admin', t:'shared_data', lbl:'R/W', style:'sync'},
+      {f:'m_content', t:'shared_data', lbl:'queue', style:'async'},
+      {f:'v_dialer', t:'shared_data', lbl:'calls', style:'async'},
+      {f:'m_trial', t:'m_content', lbl:'5 posts', style:'sync'},
+      {f:'m_gbp', t:'shared_data', lbl:'reviews', style:'async'},
+      {f:'m_outreach', t:'shared_data', lbl:'prospects', style:'async'},
+      {f:'m_outreach', t:'shared_portal', lbl:'client view', style:'sync'},
+      {f:'v_pages', t:'entry', lbl:'SEO inbound', style:'sync'},
+      {f:'gap_bundle', t:'prod_marketing', lbl:'separate SKU', style:'opt'},
+      {f:'gap_bundle', t:'prod_voice', lbl:'separate SKU', style:'opt'},
+      {f:'m_content', t:'m_gbp', lbl:'GBP posts', style:'sync'},
+      {f:'m_widget', t:'shared_portal', lbl:'client embed', style:'sync'},
+    ],
+    tour: [
+      {title:'2 Products Rule', nodeId:null, desc:'Marketing aur Voice ALAG becho. Advanced me voice sirf FEATURE hai — Product 2 nahi.'},
+      {title:'Product 1 Marketing', nodeId:'prod_marketing', desc:'Starter ₹1,199 · Growth ₹2,999 · Advanced ₹6,999'},
+      {title:'Advanced Feature', nodeId:'m_voice_feat', desc:'Inbound callback only — cold DLT dialer Product 2 ka kaam hai'},
+      {title:'Product 2 Voice', nodeId:'prod_voice', desc:'Pilot free · Band A/B/C flat monthly · unlimited calls'},
+      {title:'Compare Page', nodeId:'page_compare', desc:'Sales me /compare use karo — bundle mat bolo'},
+      {title:'Shared Billing', nodeId:'shared_billing', desc:'Ek billing hub, do product SKUs'},
+    ],
+    presets: [
+      {id:'all', label:'Both Products', nodes:null, edges:null},
+      {id:'marketing', label:'Product 1 Only', nodes:['entry','prod_marketing','m_trial','m_starter','m_growth','m_advanced','m_content','m_gbp','m_widget','m_outreach','m_voice_feat','shared_billing','shared_portal','shared_data'], edges:null},
+      {id:'voice', label:'Product 2 Only', nodes:['entry','prod_voice','v_pilot','v_band_a','v_band_b','v_band_c','v_stack','v_dialer','v_compliance','v_pages','shared_billing','shared_data','gap_dlt'], edges:null},
+      {id:'tiers', label:'All Tiers', nodes:['m_trial','m_starter','m_growth','m_advanced','v_pilot','v_band_a','v_band_b','v_band_c','shared_billing'], edges:null},
+      {id:'sales', label:'Sales Compare', nodes:['page_compare','prod_marketing','prod_voice','gap_bundle','m_advanced','m_voice_feat','v_band_b'], edges:null},
+    ],
+  },
+};
+
+const FLOW_FLAGS = [
+  {key:'TEAM_AUTOMATION', def:true, node:'beat'},
+  {key:'NICHE_ROTATION', def:true, node:'prospect'},
+  {key:'LEAD_HARVESTER', def:true, node:'prospect'},
+  {key:'AUTO_EMAIL_OUTREACH', def:true, node:'outreach'},
+  {key:'REPLY_AGENT', def:true, node:'reply'},
+  {key:'USE_STRUCTURED_CONTENT', def:true, node:'content'},
+  {key:'AUTO_ONBOARD', def:true, node:'onboard'},
+  {key:'SELF_IMPROVE_LOOP', def:true, node:'self_improve'},
+  {key:'EVAL_GATE', def:true, node:'eval_gate'},
+  {key:'JOURNEY_ENGINE', def:true, node:'journey'},
+  {key:'CADENCE_ENGINE', def:true, node:'journey'},
+  {key:'SALES_ENGINE', def:true, node:'sales'},
+  {key:'SALES_TEAM', def:true, node:'sales'},
+  {key:'DUNNING_ENGINE', def:true, node:'revenue'},
+  {key:'LIFECYCLE_NURTURE', def:false, node:'content'},
+  {key:'GROWTH_OPTIMIZER', def:true, node:'growth_opt'},
+  {key:'CHANNEL_EXPERIMENTS', def:true, node:'channel_exp'},
+  {key:'OPS_WATCHDOG', def:true, node:'ops'},
+  {key:'AUTO_QUALIFY_CALLS', def:false, node:'post_call_pipe'},
+  {key:'AUTO_CALLBACK_INQUIRY', def:true, node:'rm_inbound'},
+  {key:'CRM_SYNC', def:false, node:'crm_sync'},
+  {key:'TELEGRAM_AUTO_PUBLISH', def:false, node:'telegram_pub'},
+  {key:'WHATSAPP_AUTO_SEND', def:false, node:'whatsapp_wa'},
+  {key:'VOBIZ_CALL_RECORD', def:true, node:'fire_campaign'},
+  {key:'PLAN_RATE_LIMIT', def:false, node:'rate_limit_mw'},
+  {key:'CUSTOMER_WEBHOOKS', def:false, node:'customer_wh'},
+];
+
+const IST_SCHEDULE = [
+  {time:'06:30', label:'Blog generation', node:'blog', job:'blog'},
+  {time:'07:00', label:'Content + client posts', node:'content', job:'content'},
+  {time:'08:30', label:'Daily digest', node:'revenue', job:'digest'},
+  {time:'09:30', label:'Prospect scrape (39 niches)', node:'prospect', job:'prospect'},
+  {time:'10:30', label:'Email outreach (Rohan)', node:'outreach', job:'email_outreach'},
+  {time:'*/15', label:'Growth pulse', node:'coordinator', job:'growth_pulse'},
+  {time:'hourly', label:'Reply triage (IMAP)', node:'reply', job:'reply_triage'},
+  {time:'hourly', label:'Ops watchdog + health', node:'ops', job:'ops_watchdog'},
+  {time:'hourly', label:'Auto-onboard sweep', node:'onboard', job:'onboard'},
+  {time:'180s', label:'Self-improve loop tick', node:'self_improve', job:'self_improve'},
+  {time:'02:30', label:'Arjun voice QA', node:'ops', job:'qa'},
+  {time:'03:00', label:'Meera trainer', node:'ops', job:'trainer'},
+  {time:'*/20', label:'Revive-beat (dead-man)', node:'beat', job:'revive'},
+];
+
+const API_BASES = ['https://leadsgenai.in', 'http://127.0.0.1:8000', 'http://localhost:8000'];
+
+function getApiBases() {
+  const bases = [];
+  if(location.protocol.startsWith('http') && location.host && !location.protocol.startsWith('file'))
+    bases.push(location.origin);
+  API_BASES.forEach(b => { if(!bases.includes(b)) bases.push(b); });
+  return bases;
+}
+
+const NODE_TEMPLATES = [
+  {type:'platform', badge:'TRIGGER', title:'Webhook / Trigger', desc:'Event ya API se flow start', files:'trigger', color:'#60a5fa'},
+  {type:'platform', badge:'SCHEDULER', title:'Cron / Beat', desc:'IST schedule se job fire', files:'team_scheduler.py', color:'#60a5fa'},
+  {type:'marketing', badge:'SCRAPE', title:'Prospector', desc:'Leads scrape + enrich', files:'prospector.py', color:'#3b82f6'},
+  {type:'marketing', badge:'OUTREACH', title:'Email Outreach', desc:'Cold email + followups', files:'auto_outreach.py', color:'#3b82f6'},
+  {type:'marketing', badge:'CONTENT', title:'Content Gen', desc:'Posts + captions generate', files:'auto_content.py', color:'#3b82f6'},
+  {type:'ai', badge:'LLM', title:'AI / LLM Step', desc:'free_ai chain call', files:'free_ai.py', color:'#818cf8'},
+  {type:'ai', badge:'ORCHESTRATE', title:'Coordinator', desc:'Multi-agent handoff', files:'coordinator.py', color:'#818cf8'},
+  {type:'loop', badge:'LOOP', title:'Feedback Loop', desc:'Requeue / retry cycle', files:'self_improve.py', color:'#e879f9'},
+  {type:'data', badge:'STORE', title:'Data / DB', desc:'Postgres · Redis · jsonl', files:'data/', color:'#22d3ee'},
+  {type:'monitor', badge:'WATCHDOG', title:'Ops / Alert', desc:'Health check + notify', files:'ops_watchdog.py', color:'#fbbf24'},
+  {type:'external', badge:'ACTION', title:'External API', desc:'SMTP · WhatsApp · Maps', files:'integrations/', color:'#4ade80'},
+];
+
+const TYPE_COLORS = {platform:'#60a5fa',marketing:'#3b82f6',voice:'#fb923c',ai:'#818cf8',data:'#22d3ee',external:'#4ade80',monitor:'#fbbf24',loop:'#e879f9',gap:'#f87171'};
+
+let customFlowStore = { activeId: null, flows: {} };
+
+// ════════════════════════════════════
+// STATE
+// ════════════════════════════════════
+let currentView = 'automation';
+let currentPreset = 'full';
+let vp = {x:0, y:0, scale:1};
+let dragging=false, dragStart={x:0,y:0}, vpStart={x:0,y:0};
+let nodeDragging=false, nodeDragId=null, nodeDragOff={x:0,y:0};
+let locked=false, selectedNode=null;
+let tourActive=false, tourStep=-1, visitedSteps=new Set();
+let showEdges=true, showLoops=true;
+let flowPlaying=false, flowAnimId=null;
+let tracePathSet=null;
+let liveHealth=null;
+let liveSnapshot=null;
+let prevLiveSnapshot=null;
+let productPricing=null;
+let flagState = {};
+let nodeMap = {}, activeNodes=[], activeEdges=[];
+let edgePathCache = {};
+let linkFrom = null, linkMouse = null, shiftLinkFrom = null, selectedEdge = null;
+
+function isBuilder() { return currentView === 'custom'; }
+
+function initCustomFlows() {
+  try {
+    const raw = localStorage.getItem('explorer_custom_flows');
+    if(raw) customFlowStore = JSON.parse(raw);
+  } catch(e) {}
+  if(!customFlowStore.flows || !Object.keys(customFlowStore.flows).length) {
+    customFlowStore.flows = { default: makeBlankFlow('My Pipeline') };
+    customFlowStore.flows.default.id = 'default';
+  }
+  if(!customFlowStore.activeId || !customFlowStore.flows[customFlowStore.activeId])
+    customFlowStore.activeId = Object.keys(customFlowStore.flows)[0];
+  syncCustomView();
+}
+
+function makeBlankFlow(name) {
+  return { id: 'f_'+Date.now().toString(36), name, nodes: [], edges: [], world: {w:2400,h:1500} };
+}
+
+function syncCustomView() {
+  const flow = customFlowStore.flows[customFlowStore.activeId];
+  if(!flow) return;
+  VIEWS.custom = {
+    label: flow.name,
+    badge: 'FLOW BUILDER · '+flow.name.toUpperCase(),
+    world: flow.world || {w:2400,h:1500},
+    nodes: flow.nodes,
+    edges: flow.edges,
+    presets: [{id:'all', label:'All', nodes:null, edges:null}],
+    tour: [{title:'Custom Flow', nodeId:null, desc:'Apna automation flow banao — nodes palette se add karo, ports se connect karo, save localStorage me.'}],
+  };
+}
+
+function persistCustomFlow() {
+  if(!isBuilder()) return;
+  const flow = customFlowStore.flows[customFlowStore.activeId];
+  if(!flow) return;
+  flow.nodes = VIEWS.custom.nodes;
+  flow.edges = VIEWS.custom.edges;
+  flow.name = VIEWS.custom.label;
+  localStorage.setItem('explorer_custom_flows', JSON.stringify(customFlowStore));
+}
+
+function viewportCenter() {
+  const cw = document.getElementById('cw');
+  return {
+    x: Math.round((cw.offsetWidth/2 - vp.x) / vp.scale - 110),
+    y: Math.round((cw.offsetHeight/2 - vp.y) / vp.scale - 50),
+  };
+}
+
+function addBuilderNode(template, x, y) {
+  if(!isBuilder()) switchView('custom', document.querySelector('[data-view=custom]'));
+  const c = x != null ? {x,y} : viewportCenter();
+  const id = 'n_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const node = {
+    id, type: template.type, badge: template.badge || 'STEP', cx:'moderate',
+    title: template.title, desc: template.desc || '', files: template.files || 'custom',
+    w: 220, h: 95, x: c.x, y: c.y,
+  };
+  getViewData().nodes.push(node);
+  persistCustomFlow();
+  applyPreset();
+  renderNodes();
+  renderEdges();
+  selectNode(id);
+  showBuilderPanel();
+}
+
+function removeBuilderNode(id) {
+  if(!isBuilder()) return;
+  const view = getViewData();
+  view.nodes = view.nodes.filter(n => n.id !== id);
+  view.edges = view.edges.filter(e => e.f !== id && e.t !== id);
+  if(selectedNode === id) selectedNode = null;
+  persistCustomFlow();
+  applyPreset();
+  renderNodes();
+  renderEdges();
+  showBuilderPanel();
+}
+
+function addBuilderEdge(fromId, toId, style, lbl) {
+  if(!fromId || !toId || fromId === toId) return;
+  const view = getViewData();
+  const dup = view.edges.some(e => e.f===fromId && e.t===toId && (e.lbl||'')===(lbl||''));
+  if(dup) return;
+  if(fromId === toId) style = 'loop';
+  view.edges.push({f:fromId, t:toId, lbl: lbl||'', style: style||'sync'});
+  persistCustomFlow();
+  applyPreset();
+  renderEdges(getHighlightSet());
+  document.getElementById('bc-edges').textContent = activeEdges.length + ' edges';
+}
+
+function removeBuilderEdge(idx) {
+  if(!isBuilder()) return;
+  getViewData().edges.splice(idx, 1);
+  selectedEdge = null;
+  persistCustomFlow();
+  applyPreset();
+  renderEdges();
+  showBuilderPanel();
+}
+
+function newCustomFlow() {
+  const name = prompt('Flow name:', 'New Pipeline');
+  if(!name) return;
+  const flow = makeBlankFlow(name);
+  customFlowStore.flows[flow.id] = flow;
+  customFlowStore.activeId = flow.id;
+  syncCustomView();
+  switchView('custom', document.querySelector('[data-view=custom]'));
+}
+
+function loadCustomFlowId(id) {
+  if(!customFlowStore.flows[id]) return;
+  customFlowStore.activeId = id;
+  syncCustomView();
+  if(!isBuilder()) switchView('custom', document.querySelector('[data-view=custom]'));
+  else {
+    applyPreset();
+    renderFlowPick();
+    renderNodes();
+    renderEdges();
+    document.getElementById('ov-badge').textContent = VIEWS.custom.badge;
+    fitView();
+    showBuilderPanel();
+  }
+}
+
+function cloneAutomationToBuilder() {
+  const src = VIEWS.automation;
+  const name = prompt('Clone automation as:', 'Automation Copy');
+  if(!name) return;
+  const flow = makeBlankFlow(name);
+  flow.nodes = JSON.parse(JSON.stringify(src.nodes));
+  flow.edges = JSON.parse(JSON.stringify(src.edges));
+  flow.id = 'f_'+Date.now().toString(36);
+  customFlowStore.flows[flow.id] = flow;
+  customFlowStore.activeId = flow.id;
+  syncCustomView();
+  switchView('custom', document.querySelector('[data-view=custom]'));
+}
+
+function deleteCurrentFlow() {
+  if(!isBuilder()) return;
+  const keys = Object.keys(customFlowStore.flows);
+  if(keys.length <= 1) { alert('Last flow delete nahi ho sakti — naya banao pehle.'); return; }
+  if(!confirm('Delete flow "'+customFlowStore.flows[customFlowStore.activeId].name+'"?')) return;
+  delete customFlowStore.flows[customFlowStore.activeId];
+  customFlowStore.activeId = Object.keys(customFlowStore.flows)[0];
+  localStorage.setItem('explorer_custom_flows', JSON.stringify(customFlowStore));
+  syncCustomView();
+  applyPreset();
+  renderFlowPick();
+  renderNodes();
+  renderEdges();
+  showBuilderPanel();
+}
+
+function updateSelectedNode(field, value) {
+  if(!selectedNode || !isBuilder()) return;
+  const n = nodeMap[selectedNode];
+  if(!n) return;
+  n[field] = value;
+  persistCustomFlow();
+  renderNodes();
+  document.getElementById('node-'+selectedNode)?.classList.add('selected');
+}
+
+function startLinkDrag(e, nodeId, portType) {
+  if(!isBuilder() || portType !== 'out') return;
+  e.stopPropagation();
+  e.preventDefault();
+  linkFrom = nodeId;
+  const n = nodeMap[nodeId];
+  linkMouse = { x: n.x + n.w/2, y: n.y + n.h };
+  document.querySelectorAll('.port-out').forEach(p => p.classList.remove('linking'));
+  e.target.classList.add('linking');
+  showLinkPreview(linkMouse.x, linkMouse.y, linkMouse.x, linkMouse.y);
+}
+
+function showLinkPreview(x1,y1,x2,y2) {
+  const lp = document.getElementById('link-preview');
+  lp.classList.add('vis');
+  lp.setAttribute('d', `M ${x1} ${y1} L ${x2} ${y2}`);
+}
+
+function hideLinkPreview() {
+  const lp = document.getElementById('link-preview');
+  lp.classList.remove('vis');
+  document.querySelectorAll('.port').forEach(p => p.classList.remove('linking'));
+}
+
+function finishLinkDrag(e, targetNodeId, portType) {
+  if(!linkFrom || portType !== 'in') return;
+  e.stopPropagation();
+  addBuilderEdge(linkFrom, targetNodeId, linkFrom === targetNodeId ? 'loop' : 'sync', '');
+  linkFrom = null;
+  hideLinkPreview();
+}
+
+function onLinkDragMove(e) {
+  if(!linkFrom) return;
+  const cw = document.getElementById('cw').getBoundingClientRect();
+  const wx = (e.clientX - cw.left - vp.x) / vp.scale;
+  const wy = (e.clientY - cw.top - vp.y) / vp.scale;
+  const n = nodeMap[linkFrom];
+  if(n) showLinkPreview(n.x + n.w/2, n.y + n.h, wx, wy);
+}
+
+function endLinkDrag() {
+  if(linkFrom) { linkFrom = null; hideLinkPreview(); }
+}
+
+function handleShiftConnect(nodeId) {
+  if(!isBuilder()) return;
+  if(!shiftLinkFrom) {
+    shiftLinkFrom = nodeId;
+    document.getElementById('node-'+nodeId)?.classList.add('selected');
+    return;
+  }
+  if(shiftLinkFrom !== nodeId) addBuilderEdge(shiftLinkFrom, nodeId, 'sync', '');
+  shiftLinkFrom = null;
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+  if(selectedNode) document.getElementById('node-'+selectedNode)?.classList.add('selected');
+}
+
+function loadFlags() {
+  const saved = localStorage.getItem('explorer_flags');
+  if(saved) try { flagState = JSON.parse(saved); } catch(e) { flagState = {}; }
+  FLOW_FLAGS.forEach(f => { if(flagState[f.key] === undefined) flagState[f.key] = f.def; });
+}
+function saveFlags() { localStorage.setItem('explorer_flags', JSON.stringify(flagState)); }
+
+function loadLayout() {
+  const raw = localStorage.getItem('explorer_layout_'+currentView);
+  if(!raw) return;
+  try {
+    const pos = JSON.parse(raw);
+    Object.keys(pos).forEach(id => {
+      const n = VIEWS[currentView].nodes.find(x => x.id === id);
+      if(n && pos[id]) { n.x = pos[id].x; n.y = pos[id].y; }
+    });
+  } catch(e) {}
+}
+
+function saveLayout() {
+  if(isBuilder()) { persistCustomFlow(); return; }
+  const pos = {};
+  getViewData().nodes.forEach(n => { pos[n.id] = {x:n.x, y:n.y}; });
+  localStorage.setItem('explorer_layout_'+currentView, JSON.stringify(pos));
+}
+
+function resetLayout() {
+  localStorage.removeItem('explorer_layout_'+currentView);
+  location.reload();
+}
+
+function getViewData() { return VIEWS[currentView]; }
+
+function applyPreset() {
+  if(currentView !== 'custom') loadLayout();
+  const view = getViewData();
+  if(!view || !Array.isArray(view.nodes)) {
+    currentView = 'automation';
+    currentPreset = 'full';
+    return applyPreset();
+  }
+  const presets = view.presets || [{id:'all', nodes:null}];
+  const preset = presets.find(p => p.id === currentPreset) || presets[0];
+  let nodes = view.nodes;
+  let edges = view.edges;
+
+  if(preset.nodes) {
+    const set = new Set(preset.nodes);
+    nodes = view.nodes.filter(n => set.has(n.id));
+    edges = view.edges.filter(e => set.has(e.f) && set.has(e.t));
+  }
+  if(preset.loopsOnly) edges = edges.filter(e => e.style === 'loop');
+  if(!showLoops) edges = edges.filter(e => e.style !== 'loop');
+
+  activeNodes = nodes;
+  activeEdges = showEdges ? edges : [];
+  nodeMap = {};
+  activeNodes.forEach(n => nodeMap[n.id] = n);
+}
+
+// ════════════════════════════════════
+// ANCHOR + PATH
+// ════════════════════════════════════
+function getAnchors(src, tgt) {
+  const scx = src.x + src.w/2, scy = src.y + src.h/2;
+  const tcx = tgt.x + tgt.w/2, tcy = tgt.y + tgt.h/2;
+  const dx = tcx - scx, dy = tcy - scy;
+
+  function anchor(node, outward) {
+    const cx = node.x + node.w/2, cy = node.y + node.h/2;
+    if(Math.abs(dx) >= Math.abs(dy)) {
+      return outward > 0
+        ? [dx > 0 ? node.x + node.w : node.x, cy]
+        : [dx > 0 ? node.x : node.x + node.w, cy];
+    }
+    return outward > 0
+      ? [cx, dy > 0 ? node.y + node.h : node.y]
+      : [cx, dy > 0 ? node.y : node.y + node.h];
+  }
+  return {from: anchor(src, 1), to: anchor(tgt, -1), dx, dy, scx, scy, tcx, tcy};
+}
+
+function buildPath(e, src, tgt) {
+  if(e.style === 'loop' && e.f === e.t) {
+    const cx = src.x + src.w/2, cy = src.y + src.h/2;
+    const r = Math.max(src.w, src.h) * 0.55;
+    return `M ${cx} ${src.y} C ${cx + r*1.8} ${src.y - r} ${cx - r*1.8} ${src.y - r} ${cx} ${src.y}`;
+  }
+
+  const {from, to, dx, dy, scx, scy, tcx, tcy} = getAnchors(src, tgt);
+  const [sx, sy] = from, [tx, ty] = to;
+
+  if(e.style === 'loop') {
+    const bulge = Math.max(80, Math.abs(dx) * 0.35, Math.abs(dy) * 0.35);
+    const side = (scx + tcx) / 2 + (dy >= 0 ? bulge : -bulge);
+    const midY = (scy + tcy) / 2 - bulge * 0.5;
+    return `M ${sx} ${sy} Q ${side} ${midY} ${tx} ${ty}`;
+  }
+
+  const dist = Math.hypot(tx - sx, ty - sy);
+  const ctrl = Math.max(40, dist * 0.35);
+  if(Math.abs(dx) > Math.abs(dy)) {
+    return `M ${sx} ${sy} C ${sx + ctrl*Math.sign(dx||1)} ${sy} ${tx - ctrl*Math.sign(dx||1)} ${ty} ${tx} ${ty}`;
+  }
+  return `M ${sx} ${sy} C ${sx} ${sy + ctrl*Math.sign(dy||1)} ${tx} ${ty - ctrl*Math.sign(dy||1)} ${tx} ${ty}`;
+}
+
+function pathMidpoint(d) {
+  const nums = d.match(/-?\d+\.?\d*/g).map(Number);
+  if(nums.length >= 4) return [(nums[0]+nums[nums.length-2])/2, (nums[1]+nums[nums.length-1])/2];
+  return [0,0];
+}
+
+// ════════════════════════════════════
+// RENDER
+// ════════════════════════════════════
+function renderNodes() {
+  const layer = document.getElementById('nodes-layer');
+  layer.innerHTML = '';
+  const world = getViewData().world;
+  layer.style.width = world.w + 'px';
+  layer.style.height = world.h + 'px';
+
+  activeNodes.forEach(n => {
+    const disabled = !isBuilder() && n.type !== 'gap' && n.flag && !flagState[n.flag];
+    const div = document.createElement('div');
+    div.className = `node nt-${n.type}${disabled?' disabled-node':''}${selectedNode===n.id?' selected':''}${tracePathSet?.has(n.id)&&selectedNode!==n.id?' trace-node':''}${n.sku?' sku-'+n.sku:''}`;
+    div.id = `node-${n.id}`;
+    div.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w}px;min-height:${n.h}px`;
+    div.onmousedown = e => startNodeDrag(e, n.id);
+
+    if(isBuilder()) {
+      div.ondblclick = e => { e.stopPropagation(); selectNode(n.id); showBuilderPanel(); };
+    } else {
+      div.ondblclick = e => { e.stopPropagation(); copyNodePath(n); };
+    }
+
+    let statusHtml = '';
+    if(!isBuilder() && liveHealth) {
+      if(n.id === 'launch' && liveHealth.summary) {
+        const s = liveHealth.summary;
+        const ok = !!(s.production_ready || s.ready_for_launch);
+        statusHtml = `<span class="status-pill ${ok?'on':'off'}">${ok?'PROD OK':'BLOCKED'}</span>`;
+      } else if(n.id === 'vps' && liveHealth.health) {
+        statusHtml = `<span class="status-pill on">VPS UP</span>`;
+      } else if(n.id === 'explorer' && liveHealth.base) {
+        statusHtml = `<span class="status-pill live">SYNC</span>`;
+      } else if((n.id === 'beat' || n.id === 'worker' || n.id === 'ops') && liveHealth.automationHealth) {
+        const ah = liveHealth.automationHealth;
+        const od = (ah.overdue || []).length;
+        if(od) statusHtml = `<span class="status-pill off">${od} OVERDUE</span>`;
+        else if(ah.status === 'healthy') statusHtml = `<span class="status-pill on">JOBS OK</span>`;
+        else if(ah.status === 'warming_up') statusHtml = `<span class="status-pill">WARMUP</span>`;
+        else statusHtml = `<span class="status-pill off">${ah.status||'?'}</span>`;
+      } else if(n.flag && liveHealth.flags) {
+        const prod = liveHealth.flags[n.flag];
+        statusHtml = `<span class="status-pill ${prod?'on':'off'}">${prod?'LIVE':'OFF'}</span>`;
+      }
+    }
+
+    const delBtn = isBuilder() ? `<div class="node-del" onclick="event.stopPropagation();removeBuilderNode('${n.id}')" title="Delete">×</div>` : '';
+    const schedOrCx = n.sched ? `<span class="node-sched">${n.sched}</span>` : `<span class="node-complexity cx-${n.cx||'moderate'}">${n.cx||'mod'}</span>`;
+
+    div.innerHTML = `
+      ${delBtn}
+      <div class="port port-in" onmousedown="event.stopPropagation()" onmouseup="finishLinkDrag(event,'${n.id}','in')"></div>
+      <div class="port port-out" onmousedown="startLinkDrag(event,'${n.id}','out')"></div>
+      <div class="node-inner">
+        <div class="node-header">
+          <span class="node-badge">${n.badge}</span>
+          ${schedOrCx}
+          ${statusHtml}
+        </div>
+        <div class="node-title">${n.title}</div>
+        <div class="node-desc">${n.desc}</div>
+        <div class="node-footer">
+          <span class="node-files">📄 ${n.files||'custom'}</span>
+          ${n.flag && !isBuilder() ? `<span class="node-flag">${n.flag}</span>` : ''}
+        </div>
+      </div>`;
+    layer.appendChild(div);
+  });
+
+  document.getElementById('bc-total').textContent = activeNodes.length + ' nodes';
+  document.getElementById('bc-edges').textContent = activeEdges.length + ' edges';
+  renderScheduleBar();
+}
+
+function startNodeDrag(e, id) {
+  if(e.button !== 0) return;
+  if(e.shiftKey && isBuilder()) { e.stopPropagation(); handleShiftConnect(id); return; }
+  e.stopPropagation();
+  nodeDragging = true;
+  nodeDragId = id;
+  const n = nodeMap[id];
+  const cw = document.getElementById('cw').getBoundingClientRect();
+  nodeDragOff = {
+    x: (e.clientX - cw.left - vp.x) / vp.scale - n.x,
+    y: (e.clientY - cw.top - vp.y) / vp.scale - n.y
+  };
+  document.getElementById('node-'+id)?.classList.add('dragging');
+  selectNode(id);
+}
+
+function onNodeDragMove(e) {
+  if(!nodeDragging || !nodeDragId) return;
+  const n = nodeMap[nodeDragId];
+  if(!n) return;
+  const cw = document.getElementById('cw').getBoundingClientRect();
+  n.x = Math.round((e.clientX - cw.left - vp.x) / vp.scale - nodeDragOff.x);
+  n.y = Math.round((e.clientY - cw.top - vp.y) / vp.scale - nodeDragOff.y);
+  const el = document.getElementById('node-'+nodeDragId);
+  if(el) { el.style.left = n.x+'px'; el.style.top = n.y+'px'; }
+  renderEdges(getHighlightSet());
+}
+
+function endNodeDrag() {
+  if(nodeDragging && nodeDragId) {
+    document.getElementById('node-'+nodeDragId)?.classList.remove('dragging');
+    if(isBuilder()) persistCustomFlow();
+    else saveLayout();
+    nodeDragging = false;
+    nodeDragId = null;
+  }
+  endLinkDrag();
+}
+
+function copyNodePath(n) {
+  const path = 'app/' + (n.files||'').split('·')[0].trim().replace(/^app\//,'');
+  navigator.clipboard.writeText(path).then(() => {
+    const el = document.getElementById('ls-text');
+    if(el) { el.textContent = 'Copied: '+path; setTimeout(fetchLiveHealth, 2000); }
+  });
+}
+
+function renderEdges(highlightIds) {
+  const svg = document.getElementById('edgesvg');
+  const world = getViewData().world;
+  svg.setAttribute('width', world.w);
+  svg.setAttribute('height', world.h);
+  svg.style.width = world.w + 'px';
+  svg.style.height = world.h + 'px';
+
+  Array.from(svg.querySelectorAll('g.edge-group, circle.flow-dot')).forEach(g => g.remove());
+  edgePathCache = {};
+
+  activeEdges.forEach((e, edgeIdx) => {
+    const src = nodeMap[e.f], tgt = nodeMap[e.t];
+    if(!src || !tgt) return;
+
+    const d = buildPath(e, src, tgt);
+    const key = e.f+'->'+e.t+'-'+(e.lbl||'');
+    edgePathCache[key] = d;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.classList.add('edge-group');
+    g.dataset.from = e.f;
+    g.dataset.to = e.t;
+    g.dataset.edgeIdx = edgeIdx;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-width', e.style === 'loop' ? '2.5' : '2');
+
+    let cls = 'edge-path ';
+    if(isBuilder()) cls += 'builder-edge ';
+    if(selectedEdge === edgeIdx) cls += 'highlight ';
+    else if(tracePathSet && tracePathSet.has(e.f) && tracePathSet.has(e.t)) cls += 'trace-edge';
+    else if(e.style === 'loop') cls += 'loop-edge';
+    else if(e.style === 'async' || e.style === 'opt') cls += 'async-edge';
+    else cls += 'sync-edge';
+
+    const isHi = highlightIds && (highlightIds.has(e.f) || highlightIds.has(e.t));
+    const isDim = highlightIds && !isHi && !tracePathSet && selectedEdge !== edgeIdx;
+    if(isHi && !tracePathSet && selectedEdge !== edgeIdx) cls += ' highlight';
+    if(isDim) cls += ' dimmed-edge';
+    path.setAttribute('class', cls);
+
+    if(isBuilder()) {
+      path.style.pointerEvents = 'stroke';
+      path.onclick = ev => {
+        ev.stopPropagation();
+        selectedEdge = edgeIdx;
+        selectedNode = null;
+        renderEdges();
+        showBuilderPanel();
+      };
+    }
+
+    const marker = e.style === 'loop' ? 'url(#ah-amber)' : (e.style === 'async' ? 'url(#ah-blue)' : 'url(#ah)');
+    path.setAttribute('marker-end', marker);
+    g.appendChild(path);
+
+    if(e.lbl) {
+      const [mx, my] = pathMidpoint(d);
+      const tw = Math.max(40, e.lbl.length * 5.5 + 10);
+      const bg = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      bg.setAttribute('x', mx - tw/2);
+      bg.setAttribute('y', my - 8);
+      bg.setAttribute('width', tw);
+      bg.setAttribute('height', 14);
+      bg.setAttribute('rx', 3);
+      bg.setAttribute('class', 'edge-lbl-bg');
+      const lbl = document.createElementNS('http://www.w3.org/2000/svg','text');
+      lbl.setAttribute('x', mx);
+      lbl.setAttribute('y', my + 1);
+      lbl.setAttribute('class', 'edge-lbl');
+      lbl.setAttribute('text-anchor', 'middle');
+      lbl.setAttribute('dominant-baseline', 'middle');
+      lbl.textContent = e.lbl;
+      g.appendChild(bg);
+      g.appendChild(lbl);
+    }
+    svg.appendChild(g);
+  });
+
+  if(flowPlaying) startFlowDots();
+}
+
+function renderFlowPick() {
+  const el = document.getElementById('flow-pick');
+  if(currentView === 'custom') {
+    el.innerHTML = Object.values(customFlowStore.flows).map(f =>
+      `<button class="fp-btn${f.id===customFlowStore.activeId?' on':''}" onclick="loadCustomFlowId('${f.id}')">${f.name}</button>`
+    ).join('') + `<button class="fp-btn" onclick="newCustomFlow()">+ New Flow</button>`;
+    return;
+  }
+  const presets = getViewData().presets;
+  el.innerHTML = presets.map(p =>
+    `<button class="fp-btn${p.id===currentPreset?' on':''}" onclick="setPreset('${p.id}')">${p.label}</button>`
+  ).join('');
+}
+
+function setBuilderMode(on) {
+  document.getElementById('cw').classList.toggle('builder-mode', on);
+  document.body.classList.toggle('builder-mode', on);
+}
+
+function switchView(view, btn) {
+  currentView = view;
+  currentPreset = view === 'custom' ? 'all' : (view === 'products' ? 'all' : (view === 'structural' ? 'all' : 'full'));
+  tourActive = false; tourStep = -1;
+  selectedEdge = null; shiftLinkFrom = null; linkFrom = null;
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(view === 'custom') syncCustomView();
+  document.getElementById('ov-badge').textContent = getViewData().badge;
+  document.getElementById('tour-nav').className = '';
+  document.getElementById('product-legend').classList.toggle('vis', view === 'products');
+  setBuilderMode(view === 'custom');
+  applyPreset();
+  renderFlowPick();
+  renderNodes();
+  renderEdges();
+  applyTransform();
+  if(view === 'custom') showBuilderPanel();
+  else showDefaultSidebar();
+  if(view === 'products') fetchProductPricing();
+  setTimeout(fitView, 80);
+}
+
+function setPreset(id) {
+  currentPreset = id;
+  applyPreset();
+  renderFlowPick();
+  renderNodes();
+  renderEdges(selectedNode ? getConnectedIds(selectedNode) : null);
+  fitView();
+}
+
+function toggleEdges() {
+  showEdges = !showEdges;
+  document.getElementById('btn-edges').classList.toggle('on', showEdges);
+  applyPreset();
+  renderNodes();
+  renderEdges();
+}
+
+function toggleLoops() {
+  showLoops = !showLoops;
+  document.getElementById('btn-loops').classList.toggle('on', showLoops);
+  applyPreset();
+  renderEdges(selectedNode ? getConnectedIds(selectedNode) : null);
+  document.getElementById('bc-edges').textContent = activeEdges.length + ' edges';
+}
+
+function getConnectedIds(id) {
+  const s = new Set([id]);
+  activeEdges.forEach(e => { if(e.f===id) s.add(e.t); if(e.t===id) s.add(e.f); });
+  return s;
+}
+
+function getHighlightSet() {
+  if(tracePathSet) return tracePathSet;
+  if(selectedNode) return getConnectedIds(selectedNode);
+  return null;
+}
+
+function getDownstreamPath(startId) {
+  const visited = new Set([startId]);
+  const queue = [startId];
+  while(queue.length) {
+    const cur = queue.shift();
+    activeEdges.forEach(e => {
+      if(e.f === cur && !visited.has(e.t)) { visited.add(e.t); queue.push(e.t); }
+    });
+  }
+  return visited;
+}
+
+function traceFromSelected() {
+  if(!selectedNode) { tracePathSet = null; renderEdges(); return; }
+  tracePathSet = getDownstreamPath(selectedNode);
+  renderNodes();
+  renderEdges(tracePathSet);
+  const sb = document.getElementById('sb-content');
+  if(sb && !tourActive) {
+    const extra = document.createElement('div');
+    extra.className = 'step-detail';
+    extra.style.cssText = 'border-color:#166534;background:#071512;margin-top:8px';
+    extra.innerHTML = `<div class="sd-title" style="color:#4ade80">Trace: ${tracePathSet.size} nodes downstream</div>
+      <div class="sd-desc" style="color:#2a5a3d">Press T again or Esc to clear green path.</div>`;
+    sb.appendChild(extra);
+  }
+}
+
+// ════════════════════════════════════
+// VIEWPORT
+// ════════════════════════════════════
+function applyTransform() {
+  document.getElementById('viewport').style.transform = `translate(${vp.x}px,${vp.y}px) scale(${vp.scale})`;
+  document.getElementById('zoom-pct').textContent = Math.round(vp.scale*100)+'%';
+  drawMinimap();
+}
+
+function zoom(factor) {
+  const cw = document.getElementById('cw');
+  const cx = cw.offsetWidth/2, cy = cw.offsetHeight/2;
+  const ns = Math.max(0.12, Math.min(2.5, vp.scale * factor));
+  vp.x += (cx - vp.x) * (1 - ns/vp.scale);
+  vp.y += (cy - vp.y) * (1 - ns/vp.scale);
+  vp.scale = ns;
+  applyTransform();
+}
+
+function fitView() {
+  if(!activeNodes.length) return;
+  const cw = document.getElementById('cw'), pad = 50;
+  const minX = Math.min(...activeNodes.map(n=>n.x));
+  const minY = Math.min(...activeNodes.map(n=>n.y));
+  const maxX = Math.max(...activeNodes.map(n=>n.x+n.w));
+  const maxY = Math.max(...activeNodes.map(n=>n.y+n.h));
+  const gw = maxX-minX, gh = maxY-minY;
+  vp.scale = Math.min((cw.offsetWidth-pad*2)/gw, (cw.offsetHeight-pad*2)/gh, 1.1);
+  vp.x = (cw.offsetWidth - gw*vp.scale)/2 - minX*vp.scale;
+  vp.y = (cw.offsetHeight - gh*vp.scale)/2 - minY*vp.scale;
+  applyTransform();
+}
+
+function toggleLock() {
+  locked = !locked;
+  document.getElementById('lock-btn').textContent = locked ? '🔒' : '🔓';
+}
+
+function setupPanZoom() {
+  const cw = document.getElementById('cw');
+  cw.addEventListener('mousedown', e => {
+    if(locked || e.target.closest('.node')) return;
+    dragging = true;
+    dragStart = {x:e.clientX, y:e.clientY};
+    vpStart = {x:vp.x, y:vp.y};
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e => {
+    if(linkFrom) { onLinkDragMove(e); return; }
+    if(nodeDragging) { onNodeDragMove(e); return; }
+    if(!dragging) return;
+    vp.x = vpStart.x + (e.clientX - dragStart.x);
+    vp.y = vpStart.y + (e.clientY - dragStart.y);
+    applyTransform();
+  });
+  window.addEventListener('mouseup', () => { dragging = false; endNodeDrag(); });
+  cw.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = cw.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const delta = e.deltaY < 0 ? 1.12 : 0.89;
+    const ns = Math.max(0.12, Math.min(2.5, vp.scale * delta));
+    vp.x = mx - (mx - vp.x) * (ns/vp.scale);
+    vp.y = my - (my - vp.y) * (ns/vp.scale);
+    vp.scale = ns;
+    applyTransform();
+  }, {passive:false});
+}
+
+function panToNode(id) {
+  const n = nodeMap[id]; if(!n) return;
+  const cw = document.getElementById('cw');
+  const tx = cw.offsetWidth/2 - (n.x+n.w/2)*vp.scale;
+  const ty = cw.offsetHeight/2 - (n.y+n.h/2)*vp.scale;
+  const sx=vp.x, sy=vp.y, start=performance.now();
+  (function anim(now) {
+    const t = Math.min(1,(now-start)/400);
+    const e = t<0.5?2*t*t:-1+(4-2*t)*t;
+    vp.x = sx+(tx-sx)*e; vp.y = sy+(ty-sy)*e;
+    applyTransform();
+    if(t<1) requestAnimationFrame(anim);
+  })(performance.now());
+}
+
+// ════════════════════════════════════
+// SELECTION + SIDEBAR
+// ════════════════════════════════════
+function selectNode(id) {
+  tracePathSet = null;
+  selectedEdge = null;
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+  document.getElementById('node-'+id)?.classList.add('selected');
+  selectedNode = id;
+  renderEdges(getConnectedIds(id));
+  if(isBuilder()) showBuilderPanel();
+  else showNodeDetail(nodeMap[id]);
+  if(!nodeDragging) panToNode(id);
+}
+
+function showNodeDetail(n) {
+  if(!n) return;
+  const cols = {platform:'#60a5fa',marketing:'#3b82f6',voice:'#fb923c',ai:'#818cf8',data:'#22d3ee',external:'#4ade80',monitor:'#fbbf24',loop:'#e879f9',gap:'#f87171'};
+  const incoming = activeEdges.filter(e => e.t === n.id);
+  const outgoing = activeEdges.filter(e => e.f === n.id);
+  const flagOn = n.flag ? flagState[n.flag] : null;
+
+  let html = '';
+  if(n.type === 'gap') {
+    html += `<div class="step-detail" style="border-color:#991b1b;background:#1a1010;margin-bottom:10px">
+      <div class="sd-title" style="color:#f87171">⛔ Backlog / Not built</div>
+      <div class="sd-desc" style="color:#9f4a4a">Competitor gap — see docs/Competitor_Top20_Feature_Gap_2026.md</div></div>`;
+  }
+  html += `
+    <div class="nd-card">
+      <div class="nd-type" style="color:${cols[n.type]}">${n.badge} · ${n.type.toUpperCase()}</div>
+      <div class="nd-title">${n.title}</div>
+      <div class="nd-desc">${n.desc}</div>
+      <div class="nd-meta">
+        <span class="nm">files <b>${n.files}</b></span>
+        ${n.sched?`<span class="nm">schedule <b>${n.sched}</b></span>`:''}
+        ${n.flag?`<span class="nm">flag <b>${n.flag}</b> ${flagOn?'✅ ON':'⬜ OFF'}</span>`:''}
+      </div>
+    </div>`;
+
+  if(liveHealth && (n.id === 'launch' || n.id === 'vps' || n.id === 'explorer' || n.id === 'beat' || n.id === 'worker' || n.id === 'ops')) {
+    html += `<div class="panel-hdr">Live sync (auto 60s)</div>`;
+    if(n.id === 'launch' && liveHealth.summary) {
+      const s = liveHealth.summary;
+      const ok = !!(s.production_ready || s.ready_for_launch);
+      html += `<div class="step-detail" style="border-color:${ok?'#166534':'#92400e'};background:${ok?'#071512':'#1a1208'}">
+        <div class="sd-title" style="color:${ok?'#4ade80':'#fbbf24'}">${ok?'✅ Production ready':'⛔ '+(s.blocker_count||0)+' blocker(s)'}</div>
+        <div class="sd-desc">Marketing+ops launch · payments/calling optional · warns: ${s.warn_count||0}</div>
+      </div>`;
+      html += `<a class="action-btn" href="/app/automation#launch" style="display:block;text-align:center;text-decoration:none">↗ Mission Control Launch</a>`;
+    }
+    if(n.id === 'vps' && liveHealth.health) {
+      html += `<div class="step-detail"><div class="sd-title" style="color:#60a5fa">VPS ${liveHealth.health.status||'up'}</div>
+        <div class="sd-desc">${liveHealth.base||'leadsgenai.in'}</div></div>`;
+    }
+    if(n.id === 'explorer') {
+      html += `<div class="step-detail"><div class="sd-desc">Δ toast · flags + job health (admin login) · Mission Control = prod truth</div></div>`;
+    }
+    if((n.id === 'beat' || n.id === 'worker' || n.id === 'ops') && liveHealth.automationHealth) {
+      const ah = liveHealth.automationHealth;
+      const od = ah.overdue || [];
+      const q = ah.queue || {};
+      html += `<div class="step-detail" style="border-color:${od.length?'#92400e':'#166534'}">
+        <div class="sd-title" style="color:${od.length?'#fbbf24':'#4ade80'}">${od.length?od.length+' overdue job(s)':'Scheduler healthy'}</div>
+        <div class="sd-desc">DLQ ${q.dlq??'?'} · celery queue ${q.celery??'?'} · ${ah.status||'—'}</div>
+        ${od.length?'<div class="sd-desc">'+String(od.join(', ')).replace(/</g,'&lt;')+'</div>':''}
+      </div>`;
+      html += `<a class="action-btn" href="/app/automation#schedule" style="display:block;text-align:center;text-decoration:none">↗ Mission Control Schedule</a>`;
+    }
+    html += `<button class="action-btn" onclick="fetchLiveHealth()">🔄 Refresh now</button>`;
+  }
+
+  if(currentView === 'products' && productPricing) {
+    const mPkgs = productPricing.marketing?.packages || (Array.isArray(productPricing.marketing) ? productPricing.marketing : []);
+    const tierMap = {m_starter:'starter', m_growth:'growth', m_advanced:'advanced', m_trial:'trial'};
+    const mKey = tierMap[n.id];
+    if(mKey && mPkgs.length) {
+      const pk = mPkgs.find(p => (p.key||'').toLowerCase() === mKey);
+      if(pk) html += `<div class="step-detail" style="border-color:#1d4ed8;background:#0d1a2e;margin-top:8px"><div class="sd-title" style="color:#60a5fa">Live: ₹${Number(pk.price_inr_month||0).toLocaleString('en-IN')}/mo</div><div class="sd-desc">${pk.tagline||''}</div></div>`;
+    }
+    const vTiers = productPricing.voice?.tiers || [];
+    const vMap = {v_pilot:'voice_pilot', v_band_a:'voice_a_monthly', v_band_b:'voice_b_monthly', v_band_c:'voice_c_monthly'};
+    const vKey = vMap[n.id];
+    if(vKey) {
+      let vk = vTiers.find(t => (t.plan_id||t.key) === vKey);
+      if(!vk && n.id.startsWith('v_band_')) {
+        const band = n.id.replace('v_band_','').toUpperCase();
+        const bi = productPricing.voice?.band_info;
+        if(bi && productPricing.voice?.band === band) vk = {price_inr_month: bi.price_month, tagline: bi.desc};
+        else {
+          const staticP = {A:4999,B:9999,C:19999};
+          vk = {price_inr_month: staticP[band], tagline: 'Flat monthly · unlimited calls'};
+        }
+      }
+      if(vk) html += `<div class="step-detail" style="border-color:#ea580c;background:#1a0d06;margin-top:8px"><div class="sd-title" style="color:#fb923c">Live: ₹${Number(vk.price_inr_month||0).toLocaleString('en-IN')}/mo</div><div class="sd-desc">${vk.tagline||vk.calls_included||''}</div></div>`;
+    }
+  }
+
+  if(n.flag) {
+    html += `<button class="action-btn primary" onclick="toggleFlag('${n.flag}')">${flagOn?'⏸ Disable':'▶ Enable'} ${n.flag} (draft)</button>`;
+    html += `<div style="font-size:9px;color:#4b5563;margin-bottom:10px">Draft toggle — production me .env + restart chahiye. Mission Control → Flags tab.</div>`;
+  }
+
+  if(outgoing.length || incoming.length) {
+    html += `<div class="panel-hdr">Connections (${incoming.length+outgoing.length})</div>`;
+    html += `<button class="action-btn" onclick="traceFromSelected()">⤵ Trace downstream path (T)</button>`;
+    outgoing.forEach(e => {
+      html += `<div class="conn-row${e.style==='loop'?' loop-row':''}" onclick="selectNode('${e.t}')">
+        → ${nodeMap[e.t]?.title||e.t} ${e.lbl?`<span style="font-size:9px;opacity:.7">${e.lbl}</span>`:''} ${e.style==='loop'?'↻':''}
+      </div>`;
+    });
+    incoming.forEach(e => {
+      html += `<div class="conn-row${e.style==='loop'?' loop-row':''}" onclick="selectNode('${e.f}')">
+        ← ${nodeMap[e.f]?.title||e.f} ${e.lbl?`<span style="font-size:9px;opacity:.7">${e.lbl}</span>`:''} ${e.style==='loop'?'↻':''}
+      </div>`;
+    });
+  }
+
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+}
+
+function showFlowPanel() {
+  const presets = getViewData().presets;
+  let html = `<div class="panel-hdr">Flow Presets</div>`;
+  presets.forEach(p => {
+    const desc = p.id==='full'||p.id==='all' ? 'Saare nodes + connections'
+      : p.id==='loops' ? 'Sirf feedback loops (amber dashed)'
+      : p.id==='marketing' ? 'Product 1 Marketing SKU only'
+      : p.id==='voice' ? 'Product 2 Voice SKU only'
+      : p.id==='sales' ? 'Compare + anti-bundle'
+      : p.label+' subset';
+    html += `<div class="flow-card${p.id===currentPreset?' on':''}" onclick="setPreset('${p.id}')">
+      <div class="fc-title">${p.label}</div>
+      <div class="fc-desc">${desc}</div>
+    </div>`;
+  });
+  html += `<div class="panel-hdr">Quick Actions</div>`;
+  if(currentView === 'products') {
+    html += `<button class="action-btn primary" onclick="fetchProductPricing()">💰 Refresh live pricing</button>`;
+    html += `<a class="action-btn" href="/compare" target="_blank">↗ Open /compare</a>`;
+    html += `<a class="action-btn" href="/pricing" target="_blank">↗ Marketing /pricing</a>`;
+    html += `<a class="action-btn" href="/voice-agent" target="_blank">↗ Voice /voice-agent</a>`;
+    html += `<div class="panel-hdr">Sales rules</div>`;
+    html += `<div style="font-size:10px;color:#64748b;line-height:1.7">
+      ① Do alag products — bundle mat bolo<br>
+      ② Advanced = voice FEATURE (inbound only)<br>
+      ③ Product 2 = full telecaller (DLT gated)<br>
+      ④ /compare page use karo pitch me
+    </div>`;
+  } else {
+    html += `<button class="action-btn" onclick="setPreset('loops');switchView('automation',document.querySelector('[data-view=automation]'))">↻ Show All Loops</button>`;
+    html += `<button class="action-btn" onclick="switchView('products',document.querySelector('[data-view=products]'))">📦 Product split view</button>`;
+    html += `<button class="action-btn" onclick="fitView()">⊡ Fit View</button>`;
+    html += `<button class="action-btn primary" onclick="exportFlow()">↓ Export Flow JSON</button>`;
+    html += `<a class="action-btn" href="/app/automation">↗ Mission Control</a>`;
+    html += `<div class="panel-hdr">Complete Automation Checklist</div>`;
+    html += `<div style="font-size:10px;color:#64748b;line-height:1.7">
+      ① Beat schedule ON · ② Prospect→Outreach · ③ Reply triage<br>
+      ④ Self-improve loop · ⑤ Ops watchdog · ⑥ Journey triggers
+    </div>`;
+  }
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach((t,i)=>t.classList.toggle('active',i===1));
+}
+
+function showFlagsPanel() {
+  const hasToken = !!(typeof localStorage !== 'undefined' && localStorage.getItem('accessToken'));
+  let html = `<div class="panel-hdr">Automation Flags</div>
+    <div style="font-size:9px;color:#4b5563;margin-bottom:10px">${hasToken ? 'Admin login = prod flags auto-sync har 60s. Toggle = local .env draft only.' : '⚠ Admin login karo — prod LIVE/OFF pills + flag sync ke liye. Toggle = local draft.'}</div>
+    <a class="action-btn" href="/app/automation#fflags" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">↗ Mission Control Runtime Flags</a>`;
+  FLOW_FLAGS.forEach(f => {
+    const on = flagState[f.key];
+    html += `<div class="flag-row">
+      <span class="flag-name">${f.key}</span>
+      <div class="flag-toggle${on?' on':''}" onclick="toggleFlag('${f.key}')"></div>
+    </div>`;
+  });
+  html += `<button class="action-btn" style="margin-top:12px" onclick="resetFlags()">↺ Reset to defaults</button>`;
+  html += `<button class="action-btn primary" onclick="copyEnvSnippet()">📋 Copy .env snippet</button>`;
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach((t,i)=>t.classList.toggle('active',i===2));
+}
+
+function toggleFlag(key) {
+  flagState[key] = !flagState[key];
+  saveFlags();
+  renderNodes();
+  if(selectedNode) showNodeDetail(nodeMap[selectedNode]);
+  else if(document.querySelector('.sb-tab.active')?.textContent === 'FLAGS') showFlagsPanel();
+}
+
+function resetFlags() {
+  FLOW_FLAGS.forEach(f => flagState[f.key] = f.def);
+  saveFlags();
+  renderNodes();
+  showFlagsPanel();
+}
+
+function copyEnvSnippet() {
+  const lines = FLOW_FLAGS.map(f => `${f.key}=${flagState[f.key]?1:0}`).join('\n');
+  navigator.clipboard.writeText(lines).then(() => alert('Copied .env snippet to clipboard'));
+}
+
+function sbTab(which, el) {
+  document.querySelectorAll('.sb-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  if(which === 'info') selectedNode ? showNodeDetail(nodeMap[selectedNode]) : (isBuilder() ? showBuilderPanel() : showDefaultSidebar());
+  else if(which === 'flow') showFlowPanel();
+  else if(which === 'flags') showFlagsPanel();
+  else if(which === 'sched') showSchedulePanel();
+  else if(which === 'build') { if(!isBuilder()) switchView('custom', document.querySelector('[data-view=custom]')); else showBuilderPanel(); }
+}
+
+function showBuilderPanel() {
+  const flow = customFlowStore.flows[customFlowStore.activeId];
+  let html = `<div class="panel-hdr">Flow Builder</div>
+    <input class="builder-field" id="bf-name" value="${flow?.name||'Flow'}" placeholder="Flow name" onchange="updateFlowName(this.value)">
+    <button class="action-btn primary" onclick="persistCustomFlow();alert('Saved!')">💾 Save Flow</button>
+    <button class="action-btn" onclick="importFlowJSON()">↑ Import JSON</button>
+    <input type="file" id="import-flow-file" accept=".json,application/json" style="display:none" onchange="onImportFlowFile(event)">
+    <button class="action-btn" onclick="cloneAutomationToBuilder()">📋 Clone Automation Template</button>
+    <button class="action-btn" onclick="deleteCurrentFlow()">🗑 Delete This Flow</button>
+    <div class="panel-hdr">Add Node (click)</div>`;
+
+  NODE_TEMPLATES.forEach((t,i) => {
+    html += `<div class="palette-item" onclick="addBuilderNode(NODE_TEMPLATES[${i}])">
+      <span class="pi-dot" style="background:${t.color||TYPE_COLORS[t.type]}"></span>
+      <span><b>${t.title}</b><br><span style="opacity:.6">${t.badge}</span></span>
+    </div>`;
+  });
+
+  if(selectedNode && nodeMap[selectedNode]) {
+    const n = nodeMap[selectedNode];
+    html += `<div class="panel-hdr">Edit Selected Node</div>
+      <input class="builder-field" value="${n.title.replace(/"/g,'&quot;')}" onchange="updateSelectedNode('title',this.value)">
+      <input class="builder-field" value="${(n.desc||'').replace(/"/g,'&quot;')}" placeholder="Description" onchange="updateSelectedNode('desc',this.value)">
+      <select class="builder-field" onchange="updateSelectedNode('type',this.value);renderNodes();document.getElementById('node-${n.id}')?.classList.add('selected')">
+        ${Object.keys(TYPE_COLORS).map(t=>`<option value="${t}"${n.type===t?' selected':''}>${t}</option>`).join('')}
+      </select>
+      <select class="builder-field" id="bf-edge-style">
+        <option value="sync">sync edge</option>
+        <option value="async">async edge</option>
+        <option value="loop">loop edge</option>
+      </select>
+      <select class="builder-field" id="bf-edge-target"><option value="">Connect to…</option>
+        ${activeNodes.filter(x=>x.id!==selectedNode).map(x=>`<option value="${x.id}">${x.title}</option>`).join('')}
+      </select>
+      <button class="action-btn" onclick="connectFromSelected()">→ Add Connection</button>
+      <button class="action-btn" style="color:#f87171" onclick="removeBuilderNode('${selectedNode}')">× Delete Node</button>`;
+  }
+
+  html += `<div class="panel-hdr">Edges (${activeEdges.length})</div>`;
+  if(!activeEdges.length) html += `<div style="font-size:10px;color:#4b5563">Abhi koi connection nahi — port drag karo ya Shift+click 2 nodes.</div>`;
+  activeEdges.forEach((e,i) => {
+    const sel = selectedEdge === i ? ' style="background:#1a1408;color:#fbbf24"' : '';
+    html += `<div class="conn-row${e.style==='loop'?' loop-row':''}"${sel} onclick="selectedEdge=${i};selectedNode=null;renderEdges();showBuilderPanel()">
+      ${nodeMap[e.f]?.title||e.f} → ${nodeMap[e.t]?.title||e.t}
+      <span style="font-size:8px;opacity:.6">${e.style}${e.lbl?' · '+e.lbl:''}</span>
+      <span style="margin-left:auto;color:#f87171;cursor:pointer" onclick="event.stopPropagation();removeBuilderEdge(${i})">×</span>
+    </div>`;
+  });
+
+  if(selectedEdge != null && activeEdges[selectedEdge]) {
+    const e = activeEdges[selectedEdge];
+    html += `<button class="action-btn" style="color:#f87171;margin-top:6px" onclick="removeBuilderEdge(${selectedEdge})">× Delete Selected Edge</button>`;
+  }
+
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach(t => t.classList.toggle('active', t.textContent.trim()==='BUILD'));
+}
+
+function updateFlowName(name) {
+  if(!customFlowStore.flows[customFlowStore.activeId]) return;
+  customFlowStore.flows[customFlowStore.activeId].name = name;
+  VIEWS.custom.label = name;
+  VIEWS.custom.badge = 'FLOW BUILDER · '+name.toUpperCase();
+  document.getElementById('ov-badge').textContent = VIEWS.custom.badge;
+  renderFlowPick();
+  persistCustomFlow();
+}
+
+function connectFromSelected() {
+  const tgt = document.getElementById('bf-edge-target')?.value;
+  const style = document.getElementById('bf-edge-style')?.value || 'sync';
+  if(!tgt || !selectedNode) return;
+  addBuilderEdge(selectedNode, tgt, style, '');
+  showBuilderPanel();
+}
+
+function showDefaultSidebar() {
+  const tour = getViewData().tour;
+  document.getElementById('sb-content').innerHTML = `
+    <div class="tour-h">
+      <div class="tour-title">${getViewData().label}</div>
+      <div class="tour-sub" id="tour-sub">${tour.length} steps · Click nodes or Start Tour</div>
+    </div>
+    <button class="start-btn inactive" id="start-btn" onclick="toggleTour()">Start Tour</button>
+    <div class="steps-hdr">STEPS</div>
+    <div id="steps-list"></div>
+    <div class="panel-hdr">Tips</div>
+    <div style="font-size:10px;color:#64748b;line-height:1.6">
+      ${currentView==='products'
+        ? '• Blue glow = Product 1 Marketing · Orange = Product 2 Voice<br>• Dashed = Advanced voice FEATURE (not Product 2)<br>• FLOW tab → presets: Product 1 Only / Product 2 Only<br>• Key <b>4</b> = Products view · live pricing on tier click'
+        : '• Amber dashed = feedback loops · Blue = async queue<br>• Drag node = reposition (auto-saved)<br>• ▶ Play Flow = animated data dots<br>• T = trace downstream · Key <b>4</b> = Products<br>• Dbl-click node = copy file path'}
+    </div>`;
+  renderTourSteps();
+}
+
+function showSchedulePanel() {
+  let html = `<div class="panel-hdr">IST Automation Schedule</div>
+    <div style="font-size:9px;color:#4b5563;margin-bottom:10px">Real cron from team_scheduler.py + Celery beat. Click row → jump to node.</div>`;
+  IST_SCHEDULE.forEach(s => {
+    const visible = !s.node || nodeMap[s.node];
+    if(!visible) return;
+    html += `<div class="sched-row" onclick="${s.node?`selectNode('${s.node}')`:''}">
+      <span class="sched-time">${s.time}</span>
+      <span>${s.label}</span>
+      ${s.node?`<span style="font-size:8px;opacity:.5;margin-left:auto">${s.node}</span>`:''}
+    </div>`;
+  });
+  html += `<div class="panel-hdr">Layout</div>`;
+  html += `<button class="action-btn" onclick="resetLayout()">↺ Reset node positions</button>`;
+  html += `<button class="action-btn" onclick="fetchLiveHealth()">🔄 Refresh live health</button>`;
+  document.getElementById('sb-content').innerHTML = html;
+  document.querySelectorAll('.sb-tab').forEach((t,i)=>t.classList.toggle('active', t.textContent.trim()==='SCHED'));
+}
+
+function renderScheduleBar() {
+  const el = document.getElementById('sched-list');
+  if(!el) return;
+  el.innerHTML = IST_SCHEDULE.filter(s => !s.node || nodeMap[s.node]).slice(0,8).map(s =>
+    `<div class="sched-row" onclick="${s.node?`selectNode('${s.node}')`:''}"><span class="sched-time">${s.time}</span><span>${s.label}</span></div>`
+  ).join('');
+}
+
+function toggleScheduleBar() {
+  document.getElementById('schedule-bar').classList.toggle('vis');
+  document.getElementById('btn-sched').classList.toggle('on');
+}
+
+// ════════════════════════════════════
+// FLOW ANIMATION
+// ════════════════════════════════════
+function toggleFlowPlay() {
+  flowPlaying = !flowPlaying;
+  const btn = document.getElementById('btn-play');
+  btn.textContent = flowPlaying ? '⏸ Pause' : '▶ Play Flow';
+  btn.classList.toggle('on', flowPlaying);
+  if(flowPlaying) startFlowDots();
+  else stopFlowDots();
+}
+
+function startFlowDots() {
+  stopFlowDots();
+  const svg = document.getElementById('edgesvg');
+  const paths = svg.querySelectorAll('g.edge-group path.edge-path:not(.dimmed-edge)');
+  const dots = [];
+  paths.forEach((pathEl, idx) => {
+    const len = pathEl.getTotalLength();
+    if(len < 20) return;
+    const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('r', '4');
+    dot.setAttribute('class', 'flow-dot');
+    dot._path = pathEl;
+    dot._offset = (idx * 0.17) % 1;
+    svg.appendChild(dot);
+    dots.push(dot);
+  });
+
+  let t0 = performance.now();
+  function anim(now) {
+    if(!flowPlaying) return;
+    const t = (now - t0) / 3000;
+    dots.forEach(d => {
+      const len = d._path.getTotalLength();
+      const pt = d._path.getPointAtLength(((d._offset + t) % 1) * len);
+      d.setAttribute('cx', pt.x);
+      d.setAttribute('cy', pt.y);
+    });
+    flowAnimId = requestAnimationFrame(anim);
+  }
+  flowAnimId = requestAnimationFrame(anim);
+}
+
+function stopFlowDots() {
+  if(flowAnimId) cancelAnimationFrame(flowAnimId);
+  flowAnimId = null;
+  document.querySelectorAll('#edgesvg circle.flow-dot').forEach(d => d.remove());
+}
+
+// ════════════════════════════════════
+// LIVE HEALTH (same-origin or leadsgenai.in) + auto change feed
+// ════════════════════════════════════
+function _parseFlagsPayload(flags) {
+  const flagMap = {};
+  if(flags && flags.flags) flags.flags.forEach(f => { flagMap[f.name || f.key] = f.on ?? f.enabled ?? false; });
+  else if(Array.isArray(flags)) flags.forEach(f => { flagMap[f.name||f] = true; });
+  else if(flags) Object.keys(flags).forEach(k => { if(typeof flags[k]==='boolean') flagMap[k]=flags[k]; });
+  return flagMap;
+}
+
+function _syncFlagsFromServer(flagMap) {
+  if(!flagMap || !Object.keys(flagMap).length) return;
+  FLOW_FLAGS.forEach(f => {
+    if(flagMap[f.key] !== undefined) flagState[f.key] = !!flagMap[f.key];
+  });
+  saveFlags();
+}
+
+function _snapshotKey(snap) {
+  if(!snap) return '';
+  const flags = snap.flags || {};
+  const onFlags = Object.keys(flags).filter(k => flags[k]).sort().join(',');
+  const ah = snap.automationHealth || {};
+  const overdue = (ah.overdue || []).join(',');
+  return [
+    snap.base || '',
+    snap.health?.status || '',
+    snap.summary?.production_ready ? '1' : (snap.summary?.ready_for_launch ? '1' : '0'),
+    snap.summary?.blocker_count ?? '',
+    snap.summary?.warn_count ?? '',
+    ah.status || '',
+    overdue,
+    ah.queue?.dlq ?? '',
+    onFlags,
+  ].join('|');
+}
+
+function _pushChangeFeed(msg) {
+  const el = document.getElementById('chg-toast');
+  if(!el || !msg) return;
+  el.innerHTML = '<b>Δ update</b> · ' + msg;
+  el.classList.add('vis');
+  clearTimeout(el._hideT);
+  el._hideT = setTimeout(() => el.classList.remove('vis'), 12000);
+}
+
+function _detectLiveChanges(prev, next) {
+  if(!prev || !next) return;
+  const parts = [];
+  const prevOk = !!(prev.summary?.production_ready || prev.summary?.ready_for_launch);
+  const nextOk = !!(next.summary?.production_ready || next.summary?.ready_for_launch);
+  if(prevOk !== nextOk) {
+    parts.push('Launch: ' + (nextOk ? '✅ PROD READY' : '⛔ blocked'));
+  }
+  if((prev.summary?.blocker_count) !== (next.summary?.blocker_count)) {
+    parts.push('Blockers ' + (prev.summary?.blocker_count ?? '?') + '→' + (next.summary?.blocker_count ?? '?'));
+  }
+  const pf = prev.flags || {}, nf = next.flags || {};
+  Object.keys(nf).forEach(k => {
+    if(pf[k] !== undefined && pf[k] !== nf[k]) parts.push(k + ': ' + (nf[k] ? 'ON' : 'OFF'));
+  });
+  const pah = prev.automationHealth || {}, nah = next.automationHealth || {};
+  const pod = (pah.overdue || []).length, nod = (nah.overdue || []).length;
+  if(pod !== nod) parts.push('Overdue jobs ' + pod + '→' + nod);
+  if((pah.queue?.dlq||0) !== (nah.queue?.dlq||0)) {
+    parts.push('DLQ ' + (pah.queue?.dlq||0) + '→' + (nah.queue?.dlq||0));
+  }
+  if(parts.length) _pushChangeFeed(parts.slice(0, 4).join(' · '));
+}
+
+// Advanced: live graph<->code drift coverage in the HUD. Independent + best-effort
+// (own try/catch) so it can NEVER break the main live overlay. Appends "graph N% synced".
+async function _updateDriftHud(base, token) {
+  try {
+    const r = await fetch(base + '/api/growth/infra/explorer-drift', {
+      mode: 'cors', credentials: 'omit', headers: {Authorization: 'Bearer ' + token},
+    });
+    if(!r.ok) return;
+    const d = await r.json();
+    if(d && typeof d.coverage_pct === 'number') {
+      liveHealth && (liveHealth.drift = d);
+      const txt = document.getElementById('ls-text');
+      if(txt && txt.textContent.indexOf('graph ') < 0) {
+        txt.textContent += ` · graph ${d.coverage_pct}% synced`;
+      }
+    }
+  } catch(e) {}
+}
+
+async function fetchLiveHealth() {
+  const el = document.getElementById('live-status');
+  const txt = document.getElementById('ls-text');
+  if(!el || !txt) return;
+
+  const token = (typeof localStorage !== 'undefined' && localStorage.getItem('accessToken')) || '';
+
+  for(const base of getApiBases()) {
+    try {
+      const reqs = [
+        fetch(base+'/health', {mode:'cors', credentials:'omit'}),
+        fetch(base+'/api/activation/summary', {mode:'cors', credentials:'omit'}),
+      ];
+      if(token) {
+        reqs.push(fetch(base+'/api/growth/infra/flags', {
+          mode:'cors', credentials:'omit',
+          headers: {Authorization: 'Bearer '+token},
+        }));
+        reqs.push(fetch(base+'/api/growth/infra/automation-health', {
+          mode:'cors', credentials:'omit',
+          headers: {Authorization: 'Bearer '+token},
+        }));
+      }
+      const res = await Promise.all(reqs);
+      const healthR = res[0], summaryR = res[1];
+      const flagsR = token ? res[2] : null;
+      const autoHealthR = token ? res[3] : null;
+      if(!healthR.ok && !summaryR.ok) continue;
+
+      let health = {}, summary = {}, flags = {}, automationHealth = {};
+      try { health = await healthR.json(); } catch(e) {}
+      try { summary = await summaryR.json(); } catch(e) {}
+      if(flagsR && flagsR.ok) { try { flags = await flagsR.json(); } catch(e) {} }
+      if(autoHealthR && autoHealthR.ok) { try { automationHealth = await autoHealthR.json(); } catch(e) {} }
+
+      const flagMap = _parseFlagsPayload(flags);
+      if(flags && flags.flags && typeof flags.flags === 'object' && !Array.isArray(flags.flags)) {
+        Object.keys(flags.flags).forEach(k => {
+          const ent = flags.flags[k];
+          if(ent && typeof ent === 'object' && 'on' in ent) flagMap[k] = !!ent.on;
+        });
+      }
+      if(Object.keys(flagMap).length) _syncFlagsFromServer(flagMap);
+
+      prevLiveSnapshot = liveSnapshot;
+      liveSnapshot = { base, health, summary, flags: flagMap, automationHealth, ts: Date.now() };
+      liveHealth = liveSnapshot;
+      _detectLiveChanges(prevLiveSnapshot, liveSnapshot);
+
+      const host = base.replace('https://','').replace('http://','');
+      const launchOk = !!(summary.production_ready || summary.ready_for_launch);
+      const blockers = summary.blocker_count || 0;
+      const overdueN = (automationHealth.overdue || []).length;
+      const dlqN = automationHealth.queue?.dlq ?? 0;
+      const ok = health.status === 'healthy' && launchOk && !overdueN;
+      el.className = ok ? 'ok' : (blockers || overdueN ? 'warn' : 'ok');
+      if(launchOk) {
+        let extra = '';
+        if(overdueN) extra = ' · ⚠ '+overdueN+' job overdue';
+        else if(dlqN > 0) extra = ' · DLQ '+dlqN;
+        txt.textContent = `✅ Production ready · ${host}${extra}`;
+      } else if(health.status === 'healthy') {
+        txt.textContent = `⚠ ${blockers} blocker(s) · ${host}`;
+      } else {
+        txt.textContent = `Live · ${host}`;
+      }
+      renderNodes();
+      if(token) _updateDriftHud(base, token);  // advanced: live graph<->code coverage
+      if(selectedNode && (selectedNode === 'launch' || selectedNode === 'vps' || selectedNode === 'explorer' || selectedNode === 'beat' || selectedNode === 'worker' || selectedNode === 'ops')) {
+        showNodeDetail(nodeMap[selectedNode]);
+      }
+      return;
+    } catch(e) { continue; }
+  }
+  el.className = 'err';
+  txt.textContent = 'Offline · file:// — open /app/explorer on leadsgenai.in for live sync';
+}
+
+async function fetchProductPricing() {
+  for(const base of getApiBases()) {
+    try {
+      const [mR, vR] = await Promise.all([
+        fetch(base+'/api/marketing/packages', {mode:'cors', credentials:'omit'}),
+        fetch(base+'/api/voice/packages', {mode:'cors', credentials:'omit'}),
+      ]);
+      if(!mR.ok && !vR.ok) continue;
+      productPricing = {
+        base,
+        marketing: mR.ok ? await mR.json() : null,
+        voice: vR.ok ? await vR.json() : null,
+      };
+      if(currentView === 'products' && selectedNode) showNodeDetail(nodeMap[selectedNode]);
+      const el = document.getElementById('chg-toast');
+      if(el) { el.innerHTML = '<b>💰</b> Live pricing loaded from '+base.replace('https://',''); el.classList.add('vis'); setTimeout(()=>el.classList.remove('vis'), 5000); }
+      return;
+    } catch(e) { continue; }
+  }
+}
+
+// ════════════════════════════════════
+// KEYBOARD + HELP
+// ════════════════════════════════════
+function showHelp() { document.getElementById('help-modal').classList.add('vis'); }
+function hideHelp() { document.getElementById('help-modal').classList.remove('vis'); }
+
+function setupKeyboard() {
+  window.addEventListener('keydown', e => {
+    if(e.target.matches('input,textarea')) return;
+    if(e.key === '?') { showHelp(); return; }
+    if(e.key === 'Escape') {
+      tracePathSet = null; selectedNode = null; selectedEdge = null; shiftLinkFrom = null;
+      linkFrom = null; hideLinkPreview();
+      document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+      renderEdges(); renderNodes(); hideHelp();
+      if(isBuilder()) showBuilderPanel();
+      return;
+    }
+    if((e.key === 'Delete' || e.key === 'Backspace') && isBuilder()) {
+      if(selectedEdge != null) { removeBuilderEdge(selectedEdge); return; }
+      if(selectedNode) { removeBuilderNode(selectedNode); return; }
+    }
+    if(e.key === 'f' || e.key === 'F') { fitView(); return; }
+    if(e.key === '+' || e.key === '=') { zoom(1.15); return; }
+    if(e.key === '-') { zoom(0.87); return; }
+    if(e.key === ' ') { e.preventDefault(); toggleFlowPlay(); return; }
+    if(e.key === '1') switchView('structural', document.querySelector('[data-view=structural]'));
+    if(e.key === '2') switchView('automation', document.querySelector('[data-view=automation]'));
+    if(e.key === '3') switchView('custom', document.querySelector('[data-view=custom]'));
+    if(e.key === '4') switchView('products', document.querySelector('[data-view=products]'));
+    if(e.key === 't' || e.key === 'T') traceFromSelected();
+    if(e.key === 'l' || e.key === 'L') toggleLoops();
+  });
+}
+
+function setupMinimapClick() {
+  const canvas = document.getElementById('mm-canvas');
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const world = getViewData().world;
+    const wx = (e.clientX - rect.left) / rect.width * world.w;
+    const wy = (e.clientY - rect.top) / rect.height * world.h;
+    const cw = document.getElementById('cw');
+    vp.x = cw.offsetWidth/2 - wx*vp.scale;
+    vp.y = cw.offsetHeight/2 - wy*vp.scale;
+    applyTransform();
+  });
+}
+
+// ════════════════════════════════════
+// TOUR
+// ════════════════════════════════════
+function renderTourSteps() {
+  const list = document.getElementById('steps-list');
+  if(!list) return;
+  const tour = getViewData().tour;
+  list.innerHTML = tour.map((s,i) => `
+    <div class="step-row${tourStep===i?' active-step':''}" onclick="goToStep(${i})">
+      <div class="sn">${i+1}</div>
+      <div class="st">${s.title}</div>
+    </div>`).join('');
+}
+
+function toggleTour() {
+  tourActive = !tourActive;
+  const nav = document.getElementById('tour-nav');
+  if(tourActive) { nav.className = 'vis'; goToStep(0); }
+  else { tourStep=-1; nav.className=''; showDefaultSidebar(); document.querySelectorAll('.node').forEach(n=>n.classList.remove('selected')); renderEdges(); }
+}
+
+function goToStep(idx) {
+  const tour = getViewData().tour;
+  if(idx<0||idx>=tour.length) return;
+  tourStep = idx;
+  const step = tour[idx];
+  document.getElementById('prev-btn').disabled = idx===0;
+  document.getElementById('next-btn').textContent = idx===tour.length-1?'✓ Finish':'Next →';
+
+  if(step.nodeId) { selectNode(step.nodeId); }
+  else {
+    fitView();
+    document.getElementById('sb-content').innerHTML = `
+      <div class="step-detail"><div class="sd-title">${step.title}</div><div class="sd-desc">${step.desc}</div></div>`;
+    renderEdges();
+  }
+  renderTourSteps();
+}
+
+function tourNav(dir) {
+  if(dir===1 && tourStep>=getViewData().tour.length-1) { toggleTour(); return; }
+  goToStep(tourStep+dir);
+}
+
+// ════════════════════════════════════
+// SEARCH + EXPORT + MINIMAP
+// ════════════════════════════════════
+function doSearch(q) {
+  q = q.trim().toLowerCase();
+  const countEl = document.getElementById('bc-match');
+  if(!q) {
+    document.querySelectorAll('.node').forEach(n=>n.classList.remove('dimmed'));
+    countEl.classList.remove('vis'); return;
+  }
+  let m=0;
+  activeNodes.forEach(n => {
+    const text = (n.title+n.desc+n.badge+n.type+(n.flag||'')).toLowerCase();
+    const match = text.includes(q);
+    document.getElementById('node-'+n.id)?.classList.toggle('dimmed', !match);
+    if(match) m++;
+  });
+  countEl.textContent = m+' matches';
+  countEl.classList.add('vis');
+}
+
+function exportFlow() {
+  const data = {
+    view: currentView,
+    preset: currentPreset,
+    exported: new Date().toISOString(),
+    flags: flagState,
+    nodes: activeNodes.map(n=>({id:n.id,type:n.type,title:n.title,desc:n.desc,badge:n.badge,files:n.files,flag:n.flag,sched:n.sched,x:n.x,y:n.y,w:n.w,h:n.h})),
+    edges: activeEdges.map(e=>({from:e.f,to:e.t,label:e.lbl,style:e.style})),
+  };
+  if(isBuilder()) data.flowName = customFlowStore.flows[customFlowStore.activeId]?.name;
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `leadgenai-flow-${currentView}-${currentPreset}.json`;
+  a.click();
+}
+
+function importFlowJSON() {
+  document.getElementById('import-flow-file')?.click();
+}
+
+function onImportFlowFile(ev) {
+  const file = ev.target.files?.[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if(!data.nodes?.length) throw new Error('JSON me nodes array chahiye');
+      const name = data.flowName || file.name.replace(/\.json$/i,'') || 'Imported Flow';
+      const flow = makeBlankFlow(name);
+      flow.nodes = data.nodes.map(n => ({
+        id: n.id || ('n_'+Math.random().toString(36).slice(2,8)),
+        type: n.type || 'platform', badge: n.badge || 'STEP', cx: n.cx || 'moderate',
+        title: n.title || 'Step', desc: n.desc || '', files: n.files || 'custom',
+        w: n.w || 220, h: n.h || 95, x: n.x ?? 100, y: n.y ?? 100,
+        sched: n.sched, flag: n.flag,
+      }));
+      flow.edges = (data.edges || []).map(e => ({
+        f: e.from || e.f, t: e.to || e.t, lbl: e.label || e.lbl || '', style: e.style || 'sync',
+      }));
+      flow.id = 'f_'+Date.now().toString(36);
+      customFlowStore.flows[flow.id] = flow;
+      customFlowStore.activeId = flow.id;
+      localStorage.setItem('explorer_custom_flows', JSON.stringify(customFlowStore));
+      syncCustomView();
+      switchView('custom', document.querySelector('[data-view=custom]'));
+    } catch(err) {
+      alert('Import fail: '+err.message);
+    }
+    ev.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function drawMinimap() {
+  const canvas = document.getElementById('mm-canvas');
+  const ctx = canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  const world = getViewData().world;
+  const sx=W/world.w, sy=H/world.h;
+  ctx.clearRect(0,0,W,H);
+
+  activeEdges.forEach(e => {
+    const s=nodeMap[e.f], t=nodeMap[e.t];
+    if(!s||!t) return;
+    ctx.strokeStyle = e.style==='loop'?'#92400e':'#1e3a5f';
+    ctx.lineWidth = e.style==='loop'?1.5:0.8;
+    ctx.beginPath();
+    ctx.moveTo((s.x+s.w/2)*sx,(s.y+s.h)*sy);
+    ctx.lineTo((t.x+t.w/2)*sx,t.y*sy);
+    ctx.stroke();
+  });
+
+  const cols = {platform:'#374151',marketing:'#1d4ed8',voice:'#9a3412',ai:'#4338ca',data:'#0e7490',external:'#166534',monitor:'#92400e',loop:'#7c3aed'};
+  activeNodes.forEach(n => {
+    ctx.fillStyle = cols[n.type]||'#374151';
+    ctx.fillRect(n.x*sx,n.y*sy,n.w*sx,n.h*sy);
+  });
+
+  const cw = document.getElementById('cw');
+  ctx.strokeStyle='#f59e0b'; ctx.lineWidth=1;
+  ctx.strokeRect(-vp.x/vp.scale*sx,-vp.y/vp.scale*sy,cw.offsetWidth/vp.scale*sx,cw.offsetHeight/vp.scale*sy);
+}
+
+// ════════════════════════════════════
+// INIT
+// ════════════════════════════════════
+function init() {
+  initCustomFlows();
+  loadFlags();
+  applyPreset();
+  renderFlowPick();
+  renderNodes();
+  renderEdges();
+  setupPanZoom();
+  setupKeyboard();
+  setupMinimapClick();
+  showDefaultSidebar();
+  fetchLiveHealth();
+  setTimeout(fitView, 120);
+  setInterval(fetchLiveHealth, 60000);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 > **Purpose:** Single map of the **minimum 10-doc enterprise pack** + supporting docs. Naya owner / investor / enterprise client ko yahi se start karo.
 > **Live:** https://leadsgenai.in · **Repo:** github.com/sumitrevolt/leadgenrationaivoiceagent
-> **Updated:** 2026-06-21 (marketing tier features synced to `packages.py`)
+> **Updated:** 2026-06-21 (SWARA handoff sync + marketing tier features)
 
 ---
 
@@ -33,7 +33,9 @@
 | RACI Matrix | [`RACI_MATRIX.md`](RACI_MATRIX.md) | Human + AI staff accountability |
 | Change Log | [`CHANGELOG.md`](CHANGELOG.md) | Releases, features, fixes |
 | **Product Handoff + SOP** | [`PRODUCT_HANDOFF_SOP.md`](PRODUCT_HANDOFF_SOP.md) | Product-wise + automation map · mirrors [`/app/explorer`](https://leadsgenai.in/app/explorer) |
+| **Swara Voice SOP** | [`SWARA_HANDOFF_SOP.md`](SWARA_HANDOFF_SOP.md) | Deep handoff + tune SOP + voice roadmap (Product 2 / Swara) |
 | Activation Runbook | [`SESSION_ACTIVATION_RUNBOOK_2026_06_16.md`](SESSION_ACTIVATION_RUNBOOK_2026_06_16.md) | Env keys + go-live phases |
+| **Executive Council prompt** | [`EXECUTIVE_ADVANCEMENT_COUNCIL_PROMPT.md`](EXECUTIVE_ADVANCEMENT_COUNCIL_PROMPT.md) | Strategic ROI roadmap · `/council-advancement` |
 | Knowledge / troubleshooting | [`OPERATIONAL_RUNBOOKS.md`](OPERATIONAL_RUNBOOKS.md) + [`SESSION_LOG.md`](SESSION_LOG.md) | Incidents + dated history |
 
 ---
