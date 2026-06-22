@@ -148,6 +148,25 @@ def _convo_discipline_enabled() -> bool:
     )
 
 
+def _marketing_plan_price_line(plan_key: str = "starter") -> str:
+    """Marketing price line from packages.py, so voice never quotes stale pricing."""
+    fallback = "Starter Rs 1,199 mahine se"
+    try:
+        from app.marketing.packages import get_packages
+
+        key = (plan_key or "starter").strip().lower()
+        for pkg in get_packages(include_trial=False):
+            if str(pkg.get("key") or "").lower() != key:
+                continue
+            price = int(pkg.get("price_inr_month") or 0)
+            name = str(pkg.get("name") or "Starter").replace("Marketing ", "").strip()
+            if price > 0:
+                return f"{name} Rs {price:,} mahine se"
+    except Exception:
+        pass
+    return fallback
+
+
 def _short_hook(hook: str, max_len: int = 90) -> str:
     """pitch_hook ka pehla, chhota hissa — opener me poora English hook lamba
     lagta hai. Split on em-dash/hyphen clause, cap length.
@@ -662,6 +681,10 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         low = (ut or "").lower().strip()
         if not low or not self._looks_like_question(ut):
             return ""
+        if any(w in low for w in ("ai ho", "bot ho", "robot", "machine", "real ho")):
+            return self._clean(
+                "Haan sir, main AI assistant Swara hoon — aapke business leads qualify karne ke liye."
+            )
         platform = self.niche == "ai_marketing" or self._interest_confirmed
         if platform:
             if any(
@@ -681,7 +704,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 )
             ):
                 return self._clean(
-                    "Starter ₹1,199 mahine se — roz posts, ads, Google boost AI se; "
+                    f"{_marketing_plan_price_line('starter')} — roz posts, ads, Google boost AI se; "
                     "7 din FREE trial bhi hai."
                 )
             if any(
@@ -773,6 +796,14 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         if "kaun ho" in low or "aap kaun" in low or "who are you" in low:
             return self._clean(
                 "Main Swara hoon LeadGen AI se — chhote business ke liye AI marketing platform, posts aur Google profile automatic."
+            )
+        if any(w in low for w in ("ai ho", "bot ho", "robot", "machine", "real ho")):
+            return self._clean(
+                "Haan sir, main AI assistant Swara hoon — aapke business leads qualify karne ke liye."
+            )
+        if any(w in low for w in ("whatsapp", "send kar", "bhej do", "message kar")):
+            return self._clean(
+                "Bilkul sir, WhatsApp pe bhej dungi — pehle bataiye aapko leads chahiye ya content?"
             )
 
         # User ne discovery ka jawab diya → mirror + agla unasked sawaal (sawaal ho to skip).

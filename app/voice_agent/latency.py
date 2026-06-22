@@ -724,9 +724,11 @@ def build_niche_greetings(agent_name: str = "Riya") -> dict[str, str]:
         pass
     out.setdefault(
         "general",
-        __import__(
-            "app.voice_agent.universal_pitch", fromlist=["UNIVERSAL_AGENT_INTRO"]
-        ).UNIVERSAL_AGENT_INTRO,
+        (
+            f"Namaste! Main {agent_name} bol rahi hoon, ek AI assistant. "
+            "Aapke business ke leads aur marketing ke baare mein baat karni thi - "
+            "kya main do minute le sakti hoon?"
+        ),
     )
     return out
 

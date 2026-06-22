@@ -134,6 +134,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Process auto-start (~11:30)",
         "kya": "Process-engine workflows auto-shuru karta hai (gated)",
     },
+    "flow_cron": {
+        "label": "Flow runner cron (har 5 min)",
+        "kya": "Customer/admin flows ke due cron triggers scan karta hai (gated)",
+    },
 }
 
 # Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason)
