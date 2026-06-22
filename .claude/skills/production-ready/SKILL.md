@@ -20,7 +20,7 @@ Expect:
 - `/health` → `environment: production`, `status: healthy`
 - `/api/activation/summary` → `ready_for_first_paid_customer: true`, `blocker_count: 0`
 
-WARN only (not GO blockers): `sentry`, `turnstile` — optional hardening.
+WARN only (not GO blockers): `turnstile` — optional hardening. (Sentry already ARMED — `SENTRY_DSN` live, capturing.)
 
 ## Windows verify suite (engineering gate)
 
@@ -49,7 +49,6 @@ ADR: `product-split-adr` skill — bundle framing mat use.
 
 | Item | Action |
 |------|--------|
-| Sentry | `SENTRY_DSN` + `ENVIRONMENT=production` in VPS `.env` |
 | Turnstile | `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` |
 | Revenue trends | `REVENUE_TRENDS=1` or `scripts/vps_enable_readiness_flags.py` on VPS |
 | Plan rate limit | `PLAN_RATE_LIMIT=1` |

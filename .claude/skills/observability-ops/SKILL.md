@@ -25,8 +25,11 @@ SMTP password committed config me **NAHI** — `smtp_auth_password_file: /etc/al
 ## Traces (OTel)
 `app/observability_otel.py`, gated `ENABLE_OTEL=1`. **GOTCHA**: full OTel stack (sdk + otlp-exporter + instrumentation) image me NAHI (sirf `opentelemetry-api` lock me hai) → `ENABLE_OTEL=1` pe graceful skip-warning, traces nahi aate. Chahiye → otel sdk/exporter pkgs `requirements.lock.txt` me add + rebuild. Tempo target `tempo:4317`.
 
+## Sentry — ARMED (live, 2026-06-22)
+Sentry error-tracking LIVE: `SENTRY_DSN` SET in VPS `.env` + `ENVIRONMENT=production`, capturing. No longer wired-but-OFF.
+
 ## Wired-but-OFF (sirf .env keys chahiye)
-PostHog (`POSTHOG_API_KEY`), Sentry (`SENTRY_DSN`), LiteLLM (`LITELLM_MASTER_KEY`), Cloudflare (`CLOUDFLARE_TUNNEL_TOKEN`), OTel (`ENABLE_OTEL=1`), RequestGuard (`REQUEST_GUARD=1`), PlanTierRateLimit (`PLAN_RATE_LIMIT=1`). Checklist: `docs/INFRA_UPGRADE_2026.md` Part 8.
+PostHog (`POSTHOG_API_KEY`), LiteLLM (`LITELLM_MASTER_KEY`), Cloudflare (`CLOUDFLARE_TUNNEL_TOKEN`), OTel (`ENABLE_OTEL=1`), RequestGuard (`REQUEST_GUARD=1`), PlanTierRateLimit (`PLAN_RATE_LIMIT=1`). Checklist: `docs/INFRA_UPGRADE_2026.md` Part 8.
 
 ## Gotchas (seekhe hue)
 - **Tempo crash-loop**: `monitoring/tempo.yaml` me unsupported fields (`ingester`/`compactor`) image schema reject karta tha (329 restarts) → **minimal config** (server+distributor+storage only) rakho.

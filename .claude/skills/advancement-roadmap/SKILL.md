@@ -5,7 +5,7 @@ description: LeadGen AI 2026 advancement backlog — web-researched, codebase-aw
 
 # Advancement Roadmap (2026)
 
-> Free-stack only · TRAI/DND/AI-disclosure/10–7 gates INTACT · additive + flag-gated · DO products (Marketing ≠ Voice, no bundle USP).
+> Free-stack only · TRAI/DND/AI-disclosure/9–7 gates INTACT · additive + flag-gated · DO products (Marketing ≠ Voice, no bundle USP).
 > Competitor P0 truth: `docs/Competitor_Top20_Feature_Gap_2026.md` — grep pehle, rebuild mat karo (~80% built).
 
 ## Priority snapshot
