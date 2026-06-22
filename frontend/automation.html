@@ -476,6 +476,8 @@ a{color:var(--acc)}
     <button class="btn2" onclick="kirStatus()">📊 Status</button>
     <button class="btn2" onclick="kirRuns()">📜 Runs</button>
     <button class="btn2" onclick="kirProposals()">📋 Proposals</button>
+    <button class="btn2" onclick="kirVariants()">📈 Variants</button>
+    <button class="btn2" onclick="kirPromote()">🏆 Promote</button>
     <button class="btn" id="kirRunBtn" onclick="kirRun()">▶️ Optimize</button>
     <div id="kirOut"></div>
   </div>
@@ -1228,6 +1230,40 @@ async function kirApprove(id){
     var d=await api('/api/growth/campaign/optimize/proposals/'+encodeURIComponent(id)+'/approve',{method:'POST'});
     $('kirOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
     toast('Proposal approved ✅');
+  }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function kirVariants(){
+  try{
+    var d=await api('/api/growth/campaign/variants/summary?script_id=cold_email');
+    var rows=d.variants||[];
+    var gate=d.gate||{};
+    var html='<div class="result">';
+    html+='<p><b>Script:</b> '+esc(d.script_id||'cold_email');
+    if(d.ready_to_promote)html+=' <span style="color:#16a34a">✓ gate PASS — promote ready</span>';
+    else html+=' <span class="mut">gate waiting ('+(gate.champion_n||0)+'/'+gate.min_interactions+' imp/arm)</span>';
+    html+='</p>';
+    if(!rows.length){html+='<p class="mut">Koi variant nahi — proposal approve karo.</p></div>';
+      $('kirOut').innerHTML=html;return;}
+    html+='<table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:8px">';
+    html+='<tr><th align="left">Key</th><th>Status</th><th>Imp</th><th>Reply</th><th>Meet</th><th>Rate</th></tr>';
+    rows.forEach(function(v){
+      html+='<tr><td>'+esc(v.variant_key||'?')+'</td><td>'+esc(v.status||'')+'</td>';
+      html+='<td>'+(v.impressions||0)+'</td><td>'+(v.replies||0)+'</td><td>'+(v.meetings||0)+'</td>';
+      html+='<td>'+((v.meeting_rate||0)*100).toFixed(2)+'%</td></tr>';
+    });
+    if(gate.relative_improvement!=null){
+      html+='<tr><td colspan="6" class="mut">Lift '+((gate.relative_improvement||0)*100).toFixed(1)+'% (need '+((gate.min_relative_improvement||0.15)*100).toFixed(0)+'%)</td></tr>';
+    }
+    html+='</table></div>';
+    $('kirOut').innerHTML=html;
+  }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function kirPromote(){
+  if(!confirm('cold_email challenger promote karna hai? (sirf jab gate PASS ho)'))return;
+  try{
+    var d=await api('/api/growth/campaign/variants/promote?script_id=cold_email',{method:'POST'});
+    $('kirOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+    if(d.promoted)toast('Challenger promoted 🏆'); else toast('Gate not met — stats dekho','warn');
   }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
 async function kirRun(){

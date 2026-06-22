@@ -741,6 +741,13 @@ async def campaign_variants_list(script_id: str = "", _user=Depends(require_admi
     return {"variants": await campaign_variants.list_variants(script_id)}
 
 
+@router.get("/campaign/variants/summary")
+async def campaign_variants_summary(script_id: str = "cold_email", _user=Depends(require_admin)):
+    from app.platform import campaign_variants
+
+    return await campaign_variants.promotion_summary(script_id)
+
+
 @router.post("/campaign/variants/promote")
 async def campaign_variants_promote(script_id: str, _user=Depends(require_admin)):
     from app.platform import campaign_variants

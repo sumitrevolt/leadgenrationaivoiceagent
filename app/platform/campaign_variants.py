@@ -141,6 +141,7 @@ async def list_variants(script_id: str = "") -> list[dict[str, Any]]:
                     "niche": r.niche,
                     "channel": r.channel,
                     "impressions": r.impressions,
+                    "replies": r.replies,
                     "meetings": r.meetings,
                     "meeting_rate": r.meeting_rate,
                     "status": r.status,
@@ -201,4 +202,58 @@ async def pick_for_outreach(
         return None
 
 
-__all__ = ["register_variant", "record_event", "try_promote_challenger", "list_variants", "pick_for_outreach"]
+async def promotion_summary(script_id: str = "cold_email") -> dict[str, Any]:
+    """Variant arms + statistical promotion gate preview."""
+    rows = await list_variants(script_id)
+    champion = next((r for r in rows if r.get("status") == "champion"), None)
+    challengers = [r for r in rows if r.get("status") == "challenger"]
+    best = (
+        max(challengers, key=lambda r: float(r.get("meeting_rate") or 0)) if challengers else None
+    )
+    gate: dict[str, Any] | None = None
+    if champion and best:
+        from app.agents.campaign_optimizer import check_promotion_gate
+
+        gate = check_promotion_gate(
+            float(champion.get("meeting_rate") or 0),
+            float(best.get("meeting_rate") or 0),
+            int(champion.get("impressions") or 0),
+            int(best.get("impressions") or 0),
+        )
+    return {
+        "script_id": script_id,
+        "variants": rows,
+        "champion": champion,
+        "best_challenger": best,
+        "gate": gate,
+        "ready_to_promote": bool(gate and gate.get("promote")),
+    }
+
+
+async def auto_promote_if_ready(script_id: str = "cold_email") -> dict[str, Any]:
+    """Try promote when gate passes — never raises."""
+    try:
+        summary = await promotion_summary(script_id)
+        if not summary.get("ready_to_promote"):
+            return {
+                "ok": True,
+                "promoted": False,
+                "script_id": script_id,
+                "gate": summary.get("gate"),
+            }
+        result = await try_promote_challenger(script_id)
+        result["auto"] = True
+        return result
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:150]}
+
+
+__all__ = [
+    "register_variant",
+    "record_event",
+    "try_promote_challenger",
+    "list_variants",
+    "pick_for_outreach",
+    "promotion_summary",
+    "auto_promote_if_ready",
+]
