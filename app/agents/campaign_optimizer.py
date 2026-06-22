@@ -356,6 +356,22 @@ async def optimize(*, force: bool = False) -> dict[str, Any]:
     except Exception:
         pass
 
+    try:
+        from app.platform import campaign_variants
+
+        promo = await campaign_variants.auto_promote_if_ready("cold_email")
+        rec["auto_promote"] = promo
+        if promo.get("promoted"):
+            log_event(
+                "kiran",
+                "variant_promoted",
+                f"Challenger promoted → {promo.get('new_champion', '?')}",
+                meta=promo,
+                status="ok",
+            )
+    except Exception:
+        pass
+
     return {"ok": True, "enabled": True, "run_id": run_id, **rec}
 
 

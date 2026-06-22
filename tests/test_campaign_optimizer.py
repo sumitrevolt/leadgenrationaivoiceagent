@@ -101,6 +101,15 @@ async def test_approve_proposal_registers_variant(monkeypatch, tmp_path):
     assert again.get("already") is True
 
 
+@pytest.mark.asyncio
+async def test_auto_promote_not_ready_without_data(monkeypatch):
+    monkeypatch.setenv("EVAL_GATE", "0")
+    from app.platform import campaign_variants
+
+    out = await campaign_variants.auto_promote_if_ready("cold_email_test_missing")
+    assert out.get("promoted") is False
+
+
 def test_merge_flywheel_variant():
     from app.platform.auto_outreach import _merge_flywheel_variant
 

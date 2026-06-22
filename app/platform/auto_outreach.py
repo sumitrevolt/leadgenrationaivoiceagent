@@ -709,6 +709,13 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             meta=dict(result),
         )
         logger.info(f"[auto_outreach] run done: {result}")
+        if int(result.get("sent") or 0) > 0 and _flywheel_variants_on():
+            try:
+                from app.platform import campaign_variants
+
+                result["auto_promote"] = await campaign_variants.auto_promote_if_ready("cold_email")
+            except Exception:
+                pass
         return result
     except Exception as e:  # absolute guard
         logger.warning(f"[auto_outreach] run_email_outreach failed: {e}")
