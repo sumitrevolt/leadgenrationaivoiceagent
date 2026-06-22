@@ -359,16 +359,17 @@ async def optimize(*, force: bool = False) -> dict[str, Any]:
     try:
         from app.platform import campaign_variants
 
-        promo = await campaign_variants.auto_promote_if_ready("cold_email")
+        promo = await campaign_variants.auto_promote_all()
         rec["auto_promote"] = promo
-        if promo.get("promoted"):
-            log_event(
-                "kiran",
-                "variant_promoted",
-                f"Challenger promoted → {promo.get('new_champion', '?')}",
-                meta=promo,
-                status="ok",
-            )
+        for sid, pr in (promo.get("results") or {}).items():
+            if pr.get("promoted"):
+                log_event(
+                    "kiran",
+                    "variant_promoted",
+                    f"{sid}: challenger promoted → {pr.get('new_champion', '?')}",
+                    meta=pr,
+                    status="ok",
+                )
     except Exception:
         pass
 

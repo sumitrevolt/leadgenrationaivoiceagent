@@ -160,3 +160,44 @@ def test_revenue_attribution_record(tmp_path, monkeypatch):
     assert r.get("ok") is True
     s = revenue_attribution.summary()
     assert s.get("touches", 0) >= 1
+
+
+def test_voice_opening_format_swara():
+    from app.platform.voice_opening_variants import format_opening
+
+    line = format_opening(
+        "Subject\n\nNamaste, main Swara bol raha hoon {name} ki taraf se.",
+        "Sharma Solar",
+    )
+    assert "rahi hoon" in line
+    assert "Sharma Solar" in line
+
+
+def test_voice_opening_gated_off(monkeypatch):
+    monkeypatch.setenv("VOICE_CAMPAIGN_VARIANTS", "0")
+    from app.platform.voice_opening_variants import voice_variants_on
+
+    assert voice_variants_on() is False
+
+
+@pytest.mark.asyncio
+async def test_approve_call_opening_registers_voice_variant(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    os.makedirs("data/campaign_optimization", exist_ok=True)
+    from app.agents import campaign_optimizer
+
+    pid = "voiceabc12301"
+    campaign_optimizer._append(
+        campaign_optimizer._PROPOSALS,
+        {
+            "id": pid,
+            "type": "call_opening",
+            "niche": "solar",
+            "title": "Voice opener A",
+            "body": "Namaste, main Swara bol rahi hoon [Company] ki taraf se.",
+            "status": "proposal",
+        },
+    )
+    res = await campaign_optimizer.approve_proposal(pid)
+    assert res.get("ok") is True
+    assert res.get("script_id") == "voice_opening"

@@ -62,6 +62,7 @@ async def apply_qualified_downstream(
     call_id: str = "",
     niche: str = "",
     city: str = "",
+    campaign_variant_id: str = "",
 ) -> None:
     """CRM sync, sales pipeline, cadence — mirrors call_manager qualify block."""
     if not q.get("qualified"):
@@ -218,18 +219,18 @@ async def auto_qualify_and_downstream(
     niche: str = "",
     city: str = "",
     ended_at: datetime | None = None,
-) -> None:
+) -> dict[str, Any] | None:
     """Post-call qualify + report webhook + billing + CRM/cadence (stream paths)."""
     try:
         if os.environ.get("AUTO_QUALIFY_CALLS", "0").strip().lower() not in ("1", "true", "yes"):
-            return
+            return None
         if not history:
-            return
+            return None
         txt = "\n".join(
             f"{m.get('role', '?')}: {m.get('content', '')}" for m in history if isinstance(m, dict)
         )
         if len(txt) < 10:
-            return
+            return None
         from app.voice_agent.call_qualifier import qualify_transcript
 
         ended = ended_at or datetime.now(timezone.utc)
@@ -270,8 +271,10 @@ async def auto_qualify_and_downstream(
             niche=niche or "",
             city=city or "",
         )
+        return q
     except Exception as e:
         logger.debug("[post_call] auto_qualify skip: %s", e)
+        return None
 
 
 async def finalize_stream_session(
@@ -285,6 +288,7 @@ async def finalize_stream_session(
     started_at: datetime | None = None,
     ended_at: datetime | None = None,
     extra_transcript: dict[str, Any] | None = None,
+    campaign_variant_id: str = "",
 ) -> None:
     """Meter + transcript + qualify — one call for WS stream cleanup paths."""
     ended = ended_at or datetime.now(timezone.utc)
@@ -309,7 +313,7 @@ async def finalize_stream_session(
         client_name=client_name or "",
         duration_seconds=int(dur),
     )
-    await auto_qualify_and_downstream(
+    q = await auto_qualify_and_downstream(
         history,
         call_id=str(call_id or ""),
         client_id=str(client_id or ""),
@@ -318,6 +322,17 @@ async def finalize_stream_session(
         niche=niche or "",
         ended_at=ended,
     )
+    if campaign_variant_id:
+        try:
+            from app.platform import voice_opening_variants as vov
+
+            await vov.record_outcome(
+                campaign_variant_id,
+                answered=turns > 0,
+                interested=bool(q and q.get("qualified")),
+            )
+        except Exception:
+            pass
     try:
         from app.platform import interaction_log
 
@@ -328,6 +343,7 @@ async def finalize_stream_session(
             client_id=str(client_id or ""),
             body_summary=f"call {int(dur)}s · {turns} user turns",
             outcome="completed",
+            campaign_variant_id=campaign_variant_id,
             meta={"call_id": call_id, "niche": niche},
         )
     except Exception:

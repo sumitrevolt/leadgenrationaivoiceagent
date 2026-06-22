@@ -285,9 +285,13 @@ class PhoneCallSession:
         self._utterance = bytearray()  # PCM16 @ 8kHz collected
         self._preroll: deque[bytes] = deque(maxlen=VAD_START_FRAMES)  # leading speech na cut ho
 
+        # Kiran flywheel voice_opening (VOICE_CAMPAIGN_VARIANTS=1)
+        self._flywheel_opening_override: str | None = None
+        self._voice_variant_id: str | None = None
+        self._voice_variant_resolved = False
+
     # --------------------------------------------------------------------- #
     # Entry points
-    # --------------------------------------------------------------------- #
     async def handle(self) -> None:
         """Accept the WebSocket, then run the conversation loop. Use this when
         the caller passes an UN-accepted socket (the /stream WS endpoint does).
@@ -762,6 +766,11 @@ class PhoneCallSession:
             except Exception:
                 pass
             self.history.append({"role": "assistant", "content": text})
+            vid = getattr(self, "_voice_variant_id", None)
+            if vid:
+                from app.platform import voice_opening_variants as vov
+
+                self._spawn(vov.record_impression(vid))
             await self._speak(text)
         except Exception as e:
             logger.warning("phone_stream: greeting failed (%s)", e)
@@ -790,11 +799,32 @@ class PhoneCallSession:
             logger.debug("phone_stream: platform_pitch_reply failed (%s)", e)
             return None
 
+    async def _resolve_voice_variant(self) -> None:
+        if self._voice_variant_resolved:
+            return
+        self._voice_variant_resolved = True
+        try:
+            from app.platform import voice_opening_variants as vov
+
+            r = await vov.resolve(
+                phone=self._lead_phone or "",
+                niche=self.niche,
+                client_name=self.client_name,
+            )
+            if r.get("opening_line"):
+                self._flywheel_opening_override = r["opening_line"]
+                self._voice_variant_id = str(r.get("variant_id") or "") or None
+        except Exception as e:
+            logger.debug("phone_stream: flywheel opener skip (%s)", e)
+
     async def _greeting_text(self) -> str:
         """STATIC professional permission-based opener (Gong: ~11% vs 2.3%) —
         instant (0 LLM = 0 dead-air on pickup), niche-script preferred, phir
         pitch_hook template (vobiz_stream._opening_line parity). LLM-generated
         greeting hata diya: slow + generic tha."""
+        await self._resolve_voice_variant()
+        if getattr(self, "_flywheel_opening_override", None):
+            return self._flywheel_opening_override
         # 1) Professional niche-script opening
         try:
             from app.voice_agent.niche_scripts import get_script
@@ -1078,6 +1108,7 @@ class PhoneCallSession:
                 started_at=self._started_at,
                 ended_at=ended,
                 extra_transcript={"path": "phone_stream"},
+                campaign_variant_id=str(getattr(self, "_voice_variant_id", "") or ""),
             )
         except Exception as e:
             logger.debug("phone_stream: finalize_stream_session skip: %s", e)
