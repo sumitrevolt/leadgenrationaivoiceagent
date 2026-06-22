@@ -105,6 +105,7 @@ def test_idempotency_skips_active_run(monkeypatch):
 
 def test_idempotency_skips_today_run(monkeypatch):
     monkeypatch.setenv("PROCESS_AUTOSTART", "1")
+    monkeypatch.setattr(pa, "_WEEKLY_DAY", (date.today().weekday() + 1) % 7)
     # process_autostart._today_str() uses date.today() (LOCAL tz) — match it here,
     # else this assert flakes in the UTC-evening / IST-next-day divergence window.
     today = date.today().isoformat()

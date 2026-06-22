@@ -1,5 +1,16 @@
 import app.automation.flow_store as fs
+import pytest
 from fastapi.testclient import TestClient
+
+
+@pytest.fixture(autouse=True)
+def _clear_customer_override():
+    from app.api import customer_auth
+    from app.main import app
+
+    app.dependency_overrides.pop(customer_auth.require_customer, None)
+    yield
+    app.dependency_overrides.pop(customer_auth.require_customer, None)
 
 
 def _as(cid):

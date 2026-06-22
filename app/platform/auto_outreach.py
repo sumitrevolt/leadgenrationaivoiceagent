@@ -298,7 +298,7 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             "Pasand aaye to poora marketing sirf ₹2,999/mahina se shuru hota "
             "hai — koi lambi commitment nahi.",
             "",
-            "2 minute me apna free audit yahan le lijiye: " + _AUDIT_URL_TRACKED,
+            "2 minute me apna free audit yahan le lijiye: " + _AUDIT_URL,
             "Ya WhatsApp pe baat kijiye: " + _WA_LINK,
             "",
             _UNSUB_LINE,

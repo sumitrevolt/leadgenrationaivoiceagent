@@ -96,3 +96,30 @@ def test_terminal_kya_triggers_customer_qa_reply() -> None:
     ans = TelecallerBrain._customer_qa_reply(b, "Google pe dikhta hai kya")
     assert ans
     assert "google" in ans.lower() or "audit" in ans.lower()
+
+
+def test_platform_price_uses_package_source_of_truth() -> None:
+    from app.marketing.packages import get_packages
+
+    b = _brain("ai_marketing")
+    b._interest_confirmed = False
+    price = next(p["price_inr_month"] for p in get_packages() if p["key"] == "starter")
+    ans = TelecallerBrain._customer_qa_reply(b, "price kitna hai")
+    assert f"Rs {price:,}" in ans
+
+
+def test_fast_path_discloses_ai_identity() -> None:
+    b = _brain("ai_marketing")
+    b._interest_confirmed = False
+    ans = TelecallerBrain._fast_path_reply(b, [], "aap bot ho kya")
+    assert "ai assistant" in ans.lower()
+    assert "swara" in ans.lower()
+
+
+def test_fast_path_whatsapp_gate_qualifies_first() -> None:
+    b = _brain("ai_marketing")
+    b._interest_confirmed = False
+    ans = TelecallerBrain._fast_path_reply(b, [], "whatsapp pe bhej do")
+    assert "whatsapp" in ans.lower()
+    assert "leads" in ans.lower() or "content" in ans.lower()
+    assert "?" in ans

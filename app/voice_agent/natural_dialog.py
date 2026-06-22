@@ -153,6 +153,8 @@ ROBOTIC_PHRASES = [
     "i am unable to",
 ]
 
+_DEFAULT_BRAIN = object()
+
 
 class NaturalDialogManager:
     """
@@ -170,7 +172,7 @@ class NaturalDialogManager:
         agent_name: str = "Riya",
         goal: str = "lead ko qualify karna aur ek free demo / callback book karna",
         knowledge: list[str] | None = None,
-        brain: Any = None,
+        brain: Any = _DEFAULT_BRAIN,
         intent_detector: Any = None,
         flow: Any = None,
         max_turns: int = 20,
@@ -182,7 +184,7 @@ class NaturalDialogManager:
         self.goal = goal
         self.max_turns = max_turns
         self.knowledge = knowledge or self._load_knowledge(niche)
-        self.brain = brain if brain is not None else self._build_brain()
+        self.brain = self._build_brain() if brain is _DEFAULT_BRAIN else brain
         self.intent_detector = (
             intent_detector if intent_detector is not None else self._build_intent()
         )

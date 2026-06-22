@@ -190,3 +190,13 @@ class TestNaturalDialogManagerProfessionalism:
         assert "sir/madam" in VOICE_SYSTEM_PROMPT.lower()
         assert "professional" in VOICE_SYSTEM_PROMPT.lower()
         assert "slang" in VOICE_SYSTEM_PROMPT.lower()
+
+    def test_explicit_brain_none_is_rule_based(self, monkeypatch):
+        from app.voice_agent.natural_dialog import NaturalDialogManager
+
+        def fail_build(_self):
+            raise AssertionError("brain=None must not build LLMBrain")
+
+        monkeypatch.setattr(NaturalDialogManager, "_build_brain", fail_build)
+        mgr = NaturalDialogManager(niche="solar", brain=None)
+        assert mgr.brain is None

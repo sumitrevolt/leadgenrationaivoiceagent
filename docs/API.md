@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (814 operations)
+## Endpoint Index — auto-generated from OpenAPI (831 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -762,18 +762,27 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/terms` — Terms Page
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (181)
+### Growth  (198)
 
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats
 - `GET   ` `/api/growth/approvals/drafts` — Approvals Drafts
 - `POST  ` `/api/growth/approvals/drafts/{source}/{item_id}/decide` — Approvals Draft Decide
+- `GET   ` `/api/growth/attribution/summary` — Attribution Summary
 - `POST  ` `/api/growth/bookings/no-show` — Bookings No Show
 - `POST  ` `/api/growth/bookings/remind-run` — Bookings Remind Run
 - `GET   ` `/api/growth/bookings/upcoming` — Bookings Upcoming
 - `GET   ` `/api/growth/cadence` — Cadence Status
 - `POST  ` `/api/growth/cadence/enroll` — Cadence Enroll
 - `POST  ` `/api/growth/cadence/run` — Cadence Run
+- `POST  ` `/api/growth/campaign/optimize` — Campaign Optimize Run
+- `GET   ` `/api/growth/campaign/optimize/proposals` — Campaign Optimize Proposals
+- `POST  ` `/api/growth/campaign/optimize/proposals/{proposal_id}/approve` — Campaign Optimize Approve
+- `GET   ` `/api/growth/campaign/optimize/runs` — Campaign Optimize Runs
+- `GET   ` `/api/growth/campaign/optimize/status` — Campaign Optimize Status
+- `GET   ` `/api/growth/campaign/variants` — Campaign Variants List
+- `POST  ` `/api/growth/campaign/variants/promote` — Campaign Variants Promote
+- `GET   ` `/api/growth/campaign/variants/summary` — Campaign Variants Summary
 - `GET   ` `/api/growth/client-data/summary` — Client Data Summary
 - `GET   ` `/api/growth/client-keys` — Client Keys List
 - `POST  ` `/api/growth/client-keys` — Client Key Issue
@@ -792,6 +801,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/growth/content/trends` — Content Trends
 - `POST  ` `/api/growth/crm/config` — Crm Config
 - `GET   ` `/api/growth/crm/log` — Crm Log
+- `POST  ` `/api/growth/crm/pull` — Crm Pull Status
 - `GET   ` `/api/growth/crm/status` — Crm Status
 - `POST  ` `/api/growth/crm/sync-lead` — Crm Sync Lead
 - `POST  ` `/api/growth/crm/test` — Crm Test
@@ -812,6 +822,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/harvest/run` — Harvest Run
 - `GET   ` `/api/growth/harvest/runs` — Harvest Runs
 - `GET   ` `/api/growth/harvest/sources` — Harvest Sources
+- `POST  ` `/api/growth/icp/generate` — Icp Generate
+- `POST  ` `/api/growth/identity/backfill` — Identity Backfill
+- `GET   ` `/api/growth/identity/duplicates` — Identity Duplicates
+- `POST  ` `/api/growth/identity/merge` — Identity Merge
 - `GET   ` `/api/growth/inbox` — Action Inbox
 - `GET   ` `/api/growth/infra/automation-health` — Infra Automation Health
 - `DELETE` `/api/growth/infra/dlq` — Infra Dlq Purge
@@ -832,6 +846,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/growth/infra/llm` — Infra Llm Metrics
 - `POST  ` `/api/growth/infra/rag-retrieval-ab` — Infra Rag Retrieval Ab
 - `GET   ` `/api/growth/infra/telephony-readiness` — Infra Telephony Readiness
+- `GET   ` `/api/growth/interactions/timeline` — Interactions Timeline
 - `GET   ` `/api/growth/leads/hot` — Hot Leads
 - `POST  ` `/api/growth/leads/rescore` — Rescore Leads
 - `POST  ` `/api/growth/leads/score` — Score One
@@ -849,6 +864,8 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/growth/nps/request-drafts` — Nps Request Drafts
 - `GET   ` `/api/growth/nps/stats` — Nps Stats
 - `POST  ` `/api/growth/nps/submit` — Nps Submit
+- `GET   ` `/api/growth/objections/recent` — Objections Recent
+- `POST  ` `/api/growth/objections/scan` — Objections Scan
 - `GET   ` `/api/growth/optimizer/analysis` — Optimizer Analysis
 - `POST  ` `/api/growth/optimizer/run` — Optimizer Run
 - `GET   ` `/api/growth/optimizer/runs` — Optimizer Runs

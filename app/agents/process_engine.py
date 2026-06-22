@@ -45,8 +45,13 @@ ST_FAILED = "failed"
 
 
 def engine_enabled() -> bool:
-    """Master gate for process-as-code execution (PROCESS_ENGINE=1)."""
-    return os.environ.get("PROCESS_ENGINE", "0").strip().lower() in ("1", "true", "yes")
+    """Master gate for process-as-code execution.
+
+    The engine itself is safe to keep available: auto-start remains separately
+    gated by PROCESS_AUTOSTART and risky steps still stop at breakpoints.
+    """
+    raw = os.environ.get("PROCESS_ENGINE", "1").strip().lower()
+    return raw not in ("0", "false", "no", "off")
 
 
 def _now() -> str:
