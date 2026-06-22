@@ -137,6 +137,25 @@ def _ollama_primary() -> bool:
 # spike phone par cached filler ("hmm/achha ji") se mask hota hai.
 _CALL_TIMEOUT_S = 8.0
 
+# STREAMING token-loop deadlines (chat_stream). The OLD code wrapped only stream
+# CREATION in a timeout; the `async for chunk in stream` token loop was UNBOUNDED,
+# so a free provider that stalls mid-stream (TCP open, no more bytes — common under
+# throttle) hung the generator FOREVER. On the live phone path that froze the call's
+# `_thinking` flag => agent went permanently deaf after ~1 turn (root cause, 2026-06-22).
+# Now every token wait is bounded: a generous FIRST-token deadline (the thinking
+# filler masks it), a tight INTER-token idle deadline (a stalled stream trips fast),
+# and an overall WALL cap. All env-overridable; floats so a bad value can't crash.
+def _stream_num(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, "") or default)
+    except Exception:
+        return default
+
+
+_STREAM_FIRST_TOKEN_S = _stream_num("LLM_STREAM_FIRST_TOKEN_S", 5.0)  # wait for the 1st delta
+_STREAM_IDLE_S = _stream_num("LLM_STREAM_IDLE_S", 3.0)  # max gap between deltas once flowing
+_STREAM_TOTAL_S = _stream_num("LLM_STREAM_TOTAL_S", 12.0)  # overall wall budget per provider
+
 # Circuit-breaker: jab koi provider 429/rate-limit de, use skip karo (har call pe
 # wasted retry-latency na ho). Auto-reopen. UPGRADE (patches 6e7af062/c01b6766):
 # flat 60s kaafi nahi tha — daily-quota (Groq TPD) exhaust hone pe provider poore din
@@ -730,6 +749,8 @@ async def chat_stream(
         if client is None:
             continue
         _t0 = time.monotonic()
+        got = False
+        stream = None
         try:
             stream = await asyncio.wait_for(
                 client.chat.completions.create(
@@ -741,8 +762,21 @@ async def chat_stream(
                 ),
                 timeout=_CALL_TIMEOUT_S,
             )
-            got = False
-            async for chunk in stream:
+            # BOUNDED token loop (was an unbounded `async for` — see _STREAM_* notes).
+            # Manual __anext__ so each token wait gets a deadline: a longer one for the
+            # FIRST delta, a tight idle one after tokens start flowing, plus an overall
+            # wall cap. A stalled stream now raises TimeoutError instead of hanging,
+            # which trips the breaker and (only if nothing was streamed yet) falls
+            # through to the next provider on the SAME call.
+            _it = stream.__aiter__()
+            while True:
+                if (time.monotonic() - _t0) > _STREAM_TOTAL_S:
+                    raise asyncio.TimeoutError("stream total budget exceeded")
+                _per_wait = _STREAM_FIRST_TOKEN_S if not got else _STREAM_IDLE_S
+                try:
+                    chunk = await asyncio.wait_for(_it.__anext__(), timeout=_per_wait)
+                except StopAsyncIteration:
+                    break
                 try:
                     delta = chunk.choices[0].delta.content or ""
                 except Exception:
@@ -761,7 +795,18 @@ async def chat_stream(
                 return
         except Exception as e:
             _trip_cooldown(provider, str(e))
-            logger.debug("[free_ai] %s chat_stream failed: %s", provider, e)
+            logger.debug("[free_ai] %s chat_stream failed/stalled: %s", provider, e)
+            # Release the (possibly half-read) stream socket so it can't leak.
+            if stream is not None:
+                try:
+                    await stream.aclose()
+                except Exception:
+                    pass
+            # If we already streamed partial tokens to the caller, STOP — restarting on
+            # another provider would duplicate/garble the spoken reply. Caller's own
+            # non-stream fallback finishes the turn. Nothing streamed => try next provider.
+            if got:
+                return
             continue
 
 

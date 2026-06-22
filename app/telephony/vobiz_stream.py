@@ -198,6 +198,13 @@ BARGE_MIN_FRAMES = max(1, int(_env_num("VOBIZ_BARGE_MIN_FRAMES", _DEF_BARGE_FRAM
 # this long after the bot finishes -> reprompt; after MAX reprompts -> graceful close.
 NOINPUT_MS = _env_num("VOBIZ_NOINPUT_MS", 12000.0)  # 12 s of pure silence = no-input
 NOINPUT_MAX_REPROMPTS = max(1, int(_env_num("VOBIZ_NOINPUT_MAX_REPROMPTS", 2)))
+# THINK WATCHDOG (anti-dead-air, 2026-06-22): hard cap on how long one turn may
+# spend thinking + stream-speaking. If exceeded (a stuck LLM token stream / STT /
+# synth await), the turn is abandoned and we fall back to the bounded non-stream
+# reply (or a safe bridge line) — guaranteeing self._thinking always clears so the
+# call can never go permanently deaf. 16 s = filler + first-token + synth + a short
+# 1-sentence playback, with headroom; a genuine hang sits far past this.
+THINK_MAX_S = _env_num("VOBIZ_THINK_MAX_S", 16.0)
 
 # EdgeTTS prosody knobs (env-tunable for naturalness; defaults reproduce the
 # previous hard-coded "+8% rate, no pitch/volume" exactly). VOBIZ_* win, else the
@@ -1167,9 +1174,43 @@ class VobizStreamSession:
                     await self._run_play(random.choice(_FILLER_PCM))  # D-7 thinking filler
             except Exception as e:
                 logger.debug(f"[vobiz-stream] filler play failed: {e}")
-            reply = await self._think_and_say_stream(text)
+            # THINK WATCHDOG: the streaming reply path drives token-stream + TTS while
+            # holding self._thinking=True; if any await inside it hung (free provider
+            # stalls mid-stream were the live root cause), self._thinking would never
+            # clear and the call went deaf. Bound it: on timeout, drop the stream turn
+            # and fall through to the bounded non-stream reply below. _stop_play() +
+            # _speaking=False so a half-streamed sentence can't overlap the fallback.
+            reply = ""
+            try:
+                reply = await asyncio.wait_for(
+                    self._think_and_say_stream(text), timeout=THINK_MAX_S
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"[vobiz-stream {self.stream_sid}] stream-reply watchdog fired "
+                    f"({THINK_MAX_S:.0f}s) — non-stream fallback"
+                )
+                self._stop_play()
+                self._speaking = False
+                reply = ""
+                _outcome = "think_timeout"
+            except Exception as e:
+                logger.warning(f"[vobiz-stream {self.stream_sid}] stream reply errored: {e}")
+                reply = ""
             if not reply:
-                reply = await self._think(text)
+                # Non-stream reply() is itself wait_for-bounded (8s) + always returns a
+                # script/safe line, but guard it too so nothing here can hang the turn.
+                try:
+                    reply = await asyncio.wait_for(self._think(text), timeout=THINK_MAX_S)
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        f"[vobiz-stream {self.stream_sid}] non-stream think watchdog fired"
+                    )
+                    reply = ""
+                    _outcome = "think_timeout"
+                except Exception as e:
+                    logger.warning(f"[vobiz-stream {self.stream_sid}] think errored: {e}")
+                    reply = ""
                 # Non-stream path has no token streaming → first-token == reply-ready.
                 if self._turn_llm_first_ms is None and self._turn_t0_ms is not None:
                     self._turn_llm_first_ms = _now_ms() - self._turn_t0_ms
@@ -1179,7 +1220,13 @@ class VobizStreamSession:
                     _reply_text = reply
                     await self._say(reply)
                 else:
-                    _outcome = "no_reply"
+                    # Both stream + non-stream gave nothing — NEVER leave dead air.
+                    fallback = "Ji sir, line thodi slow lagi — boliye, main sun rahi hoon?"
+                    self.hist.append({"role": "assistant", "content": fallback})
+                    if _outcome == "ok":
+                        _outcome = "no_reply"
+                    _reply_text = fallback
+                    await self._say(fallback)
             elif reply:
                 logger.info(f"[vobiz-stream {self.stream_sid}] bot(stream): {reply}")
                 self.hist.append({"role": "assistant", "content": reply})
@@ -1402,14 +1449,31 @@ class VobizStreamSession:
     async def _whisper_transcribe(self, pcm16: bytes) -> str:
         """Local STT (faster-whisper / vosk) — always-available final fallback.
         Model load + transcription both in the executor so the event loop never
-        blocks (warmup in-flight => the wait happens on a worker thread)."""
+        blocks (warmup in-flight => the wait happens on a worker thread).
+
+        HARD DEADLINE (2026-06-22 fix): both executor awaits are now wrapped in
+        asyncio.wait_for. Without it a cold model load or a CPU-starved inference
+        could block _on_utterance forever -> self._thinking stuck True -> every
+        later caller frame dropped at _on_media -> permanent dead air. This path
+        fires exactly when cloud STT (Groq/Gemini) degrades, i.e. ~turn 2, so it
+        was a real cause of 'agent stops responding after 2-3 turns'. On timeout
+        we return "" (the turn yields no text; the call stays alive)."""
         loop = asyncio.get_event_loop()
+        _load_to = _env_num("VOBIZ_STT_LOCAL_LOAD_S", 30.0)  # first cold load can be slow
+        _txc_to = _env_num("VOBIZ_STT_LOCAL_TIMEOUT_S", 8.0)  # per-utterance inference cap
         try:
-            eng = await loop.run_in_executor(None, _get_stt)
+            eng = await asyncio.wait_for(loop.run_in_executor(None, _get_stt), timeout=_load_to)
             if not eng:
                 return ""
             kind, model = eng
-            return (await loop.run_in_executor(None, _stt_sync, kind, model, pcm16)) or ""
+            return (
+                await asyncio.wait_for(
+                    loop.run_in_executor(None, _stt_sync, kind, model, pcm16), timeout=_txc_to
+                )
+            ) or ""
+        except asyncio.TimeoutError:
+            logger.warning("[vobiz-stream] local STT timed out — turn yields no text")
+            return ""
         except Exception as e:
             logger.warning(f"[vobiz-stream] local STT executor failed: {e}")
             return ""
