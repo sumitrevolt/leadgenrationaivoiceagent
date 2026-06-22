@@ -19,12 +19,15 @@ async def _admin_token() -> str:
     from app.models.user import User, UserRole
 
     async with get_async_session() as db:
-        r = await db.execute(
-            select(User).where(User.role == UserRole.ADMIN).limit(1)
-        )
+        for role in (UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER):
+            r = await db.execute(select(User).where(User.role == role).limit(1))
+            user = r.scalar_one_or_none()
+            if user:
+                return create_access_token(str(user.id), user.email, user.role.value)
+        r = await db.execute(select(User).limit(1))
         user = r.scalar_one_or_none()
         if not user:
-            raise RuntimeError("no admin user in DB")
+            raise RuntimeError("no user in DB")
         return create_access_token(str(user.id), user.email, user.role.value)
 
 
