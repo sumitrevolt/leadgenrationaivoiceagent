@@ -138,6 +138,31 @@ _CONVO_DISCIPLINE = (
 )
 
 
+def _latest_trainer_hint() -> str:
+    """Latest Meera trainer suggestions → one-line briefing for system prompt.
+    Reads last entry from data/trainer_suggestions.jsonl. Never raises."""
+    try:
+        import json as _json
+
+        path = os.path.join("data", "trainer_suggestions.jsonl")
+        if not os.path.isfile(path):
+            return ""
+        last_line = ""
+        with open(path, encoding="utf-8") as _f:
+            for line in _f:
+                if line.strip():
+                    last_line = line.strip()
+        if not last_line:
+            return ""
+        rec = _json.loads(last_line)
+        hints = rec.get("suggestions") or []
+        if not hints:
+            return ""
+        return " | ".join(str(h)[:100] for h in hints[:2])
+    except Exception:
+        return ""
+
+
 def _convo_discipline_enabled() -> bool:
     """CONVO_DISCIPLINE gate (default ON). Set 0 to disable the D-9/D-10 block."""
     return (os.environ.get("CONVO_DISCIPLINE", "1") or "1").strip().lower() not in (
@@ -381,6 +406,16 @@ class TelecallerBrain:
         try:
             if _convo_discipline_enabled() and _CONVO_DISCIPLINE not in self.system_prompt:
                 self.system_prompt += _CONVO_DISCIPLINE
+        except Exception:
+            pass
+        # H3: inject Meera's latest trainer suggestions (closed learning loop).
+        # Reads data/trainer_suggestions.jsonl (latest entry). Gated
+        # TRAINER_FEEDBACK (default ON). Best-effort: never crashes brain init.
+        try:
+            if os.environ.get("TRAINER_FEEDBACK", "1").strip().lower() not in ("0", "false", "no"):
+                hint = _latest_trainer_hint()
+                if hint:
+                    self.system_prompt += f"\n\nTRAINER NOTE (Meera):\n{hint}"
         except Exception:
             pass
         logger.info(

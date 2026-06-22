@@ -67,8 +67,7 @@ services:
       # In-stack Qdrant DNS — .env ka 127.0.0.1 override (container localhost trap)
       QDRANT_URL: http://qdrant:6333
       WEB_CALL_EDGE_TTS: "1"   # test-call = real Swara voice (free EdgeTTS)
-      FLOW_RUNNER: "1"         # visual automation builder + starter templates
-      OUTREACH_AB: "1"         # cold-email spintax A/B variant stats
+      # FLOW_RUNNER + OUTREACH_AB: .env se control karo (flag registry via admin UI)
     ports:
       - "127.0.0.1:8000:8080"   # host Caddy proxies leadsgenai.in -> here
     depends_on:
@@ -253,7 +252,7 @@ services:
       RUN_IN_PROCESS_SCHEDULER: "0"
       CELERY_HEAVY_QUEUE: "1"   # heavy staff-jobs alag 'heavy' queue me (worker-heavy consume karta)
       QDRANT_URL: http://qdrant:6333
-      OUTREACH_AB: "1"         # spintax A/B on Celery email_outreach job
+      # OUTREACH_AB: .env se control karo (flag registry via admin UI)
     depends_on:
       db:
         condition: service_healthy

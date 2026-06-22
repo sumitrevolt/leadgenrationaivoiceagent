@@ -508,7 +508,23 @@ def enqueue_approved(client_id: str, content: dict[str, Any], approval_id: str =
             "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "approval_id": approval_id or "",
         }
-        return _append_items(client_id, [item]) > 0
+        added = _append_items(client_id, [item]) > 0
+        # H5: approved content → social_engine publish queue (GATED SOCIAL_ENGINE).
+        # Text-only bridge: caption posted to configured channels (Telegram/Postiz).
+        # Media URL skipped — visual posts (SVG/video) get separate video_ad_cycle path.
+        if added and os.environ.get("SOCIAL_ENGINE", "0").strip().lower() in ("1", "true", "yes"):
+            try:
+                from app.social_engine import engine as _se
+
+                if _se.enabled():
+                    caption_text = item.get("caption") or item.get("title") or ""
+                    if caption_text:
+                        hashtags = " ".join(f"#{h.lstrip('#')}" for h in (item.get("hashtags") or [])[:5])
+                        full_caption = f"{caption_text}\n\n{hashtags}".strip()
+                        _se.enqueue_publish(client_id, caption=full_caption, media_type="image")
+            except Exception as _e:
+                logger.debug(f"[auto_content] social_engine bridge skip: {_e}")
+        return added
     except Exception as e:
         logger.debug(f"[auto_content] enqueue_approved skip: {e}")
         return False
