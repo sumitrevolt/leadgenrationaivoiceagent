@@ -392,6 +392,21 @@ def activate_plan(
         logger.debug("activate_plan subscription annotate skipped: %s", e)
 
     logger.info("activate_plan: client=%s plan=%s (applied=%s)", cid, plan_k, applied)
+    if applied:
+        try:
+            from app.marketing.packages import get_packages
+            from app.platform import revenue_attribution
+
+            pkgs = {p.get("key", ""): p for p in get_packages()}
+            amt = int((pkgs.get(plan_k) or {}).get("price_inr_month") or 0)
+            revenue_attribution.record_touch(
+                client_id=cid,
+                channel="billing",
+                event="payment",
+                amount_inr=amt,
+            )
+        except Exception:
+            pass
     return applied
 
 

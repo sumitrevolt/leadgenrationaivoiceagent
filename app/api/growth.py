@@ -637,6 +637,121 @@ async def experiments_outcome(body: OutcomeIn, _user=Depends(require_admin)):
     )
 
 
+# ------------- Campaign Optimization Agent (Kiran) ------------- #
+@router.get("/campaign/optimize/status")
+async def campaign_optimize_status(_user=Depends(require_admin)):
+    from app.agents import campaign_optimizer
+
+    return campaign_optimizer.status()
+
+
+@router.get("/campaign/optimize/runs")
+async def campaign_optimize_runs(limit: int = 20, _user=Depends(require_admin)):
+    from app.agents import campaign_optimizer
+
+    return {
+        "runs": campaign_optimizer.recent_runs(limit),
+        "proposals": campaign_optimizer.recent_proposals(30),
+    }
+
+
+@router.post("/campaign/optimize")
+async def campaign_optimize_run(force: bool = False, _user=Depends(require_admin)):
+    """Kiran optimization cycle — proposals only, never auto-deploy globally."""
+    from app.agents import campaign_optimizer
+
+    return await campaign_optimizer.optimize(force=force)
+
+
+# ------------- Identity + interactions (enterprise flywheel) ------------- #
+@router.get("/identity/duplicates")
+async def identity_duplicates(_user=Depends(require_admin)):
+    from app.platform import identity_resolver
+
+    return {"groups": identity_resolver.find_duplicate_groups()}
+
+
+@router.post("/identity/merge")
+async def identity_merge(group_id: str, target_key: str = "", _user=Depends(require_admin)):
+    from app.platform import identity_resolver
+
+    return await identity_resolver.merge_group(group_id, target_key)
+
+
+@router.post("/identity/backfill")
+async def identity_backfill(limit: int = 500, _user=Depends(require_admin)):
+    from app.platform import identity_resolver
+
+    return await identity_resolver.backfill_accounts_contacts(limit)
+
+
+@router.get("/interactions/timeline")
+async def interactions_timeline(phone: str, limit: int = 50, _user=Depends(require_admin)):
+    from app.platform import interaction_log
+
+    return {"phone": phone, "interactions": interaction_log.list_for_phone(phone, limit)}
+
+
+@router.get("/attribution/summary")
+async def attribution_summary(_user=Depends(require_admin)):
+    from app.platform import revenue_attribution
+
+    return revenue_attribution.summary()
+
+
+@router.post("/icp/generate")
+async def icp_generate(
+    client_id: str = "",
+    business_name: str = "",
+    niche: str = "general",
+    city: str = "",
+    brief: str = "",
+    _user=Depends(require_admin),
+):
+    from app.platform import icp_generator
+
+    return await icp_generator.generate(
+        client_id=client_id,
+        business_name=business_name,
+        niche=niche,
+        city=city,
+        brief=brief,
+    )
+
+
+@router.get("/campaign/variants")
+async def campaign_variants_list(script_id: str = "", _user=Depends(require_admin)):
+    from app.platform import campaign_variants
+
+    return {"variants": await campaign_variants.list_variants(script_id)}
+
+
+@router.post("/campaign/variants/promote")
+async def campaign_variants_promote(script_id: str, _user=Depends(require_admin)):
+    from app.platform import campaign_variants
+
+    return await campaign_variants.try_promote_challenger(script_id)
+
+
+@router.post("/objections/scan")
+async def objections_scan(limit: int = 20, _user=Depends(require_admin)):
+    from app.platform import objection_extractor
+
+    return await objection_extractor.scan_recent_transcripts(limit)
+
+
+@router.post("/crm/pull")
+async def crm_pull_status(
+    phone: str = "",
+    email: str = "",
+    client_id: str = "",
+    _user=Depends(require_admin),
+):
+    from app.platform import crm_sync
+
+    return await crm_sync.pull_lead_status(phone=phone, email=email, client_id=client_id)
+
+
 # content endpoints extracted to app/api/growth_content.py (2026-06-20); paths unchanged.
 from app.api.growth_content import router as _content_router  # noqa: E402
 

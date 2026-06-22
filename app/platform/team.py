@@ -202,6 +202,14 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "Lead rescore, hot-lead surfacing Rohan ke liye, journey rules seed — pipeline fresh rakho",
         "schedule": "Roz 11:00 IST pipeline job",
     },
+    "kiran": {
+        "product": "marketing",
+        "name": "Kiran",
+        "emoji": "📊",
+        "title": "Campaign Optimizer",
+        "duties": "Har 100 interactions pe campaign analyze karo — winning openings, objections, A/B proposals; eval_gate ke baad hi promote",
+        "schedule": "Weekly + threshold (gated CAMPAIGN_OPTIMIZER)",
+    },
 }
 
 

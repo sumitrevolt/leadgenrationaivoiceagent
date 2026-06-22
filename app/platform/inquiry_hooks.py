@@ -173,6 +173,38 @@ async def run_after_inquiry(
         logger.debug(f"[inquiry_hooks] utm skip: {e}")
 
     try:
+        from app.platform import revenue_attribution
+
+        _utm = (utm_source or rec.get("utm_source") or "").strip()
+        revenue_attribution.record_touch(
+            client_id=str(cid or rec.get("client_id") or ""),
+            channel="inquiry",
+            utm_source=_utm,
+            utm_campaign=str(rec.get("utm_campaign") or ""),
+            event="inquiry",
+        )
+    except Exception as e:
+        logger.debug(f"[inquiry_hooks] attribution skip: {e}")
+
+    try:
+        from app.platform import interaction_log
+
+        _spawn(
+            interaction_log.record(
+                channel="inquiry",
+                direction="in",
+                phone=str(rec.get("phone") or ""),
+                email=str(rec.get("email") or ""),
+                client_id=str(cid or ""),
+                lead_id=str(lid or ""),
+                body_summary=str(rec.get("message") or rec.get("business_name") or "")[:200],
+                outcome="received",
+            )
+        )
+    except Exception as e:
+        logger.debug(f"[inquiry_hooks] interaction skip: {e}")
+
+    try:
         from app.platform import outbound_webhooks
 
         _spawn(

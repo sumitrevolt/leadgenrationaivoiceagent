@@ -3,8 +3,12 @@ Database Models Package
 Production-ready SQLAlchemy models for the B2B Intelligence Platform
 """
 
+from app.models.account import Account
 from app.models.agent import Agent, AgentStatus
 from app.models.agent_event import AgentEvent
+from app.models.campaign_variant import CampaignVariant
+from app.models.contact import Contact
+from app.models.interaction import Interaction
 from app.models.base import (
     Base,
     async_session,
@@ -61,6 +65,10 @@ __all__ = [
     "init_async_db",
     "close_async_db",
     # Models
+    "Account",
+    "Contact",
+    "Interaction",
+    "CampaignVariant",
     "Lead",
     "LeadStatus",
     "LeadSource",

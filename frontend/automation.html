@@ -470,6 +470,21 @@ a{color:var(--acc)}
     <button class="btn2" id="ceOutBtn" onclick="ceOutcome()">Outcome record</button>
     <div id="ceOut"></div>
   </div>
+  <div class="card">
+    <h2>🎯 Campaign Optimizer (Kiran)</h2>
+    <div class="mut">Har 100 interactions ya weekly — proposals only. Gated <b>CAMPAIGN_OPTIMIZER</b>.</div>
+    <button class="btn2" onclick="kirStatus()">📊 Status</button>
+    <button class="btn2" onclick="kirRuns()">📜 Runs</button>
+    <button class="btn" id="kirRunBtn" onclick="kirRun()">▶️ Optimize</button>
+    <div id="kirOut"></div>
+  </div>
+  <div class="card">
+    <h2>🔗 Identity + Attribution</h2>
+    <button class="btn2" onclick="idDupes()">Duplicates</button>
+    <button class="btn2" onclick="idBackfill()">Backfill</button>
+    <button class="btn2" onclick="attrSummary()">Attribution</button>
+    <div id="idOut"></div>
+  </div>
 </section>
 
 <!-- ============ ClientOps (speed-to-lead, proposal tracking, snapshots) ============ -->
@@ -1179,6 +1194,38 @@ async function ctReel(){
 }
 
 /* ---------------- Growth Lab: optimizer + experiments ---------------- */
+async function kirStatus(){
+  try{var d=await api('/api/growth/campaign/optimize/status');
+    $('kirOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function kirRuns(){
+  try{var d=await api('/api/growth/campaign/optimize/runs');
+    $('kirOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function kirRun(){
+  var b=$('kirRunBtn');b.disabled=true;
+  try{var d=await api('/api/growth/campaign/optimize?force=true',{method:'POST'});
+    $('kirOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+  finally{b.disabled=false;}
+}
+async function idDupes(){
+  try{var d=await api('/api/growth/identity/duplicates');
+    $('idOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){$('idOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function idBackfill(){
+  try{var d=await api('/api/growth/identity/backfill?limit=200',{method:'POST'});
+    $('idOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){$('idOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function attrSummary(){
+  try{var d=await api('/api/growth/attribution/summary');
+    $('idOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){$('idOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
 async function goAnalysis(){
   try{var d=await api('/api/growth/optimizer/analysis');
     $('goOut').innerHTML='<div class="result"><b class="warn">Weakest stage:</b> '+esc(JSON.stringify(d.weakest||'—'))+pills(d.snapshot||{})+jpre(d)+'</div>';

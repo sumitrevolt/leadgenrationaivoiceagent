@@ -302,6 +302,18 @@ async def _run_job_inner(job: str) -> None:
             from app.agents import growth_optimizer
 
             await growth_optimizer.optimize()  # daily self-healing profit loop (gated GROWTH_OPTIMIZER)
+            try:
+                from app.agents import campaign_optimizer
+
+                await campaign_optimizer.optimize()  # Kiran weekly/threshold (gated CAMPAIGN_OPTIMIZER)
+            except Exception:
+                pass
+            try:
+                from app.platform import objection_extractor
+
+                await objection_extractor.scan_recent_transcripts(10)
+            except Exception:
+                pass
             # payment_recon removed 2026-06-18 — Razorpay gateway gone (manual UPI).
             try:
                 # Speed-to-lead accountability line (READ-only metric) — Boss event me.

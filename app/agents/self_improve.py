@@ -177,6 +177,7 @@ ACTIONS: dict[str, tuple[bool, str]] = {
     "social_drafts": (True, "naye social channels ke drafts (insta/shorts/status...)"),
     "revenue_sweep": (False, "dunning + lifecycle nurture due-runs"),
     "optimizer": (True, "growth optimizer full pass (weakest stage + corrective)"),
+    "campaign_optimize": (True, "Kiran campaign optimization (proposals + bandit + voice eval)"),
     "reflection": (True, "recent runs pe LLM reflection → lesson save"),
     "study_skills": (True, "project skill padh ke lesson nikalo (skill_pack → skill_library)"),
     "code_scan": (False, "observability signals se code-upgrade proposals (Vikram, gated)"),
@@ -210,7 +211,7 @@ _STAGE_ACTIONS = {
         "rescore_pipeline",
     ],
     "retention": ["revenue_sweep", "content_pack"],
-    "scale": ["optimizer", "channel_experiments", "harvest_leads", "study_skills"],
+    "scale": ["optimizer", "campaign_optimize", "channel_experiments", "harvest_leads", "study_skills"],
 }
 
 
@@ -384,6 +385,14 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         return {
             "ok": bool(res.get("enabled", True)),
             "detail": f"stage={res.get('weakest', {}).get('stage', '?')}",
+        }
+    if action == "campaign_optimize":
+        from app.agents import campaign_optimizer
+
+        res = await campaign_optimizer.optimize(force=True)
+        return {
+            "ok": bool(res.get("ok", True)),
+            "detail": f"proposals={res.get('proposals_count', 0)} run={res.get('run_id', '?')}",
         }
     if action == "reflection":
         return await _reflect()

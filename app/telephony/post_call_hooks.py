@@ -318,6 +318,30 @@ async def finalize_stream_session(
         niche=niche or "",
         ended_at=ended,
     )
+    try:
+        from app.platform import interaction_log
+
+        await interaction_log.record(
+            channel="voice",
+            direction="out",
+            phone=phone or "",
+            client_id=str(client_id or ""),
+            body_summary=f"call {int(dur)}s · {turns} user turns",
+            outcome="completed",
+            meta={"call_id": call_id, "niche": niche},
+        )
+    except Exception:
+        pass
+    try:
+        from app.platform import objection_extractor
+
+        await objection_extractor.extract_from_transcript(
+            history,
+            niche=niche or "general",
+            call_id=str(call_id or ""),
+        )
+    except Exception:
+        pass
 
 
 __all__ = [
