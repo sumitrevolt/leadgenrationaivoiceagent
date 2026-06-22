@@ -58,6 +58,7 @@ AUTOMATION_FLAGS = [
     "ENABLE_LEGACY_BEAT",
     "FESTIVALS_LIVE_HOLIDAYS",
     "VIDEO_AD_CYCLE",  # har 5 din per-client AI video ad -> approval -> social publish (default OFF)
+    "SOCIAL_ENGINE",  # native social-posting engine (own queue+providers; default OFF, video_ad_cycle inline fallback)
     "CLIENT_REPORTS",
     "CUSTOMER_WISHES",
     "RANK_TRACKER",

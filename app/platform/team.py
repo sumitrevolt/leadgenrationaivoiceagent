@@ -580,6 +580,26 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         except Exception:
             return "pipeline watch"
 
+    def _ananya() -> str:
+        try:
+            from app.marketing import cadence
+
+            rows = cadence._read(cadence._LEADS)
+            booked = len([r for r in rows if r.get("status") == "booked"])
+            return f"appointment pipeline {len(rows)} leads · {booked} booked"
+        except Exception:
+            return "appointment booking agent standby"
+
+    def _riya() -> str:
+        try:
+            import os
+
+            log = os.path.join("data", "call_transcripts")
+            count = sum(1 for _ in os.scandir(log)) if os.path.isdir(log) else 0
+            return f"inbound transcripts {count} sessions logged"
+        except Exception:
+            return "AI receptionist agent standby"
+
     # least-recently-active pehle (rotation) — taaki sab baari-baari pulse hon
     monitors = [
         ("kavya", "ops_pulse", _kavya),
@@ -593,6 +613,8 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         ("hermes", "infra_pulse", _hermes),
         ("ravi", "seo_pulse", _ravi),
         ("neha", "pipeline_pulse", _neha),
+        ("ananya", "booking_pulse", _ananya),
+        ("riya", "receptionist_pulse", _riya),
     ]
     try:
         ts = team_status()

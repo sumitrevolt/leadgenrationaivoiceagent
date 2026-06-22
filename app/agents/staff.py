@@ -274,6 +274,24 @@ async def run_trainer() -> dict[str, Any]:
             f"{calls} calls analysed, {len(suggestions)} suggestions",
             meta=summary,
         )
+        # H3: persist suggestions to file so TelecallerBrain can inject them
+        # into the system prompt on next call (closed learning loop).
+        try:
+            import json as _json
+            import time as _time
+
+            _hints_file = os.path.join("data", "trainer_suggestions.jsonl")
+            os.makedirs("data", exist_ok=True)
+            with open(_hints_file, "a", encoding="utf-8") as _f:
+                _f.write(
+                    _json.dumps(
+                        {"ts": int(_time.time()), "suggestions": suggestions},
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
+        except Exception:
+            pass
         return summary
     except Exception as e:
         logger.warning(f"[staff] run_trainer failed: {e}")

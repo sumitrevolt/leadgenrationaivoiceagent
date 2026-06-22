@@ -453,7 +453,7 @@ celery_app.conf.beat_schedule = {
     },
     "staff-process-autostart-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(hour=6, minute=0),  # 06:00 UTC = 11:30 IST
+        "schedule": crontab(hour=11, minute=30),  # 11:30 IST (timezone=Asia/Kolkata set in celery config)
         "args": ("process_autostart",),
     },
     # Self-improve CONTINUOUS loop ka dead-man REVIVER (loop khud self-requeue

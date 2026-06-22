@@ -14,8 +14,8 @@ Design rules (CLAUDE.md):
   * GATED `VIDEO_AD_CYCLE=1` (scheduler tick). Manual/admin generate isse alag.
   * Sab additive, free-stack, NEVER raises (error dicts).
 
-Channels: Postiz (FB/IG/YT/LinkedIn, gated POSTIZ_API_KEY) + hamesha 1-click WA
-share fallback (content_approval se).
+Channels: Telegram native (free, sendVideo) + Postiz (FB/IG/YT/LinkedIn, gated
+POSTIZ_API_KEY) + hamesha 1-click WA share fallback (content_approval se).
 """
 
 from __future__ import annotations
@@ -146,6 +146,8 @@ def _eligible_clients() -> list[dict[str, Any]]:
 
 def _channels_for(client: dict[str, Any]) -> list[str]:
     ch: list[str] = []
+    if str(client.get("telegram_chat_id") or "").strip():
+        ch.append("telegram")
     try:
         from app.marketing import postiz_publish
 
@@ -336,6 +338,31 @@ async def request_changes(approval_id: str, note: str = "") -> dict[str, Any]:
 
 
 # ------------------------------- publish ------------------------------------ #
+async def _tg_send_video(chat_id: str, video_path: str, caption: str = "") -> dict[str, Any]:
+    """Telegram Bot API sendVideo — self-contained (flaky telegram_publish par
+    dependency-free fallback). Gated TELEGRAM_BOT_TOKEN. NEVER raises."""
+    token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+    if not token:
+        return {"sent": False, "reason": "TELEGRAM_BOT_TOKEN unset"}
+    if not chat_id or not video_path or not os.path.isfile(video_path):
+        return {"sent": False, "reason": "chat_id/video missing"}
+    try:
+        import httpx
+
+        api = f"https://api.telegram.org/bot{token}/sendVideo"
+        with open(video_path, "rb") as fh:
+            async with httpx.AsyncClient(timeout=120) as cx:
+                r = await cx.post(
+                    api,
+                    data={"chat_id": chat_id, "caption": (caption or "")[:1024]},
+                    files={"video": (os.path.basename(video_path), fh, "video/mp4")},
+                )
+        ok = r.status_code == 200 and r.json().get("ok")
+        return {"sent": bool(ok), **({} if ok else {"reason": r.text[:160]})}
+    except Exception as e:
+        return {"sent": False, "reason": str(e)[:120]}
+
+
 async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
     from app.marketing import clients_store
 
@@ -343,9 +370,41 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
     client = clients_store.get_client(cid) or {}
     caption = str(rec.get("caption") or "")
     video_path = str(rec.get("video_path") or "")
+    # SOCIAL_ENGINE on -> durable native engine (Redis/Celery queue + provider adapters)
+    # ko handoff; engine khud Telegram/Meta/GBP/LinkedIn/X/YouTube/Postiz pe deliver karta.
+    try:
+        from app.social_engine import engine as _social_engine
+
+        if _social_engine.enabled():
+            ids = _social_engine.enqueue_publish(
+                cid, caption=caption, media_path=video_path, media_type="video"
+            )
+            return {"any_sent": bool(ids), "channels": {"engine": {"queued_jobs": ids}}}
+    except Exception as e:
+        logger.warning(f"[video_ad] social_engine handoff skip: {e}")
     result: dict[str, Any] = {}
     any_sent = False
-    # 1) Postiz (FB/IG/YT/LinkedIn) — gated POSTIZ_API_KEY
+    # 1) Telegram native (free) — self-contained sendVideo (telegram_publish optional).
+    chat_id = str(client.get("telegram_chat_id") or "").strip()
+    if chat_id and video_path:
+        try:
+            sender = None
+            try:
+                from app.marketing import telegram_publish
+
+                sender = getattr(telegram_publish, "send_video", None)
+            except Exception:
+                sender = None
+            tg = (
+                await sender(chat_id, video_path, caption)
+                if sender
+                else await _tg_send_video(chat_id, video_path, caption)
+            )
+            result["telegram"] = tg
+            any_sent = any_sent or bool(tg.get("sent"))
+        except Exception as e:
+            result["telegram"] = {"sent": False, "reason": str(e)[:120]}
+    # 2) Postiz (FB/IG/YT/LinkedIn) — gated POSTIZ_API_KEY
     try:
         from app.marketing import postiz_publish
 
@@ -437,6 +496,13 @@ async def run_cycle() -> dict[str, Any]:
                     gen += 1
         out["generated"] = gen
         out["publish"] = await publish_due()
+        # durable social-engine queue bhi drain karo (gated SOCIAL_ENGINE; off = inert)
+        try:
+            from app.social_engine import engine as _social_engine
+
+            out["engine"] = await _social_engine.process_queue()
+        except Exception as e:
+            logger.debug(f"[video_ad] engine drain skip: {e}")
         return out
     except Exception as e:
         logger.warning(f"[video_ad] run_cycle failed: {e}")

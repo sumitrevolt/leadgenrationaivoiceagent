@@ -528,7 +528,7 @@ _PROBES = (
 # always sees ONE concrete next step instead of a wall of items.
 #
 # Phase order matches the runbook:
-#   1 Survival  — razorpay, sentry, posthog, turnstile, cloudflare_tunnel
+#   1 Survival  — sentry, posthog, turnstile, cloudflare_tunnel, upi, qdrant_rag
 #   2 Visibility — agent_memory, eval_gate
 #   3 AI staff   — engineer_agents, ops_alerts
 #   4 Sellable   — customer_webhooks, mcp_product
@@ -581,13 +581,13 @@ async def activation_wizard(_user=Depends(require_admin)) -> dict[str, Any]:
         "all_done": bool,                # True iff every phase is green
         "current_phase": {"n": int, "name": str},
         "next_step": {
-            "key": "razorpay",
-            "label": "Razorpay live payments",
-            "category": "revenue",
+            "key": "sentry",
+            "label": "Sentry error tracking",
+            "category": "observability",
             "status": "BLOCKER",
-            "env_vars": ["RAZORPAY_KEY_ID", ...],
-            "action": "Set real rzp_live_* keys ...",
-            "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#...",
+            "env_vars": ["SENTRY_DSN"],
+            "action": "Set SENTRY_DSN from sentry.io project settings",
+            "doc": "docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md#sentry",
             "verify_curl": "curl -s http://127.0.0.1:8000/api/activation/readiness | ...",
         },
         "phases_done": [1, 2, ...],      # phases with zero actionable items

@@ -57,6 +57,8 @@ EXPECTED_GAP_MIN = {
     "process_autostart": 30 * 60,  # daily ~11:30 IST (gated PROCESS_AUTOSTART)
     "revenue_snapshot": 30 * 60,  # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
     "flow_cron": 30,  # every 5 min: Flow Runner cron scan (self-gates; beat always heartbeats)
+    "afternoon_content": 30 * 60,  # daily 15:00 IST: 2nd content-gen pass (gated AFTERNOON_CONTENT)
+    "evening_prospect": 30 * 60,  # daily 17:00 IST: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
 }
 
 
