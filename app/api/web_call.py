@@ -741,6 +741,31 @@ async def web_call_ws(websocket: WebSocket) -> None:
     except Exception:
         return
 
+    # Pre-warm the realtime LLM chain in the background so the caller's FIRST
+    # reply isn't a 10-13s cold-start (provider TLS + model cold). Fire-and-forget;
+    # failure is harmless (first reply just pays the cold cost as before). The ref
+    # is held in the session so the task isn't GC'd mid-flight. Kill: WEBCALL_LLM_WARMUP=0.
+    if os.environ.get("WEBCALL_LLM_WARMUP", "1").strip().lower() not in ("0", "false", "no", "off"):
+
+        async def _warm_llm() -> None:
+            try:
+                from app.voice_agent import free_ai
+
+                await free_ai.chat(
+                    system="",
+                    messages=[{"role": "user", "content": "hi"}],
+                    max_tokens=1,
+                    profile="realtime",
+                    scope="webcall_warm",
+                )
+            except Exception:
+                pass
+
+        try:
+            session["_warm_task"] = asyncio.create_task(_warm_llm())
+        except Exception:
+            pass
+
     try:
         while True:
             try:
