@@ -475,6 +475,7 @@ a{color:var(--acc)}
     <div class="mut">Har 100 interactions ya weekly — proposals only. Gated <b>CAMPAIGN_OPTIMIZER</b>.</div>
     <button class="btn2" onclick="kirStatus()">📊 Status</button>
     <button class="btn2" onclick="kirRuns()">📜 Runs</button>
+    <button class="btn2" onclick="kirProposals()">📋 Proposals</button>
     <button class="btn" id="kirRunBtn" onclick="kirRun()">▶️ Optimize</button>
     <div id="kirOut"></div>
   </div>
@@ -1202,6 +1203,31 @@ async function kirStatus(){
 async function kirRuns(){
   try{var d=await api('/api/growth/campaign/optimize/runs');
     $('kirOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function kirProposals(){
+  try{
+    var d=await api('/api/growth/campaign/optimize/proposals');
+    var rows=d.proposals||[];
+    if(!rows.length){$('kirOut').innerHTML='<div class="mut">Koi proposal nahi — pehle Optimize chalao.</div>';return;}
+    var html='<div class="result"><table style="width:100%;font-size:12px;border-collapse:collapse">';
+    html+='<tr><th align="left">Type</th><th>Title</th><th>Status</th><th></th></tr>';
+    rows.forEach(function(p){
+      var st=(p.status||'proposal');
+      var btn=st==='approve'?'<span class="mut">✓ approved</span>':
+        '<button class="btn2" onclick="kirApprove(\''+String(p.id||'')+'\')">Approve</button>';
+      html+='<tr><td>'+esc(p.type||'?')+'</td><td>'+esc((p.title||'').slice(0,48))+'</td><td>'+esc(st)+'</td><td>'+btn+'</td></tr>';
+    });
+    html+='</table></div>';
+    $('kirOut').innerHTML=html;
+  }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function kirApprove(id){
+  if(!confirm('Proposal '+id+' ko challenger variant banau? (global auto-send nahi)'))return;
+  try{
+    var d=await api('/api/growth/campaign/optimize/proposals/'+encodeURIComponent(id)+'/approve',{method:'POST'});
+    $('kirOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+    toast('Proposal approved ✅');
   }catch(e){$('kirOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
 async function kirRun(){
