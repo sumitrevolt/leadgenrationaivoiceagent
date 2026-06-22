@@ -428,12 +428,26 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         email=frm,
                         body_summary=(body or subj or "")[:200],
                         outcome=intent,
+                        campaign_variant_id=str((p or {}).get("campaign_variant_id") or ""),
                     )
                     await objection_extractor.extract_from_reply(
                         body or subj or "",
                         niche=(p or {}).get("niche") or "general",
                         intent=intent,
                     )
+                except Exception:
+                    pass
+
+                try:
+                    vid = str((p or {}).get("campaign_variant_id") or "")
+                    if vid:
+                        from app.platform import campaign_variants
+
+                        await campaign_variants.record_event(
+                            vid,
+                            reply=True,
+                            meeting=intent in ("interested", "question"),
+                        )
                 except Exception:
                     pass
 

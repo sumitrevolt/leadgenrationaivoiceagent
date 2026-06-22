@@ -85,6 +85,66 @@ _AUDIT_URL_TRACKED = _track_url(_AUDIT_URL)
 _SITE_URL_TRACKED = _track_url(_SITE_URL, "site_footer")
 
 
+def _flywheel_variants_on() -> bool:
+    """OUTREACH_CAMPAIGN_VARIANTS=1 → use Kiran-approved champion/challenger copy."""
+    try:
+        import os as _os
+
+        return (_os.getenv("OUTREACH_CAMPAIGN_VARIANTS") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+    except Exception:
+        return False
+
+
+def _personalize_variant(text: str, prospect: dict[str, Any]) -> str:
+    name = str((prospect or {}).get("business_name") or "").strip() or "aapke business"
+    out = str(text or "")
+    for tok in ("{name}", "[Name]", "{Name}"):
+        out = out.replace(tok, name)
+    return out
+
+
+def _merge_flywheel_variant(
+    prospect: dict[str, Any],
+    subject: str,
+    text: str,
+    html_body: str,
+    variant: dict[str, Any],
+) -> tuple[str, str, str]:
+    """Inject approved variant title/body into standard outreach template."""
+    content = str(variant.get("content") or "").strip()
+    if not content:
+        return subject, text, html_body
+    parts = content.split("\n\n", 1)
+    title = _personalize_variant(parts[0].strip(), prospect)
+    body = _personalize_variant(parts[1].strip() if len(parts) > 1 else "", prospect)
+    if title:
+        subject = _pick_spintax(title)
+    if body:
+        text = re.sub(
+            r"(Namaste,\n\n)(.*?)(\n\nMain )",
+            lambda m: m.group(1) + body + m.group(3),
+            text,
+            count=1,
+            flags=re.DOTALL,
+        )
+        try:
+            html_body = re.sub(
+                r"(<p>Namaste,</p>\s*)(<p>.*?</p>)",
+                r"\1<p>" + _html.escape(body) + "</p>",
+                html_body,
+                count=1,
+                flags=re.DOTALL,
+            )
+        except Exception:
+            pass
+    return subject, text, html_body
+
+
 def _from_name() -> str:
     try:
         from app.config import settings
@@ -538,6 +598,23 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                 pass
             try:
                 subject, text, html_body = _email_subject_body(p)
+                variant_id = ""
+                try:
+                    if _flywheel_variants_on():
+                        from app.platform import campaign_variants
+
+                        picked = await campaign_variants.pick_for_outreach(
+                            "cold_email",
+                            email=to_addr,
+                            niche=str(p.get("niche") or "general"),
+                        )
+                        if picked:
+                            subject, text, html_body = _merge_flywheel_variant(
+                                p, subject, text, html_body, picked
+                            )
+                            variant_id = str(picked.get("id") or "")
+                except Exception:
+                    pass
                 try:  # A/B spintax subject (GATED OUTREACH_AB=1; OFF = zero change)
                     import os as _os
 
@@ -575,12 +652,21 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                     # de-dup marker).
                     try:
                         if pid:
-                            prospector.set_prospect_fields(
-                                pid,
-                                {"emailed_at": datetime.utcnow().isoformat() + "Z"},
-                            )
+                            fields: dict[str, Any] = {
+                                "emailed_at": datetime.utcnow().isoformat() + "Z",
+                            }
+                            if variant_id:
+                                fields["campaign_variant_id"] = variant_id
+                            prospector.set_prospect_fields(pid, fields)
                     except Exception:
                         pass
+                    if variant_id:
+                        try:
+                            from app.platform import campaign_variants
+
+                            await campaign_variants.record_event(variant_id, impression=True)
+                        except Exception:
+                            pass
                     result["sent"] += 1
                     _log_event("email_sent", f"{biz} ({to_addr})")
                     try:
@@ -593,6 +679,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                             email=to_addr,
                             body_summary=subject[:200],
                             outcome="sent",
+                            campaign_variant_id=variant_id,
                         )
                     except Exception:
                         pass
