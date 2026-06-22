@@ -30,6 +30,16 @@ Env flags:
   USE_TEXT_ENDPOINT=1     # turn on the zero-dep text/semantic endpoint check on
                           # the partial transcript (complements audio Smart-Turn)
 
+Adaptive interruption handling (free, deterministic — inspired by LiveKit's
+"adaptive interruption" + Pipecat semantic turn-taking): a cough, click or a
+one-syllable backchannel ("haan"/"hmm"/"achha") should NOT stop the bot
+mid-sentence. Two opt-in pieces, both default OFF so prod is unchanged:
+  BARGE_GUARD=1           # require SUSTAINED speech-over-bot before a barge-in
+                          # commits (a transient burst resets the frame counter,
+                          # so it never false-stops the bot); also treats a pure
+                          # backchannel that still barges as non-interrupting.
+  TURN_BARGE_GUARD_MS     # sustained-speech window for the guard (default 280 ms)
+
 Shared turn-taking knobs (read by the stream files + pipeline so a single env
 controls every audio path; sane defaults keep prod identical until set):
   TURN_SILENCE_MS         # trailing silence that ends a turn (default 700 ms)
@@ -280,10 +290,31 @@ _INCOMPLETE_TAIL_WORDS = frozenset(
     {
         # conjunctions / connectives (Roman)
         "aur",
+        # English connectives — code-mixed callers switch to English mid-thought;
+        # these almost never END a real turn, so "keep listening" is high-precision.
+        "and",
+        "but",
+        "because",
+        "so",
+        "or",
+        "if",
+        "that",
+        "while",
+        # extra Hinglish connectives
+        "kyunke",
+        "chunki",
+        "balki",
+        "warna",
+        "varna",
+        "jiska",
+        "jiski",
+        "jinka",
+        "uske",
+        "iske",
         "lekin",
         "kyunki",
         "kyuki",
-        " kyun",
+        "kyun",
         "kyon",
         "ya",
         "magar",
@@ -384,6 +415,65 @@ def text_end_of_turn(text: str) -> bool | None:
         return None
 
 
+# --------------------------------------------------------------------------- #
+# Backchannel detection — zero-dep, rule-first. A "backchannel" is a pure short
+# acknowledgment ("haan"/"hmm"/"achha"/"ok") the caller drops WHILE the bot
+# talks to signal "I'm listening / go on" — NOT taking the floor or asking a
+# question. Used (with BARGE_GUARD) to tell a real interruption from a mere ack
+# so the bot doesn't abandon its point mid-sentence. Mirrors LiveKit's adaptive
+# interruption idea, done free + deterministic.
+# --------------------------------------------------------------------------- #
+_BACKCHANNEL_WORDS = frozenset(
+    {
+        # affirmation / acknowledgment (Roman Hinglish)
+        "haan", "han", "haa", "haaan", "ha", "haanji", "hanji", "ji", "jee",
+        "hmm", "hm", "hmmm", "mhm", "mhmm", "mm", "mmhmm", "mmm",
+        "achha", "accha", "acha", "achchha", "achaa", "okhay",
+        "ok", "okay", "okey", "okk", "k", "theek", "thik", "thk", "hai",
+        "sahi", "correct", "bilkul", "yes", "yeah", "yep", "yup", "done",
+        "right", "sure", "fine", "true",
+        "samjha", "samjhi", "samajh", "gaya", "gayi",
+        "boliye", "bolo", "aage", "continue", "carry", "on", "go",
+        "cool", "nice", "good", "great", "perfect",
+        # Devanagari
+        "हाँ", "हां", "जी", "अच्छा", "ठीक", "है", "सही", "बिलकुल", "हम्म", "हम",
+    }
+)
+
+# A backchannel utterance is at most this many tokens — longer = real content.
+_BACKCHANNEL_MAX_TOKENS = 3
+
+
+def is_backchannel(text: str) -> bool:
+    """True if ``text`` is a PURE short acknowledgment/backchannel — the caller
+    is signalling "I'm listening / go on", not taking the floor or asking
+    something. Used by the streams (gated BARGE_GUARD) to keep a "haan"/"hmm"
+    from derailing the bot mid-reply.
+
+    Strict by design so it never swallows a real answer:
+      * the WHOLE utterance must be backchannel tokens (after stripping punct),
+      * at most ``_BACKCHANNEL_MAX_TOKENS`` tokens,
+      * False for empty/None.
+    The streams only ACT on this when the bot was actually speaking (a true
+    interruption); a bare "haan" answering the bot's yes/no question is handled
+    normally because the bot isn't speaking then. Never raises.
+    """
+    try:
+        t = (text or "").strip().lower()
+        if not t:
+            return False
+        t = t.strip(".!?,।॥…\"'()[]{} ")
+        if not t:
+            return False
+        toks = [w.strip(".,!?;:-–—…\"'()[]{}") for w in t.split()]
+        toks = [w for w in toks if w]
+        if not toks or len(toks) > _BACKCHANNEL_MAX_TOKENS:
+            return False
+        return all(w in _BACKCHANNEL_WORDS for w in toks)
+    except Exception:
+        return False
+
+
 def confirm_end_of_turn(
     silence_ended: bool,
     pcm16: bytes = b"",
@@ -462,15 +552,54 @@ def barge_in_frames(frame_ms: float, default_ms: float = 100.0) -> int:
         return max(1, int(default_ms / 20.0))
 
 
+# --------------------------------------------------------------------------- #
+# Adaptive-interruption guard (BARGE_GUARD, default OFF). When ON, a barge-in
+# only commits after SUSTAINED speech-over-bot, so a cough / single-syllable
+# backchannel (a brief burst followed by silence that resets the consecutive-
+# speech counter) can no longer false-stop the bot. Pairs with is_backchannel
+# for the post-STT "that was just an ack, don't derail" recovery. OFF = the
+# snappy ~100 ms barge is unchanged.
+# --------------------------------------------------------------------------- #
+def barge_guard_enabled() -> bool:
+    """Master switch for adaptive interruption handling. Env: BARGE_GUARD.
+    Tune on the FREE web-call before enabling on paid calls."""
+    return _flag("BARGE_GUARD")
+
+
+def barge_guard_ms(default: float = 280.0) -> float:
+    """Sustained speech-over-bot (ms) required to commit a barge-in when the
+    guard is ON. Env: TURN_BARGE_GUARD_MS. Default 280 ms — longer than a cough
+    or a one-syllable "haan" (which is followed by silence and resets the
+    counter), shorter than a real interrupting clause."""
+    return _env_float("TURN_BARGE_GUARD_MS", default)
+
+
+def barge_guard_frames(frame_ms: float, default_ms: float = 280.0) -> int:
+    """Frames of SUSTAINED speech needed to commit a barge-in when BARGE_GUARD
+    is ON; falls back to the snappy ``barge_in_frames`` (~100 ms) when OFF so
+    prod is unchanged. Min 1. Callers tick per inbound frame."""
+    if not barge_guard_enabled():
+        return barge_in_frames(frame_ms)
+    ms = barge_guard_ms(default_ms)
+    try:
+        return max(1, int(round(ms / float(frame_ms)))) if frame_ms > 0 else 1
+    except Exception:
+        return max(1, int(default_ms / 20.0))
+
+
 __all__ = [
     "SileroSpeechGate",
     "SmartTurnDetector",
     "get_speech_gate",
     "get_smart_turn",
     "text_end_of_turn",
+    "is_backchannel",
     "confirm_end_of_turn",
     "turn_silence_ms",
     "turn_vad_rms",
     "barge_in_ms",
     "barge_in_frames",
+    "barge_guard_enabled",
+    "barge_guard_ms",
+    "barge_guard_frames",
 ]

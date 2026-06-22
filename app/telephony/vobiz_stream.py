@@ -170,6 +170,20 @@ try:  # pragma: no cover - import-safety
 except Exception:
     _DEF_VAD_RMS, _DEF_SILENCE_MS, _DEF_BARGE_FRAMES = 300, 650.0, 5
 
+# BARGE_GUARD (adaptive interruption handling) helpers. Defensive: if
+# turn_detector can't load, the guard is inert — is_backchannel() -> False and
+# the guard reads OFF, so the barge path stays exactly as before.
+try:  # pragma: no cover - import-safety
+    from app.voice_agent.turn_detector import barge_guard_enabled as _barge_guard_on
+    from app.voice_agent.turn_detector import is_backchannel
+except Exception:  # pragma: no cover
+
+    def _barge_guard_on() -> bool:
+        return False
+
+    def is_backchannel(text: str) -> bool:
+        return False
+
 _VAD_RMS = int(_env_num("VOBIZ_VAD_RMS", _DEF_VAD_RMS))  # PCM16 RMS speech gate
 SILENCE_MS = _env_num(
     "VOBIZ_SILENCE_MS", _DEF_SILENCE_MS
@@ -184,6 +198,15 @@ BARGE_MIN_FRAMES = max(1, int(_env_num("VOBIZ_BARGE_MIN_FRAMES", _DEF_BARGE_FRAM
 # this long after the bot finishes -> reprompt; after MAX reprompts -> graceful close.
 NOINPUT_MS = _env_num("VOBIZ_NOINPUT_MS", 12000.0)  # 12 s of pure silence = no-input
 NOINPUT_MAX_REPROMPTS = max(1, int(_env_num("VOBIZ_NOINPUT_MAX_REPROMPTS", 2)))
+
+# EdgeTTS prosody knobs (env-tunable for naturalness; defaults reproduce the
+# previous hard-coded "+8% rate, no pitch/volume" exactly). VOBIZ_* win, else the
+# shared PHONE_TTS_* fall through, else the snappy default. EdgeTTS takes these
+# natively (rate/pitch/volume kwargs) — guarded so a build lacking a kwarg is
+# fine. e.g. VOBIZ_TTS_PITCH="+3Hz" warms the female voice; rate="+0%" slows it.
+TTS_RATE = (os.environ.get("VOBIZ_TTS_RATE") or os.environ.get("PHONE_TTS_RATE") or "+8%").strip()
+TTS_PITCH = (os.environ.get("VOBIZ_TTS_PITCH") or os.environ.get("PHONE_TTS_PITCH") or "").strip()
+TTS_VOLUME = (os.environ.get("VOBIZ_TTS_VOLUME") or "").strip()
 
 
 # --------------------------------------------------------------------------- #
@@ -557,6 +580,10 @@ class VobizStreamSession:
         self._speaking = False
         self._play_task: asyncio.Task | None = None
         self._barge_frames = 0
+        # BARGE_GUARD: True for one turn after a barge-in cut the bot off, so the
+        # next utterance handler can tell "the caller took the floor" from "the
+        # caller just dropped an ack while I talked". Consumed in _on_utterance.
+        self._barged_capture = False
         self._thinking = False
         self._bg_tasks: set = set()  # keep refs so tasks aren't GC'd mid-run
 
@@ -786,7 +813,7 @@ class VobizStreamSession:
         if self._speaking:
             if is_speech and self._barge_allowed():
                 self._barge_frames += 1
-                if self._barge_frames < BARGE_MIN_FRAMES:
+                if self._barge_frames < self._barge_commit_frames():
                     return
                 await self._barge_in()  # cancels playback, sends clearAudio, falls through
             else:
@@ -901,6 +928,27 @@ class VobizStreamSession:
         except Exception:
             return False
 
+    def _barge_commit_frames(self) -> int:
+        """Consecutive speech-over-bot frames required to COMMIT a barge-in.
+
+        Default = BARGE_MIN_FRAMES (~100 ms, snappy — honours VOBIZ_BARGE_MIN_FRAMES).
+        With BARGE_GUARD on, require a longer SUSTAINED window (turn_detector's
+        barge_guard_frames, ~280 ms) so a cough or one-syllable "haan"/"hmm" —
+        a brief burst that goes silent and resets self._barge_frames — can no
+        longer false-stop the bot, while a real interrupting clause still cuts in.
+        Defensive: any import error keeps the snappy default (zero behaviour change)."""
+        try:
+            from app.voice_agent.turn_detector import (
+                barge_guard_enabled,
+                barge_guard_frames,
+            )
+
+            if barge_guard_enabled():
+                return max(BARGE_MIN_FRAMES, barge_guard_frames(20.0, default_ms=280.0))
+        except Exception:
+            pass
+        return BARGE_MIN_FRAMES
+
     def _barge_allowed(self) -> bool:
         """D-6: barge-in master gate. OFF when BARGE_IN_ENABLED=0 (bot can't be
         cut) or while the disclosure leg is locked. Default ON = current behaviour
@@ -1006,6 +1054,10 @@ class VobizStreamSession:
         if self._thinking:
             return
         self._thinking = True
+        # BARGE_GUARD: did this utterance cut the bot off? Consume the one-shot
+        # flag now (a fresh turn after a normal finish must read False).
+        _was_barge = self._barged_capture
+        self._barged_capture = False
         # ── per-turn latency metrics (P1; TURN_METRICS, default on, log-only) ──
         # t0 = "user stopped talking". stt_ms is timed directly; llm_first/tts_first
         # are stamped by the LLM-stream gen + _play_frames; turn_ms computed at the
@@ -1042,6 +1094,33 @@ class VobizStreamSession:
                 return
             logger.info(f"[vobiz-stream {self.stream_sid}] user: {text}")
             _record = True
+            # BARGE_GUARD: a pure ack ("haan"/"hmm"/"achha") that BARGED the bot is
+            # not a real turn — the caller just signalled "go on". Don't derail
+            # into a fresh pitch; re-speak the bot's interrupted last line so the
+            # point isn't lost. Only when (flag ON + it cut us off + pure backchannel);
+            # a bare "haan" answering the bot's question (bot not speaking) never
+            # reaches here as a barge, so a genuine yes/no answer is unaffected.
+            try:
+                if _was_barge and _barge_guard_on() and is_backchannel(text):
+                    last_bot = next(
+                        (
+                            m.get("content", "")
+                            for m in reversed(self.hist)
+                            if m.get("role") == "assistant"
+                        ),
+                        "",
+                    )
+                    if last_bot:
+                        logger.info(
+                            f"[vobiz-stream {self.stream_sid}] backchannel barge {text!r} -> resume last line"
+                        )
+                        self.hist.append({"role": "user", "content": text})
+                        _outcome = "backchannel_resume"
+                        _reply_text = last_bot
+                        await self._say(last_bot)
+                        return
+            except Exception as e:
+                logger.debug(f"[vobiz-stream] backchannel guard skip: {e}")
             # IVR / voicemail gate — structured message, "dobara boliye" mat bolo.
             if self._is_ivr_prompt(text):
                 reply = self._ivr_voicemail_reply()
@@ -1943,12 +2022,29 @@ class VobizStreamSession:
         NO µ-law, NO 8k — Vobiz playAudio takes L16 @16 kHz directly."""
         import edge_tts  # lazy
 
-        # rate="+8%" = snappier delivery (lower perceived latency, still natural).
-        # Guarded: an edge-tts build lacking the kwarg must NOT break synthesis.
+        # Prosody from env (TTS_RATE/PITCH/VOLUME; default "+8%" rate = snappier
+        # delivery, lower perceived latency, still natural). Pitch/volume let us
+        # warm the female voice without code edits. Guarded twice: a build lacking
+        # pitch/volume kwargs falls back to rate-only, then to a bare call — synth
+        # must NEVER break on an unknown kwarg.
+        _kw = {}
+        if TTS_RATE:
+            _kw["rate"] = TTS_RATE
+        if TTS_PITCH:
+            _kw["pitch"] = TTS_PITCH
+        if TTS_VOLUME:
+            _kw["volume"] = TTS_VOLUME
         try:
-            communicate = edge_tts.Communicate(text, self.voice, rate="+8%")
+            communicate = edge_tts.Communicate(text, self.voice, **_kw)
         except TypeError:
-            communicate = edge_tts.Communicate(text, self.voice)
+            try:
+                communicate = (
+                    edge_tts.Communicate(text, self.voice, rate=TTS_RATE)
+                    if TTS_RATE
+                    else edge_tts.Communicate(text, self.voice)
+                )
+            except TypeError:
+                communicate = edge_tts.Communicate(text, self.voice)
         mp3 = io.BytesIO()
         async for chunk in communicate.stream():
             if chunk.get("type") == "audio":
@@ -2025,6 +2121,7 @@ class VobizStreamSession:
         """User started talking over us — stop playback and flush Vobiz buffer."""
         self._barge_frames = 0
         self._interruptions += 1  # P4-3 interruption tracking
+        self._barged_capture = True  # BARGE_GUARD: the next utterance cut us off
         self._stop_play()
         self._speaking = False
         await self._send({"event": "clearAudio"})
