@@ -76,6 +76,31 @@ def test_spintax_expand():
     assert out.split()[0] in ("Hi", "Hello")
 
 
+@pytest.mark.asyncio
+async def test_approve_proposal_registers_variant(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    os.makedirs("data/campaign_optimization", exist_ok=True)
+    from app.agents import campaign_optimizer
+
+    pid = "abc123dead01"
+    campaign_optimizer._append(
+        campaign_optimizer._PROPOSALS,
+        {
+            "id": pid,
+            "type": "email_variant",
+            "niche": "solar",
+            "title": "Test subject",
+            "body": "Test body",
+            "status": "proposal",
+        },
+    )
+    res = await campaign_optimizer.approve_proposal(pid)
+    assert res.get("ok") is True
+    assert res.get("script_id") == "cold_email"
+    again = await campaign_optimizer.approve_proposal(pid)
+    assert again.get("already") is True
+
+
 def test_revenue_attribution_record(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     from app.platform import revenue_attribution

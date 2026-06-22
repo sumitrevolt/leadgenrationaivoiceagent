@@ -655,6 +655,21 @@ async def campaign_optimize_runs(limit: int = 20, _user=Depends(require_admin)):
     }
 
 
+@router.get("/campaign/optimize/proposals")
+async def campaign_optimize_proposals(limit: int = 30, _user=Depends(require_admin)):
+    from app.agents import campaign_optimizer
+
+    return {"proposals": campaign_optimizer.recent_proposals(limit)}
+
+
+@router.post("/campaign/optimize/proposals/{proposal_id}/approve")
+async def campaign_optimize_approve(proposal_id: str, _user=Depends(require_admin)):
+    """Approve Kiran proposal → challenger variant (human gate before outreach use)."""
+    from app.agents import campaign_optimizer
+
+    return await campaign_optimizer.approve_proposal(proposal_id)
+
+
 @router.post("/campaign/optimize")
 async def campaign_optimize_run(force: bool = False, _user=Depends(require_admin)):
     """Kiran optimization cycle — proposals only, never auto-deploy globally."""

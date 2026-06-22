@@ -24,6 +24,14 @@ _DIR = os.path.join("data", "campaign_optimization")
 _RUNS = os.path.join(_DIR, "runs.jsonl")
 _COUNTER = os.path.join(_DIR, "interaction_counter.json")
 _PROPOSALS = os.path.join(_DIR, "proposals.jsonl")
+_DECISIONS = os.path.join(_DIR, "proposal_decisions.jsonl")
+
+_TYPE_SCRIPT_MAP: dict[str, tuple[str, str]] = {
+    "email_variant": ("cold_email", "email"),
+    "call_opening": ("voice_opening", "voice"),
+    "objection_card": ("objection_card", "email"),
+    "ab_test": ("cold_email", "email"),
+}
 
 INTERACTION_THRESHOLD = 100
 MIN_ARM_INTERACTIONS = 100
@@ -362,7 +370,95 @@ def recent_runs(limit: int = 20) -> list[dict[str, Any]]:
 
 
 def recent_proposals(limit: int = 30) -> list[dict[str, Any]]:
-    return list(reversed(_read_jsonl(_PROPOSALS, limit)))[:limit]
+    return _proposals_with_status(limit)
+
+
+def _proposal_status(proposal_id: str) -> str:
+    for d in reversed(_read_jsonl(_DECISIONS, 5000)):
+        if d.get("proposal_id") == proposal_id:
+            return str(d.get("action") or "proposal")
+    return "proposal"
+
+
+def _proposals_with_status(limit: int = 30) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    rows: list[dict[str, Any]] = []
+    for p in reversed(_read_jsonl(_PROPOSALS, 5000)):
+        pid = str(p.get("id") or "")
+        if not pid or pid in seen:
+            continue
+        seen.add(pid)
+        row = dict(p)
+        row["status"] = _proposal_status(pid)
+        rows.append(row)
+        if len(rows) >= limit:
+            break
+    return rows
+
+
+async def approve_proposal(proposal_id: str) -> dict[str, Any]:
+    """Human approve → register challenger variant (never auto-deploy globally)."""
+    prop = next(
+        (p for p in reversed(_read_jsonl(_PROPOSALS, 5000)) if p.get("id") == proposal_id),
+        None,
+    )
+    if not prop:
+        return {"ok": False, "error": "proposal not found"}
+    if _proposal_status(proposal_id) == "approve":
+        return {"ok": True, "already": True, "proposal_id": proposal_id, "proposal": prop}
+
+    ptype = str(prop.get("type") or "email_variant")
+    script_id, channel = _TYPE_SCRIPT_MAP.get(ptype, ("cold_email", "email"))
+    niche = str(prop.get("niche") or "general")
+    content = f"{prop.get('title', '')}\n\n{prop.get('body', '')}".strip()
+
+    from app.platform import campaign_variants
+
+    existing = await campaign_variants.list_variants(script_id)
+    if not any(v.get("status") == "champion" for v in existing):
+        await campaign_variants.register_variant(
+            script_id=script_id,
+            variant_key="champion",
+            content="Baseline outreach script (pre-Kiran champion)",
+            niche=niche,
+            channel=channel,
+        )
+    reg = await campaign_variants.register_variant(
+        script_id=script_id,
+        variant_key=f"ch_{proposal_id[:8]}",
+        content=content[:8000],
+        niche=niche,
+        channel=channel,
+    )
+    _append(
+        _DECISIONS,
+        {
+            "proposal_id": proposal_id,
+            "action": "approve",
+            "at": _now(),
+            "script_id": script_id,
+            "variant": reg,
+        },
+    )
+    try:
+        from app.platform.team import log_event
+
+        log_event(
+            "kiran",
+            "proposal_approved",
+            f"Approved {proposal_id[:8]} → {script_id} challenger",
+            meta={"proposal_id": proposal_id, "variant_id": (reg or {}).get("id")},
+            status="ok",
+        )
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "proposal_id": proposal_id,
+        "script_id": script_id,
+        "variant": reg,
+        "proposal": prop,
+    }
 
 
 def status() -> dict[str, Any]:
@@ -390,6 +486,7 @@ __all__ = [
     "check_promotion_gate",
     "recent_runs",
     "recent_proposals",
+    "approve_proposal",
     "status",
     "INTERACTION_THRESHOLD",
 ]
