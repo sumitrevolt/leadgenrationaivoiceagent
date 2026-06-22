@@ -174,4 +174,7 @@ AUTOMATION_FLAGS = [
     "REVENUE_TRENDS",  # B1: admin revenue time-series (/revenue-trend + daily snapshot job) — OFF default
     "CLIENT_TIMELINE",  # B2: per-client activity timeline endpoint — OFF default
     "SYS_HEALTH_DETAIL",  # B3: admin system-health drill-down endpoint — OFF default
+    # --- More agent passes 2026-06-22 (default OFF / opt-in extra cadence) ---
+    "AFTERNOON_CONTENT",  # 2nd daily content-gen pass (Isha, 15:00 IST) — OFF default
+    "EVENING_PROSPECT",  # 3rd daily free lead-harvest pass (Rohan, 17:00 IST) — OFF default
 ]

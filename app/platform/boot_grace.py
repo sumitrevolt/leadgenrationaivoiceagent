@@ -25,6 +25,8 @@ _HEAVY_WINDOWS: dict[str, tuple[tuple[int, int], tuple[int, int]]] = {
     "email_followup": ((16, 0), (17, 30)),
     "kb_refresh": ((5, 0), (6, 30)),
     "midday_prospect": ((14, 30), (15, 30)),
+    "afternoon_content": ((15, 0), (16, 0)),
+    "evening_prospect": ((17, 0), (18, 0)),
     "evening_wrap": ((18, 30), (19, 30)),
     "weekly_marketing": ((12, 30), (13, 30)),
     "saturday_hygiene": ((4, 0), (5, 30)),

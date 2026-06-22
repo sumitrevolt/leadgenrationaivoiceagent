@@ -420,6 +420,16 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=14, minute=30),
         "args": ("midday_prospect",),
     },
+    "staff-afternoon-content-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=15, minute=0),
+        "args": ("afternoon_content",),
+    },
+    "staff-evening-prospect-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=17, minute=0),
+        "args": ("evening_prospect",),
+    },
     "staff-evening-wrap-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=18, minute=30),

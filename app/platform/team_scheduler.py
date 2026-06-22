@@ -125,6 +125,8 @@ _last_ran: dict[str, str | None] = {
     "process_autostart": None,  # daily ~11:30 IST: process-engine auto-start (gated PROCESS_AUTOSTART)
     "revenue_snapshot": None,  # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
     "flow_cron": None,  # every 5 min: Flow Runner cron scan (gated FLOW_RUNNER + FLOW_AUTO_TRIGGERS)
+    "afternoon_content": None,  # daily 15:00: 2nd content-gen pass (gated AFTERNOON_CONTENT)
+    "evening_prospect": None,  # daily 17:00: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
 }
 
 
@@ -652,6 +654,36 @@ async def _run_job_inner(job: str) -> None:
                 from app.platform import revenue_snapshots
 
                 await revenue_snapshots.snapshot_today()
+        elif job == "afternoon_content":
+            # 2nd daily content-generation pass (afternoon) — Isha extra social
+            # batch (self + clients). Gated AFTERNOON_CONTENT (default OFF; LLM cost).
+            # FOCUSED: sirf content-gen (full marketing bundle 07:00 'content' job me).
+            if os.environ.get("AFTERNOON_CONTENT", "0").strip().lower() in ("1", "true", "yes"):
+                from app.marketing import auto_content
+                from app.platform import team
+
+                await auto_content.run_daily_content()
+                team.log_event(
+                    "isha",
+                    "afternoon_content",
+                    "✍️ afternoon content pass (2nd daily batch generated)",
+                    status="ok",
+                )
+        elif job == "evening_prospect":
+            # 3rd daily FREE lead-supply pass (evening) — extra niche/city rotation
+            # via lead_harvester (websearch/opendata/enrich, no paid Places API).
+            # Gated EVENING_PROSPECT (default OFF; LEAD_HARVESTER bhi on hona chahiye).
+            if os.environ.get("EVENING_PROSPECT", "0").strip().lower() in ("1", "true", "yes"):
+                from app.platform import lead_harvester, team
+
+                _h = await lead_harvester.run_harvest()
+                if _h.get("ok"):
+                    team.log_event(
+                        "rohan",
+                        "evening_harvest",
+                        f"🌙 evening +{_h.get('new_leads', 0)} leads (dedup {_h.get('deduped', 0)})",
+                        status="ok",
+                    )
     except Exception as e:
         logger.warning(f"[team-scheduler] job {job} failed: {e}")
 
@@ -686,6 +718,8 @@ async def scheduler_loop() -> None:
                     "email_followup": ((16, 0), (17, 30)),
                     "kb_refresh": ((5, 0), (6, 30)),
                     "midday_prospect": ((14, 30), (15, 30)),
+                    "afternoon_content": ((15, 0), (16, 0)),
+                    "evening_prospect": ((17, 0), (18, 0)),
                     "evening_wrap": ((18, 30), (19, 30)),
                     "weekly_marketing": ((12, 30), (13, 30)),
                     "saturday_hygiene": ((4, 0), (5, 30)),
@@ -758,6 +792,14 @@ async def scheduler_loop() -> None:
             if (14, 30) <= hm < (15, 30) and _last_ran["midday_prospect"] != day_key:
                 _last_ran["midday_prospect"] = day_key
                 await _run_job("midday_prospect")
+            # 15:00–16:00 IST — 2nd content-gen pass (Isha). Gated AFTERNOON_CONTENT.
+            if (15, 0) <= hm < (16, 0) and _last_ran["afternoon_content"] != day_key:
+                _last_ran["afternoon_content"] = day_key
+                await _run_job("afternoon_content")
+            # 17:00–18:00 IST — 3rd FREE lead-harvest pass (Rohan). Gated EVENING_PROSPECT.
+            if (17, 0) <= hm < (18, 0) and _last_ran["evening_prospect"] != day_key:
+                _last_ran["evening_prospect"] = day_key
+                await _run_job("evening_prospect")
             if (18, 30) <= hm < (19, 30) and _last_ran["evening_wrap"] != day_key:
                 _last_ran["evening_wrap"] = day_key
                 await _run_job("evening_wrap")
