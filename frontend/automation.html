@@ -486,6 +486,16 @@ a{color:var(--acc)}
     <button class="btn2" onclick="idDupes()">Duplicates</button>
     <button class="btn2" onclick="idBackfill()">Backfill</button>
     <button class="btn2" onclick="attrSummary()">Attribution</button>
+    <button class="btn2" onclick="idTimeline()">📜 Timeline</button>
+    <button class="btn2" onclick="idObjections()">💬 Objections</button>
+    <div class="row" style="margin-top:8px"><div>
+      <label>Phone (timeline)</label><input id="idPhone" placeholder="9876543210">
+    </div><div>
+      <label>ICP niche</label><input id="idIcpNiche" placeholder="solar_residential">
+      <label>Business</label><input id="idIcpBiz" placeholder="Sharma Solar">
+      <label>City</label><input id="idIcpCity" placeholder="Mumbai">
+      <button class="btn2" onclick="idIcpGen()">🎯 ICP</button>
+    </div></div>
     <div id="idOut"></div>
   </div>
 </section>
@@ -1286,6 +1296,33 @@ async function idBackfill(){
 async function attrSummary(){
   try{var d=await api('/api/growth/attribution/summary');
     $('idOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){$('idOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function idTimeline(){
+  var ph=$('idPhone').value.trim();
+  if(!ph){toast('Phone daalo','warn');return;}
+  try{
+    var d=await api('/api/growth/interactions/timeline?phone='+encodeURIComponent(ph)+'&limit=30');
+    $('idOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){$('idOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function idObjections(){
+  try{
+    var n=$('idIcpNiche').value.trim();
+    var url='/api/growth/objections/recent?limit=15'+(n?'&niche='+encodeURIComponent(n):'');
+    var d=await api(url);
+    $('idOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){$('idOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
+}
+async function idIcpGen(){
+  try{
+    var d=await api('/api/growth/icp/generate',{method:'POST',body:JSON.stringify({
+      business_name:$('idIcpBiz').value.trim(),
+      niche:$('idIcpNiche').value.trim()||'general',
+      city:$('idIcpCity').value.trim()
+    })});
+    $('idOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+    toast('ICP ready ✅');
   }catch(e){$('idOut').innerHTML='<div class="err">'+esc(e.message)+'</div>';}
 }
 async function goAnalysis(){

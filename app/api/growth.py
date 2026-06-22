@@ -762,6 +762,13 @@ async def objections_scan(limit: int = 20, _user=Depends(require_admin)):
     return await objection_extractor.scan_recent_transcripts(limit)
 
 
+@router.get("/objections/recent")
+async def objections_recent(limit: int = 20, niche: str = "", _user=Depends(require_admin)):
+    from app.platform import objection_extractor
+
+    return {"objections": objection_extractor.recent_patterns(limit, niche=niche)}
+
+
 @router.post("/crm/pull")
 async def crm_pull_status(
     phone: str = "",

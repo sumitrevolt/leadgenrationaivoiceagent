@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 
 import pytest
@@ -99,6 +100,31 @@ async def test_approve_proposal_registers_variant(monkeypatch, tmp_path):
     assert res.get("script_id") == "cold_email"
     again = await campaign_optimizer.approve_proposal(pid)
     assert again.get("already") is True
+
+
+@pytest.mark.asyncio
+async def test_recent_patterns_empty(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from app.platform import objection_extractor
+
+    assert objection_extractor.recent_patterns(5) == []
+
+
+@pytest.mark.asyncio
+async def test_retrieve_rebuttals_jsonl_fallback(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    os.makedirs("data", exist_ok=True)
+    with open("data/objection_patterns.jsonl", "w", encoding="utf-8") as f:
+        f.write(
+            json.dumps(
+                {"niche": "solar", "text": "Mehnga lagta hai budget tight hai", "source": "email"}
+            )
+            + "\n"
+        )
+    from app.platform import objection_extractor
+
+    hits = await objection_extractor.retrieve_rebuttals("mehnga budget", niche="solar", k=2)
+    assert hits
 
 
 @pytest.mark.asyncio

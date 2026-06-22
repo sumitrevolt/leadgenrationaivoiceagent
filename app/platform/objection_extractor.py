@@ -121,4 +121,58 @@ async def scan_recent_transcripts(limit: int = 20) -> dict[str, Any]:
     return {"ok": True, "extracted": total, "files_scanned": len(files)}
 
 
-__all__ = ["extract_from_transcript", "extract_from_reply", "scan_recent_transcripts"]
+def recent_patterns(limit: int = 20, niche: str = "") -> list[dict[str, Any]]:
+    """Recent extracted objections from jsonl (UI/ops)."""
+    rows: list[dict[str, Any]] = []
+    try:
+        if os.path.isfile(_EXTRACTED):
+            with open(_EXTRACTED, encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            rows.append(json.loads(line))
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+    if niche:
+        rows = [r for r in rows if str(r.get("niche") or "") in (niche, "general", "")]
+    return list(reversed(rows))[:limit]
+
+
+async def retrieve_rebuttals(query: str, *, niche: str = "general", k: int = 3) -> list[str]:
+    """KB-grounded objection snippets for reply drafting."""
+    if not _enabled() or not (query or "").strip():
+        return []
+    texts: list[str] = []
+    try:
+        import asyncio
+
+        from app.voice_agent.knowledge_base import KnowledgeBase
+
+        kb = KnowledgeBase()
+        for ns in (f"objections:{niche or 'general'}", "objections:general"):
+            hits = await asyncio.to_thread(kb.retrieve, query, k=k, namespace=ns, rerank=False)
+            for h in hits or []:
+                t = str(h.get("text") or "").strip()
+                if t and t not in texts:
+                    texts.append(t[:400])
+            if len(texts) >= k:
+                break
+    except Exception as e:
+        logger.debug("[objection_extractor] retrieve skip: %s", e)
+    if not texts:
+        for r in recent_patterns(k, niche=niche):
+            t = str(r.get("text") or "").strip()
+            if t:
+                texts.append(t[:400])
+    return texts[:k]
+
+
+__all__ = [
+    "extract_from_transcript",
+    "extract_from_reply",
+    "scan_recent_transcripts",
+    "recent_patterns",
+    "retrieve_rebuttals",
+]
