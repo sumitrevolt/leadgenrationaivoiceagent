@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS consent_records (
     at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS ix_consent_records_phone ON consent_records(phone_key);
+CREATE INDEX IF NOT EXISTS ix_consent_records_phone_type ON consent_records(phone_key, record_type);
 
 CREATE TABLE IF NOT EXISTS opt_out_suppression (
     id SERIAL PRIMARY KEY,

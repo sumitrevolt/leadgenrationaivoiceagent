@@ -88,7 +88,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: blob: https://api.qrserver.com https://gen.pollinations.ai "
             "https://image.pollinations.ai https://media.pollinations.ai; "
-            "connect-src 'self' ws: wss:; "
+            "connect-src 'self' wss:; "
             "media-src 'self' blob: data:"
         )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

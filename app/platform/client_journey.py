@@ -379,9 +379,9 @@ Don't lose this momentum!
 🎁 SPECIAL OFFER: 20% OFF if you subscribe in the next 48 hours!
 
 Plans:
-• Starter: ₹15,000 → ₹12,000/month
-• Growth: ₹25,000 → ₹20,000/month
-• Enterprise: ₹50,000 → ₹40,000/month
+• Starter: ₹1,199/month
+• Growth: ₹2,999/month
+• Advanced: ₹6,999/month
 
 Reply UPGRADE to continue, or call us to discuss."""
 

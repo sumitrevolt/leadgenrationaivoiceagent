@@ -6,7 +6,7 @@ Database model for call logs
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base
@@ -39,6 +39,10 @@ class CallLog(Base):
     """Call log database model"""
 
     __tablename__ = "call_logs"
+    __table_args__ = (
+        Index("ix_call_logs_client_initiated", "client_id", "initiated_at"),
+        Index("ix_call_logs_status_outcome", "status", "outcome"),
+    )
 
     id = Column(String(36), primary_key=True)
 
@@ -50,7 +54,7 @@ class CallLog(Base):
     # Associations
     lead_id = Column(String(36), ForeignKey("leads.id"), index=True)
     campaign_id = Column(String(36), ForeignKey("campaigns.id"), index=True)
-    client_id = Column(String(36), ForeignKey("clients.id"))
+    client_id = Column(String(36), ForeignKey("clients.id"), index=True)
 
     # Phone numbers
     from_number = Column(String(20))

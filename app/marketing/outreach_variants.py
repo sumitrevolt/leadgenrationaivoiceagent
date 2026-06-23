@@ -51,8 +51,10 @@ _SPIN_RE = re.compile(r"\{([^{}]*\|[^{}]*)\}")
 # Default 2 subject variants (Hinglish, spintax) — apply_ab inhe use karta hai.
 # {name} = business name placeholder (render ke BAAD .format hota hai).
 DEFAULT_SUBJECT_VARIANTS: list[str] = [
-    "{name} — {aapka|aapke business ka} Google profile ({free|FREE} audit)",
-    "{name} ji, {ek chhota idea|2 minute ka kaam} — {naye customers|zyada inquiries} ke liye",
+    "{name} — ek sawaal",
+    "quick question — {name}",
+    "{name} ke baare mein",
+    "idea for {name}",
 ]
 
 

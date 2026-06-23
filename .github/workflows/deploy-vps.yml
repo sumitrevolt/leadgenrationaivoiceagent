@@ -67,6 +67,7 @@ jobs:
     # secrets). Until then, pushes just run the `gate` job — no failing deploys.
     if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     permissions:
       contents: read
       packages: write
@@ -98,6 +99,7 @@ jobs:
     needs: build
     if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: SSH deploy
         uses: appleboy/ssh-action@v1.2.0
