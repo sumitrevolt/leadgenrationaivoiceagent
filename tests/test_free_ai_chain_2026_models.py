@@ -88,3 +88,44 @@ def test_describe_lists_new_models():
     assert f"cerebras:{free_ai._CEREBRAS_QWEN3_MODEL}" in llm
     assert f"groq:{free_ai._GROQ_KIMI_K2_MODEL}" in llm
     assert f"groq:{free_ai._GROQ_LLAMA70B_MODEL}" in llm
+
+
+def test_nvidia_nim_present_and_configured():
+    """NVIDIA NIM = deep-tail free fallback. Provider registered + default model id."""
+    assert "nvidia" in free_ai._PROVIDER_CFG
+    assert free_ai._PROVIDER_CFG["nvidia"][0] == "nvidia_api_key"
+    assert free_ai._PROVIDER_CFG["nvidia"][1] == free_ai._NVIDIA_BASE
+    assert free_ai._NVIDIA_BASE == "https://integrate.api.nvidia.com/v1"
+    assert free_ai._NVIDIA_LLM_MODEL == "meta/llama-3.3-70b-instruct"
+    for profile in ("realtime", "bulk"):
+        chain = _chain(profile)
+        assert ("nvidia", free_ai._NVIDIA_LLM_MODEL) in chain
+
+
+def test_nvidia_nim_deep_tail_placement():
+    """NVIDIA must sit AFTER sambanova (conserve metered credits) and BEFORE the
+    404-prone openrouter :free tail (70B beats flaky :free as a last resort)."""
+    for profile in ("realtime", "bulk"):
+        chain = _chain(profile)
+        idx = {}
+        for i, (p, m) in enumerate(chain):
+            idx.setdefault((p, m), i)
+        nvidia_pos = idx[("nvidia", free_ai._NVIDIA_LLM_MODEL)]
+        sambanova_pos = idx[("sambanova", free_ai._SAMBANOVA_LLM_MODEL)]
+        # first openrouter entry of any kind
+        openrouter_pos = min(i for i, (p, _m) in enumerate(chain) if p.startswith("openrouter"))
+        assert nvidia_pos > sambanova_pos, "nvidia should follow sambanova (credit conservation)"
+        assert nvidia_pos < openrouter_pos, "nvidia should precede the openrouter :free tail"
+
+
+def test_nvidia_credit_exhaustion_trips_max_cooldown():
+    """A credits-dead NVIDIA (402 / out of credits) must get the LONG cooldown so the
+    breaker parks it instead of hammering it every fallback (council risk)."""
+    free_ai._LLM_COOLDOWN_UNTIL.pop("nvidia", None)
+    free_ai._LLM_TRIP_STREAK.pop("nvidia", None)
+    free_ai._trip_cooldown("nvidia", "402 Payment Required: out of credits")
+    remaining = free_ai._LLM_COOLDOWN_UNTIL.get("nvidia", 0.0) - __import__("time").time()
+    # near the 30-min max (allow scheduling slack), NOT the 60s transient base
+    assert remaining > free_ai._LLM_COOLDOWN_MAX_S - 30
+    free_ai._LLM_COOLDOWN_UNTIL.pop("nvidia", None)
+    free_ai._LLM_TRIP_STREAK.pop("nvidia", None)

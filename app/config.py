@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     xai_api_key: str = ""  # x.ai (Grok — Groq se ALAG company; credits-based)
     sambanova_api_key: str = ""  # cloud.sambanova.ai — 100% free, no card, Llama-3.3-70B
     mistral_api_key: str = ""  # console.mistral.ai — free tier La Plateforme, mistral-small
+    nvidia_api_key: str = ""  # build.nvidia.com — NVIDIA NIM (OpenAI-compatible); free tier 40 RPM + metered credits, deep-tail fallback
     google_cloud_project_id: str = ""
     google_cloud_location: str = "us-central1"
     default_llm: str = (
