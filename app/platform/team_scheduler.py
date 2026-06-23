@@ -127,6 +127,7 @@ _last_ran: dict[str, str | None] = {
     "flow_cron": None,  # every 5 min: Flow Runner cron scan (gated FLOW_RUNNER + FLOW_AUTO_TRIGGERS)
     "afternoon_content": None,  # daily 15:00: 2nd content-gen pass (gated AFTERNOON_CONTENT)
     "evening_prospect": None,  # daily 17:00: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
+    "obsidian_push": None,  # daily 02:15 IST: compact + git push to Obsidian vault (gated OBSIDIAN_SYNC)
 }
 
 
@@ -292,6 +293,17 @@ async def _run_job_inner(job: str) -> None:
                 pass
         elif job == "digest":
             await staff.run_digest()
+            # Obsidian — write daily session note (INERT if OBSIDIAN_SYNC unset).
+            try:
+                from app.platform import obsidian_sync as _obs
+                import datetime as _dt
+
+                _obs.write_daily_session(
+                    _dt.datetime.utcnow().strftime("%Y-%m-%d"),
+                    "# Daily Digest\n\nDigest job ran — see agent logs for details.",
+                )
+            except Exception:
+                pass
             from app.platform import revenue_digest
 
             await revenue_digest.maybe_run_weekly()  # Monday-only weekly MRR digest (gated REVENUE_DIGEST)
@@ -624,6 +636,12 @@ async def _run_job_inner(job: str) -> None:
             from app.billing import meter_watch
 
             meter_watch.check_meter_failures()  # sync, never raises; gated METER_ALERTS
+        elif job == "obsidian_push":
+            from app.platform import obsidian_sync as _obs
+
+            _obs.compact_folder("Leads")
+            _obs.compact_folder("Agents")
+            _obs.push_to_git()  # sync, never raises; no-op if OBSIDIAN_SYNC unset
         elif job == "process_autostart":
             from app.platform import process_autostart
 
@@ -832,6 +850,10 @@ async def scheduler_loop() -> None:
             if now.minute >= 50 and _last_ran["onboard"] != hour_key:
                 _last_ran["onboard"] = hour_key
                 await _run_job("onboard")
+            # Obsidian nightly push — 02:15–03:00 IST (INERT unless OBSIDIAN_SYNC=1).
+            if (20, 45) <= hm < (21, 30) and _last_ran.get("obsidian_push") != day_key:
+                _last_ran["obsidian_push"] = day_key
+                await _run_job("obsidian_push")
             # SP1 billing meter-failure watcher — hourly :55 (INERT unless METER_ALERTS=1).
             if now.minute >= 55 and _last_ran.get("meter_watch") != hour_key:
                 _last_ran["meter_watch"] = hour_key

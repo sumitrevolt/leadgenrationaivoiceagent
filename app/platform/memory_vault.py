@@ -539,7 +539,21 @@ async def sync_if_enabled() -> dict[str, Any]:
     try:
         import asyncio
 
-        return await asyncio.to_thread(sync_all)
+        result = await asyncio.to_thread(sync_all)
+
+        # Obsidian — write vault sync summary to System/ (INERT if OBSIDIAN_SYNC unset).
+        try:
+            from app.platform import obsidian_sync as _obs
+
+            lines = ["# Memory Vault Sync\n"]
+            for k, v in (result or {}).items():
+                if k != "ok":
+                    lines.append(f"- **{k}**: {v}")
+            _obs.write_system_health("memory-vault-sync", "\n".join(lines))
+        except Exception:
+            pass
+
+        return result
     except Exception as e:
         logger.warning(f"[memory] sync_if_enabled failed: {e}")
         return {"ok": False, "error": str(e)}

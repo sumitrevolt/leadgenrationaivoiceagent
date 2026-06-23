@@ -302,6 +302,18 @@ async def run_full_council(user_query: str) -> dict[str, Any]:
             user_query, stage1, stage2, chairman[0], chairman[1]
         )
 
+        # Obsidian second-brain — write verdict to Decisions/ (INERT if OBSIDIAN_SYNC unset).
+        try:
+            from app.platform import obsidian_sync as _obs
+
+            _obs.write_council_verdict(
+                user_query,
+                (stage3.get("response") or "")[:500],
+                stage1,
+            )
+        except Exception:
+            pass
+
         return {
             "ok": True,
             "stage1": stage1,
