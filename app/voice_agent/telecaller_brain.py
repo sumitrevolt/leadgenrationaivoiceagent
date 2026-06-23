@@ -1177,13 +1177,23 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         return self._clean(closing) if closing else ""
 
     async def _generate(self, prompt: str) -> tuple:
-        """(reply_text, provider). free_ai.chat (Cerebras->Groq->OpenRouter) pehle
-        — free keys absent ho to instant ""; phir Gemini-direct (multi-key)."""
-        text = await self._free_llm(prompt)
-        if text:
-            return text, "free_ai"
-        text = await self._gemini_reply(prompt)
-        return (text, "gemini") if text else ("", "")
+        """(reply_text, provider). Gemini-direct is primary if GEMINI_PRIMARY is set;
+        otherwise free_ai.chat (Cerebras->Groq->OpenRouter) pehle."""
+        from app.config import settings
+        use_gemini_first = getattr(settings, "gemini_primary", False)
+
+        if use_gemini_first:
+            text = await self._gemini_reply(prompt)
+            if text:
+                return text, "gemini"
+            text = await self._free_llm(prompt)
+            return (text, "free_ai") if text else ("", "")
+        else:
+            text = await self._free_llm(prompt)
+            if text:
+                return text, "free_ai"
+            text = await self._gemini_reply(prompt)
+            return (text, "gemini") if text else ("", "")
 
     @staticmethod
     def _prev_assistant(history: list[dict[str, str]] | None) -> str:
@@ -1314,9 +1324,34 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     # LLM backends — Gemini (multi-key rotation) + Groq (free fallback)
     # ------------------------------------------------------------------ #
     async def _gemini_reply(self, prompt: str) -> str:
-        """Gemini reply with multi-key rotation. On a quota/429 error rotate to
-        the next key and retry ONCE. "" on timeout/other failure / no Gemini key
-        (free_ai chain already handled it)."""
+        """Gemini reply — Vertex AI (Cloud subscription) pehle, then API-key fallback.
+        "" on timeout/other failure (free_ai chain handles the rest)."""
+        # --- 1) Vertex AI path (Google Cloud subscription, no per-key quota) ---
+        try:
+            from app.voice_agent.free_ai import _vertex_available, _vertex_bearer_token, _vertex_base_url
+            if _vertex_available():
+                from openai import AsyncOpenAI  # type: ignore
+                token = await _vertex_bearer_token()
+                if token:
+                    model_name = getattr(settings, "default_llm", None) or self.model or "gemini-2.5-flash"
+                    client = AsyncOpenAI(api_key=token, base_url=_vertex_base_url(), timeout=_REPLY_TIMEOUT_S)
+                    resp = await asyncio.wait_for(
+                        client.chat.completions.create(
+                            model=model_name,
+                            messages=[{"role": "user", "content": prompt}],
+                            max_tokens=int(_GEN_CONFIG.get("max_output_tokens", 150)),
+                            temperature=float(_GEN_CONFIG.get("temperature", 0.7)),
+                        ),
+                        timeout=_REPLY_TIMEOUT_S,
+                    )
+                    text = (resp.choices[0].message.content or "").strip()
+                    if text:
+                        logger.info("[telecaller-brain] Gemini Vertex AI reply OK")
+                        return self._clean(text)
+        except Exception as e:
+            logger.warning(f"[telecaller-brain] Gemini Vertex failed: {e}")
+
+        # --- 2) API-key path (google.generativeai, multi-key rotation) ---
         if self._genai is None:
             return ""
         for attempt in range(2):
