@@ -501,7 +501,9 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
         "/health",
         "/metrics",
         "/ws",
+        "/api/web-call/ws",
         "/api/web-call/stream",
+        "/api/telephony/",
         "/api/voiceai",
         "/status",
         "/robots.txt",
@@ -586,6 +588,9 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         if os.environ.get("PLAN_RATE_LIMIT", "0") not in ("1", "true", "yes"):
+            return await call_next(request)
+        # BaseHTTPMiddleware cannot handle WebSocket upgrades — skip all WS.
+        if request.headers.get("upgrade", "").lower() == "websocket":
             return await call_next(request)
         path = request.url.path
         if self._should_skip(path):
