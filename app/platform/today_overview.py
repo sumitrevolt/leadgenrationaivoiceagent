@@ -152,7 +152,9 @@ JOB_INFO: dict[str, dict[str, str]] = {
     },
 }
 
-# Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason)
+# Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason).
+# RULE: sirf woh flags jo prod me ON HONE chahiye (CLAUDE.md "=1 ON") — warna
+# OFF-by-default flag yahan add karne se "Aaj" tab pe false-alarm noise aayega.
 _IMPORTANT_FLAGS = {
     "AUTO_EMAIL_OUTREACH": "Cold email outreach band hai — naye leads ko mail nahi ja raha",
     "NICHE_ROTATION": "42-niche scraping rotation band hai — sirf default niches scrape ho rahe",
@@ -160,6 +162,12 @@ _IMPORTANT_FLAGS = {
     "OPS_WATCHDOG": "System toote to alert nahi aayega",
     "SELF_IMPROVE_LOOP": "Self-improve loop band hai — agents khud kaam nahi uthayenge",
     "DUNNING_ENGINE": "Payment fail hone par recovery emails nahi jayenge",
+    "LEAD_HARVESTER": "Lead harvester band hai — naye prospects ki free supply nahi aa rahi",
+    "SALES_ENGINE": "Sales pipeline automation band hai — deals + next-action auto nahi ban rahe",
+    "CADENCE_ENGINE": "Omnichannel follow-up sequences band hain — leads ko auto touch/reminder nahi ja rahe",
+    "GROWTH_OPTIMIZER": "Funnel ka auto-optimizer band hai — leaks khud theek nahi ho rahe",
+    "CHANNEL_EXPERIMENTS": "Channel A/B bandit band hai — best outreach channel auto-pick nahi ho raha",
+    "AUTO_ONBOARD": "Naye paid client ka auto-setup band hai — manually karna padega",
 }
 
 
