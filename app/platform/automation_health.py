@@ -55,6 +55,7 @@ EXPECTED_GAP_MIN = {
     "saturday_hygiene": 8 * 24 * 60,
     "meter_watch": 180,  # hourly :55 (gated METER_ALERTS), 3h grace
     "process_autostart": 30 * 60,  # daily ~11:30 IST (gated PROCESS_AUTOSTART)
+    "obsidian_push": 30 * 60,  # daily ~02:15 IST: second-brain compact + git push (_run_job heartbeats daily; job body no-ops unless OBSIDIAN_SYNC=1)
     "revenue_snapshot": 30 * 60,  # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
     "flow_cron": 30,  # every 5 min: Flow Runner cron scan (self-gates; beat always heartbeats)
     "afternoon_content": 30 * 60,  # daily 15:00 IST: 2nd content-gen pass (gated AFTERNOON_CONTENT)
