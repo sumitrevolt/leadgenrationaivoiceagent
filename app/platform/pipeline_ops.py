@@ -73,7 +73,7 @@ async def run_daily() -> dict[str, Any]:
 
 
 async def run_afternoon_followups() -> dict[str, Any]:
-    """Sirf Day-3/Day-7 email followups (16:00 IST) — naya cold batch nahi."""
+    """Day-3/Day-7 email followups (hourly 9am-7pm IST) — naya cold batch nahi."""
     try:
         from app.platform import auto_outreach, team
 
@@ -81,7 +81,7 @@ async def run_afternoon_followups() -> dict[str, Any]:
         sent = int((res or {}).get("sent") or 0)
         if sent:
             team.log_event(
-                "rohan", "email_followup", f"📧 afternoon followups sent: {sent}", status="ok"
+                "rohan", "email_followup", f"followups sent: {sent}", status="ok"
             )
         return {"ok": True, **(res or {})}
     except Exception as e:

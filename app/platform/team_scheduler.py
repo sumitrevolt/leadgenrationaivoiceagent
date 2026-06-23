@@ -494,7 +494,6 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import auto_outreach
 
             await auto_outreach.run_email_outreach()
-            await auto_outreach.run_email_followups()
         elif job == "reply_triage":
             from app.platform import reply_agent
 
