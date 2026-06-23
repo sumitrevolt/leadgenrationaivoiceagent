@@ -159,9 +159,38 @@ async def _gather_signals() -> list[dict[str, Any]]:
                 "pack_age_days": pack_age,
                 "age_days": age_days,
                 "status": c.get("status", ""),
-                "login_days_ago": None,  # filled below if DB available
+                "login_days_ago": None,
             }
         )
+
+    # Fill login_days_ago — User.last_login per client (best-effort)
+    if out:
+        try:
+            from sqlalchemy import select
+
+            from app.models.base import get_async_session
+            from app.models.user import User
+
+            cids = [r["client_id"] for r in out if r["client_id"]]
+            login_map: dict[str, int] = {}
+            async with get_async_session() as session:  # type: ignore
+                res = await session.execute(
+                    select(User.client_id, User.last_login)
+                    .where(User.client_id.in_(cids))
+                    .order_by(User.last_login.desc())
+                )
+                seen: set[str] = set()
+                for cid_, last_ in res.all():
+                    if cid_ and cid_ not in seen:
+                        seen.add(str(cid_))
+                        if last_:
+                            last_aware = last_ if last_.tzinfo else last_.replace(tzinfo=timezone.utc)
+                            login_map[str(cid_)] = max(0, (_now() - last_aware).days)
+            for row in out:
+                row["login_days_ago"] = login_map.get(row["client_id"])
+        except Exception as e:
+            logger.debug(f"[client_health] login_days_ago query skipped: {e}")
+
     return out
 
 

@@ -1129,6 +1129,7 @@ async def sitemap_xml():
         "/demo",
         "/site-audit",
         "/geo-check",
+        "/blog",
         "/app/test-call",
         "/privacy",
         "/terms",
@@ -1154,6 +1155,16 @@ async def sitemap_xml():
                 urls.append(f"/b/{slug}")
     except Exception as e:  # clients_store missing => skip
         logger.debug(f"sitemap mini-site slugs skipped: {e}")
+
+    # Niche × city SEO landing pages (top 8 niches × india + top 3 cities)
+    _SITEMAP_NICHES = [
+        "real-estate", "solar", "coaching", "dental",
+        "insurance", "home-loans", "interior-design", "restaurant",
+    ]
+    _SITEMAP_CITIES = ["india", "mumbai", "delhi", "bangalore"]
+    for _n in _SITEMAP_NICHES:
+        for _c in _SITEMAP_CITIES:
+            urls.append(f"/for/{_n}-in-{_c}")
 
     items = "\n".join(f"  <url><loc>{_xesc(base + p)}</loc></url>" for p in urls)
     xml = (
@@ -1270,6 +1281,105 @@ async def blog_article(slug: str):
         f"<h1>{title}</h1></div>"
         f"<article>{body_html}</article>"
         f"{_cta_box()}</div>{_blog_footer()}</body></html>"
+    )
+    return HTMLResponse(content=html)
+
+
+# ---------------------------------------------------------------------------
+# Niche × City SEO landing pages — /for/{niche}-in-{city}
+# ---------------------------------------------------------------------------
+_NICHE_LABELS: dict[str, str] = {
+    "real-estate": "Real Estate", "solar": "Solar", "coaching": "Coaching",
+    "dental": "Dental", "insurance": "Insurance", "home-loans": "Home Loans",
+    "interior-design": "Interior Design", "restaurant": "Restaurant",
+    "gym": "Gym & Fitness", "hospital": "Hospital & Clinic",
+    "study-abroad": "Study Abroad", "ca-firm": "CA / Accounting Firm",
+    "travel": "Travel Agency", "beauty": "Beauty Parlour", "school": "School",
+}
+_NICHE_HOOKS_WEB: dict[str, str] = {
+    "real-estate": "property listings aur buyer leads",
+    "solar": "homeowner inquiries aur site-visit bookings",
+    "coaching": "student admissions aur free-demo attendance",
+    "dental": "new patient appointments",
+    "insurance": "warm local leads aur policy renewals",
+    "home-loans": "qualified home-loan applicants",
+    "interior-design": "design consultation requests",
+    "restaurant": "repeat customers aur online orders",
+    "gym": "membership sign-ups aur trial bookings",
+    "hospital": "new patient inquiries",
+    "study-abroad": "student consultations",
+    "ca-firm": "tax-season leads aur referrals",
+    "travel": "package inquiries aur bookings",
+    "beauty": "appointment bookings aur repeat clients",
+    "school": "admissions inquiries",
+}
+
+
+@app.get("/for/{slug}", tags=["Frontend"], include_in_schema=False)
+async def niche_landing(slug: str):
+    """SEO niche×city landing page — /for/real-estate-in-mumbai etc."""
+    from html import escape as _h
+    from fastapi.responses import HTMLResponse
+
+    # parse niche + city from slug e.g. "real-estate-in-mumbai"
+    parts = slug.lower().split("-in-", 1)
+    niche_slug = parts[0].strip()
+    city_raw = parts[1].strip() if len(parts) > 1 else "india"
+    city = city_raw.replace("-", " ").title()
+    niche_label = _NICHE_LABELS.get(niche_slug, niche_slug.replace("-", " ").title())
+    hook = _NICHE_HOOKS_WEB.get(niche_slug, "naye customers aur qualified leads")
+    city_phrase = f"in {city}" if city.lower() != "india" else "across India"
+
+    title = f"AI Marketing for {niche_label} {city_phrase} — LeadsGenAI"
+    desc = (
+        f"Automate {hook} for your {niche_label} business {city_phrase}. "
+        "AI-powered marketing + lead generation starting ₹1,199/month."
+    )
+    canonical = f"/for/{_h(slug)}"
+
+    html = (
+        '<!DOCTYPE html><html lang="en-IN"><head><meta charset="UTF-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        f"<title>{_h(title)}</title>"
+        f'<meta name="description" content="{_h(desc)}">'
+        f'<link rel="canonical" href="{canonical}">'
+        f'<meta property="og:title" content="{_h(title)}">'
+        f'<meta property="og:description" content="{_h(desc)}">'
+        '<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage",'
+        f'"name":"{_h(title)}","description":"{_h(desc)}","url":"https://leadsgenai.in{canonical}"}}'
+        "</script>"
+        '<style>body{font-family:system-ui,sans-serif;margin:0;color:#1a1a2e}'
+        '.hero{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:72px 24px;text-align:center}'
+        '.hero h1{font-size:2rem;margin:0 0 16px;line-height:1.25}'
+        '.hero p{font-size:1.1rem;opacity:.9;max-width:600px;margin:0 auto 28px}'
+        '.btn{display:inline-block;background:#fff;color:#4f46e5;padding:14px 28px;border-radius:8px;'
+        'font-weight:700;text-decoration:none;margin:6px}'
+        '.btn.sec{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.6)}'
+        '.features{max-width:800px;margin:56px auto;padding:0 24px}'
+        '.features h2{color:#1a1a2e;margin-bottom:24px}'
+        '.feat{background:#f8f9ff;border-left:4px solid #4f46e5;padding:16px 20px;margin:12px 0;border-radius:0 8px 8px 0}'
+        '.cta{background:#faf5ff;text-align:center;padding:56px 24px}'
+        '.cta h2{color:#4f46e5;margin-bottom:8px}'
+        '.cta a{display:inline-block;background:#4f46e5;color:#fff;padding:14px 32px;border-radius:8px;'
+        'font-weight:700;text-decoration:none;margin-top:16px}'
+        'footer{text-align:center;padding:24px;color:#888;font-size:.85rem}'
+        '</style></head><body>'
+        f'<div class="hero"><h1>{_h(niche_label)} business ke liye<br>AI Marketing {_h(city_phrase)}</h1>'
+        f'<p>Automate {_h(hook)} — bina extra manpower ke.</p>'
+        '<a href="/audit" class="btn">Free Audit lo</a>'
+        '<a href="/pricing" class="btn sec">Pricing dekho</a></div>'
+        f'<div class="features"><h2>Hum {_h(niche_label)} businesses ke liye kya karte hain</h2>'
+        f'<div class="feat"><b>AI Lead Generation</b> — Google Maps se fresh {_h(niche_label)} prospects auto-scraped roz.</div>'
+        f'<div class="feat"><b>Personalized Outreach</b> — Hinglish cold emails + follow-ups automatically, daily cap ke saath.</div>'
+        f'<div class="feat"><b>Google Profile Audit</b> — Rating, reviews, aur visibility gaps identify karo — free.</div>'
+        f'<div class="feat"><b>AI Content Pack</b> — Weekly posters, captions, aur SEO content — {_h(niche_label)}-specific.</div>'
+        '<div class="feat"><b>Advanced: AI Voice Agent</b> — Inbound callback aur lead qualification automatically (₹6,999/mo).</div>'
+        '</div>'
+        f'<div class="cta"><h2>Shuru karo aaj hi</h2>'
+        f'<p>{_h(niche_label)} {_h(city_phrase)} — Starter plan sirf ₹1,199/mahina.</p>'
+        '<a href="/start">Abhi Start Karo →</a></div>'
+        '<footer>© LeadsGenAI · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>'
+        '</body></html>'
     )
     return HTMLResponse(content=html)
 

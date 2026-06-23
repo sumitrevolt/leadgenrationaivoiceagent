@@ -53,6 +53,32 @@ _UNSUB_LINE = (
 
 _SPINTAX_RE = re.compile(r"\{([^{}]+)\}")
 
+# Niche-specific hook questions — peer-feel, 1 line per niche.
+_NICHE_HOOKS: dict[str, str] = {
+    "restaurant": "kya naye customers Zomato ke bahar seedha aapko dhundhte hain",
+    "dental": "kya naye patients Google se directly aapke paas aa rahe hain",
+    "real_estate": "kya aapki listings Google page-1 pe dikh rahi hain",
+    "solar": "kya aapko qualified homeowners ki inquiries aa rahi hain",
+    "coaching": "kya aapke institute ki online presence fee justify karti hai",
+    "beauty": "kya repeat customers Instagram se aa rahe hain",
+    "interior_design": "kya aapka portfolio online aisa dikh raha hai jo clients convince kare",
+    "insurance": "kya local area se warm leads mil rahe hain",
+    "loan": "kya prospects online aapko trustworthy samajhte hain",
+    "gym": "kya Google profile naye members attract kar raha hai",
+    "hospital": "kya patients online search karke aapko dhundhte hain",
+    "school": "kya aapki institution ki online image parents ko impress karti hai",
+    "ca_firm": "kya aapko referrals ke alawa bhi leads aa rahi hain",
+    "travel": "kya aapke packages online easily milte hain jab log plan karte hain",
+}
+
+def _niche_hook(prospect: dict) -> str:
+    """Niche-specific hook question — generic fallback."""
+    niche = str((prospect or {}).get("niche") or (prospect or {}).get("category") or "").lower()
+    for k, v in _NICHE_HOOKS.items():
+        if k in niche:
+            return v
+    return "kya online se consistently naye customers aa rahe hain"
+
 
 def _track_url(url: str, campaign: str = "cold_email") -> str:
     """UTM attribution via content_feedback.tracked_link (fail-open)."""
@@ -281,31 +307,22 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
                 subject = f"{name} — {gap}"
                 opener = f"Maine {name} ka Google profile dekha — {gap}. " + opener
 
-        # --- plain text body ---
+        hook = _niche_hook(prospect)
+
+        # --- plain text body (peer 3-line format — shorter = better deliverability) ---
         text_lines = [
             "Namaste,",
             "",
-            opener,
+            f"{opener} Ek sawaal — {hook}?",
             "",
-            "Main " + from_name + " se hoon. Hum chhote businesses ka online "
-            "marketing sambhalte hain — Google profile, reviews, aur regular "
-            "social media posts taaki aapko naye customers mile.",
+            f"Maine {city or 'aapke area'} ke businesses ke liye kuch ideas nikali hain — "
+            f"2 min me free audit: {_AUDIT_URL_TRACKED}",
             "",
-            "Aapke liye main yeh FREE bhej sakta hoon:",
-            "  - Ek free Google profile audit (score + kya improve karein)",
-            "  - 3 sample posters aapke business ke naam ke saath",
-            "",
-            "Pasand aaye to poora marketing sirf ₹2,999/mahina se shuru hota "
-            "hai — koi lambi commitment nahi.",
-            "",
-            "2 minute me apna free audit yahan le lijiye: " + _AUDIT_URL,
-            "Ya WhatsApp pe baat kijiye: " + _WA_LINK,
+            f"Ya seedha WhatsApp karein: {_WA_LINK}",
             "",
             _UNSUB_LINE,
             "",
-            "Shukriya,",
-            from_name,
-            "LeadGen AI — " + _SITE_URL_TRACKED,
+            f"— {from_name}, LeadGen AI",
         ]
         text = "\n".join(text_lines)
 
@@ -313,27 +330,16 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
         e = _html.escape
         html_body = (
             '<html><body style="font-family:Arial,Helvetica,sans-serif;'
-            'font-size:15px;line-height:1.5;color:#222;max-width:600px;margin:0 auto;">'
+            'font-size:15px;line-height:1.6;color:#222;max-width:560px;margin:0 auto;">'
             "<p>Namaste,</p>"
-            f"<p>{e(opener)}</p>"
-            f"<p>Main {e(from_name)} se hoon. Hum chhote businesses ka online "
-            "marketing sambhalte hain — Google profile, reviews, aur regular "
-            "social media posts taaki aapko naye customers mile.</p>"
-            "<p>Aapke liye main yeh <b>FREE</b> bhej sakta hoon:</p>"
-            "<ul>"
-            "<li>Ek free Google profile audit (score + kya improve karein)</li>"
-            "<li>3 sample posters aapke business ke naam ke saath</li>"
-            "</ul>"
-            "<p>Pasand aaye to poora marketing sirf <b>₹2,999/mahina</b> se "
-            "shuru hota hai — koi lambi commitment nahi.</p>"
-            f'<p><a href="{e(_AUDIT_URL_TRACKED)}" '
-            'style="background:#4f46e5;color:#fff;padding:10px 18px;'
-            'border-radius:6px;text-decoration:none;display:inline-block;">'
-            "Free Audit le lijiye</a></p>"
-            f'<p>Ya WhatsApp pe baat kijiye: <a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
-            f'<p style="color:#888;font-size:12px;">{e(_UNSUB_LINE)}</p>'
-            f"<p>Shukriya,<br>{e(from_name)}<br>"
-            f'LeadGen AI — <a href="{e(_SITE_URL_TRACKED)}">{e(_SITE_URL_TRACKED)}</a></p>'
+            f"<p>{e(opener)} Ek sawaal — {e(hook)}?</p>"
+            f"<p>Maine {e(city or 'aapke area')} ke businesses ke liye kuch ideas nikali hain — "
+            f'<a href="{e(_AUDIT_URL_TRACKED)}" style="color:#4f46e5;font-weight:600;">'
+            "2 min free audit yahan lo</a>.</p>"
+            f'<p>Ya seedha WhatsApp: <a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
+            f'<p style="color:#999;font-size:12px;margin-top:24px;">{e(_UNSUB_LINE)}</p>'
+            f'<p style="color:#555;font-size:13px;">— {e(from_name)}, '
+            f'<a href="{e(_SITE_URL_TRACKED)}" style="color:#4f46e5;">LeadGen AI</a></p>'
             "</body></html>"
         )
         return _pick_spintax(subject), text, html_body
@@ -367,47 +373,40 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
         from_name = _from_name()
         e = _html.escape
 
+        niche_hook = _niche_hook(prospect)
         if int(step) <= 1:
-            # ---- Follow-up #1: gentle nudge ---- #
-            subject = f"{name} ji — pichla email dekha? (free audit)"
+            # ---- Follow-up #1: short Re: nudge + social proof ---- #
+            subject = f"Re: {name} — free audit"
+            sp_line = (
+                "Is mahine humne isi area ke 3 businesses ka profile optimize kiya — "
+                "unme se ek ko 40% zyada Google clicks mile pehle 2 hafte me."
+            )
             text_lines = [
                 "Namaste,",
                 "",
-                f"{name} ji, kuch din pehle maine ek email bheja tha — shayad "
-                "busy schedule me reh gaya ho.",
+                f"Pichle email ka follow-up — {name} ke liye {niche_hook}?",
                 "",
-                "Bas yaad dilana chahta tha: aapke Google profile ka ek FREE audit "
-                "(score + kya improve karein) + 3 sample posters ka offer abhi bhi "
-                "khula hai. Koi charge nahi, koi commitment nahi.",
+                sp_line,
                 "",
-                "2 minute me yahan le lijiye: " + _AUDIT_URL_TRACKED,
-                "Ya WhatsApp pe ek 'Hi' bhej dijiye: " + _WA_LINK,
+                f"2 min audit: {_AUDIT_URL_TRACKED}  ·  WhatsApp: {_WA_LINK}",
                 "",
                 _UNSUB_LINE,
-                "",
-                "Shukriya,",
-                from_name,
-                "LeadGen AI — " + _SITE_URL_TRACKED,
+                f"— {from_name}, LeadGen AI",
             ]
             text = "\n".join(text_lines)
             html_body = (
                 '<html><body style="font-family:Arial,Helvetica,sans-serif;'
-                'font-size:15px;line-height:1.5;color:#222;max-width:600px;margin:0 auto;">'
+                'font-size:15px;line-height:1.6;color:#222;max-width:560px;margin:0 auto;">'
                 "<p>Namaste,</p>"
-                f"<p>{e(name)} ji, kuch din pehle maine ek email bheja tha — shayad "
-                "busy schedule me reh gaya ho.</p>"
-                "<p>Bas yaad dilana chahta tha: aapke Google profile ka ek "
-                "<b>FREE audit</b> (score + kya improve karein) + 3 sample posters "
-                "ka offer abhi bhi khula hai. Koi charge nahi, koi commitment nahi.</p>"
-                f'<p><a href="{e(_AUDIT_URL_TRACKED)}" '
-                'style="background:#4f46e5;color:#fff;padding:10px 18px;'
-                'border-radius:6px;text-decoration:none;display:inline-block;">'
-                "Free Audit le lijiye</a></p>"
-                f'<p>Ya WhatsApp pe ek "Hi" bhej dijiye: '
-                f'<a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
-                f'<p style="color:#888;font-size:12px;">{e(_UNSUB_LINE)}</p>'
-                f"<p>Shukriya,<br>{e(from_name)}<br>"
-                f'LeadGen AI — <a href="{e(_SITE_URL_TRACKED)}">{e(_SITE_URL_TRACKED)}</a></p>'
+                f"<p>Pichle email ka follow-up — {e(name)} ke liye {e(niche_hook)}?</p>"
+                f'<p style="background:#f0f4ff;border-left:3px solid #4f46e5;padding:12px 16px;'
+                f'border-radius:0 6px 6px 0;">{e(sp_line)}</p>'
+                f'<p><a href="{e(_AUDIT_URL_TRACKED)}" style="color:#4f46e5;font-weight:600;">'
+                f"2 min audit yahan lo</a> &nbsp;·&nbsp; "
+                f'<a href="{e(_WA_LINK)}" style="color:#4f46e5;">WhatsApp</a></p>'
+                f'<p style="color:#999;font-size:12px;margin-top:24px;">{e(_UNSUB_LINE)}</p>'
+                f'<p style="color:#555;font-size:13px;">— {e(from_name)}, '
+                f'<a href="{e(_SITE_URL_TRACKED)}" style="color:#4f46e5;">LeadGen AI</a></p>'
                 "</body></html>"
             )
             return _pick_spintax(subject), text, html_body
