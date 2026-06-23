@@ -363,9 +363,9 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=9, minute=30),
         "args": ("prospect",),
     },
-    "staff-email-outreach-daily": {
+    "staff-email-outreach-hourly": {
         "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(hour=10, minute=30),
+        "schedule": crontab(hour="9,10,11,12,13,14,15,16,17,18,19", minute=5),
         "args": ("email_outreach",),
     },
     "staff-revenue-snapshot-daily": {
@@ -405,9 +405,9 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=11, minute=0),
         "args": ("pipeline",),
     },
-    "staff-email-followup-daily": {
+    "staff-email-followup-hourly": {
         "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(hour=16, minute=0),
+        "schedule": crontab(hour="9,10,11,12,13,14,15,16,17,18,19", minute=20),
         "args": ("email_followup",),
     },
     "staff-kb-refresh-weekly": {

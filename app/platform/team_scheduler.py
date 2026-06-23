@@ -773,14 +773,15 @@ async def scheduler_loop() -> None:
             if (9, 30) <= hm < (11, 30) and _last_ran["prospect"] != day_key:
                 _last_ran["prospect"] = day_key
                 await _run_job("prospect")
-            if (10, 30) <= hm < (12, 30) and _last_ran["email_outreach"] != day_key:
-                _last_ran["email_outreach"] = day_key
+            _email_hour_key = f"{day_key}:{now_ist.hour}"
+            if 9 <= now_ist.hour <= 19 and hm[1] < 20 and _last_ran["email_outreach"] != _email_hour_key:
+                _last_ran["email_outreach"] = _email_hour_key
                 await _run_job("email_outreach")
             if (11, 0) <= hm < (12, 0) and _last_ran["pipeline"] != day_key:
                 _last_ran["pipeline"] = day_key
                 await _run_job("pipeline")
-            if (16, 0) <= hm < (17, 30) and _last_ran["email_followup"] != day_key:
-                _last_ran["email_followup"] = day_key
+            if 9 <= now_ist.hour <= 19 and hm[1] >= 20 and _last_ran["email_followup"] != _email_hour_key:
+                _last_ran["email_followup"] = _email_hour_key
                 await _run_job("email_followup")
             # 14:30–15:30 IST — 2nd free lead-supply pass (harvest). Gated MIDDAY_PROSPECT.
             if (14, 30) <= hm < (15, 30) and _last_ran["midday_prospect"] != day_key:
