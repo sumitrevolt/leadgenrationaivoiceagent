@@ -1041,6 +1041,19 @@ async def run_once() -> dict[str, Any]:
     }
     _append(_RUNS, rec)
     _heartbeat({"runs_today": runs_today + 1, "last_action": action, "status": "ok"})
+    # Obsidian — append self-improve run to Sessions/ (INERT if OBSIDIAN_SYNC unset).
+    try:
+        from app.platform import obsidian_sync as _obs
+        import datetime as _dt
+        _obs.append_note(
+            "Sessions",
+            _dt.datetime.utcnow().strftime("%Y-%m-%d"),
+            f"self_improve [{action}] {'OK' if rec['ok'] else 'FAIL'} — {rec['detail'][:80]}",
+            member="self_improve",
+            tags=["self-improve"],
+        )
+    except Exception:
+        pass
 
     # periodic reflection (auto-learn never stops)
     total = runs_today + 1

@@ -518,6 +518,17 @@ async def coordinate_advanced(
         "at": _now(),
     }
     _persist(out)
+    # Obsidian — log reflexion run to Decisions/ (INERT if OBSIDIAN_SYNC unset).
+    try:
+        from app.platform import obsidian_sync as _obs
+        _obs.write_note(
+            "Decisions",
+            f"reflexion-{run_id}",
+            f"# Reflexion: {goal[:80]}\n\n**Score:** {critique['score']}\n**Iterations:** {len(iterations)}\n\n## Summary\n{out['summary']}",
+            tags=["coordinator", "reflexion"],
+        )
+    except Exception:
+        pass
     return out
 
 
@@ -556,6 +567,17 @@ async def debate(question: str, rounds: int = 1) -> dict:
         "at": _now(),
     }
     _persist(out)
+    # Obsidian — log debate verdict to Decisions/ (INERT if OBSIDIAN_SYNC unset).
+    try:
+        from app.platform import obsidian_sync as _obs
+        _obs.write_note(
+            "Decisions",
+            f"debate-{_now()[:10]}-{question[:30].replace(' ', '-')}",
+            f"# Debate: {question[:100]}\n\n## Verdict\n{out['verdict']}\n\n**Rounds:** {len(transcript)}",
+            tags=["coordinator", "debate"],
+        )
+    except Exception:
+        pass
     return out
 
 
@@ -646,6 +668,17 @@ async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
         "at": _now(),
     }
     _persist(out)
+    # Obsidian — log hierarchical run to Decisions/ (INERT if OBSIDIAN_SYNC unset).
+    try:
+        from app.platform import obsidian_sync as _obs
+        _obs.write_note(
+            "Decisions",
+            f"hier-{run_id}",
+            f"# Hierarchical: {goal[:80]}\n\n## Summary\n{out['summary']}",
+            tags=["coordinator", "hierarchical"],
+        )
+    except Exception:
+        pass
     return out
 
 
