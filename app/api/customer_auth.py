@@ -99,6 +99,63 @@ def _biz_name(client_id: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# Plain-Hinglish content summary (admin "Aaj" overview pattern → customer side).
+# Mirrors app/platform/today_overview.py: emoji-first status + chhota Hinglish
+# sentence so a NON-technical customer ek nazar me apne content ki state samajh
+# jaaye (kitne publish ho chuke, kitne approval ka wait kar rahe). NO LLM
+# (instant + free), kabhi raise nahi, additive only — raw status field intact.
+# auto_content status values: draft / approved / posted / skipped.
+# --------------------------------------------------------------------------- #
+_CONTENT_STATUS_HI: dict[str, tuple[str, str]] = {
+    "posted": ("✅", "Publish ho chuka"),
+    "approved": ("👍", "Approve ho gaya — publish ka wait"),
+    "draft": ("📝", "Draft — aapki approval ka wait"),
+    "skipped": ("⏭️", "Skip kiya gaya"),
+}
+
+
+def _friendly_content_status(status: str | None) -> dict:
+    """Ek content item ka raw status → emoji + chhota Hinglish line (additive)."""
+    st = str(status or "").strip().lower()
+    emoji, label = _CONTENT_STATUS_HI.get(st, ("⏳", "Taiyaar ho raha hai"))
+    return {"status_emoji": emoji, "status_label": label, "status_line": f"{emoji} {label}"}
+
+
+def _content_summary(items: list) -> dict:
+    """Customer content queue ka plain-Hinglish headline + counts. Kabhi raise nahi.
+    Example: '📣 Aapke aaj 3 posts ready hain — 1 publish ho chuka, 2 approval ka wait kar rahe'."""
+    counts = {"total": 0, "posted": 0, "approved": 0, "draft": 0, "skipped": 0}
+    try:
+        for it in items or []:
+            counts["total"] += 1
+            st = str((it or {}).get("status") or "").strip().lower()
+            if st in counts:
+                counts[st] += 1
+    except Exception:
+        pass
+    total = counts["total"]
+    if total == 0:
+        return {
+            "headline": "📣 Aaj ka content abhi ban raha hai — subah 7 baje tak aa jaata hai 🌅",
+            "counts": counts,
+        }
+    parts: list[str] = []
+    if counts["posted"]:
+        parts.append(f"{counts['posted']} publish ho chuk{'a' if counts['posted'] == 1 else 'e'}")
+    if counts["approved"]:
+        parts.append(f"{counts['approved']} publish hone wal{'a' if counts['approved'] == 1 else 'e'}")
+    if counts["draft"]:
+        parts.append(
+            f"{counts['draft']} approval ka wait kar rah{'a' if counts['draft'] == 1 else 'e'}"
+        )
+    if counts["skipped"]:
+        parts.append(f"{counts['skipped']} skip kiy{'a' if counts['skipped'] == 1 else 'e'}")
+    tail = (" — " + ", ".join(parts)) if parts else ""
+    headline = f"📣 Aapke aaj {total} post{'' if total == 1 else 's'} ready hain{tail}"
+    return {"headline": headline, "counts": counts}
+
+
+# --------------------------------------------------------------------------- #
 # auth dependency
 # --------------------------------------------------------------------------- #
 def require_customer(creds: HTTPAuthorizationCredentials = Depends(_security)) -> str:
@@ -355,11 +412,16 @@ async def portal_content(client_id: str = Depends(require_customer)):
                 "hashtags": i.get("hashtags") or [],
                 "status": i.get("status"),
                 "image_url": i.get("image_url") or "",
+                # additive plain-Hinglish status (raw `status` field intact above)
+                **_friendly_content_status(i.get("status")),
             }
             for i in items
         ]
     except Exception as e:
         logger.debug(f"portal content queue failed: {e}")
+    # Plain-Hinglish at-a-glance summary (admin "🏠 Aaj" pattern → customer side).
+    # Always present (empty queue → "ban raha hai" headline); never breaks items.
+    out["summary"] = _content_summary(out["items"])
     try:
         from app.marketing.clients_store import get_client
 

@@ -1332,7 +1332,9 @@ async function loadContent(){
     const total=(brandedPosts.length||items.length);
     cnt.textContent=total+" posts";
     if(!brandedPosts.length&&!items.length){ body.innerHTML='<span class="sm" style="color:var(--muted)">Aaj ka content abhi ban raha hai — subah 7 baje tak aa jaata hai. 🌅</span>'; return; }
-    let h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';
+    let h='';
+    if(items.length && d.summary && d.summary.headline){ h+='<div style="background:#f3f0ff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-weight:700;font-size:14px;line-height:1.45">'+escH(d.summary.headline)+'</div>'; }
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';
     brandedPosts.forEach(function(p){
       const full=(p.caption||"")+"\n\n#"+(p.kind||"post");
       h+='<div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfaff">'
@@ -1348,7 +1350,7 @@ async function loadContent(){
     items.forEach(function(it){
       const full=(it.caption||"")+"\n\n"+(it.hashtags||[]).join(" ");
       h+='<div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfaff">'
-        +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span class="niche">'+escH(it.type||"post")+'</span><span class="sm" style="color:var(--muted)">'+escH(it.date||"")+'</span></div>'
+        +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span class="niche">'+escH(it.type||"post")+'</span><span class="sm" style="color:var(--muted)">'+escH(it.date||"")+'</span>'+(it.status_line?'<span class="sm" style="margin-left:auto;font-weight:600;white-space:nowrap">'+escH(it.status_line)+'</span>':'')+'</div>'
         +'<div style="font-weight:700;margin-bottom:6px">'+escH(it.title||"")+'</div>'
         +'<div class="sm" style="white-space:pre-wrap;max-height:120px;overflow:auto">'+escH(it.caption||"")+'</div>'
         +'<div style="color:var(--brand);margin-top:6px" class="sm">'+escH((it.hashtags||[]).slice(0,6).join(" "))+'</div>'
