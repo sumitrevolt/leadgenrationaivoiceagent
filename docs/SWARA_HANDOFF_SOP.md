@@ -43,7 +43,7 @@ Full Product 2 SOP: [`PRODUCT_HANDOFF_SOP.md`](PRODUCT_HANDOFF_SOP.md) §2.
 | `meera` | Meera 🎓 | **Trainer** — transcript quality, STT/latency tuning suggestions | ~03:00 IST + on-demand |
 | `tara` | Tara 🎙️ | **Voice Infra Ops** — telephony readiness (Vobiz auth, caller-ID, webhooks, DND, TTS/STT/LLM chain) | Hourly (`telephony_pulse`) |
 
-> **Note:** Tara `team.py` duties text abhi bhi Exotel mention karta hai — **active provider = Vobiz only** (Exotel deleted 2026-06-18). Doc truth = Vobiz.
+> **Note:** Active telephony provider = **Vobiz only** (Exotel code-level deleted 2026-06-18, team.py duties text updated 2026-06-23).
 
 **Scheduler:** jobs Celery beat se chalte hain (`RUN_IN_PROCESS_SCHEDULER=0`, `leadgen_worker` + `leadgen_scheduler` containers) — in-process uvicorn pe nahi. Voice jobs: **QA** (~02:30, `eval_suite`, gated `VOICE_EVAL_AUTO`) · **Trainer** (~03:00, gated `ML_NIGHTLY_TRAINING`) · **voice pulse** (har 15 min) · **Tara telephony_pulse** (hourly). Full 24-job table: [`PRODUCT_HANDOFF_SOP.md`](PRODUCT_HANDOFF_SOP.md) Part 3.
 
