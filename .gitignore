@@ -187,3 +187,11 @@ scripts/_debug/
 *_out.txt
 prod_check_out.txt
 deploy_filler_out.txt
+
+# One-shot Gemini/Vertex deploy scripts + empty debug artifacts (ROOT-level only;
+# scripts/*.bat stay tracked). Negate the two legit tracked root .bat files.
+/*.bat
+!/deploy_brain.bat
+!/start_server.bat
+/gemini_vertex
+/55-min

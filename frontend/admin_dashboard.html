@@ -2434,10 +2434,11 @@ function renderGodMode(sys, camp){
   const trust = sys.trust || {};
   const ts = trust.turnstile || {};
   const se = trust.sentry || {};
+  const ph = trust.posthog || {};
   html += `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);border-radius:8px">
     <div style="font-size:11px;font-weight:700;color:#6ee7b7;margin-bottom:8px;text-transform:uppercase">🛡 Trust Layer</div>
     <div style="font-size:11px;color:#cbd5e1;margin-bottom:8px">
-      Turnstile: <b>${ts.armed?'✅ armed':'⚠️ off'}</b> · Sentry: <b>${se.armed?'✅ armed':'⚠️ off'}</b>
+      Turnstile: <b>${ts.armed?'✅ armed':'⚠️ off'}</b> · Sentry: <b>${se.armed?'✅ armed':'⚠️ off'}</b> · PostHog: <b>${ph.armed?'✅ armed':'⚠️ off'}</b>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <input id="tsSiteKey" placeholder="Turnstile site key" aria-label="Turnstile site key" style="padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#e2e8f0;font-size:11px">
@@ -2448,7 +2449,12 @@ function renderGodMode(sys, camp){
       <input id="sentryDsn" placeholder="Sentry DSN (https://…)" aria-label="Sentry DSN" style="flex:1;min-width:180px;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#e2e8f0;font-size:11px">
       <button class="btn" onclick="saveSentry()" style="font-size:10px;padding:5px 10px;background:#6366f1">💾 Sentry save</button>
     </div>
-    <div style="font-size:10px;color:#94a3b8">Cloudflare dashboard se free keys — bina container restart (Sentry worker ke liye restart recommended).</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <input id="posthogApiKey" placeholder="PostHog API key" aria-label="PostHog API key" style="flex:1;min-width:180px;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#e2e8f0;font-size:11px">
+      <input id="posthogHost" placeholder="PostHog host (optional)" aria-label="PostHog host" style="flex:1;min-width:180px;padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#e2e8f0;font-size:11px">
+      <button class="btn" onclick="savePosthog()" style="font-size:10px;padding:5px 10px;background:#14b8a6">💾 PostHog save</button>
+    </div>
+    <div style="font-size:10px;color:#94a3b8">Cloudflare dashboard se free keys — PostHog Cloud free tier; bina container restart (Sentry worker ke liye restart recommended).</div>
   </div>`;
 
   // — Manual UPI activate (search any client) ───────────────────────
@@ -2582,6 +2588,18 @@ async function saveSentry(){
     const r=await fetch('/api/admin/trust/configure-sentry',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),body:JSON.stringify({dsn:dsn})});
     const d=await r.json();
     if(r.ok&&d.ok){ alert('✅ Sentry saved'+(d.restart_recommended?' — worker restart recommended':'')); loadGodMode(); }
+    else alert('Fail: '+(d.detail||r.status));
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+async function savePosthog(){
+  const key=(document.getElementById('posthogApiKey')||{}).value||'';
+  const host=(document.getElementById('posthogHost')||{}).value||'';
+  if(!key){ alert('PostHog API key chahiye'); return; }
+  try{
+    const r=await fetch('/api/admin/trust/configure-posthog',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),body:JSON.stringify({api_key:key,host:host})});
+    const d=await r.json();
+    if(r.ok&&d.ok){ alert('✅ PostHog saved'); loadGodMode(); }
     else alert('Fail: '+(d.detail||r.status));
   }catch(e){ alert('Error: '+e.message); }
 }

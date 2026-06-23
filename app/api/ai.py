@@ -5,7 +5,7 @@ All API keys are stored server-side only
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.auth_deps import get_current_user_optional, require_admin
 from app.api.ratelimit import rate_limit, tier_rate_limit
@@ -348,11 +348,17 @@ async def _cmd_draft(topic: str, who: str) -> dict:
 class CommandIn(BaseModel):
     """NL command bar input."""
 
-    query: str
-    client_id: str | None = None
+    query: str = Field(..., min_length=2, max_length=500)
+    client_id: str | None = Field(default=None, max_length=80)
 
 
-@router.post("/command")
+def _normalize_command_query(q: str) -> str:
+    """Collapse whitespace and strip control chars before the LLM sees it."""
+    text = "".join(ch if ch.isprintable() else " " for ch in (q or ""))
+    return " ".join(text.split())[:500].strip()
+
+
+@router.post("/command", dependencies=[Depends(rate_limit("ai_cmd", 12, 60))])
 async def nl_command(req: CommandIn, user: User = Depends(require_admin)):
     """NL CRM command bar — Hinglish NL -> intent -> SAFE read/draft action.
 
@@ -360,7 +366,7 @@ async def nl_command(req: CommandIn, user: User = Depends(require_admin)):
     se intent parse, allowlisted actions hi execute. Defensive: kuch bhi fail =>
     help fallback, kabhi 500 nahi (except validation).
     """
-    q = (req.query or "").strip()
+    q = _normalize_command_query(req.query)
     if len(q) < 2:
         raise HTTPException(
             status_code=422,

@@ -95,13 +95,28 @@ def enqueue_publish(
             )
             if jid:
                 ids.append(jid)
-        # best-effort immediate Celery drain (no consumer = harmless; scheduler drains anyway)
+        # best-effort immediate Celery drain — FIRE-AND-FORGET (scheduler drains anyway).
+        # .delay() CONNECTS to the Redis broker to publish; a down/unreachable broker makes
+        # that socket.connect BLOCK (broker_connection_timeout x retries) — a hang the
+        # try/except can't catch. So never let it block the caller: dispatch in a daemon
+        # thread with retry=False. (A blocking .delay() here hung full pytest -> SIGABRT/
+        # exit 134, and would stall a real request if Redis were down.)
         if ids:
             try:
-                from .tasks import drain_social_queue
+                import threading
 
-                if drain_social_queue is not None:
-                    drain_social_queue.delay(len(ids) + 5)
+                _n = len(ids) + 5
+
+                def _fire_drain() -> None:
+                    try:
+                        from .tasks import drain_social_queue
+
+                        if drain_social_queue is not None:
+                            drain_social_queue.apply_async(args=[_n], retry=False)
+                    except Exception:
+                        pass
+
+                threading.Thread(target=_fire_drain, name="social-drain", daemon=True).start()
             except Exception:
                 pass
         return ids

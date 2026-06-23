@@ -13,21 +13,21 @@ Register (main.py app-factory me, middleware stack ke END me — sabse bahar):
 
 from __future__ import annotations
 
-import os
-
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+
+from app.platform import posthog_config
 
 # 2MB se badi HTML inject karne ka risk nahi (file-serve etc.) — skip.
 _MAX_INJECT_BYTES = 2 * 1024 * 1024
 
 
 def _key() -> str:
-    return os.environ.get("POSTHOG_API_KEY", "").strip()
+    return posthog_config.get_api_key()
 
 
 def _host() -> str:
-    return os.environ.get("POSTHOG_HOST", "https://us.i.posthog.com").strip()
+    return posthog_config.get_host()
 
 
 def _posthog_head() -> str:

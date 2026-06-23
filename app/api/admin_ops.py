@@ -104,6 +104,11 @@ class TrustSentryReq(BaseModel):
     dsn: str
 
 
+class TrustPosthogReq(BaseModel):
+    api_key: str
+    host: str | None = None
+
+
 def _upi_info() -> dict:
     """UPI VPA + WA screenshot verify link (no Razorpay)."""
     try:
@@ -149,9 +154,9 @@ def _pending_upi_queue(limit: int = 20) -> list[dict]:
 
 def _trust_summary() -> dict:
     try:
-        from app.platform import trust_config
+        from app.platform import posthog_config, trust_config
 
-        return trust_config.status()
+        return {**trust_config.status(), "posthog": posthog_config.status()}
     except Exception:
         return {}
 
@@ -524,11 +529,11 @@ async def upi_clients_search(q: str = "", limit: int = 20, _user=Depends(require
         raise HTTPException(status_code=500, detail=str(exc)[:120]) from exc
 
 
-@router.get("/trust/status", summary="Turnstile + Sentry armed status")
+@router.get("/trust/status", summary="Turnstile + Sentry + PostHog armed status")
 async def trust_status(_user=Depends(require_admin)):
-    from app.platform import trust_config
+    from app.platform import posthog_config, trust_config
 
-    return {"ok": True, **trust_config.status()}
+    return {"ok": True, **trust_config.status(), "posthog": posthog_config.status()}
 
 
 @router.post("/trust/configure-turnstile", summary="Set Turnstile keys (no restart)")
@@ -557,6 +562,28 @@ async def trust_configure_sentry(body: TrustSentryReq, _user=Depends(require_adm
     if not result.get("ok"):
         raise HTTPException(status_code=400, detail=result.get("error") or "save failed")
     return {"ok": True, "trust": trust_config.status(), **result}
+
+
+@router.post("/trust/configure-posthog", summary="Set PostHog API key + host (no restart)")
+async def trust_configure_posthog(body: TrustPosthogReq, _user=Depends(require_admin)):
+    from app.platform import posthog_config, trust_config
+
+    result = posthog_config.set_posthog(
+        api_key=body.api_key, host=body.host or "", set_by="admin_dashboard"
+    )
+    if not result.get("ok"):
+        raise HTTPException(status_code=400, detail=result.get("error") or "save failed")
+    try:
+        from app.platform.team import log_event
+
+        log_event("kavya", "posthog_configured", "PostHog armed via admin (file)", meta={})
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "trust": {**trust_config.status(), "posthog": posthog_config.status()},
+        **result,
+    }
 
 
 @router.post("/flow/seed-templates", summary="Apply all Flow Runner starter templates (FLOW_RUNNER=1)")
