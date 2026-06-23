@@ -170,44 +170,33 @@ async def _send_email(to_email: str, subject: str, body: str) -> bool:
 
 
 async def _ensure_pay_link(case: dict[str, Any]) -> str:
-    """Case ke liye 1-tap Razorpay payment link (ek baar banao, case me cache).
+    """UPI intent deep-link for recovery email (Razorpay removed 2026-06-18).
 
-    Research: recovery link (UPI-intent, no-login) checkout-redirect se behtar convert
-    karta. notes me client_id+plan_id => payment.captured webhook AUTO provision+invoice+
-    mark_recovered karta. Creds unset / amount missing => "" (graceful). Never raises.
+    UPI intent URL = no-login, opens any UPI app directly. Amount missing → pricing
+    page fallback. Never raises.
     """
     try:
         if case.get("pay_link"):
             return str(case["pay_link"])
         amount = case.get("amount")
-        if not amount:
-            return ""
-        from app.billing import payment_links
-
-        if not payment_links.is_configured():
-            return ""
-        cid = str(case.get("client_id") or "")
-        plan = ""
+        # Build UPI intent link if VPA configured
         try:
-            plan = str((_client_info(cid) or {}).get("plan") or "").strip().lower()
+            from app.platform.upi_config import get_upi_config
+
+            cfg = get_upi_config() or {}
+            vpa = str(cfg.get("vpa") or "").strip()
+            if vpa and amount:
+                biz = str(case.get("business_name") or "renewal").replace(" ", "+")[:30]
+                link = f"upi://pay?pa={vpa}&am={amount}&tn=LeadsGenAI+{biz}&cu=INR"
+                case["pay_link"] = link
+                return link
         except Exception:
             pass
-        res = await payment_links.create_payment_link(
-            cid,
-            amount,
-            f"LeadsGenAI subscription renewal — {case.get('business_name', '')}".strip(),
-            customer_name=str(case.get("business_name") or ""),
-            customer_phone=str(case.get("phone") or ""),
-            business_name="LeadsGenAI",
-            extra_notes={"plan_id": plan or "starter", "dunning_case": str(case.get("id") or "")},
-        )
-        link = str(res.get("short_url") or "") if res.get("ok") else ""
-        if link:
-            case["pay_link"] = link
-        return link
+        # Fallback: pricing page
+        return PRICING_URL
     except Exception as e:
         logger.debug(f"[dunning] pay link skipped: {e}")
-        return ""
+        return PRICING_URL
 
 
 def _with_link(body: str, link: str) -> str:

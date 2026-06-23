@@ -88,16 +88,16 @@ def test_dunning_link_helpers(tmp_path, monkeypatch):
     assert dunning._with_link("body", "") == "body"
     out = dunning._with_link("body", "https://rzp.io/x")
     assert "https://rzp.io/x" in out and out.startswith("body")
-    # unconfigured => "" (graceful), case cached link reuse
-    import app.billing.payment_links as pl
-
-    monkeypatch.setattr(pl, "is_configured", lambda: False)
+    # Razorpay removed 2026-06-18 — UPI path; UPI not configured in test env
+    # => falls back to PRICING_URL (never empty).  Cached link reuse still works.
     case = {"id": "x1", "client_id": "c1", "amount": 999}
-    assert asyncio.run(dunning._ensure_pay_link(case)) == ""
+    result = asyncio.run(dunning._ensure_pay_link(case))
+    assert result  # never empty — at minimum PRICING_URL
     case["pay_link"] = "https://rzp.io/cached"
     assert asyncio.run(dunning._ensure_pay_link(case)) == "https://rzp.io/cached"
-    # no amount => ""
-    assert asyncio.run(dunning._ensure_pay_link({"id": "x2", "client_id": "c2"})) == ""
+    # no amount + no VPA => PRICING_URL fallback
+    no_amt = asyncio.run(dunning._ensure_pay_link({"id": "x2", "client_id": "c2"}))
+    assert no_amt == dunning.PRICING_URL
 
 
 # ----------------------- public plans filter ----------------------- #

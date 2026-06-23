@@ -159,6 +159,7 @@ async def _gather_signals() -> list[dict[str, Any]]:
                 "pack_age_days": pack_age,
                 "age_days": age_days,
                 "status": c.get("status", ""),
+                "login_days_ago": None,  # filled below if DB available
             }
         )
     return out

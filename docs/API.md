@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (831 operations)
+## Endpoint Index — auto-generated from OpenAPI (833 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -524,7 +524,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientcrm/wishes/drafts` — Wishes Drafts
 - `POST  ` `/api/clientcrm/wishes/run` — Wishes Run
 
-### ClientOps  (18)
+### ClientOps  (21)
 
 - `POST  ` `/api/clientops/approval` — Submit Approval
 - `GET   ` `/api/clientops/approvals` — List Approvals
@@ -544,6 +544,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/clientops/snapshots/{snapshot_id}/apply` — Snapshot Apply
 - `GET   ` `/api/clientops/speed-to-lead` — Speed To Lead
 - `POST  ` `/api/clientops/track-proposal` — Track Proposal
+- `GET   ` `/api/clientops/video-ads` — Video Ads List
+- `POST  ` `/api/clientops/video-ads/generate` — Video Ads Generate
+- `POST  ` `/api/clientops/video-ads/{approval_id}/request-changes` — Video Ads Request Changes
 
 ### Clients  (7)
 
@@ -762,7 +765,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/terms` — Terms Page
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (198)
+### Growth  (197)
 
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats

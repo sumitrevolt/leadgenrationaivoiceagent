@@ -82,6 +82,12 @@ async def _collect() -> dict[str, Any]:
                     price = float(getattr(s, "base_price", 0) or 0)
                     if price <= 0:
                         price = float(_PLAN_PRICE.get(str(getattr(s, "plan_id", "")).lower(), 0))
+                    if price <= 0 and str(getattr(s, "plan_id", "")).startswith("voice_"):
+                        try:
+                            from app.marketing.voice_packages import voice_plan_price
+                            price = float(voice_plan_price(str(getattr(s, "plan_id", ""))) or 0)
+                        except Exception:
+                            pass
                     mrr += price
                 elif "trial" in st:
                     counts["trial"] += 1

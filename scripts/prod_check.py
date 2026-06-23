@@ -196,6 +196,9 @@ def check_production_config() -> None:
     except Exception:
         print("[5/6] skipped (config not importable)")
         return
+    import os as _os
+    if _os.environ.get("CONSENT_DB") in ("1", "true", "yes") and not _os.environ.get("DATABASE_URL"):
+        PROBLEMS.append("CONFIG: CONSENT_DB=1 but DATABASE_URL unset — compliance risk (opt-outs won't persist)")
     if settings.app_env == "production":
         if settings.debug:
             PROBLEMS.append("CONFIG: debug=True in production")
