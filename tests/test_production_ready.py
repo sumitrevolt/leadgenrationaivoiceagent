@@ -13,7 +13,8 @@ class TestConfiguration:
         from app.config import settings
 
         assert settings.app_name == "AI Voice Agent"
-        assert settings.app_env in ["development", "staging", "production"]
+        # "test" is a valid env — CI's pytest job sets APP_ENV=test (see .github/workflows/ci.yml)
+        assert settings.app_env in ["development", "staging", "production", "test"]
         assert settings.log_level in ["DEBUG", "INFO", "WARNING", "ERROR"]
 
     def test_secret_key_configured(self):

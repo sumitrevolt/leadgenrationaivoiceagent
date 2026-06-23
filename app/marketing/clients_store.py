@@ -77,6 +77,13 @@ def resolve_product(c: dict[str, Any]) -> str:
     return "marketing"
 
 
+# Back-compat alias — callers/tests (e.g. video_ad_cycle._eligible_clients) use the
+# older name `product_lane`. Kept pointing at resolve_product so the marketing/voice/
+# combo lane logic stays single-sourced. (Missing attr was silently caught by a
+# try/except at the call site → every client defaulted to "marketing".)
+product_lane = resolve_product
+
+
 def _clean_color(value: Any) -> str:
     c = str(value or "").strip()
     return c if _HEX_RE.match(c) else ""

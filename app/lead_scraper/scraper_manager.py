@@ -4,20 +4,23 @@ Coordinates multiple scraping sources (Google Maps, IndiaMart, JustDial,
 LinkedIn, Web Search, Social Media).
 """
 
+from __future__ import annotations  # Lead-class type hints stay lazy (string annotations)
+
 import asyncio
 import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any
 
-from app.lead_scraper.google_maps import BusinessLead, GoogleMapsScraper
-from app.lead_scraper.indiamart import IndiaMartLead, IndiaMartScraper
-from app.lead_scraper.justdial import JustDialLead, JustDialScraper
-from app.lead_scraper.linkedin import LinkedInScraper
-from app.lead_scraper.social_media import SocialMediaLead, SocialMediaScraper
-from app.lead_scraper.web_search import WebSearchLead, WebSearchScraper
 from app.utils.logger import setup_logger
 from app.utils.phone_validator import PhoneValidator
+
+# NOTE: the heavy source scrapers (google_maps/indiamart/justdial/linkedin/web_search/
+# social_media) are imported LAZILY inside the per-source @property accessors below — so
+# importing OR constructing LeadScraperManager never pulls their deps (faster cold-start;
+# contract guarded by tests/test_scraper_lazy_import.py). The *Lead dataclasses are used
+# only as type annotations (duck-typed at runtime), so __future__ annotations keeps them
+# unimported.
 
 logger = setup_logger(__name__)
 
@@ -121,14 +124,63 @@ class LeadScraperManager:
     ]
 
     def __init__(self):
-        self.google_maps = GoogleMapsScraper()
-        self.indiamart = IndiaMartScraper()
-        self.justdial = JustDialScraper()
-        self.linkedin = LinkedInScraper()
-        self.web_search = WebSearchScraper()
-        self.social_media = SocialMediaScraper()
+        # Lazy source scrapers — constructed (and their modules imported) on first use.
+        self._google_maps = None
+        self._indiamart = None
+        self._justdial = None
+        self._linkedin = None
+        self._web_search = None
+        self._social_media = None
         self.phone_validator = PhoneValidator()
         logger.info("🔍 Lead Scraper Manager initialized")
+
+    @property
+    def google_maps(self):
+        if self._google_maps is None:
+            from app.lead_scraper.google_maps import GoogleMapsScraper
+
+            self._google_maps = GoogleMapsScraper()
+        return self._google_maps
+
+    @property
+    def indiamart(self):
+        if self._indiamart is None:
+            from app.lead_scraper.indiamart import IndiaMartScraper
+
+            self._indiamart = IndiaMartScraper()
+        return self._indiamart
+
+    @property
+    def justdial(self):
+        if self._justdial is None:
+            from app.lead_scraper.justdial import JustDialScraper
+
+            self._justdial = JustDialScraper()
+        return self._justdial
+
+    @property
+    def linkedin(self):
+        if self._linkedin is None:
+            from app.lead_scraper.linkedin import LinkedInScraper
+
+            self._linkedin = LinkedInScraper()
+        return self._linkedin
+
+    @property
+    def web_search(self):
+        if self._web_search is None:
+            from app.lead_scraper.web_search import WebSearchScraper
+
+            self._web_search = WebSearchScraper()
+        return self._web_search
+
+    @property
+    def social_media(self):
+        if self._social_media is None:
+            from app.lead_scraper.social_media import SocialMediaScraper
+
+            self._social_media = SocialMediaScraper()
+        return self._social_media
 
     async def scrape_leads(
         self,
