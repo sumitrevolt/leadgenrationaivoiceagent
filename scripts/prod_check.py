@@ -270,9 +270,29 @@ def main() -> int:
         print(f"[FAIL] {len(PROBLEMS)} problem(s):")
         for p in PROBLEMS:
             print("  -", p)
+        _write_obsidian_result(passed=False)
         return 1
     print("[OK] ALL CHECKS PASSED - ready to deploy")
+    _write_obsidian_result(passed=True)
     return 0
+
+
+def _write_obsidian_result(passed: bool) -> None:
+    """Write prod_check result to Obsidian System/ (INERT if OBSIDIAN_SYNC unset)."""
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(ROOT))
+        from app.platform import obsidian_sync as _obs
+
+        status = "ALL CHECKS PASSED" if passed else f"{len(PROBLEMS)} PROBLEM(S)"
+        lines = [f"# Prod Check\n\n**Status:** {status}\n"]
+        if PROBLEMS:
+            lines.append("\n## Problems")
+            for p in PROBLEMS:
+                lines.append(f"- {p}")
+        _obs.write_system_health("prod-check-latest", "\n".join(lines))
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

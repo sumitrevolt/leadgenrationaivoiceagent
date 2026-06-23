@@ -313,6 +313,15 @@ def log_event(
     except Exception:
         pass
 
+    # Obsidian second-brain — throttled append to Agents/{member}.md (INERT if OBSIDIAN_SYNC unset).
+    try:
+        from app.platform import obsidian_sync as _obs
+
+        entry = f"{action}" + (f" — {detail[:120]}" if detail else "") + (f" [{status}]" if status != "ok" else "")
+        _obs.append_note("Agents", (member or "system").capitalize(), entry, member=member or "system", tags=["agent"])
+    except Exception:
+        pass
+
 
 def recent_events(limit: int = 60, member: str | None = None) -> list[dict[str, Any]]:
     """Latest activity feed (newest first) — dashboard ke liye dicts."""

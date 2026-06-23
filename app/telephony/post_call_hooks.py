@@ -60,7 +60,7 @@ async def meter_call_completion(
     try:
         from app.billing.usage import record_call_usage
 
-        return record_call_usage(
+        result = record_call_usage(
             client_id=client_id or "",
             duration_seconds=int(duration_seconds or 0),
             campaign_id=campaign_id,
@@ -69,6 +69,22 @@ async def meter_call_completion(
     except Exception as e:
         logger.debug("[post_call] meter_call_completion skip: %s", e)
         return False
+
+    # Obsidian second-brain — append call summary (INERT if OBSIDIAN_SYNC unset).
+    try:
+        from app.platform import obsidian_sync as _obs
+
+        phone_slug = (call_id or "unknown")[:20]
+        _obs.append_note(
+            "Leads",
+            phone_slug,
+            f"call completed — {duration_seconds}s client={client_name or client_id or '?'} campaign={campaign_id or '?'}",
+            tags=["call"],
+        )
+    except Exception:
+        pass
+
+    return result
 
 
 async def apply_qualified_downstream(
