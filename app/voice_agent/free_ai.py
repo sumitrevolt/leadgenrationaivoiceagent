@@ -124,7 +124,7 @@ _MISTRAL_BASE = "https://api.mistral.ai/v1"  # free tier La Plateforme — conso
 _GROQ_STT_MODEL = "whisper-large-v3-turbo"
 _CEREBRAS_LLM_MODEL = "gpt-oss-120b"  # free, fastest 120B
 _GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # free, 6000 RPM, 14k RPD
-_GEMINI_LLM_MODEL = "gemini-2.0-flash-lite"  # free, 1500 RPD, 30 RPM — key already set
+_GEMINI_LLM_MODEL = "gemini-2.5-flash"  # paid tier — key set, 2.5-flash works (2.0-flash-lite free_tier=0)
 _SAMBANOVA_LLM_MODEL = "Meta-Llama-3.3-70B-Instruct"  # free, fast inference chip
 _MISTRAL_LLM_MODEL = "mistral-small-latest"  # free tier (La Plateforme)
 # 2026 EXTRA low-priority free models — sirf tab hit hote hain jab proven primaries
