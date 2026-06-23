@@ -203,6 +203,34 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"KB prewarm not scheduled: {e}")
 
+    # Obsidian ADR + skills auto-mirror at startup (background, INERT if OBSIDIAN_SYNC unset).
+    try:
+        import asyncio as _aio2
+
+        async def _obsidian_startup_mirror() -> None:
+            try:
+                import pathlib as _pl, asyncio as _aio3
+                from app.platform import obsidian_sync as _obs
+
+                _ROOT = _pl.Path(__file__).resolve().parent.parent
+                # Mirror ADR decision docs → Decisions/
+                for _f in sorted((_ROOT / "docs").glob("ADR*.md")):
+                    await _aio3.get_running_loop().run_in_executor(
+                        None,
+                        lambda f=_f: _obs.write_note(
+                            "Decisions", f.stem.lower().replace("_", "-"),
+                            f.read_text(encoding="utf-8", errors="ignore"),
+                            tags=["adr", "decision"],
+                        ),
+                    )
+                logger.info("✅ Obsidian ADR mirror done")
+            except Exception as _e:
+                logger.debug(f"Obsidian startup mirror skip: {_e}")
+
+        _aio2.create_task(_obsidian_startup_mirror())
+    except Exception:
+        pass
+
     logger.info("✅ Startup complete - application ready")
 
     # Outbound call queue processor (Vobiz/Twilio) — polls Redis queue and dials.
