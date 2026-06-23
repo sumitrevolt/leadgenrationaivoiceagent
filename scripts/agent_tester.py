@@ -69,7 +69,10 @@ async def run_niche(session, niche, turns, report):
         last_reply = ""
         # drain greeting (ready + first bot) — keep it as the opener turn so the
         # permission/missing-permission check sees the opener.
-        greeting = await _collect_bots(ws, settle=3.0)
+        greeting, ws_closed = await _collect_bots(ws, settle=3.0)
+        if ws_closed:
+            report.append(f"[{niche}] SERVER CLOSED after start (no greeting sent)")
+            return
         if greeting:
             transcript.append({"role": "assistant", "content": (greeting[0] or "").strip()})
         for turn in turns:
@@ -78,7 +81,10 @@ async def run_niche(session, niche, turns, report):
             t0 = time.time()
             # Realistic: wait up to 12s for the FIRST reply, then 2.5s settle to
             # catch any (buggy) second reply — matches phone's turn-based pacing.
-            bots = await _collect_bots(ws, first_timeout=12.0, settle=2.5)
+            bots, ws_closed = await _collect_bots(ws, first_timeout=12.0, settle=2.5)
+            if ws_closed:
+                report.append(f"[{niche}] SERVER CLOSED mid-turn for: {turn!r}")
+                break
             dt = time.time() - t0
             n = len(bots)
             reply = (bots[0] if bots else "").strip()
@@ -111,7 +117,8 @@ async def run_niche(session, niche, turns, report):
 
 
 async def _collect_bots(ws, first_timeout=12.0, settle=2.5):
-    """Wait up to first_timeout for the FIRST bot msg, then settle for extras."""
+    """Wait up to first_timeout for the FIRST bot msg, then settle for extras.
+    Returns (bots_list, ws_closed) — ws_closed=True means server closed the WS."""
     bots = []
     while True:
         timeout = first_timeout if not bots else settle
@@ -119,6 +126,8 @@ async def _collect_bots(ws, first_timeout=12.0, settle=2.5):
             msg = await asyncio.wait_for(ws.receive(), timeout=timeout)
         except asyncio.TimeoutError:
             break
+        if msg.type == aiohttp.WSMsgType.ERROR or msg.type == aiohttp.WSMsgType.CLOSED:
+            return bots, True  # server closed abnormally
         if msg.type != aiohttp.WSMsgType.TEXT:
             break
         try:
@@ -135,7 +144,7 @@ async def _collect_bots(ws, first_timeout=12.0, settle=2.5):
                 # baaki chunks same reply ke — skip
             else:
                 bots.append((d.get("text") or "").strip())
-    return bots
+    return bots, False
 
 
 async def main():
