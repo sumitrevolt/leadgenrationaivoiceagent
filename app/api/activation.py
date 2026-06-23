@@ -121,7 +121,14 @@ def _sentry() -> dict[str, Any]:
 
 def _posthog() -> dict[str, Any]:
     """Visibility: product analytics. Funnel works without it (WARN)."""
-    key, host = _v("POSTHOG_API_KEY"), _v("POSTHOG_HOST")
+    try:
+        from app.platform import posthog_config
+
+        key, host = posthog_config.get_api_key(), posthog_config.get_host()
+        source = posthog_config.status().get("source") or "none"
+    except Exception:
+        key, host = _v("POSTHOG_API_KEY"), _v("POSTHOG_HOST")
+        source = "env" if key else "none"
     checks = {
         "api_key_set": bool(key),
         "api_key_placeholder": _is_placeholder(key),
@@ -134,7 +141,7 @@ def _posthog() -> dict[str, Any]:
         "category": "visibility",
         "status": _OK if armed else _WARN,
         "env_vars": ["POSTHOG_API_KEY", "POSTHOG_HOST"],
-        "checks": checks,
+        "checks": {**checks, "source": source},
         "action": (
             "Set POSTHOG_API_KEY in .env (PostHog Cloud free tier — never self-host)"
             if not armed

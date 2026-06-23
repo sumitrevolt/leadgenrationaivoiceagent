@@ -22,8 +22,9 @@ Use:
 from __future__ import annotations
 
 import logging
-import os
-from typing import Any, Optional
+from typing import Any
+
+from app.platform import posthog_config
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +33,11 @@ _ready: bool = False
 
 
 def _key() -> str:
-    return os.environ.get("POSTHOG_API_KEY", "").strip()
+    return posthog_config.get_api_key()
 
 
 def _host() -> str:
-    return os.environ.get("POSTHOG_HOST", "https://us.i.posthog.com").strip()
+    return posthog_config.get_host()
 
 
 def enabled() -> bool:
