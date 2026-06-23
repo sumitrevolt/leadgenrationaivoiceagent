@@ -57,6 +57,58 @@ except Exception:  # pragma: no cover - SDK missing
     AsyncOpenAI = None  # type: ignore
     _OPENAI_OK = False
 
+# --- Vertex AI bearer token cache (Google Cloud subscription support) --- #
+# GOOGLE_CLOUD_PROJECT_ID + GOOGLE_CLOUD_LOCATION set hone par Gemini Vertex AI
+# endpoint use hota hai (subscription plan, no per-key quota). Token 55-min cache;
+# google-auth ADC ya GOOGLE_APPLICATION_CREDENTIALS JSON dono support.
+import os as _os
+_VERTEX_TOKEN_CACHE: dict = {"token": "", "exp": 0.0}
+
+
+def _vertex_project() -> str:
+    return (_os.environ.get("GOOGLE_CLOUD_PROJECT_ID") or _os.environ.get("GOOGLE_CLOUD_PROJECT") or "").strip()
+
+
+def _vertex_location() -> str:
+    return (_os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1").strip()
+
+
+def _vertex_base_url() -> str:
+    loc = _vertex_location()
+    proj = _vertex_project()
+    if not proj:
+        return ""
+    return f"https://{loc}-aiplatform.googleapis.com/v1beta1/projects/{proj}/locations/{loc}/endpoints/openapi/"
+
+
+def _vertex_available() -> bool:
+    """True jab Google Cloud project set ho (subscription plan route)."""
+    return bool(_vertex_project())
+
+
+async def _vertex_bearer_token() -> str:
+    """Google Cloud access token lo (ADC ya service-account JSON). 55-min cache.
+    Fail-soft: "" on any error (caller falls through to next provider)."""
+    if _VERTEX_TOKEN_CACHE["token"] and time.time() < _VERTEX_TOKEN_CACHE["exp"] - 60:
+        return _VERTEX_TOKEN_CACHE["token"]
+    try:
+        import google.auth  # type: ignore
+        import google.auth.transport.requests  # type: ignore
+        creds, _ = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"]),
+        )
+        req = google.auth.transport.requests.Request()
+        await asyncio.get_event_loop().run_in_executor(None, creds.refresh, req)
+        token: str = creds.token or ""
+        if token:
+            _VERTEX_TOKEN_CACHE["token"] = token
+            _VERTEX_TOKEN_CACHE["exp"] = time.time() + 3300  # 55 min
+        return token
+    except Exception as e:
+        logger.warning(f"[free_ai] Vertex AI token refresh failed: {e}")
+        return ""
+
 
 # Provider endpoints — sab OpenAI-compatible /v1.
 # COMPLETELY FREE providers only (no credit card, no paid credits required).
@@ -262,6 +314,8 @@ def _key(attr: str) -> str:
 def _has_key(provider: str) -> bool:
     if provider == "ollama":
         return bool(_ollama_url())  # self-hosted: URL = "key"
+    if provider == "gemini_vertex":
+        return _vertex_available()  # Cloud project = "key"
     attr = _PROVIDER_CFG.get(provider, ("", ""))[0]
     return bool(attr) and bool(_key(attr))
 
@@ -283,6 +337,11 @@ def _client(provider: str) -> Any | None:
     """Lazy AsyncOpenAI client for a provider — None agar SDK missing ya key absent.
     Result cache hota hai (None bhi), taaki bar-bar build na ho."""
     if not _OPENAI_OK:
+        return None
+    if provider == "gemini_vertex":
+        # Dynamic token — cache nahi karte (token expire hota hai).
+        # Caller `chat_provider` / `_chat_one` is token ko fresh call pe inject karta.
+        # Yahan None return karo; special path `_vertex_chat_one` se handle hoga.
         return None
     if provider in _CLIENTS:
         return _CLIENTS[provider]
@@ -423,6 +482,18 @@ def _resolve_llm_profile(profile: str | None, max_tokens: int) -> str:
 
 def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     """Provider order — realtime favours latency; bulk favours Cerebras throughput."""
+    gemini_model = _GEMINI_LLM_MODEL
+    try:
+        from app.config import settings
+        gemini_primary = getattr(settings, "gemini_primary", False)
+        default_llm = (getattr(settings, "default_llm", "") or "").strip()
+        if default_llm.lower().startswith("gemini"):
+            gemini_model = default_llm
+    except Exception:
+        import os as _os
+        gemini_primary = _os.getenv("GEMINI_PRIMARY", "0").strip().lower() in ("1", "true", "yes")
+        gemini_model = _os.getenv("GEMINI_LLM_MODEL", _os.getenv("DEFAULT_LLM", _GEMINI_LLM_MODEL))
+
     _ollama_entry = ("ollama", _ollama_model())
     if profile == "bulk":
         core = [
@@ -437,6 +508,14 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
             ("cerebras", _CEREBRAS_LLM_MODEL),
         ]
     chain: list[tuple[str, str]] = []
+
+    if gemini_primary:
+        # Vertex AI (subscription/Cloud) pehle — API key se zyada stable quota
+        if _vertex_available():
+            chain.append(("gemini_vertex", gemini_model))
+        # API-key Gemini bhi — agar key available ho (fallback ya standalone)
+        chain.append(("gemini", gemini_model))
+
     if _ollama_primary():
         chain.append(_ollama_entry)
     chain += core
@@ -452,8 +531,11 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
         ("cerebras", _CEREBRAS_QWEN3_MODEL),
         ("groq", _GROQ_KIMI_K2_MODEL),
     ]
+    
+    if not gemini_primary:
+        chain.append(("gemini", _GEMINI_LLM_MODEL))
+        
     chain += [
-        ("gemini", _GEMINI_LLM_MODEL),
         ("sambanova", _SAMBANOVA_LLM_MODEL),
         ("openrouter", _OPENROUTER_LLM_MODEL),
         ("openrouter_2", _OPENROUTER_LLM_MODEL),
@@ -635,6 +717,51 @@ async def chat(
     for provider, model in chain:
         if _provider_down(provider):
             continue  # circuit-breaker: provider abhi cooldown me hai
+
+        # Vertex AI (subscription plan) — dynamic bearer token, fresh client per-call
+        if provider == "gemini_vertex":
+            if not _OPENAI_OK or not _vertex_available():
+                continue
+            _t0 = time.monotonic()
+            try:
+                token = await _vertex_bearer_token()
+                if not token:
+                    continue
+                _vclient = AsyncOpenAI(
+                    api_key=token,
+                    base_url=_vertex_base_url(),
+                    timeout=_CALL_TIMEOUT_S,
+                )
+                with _llm_span("chat", model=model, provider=provider) as _obs:
+                    resp = await asyncio.wait_for(
+                        _vclient.chat.completions.create(
+                            model=model,
+                            messages=msgs,
+                            max_tokens=max_tokens,
+                            temperature=temperature,
+                        ),
+                        timeout=_CALL_TIMEOUT_S,
+                    )
+                    text = ""
+                    try:
+                        text = (resp.choices[0].message.content or "").strip()
+                    except Exception:
+                        text = ""
+                if text:
+                    _reset_cooldown_streak(provider)
+                    try:
+                        from app.platform import llm_metrics
+                        llm_metrics.record(provider, True, (time.monotonic() - _t0) * 1000)
+                    except Exception:
+                        pass
+                    if _ck:
+                        _llm_cache_put(_ck, (text, provider))
+                    return text, provider
+            except Exception as e:
+                _trip_cooldown(provider, str(e))
+                logger.warning(f"[free_ai] gemini_vertex chat failed: {e}")
+            continue
+
         client = _client(provider)
         if client is None:
             continue
@@ -812,24 +939,13 @@ async def chat_stream(
 
 def describe() -> dict[str, Any]:
     """/status diagnostics — kaunse free providers configured hain + chains."""
+    chain = _build_llm_chain("realtime")
+    llm_chain_desc = [f"{p}:{m}" for p, m in chain]
     return {
         "openai_sdk": _OPENAI_OK,
         "providers": _provider_flags(),
         "stt_chain": [f"groq:{_GROQ_STT_MODEL}", "gemini-audio", "local:faster-whisper"],
-        "llm_chain": [
-            f"cerebras:{_CEREBRAS_LLM_MODEL}",
-            f"groq:{_GROQ_LLM_MODEL}",
-            f"gemini:{_GEMINI_LLM_MODEL}",
-            f"sambanova:{_SAMBANOVA_LLM_MODEL}",
-            f"mistral:{_MISTRAL_LLM_MODEL}",
-            f"groq:{_GROQ_LLAMA70B_MODEL}",
-            f"groq:{_GROQ_QWEN3_MODEL}",
-            f"cerebras:{_CEREBRAS_QWEN3_MODEL}",
-            f"groq:{_GROQ_KIMI_K2_MODEL}",
-            f"openrouter:{_OPENROUTER_LLM_MODEL}",
-            f"openrouter:{_OPENROUTER_LLM_MODEL2}",
-            f"openrouter:{_OPENROUTER_LLM_MODEL3}",
-        ],
+        "llm_chain": llm_chain_desc,
     }
 
 
