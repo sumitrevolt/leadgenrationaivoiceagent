@@ -119,6 +119,10 @@ _XAI_BASE = "https://api.x.ai/v1"  # credits-based, kept for config compat only
 _GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/openai/"
 _SAMBANOVA_BASE = "https://api.sambanova.ai/v1"  # 100% free, no card — cloud.sambanova.ai
 _MISTRAL_BASE = "https://api.mistral.ai/v1"  # free tier La Plateforme — console.mistral.ai
+# NVIDIA NIM — OpenAI-compatible (/v1). FREE tier = 40 RPM (upgradable ~200) + METERED
+# inference credits (~1k-5k lifetime, NOT free-unlimited like Groq/Cerebras). Deep-tail
+# fallback only — fires when proven primaries are all circuit-broken; conserves credits.
+_NVIDIA_BASE = "https://integrate.api.nvidia.com/v1"  # build.nvidia.com
 
 # Models — all free tier.
 _GROQ_STT_MODEL = "whisper-large-v3-turbo"
@@ -127,6 +131,7 @@ _GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # free, 6000 RPM, 14k RPD
 _GEMINI_LLM_MODEL = "gemini-2.5-flash"  # paid tier — key set, 2.5-flash works (2.0-flash-lite free_tier=0)
 _SAMBANOVA_LLM_MODEL = "Meta-Llama-3.3-70B-Instruct"  # free, fast inference chip
 _MISTRAL_LLM_MODEL = "mistral-small-latest"  # free tier (La Plateforme)
+_NVIDIA_LLM_MODEL = "meta/llama-3.3-70b-instruct"  # NVIDIA NIM free — quality fallback (env override: NVIDIA_LLM_MODEL)
 # 2026 EXTRA low-priority free models — sirf tab hit hote hain jab proven primaries
 # (mistral/groq-8b/cerebras) exhaust ho jaayein (Groq-TPD case jahaan yeh sabse zyada
 # madad karte). Circuit-breaker per-provider hai → provider poora down ho to skip;
@@ -228,9 +233,11 @@ def _provider_down(p: str) -> bool:
 def _trip_cooldown(p: str, err: str) -> None:
     e = (err or "").lower()
     # 403 = no credits/permission · 404 = model not found/deprecated (OpenRouter :free
-    # variants rotate → 404). DONO ko LONG cooldown (max, ~restart tak) do — warna dead
-    # endpoint har chat() fallback pe dobara retry hota hai (LIVE: openrouter :free 404
-    # → 52% LLM fallback waste). Provider-agnostic dead-model sideline.
+    # variants rotate → 404) · 402/out-of-credits = metered-credit exhaustion (NVIDIA NIM
+    # free tier ~5k lifetime credits — once spent, returns persistent error, NOT a
+    # transient 429). DONO ko LONG cooldown (max, ~restart tak) do — warna dead endpoint
+    # har chat() fallback pe dobara retry hota hai (LIVE: openrouter :free 404 → 52% LLM
+    # fallback waste). Provider-agnostic dead-model/dead-credit sideline.
     if any(
         k in e
         for k in (
@@ -242,6 +249,11 @@ def _trip_cooldown(p: str, err: str) -> None:
             "no endpoints",
             "model_not_found",
             "no allowed providers",
+            "402",
+            "payment required",
+            "out of credits",
+            "insufficient_quota",
+            "insufficient credit",
         )
     ):
         _LLM_TRIP_STREAK[p] = 99  # force max cooldown
@@ -298,6 +310,7 @@ _PROVIDER_CFG: dict[str, tuple[str, str]] = {
     "gemini": ("gemini_api_key", _GEMINI_BASE),
     "sambanova": ("sambanova_api_key", _SAMBANOVA_BASE),  # free — cloud.sambanova.ai
     "mistral": ("mistral_api_key", _MISTRAL_BASE),  # free tier — console.mistral.ai
+    "nvidia": ("nvidia_api_key", _NVIDIA_BASE),  # NVIDIA NIM free-tier fallback — integrate.api.nvidia.com
 }
 
 
@@ -494,6 +507,15 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
         gemini_primary = _os.getenv("GEMINI_PRIMARY", "0").strip().lower() in ("1", "true", "yes")
         gemini_model = _os.getenv("GEMINI_LLM_MODEL", _os.getenv("DEFAULT_LLM", _GEMINI_LLM_MODEL))
 
+    # NVIDIA NIM (free tier: 40 RPM + metered credits) — deep-tail FALLBACK by default.
+    # Model env-overridable; NVIDIA_PRIMARY=1 promotes it to the chain HEAD (NOT
+    # recommended: latency + 40 RPM + finite credits make it unfit for the hot path).
+    # Local re-import: the except branch above's `import os as _os` makes _os a function
+    # local, so it's unbound on the success path unless we (re)bind it here.
+    import os as _os
+    nvidia_model = _os.getenv("NVIDIA_LLM_MODEL", _NVIDIA_LLM_MODEL)
+    nvidia_primary = _os.getenv("NVIDIA_PRIMARY", "0").strip().lower() in ("1", "true", "yes")
+
     _ollama_entry = ("ollama", _ollama_model())
     if profile == "bulk":
         core = [
@@ -537,6 +559,9 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
         
     chain += [
         ("sambanova", _SAMBANOVA_LLM_MODEL),
+        # NVIDIA NIM deep-tail: AFTER sambanova (free-unlimited) to conserve metered
+        # credits, but BEFORE the 404-prone openrouter :free tail (70B > flaky :free).
+        ("nvidia", nvidia_model),
         ("openrouter", _OPENROUTER_LLM_MODEL),
         ("openrouter_2", _OPENROUTER_LLM_MODEL),
         ("openrouter_3", _OPENROUTER_LLM_MODEL),
@@ -545,6 +570,10 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
         ("openrouter_2", _OPENROUTER_LLM_MODEL2),
         ("openrouter", _OPENROUTER_LLM_MODEL3),
     ]
+    if nvidia_primary:
+        # Explicit opt-in only — put NVIDIA first (tail entry stays as harmless fallback;
+        # shares the per-provider "nvidia" circuit-breaker so a tripped head skips the tail).
+        chain.insert(0, ("nvidia", nvidia_model))
     return chain
 
 
