@@ -47,7 +47,7 @@
 | Pricing ADR | `ADR_2026_06_11_Product_Split_Pricing.md` |
 | Automation decision tree | `AUTOMATION.md` |
 | RAG / agentic | `RAG_KnowledgeGraph_Agentic.md` |
-| Telephony plan | `P3_Own_Telephony_Stack_Plan.md` |
+| Telephony plan (pending P3) | `superpowers/plans/PENDING_PLANS.md` |
 | Infra hardening | `INFRA_HARDENING_GUIDE.md` |
 | Production cutover | `PRODUCTION_CUTOVER.md` |
 | Sales / marketing kits | `Sales_Kit_Hinglish.md`, `Marketing_Kit_LeadGenAI.md` |

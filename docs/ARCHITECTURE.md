@@ -171,5 +171,5 @@ Deploy SOP: [`PROJECT_SOP.md`](PROJECT_SOP.md) · Cutover: [`PRODUCTION_CUTOVER.
 |-------|-----|
 | Infra truth | `SAAS_INFRA_TRUTH_AND_GAPS_2026_06_15.md` |
 | Automation loops | `AUTOMATION.md` |
-| Telephony deep | `P3_Own_Telephony_Stack_Plan.md` |
+| Telephony deep (pending P3) | `superpowers/plans/PENDING_PLANS.md` |
 | RAG upgrades | `RAG_KnowledgeGraph_Agentic.md` |
