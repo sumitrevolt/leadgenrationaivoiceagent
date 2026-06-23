@@ -170,6 +170,23 @@ _IMPORTANT_FLAGS = {
     "AUTO_ONBOARD": "Naye paid client ka auto-setup band hai — manually karna padega",
 }
 
+# Flags jo ON hon to KHATARNAK — admin ko turant batao (problems[] me, kya+fix).
+# Normal prod me ye sab OFF rehte hain → koi false-alarm nahi; koi ON ho to genuine.
+_DANGER_ON_FLAGS: dict[str, dict[str, str]] = {
+    "LLM_BUDGET_HARD_KILL": {
+        "kya": "🚨 Emergency LLM kill-switch ON hai — saara AI band hai (replies/calls/content kuch nahi chalega)",
+        "fix": "Jaan-boojh ke nahi kiya to .env me LLM_BUDGET_HARD_KILL=0 karke app recreate karo",
+    },
+    "WHATSAPP_AUTO_SEND": {
+        "kya": "WhatsApp auto-send ON hai — bulk par number-ban ka risk",
+        "fix": "Sirf approved-template + kam volume safe; sure nahi to WHATSAPP_AUTO_SEND off karo",
+    },
+    "REPLY_AUTO_SEND": {
+        "kya": "Email auto-reply ON hai — interested replies bina review ja rahe (ban/galti risk)",
+        "fix": "Draft-review safe hai — confidence nahi to REPLY_AUTO_SEND off rakho",
+    },
+}
+
 
 def _flag_on(name: str) -> bool:
     return (os.environ.get(name, "") or "").strip().lower() in ("1", "true", "yes", "on")
@@ -326,6 +343,11 @@ def build() -> dict[str, Any]:
     for flag, reason in _IMPORTANT_FLAGS.items():
         if not _flag_on(flag):
             flags_off.append({"flag": flag, "matlab": reason})
+
+    # ---- 4b) Khatarnak flags jo ON hain (kill/ban risk) -> problems ----
+    for flag, info in _DANGER_ON_FLAGS.items():
+        if _flag_on(flag):
+            problems.append({"kya": info["kya"], "fix": info["fix"]})
 
     # ---- Headline ----
     if problems:
