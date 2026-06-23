@@ -309,13 +309,38 @@ async def generate_report(
 # ==================== NICHES & CITIES ====================
 
 
+_niches_cache = None  # module-level lazy init
+
+
+def _get_niches_cache():
+    global _niches_cache
+    if _niches_cache is None:
+        try:
+            from app.cache import Cache
+            _niches_cache = Cache(prefix="api_niches", default_ttl=300)
+        except Exception:
+            pass
+    return _niches_cache
+
+
 @router.get("/niches")
 async def get_available_niches(target_type: str = None, tier: str = None, product: str = None):
     """
     List available industry niches (research-finalized top 25 + custom).
     Optional filters: target_type=b2c|b2b (end-customer audience), tier=S|A|B|C,
     product=marketing|voice (ADR-009 — dono products ke niche sets ALAG).
+    Redis-cached 5 min (static data, hot endpoint).
     """
+    cache_key = f"{target_type or ''}:{tier or ''}:{product or ''}"
+    cache = _get_niches_cache()
+    if cache:
+        try:
+            cached = await cache.get(cache_key)
+            if cached:
+                return cached
+        except Exception:
+            pass
+
     from app.niches import NICHES, niche_products, refresh_custom_niches
 
     refresh_custom_niches()
@@ -326,7 +351,7 @@ async def get_available_niches(target_type: str = None, tier: str = None, produc
             "id": key,
             "name": config.get("name", key.replace("_", " ").title()),
             "description": config.get("pitch_hook", ""),
-            "keywords": config.get("keywords", [])[:5],  # First 5 keywords
+            "keywords": config.get("keywords", [])[:5],
             "tier": config.get("tier"),
             "custom": bool(config.get("custom")),
             "target_type": config.get("target_type"),
@@ -342,7 +367,13 @@ async def get_available_niches(target_type: str = None, tier: str = None, produc
         and (p not in ("marketing", "voice") or p in niche_products(config))
     ]
 
-    return {"niches": niches, "count": len(niches), "product": p or "all"}
+    result = {"niches": niches, "count": len(niches), "product": p or "all"}
+    if cache:
+        try:
+            await cache.set(cache_key, result)
+        except Exception:
+            pass
+    return result
 
 
 class NicheCreate(BaseModel):

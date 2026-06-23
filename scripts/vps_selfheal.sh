@@ -81,7 +81,23 @@ if [ "$code" != "200" ]; then
   fi
 fi
 
-# --- 3) nightly data/ tarball (unchanged from v1) ---
+# --- 3) disk space check (alert at 80%, emergency docker prune at 90%) ---
+DISK_USED=$(df / --output=pcent 2>/dev/null | tail -1 | tr -d '% ')
+DISK_USED=${DISK_USED:-0}
+if [ "$DISK_USED" -ge 90 ]; then
+  echo "$(ts) DISK_CRITICAL=${DISK_USED}% -> docker prune (emergency)" >> "$LOG"
+  docker system prune -f --filter "until=48h" >/dev/null 2>&1
+  curl -s -m 5 -H "Title: LeadsGenAI DISK CRITICAL" -d "Disk ${DISK_USED}% used — emergency docker prune ran. Check /opt/leadgen/logs + backups." -H "Tags: warning" "$NTFY" >/dev/null 2>&1
+elif [ "$DISK_USED" -ge 80 ]; then
+  af="$STATE/last_disk_alert"; last=$(cat "$af" 2>/dev/null || echo 0)
+  if [ $((now-last)) -ge 3600 ]; then
+    echo "$(ts) DISK_HIGH=${DISK_USED}% -> alert sent" >> "$LOG"
+    curl -s -m 5 -H "Title: LeadsGenAI Disk High" -d "Disk ${DISK_USED}% used — manual cleanup needed (/opt/leadgen/logs, docker prune, old backups)." "$NTFY" >/dev/null 2>&1
+    echo "$now" > "$af"
+  fi
+fi
+
+# --- 4) nightly data/ tarball (unchanged from v1) ---
 HM=$(TZ=Asia/Kolkata date '+%H%M')
 if [ "$HM" -ge 0330 ] && [ "$HM" -le 0339 ]; then
   BK=/opt/leadgen/backups/data
