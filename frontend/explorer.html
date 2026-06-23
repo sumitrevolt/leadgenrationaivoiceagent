@@ -112,6 +112,24 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
 .node.sku-feature{border-style:dashed;border-color:#60a5fa}
 .node.sku-gap-pr{border-style:dashed;border-color:#991b1b}
 
+/* ===== Group / sub-node mode (additive, runtime-only) ===== */
+.node.grp-card{cursor:pointer;background:linear-gradient(160deg,#13141c,#0d0e14);border:1.5px solid #2d3748;box-shadow:0 2px 16px rgba(0,0,0,.45)}
+.node.grp-card .node-title{font-size:15px;letter-spacing:.2px}
+.node.grp-card .node-desc{color:#8a93a3}
+.node.grp-card .node-badge{letter-spacing:.5px}
+.node.grp-card:hover{transform:translateY(-2px);box-shadow:0 0 0 1.5px #f59e0b,0 6px 24px rgba(245,158,11,.2)}
+.node.grp-card.grp-expanded{border-color:#f59e0b;border-style:solid;box-shadow:0 0 0 1px #92400e,0 4px 18px rgba(245,158,11,.12)}
+.node.sub-chip{padding:7px 9px;opacity:.97}
+.node.sub-chip .node-title{font-size:11px;margin-bottom:2px;line-height:1.25}
+.node.sub-chip .node-desc{font-size:9px;margin-bottom:4px;line-height:1.4}
+.node.sub-chip .node-badge{font-size:8px;padding:1px 5px}
+.node.sub-chip .node-footer{margin-top:2px}
+.grp-hull{fill-opacity:.045;stroke-opacity:.45;stroke-width:1.5}
+#grpbar{display:inline-flex;gap:5px;align-items:center}
+.grp-toggle{font-size:10px;padding:4px 9px;border-radius:4px;border:1px solid #2d3748;background:#161618;color:#64748b;cursor:pointer;transition:all .12s;white-space:nowrap}
+.grp-toggle:hover{color:#e2e8f0;border-color:#4b5563}
+.grp-toggle.on{background:#451a03;border-color:#92400e;color:#fbbf24;font-weight:600}
+
 #product-legend{position:absolute;bottom:52px;left:12px;z-index:40;font-size:9px;padding:8px 12px;border-radius:8px;border:1px solid #2d3748;background:#161618ee;color:#64748b;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);line-height:1.6;display:none}
 #product-legend.vis{display:block}
 #product-legend b{color:#e2e8f0}
@@ -315,6 +333,11 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <input type="text" id="search-input" placeholder="Search nodes..." oninput="doSearch(this.value)">
   </div>
   <div class="flow-pick" id="flow-pick"></div>
+  <div id="grpbar">
+    <button class="grp-toggle on" id="btn-group" onclick="toggleGroupMode()" title="Group nodes into domain cards (structured overview)">⊞ Grouped</button>
+    <button class="grp-toggle" id="btn-expand-all" onclick="expandAllGroups()" title="Expand every domain to its sub-nodes">⤢ Expand all</button>
+    <button class="grp-toggle" id="btn-collapse-all" onclick="collapseAllGroups()" title="Collapse to domain cards">▣ Collapse</button>
+  </div>
   <div class="badge-counts">
     <span class="bc" id="bc-total">0 nodes</span>
     <span class="bc" id="bc-edges">0 edges</span>
@@ -1369,6 +1392,10 @@ function applyPreset() {
   activeEdges = showEdges ? edges : [];
   nodeMap = {};
   activeNodes.forEach(n => nodeMap[n.id] = n);
+
+  // Group/sub-node overlay: replace activeNodes/activeEdges with domain cards
+  // + (expanded) member & sub-nodes. Runtime-only — never mutates VIEWS data.
+  if(groupModeApplies()) applyGroupLayout();
 }
 
 // ════════════════════════════════════
@@ -1430,14 +1457,15 @@ function pathMidpoint(d) {
 function renderNodes() {
   const layer = document.getElementById('nodes-layer');
   layer.innerHTML = '';
-  const world = getViewData().world;
+  const world = worldBounds();
   layer.style.width = world.w + 'px';
   layer.style.height = world.h + 'px';
 
   activeNodes.forEach(n => {
-    const disabled = !isBuilder() && n.type !== 'gap' && n.flag && !flagState[n.flag];
+    const disabled = !isBuilder() && n.type !== 'gap' && !n._sub && !n._group && n.flag && !flagState[n.flag];
     const div = document.createElement('div');
-    div.className = `node nt-${n.type}${disabled?' disabled-node':''}${selectedNode===n.id?' selected':''}${tracePathSet?.has(n.id)&&selectedNode!==n.id?' trace-node':''}${n.sku?' sku-'+n.sku:''}`;
+    const grpCls = n._group ? (' grp-card' + (curExpanded().has(n._groupId) ? ' grp-expanded' : '')) : (n._sub ? ' sub-chip' : '');
+    div.className = `node nt-${n.type}${grpCls}${disabled?' disabled-node':''}${selectedNode===n.id?' selected':''}${tracePathSet?.has(n.id)&&selectedNode!==n.id?' trace-node':''}${n.sku?' sku-'+n.sku:''}`;
     div.id = `node-${n.id}`;
     div.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w}px;min-height:${n.h}px`;
     div.onmousedown = e => startNodeDrag(e, n.id);
@@ -1502,6 +1530,9 @@ function renderNodes() {
 function startNodeDrag(e, id) {
   if(e.button !== 0) return;
   if(e.shiftKey && isBuilder()) { e.stopPropagation(); handleShiftConnect(id); return; }
+  const _gn = nodeMap[id];
+  if(_gn && _gn._group){ e.stopPropagation(); toggleGroup(_gn._groupId); return; }
+  if(groupModeApplies() && _gn && !_gn._group){ e.stopPropagation(); selectNode(id); return; }  // group-mode: select, no drag-persist
   e.stopPropagation();
   nodeDragging = true;
   nodeDragId = id;
@@ -1548,7 +1579,7 @@ function copyNodePath(n) {
 
 function renderEdges(highlightIds) {
   const svg = document.getElementById('edgesvg');
-  const world = getViewData().world;
+  const world = worldBounds();
   svg.setAttribute('width', world.w);
   svg.setAttribute('height', world.h);
   svg.style.width = world.w + 'px';
@@ -1556,6 +1587,22 @@ function renderEdges(highlightIds) {
 
   Array.from(svg.querySelectorAll('g.edge-group, circle.flow-dot')).forEach(g => g.remove());
   edgePathCache = {};
+
+  // Group-mode: faint domain hulls behind expanded columns (cleared via .edge-group above)
+  if(groupModeApplies() && _groupHulls && _groupHulls.length){
+    const NS = 'http://www.w3.org/2000/svg';
+    _groupHulls.forEach(hl => {
+      const g = document.createElementNS(NS, 'g');
+      g.classList.add('edge-group');
+      const r = document.createElementNS(NS, 'rect');
+      r.setAttribute('x', hl.x); r.setAttribute('y', hl.y);
+      r.setAttribute('width', hl.w); r.setAttribute('height', hl.h);
+      r.setAttribute('rx', 14); r.setAttribute('class', 'grp-hull');
+      const col = TYPE_COLORS[hl.type] || '#64748b';
+      r.setAttribute('fill', col); r.setAttribute('stroke', col);
+      g.appendChild(r); svg.appendChild(g);
+    });
+  }
 
   activeEdges.forEach((e, edgeIdx) => {
     const src = nodeMap[e.f], tgt = nodeMap[e.t];
@@ -2564,7 +2611,7 @@ function setupMinimapClick() {
   const canvas = document.getElementById('mm-canvas');
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
-    const world = getViewData().world;
+    const world = worldBounds();
     const wx = (e.clientX - rect.left) / rect.width * world.w;
     const wy = (e.clientY - rect.top) / rect.height * world.h;
     const cw = document.getElementById('cw');
@@ -2628,9 +2675,25 @@ function doSearch(q) {
     document.querySelectorAll('.node').forEach(n=>n.classList.remove('dimmed'));
     countEl.classList.remove('vis'); return;
   }
+  // Group-mode: auto-expand any domain whose real member or sub-node matches
+  if(groupModeApplies()) {
+    const s = curExpanded(); let changed = false;
+    const view = VIEWS[currentView];
+    (view && view.nodes || []).forEach(n => {
+      if((n.title+n.desc+n.badge+n.type+(n.flag||'')).toLowerCase().includes(q)) {
+        const g = groupOf(n); if(!s.has(g)) { s.add(g); changed = true; }
+      }
+    });
+    Object.keys(SUBNODES).forEach(g => {
+      if((SUBNODES[g]||[]).some(x => ((x.title||'')+(x.desc||'')+(x.files||'')).toLowerCase().includes(q))) {
+        if(!s.has(g)) { s.add(g); changed = true; }
+      }
+    });
+    if(changed) { saveGroupState(); applyPreset(); renderNodes(); renderEdges(); }
+  }
   let m=0;
   activeNodes.forEach(n => {
-    const text = (n.title+n.desc+n.badge+n.type+(n.flag||'')).toLowerCase();
+    const text = (n.title+n.desc+n.badge+n.type+(n.flag||'')+(n.files||'')).toLowerCase();
     const match = text.includes(q);
     document.getElementById('node-'+n.id)?.classList.toggle('dimmed', !match);
     if(match) m++;
@@ -2847,7 +2910,7 @@ function drawMinimap() {
   const canvas = document.getElementById('mm-canvas');
   const ctx = canvas.getContext('2d');
   const W=canvas.width, H=canvas.height;
-  const world = getViewData().world;
+  const world = worldBounds();
   const sx=W/world.w, sy=H/world.h;
   ctx.clearRect(0,0,W,H);
 
@@ -2876,9 +2939,229 @@ function drawMinimap() {
 // ════════════════════════════════════
 // INIT
 // ════════════════════════════════════
+// ════════════════════════════════════
+// GROUP / SUB-NODE SYSTEM (additive, runtime-only — never mutates VIEWS data)
+// Collapsed = ~10 clean domain cards (structured overview). Click a card to
+// expand its member nodes + sub-nodes (real code surfaces missing from the
+// curated graph). Toggle off ("Grouped" button) = original flat view = rollback.
+// ════════════════════════════════════
+const GROUPS = [
+  {id:'infra',        label:'Infra & Hosting',       type:'platform'},
+  {id:'frontend',     label:'Frontend & Dashboards', type:'marketing'},
+  {id:'api',          label:'API & Access',          type:'platform'},
+  {id:'marketing',    label:'Marketing Engine',      type:'marketing'},
+  {id:'growth',       label:'Growth & Revenue',      type:'monitor'},
+  {id:'voice',        label:'Voice & Telephony',     type:'voice'},
+  {id:'ai',           label:'AI & Knowledge',        type:'ai'},
+  {id:'automation',   label:'Automation & Loops',    type:'loop'},
+  {id:'data',         label:'Data Layer',            type:'data'},
+  {id:'ops',          label:'Ops & Launch',          type:'monitor'},
+  {id:'integrations', label:'Integrations',          type:'external'},
+  {id:'gaps',         label:'Gaps & Roadmap',        type:'gap'},
+];
+const GROUP_BY_TYPE = {marketing:'marketing', voice:'voice', ai:'ai', data:'data', external:'integrations', monitor:'ops', loop:'automation', gap:'gaps', platform:'api'};
+const GROUP_OVERRIDE = {
+  internet:'infra', vps:'infra', caddy:'infra',
+  beat:'automation', worker:'automation', celery:'automation', events:'automation',
+  coordinator:'automation', process:'automation', self_improve:'automation',
+  loop_supervisor:'automation', code_upgrader:'automation', process_autostart:'automation',
+  meter_watch:'automation', approvals_cockpit:'automation', flow_runner:'automation',
+  skill_pack:'ai', memory_vault:'ai',
+  public_pages:'frontend', admin_ui:'frontend', customer_portal:'frontend', marketing_hub:'frontend',
+  team_ui:'frontend', growth_hub:'frontend', embed_widget:'frontend', explorer:'frontend',
+  ui:'frontend', admin_hub:'frontend',
+  fastapi:'api', mcp_product:'api', auth:'api', tenant_wl:'api', rate_limit_mw:'api', turnstile:'api',
+  billing:'growth', sales:'growth', revenue:'growth', growth_opt:'growth', journey:'growth',
+  channel_exp:'growth', lead_dist:'growth', stl:'growth', pipeline_ops:'growth', onboard:'growth',
+  sched_ops:'growth', client_snapshots:'growth', crm_sync:'growth',
+  launch:'ops', integration_gate:'ops', cross_path_audit:'ops', monitoring:'ops',
+  automation_health:'ops', llm_metrics:'ops', deliverability_monitor:'ops', call_review:'ops',
+  data_layer:'data', data:'data', minio:'data',
+};
+function groupOf(n){ return GROUP_OVERRIDE[n.id] || GROUP_BY_TYPE[n.type] || 'api'; }
+
+// Sub-nodes = real code surfaces NOT already on the curated graph (sync gap-fill).
+// `files` lists REAL modules → the explorer_sync file-ref drift gate verifies them.
+const SUBNODES = {
+  marketing: [
+    {id:'s_posters',   title:'Posters & Templates',   badge:'DESIGN',  files:'posters.py · template_library.py · carousel.py'},
+    {id:'s_reels',     title:'Reels & Video',          badge:'VIDEO',   files:'reels.py · reel_video.py · video_clips.py · avatar_video.py'},
+    {id:'s_aiimage',   title:'AI Image & Resize',      badge:'IMAGE',   files:'ai_image.py · magic_resize.py · bg_remove.py · gif_maker.py'},
+    {id:'s_festivals', title:'Festival & Calendar',    badge:'TIMING',  files:'festivals.py · month_planner.py · weather_angle.py'},
+    {id:'s_reviews',   title:'Review Engine',          badge:'REVIEWS', files:'review_engine.py · review_kit.py · review_replies.py · review_to_post.py'},
+    {id:'s_gbp',       title:'GBP / Local Listings',   badge:'LOCAL',   files:'gbp_audit.py · gbp_text.py · listings_presence.py · localseo.py'},
+    {id:'s_wakit',     title:'WhatsApp Kit',           badge:'WHATSAPP',files:'whatsapp_pack.py · whatsapp_flows.py · whatsapp_campaign.py'},
+    {id:'s_catalog',   title:'Catalog & Cards',        badge:'CATALOG', files:'catalog.py · product_catalog.py · business_card.py · bio_link.py'},
+    {id:'s_branding',  title:'Brand Kit & Fun',        badge:'BRAND',   files:'brand_kit.py · sticker_pack.py · meme_gen.py · jingle.py'},
+    {id:'s_copy',      title:'Ad & Sales Copy',        badge:'COPY',    files:'ads_copy.py · post_generator.py · sales_assistant.py · hashtags.py'},
+    {id:'s_repurpose', title:'Repurpose & Evergreen',  badge:'REUSE',   files:'repurpose.py · evergreen.py · multilang_post.py'},
+    {id:'s_loyalty',   title:'Loyalty & Referral',     badge:'RETAIN',  files:'loyalty.py · referral_kit.py · affiliate.py · partnerships.py'},
+    {id:'s_minisite',  title:'Mini-Site & Widgets',    badge:'WEB',     files:'mini_site.py · popup_widgets.py · reviews_widget.py · lead_magnet.py'},
+    {id:'s_trends',    title:'Trends & Sentiment',     badge:'INSIGHT', files:'trends.py · sentiment.py · content_feedback.py'},
+    {id:'s_videoad',   title:'Video Ad Cycle',         badge:'VIDEO AD',files:'video_ad_cycle.py · social_channels.py', flag:'VIDEO_AD_CYCLE', desc:'5-day per-client AI video ad → approval → social publish'},
+  ],
+  api: [
+    {id:'s_admin_api',  title:'Admin Routers',     badge:'ADMIN',    files:'admin.py · admin_dashboard.py · admin_ops.py · h4_admin.py'},
+    {id:'s_cust_api',   title:'Customer Routers',  badge:'CUSTOMER', files:'customer_auth.py · customer_dashboard.py · customer_totp.py · customer_flows.py · customer_onboard.py'},
+    {id:'s_growth_api', title:'Growth Routers',    badge:'GROWTH',   files:'growth_revenue.py · growth_crm.py · growth_deliverability.py · growth_prospects.py · growth_content.py · growth_process.py'},
+    {id:'s_billing_api',title:'Billing Routers',   badge:'BILLING',  files:'billing.py · upi_payments.py · reseller.py'},
+    {id:'s_voice_api',  title:'Voice Routers',     badge:'VOICE',    files:'voiceai.py · voice_product.py · web_call.py · telephony_vobiz.py'},
+    {id:'s_data_api',   title:'Data & Leads',      badge:'DATA',     files:'leads.py · data.py · niche_db.py · campaigns.py · analytics.py'},
+    {id:'s_mkt_api',    title:'Marketing Routers', badge:'MARKETING',files:'marketing.py · marketing_tools.py · marketing_models.py · creative.py · contentplus.py'},
+    {id:'s_rbac_api',   title:'Auth & RBAC',       badge:'ACCESS',   files:'auth_deps.py · team_access.py · impersonation.py · privacy_ops.py'},
+    {id:'s_misc_api',   title:'Engage & Convert',  badge:'PUBLIC',   files:'engage.py · conversion.py · assessment.py · booking.py · widgets.py · public_site.py'},
+  ],
+  voice: [
+    {id:'s_brain',     title:'Telecaller Brain',   badge:'BRAIN',   files:'telecaller_brain.py · natural_dialog.py · brain.py · llm_brain.py'},
+    {id:'s_stttts',    title:'STT / TTS',           badge:'AUDIO',   files:'free_stt.py · stt.py · tts.py · kokoro_tts.py · llm_stream_tts.py'},
+    {id:'s_turn',      title:'Turn-taking',         badge:'TURN',    files:'turn_detector.py · turn_metrics.py · latency.py · fillers.py'},
+    {id:'s_guard',     title:'Guardrails & Intent', badge:'GUARD',   files:'guardrails.py · intent_detector.py · intent_softno.py · qa_node.py · qa_checks.py'},
+    {id:'s_vkb',       title:'Voice KB & Scripts',  badge:'KB',      files:'kb_loader.py · niche_scripts.py · platform_pitch.py · universal_pitch.py'},
+    {id:'s_callan',    title:'Call Analyzer',       badge:'ANALYZE', files:'call_analyzer.py · call_qualifier.py · stt_eval.py · eval_suite.py'},
+    {id:'s_vprov',     title:'Voice Providers',     badge:'PROVIDER',files:'providers.py · indic_providers.py · function_calling.py'},
+    {id:'s_streams',   title:'Media Streams',       badge:'STREAM',  files:'vobiz_stream.py · phone_stream.py · pipecat_pipeline.py · pipeline.py'},
+    {id:'s_telecore',  title:'Telephony Core',      badge:'CARRIER', files:'call_manager.py · carrier_router.py · call_state.py · telephony_service.py · vobiz_handler.py'},
+    {id:'s_amd',       title:'AMD & Transfer',      badge:'CONNECT', files:'amd.py · warm_transfer.py · call_transfer.py · missed_call.py'},
+    {id:'s_vcomp',     title:'Compliance',          badge:'TRAI',    files:'compliance.py · consent_ledger.py · telephony_readiness.py'},
+  ],
+  ai: [
+    {id:'s_council',  title:'LLM Council',           badge:'COUNCIL', files:'llm_council.py · coordinator.py'},
+    {id:'s_self',     title:'Self-Improve & Process',badge:'LOOP',    files:'self_improve.py · process_engine.py · process_library.py'},
+    {id:'s_ragadv',   title:'Agentic / Graph RAG',   badge:'RAG',     files:'agentic_rag.py · graph_rag.py'},
+    {id:'s_eval',     title:'Eval Stack',            badge:'EVAL',    files:'eval_gate.py · eval_metrics.py · live_eval.py · judge_calibration.py'},
+    {id:'s_salesai',  title:'Sales & Growth Agents', badge:'AGENTS',  files:'sales_team.py · growth_optimizer.py · campaign_optimizer.py · fde.py'},
+    {id:'s_super',    title:'Supervisors',           badge:'SUPER',   files:'supervisor.py · staff_supervisor.py · staff.py'},
+    {id:'s_dag',      title:'DAG / Flow Dispatch',   badge:'FLOW',    files:'dag_engine.py · flow_dispatch.py'},
+  ],
+  growth: [
+    {id:'s_dunning',  title:'Dunning & Recon',    badge:'DUNNING', files:'dunning.py · payment_recon.py · idempotency.py'},
+    {id:'s_invoice',  title:'GST Invoice & Subs', badge:'INVOICE', files:'gst_invoice.py · subscription.py'},
+    {id:'s_usage',    title:'Usage Meter',        badge:'METER',   files:'usage.py · lead_usage.py · usage_alerts.py · meter_watch.py'},
+    {id:'s_lifecycle',title:'Lifecycle Nurture',  badge:'NURTURE', files:'lifecycle_nurture.py · reactivation.py · drip.py'},
+    {id:'s_crm',      title:'CRM Lite',           badge:'CRM',     files:'crm_lite.py · customer_crm.py · clientcrm.py'},
+  ],
+  ops: [
+    {id:'s_health',   title:'Health Probes',      badge:'HEALTH',  files:'health.py · system_health.py'},
+  ],
+  automation: [
+    {id:'s_flags',    title:'Feature-Flag Registry', badge:'FLAGS', files:'automation_flags.py · growth_feature_flags.py'},
+  ],
+};
+
+// runtime state (default Grouped ON — the structured overview)
+let groupMode = true;
+let groupExpanded = {};          // {viewKey: Set<groupId>}
+let _gWorld = null, _groupHulls = [], _lastPresent = [];
+const _GL = {COL_W:300, GAP_X:46, PAD:60, HEAD_TOP:64, HEAD_H:84, MEM_GAP:14};
+
+function groupModeApplies(){ return groupMode && !isBuilder() && (currentView === 'structural' || currentView === 'automation'); }
+function worldBounds(){ return (groupModeApplies() && _gWorld) ? _gWorld : getViewData().world; }
+function curExpanded(){ return groupExpanded[currentView] || (groupExpanded[currentView] = new Set()); }
+
+function loadGroupState(){
+  try {
+    const gm = localStorage.getItem('explorer_groupmode'); if(gm !== null) groupMode = gm === '1';
+    const raw = localStorage.getItem('explorer_groups');
+    if(raw){ const o = JSON.parse(raw); Object.keys(o).forEach(v => groupExpanded[v] = new Set(o[v] || [])); }
+  } catch(e){}
+}
+function saveGroupState(){
+  try {
+    localStorage.setItem('explorer_groupmode', groupMode ? '1' : '0');
+    const o = {}; Object.keys(groupExpanded).forEach(v => o[v] = Array.from(groupExpanded[v]));
+    localStorage.setItem('explorer_groups', JSON.stringify(o));
+  } catch(e){}
+}
+
+// Replace activeNodes/activeEdges with domain cards + (expanded) members & sub-nodes.
+function applyGroupLayout(){
+  const realNodes = activeNodes, realEdges = activeEdges;
+  const realMap = {}; realNodes.forEach(n => realMap[n.id] = n);
+  const buckets = {};
+  realNodes.forEach(n => { const g = groupOf(n); (buckets[g] = buckets[g] || []).push(n); });
+  const present = GROUPS.filter(g => buckets[g.id]);
+  _lastPresent = present.map(g => g.id);
+  const exp = curExpanded();
+  const {COL_W, GAP_X, PAD, HEAD_TOP, HEAD_H, MEM_GAP} = _GL;
+  const out = [], idToRender = {}, groupCardId = {}, hulls = [];
+  let maxH = 0;
+  present.forEach((g, ci) => {
+    const x = PAD + ci * (COL_W + GAP_X);
+    const members = buckets[g.id] || [];
+    const subList = SUBNODES[g.id] || [];
+    const isExp = exp.has(g.id);
+    const cardId = '__g_' + g.id; groupCardId[g.id] = cardId;
+    const count = members.length + subList.length;
+    out.push({id:cardId, _group:true, _groupId:g.id, type:g.type, cx:'',
+      badge:(isExp ? '▾ ' : '▸ ') + 'DOMAIN', title:g.label,
+      desc:isExp ? 'click header to collapse' : count + ' modules · click to expand',
+      files:count + ' components', x, y:HEAD_TOP, w:COL_W, h:HEAD_H});
+    let yy = HEAD_TOP + HEAD_H + MEM_GAP;
+    if(isExp){
+      members.forEach(m => {
+        const h = (m.h && m.h > 108) ? 112 : 94;
+        const c = Object.assign({}, m, {x, y:yy, w:COL_W, h, _member:true, _groupId:g.id});
+        out.push(c); idToRender[m.id] = c; yy += h + MEM_GAP;
+      });
+      subList.forEach(s => {
+        const node = Object.assign({_sub:true, _groupId:g.id, type:g.type, cx:'simple',
+          badge:s.badge || 'MODULE', desc:s.desc || ''}, s, {x:x + 16, y:yy, w:COL_W - 32, h:70});
+        out.push(node); yy += 70 + 10;
+      });
+      hulls.push({x:x - 8, y:HEAD_TOP - 8, w:COL_W + 16, h:(yy - HEAD_TOP) + 2, type:g.type});
+    }
+    maxH = Math.max(maxH, yy);
+  });
+  activeNodes = out;
+  activeEdges = showEdges ? _groupSynthEdges(realEdges, realMap, idToRender, groupCardId) : [];
+  nodeMap = {}; activeNodes.forEach(n => nodeMap[n.id] = n);
+  _gWorld = {w: Math.max(900, PAD * 2 + present.length * (COL_W + GAP_X)), h: Math.max(640, maxH + PAD)};
+  _groupHulls = hulls;
+}
+
+// Aggregate real edges to the visible endpoint (member if expanded, else its domain card).
+function _groupSynthEdges(realEdges, realMap, idToRender, groupCardId){
+  const seen = {}, out = [];
+  realEdges.forEach(e => {
+    const sn = realMap[e.f], tn = realMap[e.t]; if(!sn || !tn) return;
+    const ef = idToRender[e.f] ? e.f : groupCardId[groupOf(sn)];
+    const et = idToRender[e.t] ? e.t : groupCardId[groupOf(tn)];
+    if(!ef || !et || ef === et) return;  // intra-collapsed-group → hidden
+    const key = ef + '|' + et;
+    if(seen[key]){ seen[key]._n++; return; }
+    const ne = {f:ef, t:et, lbl:e.lbl || '', style:e.style || 'sync', _n:1};
+    seen[key] = ne; out.push(ne);
+  });
+  out.forEach(e => { if(e._n > 1) e.lbl = '×' + e._n; });
+  return out;
+}
+
+function toggleGroup(gid){
+  const s = curExpanded(); if(s.has(gid)) s.delete(gid); else s.add(gid);
+  saveGroupState(); applyPreset(); renderNodes(); renderEdges(); setTimeout(fitView, 40);
+}
+function expandAllGroups(){
+  if(!groupModeApplies()) return;
+  const s = curExpanded(); _lastPresent.forEach(id => s.add(id));
+  saveGroupState(); applyPreset(); renderNodes(); renderEdges(); setTimeout(fitView, 40);
+}
+function collapseAllGroups(){
+  if(!groupModeApplies()) return;
+  curExpanded().clear();
+  saveGroupState(); applyPreset(); renderNodes(); renderEdges(); setTimeout(fitView, 40);
+}
+function toggleGroupMode(){
+  groupMode = !groupMode; saveGroupState();
+  document.getElementById('btn-group').classList.toggle('on', groupMode);
+  selectedNode = null; tracePathSet = null;
+  applyPreset(); renderFlowPick(); renderNodes(); renderEdges(); setTimeout(fitView, 60);
+}
+
 function init() {
   initCustomFlows();
   loadFlags();
+  loadGroupState();
+  document.getElementById('btn-group').classList.toggle('on', groupMode);
   applyPreset();
   renderFlowPick();
   renderNodes();
