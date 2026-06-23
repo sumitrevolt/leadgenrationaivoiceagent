@@ -130,6 +130,38 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
 .grp-toggle:hover{color:#e2e8f0;border-color:#4b5563}
 .grp-toggle.on{background:#451a03;border-color:#92400e;color:#fbbf24;font-weight:600}
 
+/* ===== Features v2 (additive) ===== */
+.node.hfade{opacity:.16;transition:opacity .12s}
+.edge-path.hfade-edge{opacity:.06}
+/* command palette */
+#cmdk-back{position:fixed;inset:0;z-index:500;background:rgba(4,5,8,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center}
+#cmdk-back.vis{display:flex}
+#cmdk{margin-top:11vh;width:560px;max-width:92vw;background:#121319;border:1px solid #2d3748;border-radius:10px;box-shadow:0 24px 60px rgba(0,0,0,.6);overflow:hidden}
+#cmdk-input{width:100%;padding:14px 16px;background:transparent;border:none;border-bottom:1px solid #1e2028;color:#e2e8f0;font-size:15px;outline:none}
+#cmdk-list{max-height:48vh;overflow:auto;padding:6px}
+.cmdk-item{display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:6px;cursor:pointer;font-size:12px;color:#cbd5e1}
+.cmdk-item.sel{background:#1d2433}
+.cmdk-item .ck-kind{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#64748b;border:1px solid #2d3748;border-radius:3px;padding:1px 5px;flex-shrink:0}
+.cmdk-item .ck-sub{color:#64748b;margin-left:auto;font-size:10px}
+.cmdk-empty{padding:14px 16px;color:#64748b;font-size:12px}
+/* status HUD */
+#statushud{display:inline-flex;gap:5px;align-items:center;flex-wrap:wrap}
+.sh-chip{font-size:10px;padding:2px 8px;border-radius:4px;background:#15161c;border:1px solid #242732;color:#94a3b8;display:inline-flex;gap:4px;align-items:center;white-space:nowrap}
+.sh-chip b{color:#e2e8f0;font-weight:700}
+.sh-chip.ok{border-color:#166534;color:#4ade80}.sh-chip.ok b{color:#4ade80}
+.sh-chip.warn{border-color:#92400e;color:#fbbf24}.sh-chip.warn b{color:#fbbf24}
+.sh-chip.bad{border-color:#7f1d1d;color:#f87171}.sh-chip.bad b{color:#f87171}
+.sh-chip.dim{opacity:.55}
+/* INFO panel file rows + drift */
+.nd-file-row{display:flex;align-items:center;gap:6px;padding:4px 7px;margin:3px 0;background:#13141a;border:1px solid #222634;border-radius:5px;font-size:11px;font-family:ui-monospace,Menlo,monospace;color:#9fb0c3}
+.nd-file-row .fr-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nd-file-row .fr-act{cursor:pointer;color:#64748b;padding:1px 5px;border-radius:3px;border:1px solid #2d3748;font-family:inherit}
+.nd-file-row .fr-act:hover{color:#e2e8f0;border-color:#4b5563}
+.drift-wrap{margin-top:6px}
+.drift-bar{height:7px;border-radius:4px;background:#1e2330;overflow:hidden;margin:5px 0}
+.drift-bar span{display:block;height:100%;background:linear-gradient(90deg,#16a34a,#4ade80)}
+.drift-miss{font-size:10px;color:#fbbf24;font-family:ui-monospace,monospace;line-height:1.6;margin-top:4px;word-break:break-word}
+
 #product-legend{position:absolute;bottom:52px;left:12px;z-index:40;font-size:9px;padding:8px 12px;border-radius:8px;border:1px solid #2d3748;background:#161618ee;color:#64748b;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);line-height:1.6;display:none}
 #product-legend.vis{display:block}
 #product-legend b{color:#e2e8f0}
@@ -321,6 +353,9 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <button class="tr-btn" onclick="runFlow()" id="runFlowBtn" title="Run active flow (FLOW_RUNNER)">▶ Run</button>
     <button class="tr-btn" onclick="showRunsPanel()" title="Run history + inspector (Flow Runner)">📋 Runs</button>
     <span id="flowRunStatus"></span>
+    <button class="tr-btn" onclick="openCmdK()" title="Command palette (Ctrl/Cmd-K)">⌘K</button>
+    <button class="tr-btn" onclick="exportArch()" title="Export graph as JSON + Markdown architecture doc">⤓ Export</button>
+    <button class="tr-btn" onclick="shareView()" title="Copy a deep-link to this exact view">🔗 Share</button>
     <button class="tr-btn" onclick="showHelp()" title="Shortcuts">?</button>
     <a class="tr-btn tr-link" href="/app/admin">↗ Admin Dashboard</a>
     <a class="tr-btn tr-link" href="/app/automation">↗ Mission Control</a>
@@ -342,6 +377,14 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <span class="bc" id="bc-total">0 nodes</span>
     <span class="bc" id="bc-edges">0 edges</span>
     <span class="bc" id="bc-match"></span>
+  </div>
+  <div id="statushud" title="Live system status (admin login for full)"></div>
+</div>
+
+<div id="cmdk-back" onclick="if(event.target===this)closeCmdK()">
+  <div id="cmdk">
+    <input id="cmdk-input" type="text" placeholder="Jump to node, view, preset, group, action…" oninput="cmdkFilter(this.value)" onkeydown="cmdkKey(event)" autocomplete="off">
+    <div id="cmdk-list"></div>
   </div>
 </div>
 
@@ -1102,6 +1145,8 @@ let flagState = {};
 let nodeMap = {}, activeNodes=[], activeEdges=[];
 let edgePathCache = {};
 let linkFrom = null, linkMouse = null, shiftLinkFrom = null, selectedEdge = null;
+let startupNav = {view:null, preset:null, node:null, flow:null, group:null};
+let cmdkState = {query:'', items:[], idx:0};
 
 function isBuilder() { return currentView === 'custom'; }
 
@@ -1454,6 +1499,67 @@ function pathMidpoint(d) {
 // ════════════════════════════════════
 // RENDER
 // ════════════════════════════════════
+// ── Features v2 (Claude pass): hover-focus · status HUD · job badges · file rows · drift panel ──
+let _hoverActive = false;
+function hoverFocus(id){
+  if(nodeDragging || dragging || isBuilder() || selectedNode || tracePathSet) return;
+  const keep = getConnectedIds(id);
+  _hoverActive = true;
+  activeNodes.forEach(n => document.getElementById('node-'+n.id)?.classList.toggle('hfade', !keep.has(n.id)));
+  document.querySelectorAll('#edgesvg .edge-path').forEach(p => {
+    const g = p.closest('.edge-group'); if(!g) return;
+    p.classList.toggle('hfade-edge', !(keep.has(g.dataset.from) && keep.has(g.dataset.to)));
+  });
+}
+function clearHoverFocus(){
+  if(!_hoverActive) return;
+  _hoverActive = false;
+  document.querySelectorAll('.node.hfade').forEach(n => n.classList.remove('hfade'));
+  document.querySelectorAll('.edge-path.hfade-edge').forEach(p => p.classList.remove('hfade-edge'));
+}
+function _jobOverdue(n){
+  const ah = liveHealth && liveHealth.automationHealth;
+  if(!ah || !Array.isArray(ah.overdue) || !ah.overdue.length) return false;
+  const hay = (n.id + ' ' + (n.files||'')).toLowerCase().replace(/[^a-z0-9]/g,'');
+  const idn = String(n.id||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  return ah.overdue.some(j => {
+    const t = String(j).toLowerCase().replace(/[^a-z0-9]/g,'');
+    if(t.length <= 3) return false;
+    return hay.indexOf(t) >= 0 || (idn.length >= 4 && t.indexOf(idn) >= 0);  // bidirectional
+  });
+}
+function updateStatusHud(){
+  const el = document.getElementById('statushud'); if(!el) return;
+  const lh = liveHealth; if(!lh){ el.innerHTML = ''; return; }
+  const chips = []; const s = lh.summary || {};
+  const prodOk = !!(s.production_ready || s.ready_for_launch);
+  chips.push(`<span class="sh-chip ${prodOk?'ok':'warn'}">${prodOk?'✅ prod ready':'⛔ '+(s.blocker_count||0)+' blockers'}</span>`);
+  const ah = lh.automationHealth || {};
+  if(ah.status){
+    const od = (ah.overdue||[]).length;
+    chips.push(`<span class="sh-chip ${od?'bad':'ok'}">jobs <b>${od?od+' overdue':'OK'}</b></span>`);
+    const dlq = ah.queue && ah.queue.dlq;
+    if(dlq != null) chips.push(`<span class="sh-chip ${dlq>50?'bad':(dlq>0?'warn':'dim')}">DLQ <b>${dlq}</b></span>`);
+  }
+  const flags = lh.flags || {}, fk = Object.keys(flags);
+  if(fk.length){ const on = fk.filter(k=>flags[k]).length; chips.push(`<span class="sh-chip">flags <b>${on}/${fk.length}</b></span>`); }
+  if(lh.drift && typeof lh.drift.coverage_pct === 'number'){ const c = lh.drift.coverage_pct; chips.push(`<span class="sh-chip ${c>=95?'ok':'warn'}">sync <b>${c}%</b></span>`); }
+  el.innerHTML = chips.join('');
+}
+function _fileList(s){ return String(s||'').split(/[·,]/).map(x=>x.trim()).filter(x=>/\.(py|html|js|yml|yaml|sh)$/i.test(x)); }
+function _ghSearch(fn){ return 'https://github.com/search?q=repo%3Asumitrevolt%2Fleadgenrationaivoiceagent+filename%3A'+encodeURIComponent(fn)+'&type=code'; }
+function _fileRowsHtml(s){
+  const files = _fileList(s);
+  if(!files.length) return '';
+  return files.map(f => `<div class="nd-file-row"><span class="fr-name" title="${f}">${f}</span><span class="fr-act" onclick="copyFileName('${f}')">copy</span><a class="fr-act" href="${_ghSearch(f)}" target="_blank" rel="noopener" style="text-decoration:none">GH↗</a></div>`).join('');
+}
+function copyFileName(f){ try{ navigator.clipboard.writeText(f); }catch(e){} const t = document.getElementById('ls-text'); if(t){ const o = t.textContent; t.textContent = 'Copied: '+f; setTimeout(()=>{ t.textContent = o; }, 1500);} }
+function _driftPanelHtml(){
+  const d = liveHealth && liveHealth.drift; if(!d || typeof d.coverage_pct !== 'number') return '';
+  const miss = (d.miss_mods && d.miss_mods.length) ? `<div class="drift-miss">missing: ${d.miss_mods.slice(0,12).join(', ')}</div>` : `<div class="sd-desc" style="color:#4ade80">all engine modules represented ✓</div>`;
+  return `<div class="panel-hdr">Graph ↔ Code sync</div><div class="drift-wrap"><div style="font-size:12px"><b style="color:#4ade80">${d.coverage_pct}%</b> engine coverage · ${d.nodes||'?'} nodes · ${d.edges||'?'} edges</div><div class="drift-bar"><span style="width:${Math.min(100,d.coverage_pct||0)}%"></span></div>${miss}</div>`;
+}
+
 function renderNodes() {
   const layer = document.getElementById('nodes-layer');
   layer.innerHTML = '';
@@ -1469,6 +1575,8 @@ function renderNodes() {
     div.id = `node-${n.id}`;
     div.style.cssText = `left:${n.x}px;top:${n.y}px;width:${n.w}px;min-height:${n.h}px`;
     div.onmousedown = e => startNodeDrag(e, n.id);
+    div.onmouseenter = () => hoverFocus(n.id);
+    div.onmouseleave = () => clearHoverFocus();
 
     if(isBuilder()) {
       div.ondblclick = e => { e.stopPropagation(); selectNode(n.id); showBuilderPanel(); };
@@ -1493,6 +1601,8 @@ function renderNodes() {
         else if(ah.status === 'healthy') statusHtml = `<span class="status-pill on">JOBS OK</span>`;
         else if(ah.status === 'warming_up') statusHtml = `<span class="status-pill">WARMUP</span>`;
         else statusHtml = `<span class="status-pill off">${ah.status||'?'}</span>`;
+      } else if(liveHealth.automationHealth && _jobOverdue(n)) {
+        statusHtml = `<span class="status-pill off">OVERDUE</span>`;
       } else if(n.flag && liveHealth.flags) {
         const prod = liveHealth.flags[n.flag];
         statusHtml = `<span class="status-pill ${prod?'on':'off'}">${prod?'LIVE':'OFF'}</span>`;
@@ -1910,6 +2020,13 @@ function showNodeDetail(n) {
         ${n.flag?`<span class="nm">flag <b>${n.flag}</b> ${flagOn?'✅ ON':'⬜ OFF'}</span>`:''}
       </div>
     </div>`;
+
+  // F5 — clickable module list (copy + GitHub code-search)
+  if(n.files && !n._group && _fileList(n.files).length) {
+    html += `<div class="panel-hdr">Modules · ${_fileList(n.files).length}</div>` + _fileRowsHtml(n.files);
+  }
+  // F6 — live graph↔code drift/coverage panel on the explorer node
+  if(n.id === 'explorer') { html += _driftPanelHtml(); }
 
   if(liveHealth && (n.id === 'launch' || n.id === 'vps' || n.id === 'explorer' || n.id === 'beat' || n.id === 'worker' || n.id === 'ops')) {
     html += `<div class="panel-hdr">Live sync (auto 60s)</div>`;
@@ -2465,6 +2582,7 @@ async function _updateDriftHud(base, token) {
     const d = await r.json();
     if(d && typeof d.coverage_pct === 'number') {
       liveHealth && (liveHealth.drift = d);
+      updateStatusHud();  // F7 — refresh sync chip
       const txt = document.getElementById('ls-text');
       if(txt && txt.textContent.indexOf('graph ') < 0) {
         txt.textContent += ` · graph ${d.coverage_pct}% synced`;
@@ -2540,6 +2658,7 @@ async function fetchLiveHealth() {
         txt.textContent = `Live · ${host}`;
       }
       renderNodes();
+      updateStatusHud();  // F7 — live status chips
       if(token) _updateDriftHud(base, token);  // advanced: live graph<->code coverage
       if(selectedNode && (selectedNode === 'launch' || selectedNode === 'vps' || selectedNode === 'explorer' || selectedNode === 'beat' || selectedNode === 'worker' || selectedNode === 'ops')) {
         showNodeDetail(nodeMap[selectedNode]);
@@ -2578,8 +2697,327 @@ async function fetchProductPricing() {
 function showHelp() { document.getElementById('help-modal').classList.add('vis'); }
 function hideHelp() { document.getElementById('help-modal').classList.remove('vis'); }
 
+function _escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function _defaultPresetForView(view) {
+  return (view === 'products' || view === 'custom') ? 'all' : 'full';
+}
+
+function _nodeViewId(nodeId) {
+  for(const [viewId, view] of Object.entries(VIEWS)) {
+    if((view.nodes || []).some(n => n.id === nodeId)) return viewId;
+  }
+  return null;
+}
+
+function _nodeGroupId(nodeId, viewId) {
+  const view = VIEWS[viewId || currentView];
+  const node = (view?.nodes || []).find(n => n.id === nodeId);
+  if(!node) return null;
+  if((viewId || currentView) === 'products') return pGroupOf(node);
+  if(viewId === 'automation' || viewId === 'structural' || !viewId) return groupOf(node);
+  return null;
+}
+
+function _ensureNodeVisible(nodeId) {
+  if(nodeMap[nodeId]) return true;
+  const viewId = currentView;
+  const groupId = _nodeGroupId(nodeId, viewId);
+  if(groupId && groupModeApplies()) {
+    const s = curExpanded();
+    if(!s.has(groupId)) {
+      s.add(groupId);
+      saveGroupState();
+      applyPreset();
+      renderNodes();
+      renderEdges();
+    }
+  }
+  return !!nodeMap[nodeId];
+}
+
+function _jumpToNode(nodeId) {
+  const targetView = _nodeViewId(nodeId);
+  if(!targetView) return false;
+  const btn = document.querySelector(`[data-view="${targetView}"]`);
+  if(currentView !== targetView) {
+    switchView(targetView, btn);
+  }
+  const desiredPreset = _defaultPresetForView(targetView);
+  if(currentPreset !== desiredPreset) {
+    setPreset(desiredPreset);
+  }
+  if(!_ensureNodeVisible(nodeId)) {
+    const groupId = _nodeGroupId(nodeId, targetView);
+    if(groupId && groupModeApplies()) {
+      curExpanded().add(groupId);
+      saveGroupState();
+      applyPreset();
+      renderNodes();
+      renderEdges();
+    }
+  }
+  if(nodeMap[nodeId]) {
+    selectNode(nodeId);
+    return true;
+  }
+  return false;
+}
+
+function _copyText(text) {
+  if(navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text).catch(() => _copyTextFallback(text));
+  }
+  return _copyTextFallback(text);
+}
+
+function _copyTextFallback(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  document.execCommand('copy');
+  ta.remove();
+  return Promise.resolve();
+}
+
+function _downloadText(filename, text, type) {
+  const blob = new Blob([text], {type: type || 'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function loadExplorerUrlState() {
+  try {
+    const params = new URL(location.href).searchParams;
+    const view = params.get('view');
+    const preset = params.get('preset');
+    const node = params.get('node');
+    const flow = params.get('flow');
+    const group = params.get('group');
+    startupNav.view = view && VIEWS[view] ? view : null;
+    startupNav.preset = preset || null;
+    startupNav.node = node || null;
+    startupNav.flow = flow || null;
+    startupNav.group = group === null ? null : group !== '0';
+  } catch(e) {}
+}
+
+function openCmdK() {
+  const back = document.getElementById('cmdk-back');
+  if(!back) return;
+  back.classList.add('vis');
+  cmdkState.idx = 0;
+  cmdkFilter(document.getElementById('cmdk-input')?.value || '');
+  setTimeout(() => {
+    const inp = document.getElementById('cmdk-input');
+    if(inp) { inp.focus(); inp.select(); }
+  }, 0);
+}
+
+function closeCmdK() {
+  const back = document.getElementById('cmdk-back');
+  if(!back) return;
+  back.classList.remove('vis');
+}
+
+function _cmdkSourceItems() {
+  const items = [
+    {kind:'action', label:'Fit view', sub:'Center current graph', run:() => fitView()},
+    {kind:'action', label:showEdges ? 'Hide edges' : 'Show edges', sub:'Toggle graph connections', run:() => toggleEdges()},
+    {kind:'action', label:showLoops ? 'Hide loops' : 'Show loops', sub:'Toggle loop edges', run:() => toggleLoops()},
+    {kind:'action', label:groupMode ? 'Disable grouped overview' : 'Enable grouped overview', sub:'Toggle domain cards', run:() => toggleGroupMode()},
+    {kind:'action', label:'Export flow JSON', sub:'Download current graph state', run:() => exportFlow()},
+    {kind:'action', label:'Export architecture doc', sub:'Download JSON + Markdown', run:() => exportArch()},
+    {kind:'action', label:'Share deep-link', sub:'Copy current view URL', run:() => shareView()},
+    {kind:'action', label:'Open help', sub:'Keyboard shortcuts', run:() => showHelp()},
+    {kind:'view', label:'Structural', sub:'Architecture overview', view:'structural'},
+    {kind:'view', label:'Automation', sub:'Scheduler, loops, ops', view:'automation'},
+    {kind:'view', label:'Products', sub:'Marketing vs voice split', view:'products'},
+    {kind:'view', label:'Builder', sub:'Custom flow editor', view:'custom'},
+  ];
+
+  (getViewData().presets || []).forEach(p => {
+    items.push({
+      kind:'preset',
+      label:p.label,
+      sub:`Preset in ${getViewData().label}`,
+      preset:p.id,
+      view:currentView,
+    });
+  });
+
+  const viewGroups = currentView === 'products'
+    ? PGROUPS
+    : ((currentView === 'structural' || currentView === 'automation') ? GROUPS : []);
+  viewGroups.forEach(g => {
+    items.push({
+      kind:'group',
+      label:g.label,
+      sub:'Toggle domain group',
+      group:g.id,
+      view:currentView,
+    });
+  });
+
+  Object.entries(VIEWS).forEach(([viewId, view]) => {
+    (view.nodes || []).forEach(n => {
+      items.push({
+        kind:'node',
+        label:n.title || n.id,
+        sub:[view.label, n.desc, n.files].filter(Boolean).join(' · '),
+        id:n.id,
+        view:viewId,
+      });
+    });
+  });
+
+  return items;
+}
+
+function _cmdkMatch(item, q) {
+  if(!q) return true;
+  const hay = [item.kind, item.label, item.sub, item.id, item.view, item.preset, item.group].filter(Boolean).join(' ').toLowerCase();
+  return q.toLowerCase().split(/\s+/).every(tok => hay.includes(tok));
+}
+
+function _cmdkRenderItem(item, idx, query) {
+  const kind = item.kind.toUpperCase();
+  const sub = _escHtml(item.sub || '');
+  const label = _escHtml(item.label || '');
+  return `<div class="cmdk-item${idx === cmdkState.idx ? ' sel' : ''}" data-idx="${idx}" onclick="cmdkPick(${idx})">
+    <span class="ck-kind">${kind}</span>
+    <span>${label}</span>
+    <span class="ck-sub">${sub}</span>
+  </div>`;
+}
+
+function cmdkFilter(query) {
+  cmdkState.query = query || '';
+  const list = document.getElementById('cmdk-list');
+  if(!list) return;
+  const items = _cmdkSourceItems().filter(item => _cmdkMatch(item, cmdkState.query));
+  cmdkState.items = items;
+  if(cmdkState.idx >= items.length) cmdkState.idx = 0;
+  if(!items.length) {
+    list.innerHTML = '<div class="cmdk-empty">No matches</div>';
+    return;
+  }
+  list.innerHTML = items.map((item, idx) => _cmdkRenderItem(item, idx, cmdkState.query)).join('');
+  const sel = list.querySelector('.cmdk-item.sel');
+  sel?.scrollIntoView({block:'nearest'});
+}
+
+function cmdkPick(idx) {
+  const item = cmdkState.items[idx];
+  if(!item) return;
+  closeCmdK();
+  if(item.kind === 'action') { item.run(); return; }
+  if(item.kind === 'view') {
+    switchView(item.view, document.querySelector(`[data-view="${item.view}"]`));
+    return;
+  }
+  if(item.kind === 'preset') {
+    if(currentView !== item.view) switchView(item.view, document.querySelector(`[data-view="${item.view}"]`));
+    setPreset(item.preset);
+    return;
+  }
+  if(item.kind === 'group') {
+    if(currentView !== item.view) switchView(item.view, document.querySelector(`[data-view="${item.view}"]`));
+    if(groupModeApplies()) toggleGroup(item.group);
+    else toggleGroupMode();
+    return;
+  }
+  if(item.kind === 'node') {
+    _jumpToNode(item.id);
+  }
+}
+
+function cmdkKey(e) {
+  if(e.key === 'Escape') {
+    e.preventDefault();
+    closeCmdK();
+    return;
+  }
+  if(e.key === 'ArrowDown' || (e.key === 'Tab' && !e.shiftKey)) {
+    e.preventDefault();
+    if(cmdkState.items.length) {
+      cmdkState.idx = Math.min(cmdkState.items.length - 1, cmdkState.idx + 1);
+      cmdkFilter(cmdkState.query);
+    }
+    return;
+  }
+  if(e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+    e.preventDefault();
+    if(cmdkState.items.length) {
+      cmdkState.idx = Math.max(0, cmdkState.idx - 1);
+      cmdkFilter(cmdkState.query);
+    }
+    return;
+  }
+  if(e.key === 'Enter') {
+    e.preventDefault();
+    cmdkPick(cmdkState.idx);
+  }
+}
+
+function shareView() {
+  const url = new URL(location.href);
+  url.searchParams.set('view', currentView);
+  url.searchParams.set('preset', currentPreset);
+  url.searchParams.set('group', groupMode ? '1' : '0');
+  if(currentView === 'custom' && customFlowStore.activeId) url.searchParams.set('flow', customFlowStore.activeId);
+  else url.searchParams.delete('flow');
+  if(selectedNode) url.searchParams.set('node', selectedNode);
+  else url.searchParams.delete('node');
+  _copyText(url.toString()).then(() => alert('Copied share link to clipboard'));
+}
+
+function exportArch() {
+  const view = getViewData();
+  const data = {
+    view: currentView,
+    preset: currentPreset,
+    groupMode,
+    exported: new Date().toISOString(),
+    title: view?.label || 'Explorer',
+    nodes: activeNodes.map(n => ({id:n.id, type:n.type, title:n.title, desc:n.desc, badge:n.badge, files:n.files, flag:n.flag, sched:n.sched, sku:n.sku, x:n.x, y:n.y, w:n.w, h:n.h})),
+    edges: activeEdges.map(e => ({from:e.f, to:e.t, label:e.lbl, style:e.style})),
+  };
+  const lines = [
+    `# ${view?.label || 'Explorer'} Architecture Export`,
+    '',
+    `- View: ${currentView}`,
+    `- Preset: ${currentPreset}`,
+    `- Group mode: ${groupMode ? 'on' : 'off'}`,
+    `- Exported: ${data.exported}`,
+    selectedNode ? `- Selected node: ${selectedNode}` : null,
+    '',
+    '## Nodes',
+    ...data.nodes.map(n => `- \`${n.id}\` — ${n.title || n.type} (${n.type})${n.files ? ` · ${n.files}` : ''}${n.desc ? ` · ${n.desc}` : ''}`),
+    '',
+    '## Edges',
+    ...data.edges.map(e => `- \`${e.from}\` -> \`${e.to}\`${e.label ? ` — ${e.label}` : ''}${e.style ? ` [${e.style}]` : ''}`),
+  ].filter(Boolean).join('\n');
+  exportFlow();
+  _downloadText(`leadgenai-architecture-${currentView}-${currentPreset}.md`, lines, 'text/markdown');
+}
+
 function setupKeyboard() {
   window.addEventListener('keydown', e => {
+    if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      openCmdK();
+      return;
+    }
     if(e.target.matches('input,textarea')) return;
     if(e.key === '?') { showHelp(); return; }
     if(e.key === 'Escape') {
@@ -2668,8 +3106,26 @@ function tourNav(dir) {
 // ════════════════════════════════════
 // SEARCH + EXPORT + MINIMAP
 // ════════════════════════════════════
-function doSearch(q) {
-  q = q.trim().toLowerCase();
+// Smart search: supports field prefixes file: / flag: / type: / group: / route:
+function _parseQuery(raw) {
+  const m = raw.match(/^\s*(file|flag|type|group|route)\s*:\s*(.*)$/i);
+  return m ? {field: m[1].toLowerCase(), q: m[2].trim().toLowerCase()} : {field: null, q: raw.trim().toLowerCase()};
+}
+function _nodeMatches(n, field, q) {
+  if(!q) return false;
+  if(field === 'file')  return (n.files||'').toLowerCase().includes(q);
+  if(field === 'flag')  return (n.flag||'').toLowerCase().includes(q);
+  if(field === 'type')  return (n.type||'').toLowerCase().includes(q);
+  if(field === 'route') return ((n.routes||'') + (n.files||'') + n.desc).toLowerCase().includes(q);
+  if(field === 'group') {
+    const spec = _viewGroupSpec(); const gid = spec.fn(n);
+    const def = spec.defs.find(g => g.id === gid);
+    return ((def && def.label || gid)).toLowerCase().includes(q) || gid.toLowerCase().includes(q);
+  }
+  return (n.title+n.desc+n.badge+n.type+(n.flag||'')+(n.files||'')).toLowerCase().includes(q);
+}
+function doSearch(raw) {
+  const {field, q} = _parseQuery(raw || '');
   const countEl = document.getElementById('bc-match');
   if(!q) {
     document.querySelectorAll('.node').forEach(n=>n.classList.remove('dimmed'));
@@ -2677,25 +3133,21 @@ function doSearch(q) {
   }
   // Group-mode: auto-expand any domain whose real member or sub-node matches
   if(groupModeApplies()) {
+    const spec = _viewGroupSpec();
     const s = curExpanded(); let changed = false;
     const view = VIEWS[currentView];
     (view && view.nodes || []).forEach(n => {
-      if((n.title+n.desc+n.badge+n.type+(n.flag||'')).toLowerCase().includes(q)) {
-        const g = groupOf(n); if(!s.has(g)) { s.add(g); changed = true; }
-      }
+      if(_nodeMatches(n, field, q)) { const g = spec.fn(n); if(!s.has(g)) { s.add(g); changed = true; } }
     });
-    Object.keys(SUBNODES).forEach(g => {
-      if((SUBNODES[g]||[]).some(x => ((x.title||'')+(x.desc||'')+(x.files||'')).toLowerCase().includes(q))) {
-        if(!s.has(g)) { s.add(g); changed = true; }
-      }
+    Object.keys(spec.subs).forEach(g => {
+      if((spec.subs[g]||[]).some(x => _nodeMatches(x, field, q))) { if(!s.has(g)) { s.add(g); changed = true; } }
     });
     if(changed) { saveGroupState(); applyPreset(); renderNodes(); renderEdges(); }
   }
   let m=0;
   activeNodes.forEach(n => {
-    const text = (n.title+n.desc+n.badge+n.type+(n.flag||'')+(n.files||'')).toLowerCase();
-    const match = text.includes(q);
-    document.getElementById('node-'+n.id)?.classList.toggle('dimmed', !match);
+    const match = n._group ? false : _nodeMatches(n, field, q);
+    document.getElementById('node-'+n.id)?.classList.toggle('dimmed', !match && !n._group);
     if(match) m++;
   });
   countEl.textContent = m+' matches';
@@ -2980,6 +3432,16 @@ const GROUP_OVERRIDE = {
 };
 function groupOf(n){ return GROUP_OVERRIDE[n.id] || GROUP_BY_TYPE[n.type] || 'api'; }
 
+// Products view groups by SKU (the native axis), not code-domain.
+const PGROUPS = [
+  {id:'p_marketing', label:'Product 1 — Marketing', type:'marketing'},
+  {id:'p_voice',     label:'Product 2 — Voice',     type:'voice'},
+  {id:'p_shared',    label:'Shared Platform',       type:'platform'},
+  {id:'p_gaps',      label:'Gaps / Roadmap',        type:'gap'},
+];
+const PSKU = {marketing:'p_marketing', feature:'p_marketing', voice:'p_voice', shared:'p_shared', gap:'p_gaps'};
+function pGroupOf(n){ return PSKU[n.sku] || PSKU[n.type] || 'p_shared'; }
+
 // Sub-nodes = real code surfaces NOT already on the curated graph (sync gap-fill).
 // `files` lists REAL modules → the explorer_sync file-ref drift gate verifies them.
 const SUBNODES = {
@@ -3054,7 +3516,8 @@ let groupExpanded = {};          // {viewKey: Set<groupId>}
 let _gWorld = null, _groupHulls = [], _lastPresent = [];
 const _GL = {COL_W:300, GAP_X:46, PAD:60, HEAD_TOP:64, HEAD_H:84, MEM_GAP:14};
 
-function groupModeApplies(){ return groupMode && !isBuilder() && (currentView === 'structural' || currentView === 'automation'); }
+function groupModeApplies(){ return groupMode && !isBuilder() && (currentView === 'structural' || currentView === 'automation' || currentView === 'products'); }
+function _viewGroupSpec(){ return currentView === 'products' ? {defs:PGROUPS, fn:pGroupOf, subs:{}} : {defs:GROUPS, fn:groupOf, subs:SUBNODES}; }
 function worldBounds(){ return (groupModeApplies() && _gWorld) ? _gWorld : getViewData().world; }
 function curExpanded(){ return groupExpanded[currentView] || (groupExpanded[currentView] = new Set()); }
 
@@ -3075,11 +3538,12 @@ function saveGroupState(){
 
 // Replace activeNodes/activeEdges with domain cards + (expanded) members & sub-nodes.
 function applyGroupLayout(){
+  const spec = _viewGroupSpec();
   const realNodes = activeNodes, realEdges = activeEdges;
   const realMap = {}; realNodes.forEach(n => realMap[n.id] = n);
   const buckets = {};
-  realNodes.forEach(n => { const g = groupOf(n); (buckets[g] = buckets[g] || []).push(n); });
-  const present = GROUPS.filter(g => buckets[g.id]);
+  realNodes.forEach(n => { const g = spec.fn(n); (buckets[g] = buckets[g] || []).push(n); });
+  const present = spec.defs.filter(g => buckets[g.id]);
   _lastPresent = present.map(g => g.id);
   const exp = curExpanded();
   const {COL_W, GAP_X, PAD, HEAD_TOP, HEAD_H, MEM_GAP} = _GL;
@@ -3088,7 +3552,7 @@ function applyGroupLayout(){
   present.forEach((g, ci) => {
     const x = PAD + ci * (COL_W + GAP_X);
     const members = buckets[g.id] || [];
-    const subList = SUBNODES[g.id] || [];
+    const subList = spec.subs[g.id] || [];
     const isExp = exp.has(g.id);
     const cardId = '__g_' + g.id; groupCardId[g.id] = cardId;
     const count = members.length + subList.length;
@@ -3113,19 +3577,20 @@ function applyGroupLayout(){
     maxH = Math.max(maxH, yy);
   });
   activeNodes = out;
-  activeEdges = showEdges ? _groupSynthEdges(realEdges, realMap, idToRender, groupCardId) : [];
+  activeEdges = showEdges ? _groupSynthEdges(realEdges, realMap, idToRender, groupCardId, spec.fn) : [];
   nodeMap = {}; activeNodes.forEach(n => nodeMap[n.id] = n);
   _gWorld = {w: Math.max(900, PAD * 2 + present.length * (COL_W + GAP_X)), h: Math.max(640, maxH + PAD)};
   _groupHulls = hulls;
 }
 
 // Aggregate real edges to the visible endpoint (member if expanded, else its domain card).
-function _groupSynthEdges(realEdges, realMap, idToRender, groupCardId){
+function _groupSynthEdges(realEdges, realMap, idToRender, groupCardId, gof){
+  gof = gof || groupOf;
   const seen = {}, out = [];
   realEdges.forEach(e => {
     const sn = realMap[e.f], tn = realMap[e.t]; if(!sn || !tn) return;
-    const ef = idToRender[e.f] ? e.f : groupCardId[groupOf(sn)];
-    const et = idToRender[e.t] ? e.t : groupCardId[groupOf(tn)];
+    const ef = idToRender[e.f] ? e.f : groupCardId[gof(sn)];
+    const et = idToRender[e.t] ? e.t : groupCardId[gof(tn)];
     if(!ef || !et || ef === et) return;  // intra-collapsed-group → hidden
     const key = ef + '|' + et;
     if(seen[key]){ seen[key]._n++; return; }
@@ -3161,6 +3626,14 @@ function init() {
   initCustomFlows();
   loadFlags();
   loadGroupState();
+  loadExplorerUrlState();
+  if(startupNav.group !== null) groupMode = startupNav.group;
+  if(startupNav.flow && customFlowStore.flows[startupNav.flow]) {
+    customFlowStore.activeId = startupNav.flow;
+    syncCustomView();
+  }
+  if(startupNav.view && VIEWS[startupNav.view]) currentView = startupNav.view;
+  currentPreset = startupNav.preset || _defaultPresetForView(currentView);
   document.getElementById('btn-group').classList.toggle('on', groupMode);
   applyPreset();
   renderFlowPick();
@@ -3173,6 +3646,7 @@ function init() {
   fetchLiveHealth();
   setTimeout(fitView, 120);
   setInterval(fetchLiveHealth, 60000);
+  if(startupNav.node) setTimeout(() => _jumpToNode(startupNav.node), 0);
 }
 
 init();
