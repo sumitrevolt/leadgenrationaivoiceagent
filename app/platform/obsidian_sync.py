@@ -118,11 +118,22 @@ def append_note(
 
 
 def push_to_git() -> bool:
-    """git add -A + commit + push. 60s timeout. Alerts ops on failure. Never raises."""
+    """git add -A + commit + push. 60s timeout. Alerts ops on failure. Never raises.
+
+    NOTE: in production the worker/scheduler container has NO git binary and NO
+    SSH deploy key — the actual nightly push is owned by the HOST cron
+    (scripts/obsidian_host_push.sh @ 20:45 UTC). So if git is unavailable we skip
+    SILENTLY (no ops alert) rather than failing every night. This stays useful for
+    any environment where the runtime does have git+SSH."""
     if not _enabled():
         return False
     if not _VAULT.exists():
         logger.debug("[obsidian] vault dir missing — skip push")
+        return False
+    import shutil
+
+    if shutil.which("git") is None:
+        logger.debug("[obsidian] no git in runtime — host cron owns the push, skip")
         return False
     try:
         date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
