@@ -81,7 +81,13 @@ def _script() -> dict:
 
 
 def opening_segments() -> list[str]:
-    """Three-part greet: intro → short pitch → interest yes/no."""
+    """Three-part greet: intro → short pitch → interest yes/no.
+
+    The intro carries the TRAI AI-disclosure ("Main ek AI assistant hoon") for
+    parity with every tcbrain-niche opener (which wraps ensure_ai_disclosure).
+    Without this the ai_marketing platform pitch was the ONE opener that never
+    disclosed it was an AI. Idempotent + never-raise (helper falls back to the
+    raw intro on any error)."""
     from app.voice_agent.universal_pitch import (
         INTEREST_ASK,
         PITCH_SHORT,
@@ -90,6 +96,12 @@ def opening_segments() -> list[str]:
 
     s = _script()
     intro = (s.get("opening") or "").strip() or UNIVERSAL_AGENT_INTRO
+    try:
+        from app.voice_agent.niche_scripts import ensure_ai_disclosure
+
+        intro = ensure_ai_disclosure(intro)
+    except Exception:
+        pass
     pitch = (s.get("pitch_short") or "").strip() or PITCH_SHORT
     ask = (s.get("interest_ask") or "").strip() or INTEREST_ASK
     return [intro, pitch, ask]
