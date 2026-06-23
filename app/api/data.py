@@ -323,6 +323,37 @@ def _get_niches_cache():
     return _niches_cache
 
 
+async def _niches_cache_gen(cache) -> int:
+    """Current cache generation. Every listing key is namespaced by this; bumping it
+    (on create/delete) invalidates ALL filter-combo keys at once — works regardless of
+    key format and across workers (token lives in the shared cache). Fail-soft → 0."""
+    if not cache:
+        return 0
+    try:
+        return int(await cache.get("__gen__") or 0)
+    except Exception:
+        return 0
+
+
+async def _invalidate_niches_cache() -> None:
+    """Bust the cached niches listing after a create/delete so the new/removed niche
+    shows up immediately (else stale up to TTL — and stale across tests in a shared
+    process). Bumps the generation token; old keys orphan + TTL-expire. Never raises.
+    The real Cache exposes only get/set/delete (no keys/flush), so we can't prefix-scan
+    — generation bump is the portable invalidation."""
+    cache = _get_niches_cache()
+    if not cache:
+        return
+    try:
+        gen = await _niches_cache_gen(cache)
+        # store as str: Cache.set only json-encodes dict/list, and Cache.get does
+        # json.loads(value) (TypeError on a raw int via the in-memory fallback).
+        # str round-trips on both backends (json.loads("1") -> 1).
+        await cache.set("__gen__", str(gen + 1), ttl=86400)
+    except Exception:
+        pass
+
+
 @router.get("/niches")
 async def get_available_niches(target_type: str = None, tier: str = None, product: str = None):
     """
@@ -331,8 +362,9 @@ async def get_available_niches(target_type: str = None, tier: str = None, produc
     product=marketing|voice (ADR-009 — dono products ke niche sets ALAG).
     Redis-cached 5 min (static data, hot endpoint).
     """
-    cache_key = f"{target_type or ''}:{tier or ''}:{product or ''}"
     cache = _get_niches_cache()
+    gen = await _niches_cache_gen(cache)
+    cache_key = f"g{gen}:{target_type or ''}:{tier or ''}:{product or ''}"
     if cache:
         try:
             cached = await cache.get(cache_key)
@@ -433,6 +465,7 @@ async def create_custom_niche(
     except Exception:
         pass
 
+    await _invalidate_niches_cache()  # new niche turant listing me dikhe (stale cache bust)
     return {"id": key, "niche": cfg, "message": "Custom niche added — agents/flows/KB sab me live"}
 
 
@@ -450,6 +483,7 @@ async def delete_custom_niche(
         raise HTTPException(status_code=403, detail=str(e))
     if not removed:
         raise HTTPException(status_code=404, detail="Custom niche not found")
+    await _invalidate_niches_cache()  # removed niche listing se turant hate (stale cache bust)
     return {"id": niche_key, "message": "Custom niche removed"}
 
 
