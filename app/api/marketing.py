@@ -137,11 +137,39 @@ from app.api.marketing_models import (  # noqa: F401  (request models extracted 
 # --------------------------------------------------------------------------- #
 
 
+_pkg_cache = None
+
+
+def _get_pkg_cache():
+    global _pkg_cache
+    if _pkg_cache is None:
+        try:
+            from app.cache import Cache
+            _pkg_cache = Cache(prefix="api_packages", default_ttl=600)
+        except Exception:
+            pass
+    return _pkg_cache
+
+
 @router.get("/packages")
 async def get_marketing_packages():
-    """Pricing packages (PUBLIC — NO auth; landing page isse fetch karta hai)."""
+    """Pricing packages (PUBLIC — NO auth; landing page isse fetch karta hai). Redis-cached 10 min."""
+    cache = _get_pkg_cache()
+    if cache:
+        try:
+            cached = await cache.get("marketing")
+            if cached:
+                return cached
+        except Exception:
+            pass
     try:
-        return {"packages": packages.get_packages()}
+        result = {"packages": packages.get_packages()}
+        if cache:
+            try:
+                await cache.set("marketing", result)
+            except Exception:
+                pass
+        return result
     except Exception as e:
         logger.error(f"Packages lookup failed: {e}")
         raise HTTPException(status_code=500, detail=f"Packages lookup failed: {e}")
