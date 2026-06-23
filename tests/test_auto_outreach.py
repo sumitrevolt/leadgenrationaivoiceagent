@@ -85,7 +85,7 @@ class TestSubjectBody:
         # mandatory unsubscribe + sender footer
         assert "REMOVE" in text
         assert "LeadGen AI" in text
-        assert "leadsgenai.in/audit" in text
+        assert auto_outreach._AUDIT_URL_TRACKED in text  # audit CTA (tracked/shortened link)
 
     def test_handles_missing_fields(self):
         # No name/rating/reviews — must still build a sane email.

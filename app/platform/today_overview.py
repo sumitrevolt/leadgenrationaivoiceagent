@@ -99,6 +99,18 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Boss — evening wrap (18:30)",
         "kya": "Din ka summary + hot leads EOD recap",
     },
+    "afternoon_content": {
+        "label": "Isha — afternoon content (15:00)",
+        "kya": "Dusra content-gen pass (gated AFTERNOON_CONTENT)",
+    },
+    "evening_prospect": {
+        "label": "Dev — evening harvest (17:00)",
+        "kya": "Teesra free lead-harvest pass (gated EVENING_PROSPECT)",
+    },
+    "obsidian_push": {
+        "label": "Obsidian sync (raat 2:15)",
+        "kya": "Second-brain notes compact + nightly git push (gated OBSIDIAN_SYNC)",
+    },
     "weekly_marketing": {
         "label": "Isha — weekly packs (Wed 12:30)",
         "kya": "S-tier niche marketing content bank top-up",

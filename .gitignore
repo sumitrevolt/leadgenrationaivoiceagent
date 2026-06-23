@@ -121,6 +121,10 @@ venv.bak/
 # 'token'/'secret' strings that trip check_secrets.py false-positives)
 .kiro/
 
+# Claude Code agent worktrees — harness-managed isolation scratch (full repo copies);
+# must NEVER be committed (one got committed = 1290 duplicate files).
+.claude/worktrees/
+
 # OS
 .DS_Store
 Thumbs.db
