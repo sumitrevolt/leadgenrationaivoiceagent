@@ -33,6 +33,144 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# --------------------------------------------------------------------------- #
+# Postgres-backed path (CONSENT_DB=1) — concurrent-safe for multi-worker Celery
+# --------------------------------------------------------------------------- #
+_CONSENT_DB = os.environ.get("CONSENT_DB", "").strip() in ("1", "true", "yes")
+
+_CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS consent_records (
+    id SERIAL PRIMARY KEY,
+    phone_key VARCHAR(10) NOT NULL,
+    record_type VARCHAR(20) NOT NULL,
+    scope VARCHAR(40),
+    source VARCHAR(80),
+    proof VARCHAR(160),
+    client_id VARCHAR(60),
+    channel VARCHAR(20),
+    reason VARCHAR(60),
+    call_id VARCHAR(60),
+    at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_consent_records_phone ON consent_records(phone_key);
+
+CREATE TABLE IF NOT EXISTS opt_out_suppression (
+    id SERIAL PRIMARY KEY,
+    phone_key VARCHAR(10) NOT NULL UNIQUE,
+    reason VARCHAR(60),
+    channel VARCHAR(20),
+    at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_opt_out_suppression_phone ON opt_out_suppression(phone_key);
+"""
+
+_DB_READY = False
+
+
+def _ensure_db_tables() -> bool:
+    """One-time table create (idempotent). Returns True if DB available."""
+    global _DB_READY
+    if _DB_READY:
+        return True
+    try:
+        import psycopg2  # sync driver — init only, no async overhead
+
+        from app.config import settings
+
+        dsn = getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", "")
+        dsn = dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
+            "postgresql+psycopg2://", "postgresql://"
+        )
+        conn = psycopg2.connect(dsn)
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute(_CREATE_SQL)
+        conn.close()
+        _DB_READY = True
+        return True
+    except Exception as e:
+        logger.debug(f"[consent_ledger] DB init skip: {e}")
+        return False
+
+
+def _db_is_suppressed(phone_key: str) -> bool | None:
+    """DB suppression check. Returns None if DB unavailable (fall through to JSONL)."""
+    if not _CONSENT_DB or not _ensure_db_tables():
+        return None
+    try:
+        import psycopg2
+
+        from app.config import settings
+
+        dsn = (getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", ""))
+        dsn = dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
+            "postgresql+psycopg2://", "postgresql://"
+        )
+        conn = psycopg2.connect(dsn)
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM opt_out_suppression WHERE phone_key=%s LIMIT 1", (phone_key,))
+            found = cur.fetchone() is not None
+        conn.close()
+        return found
+    except Exception as e:
+        logger.debug(f"[consent_ledger] db_is_suppressed error: {e}")
+        return None
+
+
+def _db_add_suppression(phone_key: str, reason: str, channel: str) -> bool:
+    """Upsert suppression row. Returns True on success."""
+    if not _CONSENT_DB or not _ensure_db_tables():
+        return False
+    try:
+        import psycopg2
+
+        from app.config import settings
+
+        dsn = (getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", ""))
+        dsn = dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
+            "postgresql+psycopg2://", "postgresql://"
+        )
+        conn = psycopg2.connect(dsn)
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO opt_out_suppression (phone_key, reason, channel)
+                   VALUES (%s, %s, %s)
+                   ON CONFLICT (phone_key) DO UPDATE
+                   SET reason=EXCLUDED.reason, channel=EXCLUDED.channel, at=NOW()""",
+                (phone_key, reason[:60], channel[:20]),
+            )
+        conn.close()
+        return True
+    except Exception as e:
+        logger.error(f"[consent_ledger] db_add_suppression failed: {e}")
+        return False
+
+
+def _db_remove_suppression(phone_key: str) -> bool:
+    """Remove suppression row. Returns True on success."""
+    if not _CONSENT_DB or not _ensure_db_tables():
+        return False
+    try:
+        import psycopg2
+
+        from app.config import settings
+
+        dsn = (getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", ""))
+        dsn = dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
+            "postgresql+psycopg2://", "postgresql://"
+        )
+        conn = psycopg2.connect(dsn)
+        conn.autocommit = True
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM opt_out_suppression WHERE phone_key=%s", (phone_key,))
+        conn.close()
+        return True
+    except Exception as e:
+        logger.debug(f"[consent_ledger] db_remove_suppression error: {e}")
+        return False
+
+
 # Stores (tests monkeypatch these module attrs)
 LEDGER_FILE = Path("data") / "consent_ledger.jsonl"
 SUPPRESSION_FILE = Path("data") / "voice_suppression.jsonl"
@@ -197,14 +335,16 @@ def record_opt_out(
     _append(LEDGER_FILE, rec)
     suppressed = True
     if not is_suppressed(k):
-        ok = _append(
+        # Dual-write: DB (concurrent-safe) + JSONL (audit trail)
+        db_ok = _db_add_suppression(k, rec["reason"], rec["channel"])
+        jsonl_ok = _append(
             SUPPRESSION_FILE,
             {"phone": k, "reason": rec["reason"], "channel": rec["channel"], "at": rec["at"]},
         )
+        ok = db_ok or jsonl_ok  # either path sufficient
         if not ok:
-            # Fail-CLOSED on report: agar suppression persist NAHI hua to "suppressed"
-            # claim mat karo — warna number dobara callable reh jaata (TCCCPR fail-open
-            # = illegal). Loud ERROR for alerting + manual re-suppress.
+            # Fail-CLOSED: agar suppression persist NAHI hua to "suppressed"
+            # claim mat karo — TCCCPR fail-open = illegal.
             logger.error(f"opt-out suppression WRITE FAILED for ***{k[-4:]} — NOT suppressed")
             suppressed = False
     # Cross-channel propagate (TCCCPR: revocation sab commercial comms pe lagti hai).
@@ -241,11 +381,15 @@ def record_opt_out(
 
 
 def is_suppressed(phone: str) -> bool:
-    """True agar number opt-out suppression list par hai. Never raises."""
+    """True agar number opt-out suppression list par hai. Never raises.
+    CONSENT_DB=1 pe Postgres check (concurrent-safe); warna JSONL fallback."""
     try:
         k = _key(phone)
         if not k:
             return False
+        db_result = _db_is_suppressed(k)
+        if db_result is not None:
+            return db_result
         return any(it.get("phone") == k for it in _read(SUPPRESSION_FILE))
     except Exception:
         return False
@@ -371,6 +515,8 @@ def opt_back_in(
             "cooloff_days": _cooloff_days() if cooloff_days is None else cooloff_days,
             "error": "reconsent_cooloff",
         }
+    # Remove from DB (concurrent-safe) + JSONL
+    _db_remove_suppression(k)
     items = _read(SUPPRESSION_FILE)
     keep = [i for i in items if i.get("phone") != k]
     if len(keep) != len(items):

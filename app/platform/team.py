@@ -131,7 +131,7 @@ STAFF: dict[str, dict[str, Any]] = {
         "name": "Tara",
         "emoji": "🎙️",
         "title": "Voice Infra Ops",
-        "duties": "Telephony readiness (Exotel auth, caller-ID, webhooks, DND, TTS/STT/LLM chain) har ghante verify karna — calling launch ke liye system hamesha taiyaar rahe",
+        "duties": "Telephony readiness (Vobiz auth, caller-ID, webhooks, DND, TTS/STT/LLM chain) har ghante verify karna — calling launch ke liye system hamesha taiyaar rahe",
         "schedule": "Har ghante (watchdog ke saath)",
     },
     "nikhil": {
