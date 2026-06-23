@@ -117,6 +117,9 @@ venv.bak/
 .vscode/
 *.swp
 *.swo
+# Kiro IDE — vendored third-party skill packs (not project code; contains JS with literal
+# 'token'/'secret' strings that trip check_secrets.py false-positives)
+.kiro/
 
 # OS
 .DS_Store

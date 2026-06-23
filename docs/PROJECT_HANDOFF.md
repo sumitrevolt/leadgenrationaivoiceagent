@@ -1,7 +1,7 @@
 # PROJECT HANDOFF — LeadGenAI (leadgenrationaivoiceagent)
 
 > **Purpose:** Complete all-in-one handoff. Ek naya developer YA naya AI-agent isse padh ke poora project samajh sake aur takeover kar sake — product, tech, infra, deploy, blockers, legal, gotchas, sab.
-> **Generated:** 2026-06-20 · **Last updated:** 2026-06-22 — **Final Production Advancement Council GREEN (§27): measure-first gates clean (prod_check 792 routes / cross_path 0-gap), zero fabricated code, real lever = GTM** · **Explorer drift re-audit GREEN (§26): `live_eval` node wired + API.md re-synced** · **Marketing plan feature lists expanded** (Trial 11 · Starter 15 · Growth 18 · Advanced 14 — synced `packages.py` → `/pricing`, landing, handoff/SOP) · Flow Runner LIVE (§23) · UPI LIVE · Explorer GREEN (§21) · Source: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
+> **Generated:** 2026-06-20 · **Last updated:** 2026-06-24 — **Production Readiness Audit + Explorer Re-Sync GREEN (§28): 3 real drifts fixed (obsidian_sync node, content_distribute leaf, .kiro secret false-positive) → all 4 gates exit 0, explorer 73/73 engines, full report `docs/PRODUCTION_READINESS_AUDIT_2026_06_24.md`** · **Final Production Advancement Council GREEN (§27): measure-first gates clean (prod_check 792 routes / cross_path 0-gap), zero fabricated code, real lever = GTM** · **Explorer drift re-audit GREEN (§26): `live_eval` node wired + API.md re-synced** · **Marketing plan feature lists expanded** (Trial 11 · Starter 15 · Growth 18 · Advanced 14 — synced `packages.py` → `/pricing`, landing, handoff/SOP) · Flow Runner LIVE (§23) · UPI LIVE · Explorer GREEN (§21) · Source: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
 > **Language:** Hinglish (project convention) — technical terms/commands/paths English me.
 
 ---
@@ -684,6 +684,31 @@ Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sa
 3. **Voice unblock** — Udyam → DLT re-apply → Vobiz recharge + DID (Product-2 commercial go-live).
 
 **On the prompt's "load test / security audit / UAT / prod-push" asks:** backend already gated by `final_integration_check` + `cross_path_audit` + `prod_check` (green); secret-scan clean per §26. A live load-test / pentest was **not** run — needs owner go/no-go and must not hammer the single-VPS prod; not a code gap. `PROJECT_SOP.md` / `PRODUCT_HANDOFF_SOP.md` need **no functional change** (nothing functional changed) — header pointers added to this verdict.
+
+---
+
+## 28. Production Readiness Audit & Explorer Re-Sync (2026-06-24 — measure-first, 3 real drifts fixed)
+
+> 8th run of the full audit/reconstruction mandate. **Measure-first** per the operating manual (golden rule: "audit pehle, MEASURE, don't fabricate") + memory ("don't re-derive a council"). Unlike runs §21–§27 (which correctly shipped nothing because everything was green), **this run found and fixed 3 genuine drifts** that had accumulated since the last audit. Full report: **`docs/PRODUCTION_READINESS_AUDIT_2026_06_24.md`**.
+
+**VERDICT: ✅ GREEN — certified production-ready. All four deterministic gates now exit 0.** Product-1 Marketing = GO (sellable, UPI live). Product-2 Voice = code-GO, commercially blocked (Vobiz + DLT, owner paperwork).
+
+**3 real drifts found & fixed (zero fabricated code):**
+1. **Explorer drift (PRIMARY):** `obsidian_sync` engine (shipped §Obsidian 2026-06-23) was scheduled in `team_scheduler.py` but had **no node on the Architecture Explorer graph** → `explorer_sync.py --check` exit 1. **Fix:** added `obsidian_sync` node + 4 edges (events/memory_vault/self_improve → obsidian_sync → data) to `frontend/explorer.html` automation view. Engine coverage **72/73 → 73/73**.
+2. **Soft leaf:** `content_distribute` was a 1-edge leaf. **Fix:** added genuine `blog → content_distribute` edge (the blog node's own desc = "IndexNow hook"). Leaf cleared.
+3. **Secret-scan false positive:** `check_secrets.py` exit 1 on `tokenSource='generated-fallback'` (a literal string) inside untracked vendored `.kiro/skills/.../server.cjs`. **Fix:** added `.kiro/` to `.gitignore` (third-party IDE tooling, not project code). Scan 271→28 files, **0 secrets**.
+
+**Gates after fix (Windows venv, live tree — all GREEN):**
+- `prod_check` → **ALL CHECKS PASSED** (812 routes · 37 pages 0 gaps · automation 0 gaps · explorer **238 nodes / 73/73 engines** / 329 edges / 0 orphans / file-refs OK · API.md in sync 833 ops).
+- `explorer_sync.py --check` → **[OK] exit 0** (0 orphan · 0 dangling · 0 leaf · all file-refs resolve).
+- `cross_path_audit` → **[OK]** (155 flags 0 never-read · 30 jobs 0 undispatchable · 31 beat 0 unrecognized).
+- `check_secrets` → **[OK] exit 0** · `pytest tests/test_explorer_sync.py` → **4 passed**.
+
+**Mandate coverage (measured, not rebuilt):** lead lifecycle **12/12** present (no reconstruction) · DLQ/retry/dead-letter **already wired** (`dlq_retry.run_sweep` @ team_scheduler:534 / scheduled_ops:84 / API growth:983 — an exploration "not-wired" claim was disproven by grep) · observability/RBAC/rate-limit/secrets-hygiene all present. Certification scorecard in the full report (§8).
+
+**Deploy note:** changes are `frontend/explorer.html` (BAKED → live on next `build app` + recreate) + `.gitignore` + `docs/` only. No backend behavior change; compliance gates untouched.
+
+**Real lever unchanged:** GTM / first-paid-customer + voice owner-unlocks. Not engineering.
 
 ---
 
