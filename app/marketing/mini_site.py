@@ -777,7 +777,14 @@ def render_site(client: dict[str, Any] | None) -> str:
             f'<meta property="og:description" content="{_e(desc[:160])}">'
             f'<link rel="canonical" href="/b/{_e(slug)}">'
             f'<meta name="theme-color" content="{_e(primary)}">'
-            f"{fonts}<style>{_css(primary, accent, layout)}</style></head><body>"
+            f"{fonts}<style>{_css(primary, accent, layout)}</style>"
+            '<script type="application/ld+json">{"@context":"https://schema.org","@type":"LocalBusiness",'
+            f'"name":"{_e(name)}","description":"{_e(desc[:160])}",'
+            f'"url":"https://leadsgenai.in/b/{_e(slug)}"'
+            + (f',"telephone":"{_e(phone_raw)}"' if phone_raw else "")
+            + (f',"address":{{"@type":"PostalAddress","addressLocality":"{_e(city)}","addressCountry":"IN"}}' if city else "")
+            + '}</script>'
+            "</head><body>"
             f"{body}{_booking_js(slug)}{_calendar_js()}{_reviews_js(slug)}</body></html>"
         )
     except Exception as e:  # absolute guard — page kabhi 500 na de

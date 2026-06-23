@@ -487,6 +487,13 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             reply=True,
                             meeting=intent in ("interested", "question"),
                         )
+                        # A/B learning loop: record_reply closes send→reply cycle
+                        try:
+                            from app.marketing.outreach_variants import record_reply
+
+                            record_reply(vid)
+                        except Exception:
+                            pass
                 except Exception:
                     pass
 

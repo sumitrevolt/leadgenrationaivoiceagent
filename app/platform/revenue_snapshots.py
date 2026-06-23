@@ -56,8 +56,11 @@ def _read_rows() -> list[dict]:
 
 async def snapshot_today() -> dict:
     """Collect current revenue stats and append one row for today (idempotent
-    per-day on read: latest write for a date wins)."""
-    row = {"date": _today(), "mrr": 0, "active": 0, "churn_pct": 0.0, "ltv": 0}
+    per-day on read: latest write for a date wins).
+    mrr_new / mrr_churned = delta vs previous real snapshot (0 if none).
+    """
+    row = {"date": _today(), "mrr": 0, "active": 0, "churn_pct": 0.0, "ltv": 0,
+           "mrr_new": 0, "mrr_churned": 0}
     try:
         from app.platform import client_health, revenue_digest
 
@@ -69,11 +72,25 @@ async def snapshot_today() -> dict:
         total = len(health) or 1
         reds = sum(1 for h in health if h.get("band") == "red")
         yellows = sum(1 for h in health if h.get("band") == "yellow")
+
+        # MRR delta vs last real snapshot (skip today's estimated rows)
+        prev_mrr = 0
+        today_str = _today()
+        for r in reversed(_read_rows()):
+            if str(r.get("date"))[:10] < today_str and not r.get("estimated"):
+                prev_mrr = int(r.get("mrr") or 0)
+                break
+        delta = mrr - prev_mrr
+        mrr_new = max(0, delta)
+        mrr_churned = max(0, -delta)
+
         row.update(
             mrr=mrr,
             active=active,
             churn_pct=round((reds + yellows) / total * 100, 1),
             ltv=int(mrr * 12 / max(1, active or total)),
+            mrr_new=mrr_new,
+            mrr_churned=mrr_churned,
         )
     except Exception as e:
         logger.warning("snapshot_today collect failed: %s", e)
