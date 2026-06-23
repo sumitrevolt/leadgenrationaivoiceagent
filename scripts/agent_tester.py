@@ -53,7 +53,18 @@ BANNED = ["maine pehle", "pehle hi poocha", "unclear", "maaf kij", "[echo", "(no
 
 async def run_niche(session, niche, turns, report):
     transcript: list[dict] = []  # role-tagged turns for D-13 conversation checks
-    async with session.ws_connect(WS, timeout=30) as ws:
+    async with session.ws_connect(WS, timeout=aiohttp.ClientWSTimeout(ws_close=60)) as ws:
+        # Server sends {"type":"ready"} before the client sends anything.
+        # Must drain this message BEFORE sending "start" — otherwise aiohttp
+        # treats the unread buffer as an error and marks the transport "closing".
+        try:
+            ready_msg = await asyncio.wait_for(ws.receive(), timeout=15.0)
+            if ready_msg.type != aiohttp.WSMsgType.TEXT:
+                report.append(f"[{niche}] NO READY (got type={ready_msg.type})")
+                return
+        except asyncio.TimeoutError:
+            report.append(f"[{niche}] TIMEOUT waiting for ready")
+            return
         await ws.send_json({"type": "start", "niche": niche, "flow": "qualify"})
         last_reply = ""
         # drain greeting (ready + first bot) — keep it as the opener turn so the
