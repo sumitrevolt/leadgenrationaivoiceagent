@@ -545,14 +545,17 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         from app.platform import prospector
 
         # Pick: status ready + email present + not already emailed.
+        # pending_for_outreach = ALL prospects me se reachable+unemailed (oldest-first),
+        # list_prospects(limit=500) ke bajaye — jiska 500-newest cap reachable backlog
+        # ko outreach se chhupa deta tha (470 emailable prospects kabhi email nahi hote).
         candidates: list[dict[str, Any]] = []
-        for p in prospector.list_prospects(status="ready", limit=500):
+        for p in prospector.pending_for_outreach(limit=500):
             email = str(p.get("email") or "").strip()
             if not _valid_email(email):
                 result["skipped_no_email"] += 1
                 continue
             if p.get("emailed_at"):
-                continue  # already emailed — never re-send
+                continue  # already emailed — never re-send (defensive; pre-filtered)
             candidates.append(p)
 
         try:
@@ -913,7 +916,12 @@ def outreach_stats() -> dict[str, Any]:
     try:
         from app.platform import prospector
 
-        rows = prospector.list_prospects(limit=500)
+        # ALL prospects (not list_prospects' 500-newest cap) — warna pending/total galat
+        # dikhte (470 reachable backlog "0 pending" lagta tha).
+        try:
+            rows = prospector._read_all()
+        except Exception:
+            rows = prospector.list_prospects(limit=500)
         stats["total"] = len(rows)
         for r in rows:
             has_email = _valid_email(str(r.get("email") or ""))

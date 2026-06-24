@@ -487,6 +487,33 @@ def list_prospects(status: str | None = None, limit: int = 100) -> list[dict[str
         return []
 
 
+def pending_for_outreach(limit: int = 500) -> list[dict[str, Any]]:
+    """Outreach-ready prospects = status 'ready' + VALID email + abhi tak NOT emailed,
+    SAARE prospects me se (NOT `list_prospects`, jiska 500-newest hard-cap reachable
+    backlog ko chhupa deta tha → emailable prospects kabhi email hi nahi hote the).
+    Oldest-first (FIFO — purana backlog pehle drain). KABHI raise nahi karta.
+
+    `list_prospects` ko replace nahi karta (UI/stats wahi) — sirf cold-email send-path
+    (`auto_outreach.run_email_outreach`) iska source banega.
+    """
+    try:
+        out: list[dict[str, Any]] = []
+        for r in _read_all():
+            if (r.get("status") or "ready") != "ready":
+                continue
+            if r.get("emailed_at"):
+                continue
+            e = str(r.get("email") or "").strip()
+            if "@" not in e or "." not in e.rsplit("@", 1)[-1]:
+                continue
+            out.append(r)
+        out.sort(key=lambda r: str(r.get("found_at") or ""))  # oldest first = backlog drain
+        return out[: max(1, int(limit))]
+    except Exception as e:
+        logger.warning(f"[prospector] pending_for_outreach failed: {e}")
+        return []
+
+
 def set_prospect_fields(pid: str, fields: dict[str, Any]) -> bool:
     """Ek prospect par arbitrary fields set karo (e.g. emailed_at) — poora file
     rewrite (chhota hai). status VALID_STATUSES wala constraint yahan NAHI lagta
