@@ -18,10 +18,16 @@ from app.platform import engineer_agents as ea
 @pytest.fixture(autouse=True)
 def _isolated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(ea, "_DATA_DIR", tmp_path)
-    # Default: all three flags off (lets the disabled-case tests start clean)
-    monkeypatch.delenv("SRE_AGENT", raising=False)
-    monkeypatch.delenv("FINOPS_AGENT", raising=False)
-    monkeypatch.delenv("SECURITY_AGENT", raising=False)
+    # Default: all engineer flags off (lets the disabled-case tests start clean)
+    for _flag in (
+        "SRE_AGENT",
+        "FINOPS_AGENT",
+        "SECURITY_AGENT",
+        "DBRE_AGENT",
+        "DEPS_AGENT",
+        "DATA_INTEGRITY_AGENT",
+    ):
+        monkeypatch.delenv(_flag, raising=False)
 
 
 # --------------------------------------------------------------------------- #
@@ -187,12 +193,208 @@ def test_unknown_role_returns_structured_error() -> None:
     assert out["score"] is None
 
 
-def test_run_all_returns_all_three(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SRE_AGENT", "1")
-    monkeypatch.setenv("FINOPS_AGENT", "1")
-    monkeypatch.setenv("SECURITY_AGENT", "1")
+def test_run_all_returns_all_six(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+
+    import app.models.base as _base
+
+    for _flag in (
+        "SRE_AGENT",
+        "FINOPS_AGENT",
+        "SECURITY_AGENT",
+        "DBRE_AGENT",
+        "DEPS_AGENT",
+        "DATA_INTEGRITY_AGENT",
+    ):
+        monkeypatch.setenv(_flag, "1")
+    # Keep run_all fast + hermetic: no real subprocess / DB.
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(OSError("no")))
+    monkeypatch.setattr(
+        _base, "get_db_session", lambda: (_ for _ in ()).throw(RuntimeError("no db"))
+    )
     out = ea.run_all()
-    assert set(out) == {"sre", "finops", "security"}
+    assert set(out) == {"sre", "finops", "security", "dbre", "deps", "dataquality"}
     assert out["sre"]["agent"] == "pranav"
-    assert out["finops"]["agent"] == "vidya"
-    assert out["security"]["agent"] == "arnav"
+    assert out["dbre"]["agent"] == "kabir"
+    assert out["deps"]["agent"] == "aryan"
+    assert out["dataquality"]["agent"] == "diya"
+
+
+# --------------------------------------------------------------------------- #
+# Council 2026-06-25 — Kabir (DBRE) / Aryan (deps) / Diya (data-integrity)
+# --------------------------------------------------------------------------- #
+def test_new_engineers_disabled_when_flag_unset() -> None:
+    assert ea.run_dbre()["status"] == "disabled"
+    assert ea.run_deps()["status"] == "disabled"
+    assert ea.run_dataquality()["status"] == "disabled"
+
+
+def test_dbre_db_unreachable_fails_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    """DB not configured/reachable -> neutral 'ok' result, never raises."""
+    import app.models.base as _base
+
+    monkeypatch.setenv("DBRE_AGENT", "1")
+    monkeypatch.setattr(
+        _base, "get_db_session", lambda: (_ for _ in ()).throw(RuntimeError("no db"))
+    )
+    out = ea.run_dbre()
+    assert out["status"] == "ok"
+    assert out["score"] is None
+    assert "unavailable" in out["summary"].lower() or "not reachable" in out["summary"].lower()
+
+
+def test_dbre_non_postgres_skips(monkeypatch: pytest.MonkeyPatch) -> None:
+    """SQLite rollback-mode -> pg checks skipped (not a failure)."""
+    from contextlib import contextmanager
+
+    import app.models.base as _base
+
+    monkeypatch.setenv("DBRE_AGENT", "1")
+
+    class _Dialect:
+        name = "sqlite"
+
+    class _Bind:
+        dialect = _Dialect()
+
+    class _DB:
+        def get_bind(self):
+            return _Bind()
+
+    @contextmanager
+    def _fake():
+        yield _DB()
+
+    monkeypatch.setattr(_base, "get_db_session", _fake)
+    out = ea.run_dbre()
+    assert out["status"] == "ok"
+    assert out["score"] is None
+    assert "not postgres" in out["summary"].lower()
+
+
+def test_dbre_postgres_healthy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Good pg signals (few conns, few unused idx, no slow queries) -> high score."""
+    from contextlib import contextmanager
+
+    import app.models.base as _base
+
+    monkeypatch.setenv("DBRE_AGENT", "1")
+
+    class _Dialect:
+        name = "postgresql"
+
+    class _Bind:
+        dialect = _Dialect()
+
+    class _Res:
+        def __init__(self, v):
+            self._v = v
+
+        def scalar(self):
+            return self._v
+
+    class _DB:
+        def get_bind(self):
+            return _Bind()
+
+        def execute(self, q):
+            s = str(q).lower()
+            if "pg_stat_activity" in s:
+                return _Res(10)
+            if "pg_stat_user_indexes" in s:
+                return _Res(2)
+            if "pg_stat_statements" in s:
+                return _Res(0)
+            if "pg_database_size" in s:
+                return _Res(500 * 1024 * 1024)
+            return _Res(0)
+
+    @contextmanager
+    def _fake():
+        yield _DB()
+
+    monkeypatch.setattr(_base, "get_db_session", _fake)
+    out = ea.run_dbre()
+    assert out["status"] == "ok"
+    assert out["kpis"]["active_connections"] == 10
+    assert out["kpis"]["unused_indexes"] == 2
+    assert out["score"] is not None and out["score"] >= 80
+
+
+def test_deps_unavailable_pip_audit_neutral(monkeypatch: pytest.MonkeyPatch) -> None:
+    """pip-audit absent -> known_vulnerabilities None + action, never raises."""
+    import subprocess
+
+    monkeypatch.setenv("DEPS_AGENT", "1")
+    monkeypatch.setattr(
+        subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(FileNotFoundError("no"))
+    )
+    out = ea.run_deps()
+    assert out["status"] == "ok"
+    assert out["kpis"]["known_vulnerabilities"] is None
+    assert any("pip-audit" in a.lower() for a in out["actions"])
+
+
+def test_deps_counts_cves(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Parses pip-audit JSON; CVE count surfaces + drops the supply-chain score."""
+    import subprocess
+
+    monkeypatch.setenv("DEPS_AGENT", "1")
+
+    class _Proc:
+        returncode = 1
+        stdout = json.dumps(
+            {
+                "dependencies": [
+                    {
+                        "name": "foo",
+                        "version": "1.0",
+                        "vulns": [{"id": "CVE-1"}, {"id": "CVE-2"}, {"id": "CVE-3"}, {"id": "CVE-4"}],
+                    }
+                ]
+            }
+        )
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _Proc())
+    out = ea.run_deps()
+    assert out["kpis"]["known_vulnerabilities"] == 4
+    assert any("cve" in a.lower() for a in out["actions"])
+
+
+def test_dataquality_detects_duplicates(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("DATA_INTEGRITY_AGENT", "1")
+    rows = [
+        {"phone": "111", "email": "a@x.com"},
+        {"phone": "111", "email": "b@x.com"},  # dup phone
+        {"phone": "222", "email": "a@x.com"},  # dup email
+        {"phone": "", "email": ""},  # missing contact
+    ]
+    (tmp_path / "prospects.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in rows), encoding="utf-8"
+    )
+    out = ea.run_dataquality()
+    assert out["status"] == "ok"
+    assert out["kpis"]["total_prospects"] == 4
+    assert out["kpis"]["duplicate_phone"] == 1
+    assert out["kpis"]["duplicate_email"] == 1
+    assert out["kpis"]["missing_contact"] == 1
+    assert out["score"] is not None
+
+
+def test_dataquality_clean_store_high_score(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("DATA_INTEGRITY_AGENT", "1")
+    rows = [{"phone": str(i), "email": f"u{i}@x.com"} for i in range(20)]
+    (tmp_path / "prospects.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in rows), encoding="utf-8"
+    )
+    out = ea.run_dataquality()
+    assert out["kpis"]["duplicate_phone"] == 0
+    assert out["score"] >= 80
+
+
+def test_dataquality_empty_store_neutral(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATA_INTEGRITY_AGENT", "1")
+    out = ea.run_dataquality()
+    assert out["status"] == "ok"
+    assert out["kpis"]["total_prospects"] == 0
+    assert out["score"] is None

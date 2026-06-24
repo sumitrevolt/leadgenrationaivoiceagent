@@ -186,6 +186,31 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "DPDP + TRAI posture, secret-rotation reminders, CVE triage → patch proposal, DSAR handling. KPI: compliance_posture_score. Spreads across pre-commit/Trivy today; Arnav owns it.",
         "schedule": "Daily (gated SECURITY_AGENT) + on-demand posture report",
     },
+    # ----- council 2026-06-25: 3 new engineer agents (genuinely-uncovered loops) ----- #
+    "kabir": {
+        "product": "platform",
+        "name": "Kabir",
+        "emoji": "🗄️",
+        "title": "DB Reliability Engineer",
+        "duties": "Postgres query-health — slow-query patterns (pg_stat_statements), unused/bloating indexes, connection-pool pressure, DB size trend. KPI: db_reliability_score. Fills Pranav's blind spot (he owns backup/heartbeat/capacity, NOT query health). Read-only pg-catalog checks.",
+        "schedule": "Daily 10:00 IST (gated DBRE_AGENT)",
+    },
+    "diya": {
+        "product": "platform",
+        "name": "Diya",
+        "emoji": "🧹",
+        "title": "Data-Integrity Engineer",
+        "duties": "Lead/CRM data quality — duplicate phone/email detection, missing-contact leads, prospect-store integrity. KPI: data_integrity_score. Revenue-adjacent: clean leads = better outreach + accurate CRM. REPORT-only (dedupe stays human-approved).",
+        "schedule": "Daily 10:30 IST (gated DATA_INTEGRITY_AGENT)",
+    },
+    "aryan": {
+        "product": "platform",
+        "name": "Aryan",
+        "emoji": "📦",
+        "title": "Dependency / Supply-chain Engineer",
+        "duties": "Package vulnerability audit via pip-audit (read-only), lock-file pinning hygiene, CVE → upgrade PROPOSALS. KPI: supply_chain_score. Distinct from Arnav (secrets/compliance posture); Aryan owns dependency CVEs. Never auto-upgrades.",
+        "schedule": "Weekly Sun 04:30 IST (gated DEPS_AGENT)",
+    },
     "ravi": {
         "product": "marketing",
         "name": "Ravi",
@@ -650,6 +675,26 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         except Exception:
             return "Security watch standby"
 
+    def _kabir() -> str:
+        if not os.environ.get("DBRE_AGENT"):
+            return "DB reliability off (DBRE_AGENT unset)"
+        return "DB reliability watch · daily pg-health (slow-query/index/conn)"
+
+    def _diya() -> str:
+        if not os.environ.get("DATA_INTEGRITY_AGENT"):
+            return "Data-integrity off (DATA_INTEGRITY_AGENT unset)"
+        try:
+            pf = os.path.join("data", "prospects.jsonl")
+            n = sum(1 for _ in open(pf, encoding="utf-8")) if os.path.isfile(pf) else 0
+            return f"Data-integrity watch · {n} prospects scanned for dupes"
+        except Exception:
+            return "Data-integrity standby"
+
+    def _aryan() -> str:
+        if not os.environ.get("DEPS_AGENT"):
+            return "Supply-chain off (DEPS_AGENT unset)"
+        return "Supply-chain watch · weekly pip-audit CVE scan"
+
     def _kiran() -> str:
         if not os.environ.get("CAMPAIGN_OPTIMIZER"):
             return "Campaign optimizer off (CAMPAIGN_OPTIMIZER unset)"
@@ -687,6 +732,9 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         ("pranav", "sre_pulse", _pranav),
         ("vidya", "finops_pulse", _vidya),
         ("arnav", "security_pulse", _arnav),
+        ("kabir", "dbre_pulse", _kabir),
+        ("diya", "dataquality_pulse", _diya),
+        ("aryan", "deps_pulse", _aryan),
         ("kiran", "optimizer_pulse", _kiran),
         ("isha", "content_pulse", _isha),
     ]

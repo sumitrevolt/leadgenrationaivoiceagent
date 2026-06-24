@@ -48,6 +48,9 @@ STAFF_JOBS = (
     "engineer_sre",
     "engineer_finops",
     "engineer_security",
+    "engineer_dbre",  # council: Kabir Postgres reliability (gated DBRE_AGENT)
+    "engineer_dataquality",  # council: Diya lead/CRM integrity (gated DATA_INTEGRITY_AGENT)
+    "engineer_deps",  # council: Aryan dependency CVE audit (gated DEPS_AGENT)
     "readiness_digest",
     "pipeline",
     "email_followup",

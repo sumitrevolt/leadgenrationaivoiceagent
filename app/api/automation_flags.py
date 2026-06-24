@@ -129,6 +129,10 @@ AUTOMATION_FLAGS = [
     "SRE_AGENT",  # Pranav reliability score (hourly :45)
     "FINOPS_AGENT",  # Vidya margin score + LiteLLM-attributed cost-per-tenant
     "SECURITY_AGENT",  # Arnav DPDP/TRAI posture
+    # council 2026-06-25 — 3 new engineer agents (genuinely-uncovered loops)
+    "DBRE_AGENT",  # Kabir Postgres reliability — slow-queries/indices/connections (daily 10:00)
+    "DEPS_AGENT",  # Aryan dependency/supply-chain CVE audit, proposal-only (weekly Sun 04:30)
+    "DATA_INTEGRITY_AGENT",  # Diya lead/CRM data integrity, report-only (daily 10:30)
     # G.1 ops_alerts ntfy fan-out (engineer-score / eval-reject / readiness-digest / dead-letter)
     "OPS_ALERTS",  # master gate — needs NTFY_URL+NTFY_TOPIC already set
     "OPS_ALERT_ENGINEER_THRESHOLD",  # default 60 (engineer score below this pages)
