@@ -126,6 +126,50 @@ def test_selfimprove_execute_error_never_raises(tmp_path, monkeypatch):
     assert "engine down" in out["detail"]
 
 
+def test_reflect_grounds_on_prior_lessons_and_winning_traces(tmp_path, monkeypatch):
+    """_reflect() ab (a) loop ke apne purane self_improve lessons aur (b) best trajectory
+    replay-hints ko reflection digest me feed karta — dono pehle dormant loops the
+    (replay_hint 0-caller; self_improve lessons write-only). free_ai.chat mock se digest
+    capture karke verify + flag OFF pe replay inert."""
+    si = _patch_stores(monkeypatch, tmp_path)
+    from app.agents import trajectory as traj
+    from app.platform import skill_library as sl
+    from app.voice_agent import free_ai
+
+    # recent runs (outcome_value ke saath taaki replay top-reward action pe ground ho)
+    si._append(si._RUNS, {"action": "seo_pages", "ok": True, "detail": "2 pages", "outcome_value": 0.9})
+    si._append(si._RUNS, {"action": "scrape_leads", "ok": True, "detail": "covered", "outcome_value": 0.5})
+
+    # WIRE B: loop ka apna prior lesson (reflexion memory)
+    sl.record_lesson("self_improve", "MARKER_PRIOR_LESSON seo_pages best perform kar raha")
+
+    # WIRE A: trajectory enable + ek winning trace seed
+    monkeypatch.setenv("TRAJECTORY_LEARN", "1")
+    monkeypatch.setattr(traj, "_STORE", str(tmp_path / "traj.jsonl"))
+    traj.record_trajectory("seo_pages", [{"step": "MARKER_TRACE_STEP"}], "ok", reward=0.9)
+
+    captured: dict[str, str] = {}
+
+    async def fake_chat(system, messages, **kw):
+        captured["digest"] = str(messages[-1].get("content", ""))
+        return ("Lesson: seo_pages pe focus rakho.", "mock")
+
+    monkeypatch.setattr(free_ai, "chat", fake_chat)
+
+    out = asyncio.run(si._reflect())
+    assert out["ok"] is True
+    digest = captured["digest"]
+    assert "MARKER_PRIOR_LESSON" in digest  # WIRE B: prior lessons consumed
+    assert "MARKER_TRACE_STEP" in digest  # WIRE A: winning trace grounded
+
+    # flag OFF → replay grounding inert (zero behaviour change default)
+    monkeypatch.delenv("TRAJECTORY_LEARN", raising=False)
+    captured.clear()
+    out2 = asyncio.run(si._reflect())
+    assert out2["ok"] is True
+    assert "MARKER_TRACE_STEP" not in captured["digest"]
+
+
 # ----------------------------- social channels ----------------------------- #
 def test_social_channels_fallback_drafts(monkeypatch):
     from app.marketing import social_channels as sc

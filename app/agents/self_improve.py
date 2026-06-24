@@ -553,6 +553,45 @@ async def _reflect() -> dict[str, Any]:
                     digest += f"\n\nRelevant internal playbook:\n{sn}"
         except Exception:
             pass
+        # Reflexion memory — loop ke apne purane self_improve lessons recall karo taaki
+        # gyaan compound ho (har N-run reflection amnesiac na rahe). lessons_snippet(
+        # "self_improve") ab tak write-only tha (sirf voice topics consume hote the) —
+        # yahan loop apne lessons ko khud consume karta hai.
+        try:
+            from app.platform import skill_library as _sl
+
+            prior = _sl.lessons_snippet("self_improve", k=3)
+            if prior:
+                digest += f"\n\nPehle ke apne lessons (inpe build karo, repeat mat karo):\n{prior}"
+        except Exception:
+            pass
+        # SONA replay — best winning traces ka grounding (TRAJECTORY_LEARN gated).
+        # record_trajectory ne wins likhe the; replay_hint() ab tak 0-caller dormant tha
+        # (replay-into-loop deliberate follow-up). _execute ko risky maan ke nahi chhua —
+        # reflection (safe meta-step) me wire kiya: top-reward actions ke winning traces
+        # se lesson ground hota hai. Flag OFF = zero behaviour change.
+        try:
+            from app.agents import trajectory as _traj
+
+            if _traj.enabled():
+                _seen: set[str] = set()
+                _hints: list[str] = []
+                for r in sorted(
+                    runs, key=lambda x: float(x.get("outcome_value") or 0.0), reverse=True
+                ):
+                    act = str(r.get("action") or "")
+                    if not act or act in _seen:
+                        continue
+                    _seen.add(act)
+                    h = _traj.replay_hint(act, max_chars=400)
+                    if h:
+                        _hints.append(h)
+                    if len(_hints) >= 2:
+                        break
+                if _hints:
+                    digest += "\n\nPast winning runs (inse seekho kya chala):\n" + "\n".join(_hints)
+        except Exception:
+            pass
         text, _ = await asyncio.wait_for(
             free_ai.chat(
                 "Tu ek growth-ops coach hai. Recent automation runs dekh ke EK concrete Hinglish lesson de "
@@ -1055,8 +1094,9 @@ async def run_once() -> dict[str, Any]:
     _append(_RUNS, rec)
     # Trajectory record (Ruflo SONA / training-export #13) — gated TRAJECTORY_LEARN,
     # never-raise, low-volume (~max_per_day lines). Feeds trajectory.best_trajectories
-    # + export_dataset with REAL run data. Replay-into-loop is a deliberate follow-up
-    # (modifies _execute → risky in the main autonomous loop, kept out for now).
+    # + export_dataset with REAL run data. Replay-into-loop NOW WIRED via _reflect()
+    # (best winning traces ground the reflection lesson) — the safe path. Direct replay
+    # into _execute action dispatch stays deferred (would touch sub-engine prompts = risky).
     try:
         from app.agents import trajectory
 
