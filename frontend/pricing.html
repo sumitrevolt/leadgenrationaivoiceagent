@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Pricing & Sign Up — LeadGenAI</title>
 <meta name="description" content="AI Automated Marketing plans — local businesses ka poora marketing auto-pilot pe. Self-serve signup, UPI/card payment. (AI Voice Calling Agent alag product hai — /voice-agent)" />
+<link rel="canonical" href="https://leadsgenai.in/pricing" />
+<!-- Open Graph / Twitter — share previews (WhatsApp/social); matches sibling public pages -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Pricing & Sign Up — LeadsGenAI" />
+<meta property="og:description" content="AI Automated Marketing for local Indian businesses — content, leads, reviews auto-pilot pe. Self-serve signup, UPI/card. (Voice Agent alag product — /voice-agent)" />
+<meta property="og:url" content="https://leadsgenai.in/pricing" />
+<meta property="og:image" content="https://leadsgenai.in/icons/icon-512.png" />
+<meta name="twitter:card" content="summary_large_image" />
 <!-- Razorpay checkout removed 2026-06-18 — payments via Stripe / manual UPI -->
 <style>
   :root{--bg:#0b1020;--card:#141a2e;--card2:#1b2440;--ink:#eef2ff;--mut:#9aa6c7;--bd:#26304f;
@@ -81,7 +89,8 @@
   .trial-info{flex:1;min-width:220px}
   .trial-desc{font-size:14px;color:var(--mut);margin-top:4px}
   .cta.trial-btn{width:auto;background:var(--ok)}
-  .note.voice-callout{background:#eef2ff;border-radius:12px;padding:14px;margin-top:10px}
+  .note.voice-callout{background:#eef2ff;border-radius:12px;padding:14px;margin-top:10px;color:#1b2440}
+  .note.voice-callout a{color:#2f5fd0}
   .lk-bold{font-weight:700}
   #combo-section{margin-top:46px}
   .combo-tag-row{text-align:center;margin-bottom:8px}
@@ -170,10 +179,10 @@
     <button class="x" onclick="closeModal()">×</button>
     <h3 id="m-title">Sign up</h3>
     <p class="sub" id="m-sub">Account banao, phir payment.</p>
-    <div class="field"><label>Business ka naam</label><input id="f-biz" placeholder="e.g. Sharma Solar" /></div>
-    <div class="field"><label>Email</label><input id="f-email" type="email" placeholder="you@business.com" /></div>
-    <div class="field"><label>WhatsApp / Phone</label><input id="f-phone" placeholder="+91…" /></div>
-    <div class="field"><label>Password</label><input id="f-pass" type="password" placeholder="min 6 chars" /></div>
+    <div class="field"><label for="f-biz">Business ka naam</label><input id="f-biz" autocomplete="organization" placeholder="e.g. Sharma Solar" /></div>
+    <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" autocomplete="email" placeholder="you@business.com" /></div>
+    <div class="field"><label for="f-phone">WhatsApp / Phone</label><input id="f-phone" type="tel" autocomplete="tel" placeholder="+91…" /></div>
+    <div class="field"><label for="f-pass">Password</label><input id="f-pass" type="password" autocomplete="new-password" placeholder="min 6 chars" /></div>
     <div data-turnstile-host></div>
     <button class="cta" id="m-go" onclick="doSignupPay()">Sign up & Pay</button>
     <p class="msg" id="m-msg"></p>
