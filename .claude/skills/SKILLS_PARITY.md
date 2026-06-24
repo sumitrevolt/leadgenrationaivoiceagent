@@ -52,6 +52,7 @@
 | `statusline` | `statusline/` | Cursor IDE only |
 | `update-cursor-settings` | `update-claude-settings/` | CLAUDE.md |
 | `update-cli-config` | `update-cli-config/` | CLI config |
+| *(gstack design-review)* | `design-review/` | **NEW 2026-06-25** — visual/UI review + AI-slop catch (MIT, ported from garrytan/gstack; no Bun dep, uses Claude Preview tools) |
 
 ## Slash commands → skills
 
