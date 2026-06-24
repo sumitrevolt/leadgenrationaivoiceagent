@@ -171,6 +171,23 @@ async def upgrader_patch_status(
     return code_upgrader.set_status(patch_id, body.status, body.note)
 
 
+@router.get("/upgrader/code-search")
+async def upgrader_code_search(q: str, k: int = 6, _user=Depends(require_admin)):
+    """Semantic codebase search (Kilo-Code "codebase_search" parity) — engineering
+    agents (Vikram) isi se relevant code dhoondte hain. Index daily training job se
+    banta; khaali / deps missing → []. Read-only, flag-independent (admin-gated)."""
+    from app.agents import code_search
+
+    hits = await code_search.search(q, k=k)
+    return {
+        "ok": True,
+        "query": q,
+        "grounding_enabled": code_search.enabled(),
+        "count": len(hits),
+        "hits": hits,
+    }
+
+
 @router.get("/social/channels")
 async def social_channels_list(_user=Depends(require_admin)):
     """Naye customer-approach channels (sab ban-safe drafts)."""

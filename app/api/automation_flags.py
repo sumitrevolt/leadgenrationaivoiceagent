@@ -178,4 +178,8 @@ AUTOMATION_FLAGS = [
     # --- More agent passes 2026-06-22 (default OFF / opt-in extra cadence) ---
     "AFTERNOON_CONTENT",  # 2nd daily content-gen pass (Isha, 15:00 IST) — OFF default
     "EVENING_PROSPECT",  # 3rd daily free lead-harvest pass (Rohan, 17:00 IST) — OFF default
+    # --- Engineering-agent codebase search (Kilo-Code parity) 2026-06-24 ---
+    "CODE_SEARCH",  # semantic code retrieval grounds Vikram proposals + arms admin
+    # GET /api/growth/upgrader/code-search agent-use. Index piggybacks daily training
+    # job; read-only ChromaDB "code_patterns" (separate from business-KB). OFF default.
 ]

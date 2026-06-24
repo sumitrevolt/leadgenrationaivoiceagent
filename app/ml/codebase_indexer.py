@@ -14,6 +14,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -101,6 +102,9 @@ LANGUAGE_MAP = {
     ".json": "json",
     ".toml": "toml",
 }
+
+# Parses the per-chunk locator stored in user_message ("Code from <file> lines A-B").
+_LOC_RE = re.compile(r"Code from (.+?) lines (\d+)-(\d+)")
 
 
 class CodebaseIndexer:
@@ -429,36 +433,66 @@ class CodebaseIndexer:
         self, query: str, agent_domain: str = None, language: str = None, limit: int = 10
     ) -> list[dict]:
         """
-        Search indexed code
+        Search indexed code (semantic) → normalized hits for agents.
 
         Args:
             query: Search query
-            agent_domain: Filter by agent domain (e.g., "voice_ai", "billing")
+            agent_domain: Filter by agent domain (stored as `industry` on chunks)
             language: Filter by language (e.g., "python", "typescript")
             limit: Max results
 
         Returns:
-            List of matching code chunks with metadata
+            List of {file, start_line, end_line, score, snippet, language, domain}.
+            Empty list on any error / empty index (never raises).
         """
         try:
-            # Build filter
-            filter_metadata = {}
-            if agent_domain:
-                filter_metadata["industry"] = agent_domain
-            if language:
-                filter_metadata["language"] = language
-
-            results = await self.vector_store.search(
+            # Chunks are stored via VectorStore.add_conversation with
+            # industry=agent_domain, language=<lang>, user_message="Code from <file>
+            # lines A-B", agent_response=<code>. Use the real search_similar() API
+            # (earlier code called a non-existent .search() → orphan/never-wired).
+            raw = await self.vector_store.search_similar(
                 query=query,
-                limit=limit,
-                filter_metadata=filter_metadata if filter_metadata else None,
+                industry=agent_domain or None,
+                language=language or None,
+                top_k=max(1, int(limit or 10)),
             )
-
-            return results
-
         except Exception as e:
             logger.error(f"Code search failed: {e}")
             return []
+
+        hits: list[dict] = []
+        for r in raw or []:
+            cid = str(r.get("conversation_id", "") or "")
+            msg = str(r.get("user_message", "") or "")
+            snippet = str(r.get("agent_response", "") or "")
+
+            file_path, start_line, end_line = "", 0, 0
+            m = _LOC_RE.search(msg)
+            if m:
+                file_path = m.group(1)
+                try:
+                    start_line, end_line = int(m.group(2)), int(m.group(3))
+                except Exception:
+                    pass
+            elif ":" in cid:
+                # id == "<file>:<chunk_index>"
+                file_path = cid.rsplit(":", 1)[0]
+
+            if not file_path:
+                continue
+
+            hits.append(
+                {
+                    "file": file_path,
+                    "start_line": start_line,
+                    "end_line": end_line,
+                    "score": round(float(r.get("score") or 0.0), 4),
+                    "snippet": snippet[:1200],
+                    "language": r.get("language", ""),
+                    "domain": r.get("industry", ""),
+                }
+            )
+        return hits
 
     def get_index_stats(self) -> dict:
         """Get statistics about the index"""
