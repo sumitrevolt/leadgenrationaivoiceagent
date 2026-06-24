@@ -1050,6 +1050,15 @@ async def dashboards_page():
     return FileResponse(str(FRONTEND_DIR / "dashboards.html"))
 
 
+@app.get("/app/agent-tools", tags=["Frontend"])
+async def agent_tools_page():
+    """Agent Tools admin cockpit — UI for the 17 /api/agents-ext capabilities
+    (Kilo/OpenCode/Ruflo/Hermes): codebase-search, diagnostics, code-review, recall,
+    trajectories, consensus, permissions, hooks, custom-agents, capacity, checkpoints,
+    batch, code-exec, browser. Admin token from localStorage; super-admin gates honored."""
+    return FileResponse(str(FRONTEND_DIR / "agent_tools.html"))
+
+
 @app.get("/app/conversations", tags=["Frontend"])
 async def conversations_page():
     """Unified conversation inbox (GHL-style) — email replies + web-chat + inquiries ek thread view.
