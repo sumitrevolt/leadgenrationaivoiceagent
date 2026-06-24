@@ -38,13 +38,15 @@ TOOL_CATEGORIES = (
     "place_call",
     "spend",
     "write_code",
+    "execute_code",
     "publish",
     "external_api",
 )
 
 # Ban/paisa-risk side-effects: unset = DENY (fail-safe). Matches CLAUDE.md
 # "WhatsApp bulk = ban", "cold calls = ₹10L risk", "spend" guardrails.
-HIGH_RISK = {"spend", "place_call", "send_whatsapp"}
+# `execute_code` (arbitrary-code executor, code_exec.py) is RCE-class → fail-safe.
+HIGH_RISK = {"spend", "place_call", "send_whatsapp", "execute_code"}
 
 
 def enabled() -> bool:
