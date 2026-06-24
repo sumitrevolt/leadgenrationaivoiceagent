@@ -36,10 +36,17 @@ def enabled() -> bool:
     return (os.getenv("CRED_POOLS") or "").strip().lower() in ("1", "true", "yes")
 
 
+def _norm(attr: str) -> str:
+    """Canonical env/dict key — UPPER (env vars are uppercase; free_ai may pass the
+    lowercase settings-attr, the router passes uppercase — normalize so both match)."""
+    return (attr or "").strip().upper()
+
+
 def _extra_keys(attr: str) -> list[str]:
     out: list[str] = []
+    a = _norm(attr)
     for n in (2, 3, 4, 5):
-        v = (os.getenv(f"{attr}_{n}") or "").strip()
+        v = (os.getenv(f"{a}_{n}") or "").strip()
         if v and v not in out:
             out.append(v)
     return out
@@ -63,6 +70,7 @@ def pool(attr: str, base: str = "") -> list[str]:
 def rotate(attr: str, base: str = "") -> str:
     """Next non-cooled key for attr (round-robin). Returns base if <=1 key. Never raises."""
     try:
+        attr = _norm(attr)
         keys = pool(attr, base)
         if len(keys) <= 1:
             return base
@@ -89,7 +97,7 @@ def mark_fail(attr: str, key: str, cooldown_s: float = _DEFAULT_COOLDOWN_S) -> N
         if not key:
             return
         with _LOCK:
-            _COOLDOWN[f"{attr}#{key}"] = time.time() + max(1.0, float(cooldown_s))
+            _COOLDOWN[f"{_norm(attr)}#{key}"] = time.time() + max(1.0, float(cooldown_s))
     except Exception:
         pass
 
@@ -99,7 +107,7 @@ def key_counts(attrs: list[str]) -> dict[str, int]:
     out: dict[str, int] = {}
     for a in attrs or []:
         try:
-            base = (os.getenv(a) or "").strip()
+            base = (os.getenv(_norm(a)) or "").strip()
             out[a] = len(pool(a, base))
         except Exception:
             out[a] = 0

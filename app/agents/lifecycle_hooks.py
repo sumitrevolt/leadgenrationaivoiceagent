@@ -68,6 +68,46 @@ def _save(hooks: list[dict[str, Any]]) -> bool:
         return False
 
 
+def _is_safe_target(url: str) -> tuple[bool, str]:
+    """SSRF guard — reject non-http(s), internal docker hostnames, and private/
+    loopback/link-local/reserved/multicast IPs so a hook target can't probe our own
+    infra or cloud-metadata (169.254.169.254). ALWAYS enforced (not flag-gated).
+    Never raises. Mirrors customer_webhooks._is_url_safe."""
+    try:
+        import ipaddress
+        import socket
+        from urllib.parse import urlparse
+
+        p = urlparse(url or "")
+        if p.scheme not in {"http", "https"}:
+            return False, "scheme_not_http(s)"
+        host = (p.hostname or "").strip().lower()
+        if not host:
+            return False, "no_host"
+        if host in {
+            "localhost", "leadgen_app", "leadgen_db", "leadgen_redis", "leadgen_redis_cache",
+            "pgbouncer", "qdrant", "redis", "redis-cache", "postgres", "tempo", "loki",
+            "prometheus", "grafana", "alertmanager",
+        }:
+            return False, "internal_hostname"
+        for entry in socket.getaddrinfo(host, None):
+            try:
+                ip = ipaddress.ip_address(entry[4][0])
+            except Exception:
+                continue
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_reserved
+                or ip.is_multicast
+            ):
+                return False, f"private_ip:{ip}"
+        return True, ""
+    except Exception as e:
+        return False, f"resolve_failed:{str(e)[:60]}"
+
+
 def register(event: str, name: str, type: str, target: str = "") -> dict[str, Any]:
     """Naya hook add karo (append to json). Validated, never-raises."""
     ev = (event or "").strip().lower()
@@ -80,8 +120,12 @@ def register(event: str, name: str, type: str, target: str = "") -> dict[str, An
         return {"ok": False, "error": "name required"}
     if tp not in _TYPES:
         return {"ok": False, "error": f"type must be one of {list(_TYPES)}"}
-    if tp in ("ntfy", "webhook") and not tg:
-        return {"ok": False, "error": f"target (URL) required for type '{tp}'"}
+    if tp in ("ntfy", "webhook"):
+        if not tg:
+            return {"ok": False, "error": f"target (URL) required for type '{tp}'"}
+        ok_url, why = _is_safe_target(tg)
+        if not ok_url:
+            return {"ok": False, "error": f"unsafe target URL ({why})"}
     try:
         hooks = _load()
         hooks.append({"event": ev, "name": nm, "type": tp, "target": tg})
@@ -99,12 +143,22 @@ def list_hooks() -> dict[str, Any]:
 
 
 async def _post(url: str, payload: dict[str, Any]) -> bool:
-    """Bounded best-effort POST (lazy httpx). Never raises."""
+    """Bounded best-effort POST (lazy httpx). Never raises.
+
+    SSRF re-check at fire-time (defense-in-depth: a hook may have been stored before
+    the guard, or DNS may now resolve internal). Redirects disabled so an external
+    target can't 302 into the private range.
+    """
     try:
+        safe, why = await asyncio.to_thread(_is_safe_target, url)
+        if not safe:
+            logger.warning(f"lifecycle_hooks blocked unsafe target ({why}): {url}")
+            return False
+
         import httpx
 
         async def _do() -> bool:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(follow_redirects=False) as client:
                 await client.post(url, json=payload)
             return True
 
