@@ -156,8 +156,13 @@ def _collect_signals() -> list[dict[str, str]]:
     return sigs
 
 
-async def _propose(issue: str, area: str) -> dict[str, str]:
-    """free-LLM se patch-proposal sketch. LLM fail = static template (kabhi empty nahi)."""
+async def _propose(issue: str, area: str, grounding: str = "") -> dict[str, str]:
+    """free-LLM se patch-proposal sketch. LLM fail = static template (kabhi empty nahi).
+
+    `grounding` (optional) = codebase-search se retrieved REAL relevant code
+    (Kilo-Code parity) — diya ho to LLM ko ek guessed `area` ke bajaye actual
+    file/line context milta, sketch zyada concrete + sahi file pe banta.
+    """
     title, rationale, sketch = (
         f"Fix: {issue[:80]}",
         issue,
@@ -166,16 +171,18 @@ async def _propose(issue: str, area: str) -> dict[str, str]:
     try:
         from app.voice_agent import free_ai
 
+        user_content = (
+            f"Issue: {issue}\nLikely area: {area}\n"
+            "Repo: FastAPI leadgen platform, free-stack, never-raise/gated patterns."
+        )
+        if grounding:
+            user_content += "\n\n" + grounding
+
         text, _ = await asyncio.wait_for(
             free_ai.chat(
                 "Tu ek senior Python engineer hai. Ek production issue diya hai. JSON-only output: "
                 '{"title": "...", "rationale": "kya/kyun (2 lines)", "sketch": "suggested code change ka concrete sketch — file, function, kya badle (5-8 lines)"}',
-                [
-                    {
-                        "role": "user",
-                        "content": f"Issue: {issue}\nLikely area: {area}\nRepo: FastAPI leadgen platform, free-stack, never-raise/gated patterns.",
-                    }
-                ],
+                [{"role": "user", "content": user_content}],
                 max_tokens=400,
                 temperature=0.3,
             ),
@@ -215,13 +222,30 @@ async def scan_and_propose() -> dict[str, Any]:
 
     proposed = []
     for s in new:
-        p = await _propose(s["issue"], s["area"])
+        # Kilo-Code parity: ground the proposal in ACTUAL relevant code (semantic
+        # codebase search) instead of a single guessed `area` + blind LLM. Gated
+        # CODE_SEARCH (default OFF), never-raise; empty index → behaves as before.
+        grounding, grounded_files = "", []
+        try:
+            from app.agents import code_search
+
+            if code_search.enabled():
+                hits = await code_search.search(s["issue"], k=5)
+                grounding = code_search.grounding_block(hits)
+                grounded_files = [
+                    f"{h.get('file')}:{h.get('start_line')}-{h.get('end_line')}" for h in hits
+                ]
+        except Exception:
+            pass
+
+        p = await _propose(s["issue"], s["area"], grounding)
         rec = {
             "id": uuid.uuid4().hex[:10],
             "signal_key": s["key"],
             "title": p["title"],
             "issue": s["issue"],
             "area": s["area"],
+            "grounded_files": grounded_files,
             "rationale": p["rationale"],
             "sketch": p["sketch"],
             "status": "proposed",
