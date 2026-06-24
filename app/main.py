@@ -982,10 +982,11 @@ async def clients_page():
 
 @app.get("/pricing", tags=["Frontend"])
 async def pricing_page():
-    """PUBLIC self-serve revenue funnel: pricing → signup → Razorpay checkout.
+    """PUBLIC self-serve revenue funnel: pricing → signup → Stripe/UPI checkout.
 
     Backend already built (/api/billing/plans, /billing/checkout, /billing/verify-payment,
-    /api/public/signup). Payment keys unset ho to page graceful UPI/contact fallback dikhata.
+    /api/public/signup). Razorpay removed 2026-06-18 — Stripe (intl) + manual UPI primary;
+    payment keys unset ho to page graceful UPI/contact fallback dikhata.
     """
     return FileResponse(str(FRONTEND_DIR / "pricing.html"))
 

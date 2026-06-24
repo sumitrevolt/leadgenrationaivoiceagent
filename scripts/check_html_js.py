@@ -8,7 +8,13 @@ import tempfile
 
 path = sys.argv[1] if len(sys.argv) > 1 else "frontend/analytics.html"
 html = open(path, encoding="utf-8").read()
-scripts = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, re.S | re.I)
+# Skip external (src=) and DATA scripts (application/ld+json, application/json) — those
+# are not JavaScript, so `node --check` on them is a false positive (schema.org blocks).
+scripts = re.findall(
+    r"<script(?![^>]*\bsrc=)(?![^>]*type=[\"'][^\"']*json)[^>]*>(.*?)</script>",
+    html,
+    re.S | re.I,
+)
 js = "\n;\n".join(scripts)
 if not js.strip():
     print(f"{path}: NO_INLINE_JS")
