@@ -489,6 +489,27 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Engineer-agents router not mounted: {_e}")
 try:
+    # Agent-extension batch (2026-06-24) — 14 new agent capabilities borrowed from
+    # Kilo Code / OpenCode / Ruflo / Hermes-agent. All admin-gated; INERT (flags OFF
+    # default). Shared prefix /api/agents-ext. code_exec + browser are super-admin +
+    # flag + dep gated (inert by default).
+    from app.api.agent_capacity import router as _agent_capacity_router
+    from app.api.agent_governance import router as _agent_governance_router
+    from app.api.agent_scale import router as _agent_scale_router
+    from app.api.eng_agents import router as _eng_agents_router
+    from app.api.orchestration_ext import router as _orchestration_ext_router
+
+    for _r in (
+        _eng_agents_router,
+        _orchestration_ext_router,
+        _agent_governance_router,
+        _agent_scale_router,
+        _agent_capacity_router,
+    ):
+        app.include_router(_r, prefix="/api/agents-ext")
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Agents-ext routers not mounted: {_e}")
+try:
     from app.api.customer_onboard import router as _customer_onboard_router
 
     # S.1 POST /api/admin/customers/onboard — single-call admin onboarding

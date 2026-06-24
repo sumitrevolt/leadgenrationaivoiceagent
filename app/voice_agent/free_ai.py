@@ -315,13 +315,26 @@ _PROVIDER_CFG: dict[str, tuple[str, str]] = {
 
 
 def _key(attr: str) -> str:
-    """settings.<attr> ka stripped value (gracefully empty agar settings tooti ho)."""
+    """settings.<attr> ka stripped value (gracefully empty agar settings tooti ho).
+
+    CRED_POOLS=1 pe multi-key round-robin (cred_pool) — load <attr>_2.._5 env keys
+    par spread hota (higher aggregate free rate-limit). Default OFF = base value
+    unchanged. Never-raise (pool error → base key).
+    """
     try:
         from app.config import settings
 
-        return (getattr(settings, attr, "") or "").strip()
+        base = (getattr(settings, attr, "") or "").strip()
     except Exception:
         return ""
+    try:
+        from app.agents import cred_pool
+
+        if base and cred_pool.enabled():
+            return cred_pool.rotate(attr, base) or base
+    except Exception:
+        pass
+    return base
 
 
 def _has_key(provider: str) -> bool:

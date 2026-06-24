@@ -820,6 +820,19 @@ class ApprovalQueue:
         if not self.approval_required:
             return True
 
+        # Risk-scored auto-approve (gated RISK_AUTO_APPROVE): clearly low-risk + cheap
+        # actions skip the human gate by policy; risky/ban-sensitive ones still queue.
+        # Additive, never-raise, default OFF = unchanged behaviour.
+        try:
+            from app.agents import risk_approve
+
+            if risk_approve.enabled() and risk_approve.should_auto_approve(
+                task_name, cost_estimate, reason
+            ):
+                return True
+        except Exception:
+            pass
+
         rec = {
             "id": uuid.uuid4().hex[:12],
             "task": task_name,

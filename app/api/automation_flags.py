@@ -186,4 +186,19 @@ AUTOMATION_FLAGS = [
     "CODE_DIAGNOSTICS",  # self-check Vikram proposals (cited-path existence) so admin
     # can trust them. Admin POST /api/growth/upgrader/diagnostics (ast syntax + optional
     # ruff lint + path-existence) is flag-independent. Read-only, never-raise. OFF default.
+    # --- Agent-extension batch (Kilo/OpenCode/Ruflo/Hermes) 2026-06-24, /api/agents-ext ---
+    "CODE_REVIEWER",  # dedicated code-review agent (perf/security/style/tests) — Kilo
+    "AGENT_RECALL",  # agents search their own past runs/decisions — Hermes
+    "AGENT_CHECKPOINTS",  # snapshot+rollback for agent data-mutations — Hermes/Kilo
+    "TRAJECTORY_LEARN",  # record+replay winning agent traces + training export — Ruflo SONA
+    "AGENT_CONSENSUS",  # N-voter quorum decision mode — Ruflo
+    "AGENT_PERMISSIONS",  # per-agent tool/side-effect ACL (fail-open; ban-risk fail-safe) — OpenCode
+    "AGENT_HOOKS",  # user-definable pre/post/error lifecycle hooks — Hermes/Ruflo
+    "CUSTOM_AGENTS",  # data-file-defined custom agent personas (no code deploy) — OpenCode/Kilo
+    "BATCH_HARNESS",  # parallel agent-run over many inputs + checkpoint/resume — Ruflo/Hermes
+    "CODE_EXEC",  # guarded python tool-script executor — Hermes; SUPER-ADMIN, INERT default
+    "BROWSER_TOOLS",  # Playwright headless enrichment — Hermes; SUPER-ADMIN + optional dep, INERT
+    "CRED_POOLS",  # multi-key round-robin per provider (free-tier capacity) — Hermes
+    "RISK_AUTO_APPROVE",  # risk-scored auto-approve for low-risk self-improve actions — OpenCode
+    "RISK_AUTO_APPROVE_MAX_COST",  # ₹ ceiling for auto-approval (default 5)
 ]
