@@ -251,6 +251,22 @@ async def scan_and_propose() -> dict[str, Any]:
             "status": "proposed",
             "at": _now().isoformat(),
         }
+
+        # OpenCode parity: self-check the proposal's referenced paths actually exist
+        # (hallucinated file-path = top LLM failure-mode) so admin can trust it before
+        # approving. Gated CODE_DIAGNOSTICS (default OFF), never-raise. Code-syntax/lint
+        # validation lives in the admin diagnostics endpoint (admin pastes real code).
+        try:
+            from app.agents import code_diagnostics
+
+            if code_diagnostics.enabled():
+                refs = [s["area"]] + grounded_files
+                rdiags = code_diagnostics.check_references(refs)
+                rec["diagnostics"] = rdiags
+                rec["diagnostics_ok"] = not rdiags
+        except Exception:
+            pass
+
         _append(rec)
         proposed.append(rec)
         try:

@@ -188,6 +188,30 @@ async def upgrader_code_search(q: str, k: int = 6, _user=Depends(require_admin))
     }
 
 
+class CodeDiagnosticsIn(BaseModel):
+    code: str
+    paths: list[str] = []  # optional: cited file paths to existence-check
+    lint: bool = True
+
+
+@router.post("/upgrader/diagnostics")
+async def upgrader_diagnostics(body: CodeDiagnosticsIn, _user=Depends(require_admin)):
+    """Static code diagnostics (OpenCode LSP-diagnostics parity) — admin patch-code
+    ko approve karne se PEHLE validate kare: ast syntax (+ ruff lint if available) +
+    referenced-path existence. Read-only, never-raise."""
+    from app.agents import code_diagnostics
+
+    diags = code_diagnostics.check_code(body.code, run_lint=body.lint)
+    if body.paths:
+        diags = list(diags) + code_diagnostics.check_references(body.paths)
+    return {
+        "ok": not any(d.get("level") == "error" for d in diags),
+        "count": len(diags),
+        "summary": code_diagnostics.summary(diags),
+        "diagnostics": diags,
+    }
+
+
 @router.get("/social/channels")
 async def social_channels_list(_user=Depends(require_admin)):
     """Naye customer-approach channels (sab ban-safe drafts)."""
