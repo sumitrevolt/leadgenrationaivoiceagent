@@ -611,6 +611,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     # ends with a yes/no question. Used by vobiz_stream._opening_line().
     # ------------------------------------------------------------------ #
     def opening_line(self) -> str:
+        # Role-specific opener first (receptionist/booking → custom; telecaller → None).
         try:
             from app.voice_agent.voice_roles import build_role_opening
 
@@ -621,6 +622,48 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             )
             if role_opener:
                 return role_opener
+        except Exception:
+            pass
+        # PARITY with vobiz_stream._opening_line_raw() — the phone path already
+        # opens correctly; the web-call path uses THIS method, so it must follow the
+        # SAME chain or every vertical niche opens with the wrong platform pitch
+        # (real-estate/solar/insurance call greeting "Instagram Facebook FREE trial"
+        # = the original "agent noob baat kar rahi" bug).
+        # 1) Platform-pitch niche (ai_marketing) → deterministic 3-part intro seg-0.
+        try:
+            from app.voice_agent.platform_pitch import is_platform_pitch, opening_segments
+
+            if is_platform_pitch(self.niche):
+                segs = opening_segments()
+                if segs:
+                    return segs[0]
+        except Exception:
+            pass
+        # 2) Professional niche-script opening (researched, niche-specific, permission
+        #    based, ends in a yes/no question) — placeholders filled + female-voice align.
+        try:
+            from app.voice_agent.niche_scripts import get_script
+
+            opening = (get_script(self.niche).get("opening") or "").strip()
+            if opening:
+                opening = (
+                    opening.replace("[Company]", self.client_name)
+                    .replace("[Name]", "Swara")
+                    .replace("[Project]", "hamare project")
+                    .replace("[project]", "hamare project")
+                    .replace("raha hoon", "rahi hoon")
+                )
+                return opening
+        except Exception:
+            pass
+        # 3) NICHES pitch_hook template fallback (no LLM/genai — opener stays instant).
+        try:
+            hook = _short_hook(self.pitch_hook)
+            if hook:
+                return (
+                    f"Namaste, main Swara bol rahi hoon {self.client_name} ki taraf se. "
+                    f"Aapke kaam ki ek choti si baat hai — {hook} — kya main tees second me bata doon?"
+                )
         except Exception:
             pass
         from app.voice_agent.universal_pitch import UNIVERSAL_AGENT_INTRO

@@ -123,3 +123,39 @@ def test_fast_path_whatsapp_gate_qualifies_first() -> None:
     assert "whatsapp" in ans.lower()
     assert "leads" in ans.lower() or "content" in ans.lower()
     assert "?" in ans
+
+
+# --------------------------------------------------------------------------- #
+# Opener parity — vertical niches MUST open with their own researched script
+# opening, NOT the ai_marketing platform pitch (the "noob baat kar rahi" bug:
+# web-call used brain.opening_line() which always returned UNIVERSAL_AGENT_INTRO).
+# --------------------------------------------------------------------------- #
+def _opener_brain(niche: str) -> TelecallerBrain:
+    b = _brain(niche)
+    b.voice_role = "telecaller"
+    b.client_name = "Sharma Realty"
+    b.niche_name = niche.replace("_", " ").title()
+    b.pitch_hook = ""
+    return b
+
+
+def test_opening_line_vertical_uses_niche_script_not_platform_pitch() -> None:
+    from app.voice_agent.universal_pitch import UNIVERSAL_AGENT_INTRO
+
+    for niche in ("real_estate", "solar_residential", "insurance"):
+        opener = TelecallerBrain.opening_line(_opener_brain(niche))
+        # Must NOT be the marketing platform pitch.
+        assert opener != UNIVERSAL_AGENT_INTRO, f"{niche} opened with platform pitch"
+        assert "instagram" not in opener.lower(), f"{niche} leaked marketing pitch"
+        assert "free trial" not in opener.lower(), f"{niche} leaked marketing pitch"
+        # Client name placeholder must be filled (no raw [Company]).
+        assert "[" not in opener
+        # Permission-based: ends by asking for the customer's time.
+        assert "?" in opener
+
+
+def test_opening_line_platform_niche_still_pitches_platform() -> None:
+    # ai_marketing IS the platform-selling call — it should still pitch the platform.
+    opener = TelecallerBrain.opening_line(_opener_brain("ai_marketing"))
+    low = opener.lower()
+    assert "leads generation ai" in low or "instagram" in low
