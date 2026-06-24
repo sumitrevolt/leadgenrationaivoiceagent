@@ -105,5 +105,77 @@ def test_search_code_swallows_backend_error(monkeypatch):
             raise RuntimeError("vector store down")
 
     idx = codebase_indexer.CodebaseIndexer()
+    idx._qdrant_index = None
+    monkeypatch.setattr(codebase_indexer.CodebaseIndexer, "_qdrant", lambda self: None)
     idx._vector_store = BoomVS()
     assert asyncio.run(idx.search_code("anything")) == []
+
+
+def test_qdrant_disabled_when_no_url(monkeypatch):
+    """No QDRANT_URL → _qdrant() None → ChromaDB fallback path."""
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "qdrant_url", "", raising=False)
+    idx = codebase_indexer.CodebaseIndexer()
+    assert idx._qdrant() is None
+
+
+def test_qdrant_code_index_normalizes():
+    """QdrantCodeIndex.search_sync must normalize Qdrant points → {file,lines,snippet}."""
+    idx = codebase_indexer.QdrantCodeIndex()
+
+    class FakePoint:
+        def __init__(self, payload, score):
+            self.payload = payload
+            self.score = score
+
+    class FakeRes:
+        points = [
+            FakePoint(
+                {
+                    "file_path": "app/foo.py",
+                    "start_line": 10,
+                    "end_line": 20,
+                    "content": "def foo():\n    return 1",
+                    "language": "python",
+                    "agent_domain": "platform",
+                },
+                0.91,
+            )
+        ]
+
+    class FakeClient:
+        def query_points(self, **k):
+            return FakeRes()
+
+    class FakeEmb:
+        def embed(self, texts):
+            return iter([[0.1, 0.2, 0.3]])
+
+    # bypass real Qdrant/embedder setup
+    idx._ready = True
+    idx._client = FakeClient()
+    idx._embedder = FakeEmb()
+    rows = idx.search_sync("foo helper", limit=3)
+    assert rows and rows[0]["file"] == "app/foo.py"
+    assert rows[0]["start_line"] == 10 and rows[0]["end_line"] == 20
+    assert "def foo" in rows[0]["snippet"]
+    assert rows[0]["language"] == "python" and rows[0]["domain"] == "platform"
+
+
+def test_qdrant_code_index_never_raises():
+    """search_sync on a broken client → [] (never raises)."""
+    idx = codebase_indexer.QdrantCodeIndex()
+    idx._ready = True
+
+    class BoomClient:
+        def query_points(self, **k):
+            raise RuntimeError("qdrant down")
+
+    class FakeEmb:
+        def embed(self, texts):
+            return iter([[0.1]])
+
+    idx._client = BoomClient()
+    idx._embedder = FakeEmb()
+    assert idx.search_sync("x") == []

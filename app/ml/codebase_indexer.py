@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import re
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -107,6 +108,141 @@ LANGUAGE_MAP = {
 _LOC_RE = re.compile(r"Code from (.+?) lines (\d+)-(\d+)")
 
 
+class QdrantCodeIndex:
+    """Qdrant + fastembed code index — project ke PROD vector-stack ko reuse karta
+    (`app.voice_agent.knowledge_base` ka embedder + client). Alag collection
+    `code_index` (business KB `kb_main` ko KABHI touch nahi). e5 prefixes
+    (`passage:`/`query:`), deterministic point-ids (re-index = overwrite, dupes nahi).
+    never-raise.
+
+    Kyun: `VectorStore` (ChromaDB + sentence-transformers) prod container me INSTALLED
+    NAHI → mock-store → code_search hamesha []. fastembed (241M baked) + Qdrant
+    (127.0.0.1:6333) prod me LIVE hain — yeh unpe chalta, isliye code-search prod me
+    actually kaam karta.
+    """
+
+    _COLLECTION = "code_index"
+    _UUID_NS = uuid.UUID("c0de1dec-0000-4000-8000-000000000001")
+
+    def __init__(self) -> None:
+        self._client = None
+        self._embedder = None
+        self._dim = 0
+        self._ready = False
+
+    def _setup(self):
+        """Lazy: embedder + client + collection ensure. Qdrant/embedder unavailable
+        ho to raise karta (caller fallback pe chala jaata)."""
+        if self._ready:
+            return
+        from app.voice_agent import knowledge_base as kb
+
+        embedder = kb._get_qdrant_embedder()  # daemon-thread load + hard timeout; raises if disabled
+        client = kb._get_qdrant_client()
+        dim = int(getattr(kb, "_QDRANT_VECTOR_SIZE", 0) or 0)
+        if dim <= 0:
+            dim = len(list(embedder.embed(["x"]))[0])
+        from qdrant_client import models as qmodels
+
+        try:
+            if not client.collection_exists(self._COLLECTION):
+                client.create_collection(
+                    collection_name=self._COLLECTION,
+                    vectors_config=qmodels.VectorParams(size=dim, distance=qmodels.Distance.COSINE),
+                )
+                for f in ("agent_domain", "language"):
+                    try:
+                        client.create_payload_index(
+                            collection_name=self._COLLECTION,
+                            field_name=f,
+                            field_schema=qmodels.PayloadSchemaType.KEYWORD,
+                        )
+                    except Exception:
+                        pass
+        except Exception as e:  # collection race / transient — search still works
+            logger.debug(f"code_index collection ensure: {e}")
+        self._client, self._embedder, self._dim, self._ready = client, embedder, dim, True
+
+    def _embed(self, text: str) -> list[float]:
+        return [float(x) for x in next(iter(self._embedder.embed([text])))]
+
+    def add_chunks(self, chunks) -> int:
+        """SYNC bulk upsert (caller `asyncio.to_thread` me wrap kare). never-raise.
+        Idempotent ids → re-index overwrite karta, duplicate nahi."""
+        try:
+            self._setup()
+            from qdrant_client import models as qmodels
+
+            pts = []
+            for c in chunks:
+                cid = f"{c.file_path}:{c.chunk_index}"
+                pts.append(
+                    qmodels.PointStruct(
+                        id=str(uuid.uuid5(self._UUID_NS, cid)),
+                        vector=self._embed(f"passage: {c.content}"),
+                        payload={
+                            "file_path": c.file_path,
+                            "chunk_index": c.chunk_index,
+                            "start_line": c.start_line,
+                            "end_line": c.end_line,
+                            "language": c.language,
+                            "agent_domain": c.agent_domain,
+                            "content": c.content[:5000],
+                        },
+                    )
+                )
+            if pts:
+                self._client.upsert(collection_name=self._COLLECTION, points=pts)
+            return len(pts)
+        except Exception as e:
+            logger.debug(f"QdrantCodeIndex.add_chunks failed: {e}")
+            return 0
+
+    def search_sync(self, query: str, agent_domain=None, language=None, limit: int = 10) -> list[dict]:
+        """SYNC search (caller `to_thread` + timeout me wrap kare). never-raise."""
+        try:
+            self._setup()
+            from qdrant_client import models as qmodels
+
+            must = []
+            if agent_domain:
+                must.append(
+                    qmodels.FieldCondition(key="agent_domain", match=qmodels.MatchValue(value=agent_domain))
+                )
+            if language:
+                must.append(
+                    qmodels.FieldCondition(key="language", match=qmodels.MatchValue(value=language))
+                )
+            res = self._client.query_points(
+                collection_name=self._COLLECTION,
+                query=self._embed(f"query: {query}"),
+                query_filter=qmodels.Filter(must=must) if must else None,
+                limit=max(1, int(limit or 10)),
+                with_payload=True,
+            )
+            out: list[dict] = []
+            for p in getattr(res, "points", None) or []:
+                pl = getattr(p, "payload", None) or {}
+                fp = str(pl.get("file_path", "") or "")
+                if not fp:
+                    continue
+                out.append(
+                    {
+                        "file": fp,
+                        "start_line": int(pl.get("start_line", 0) or 0),
+                        "end_line": int(pl.get("end_line", 0) or 0),
+                        "score": round(float(getattr(p, "score", 0.0) or 0.0), 4),
+                        "snippet": str(pl.get("content", "") or "")[:1200],
+                        "language": str(pl.get("language", "") or ""),
+                        "domain": str(pl.get("agent_domain", "") or ""),
+                    }
+                )
+            return out
+        except Exception as e:
+            logger.debug(f"QdrantCodeIndex.search failed: {e}")
+            return []
+
+
 class CodebaseIndexer:
     """
     Indexes the project codebase for agent RAG
@@ -130,6 +266,7 @@ class CodebaseIndexer:
         self.chunk_overlap = chunk_overlap
 
         self._vector_store = vector_store
+        self._qdrant_index = None  # prod stack (fastembed+Qdrant); None → ChromaDB fallback
 
         # Track indexed files (path -> hash)
         self.index_cache: dict[str, str] = {}
@@ -140,12 +277,25 @@ class CodebaseIndexer:
 
     @property
     def vector_store(self) -> VectorStore:
-        """Lazy load vector store"""
+        """Lazy load vector store (ChromaDB — local-dev / fallback)."""
         if self._vector_store is None:
             self._vector_store = VectorStore(
                 persist_directory="data/agent_vectorstore", collection_name="code_patterns"
             )
         return self._vector_store
+
+    def _qdrant(self):
+        """Prod code-index (fastembed+Qdrant) jab QDRANT_URL set ho; warna None
+        (ChromaDB fallback). Cached. never-raise."""
+        if self._qdrant_index is None:
+            try:
+                from app.config import settings
+
+                if (getattr(settings, "qdrant_url", "") or "").strip():
+                    self._qdrant_index = QdrantCodeIndex()
+            except Exception:
+                self._qdrant_index = None
+        return self._qdrant_index
 
     def _load_cache(self):
         """Load index cache from disk"""
@@ -346,29 +496,36 @@ class CodebaseIndexer:
             content = file_path.read_text(encoding="utf-8", errors="ignore")
             chunks = self._chunk_file(file_path, content)
 
-            for chunk in chunks:
-                # Create unique ID for chunk
-                chunk_id = f"{chunk.file_path}:{chunk.chunk_index}"
+            # PROD path: fastembed+Qdrant (off-loop). Embedding CPU-bound hai isliye
+            # to_thread — event loop block na ho.
+            qi = self._qdrant()
+            indexed_q = 0
+            if qi is not None and chunks:
+                indexed_q = await asyncio.to_thread(qi.add_chunks, chunks)
 
-                await self.vector_store.add_conversation(
-                    conversation_id=chunk_id,
-                    user_message=f"Code from {chunk.file_path} lines {chunk.start_line}-{chunk.end_line}",
-                    agent_response=chunk.content,
-                    outcome="indexed",
-                    industry=chunk.agent_domain,
-                    language=chunk.language,
-                    tenant_id="codebase",
-                    intent="code_pattern",
-                    metadata={
-                        "file_path": chunk.file_path,
-                        "chunk_index": chunk.chunk_index,
-                        "start_line": chunk.start_line,
-                        "end_line": chunk.end_line,
-                        "functions": chunk.functions[:10],
-                        "classes": chunk.classes[:5],
-                        "file_type": chunk.file_type,
-                    },
-                )
+            # ChromaDB fallback (local-dev) — Qdrant unset YA Qdrant add fail hua to.
+            if qi is None or (chunks and indexed_q == 0):
+                for chunk in chunks:
+                    chunk_id = f"{chunk.file_path}:{chunk.chunk_index}"
+                    await self.vector_store.add_conversation(
+                        conversation_id=chunk_id,
+                        user_message=f"Code from {chunk.file_path} lines {chunk.start_line}-{chunk.end_line}",
+                        agent_response=chunk.content,
+                        outcome="indexed",
+                        industry=chunk.agent_domain,
+                        language=chunk.language,
+                        tenant_id="codebase",
+                        intent="code_pattern",
+                        metadata={
+                            "file_path": chunk.file_path,
+                            "chunk_index": chunk.chunk_index,
+                            "start_line": chunk.start_line,
+                            "end_line": chunk.end_line,
+                            "functions": chunk.functions[:10],
+                            "classes": chunk.classes[:5],
+                            "file_type": chunk.file_type,
+                        },
+                    )
 
             # Update cache
             rel_path = str(file_path.relative_to(self.project_root))
@@ -445,6 +602,21 @@ class CodebaseIndexer:
             List of {file, start_line, end_line, score, snippet, language, domain}.
             Empty list on any error / empty index (never raises).
         """
+        # PROD path first: fastembed+Qdrant (off-loop + bounded). Hits mile → return;
+        # warna ChromaDB fallback (local-dev). Prod me ChromaDB mock → [] anyway.
+        qi = self._qdrant()
+        if qi is not None:
+            try:
+                hits = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        qi.search_sync, query, agent_domain, language, max(1, int(limit or 10))
+                    ),
+                    timeout=12,
+                )
+                if hits:
+                    return hits
+            except Exception as e:  # qdrant down / slow → graceful fallback
+                logger.debug(f"qdrant code search fallback: {e}")
         try:
             # Chunks are stored via VectorStore.add_conversation with
             # industry=agent_domain, language=<lang>, user_message="Code from <file>
