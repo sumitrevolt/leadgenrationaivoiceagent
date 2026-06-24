@@ -1053,6 +1053,23 @@ async def run_once() -> dict[str, Any]:
         "at": _now().isoformat(),
     }
     _append(_RUNS, rec)
+    # Trajectory record (Ruflo SONA / training-export #13) — gated TRAJECTORY_LEARN,
+    # never-raise, low-volume (~max_per_day lines). Feeds trajectory.best_trajectories
+    # + export_dataset with REAL run data. Replay-into-loop is a deliberate follow-up
+    # (modifies _execute → risky in the main autonomous loop, kept out for now).
+    try:
+        from app.agents import trajectory
+
+        if trajectory.enabled():
+            trajectory.record_trajectory(
+                action=action,
+                steps=[{"task": str(picked.get("task", ""))[:200], "detail": rec["detail"]}],
+                outcome="ok" if rec["ok"] else "fail",
+                reward=float(rec["outcome_value"]),
+                meta={"source": rec["source"], "ms": rec["ms"], "cost": rec["cost"]},
+            )
+    except Exception:
+        pass
     _heartbeat({"runs_today": runs_today + 1, "last_action": action, "status": "ok"})
     # Obsidian — append self-improve run to Sessions/ (INERT if OBSIDIAN_SYNC unset).
     try:
