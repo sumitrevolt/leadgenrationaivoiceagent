@@ -46,6 +46,10 @@ _DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
 _SRE_FLAG = "SRE_AGENT"
 _FINOPS_FLAG = "FINOPS_AGENT"
 _SECURITY_FLAG = "SECURITY_AGENT"
+# 2026-06-25 council-added engineer agents (genuinely-uncovered loops, not duplicates):
+_DBRE_FLAG = "DBRE_AGENT"  # Kabir — Postgres reliability (slow-queries/indices/connections)
+_DEPS_FLAG = "DEPS_AGENT"  # Aryan — dependency/supply-chain CVE audit (proposal-only)
+_DATA_INTEGRITY_FLAG = "DATA_INTEGRITY_AGENT"  # Diya — lead/CRM data integrity (report-only)
 
 
 # --------------------------------------------------------------------------- #
@@ -396,12 +400,337 @@ def run_security() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# Kabir — DB Reliability Engineer (council 2026-06-25)
+#   Fills Pranav's blind spot: Pranav watches backup/heartbeat/capacity, NOT
+#   Postgres query-health. As lead/call data scales, slow queries + unused/
+#   bloating indices are the silent killer. STRICTLY read-only (pg catalog
+#   views only); SQLite rollback-mode / unreachable DB -> neutral, never fails.
+# --------------------------------------------------------------------------- #
+def run_dbre() -> dict[str, Any]:
+    if not _flag_on(_DBRE_FLAG):
+        return _disabled_result("dbre", _DBRE_FLAG)
+
+    kpis: dict[str, Any] = {}
+    actions: list[str] = []
+    sub_scores: list[float] = []
+
+    try:
+        from sqlalchemy import text
+
+        from app.models.base import get_db_session
+
+        with get_db_session() as db:
+            try:
+                dialect = db.get_bind().dialect.name
+            except Exception:
+                dialect = ""
+            kpis["db_dialect"] = dialect or "unknown"
+
+            if dialect != "postgresql":
+                # SQLite rollback-backup mode (or unknown) — pg health N/A, not a failure.
+                return {
+                    "role": "dbre",
+                    "agent": "kabir",
+                    "score": None,
+                    "status": "ok",
+                    "summary": f"DB is '{dialect or 'unknown'}' not Postgres — pg health checks skipped",
+                    "kpis": kpis,
+                    "actions": ["pg reliability checks apply only to the Postgres prod DB"],
+                    "ts": int(time.time()),
+                }
+
+            # 1) Active connections (PgBouncer fronts Postgres; watch backend count).
+            try:
+                conns = int(db.execute(text("SELECT count(*) FROM pg_stat_activity")).scalar() or 0)
+                kpis["active_connections"] = conns
+                if conns < 80:
+                    sub_scores.append(100.0)
+                elif conns < 150:
+                    sub_scores.append(60.0)
+                    actions.append(f"{conns} DB connections — watch PgBouncer pool sizing")
+                else:
+                    sub_scores.append(20.0)
+                    actions.append(f"HIGH connection count ({conns}) — risk of pool exhaustion")
+            except Exception:
+                sub_scores.append(50.0)
+
+            # 2) Unused indices (idx_scan=0) — write-amplification + bloat as data grows.
+            try:
+                unused = int(
+                    db.execute(
+                        text("SELECT count(*) FROM pg_stat_user_indexes WHERE idx_scan = 0")
+                    ).scalar()
+                    or 0
+                )
+                kpis["unused_indexes"] = unused
+                if unused <= 5:
+                    sub_scores.append(100.0)
+                elif unused <= 20:
+                    sub_scores.append(70.0)
+                    actions.append(f"{unused} never-scanned indexes — review for DROP")
+                else:
+                    sub_scores.append(40.0)
+                    actions.append(f"{unused} unused indexes bloating writes — audit + DROP candidates")
+            except Exception:
+                sub_scores.append(50.0)
+
+            # 3) Slow queries via pg_stat_statements (extension may be absent → neutral).
+            try:
+                slow = int(
+                    db.execute(
+                        text("SELECT count(*) FROM pg_stat_statements WHERE mean_exec_time > 1000")
+                    ).scalar()
+                    or 0
+                )
+                kpis["slow_queries_gt_1s"] = slow
+                if slow == 0:
+                    sub_scores.append(100.0)
+                elif slow <= 5:
+                    sub_scores.append(60.0)
+                    actions.append(f"{slow} query patterns avg >1s — add indexes / optimize")
+                else:
+                    sub_scores.append(20.0)
+                    actions.append(f"{slow} slow query patterns (>1s avg) — investigate top offenders")
+            except Exception:
+                kpis["slow_queries_gt_1s"] = None
+                actions.append(
+                    "pg_stat_statements not enabled — CREATE EXTENSION for slow-query visibility"
+                )
+
+            # 4) DB size (informational trend).
+            try:
+                size = int(
+                    db.execute(text("SELECT pg_database_size(current_database())")).scalar() or 0
+                )
+                kpis["db_size_mb"] = round(size / (1024.0 * 1024.0), 1)
+            except Exception:
+                pass
+    except Exception:
+        # DB unconfigured / unreachable — fail-open neutral (absent != failing).
+        return {
+            "role": "dbre",
+            "agent": "kabir",
+            "score": None,
+            "status": "ok",
+            "summary": "DB health unavailable (database not reachable from this process)",
+            "kpis": kpis,
+            "actions": ["Verify DATABASE_URL + Postgres reachable for DB reliability checks"],
+            "ts": int(time.time()),
+        }
+
+    score = _clamp(sum(sub_scores) / len(sub_scores)) if sub_scores else None
+    result = {
+        "role": "dbre",
+        "agent": "kabir",
+        "score": round(score, 1) if score is not None else None,
+        "status": "ok",
+        "summary": (
+            f"DB reliability {score:.0f}/100 · {kpis.get('active_connections', '?')} conns · "
+            f"{kpis.get('unused_indexes', '?')} unused idx"
+            if score is not None
+            else "no DB signals"
+        ),
+        "kpis": kpis,
+        "actions": actions,
+        "ts": int(time.time()),
+    }
+    _try_log("kabir", "db_health", json.dumps({"score": score, "conns": kpis.get("active_connections")}))
+    _maybe_alert(result)
+    return result
+
+
+# --------------------------------------------------------------------------- #
+# Aryan — Dependency / Supply-chain Engineer (council 2026-06-25)
+#   Distinct from Arnav (secrets/compliance posture): Aryan owns PACKAGE
+#   vulnerabilities. Runs pip-audit READ-ONLY (audits installed pkgs, never
+#   installs/upgrades). Proposal-only output. pip-audit absent -> neutral +
+#   action (loop ready; full activation = add pip-audit to image).
+# --------------------------------------------------------------------------- #
+def run_deps() -> dict[str, Any]:
+    if not _flag_on(_DEPS_FLAG):
+        return _disabled_result("deps", _DEPS_FLAG)
+
+    kpis: dict[str, Any] = {}
+    actions: list[str] = []
+    sub_scores: list[float] = []
+
+    # 1) Lock-file presence (supply-chain pinning hygiene).
+    lock = Path("requirements.lock.txt")
+    age = _file_age_hours(lock)
+    if age is None:
+        age = _file_age_hours(Path("requirements.txt"))
+    if age is None:
+        kpis["lock_age_days"] = None
+        sub_scores.append(50.0)
+        actions.append("No requirements lock/txt found — pin dependencies for reproducible builds")
+    else:
+        kpis["lock_age_days"] = round(age / 24.0, 1)
+        sub_scores.append(100.0)  # presence is good; staleness alone is not a failure
+
+    # 2) Known CVEs via pip-audit (read-only subprocess; bounded; fail-open).
+    try:
+        import subprocess
+        import sys
+
+        proc = subprocess.run(
+            [sys.executable, "-m", "pip_audit", "-f", "json", "--progress-spinner=off"],
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+        out = (proc.stdout or "").strip()
+        data = json.loads(out)  # raises if pip-audit absent / no JSON → caught below
+        deps = data.get("dependencies", data) if isinstance(data, dict) else data
+        vulns = sum(len(d.get("vulns") or []) for d in (deps or []) if isinstance(d, dict))
+        kpis["known_vulnerabilities"] = vulns
+        if vulns == 0:
+            sub_scores.append(100.0)
+        elif vulns <= 3:
+            sub_scores.append(60.0)
+            actions.append(f"{vulns} dependency CVEs — review pip-audit, plan upgrades (never auto)")
+        else:
+            sub_scores.append(20.0)
+            actions.append(f"{vulns} dependency CVEs — prioritize upgrades (proposal-only)")
+    except Exception:
+        kpis["known_vulnerabilities"] = None
+        actions.append("pip-audit unavailable — add 'pip-audit' to image for CVE scanning")
+
+    score = _clamp(sum(sub_scores) / len(sub_scores)) if sub_scores else None
+    result = {
+        "role": "deps",
+        "agent": "aryan",
+        "score": round(score, 1) if score is not None else None,
+        "status": "ok",
+        "summary": (
+            f"Supply-chain {score:.0f}/100 · CVEs: {kpis.get('known_vulnerabilities', 'n/a')}"
+            if score is not None
+            else "no dependency signals"
+        ),
+        "kpis": kpis,
+        "actions": actions,
+        "ts": int(time.time()),
+    }
+    _try_log("aryan", "dep_audit", json.dumps({"score": score, "vulns": kpis.get("known_vulnerabilities")}))
+    _maybe_alert(result)
+    return result
+
+
+# --------------------------------------------------------------------------- #
+# Diya — Data-Integrity Engineer (council 2026-06-25)
+#   Revenue-adjacent: dupe/incomplete leads = wasted outreach + bad CRM = churn.
+#   Scans the prospect store READ-ONLY and REPORTS (never deletes; dedupe stays
+#   a human-approved admin action). Empty store -> neutral.
+# --------------------------------------------------------------------------- #
+def run_dataquality() -> dict[str, Any]:
+    if not _flag_on(_DATA_INTEGRITY_FLAG):
+        return _disabled_result("dataquality", _DATA_INTEGRITY_FLAG)
+
+    kpis: dict[str, Any] = {}
+    actions: list[str] = []
+    sub_scores: list[float] = []
+
+    total = 0
+    missing = 0
+    dup_phone = 0
+    dup_email = 0
+    seen_phone: set[str] = set()
+    seen_email: set[str] = set()
+    prospects = _DATA_DIR / "prospects.jsonl"
+    try:
+        if prospects.exists():
+            for line in prospects.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                total += 1
+                ph = str(rec.get("phone") or "").strip()
+                em = str(rec.get("email") or "").strip().lower()
+                if not ph and not em:
+                    missing += 1
+                if ph:
+                    if ph in seen_phone:
+                        dup_phone += 1
+                    else:
+                        seen_phone.add(ph)
+                if em:
+                    if em in seen_email:
+                        dup_email += 1
+                    else:
+                        seen_email.add(em)
+    except Exception:
+        pass
+
+    kpis["total_prospects"] = total
+    kpis["duplicate_phone"] = dup_phone
+    kpis["duplicate_email"] = dup_email
+    kpis["missing_contact"] = missing
+
+    if total == 0:
+        return {
+            "role": "dataquality",
+            "agent": "diya",
+            "score": None,
+            "status": "ok",
+            "summary": "No prospects yet — data-integrity scan idle",
+            "kpis": kpis,
+            "actions": [],
+            "ts": int(time.time()),
+        }
+
+    dupes = dup_phone + dup_email
+    dup_ratio = dupes / total
+    miss_ratio = missing / total
+
+    if dup_ratio < 0.02:
+        sub_scores.append(100.0)
+    elif dup_ratio < 0.10:
+        sub_scores.append(70.0)
+        actions.append(f"{dupes} duplicate leads ({dup_ratio*100:.0f}%) — review dedupe (report-only)")
+    else:
+        sub_scores.append(30.0)
+        actions.append(f"{dupes} duplicate leads ({dup_ratio*100:.0f}%) — high dup rate, dedupe recommended")
+
+    if miss_ratio < 0.05:
+        sub_scores.append(100.0)
+    elif miss_ratio < 0.20:
+        sub_scores.append(70.0)
+        actions.append(f"{missing} leads missing phone+email — enrich before outreach")
+    else:
+        sub_scores.append(40.0)
+        actions.append(f"{missing} leads ({miss_ratio*100:.0f}%) have no contact — enrichment needed")
+
+    score = _clamp(sum(sub_scores) / len(sub_scores)) if sub_scores else None
+    result = {
+        "role": "dataquality",
+        "agent": "diya",
+        "score": round(score, 1) if score is not None else None,
+        "status": "ok",
+        "summary": (
+            f"Data integrity {score:.0f}/100 · {total} leads · {dupes} dupes · {missing} no-contact"
+        ),
+        "kpis": kpis,
+        "actions": actions,
+        "ts": int(time.time()),
+    }
+    _try_log("diya", "data_integrity", json.dumps({"score": score, "total": total, "dupes": dupes}))
+    _maybe_alert(result)
+    return result
+
+
+# --------------------------------------------------------------------------- #
 # Public dispatch
 # --------------------------------------------------------------------------- #
 _AGENTS = {
     "sre": run_sre,
     "finops": run_finops,
     "security": run_security,
+    "dbre": run_dbre,
+    "deps": run_deps,
+    "dataquality": run_dataquality,
 }
 
 
@@ -426,4 +755,13 @@ def run_all() -> dict[str, dict[str, Any]]:
     return {role: fn() for role, fn in _AGENTS.items()}
 
 
-__all__ = ["run", "run_all", "run_sre", "run_finops", "run_security"]
+__all__ = [
+    "run",
+    "run_all",
+    "run_sre",
+    "run_finops",
+    "run_security",
+    "run_dbre",
+    "run_deps",
+    "run_dataquality",
+]

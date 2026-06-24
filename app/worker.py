@@ -395,6 +395,22 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=9, minute=30),
         "args": ("engineer_security",),
     },
+    # council 2026-06-25 — 3 new engineer agents (gated INERT in run_X())
+    "staff-engineer-dbre-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=10, minute=0),
+        "args": ("engineer_dbre",),
+    },
+    "staff-engineer-dataquality-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=10, minute=30),
+        "args": ("engineer_dataquality",),
+    },
+    "staff-engineer-deps-weekly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(day_of_week="sun", hour=4, minute=30),
+        "args": ("engineer_deps",),
+    },
     "staff-readiness-digest-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=8, minute=30),

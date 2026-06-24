@@ -113,6 +113,9 @@ _last_ran: dict[str, str | None] = {
     "engineer_sre": None,  # hourly: Pranav reliability score
     "engineer_finops": None,  # daily: Vidya margin score
     "engineer_security": None,  # daily: Arnav compliance posture
+    "engineer_dbre": None,  # daily 10:00: Kabir Postgres reliability (gated DBRE_AGENT)
+    "engineer_dataquality": None,  # daily 10:30: Diya lead/CRM integrity (gated DATA_INTEGRITY_AGENT)
+    "engineer_deps": None,  # weekly Sun 04:30: Aryan dependency CVE audit (gated DEPS_AGENT)
     "readiness_digest": None,  # G.3: daily activation-readiness ntfy digest (OPS_ALERTS gated)
     "pipeline": None,  # daily: lead rescore + hot-lead surfacing (Neha/Rohan)
     "email_followup": None,  # daily afternoon: Day-3/7 followups only
@@ -582,6 +585,24 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import engineer_agents
 
             engineer_agents.run_security()
+        elif job == "engineer_dbre":
+            # council: Kabir DB reliability. INERT until DBRE_AGENT=1 (engine
+            # returns "disabled" result so this never blocks the loop).
+            from app.platform import engineer_agents
+
+            engineer_agents.run_dbre()
+        elif job == "engineer_dataquality":
+            # council: Diya lead/CRM data integrity (report-only). INERT until
+            # DATA_INTEGRITY_AGENT=1.
+            from app.platform import engineer_agents
+
+            engineer_agents.run_dataquality()
+        elif job == "engineer_deps":
+            # council: Aryan dependency/supply-chain CVE audit (proposal-only).
+            # INERT until DEPS_AGENT=1.
+            from app.platform import engineer_agents
+
+            engineer_agents.run_deps()
         elif job == "readiness_digest":
             # G.3: daily activation-readiness digest. INERT until OPS_ALERTS=1 +
             # ntfy creds set; ops_alerts.daily_readiness_digest itself is the
@@ -878,6 +899,22 @@ async def scheduler_loop() -> None:
             if (9, 30) <= hm < (10, 30) and _last_ran["engineer_security"] != day_key:
                 _last_ran["engineer_security"] = day_key
                 await _run_job("engineer_security")
+            # council: Kabir DB reliability — daily 10:00 (engine INERT unless DBRE_AGENT=1).
+            if (10, 0) <= hm < (11, 0) and _last_ran.get("engineer_dbre") != day_key:
+                _last_ran["engineer_dbre"] = day_key
+                await _run_job("engineer_dbre")
+            # council: Diya lead/CRM data integrity — daily 10:30 (engine INERT unless DATA_INTEGRITY_AGENT=1).
+            if (10, 30) <= hm < (11, 30) and _last_ran.get("engineer_dataquality") != day_key:
+                _last_ran["engineer_dataquality"] = day_key
+                await _run_job("engineer_dataquality")
+            # council: Aryan dependency CVE audit — weekly Sun 04:30 (engine INERT unless DEPS_AGENT=1).
+            if (
+                now.weekday() == 6
+                and (4, 30) <= hm < (5, 0)
+                and _last_ran.get("engineer_deps") != week_key
+            ):
+                _last_ran["engineer_deps"] = week_key
+                await _run_job("engineer_deps")
             # G.3 daily activation-readiness digest — quiet ntfy unless BLOCKER present.
             if (8, 30) <= hm < (9, 30) and _last_ran["readiness_digest"] != day_key:
                 _last_ran["readiness_digest"] = day_key
