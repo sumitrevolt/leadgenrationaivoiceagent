@@ -31,10 +31,31 @@ logger = setup_logger(__name__)
 _OUTPUT_CAP = 4000  # stdout/stderr truncate (response bloat + log safety)
 _MAX_TIMEOUT_S = 120  # absolute ceiling (caller timeout_s isse upar nahi ja sakta)
 
+# Identities that may run code WITHOUT an explicit permission grant. The /exec
+# endpoint is require_super_admin (a human), so it passes "super_admin". Any NAMED
+# automation agent (isha/rohan/vikram/...) is NOT trusted → must be explicitly
+# allowed in the agent_permissions matrix (execute_code = HIGH_RISK, unset = deny).
+_TRUSTED = {"super_admin", "system"}
+
 
 def enabled() -> bool:
     """HARD GATE — default OFF. Bina iske execute() inert (kuch run nahi hota)."""
     return (os.getenv("CODE_EXEC") or "").strip().lower() in ("1", "true", "yes")
+
+
+def _permitted(agent: str) -> bool:
+    """Defense-in-depth: trusted human identity always OK; named automation agents
+    must hold `execute_code` permission (AGENT_PERMISSIONS). Fail-SAFE (deny on error)
+    because this gates arbitrary code execution."""
+    a = (agent or "super_admin").strip().lower()
+    if a in _TRUSTED:
+        return True
+    try:
+        from app.agents import agent_permissions
+
+        return bool(agent_permissions.can(a, "execute_code"))
+    except Exception:
+        return False  # RCE gate → unknown = deny
 
 
 def _trunc(b: bytes | None) -> str:
@@ -45,15 +66,22 @@ def _trunc(b: bytes | None) -> str:
     return s[:_OUTPUT_CAP]
 
 
-async def execute(script: str, timeout_s: int = 20) -> dict[str, Any]:
+async def execute(script: str, timeout_s: int = 20, agent: str = "super_admin") -> dict[str, Any]:
     """Python `script` ko ek isolated guarded subprocess me chalao.
 
-    GATED: agar enabled() False → {"ok":False,"error":"disabled","hint":"set CODE_EXEC=1"}
-    BINA kuch run kiye (no spawn). Yeh true sandbox nahi — guarded subprocess only
-    (super-admin + flag). Returns {ok, stdout, stderr, returncode, timed_out}.
+    GATED (2 layers, dono pass hone par hi run hota):
+      1. enabled() False → {"ok":False,"error":"disabled"} (no spawn).
+      2. _permitted(agent) False → {"ok":False,"error":"permission_denied"} (no spawn) —
+         defense-in-depth so koi automation-agent RCE self-trigger na kare; sirf trusted
+         human (super_admin) ya explicitly-granted agent. AGENT_PERMISSIONS se enforce.
+    Yeh true sandbox nahi — guarded subprocess only. Returns {ok, stdout, stderr, ...}.
     """
     if not enabled():
         return {"ok": False, "error": "disabled", "hint": "set CODE_EXEC=1"}
+
+    if not _permitted(agent):
+        logger.warning("code_exec blocked: agent=%s lacks execute_code permission", agent)
+        return {"ok": False, "error": "permission_denied", "agent": (agent or "").strip().lower()}
 
     script = script or ""
     try:
