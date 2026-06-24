@@ -791,6 +791,12 @@ a{color:var(--acc)}
     <div id="agRosterOut" class="mut" style="margin-top:8px">Load ho raha...</div>
   </div>
   <div class="card">
+    <h2>🔧 Engineer Agents — live scores</h2>
+    <div class="mut">6 platform engineer agents (Pranav SRE · Vidya FinOps · Arnav Security · Kabir DB · Aryan Deps · Diya Data-integrity). Har ek 0-100 score + KPIs + fix-actions deta. Flag-gated — OFF wale "disabled" dikhayenge. <span class="warn">Read-only; "Run now" sirf score recompute karta (koi side-effect nahi).</span></div>
+    <button class="btn2" id="engBtn" onclick="engLoad()">📊 Scores load karo</button>
+    <div id="engOut" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
     <h2>🎯 Goal assign karo (multi-agent)</h2>
     <div class="mut">Boss goal ko sub-tasks me todta → staff agents ko assign → chalata. Default = sirf DRAFTS (side-effect nahi); Execute = agents ke SAFE real tools (isha post, dev hashtags, ops/qa).</div>
     <label>Goal (Hinglish chalega)</label><textarea id="agGoal" placeholder="Pune solar se 10 leads + ek content pack"></textarea>
@@ -1159,6 +1165,36 @@ function show(tab){
 /* generic renderers */
 function jpre(d){return '<pre>'+esc(JSON.stringify(d,null,2))+'</pre>'}
 function pills(d){var h='';Object.keys(d||{}).forEach(function(k){var v=d[k];if(typeof v==='number'||typeof v==='string'||typeof v==='boolean'){h+='<span class="pill">'+esc(k)+': <b>'+esc(v)+'</b></span> '}});return h}
+/* engineer-agent score cards (GET /api/engineer-agents/all) */
+function engBadge(s){
+  if(s===null||s===undefined) return '<span class="pill" style="opacity:.6">score: n/a</span>';
+  var c=s>=80?'#1faa59':(s>=50?'#c98a00':'#c0392b');
+  return '<span class="pill" style="background:'+c+';color:#fff">score: <b>'+esc(s)+'</b>/100</span>';
+}
+function engCard(role,d){
+  d=d||{};
+  var h='<div class="card" style="margin-top:8px"><h3 style="margin:.2em 0">'+esc(d.agent||role)+' · '+esc(role)+' '+engBadge(d.score)+'</h3>';
+  h+='<div class="mut">'+esc(d.summary||'')+'</div>';
+  if(d.status!=='disabled'){
+    if(d.kpis) h+='<div style="margin-top:6px">'+pills(d.kpis)+'</div>';
+    if(d.actions&&d.actions.length) h+='<ul style="margin:6px 0 4px">'+d.actions.map(function(a){return '<li class="warn">'+esc(a)+'</li>'}).join('')+'</ul>';
+  }
+  h+='<button class="btn2" onclick="engRun('+esc(JSON.stringify(role))+')">▶️ Run now</button></div>';
+  return h;
+}
+async function engLoad(){
+  busy('engBtn',true,'⏳ load...');
+  try{
+    var d=await api('/api/engineer-agents/all');
+    var h='';Object.keys(d||{}).forEach(function(role){h+=engCard(role,d[role])});
+    $('engOut').innerHTML=h||'<div class="mut">koi engineer agent nahi</div>';
+  }catch(e){$('engOut').innerHTML='<div class="warn">'+esc(e.message)+'</div>'}
+  busy('engBtn',false);
+}
+async function engRun(role){
+  try{await api('/api/engineer-agents/'+encodeURIComponent(role)+'/run',{method:'POST'});toast(role+' recomputed ✅');engLoad();}
+  catch(e){toast(e.message,false)}
+}
 function draftBlocks(d,depth){
   depth=depth||0;var h='';
   Object.keys(d||{}).forEach(function(k){

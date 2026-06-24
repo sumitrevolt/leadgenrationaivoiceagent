@@ -13,16 +13,19 @@ from app.platform import engineer_agents as ea
 
 router = APIRouter(prefix="/api/engineer-agents", tags=["Infrastructure"])
 
-_VALID = {"sre", "finops", "security"}
+# Drift-proof: derive from the module's agent registry so new engineer agents
+# (council 2026-06-25: dbre/deps/dataquality) are auto-recognized by the per-role
+# endpoints — earlier this hardcoded only sre/finops/security and 422'd the rest.
+_VALID = set(ea.roles())
 
 
 @router.get("/all")
 async def run_all(_user=Depends(require_admin)) -> dict:
-    """Dashboard rollup — score + KPIs + actions for all three engineer agents."""
+    """Dashboard rollup — score + KPIs + actions for all engineer agents."""
     return ea.run_all()
 
 
-_ROLE_TO_AGENT = {"sre": "pranav", "finops": "vidya", "security": "arnav"}
+_ROLE_TO_AGENT = dict(ea.AGENT_NAMES)
 
 
 @router.get("/{role}/history")

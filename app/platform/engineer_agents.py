@@ -751,8 +751,24 @@ def run(role: str) -> dict[str, Any]:
 
 
 def run_all() -> dict[str, dict[str, Any]]:
-    """Run all three engineer agents — dashboard rollup."""
+    """Run all engineer agents — dashboard rollup."""
     return {role: fn() for role, fn in _AGENTS.items()}
+
+
+# role -> agent display-name (single source for API/UI; keep in sync with run_X agent= ).
+AGENT_NAMES = {
+    "sre": "pranav",
+    "finops": "vidya",
+    "security": "arnav",
+    "dbre": "kabir",
+    "deps": "aryan",
+    "dataquality": "diya",
+}
+
+
+def roles() -> list[str]:
+    """All engineer-agent role keys — drift-proof source for the admin API/UI."""
+    return list(_AGENTS)
 
 
 __all__ = [
@@ -764,4 +780,6 @@ __all__ = [
     "run_dbre",
     "run_deps",
     "run_dataquality",
+    "roles",
+    "AGENT_NAMES",
 ]

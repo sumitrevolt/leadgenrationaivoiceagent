@@ -398,3 +398,16 @@ def test_dataquality_empty_store_neutral(monkeypatch: pytest.MonkeyPatch) -> Non
     assert out["status"] == "ok"
     assert out["kpis"]["total_prospects"] == 0
     assert out["score"] is None
+
+
+def test_api_recognizes_all_module_roles() -> None:
+    """Per-role admin endpoints must accept EVERY role the module defines.
+    Regression: dbre/deps/dataquality used to 422 because the API hardcoded only
+    sre/finops/security in _VALID / _ROLE_TO_AGENT (cross-path drift)."""
+    from app.api import engineer_agents as api_ea
+
+    assert api_ea._VALID == set(ea.roles())
+    assert {"dbre", "deps", "dataquality"} <= api_ea._VALID
+    for role in ea.roles():
+        assert role in api_ea._ROLE_TO_AGENT, f"{role} missing from _ROLE_TO_AGENT (history breaks)"
+    assert api_ea._ROLE_TO_AGENT["dbre"] == "kabir"
