@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (836 operations)
+## Endpoint Index — auto-generated from OpenAPI (859 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -422,6 +422,28 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/upi/clients` — Search clients for manual UPI activate
 - `POST  ` `/api/admin/upi/configure` — Set platform UPI VPA (data file — no container restart)
 - `GET   ` `/api/admin/upi/pending` — Clients waiting for UPI screenshot activation
+
+### AgentCapacity  (2)
+
+- `POST  ` `/api/agents-ext/capacity/risk-score` — Capacity Risk Score
+- `GET   ` `/api/agents-ext/capacity/status` — Capacity Status
+
+### AgentGovernance  (6)
+
+- `GET   ` `/api/agents-ext/custom-agents` — Get Custom Agents
+- `POST  ` `/api/agents-ext/custom-agents` — Add Custom Agent
+- `GET   ` `/api/agents-ext/hooks` — Get Hooks
+- `POST  ` `/api/agents-ext/hooks` — Add Hook
+- `GET   ` `/api/agents-ext/permissions` — Get Permissions
+- `POST  ` `/api/agents-ext/permissions` — Set Permission
+
+### AgentScale  (5)
+
+- `POST  ` `/api/agents-ext/batch` — Batch Run
+- `GET   ` `/api/agents-ext/batch/runs` — Batch Runs
+- `POST  ` `/api/agents-ext/browser/fetch` — Browser Fetch
+- `POST  ` `/api/agents-ext/exec` — Code Exec Run
+- `GET   ` `/api/agents-ext/status` — Agent Scale Status
 
 ### Agents  (13)
 
@@ -697,6 +719,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `DELETE` `/api/data/niches/{niche_key}` — Delete Custom Niche
 - `POST  ` `/api/data/reports` — Generate Report
 - `GET   ` `/api/data/usage` — Get Usage Stats
+
+### EngAgents  (6)
+
+- `POST  ` `/api/agents-ext/checkpoint` — Checkpoint Create
+- `GET   ` `/api/agents-ext/checkpoints` — Checkpoints List
+- `POST  ` `/api/agents-ext/code-review` — Code Review
+- `GET   ` `/api/agents-ext/recall` — Recall Search
+- `POST  ` `/api/agents-ext/recall` — Recall Record
+- `POST  ` `/api/agents-ext/rollback/{ckpt_id}` — Checkpoint Rollback
 
 ### Engage  (8)
 
@@ -1195,6 +1226,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/niche/schemas` — All niche schemas
 - `GET   ` `/api/niche/stats` — Niche prospects stats
 - `GET   ` `/api/niche/voice-niches` — All voice niches list
+
+### OrchestrationExt  (4)
+
+- `POST  ` `/api/agents-ext/consensus` — Consensus Vote
+- `GET   ` `/api/agents-ext/trajectories` — Trajectories Best
+- `POST  ` `/api/agents-ext/trajectory/export` — Trajectory Export
+- `POST  ` `/api/agents-ext/trajectory/record` — Trajectory Record
 
 ### Platform  (17)
 
