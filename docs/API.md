@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (835 operations)
+## Endpoint Index — auto-generated from OpenAPI (836 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -766,7 +766,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/terms` — Terms Page
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (198)
+### Growth  (199)
 
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats
@@ -956,6 +956,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/tools/missed-call-revenue` — Tool Missed Call
 - `POST  ` `/api/growth/tools/website-audit` — Website Audit Public
 - `GET   ` `/api/growth/upgrader/code-search` — Upgrader Code Search
+- `POST  ` `/api/growth/upgrader/diagnostics` — Upgrader Diagnostics
 - `GET   ` `/api/growth/upgrader/patches` — Upgrader Patches
 - `POST  ` `/api/growth/upgrader/patches/{patch_id}/status` — Upgrader Patch Status
 - `POST  ` `/api/growth/upgrader/scan` — Upgrader Scan

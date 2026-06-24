@@ -182,4 +182,8 @@ AUTOMATION_FLAGS = [
     "CODE_SEARCH",  # semantic code retrieval grounds Vikram proposals + arms admin
     # GET /api/growth/upgrader/code-search agent-use. Index piggybacks daily training
     # job; read-only ChromaDB "code_patterns" (separate from business-KB). OFF default.
+    # --- Engineering-agent code diagnostics (OpenCode parity) 2026-06-24 ---
+    "CODE_DIAGNOSTICS",  # self-check Vikram proposals (cited-path existence) so admin
+    # can trust them. Admin POST /api/growth/upgrader/diagnostics (ast syntax + optional
+    # ruff lint + path-existence) is flag-independent. Read-only, never-raise. OFF default.
 ]
