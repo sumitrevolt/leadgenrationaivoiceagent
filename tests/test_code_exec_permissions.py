@@ -12,8 +12,14 @@ from app.agents import agent_permissions, code_exec
 
 def test_trusted_identities_always_permitted():
     assert code_exec._permitted("super_admin") is True
-    assert code_exec._permitted("system") is True
     assert code_exec._permitted("") is True  # default → super_admin
+
+
+def test_system_identity_not_auto_trusted(monkeypatch, tmp_path):
+    """Audit hardening: 'system' is NOT a free pass — enforcement on + unset → deny."""
+    monkeypatch.setenv("AGENT_PERMISSIONS", "1")
+    monkeypatch.setattr(agent_permissions, "_DATA_FILE", str(tmp_path / "perms.json"))
+    assert code_exec._permitted("system") is False
 
 
 def test_named_agent_allowed_when_enforcement_off(monkeypatch):

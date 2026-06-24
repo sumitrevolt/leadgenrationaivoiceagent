@@ -31,11 +31,13 @@ logger = setup_logger(__name__)
 _OUTPUT_CAP = 4000  # stdout/stderr truncate (response bloat + log safety)
 _MAX_TIMEOUT_S = 120  # absolute ceiling (caller timeout_s isse upar nahi ja sakta)
 
-# Identities that may run code WITHOUT an explicit permission grant. The /exec
-# endpoint is require_super_admin (a human), so it passes "super_admin". Any NAMED
-# automation agent (isha/rohan/vikram/...) is NOT trusted → must be explicitly
-# allowed in the agent_permissions matrix (execute_code = HIGH_RISK, unset = deny).
-_TRUSTED = {"super_admin", "system"}
+# The ONLY identity that may run code WITHOUT an explicit permission grant: the
+# require_super_admin /exec HTTP endpoint (a human) passes "super_admin". EVERY other
+# caller — including any internal/automation identity — must hold an explicit
+# execute_code grant in the agent_permissions matrix (HIGH_RISK, unset = deny). No
+# broad "system" sentinel (audit hardening: a derived/forwarded agent name must never
+# coast into RCE).
+_TRUSTED = {"super_admin"}
 
 
 def enabled() -> bool:

@@ -78,6 +78,10 @@ def _hooks(monkeypatch, tmp_path):
     from app.agents import lifecycle_hooks as lh
 
     monkeypatch.setattr(lh, "_DATA_FILE", str(tmp_path / "hooks.json"))
+    # These tests exercise register/fire MECHANICS, not the SSRF guard (covered in
+    # test_lifecycle_hooks_ssrf.py). Stub the guard permissive so example.com targets
+    # don't get rejected by offline DNS-fail (fail-safe reject is correct in prod).
+    monkeypatch.setattr(lh, "_is_safe_target", lambda u: (True, ""))
     return lh
 
 
