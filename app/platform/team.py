@@ -348,8 +348,14 @@ def log_event(
         pass
 
 
-def recent_events(limit: int = 60, member: str | None = None) -> list[dict[str, Any]]:
-    """Latest activity feed (newest first) — dashboard ke liye dicts."""
+def recent_events(
+    limit: int = 60, member: str | None = None, hours: int | None = None
+) -> list[dict[str, Any]]:
+    """Latest activity feed (newest first) — dashboard ke liye dicts.
+
+    `hours` set ho to sirf pichhle N ghante ke events (hourly timeline +
+    "last hour dispatches" jaise callers ke liye). Bigger cap jab hours-window.
+    """
     try:
         from app.models.agent_event import AgentEvent
 
@@ -360,7 +366,11 @@ def recent_events(limit: int = 60, member: str | None = None) -> list[dict[str, 
             q = db.query(AgentEvent).order_by(AgentEvent.created_at.desc())
             if member:
                 q = q.filter(AgentEvent.member == member)
-            rows = q.limit(max(1, min(int(limit), 300))).all()
+            if hours:
+                cutoff = datetime.utcnow() - timedelta(hours=max(1, min(int(hours), 168)))
+                q = q.filter(AgentEvent.created_at >= cutoff)
+            cap = 2000 if hours else 300
+            rows = q.limit(max(1, min(int(limit), cap))).all()
             return [_ev_dict(r) for r in rows]
         finally:
             db.close()

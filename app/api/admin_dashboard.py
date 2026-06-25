@@ -331,6 +331,86 @@ def get_activity_feed(
         return {"events": [], "count": 0, "error": str(e)[:120]}
 
 
+@router.get("/hourly-activity")
+def get_hourly_activity(
+    hours: int = Query(24, ge=1, le=72),
+    _user=Depends(require_admin),
+) -> dict:
+    """Agent events ko IST ghante-wise bucket karke 'is ghante kya kya hua' timeline.
+
+    Admin dashboard ka 'hourly activity log' card isse banta hai — job-status grid
+    (renderHourlyOps) se alag: yeh actual chronological kaam ka log hai (sab AI staff
+    ke events, har ghante kitne + kya). Best-effort — kabhi 500 nahi.
+    """
+    try:
+        from app.platform.team import recent_events
+
+        try:
+            from zoneinfo import ZoneInfo
+
+            ist = ZoneInfo("Asia/Kolkata")
+        except Exception:
+            ist = timezone.utc
+
+        evs = recent_events(limit=1500, hours=hours)
+        buckets: dict[str, dict] = {}
+        for ev in evs:
+            at = ev.get("at")
+            if not at:
+                continue
+            try:
+                dt = datetime.fromisoformat(str(at))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.astimezone(ist)
+            except Exception:
+                continue
+            key = dt.strftime("%Y-%m-%d %H")
+            b = buckets.get(key)
+            if b is None:
+                label = dt.strftime("%d %b, %I %p").replace(", 0", ", ")
+                b = {
+                    "hour_key": key,
+                    "label": label,
+                    "count": 0,
+                    "errors": 0,
+                    "members": {},
+                    "samples": [],
+                }
+                buckets[key] = b
+            b["count"] += 1
+            if str(ev.get("status")) in ("error", "warn"):
+                b["errors"] += 1
+            nm = ev.get("name") or ev.get("member") or "?"
+            b["members"][nm] = b["members"].get(nm, 0) + 1
+            if len(b["samples"]) < 10:
+                b["samples"].append(
+                    {
+                        "name": nm,
+                        "emoji": ev.get("emoji", ""),
+                        "action": ev.get("action", ""),
+                        "detail": str(ev.get("detail") or "")[:100],
+                        "status": ev.get("status", "ok"),
+                        "at": dt.strftime("%H:%M"),
+                    }
+                )
+        ordered = [buckets[k] for k in sorted(buckets, reverse=True)]
+        for b in ordered:
+            b["members"] = sorted(
+                ({"name": n, "count": c} for n, c in b["members"].items()),
+                key=lambda x: -x["count"],
+            )[:8]
+        return {
+            "buckets": ordered,
+            "total": len(evs),
+            "hours": hours,
+            "generated_at": datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(),
+        }
+    except Exception as e:
+        logger.warning("admin_dashboard: hourly-activity failed (%s)", e)
+        return {"buckets": [], "total": 0, "error": str(e)[:120]}
+
+
 @router.get("/prospects-preview")
 def get_prospects_preview(
     limit: int = Query(40, ge=1, le=200),
