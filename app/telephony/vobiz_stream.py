@@ -1098,7 +1098,7 @@ class VobizStreamSession:
         return (
             "Namaste, main Swara LeadGen AI se bol rahi hoon. "
             "Chhote business ke liye AI marketing — posts, Google profile, festival posters, "
-            "₹1,199 se shuru. Callback ke liye leadsgenai.in ya is number par reply kijiye. Dhanyavaad."
+            "₹1,999 se shuru. Callback ke liye leadsgenai.in ya is number par reply kijiye. Dhanyavaad."
         )
 
     async def _on_utterance(self, pcm16: bytes) -> None:

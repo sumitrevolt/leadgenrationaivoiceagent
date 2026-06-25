@@ -41,7 +41,7 @@ Usage example (cache hit + first-sentence chunking)::
         async def generate(utterance: str) -> str:
             # pretend this is a slow LLM call
             await asyncio.sleep(0.4)
-            return "Haan ji bilkul. Hamara plan 2999 ka hai. Book karein?"
+            return "Haan ji bilkul. Hamara AI marketing plan 1999 ka hai. Book karein?"
 
         # First time: MISS -> calls generate, caches the answer.
         text, timer = await opt.fast_respond(generate, "Price kitna hai?")

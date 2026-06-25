@@ -31,7 +31,7 @@ This repo gives design agents the tokens, components, UI kits and assets to buil
 
 **Casing.** Sentence case for body and most headings. UPPERCASE only for tiny eyebrow pills and section labels (e.g. "AI AUTOMATED MARKETING"). Occasional ALL-CAPS word for emphasis ("HOT leads", "FREE").
 
-**Numbers & currency.** Indian conventions: **₹** with Indian comma grouping (₹1,199, ₹6,999), "/mo", "24 ghante", "2 min". Prices are concrete and fixed-monthly (no per-call surprises — a selling point).
+**Numbers & currency.** Indian conventions: **₹** with Indian comma grouping (₹1,999, ₹5,999), "/mo", "24 ghante", "2 min". Prices are concrete and fixed-monthly (no per-call surprises — a selling point).
 
 **Emoji — YES, used liberally and on-brand.** Emoji act as wayfinding icons and tone-setters throughout the product: 📞 calls, 🔥 hot leads, 📣 posts, ✅ qualified, 💬 WhatsApp, ☀️ "Aaj ke liye", 🚀 upgrade, 🎁 free trial, plus a per-niche emoji set (🏡 ☀️ 🦷 🎓 🏦 …). Use them — a LeadGen screen without emoji feels off-brand.
 

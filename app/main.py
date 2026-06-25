@@ -1425,7 +1425,7 @@ async def niche_landing(slug: str):
     title = f"AI Marketing for {niche_label} {city_phrase} — LeadsGenAI"
     desc = (
         f"Automate {hook} for your {niche_label} business {city_phrase}. "
-        "AI-powered marketing + lead generation starting ₹1,199/month."
+        "AI-powered marketing + lead generation starting ₹1,999/month."
     )
     canonical = f"/for/{_h(slug)}"
 
@@ -1465,10 +1465,10 @@ async def niche_landing(slug: str):
         f'<div class="feat"><b>Personalized Outreach</b> — Hinglish cold emails + follow-ups automatically, daily cap ke saath.</div>'
         f'<div class="feat"><b>Google Profile Audit</b> — Rating, reviews, aur visibility gaps identify karo — free.</div>'
         f'<div class="feat"><b>AI Content Pack</b> — Weekly posters, captions, aur SEO content — {_h(niche_label)}-specific.</div>'
-        '<div class="feat"><b>Advanced: AI Voice Agent</b> — Inbound callback aur lead qualification automatically (₹6,999/mo).</div>'
+        '<div class="feat"><b>Advanced: AI Voice Agent</b> — Inbound callback aur lead qualification automatically (₹5,999/mo).</div>'
         '</div>'
         f'<div class="cta"><h2>Shuru karo aaj hi</h2>'
-        f'<p>{_h(niche_label)} {_h(city_phrase)} — Starter plan sirf ₹1,199/mahina.</p>'
+        f'<p>{_h(niche_label)} {_h(city_phrase)} — Starter plan sirf ₹1,999/mahina.</p>'
         '<a href="/start">Abhi Start Karo →</a></div>'
         '<footer>© LeadsGenAI · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>'
         '</body></html>'

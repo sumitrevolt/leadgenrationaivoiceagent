@@ -107,10 +107,10 @@ def _trial_banner(client_rec: dict | None, *, has_paid_plan: bool = False) -> "T
         days = int(st.get("days_left") or 0)
         expired = bool(st.get("expired"))
         show = expired or days <= 7
-        starter = 1199
+        starter = 1999
         for p in PACKAGES:
             if str(p.get("key") or "") == "starter":
-                starter = int(p.get("price_inr_month") or p.get("price_inr") or 1199)
+                starter = int(p.get("price_inr_month") or p.get("price_inr") or 1999)
                 break
         if expired:
             msg = (

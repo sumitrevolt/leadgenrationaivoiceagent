@@ -193,10 +193,10 @@ NICHE_SCRIPTS: dict[str, dict] = {
             "Mahine me marketing pe approx kitna kharcha?",
         ],
         "objections": {
-            "mehenga": "Sir, ₹1,199/mahina se shuru — din me ₹40 se kam. Ek extra customer se kharcha nikal jaata hai.",
+            "mehenga": "Sir, ₹1,999/mahina se shuru — din me ₹40 se kam. Ek extra customer se kharcha nikal jaata hai.",
             "abhi_nahi": "Koi baat nahi sir — tab tak FREE Google audit karwa doon? Score aur fixes, koi charge nahi.",
             "soch_ke": "Bilkul sochiye sir — FREE audit bhej deti hoon, 7-din trial bhi hai, aaram se decide kijiye.",
-            "pehle_se_hai": "Achha sir — agency ₹15-25K leti hai, hum ₹1,199 se. Inquiry follow-up bhi AI se ho jaata hai.",
+            "pehle_se_hai": "Achha sir — agency ₹15-25K leti hai, hum ₹1,999 se. Inquiry follow-up bhi AI se ho jaata hai.",
             "bharosa": "Sahi sawaal sir — pehle FREE audit aur trial lijiye, pasand aaye tabhi aage badhiye.",
         },
         "value_lines": [
