@@ -251,6 +251,91 @@ def get_session(session_id: str, lead_key: str) -> dict[str, Any] | None:
     return found
 
 
+def list_all_sessions(
+    *,
+    limit: int = 50,
+    include_turns: bool = False,
+) -> list[dict[str, Any]]:
+    """ADMIN-wide: newest-first sessions across ALL browser lead_keys.
+
+    Unlike list_sessions() this is NOT filtered by lead_key — it is the
+    admin cockpit view of every saved web test-call. Never raises.
+    """
+    if not _STORE.is_file():
+        return []
+    limit = max(1, min(int(limit or 50), 200))
+    rows: list[dict[str, Any]] = []
+    try:
+        with _LOCK:
+            with open(_STORE, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except Exception:
+                        continue
+                    rows.append(row)
+    except Exception:
+        return []
+    rows.sort(key=lambda r: str(r.get("started_at") or ""), reverse=True)
+    out: list[dict[str, Any]] = []
+    for r in rows[:limit]:
+        item = {
+            "session_id": r.get("session_id"),
+            "lead_key": r.get("lead_key"),
+            "started_at": r.get("started_at"),
+            "ended_at": r.get("ended_at"),
+            "duration_s": r.get("duration_s"),
+            "niche": r.get("niche"),
+            "flow": r.get("flow"),
+            "client_name": r.get("client_name"),
+            "turn_count": r.get("turn_count") or len(r.get("turns") or []),
+        }
+        if include_turns:
+            item["turns"] = r.get("turns") or []
+        out.append(item)
+    return out
+
+
+def count_sessions() -> int:
+    """Total saved web test-call sessions (cheap line count). Never raises."""
+    if not _STORE.is_file():
+        return 0
+    try:
+        with _LOCK:
+            return sum(
+                1 for ln in _STORE.read_text(encoding="utf-8", errors="ignore").splitlines() if ln.strip()
+            )
+    except Exception:
+        return 0
+
+
+def get_session_any(session_id: str) -> dict[str, Any] | None:
+    """ADMIN: fetch one session by id WITHOUT lead_key match (last row wins)."""
+    sid = _valid_sid(session_id)
+    if not sid or not _STORE.is_file():
+        return None
+    found: dict[str, Any] | None = None
+    try:
+        with _LOCK:
+            with open(_STORE, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except Exception:
+                        continue
+                    if row.get("session_id") == sid:
+                        found = row
+    except Exception:
+        return None
+    return found
+
+
 def normalize_lead_key(lead_key: str | None) -> str | None:
     return _valid_lead(lead_key)
 

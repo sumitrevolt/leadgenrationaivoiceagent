@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (870 operations)
+## Endpoint Index — auto-generated from OpenAPI (872 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1388,6 +1388,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/web-call/config` — Web Call Config
 - `GET   ` `/api/web-call/history` — Web Call History
 - `GET   ` `/api/web-call/session/{session_id}` — Web Call Session Detail
+
+### Web Test Calls (Admin)  (2)
+
+- `GET   ` `/api/admin/web-calls` — List saved web test-call transcripts (all browsers)
+- `GET   ` `/api/admin/web-calls/{session_id}` — One web test-call + full transcript
 
 ### Webhooks  (5)
 
