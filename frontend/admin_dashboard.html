@@ -790,26 +790,18 @@
 </div>
 
 <script>
-/* ----------------------------- DEMO DATA (offline-safe) ----------------------------- */
+/* --------------- FALLBACK SHELL (API fail/offline) — NO fabricated business data ---------------
+   User feedback: "mock data hai". API fail/401 pe yahin se render hota hai — isliye yahan KOI
+   fake client / revenue / campaign NAHI. Sirf zero KPIs + empty lists + REAL staff roster (idle).
+   Har successful API response ise override karta hai (USING_REAL=true). */
 const DEMO = {
   generated_at: new Date().toISOString(),
   kpis: {
-    total_clients: 10, active_campaigns: 8, calls_today: 1284,
-    qualified_leads_month: 742, revenue_month: 1865000,
-    telephony_cost_month: 312000, net_margin_pct: 83.3
+    total_clients: 0, active_campaigns: 0, calls_today: 0,
+    qualified_leads_month: 0, revenue_month: 0,
+    telephony_cost_month: 0, net_margin_pct: 0
   },
-  clients: [
-    {company:"SunVolt Solar Pvt Ltd", niche:"Solar", plan:"Growth", leads_delivered:128, status:"active", mrr:45000},
-    {company:"Prestige Realty Group", niche:"Real Estate", plan:"Scale", leads_delivered:212, status:"active", mrr:85000},
-    {company:"SmileCare Dental", niche:"Dental", plan:"Starter", leads_delivered:64, status:"active", mrr:18000},
-    {company:"CoolBreeze HVAC", niche:"HVAC", plan:"Growth", leads_delivered:97, status:"paused", mrr:42000},
-    {company:"UrbanNest Interiors", niche:"Interior Design", plan:"Growth", leads_delivered:143, status:"active", mrr:48000},
-    {company:"GlobalEdu Abroad", niche:"Study Abroad", plan:"Scale", leads_delivered:305, status:"active", mrr:92000},
-    {company:"FitLife Gyms", niche:"Fitness", plan:"Starter", leads_delivered:51, status:"active", mrr:16000},
-    {company:"LegalEase Associates", niche:"Legal", plan:"Growth", leads_delivered:78, status:"paused", mrr:38000},
-    {company:"QuickLoan Finserv", niche:"Finance", plan:"Scale", leads_delivered:189, status:"active", mrr:78000},
-    {company:"GreenScape Landscaping", niche:"Landscaping", plan:"Starter", leads_delivered:44, status:"active", mrr:15000}
-  ],
+  clients: [],
   // Offline-fallback = the REAL 18-member AI staff roster (team.STAFF) so the
   // demo never misleads. Live data overrides this via loadAgents()/loadDashboard().
   agents: [
@@ -832,21 +824,12 @@ const DEMO = {
     {id:"💹 FinOps", name:"Vidya", current_client:"FinOps / Cost", status:"idle", calls_made:0, leads_found:0},
     {id:"🛡️ Security", name:"Arnav", current_client:"Security / Compliance", status:"idle", calls_made:0, leads_found:0}
   ],
-  campaigns: [
-    {campaign:"Solar Q2 Push", client:"SunVolt Solar Pvt Ltd", niche:"Solar", sources:["Google Maps","JustDial"], calls_done:620, calls_target:1000, leads:88, status:"active"},
-    {campaign:"Premium Homes Drive", client:"Prestige Realty Group", niche:"Real Estate", sources:["IndiaMart","LinkedIn"], calls_done:910, calls_target:1200, leads:142, status:"active"},
-    {campaign:"Smile Bookings", client:"SmileCare Dental", niche:"Dental", sources:["Google Maps"], calls_done:300, calls_target:300, leads:64, status:"completed"},
-    {campaign:"Cooling Season Leads", client:"CoolBreeze HVAC", niche:"HVAC", sources:["JustDial","Google Maps"], calls_done:410, calls_target:800, leads:53, status:"paused"},
-    {campaign:"Home Makeover", client:"UrbanNest Interiors", niche:"Interior Design", sources:["Instagram","Google Maps"], calls_done:560, calls_target:900, leads:97, status:"active"},
-    {campaign:"Study Abroad Intake", client:"GlobalEdu Abroad", niche:"Study Abroad", sources:["LinkedIn","Meta Ads"], calls_done:1180, calls_target:1500, leads:205, status:"active"},
-    {campaign:"Personal Loan Blitz", client:"QuickLoan Finserv", niche:"Finance", sources:["IndiaMart","JustDial"], calls_done:740, calls_target:1100, leads:121, status:"active"},
-    {campaign:"New Member Hunt", client:"FitLife Gyms", niche:"Fitness", sources:["Google Maps"], calls_done:180, calls_target:400, leads:29, status:"active"}
-  ],
-  health: {api:"up", db:"up", telephony:"up", scrapers:"down"},
+  campaigns: [],
+  health: {api:"up", db:"unknown", telephony:"unknown", scrapers:"unknown"},
   charts: {
-    revenue_cost: {labels:["Jan","Feb","Mar","Apr","May","Jun"], revenue:[980000,1150000,1320000,1480000,1690000,1865000], cost:[210000,238000,256000,274000,298000,312000]},
-    leads_by_niche: {labels:["Solar","Real Estate","Dental","HVAC","Interior","Study Abroad","Finance","Other"], values:[128,212,64,97,143,305,189,95]},
-    calls_per_day: {labels:["Mon","Tue","Wed","Thu","Fri","Sat","Sun"], values:[1120,1340,1280,1410,1284,760,410]}
+    revenue_cost: {labels:[], revenue:[], cost:[]},
+    leads_by_niche: {labels:[], values:[]},
+    calls_per_day: {labels:[], values:[]}
   }
 };
 
@@ -1820,9 +1803,9 @@ async function loadDashboard(){
     $("src-label").textContent = data.is_sample_data ? "Live · API (sample)" : "Live · API";
     { const d=$("src-dot"); if(d){ d.style.background="var(--green)"; d.style.animation="pulse 2s infinite"; } }
   }catch(e){
-    // API unreachable (offline preview) — show demo only as a last resort.
-    if(!USING_REAL){ renderAll(DEMO); $("src-label").textContent = "Demo (offline)";
-      const d=$("src-dot"); if(d){ d.style.background="#f59e0b"; d.style.animation="none"; } }
+    // API fail/401 — NEVER fake business data. Honest empty shell + re-login prompt.
+    if(!USING_REAL){ renderAll(DEMO); $("src-label").textContent = "⚠️ Data load nahi hui — login/refresh karo";
+      const d=$("src-dot"); if(d){ d.style.background="var(--red)"; d.style.animation="none"; } }
   }
 }
 
