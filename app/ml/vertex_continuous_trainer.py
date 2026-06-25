@@ -746,18 +746,15 @@ Return a list of skill areas to enhance (max 3):
             logger.warning(f"Could not update brain instance: {e}")
 
     async def _calculate_accuracy(self, brain_type: str, phase: str) -> float:
-        """Calculate brain accuracy (simulated for now)"""
-        # Base accuracy from recent behaviors
+        """Heuristic accuracy = success-rate over recent buffered behaviors (NOT a
+        held-out eval). HONEST (2026-06-25 audit): same computation for before/after
+        — no fabricated +5% 'after' improvement and no random padding. Returns 0.0
+        when there is no signal yet, so the trainer never reports fake gains."""
         behaviors = self.behavior_buffer.get(brain_type, [])
         if not behaviors:
-            return 0.75 + random.uniform(0, 0.1)
-
+            return 0.0
         success_rate = len([b for b in behaviors if b.get("success", True)]) / len(behaviors)
-
-        # Add some variance for before/after
-        if phase == "after":
-            return min(success_rate + 0.05, 0.99)  # 5% improvement
-        return success_rate
+        return round(success_rate, 4)
 
     def _calculate_revenue_impact(self, improvements: dict) -> float:
         """Calculate revenue impact score from improvements"""

@@ -400,16 +400,17 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
                 error=res.error,
             )
         except Exception as e:
-            logger.error(f"book_appointment fell back to simulation: {e}")
+            logger.error(f"book_appointment: calendar unavailable ({e})")
             return ToolResult(
-                ok=True,
+                ok=False,
+                error=f"calendar unavailable: {e}",
                 data={
-                    "booking_id": "sim-booking",
                     "when": when_iso,
                     "confirmation_text": (
-                        f"Theek hai {name}, aapki meeting {when_iso} ke liye book kar di hai."
+                        "Abhi booking system available nahi hai — main aapki detail le leti hoon, "
+                        "hamari team aapko call karke slot confirm kar degi."
                     ),
-                    "provider": "simulation",
+                    "provider": "unavailable",
                 },
             )
 
@@ -451,14 +452,15 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
                 data={"date": date_str, "slots": slots[:8], "total": len(slots)},
             )
         except Exception as e:
-            logger.error(f"check_availability fell back to simulation: {e}")
+            logger.error(f"check_availability: calendar unavailable ({e}); offering standard hours")
             return ToolResult(
                 ok=True,
                 data={
                     "date": date_str,
                     "slots": [f"{date_str}T10:00", f"{date_str}T15:00"],
                     "total": 2,
-                    "provider": "simulation",
+                    "provider": "default_hours",
+                    "note": "standard business hours (live calendar unavailable)",
                 },
             )
 
@@ -523,13 +525,17 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
                 error=res.error,
             )
         except Exception as e:
-            logger.error(f"transfer_to_human fell back to simulation: {e}")
+            logger.error(f"transfer_to_human: transfer unavailable ({e})")
             return ToolResult(
-                ok=True,
+                ok=False,
+                error=f"transfer unavailable: {e}",
                 data={
-                    "status": "simulated",
-                    "brief": f"Transfer {lead.get('name','lead')} to human.",
-                    "provider": "simulation",
+                    "status": "unavailable",
+                    "confirmation_text": (
+                        "Abhi live transfer possible nahi hai — main aapka number note kar leti hoon, "
+                        "hamari team turant callback karegi."
+                    ),
+                    "provider": "unavailable",
                 },
             )
 

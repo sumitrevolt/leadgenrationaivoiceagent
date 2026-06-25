@@ -63,7 +63,18 @@ def test_parse_tool_call_from_call_line():
 # --------------------------------------------------------------------------- #
 # 4) registry executes a tool offline (calendar sim fallback)
 # --------------------------------------------------------------------------- #
-def test_registry_executes_book_appointment_offline():
+def _isolate_calendar(monkeypatch, tmp_path):
+    """Point the calendar at a tmp ledger + reset its singleton so book tests are
+    hermetic (the real bookings ledger persists 'taken' slots across runs)."""
+    import app.integrations.calendar_booking as cb
+
+    monkeypatch.setattr(cb, "DATA_BOOKINGS_DIR", str(tmp_path / "bk"))
+    monkeypatch.setattr(cb, "_calendar", None)  # fresh singleton -> empty taken slots
+    monkeypatch.setenv("BOOKING_NOTIFY", "0")
+
+
+def test_registry_executes_book_appointment_offline(monkeypatch, tmp_path):
+    _isolate_calendar(monkeypatch, tmp_path)
     from app.voice_agent.function_calling import build_default_registry
 
     reg = build_default_registry({"niche": "solar_residential", "lead": {"phone": "98765xxxxx"}})
@@ -149,7 +160,8 @@ def test_reply_with_tools_routes_spoken(monkeypatch):
 # --------------------------------------------------------------------------- #
 # 7) shared run_tool_turn helper (used by BOTH vobiz + web-call paths)
 # --------------------------------------------------------------------------- #
-def test_run_tool_turn_tool_spoken_and_end():
+def test_run_tool_turn_tool_spoken_and_end(monkeypatch, tmp_path):
+    _isolate_calendar(monkeypatch, tmp_path)
     from app.voice_agent import voice_tools
     from app.voice_agent.function_calling import build_default_registry
 
