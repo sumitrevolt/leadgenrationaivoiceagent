@@ -5,7 +5,7 @@ AI Growth Suite — Combo Product (Product 3) pricing source-of-truth.
 Product 3 = AI Automated Marketing + AI Voice Calling Agent — ek subscription me dono.
 
 PRICING MODEL:
-  - Combo Starter : Mktg Starter  + Voice Band A = ₹6,198 alag-alag → ₹4,999/mo  (save ₹1,199)
+  - Combo Starter : Mktg Starter  + Voice Band A = ₹6,998 alag-alag → ₹4,999/mo  (save ₹1,999)
   - Combo Growth  : Mktg Growth   + Voice Band B = ₹12,998 alag-alag → ₹9,999/mo  (save ₹2,999)
   - Combo Pro     : Mktg Advanced + Voice Band C = ₹26,998 alag-alag → ₹21,999/mo (save ₹4,999)
   - Annual        : 10× monthly (2 mahine FREE)
@@ -13,7 +13,7 @@ PRICING MODEL:
 
 USP: India me koi aur competitor yeh bundle nahi deta.
      Marketing content warm audience banata hai; AI voice us audience ko convert karta hai.
-     Alag-alag lene se ~₹1,200–5,000/mo zyada lagta hai.
+     Alag-alag lene se ~₹2,000–4,000/mo zyada lagta hai.
 
 Plan IDs:
   combo_starter_monthly / combo_starter_annual
@@ -45,13 +45,13 @@ COMBO_TIERS: dict[str, dict] = {
         "tagline": "Apni brand banao + AI voice se leads convert karo — ek flat monthly subscription.",
         "voice_band": "A",
         "marketing_plan": "starter",
-        "marketing_price_month": 1_199,
+        "marketing_price_month": 1_999,
         "voice_price_month": 4_999,
-        "price_separately": 6_198,  # if bought independently
+        "price_separately": 6_998,  # if bought independently
         "price_month": 4_999,  # COMBO price (marketing almost FREE)
         "price_year": 49_990,  # 10× (2 mahine free)
-        "savings_month": 1_199,
-        "savings_year": 14_388,  # 12 × savings_month
+        "savings_month": 1_999,
+        "savings_year": 23_988,  # 12 × savings_month
         "plan_monthly": "combo_starter_monthly",
         "plan_annual": "combo_starter_annual",
         "niches_note": "Band A niches: Insurance, Coaching, Solar, Hospital Appointments, Upskilling, Travel",
@@ -113,13 +113,13 @@ COMBO_TIERS: dict[str, dict] = {
         "tagline": "Premium marketing + AI voice for high-ticket niches — maximum ROI per client.",
         "voice_band": "C",
         "marketing_plan": "advanced",
-        "marketing_price_month": 6_999,
+        "marketing_price_month": 5_999,
         "voice_price_month": 19_999,
-        "price_separately": 26_998,
+        "price_separately": 25_998,
         "price_month": 21_999,
         "price_year": 2_19_990,
-        "savings_month": 4_999,
-        "savings_year": 59_988,
+        "savings_month": 3_999,
+        "savings_year": 47_988,
         "plan_monthly": "combo_pro_monthly",
         "plan_annual": "combo_pro_annual",
         "niches_note": "Band C niches: IVF Clinics, Immigration, Commercial Solar/HVAC, Hair Transplant",
@@ -226,9 +226,9 @@ def get_combo_packages() -> dict:
         "tiers": tiers_out,
         "comparison": {
             "starter": {
-                "separately": 6_198,
+                "separately": 6_998,
                 "combo": 4_999,
-                "savings_pct": round((1_199 / 6_198) * 100),
+                "savings_pct": round((1_999 / 6_998) * 100),
             },
             "growth": {
                 "separately": 12_998,
@@ -236,9 +236,9 @@ def get_combo_packages() -> dict:
                 "savings_pct": round((2_999 / 12_998) * 100),
             },
             "pro": {
-                "separately": 26_998,
+                "separately": 25_998,
                 "combo": 21_999,
-                "savings_pct": round((4_999 / 26_998) * 100),
+                "savings_pct": round((3_999 / 25_998) * 100),
             },
         },
     }

@@ -19,7 +19,7 @@ BASE = "https://leadsgenai.in"
 PLANS = {
     "starter": {
         "name": "Starter",
-        "price": 1199,
+        "price": 1999,
         "for": "marketing only (posts, GBP, reviews, WhatsApp)",
     },
     "growth": {
@@ -29,7 +29,7 @@ PLANS = {
     },
     "advanced": {
         "name": "Advanced",
-        "price": 6999,
+        "price": 5999,
         "for": "+ AI voice agent (inquiry call 2-min, qualification, 500 min/mo)",
     },
 }

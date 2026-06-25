@@ -379,9 +379,9 @@ Don't lose this momentum!
 🎁 SPECIAL OFFER: 20% OFF if you subscribe in the next 48 hours!
 
 Plans:
-• Starter: ₹1,199/month
+• AI Marketing Automation: ₹1,999/month
 • Growth: ₹2,999/month
-• Advanced: ₹6,999/month
+• Advanced Voice Agent: ₹5,999/month
 
 Reply UPGRADE to continue, or call us to discuss."""
 

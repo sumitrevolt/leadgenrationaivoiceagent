@@ -206,9 +206,9 @@ class Settings(BaseSettings):
     # Trial/Subscription Settings
     trial_duration_days: int = 7
     trial_calls_limit: int = 100
-    starter_monthly_price: int = 1199  # INR (packages.py = public truth)
+    starter_monthly_price: int = 1999  # INR (packages.py = public truth)
     growth_monthly_price: int = 2999
-    enterprise_monthly_price: int = 6999
+    enterprise_monthly_price: int = 5999  # = Advanced tier (packages.py = public truth)
 
     # Google Cloud Storage (for profile pictures)
     gcs_bucket_name: str = "auraleads-storage"

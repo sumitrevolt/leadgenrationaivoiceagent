@@ -83,7 +83,7 @@ class TrialBanner(BaseModel):
     days_left: int = 0
     expires_at: str | None = None
     show_pay_cta: bool = False
-    starter_price_inr: int = 1199
+    starter_price_inr: int = 1999
     message: str = ""
 
 

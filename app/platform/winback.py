@@ -223,15 +223,15 @@ def draft(entity: dict[str, Any] | None) -> dict[str, Any]:
             wa_msg = (
                 f"Namaste {name} ji! 🙏 Kuch mahine pehle humne baat ki thi — "
                 "AI marketing se naye customers laane ke baare me. Ab hamare paas "
-                "naye features + ₹1,199/mahina starter plan hai. 2-minute ka FREE "
+                "naye features + ₹1,999/mahina starter plan hai. 2-minute ka FREE "
                 f"Google audit dekh lijiye: {_SITE_URL}/audit?utm_source=winback 😊"
             )
-            subject = f"{name} — wapas hello! (free audit + naya ₹1,199 plan)"
+            subject = f"{name} — wapas hello! (free audit + naya ₹1,999 plan)"
             body = (
                 f"Namaste,\n\n{name} ke liye kuch time pehle humne free marketing "
                 "audit offer kiya tha. Tab busy honge — koi baat nahi!\n\n"
                 "Ab hamare paas aur bhi features hain (AI posts, Google ranking, "
-                "review automation) aur starter plan sirf ₹1,199/mahina.\n\n"
+                "review automation) aur starter plan sirf ₹1,999/mahina.\n\n"
                 f"2 minute me apna FREE audit dekh lijiye: {_SITE_URL}/audit?utm_source=winback\n\n"
                 "Shukriya,\nLeadGen AI team"
             )

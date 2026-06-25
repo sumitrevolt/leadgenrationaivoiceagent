@@ -63,7 +63,7 @@ def _is_today_iso(ts: object) -> bool:
 
 
 def _plan_price(plan: str) -> int:
-    """Marketing plan key → monthly ₹ from packages (fallback Starter ₹1,199)."""
+    """Marketing plan key → monthly ₹ from packages (fallback Starter ₹1,999)."""
     try:
         from app.marketing.packages import get_packages
 
@@ -73,7 +73,7 @@ def _plan_price(plan: str) -> int:
                 return int(p.get("price_inr_month") or 0)
         # default to the cheapest tier price
         prices = [int(p.get("price_inr_month") or 0) for p in get_packages()]
-        return min([x for x in prices if x > 0] or [1199])
+        return min([x for x in prices if x > 0] or [1999])
     except Exception:
         return 999
 

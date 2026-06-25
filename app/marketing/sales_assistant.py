@@ -18,7 +18,7 @@ BASE = "https://leadsgenai.in"
 # Objection → ready rebuttal (template) + CTA
 REBUTTALS: dict[str, dict[str, str]] = {
     "price": {
-        "reply": "Samajh sakta hoon. Socho — ek missed inquiry ka nuksan ₹15-20K ho sakta. ₹1,199/mo us se kam hai, aur pehle 10 leads FREE. Risk zero.",
+        "reply": "Samajh sakta hoon. Socho — ek missed inquiry ka nuksan ₹15-20K ho sakta. ₹1,999/mo us se kam hai, aur pehle 10 leads FREE. Risk zero.",
         "cta": "/pricing",
     },
     "trust": {
