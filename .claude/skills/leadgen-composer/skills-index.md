@@ -78,6 +78,7 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 | run-campaign | `.claude/skills/run-campaign/SKILL.md` | outreach campaign |
 | cold-email-craft | `.claude/skills/cold-email-craft/SKILL.md` | email copy |
 | pipeline-hygiene | `.claude/skills/pipeline-hygiene/SKILL.md` | leads cleanup |
+| competitor-ad-teardown | `.claude/skills/competitor-ad-teardown/SKILL.md` | competitor ad swipe file |
 
 ## Voice · telephony
 
@@ -106,6 +107,8 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 | scheduler-job | `.claude/skills/scheduler-job/SKILL.md` | new Celery job |
 | plan-then-build | `.claude/skills/plan-then-build/SKILL.md` | big multi-file |
 | parallel-batch-build | `.claude/skills/parallel-batch-build/SKILL.md` | batch features |
+| pairwise-test-design | `.claude/skills/pairwise-test-design/SKILL.md` | combinatorial / PICT test matrix |
+| prompt-engineering | `.claude/skills/prompt-engineering/SKILL.md` | LLM prompt tune (free-stack) |
 
 ## Business · docs
 
