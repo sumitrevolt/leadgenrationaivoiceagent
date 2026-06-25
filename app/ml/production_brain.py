@@ -713,37 +713,41 @@ Respond with JSON only:
         }
 
         total_checks = 0
-        passed_checks = 0
 
         for category, checks in PRODUCTION_CHECKLIST.items():
             category_results = []
             for check_id, description in checks:
-                # In real implementation, this would actually verify each check
-                # For now, assume most are passing
-                passed = True  # Would be actual verification
-
+                # HONEST (2026-06-25 audit): these checklist items are NOT auto-verified
+                # in this method. The old code hardcoded `passed = True` for ALL of them,
+                # fabricating a 100% overall_score with an empty failed[]. Report them as
+                # UNVERIFIED instead — the REAL gate is scripts/prod_check.py +
+                # GET /api/activation/readiness.
                 category_results.append(
                     {
                         "id": check_id,
                         "description": description,
-                        "passed": passed,
+                        "passed": False,
+                        "status": "unverified",
                     }
                 )
-
                 total_checks += 1
-                if passed:
-                    passed_checks += 1
-                    results["passed"].append(check_id)
-                else:
-                    results["failed"].append(check_id)
 
             results["categories"][category] = {
                 "checks": category_results,
-                "passed": sum(1 for c in category_results if c["passed"]),
+                "passed": 0,
                 "total": len(category_results),
             }
 
-        results["overall_score"] = (passed_checks / total_checks) * 100 if total_checks > 0 else 0
+        # Nothing is auto-verified here, so we never claim a passing score. A
+        # conservative 0 keeps numeric callers working AND gates ready_to_deploy to
+        # False (safe) until the REAL readiness gate is consulted.
+        results["overall_score"] = 0
+        results["unverified"] = total_checks
+        results["status"] = "unverified"
+        results["note"] = (
+            "Static checklist — items are NOT auto-verified in this method. Use "
+            "scripts/prod_check.py or GET /api/activation/readiness for the live gate."
+        )
 
         # Generate AI recommendations for failed checks
         if results["failed"]:
