@@ -1274,12 +1274,20 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         Gemini (smarter convo) WITHOUT flipping the platform-wide free_ai chain
         (global GEMINI_PRIMARY would route marketing/agents to Gemini too). Set
         VOICE_GEMINI_PRIMARY=1 when a healthy GEMINI_API_KEYS pool backs the voice."""
-        return (os.environ.get("VOICE_GEMINI_PRIMARY", "0") or "0").strip().lower() in (
+        if (os.environ.get("VOICE_GEMINI_PRIMARY", "0") or "0").strip().lower() in (
             "1",
             "true",
             "yes",
             "on",
-        )
+        ):
+            return True
+        # Admin "Voice Keys" page can enable it at runtime (no .env / restart).
+        try:
+            from app.voice_agent.gemini_keys import runtime_voice_primary
+
+            return runtime_voice_primary()
+        except Exception:
+            return False
 
     async def _generate(self, prompt: str) -> tuple:
         """(reply_text, provider). Gemini-direct is primary if GEMINI_PRIMARY (global)
