@@ -621,6 +621,17 @@
             <div id="upiQrBox" style="max-width:180px;margin:0 auto 10px;background:#fff;padding:8px;border-radius:8px"></div>
             <div id="upiVpaLbl" style="font-weight:700;text-align:center;margin-bottom:8px;font-size:14px"></div>
             <a id="upiWaBtn" href="#" target="_blank" rel="noopener" class="btn primary" style="width:100%;justify-content:center;text-decoration:none">💬 Screenshot WhatsApp karo</a>
+            <div style="margin:12px 0 6px;text-align:center;color:var(--muted);font-size:11px">— ya turant submit (faster) —</div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px">✅ Pay kar diya? UPI reference yahan daalo</div>
+            <select id="upiPlanSel" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid #bbf7d0;border-radius:8px;font-size:13px">
+              <option value="">Plan chuno</option>
+              <option value="starter">Marketing — Starter ₹1,199</option>
+              <option value="growth">Marketing — Growth ₹2,999</option>
+              <option value="advanced">Marketing — Advanced ₹6,999</option>
+            </select>
+            <input id="upiRefInp" type="text" placeholder="UPI Transaction ID / Reference no." style="width:100%;margin-bottom:6px;padding:8px;border:1px solid #bbf7d0;border-radius:8px;font-size:13px"/>
+            <button id="upiSubmitBtn" onclick="submitUpiRef()" class="btn primary" style="width:100%;justify-content:center">✅ Maine Pay Kiya — Submit</button>
+            <div id="upiSubmitMsg" class="sm" style="margin-top:8px;text-align:center;display:none"></div>
           </div>
         </div>
         <div class="card-h" style="border-top:1px solid var(--line)">
@@ -1601,6 +1612,25 @@ async function loadUpiPayBox(showBox){
     const msg=encodeURIComponent("Maine LeadGen AI plan ki payment ki — screenshot bhej raha hoon. Plan activate kar dijiye.");
     if(wa) wa.href="https://wa.me/"+waNum+"?text="+msg;
   }catch(e){ if(box) box.style.display="none"; }
+}
+async function submitUpiRef(){
+  const plan=(document.getElementById("upiPlanSel")||{}).value||"";
+  const ref=((document.getElementById("upiRefInp")||{}).value||"").trim();
+  const msg=document.getElementById("upiSubmitMsg");
+  const btn=document.getElementById("upiSubmitBtn");
+  function showMsg(color,text){ if(msg){ msg.style.display=""; msg.style.color=color; msg.textContent=text; } }
+  if(!plan){ showMsg("#b45309","Pehle plan chuno."); return; }
+  if(!ref){ showMsg("#b45309","UPI Transaction ID / reference daalo."); return; }
+  if(btn){ btn.disabled=true; btn.textContent="Bhej raha hoon..."; }
+  try{
+    const r=await fetch("/api/upi/submit",{method:"POST",
+      headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
+      body:JSON.stringify({client_id:BILL.cid,plan:plan,upi_ref:ref})});
+    const j=await r.json();
+    if(j&&j.ok){ showMsg("var(--ok)","✅ "+(j.message||"Mil gaya! Verify ho raha hai, jaldi activate.")); const inp=document.getElementById("upiRefInp"); if(inp) inp.value=""; }
+    else{ showMsg("#dc2626",(j&&j.message)||"Submit fail — dobara try karo."); }
+  }catch(e){ showMsg("#dc2626","Network issue — thodi der baad try karo."); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent="✅ Maine Pay Kiya — Submit"; } }
 }
 function show(id,on){ const el=document.getElementById(id); if(el) el.style.display=on?"inline-flex":"none"; }
 
