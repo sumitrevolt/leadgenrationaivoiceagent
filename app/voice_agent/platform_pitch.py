@@ -40,6 +40,10 @@ _YES_PATTERNS: tuple[str, ...] = (
     r"(haan|ji|yes).*(interested|batao|sunao|bolo)",
     r"sounds?\s+good",
     r"tell\s+me\s+more",
+    # Devanagari — Groq Whisper (language="hi") outputs native script, so the
+    # romanized-only patterns above missed bare "हाँ"/"जी" → endless clarify loop
+    # (web transcripts). Clean affirmatives now match; garbled ones fall to discovery.
+    r"हाँ|हां|^\s*हा\b|^\s*जी|ठीक|बिल्कुल|बिलकुल|ज़रूर|जरूर|इंटर[ेेिी]स्ट|बता\s*[ओदo]|सुना|चाहत|करना\s*है",
 )
 
 _NO_PATTERNS: tuple[str, ...] = (
@@ -54,6 +58,8 @@ _NO_PATTERNS: tuple[str, ...] = (
     r"nahi\s+chahiye",
     r"no\s+thanks",
     r"no\s+need",
+    # Devanagari negatives (Whisper hi script).
+    r"नहीं|नही|(?:^|\s)ना(?:\s|$)|^\s*नई|मत\s*कर|बंद\s*कर|ज़रूरत\s*नहीं|नहीं\s*चाहि|रहने\s*दो",
 )
 
 
@@ -61,6 +67,7 @@ _NO_PATTERNS: tuple[str, ...] = (
 class PlatformPitchState:
     phase: str = "await_interest"
     convinced_once: bool = False
+    clarify_count: int = 0  # repetition guard: clarify line max once, then hand to brain
 
 
 def is_platform_pitch(niche: str) -> bool:
@@ -193,6 +200,12 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
         if len(low) >= 12 and not low in ("haan", "ji", "ok", "okay", "theek"):
             state.phase = "discovery"
             return None, state
+        # Repetition guard: clarify ONCE; a second unclear (garbled/short STT) must
+        # NOT loop the same line (web transcripts showed it 3x) — hand to the brain.
+        if state.clarify_count >= 1:
+            state.phase = "discovery"
+            return None, state
+        state.clarify_count += 1
         return line_clarify(), state
     if verdict == "yes":
         state.phase = "discovery"
