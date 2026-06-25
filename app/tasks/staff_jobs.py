@@ -65,6 +65,7 @@ STAFF_JOBS = (
     "flow_cron",  # Phase-3 Flow Runner cron scan (gated FLOW_RUNNER + FLOW_AUTO_TRIGGERS)
     "afternoon_content",  # 2nd daily content-gen pass (gated AFTERNOON_CONTENT)
     "evening_prospect",  # 3rd daily free lead-harvest pass (gated EVENING_PROSPECT)
+    "obsidian_push",  # second-brain compact + push; safe no-op if OBSIDIAN_SYNC/git unavailable
 )
 
 

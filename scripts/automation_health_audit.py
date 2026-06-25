@@ -309,6 +309,62 @@ def check_next_action() -> dict[str, Any]:
     }
 
 
+def check_dlq_status() -> dict[str, Any]:
+    """Actual Redis-backed DLQ status, with legacy JSONL fallback for old dev data."""
+    depths = {"celery": -1, "heavy": -1, "dlq": -1, "dead": -1}
+    recent_failed: list[Any] = []
+    recent_dead: list[Any] = []
+
+    try:
+        if automation_health:
+            depths.update(automation_health.queue_depth())
+    except Exception:
+        pass
+
+    try:
+        import redis as _redis
+        from app.config import settings
+
+        r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
+        raw_failed = r.lrange("dlq:failed_tasks", 0, 9) or []
+        raw_dead = r.lrange("dlq:dead", 0, 9) or []
+
+        def _decode_rows(rows: list[Any]) -> list[Any]:
+            out: list[Any] = []
+            for row in rows:
+                if isinstance(row, bytes):
+                    row = row.decode("utf-8", errors="replace")
+                try:
+                    out.append(json.loads(row))
+                except Exception:
+                    out.append(str(row))
+            return out
+
+        recent_failed = _decode_rows(raw_failed)
+        recent_dead = _decode_rows(raw_dead)
+    except Exception:
+        legacy = _read_jsonl("data/dlq_failed_tasks.jsonl")
+        if depths.get("dlq", -1) < 0 and legacy:
+            depths["dlq"] = len(legacy)
+        recent_failed = legacy[-10:]
+
+    total_known = sum(v for v in (depths.get("dlq", -1), depths.get("dead", -1)) if v >= 0)
+    status = "green"
+    if depths.get("dead", 0) > 0 or total_known > 10:
+        status = "red"
+    elif total_known > 0:
+        status = "yellow"
+    elif depths.get("dlq", -1) < 0 and depths.get("dead", -1) < 0:
+        status = "unknown"
+
+    return {
+        "status": status,
+        "depths": depths,
+        "recent_failed": recent_failed,
+        "recent_dead": recent_dead,
+    }
+
+
 def check_compliance() -> dict[str, Any]:
     """DLT, opt-out, recording, approvals."""
     dlt_enabled = _flag("DLT_APPROVED", False) or _flag("ENABLE_DLT", False)
@@ -625,12 +681,14 @@ def main():
             print(f"Approvals: {json.dumps(approvals, indent=2)}")
 
     elif args.dlq_status:
-        dlq = _read_jsonl("data/dlq_failed_tasks.jsonl") if os.path.exists("data/dlq_failed_tasks.jsonl") else []
+        dlq = check_dlq_status()
         if args.format == "json":
-            print(json.dumps({"dlq_depth": len(dlq), "tasks": dlq[-10:]}, indent=2))
+            print(json.dumps(dlq, indent=2))
         else:
-            print(f"DLQ Depth: {len(dlq)}")
-            print(f"Recent Failures: {json.dumps(dlq[-10:], indent=2)}")
+            print(f"DLQ Status: {dlq['status']}")
+            print(f"Depths: {json.dumps(dlq['depths'], indent=2)}")
+            print(f"Recent Failed: {json.dumps(dlq['recent_failed'], indent=2)}")
+            print(f"Recent Dead: {json.dumps(dlq['recent_dead'], indent=2)}")
 
     elif args.compliance_check:
         compliance = check_compliance()

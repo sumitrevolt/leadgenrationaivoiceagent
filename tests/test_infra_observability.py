@@ -84,6 +84,13 @@ def test_automation_health_failed_run(tmp_path, monkeypatch):
     assert c["status"] == "last_failed"
 
 
+def test_automation_health_covers_durable_engineer_jobs():
+    from app.platform import automation_health as ah
+
+    for job in ("engineer_dbre", "engineer_dataquality", "engineer_deps"):
+        assert job in ah.EXPECTED_GAP_MIN
+
+
 def test_flags_registry_route():
     from app.api.growth import AUTOMATION_FLAGS, router
 
@@ -150,3 +157,17 @@ def test_automation_health_audit_compliance_skips_inactive_outbound(tmp_path, mo
     assert out["optout_enforced"] is True
     assert out["retention_active"] is False
     assert out["status"] == "yellow"
+
+
+def test_automation_health_audit_dlq_uses_queue_depth(monkeypatch):
+    aha = _load_automation_health_audit()
+
+    class FakeAutomationHealth:
+        @staticmethod
+        def queue_depth():
+            return {"celery": 2, "heavy": 1, "dlq": 3, "dead": 0}
+
+    monkeypatch.setattr(aha, "automation_health", FakeAutomationHealth)
+    out = aha.check_dlq_status()
+    assert out["status"] == "yellow"
+    assert out["depths"]["dlq"] == 3
