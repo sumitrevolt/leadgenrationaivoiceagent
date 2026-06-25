@@ -79,8 +79,9 @@ _UNIVERSAL_CLOSE = [
 _MAX_HISTORY_TURNS = 8  # last ~8 turns to keep prompt (and latency) small
 _GEN_CONFIG = {
     "temperature": 0.45,
-    "max_output_tokens": 45,
-}  # brevity (phone) — short crisp turns; script_fallback on truncate
+    "max_output_tokens": 64,
+}  # brevity (phone) — room for ONE complete answer + question (was 45 = chopped
+# mid-sentence "noob" feel); _clean still hard-caps to ~26 words / 2 short vakya.
 _REPLY_TIMEOUT_S = 8.0  # free LLM chain (Mistral/Groq) — 4.5s = zyada fallback/wrong jawab
 
 # LLM kabhi-kabhi meta/noob phrases bol deta hai — _clean inhe reject karta hai
@@ -567,7 +568,7 @@ OBJECTION HANDLING (agar customer aise bole to aise jawab do, phir aage badho):
 ALLOWED NUMBERS/PRICES (sirf yehi bol sakti ho): {numbers_line}
 
 HARD RULES (har turn, bina exception):
-1. Tum phone par ho. Insaan ki tarah baat karo: CHHOTA, seedha, turant. EK reply = MAX 1 vakya, 10-18 shabd. KABHI do sentence nahi.
+1. Tum phone par ho. Insaan ki tarah baat karo: CHHOTA, seedha, turant. EK reply = 1-2 chhote vakya, MAX ~22 shabd: pehle customer ke sawaal/baat ka seedha jawab, phir (zaroorat ho to) ek chhota sawaal. Monologue/3+ vakya KABHI nahi.
 2. KABHI apne baare me meta baat mat karo — "maine pehle poocha", "yeh maine nahi suna", "yeh detail nahi suni", "unclear hai", "thoda unclear", "maaf kijiye" jaisi cheezein BANNED. Bas aage badho.
 3. User ka jawab unclear/aadha lage to sirf chhota sa poocho: "ji, zara dobara boliye?" — bas. Lamba explanation kabhi nahi.
 4. Ek baar me EK hi sawaal. User ke 2-3 shabd mirror karke turant agla chhota sawaal. Sawaal reply ke END me.
@@ -823,21 +824,36 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "Roz ke posts aur ads AI banati hai — aapki industry aur city ke hisaab se, "
                     "aap sirf approve ya copy-paste karo."
                 )
-        try:
-            from app.voice_agent.niche_scripts import get_script
-
-            vals = [str(v).strip() for v in (get_script(self.niche).get("value_lines") or []) if str(v).strip()]
-            if vals:
-                return self._clean(vals[0][:200])
-        except Exception:
-            pass
+        # IMPORTANT: pehle yahan HAR question pe value_lines[0] dump hota tha — yahi
+        # "confused/noob" ka root tha (real_estate me "loan milega?"/"location
+        # kahan?"/"possession kab?" SAB pe ek hi irrelevant line + repeat). Ab koi
+        # specific keyword match na ho to "" return — sawaal LLM handle karega
+        # (full prompt + niche script context + KB facts + history se contextual,
+        # competitor-jaisa fluent jawab). Deterministic shortcut sirf genuinely
+        # known cases (AI-identity, price, platform FAQs) ke liye rakha.
         return ""
+
+    def _repeats_recent(
+        self, text: str, history: list[dict[str, str]], lookback: int = 4
+    ) -> bool:
+        """True agar `text` recent assistant line jaisa ho — canned-repeat se bachne
+        ke liye. Repeat hone wale shortcut ko "" deke LLM elaborate kara dete hain."""
+        if not text:
+            return False
+        asst = [
+            str(m.get("content") or "")
+            for m in (history or [])
+            if m.get("role") == "assistant"
+        ]
+        return any(self._too_similar(text, prev) for prev in asst[-lookback:])
 
     def _fast_path_reply(self, history: list[dict[str, str]], ut: str) -> str:
         """Deterministic pro replies — LLM se pehle (latency + repeat guard)."""
         low = ut.lower().strip()
         qa = self._customer_qa_reply(ut)
-        if qa:
+        # Canned FAQ answer sirf tab do jab woh recent line repeat na kare; warna
+        # "" -> LLM us follow-up ko context se elaborate kare (repeat-loop fix).
+        if qa and not self._repeats_recent(qa, history):
             return qa
         try:
             from app.voice_agent.niche_scripts import get_script
@@ -986,6 +1002,13 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             # SCRIPT FALLBACK: LLM throttled/slow/empty/re-greet -> niche-script ka
             # agla PROFESSIONAL sawaal (instant, niche-specific, kabhi repeat nahi).
             if not text or _regreet or (prev and self._too_similar(text, prev)):
+                # User ne specific sawaal poocha tha par LLM jawab nahi de paaya →
+                # script ka random value-line (non-sequitur "noob" feel) ki jagah
+                # honest acknowledge + next-step. Sirf jab fast-path/QA ne na pakda.
+                if self._looks_like_question(ut) and not self._customer_qa_reply(ut):
+                    gq = self._graceful_question_fallback(history)
+                    if gq:
+                        return gq
                 sc = self._script_fallback(history)
                 if sc:
                     return sc
@@ -1071,6 +1094,31 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             return self._SAFE_LINES[n % len(self._SAFE_LINES)]
         except Exception:
             return "Ji sir, boliye?"
+
+    # User ne SPECIFIC sawaal poocha par KB/LLM jawab nahi de paaya (e.g. niche KB
+    # seed nahi, ya fact available nahi) — aise me script ka random value-line
+    # dump karna = non-sequitur ("metro kitni door?" -> "pre-launch discount" =
+    # confused/noob). Iski jagah honest acknowledge + concrete next-step do (koi
+    # fact invent NAHI, rule-8 safe). Rotate + repeat-skip taaki robotic na lage.
+    _GRACEFUL_Q = (
+        "Achha sawaal sir — iski poori detail main aapko bhej deti hoon; ek short follow-up aaj ya kal rakh lein?",
+        "Ji sir — ye main confirm karke aapko share kar deti hoon; chahein to ek quick callback fix kar dein?",
+        "Bilkul sir — exact jaankari nikaal ke bhej deti hoon; tab tak aapka koi aur sawaal ho to boliye?",
+    )
+
+    def _graceful_question_fallback(self, history: list[dict[str, str]]) -> str:
+        # Sirf EK baar per call — "main detail bhej deti hoon" baar-baar = evasive
+        # (ek aur tarah ka noob). Pehle unanswerable-sawaal pe honest ack; uske baad
+        # script_fallback call ko aage (discovery/closing) le jaaye.
+        used = any(
+            ("bhej deti hoon" in str(m.get("content") or "").lower())
+            or ("share kar deti hoon" in str(m.get("content") or "").lower())
+            for m in (history or [])
+            if m.get("role") == "assistant"
+        )
+        if used:
+            return ""
+        return self._clean(self._GRACEFUL_Q[0])
 
     @staticmethod
     def _looks_like_greeting(text: str) -> bool:
@@ -1456,20 +1504,37 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         bura UX). Meta/noob phrases => '' (caller uses script_fallback)."""
         t = (text or "").strip()
         t = re.sub(r"^(swara|agent|assistant)\s*:\s*", "", t, flags=re.IGNORECASE)
+        # Small models kabhi poora transcript continue kar dete hain ("...kya?
+        # User: ... Swara: ..."). Pehle embedded role-marker pe kaat do — Swara ka
+        # sirf PEHLA turn spoken hota hai (warna TTS dono side bol dega = noob).
+        t = re.split(
+            r"\b(?:user|swara|agent|assistant|customer|client|caller)\s*:",
+            t,
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0].strip()
         t = t.replace("*", "").replace("`", "").replace("#", "")
+        t = re.sub(r"\s+", " ", t).strip()
+        # Small free models kabhi-kabhi reasoning/meta leak karte hain ek
+        # un-closed parenthetical me ("...karte ho? (Lagta hai ki user?"). Aisa
+        # dangling "(...." (bina closing ')') cut kar do — warna TTS junk bolega.
+        if "(" in t and ")" not in t:
+            t = t[: t.index("(")].strip()
         t = re.sub(r"\s+", " ", t).strip()
         if not t:
             return t
         if TelecallerBrain._has_meta_junk(t):
             return ""
-        # 1 sentence max (Hindi danda + . ? !)
+        # Up to 2 SHORT sentences (Hindi danda + . ? !) — natural "pehle jawab,
+        # phir sawaal" flow without monologue. (Was 1 sentence = answers got
+        # clipped before the question, reading terse/robotic vs competitors.)
         parts = re.split(r"(?<=[।.?!])\s+", t)
-        if len(parts) > 1:
-            t = parts[0].strip()
-        # hard word cap (~20) — trim at a clause boundary if possible
+        if len(parts) > 2:
+            t = " ".join(parts[:2]).strip()
+        # hard word cap (~26) — trim at a clause boundary, never mid-thought.
         words = t.split()
-        if len(words) > 20:
-            t = " ".join(words[:20]).rstrip(" ,;—-")
+        if len(words) > 26:
+            t = " ".join(words[:26]).rstrip(" ,;—-")
             if not re.search(r"[।.?!]$", t):
                 t += "?"
         return t
