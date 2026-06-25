@@ -95,11 +95,6 @@ class UpiActivateReq(BaseModel):
     clear_trial: bool = True
 
 
-class VoiceGeminiKeysReq(BaseModel):
-    keys: list[str] = []
-    voice_primary: bool = True
-
-
 class TrustTurnstileReq(BaseModel):
     site_key: str
     secret_key: str
@@ -449,100 +444,6 @@ async def upi_configure(body: UpiConfigureReq, _user=Depends(require_admin)):
     except Exception:
         pass
     return {"ok": True, "upi": upi_config.info()}
-
-
-def _voice_primary_active() -> bool:
-    try:
-        from app.voice_agent.gemini_keys import runtime_voice_primary
-
-        if runtime_voice_primary():
-            return True
-    except Exception:
-        pass
-    return (os.environ.get("VOICE_GEMINI_PRIMARY", "0") or "0").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
-
-
-@router.get("/voice/gemini-keys", summary="Voice Gemini key pool status (masked)")
-async def voice_gemini_keys_status(_user=Depends(require_admin)):
-    from app.voice_agent import gemini_keys
-
-    ks = gemini_keys.gemini_keys()
-    return {
-        "count": len(ks),
-        "voice_primary": _voice_primary_active(),
-        "keys_masked": [(k[:10] + "…") for k in ks],
-    }
-
-
-@router.post("/voice/gemini-keys", summary="Validate + save voice Gemini keys (no restart)")
-async def voice_gemini_keys_set(body: VoiceGeminiKeysReq, _user=Depends(require_admin)):
-    """Admin "Voice Keys" page se keys aati hain → HAR key test (live Gemini call) →
-    sirf usable (200/429) keys pool me save (data/voice_gemini_keys.json) + reload →
-    voice brain Gemini-first. No .env, no restart. Keys masked in response."""
-    import httpx
-
-    seen: set[str] = set()
-    keys: list[str] = []
-    for k in body.keys or []:
-        k = (k or "").strip()
-        if k and k not in seen:
-            seen.add(k)
-            keys.append(k)
-    if not keys:
-        raise HTTPException(status_code=400, detail="no keys provided")
-
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent"
-    results = []
-    usable: list[str] = []
-    async with httpx.AsyncClient(timeout=15) as c:
-        for i, k in enumerate(keys):
-            try:
-                r = await c.post(
-                    url,
-                    params={"key": k},
-                    json={
-                        "contents": [{"parts": [{"text": "hi"}]}],
-                        "generationConfig": {"maxOutputTokens": 1},
-                    },
-                )
-                s = r.status_code
-            except Exception:
-                s = 0
-            ok = s in (200, 429)  # 429 = valid key, just throttled
-            if ok:
-                usable.append(k)
-            tag = "valid" if s == 200 else ("throttled" if s == 429 else f"invalid({s or 'err'})")
-            results.append({"index": i + 1, "masked": k[:10] + "…", "status": tag, "usable": ok})
-
-    if not usable:
-        raise HTTPException(status_code=400, detail="koi usable key nahi mili (sab invalid)")
-
-    from app.voice_agent import gemini_keys
-
-    state = gemini_keys.save_runtime_keys(usable, voice_primary=bool(body.voice_primary))
-    try:
-        from app.platform.team import log_event
-
-        log_event(
-            "arjun",
-            "voice_gemini_keys_set",
-            f"Voice Gemini pool set: {len(usable)}/{len(keys)} usable, primary={body.voice_primary}",
-        )
-    except Exception:
-        pass
-    return {
-        "ok": True,
-        "total": len(keys),
-        "usable": len(usable),
-        "results": results,
-        "voice_primary": bool(body.voice_primary),
-        "pool_size": state.get("count"),
-    }
 
 
 @router.post("/upi/activate", summary="Activate plan after UPI screenshot verified")

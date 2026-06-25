@@ -834,13 +834,6 @@ async def admin_login_page():
     return FileResponse(str(FRONTEND_DIR / "admin_login.html"))
 
 
-@app.get("/app/voice-keys", tags=["Frontend"])
-async def voice_keys_page():
-    """Admin: paste free Gemini API keys → validate → activate the voice brain's
-    Gemini pool (no SSH / .env / restart). Posts to /api/admin/voice/gemini-keys."""
-    return FileResponse(str(FRONTEND_DIR / "voice_keys.html"))
-
-
 @app.get("/app/calendar", tags=["Frontend"])
 async def calendar_page():
     """Content calendar month-view (Buffer-style) — schedule + bookings."""
