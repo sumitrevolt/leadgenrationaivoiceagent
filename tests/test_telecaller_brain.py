@@ -152,6 +152,15 @@ def test_clean_allows_two_short_sentences() -> None:
     assert "salaried" in low
 
 
+def test_voice_gemini_primary_flag(monkeypatch) -> None:
+    # Voice-scoped Gemini-primary: only flips the telecaller brain, not the global
+    # free_ai chain (so marketing/agents stay on Mistral/Groq primary).
+    monkeypatch.delenv("VOICE_GEMINI_PRIMARY", raising=False)
+    assert TelecallerBrain._voice_gemini_primary() is False
+    monkeypatch.setenv("VOICE_GEMINI_PRIMARY", "1")
+    assert TelecallerBrain._voice_gemini_primary() is True
+
+
 def test_customer_qa_no_blanket_valueline_dump() -> None:
     # Vertical niche ka koi bhi off-keyword sawaal pe pehle value_lines[0] dump
     # hota tha (real_estate me har sawaal ka ek hi irrelevant jawab = confused).

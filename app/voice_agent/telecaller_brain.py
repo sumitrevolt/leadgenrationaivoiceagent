@@ -1268,11 +1268,25 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         closing = (s.get("closing") or "").strip()
         return self._clean(closing) if closing else ""
 
+    @staticmethod
+    def _voice_gemini_primary() -> bool:
+        """VOICE-SCOPED Gemini-primary flag — makes ONLY the telecaller brain prefer
+        Gemini (smarter convo) WITHOUT flipping the platform-wide free_ai chain
+        (global GEMINI_PRIMARY would route marketing/agents to Gemini too). Set
+        VOICE_GEMINI_PRIMARY=1 when a healthy GEMINI_API_KEYS pool backs the voice."""
+        return (os.environ.get("VOICE_GEMINI_PRIMARY", "0") or "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+
     async def _generate(self, prompt: str) -> tuple:
-        """(reply_text, provider). Gemini-direct is primary if GEMINI_PRIMARY is set;
-        otherwise free_ai.chat (Cerebras->Groq->OpenRouter) pehle."""
+        """(reply_text, provider). Gemini-direct is primary if GEMINI_PRIMARY (global)
+        OR VOICE_GEMINI_PRIMARY (voice-only) is set; otherwise free_ai.chat
+        (Mistral->Groq->...) pehle."""
         from app.config import settings
-        use_gemini_first = getattr(settings, "gemini_primary", False)
+        use_gemini_first = getattr(settings, "gemini_primary", False) or self._voice_gemini_primary()
 
         if use_gemini_first:
             text = await self._gemini_reply(prompt)
