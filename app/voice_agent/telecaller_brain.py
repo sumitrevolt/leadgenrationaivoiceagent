@@ -79,9 +79,10 @@ _UNIVERSAL_CLOSE = [
 _MAX_HISTORY_TURNS = 8  # last ~8 turns to keep prompt (and latency) small
 _GEN_CONFIG = {
     "temperature": 0.45,
-    "max_output_tokens": 64,
+    "max_output_tokens": 56,
 }  # brevity (phone) — room for ONE complete answer + question (was 45 = chopped
-# mid-sentence "noob" feel); _clean still hard-caps to ~26 words / 2 short vakya.
+# mid-sentence "noob" feel); _clean still hard-caps to ~20 words / 2 short vakya
+# (talk-listen judge: bot ko ~50-60% se kam bolna chahiye — chhota = tez TTS bhi).
 _REPLY_TIMEOUT_S = 8.0  # free LLM chain (Mistral/Groq) — 4.5s = zyada fallback/wrong jawab
 
 # LLM kabhi-kabhi meta/noob phrases bol deta hai — _clean inhe reject karta hai
@@ -1531,10 +1532,11 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         parts = re.split(r"(?<=[।.?!])\s+", t)
         if len(parts) > 2:
             t = " ".join(parts[:2]).strip()
-        # hard word cap (~26) — trim at a clause boundary, never mid-thought.
+        # hard word cap (~20) — trim at a clause boundary, never mid-thought.
+        # (Phone telecaller best-practice + talk-listen ratio: bot ko chhota bolna.)
         words = t.split()
-        if len(words) > 26:
-            t = " ".join(words[:26]).rstrip(" ,;—-")
+        if len(words) > 20:
+            t = " ".join(words[:20]).rstrip(" ,;—-")
             if not re.search(r"[।.?!]$", t):
                 t += "?"
         return t
