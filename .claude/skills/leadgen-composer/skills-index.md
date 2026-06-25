@@ -47,6 +47,7 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 | prod-incident-triage | `.claude/skills/prod-incident-triage/SKILL.md` | prod down / hang |
 | fable-operating-manual | `.claude/skills/fable-operating-manual/SKILL.md` | discipline, audit-first |
 | observability-ops | `.claude/skills/observability-ops/SKILL.md` | Prometheus/Grafana/Loki |
+| genai-observability | `.claude/skills/genai-observability/SKILL.md` | LLM/agent OTel GenAI traces |
 
 ## Agents & decisions
 
