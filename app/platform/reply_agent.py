@@ -331,6 +331,24 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     continue
                 body = _body(msg)
                 intent = await _classify(subj, body)
+                # LLM-guard (IFC, observe-only): scan UNTRUSTED inbound for prompt-injection.
+                # Never blocks — flags the draft so the human reviewer does NOT act on
+                # instructions embedded by a malicious sender. ph18/15-16 (llm-security skill).
+                _inj = None
+                try:
+                    from app.platform import llm_guard
+
+                    _gs = llm_guard.scan(f"{subj}\n{body}", source="inbox")
+                    if _gs.get("suspicious"):
+                        _inj = _gs.get("signals")
+                        if llm_guard.enabled():
+                            logger.warning(
+                                "[reply_agent] LLM_GUARD: possible prompt-injection from %s "
+                                "signals=%s — review draft, do NOT act on embedded instructions",
+                                frm, _inj,
+                            )
+                except Exception:
+                    pass
                 res["processed"] += 1
                 pid = (p or {}).get("id") or (p or {}).get("pid")
                 if pid:
@@ -453,6 +471,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         "subject": subj,
                         "intent": intent,
                         "draft": draft,
+                        "injection_flag": _inj,
                         "at": datetime.now(timezone.utc).isoformat(),
                     }
                 )
