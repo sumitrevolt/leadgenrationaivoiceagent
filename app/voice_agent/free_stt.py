@@ -17,9 +17,9 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
-from app.utils.logger import get_logger
+from app.utils.logger import setup_logger
 
-logger = get_logger(__name__)
+logger = setup_logger(__name__)
 
 
 class BaseSTTProvider(ABC):
@@ -477,11 +477,21 @@ class FreeSTTManager:
         except Exception as e:
             logger.debug(f"SpeechRecognition not available: {e}")
 
-        # Fall back to mock
-        self.providers["mock"] = MockSTTProvider()
-        self.active_provider = "mock"
-        logger.warning("⚠️ Using Mock STT (for testing only)")
-        return "mock"
+        # SAFETY (2026-06-25 audit): a mock that returns CANNED transcripts would
+        # make the agent "hear" fake speech in production — worse than honest
+        # silence. Only allow it when ALLOW_MOCK_STT=1 (tests). Otherwise leave NO
+        # active provider; transcribe() then returns "" and the caller degrades.
+        if (os.getenv("ALLOW_MOCK_STT", "0") or "0").strip().lower() in ("1", "true", "yes", "on"):
+            self.providers["mock"] = MockSTTProvider()
+            self.active_provider = "mock"
+            logger.warning("⚠️ Using Mock STT (ALLOW_MOCK_STT=1 — testing only)")
+            return "mock"
+        self.active_provider = None
+        logger.error(
+            "❌ No real STT provider available (Vosk/Whisper/SpeechRecognition). "
+            "Mock disabled (set ALLOW_MOCK_STT=1 to allow canned test transcripts)."
+        )
+        return "none"
 
     def get_provider(self) -> BaseSTTProvider:
         """Get the active provider."""
@@ -490,13 +500,20 @@ class FreeSTTManager:
         return self.providers[self.active_provider]
 
     async def transcribe(self, audio_data: bytes, **kwargs) -> str:
-        """Transcribe audio using active provider."""
+        """Transcribe audio using active provider. Returns "" when no real provider
+        is available (honest silence — never a fabricated transcript)."""
+        if not self.active_provider:
+            return ""
         return await self.get_provider().transcribe(audio_data, **kwargs)
 
     async def transcribe_stream(
         self, audio_stream: AsyncGenerator[bytes, None], **kwargs
     ) -> AsyncGenerator[str, None]:
-        """Stream transcription."""
+        """Stream transcription. Yields nothing when no real provider is available."""
+        if not self.active_provider:
+            async for _ in audio_stream:
+                pass  # drain, but never emit fabricated text
+            return
         async for text in self.get_provider().transcribe_stream(audio_stream, **kwargs):
             yield text
 

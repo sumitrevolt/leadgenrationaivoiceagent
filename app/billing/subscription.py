@@ -780,41 +780,24 @@ class BillingManager:
         if not invoice:
             return {"success": False, "error": "Invoice not found"}
 
-        # Simulate payment processing
-        # In production: Razorpay/Stripe API call here
-
-        invoice.status = PaymentStatus.COMPLETED
-        invoice.paid_at = datetime.now()
-        invoice.payment_method = payment_method
-
-        # Update subscription
-        subscription = self.subscriptions.get(invoice.subscription_id)
-        if subscription:
-            subscription.last_payment = datetime.now()
-            subscription.status = SubscriptionStatus.ACTIVE
-
-            # Extend period
-            if subscription.billing_cycle == BillingCycle.MONTHLY:
-                subscription.current_period_end += timedelta(days=30)
-            elif subscription.billing_cycle == BillingCycle.QUARTERLY:
-                subscription.current_period_end += timedelta(days=90)
-            else:
-                subscription.current_period_end += timedelta(days=365)
-
-            subscription.next_payment = subscription.current_period_end
-
-            # Reset usage counters
-            subscription.calls_used = 0
-            subscription.leads_generated = 0
-            subscription.appointments_booked = 0
-
-        logger.info(f"✅ Payment processed for invoice {invoice_id}")
-
+        # SAFETY (2026-06-25 audit): this legacy in-memory manager is NOT the live
+        # billing path (real payments = UPI manual-verify / Stripe via app/billing
+        # + DB). It must NEVER fake a gateway success — marking an invoice paid with
+        # NO money received is a financial foot-gun. Refuse honestly; the real flow
+        # (admin UPI verify / Stripe webhook) performs the actual activation.
+        logger.warning(
+            f"process_payment() called on the legacy in-memory SubscriptionManager "
+            f"for invoice {invoice_id} — no real gateway wired here; refusing to fake "
+            f"a paid status. Use the UPI/Stripe billing path."
+        )
         return {
-            "success": True,
+            "success": False,
+            "status": "not_configured",
             "invoice_id": invoice_id,
-            "amount_paid": str(invoice.total_amount),
-            "next_billing_date": subscription.next_payment.isoformat() if subscription else None,
+            "error": (
+                "No payment gateway is wired in this code path. Real payments go "
+                "through UPI (admin verification) or Stripe in app/billing."
+            ),
         }
 
     async def cancel_subscription(self, subscription_id: str, reason: str = "") -> dict[str, Any]:
