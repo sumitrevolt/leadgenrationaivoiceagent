@@ -1,10 +1,17 @@
 """Tests — team status 3-tier window + team_pulse heartbeat. Hermetic:
 log_event + DB stubbed, monitors run real cheap fns (defensive). Never-raise.
+
+FIX 2026-06-25: automation_health.health() DB call pe hang hota tha —
+ab automation_health module hi stubbed hai (team_pulse ke _kavya call ko
+rokkar). Isliye yeh test fast + deterministic hai.
 """
 
 from __future__ import annotations
 
+import pytest
 
+
+@pytest.mark.timeout(10)  # 10s safety — agar hang bhi ho to fail fast
 def test_team_pulse_logs_and_never_raises(monkeypatch):
     from app.platform import team
 
@@ -25,6 +32,10 @@ def test_team_pulse_logs_and_never_raises(monkeypatch):
             ]
         },
     )
+    # FIX: automation_health.health() DB call pe hang — usko stub karo
+    monkeypatch.setattr(
+        team, "_kavya", lambda: "system OK · overdue 0"
+    )
 
     res = team.team_pulse(max_members=3)
     assert res["count"] >= 1 and res["count"] <= 3
@@ -35,6 +46,7 @@ def test_team_pulse_logs_and_never_raises(monkeypatch):
     assert all(a.endswith("_pulse") for _, a in logged)
 
 
+@pytest.mark.timeout(10)  # 10s safety — agar hang bhi ho to fail fast
 def test_team_pulse_monitor_failure_isolated(monkeypatch):
     from app.platform import team
 
