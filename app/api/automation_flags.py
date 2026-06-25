@@ -173,6 +173,12 @@ AUTOMATION_FLAGS = [
     # --- Research-improvements batch 2026-06-19 ---
     "USE_TEXT_ENDPOINT",  # text-based semantic end-of-turn (complements audio Smart-Turn) — OFF default
     "USE_LLM_STREAM_TTS",  # LLM token stream → early sentence TTS (vobiz) — OFF default
+    "VOICE_TOOLS",  # agentic in-call actions (book/capture/transfer/end via function_calling) on the live
+    # voice loop — isolated reply_with_tools path, brain default untouched. OFF default; test on web-call first.
+    "BOOKING_NOTIFY",  # on a successful AI booking, best-effort ntfy + email to the business owner — default ON,
+    # inert when no NTFY/NOTIFY_EMAIL/client-email target. Durable ledger (data/bookings/) is always written.
+    "CALCOM_API_KEY",  # optional Cal.com BYOK (no OAuth) real-calendar booking — set with CALCOM_EVENT_TYPE_ID;
+    # unset = internal durable ledger. URL/key-valued = ON.
     "OBJECTION_KB",  # transcript/reply objection extraction → Qdrant objections:{niche} (default ON)
     "INTERACTION_LOG",  # omnichannel interaction timeline DB+jsonl (default ON)
     # --- Readiness + dashboard batch 2026-06-20 (all default OFF / inert) ---

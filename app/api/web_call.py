@@ -1063,6 +1063,38 @@ async def web_call_ws(websocket: WebSocket) -> None:
             # we drop through to the existing natural-dialog/_respond chain.
             tcbrain = await _run_blocking(_get_tcbrain, session.get("niche", "general"))
             if tcbrain is not None:
+                # VOICE_TOOLS (agentic in-call actions) — PARITY with the phone path.
+                # Gated VOICE_TOOLS=1 (default OFF = skip entirely). When on, the brain
+                # may take an action (book/capture/transfer/end) instead of just
+                # talking; we speak the confirmation and end the turn. Uses the SAME
+                # shared run_tool_turn as vobiz, so the agentic behaviour matches.
+                try:
+                    from app.voice_agent.voice_tools import (
+                        build_registry_for,
+                        run_tool_turn,
+                        voice_tools_enabled,
+                    )
+
+                    if voice_tools_enabled():
+                        _reg = build_registry_for(
+                            niche=session.get("niche", "general"),
+                            client_id=session.get("client_id"),
+                            history=history,
+                        )
+                        _decision = await run_tool_turn(tcbrain, history, user_text, _reg)
+                        if _decision.get("spoken"):
+                            tc_reply = _decision["spoken"]
+                            _log_turn(session, "assistant", tc_reply)
+                            await _send_bot_message(
+                                websocket,
+                                tc_reply,
+                                heard=user_text,
+                                should_end=bool(_decision.get("should_end")),
+                            )
+                            continue
+                except Exception as e:
+                    logger.debug(f"web-call: voice-tools path skip ({e}).")
+
                 # FILLER — sirf mic/audio turns pe; text test-call pe EdgeTTS filler
                 # 6s block karta hai → WS tester timeout / dead air.
                 if data.get("audio_b64"):

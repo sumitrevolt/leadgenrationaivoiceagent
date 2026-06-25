@@ -1071,6 +1071,52 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         if one:
             yield one
 
+    async def reply_with_tools(
+        self, history: list[dict[str, str]], user_text: str, registry: object
+    ) -> tuple[str, dict | None]:
+        """VOICE_TOOLS path (gated; the caller checks the flag) — generate ONE
+        turn that is EITHER a spoken Hinglish line OR an in-call tool call.
+
+        Returns ``(spoken_text, tool_call)`` where exactly one is meaningful:
+          * ``tool_call`` = ``{"name", "args"}`` when the LLM emitted a CALL line
+            (parsed by function_calling.parse_tool_call);
+          * ``spoken_text`` = the cleaned reply otherwise.
+
+        Fully ISOLATED from reply()/reply_stream_sentences — the default voice
+        behaviour is byte-identical when VOICE_TOOLS is off (this method is simply
+        never invoked). Never raises: any failure degrades to a normal reply()."""
+        try:
+            from app.voice_agent.function_calling import parse_tool_call
+            from app.voice_agent.voice_tools import tools_instruction
+
+            ut = (user_text or "").strip()
+            facts = await self._kb_facts(ut)
+            prompt = self._build_prompt(
+                history, ut, facts, extra_system=tools_instruction(registry)
+            )
+            try:
+                raw, _prov = await asyncio.wait_for(
+                    self._generate(prompt), timeout=_REPLY_TIMEOUT_S
+                )
+            except Exception:
+                raw = ""
+            raw = (raw or "").strip()
+            if raw:
+                call = parse_tool_call(raw)
+                if call and call.get("name"):
+                    logger.info(f"[telecaller-brain] tool-call: {call.get('name')}")
+                    return "", call
+            spoken = self._fill(self._clean(raw)) if raw else ""
+            if not spoken:
+                spoken = self._script_fallback(history) or self._safe_fallback(history)
+            return spoken, None
+        except Exception as e:
+            logger.debug(f"[telecaller-brain] reply_with_tools fallback: {e}")
+            try:
+                return (await self.reply(history, user_text)), None
+            except Exception:
+                return "", None
+
     # Agent KABHI chup na rahe — LLM slow/empty + script-fallback bhi khali ho to
     # ek safe Hinglish clarify/ack line do (silence = worst UX; test me "NO REPLY" bug).
     _SAFE_LINES = (
@@ -1350,10 +1396,18 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     # Prompt assembly (system + KB facts + recent turns)
     # ------------------------------------------------------------------ #
     def _build_prompt(
-        self, history: list[dict[str, str]], user_text: str, facts: list[str] | None = None
+        self,
+        history: list[dict[str, str]],
+        user_text: str,
+        facts: list[str] | None = None,
+        extra_system: str = "",
     ) -> str:
         turns = list(history or [])[-_MAX_HISTORY_TURNS:]
         lines: list[str] = [self.system_prompt]
+        # VOICE_TOOLS path injects the in-call action instruction here (after the
+        # system prompt, before history). Default "" = byte-identical prompt.
+        if extra_system:
+            lines.append(extra_system)
         vl = self._voice_lessons_block()
         if vl:
             lines.append(vl)

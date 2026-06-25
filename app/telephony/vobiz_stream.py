@@ -625,6 +625,10 @@ class VobizStreamSession:
         self._brain_tried = False
         self._ndm = None  # NaturalDialogManager fallback (cached — heavy)
         self._ndm_tried = False
+        # VOICE_TOOLS (agentic in-call actions) — gated; per-call registry built
+        # lazily on first use. None/False here = inert until the flag is on.
+        self._tool_registry = None
+        self._tool_registry_tried = False
         self._teardown_done = False  # idempotent _cleanup (WS disconnect + stop)
         # AMD (answering-machine detection) parity — GATED AMD_DETECT (default OFF).
         # Only the FIRST caller utterance is checked (voicemail greeting). When a
@@ -1210,6 +1214,20 @@ class VobizStreamSession:
                     await self._run_play(random.choice(_FILLER_PCM))  # D-7 thinking filler
             except Exception as e:
                 logger.debug(f"[vobiz-stream] filler play failed: {e}")
+            # VOICE_TOOLS (agentic) — gated, isolated. When ON, the brain may take
+            # an in-call action (book/capture/transfer/end) instead of just talking.
+            # Fully handled here -> record + return; else fall through to the normal
+            # reply below (the flag OFF means this is a no-op, zero change).
+            if self._voice_tools_on():
+                try:
+                    _tr = await self._handle_with_tools(text)
+                except Exception as e:
+                    logger.debug(f"[vobiz-stream] voice-tools path failed: {e}")
+                    _tr = None
+                if _tr is not None:
+                    _outcome = _tr.get("outcome", "ok")
+                    _reply_text = _tr.get("reply_text", "")
+                    return
             # THINK WATCHDOG: the streaming reply path drives token-stream + TTS while
             # holding self._thinking=True; if any await inside it hung (free provider
             # stalls mid-stream were the live root cause), self._thinking would never
@@ -1759,6 +1777,114 @@ class VobizStreamSession:
             logger.warning(f"[vobiz-stream] LLMBrain unavailable: {e}")
             self._brain = None
         return self._brain
+
+    # ------------------------------------------------------------------ #
+    # VOICE_TOOLS — agentic in-call actions (gated VOICE_TOOLS=1, default OFF).
+    # Isolated: only runs when the flag is on; the brain's default reply path is
+    # untouched. Tools (book/capture/transfer/end) come from function_calling.py
+    # and degrade to safe simulation when a real service is unavailable.
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _voice_tools_on() -> bool:
+        try:
+            from app.voice_agent.voice_tools import voice_tools_enabled
+
+            return voice_tools_enabled()
+        except Exception:
+            return False
+
+    def _get_tool_registry(self):
+        """Per-call ToolRegistry (built once), wired with this call's lead/niche
+        context. None if unavailable -> caller falls back to the normal reply."""
+        if self._tool_registry_tried:
+            return self._tool_registry
+        self._tool_registry_tried = True
+        try:
+            from app.voice_agent.function_calling import build_default_registry
+
+            ctx = {
+                "lead": {"phone": self._lead_phone or ""},
+                "call_id": self.stream_sid or "",
+                "niche": self.niche,
+                "client_id": self.client_id,
+                "conversation_history": self.hist,
+            }
+            self._tool_registry = build_default_registry(ctx)
+        except Exception as e:
+            logger.warning(f"[vobiz-stream] tool registry unavailable: {e}")
+            self._tool_registry = None
+        return self._tool_registry
+
+    async def _handle_with_tools(self, text: str) -> dict | None:
+        """VOICE_TOOLS turn: ask the brain for a spoken reply OR a tool call,
+        execute the tool, speak the confirmation. Returns a metrics dict
+        {outcome, reply_text} when it fully handled the turn, else None (caller
+        then falls through to the normal stream/non-stream reply). Never raises."""
+        tc = self._get_telecaller()
+        if tc is None or not hasattr(tc, "reply_with_tools"):
+            return None
+        reg = self._get_tool_registry()
+        if reg is None:
+            return None
+        try:
+            spoken, call = await asyncio.wait_for(
+                tc.reply_with_tools(self.hist, text, reg), timeout=THINK_MAX_S
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"[vobiz-stream {self.stream_sid}] voice-tools watchdog fired")
+            return None
+        except Exception as e:
+            logger.warning(f"[vobiz-stream] reply_with_tools failed: {e}")
+            return None
+        # --- tool-call path ---
+        if call and call.get("name"):
+            name = str(call.get("name"))
+            args = call.get("args") or {}
+            try:
+                result = await reg.execute(name, args)
+            except Exception as e:
+                logger.warning(f"[vobiz-stream] tool {name} execute failed: {e}")
+                return None
+            confirm = self._tool_confirmation(name, result)
+            self.hist.append({"role": "assistant", "content": confirm})
+            logger.info(
+                f"[vobiz-stream {self.stream_sid}] tool={name} "
+                f"ok={getattr(result, 'ok', None)} -> {confirm[:60]}"
+            )
+            should_end = name == "end_call" or (
+                isinstance(getattr(result, "data", None), dict)
+                and result.data.get("should_end")
+            )
+            if should_end:
+                await self._say_and_wait(confirm)
+                self._closed = True
+                self._stop_play()
+                try:
+                    await self.ws.close()
+                except Exception:
+                    pass
+            else:
+                await self._say(confirm)
+            return {"outcome": f"tool:{name}", "reply_text": confirm}
+        # --- normal spoken reply path ---
+        spoken = (spoken or "").strip()
+        if not spoken:
+            return None  # nothing to say -> fall through to the standard path
+        self.hist.append({"role": "assistant", "content": spoken})
+        logger.info(f"[vobiz-stream {self.stream_sid}] bot(tools): {spoken}")
+        await self._say(spoken)
+        return {"outcome": "ok", "reply_text": spoken}
+
+    @staticmethod
+    def _tool_confirmation(name: str, result) -> str:
+        """Short Hinglish line the agent SPEAKS after running a tool — delegates to
+        the shared voice_tools.confirmation_line so phone + web speak identically."""
+        try:
+            from app.voice_agent.voice_tools import confirmation_line
+
+            return confirmation_line(name, result)
+        except Exception:
+            return "Theek hai ji, aage badhte hain."
 
     # ------------------------------------------------------------------ #
     # Outbound speech — EdgeTTS -> µ-law -> 20 ms frames
