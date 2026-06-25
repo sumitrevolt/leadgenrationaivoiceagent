@@ -32,6 +32,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import uuid
 from dataclasses import dataclass, field
@@ -61,6 +62,23 @@ BUSINESS_DAYS = {0, 1, 2, 3, 4, 5}  # Mon=0 ... Sat=5 (Sun=6 closed)
 BUSINESS_START = dtime(10, 0)
 BUSINESS_END = dtime(18, 0)
 DEFAULT_DURATION_MIN = 15
+
+# Durable bookings ledger (gitignored data/). Every successful booking — internal,
+# Google, or Cal.com — is appended here so a phone/web call's appointment SURVIVES
+# a restart and the business owner can actually see/act on it (the old in-memory
+# "simulation" lost everything on restart and notified no one).
+DATA_BOOKINGS_DIR = os.path.join("data", "bookings")
+
+
+def _booking_notify_enabled() -> bool:
+    """BOOKING_NOTIFY (default ON): on a successful booking, best-effort ntfy +
+    email so the business owner is told. Inert when no target is configured."""
+    return (os.getenv("BOOKING_NOTIFY", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
 
 
 @dataclass
@@ -108,29 +126,36 @@ class CalendarBooking:
             try:
                 self._gcal = self._build_google_calendar()
                 if self._gcal is None:
-                    self.provider = "simulation"
+                    self.provider = "internal"
             except Exception as e:
-                logger.error(f"Google Calendar init failed ({e}); using simulation.")
-                self.provider = "simulation"
+                logger.error(f"Google Calendar init failed ({e}); using internal store.")
+                self.provider = "internal"
 
-        if self.provider == "simulation":
+        if self.provider == "internal":
             logger.info(
-                "📅 CalendarBooking in SIMULATION mode — no calendar keys needed. "
-                "Slots: Mon-Sat 10:00-18:00 IST."
+                "📅 CalendarBooking in INTERNAL mode — durable bookings ledger "
+                "(data/bookings/), no calendar keys needed. Slots: Mon-Sat 10:00-18:00 IST."
             )
         else:
             logger.info(f"📅 CalendarBooking active provider: {self.provider}")
+
+        # Restore today's taken slots from the durable ledger so a restart can't
+        # double-book a slot already taken earlier today. Best-effort, never raises.
+        self._load_today_taken()
 
     # ------------------------------------------------------------------ #
     # Provider detection / construction
     # ------------------------------------------------------------------ #
     def _detect_provider(self) -> str:
-        """Pick 'google' if creds exist, else 'simulation'."""
+        """Pick 'calcom' (BYOK API key — no OAuth), else 'google' (service-account
+        creds), else 'internal' (durable local ledger, no keys needed)."""
+        if _setting("CALCOM_API_KEY") and _setting("CALCOM_EVENT_TYPE_ID"):
+            return "calcom"
         creds = _setting("GOOGLE_CALENDAR_CREDENTIALS") or _setting("google_sheets_credentials")
         cal_id = _setting("GOOGLE_CALENDAR_ID")
         if creds and os.path.exists(creds) and cal_id:
             return "google"
-        return "simulation"
+        return "internal"
 
     def _build_google_calendar(self):
         """Build a Google Calendar API service. Local imports keep us safe if
@@ -195,11 +220,17 @@ class CalendarBooking:
         phone: str,
         notes: str = "",
         duration_min: int = DEFAULT_DURATION_MIN,
+        client_id: str = "",
+        niche: str = "",
     ) -> BookingResult:
         """
         Book an appointment at `when_iso` for `name` / `phone`.
 
-        Never raises — returns BookingResult(ok=False, error=...) on failure.
+        Tries the active provider (Cal.com / Google), always falling back to the
+        durable internal ledger. On success the booking is PERSISTED to
+        data/bookings/ and the business owner is notified (best-effort);
+        `client_id` / `niche` route that notification. Never raises — returns
+        BookingResult(ok=False, error=...) on failure.
         """
         when = self._normalize_when(when_iso)
         if not when:
@@ -212,13 +243,36 @@ class CalendarBooking:
 
         duration_min = max(5, int(duration_min or DEFAULT_DURATION_MIN))
 
-        if self.provider == "google" and self._gcal is not None:
+        result: BookingResult | None = None
+        if self.provider == "calcom":
             try:
-                return await self._google_book(when, name, phone, notes, duration_min)
+                result = await self._calcom_book(when, name, phone, notes, duration_min)
             except Exception as e:
-                logger.error(f"Google booking failed ({e}); simulating.")
+                logger.error(f"Cal.com booking failed ({e}); using internal ledger.")
+        elif self.provider == "google" and self._gcal is not None:
+            try:
+                result = await self._google_book(when, name, phone, notes, duration_min)
+            except Exception as e:
+                logger.error(f"Google booking failed ({e}); using internal ledger.")
 
-        return self._sim_book(when, name, phone, notes, duration_min)
+        if result is None:
+            result = self._internal_book(when, name, phone, notes, duration_min)
+
+        # Durable record + owner notification on success (every provider).
+        if result and result.ok:
+            try:
+                self._record_booking(
+                    result,
+                    name=name,
+                    phone=phone,
+                    notes=notes,
+                    niche=niche,
+                    client_id=client_id,
+                    duration_min=duration_min,
+                )
+            except Exception as e:
+                logger.debug(f"calendar: record/notify skipped ({e})")
+        return result
 
     async def cancel(self, booking_id: str) -> bool:
         """Cancel a booking. Never raises; returns True if cancelled."""
@@ -347,14 +401,17 @@ class CalendarBooking:
             cursor += step
         return slots
 
-    def _sim_book(
+    def _internal_book(
         self, when: datetime, name: str, phone: str, notes: str, duration_min: int
     ) -> BookingResult:
+        """Durable internal booking (no external calendar). The record is PERSISTED
+        by book_slot's _record_booking, so it survives a restart (the old in-memory
+        'simulation' did not)."""
         iso = when.isoformat()
         if iso in self._taken:
             return BookingResult(
                 ok=False,
-                provider="simulation",
+                provider="internal",
                 when=iso,
                 error="Slot already booked.",
                 confirmation_text=(
@@ -371,15 +428,200 @@ class CalendarBooking:
             "duration_min": duration_min,
         }
         self._taken.add(iso)
-        logger.info(f"📅 [SIMULATION] Booked {booking_id} @ {iso} for {name}/{phone}")
+        logger.info(f"📅 [internal] Booked {booking_id} @ {iso} for {name}/{phone}")
         return BookingResult(
             ok=True,
             booking_id=booking_id,
             when=iso,
-            provider="simulation",
+            provider="internal",
             confirmation_text=self._confirm_text(when, name),
             meta={"duration_min": duration_min},
         )
+
+    # ------------------------------------------------------------------ #
+    # Cal.com backend (BYOK API key — NO OAuth). Optional: set CALCOM_API_KEY +
+    # CALCOM_EVENT_TYPE_ID. Availability uses the internal business-hours grid;
+    # only the booking is pushed to Cal.com (its availability API is heavier).
+    # ------------------------------------------------------------------ #
+    async def _calcom_book(
+        self, when: datetime, name: str, phone: str, notes: str, duration_min: int
+    ) -> BookingResult:
+        api_key = _setting("CALCOM_API_KEY")
+        event_type_id = _setting("CALCOM_EVENT_TYPE_ID")
+        base = _setting("CALCOM_API_BASE") or "https://api.cal.com/v1"
+        if not api_key or not event_type_id:
+            raise RuntimeError("Cal.com creds missing")
+        import httpx
+
+        # Cal.com needs an attendee email; phone leads often lack one -> derive a
+        # stable placeholder so the booking still goes through.
+        email = (
+            _setting("CALCOM_ATTENDEE_EMAIL")
+            or f"{(phone or 'lead').strip() or 'lead'}@voice.leadsgenai.in"
+        )
+        payload = {
+            "eventTypeId": int(event_type_id),
+            "start": when.isoformat(),
+            "responses": {"name": name or "Lead", "email": email},
+            "timeZone": "Asia/Kolkata",
+            "language": "en",
+            "metadata": {"source": "ai_voice_agent", "phone": phone, "notes": notes},
+        }
+        async with httpx.AsyncClient(timeout=12.0) as client:
+            resp = await client.post(
+                f"{base.rstrip('/')}/bookings", params={"apiKey": api_key}, json=payload
+            )
+            resp.raise_for_status()
+            data = resp.json() if resp.content else {}
+        node = data.get("booking") if isinstance(data, dict) else None
+        node = node if isinstance(node, dict) else (data if isinstance(data, dict) else {})
+        ext = str(node.get("uid") or node.get("id") or uuid.uuid4().hex[:12])
+        booking_id = f"calcom_{ext}"
+        self._bookings[booking_id] = {
+            "event_id": ext,
+            "when": when.isoformat(),
+            "name": name,
+            "phone": phone,
+            "notes": notes,
+        }
+        self._taken.add(when.isoformat())
+        logger.info(f"📅 [calcom] Booked {booking_id} @ {when.isoformat()}")
+        return BookingResult(
+            ok=True,
+            booking_id=booking_id,
+            when=when.isoformat(),
+            provider="calcom",
+            confirmation_text=self._confirm_text(when, name),
+            meta={"calcom_id": ext},
+        )
+
+    # ------------------------------------------------------------------ #
+    # Durable ledger + owner notification (the "real booking" guarantees)
+    # ------------------------------------------------------------------ #
+    def _record_booking(
+        self,
+        result: BookingResult,
+        *,
+        name: str,
+        phone: str,
+        notes: str,
+        niche: str,
+        client_id: str,
+        duration_min: int,
+    ) -> None:
+        """Persist the booking to the durable ledger + notify the owner. Best-effort."""
+        rec = {
+            "booking_id": result.booking_id,
+            "when": result.when,
+            "provider": result.provider,
+            "name": name or "",
+            "phone": phone or "",
+            "notes": notes or "",
+            "niche": niche or "",
+            "client_id": str(client_id or ""),
+            "duration_min": duration_min,
+            "booked_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        self._persist_booking(rec)
+        if _booking_notify_enabled():
+            self._notify_owner(rec)
+
+    @staticmethod
+    def _persist_booking(rec: dict[str, Any]) -> None:
+        """Append one booking to data/bookings/YYYY-MM-DD.jsonl. Never raises."""
+        try:
+            os.makedirs(DATA_BOOKINGS_DIR, exist_ok=True)
+            day = datetime.now().strftime("%Y-%m-%d")
+            path = os.path.join(DATA_BOOKINGS_DIR, day + ".jsonl")
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug(f"calendar: persist failed ({e})")
+
+    def _notify_owner(self, rec: dict[str, Any]) -> None:
+        """Best-effort ntfy push + email so the business owner is told a meeting was
+        booked. Routes email to the client owner (client_id) else NOTIFY_EMAIL.
+        Never raises; inert when no target is configured."""
+        when = rec.get("when") or ""
+        name = rec.get("name") or "lead"
+        phone = rec.get("phone") or ""
+        niche = rec.get("niche") or ""
+        title = "📅 New appointment booked (AI voice agent)"
+        msg = f"{when} — {name} {phone} ({niche})".strip()
+        try:
+            from app.platform.ops_alerts import _ntfy
+
+            _ntfy(title, msg, priority="default", tags=["calendar", "spiral_calendar"])
+        except Exception:
+            pass
+        try:
+            to = self._owner_email(rec.get("client_id") or "")
+            if not to:
+                return
+            from app.integrations.email_sender import EmailSender
+
+            async def _send() -> None:
+                try:
+                    body = f"{msg}\n\nNotes: {rec.get('notes', '')}\nBooking: {rec.get('booking_id', '')}"
+                    await EmailSender().send_email([to], title, body)
+                except Exception:
+                    pass
+
+            try:
+                asyncio.get_running_loop().create_task(_send())
+            except RuntimeError:  # no running loop — fire synchronously
+                asyncio.run(_send())
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug(f"calendar: owner notify failed ({e})")
+
+    @staticmethod
+    def _owner_email(client_id: str) -> str:
+        """Client owner email (if resolvable) else NOTIFY_EMAIL admin fallback."""
+        cid = (client_id or "").strip()
+        if cid:
+            try:
+                from app.marketing.clients_store import get_client
+
+                c = get_client(cid) or {}
+                for k in ("email", "owner_email", "contact_email"):
+                    if c.get(k):
+                        return str(c[k]).strip()
+            except Exception:
+                pass
+        return _setting("NOTIFY_EMAIL")
+
+    def _load_today_taken(self) -> None:
+        """Restore today's taken slots from the ledger (restart double-book guard)."""
+        try:
+            for rec in self.list_bookings(limit=1000):
+                w = rec.get("when")
+                if w:
+                    self._taken.add(w)
+        except Exception:  # pragma: no cover - defensive
+            pass
+
+    @staticmethod
+    def list_bookings(limit: int = 50, date_str: str | None = None) -> list[dict[str, Any]]:
+        """Recent bookings from the durable ledger for a day (UTC-naive local day).
+        For the admin view + restart restore. Never raises."""
+        out: list[dict[str, Any]] = []
+        try:
+            day = (date_str or "").strip() or datetime.now().strftime("%Y-%m-%d")
+            path = os.path.join(DATA_BOOKINGS_DIR, day + ".jsonl")
+            if not os.path.exists(path):
+                return out
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        out.append(json.loads(line))
+                    except Exception:
+                        continue
+        except Exception:  # pragma: no cover - defensive
+            return out
+        return out[-limit:] if limit else out
 
     # ------------------------------------------------------------------ #
     # Helpers
@@ -439,14 +681,16 @@ class CalendarBooking:
         """Diagnostics for dashboard / health checks."""
         return {
             "active_provider": self.provider,
-            "simulation_mode": self.provider == "simulation",
+            "internal_mode": self.provider == "internal",
             "business_hours": "Mon-Sat 10:00-18:00 IST",
             "bookings_held": len(self._bookings),
+            "notify": _booking_notify_enabled(),
             "note": (
-                "Running in SIMULATION mode — set GOOGLE_CALENDAR_CREDENTIALS + "
-                "GOOGLE_CALENDAR_ID to enable real Google Calendar."
-                if self.provider == "simulation"
-                else f"Active provider '{self.provider}'."
+                "INTERNAL durable ledger (data/bookings/) — bookings persist across "
+                "restart + owner notified. Optional: CALCOM_API_KEY+CALCOM_EVENT_TYPE_ID "
+                "(no OAuth) or GOOGLE_CALENDAR_CREDENTIALS+GOOGLE_CALENDAR_ID for sync."
+                if self.provider == "internal"
+                else f"Active provider '{self.provider}' (bookings also persisted locally)."
             ),
         }
 

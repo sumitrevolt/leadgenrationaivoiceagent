@@ -715,3 +715,49 @@ async def flow_seed_templates(_user=Depends(require_admin)):
             }
         )
     return {"ok": True, "created": created, "count": len(created)}
+
+
+@router.get("/voice/latency", summary="Voice agent per-turn latency rollup (P50/P95) — proves call speed")
+async def voice_latency(date: str = "", recent: int = 20, _user=Depends(require_admin)):
+    """Per-turn voice latency (stt_ms / llm_first_ms / tts_first_ms / turn_ms)
+    rolled up to P50/P95/avg/max from ``data/turn_metrics/`` — the numbers that
+    prove (and let us tune) call speed vs the sub-700ms SOTA bar.
+
+    ``TURN_METRICS`` (default ON) writes one line per real turn on every live
+    Vobiz/phone/web call. ``date`` = 'YYYY-MM-DD' (UTC; default today). ``recent``
+    = how many latest turns to return for drill-down (max 200). Never raises."""
+    from app.voice_agent import turn_metrics
+
+    day = (date or "").strip() or None
+    records = turn_metrics.load_day(day)
+    summary = turn_metrics.rollup(records)
+    recent_n = max(0, min(int(recent or 0), 200))
+    tail = records[-recent_n:] if recent_n else []
+    return {
+        "ok": True,
+        "date": day or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "summary": summary,
+        "recent": tail,
+        "metrics_enabled": turn_metrics.enabled(),
+    }
+
+
+@router.get("/voice/bookings", summary="Appointments the AI voice agent booked (durable ledger)")
+async def voice_bookings(date: str = "", limit: int = 50, _user=Depends(require_admin)):
+    """Recent appointments booked on AI calls, from the durable ledger
+    (``data/bookings/``). This is the proof that "AI books the meeting" is real —
+    each booking persists across restarts and the owner is notified on booking.
+    ``date`` = 'YYYY-MM-DD' (default today). Never raises."""
+    from app.integrations.calendar_booking import get_calendar
+
+    cal = get_calendar()
+    day = (date or "").strip() or None
+    items = cal.list_bookings(limit=max(1, min(int(limit or 50), 500)), date_str=day)
+    return {
+        "ok": True,
+        "date": day or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "count": len(items),
+        "bookings": items,
+        "provider": getattr(cal, "provider", "internal"),
+        "config": cal.validate_config(),
+    }

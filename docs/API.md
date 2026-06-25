@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (860 operations)
+## Endpoint Index — auto-generated from OpenAPI (865 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -405,7 +405,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/revenue-trend` — Get Revenue Trend
 - `GET   ` `/api/admin/sync-health` — Admin Sync Health
 
-### Admin Ops  (15)
+### Admin Ops  (19)
 
 - `GET   ` `/api/admin/calls/recent` — Recent call outcomes / qualified summary
 - `POST  ` `/api/admin/campaign/launch` — Launch outbound call campaign
@@ -422,6 +422,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/upi/clients` — Search clients for manual UPI activate
 - `POST  ` `/api/admin/upi/configure` — Set platform UPI VPA (data file — no container restart)
 - `GET   ` `/api/admin/upi/pending` — Clients waiting for UPI screenshot activation
+- `GET   ` `/api/admin/voice/bookings` — Appointments the AI voice agent booked (durable ledger)
+- `GET   ` `/api/admin/voice/gemini-keys` — Voice Gemini key pool status (masked)
+- `POST  ` `/api/admin/voice/gemini-keys` — Validate + save voice Gemini keys (no restart)
+- `GET   ` `/api/admin/voice/latency` — Voice agent per-turn latency rollup (P50/P95) — proves call speed
 
 ### AgentCapacity  (2)
 
@@ -745,7 +749,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (50)
+### Frontend  (51)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
@@ -781,6 +785,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/team` — Team Dashboard Page
 - `GET   ` `/app/team-access` — Team Access Page
 - `GET   ` `/app/test-call` — Web Call Test Page
+- `GET   ` `/app/voice-keys` — Voice Keys Page
 - `GET   ` `/app/whatsapp` — Whatsapp Page
 - `GET   ` `/audit` — Public Audit Page
 - `GET   ` `/compare` — Public Compare Page

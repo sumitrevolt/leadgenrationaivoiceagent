@@ -381,7 +381,14 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
             from app.integrations.calendar_booking import get_calendar
 
             cal = get_calendar()
-            res = await cal.book_slot(when_iso=when_iso, name=name, phone=phone, notes=notes)
+            res = await cal.book_slot(
+                when_iso=when_iso,
+                name=name,
+                phone=phone,
+                notes=notes,
+                client_id=str(ctx.get("client_id") or ""),
+                niche=str(ctx.get("niche") or ""),
+            )
             return ToolResult(
                 ok=res.ok,
                 data={
