@@ -745,6 +745,12 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Call recordings router not mounted: {_e}")
 try:
+    from app.api.web_call_admin import router as web_call_admin_router
+
+    app.include_router(web_call_admin_router)  # /api/admin/web-calls/* (web test-call transcripts)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Web-call admin router not mounted: {_e}")
+try:
     from app.api.admin_ops import router as admin_ops_router
 
     app.include_router(admin_ops_router)  # /api/admin/campaign/* + /api/admin/system/*

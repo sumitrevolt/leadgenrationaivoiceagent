@@ -243,6 +243,7 @@
       <a href="#sec-speed" role="menuitem" aria-label="Speed to lead"><span class="ic" aria-hidden="true">⚡</span> Speed-to-Lead</a>
       <a href="#sec-agents" role="menuitem" aria-label="Call Logs"><span class="ic" aria-hidden="true">☎</span> Call Logs</a>
       <a href="#sec-recordings" role="menuitem" aria-label="Call Recordings player"><span class="ic" aria-hidden="true">🎙</span> Call Recordings</a>
+      <a href="#sec-webcalls" role="menuitem" aria-label="Web test-call transcripts"><span class="ic" aria-hidden="true">💬</span> Web Test Calls</a>
       <a href="#sec-prospects" role="menuitem" aria-label="Prospects and leads"><span class="ic" aria-hidden="true">⊞</span> Prospects / Leads</a>
       <a href="#sec-audit" role="menuitem" aria-label="Activity audit log"><span class="ic" aria-hidden="true">📜</span> Activity Log</a>
       <div class="sec" role="presentation">Business</div>
@@ -782,6 +783,18 @@
         </div>
         <div class="bd" id="rec-body">
           <div style="color:var(--muted);font-size:13px">Loading recordings…</div>
+        </div>
+      </div>
+
+      <!-- Web Test Calls (transcripts) -->
+      <div class="card" id="sec-webcalls" style="scroll-margin-top:80px">
+        <div class="hd">
+          <h3>💬 Web Test Calls</h3>
+          <span class="right" id="wc-summary">—</span>
+          <button class="btn" onclick="loadWebCalls()" style="margin-left:10px;padding:6px 12px;font-size:12px">↺ Refresh</button>
+        </div>
+        <div class="bd" id="wc-body">
+          <div style="color:var(--muted);font-size:13px">Loading…</div>
         </div>
       </div>
 
@@ -1873,6 +1886,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   loadSyncHealth(); loadAgents();
   loadAutomationHub();
   loadRecordings();
+  loadWebCalls();
   loadGodMode();
   loadCampaignStatus();
 });
@@ -2872,6 +2886,46 @@ async function loadRecAudio(btn){
     a.addEventListener('error', function(){ btn.disabled = false; btn.textContent = 'Playback error'; });
     btn.replaceWith(a);
   }catch(e){ btn.disabled = false; btn.textContent = 'Network error'; }
+}
+
+/* ====== Web Test Calls (transcripts — no audio, /app/test-call) ====== */
+function escWC(s){ return escH(String(s==null?"":s)); }
+async function loadWebCalls(){
+  const body=$("wc-body"), summ=$("wc-summary");
+  if(body) body.innerHTML='<div style="color:var(--muted);font-size:13px">Loading…</div>';
+  try{
+    const r=await fetch("/api/admin/web-calls?limit=50&include_turns=1",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok){ if(body) body.innerHTML='<div style="color:var(--red)">Error '+r.status+' (admin login check karo)</div>'; return; }
+    const d=await r.json();
+    const list=(d&&d.sessions)?d.sessions:[];
+    if(summ) summ.textContent=(d.total||list.length)+" calls";
+    if(!list.length){
+      if(body) body.innerHTML='<div style="color:var(--muted);padding:8px 0">Abhi koi web test-call save nahi — <a href="/app/test-call" target="_blank">/app/test-call</a> pe ek call karo, transcript yahan dikhega.</div>';
+      return;
+    }
+    let html='<div style="display:flex;flex-direction:column;gap:14px">';
+    for(const s of list){
+      const when=(s.started_at||"").replace("T"," ").replace("+00:00"," UTC");
+      const turns=s.turns||[];
+      let convo="";
+      for(const t of turns){
+        const role=(t.role==="user")?"👤 User":"🤖 Swara";
+        const col=(t.role==="user")?"#0f172a":"#6366f1";
+        convo+=`<div style="margin-bottom:6px"><span style="font-weight:700;font-size:11px;color:${col}">${role}:</span> <span style="font-size:13px">${escWC(t.text||t.content||"")}</span></div>`;
+      }
+      if(!convo) convo='<div style="color:var(--muted);font-size:12px">Koi transcript turns nahi</div>';
+      html+=`<details style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;overflow:hidden">
+        <summary style="cursor:pointer;padding:11px 14px;font-size:12px;color:var(--muted);font-family:monospace">
+          🕐 ${escWC(when)} &nbsp;·&nbsp; ${escWC(s.niche||"-")} / ${escWC(s.flow||"-")} &nbsp;·&nbsp; ${Number(s.duration_s||0)}s &nbsp;·&nbsp; ${Number(s.turn_count||turns.length)} turns
+        </summary>
+        <div style="padding:12px 16px;border-top:1px solid var(--line)">${convo}</div>
+      </details>`;
+    }
+    html+='</div>';
+    if(body) body.innerHTML=html;
+  }catch(e){
+    if(body) body.innerHTML='<div style="color:var(--red)">Network error — '+escWC(String(e))+'</div>';
+  }
 }
 </script>
 </body>
