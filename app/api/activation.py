@@ -76,8 +76,9 @@ def _is_placeholder(value: str) -> bool:
 # Per-item probes
 # --------------------------------------------------------------------------- #
 # _razorpay() probe removed 2026-06-18 — Razorpay gateway gone (manual UPI only).
-# Payments are no longer an activation gate; payments_ready is hard-coded True
-# (UPI is always available) so the activation summary still builds.
+# Payments are no longer a BLOCKER gate; payments_ready reflects a REAL check —
+# _payments_ready() -> upi_config.is_armed() (a configured UPI VPA, env UPI_VPA
+# fallback) — NOT hard-coded (comment corrected 2026-06-25 audit).
 
 
 def _sentry() -> dict[str, Any]:
