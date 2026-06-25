@@ -759,7 +759,19 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             r"\bexplain\b",
             r"\bdetail\b",
         )
-        return any(re.search(pat, low) for pat in qwords)
+        if any(re.search(pat, low) for pat in qwords):
+            return True
+        # Devanagari question/intent words — Whisper(hi) outputs native script, so the
+        # romanized qwords above miss "क्या"/"कितना"/"कैसे"/"चार्ज" and the customer's
+        # question got mis-routed into the discovery script instead of being answered
+        # (proven in 2026-06-25 web test-calls). Over-detection here is SAFE: it just
+        # routes more turns to the LLM, which answers in context = more professional.
+        dev_q = (
+            "क्या", "कैसे", "कैसा", "कब", "कहाँ", "कहां", "क्यों", "क्यूँ", "कितना",
+            "कितने", "कितनी", "कौन", "मतलब", "समझा", "बता", "चार्ज", "कीमत", "दाम",
+            "पैसे", "रुपय", "प्लान", "पैकेज", "सर्विस", "service", "monthly", "yearly",
+        )
+        return any(w in (ut or "") for w in dev_q)
 
     def _customer_qa_reply(self, ut: str) -> str:
         """Customer ke sawaal ka seedha jawab — LLM se pehle (free, instant)."""
@@ -786,6 +798,20 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "rupaye",
                     "rupee",
                     "₹",
+                    # Devanagari (Whisper hi script) — price/plan asks
+                    "कितना",
+                    "कितने",
+                    "चार्ज",
+                    "कीमत",
+                    "दाम",
+                    "पैसे",
+                    "रुपय",
+                    "प्लान",
+                    "पैकेज",
+                    "महीन",
+                    "monthly",
+                    "yearly",
+                    "साल",
                 )
             ):
                 return self._clean(
@@ -804,6 +830,16 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "matlab kya",
                     "explain",
                     "detail me",
+                    # Devanagari (Whisper hi script) — what-do-you-do asks
+                    "क्या कर",
+                    "क्या क्या",
+                    "क्या है",
+                    "क्या होता",
+                    "कैसे काम",
+                    "समझा",
+                    "मतलब",
+                    "सर्विस",
+                    "सेवा",
                 )
             ):
                 return self._clean(
