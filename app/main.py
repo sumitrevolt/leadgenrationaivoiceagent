@@ -1190,6 +1190,44 @@ async def indexnow_key_txt():
     return PlainTextResponse(indexnow.get_key())
 
 
+def _seo_base_url() -> str:
+    """Public base URL — production CORS origin pehle, warna default domain."""
+    base = "https://leadsgenai.in"
+    try:
+        for o in settings.cors_origins or []:
+            if o and o.startswith("http") and "*" not in o:
+                return o.rstrip("/")
+    except Exception:
+        pass
+    return base
+
+
+@app.get("/llms.txt", include_in_schema=False)
+async def llms_txt():
+    """AI-discovery file (llmstxt.org) — identity + key links for AI search/agents.
+
+    Claude/Perplexity/ChatGPT-search read this to cite the site. Generated live
+    so links use the correct base URL. Never raises (builder has fallback).
+    """
+    from fastapi.responses import PlainTextResponse
+
+    from app.marketing.ai_discovery import build_llms_txt
+
+    return PlainTextResponse(build_llms_txt(_seo_base_url()), media_type="text/plain; charset=utf-8")
+
+
+@app.get("/pricing.md", include_in_schema=False)
+async def pricing_md():
+    """Machine-readable pricing for AI buying-agents — generated LIVE from the
+    billing source of truth (packages.py + voice_packages.py), so it never drifts.
+    """
+    from fastapi.responses import PlainTextResponse
+
+    from app.marketing.ai_discovery import build_pricing_md
+
+    return PlainTextResponse(build_pricing_md(_seo_base_url()), media_type="text/markdown; charset=utf-8")
+
+
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap_xml():
     """SEO: DYNAMIC sitemap — static pages + every published /blog/{slug}.
