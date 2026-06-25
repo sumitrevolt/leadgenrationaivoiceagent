@@ -403,6 +403,20 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
     if not text:
         return None
 
+    # OPTIONAL premium voice (Sarvam Bulbul — natural Hindi) tried FIRST when a
+    # SARVAM_API_KEY is set; any miss (no key / cap / error) falls through to the
+    # free EdgeTTS floor below. INERT without key = behaviour unchanged. (Council
+    # 2026-06-25: voice-swap = biggest "noob -> human" jump on Hindi demos.)
+    try:
+        from app.voice_agent import sarvam_tts
+
+        if sarvam_tts.is_enabled():
+            _sv = await sarvam_tts.synth_mp3_b64(text)
+            if _sv:
+                return _sv
+    except Exception:
+        pass
+
     async def _synth() -> str | None:
         try:
             import edge_tts  # type: ignore
@@ -538,6 +552,15 @@ async def web_call_config() -> dict[str, Any]:
     except Exception:
         pass
 
+    # Premium voice (Sarvam Bulbul) active? — True jab SARVAM_API_KEY set ho.
+    premium_voice = False
+    try:
+        from app.voice_agent import sarvam_tts
+
+        premium_voice = sarvam_tts.is_enabled()
+    except Exception:
+        pass
+
     return {
         "test_mode": True,
         "note": "Web Call is TEST MODE — talk to the bot in the browser, no real phone call is placed.",
@@ -545,7 +568,12 @@ async def web_call_config() -> dict[str, Any]:
         "telecaller_available": telecaller_available,
         "memory_enabled": memory_enabled,
         "natural_voice_available": natural_voice_available,
-        "voice": "hi-IN-SwaraNeural" if natural_voice_available else None,
+        "premium_voice": premium_voice,
+        "voice": (
+            "sarvam-bulbul-v2"
+            if premium_voice
+            else ("hi-IN-SwaraNeural" if natural_voice_available else None)
+        ),
         "natural_dialog_available": natural_available,
         "pipeline_available": pipeline is not None,
         "llm_fallback_available": brain_available,
