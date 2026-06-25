@@ -22,6 +22,7 @@
 | Backup failed | P2 | 15 min | RB-010 |
 | Need to deploy code change | P2 | 15 min | RB-011 |
 | Suspected data corruption | P0 | 30 min | RB-012 |
+| Production go-live / launch verification | P2 | 30 min | RB-013 |
 
 ---
 
@@ -837,6 +838,58 @@ docker compose -f /opt/leadgen/docker-compose.vps.yml restart app
 - Update runbook with new learnings
 - Add test case to prevent recurrence
 - Document root cause
+
+---
+
+## RB-013: Go-Live / Production Launch Verification
+
+**When**: Major release, first-paid-customer cutover, or post-recovery re-launch.
+**Time-to-fix**: 30 min. **Consolidates** the former `GO_LIVE_CHECKLIST.md` + `DEPLOY_VERIFICATION_CHECKLIST.md` (de-staled — payments are UPI, not Razorpay; roster is 15+ staff; ~840 routes).
+
+### STEP 1: Pre-deploy gates (Windows = source of truth)
+```bash
+python scripts/prod_check.py        # must end: [OK] ALL CHECKS PASSED
+scripts\run_tests.bat               # targeted suites green (Read pytest_run.log)
+python scripts/check_secrets.py     # 0 secrets (false positive → `nosecret`)
+```
+- [ ] prod_check PASS (routes + 0 automation gaps + graph 73/73)
+- [ ] targeted pytest green · `git status` clean before push
+
+### STEP 2: Deploy (see RB-011 for the full build+recreate)
+```bash
+# VPS: pull → build app → recreate (data-only changes skip rebuild)
+docker compose -f docker-compose.vps.yml build app && \
+docker compose -f docker-compose.vps.yml up -d --no-deps app
+```
+- [ ] New `@app.get` page-route added? → hard-reload (clear `__pycache__`) or full recreate
+
+### STEP 3: Post-deploy health verify
+```bash
+curl -s https://leadsgenai.in/health        | jq .environment   # "production"
+curl -s https://leadsgenai.in/health/ready  | jq '{db,redis}'   # both healthy
+curl -s https://leadsgenai.in/openapi.json  | jq '.paths|length'# ~840
+curl -s https://leadsgenai.in/api/activation/summary            # ready_for_first_paid_customer
+```
+- [ ] `environment=production` · db+redis healthy · routes not regressed
+
+### STEP 4: First 24h monitor
+```bash
+redis-cli LLEN celery            # <100 (>500 → del celery, beat re-schedules)
+docker stats leadgen_app --no-stream   # memory <60%
+docker logs leadgen_app --since 1h | grep -ic ERROR   # ~0
+curl -s https://leadsgenai.in/api/growth/infra/automation-health | jq '.overdue_jobs'  # []
+```
+
+### STEP 5: Rollback criteria + procedure
+Trigger if (first hour): `/health` 500 >2 min · >50% ERROR logs · queue >500 · memory >80% · DB timeouts.
+```bash
+# Fast: revert in-process scheduler if worker/beat unstable
+#   .env: RUN_IN_PROCESS_SCHEDULER=1 + WEB_CONCURRENCY=1, stop worker/scheduler, recreate app
+# Code rollback:
+git -C /opt/leadgen reset --hard HEAD~1
+docker compose -f /opt/leadgen/docker-compose.vps.yml up -d --no-deps app
+curl -s https://leadsgenai.in/health   # confirm recovered
+```
 
 ---
 

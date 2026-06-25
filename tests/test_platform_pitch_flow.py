@@ -24,7 +24,7 @@ def test_opening_segments_three_parts():
     assert len(segs) == 3
     assert "Leads Generation AI" in segs[0]
     assert "grow karna" in segs[0]
-    assert "1,199" in segs[1] or "1199" in segs[1]
+    assert "1,999" in segs[1] or "1999" in segs[1]
     assert "interested" in segs[2].lower()
 
 
@@ -76,7 +76,7 @@ def test_ai_marketing_script_has_platform_keys():
     ):
         assert key in s
         assert s[key]
-    assert "1,199" in s["pitch_short"]
+    assert "1,999" in s["pitch_short"]
 
 
 def test_customer_qa_answers_price_before_discovery():
@@ -86,7 +86,7 @@ def test_customer_qa_answers_price_before_discovery():
     brain.confirm_interest()
     ans = brain._customer_qa_reply("kitna paisa lagega mahine me?")
     assert ans
-    assert "1,199" in ans or "1199" in ans
+    assert "1,999" in ans or "1999" in ans
 
 
 def test_kaun_ho_returns_reply_not_none():

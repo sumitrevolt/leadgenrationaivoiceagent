@@ -1,179 +1,165 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-IN">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0b1020" />
 <title>Pricing & Sign Up — LeadGenAI</title>
-<meta name="description" content="AI Automated Marketing plans — local businesses ka poora marketing auto-pilot pe. Self-serve signup, UPI/card payment. (AI Voice Calling Agent alag product hai — /voice-agent)" />
+<meta name="description" content="AI Marketing Automation aur AI Voice Agent plans — local businesses ke liye fixed pricing, simple signup, aur clear value." />
 <link rel="canonical" href="https://leadsgenai.in/pricing" />
-<!-- Open Graph / Twitter — share previews (WhatsApp/social); matches sibling public pages -->
 <meta property="og:type" content="website" />
-<meta property="og:title" content="Pricing & Sign Up — LeadsGenAI" />
-<meta property="og:description" content="AI Automated Marketing for local Indian businesses — content, leads, reviews auto-pilot pe. Self-serve signup, UPI/card. (Voice Agent alag product — /voice-agent)" />
+<meta property="og:site_name" content="LeadGenAI" />
+<meta property="og:title" content="Pricing & Sign Up — LeadGenAI" />
+<meta property="og:description" content="AI Marketing Automation (₹1,999/mo) aur separate AI Voice Agent (₹5,999/mo)." />
 <meta property="og:url" content="https://leadsgenai.in/pricing" />
 <meta property="og:image" content="https://leadsgenai.in/icons/icon-512.png" />
 <meta name="twitter:card" content="summary_large_image" />
-<!-- Razorpay checkout removed 2026-06-18 — payments via Stripe / manual UPI -->
+<link rel="stylesheet" href="/design-system/styles.css" />
 <style>
-  :root{--bg:#0b1020;--card:#141a2e;--card2:#1b2440;--ink:#eef2ff;--mut:#9aa6c7;--bd:#26304f;
-        --pri:#5b8cff;--pri2:#7aa2ff;--ok:#2ecc71;--gold:#ffd166;--rad:16px}
+  :root{
+    --bg:#0b1020; --bg2:#111833; --card:#141b33; --card2:#1b2444; --ink:#eef2ff; --mut:#9ca8c9;
+    --line:#273252; --pri:#5b8cff; --pri2:#7aa2ff; --ok:#31c27c; --gold:#ffd166; --rad:18px;
+  }
   *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-       background:radial-gradient(1200px 600px at 50% -10%,#16203f 0,var(--bg) 55%);color:var(--ink);min-height:100vh}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; color:var(--ink); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    background:
+      radial-gradient(1200px 600px at 50% -20%, rgba(91,140,255,.25), transparent 55%),
+      radial-gradient(700px 400px at 20% 10%, rgba(49,194,124,.12), transparent 52%),
+      linear-gradient(180deg, #0b1020 0%, #090d19 100%);
+    min-height:100vh;
+  }
   a{color:var(--pri2);text-decoration:none}
-  .wrap{max-width:1060px;margin:0 auto;padding:28px 18px 60px}
+  .wrap{max-width:1120px;margin:0 auto;padding:24px 18px 56px}
   header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  .logo{font-weight:800;font-size:20px;letter-spacing:.3px}
-  .logo span{color:var(--pri2)}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Plus Jakarta Sans",Inter,sans-serif;font-weight:800;font-size:20px}
+  .brand .dot{color:var(--pri2)}
   .nav a{margin-left:16px;color:var(--mut);font-size:14px}
-  .hero{text-align:center;margin:34px 0 8px}
-  .hero h1{font-size:34px;margin:0 0 8px;line-height:1.15}
-  .hero p{color:var(--mut);margin:0 auto;max-width:560px;font-size:16px}
-  .toggle{display:flex;justify-content:center;gap:8px;margin:22px 0 8px}
-  .toggle button{background:var(--card);border:1px solid var(--bd);color:var(--mut);
-       padding:8px 16px;border-radius:999px;cursor:pointer;font-size:14px}
-  .toggle button.on{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}
-  .save{color:var(--ok);font-size:12px;margin-left:6px}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:24px}
-  @media(max-width:820px){.grid{grid-template-columns:1fr}}
-  .plan{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--bd);
-        border-radius:var(--rad);padding:22px;display:flex;flex-direction:column;position:relative}
-  .plan.feat{border-color:var(--pri);box-shadow:0 0 0 1px var(--pri),0 18px 50px -24px var(--pri)}
-  .badge{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--gold);
-         color:#1a1300;font-size:11px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:.4px}
-  .pname{font-size:15px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)}
-  .price{font-size:38px;font-weight:800;margin:6px 0 2px}
-  .price small{font-size:14px;color:var(--mut);font-weight:500}
-  .pdesc{color:var(--mut);font-size:13px;min-height:34px}
-  ul.feats{list-style:none;padding:0;margin:14px 0 18px;flex:1}
-  ul.feats li{padding:6px 0 6px 24px;position:relative;font-size:14px;color:#d7def5}
-  ul.feats li:before{content:"✓";position:absolute;left:0;color:var(--ok);font-weight:800}
-  .cta{background:var(--pri);color:#fff;border:0;border-radius:10px;padding:12px 16px;
-       font-size:15px;font-weight:700;cursor:pointer;width:100%}
-  .cta:hover{background:var(--pri2)}
-  .cta.ghost{background:transparent;border:1px solid var(--bd);color:var(--ink)}
-  .note{text-align:center;color:var(--mut);font-size:13px;margin-top:22px}
-  .mins{font-size:12px;color:var(--mut);margin:-8px 0 12px}
-  /* Hum vs Doosre — compare strip */
-  .cmp{margin-top:46px}
-  .cmp h2{text-align:center;font-size:22px;margin:0 0 16px}
-  .cmp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-  @media(max-width:820px){.cmp-grid{grid-template-columns:1fr 1fr}}
-  @media(max-width:520px){.cmp-grid{grid-template-columns:1fr}}
-  .cmp-card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;text-align:center}
-  .cmp-card.us{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok)}
-  .cmp-name{font-size:13px;color:var(--mut)}
-  .cmp-price{font-size:22px;font-weight:800;margin:6px 0}
-  .cmp-price small{font-size:11px;color:var(--mut);font-weight:500}
-  .cmp-what{font-size:12px;color:#d7def5}
-  .cmp-fine{text-align:center;color:var(--mut);font-size:11px;margin-top:10px}
+  .hero{padding:34px 0 10px;text-align:center}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#d7def5;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:8px 14px;border-radius:999px}
+  .hero h1{font-size:clamp(2rem,4.8vw,3.7rem);line-height:1.05;margin:18px 0 10px;font-family:"Plus Jakarta Sans",Inter,sans-serif}
+  .hero p{max-width:740px;margin:0 auto;color:var(--mut);font-size:1.06rem;line-height:1.6}
+  .cta-row{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:22px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:14px 20px;font-weight:700;border:1px solid transparent;cursor:pointer}
+  .btn.primary{background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;box-shadow:0 18px 40px -24px rgba(91,140,255,.9)}
+  .btn.ghost{background:transparent;color:#fff;border-color:var(--line)}
+  .trial{margin:28px auto 0;max-width:920px;background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:22px;padding:18px 20px;display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+  .trial b{display:block;font-size:16px}
+  .trial span{color:var(--mut);font-size:14px}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:24px}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  .plan{position:relative;background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:24px;padding:26px;box-shadow:0 18px 50px -34px rgba(0,0,0,.7)}
+  .plan.featured{border-color:rgba(91,140,255,.9);box-shadow:0 0 0 1px rgba(91,140,255,.75),0 24px 60px -34px rgba(91,140,255,.9)}
+  .badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--gold);color:#1a1300;font-size:11px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:.06em}
+  .plan h2{margin:2px 0 6px;font-size:20px;font-family:"Plus Jakarta Sans",Inter,sans-serif}
+  .plan .desc{color:var(--mut);font-size:14px;min-height:38px}
+  .price{font-size:42px;font-weight:800;margin:10px 0 2px;font-family:"Plus Jakarta Sans",Inter,sans-serif}
+  .price small{font-size:14px;color:var(--mut);font-weight:600}
+  .note{font-size:13px;color:var(--mut);margin-top:4px}
+  .features{list-style:none;padding:0;margin:18px 0 22px}
+  .features li{position:relative;padding:7px 0 7px 26px;color:#dce4fb;font-size:14px;line-height:1.45}
+  .features li::before{content:"✓";position:absolute;left:0;top:6px;color:var(--ok);font-weight:900}
+  .plan .actions{display:flex;gap:10px;flex-wrap:wrap}
+  .plan .actions .btn{flex:1;min-width:180px}
+  .fine{text-align:center;color:var(--mut);font-size:13px;margin-top:16px}
+  .voice-callout{margin-top:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:14px 16px;color:#eef2ff}
+  .compare{margin-top:42px}
+  .compare h3{text-align:center;font-family:"Plus Jakarta Sans",Inter,sans-serif;font-size:24px;margin:0 0 16px}
+  .compare-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  @media(max-width:760px){.compare-grid{grid-template-columns:1fr}}
+  .cmp{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:18px;padding:18px;text-align:center}
+  .cmp.good{border-color:rgba(49,194,124,.6);box-shadow:0 0 0 1px rgba(49,194,124,.28)}
+  .cmp .nm{font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+  .cmp .pr{font-size:24px;font-weight:800;margin:8px 0 6px}
+  .cmp .wt{font-size:13px;color:#dce4fb;line-height:1.5}
+  footer{margin-top:40px;text-align:center;color:var(--mut);font-size:12px}
   /* modal */
   .ov{position:fixed;inset:0;background:rgba(4,8,20,.72);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
   .ov.on{display:flex}
-  .modal{background:var(--card);border:1px solid var(--bd);border-radius:var(--rad);max-width:420px;width:100%;padding:24px}
-  .modal h3{margin:0 0 4px}
-  .modal .sub{color:var(--mut);font-size:13px;margin:0 0 16px}
+  .modal{width:100%;max-width:440px;background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:22px;padding:22px}
+  .modal h3{margin:0 0 4px;font-family:"Plus Jakarta Sans",Inter,sans-serif}
+  .modal .sub{margin:0 0 16px;color:var(--mut);font-size:13px}
   .field{margin-bottom:12px}
   .field label{display:block;font-size:13px;color:var(--mut);margin-bottom:5px}
-  .field input,.field select{width:100%;background:#0e1426;border:1px solid var(--bd);color:var(--ink);
-       padding:11px 12px;border-radius:9px;font-size:14px}
-  .msg{font-size:13px;margin:10px 0 0;min-height:18px}
-  .msg.err{color:#ff7a7a}.msg.ok{color:var(--ok)}
-  .x{float:right;color:var(--mut);cursor:pointer;font-size:20px;line-height:1;border:0;background:0}
-  .spin{display:inline-block;width:15px;height:15px;border:2px solid #fff6;border-top-color:#fff;
-        border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  .field input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#0e1426;color:var(--ink);font:inherit}
+  .msg{min-height:18px;margin:10px 0 0;font-size:13px}
+  .msg.ok{color:var(--ok)} .msg.err{color:#ff7a7a}
+  .x{float:right;border:0;background:transparent;color:var(--mut);font-size:20px;cursor:pointer;line-height:1}
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid #fff6;border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
   @keyframes s{to{transform:rotate(360deg)}}
-  .foot{text-align:center;color:var(--mut);font-size:12px;margin-top:40px}
-  /* trial banner + voice callout + combo (moved from inline styles) */
-  .plan.trial-banner{margin-top:18px;border-color:var(--ok);flex-direction:row;align-items:center;gap:16px;flex-wrap:wrap}
-  .trial-info{flex:1;min-width:220px}
-  .trial-desc{font-size:14px;color:var(--mut);margin-top:4px}
-  .cta.trial-btn{width:auto;background:var(--ok)}
-  .note.voice-callout{background:#eef2ff;border-radius:12px;padding:14px;margin-top:10px;color:#1b2440}
-  .note.voice-callout a{color:#2f5fd0}
-  .lk-bold{font-weight:700}
-  #combo-section{margin-top:46px}
-  .combo-tag-row{text-align:center;margin-bottom:8px}
-  .combo-tag{background:#eef2ff;color:#64748b;font-size:11px;font-weight:700;padding:4px 14px;border-radius:999px;letter-spacing:.4px}
-  .combo-h2{text-align:center;font-size:20px;margin:6px 0 4px;color:var(--mut);font-weight:700}
-  .combo-sub{text-align:center;color:var(--mut);font-size:14px;margin:0 0 24px}
-  .toggle.combo-toggle{margin-bottom:16px}
-  .note.combo-fine{margin-top:16px}
-  .pdesc.savings{color:#2ecc71;font-size:13px}
 </style>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"AI Automated Marketing — LeadsGenAI","operatingSystem":"Web","applicationCategory":"BusinessApplication","description":"AI marketing automation for local Indian businesses — content, lead capture, outreach, reports on auto-pilot.","url":"https://leadsgenai.in/pricing","offers":[{"@type":"Offer","name":"Starter","price":"1199","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"1199","priceCurrency":"INR","billingDuration":"P1M"}},{"@type":"Offer","name":"Growth","price":"2999","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"2999","priceCurrency":"INR","billingDuration":"P1M"}},{"@type":"Offer","name":"Advanced","price":"6999","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"6999","priceCurrency":"INR","billingDuration":"P1M"}}],"publisher":{"@type":"Organization","name":"LeadsGenAI","url":"https://leadsgenai.in"}}
+{
+  "@context":"https://schema.org",
+  "@type":"SoftwareApplication",
+  "name":"LeadGenAI Pricing",
+  "operatingSystem":"Web",
+  "applicationCategory":"BusinessApplication",
+  "description":"AI Marketing Automation aur separate AI Voice Agent for local Indian businesses.",
+  "url":"https://leadsgenai.in/pricing",
+  "offers":[
+    {"@type":"Offer","name":"AI Marketing Automation","price":"1999","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"1999","priceCurrency":"INR","billingDuration":"P1M"}},
+    {"@type":"Offer","name":"Advanced Voice Agent","price":"5999","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"5999","priceCurrency":"INR","billingDuration":"P1M"}}
+  ],
+  "publisher":{"@type":"Organization","name":"LeadGenAI","url":"https://leadsgenai.in"}
+}
 </script>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <div class="logo">Leads<span>GenAI</span></div>
+    <div class="brand">LeadGen<span class="dot">AI</span></div>
     <nav class="nav">
-      <a href="/">Home</a><a href="/audit">Free Audit</a><a href="/app/login">Login</a>
+      <a href="/">Home</a>
+      <a href="/audit">Free Audit</a>
+      <a href="/voice-agent">Voice Agent</a>
+      <a href="/app/login">Login</a>
     </nav>
   </header>
 
   <section class="hero">
-    <h1>Apne business ke liye AI Marketing + Voice Agent</h1>
-    <p>Local business ke liye done-for-you marketing aur AI calling. Abhi sign up karo — 2 minute me account ready.</p>
+    <div class="eyebrow">2 clear plans. No bundle confusion.</div>
+    <h1>AI Marketing Automation + Voice Agent</h1>
+    <p>Marketing automation plan me content, leads, reviews aur CRM workflows. Voice plan alag hai aur sirf calls, qualification aur booking ke liye hai.</p>
+    <div class="cta-row">
+      <a class="btn primary" href="#plans">Plans dekho</a>
+      <a class="btn ghost" href="/audit">Free GBP audit</a>
+    </div>
   </section>
 
-  <div class="toggle">
-    <button id="tg-monthly" class="on" onclick="setCycle('monthly')">Monthly</button>
-    <button id="tg-yearly" onclick="setCycle('yearly')">Yearly <span class="save">2 mahine FREE</span></button>
+  <div class="trial">
+    <div>
+      <b>7-Din FREE Trial</b>
+      <span>Bina card, bina payment. 5 AI posts + GBP audit + widget + mini-site preview + customer portal.</span>
+    </div>
+    <button class="btn primary" onclick="startTrial()">Start FREE Trial</button>
   </div>
 
-  <div class="plan trial-banner">
-    <div class="trial-info">
-      <div class="pname">🎁 7-Din FREE Trial</div>
-      <div class="trial-desc">Bina card, bina payment — 5 AI posts + GBP audit + enquiry widget + mini-site preview + branded frames + customer portal (7 din). Voice nahi.</div>
+  <div id="plans" class="grid"><div class="cmp" style="grid-column:1/-1">Plans load ho rahe hain…</div></div>
+
+  <p class="fine">Marketing plan me koi calling charge nahi. Advanced Voice Agent me 500 min/mo included.</p>
+  <div class="voice-callout">📞 Full AI telecaller chahiye? Wo alag product hai: <a href="/voice-agent"><b>AI Voice Calling Agent</b></a>. Hinglish AI jo unlimited calls karta hai aapke niche ke liye.</div>
+
+  <section class="compare">
+    <h3>Do plan, do clear jobs</h3>
+    <div class="compare-grid">
+      <div class="cmp good">
+        <div class="nm">AI Marketing Automation</div>
+        <div class="pr">₹1,999<small>/mo</small></div>
+        <div class="wt">Content + leads + reviews + CRM automation. Marketing-only, no calling charge.</div>
+      </div>
+      <div class="cmp">
+        <div class="nm">Advanced Voice Agent</div>
+        <div class="pr">₹5,999<small>/mo</small></div>
+        <div class="wt">Inquiry callback + qualification + appointment booking + follow-ups. Voice-centric only.</div>
+      </div>
     </div>
-    <button class="cta trial-btn" onclick="startTrial()">Start FREE Trial</button>
-  </div>
-
-  <div id="plans" class="grid"><div class="note">Plans load ho rahe hain…</div></div>
-
-  <p class="note">Sab plans me GST rules apply. Kabhi bhi cancel karo. Advanced tier me AI voice calling feature (500 min/mo).</p>
-
-  <div class="note voice-callout">📞 <b>Full AI telecaller chahiye?</b> Wo hamara ALAG product hai — <a href="/voice-agent" class="lk-bold">AI Voice Calling Agent</a>: Hinglish AI jo unlimited calls karta hai aapke niche ke liye (flat monthly).</div>
-
-  <!-- ===== OPTIONAL COMBO (Marketing + Voice convenience) ===== -->
-  <section id="combo-section">
-    <div class="combo-tag-row">
-      <span class="combo-tag">OPTIONAL — DONO CHAHIYE TO</span>
-    </div>
-    <h2 class="combo-h2">Marketing + Voice — optional combo</h2>
-    <p class="combo-sub">Dono products alag-alag hain — jo chahiye wahi lo. Sirf agar aapko Marketing aur Voice <b>dono</b> chahiye, to convenience ke liye ek single combo plan available hai. Koi obligation nahi.</p>
-
-    <div class="toggle combo-toggle">
-      <button id="ctg-monthly" class="on" onclick="setCombo('monthly')">Monthly</button>
-      <button id="ctg-yearly" onclick="setCombo('yearly')">Yearly <span class="save">2 mahine FREE</span></button>
-    </div>
-
-    <div id="combo-plans" class="grid"><div class="note">Combo plans load ho rahe hain…</div></div>
-
-    <p class="note combo-fine">7-din free pilot included · Koi lead-counting nahi · TRAI AI-disclosure built-in</p>
   </section>
 
-  <!-- Hum vs Doosre — compare strip -->
-  <section class="cmp">
-    <h2>Hum vs Doosre — seedha hisaab</h2>
-    <div class="cmp-grid">
-      <div class="cmp-card"><div class="cmp-name">Dhanda-type posts+GBP app</div><div class="cmp-price">~₹1,000<small>/mo eff.</small></div><div class="cmp-what">Posts + GBP — lead capture/callback nahi</div></div>
-      <div class="cmp-card"><div class="cmp-name">Predis-type AI social</div><div class="cmp-price">~₹2,700+<small>/mo ($32)</small></div><div class="cmp-what">Sirf social content, DIY</div></div>
-      <div class="cmp-card"><div class="cmp-name">Practina/GHL-type all-in-one</div><div class="cmp-price">~₹8,300+<small>/mo + usage</small></div><div class="cmp-what">US-focus, setup aapka, Hinglish/festival nahi</div></div>
-      <div class="cmp-card us"><div class="cmp-name">LeadsGenAI</div><div class="cmp-price">₹6,999<small>/mo</small></div><div class="cmp-what">Poora AI marketing — posts + leads + reviews; Advanced me AI voice feature bhi (₹1,199 se shuru)</div></div>
-    </div>
-    <p class="cmp-fine">* Competitor prices unki public pricing pages se, June 2026. Naam sirf category samjhane ke liye hain. <a href="/compare" class="lk-bold">Poora comparison dekho →</a></p>
-  </section>
-
-  <div class="foot">
-    Payment secure (UPI / card / netbanking). Sawaal? <a href="/audit">Free GBP audit</a> se shuru karo.
-  </div>
+  <footer>Payment secure (UPI / card / netbanking). Kabhi bhi cancel karo.</footer>
 </div>
 
-<!-- Signup + Checkout modal -->
 <div class="ov" id="ov">
   <div class="modal">
     <button class="x" onclick="closeModal()">×</button>
@@ -181,189 +167,212 @@
     <p class="sub" id="m-sub">Account banao, phir payment.</p>
     <div class="field"><label for="f-biz">Business ka naam</label><input id="f-biz" autocomplete="organization" placeholder="e.g. Sharma Solar" /></div>
     <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" autocomplete="email" placeholder="you@business.com" /></div>
-    <div class="field"><label for="f-phone">WhatsApp / Phone</label><input id="f-phone" type="tel" autocomplete="tel" placeholder="+91…" /></div>
+    <div class="field"><label for="f-phone">WhatsApp / Phone</label><input id="f-phone" type="tel" autocomplete="tel" placeholder="+91..." /></div>
     <div class="field"><label for="f-pass">Password</label><input id="f-pass" type="password" autocomplete="new-password" placeholder="min 6 chars" /></div>
     <div data-turnstile-host></div>
-    <button class="cta" id="m-go" onclick="doSignupPay()">Sign up & Pay</button>
+    <button class="btn primary" id="m-go" onclick="doSignupPay()" style="width:100%">Sign up & Pay</button>
     <p class="msg" id="m-msg"></p>
   </div>
 </div>
 
 <script>
-const API = "";                    // same origin
+const API = "";
 let CYCLE = "monthly";
 let PLANS = [];
 let SELECTED = null;
 
-// fallback static plans (agar /api/billing/plans fail ho)
 const FALLBACK = [
-  {id:"starter", name:"Starter", monthly_price:1199, features:[
-    "Roz AI posts — Hinglish caption + hashtags (39 niches)",
-    "Branded post frames — logo + business naam",
-    "Customer portal — roz ~7 baje content, 1-click WhatsApp share",
-    "Festival calendar + tyohar/offer posts",
-    "GBP audit (0–100) + top 5 fixes",
-    "Review Hinglish reply drafts",
-    "4 branded posters/mo + WhatsApp content pack",
-    "UPI Scan & Pay QR card + hashtag suggestions",
-    "Post approval workflow + onboarding dashboard",
-    "GST invoice download · 100% marketing-only"
-  ]},
-  {id:"growth", name:"Growth", monthly_price:2999, features:[
-    "Starter ke saare features included",
-    "Unlimited posters + AI image + Complete Post one-shot",
-    "Post variations A/B + content calendar/scheduler",
-    "Competitor analysis + festival auto-schedule",
-    "Mini-site + bio link + digital card + booking",
-    "Website enquiry widget + AI chatbot FAQ",
-    "Database reactivation + WhatsApp drip nurture",
-    "Review kit + team lead routing (round-robin)",
-    "CRM sync + webhooks + ads/reels drafts",
-    "Catalog + referral tools + monthly report + 2FA"
-  ]},
-  {id:"advanced", name:"Advanced", monthly_price:6999, features:[
-    "Growth ke saare features included",
-    "AI Voice Agent — inquiry pe ~2-min AI call (Hindi)",
-    "Lead qualification + appointment booking",
-    "Missed-call auto-callback (DID active hone par)",
-    "500 calling min/mo + top-up packs",
-    "Weekly 50 follow-up calls",
-    "Call transcripts + post-call AI qualification",
-    "Speed-to-lead SLA badge + minute usage tracker",
-    "Multi-lingual + TRAI AI disclosure greeting",
-    "Marketing + voice ek hi customer portal"
-  ]}
+  {
+    id:"starter",
+    name:"AI Marketing Automation",
+    monthly_price:1999,
+    yearly_discount:16.6666666667,
+    features:[
+      "Roz AI social posts — Hinglish caption + hashtags (39 niches)",
+      "Branded post frames — logo + business naam",
+      "Customer portal — 1-click copy + WhatsApp/Insta share",
+      "Festival calendar auto + tyohar/offer posts",
+      "Google Business Profile audit + fix suggestions",
+      "Google review reply drafts",
+      "4 branded posters/mo",
+      "WhatsApp content pack",
+      "Lead capture widget + AI website chatbot",
+      "CRM sync + webhooks",
+      "WhatsApp drip nurture + win-back reactivation",
+      "Competitor analysis + monthly report",
+      "Referral tools + ads copy/reels drafts",
+      "UPI QR card + post approval workflow + GST invoice"
+    ]
+  },
+  {
+    id:"advanced",
+    name:"Advanced Voice Agent",
+    monthly_price:5999,
+    yearly_discount:16.6666666667,
+    features:[
+      "AI Voice Agent — har website/GBP inquiry ko ~2-minute me AI call",
+      "Lead qualification — budget, timeline, interest score capture",
+      "Appointment booking — slots offer + confirm",
+      "Missed-call auto-callback (DID active hone par)",
+      "500 calling minutes/mo included",
+      "Weekly 50 follow-up calls",
+      "Call transcripts + AI summary",
+      "Post-call qualification + next-action draft",
+      "Speed-to-lead SLA badge",
+      "Multi-lingual — Hindi, Hinglish, English",
+      "TRAI-compliant AI disclosure greeting",
+      "Minute usage tracker"
+    ]
+  }
 ];
 
-function inr(n){return "₹"+Number(n||0).toLocaleString("en-IN");}
+function inr(n){ return "₹" + Number(n || 0).toLocaleString("en-IN"); }
 
 async function loadPlans(){
   try{
-    const r = await fetch(API+"/api/billing/plans");
-    if(r.ok){ const d = await r.json(); if(Array.isArray(d) && d.length) PLANS = d; }
+    const r = await fetch(API + "/api/billing/plans");
+    if(r.ok){
+      const d = await r.json();
+      if(Array.isArray(d) && d.length) PLANS = d;
+    }
   }catch(e){}
   if(!PLANS.length) PLANS = FALLBACK;
   render();
 }
 
 function priceFor(p){
-  const m = Number(p.monthly_price||0);
-  if(CYCLE==="yearly"){
-    // default 1/6 = "2 mahine free" (12mo * 5/6 = 10mo) — packages.py price_inr_year se match
-    const disc = (p.yearly_discount? p.yearly_discount/100 : 1/6);
-    return {amt: Math.round(m*12*(1-disc)/12), suf:"/mo (yearly)"};
+  const m = Number(p.monthly_price || 0);
+  if(CYCLE === "yearly"){
+    const disc = (p.yearly_discount ? Number(p.yearly_discount) / 100 : 1/6);
+    return { amt: Math.round(m * 12 * (1 - disc) / 12), suf: "/mo (yearly)" };
   }
-  return {amt:m, suf:"/mo"};
+  return { amt: m, suf: "/mo" };
 }
 
 function render(){
   const el = document.getElementById("plans");
   el.innerHTML = "";
-  PLANS.forEach((p,i)=>{
-    const feat = (String(p.id).toLowerCase().includes("growth") || i===1);
-    const isAdv = String(p.id).toLowerCase().includes("advanced");
+  PLANS.forEach((p, i) => {
+    const featured = i === 0 || String(p.id || "").toLowerCase().includes("starter");
+    const isAdv = String(p.id || "").toLowerCase().includes("advanced");
     const pr = priceFor(p);
-    const feats = (p.features||[]).map(f=>`<li>${f}</li>`).join("");
+    const feats = (p.features || []).map(f => `<li>${f}</li>`).join("");
     el.insertAdjacentHTML("beforeend", `
-      <div class="plan ${feat?'feat':''}">
-        ${feat?'<div class="badge">POPULAR</div>':''}
-        <div class="pname">${p.name||p.id}</div>
+      <div class="plan ${featured ? "featured" : ""}">
+        ${featured ? '<div class="badge">POPULAR</div>' : ""}
+        <h2>${p.name || p.id || ""}</h2>
+        <div class="desc">${featured ? "Main marketing plan" : "Voice-centric plan"}</div>
         <div class="price">${inr(pr.amt)}<small>${pr.suf}</small></div>
-        <div class="pdesc">${feat?'Sabse zyada chuna jaane wala plan.':'&nbsp;'}</div>
-        <ul class="feats">${feats}</ul>
-        ${isAdv?'<div class="mins">📞 500 min/mo included · Sirf connected calls ke minutes count hote hain</div>':''}
-        <button class="cta ${feat?'':'ghost'}" onclick='openModal(${JSON.stringify(JSON.stringify(p))})'>Get Started</button>
-      </div>`);
+        <div class="note">${isAdv ? "telephony usage included up to 500 min/mo" : "100% marketing-only — koi calling charge nahi"}</div>
+        <ul class="features">${feats}</ul>
+        <div class="actions">
+          <button class="btn primary" onclick='openModal(${JSON.stringify(JSON.stringify(p))})'>Shuru karo</button>
+          <a class="btn ghost" href="#plans">Compare</a>
+        </div>
+      </div>
+    `);
   });
-}
-
-function setCycle(c){
-  CYCLE=c;
-  document.getElementById("tg-monthly").classList.toggle("on", c==="monthly");
-  document.getElementById("tg-yearly").classList.toggle("on", c==="yearly");
-  render();
 }
 
 function openModal(pjson){
   SELECTED = JSON.parse(pjson);
-  document.getElementById("m-title").textContent = `Sign up — ${SELECTED.name||SELECTED.id}`;
-  document.getElementById("m-sub").textContent = `${inr(priceFor(SELECTED).amt)} ${priceFor(SELECTED).suf} · ${CYCLE}`;
+  document.getElementById("m-title").textContent = `Sign up — ${SELECTED.name || SELECTED.id}`;
+  document.getElementById("m-sub").textContent = `${inr(priceFor(SELECTED).amt)} ${priceFor(SELECTED).suf}`;
   document.getElementById("m-msg").textContent = "";
-  document.getElementById("m-go").innerHTML = "Sign up & Pay";
+  document.getElementById("m-go").textContent = "Sign up & Pay";
   document.getElementById("ov").classList.add("on");
 }
 
-// 7-din FREE trial — payment ke bina account (plan=trial)
 function startTrial(){
-  SELECTED = {id:"trial", name:"7-Din FREE Trial", monthly_price:0};
+  SELECTED = { id:"trial", name:"7-Din FREE Trial", monthly_price:0 };
   document.getElementById("m-title").textContent = "Start FREE Trial";
   document.getElementById("m-sub").textContent = "₹0 · 7 din · koi card/payment nahi";
   document.getElementById("m-msg").textContent = "";
-  document.getElementById("m-go").innerHTML = "Start FREE Trial";
+  document.getElementById("m-go").textContent = "Start FREE Trial";
   document.getElementById("ov").classList.add("on");
 }
-function closeModal(){document.getElementById("ov").classList.remove("on");}
+function closeModal(){ document.getElementById("ov").classList.remove("on"); }
 
-function setMsg(t, ok){const m=document.getElementById("m-msg");m.className="msg "+(ok?"ok":"err");m.innerHTML=t;}
-function busy(on){const b=document.getElementById("m-go");b.disabled=on;const idle=(SELECTED&&SELECTED.id==="trial")?"Start FREE Trial":"Sign up & Pay";b.innerHTML=on?'<span class="spin"></span>Wait…':idle;}
+function setMsg(t, ok){
+  const m = document.getElementById("m-msg");
+  m.className = "msg " + (ok ? "ok" : "err");
+  m.innerHTML = t;
+}
+function busy(on){
+  const b = document.getElementById("m-go");
+  b.disabled = on;
+  b.innerHTML = on ? '<span class="spin"></span>Wait…' : (SELECTED && SELECTED.id === "trial" ? "Start FREE Trial" : "Sign up & Pay");
+}
 
 async function doSignupPay(){
-  const biz=document.getElementById("f-biz").value.trim();
-  const email=document.getElementById("f-email").value.trim();
-  const phone=document.getElementById("f-phone").value.trim();
-  const pass=document.getElementById("f-pass").value;
-  if(biz.length<2) return setMsg("Business naam do.");
+  const biz = document.getElementById("f-biz").value.trim();
+  const email = document.getElementById("f-email").value.trim();
+  const phone = document.getElementById("f-phone").value.trim();
+  const pass = document.getElementById("f-pass").value;
+  if(biz.length < 2) return setMsg("Business naam do.");
   if(!email.includes("@")) return setMsg("Valid email do.");
-  if(pass.length<6) return setMsg("Password min 6 chars.");
+  if(pass.length < 6) return setMsg("Password min 6 chars.");
   busy(true);
   const tok = window.turnstileToken ? await window.turnstileToken() : "";
-  // 1) self-serve signup -> client_id + token
-  let cid, token;
+  let cid = "", token = "";
   try{
-    const r = await fetch(API+"/api/public/signup",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({business_name:biz,email,password:pass,phone,plan:(SELECTED.id||"starter"),_turnstile_token:tok})});
+    const r = await fetch(API + "/api/public/signup", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        business_name: biz,
+        email,
+        password: pass,
+        phone,
+        plan: (SELECTED && SELECTED.id) || "starter",
+        _turnstile_token: tok
+      })
+    });
     const d = await r.json();
-    if(!r.ok){ busy(false); return setMsg(d.detail||"Signup fail — shayad email already registered. <a href='/app/login'>Login</a>"); }
-    cid=d.client_id; token=d.access_token;
+    if(!r.ok){ busy(false); return setMsg(d.detail || "Signup fail. <a href='/app/login'>Login</a>"); }
+    cid = d.client_id || "";
+    token = d.access_token || "";
     if(token) localStorage.setItem("accessToken", token);
-  }catch(e){ busy(false); return setMsg("Network error, dobara try karo."); }
+  }catch(e){
+    busy(false);
+    return setMsg("Network error, dobara try karo.");
+  }
 
-  // 1.5) FREE TRIAL — koi payment nahi, seedha dashboard
-  if(SELECTED && SELECTED.id==="trial"){
-    setMsg("FREE trial activate ✓ 7 din ka access ready — redirect…", true);
-    setTimeout(function(){ location.href="/app/customer"; }, 900);
+  if(SELECTED && SELECTED.id === "trial"){
+    setMsg("FREE trial active ✓ redirect…", true);
+    setTimeout(() => location.href = "/app/customer", 900);
     return;
   }
 
-  // 2) checkout session
-  let co;
   try{
-    const succ = location.origin+"/app/customer";
-    const r = await fetch(API+`/api/billing/checkout?client_id=${encodeURIComponent(cid)}`,{
-      method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+(token||"")},
-      body:JSON.stringify({plan_id:(SELECTED.id||"starter"),billing_cycle:CYCLE,currency:"INR",
-        success_url:succ,cancel_url:location.href})});
-    co = await r.json();
-    if(!r.ok) throw new Error(co.detail||"checkout");
-  }catch(e){
-    // payment gateway not configured yet -> account bana hua hai, graceful fallback
-    busy(false);
-    return paymentFallback(cid);
-  }
+    const succ = location.origin + "/app/customer";
+    const r = await fetch(API + `/api/billing/checkout?client_id=${encodeURIComponent(cid)}`, {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer " + (token || "")
+      },
+      body: JSON.stringify({
+        plan_id: (SELECTED && SELECTED.id) || "starter",
+        billing_cycle: CYCLE,
+        currency: "INR",
+        success_url: succ,
+        cancel_url: location.href
+      })
+    });
+    const co = await r.json();
+    if(r.ok && co.gateway === "stripe" && co.checkout_url){
+      location.href = co.checkout_url;
+      return;
+    }
+  }catch(e){}
 
-  // 3) open gateway
-  if(co.gateway==="stripe" && co.checkout_url){
-    location.href = co.checkout_url;
-  } else {
-    // Razorpay removed (2026-06-18) — manual UPI / contact fallback
-    busy(false); paymentFallback(cid);
-  }
-}
-
-// Agar payment gateway abhi configure nahi (keys unset) — account bana hua hai, UPI/contact dikhao.
-async function paymentFallback(cid){
-  let upi=null;
-  try{ const r=await fetch(API+"/api/public/pay-info"); if(r.ok){const d=await r.json(); if(d.enabled) upi=d;} }catch(e){}
+  busy(false);
+  let upi = null;
+  try{
+    const r = await fetch(API + "/api/public/pay-info");
+    if(r.ok){ const d = await r.json(); if(d.enabled) upi = d; }
+  }catch(e){}
   if(upi && upi.vpa){
     setMsg(`Account ban gaya ✓ Payment ke liye UPI karo: <b>${upi.vpa}</b><br>Phir <a href="/app/login">login</a> karo. Hum activate kar denge.`, true);
   }else{
@@ -372,64 +381,8 @@ async function paymentFallback(cid){
 }
 
 loadPlans();
-
-// ===== COMBO PLANS =====
-let COMBO_CYCLE = "monthly";
-let COMBO_DATA = null;
-
-function inrFmt(n){return "₹"+Number(n||0).toLocaleString("en-IN");}
-
-async function loadComboPlan(){
-  try{
-    const r = await fetch(API+"/api/combo/packages");
-    if(r.ok){ COMBO_DATA = await r.json(); }
-  }catch(e){}
-  renderCombo();
-}
-
-function setCombo(c){
-  COMBO_CYCLE = c;
-  document.getElementById("ctg-monthly").classList.toggle("on", c==="monthly");
-  document.getElementById("ctg-yearly").classList.toggle("on", c==="yearly");
-  renderCombo();
-}
-
-function renderCombo(){
-  const el = document.getElementById("combo-plans");
-  if(!el) return;
-  const tiers = COMBO_DATA && COMBO_DATA.tiers ? COMBO_DATA.tiers : [
-    {name:"Combo Starter",key:"combo_starter",price_month:4999,price_year:49990,price_separately:6198,savings_month:1199,plan_monthly:"combo_starter_monthly",plan_annual:"combo_starter_annual",badge:"",highlight:false,
-     features:["AI Social Posts + Festival Calendar","GBP Audit + Fixes","WhatsApp Content Pack","Lead Capture Widget","AI Voice — Band A (Insurance, Solar, Hospital…)","Unlimited AI Calls","Live Dashboard + Transcripts"]},
-    {name:"Combo Growth",key:"combo_growth",price_month:9999,price_year:99990,price_separately:12998,savings_month:2999,plan_monthly:"combo_growth_monthly",plan_annual:"combo_growth_annual",badge:"Best seller",highlight:true,
-     features:["Sab Starter features +","Unlimited Posters + Content Calendar","Competitor Analysis + Win-back","WhatsApp Drip Sequences","AI Voice — Band B (Home Loans, Dental, Finance…)","Unlimited AI Calls","CRM / Webhook Integration"]},
-    {name:"Combo Pro",key:"combo_pro",price_month:21999,price_year:219990,price_separately:26998,savings_month:4999,plan_monthly:"combo_pro_monthly",plan_annual:"combo_pro_annual",badge:"Maximum savings",highlight:false,
-     features:["Sab Growth features +","AI Voice Feature in Marketing (500 min/mo)","Priority Support + Monthly Review","AI Voice — Band C (IVF, Immigration, HVAC…)","Unlimited AI Calls","Full CRM Sync (Zoho/HubSpot)","Dedicated Voice Strategy Session"]}
-  ];
-  el.innerHTML = "";
-  tiers.forEach(t => {
-    const isYear = COMBO_CYCLE === "yearly";
-    const dispPrice = isYear ? Math.round(t.price_year / 12) : t.price_month;
-    const suf = isYear ? "/mo (yearly)" : "/mo";
-    const planId = isYear ? t.plan_annual : t.plan_monthly;
-    const savMsg = isYear
-      ? `Save ${inrFmt(t.savings_month * 12)}/yr vs alag-alag`
-      : `Save ${inrFmt(t.savings_month)}/mo vs alag-alag`;
-    const feats = (t.features||[]).map(f=>`<li>${f}</li>`).join("");
-    el.insertAdjacentHTML("beforeend", `
-      <div class="plan ${t.highlight?'feat':''}">
-        ${t.badge ? `<div class="badge">${t.badge}</div>` : ''}
-        <div class="pname">${t.name}</div>
-        <div class="price">${inrFmt(dispPrice)}<small>${suf}</small></div>
-        <div class="pdesc savings">${savMsg}</div>
-        <ul class="feats">${feats}</ul>
-        <button class="cta ${t.highlight?'':'ghost'}" onclick='openModal(${JSON.stringify(JSON.stringify({id:planId,name:t.name,monthly_price:t.price_month}))})'>Get Started</button>
-      </div>`);
-  });
-}
-
-loadComboPlan();
 </script>
 <script src="/site/turnstile.js" defer></script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js").catch(function(){});}</script>
 </body>
 </html>

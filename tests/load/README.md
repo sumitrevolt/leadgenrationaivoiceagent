@@ -1,7 +1,7 @@
 # Load & Chaos Harness (k6 + Pumba)
 
-Free, self-hosted performance + resilience testing. Yeh `Scale_Reliability_Audit` ke
-flagged gaps bharta: **load test (R8#7), perf budget (R9#2), chaos (R9#3), automated
+Free, self-hosted performance + resilience testing. Yeh `SAAS_INFRA_TRUTH_AND_GAPS_2026_06_15.md`
+(Appendix B — folded Scale_Reliability_Audit) ke flagged gaps bharta: **load test (R8#7), perf budget (R9#2), chaos (R9#3), automated
 capacity baselines (R10#6)**. Iske numbers ke bina voice scale-up aur
 **distributed call-admission counter** ki sizing andheme mein hai.
 

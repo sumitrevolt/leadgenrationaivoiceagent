@@ -15,7 +15,7 @@ Active research docs (web-sourced, cross-check with `CLAUDE.md` + code before tr
 
 **Archived / stale:** `legacy/THREE_BRAIN_ARCHITECTURE.md` (AuraLeads era — do not implement).
 
-**2026-06-19 docs-audit + cleanup** (report: `docs/DOCS_AUDIT_2026_06_19.md`):
+**2026-06-19 docs-audit + cleanup** (report consolidated into git history 2026-06-25):
 - Removed 12 zero-reference scratch/one-time/superseded docs (5× `_route_*`, COORDINATOR_SKILL_BUILD_SUMMARY, SKILL_REVIEW_2026_06, GSC_SUBMIT_TODAY, FEATURE_TRIAGE_AUDIT, PROD_GAPS_2026_06_10_BATCH, Competitor_Infra_Research → folded into the infra blueprint, legacy/production_readiness_report).
 - Fixed STALE pricing in `Marketing_Kit_LeadGenAI.md` (Starter/Growth/Advanced now 1199/2999/6999 = `packages.py` truth).
 - Wired the dormant CRAG module into the public chatbot (`app/marketing/chatbot.py`, gated `USE_AGENTIC_RAG`) — it previously had zero call-sites.

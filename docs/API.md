@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (865 operations)
+## Endpoint Index — auto-generated from OpenAPI (869 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -387,6 +387,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 ### Admin Customers  (1)
 
 - `POST  ` `/api/admin/customers/onboard` — Onboard Customer
+
+### Admin DB Explorer  (3)
+
+- `GET   ` `/api/admin/db/table/{name}` — Browse rows of one table (read-only, paginated, redacted)
+- `GET   ` `/api/admin/db/table/{name}/export.csv` — Export one table to CSV (read-only, capped, redacted)
+- `GET   ` `/api/admin/db/tables` — List all DB tables (read-only explorer)
 
 ### Admin Dashboard  (14)
 
@@ -749,10 +755,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (51)
+### Frontend  (52)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
+- `GET   ` `/app/admin/db` — Admin Db Explorer Page
 - `GET   ` `/app/agent-tools` — Agent Tools Page
 - `GET   ` `/app/agents` — Agents Page
 - `GET   ` `/app/analytics` — Analytics Page

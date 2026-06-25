@@ -153,6 +153,8 @@ def classify_interest(text: str) -> InterestVerdict:
 
 def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, PlatformPitchState]:
     """Deterministic reply for interest-gate phases. None = use TelecallerBrain."""
+    from app.voice_agent.universal_pitch import PITCH_SHORT
+
     if state.phase not in ("await_interest", "await_interest_2"):
         if state.phase == "closed":
             return line_close_cold(), state
@@ -163,13 +165,13 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
         return "Bilkul sir — shaam paanch ya kal subah gyarah, callback kab theek rahega?", state
     if low in ("kya", "kya?", "huh", "what"):
         return (
-            "LeadGen AI se Swara — posts, Google profile, festival posters AI se, ₹1,199 se. "
+            f"LeadGen AI se Swara — {PITCH_SHORT} "
             "Interested hain?",
             state,
         )
     if "samjha nahi" in low:
         return (
-            "Simple me — posts, Google listing aur leads automatic, ₹1,199 se. Try karna chahenge?",
+            f"Simple me — {PITCH_SHORT} Try karna chahenge?",
             state,
         )
     if "kaun ho" in low or "aap kaun" in low:
