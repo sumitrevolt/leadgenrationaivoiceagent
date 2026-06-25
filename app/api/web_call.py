@@ -403,17 +403,18 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
     if not text:
         return None
 
-    # OPTIONAL premium voice (Sarvam Bulbul — natural Hindi) tried FIRST when a
-    # SARVAM_API_KEY is set; any miss (no key / cap / error) falls through to the
-    # free EdgeTTS floor below. INERT without key = behaviour unchanged. (Council
-    # 2026-06-25: voice-swap = biggest "noob -> human" jump on Hindi demos.)
+    # PREMIUM voice = Gemini native TTS (free, reuses existing GEMINI_API_KEY) tried
+    # FIRST when enabled; any miss (no key / GEMINI_TTS=0 / quota / error) falls
+    # through to the free EdgeTTS floor below. Returns WAV b64 (frontend auto-detects
+    # WAV vs mp3). INERT without key = behaviour unchanged. (Council 2026-06-25:
+    # voice-swap = biggest "noob -> human" jump on Hindi demos; user: own free stack.)
     try:
-        from app.voice_agent import sarvam_tts
+        from app.voice_agent import gemini_tts
 
-        if sarvam_tts.is_enabled():
-            _sv = await sarvam_tts.synth_mp3_b64(text)
-            if _sv:
-                return _sv
+        if gemini_tts.is_enabled():
+            _gv = await gemini_tts.synth_wav_b64(text)
+            if _gv:
+                return _gv
     except Exception:
         pass
 
@@ -552,12 +553,13 @@ async def web_call_config() -> dict[str, Any]:
     except Exception:
         pass
 
-    # Premium voice (Sarvam Bulbul) active? — True jab SARVAM_API_KEY set ho.
+    # Premium voice (Gemini native TTS) active? — True jab GEMINI_API_KEY set +
+    # GEMINI_TTS!=0. Inert = EdgeTTS floor.
     premium_voice = False
     try:
-        from app.voice_agent import sarvam_tts
+        from app.voice_agent import gemini_tts
 
-        premium_voice = sarvam_tts.is_enabled()
+        premium_voice = gemini_tts.is_enabled()
     except Exception:
         pass
 
@@ -570,7 +572,7 @@ async def web_call_config() -> dict[str, Any]:
         "natural_voice_available": natural_voice_available,
         "premium_voice": premium_voice,
         "voice": (
-            "sarvam-bulbul-v2"
+            "gemini-tts"
             if premium_voice
             else ("hi-IN-SwaraNeural" if natural_voice_available else None)
         ),
