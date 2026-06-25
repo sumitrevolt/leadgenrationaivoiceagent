@@ -1257,11 +1257,66 @@ def _sniff_audio_format(audio: bytes) -> tuple[str, str]:
     return "audio.webm", "audio/webm"
 
 
+async def _local_whisper_transcribe(audio: bytes) -> str:
+    """
+    FREE self-host local STT fallback (Sarvam-Saaras ka alternative) — gated by
+    HINGLISH_STT=1. Jab cloud STT (Groq/Gemini) down/quota'd ho, browser-text pe
+    girne se pehle local Hinglish-finetuned Whisper (ya whisper-base) try karta
+    hai → web-call kabhi deaf nahi. Phone path ka WAHI cached model reuse karta
+    (vobiz_stream._get_stt) — koi extra memory nahi. Browser ka compressed audio
+    (webm/ogg/wav) faster-whisper khud PyAV se decode+resample karta hai.
+
+    Bounded + defensive: timeout / koi bhi error pe '' (caller fall-through).
+    """
+    if (os.environ.get("HINGLISH_STT", "0") or "0").strip().lower() not in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return ""
+
+    def _run() -> str:
+        try:
+            from app.telephony import vobiz_stream as _vs  # type: ignore
+
+            engine = _vs._get_stt()
+            if not engine or engine[0] != "whisper":
+                return ""
+            import io as _io
+
+            model = engine[1]
+            lang = os.environ.get("FWHISPER_LANG", "hi")
+            prompt = os.environ.get(
+                "FWHISPER_PROMPT",
+                "Hinglish sales call: solar, real estate, insurance, leads, business, appointment.",
+            )
+            segments, _ = model.transcribe(
+                _io.BytesIO(audio),
+                beam_size=1,
+                language=lang,
+                vad_filter=True,
+                condition_on_previous_text=False,
+                initial_prompt=(prompt or None),
+            )
+            return " ".join(seg.text for seg in segments).strip()
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug(f"web-call: local whisper STT failed ({e}).")
+            return ""
+
+    try:
+        timeout = float(os.environ.get("WEBCALL_LOCAL_STT_TIMEOUT_S", "12"))
+        return await asyncio.wait_for(asyncio.to_thread(_run), timeout=timeout)
+    except Exception:
+        return ""
+
+
 async def _transcribe_audio(pipeline: Any, brain: Any, audio_b64: str) -> str:
     """
     Server-side STT. PRIMARY: free_ai Groq whisper-large-v3 (wahi chain jo
-    phone agent use karta hai — Hinglish-strong). Fallback: pipeline transcribe
-    method. '' return = caller browser-provided text use karega. Never raises.
+    phone agent use karta hai — Hinglish-strong). Fallback: local Hinglish
+    whisper (HINGLISH_STT=1), phir pipeline transcribe method. '' return =
+    caller browser-provided text use karega. Never raises.
     """
     import base64
 
@@ -1294,6 +1349,12 @@ async def _transcribe_audio(pipeline: Any, brain: Any, audio_b64: str) -> str:
             return text.strip()
     except Exception as e:
         logger.debug(f"web-call: free_ai STT failed ({e}).")
+
+    # 1b) FREE self-host local Hinglish whisper (HINGLISH_STT=1) — cloud STT
+    # down/quota'd hone par bhi web-call deaf na ho. Phone path ka same model.
+    text = await _local_whisper_transcribe(audio)
+    if text:
+        return text
 
     # 2) Pipeline transcribe method (rarely present).
     for obj in (pipeline,):

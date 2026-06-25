@@ -251,18 +251,44 @@ def _get_stt() -> tuple | None:
             if _FWHISPER_OK:
                 try:
                     from faster_whisper import WhisperModel  # type: ignore
-
-                    # base >> tiny for Hindi (tiny Hindi pe bahut weak hai); CPU pe
-                    # short utterances ~1-2.5s — acceptable. Env: FWHISPER_MODEL.
-                    model_size = os.environ.get("FWHISPER_MODEL", "base")
-                    _STT_ENGINE = (
-                        "whisper",
-                        WhisperModel(model_size, device="cpu", compute_type="int8"),
-                    )
-                    logger.info(f"[vobiz-stream] STT engine: faster-whisper ({model_size})")
-                    return _STT_ENGINE
                 except Exception as e:
-                    logger.warning(f"[vobiz-stream] faster-whisper load failed: {e}")
+                    logger.warning(f"[vobiz-stream] faster-whisper import failed: {e}")
+                else:
+                    # HINGLISH self-host clone (free Sarvam-Saaras alternative):
+                    # HINGLISH_STT=1 + baked CT2 dir maujood ho to weak whisper-base
+                    # ki jagah Hinglish-finetuned Whisper load karo — roman Hinglish
+                    # output (Devanagari nahi) → NLU patterns se direct match, koi
+                    # recurring cost nahi. Flag off / dir absent = bilkul purana
+                    # behaviour (FWHISPER_MODEL, default "base"; base >> tiny for
+                    # Hindi). Hinglish load fail ho to ALWAYS whisper-base pe fall
+                    # back — bad/missing Hinglish dir kabhi call ko deaf na kare.
+                    hinglish_dir = (
+                        os.environ.get("HINGLISH_WHISPER_DIR") or "/opt/hinglish_whisper"
+                    ).strip()
+                    use_hinglish = (
+                        (os.environ.get("HINGLISH_STT", "0") or "0").strip().lower()
+                        in ("1", "true", "yes", "on")
+                        and hinglish_dir
+                        and os.path.isdir(hinglish_dir)
+                    )
+                    candidates: list[tuple[str, str]] = []
+                    if use_hinglish:
+                        candidates.append(("hinglish", hinglish_dir))
+                    candidates.append(("base", os.environ.get("FWHISPER_MODEL", "base")))
+                    for label, model_size in candidates:
+                        try:
+                            _STT_ENGINE = (
+                                "whisper",
+                                WhisperModel(model_size, device="cpu", compute_type="int8"),
+                            )
+                            logger.info(
+                                f"[vobiz-stream] STT engine: faster-whisper ({label}:{model_size})"
+                            )
+                            return _STT_ENGINE
+                        except Exception as e:
+                            logger.warning(
+                                f"[vobiz-stream] faster-whisper load failed ({label}): {e}"
+                            )
 
             logger.warning("[vobiz-stream] no STT engine available — call will be deaf")
             _STT_ENGINE = None
@@ -291,14 +317,20 @@ def _stt_sync(kind: str, model: Any, pcm16: bytes) -> str:
             # jata tha. hi = Hindi/Hinglish dono ke liye sahi (Devanagari out,
             # Gemini handle karta hai). Env override: FWHISPER_LANG (e.g. en).
             lang = os.environ.get("FWHISPER_LANG", "hi")
+            # Domain prime: telephony audio me in words ki accuracy badhti hai.
+            # Overridable via FWHISPER_PROMPT (HINGLISH roman-output models kabhi
+            # bina Hindi-domain priming behtar karte) — empty string = no prompt.
+            prompt = os.environ.get(
+                "FWHISPER_PROMPT",
+                "Hinglish sales call: solar, real estate, insurance, leads, business, appointment.",
+            )
             segments, _ = model.transcribe(
                 audio,
                 beam_size=1,
                 language=lang,
                 vad_filter=True,  # whisper-side VAD trims noise/silence edges
                 condition_on_previous_text=False,  # short utterances — no drift
-                # Domain prime: telephony audio me in words ki accuracy badhti hai.
-                initial_prompt="Hinglish sales call: solar, real estate, insurance, leads, business, appointment.",
+                initial_prompt=(prompt or None),
             )
             return " ".join(seg.text for seg in segments).strip()
     except Exception as e:
