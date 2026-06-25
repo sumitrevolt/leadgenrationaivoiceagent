@@ -2,12 +2,13 @@
 Analytics API
 Endpoints for analytics and reporting.
 
-No relational DB / SQLAlchemy models exist in this project yet, so these
-endpoints compute real aggregates from an in-memory analytics store
-(`analytics_store`) that the pipeline / call manager can push events into.
-The aggregation logic is real — when a persistence layer is introduced, swap
-`analytics_store.<list>` reads for the equivalent SQLAlchemy queries (marked
-with "TODO: bind to <Model>") without changing the route signatures.
+Data source is DB-primary with a graceful fallback: each endpoint reads real
+rows from the relational models (`CallLog` / `Lead`) via `_db_calls()` /
+`_db_leads()`, flattened to plain dicts. When the DB is unavailable or returns
+no rows, the aggregation transparently falls back to the in-memory
+`analytics_store` that the pipeline / call manager can push events into. The
+aggregation logic is identical on either source, so the route signatures stay
+stable regardless of which backs a given response.
 """
 
 from collections import defaultdict
@@ -70,15 +71,16 @@ class TimeSeriesPoint(BaseModel):
 # =============================================================================
 # In-memory analytics store
 # =============================================================================
-# Acts as the single source of truth until a database is wired in. Each record
-# is a plain dict so it round-trips trivially to/from JSON or a future ORM row.
+# Fallback source when the DB is unavailable or empty. Each record is a plain
+# dict shaped exactly like the flattened ORM rows from `_db_calls`/`_db_leads`,
+# so the aggregation logic works unchanged on either source.
 class AnalyticsStore:
     """
     Lightweight in-memory event store for analytics aggregation.
 
     Other modules (pipeline, call manager) can call `record_lead` /
-    `record_call` to push events; the API endpoints below read from these
-    lists. Replace with DB-backed queries when models land.
+    `record_call` to push events. The API endpoints prefer real DB rows and
+    fall back to these lists when the DB is unavailable or returns nothing.
     """
 
     def __init__(self):
@@ -241,7 +243,7 @@ def _leads_source() -> list[dict[str, Any]]:
 async def get_dashboard_stats():
     """
     Get main dashboard statistics.
-    TODO: bind to Lead / Call / Appointment models when a DB is added.
+    Data source: Lead + CallLog DB rows with in-memory store fallback.
     """
     leads = _leads_source()
     calls = _calls_source()
@@ -280,7 +282,7 @@ async def get_call_metrics(
 ):
     """
     Get call metrics for a period.
-    TODO: bind to Call model when a DB is added.
+    Data source: CallLog DB rows (via _db_calls) with in-memory store fallback.
     """
     calls = _in_range(_calls_source(), "completed_at", start_date, end_date)
     if campaign_id:
@@ -314,7 +316,7 @@ async def get_lead_metrics(
 ):
     """
     Get lead metrics for a period.
-    TODO: bind to Lead model when a DB is added.
+    Data source: Lead DB rows (via _db_leads) with in-memory store fallback.
     """
     leads = _in_range(_leads_source(), "created_at", start_date, end_date)
     if niche:
@@ -346,7 +348,7 @@ async def get_lead_metrics(
 async def get_calls_by_day(days: int = Query(30, ge=1, le=365)):
     """
     Get calls per day for the last N days.
-    TODO: bind to Call model when a DB is added.
+    Data source: CallLog DB rows (via _db_calls) with in-memory store fallback.
     """
     today = datetime.now().date()
     counts: dict[str, int] = defaultdict(int)
@@ -367,7 +369,7 @@ async def get_calls_by_day(days: int = Query(30, ge=1, le=365)):
 async def get_leads_by_source():
     """
     Get lead distribution by source.
-    TODO: bind to Lead model when a DB is added.
+    Data source: Lead DB rows (via _db_leads) with in-memory store fallback.
     """
     counts: dict[str, int] = defaultdict(int)
     for l in _leads_source():
@@ -383,7 +385,7 @@ async def get_leads_by_source():
 async def get_leads_by_city(limit: int = Query(10, ge=1, le=50)):
     """
     Get top cities by lead count.
-    TODO: bind to Lead model when a DB is added.
+    Data source: Lead DB rows (via _db_leads) with in-memory store fallback.
     """
     counts: dict[str, int] = defaultdict(int)
     for l in _leads_source():
@@ -398,7 +400,7 @@ async def get_leads_by_city(limit: int = Query(10, ge=1, le=50)):
 async def get_calls_by_outcome():
     """
     Get call distribution by outcome.
-    TODO: bind to Call model when a DB is added.
+    Data source: CallLog DB rows (via _db_calls) with in-memory store fallback.
     """
     base = {
         "appointment": 0,
@@ -418,7 +420,7 @@ async def get_calls_by_outcome():
 async def get_agent_performance():
     """
     Get performance metrics per agent.
-    TODO: bind to Agent/Call models when a DB is added.
+    Data source: CallLog DB rows (agent_id) with in-memory store fallback.
     """
     by_agent: dict[str, dict[str, Any]] = defaultdict(
         lambda: {"calls": 0, "appointments": 0, "qualified": 0, "talk_time": 0}
@@ -439,7 +441,7 @@ async def get_agent_performance():
 async def get_campaign_performance():
     """
     Get performance metrics per campaign.
-    TODO: bind to Campaign/Call models when a DB is added.
+    Data source: CallLog DB rows (campaign_id) with in-memory store fallback.
     """
     by_campaign: dict[str, dict[str, Any]] = defaultdict(
         lambda: {"calls": 0, "qualified": 0, "appointments": 0}
@@ -465,7 +467,7 @@ async def get_campaign_performance():
 async def get_hourly_distribution():
     """
     Get call success rate by hour of day.
-    TODO: bind to Call model when a DB is added.
+    Data source: CallLog DB rows (via _db_calls) with in-memory store fallback.
     """
     buckets: dict[int, dict[str, int]] = {
         hour: {"calls": 0, "connected": 0} for hour in range(9, 19)
@@ -493,7 +495,7 @@ async def get_hourly_distribution():
 async def get_daily_report(date: str | None = None):
     """
     Get daily summary report.
-    TODO: bind to Lead/Call models when a DB is added.
+    Data source: Lead + CallLog DB rows with in-memory store fallback.
     """
     if date:
         report_date = datetime.fromisoformat(date).date()
@@ -536,7 +538,7 @@ async def get_daily_report(date: str | None = None):
 async def get_weekly_report():
     """
     Get weekly summary report.
-    TODO: bind to Lead/Call models when a DB is added.
+    Data source: Lead + CallLog DB rows with in-memory store fallback.
     """
     today = datetime.now().date()
     week_start = today - timedelta(days=today.weekday())
@@ -583,7 +585,7 @@ async def get_monthly_report(
 ):
     """
     Get monthly summary report.
-    TODO: bind to Lead/Call models when a DB is added.
+    Data source: Lead + CallLog DB rows with in-memory store fallback.
     """
     today = datetime.now()
     if year is None:
@@ -664,28 +666,6 @@ def _month_comparison(calls_this: int, leads_this: int, year: int, month: int) -
         "vs_last_month_leads": _pct(leads_this, len(prev_leads)),
         "prev_month_calls": len(prev_calls),
         "prev_month_leads": len(prev_leads),
-    }
-
-
-def _week_trends(week_calls: list, week_leads: list, week_start) -> dict[str, Any]:
-    """Is week vs previous week % change."""
-    from datetime import timedelta as _td
-
-    prev_end = datetime.combine(week_start, datetime.min.time()) - _td(seconds=1)
-    prev_start = prev_end - _td(days=6)
-    prev_calls = _in_range(_calls_source(), "completed_at", prev_start, prev_end)
-    prev_leads = _in_range(_leads_source(), "created_at", prev_start, prev_end)
-
-    def _pct(cur: int, prev: int) -> float:
-        if prev == 0:
-            return 100.0 if cur > 0 else 0.0
-        return round((cur - prev) / prev * 100, 1)
-
-    return {
-        "calls_vs_prev_week": _pct(len(week_calls), len(prev_calls)),
-        "leads_vs_prev_week": _pct(len(week_leads), len(prev_leads)),
-        "prev_week_calls": len(prev_calls),
-        "prev_week_leads": len(prev_leads),
     }
 
 

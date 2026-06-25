@@ -100,8 +100,7 @@ else
     echo "Staging changes..."
     git add app/platform/agent_system_prompts.py
     git add AGENT_SYSTEM_PROMPTS.md FEEDBACK_LOOPS_AND_REFLEXION.md TEST_SCENARIOS_LOOP_CLOSURE.md AGENT_LOOP_PROMPT_MASTER.md 2>/dev/null || true
-    git add DEPLOYMENT_AUTOMATION.sh OPERATIONAL_RUNBOOKS.md GO_LIVE_CHECKLIST.md 2>/dev/null || true
-    git add DEPLOY_VERIFICATION_CHECKLIST.md 2>/dev/null || true
+    git add DEPLOYMENT_AUTOMATION.sh OPERATIONAL_RUNBOOKS.md 2>/dev/null || true
 
     echo "Committing..."
     git commit -m "Production launch: Agent system prompts + operational runbooks + 14 tests PASS"
@@ -173,7 +172,7 @@ echo "  • Health: 200 OK (environment=production)"
 echo "  • Agents: 12 active"
 echo "  • Logs: No ERROR messages"
 echo ""
-echo -e "${YELLOW}📋 See DEPLOY_VERIFICATION_CHECKLIST.md for full verification steps${NC}"
+echo -e "${YELLOW}📋 See docs/OPERATIONAL_RUNBOOKS.md RB-013 for full go-live verification steps${NC}"
 echo ""
 echo -e "${GREEN}════════════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}You're 99.2% ready to ship! 🚀${NC}"

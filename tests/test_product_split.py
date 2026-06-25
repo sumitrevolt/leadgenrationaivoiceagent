@@ -133,10 +133,10 @@ def test_billing_plans_two_products():
     import app.billing.subscription as sub
 
     importlib.reload(sub)  # ensure sync ran with current packages
-    # marketing (Product 1) — naye research prices
-    assert float(sub.PRICING_PLANS["starter"].monthly_price) == 1199.0
+    # marketing (Product 1) — merged marketing automation price
+    assert float(sub.PRICING_PLANS["starter"].monthly_price) == 1999.0
     assert float(sub.PRICING_PLANS["growth"].monthly_price) == 2999.0
-    assert float(sub.PRICING_PLANS["advanced"].monthly_price) == 6999.0
+    assert float(sub.PRICING_PLANS["advanced"].monthly_price) == 5999.0
     # voice (Product 2) — flat per-band plans (monthly + annual) + free pilot
     from app.marketing.voice_packages import BANDS, UNLIMITED_QUOTA, VOICE_PLAN_IDS
 
@@ -160,7 +160,7 @@ def test_packages_marketing_prices():
 
     truth = {p["key"]: (p["price_inr_month"], p["price_inr_year"]) for p in PACKAGES}
     assert truth == {
-        "starter": (1199, 11990),
+        "starter": (1999, 19990),
         "growth": (2999, 29990),
-        "advanced": (6999, 69990),
+        "advanced": (5999, 59990),
     }

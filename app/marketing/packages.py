@@ -2,18 +2,18 @@
 Marketing-first pricing packages — platform ke PUBLIC pricing ka source-of-truth.
 ==================================================================================
 
-Positioning (June 2026, CLARIFIED): hum DO alag products banate hain —
-  1. **AI Automated Marketing** (MAIN product, yeh pricing usi ki hai) — local
-     businesses ke liye posts/GBP/festivals/posters/WhatsApp/reviews, sab
-     /app/marketing me built. Advanced tier me **AI voice agent ek FEATURE**
-     hai: inquiry auto-callback, lead qualification calls, missed-call follow-ups.
+Positioning (June 2026, merged marketing plan):
+  1. **AI Marketing Automation** (MAIN product, starter + growth ko merge karke)
+     — local businesses ke liye posts/GBP/festivals/posters/WhatsApp/reviews,
+     lead capture, reactivation, CRM sync, aur automation. Public pricing me yahi
+     single marketing plan dikhata hai.
   2. **AI Voice Calling Agent** (ALAG standalone product) — full AI telecaller
      (outbound/DLT-gated); iski pricing **`voice_packages.py`** me (page /voice-agent),
      model = flat-monthly per niche-band A/B/C (ADR-009; updated 2026-06-12). Yahan NAHI.
 
-Prices (research-revised 2026-06-11, ADR-009): Starter ₹1,199 · Growth ₹2,999 ·
-Advanced ₹6,999 (anchors: Dhanda ₹7,999/yr, Predis Lite ~₹2,700/mo social-only,
-agency retainer ₹10-25k/mo). Yearly = 10x monthly (2 mahine FREE).
+Prices (research-revised 2026-06-25): Marketing Automation ₹1,999 · Growth
+(legacy/internal hidden) ₹2,999 · Advanced Voice Agent ₹5,999 (anchors: local SMB
+budget sweet spot, voice as premium upsell). Yearly = 10x monthly (2 mahine FREE).
 
 USP (marketing product ka): koi bhi Indian marketing competitor (Dhanda
 ₹7,999/yr, AdBanao, Predis) AI voice-callback FEATURE nahi deta — isliye
@@ -31,12 +31,12 @@ from __future__ import annotations
 PACKAGES: list[dict] = [
     {
         "key": "starter",
-        "name": "Marketing Starter",
-        "tagline": "Roz ka content + Google presence — sab AI se, aapka time zero. 100% marketing-only plan.",
-        "price_inr_month": 1199,
-        "price_inr_year": 11990,  # 10x monthly = 2 mahine FREE (research: 16.7% standard, churn ~27% kam)
-        "annual_note": "Saal bhar ka ek saath: ₹11,990 (2 mahine FREE)",
-        "price_note": "100% marketing-only — koi calling charge nahi · roz ke ₹40 se kam me poora marketing setup",
+        "name": "AI Marketing Automation",
+        "tagline": "Content, leads, reviews aur automation — sab ek plan me. 100% marketing-only.",
+        "price_inr_month": 1999,
+        "price_inr_year": 19990,  # 10x monthly = 2 mahine FREE
+        "annual_note": "Saal bhar ka ek saath: ₹19,990 (2 mahine FREE)",
+        "price_note": "100% marketing automation — koi calling charge nahi · content + leads + CRM sab ek saath",
         "marketing_only": True,
         "features": [
             "Roz AI social posts — Hinglish caption + hashtags (39 niches, aapki industry ke hisaab se)",
@@ -48,27 +48,32 @@ PACKAGES: list[dict] = [
             "Google reviews ke Hinglish reply drafts — copy-paste, rating bachao",
             "4 branded posters/mo — naam, phone, offer ke saath (SVG, print-ready)",
             "WhatsApp content pack — broadcast messages + status updates ready",
+            "Lead capture widget — 1-line script, form seedha dashboard me",
+            "AI website chatbot — FAQ + lead capture (widget mode)",
+            "CRM sync (Zoho/HubSpot) + programmable webhooks (lead/call events)",
+            "WhatsApp drip nurture — naye leads ko spaced follow-up messages",
+            "Database reactivation — purane customers ke liye win-back campaigns",
+            "Competitor analysis + monthly marketing report — kya chala, kya nahi",
+            "Referral tools + Ads copy pack + Reels script drafts",
             "UPI Scan & Pay QR card — counter/display ke liye branded",
-            "Hashtag suggestions har post ke saath",
             "Post approval workflow — publish se pehle aapki OK (portal me)",
-            "Onboarding checklist + customer dashboard (leads, content, bills)",
             "GST invoice download portal se",
-            "100% marketing-only — koi calling charge / minute limit nahi",
         ],
-        "highlight": False,
-        "badge": "",
+        "highlight": True,
+        "badge": "POPULAR",
     },
     {
         "key": "growth",
         "name": "Growth",
-        "tagline": "Poora marketing engine — content, competitor aur leads sab automatic. 100% marketing-only plan.",
+        "tagline": "Legacy/internal only — hidden from public pricing, backward compatibility ke liye.",
         "price_inr_month": 2999,
         "price_inr_year": 29990,  # 2 mahine FREE
         "annual_note": "Saal bhar ka ek saath: ₹29,990 (2 mahine FREE)",
-        "price_note": "100% marketing-only — koi calling charge nahi · sab kuch Starter ka + growth tools",
+        "price_note": "Legacy/internal plan — public pricing me show nahi hota",
         "marketing_only": True,
+        "public": False,
         "features": [
-            "Starter ke saare features included",
+            "Legacy Growth plan — starter automation ka older split",
             "Unlimited posters + festival creatives — jitne chahiye utne",
             "AI image generation + Complete Post one-shot (caption + hashtags + image)",
             "Post variations A/B — ek idea se 2–4 alag versions",
@@ -92,15 +97,14 @@ PACKAGES: list[dict] = [
     },
     {
         "key": "advanced",
-        "name": "Advanced AI Agent",
-        "tagline": "Growth ka poora marketing + AI Voice Agent feature — har inquiry ko AI khud call kare. India me sirf yahan.",
-        "price_inr_month": 6999,
-        "price_inr_year": 69990,  # 2 mahine FREE
-        "annual_note": "Saal bhar ka ek saath: ₹69,990 (2 mahine FREE)",
+        "name": "Advanced Voice Agent",
+        "tagline": "AI telecaller jo inquiry ko khud call kare, qualify kare aur book kare.",
+        "price_inr_month": 5999,
+        "price_inr_year": 59990,  # 2 mahine FREE
+        "annual_note": "Saal bhar ka ek saath: ₹59,990 (2 mahine FREE)",
         "price_note": "telephony usage included up to 500 min/mo",
         "marketing_only": False,
         "features": [
-            "Growth ke saare features included",
             "AI Voice Agent — har website/GBP inquiry ko ~2-minute me AI call (insaan jaisi Hindi awaaz)",
             "Lead qualification — budget, timeline, interest score AI capture karta hai",
             "Appointment booking — AI calendar slots offer + confirm karta hai",
@@ -112,11 +116,10 @@ PACKAGES: list[dict] = [
             "Speed-to-lead SLA badge — kitni der me pehli call hui, track karo",
             "Multi-lingual — Hindi, Hinglish, English (aur regional jahan script ho)",
             "TRAI-compliant AI disclosure greeting har call pe",
-            "Calls + leads ek hi portal — marketing content bhi, voice bhi",
             "Minute usage tracker — kitna use hua, kitna bacha, renewal date",
         ],
         "highlight": True,
-        "badge": "🚀 India me sirf hamare paas",
+        "badge": "🚀 Voice only",
     },
 ]
 
@@ -125,12 +128,27 @@ def get_packages(include_trial: bool = False) -> list:
     """Public pricing packages (list of dicts) — landing page + API ke liye.
 
     Default (include_trial=False) = pehle jaisa EXACT 3 paid packages (backward
-    compatible — existing consumers untouched). include_trial=True pe FREE trial
-    package list ke aage add hota hai (additive only).
+    compatible — existing consumers untouched). Public endpoints ke liye
+    `get_public_packages()` use karo. include_trial=True pe FREE trial package
+    list ke aage add hota hai (additive only).
     """
     if include_trial:
         return [dict(TRIAL_PACKAGE)] + PACKAGES
     return PACKAGES
+
+
+def get_public_packages(include_trial: bool = False) -> list:
+    """Public-facing pricing packages.
+
+    Starter (merged marketing automation) + Advanced voice plan return hote hain.
+    Legacy/internal Growth split hidden rehta hai taaki backward compatibility
+    retain ho aur public pricing simple rahe.
+    """
+    out = []
+    if include_trial:
+        out.append(dict(TRIAL_PACKAGE))
+    out.extend(dict(p) for p in PACKAGES if p.get("public", True))
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -144,7 +162,7 @@ TRIAL_PACKAGE: dict = {
     "name": "7-Din FREE Trial",
     "tagline": "Bina paise diye AI marketing try karo — card bhi nahi chahiye.",
     "price_inr_month": 0,
-    "price_note": "₹0 — 7 din ka free trial, koi card/payment nahi. Pasand aaye to Starter se shuru karo.",
+    "price_note": "₹0 — 7 din ka free trial, koi card/payment nahi. Pasand aaye to AI Marketing Automation ₹1,999/mo se shuru karo.",
     "marketing_only": True,
     "trial": True,
     "trial_days": TRIAL_DAYS,
@@ -158,8 +176,8 @@ TRIAL_PACKAGE: dict = {
         "WhatsApp content — basic broadcast/status pack",
         "Onboarding checklist — setup steps portal me",
         "1-click copy + WhatsApp share har post pe",
-        "Koi card/payment nahi — pasand aaye to Starter ₹1,199/mo se shuru",
-        "Voice calling nahi (Advanced tier me AI callback milta hai)",
+        "Koi card/payment nahi — pasand aaye to AI Marketing Automation ₹1,999/mo se shuru",
+        "Voice calling nahi (Advanced Voice Agent me AI callback milta hai)",
     ],
     "highlight": False,
     "badge": "🎁 FREE",

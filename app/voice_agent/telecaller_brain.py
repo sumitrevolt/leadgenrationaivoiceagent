@@ -177,7 +177,7 @@ def _convo_discipline_enabled() -> bool:
 
 def _marketing_plan_price_line(plan_key: str = "starter") -> str:
     """Marketing price line from packages.py, so voice never quotes stale pricing."""
-    fallback = "Starter Rs 1,199 mahine se"
+    fallback = "AI Marketing Automation Rs 1,999 mahine se"
     try:
         from app.marketing.packages import get_packages
 
@@ -687,6 +687,11 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             "Theek hai ji —",
             "Ji —",
             "Achha ji —",
+            "Haan ji —",
+            "Bilkul samajh gayi —",
+            "Sahi baat hai ji —",
+            "Aapki baat clear hai —",
+            "Bilkul sahi —",
         )
         return acks[len(ut) % len(acks)]
 
@@ -1577,7 +1582,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     @staticmethod
     def _clean(text: str) -> str:
         """TTS-safe + HARD BREVITY: strip role prefixes/markdown, collapse
-        whitespace, cap to 1 sentence / ~20 words (phone par lambi reply =
+        whitespace, cap to 1–2 COMPLETE sentences / ~28 words (phone par lambi reply =
         bura UX). Meta/noob phrases => '' (caller uses script_fallback)."""
         t = (text or "").strip()
         t = re.sub(r"^(swara|agent|assistant)\s*:\s*", "", t, flags=re.IGNORECASE)
@@ -1602,19 +1607,17 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             return t
         if TelecallerBrain._has_meta_junk(t):
             return ""
-        # Up to 2 SHORT sentences (Hindi danda + . ? !) — natural "pehle jawab,
-        # phir sawaal" flow without monologue. (Was 1 sentence = answers got
-        # clipped before the question, reading terse/robotic vs competitors.)
+        # 1. Sentence cap: keep up to 2 COMPLETE sentences.
         parts = re.split(r"(?<=[।.?!])\s+", t)
         if len(parts) > 2:
             t = " ".join(parts[:2]).strip()
-        # hard word cap (~20) — trim at a clause boundary, never mid-thought.
-        # (Phone telecaller best-practice + talk-listen ratio: bot ko chhota bolna.)
+        # 2. Soft word cap (~28) — if 2 sentences exceed, drop the 2nd partial
+        #    and keep only the 1st complete sentence. NEVER mid-thought trim.
         words = t.split()
-        if len(words) > 20:
-            t = " ".join(words[:20]).rstrip(" ,;—-")
-            if not re.search(r"[।.?!]$", t):
-                t += "?"
+        if len(words) > 28:
+            t = parts[0].strip() if parts else t
+        # 3. NEVER append fake punctuation — sentence-boundary split keeps complete
+        #    sentences only. If something is still dangling, the caller handles it.
         return t
 
 

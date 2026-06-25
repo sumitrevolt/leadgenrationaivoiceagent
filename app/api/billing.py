@@ -222,16 +222,15 @@ async def get_pricing_plans():
     """
     Get all available pricing plans
     """
-    # PUBLIC pricing = sirf marketing packages wale plans (starter/growth/advanced).
-    # Legacy internal plans (enterprise/per_lead/hybrid/data_*) public page pe NAHI —
-    # /pricing page yahi endpoint render karta hai (BUG FIX 2026-06-10: pehle saare
-    # legacy ₹15k+ plans dikh rahe the).
+    # PUBLIC pricing = sirf marketing packages wale plans (merged marketing automation
+    # + advanced voice). Legacy internal plans (enterprise/per_lead/hybrid/data_*)
+    # public page pe NAHI — /pricing page yahi endpoint render karta hai.
     try:
-        from app.marketing.packages import PACKAGES as _PKGS
+        from app.marketing.packages import get_public_packages as _get_public_packages
 
-        _public_keys = [str(p.get("key")) for p in _PKGS]
+        _public_keys = [str(p.get("key")) for p in _get_public_packages()]
     except Exception:  # pragma: no cover - defensive
-        _public_keys = ["starter", "growth", "advanced"]
+        _public_keys = ["starter", "advanced"]
     _public = [PRICING_PLANS[k] for k in _public_keys if k in PRICING_PLANS]
 
     plans = []

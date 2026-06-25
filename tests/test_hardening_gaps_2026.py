@@ -140,7 +140,7 @@ def test_portal_invoices_filters_to_own_tenant(monkeypatch):
             "number": "INV/2026-27/0001",
             "date": "2026-06-01",
             "description": "Starter",
-            "gross_inr": 1199,
+            "gross_inr": 1999,
             "plan": "starter",
         },
         {

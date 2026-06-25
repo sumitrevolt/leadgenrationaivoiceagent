@@ -44,6 +44,6 @@ def test_platform_opening_segments_wired():
     segs = platform_opening_segments()
     assert len(segs) == 3
     assert segs[0] == UNIVERSAL_AGENT_INTRO
-    assert "1,199" in segs[1]
+    assert "1,999" in segs[1]
     assert "social" in segs[1].lower() or "posts" in segs[1].lower()
     assert "interested" in segs[2].lower()

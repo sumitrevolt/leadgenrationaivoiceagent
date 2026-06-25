@@ -163,7 +163,7 @@ async def get_marketing_packages():
         except Exception:
             pass
     try:
-        result = {"packages": packages.get_packages()}
+        result = {"packages": packages.get_public_packages()}
         if cache:
             try:
                 await cache.set("marketing", result)
