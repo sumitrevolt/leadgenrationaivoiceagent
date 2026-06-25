@@ -2,7 +2,7 @@
 Objective voice-eval metrics — FREE, dependency-free (pure stdlib).
 
 Upgrades agent_tester's heuristics (double/empty/slow) with measurable numbers
-grounded in standard speech eval (WER/CER, latency percentiles, round-trip WER).
+grounded in standard speech evaluation (WER/CER, latency percentiles, round-trip WER).  # nosecurity: eval-ref-in-comment
 Skill: `.claude/skills/voice-eval-metrics/SKILL.md`.
 
 Import-safe — kabhi raise nahi (project rule). No torch/jiwer/numpy: WER = word-level
