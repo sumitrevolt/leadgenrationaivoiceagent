@@ -1317,6 +1317,9 @@ async def _transcribe_audio(pipeline: Any, brain: Any, audio_b64: str) -> str:
     phone agent use karta hai — Hinglish-strong). Fallback: local Hinglish
     whisper (HINGLISH_STT=1), phir pipeline transcribe method. '' return =
     caller browser-provided text use karega. Never raises.
+
+    WEBCALL_STT_LOCAL_FIRST=1 (+ HINGLISH_STT=1) = local Hinglish model ko
+    PRIMARY banao (cloud skip jab tak local '' na de) — zero-cloud / verify mode.
     """
     import base64
 
@@ -1326,6 +1329,20 @@ async def _transcribe_audio(pipeline: Any, brain: Any, audio_b64: str) -> str:
         return ""
     if not audio or len(audio) > 4_000_000:  # >4MB = kuch galat hai, skip
         return ""
+
+    # 0) FORCE local Hinglish whisper FIRST (WEBCALL_STT_LOCAL_FIRST=1 + HINGLISH_STT=1)
+    # — zero-cloud / verification mode: har web-call baked Hinglish model use kare
+    # (roman output + latency judge karne ke liye). Khali return = cloud pe gir jao.
+    # Default OFF = cloud-primary (latency-safe) behaviour unchanged.
+    if (os.environ.get("WEBCALL_STT_LOCAL_FIRST", "0") or "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        text = await _local_whisper_transcribe(audio)
+        if text:
+            return text
 
     # 1) Groq whisper-large-v3 via free_ai (phone-parity, GROQ_API_KEY needed).
     try:
