@@ -126,6 +126,43 @@ def test_fast_path_whatsapp_gate_qualifies_first() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Fluency/coherence fixes (the "1-2 turn baad confuse, noob baat karta" batch).
+# --------------------------------------------------------------------------- #
+def test_clean_cuts_hallucinated_transcript() -> None:
+    # Small free models kabhi poora dialogue continue kar dete hain — Swara ka
+    # sirf pehla turn bolna chahiye, "User:"/"Swara:" leak nahi.
+    out = TelecallerBrain._clean("Ji theek hai sir. User: aur batao Swara: haan ji")
+    low = out.lower()
+    assert "user:" not in low and "swara:" not in low
+    assert out.startswith("Ji theek hai")
+
+
+def test_clean_strips_unclosed_paren_leak() -> None:
+    # Reasoning/meta leak ek un-closed parenthetical me — cut ho jaaye.
+    out = TelecallerBrain._clean("Aap yeh kaise manage karte ho? (Lagta hai ki user")
+    assert "(" not in out
+    assert out.endswith("?")
+
+
+def test_clean_allows_two_short_sentences() -> None:
+    # Answer-then-question ek hi reply me (pehle 1-sentence cap clip kar deta tha).
+    out = TelecallerBrain._clean("Haan ji, loan ho jaata hai. Aap salaried hain ya business?")
+    low = out.lower()
+    assert "loan ho jaata hai" in low
+    assert "salaried" in low
+
+
+def test_customer_qa_no_blanket_valueline_dump() -> None:
+    # Vertical niche ka koi bhi off-keyword sawaal pe pehle value_lines[0] dump
+    # hota tha (real_estate me har sawaal ka ek hi irrelevant jawab = confused).
+    # Ab "" -> LLM context se answer kare.
+    b = _brain("real_estate")
+    b._interest_confirmed = False
+    ans = TelecallerBrain._customer_qa_reply(b, "location kahan hai project ka")
+    assert ans == ""
+
+
+# --------------------------------------------------------------------------- #
 # Opener parity — vertical niches MUST open with their own researched script
 # opening, NOT the ai_marketing platform pitch (the "noob baat kar rahi" bug:
 # web-call used brain.opening_line() which always returned UNIVERSAL_AGENT_INTRO).
