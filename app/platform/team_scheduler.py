@@ -811,14 +811,14 @@ async def scheduler_loop() -> None:
             if (9, 30) <= hm < (11, 30) and _last_ran["prospect"] != day_key:
                 _last_ran["prospect"] = day_key
                 await _run_job("prospect")
-            _email_hour_key = f"{day_key}:{now_ist.hour}"
-            if 9 <= now_ist.hour <= 19 and hm[1] < 20 and _last_ran["email_outreach"] != _email_hour_key:
+            _email_hour_key = f"{day_key}:{now.hour}"
+            if 9 <= now.hour <= 19 and hm[1] < 20 and _last_ran["email_outreach"] != _email_hour_key:
                 _last_ran["email_outreach"] = _email_hour_key
                 await _run_job("email_outreach")
             if (11, 0) <= hm < (12, 0) and _last_ran["pipeline"] != day_key:
                 _last_ran["pipeline"] = day_key
                 await _run_job("pipeline")
-            if 9 <= now_ist.hour <= 19 and hm[1] >= 20 and _last_ran["email_followup"] != _email_hour_key:
+            if 9 <= now.hour <= 19 and hm[1] >= 20 and _last_ran["email_followup"] != _email_hour_key:
                 _last_ran["email_followup"] = _email_hour_key
                 await _run_job("email_followup")
             # 14:30–15:30 IST — 2nd free lead-supply pass (harvest). Gated MIDDAY_PROSPECT.
@@ -872,7 +872,7 @@ async def scheduler_loop() -> None:
                 _last_ran["onboard"] = hour_key
                 await _run_job("onboard")
             # Obsidian nightly push — 02:15–03:00 IST (INERT unless OBSIDIAN_SYNC=1).
-            if (20, 45) <= hm < (21, 30) and _last_ran.get("obsidian_push") != day_key:
+            if (2, 15) <= hm < (3, 0) and _last_ran.get("obsidian_push") != day_key:
                 _last_ran["obsidian_push"] = day_key
                 await _run_job("obsidian_push")
             # SP1 billing meter-failure watcher — hourly :55 (INERT unless METER_ALERTS=1).

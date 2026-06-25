@@ -34,6 +34,7 @@ def test_staff_jobs_include_new_pipeline_jobs():
         "evening_wrap",
         "weekly_marketing",
         "saturday_hygiene",
+        "obsidian_push",
     ):
         assert j in STAFF_JOBS
 
@@ -74,13 +75,26 @@ def test_extra_pass_jobs_boot_grace_and_registry():
         assert j in boot_grace._HEAVY_WINDOWS
 
 
+def test_scheduler_loop_uses_defined_ist_now_for_email_windows():
+    """Rollback in-process scheduler path must not reference an undefined clock."""
+    import inspect
+
+    from app.platform import team_scheduler
+
+    src = inspect.getsource(team_scheduler.scheduler_loop)
+    assert "now_ist" not in src
+    assert 'f"{day_key}:{now.hour}"' in src
+
+
 def test_extra_pass_jobs_in_worker_beat():
     from app.worker import celery_app
 
     beat = celery_app.conf.beat_schedule
     assert "staff-afternoon-content-daily" in beat
     assert "staff-evening-prospect-daily" in beat
+    assert "staff-obsidian-push-daily" in beat
     assert beat["staff-evening-prospect-daily"]["args"] == ("evening_prospect",)
+    assert beat["staff-obsidian-push-daily"]["args"] == ("obsidian_push",)
 
 
 @pytest.mark.asyncio

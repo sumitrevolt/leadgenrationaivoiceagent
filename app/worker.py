@@ -328,6 +328,11 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=50),
         "args": ("onboard",),
     },
+    "staff-obsidian-push-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=2, minute=15),
+        "args": ("obsidian_push",),
+    },
     "staff-flow-cron": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(minute="*/5"),
