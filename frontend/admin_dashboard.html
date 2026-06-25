@@ -388,6 +388,18 @@
         <div class="bd" id="hourlyActivity" style="font-size:12px;color:var(--muted)">Loading hourly activity…</div>
       </div>
 
+      <!-- AI Brain health (free-LLM provider chain) -->
+      <div class="card" id="sec-llm-health" style="margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd">
+          <h3>🧠 AI Brain health — free-LLM providers</h3>
+          <span class="right">
+            <span id="llm-health-time" style="font-size:11px;color:var(--muted)">—</span>
+            <button class="btn" onclick="loadLlmHealth()" style="padding:4px 10px;font-size:11px;margin-left:6px">↻</button>
+          </span>
+        </div>
+        <div class="bd" id="llmHealth" style="font-size:12px;color:var(--muted)">Loading brain health…</div>
+      </div>
+
       <div class="kpis" id="kpis" role="list" aria-label="Key performance indicators"></div>
 
       <!-- Charts row -->
@@ -928,6 +940,45 @@ async function loadHourlyActivity(){
         +'</details>';
     }).join("");
   }catch(e){ el.innerHTML='<span class="mut">Activity load error</span>'; }
+}
+
+async function loadLlmHealth(){
+  const el=$("llmHealth"); if(!el) return;
+  const ts=$("llm-health-time");
+  try{
+    const r=await fetch("/api/growth/infra/llm?window=2000",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok){ el.innerHTML='<span class="mut">Brain health load nahi hui — admin login check karo</span>'; return; }
+    const d=await r.json();
+    const total=Number(d.total_calls||0);
+    const fb=Number(d.fallback_or_fail_rate||0);
+    if(!total){ el.innerHTML='<span class="mut">Abhi koi LLM call record nahi (restart ke baad data aane do).</span>'; return; }
+    const fbPct=Math.round(fb*100);
+    const fbColor=fb>=0.5?'var(--red)':(fb>=0.25?'#d97706':'var(--green)');
+    const fbWord=fb>=0.5?'🔴 struggle':(fb>=0.25?'🟡 thoda load':'🟢 healthy');
+    let banner='<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">'
+      +'<div><div style="font-size:10.5px;color:var(--muted)">Calls (last '+total+')</div><div style="font-weight:700;font-size:15px;color:var(--ink)">'+total+'</div></div>'
+      +'<div><div style="font-size:10.5px;color:var(--muted)">Fallback / fail rate</div><div style="font-weight:700;font-size:15px;color:'+fbColor+'">'+fbPct+'% '+fbWord+'</div></div>'
+      +'</div>';
+    const provs=d.providers||{};
+    const rows=Object.keys(provs).map(k=>Object.assign({name:k},provs[k])).sort((a,b)=>Number(b.calls||0)-Number(a.calls||0));
+    let table='';
+    if(rows.length){
+      table='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">'
+        +rows.map(p=>{
+          const ok=Math.round(Number(p.ok_rate||0)*100);
+          const okC=ok>=85?'var(--green)':(ok>=50?'#d97706':'var(--red)');
+          const err=(p.last_error&&ok<85)?'<div class="tl-meta" style="color:#b45309;margin-top:3px">'+escH(String(p.last_error).slice(0,70))+'</div>':'';
+          return '<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fafafa">'
+            +'<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;color:var(--ink);font-size:12px">'+escH(p.name||"?")+'</span>'
+            +'<span style="font-weight:700;color:'+okC+';font-size:12px">'+ok+'% ok</span></div>'
+            +'<div style="font-size:10.5px;color:var(--muted);margin-top:2px">'+Number(p.calls||0)+' calls · '+Number(p.avg_ms||0)+'ms avg</div>'+err
+            +'</div>';
+        }).join("")
+        +'</div>';
+    }
+    el.innerHTML=banner+table;
+    if(ts){ try{ ts.textContent="updated "+new Date().toLocaleTimeString("en-IN"); }catch(e){} }
+  }catch(e){ el.innerHTML='<span class="mut">Brain health load error</span>'; }
 }
 
 async function opsCeleryTrim(){
@@ -1834,7 +1885,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   adminAuthBoot();
   loadTodayBiz();
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026();
-  loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadActivityFeed(); loadHourlyActivity();
+  loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail();
   loadSyncHealth(); loadAgents();
   loadAutomationHub();
@@ -1845,7 +1896,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
    never paint fake demo numbers over real ones). Cosmetic random nudges removed. */
-setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); loadHourlyActivity(); loadTodayBiz(); } }, 60000);
+setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadTodayBiz(); } }, 60000);
 
 /* ============================================================
    BILLING & SUBSCRIPTIONS — admin per-client lookup.
