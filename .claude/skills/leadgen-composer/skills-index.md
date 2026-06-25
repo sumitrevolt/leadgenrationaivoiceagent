@@ -88,6 +88,7 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 | voice-humanization | `.claude/skills/voice-humanization/SKILL.md` | natural speech |
 | web-call-triage | `.claude/skills/web-call-triage/SKILL.md` | web-call debug |
 | test-agent | `.claude/skills/test-agent/SKILL.md` | agent_tester scorecard |
+| voice-eval-metrics | `.claude/skills/voice-eval-metrics/SKILL.md` | objective WER/latency/round-trip metrics |
 | telephony-engineering | `.claude/skills/telephony-engineering/SKILL.md` | Vobiz/webhooks |
 | dialer-sprint-ops | `.claude/skills/dialer-sprint-ops/SKILL.md` | calling sprint |
 | voice-roles | `.claude/skills/voice-roles/SKILL.md` | Swara/Ananya/Riya |
@@ -100,7 +101,8 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 | tdd-contract-first | `.claude/skills/tdd-contract-first/SKILL.md` | tests first |
 | api-design | `.claude/skills/api-design/SKILL.md` | new API design |
 | backend-rbac | `.claude/skills/backend-rbac/SKILL.md` | RBAC/team-access |
-| security-review | `.claude/skills/security-review/SKILL.md` | security audit |
+| security-review | `.claude/skills/security-review/SKILL.md` | security audit (auth/SSRF/secrets) |
+| llm-security | `.claude/skills/llm-security/SKILL.md` | prompt-injection / jailbreak / IFC / red-team |
 | self-code-review | `.claude/skills/self-code-review/SKILL.md` | pre-commit review |
 | integration-engineering | `.claude/skills/integration-engineering/SKILL.md` | third-party APIs |
 | model-asset-bake | `.claude/skills/model-asset-bake/SKILL.md` | ML in Docker |
