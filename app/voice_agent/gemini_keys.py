@@ -26,6 +26,7 @@ DESIGN
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import threading
@@ -33,6 +34,11 @@ import threading
 _LOCK = threading.Lock()
 _KEYS: list[str] | None = None
 _IDX = 0
+
+# Runtime store (admin "Voice Keys" page writes here — no .env edit, no restart).
+# data/ is bind-mounted so it survives container recreate. Shape:
+#   {"keys": ["AIza...", ...], "voice_primary": true}
+_RUNTIME_FILE = os.path.join("data", "voice_gemini_keys.json")
 
 # Substrings that mark a quota / rate-limit failure across SDKs (google-genai,
 # google.generativeai, REST). Matched case-insensitively against type+message.
@@ -53,8 +59,18 @@ def _split(raw: str) -> list[str]:
     return [k.strip() for k in re.split(r"[,\s]+", raw or "") if k.strip()]
 
 
+def _load_runtime() -> dict:
+    """Admin-set runtime store (keys + voice_primary). {} if absent/unreadable."""
+    try:
+        with open(_RUNTIME_FILE, encoding="utf-8") as f:
+            d = json.load(f)
+            return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
 def _load_keys() -> list[str]:
-    """Collect keys from settings (preferred) then env, deduped + ordered."""
+    """Collect keys from settings → env → admin runtime file, deduped + ordered."""
     multi = single = ""
     try:
         from app.config import settings
@@ -65,14 +81,44 @@ def _load_keys() -> list[str]:
         pass
     multi = multi or (os.environ.get("GEMINI_API_KEYS", "") or "").strip()
     single = single or (os.environ.get("GEMINI_API_KEY", "") or "").strip()
+    runtime = _load_runtime().get("keys") or []
 
     keys: list[str] = []
     seen = set()
-    for k in _split(multi) + _split(single):
+    for k in _split(multi) + _split(single) + [str(x).strip() for x in runtime if str(x).strip()]:
         if k not in seen:
             seen.add(k)
             keys.append(k)
     return keys
+
+
+def runtime_voice_primary() -> bool:
+    """True if the admin runtime store enabled voice-Gemini-primary."""
+    return bool(_load_runtime().get("voice_primary"))
+
+
+def save_runtime_keys(keys: list[str], voice_primary: bool | None = None) -> dict:
+    """Persist admin-supplied keys (+ optional voice_primary) to the runtime file
+    and reload the pool (no container restart). Returns the new state. Never the
+    raw keys back to the caller's log — caller masks. Best-effort, never raises."""
+    cleaned: list[str] = []
+    seen = set()
+    for k in keys or []:
+        k = str(k).strip()
+        if k and k not in seen:
+            seen.add(k)
+            cleaned.append(k)
+    cur = _load_runtime()
+    vp = cur.get("voice_primary") if voice_primary is None else bool(voice_primary)
+    payload = {"keys": cleaned, "voice_primary": bool(vp)}
+    try:
+        os.makedirs(os.path.dirname(_RUNTIME_FILE), exist_ok=True)
+        with open(_RUNTIME_FILE, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+    except Exception:
+        pass
+    reload_keys()
+    return {"count": key_count(), "voice_primary": bool(vp)}
 
 
 def reload_keys() -> list[str]:
@@ -141,4 +187,6 @@ __all__ = [
     "key_count",
     "reload_keys",
     "is_quota_error",
+    "runtime_voice_primary",
+    "save_runtime_keys",
 ]
