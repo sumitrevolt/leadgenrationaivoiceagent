@@ -560,7 +560,10 @@
   function playAudioB64(b64, onEnded, onFail){
     if(!b64) return false;
     try{
-      var audio = new Audio("data:audio/mp3;base64," + b64);
+      // Auto-detect format: Gemini-TTS = WAV (base64 starts "UklGR" = RIFF),
+      // EdgeTTS = mp3. Wrong MIME = silent no-play, so detect before wrapping.
+      var mime = (b64.indexOf("UklGR") === 0) ? "audio/wav" : "audio/mp3";
+      var audio = new Audio("data:" + mime + ";base64," + b64);
       currentAudio = audio;
       audio.onended = onEnded;
       audio.onerror = onFail;

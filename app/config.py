@@ -65,12 +65,9 @@ class Settings(BaseSettings):
     azure_speech_key: str = ""
     azure_speech_region: str = "centralindia"
     default_tts: str = "edge"  # elevenlabs, azure, edge
-    # Sarvam AI (Bulbul) — natural Indian-language TTS. OPTIONAL premium voice:
-    # tried FIRST when key set, EdgeTTS fallback otherwise. Free-tier friendly +
-    # local monthly char-cap (sarvam_monthly_char_cap) so it never silently overspends.
-    sarvam_api_key: str = ""
-    sarvam_speaker: str = "anushka"  # bulbul:v2 female; matches Swara persona
-    sarvam_monthly_char_cap: int = 200000  # 0 = unlimited; over cap -> EdgeTTS
+    # Premium voice = Gemini native TTS (app/voice_agent/gemini_tts.py) — reuses the
+    # existing GEMINI_API_KEY (no new creds), tried FIRST when GEMINI_TTS!=0, EdgeTTS
+    # fallback otherwise. Env knobs: GEMINI_TTS / GEMINI_TTS_VOICE / GEMINI_TTS_MODEL.
 
     # Telephony
     twilio_account_sid: str = ""
