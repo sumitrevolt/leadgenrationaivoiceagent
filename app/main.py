@@ -750,6 +750,12 @@ try:
     app.include_router(admin_ops_router)  # /api/admin/campaign/* + /api/admin/system/*
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Admin ops router not mounted: {_e}")
+try:
+    from app.api.admin_db_explorer import router as admin_db_router
+
+    app.include_router(admin_db_router)  # /api/admin/db/* (read-only DB explorer, ADMIN_DB_EXPLORER gated)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Admin DB explorer router not mounted: {_e}")
 app.include_router(web_call_router, prefix="/api", tags=["Web Call (Test Mode)"])  # /api/web-call/*
 app.include_router(
     agents_router, prefix="/api", tags=["Agents"]
@@ -937,6 +943,13 @@ async def customer_voice_page():
 async def admin_dashboard_page():
     """Admin dashboard (clients, agents, campaigns, revenue, health)."""
     return FileResponse(str(FRONTEND_DIR / "admin_dashboard.html"))
+
+
+@app.get("/app/admin/db", tags=["Frontend"])
+async def admin_db_explorer_page():
+    """Read-only DB explorer (super-admin; ADMIN_DB_EXPLORER gated). Browse any
+    Postgres table + CSV export, sensitive columns redacted. Studio-jaisa, OUR DB pe."""
+    return FileResponse(str(FRONTEND_DIR / "admin_db.html"))
 
 
 @app.get("/app/impersonate", tags=["Frontend"])

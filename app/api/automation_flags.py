@@ -211,4 +211,7 @@ AUTOMATION_FLAGS = [
     "CRED_POOLS",  # multi-key round-robin per provider (free-tier capacity) — Hermes
     "RISK_AUTO_APPROVE",  # risk-scored auto-approve for low-risk self-improve actions — OpenCode
     "RISK_AUTO_APPROVE_MAX_COST",  # ₹ ceiling for auto-approval (default 5)
+    # --- Admin DB Explorer (council 2026-06-25, Supabase-Studio alternative) ---
+    "ADMIN_DB_EXPLORER",  # super-admin READ-ONLY DB browser + CSV export on OUR Postgres
+    # (/api/admin/db/* + /app/admin/db); sensitive cols redacted, no edit. OFF default → 503.
 ]
