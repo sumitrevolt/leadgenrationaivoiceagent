@@ -125,7 +125,11 @@ _MISTRAL_BASE = "https://api.mistral.ai/v1"  # free tier La Plateforme — conso
 _NVIDIA_BASE = "https://integrate.api.nvidia.com/v1"  # build.nvidia.com
 
 # Models — all free tier.
-_GROQ_STT_MODEL = "whisper-large-v3-turbo"
+# STT accuracy-first for Hinglish: web test-calls showed `-turbo` garbling short
+# code-switched utterances ("I'm interested" -> "वो इंट तर सेलू"), which broke the
+# brain's question-detection. `whisper-large-v3` (non-turbo) is more accurate on
+# Hindi/Hinglish; set GROQ_STT_MODEL=whisper-large-v3-turbo to trade accuracy for speed.
+_GROQ_STT_MODEL = (_os.environ.get("GROQ_STT_MODEL", "").strip() or "whisper-large-v3")
 _CEREBRAS_LLM_MODEL = "gpt-oss-120b"  # free, fastest 120B
 _GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # free, 6000 RPM, 14k RPD
 _GEMINI_LLM_MODEL = "gemini-2.5-flash"  # paid tier — key set, 2.5-flash works (2.0-flash-lite free_tier=0)
