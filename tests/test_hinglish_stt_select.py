@@ -127,3 +127,22 @@ def test_web_local_stt_enabled_uses_model(monkeypatch):
     monkeypatch.setattr(vs, "_get_stt", lambda: ("whisper", _FakeModel()))
     out = asyncio.run(web_call._local_whisper_transcribe(b"\x00\x01"))
     assert out == "haan ji boliye"
+
+
+def test_web_local_first_short_circuits_cloud(monkeypatch):
+    """WEBCALL_STT_LOCAL_FIRST=1 -> local Hinglish runs PRIMARY, cloud skipped."""
+    import asyncio
+    import base64
+
+    from app.api import web_call
+
+    monkeypatch.setenv("WEBCALL_STT_LOCAL_FIRST", "1")
+    monkeypatch.setenv("HINGLISH_STT", "1")
+
+    async def _fake_local(audio):
+        return "namaste ji"
+
+    monkeypatch.setattr(web_call, "_local_whisper_transcribe", _fake_local)
+    audio_b64 = base64.b64encode(b"\x00\x01\x02\x03").decode()
+    out = asyncio.run(web_call._transcribe_audio(None, None, audio_b64))
+    assert out == "namaste ji"
