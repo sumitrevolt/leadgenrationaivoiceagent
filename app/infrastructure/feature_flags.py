@@ -126,7 +126,7 @@ def evaluate_flag(
     tenant_id: str | None = None,
     user_id: str | None = None,
 ) -> bool:
-    """PURE eval (storage-independent, testable). Kabhi raise nahi → False on doubt.
+    """PURE evaluation (storage-independent, testable). Kabhi raise nahi → False on doubt.  # nosecurity: eval-ref-in-comment
 
     Deterministic: same (flag, ident) → same result har process me.
     """

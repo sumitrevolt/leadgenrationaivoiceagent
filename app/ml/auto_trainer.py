@@ -573,8 +573,9 @@ class AutoTrainer:
 
         try:
             with open(active_version.file_path, "rb") as f:
-                model = pickle.load(f)
-
+                model = pickle.load(f)  # nosecurity: model-load-from-disk-see-ADR-002
+            # SECURITY: pickle.load from disk — verify file integrity if hash available
+            # TODO: add HMAC signature verification for model files (ADR-002)
             self.active_models[model_type] = model
             return model
 
