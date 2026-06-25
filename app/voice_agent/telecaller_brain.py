@@ -36,6 +36,16 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# Devanagari→roman normalizer for the romanized deterministic gates (council fix:
+# Whisper(hi) emits Devanagari; normalize ONCE so gates fire instead of per-gate
+# patching). Import-safe: degrades to identity if the module is missing.
+try:
+    from app.voice_agent.hinglish_normalize import to_roman
+except Exception:  # pragma: no cover
+
+    def to_roman(_t: str) -> str:  # type: ignore[misc]
+        return _t or ""
+
 # Professional telecaller script dataset (pure-data, import-safe). Guarded so a
 # missing/broken module can never stop the brain from initializing — get_script
 # then degrades to {} and the prompt falls back to niche-data questions.
@@ -736,7 +746,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     @staticmethod
     def _looks_like_question(ut: str) -> bool:
         """Customer ne sawaal poocha? — pehle jawab, phir discovery checklist."""
-        low = re.sub(r"\s+", " ", (ut or "").lower()).strip()
+        low = re.sub(r"\s+", " ", to_roman(ut or "").lower()).strip()
         if "?" in ut:
             return True
         qwords = (
@@ -775,7 +785,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
     def _customer_qa_reply(self, ut: str) -> str:
         """Customer ke sawaal ka seedha jawab — LLM se pehle (free, instant)."""
-        low = (ut or "").lower().strip()
+        low = to_roman(ut or "").lower().strip()
         if not low or not self._looks_like_question(ut):
             return ""
         if any(w in low for w in ("ai ho", "bot ho", "robot", "machine", "real ho")):
@@ -891,7 +901,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
     def _fast_path_reply(self, history: list[dict[str, str]], ut: str) -> str:
         """Deterministic pro replies — LLM se pehle (latency + repeat guard)."""
-        low = ut.lower().strip()
+        low = to_roman(ut or "").lower().strip()
         qa = self._customer_qa_reply(ut)
         # Canned FAQ answer sirf tab do jab woh recent line repeat na kare; warna
         # "" -> LLM us follow-up ko context se elaborate kare (repeat-loop fix).
@@ -943,7 +953,14 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             )
 
         # User ne discovery ka jawab diya → mirror + agla unasked sawaal (sawaal ho to skip).
-        if self._user_substantive(ut) and not self._looks_like_question(ut):
+        # LLM-first nudge (council): auto-advance discovery sirf CHHOTE direct jawab pe;
+        # lambe/rich turn LLM ko do (woh acknowledge + naturally weave kare) — robotic
+        # script-march ka fix.
+        if (
+            self._user_substantive(ut)
+            and not self._looks_like_question(ut)
+            and len(low.split()) <= 7
+        ):
             nxt = self._next_discovery_line(history)
             last = self._last_bot_line(history)
             if nxt and "?" in nxt:
