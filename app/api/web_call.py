@@ -1277,8 +1277,18 @@ async def _transcribe_audio(pipeline: Any, brain: Any, audio_b64: str) -> str:
         from app.voice_agent import free_ai  # type: ignore
 
         filename, mime = _sniff_audio_format(audio)
+        # STT bias (D-11) — phone path passes this; web path was missing it, so
+        # proper nouns + Hinglish register weren't biased. Parity fix.
+        try:
+            from app.voice_agent.niche_scripts import stt_keyterms
+
+            _bias = stt_keyterms(
+                getattr(brain, "niche", "") or "", getattr(brain, "client_name", "") or ""
+            )
+        except Exception:
+            _bias = ""
         text, _provider = await free_ai.transcribe_audio(
-            audio, language="hi", filename=filename, mime=mime
+            audio, language="hi", filename=filename, mime=mime, prompt=_bias
         )
         if (text or "").strip():
             return text.strip()
