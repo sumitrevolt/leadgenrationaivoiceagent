@@ -76,6 +76,18 @@ ENV FASTEMBED_CACHE_PATH=/opt/fastembed_cache
 RUN (python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')" \
     && chmod -R a+rX /opt/fastembed_cache) \
     || echo "WARN: fastembed model bake failed — runtime keyword fallback"
+# Hinglish STT BAKE (free self-host Sarvam-Saaras alternative, HINGLISH_STT=1):
+# open Whisper-Hindi2Hinglish -> CTranslate2 int8 so the EXISTING faster-whisper
+# runtime loads it as a strong LOCAL fallback with ROMAN Hinglish output. Build-
+# time convert = zero runtime download (same lesson as fastembed/silero). torch +
+# transformers + ctranslate2 already in the venv (silero/kokoro bakes). Skip with
+# --build-arg BAKE_HINGLISH_STT=0. Fail = non-fatal (whisper-base stays fallback).
+ARG BAKE_HINGLISH_STT=1
+ENV HINGLISH_WHISPER_DIR=/opt/hinglish_whisper
+RUN if [ "${BAKE_HINGLISH_STT}" = "1" ]; then \
+        (sh scripts/build_hinglish_stt.sh && echo "[hinglish-stt] baked") \
+        || echo "WARN: hinglish STT bake failed — whisper-base fallback"; \
+    else echo "[hinglish-stt] bake skipped (BAKE_HINGLISH_STT=${BAKE_HINGLISH_STT})"; fi
 USER appuser
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
