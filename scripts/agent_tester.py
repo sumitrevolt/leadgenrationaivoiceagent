@@ -24,6 +24,11 @@ try:  # D-13 conversation QA judges (pushy-after-softno / talk-listen / permissi
 except Exception:  # pragma: no cover - script may run before path set
     _qc = None
 
+try:  # objective latency distribution (voice_metrics — pure stdlib, import-safe)
+    from app.voice_agent import voice_metrics as _vm
+except Exception:  # pragma: no cover
+    _vm = None
+
 # Host/local default. IN-CONTAINER the app listens on :8080 (compose maps host
 # 127.0.0.1:8000 -> container 8080), so run inside the container with:
 #   AGENT_TESTER_WS=ws://127.0.0.1:8080/api/web-call/ws python scripts/agent_tester.py
@@ -51,7 +56,7 @@ SCRIPTS = {
 BANNED = ["maine pehle", "pehle hi poocha", "unclear", "maaf kij", "[echo", "(no response)"]
 
 
-async def run_niche(session, niche, turns, report):
+async def run_niche(session, niche, turns, report, latencies=None):
     transcript: list[dict] = []  # role-tagged turns for D-13 conversation checks
     async with session.ws_connect(WS, timeout=aiohttp.ClientWSTimeout(ws_close=60)) as ws:
         # Server sends {"type":"ready"} before the client sends anything.
@@ -87,6 +92,8 @@ async def run_niche(session, niche, turns, report):
                 break
             dt = time.time() - t0
             n = len(bots)
+            if latencies is not None and n > 0:
+                latencies.append(dt * 1000.0)  # ms, for P50/P95/P99 distribution
             reply = (bots[0] if bots else "").strip()
             if reply:
                 transcript.append({"role": "assistant", "content": reply})
@@ -149,14 +156,22 @@ async def _collect_bots(ws, first_timeout=12.0, settle=2.5):
 
 async def main():
     report = []
+    latencies: list[float] = []
     async with aiohttp.ClientSession() as s:
         for niche, turns in SCRIPTS.items():
             print(f"\n=== TEST: {niche} ===")
             try:
-                await run_niche(s, niche, turns, report)
+                await run_niche(s, niche, turns, report, latencies)
             except Exception as e:
                 report.append(f"[{niche}] TEST CRASHED: {e}")
     print("\n" + "=" * 50)
+    # Objective latency distribution (P50/P95/P99) — "distribution, not average" (ph06/17)
+    if _vm is not None and latencies:
+        lat = _vm.latency_summary(latencies)
+        print(
+            f"⏱  LATENCY ms  n={lat['n']}  p50={lat['p50']}  p95={lat['p95']}  "
+            f"p99={lat['p99']}  mean={lat['mean']}  max={lat['max']}"
+        )
     if report:
         print(f"❌ {len(report)} ISSUE(S) FOUND:")
         for r in report:
