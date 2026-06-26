@@ -124,3 +124,33 @@ class CrmSyncResponse(BaseModel):
     provider: str | None = None
     message: str
     results: list[CrmSyncLeadResult] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------- #
+# Customer "AI Marketing Team" — virtual agentic office (per-client activity)  #
+# Roster names come from app.platform.team.STAFF (single source of truth); the #
+# per-agent activity lines are derived ONLY from THIS client's data, never the #
+# agency-wide event feed (so a customer can't see other clients' work).        #
+# --------------------------------------------------------------------------- #
+class TeamAgentCard(BaseModel):
+    key: str = Field(..., description="STAFF key e.g. isha/rohan/dev/manager")
+    name: str
+    emoji: str
+    title: str = Field(..., description="Customer-friendly role")
+    duties: str = Field(..., description="Short 'what they do for you' line")
+    status: str = Field("active", description="working | active | idle")
+    status_label: str = Field("Active", description="Hinglish status pill text")
+    task: str = Field("", description="Current client-scoped activity line")
+    metric: str = Field("", description="Headline number chip e.g. '12 post'")
+    accent: str = Field("#6d28d9", description="Card accent hex colour")
+
+
+class CustomerTeamResponse(BaseModel):
+    client_id: str
+    generated_at: str
+    is_sample_data: bool = False
+    headline: str = ""
+    summary: str = ""
+    busy_count: int = 0
+    total_today: int = 0
+    agents: list[TeamAgentCard] = Field(default_factory=list)

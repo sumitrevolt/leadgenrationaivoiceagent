@@ -73,12 +73,14 @@ from app.api.customer_dashboard_models import (  # noqa: F401  (models extracted
     ChartsData,
     CrmSyncLeadResult,
     CrmSyncResponse,
+    CustomerTeamResponse,
     DashboardResponse,
     Kpis,
     LeadRow,
     OnboardingChecklist,
     OnboardingStep,
     SeriesPoint,
+    TeamAgentCard,
 )
 
 
@@ -112,6 +114,161 @@ def get_customer_dashboard(
     except Exception:
         pass
     return resp
+
+
+@router.get("/team", response_model=CustomerTeamResponse)
+def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTeamResponse:
+    """Customer-facing **AI Marketing Team** — a virtual agentic office that shows
+    each AI staff member and what they are doing FOR THIS client right now.
+
+    Privacy: the roster (name/emoji/role) is read from app.platform.team.STAFF —
+    the single source of truth — but every activity line / metric is derived ONLY
+    from *this* client's own data (content queue + their inquiries). The
+    agency-wide event feed is never exposed here, so one customer can never see
+    another customer's work. client_id comes from the JWT (require_customer) =>
+    IDOR-safe. Best-effort + never-500 (mirrors the dashboard builders).
+    """
+    client_rec = _client_record(client_id)
+
+    # ---- content queue breakdown (drafts await your approval / published) ----
+    total_posts = drafts = approved = posted = 0
+    try:
+        from app.marketing.auto_content import list_queue
+
+        rid = str((client_rec or {}).get("id") or client_id or "").strip()
+        if rid:
+            for it in list_queue(rid, limit=500):
+                total_posts += 1
+                st = str(it.get("status") or "").lower()
+                if st == "draft":
+                    drafts += 1
+                elif st == "approved":
+                    approved += 1
+                elif st == "posted":
+                    posted += 1
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("customer_team: content queue read failed (%s)", e)
+
+    # ---- leads from this client's inquiries (Hot/Warm/Cold tiering) ----
+    inquiries = _inquiries_for_client(client_id, client_rec)
+    total_leads = len(inquiries)
+    hot = 0
+    for r in inquiries:
+        try:
+            if _lead_score_from_inquiry(r) == "Hot":
+                hot += 1
+        except Exception:
+            pass
+
+    niche = str((client_rec or {}).get("niche") or "").strip()
+    has_profile = bool(
+        client_rec
+        and (client_rec.get("website") or niche or client_rec.get("business_name"))
+    )
+
+    # ---- per-agent state (client-scoped; names/emoji from STAFF) ----
+    try:
+        from app.platform.team import STAFF
+    except Exception:
+        STAFF = {}
+
+    def _meta(key: str, fallback_name: str, fallback_emoji: str) -> tuple[str, str]:
+        info = STAFF.get(key) or {}
+        return (str(info.get("name") or fallback_name), str(info.get("emoji") or fallback_emoji))
+
+    agents: list[TeamAgentCard] = []
+
+    # 📣 Isha — Content Writer
+    iname, iemoji = _meta("isha", "Isha", "📣")
+    if drafts > 0:
+        i_status, i_label = "working", "Likh rahi hai"
+        i_task = f"{drafts} naye post taiyaar — aapke approve ka intezaar."
+    elif total_posts > 0:
+        i_status, i_label = "active", "Active"
+        i_task = f"{posted or total_posts} post share/publish ke liye ready hain."
+    else:
+        i_status, i_label = "working", "Likh rahi hai"
+        i_task = "Aaj ka social post draft kar rahi hoon."
+    agents.append(TeamAgentCard(
+        key="isha", name=iname, emoji=iemoji, title="Content Writer",
+        duties="Roz aapke liye social posts likhti hai",
+        status=i_status, status_label=i_label, task=i_task,
+        metric=f"{total_posts} post", accent="#db2777",
+    ))
+
+    # 🎯 Rohan — Leads Manager
+    rname, remoji = _meta("rohan", "Rohan", "🎯")
+    if hot > 0:
+        r_status, r_label = "working", "Follow-up pe"
+        r_task = f"{hot} hot lead mile — abhi follow-up karna best hai."
+    elif total_leads > 0:
+        r_status, r_label = "active", "Active"
+        r_task = f"{total_leads} leads handle kiye, scoring ho gayi."
+    else:
+        r_status, r_label = "active", "Taiyaar"
+        r_task = "Naye leads ke liye targeting set kar rakhi hai."
+    agents.append(TeamAgentCard(
+        key="rohan", name=rname, emoji=remoji, title="Leads Manager",
+        duties="Leads laata aur qualify karta hai",
+        status=r_status, status_label=r_label, task=r_task,
+        metric=f"{total_leads} lead", accent="#ea580c",
+    ))
+
+    # 📚 Dev — Business Researcher
+    dname, demoji = _meta("dev", "Dev", "📚")
+    if has_profile:
+        d_status, d_label = "active", "Active"
+        d_task = "Aapke business ki profile AI ko sikha ke ready rakhi hai."
+        d_metric = (niche.title() if niche else "Profile ready")
+    else:
+        d_status, d_label = "working", "Setup kar raha hai"
+        d_task = "Aapka business samajh raha hoon — profile complete karo."
+        d_metric = "Setup pending"
+    agents.append(TeamAgentCard(
+        key="dev", name=dname, emoji=demoji, title="Business Researcher",
+        duties="Aapka business AI ko samjhata hai",
+        status=d_status, status_label=d_label, task=d_task,
+        metric=d_metric, accent="#7c3aed",
+    ))
+
+    # 🧑‍💼 Boss — Team Lead (coordinator; summary card)
+    busy_count = sum(1 for a in agents if a.status == "working")
+    bname, bemoji = _meta("manager", "Boss", "🧑‍💼")
+    if busy_count > 0:
+        b_status, b_label = "working", "Coordinate kar raha hai"
+        b_task = f"{busy_count} agent abhi kaam pe — main monitor kar raha hoon."
+    else:
+        b_status, b_label = "active", "Active"
+        b_task = "Team ready hai — naya kaam aate hi assign kar dunga."
+    agents.append(TeamAgentCard(
+        key="manager", name=bname, emoji=bemoji, title="Team Lead",
+        duties="Poori team ko coordinate karta hai",
+        status=b_status, status_label=b_label, task=b_task,
+        metric=f"{len(agents) + 1} member", accent="#2563eb",
+    ))
+
+    total_today = total_posts + total_leads
+    is_sample = bool(not client_rec and total_today == 0)
+    if total_today > 0:
+        headline = f"Aaj aapki AI team ne {total_today} cheezein handle ki"
+    else:
+        headline = "Aapki AI team active hai — kaam aate hi yahan dikhega"
+    summary = (
+        f"{busy_count} agent abhi kaam pe · {total_posts} post · {total_leads} lead"
+        if total_today
+        else "Team din-raat aapke marketing pe kaam karti hai."
+    )
+
+    return CustomerTeamResponse(
+        client_id=client_id,
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
+        is_sample_data=is_sample,
+        headline=headline,
+        summary=summary,
+        busy_count=busy_count,
+        total_today=total_today,
+        agents=agents,
+    )
 
 
 @router.get("/speed-to-lead")
