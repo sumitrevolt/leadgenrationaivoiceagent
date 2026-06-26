@@ -1240,9 +1240,8 @@ async def sitemap_xml():
 
     Programmatic SEO blog ke saare articles yahan auto-include hote hain taaki
     Google unhe crawl kare. base URL CORS origin / request host se nikalti hai.
+    Enriched with <lastmod>, <changefreq>, <priority> via sitemap_builder.
     """
-    from xml.sax.saxutils import escape as _xesc
-
     from fastapi.responses import Response
 
     # base URL (production domain pehle; warna request host)
@@ -1256,59 +1255,51 @@ async def sitemap_xml():
     except Exception:
         pass
 
-    static_paths = [
-        "/",
-        "/audit",
-        "/pricing",
-        "/voice-agent",
-        "/compare",
-        "/demo",
-        "/site-audit",
-        "/geo-check",
-        "/blog",
-        "/app/test-call",
-        "/privacy",
-        "/terms",
-        "/refund",
-    ]
-    urls: list[str] = list(static_paths)
     try:
-        from app.marketing import seo_blog
+        from app.api.sitemap_builder import build_sitemap_xml
 
-        for slug in seo_blog.all_slugs():
-            if slug:
-                urls.append(f"/blog/{slug}")
-    except Exception as e:  # blog module missing => sirf static pages
-        logger.debug(f"sitemap blog slugs skipped: {e}")
+        xml = await build_sitemap_xml(base)
+    except Exception as e:
+        # Fallback to bare <loc>-only sitemap if builder unavailable
+        logger.warning(f"sitemap_builder failed, using fallback: {e}")
+        from xml.sax.saxutils import escape as _xesc
 
-    # Per-client mini-sites (/b/{slug}) — active clients hi (paused/dead skip).
-    try:
-        from app.marketing.clients_store import list_clients
-
-        for c in list_clients(status="active"):
-            slug = str(c.get("slug") or "").strip()
-            if slug:
-                urls.append(f"/b/{slug}")
-    except Exception as e:  # clients_store missing => skip
-        logger.debug(f"sitemap mini-site slugs skipped: {e}")
-
-    # Niche × city SEO landing pages (top 8 niches × india + top 3 cities)
-    _SITEMAP_NICHES = [
-        "real-estate", "solar", "coaching", "dental",
-        "insurance", "home-loans", "interior-design", "restaurant",
-    ]
-    _SITEMAP_CITIES = ["india", "mumbai", "delhi", "bangalore"]
-    for _n in _SITEMAP_NICHES:
-        for _c in _SITEMAP_CITIES:
-            urls.append(f"/for/{_n}-in-{_c}")
-
-    items = "\n".join(f"  <url><loc>{_xesc(base + p)}</loc></url>" for p in urls)
-    xml = (
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        f"{items}\n"
-        "</urlset>\n"
-    )
+        static_paths = [
+            "/", "/audit", "/pricing", "/start", "/voice-agent",
+            "/compare", "/demo", "/site-audit", "/geo-check", "/blog",
+            "/app/test-call", "/privacy", "/terms", "/refund",
+        ]
+        urls: list[str] = list(static_paths)
+        try:
+            from app.marketing import seo_blog
+            for slug in seo_blog.all_slugs():
+                if slug:
+                    urls.append(f"/blog/{slug}")
+        except Exception:
+            pass
+        try:
+            from app.marketing.clients_store import list_clients
+            for c in list_clients(status="active"):
+                slug = str(c.get("slug") or "").strip()
+                if slug:
+                    urls.append(f"/b/{slug}")
+        except Exception:
+            pass
+        _SITEMAP_NICHES = [
+            "real-estate", "solar", "coaching", "dental",
+            "insurance", "home-loans", "interior-design", "restaurant",
+        ]
+        _SITEMAP_CITIES = ["india", "mumbai", "delhi", "bangalore"]
+        for _n in _SITEMAP_NICHES:
+            for _c in _SITEMAP_CITIES:
+                urls.append(f"/for/{_n}-in-{_c}")
+        items = "\n".join(f"  <url><loc>{_xesc(base + p)}</loc></url>" for p in urls)
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+            f"{items}\n"
+            "</urlset>\n"
+        )
     return Response(content=xml, media_type="application/xml")
 
 

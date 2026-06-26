@@ -295,16 +295,23 @@ async def _run_job_inner(job: str) -> None:
             except Exception:
                 pass
         elif job == "digest":
-            await staff.run_digest()
-            # Obsidian — write daily session note (INERT if OBSIDIAN_SYNC unset).
+            _digest_result = await staff.run_digest()
+            # Obsidian — write daily session note with actual digest content.
             try:
                 from app.platform import obsidian_sync as _obs
                 import datetime as _dt
 
-                _obs.write_daily_session(
-                    _dt.datetime.utcnow().strftime("%Y-%m-%d"),
-                    "# Daily Digest\n\nDigest job ran — see agent logs for details.",
+                _date = _dt.datetime.utcnow().strftime("%Y-%m-%d")
+                _digest_text = (_digest_result or {}).get("text") or (
+                    f"inquiries_24h={(_digest_result or {}).get('inquiries_24h', '?')} "
+                    f"prospects_ready={(_digest_result or {}).get('prospects_ready', '?')} "
+                    f"qa_issues={(_digest_result or {}).get('qa_issues_24h', '?')}"
                 )
+                _obs.write_daily_session(
+                    _date,
+                    f"# Daily Digest\n\n{_digest_text}",
+                )
+                _obs.append_note("Sessions", _date, f"[digest] {_digest_text[:300]}", member="team_scheduler")
             except Exception:
                 pass
             from app.platform import revenue_digest
@@ -461,7 +468,18 @@ async def _run_job_inner(job: str) -> None:
         elif job == "blog":
             from app.marketing import seo_blog
 
-            await seo_blog.run_daily_blog(3)
+            _blog_result = await seo_blog.run_daily_blog(3)
+            try:
+                from app.platform import obsidian_sync as _obs_blog
+                import datetime as _dt_obs_blog
+
+                _blog_date = _dt_obs_blog.datetime.utcnow().strftime("%Y-%m-%d")
+                _blog_n = (_blog_result or {}).get("published", 0)
+                _blog_slugs = ", ".join((_blog_result or {}).get("slugs") or [])
+                _blog_summary = f"published={_blog_n} slugs=[{_blog_slugs[:200]}]"
+                _obs_blog.append_note("Sessions", _blog_date, f"[blog] {_blog_summary}", member="team_scheduler")
+            except Exception:
+                pass
             try:
                 from datetime import datetime as _dt_blog
 
@@ -492,11 +510,26 @@ async def _run_job_inner(job: str) -> None:
             if os.environ.get("NICHE_ROTATION", "0").strip().lower() in ("1", "true", "yes"):
                 from app.platform import niche_prospector
 
-                await niche_prospector.run(batch=8)
+                _prospect_result = await niche_prospector.run(batch=8)
             else:
                 from app.platform import prospector
 
-                await prospector.run_prospecting()
+                _prospect_result = await prospector.run_prospecting()
+            try:
+                from app.platform import obsidian_sync as _obs_prospect
+                import datetime as _dt_obs_prospect
+
+                _prospect_date = _dt_obs_prospect.datetime.utcnow().strftime("%Y-%m-%d")
+                _pr = _prospect_result or {}
+                _prospect_summary = (
+                    f"new={_pr.get('new', '?')} "
+                    f"queries_run={_pr.get('queries_run', '?')} "
+                    f"scraper={_pr.get('scraper', '?')} "
+                    f"niches={list((_pr.get('by_niche') or {}).keys())[:10]}"
+                )
+                _obs_prospect.append_note("Sessions", _prospect_date, f"[prospect] {_prospect_summary[:300]}", member="team_scheduler")
+            except Exception:
+                pass
             # Multi-source harvest sweep (websearch/opendata/enrich) — gated
             # LEAD_HARVESTER=1, gated sources bina key inert. Legal-only sources.
             try:
@@ -508,7 +541,23 @@ async def _run_job_inner(job: str) -> None:
         elif job == "email_outreach":
             from app.platform import auto_outreach
 
-            await auto_outreach.run_email_outreach()
+            _outreach_result = await auto_outreach.run_email_outreach()
+            try:
+                from app.platform import obsidian_sync as _obs_outreach
+                import datetime as _dt_obs_outreach
+
+                _outreach_date = _dt_obs_outreach.datetime.utcnow().strftime("%Y-%m-%d")
+                _or = _outreach_result or {}
+                _outreach_summary = (
+                    f"sent={_or.get('sent', '?')} "
+                    f"failed={_or.get('failed', '?')} "
+                    f"skipped_no_email={_or.get('skipped_no_email', '?')} "
+                    f"cap={_or.get('cap', '?')}"
+                    + (f" skip_reason={_or['skipped']}" if _or.get("skipped") else "")
+                )
+                _obs_outreach.append_note("Sessions", _outreach_date, f"[email_outreach] {_outreach_summary[:300]}", member="team_scheduler")
+            except Exception:
+                pass
         elif job == "reply_triage":
             from app.platform import reply_agent
 

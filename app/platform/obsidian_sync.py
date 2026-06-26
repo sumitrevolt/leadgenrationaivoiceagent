@@ -213,6 +213,95 @@ def _alert(msg: str) -> None:
         pass
 
 
+def recall(query: str, k: int = 3) -> list[dict]:
+    """Search vault notes by query-word overlap. Returns top-k matching notes.
+
+    Each result: {folder, slug, excerpt, updated, score}
+    Never raises. Skips root-level files (only subfolder notes).
+    Max 2000 files scanned to prevent OOM.
+    """
+    if not _enabled():
+        return []
+    try:
+        if not _VAULT.exists():
+            return []
+        # Tokenize query — skip short words
+        words = [w.lower() for w in query.split() if len(w) >= 3]
+        if not words:
+            return []
+
+        results: list[dict] = []
+        scanned = 0
+        for path in _VAULT.rglob("*.md"):
+            if scanned >= 2000:
+                break
+            # Skip root-level files — only include files inside subfolders
+            if path.parent == _VAULT:
+                continue
+            scanned += 1
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+                text_lower = text.lower()
+                score = sum(1 for w in words if w in text_lower)
+                if score == 0:
+                    continue
+                # Strip frontmatter for excerpt
+                body = text
+                if text.startswith("---"):
+                    end = text.find("---", 3)
+                    if end != -1:
+                        body = text[end + 3:].lstrip()
+                excerpt = body[:300].replace("\n", " ").strip()
+                stat = path.stat()
+                updated = datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+                results.append({
+                    "folder": path.parent.name,
+                    "slug": path.stem,
+                    "excerpt": excerpt,
+                    "updated": updated,
+                    "score": score,
+                })
+            except Exception as e:
+                logger.debug("[obsidian] recall skip %s: %s", path, e)
+                continue
+
+        # Sort: score desc, then mtime desc (re-stat not needed — updated already encoded)
+        results.sort(key=lambda r: (-r["score"], r["updated"]), reverse=False)
+        # stable secondary sort by updated desc within same score
+        results.sort(key=lambda r: (-r["score"],))
+        return results[:k]
+    except Exception as e:
+        logger.debug("[obsidian] recall failed for %r: %s", query, e)
+        return []
+
+
+def brain_context(query: str, k: int = 3) -> str:
+    """Return formatted brain context string for agent prompts.
+
+    Calls recall(query, k) and formats results as:
+      ## Brain Context (past decisions):
+      - [Folder/slug | updated] excerpt...
+
+    Returns "" when no results. Max 1200 chars total. Never raises.
+    """
+    try:
+        notes = recall(query, k)
+        if not notes:
+            return ""
+        header = "## Brain Context (past decisions):\n"
+        bullets = []
+        for n in notes:
+            line = f"- [{n['folder']}/{n['slug']} | {n['updated']}] {n['excerpt'][:200]}"
+            bullets.append(line)
+        body = header + "\n".join(bullets)
+        if len(body) > 1200:
+            body = body[:1197] + "..."
+        return body
+    except Exception as e:
+        logger.debug("[obsidian] brain_context failed for %r: %s", query, e)
+        return ""
+
+
 __all__ = [
     "write_note",
     "append_note",
@@ -221,4 +310,6 @@ __all__ = [
     "write_council_verdict",
     "write_system_health",
     "write_daily_session",
+    "recall",
+    "brain_context",
 ]

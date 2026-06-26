@@ -11,7 +11,8 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" /></noscript>
 <link rel="canonical" href="https://leadsgenai.in/" />
 <meta name="robots" content="index,follow,max-image-preview:large" />
 <meta name="keywords" content="AI marketing India, AI voice agent Hindi, local business marketing, Google Business Profile audit, lead generation, WhatsApp marketing, festival posters, small business" />
@@ -154,7 +155,9 @@
   .niche-more{text-align:center;margin-top:26px;color:var(--muted);font-size:.95rem}
 
   /* PRICING */
-  .pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1080px;margin:0 auto}
+  .pricing-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:780px;margin:0 auto}
+  .pricing-grid.has-growth{grid-template-columns:repeat(3,1fr);max-width:1080px}
+  .price.growth-static{display:none}
   .price .pnote{font-size:.82rem;color:var(--muted);margin-top:6px}
   .price{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:22px;padding:34px 30px;transition:transform .25s,box-shadow .25s}
   .price.featured{border-color:var(--indigo);box-shadow:var(--shadow)}
@@ -535,7 +538,7 @@
         <a class="btn btn-ghost" href="#lead-form">FREE trial se shuru karo</a>
         <button type="button" class="btn btn-primary paynow" data-pkg="Starter" style="margin-top:10px">🚀 Shuru karo</button>
       </div>
-      <div class="price reveal">
+      <div class="price reveal growth-static">
         <h3>Growth</h3>
         <p class="desc">Poora marketing engine — content, competitor aur leads sab automatic.</p>
         <div class="amt">₹2,999<small>/month</small></div>
@@ -589,7 +592,7 @@
         <button type="button" class="btn btn-ghost paynow" data-pkg="Advanced" style="margin-top:10px">🚀 Shuru karo</button>
       </div>
     </div>
-    <p class="niche-more" style="margin-top:24px">Voice agent nahi chahiye? <b>Starter &amp; Growth 100% marketing-only plans hain — koi calling charge nahi.</b></p>
+    <p class="niche-more" style="margin-top:24px">Voice agent nahi chahiye? <b>Starter plan 100% marketing-only hai — koi calling charge nahi.</b></p>
     <p class="niche-more" style="margin-top:10px">Note: Advanced plan me 500 min/mo tak telephony included — uske upar transparent top-up packs, koi hidden charge nahi. Full AI telecaller chahiye? Wo hamara ALAG product hai — <a href="/voice-agent" style="color:var(--indigo);font-weight:600">AI Voice Calling Agent dekho</a> (flat monthly, unlimited calls).</p>
   </div>
 </section>
@@ -859,6 +862,8 @@
       const data = await res.json();
       const pkgs = (data && data.packages) || [];
       if (!pkgs.length) return;
+      const hasGrowth = pkgs.some(p => p.key === 'growth');
+      if (hasGrowth) grid.classList.add('has-growth');
       grid.innerHTML = '';
       pkgs.forEach((p) => {
         const card = document.createElement('div');

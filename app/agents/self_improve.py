@@ -784,6 +784,16 @@ async def _reflect() -> dict[str, Any]:
                     digest += "\n\nPast winning runs (inse seekho kya chala):\n" + "\n".join(_hints)
         except Exception:
             pass
+        # Obsidian second brain: past improvement patterns
+        _obs_ctx = ""
+        try:
+            from app.platform import obsidian_sync as _obs
+
+            _obs_ctx = _obs.brain_context("self improve reflection agent", k=3)
+        except Exception:
+            pass
+        if _obs_ctx:
+            digest += f"\n\nObsidian brain (past self-improve context):\n{_obs_ctx}"
         text, _ = await asyncio.wait_for(
             free_ai.chat(
                 "Tu ek growth-ops coach hai. Recent automation runs dekh ke EK concrete Hinglish lesson de "
@@ -808,6 +818,14 @@ async def _reflect() -> dict[str, Any]:
         from app.platform import skill_library
 
         skill_library.record_lesson("self_improve", lesson, source="reflection", agent="meera")
+    except Exception:
+        pass
+    # Write reflection lesson to obsidian brain
+    try:
+        from app.platform import obsidian_sync as _obs
+        from datetime import datetime
+
+        _obs.append_note("Sessions", datetime.utcnow().strftime("%Y-%m-%d"), lesson[:500], member="self_improve")
     except Exception:
         pass
     return {"ok": True, "detail": f"lesson: {lesson[:120]}"}

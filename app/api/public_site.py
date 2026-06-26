@@ -36,7 +36,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
 from app.api.ratelimit import rate_limit
@@ -300,23 +300,23 @@ async def _notify_inquiry_email(rec: dict[str, Any]) -> None:
 # Schemas
 # --------------------------------------------------------------------------- #
 class InquiryIn(BaseModel):
-    name: str = ""
-    business_name: str = ""
-    phone: str = ""
-    niche: str | None = None
-    city: str | None = None
-    message: str | None = None
-    package: str | None = None  # Starter/Growth/Advanced (pricing card se)
-    source_slug: str | None = None  # mini-site /b/{slug} se aayi inquiry
-    preferred_time: str | None = None  # booking form ka "pasand ka time"
-    utm_source: str | None = None  # channel attribution (quora/reddit/seo/...) — bandit seekhta
-    website: str | None = ""  # honeypot — insaan ise kabhi nahi bharta
+    name: str = Field("", max_length=120)
+    business_name: str = Field("", max_length=200)
+    phone: str = Field("", max_length=20)
+    niche: str | None = Field(None, max_length=60)
+    city: str | None = Field(None, max_length=100)
+    message: str | None = Field(None, max_length=1000)
+    package: str | None = Field(None, max_length=40)  # Starter/Growth/Advanced (pricing card se)
+    source_slug: str | None = Field(None, max_length=80)  # mini-site /b/{slug} se aayi inquiry
+    preferred_time: str | None = Field(None, max_length=80)  # booking form ka "pasand ka time"
+    utm_source: str | None = Field(None, max_length=80)  # channel attribution (quora/reddit/seo/...) — bandit seekhta
+    website: str | None = Field("", max_length=200)  # honeypot — insaan ise kabhi nahi bharta
 
 
 class AuditIn(BaseModel):
     """GBP self-audit answers — {question_id: option_index}. Missing = worst case."""
 
-    answers: dict[str, Any] = {}
+    answers: dict[str, Any] = Field(default_factory=dict)
 
 
 # --------------------------------------------------------------------------- #
@@ -324,9 +324,9 @@ class AuditIn(BaseModel):
 class AiDemoIn(BaseModel):
     """Public AI-marketing demo input (lead magnet)."""
 
-    business_name: str
-    niche: str | None = "general"
-    city: str | None = ""
+    business_name: str = Field(..., min_length=2, max_length=200)
+    niche: str | None = Field("general", max_length=60)
+    city: str | None = Field("", max_length=100)
 
 
 @router.post(
@@ -461,15 +461,15 @@ async def submit_inquiry(body: InquiryIn, request: Request):
 class SignupIn(BaseModel):
     """Self-serve signup payload — pricing.html se. Account (client + login) banata."""
 
-    business_name: str
-    email: str
-    password: str
-    phone: str | None = ""
-    niche: str | None = "general"
-    city: str | None = ""
-    plan: str | None = "starter"
-    ref_code: str | None = ""  # affiliate referral code (optional, from ?ref= URL param)
-    website: str | None = ""  # honeypot — insaan kabhi nahi bharta
+    business_name: str = Field(..., min_length=2, max_length=200)
+    email: str = Field(..., min_length=5, max_length=254)  # RFC 5321 max email length
+    password: str = Field(..., min_length=6, max_length=128)
+    phone: str | None = Field("", max_length=20)
+    niche: str | None = Field("general", max_length=60)
+    city: str | None = Field("", max_length=100)
+    plan: str | None = Field("starter", max_length=40)
+    ref_code: str | None = Field("", max_length=80)  # affiliate referral code (optional, from ?ref= URL param)
+    website: str | None = Field("", max_length=200)  # honeypot — insaan kabhi nahi bharta
 
 
 @router.post("/signup", dependencies=[Depends(rate_limit("signup", 10, 60)), Depends(verify_turnstile)])
@@ -730,9 +730,14 @@ async def audit_score(body: AuditIn, request: Request):
     if _rate_limited(ip, _RL_AUDIT):
         raise HTTPException(status_code=429, detail="Thoda ruk ke dobara try karo.")
 
+    answers = body.answers if isinstance(body.answers, dict) else {}
+    # Guard: max 32 answer keys (audit has 16 questions; 2x headroom for future)
+    if len(answers) > 32:
+        raise HTTPException(status_code=422, detail="Bahut zyada answers — max 32 allowed.")
+
     from app.marketing.gbp_audit import score_audit
 
-    result = score_audit(body.answers if isinstance(body.answers, dict) else {})
+    result = score_audit(answers)
 
     # Team activity (Isha — Marketing) — kabhi raise nahi karta.
     try:
