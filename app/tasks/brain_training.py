@@ -23,6 +23,8 @@ from app.worker import celery_app
 
 logger = setup_logger(__name__)
 
+from app.tasks.idempotency import idempotent_task
+
 # Training data directory
 TRAINING_DATA_DIR = Path("data/brain_training")
 TRAINING_DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -46,6 +48,7 @@ def run_async(coro):
     autoretry_for=(Exception,),
     acks_late=True,
 )
+@idempotent_task("train_all_brains", ttl=21600)
 def train_all_brains(self, force: bool = False) -> dict[str, Any]:
     """
     Train all three brains (Sub-Agent, Voice Agent, Production)

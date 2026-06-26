@@ -28,7 +28,9 @@ from celery import shared_task
 
 from app.utils.logger import setup_logger
 
-logger = setup_logger(__name__)
+logger = setup_logger(__name__)
+
+from app.tasks.idempotency import idempotent_task
 
 # Same job names as team_scheduler._run_job dispatcher.
 STAFF_JOBS = (
@@ -195,6 +197,7 @@ def self_improve_revive(self):
     default_retry_delay=120,
     acks_late=True,
 )
+@idempotent_task("run_staff_job", ttl=3600)
 def run_staff_job(self, job: str):
     """Ek AI-staff job durably chalao (team_scheduler._run_job ka Celery wrapper)."""
     if job not in STAFF_JOBS:
