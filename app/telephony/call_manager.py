@@ -111,6 +111,9 @@ class CallManager:
         # Concurrency control
         self.max_concurrent_calls = settings.max_concurrent_calls
         self.semaphore = asyncio.Semaphore(self.max_concurrent_calls)
+        # Strong refs to in-flight call tasks — CPython only weakly references a
+        # running task, so a fire-and-forget create_task() can be GC'd mid-call.
+        self._inflight: set[asyncio.Task] = set()
 
         # Stats
         self.calls_made = 0
@@ -288,8 +291,11 @@ class CallManager:
                     await asyncio.sleep(60)  # Check again in 1 minute
                     continue
 
-                # Process call with concurrency limit
-                asyncio.create_task(self._process_call(call_id, request))
+                # Process call with concurrency limit. Keep a strong ref so the
+                # task isn't garbage-collected mid-call (CPython weak-refs tasks).
+                _t = asyncio.create_task(self._process_call(call_id, request))
+                self._inflight.add(_t)
+                _t.add_done_callback(self._inflight.discard)
 
             except asyncio.CancelledError:
                 logger.info("Call processor stopped")

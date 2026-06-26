@@ -511,6 +511,17 @@ class BillingManager:
         if not plan:
             return {}
 
+        # Suffix-locked plans (voice_*/combo_*) encode their cycle in the id.
+        # The annual variant's price is stored as monthly_price + yearly_discount,
+        # so it MUST be costed on the YEARLY path — otherwise a checkout that sends
+        # billing_cycle="monthly" (the default) for an *_annual plan would charge 1×
+        # the monthly figure instead of 10× (a 10× undercharge). Force the cycle to
+        # match the plan id so every caller (checkout/pricing/renew) is correct.
+        if plan_id.endswith("_annual"):
+            billing_cycle = BillingCycle.YEARLY
+        elif plan_id.endswith("_monthly"):
+            billing_cycle = BillingCycle.MONTHLY
+
         base_price = plan.monthly_price
 
         if billing_cycle == BillingCycle.QUARTERLY:

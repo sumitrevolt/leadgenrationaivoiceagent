@@ -109,3 +109,29 @@ def test_public_plans_filter_keys():
     keys = [p["key"] for p in get_public_packages()]
     assert keys == ["starter", "advanced"]
     assert all(k in PRICING_PLANS for k in keys)
+
+
+# ----------------------- annual-cycle undercharge guard (2026-06-26) ----------------------- #
+def test_annual_plan_never_undercharged_by_cycle_arg(monkeypatch):
+    """REGRESSION: *_annual plans encode price as monthly_price + yearly_discount.
+    A checkout defaulting billing_cycle='monthly' for an annual plan once charged 1x
+    the monthly figure (10x undercharge). calculate_price now forces the cycle from
+    the plan-id suffix, so an annual plan is ALWAYS billed at the yearly (10x) amount,
+    and a monthly plan is never accidentally yearly-discounted."""
+    from app.billing.subscription import BillingCycle, billing_manager
+    from app.marketing.voice_packages import BANDS
+
+    monkeypatch.delenv("GST_GSTIN", raising=False)
+    for band, info in BANDS.items():
+        pm = float(info["price_month"])
+        monthly = billing_manager.calculate_price(info["plan_monthly"], BillingCycle.MONTHLY)
+        # annual queried with the WRONG (monthly) cycle — the bug scenario
+        annual_buggy = billing_manager.calculate_price(info["plan_annual"], BillingCycle.MONTHLY)
+        annual_yr = billing_manager.calculate_price(info["plan_annual"], BillingCycle.YEARLY)
+        assert round(float(monthly["total"]), 2) == round(pm, 2)
+        # annual is forced to yearly regardless of the cycle arg, and is ~10x monthly
+        assert round(float(annual_buggy["total"]), 2) == round(float(annual_yr["total"]), 2)
+        assert round(float(annual_yr["total"]), 2) == round(pm * 10, 2), band
+        # a monthly plan must NOT pick up the yearly discount even if asked for yearly
+        monthly_as_yr = billing_manager.calculate_price(info["plan_monthly"], BillingCycle.YEARLY)
+        assert round(float(monthly_as_yr["total"]), 2) == round(pm, 2)

@@ -932,9 +932,14 @@ class PhoneCallSession:
             except TypeError:  # old edge-tts build without rate/pitch kwargs
                 communicate = edge_tts.Communicate(text, voice=TTS_VOICE)
             mp3 = bytearray()
-            async for chunk in communicate.stream():
-                if chunk.get("type") == "audio" and chunk.get("data"):
-                    mp3.extend(chunk["data"])
+
+            async def _collect() -> None:
+                async for chunk in communicate.stream():
+                    if chunk.get("type") == "audio" and chunk.get("data"):
+                        mp3.extend(chunk["data"])
+
+            # Bounded — a stalled EdgeTTS stream must never hang the call (dead-air).
+            await asyncio.wait_for(_collect(), timeout=6.0)
             return bytes(mp3)
         except Exception as e:
             logger.warning("phone_stream: EdgeTTS failed (%s)", e)

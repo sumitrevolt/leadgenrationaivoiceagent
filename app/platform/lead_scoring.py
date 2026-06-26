@@ -43,6 +43,7 @@ _STATUS_PTS = {
     "wrong_number": 0,
     "dnd": 0,
     "lost": 0,
+    "rejected": 0,
 }
 _SOURCE_PTS = {
     "referral": 18,
@@ -103,7 +104,7 @@ def score_components(lead: dict[str, Any]) -> dict[str, int]:
     status = _as_str(lead.get("status"))
     source = _as_str(lead.get("source"))
     comp = {
-        "status": _STATUS_PTS.get(status, 6),
+        "status": _STATUS_PTS.get(status, 4),  # unknown status = weak signal, below "new"(8)
         "source": _SOURCE_PTS.get(source, 6),
         "verification": (
             (8 if lead.get("phone_verified") else 0)
