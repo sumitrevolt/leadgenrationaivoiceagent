@@ -274,6 +274,26 @@ async def coordinate(goal: str, execute: bool = False, max_steps: int = 5) -> di
         temperature=0.4,
     )
     _log("manager", "coordinate_done", summary or "done")
+    # Hivemind: executed steps with success → KB skills namespace (cross-agent sharing)
+    if os.environ.get("COORD_KB_SHARE", "").strip() in ("1", "true", "yes", "on"):
+        _executed_ok = [
+            r for r in blackboard.get("results", [])
+            if r.get("mode") == "executed" and not r.get("error")
+        ]
+        if _executed_ok and summary:
+            try:
+                from app.voice_agent.knowledge_base import get_knowledge_base
+
+                _kb = get_knowledge_base()
+                _skill_text = f"Goal: {goal[:200]}\nOutcome: {(summary or '')[:400]}"
+                await asyncio.to_thread(
+                    lambda: _kb.add_documents(
+                        [{"text": _skill_text, "source": f"coordinator:{run_id}"}],
+                        namespace="skills",
+                    )
+                )
+            except Exception:
+                pass
     out = {
         "ok": True,
         "run_id": run_id,
