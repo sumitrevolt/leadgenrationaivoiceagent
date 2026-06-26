@@ -17,7 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "/opt/leadgen/data/backups"))
-DB_URL = os.environ.get("DATABASE_URL", "postgresql://leadgen:password@localhost:5432/leadgen")
+DB_URL = os.environ.get("DATABASE_URL", "postgresql://leadgen:password@pgbouncer:6432/leadgen")
 
 
 def run(cmd: list[str], timeout: int = 60) -> tuple[int, str, str]:
@@ -31,8 +31,13 @@ def pg_backup() -> Path | None:
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     dump_path = BACKUP_DIR / f"leadgen_backup_{ts}.sql"
 
-    # Extract DB params from URL (simple parser)
-    cmd = ["pg_dump", "-h", "127.0.0.1", "-p", "6432", "-U", "leadgen", "-d", "leadgen", "-f", str(dump_path)]
+    # Extract DB host/port from env or use defaults
+    host = os.environ.get("PGHOST", "pgbouncer")
+    port = os.environ.get("PGPORT", "6432")
+    user = os.environ.get("PGUSER", "leadgen")
+    db = os.environ.get("PGDATABASE", "leadgen")
+
+    cmd = ["pg_dump", "-h", host, "-p", port, "-U", user, "-d", db, "-f", str(dump_path)]
     rc, out, err = run(cmd, timeout=120)
     if rc != 0:
         print(f"[BACKUP FAIL] pg_dump exit={rc}\n{err[:500]}")
@@ -46,22 +51,25 @@ def pg_backup() -> Path | None:
 def pg_restore_test(dump_path: Path) -> bool:
     """Test restore to a temporary database."""
     test_db = "leadgen_restore_test"
+    host = os.environ.get("PGHOST", "pgbouncer")
+    port = os.environ.get("PGPORT", "6432")
+    user = os.environ.get("PGUSER", "leadgen")
 
     # Create test DB
-    rc, _, err = run(["dropdb", "-h", "127.0.0.1", "-p", "6432", "-U", "leadgen", "--if-exists", test_db])
-    rc, _, err = run(["createdb", "-h", "127.0.0.1", "-p", "6432", "-U", "leadgen", test_db])
+    rc, _, err = run(["dropdb", "-h", host, "-p", port, "-U", user, "--if-exists", test_db])
+    rc, _, err = run(["createdb", "-h", host, "-p", port, "-U", user, test_db])
     if rc != 0:
         print(f"[RESTORE FAIL] createdb failed: {err[:500]}")
         return False
 
     # Restore
-    rc, out, err = run(["psql", "-h", "127.0.0.1", "-p", "6432", "-U", "leadgen", "-d", test_db, "-f", str(dump_path)], timeout=120)
+    rc, out, err = run(["psql", "-h", host, "-p", port, "-U", user, "-d", test_db, "-f", str(dump_path)], timeout=120)
     if rc != 0:
         print(f"[RESTORE FAIL] psql exit={rc}\n{err[:500]}")
         return False
 
     # Verify: count tables
-    rc, out, err = run(["psql", "-h", "127.0.0.1", "-p", "6432", "-U", "leadgen", "-d", test_db, "-c", "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';"])
+    rc, out, err = run(["psql", "-h", host, "-p", port, "-U", user, "-d", test_db, "-c", "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';"])
     if rc != 0:
         print(f"[RESTORE VERIFY FAIL] table count failed: {err[:500]}")
         return False
@@ -70,7 +78,7 @@ def pg_restore_test(dump_path: Path) -> bool:
     print(f"[RESTORE OK] {table_count} tables restored successfully")
 
     # Cleanup
-    run(["dropdb", "-h", "127.0.0.1", "-p", "6432", "-U", "leadgen", "--if-exists", test_db])
+    run(["dropdb", "-h", host, "-p", port, "-U", user, "--if-exists", test_db])
     return table_count > 0
 
 

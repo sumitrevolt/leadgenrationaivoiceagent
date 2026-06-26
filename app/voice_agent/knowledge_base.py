@@ -915,6 +915,83 @@ class KnowledgeBase:
                 "chunks": {ns: getattr(idx, "size", 0) for ns, idx in self._indexes.items()},
             }
 
+    # ---- KB staging layer (speculative writes, Qdrant-only) ---- #
+    def staging_namespace(self, session_id: str, base_ns: str = "default") -> str:
+        """Staging namespace for speculative agent writes: staging:<session_id>:<base_ns>.
+        Use add_documents(..., namespace=kb.staging_namespace(session_id, niche)) to write
+        speculatively; call promote_staging() to merge into main KB or discard_staging() to drop."""
+        return f"staging:{_safe_name(session_id or 'tmp')}:{_safe_name(base_ns or 'default')}"
+
+    def promote_staging(self, session_id: str, target_ns: str = "default") -> int:
+        """Copy staging chunks for this session into target_ns (Qdrant only). Returns promoted count."""
+        if _QDRANT_DISABLED or not _get_qdrant_url():
+            return 0
+        staging_ns = self.staging_namespace(session_id, target_ns)
+        try:
+            client = _get_qdrant_client()
+            from qdrant_client import models as qmodels
+
+            ns_filter = qmodels.Filter(
+                must=[qmodels.FieldCondition(key="namespace", match=qmodels.MatchValue(value=staging_ns))]
+            )
+            count = 0
+            offset = None
+            while True:
+                points, next_offset = client.scroll(
+                    collection_name=_QDRANT_COLLECTION,
+                    scroll_filter=ns_filter,
+                    limit=100,
+                    with_payload=True,
+                    with_vectors=True,
+                    offset=offset,
+                )
+                if not points:
+                    break
+                promoted = [
+                    qmodels.PointStruct(
+                        id=str(uuid.uuid4()),
+                        vector=[float(x) for x in (p.vector or [])],
+                        payload={**dict(p.payload or {}), "namespace": target_ns},
+                    )
+                    for p in points
+                    if p.vector
+                ]
+                if promoted:
+                    client.upsert(collection_name=_QDRANT_COLLECTION, points=promoted)
+                    count += len(promoted)
+                if next_offset is None:
+                    break
+                offset = next_offset
+            logger.info("KB staging promote: %d chunks %s -> %s", count, staging_ns, target_ns)
+            return count
+        except Exception as e:
+            logger.debug("KB promote_staging error: %s", e)
+            return 0
+
+    def discard_staging(self, session_id: str, base_ns: str = "default") -> int:
+        """Delete staging chunks for this session/base_ns (Qdrant only). Returns deleted count."""
+        if _QDRANT_DISABLED or not _get_qdrant_url():
+            return 0
+        staging_ns = self.staging_namespace(session_id, base_ns)
+        try:
+            client = _get_qdrant_client()
+            from qdrant_client import models as qmodels
+
+            ns_filter = qmodels.Filter(
+                must=[qmodels.FieldCondition(key="namespace", match=qmodels.MatchValue(value=staging_ns))]
+            )
+            c = client.count(collection_name=_QDRANT_COLLECTION, count_filter=ns_filter, exact=True)
+            n = int(getattr(c, "count", 0) or 0)
+            client.delete(
+                collection_name=_QDRANT_COLLECTION,
+                points_selector=qmodels.FilterSelector(filter=ns_filter),
+            )
+            logger.info("KB staging discard: %d chunks session=%s ns=%s", n, session_id, staging_ns)
+            return n
+        except Exception as e:
+            logger.debug("KB discard_staging error: %s", e)
+            return 0
+
 
 def _trim_sentence(text: str, max_chars: int = 220) -> str:
     """Voice ke liye chhota rakho — pehla 1-2 sentence, length-capped."""
@@ -962,3 +1039,4 @@ __all__ = [
     "chunk_text",
     "tokenize",
 ]
+
