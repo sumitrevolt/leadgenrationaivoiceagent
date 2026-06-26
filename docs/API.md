@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (876 operations)
+## Endpoint Index — auto-generated from OpenAPI (880 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -652,15 +652,19 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (11)
+### Customer Dashboard  (15)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
 - `POST  ` `/api/customer/approvals/{approval_id}/decide` — Customer Decide Approval
 - `GET   ` `/api/customer/branded-feed` — Customer Branded Feed
+- `GET   ` `/api/customer/creatives` — Customer Creatives
 - `GET   ` `/api/customer/dashboard` — Get Customer Dashboard
 - `POST  ` `/api/customer/dashboard/send-to-crm` — Send Dashboard Leads To Crm
+- `GET   ` `/api/customer/gbp/questions` — Customer Gbp Questions
+- `POST  ` `/api/customer/gbp/score` — Customer Gbp Score
 - `GET   ` `/api/customer/health` — Customer Dashboard Health
 - `PATCH ` `/api/customer/leads/{lead_id}` — Patch Lead Status
+- `GET   ` `/api/customer/report` — Customer Monthly Report
 - `GET   ` `/api/customer/routing` — Customer Routing Get
 - `POST  ` `/api/customer/routing` — Customer Routing Set
 - `GET   ` `/api/customer/speed-to-lead` — Customer Speed To Lead
