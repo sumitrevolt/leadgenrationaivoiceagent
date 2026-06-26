@@ -820,6 +820,22 @@ async def _reflect() -> dict[str, Any]:
         skill_library.record_lesson("self_improve", lesson, source="reflection", agent="meera")
     except Exception:
         pass
+    # Hivemind: reflection lessons → KB skills namespace (cross-agent sharing)
+    if lesson and len(lesson) > 20 and os.environ.get("KB_SKILL_LEARN", "").strip() in ("1", "true", "yes", "on"):
+        try:
+            from app.voice_agent.knowledge_base import get_knowledge_base
+
+            _kb = get_knowledge_base()
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    lambda: _kb.add_documents(
+                        [{"text": lesson, "source": "self_improve_reflect"}], namespace="skills"
+                    )
+                ),
+                timeout=4.0,
+            )
+        except Exception:
+            pass
     # Write reflection lesson to obsidian brain
     try:
         from app.platform import obsidian_sync as _obs
@@ -1285,6 +1301,24 @@ async def run_once() -> dict[str, Any]:
         )
     except Exception:
         pass
+    # Hivemind: HIGH-VALUE runs (outcome >= 0.7) → KB skills namespace (Activeloop pattern)
+    if result.get("ok") and outcome_value >= 0.7 and os.environ.get("KB_SKILL_LEARN", "").strip() in ("1", "true", "yes", "on"):
+        try:
+            from app.voice_agent.knowledge_base import get_knowledge_base
+
+            _kb = get_knowledge_base()
+            _skill_text = f"Action: {action}\nTask: {str(picked.get('task', ''))[:200]}\nResult: {str(result.get('detail', ''))[:200]}"
+            await asyncio.wait_for(
+                asyncio.to_thread(
+                    lambda: _kb.add_documents(
+                        [{"text": _skill_text, "source": f"self_improve:{action}"}],
+                        namespace="skills",
+                    )
+                ),
+                timeout=4.0,
+            )
+        except Exception:
+            pass
 
     if picked.get("queued_id"):
         _mark_done(picked["queued_id"], result.get("detail", ""))

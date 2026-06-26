@@ -89,4 +89,38 @@ async def run_rag_ab_gate(timeout_s: float = 120.0) -> dict[str, Any]:
         return {"ok": False, "passed": False, "error": f"timeout after {timeout_s}s"}
 
 
-__all__ = ["deliverability_summary", "run_rag_ab_gate"]
+async def record_positive_eval(query: str, answer: str, namespace: str = "default") -> bool:
+    """Deep Memory pattern: positive RAG eval → KB upsert for retrieval reinforcement.
+
+    Har baar jab ek query ka answer accepted ho (user-feedback ya eval-gate PASS),
+    woh (Q, A) pair KB me store ho — agla similar query directly yahi hit karega.
+    Gated by EVAL_KB_BOOST=1. Never raises.
+    """
+    import os
+
+    if os.environ.get("EVAL_KB_BOOST", "").strip() not in ("1", "true", "yes", "on"):
+        return False
+    q = (query or "").strip()
+    a = (answer or "").strip()
+    if not q or not a:
+        return False
+    try:
+        from app.voice_agent.knowledge_base import get_knowledge_base
+
+        kb = get_knowledge_base()
+        doc_text = f"Q: {q}\nA: {a}"
+        added = await asyncio.wait_for(
+            asyncio.to_thread(
+                lambda: kb.add_documents(
+                    [{"text": doc_text, "source": "eval_positive"}], namespace=namespace
+                )
+            ),
+            timeout=5.0,
+        )
+        return bool(added)
+    except Exception as e:
+        logger.debug("record_positive_eval skipped: %s", e)
+        return False
+
+
+__all__ = ["deliverability_summary", "run_rag_ab_gate", "record_positive_eval"]
