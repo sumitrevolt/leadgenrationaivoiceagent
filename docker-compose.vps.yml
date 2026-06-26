@@ -337,7 +337,14 @@ services:
     mem_limit: 512m
     cpus: "0.5"
     user: "0:0"
-    command: celery -A app.worker beat --loglevel=info --schedule /tmp/celerybeat-schedule
+    command: celery -A app.worker beat --loglevel=info --schedule /app/data/celerybeat-schedule
+    # Persist the beat schedule across recreates (SCHED-001 council fix). /tmp was
+    # ephemeral, so a redeploy / selfheal restart re-fired every job whose window
+    # was currently active (duplicate sends, wasted free-tier quota). ./data is the
+    # same bind-mount the app + worker use.
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}

@@ -185,50 +185,19 @@ def decode_token(token: str) -> dict:
 # ============================================================================
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_async_db),
-) -> User:
-    """Get current authenticated user from JWT token"""
-    token = credentials.credentials
-
-    try:
-        payload = decode_token(token)
-        if payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token payload")
-
-        # Get user from database
-        result = await db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
-
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-
-        if user.status == UserStatus.SUSPENDED:
-            raise HTTPException(status_code=403, detail="Account suspended")
-
-        return user
-
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-
-async def require_admin(user: User = Depends(get_current_user)) -> User:
-    """Require admin role"""
-    if not user.can_access_admin():
-        raise HTTPException(status_code=403, detail="Admin access required")
-    return user
-
-
-async def require_super_admin(user: User = Depends(get_current_user)) -> User:
-    """Require super admin role"""
-    if user.role != UserRole.SUPER_ADMIN:
-        raise HTTPException(status_code=403, detail="Super admin access required")
-    return user
+# ── Canonical auth (ADMIN-001 council fix 2026-06-26) ───────────────────────
+# These three deps previously had LOCAL copies here that had drifted WEAKER than
+# the canonical app.api.auth_deps versions: the local get_current_user blocked
+# only SUSPENDED (not INACTIVE → a deprovisioned admin could still authenticate)
+# and the local require_admin skipped the RBAC module-grant path. Delegate to the
+# single canonical implementation so behaviour can no longer diverge. Other
+# modules importing `require_admin` from here (e.g. assessment.py) auto-inherit
+# the stronger version. auth_deps imports no app.api.* module → no import cycle.
+from app.api.auth_deps import (  # noqa: E402
+    get_current_user,
+    require_admin,
+    require_super_admin,
+)
 
 
 async def log_audit(

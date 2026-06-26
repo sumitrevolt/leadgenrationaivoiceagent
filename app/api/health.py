@@ -563,7 +563,7 @@ async def prometheus_metrics():
             metrics.append("")
             metrics.append("# HELP leadgen_celery_queue_depth Pending tasks per Celery queue")
             metrics.append("# TYPE leadgen_celery_queue_depth gauge")
-            for q in ("celery", "heavy", "scraping", "calling", "reporting", "sync", "training"):
+            for q in ("celery", "heavy", "scraping", "calling", "reporting", "sync", "training", "dlq:failed_tasks"):
                 try:
                     depth = await redis.llen(q)
                 except Exception:
@@ -596,6 +596,15 @@ async def prometheus_metrics():
         metrics.append(f"leadgen_process_memory_bytes {process.memory_info().rss}")
     except ImportError:
         pass
+    except Exception:
+        pass
+
+    # HTTP request/latency metrics (OBS-001) — makes HighHttp5xxRate +
+    # HighRequestLatencyP95 alerts live. Empty unless PROMETHEUS_HTTP_METRICS=1.
+    try:
+        from app.middleware.http_metrics import render_http_metrics
+
+        metrics.extend(render_http_metrics())
     except Exception:
         pass
 

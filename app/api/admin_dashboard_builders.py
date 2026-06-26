@@ -651,10 +651,19 @@ def _build_from_db() -> DashboardResponse | None:
             today = now.date()
 
             # ----- clients panel + MRR -----
+            # Lead counts in ONE GROUP BY (was N+1: a COUNT per client saturated the
+            # small sync pool at scale — DL-001 council fix 2026-06-26).
+            from sqlalchemy import func as _sqlfunc
+
+            _lead_counts = dict(
+                db.query(LeadModel.assigned_to, _sqlfunc.count(LeadModel.id))
+                .group_by(LeadModel.assigned_to)
+                .all()
+            )
             clients: list[Client] = []
             total_mrr = 0
             for c in client_rows:
-                leads_delivered = db.query(LeadModel).filter(LeadModel.assigned_to == c.id).count()
+                leads_delivered = int(_lead_counts.get(c.id, 0))
                 mrr = int((c.monthly_amount or 0) / 100)
                 total_mrr += mrr if (c.status and c.status.value == "active") else 0
                 clients.append(
