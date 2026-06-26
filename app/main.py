@@ -774,17 +774,82 @@ app.include_router(
 # ---------------------------------------------------------------------------
 # MCP server — platform admin endpoints as MCP tools (Claude platform-admin)
 # Optional dependency: app works fine without fastapi-mcp installed.
+#
+# Council 2026-06-26 SECURITY FIX: the prior mount was UNGATED — Platform/Data/
+# Agents tagged routes were exposed publicly at /mcp/* (admin tools leak risk).
+# Now requires EITHER:
+#   - FASTAPI_MCP_TOKEN env set + clients send `Authorization: Bearer <token>`
+#   - MCP_IP_ALLOWLIST env set (CSV) + request client IP must match
+# When NEITHER is set in production (PROD env), the mount is REFUSED and a
+# loud warning is logged. Dev path (DEBUG=1) still mounts to allow local work.
+# Arya (mcp_engineer.py) probes this gate and alerts if it ever regresses.
 # ---------------------------------------------------------------------------
 try:
     from fastapi_mcp import FastApiMCP
 
-    _mcp = FastApiMCP(
-        app,
-        name="LeadGen AI Platform",
-        include_tags=["Platform", "Data Intelligence", "Agents"],
-    )
-    _mcp.mount()
-    logger.info("✅ MCP server mounted at /mcp (Platform/Data/Agents tools)")
+    _mcp_token = os.environ.get("FASTAPI_MCP_TOKEN", "").strip()
+    _mcp_allowlist = [
+        ip.strip()
+        for ip in os.environ.get("MCP_IP_ALLOWLIST", "").split(",")
+        if ip.strip()
+    ]
+    _mcp_gated = bool(_mcp_token) or bool(_mcp_allowlist)
+    _mcp_is_prod = os.environ.get("ENV", "production").strip().lower() == "production"
+
+    if not _mcp_gated and _mcp_is_prod:
+        logger.warning(
+            "🔒 MCP mount REFUSED — production requires FASTAPI_MCP_TOKEN "
+            "or MCP_IP_ALLOWLIST. Set one in .env and recreate the app container. "
+            "(Arya MCP-Engineer will keep alerting until this is fixed.)"
+        )
+    else:
+        _mcp = FastApiMCP(
+            app,
+            name="LeadGen AI Platform",
+            include_tags=["Platform", "Data Intelligence", "Agents"],
+        )
+        _mcp.mount()
+
+        # Auth gate middleware — runs only for /mcp/* paths, fail-CLOSED in prod.
+        @app.middleware("http")
+        async def _mcp_auth_gate(request, call_next):
+            path = request.url.path or ""
+            if not path.startswith("/mcp"):
+                return await call_next(request)
+            # Allow if dev + no gate configured
+            if not _mcp_gated and not _mcp_is_prod:
+                return await call_next(request)
+            # Bearer token check
+            auth = request.headers.get("authorization", "").strip()
+            if _mcp_token and auth == f"Bearer {_mcp_token}":
+                return await call_next(request)
+            # IP allowlist check
+            client_ip = (request.client.host if request.client else "") or ""
+            xff = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            real_ip = xff or client_ip
+            if _mcp_allowlist and real_ip in _mcp_allowlist:
+                return await call_next(request)
+            # Reject — log to Arya's auth-failure tail-file
+            try:
+                from app.platform import mcp_engineer as _arya
+
+                _arya.log_auth_failure(
+                    "unauthorized", ip=real_ip, path=path[:120]
+                )
+            except Exception:
+                pass
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "MCP /mcp endpoint requires authentication"},
+            )
+
+        _gate_kind = "token" if _mcp_token else "ip-allowlist"
+        logger.info(
+            f"✅ MCP server mounted at /mcp (gated: {_gate_kind}, "
+            f"Platform/Data/Agents tools)"
+        )
 except ImportError:
     logger.info("fastapi-mcp not installed — MCP exposure disabled")
 except Exception as e:

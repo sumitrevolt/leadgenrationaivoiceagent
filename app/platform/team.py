@@ -211,6 +211,22 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "Package vulnerability audit via pip-audit (read-only), lock-file pinning hygiene, CVE → upgrade PROPOSALS. KPI: supply_chain_score. Distinct from Arnav (secrets/compliance posture); Aryan owns dependency CVEs. Never auto-upgrades.",
         "schedule": "Weekly Sun 04:30 IST (gated DEPS_AGENT)",
     },
+    # ----- council 2026-06-26: MCP Engineer (3-layer MCP surface owner) ----- #
+    "arya": {
+        "product": "platform",
+        "name": "Arya",
+        "emoji": "🔌",
+        "title": "MCP Engineer",
+        "duties": (
+            "Three-layer MCP surface — (1) /mcp expose via fastapi-mcp (admin tools, "
+            "must be auth-gated), (2) /api/mcp-product/v1/* metered B2B routes, "
+            "(3) A2A Agent Card (/.well-known/agent.json). Hourly health-pulse: "
+            "dependency check, gate-presence audit, key quota pressure, 90d rotation "
+            "watch, /mcp auth-failure spike detection. ntfy alert on critical signals. "
+            "Cross-talks to Arnav (security) and Hermes (infra) but owns MCP-specific KPIs."
+        ),
+        "schedule": "Hourly (gated MCP_ENGINEER) + on-demand /api/platform/mcp/health",
+    },
     "ravi": {
         "product": "marketing",
         "name": "Ravi",
@@ -723,6 +739,21 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         except Exception:
             return "marketing exec standby"
 
+    def _arya() -> str:
+        # council 2026-06-26: MCP Engineer — fast snapshot from last run-cache
+        if not os.environ.get("MCP_ENGINEER"):
+            return "MCP engineer off (MCP_ENGINEER unset)"
+        try:
+            from app.platform import mcp_engineer
+
+            snap = mcp_engineer.health_score()
+            score = snap.get("score")
+            if score is None:
+                return "MCP watch · awaiting first health pass"
+            return f"MCP health {score:.0f}/100 · {snap.get('summary', 'watch')[:60]}"
+        except Exception:
+            return "MCP engineer standby"
+
     # least-recently-active pehle (rotation) — taaki sab baari-baari pulse hon
     monitors = [
         ("kavya", "ops_pulse", _kavya),
@@ -747,6 +778,7 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         ("aryan", "deps_pulse", _aryan),
         ("kiran", "optimizer_pulse", _kiran),
         ("isha", "content_pulse", _isha),
+        ("arya", "mcp_pulse", _arya),
     ]
     try:
         ts = team_status()

@@ -6,6 +6,78 @@
 
 ---
 
+## 2026-06-26 — MCP overhaul: 3-layer production-ready + Arya engineer + Claude subagent (council-driven)
+
+**Trigger**: user feedback "I think my project is not using MCP servers at all — check all, connect and fix, make production ready, create an MCP servers engineer agent on Claude and VPS both."
+
+**LLM Council convened** (4-perspective synthesis: Pragmatic-Shipper / Security-Architect / Product-Strategist / Infra-SRE → Chairman verdict). Council found:
+1. `/mcp` via fastapi-mcp was MOUNTED but **UNGATED** in prod — Platform/Data/Agents tagged routes exposed publicly = admin tools leak (CRITICAL #1 fix).
+2. `MCP_PRODUCT=0` on VPS → metered B2B surface dormant.
+3. No dedicated agent owned MCP-specific KPIs (Hermes infra-handler is general; key abuse/quota/A2A drift silent).
+4. Internal MCP-consume layer (agents calling external MCP servers) = SKIP v1 (low ROI per Strategist).
+
+**Files created**
+- `app/platform/mcp_engineer.py` — Arya engine. 7 probes (dependency, expose_gate, product_armed, keys, rotation, auth_failures, a2a_card) → 0-100 score + KPI dict + actions + ntfy on critical. Pattern-matches `engineer_agents.py` exactly (INERT default, fail-open on missing signals).
+- `.claude/agents/mcp-engineer/AGENT.md` — Claude subagent, MCP-only scope, tools whitelist, smoke-command playbook.
+- `.claude/skills/mcp-engineer/SKILL.md` — companion skill, activation checklist, file map.
+- `tests/test_mcp_engineer.py` — INERT/probe/full-pass tests with isolated DATA_DIR fixture (15 tests).
+
+**Files modified (wiring)**
+- `app/platform/team.py`: added `arya` STAFF entry (product=platform) + `_arya()` cheap monitor + tuple in monitors rotation.
+- `app/platform/team_scheduler.py`: `mcp_engineer` job in JOB_MAP + dispatch branch + hourly :40 tick (offset from :45 Pranav SRE).
+- `app/tasks/staff_jobs.py`: `mcp_engineer` in STAFF_JOBS tuple (durable Celery path).
+- `app/worker.py`: `staff-mcp-engineer-hourly` beat entry (crontab minute=40).
+- `app/api/automation_flags.py`: registered `MCP_ENGINEER`, `FASTAPI_MCP_TOKEN`, `MCP_IP_ALLOWLIST`, plus 3 tunables.
+- `app/api/mcp_product.py`: added `/api/admin/mcp/health`, `/api/admin/mcp/health/run`, `/api/admin/mcp/audit` admin routes.
+- `app/main.py` (lines ~774-849): **security fix** — `/mcp` mount now requires `FASTAPI_MCP_TOKEN` OR `MCP_IP_ALLOWLIST`. In prod (`ENV=production`) without a gate, the mount is **REFUSED** with a loud warning. Middleware enforces Bearer-token OR IP-allowlist (X-Forwarded-For respected for Caddy) and rejects with 401 + logs to `data/mcp_auth_failures.jsonl` (Arya tails this for abuse detection).
+- `.env.example`: added MCP_ENGINEER block with gate keys.
+- `CLAUDE.md` + `AGENTS.md`: 2-line lean entry under AI Staff Team — Arya listed, MCP-surface 3-layer summary.
+
+**Activation (VPS)**:
+```
+# /opt/leadgen/.env
+MCP_PRODUCT=1
+MCP_ENGINEER=1
+FASTAPI_MCP_TOKEN=<random 32+ chars from `openssl rand -hex 32`>
+# Then:
+docker compose -f docker-compose.vps.yml build app
+docker compose -f docker-compose.vps.yml up -d --no-deps app worker scheduler
+```
+
+**Smoke verify**:
+```
+curl -s https://leadsgenai.in/.well-known/agent.json | jq
+curl -s https://leadsgenai.in/api/mcp-product/v1/discover | jq
+curl -sI https://leadsgenai.in/mcp/                            # 401 expected
+curl -sI -H "Authorization: Bearer $TOKEN" https://leadsgenai.in/mcp/   # 200 expected
+curl -s -H "X-Admin-Token: $ADMIN" https://leadsgenai.in/api/admin/mcp/audit | jq
+```
+
+**Claude Desktop config** (local user's `claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "leadsgenai": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-fetch", "https://leadsgenai.in/mcp/"],
+      "env": { "FASTAPI_MCP_TOKEN": "<same token as VPS>" }
+    }
+  }
+}
+```
+
+**Tests**: `pytest tests/test_mcp_engineer.py -v` — 15 tests, all probe + smoke pass paths covered.
+
+**Council members ki agreement matrix** (next-time reference):
+- Pragmatic + Strategist: agree on expose+product, skip consume v1.
+- Security: agree on gate-first, key rotation 90d, auth-failure ntfy.
+- Infra-SRE: agree on hourly pulse cadence, /api/admin/mcp/health endpoint, Obsidian sync via log_event.
+
+**Rollback**: revert app/main.py /mcp block to prior (un-gated) — but only if you re-set `ENV=dev` temporarily (the prod-refuse logic protects you from accidental rollback to leak state).
+
+
+---
+
 # Project Memory — leadgenrationaivoiceagent
 
 ## User Preferences (IMPORTANT)

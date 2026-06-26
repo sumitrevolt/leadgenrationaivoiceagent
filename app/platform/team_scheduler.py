@@ -116,6 +116,7 @@ _last_ran: dict[str, str | None] = {
     "engineer_dbre": None,  # daily 10:00: Kabir Postgres reliability (gated DBRE_AGENT)
     "engineer_dataquality": None,  # daily 10:30: Diya lead/CRM integrity (gated DATA_INTEGRITY_AGENT)
     "engineer_deps": None,  # weekly Sun 04:30: Aryan dependency CVE audit (gated DEPS_AGENT)
+    "mcp_engineer": None,  # council 2026-06-26: Arya MCP health pulse (hourly, gated MCP_ENGINEER)
     "readiness_digest": None,  # G.3: daily activation-readiness ntfy digest (OPS_ALERTS gated)
     "pipeline": None,  # daily: lead rescore + hot-lead surfacing (Neha/Rohan)
     "email_followup": None,  # daily afternoon: Day-3/7 followups only
@@ -652,6 +653,13 @@ async def _run_job_inner(job: str) -> None:
             from app.platform import engineer_agents
 
             engineer_agents.run_deps()
+        elif job == "mcp_engineer":
+            # council 2026-06-26: Arya MCP health pulse (3-layer surface).
+            # INERT until MCP_ENGINEER=1 (engine returns disabled result so
+            # this never blocks the loop).
+            from app.platform import mcp_engineer
+
+            mcp_engineer.run_mcp()
         elif job == "readiness_digest":
             # G.3: daily activation-readiness digest. INERT until OPS_ALERTS=1 +
             # ntfy creds set; ops_alerts.daily_readiness_digest itself is the
@@ -940,6 +948,12 @@ async def scheduler_loop() -> None:
             if now.minute >= 45 and _last_ran["engineer_sre"] != hour_key:
                 _last_ran["engineer_sre"] = hour_key
                 await _run_job("engineer_sre")
+            # council 2026-06-26: Arya MCP Engineer — hourly :40 health pulse
+            # (engine INERT unless MCP_ENGINEER=1). Offset from :45 (Pranav SRE)
+            # so they don't slam the same minute on the in-process scheduler.
+            if now.minute >= 40 and _last_ran.get("mcp_engineer") != hour_key:
+                _last_ran["mcp_engineer"] = hour_key
+                await _run_job("mcp_engineer")
             # F.5 Vidya FinOps — daily morning margin score (engine INERT unless FINOPS_AGENT=1).
             if (9, 0) <= hm < (10, 0) and _last_ran["engineer_finops"] != day_key:
                 _last_ran["engineer_finops"] = day_key
