@@ -168,6 +168,34 @@
   @media(max-width:1080px){.team-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){.team-grid{grid-template-columns:1fr}}
   @media(prefers-reduced-motion:reduce){.team-live .dot,.agent.working .sdot,.agent.working .avwrap::before,.agent .typing i{animation:none}}
+  /* ===== Phase-1 self-serve marketing tool cards ===== */
+  .mtools-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:14px}
+  @media(max-width:1080px){.mtools-grid{grid-template-columns:1fr}}
+  .score-ring{--p:0;width:88px;height:88px;border-radius:50%;display:grid;place-items:center;flex:0 0 88px;
+    background:conic-gradient(var(--rc,#16a34a) calc(var(--p)*1%),#e5e7eb 0);position:relative}
+  .score-ring::before{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--card)}
+  .score-ring .n{position:relative;z-index:1;font-size:24px;font-weight:900;line-height:1;color:var(--ink)}
+  .score-ring .g{position:relative;z-index:1;font-size:10px;font-weight:800;color:var(--muted);margin-top:2px}
+  .gbp-flex{display:flex;gap:14px;align-items:center}
+  .fix-list{margin:8px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+  .fix-list li{font-size:12px;color:var(--ink);background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:6px 9px;line-height:1.35}
+  .gbp-q{border-bottom:1px solid var(--line);padding:9px 0}
+  .gbp-q .qt{font-size:12.5px;font-weight:700;margin-bottom:6px}
+  .gbp-q label{display:block;font-size:12px;color:var(--ink);padding:3px 0;cursor:pointer}
+  .gbp-q label input{margin-right:6px}
+  .fest-chip{display:inline-flex;flex-direction:column;gap:2px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;
+    padding:8px 10px;margin:0 6px 6px 0;min-width:120px;max-width:230px}
+  .fest-chip .fn{font-size:12.5px;font-weight:800;color:#3730a3}
+  .fest-chip .fd{font-size:11px;color:#4f46e5}
+  .fest-chip .fa{font-size:11px;color:var(--muted);line-height:1.3;margin-top:2px}
+  .creative-item{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#fafafa}
+  .creative-item .ct{font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px}
+  .creative-item .cc{font-size:12px;color:var(--ink);line-height:1.4;margin:5px 0;white-space:pre-wrap}
+  .creative-item .row{display:flex;gap:6px;flex-wrap:wrap}
+  .creative-item .row button{min-height:32px;padding:6px 10px;font-size:11.5px}
+  .rep-stat{display:inline-flex;flex-direction:column;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:8px 12px;margin:0 8px 8px 0}
+  .rep-stat .v{font-size:20px;font-weight:900;color:#166534}
+  .rep-stat .l{font-size:11px;color:#15803d;font-weight:700}
   .hero-leads{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border:none;
     border-radius:14px;box-shadow:var(--shadow);padding:20px;display:flex;flex-direction:column;gap:6px}
   .hero-leads .lab{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;opacity:.85}
@@ -552,6 +580,42 @@
         </div>
         <div class="card-b" id="webToolsBody">
           <span class="sm" style="color:var(--muted)">Mini-site, enquiry widget aur booking links load ho rahe hain…</span>
+        </div>
+      </div>
+
+      <!-- ===== Phase-1 self-serve marketing tools (council 2026-06-26) ===== -->
+      <div class="sec-title marketing-only">🚀 Aapke Marketing Tools</div>
+      <div class="mtools-grid marketing-only">
+        <!-- 1) GBP Audit -->
+        <div class="card" id="gbpCard">
+          <div class="card-h">
+            <h2>📊 Google Profile Score</h2>
+            <span class="pill" id="gbpPill">—</span>
+          </div>
+          <div class="card-b" id="gbpBody">
+            <span class="sm" style="color:var(--muted)">Load ho raha hai… ⏳</span>
+          </div>
+        </div>
+        <!-- 2) Creatives + Festivals -->
+        <div class="card" id="creativesCard">
+          <div class="card-h">
+            <h2>🎨 Ready Creatives + Festival Calendar</h2>
+            <span class="pill" id="creativesPill">—</span>
+          </div>
+          <div class="card-b" id="creativesBody">
+            <span class="sm" style="color:var(--muted)">Load ho raha hai… ⏳</span>
+          </div>
+        </div>
+        <!-- 3) Monthly Report -->
+        <div class="card" id="reportCard">
+          <div class="card-h">
+            <h2>📈 Mahine ki Report</h2>
+            <span class="pill" id="reportPill">Deliverable</span>
+          </div>
+          <div class="card-b" id="reportBody">
+            <p class="sm" style="color:var(--muted);margin:0 0 10px">Is mahine aapke marketing pe kya kaam hua — ek report me.</p>
+            <button class="btn primary" type="button" onclick="loadReport()">📈 Report banao / dekho</button>
+          </div>
         </div>
       </div>
 
@@ -1282,6 +1346,115 @@ async function loadTeam(){
   }catch(e){ renderTeam(null); }
 }
 
+/* ============================================================
+   PHASE-1 SELF-SERVE MARKETING TOOLS (council 2026-06-26)
+   GBP audit · Creatives+Festivals · Monthly report.
+   ============================================================ */
+function gbpColor(s){ return s>=80?'#16a34a':(s>=50?'#d97706':'#dc2626'); }
+function renderGbp(last){
+  const body=document.getElementById('gbpBody'); const pill=document.getElementById('gbpPill');
+  if(!body) return;
+  if(last && typeof last.score==='number'){
+    if(pill) pill.textContent=last.score+'/100';
+    const c=gbpColor(last.score);
+    const fixes=(last.top_fixes||[]).map(f=>'<li>'+escH(f)+'</li>').join('') || '<li>Profile top shape me hai 🎉</li>';
+    body.innerHTML='<div class="gbp-flex"><div class="score-ring" style="--p:'+last.score+';--rc:'+c+'"><div class="n">'+last.score+'</div><div class="g">'+escH(last.grade||'')+'</div></div>'
+      +'<div style="flex:1;min-width:0"><div class="sm" style="color:var(--muted);font-size:11px">Top fixes — score badhao:</div><ul class="fix-list">'+fixes+'</ul></div></div>'
+      +'<button class="btn" style="margin-top:10px" onclick="startGbpQuiz()">↻ Dobara test karo</button>'
+      +(last.at?'<div class="sm" style="color:var(--muted);font-size:10.5px;margin-top:6px">Last test: '+escH(last.at)+'</div>':'');
+  } else {
+    if(pill) pill.textContent='Test karo';
+    body.innerHTML='<p class="sm" style="color:var(--muted);margin:0 0 10px">16 chhote sawal → aapke Google Business Profile ka 0–100 score + top-5 fix. Free, 2 minute.</p>'
+      +'<button class="btn primary" onclick="startGbpQuiz()">📊 Test shuru karo</button>';
+  }
+}
+function startGbpQuiz(){
+  const body=document.getElementById('gbpBody'); const qs=window._GBPQ||[];
+  if(!qs.length){ body.innerHTML='<span class="sm" style="color:var(--muted)">Sawal load nahi hue — login karke refresh karo.</span>'; return; }
+  body.innerHTML='<div id="gbpQuiz">'+qs.map(function(q){
+    const opts=(q.options||[]).map(function(o,i){ return '<label><input type="radio" name="gbpq_'+q.id+'" value="'+i+'"> '+escH(o.label)+'</label>'; }).join('');
+    return '<div class="gbp-q"><div class="qt">'+escH(q.q)+'</div>'+opts+'</div>';
+  }).join('')+'</div><button class="btn primary" style="margin-top:10px" onclick="submitGbp()">✅ Score nikalo</button>';
+}
+async function submitGbp(){
+  const qs=window._GBPQ||[]; const answers={};
+  qs.forEach(function(q){ const grp=document.getElementsByName('gbpq_'+q.id); for(let k=0;k<grp.length;k++){ if(grp[k].checked) answers[q.id]=parseInt(grp[k].value,10); } });
+  const body=document.getElementById('gbpBody'); body.innerHTML='<span class="sm" style="color:var(--muted)">Score nikal rahe hain… ⏳</span>';
+  try{
+    const r=await fetch('/api/customer/gbp/score',{method:'POST',headers:Object.assign({'Content-Type':'application/json',Accept:'application/json'},billAuthHdr()),body:JSON.stringify({answers:answers})});
+    if(!r.ok) throw new Error('bad '+r.status);
+    const d=await r.json(); renderGbp(d); toast('Score ready ✅', d.score+'/100 — '+(d.grade||''));
+  }catch(e){ body.innerHTML='<span class="sm" style="color:#dc2626">Score nahi nikla — login karke dobara try karo.</span>'; }
+}
+async function loadGbp(){
+  try{
+    const r=await fetch('/api/customer/gbp/questions',{headers:Object.assign({Accept:'application/json'},billAuthHdr())});
+    if(!r.ok) throw new Error('bad '+r.status);
+    const d=await r.json(); window._GBPQ=d.questions||[]; renderGbp(d.last);
+  }catch(e){ renderGbp(null); }
+}
+
+async function loadCreatives(){
+  try{
+    const r=await fetch('/api/customer/creatives',{headers:Object.assign({Accept:'application/json'},billAuthHdr())});
+    if(!r.ok) throw new Error('bad '+r.status);
+    renderCreatives(await r.json());
+  }catch(e){ renderCreatives({festivals:[],posts:[]}); }
+}
+function renderCreatives(d){
+  const body=document.getElementById('creativesBody'); const pill=document.getElementById('creativesPill');
+  if(!body) return;
+  const fests=(d.festivals||[]).slice(0,6); const posts=(d.posts||[]);
+  if(pill) pill.textContent=(posts.length||0)+' ready';
+  window._CREATIVES=posts;
+  let html='';
+  if(fests.length){
+    html+='<div class="sm" style="color:var(--muted);font-size:11px;margin-bottom:4px">📅 Aane wale tyohar — post taiyaar rakho:</div><div style="margin-bottom:10px">'
+      +fests.map(function(f){ return '<span class="fest-chip"><span class="fn">'+escH(f.name||'')+'</span><span class="fd">'+(f.days_away===0?'Aaj!':(f.days_away+' din me'))+'</span><span class="fa">'+escH(f.marketing_angle||'')+'</span></span>'; }).join('')+'</div>';
+  }
+  if(posts.length){
+    html+='<div class="sm" style="color:var(--muted);font-size:11px;margin-bottom:4px">🖼️ Aapke ready posts:</div>'
+      +posts.slice(0,8).map(function(p,i){
+        const cap=(p.caption||'').slice(0,220)+((p.caption||'').length>220?'…':'');
+        const tags=(p.hashtags||[]).map(h=>'#'+String(h).replace(/^#/,'')).join(' ');
+        const dl=p.has_svg?'<button class="btn" onclick="dlPoster('+i+')">⬇️ Poster</button>':'';
+        return '<div class="creative-item"><div class="ct">'+escH(p.title||'Post')+' <span class="pill" style="font-size:9px">'+escH(p.status||'')+'</span></div><div class="cc">'+escH(cap)+(tags?'\n'+escH(tags):'')+'</div><div class="row"><button class="btn primary" onclick="copyCreative('+i+')">📋 Copy</button>'+dl+'</div></div>';
+      }).join('');
+  } else {
+    html+='<div class="sm" style="color:var(--muted)">Abhi koi ready post nahi — AI team (Isha) bana rahi hai, roz subah ~7 baje aate hain.</div>';
+  }
+  body.innerHTML=html;
+}
+function copyCreative(i){ const p=(window._CREATIVES||[])[i]; if(!p) return; const tags=(p.hashtags||[]).map(h=>'#'+String(h).replace(/^#/,'')).join(' '); const txt=(p.caption||'')+(tags?'\n\n'+tags:''); navigator.clipboard.writeText(txt).then(function(){ toast('Copy ho gaya 📋','WhatsApp/Insta pe paste karo.'); }); }
+function dlPoster(i){ const p=(window._CREATIVES||[])[i]; if(!p||!p.svg) return; const blob=new Blob([p.svg],{type:'image/svg+xml'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(p.title||'poster').replace(/[^a-z0-9]+/gi,'_').slice(0,40)+'.svg'; a.click(); URL.revokeObjectURL(a.href); }
+
+async function loadReport(){
+  const body=document.getElementById('reportBody'); if(!body) return;
+  body.innerHTML='<span class="sm" style="color:var(--muted)">Report ban rahi hai… ⏳ (~10 sec)</span>';
+  try{
+    const r=await fetch('/api/customer/report',{headers:Object.assign({Accept:'application/json'},billAuthHdr())});
+    if(!r.ok) throw new Error('bad '+r.status);
+    renderReport(await r.json());
+  }catch(e){ body.innerHTML='<span class="sm" style="color:#dc2626">Report nahi bani — login karke try karo.</span> <button class="btn" style="margin-top:8px" onclick="loadReport()">↻ Retry</button>'; }
+}
+function renderReport(d){
+  const body=document.getElementById('reportBody'); const pill=document.getElementById('reportPill');
+  if(!body) return;
+  if(pill) pill.textContent=escH(d.month||'Report');
+  const s=d.stats||{};
+  const chips='<div class="rep-stat"><span class="v">'+(s.total_actions||0)+'</span><span class="l">Total kaam</span></div>'
+    +(s.by_member?'<div class="rep-stat"><span class="v">'+Object.keys(s.by_member).length+'</span><span class="l">Team members</span></div>':'')
+    +(s.by_action?'<div class="rep-stat"><span class="v">'+Object.keys(s.by_action).length+'</span><span class="l">Activity types</span></div>':'');
+  const plan=(d.plan||[]).map(p=>'<li>'+escH(p)+'</li>').join('');
+  window._REPORT_HTML=d.html||'';
+  body.innerHTML='<div style="margin-bottom:8px">'+chips+'</div>'
+    +(d.summary?'<p class="sm" style="color:var(--ink);line-height:1.5;margin:0 0 8px">'+escH(d.summary)+'</p>':'')
+    +(plan?'<div class="sm" style="color:var(--muted);font-size:11px">Aage ka plan:</div><ul class="fix-list">'+plan+'</ul>':'')
+    +(d.html?'<button class="btn primary" style="margin-top:10px" onclick="openReportHtml()">📄 Poori report kholo</button> ':'')
+    +'<button class="btn" style="margin-top:10px" onclick="loadReport()">↻ Refresh</button>';
+}
+function openReportHtml(){ const h=window._REPORT_HTML||''; if(!h) return; const w=window.open('','_blank'); if(w){ w.document.write(h); w.document.close(); } }
+
 function setMeta(d){
   document.getElementById("genAt").textContent="Update hua: "+(d.generated_at||"—")+" · "+(d.is_sample_data?"Demo data":"Aapka asli data");
   document.getElementById("demoBadge").style.display=d.is_sample_data?"inline-block":"none";
@@ -1374,6 +1547,7 @@ function renderTrialBanner(data){
 }
 boot(buildDemo());  // instant render, works offline
 renderTeam(null);   // instant virtual-team office (demo) until live data arrives
+loadGbp(); loadCreatives();  // self-serve marketing tools (graceful if not logged in)
 
 /* Billing state — declared before tryLive (which reads BILL.cid). */
 const BILL = { cid: "demo", token: "" };
@@ -1392,6 +1566,7 @@ const BILL = { cid: "demo", token: "" };
       boot(live);
       loadSpeedToLead();
       loadTeam();
+      loadGbp(); loadCreatives();  // reload self-serve tools with real client data
       if(window._teamPoll) clearInterval(window._teamPoll);
       window._teamPoll = setInterval(loadTeam, 25000);  // keep the office "live"
       if(!live.is_sample_data) toast("Live data ✅","Server se aapka asli data load ho gaya.");

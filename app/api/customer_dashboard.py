@@ -271,6 +271,143 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
     )
 
 
+# --------------------------------------------------------------------------- #
+# Phase-1 self-serve marketing tools (council 2026-06-26) — customer-scoped,   #
+# IDOR-safe versions of the admin "done-for-you" generators. Each reuses the   #
+# same underlying generator module the admin console uses; client_id comes     #
+# from the JWT (require_customer) so a customer only ever touches its own data. #
+# --------------------------------------------------------------------------- #
+def _safe_cid(cid: str) -> str:
+    """Filesystem-safe client id (no path traversal)."""
+    return "".join(c if (c.isalnum() or c in "-_") else "_" for c in str(cid or "demo"))[:64]
+
+
+_GBP_DIR = os.path.join("data", "gbp_audits")
+
+
+@router.get("/gbp/questions")
+def customer_gbp_questions(client_id: str = Depends(require_customer)) -> dict:
+    """GBP self-audit ke 16 Hinglish sawal + is client ka last saved score.
+
+    Customer khud apna Google Business Profile audit kar sakta hai — scoring
+    PURE LOGIC hai (koi LLM cost nahi). Last result per-client file me save hota
+    hai taaki card pe "pichla score" dikhe."""
+    out: dict = {"questions": [], "total": 0, "last": None}
+    try:
+        from app.marketing import gbp_audit
+
+        out["questions"] = gbp_audit.AUDIT_QUESTIONS
+        out["total"] = len(gbp_audit.AUDIT_QUESTIONS)
+    except Exception as e:
+        logger.debug("customer_gbp_questions: module load failed (%s)", e)
+    try:
+        fp = os.path.join(_GBP_DIR, _safe_cid(client_id) + ".json")
+        if os.path.exists(fp):
+            with open(fp, encoding="utf-8") as fh:
+                out["last"] = json.load(fh)
+    except Exception as e:
+        logger.debug("customer_gbp_questions: last read failed (%s)", e)
+    return out
+
+
+@router.post("/gbp/score")
+def customer_gbp_score(
+    answers: dict = Body(..., embed=True, description="{question_id: option_index}"),
+    client_id: str = Depends(require_customer),
+) -> dict:
+    """Audit answers => 0-100 score + grade + top-5 Hinglish fixes (persist latest)."""
+    try:
+        from app.marketing import gbp_audit
+
+        result = gbp_audit.score_audit(answers if isinstance(answers, dict) else {})
+    except Exception as e:
+        logger.error("customer_gbp_score failed: %s", e)
+        raise HTTPException(status_code=500, detail="GBP scoring abhi available nahi.")
+    result["at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+    try:
+        os.makedirs(_GBP_DIR, exist_ok=True)
+        with open(os.path.join(_GBP_DIR, _safe_cid(client_id) + ".json"), "w", encoding="utf-8") as fh:
+            json.dump(result, fh, ensure_ascii=False)
+    except Exception as e:
+        logger.debug("customer_gbp_score: persist failed (%s)", e)
+    return result
+
+
+@router.get("/creatives")
+def customer_creatives(client_id: str = Depends(require_customer)) -> dict:
+    """Creatives & Festival gallery — upcoming Indian festivals (static calendar)
+    + is client ke ready content posts/posters (content queue se). Read-only,
+    near-zero cost. Festival captions/posters generation admin/AI karta hai;
+    yahan customer ready creatives dekh+download kar sakta hai."""
+    client_rec = _client_record(client_id)
+    festivals_list: list = []
+    try:
+        from app.marketing import festivals
+
+        festivals_list = festivals.upcoming(45)
+    except Exception as e:
+        logger.debug("customer_creatives: festivals failed (%s)", e)
+
+    posts: list[dict] = []
+    try:
+        from app.marketing.auto_content import list_queue
+
+        rid = str((client_rec or {}).get("id") or client_id or "").strip()
+        if rid:
+            for it in list_queue(rid, limit=24):
+                posts.append({
+                    "title": str(it.get("title") or it.get("occasion") or "Post")[:140],
+                    "caption": str(it.get("caption") or it.get("text") or "")[:2000],
+                    "hashtags": list(it.get("hashtags") or [])[:12],
+                    "status": str(it.get("status") or "draft"),
+                    "created_at": str(it.get("created_at") or ""),
+                    "svg": str(it.get("svg") or ""),
+                    "has_svg": bool(it.get("svg")),
+                })
+    except Exception as e:
+        logger.debug("customer_creatives: content queue failed (%s)", e)
+
+    return {
+        "client_id": client_id,
+        "festivals": festivals_list,
+        "posts": posts,
+        "poster_count": sum(1 for p in posts if p["has_svg"]),
+        "is_sample_data": bool(not client_rec and not posts),
+    }
+
+
+# tiny per-process cache so the monthly report (1 LLM call) isn't rebuilt on
+# every poll/refresh; keyed by client_id+month, short TTL.
+_REPORT_CACHE: dict[str, tuple[float, dict]] = {}
+
+
+@router.get("/report")
+async def customer_monthly_report(
+    month: str = Query("", description="YYYY-MM; blank => current month"),
+    client_id: str = Depends(require_customer),
+) -> dict:
+    """Customer-facing monthly marketing report (read-only deliverable) — kya
+    kaam hua is mahine. build_report team events se banta hai + 1 free-LLM
+    Hinglish summary; result short-TTL cache hota hai (cost guard)."""
+    import time
+
+    client_rec = _client_record(client_id)
+    client_name = str((client_rec or {}).get("business_name") or client_id or "")
+    ck = f"{_safe_cid(client_id)}:{month or 'cur'}"
+    hit = _REPORT_CACHE.get(ck)
+    if hit and (time.time() - hit[0]) < 900:  # 15-min cache
+        return hit[1]
+    try:
+        from app.marketing import monthly_report
+
+        result = await monthly_report.build_report(client_name=client_name, month=month or None)
+    except Exception as e:
+        logger.error("customer_monthly_report failed: %s", e)
+        raise HTTPException(status_code=500, detail="Report abhi available nahi.")
+    _REPORT_CACHE[ck] = (time.time(), result)
+    return result
+
+
 @router.get("/speed-to-lead")
 def customer_speed_to_lead(
     days: int = Query(30, ge=1, le=365, description="Lookback window in days"),
