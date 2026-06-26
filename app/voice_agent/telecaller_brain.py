@@ -1068,6 +1068,18 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             fast = self._fast_path_reply(history, ut)
             if fast:
                 return fast
+
+            # OPENER RESPONSE CACHE (gated VOICE_RESPONSE_CACHE) — first-turn-only.
+            # Hit returns ~50ms instead of paying 7-8s LLM round-trip on templated
+            # openers ("haan boliye", "namaste", etc.). Mid-conversation = never
+            # cached (context-bleed risk). Fail-open at every layer.
+            _cache_eligible = self._opener_cache_eligible(history, ut)
+            if _cache_eligible:
+                _cached = await self._opener_cache_lookup(ut)
+                if _cached:
+                    logger.debug("[telecaller-brain] opener cache HIT")
+                    return _cached
+
             facts = await self._kb_facts(ut)
             # Agent memory (cross-session lead recall) — flag-gated, off-loop+deadline
             # (recall khud bounded). OFF (AGENT_MEMORY unset) => instant []. Never blocks.
@@ -1134,6 +1146,11 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     return sc
             if text:
                 logger.debug(f"[telecaller-brain] reply via {prov}")
+                # OPENER CACHE STORE — store GENUINE LLM reply for next first-turn
+                # caller in this niche (fire-and-forget, never blocks the response).
+                if _cache_eligible:
+                    _t = asyncio.create_task(self._opener_cache_store(ut, text))
+                    _t.add_done_callback(lambda t: t.cancelled() or t.exception())
             return text or self._safe_fallback(history)
         except Exception as e:
             logger.warning(f"[telecaller-brain] reply failed: {e}")
@@ -1453,6 +1470,110 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             return runtime_voice_primary()
         except Exception:
             return False
+
+    @staticmethod
+    def _voice_response_cache_enabled() -> bool:
+        """VOICE_RESPONSE_CACHE — wraps the OPENER turn (history_len==0) in
+        semantic_cache (L1 exact + L2 semantic via Qdrant + Redis). Hit returns
+        ~50ms instead of paying the 7-8s LLM round-trip for templated openers.
+        Mid-conversation NEVER cached (context-bleed risk). Default OFF =
+        byte-identical; requires SEMANTIC_CACHE=1 too. Diagnosed 2026-06-26:
+        SEMANTIC_CACHE=1 was already set in prod but Redis had 0 cache keys
+        because the voice brain never called semantic_complete."""
+        return (os.environ.get("VOICE_RESPONSE_CACHE", "0") or "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+
+    def _opener_cache_eligible(
+        self, history: list[dict[str, str]] | None, ut: str
+    ) -> bool:
+        """First-turn-only cache eligibility. Conservative gates so we never
+        serve a context-dependent line to the wrong call."""
+        if not self._voice_response_cache_enabled():
+            return False
+        if history:  # only the very first turn — no history = opener context
+            return False
+        if not ut or len(ut) < 5:  # "haan"/"ok" too generic to safely match
+            return False
+        try:
+            from app.cache.semantic_cache import is_enabled
+
+            return is_enabled()  # SEMANTIC_CACHE flag must also be ON
+        except Exception:
+            return False
+
+    async def _opener_cache_lookup(self, ut: str) -> str | None:
+        """Return cached opener reply (L1 exact then L2 semantic) or None.
+        Best-effort, never raises, never blocks longer than the underlying
+        timeouts in semantic_cache."""
+        try:
+            from app.cache.semantic_cache import (
+                _default_backend,
+                _l1_key,
+                _min_sim,
+                _normalize,
+                _safe_embed,
+                _safe_thread,
+                _store_timeout,
+            )
+
+            be = _default_backend()
+            scope = f"voice:opener:{self.niche}"
+            norm = _normalize(ut)
+            l1key = _l1_key(scope, norm)
+            hit = await be.l1_get(l1key)
+            if hit:
+                return hit
+            vec = await _safe_embed(be, norm)
+            if vec is not None:
+                found = await _safe_thread(
+                    be.vsearch, vec, scope, timeout=_store_timeout()
+                )
+                if found and (found.get("response") or "").strip():
+                    if float(found.get("score") or 0.0) >= _min_sim():
+                        return found["response"]
+        except Exception:
+            pass
+        return None
+
+    async def _opener_cache_store(self, ut: str, reply_text: str) -> None:
+        """Store fresh LLM-generated opener reply (best-effort fire-and-forget)."""
+        try:
+            import time as _time
+
+            from app.cache.semantic_cache import (
+                _default_backend,
+                _l1_key,
+                _normalize,
+                _safe_embed,
+                _safe_thread,
+                _store_timeout,
+                _ttl,
+            )
+
+            if not reply_text or not reply_text.strip():
+                return
+            be = _default_backend()
+            scope = f"voice:opener:{self.niche}"
+            norm = _normalize(ut)
+            l1key = _l1_key(scope, norm)
+            await be.l1_set(l1key, reply_text, _ttl())
+            vec = await _safe_embed(be, norm)
+            if vec is not None:
+                await _safe_thread(
+                    be.vupsert,
+                    vec,
+                    scope,
+                    norm,
+                    reply_text,
+                    _time.time(),
+                    timeout=_store_timeout(),
+                )
+        except Exception:
+            pass
 
     @staticmethod
     def _voice_llm_race() -> bool:
