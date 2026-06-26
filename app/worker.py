@@ -416,6 +416,13 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(day_of_week="sun", hour=4, minute=30),
         "args": ("engineer_deps",),
     },
+    # council 2026-06-26: Arya MCP Engineer hourly :40 (gated MCP_ENGINEER).
+    # Offset from Pranav SRE :45 so they don't co-fire on the same minute.
+    "staff-mcp-engineer-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=40),
+        "args": ("mcp_engineer",),
+    },
     "staff-readiness-digest-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=8, minute=30),

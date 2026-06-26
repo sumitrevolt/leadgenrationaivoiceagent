@@ -146,6 +146,13 @@ AUTOMATION_FLAGS = [
     "TOTP_CHALLENGE_KEY",  # HMAC key for login-challenge token; unset = per-process random
     # H.3 MCP-as-product + A2A Agent Card metered surface
     "MCP_PRODUCT",  # arms /api/mcp-product/v1/* (503 when off)
+    # council 2026-06-26: Arya MCP Engineer + /mcp expose gate
+    "MCP_ENGINEER",  # hourly health pulse (3-layer surface); off = disabled-result
+    "FASTAPI_MCP_TOKEN",  # bearer required by /mcp/* expose (gate the admin tools)
+    "MCP_IP_ALLOWLIST",  # CSV of admin IPs allowed at /mcp/* (alternative gate)
+    "MCP_KEY_ROTATION_DAYS",  # default 90 — rotation reminder window
+    "MCP_QUOTA_PRESSURE_PCT",  # default 80 — quota-warn threshold per key
+    "MCP_AUTH_FAIL_ALERT",  # default 20 — 24h auth-failure ntfy trigger
     # H.4 LiteLLM per-tenant cost + warm-DR replica probe
     "LITELLM_COSTS",  # master gate; needs LITELLM_MASTER_KEY + LITELLM_GATEWAY_URL
     "LITELLM_MASTER_KEY",  # bearer for /spend/keys probe

@@ -268,4 +268,33 @@ async def admin_toggle(key_id: str, body: KeyToggleIn, _user=Depends(require_adm
     return {"id": key_id, "enabled": body.enabled}
 
 
+# --------------------------------------------------------------------------- #
+# Council 2026-06-26 — Arya MCP Engineer surface (admin)
+# --------------------------------------------------------------------------- #
+@router.get("/api/admin/mcp/health", tags=["Platform"])
+async def admin_mcp_health(_user=Depends(require_admin)) -> dict:
+    """Live MCP health snapshot — last hourly pulse from Arya. Cheap (file read)."""
+    from app.platform import mcp_engineer
+
+    return mcp_engineer.health_score()
+
+
+@router.post("/api/admin/mcp/health/run", tags=["Platform"])
+async def admin_mcp_health_run(_user=Depends(require_admin)) -> dict:
+    """Trigger an on-demand MCP health pass. Returns the full report."""
+    from app.platform import mcp_engineer
+
+    return mcp_engineer.run_mcp()
+
+
+@router.get("/api/admin/mcp/audit", tags=["Platform"])
+async def admin_mcp_audit(_user=Depends(require_admin)) -> dict:
+    """One-shot security checklist — for /verify and pre-deploy gate."""
+    from app.platform import mcp_engineer
+
+    audit = mcp_engineer.audit_mcp_security()
+    rotation = mcp_engineer.rotation_due_keys()
+    return {"audit": audit, "rotation_due_keys": rotation}
+
+
 __all__ = ["router"]
