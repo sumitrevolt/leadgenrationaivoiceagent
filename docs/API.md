@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (875 operations)
+## Endpoint Index — auto-generated from OpenAPI (876 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -652,7 +652,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (10)
+### Customer Dashboard  (11)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
 - `POST  ` `/api/customer/approvals/{approval_id}/decide` — Customer Decide Approval
@@ -664,6 +664,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/routing` — Customer Routing Get
 - `POST  ` `/api/customer/routing` — Customer Routing Set
 - `GET   ` `/api/customer/speed-to-lead` — Customer Speed To Lead
+- `GET   ` `/api/customer/team` — Get Customer Team
 
 ### Customer Flows  (10)
 
