@@ -40,6 +40,14 @@ jobs:
         run: python -m compileall -q app scripts
       - name: Secret scan                 # MUST-PASS — no secrets in commit
         run: python scripts/check_secrets.py
+      - name: Security misconfig scan     # MUST-PASS — no misconfigurations in commit
+        run: python scripts/security_scan.py
+      - name: Queue idempotency audit     # MUST-PASS — all Celery tasks must have idempotency
+        run: python scripts/queue_idempotency_audit.py
+      - name: Type check (mypy)            # advisory — type errors track karo, block mat karo (abhi)
+        run: |
+          pip install mypy || true
+          mypy app --ignore-missing-imports --no-error-summary || true
       - name: Ruff lint (repo config)     # informational annotations (style debt block na kare)
         run: ruff check --output-format=github app || true
 
