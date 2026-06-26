@@ -1490,13 +1490,19 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     def _opener_cache_eligible(
         self, history: list[dict[str, str]] | None, ut: str
     ) -> bool:
-        """First-turn-only cache eligibility. Conservative gates so we never
-        serve a context-dependent line to the wrong call."""
+        """First-USER-turn-only cache eligibility. Conservative gates so we never
+        serve a context-dependent line to the wrong call. The bot's auto-greeting
+        sits in history as an assistant message BEFORE the first user reply —
+        so we count user messages, not total messages (else the cache would
+        never fire in practice — 2026-06-26 first-deploy bug)."""
         if not self._voice_response_cache_enabled():
             return False
-        if history:  # only the very first turn — no history = opener context
-            return False
         if not ut or len(ut) < 5:  # "haan"/"ok" too generic to safely match
+            return False
+        user_msgs = sum(
+            1 for m in (history or []) if (m.get("role") or "") == "user"
+        )
+        if user_msgs > 0:  # not the first user turn → context-bleed risk
             return False
         try:
             from app.cache.semantic_cache import is_enabled
