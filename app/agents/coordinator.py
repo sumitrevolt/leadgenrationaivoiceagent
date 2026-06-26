@@ -199,6 +199,14 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
     user = f"Goal: {goal}"
     if hint:
         user += f"\nPichhle learnings (inhe dhyan me rakho): {hint[:600]}"
+    # Inject obsidian second brain context (past decisions/patterns)
+    try:
+        from app.platform import obsidian_sync as _obs
+        _brain = _obs.brain_context(str(goal or ""))
+        if _brain:
+            user = user + "\n\n" + _brain
+    except Exception:
+        pass
     raw, _ = await _llm(sys, user, max_tokens=300, temperature=0.2)
     steps = [
         {"agent": s["agent"], "task": str(s["task"])[:240]}

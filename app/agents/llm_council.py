@@ -286,8 +286,24 @@ async def run_full_council(user_query: str) -> dict[str, Any]:
     if not any(m["provider"] == chairman[0] for m in members):
         chairman = (members[0]["provider"], members[0]["model"])
 
+    # Check past council verdicts (obsidian second brain)
+    _past_context = ""
     try:
-        stage1 = await stage1_collect_responses(user_query, members)
+        from app.platform import obsidian_sync as _obs
+
+        _past_context = _obs.brain_context(user_query, k=2)
+    except Exception:
+        pass
+
+    # Prepend past-verdict context to the query so every stage sees it
+    enriched_query = user_query
+    if _past_context:
+        enriched_query = (
+            f"[Past Council Context]\n{_past_context}\n\n[Current Question]\n{user_query}"
+        )
+
+    try:
+        stage1 = await stage1_collect_responses(enriched_query, members)
         if len(stage1) < _MIN_MEMBERS:
             return {
                 "ok": False,
@@ -296,10 +312,10 @@ async def run_full_council(user_query: str) -> dict[str, Any]:
                 "available_members": members,
             }
 
-        stage2, label_to_model = await stage2_collect_rankings(user_query, stage1, members)
+        stage2, label_to_model = await stage2_collect_rankings(enriched_query, stage1, members)
         aggregate = calculate_aggregate_rankings(stage2, label_to_model)
         stage3 = await stage3_synthesize_final(
-            user_query, stage1, stage2, chairman[0], chairman[1]
+            enriched_query, stage1, stage2, chairman[0], chairman[1]
         )
 
         # Obsidian second-brain — write verdict to Decisions/ (INERT if OBSIDIAN_SYNC unset).

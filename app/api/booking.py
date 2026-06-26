@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from app.api.ratelimit import rate_limit
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -36,20 +37,23 @@ def _ser(obj: Any) -> Any:
         return str(obj)
 
 
-@router.get("/slots")
-async def get_slots(date: str = "", duration_min: int = 15):
+@router.get("/slots", dependencies=[Depends(rate_limit("booking_slots", 30, 60))])
+async def get_slots(
+    date: str = Query("", max_length=10),
+    duration_min: int = Query(15, ge=5, le=120),
+):
     """Free appointment slots for a date (YYYY-MM-DD; empty = next working day)."""
     try:
         from app.integrations.calendar_booking import get_calendar
 
         cal = get_calendar()
         slots = await cal.check_availability(
-            date or None, duration_min=max(5, min(int(duration_min), 120))
+            date or None, duration_min=duration_min
         )
         return {"date": date, "slots": [_ser(s) for s in (slots or [])]}
     except Exception as e:
         logger.error(f"booking slots failed: {e}")
-        raise HTTPException(status_code=500, detail=f"slots failed: {e}")
+        raise HTTPException(status_code=503, detail="Slots abhi available nahi — baad me try karo.")
 
 
 class BookIn(BaseModel):
@@ -59,7 +63,7 @@ class BookIn(BaseModel):
     notes: str = Field("", max_length=400)
 
 
-@router.post("/book")
+@router.post("/book", dependencies=[Depends(rate_limit("booking_book", 10, 60))])
 async def book_slot(req: BookIn):
     """Book a slot returned by /slots. Returns the booking confirmation."""
     try:
@@ -98,16 +102,18 @@ async def book_slot(req: BookIn):
         except Exception:
             pass
         return _ser(res)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"booking book failed: {e}")
-        raise HTTPException(status_code=500, detail=f"book failed: {e}")
+        raise HTTPException(status_code=503, detail="Booking abhi possible nahi — baad me try karo.")
 
 
 class CancelIn(BaseModel):
     booking_id: str = Field(..., min_length=1, max_length=80)
 
 
-@router.post("/cancel")
+@router.post("/cancel", dependencies=[Depends(rate_limit("booking_cancel", 10, 60))])
 async def cancel_booking(req: CancelIn):
     try:
         from app.integrations.calendar_booking import get_calendar
@@ -115,5 +121,8 @@ async def cancel_booking(req: CancelIn):
         cal = get_calendar()
         ok = await cal.cancel(req.booking_id)
         return {"ok": bool(ok), "booking_id": req.booking_id}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"cancel failed: {e}")
+        logger.error(f"booking cancel failed: {e}")
+        raise HTTPException(status_code=503, detail="Cancel abhi possible nahi — baad me try karo.")

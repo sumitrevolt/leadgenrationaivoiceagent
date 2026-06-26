@@ -182,6 +182,21 @@ def health() -> dict[str, Any]:
     backlogged = (
         q.get("celery", -1) > QUEUE_BACKLOG_ALERT or q.get("heavy", -1) > QUEUE_BACKLOG_ALERT
     )
+    # Obsidian staging health
+    _obs_ok = False
+    _obs_detail = "OBSIDIAN_SYNC not enabled"
+    try:
+        from pathlib import Path
+        if os.getenv("OBSIDIAN_SYNC", "0") in ("1", "true"):
+            _vault = Path("data/obsidian_staging")
+            if _vault.exists():
+                _files = list(_vault.rglob("*.md"))
+                _obs_ok = len(_files) > 0
+                _obs_detail = f"{len(_files)} notes in staging"
+            else:
+                _obs_detail = "staging dir missing"
+    except Exception as e:
+        _obs_detail = str(e)[:100]
     return {
         "status": (
             "degraded" if (overdue or backlogged) else ("warming_up" if never_ran else "healthy")
@@ -191,6 +206,7 @@ def health() -> dict[str, Any]:
         "queue": q,
         "queue_backlogged": backlogged,
         "jobs": jobs,
+        "obsidian_sync": {"ok": _obs_ok, "detail": _obs_detail},
         "at": _now().isoformat(timespec="seconds"),
     }
 

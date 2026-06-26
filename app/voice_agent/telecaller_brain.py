@@ -482,6 +482,15 @@ class TelecallerBrain:
                     self.system_prompt += f"\n\nTRAINER NOTE (Meera):\n{hint}"
         except Exception:
             pass
+        # Obsidian brain: past call patterns for this niche
+        try:
+            from app.platform import obsidian_sync as _obs
+
+            _niche_ctx = _obs.brain_context(f"{self.niche or ''} voice call qualification", k=2)
+            if _niche_ctx:
+                self.system_prompt = self.system_prompt + "\n\n" + _niche_ctx
+        except Exception:
+            pass
         logger.info(
             f"[telecaller-brain] ready niche={self.niche} role={self.voice_role} "
             f"model={self.model} gemini_keys={self._key_count()} "
