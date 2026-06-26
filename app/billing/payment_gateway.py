@@ -156,26 +156,22 @@ class StripeGateway(PaymentGatewayBase):
             # Convert amount to cents/paisa
             amount_minor = int(round(amount * 100))
 
+            is_subscription = "subscription" in (metadata or {}).get("type", "")
+            price_data: dict[str, Any] = {
+                "currency": currency.lower(),
+                "product_data": {"name": f"Plan: {plan_id}"},
+                "unit_amount": amount_minor,
+            }
+            if is_subscription:
+                # Stripe rejects a subscription-mode Checkout Session unless the line
+                # item carries a recurring interval (BILL-001 council fix 2026-06-26).
+                price_data["recurring"] = {"interval": "month"}
+
             session = self.client.checkout.Session.create(
                 customer=customer_id,
                 payment_method_types=["card"],
-                line_items=[
-                    {
-                        "price_data": {
-                            "currency": currency.lower(),
-                            "product_data": {
-                                "name": f"Plan: {plan_id}",
-                            },
-                            "unit_amount": amount_minor,
-                        },
-                        "quantity": 1,
-                    }
-                ],
-                mode=(
-                    "subscription"
-                    if "subscription" in (metadata or {}).get("type", "")
-                    else "payment"
-                ),
+                line_items=[{"price_data": price_data, "quantity": 1}],
+                mode="subscription" if is_subscription else "payment",
                 success_url=success_url,
                 cancel_url=cancel_url,
                 metadata=metadata or {},

@@ -109,6 +109,11 @@ def check_routes() -> None:
         "/health",
         "/api/leads",
         "/api/data/niches",
+        # Revenue-critical API surfaces — a silently-guarded router import failure
+        # (main.py logs only logger.warning) would drop these with no other signal
+        # and still pass every gate (API-001). These are guarded mounts.
+        "/api/billing/plans",
+        "/api/customer/auth/login",
         "/app/test-call",
         "/app/customer",
         "/app/admin",
@@ -118,6 +123,18 @@ def check_routes() -> None:
     for exp in expected:
         if not any(p == exp or p.startswith(exp + "/") or p.startswith(exp) for p in paths):
             PROBLEMS.append(f"ROUTE MISSING: {exp}")
+
+    # Duplicate (method, path) collisions — FastAPI first-route-wins silently
+    # shadows the later registration; nothing else catches it (API-002).
+    seen_mp: dict = {}
+    for r in app.routes:
+        rp = getattr(r, "path", "")
+        for m in getattr(r, "methods", None) or set():
+            seen_mp[(m, rp)] = seen_mp.get((m, rp), 0) + 1
+    for (m, rp), n in seen_mp.items():
+        if n > 1:
+            PROBLEMS.append(f"DUPLICATE ROUTE: {m} {rp} registered {n}x (first-route-wins shadow)")
+
     print(f"[4/6] routes checked ({len(paths)} registered)")
 
 
@@ -199,6 +216,13 @@ def check_production_config() -> None:
     import os as _os
     if _os.environ.get("CONSENT_DB") in ("1", "true", "yes") and not _os.environ.get("DATABASE_URL"):
         PROBLEMS.append("CONFIG: CONSENT_DB=1 but DATABASE_URL unset — compliance risk (opt-outs won't persist)")
+    # TRAI DND gate must stay fail-CLOSED. DND_FAIL_OPEN turns it fail-OPEN
+    # (promotional calls to DND-unverified numbers go through) — never legitimate
+    # in prod (TC-002). Flag it wherever it is set.
+    if _os.environ.get("DND_FAIL_OPEN") in ("1", "true", "True", "yes"):
+        PROBLEMS.append(
+            "COMPLIANCE: DND_FAIL_OPEN is set — TRAI DND gate is fail-OPEN. Unset it."
+        )
     if settings.app_env == "production":
         if settings.debug:
             PROBLEMS.append("CONFIG: debug=True in production")

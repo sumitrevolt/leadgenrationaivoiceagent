@@ -192,6 +192,16 @@ def _provision_usage(
     except Exception as e:  # pragma: no cover - defensive
         logger.debug(f"invoice hook skipped for {client_id}: {e}")
 
+    # Dunning: a successful pay/renew closes any open recovery case — else cases
+    # stay open forever (BILL-002 council fix). Best-effort, never raises.
+    try:
+        if client_id:
+            from app.billing import dunning
+
+            dunning.mark_recovered(client_id)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug(f"dunning mark_recovered skipped for {client_id}: {e}")
+
 
 # =============================================================================
 # Request/Response Models

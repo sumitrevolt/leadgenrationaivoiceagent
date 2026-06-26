@@ -266,6 +266,31 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         logger.warning(f"loop_supervisor not started: {_e}")
 
+    # Post-startup critical-route sweep (API-001). A silently-guarded router import
+    # failure only logs logger.warning; this surfaces a missing revenue-critical
+    # route with an ERROR + ntfy so a bad deploy can't drop billing/login unnoticed.
+    try:
+        _critical = ["/api/billing/plans", "/api/customer/auth/login", "/api/data/niches"]
+        _registered = {getattr(r, "path", "") for r in app.routes}
+        _missing = [p for p in _critical if not any(rp == p or rp.startswith(p) for rp in _registered)]
+        if _missing:
+            logger.error(f"❌ CRITICAL routes missing after startup: {_missing}")
+            try:
+                from app.platform import ops_alerts
+
+                ops_alerts._ntfy(
+                    "Critical routes missing",
+                    f"Router import silently failed — missing: {', '.join(_missing)}",
+                    priority="high",
+                    tags=["rotating_light"],
+                )
+            except Exception:
+                pass
+        else:
+            logger.info("✅ Critical route sweep OK")
+    except Exception as _sweep_e:
+        logger.warning(f"Critical route sweep skipped: {_sweep_e}")
+
     yield
 
     # Shutdown
@@ -337,6 +362,19 @@ try:
     app.add_middleware(PostHogInjectMiddleware)
 except Exception as _ph_e:  # pragma: no cover
     logger.warning(f"PostHog inject middleware skipped: {_ph_e}")
+
+# HTTP request/latency metrics for Prometheus (OBS-001). Pure-ASGI, fail-open,
+# WebSocket-safe. OFF unless PROMETHEUS_HTTP_METRICS=1 (additive rollout) — keeps
+# the metric surface and request path unchanged until explicitly enabled.
+try:
+    from app.middleware.http_metrics import HttpMetricsMiddleware
+    from app.middleware.http_metrics import enabled as _http_metrics_enabled
+
+    if _http_metrics_enabled():
+        app.add_middleware(HttpMetricsMiddleware)
+        logger.info("✅ HTTP metrics middleware enabled (PROMETHEUS_HTTP_METRICS)")
+except Exception as _hm_e:  # pragma: no cover
+    logger.warning(f"HTTP metrics middleware skipped: {_hm_e}")
 
 
 # Include API routers

@@ -29,8 +29,10 @@ Config (env, all optional with safe defaults):
   COMPLIANCE_PROMO_END    promotional window end,   "HH:MM" IST (default 19:00)
   COMPLIANCE_TXN_START    transactional window start (default 09:00)
   COMPLIANCE_TXN_END      transactional window end   (default 21:00)
-  DND_FAIL_OPEN           "1" to treat a failed DND lookup as "not on DND"
-                         (use when Exotel KYC is pending and you accept the risk)
+  DND_FAIL_OPEN           "1" to treat a failed DND lookup as "not on DND".
+                         DANGER: this turns the TRAI DND gate fail-OPEN. There is NO
+                         legitimate prod use — keep UNSET (default = fail-CLOSED).
+                         prod_check.py emits a BLOCKER if it is set in production.
   (caller-id is read from settings.vobiz_caller_id, else VOBIZ_CALLER_ID env)
 
 Usage:

@@ -29,7 +29,8 @@ if errorlevel 1 (
 "%SSH%" -i "%KEY%" -o BatchMode=yes %HOST% "set -o pipefail; cd /opt/leadgen && git fetch --all -q && git reset --hard origin/main -q && docker compose -f docker-compose.vps.yml build app && docker compose -f docker-compose.vps.yml up -d --no-deps app worker && sleep 22 && curl -sf http://127.0.0.1:8000/health" >> "%LOG%" 2>&1
 if errorlevel 1 goto fail
 
-"%SSH%" -i "%KEY%" -o BatchMode=yes %HOST% "cd /opt/leadgen && python3 scripts/env_set.py VOBIZ_CALL_RECORD=1 AUTO_QUALIFY_CALLS=1 DND_CARRIER_SCRUB=1 DND_FAIL_OPEN=1 && docker compose -f docker-compose.vps.yml up -d --no-deps --force-recreate app worker && sleep 20" >> "%LOG%" 2>&1
+REM NOTE: DND_FAIL_OPEN=1 removed (TC-002) — it turns the TRAI DND gate fail-OPEN; never set in prod.
+"%SSH%" -i "%KEY%" -o BatchMode=yes %HOST% "cd /opt/leadgen && python3 scripts/env_set.py VOBIZ_CALL_RECORD=1 AUTO_QUALIFY_CALLS=1 DND_CARRIER_SCRUB=1 && docker compose -f docker-compose.vps.yml up -d --no-deps --force-recreate app worker && sleep 20" >> "%LOG%" 2>&1
 
 "%SSH%" -i "%KEY%" -o BatchMode=yes %HOST% "docker exec leadgen_app python3 scripts/voice_learn_from_calls.py --call-limit 1 --platform --wait 180 --limit 2" >> "%LOG%" 2>&1
 
