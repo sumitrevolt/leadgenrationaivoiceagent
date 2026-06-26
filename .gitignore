@@ -192,6 +192,9 @@ scripts/_debug/
 prod_check_out.txt
 deploy_filler_out.txt
 
+# MCP one-shot temp scripts (auto-generated, do not commit)
+scripts/_mcp_*
+
 # One-shot Gemini/Vertex deploy scripts + empty debug artifacts (ROOT-level only;
 # scripts/*.bat stay tracked). Negate the two legit tracked root .bat files.
 /*.bat
