@@ -1607,6 +1607,20 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             facts.append(t)
             if len(facts) >= _KB_TOP_K:
                 break
+        # Agentic RAG fallback: plain retrieve ne kuch nahi diya + USE_AGENTIC_RAG=1
+        if not facts and os.environ.get("USE_AGENTIC_RAG", "").strip() in ("1", "true", "yes", "on"):
+            try:
+                from app.agents.agentic_rag import get_agentic_rag
+
+                primary_ns = namespaces[0] if namespaces else "default"
+                ar = await asyncio.wait_for(
+                    get_agentic_rag().answer(ut, namespace=primary_ns, k=_KB_TOP_K),
+                    timeout=8.0,
+                )
+                if isinstance(ar, dict) and ar.get("grounded") and (ar.get("answer") or "").strip():
+                    facts = [(ar["answer"] or "").strip()]
+            except Exception:
+                pass
         return facts
 
     # ------------------------------------------------------------------ #

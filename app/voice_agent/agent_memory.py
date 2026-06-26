@@ -579,6 +579,81 @@ async def purge_subject(
         return {"purged": 0, "error": str(e)[:120]}
 
 
+# --- session-scoped ephemeral memory (Redis TTL, no Qdrant) -----------------
+# Working memory for one call/session — auto-expires, never writes to Qdrant.
+# Gated by SESSION_MEMORY=1 (separate from AGENT_MEMORY cross-session durable store).
+
+
+def is_session_memory_enabled() -> bool:
+    return (os.getenv("SESSION_MEMORY", "") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _session_ttl() -> int:
+    try:
+        return int(os.getenv("SESSION_MEMORY_TTL", "7200") or 7200)
+    except Exception:
+        return 7200
+
+
+def _redis_session_key(session_id: str) -> str:
+    return f"session_mem:{str(session_id).strip()}"
+
+
+async def session_remember(session_id: str, fact: str) -> bool:
+    """Store ephemeral fact for this session. Auto-expires in SESSION_MEMORY_TTL seconds (default 2h).
+    Best-effort — never raises."""
+    if not is_session_memory_enabled() or not fact or not session_id:
+        return False
+    fact = (fact or "").strip()[:400]
+    if _is_injection_like(fact):
+        return False
+    try:
+        from app.cache import get_cache_redis_client
+
+        r = await get_cache_redis_client()
+        key = _redis_session_key(session_id)
+        await asyncio.wait_for(r.hset(key, str(uuid.uuid4())[:8], fact), 0.5)
+        await asyncio.wait_for(r.expire(key, _session_ttl()), 0.3)
+        return True
+    except Exception as e:
+        logger.debug("session_remember skipped: %s", e)
+        return False
+
+
+async def session_recall(session_id: str) -> list[str]:
+    """Recall all ephemeral facts for this session. [] on error or if disabled."""
+    if not is_session_memory_enabled() or not session_id:
+        return []
+    try:
+        from app.cache import get_cache_redis_client
+
+        r = await get_cache_redis_client()
+        data = await asyncio.wait_for(r.hgetall(_redis_session_key(session_id)), 0.5)
+        facts = []
+        for v in (data or {}).values():
+            s = str(v).strip()
+            if s and not _is_injection_like(s):
+                facts.append(s)
+        return facts
+    except Exception as e:
+        logger.debug("session_recall skipped: %s", e)
+        return []
+
+
+async def session_cleanup(session_id: str) -> bool:
+    """Purge all ephemeral session memory on session end. Best-effort."""
+    if not session_id:
+        return False
+    try:
+        from app.cache import get_cache_redis_client
+
+        r = await get_cache_redis_client()
+        await asyncio.wait_for(r.delete(_redis_session_key(session_id)), 0.5)
+        return True
+    except Exception:
+        return False
+
+
 __all__ = [
     "is_enabled",
     "recall",
@@ -588,4 +663,8 @@ __all__ = [
     "stats",
     "list_facts",
     "purge_subject",
+    "is_session_memory_enabled",
+    "session_remember",
+    "session_recall",
+    "session_cleanup",
 ]

@@ -30,7 +30,7 @@ ALERT_THRESHOLDS = {
 def _redis_client():
     try:
         import redis as _redis
-        url = os.environ.get("REDIS_URL", "redis://localhost:6379")
+        url = os.environ.get("REDIS_URL", "redis://redis:6379")
         return _redis.from_url(url, decode_responses=True)
     except Exception:
         return None
