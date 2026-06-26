@@ -41,7 +41,12 @@ IDEM_PATTERNS = [
 def find_celery_tasks() -> list[tuple[str, int, str, str]]:
     """Return list of (file, line, task_name, line_text)."""
     tasks: list[tuple[str, int, str, str]] = []
+    # Exclude virtual-env and installed-package directories so celery builtins
+    # don't inflate gap counts.
+    _EXCLUDE_PARTS = {".venv", "venv", "site-packages", "__pypackages__"}
     for py_file in ROOT.rglob("app/**/*.py"):
+        if any(p in py_file.parts for p in _EXCLUDE_PARTS):
+            continue
         if not py_file.is_file():
             continue
         try:
@@ -91,6 +96,14 @@ def has_idempotency(file_path: str, func_name: str) -> bool:
 
     if func_line < 0:
         return False
+
+    # Also scan the decorator lines sitting above the `def` (up to 10 lines back).
+    # This correctly detects `@idempotent_task(...)` decorators on tasks in
+    # staff_jobs.py and brain_training.py that were previously counted as gaps.
+    decorator_lines = lines[max(0, func_line - 10):func_line]
+    decorator_text = "\n".join(decorator_lines)
+    if any(p.search(decorator_text) for p in IDEM_PATTERNS):
+        return True
 
     # Extract body (simple indentation-based extraction, up to next same-level def or class)
     base_indent = len(lines[func_line]) - len(lines[func_line].lstrip())

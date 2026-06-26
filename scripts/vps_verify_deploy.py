@@ -8,6 +8,10 @@ git-pulled checkout). Never mutates anything.
 """
 import importlib.util as u
 import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 def spec(name: str) -> bool:
@@ -26,6 +30,18 @@ print("reranker          :", spec("app.ml.reranker"))
 # Dockerfile-baked deps (only present if the image was REBUILT, not just recreated)
 print("kokoro pkg baked  :", spec("kokoro"))
 print("pipecat baked     :", spec("pipecat"))
+# Runtime skill sources (only present if Dockerfile baked project skill dirs)
+try:
+    from app.platform import skill_pack
+
+    skills = skill_pack.list_skills()
+    sources = {s.get("source") for s in skills}
+    print("skills total      :", len(skills))
+    print("skills source project:", "project" in sources)
+    print("skills source agents :", "agents" in sources)
+    print("skills source extra  :", "extra" in sources)
+except Exception as e:
+    print("skills sources    :", "ERR", e)
 # numpy/sklearn drift that Cursor's f674f6c fixed — confirm no breakage
 try:
     import numpy, sklearn, scipy  # noqa

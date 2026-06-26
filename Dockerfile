@@ -84,6 +84,10 @@ COPY --chown=appuser:appgroup frontend/ ./frontend/
 # Copy data directory structure (empty dirs ok, .dockerignore handles exclusions)
 COPY --chown=appuser:appgroup data/ ./data/
 
+# Copy project skills for runtime agent skill_pack
+COPY --chown=appuser:appgroup .claude/skills/ ./.claude/skills/
+COPY --chown=appuser:appgroup .agents/skills/ ./.agents/skills/
+
 # Ensure proper ownership
 RUN chown -R appuser:appgroup /app
 

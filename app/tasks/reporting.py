@@ -113,7 +113,11 @@ def _get_notification_recipients(db) -> dict[str, list[str]]:
 @shared_task
 def generate_daily_report():
     """
-    Generate and send daily report
+    Generate and send daily report.
+
+    # idempotency: read-only DB aggregation (no mutations); duplicate runs produce
+    # the same report for the same date — safe to re-run. Notification dedup is
+    # at recipient level (email/WA already-sent check in EmailSender/WhatsApp).
     """
     logger.info("Generating daily report")
 
@@ -170,7 +174,10 @@ Keep crushing it! 🚀"""
 @shared_task
 def generate_weekly_report():
     """
-    Generate and send weekly report
+    Generate and send weekly report.
+
+    # idempotency: read-only DB aggregation — no side-effecting mutations;
+    # duplicate runs produce identical stats for the same week window, safe to retry.
     """
     logger.info("Generating weekly report")
 
@@ -253,7 +260,10 @@ def generate_weekly_report():
 @shared_task
 def generate_monthly_report(year: int = None, month: int = None):
     """
-    Generate monthly report
+    Generate monthly report.
+
+    # idempotency: read-only DB aggregation keyed on (year, month) — no mutations;
+    # duplicate runs for the same month produce identical output, safe to retry.
     """
     now = datetime.now()
     year = year or now.year
@@ -328,7 +338,10 @@ def generate_monthly_report(year: int = None, month: int = None):
 @shared_task
 def clean_old_logs(days: int = 30):
     """
-    Clean log files older than specified days
+    Clean log files older than specified days.
+
+    # idempotency: already-deleted folders are skipped (os.path.exists guard);
+    # duplicate runs are safe — absent files produce no error, cutoff window is stable.
     """
     logger.info(f"Cleaning logs older than {days} days")
 
@@ -359,7 +372,11 @@ def clean_old_logs(days: int = 30):
 @shared_task
 def export_campaign_report(campaign_id: str, format: str = "csv"):
     """
-    Export campaign data to file
+    Export campaign data to file.
+
+    # idempotency: read-only query on campaign_id; output file uses timestamp suffix
+    # to avoid collision. Duplicate task runs produce separate timestamped files
+    # (idempotent from a data-mutation standpoint — no DB writes).
     """
     logger.info(f"Exporting campaign {campaign_id} to {format}")
 
@@ -504,7 +521,11 @@ async def run_social_autopost(limit: int = 20) -> dict[str, Any]:
 
 @shared_task
 def social_autopost_task(limit: int = 20):
-    """Celery entrypoint for the social auto-poster (wraps the async core)."""
+    """Celery entrypoint for the social auto-poster (wraps the async core).
+
+    # idempotency: run_social_autopost marks posted items 'posted' before returning;
+    # duplicate runs skip already-posted items (status != 'ready') — safe to retry.
+    """
     try:
         return asyncio.run(run_social_autopost(limit))
     except RuntimeError:

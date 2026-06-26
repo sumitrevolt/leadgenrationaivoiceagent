@@ -65,6 +65,14 @@ ADMIN_PATHS = [
     "/api/admin/queues",
     "/api/admin/health",
     "/api/admin/settings",
+    # High-sensitivity endpoints added to catch missing-auth regressions (batch 3)
+    "/api/admin/revenue-analytics",
+    "/api/admin/upi/pending",
+    "/api/admin/upi/configure",
+    "/api/admin/voice/gemini-keys",
+    "/api/admin/trust/configure-turnstile",
+    "/api/admin/trust/configure-sentry",
+    "/api/admin/db/tables",
 ]
 
 

@@ -164,3 +164,61 @@ groups:
         annotations:
           summary: "No restore-drill in >40 days"
           description: "Monthly restore-drill cron band ho sakta — DR confidence verify karo."
+
+  # ---------------------------------------------------------------------------
+  # CELERY — queue backlog, DLQ growth, worker availability.
+  # Metrics sources:
+  #   leadgen_celery_queue_depth  — health.py queue_depth() gauge (app /metrics)
+  #   celery_workers_online       — celery-exporter :9808 (docker-compose.addons.yml)
+  # ---------------------------------------------------------------------------
+  - name: celery
+    rules:
+      - alert: CeleryQueueBacklog
+        expr: leadgen_celery_queue_depth{queue="celery"} > 100
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Celery main queue backlog > 100 tasks (5m)"
+          description: "Redis `celery` list depth {{ $value }} — worker concurrency kam ya tasks stuck. `redis-cli llen celery` + Flower :5555 dekho."
+
+      - alert: CeleryDLQNonEmpty
+        expr: leadgen_celery_queue_depth{queue="dlq:failed_tasks"} > 3
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "Celery DLQ has > 3 failed tasks (5m)"
+          description: "Dead-letter queue `dlq:failed_tasks` depth {{ $value }} — tasks permanently failing. `scripts/queue_idempotency_audit.py` + worker logs dekho."
+
+      - alert: CeleryWorkerDown
+        expr: celery_workers_online == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "No Celery workers online (2m)"
+          description: "celery-exporter (:9808) reports 0 online workers — `leadgen_worker` container down ya broker unreachable. `docker compose ps worker` + `redis-cli ping` karo."
+
+  # ---------------------------------------------------------------------------
+  # LLM PROVIDER HEALTH — metrics emitted by app/platform/health.py (lines
+  # 362-387). Alerts fire before voice calls start silently failing due to
+  # provider exhaustion / chain-level fallback saturation.
+  # openrouter excluded from per-provider alert (multi-key pool, ok_rate noisy).
+  # ---------------------------------------------------------------------------
+  - name: llm
+    rules:
+      - alert: LLMProviderDegraded
+        expr: |
+          leadgen_llm_provider_ok_rate{provider!~"openrouter.*"} < 0.5
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "LLM provider {{ $labels.provider }} ok_rate < 50% (10m)"
+          description: "Provider {{ $labels.provider }} half se zyada requests fail kar raha — circuit-breaker active ya quota near-exhausted. free_ai.py chain log dekho; voice/marketing quality degrade ho sakti hai."
+
+      - alert: LLMChainDegraded
+        expr: |
+          leadgen_llm_fallback_rate > 0.5
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "LLM fallback_rate > 50% (5m) — chain under stress"
+          description: "Primary providers zyada fail ho rahe hain; chain tail-providers (NVIDIA NIM / OpenRouter) pe shift ho rahi hai. Voice calls silently degrade honge. free_ai.py provider health + /api/platform/health dekho."

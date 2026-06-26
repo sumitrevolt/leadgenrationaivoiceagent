@@ -126,6 +126,74 @@ def test_selfimprove_execute_error_never_raises(tmp_path, monkeypatch):
     assert "engine down" in out["detail"]
 
 
+def test_study_skills_sweep_round_robins_all_skills(tmp_path, monkeypatch):
+    si = _patch_stores(monkeypatch, tmp_path)
+    from app.platform import skill_library as sl
+    from app.platform import skill_pack
+    from app.voice_agent import free_ai
+
+    skills = [
+        {"name": "alpha", "description": "Alpha discipline", "source": "project", "chars": 10},
+        {"name": "beta", "description": "Beta discipline", "source": "project", "chars": 10},
+    ]
+
+    monkeypatch.setattr(skill_pack, "enabled", lambda: True)
+    monkeypatch.setattr(skill_pack, "list_skills", lambda: skills)
+    monkeypatch.setattr(skill_pack, "find", lambda *a, **k: [{"name": "alpha"}])
+    monkeypatch.setattr(
+        skill_pack,
+        "load",
+        lambda name: {
+            "name": name,
+            "description": f"{name} discipline",
+            "text": f"# {name}\nUse {name} safely.",
+        },
+    )
+
+    async def fake_chat(system, messages, **kw):
+        return ("Apply the selected skill in a bounded, verified way.", "mock")
+
+    monkeypatch.setattr(free_ai, "chat", fake_chat)
+
+    first = asyncio.run(si._study_skills("use all skills one by one in loop"))
+    second = asyncio.run(si._study_skills("use all skills one by one in loop"))
+
+    assert first["ok"] is True and "alpha" in first["detail"]
+    assert second["ok"] is True and "beta" in second["detail"]
+    topics = [r["topic"] for r in sl.lessons(limit=5)]
+    assert "skill:alpha" in topics
+    assert "skill:beta" in topics
+
+
+def test_skill_sweep_action_executes_round_robin(tmp_path, monkeypatch):
+    si = _patch_stores(monkeypatch, tmp_path)
+    from app.platform import skill_pack
+
+    skills = [
+        {"name": "alpha", "description": "Alpha discipline", "source": "project", "chars": 10},
+        {"name": "beta", "description": "Beta discipline", "source": "project", "chars": 10},
+    ]
+
+    monkeypatch.setattr(skill_pack, "enabled", lambda: True)
+    monkeypatch.setattr(skill_pack, "list_skills", lambda: skills)
+    monkeypatch.setattr(
+        skill_pack,
+        "load",
+        lambda name: {
+            "name": name,
+            "description": f"{name} discipline",
+            "text": f"# {name}\nUse {name} safely.",
+        },
+    )
+
+    assert "skill_sweep" in si.ACTIONS
+    first = asyncio.run(si._execute("skill_sweep", "ignored"))
+    second = asyncio.run(si._execute("skill_sweep", "ignored"))
+
+    assert first["ok"] is True and "alpha" in first["detail"]
+    assert second["ok"] is True and "beta" in second["detail"]
+
+
 def test_reflect_grounds_on_prior_lessons_and_winning_traces(tmp_path, monkeypatch):
     """_reflect() ab (a) loop ke apne purane self_improve lessons aur (b) best trajectory
     replay-hints ko reflection digest me feed karta — dono pehle dormant loops the

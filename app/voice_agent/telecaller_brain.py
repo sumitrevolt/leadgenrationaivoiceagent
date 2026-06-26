@@ -86,6 +86,58 @@ _UNIVERSAL_CLOSE = [
     "Aapki baat clear hai sir — ek next-step call rakhte hain, aaj ya kal convenient?",
 ]
 
+# ---------------------------------------------------------------------------
+# Prompt-injection guard for real-time caller utterances
+# ---------------------------------------------------------------------------
+# Duplicated (not imported) from agent_memory._INJECTION_MARKERS so this module
+# stays import-safe and free from circular-dep risk.  Keep in sync manually if
+# agent_memory list grows.
+_INJECTION_MARKERS = (
+    "ignore previous",
+    "ignore all",
+    "disregard previous",
+    "forget previous",
+    "system prompt",
+    "your instructions",
+    "reveal your",
+    "disclose all",
+    "pretend to be",
+    "act as",
+    "you are now",
+    "developer mode",
+    "jailbreak",
+    "override your",
+    "bypass your",
+    "new instructions",
+    "tum ab",
+    "purane instructions bhul",
+)
+
+_MAX_UTTERANCE_CHARS = 500  # hard cap — prevents context-stuffing via long payloads
+
+
+def _sanitize_utterance(ut: str) -> str:
+    """Strip prompt-injection markers from a caller utterance before it enters
+    the LLM prompt.  Three layers:
+      1. Truncate to _MAX_UTTERANCE_CHARS (prevents context-stuffing).
+      2. Replace each injection marker (case-insensitive) with [...]
+         so the surrounding words remain for fluency but the directive is gone.
+      3. Return the cleaned string (never raises — returns '' on any edge-case).
+    """
+    if not ut:
+        return ""
+    ut = ut[:_MAX_UTTERANCE_CHARS]
+    low = ut.lower()
+    for marker in _INJECTION_MARKERS:
+        if marker in low:
+            # Case-insensitive replacement preserving surrounding text
+            pattern = re.compile(re.escape(marker), re.IGNORECASE)
+            ut = pattern.sub("[...]", ut)
+            low = ut.lower()  # re-check on updated string
+    return ut
+
+
+# ---------------------------------------------------------------------------
 _MAX_HISTORY_TURNS = 8  # last ~8 turns to keep prompt (and latency) small
 _GEN_CONFIG = {
     "temperature": 0.45,
@@ -1483,7 +1535,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 lines.append(f"{role}: {content}")
         # history me aakhri user msg already ho sakta hai (vobiz_stream appends
         # before _think) — duplicate mat karo.
-        ut = (user_text or "").strip()
+        # Sanitize first: strip prompt-injection markers + enforce length cap
+        # before the utterance enters the LLM context window.
+        ut = _sanitize_utterance((user_text or "").strip())
         if ut and not (
             turns
             and turns[-1].get("role") == "user"

@@ -214,4 +214,9 @@ AUTOMATION_FLAGS = [
     # --- Admin DB Explorer (council 2026-06-25, Supabase-Studio alternative) ---
     "ADMIN_DB_EXPLORER",  # super-admin READ-ONLY DB browser + CSV export on OUR Postgres
     # (/api/admin/db/* + /app/admin/db); sensitive cols redacted, no edit. OFF default → 503.
+    # --- Voice STT + LLM flags (live on VPS, now visible in dashboard) ---
+    "HINGLISH_STT",  # local Hinglish whisper model (baked, WEBCALL_STT_LOCAL_FIRST=1 saath)
+    "WEBCALL_STT_LOCAL_FIRST",  # web-call STT uses local Hinglish model before Groq
+    "VOICE_GEMINI_PRIMARY",  # voice brain uses Gemini 2.5-flash-lite as primary LLM (voice-scoped)
+    "BARGE_GUARD",  # cough/backchannel false-stop guard for barge-in detection
 ]

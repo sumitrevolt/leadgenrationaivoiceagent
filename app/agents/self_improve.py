@@ -23,6 +23,7 @@ Import-safe, kabhi raise nahi.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import time
@@ -181,6 +182,7 @@ ACTIONS: dict[str, tuple[bool, str]] = {
     "campaign_optimize": (True, "Kiran campaign optimization (proposals + bandit + voice eval)"),
     "reflection": (True, "recent runs pe LLM reflection → lesson save"),
     "study_skills": (True, "project skill padh ke lesson nikalo (skill_pack → skill_library)"),
+    "skill_sweep": (True, "project skills ko stable round-robin me one-by-one study karo"),
     "code_scan": (False, "observability signals se code-upgrade proposals (Vikram, gated)"),
     "voice_eval": (False, "voice agent persona eval smoke (Swara/Arjun, gated VOICE_EVAL_AUTO)"),
     "voice_learn": (True, "real call transcripts analyze → voice lesson (brain consume, compound)"),
@@ -214,7 +216,7 @@ _STAGE_ACTIONS = {
         "rescore_pipeline",
     ],
     "retention": ["revenue_sweep", "content_pack"],
-    "scale": ["optimizer", "campaign_optimize", "channel_experiments", "harvest_leads", "study_skills"],
+    "scale": ["optimizer", "campaign_optimize", "channel_experiments", "harvest_leads", "skill_sweep"],
 }
 
 
@@ -401,6 +403,8 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         return await _reflect()
     if action == "study_skills":
         return await _study_skills(task)
+    if action == "skill_sweep":
+        return await _study_skills("skill sweep all skills one by one")
     if action == "code_scan":
         from app.agents import code_upgrader
 
@@ -535,7 +539,7 @@ async def _voice_learn() -> dict[str, Any]:
             from app.platform import skill_library
 
             skill_library.record_use(
-                "voice_learn", True, f"mean={mean} n={n} clean", agent="arjun"
+                "voice_learn", False, f"mean={mean} n={n} clean", agent="arjun"
             )
         except Exception:
             pass
@@ -584,7 +588,7 @@ async def _voice_learn() -> dict[str, Any]:
 
         skill_library.record_lesson(topic, lesson, source="voice_learn", agent="meera")
         skill_library.record_use(
-            "voice_learn", False, f"weak {call_id[:10]} score={target.get('score')}", agent="arjun"
+            "voice_learn", True, f"weak {call_id[:10]} score={target.get('score')}", agent="arjun"
         )
     except Exception:
         pass
@@ -613,15 +617,21 @@ async def _study_skills(task: str) -> dict[str, Any]:
     if not skill_pack.enabled():
         return {"ok": True, "detail": "SKILL_PACK off (skip)"}
 
-    hits = skill_pack.find(task or "marketing leads growth", k=1)
-    name = hits[0]["name"] if hits else ""
-    if not name:
+    sweep_progress: dict[str, Any] = {}
+    name = ""
+    if _is_skill_sweep_task(task):
         all_sk = skill_pack.list_skills()
         if not all_sk:
             return {"ok": False, "detail": "no skills found"}
-        import random as _r
-
-        name = _r.choice(all_sk)["name"]
+        name, sweep_progress = _next_skill_sweep_name(all_sk)
+    else:
+        hits = skill_pack.find(task or "marketing leads growth", k=1)
+        name = hits[0]["name"] if hits else ""
+        if not name:
+            all_sk = skill_pack.list_skills()
+            if not all_sk:
+                return {"ok": False, "detail": "no skills found"}
+            name, sweep_progress = _next_skill_sweep_name(all_sk)
     s = skill_pack.load(name)
     if not s:
         return {"ok": False, "detail": f"skill '{name}' load fail"}
@@ -657,7 +667,59 @@ async def _study_skills(task: str) -> dict[str, Any]:
         team.log_event("guru", "skill_study", f"📚 {s['name']}: {lesson[:90]}")
     except Exception:
         pass
-    return {"ok": True, "detail": f"studied '{s['name']}': {lesson[:100]}"}
+    prefix = ""
+    if sweep_progress:
+        prefix = f"skill-sweep {sweep_progress.get('position')}/{sweep_progress.get('total')} "
+    return {"ok": True, "detail": f"{prefix}studied '{s['name']}': {lesson[:100]}"}
+
+
+def _is_skill_sweep_task(task: str) -> bool:
+    """Manual task says to cover all skills one-by-one, not just top keyword hit."""
+    t = (task or "").lower()
+    return (
+        "all skills" in t
+        or "every skill" in t
+        or "one by one" in t
+        or "round robin" in t
+        or "skill sweep" in t
+    )
+
+
+def _next_skill_sweep_name(skills: list[dict[str, Any]]) -> tuple[str, dict[str, Any]]:
+    """Stable round-robin over skill_pack.list_skills(); cursor persists in loop state."""
+    names = sorted({str(s.get("name") or "").strip().lower() for s in skills if s.get("name")})
+    if not names:
+        return "", {}
+    signature = hashlib.sha1("|".join(names).encode("utf-8", errors="ignore")).hexdigest()
+    st = _load_state()
+    sweep = st.get("skill_sweep") if isinstance(st.get("skill_sweep"), dict) else {}
+    if sweep.get("signature") != signature:
+        index = 0
+        cycles = 0
+    else:
+        try:
+            index = int(sweep.get("index", 0) or 0)
+        except Exception:
+            index = 0
+        try:
+            cycles = int(sweep.get("completed_cycles", 0) or 0)
+        except Exception:
+            cycles = 0
+    index = max(0, index) % len(names)
+    name = names[index]
+    next_index = (index + 1) % len(names)
+    if next_index == 0:
+        cycles += 1
+    st["skill_sweep"] = {
+        "signature": signature,
+        "index": next_index,
+        "total": len(names),
+        "last": name,
+        "completed_cycles": cycles,
+        "last_at": _now().isoformat(),
+    }
+    _save_state(st)
+    return name, {"position": index + 1, "total": len(names), "completed_cycles": cycles}
 
 
 async def _reflect() -> dict[str, Any]:
