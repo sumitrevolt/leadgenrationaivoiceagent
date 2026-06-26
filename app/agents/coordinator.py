@@ -207,6 +207,24 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
             user = user + "\n\n" + _brain
     except Exception:
         pass
+    # Hivemind READ path: skills KB se past successful patterns retrieve karo
+    if os.environ.get("COORD_KB_SHARE", "").strip() in ("1", "true", "yes", "on"):
+        try:
+            from app.voice_agent.knowledge_base import get_knowledge_base
+
+            _kb = get_knowledge_base()
+            _skill_hits = await asyncio.wait_for(
+                asyncio.to_thread(lambda: _kb.search(goal[:300], namespace="skills", top_k=3)),
+                timeout=3.0,
+            )
+            if _skill_hits:
+                _skill_ctx = "\n".join(
+                    h.get("text", "") or h.get("content", "") for h in _skill_hits if h
+                )[:600]
+                if _skill_ctx.strip():
+                    user += f"\nPichhle successful patterns (KB skills):\n{_skill_ctx}"
+        except Exception:
+            pass
     raw, _ = await _llm(sys, user, max_tokens=300, temperature=0.2)
     steps = [
         {"agent": s["agent"], "task": str(s["task"])[:240]}

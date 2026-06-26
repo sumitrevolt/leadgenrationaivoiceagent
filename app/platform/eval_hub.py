@@ -84,9 +84,17 @@ async def run_rag_ab_gate(timeout_s: float = 120.0) -> dict[str, Any]:
             return {"ok": False, "passed": False, "error": str(e)[:240]}
 
     try:
-        return await asyncio.wait_for(asyncio.to_thread(_sync), timeout=timeout_s)
+        result = await asyncio.wait_for(asyncio.to_thread(_sync), timeout=timeout_s)
     except asyncio.TimeoutError:
         return {"ok": False, "passed": False, "error": f"timeout after {timeout_s}s"}
+    # Deep Memory: PASS hone pe winning (query, answer) pair KB me boost
+    if result.get("passed") and result.get("winner"):
+        await record_positive_eval(
+            query="RAG retrieval gate — best strategy kya hai?",
+            answer=result.get("recommendation", result["winner"]),
+            namespace="skills",
+        )
+    return result
 
 
 async def record_positive_eval(query: str, answer: str, namespace: str = "default") -> bool:
