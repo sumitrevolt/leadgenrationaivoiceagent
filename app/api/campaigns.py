@@ -5,9 +5,10 @@ Endpoints for campaign management
 
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app.api.auth_deps import require_admin
 from app.automation.campaign_manager import CampaignManager
 from app.utils.logger import setup_logger
 
@@ -69,7 +70,11 @@ campaign_manager = CampaignManager()
 
 
 @router.get("/", response_model=list[dict])
-async def list_campaigns(status: str | None = None, niche: str | None = None):
+async def list_campaigns(
+    status: str | None = None,
+    niche: str | None = None,
+    _user=Depends(require_admin),
+):
     """
     List all campaigns
     """
@@ -84,7 +89,7 @@ async def list_campaigns(status: str | None = None, niche: str | None = None):
 
 
 @router.get("/{campaign_id}")
-async def get_campaign(campaign_id: str):
+async def get_campaign(campaign_id: str, _user=Depends(require_admin)):
     """
     Get campaign details
     """
@@ -95,7 +100,7 @@ async def get_campaign(campaign_id: str):
 
 
 @router.post("/", response_model=dict)
-async def create_campaign(campaign: CampaignCreate):
+async def create_campaign(campaign: CampaignCreate, _user=Depends(require_admin)):
     """
     Create a new campaign
     """
@@ -124,7 +129,11 @@ async def create_campaign(campaign: CampaignCreate):
 
 
 @router.post("/{campaign_id}/start")
-async def start_campaign(campaign_id: str, background_tasks: BackgroundTasks):
+async def start_campaign(
+    campaign_id: str,
+    background_tasks: BackgroundTasks,
+    _user=Depends(require_admin),
+):
     """
     Start a campaign (begins scraping and calling)
     """
@@ -139,7 +148,7 @@ async def start_campaign(campaign_id: str, background_tasks: BackgroundTasks):
 
 
 @router.post("/{campaign_id}/pause")
-async def pause_campaign(campaign_id: str):
+async def pause_campaign(campaign_id: str, _user=Depends(require_admin)):
     """
     Pause a running campaign
     """
@@ -150,7 +159,7 @@ async def pause_campaign(campaign_id: str):
 
 
 @router.post("/{campaign_id}/resume")
-async def resume_campaign(campaign_id: str):
+async def resume_campaign(campaign_id: str, _user=Depends(require_admin)):
     """
     Resume a paused campaign
     """
@@ -161,7 +170,7 @@ async def resume_campaign(campaign_id: str):
 
 
 @router.get("/{campaign_id}/stats", response_model=CampaignStats)
-async def get_campaign_stats(campaign_id: str):
+async def get_campaign_stats(campaign_id: str, _user=Depends(require_admin)):
     """
     Get detailed campaign statistics
     """
@@ -191,7 +200,7 @@ async def get_campaign_stats(campaign_id: str):
 
 
 @router.get("/niches/available")
-async def get_available_niches():
+async def get_available_niches(_user=Depends(require_admin)):
     """
     Get list of available niches with scripts
     """
@@ -211,7 +220,7 @@ async def get_available_niches():
 
 
 @router.get("/cities/available")
-async def get_available_cities():
+async def get_available_cities(_user=Depends(require_admin)):
     """
     Get list of available target cities
     """
