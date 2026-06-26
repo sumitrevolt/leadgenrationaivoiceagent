@@ -23,13 +23,23 @@ def _brain(monkeypatch: pytest.MonkeyPatch) -> TelecallerBrain:
     return TelecallerBrain(niche="solar_residential", client_name="Test Co")
 
 
-def test_eligibility_first_turn_only(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Cache only applies when history is empty (true first turn)."""
+def test_eligibility_first_user_turn_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cache only applies when zero USER turns yet (bot greeting in history is OK)."""
     brain = _brain(monkeypatch)
+    # No history at all → eligible
     assert brain._opener_cache_eligible([], "haan boliye") is True
-    # Mid-conversation must NOT cache — context could bleed across calls
-    assert brain._opener_cache_eligible([{"role": "user", "content": "x"}], "haan boliye") is False
     assert brain._opener_cache_eligible(None, "haan boliye") is True
+    # Just the bot's auto-greeting before first user turn → STILL eligible (this
+    # is the real prod shape — web_call.py sends greeting before user speaks)
+    only_greeting = [{"role": "assistant", "content": "Namaste sir, kaise hain?"}]
+    assert brain._opener_cache_eligible(only_greeting, "haan boliye") is True
+    # ANY prior user message → mid-conversation → must NOT cache (context bleed)
+    mid_call = [
+        {"role": "assistant", "content": "Namaste"},
+        {"role": "user", "content": "haan"},
+        {"role": "assistant", "content": "Aapka bill kitna?"},
+    ]
+    assert brain._opener_cache_eligible(mid_call, "2000 ke aas paas") is False
     # Too-short utterances rejected (too generic to safely match across calls)
     assert brain._opener_cache_eligible([], "haan") is False
     assert brain._opener_cache_eligible([], "") is False
@@ -119,11 +129,13 @@ async def test_reply_skips_cache_for_mid_conversation(monkeypatch: pytest.Monkey
     monkeypatch.setattr(brain, "_generate", _stub_generate)
     monkeypatch.setattr(brain, "_kb_facts", _stub_kb_facts)
 
+    # History includes a real user turn — mid-conversation, NOT first user reply
     history = [
         {"role": "assistant", "content": "Namaste sir"},
-        {"role": "user", "content": "haan"},
+        {"role": "user", "content": "haan boliye sir"},
+        {"role": "assistant", "content": "Aapka monthly bill kitna?"},
     ]
-    text = await brain.reply(history, "haan boliye sir")
+    text = await brain.reply(history, "2000 rupees ke aas paas")
     # LLM ran, cache was never consulted
     assert lookup_called == []
     assert "MID_CALL_LLM_REPLY" in text or text  # text non-empty
