@@ -170,6 +170,89 @@ def test_reflect_grounds_on_prior_lessons_and_winning_traces(tmp_path, monkeypat
     assert "MARKER_TRACE_STEP" not in captured["digest"]
 
 
+# ----------------------------- voice_learn (voice-agent self-improve) ----------------------------- #
+def _patch_voice_stores(monkeypatch, tmp_path):
+    from app.agents import self_improve as si
+    from app.platform import skill_library as sl
+    from app.platform import team
+
+    monkeypatch.setattr(si, "_VOICE_LEARN_STATE", str(tmp_path / "voice_learn_state.json"))
+    monkeypatch.setattr(sl, "_USES", str(tmp_path / "uses.jsonl"))
+    monkeypatch.setattr(sl, "_LESSONS", str(tmp_path / "lessons.jsonl"))
+    monkeypatch.setattr(team, "log_event", lambda *a, **k: None)
+    return si
+
+
+def test_voice_learn_records_brain_lesson_and_dedupes(tmp_path, monkeypatch):
+    """Weak REAL call → voice_{niche} lesson record karta (telecaller_brain ise
+    lessons_snippet('voice_solar') se consume karta = compound). Dedupe: same
+    weakest call dobara learn nahi hota. Reuse-only: live_eval mock se driven."""
+    si = _patch_voice_stores(monkeypatch, tmp_path)
+    from app.agents import live_eval
+    from app.platform import skill_library as sl
+    from app.voice_agent import free_ai
+
+    report = {
+        "n": 3,
+        "mean_score": 0.55,
+        "total_qa_findings": 2,
+        "per_call": [
+            {
+                "call_id": "call-weak-1",
+                "niche": "solar",
+                "score": 0.4,
+                "qa_finding_count": 2,
+                "qa_findings": ["repeat", "off-topic"],
+            },
+            {"call_id": "call-ok-1", "niche": "solar", "score": 0.9, "qa_finding_count": 0, "qa_findings": []},
+        ],
+    }
+    monkeypatch.setattr(live_eval, "eval_recent_calls", lambda n, **k: report)
+
+    async def fake_chat(system, messages, **kw):
+        return ("Customer ka exact sawaal sun ke ek-line KB-grounded jawab de, repeat mat kar.", "mock")
+
+    monkeypatch.setattr(free_ai, "chat", fake_chat)
+
+    out = asyncio.run(si._voice_learn())
+    assert out["ok"] is True
+    # lesson voice_solar topic me — yahi brain consume karta hai
+    assert "voice_solar" in [lsn["topic"] for lsn in sl.lessons("voice_solar")]
+    assert "KB-grounded" in sl.lessons_snippet("voice_solar")
+
+    # dedupe: same weakest call dobara → naya lesson nahi
+    out2 = asyncio.run(si._voice_learn())
+    assert "already learned" in out2["detail"]
+
+
+def test_voice_learn_no_calls_graceful_skip(tmp_path, monkeypatch):
+    si = _patch_voice_stores(monkeypatch, tmp_path)
+    from app.agents import live_eval
+
+    monkeypatch.setattr(live_eval, "eval_recent_calls", lambda n, **k: {"n": 0, "per_call": []})
+    out = asyncio.run(si._voice_learn())
+    assert out["ok"] is True and "no recent calls" in out["detail"]
+
+
+def test_voice_learn_clean_calls_no_lesson_spam(tmp_path, monkeypatch):
+    si = _patch_voice_stores(monkeypatch, tmp_path)
+    from app.agents import live_eval
+    from app.platform import skill_library as sl
+
+    report = {
+        "n": 2,
+        "mean_score": 0.95,
+        "per_call": [
+            {"call_id": "c1", "niche": "gym", "score": 0.95, "qa_finding_count": 0, "qa_findings": []},
+            {"call_id": "c2", "niche": "gym", "score": 0.9, "qa_finding_count": 0, "qa_findings": []},
+        ],
+    }
+    monkeypatch.setattr(live_eval, "eval_recent_calls", lambda n, **k: report)
+    out = asyncio.run(si._voice_learn())
+    assert out["ok"] is True and "clean" in out["detail"]
+    assert sl.lessons("voice_gym") == []  # healthy calls = koi lesson spam nahi
+
+
 # ----------------------------- social channels ----------------------------- #
 def test_social_channels_fallback_drafts(monkeypatch):
     from app.marketing import social_channels as sc

@@ -37,6 +37,7 @@ logger = setup_logger(__name__)
 _STATE = os.path.join("data", "self_improve_state.json")
 _QUEUE = os.path.join("data", "self_improve_queue.jsonl")
 _RUNS = os.path.join("data", "self_improve_runs.jsonl")
+_VOICE_LEARN_STATE = os.path.join("data", "voice_learn_state.json")
 
 _ITER_TIMEOUT_S = 240  # ek iteration ka hard cap (event-loop/token safety)
 _REFLECT_EVERY = 8  # har N runs pe LLM reflection → lesson
@@ -182,6 +183,7 @@ ACTIONS: dict[str, tuple[bool, str]] = {
     "study_skills": (True, "project skill padh ke lesson nikalo (skill_pack → skill_library)"),
     "code_scan": (False, "observability signals se code-upgrade proposals (Vikram, gated)"),
     "voice_eval": (False, "voice agent persona eval smoke (Swara/Arjun, gated VOICE_EVAL_AUTO)"),
+    "voice_learn": (True, "real call transcripts analyze → voice lesson (brain consume, compound)"),
     "rescore_pipeline": (False, "DB leads rescore + hot-lead surface (Neha/Rohan, revenue)"),
     "cadence_sweep": (False, "omnichannel cadence due-steps advance (gated CADENCE_ENGINE)"),
 }
@@ -208,6 +210,7 @@ _STAGE_ACTIONS = {
         "revenue_sweep",
         "content_pack",
         "voice_eval",
+        "voice_learn",
         "rescore_pipeline",
     ],
     "retention": ["revenue_sweep", "content_pack"],
@@ -410,6 +413,8 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         }
     if action == "voice_eval":
         return await _voice_eval()
+    if action == "voice_learn":
+        return await _voice_learn()
     if action == "rescore_pipeline":
         from app.platform import pipeline_ops
 
@@ -471,6 +476,131 @@ async def _voice_eval() -> dict[str, Any]:
         }
     except Exception as e:
         return {"ok": False, "detail": f"voice_eval: {str(e)[:100]}"}
+
+
+def _load_voice_learn_state() -> dict[str, Any]:
+    try:
+        if os.path.exists(_VOICE_LEARN_STATE):
+            with open(_VOICE_LEARN_STATE, encoding="utf-8") as f:
+                return json.load(f) or {}
+    except Exception:
+        pass
+    return {}
+
+
+def _save_voice_learn_state(st: dict[str, Any]) -> None:
+    try:
+        os.makedirs(os.path.dirname(_VOICE_LEARN_STATE) or ".", exist_ok=True)
+        with open(_VOICE_LEARN_STATE, "w", encoding="utf-8") as f:
+            json.dump(st, f, ensure_ascii=False, default=str)
+    except Exception:
+        pass
+
+
+async def _voice_learn() -> dict[str, Any]:
+    """REAL recent call transcripts (data/call_transcripts) ko analyze karke EK voice
+    lesson nikaalo jo `telecaller_brain` khud consume karta hai (skill_library
+    lessons_snippet `voice_{niche}` / `voice_general`) — yeh loop ka voice-agent
+    COMPOUNDING step: real call → weakness → lesson → agli live call behtar.
+
+    Reuse-only (rebuild nahi): live_eval.eval_recent_calls (deterministic scorer,
+    off-loop thread) + 1 bounded free-LLM lesson. Side-effect KOI nahi (sirf lesson
+    record, draft). Never-raise. Dedupe: same weakest call dobara learn nahi hota
+    (lesson-spam guard). No calls yet = graceful skip."""
+    try:
+        from app.agents import live_eval
+
+        rep = await asyncio.wait_for(
+            asyncio.to_thread(live_eval.eval_recent_calls, 8), timeout=60
+        )
+    except Exception as e:
+        return {"ok": False, "detail": f"voice_learn eval: {str(e)[:90]}"}
+
+    n = int(rep.get("n") or 0)
+    if n == 0:
+        return {"ok": True, "detail": "no recent calls (skip)"}
+    mean = rep.get("mean_score")
+    per = rep.get("per_call") or []
+    # weakest call jisme QA findings hain ya score < 0.7
+    weak = sorted(
+        [
+            c
+            for c in per
+            if (c.get("qa_finding_count") or 0) > 0 or float(c.get("score") or 1.0) < 0.7
+        ],
+        key=lambda c: float(c.get("score") or 1.0),
+    )
+    if not weak:
+        try:
+            from app.platform import skill_library
+
+            skill_library.record_use(
+                "voice_learn", True, f"mean={mean} n={n} clean", agent="arjun"
+            )
+        except Exception:
+            pass
+        return {"ok": True, "detail": f"voice clean: mean={mean} n={n} (no lesson)"}
+
+    target = weak[0]
+    call_id = str(target.get("call_id") or "")
+    vst = _load_voice_learn_state()
+    if call_id and vst.get("last_call_id") == call_id:
+        return {"ok": True, "detail": f"voice_learn: already learned {call_id[:10]}"}
+
+    niche = str(target.get("niche") or "general")
+    findings = target.get("qa_findings") or []
+    lesson = ""
+    if _llm_healthy():
+        try:
+            from app.voice_agent import free_ai
+
+            digest = (
+                f"niche={niche} call_score={target.get('score')} "
+                f"qa_findings={str(findings)[:600]}"
+            )
+            text, _ = await asyncio.wait_for(
+                free_ai.chat(
+                    "Tu Swara (AI voice agent) ka QA coach hai. In real call-findings se EK concrete "
+                    "Hinglish lesson de jo agli live call me Swara turant apply kar sake (kya galat hua "
+                    "+ EXACT kya behtar bolna). Max 2 sentences, sirf lesson.",
+                    [{"role": "user", "content": digest}],
+                    max_tokens=120,
+                    temperature=0.3,
+                ),
+                timeout=45,
+            )
+            lesson = (text or "").strip()
+        except Exception:
+            pass
+    if not lesson:
+        lesson = (
+            f"Call score {target.get('score')} ({niche}) weak — findings: {str(findings)[:160]}. "
+            "Inhe agli call me sudhaar (ACP: short, ek sawaal, KB-grounded)."
+        )
+
+    topic = f"voice_{niche}"
+    try:
+        from app.platform import skill_library
+
+        skill_library.record_lesson(topic, lesson, source="voice_learn", agent="meera")
+        skill_library.record_use(
+            "voice_learn", False, f"weak {call_id[:10]} score={target.get('score')}", agent="arjun"
+        )
+    except Exception:
+        pass
+    _save_voice_learn_state({"last_call_id": call_id, "topic": topic, "at": _now().isoformat()})
+    try:
+        from app.platform import team
+
+        team.log_event(
+            "meera",
+            "voice_learn",
+            f"🎙️ {niche} weak-call lesson (score {target.get('score')}): {lesson[:80]}",
+            status="warn",
+        )
+    except Exception:
+        pass
+    return {"ok": True, "detail": f"voice lesson [{topic}]: {lesson[:90]}"}
 
 
 async def _study_skills(task: str) -> dict[str, Any]:

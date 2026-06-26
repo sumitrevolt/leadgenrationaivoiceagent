@@ -22,7 +22,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-from app.platform.today_overview import _WEEKLY_ON, _job_due_today  # noqa: E402
+from app.platform.today_overview import _WEEKLY_ON, _job_due_today, _job_due_yet  # noqa: E402
 
 _RUNS = os.path.join("data", "job_runs.jsonl")
 _BEATS = os.path.join("data", "job_heartbeats.json")
@@ -144,17 +144,16 @@ def health() -> dict[str, Any]:
     overdue: list[str] = []
     never_ran: list[str] = []
     for job, gap_min in EXPECTED_GAP_MIN.items():
-        if job in _WEEKLY_ON and not _job_due_today(job):
-            b = beats.get(job)
+        b = beats.get(job)
+        if not b and (not _job_due_today(job) or not _job_due_yet(job)):
             jobs.append(
                 {
                     "job": job,
-                    "last_run": b.get("at") if b else None,
+                    "last_run": None,
                     "status": "scheduled_off",
                 }
             )
             continue
-        b = beats.get(job)
         if not b:
             never_ran.append(job)
             jobs.append({"job": job, "last_run": None, "status": "never_ran"})

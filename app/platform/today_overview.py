@@ -29,8 +29,38 @@ _WEEKLY_ON: dict[str, int] = {
     "weekly_marketing": 2,  # Budh
     "saturday_hygiene": 5,  # Shani
     "kb_refresh": 6,  # Ravi
+    "engineer_deps": 6,  # Ravi
 }
 _DAY_HI = ("Som", "Mangal", "Budh", "Guru", "Shukr", "Shani", "Ravi")
+
+# First expected run time in IST. Before this time, a never-run job is simply
+# scheduled later, not a problem. Hourly/5-min jobs are intentionally omitted.
+_DUE_AFTER_IST: dict[str, tuple[int, int]] = {
+    "revenue_snapshot": (0, 15),
+    "obsidian_push": (2, 15),
+    "qa": (2, 30),
+    "trainer": (3, 0),
+    "saturday_hygiene": (4, 0),
+    "engineer_deps": (4, 30),
+    "kb_refresh": (5, 0),
+    "blog": (6, 30),
+    "content": (7, 0),
+    "standup": (8, 0),
+    "digest": (8, 30),
+    "readiness_digest": (8, 30),
+    "engineer_finops": (9, 0),
+    "prospect": (9, 30),
+    "engineer_security": (9, 30),
+    "engineer_dbre": (10, 0),
+    "engineer_dataquality": (10, 30),
+    "pipeline": (11, 0),
+    "process_autostart": (11, 30),
+    "weekly_marketing": (12, 30),
+    "midday_prospect": (14, 30),
+    "afternoon_content": (15, 0),
+    "evening_prospect": (17, 0),
+    "evening_wrap": (18, 30),
+}
 
 
 def _job_due_today(job: str) -> bool:
@@ -43,6 +73,22 @@ def _job_due_today(job: str) -> bool:
     if job not in _WEEKLY_ON:
         return True
     return wd == _WEEKLY_ON[job]
+
+
+def _job_due_yet(job: str) -> bool:
+    """True only when today's scheduled window has started in IST."""
+    if not _job_due_today(job):
+        return False
+    try:
+        from zoneinfo import ZoneInfo
+
+        now = datetime.now(ZoneInfo("Asia/Kolkata"))
+    except Exception:
+        now = datetime.now(timezone.utc)
+    due = _DUE_AFTER_IST.get(job)
+    if not due:
+        return True
+    return (now.hour, now.minute) >= due
 
 
 # Har scheduled job ka insaani naam + "yeh kya karta hai" — admin-friendly.
@@ -130,6 +176,18 @@ JOB_INFO: dict[str, dict[str, str]] = {
     "engineer_sre": {"label": "Pranav SRE (hourly)", "kya": "Backup/DR/capacity score"},
     "engineer_finops": {"label": "Vidya FinOps (09:00)", "kya": "Margin + LLM cost digest"},
     "engineer_security": {"label": "Arnav security (09:30)", "kya": "Compliance posture"},
+    "engineer_dbre": {
+        "label": "Kabir DB reliability (10:00)",
+        "kya": "Postgres query/index/connection health check",
+    },
+    "engineer_dataquality": {
+        "label": "Diya data quality (10:30)",
+        "kya": "Lead/CRM duplicate aur missing-contact scan",
+    },
+    "engineer_deps": {
+        "label": "Aryan dependency audit (Sun 04:30)",
+        "kya": "Dependency/CVE hygiene report",
+    },
     "readiness_digest": {
         "label": "Activation digest (08:30)",
         "kya": "First-paid-customer readiness ntfy",
@@ -258,8 +316,11 @@ def build() -> dict[str, Any]:
                     }
                 )
             elif status == "never_ran":
-                if key in _WEEKLY_ON and not _job_due_today(key):
+                if not _job_due_today(key):
                     line = f"📅 Aaj schedule nahi — har {_DAY_HI[_WEEKLY_ON[key]]} ko chalega"
+                    status = "scheduled_off"
+                elif not _job_due_yet(key):
+                    line = "📅 Aaj baad me chalega — scheduled time abhi nahi aaya"
                     status = "scheduled_off"
                 else:
                     line = "⏳ Abhi tak nahi chala — deploy ke baad pehli run pending"

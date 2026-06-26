@@ -98,4 +98,56 @@ async def forget(key: str) -> None:
     _MEM.pop(key, None)
 
 
-__all__ = ["seen_before", "forget"]
+def _sync_redis():
+    """Blocking redis client (Celery tasks are sync — can't await the async one)."""
+    import redis as _redis
+
+    from app.config import settings
+
+    return _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
+
+
+def seen_before_sync(key: str, ttl_s: int | None = None) -> bool:
+    """SYNC twin of seen_before — for Celery tasks (sync context, can't await).
+
+    True = is event-key PEHLE process ho chuki (DUPLICATE → caller skip kare).
+    False = naya (process karo). Atomic SET NX EX. Redis err = FAIL-OPEN (process)
+    via per-process memory. Never raises. Empty key = False (dedupe possible nahi).
+
+    KYUN: app/billing/idempotency.seen_before async hai; Celery task body sync.
+    Isliye external-side-effect tasks (CRM push, etc.) ko retry pe dedupe karne
+    ka koi primitive nahi tha (audit: "Queue idempotency 0% coverage"). Yeh wahi
+    gap bharta — sync redis + same memory fallback.
+    """
+    key = (key or "").strip()
+    if not key:
+        return False
+    ttl = int(ttl_s or _DEFAULT_TTL_S)
+    rk = _PREFIX + key
+    try:
+        r = _sync_redis()
+        ok = r.set(rk, str(int(time.time())), nx=True, ex=ttl)
+        if ok:
+            return False  # newly claimed = first time = NOT seen before
+        return True  # key pehle se thi = duplicate
+    except Exception as e:  # Redis down / any error → fail-open via memory
+        logger.warning("[idempotency] sync redis check failed (%s) — fail-open via memory", e)
+        try:
+            return _mem_seen(key, ttl)
+        except Exception:
+            return False
+
+
+def forget_sync(key: str) -> None:
+    """SYNC forget — drop idem key (manual replay/testing). Best-effort, never raises."""
+    key = (key or "").strip()
+    if not key:
+        return
+    try:
+        _sync_redis().delete(_PREFIX + key)
+    except Exception:
+        pass
+    _MEM.pop(key, None)
+
+
+__all__ = ["seen_before", "forget", "seen_before_sync", "forget_sync"]
