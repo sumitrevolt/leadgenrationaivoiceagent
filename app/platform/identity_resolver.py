@@ -206,6 +206,10 @@ async def backfill_accounts_contacts(limit: int = 500) -> dict[str, Any]:
                         city=str(r.get("city") or "")[:100] or None,
                     )
                     session.add(acc)
+                    # Flush so this pending Account is visible to the dedupe
+                    # SELECT on the next iteration — otherwise a second record for
+                    # the same company in this batch creates a duplicate Account.
+                    await session.flush()
                     created_a += 1
                     account_id = acc.id
                 else:
@@ -237,6 +241,7 @@ async def backfill_accounts_contacts(limit: int = 500) -> dict[str, Any]:
                 if not acc:
                     acc = Account(id=str(uuid.uuid4()), company_name=company, niche=ld.niche)
                     session.add(acc)
+                    await session.flush()  # visible to next iteration's dedupe SELECT
                     created_a += 1
                 ph = _phone10(ld.phone)
                 if ph:

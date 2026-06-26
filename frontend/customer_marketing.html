@@ -510,6 +510,36 @@
         <button class="btn" type="button" id="nextStepBtn" onclick="runNextStep()">Dekho</button>
       </div>
 
+      <!-- ===== 0) Owner hero — non-technical intro (parity with combo/voice) ===== -->
+      <div class="owner-hero" aria-label="Aapka dashboard">
+        <div>
+          <span class="owner-pill" id="ownerPill">AI Automated Marketing</span>
+          <h1 class="owner-title" id="ownerTitle">Aaj kya post/approve karna hai?</h1>
+          <p class="owner-subtitle" id="ownerSubtitle">Daily content, approvals aur website enquiry tools. Pehle priority cards follow karo.</p>
+        </div>
+        <div class="owner-actions">
+          <button class="btn primary" type="button" id="ownerPrimaryBtn" onclick="runNextStep()">Aaj ka post dekho</button>
+          <button class="btn" type="button" id="detailsBtn" onclick="toggleDetails()">Pura hisaab</button>
+        </div>
+      </div>
+
+      <!-- ===== Priority cards — top 3 actions ===== -->
+      <div class="priority-card" aria-label="Top priorities">
+        <div class="priority-head">
+          <h2 id="priorityTitle">Aaj ki priority</h2>
+          <span class="pill" id="priorityPill">—</span>
+        </div>
+        <div class="priority-list" id="priorityList">
+          <div class="priority-item">
+            <div class="name">Load ho raha…</div>
+            <div class="meta">Aapki priority list yahan dikhegi.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== 0c) Simple note — one-line plain-language hint ===== -->
+      <div class="simple-note" id="simpleNote">Marketing product me focus simple hai: post share karo, approvals clear karo, website tools se enquiries lao.</div>
+
       <!-- ===== Virtual AI Marketing Team — agentic live office ===== -->
       <div class="team-office marketing-only" id="teamCard" aria-label="Aapki AI Marketing Team — live">
         <div class="team-head">
@@ -1708,8 +1738,9 @@ async function whRetry(webhookId, deliveryId){
     } else {
       alert("✗ Retry failed: status="+(d.status||"n/a")+" error="+(d.error||"unknown"));
     }
-    whShowDeliveries(webhookId);  // refresh
-    whShowDeliveries(webhookId);  // re-open
+    const _box = document.getElementById("whDeliv_"+webhookId);
+    if(_box) _box.style.display = "none";  // force-close so the next call re-opens + reloads fresh
+    whShowDeliveries(webhookId);
   }catch(e){ alert("Error: "+e.message); }
 }
 async function whToggle(id, enable){

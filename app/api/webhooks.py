@@ -299,11 +299,12 @@ async def handle_stripe_checkout_completed(data: dict, db: AsyncSession):
 
 async def handle_stripe_invoice_paid(data: dict, db: AsyncSession):
     """Handle invoice.paid event"""
-    stripe_invoice_id = data.get("id")
+    stripe_invoice_id = data.get("id") or ""
     stripe_subscription_id = data.get("subscription")
     data.get("customer")
 
     # Find subscription
+    subscription = None  # bound even when the event carries no subscription id
     if stripe_subscription_id:
         result = await db.execute(
             select(Subscription).where(
@@ -325,7 +326,7 @@ async def handle_stripe_invoice_paid(data: dict, db: AsyncSession):
     invoice = Invoice(
         client_id=subscription.client_id if subscription else None,
         subscription_id=subscription.id if subscription else None,
-        invoice_number=data.get("number", f"INV-{stripe_invoice_id[:8]}"),
+        invoice_number=data.get("number") or f"INV-{stripe_invoice_id[:8] or 'UNKNOWN'}",
         stripe_invoice_id=stripe_invoice_id,
         status=InvoiceStatus.PAID,
         subtotal=Decimal(str(data.get("subtotal", 0))) / 100,

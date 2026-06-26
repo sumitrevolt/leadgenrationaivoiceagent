@@ -2342,9 +2342,19 @@ class VobizStreamSession:
             except TypeError:
                 communicate = edge_tts.Communicate(text, self.voice)
         mp3 = io.BytesIO()
-        async for chunk in communicate.stream():
-            if chunk.get("type") == "audio":
-                mp3.write(chunk.get("data") or b"")
+
+        async def _collect() -> None:
+            async for chunk in communicate.stream():
+                if chunk.get("type") == "audio":
+                    mp3.write(chunk.get("data") or b"")
+
+        # Bounded — a stalled EdgeTTS network stream must never hang the call
+        # (dead-air). Web-call path guards the same call with wait_for; mirror it
+        # here. On timeout return b"" so the caller degrades gracefully.
+        try:
+            await asyncio.wait_for(_collect(), timeout=6.0)
+        except (asyncio.TimeoutError, Exception):
+            return b""
         data = mp3.getvalue()
         if not data:
             return b""

@@ -61,7 +61,7 @@ async def run_assessment(
 
 
 @router.get("/latest")
-async def get_latest():
+async def get_latest(_admin=Depends(require_admin)):
     """Return the latest assessment JSON metrics."""
     data = _latest_metrics()
     if not data:
@@ -72,7 +72,7 @@ async def get_latest():
 
 
 @router.get("/report")
-async def get_report_markdown():
+async def get_report_markdown(_admin=Depends(require_admin)):
     """Return the latest Markdown assessment report as plain text."""
     path = DOCS / "DASHBOARD_ASSESSMENT_REPORT.md"
     if not path.exists():
@@ -81,7 +81,7 @@ async def get_report_markdown():
 
 
 @router.get("/history")
-async def list_history():
+async def list_history(_admin=Depends(require_admin)):
     """List past assessments from data/assessment_history/."""
     HISTORY.mkdir(parents=True, exist_ok=True)
     files = sorted(HISTORY.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
@@ -119,7 +119,7 @@ async def get_diff(baseline: str = "latest", _admin=Depends(require_admin)):
 
 
 @router.get("/scores")
-async def get_scores():
+async def get_scores(_admin=Depends(require_admin)):
     """Quick scores summary for dashboard widgets."""
     data = _latest_metrics()
     if not data:

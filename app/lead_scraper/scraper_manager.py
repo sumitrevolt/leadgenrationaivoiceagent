@@ -517,12 +517,15 @@ class LeadScraperManager:
             # Normalize company name
             company_key = lead.company_name.lower().strip()
 
-            # Check for duplicates
+            # Check for duplicates. Phone is the PRIMARY key: two branches/
+            # franchises that share a name but have distinct phones are distinct
+            # leads and must both survive. Company-name only dedups phone-LESS
+            # leads (so we still drop a phoneless duplicate of a known business).
             is_duplicate = False
 
             if phone_key and phone_key in seen_phones:
                 is_duplicate = True
-            elif company_key in seen_companies:
+            elif not phone_key and company_key in seen_companies:
                 is_duplicate = True
 
             if not is_duplicate:

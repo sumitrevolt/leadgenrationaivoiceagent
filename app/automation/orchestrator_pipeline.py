@@ -319,12 +319,11 @@ class LeadGenPipeline:
                     continue  # un-callable, drop from this pipeline
                 if phone_key in seen_phones:
                     continue
-                if company and company in seen_companies:
-                    continue
+                # Phone is the ONLY dedup key here (every lead already has one).
+                # Name-based dedup would wrongly drop distinct-phone franchise
+                # branches that share a company name.
 
                 seen_phones.add(phone_key)
-                if company:
-                    seen_companies.add(company)
                 cleaned.append(lead)
 
             result.cleaned = len(cleaned)

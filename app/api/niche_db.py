@@ -194,7 +194,7 @@ async def list_prospects(
     city: str = Query(None, description="Filter by city"),
     min_score: int = Query(0, description="Minimum lead score"),
     is_hot: bool = Query(None, description="Hot leads only"),
-    limit: int = Query(50, le=200),
+    limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     _rl=Depends(rate_limit("niche_list", 60, 60)),
     _user=Depends(require_admin),
@@ -296,7 +296,7 @@ async def next_to_call(
     request: Request,
     client_id: str = Query(...),
     niche: str = Query(..., description="Niche key"),
-    limit: int = Query(10, le=50),
+    limit: int = Query(10, ge=1, le=50),
     _rl=Depends(rate_limit("niche_queue", 60, 60)),
     _user=Depends(require_admin),
 ):

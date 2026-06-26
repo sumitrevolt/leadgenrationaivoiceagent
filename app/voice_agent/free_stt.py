@@ -82,7 +82,9 @@ class VoskProvider(BaseSTTProvider):
         zip_path = model_dir / f"{language}.zip"
 
         logger.info(f"Downloading Vosk model for {language}...")
-        async with httpx.AsyncClient() as client:
+        # Generous total budget (large zip) but a short connect timeout so a dead
+        # CDN peer can't hang the download coroutine forever.
+        async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=10.0)) as client:
             response = await client.get(url, follow_redirects=True)
             with open(zip_path, "wb") as f:
                 f.write(response.content)

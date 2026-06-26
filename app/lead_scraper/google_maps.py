@@ -282,7 +282,11 @@ class GoogleMapsScraper:
             if data.get("status") == "OK" and data.get("results"):
                 geometry = data["results"][0].get("geometry", {})
                 location_data = geometry.get("location", {})
-                return {"lat": location_data.get("lat"), "lng": location_data.get("lng")}
+                lat, lng = location_data.get("lat"), location_data.get("lng")
+                # Only return real coords — otherwise the caller would build a
+                # "None,None" location string and waste a Google API call.
+                if lat is not None and lng is not None:
+                    return {"lat": lat, "lng": lng}
             return None
 
     # Regex for harvesting email addresses from page HTML

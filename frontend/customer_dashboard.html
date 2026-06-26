@@ -1484,8 +1484,9 @@ async function whRetry(webhookId, deliveryId){
     } else {
       alert("✗ Retry failed: status="+(d.status||"n/a")+" error="+(d.error||"unknown"));
     }
-    whShowDeliveries(webhookId);  // refresh
-    whShowDeliveries(webhookId);  // re-open
+    const _box = document.getElementById("whDeliv_"+webhookId);
+    if(_box) _box.style.display = "none";  // force-close so the next call re-opens + reloads fresh
+    whShowDeliveries(webhookId);
   }catch(e){ alert("Error: "+e.message); }
 }
 async function whToggle(id, enable){
