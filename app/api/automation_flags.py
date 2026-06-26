@@ -227,5 +227,9 @@ AUTOMATION_FLAGS = [
     "VOICE_GEMINI_PRIMARY",  # voice brain uses Gemini 2.5-flash-lite as primary LLM (voice-scoped)
     "VOICE_LLM_RACE",  # race Gemini + free_ai LLM backends in parallel, first non-empty wins
     # (cuts ~16s sequential worst-case to ~3-5s typical — fix for "atak jata" symptom 2026-06-26)
+    "VOICE_RESPONSE_CACHE",  # opener-only semantic cache for voice brain (L1 exact + L2 semantic
+    # via Qdrant). Hit returns ~50ms vs 7-8s LLM round-trip for templated openers; mid-conversation
+    # never cached (context-bleed safe). Requires SEMANTIC_CACHE=1 too. Fix for 2026-06-26 finding
+    # that SEMANTIC_CACHE flag was ON in prod but voice brain never called semantic_complete.
     "BARGE_GUARD",  # cough/backchannel false-stop guard for barge-in detection
 ]
