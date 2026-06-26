@@ -144,7 +144,7 @@ async def get_admin_dashboard(
 
 
 @router.get("/revenue-analytics")
-async def get_revenue_analytics() -> dict:
+async def get_revenue_analytics(_user=Depends(require_admin)) -> dict:
     """MRR, churn-risk, LTV estimate — powers admin revenue analytics panel."""
     out: dict = {
         "mrr": 0,

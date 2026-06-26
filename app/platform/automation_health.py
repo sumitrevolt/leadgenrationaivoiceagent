@@ -63,6 +63,7 @@ EXPECTED_GAP_MIN = {
     "flow_cron": 30,  # every 5 min: Flow Runner cron scan (self-gates; beat always heartbeats)
     "afternoon_content": 30 * 60,  # daily 15:00 IST: 2nd content-gen pass (gated AFTERNOON_CONTENT)
     "evening_prospect": 30 * 60,  # daily 17:00 IST: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
+    "self_improve": 30,  # ~20-min tick; 30-min grace — watchdog now flags stale loop (dead-man trio complete)
 }
 
 

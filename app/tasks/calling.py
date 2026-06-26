@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from celery import shared_task
 
+from app.billing.idempotency import seen_before_sync
 from app.config import settings
 from app.models.base import get_db_session
 from app.models.call_log import CallLog, CallOutcome
@@ -56,6 +57,15 @@ def make_call_task(self, call_request_data: dict):
     """
     try:
         logger.info(f"Processing call request: {call_request_data.get('lead_id')}")
+
+        # idempotency: dedup by lead_id:campaign_id key prevents retry double-dialing
+        # (max_retries=3 without this guard would triple-dial the same lead on Celery retry)
+        lead_id = call_request_data.get("lead_id", "")
+        campaign_id = call_request_data.get("campaign_id", "nocampaign")
+        idem_key = f"make_call:{lead_id}:{campaign_id}"
+        if seen_before_sync(idem_key, ttl_s=3600):
+            logger.info(f"make_call_task duplicate skipped: {idem_key}")
+            return {"status": "duplicate", "call_id": None, "outcome": "skipped"}
 
         call_manager = CallManager()
 
@@ -106,6 +116,9 @@ def process_queue(max_seconds: int = 50):
     the processor under a timeout so a periodic Celery task drains pending calls
     without blocking the worker forever. Each queued call is compliance-gated in
     queue_call(), so this only dispatches already-vetted requests.
+
+    # idempotency: compliance gate in queue_call() deduplicates by lead+window;
+    # make_call_task (downstream) has its own dedup key, so re-runs are safe.
     """
     logger.info("Processing call queue")
 
@@ -129,7 +142,11 @@ def process_queue(max_seconds: int = 50):
 @shared_task
 def process_callbacks():
     """
-    Process scheduled callbacks
+    Process scheduled callbacks.
+
+    # idempotency: DB-level dedup via CallLog.initiated_at window — leads are only
+    # re-queued if next_call_at is within the current hour window; lead.last_called_at
+    # is updated on queue to prevent duplicate scheduling across concurrent task runs.
     """
     logger.info("Processing scheduled callbacks")
 
@@ -185,7 +202,11 @@ def process_callbacks():
 @shared_task
 def retry_failed_calls():
     """
-    Retry failed calls that are eligible for retry
+    Retry failed calls that are eligible for retry.
+
+    # idempotency: DB-level dedup via call.retry_count < max_retries gate and
+    # retry_delay window filter; call.retry_count is incremented before commit
+    # to prevent duplicate retries across concurrent task runs.
     """
     logger.info("Retrying failed calls")
 
@@ -258,7 +279,10 @@ def retry_failed_calls():
 @shared_task
 def cleanup_stale_calls():
     """
-    Clean up calls that are stuck in 'initiated' or 'ringing' status
+    Clean up calls that are stuck in 'initiated' or 'ringing' status.
+
+    # idempotency: DB-level dedup — only calls with status 'initiated'/'ringing'
+    # are touched; status is set to 'failed' so re-runs skip already-cleaned rows.
     """
     logger.info("Cleaning up stale calls")
 

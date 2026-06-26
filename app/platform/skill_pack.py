@@ -29,6 +29,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _SKILLS_DIR = os.path.join(".claude", "skills")
+_AGENTS_SKILLS_DIR = os.path.join(".agents", "skills")
 _EXTRA_DIR = os.path.join("data", "skills_extra")
 _MAX_AUTHOR_BYTES = 16 * 1024  # Tier-1 size cap
 _CACHE_TTL_S = 300
@@ -53,7 +54,7 @@ def _parse_skill(path: str, source: str) -> dict[str, Any] | None:
             return None
         name = (
             os.path.basename(os.path.dirname(path))
-            if source == "project"
+            if source in ("project", "agents")
             else os.path.splitext(os.path.basename(path))[0]
         )
         desc = ""
@@ -82,20 +83,32 @@ def _load_all() -> list[dict[str, Any]]:
     if _cache["skills"] and now - _cache["at"] < _CACHE_TTL_S:
         return _cache["skills"]
     out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def _add_skill(s: dict[str, Any] | None) -> None:
+        if not s:
+            return
+        name = str(s.get("name") or "")
+        if not name or name in seen:
+            return
+        seen.add(name)
+        out.append(s)
+
     try:
         if os.path.isdir(_SKILLS_DIR):
             for d in sorted(os.listdir(_SKILLS_DIR)):
                 p = os.path.join(_SKILLS_DIR, d, "SKILL.md")
                 if os.path.isfile(p):
-                    s = _parse_skill(p, "project")
-                    if s:
-                        out.append(s)
+                    _add_skill(_parse_skill(p, "project"))
+        if os.path.isdir(_AGENTS_SKILLS_DIR):
+            for d in sorted(os.listdir(_AGENTS_SKILLS_DIR)):
+                p = os.path.join(_AGENTS_SKILLS_DIR, d, "SKILL.md")
+                if os.path.isfile(p):
+                    _add_skill(_parse_skill(p, "agents"))
         if os.path.isdir(_EXTRA_DIR):
             for fn in sorted(os.listdir(_EXTRA_DIR)):
                 if fn.endswith(".md"):
-                    s = _parse_skill(os.path.join(_EXTRA_DIR, fn), "extra")
-                    if s:
-                        out.append(s)
+                    _add_skill(_parse_skill(os.path.join(_EXTRA_DIR, fn), "extra"))
     except Exception as e:
         logger.warning(f"skill_pack load failed: {e}")
     _cache["skills"] = out
