@@ -74,7 +74,14 @@ def pg_restore_test(dump_path: Path) -> bool:
         print(f"[RESTORE VERIFY FAIL] table count failed: {err[:500]}")
         return False
 
-    table_count = int(out.strip().split("\n")[-1].strip()) if out.strip() else 0
+    # Parse psql output: extract number from lines like " count \n-------\n    42\n(1 row)"
+    table_count = 0
+    for line in out.strip().splitlines():
+        stripped = line.strip()
+        if stripped.isdigit():
+            table_count = int(stripped)
+            break
+
     print(f"[RESTORE OK] {table_count} tables restored successfully")
 
     # Cleanup
