@@ -8,6 +8,22 @@ from app.platform import eval_hub
 from app.voice_agent.llm_stream_tts import pop_sentence, stream_tts_enabled
 
 
+@pytest.mark.asyncio
+async def test_record_positive_eval_flag_off(monkeypatch):
+    """EVAL_KB_BOOST=0 → always False, no KB write."""
+    monkeypatch.setenv("EVAL_KB_BOOST", "0")
+    result = await eval_hub.record_positive_eval("kya rate hai?", "₹2999/mo", "niche:real_estate")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_record_positive_eval_empty_inputs(monkeypatch):
+    """Empty query/answer → False even if flag on."""
+    monkeypatch.setenv("EVAL_KB_BOOST", "1")
+    assert await eval_hub.record_positive_eval("", "some answer") is False
+    assert await eval_hub.record_positive_eval("query", "") is False
+
+
 def test_pop_sentence_splits():
     s, rest = pop_sentence("Namaste sir. Aapka budget kya hai?")
     assert s == "Namaste sir."
