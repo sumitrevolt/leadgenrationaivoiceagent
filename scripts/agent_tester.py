@@ -15,9 +15,17 @@ Scorecard print karta + har issue ki line.
 import asyncio
 import json
 import os
+import sys
 import time
 
 import aiohttp
+
+# Windows cp1252 console can't encode emojis (❌/✅/⏱) used below — force UTF-8
+# so the scorecard prints instead of crashing mid-print. No-op on Linux/Mac.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover - older python
+    pass
 
 try:  # D-13 conversation QA judges (pushy-after-softno / talk-listen / permission / literal)
     from app.voice_agent import qa_checks as _qc

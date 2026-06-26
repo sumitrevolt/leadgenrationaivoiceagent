@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (872 operations)
+## Endpoint Index — auto-generated from OpenAPI (875 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1099,13 +1099,16 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/localseo/listings-status` — Listings Status Get
 - `POST  ` `/api/localseo/listings-status` — Listings Status Save
 
-### MCP Product  (9)
+### MCP Product  (12)
 
 - `GET   ` `/.well-known/agent.json` — A2A Agent Card
 - `GET   ` `/api/admin/mcp-keys` — Admin List
 - `POST  ` `/api/admin/mcp-keys` — Admin Issue
 - `DELETE` `/api/admin/mcp-keys/{key_id}` — Admin Revoke
 - `PATCH ` `/api/admin/mcp-keys/{key_id}` — Admin Toggle
+- `GET   ` `/api/admin/mcp/audit` — Admin Mcp Audit
+- `GET   ` `/api/admin/mcp/health` — Admin Mcp Health
+- `POST  ` `/api/admin/mcp/health/run` — Admin Mcp Health Run
 - `GET   ` `/api/mcp-product/v1/discover` — Discover
 - `GET   ` `/api/mcp-product/v1/niches` — Niches
 - `POST  ` `/api/mcp-product/v1/qualifier` — Qualifier Run
