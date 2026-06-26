@@ -40,7 +40,7 @@ PLACEHOLDER = re.compile(
     r"(?i)(your[-_ ]|<|>|\{\{|xxx|changeme|change-me|example|dummy|placeholder|sample|redacted|\.\.\.|abcdef|1234567890)"
 )
 
-SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "data", "dist", "build", ".pytest_cache"}
+SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv", "venv", "data", "dist", "build", ".pytest_cache", ".agents", ".claude"}
 SKIP_EXT = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf", ".eot",
             ".pdf", ".mp3", ".mp4", ".wav", ".zip", ".gz", ".db", ".pyc", ".lock", ".idx", ".pack"}
 SKIP_NAMES = {"check_secrets.py"}  # khud ke patterns pe trip na ho
