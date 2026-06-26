@@ -225,5 +225,7 @@ AUTOMATION_FLAGS = [
     "HINGLISH_STT",  # local Hinglish whisper model (baked, WEBCALL_STT_LOCAL_FIRST=1 saath)
     "WEBCALL_STT_LOCAL_FIRST",  # web-call STT uses local Hinglish model before Groq
     "VOICE_GEMINI_PRIMARY",  # voice brain uses Gemini 2.5-flash-lite as primary LLM (voice-scoped)
+    "VOICE_LLM_RACE",  # race Gemini + free_ai LLM backends in parallel, first non-empty wins
+    # (cuts ~16s sequential worst-case to ~3-5s typical — fix for "atak jata" symptom 2026-06-26)
     "BARGE_GUARD",  # cough/backchannel false-stop guard for barge-in detection
 ]

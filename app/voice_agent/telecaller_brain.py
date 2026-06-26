@@ -1454,11 +1454,56 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         except Exception:
             return False
 
+    @staticmethod
+    def _voice_llm_race() -> bool:
+        """VOICE_LLM_RACE — fire Gemini + free_ai in PARALLEL, first non-empty wins,
+        cancel the loser. Cuts worst-case turn latency from ~16s (sequential 8s+8s)
+        to MIN(gemini,free_ai) ≈ 2-5s typical. Diagnosed 2026-06-26 from live-prod
+        agent_tester scorecard (7-17s tail + 2x NO-REPLY at 12s). Default OFF =
+        byte-identical sequential behaviour."""
+        return (os.environ.get("VOICE_LLM_RACE", "0") or "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+
+    async def _generate_raced(self, prompt: str) -> tuple[str, str]:
+        """Fire Gemini and free_ai concurrently; first non-empty wins. Loser is
+        cancelled. Inherits the outer _REPLY_TIMEOUT_S deadline from reply()'s
+        asyncio.wait_for, so this never extends total latency — only shrinks it.
+        Never raises; returns ("","") on dual-fail (caller falls to script)."""
+        g_task = asyncio.create_task(self._gemini_reply(prompt))
+        f_task = asyncio.create_task(self._free_llm(prompt))
+        labels = {g_task: "gemini", f_task: "free_ai"}
+        pending: set = {g_task, f_task}
+        try:
+            while pending:
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                for t in done:
+                    try:
+                        text = (t.result() or "").strip()
+                    except Exception:
+                        text = ""
+                    if text:
+                        for p in pending:
+                            p.cancel()
+                        return text, labels[t]
+            return "", ""
+        finally:
+            for t in (g_task, f_task):
+                if not t.done():
+                    t.cancel()
+
     async def _generate(self, prompt: str) -> tuple:
-        """(reply_text, provider). Gemini-direct is primary if GEMINI_PRIMARY (global)
-        OR VOICE_GEMINI_PRIMARY (voice-only) is set; otherwise free_ai.chat
-        (Mistral->Groq->...) pehle."""
+        """(reply_text, provider). VOICE_LLM_RACE=1 → race both backends in parallel
+        (first non-empty wins). Else GEMINI_PRIMARY/VOICE_GEMINI_PRIMARY decides
+        sequential order; default = free_ai.chat (Mistral->Groq->...) first."""
         from app.config import settings
+
+        if self._voice_llm_race():
+            return await self._generate_raced(prompt)
+
         use_gemini_first = getattr(settings, "gemini_primary", False) or self._voice_gemini_primary()
 
         if use_gemini_first:
