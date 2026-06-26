@@ -49,7 +49,16 @@ def find_celery_tasks() -> list[tuple[str, int, str, str]]:
         except Exception:
             continue
         for i, line in enumerate(text.splitlines(), 1):
-            if "@celery" in line and "task" in line:
+            # Detect Celery task decorators. Earlier this only matched "@celery*"
+            # and silently MISSED every `@shared_task` (which app/tasks/*.py uses) —
+            # undercounting tasks and reporting a false coverage %. Now both forms.
+            stripped = line.lstrip()
+            is_task_decorator = (
+                stripped.startswith("@shared_task")
+                or stripped.startswith("@app.task")
+                or ("@celery" in line and "task" in line)
+            )
+            if is_task_decorator:
                 # Try to find the function name on the next non-empty line
                 func_name = "<unknown>"
                 for j in range(i, min(i + 5, len(text.splitlines()))):
@@ -124,13 +133,13 @@ def main() -> int:
     print(f"- Tasks WITHOUT idempotency patterns: {len(without_idem)}")
     print(f"- Coverage: {len(with_idem) / len(tasks) * 100:.1f}%\n")
 
-    print("## Tasks WITH Idempotency ✅\n")
+    print("## Tasks WITH Idempotency [OK]\n")
     print("| File | Function | Decorator |")
     print("|------|----------|-----------|")
     for file_path, func_name, decorator in with_idem:
         print(f"| {file_path} | `{func_name}` | `{decorator[:60]}...` |")
 
-    print(f"\n## Tasks WITHOUT Idempotency ⚠️ (GAP)\n")
+    print("\n## Tasks WITHOUT Idempotency [GAP]\n")
     print("| File | Function | Decorator |")
     print("|------|----------|-----------|")
     for file_path, func_name, decorator in without_idem:

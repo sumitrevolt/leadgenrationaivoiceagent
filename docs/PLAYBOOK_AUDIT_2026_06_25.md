@@ -1,4 +1,13 @@
 # LeadGen AI — Enterprise Playbook Audit Report v1.0
+
+> **⚠️ UPDATE 2026-06-26 — Batch 2 landed.** Testing/Queue/Deployment/Workflow/CRM
+> gaps partially closed: real E2E suite (9 scenarios driving prod code), sync
+> idempotency primitive wired into `sync_to_crm`, security suite fixed to test REAL
+> auth (it was running against mocked-open auth — false confidence), queue audit
+> made truthful (54 tasks not 15), CI security/queue scanners. Details + honest
+> score deltas: `docs/ADR-2026-06-26-Batch2-Testing-Queue-Deploy.md`. The scores
+> in §10 below are the **pre-batch-2** baseline.
+
 > **Date:** 2026-06-25
 > **Auditor:** Executive Engineering Agent (Playbook-Governed Audit)
 > **Playbook:** `docs/LeadGen-AI-Enterprise-Playbook-v1.0/LeadGen_AI_Enterprise_Playbook_MERGED.md` (4720 lines)

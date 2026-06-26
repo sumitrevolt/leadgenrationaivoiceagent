@@ -32,9 +32,13 @@ def test_team_pulse_logs_and_never_raises(monkeypatch):
             ]
         },
     )
-    # FIX: automation_health.health() DB call pe hang — usko stub karo
+    # FIX: _kavya monitor (nested fn) automation_health.health() ko call karta hai
+    # jo ek DB call karta → offline test me HANG. Source ko hi stub karo (kavya
+    # nested hai, usko directly monkeypatch nahi kar sakte).
+    from app.platform import automation_health
+
     monkeypatch.setattr(
-        team, "_kavya", lambda: "system OK · overdue 0"
+        automation_health, "health", lambda: {"ok": True, "overdue": [], "never_ran": [], "jobs": []}
     )
 
     res = team.team_pulse(max_members=3)

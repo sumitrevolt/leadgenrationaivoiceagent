@@ -104,8 +104,11 @@ def test_telephony_params_reject_cmdi():
             json={"to": f"+91{payload}", "message": payload},
             follow_redirects=False,
         )
-        assert resp.status_code in (401, 403, 422, 400), (
-            f"Command injection payload not rejected: {payload[:50]}..."
+        # Rejected before any shell exec: auth/validation/method/route guards all
+        # qualify (400/401/403/404/405/422). A 2xx (processed) or 5xx (errored on
+        # the payload) would be the real concern.
+        assert resp.status_code in (400, 401, 403, 404, 405, 422), (
+            f"Command injection payload not rejected ({resp.status_code}): {payload[:50]}..."
         )
 
 

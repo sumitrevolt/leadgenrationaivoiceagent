@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from celery import shared_task
 
+from app.billing import idempotency
 from app.config import settings
 from app.integrations.google_sheets import GoogleSheetsIntegration
 from app.integrations.hubspot import HubSpotIntegration
@@ -63,21 +64,30 @@ def sync_to_crm():
                     "source": lead.source.value if lead.source else "voice_agent",
                 }
 
-                # Sync to HubSpot if configured
+                # Sync to HubSpot if configured. IDEMPOTENT: per-lead key dedupes
+                # so a re-run / Celery retry within the window does NOT enqueue the
+                # same lead twice (would create a duplicate HubSpot contact). Redis
+                # down = fail-open (enqueue, as before). Claim released if enqueue raises.
                 if campaign and campaign.sync_to_hubspot and settings.hubspot_api_key:
-                    try:
-                        sync_to_hubspot.delay(lead_data)
-                        synced_count += 1
-                    except Exception as e:
-                        errors.append(f"HubSpot sync failed for {lead.id}: {e}")
+                    idem_key = f"crm:hubspot:{lead.id}"
+                    if not idempotency.seen_before_sync(idem_key):
+                        try:
+                            sync_to_hubspot.delay(lead_data)
+                            synced_count += 1
+                        except Exception as e:
+                            idempotency.forget_sync(idem_key)  # release → retry next run
+                            errors.append(f"HubSpot sync failed for {lead.id}: {e}")
 
-                # Sync to Google Sheets if configured
+                # Sync to Google Sheets if configured (same idempotency guard).
                 if campaign and campaign.sync_to_sheets and campaign.spreadsheet_id:
-                    try:
-                        sync_to_sheets.delay(lead_data, campaign.spreadsheet_id)
-                        synced_count += 1
-                    except Exception as e:
-                        errors.append(f"Sheets sync failed for {lead.id}: {e}")
+                    idem_key = f"crm:sheets:{lead.id}:{campaign.spreadsheet_id}"
+                    if not idempotency.seen_before_sync(idem_key):
+                        try:
+                            sync_to_sheets.delay(lead_data, campaign.spreadsheet_id)
+                            synced_count += 1
+                        except Exception as e:
+                            idempotency.forget_sync(idem_key)  # release → retry next run
+                            errors.append(f"Sheets sync failed for {lead.id}: {e}")
 
     except Exception as e:
         logger.error(f"CRM sync error: {e}")

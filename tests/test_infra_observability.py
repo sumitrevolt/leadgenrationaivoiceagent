@@ -91,6 +91,24 @@ def test_automation_health_covers_durable_engineer_jobs():
         assert job in ah.EXPECTED_GAP_MIN
 
 
+def test_automation_health_suppresses_future_scheduled_never_ran(tmp_path, monkeypatch):
+    from app.platform import automation_health as ah
+
+    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "runs.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "beats.json"))
+
+    def fake_due_yet(job):
+        return job not in {"obsidian_push", "engineer_dbre", "engineer_dataquality"}
+
+    monkeypatch.setattr(ah, "_job_due_yet", fake_due_yet)
+    h = ah.health()
+    statuses = {j["job"]: j["status"] for j in h["jobs"]}
+    assert statuses["obsidian_push"] == "scheduled_off"
+    assert statuses["engineer_dbre"] == "scheduled_off"
+    assert statuses["engineer_dataquality"] == "scheduled_off"
+    assert "obsidian_push" not in h["never_ran"]
+
+
 def test_flags_registry_route():
     from app.api.growth import AUTOMATION_FLAGS, router
 
