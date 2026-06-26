@@ -71,6 +71,8 @@
       <input id="email" type="email" required placeholder="you@business.com" />
       <label for="password">Password</label>
       <input id="password" type="password" required placeholder="••••••••" />
+      <div style="text-align:right;margin-top:7px"><a href="#" id="forgotLink" style="font-size:12px;color:var(--brand-600);text-decoration:none;font-weight:600">Forgot password?</a></div>
+      <div class="err" id="forgotMsg" style="color:#15803d"></div>
       <div class="err" id="err"></div>
       <button type="submit" id="btn">Login</button>
     </form>
@@ -165,6 +167,23 @@
       magicMsg.textContent="Agar account hai to email me login link bhej diya. Inbox check karein.";
     }catch(e){ magicMsg.textContent="Agar account hai to link bhej diya."; }
     finally{ magicBtn.disabled=false; magicBtn.textContent="📧 Email me a login link"; }
+  }); }
+
+  // Forgot password — email pe single-use login link bhejo (magic-link reuse).
+  // Link se login karke customer apna password reset/badal sakta hai.
+  var forgotLink=document.getElementById("forgotLink"), forgotMsg=document.getElementById("forgotMsg");
+  if(forgotLink){ forgotLink.addEventListener("click", async function(ev){
+    ev.preventDefault();
+    var em=(document.getElementById("email").value||"").trim();
+    forgotMsg.style.color="#15803d";
+    if(!em || em.indexOf("@")<0){ forgotMsg.style.color="#b91c1c"; forgotMsg.textContent="Pehle apna email upar daalein."; return; }
+    forgotLink.textContent="Bhej rahe…";
+    try{
+      var r=await fetch("/api/customer/auth/magic-link/request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:em})});
+      if(r.status===404){ forgotMsg.style.color="#b91c1c"; forgotMsg.textContent="Password reset abhi band hai — support@leadsgenai.in pe email karein."; }
+      else { forgotMsg.textContent="Email pe login link bhej diya — usse seedha login ho jaoge (password ki zaroorat nahi). Inbox check karein."; }
+    }catch(e){ forgotMsg.textContent="Agar account hai to email pe link bhej diya."; }
+    finally{ forgotLink.textContent="Forgot password?"; }
   }); }
 
   // ?magic=<token> -> verify -> auto-login (URL se token turant hatao).
