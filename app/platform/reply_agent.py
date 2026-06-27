@@ -94,10 +94,14 @@ def _is_bulk_sender(frm: str, msg: Any) -> bool:
     return False
 
 
-# intent -> prospect status
+# intent -> prospect status. NOTE: must use only prospector.VALID_STATUSES
+# ("ready","sent","replied","client","dead") — a value outside that set (was
+# "replied_hot") makes mark_prospect() silently no-op, so the lead stays "ready"
+# and keeps getting auto follow-up emails. The hot/interested distinction is
+# preserved separately via the reply_intent field (set_prospect_fields).
 _STATUS = {
-    "interested": "replied_hot",
-    "question": "replied_hot",
+    "interested": "replied",
+    "question": "replied",
     "objection": "replied",
     "not_interested": "dead",
     "unsubscribe": "dead",
@@ -310,7 +314,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
     if not (host and user and pw):
         return {"skipped": "imap_unconfigured"}
     try:
-        M = imaplib.IMAP4_SSL(host, 993)
+        M = imaplib.IMAP4_SSL(host, 993, timeout=20)  # no timeout = worker hangs on a stalled IMAP read
         M.login(user, pw)
         M.select("INBOX")
         typ, data = M.search(None, "UNSEEN")

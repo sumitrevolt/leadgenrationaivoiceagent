@@ -1292,10 +1292,17 @@ async def infra_flags(_user=Depends(require_admin)):
     out = {}
     for f in AUTOMATION_FLAGS:
         v = _os.environ.get(f)
+        # Never leak secret-valued flags (DR_REPLICA_URL w/ password, LITELLM_MASTER_KEY,
+        # *_TOKEN/*_SECRET/*_KEY, TOTP_CHALLENGE_KEY…) — mask the value; plain on/off
+        # toggles still show their "1"/"true". `set`/`on` stay visible for both.
+        _fu = f.upper()
+        _is_secret = _fu.endswith(
+            ("_KEY", "_TOKEN", "_SECRET", "PASSWORD", "_URL", "_DSN")
+        ) or "PASSWORD" in _fu
         out[f] = {
             "set": v is not None,
             "on": (v or "").strip().lower() in ("1", "true", "yes"),
-            "value": v,
+            "value": ("***" if (_is_secret and v is not None) else v),
         }
     on = [k for k, d in out.items() if d["on"]]
     return {"on_count": len(on), "on": on, "flags": out}

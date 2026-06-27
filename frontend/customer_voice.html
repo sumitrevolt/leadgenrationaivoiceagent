@@ -861,7 +861,7 @@ function fmtD(d){return d.getFullYear()+"-"+pad(d.getMonth()+1,2)+"-"+pad(d.getD
 /* ============================================================
    STATE + RENDER
    ============================================================ */
-let DATA=null, charts={};
+let DATA=null, charts={}, _leadsAll=[], _callsAll=[];  // _leadsAll/_callsAll hoisted here to avoid TDZ crash during boot() (renderAll runs before their old late decls)
 
 function fmtINR(n){return "₹"+Number(n).toLocaleString("en-IN");}
 
@@ -1852,7 +1852,7 @@ function toggleDark(){
 /* ============================================================
    LEADS SEARCH + FILTER
    ============================================================ */
-let _leadsAll = [];  // full unfiltered list after each renderLeads call
+// _leadsAll declared at top-level (near `let DATA`) — see TDZ note there.
 
 function _origRenderLeads(d){
   _leadsAll = d.leads || [];
@@ -1915,7 +1915,7 @@ function renderLeads(d){ _origRenderLeads(d); }
 /* ============================================================
    CALLS SEARCH + FILTER
    ============================================================ */
-let _callsAll = [];
+// _callsAll declared at top-level (near `let DATA`) — see TDZ note there.
 
 function _patchRenderCalls(d){
   _callsAll = d.calls || [];

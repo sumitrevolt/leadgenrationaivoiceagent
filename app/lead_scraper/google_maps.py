@@ -89,7 +89,8 @@ class GoogleMapsScraper:
         field_mask = (
             "places.displayName,places.nationalPhoneNumber,"
             "places.internationalPhoneNumber,places.rating,places.userRatingCount,"
-            "places.formattedAddress,places.websiteUri,places.id"
+            "places.formattedAddress,places.websiteUri,places.id,"
+            "nextPageToken"  # MUST be in mask or Places API (New) omits it → pagination dead (capped at 20/query)
         )
         headers = {
             "Content-Type": "application/json",

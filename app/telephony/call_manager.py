@@ -7,7 +7,7 @@ import asyncio
 import os
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
 
@@ -377,7 +377,7 @@ class CallManager:
             # Schedule retry
             request.retry_count += 1
             request.priority += 2  # Lower priority on retry
-            request.scheduled_time = datetime.now() + asyncio.timedelta(
+            request.scheduled_time = datetime.now() + timedelta(
                 minutes=settings.call_retry_delay_minutes * request.retry_count
             )
 

@@ -35,6 +35,9 @@ _RETRY = os.path.join("data", "webhook_retry_queue.jsonl")  # outbox: pending re
 _DLQ = os.path.join("data", "webhook_dlq.jsonl")  # dead after max attempts
 _MAX_ATTEMPTS = 6
 _FLUSH_LOCK = asyncio.Lock()  # ek hi flush per-process (concurrent flush avoid)
+# Strong refs to in-flight opportunistic flush tasks — asyncio only keeps a weak ref,
+# so without this a fire-and-forget create_task() can be GC'd mid-run (lost retry flush).
+_FLUSH_TASKS: set = set()
 EVENTS = [
     "inquiry_received",
     "signup",
@@ -153,7 +156,9 @@ async def emit(event: str, payload: dict[str, Any], client_id: str = "") -> int:
         # Opportunistic outbox flush — naya event aaya to due retries bhi process karo
         # (non-blocking, single-flight via _FLUSH_LOCK). Scheduler-free reliability.
         try:
-            asyncio.create_task(retry_pending())
+            _ft = asyncio.create_task(retry_pending())
+            _FLUSH_TASKS.add(_ft)
+            _ft.add_done_callback(_FLUSH_TASKS.discard)
         except Exception:
             pass
         async with httpx.AsyncClient() as client:

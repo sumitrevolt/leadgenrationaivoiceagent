@@ -36,6 +36,7 @@ EXPECTED_GAP_MIN = {
     "onboard": 180,
     "standup": 30 * 60,  # daily 08:00 IST
     "engineer_sre": 180,  # hourly :45
+    "mcp_engineer": 180,  # hourly :40 (gated MCP_ENGINEER) — dead-man parity with STAFF_JOBS
     "engineer_finops": 30 * 60,
     "engineer_security": 30 * 60,
     "engineer_dbre": 30 * 60,

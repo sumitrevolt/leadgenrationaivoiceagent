@@ -723,9 +723,8 @@
             <div style="font-size:12px;font-weight:700;margin-bottom:6px">✅ Pay kar diya? UPI reference yahan daalo</div>
             <select id="upiPlanSel" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid #bbf7d0;border-radius:8px;font-size:13px">
               <option value="">Plan chuno</option>
-              <option value="starter">Marketing — Starter ₹1,199</option>
-              <option value="growth">Marketing — Growth ₹2,999</option>
-              <option value="advanced">Marketing — Advanced ₹6,999</option>
+              <option value="starter">Marketing — Starter ₹1,999</option>
+              <option value="advanced">Marketing — Advanced ₹5,999</option>
             </select>
             <input id="upiRefInp" type="text" placeholder="UPI Transaction ID / Reference no." style="width:100%;margin-bottom:6px;padding:8px;border:1px solid #bbf7d0;border-radius:8px;font-size:13px"/>
             <button id="upiSubmitBtn" onclick="submitUpiRef()" class="btn primary" style="width:100%;justify-content:center">✅ Maine Pay Kiya — Submit</button>
@@ -889,7 +888,7 @@ function fmtD(d){return d.getFullYear()+"-"+pad(d.getMonth()+1,2)+"-"+pad(d.getD
 /* ============================================================
    STATE + RENDER
    ============================================================ */
-let DATA=null, charts={};
+let DATA=null, charts={}, _leadsAll=[], _callsAll=[];  // _leadsAll/_callsAll hoisted here to avoid TDZ crash during boot() (renderAll runs before their old late decls)
 
 function fmtINR(n){return "₹"+Number(n).toLocaleString("en-IN");}
 
@@ -1936,7 +1935,7 @@ function toggleDark(){
 /* ============================================================
    LEADS SEARCH + FILTER
    ============================================================ */
-let _leadsAll = [];  // full unfiltered list after each renderLeads call
+// _leadsAll declared at top-level (near `let DATA`) — see TDZ note there.
 
 function _origRenderLeads(d){
   _leadsAll = d.leads || [];
@@ -1999,7 +1998,7 @@ function renderLeads(d){ _origRenderLeads(d); }
 /* ============================================================
    CALLS SEARCH + FILTER
    ============================================================ */
-let _callsAll = [];
+// _callsAll declared at top-level (near `let DATA`) — see TDZ note there.
 
 function _patchRenderCalls(d){
   _callsAll = d.calls || [];

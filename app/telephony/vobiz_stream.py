@@ -899,6 +899,7 @@ class VobizStreamSession:
                     self._speech_segments += 1
                 self._had_speech = True
                 self._barge_frames = 0
+                return  # already buffered — don't fall through and double-append below
             else:
                 self._barge_frames = 0
                 return

@@ -19,7 +19,7 @@ from app.integrations.whatsapp import WhatsAppIntegration
 from app.models.base import get_db_session
 from app.models.call_log import CallLog, CallOutcome
 from app.models.campaign import Campaign
-from app.models.client import Client
+from app.models.client import Client, ClientStatus
 from app.models.lead import Lead
 from app.utils.logger import setup_logger
 
@@ -94,14 +94,16 @@ def _get_notification_recipients(db) -> dict[str, list[str]]:
     """Get notification recipients from active clients"""
     recipients = {"whatsapp": [], "email": []}
 
-    # Get active clients
-    active_clients = db.query(Client).filter(Client.status == "active").all()
+    # Get active clients (status is an Enum column → compare to the member, not the
+    # lowercase string; native PG enum stores the member name, so "active" matched 0 rows
+    # / raised InvalidTextRepresentation. Contact fields are contact_phone/contact_email.)
+    active_clients = db.query(Client).filter(Client.status == ClientStatus.ACTIVE).all()
 
     for client in active_clients:
-        if client.phone:
-            recipients["whatsapp"].append(client.phone)
-        if client.email:
-            recipients["email"].append(client.email)
+        if client.contact_phone:
+            recipients["whatsapp"].append(client.contact_phone)
+        if client.contact_email:
+            recipients["email"].append(client.contact_email)
 
     # Add platform admin contacts
     if settings.smtp_user:
