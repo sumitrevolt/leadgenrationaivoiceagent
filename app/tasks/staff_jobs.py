@@ -23,6 +23,7 @@ Celery retry sirf invoke-level failure (import/loop) pe lagta hai.
 from __future__ import annotations
 
 import asyncio
+import time
 
 from celery import shared_task
 
@@ -119,11 +120,20 @@ def self_improve_tick(self):
     """Self-improve CONTINUOUS loop ka ek tick: run_once → khud ko requeue
     (countdown=gap). Koi cron timing nahi — task complete → agla task.
     Flag OFF ho jaye to chain khud ruk jaati (no requeue). Kabhi raise nahi."""
+    t0 = time.monotonic()
     res = {}
+    slot_token = ""
     try:
         from app.agents import self_improve
 
-        res = _run_async(self_improve.run_once()) or {}
+        if self_improve.enabled():
+            slot_token = self_improve.acquire_tick_slot()
+            if slot_token:
+                res = _run_async(self_improve.run_once()) or {}
+            else:
+                res = {"enabled": True, "skipped": "tick_slot"}
+        else:
+            res = {"enabled": False}
     except Exception as e:
         logger.warning(f"[self-improve] tick failed: {e}")
         res = {"ok": False, "error": str(e)[:200]}
@@ -131,13 +141,30 @@ def self_improve_tick(self):
     try:
         from app.agents import self_improve
 
-        if self_improve.enabled():
+        if self_improve.enabled() and slot_token:
             gap = self_improve.gap_seconds()
             if res.get("skipped") == "daily_cap":
                 gap = 3600  # cap hit — ghante me wapas check (naya din = resume)
-            self_improve_tick.apply_async(countdown=gap)
+            queued = False
+            try:
+                self_improve_tick.apply_async(countdown=gap)
+                queued = True
+            finally:
+                self_improve.release_tick_slot(slot_token)
+            if queued:
+                self_improve.note_tick_requeue(gap)
+        elif slot_token:
+            self_improve.release_tick_slot(slot_token)
     except Exception as e:
         logger.warning(f"[self-improve] requeue failed (watchdog revive karega): {e}")
+    try:
+        from app.platform import automation_health
+
+        ok = bool(res.get("ok", res.get("enabled", False)))
+        note = str(res.get("action") or res.get("skipped") or res.get("error") or "")[:120]
+        automation_health.record_run("self_improve", ok, time.monotonic() - t0, note=note)
+    except Exception:
+        pass
     return {
         "ok": bool(res.get("ok", res.get("enabled", False))),
         "action": res.get("action", res.get("skipped", "")),

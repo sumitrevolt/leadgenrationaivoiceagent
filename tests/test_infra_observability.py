@@ -84,6 +84,37 @@ def test_automation_health_failed_run(tmp_path, monkeypatch):
     assert c["status"] == "last_failed"
 
 
+def test_self_improve_tick_records_automation_heartbeat(tmp_path, monkeypatch):
+    import json
+
+    from app.agents import self_improve as si
+    from app.platform import automation_health as ah
+    from app.tasks import staff_jobs
+
+    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "runs.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "beats.json"))
+    monkeypatch.setenv("SELF_IMPROVE_LOOP", "1")
+
+    async def fake_run_once():
+        return {"enabled": True, "skipped": "daily_cap"}
+
+    queued: list[dict] = []
+    monkeypatch.setattr(si, "run_once", fake_run_once)
+    monkeypatch.setattr(si, "enabled", lambda: True)
+    monkeypatch.setattr(staff_jobs.self_improve_tick, "apply_async", lambda **kw: queued.append(kw))
+
+    out = staff_jobs.self_improve_tick.run()
+
+    assert out == {"ok": True, "action": "daily_cap"}
+    assert queued == [{"countdown": 3600}]
+    h = ah.health()
+    j = next(job for job in h["jobs"] if job["job"] == "self_improve")
+    assert j["status"] == "ok"
+    assert "self_improve" not in h["never_ran"]
+    beats = json.load(open(ah._BEATS, encoding="utf-8"))
+    assert beats["self_improve"]["note"] == "daily_cap"
+
+
 def test_automation_health_covers_durable_engineer_jobs():
     from app.platform import automation_health as ah
 

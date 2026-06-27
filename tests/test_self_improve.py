@@ -5,7 +5,9 @@ Sync + asyncio.run pattern, tmp stores monkeypatch. No network/DB needed (hermet
 from __future__ import annotations
 
 import asyncio
+import json
 import random
+import time
 
 
 # ----------------------------- skill library ----------------------------- #
@@ -45,11 +47,14 @@ def test_skill_library_learn_and_pick(tmp_path, monkeypatch):
 # ----------------------------- self-improve loop ----------------------------- #
 def _patch_stores(monkeypatch, tmp_path):
     from app.agents import self_improve as si
+    from app.platform import automation_health as ah
     from app.platform import skill_library as sl
 
     monkeypatch.setattr(si, "_STATE", str(tmp_path / "state.json"))
     monkeypatch.setattr(si, "_QUEUE", str(tmp_path / "queue.jsonl"))
     monkeypatch.setattr(si, "_RUNS", str(tmp_path / "runs.jsonl"))
+    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "job_runs.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "job_heartbeats.json"))
     monkeypatch.setattr(sl, "_USES", str(tmp_path / "uses.jsonl"))
     monkeypatch.setattr(sl, "_LESSONS", str(tmp_path / "lessons.jsonl"))
     return si
@@ -102,11 +107,56 @@ def test_selfimprove_run_once_learns_and_chains(tmp_path, monkeypatch):
     st = si.status()
     assert st["state"]["runs_today"] == 1
     assert st["recent_runs"][0]["action"] == "scrape_leads"
+    from app.platform import automation_health as ah
+
+    with open(ah._BEATS, encoding="utf-8") as f:
+        beats = json.load(f)
+    assert beats["self_improve"]["ok"] is True
+    assert "scrape_leads" in beats["self_improve"]["note"]
 
     # daily cap guard
     monkeypatch.setenv("SELF_IMPROVE_MAX_PER_DAY", "1")
     out2 = asyncio.run(si.run_once())
     assert out2.get("skipped") == "daily_cap"
+    with open(ah._BEATS, encoding="utf-8") as f:
+        beats = json.load(f)
+    assert beats["self_improve"]["note"] == "daily_cap"
+
+
+def test_selfimprove_tick_slot_blocks_duplicate_chains(tmp_path, monkeypatch):
+    si = _patch_stores(monkeypatch, tmp_path)
+    monkeypatch.setenv("SELF_IMPROVE_LOOP", "1")
+    monkeypatch.setenv("SELF_IMPROVE_GAP_S", "180")
+
+    class FakeRedis:
+        def __init__(self):
+            self.store = {}
+
+        def get(self, key):
+            val = self.store.get(key)
+            return val.encode("utf-8") if isinstance(val, str) else val
+
+        def set(self, key, val, nx=False, ex=None):
+            if nx and key in self.store:
+                return False
+            self.store[key] = str(val)
+            return True
+
+        def delete(self, key):
+            self.store.pop(key, None)
+
+    fake = FakeRedis()
+    monkeypatch.setattr(si, "_redis_client", lambda: fake)
+
+    token = si.acquire_tick_slot()
+    assert token
+    assert si.acquire_tick_slot() == ""
+
+    si.release_tick_slot(token)
+    assert si.acquire_tick_slot() == ""
+
+    si.note_tick_requeue(3600)
+    assert float(fake.store["self_improve:tick_next_allowed"]) > time.time() + 3500
 
 
 def test_selfimprove_execute_error_never_raises(tmp_path, monkeypatch):
