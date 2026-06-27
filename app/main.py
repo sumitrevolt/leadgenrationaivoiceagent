@@ -768,6 +768,24 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Customer marketing studio router not mounted: {_e}")
 try:
+    from app.api.customer_pipeline import router as customer_pipeline_router
+
+    app.include_router(customer_pipeline_router)  # /api/customer/pipeline (lead Kanban board)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Customer pipeline router not mounted: {_e}")
+try:
+    from app.api.email_track import router as email_track_router
+
+    app.include_router(email_track_router)  # /t/o, /t/c (public pixels) + /api/admin/email-tracking/* — NO prefix
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Email tracking router not mounted: {_e}")
+try:
+    from app.api import segments as segments_api
+
+    app.include_router(segments_api.router, tags=["Segments"])  # /api/segments/* (dynamic segment builder)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Segments router not mounted: {_e}")
+try:
     from app.api.studio_media import router as studio_media_router
 
     app.include_router(studio_media_router)  # /api/customer/studio/* media (upload/serve image tools)
@@ -978,6 +996,18 @@ async def calendar_page():
 async def deals_page():
     """Sales pipeline kanban (drag-drop) over /api/growth/sales/*."""
     return FileResponse(str(FRONTEND_DIR / "deals.html"))
+
+
+@app.get("/app/customer/pipeline", tags=["Frontend"])
+async def customer_pipeline_page():
+    """Customer lead Pipeline Kanban — drag-drop board of this client's own leads by status."""
+    return FileResponse(str(FRONTEND_DIR / "customer_pipeline.html"))
+
+
+@app.get("/app/segments", tags=["Frontend"])
+async def segments_page():
+    """Dynamic condition-based segment builder (Mautic parity) over /api/segments/*."""
+    return FileResponse(str(FRONTEND_DIR / "segments.html"))
 
 
 @app.get("/app/inbox", tags=["Frontend"])

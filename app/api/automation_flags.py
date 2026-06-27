@@ -44,6 +44,7 @@ AUTOMATION_FLAGS = [
     "PROCESS_ENGINE",  # deterministic process-as-code workflows (complement to PROCESS_AUTOSTART)
     "AUTO_INVOICE",
     "EMAIL_WARMUP",
+    "EMAIL_TRACKING",  # cold-email open/click pixels (listmonk parity); OFF = no tracking emitted
     "USAGE_ALERTS",
     "REVIEW_MONITOR",
     "BOOKING_REMINDERS",
