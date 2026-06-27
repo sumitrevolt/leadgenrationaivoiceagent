@@ -517,7 +517,8 @@
         <h3>AI Marketing Automation</h3>
         <p class="desc">Roz ka content + Google presence — sab AI se, aapka time zero.</p>
         <div class="amt">₹1,999<small>/month</small></div>
-        <p class="pnote">100% marketing-only — koi calling charge nahi · roz ke ₹40 se kam me poora setup (yearly = 2 mahine free)</p>
+        <p class="pnote pnote-year" style="font-weight:600">ya ₹19,990/saal — 2 mahine FREE</p>
+        <p class="pnote">100% marketing-only — koi calling charge nahi · roz ke ₹40 se kam me poora setup</p>
         <ul>
           <li><span class="ck">✓</span> Roz AI social posts — Hinglish caption + hashtags (39 niches, aapki industry ke hisaab se)</li>
           <li><span class="ck">✓</span> Branded post frames — aapka logo + business naam har post pe</li>
@@ -571,6 +572,7 @@
         <h3>Advanced Voice Agent</h3>
         <p class="desc">Marketing + ek AI jo aapke har inquiry ko KHUD call kare — India me sirf yahan.</p>
         <div class="amt">₹5,999<small>/month</small></div>
+        <p class="pnote pnote-year" style="font-weight:600">ya ₹59,990/saal — 2 mahine FREE</p>
         <p class="pnote">telephony usage included up to 500 min/mo</p>
         <ul>
           <li><span class="ck">✓</span> Growth ke saare features included</li>
@@ -879,6 +881,13 @@
         amt.textContent = '₹' + Number(p.price_inr_month || 0).toLocaleString('en-IN');
         const small = document.createElement('small'); small.textContent = '/month'; amt.appendChild(small);
         card.appendChild(amt);
+        if (p.price_inr_year) {
+          const yr = document.createElement('p');
+          yr.className = 'pnote pnote-year';
+          yr.style.fontWeight = '600';
+          yr.textContent = 'ya ₹' + Number(p.price_inr_year).toLocaleString('en-IN') + '/saal — 2 mahine FREE';
+          card.appendChild(yr);
+        }
         if (p.price_note) {
           const note = document.createElement('p'); note.className = 'pnote'; note.textContent = p.price_note;
           card.appendChild(note);

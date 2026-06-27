@@ -12,7 +12,7 @@ description: Pricing/packaging/discount decisions for LeadGen AI ke DO products 
 **IRON RULE: koi bhi price/tier change = source file + `tests/test_billing_truth_2026.py` SAATH me update** (yeh tests legacy plan-drift bug dobara hone se rokte hain). **"Marketing + voice bundle / dono ek saath" framing GALAT — alag bech.**
 
 ## Current truth (change se pehle yaad rakho)
-**Marketing** (`packages.py`): Starter ₹1,999/mo · Growth ₹2,999 (recommended anchor) · Advanced ₹5,999 (+AI voice 500 min/mo = ek FEATURE, India me UNIQUE). Annual `price_inr_year` = 10× monthly = 2 mahine free (19990/29990/59990). `TOPUP_PACKS` 100/250/500 min = ₹1,499/3,499/5,999 (period-end EXPIRE). FREE trial ₹0, `TRIAL_DAYS=7` (no card, no voice). GST sirf `GST_GSTIN` set pe.
+**Marketing** (`packages.py`): PUBLIC = 2 plans — **Main** (Marketing Automation, `starter`) ₹1,999/mo + **Combo/Advanced** (`advanced`, +AI voice 500 min/mo = ek FEATURE, India me UNIQUE) ₹5,999. Annual = 10× monthly = 2 mahine free (19990 / 59990). **Growth ₹2,999 (`growth`) = legacy hidden (`public:False`, public me NAHI — `get_public_packages()` use karo).** `TOPUP_PACKS` 100/250/500 min = ₹1,499/3,499/5,999 (period-end EXPIRE). FREE trial ₹0, `TRIAL_DAYS=7` (no card, no voice). GST sirf `GST_GSTIN` set pe.
 **Voice** (`voice_packages.py`): FLAT MONTHLY per niche-band — Band A ₹4,999 · Band B ₹9,999 · Band C ₹19,999 (UNLIMITED calls, no lead-counting/disputes). Annual = 10× monthly (49990/99990/1,99,990). FREE pilot 7 din / 50 calls (`voice_pilot`, zero payment). Niche→band = `app/niches.py` `lead_band`. Plan IDs `voice_{a,b,c}_monthly`/`_annual` + `voice_pilot`.
 
 ## Decision frameworks (distilled)
