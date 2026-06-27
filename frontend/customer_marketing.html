@@ -2198,8 +2198,24 @@ const STUDIO_TOOLS = [
   {key:"hashtags", icon:"#️⃣", title:"Hashtag Research", desc:"Niche ke best hashtags", method:"POST", path:"/api/customer/studio/hashtags",
    inputs:[{n:"count",l:"Kitne",ph:"15",type:"number",def:"15"},{n:"city",l:"City",ph:""}]},
   {key:"gbp-tips", icon:"📈", title:"GBP Growth Tips", desc:"Google ranking tips (free)", method:"GET", path:"/api/customer/studio/gbp-tips", inputs:[]},
+  {key:"festival-post", icon:"🪔", title:"Festival Posts", desc:"Diwali/Holi/Eid auto captions", method:"POST", path:"/api/customer/studio/festival-post",
+   inputs:[{n:"days",l:"Aane wale din",ph:"45",type:"number",def:"45"}]},
+  {key:"poster", icon:"🖼️", title:"Offer Poster", desc:"Shop naam + offer + phone poster (download)", method:"POST", path:"/api/customer/studio/poster",
+   inputs:[{n:"offer",l:"Offer",ph:"20% off this week"},{n:"phone",l:"Phone",ph:"+91…"},{n:"tagline",l:"Tagline (optional)",ph:""}]},
+  {key:"review-request", icon:"🙏", title:"Review Request", desc:"Review maangne ka message + Google link", method:"POST", path:"/api/customer/studio/review-request", inputs:[]},
+  {key:"followup-sequence", icon:"🔁", title:"Follow-up Sequence", desc:"Day 1/3/7 WhatsApp drip", method:"POST", path:"/api/customer/studio/followup-sequence",
+   inputs:[{n:"lead_type",l:"Lead type",ph:"new_inquiry"}]},
+  {key:"speed-followup", icon:"⚡", title:"Speed-to-Lead Reply", desc:"Naye lead ka instant message", method:"POST", path:"/api/customer/studio/speed-followup", inputs:[]},
+  {key:"reel-script", icon:"🎬", title:"Reel Script", desc:"Instagram reel 15-30s script", method:"POST", path:"/api/customer/studio/reel-script",
+   inputs:[{n:"topic",l:"Topic",ph:"naya offer / service"},{n:"n",l:"Kitne",ph:"3",type:"number",def:"3"}]},
+  {key:"win-back", icon:"💌", title:"Win-back Campaign", desc:"Purane customers ko offer", method:"POST", path:"/api/customer/studio/win-back",
+   inputs:[{n:"offer",l:"Offer",ph:"Wapas aao — 10% off"}]},
+  {key:"quote-draft", icon:"🧾", title:"Quote / Estimate", desc:"Inquiry se price quote draft", method:"POST", path:"/api/customer/studio/quote-draft",
+   inputs:[{n:"avg_deal_value",l:"Avg deal value ₹",ph:"20000",type:"number",def:"20000"}]},
+  {key:"next-best-action", icon:"🎯", title:"Next Best Action", desc:"Aaj kya karna hai — task list", method:"GET", path:"/api/customer/studio/next-best-action", inputs:[]},
 ];
 const STUDIO_LAST = {};  // key -> plain text for copy
+const STUDIO_SVG = {};   // key -> last poster SVG (for download)
 
 async function studioInit(){
   const grid=document.getElementById("studioGrid"); if(!grid) return;
@@ -2278,6 +2294,44 @@ function studioRenderResult(key,d,out){
     copy=tags.map(function(h){return h[0]==="#"?h:"#"+h;}).join(" ");
   } else if(key==="gbp-tips"){
     html=_li(d.tips||[]); copy=(d.tips||[]).map(function(it){return typeof it==="string"?it:Object.values(it).join(" — ");}).join("\n");
+  } else if(key==="festival-post"){
+    html=(res.posts||[]).map(function(p){return '<div style="margin-top:6px"><b>'+escH(p.festival||"")+(p.date?' ('+escH(p.date)+')':"")+':</b><div style="white-space:pre-wrap">'+escH(p.caption||"")+'</div></div>';}).join("");
+    copy=(res.posts||[]).map(function(p){return (p.festival||"")+": "+(p.caption||"");}).join("\n\n");
+  } else if(key==="poster"){
+    if(res.svg){ STUDIO_SVG[key]=res.svg;
+      html='<div style="max-width:240px;border:1px solid var(--bd,#e5e7eb);border-radius:8px;overflow:hidden">'+res.svg+'</div>'
+        +'<button class="btn" type="button" style="margin-top:6px;padding:5px 10px;font-size:12px" onclick="studioDlPoster()">⬇️ Poster download</button>';
+    } else { html='<span style="color:#dc2626">Poster nahi bana.</span>'; }
+    copy=""; STUDIO_LAST[key]="";
+    out.innerHTML=html; return;
+  } else if(key==="review-request"){
+    const pk=res.pack||{},lk=res.link||{};
+    html='<b>WhatsApp:</b><div style="white-space:pre-wrap">'+escH(pk.wa_message||"")+'</div>'
+      +(pk.sms_line?'<b>SMS:</b><div>'+escH(pk.sms_line)+'</div>':"")
+      +(lk.maps_search_url?'<div class="sm" style="margin-top:4px">🔗 <a href="'+escH(lk.maps_search_url)+'" target="_blank" rel="noopener">Google review link</a></div>':"");
+    copy=(pk.wa_message||"")+"\n"+(lk.maps_search_url||"");
+  } else if(key==="followup-sequence"){
+    html=(res.steps||[]).map(function(s){return '<div style="margin-top:6px"><b>Day '+escH(String(s.day||""))+(s.goal?" — "+escH(s.goal):"")+':</b><div style="white-space:pre-wrap">'+escH(s.message||"")+'</div></div>';}).join("");
+    copy=(res.steps||[]).map(function(s){return "Day "+(s.day||"")+": "+(s.message||"");}).join("\n\n");
+  } else if(key==="speed-followup"){
+    const it=res.instant||{}; html='<div style="white-space:pre-wrap">'+escH(it.message||"")+'</div>'; copy=it.message||"";
+  } else if(key==="reel-script"){
+    html=(res.scripts||[]).map(function(s,i){return '<div style="margin-top:6px"><b>Script '+(i+1)+(s.duration?" ("+escH(String(s.duration))+"s)":"")+':</b>'
+      +(s.hook?'<div>🎣 '+escH(s.hook)+'</div>':"")+(s.body?'<div>'+escH(s.body)+'</div>':"")+(s.cta?'<div>➡️ '+escH(s.cta)+'</div>':"")+'</div>';}).join("");
+    copy=(res.scripts||[]).map(function(s){return [s.hook,s.body,s.cta].filter(Boolean).join("\n");}).join("\n\n");
+  } else if(key==="win-back"){
+    html=(res.messages||[]).slice(0,10).map(function(m){return '<div style="margin-top:5px"><b>'+escH(m.name||"Customer")+':</b> '+escH(m.text||"")+(m.wa_link?' <a href="'+escH(m.wa_link)+'" target="_blank" rel="noopener">WA</a>':"")+'</div>';}).join("")
+      +(res.tips&&res.tips.length?'<div class="sm" style="margin-top:5px;color:#64748b">💡 '+escH(res.tips.join(" • "))+'</div>':"");
+    copy=(res.messages||[]).map(function(m){return (m.name||"")+": "+(m.text||"");}).join("\n");
+  } else if(key==="quote-draft"){
+    html='<div style="white-space:pre-wrap">'+escH(res.proposal||"")+'</div>'
+      +(res.price_inr?'<div class="sm" style="margin-top:4px">💰 Price: ₹'+escH(String(res.price_inr))+(res.monthly_loss_inr?' · Monthly loss: ₹'+escH(String(res.monthly_loss_inr)):"")+'</div>':"");
+    copy=res.proposal||"";
+  } else if(key==="next-best-action"){
+    html=(d.actions||[]).map(function(a){return '<div style="margin-top:6px;padding:6px 8px;background:var(--soft,#f8fafc);border-radius:8px">'
+      +'<div><b>'+(a.icon||"•")+' '+escH(a.action||"")+'</b></div><div class="sm" style="color:#64748b">'+escH(a.why||"")+'</div>'
+      +(a.target?'<button class="btn" type="button" style="margin-top:4px;padding:3px 9px;font-size:11px" onclick="scrollToId(\''+escH(a.target)+'\')">Karo →</button>':"")+'</div>';}).join("");
+    copy=(d.actions||[]).map(function(a){return (a.action||"");}).join("\n");
   } else { html='<pre style="white-space:pre-wrap">'+escH(JSON.stringify(res,null,1))+'</pre>'; copy=JSON.stringify(res); }
   STUDIO_LAST[key]=copy;
   out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\''+key+'\')">📋 Copy</button>';
@@ -2286,6 +2340,15 @@ function studioCopy(key){
   const txt=STUDIO_LAST[key]||""; if(!txt) return;
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(function(){toast("Copy ho gaya ✅","Ab paste karke post/bhej do.");}).catch(function(){toast("Copy nahi hua","Manually select karo.");}); }
   else { toast("Copy nahi hua","Manually select karo."); }
+}
+function studioDlPoster(){
+  const svg=STUDIO_SVG["poster"]; if(!svg){ toast("Poster nahi mila","Phir se banao."); return; }
+  try{
+    const blob=new Blob([svg],{type:"image/svg+xml"}); const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download="poster.svg"; document.body.appendChild(a); a.click();
+    setTimeout(function(){URL.revokeObjectURL(url);a.remove();},500);
+    toast("Poster download ✅","SVG file save ho gayi.");
+  }catch(e){ toast("Download nahi hua","Browser support issue."); }
 }
 
 loadBilling();
