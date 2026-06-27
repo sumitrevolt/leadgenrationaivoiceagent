@@ -7,8 +7,10 @@ admin_dashboard.py so external importers (tests / others) keep working.
 
 from __future__ import annotations
 
+import json
 import logging
-from datetime import date, datetime
+import os
+from datetime import date, datetime, timezone
 
 from app.api.admin_dashboard_models import (
     Agent,
@@ -24,6 +26,11 @@ from app.api.admin_dashboard_models import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Restored in the 2026-06-20 godfile split (was lost when extracted from
+# admin_dashboard.py). Without it _read_inquiries() and _build_real() raised
+# NameError (caught upstream) → the admin dashboard silently fell back to all-zeros.
+_INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
 
 def _read_inquiries() -> list[dict]:
