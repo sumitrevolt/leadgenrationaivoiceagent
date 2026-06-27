@@ -768,6 +768,12 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Customer marketing studio router not mounted: {_e}")
 try:
+    from app.api.studio_media import router as studio_media_router
+
+    app.include_router(studio_media_router)  # /api/customer/studio/* media (upload/serve image tools)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Studio media router not mounted: {_e}")
+try:
     from app.api.customer_flows import router as customer_flows_router
 
     app.include_router(customer_flows_router)  # /api/customer/flow* (Phase 7 per-client builder)
