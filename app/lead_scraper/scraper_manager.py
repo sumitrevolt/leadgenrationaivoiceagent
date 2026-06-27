@@ -10,10 +10,19 @@ import asyncio
 import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from app.utils.logger import setup_logger
 from app.utils.phone_validator import PhoneValidator
+
+if TYPE_CHECKING:
+    # Type-only imports — kept out of runtime to preserve the lazy cold-start
+    # design (heavy source scrapers stay un-imported until a @property needs them).
+    from app.lead_scraper.google_maps import BusinessLead
+    from app.lead_scraper.indiamart import IndiaMartLead
+    from app.lead_scraper.justdial import JustDialLead
+    from app.lead_scraper.social_media import SocialMediaLead
+    from app.lead_scraper.web_search import WebSearchLead
 
 # NOTE: the heavy source scrapers (google_maps/indiamart/justdial/linkedin/web_search/
 # social_media) are imported LAZILY inside the per-source @property accessors below — so

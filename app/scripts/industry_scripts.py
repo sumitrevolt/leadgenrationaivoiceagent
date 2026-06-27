@@ -8,6 +8,7 @@ Each industry has unique pain points, objections, and qualification criteria.
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class ScriptType(Enum):

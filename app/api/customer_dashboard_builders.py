@@ -8,7 +8,9 @@ lead_scoring / speed_to_lead / prospector) keep working.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 from datetime import date, datetime
 
 from app.api.customer_dashboard_models import (
@@ -21,9 +23,14 @@ from app.api.customer_dashboard_models import (
     OnboardingChecklist,
     OnboardingStep,
     SeriesPoint,
+    TrialBanner,
 )
 
 logger = logging.getLogger(__name__)
+
+# Restored in the 2026-06-20 godfile split (was lost when extracted from
+# customer_dashboard.py) — without it _read_inquiries() silently returned [].
+_INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
 
 def _build_onboarding_checklist(
