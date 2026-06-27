@@ -59,7 +59,7 @@ App = **Docker container `leadgen_app`** (`docker-compose.vps.yml`); systemd `le
 ## 7. Pricing / niche model (current truth — galat assume mat karo)
 - Niches: **39 curated builtin** (S=8, A=14, B=17). Purane real_estate/wedding_venues REMOVED (intentional rebuild). `lead_band(key)` → A/B/C.
 - Voice product: **FLAT MONTHLY per band** (A ₹4,999 / B ₹9,999 / C ₹19,999; annual=10×; free pilot). `voice_packages.BANDS` + `VOICE_PLAN_IDS`. Per-lead/per-10-lead system HATA diya gaya — `VOICE_TIERS`/`PACK_SIZE=10` ab nahi. Quota flat = UNLIMITED_QUOTA.
-- Marketing product: Starter ₹1,199 / Growth ₹2,999 / Advanced ₹6,999. `packages.py` = single source of truth; pricing change = `packages.py` + `test_billing_truth_2026` SAATH.
+- Marketing product (PUBLIC = 2 plans): **Main** (`starter`) ₹1,999/mo · **Combo/Advanced** (`advanced`, +500 voice min) ₹5,999/mo (annual 10× = 19,990/59,990). **Growth ₹2,999 (`growth`) = legacy HIDDEN (`public:False`) — public pricing me kabhi nahi → `get_public_packages()`.** `app/marketing/packages.py` = single source of truth; pricing change = packages.py + `test_billing_truth_2026` SAATH.
 
 ## 8. Decision-making (jab "best kya hai" poocha jaye)
 - Revenue-blocking + user-action (payments/DLT/KYC) = highest priority flag karo, par wo user ke haath me hai.
