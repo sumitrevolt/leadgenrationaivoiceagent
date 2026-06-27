@@ -12,6 +12,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Enum,
     ForeignKey,
     Integer,
     Numeric,
@@ -21,6 +22,13 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base
+
+
+def _enum_values(enum_cls):
+    """values_callable for SQLAlchemy Enum columns so the DB stores the enum's
+    .value (e.g. "active") not its .name (e.g. "ACTIVE"). Keeps existing VARCHAR
+    data valid and avoids a Postgres native-ENUM type (native_enum=False)."""
+    return [member.value for member in enum_cls]
 
 
 class PaymentGateway(enum.Enum):
@@ -98,9 +106,19 @@ class Subscription(Base):
     plan_name = Column(String(100), nullable=False)
     pricing_model = Column(String(20), default="subscription")
 
-    # Status (using String for PostgreSQL compatibility)
-    status = Column(String(20), default="trial", nullable=False, index=True)
-    billing_cycle = Column(String(20), default="monthly")
+    # Status — Enum(native_enum=False) renders as VARCHAR (Postgres-compatible,
+    # no native ENUM type / no migration) while letting all callers use enum
+    # semantics (assign SubscriptionStatus.X, read .status.value, filter .in_([...])).
+    status = Column(
+        Enum(SubscriptionStatus, native_enum=False, values_callable=_enum_values),
+        default=SubscriptionStatus.TRIAL,
+        nullable=False,
+        index=True,
+    )
+    billing_cycle = Column(
+        Enum(BillingCycle, native_enum=False, values_callable=_enum_values),
+        default=BillingCycle.MONTHLY,
+    )
 
     # External gateway references
     payment_gateway = Column(String(20), nullable=True)
@@ -145,11 +163,11 @@ class Subscription(Base):
 
     def is_active(self) -> bool:
         """Check if subscription is active"""
-        return self.status in ["trial", "active"]
+        return self.status in [SubscriptionStatus.TRIAL, SubscriptionStatus.ACTIVE]
 
     def is_trial(self) -> bool:
         """Check if in trial period"""
-        return self.status == "trial"
+        return self.status == SubscriptionStatus.TRIAL
 
     def has_exceeded_limits(self) -> bool:
         """Check if usage limits are exceeded"""
@@ -166,8 +184,8 @@ class Subscription(Base):
             "client_id": self.client_id,
             "plan_id": self.plan_id,
             "plan_name": self.plan_name,
-            "status": self.status,
-            "billing_cycle": self.billing_cycle,
+            "status": self.status.value if self.status else None,
+            "billing_cycle": self.billing_cycle.value if self.billing_cycle else None,
             "payment_gateway": self.payment_gateway,
             "base_price": float(self.base_price) if self.base_price else 0,
             "currency": self.currency,
@@ -216,8 +234,13 @@ class Payment(Base):
     currency = Column(String(3), default="INR")
     amount_refunded = Column(Numeric(12, 2), default=0)
 
-    # Status (using String for PostgreSQL compatibility)
-    status = Column(String(30), default="pending", nullable=False, index=True)
+    # Status — see Subscription.status note (Enum, VARCHAR-backed, no migration).
+    status = Column(
+        Enum(PaymentStatus, native_enum=False, values_callable=_enum_values),
+        default=PaymentStatus.PENDING,
+        nullable=False,
+        index=True,
+    )
 
     # Payment method details (masked for security)
     payment_method_type = Column(String(50))  # card, upi, netbanking, wallet
@@ -251,7 +274,7 @@ class Payment(Base):
 
     def is_successful(self) -> bool:
         """Check if payment was successful"""
-        return self.status == "completed"
+        return self.status == PaymentStatus.COMPLETED
 
     def to_dict(self) -> dict:
         """Convert to dictionary"""
@@ -265,7 +288,7 @@ class Payment(Base):
             "amount": float(self.amount) if self.amount else 0,
             "currency": self.currency,
             "amount_refunded": float(self.amount_refunded) if self.amount_refunded else 0,
-            "status": self.status,
+            "status": self.status.value if self.status else None,
             "payment_method": {
                 "type": self.payment_method_type,
                 "last4": self.payment_method_last4,
@@ -298,8 +321,13 @@ class Invoice(Base):
     stripe_invoice_id = Column(String(255), unique=True, nullable=True)
     razorpay_invoice_id = Column(String(255), unique=True, nullable=True)
 
-    # Status (using String for PostgreSQL compatibility)
-    status = Column(String(20), default="draft", nullable=False, index=True)
+    # Status — see Subscription.status note (Enum, VARCHAR-backed, no migration).
+    status = Column(
+        Enum(InvoiceStatus, native_enum=False, values_callable=_enum_values),
+        default=InvoiceStatus.DRAFT,
+        nullable=False,
+        index=True,
+    )
 
     # Billing period
     billing_period_start = Column(DateTime, nullable=True)
@@ -352,7 +380,7 @@ class Invoice(Base):
 
     def is_paid(self) -> bool:
         """Check if invoice is fully paid"""
-        return self.status == "paid"
+        return self.status == InvoiceStatus.PAID
 
     def to_dict(self) -> dict:
         """Convert to dictionary"""
@@ -361,7 +389,7 @@ class Invoice(Base):
             "invoice_number": self.invoice_number,
             "client_id": self.client_id,
             "subscription_id": self.subscription_id,
-            "status": self.status,
+            "status": self.status.value if self.status else None,
             "billing_period": {
                 "start": (
                     self.billing_period_start.isoformat() if self.billing_period_start else None
