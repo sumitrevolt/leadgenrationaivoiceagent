@@ -39,7 +39,7 @@ _WORD_MAP: dict[str, str] = {
     "फ्री": "free", "ट्रायल": "trial", "डेमो": "demo",
     # service / capability
     "सर्विस": "service", "सेवा": "seva", "करते": "karte", "करना": "karna",
-    "करोगे": "karoge", "करते": "karte", "काम": "kaam", "चाहिए": "chahiye",
+    "करोगे": "karoge", "काम": "kaam", "चाहिए": "chahiye",
     # yes
     "हाँ": "haan", "हां": "haan", "हा": "haan", "जी": "ji", "ठीक": "thik",
     "बिल्कुल": "bilkul", "बिलकुल": "bilkul", "ज़रूर": "zaroor", "जरूर": "zaroor",
