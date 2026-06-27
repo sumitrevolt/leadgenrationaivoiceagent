@@ -423,6 +423,7 @@
     <div class="brand" aria-label="LeadGen AI"><img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="34" height="34" /> LeadGen AI</div>
     <a class="navlink active" href="#" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home</a>
     <a class="navlink" href="#contentCard" onclick="scrollToId('contentCard');return false;" aria-label="Aaj ka Post section"><span class="ic" aria-hidden="true">📣</span> Aaj ka Post</a>
+    <a class="navlink" href="#studioCard" onclick="scrollToId('studioCard');return false;" aria-label="AI Marketing Studio"><span class="ic" aria-hidden="true">🎨</span> AI Studio</a>
     <a class="navlink" href="#approvalCard" onclick="scrollToId('approvalCard');return false;" aria-label="Post approvals"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
     <a class="navlink" href="#webToolsCard" onclick="scrollToId('webToolsCard');return false;" aria-label="Website tools mini-site widget"><span class="ic" aria-hidden="true">🌐</span> Website Tools</a>
     <a class="navlink" href="#routingCard" onclick="scrollToId('routingCard');return false;" aria-label="Team routing"><span class="ic" aria-hidden="true">👥</span> Team Routing</a>
@@ -698,6 +699,23 @@
           <span class="ic">💳</span>
           <span><span class="t">Bill / Plan</span><br><span class="s">Aapka plan, minutes, purane bills</span></span>
         </button>
+        <button class="action-card" onclick="scrollToId('studioCard')">
+          <span class="ic">🎨</span>
+          <span><span class="t">AI Marketing Studio</span><br><span class="s">Post, WhatsApp, review-reply, ads — AI banaye</span></span>
+        </button>
+      </div>
+
+      <!-- ===== 2b) AI Marketing Studio — self-serve AI marketing assets ===== -->
+      <div class="sec-title">🎨 AI Marketing Studio</div>
+      <div class="card" id="studioCard">
+        <div class="card-h">
+          <h2>AI se marketing material — apne business ke liye</h2>
+          <span class="pill" id="studioNiche" aria-live="polite">…</span>
+          <div class="grow"></div>
+          <button class="btn" type="button" onclick="studioInit()">↻ Refresh</button>
+        </div>
+        <p class="sm" style="margin:2px 0 12px">Apne niche ke liye ready post, WhatsApp message, Google review reply, ad copy aur zyada — ek click me. Copy karke khud post/bhejo (kuch auto-send nahi hota, ban-safe).</p>
+        <div id="studioGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px"></div>
       </div>
 
       <!-- ===== 3) Aapke Leads — paisa yahin hai ===== -->
@@ -2161,6 +2179,115 @@ async function billingAction(action){
   }catch(e){ toast("Dikkat aayi","Internet issue lag raha hai — baad me try karein."); }
 }
 
+/* ============================================================
+   AI MARKETING STUDIO — self-serve generators (/api/customer/studio/*)
+   ============================================================ */
+const STUDIO_TOOLS = [
+  {key:"post", icon:"📝", title:"AI Social Post", desc:"Ready caption + hashtags + image idea", method:"POST", path:"/api/customer/studio/post",
+   inputs:[{n:"occasion",l:"Mauka / Topic",ph:"Diwali, weekend offer…"},{n:"offer",l:"Offer (optional)",ph:"20% off"}]},
+  {key:"calendar", icon:"🗓️", title:"Content Calendar", desc:"Kuch din ka post plan", method:"POST", path:"/api/customer/studio/calendar",
+   inputs:[{n:"days",l:"Kitne din",ph:"7",type:"number",def:"7"}]},
+  {key:"whatsapp", icon:"💬", title:"WhatsApp Pack", desc:"Broadcast + status + reply lines", method:"POST", path:"/api/customer/studio/whatsapp",
+   inputs:[{n:"occasion",l:"Mauka",ph:"Weekend sale"},{n:"offer",l:"Offer",ph:"Free delivery"}]},
+  {key:"review-reply", icon:"⭐", title:"Review Reply", desc:"Google review ka 3-style reply", method:"POST", path:"/api/customer/studio/review-reply",
+   inputs:[{n:"review_text",l:"Review paste karo",ph:"Customer ka review…",type:"textarea",req:true},{n:"rating",l:"Rating (1-5)",ph:"5",type:"number"}]},
+  {key:"gbp-text", icon:"🏪", title:"Google Business Text", desc:"GBP description + posts", method:"POST", path:"/api/customer/studio/gbp-text",
+   inputs:[{n:"services",l:"Services (comma se)",ph:"Repair, Installation",csv:true},{n:"city",l:"City (optional)",ph:""}]},
+  {key:"ads", icon:"📣", title:"Ad Copy Pack", desc:"Google + Meta ad headlines", method:"POST", path:"/api/customer/studio/ads",
+   inputs:[{n:"offer",l:"Offer",ph:"Free demo"},{n:"city",l:"City",ph:""}]},
+  {key:"hashtags", icon:"#️⃣", title:"Hashtag Research", desc:"Niche ke best hashtags", method:"POST", path:"/api/customer/studio/hashtags",
+   inputs:[{n:"count",l:"Kitne",ph:"15",type:"number",def:"15"},{n:"city",l:"City",ph:""}]},
+  {key:"gbp-tips", icon:"📈", title:"GBP Growth Tips", desc:"Google ranking tips (free)", method:"GET", path:"/api/customer/studio/gbp-tips", inputs:[]},
+];
+const STUDIO_LAST = {};  // key -> plain text for copy
+
+async function studioInit(){
+  const grid=document.getElementById("studioGrid"); if(!grid) return;
+  renderStudioCards();
+  try{
+    const r=await fetch("/api/customer/studio/tools",{headers:Object.assign({Accept:"application/json"},billAuthHdr())});
+    if(r.ok){ const d=await r.json(); const n=(d.context&&d.context.niche)||""; const el=document.getElementById("studioNiche"); if(el) el.textContent = n?("Niche: "+n):"Ready"; }
+  }catch(e){}
+}
+function renderStudioCards(){
+  const grid=document.getElementById("studioGrid"); if(!grid) return;
+  grid.innerHTML = STUDIO_TOOLS.map(function(t){
+    const fields=(t.inputs||[]).map(function(f){
+      const id="st_"+t.key+"_"+f.n;
+      if(f.type==="textarea") return '<label class="sm" style="display:block;margin-top:6px">'+escH(f.l)+'<textarea id="'+id+'" rows="2" placeholder="'+escH(f.ph||"")+'" style="width:100%;margin-top:3px;padding:6px;border:1px solid var(--bd,#ccc);border-radius:8px;font:inherit"></textarea></label>';
+      return '<label class="sm" style="display:block;margin-top:6px">'+escH(f.l)+'<input id="'+id+'" type="'+(f.type||"text")+'" value="'+escH(f.def||"")+'" placeholder="'+escH(f.ph||"")+'" style="width:100%;margin-top:3px;padding:6px;border:1px solid var(--bd,#ccc);border-radius:8px;font:inherit"></label>';
+    }).join("");
+    return '<div class="card" style="padding:14px;border:1px solid var(--bd,#e5e7eb);border-radius:12px">'
+      +'<div style="font-weight:700;font-size:15px">'+t.icon+' '+escH(t.title)+'</div>'
+      +'<div class="sm" style="color:#64748b;margin:2px 0 4px">'+escH(t.desc)+'</div>'
+      +fields
+      +'<button class="btn primary" type="button" style="margin-top:10px;width:100%;justify-content:center" onclick="studioRun(\''+t.key+'\')">✨ Banao</button>'
+      +'<div id="studioOut_'+t.key+'" class="sm" style="margin-top:8px"></div>'
+      +'</div>';
+  }).join("");
+}
+async function studioRun(key){
+  const t=STUDIO_TOOLS.find(function(x){return x.key===key;}); if(!t) return;
+  const out=document.getElementById("studioOut_"+key); if(out) out.innerHTML='<span style="color:#64748b">⏳ AI bana raha hai…</span>';
+  const body={};
+  (t.inputs||[]).forEach(function(f){
+    const el=document.getElementById("st_"+key+"_"+f.n); if(!el) return;
+    let v=(el.value||"").trim();
+    if(f.csv){ body[f.n]=v?v.split(",").map(function(s){return s.trim();}).filter(Boolean):null; }
+    else if(f.type==="number"){ if(v!=="") body[f.n]=Number(v); }
+    else if(v!=="") body[f.n]=v;
+  });
+  if((t.inputs||[]).some(function(f){return f.req;}) && !body[(t.inputs.find(function(f){return f.req;})||{}).n]){
+    if(out) out.innerHTML='<span style="color:#dc2626">Pehle review text bharo.</span>'; return;
+  }
+  try{
+    const opt={method:t.method,headers:Object.assign({Accept:"application/json"},billAuthHdr())};
+    if(t.method==="POST"){ opt.headers["Content-Type"]="application/json"; opt.body=JSON.stringify(body); }
+    const r=await fetch(t.path,opt); const d=await r.json().catch(function(){return {};});
+    if(!r.ok){ if(out) out.innerHTML='<span style="color:#dc2626">'+escH(d.detail||"Nahi bana — thodi der baad try karo.")+'</span>'; return; }
+    studioRenderResult(key,d,out);
+  }catch(e){ if(out) out.innerHTML='<span style="color:#dc2626">Internet issue — phir try karo.</span>'; }
+}
+function _li(arr){ return '<ul style="margin:4px 0 0;padding-left:18px">'+(arr||[]).map(function(x){ return '<li>'+escH(typeof x==="string"?x:Object.values(x).filter(function(v){return typeof v==="string";}).join(" — "))+'</li>'; }).join("")+'</ul>'; }
+function studioRenderResult(key,d,out){
+  if(!out) return;
+  const res=d.result||{}; let html=""; let copy="";
+  if(key==="post"){
+    html='<b>Caption:</b><div style="white-space:pre-wrap">'+escH(res.caption||res.post_text||"")+'</div>'
+      +(res.hashtags&&res.hashtags.length?'<div style="margin-top:4px;color:#2563eb">'+escH(res.hashtags.map(function(h){return h[0]==="#"?h:"#"+h;}).join(" "))+'</div>':"")
+      +(res.image_idea?'<div class="sm" style="margin-top:4px;color:#64748b">🖼 '+escH(res.image_idea)+'</div>':"");
+    copy=(res.caption||res.post_text||"")+"\n"+((res.hashtags||[]).map(function(h){return h[0]==="#"?h:"#"+h;}).join(" "));
+  } else if(key==="calendar"){
+    html=_li(d.items||[]); copy=(d.items||[]).map(function(it){return typeof it==="string"?it:Object.values(it).join(" — ");}).join("\n");
+  } else if(key==="whatsapp"){
+    html='<b>Broadcast:</b>'+_li(res.broadcast)+'<b>Status:</b>'+_li(res.status_lines)+'<b>Replies:</b>'+_li(res.reply_templates);
+    copy=[].concat(res.broadcast||[],res.status_lines||[],res.reply_templates||[]).join("\n");
+  } else if(key==="review-reply"){
+    html='<div class="sm">Sentiment: '+escH(res.sentiment||"")+'</div>'+(res.replies||[]).map(function(rp){return '<div style="margin-top:5px"><b>'+escH(rp.label||"")+':</b> '+escH(rp.text||"")+'</div>';}).join("");
+    copy=(res.replies||[]).map(function(rp){return (rp.label||"")+": "+(rp.text||"");}).join("\n\n");
+  } else if(key==="gbp-text"){
+    html='<b>Description:</b><div style="white-space:pre-wrap">'+escH(res.description||"")+'</div>'+(res.posts&&res.posts.length?'<b>Posts:</b>'+_li(res.posts):"");
+    copy=(res.description||"")+"\n\n"+((res.posts||[]).join("\n"));
+  } else if(key==="ads"){
+    const g=res.google||{},m=res.meta||{};
+    html='<b>Google headlines:</b>'+_li(g.headlines)+'<b>Descriptions:</b>'+_li(g.descriptions)+'<b>Meta primaries:</b>'+_li(m.primaries)+'<b>CTAs:</b>'+_li(m.ctas);
+    copy=[].concat(g.headlines||[],g.descriptions||[],m.primaries||[],m.ctas||[]).join("\n");
+  } else if(key==="hashtags"){
+    const tags=res.hashtags||res.tags||[];
+    html='<div style="color:#2563eb">'+escH(tags.map(function(h){return h[0]==="#"?h:"#"+h;}).join(" "))+'</div>';
+    copy=tags.map(function(h){return h[0]==="#"?h:"#"+h;}).join(" ");
+  } else if(key==="gbp-tips"){
+    html=_li(d.tips||[]); copy=(d.tips||[]).map(function(it){return typeof it==="string"?it:Object.values(it).join(" — ");}).join("\n");
+  } else { html='<pre style="white-space:pre-wrap">'+escH(JSON.stringify(res,null,1))+'</pre>'; copy=JSON.stringify(res); }
+  STUDIO_LAST[key]=copy;
+  out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\''+key+'\')">📋 Copy</button>';
+}
+function studioCopy(key){
+  const txt=STUDIO_LAST[key]||""; if(!txt) return;
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(function(){toast("Copy ho gaya ✅","Ab paste karke post/bhej do.");}).catch(function(){toast("Copy nahi hua","Manually select karo.");}); }
+  else { toast("Copy nahi hua","Manually select karo."); }
+}
+
 loadBilling();
 loadContent();
 loadWebTools();
@@ -2168,6 +2295,7 @@ loadApprovals();
 loadRouting();
 sec2faLoad();
 whLoad();
+studioInit();
 
 /* ============================================================
    DARK MODE
