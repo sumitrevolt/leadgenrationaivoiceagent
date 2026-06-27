@@ -2272,6 +2272,8 @@ const STUDIO_TOOLS = [
   {key:"lost-lead-reason", icon:"🕵️", title:"Lost Lead Reasons", desc:"Kyu convert nahi hua", method:"GET", path:"/api/customer/studio/lost-lead-reason", inputs:[]},
   {key:"complaint-recovery", icon:"🩹", title:"Complaint Recovery", desc:"Angry customer flow", method:"GET", path:"/api/customer/studio/complaint-recovery", inputs:[]},
   {key:"ugc-request", icon:"📷", title:"UGC Request", desc:"Photo/video maango", method:"GET", path:"/api/customer/studio/ugc-request", inputs:[]},
+  {key:"ai-inbox", icon:"📥", title:"AI Inbox", desc:"Inquiries intent+urgency se sorted", method:"GET", path:"/api/customer/studio/ai-inbox", inputs:[]},
+  {key:"re-engagement", icon:"🔄", title:"Re-engagement", desc:"Cold leads + 1-click win-back", method:"GET", path:"/api/customer/studio/re-engagement", inputs:[]},
 ];
 const STUDIO_LAST = {};  // key -> plain text for copy
 const STUDIO_SVG = {};   // key -> last poster SVG (for download)
@@ -2489,6 +2491,25 @@ function studioRenderResult(key,d,out){
         +'<button class="btn" type="button" style="margin-top:6px;padding:5px 10px;font-size:12px" onclick="studioDlPoster(\'service-menu\')">⬇️ Menu download</button>';
       STUDIO_LAST[key]=res.wa_text||""; out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\'service-menu\')">📋 Copy text</button>'; return;
     } else { html=escH(res.wa_text||"Menu ban gaya."); copy=res.wa_text||""; }
+  } else if(key==="ai-inbox"){
+    const items=d.items||[];
+    if(!items.length){ out.innerHTML='<span style="color:#64748b">'+escH(d.empty_note||"Abhi koi inquiry nahi.")+'</span>'; return; }
+    const cn=d.counts||{};
+    html='<div class="sm" style="color:#64748b">'+(cn.urgent?'🔴 '+cn.urgent+' urgent · ':"")+'💰 '+(cn.price||0)+' price · 📅 '+(cn.booking||0)+' booking · 😟 '+(cn.complaint||0)+' complaint</div>'
+      +items.map(function(it){return '<div style="margin-top:6px;padding:6px 8px;background:var(--soft,#f8fafc);border-radius:8px">'
+        +'<div><b>'+(it.urgent?"🔴 ":"")+escH(it.intent||"")+'</b> — '+escH(it.name||"")+(it.age_hours!=null?' <span class="sm" style="color:#64748b">('+escH(String(it.age_hours))+'h)</span>':"")+'</div>'
+        +'<div class="sm" style="margin-top:2px">'+escH(it.message||"")+'</div>'
+        +'<div class="sm" style="color:#2563eb;margin-top:2px">→ '+escH(it.suggestion||"")+'</div>'
+        +(it.wa_link?'<a class="btn" style="margin-top:4px;padding:3px 9px;font-size:11px;display:inline-block" href="'+escH(it.wa_link)+'" target="_blank" rel="noopener">WhatsApp</a>':"")+'</div>';}).join("");
+    STUDIO_LAST[key]=items.map(function(it){return it.intent+": "+it.name+" — "+it.message;}).join("\n"); out.innerHTML=html; return;
+  } else if(key==="re-engagement"){
+    const items=d.items||[];
+    if(!items.length){ out.innerHTML='<span style="color:#64748b">'+escH(d.empty_note||"Koi cold lead nahi.")+'</span>'; return; }
+    html=items.map(function(it){return '<div style="margin-top:6px;padding:6px 8px;background:var(--soft,#f8fafc);border-radius:8px">'
+      +'<div><b>'+escH(it.name||"")+'</b> <span class="sm" style="color:#64748b">('+escH(String(it.days_cold||0))+' din cold)</span></div>'
+      +'<div class="sm" style="margin-top:2px;white-space:pre-wrap">'+escH(it.message||"")+'</div>'
+      +(it.wa_link?'<a class="btn" style="margin-top:4px;padding:3px 9px;font-size:11px;display:inline-block" href="'+escH(it.wa_link)+'" target="_blank" rel="noopener">WhatsApp bhejo</a>':"")+'</div>';}).join("");
+    STUDIO_LAST[key]=items.map(function(it){return it.message;}).join("\n\n"); out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\'re-engagement\')">📋 Copy all</button>'; return;
   } else if(d.sections && d.sections.length){
     html=(d.sections||[]).map(function(s){return '<div style="margin-top:6px"><b>'+escH(s.title||"")+'</b>'+_li(s.items||[])+'</div>';}).join("");
     copy=(d.sections||[]).map(function(s){return (s.title||"")+":\n"+((s.items||[]).join("\n"));}).join("\n\n");

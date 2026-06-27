@@ -93,7 +93,8 @@ def test_studio_tools_list():
     r = c.get("/api/customer/studio/tools", headers=_H)
     assert r.status_code == 200
     d = r.json()
-    assert d["ok"] is True and d["count"] == 58
+    assert d["ok"] is True and d["count"] == 60
+    assert {t["key"] for t in d["tools"]} >= {"ai-inbox", "re-engagement"}
     assert {t["key"] for t in d["tools"]} >= {
         "post", "ads", "review-reply", "hashtags", "festival-post", "poster",
         "review-request", "followup-sequence", "speed-followup", "reel-script",
@@ -148,6 +149,29 @@ def test_studio_post_tools_never_empty():
         payload = (d.get("result") or d.get("items") or d.get("messages")
                    or d.get("actions") or d.get("library") or d.get("brief") or d.get("sections"))
         assert payload, f"{path} returned empty payload"
+
+
+def test_studio_engine_links_idor_safe():
+    """AI Inbox + Re-engagement are per-client and auth-gated."""
+    c = TestClient(app)
+    assert c.get("/api/customer/studio/ai-inbox").status_code in (401, 403)
+    assert c.get("/api/customer/studio/re-engagement").status_code in (401, 403)
+    r = c.get("/api/customer/studio/ai-inbox", headers=_H)
+    assert r.status_code == 200
+    d = r.json()
+    assert d["ok"] is True and "items" in d and "counts" in d
+    r2 = c.get("/api/customer/studio/re-engagement", headers=_H)
+    assert r2.status_code == 200 and "items" in r2.json()
+
+
+def test_studio_intent_classifier():
+    from app.api.customer_marketing_studio import _classify_intent, _wa_link
+
+    assert _classify_intent("bhai rate kya hai") == "price"
+    assert _classify_intent("service kharab thi refund") == "complaint"
+    assert _classify_intent("kal appointment chahiye") == "booking"
+    assert _classify_intent("hello") == "general"
+    assert _wa_link("+91 98765 43210").endswith("9876543210")
 
 
 def test_studio_section_tools_never_empty():

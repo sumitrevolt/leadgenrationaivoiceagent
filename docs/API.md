@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (939 operations)
+## Endpoint Index — auto-generated from OpenAPI (941 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -683,9 +683,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
 - `GET   ` `/api/customer/flows` — Cf List
 
-### Customer Marketing Studio  (59)
+### Customer Marketing Studio  (61)
 
 - `POST  ` `/api/customer/studio/ads` — Studio Ads
+- `GET   ` `/api/customer/studio/ai-inbox` — Studio Ai Inbox
 - `POST  ` `/api/customer/studio/appointment-assistant` — Studio Appointment Assistant
 - `GET   ` `/api/customer/studio/best-time` — Studio Best Time
 - `POST  ` `/api/customer/studio/bio-page` — Studio Bio Page
@@ -725,6 +726,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/studio/post` — Studio Post
 - `POST  ` `/api/customer/studio/poster` — Studio Poster
 - `POST  ` `/api/customer/studio/quote-draft` — Studio Quote Draft
+- `GET   ` `/api/customer/studio/re-engagement` — Studio Re Engagement
 - `POST  ` `/api/customer/studio/reel-script` — Studio Reel Script
 - `POST  ` `/api/customer/studio/referral` — Studio Referral
 - `POST  ` `/api/customer/studio/repurpose` — Studio Repurpose
