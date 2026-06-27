@@ -160,7 +160,12 @@ def _trigger_onboarding() -> None:
     try:
         from app.worker import celery_app
 
-        celery_app.send_task("app.tasks.staff_jobs.run_staff_job", args=("onboard",))
+        # ignore_result=True → fire-and-forget; skips the Redis result-backend
+        # pre-subscription that can block (unbounded retry) if the backend is slow/down.
+        # Broker send stays bounded by broker_connection_timeout (10s).
+        celery_app.send_task(
+            "app.tasks.staff_jobs.run_staff_job", args=("onboard",), ignore_result=True
+        )
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("upi_payments onboarding enqueue skipped: %s", e)
 
