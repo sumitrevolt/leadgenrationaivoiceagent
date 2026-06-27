@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.agents import coordinator
 from app.agents.supervisor import AGENTS_AVAILABLE, GRAPH_NODES, run_supervisor_task
-from app.api.auth_deps import require_admin
+from app.api.auth_deps import get_current_user_optional, require_admin
 from app.api.ratelimit import rate_limit
 from app.models.user import User
 from app.utils.logger import setup_logger
@@ -86,9 +86,15 @@ class FanOutRequest(BaseModel):
 
 
 @router.get("/roster")
-async def agents_roster() -> dict[str, Any]:
-    """STAFF roster + executable-capability flag + recent coordination runs (no secrets)."""
-    return {"roster": coordinator.roster(), "recent_runs": coordinator.recent_runs(10)}
+async def agents_roster(
+    user: User | None = Depends(get_current_user_optional),
+) -> dict[str, Any]:
+    """STAFF roster + executable-capability flag (PUBLIC). recent_runs carry the
+    internal coordination goal/output text → admin-only; anon/non-admin get []."""
+    out: dict[str, Any] = {"roster": coordinator.roster(), "recent_runs": []}
+    if user is not None and user.can_access_admin():
+        out["recent_runs"] = coordinator.recent_runs(10)
+    return out
 
 
 @router.post("/coordinate", dependencies=[Depends(rate_limit("agents", 15, 60))])
