@@ -463,6 +463,214 @@ def studio_next_best_action(client_id: str = Depends(require_customer)) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Batch 3 — toward 40 (competitor, FAQ-reply, carousel, bio-page, lead-magnet, #
+# negative-review-rescue + pure-logic reminders/budget/appointment).          #
+# --------------------------------------------------------------------------- #
+class CompetitorReq(BaseModel):
+    competitor_notes: str = Field("", max_length=1500, description="Competitor ke baare me notes")
+
+
+class FaqReplyReq(BaseModel):
+    question: str = Field(..., min_length=1, max_length=600)
+
+
+class CarouselReq(BaseModel):
+    topic: str = Field("", max_length=120)
+    slides: int = Field(4, ge=3, le=5)
+
+
+class LeadMagnetReq(BaseModel):
+    city: str = Field("", max_length=80)
+
+
+class NegReviewReq(BaseModel):
+    review_text: str = Field(..., min_length=1, max_length=2000)
+    rating: float | None = Field(1, ge=0, le=5)
+
+
+class BudgetReq(BaseModel):
+    avg_deal_value: float = Field(20000, ge=0, le=100000000)
+    target_leads: int = Field(10, ge=1, le=1000, description="Mahine me chahiye leads")
+
+
+class ReminderReq(BaseModel):
+    kind: str = Field("appointment", max_length=30, description="appointment|renewal|service|payment")
+
+
+@router.post("/competitor", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_competitor(req: CompetitorReq = Body(default=CompetitorReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Competitor notes → strengths to copy + gaps to exploit + action plan."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import competitor
+
+        out = await competitor.compare_tips(business_name=c["business_name"], niche=c["niche"], competitor_notes=req.competitor_notes)
+    except Exception as e:
+        _fail("Competitor", e)
+    return {"ok": True, "tool": "competitor", "result": out, "context": c}
+
+
+@router.post("/faq-reply", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_faq_reply(req: FaqReplyReq, client_id: str = Depends(require_customer)) -> dict:
+    """FAQ / WhatsApp reply assistant — customer ke sawaal ka KB-grounded answer."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import chatbot
+
+        rec = _client_record(client_id) or {}
+        cid = str(rec.get("id") or client_id)
+        out = await chatbot.reply(question=req.question, client_id=cid, niche=c["niche"])
+    except Exception as e:
+        _fail("FAQ Reply", e)
+    return {"ok": True, "tool": "faq-reply", "result": out, "context": c}
+
+
+@router.post("/carousel", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_carousel(req: CarouselReq = Body(default=CarouselReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Instagram/LinkedIn carousel — slide texts + per-slide SVG."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import carousel
+
+        out = await carousel.generate_carousel(business_name=c["business_name"], niche=c["niche"], topic=req.topic, slides=req.slides)
+    except Exception as e:
+        _fail("Carousel", e)
+    return {"ok": True, "tool": "carousel", "result": out, "context": c}
+
+
+@router.post("/bio-page", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_bio_page(client_id: str = Depends(require_customer)) -> dict:
+    """Social bio / landing copy kit — Insta/FB/Google bios + page setup."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import social_page_kit
+
+        out = await social_page_kit.build_page_kit(business_name=c["business_name"], niche=c["niche"], city=c["city"])
+    except Exception as e:
+        _fail("Bio Page", e)
+    return {"ok": True, "tool": "bio-page", "result": out, "context": c}
+
+
+@router.post("/lead-magnet", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_lead_magnet(req: LeadMagnetReq = Body(default=LeadMagnetReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Free lead-magnet guide (checklist/tips PDF) to capture leads."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import lead_magnet
+
+        rec = _client_record(client_id) or {}
+        out = await lead_magnet.generate(niche=c["niche"], city=(req.city or c["city"]), business_name=c["business_name"], slug=str(rec.get("slug") or ""))
+    except Exception as e:
+        _fail("Lead Magnet", e)
+    return {"ok": True, "tool": "lead-magnet", "result": out, "context": c}
+
+
+@router.post("/negative-review-rescue", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_negative_review_rescue(req: NegReviewReq, client_id: str = Depends(require_customer)) -> dict:
+    """Bad review ke liye polite damage-control replies (empathetic tone)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import review_replies
+
+        out = await review_replies.generate_replies(
+            review_text=req.review_text, rating=req.rating, business_name=c["business_name"], tone="empathetic",
+        )
+    except Exception as e:
+        _fail("Negative Review Rescue", e)
+    return {"ok": True, "tool": "negative-review-rescue", "result": out, "context": c}
+
+
+@router.get("/photo-reminder")
+def studio_photo_reminder(client_id: str = Depends(require_customer)) -> dict:
+    """Weekly GBP/social photo upload ideas + reminder (PURE LOGIC, no LLM)."""
+    c = _ctx(client_id)
+    niche = c["niche"]
+    ideas = [
+        "Aaj ka kaam / finished work ki 2-3 photo",
+        "Team / aap khud kaam karte hue (trust banta hai)",
+        "Shop / setup ka clean front photo",
+        "Happy customer (permission se) ya unka result",
+        "Before/After — sabse zyada engagement",
+        f"{niche.title()} ka koi tip ya behind-the-scenes",
+    ]
+    return {"ok": True, "tool": "photo-reminder",
+            "message": "Google par har hafte 1-2 nayi photo daalo — listing active dikhti hai + zyada calls aati hain.",
+            "ideas": ideas, "context": c}
+
+
+@router.post("/budget-suggest")
+def studio_budget_suggest(req: BudgetReq = Body(default=BudgetReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Daily ad budget suggestion (PURE LOGIC) from deal value + lead goal."""
+    c = _ctx(client_id)
+    # Conservative small-business assumptions: ~₹40 CPL, 12% lead->deal close.
+    cpl = 40.0
+    leads_needed = max(1, req.target_leads)
+    monthly = cpl * leads_needed
+    daily = round(monthly / 30.0, 0)
+    deals = max(1, int(round(leads_needed * 0.12)))
+    revenue = deals * req.avg_deal_value
+    return {"ok": True, "tool": "budget-suggest", "context": c,
+            "result": {
+                "suggested_daily_inr": daily,
+                "suggested_monthly_inr": round(monthly, 0),
+                "assumed_cost_per_lead_inr": cpl,
+                "expected_leads": leads_needed,
+                "expected_deals": deals,
+                "expected_revenue_inr": revenue,
+                "note": "Chhote business ke liye safe start. 1-2 hafte baad results dekh ke badhao/ghatao.",
+            }}
+
+
+@router.post("/customer-reminder")
+def studio_customer_reminder(req: ReminderReq = Body(default=ReminderReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Appointment / renewal / service / payment reminder message templates (PURE LOGIC)."""
+    c = _ctx(client_id)
+    biz = c["business_name"]
+    kind = (req.kind or "appointment").strip().lower()
+    templates = {
+        "appointment": [
+            f"Namaste 🙏 {biz} se reminder — aapka appointment kal hai. Time confirm hai? Reply 'YES' ya naya time batayein.",
+            f"Reminder: kal aapka slot {biz} me booked hai. Milte hain! Koi badlav ho to bata dein.",
+        ],
+        "renewal": [
+            f"Namaste! {biz} — aapki service/plan jald renew hone wali hai. Aaj renew karein, bina rukawat seva jaari rahe 🙏",
+            f"Reminder: renewal due hai. 1-click renew link bhej dun? Reply 'HAAN'.",
+        ],
+        "service": [
+            f"{biz}: aapki next service/maintenance due hai. Slot book kar lein taaki sab sahi chale 👍",
+            f"Reminder — last service ko time ho gaya. Aaj book karein, baad me rush se bachein.",
+        ],
+        "payment": [
+            f"Namaste 🙏 {biz} — aapka payment pending hai. UPI/link se aaj clear kar dein to badi madad hogi. Dhanyawad!",
+            f"Gentle reminder: invoice pending hai. Koi dikkat ho to bata dein, hum help karenge.",
+        ],
+    }
+    msgs = templates.get(kind, templates["appointment"])
+    return {"ok": True, "tool": "customer-reminder", "kind": kind, "messages": msgs, "context": c}
+
+
+@router.post("/appointment-assistant")
+def studio_appointment_assistant(client_id: str = Depends(require_customer)) -> dict:
+    """Slot-suggestion + booking-confirmation message templates (PURE LOGIC)."""
+    c = _ctx(client_id)
+    biz = c["business_name"]
+    return {"ok": True, "tool": "appointment-assistant", "context": c,
+            "result": {
+                "slot_offer": [
+                    f"Namaste 🙏 {biz} — aapke liye 2 slot free hain: aaj 4 PM ya kal 11 AM. Kaunsa theek hai?",
+                    f"Booking ke liye bas time bata dein — main {biz} me aapka slot pakka kar deta hoon 👍",
+                ],
+                "confirmation": [
+                    f"Confirmed! ✅ Aapka appointment {biz} me book ho gaya. Time pe milte hain. Address/location bhej dun?",
+                    f"Ho gaya booking! Reminder ek din pehle bhej dunga. Dhanyawad 🙏",
+                ],
+                "no_show_followup": [
+                    f"Aaj aap aa nahi paaye — koi baat nahi! {biz} me naya slot rakh dun? Bas time bata dein.",
+                ],
+            }}
+
+
+# --------------------------------------------------------------------------- #
 # Capability list — drives the UI cards (so frontend stays in sync)            #
 # --------------------------------------------------------------------------- #
 _TOOLS = [
@@ -483,6 +691,16 @@ _TOOLS = [
     {"key": "win-back", "icon": "💌", "title": "Win-back Campaign", "desc": "Purane customers ko offer", "method": "POST", "path": "/api/customer/studio/win-back", "fields": ["offer"]},
     {"key": "quote-draft", "icon": "🧾", "title": "Quote / Estimate", "desc": "Inquiry se price quote draft", "method": "POST", "path": "/api/customer/studio/quote-draft", "fields": ["avg_deal_value"]},
     {"key": "next-best-action", "icon": "🎯", "title": "Next Best Action", "desc": "Aaj kya karna hai — task list", "method": "GET", "path": "/api/customer/studio/next-best-action", "fields": []},
+    {"key": "competitor", "icon": "🔍", "title": "Competitor Tracker", "desc": "Strengths copy + gaps exploit", "method": "POST", "path": "/api/customer/studio/competitor", "fields": ["competitor_notes"]},
+    {"key": "faq-reply", "icon": "🤖", "title": "FAQ / Reply Assistant", "desc": "Customer sawaal ka smart answer", "method": "POST", "path": "/api/customer/studio/faq-reply", "fields": ["question"]},
+    {"key": "carousel", "icon": "🎠", "title": "Carousel Maker", "desc": "Insta carousel slides + SVG", "method": "POST", "path": "/api/customer/studio/carousel", "fields": ["topic", "slides"]},
+    {"key": "bio-page", "icon": "🔗", "title": "Bio / Landing Copy", "desc": "Insta/FB/Google bios + page", "method": "POST", "path": "/api/customer/studio/bio-page", "fields": []},
+    {"key": "lead-magnet", "icon": "🧲", "title": "Lead Magnet", "desc": "Free guide/checklist for leads", "method": "POST", "path": "/api/customer/studio/lead-magnet", "fields": ["city"]},
+    {"key": "negative-review-rescue", "icon": "🛟", "title": "Bad Review Rescue", "desc": "Polite damage-control reply", "method": "POST", "path": "/api/customer/studio/negative-review-rescue", "fields": ["review_text", "rating"]},
+    {"key": "photo-reminder", "icon": "📸", "title": "Photo Reminder", "desc": "Weekly GBP photo ideas", "method": "GET", "path": "/api/customer/studio/photo-reminder", "fields": []},
+    {"key": "budget-suggest", "icon": "💰", "title": "Ad Budget Suggest", "desc": "Daily ad budget plan", "method": "POST", "path": "/api/customer/studio/budget-suggest", "fields": ["avg_deal_value", "target_leads"]},
+    {"key": "customer-reminder", "icon": "⏰", "title": "Customer Reminder", "desc": "Appointment/renewal/payment msg", "method": "POST", "path": "/api/customer/studio/customer-reminder", "fields": ["kind"]},
+    {"key": "appointment-assistant", "icon": "📅", "title": "Appointment Assistant", "desc": "Slot + booking confirmation msg", "method": "POST", "path": "/api/customer/studio/appointment-assistant", "fields": []},
 ]
 
 

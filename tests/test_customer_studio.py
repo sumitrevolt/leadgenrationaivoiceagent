@@ -30,6 +30,16 @@ _POST_TOOLS = [
     ("/api/customer/studio/reel-script", {"topic": "offer", "n": 2}),
     ("/api/customer/studio/win-back", {"offer": "10% wapas"}),
     ("/api/customer/studio/quote-draft", {"avg_deal_value": 20000}),
+    # batch 3 — toward 40
+    ("/api/customer/studio/competitor", {"competitor_notes": "roz post karta hai"}),
+    ("/api/customer/studio/faq-reply", {"question": "Aap kya service dete ho?"}),
+    ("/api/customer/studio/carousel", {"topic": "tips", "slides": 3}),
+    ("/api/customer/studio/bio-page", {}),
+    ("/api/customer/studio/lead-magnet", {}),
+    ("/api/customer/studio/negative-review-rescue", {"review_text": "Late service tha", "rating": 1}),
+    ("/api/customer/studio/budget-suggest", {"avg_deal_value": 20000, "target_leads": 10}),
+    ("/api/customer/studio/customer-reminder", {"kind": "renewal"}),
+    ("/api/customer/studio/appointment-assistant", {}),
 ]
 
 
@@ -61,11 +71,13 @@ def test_studio_tools_list():
     r = c.get("/api/customer/studio/tools", headers=_H)
     assert r.status_code == 200
     d = r.json()
-    assert d["ok"] is True and d["count"] == 17
+    assert d["ok"] is True and d["count"] == 27
     assert {t["key"] for t in d["tools"]} >= {
         "post", "ads", "review-reply", "hashtags", "festival-post", "poster",
         "review-request", "followup-sequence", "speed-followup", "reel-script",
-        "win-back", "quote-draft", "next-best-action",
+        "win-back", "quote-draft", "next-best-action", "competitor", "faq-reply",
+        "carousel", "bio-page", "lead-magnet", "negative-review-rescue",
+        "photo-reminder", "budget-suggest", "customer-reminder", "appointment-assistant",
     }
     assert "niche" in d["context"]
 
@@ -102,8 +114,8 @@ def test_studio_post_tools_never_empty():
         assert r.status_code == 200, f"{path} -> {r.status_code}"
         d = r.json()
         assert d.get("ok") is True, f"{path} not ok"
-        # each tool returns either a 'result' dict or a list (calendar) — non-empty
-        payload = d.get("result") or d.get("items")
+        # each tool returns a non-empty payload under one of these keys
+        payload = d.get("result") or d.get("items") or d.get("messages") or d.get("actions")
         assert payload, f"{path} returned empty payload"
 
 
