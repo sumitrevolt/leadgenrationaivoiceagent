@@ -244,6 +244,7 @@
       <a href="#sec-recordings" role="menuitem" aria-label="Call Recordings player"><span class="ic" aria-hidden="true">🎙</span> Call Recordings</a>
       <a href="#sec-webcalls" role="menuitem" aria-label="Web test-call transcripts"><span class="ic" aria-hidden="true">💬</span> Web Test Calls</a>
       <a href="#sec-prospects" role="menuitem" aria-label="Prospects and leads"><span class="ic" aria-hidden="true">⊞</span> Prospects / Leads</a>
+      <a href="#sec-outreach-activity" role="menuitem" aria-label="Outreach activity emails sent and replies"><span class="ic" aria-hidden="true">📧</span> Email Activity</a>
       <a href="#sec-audit" role="menuitem" aria-label="Activity audit log"><span class="ic" aria-hidden="true">📜</span> Activity Log</a>
       <div class="sec" role="presentation">Business</div>
       <a href="#sec-revenue" role="menuitem" aria-label="Revenue analytics MRR churn"><span class="ic" aria-hidden="true">📈</span> Revenue Analytics</a>
@@ -623,6 +624,29 @@
             <thead><tr><th>Business</th><th>City</th><th>Niche</th><th>Status</th><th>Phone</th><th>Email</th></tr></thead>
             <tbody id="prospectsBody"><tr><td colspan="6" style="color:var(--muted);padding:16px">Loading…</td></tr></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Outreach Activity — kisko email bheja · kya reply aaya -->
+      <div class="card" id="sec-outreach-activity">
+        <div class="hd"><h3>📧 Outreach Activity</h3><span class="right" id="oa-headline">—</span>
+          <button class="btn" onclick="loadOutreachActivity()" style="margin-left:8px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd">
+          <div class="chip-row" id="oaChips" style="margin-bottom:12px"></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+            <div>
+              <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted)">Kisko bheja (recent)</h4>
+              <div class="tbl-scroll"><table aria-label="Sent emails">
+                <thead><tr><th>Business</th><th>Email</th><th>Kab</th><th>Status</th><th>Follow-up</th></tr></thead>
+                <tbody id="oaSentBody"><tr><td colspan="5" style="color:var(--muted);padding:12px">Loading…</td></tr></tbody>
+              </table></div>
+            </div>
+            <div>
+              <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted)">Kya reply aaya (recent)</h4>
+              <div id="oaReplies" style="display:flex;flex-direction:column;gap:8px"><span style="color:var(--muted)">Loading…</span></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1360,6 +1384,38 @@ async function loadProspectsPanel(){
   }
 }
 
+/* ====== Outreach activity (kisko bheja · kya reply aaya) ====== */
+async function loadOutreachActivity(){
+  try{
+    const r=await fetch("/api/platform/team/outreach-activity?limit=20",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok) throw new Error("bad status");
+    const d=await r.json();
+    const s=d.summary||{};
+    const hd=$("oa-headline"); if(hd) hd.textContent=d.headline||"";
+    const chips=$("oaChips");
+    if(chips) chips.innerHTML=[
+      ["Aaj bheje",s.sent_today||0],["Total bheje",s.emailed||0],
+      ["Reply aaye",(d.recent_replies||[]).length],["Pending",s.pending||0],
+      ["Khule",s.opens||0],["Click",s.clicks||0]
+    ].map(x=>`<span class="chip">${x[0]}: <b>${x[1]}</b></span>`).join("");
+    const sb=$("oaSentBody");
+    const sent=d.recent_sent||[];
+    if(sb) sb.innerHTML= sent.length ? sent.map(p=>`<tr>
+      <td class="co">${escH(p.business)}</td><td class="sm">${escH(p.email||"-")}</td>
+      <td class="sm">${escH(p.when||"-")}</td><td><span class="tag">${escH(p.status)}</span></td>
+      <td class="sm">${p.followups||0}</td></tr>`).join("")
+      : `<tr><td colspan="5" style="color:var(--muted);padding:12px">Abhi koi email nahi gaya — "📧 Email Outreach" chalao.</td></tr>`;
+    const rb=$("oaReplies");
+    const reps=d.recent_replies||[];
+    if(rb) rb.innerHTML= reps.length ? reps.map(x=>`<div style="border:1px solid var(--line,#2a2a3a);border-radius:8px;padding:8px 10px">
+      <div style="font-size:12px"><b>${escH(x.from)}</b> <span class="tag">${escH(x.intent)}</span> ${x.draft_ready?'<span class="tag" style="background:#1b5e20;color:#fff">draft ready</span>':''} <span class="sm" style="float:right">${escH(x.when||"")}</span></div>
+      <div class="sm" style="margin-top:4px;color:var(--muted)">${escH(x.snippet||"")}</div></div>`).join("")
+      : `<span style="color:var(--muted)">Abhi koi reply nahi aaya.</span>`;
+  }catch(e){
+    const sb=$("oaSentBody"); if(sb) sb.innerHTML=`<tr><td colspan="5" style="color:var(--muted)">Outreach activity load fail</td></tr>`;
+  }
+}
+
 /* ====== Activity / audit timeline ====== */
 async function loadActivityFeed(){
   const tl=$("auditTimeline");
@@ -1880,7 +1936,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   adminAuthBoot();
   loadTodayBiz();
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026();
-  loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth();
+  loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadOutreachActivity(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail();
   loadSyncHealth(); loadAgents();
   loadAutomationHub();

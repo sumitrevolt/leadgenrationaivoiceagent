@@ -29,7 +29,7 @@ import asyncio
 import html as _html
 import random
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -945,6 +945,126 @@ def outreach_stats() -> dict[str, Any]:
     return stats
 
 
+def _rel_time(iso: str) -> str:
+    """ISO timestamp -> Hinglish relative ('abhi' / 'X min pehle' / 'X din pehle')."""
+    try:
+        s = str(iso or "").replace("Z", "+00:00")
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        secs = (datetime.now(timezone.utc) - dt).total_seconds()
+        if secs < 90:
+            return "abhi"
+        if secs < 3600:
+            return f"{int(secs // 60)} min pehle"
+        if secs < 86400:
+            return f"{int(secs // 3600)} ghante pehle"
+        return f"{int(secs // 86400)} din pehle"
+    except Exception:
+        return ""
+
+
+def outreach_activity(limit: int = 20) -> dict[str, Any]:
+    """Admin-friendly outreach activity — kisko bheja, kitne, kya reply aaya.
+    Plain-Hinglish counts + recent sent recipients + recent replies. KABHI raise nahi
+    (failure pe safe-empty)."""
+    from datetime import date
+
+    out: dict[str, Any] = {
+        "summary": {
+            "total": 0,
+            "with_email": 0,
+            "emailed": 0,
+            "pending": 0,
+            "replied": 0,
+            "sent_today": 0,
+            "opens": 0,
+            "clicks": 0,
+        },
+        "headline": "",
+        "recent_sent": [],
+        "recent_replies": [],
+    }
+    today = ""
+    try:
+        today = date.today().isoformat()
+    except Exception:
+        pass
+    # 1) Prospect pool -> counts + recent sent recipients
+    try:
+        from app.platform import prospector
+
+        try:
+            rows = prospector._read_all()
+        except Exception:
+            rows = prospector.list_prospects(limit=1000)
+        emailed_rows = []
+        for r in rows:
+            has_email = _valid_email(str(r.get("email") or ""))
+            if has_email:
+                out["summary"]["with_email"] += 1
+            ea = str(r.get("emailed_at") or "")
+            if ea:
+                out["summary"]["emailed"] += 1
+                emailed_rows.append(r)
+                if today and ea[:10] == today:
+                    out["summary"]["sent_today"] += 1
+            elif has_email and (r.get("status") or "ready") == "ready":
+                out["summary"]["pending"] += 1
+            if (r.get("status") or "") == "replied":
+                out["summary"]["replied"] += 1
+        out["summary"]["total"] = len(rows)
+        emailed_rows.sort(key=lambda x: str(x.get("emailed_at") or ""), reverse=True)
+        for r in emailed_rows[:limit]:
+            out["recent_sent"].append(
+                {
+                    "business": str(r.get("business_name") or r.get("name") or "—")[:60],
+                    "email": str(r.get("email") or "")[:80],
+                    "city": str(r.get("city") or "")[:40],
+                    "when": _rel_time(str(r.get("emailed_at") or "")),
+                    "followups": int(r.get("followup_count") or 0),
+                    "status": str(r.get("status") or "sent"),
+                }
+            )
+    except Exception as e:
+        logger.debug(f"[auto_outreach] outreach_activity prospects failed: {e}")
+    # 2) Recent replies (email + whatsapp drafts)
+    try:
+        from app.platform import reply_agent
+
+        drafts = reply_agent.list_drafts(limit=limit) or []
+        for d in reversed(drafts[-limit:]):
+            txt = str(d.get("text") or d.get("body_snippet") or d.get("subject") or "")
+            out["recent_replies"].append(
+                {
+                    "from": str(d.get("from") or "—")[:80],
+                    "channel": str(d.get("channel") or "email"),
+                    "intent": str(d.get("intent") or "reply"),
+                    "snippet": txt[:140],
+                    "draft_ready": bool(str(d.get("draft") or "").strip()),
+                    "when": _rel_time(str(d.get("at") or "")),
+                }
+            )
+    except Exception as e:
+        logger.debug(f"[auto_outreach] outreach_activity replies failed: {e}")
+    # 3) Open/click tracking (only meaningful when EMAIL_TRACKING on)
+    try:
+        from app.marketing import email_tracking
+
+        ts = email_tracking.stats() or {}
+        out["summary"]["opens"] = int(ts.get("opens") or 0)
+        out["summary"]["clicks"] = int(ts.get("clicks") or 0)
+    except Exception:
+        pass
+    # 4) Plain-Hinglish headline
+    s = out["summary"]
+    out["headline"] = (
+        f"📧 Aaj {s['sent_today']} email bheje · ab tak {s['emailed']} total · "
+        f"{len(out['recent_replies'])} reply aaye · {s['pending']} abhi bhejne baaki"
+    )
+    return out
+
+
 def _log_event(
     action: str, summary: str, status: str = "ok", meta: dict[str, Any] | None = None
 ) -> None:
@@ -961,6 +1081,7 @@ __all__ = [
     "run_email_outreach",
     "run_email_followups",
     "outreach_stats",
+    "outreach_activity",
     "_email_subject_body",
     "_followup_subject_body",
 ]
