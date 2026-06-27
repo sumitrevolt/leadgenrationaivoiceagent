@@ -2626,6 +2626,8 @@ const MEDIA_TOOLS = [
   {key:"img-sticker", icon:"🩷", title:"WhatsApp Stickers", desc:"6 branded stickers", upload:false, inputs:[]},
   {key:"img-resize", icon:"🔁", title:"Magic Resize", desc:"Photo → sab social sizes", upload:true, inputs:[]},
   {key:"img-bgremove", icon:"✂️", title:"Background Remove", desc:"Photo ka background hatao", upload:true, inputs:[]},
+  {key:"video-reel", icon:"🎬", title:"Faceless Reel", desc:"Text → short video reel", upload:false, job:true,
+   inputs:[{n:"offer",l:"Offer/topic (optional)",ph:"20% off this week"}]},
 ];
 function mediaInit(){ renderMediaCards(); }
 function renderMediaCards(){
@@ -2665,8 +2667,23 @@ async function mediaRun(key){
     const d=await r.json().catch(function(){return {};});
     if(!r.ok){ out.innerHTML='<span style="color:#dc2626">'+escH(d.detail||"Nahi bana.")+'</span>'; return; }
     if(d.ok===false){ out.innerHTML='<span style="color:#64748b">'+escH(d.note||"Abhi available nahi.")+'</span>'; return; }
+    if(t.job && d.job_id){ await mediaPollJob(d.job_id, out); return; }
     await mediaShow(d.media||[], out);
   }catch(e){ if(out) out.innerHTML='<span style="color:#dc2626">Internet issue — phir try karo.</span>'; }
+}
+async function mediaPollJob(jobId, out){
+  out.innerHTML='<span style="color:#64748b">🎬 Reel ban raha hai… 30-60 sec (yahin ruko)</span>';
+  for(let i=0;i<40;i++){  // ~2 min max (3s interval)
+    await new Promise(function(r){setTimeout(r,3000);});
+    try{
+      const r=await fetch("/api/customer/studio/video-status/"+jobId,{headers:billAuthHdr()});
+      if(!r.ok) continue;
+      const d=await r.json();
+      if(d.status==="done"){ await mediaShow(d.media||[], out); return; }
+      if(d.status==="error"){ out.innerHTML='<span style="color:#64748b">'+escH(d.note||"Reel nahi bana.")+'</span>'; return; }
+    }catch(e){}
+  }
+  out.innerHTML='<span style="color:#64748b">Reel me time lag raha — thodi der baad refresh karo.</span>';
 }
 async function mediaShow(media, out){
   if(!media.length){ out.innerHTML='<span style="color:#64748b">Kuch nahi bana.</span>'; return; }
@@ -2676,8 +2693,10 @@ async function mediaShow(media, out){
       const r=await fetch(m.url,{headers:billAuthHdr()});
       if(!r.ok) continue;
       const blob=await r.blob(); const url=URL.createObjectURL(blob);
+      const isVid=(m.ext==="mp4");
       const wrap=document.createElement("div"); wrap.style.cssText="margin-top:6px";
-      const img=document.createElement("img"); img.src=url; img.style.cssText="max-width:140px;border:1px solid var(--bd,#e5e7eb);border-radius:8px;display:block";
+      const el=document.createElement(isVid?"video":"img"); el.src=url; if(isVid){el.controls=true;} el.style.cssText="max-width:160px;border:1px solid var(--bd,#e5e7eb);border-radius:8px;display:block";
+      const img=el;
       const a=document.createElement("a"); a.href=url; a.download=(m.label||m.media_id)+"."+(m.ext||"png"); a.textContent="⬇️ "+(m.label||"Download"); a.className="btn"; a.style.cssText="margin-top:4px;padding:3px 9px;font-size:11px;display:inline-block";
       wrap.appendChild(img); wrap.appendChild(a); out.appendChild(wrap);
     }catch(e){}

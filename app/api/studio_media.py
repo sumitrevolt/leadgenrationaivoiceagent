@@ -64,7 +64,9 @@ _MAGIC = (
     (b"GIF87a", "gif"),
     (b"GIF89a", "gif"),
 )
-_EXT_CT = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp", "gif": "image/gif"}
+_EXT_CT = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp", "gif": "image/gif", "mp4": "video/mp4"}
+_JOB_DIR = os.path.join("data", "studio_jobs")
+_VIDEO_RL = rate_limit("cust_studio_video", 4, 300)  # video is CPU-heavy: 4 / 5min / IP
 
 
 def _sniff_ext(data: bytes) -> str | None:
@@ -298,6 +300,7 @@ _MEDIA_TOOLS = [
     {"key": "img-sticker", "icon": "🩷", "title": "WhatsApp Stickers", "desc": "6 branded stickers", "upload": False},
     {"key": "img-resize", "icon": "🔁", "title": "Magic Resize", "desc": "Photo → sab social sizes", "upload": True},
     {"key": "img-bgremove", "icon": "✂️", "title": "Background Remove", "desc": "Photo ka background hatao", "upload": True},
+    {"key": "video-reel", "icon": "🎬", "title": "Faceless Reel", "desc": "Text → short video reel", "upload": False, "job": True},
 ]
 
 
@@ -305,3 +308,85 @@ _MEDIA_TOOLS = [
 def studio_media_tools(client_id: str = Depends(require_customer)) -> dict:
     """List of media tools (drives the Media Studio UI)."""
     return {"ok": True, "count": len(_MEDIA_TOOLS), "tools": _MEDIA_TOOLS}
+
+
+# --------------------------------------------------------------------------- #
+# Video reel — CPU-heavy (ffmpeg). Background-thread JOB pattern (file-based
+# status so any uvicorn worker can poll). Submit → poll → serve media.
+# --------------------------------------------------------------------------- #
+import json as _json
+import threading as _threading
+
+
+class ReelReq(BaseModel):
+    slides: list[str] | None = Field(None, description="3-5 short lines (blank = auto)")
+    offer: str = Field("", max_length=160)
+
+
+def _job_path(client_id: str, job_id: str) -> str:
+    return os.path.join(_client_dir(_JOB_DIR, client_id), f"{job_id}.json")
+
+
+def _write_job(client_id: str, job_id: str, data: dict) -> None:
+    try:
+        with open(_job_path(client_id, job_id), "w", encoding="utf-8") as f:
+            _json.dump(data, f)
+    except OSError:
+        pass
+
+
+def _reel_worker(client_id: str, job_id: str, slides, offer: str) -> None:
+    """Runs build_reel (async) in a thread; writes status + stores mp4 as media."""
+    try:
+        from app.marketing import reel_video
+
+        rec = _client_record(client_id) or {}
+        out = asyncio.run(reel_video.build_reel(
+            business_name=str(rec.get("business_name") or "Aapka Business"),
+            niche=str(rec.get("niche") or "general"), slides=slides, offer=offer,
+            client_id=str(rec.get("id") or client_id),
+        ))
+        if isinstance(out, dict) and out.get("path") and os.path.isfile(out["path"]):
+            mid = _store_output(client_id, src_path=out["path"], ext="mp4")
+            _write_job(client_id, job_id, {"status": "done", "media": [_media_item(client_id, mid, "mp4", "Reel")]})
+        else:
+            _write_job(client_id, job_id, {"status": "error",
+                                           "note": (out or {}).get("error", "Reel nahi bana.") if isinstance(out, dict) else "Reel nahi bana."})
+    except Exception as e:
+        logger.error("reel worker failed: %s", e)
+        _write_job(client_id, job_id, {"status": "error", "note": "Reel render fail — baad me try karo."})
+
+
+@router.post("/video-reel", dependencies=[Depends(_VIDEO_RL)])
+def studio_video_reel(req: ReelReq = Body(default=ReelReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Submit a faceless reel render (background). Returns job_id; poll /video-status/{id}."""
+    try:
+        from app.marketing import reel_video
+
+        if not reel_video.available().get("ok"):
+            return {"ok": False, "tool": "video-reel", "note": "Video render abhi server pe enable nahi."}
+    except Exception:
+        return {"ok": False, "tool": "video-reel", "note": "Video render abhi available nahi."}
+    _purge_old()
+    job_id = uuid.uuid4().hex
+    _write_job(client_id, job_id, {"status": "processing"})
+    slides = [s for s in (req.slides or []) if str(s).strip()][:5] or None
+    _threading.Thread(target=_reel_worker, args=(client_id, job_id, slides, req.offer), daemon=True).start()
+    return {"ok": True, "tool": "video-reel", "job_id": job_id, "status": "processing",
+            "note": "Reel ban raha hai — 30-60 sec lagte. Status check karo."}
+
+
+@router.get("/video-status/{job_id}")
+def studio_video_status(job_id: str, client_id: str = Depends(require_customer)) -> dict:
+    """Poll a reel render job (owner-scoped)."""
+    if not _HEXID.match(job_id or ""):
+        raise HTTPException(status_code=404, detail="Not found")
+    fp = _job_path(client_id, job_id)
+    if not os.path.isfile(fp):
+        raise HTTPException(status_code=404, detail="Job nahi mila")
+    try:
+        with open(fp, encoding="utf-8") as f:
+            data = _json.load(f)
+    except Exception:
+        data = {"status": "error", "note": "Status read fail."}
+    return {"ok": True, **data}

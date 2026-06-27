@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (971 operations)
+## Endpoint Index — auto-generated from OpenAPI (973 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -784,7 +784,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/auth/set-password` — Set Password
 - `POST  ` `/api/customer/auth/signup` — Customer Signup
 
-### Customer Studio Media  (7)
+### Customer Studio Media  (9)
 
 - `POST  ` `/api/customer/studio/img-bgremove` — Studio Img Bgremove
 - `POST  ` `/api/customer/studio/img-gif` — Studio Img Gif
@@ -793,6 +793,8 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/studio/media-tools` — Studio Media Tools
 - `GET   ` `/api/customer/studio/media/{media_id}` — Studio Serve Media
 - `POST  ` `/api/customer/studio/upload` — Studio Upload
+- `POST  ` `/api/customer/studio/video-reel` — Studio Video Reel
+- `GET   ` `/api/customer/studio/video-status/{job_id}` — Studio Video Status
 
 ### Customer Webhooks  (10)
 
