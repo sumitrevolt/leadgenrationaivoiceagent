@@ -23,7 +23,7 @@ def test_opening_segments_three_parts():
     segs = opening_segments()
     assert len(segs) == 3
     assert "Leads Generation AI" in segs[0]
-    assert "grow karna" in segs[0]
+    assert len(segs[0].split()) <= 28  # lean opener (2026-06-27): intro stays short
     assert "1,999" in segs[1] or "1999" in segs[1]
     assert "interested" in segs[2].lower()
 
