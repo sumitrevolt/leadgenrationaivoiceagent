@@ -448,6 +448,23 @@ def newsletter_outline(business_name: str, niche: str) -> dict:
     ]}
 
 
+def evergreen_ideas(niche: str) -> dict:
+    lbl = _label(niche)
+    return {"sections": [
+        _sec("Evergreen posts (kabhi bhi repost karo)", [
+            f"'{lbl} chunte waqt 5 cheezein dhyan rakhein' (educational)",
+            "'Hamare bare me' — kahani + kyun bharose layak",
+            "Common myth vs fact (your industry)",
+            "Behind-the-scenes / ek din ka kaam",
+            "Customer ke aksar poochhe jaane wale sawaal (FAQ)",
+            "Tip of the week (short + useful)",
+        ]),
+        _sec("Kyun useful", [
+            "Ye posts season pe depend nahi karte — jab content na soojhe, inme se ek daal do.",
+            "Best performing ko har 2-3 mahine repost karo (naye log dekhenge)."]),
+    ]}
+
+
 __all__ = [
     "business_description", "brand_palette", "customer_avatar", "seasonal_offers",
     "local_event_campaign", "case_study", "grid_planner", "highlights",
@@ -455,4 +472,5 @@ __all__ = [
     "conversion_tracking", "lost_lead_reason", "complaint_recovery", "ugc_request",
     "nps_survey", "whatsapp_catalog", "click_to_whatsapp_ad", "sms_pack",
     "aeo_checklist", "loyalty_program", "rank_check_guide", "booking_link", "newsletter_outline",
+    "evergreen_ideas",
 ]

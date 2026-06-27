@@ -2293,6 +2293,12 @@ const STUDIO_TOOLS = [
   {key:"business-card", icon:"💳", title:"Digital Business Card", desc:"Shareable HTML card", method:"GET", path:"/api/customer/studio/business-card", inputs:[]},
   {key:"email-signature", icon:"✍️", title:"Email Signature", desc:"Branded signature", method:"GET", path:"/api/customer/studio/email-signature", inputs:[]},
   {key:"reviews-widget", icon:"⭐", title:"Reviews Widget", desc:"Website pe reviews", method:"GET", path:"/api/customer/studio/reviews-widget", inputs:[]},
+  {key:"niche-pack", icon:"📦", title:"Niche Content Pack", desc:"Multiple ready posts", method:"GET", path:"/api/customer/studio/niche-pack", inputs:[]},
+  {key:"missed-call-reply", icon:"📵", title:"Missed-Call Reply", desc:"Auto msg after missed call", method:"GET", path:"/api/customer/studio/missed-call-reply", inputs:[]},
+  {key:"sentiment", icon:"🧠", title:"Review Sentiment", desc:"Reviews ka sentiment", method:"POST", path:"/api/customer/studio/sentiment",
+   inputs:[{n:"reviews",l:"Reviews (ek line per review)",ph:"Great service\nLate delivery",type:"textarea",req:true,lines:true}]},
+  {key:"community-content", icon:"🗣️", title:"Community Content", desc:"Quora/Reddit/group posts", method:"GET", path:"/api/customer/studio/community-content", inputs:[]},
+  {key:"evergreen-ideas", icon:"🌲", title:"Evergreen Ideas", desc:"Kabhi bhi repost-able", method:"GET", path:"/api/customer/studio/evergreen-ideas", inputs:[]},
 ];
 const STUDIO_LAST = {};  // key -> plain text for copy
 const STUDIO_SVG = {};   // key -> last poster SVG (for download)
@@ -2329,7 +2335,8 @@ async function studioRun(key){
   (t.inputs||[]).forEach(function(f){
     const el=document.getElementById("st_"+key+"_"+f.n); if(!el) return;
     let v=(el.value||"").trim();
-    if(f.csv){ body[f.n]=v?v.split(",").map(function(s){return s.trim();}).filter(Boolean):null; }
+    if(f.lines){ body[f.n]=v?v.split("\n").map(function(s){return s.trim();}).filter(Boolean):[]; }
+    else if(f.csv){ body[f.n]=v?v.split(",").map(function(s){return s.trim();}).filter(Boolean):null; }
     else if(f.type==="number"){ if(v!=="") body[f.n]=Number(v); }
     else if(v!=="") body[f.n]=v;
   });
@@ -2555,6 +2562,23 @@ function studioRenderResult(key,d,out){
     const ps=res.partnerships||[];
     html=ps.map(function(p){return '<div style="margin-top:5px"><b>'+escH(p.partner_type||p.type||p.name||"Partner")+':</b><div class="sm" style="white-space:pre-wrap">'+escH(p.pitch||p.message||p.draft||(typeof p==="string"?p:""))+'</div></div>';}).join("");
     copy=ps.map(function(p){return (p.partner_type||"")+": "+(p.pitch||p.message||p.draft||"");}).join("\n\n");
+  } else if(key==="niche-pack"){
+    const posts=res.posts||[];
+    html=(res.offer?'<div class="sm"><b>Offer:</b> '+escH(res.offer)+'</div>':"")
+      +posts.map(function(p,i){return '<div style="margin-top:5px"><b>Post '+(i+1)+':</b> '+escH(typeof p==="string"?p:(p.caption||p.title||p.text||Object.values(p).join(" ")))+'</div>';}).join("")
+      +((res.hashtags||[]).length?'<div style="margin-top:4px;color:#2563eb">'+escH((res.hashtags||[]).map(function(h){return h[0]==="#"?h:"#"+h;}).join(" "))+'</div>':"");
+    copy=posts.map(function(p){return typeof p==="string"?p:(p.caption||p.title||"");}).join("\n\n");
+  } else if(key==="missed-call-reply"){
+    html='<div style="white-space:pre-wrap">'+escH(res.message||"")+'</div>'; copy=res.message||"";
+  } else if(key==="sentiment"){
+    const b=res.breakdown||{};
+    html='<div style="font-size:15px"><b>'+escH(res.summary||"")+'</b></div>'
+      +(res.score!=null?'<div class="sm" style="margin-top:3px">Score: '+escH(String(res.score))+'</div>':"")
+      +'<div class="sm" style="margin-top:3px;color:#64748b">'+Object.keys(b).map(function(k){return escH(k)+": "+escH(String(b[k]));}).join(" · ")+'</div>';
+    copy=(res.summary||"")+" | "+JSON.stringify(b);
+  } else if(key==="community-content"){
+    html=(res.content||[]).map(function(x){return '<div style="margin-top:5px"><b>'+escH(x.platform||x.title||"")+':</b><div class="sm" style="white-space:pre-wrap">'+escH(x.text||x.content||x.draft||(typeof x==="string"?x:""))+'</div></div>';}).join("");
+    copy=(res.content||[]).map(function(x){return (x.platform||"")+": "+(x.text||x.content||x.draft||"");}).join("\n\n");
   } else if(key==="website-widget" || (res && typeof res.snippet==="string")){
     html='<div class="sm">'+escH(res.note||"")+'</div><pre style="white-space:pre-wrap;background:var(--soft,#f8fafc);padding:8px;border-radius:8px;margin-top:5px;font-size:12px">'+escH(res.snippet||"")+'</pre>';
     copy=res.snippet||"";

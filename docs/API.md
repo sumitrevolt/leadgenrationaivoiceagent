@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (959 operations)
+## Endpoint Index — auto-generated from OpenAPI (964 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -683,7 +683,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
 - `GET   ` `/api/customer/flows` — Cf List
 
-### Customer Marketing Studio  (79)
+### Customer Marketing Studio  (84)
 
 - `POST  ` `/api/customer/studio/ads` — Studio Ads
 - `GET   ` `/api/customer/studio/aeo-checklist` — Studio Aeo Checklist
@@ -701,6 +701,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/studio/carousel` — Studio Carousel
 - `GET   ` `/api/customer/studio/case-study` — Studio Case Study
 - `GET   ` `/api/customer/studio/click-to-whatsapp-ad` — Studio Click To Whatsapp Ad
+- `GET   ` `/api/customer/studio/community-content` — Studio Community Content
 - `POST  ` `/api/customer/studio/competitor` — Studio Competitor
 - `GET   ` `/api/customer/studio/complaint-recovery` — Studio Complaint Recovery
 - `GET   ` `/api/customer/studio/conversion-tracking` — Studio Conversion Tracking
@@ -708,6 +709,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/studio/customer-avatar` — Studio Customer Avatar
 - `POST  ` `/api/customer/studio/customer-reminder` — Studio Customer Reminder
 - `GET   ` `/api/customer/studio/email-signature` — Studio Email Signature
+- `GET   ` `/api/customer/studio/evergreen-ideas` — Studio Evergreen Ideas
 - `GET   ` `/api/customer/studio/faq-page` — Studio Faq Page
 - `POST  ` `/api/customer/studio/faq-reply` — Studio Faq Reply
 - `POST  ` `/api/customer/studio/festival-post` — Studio Festival Post
@@ -725,11 +727,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/studio/lost-lead-reason` — Studio Lost Lead Reason
 - `GET   ` `/api/customer/studio/loyalty-program` — Studio Loyalty Program
 - `POST  ` `/api/customer/studio/meme` — Studio Meme
+- `GET   ` `/api/customer/studio/missed-call-reply` — Studio Missed Call Reply
 - `POST  ` `/api/customer/studio/month-planner` — Studio Month Planner
 - `POST  ` `/api/customer/studio/multilang-post` — Studio Multilang Post
 - `POST  ` `/api/customer/studio/negative-review-rescue` — Studio Negative Review Rescue
 - `GET   ` `/api/customer/studio/newsletter-outline` — Studio Newsletter Outline
 - `GET   ` `/api/customer/studio/next-best-action` — Studio Next Best Action
+- `GET   ` `/api/customer/studio/niche-pack` — Studio Niche Pack
 - `GET   ` `/api/customer/studio/nps-survey` — Studio Nps Survey
 - `POST  ` `/api/customer/studio/objection-handler` — Studio Objection Handler
 - `GET   ` `/api/customer/studio/owner-brief` — Studio Owner Brief
@@ -749,6 +753,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/studio/roi-calculator` — Studio Roi Calculator
 - `GET   ` `/api/customer/studio/schema-markup` — Studio Schema Markup
 - `GET   ` `/api/customer/studio/seasonal-offers` — Studio Seasonal Offers
+- `POST  ` `/api/customer/studio/sentiment` — Studio Sentiment
 - `POST  ` `/api/customer/studio/service-area` — Studio Service Area
 - `POST  ` `/api/customer/studio/service-menu` — Studio Service Menu
 - `GET   ` `/api/customer/studio/sms-pack` — Studio Sms Pack
