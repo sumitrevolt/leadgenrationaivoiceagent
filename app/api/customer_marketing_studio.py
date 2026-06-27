@@ -1361,6 +1361,71 @@ def studio_reviews_widget(client_id: str = Depends(require_customer)) -> dict:
             "result": {"snippet": code, "note": "Ye code website pe paste karo — reviews auto dikhenge."}}
 
 
+# --------------------------------------------------------------------------- #
+# Batch 9 — final free-stack wires (niche-pack, missed-call #24, sentiment,    #
+# community-content) + evergreen ideas.                                        #
+# --------------------------------------------------------------------------- #
+class SentimentReq(BaseModel):
+    reviews: list[str] = Field(..., min_length=1, description="Reviews/feedback lines to analyze")
+
+
+@router.get("/niche-pack")
+async def studio_niche_pack(client_id: str = Depends(require_customer)) -> dict:
+    """Complete niche content pack — multiple ready posts for the client's niche."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import niche_pack
+
+        out = await niche_pack.build_pack(niche_key=c["niche"], business_name=c["business_name"], city=c["city"], count=4)
+    except Exception as e:
+        _fail("Niche Pack", e)
+    return {"ok": True, "tool": "niche-pack", "result": out, "context": c}
+
+
+@router.get("/missed-call-reply")
+async def studio_missed_call_reply(client_id: str = Depends(require_customer)) -> dict:
+    """Missed-call ke baad bhejne ka auto WhatsApp/SMS message (#24)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import missed_call
+
+        out = await missed_call.generate_missed_call_reply(business_name=c["business_name"], niche=c["niche"])
+    except Exception as e:
+        _fail("Missed Call Reply", e)
+    return {"ok": True, "tool": "missed-call-reply", "result": out, "context": c}
+
+
+@router.post("/sentiment", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_sentiment(req: SentimentReq, client_id: str = Depends(require_customer)) -> dict:
+    """Reviews/feedback ka sentiment analysis — positive/negative + theme."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import sentiment
+
+        out = await sentiment.analyze([str(x) for x in (req.reviews or []) if str(x).strip()][:50])
+    except Exception as e:
+        _fail("Sentiment", e)
+    return {"ok": True, "tool": "sentiment", "result": out, "context": c}
+
+
+@router.get("/community-content")
+async def studio_community_content(client_id: str = Depends(require_customer)) -> dict:
+    """Community posts — Quora/Reddit/WhatsApp-group/LinkedIn ke liye content."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import community_content
+
+        out = await community_content.draft_batch(niche=c["niche"])
+    except Exception as e:
+        _fail("Community Content", e)
+    return {"ok": True, "tool": "community-content", "result": out, "context": c}
+
+
+@router.get("/evergreen-ideas")
+def studio_evergreen_ideas(client_id: str = Depends(require_customer)) -> dict:
+    return _pack("evergreen-ideas", client_id, "evergreen_ideas", _ctx(client_id)["niche"])
+
+
 # --- 3 generator wires ---
 @router.post("/coupon", dependencies=[Depends(_GEN_LIMIT)])
 def studio_coupon(req: CouponReq = Body(default=CouponReq()), client_id: str = Depends(require_customer)) -> dict:
@@ -1501,6 +1566,11 @@ _TOOLS = [
     {"key": "business-card", "icon": "💳", "title": "Digital Business Card", "desc": "Shareable HTML card", "method": "GET", "path": "/api/customer/studio/business-card", "fields": []},
     {"key": "email-signature", "icon": "✍️", "title": "Email Signature", "desc": "Branded email signature", "method": "GET", "path": "/api/customer/studio/email-signature", "fields": []},
     {"key": "reviews-widget", "icon": "⭐", "title": "Reviews Widget", "desc": "Website pe reviews dikhaao", "method": "GET", "path": "/api/customer/studio/reviews-widget", "fields": []},
+    {"key": "niche-pack", "icon": "📦", "title": "Niche Content Pack", "desc": "Multiple ready posts", "method": "GET", "path": "/api/customer/studio/niche-pack", "fields": []},
+    {"key": "missed-call-reply", "icon": "📵", "title": "Missed-Call Reply", "desc": "Auto message after missed call", "method": "GET", "path": "/api/customer/studio/missed-call-reply", "fields": []},
+    {"key": "sentiment", "icon": "🧠", "title": "Review Sentiment", "desc": "Reviews ka sentiment analysis", "method": "POST", "path": "/api/customer/studio/sentiment", "fields": ["reviews"]},
+    {"key": "community-content", "icon": "🗣️", "title": "Community Content", "desc": "Quora/Reddit/group posts", "method": "GET", "path": "/api/customer/studio/community-content", "fields": []},
+    {"key": "evergreen-ideas", "icon": "🌲", "title": "Evergreen Ideas", "desc": "Kabhi bhi repost-able posts", "method": "GET", "path": "/api/customer/studio/evergreen-ideas", "fields": []},
 ]
 
 
