@@ -103,6 +103,22 @@ def test_resize_rejects_foreign_upload_id():
     assert r.status_code == 404
 
 
+def test_video_reel_submit_or_graceful():
+    """Reel submit returns a job_id (ffmpeg present) OR graceful ok:false — never 500."""
+    c = TestClient(app)
+    r = c.post("/api/customer/studio/video-reel", headers=_H, json={"offer": "Sale"})
+    assert r.status_code == 200
+    d = r.json()
+    assert (d.get("ok") and d.get("job_id")) or (d.get("ok") is False and d.get("note"))
+
+
+def test_video_status_bad_id():
+    c = TestClient(app)
+    assert c.get("/api/customer/studio/video-status/notahex", headers=_H).status_code == 404
+    assert c.get("/api/customer/studio/video-status/" + "a" * 32, headers=_H).status_code == 404
+    assert c.get("/api/customer/studio/video-status/" + "a" * 32).status_code in (401, 403)
+
+
 def test_bgremove_graceful_without_rembg():
     c = TestClient(app)
     up = c.post("/api/customer/studio/upload", headers=_H, files={"file": ("a.png", _png(), "image/png")})

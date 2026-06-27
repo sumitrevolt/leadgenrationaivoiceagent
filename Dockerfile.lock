@@ -45,6 +45,19 @@ RUN (pip install --no-cache-dir --retries 10 kokoro soundfile \
          "numpy==1.26.3" "pandas==2.2.0" "scipy==1.16.3" "scikit-learn==1.9.0" \
     && python -c "from kokoro import KPipeline; KPipeline(lang_code='a')") \
     || echo "WARN: kokoro bake failed — EdgeTTS-only (USE_KOKORO_TTS inert)"
+# rembg (Studio Media img-bgremove, background removal). onnxruntime ALREADY in
+# lock (the heavy ~200MB piece), so this just adds the wrapper + u2net model.
+# Model baked INTO the venv (U2NET_HOME=/opt/venv/u2net) so the COPY /opt/venv
+# carries it → ZERO runtime download (same bake lesson as fastembed/kokoro). After
+# rembg (pulls scipy/scikit-image) re-pin ABI-critical pkgs to lock versions
+# (numpy ABI gotcha above). Fail = non-fatal → bg_remove.available()=False,
+# img-bgremove stays graceful-inert (never 500).
+ENV U2NET_HOME=/opt/venv/u2net
+RUN (pip install --no-cache-dir --retries 10 "rembg>=2.0.50,<2.1" "onnxruntime==1.26.0" \
+    && pip install --no-cache-dir --force-reinstall \
+         "numpy==1.26.3" "pandas==2.2.0" "scipy==1.16.3" "scikit-learn==1.9.0" \
+    && python -c "from rembg import new_session; new_session('u2net')") \
+    || echo "WARN: rembg bake failed — img-bgremove stays inert"
 
 FROM python:3.12-slim AS production
 ARG APP_VERSION=latest
@@ -57,6 +70,9 @@ ENV TZ=Asia/Kolkata
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+# rembg u2net model lives inside the venv (baked above) — point runtime at it so
+# background removal never downloads at request time.
+ENV U2NET_HOME=/opt/venv/u2net
 WORKDIR /app
 RUN mkdir -p /app/logs /app/data
 COPY --chown=appuser:appgroup app/ ./app/
