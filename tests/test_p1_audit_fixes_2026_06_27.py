@@ -70,3 +70,34 @@ def test_scrape_endpoint_is_tos_safe(client, monkeypatch):
     assert captured.get("sources") == ["google_maps"], f"unsafe sources: {captured.get('sources')}"
     assert "indiamart" not in (captured.get("sources") or [])
     assert "justdial" not in (captured.get("sources") or [])
+
+
+def test_orphan_signup_delegates_to_canonical(client, monkeypatch):
+    """Merge: /api/customer/auth/signup (was a divergent duplicate, zero callers) now
+    delegates to the single canonical public_signup. Confirms one implementation, no dup."""
+    import app.api.public_site as ps
+
+    called: dict = {}
+
+    async def _fake_public_signup(body, request):
+        called["business_name"] = getattr(body, "business_name", None)
+        called["plan"] = getattr(body, "plan", None)
+        return {"ok": True, "client_id": "c_merged", "access_token": "tkn", "token_type": "bearer"}
+
+    monkeypatch.setattr(ps, "public_signup", _fake_public_signup)
+
+    r = client.post(
+        "/api/customer/auth/signup",
+        json={
+            "business_name": "Merge Co",
+            "email": "merge@example.com",
+            "password": "secret123",
+            "phone": "9000000000",
+            "plan": "starter",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.json().get("client_id") == "c_merged"
+    # Payload was adapted into the canonical public_site.SignupIn and forwarded.
+    assert called.get("business_name") == "Merge Co"
+    assert called.get("plan") == "starter"
