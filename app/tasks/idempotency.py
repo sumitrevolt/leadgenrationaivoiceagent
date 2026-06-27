@@ -6,6 +6,7 @@ Redis setnx with task_id = dedup. TTL = window jisme retry acceptable.
 from __future__ import annotations
 
 import functools
+import hashlib
 import os
 from typing import Any, Callable
 
@@ -30,7 +31,7 @@ def idempotent_task(task_name: str, ttl: int = 3600) -> Callable:
         def wrapper(self, *args: Any, **kwargs: Any) -> Any:
             task_id = kwargs.get("task_id") or getattr(self, "request", None) and getattr(self.request, "id", None)
             if not task_id:
-                task_id = f"{task_name}:{hash(str(args))}"
+                task_id = f"{task_name}:{hashlib.sha1(str(args).encode()).hexdigest()[:16]}"
 
             key = f"celery:idem:{task_name}:{task_id}"
             r = _redis_client()

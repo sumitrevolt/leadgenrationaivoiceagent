@@ -151,6 +151,13 @@ class EmailSender:
             _integ_fail("smtp", err_str)
             # Account-level block (554 Disabled): re-raise so callers can fail-fast.
             if "554" in err_str or "Disabled by user" in err_str:
+                # Best-effort ntfy page (additive; does NOT change fail-fast below).
+                try:
+                    from app.platform import ops_alerts
+
+                    ops_alerts.maybe_alert_smtp_disabled(err_str)
+                except Exception:
+                    pass
                 raise
             return False
 

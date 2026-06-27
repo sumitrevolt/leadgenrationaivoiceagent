@@ -697,8 +697,8 @@ async def pay_info():
     try:
         from app.marketing.packages import get_public_packages
 
-        # PUBLIC pay modal — sirf 2 public plans (main ₹1,999 + advanced ₹5,999).
-        # Legacy Growth (public:False) filtered out — get_public_packages() honors it.
+        # Pay modal me 2 public marketing plans (starter + advanced); legacy growth hidden,
+        # taaki checkout flow landing pricing aur billing truth ke saath consistent rahe.
         out["packages"] = [
             {
                 "key": p.get("key"),
