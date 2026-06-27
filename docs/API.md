@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (920 operations)
+## Endpoint Index — auto-generated from OpenAPI (939 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -683,27 +683,39 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
 - `GET   ` `/api/customer/flows` — Cf List
 
-### Customer Marketing Studio  (40)
+### Customer Marketing Studio  (59)
 
 - `POST  ` `/api/customer/studio/ads` — Studio Ads
 - `POST  ` `/api/customer/studio/appointment-assistant` — Studio Appointment Assistant
 - `GET   ` `/api/customer/studio/best-time` — Studio Best Time
 - `POST  ` `/api/customer/studio/bio-page` — Studio Bio Page
 - `POST  ` `/api/customer/studio/blog` — Studio Blog
+- `GET   ` `/api/customer/studio/brand-palette` — Studio Brand Palette
 - `POST  ` `/api/customer/studio/budget-suggest` — Studio Budget Suggest
+- `GET   ` `/api/customer/studio/business-description` — Studio Business Description
 - `POST  ` `/api/customer/studio/calendar` — Studio Calendar
 - `POST  ` `/api/customer/studio/carousel` — Studio Carousel
+- `GET   ` `/api/customer/studio/case-study` — Studio Case Study
 - `POST  ` `/api/customer/studio/competitor` — Studio Competitor
+- `GET   ` `/api/customer/studio/complaint-recovery` — Studio Complaint Recovery
+- `GET   ` `/api/customer/studio/conversion-tracking` — Studio Conversion Tracking
+- `POST  ` `/api/customer/studio/coupon` — Studio Coupon
+- `GET   ` `/api/customer/studio/customer-avatar` — Studio Customer Avatar
 - `POST  ` `/api/customer/studio/customer-reminder` — Studio Customer Reminder
+- `GET   ` `/api/customer/studio/faq-page` — Studio Faq Page
 - `POST  ` `/api/customer/studio/faq-reply` — Studio Faq Reply
 - `POST  ` `/api/customer/studio/festival-post` — Studio Festival Post
 - `POST  ` `/api/customer/studio/followup-sequence` — Studio Followup Sequence
 - `POST  ` `/api/customer/studio/gbp-text` — Studio Gbp Text
 - `GET   ` `/api/customer/studio/gbp-tips` — Studio Gbp Tips
+- `GET   ` `/api/customer/studio/grid-planner` — Studio Grid Planner
 - `GET   ` `/api/customer/studio/growth-coach` — Studio Growth Coach
 - `POST  ` `/api/customer/studio/hashtags` — Studio Hashtags
+- `GET   ` `/api/customer/studio/highlights` — Studio Highlights
 - `POST  ` `/api/customer/studio/landing-audit` — Studio Landing Audit
 - `POST  ` `/api/customer/studio/lead-magnet` — Studio Lead Magnet
+- `GET   ` `/api/customer/studio/local-event-campaign` — Studio Local Event
+- `GET   ` `/api/customer/studio/lost-lead-reason` — Studio Lost Lead Reason
 - `POST  ` `/api/customer/studio/month-planner` — Studio Month Planner
 - `POST  ` `/api/customer/studio/negative-review-rescue` — Studio Negative Review Rescue
 - `GET   ` `/api/customer/studio/next-best-action` — Studio Next Best Action
@@ -719,12 +731,19 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/studio/review-reply` — Studio Review Reply
 - `POST  ` `/api/customer/studio/review-request` — Studio Review Request
 - `POST  ` `/api/customer/studio/roi-calculator` — Studio Roi Calculator
+- `GET   ` `/api/customer/studio/schema-markup` — Studio Schema Markup
+- `GET   ` `/api/customer/studio/seasonal-offers` — Studio Seasonal Offers
+- `POST  ` `/api/customer/studio/service-area` — Studio Service Area
+- `POST  ` `/api/customer/studio/service-menu` — Studio Service Menu
 - `POST  ` `/api/customer/studio/speed-followup` — Studio Speed Followup
 - `POST  ` `/api/customer/studio/templates` — Studio Templates
 - `POST  ` `/api/customer/studio/testimonial` — Studio Testimonial
 - `GET   ` `/api/customer/studio/tools` — Studio Tools
+- `GET   ` `/api/customer/studio/ugc-request` — Studio Ugc Request
+- `POST  ` `/api/customer/studio/voiceover` — Studio Voiceover
 - `POST  ` `/api/customer/studio/whatsapp` — Studio Whatsapp
 - `POST  ` `/api/customer/studio/win-back` — Studio Win Back
+- `POST  ` `/api/customer/studio/youtube-metadata` — Studio Youtube Metadata
 
 ### Customer Portal  (11)
 

@@ -910,6 +910,190 @@ def studio_growth_coach(client_id: str = Depends(require_customer)) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Batch 5 — complete the buildable set (#41-100). Pure-logic packs (uniform    #
+# "sections" shape, zero LLM/network) + 3 generator wires.                     #
+# --------------------------------------------------------------------------- #
+class TopicReq(BaseModel):
+    topic: str = Field("", max_length=160)
+
+
+class CouponReq(BaseModel):
+    title: str = Field("Special Offer", max_length=80)
+    kind: str = Field("percent", max_length=20, description="percent|flat|freebie")
+    value: int = Field(10, ge=0, le=100000)
+    expiry_days: int = Field(30, ge=1, le=365)
+
+
+class ServiceAreaReq(BaseModel):
+    city: str = Field("", max_length=80)
+
+
+class ServiceMenuReq(BaseModel):
+    items_text: str = Field("", max_length=2000, description="Ek line per item: 'Naam : price'")
+    style: str = Field("price_list", max_length=20)
+
+
+def _pack(tool: str, client_id: str, fn_name: str, *args) -> dict:
+    """Run a studio_packs pure-logic generator and wrap with context."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import studio_packs
+
+        out = getattr(studio_packs, fn_name)(*args)
+    except Exception as e:
+        logger.debug("studio pack %s failed: %s", fn_name, e)
+        out = {"sections": [{"title": "Note", "items": ["Abhi available nahi — thodi der baad."]}]}
+    return {"ok": True, "tool": tool, **out, "context": c}
+
+
+@router.get("/business-description")
+def studio_business_description(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("business-description", client_id, "business_description", c["business_name"], c["niche"], c["city"])
+
+
+@router.get("/brand-palette")
+def studio_brand_palette(client_id: str = Depends(require_customer)) -> dict:
+    return _pack("brand-palette", client_id, "brand_palette", _ctx(client_id)["niche"])
+
+
+@router.get("/customer-avatar")
+def studio_customer_avatar(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("customer-avatar", client_id, "customer_avatar", c["niche"], c["city"])
+
+
+@router.get("/seasonal-offers")
+def studio_seasonal_offers(client_id: str = Depends(require_customer)) -> dict:
+    return _pack("seasonal-offers", client_id, "seasonal_offers", _ctx(client_id)["niche"])
+
+
+@router.get("/local-event-campaign")
+def studio_local_event(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("local-event-campaign", client_id, "local_event_campaign", c["niche"], c["city"])
+
+
+@router.get("/case-study")
+def studio_case_study(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("case-study", client_id, "case_study", c["business_name"], c["niche"])
+
+
+@router.get("/grid-planner")
+def studio_grid_planner(client_id: str = Depends(require_customer)) -> dict:
+    return _pack("grid-planner", client_id, "grid_planner", _ctx(client_id)["niche"])
+
+
+@router.get("/highlights")
+def studio_highlights(client_id: str = Depends(require_customer)) -> dict:
+    return _pack("highlights", client_id, "highlights", _ctx(client_id)["niche"])
+
+
+@router.post("/voiceover")
+def studio_voiceover(req: TopicReq = Body(default=TopicReq()), client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("voiceover", client_id, "voiceover_script", c["business_name"], c["niche"], req.topic)
+
+
+@router.post("/youtube-metadata")
+def studio_youtube_metadata(req: TopicReq = Body(default=TopicReq()), client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("youtube-metadata", client_id, "youtube_metadata", c["business_name"], c["niche"], req.topic)
+
+
+@router.get("/faq-page")
+def studio_faq_page(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("faq-page", client_id, "faq_page", c["business_name"], c["niche"])
+
+
+@router.get("/schema-markup")
+def studio_schema_markup(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    rec = _client_record(client_id) or {}
+    return _pack("schema-markup", client_id, "schema_markup", c["business_name"], c["niche"], c["city"], str(rec.get("phone") or ""))
+
+
+@router.get("/conversion-tracking")
+def studio_conversion_tracking(client_id: str = Depends(require_customer)) -> dict:
+    return _pack("conversion-tracking", client_id, "conversion_tracking", _ctx(client_id)["niche"])
+
+
+@router.get("/lost-lead-reason")
+def studio_lost_lead_reason(client_id: str = Depends(require_customer)) -> dict:
+    return _pack("lost-lead-reason", client_id, "lost_lead_reason", _ctx(client_id)["niche"])
+
+
+@router.get("/complaint-recovery")
+def studio_complaint_recovery(client_id: str = Depends(require_customer)) -> dict:
+    return _pack("complaint-recovery", client_id, "complaint_recovery", _ctx(client_id)["business_name"])
+
+
+@router.get("/ugc-request")
+def studio_ugc_request(client_id: str = Depends(require_customer)) -> dict:
+    return _pack("ugc-request", client_id, "ugc_request", _ctx(client_id)["business_name"])
+
+
+# --- 3 generator wires ---
+@router.post("/coupon", dependencies=[Depends(_GEN_LIMIT)])
+def studio_coupon(req: CouponReq = Body(default=CouponReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Coupon campaign + shareable code + WhatsApp text (1-click human send)."""
+    c = _ctx(client_id)
+    rec = _client_record(client_id) or {}
+    try:
+        from app.marketing import loyalty
+
+        out = loyalty.create_campaign(
+            client_id=str(rec.get("id") or client_id), title=req.title, kind=req.kind,
+            value=req.value, expiry_days=req.expiry_days,
+        )
+    except Exception as e:
+        _fail("Coupon", e)
+    return {"ok": True, "tool": "coupon", "result": out, "context": c}
+
+
+@router.post("/service-area", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_service_area(req: ServiceAreaReq = Body(default=ServiceAreaReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Local SEO 'niche in city' landing page (title/body/FAQ/schema)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import seo_pages
+
+        out = await seo_pages.generate_page(niche=c["niche"], city=(req.city or c["city"] or "India"))
+    except Exception as e:
+        _fail("Service Area Page", e)
+    return {"ok": True, "tool": "service-area", "result": out, "context": c}
+
+
+@router.post("/service-menu", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_service_menu(req: ServiceMenuReq = Body(default=ServiceMenuReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Services/products → clean menu/price-list card (SVG) + WhatsApp text."""
+    c = _ctx(client_id)
+    items: list[dict] = []
+    for line in (req.items_text or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if ":" in line:
+            name, _, price = line.partition(":")
+        elif "-" in line:
+            name, _, price = line.partition("-")
+        else:
+            name, price = line, ""
+        items.append({"name": name.strip()[:80], "price": price.strip()[:40]})
+    if not items:
+        items = [{"name": "Service 1", "price": ""}, {"name": "Service 2", "price": ""}]
+    try:
+        from app.marketing import catalog
+
+        out = await catalog.build_catalog(business_name=c["business_name"], items=items, style=req.style)
+    except Exception as e:
+        _fail("Service Menu", e)
+    return {"ok": True, "tool": "service-menu", "result": out, "context": c}
+
+
+# --------------------------------------------------------------------------- #
 # Capability list — drives the UI cards (so frontend stays in sync)            #
 # --------------------------------------------------------------------------- #
 _TOOLS = [
@@ -952,6 +1136,25 @@ _TOOLS = [
     {"key": "best-time", "icon": "🕐", "title": "Best Time to Post", "desc": "Kab post/call/message karein", "method": "GET", "path": "/api/customer/studio/best-time", "fields": []},
     {"key": "owner-brief", "icon": "📋", "title": "Daily Owner Brief", "desc": "Aaj ka summary ek nazar", "method": "GET", "path": "/api/customer/studio/owner-brief", "fields": []},
     {"key": "growth-coach", "icon": "🚀", "title": "AI Growth Coach", "desc": "Hafte ke 3 high-impact actions", "method": "GET", "path": "/api/customer/studio/growth-coach", "fields": []},
+    {"key": "business-description", "icon": "🏷️", "title": "Business Description", "desc": "Website/GBP/social bio", "method": "GET", "path": "/api/customer/studio/business-description", "fields": []},
+    {"key": "service-menu", "icon": "📋", "title": "Service Menu / Price List", "desc": "Services → clean menu card", "method": "POST", "path": "/api/customer/studio/service-menu", "fields": ["items_text"]},
+    {"key": "coupon", "icon": "🎟️", "title": "Coupon Generator", "desc": "Coupon code + expiry + WA text", "method": "POST", "path": "/api/customer/studio/coupon", "fields": ["title", "value"]},
+    {"key": "brand-palette", "icon": "🎨", "title": "Brand Palette", "desc": "Colors + font suggestion", "method": "GET", "path": "/api/customer/studio/brand-palette", "fields": []},
+    {"key": "customer-avatar", "icon": "🧑", "title": "Customer Avatar", "desc": "Ideal customer profile", "method": "GET", "path": "/api/customer/studio/customer-avatar", "fields": []},
+    {"key": "seasonal-offers", "icon": "🌦️", "title": "Seasonal Offers", "desc": "Season-wise offer ideas", "method": "GET", "path": "/api/customer/studio/seasonal-offers", "fields": []},
+    {"key": "local-event-campaign", "icon": "🎪", "title": "Local Event Campaign", "desc": "City event tie-in ideas", "method": "GET", "path": "/api/customer/studio/local-event-campaign", "fields": []},
+    {"key": "case-study", "icon": "📖", "title": "Case Study", "desc": "Customer success story", "method": "GET", "path": "/api/customer/studio/case-study", "fields": []},
+    {"key": "grid-planner", "icon": "🔲", "title": "Instagram Grid Plan", "desc": "9-grid feed layout", "method": "GET", "path": "/api/customer/studio/grid-planner", "fields": []},
+    {"key": "highlights", "icon": "⭕", "title": "Story Highlights", "desc": "Highlight categories", "method": "GET", "path": "/api/customer/studio/highlights", "fields": []},
+    {"key": "voiceover", "icon": "🎙️", "title": "Voiceover Script", "desc": "Hinglish reel/ad VO", "method": "POST", "path": "/api/customer/studio/voiceover", "fields": ["topic"]},
+    {"key": "youtube-metadata", "icon": "▶️", "title": "YouTube Metadata", "desc": "Title + tags + description", "method": "POST", "path": "/api/customer/studio/youtube-metadata", "fields": ["topic"]},
+    {"key": "faq-page", "icon": "❔", "title": "FAQ Page", "desc": "Website FAQ Q&A", "method": "GET", "path": "/api/customer/studio/faq-page", "fields": []},
+    {"key": "service-area", "icon": "📍", "title": "Service Area Page", "desc": "'Niche in city' SEO page", "method": "POST", "path": "/api/customer/studio/service-area", "fields": ["city"]},
+    {"key": "schema-markup", "icon": "🧩", "title": "Schema Markup", "desc": "LocalBusiness JSON-LD", "method": "GET", "path": "/api/customer/studio/schema-markup", "fields": []},
+    {"key": "conversion-tracking", "icon": "🎯", "title": "Tracking Setup Guide", "desc": "GA/pixel/UTM checklist", "method": "GET", "path": "/api/customer/studio/conversion-tracking", "fields": []},
+    {"key": "lost-lead-reason", "icon": "🕵️", "title": "Lost Lead Reasons", "desc": "Kyu convert nahi hua + fix", "method": "GET", "path": "/api/customer/studio/lost-lead-reason", "fields": []},
+    {"key": "complaint-recovery", "icon": "🩹", "title": "Complaint Recovery", "desc": "Angry customer flow", "method": "GET", "path": "/api/customer/studio/complaint-recovery", "fields": []},
+    {"key": "ugc-request", "icon": "📷", "title": "UGC Request", "desc": "Customer photo/video maango", "method": "GET", "path": "/api/customer/studio/ugc-request", "fields": []},
 ]
 
 
