@@ -205,3 +205,69 @@ def test_opening_line_platform_niche_still_pitches_platform() -> None:
     opener = TelecallerBrain.opening_line(_opener_brain("ai_marketing"))
     low = opener.lower()
     assert "leads generation ai" in low or "instagram" in low
+
+
+# --------------------------------------------------------------------------- #
+# 2026-06-27 — "kya kya service/feature provide karte ho" deterministic answer.
+# Yeh sabse common discovery sawaal roman me kisi keyword se match NAHI hota tha,
+# isliye throttled free-LLM pe gir ke deflect ho jaata ("dobara boliye" / "detail
+# bhej deti hoon" = noob). Ab fast-path canned answer dena chahiye (LLM-independent).
+# --------------------------------------------------------------------------- #
+def test_what_services_question_gets_concrete_answer() -> None:
+    b = _brain("ai_marketing")
+    b._interest_confirmed = False
+    for q in (
+        "Kya kya service provide kar rahe ho",
+        "aap kya kya features dete ho",
+        "ismein kya kya milega",
+        "aapki services kya hain",
+    ):
+        ans = TelecallerBrain._customer_qa_reply(b, q)
+        assert ans, f"no canned answer for: {q!r}"
+        low = ans.lower()
+        # Concrete product answer (services), NOT a deflection / clarify line.
+        assert any(w in low for w in ("instagram", "facebook", "posts", "ads", "google"))
+        assert "dobara boliye" not in low
+        assert "bhej deti hoon" not in low
+
+
+def test_what_services_devanagari_features_word() -> None:
+    # Whisper(hi) Devanagari output — "फीचर"/"सर्विस" bhi route hona chahiye.
+    b = _brain("ai_marketing")
+    b._interest_confirmed = False
+    ans = TelecallerBrain._customer_qa_reply(b, "इसमें क्या क्या फीचर हैं")
+    assert ans
+    assert any(w in ans.lower() for w in ("instagram", "posts", "ads", "google"))
+
+
+# --------------------------------------------------------------------------- #
+# 2026-06-27 — leftover [placeholder] never spoken. The SOURCE prompt-rule /
+# KB doc ("aapka number [website/inquiry] se mila") got parroted raw → TTS bola
+# "bracket website slash inquiry" = noob (live call 2026-06-26). _fill must strip.
+# --------------------------------------------------------------------------- #
+def test_fill_strips_leftover_source_placeholder() -> None:
+    b = _brain("ai_marketing")
+    b.client_name = "LeadGen AI"
+    out = TelecallerBrain._fill(b, "Ji sir, number [Google/website/inquiry] se mila.")
+    assert "[" not in out and "]" not in out
+    assert "/" not in out  # the slash-soup inside the bracket is gone too
+    assert "number" in out.lower() and "mila" in out.lower()
+    # no doubled space / orphan space-before-period left behind
+    assert "  " not in out
+    assert " ." not in out
+
+
+def test_fill_still_replaces_known_placeholders() -> None:
+    b = _brain("ai_marketing")
+    b.client_name = "Sharma Solar"
+    out = TelecallerBrain._fill(b, "Main [Company] ki taraf se [Name] bol rahi hoon.")
+    assert "Sharma Solar" in out
+    assert "Swara" in out
+    assert "[" not in out
+
+
+def test_fill_noop_without_brackets() -> None:
+    b = _brain("ai_marketing")
+    b.client_name = "X"
+    s = "Ji sir, bilkul — aaj setup kar doon?"
+    assert TelecallerBrain._fill(b, s) == s

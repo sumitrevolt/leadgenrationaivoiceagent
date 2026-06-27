@@ -901,6 +901,24 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "matlab kya",
                     "explain",
                     "detail me",
+                    # "kya kya service/feature provide karte ho" — most-asked discovery
+                    # sawaal tha jo roman me kisi keyword se match NAHI hota tha → throttled
+                    # LLM pe gir ke deflect ho jaata ("dobara boliye"/"detail bhej deti
+                    # hoon" = noob). Yeh seedhe-jawaab branch me route karo (2026-06-27).
+                    "kya kya",
+                    "service",
+                    "services",
+                    "feature",
+                    "features",
+                    "kya provide",
+                    "kya offer",
+                    "kya milta",
+                    "kya milega",
+                    "kya deti",
+                    "kya dete",
+                    "kya cheez",
+                    "kaam kya",
+                    "sab kya",
                     # Devanagari (Whisper hi script) — what-do-you-do asks
                     "क्या कर",
                     "क्या क्या",
@@ -911,6 +929,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "मतलब",
                     "सर्विस",
                     "सेवा",
+                    "फीचर",
+                    "फ़ीचर",
                 )
             ):
                 return self._clean(
@@ -1349,12 +1369,22 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             t = text or ""
             if "[" not in t:
                 return t
-            return (
+            t = (
                 t.replace("[Company]", self.client_name or "hamari company")
                 .replace("[Name]", "Swara")
                 .replace("[Project]", "hamare project")
                 .replace("[City]", "aapke area")
             )
+            # ANY leftover [placeholder] the LLM/KB parroted (e.g. the SOURCE rule's
+            # "[website/inquiry]" / "[Google/website/inquiry]") must NEVER be spoken
+            # raw — TTS bolega "bracket Google slash website..." = noob (live call
+            # 2026-06-26). Strip the bracket token, then tidy doubled spaces + the
+            # orphan space-before-punct it can leave behind.
+            if "[" in t:
+                t = re.sub(r"\[[^\]]*\]", "", t)
+                t = re.sub(r"\s+([,.?!।])", r"\1", t)
+                t = re.sub(r"\s{2,}", " ", t).strip()
+            return t
         except Exception:
             return text or ""
 
