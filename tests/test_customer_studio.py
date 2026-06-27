@@ -95,10 +95,12 @@ def test_studio_tools_list():
     r = c.get("/api/customer/studio/tools", headers=_H)
     assert r.status_code == 200
     d = r.json()
-    assert d["ok"] is True and d["count"] == 71
+    assert d["ok"] is True and d["count"] == 78
     assert {t["key"] for t in d["tools"]} >= {
         "ai-inbox", "re-engagement", "listings", "website-widget", "aeo-checklist",
         "whatsapp-catalog", "sms-pack", "nps-survey", "loyalty-program",
+        "meme", "multilang-post", "trends", "partnerships", "business-card",
+        "email-signature", "reviews-widget",
     }
     assert {t["key"] for t in d["tools"]} >= {
         "post", "ads", "review-reply", "hashtags", "festival-post", "poster",
