@@ -70,8 +70,14 @@ ENV TZ=Asia/Kolkata
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-# rembg u2net model lives inside the venv (baked above) — point runtime at it so
-# background removal never downloads at request time.
+# rembg runtime env. NUMBA_CACHE_DIR → writable /tmp (pymatting/numba JIT cache;
+# without it `import rembg` raises "no locator available"). U2NET_HOME must be a
+# dir the non-root appuser can WRITE (pooch writes a lock there) AND that holds
+# u2net.onnx — so prod sets U2NET_HOME=/app/data/u2net via .env (bind-mounted,
+# writable) and the 175MB model is seeded there once from the baked /opt/venv/u2net
+# (see memory studio-media-tools for the exact extract+chmod recipe). The ENV here
+# is the build-default; .env overrides it at runtime.
+ENV NUMBA_CACHE_DIR=/tmp/numba_cache
 ENV U2NET_HOME=/opt/venv/u2net
 WORKDIR /app
 RUN mkdir -p /app/logs /app/data
