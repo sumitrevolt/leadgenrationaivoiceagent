@@ -2251,6 +2251,27 @@ const STUDIO_TOOLS = [
   {key:"best-time", icon:"🕐", title:"Best Time to Post", desc:"Kab post/call karein", method:"GET", path:"/api/customer/studio/best-time", inputs:[]},
   {key:"owner-brief", icon:"📋", title:"Daily Owner Brief", desc:"Aaj ka summary", method:"GET", path:"/api/customer/studio/owner-brief", inputs:[]},
   {key:"growth-coach", icon:"🚀", title:"AI Growth Coach", desc:"Hafte ke 3 actions", method:"GET", path:"/api/customer/studio/growth-coach", inputs:[]},
+  {key:"business-description", icon:"🏷️", title:"Business Description", desc:"Website/GBP/social bio", method:"GET", path:"/api/customer/studio/business-description", inputs:[]},
+  {key:"service-menu", icon:"📋", title:"Service Menu / Price List", desc:"Services → menu card", method:"POST", path:"/api/customer/studio/service-menu",
+   inputs:[{n:"items_text",l:"Items (ek line: Naam : price)",ph:"Haircut : 200\nShave : 100",type:"textarea"}]},
+  {key:"coupon", icon:"🎟️", title:"Coupon Generator", desc:"Coupon code + WA text", method:"POST", path:"/api/customer/studio/coupon",
+   inputs:[{n:"title",l:"Offer title",ph:"Diwali Sale"},{n:"value",l:"Value (%)",ph:"20",type:"number",def:"10"}]},
+  {key:"brand-palette", icon:"🎨", title:"Brand Palette", desc:"Colors + font", method:"GET", path:"/api/customer/studio/brand-palette", inputs:[]},
+  {key:"customer-avatar", icon:"🧑", title:"Customer Avatar", desc:"Ideal customer profile", method:"GET", path:"/api/customer/studio/customer-avatar", inputs:[]},
+  {key:"seasonal-offers", icon:"🌦️", title:"Seasonal Offers", desc:"Season-wise ideas", method:"GET", path:"/api/customer/studio/seasonal-offers", inputs:[]},
+  {key:"local-event-campaign", icon:"🎪", title:"Local Event Campaign", desc:"City event tie-in", method:"GET", path:"/api/customer/studio/local-event-campaign", inputs:[]},
+  {key:"case-study", icon:"📖", title:"Case Study", desc:"Success story template", method:"GET", path:"/api/customer/studio/case-study", inputs:[]},
+  {key:"grid-planner", icon:"🔲", title:"Instagram Grid Plan", desc:"9-grid layout", method:"GET", path:"/api/customer/studio/grid-planner", inputs:[]},
+  {key:"highlights", icon:"⭕", title:"Story Highlights", desc:"Highlight categories", method:"GET", path:"/api/customer/studio/highlights", inputs:[]},
+  {key:"voiceover", icon:"🎙️", title:"Voiceover Script", desc:"Hinglish reel/ad VO", method:"POST", path:"/api/customer/studio/voiceover", inputs:[{n:"topic",l:"Topic (optional)",ph:""}]},
+  {key:"youtube-metadata", icon:"▶️", title:"YouTube Metadata", desc:"Title+tags+description", method:"POST", path:"/api/customer/studio/youtube-metadata", inputs:[{n:"topic",l:"Video topic",ph:"tips"}]},
+  {key:"faq-page", icon:"❔", title:"FAQ Page", desc:"Website FAQ Q&A", method:"GET", path:"/api/customer/studio/faq-page", inputs:[]},
+  {key:"service-area", icon:"📍", title:"Service Area Page", desc:"'Niche in city' SEO page", method:"POST", path:"/api/customer/studio/service-area", inputs:[{n:"city",l:"City",ph:""}]},
+  {key:"schema-markup", icon:"🧩", title:"Schema Markup", desc:"LocalBusiness JSON-LD", method:"GET", path:"/api/customer/studio/schema-markup", inputs:[]},
+  {key:"conversion-tracking", icon:"🎯", title:"Tracking Setup Guide", desc:"GA/pixel/UTM checklist", method:"GET", path:"/api/customer/studio/conversion-tracking", inputs:[]},
+  {key:"lost-lead-reason", icon:"🕵️", title:"Lost Lead Reasons", desc:"Kyu convert nahi hua", method:"GET", path:"/api/customer/studio/lost-lead-reason", inputs:[]},
+  {key:"complaint-recovery", icon:"🩹", title:"Complaint Recovery", desc:"Angry customer flow", method:"GET", path:"/api/customer/studio/complaint-recovery", inputs:[]},
+  {key:"ugc-request", icon:"📷", title:"UGC Request", desc:"Photo/video maango", method:"GET", path:"/api/customer/studio/ugc-request", inputs:[]},
 ];
 const STUDIO_LAST = {};  // key -> plain text for copy
 const STUDIO_SVG = {};   // key -> last poster SVG (for download)
@@ -2452,6 +2473,25 @@ function studioRenderResult(key,d,out){
   } else if(key==="growth-coach"){
     html='<div class="sm" style="color:#64748b">Focus: '+escH(d.week_focus||"")+'</div>'+(d.actions||[]).map(function(a){return '<div style="margin-top:5px"><b>'+escH(a.action||"")+'</b><div class="sm" style="color:#64748b">'+escH(a.why||"")+'</div></div>';}).join("");
     copy=(d.actions||[]).map(function(a){return a.action||"";}).join("\n");
+  } else if(key==="coupon"){
+    html='<div style="font-size:16px"><b>Code: '+escH(res.code||"")+'</b></div>'
+      +(res.wa_share||res.wa_text||res.share_text?'<div style="white-space:pre-wrap;margin-top:4px">'+escH(res.wa_share||res.wa_text||res.share_text)+'</div>':"")
+      +(res.expiry||res.expires?'<div class="sm" style="color:#64748b;margin-top:3px">Valid till: '+escH(String(res.expiry||res.expires))+'</div>':"");
+    copy=(res.code||"")+"\n"+(res.wa_share||res.wa_text||res.share_text||"");
+  } else if(key==="service-area"){
+    html='<b>'+escH(res.title||res.h1||"")+'</b><div class="sm" style="white-space:pre-wrap;margin-top:4px">'+escH(((res.body||"").replace(/<[^>]+>/g," ")).slice(0,400))+'…</div>'
+      +((res.faqs||[]).length?'<div class="sm" style="margin-top:4px;color:#64748b">'+escH(String((res.faqs||[]).length))+' FAQ + schema bhi included (copy me).</div>':"");
+    copy=(res.title||"")+"\n\n"+(res.body||"").replace(/<[^>]+>/g," ");
+  } else if(key==="service-menu"){
+    if(res.svg){ STUDIO_SVG[key]=res.svg;
+      html='<div style="max-width:240px;border:1px solid var(--bd,#e5e7eb);border-radius:8px;overflow:hidden">'+res.svg+'</div>'
+        +(res.wa_text?'<div style="white-space:pre-wrap;margin-top:5px">'+escH(res.wa_text)+'</div>':"")
+        +'<button class="btn" type="button" style="margin-top:6px;padding:5px 10px;font-size:12px" onclick="studioDlPoster(\'service-menu\')">⬇️ Menu download</button>';
+      STUDIO_LAST[key]=res.wa_text||""; out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\'service-menu\')">📋 Copy text</button>'; return;
+    } else { html=escH(res.wa_text||"Menu ban gaya."); copy=res.wa_text||""; }
+  } else if(d.sections && d.sections.length){
+    html=(d.sections||[]).map(function(s){return '<div style="margin-top:6px"><b>'+escH(s.title||"")+'</b>'+_li(s.items||[])+'</div>';}).join("");
+    copy=(d.sections||[]).map(function(s){return (s.title||"")+":\n"+((s.items||[]).join("\n"));}).join("\n\n");
   } else { html='<pre style="white-space:pre-wrap">'+escH(JSON.stringify(res,null,1))+'</pre>'; copy=JSON.stringify(res); }
   STUDIO_LAST[key]=copy;
   out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\''+key+'\')">📋 Copy</button>';

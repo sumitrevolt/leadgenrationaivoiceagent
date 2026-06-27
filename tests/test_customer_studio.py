@@ -50,6 +50,18 @@ _POST_TOOLS = [
     ("/api/customer/studio/referral", {"reward": "10% off"}),
     ("/api/customer/studio/roi-calculator", {"monthly_spend": 5000}),
     ("/api/customer/studio/objection-handler", {"objection": "mehenga hai"}),
+    # batch 5
+    ("/api/customer/studio/coupon", {"title": "Sale", "value": 20}),
+    ("/api/customer/studio/voiceover", {"topic": "offer"}),
+    ("/api/customer/studio/youtube-metadata", {"topic": "tips"}),
+    ("/api/customer/studio/service-menu", {"items_text": "Haircut : 200\nShave : 100"}),
+]
+
+# Pure-logic "sections" tools (GET, zero-LLM)
+_SECTION_TOOLS = [
+    "business-description", "brand-palette", "customer-avatar", "seasonal-offers",
+    "local-event-campaign", "case-study", "grid-planner", "highlights", "faq-page",
+    "schema-markup", "conversion-tracking", "lost-lead-reason", "complaint-recovery", "ugc-request",
 ]
 
 
@@ -81,7 +93,7 @@ def test_studio_tools_list():
     r = c.get("/api/customer/studio/tools", headers=_H)
     assert r.status_code == 200
     d = r.json()
-    assert d["ok"] is True and d["count"] == 39
+    assert d["ok"] is True and d["count"] == 58
     assert {t["key"] for t in d["tools"]} >= {
         "post", "ads", "review-reply", "hashtags", "festival-post", "poster",
         "review-request", "followup-sequence", "speed-followup", "reel-script",
@@ -91,6 +103,11 @@ def test_studio_tools_list():
         "month-planner", "templates", "blog", "landing-audit", "testimonial",
         "repurpose", "referral", "roi-calculator", "objection-handler",
         "best-time", "owner-brief", "growth-coach",
+        "business-description", "service-menu", "coupon", "brand-palette",
+        "customer-avatar", "seasonal-offers", "local-event-campaign", "case-study",
+        "grid-planner", "highlights", "voiceover", "youtube-metadata", "faq-page",
+        "service-area", "schema-markup", "conversion-tracking", "lost-lead-reason",
+        "complaint-recovery", "ugc-request",
     }
     assert "niche" in d["context"]
 
@@ -129,8 +146,17 @@ def test_studio_post_tools_never_empty():
         assert d.get("ok") is True, f"{path} not ok"
         # each tool returns a non-empty payload under one of these keys
         payload = (d.get("result") or d.get("items") or d.get("messages")
-                   or d.get("actions") or d.get("library") or d.get("brief"))
+                   or d.get("actions") or d.get("library") or d.get("brief") or d.get("sections"))
         assert payload, f"{path} returned empty payload"
+
+
+def test_studio_section_tools_never_empty():
+    c = TestClient(app)
+    for key in _SECTION_TOOLS:
+        r = c.get(f"/api/customer/studio/{key}", headers=_H)
+        assert r.status_code == 200, f"{key} -> {r.status_code}"
+        secs = r.json().get("sections")
+        assert secs and all(s.get("items") for s in secs), f"{key} empty sections"
 
 
 def test_studio_review_reply_requires_text():
