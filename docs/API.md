@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (908 operations)
+## Endpoint Index — auto-generated from OpenAPI (920 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -683,11 +683,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
 - `GET   ` `/api/customer/flows` — Cf List
 
-### Customer Marketing Studio  (28)
+### Customer Marketing Studio  (40)
 
 - `POST  ` `/api/customer/studio/ads` — Studio Ads
 - `POST  ` `/api/customer/studio/appointment-assistant` — Studio Appointment Assistant
+- `GET   ` `/api/customer/studio/best-time` — Studio Best Time
 - `POST  ` `/api/customer/studio/bio-page` — Studio Bio Page
+- `POST  ` `/api/customer/studio/blog` — Studio Blog
 - `POST  ` `/api/customer/studio/budget-suggest` — Studio Budget Suggest
 - `POST  ` `/api/customer/studio/calendar` — Studio Calendar
 - `POST  ` `/api/customer/studio/carousel` — Studio Carousel
@@ -698,18 +700,28 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/studio/followup-sequence` — Studio Followup Sequence
 - `POST  ` `/api/customer/studio/gbp-text` — Studio Gbp Text
 - `GET   ` `/api/customer/studio/gbp-tips` — Studio Gbp Tips
+- `GET   ` `/api/customer/studio/growth-coach` — Studio Growth Coach
 - `POST  ` `/api/customer/studio/hashtags` — Studio Hashtags
+- `POST  ` `/api/customer/studio/landing-audit` — Studio Landing Audit
 - `POST  ` `/api/customer/studio/lead-magnet` — Studio Lead Magnet
+- `POST  ` `/api/customer/studio/month-planner` — Studio Month Planner
 - `POST  ` `/api/customer/studio/negative-review-rescue` — Studio Negative Review Rescue
 - `GET   ` `/api/customer/studio/next-best-action` — Studio Next Best Action
+- `POST  ` `/api/customer/studio/objection-handler` — Studio Objection Handler
+- `GET   ` `/api/customer/studio/owner-brief` — Studio Owner Brief
 - `GET   ` `/api/customer/studio/photo-reminder` — Studio Photo Reminder
 - `POST  ` `/api/customer/studio/post` — Studio Post
 - `POST  ` `/api/customer/studio/poster` — Studio Poster
 - `POST  ` `/api/customer/studio/quote-draft` — Studio Quote Draft
 - `POST  ` `/api/customer/studio/reel-script` — Studio Reel Script
+- `POST  ` `/api/customer/studio/referral` — Studio Referral
+- `POST  ` `/api/customer/studio/repurpose` — Studio Repurpose
 - `POST  ` `/api/customer/studio/review-reply` — Studio Review Reply
 - `POST  ` `/api/customer/studio/review-request` — Studio Review Request
+- `POST  ` `/api/customer/studio/roi-calculator` — Studio Roi Calculator
 - `POST  ` `/api/customer/studio/speed-followup` — Studio Speed Followup
+- `POST  ` `/api/customer/studio/templates` — Studio Templates
+- `POST  ` `/api/customer/studio/testimonial` — Studio Testimonial
 - `GET   ` `/api/customer/studio/tools` — Studio Tools
 - `POST  ` `/api/customer/studio/whatsapp` — Studio Whatsapp
 - `POST  ` `/api/customer/studio/win-back` — Studio Win Back

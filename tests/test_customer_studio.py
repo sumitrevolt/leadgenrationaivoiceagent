@@ -40,6 +40,16 @@ _POST_TOOLS = [
     ("/api/customer/studio/budget-suggest", {"avg_deal_value": 20000, "target_leads": 10}),
     ("/api/customer/studio/customer-reminder", {"kind": "renewal"}),
     ("/api/customer/studio/appointment-assistant", {}),
+    # batch 4 — growth OS
+    ("/api/customer/studio/month-planner", {"offer": "Sale"}),
+    ("/api/customer/studio/templates", {}),
+    ("/api/customer/studio/blog", {"topic": "tips"}),
+    # landing-audit omitted here — makes a real outbound HTTP fetch (covered by live E2E)
+    ("/api/customer/studio/testimonial", {"review_text": "Great service!", "rating": 5}),
+    ("/api/customer/studio/repurpose", {"topic_or_url": "new offer"}),
+    ("/api/customer/studio/referral", {"reward": "10% off"}),
+    ("/api/customer/studio/roi-calculator", {"monthly_spend": 5000}),
+    ("/api/customer/studio/objection-handler", {"objection": "mehenga hai"}),
 ]
 
 
@@ -71,13 +81,16 @@ def test_studio_tools_list():
     r = c.get("/api/customer/studio/tools", headers=_H)
     assert r.status_code == 200
     d = r.json()
-    assert d["ok"] is True and d["count"] == 27
+    assert d["ok"] is True and d["count"] == 39
     assert {t["key"] for t in d["tools"]} >= {
         "post", "ads", "review-reply", "hashtags", "festival-post", "poster",
         "review-request", "followup-sequence", "speed-followup", "reel-script",
         "win-back", "quote-draft", "next-best-action", "competitor", "faq-reply",
         "carousel", "bio-page", "lead-magnet", "negative-review-rescue",
         "photo-reminder", "budget-suggest", "customer-reminder", "appointment-assistant",
+        "month-planner", "templates", "blog", "landing-audit", "testimonial",
+        "repurpose", "referral", "roi-calculator", "objection-handler",
+        "best-time", "owner-brief", "growth-coach",
     }
     assert "niche" in d["context"]
 
@@ -115,7 +128,8 @@ def test_studio_post_tools_never_empty():
         d = r.json()
         assert d.get("ok") is True, f"{path} not ok"
         # each tool returns a non-empty payload under one of these keys
-        payload = d.get("result") or d.get("items") or d.get("messages") or d.get("actions")
+        payload = (d.get("result") or d.get("items") or d.get("messages")
+                   or d.get("actions") or d.get("library") or d.get("brief"))
         assert payload, f"{path} returned empty payload"
 
 
