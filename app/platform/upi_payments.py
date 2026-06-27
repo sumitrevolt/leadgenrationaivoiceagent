@@ -88,6 +88,19 @@ def _try_activate(client_id: str, plan: str) -> bool:
         return False
 
 
+def _trigger_onboarding() -> None:
+    """Front-run the hourly onboarding sweep so a just-activated client gets their
+    KB seed + first content pack in seconds, not up to an hour. Best-effort: enqueues
+    the existing Celery staff job (runs on the WORKER, never in the web process) and
+    falls back to the hourly sweep if the broker is unavailable. Never raises."""
+    try:
+        from app.worker import celery_app
+
+        celery_app.send_task("app.tasks.staff_jobs.run_staff_job", args=("onboard",))
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upi_payments onboarding enqueue skipped: %s", e)
+
+
 def submit_payment(
     client_id: str,
     plan: str,
@@ -141,6 +154,8 @@ def submit_payment(
                 record["decided_by"] = "auto"
                 # Persist the updated status (record is the same object in rows).
                 _write_store(rows)
+                # Just activated → front-run onboarding so output lands in seconds.
+                _trigger_onboarding()
 
         return {"ok": True, **record}
     except Exception as e:  # pragma: no cover - defensive
@@ -183,7 +198,10 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
         record["decided_by"] = (decided_by or "admin")[:80]
 
         if approve and not record.get("auto_activated") and record.get("client_id"):
-            _try_activate(record.get("client_id", ""), record.get("plan", ""))
+            if _try_activate(record.get("client_id", ""), record.get("plan", "")):
+                # Activation succeeded → front-run onboarding (KB seed + first content
+                # pack) instead of waiting for the hourly sweep.
+                _trigger_onboarding()
 
         _write_store(rows)
         return record
