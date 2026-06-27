@@ -67,6 +67,76 @@ def max_per_day() -> int:
         return 120
 
 
+_TICK_RUNNING_KEY = "self_improve:tick_running"
+_TICK_NEXT_ALLOWED_KEY = "self_improve:tick_next_allowed"
+
+
+def _redis_client():
+    try:
+        import redis as _redis
+
+        from app.config import settings
+
+        return _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
+    except Exception:
+        return None
+
+
+def _redis_value(val: Any) -> str:
+    if isinstance(val, bytes):
+        try:
+            return val.decode("utf-8")
+        except Exception:
+            return ""
+    return str(val or "")
+
+
+def acquire_tick_slot() -> str:
+    """Distributed guard: duplicate self-requeue chains ek hi window me run na karein."""
+    token = uuid.uuid4().hex
+    r = _redis_client()
+    if r is None:
+        return token  # fail-open: Redis unavailable ho to old behavior
+    try:
+        next_allowed = float(_redis_value(r.get(_TICK_NEXT_ALLOWED_KEY)) or 0)
+        if next_allowed and time.time() < next_allowed:
+            return ""
+        ttl = max(300, _ITER_TIMEOUT_S + 120)
+        if not r.set(_TICK_RUNNING_KEY, token, nx=True, ex=ttl):
+            return ""
+        return token
+    except Exception:
+        return token
+
+
+def release_tick_slot(token: str) -> None:
+    """Running slot release karo aur default gap tak next duplicate tick block karo."""
+    if not token:
+        return
+    r = _redis_client()
+    if r is None:
+        return
+    try:
+        if _redis_value(r.get(_TICK_RUNNING_KEY)) == token:
+            r.delete(_TICK_RUNNING_KEY)
+        next_allowed = time.time() + gap_seconds()
+        r.set(_TICK_NEXT_ALLOWED_KEY, str(next_allowed), ex=max(300, gap_seconds() + 300))
+    except Exception:
+        pass
+
+
+def note_tick_requeue(countdown: int | float) -> None:
+    """Successful requeue ka actual future slot mark karo (daily-cap pe 3600s)."""
+    r = _redis_client()
+    if r is None:
+        return
+    try:
+        delay = max(0, float(countdown))
+        r.set(_TICK_NEXT_ALLOWED_KEY, str(time.time() + delay), ex=max(300, int(delay) + 300))
+    except Exception:
+        pass
+
+
 # ---------------------------------------------------------------- stores
 
 
@@ -125,6 +195,15 @@ def _heartbeat(extra: dict[str, Any] | None = None) -> None:
     if extra:
         st.update(extra)
     _save_state(st)
+    try:
+        from app.platform import automation_health
+
+        status = str(st.get("status") or "tick")
+        last_action = str(st.get("last_action") or "")
+        note = last_action if status == "ok" and last_action else status
+        automation_health.record_run("self_improve", ok=True, seconds=0.0, note=note)
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------- task queue
@@ -1424,6 +1503,9 @@ __all__ = [
     "ApprovalQueue",
     "compute_outcome_value",
     "should_skip_task",
+    "acquire_tick_slot",
+    "release_tick_slot",
+    "note_tick_requeue",
     "OUTCOME_WEIGHTS",
     "DETERMINISTIC_GATES",
 ]
