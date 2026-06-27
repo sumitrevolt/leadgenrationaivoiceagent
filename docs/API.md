@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (898 operations)
+## Endpoint Index — auto-generated from OpenAPI (908 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -683,16 +683,26 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
 - `GET   ` `/api/customer/flows` — Cf List
 
-### Customer Marketing Studio  (18)
+### Customer Marketing Studio  (28)
 
 - `POST  ` `/api/customer/studio/ads` — Studio Ads
+- `POST  ` `/api/customer/studio/appointment-assistant` — Studio Appointment Assistant
+- `POST  ` `/api/customer/studio/bio-page` — Studio Bio Page
+- `POST  ` `/api/customer/studio/budget-suggest` — Studio Budget Suggest
 - `POST  ` `/api/customer/studio/calendar` — Studio Calendar
+- `POST  ` `/api/customer/studio/carousel` — Studio Carousel
+- `POST  ` `/api/customer/studio/competitor` — Studio Competitor
+- `POST  ` `/api/customer/studio/customer-reminder` — Studio Customer Reminder
+- `POST  ` `/api/customer/studio/faq-reply` — Studio Faq Reply
 - `POST  ` `/api/customer/studio/festival-post` — Studio Festival Post
 - `POST  ` `/api/customer/studio/followup-sequence` — Studio Followup Sequence
 - `POST  ` `/api/customer/studio/gbp-text` — Studio Gbp Text
 - `GET   ` `/api/customer/studio/gbp-tips` — Studio Gbp Tips
 - `POST  ` `/api/customer/studio/hashtags` — Studio Hashtags
+- `POST  ` `/api/customer/studio/lead-magnet` — Studio Lead Magnet
+- `POST  ` `/api/customer/studio/negative-review-rescue` — Studio Negative Review Rescue
 - `GET   ` `/api/customer/studio/next-best-action` — Studio Next Best Action
+- `GET   ` `/api/customer/studio/photo-reminder` — Studio Photo Reminder
 - `POST  ` `/api/customer/studio/post` — Studio Post
 - `POST  ` `/api/customer/studio/poster` — Studio Poster
 - `POST  ` `/api/customer/studio/quote-draft` — Studio Quote Draft

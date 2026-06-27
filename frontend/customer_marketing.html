@@ -2213,6 +2213,23 @@ const STUDIO_TOOLS = [
   {key:"quote-draft", icon:"🧾", title:"Quote / Estimate", desc:"Inquiry se price quote draft", method:"POST", path:"/api/customer/studio/quote-draft",
    inputs:[{n:"avg_deal_value",l:"Avg deal value ₹",ph:"20000",type:"number",def:"20000"}]},
   {key:"next-best-action", icon:"🎯", title:"Next Best Action", desc:"Aaj kya karna hai — task list", method:"GET", path:"/api/customer/studio/next-best-action", inputs:[]},
+  {key:"competitor", icon:"🔍", title:"Competitor Tracker", desc:"Strengths copy + gaps exploit", method:"POST", path:"/api/customer/studio/competitor",
+   inputs:[{n:"competitor_notes",l:"Competitor ke baare me notes",ph:"e.g. roz post karta, 4.5 rating…",type:"textarea"}]},
+  {key:"faq-reply", icon:"🤖", title:"FAQ / Reply Assistant", desc:"Customer sawaal ka smart answer", method:"POST", path:"/api/customer/studio/faq-reply",
+   inputs:[{n:"question",l:"Customer ka sawaal",ph:"Aap kya service dete ho?",type:"textarea",req:true}]},
+  {key:"carousel", icon:"🎠", title:"Carousel Maker", desc:"Insta carousel slides", method:"POST", path:"/api/customer/studio/carousel",
+   inputs:[{n:"topic",l:"Topic",ph:"tips / new offer"},{n:"slides",l:"Slides",ph:"4",type:"number",def:"4"}]},
+  {key:"bio-page", icon:"🔗", title:"Bio / Landing Copy", desc:"Insta/FB/Google bios + page", method:"POST", path:"/api/customer/studio/bio-page", inputs:[]},
+  {key:"lead-magnet", icon:"🧲", title:"Lead Magnet", desc:"Free guide/checklist for leads", method:"POST", path:"/api/customer/studio/lead-magnet",
+   inputs:[{n:"city",l:"City (optional)",ph:""}]},
+  {key:"negative-review-rescue", icon:"🛟", title:"Bad Review Rescue", desc:"Polite damage-control reply", method:"POST", path:"/api/customer/studio/negative-review-rescue",
+   inputs:[{n:"review_text",l:"Bad review paste karo",ph:"Customer ka negative review…",type:"textarea",req:true},{n:"rating",l:"Rating (1-5)",ph:"1",type:"number"}]},
+  {key:"photo-reminder", icon:"📸", title:"Photo Reminder", desc:"Weekly GBP photo ideas", method:"GET", path:"/api/customer/studio/photo-reminder", inputs:[]},
+  {key:"budget-suggest", icon:"💰", title:"Ad Budget Suggest", desc:"Daily ad budget plan", method:"POST", path:"/api/customer/studio/budget-suggest",
+   inputs:[{n:"avg_deal_value",l:"Avg deal value ₹",ph:"20000",type:"number",def:"20000"},{n:"target_leads",l:"Chahiye leads/mahina",ph:"10",type:"number",def:"10"}]},
+  {key:"customer-reminder", icon:"⏰", title:"Customer Reminder", desc:"Appointment/renewal/payment msg", method:"POST", path:"/api/customer/studio/customer-reminder",
+   inputs:[{n:"kind",l:"Kis cheez ka (appointment/renewal/service/payment)",ph:"appointment"}]},
+  {key:"appointment-assistant", icon:"📅", title:"Appointment Assistant", desc:"Slot + booking confirmation", method:"POST", path:"/api/customer/studio/appointment-assistant", inputs:[]},
 ];
 const STUDIO_LAST = {};  // key -> plain text for copy
 const STUDIO_SVG = {};   // key -> last poster SVG (for download)
@@ -2332,6 +2349,41 @@ function studioRenderResult(key,d,out){
       +'<div><b>'+(a.icon||"•")+' '+escH(a.action||"")+'</b></div><div class="sm" style="color:#64748b">'+escH(a.why||"")+'</div>'
       +(a.target?'<button class="btn" type="button" style="margin-top:4px;padding:3px 9px;font-size:11px" onclick="scrollToId(\''+escH(a.target)+'\')">Karo →</button>':"")+'</div>';}).join("");
     copy=(d.actions||[]).map(function(a){return (a.action||"");}).join("\n");
+  } else if(key==="competitor"){
+    html='<b>Copy karo:</b>'+_li(res.strengths_to_copy)+'<b>Gaps (yahan jeeto):</b>'+_li(res.gaps_to_exploit)+'<b>Action plan:</b>'+_li(res.action_plan);
+    copy=[].concat(res.strengths_to_copy||[],res.gaps_to_exploit||[],res.action_plan||[]).join("\n");
+  } else if(key==="faq-reply"){
+    html='<div style="white-space:pre-wrap">'+escH(res.answer||"")+'</div>'; copy=res.answer||"";
+  } else if(key==="carousel"){
+    html=(res.slides||[]).map(function(s,i){return '<div style="margin-top:5px"><b>Slide '+(i+1)+(s.title?" — "+escH(s.title):"")+':</b> '+escH(s.body||s.text||"")+'</div>';}).join("")
+      +(res.caption?'<div style="margin-top:5px"><b>Caption:</b> '+escH(res.caption)+'</div>':"");
+    copy=(res.slides||[]).map(function(s,i){return "Slide "+(i+1)+": "+((s.title?s.title+" — ":"")+(s.body||s.text||""));}).join("\n")+"\n"+(res.caption||"");
+  } else if(key==="bio-page"){
+    const pages=res.pages||{};
+    html=Object.keys(pages).map(function(k){var v=pages[k];return '<div style="margin-top:5px"><b>'+escH(k)+':</b> '+escH(typeof v==="string"?v:(v&&(v.bio||v.about||JSON.stringify(v))))+'</div>';}).join("")
+      +(res.best_time?'<div class="sm" style="margin-top:4px">⏰ Best time: '+escH(String(res.best_time))+'</div>':"")
+      +(res.hashtags&&res.hashtags.length?'<div style="margin-top:4px;color:#2563eb">'+escH((res.hashtags||[]).map(function(h){return h[0]==="#"?h:"#"+h;}).join(" "))+'</div>':"");
+    copy=Object.keys(pages).map(function(k){var v=pages[k];return k+": "+(typeof v==="string"?v:(v&&(v.bio||v.about||"")));}).join("\n");
+  } else if(key==="lead-magnet"){
+    html='<b>'+escH(res.title||res.name||"Free Guide")+'</b>'+_li(res.points)
+      +((res.url||res.pdf_url)?'<div class="sm" style="margin-top:4px">🔗 <a href="'+escH(res.pdf_url||res.url)+'" target="_blank" rel="noopener">Guide kholo / download</a></div>':"")
+      +(res.capture_note?'<div class="sm" style="color:#64748b;margin-top:3px">'+escH(res.capture_note)+'</div>':"");
+    copy=(res.title||res.name||"")+"\n"+((res.points||[]).map(function(p){return typeof p==="string"?p:Object.values(p).join(" ");}).join("\n"));
+  } else if(key==="negative-review-rescue"){
+    html='<div class="sm">Sentiment: '+escH(res.sentiment||"")+'</div>'+(res.replies||[]).map(function(rp){return '<div style="margin-top:5px"><b>'+escH(rp.label||"")+':</b> '+escH(rp.text||"")+'</div>';}).join("");
+    copy=(res.replies||[]).map(function(rp){return (rp.label||"")+": "+(rp.text||"");}).join("\n\n");
+  } else if(key==="photo-reminder"){
+    html='<div>'+escH(d.message||"")+'</div>'+_li(d.ideas); copy=(d.ideas||[]).join("\n");
+  } else if(key==="budget-suggest"){
+    html='<div style="font-size:16px"><b>₹'+escH(String(res.suggested_daily_inr||0))+'/din</b> <span class="sm">(₹'+escH(String(res.suggested_monthly_inr||0))+'/mahina)</span></div>'
+      +'<div class="sm" style="margin-top:3px">~'+escH(String(res.expected_leads||0))+' leads → ~'+escH(String(res.expected_deals||0))+' deals → ₹'+escH(String(res.expected_revenue_inr||0))+' revenue (est.)</div>'
+      +'<div class="sm" style="color:#64748b;margin-top:3px">'+escH(res.note||"")+'</div>';
+    copy='Daily ₹'+(res.suggested_daily_inr||0)+', monthly ₹'+(res.suggested_monthly_inr||0);
+  } else if(key==="customer-reminder"){
+    html=_li(d.messages||[]); copy=(d.messages||[]).join("\n\n");
+  } else if(key==="appointment-assistant"){
+    html='<b>Slot offer:</b>'+_li(res.slot_offer)+'<b>Confirmation:</b>'+_li(res.confirmation)+(res.no_show_followup?'<b>No-show:</b>'+_li(res.no_show_followup):"");
+    copy=[].concat(res.slot_offer||[],res.confirmation||[]).join("\n\n");
   } else { html='<pre style="white-space:pre-wrap">'+escH(JSON.stringify(res,null,1))+'</pre>'; copy=JSON.stringify(res); }
   STUDIO_LAST[key]=copy;
   out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\''+key+'\')">📋 Copy</button>';
