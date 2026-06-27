@@ -213,7 +213,10 @@ class LeadScraperManager:
             List of unified leads
         """
         cities = cities or self.INDIAN_CITIES[:5]  # Default to top 5 cities
-        sources = sources or ["google_maps", "indiamart", "justdial"]
+        # Default = google_maps ONLY. indiamart/justdial are ToS-blocked (CLAUDE.md:
+        # manual-CSV import only) — must be explicitly opted in by the caller, never
+        # auto-fired by a caller that omits sources=.
+        sources = sources or ["google_maps"]
 
         logger.info(
             f"Starting lead scrape - Niche: {niche}, Cities: {len(cities)}, Sources: {sources}"

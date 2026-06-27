@@ -15,13 +15,19 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
+from app.api.auth_deps import require_admin
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
-router = APIRouter(prefix="/analytics", tags=["Analytics"])
+# Whole router is admin-only: every endpoint aggregates platform-wide Lead/CallLog
+# data (conversion rates, lead scores, agent/campaign performance) — must not be
+# reachable anonymously.
+router = APIRouter(
+    prefix="/analytics", tags=["Analytics"], dependencies=[Depends(require_admin)]
+)
 
 
 class DashboardStats(BaseModel):

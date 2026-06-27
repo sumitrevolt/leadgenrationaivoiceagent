@@ -52,7 +52,7 @@ def _capture_fallback_key(args, monkeypatch):
 
     result = _job(_FakeTask(), *args)
     assert result == "ran"  # wrapped fn executed (not skipped)
-    # key format: celery:idem:{task_name}:{task_name}:{fallback_hash}
+    # key format: celery:idem:{task_name}:{task_name}:{fallback_hash}:{retries}
     return captured["key"]
 
 
@@ -85,10 +85,52 @@ def test_fallback_key_uses_stable_sha1_not_builtin_hash(monkeypatch):
 
     key = _capture_fallback_key(args, monkeypatch)
 
-    # stable sha1 fragment present
+    # stable sha1 fragment present (key now carries a trailing :{retries} segment
+    # so a genuine self.retry() is not deduped away — fresh task => retries 0).
     assert expected_sha1 in key
-    assert key.endswith(f"demo_task:{expected_sha1}")
+    assert key.endswith(f"demo_task:{expected_sha1}:0")
 
     # regression guard: a builtin-hash implementation would have used this
     legacy_key_fragment = f"demo_task:{hash(str(args))}"
     assert legacy_key_fragment not in key
+
+
+def test_retry_attempt_not_deduped_away(monkeypatch):
+    """A genuine self.retry() (same task_id, incremented retries) must produce a
+    DISTINCT key so a real Redis setnx lets it run — while a redelivery of the
+    SAME attempt (same retries) is still skipped as a duplicate.
+
+    Regression: previously the key omitted retries, so the retry collided with the
+    original attempt's live key and was silently skipped (failure never re-ran,
+    never reached the DLQ).
+    """
+    store: set[str] = set()
+
+    class _DedupRedis:
+        def set(self, key, *a, **k):  # noqa: ANN001
+            if key in store:
+                return False  # nx fails -> treated as duplicate
+            store.add(key)
+            return True
+
+    monkeypatch.setattr(idempotency, "_redis_client", lambda: _DedupRedis())
+
+    @idempotent_task("demo_task", ttl=60)
+    def _job(self, *a, **k):  # noqa: ANN001
+        return "ran"
+
+    class _Req:
+        id = "task-abc"
+        retries = 0
+
+    class _Task:
+        request = _Req()
+
+    t = _Task()
+    # attempt 0 runs
+    assert _job(t, "x") == "ran"
+    # redelivery of the SAME attempt (retries still 0) -> deduped
+    assert _job(t, "x") == {"ok": True, "skipped": "duplicate", "task": "demo_task"}
+    # genuine retry (retries incremented) -> NOT deduped, runs again
+    t.request.retries = 1
+    assert _job(t, "x") == "ran"

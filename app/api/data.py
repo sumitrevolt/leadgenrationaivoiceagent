@@ -490,6 +490,7 @@ async def delete_custom_niche(
 @router.get("/cities")
 async def get_available_cities(
     db: AsyncSession = Depends(get_async_db),
+    client_id: str = Depends(get_client_id),  # metered Lead aggregate — block anon in prod (matches siblings)
 ):
     """Get list of cities with company counts"""
     from sqlalchemy import func, select

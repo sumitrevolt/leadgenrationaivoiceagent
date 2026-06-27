@@ -62,6 +62,11 @@ _RETRY_BACKOFF_S = (5.0, 30.0, 300.0)
 _HTTP_TIMEOUT_S = 10.0
 _DELIVERIES_TAIL = 500
 
+# Strong refs to in-flight background delivery tasks. Without this the event loop
+# only weak-refs them, so a delivery task can be garbage-collected mid-flight
+# (silent webhook-delivery loss). Discarded automatically on completion.
+_INFLIGHT_DELIVERIES: set = set()
+
 # Supported event types — keep this list small + stable so customers' verifiers
 # don't break when we add features. New types append; never rename.
 SUPPORTED_EVENTS = (
@@ -450,7 +455,9 @@ async def emit(client_id: str, event_type: str, payload: dict[str, Any]) -> dict
     emitted = 0
     for row in targets:
         try:
-            asyncio.create_task(_deliver_one(row, event_type, payload))
+            _t = asyncio.create_task(_deliver_one(row, event_type, payload))
+            _INFLIGHT_DELIVERIES.add(_t)
+            _t.add_done_callback(_INFLIGHT_DELIVERIES.discard)
             emitted += 1
         except RuntimeError:
             # No running loop (sync call site) — last-resort sync deliver, no retries

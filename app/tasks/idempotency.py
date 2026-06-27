@@ -33,7 +33,12 @@ def idempotent_task(task_name: str, ttl: int = 3600) -> Callable:
             if not task_id:
                 task_id = f"{task_name}:{hashlib.sha1(str(args).encode()).hexdigest()[:16]}"
 
-            key = f"celery:idem:{task_name}:{task_id}"
+            # Include the retry count: a genuine self.retry() reuses the same task_id,
+            # so without this the retry hits the live key and is skipped as a "duplicate"
+            # — silently swallowing the failure (never re-runs, never reaches the DLQ).
+            # True redeliveries of the SAME attempt keep the same retries → still deduped.
+            retries = getattr(getattr(self, "request", None), "retries", 0) or 0
+            key = f"celery:idem:{task_name}:{task_id}:{retries}"
             r = _redis_client()
             if r:
                 try:

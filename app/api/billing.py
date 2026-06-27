@@ -265,11 +265,29 @@ async def get_pricing_plans():
     return plans
 
 
+def _public_plan_keys() -> set[str]:
+    """Plan keys safe to expose on the public (unauthenticated) per-id endpoints.
+
+    Mirrors the filter in GET /billing/plans so the hidden legacy `growth` plan and
+    internal plans (enterprise/data_*/voice_*/combo_*) don't leak via the per-id
+    vector either. Defensive fallback = the two public marketing plans.
+    """
+    try:
+        from app.marketing.packages import get_public_packages as _get_public_packages
+
+        return {str(p.get("key")) for p in _get_public_packages()}
+    except Exception:  # pragma: no cover - defensive
+        return {"starter", "advanced"}
+
+
 @router.get("/billing/plans/{plan_id}", response_model=PlanResponse, tags=["Billing"])
 async def get_plan_details(plan_id: str):
     """
     Get details for a specific pricing plan
     """
+    if plan_id not in _public_plan_keys():
+        # Hidden/legacy/internal plan — don't expose pricing via the public per-id vector.
+        raise HTTPException(status_code=404, detail="Plan not found")
     plan = billing_manager.get_plan(plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
@@ -297,6 +315,8 @@ async def calculate_plan_pricing(
     """
     Calculate pricing for a plan with discounts
     """
+    if plan_id not in _public_plan_keys():
+        raise HTTPException(status_code=404, detail="Plan not found")
     from app.billing.subscription import BillingCycle as BC
 
     cycle_map = {"monthly": BC.MONTHLY, "quarterly": BC.QUARTERLY, "yearly": BC.YEARLY}

@@ -261,8 +261,19 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
         record["decided_at"] = _now_iso()
         record["decided_by"] = (decided_by or "admin")[:80]
 
-        if approve and not record.get("auto_activated") and record.get("client_id"):
+        # Idempotency: only activate if NOT already SUCCESSFULLY activated. _try_activate
+        # → reset_usage_period() re-zeros a metered client's usage; a second approve of an
+        # already-activated submission would hand out free minutes. We guard on a success
+        # flag (not on status) so a FAILED activation stays retryable: first approve sets
+        # status=approved but leaves `activated` falsy → admin can re-approve to recover.
+        if (
+            approve
+            and not record.get("activated")
+            and not record.get("auto_activated")
+            and record.get("client_id")
+        ):
             if _try_activate(record.get("client_id", ""), record.get("plan", "")):
+                record["activated"] = True
                 # Activation succeeded → front-run onboarding (KB seed + first content
                 # pack) instead of waiting for the hourly sweep.
                 _trigger_onboarding()

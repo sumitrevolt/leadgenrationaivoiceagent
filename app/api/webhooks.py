@@ -448,7 +448,7 @@ async def handle_stripe_subscription_created(data: dict, db: AsyncSession):
         plan_id=plan_id,
         plan_name=plan.name if plan else plan_id,
         status=status,
-        payment_gateway=PaymentGateway.STRIPE,
+        payment_gateway=PaymentGateway.STRIPE.value,
         stripe_subscription_id=stripe_subscription_id,
         stripe_customer_id=customer_id,
         base_price=Decimal(str(plan.monthly_price)) if plan else Decimal("0"),
@@ -567,7 +567,7 @@ async def handle_stripe_payment_succeeded(data: dict, db: AsyncSession):
     # Record payment
     payment = Payment(
         client_id=data.get("metadata", {}).get("client_id"),
-        payment_gateway=PaymentGateway.STRIPE,
+        payment_gateway=PaymentGateway.STRIPE.value,
         gateway_payment_id=payment_intent_id,
         amount=Decimal(str(data.get("amount", 0))) / 100,
         currency=data.get("currency", "usd").upper(),
@@ -609,7 +609,7 @@ async def handle_stripe_payment_failed(data: dict, db: AsyncSession):
 
     payment = Payment(
         client_id=data.get("metadata", {}).get("client_id"),
-        payment_gateway=PaymentGateway.STRIPE,
+        payment_gateway=PaymentGateway.STRIPE.value,
         gateway_payment_id=payment_intent_id,
         amount=Decimal(str(data.get("amount", 0))) / 100,
         currency=data.get("currency", "usd").upper(),

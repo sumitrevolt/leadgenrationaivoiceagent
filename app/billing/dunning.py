@@ -181,10 +181,9 @@ async def _ensure_pay_link(case: dict[str, Any]) -> str:
         amount = case.get("amount")
         # Build UPI intent link if VPA configured
         try:
-            from app.platform.upi_config import get_upi_config
+            from app.platform.upi_config import get_vpa
 
-            cfg = get_upi_config() or {}
-            vpa = str(cfg.get("vpa") or "").strip()
+            vpa = str(get_vpa() or "").strip()
             if vpa and amount:
                 biz = str(case.get("business_name") or "renewal").replace(" ", "+")[:30]
                 link = f"upi://pay?pa={vpa}&am={amount}&tn=LeadsGenAI+{biz}&cu=INR"

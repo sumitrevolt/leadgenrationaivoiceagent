@@ -84,6 +84,9 @@ class Campaign:
     leads_qualified: int = 0
     appointments_booked: int = 0
     callbacks_scheduled: int = 0
+    # Dedupe: lead_ids already hot-notified (so the 60s monitor tick alerts each
+    # hot lead ONCE instead of re-sending WhatsApp/email/CRM every iteration).
+    notified_lead_ids: set = field(default_factory=set)
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 
@@ -112,8 +115,18 @@ class CampaignManager:
 
         self.campaigns: dict[str, Campaign] = {}
         self.campaign_leads: dict[str, list[UnifiedLead]] = {}
+        # Strong refs to background pipeline/monitor tasks — without this the loop
+        # only weak-refs them and they can be GC'd mid-run (campaign silently stalls).
+        self._bg_tasks: set[asyncio.Task] = set()
 
         logger.info("🎯 Campaign Manager initialized")
+
+    def _spawn(self, coro) -> "asyncio.Task":
+        """Fire-and-forget a background task while keeping a strong reference."""
+        task = asyncio.create_task(coro)
+        self._bg_tasks.add(task)
+        task.add_done_callback(self._bg_tasks.discard)
+        return task
 
     async def create_campaign(
         self,
@@ -186,7 +199,7 @@ class CampaignManager:
         logger.info(f"🚀 Starting campaign: {campaign.name}")
 
         # Run campaign pipeline
-        asyncio.create_task(self._run_campaign_pipeline(campaign))
+        self._spawn(self._run_campaign_pipeline(campaign))
 
         return True
 
@@ -228,7 +241,7 @@ class CampaignManager:
             await self._queue_campaign_calls(campaign, leads)
 
             # Step 4: Start call processor (if not already running)
-            asyncio.create_task(self._monitor_campaign(campaign))
+            self._spawn(self._monitor_campaign(campaign))
 
             logger.info(f"✅ Campaign {campaign.name} pipeline started")
 
@@ -313,13 +326,26 @@ class CampaignManager:
                 campaign.callbacks_scheduled = sum(1 for c in completed if c.outcome == "callback")
                 campaign.updated_at = datetime.now()
 
-                # Process hot leads
+                # Process hot leads — dedupe so each lead is alerted ONCE, not on
+                # every 60s tick (was re-sending WhatsApp/email/HubSpot/Sheets each loop).
                 for call in completed:
-                    if call.lead_score >= campaign.hot_lead_threshold:
+                    if (
+                        call.lead_score >= campaign.hot_lead_threshold
+                        and call.lead_id not in campaign.notified_lead_ids
+                    ):
                         await self._handle_hot_lead(campaign, call)
+                        campaign.notified_lead_ids.add(call.lead_id)
 
-                # Check if campaign is complete
-                if campaign.leads_called >= campaign.leads_scraped:
+                # Check if campaign is complete. Phoneless leads are skipped at queue
+                # time, so leads_called can never reach leads_scraped — compare against
+                # the callable-lead count (else this monitor loops forever, re-spinning
+                # every 60s). callable==0 → nothing to call → complete immediately.
+                callable_leads = sum(
+                    1
+                    for lead in self.campaign_leads.get(campaign.id, [])
+                    if getattr(lead, "phone", None)
+                )
+                if campaign.leads_called >= callable_leads:
                     campaign.status = CampaignStatus.COMPLETED
                     await self._send_campaign_summary(campaign)
                     break
@@ -452,7 +478,7 @@ class CampaignManager:
         campaign.status = CampaignStatus.RUNNING
         campaign.updated_at = datetime.now()
 
-        asyncio.create_task(self._monitor_campaign(campaign))
+        self._spawn(self._monitor_campaign(campaign))
         logger.info(f"Campaign {campaign.name} resumed")
         return True
 
