@@ -48,7 +48,7 @@ router = APIRouter(prefix="/api/customer/studio", tags=["Customer Marketing Stud
 
 # Per-caller cost guard for the LLM generation endpoints (free providers, but
 # circuit-breakered — keep self-serve usage bounded). GET tips/tools are exempt.
-_GEN_LIMIT = rate_limit("cust_studio", 30, 60)  # 30 generations / minute
+_GEN_LIMIT = rate_limit("cust_studio", 60, 60)  # 60 generations / minute / IP (free-stack, but bounded)
 
 
 # --------------------------------------------------------------------------- #
@@ -671,6 +671,245 @@ def studio_appointment_assistant(client_id: str = Depends(require_customer)) -> 
 
 
 # --------------------------------------------------------------------------- #
+# Batch 4 — Growth-OS (#41-100): planner/templates/blog/audit/testimonial/     #
+# repurpose/referral + pure-logic ROI/objection/best-time/brief/coach.         #
+# --------------------------------------------------------------------------- #
+class MonthPlanReq(BaseModel):
+    offer: str = Field("", max_length=160)
+    channel: str = Field("instagram", max_length=30)
+
+
+class TemplatesReq(BaseModel):
+    occasion: str = Field("", max_length=60)
+
+
+class BlogReq(BaseModel):
+    topic: str = Field("", max_length=160)
+    city: str = Field("", max_length=80)
+
+
+class AuditReq(BaseModel):
+    url: str = Field(..., min_length=4, max_length=500)
+
+
+class TestimonialReq(BaseModel):
+    review_text: str = Field(..., min_length=1, max_length=2000)
+    author: str = Field("", max_length=80)
+    rating: int = Field(5, ge=1, le=5)
+
+
+class RepurposeReq(BaseModel):
+    topic_or_url: str = Field(..., min_length=1, max_length=500)
+
+
+class ReferralReq(BaseModel):
+    reward: str = Field("10% off", max_length=80)
+
+
+class RoiReq(BaseModel):
+    monthly_spend: float = Field(5000, ge=0, le=100000000)
+    avg_deal_value: float = Field(20000, ge=0, le=100000000)
+    leads_per_month: int = Field(20, ge=0, le=100000)
+    close_rate_pct: float = Field(12, ge=0, le=100)
+
+
+class ObjectionReq(BaseModel):
+    objection: str = Field("", max_length=300, description="Customer ka objection (khali = common list)")
+
+
+@router.post("/month-planner", dependencies=[Depends(_GEN_LIMIT)])
+def studio_month_planner(req: MonthPlanReq = Body(default=MonthPlanReq()), client_id: str = Depends(require_customer)) -> dict:
+    """30-din ka content/campaign plan (themes + festival hooks per day)."""
+    c = _ctx(client_id)
+    rec = _client_record(client_id) or {}
+    try:
+        from app.marketing import month_planner
+
+        out = month_planner.plan_month(
+            niche=c["niche"], client_id=str(rec.get("id") or client_id), slug=str(rec.get("slug") or ""),
+            business_name=c["business_name"], offer=req.offer, channel=req.channel, dry_run=True, commit=False,
+        )
+    except Exception as e:
+        _fail("Month Planner", e)
+    return {"ok": True, "tool": "month-planner", "result": out, "context": c}
+
+
+@router.post("/templates", dependencies=[Depends(_GEN_LIMIT)])
+def studio_templates(req: TemplatesReq = Body(default=TemplatesReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Niche template library — ready post/poster ideas for the client's niche."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import template_library
+
+        out = template_library.list_templates(niche=c["niche"], occasion=req.occasion, limit=40)
+    except Exception as e:
+        _fail("Templates", e)
+    return {"ok": True, "tool": "templates", "result": out, "context": c}
+
+
+@router.post("/blog", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_blog(req: BlogReq = Body(default=BlogReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Local-SEO blog article (title + HTML body) for the client's niche/city."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import seo_blog
+
+        out = await seo_blog.generate_article(niche=c["niche"], city=(req.city or c["city"]), topic=(req.topic or None))
+    except Exception as e:
+        _fail("Blog", e)
+    return {"ok": True, "tool": "blog", "result": out, "context": c}
+
+
+@router.post("/landing-audit", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_landing_audit(req: AuditReq, client_id: str = Depends(require_customer)) -> dict:
+    """Website/landing audit — CTA, mobile, speed, trust signals (SSRF-guarded)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import website_auditor
+
+        out = await website_auditor.audit_url(req.url)
+    except Exception as e:
+        _fail("Landing Audit", e)
+    return {"ok": True, "tool": "landing-audit", "result": out, "context": c}
+
+
+@router.post("/testimonial", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_testimonial(req: TestimonialReq, client_id: str = Depends(require_customer)) -> dict:
+    """Good review → branded thank-you poster (SVG) + social caption."""
+    c = _ctx(client_id)
+    rec = _client_record(client_id) or {}
+    try:
+        from app.marketing import review_to_post
+
+        out = await review_to_post.from_review(review_text=req.review_text, author=req.author, rating=req.rating, slug=str(rec.get("slug") or ""))
+    except Exception as e:
+        _fail("Testimonial", e)
+    return {"ok": True, "tool": "testimonial", "result": out, "context": c}
+
+
+@router.post("/repurpose", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_repurpose(req: RepurposeReq, client_id: str = Depends(require_customer)) -> dict:
+    """1 topic/URL → 7 formats (post, WA, email, reel, etc.)."""
+    c = _ctx(client_id)
+    rec = _client_record(client_id) or {}
+    try:
+        from app.marketing import repurpose
+
+        out = await repurpose.repurpose(topic_or_url=req.topic_or_url, niche=c["niche"], slug=str(rec.get("slug") or ""), business_name=c["business_name"])
+    except Exception as e:
+        _fail("Repurpose", e)
+    return {"ok": True, "tool": "repurpose", "result": out, "context": c}
+
+
+@router.post("/referral", dependencies=[Depends(_GEN_LIMIT)])
+def studio_referral(req: ReferralReq = Body(default=ReferralReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Referral kit — code + WhatsApp message + link + 1080 card SVG."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import referral_kit
+
+        out = referral_kit.make_referral(business_name=c["business_name"], reward=req.reward)
+    except Exception as e:
+        _fail("Referral", e)
+    return {"ok": True, "tool": "referral", "result": out, "context": c}
+
+
+@router.post("/roi-calculator")
+def studio_roi_calculator(req: RoiReq = Body(default=RoiReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Marketing ROI estimate (PURE MATH) — spend vs expected revenue."""
+    c = _ctx(client_id)
+    deals = req.leads_per_month * (req.close_rate_pct / 100.0)
+    revenue = deals * req.avg_deal_value
+    roi_pct = ((revenue - req.monthly_spend) / req.monthly_spend * 100.0) if req.monthly_spend > 0 else None
+    cpl = (req.monthly_spend / req.leads_per_month) if req.leads_per_month > 0 else None
+    return {"ok": True, "tool": "roi-calculator", "context": c,
+            "result": {
+                "monthly_spend_inr": round(req.monthly_spend, 0),
+                "expected_deals": round(deals, 1),
+                "expected_revenue_inr": round(revenue, 0),
+                "roi_pct": round(roi_pct, 0) if roi_pct is not None else None,
+                "cost_per_lead_inr": round(cpl, 0) if cpl is not None else None,
+                "verdict": ("Profit me ho 👍" if roi_pct and roi_pct > 0 else "Spend/close-rate improve karo"),
+            }}
+
+
+@router.post("/objection-handler")
+def studio_objection_handler(req: ObjectionReq = Body(default=ObjectionReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Common sales objections ke best Hinglish replies (PURE LOGIC library)."""
+    c = _ctx(client_id)
+    biz = c["business_name"]
+    lib = {
+        "mehenga": f"Samajh sakta hoon. {biz} me daam thoda zyada isliye hai kyunki quality + warranty + service guaranteed milti hai — sasta lekar baar-baar kharcha zyada padta hai. Aaj ek baar try karke dekhiye.",
+        "time": "Bilkul, jaldi nahi. Main aapko detail WhatsApp kar deta hoon, aaram se dekh lijiye — koi sawaal ho to main yahin hoon.",
+        "sochenge": "Zaroor sochiye! Bas itna — abhi book karne pe {} milega. Main aapke liye 24 ghante hold kar deta hoon.".format("special rate"),
+        "competitor": f"Achhi baat hai aap compare kar rahe ho. {biz} ka farak hai — service + bharosa + after-support. Ek demo le lijiye, khud farak dikhega.",
+        "discount": "Aapke liye ek best price nikaalta hoon — par quality compromise nahi. Chhota loyalty discount de sakta hoon, deal pakki karein?",
+    }
+    obj = (req.objection or "").lower()
+    matched = None
+    for key, ans in lib.items():
+        if key in obj:
+            matched = {"objection": req.objection, "reply": ans}
+            break
+    return {"ok": True, "tool": "objection-handler", "context": c,
+            "matched": matched, "library": [{"objection": k, "reply": v} for k, v in lib.items()]}
+
+
+@router.get("/best-time")
+def studio_best_time(client_id: str = Depends(require_customer)) -> dict:
+    """Best time to post/message/call (PURE LOGIC, India SMB norms)."""
+    c = _ctx(client_id)
+    return {"ok": True, "tool": "best-time", "context": c,
+            "result": {
+                "whatsapp": "Subah 9-11 AM ya shaam 6-8 PM (lunch/dinner se pehle).",
+                "instagram_post": "Shaam 7-9 PM (peak scroll time).",
+                "instagram_reel": "1-3 PM lunch ya 8-10 PM raat.",
+                "phone_call": "11 AM-1 PM ya 4-6 PM (subah-subah/late evening avoid).",
+                "new_lead_followup": "Lead aate hi 2-5 min ke andar — sabse zyada conversion.",
+                "tip": "Calling-window TRAI 9 AM-7 PM ke andar rakho.",
+            }}
+
+
+@router.get("/owner-brief")
+def studio_owner_brief(client_id: str = Depends(require_customer)) -> dict:
+    """Daily owner brief (PURE LOGIC) — aaj ke leads/approvals/posts ek nazar me."""
+    c = _ctx(client_id)
+    leads_n = approvals_n = 0
+    try:
+        from app.api.customer_dashboard_builders import _inquiries_for_client
+
+        leads_n = len(_inquiries_for_client(client_id) or [])
+    except Exception:
+        pass
+    try:
+        from app.marketing import content_approval
+
+        approvals_n = len(content_approval.pending(client_id) or []) if hasattr(content_approval, "pending") else 0
+    except Exception:
+        pass
+    brief = [
+        f"🔥 {leads_n} naye lead — inko aaj call/WhatsApp karo." if leads_n else "🔥 Abhi koi naya lead nahi — outreach/post badhao.",
+        f"✅ {approvals_n} post approval pending." if approvals_n else "✅ Koi approval pending nahi.",
+        "📝 Aaj ka post + 1 Google photo daalo.",
+        "⭐ 1 khush customer se review maango.",
+    ]
+    return {"ok": True, "tool": "owner-brief", "context": c, "leads": leads_n, "approvals": approvals_n, "brief": brief}
+
+
+@router.get("/growth-coach")
+def studio_growth_coach(client_id: str = Depends(require_customer)) -> dict:
+    """Weekly AI growth coach — agle 7 din ke 3 high-impact actions (PURE LOGIC)."""
+    c = _ctx(client_id)
+    niche = c["niche"]
+    actions = [
+        {"action": "Roz 1 post + 1 Google photo (7 din)", "why": "Consistency se reach + trust dono badhte hain."},
+        {"action": "5 khush customers se Google review maango", "why": "Reviews = ranking + naye customers ka bharosa."},
+        {"action": f"{niche.title()} ka 1 offer banao + WhatsApp status + GBP post", "why": "Ek offer multi-channel pe = zyada leads."},
+    ]
+    return {"ok": True, "tool": "growth-coach", "context": c, "week_focus": "Visibility + Reviews + 1 Offer", "actions": actions}
+
+
+# --------------------------------------------------------------------------- #
 # Capability list — drives the UI cards (so frontend stays in sync)            #
 # --------------------------------------------------------------------------- #
 _TOOLS = [
@@ -701,6 +940,18 @@ _TOOLS = [
     {"key": "budget-suggest", "icon": "💰", "title": "Ad Budget Suggest", "desc": "Daily ad budget plan", "method": "POST", "path": "/api/customer/studio/budget-suggest", "fields": ["avg_deal_value", "target_leads"]},
     {"key": "customer-reminder", "icon": "⏰", "title": "Customer Reminder", "desc": "Appointment/renewal/payment msg", "method": "POST", "path": "/api/customer/studio/customer-reminder", "fields": ["kind"]},
     {"key": "appointment-assistant", "icon": "📅", "title": "Appointment Assistant", "desc": "Slot + booking confirmation msg", "method": "POST", "path": "/api/customer/studio/appointment-assistant", "fields": []},
+    {"key": "month-planner", "icon": "📆", "title": "Monthly Campaign Plan", "desc": "30-din ka theme + festival plan", "method": "POST", "path": "/api/customer/studio/month-planner", "fields": ["offer", "channel"]},
+    {"key": "templates", "icon": "🗂️", "title": "Template Library", "desc": "Niche ke ready post/poster ideas", "method": "POST", "path": "/api/customer/studio/templates", "fields": ["occasion"]},
+    {"key": "blog", "icon": "✍️", "title": "Blog Writer", "desc": "Local-SEO blog article", "method": "POST", "path": "/api/customer/studio/blog", "fields": ["topic", "city"]},
+    {"key": "landing-audit", "icon": "🔎", "title": "Website Audit", "desc": "CTA/mobile/speed/trust score", "method": "POST", "path": "/api/customer/studio/landing-audit", "fields": ["url"]},
+    {"key": "testimonial", "icon": "💬", "title": "Testimonial Poster", "desc": "Review → branded poster + caption", "method": "POST", "path": "/api/customer/studio/testimonial", "fields": ["review_text", "author", "rating"]},
+    {"key": "repurpose", "icon": "♻️", "title": "Content Repurpose", "desc": "1 topic → 7 formats", "method": "POST", "path": "/api/customer/studio/repurpose", "fields": ["topic_or_url"]},
+    {"key": "referral", "icon": "🎁", "title": "Referral Kit", "desc": "Code + message + card", "method": "POST", "path": "/api/customer/studio/referral", "fields": ["reward"]},
+    {"key": "roi-calculator", "icon": "📊", "title": "ROI Calculator", "desc": "Spend vs revenue estimate", "method": "POST", "path": "/api/customer/studio/roi-calculator", "fields": ["monthly_spend", "avg_deal_value", "leads_per_month"]},
+    {"key": "objection-handler", "icon": "🛡️", "title": "Objection Handler", "desc": "'Mehenga hai' ka best reply", "method": "POST", "path": "/api/customer/studio/objection-handler", "fields": ["objection"]},
+    {"key": "best-time", "icon": "🕐", "title": "Best Time to Post", "desc": "Kab post/call/message karein", "method": "GET", "path": "/api/customer/studio/best-time", "fields": []},
+    {"key": "owner-brief", "icon": "📋", "title": "Daily Owner Brief", "desc": "Aaj ka summary ek nazar", "method": "GET", "path": "/api/customer/studio/owner-brief", "fields": []},
+    {"key": "growth-coach", "icon": "🚀", "title": "AI Growth Coach", "desc": "Hafte ke 3 high-impact actions", "method": "GET", "path": "/api/customer/studio/growth-coach", "fields": []},
 ]
 
 

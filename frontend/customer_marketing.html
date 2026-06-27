@@ -2230,6 +2230,27 @@ const STUDIO_TOOLS = [
   {key:"customer-reminder", icon:"⏰", title:"Customer Reminder", desc:"Appointment/renewal/payment msg", method:"POST", path:"/api/customer/studio/customer-reminder",
    inputs:[{n:"kind",l:"Kis cheez ka (appointment/renewal/service/payment)",ph:"appointment"}]},
   {key:"appointment-assistant", icon:"📅", title:"Appointment Assistant", desc:"Slot + booking confirmation", method:"POST", path:"/api/customer/studio/appointment-assistant", inputs:[]},
+  {key:"month-planner", icon:"📆", title:"Monthly Campaign Plan", desc:"30-din ka theme plan", method:"POST", path:"/api/customer/studio/month-planner",
+   inputs:[{n:"offer",l:"Offer (optional)",ph:""},{n:"channel",l:"Channel",ph:"instagram"}]},
+  {key:"templates", icon:"🗂️", title:"Template Library", desc:"Niche ke ready ideas", method:"POST", path:"/api/customer/studio/templates",
+   inputs:[{n:"occasion",l:"Occasion (optional)",ph:"sale, festival…"}]},
+  {key:"blog", icon:"✍️", title:"Blog Writer", desc:"Local-SEO blog article", method:"POST", path:"/api/customer/studio/blog",
+   inputs:[{n:"topic",l:"Topic (optional)",ph:""},{n:"city",l:"City (optional)",ph:""}]},
+  {key:"landing-audit", icon:"🔎", title:"Website Audit", desc:"CTA/mobile/trust score", method:"POST", path:"/api/customer/studio/landing-audit",
+   inputs:[{n:"url",l:"Website URL",ph:"https://aapki-site.com",req:true}]},
+  {key:"testimonial", icon:"💬", title:"Testimonial Poster", desc:"Review → poster + caption", method:"POST", path:"/api/customer/studio/testimonial",
+   inputs:[{n:"review_text",l:"Review paste karo (4-5★)",ph:"Customer ka achha review…",type:"textarea",req:true},{n:"author",l:"Naam",ph:""},{n:"rating",l:"Rating",ph:"5",type:"number",def:"5"}]},
+  {key:"repurpose", icon:"♻️", title:"Content Repurpose", desc:"1 topic → 7 formats", method:"POST", path:"/api/customer/studio/repurpose",
+   inputs:[{n:"topic_or_url",l:"Topic ya URL",ph:"naya offer / blog link",req:true}]},
+  {key:"referral", icon:"🎁", title:"Referral Kit", desc:"Code + message + card", method:"POST", path:"/api/customer/studio/referral",
+   inputs:[{n:"reward",l:"Reward",ph:"10% off",def:"10% off"}]},
+  {key:"roi-calculator", icon:"📊", title:"ROI Calculator", desc:"Spend vs revenue", method:"POST", path:"/api/customer/studio/roi-calculator",
+   inputs:[{n:"monthly_spend",l:"Monthly spend ₹",ph:"5000",type:"number",def:"5000"},{n:"avg_deal_value",l:"Avg deal ₹",ph:"20000",type:"number",def:"20000"},{n:"leads_per_month",l:"Leads/mahina",ph:"20",type:"number",def:"20"}]},
+  {key:"objection-handler", icon:"🛡️", title:"Objection Handler", desc:"Objection ka best reply", method:"POST", path:"/api/customer/studio/objection-handler",
+   inputs:[{n:"objection",l:"Objection (optional)",ph:"mehenga hai / time nahi…"}]},
+  {key:"best-time", icon:"🕐", title:"Best Time to Post", desc:"Kab post/call karein", method:"GET", path:"/api/customer/studio/best-time", inputs:[]},
+  {key:"owner-brief", icon:"📋", title:"Daily Owner Brief", desc:"Aaj ka summary", method:"GET", path:"/api/customer/studio/owner-brief", inputs:[]},
+  {key:"growth-coach", icon:"🚀", title:"AI Growth Coach", desc:"Hafte ke 3 actions", method:"GET", path:"/api/customer/studio/growth-coach", inputs:[]},
 ];
 const STUDIO_LAST = {};  // key -> plain text for copy
 const STUDIO_SVG = {};   // key -> last poster SVG (for download)
@@ -2384,6 +2405,53 @@ function studioRenderResult(key,d,out){
   } else if(key==="appointment-assistant"){
     html='<b>Slot offer:</b>'+_li(res.slot_offer)+'<b>Confirmation:</b>'+_li(res.confirmation)+(res.no_show_followup?'<b>No-show:</b>'+_li(res.no_show_followup):"");
     copy=[].concat(res.slot_offer||[],res.confirmation||[]).join("\n\n");
+  } else if(key==="month-planner"){
+    html=(res.plan||[]).slice(0,30).map(function(p){return '<div class="sm" style="margin-top:3px"><b>'+escH(String(p.day||p.date||""))+':</b> '+escH(p.theme||p.title||p.caption||(typeof p==="string"?p:Object.values(p).join(" ")))+'</div>';}).join("");
+    copy=(res.plan||[]).map(function(p){return typeof p==="string"?p:Object.values(p).join(" — ");}).join("\n");
+  } else if(key==="templates"){
+    html=_li((res.templates||[]).map(function(t){return t.title||t.id;}))+'<div class="sm" style="color:#64748b">Total '+escH(String(res.total||0))+' templates</div>';
+    copy=(res.templates||[]).map(function(t){return t.title||"";}).join("\n");
+  } else if(key==="blog"){
+    html='<b>'+escH(res.title||"")+'</b><div class="sm" style="color:#64748b;margin-top:3px">'+escH(res.meta_description||"")+'</div><div class="sm" style="margin-top:4px">📄 Full article HTML copy button me hai.</div>';
+    copy=(res.title||"")+"\n\n"+(res.html_body||"").replace(/<[^>]+>/g," ");
+  } else if(key==="landing-audit"){
+    html='<div style="font-size:16px"><b>Score: '+escH(String(res.score||0))+'/100 ('+escH(res.grade||"")+')</b></div>'+_li(res.tips||res.checks||[]);
+    copy="Score "+(res.score||0)+"/100\n"+((res.tips||[]).join("\n"));
+  } else if(key==="testimonial"){
+    if(res.ok&&res.svg){ STUDIO_SVG[key]=res.svg;
+      html='<div style="max-width:240px;border:1px solid var(--bd,#e5e7eb);border-radius:8px;overflow:hidden">'+res.svg+'</div>'
+        +'<div style="margin-top:5px;white-space:pre-wrap">'+escH(res.caption||"")+'</div>'
+        +'<button class="btn" type="button" style="margin-top:6px;padding:5px 10px;font-size:12px" onclick="studioDlPoster(\'testimonial\')">⬇️ Poster download</button>';
+      STUDIO_LAST[key]=res.caption||""; out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\'testimonial\')">📋 Copy caption</button>'; return;
+    } else { out.innerHTML='<span style="color:#64748b">'+escH(res.note||"4★+ review hi public poster ke liye theek hai.")+'</span>'; return; }
+  } else if(key==="repurpose"){
+    const f=res.formats||{};
+    if(Array.isArray(f)) html=_li(f);
+    else html=Object.keys(f).map(function(k){return '<div style="margin-top:5px"><b>'+escH(k)+':</b> '+escH(typeof f[k]==="string"?f[k]:JSON.stringify(f[k]))+'</div>';}).join("");
+    copy=Array.isArray(f)?f.join("\n"):Object.keys(f).map(function(k){return k+": "+(typeof f[k]==="string"?f[k]:"");}).join("\n\n");
+  } else if(key==="referral"){
+    if(res.card_svg) STUDIO_SVG[key]=res.card_svg;
+    html='<div><b>Code:</b> '+escH(res.code||"")+'</div><div style="white-space:pre-wrap;margin-top:4px">'+escH(res.wa_message||"")+'</div>'
+      +(res.link?'<div class="sm" style="margin-top:3px">🔗 '+escH(res.link)+'</div>':"")
+      +(res.card_svg?'<button class="btn" type="button" style="margin-top:6px;padding:5px 10px;font-size:12px" onclick="studioDlPoster(\'referral\')">⬇️ Card download</button>':"");
+    copy=(res.wa_message||"")+"\n"+(res.link||"");
+  } else if(key==="roi-calculator"){
+    html='<div style="font-size:16px"><b>ROI: '+escH(String(res.roi_pct==null?"—":res.roi_pct))+'%</b></div>'
+      +'<div class="sm" style="margin-top:3px">Spend ₹'+escH(String(res.monthly_spend_inr||0))+' → ~'+escH(String(res.expected_deals||0))+' deals → ₹'+escH(String(res.expected_revenue_inr||0))+' revenue</div>'
+      +'<div class="sm" style="margin-top:3px;color:#64748b">CPL ₹'+escH(String(res.cost_per_lead_inr||"—"))+' · '+escH(res.verdict||"")+'</div>';
+    copy="ROI "+(res.roi_pct||0)+"% — revenue ₹"+(res.expected_revenue_inr||0);
+  } else if(key==="objection-handler"){
+    html=(d.matched?'<div style="margin-top:4px;padding:6px 8px;background:var(--soft,#f8fafc);border-radius:8px"><b>Aapka:</b> '+escH(d.matched.objection)+'<div style="margin-top:3px">'+escH(d.matched.reply)+'</div></div>':"")
+      +'<div class="sm" style="margin-top:6px;color:#64748b">Common objections:</div>'+(d.library||[]).map(function(o){return '<div style="margin-top:4px"><b>'+escH(o.objection)+':</b> '+escH(o.reply)+'</div>';}).join("");
+    copy=(d.matched?d.matched.reply+"\n\n":"")+(d.library||[]).map(function(o){return o.objection+": "+o.reply;}).join("\n");
+  } else if(key==="best-time"){
+    html=Object.keys(res).map(function(k){return '<div style="margin-top:3px"><b>'+escH(k.replace(/_/g," "))+':</b> '+escH(String(res[k]))+'</div>';}).join("");
+    copy=Object.keys(res).map(function(k){return k+": "+res[k];}).join("\n");
+  } else if(key==="owner-brief"){
+    html=_li(d.brief||[]); copy=(d.brief||[]).join("\n");
+  } else if(key==="growth-coach"){
+    html='<div class="sm" style="color:#64748b">Focus: '+escH(d.week_focus||"")+'</div>'+(d.actions||[]).map(function(a){return '<div style="margin-top:5px"><b>'+escH(a.action||"")+'</b><div class="sm" style="color:#64748b">'+escH(a.why||"")+'</div></div>';}).join("");
+    copy=(d.actions||[]).map(function(a){return a.action||"";}).join("\n");
   } else { html='<pre style="white-space:pre-wrap">'+escH(JSON.stringify(res,null,1))+'</pre>'; copy=JSON.stringify(res); }
   STUDIO_LAST[key]=copy;
   out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\''+key+'\')">📋 Copy</button>';
@@ -2393,13 +2461,13 @@ function studioCopy(key){
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(function(){toast("Copy ho gaya ✅","Ab paste karke post/bhej do.");}).catch(function(){toast("Copy nahi hua","Manually select karo.");}); }
   else { toast("Copy nahi hua","Manually select karo."); }
 }
-function studioDlPoster(){
-  const svg=STUDIO_SVG["poster"]; if(!svg){ toast("Poster nahi mila","Phir se banao."); return; }
+function studioDlPoster(key){
+  key=key||"poster"; const svg=STUDIO_SVG[key]; if(!svg){ toast("Image nahi mili","Phir se banao."); return; }
   try{
     const blob=new Blob([svg],{type:"image/svg+xml"}); const url=URL.createObjectURL(blob);
-    const a=document.createElement("a"); a.href=url; a.download="poster.svg"; document.body.appendChild(a); a.click();
+    const a=document.createElement("a"); a.href=url; a.download=key+".svg"; document.body.appendChild(a); a.click();
     setTimeout(function(){URL.revokeObjectURL(url);a.remove();},500);
-    toast("Poster download ✅","SVG file save ho gayi.");
+    toast("Download ✅","SVG file save ho gayi.");
   }catch(e){ toast("Download nahi hua","Browser support issue."); }
 }
 
