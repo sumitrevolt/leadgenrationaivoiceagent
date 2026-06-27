@@ -1013,7 +1013,9 @@ async def infra_dlq_retry(limit: int = 10, _user=Depends(require_admin)):
                 try:
                     from app.worker import celery_app
 
-                    celery_app.send_task("app.tasks.staff_jobs.run_staff_job", args=[job])
+                    celery_app.send_task(
+                        "app.tasks.staff_jobs.run_staff_job", args=[job], ignore_result=True
+                    )  # fire-and-forget; avoid result-backend pre-subscribe block
                     retried.append(job)
                     continue
                 except Exception:
