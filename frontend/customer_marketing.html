@@ -2274,6 +2274,17 @@ const STUDIO_TOOLS = [
   {key:"ugc-request", icon:"📷", title:"UGC Request", desc:"Photo/video maango", method:"GET", path:"/api/customer/studio/ugc-request", inputs:[]},
   {key:"ai-inbox", icon:"📥", title:"AI Inbox", desc:"Inquiries intent+urgency se sorted", method:"GET", path:"/api/customer/studio/ai-inbox", inputs:[]},
   {key:"re-engagement", icon:"🔄", title:"Re-engagement", desc:"Cold leads + 1-click win-back", method:"GET", path:"/api/customer/studio/re-engagement", inputs:[]},
+  {key:"listings", icon:"🗺️", title:"Listings / NAP Check", desc:"Directory checklist + score", method:"GET", path:"/api/customer/studio/listings", inputs:[]},
+  {key:"website-widget", icon:"🧷", title:"Website Widget", desc:"Embed lead-capture code", method:"GET", path:"/api/customer/studio/website-widget", inputs:[]},
+  {key:"aeo-checklist", icon:"🤖", title:"Get Found by AI", desc:"ChatGPT/Gemini optimization", method:"GET", path:"/api/customer/studio/aeo-checklist", inputs:[]},
+  {key:"whatsapp-catalog", icon:"🛒", title:"WhatsApp Catalog", desc:"Product-discovery flow", method:"GET", path:"/api/customer/studio/whatsapp-catalog", inputs:[]},
+  {key:"click-to-whatsapp-ad", icon:"📲", title:"Click-to-WhatsApp Ad", desc:"Meta WA ad copy", method:"GET", path:"/api/customer/studio/click-to-whatsapp-ad", inputs:[]},
+  {key:"sms-pack", icon:"✉️", title:"SMS Pack", desc:"DLT-aware SMS templates", method:"GET", path:"/api/customer/studio/sms-pack", inputs:[]},
+  {key:"nps-survey", icon:"📈", title:"NPS / CSAT Survey", desc:"Feedback survey builder", method:"GET", path:"/api/customer/studio/nps-survey", inputs:[]},
+  {key:"loyalty-program", icon:"🏅", title:"Loyalty Program", desc:"Points + gamified design", method:"GET", path:"/api/customer/studio/loyalty-program", inputs:[]},
+  {key:"rank-check-guide", icon:"📡", title:"Rank Check Guide", desc:"DIY Google rank tracking", method:"GET", path:"/api/customer/studio/rank-check-guide", inputs:[]},
+  {key:"booking-link", icon:"🗓️", title:"Booking Setup", desc:"Booking link + messages", method:"GET", path:"/api/customer/studio/booking-link", inputs:[]},
+  {key:"newsletter-outline", icon:"📰", title:"Newsletter Outline", desc:"Monthly email plan", method:"GET", path:"/api/customer/studio/newsletter-outline", inputs:[]},
 ];
 const STUDIO_LAST = {};  // key -> plain text for copy
 const STUDIO_SVG = {};   // key -> last poster SVG (for download)
@@ -2510,6 +2521,17 @@ function studioRenderResult(key,d,out){
       +'<div class="sm" style="margin-top:2px;white-space:pre-wrap">'+escH(it.message||"")+'</div>'
       +(it.wa_link?'<a class="btn" style="margin-top:4px;padding:3px 9px;font-size:11px;display:inline-block" href="'+escH(it.wa_link)+'" target="_blank" rel="noopener">WhatsApp bhejo</a>':"")+'</div>';}).join("");
     STUDIO_LAST[key]=items.map(function(it){return it.message;}).join("\n\n"); out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\'re-engagement\')">📋 Copy all</button>'; return;
+  } else if(key==="listings"){
+    const dirs=res.directories||[];
+    html=dirs.map(function(x){
+      const links=(x.listing_url?'<a href="'+escH(x.listing_url)+'" target="_blank" rel="noopener">List here</a> ':"")
+        +(x.search_url?'<a href="'+escH(x.search_url)+'" target="_blank" rel="noopener">Check</a>':"");
+      return '<div style="margin-top:4px"><b>'+escH(x.name||x.key||"")+'</b>'+(x.why?' <span class="sm" style="color:#64748b">— '+escH(x.why)+'</span>':"")+(links?'<div class="sm">'+links+'</div>':"")+'</div>';
+    }).join("");
+    copy=dirs.map(function(x){return (x.name||"")+": "+(x.listing_url||x.search_url||"");}).join("\n");
+  } else if(key==="website-widget"){
+    html='<div class="sm">'+escH(res.note||"")+'</div><pre style="white-space:pre-wrap;background:var(--soft,#f8fafc);padding:8px;border-radius:8px;margin-top:5px;font-size:12px">'+escH(res.snippet||"")+'</pre>';
+    copy=res.snippet||"";
   } else if(d.sections && d.sections.length){
     html=(d.sections||[]).map(function(s){return '<div style="margin-top:6px"><b>'+escH(s.title||"")+'</b>'+_li(s.items||[])+'</div>';}).join("");
     copy=(d.sections||[]).map(function(s){return (s.title||"")+":\n"+((s.items||[]).join("\n"));}).join("\n\n");

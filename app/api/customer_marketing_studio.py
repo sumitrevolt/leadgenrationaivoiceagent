@@ -1147,6 +1147,97 @@ def studio_re_engagement(client_id: str = Depends(require_customer)) -> dict:
             "empty_note": "Abhi koi cold lead nahi — sab fresh hain ya follow-up ho chuka."}
 
 
+# --------------------------------------------------------------------------- #
+# Batch 7 — web-research-grounded (Birdeye/Podium/GHL/BrightLocal/WA-commerce  #
+# parity). 9 pure-logic packs + 2 wires (listings/NAP, website widget).        #
+# --------------------------------------------------------------------------- #
+@router.get("/nps-survey")
+def studio_nps_survey(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("nps-survey", client_id, "nps_survey", c["business_name"], c["niche"])
+
+
+@router.get("/whatsapp-catalog")
+def studio_whatsapp_catalog(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("whatsapp-catalog", client_id, "whatsapp_catalog", c["business_name"], c["niche"])
+
+
+@router.get("/click-to-whatsapp-ad")
+def studio_click_to_whatsapp_ad(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("click-to-whatsapp-ad", client_id, "click_to_whatsapp_ad", c["business_name"], c["niche"])
+
+
+@router.get("/sms-pack")
+def studio_sms_pack(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("sms-pack", client_id, "sms_pack", c["business_name"], c["niche"])
+
+
+@router.get("/aeo-checklist")
+def studio_aeo_checklist(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("aeo-checklist", client_id, "aeo_checklist", c["business_name"], c["niche"])
+
+
+@router.get("/loyalty-program")
+def studio_loyalty_program(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("loyalty-program", client_id, "loyalty_program", c["business_name"], c["niche"])
+
+
+@router.get("/rank-check-guide")
+def studio_rank_check_guide(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("rank-check-guide", client_id, "rank_check_guide", c["business_name"], c["niche"], c["city"])
+
+
+@router.get("/booking-link")
+def studio_booking_link(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("booking-link", client_id, "booking_link", c["business_name"], c["niche"])
+
+
+@router.get("/newsletter-outline")
+def studio_newsletter_outline(client_id: str = Depends(require_customer)) -> dict:
+    c = _ctx(client_id)
+    return _pack("newsletter-outline", client_id, "newsletter_outline", c["business_name"], c["niche"])
+
+
+@router.get("/listings")
+def studio_listings(client_id: str = Depends(require_customer)) -> dict:
+    """NAP / citations directory checklist (India: Google/JustDial/Sulekha/IndiaMART…)
+    with manual deep-links + presence score. BrightLocal/Moz-Local parity, zero-scrape."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import listings_presence
+
+        out = listings_presence.checklist(business_name=c["business_name"], city=c["city"], niche=c["niche"])
+    except Exception as e:
+        _fail("Listings", e)
+    return {"ok": True, "tool": "listings", "result": out, "context": c}
+
+
+@router.get("/website-widget")
+def studio_website_widget(client_id: str = Depends(require_customer)) -> dict:
+    """Copy-paste website lead-capture widget snippet (embeddable on any site)."""
+    c = _ctx(client_id)
+    rec = _client_record(client_id) or {}
+    slug = str(rec.get("slug") or rec.get("id") or client_id)
+    code = ""
+    try:
+        from app.marketing import embed_widget
+
+        code = embed_widget.snippet(slug, mode="form")
+    except Exception as e:
+        logger.debug("website-widget failed: %s", e)
+    if not code:
+        code = f'<script src="https://leadsgenai.in/b/{slug}/widget.js" async></script>'
+    return {"ok": True, "tool": "website-widget", "context": c,
+            "result": {"snippet": code, "note": "Ye code apni website ke page me paste karo — enquiry form/widget aa jayega."}}
+
+
 # --- 3 generator wires ---
 @router.post("/coupon", dependencies=[Depends(_GEN_LIMIT)])
 def studio_coupon(req: CouponReq = Body(default=CouponReq()), client_id: str = Depends(require_customer)) -> dict:
@@ -1269,6 +1360,17 @@ _TOOLS = [
     {"key": "ugc-request", "icon": "📷", "title": "UGC Request", "desc": "Customer photo/video maango", "method": "GET", "path": "/api/customer/studio/ugc-request", "fields": []},
     {"key": "ai-inbox", "icon": "📥", "title": "AI Inbox", "desc": "Inquiries intent+urgency se sorted", "method": "GET", "path": "/api/customer/studio/ai-inbox", "fields": []},
     {"key": "re-engagement", "icon": "🔄", "title": "Re-engagement", "desc": "Cold leads + 1-click win-back", "method": "GET", "path": "/api/customer/studio/re-engagement", "fields": []},
+    {"key": "listings", "icon": "🗺️", "title": "Listings / NAP Check", "desc": "Directory checklist + score", "method": "GET", "path": "/api/customer/studio/listings", "fields": []},
+    {"key": "website-widget", "icon": "🧷", "title": "Website Widget", "desc": "Embed lead-capture code", "method": "GET", "path": "/api/customer/studio/website-widget", "fields": []},
+    {"key": "aeo-checklist", "icon": "🤖", "title": "Get Found by AI", "desc": "ChatGPT/Gemini optimization", "method": "GET", "path": "/api/customer/studio/aeo-checklist", "fields": []},
+    {"key": "whatsapp-catalog", "icon": "🛒", "title": "WhatsApp Catalog", "desc": "Product-discovery flow", "method": "GET", "path": "/api/customer/studio/whatsapp-catalog", "fields": []},
+    {"key": "click-to-whatsapp-ad", "icon": "📲", "title": "Click-to-WhatsApp Ad", "desc": "Meta WA ad copy", "method": "GET", "path": "/api/customer/studio/click-to-whatsapp-ad", "fields": []},
+    {"key": "sms-pack", "icon": "✉️", "title": "SMS Pack", "desc": "DLT-aware SMS templates", "method": "GET", "path": "/api/customer/studio/sms-pack", "fields": []},
+    {"key": "nps-survey", "icon": "📈", "title": "NPS / CSAT Survey", "desc": "Feedback survey builder", "method": "GET", "path": "/api/customer/studio/nps-survey", "fields": []},
+    {"key": "loyalty-program", "icon": "🏅", "title": "Loyalty Program", "desc": "Points + gamified design", "method": "GET", "path": "/api/customer/studio/loyalty-program", "fields": []},
+    {"key": "rank-check-guide", "icon": "📡", "title": "Rank Check Guide", "desc": "DIY Google rank tracking", "method": "GET", "path": "/api/customer/studio/rank-check-guide", "fields": []},
+    {"key": "booking-link", "icon": "🗓️", "title": "Booking Setup", "desc": "Booking link + messages", "method": "GET", "path": "/api/customer/studio/booking-link", "fields": []},
+    {"key": "newsletter-outline", "icon": "📰", "title": "Newsletter Outline", "desc": "Monthly email plan", "method": "GET", "path": "/api/customer/studio/newsletter-outline", "fields": []},
 ]
 
 

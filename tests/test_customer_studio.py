@@ -62,6 +62,8 @@ _SECTION_TOOLS = [
     "business-description", "brand-palette", "customer-avatar", "seasonal-offers",
     "local-event-campaign", "case-study", "grid-planner", "highlights", "faq-page",
     "schema-markup", "conversion-tracking", "lost-lead-reason", "complaint-recovery", "ugc-request",
+    "nps-survey", "whatsapp-catalog", "click-to-whatsapp-ad", "sms-pack", "aeo-checklist",
+    "loyalty-program", "rank-check-guide", "booking-link", "newsletter-outline",
 ]
 
 
@@ -93,8 +95,11 @@ def test_studio_tools_list():
     r = c.get("/api/customer/studio/tools", headers=_H)
     assert r.status_code == 200
     d = r.json()
-    assert d["ok"] is True and d["count"] == 60
-    assert {t["key"] for t in d["tools"]} >= {"ai-inbox", "re-engagement"}
+    assert d["ok"] is True and d["count"] == 71
+    assert {t["key"] for t in d["tools"]} >= {
+        "ai-inbox", "re-engagement", "listings", "website-widget", "aeo-checklist",
+        "whatsapp-catalog", "sms-pack", "nps-survey", "loyalty-program",
+    }
     assert {t["key"] for t in d["tools"]} >= {
         "post", "ads", "review-reply", "hashtags", "festival-post", "poster",
         "review-request", "followup-sequence", "speed-followup", "reel-script",
