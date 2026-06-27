@@ -339,7 +339,7 @@ def click_to_whatsapp_ad(business_name: str, niche: str, offer: str = "") -> dic
             f"{lbl} ki tension? {biz} hai na! ✅ Quality service ✅ Sahi daam ✅ {off}. "
             f"Abhi 'Send Message' dabaayein — WhatsApp pe turant reply milega. 📲",
         ]),
-        _sec("Headlines (≤40 char)", [f"{biz} — {off}", f"WhatsApp karo, aaj hi!", f"Best {lbl} near you"]),
+        _sec("Headlines (≤40 char)", [f"{biz} — {off}", "WhatsApp karo, aaj hi!", f"Best {lbl} near you"]),
         _sec("Setup tip", ["Meta Ads Manager → objective 'Engagement/Messages' → WhatsApp.",
                           "CTA button: 'Send WhatsApp Message'. Budget chhota se shuru (₹150-300/din)."]),
     ]}
@@ -402,7 +402,7 @@ def rank_check_guide(business_name: str, niche: str, city: str = "") -> dict:
     loc = city or "aapka sheher"
     return {"sections": [
         _sec("Apni Google rank khud check karo (free)", [
-            f"1. Incognito window kholo (logged-out, taaki personalized result na aaye).",
+            "1. Incognito window kholo (logged-out, taaki personalized result na aaye).",
             f"2. Search karo: '{lbl.lower()} near me' aur '{lbl.lower()} in {loc}'.",
             "3. Dekho aap Map-pack (top 3) me ho ya nahi.",
             "4. Apne area ke alag-alag points se search karo (DIY geo-grid) — rank badalta hai.",

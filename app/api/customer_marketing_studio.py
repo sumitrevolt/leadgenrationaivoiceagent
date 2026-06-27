@@ -687,15 +687,15 @@ def studio_customer_reminder(req: ReminderReq = Body(default=ReminderReq()), cli
         ],
         "renewal": [
             f"Namaste! {biz} — aapki service/plan jald renew hone wali hai. Aaj renew karein, bina rukawat seva jaari rahe 🙏",
-            f"Reminder: renewal due hai. 1-click renew link bhej dun? Reply 'HAAN'.",
+            "Reminder: renewal due hai. 1-click renew link bhej dun? Reply 'HAAN'.",
         ],
         "service": [
             f"{biz}: aapki next service/maintenance due hai. Slot book kar lein taaki sab sahi chale 👍",
-            f"Reminder — last service ko time ho gaya. Aaj book karein, baad me rush se bachein.",
+            "Reminder — last service ko time ho gaya. Aaj book karein, baad me rush se bachein.",
         ],
         "payment": [
             f"Namaste 🙏 {biz} — aapka payment pending hai. UPI/link se aaj clear kar dein to badi madad hogi. Dhanyawad!",
-            f"Gentle reminder: invoice pending hai. Koi dikkat ho to bata dein, hum help karenge.",
+            "Gentle reminder: invoice pending hai. Koi dikkat ho to bata dein, hum help karenge.",
         ],
     }
     msgs = templates.get(kind, templates["appointment"])
@@ -715,7 +715,7 @@ def studio_appointment_assistant(client_id: str = Depends(require_customer)) -> 
                 ],
                 "confirmation": [
                     f"Confirmed! ✅ Aapka appointment {biz} me book ho gaya. Time pe milte hain. Address/location bhej dun?",
-                    f"Ho gaya booking! Reminder ek din pehle bhej dunga. Dhanyawad 🙏",
+                    "Ho gaya booking! Reminder ek din pehle bhej dunga. Dhanyawad 🙏",
                 ],
                 "no_show_followup": [
                     f"Aaj aap aa nahi paaye — koi baat nahi! {biz} me naya slot rakh dun? Bas time bata dein.",
