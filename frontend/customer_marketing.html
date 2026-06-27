@@ -394,6 +394,27 @@
     { display:none !important; }
   /* one tile hidden -> remaining "Aaj ke liye" tile spans full width */
   .prod-marketing .today-grid, .prod-voice .today-grid { grid-template-columns:1fr; }
+
+  /* Studio "find a tool" — search + category chips (the mobile signature) */
+  .studio-find{position:sticky;top:0;z-index:5;background:var(--card);padding:8px 0 10px;margin:0 0 4px}
+  #studioSearch{width:100%;padding:13px 14px;font-size:15px;border:1.5px solid var(--line);
+    border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;min-height:48px;-webkit-appearance:none}
+  #studioSearch:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:var(--brand);background:#fff}
+  .studio-chips{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    padding:10px 0 2px;margin:0;scrollbar-width:none}
+  .studio-chips::-webkit-scrollbar{display:none}
+  .studio-chip{flex:0 0 auto;padding:9px 14px;border-radius:999px;border:1.5px solid var(--line);
+    background:#fff;color:var(--ink);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;min-height:40px;
+    display:inline-flex;align-items:center;gap:6px;transition:background .12s,border-color .12s}
+  .studio-chip .ct{font-size:11px;font-weight:800;color:var(--muted);background:var(--bg);border-radius:999px;padding:1px 7px}
+  .studio-chip[aria-selected="true"]{background:var(--brand);border-color:var(--brand);color:#fff}
+  .studio-chip[aria-selected="true"] .ct{color:#fff;background:rgba(255,255,255,.22)}
+  .studio-empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:24px 8px;font-size:13.5px}
+  @media(prefers-reduced-motion:reduce){.studio-chip{transition:none}}
+  @media (max-width:560px){
+    .studio-find{padding-top:6px}
+    #studioGrid{grid-template-columns:1fr !important}
+  }
 </style>
 </head>
 <body class="prod-marketing">
@@ -715,8 +736,13 @@
           <div class="grow"></div>
           <button class="btn" type="button" onclick="studioInit()">↻ Refresh</button>
         </div>
-        <p class="sm" style="margin:2px 0 12px">Apne niche ke liye ready post, WhatsApp message, Google review reply, ad copy aur zyada — ek click me. Copy karke khud post/bhejo (kuch auto-send nahi hota, ban-safe).</p>
-        <div id="studioGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px"></div>
+        <p class="sm" style="margin:2px 0 10px">Apne niche ke liye ready post, WhatsApp message, Google review reply, ad copy aur zyada — ek click me. Copy karke khud post/bhejo (kuch auto-send nahi hota, ban-safe).</p>
+        <!-- Find-a-tool: search + category chips (mobile-first; sticky on scroll) -->
+        <div class="studio-find">
+          <input id="studioSearch" type="search" inputmode="search" placeholder="🔍 Tool dhoondo… (jaise 'review', 'whatsapp', 'post')" aria-label="Search tools" oninput="studioSetQuery(this.value)" autocomplete="off">
+          <div id="studioChips" class="studio-chips" role="tablist" aria-label="Tool categories"></div>
+        </div>
+        <div id="studioGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
       </div>
 
       <!-- ===== 2c) Media Studio — image tools (upload/generate) ===== -->
@@ -2318,15 +2344,46 @@ const STUDIO_SVG = {};   // key -> last poster SVG (for download)
 
 async function studioInit(){
   const grid=document.getElementById("studioGrid"); if(!grid) return;
+  renderStudioChips();
   renderStudioCards();
   try{
     const r=await fetch("/api/customer/studio/tools",{headers:Object.assign({Accept:"application/json"},billAuthHdr())});
     if(r.ok){ const d=await r.json(); const n=(d.context&&d.context.niche)||""; const el=document.getElementById("studioNiche"); if(el) el.textContent = n?("Niche: "+n):"Ready"; }
   }catch(e){}
 }
+/* Category map — 83 tools grouped so a phone user finds things fast. Unmapped -> Brand & Web. */
+const _CATG = {
+  "🔥 Leads": ["ai-inbox","re-engagement","speed-followup","followup-sequence","win-back","quote-draft","objection-handler","lost-lead-reason","next-best-action","owner-brief","growth-coach","best-time","missed-call-reply","sentiment","referral","lead-magnet","competitor","faq-reply"],
+  "📣 Content": ["post","calendar","festival-post","hashtags","reel-script","carousel","meme","multilang-post","voiceover","youtube-metadata","grid-planner","highlights","trends","community-content","evergreen-ideas","repurpose","templates","niche-pack","poster"],
+  "⭐ Reviews & Google": ["gbp-text","gbp-tips","review-reply","review-request","negative-review-rescue","testimonial","nps-survey","ugc-request","listings","rank-check-guide","schema-markup","aeo-checklist","service-area","blog","conversion-tracking","photo-reminder"],
+  "💬 WhatsApp": ["whatsapp","whatsapp-catalog","click-to-whatsapp-ad","sms-pack","customer-reminder","appointment-assistant","booking-link","newsletter-outline"],
+  "📊 Ads & Offers": ["ads","coupon","budget-suggest","seasonal-offers","local-event-campaign","loyalty-program","roi-calculator","landing-audit"],
+  "🏪 Brand & Web": ["business-description","service-menu","brand-palette","customer-avatar","case-study","faq-page","bio-page","business-card","email-signature","website-widget","reviews-widget","month-planner","partnerships","complaint-recovery"]
+};
+const STUDIO_CATS = ["Sab"].concat(Object.keys(_CATG));
+const STUDIO_CAT = {}; Object.keys(_CATG).forEach(function(c){ _CATG[c].forEach(function(k){ STUDIO_CAT[k]=c; }); });
+let _studioCat="Sab", _studioQ="";
+function studioCatOf(t){ return STUDIO_CAT[t.key] || "🏪 Brand & Web"; }
+function studioMatches(t){
+  const inCat = _studioCat==="Sab" || studioCatOf(t)===_studioCat;
+  const q=_studioQ.trim().toLowerCase();
+  const inQ = !q || ((t.title+" "+t.desc+" "+t.key).toLowerCase().indexOf(q)>=0);
+  return inCat && inQ;
+}
+function studioSetQuery(v){ _studioQ=v||""; renderStudioCards(); }
+function studioSetCatIdx(i){ _studioCat=STUDIO_CATS[i]||"Sab"; renderStudioChips(); renderStudioCards(); }
+function renderStudioChips(){
+  const el=document.getElementById("studioChips"); if(!el) return;
+  el.innerHTML=STUDIO_CATS.map(function(c,i){
+    const n = c==="Sab" ? STUDIO_TOOLS.length : STUDIO_TOOLS.filter(function(t){return studioCatOf(t)===c;}).length;
+    return '<button class="studio-chip" role="tab" type="button" aria-selected="'+(_studioCat===c)+'" onclick="studioSetCatIdx('+i+')">'+escH(c)+' <span class="ct">'+n+'</span></button>';
+  }).join("");
+}
 function renderStudioCards(){
   const grid=document.getElementById("studioGrid"); if(!grid) return;
-  grid.innerHTML = STUDIO_TOOLS.map(function(t){
+  const list=STUDIO_TOOLS.filter(studioMatches);
+  if(!list.length){ grid.innerHTML='<div class="studio-empty">Koi tool nahi mila — doosra shabd try karo ya "Sab" chuno.</div>'; return; }
+  grid.innerHTML = list.map(function(t){
     const fields=(t.inputs||[]).map(function(f){
       const id="st_"+t.key+"_"+f.n;
       if(f.type==="textarea") return '<label class="sm" style="display:block;margin-top:6px">'+escH(f.l)+'<textarea id="'+id+'" rows="2" placeholder="'+escH(f.ph||"")+'" style="width:100%;margin-top:3px;padding:6px;border:1px solid var(--bd,#ccc);border-radius:8px;font:inherit"></textarea></label>';
