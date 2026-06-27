@@ -334,7 +334,7 @@ function busy(btn, on, label){
 async function loadRoster(){
   const box = document.getElementById("roster");
   try{
-    const d = await getJSON("/api/agents/roster", false);
+    const d = await getJSON("/api/agents/roster", true);  // send admin token if present → recent_runs (anon still gets public roster)
     const list = Array.isArray(d.roster) ? d.roster : [];
     if(!list.length){ box.innerHTML = '<div class="empty">Roster khaali hai.</div>'; }
     else {

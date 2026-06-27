@@ -1012,7 +1012,9 @@ async def web_call_ws(websocket: WebSocket) -> None:
             browser_text = (data.get("text") or "").strip()
             user_text = ""
             if data.get("audio_b64"):
-                user_text = await _transcribe_audio(pipeline, brain, data.get("audio_b64"))
+                user_text = await _transcribe_audio(
+                    pipeline, brain, data.get("audio_b64"), niche=session.get("niche", "")
+                )
             if not user_text:
                 user_text = browser_text
 
@@ -1311,7 +1313,9 @@ async def _local_whisper_transcribe(audio: bytes) -> str:
         return ""
 
 
-async def _transcribe_audio(pipeline: Any, brain: Any, audio_b64: str) -> str:
+async def _transcribe_audio(
+    pipeline: Any, brain: Any, audio_b64: str, niche: str = "", client_name: str = ""
+) -> str:
     """
     Server-side STT. PRIMARY: free_ai Groq whisper-large-v3 (wahi chain jo
     phone agent use karta hai — Hinglish-strong). Fallback: local Hinglish
@@ -1355,7 +1359,8 @@ async def _transcribe_audio(pipeline: Any, brain: Any, audio_b64: str) -> str:
             from app.voice_agent.niche_scripts import stt_keyterms
 
             _bias = stt_keyterms(
-                getattr(brain, "niche", "") or "", getattr(brain, "client_name", "") or ""
+                niche or (getattr(brain, "niche", "") or ""),
+                client_name or (getattr(brain, "client_name", "") or ""),
             )
         except Exception:
             _bias = ""
