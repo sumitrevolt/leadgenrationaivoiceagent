@@ -16,7 +16,7 @@ description: Red-green-refactor + "contract tests PEHLE" discipline — naya fea
 
 ## CONTRACT tests pehle (billing-truth lesson 🚨)
 /pricing checkout legacy Cloud-Run plans se ₹15k+18% GST charge karta tha jabki page advertised price dikhata — legacy plans ne `packages.py` ko shadow kar diya, 'advanced' checkout 404 + unregistered hote hue illegal GST. `tests/test_billing_truth_2026.py` ab ye LOCK karta hai. **Naya feature jisme paisa/plan/public promise hai → pehla test = contract assert:**
-- Price/plan (REAL keys, `app/marketing/packages.py`): `assert float(PRICING_PLANS[pkg["key"]].monthly_price) == float(pkg["price_inr_month"])` har pkg pe; advanced = ₹6,999 + `calls_per_month == 500`; starter monthly ₹1,199 / yearly ₹11,990; packages keys `== ["starter","growth","advanced"]`. SOURCE of truth vs har surface (API, page, checkout).
+- Price/plan (REAL keys, `app/marketing/packages.py`): `assert float(PRICING_PLANS[pkg["key"]].monthly_price) == float(pkg["price_inr_month"])` har pkg pe; advanced = ₹5,999 + `calls_per_month == 500`; starter monthly ₹1,999 / yearly ₹19,990; packages keys `== ["starter","growth","advanced"]` (growth = `public:False` legacy-hidden). SOURCE of truth vs har surface (API, page, checkout).
 - GST contract: `GST_GSTIN` unset → total == advertised, tax == 0; set → ×1.18, tax_rate 18 (`test_calculate_price_unregistered_flat`/`_registered_gst`).
 - Voice pricing alag source: `app/marketing/voice_packages.py` (flat band A/B/C ₹4,999/9,999/19,999).
 - Public API shape: response keys/status codes assert karo (`/api/public/*` backward-compat).

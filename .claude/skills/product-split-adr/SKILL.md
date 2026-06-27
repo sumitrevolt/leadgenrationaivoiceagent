@@ -17,7 +17,7 @@ description: Two-product split ADR-009 — Marketing vs Voice Agent separate SKU
 
 ## Live prices (sync packages.py — change = test_billing_truth)
 
-**Marketing:** Starter ₹1,199 · Growth ₹2,999 · Advanced ₹6,999/mo (annual = 10× monthly)
+**Marketing (PUBLIC = 2 plans):** Main (`starter`) ₹1,999 · Combo/Advanced (`advanced`) ₹5,999/mo (annual = 10× monthly). Growth ₹2,999 (`growth`) = legacy hidden (`public:False`).
 
 **Voice:** Flat monthly per band — A ₹4,999 · B ₹9,999 · C ₹19,999/mo · pilot free 7d/50 calls · **unlimited calls** (no lead-counting)
 
