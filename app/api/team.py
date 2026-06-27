@@ -125,6 +125,18 @@ async def get_email_outreach_stats(current_user: User = Depends(require_admin)):
         return {"error": str(e)}
 
 
+@router.get("/outreach-activity")
+async def get_outreach_activity(limit: int = 20, current_user: User = Depends(require_admin)):
+    """Admin-friendly: kisko email bheja, kitne, kya reply aaya (ek nazar me)."""
+    try:
+        from app.platform import auto_outreach
+
+        return auto_outreach.outreach_activity(limit=max(1, min(int(limit or 20), 100)))
+    except Exception as e:
+        logger.warning(f"[team-api] outreach-activity failed: {e}")
+        return {"error": str(e), "summary": {}, "recent_sent": [], "recent_replies": []}
+
+
 @router.post("/email-followups/run")
 async def run_email_followups_now(current_user: User = Depends(require_admin)):
     try:
