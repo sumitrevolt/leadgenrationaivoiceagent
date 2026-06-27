@@ -39,3 +39,16 @@ Codebase ka signature pattern: har external integration **import-safe + flag/cre
 
 ## Verify
 Bina creds: feature inert, `import app.main` OK, prod_check PASS. Creds set → in-container smoke (real API 200). Test: import-safe + inert-path + happy-path (monkeypatch jsonl/env).
+
+## Enterprise gate
+Operating loop chalao — Discover → Contract → Execute → Self-review → Evidence (`fable-operating-manual`). Integration almost-always **High-risk** (secret + external provider + aksar outbound side-effect) → §9 ka pura automation bar + named rollback + `self-code-review`/`security-review`. Pure read-only LLM/storage connector = Standard.
+
+**Gates (provider/connector domain — relevant pick):**
+- **Safety / inert-without-creds (signature gate):** `_enabled()` = creds + flag dono; bina = `{"ok": False, "skipped": ...}`, crash nahi. Auto-send/auto-call/auto-post default OFF + loud warning. Secrets sirf `.env` (gitignored); exposed = rotate; VPS `.env` base64-over-ssh (plain argv pe secret nahi) — `scripts\check_secrets.py` gate.
+- **Idempotency / dedupe** (send/call/bill/post/CRM-write trigger karne wale integrations pe MANDATORY): idempotency-key/dedupe → duplicate email/call/charge/CRM-row na ho (webhook emitter HMAC + delivery-id pattern dekho).
+- **Reliability** (provider/network work): per-call timeout + bounded retry + never-raise wrapper; background path fail → DLQ `dlq:failed_tasks`. Provider down ≠ caller crash.
+- **Cost/quota fallback:** free-stack multi-provider chain + circuit-breaker (429/quota → escalating cooldown, success pe reset) — pattern `free_ai.py`. Soft-paid/credit provider (NVIDIA NIM) chain me deep rakho.
+- **Compliance fail-CLOSED — SIRF outbound channels pe** (telephony/SMS/WhatsApp/call): TRAI 9am–7pm window · DND scrub (lookup-fail = BLOCK) · AI-disclosure-at-start · DPDP consent/retention · 140-series. CRM/storage/LLM connector pe yeh lagu NAHI — mat lagao.
+- **Observability + rollback (named):** event/log + flag in `growth.py AUTOMATION_FLAGS` → visible at `/api/growth/infra/flags`. Rollback = **flag OFF** (instant inert) → `import app.main` clean → no recreate needed (gated path dead).
+
+**Evidence (done):** bina creds inert + `import app.main` OK + `.venv\Scripts\python.exe scripts\prod_check.py` PASS + `scripts\check_secrets.py` clean + `.venv\Scripts\python.exe -m pytest tests\test_<integration>.py -q` (import-safe + inert-path + happy-path monkeypatched + 1 failure-path + idempotency assert). Creds set → in-container real-API 200 smoke.

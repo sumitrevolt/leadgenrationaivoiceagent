@@ -42,5 +42,17 @@ Default config: Llama-Guard dono side · garak nightly · PyRIT pre-release.
 - [ ] AI-disclosure + moderation (voice/public) intact.
 - [ ] Regression: garak probe ya at least ek IPI test-case (`tests/`).
 
+## Enterprise gate (LLM attack-surface = fail-CLOSED containment)
+
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover me: naya path model ko UNTRUSTED content (RAG/scrape/inbox/tool/3rd-party) feed karta hai kya — agar haan, trust-label + side-effect audit pehle.
+- **Change-risk tier: High-risk** — koi bhi path jahan model untrusted content padh ke side-effect (send/call/post/pay/DB-write) trigger kar sakta = §9 ka full bar + `security-review` (auth/SSRF/secrets) SAATH.
+- **Fail-CLOSED gates (bypass = zero-click compromise / data-leak, reject):**
+  - **IFC containment** — untrusted-sourced text se aaya "instruction" KABHI control-flow drive na kare; side-effect tool hamesha gated/draft-only (reply_agent `REPLY_AUTO_SEND=0` + `_is_bulk_sender` = reference instance). Yahi RAG/voice/MCP pe apply.
+  - **PII / tenant / secret exfil** — multi-tenant: model output me system-prompt/keys/other-tenant data leak na ho; untrusted output ko deterministic guard se pass karo.
+  - **AI-disclosure + moderation** — voice/public paths pe AI-disclosure-at-start + Llama-Guard/moderation intact (compliance, weaken mat karo).
+  - **Secrets** — provider/red-team keys (`NVIDIA_API_KEY`, garak/PyRIT creds) sirf `.env`; `scripts/check_secrets.py`.
+- **Rollback (NAMED):** naya untrusted source / auto-side-effect risky nikla → us source ka flag OFF ya tool ko draft-only kar do → container recreate; IPI regression milė to defense + ship SAATH (static-pass robustness proof NAHI — "attacker moves second").
+- **Evidence to close:** trust-label table + side-effect-gate proof; **at least 1 IPI test-case** (`tests/`) ya garak probe green; PII-exfil guard ka test; `.venv\Scripts\python.exe scripts\prod_check.py` PASS + `scripts\check_secrets.py` clean.
+
 ## Pairs with
 `security-review` (traditional) · `voice-agent-kb` · `integration-engineering` (naya untrusted source) · `prompt-engineering`.

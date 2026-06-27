@@ -68,3 +68,12 @@ Phir endpoint-list vs tabs map karo — jo admin endpoint kisi tab/button se rea
 - Side-effect buttons (send/call/auto-enable) = confirm() + flag-state dikhana; draft-only actions free chalao.
 - Sandbox mount STALE — HTML edits Windows file-tools se, verify Windows pe.
 - Bade parallel edits same file pe = truncation risk (parallel-batch-build skill).
+
+## Enterprise gate
+
+- **Operating loop**: Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Naya tab/control = "Naya control add karne ka pattern" (upar 5 steps) hi hai — step-1 `grep '@router'` MANDATORY (duplicate-route-guard).
+- **Risk-tier: Standard** (admin UI + read/trigger endpoints). Locks: `duplicate-route-guard` grep · `require_admin` + rate-limit on naya endpoint · flag-state surface · changed-file pytest + `check_html_js.py` · VPS **hard-reload** for naya `@app.get` page-route.
+- **This page IS the observability surface** — control center hi `automation_health` (dead-man overdue), agent events, flags pills, run histories ko operator ke saamne laata. Naya backend automation merge = yahaan tab/badge bhi add karo, warna observability gap (CLAUDE.md: API-only = adhoora).
+- **Safety boundaries**: side-effect buttons = `confirm()` + flag-state dikhao; **flag FLIP UI se KABHI nahi** (env `.env` + recreate ka kaam — `automation-flags`); ban-risky flags (`WHATSAPP_AUTO_SEND` etc.) pe warning text. Heavy/ML/KB endpoint kaam = `asyncio.to_thread` + hard timeout (widget-chat prod-down lesson).
+- **Rollback (NAMED)**: bad UI/endpoint = revert frontend/HTML + container recreate (page-route hard-reload); naya endpoint flag-gated ho to flag OFF.
+- **Evidence (done)**: `python scripts\check_html_js.py` (node --check) + `.venv\Scripts\python.exe scripts\prod_check.py` + targeted pytest + VPS pe page 200 (hard-reload ke baad, `scripts/check_route.py`) + tab live render.

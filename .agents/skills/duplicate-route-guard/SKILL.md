@@ -8,7 +8,7 @@ description: Prevent FastAPI duplicate routes (first-route-wins shadow). Grep al
 
 ## Before ANY new route
 
-**Codex:** `context-first` skill — parallel grep batch pehle.
+**Claude:** `context-first` skill — parallel grep batch pehle.
 
 ```bash
 # Marketing (split godfiles — sab grep karo)
@@ -36,3 +36,11 @@ Naye `/app/*` pages = Docker **rebuild** + curl verify (stale .pyc lesson).
 ## Verify
 
 `scripts/prod_check.py` route count · manual curl new endpoint · OpenAPI duplicate path check
+
+## Enterprise gate
+
+Yeh guard = operating loop ka **Discover** phase ka non-negotiable pre-flight (`fable-operating-manual`).
+
+**Change-risk tier:** grep ka *act* Standard, par **blast-radius = jis route ko shadow karoge uska tier**. Billing/`packages.py`-route ya public `/audit`-`/b`-`/start` ya telephony route ko duplicate ne shadow kiya → silent wrong-pricing / 404 / compliance-bypass = **High-risk consequence**. Isliye grep skip karna kabhi "chhota" nahi.
+
+**Evidence (done):** `.venv\Scripts\python.exe scripts\prod_check.py` route count += exactly N (na zyada na kam — zyada = dup, kam = shadow). Naye `@app.get` page-route = container recreate (`up -d --no-deps app`), warna stale .pyc 404.

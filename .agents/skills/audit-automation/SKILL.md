@@ -224,9 +224,19 @@ The verbose sample outputs, escalation playbook, and standup/dashboard wiring mo
 
 ---
 
+## Enterprise gate
+
+This skill is **read-only observability** — it inspects, never mutates. So idempotency / DLQ-write / kill-switch / named-rollback gates do **not** apply here (a remediation you trigger after auditing = `automation-flags` / `self-improve-control`).
+
+- **Operating loop**: Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). This skill IS the Discover + Evidence layer for automation — measure-first before any loop change.
+- **Risk-tier: Trivial-to-run, but it's the compliance + observability gate.** It surfaces the fail-CLOSED checks (step-6: DLT · DND opt-out · recording-retention · approval-mode) and dead-man heartbeats — a green audit is the "is automation actually alive + compliant?" evidence other skills depend on.
+- **Observability surface it reads**: `scripts/automation_health_audit.py`, `app/platform/automation_health.py` (EXPECTED_GAP_MIN heartbeats), `GET /api/growth/infra/automation-health`, DLQ `dlq:failed_tasks` (read), `data/self_improve_runs.jsonl` / `skill_lessons.jsonl`. Anomaly red-flags incl. hallucinated DND-bypass lessons (compliance drift).
+- **Hand-off (if audit goes 🔴)**: don't fix here — pause/cost via `self-improve-control`, flag-flip via `automation-flags`, loop-death/restart-storm via `agent-loop-design`, prod-freeze via `prod-incident-triage`. Rollback-pehle, root-cause-baad.
+- **Evidence (audit done)**: `python scripts\automation_health_audit.py --daily-check` (alive + budget + queue) green, or `--anomalies` clean; post-deploy = `--daily-check` confirms automation restarted; weekly = `--weekly-audit` (success rates + compliance).
+
 ## See Also
 
-- `.Codex/skills/teach-agent-loop/SKILL.md` — How to add new agents/actions
+- `.claude/skills/teach-agent-loop/SKILL.md` — How to add new agents/actions
 - `docs/AUTOMATION.md` — 3-loop architecture (self-improve, coordinator, process-engine)
 - `app/platform/automation_health.py` — Heartbeat mechanism (source code)
 - `app/agents/self_improve.py` — Task picking + cost tracking (source code)

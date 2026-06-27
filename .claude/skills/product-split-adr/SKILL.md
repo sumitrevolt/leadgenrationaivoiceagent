@@ -36,3 +36,16 @@ description: Two-product split ADR-009 — Marketing vs Voice Agent separate SKU
 4. `subscription._sync_plans_from_packages`
 
 Full ADR history: `docs/ADR_2026_06_11_Product_Split_Pricing.md` (pricing evolved — **packages.py wins**)
+
+## Enterprise gate
+
+Operating loop chalao — Discover → Contract → Execute → Self-review → Evidence (full loop `fable-operating-manual`).
+
+**Change-risk tier: High-risk always** (billing/pricing). Yeh skill jo bhi chhuता hai woh paisa locks: `app/marketing/packages.py` + `app/marketing/voice_packages.py` = **single source of truth**. Number kabhi duplicate mat likho (landing/JSON-LD se hardcode nahi — source se render). Public pricing me KABHI `growth` (`public:False`) mat dikhao → `get_public_packages()` use karo, `get_packages()` nahi.
+
+- **Billing-truth (fail-CLOSED):** har price/plan/SKU change = `packages.py`/`voice_packages.py` + `tests/test_billing_truth_2026.py` SAATH green. Plan-id drift mat karo — `subscription._sync_plans_from_packages` (marketing) + `_sync_voice_plans` (7 ids: `voice_{a,b,c}_{monthly,annual}` + `voice_pilot`) mirror rakho.
+- **Compliance:** GST sirf `GST_GSTIN` set pe charge (unregistered = no tax); invoice Rule-46 sequential `INV/2026-27/0001`, SAC 998313 — yeh logic touch mat karo bina test. Auth/IDOR: koi bhi billing mutation `_authed_client_id` dep ke peeche (cross-tenant price/plan change block).
+- **Safety:** voice band-pricing `lead_band` A/B/C se aati (`app/niches.py`) — niche band badla to voice bill badal jata, dono saath verify. Tenant boundary: per-client custom pricing global packages override na kare bina explicit grant.
+- **Observability/Rollback (NAMED):** pricing change deploy = container recreate (stale .pyc warna purani price serve) → `/api/marketing/packages` + `/api/voice/packages` live verify. Galat price live → packages.py git-revert + recreate (fast, no migration).
+
+**Evidence (done):** `pytest tests\test_billing_truth_2026.py -q` green (non-negotiable) + `.venv\Scripts\python.exe scripts\prod_check.py` + deploy ke baad `curl.exe -fsS https://leadsgenai.in/api/marketing/packages` me sirf 2 public plans (Main+Advanced, growth chhupa) + `/api/voice/packages` me 3 bands. Bina billing-truth green pricing done KABHI mat bolo.

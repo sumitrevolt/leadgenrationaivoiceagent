@@ -39,3 +39,15 @@ PostHog (`POSTHOG_API_KEY`), LiteLLM (`LITELLM_MASTER_KEY`), Cloudflare (`CLOUDF
 
 ## Verify
 `amtool check-config` valid · container `status=running restarts=0` · `/metrics` 200 · Grafana :3000 up · flower :5555 reachable (tunnel) · celery-exporter :9808/metrics 200 · test alert fire → email aaya.
+
+## Enterprise gate (monitoring change = config-safe + reversible)
+
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover me: rule/route/container already exists kya (`monitoring/alert_rules.yml`, prometheus scrape targets) + config bind-mount hai ya image-baked.
+- **Change-risk tier: Standard** (alert rule / dashboard add) → **High-risk** jab alertmanager SMTP secret, public-expose, ya core scrape-config touch ho.
+- **Operating gates:**
+  - **Secret-safe** — SMTP password committed config me KABHI nahi: `smtp_auth_password_file: /etc/alertmanager/smtp_pass`, file `monitoring/alertmanager_smtp_pass` gitignored, VPS pe `.env` `SMTP_PASSWORD` se likhi. `FLOWER_USER/PASSWORD`, Grafana creds = `.env`. `scripts/check_secrets.py`.
+  - **No public expose** — flower (:5555) / celery-exporter (:9808) / Grafana SSH-tunnel ya internal only; internet pe mat kholo.
+  - **Don't break the watcher** — alert change ke baad alertmanager/prometheus self-monitoring intact; `automation_health` + `ops_watchdog` (app-level) + Alertmanager (infra-level) dono layers chahiye (ek down to dusra catch kare).
+  - **Alert noise/cooldown** — naya critical rule ko `for:` + repeat-interval (1h) do, warna alert-storm. Severity-route sahi (`severity="critical"` → `email-admin`).
+- **Rollback (NAMED):** bad rule/route → `monitoring/alert_rules.yml` / `alertmanager.yml` revert + `up -d --force-recreate <svc>` (bind-mount config plain-restart pe kabhi re-read nahi karta). Crash-loop (Tempo lesson) → minimal config pe wapas.
+- **Evidence to close:** `docker exec leadgen_alertmanager amtool check-config ...` valid + target container `restarts=0` + scrape target `/metrics` 200 + test alert fire → email mila. Bina firing-proof "alert add ho gaya" mat bolo.

@@ -46,3 +46,15 @@ Rule of thumb: **ban-risky ya paisa-touching step = process engine** (enforced b
 - Har feature pe naya orchestrator — pehle yeh matrix, fir extend, last resort naya.
 - Critic ko same persona me grade mat karwao — alag persona (Arjun) JSON grade, parse-fail = 0.6 neutral (infinite loop nahi).
 - CLAUDE.md rule: heavy sub-agents kam — orchestration VPS engines me hai, Claude-session me sirf jab disjoint-files batch ho (`parallel-batch-build`).
+
+## Enterprise gate (orchestration discipline)
+
+Run the operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Choosing a primitive = **Standard tier**; adding a `_TOOLS` agent / new team / changing an `/api/agents/*` route = **High-risk** (orchestrator can fan out side-effects). Council = `POST /api/agents/council` (`require_admin` + rate_limit 5/60) for any ambiguous strategy/go-no-go — ask karne ke bajaye.
+
+- **Draft-safe DEFAULT (non-negotiable):** `execute=False` = zero side-effect; only `_TOOLS`-registered agents (isha/dev/kavya/arjun/meera) act on `execute=True`. **rohan(email)/swara(calls) jaan-bujhke _TOOLS se BAHAR** — coordinator se direct send/post/call KABHI nahi (ban-risk). Naya tool = bounded + never-raise + draft-first; send/call sirf gated engines (auto_outreach caps · call-queue DLT/DND compliance) se jaaye.
+- **Boundary:** `ban-risky ya paisa-touching step = process engine` (enforced breakpoint), creative/strategy = coordinator. LLM-opinion ko gate mat banao — deterministic code-gate (min_count etc.) hi advance kare. Critic = ALAG persona (Arjun) JSON grade, parse-fail = 0.6 neutral (infinite-loop guard).
+- **Idempotency:** agar koi mode eventually execute karta hai (e.g. process handoff → enroll/bill) → idempotency key so re-run double na kare; coordinator drafts khud idempotent (no side-effect).
+- **Observability:** har run → `coordination_runs.jsonl` + reflections `agent_memory.jsonl` + `agent_events` table → `/app/team` + `/app/agents` Events tab. Roster `GET /api/agents/roster`, memory `GET /api/agents/memory`.
+- **Reliability:** modes are bounded — `coordinate_advanced` max-3 iters early-stop, fanout `asyncio.gather` per-task never-raise; provider work via free_ai chain fallback (no crash on 429).
+- **Rollback (NAMED):** revert `_TOOLS[agent]` / `STAFF` / `_TEAMS` entry · flag OFF for gated engine · route change = container recreate (`docker compose -f docker-compose.vps.yml up -d --no-deps app`). Drafts leave no state to repair.
+- **Evidence (done):** `.venv\Scripts\python.exe scripts\prod_check.py` + targeted `pytest tests\test_agents*.py -q` (full suite LLM-hangs — targeted only) + a `execute=false` draft run sane summary deta ho. Live enable = explicit auth.

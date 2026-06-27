@@ -30,3 +30,15 @@ Har entity ka LONG-LIVED markdown memory jo events se khud-ba-khud banta hai —
 
 ## Naya store memory me jodna ho
 `memory_vault.py` me `_STORES` list me (path, handler) add karo — handler ek line se events nikale, `_tail_new` cursor sambhalta hai. Test: `tests/test_parity_memory.py` pattern.
+
+## Enterprise gate (memory governance)
+
+Run the operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Memory stores PII (prospect phone, deal context) → **High-risk tier** on the data-governance axis: DPDP purge path + no-secrets + dedupe before any store/handler change.
+
+- **Safety / boundary:** `MEMORY_VAULT=1` + `AGENT_MEMORY` gated default OFF, inert-without-flag. Per-entity files keyed by `phone10`/`client_id` — kabhi cross-tenant context leak na ho (`context_snippet(..., max_chars)` bounded). Secrets/keys memory me KABHI nahi (it's git-adjacent `data/`); `scripts/check_secrets.py` clean.
+- **Dedupe (built-in, don't break):** `## Profile` = dedupe facts, `## Timeline` append-only with >80 → static-digest compact to last-30. New `_STORES` handler must be idempotent via `_cursor.json` tail (only NEW lines) — re-sync 2× = no duplicate bullets. deals.jsonl = new-deals tail only (no in-place stage rewrite).
+- **No hot-path / no network in sync:** sync job = pure cursor-tail, NEVER LLM/network (prod-down lesson). LLM only in `regen_summary`/`prep_brief`/live-notes, always `wait_for ≤25s`, never-raise. Memory writes never in a request path.
+- **DPDP / consent (fail-CLOSED):** opt-out → consent_ledger suppression must reach memory; vector `agent_memory` purge via `POST /api/agent-memory/purge` (inspect/stats siblings); markdown entity edit/delete via `PUT /api/memory/entity` (Rowboat "editable memory"). 90-day retention honored. Purge = real delete, not soft-hide.
+- **Observability:** `POST /api/memory/sync` result + `/api/agent-memory/stats`; admin inspect endpoints for audit.
+- **Rollback (NAMED):** flag OFF (`MEMORY_VAULT=0`/`AGENT_MEMORY=0` = inert) · revert `_STORES` entry · delete/restore the per-entity `.md` (plain files, easy repair) · reset `_cursor.json` to re-tail. Vector store = re-embed from source.
+- **Evidence (done):** `.venv\Scripts\python.exe -m pytest tests\test_parity_memory.py -q` + `scripts\prod_check.py` + a `POST /api/memory/sync` adds expected NEW lines only (no dupes) + a purge actually removes the entity. No deploy without explicit auth.

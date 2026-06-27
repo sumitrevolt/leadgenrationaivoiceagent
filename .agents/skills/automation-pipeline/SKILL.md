@@ -31,3 +31,13 @@ Poora funnel daily jobs pe chalta hai. Sab additive + gated + free-stack. Kuch b
 
 ## Verify
 Flag set → `docker compose -f docker-compose.vps.yml up -d --no-deps app` (recreate = env reload) → `docker exec leadgen_app printenv <FLAG>` → manual API trigger ya next scheduled run → `data/*.jsonl` (prospects/reply_drafts/deals/cadence_runs) me REAL output check karo. Flags live registry: `GET /api/growth/infra/flags`.
+
+## Enterprise gate
+
+- **Operating loop**: Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Flag-flip ka safe procedure = `automation-flags`; naya stage/job wiring = `scheduler-job`.
+- **Risk-tier: High** (outbound + billing-adjacent funnel) — galat flip = number-ban / spam / duplicate bill. Locks: ban-safe default (drafts/1-click, no cold-blast), per-stage flag, compliance fail-CLOSED.
+- **Idempotency/dedupe** (pipeline bills + emails + CRM-writes): outreach cap 25/day + MX-verify + warmup ramp; followup Day-3/7 dedupe so ek lead ko repeat na jaye; `meter_call_completion`/`apply_qualified_downstream` idempotent (cross-path parity). Duplicate send = deliverability/ban hit.
+- **Reliability**: jobs Celery durable (worker crash pe task survive) + DLQ `dlq:failed_tasks`; har job never-raise (ek fail = baaki chalein). Worker recreate ke baad `redis-cli llen celery` (>500 = `del celery`).
+- **Compliance (fail-CLOSED)**: `WHATSAPP_AUTO_SEND`/cold-calling OFF (ban/DLT ₹10L) · email = MX-verified + bounce auto-pause · reply auto-send OFF · any voice path = TRAI 9am–7pm + DND + AI-disclosure (telephony skills). Bypass KABHI nahi.
+- **Rollback (NAMED)**: stage flag OFF (`AUTO_EMAIL_OUTREACH`/`REPLY_AGENT`/etc.) + app recreate · `TEAM_AUTOMATION=0` = whole scheduler OFF · full rollback = `RUN_IN_PROCESS_SCHEDULER=1`+`WEB_CONCURRENCY=1`.
+- **Evidence (done)**: `.venv\Scripts\python.exe scripts\prod_check.py` PASS + `scripts\cross_path_audit.py` (qualify/meter parity) + `GET /api/growth/infra/flags` desired state + real `data/*.jsonl` output post-run.

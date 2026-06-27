@@ -20,3 +20,17 @@ Newsletters/transactional senders jo LEAD NAHI hain: payment gateways (PayU/Inst
 
 ## Output
 Har sweep ka 3-line summary SESSION_LOG me: deals checked / stale count / naya guard (agar koi). Pipeline score re-run karke delta note karo. Score 3 hafte improve na ho = funnel-level problem (growth_optimizer analysis dekho), data-safai ka nahi.
+
+## Enterprise gate
+
+Operating loop chalao — Discover → Contract → Execute → Self-review → Evidence (full loop `fable-operating-manual`).
+
+**Change-risk tier:** Read-only sweep = **Standard**. Lekin jaise hi guard code chhua (`_is_bulk_sender()` pattern add, classifier prompt, ya koi auto-send wire) = **High-risk** (ban-risk + CRM/deal writes) — neeche ke gates lock.
+
+- **Idempotency/dedupe (junk-source guards leak na ho):** har naya `_is_bulk_sender()` pattern additive ho, existing known-prospect deals KABHI block na ho. `run_reply_triage` design = unknown+bulk skip; deal sirf KNOWN prospect pe — yeh invariant todna mat. `POST /api/growth/leads/rescore` idempotent (re-run pe duplicate deal nahi).
+- **Reliability:** classifier/triage background work — pattern change ke baad `REPLY_AGENT` loop kabhi raise na kare (never-raise wrapper), fail pe lead skip (drop nahi). DLQ `dlq:failed_tasks` me triage failures dikhe.
+- **Observability:** sweep delta + naya guard SESSION_LOG me; loop liveness `/api/growth/infra/flags` (REPLY_AGENT on?) + `automation_health` Neha pipeline-job gap. "other" bucket spike = drift signal, sweep me note.
+- **Compliance (fail-CLOSED):** auto-send KABHI default-on mat karo — `_is_bulk_sender` guard ban-safety hai, weaken karne se WhatsApp/email number ban. Reply auto-send OFF rehne do (ban-safe), draft-only. DPDP: opt-out reply = consent-ledger suppression, fresh deal mat banao.
+- **Rollback (NAMED):** guard regression (genuine prospect block ho gaya) → pattern git-revert + `REPLY_AGENT=0` flag OFF (loop inert) → fix → re-enable.
+
+**Evidence (done):** `.venv\Scripts\python.exe scripts\prod_check.py` + guard change pe `pytest tests\test_reply_agent.py -q` (ya touched-area suite) green + pipeline-score re-run delta + sweep 3-line SESSION_LOG. Bina re-score + score-delta done mat bolo.

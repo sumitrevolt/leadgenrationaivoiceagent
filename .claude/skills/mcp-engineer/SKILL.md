@@ -79,3 +79,15 @@ pytest tests/test_mcp_engineer.py -v
 | `app/worker.py` | Celery beat entry `staff-mcp-engineer-hourly` |
 | `.env.example` | MCP_PRODUCT, MCP_ENGINEER, FASTAPI_MCP_TOKEN, MCP_IP_ALLOWLIST |
 | `tests/test_mcp_engineer.py` | Unit + integration tests |
+
+## Enterprise gate (MCP surface = exposed attack surface)
+
+Run the operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Any MCP-surface change = **High-risk** (it's an auth boundary + metered B2B product): `duplicate-route-guard` grep before adding a route, flag-gate, named rollback, self+security review.
+
+- **Auth fail-CLOSED:** `/mcp` mount (`app/main.py` ~774-791) MUST refuse to mount in prod without `FASTAPI_MCP_TOKEN` OR `MCP_IP_ALLOWLIST` — never expose un-gated. `/api/mcp-product/v1/*` requires `MCP_PRODUCT=1` + valid `X-LeadGen-Key`. Smoke proof: `curl -sI https://leadsgenai.in/mcp/` → **401/403, NOT 200**. A2A card `/.well-known/agent.json` is the ONLY public layer — keep it metadata-only (no secrets, no privileged data).
+- **Metered quota:** product keys via `mcp_keys.py` — per-key quota + metering enforced server-side (no client trust); quota-exhaust = clean 429, not silent over-serve. New capability = additive route under existing prefix, never a second `/mcp` mount.
+- **Key rotation + secrets:** keys live in runtime store / `.env` only (never committed); `MCP_KEY_ROTATION_DAYS=90` watched by Arya. Rotating/issuing a key = no-restart admin path; `scripts/check_secrets.py` clean.
+- **Observability:** Arya (`mcp_engineer.py`, hourly `MCP_ENGINEER=1`) = health score + quota-pressure (`MCP_QUOTA_PRESSURE_PCT`) + auth-failure burst (`MCP_AUTH_FAIL_ALERT`) → ntfy. Events on `/app/team` (arya `mcp_pulse`). Diagnose-first: `mcp_engineer.audit_mcp_security()`.
+- **Reliability:** Arya pulse via Celery beat `staff-mcp-engineer-hourly` — never-raise, isolated; registered in `team_scheduler` + `staff_jobs.STAFF_JOBS` + `automation_health` parity (dead-man).
+- **Rollback (NAMED):** flag OFF (`MCP_PRODUCT=0` / `MCP_ENGINEER=0` / unset token = mount refuses = surface dark) · revoke the issued key · container recreate `docker compose -f docker-compose.vps.yml build app && up -d --no-deps app worker scheduler`.
+- **Evidence (done):** `pytest tests/test_mcp_engineer.py -v` green + `scripts/prod_check.py` + the 4 smoke curls above (agent.json ✓, discover `enabled:true`, `/mcp/` 401/403, Arya in `/app/team`). Scope discipline: stay inside MCP files — no voice/billing/marketing edits. Live deploy = explicit user-auth.

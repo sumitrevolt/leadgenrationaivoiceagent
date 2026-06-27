@@ -28,3 +28,18 @@ description: Full done-for-you client onboarding — website→KB seed, first co
 
 ## Verify
 Client onboard → `/b/<slug>` 200 (mini-site) · `data/client_packs/<id>.html` exists · KB query namespace `client:<id>` semantic hit · login `/app/login` → customer dashboard apna data dikhता.
+
+## Enterprise gate
+
+Operating loop chalao — Discover → Contract → Execute → Self-review → Evidence (full loop `fable-operating-manual`).
+
+**Change-risk tier:** Manual onboard run = **Standard**. `onboarding.py` sweep code ya `AUTO_ONBOARD` loop edit = **High-risk** (background loop + customer-auth + KB writes).
+
+- **Safety:** `AUTO_ONBOARD=1` gated (default OFF = inert); `setup_done` flag = idempotent (dobara nahi chalega). KB seed `deep_extract` heavy → background hourly sweep / `asyncio.to_thread`, public path pe blocking nahi. Customer-auth set-password admin-only.
+- **Secrets (fail-CLOSED):** customer password / magic-link token KABHI commit/log me nahi — sirf `.env` + hashed store. `scripts/check_secrets.py` clean.
+- **Compliance (fail-CLOSED):** auto-publish (Meta/GBP) blocked → content "ready", human 1-click post (ban-safe). Anti-hijack signup guard (name/phone-dedupe pe owned-client login attach block) — yeh guard weaken mat karo. Client website crawl ToS-safe + PII = DPDP consent/retention.
+- **Idempotency/Tenant:** per-client `client:<id>` namespace + `data/client_packs/<id>.html` scoped — re-run pe duplicate nahi, cross-tenant leak nahi. Cadence/journey enroll gated engines (`automation-flags` skill) — auto-send default OFF.
+- **Reliability/Rollback (NAMED):** sweep never-raise (1 client fail → baaki continue, fail pe `setup_done` mark nahi = next-sweep retry). Galat onboard → `setup_done` reset + KB namespace purge + pack file delete (data-repair). Loop misbehave → `AUTO_ONBOARD=0` flag OFF.
+- **Observability:** loop liveness `/api/growth/infra/flags` (AUTO_ONBOARD) + `automation_health` auto-onboard job gap; per-client setup events.
+
+**Evidence (done):** `/b/<slug>` 200 + `data/client_packs/<id>.html` exists + KB `client:<id>` semantic hit + `/app/login` → customer apna data. Onboarding code chhua to `.venv\Scripts\python.exe scripts\prod_check.py` + touched-area test + `scripts\check_secrets.py` clean.

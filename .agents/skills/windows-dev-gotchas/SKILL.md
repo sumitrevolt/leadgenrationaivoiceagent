@@ -48,7 +48,7 @@ Same file pe parallel agent edit = **truncate** — sequential only
 
 ## Memory files
 
-`AGENTS.md` / SESSION_LOG — **bash append MAT** (corruption) — Edit tool only
+`CLAUDE.md` / SESSION_LOG — **bash append MAT** (corruption) — Edit tool only
 
 ## VPS quick smoke
 
@@ -58,6 +58,12 @@ curl.exe -fsS https://leadsgenai.in/api/voice/agents
 curl.exe -fsS https://leadsgenai.in/api/activation/summary
 ```
 
-## Codex tip
+## Claude tip
 
 Har code task pe parallel Grep/Read — `context-first` skill.
+
+## Enterprise gate (LIGHT — reference skill)
+
+Operating loop chalao — Discover → Contract → Execute → Self-review → Evidence (full loop `fable-operating-manual`).
+
+**Change-risk tier:** Yeh pure environment-reference hai (Trivial), par iske gotchas **High-risk gates enable** karte: Windows=truth (warna stale-mount ghost-bug), `.venv` python verify (warna jhootha "syntax error"), SSH-quoting (warna deploy abort), `git push --force`/`reset` = `careful` skill. Deploy/billing/telephony actual change pe is skill se hatkar uska domain-skill ka FULL gate lock karo.

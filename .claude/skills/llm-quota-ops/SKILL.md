@@ -34,3 +34,16 @@ LLM chain order = **LIVE measured ok-rate** se set (data/llm_calls.jsonl), theor
 - Cooldown bypass/retry-hammer (ban risk + wasted latency).
 - Paid provider add (user decision: NO paid LLM/STT/TTS).
 - ok-rate kharab dekh ke seedha code-change — pehle quota timeline confirm karo (raat me theek ho jata hai aksar).
+
+## Enterprise gate (provider chain = resilience, free-stack only)
+
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover me: `data/llm_calls.jsonl` / `GET /api/growth/infra/llm` se LIVE ok-rate dekho — chain ORDER theory se nahi, measured se set hota.
+- **Change-risk tier:** chain-ORDER ya circuit-breaker touch = **High-risk** (har LLM-dependent path — voice/agents/marketing — ek saath affect). Naya provider chain ke END me add = Standard (additive, fallback headroom).
+- **Resilience gates (non-negotiable):**
+  - **Graceful fallback** — koi single provider trip kabhi user-facing fail na bane: chain agle provider pe gire, sab trip = degraded-mode (self_improve light-only; voice TelecallerBrain → LLMBrain → static). Never-raise wrapper.
+  - **Circuit-breaker intact** — 429/quota/queue → escalating cooldown 60s→2x→30min cap; "per day/TPD/limit reached" → seedha 30min; success pe reset. Yeh DESIGN hai (TPD-day me retry-hammer nahi) — weaken/bypass mat karo.
+  - **Cost/quota fail-safe** — free-stack only (NO paid LLM/STT/TTS). Heavy batch subah; voice ke liye Groq-TPD/Gemini-RPD bacha ke rakho. Naya scheduled LLM job se pehle tokens/run × runs/day estimate.
+  - **Secrets** — saare provider keys (`GROQ_API_KEY`, `NVIDIA_API_KEY`, Gemini key-pool `data/voice_gemini_keys.json`, OpenRouter) sirf `.env`/runtime-store; `scripts/check_secrets.py`.
+- **Observability:** `GET /api/growth/infra/llm` (per-provider calls/ok-rate/avg-ms/last-error/fallback-rate) + Hermes `GET /api/growth/infra/hermes` (fallback-rate >0.7 flag). GenAI span-level = `genai-observability`.
+- **Rollback (NAMED):** chain re-tune galat nikla → ORDER revert (additive change, easy) → container recreate; provider misbehaving = us provider ki cooldown-config tighten, key disable (`.env` se hatao = inert).
+- **Evidence to close:** `GET /api/growth/infra/llm` me target provider ok-rate recover + fallback-rate normal; chain change ke baad ek live `chat()` round-trip ka log; `.venv\Scripts\python.exe scripts\prod_check.py` PASS.

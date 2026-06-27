@@ -43,3 +43,13 @@ Multi-step workflow jisme **order + gates + human approval** chahiye = `agents/p
 2. Worker logs: `docker logs leadgen_worker --tail 100` · DLQ: `GET /infra/dlq`.
 3. Restart-storm = selfheal cron + unhealthy healthcheck combo dekho (compose healthcheck cmd image me exist karta hai? — scheduler pgrep lesson).
 4. Boot pe block = boot-grace skip list me job add karo (team_scheduler).
+
+## Enterprise gate
+
+- **Operating loop**: Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover-phase me upar wala "Existing loops inventory" grep karke overlap confirm karo — naya loop nahi banao agar engine pehle se hai.
+- **Risk-tier: High** (always-on automation loop) — ek bad loop poora worker block / Groq TPD jala / duplicate side-effect kar sakta. Lock all of: dead-man trio + guards checklist (upar) + `AUTOMATION_FLAGS` registry entry + `automation_health.EXPECTED_GAP_MIN`.
+- **Idempotency** (only if loop's invoked engine sends/calls/bills/posts/CRM-writes): dedupe state-file with success-pe-hi-mark (e.g. `data/voice_learn_state.json` last_call_id pattern), warna requeue = duplicate. Loop khud side-effect KABHI na kare — gated engine hi kare (guards checklist).
+- **Reliability already in guards** (per-iteration `asyncio.wait_for` 240s + never-raise `{"ok",...}` + DLQ via `dlq:failed_tasks` on Celery failure). LLM-degraded mode = light no-LLM actions only.
+- **Observability**: heartbeat `data/<loop>_state.json` + `team.log_event` (staff member assign) + `automation-health` overdue badge — yeh hi operator surface.
+- **Rollback (NAMED)**: flag OFF + worker/scheduler recreate (loop inert) · revive-beat entry remove kar do agar revive khud storm bana raha ho.
+- **Evidence (done)**: `.venv\Scripts\python.exe scripts\prod_check.py` PASS + changed-file pytest (happy + 1 failure-branch + dedupe) + `automation-health` heartbeat fresh + real jsonl/team_event output post-fire.

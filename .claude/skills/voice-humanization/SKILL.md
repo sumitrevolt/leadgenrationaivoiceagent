@@ -23,3 +23,23 @@ description: PHONE voice agent (vobiz) ko human-like banane ka project pattern �
 
 ## QA
 Har voice change ke baad: `scripts/agent_tester.py` (double/empty/repeat/long/slow scorecard) + FREE web-call (`/app/test-call`) pe suno. Phone = final verify only (paisa).
+
+## Enterprise gate (phone voice quality = HIGH-RISK)
+Operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). **Change-risk tier: High-risk** — phone audio path = live outbound calls; quality knob change bhi compliance + cross-path parity ko intact rakhna mandatory.
+
+**Compliance (fail-CLOSED — humanization ke chakkar me kabhi mat hatao):**
+- **AI-disclosure greeting** — har naya audio path me prepend (`vobiz_stream._AI_DISCLOSURE` pattern); opener static niche-script hai par disclosure usme baked rahe.
+- **TRAI 9am–7pm + DND fail-CLOSED** — voice-quality change call-gating ko touch na kare (`compliance.py`).
+- **Consent + 90-din retention** — opt-out / press-9 path stream cleanup me intact.
+
+**Safety / defaults:** sab env knobs default = behaviour unchanged (`PHONE_TTS_RATE`/`PHONE_FILLERS`/`FILLER_AFTER_MS`/`USE_SILERO_VAD`/`USE_SMART_TURN`). Heavy turn-taking deps = capacity-check pehle (`scripts/vps_capacity_check.py`).
+
+**Cross-path parity (subclass lesson):** `PhoneCallSession` subclass karo, sirf wire-format override — **parent STT/brain/filler/cleanup stack mat bypass** (purana path mahine tiny-whisper+LLMBrain pe chala). Parent `_cleanup` = `post_call_hooks.meter_call_completion` (idempotent minute-billing) + auto-qualify downstream; naya path me yeh chhoot gaya = adhoora. Guard: `scripts/cross_path_audit.py`.
+
+**Cost/quota:** STT chain Groq whisper-large-v3 → Gemini → local (free, graceful); LLM via `free_ai.py` circuit-breaker chain — quota fallback already wired, naya hard-dep mat banao.
+
+**Observability:** voice change = `scripts/agent_tester.py` scorecard + `scripts/call_health_check.py` (dead-air detector); LLM health `/api/growth/infra/llm`.
+
+**Rollback (NAMED):** regression → quality flag OFF (env default-safe) ya revert → `docker compose build app` + `up -d --no-deps app` recreate → `/health`=`environment:production`.
+
+**Evidence (done):** `python scripts/agent_tester.py` (no double/empty/repeat/slow regression) + `.venv\Scripts\python.exe scripts\cross_path_audit.py` green + FREE web-call (`/app/test-call`) listen. Phone web-call quality = final user-verify (paisa khaata).

@@ -32,3 +32,17 @@ description: LeadGen AI ka roles + module-grants access-control + admin-side aut
 - Naya admin endpoint likhte waqt poochho: kya module-limited member ko ye milna chahiye? Default `require_admin` (modules respect karta). Critical/irreversible → `require_super_admin`.
 - Member create/role-change UI: `/app/team-access` (frontend `team_access.html`). API docs: `app/api/team_access.py`.
 - Customer auth (`customer_auth.py`, lgai_token, role=="customer") ALAG system hai — kabhi admin auth ke saath mix mat karo. Impersonation is dono ke beech ka audited bridge hai.
+
+## Enterprise gate (access-control = fail-CLOSED)
+
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover me: naya router/path ka module-mapping + jo dep lagana hai woh confirm karo (unmapped surface = silent 403, design hai par intentional hona chahiye).
+- **Change-risk tier: High-risk** (secrets/auth domain). Auth dep, `rbac.MODULES` map, role-enum, ya impersonation/2FA touch = §9 ka full bar + named rollback + `security-review` SAATH.
+- **Fail-CLOSED gates (bypass = privilege escalation, reject):**
+  - **Default-deny RBAC** — `require_admin` module-limited member ko TABHI pass kare jab path ka module grants me ho; **unmapped path = deny**. Naya admin router add kiya to `rbac.MODULES` me prefix add karo, warna woh members ke liye toота-403 dikhega.
+  - **IDOR** — member/user mutations server-derived identity pe; cross-user delete/demote/grant guarded (super_admin self-demote/self-delete block, ≥1 active super hamesha).
+  - **Least-privilege** — sensitive/irreversible (user delete, code-patch approve, settings, modules-edit) = `require_super_admin`, never plain `require_admin`. Naye endpoint ka default `require_admin`; upgrade sirf jab justify ho.
+  - **Secrets** — `TOTP_CHALLENGE_KEY`/`ADMIN_TOTP_SECRET`/JWT signing keys sirf `.env`; temp passwords commit/CLAUDE.md me KABHI nahi (`scripts/check_secrets.py`).
+  - **Audit-mandatory** — har grant/role/reset/impersonation write `log_audit` (AuditLog: actor, old→new, IP, reason). Bina audit-trail wali privileged write = incomplete.
+- **Flag-gated inert:** Impersonation (`IMPERSONATION=1`, off=404) · Magic-link (`MAGIC_LINK=1`, off=disabled). Default-OFF = zero attack surface jab tak explicitly on na ho.
+- **Rollback (NAMED):** offending endpoint dep tighten / flag OFF → container recreate (`up -d --no-deps app`); galat grant = `PATCH .../modules` se revert + audit-log se blast-radius dekho. No-migration design (preferences JSON) = schema rollback nahi chahiye.
+- **Evidence to close:** unauth + wrong-role + cross-module request → 401/403 ka test/log; super-only endpoint pe plain-admin token → 403; `.venv\Scripts\python.exe scripts\prod_check.py` PASS + `scripts\check_secrets.py` clean + audit-log entry visible (`GET /api/admin/audit-logs`).

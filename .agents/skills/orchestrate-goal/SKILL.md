@@ -75,6 +75,18 @@ START: I have a goal
 
 ---
 
+## Enterprise gate (picking + running the loop)
+
+Run the operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Picking a loop = **Standard tier**; but the loop you pick inherits its OWN tier — **compliance-critical or paisa-touching steps MUST route to Process-Engine** (event-sourced + enforced human breakpoints), not coordinator (LLM-opinion ≠ gate). Ambiguous "which loop / go-no-go" → council `POST /api/agents/council`, ask mat karo.
+
+- **Draft-safe default:** coordinator goals run `execute=false` first; self-improve actions stay flag-gated default OFF + `SELFIMPROVE_COST_CAP`; no loop auto-sends/auto-posts/auto-dials (those need gated engines + DLT/DND/warmup compliance).
+- **Match the gate to the loop:** Self-Improve → idempotency + DLQ `dlq:failed_tasks` + `automation_health` parity. Coordinator → bounded + draft-verify. Process-Engine → required breakpoints + audit trail (`/api/growth/process/*`). Chatbot/Manual → human owns compliance.
+- **Observability:** all 4 loops audit-trail (self-improve heartbeat · coordination_runs.jsonl · process journal/events · manual notes) — visible via `/app/automation` + `/api/growth/infra/flags`.
+- **Rollback (NAMED):** wrong-loop pick = re-route the goal (no code change); self-improve action flag OFF; process run resume/abort at breakpoint. No deploy in this skill.
+- **Evidence (done):** the goal landed in the loop matching its tier (compliance→process, NOW→coordinator, daily→self-improve, human→manual) AND that loop's own done-criteria met. Mis-routing (e.g. cold-send via coordinator) = wrong even if it "ran".
+
+---
+
 ## References
 
 The per-loop deep-dives, worked scenarios, and cost/FAQ detail live in `references/` to keep this decision guide lean:

@@ -38,3 +38,18 @@ Short (1-2 lines), Hinglish/match-customer-language, acknowledge-then-answer, ON
 
 ## Don't break
 Every enhancement is loaded defensively — keep the try/except + `None` fallbacks. Don't make any component a hard dependency, or the agent stops degrading gracefully.
+
+## Enterprise gate (voice internals = HIGH-RISK)
+Operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). **Change-risk tier: High-risk** — brain/provider/prompt/guardrail change live calls + billing + compliance ko touch karta; additive + flag-gated + defensive rakho.
+
+**Cost/quota fallback (free-stack, never paid by default):** `free_ai.py` chain = Mistral mistral-small-latest primary → Groq llama-3.1-8b-instant → Cerebras gpt-oss-120b (429-prone) → … → Gemini deep fallback, **escalating circuit-breaker** (429/quota → 60s→2x→30min cap, credit-exhaust → straight 30min, success resets). Naya provider add = chain me deep daalo, primary mat banao bina ok-rate proof. STT Groq whisper-large-v3 → Gemini → local; TTS EdgeTTS hi-IN-SwaraNeural (`edge-tts>=7.2.0` warna 403).
+
+**Defensive wiring (don't break):** har enhancement lazy-load + try/except + `None`-skip — koi component hard-dependency mat banao. `LLMBrain` BYOK me model-id REAL ho ("gemini-2.5-flash"; bare "gemini" invalid). Guardrails (`guardrails.py`) PII-redact + injection-block = security gate, hata mat.
+
+**Compliance (fail-CLOSED):** persona prompt me **AI-disclosure unless-asked** rule + **never reveal-AI** balance carefully wired; greeting AI-disclosure (TRAI) telephony-side. Pipeline `compliance.py` promo calls 9am–7pm + DND fail-CLOSED — brain change isko bypass na kare. DPDP: guardrails PII-redaction intact.
+
+**Observability:** LLM chain health `/api/growth/infra/llm` (ok-rate/fallback/cooldowns); voice change = `scripts/agent_tester.py` scorecard.
+
+**Rollback (NAMED):** provider/prompt regression → revert + `docker compose build app` + `up -d --no-deps app` recreate (stale .pyc clear) → `/health`=`environment:production`.
+
+**Evidence (done):** `python -m app.voice_agent.eval_suite` (~100% pass) + `python scripts/agent_tester.py` (no double/empty/repeat regression) + `.venv\Scripts\python.exe scripts\prod_check.py` green. FREE web-call (`/app/test-call`) pe verify; phone = final only.

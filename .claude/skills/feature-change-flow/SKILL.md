@@ -23,3 +23,23 @@ Commit (simple msg, no secrets) → push → VPS: pull + `docker compose -f dock
 
 ## 5. RECORD
 SESSION_LOG me milestone + CLAUDE.md me 1-2 line. Naya gotcha mila → relevant skill me append.
+
+## Enterprise gate
+Yeh 5-step loop = operating loop ka concrete roop — Discover(LOCATE) → Contract(DESIGN) → Execute → Self-review → Evidence(VERIFY+SHIP) (full loop `fable-operating-manual`).
+
+**Change-risk tier = jis cheez ko chhoo rahe ho uska tier** (fable §0.6 table). LOCATE step me hi classify karo, phir gates lock:
+- **Trivial** (copy/comment/single non-hot-path fn) → Read-before-Edit + 1 targeted test.
+- **Standard** (existing endpoint/UI behaviour, non-billing) → DESIGN ke flag-gate + dup-route grep + changed-file test + `prod_check`.
+- **High-risk** (billing · public route · telephony · secrets/auth · automation loop · DB migration) → per-domain gate + `self-code-review` + `security-review` + named rollback.
+
+**Per-domain gate (jo file chhoo rahe ho uska):**
+- **Billing/pricing** → change SIRF `app/marketing/packages.py` (voice = `voice_packages.py`) me; `tests/test_billing_truth_2026.py` SAATH green; GST sirf `GST_GSTIN` set pe.
+- **Public route** → SSRF/auth/rate-limit; KB/ML = `asyncio.to_thread` + hard timeout (widget-chat prod-down); deploy pe **HARD RELOAD** (container recreate, warna stale .pyc 404).
+- **Telephony/outbound** → TRAI 9am–7pm + DND fail-CLOSED (lookup-fail = block) + AI-disclosure-at-start + consent-ledger — bypass KABHI nahi.
+- **Automation loop** → idempotency/dedupe + never-raise + DLQ `dlq:failed_tasks` + `automation_health` parity + flag default-OFF.
+- **Secrets** → sirf `.env`; `scripts\check_secrets.py` gate. **Schema** → Alembic forward + rollback dono.
+- **Auth level** → `require_admin` (module-limited pass) vs `require_super_admin` (critical) — `backend-rbac` skill.
+
+**Rollback (named):** flag OFF (behaviour revert) · prev-image container recreate · Alembic downgrade · data-repair script — change ke type ke hisaab se VERIFY se pehle likho. Fail pe prod KABHI red nahi.
+
+**Evidence (done):** §3-§4 ka `.venv\Scripts\python.exe scripts\prod_check.py` + targeted `pytest` (`pytest_run.log` Read) + `sleep 16`+2x `/health`=`environment:production` + changed-route smoke. Billing-touch = `test_billing_truth_2026`; cross-path side-effect (qualify/call/bill hooks) = `scripts\cross_path_audit.py`.

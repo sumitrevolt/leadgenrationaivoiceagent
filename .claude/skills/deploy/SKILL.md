@@ -37,3 +37,10 @@ App = FastAPI (`Dockerfile.lock`), LIVE at **https://leadsgenai.in** on a single
 - **Payments**: Razorpay gateway HATA diya gaya (purana 401-blocker RESOLVED). Payments ab manual UPI (`UPI_VPA` set karo) / Stripe. Koi `rzp_*` key zaroorat nahi.
 - Telephony: Vobiz DID + recharge + DLT/TRAI (cold-calling ke liye; inbound callback ko nahi chahiye). `VOBIZ_CALLER_ID` set.
 - NEVER commit `.env` (gitignored). Full legacy guide: `docs/legacy/DEPLOY_GUIDE.md` (mostly historical).
+
+## Enterprise gate (orientation only — gates live in siblings)
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (`fable-operating-manual`).
+- **Change-risk tier:** any live-VPS deploy = **High-risk** (locks rebuild+recreate, hard-reload for new page-routes, named rollback, 2× health-gate). Secrets `.env`-only.
+- **Rollback (NAMED):** `git reset --hard <prev-SHA>`+rebuild → scheduler-class `RUN_IN_PROCESS_SCHEDULER=1`+`WEB_CONCURRENCY=1` → last-resort `systemctl start leadgen`.
+- **Evidence:** `https://leadsgenai.in/health`=`environment:production` (2×) + new route curl 200.
+- Full gate table / triage / health-discipline = `ship-checklist` + `leadgen-ops` + `prod-incident-triage` (yahan duplicate nahi karta). Live-VPS deploy = explicit user-auth.

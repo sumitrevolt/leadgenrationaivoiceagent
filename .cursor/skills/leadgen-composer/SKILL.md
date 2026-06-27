@@ -26,6 +26,24 @@ Composer Claude se fast + accurate isliye hai ki pehle poora context uthata hai.
 5. Verify     → prod_check + targeted pytest; green = done
 ```
 
+## Advanced working method (Composer/Claude default)
+
+Use this loop for every non-trivial task:
+
+1. **Discover:** touch-points first: code, callers, routes, UI, tests, docs, deploy/runtime path.
+2. **Contract:** goal, files, minimal diff, risk gates, verify command.
+3. **Execute:** smallest additive change matching local patterns.
+4. **Self-review:** diff-check missed callers, duplicate routes, auth/billing/compliance, stale reads, test gaps.
+5. **Evidence:** final includes changed files + verification proof; if not run, state why.
+
+Decision ladder: execute when repo context gives a safe default; ask only for secrets, irreversible/destructive choices, spend, legal/business policy, or equal product directions; council for strategy/go-no-go; never stop at analysis when a safe patch/test can move the task forward.
+
+## Enterprise automation standard
+
+Any automation, scheduled job, agent loop, integration, webhook, billing flow, or production-path change needs: product outcome, owner, trigger/output, env flag, default-safe behavior, idempotency key/dedupe, timeout, bounded retry, DLQ/fail record, metric/event/heartbeat, kill-switch, rollback path, targeted tests, free-stack quota fallback, and compliance/auth gates fail-closed where required.
+
+Automation design rule: event-driven/idempotent > cron-only polling; small composable loops > hidden monoliths; every background job must be observable, retry-safe, and stoppable.
+
 Claude ke liye same: Read `.claude/skills/context-first/SKILL.md` har code task pe.
 
 **FastAPI gotcha:** `grep '@router'` pehle — duplicate route = first-route-wins shadow.

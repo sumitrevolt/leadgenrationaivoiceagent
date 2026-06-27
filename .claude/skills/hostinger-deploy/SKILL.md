@@ -53,3 +53,11 @@ LLM chain is FREE multi-provider (`app/voice_agent/free_ai.py`): **Mistral `mist
 
 ## Rollback path (if a deploy goes red)
 `.env`: set `RUN_IN_PROCESS_SCHEDULER=1` + `WEB_CONCURRENCY=1`, stop worker/scheduler, recreate app. Last resort: `docker compose -f docker-compose.vps.yml down` + `systemctl start leadgen` (old SQLite service still installed). See `ship-checklist` for health-gate + rollback discipline.
+
+## Enterprise gate (VPS Docker = High-risk infra)
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (`fable-operating-manual`). On this box, **Discover = confirm container/proxy reality before any command** (which compose service names via `docker compose ... config --services`; is Traefik holding 80/443; .env inline-comment trap).
+- **Change-risk tier:** any live-VPS action is **High-risk** — it locks: code/skill change = **rebuild + recreate** (`build app` + `up -d --no-deps app`, NOT git-pull-restart), curl-verify every new route, named rollback ready. `worker-heavy` (hyphen) wrong service name = whole `up` ABORT → verify service names first.
+- **Safety / secrets:** keys ONLY in `/opt/leadgen/.env` (gitignored, **no inline comments** — pydantic ValidationError trap §3); never committed. SSH = Git's `ssh.exe` (Windows OpenSSH broken); non-trivial remote cmd via `.bat` + base64 (`&`/`<`/`{{}}` break over PS→ssh). Port 8000 firewalled externally → always via Caddy/domain.
+- **Reliability / rollback (NAMED):** health-gate after every recreate (`sleep 16` + 2× health); rollback ladder = `git reset --hard <prev-SHA>`+rebuild → `RUN_IN_PROCESS_SCHEDULER=1`+`WEB_CONCURRENCY=1` (scheduler-class) → `down` + `systemctl start leadgen` (last resort). Self-heal cron `scripts/vps_selfheal.sh` */10 restarts unhealthy containers.
+- **Observability:** `docker logs leadgen_app -n 60` ("Application startup complete") · `docker ps`/`docker stats --no-stream` (CPU 0% + hang = event-loop freeze → `prod-incident-triage`) · `journalctl -u caddy -n 30` · `redis-cli llen celery` (>500 → `del celery`) · `dlq:failed_tasks`.
+- **Evidence (done):** `127.0.0.1:8000/health` (on box) AND `https://leadsgenai.in/health` = `environment:production` (2×) + new route curl 200 + `docker ps | grep leadgen` all healthy. Compliance/billing gates live in `production-ready`; this skill is infra-only.

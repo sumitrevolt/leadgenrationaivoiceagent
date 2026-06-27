@@ -28,3 +28,14 @@ description: Self-improving CONTINUOUS agent loop (task→task, no cron timing) 
 
 ## Stores
 `data/self_improve_state.json` (heartbeat) · `self_improve_queue.jsonl` · `self_improve_runs.jsonl` (cost+outcome_value per run) · `self_improve_approvals.jsonl` · `skill_uses.jsonl` · `skill_lessons.jsonl`
+
+## Enterprise gate
+
+- **Operating loop**: Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Naya action wiring = `teach-agent-loop`; operate/pause/audit = `self-improve-control`.
+- **Risk-tier: High** (always-on loop, runs unattended on live VPS). Locks: `SELF_IMPROVE_LOOP` flag default-OFF, cost-cap + approval gates, eval_gate drift signal, dead-man (revive */20min + watchdog `ensure_alive()` + `automation_health` entry).
+- **Side-effect safety (non-negotiable)**: naya action sirf gated/draft-only engine invoke kare — direct send/call/post/bill KABHI nahi (ban-safe ethos). `voice_learn`/social = draft-only by design.
+- **Reliability**: per-iteration 240s hard timeout · every `_execute()` branch never-raise `{"ok": bool, "detail": str}` · Celery failure → `dlq:failed_tasks` · LLM-degraded (`llm_metrics` ok-rate / breaker open) → sirf light no-LLM actions (Groq TPD din-bhar khatam ho sakta).
+- **Idempotency**: action-level dedupe (e.g. `voice_learn` `data/voice_learn_state.json` last_call_id) + loop diversity guard (last-6 dedup + 20-min cooldown) so requeue duplicate na kare.
+- **Cost/quota**: `SELFIMPROVE_COST_CAP` (default $50/day NOTIONAL throttle, free-stack — real paisa nahi) + deterministic gates (budget / expensive_risky / low_roi). `SELF_IMPROVE_APPROVAL=1` = LLM-heavy actions human-gate.
+- **Rollback (NAMED)**: `SELF_IMPROVE_LOOP=0` in `.env` + `docker compose -f docker-compose.vps.yml up -d --no-deps worker scheduler` (running task finishes, no new pick). Bad action = remove from `ACTIONS`/`_STAGE_ACTIONS` + recreate.
+- **Evidence (done)**: `.venv\Scripts\python.exe scripts\prod_check.py` PASS + `pytest tests\test_self_improve*.py -q` (action happy + 1 failure-branch + dedupe) + `GET /selfimprove/status` heartbeat fresh + `data/self_improve_runs.jsonl` real outcome row.

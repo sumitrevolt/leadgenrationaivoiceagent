@@ -160,3 +160,37 @@ needs the static-site branch or the reverse-proxy branch.
 Use [`references/security-and-tls.md`](./references/security-and-tls.md) for SSH
 hardening sequence, firewall posture, certificate issuance, renewal, and
 redirect timing.
+
+## Enterprise gate — THIS project's live VPS (fail-CLOSED security)
+
+The generic arc above is for any fresh host. For the **LeadGen AI production VPS**
+(`72.61.245.204`, Ubuntu 24.04, Hostinger Docker template) the reality is already
+specific — apply these project facts, do NOT re-derive from a generic Nginx/Debian
+tutorial:
+
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence
+  (`fable-operating-manual`). Any change to the live box = **High-risk**: capture
+  current state first, name the rollback, verify after each risky step. Hardening
+  the only live SSH session without a second proven session = lockout (the §4 hard stop).
+- **Reverse proxy = Caddy, NOT Nginx.** Host-level Caddy (`/etc/caddy/Caddyfile`,
+  auto-HTTPS via Let's Encrypt) proxies to `127.0.0.1:8000`. The Nginx branch of this
+  skill is reference-only here. **Gotcha:** Hostinger's template runs Traefik on 80/443
+  → Caddy `bind: address already in use` → site 404. Fix:
+  `docker stop traefik-traefik-1 && docker update --restart=no traefik-traefik-1 && systemctl restart caddy`.
+- **App stays on loopback; only 22/80/443 exposed.** Port 8000 is firewalled
+  externally — never expose the app port, always front it via Caddy/domain. App runs
+  as Docker container `leadgen_app` (`docker-compose.vps.yml`), not a bare service.
+- **Fail-CLOSED security posture (already active — verify, don't weaken):**
+  fail2ban + unattended-upgrades running; key-based SSH via Git's `ssh.exe`
+  (`-i ~/.ssh/id_rsa`, passphrase-free, in authorized_keys); HTTP→HTTPS redirect only
+  after HTTPS proven (§4). Public app endpoints have signature/SSRF/auth gates fail-CLOSED
+  in prod — that's app-layer (`security-review` skill), not host-layer.
+- **Secrets:** ONLY in `/opt/leadgen/.env` (gitignored, **no inline comments** —
+  pydantic ValidationError trap). NEVER in a committed file/script/CLAUDE.md.
+- **Rollback (NAMED):** bad Caddy/firewall change → keep the prior config, `systemctl restart caddy`
+  / `ufw`-revert; never leave the host unreachable. App-level rollback = `hostinger-deploy`.
+- **Evidence (done):** `127.0.0.1:8000/health` (on box) AND `https://leadsgenai.in/health`
+  = `environment:production` + valid TLS cert + only 22/80/443 reachable from outside.
+
+For the full app deploy/recreate flow on this box → `hostinger-deploy`; for app-layer
+auth/SSRF/webhook-signature/secret review → `security-review`.

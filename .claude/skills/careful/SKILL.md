@@ -72,3 +72,24 @@ User "haan" bole tab hi proceed karo.
 - `data/*.jsonl` = production data. Delete = leads/invoices gone forever.
 - `data/content_schedule.jsonl` = client content queue
 - `data/deals.jsonl` = sales pipeline
+
+---
+
+## Enterprise gate — yeh skill KHUD ek fail-CLOSED safety gate hai
+
+Operating loop chalao — Discover → Contract → Execute → Self-review → Evidence (full loop `fable-operating-manual`). Destructive command iska sabse risky "Execute" phase hai; yeh skill us phase pe **fail-CLOSED brake** lagata hai.
+
+**Change-risk tier: ALWAYS High-risk + irreversible.** Default = **REFUSE/PAUSE** jab tak teeno na ho: (1) exact command, (2) named rollback/recovery, (3) explicit user "haan". Ambiguity = block, proceed nahi. Yeh gate bypass mat karo "jaldi hai" me — prod-down/data-loss inhi me se aata hai.
+
+**Hard pre-conditions (sab teen, warna RUKO):**
+1. **Backup PEHLE (rollback proof):** DB → `docker exec leadgen_db pg_dump -U leadgen leadgen > /tmp/backup_$(date +%s).sql`; `.env` → `cp .env .env.bak_$(date +%Y%m%d_%H%M%S)`; data file → copy before delete. Backup confirm hone TAK destructive run mat karo.
+2. **Scope-narrow:** `DELETE`/`UPDATE` me `WHERE` mandatory; `rm -rf` me exact path (kabhi `/` ya bare var); `git push --force` → `--force-with-lease` prefer; migration → `alembic downgrade` ka forward-path bhi confirmed.
+3. **Confirm template (upar wala) + user "haan".** Sirf tab proceed.
+
+**Live-prod fail-CLOSED (non-negotiable):**
+- **Telephony/outbound se chhedchhad** (DND/calling-window/AI-disclosure guard disable, consent-ledger purge) = REFUSE — TRAI/legal risk, "careful" se bhi nahi (illegal, user-haan se bhi nahi).
+- **Secrets:** VPS `.env` overwrite = saare secrets wipe → backup + line-diff dikhao pehle; secret kabhi log/commit me echo mat karo.
+- **Billing data** (`data/*.jsonl` invoices, DB leads/deals) delete = irreversible revenue/PII loss → backup + WHERE + haan.
+- **Prod container stop/recreate:** health-check URL note + recreate ke baad `/health` = `environment:production` verify; `leadgen_app` blind stop mat.
+
+**Evidence (done):** destructive ke baad — backup file exists (path bolo) + intended state verify (`/health` 200 / row-count / `git log`) + 1-line SESSION_LOG (kya delete/reset, backup kahan). Bina rollback-artifact "ho gaya" KABHI mat bolo. Galti hui → backup se restore + `prod-incident-triage`.

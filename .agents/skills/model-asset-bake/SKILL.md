@@ -42,3 +42,15 @@ timeout). py-spy dump se pakda: `_get_qdrant_embedder` me atka tha.
 ## Current baked assets (update karte rehna)
 - fastembed `paraphrase-multilingual-MiniLM-L12-v2` → `/opt/fastembed_cache` (Dockerfile.lock)
 - silero-vad (wheel-bundled model, torch CPU) → `USE_SILERO_VAD=1`
+
+## Enterprise gate
+Operating loop chalao — Discover → Contract → Execute → Self-review → Evidence (`fable-operating-manual`).
+
+**Change-risk tier: ALWAYS High-risk.** Koi bhi naya model/embedding/VAD/STT asset = proven prod-down class (event-loop freeze, CPU 0%, health timeout — 2026-06-12 incident). Upar ke **4 rules hi is domain ki fail-CLOSED gate hain** (re-list nahi karta): (1) image-bake + bake-fail non-fatal · (2) off-loop load `asyncio.to_thread` + `wait_for` deadline · (3) hard deadline + process-level `_DISABLED` disable-switch · (4) disk-only health check (model load mat karo health me). Inme se ek bhi miss = sync init event loop par = dono uvicorn workers freeze = poora prod down.
+
+**Extra (is asset-domain ke liye):**
+- **Reliability:** heavy init = bounded `asyncio.wait_for(asyncio.to_thread(init), timeout=10-15s)`; timeout pe degrade, NEVER block. Orphan loader thread complete ho to singleton set = agla call fast.
+- **Disable-switch = rollback:** asset bekaar/hang → process-level `_DISABLED=True` (`knowledge_base._get_qdrant_embedder` pattern) instant degrade; aur turant recover = `docker restart leadgen_app`. Bake fail = `|| echo WARN` (image phir bhi bane, runtime fallback).
+- **Cost/quota:** torch chahiye to CPU wheels (`--index-url .../whl/cpu`) — CUDA torch ~2.5GB image bloat avoid.
+
+**Evidence (done):** `docker inspect leadgen_app --format '{{json .State.Health}}'` healthy (no timeout streak) + `py-spy dump --pid <worker>` (HOST se) ke stack me koi model/network init NAHI + disk-only check: bake-cache dir me `*.onnx` exists (Hermes `_check_embedder` jaisa) + pehli web-call WS bina freeze (`/health`=`environment:production`). Naya baked asset → "Current baked assets" list update karo.

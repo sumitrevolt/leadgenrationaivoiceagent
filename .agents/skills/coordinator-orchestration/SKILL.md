@@ -315,3 +315,16 @@ curl -X POST http://localhost:8000/api/agents/coordinate-engineering \
 curl -X GET http://localhost:8000/api/agents/roster -H "Authorization: Bearer $ADMIN_TOKEN"
 curl -X GET http://localhost:8000/api/agents/memory?limit=10 -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
+
+---
+
+## Enterprise gate (running a goal NOW)
+
+Run the operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Ad-hoc `execute=false` goal = **Standard tier**; `execute=true` (real tools fire) = **High-risk** — diff the draft, then authorize. Sab `/api/agents/*` routes `require_admin` + rate-limited (council 5/60).
+
+- **Draft-safe kill-switch:** ALWAYS start `execute=false` (plans + runs draft, real tools OFF). `execute=true` sirf draft verify ke baad. Executable agents = isha/dev/kavya/arjun/meera; **rohan(email) + swara(voice) draft-ONLY — never auto-send/dial** even on `execute=true` (compliance fail-closed; real sends only via gated auto_outreach caps / DLT-DND call queue).
+- **Bounded:** `max_steps`/`max_iterations` set karo; advanced mode max-3 iters early-stop on `quality_bar`; long goals = process-engine, not coordinator. free_ai chain fallback on provider 429 (no hang).
+- **Observability:** every run → `run_id` + `data/coordination_runs.jsonl` + `agent_events` → `/app/agents` Events. Verify the `summary` makes sense (Step 4) before acting on drafts.
+- **Idempotency:** drafts are side-effect-free; if you hand a draft to a real engine, that engine owns dedupe — don't re-fire the same goal expecting no duplicates.
+- **Rollback (NAMED):** drafts = nothing to undo (just discard). If a tool wrote (isha post / kavya ops), revert via that feature's flag/admin. No prod deploy here — this is runtime, not code.
+- **Evidence (done):** `ok:true` + coherent `summary` matching the goal; for any `execute=true` run, the executed agent's output verified human-readable. Council goals → Chairman verdict captured. No deploy/test gate (read/runtime), but a wrong-summary run = re-run advanced mode, don't ship the draft.
