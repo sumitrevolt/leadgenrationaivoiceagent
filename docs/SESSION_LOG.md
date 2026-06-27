@@ -1602,3 +1602,14 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
   - Default OFF = exactly current behaviour (whisper-base). Pure additive + flag-gated; rollback = `HINGLISH_STT` unset.
 - **Verification:** 6 unit tests `tests/test_hinglish_stt_select.py` PASS (model-select 4 + web-fallback 2), `scripts/prod_check.py` PASS (848 routes, 0 gaps, API docs in sync), vobiz/voice regression suite PASS 18/18, imports OK.
 - **Deploy baaki (Phase 3, EXPLICIT-AUTH):** VPS `docker compose build app` (model ~250MB download at build) + `.env` `HINGLISH_STT=1` + `up -d --no-deps app` + live web-call verify (roman output + acceptable latency).
+
+---
+
+## 2026-06-27 — Enterprise master-audit pass + Gemini SDK migration + public pricing fix (2 plans, Combo, yearly) — DEPLOYED LIVE
+
+**Trigger**: user ne enterprise master-audit mega-prompt diya (refined spec `docs/ENTERPRISE_MASTER_AUDIT_PROMPT_LEADGENAI.md`). Measure-first (memory `saas-infra-saturated`) — koi P0/P1 nahi; live `/api/activation/summary` = ready_for_first_paid_customer:true, 0 blockers/0 warns. prod_check + billing-truth + cross_path_audit + voice/MCP tests sab green; `/mcp` live 401-gated; Razorpay/Exotel sirf inert. 
+- **Gemini SDK migration (8e30588)**: deprecated `google-generativeai` → new `google.genai.Client` in `ai.py`/`vertex_client.py`/`llm_brain.py` (gemini-API paths). Vertex paths untouched; dono SDK lock me coexist (2.8.0 + 0.3.2) → `telecaller_brain.py`/`llm_probe.py` old SDK pe safe. Import-clean, extractors compatible.
+- **Pricing drift fix (a345ed7)**: CLAUDE.md/AGENTS.md/saas-pricing-strategy skills stale (1199/6999) → packages.py source-of-truth (1999/5999, yearly 19990/59990). Billing was always correct.
+- **Public = 2 plans + yearly (472084b)**: user-clarified "Growth plan nahi — sirf Main 1999 + Combo 5999". `/api/public/pay-info` was leaking Growth (`public:False`) via `get_packages()` → fixed to `get_public_packages()`. Landing pricing showed monthly only → yearly subline added (JS render + static Starter/Advanced). Growth stays internal hidden-legacy (backward-compat).
+- **Combo plan (8561658)**: 5999 `advanced` reframed Voice-only → "Combo — Marketing + AI Voice" (badge 🔥 COMBO, "Main plan ke saare marketing features included"). Key/price/yearly/500-min unchanged → billing-truth 9/9 green. (Overrides old CLAUDE.md "no bundle framing" — user explicit combo intent.)
+- **Verification + Deploy (LIVE)**: prod_check ALL PASSED (973 routes), billing-truth 9/9, secrets clean. VPS `git reset --hard origin/main` + `build app` + recreate → HEAD 8561658, health production. Live `/api/marketing/packages` + `/api/public/pay-info` = 2 plans, Combo name, yearly present. (Cursor ke Media Studio commits 8f67e3e/36f172e bhi same deploy me shipped.)
