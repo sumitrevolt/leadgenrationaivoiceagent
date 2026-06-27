@@ -293,9 +293,166 @@ def ugc_request(business_name: str) -> dict:
     ]}
 
 
+def nps_survey(business_name: str, niche: str) -> dict:
+    biz = (business_name or "Aapka Business").strip()
+    return {"sections": [
+        _sec("NPS question (0-10)", [
+            f"'{biz} ko ek dost/family ko recommend karne ke chances kitne hain? (0-10)'",
+            "9-10 = Promoter (review maango), 7-8 = Passive, 0-6 = Detractor (feedback lo + recover karo).",
+        ]),
+        _sec("CSAT quick survey (WhatsApp)", [
+            "1. Service kaisi lagi? 😍 / 🙂 / 😐 / 😞",
+            "2. Kya better ho sakta tha? (1 line)",
+            "3. Dobara aayenge? Haan/Nahi",
+        ]),
+        _sec("Tip", ["Survey chhota rakho (3 sawaal max) — zyada lamba = log chhod dete hain.",
+                     "Promoters ko turant Google review link bhejo."]),
+    ]}
+
+
+def whatsapp_catalog(business_name: str, niche: str) -> dict:
+    biz = (business_name or "Aapka Business").strip()
+    lbl = _label(niche)
+    return {"sections": [
+        _sec("WhatsApp product-discovery flow", [
+            f"Greeting: 'Namaste! {biz} me aapka swagat 🙏 Kya dhoondh rahe hain?'",
+            "Menu: '1️⃣ Services dekho  2️⃣ Price  3️⃣ Book karo  4️⃣ Baat karo'",
+            "Reply pe relevant info + photo + 'Order/Book karna hai? Haan bolo'",
+            "Close: UPI link ya booking confirm.",
+        ]),
+        _sec("Catalog text (WhatsApp Business catalog me daalo)", [
+            f"{lbl} Service A — short desc — ₹___",
+            f"{lbl} Service B — short desc — ₹___",
+            "Har item: clear photo + 1-line benefit + price.",
+        ]),
+        _sec("Tip", ["QR code shop counter + Insta bio pe lagao → seedha is WhatsApp pe le aao.",
+                     "Catalog + UPI link se customer chat me hi kharid le."]),
+    ]}
+
+
+def click_to_whatsapp_ad(business_name: str, niche: str, offer: str = "") -> dict:
+    biz = (business_name or "Aapka Business").strip()
+    lbl = _label(niche)
+    off = (offer or "special offer").strip()
+    return {"sections": [
+        _sec("Meta 'Click to WhatsApp' ad — Primary text", [
+            f"{lbl} ki tension? {biz} hai na! ✅ Quality service ✅ Sahi daam ✅ {off}. "
+            f"Abhi 'Send Message' dabaayein — WhatsApp pe turant reply milega. 📲",
+        ]),
+        _sec("Headlines (≤40 char)", [f"{biz} — {off}", f"WhatsApp karo, aaj hi!", f"Best {lbl} near you"]),
+        _sec("Setup tip", ["Meta Ads Manager → objective 'Engagement/Messages' → WhatsApp.",
+                          "CTA button: 'Send WhatsApp Message'. Budget chhota se shuru (₹150-300/din)."]),
+    ]}
+
+
+def sms_pack(business_name: str, niche: str, offer: str = "") -> dict:
+    biz = (business_name or "").strip()[:18] or "BIZ"
+    off = (offer or "special offer").strip()
+    return {"sections": [
+        _sec("SMS templates (≤160 char)", [
+            f"{biz}: {off} chal raha hai! Aaj hi visit/call karein. Reply STOP to opt out.",
+            f"{biz}: Aapka appointment kal hai. Confirm karein ya naya time batayein.",
+            f"{biz}: Service achhi lagi? Google par review dein - bahut madad hogi. Dhanyawad!",
+        ]),
+        _sec("⚠️ India DLT compliance (zaroori)", [
+            "Promotional SMS ke liye DLT registration + approved template chahiye.",
+            "Sender-ID (6-char) register karo. Bina DLT bulk SMS = block/penalty.",
+            "Calling/SMS window 9 AM-7 PM. Opt-out (STOP) hamesha do.",
+        ]),
+    ]}
+
+
+def aeo_checklist(business_name: str, niche: str) -> dict:
+    lbl = _label(niche)
+    return {"sections": [
+        _sec("Get found by AI (ChatGPT/Gemini/AI Overviews) — checklist", [
+            "☐ Website pe clear FAQ (sawaal-jawab format) — AI inhe pick karta hai",
+            "☐ FAQ schema (JSON-LD) lagao — Studio ka 'Schema Markup' use karo",
+            "☐ NAP (naam/address/phone) har jagah same rakho",
+            "☐ Google reviews badhao — AI trust-signal maanta hai",
+            f"☐ '{lbl} in [city]' jaise clear headings + plain-language answers",
+            "☐ llms.txt / clear content structure (AI crawlers ke liye)",
+        ]),
+        _sec("Kyun zaroori (2026)", [
+            "Log ab Google ke saath ChatGPT/Gemini se bhi 'best X near me' poochte hain.",
+            "Jo business AI ke answers me aata hai, wahi naye customer paata hai.",
+        ]),
+    ]}
+
+
+def loyalty_program(business_name: str, niche: str) -> dict:
+    biz = (business_name or "Aapka Business").strip()
+    return {"sections": [
+        _sec("Simple points/loyalty program design", [
+            "Har ₹100 kharch = 1 point. 50 points = ₹50 off (ya free item).",
+            "5th visit free / discount (punch-card style).",
+            "Birthday month me extra 2x points ya special gift.",
+            "Refer-a-friend: dono ko reward (referral kit use karo).",
+        ]),
+        _sec("Gamified WhatsApp idea", [
+            "'Spin & Win' — customer chat me 'SPIN' bheje, random offer mile (5%/10%/free add-on).",
+            "Scratch-card image bhejo with hidden code.",
+        ]),
+        _sec("Tip", [f"{biz} ka loyalty card digital rakho (WhatsApp pe points update bhejo) — repeat business 2x."]),
+    ]}
+
+
+def rank_check_guide(business_name: str, niche: str, city: str = "") -> dict:
+    lbl = _label(niche)
+    loc = city or "aapka sheher"
+    return {"sections": [
+        _sec("Apni Google rank khud check karo (free)", [
+            f"1. Incognito window kholo (logged-out, taaki personalized result na aaye).",
+            f"2. Search karo: '{lbl.lower()} near me' aur '{lbl.lower()} in {loc}'.",
+            "3. Dekho aap Map-pack (top 3) me ho ya nahi.",
+            "4. Apne area ke alag-alag points se search karo (DIY geo-grid) — rank badalta hai.",
+            "5. Hafte me ek baar check karo, screenshot rakho — improvement track ho.",
+        ]),
+        _sec("Upar aane ke liye", [
+            "GBP complete + verified + weekly photos.",
+            "Reviews badhao (sabse bada factor).",
+            "NAP consistent (Studio 'Listings' tool dekho).",
+        ]),
+    ]}
+
+
+def booking_link(business_name: str, niche: str) -> dict:
+    biz = (business_name or "Aapka Business").strip()
+    return {"sections": [
+        _sec("Booking setup options (free)", [
+            "Google Business Profile → 'Bookings' / 'Appointment' link add karo.",
+            "WhatsApp pe fixed message: 'Book karne ke liye time bhejo'.",
+            "Free tools: Google Calendar Appointment Schedule, Calendly free plan.",
+        ]),
+        _sec("Booking message templates", [
+            f"'{biz} me book karna hai? Bas apna naam + time bhej dein, main confirm kar deta hoon ✅'",
+            "'Available slots: aaj 4 PM / kal 11 AM / kal 5 PM — kaunsa theek hai?'",
+        ]),
+    ]}
+
+
+def newsletter_outline(business_name: str, niche: str) -> dict:
+    biz = (business_name or "Aapka Business").strip()
+    lbl = _label(niche)
+    return {"sections": [
+        _sec("Monthly email/WhatsApp newsletter outline", [
+            f"Subject: '{biz} — is mahine ki khaas baatein 🎉'",
+            "1. Ek warm greeting (1-2 line)",
+            "2. Is mahine ka offer / naya service",
+            f"3. Ek {lbl.lower()} tip (value do)",
+            "4. Customer review/photo highlight",
+            "5. CTA: 'Book/visit karein' + phone/WhatsApp",
+        ]),
+        _sec("Tip", ["Mahine me 1 baar bhejo (zyada = unsubscribe).",
+                     "Personal tone rakho, corporate nahi — local business ka charm yahi hai."]),
+    ]}
+
+
 __all__ = [
     "business_description", "brand_palette", "customer_avatar", "seasonal_offers",
     "local_event_campaign", "case_study", "grid_planner", "highlights",
     "voiceover_script", "youtube_metadata", "faq_page", "schema_markup",
     "conversion_tracking", "lost_lead_reason", "complaint_recovery", "ugc_request",
+    "nps_survey", "whatsapp_catalog", "click_to_whatsapp_ad", "sms_pack",
+    "aeo_checklist", "loyalty_program", "rank_check_guide", "booking_link", "newsletter_outline",
 ]
