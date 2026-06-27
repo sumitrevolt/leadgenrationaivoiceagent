@@ -1,7 +1,7 @@
 # PROJECT HANDOFF — LeadGenAI (leadgenrationaivoiceagent)
 
 > **Purpose:** Complete all-in-one handoff. Ek naya developer YA naya AI-agent isse padh ke poora project samajh sake aur takeover kar sake — product, tech, infra, deploy, blockers, legal, gotchas, sab.
-> **Generated:** 2026-06-20 · **Last updated:** 2026-06-24 — **Production Readiness Audit + Explorer Re-Sync GREEN (§28): 3 real drifts fixed (obsidian_sync node, content_distribute leaf, .kiro secret false-positive) → all 4 gates exit 0, explorer 73/73 engines, full report `docs/PRODUCTION_READINESS_AUDIT_2026_06_24.md`** · **Final Production Advancement Council GREEN (§27): measure-first gates clean (prod_check 792 routes / cross_path 0-gap), zero fabricated code, real lever = GTM** · **Explorer drift re-audit GREEN (§26): `live_eval` node wired + API.md re-synced** · **Marketing plan feature lists expanded** (Trial 11 · Starter 15 · Growth 18 · Advanced 14 — synced `packages.py` → `/pricing`, landing, handoff/SOP) · Flow Runner LIVE (§23) · UPI LIVE · Explorer GREEN (§21) · Source: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
+> **Generated:** 2026-06-20 · **Last updated:** 2026-06-27 — **Pricing re-sync (§2): public = 2 plans (AI Marketing Automation ₹1,999 + Combo ₹5,999), Growth = legacy hidden — verified live from `packages.py`; stale ₹1,199/₹6,999 corrected.** · **Root-cause audit 2026-06-27 (`docs/DIAGNOSTIC_ROOT_CAUSE_2026_06_27.md`): system healthy + wired + running (worker/scheduler Up, heartbeat fresh, 0 wiring gaps); "disconnected" feeling = source-of-truth drift, not a code break.** · 2026-06-24 — **Production Readiness Audit + Explorer Re-Sync GREEN (§28): 3 real drifts fixed (obsidian_sync node, content_distribute leaf, .kiro secret false-positive) → all 4 gates exit 0, explorer 73/73 engines, full report `docs/PRODUCTION_READINESS_AUDIT_2026_06_24.md`** · **Final Production Advancement Council GREEN (§27): measure-first gates clean (prod_check 792 routes / cross_path 0-gap), zero fabricated code, real lever = GTM** · **Explorer drift re-audit GREEN (§26): `live_eval` node wired + API.md re-synced** · **Marketing plan feature lists expanded** (Trial 11 · Starter 15 · Growth 18 · Advanced 14 — synced `packages.py` → `/pricing`, landing, handoff/SOP) · Flow Runner LIVE (§23) · UPI LIVE · Explorer GREEN (§21) · Source: `CLAUDE.md` + `docs/SESSION_LOG.md`. **Product-wise companion:** `docs/PRODUCT_HANDOFF_SOP.md`.
 > **Language:** Hinglish (project convention) — technical terms/commands/paths English me.
 
 ---
@@ -46,11 +46,13 @@ Full AI telecaller — outbound cold-calling, qualification, CRM push. **DLT-gat
 > **billing-truth RULE:** `app/marketing/packages.py` = SINGLE source of truth (`subscription._sync_plans_from_packages`). Pricing change = `packages.py` + `test_billing_truth_2026.py` SAATH update. Warna CI block.
 
 ### Product 1 — Marketing (`packages.py`, `/api/marketing/packages`)
-| Tier | Monthly | Yearly (2 months free = 10×) |
-|---|---|---|
-| Starter | ₹1,199 | ₹11,990 |
-| Growth | ₹2,999 | ₹29,990 |
-| Advanced | ₹6,999 (voice feature, 500 min/mo) | ₹69,990 |
+> **PUBLIC = sirf 2 plans** (current truth, verified 2026-06-27 from `packages.py`). **Growth = LEGACY hidden** (`public:False`, backward-compat only — public pricing me KABHI mat dikhao; `get_public_packages()` use karo, `get_packages()` nahi).
+
+| Plan (key) | Monthly | Yearly (2 months free = 10×) | Public? |
+|---|---|---|---|
+| **AI Marketing Automation** (`starter`) | ₹1,999 | ₹19,990 | ✅ public |
+| **Combo — Marketing + AI Voice** (`advanced`, 500 voice min/mo) | ₹5,999 | ₹59,990 | ✅ public |
+| Growth (`growth`) | ₹2,999 | ₹29,990 | ❌ legacy hidden |
 
 Top-up minute packs (`TOPUP_PACKS`): 100/250/500 min = ₹1,499 / ₹3,499 / ₹5,999.
 
@@ -66,10 +68,10 @@ Top-up minute packs (`TOPUP_PACKS`): 100/250/500 min = ₹1,499 / ₹3,499 / ₹
 - WhatsApp content — basic broadcast/status pack
 - Onboarding checklist — setup steps portal me
 - 1-click copy + WhatsApp share har post pe
-- Koi card/payment nahi — pasand aaye to Starter ₹1,199/mo se shuru
+- Koi card/payment nahi — pasand aaye to AI Marketing Automation ₹1,999/mo se shuru
 - Voice calling nahi (Advanced tier me AI callback milta hai)
 
-#### Marketing Starter — ₹1,199/mo (15 features, 100% marketing-only)
+#### AI Marketing Automation (`starter`) — ₹1,999/mo (15 features, 100% marketing-only)
 - Roz AI social posts — Hinglish caption + hashtags (39 niches)
 - Branded post frames — logo + business naam har post pe
 - Customer portal — roz ~7 baje content, 1-click WhatsApp/Insta share
@@ -86,7 +88,7 @@ Top-up minute packs (`TOPUP_PACKS`): 100/250/500 min = ₹1,499 / ₹3,499 / ₹
 - GST invoice download portal se
 - 100% marketing-only — koi calling charge / minute limit nahi
 
-#### Growth — ₹2,999/mo (18 features, Starter + growth stack)
+#### Growth — ₹2,999/mo (LEGACY hidden, `public:False` — public pricing me NA dikhe; 18 features, Starter + growth stack)
 - Starter ke saare features included
 - Unlimited posters + festival creatives
 - AI image generation + Complete Post one-shot (caption + hashtags + image)
@@ -106,8 +108,8 @@ Top-up minute packs (`TOPUP_PACKS`): 100/250/500 min = ₹1,499 / ₹3,499 / ₹
 - Monthly marketing report — kya chala, kya nahi, agla mahina kya karein
 - Customer 2FA + hot leads dashboard
 
-#### Advanced AI Agent — ₹6,999/mo (14 features, Growth + voice FEATURE)
-- Growth ke saare features included
+#### Combo — Marketing + AI Voice (`advanced`) — ₹5,999/mo (14 features, full marketing + voice FEATURE)
+- Saare marketing features included (Starter + Growth stack)
 - AI Voice Agent — har website/GBP inquiry ko ~2-minute me AI call (insaan jaisi Hindi awaaz)
 - Lead qualification — budget, timeline, interest score AI capture karta hai
 - Appointment booking — AI calendar slots offer + confirm karta hai

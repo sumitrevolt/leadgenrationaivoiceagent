@@ -1,6 +1,6 @@
 # System Architecture — LeadGenAI
 
-> **Updated:** 2026-06-20 · **Live:** https://leadsgenai.in · **Deep research:** `Architecture_Research_RAG_Agents_MCP.md`
+> **Updated:** 2026-06-27 · **Live:** https://leadsgenai.in · **Deep research:** `Architecture_Research_RAG_Agents_MCP.md` · **Runtime verified 2026-06-27:** worker + scheduler Up, Celery queue 0, heartbeat fresh (see `DIAGNOSTIC_ROOT_CAUSE_2026_06_27.md`)
 
 ---
 
@@ -110,7 +110,7 @@ Registry detail: [`AGENT_REGISTRY.md`](AGENT_REGISTRY.md)
 Outbound: CallManager → VobizClient.place_call → answer URL → vobiz_stream WS (L16/16k)
           → STT/LLM/TTS pipeline → post_call_hooks (billing + webhooks + qualify)
 
-Compliance (fail-CLOSED promotional): DND · 10am–7pm IST · AI disclosure · consent ledger
+Compliance (fail-CLOSED promotional): DND · 9am–7pm IST calling-window (TRAI actual 9am–9pm; code conservative) · AI disclosure · consent ledger
 International fallback: Twilio (India-domestic foreign trunk = ILLEGAL)
 ```
 
