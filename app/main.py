@@ -762,6 +762,12 @@ except Exception as _e:  # pragma: no cover
 app.include_router(ai_router, prefix="/api", tags=["AI"])
 app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /api/customer/*
 try:
+    from app.api.customer_marketing_studio import router as customer_studio_router
+
+    app.include_router(customer_studio_router)  # /api/customer/studio/* (AI marketing self-serve)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Customer marketing studio router not mounted: {_e}")
+try:
     from app.api.customer_flows import router as customer_flows_router
 
     app.include_router(customer_flows_router)  # /api/customer/flow* (Phase 7 per-client builder)
