@@ -19,19 +19,22 @@ def _marketing_start_price() -> str:
     return "₹1,999"
 
 
+# LEAN OPENER (2026-06-27): pehle intro ek hi segment me 4-5 ideas thunsta tha
+# (~45 shabd, ~20 sec bolne me) — "pitch lambi hai" user-feedback. Ab intro = sirf
+# identity + ek hook; price/trial pitch-segment me; ask chhota. Total ~90→~50 shabd
+# (telephony-cheap + caller bore na ho). AI-disclosure helper (ensure_ai_disclosure)
+# iske aage "Main ek AI assistant hoon." prepend karta — isliye yahan dobara mat likho.
 UNIVERSAL_AGENT_INTRO = (
     "Namaste! Leads Generation AI se bol rahi hoon — "
-    "aapke business ke liye Instagram, Facebook aur Google par demand lane ka kaam AI se. "
-    "2026 ka social marketing, agency jaisa kharcha nahi — "
-    "business grow karna mera kaam hai, FREE trial dekho, main best solution dhoondungi."
+    "aapke business ke liye Instagram, Facebook aur Google par AI se naye customers."
 )
 
 PITCH_SHORT = (
-    "Social posts, ads aur Google boost — sab AI se automatic, "
-    f"{_marketing_start_price()} mahine se, agency se sasta aur simple."
+    "Sab automatic — roz ke posts, ads aur Google boost; "
+    f"{_marketing_start_price()} mahine se, agency se sasta. 7 din FREE trial bhi."
 )
 
-INTEREST_ASK = "Agar yeh aapke growth ke kaam ka lage to interested hain — haan ya nahi?"
+INTEREST_ASK = "Aapke growth ke kaam ka lage to — interested hain?"
 
 
 def platform_opening_segments() -> list[str]:

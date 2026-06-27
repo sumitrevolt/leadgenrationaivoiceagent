@@ -6,11 +6,21 @@ from app.voice_agent.universal_pitch import UNIVERSAL_AGENT_INTRO
 
 
 def test_universal_intro_has_identity_and_cta():
+    # LEAN opener (2026-06-27): intro = identity + ek hook only (chhota). Price/trial
+    # ab PITCH_SHORT segment me — yahan intro me unhe assert NAHI karte (warna bloat
+    # wapas aa jaayega). Intro chhota rehna chahiye.
     t = UNIVERSAL_AGENT_INTRO.lower()
     assert "leads generation ai" in t
-    assert "grow karna" in t
-    assert "trial" in t
-    assert "best solution" in t
+    assert any(w in t for w in ("instagram", "facebook", "google", "customers"))
+    assert len(UNIVERSAL_AGENT_INTRO.split()) <= 26  # opener must stay short
+
+
+def test_pitch_short_carries_price_and_trial():
+    from app.voice_agent.universal_pitch import PITCH_SHORT
+
+    p = PITCH_SHORT.lower()
+    assert "1,999" in PITCH_SHORT or "1999" in PITCH_SHORT
+    assert "trial" in p
 
 
 def test_telecaller_platform_niche_opener_is_universal():
