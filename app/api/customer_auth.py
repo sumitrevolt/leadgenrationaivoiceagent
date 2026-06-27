@@ -17,7 +17,7 @@ import os
 import secrets
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
@@ -299,81 +299,35 @@ class SignupIn(BaseModel):
 
 
 @router.post("/signup", dependencies=[Depends(rate_limit("cust_signup", 5, 300)), Depends(verify_turnstile)])
-async def customer_signup(req: SignupIn):
-    """PUBLIC self-serve signup — naya client profile + login ek shot me (no admin).
+async def customer_signup(req: SignupIn, request: Request):
+    """MERGED (2026-06-27): self-serve signup ka SINGLE canonical implementation ab
+    `app.api.public_site.public_signup` hai. Pehle yeh ek DUPLICATE signup code-path tha
+    (do alag implementations — yeh wala lighter, public_site wala honeypot + anti-hijack +
+    IP rate-limit + referral/lifecycle/journey hooks ke saath). Ab yeh route backward-compat
+    ke liye zinda hai par usi ek implementation ko delegate karta — koi duplicate logic nahi.
 
-    Flow (har step defensive, signup kabhi 500 pe nahi girta):
-      1) Email already registered -> 409 (login karein).
-      2) clients_store me client profile auto-create (dedupe by phone/business name).
-      3) Login credential (email -> client_id) save (pbkdf2).
-      4) Default plan ke calling-minutes provision (activate_plan + reset_usage_period).
-      5) Customer JWT (role=customer) turant return -> frontend seedha portal me.
+    Result: /api/public/signup aur /api/customer/auth/signup ab IDENTICAL behave karte hain.
+    Call-time import = no module-level circular import (public_site bhi customer_auth ko
+    call-time pe hi import karta hai).
+
+    NOTE (audit #7): canonical public_signup abhi `activate_plan`/`reset_usage_period`
+    provision NAHI karta (yeh duplicate karta tha, par iska koi caller nahi tha). Woh
+    provisioning fix public_signup me alag se aayega jab public_site.py ka parallel-edit
+    settle ho jaye — taaki dono path consistently provision karein.
     """
-    email = (req.email or "").strip().lower()
-    if "@" not in email or "." not in email.rsplit("@", 1)[-1]:
-        raise HTTPException(status_code=422, detail="Valid email zaroori hai")
-    if _find(email):
-        raise HTTPException(status_code=409, detail="Email already registered — login karein")
+    from app.api.public_site import SignupIn as _PublicSignupIn
+    from app.api.public_site import public_signup
 
-    plan = (req.plan or "starter").strip().lower()
-    if plan not in _VALID_PLANS:
-        plan = "starter"
-
-    # 2) Client profile auto-create (clients_store dedupes by phone/name; never raises).
-    client_id = ""
-    business_name = (req.business_name or "").strip() or "Aapka Business"
-    try:
-        from app.marketing.clients_store import add_client
-
-        rec = add_client(
-            business_name=business_name,
-            niche=(req.niche or "general"),
-            city=(req.city or ""),
-            phone=(req.phone or ""),
-            plan=plan,
-        )
-        client_id = str((rec or {}).get("id") or "")
-        business_name = str((rec or {}).get("business_name") or business_name)
-    except Exception as e:  # pragma: no cover - defensive
-        logger.error(f"signup add_client failed: {e}")
-    if not client_id:
-        # Fallback id so signup still succeeds even if clients_store hiccups.
-        client_id = "c_" + secrets.token_hex(6)
-
-    # 3) Persist the login credential (email -> client_id).
-    rows = [r for r in _read() if r.get("email") != email]
-    rows.append(
-        {
-            "email": email,
-            "client_id": client_id,
-            "password_hash": _hash(req.password),
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "source": "self_serve_signup",
-        }
+    body = _PublicSignupIn(
+        business_name=req.business_name,
+        email=req.email,
+        password=req.password,
+        phone=req.phone or "",
+        niche=req.niche or "general",
+        city=req.city or "",
+        plan=req.plan or "starter",
     )
-    _write_all(rows)
-
-    # 4) Provision the plan's calling minutes (best-effort — never blocks signup).
-    try:
-        from app.billing import usage as _usage
-
-        _usage.activate_plan(client_id, plan)
-        _usage.reset_usage_period(client_id)
-    except Exception as e:  # pragma: no cover - defensive
-        logger.debug(f"signup provisioning skipped: {e}")
-
-    # 5) Issue a customer JWT immediately (auto-login after signup).
-    from app.api.admin import create_access_token
-
-    token = create_access_token(client_id, email, "customer")
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "client_id": client_id,
-        "business_name": business_name,
-        "plan": plan,
-        "minutes": _plan_minutes_safe(plan),
-    }
+    return await public_signup(body, request)
 
 
 @router.get("/me")
