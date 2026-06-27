@@ -235,6 +235,234 @@ def studio_gbp_tips(client_id: str = Depends(require_customer)) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Batch 2 — MVP-12 coverage (festival, poster, review-request, follow-ups,     #
+# reel, win-back, quote, next-best-action). All wrap existing generators.      #
+# --------------------------------------------------------------------------- #
+class FestivalReq(BaseModel):
+    days: int = Field(45, ge=7, le=120)
+
+
+class PosterReq(BaseModel):
+    template: str = Field("clean-pro", max_length=40)
+    tagline: str = Field("", max_length=120)
+    offer: str = Field("", max_length=160)
+    phone: str = Field("", max_length=40)
+    festival: str = Field("", max_length=60)
+
+
+class FollowupReq(BaseModel):
+    lead_type: str = Field("new_inquiry", max_length=40)
+
+
+class ReelReq(BaseModel):
+    topic: str = Field("", max_length=120)
+    n: int = Field(3, ge=1, le=6)
+
+
+class WinbackReq(BaseModel):
+    offer: str = Field("", max_length=200)
+    customers: list[dict] | None = Field(None, description="[{name,phone,last_visit?}]")
+
+
+class QuoteReq(BaseModel):
+    city: str = Field("", max_length=80)
+    plan: str = Field("growth", max_length=30)
+    avg_deal_value: float = Field(20000, ge=0, le=100000000)
+    missed_per_day: float = Field(5, ge=0, le=1000)
+
+
+@router.post("/festival-post", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_festival_post(req: FestivalReq = Body(default=FestivalReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Upcoming Indian festivals + ready captions for each (Diwali/Holi/Eid/Rakhi…)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import festivals
+
+        out = await festivals.festival_posts(business_name=c["business_name"], niche=c["niche"], days=req.days)
+    except Exception as e:
+        _fail("Festival Posts", e)
+    return {"ok": True, "tool": "festival-post", "result": out, "context": c}
+
+
+@router.post("/poster", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_poster(req: PosterReq = Body(default=PosterReq()), client_id: str = Depends(require_customer)) -> dict:
+    """1080x1080 SVG offer/festival poster with shop name + offer + phone (downloadable)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import posters
+
+        out = posters.generate_poster(
+            template_id=req.template, business_name=c["business_name"],
+            tagline=req.tagline, offer=req.offer, phone=req.phone, festival=req.festival,
+        )
+        templates = [t["id"] for t in posters.list_templates()]
+    except Exception as e:
+        _fail("Poster", e)
+    return {"ok": True, "tool": "poster", "result": out, "templates": templates, "context": c}
+
+
+@router.post("/review-request", dependencies=[Depends(_GEN_LIMIT)])
+def studio_review_request(client_id: str = Depends(require_customer)) -> dict:
+    """Happy-customer review-ask pack: WhatsApp/SMS message + Google review link (no LLM)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import review_kit
+
+        pack = review_kit.review_ask_pack(c["business_name"])
+        place_q = c["business_name"] + (f" {c['city']}" if c["city"] else "")
+        link = review_kit.review_link(place_q)
+    except Exception as e:
+        _fail("Review Request", e)
+    return {"ok": True, "tool": "review-request", "result": {"pack": pack, "link": link}, "context": c}
+
+
+@router.post("/followup-sequence", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_followup_sequence(req: FollowupReq = Body(default=FollowupReq()), client_id: str = Depends(require_customer)) -> dict:
+    """4-step WhatsApp follow-up drip (Day 1/3/7…) for a lead type."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import drip
+
+        out = await drip.drip_sequence(business_name=c["business_name"], niche=c["niche"], lead_type=req.lead_type)
+    except Exception as e:
+        _fail("Follow-up Sequence", e)
+    return {"ok": True, "tool": "followup-sequence", "result": out, "context": c}
+
+
+@router.post("/speed-followup", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_speed_followup(client_id: str = Depends(require_customer)) -> dict:
+    """Instant first-touch follow-up message to send a brand-new lead in <2 min."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import drip
+
+        seq = await drip.drip_sequence(business_name=c["business_name"], niche=c["niche"], lead_type="new_inquiry")
+        steps = (seq or {}).get("steps") or []
+        instant = steps[0] if steps else {"message": "Namaste! Aapki enquiry mili — main abhi aapse baat karta hoon. 🙏"}
+    except Exception as e:
+        _fail("Speed-to-Lead", e)
+    return {"ok": True, "tool": "speed-followup", "result": {"instant": instant}, "context": c}
+
+
+@router.post("/reel-script", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_reel_script(req: ReelReq = Body(default=ReelReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Instagram/Reels Hinglish scripts (hook/body/cta/caption/duration)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import reels
+
+        out = await reels.reels_scripts(business_name=c["business_name"], niche=c["niche"], topic=req.topic, n=req.n)
+    except Exception as e:
+        _fail("Reel Script", e)
+    return {"ok": True, "tool": "reel-script", "result": out, "context": c}
+
+
+@router.post("/win-back", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_win_back(req: WinbackReq = Body(default=WinbackReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Win-back / reactivation messages for old customers (+ wa.me links)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import reactivation
+
+        out = await reactivation.reactivation_campaign(
+            business_name=c["business_name"], niche=c["niche"], customers=req.customers, offer=req.offer,
+        )
+    except Exception as e:
+        _fail("Win-back", e)
+    return {"ok": True, "tool": "win-back", "result": out, "context": c}
+
+
+@router.post("/quote-draft", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_quote_draft(req: QuoteReq = Body(default=QuoteReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Personalized proposal / estimate draft with ROI (customer can send to a lead)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import proposal
+
+        out = await proposal.generate_proposal(
+            business_name=c["business_name"], niche=c["niche"], city=(req.city or c["city"]),
+            plan=req.plan, missed_per_day=req.missed_per_day, avg_deal_value=req.avg_deal_value,
+        )
+    except Exception as e:
+        _fail("Quote Draft", e)
+    return {"ok": True, "tool": "quote-draft", "result": out, "context": c}
+
+
+@router.get("/next-best-action")
+def studio_next_best_action(client_id: str = Depends(require_customer)) -> dict:
+    """"Aaj kya karna hai" — prioritized task list from the client's live signals.
+
+    PURE LOGIC (no LLM): reads leads / pending approvals / GBP score / content
+    queue and returns an ordered action list. Never-empty, never-raise.
+    """
+    c = _ctx(client_id)
+    actions: list[dict] = []
+
+    # 1) New uncalled leads -> highest priority (paisa yahin)
+    try:
+        from app.api.customer_dashboard_builders import _inquiries_for_client
+
+        leads = _inquiries_for_client(client_id) or []
+        n_leads = len(leads)
+        if n_leads:
+            actions.append({"priority": 1, "icon": "🔥", "action": f"{n_leads} naye lead ko abhi call/WhatsApp karo",
+                            "why": "2 minute me follow-up karne se 5x zyada deal lagti hai.", "target": "leadsCard"})
+    except Exception as e:
+        logger.debug("nba leads failed: %s", e)
+
+    # 2) Pending content approvals
+    try:
+        from app.marketing import content_approval
+
+        pend = content_approval.pending(client_id) if hasattr(content_approval, "pending") else []
+        if pend:
+            actions.append({"priority": 2, "icon": "✅", "action": f"{len(pend)} post approve karo",
+                            "why": "Approve karte hi system publish/schedule kar dega.", "target": "approvalCard"})
+    except Exception as e:
+        logger.debug("nba approvals failed: %s", e)
+
+    # 3) GBP score — low or missing -> audit/fix
+    try:
+        import json as _json
+        import os as _os
+
+        from app.api.customer_dashboard_builders import _safe_cid
+
+        fp = _os.path.join("data", "gbp_audits", _safe_cid(client_id) + ".json")
+        score = None
+        if _os.path.exists(fp):
+            with open(fp, encoding="utf-8") as fh:
+                score = (_json.load(fh) or {}).get("score")
+        if score is None:
+            actions.append({"priority": 3, "icon": "🏪", "action": "Google Business audit karo (2 min)",
+                            "why": "Score pata chalega + top-5 fix milenge — Google par upar aane ke liye.", "target": "studioCard"})
+        elif isinstance(score, (int, float)) and score < 70:
+            actions.append({"priority": 2, "icon": "🏪", "action": f"GBP score {int(score)}/100 — fixes lagao",
+                            "why": "70+ profile zyada calls + direction requests laata hai.", "target": "studioCard"})
+    except Exception as e:
+        logger.debug("nba gbp failed: %s", e)
+
+    # 4) Content freshness
+    try:
+        from app.api.customer_dashboard_builders import _content_posts_count
+
+        rec = _client_record(client_id) or {}
+        rid = str(rec.get("id") or client_id)
+        if _content_posts_count(rid) == 0:
+            actions.append({"priority": 3, "icon": "📝", "action": "Aaj ka post banao + share karo",
+                            "why": "Regular posting se reach + trust dono badhte hain.", "target": "studioCard"})
+    except Exception as e:
+        logger.debug("nba content failed: %s", e)
+
+    # 5) Always-on growth nudge
+    actions.append({"priority": 4, "icon": "⭐", "action": "Khush customers ko review request bhejo",
+                    "why": "Naye reviews = ranking + naye customers ka trust.", "target": "studioCard"})
+
+    actions.sort(key=lambda a: a.get("priority", 9))
+    return {"ok": True, "tool": "next-best-action", "actions": actions, "count": len(actions), "context": c}
+
+
+# --------------------------------------------------------------------------- #
 # Capability list — drives the UI cards (so frontend stays in sync)            #
 # --------------------------------------------------------------------------- #
 _TOOLS = [
@@ -246,6 +474,15 @@ _TOOLS = [
     {"key": "ads", "icon": "📣", "title": "Ad Copy Pack", "desc": "Google + Meta ad headlines", "method": "POST", "path": "/api/customer/studio/ads", "fields": ["offer", "city"]},
     {"key": "hashtags", "icon": "#️⃣", "title": "Hashtag Research", "desc": "Niche ke best hashtags", "method": "POST", "path": "/api/customer/studio/hashtags", "fields": ["count", "city"]},
     {"key": "gbp-tips", "icon": "📈", "title": "GBP Growth Tips", "desc": "Google ranking tips (free)", "method": "GET", "path": "/api/customer/studio/gbp-tips", "fields": []},
+    {"key": "festival-post", "icon": "🪔", "title": "Festival Posts", "desc": "Diwali/Holi/Eid auto captions", "method": "POST", "path": "/api/customer/studio/festival-post", "fields": ["days"]},
+    {"key": "poster", "icon": "🖼️", "title": "Offer Poster", "desc": "Shop naam + offer + phone poster", "method": "POST", "path": "/api/customer/studio/poster", "fields": ["offer", "phone", "tagline"]},
+    {"key": "review-request", "icon": "🙏", "title": "Review Request", "desc": "Review maangne ka message + link", "method": "POST", "path": "/api/customer/studio/review-request", "fields": []},
+    {"key": "followup-sequence", "icon": "🔁", "title": "Follow-up Sequence", "desc": "Day 1/3/7 WhatsApp drip", "method": "POST", "path": "/api/customer/studio/followup-sequence", "fields": ["lead_type"]},
+    {"key": "speed-followup", "icon": "⚡", "title": "Speed-to-Lead Reply", "desc": "Naye lead ka instant message", "method": "POST", "path": "/api/customer/studio/speed-followup", "fields": []},
+    {"key": "reel-script", "icon": "🎬", "title": "Reel Script", "desc": "Instagram reel ka 15-30s script", "method": "POST", "path": "/api/customer/studio/reel-script", "fields": ["topic", "n"]},
+    {"key": "win-back", "icon": "💌", "title": "Win-back Campaign", "desc": "Purane customers ko offer", "method": "POST", "path": "/api/customer/studio/win-back", "fields": ["offer"]},
+    {"key": "quote-draft", "icon": "🧾", "title": "Quote / Estimate", "desc": "Inquiry se price quote draft", "method": "POST", "path": "/api/customer/studio/quote-draft", "fields": ["avg_deal_value"]},
+    {"key": "next-best-action", "icon": "🎯", "title": "Next Best Action", "desc": "Aaj kya karna hai — task list", "method": "GET", "path": "/api/customer/studio/next-best-action", "fields": []},
 ]
 
 

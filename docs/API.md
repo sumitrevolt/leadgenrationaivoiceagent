@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (889 operations)
+## Endpoint Index — auto-generated from OpenAPI (898 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -683,17 +683,26 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
 - `GET   ` `/api/customer/flows` — Cf List
 
-### Customer Marketing Studio  (9)
+### Customer Marketing Studio  (18)
 
 - `POST  ` `/api/customer/studio/ads` — Studio Ads
 - `POST  ` `/api/customer/studio/calendar` — Studio Calendar
+- `POST  ` `/api/customer/studio/festival-post` — Studio Festival Post
+- `POST  ` `/api/customer/studio/followup-sequence` — Studio Followup Sequence
 - `POST  ` `/api/customer/studio/gbp-text` — Studio Gbp Text
 - `GET   ` `/api/customer/studio/gbp-tips` — Studio Gbp Tips
 - `POST  ` `/api/customer/studio/hashtags` — Studio Hashtags
+- `GET   ` `/api/customer/studio/next-best-action` — Studio Next Best Action
 - `POST  ` `/api/customer/studio/post` — Studio Post
+- `POST  ` `/api/customer/studio/poster` — Studio Poster
+- `POST  ` `/api/customer/studio/quote-draft` — Studio Quote Draft
+- `POST  ` `/api/customer/studio/reel-script` — Studio Reel Script
 - `POST  ` `/api/customer/studio/review-reply` — Studio Review Reply
+- `POST  ` `/api/customer/studio/review-request` — Studio Review Request
+- `POST  ` `/api/customer/studio/speed-followup` — Studio Speed Followup
 - `GET   ` `/api/customer/studio/tools` — Studio Tools
 - `POST  ` `/api/customer/studio/whatsapp` — Studio Whatsapp
+- `POST  ` `/api/customer/studio/win-back` — Studio Win Back
 
 ### Customer Portal  (11)
 
