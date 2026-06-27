@@ -28,6 +28,28 @@
 | `voice-roles` | Swara / Ananya / Riya |
 | `executive-council` | ROI roadmap · competitive · moat (Phases 1–6, NOT repo audit) |
 
+## Enterprise Audit Pack (13) — installed 2026-06-27
+
+> Hardening/audit playbooks (`leadgen-*`). Generic enterprise checks + **repo-specific paths/routes/flags baked in** + cross-linked to existing domain skill (duplicate nahi). P1 Marketing first; P2 voice readiness/compliance only. Each returns: scope → evidence → blockers → files → fix-order → tests → rollback → **readiness /100**.
+
+**Run order (P1 first):**
+
+| # | Enterprise skill | Audits | Related existing skill (don't dup) |
+|---|------------------|--------|-------------------------------------|
+| 1 | `leadgen-revenue-readiness` | P1 sellable path, `/api/activation/readiness` | `production-ready`, `revops` |
+| 2 | `leadgen-product-truth` | pricing/plan single-source `packages.py` | `product-split-adr`, `pricing`, `duplicate-route-guard` |
+| 3 | `leadgen-customer-journey-e2e` | landing→pay→onboard→output click-through | `onboarding`, `fde-onboard`, `verify-ship` |
+| 4 | `leadgen-billing-upi` | manual UPI/approval/invoice/entitlement | `pricing`, `revops` |
+| 5 | `leadgen-lead-pipeline-quality` | scrape/dedupe/score/triage, ban-risk | `pipeline-hygiene`, `prospecting` |
+| 6 | `leadgen-email-deliverability` | SMTP caps/warmup/fail-fast/opt-out | `cold-email`, `cold-email-craft` |
+| 7 | `leadgen-automation-reliability` | Celery durable/DLQ/idempotency/boot-grace | `automation-pipeline`, `automation-flags`, `scheduler-job` |
+| 8 | `leadgen-infra-doctor` | VPS Docker/Caddy/PgBouncer/health root-cause | `hostinger-deploy`, `leadgen-ops`, `observability-ops` |
+| 9 | `leadgen-observability` | product/revenue/journey signals + Sentry/OTel | `observability-ops`, `genai-observability` |
+| 10 | `leadgen-security-rbac` | auth/IDOR/tenant/webhook-sig/secrets/PII | `backend-rbac`, `team-access-ops`, `llm-security` |
+| 11 | `leadgen-voice-compliance` | P2 DLT/DND/consent/window gates (gate INTACT) | `voice-agent-kb`, `telephony-engineering`, `voice-roles` |
+| 12 | `leadgen-test-guardian` | risk-matched coverage, `prod_check`+`run_tests` | `test-driven-development`, `verify-ship` |
+| 13 | `leadgen-repo-learning-governance` | OSS pattern-extract, license-safe, native plan | `memory-vault`, `self-improve-control` |
+
 ## Cursor built-in → Claude repo skill
 
 | Cursor (`~/.cursor/skills-cursor/`) | Claude (repo) | Notes |
