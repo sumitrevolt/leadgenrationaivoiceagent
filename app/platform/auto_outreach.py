@@ -631,6 +631,15 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                         subject, text, html_body = apply_ab(p, subject, text, html_body)
                 except Exception:
                     pass
+                try:  # email open/click tracking (GATED EMAIL_TRACKING=1; OFF = zero change)
+                    from app.marketing import email_tracking
+
+                    if email_tracking.enabled():
+                        html_body = email_tracking.instrument(
+                            html_body, str(pid), campaign="cold_email"
+                        )
+                except Exception:
+                    pass
                 try:  # mailbox rotation (env OUTREACH_MAILBOXES JSON; absent = no-op)
                     from app.marketing.outreach_variants import rotate_sender
 

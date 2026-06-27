@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (973 operations)
+## Endpoint Index — auto-generated from OpenAPI (985 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -770,6 +770,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/studio/win-back` — Studio Win Back
 - `POST  ` `/api/customer/studio/youtube-metadata` — Studio Youtube Metadata
 
+### Customer Pipeline  (1)
+
+- `GET   ` `/api/customer/pipeline` — Customer Pipeline
+
 ### Customer Portal  (11)
 
 - `POST  ` `/api/customer/auth/login` — Customer Login
@@ -835,6 +839,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/data/reports` — Generate Report
 - `GET   ` `/api/data/usage` — Get Usage Stats
 
+### Email Tracking  (3)
+
+- `GET   ` `/api/admin/email-tracking/stats` — Email Tracking Stats
+- `GET   ` `/t/c/{token}` — Track Click
+- `GET   ` `/t/o/{token}` — Track Open
+
 ### EngAgents  (6)
 
 - `POST  ` `/api/agents-ext/checkpoint` — Checkpoint Create
@@ -860,7 +870,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (52)
+### Frontend  (54)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
@@ -878,6 +888,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/customer` — Customer Dashboard Page
 - `GET   ` `/app/customer/flows` — Customer Flows Page
 - `GET   ` `/app/customer/marketing` — Customer Marketing Page
+- `GET   ` `/app/customer/pipeline` — Customer Pipeline Page
 - `GET   ` `/app/customer/voice` — Customer Voice Page
 - `GET   ` `/app/dashboards` — Dashboards Page
 - `GET   ` `/app/deals` — Deals Page
@@ -893,6 +904,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/onboard` — Onboard Page
 - `GET   ` `/app/ops` — Ops Page
 - `GET   ` `/app/outreach` — Outreach Page
+- `GET   ` `/app/segments` — Segments Page
 - `GET   ` `/app/studio` — Studio Page
 - `GET   ` `/app/team` — Team Dashboard Page
 - `GET   ` `/app/team-access` — Team Access Page
@@ -1419,6 +1431,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/seoops/rank/config` — Rank Config
 - `GET   ` `/api/seoops/rank/history` — Rank History
 - `POST  ` `/api/seoops/rank/run` — Rank Run
+
+### Segments  (6)
+
+- `GET   ` `/api/segments` — List Segments
+- `POST  ` `/api/segments` — Create Segment
+- `GET   ` `/api/segments/_meta` — Segments Meta
+- `DELETE` `/api/segments/{segment_id}` — Delete Segment
+- `GET   ` `/api/segments/{segment_id}` — Get Segment
+- `GET   ` `/api/segments/{segment_id}/preview` — Preview Segment
 
 ### Team  (12)
 
