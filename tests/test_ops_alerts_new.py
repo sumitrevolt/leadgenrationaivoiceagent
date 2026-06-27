@@ -1,0 +1,113 @@
+"""Tests for the two new ops_alerts helpers (payment-failed + SMTP-disabled).
+
+Mirrors the existing module contract:
+- No-op (never raises, no fire) when ntfy unconfigured / OPS_ALERTS unset.
+- Fires the underlying `_ntfy` when OPS_ALERTS=1 (cooldown bypassed via
+  monkeypatch so the disk state ledger doesn't suppress the second test).
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from app.platform import ops_alerts
+
+
+# --------------------------------------------------------------------------- #
+# (a) No-op when ntfy / OPS_ALERTS unconfigured — must never raise, must not fire.
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "helper",
+    [ops_alerts.maybe_alert_payment_failed, ops_alerts.maybe_alert_smtp_disabled],
+)
+def test_helper_noop_when_unconfigured(helper, monkeypatch):
+    # OPS_ALERTS unset -> enabled() is False -> inert.
+    monkeypatch.delenv("OPS_ALERTS", raising=False)
+
+    # If anything tried to push, fail loudly — it must NOT in the disabled path.
+    def _boom(*_a, **_kw):  # pragma: no cover - asserts non-call
+        raise AssertionError("_ntfy must not be called when OPS_ALERTS is unset")
+
+    monkeypatch.setattr(ops_alerts, "_ntfy", _boom)
+
+    # Never raises, returns the disabled sentinel.
+    res = helper("some detail")
+    assert res == {"alerted": False, "reason": "disabled"}
+
+
+def test_helpers_noop_even_with_ntfy_env_but_flag_off(monkeypatch):
+    """Even if NTFY_* are set, the OPS_ALERTS master gate keeps it inert."""
+    monkeypatch.delenv("OPS_ALERTS", raising=False)
+    monkeypatch.setenv("NTFY_URL", "http://ntfy:80")
+    monkeypatch.setenv("NTFY_TOPIC", "leadgen")
+
+    monkeypatch.setattr(
+        ops_alerts,
+        "_ntfy",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not fire")),
+    )
+
+    assert ops_alerts.maybe_alert_payment_failed("x")["alerted"] is False
+    assert ops_alerts.maybe_alert_smtp_disabled("x")["alerted"] is False
+
+
+# --------------------------------------------------------------------------- #
+# (b) Fires _ntfy when configured (OPS_ALERTS=1) + cooldown bypassed.
+# --------------------------------------------------------------------------- #
+def _recorder(monkeypatch):
+    """Enable OPS_ALERTS, bypass cooldown + disk writes, capture _ntfy calls."""
+    monkeypatch.setenv("OPS_ALERTS", "1")
+    monkeypatch.setattr(ops_alerts, "_cooldown_active", lambda *a, **k: False)
+    monkeypatch.setattr(ops_alerts, "_record_fire", lambda *a, **k: None)
+    calls: list[tuple] = []
+    monkeypatch.setattr(
+        ops_alerts,
+        "_ntfy",
+        lambda title, message, **kw: calls.append((title, message, kw)),
+    )
+    return calls
+
+
+def test_payment_failed_fires_ntfy_when_enabled(monkeypatch):
+    calls = _recorder(monkeypatch)
+
+    res = ops_alerts.maybe_alert_payment_failed("card declined 4001")
+
+    assert res == {"alerted": True}
+    assert len(calls) == 1
+    title, message, _kw = calls[0]
+    assert "Payment failed" in title
+    assert "card declined 4001" in message
+
+
+def test_smtp_disabled_fires_ntfy_when_enabled(monkeypatch):
+    calls = _recorder(monkeypatch)
+
+    res = ops_alerts.maybe_alert_smtp_disabled("554 Disabled by user")
+
+    assert res == {"alerted": True}
+    assert len(calls) == 1
+    title, message, _kw = calls[0]
+    assert "SMTP" in title
+    assert "554 Disabled by user" in message
+
+
+def test_helpers_respect_cooldown(monkeypatch):
+    """When cooldown is active, no fire even with OPS_ALERTS=1."""
+    monkeypatch.setenv("OPS_ALERTS", "1")
+    monkeypatch.setattr(ops_alerts, "_cooldown_active", lambda *a, **k: True)
+    monkeypatch.setattr(ops_alerts, "_record_fire", lambda *a, **k: None)
+
+    def _boom(*_a, **_kw):  # pragma: no cover - asserts non-call
+        raise AssertionError("_ntfy must not fire while cooldown active")
+
+    monkeypatch.setattr(ops_alerts, "_ntfy", _boom)
+
+    assert ops_alerts.maybe_alert_payment_failed("x") == {
+        "alerted": False,
+        "reason": "cooldown",
+    }
+    assert ops_alerts.maybe_alert_smtp_disabled("x") == {
+        "alerted": False,
+        "reason": "cooldown",
+    }

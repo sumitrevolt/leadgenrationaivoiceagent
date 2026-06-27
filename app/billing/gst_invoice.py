@@ -5,7 +5,7 @@ Research (Rule 46 CGST, June 2026): unique sequential number ≤16 chars per FY
 inter-state = IGST 18%. GST registration sirf >₹20L services turnover pe
 mandatory — tab tak GSTIN unset rakho aur invoice BINA tax-lines banta hai
 ("GST not applicable — unregistered"). E-invoicing IRP threshold ₹5Cr — irrelevant.
-Schema Crater (AGPL, ~7k★) ke invoice model se thin-port kiya (PHP embed nahi).
+GST invoice fields per CGST Rule-46 (statutory mandatory fields — public-domain schema, clean-room implementation).
 
 Design:
   - Store: data/invoices.jsonl (append; numbering = FY-count+1, file_lock atomic).

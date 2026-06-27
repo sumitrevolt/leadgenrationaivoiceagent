@@ -74,15 +74,79 @@ def _notify_admin(record: dict) -> None:
         logger.debug("upi_payments admin notify skipped: %s", e)
 
 
+def _valid_plan_keys() -> set[str]:
+    """Canonical set of activatable plan keys (lowercased). Never raises.
+
+    Built from the pure-data pricing source-of-truth modules (import-safe, no DB):
+      - marketing packages incl. FREE trial  → {trial, starter, growth, advanced}
+      - voice product plan ids               → VOICE_PLAN_IDS (7)
+      - combo product plan ids               → COMBO_PLAN_IDS (7)
+    NB: ``subscription.PRICING_PLANS`` is NOT used — those marketing/voice/combo keys
+    are injected at RUNTIME by billing_manager sync (not at import), so it would be
+    empty/partial here. Each source is unioned best-effort so a missing/broken module
+    never breaks validation (the others still gate). Empty set only if ALL fail.
+    """
+    keys: set[str] = set()
+    try:
+        from app.marketing.packages import get_packages
+
+        for p in get_packages(include_trial=True) or []:
+            k = str((p or {}).get("key") or "").strip().lower()
+            if k:
+                keys.add(k)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upi_payments valid-keys packages skipped: %s", e)
+    try:
+        from app.marketing.voice_packages import VOICE_PLAN_IDS
+
+        keys.update(str(k).strip().lower() for k in (VOICE_PLAN_IDS or []) if k)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upi_payments valid-keys voice skipped: %s", e)
+    try:
+        from app.marketing.combo_packages import COMBO_PLAN_IDS
+
+        keys.update(str(k).strip().lower() for k in (COMBO_PLAN_IDS or []) if k)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upi_payments valid-keys combo skipped: %s", e)
+    return keys
+
+
 def _try_activate(client_id: str, plan: str) -> bool:
-    """Best-effort plan activation. Never raises — returns activation success bool."""
+    """Best-effort plan activation. Never raises — returns activation success bool.
+
+    Validates the plan against the canonical activatable set BEFORE provisioning so a
+    typo/retired/unknown plan can never silently activate (record stays pending). On a
+    successful activation also drops the renewal usage watermark (parity with the
+    Stripe webhook path) so a renew/upgrade zeroes the minute counter for the period.
+    """
     cid = (client_id or "").strip()
     if not cid:
+        return False
+    plan_k = (plan or "").strip().lower()
+    if not plan_k:
+        return False
+    valid = _valid_plan_keys()
+    # Only reject when we actually have a known set to check against; if every pricing
+    # source failed to import (valid == empty) we don't block legitimate activation.
+    if valid and plan_k not in valid:
+        logger.warning(
+            "upi_payments activation REJECTED — unknown plan %r (not in %d known plans)",
+            plan,
+            len(valid),
+        )
         return False
     try:
         from app.billing import usage
 
-        return bool(usage.activate_plan(cid, plan))
+        if not bool(usage.activate_plan(cid, plan)):
+            return False
+        # Parity with Stripe path: reset the metered-usage watermark on activation so a
+        # renewal/upgrade zeroes the minute counter. Best-effort — never raises.
+        try:
+            usage.reset_usage_period(cid)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("upi_payments reset_usage_period skipped: %s", e)
+        return True
     except Exception as e:
         logger.debug("upi_payments activate skipped: %s", e)
         return False
@@ -202,6 +266,18 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
                 # Activation succeeded → front-run onboarding (KB seed + first content
                 # pack) instead of waiting for the hourly sweep.
                 _trigger_onboarding()
+            else:
+                # Approved but activation did NOT succeed (unknown plan / activation
+                # error) → revenue-critical SILENT failure: alert ops (best-effort).
+                try:
+                    from app.platform import ops_alerts
+
+                    ops_alerts.maybe_alert_payment_failed(
+                        f"UPI approve activation FAILED — client={record.get('client_id')} "
+                        f"plan={record.get('plan')} pid={pid}"
+                    )
+                except Exception:
+                    pass
 
         _write_store(rows)
         return record

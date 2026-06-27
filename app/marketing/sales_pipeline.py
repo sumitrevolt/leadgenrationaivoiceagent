@@ -35,7 +35,42 @@ STAGES = [
     "won",
     "lost",
 ]
+
+# Forward-only progress rank (data-integrity guard). The early-funnel stages
+# new/contacted/interested are interchangeable ENTRY-LEVEL (same rank 0) — a lead
+# can be "interested" before it is operationally "contacted", so moving between
+# them is NOT a downgrade. Only a clearly-advanced deal (demo_sent and beyond,
+# esp. negotiating/won) being pulled back to an earlier rank is a silent
+# overwrite (e.g. a re-classified reply yanking a WON deal to interested).
+# `lost` is a terminal sink that is ALWAYS allowed (marking a deal lost/churned
+# is an intentional decision, never a silent reclassification artifact).
+_STAGE_RANK = {
+    "new": 0,
+    "contacted": 0,
+    "interested": 0,
+    "demo_sent": 1,
+    "proposal_sent": 2,
+    "negotiating": 3,
+    "won": 4,
+    "lost": 0,
+}
 BASE = "https://leadsgenai.in"
+
+
+def _is_downgrade(current: str | None, new_stage: str) -> bool:
+    """True if new_stage would pull an existing deal BACKWARD (silent overwrite).
+
+    Never raises. `lost` and unknown/missing stages are treated as non-downgrade
+    so the guard only ever blocks an unambiguous backward move.
+    """
+    try:
+        if not current or current == new_stage:
+            return False
+        if new_stage == "lost":  # terminal sink — always allowed
+            return False
+        return _STAGE_RANK.get(new_stage, 0) < _STAGE_RANK.get(current, 0)
+    except Exception:
+        return False
 
 
 def _now() -> str:
@@ -91,7 +126,9 @@ def upsert_deal(lead: dict[str, Any], stage: str = "interested") -> dict[str, An
     rows = _read(_DEALS)
     for r in rows:
         if (phone and r.get("phone") == phone) or (email and r.get("email") == email):
-            if stage and stage in STAGES:
+            # Forward-only: never let a re-upsert (e.g. a re-classified "interested"
+            # reply) silently pull an already-advanced deal (won/negotiating) back.
+            if stage and stage in STAGES and not _is_downgrade(r.get("stage"), stage):
                 r["stage"] = stage
                 r["updated_at"] = _now()
             _write_all(_DEALS, rows)
@@ -112,17 +149,32 @@ def upsert_deal(lead: dict[str, Any], stage: str = "interested") -> dict[str, An
     return rec
 
 
-def set_stage(deal_id: str, stage: str) -> bool:
+def set_stage(deal_id: str, stage: str, allow_reverse: bool = False) -> bool:
+    """Set a deal's stage. Forward-only by default — a backward move (e.g. a
+    re-classified reply pulling a won/negotiating deal back to interested) is
+    BLOCKED as a silent overwrite: the current stage is kept and the no-op still
+    returns True (deal found). Pass allow_reverse=True for an explicit/admin
+    downgrade. Invalid stage → False; deal not found → False. Never raises.
+    """
     if stage not in STAGES:
         return False
     rows = _read(_DEALS)
     hit = False
+    changed = False
     for r in rows:
         if r.get("id") == deal_id:
+            hit = True
+            current = r.get("stage")
+            if not allow_reverse and _is_downgrade(current, stage):
+                logger.warning(
+                    f"[sales] blocked backward stage move deal={deal_id} "
+                    f"{current} -> {stage} (keeping {current}; pass allow_reverse=True to force)"
+                )
+                continue  # keep current stage — no silent downgrade
             r["stage"] = stage
             r["updated_at"] = _now()
-            hit = True
-    if hit:
+            changed = True
+    if changed:
         _write_all(_DEALS, rows)
     return hit
 

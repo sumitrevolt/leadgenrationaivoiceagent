@@ -48,6 +48,8 @@ _COOLDOWN = {
     "readiness_digest": 20 * 3600,  # at most one daily-style digest per 20h
     "webhook_dead_letter": 6 * 3600,  # at most one per webhook per 6h (L.3)
     "compliance_disabled": 1 * 3600,  # legal kill-switch page, at most one per 1h
+    "payment_failed": 1 * 3600,  # payment-failure page, at most one per 1h
+    "smtp_disabled": 2 * 3600,  # SMTP account-block page, at most one per 2h
 }
 
 # Thresholds — override via env if the operator wants tighter/looser.
@@ -307,10 +309,62 @@ def maybe_alert_webhook_dead_letter(webhook_id: str, client_id: str, url: str) -
     return {"alerted": True, "consecutive_failures": n}
 
 
+# --------------------------------------------------------------------------- #
+# Alert 5 — payment failed (revenue signal)
+# --------------------------------------------------------------------------- #
+def maybe_alert_payment_failed(detail: str = "") -> dict[str, Any]:
+    """Push ntfy when a payment attempt fails (gateway error, declined card,
+    UPI verification failure, dunning charge bounce).
+
+    Cooldown'd so a retry-storm on a single failing card can't spam the channel.
+    OPS_ALERTS-gated + never raises (the call-site's own log is the always-on
+    path). The call-site is wired by the billing/payment task.
+    """
+    if not enabled():
+        return {"alerted": False, "reason": "disabled"}
+    key = "payment_failed"
+    if _cooldown_active(key, "payment_failed"):
+        return {"alerted": False, "reason": "cooldown"}
+    title = "💳 Payment failed"
+    body = ("A payment attempt failed — check the billing logs. " + (detail or ""))[:480]
+    _ntfy(title, body, priority="high", tags=["credit_card", "billing"])
+    _record_fire(key)
+    return {"alerted": True}
+
+
+# --------------------------------------------------------------------------- #
+# Alert 6 — SMTP account disabled / email outreach blocked
+# --------------------------------------------------------------------------- #
+def maybe_alert_smtp_disabled(detail: str = "") -> dict[str, Any]:
+    """Push ntfy when the SMTP account is disabled (e.g. Hostinger 554
+    "Disabled by user") — every automated/outreach email is now blocked, a
+    silent revenue/deliverability killer.
+
+    Cooldown'd so a send-burst against the dead account can't spam the channel.
+    OPS_ALERTS-gated + never raises (email_sender's own log/re-raise is the
+    always-on path; this alert only sits beside it).
+    """
+    if not enabled():
+        return {"alerted": False, "reason": "disabled"}
+    key = "smtp_disabled"
+    if _cooldown_active(key, "smtp_disabled"):
+        return {"alerted": False, "reason": "cooldown"}
+    title = "📭 SMTP disabled / email outreach blocked"
+    body = (
+        "The SMTP account looks disabled — outbound email (alerts, outreach, "
+        "followups) is BLOCKED. Check the mailbox / provider. " + (detail or "")
+    )[:480]
+    _ntfy(title, body, priority="urgent", tags=["no_entry", "email"])
+    _record_fire(key)
+    return {"alerted": True}
+
+
 __all__ = [
     "enabled",
     "maybe_alert_engineer_score",
     "maybe_alert_eval_reject",
     "maybe_alert_webhook_dead_letter",
+    "maybe_alert_payment_failed",
+    "maybe_alert_smtp_disabled",
     "daily_readiness_digest",
 ]
