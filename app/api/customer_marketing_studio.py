@@ -65,6 +65,62 @@ def _ctx(client_id: str) -> dict:
     }
 
 
+def _client_inquiries(client_id: str) -> list[dict]:
+    """This client's own inquiries (IDOR-safe; _inquiries_for_client needs the record)."""
+    try:
+        from app.api.customer_dashboard_builders import _inquiries_for_client
+
+        return _inquiries_for_client(client_id, _client_record(client_id)) or []
+    except Exception as e:
+        logger.debug("_client_inquiries failed: %s", e)
+        return []
+
+
+def _inq_age_hours(rec: dict) -> float:
+    """Inquiry age in hours (best-effort; large number if unknown)."""
+    try:
+        from datetime import datetime
+
+        from app.api.customer_dashboard_builders import _parse_dt
+
+        dt = _parse_dt(str(rec.get("at") or rec.get("created_at") or ""))
+        if not dt:
+            return 9e9
+        return max(0.0, (datetime.now() - dt.replace(tzinfo=None)).total_seconds() / 3600.0)
+    except Exception:
+        return 9e9
+
+
+_INTENT_RULES = [
+    ("complaint", ["complaint", "problem", "kharab", "galat", "refund", "worst", "bekaar", "late", "ganda", "naraz"]),
+    ("price", ["price", "rate", "kitna", "kitne", "cost", "charge", "daam", "quotation", "quote"]),
+    ("booking", ["book", "appointment", "slot", "timing", "kab", "available", "chahiye", "order", "visit"]),
+    ("spam", ["loan", "crypto", "seo expert", "earn money", "investment", "http://", "https://", "bitcoin"]),
+]
+
+
+def _classify_intent(msg: str) -> str:
+    m = (msg or "").lower()
+    for label, words in _INTENT_RULES:
+        if any(w in m for w in words):
+            return label
+    return "general"
+
+
+_INTENT_ACTION = {
+    "price": "Rate clear bhejo + ek chhota offer add karo.",
+    "booking": "Slot offer karo aur jaldi confirm karo.",
+    "complaint": "Turant sorry + solution do — escalate karo.",
+    "spam": "Skip — ye genuine lead nahi lagta.",
+    "general": "Friendly reply do + unki zaroorat poocho.",
+}
+
+
+def _wa_link(phone: str) -> str:
+    d = "".join(ch for ch in str(phone or "") if ch.isdigit())[-10:]
+    return f"https://wa.me/91{d}" if len(d) == 10 else ""
+
+
 # --------------------------------------------------------------------------- #
 # Request bodies (all optional — generators have safe defaults)                #
 # --------------------------------------------------------------------------- #
@@ -400,9 +456,7 @@ def studio_next_best_action(client_id: str = Depends(require_customer)) -> dict:
 
     # 1) New uncalled leads -> highest priority (paisa yahin)
     try:
-        from app.api.customer_dashboard_builders import _inquiries_for_client
-
-        leads = _inquiries_for_client(client_id) or []
+        leads = _client_inquiries(client_id)
         n_leads = len(leads)
         if n_leads:
             actions.append({"priority": 1, "icon": "🔥", "action": f"{n_leads} naye lead ko abhi call/WhatsApp karo",
@@ -447,8 +501,7 @@ def studio_next_best_action(client_id: str = Depends(require_customer)) -> dict:
         from app.api.customer_dashboard_builders import _content_posts_count
 
         rec = _client_record(client_id) or {}
-        rid = str(rec.get("id") or client_id)
-        if _content_posts_count(rid) == 0:
+        if _content_posts_count(client_id, rec) == 0:
             actions.append({"priority": 3, "icon": "📝", "action": "Aaj ka post banao + share karo",
                             "why": "Regular posting se reach + trust dono badhte hain.", "target": "studioCard"})
     except Exception as e:
@@ -875,12 +928,7 @@ def studio_owner_brief(client_id: str = Depends(require_customer)) -> dict:
     """Daily owner brief (PURE LOGIC) — aaj ke leads/approvals/posts ek nazar me."""
     c = _ctx(client_id)
     leads_n = approvals_n = 0
-    try:
-        from app.api.customer_dashboard_builders import _inquiries_for_client
-
-        leads_n = len(_inquiries_for_client(client_id) or [])
-    except Exception:
-        pass
+    leads_n = len(_client_inquiries(client_id))
     try:
         from app.marketing import content_approval
 
@@ -1035,6 +1083,70 @@ def studio_ugc_request(client_id: str = Depends(require_customer)) -> dict:
     return _pack("ugc-request", client_id, "ugc_request", _ctx(client_id)["business_name"])
 
 
+# --------------------------------------------------------------------------- #
+# Batch 6 — engine LINKS (per-client views, IDOR-safe). Surface existing       #
+# backend capability scoped to THIS customer's own inquiries.                  #
+# --------------------------------------------------------------------------- #
+@router.get("/ai-inbox")
+def studio_ai_inbox(client_id: str = Depends(require_customer)) -> dict:
+    """AI Inbox — is customer ki apni inquiries ko intent + urgency se classify
+    karke suggested action deta hai (per-client, IDOR-safe). reply_agent ka
+    customer-facing view (uska global IMAP inbox NAHI)."""
+    c = _ctx(client_id)
+    items: list[dict] = []
+    counts = {"urgent": 0, "price": 0, "booking": 0, "complaint": 0, "spam": 0, "general": 0}
+    for r in _client_inquiries(client_id)[:50]:
+        msg = str(r.get("message") or "")
+        intent = _classify_intent(msg)
+        age_h = _inq_age_hours(r)
+        urgent = intent in ("price", "booking", "complaint") and age_h <= 6
+        counts[intent] = counts.get(intent, 0) + 1
+        if urgent:
+            counts["urgent"] += 1
+        items.append({
+            "name": str(r.get("name") or "Customer")[:60],
+            "phone": str(r.get("phone") or ""),
+            "wa_link": _wa_link(r.get("phone")),
+            "message": msg[:240],
+            "intent": intent,
+            "urgent": urgent,
+            "age_hours": round(age_h, 1) if age_h < 9e8 else None,
+            "suggestion": _INTENT_ACTION.get(intent, ""),
+        })
+    # urgent + freshest first
+    items.sort(key=lambda x: (not x["urgent"], x.get("age_hours") if x.get("age_hours") is not None else 9e9))
+    return {"ok": True, "tool": "ai-inbox", "context": c, "count": len(items), "counts": counts, "items": items,
+            "empty_note": "Abhi koi inquiry nahi — mini-site/widget share karo to leads yahan aayenge."}
+
+
+@router.get("/re-engagement")
+def studio_re_engagement(client_id: str = Depends(require_customer)) -> dict:
+    """Re-engagement — cold/inactive leads (48h+ purane) surface karke 1-click
+    win-back message deta hai. cadence/lifecycle engine ka per-client view."""
+    c = _ctx(client_id)
+    biz = c["business_name"]
+    cold: list[dict] = []
+    for r in _client_inquiries(client_id):
+        age_h = _inq_age_hours(r)
+        if age_h < 48 or age_h > 9e8:  # too new or unknown -> skip
+            continue
+        days = int(age_h // 24)
+        name = str(r.get("name") or "ji")[:60]
+        cold.append({
+            "name": name,
+            "phone": str(r.get("phone") or ""),
+            "wa_link": _wa_link(r.get("phone")),
+            "days_cold": days,
+            "message": (
+                f"Namaste {name}! 🙏 {biz} se — aapne kuch din pehle enquiry ki thi. "
+                "Abhi bhi interested ho to ek special offer de sakta hoon. Bataiye? 😊"
+            ),
+        })
+    cold.sort(key=lambda x: x["days_cold"], reverse=True)
+    return {"ok": True, "tool": "re-engagement", "context": c, "count": len(cold), "items": cold[:50],
+            "empty_note": "Abhi koi cold lead nahi — sab fresh hain ya follow-up ho chuka."}
+
+
 # --- 3 generator wires ---
 @router.post("/coupon", dependencies=[Depends(_GEN_LIMIT)])
 def studio_coupon(req: CouponReq = Body(default=CouponReq()), client_id: str = Depends(require_customer)) -> dict:
@@ -1155,6 +1267,8 @@ _TOOLS = [
     {"key": "lost-lead-reason", "icon": "🕵️", "title": "Lost Lead Reasons", "desc": "Kyu convert nahi hua + fix", "method": "GET", "path": "/api/customer/studio/lost-lead-reason", "fields": []},
     {"key": "complaint-recovery", "icon": "🩹", "title": "Complaint Recovery", "desc": "Angry customer flow", "method": "GET", "path": "/api/customer/studio/complaint-recovery", "fields": []},
     {"key": "ugc-request", "icon": "📷", "title": "UGC Request", "desc": "Customer photo/video maango", "method": "GET", "path": "/api/customer/studio/ugc-request", "fields": []},
+    {"key": "ai-inbox", "icon": "📥", "title": "AI Inbox", "desc": "Inquiries intent+urgency se sorted", "method": "GET", "path": "/api/customer/studio/ai-inbox", "fields": []},
+    {"key": "re-engagement", "icon": "🔄", "title": "Re-engagement", "desc": "Cold leads + 1-click win-back", "method": "GET", "path": "/api/customer/studio/re-engagement", "fields": []},
 ]
 
 
