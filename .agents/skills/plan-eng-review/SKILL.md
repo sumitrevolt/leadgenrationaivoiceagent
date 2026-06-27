@@ -90,6 +90,10 @@ Har state: trigger kya hai, side effects kya hain.
 | Auth missing | integration | 401/403 returned |
 | Rate limit | integration | 429 after N requests |
 | DB error | unit | Never raises, logs error |
+| Idempotency (agar send/call/bill/post/CRM) | unit | Dedupe key → duplicate side-effect NAHI |
+| Provider/network down (background work) | unit | Timeout + bounded retry → DLQ `dlq:failed_tasks`, never-raise |
+| Billing-touch | unit | `test_billing_truth_2026` green (`packages.py` single source) |
+| Compliance fail-CLOSED (telephony/outbound) | unit | DND lookup-fail = BLOCK · 9am–7pm window · AI-disclosure present |
 
 ---
 
@@ -115,14 +119,23 @@ Har state: trigger kya hai, side effects kya hain.
 
 ## Step 6: Eng Review Checklist
 
+Yeh review = operating loop ka **Contract** phase ka eng-gate; review me hi feature ka **change-risk tier** (Trivial/Standard/**High-risk** — fable §0.6) assign karo aur uske gates lock karo (`fable-operating-manual`).
+
 - [ ] Existing code read kiya (no duplicates)?
+- [ ] **Change-risk tier assigned** (billing/public-route/telephony/secrets/auth/automation-loop/DB-migration = High-risk → security-review bhi plan me)?
 - [ ] Fail-open pattern?
-- [ ] Env flag gated (default OFF)?
+- [ ] Env flag gated (default OFF) + inert-without-creds?
+- [ ] **Idempotency/dedupe** (agar send/call/bill/post/CRM-write)?
+- [ ] **Background/provider work** = timeout + bounded retry + DLQ `dlq:failed_tasks` + never-raise?
+- [ ] **Compliance fail-CLOSED** (telephony/outbound: DND lookup-fail=block · 9am–7pm · AI-disclosure)?
+- [ ] **Billing-touch** = `packages.py` single source + `test_billing_truth_2026`?
+- [ ] **Rollback path NAMED** (flag OFF · container recreate · Alembic downgrade · data-repair)?
 - [ ] Atomic commits planned?
 - [ ] Hard reload needed documented?
 - [ ] `AUTOMATION_FLAGS` list update?
 - [ ] `prod_check.py` route count expected?
 - [ ] Boot-grace agar scheduler-heavy?
+- [ ] Secrets sirf `.env` (`scripts\check_secrets.py` clean)?
 
 ---
 

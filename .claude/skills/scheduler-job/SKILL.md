@@ -39,3 +39,13 @@ Agar rollback config (`RUN_IN_PROCESS_SCHEDULER=1`) pe bhi chahiye:
 
 ## Verify
 `import app.main` OK → `scripts/prod_check.py` PASS → rebuild + recreate (`worker` + `scheduler` bhi: `--profile celery up -d --no-deps worker scheduler`) → beat next window pe fire → `docker logs leadgen_scheduler | grep myjob` + `docker logs leadgen_worker` + `data/*.jsonl`/team_event. After worker recreate: `redis-cli llen celery` (>500 = `del celery`).
+
+## Enterprise gate
+
+- **Operating loop**: Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover me **dono** paths grep karo (Celery beat + team_scheduler) warna job ek path me wired, dusre me nahi (cross-path gap = real prod lesson).
+- **Risk-tier: High** (automation loop) — naya durable job blast-radius = poora worker. Locks: Celery↔APScheduler parity, `automation_health.EXPECTED_GAP_MIN` registry entry (dead-man), `AUTOMATION_FLAGS` (growth.py) registry so `/api/growth/infra/flags` pe dikhe.
+- **Net-new beyond the patterns above:**
+  - **Idempotency** (only if job sends/bills/posts/CRM-writes): success-pe-hi-mark dedupe key (state-file / DB row), warna beat ka re-fire = duplicate email/call/bill. team_scheduler `_last_ran[day_key]`-style + engine-side ledger.
+  - **DLQ-on-failure already covered** (`worker.py on_task_failure` → `dlq:failed_tasks`) — naye task me `max_retries` + bounded backoff set karo, raise mat swallow karo bina record kiye.
+  - **Rollback (NAMED)**: flag OFF + worker/scheduler recreate (job inert) · ya full rollback config `RUN_IN_PROCESS_SCHEDULER=1`+`WEB_CONCURRENCY=1` (APScheduler path). Beat entry bug = remove entry + scheduler recreate.
+- **Evidence (done)**: `.venv\Scripts\python.exe scripts\prod_check.py` PASS + changed-file pytest + `docker logs leadgen_scheduler | grep myjob` (beat fired) + `data/*.jsonl`/team_event (real output) + `redis-cli llen celery` sane.

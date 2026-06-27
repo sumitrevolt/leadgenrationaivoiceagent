@@ -1,11 +1,11 @@
 ---
 name: leadgen-composer
-description: LeadGen AI primary agent brain — context-first edits, Hinglish replies, free-stack, council decisions, deploy verify. Use for ANY task on leadsgenai.in (Codex PRIMARY — read this first; Cursor mirror). Invoke context-first skill before every code edit.
+description: LeadGen AI primary agent brain — context-first edits, Hinglish replies, free-stack, council decisions, deploy verify. Use for ANY task on leadsgenai.in (Claude Code PRIMARY — read this first; Cursor mirror). Invoke context-first skill before every code edit.
 ---
 
-# LeadGen Agent Brain (Codex PRIMARY)
+# LeadGen Agent Brain (Claude Code PRIMARY)
 
-> **Codex:** Har code task → Read `context-first` skill PEHLE. **Memory:** `AGENTS.md` auto. **Index:** [skills-index.md](skills-index.md) · **Parity:** [../SKILLS_PARITY.md](../SKILLS_PARITY.md)
+> **Claude:** Har code task → Read `context-first` skill PEHLE. **Memory:** `CLAUDE.md` auto. **Index:** [skills-index.md](skills-index.md) · **Parity:** [../SKILLS_PARITY.md](../SKILLS_PARITY.md)
 
 ## User rules (non-negotiable)
 
@@ -14,9 +14,9 @@ description: LeadGen AI primary agent brain — context-first edits, Hinglish re
 - **DO alag products** — Marketing vs Voice standalone; bundle framing mat
 - **Commit/push** sirf jab user bole
 
-## Codex superpower — context-first (MANDATORY)
+## Claude superpower — context-first (MANDATORY)
 
-Cursor auto-indexes; Codex must **manually batch parallel Grep/Read** before edit.
+Cursor auto-indexes; Claude must **manually batch parallel Grep/Read** before edit.
 
 ```
 1. context-first skill → parallel Grep/Glob (routes, callers, tests, UI)
@@ -25,6 +25,41 @@ Cursor auto-indexes; Codex must **manually batch parallel Grep/Read** before edi
 4. Edit (Windows tools; same file parallel MAT)
 5. verify-ship → green = done
 ```
+
+## Advanced working method (default loop)
+
+Use this loop for every non-trivial task:
+
+1. **Discover:** identify touch-points first: code, callers, routes, UI, tests, docs, deploy/runtime path.
+2. **Contract:** before editing, write the internal contract: goal, files, minimal diff, risk gates, verify command.
+3. **Execute:** make the smallest additive change that matches local patterns; avoid rewrites unless the old path is proven wrong.
+4. **Self-review:** inspect the diff for missed callers, duplicate routes, auth/billing/compliance regressions, stale Windows reads, and test gaps.
+5. **Evidence:** final answer must name changed files plus proof run; if proof cannot run, say exactly why and what remains unverified.
+
+Decision ladder:
+- **Execute now** when repo context gives a safe default.
+- **Ask user** only for external secrets, irreversible/destructive choices, spend, legal/business policy, or two equally valid product directions.
+- **Council** only for strategy/go/no-go or ROI/moat decisions.
+- **Never stop at analysis** when a small safe patch or test can move the task forward.
+
+## Enterprise automation standard
+
+Any automation, scheduled job, agent loop, integration, webhook, billing flow, or production-path change must satisfy this contract before "done":
+
+| Gate | Required standard |
+|------|-------------------|
+| Product value | Define user/business outcome, owner, trigger, output, and failure behavior |
+| Safety | Env/feature flag, default-safe behavior, tenant boundary, no secrets in code/logs |
+| Idempotency | Stable idempotency key or dedupe state; retry cannot duplicate customer-visible action |
+| Reliability | Timeout, bounded retries, DLQ/fail record, never-raise wrapper for scheduled loops |
+| Observability | Event/log/metric/heartbeat visible in existing admin/ops surface where relevant |
+| Control | Kill-switch, rollback path, manual override, and operator-visible status |
+| Verification | Unit/contract test for core path plus failure-path test or smoke command |
+| Cost/quota | Free-stack provider chain, rate limit, quota pressure behavior, graceful fallback |
+| Compliance | TRAI/DND/AI disclosure/DPDP/payment/auth gates stay fail-closed where required |
+| Documentation | Update skill/runbook/memory only when future operators need it |
+
+Automation design rule: prefer event-driven/idempotent jobs over cron-only polling; prefer small composable loops over hidden monoliths; every background job must be observable, retry-safe, and stoppable.
 
 **FastAPI:** `grep '@router'` — duplicate = first-route-wins shadow. **Windows = truth** — `.venv\Scripts\python.exe`.
 
@@ -73,9 +108,9 @@ Probe: `curl.exe https://leadsgenai.in/api/activation/summary`
 
 Detail: `verify-ship`
 
-## Codex vs Cursor — stay ahead
+## Claude vs Cursor — stay ahead
 
-| Cursor edge | Codex match |
+| Cursor edge | Claude match |
 |-------------|--------------|
 | Always-on rule | `leadgen-composer` + `context-first` Read each task |
 | Parallel tools | **Batch Grep/Read in one turn** |

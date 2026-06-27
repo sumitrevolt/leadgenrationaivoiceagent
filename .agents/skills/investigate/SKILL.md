@@ -49,7 +49,7 @@ docker logs leadgen_worker --tail=50
 
 ## Phase 2: Pattern Analysis
 
-1. **Pehle hua hai?** — AGENTS.md / SESSION_LOG mein search karo: `grep -i "PROD-DOWN\|incident\|fixed" AGENTS.md | head -20`
+1. **Pehle hua hai?** — CLAUDE.md / SESSION_LOG mein search karo: `grep -i "PROD-DOWN\|incident\|fixed" CLAUDE.md | head -20`
 
 2. **Architectural smell check:**
    - Event loop pe sync/blocking call? (humara #1 cause — KB/ML/fastembed)
@@ -110,4 +110,20 @@ Fix ke baad:
 📚 LESSON: [dobara na ho iske liye kya rule add karna chahiye]
 ```
 
-Important lesson hai to `docs/SESSION_LOG.md` mein append karo + AGENTS.md update karo (agar project-wide rule hai).
+Important lesson hai to `docs/SESSION_LOG.md` mein append karo + CLAUDE.md update karo (agar project-wide rule hai).
+
+---
+
+## Enterprise gate (debug ko operating-discipline me bandho)
+
+Yeh skill `fable-operating-manual` ke operating loop ka **Discover + root-cause** angle hai. Fix likhne se pehle pura loop chalao — Discover → Contract → Execute → Self-review → Evidence.
+
+**Change-risk tier:** investigation khud read-only (safe). Lekin **fix** ka tier symptom ke domain se aata hai — billing fix = High-risk (`test_billing_truth_2026`), public-route/telephony fix = High-risk (compliance + hard-reload), automation-loop fix = High-risk (DLQ/idempotency). Tier classify karke uske gates lock karo, tabhi fix ship.
+
+- **Windows = truth (debug ka #1 false-positive):** "syntax error / unterminated string / incomplete fn" akelе sandbox mount pe? = STALE artifact, asli bug nahi. Windows pe Read + `.venv\Scripts\python.exe` se confirm karo, warna ghost-bug chase hoga.
+- **Regression intent guard:** "ye toota hai" assume mat karo — `git log`/CLAUDE.md se confirm woh intentional to nahi (42→39 niche jaisa). Galat "fix" = naya regression.
+- **Fix-safety (fail-open default):** additive fix; bug-na-ho to behaviour ZERO change; error pe block nahi (unless safety-critical). Public/ML path = `asyncio.to_thread` + `asyncio.wait_for` deadline + disable-switch env (3 prod-downs isi se).
+- **Compliance:** telephony/outbound bug debug karte waqt DND/9am–7pm/AI-disclosure guard "fix" ke naam pe disable mat karo — fail-CLOSED rehne do.
+- **Guard = test (regression dobara na ho):** har fix ke saath exact-bug ka test add karo. Live incident → rollback PEHLE (flag OFF / container recreate), root-cause BAAD me — par root-cause zaroor (symptom-only = ban).
+
+**Evidence (done):** deterministic reproduction se pehle (cause confirmed) → fix → `.venv\Scripts\python.exe scripts\prod_check.py` + exact-bug test green (`pytest tests\test_<area>.py -q`) + live to `/health` = `environment:production`. Phase-5 report (ROOT CAUSE / FIX / VERIFIED / LESSON) bina done KABHI mat bolo. Prod-down/freeze = `prod-incident-triage` (detect → py-spy → recover → root-cause).

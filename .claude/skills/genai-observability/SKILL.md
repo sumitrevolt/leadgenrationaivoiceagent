@@ -36,5 +36,17 @@ description: LLM/agent tracing via OpenTelemetry GenAI semantic conventions for 
 - Backend: **Tempo** (already chal raha) raw OTel GenAI ingest karta → Grafana me trace-view. Jaeger/OTel-Collector bhi free options.
 - Start small: sirf provider-name + model + tokens emit karo (cheap, high-signal); messages opt-in baad me.
 
+## Enterprise gate (trace emit = PII fail-CLOSED)
+
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover: `ENABLE_OTEL` wired-but-off, Tempo already chal raha, free_ai call-site = jahan span lagana hai.
+- **Change-risk tier: Standard** (additive instrumentation) → **High-risk** jab span me message/prompt content jaaye (PII/DPDP/multi-tenant exposure).
+- **Fail-CLOSED data gates:**
+  - **No content by default** — full prompt/messages span me KABHI nahi: `gen_ai.input.messages`/`system_instructions` = opt-in only; warna sirf reference-id store, content Loki/external. Multi-tenant + PII/DPDP risk (`llm-security` se tie).
+  - **Tenant/secret hygiene** — span attributes me other-tenant data ya keys leak na ho; `gen_ai.provider.name` HAMESHA set warna multi-provider dashboard bekaar.
+  - **Inert without flag** — `ENABLE_OTEL=1` (default off); off = zero overhead. Attribute-rename guard: `OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental`.
+- **Gotcha (graceful):** full OTel sdk/exporter image me NAHI (sirf `opentelemetry-api`) → `ENABLE_OTEL=1` pe graceful skip-warning, traces nahi aate jab tak otel pkgs `requirements.lock.txt` me add + rebuild na ho.
+- **Rollback (NAMED):** instrumentation regression → `ENABLE_OTEL=0` (instant inert) → container recreate; PII-in-span galti = span attr remove + revert SAATH.
+- **Evidence to close:** start-small emit (provider-name + model + tokens) Tempo→Grafana trace-view me dikhe; span me NO message-content (PII check); `.venv\Scripts\python.exe scripts\prod_check.py` PASS. Messages opt-in baad me, alag review se.
+
 ## Pairs with
 `observability-ops` (infra) · `llm-quota-ops` (provider chain) · `llm-security` (PII in traces) · `voice-eval-metrics`.

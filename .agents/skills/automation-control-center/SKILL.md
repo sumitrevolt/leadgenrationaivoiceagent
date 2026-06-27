@@ -5,7 +5,7 @@ description: Upgrade/extend the /app/automation Mission Control so it stays the 
 
 # Automation Control Center (advanced cockpit pattern)
 
-`/app/automation` (`frontend/automation.html`) = poore automation stack ka EK cockpit. Rule (AGENTS.md): **naya admin feature = UI tab saath hi** — API-only feature adhoora hai. Yeh skill batati hai control center kaise advanced rakhein aur naye controls kaise add karein, website/app conventions ke hisab se.
+`/app/automation` (`frontend/automation.html`) = poore automation stack ka EK cockpit. Rule (CLAUDE.md): **naya admin feature = UI tab saath hi** — API-only feature adhoora hai. Yeh skill batati hai control center kaise advanced rakhein aur naye controls kaise add karein, website/app conventions ke hisab se.
 
 ## 4 pillars — control center me HAMESHA yeh sab dikhna/chalna chahiye
 
@@ -46,7 +46,7 @@ description: Upgrade/extend the /app/automation Mission Control so it stays the 
 2. **Backend (agar missing)**: growth.py style — `require_admin` + rate-limit, never-raise, existing engine reuse. Heavy/ML/KB kaam endpoint me = `asyncio.to_thread` + hard timeout (widget-chat prod-down lesson).
 3. **Tab**: `frontend/automation.html` — sidebar `<button id="tab-X" onclick="show('X')">` + `<section class="tabsec" id="sec-X">` + existing `api()` helper (accessToken localStorage, admin-login link). Dark theme CSS vars (`--bg --card --acc`) hi use karo — naya color system mat banao. Mobile: existing `@media(max-width:760px)` me sidebar wrap hota hai — wide tables ko `overflow:auto` wrapper do. PWA manifest link already head me hai.
 4. **Verify**: `python scripts/check_html_js.py` (node --check) + targeted pytest. Status-fetch tabs me 60s auto-refresh sirf tab-visible pe (ops.html pattern) — har tab pe nahi (API load).
-5. **Ship**: `leadgen-ops` loop. Naya `@app.get` page-route = **HARD RELOAD** on VPS. Done → SESSION_LOG append + AGENTS.md tab-count 1-line.
+5. **Ship**: `leadgen-ops` loop. Naya `@app.get` page-route = **HARD RELOAD** on VPS. Done → SESSION_LOG append + CLAUDE.md tab-count 1-line.
 
 ## Coverage audit (control center "advanced" rakhne ka tarika)
 Mahine me ek baar (ya naya router merge hote hi):
@@ -68,3 +68,12 @@ Phir endpoint-list vs tabs map karo — jo admin endpoint kisi tab/button se rea
 - Side-effect buttons (send/call/auto-enable) = confirm() + flag-state dikhana; draft-only actions free chalao.
 - Sandbox mount STALE — HTML edits Windows file-tools se, verify Windows pe.
 - Bade parallel edits same file pe = truncation risk (parallel-batch-build skill).
+
+## Enterprise gate
+
+- **Operating loop**: Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Naya tab/control = "Naya control add karne ka pattern" (upar 5 steps) hi hai — step-1 `grep '@router'` MANDATORY (duplicate-route-guard).
+- **Risk-tier: Standard** (admin UI + read/trigger endpoints). Locks: `duplicate-route-guard` grep · `require_admin` + rate-limit on naya endpoint · flag-state surface · changed-file pytest + `check_html_js.py` · VPS **hard-reload** for naya `@app.get` page-route.
+- **This page IS the observability surface** — control center hi `automation_health` (dead-man overdue), agent events, flags pills, run histories ko operator ke saamne laata. Naya backend automation merge = yahaan tab/badge bhi add karo, warna observability gap (CLAUDE.md: API-only = adhoora).
+- **Safety boundaries**: side-effect buttons = `confirm()` + flag-state dikhao; **flag FLIP UI se KABHI nahi** (env `.env` + recreate ka kaam — `automation-flags`); ban-risky flags (`WHATSAPP_AUTO_SEND` etc.) pe warning text. Heavy/ML/KB endpoint kaam = `asyncio.to_thread` + hard timeout (widget-chat prod-down lesson).
+- **Rollback (NAMED)**: bad UI/endpoint = revert frontend/HTML + container recreate (page-route hard-reload); naya endpoint flag-gated ho to flag OFF.
+- **Evidence (done)**: `python scripts\check_html_js.py` (node --check) + `.venv\Scripts\python.exe scripts\prod_check.py` + targeted pytest + VPS pe page 200 (hard-reload ke baad, `scripts/check_route.py`) + tab live render.

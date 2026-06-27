@@ -47,3 +47,16 @@ def roundtrip_wer(text):
 
 ## Pairs with
 `test-agent` (heuristic scorecard) · `voice-humanization` · `web-call-triage` · `prompt-engineering`.
+
+## Enterprise gate (voice eval = STANDARD, close-the-loop)
+Operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). **Change-risk tier: Standard** — eval harness खुद calls/billing trigger nahi karta (read-only measure), par jis voice change ko yeh gate karta hai woh High-risk hai, isliye eval = uska Evidence-phase gate.
+
+**Eval_gate regression signal:** provider/brain/prompt change ke pehle-baad metrics diff karo; **median-baseline regression** (WER↑ / latency-P95↑ / roundtrip-WER↑) = `eval_gate` se close-the-loop reward signal (`self_improve` me wired + DeepEval CI). Regress = ship rok, root-cause.
+
+**Distributions-not-averages (gate rule):** latency P50/P95/P99 report karo, average nahi; WER per-slice (Hinglish vs English-heavy — aggregate accented-failure chhupata). Barge-in target <150ms (`BARGE_GUARD` serve karta).
+
+**Observability:** objective block `scripts/agent_tester.py` me wire (WER + P95-latency + roundtrip-WER scorecard me); LLM-chain health context `/api/growth/infra/llm` (degraded chain = latency P95 spike ka root). Held-out in-house benchmark set (niche-wise) banao — public benchmark saturate.
+
+**Safety / cost:** harness fully free (jiwer + already-baked Whisper/EdgeTTS); koi paid eval API nahi. FREE web-call (`/app/test-call`) pe tune; phone = final verify (paisa).
+
+**Evidence (done):** pehle-baad metric diff (no regression vs baseline) + `python scripts/agent_tester.py` objective block green + held-out set WER per-slice report. Regression → `eval_gate` gate + `systematic-debugging`.

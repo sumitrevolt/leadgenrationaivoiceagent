@@ -26,6 +26,15 @@ Prod-down #3 me jobs sab green the par web freeze tha — user ka "automations b
 
 ## Baad me (post-incident, skip mat karo)
 1. Root-cause commit + test/guard.
-2. SESSION_LOG me incident entry + AGENTS.md 1-2 line.
+2. SESSION_LOG me incident entry + CLAUDE.md 1-2 line.
 3. Agar naya freeze-class hai → is skill ki table me row add karo.
 4. `/optimize` scan chalao (event-loop-blocking class catch karta hai).
+
+## Enterprise gate (live incident = always High-risk)
+Operating loop: Discover → Contract → Execute → Self-review → Evidence (`fable-operating-manual`). Incident me ye **compressed**: Discover = detect+capture-stack, Execute = recover, Evidence = 2× health + post-incident commit. **Thesis = rollback/recover PEHLE, root-cause BAAD me — par root-cause zaroor pakdo (symptom-only fix = repeat-incident ban).**
+
+- **Capture before recover:** restart se PEHLE py-spy **HOST se** (`py-spy dump --pid $(pgrep -f uvicorn | head -1)`, container me ptrace denied) — warna evidence gaya, root-cause impossible.
+- **Recover (NAMED rollback ladder):** `docker compose -f docker-compose.vps.yml restart app` → scheduler-class regression → `.env` `RUN_IN_PROCESS_SCHEDULER=1`+`WEB_CONCURRENCY=1` + worker/scheduler stop → bad-image → `git reset --hard <prev-SHA>`+rebuild+recreate → last resort `down` + `systemctl start leadgen`.
+- **Observability surfaces (check BOTH paths — heartbeats green ≠ web healthy):** ext `https://leadsgenai.in/health` + int `127.0.0.1:8000/health` · `docker ps`/`docker stats --no-stream` (CPU 0% + hang = event-loop freeze) · `docker logs leadgen_app`/`leadgen_worker` · `/api/growth/infra/automation-health` (admin) · flower :5555 · `redis-cli llen celery` (>500 → `del celery`) · `dlq:failed_tasks`.
+- **Celery-flood guard:** repeated worker recreate → `self_improve_tick` self-requeue multiply; root-fixed (`acks_late=False` + `ensure_alive` Redis NX lock) but verify `llen celery` after any worker recreate.
+- **Evidence (incident closed):** `sleep 16` + 2× `/health`=`environment:production` 200 + selfheal cron not loop-restarting + root-cause commit/test/guard landed. Mid-incident destructive ops (`del celery`, `down`, `reset --hard`) = `careful` skill discipline; no need to ask user during an active prod-down (recover-first).

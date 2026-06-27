@@ -48,3 +48,9 @@ Iska maqsad: naya chat minimum token me oriented ho jaye. `CLAUDE.md` (lean work
 ## Blockers (user-action, abhi pending)
 
 **Payments** = UPI LIVE on prod (Razorpay removed). Voice: Udyam→DLT, Vobiz DID. Optional WARN: Sentry, Turnstile (not GO blockers). External-blocked: missed-call callback, GBP/Meta auto-post.
+
+## Enterprise gate (LIGHT — session bootstrap)
+
+Yeh skill sirf orient karta hai; actual kaam **operating loop** se — Discover → Contract → Execute → Self-review → Evidence (full discipline `fable-operating-manual`, har non-trivial task ke liye mandatory).
+
+**Change-risk tier:** Bootstrap khud Trivial (read-only). Par jaise hi task ka domain pata chale, uska tier classify karke gates lock karo: billing/pricing → High-risk (`product-split-adr` + `test_billing_truth_2026`) · telephony/outbound → High-risk fail-CLOSED (TRAI/DND/9am–7pm/AI-disclosure) · naya endpoint/UI → Standard (`duplicate-route-guard` + flag-gate + changed-file tests) · automation loop → High-risk (idempotency + DLQ + `automation_health`). Done = evidence (`scripts\prod_check.py` + targeted tests), bina proof "ho gaya" mat bolo.

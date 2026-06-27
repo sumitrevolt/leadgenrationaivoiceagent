@@ -36,3 +36,16 @@ These already shipped — a change that removes/loosens any = regression, reject
 - For webhooks: show signature-verify runs first + prod fail-CLOSED (503 when secret unset).
 - `git diff` clean of secrets — run `python scripts/check_secrets.py` (wired in `/verify`; false-positive line = `nosecret`). `grep -rn "WHATSAPP_AUTO_SEND\|MISSED_CALL"` confirms gates default-off.
 - "Seems safe" is never sufficient — show the check.
+
+## Enterprise gate (security review = the gate itself)
+
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Yahan review **Self-review/Evidence** phase ka enforce-able roop hai — koi auth/payment/public/secret/outbound change is gate ke bina merge na ho.
+- **Change-risk tier: High-risk by default.** Yeh skill jin surfaces ko chhuता hai (auth/IDOR, payment-webhook, public no-auth route, secrets, telephony/outbound) sab High-risk → §9 ka pura automation-bar + named rollback + `self-code-review` se review chalao. Sirf cosmetic/copy = Standard.
+- **Fail-CLOSED non-negotiables (bypass = reject, legal/financial risk):**
+  - **Auth/RBAC/IDOR** — har write pe `require_admin`/`require_super_admin`/`require_customer`; billing+customer mutation `_authed_client_id` se server-derived (body trust kabhi nahi). Verify dep *applied*, sirf imported nahi.
+  - **Webhook signature** — prod me secret unset = **503 fail-CLOSED** (`app/telephony/webhooks.py`), unsigned action kabhi nahi.
+  - **Secrets** — sirf `.env` (gitignored), `.env.example` me NAME-only. Committed file/CLAUDE.md/script me KABHI nahi.
+  - **Telephony/outbound** — DLT + 140-series + DND scrub (lookup-fail = block) + 9am–7pm window + AI-disclosure-at-start; consent-ledger opt-out instant. WhatsApp bulk auto-send = ban.
+  - **Tenant boundary** — multi-tenant: cross-tenant read/write kahin leak na ho (middleware/tenant.py fail-open par data-scoping fail-closed).
+- **Rollback (NAMED):** offending route/flag OFF → re-deploy (`docker compose build app` + `up -d --no-deps app` = hard reload, stale .pyc clear) → `/health` = `environment:production`. Hardening regression (N.1) milė to revert SAATH.
+- **Evidence to close "reviewed/safe":** `python scripts\check_secrets.py` clean + `.venv\Scripts\python.exe scripts\prod_check.py` PASS + unauth-route test → 401/403 ka log + webhook signature-first proof. Touched public/billing/telephony? → `pytest tests\test_billing_truth_2026.py -q` / relevant suite + `scripts/cross_path_audit.py` green.

@@ -161,6 +161,19 @@ For **data-write actions** (e.g., enroll_in_cadence):
       → Concurrent ✓
 ```
 
+## Enterprise gate (wiring into the live loop)
+
+Run the operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Naya agent/action = automation loop change → **High-risk tier** (locks: §9 ten-point bar + named rollback + self+security review). 🔴-row actions (calls/SMS/bulk email/social-post) = **always High-risk, fail-CLOSED**.
+
+- **Safety:** har action gated env-flag default OFF + inert-without-creds; 🔴 actions need `SELF_IMPROVE_APPROVAL=1`. Auto-post / auto-send KABHI hardcode-enable nahi — `social_auto_post` row = NEVER. New flag ko `AUTOMATION_FLAGS` registry (growth.py) me add karo so it shows at `/api/growth/infra/flags`. Tenant/client boundary respect; secrets sirf `.env`.
+- **Idempotency/dedupe:** agar action send/call/bill/post/CRM-write karti hai → idempotency key + daily/period dedupe (state-file, success pe hi mark → fail pe next-tick retry). Running 2× = no double-enroll/double-send (Test 5 + data-write checklist).
+- **Reliability:** timeout (hard 240s watchdog) + bounded retry + never-raise wrapper (`return {"ok": False}`, no bare raise) + fail → DLQ Redis `dlq:failed_tasks`. Loop ko KABHI crash na kare.
+- **Durable parity:** persistent job → `team_scheduler._run_job` + mirror `worker.py` beat + register in `automation_health.EXPECTED_GAP_MIN` (dead-man switch). Heartbeat/event recorded (`agent_events`, `skill_library.record_use()`).
+- **Compliance (fail-CLOSED):** SMS/voice/email actions → DLT-gated · DND scrub (lookup-fail = block) · TRAI 9am–7pm window · AI-disclosure-at-start · consent_ledger opt-in/retention · email warmup ramp. Bypass = legal risk.
+- **Rollback (NAMED):** flag OFF (instant inert) · revert dispatch registration · `data/skill_uses.jsonl` benign (no repair needed) · container recreate (`docker compose -f docker-compose.vps.yml up -d --no-deps worker scheduler`) if beat changed.
+- **Cost/quota:** LLM-heavy action → per-run cap + free_ai chain fallback (Mistral→Groq→…→static template), `SELFIMPROVE_COST_CAP` honored.
+- **Evidence (done):** 5 test scenarios green + `.venv\Scripts\python.exe scripts\prod_check.py` + `.venv\Scripts\python.exe -m pytest tests\test_teach_agent_loop.py tests\test_parity_*.py -q` + `scripts\check_secrets.py`. Live-VPS enable = explicit user-auth, infer mat karo.
+
 ## See Also
 
 - `audit-automation/SKILL.md` — Monitor action health

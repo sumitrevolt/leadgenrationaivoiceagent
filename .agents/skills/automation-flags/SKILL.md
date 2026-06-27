@@ -55,4 +55,14 @@ Har engine ek env-flag pe gated. Set in `.env` (VPS `/opt/leadgen/.env`, gitigno
 6. Rollback: `.env.bak_*` restore + recreate.
 
 ## Verify
-`GET /api/growth/infra/flags` (live on/off/unset) ya `python scripts/setup_status.py` (flags + readiness). USER-PENDING env (Codex fabricate nahi kar sakta): `UPI_VPA` (manual UPI payments), `POLLINATIONS_API_KEY`, Vobiz DID/recharge + DLT, R2/B2 offsite creds.
+`GET /api/growth/infra/flags` (live on/off/unset) ya `python scripts/setup_status.py` (flags + readiness). USER-PENDING env (Claude fabricate nahi kar sakta): `UPI_VPA` (manual UPI payments), `POLLINATIONS_API_KEY`, Vobiz DID/recharge + DLT, R2/B2 offsite creds.
+
+## Enterprise gate
+
+- **Operating loop**: Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover = flag ka **exact code-default** padho (upar warning: kayi ON-by-default), assume mat karo; live state `GET /api/growth/infra/flags`.
+- **Risk-tier varies by flag** — flip se pehle classify:
+  - **Standard** (free + draft-only / ban-safe): `NICHE_ROTATION`, `REPLY_AGENT`, `JOURNEY_ENGINE`, `CADENCE_ENGINE`, `SALES_ENGINE`, `EVAL_GATE`, `AGENT_MEMORY` — Procedure (upar) + smoke = enough.
+  - **High-risk** (outbound spend / ban / compliance): `AUTO_EMAIL_OUTREACH` (deliverability), `WHATSAPP_AUTO_SEND` / `SMS_DLT_ENABLED` / `MISSED_CALL_CALLBACK` / cold-calling (BAN / DLT ₹10L). Pehle readiness probe (`scripts/setup_status.py` / `/api/activation/readiness`) + compliance pre-reqs (DLT templates · opt-in · DND scrub · 9am–7pm) **fail-CLOSED** — bina ready KABHI flip nahi.
+- **Secrets**: URL/key-valued flags (`NTFY_URL`, `LITELLM_*`, `TURNSTILE_*_SECRET_KEY`) sirf `.env` (gitignored) + base64-over-ssh — plain argv / committed file / CLAUDE.md me KABHI nahi (`scripts/check_secrets.py`).
+- **Rollback (NAMED)** — already in Procedure step 6: `.env.bak_*` restore + `docker compose -f docker-compose.vps.yml up -d --no-deps app` (worker/scheduler bhi agar unko flag chahiye). Worst case `TEAM_AUTOMATION=0` = scheduler stop.
+- **Evidence (flip done)**: `docker exec leadgen_app printenv <FLAG>` (value confirm) + `GET /api/growth/infra/flags` desired state + real `data/*.jsonl` output ya engine-event post-trigger.

@@ -72,3 +72,11 @@ Launcher-bat: `.bat` me `start /min cmd /c "<long cmd> > C:\path\log.txt 2>&1"` 
 - **LLM probe**: `docker exec leadgen_app python scripts/llm_probe.py`
 
 Sibling skills (VPS-level: Caddy vs Traefik, .env inline comments, firewalled ports, rollback detail): `hostinger-deploy`, `ship-checklist`, `prod-incident-triage`.
+
+## Enterprise gate (deploy = High-risk always)
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (`fable-operating-manual`). Yahan **Execute = the 4 gated steps above; Evidence = the done-gate**.
+- **Change-risk tier:** live-VPS deploy is **High-risk by default** — it locks: ABORT-on-any-step-fail, **hard-reload** (container recreate, warna stale `.pyc` page-route 404), 2× `/health`=`environment:production`, and a **named rollback ready before pushing**. Touching billing/pricing → `test_billing_truth_2026` green SAATH; public route → SSRF/auth re-check.
+- **Safety:** secrets sirf `/opt/leadgen/.env` (gitignored) — `scripts/check_secrets.py` step-3 me; never in committed file/`.bat`/CLAUDE.md. Code/skill change = rebuild (BAKED); data-only (`./data`/`./logs`) = no rebuild.
+- **Reliability:** every deploy = health-gate + **named rollback** (fast `git reset --hard <prev-SHA>` + rebuild · scheduler-class → `RUN_IN_PROCESS_SCHEDULER=1`+`WEB_CONCURRENCY=1` · last-resort systemd `leadgen`). Worker/scheduler code → recreate `--profile celery` too; after recreate `redis-cli llen celery` >800 → `del celery` (celery-flood guard).
+- **Observability:** `docker logs leadgen_app -n 60` · `docker stats --no-stream` (CPU 0% + hang = event-loop freeze → `prod-incident-triage`) · `/api/growth/infra/automation-health` (admin) for job liveness · `dlq:failed_tasks` for failed jobs · flower :5555.
+- **Evidence (done):** `scripts\prod_check.py` green + `pytest_run.log` read + 2× `/health`=`environment:production` + route-count Δ vs pre-deploy + new page-route curl 200. Live-VPS deploy = **explicit user-auth** (infer mat karo).

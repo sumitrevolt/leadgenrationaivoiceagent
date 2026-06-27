@@ -20,7 +20,7 @@ Expect:
 - `/health` → `environment: production`, `status: healthy`
 - `/api/activation/summary` → `ready_for_first_paid_customer: true`, `blocker_count: 0`
 
-WARN only (not GO blockers): `sentry`, `turnstile` — optional hardening.
+WARN only (not GO blockers): `turnstile` — optional hardening. (Sentry already ARMED — `SENTRY_DSN` live, capturing.)
 
 ## Windows verify suite (engineering gate)
 
@@ -49,7 +49,6 @@ ADR: `product-split-adr` skill — bundle framing mat use.
 
 | Item | Action |
 |------|--------|
-| Sentry | `SENTRY_DSN` + `ENVIRONMENT=production` in VPS `.env` |
 | Turnstile | `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` |
 | Revenue trends | `REVENUE_TRENDS=1` or `scripts/vps_enable_readiness_flags.py` on VPS |
 | Plan rate limit | `PLAN_RATE_LIMIT=1` |
@@ -67,3 +66,15 @@ Infra saturated (CI, Celery, obs stack, activation API) — gap = **activation c
 ## Council for ambiguous launch decisions
 
 `llm-council-decision` or `POST /api/agents/council` (admin)
+
+## Enterprise gate (go-live = High-risk, compliance fail-CLOSED)
+Operating loop: Discover → Contract → Execute → Self-review → Evidence (`fable-operating-manual`). A readiness verdict is **evidence-only** — assert GO only when the boolean + audits prove it.
+
+**Compliance fail-CLOSED (these are the real P2 blockers + revenue-safety gates — bypass = legal/financial risk):**
+- **Telephony/outbound (P2 voice)** → TRAI calling-window **9am–7pm** (code default) · **DND scrub fail-CLOSED** (lookup-fail = promotional BLOCK) · **AI-disclosure-at-start** ("ek AI assistant") · consent-ledger opt-out instant + retention. This is exactly why P2 cold-call = commercial-blocked till DLT; **P1 inbound/callback does NOT need it**.
+- **Billing/payments** → GST charged ONLY when `GST_GSTIN` set (unregistered = no tax, <₹20L truth); `packages.py` single source; `test_billing_truth_2026` green. UPI primary (`UPI_VPA`/admin config), Stripe international.
+- **Secrets / auth** → `.env`-only (`scripts\check_secrets.py`); billing mutations IDOR-guarded (`_authed_client_id`); public webhooks signature fail-CLOSED in prod.
+
+**Observability / activation surface:** `/api/activation/summary` (single boolean) · `/api/growth/infra/flags` (automation flags live) · `/api/growth/infra/automation-health` (job liveness). Cross-path wiring proven by `cross_path_audit.py` (vobiz meter + auto-qualify parity).
+
+**Evidence (GO bar):** `/api/activation/summary` → `ready_for_first_paid_customer: true`, `blocker_count: 0` · `/health`=`environment:production` · `prod_check` ALL PASSED · `explorer_sync --check` 0 orphans · `cross_path_audit` OK · targeted pytest (`test_2026_features`, `test_cross_path_telephony`) green. **Rollback for readiness isn't a deploy revert — it's gap = activation creds OR voice commercial, NOT new code** (infra saturated; don't rebuild). Go-live decision = explicit user-auth.

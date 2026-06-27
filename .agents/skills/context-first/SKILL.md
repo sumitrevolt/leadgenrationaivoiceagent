@@ -1,11 +1,11 @@
 ---
 name: context-first
-description: Codex edge on LeadGen — parallel Grep/Read BEFORE any edit (Cursor Composer default). Use at start of EVERY code/debug/audit task, when Codex might edit blind, or when output quality must beat Cursor. Mandatory pre-flight; pairs with leadgen-composer.
+description: Claude Code edge on LeadGen — parallel Grep/Read BEFORE any edit (Cursor Composer default). Use at start of EVERY code/debug/audit task, when Claude might edit blind, or when output quality must beat Cursor. Mandatory pre-flight; pairs with leadgen-composer.
 ---
 
-# Context-First — Codex beats Cursor yahan
+# Context-First — Claude beats Cursor yahan
 
-Cursor Composer default = poora repo index + parallel context fetch. Codex **skills se yahi force karo** — bina iske Codex mediocre, iske saath Cursor-equal ya better.
+Cursor Composer default = poora repo index + parallel context fetch. Claude **skills se yahi force karo** — bina iske Claude mediocre, iske saath Cursor-equal ya better.
 
 ## Rule: ZERO edits until step 1–3 done
 
@@ -39,6 +39,32 @@ Tests: tests/test_X.py
 Risks: duplicate route? billing truth? ban-safe?
 ```
 
+### Step 3.5 — Risk gate
+
+Before editing, decide the risk class:
+
+| Risk | Required action |
+|------|-----------------|
+| Low | Small additive patch + targeted verify |
+| Medium | Add/adjust focused test + self-review diff |
+| High | Use domain skill, check auth/billing/compliance/deploy path, then verify full relevant gate |
+| Unclear | Ask only if repo context cannot safely decide |
+
+High-risk signals: auth/RBAC, billing/pricing, compliance gates, scheduler/worker loops, production deploy, data deletion, secrets, duplicate routes, public marketing copy with pricing.
+
+### Step 3.6 — Enterprise automation gate
+
+If change touches automation, scheduled jobs, agent loops, webhooks, integrations, billing, outbound, or production runtime, confirm all applicable items before edit:
+
+- Flag/kill-switch exists and default behavior is safe.
+- Idempotency or dedupe prevents duplicate sends, bills, calls, posts, or CRM writes.
+- Timeout, bounded retry, and DLQ/fail record exist for background/provider work.
+- Observability exists: event/log/metric/heartbeat and admin/operator surface when useful.
+- Rollback path is clear: env toggle, container recreate, migration rollback, or data repair.
+- Quota/cost fallback stays free-stack and graceful.
+- Security/compliance gates remain fail-closed where required.
+- Test/smoke plan covers happy path and one failure path.
+
 ### Step 4 — Edit
 
 - Windows file-tools only; **same file parallel edit MAT**
@@ -48,7 +74,16 @@ Risks: duplicate route? billing truth? ban-safe?
 
 `verify-ship` quick or full — green = done
 
-## Codex anti-patterns (STOP yourself)
+### Step 6 — Evidence handoff
+
+Final response includes:
+
+- Files changed
+- Verification command(s) and result
+- Any unverified risk, with exact reason
+- Next deploy/user action only if genuinely needed
+
+## Claude anti-patterns (STOP yourself)
 
 | Bad | Good |
 |-----|------|
@@ -57,8 +92,11 @@ Risks: duplicate route? billing truth? ban-safe?
 | "Ho gaya" bina prod_check | `verify-ship` |
 | Rebuild feature from memory | Grep existing route first |
 | Load 5 skills | `leadgen-composer` + **one** domain skill |
-| Bash append AGENTS.md | Edit tool only |
+| Bash append CLAUDE.md | Edit tool only |
 | Sandbox python verify | `.venv\Scripts\python.exe` Windows |
+| AskUserQuestion as escape hatch | Execute safe default or ask one focused blocker |
+| Final answer with no proof | Evidence handoff |
+| Automation without ops hooks | Add flag, idempotency, retry/DLQ, metrics, rollback |
 
 ## When subagent OK
 

@@ -40,3 +40,20 @@ description: User bole "web call pe agent slow hai / sunta nahi / atak jata / no
 - Web-call WS me KOI sync heavy init event-loop pe nahi — `_run_blocking` (15s) pattern use karo (2026-06-12 prod-down: fastembed download ne dono workers freeze kiye).
 - Web path pe naya stage add karo to phone-parity table upar update karo — drift hi "noob web call" ka original root tha.
 - Symptom report Hinglish/typo me aayega — pehle elicit karo: konsa path (web/vobiz), kya kharab (slow/STT/atak/content/awaaz), example utterance.
+
+## Enterprise gate (web-call path = HIGH-RISK, public WS)
+Operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). **Change-risk tier: High-risk** — web-call WS public hai aur live audio serve karta; ek freeze dono workers maar sakta (3 prod-downs isi se).
+
+**Bounded-awaits (the #1 lesson):** WS handler me KOI sync heavy init event-loop pe nahi — `_run_blocking` (15s deadline) pattern (2026-06-12 prod-down: fastembed download ne dono workers freeze). HAR `await` (chat_stream token loop, local-STT, KB) ko timeout + THINK-watchdog se bound karo — unbounded await = `_thinking` stuck = dead-air (2026-06-22 fix). Naya ML/KB load = off-loop (`asyncio.to_thread`) + deadline + disable-switch.
+
+**Defensive WS:** handler exception before its try-block = 1006 close + no log → ASGI driver se traceback surface (`debug-ws-handler-crash` lesson). AI-disclosure greeting web pe bhi (`ai_marketing` parity).
+
+**Phone-parity (drift = root cause):** web pe naya stage add karo to architecture-TRUTH table upar update karo — STT/brain/TTS/filler parity drift hi "noob web call" ka original root tha.
+
+**Observability:** `GET /api/web-call/config` (`responder:"telecaller"` + `natural_voice_available:true`) · `GET /api/growth/infra/llm` (ok-rate>0.7) · `docker logs leadgen_app | grep "free_ai STT failed|TelecallerBrain reply failed"` · `scripts/call_health_check.py` (dead-air detector).
+
+**Cost/quota:** STT Groq → browser-WebSpeech fallback; LLM `free_ai.py` circuit-breaker chain (cooldown = "atak/slow" ka #1 root). Free-stack, no paid.
+
+**Rollback (NAMED):** regression → revert + `docker compose build app` + `up -d --no-deps app` recreate (stale .pyc clear) → `/health`=`environment:production` + `/api/web-call/config` re-check.
+
+**Evidence (done):** verify-loop upar (config + agent_tester + llm endpoint + real `/app/test-call` browser test) + `scripts/call_health_check.py` clean + `.venv\Scripts\python.exe scripts\prod_check.py` green.

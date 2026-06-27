@@ -39,3 +39,10 @@ Phone: `voice_role=booking_agent` in stream customParameters.
 - Swara outbound sales script reception pe mat lagao — role alag prompt hai
 
 Tune: `voice-agent-kb` + `test-agent` + `web-call-triage`
+
+## Enterprise gate (persona config → live calls)
+Operating loop — Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). **Change-risk tier: High-risk** — yeh personas reference nahi, LIVE outbound/inbound calls pe chalti hain (TelecallerBrain prompt + `vobiz_stream`/`phone_stream` `voice_role` param), isliye prompt/role change = telephony-grade.
+
+**Compliance (fail-CLOSED — har role me intact):** har persona greeting me AI-disclosure ("ek AI assistant", TRAI) baked rahe; outbound roles (Swara/Ananya) TRAI 9am–7pm + DND fail-CLOSED + consent-ledger se bound (`compliance.py`) — role-prompt edit inko bypass na kare. Riya inbound = looser gate par disclosure phir bhi.
+
+**Evidence (done):** role wiring change ke baad FREE web-call WS test (upar JSON) — opener + tools + disclosure correct + `python scripts/agent_tester.py` clean. Cross-path: naya role = TelecallerBrain + `vobiz_stream`/`phone_stream` + `web_call.py` + `team.py` STAFF sab me wire (ek miss = adhoora).

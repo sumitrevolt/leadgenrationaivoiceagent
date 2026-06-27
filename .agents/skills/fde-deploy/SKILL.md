@@ -34,3 +34,16 @@ marketing_pack (`niche_pack`) · social_posts (`post_generator`) · hashtags · 
 
 ## Verify
 `/api/growth/fde/deploy` response me chosen skills + per-skill output. Mini-site live: `/b/<slug>` → 200. Widget: `GET /api/marketing/embed-snippet?slug=<slug>`. Live demo proven: Neo ne Sharma Solar ke liye 4/4 skills deploy kiye.
+
+## Enterprise gate
+
+Operating loop chalao — Discover → Contract → Execute → Self-review → Evidence (full loop `fable-operating-manual`).
+
+**Change-risk tier:** FDE deploy run karna (admin) = **Standard** (drafts/setup, koi auto-publish nahi). FDE handler/skill **code** edit = **High-risk** (client-facing output + ban-safety) — additive only, `fde.py` ka 11-skill wrap-pattern (REBUILD NAHI, commit 647096c) preserve karo.
+
+- **Safety / ban-safe (fail-CLOSED):** FDE drafts/setup hi deta — Meta/GBP auto-publish app-review/DLT pe **blocked**, human 1-click post. Yeh boundary KABHI mat todo (auto-broadcast = number ban). Naya skill bhi import-safe + free-stack + handler kabhi raise nahi (defensive).
+- **Idempotency:** dobara deploy pe duplicate mini-site/widget na bane — same `slug`/`client_id` pe re-run safe (existing wrap). `client_id` do to deploy us client se link (dashboard).
+- **Tenant boundary:** deploy hamesha sahi `client_id` se scoped; ek client ka content doosre ke namespace/dashboard me leak na ho.
+- **Observability/Rollback (NAMED):** deploy response me chosen skills + per-skill output = audit trail. Galat/junk draft → wo ek draft delete (publish nahi hua = blast-radius zero); FDE skill code regression → git-revert + recreate.
+
+**Evidence (done):** `/api/growth/fde/deploy` response me per-skill output + `/b/<slug>` → 200 + `GET /api/marketing/embed-snippet?slug=<slug>` valid snippet. FDE code chhua to `.venv\Scripts\python.exe scripts\prod_check.py` + touched-area test green. Bina mini-site 200 done mat bolo.

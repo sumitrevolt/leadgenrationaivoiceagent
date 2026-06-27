@@ -32,3 +32,15 @@ Customer bole "mera dashboard tuta" → screenshots maangne ki zaroorat nahi. GA
 - Member login = wahi `/app/admin-login`; token `accessToken` localStorage me (admin pages pattern).
 - Account suspend/inactive = login turant block (status check `get_current_user` me).
 - Temp password chat/email me bhejna pade to rotate karwana yaad rakho; CLAUDE.md/commit me KABHI nahi.
+
+## Enterprise gate (access ops = least-privilege + audited)
+
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Access grant dene se pehle Discover: member ko kaun-se modules genuinely chahiye (least-privilege) — "sab de do" default mat karo.
+- **Change-risk tier: High-risk** — grant/role-change/impersonation = privilege ops. Code-level RBAC change → `backend-rbac` + `security-review` SAATH; runbook-level grant = operational High-risk (audit-mandatory).
+- **Fail-CLOSED operating rules:**
+  - **Least-privilege default** — naya member = role + sirf zaroori modules; full-admin sirf jab role genuinely sab-handle ho. Module-limited = baaki + unmapped surface 403 (design).
+  - **Audit-mandatory** — har create/modules-edit/reset/deactivate/delete/impersonate-start+stop `log_audit` me (actor, old→new, IP, reason). Impersonation = severity warning. Bina trail privileged action mat karo.
+  - **Impersonation discipline** — `IMPERSONATION=1` gated (off=404); super_admin only; short-lived (30 min) customer-role JWT; password kabhi maango/dekho nahi; reason mandatory; debug ke baad explicit stop.
+  - **Secrets** — temp password sirf one-time channel + rotate; CLAUDE.md/commit/chat-log me KABHI persist nahi.
+- **Rollback (NAMED):** galat grant = `PATCH .../modules` se hatao + `GET /api/admin/audit-logs` se kya-kya touch hua dekho; compromised member = `PATCH /api/admin/users/{id}` status inactive (login instant block) + reset-password (lock/counter clear).
+- **Evidence to close:** affected member ke `GET /api/team-access/me` se actual modules confirm + audit-log me write dikha + (impersonation) start/stop dono entries present. Privileged action "done" tabhi jab audit-trail visible ho.

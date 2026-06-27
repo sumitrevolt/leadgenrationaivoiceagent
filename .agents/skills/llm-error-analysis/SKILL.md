@@ -33,4 +33,15 @@ Arjun (`coordinator.py` critic) = LLM-as-judge — usko bhi calibrate karo:
 
 Voice changes ke baad scorecard mandatory: `python scripts/agent_tester.py`. Fix nikla = failing test + `tdd-contract-first`.
 
+## Enterprise gate (error analysis → fix → proof)
+
+- **Operating loop:** Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Discover = traces sample (open-coding, categories EMERGE hone do); Contract = top-frequency category + fix + jo test cover karega.
+- **Change-risk tier:** taxonomy/analysis = **Trivial** (read-only). Lekin fix jo prompt/model/provider switch karta = **High-risk** (har LLM path affect) → re-run analysis + scorecard.
+- **Fail-safe + reliability gates:**
+  - **Fallback-aware** — fallback-rate spike ko quality-fail mat samjho jab tak provider chain itself healthy hai; provider-switch fix ke baad confirm karo agla provider quality bhi acceptable hai (cross-check `llm-quota-ops` `/api/growth/infra/llm`).
+  - **Deterministic-gate first** — jo CODE se check ho sakta (count, JSON shape, required keys) = deterministic gate (process_engine pattern), LLM-judge se mat poochho. Parse-fail = 0.6 neutral (no infinite loop) fail-safe rakho.
+  - **Free-stack** — judge/eval ke liye bhi koi paid LLM nahi; eval/test-bursts production-hours me mat chalao agar quota tight (voice paisa khaata).
+- **Observability:** trace stores = `data/llm_calls.jsonl` (+`/api/growth/infra/llm`), `data/call_qualifications.jsonl`, `agent_events`+`/app/team`, `data/coordination_runs.jsonl`. Fix ke baad inhi me delta dikhna chahiye.
+- **Evidence to close:** failure-rate table (before) + fix ke baad **re-run** (rates ghate) + voice-touch = `python scripts\agent_tester.py` scorecard + failing→passing test. One-time analysis "done" NAHI — har bड़े change pe re-run.
+
 Adapted from hamelsmu/evals-skills `error-analysis` + `write-judge-prompt` (original hamelsmu/prompts URL 404 — repo moved) (via VoltAgent/awesome-agent-skills).

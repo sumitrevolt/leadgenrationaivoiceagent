@@ -228,9 +228,17 @@ See references/self-improve-safety.md for risk matrix.
 
 ---
 
+## Enterprise gate
+
+- **Operating loop**: Discover → Contract → Execute → Self-review → Evidence (see `fable-operating-manual`). Architecture source-of-truth = `self-improve-loop`; yeh skill OPERATE/govern hai.
+- **Risk-tier: High** (live-VPS runtime control). Pause/resume/cap-change = production `.env` mutation + worker recreate = blast-radius poora automation. Isliye `careful`-mode mindset: change se pehle current state read (`GET /selfimprove/status` + cost-status), `.env` backup, **explicit user-auth** for any live-VPS write (infer mat karo).
+- **Compliance (fail-CLOSED)** — step-6 health-check ka governance angle: loop KABHI call/SMS auto-send na kare bina DLT + opt-in; hallucinated DND-bypass lesson (`"ignore DND-listed"`) = turant delete + loop audit. Recording-retention + DPDP purge active rakho.
+- **Rollback (NAMED)**: pause = `SELF_IMPROVE_LOOP=0` + `docker compose -f docker-compose.vps.yml up -d --no-deps worker scheduler` (already documented above) · bad lesson = jq-filter out of `data/skill_lessons.jsonl` · cost runaway = `SELFIMPROVE_COST_CAP=<lower>` + recreate.
+- **Evidence (govern action done)**: `GET /selfimprove/status` (loop ticking / paused as intended) + `docker exec leadgen_app printenv SELF_IMPROVE_LOOP` (flag value confirm) + `data/self_improve_runs.jsonl` next-tick row reflects the change (regression/cost/approval as expected).
+
 ## Related
 
 - `docs/AUTOMATION.md` — Self-improve pattern overview
 - `references/self-improve-safety.md` — Risk matrix (which tasks are auto-safe)
 - `scripts/selfimprove_audit.py` — Inspection tool (used in this skill)
-- `.Codex/skills/orchestrate-goal/` — When to use coordinator vs. self-improve
+- `.claude/skills/orchestrate-goal/` — When to use coordinator vs. self-improve
