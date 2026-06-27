@@ -165,13 +165,12 @@ OBJECTION HANDLING:
     def _init_gemini(self):
         """Initialize Google Gemini client (API Key)"""
         try:
-            import google.generativeai as genai
+            from google import genai
 
-            genai.configure(api_key=settings.gemini_api_key)
-            self.client = genai
+            self.client = genai.Client(api_key=settings.gemini_api_key)
             self.provider = "gemini"
         except ImportError:
-            raise ImportError("google-generativeai package not installed")
+            raise ImportError("google-genai package not installed")
 
     def _init_vertexai(self):
         """Initialize Google Vertex AI client (GCP VM / ADC)"""
@@ -576,8 +575,10 @@ Return ONLY valid JSON, no explanations."""
             return response.content[0].text.strip()
 
         elif self.provider == "gemini":
-            model = self.client.GenerativeModel(self.model)
-            response = await model.generate_content_async(prompt)
+            response = await self.client.aio.models.generate_content(
+                model=self.model,
+                contents=prompt,
+            )
             return response.text.strip()
 
         elif self.provider == "vertex":
@@ -638,8 +639,10 @@ Return ONLY valid JSON, no explanations."""
 
             full_prompt += "\nAgent: (Respond naturally)"
 
-            model = self.client.GenerativeModel(self.model)
-            response = await model.generate_content_async(full_prompt)
+            response = await self.client.aio.models.generate_content(
+                model=self.model,
+                contents=full_prompt,
+            )
             return response.text.strip()
 
         elif self.provider == "vertex":

@@ -215,21 +215,19 @@ class VertexAIClient:
     def _init_gemini_api(self):
         """Fallback to Gemini API with key"""
         try:
-            import google.generativeai as genai
+            from google import genai
+            from google.genai import types
 
             if not settings.gemini_api_key:
                 raise ValueError("No Gemini API key configured")
 
-            genai.configure(api_key=settings.gemini_api_key)
-
-            self._client = genai.GenerativeModel(
-                model_name=self.model_config["name"],
-                generation_config={
-                    "temperature": 0.7,
-                    "top_p": 0.95,
-                    "top_k": 40,
-                    "max_output_tokens": 512,
-                },
+            self._gemini_client = genai.Client(api_key=settings.gemini_api_key)
+            self._gemini_model = self.model_config["name"]
+            self._gemini_config = types.GenerateContentConfig(
+                temperature=0.7,
+                top_p=0.95,
+                top_k=40,
+                max_output_tokens=512,
             )
             self._client_type = "gemini_api"
             self.use_vertex = False
@@ -370,9 +368,18 @@ class VertexAIClient:
             full_prompt = f"[System Instruction]: {system_instruction}\n\n[User]: {prompt}"
 
         # Generate (async)
+        config = self._gemini_config
+        if temperature is not None or max_tokens is not None:
+            from google.genai import types
+            config = types.GenerateContentConfig(
+                temperature=temperature or 0.7,
+                max_output_tokens=max_tokens or 512,
+            )
         response = await asyncio.to_thread(
-            self._client.generate_content,
-            full_prompt,
+            self._gemini_client.models.generate_content,
+            model=self._gemini_model,
+            contents=full_prompt,
+            config=config,
         )
 
         return response

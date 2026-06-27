@@ -95,13 +95,15 @@ def _call_vertex_ai_sync(prompt: str, system_instruction: str = "") -> str:
 
         # Fallback to Gemini API
         if settings.gemini_api_key:
-            import google.generativeai as genai
+            from google import genai
 
-            genai.configure(api_key=settings.gemini_api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            client = genai.Client(api_key=settings.gemini_api_key)
 
             full_prompt = f"{system_instruction}\n\n{prompt}" if system_instruction else prompt
-            response = model.generate_content(full_prompt)
+            response = client.models.generate_content(
+                model="gemini-1.5-flash",
+                contents=full_prompt,
+            )
             return response.text
 
         # No AI available
