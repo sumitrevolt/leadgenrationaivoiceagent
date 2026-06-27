@@ -565,6 +565,20 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception as e:
         logger.debug(f"[signup] token issue (login still works): {e}")
 
+    # 6.5) PLAN PROVISIONING (audit #7): paid plan ka usage-period + minutes provision karo
+    #      (activate_plan + reset_usage_period). Pehle yeh sirf orphan customer_signup me tha
+    #      (jiska koi caller nahi tha) — ab is CANONICAL path pe, taaki pricing-funnel se aaya
+    #      paid customer ka quota signup pe hi set ho jaye. Trial pe SKIP (₹0; trial-fields upar
+    #      already set hote). Best-effort — signup KABHI is wajah se fail nahi hota.
+    if not is_trial:
+        try:
+            from app.billing import usage as _usage
+
+            _usage.activate_plan(cid, (body.plan or "starter"))
+            _usage.reset_usage_period(cid)
+        except Exception as e:
+            logger.debug(f"[signup] plan provisioning skip (account still ok): {e}")
+
     # 7) Team activity (best-effort) — Rohan ko self-signup dikhe
     try:
         from app.platform.team import log_event

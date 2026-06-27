@@ -101,3 +101,52 @@ def test_orphan_signup_delegates_to_canonical(client, monkeypatch):
     # Payload was adapted into the canonical public_site.SignupIn and forwarded.
     assert called.get("business_name") == "Merge Co"
     assert called.get("plan") == "starter"
+
+
+def _stub_signup_side_effects(monkeypatch, cid="c_prov"):
+    """Neuter public_signup's file/network side effects so we can assert provisioning only."""
+    import app.api.customer_auth as ca
+    import app.marketing.clients_store as cs
+
+    monkeypatch.setattr(cs, "add_client", lambda **k: {"id": cid, "business_name": k.get("business_name")})
+    monkeypatch.setattr(ca, "login_exists", lambda e: False)
+    monkeypatch.setattr(ca, "client_has_login", lambda c: False)
+    monkeypatch.setattr(ca, "register_login", lambda *a, **k: None)
+
+
+def test_public_signup_provisions_paid_plan(client, monkeypatch):
+    """Audit #7: canonical public_signup must provision the plan (activate_plan +
+    reset_usage_period) for a PAID signup — was missing on the live funnel path."""
+    import app.billing.usage as usage
+
+    _stub_signup_side_effects(monkeypatch)
+    activated: dict = {}
+    monkeypatch.setattr(usage, "activate_plan", lambda c, p: activated.update(cid=c, plan=p))
+    monkeypatch.setattr(usage, "reset_usage_period", lambda c: activated.update(reset=c))
+
+    r = client.post(
+        "/api/public/signup",
+        json={"business_name": "Paid Biz", "email": "paid@example.com",
+              "password": "secret123", "plan": "advanced"},
+    )
+    assert r.status_code == 200, r.text
+    assert activated.get("cid") == "c_prov"
+    assert activated.get("plan") == "advanced"
+    assert activated.get("reset") == "c_prov"
+
+
+def test_public_signup_skips_provision_on_trial(client, monkeypatch):
+    """Trial (₹0) must NOT activate a paid plan — provisioning is paid-only."""
+    import app.billing.usage as usage
+
+    _stub_signup_side_effects(monkeypatch, cid="c_trial")
+    activated: dict = {}
+    monkeypatch.setattr(usage, "activate_plan", lambda c, p: activated.update(called=True))
+
+    r = client.post(
+        "/api/public/signup",
+        json={"business_name": "Trial Biz", "email": "trial@example.com",
+              "password": "secret123", "plan": "trial"},
+    )
+    assert r.status_code == 200, r.text
+    assert "called" not in activated, "trial should not activate a paid plan"
