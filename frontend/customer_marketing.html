@@ -424,6 +424,7 @@
     <a class="navlink active" href="#" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home</a>
     <a class="navlink" href="#contentCard" onclick="scrollToId('contentCard');return false;" aria-label="Aaj ka Post section"><span class="ic" aria-hidden="true">📣</span> Aaj ka Post</a>
     <a class="navlink" href="#studioCard" onclick="scrollToId('studioCard');return false;" aria-label="AI Marketing Studio"><span class="ic" aria-hidden="true">🎨</span> AI Studio</a>
+    <a class="navlink" href="#mediaStudioCard" onclick="scrollToId('mediaStudioCard');return false;" aria-label="Media Studio"><span class="ic" aria-hidden="true">🖼️</span> Media</a>
     <a class="navlink" href="#approvalCard" onclick="scrollToId('approvalCard');return false;" aria-label="Post approvals"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
     <a class="navlink" href="#webToolsCard" onclick="scrollToId('webToolsCard');return false;" aria-label="Website tools mini-site widget"><span class="ic" aria-hidden="true">🌐</span> Website Tools</a>
     <a class="navlink" href="#routingCard" onclick="scrollToId('routingCard');return false;" aria-label="Team routing"><span class="ic" aria-hidden="true">👥</span> Team Routing</a>
@@ -716,6 +717,18 @@
         </div>
         <p class="sm" style="margin:2px 0 12px">Apne niche ke liye ready post, WhatsApp message, Google review reply, ad copy aur zyada — ek click me. Copy karke khud post/bhejo (kuch auto-send nahi hota, ban-safe).</p>
         <div id="studioGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px"></div>
+      </div>
+
+      <!-- ===== 2c) Media Studio — image tools (upload/generate) ===== -->
+      <div class="sec-title">🖼️ Media Studio</div>
+      <div class="card" id="mediaStudioCard">
+        <div class="card-h">
+          <h2>Image tools — GIF, stickers, resize, background remove</h2>
+          <div class="grow"></div>
+          <button class="btn" type="button" onclick="mediaInit()">↻ Refresh</button>
+        </div>
+        <p class="sm" style="margin:2px 0 12px">Photo upload karo ya text se banao — sab social sizes, WhatsApp stickers, animated GIF aur background-remove. Bana ke download karo.</p>
+        <div id="mediaGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px"></div>
       </div>
 
       <!-- ===== 3) Aapke Leads — paisa yahin hai ===== -->
@@ -2604,6 +2617,74 @@ function studioDlPoster(key){
   }catch(e){ toast("Download nahi hua","Browser support issue."); }
 }
 
+/* ============================================================
+   MEDIA STUDIO — image tools (/api/customer/studio/img-*, upload/serve)
+   ============================================================ */
+const MEDIA_TOOLS = [
+  {key:"img-gif", icon:"🎞️", title:"Animated GIF", desc:"Text → WhatsApp status GIF", upload:false,
+   inputs:[{n:"text",l:"Text",ph:"SALE 50% OFF"},{n:"style",l:"Style (pulse/pop/blink)",ph:"pulse"}]},
+  {key:"img-sticker", icon:"🩷", title:"WhatsApp Stickers", desc:"6 branded stickers", upload:false, inputs:[]},
+  {key:"img-resize", icon:"🔁", title:"Magic Resize", desc:"Photo → sab social sizes", upload:true, inputs:[]},
+  {key:"img-bgremove", icon:"✂️", title:"Background Remove", desc:"Photo ka background hatao", upload:true, inputs:[]},
+];
+function mediaInit(){ renderMediaCards(); }
+function renderMediaCards(){
+  const grid=document.getElementById("mediaGrid"); if(!grid) return;
+  grid.innerHTML=MEDIA_TOOLS.map(function(t){
+    const fields=(t.inputs||[]).map(function(f){
+      const id="md_"+t.key+"_"+f.n;
+      return '<label class="sm" style="display:block;margin-top:6px">'+escH(f.l)+'<input id="'+id+'" type="text" placeholder="'+escH(f.ph||"")+'" style="width:100%;margin-top:3px;padding:6px;border:1px solid var(--bd,#ccc);border-radius:8px;font:inherit"></label>';
+    }).join("");
+    const fileInput=t.upload?'<label class="sm" style="display:block;margin-top:6px">Photo chuno (PNG/JPG ≤8MB)<input id="mdfile_'+t.key+'" type="file" accept="image/png,image/jpeg,image/webp" style="width:100%;margin-top:3px;font-size:12px"></label>':"";
+    return '<div class="card" style="padding:14px;border:1px solid var(--bd,#e5e7eb);border-radius:12px">'
+      +'<div style="font-weight:700;font-size:15px">'+t.icon+' '+escH(t.title)+'</div>'
+      +'<div class="sm" style="color:#64748b;margin:2px 0 4px">'+escH(t.desc)+'</div>'
+      +fileInput+fields
+      +'<button class="btn primary" type="button" style="margin-top:10px;width:100%;justify-content:center" onclick="mediaRun(\''+t.key+'\')">✨ Banao</button>'
+      +'<div id="mediaOut_'+t.key+'" class="sm" style="margin-top:8px"></div>'
+      +'</div>';
+  }).join("");
+}
+async function mediaRun(key){
+  const t=MEDIA_TOOLS.find(function(x){return x.key===key;}); if(!t) return;
+  const out=document.getElementById("mediaOut_"+key); if(out) out.innerHTML='<span style="color:#64748b">⏳ ban raha hai…</span>';
+  try{
+    let body={};
+    if(t.upload){
+      const fi=document.getElementById("mdfile_"+key);
+      if(!fi||!fi.files||!fi.files[0]){ out.innerHTML='<span style="color:#dc2626">Pehle photo chuno.</span>'; return; }
+      const fd=new FormData(); fd.append("file", fi.files[0]);
+      const ur=await fetch("/api/customer/studio/upload",{method:"POST",headers:billAuthHdr(),body:fd});
+      const ud=await ur.json().catch(function(){return {};});
+      if(!ur.ok||!ud.upload_id){ out.innerHTML='<span style="color:#dc2626">'+escH(ud.detail||"Upload fail.")+'</span>'; return; }
+      body.upload_id=ud.upload_id;
+    } else {
+      (t.inputs||[]).forEach(function(f){ const el=document.getElementById("md_"+key+"_"+f.n); const v=el&&el.value.trim(); if(v) body[f.n]=v; });
+    }
+    const r=await fetch("/api/customer/studio/"+key,{method:"POST",headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),body:JSON.stringify(body)});
+    const d=await r.json().catch(function(){return {};});
+    if(!r.ok){ out.innerHTML='<span style="color:#dc2626">'+escH(d.detail||"Nahi bana.")+'</span>'; return; }
+    if(d.ok===false){ out.innerHTML='<span style="color:#64748b">'+escH(d.note||"Abhi available nahi.")+'</span>'; return; }
+    await mediaShow(d.media||[], out);
+  }catch(e){ if(out) out.innerHTML='<span style="color:#dc2626">Internet issue — phir try karo.</span>'; }
+}
+async function mediaShow(media, out){
+  if(!media.length){ out.innerHTML='<span style="color:#64748b">Kuch nahi bana.</span>'; return; }
+  out.innerHTML='';
+  for(const m of media){
+    try{
+      const r=await fetch(m.url,{headers:billAuthHdr()});
+      if(!r.ok) continue;
+      const blob=await r.blob(); const url=URL.createObjectURL(blob);
+      const wrap=document.createElement("div"); wrap.style.cssText="margin-top:6px";
+      const img=document.createElement("img"); img.src=url; img.style.cssText="max-width:140px;border:1px solid var(--bd,#e5e7eb);border-radius:8px;display:block";
+      const a=document.createElement("a"); a.href=url; a.download=(m.label||m.media_id)+"."+(m.ext||"png"); a.textContent="⬇️ "+(m.label||"Download"); a.className="btn"; a.style.cssText="margin-top:4px;padding:3px 9px;font-size:11px;display:inline-block";
+      wrap.appendChild(img); wrap.appendChild(a); out.appendChild(wrap);
+    }catch(e){}
+  }
+  if(!out.children.length) out.innerHTML='<span style="color:#64748b">Preview load nahi hua.</span>';
+}
+
 loadBilling();
 loadContent();
 loadWebTools();
@@ -2612,6 +2693,7 @@ loadRouting();
 sec2faLoad();
 whLoad();
 studioInit();
+mediaInit();
 
 /* ============================================================
    DARK MODE
