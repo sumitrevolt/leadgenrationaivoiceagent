@@ -53,13 +53,24 @@ async def _site_emails(domain: str) -> list[str]:
     d = _domain_of(domain)
     if not d:
         return []
+    # SSRF guard (fail-CLOSED): only fetch if the domain resolves to PUBLIC IPs.
+    # Blocks an attacker-supplied domain that points at 169.254.169.254 / 127.0.0.1 /
+    # 10./172.16./192.168. / docker service IPs. redirects OFF so a public host can't
+    # 302-bounce us to an internal target (httpx doesn't re-validate redirect IPs).
+    try:
+        from app.marketing.website_auditor import _resolve_is_public
+
+        if not _resolve_is_public(d):
+            return []
+    except Exception:
+        return []
     try:
         import httpx
 
         from app.lead_scraper.web_extract import find_contacts
 
         async with httpx.AsyncClient(
-            follow_redirects=True, headers={"User-Agent": "Mozilla/5.0"}
+            follow_redirects=False, headers={"User-Agent": "Mozilla/5.0"}
         ) as client:
             for url in (f"https://{d}", f"https://{d}/contact"):
                 try:

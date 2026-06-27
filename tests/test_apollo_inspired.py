@@ -26,6 +26,16 @@ def test_email_finder_find_defensive():
     assert out["ok"] is False and out["emails"] == []
 
 
+def test_email_finder_ssrf_guard_blocks_internal():
+    """SSRF guard: a domain-shaped input resolving to a private/loopback/link-local
+    IP must be refused BEFORE any HTTP fetch (returns [], no request)."""
+    from app.platform import email_finder as ef
+
+    # these pass _domain_of (have a dot) but resolve to non-public IPs
+    for host in ("127.0.0.1", "169.254.169.254", "10.0.0.1", "192.168.1.1"):
+        assert asyncio.run(ef._site_emails(host)) == []
+
+
 def test_import_rows_mapping_dedupe(tmp_path, monkeypatch):
     from app.platform import prospect_lists as pl
     from app.platform import prospector
