@@ -2285,6 +2285,14 @@ const STUDIO_TOOLS = [
   {key:"rank-check-guide", icon:"📡", title:"Rank Check Guide", desc:"DIY Google rank tracking", method:"GET", path:"/api/customer/studio/rank-check-guide", inputs:[]},
   {key:"booking-link", icon:"🗓️", title:"Booking Setup", desc:"Booking link + messages", method:"GET", path:"/api/customer/studio/booking-link", inputs:[]},
   {key:"newsletter-outline", icon:"📰", title:"Newsletter Outline", desc:"Monthly email plan", method:"GET", path:"/api/customer/studio/newsletter-outline", inputs:[]},
+  {key:"meme", icon:"😂", title:"Meme Maker", desc:"Relatable Hinglish meme", method:"POST", path:"/api/customer/studio/meme", inputs:[{n:"topic",l:"Topic (optional)",ph:"monday, gst, customer…"}]},
+  {key:"multilang-post", icon:"🌐", title:"Regional Language Post", desc:"Caption → Hindi/Marathi/Tamil…", method:"POST", path:"/api/customer/studio/multilang-post",
+   inputs:[{n:"caption",l:"Caption (English/Hinglish)",ph:"Aaj 20% off sab pe!",type:"textarea",req:true}]},
+  {key:"trends", icon:"📊", title:"Trending Topics", desc:"Niche ke trend angles", method:"GET", path:"/api/customer/studio/trends", inputs:[]},
+  {key:"partnerships", icon:"🤝", title:"Partnership Pitch", desc:"Co-marketing drafts", method:"GET", path:"/api/customer/studio/partnerships", inputs:[]},
+  {key:"business-card", icon:"💳", title:"Digital Business Card", desc:"Shareable HTML card", method:"GET", path:"/api/customer/studio/business-card", inputs:[]},
+  {key:"email-signature", icon:"✍️", title:"Email Signature", desc:"Branded signature", method:"GET", path:"/api/customer/studio/email-signature", inputs:[]},
+  {key:"reviews-widget", icon:"⭐", title:"Reviews Widget", desc:"Website pe reviews", method:"GET", path:"/api/customer/studio/reviews-widget", inputs:[]},
 ];
 const STUDIO_LAST = {};  // key -> plain text for copy
 const STUDIO_SVG = {};   // key -> last poster SVG (for download)
@@ -2529,7 +2537,25 @@ function studioRenderResult(key,d,out){
       return '<div style="margin-top:4px"><b>'+escH(x.name||x.key||"")+'</b>'+(x.why?' <span class="sm" style="color:#64748b">— '+escH(x.why)+'</span>':"")+(links?'<div class="sm">'+links+'</div>':"")+'</div>';
     }).join("");
     copy=dirs.map(function(x){return (x.name||"")+": "+(x.listing_url||x.search_url||"");}).join("\n");
-  } else if(key==="website-widget"){
+  } else if(key==="meme"){
+    if(res.svg){ STUDIO_SVG[key]=res.svg;
+      html='<div style="max-width:240px;border:1px solid var(--bd,#e5e7eb);border-radius:8px;overflow:hidden">'+res.svg+'</div>'
+        +(res.caption?'<div style="margin-top:5px;white-space:pre-wrap">'+escH(res.caption)+'</div>':"")
+        +'<button class="btn" type="button" style="margin-top:6px;padding:5px 10px;font-size:12px" onclick="studioDlPoster(\'meme\')">⬇️ Meme download</button>';
+      STUDIO_LAST[key]=res.caption||""; out.innerHTML=html+'<button class="btn" type="button" style="margin-top:8px;padding:5px 10px;font-size:12px" onclick="studioCopy(\'meme\')">📋 Copy caption</button>'; return;
+    } else { html=escH((res.top||"")+" / "+(res.bottom||"")); copy=html; }
+  } else if(key==="multilang-post"){
+    const v=res.versions||{};
+    html=Object.keys(v).map(function(k){return '<div style="margin-top:5px"><b>'+escH(k)+':</b><div style="white-space:pre-wrap">'+escH(v[k])+'</div></div>';}).join("");
+    copy=Object.keys(v).map(function(k){return k+": "+v[k];}).join("\n\n");
+  } else if(key==="trends"){
+    html='<b>Trend post-angles:</b>'+_li(res.angles||[])+((res.trending||[]).length?'<div class="sm" style="margin-top:4px;color:#64748b">Trending: '+escH((res.trending||[]).slice(0,6).join(", "))+'</div>':"");
+    copy=(res.angles||[]).map(function(a){return typeof a==="string"?a:Object.values(a).join(" — ");}).join("\n");
+  } else if(key==="partnerships"){
+    const ps=res.partnerships||[];
+    html=ps.map(function(p){return '<div style="margin-top:5px"><b>'+escH(p.partner_type||p.type||p.name||"Partner")+':</b><div class="sm" style="white-space:pre-wrap">'+escH(p.pitch||p.message||p.draft||(typeof p==="string"?p:""))+'</div></div>';}).join("");
+    copy=ps.map(function(p){return (p.partner_type||"")+": "+(p.pitch||p.message||p.draft||"");}).join("\n\n");
+  } else if(key==="website-widget" || (res && typeof res.snippet==="string")){
     html='<div class="sm">'+escH(res.note||"")+'</div><pre style="white-space:pre-wrap;background:var(--soft,#f8fafc);padding:8px;border-radius:8px;margin-top:5px;font-size:12px">'+escH(res.snippet||"")+'</pre>';
     copy=res.snippet||"";
   } else if(d.sections && d.sections.length){

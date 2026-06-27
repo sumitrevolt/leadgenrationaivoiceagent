@@ -1238,6 +1238,129 @@ def studio_website_widget(client_id: str = Depends(require_customer)) -> dict:
             "result": {"snippet": code, "note": "Ye code apni website ke page me paste karo — enquiry form/widget aa jayega."}}
 
 
+# --------------------------------------------------------------------------- #
+# Batch 8 — more FREE-stack wires (meme, card, signature, regional post,       #
+# trends, partnerships, reviews widget). All zero-paid-API.                    #
+# --------------------------------------------------------------------------- #
+class MultilangReq(BaseModel):
+    caption: str = Field(..., min_length=1, max_length=1000)
+    langs: list[str] | None = Field(None, description="hi, mr, ta, te, bn… (blank = default set)")
+
+
+def _snippet_of(out) -> str:
+    if isinstance(out, str):
+        return out
+    if isinstance(out, dict):
+        for k in ("snippet", "html", "signature_html", "card_html", "code"):
+            if out.get(k):
+                return str(out[k])
+    return ""
+
+
+@router.post("/meme", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_meme(req: TopicReq = Body(default=TopicReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Relatable Hinglish meme — top/bottom text + SVG + caption (downloadable)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import meme_gen
+
+        out = await meme_gen.generate_meme(business_name=c["business_name"], niche=c["niche"], topic=req.topic)
+    except Exception as e:
+        _fail("Meme", e)
+    return {"ok": True, "tool": "meme", "result": out, "context": c}
+
+
+@router.post("/multilang-post", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_multilang_post(req: MultilangReq, client_id: str = Depends(require_customer)) -> dict:
+    """Ek caption ko regional languages me translate (Hindi/Marathi/Tamil/Telugu/Bengali…)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import multilang_post
+
+        out = await multilang_post.translate_post(caption=req.caption, langs=req.langs)
+    except Exception as e:
+        _fail("Multi-language Post", e)
+    return {"ok": True, "tool": "multilang-post", "result": out, "context": c}
+
+
+@router.get("/trends")
+async def studio_trends(client_id: str = Depends(require_customer)) -> dict:
+    """Trending topics → aapke niche ke liye post angles (free RSS, never-empty)."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import trends
+
+        out = await trends.trend_angles(niche=c["niche"], business_name=c["business_name"], n=4)
+    except Exception as e:
+        _fail("Trends", e)
+    return {"ok": True, "tool": "trends", "result": out, "context": c}
+
+
+@router.get("/partnerships")
+async def studio_partnerships(client_id: str = Depends(require_customer)) -> dict:
+    """Co-marketing / partnership pitch drafts for complementary local businesses."""
+    c = _ctx(client_id)
+    try:
+        from app.marketing import partnerships
+
+        out = await partnerships.draft_batch(city=c["city"])
+    except Exception as e:
+        _fail("Partnerships", e)
+    return {"ok": True, "tool": "partnerships", "result": out, "context": c}
+
+
+@router.get("/business-card")
+def studio_business_card(client_id: str = Depends(require_customer)) -> dict:
+    """Digital business card (HTML) — share link/QR, save-to-contacts."""
+    c = _ctx(client_id)
+    rec = _client_record(client_id) or {}
+    slug = str(rec.get("slug") or rec.get("id") or client_id)
+    code = ""
+    try:
+        from app.marketing import business_card
+
+        code = _snippet_of(business_card.render_card_html(slug))
+    except Exception as e:
+        logger.debug("business-card failed: %s", e)
+    return {"ok": True, "tool": "business-card", "context": c,
+            "result": {"snippet": code or "Card abhi available nahi.", "note": "Ye HTML card share karo ya website pe lagao."}}
+
+
+@router.get("/email-signature")
+def studio_email_signature(client_id: str = Depends(require_customer)) -> dict:
+    """Branded email signature (HTML) — har email me brand + CTA."""
+    c = _ctx(client_id)
+    rec = _client_record(client_id) or {}
+    code = ""
+    try:
+        from app.marketing import email_signature
+
+        code = _snippet_of(email_signature.generate(client_id=str(rec.get("id") or client_id), slug=str(rec.get("slug") or "")))
+    except Exception as e:
+        logger.debug("email-signature failed: %s", e)
+    return {"ok": True, "tool": "email-signature", "context": c,
+            "result": {"snippet": code or "Signature abhi available nahi.", "note": "Gmail/Outlook signature settings me paste karo."}}
+
+
+@router.get("/reviews-widget")
+def studio_reviews_widget(client_id: str = Depends(require_customer)) -> dict:
+    """Embeddable reviews widget — apni website pe Google reviews dikhaao."""
+    c = _ctx(client_id)
+    rec = _client_record(client_id) or {}
+    slug = str(rec.get("slug") or rec.get("id") or client_id)
+    code = ""
+    try:
+        from app.marketing import reviews_widget
+
+        code = _snippet_of(reviews_widget.snippet(slug))
+    except Exception as e:
+        logger.debug("reviews-widget failed: %s", e)
+    if not code:
+        code = f'<script src="https://leadsgenai.in/b/{slug}/reviews.js" async></script>'
+    return {"ok": True, "tool": "reviews-widget", "context": c,
+            "result": {"snippet": code, "note": "Ye code website pe paste karo — reviews auto dikhenge."}}
+
+
 # --- 3 generator wires ---
 @router.post("/coupon", dependencies=[Depends(_GEN_LIMIT)])
 def studio_coupon(req: CouponReq = Body(default=CouponReq()), client_id: str = Depends(require_customer)) -> dict:
@@ -1371,6 +1494,13 @@ _TOOLS = [
     {"key": "rank-check-guide", "icon": "📡", "title": "Rank Check Guide", "desc": "DIY Google rank tracking", "method": "GET", "path": "/api/customer/studio/rank-check-guide", "fields": []},
     {"key": "booking-link", "icon": "🗓️", "title": "Booking Setup", "desc": "Booking link + messages", "method": "GET", "path": "/api/customer/studio/booking-link", "fields": []},
     {"key": "newsletter-outline", "icon": "📰", "title": "Newsletter Outline", "desc": "Monthly email plan", "method": "GET", "path": "/api/customer/studio/newsletter-outline", "fields": []},
+    {"key": "meme", "icon": "😂", "title": "Meme Maker", "desc": "Relatable Hinglish meme + SVG", "method": "POST", "path": "/api/customer/studio/meme", "fields": ["topic"]},
+    {"key": "multilang-post", "icon": "🌐", "title": "Regional Language Post", "desc": "Caption → Hindi/Marathi/Tamil…", "method": "POST", "path": "/api/customer/studio/multilang-post", "fields": ["caption"]},
+    {"key": "trends", "icon": "📊", "title": "Trending Topics", "desc": "Niche ke trend post-angles", "method": "GET", "path": "/api/customer/studio/trends", "fields": []},
+    {"key": "partnerships", "icon": "🤝", "title": "Partnership Pitch", "desc": "Co-marketing pitch drafts", "method": "GET", "path": "/api/customer/studio/partnerships", "fields": []},
+    {"key": "business-card", "icon": "💳", "title": "Digital Business Card", "desc": "Shareable HTML card", "method": "GET", "path": "/api/customer/studio/business-card", "fields": []},
+    {"key": "email-signature", "icon": "✍️", "title": "Email Signature", "desc": "Branded email signature", "method": "GET", "path": "/api/customer/studio/email-signature", "fields": []},
+    {"key": "reviews-widget", "icon": "⭐", "title": "Reviews Widget", "desc": "Website pe reviews dikhaao", "method": "GET", "path": "/api/customer/studio/reviews-widget", "fields": []},
 ]
 
 
