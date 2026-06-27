@@ -368,16 +368,14 @@ async function doSignupPay(){
   }catch(e){}
 
   busy(false);
-  let upi = null;
-  try{
-    const r = await fetch(API + "/api/public/pay-info");
-    if(r.ok){ const d = await r.json(); if(d.enabled) upi = d; }
-  }catch(e){}
-  if(upi && upi.vpa){
-    setMsg(`Account ban gaya ✓ Payment ke liye UPI karo: <b>${upi.vpa}</b><br>Phir <a href="/app/login">login</a> karo. Hum activate kar denge.`, true);
-  }else{
-    setMsg(`Account ban gaya ✓ Online payment jald hi. Abhi activate karne ke liye humein WhatsApp karo. <a href="/app/login">Login</a>`, true);
-  }
+  // Account ban gaya + token localStorage me store ho chuka. Customer ko working portal pe le jao —
+  // /app/customer me UPI QR + "maine pay kiya" submit form (POST /api/upi/submit) already kaam karta hai.
+  // Pehle yahan static VPA-text dead-end tha ("login karo, hum activate kar denge") jisme na QR dikhta
+  // na /api/upi/submit call hota — customer ko manually re-login karna padta. Ab seedha portal jahan
+  // payment self-serve complete hota (trial path bhi yahi /app/customer redirect karta hai, line ~343).
+  setMsg("Account ban gaya ✓ Ab portal me UPI se payment complete karo…", true);
+  setTimeout(() => location.href = "/app/customer", 1100);
+  return;
 }
 
 loadPlans();

@@ -251,6 +251,10 @@ async def scrape_leads(
                 niche=request.niche,
                 cities=request.cities if request.cities else None,
                 max_leads=request.max_leads,
+                # ToS-safe: is endpoint se JustDial/IndiaMart auto-scrape KABHI nahi (ban risk).
+                # Sirf google_maps (andar OSM fallback). Blocked sources ka path = manual CSV import.
+                # (Pehle sources=None tha → default ["google_maps","indiamart","justdial"] = ToS landmine.)
+                sources=["google_maps"],
             )
 
             # Store scraped leads
