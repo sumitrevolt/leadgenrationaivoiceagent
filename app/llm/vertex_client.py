@@ -151,6 +151,11 @@ class VertexAIClient:
 
         # Initialize client
         self._client = None
+        # Gemini-API path attrs (set in _init_gemini_api) — None-init taaki init
+        # mid-way raise kare to generate AttributeError ke bajaye clean fail ho.
+        self._gemini_client = None
+        self._gemini_model = None
+        self._gemini_config = None
         self._init_client()
 
         logger.info(f"🚀 VertexAIClient initialized: model={model_name}, vertex={self.use_vertex}")
