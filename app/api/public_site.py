@@ -681,15 +681,17 @@ async def pay_info():
         out["upi_link"] = ""
         out["qr_svg"] = ""
     try:
-        from app.marketing.packages import get_packages
+        from app.marketing.packages import get_public_packages
 
+        # PUBLIC pay modal — sirf 2 public plans (main ₹1,999 + advanced ₹5,999).
+        # Legacy Growth (public:False) filtered out — get_public_packages() honors it.
         out["packages"] = [
             {
                 "key": p.get("key"),
                 "name": p.get("name"),
                 "price_inr_month": p.get("price_inr_month"),
             }
-            for p in (get_packages() or [])
+            for p in (get_public_packages() or [])
         ]
     except Exception:
         out["packages"] = []
