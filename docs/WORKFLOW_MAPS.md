@@ -1,6 +1,6 @@
 # Workflow Maps — LeadGenAI Pipelines
 
-> **Visual ops reference** · Code paths verified 2026-06-20 · Detail: [`AUTOMATION.md`](AUTOMATION.md)
+> **Visual ops reference** · Code paths verified 2026-06-20 · Runtime liveness re-verified 2026-06-27 (worker + scheduler Up, Celery queue 0, heartbeat fresh — `DIAGNOSTIC_ROOT_CAUSE_2026_06_27.md`) · Detail: [`AUTOMATION.md`](AUTOMATION.md)
 
 ---
 
