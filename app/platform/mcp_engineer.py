@@ -93,8 +93,9 @@ def _maybe_alert(title: str, body: str, priority: str = "default") -> None:
     try:
         from app.platform import ops_alerts
 
-        if hasattr(ops_alerts, "send_alert"):
-            ops_alerts.send_alert(title, body, priority=priority, tags=["mcp"])
+        # ops_alerts has no send_alert (the hasattr guard made this a permanent no-op,
+        # so the MCP auth-attack ntfy page never fired). The real push helper is _ntfy.
+        ops_alerts._ntfy(title, body, priority=priority, tags=["mcp"])
     except Exception as exc:
         logger.debug("mcp_engineer _maybe_alert swallowed: %s", exc)
 

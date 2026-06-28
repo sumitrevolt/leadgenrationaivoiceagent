@@ -1768,7 +1768,14 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         ut = (user_text or "").strip()
         if len(ut) < 3:
             return []
-        kb = _get_kb()
+        # Off-load to a thread: the FIRST call runs bootstrap_default_kb (seeds 39 niches
+        # = hundreds of sync embed+upsert ops) which would otherwise FREEZE the whole
+        # event loop on the spoken-reply hot path. _KB_TRIED is set before the seed, so a
+        # timeout here just lets the seed finish on the bg thread; the next turn gets it.
+        try:
+            kb = await asyncio.wait_for(asyncio.to_thread(_get_kb), timeout=_KB_TIMEOUT_S)
+        except Exception:
+            kb = None
         if kb is None:
             return []
 
@@ -1817,7 +1824,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 primary_ns = namespaces[0] if namespaces else "default"
                 ar = await asyncio.wait_for(
                     get_agentic_rag().answer(ut, namespace=primary_ns, k=_KB_TOP_K),
-                    timeout=8.0,
+                    # tight cap on the SPOKEN reply path — 8s ate the THINK budget and
+                    # produced nothing on the common unseeded-niche (empty) case = dead air.
+                    timeout=max(2.0, _KB_TIMEOUT_S),
                 )
                 if isinstance(ar, dict) and ar.get("grounded") and (ar.get("answer") or "").strip():
                     facts = [(ar["answer"] or "").strip()]

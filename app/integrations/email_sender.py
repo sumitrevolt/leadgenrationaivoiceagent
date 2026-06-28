@@ -88,7 +88,12 @@ class EmailSender:
 
             if api_available():
                 ok, info = await send_email_api(
-                    to_emails, subject, body, html_body=html_body, reply_to=reply_to
+                    to_emails,
+                    subject,
+                    body,
+                    html_body=html_body,
+                    reply_to=reply_to,
+                    extra_headers=extra_headers,  # List-Unsubscribe etc. were dropped on the API path
                 )
                 if ok:
                     logger.info(f"Email sent via API ({info}) to {', '.join(to_emails)}")
