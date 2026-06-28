@@ -19,7 +19,8 @@ def test_compute_call_kpis_shape():
 def test_compute_call_kpis_clamps_days():
     from app.voice_agent.call_analytics import compute_call_kpis
 
-    assert compute_call_kpis(0)["window_days"] == 1
+    assert compute_call_kpis(0)["window_days"] == 7    # 0 → falsy → default 7
+    assert compute_call_kpis(-5)["window_days"] == 1   # negative clamps to 1
     assert compute_call_kpis(999)["window_days"] == 90
 
 
