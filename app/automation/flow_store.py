@@ -79,22 +79,28 @@ def save_flow(flow: dict, by: str = "admin", owner_client_id: str = "") -> dict:
         if not isinstance(flow, dict):
             return {"ok": False, "error": "flow must be an object"}
         fid = str(flow.get("id") or "").strip() or f"flow_{uuid.uuid4().hex[:8]}"
-        existing = _read_all().get(fid)
-        owner = str(owner_client_id or (existing or {}).get("owner_client_id") or "")[:60]
-        rec = {
-            "id": fid,
-            "name": str(flow.get("name") or "Untitled flow")[:120],
-            "nodes": flow.get("nodes") or [],
-            "edges": flow.get("edges") or [],
-            "trigger": _norm_trigger(flow.get("trigger")),
-            "owner_client_id": owner,
-            "created_by": str(flow.get("created_by") or by)[:60],
-            "updated_at": _now(),
-        }
-        flows = _read_all()
-        flows[fid] = rec
-        if not _rewrite(flows):
-            return {"ok": False, "error": "persist failed"}
+        from app.utils.file_lock import file_lock
+
+        # Lock the whole read-modify-write: _rewrite is atomic but does NOT serialize
+        # the read->mutate->write across WEB_CONCURRENCY=2 workers, so a concurrent save
+        # could silently drop the other writer's new flow (lost update).
+        with file_lock(_PATH):
+            existing = _read_all().get(fid)
+            owner = str(owner_client_id or (existing or {}).get("owner_client_id") or "")[:60]
+            rec = {
+                "id": fid,
+                "name": str(flow.get("name") or "Untitled flow")[:120],
+                "nodes": flow.get("nodes") or [],
+                "edges": flow.get("edges") or [],
+                "trigger": _norm_trigger(flow.get("trigger")),
+                "owner_client_id": owner,
+                "created_by": str(flow.get("created_by") or by)[:60],
+                "updated_at": _now(),
+            }
+            flows = _read_all()
+            flows[fid] = rec
+            if not _rewrite(flows):
+                return {"ok": False, "error": "persist failed"}
         return {"ok": True, "flow": rec}
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}
@@ -144,8 +150,11 @@ def count_for_owner(client_id: str) -> int:
 
 def delete_flow(flow_id: str) -> bool:
     fid = (flow_id or "").strip()
-    flows = _read_all()
-    if fid in flows:
-        del flows[fid]
-        return _rewrite(flows)
+    from app.utils.file_lock import file_lock
+
+    with file_lock(_PATH):  # serialize read-modify-write (else a concurrent save is lost)
+        flows = _read_all()
+        if fid in flows:
+            del flows[fid]
+            return _rewrite(flows)
     return False

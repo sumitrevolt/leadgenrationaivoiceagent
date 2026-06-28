@@ -59,14 +59,23 @@ def _load() -> dict[str, Any]:
     return {}
 
 
-def _save(state: dict[str, Any]) -> None:
+def _save(state: dict[str, Any], _already_locked: bool = False) -> None:
     try:
         os.makedirs(os.path.dirname(_STATE) or ".", exist_ok=True)
+        payload = json.dumps(state, ensure_ascii=False, default=str)
+        if _already_locked:
+            # Caller already holds file_lock(_STATE); locked_rewrite would self-block on
+            # the per-open-description flock. Write atomically (tmp+os.replace) directly.
+            tmp = f"{_STATE}.tmp.{os.getpid()}"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(payload)
+            os.replace(tmp, _STATE)
+            return
         from app.utils.file_lock import locked_rewrite
 
-        if not locked_rewrite(_STATE, json.dumps(state, ensure_ascii=False, default=str)):
+        if not locked_rewrite(_STATE, payload):
             with open(_STATE, "w", encoding="utf-8") as f:
-                json.dump(state, f, ensure_ascii=False, default=str)
+                f.write(payload)
     except Exception as e:
         logger.debug(f"[warmup] save skipped: {e}")
 
@@ -151,11 +160,16 @@ def record_sent(n: int = 1) -> None:
     try:
         if int(n or 0) <= 0:
             return
-        st = _load()
-        events = _trim_7d(list(st.get("sent_events") or []))
-        events.append({"at": _now().isoformat(), "n": int(n)})
-        st["sent_events"] = events
-        _save(st)
+        from app.utils.file_lock import file_lock
+
+        # lock the whole load->modify->save so a concurrent record_bounce/complaint
+        # (other worker process) can't clobber this appended sent event (lost update).
+        with file_lock(_STATE):
+            st = _load()
+            events = _trim_7d(list(st.get("sent_events") or []))
+            events.append({"at": _now().isoformat(), "n": int(n)})
+            st["sent_events"] = events
+            _save(st, _already_locked=True)
     except Exception:
         pass
 
@@ -164,23 +178,30 @@ def record_bounce(email: str = "", reason: str = "") -> dict[str, Any]:
     """Bounce report (manual/reply-agent) — threshold cross pe 24h auto-pause + alert."""
     out: dict[str, Any] = {"recorded": False, "paused": False}
     try:
-        st = _load()
-        events = _trim_7d(list(st.get("bounce_events") or []))
-        events.append(
-            {"at": _now().isoformat(), "email": (email or "")[:120], "reason": (reason or "")[:200]}
-        )
-        st["bounce_events"] = events
-        out["recorded"] = True
-        rate, sent, bounced = bounce_rate_7d(st)
-        out.update({"rate_pct": rate, "sent_7d": sent, "bounced_7d": bounced})
-        if sent >= _MIN_SENDS_FOR_RATE and rate >= BOUNCE_PAUSE_PCT and not is_paused(st):
-            st["paused_until"] = (_now() + timedelta(hours=PAUSE_HOURS)).isoformat()
-            st["paused_reason"] = (
-                f"bounce rate {rate}% >= {BOUNCE_PAUSE_PCT}% ({bounced}/{sent} in 7d)"
+        from app.utils.file_lock import file_lock
+
+        with file_lock(_STATE):  # lock load->modify->save (else concurrent writer drops this bounce event)
+            st = _load()
+            events = _trim_7d(list(st.get("bounce_events") or []))
+            events.append(
+                {
+                    "at": _now().isoformat(),
+                    "email": (email or "")[:120],
+                    "reason": (reason or "")[:200],
+                }
             )
-            out["paused"] = True
-            logger.warning(f"[warmup] AUTO-PAUSE: {st['paused_reason']}")
-        _save(st)
+            st["bounce_events"] = events
+            out["recorded"] = True
+            rate, sent, bounced = bounce_rate_7d(st)
+            out.update({"rate_pct": rate, "sent_7d": sent, "bounced_7d": bounced})
+            if sent >= _MIN_SENDS_FOR_RATE and rate >= BOUNCE_PAUSE_PCT and not is_paused(st):
+                st["paused_until"] = (_now() + timedelta(hours=PAUSE_HOURS)).isoformat()
+                st["paused_reason"] = (
+                    f"bounce rate {rate}% >= {BOUNCE_PAUSE_PCT}% ({bounced}/{sent} in 7d)"
+                )
+                out["paused"] = True
+                logger.warning(f"[warmup] AUTO-PAUSE: {st['paused_reason']}")
+            _save(st, _already_locked=True)
         if out["paused"]:
             _alert(st.get("paused_reason", ""))
     except Exception as e:
@@ -197,27 +218,34 @@ def record_complaint(email: str = "", reason: str = "") -> dict[str, Any]:
     """
     out: dict[str, Any] = {"recorded": False, "paused": False}
     try:
-        st = _load()
-        events = _trim_7d(list(st.get("complaint_events") or []))
-        events.append(
-            {"at": _now().isoformat(), "email": (email or "")[:120], "reason": (reason or "")[:200]}
-        )
-        st["complaint_events"] = events
-        out["recorded"] = True
-        rate, sent, complaints = complaint_rate_7d(st)
-        out.update({"rate_pct": rate, "sent_7d": sent, "complaints_7d": complaints})
-        if (
-            sent >= _MIN_SENDS_FOR_COMPLAINT_RATE
-            and rate >= COMPLAINT_PAUSE_PCT
-            and not is_paused(st)
-        ):
-            st["paused_until"] = (_now() + timedelta(hours=PAUSE_HOURS)).isoformat()
-            st["paused_reason"] = (
-                f"complaint rate {rate}% >= {COMPLAINT_PAUSE_PCT}% ({complaints}/{sent} in 7d)"
+        from app.utils.file_lock import file_lock
+
+        with file_lock(_STATE):  # lock load->modify->save (else concurrent writer drops this complaint event)
+            st = _load()
+            events = _trim_7d(list(st.get("complaint_events") or []))
+            events.append(
+                {
+                    "at": _now().isoformat(),
+                    "email": (email or "")[:120],
+                    "reason": (reason or "")[:200],
+                }
             )
-            out["paused"] = True
-            logger.warning(f"[warmup] AUTO-PAUSE (complaints): {st['paused_reason']}")
-        _save(st)
+            st["complaint_events"] = events
+            out["recorded"] = True
+            rate, sent, complaints = complaint_rate_7d(st)
+            out.update({"rate_pct": rate, "sent_7d": sent, "complaints_7d": complaints})
+            if (
+                sent >= _MIN_SENDS_FOR_COMPLAINT_RATE
+                and rate >= COMPLAINT_PAUSE_PCT
+                and not is_paused(st)
+            ):
+                st["paused_until"] = (_now() + timedelta(hours=PAUSE_HOURS)).isoformat()
+                st["paused_reason"] = (
+                    f"complaint rate {rate}% >= {COMPLAINT_PAUSE_PCT}% ({complaints}/{sent} in 7d)"
+                )
+                out["paused"] = True
+                logger.warning(f"[warmup] AUTO-PAUSE (complaints): {st['paused_reason']}")
+            _save(st, _already_locked=True)
         if out["paused"]:
             _alert(st.get("paused_reason", ""))
     except Exception as e:

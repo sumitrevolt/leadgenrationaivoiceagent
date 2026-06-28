@@ -149,10 +149,12 @@ def _save(kind: str, key: str, mem: dict[str, Any]) -> bool:
     if not p:
         return False
     try:
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        with open(p, "w", encoding="utf-8") as f:
-            f.write(_serialize(mem))
-        return True
+        # ATOMIC + cross-process locked. Bare open("w") truncated the file first, so a
+        # concurrent reader (call_prep/proposal injecting memory into an LLM prompt) could
+        # read an empty/partial file across the 2 uvicorn workers + celery writers.
+        from app.utils.file_lock import locked_rewrite
+
+        return locked_rewrite(p, _serialize(mem))
     except Exception as e:
         logger.warning(f"[memory] save failed {kind}/{key}: {e}")
         return False
@@ -184,9 +186,9 @@ def edit_memory(kind: str, key: str, content: str) -> dict[str, Any]:
         text = str(content or "")
         if len(text.encode("utf-8")) > _MAX_FILE_BYTES:
             return {"ok": False, "error": "content 64KB se bada hai — chhota karo"}
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        with open(p, "w", encoding="utf-8") as f:
-            f.write(text)
+        from app.utils.file_lock import locked_rewrite
+
+        locked_rewrite(p, text)  # atomic+locked (was bare open("w") truncate-then-write)
         return {"ok": True, "kind": kind, "key": _safe_key(key), "bytes": len(text.encode("utf-8"))}
     except Exception as e:
         logger.warning(f"[memory] edit failed: {e}")
