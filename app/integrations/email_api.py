@@ -41,6 +41,7 @@ async def send_email_api(
     body: str,
     html_body: str | None = None,
     reply_to: str | None = None,
+    extra_headers: dict | None = None,
 ) -> tuple[bool, str]:
     """Resend (priority) ya Brevo se email bhejo. (ok, info). Never raises."""
     resend = (settings.resend_api_key or "").strip()
@@ -67,6 +68,8 @@ async def send_email_api(
             }
             if reply_to:
                 payload["reply_to"] = reply_to
+            if extra_headers:
+                payload["headers"] = dict(extra_headers)  # RFC-8058 List-Unsubscribe etc.
             async with httpx.AsyncClient(timeout=20.0) as client:
                 r = await client.post(
                     "https://api.resend.com/emails",
@@ -98,6 +101,8 @@ async def send_email_api(
             }
             if reply_to:
                 payload["replyTo"] = {"email": reply_to}
+            if extra_headers:
+                payload["headers"] = dict(extra_headers)  # RFC-8058 List-Unsubscribe etc.
             async with httpx.AsyncClient(timeout=20.0) as client:
                 r = await client.post(
                     "https://api.brevo.com/v3/smtp/email",

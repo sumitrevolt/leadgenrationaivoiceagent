@@ -265,10 +265,12 @@ def recall(query: str, k: int = 3) -> list[dict]:
                 logger.debug("[obsidian] recall skip %s: %s", path, e)
                 continue
 
-        # Sort: score desc, then mtime desc (re-stat not needed — updated already encoded)
-        results.sort(key=lambda r: (-r["score"], r["updated"]), reverse=False)
-        # stable secondary sort by updated desc within same score
-        results.sort(key=lambda r: (-r["score"],))
+        # Sort: score desc, then mtime DESC (newest-first within a score tie). `updated`
+        # is "%Y-%m-%d %H:%M UTC" (fixed-width => lexicographic == chronological). Sort by
+        # updated desc first, then a STABLE sort by score desc preserves updated-desc
+        # within ties (the old code sorted updated ASC, so newest was truncated away).
+        results.sort(key=lambda r: r["updated"], reverse=True)
+        results.sort(key=lambda r: -r["score"])
         return results[:k]
     except Exception as e:
         logger.debug("[obsidian] recall failed for %r: %s", query, e)

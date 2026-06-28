@@ -591,12 +591,18 @@ class CalendarBooking:
         return _setting("NOTIFY_EMAIL")
 
     def _load_today_taken(self) -> None:
-        """Restore today's taken slots from the ledger (restart double-book guard)."""
+        """Restore taken slots from the ledger (restart double-book guard). Ledger files
+        are keyed by BOOKED-AT date, so a slot booked days ago for a FUTURE appointment
+        lives in an OLDER file — scan a recent window of booked-at files (not just today),
+        else a cross-day restart re-offers an already-booked future slot."""
         try:
-            for rec in self.list_bookings(limit=1000):
-                w = rec.get("when")
-                if w:
-                    self._taken.add(w)
+            today = datetime.now()
+            for d in range(0, 90):  # last 90 booked-at days — covers realistic lead time
+                day = (today - timedelta(days=d)).strftime("%Y-%m-%d")
+                for rec in self.list_bookings(limit=0, date_str=day):
+                    w = rec.get("when")
+                    if w:
+                        self._taken.add(w)
         except Exception:  # pragma: no cover - defensive
             pass
 
