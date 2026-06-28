@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (997 operations)
+## Endpoint Index — auto-generated from OpenAPI (1003 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -691,7 +691,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
 - `GET   ` `/api/customer/flows` — Cf List
 
-### Customer Marketing Studio  (84)
+### Customer Marketing Studio  (86)
 
 - `POST  ` `/api/customer/studio/ads` — Studio Ads
 - `GET   ` `/api/customer/studio/aeo-checklist` — Studio Aeo Checklist
@@ -755,6 +755,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/studio/reel-script` — Studio Reel Script
 - `POST  ` `/api/customer/studio/referral` — Studio Referral
 - `POST  ` `/api/customer/studio/repurpose` — Studio Repurpose
+- `POST  ` `/api/customer/studio/review-kit` — Studio Review Kit
 - `POST  ` `/api/customer/studio/review-reply` — Studio Review Reply
 - `POST  ` `/api/customer/studio/review-request` — Studio Review Request
 - `GET   ` `/api/customer/studio/reviews-widget` — Studio Reviews Widget
@@ -771,6 +772,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/studio/tools` — Studio Tools
 - `GET   ` `/api/customer/studio/trends` — Studio Trends
 - `GET   ` `/api/customer/studio/ugc-request` — Studio Ugc Request
+- `POST  ` `/api/customer/studio/variations` — Studio Variations
 - `POST  ` `/api/customer/studio/voiceover` — Studio Voiceover
 - `GET   ` `/api/customer/studio/website-widget` — Studio Website Widget
 - `POST  ` `/api/customer/studio/whatsapp` — Studio Whatsapp
@@ -1545,11 +1547,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/webhooks/whatsapp` — Whatsapp Webhook Verify
 - `POST  ` `/api/webhooks/whatsapp` — Whatsapp Webhook Inbound
 
-### WhatsApp  (11)
+### WhatsApp  (15)
 
 - `POST  ` `/api/wa/campaign/run` — Run Campaigns
 - `POST  ` `/api/wa/campaign/schedule` — Schedule Campaign
 - `GET   ` `/api/wa/campaigns` — List Campaigns
+- `GET   ` `/api/wa/selfhost/qr` — Selfhost Qr
+- `POST  ` `/api/wa/selfhost/start` — Selfhost Start
+- `GET   ` `/api/wa/selfhost/status` — Selfhost Status
+- `POST  ` `/api/wa/selfhost/webhook` — Selfhost Webhook
 - `GET   ` `/api/wa/status` — Wa Status
 - `GET   ` `/api/wa/suppression` — List Suppression
 - `POST  ` `/api/wa/suppression` — Edit Suppression

@@ -160,12 +160,90 @@ class HashtagReq(BaseModel):
     city: str = Field("", max_length=80)
 
 
+class VariationsReq(BaseModel):
+    count: int = Field(3, ge=2, le=4)
+    occasion: str = Field("", max_length=120)
+    offer: str = Field("", max_length=120)
+
+
+class ReviewKitReq(BaseModel):
+    google_link: str = Field("", max_length=300)
+
+
 # --------------------------------------------------------------------------- #
 # Generators (each wraps an existing app.marketing.* function)                 #
 # --------------------------------------------------------------------------- #
 def _fail(name: str, exc: Exception):
     logger.error("studio.%s failed: %s", name, exc)
     raise HTTPException(status_code=503, detail=f"{name} abhi available nahi — thodi der baad try karo.")
+
+
+@router.post("/variations", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_variations(
+    req: VariationsReq = Body(default=VariationsReq()), client_id: str = Depends(require_customer)
+) -> dict:
+    """A/B post variations (2-4 alag versions) — jo chale wo chuno. (Pehle admin-only tha.)"""
+    import asyncio
+
+    c = _ctx(client_id)
+    posts: list = []
+    try:
+        from app.marketing import post_generator
+
+        n = max(2, min(int(req.count or 3), 4))
+        posts = list(
+            await asyncio.gather(
+                *[
+                    post_generator.generate_post(
+                        business_name=c["business_name"],
+                        niche=c["niche"],
+                        occasion=req.occasion,
+                        offer=req.offer,
+                    )
+                    for _ in range(n)
+                ]
+            )
+        )
+    except Exception as e:
+        _fail("Post Variations", e)
+    return {"ok": True, "tool": "variations", "count": len(posts), "variations": posts, "context": c}
+
+
+@router.post("/review-kit", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_review_kit(
+    req: ReviewKitReq = Body(default=ReviewKitReq()), client_id: str = Depends(require_customer)
+) -> dict:
+    """Review kit — khush customer ko Google-review request, naraz ko private feedback
+    (1-star public se bachao). Copy-paste WhatsApp messages, branded. Template-based, never fails."""
+    c = _ctx(client_id)
+    biz = c.get("business_name") or "Hum"
+    glink = (req.google_link or "").strip()
+    review_cta = (
+        f"👉 1 min me Google review: {glink}"
+        if glink
+        else "👉 Google pe humein search karke ⭐ review dein"
+    )
+    happy = (
+        f"Namaste! 🙏 {biz} ko choose karne ke liye shukriya. Aapko humari service pasand "
+        f"aayi ho to ek chhota favour — {review_cta}\nAapka 30-second review humare liye "
+        "bohot maayne rakhta hai. 💛"
+    )
+    unhappy = (
+        f"Namaste 🙏 {biz} se aapka experience perfect nahi raha — humein khed hai. Kya hua, "
+        "seedha humein batayein (yeh PRIVATE hai, public nahi) — hum turant theek karenge. "
+        "Aapki baat humare liye sabse zaroori hai."
+    )
+    return {
+        "ok": True,
+        "tool": "review-kit",
+        "result": {
+            "happy_message": happy,
+            "unhappy_message": unhappy,
+            "tip": "Khush customer → 'happy' bhejo (Google review milega). Naraz → 'unhappy' "
+            "(private feedback; 1-star public review se bachao).",
+        },
+        "context": c,
+    }
 
 
 @router.post("/post", dependencies=[Depends(_GEN_LIMIT)])
