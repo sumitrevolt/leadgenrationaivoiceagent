@@ -61,6 +61,19 @@ async def list_web_calls(
         return {"total": 0, "shown": 0, "sessions": []}
 
 
+@router.get("/kpis", summary="Call-center KPIs (Lekha — Call Analytics)")
+async def web_call_kpis(_user=Depends(require_admin), days: int = Query(7, ge=1, le=90)) -> dict:
+    """Aggregate call KPIs (latency p50/p95, duration, booking/dead-air rates) over
+    the window. Defined BEFORE /{session_id} so the literal path isn't shadowed."""
+    try:
+        from app.voice_agent.call_analytics import compute_call_kpis
+
+        return {"ok": True, "kpis": compute_call_kpis(days)}
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug(f"web-calls KPIs failed ({e})")
+        return {"ok": False, "kpis": {}}
+
+
 @router.get("/{session_id}", summary="One web test-call + full transcript")
 async def web_call_detail(session_id: str, _user=Depends(require_admin)) -> dict:
     """Full transcript for one saved session (no lead_key required — admin view)."""
