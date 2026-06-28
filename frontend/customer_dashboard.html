@@ -426,22 +426,11 @@
         </div>
       </div>
 
-      <!-- ===== 0b) Priority cards — top 3 actions ===== -->
-      <div class="priority-card" aria-label="Top priorities">
-        <div class="priority-head">
-          <h2 id="priorityTitle">Aaj ki priority</h2>
-          <span class="pill" id="priorityPill">—</span>
-        </div>
-        <div class="priority-list" id="priorityList">
-          <div class="priority-item">
-            <div class="name">Load ho raha…</div>
-            <div class="meta">Aapki priority list yahan dikhegi.</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== 0c) Simple note — one-line plain-language hint ===== -->
-      <div class="simple-note" id="simpleNote">Aapki AI team kaam kar rahi hai. Niche cards me sab ek jagah.</div>
+      <!-- ===== 🏢 Aapka Office — virtual-office home (shared widget). Replaces the
+           old Priority-cards / Simple-note / Next-step clutter; self-mounts from
+           /design-system/customer_office.js → fetches /api/customer/office and shows
+           "Aapke kaam" (manual to-dos + automation-impact) + "AI team ne kya kiya". ===== -->
+      <div id="aapkaOffice"></div>
 
       <!-- ===== 1) AAJ KE LIYE — sabse upar, sabse zaroori ===== -->
       <div class="sec-title">☀️ Aaj ke liye</div>
@@ -462,14 +451,7 @@
           <div class="hint" id="uxTeamHint">Content, leads aur calls yahan update honge.</div>
         </div>
       </div>
-      <div class="next-step-card" id="nextStepCard">
-        <div class="ic" id="nextStepIcon">1</div>
-        <div class="copy">
-          <div class="title" id="nextStepTitle">Pehla kaam load ho raha hai</div>
-          <div class="sub" id="nextStepSub">Aapko kya karna hai, yahan seedha dikhega.</div>
-        </div>
-        <button class="btn" type="button" id="nextStepBtn" onclick="runNextStep()">Dekho</button>
-      </div>
+      <!-- (Next-step card folded into 🏢 Aapka Office above — JS setters stay null-safe) -->
       <div class="today-grid">
         <!-- Aaj ka post (AI-generated, 1-click copy/share) -->
         <div class="card" id="contentCard">
@@ -2133,5 +2115,7 @@ setTimeout(()=>{
   }catch(e){}
 })();
 </script>
+<!-- 🏢 Aapka Office virtual-office widget (shared across all 3 customer dashboards) -->
+<script src="/design-system/customer_office.js" defer></script>
 </body>
 </html>

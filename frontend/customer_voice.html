@@ -409,22 +409,10 @@
         </div>
       </div>
 
-      <!-- ===== 0b) Priority cards — top 3 actions ===== -->
-      <div class="priority-card" aria-label="Top priorities">
-        <div class="priority-head">
-          <h2 id="priorityTitle">Call priority</h2>
-          <span class="pill" id="priorityPill">—</span>
-        </div>
-        <div class="priority-list" id="priorityList">
-          <div class="priority-item">
-            <div class="name">Load ho raha…</div>
-            <div class="meta">Aapki call priority yahan dikhegi.</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== 0c) Simple note — one-line plain-language hint ===== -->
-      <div class="simple-note" id="simpleNote">Voice product me focus simple hai: hot lead ko call/WhatsApp, calls ka result check, team routing set.</div>
+      <!-- ===== 🏢 Aapka Office — virtual-office home (shared widget). Replaces old
+           Priority/Simple-note/Next-step clutter; /design-system/customer_office.js
+           → /api/customer/office (product=voice). ===== -->
+      <div id="aapkaOffice"></div>
 
       <!-- ===== 1) AAJ KE LIYE — sabse upar, sabse zaroori ===== -->
       <div class="sec-title">☀️ Aaj ke liye</div>
@@ -445,14 +433,7 @@
           <div class="hint" id="uxTeamHint">Content, leads aur calls yahan update honge.</div>
         </div>
       </div>
-      <div class="next-step-card" id="nextStepCard">
-        <div class="ic" id="nextStepIcon">1</div>
-        <div class="copy">
-          <div class="title" id="nextStepTitle">Pehla kaam load ho raha hai</div>
-          <div class="sub" id="nextStepSub">Aapko kya karna hai, yahan seedha dikhega.</div>
-        </div>
-        <button class="btn" type="button" id="nextStepBtn" onclick="runNextStep()">Dekho</button>
-      </div>
+      <!-- (Next-step card folded into 🏢 Aapka Office above — JS setters stay null-safe) -->
       <div class="today-grid">
         <!-- Aaj ka post (AI-generated, 1-click copy/share) -->
         <div class="card" id="contentCard">
@@ -2037,5 +2018,7 @@ setTimeout(()=>{
 },800);
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+<!-- 🏢 Aapka Office virtual-office widget (shared across all 3 customer dashboards) -->
+<script src="/design-system/customer_office.js" defer></script>
 </body>
 </html>

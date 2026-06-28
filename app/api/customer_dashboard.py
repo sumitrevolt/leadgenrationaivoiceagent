@@ -116,6 +116,22 @@ def get_customer_dashboard(
     return resp
 
 
+@router.get("/office")
+def get_customer_office(client_id: str = Depends(require_customer)):
+    """🏢 Aapka Office — plain-Hinglish virtual-office view for the customer.
+
+    Ek nazar me: (a) AI team ne aapke liye kya kiya (activity feed), (b) summary
+    counts, aur (c) **customer ko khud kya manual karna hai** with automation-impact
+    ("website do → behtar content", "X post approve → auto-publish"). Product-aware
+    (marketing/voice/combo). client_id JWT se (require_customer) => IDOR-safe.
+    Read-only, never-500, gated by CUSTOMER_OFFICE (default ON; '0' => disabled)."""
+    if os.getenv("CUSTOMER_OFFICE", "1").strip().lower() in ("0", "false", "no", "off"):
+        return {"ok": True, "enabled": False, "your_tasks": [], "activity": [], "summary": {}}
+    from app.api.customer_dashboard_builders import _build_office
+
+    return _build_office(client_id)
+
+
 @router.get("/team", response_model=CustomerTeamResponse)
 def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTeamResponse:
     """Customer-facing **AI Marketing Team** — a virtual agentic office that shows
