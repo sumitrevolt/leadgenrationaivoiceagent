@@ -511,6 +511,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Eval-gate router not mounted: {_e}")
 try:
+    from app.api.control_center import router as control_center_router
+
+    # /api/control-center/overview — enterprise Control Center cockpit L1 (Executive).
+    # Admin-only thin read-side aggregator (one call powers the whole L1 view).
+    app.include_router(control_center_router, prefix="/api", tags=["Control Center"])
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Control Center router not mounted: {_e}")
+try:
     from app.api.agent_memory_admin import router as _agent_memory_admin_router
 
     # /api/agent-memory/* — operator inspect + DPDP-compliant purge (F.4).
@@ -1275,6 +1283,12 @@ async def battlecard_page():
 async def architecture_explorer_page():
     """Interactive architecture + automation flow explorer (graph, builder, IST schedule)."""
     return FileResponse(str(FRONTEND_DIR / "explorer.html"))
+
+
+@app.get("/app/control-center", tags=["Frontend"])
+async def control_center_page():
+    """Enterprise AI Control Center — 4-level ops cockpit (L1 Executive live)."""
+    return FileResponse(str(FRONTEND_DIR / "control_center.html"))
 
 
 @app.get("/audit", tags=["Frontend"])
