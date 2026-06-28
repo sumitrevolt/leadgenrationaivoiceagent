@@ -1289,6 +1289,22 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     logger.info(f"[telecaller-brain] tool-call: {call.get('name')}")
                     return "", call
             spoken = self._fill(self._clean(raw)) if raw else ""
+            if spoken:
+                low_s = spoken.lower()
+                # ANTI-FAKE (code-level): no CALL emitted but reply CLAIMS a booking/
+                # reschedule success = LLM hallucination → discard (real-call: bot bola
+                # "follow-up hota hai" repeat + fake-ish without booking). Backstop to
+                # the prompt-level guard.
+                if any(
+                    w in low_s
+                    for w in ("book ho ga", "booking kar di", "booking ho ga", "confirm ho ga", "move kar di", "cancel kar di")
+                ):
+                    spoken = ""
+                # REPEAT GUARD (tool path lacked it — real-call 2026-06-28: bot ne
+                # "Inquiry ka auto follow-up..." line LAGATAAR 2x boli). reply() jaisa
+                # repeat = chhodo, script ka agla sawaal do.
+                elif self._too_similar(spoken, self._prev_assistant(history)):
+                    spoken = ""
             if not spoken:
                 spoken = self._script_fallback(history) or self._safe_fallback(history)
             return spoken, None

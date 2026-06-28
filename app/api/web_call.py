@@ -1256,11 +1256,13 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     pst = PlatformPitchState(
                         phase=str(pitch_raw.get("phase") or "await_interest"),
                         convinced_once=bool(pitch_raw.get("convinced_once")),
+                        clarify_count=int(pitch_raw.get("clarify_count") or 0),
                     )
                     gate_reply, pst = next_reply(pst, user_text)
                     session["pitch_state"] = {
                         "phase": pst.phase,
                         "convinced_once": pst.convinced_once,
+                        "clarify_count": pst.clarify_count,
                     }
                     tcbrain = await _run_blocking(_get_tcbrain, session.get("niche", "general"))
                     if pst.phase == "discovery":

@@ -331,6 +331,18 @@ class CalendarBooking:
                 confirmation_text="Naya time samajh nahi aaya — dobara batayein?",
             )
         old = self._find_active_booking(booking_id=booking_id, phone=phone)
+        if not old and not booking_id:
+            # No existing appointment to move — booking a NEW slot here would be a
+            # silent double-book. Ask the caller to confirm instead. (review fix)
+            return BookingResult(
+                ok=False,
+                provider=self.provider,
+                error="no_active_booking",
+                confirmation_text=(
+                    "Aapki koi pehle se appointment nahi mili — phone number confirm karein, "
+                    "ya seedha nayi appointment book kar dein?"
+                ),
+            )
         if old:
             old_when = old.get("when")
             if old_when:
