@@ -15,7 +15,7 @@ from sqlalchemy import Integer, func
 
 from app.config import settings
 from app.integrations.email_sender import EmailSender
-from app.integrations.whatsapp import WhatsAppIntegration
+from app.integrations.whatsapp import get_whatsapp_sender
 from app.models.base import get_db_session
 from app.models.call_log import CallLog, CallOutcome
 from app.models.campaign import Campaign
@@ -146,7 +146,7 @@ Keep crushing it! 🚀"""
 
             # Send WhatsApp reports
             if recipients["whatsapp"]:
-                whatsapp = WhatsAppIntegration()
+                whatsapp = get_whatsapp_sender()  # dual-engine: self-host or Cloud API
                 for number in recipients["whatsapp"]:
                     try:
                         whatsapp.send_message(number, report_message)

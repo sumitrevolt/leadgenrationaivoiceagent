@@ -115,9 +115,9 @@ class LeadDelivery:
     def _get_whatsapp(self):
         if self._whatsapp is None:
             try:
-                from app.integrations.whatsapp import WhatsAppIntegration
+                from app.integrations.whatsapp import get_whatsapp_sender
 
-                self._whatsapp = WhatsAppIntegration()
+                self._whatsapp = get_whatsapp_sender()  # dual-engine: self-host or Cloud API
             except Exception as e:
                 logger.error(f"WhatsApp integration load error: {e}")
                 self._whatsapp = False  # sentinel: load failed

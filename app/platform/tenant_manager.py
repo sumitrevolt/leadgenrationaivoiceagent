@@ -18,7 +18,7 @@ from enum import Enum
 
 from app.automation.campaign_manager import CampaignManager
 from app.integrations.email_sender import EmailSender
-from app.integrations.whatsapp import WhatsAppIntegration
+from app.integrations.whatsapp import get_whatsapp_sender
 from app.lead_scraper.scraper_manager import LeadScraperManager
 from app.platform import (
     AutomationLevel,
@@ -87,7 +87,7 @@ class TenantManager:
         # Initialize platform's own lead generation
         self.platform_campaign = CampaignManager()
         self.scraper = LeadScraperManager()
-        self.whatsapp = WhatsAppIntegration()
+        self.whatsapp = get_whatsapp_sender()  # dual-engine: self-host (WAHA) or Cloud API
         self.email = EmailSender()
 
         logger.info("🏢 Tenant Manager initialized")

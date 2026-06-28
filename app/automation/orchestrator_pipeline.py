@@ -132,9 +132,9 @@ class LeadGenPipeline:
 
     @staticmethod
     def _build_whatsapp():
-        from app.integrations.whatsapp import WhatsAppIntegration
+        from app.integrations.whatsapp import get_whatsapp_sender
 
-        return WhatsAppIntegration()
+        return get_whatsapp_sender()  # dual-engine: self-host (WAHA) or Cloud API
 
     @staticmethod
     def _build_sheets():

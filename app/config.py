@@ -112,6 +112,17 @@ class Settings(BaseSettings):
     whatsapp_business_account_id: str = ""
     whatsapp_app_secret: str = ""  # Meta webhook X-Hub-Signature-256 verification
     whatsapp_verify_token: str = ""  # Meta webhook GET handshake token
+    # --- Self-hosted WhatsApp stack (WAHA Core) — "apna khud ka" provider ---
+    # Sidesteps Meta Business *verification* entirely (the real Cloud-API blocker). Links an
+    # EXISTING WhatsApp account via QR scan. Default provider stays "cloud" so setting these
+    # alone changes nothing until WHATSAPP_PROVIDER=waha. A number is EITHER on Cloud API
+    # OR on a Web-session stack — never both at once.
+    whatsapp_provider: str = "cloud"  # "cloud" (Meta Cloud API) | "waha"/"selfhost" (own WAHA stack)
+    whatsapp_business_number: str = ""  # linked business number, digits e.g. 918261030181
+    waha_base_url: str = ""  # e.g. http://waha:3000 (in-network) — set = self-host stack reachable
+    waha_api_key: str = ""  # X-Api-Key for the WAHA HTTP API (matches WAHA_API_KEY on the container)
+    waha_session: str = "default"  # WAHA session name holding the linked number
+    waha_webhook_token: str = ""  # shared secret in the WAHA->app webhook URL (path gate)
 
     # Email
     smtp_host: str = "smtp.gmail.com"

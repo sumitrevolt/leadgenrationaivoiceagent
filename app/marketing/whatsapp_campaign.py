@@ -51,8 +51,20 @@ def send_spacing_s() -> float:
         return 4.0
 
 
-def creds_present() -> bool:
-    """True only if official Cloud API token + phone_number_id are configured."""
+def provider() -> str:
+    """Active WhatsApp backend: ``waha`` (self-host stack, when selected+configured) else ``cloud``."""
+    try:
+        from app.integrations import whatsapp_selfhost
+
+        if whatsapp_selfhost.is_active_provider():
+            return "waha"
+    except Exception:
+        pass
+    return "cloud"
+
+
+def cloud_creds_present() -> bool:
+    """True only if official Meta Cloud API token + phone_number_id are configured."""
     try:
         from app.config import settings
 
@@ -64,8 +76,38 @@ def creds_present() -> bool:
         return False
 
 
+def selfhost_present() -> bool:
+    """True if the self-host (WAHA) stack is the active provider AND reachable-configured."""
+    try:
+        from app.integrations import whatsapp_selfhost
+
+        return whatsapp_selfhost.is_active_provider()
+    except Exception:
+        return False
+
+
+def creds_present() -> bool:
+    """True if a usable send backend is configured: active self-host stack OR official Cloud creds.
+
+    Used by the auto-send decision. For *which-provider* truthfulness use
+    :func:`provider` / :func:`cloud_creds_present` / :func:`selfhost_present`.
+    """
+    return selfhost_present() or cloud_creds_present()
+
+
+def _get_sender():
+    """Return the active send client via the single dual-engine selector.
+
+    Both clients expose the same ``send_text_message`` / ``send_template_message`` signatures,
+    so every ban-safety guard (suppression, cap, spacing, opt-out) wraps them identically.
+    """
+    from app.integrations.whatsapp import get_whatsapp_sender
+
+    return get_whatsapp_sender()
+
+
 def auto_ready() -> bool:
-    """Auto-send is live ONLY when flag is ON *and* official creds exist."""
+    """Auto-send is live ONLY when flag is ON *and* a usable backend (self-host or cloud) exists."""
     return auto_send_enabled() and creds_present()
 
 
@@ -108,13 +150,11 @@ async def send_one(phone: str, message: str) -> dict:
         out["mode"] = "link_no_creds"  # official creds missing -> stay 1-click
         return out
     try:
-        from app.integrations.whatsapp import WhatsAppIntegration
-
-        wa = WhatsAppIntegration()
+        wa = _get_sender()
         res = await wa.send_text_message(phone, message)
         ok = bool(res) and not (isinstance(res, dict) and res.get("error"))
         out["sent"] = ok
-        out["mode"] = "cloud_api"
+        out["mode"] = "selfhost" if provider() == "waha" else "cloud_api"
         if not ok:
             _record_failure(
                 phone, str((res or {}).get("error") if isinstance(res, dict) else "send_failed")
@@ -163,13 +203,11 @@ async def send_template(
         out["mode"] = "no_template"
         return out
     try:
-        from app.integrations.whatsapp import WhatsAppIntegration
-
-        wa = WhatsAppIntegration()
+        wa = _get_sender()
         res = await wa.send_template_message(phone, template_name, params, language=language)
         ok = bool(res) and not (isinstance(res, dict) and res.get("error"))
         out["sent"] = ok
-        out["mode"] = "cloud_api"
+        out["mode"] = "selfhost" if provider() == "waha" else "cloud_api"
         if isinstance(res, dict):
             try:
                 out["message_id"] = (res.get("messages") or [{}])[0].get("id")
@@ -291,6 +329,9 @@ def sent_today_count() -> int:
 __all__ = [
     "auto_send_enabled",
     "creds_present",
+    "cloud_creds_present",
+    "selfhost_present",
+    "provider",
     "auto_ready",
     "daily_cap",
     "send_spacing_s",

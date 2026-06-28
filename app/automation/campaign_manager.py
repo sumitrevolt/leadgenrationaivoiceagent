@@ -14,7 +14,7 @@ from app.config import settings
 from app.integrations.email_sender import EmailSender
 from app.integrations.google_sheets import GoogleSheetsIntegration
 from app.integrations.hubspot import HubSpotIntegration
-from app.integrations.whatsapp import WhatsAppIntegration
+from app.integrations.whatsapp import get_whatsapp_sender
 from app.lead_scraper.scraper_manager import LeadScraperManager, UnifiedLead
 from app.telephony.call_manager import CallManager, CallRequest, CallResult
 from app.utils.logger import setup_logger
@@ -110,7 +110,7 @@ class CampaignManager:
         self.call_manager = CallManager()
         self.sheets = GoogleSheetsIntegration()
         self.hubspot = HubSpotIntegration()
-        self.whatsapp = WhatsAppIntegration()
+        self.whatsapp = get_whatsapp_sender()  # dual-engine: self-host (WAHA) or Cloud API
         self.email = EmailSender()
 
         self.campaigns: dict[str, Campaign] = {}
