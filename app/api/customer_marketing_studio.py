@@ -175,6 +175,14 @@ class CatalogReq(BaseModel):
     vpa: str = Field("", max_length=80)  # customer's OWN UPI id for per-item pay-links
 
 
+class MiniSiteReq(BaseModel):
+    palette: str = Field("", max_length=40)
+    primary: str = Field("", max_length=9)
+    accent: str = Field("", max_length=9)
+    logo_url: str = Field("", max_length=500)
+    tagline: str = Field("", max_length=160)
+
+
 # --------------------------------------------------------------------------- #
 # Generators (each wraps an existing app.marketing.* function)                 #
 # --------------------------------------------------------------------------- #
@@ -289,6 +297,42 @@ async def studio_catalog(
         "tool": "catalog",
         "result": {"items": items, "share_text": "\n".join(lines), "vpa": vpa},
         "context": c,
+    }
+
+
+@router.post("/minisite", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_minisite(
+    req: MiniSiteReq = Body(default=MiniSiteReq()), client_id: str = Depends(require_customer)
+) -> dict:
+    """Apni mini-site KHUD customize karo — palette/colors/logo/tagline. Slug token se
+    resolve (IDOR-safe; doosre ki site edit nahi). Update → /b/{slug} pe turant live.
+    (Pehle ye sirf admin kar sakta tha.)"""
+    from app.api import minisite_builder as mb
+    from app.marketing import clients_store
+
+    c = clients_store.get_client(client_id) or {}
+    slug = str(c.get("slug") or "").strip()
+    if not slug:
+        _fail("Mini-site", Exception("aapki mini-site slug nahi mili"))
+    cfg = mb.set_config(
+        slug,
+        palette=(req.palette or None),
+        logo_url=(req.logo_url or None),
+        primary=(req.primary or None),
+        accent=(req.accent or None),
+    )
+    if (req.tagline or "").strip():
+        try:
+            brand = dict(c.get("brand") or {})
+            brand["tagline"] = req.tagline.strip()[:160]
+            clients_store.update_client(client_id, brand=brand)
+        except Exception as e:
+            logger.debug("minisite tagline update skip: %s", e)
+    return {
+        "ok": True,
+        "tool": "minisite",
+        "result": {"config": cfg, "url": f"/b/{slug}", "palettes": list(mb.PALETTES.keys())},
+        "context": _ctx(client_id),
     }
 
 
@@ -926,15 +970,32 @@ def studio_templates(req: TemplatesReq = Body(default=TemplatesReq()), client_id
 
 @router.post("/blog", dependencies=[Depends(_GEN_LIMIT)])
 async def studio_blog(req: BlogReq = Body(default=BlogReq()), client_id: str = Depends(require_customer)) -> dict:
-    """Local-SEO blog article (title + HTML body) for the client's niche/city."""
+    """Local-SEO blog post — generate + STORE + live at /b/{slug}/blog (Google-indexable).
+    (#29 fix: pehle sirf template milta tha, koi live per-client blog page nahi.)"""
     c = _ctx(client_id)
     try:
-        from app.marketing import seo_blog
+        from app.marketing import client_blog
 
-        out = await seo_blog.generate_article(niche=c["niche"], city=(req.city or c["city"]), topic=(req.topic or None))
+        post = await client_blog.generate_and_store(
+            client_id,
+            business_name=c["business_name"],
+            niche=c["niche"],
+            topic=(req.topic or ""),
+            keyword=(req.city or ""),
+        )
     except Exception as e:
         _fail("Blog", e)
-    return {"ok": True, "tool": "blog", "result": out, "context": c}
+    slug = str(client_blog.client_slug(client_id) or "").strip()
+    return {
+        "ok": True,
+        "tool": "blog",
+        "result": {
+            "post": post,
+            "url": (f"/b/{slug}/blog/{post.get('slug', '')}" if slug else ""),
+            "blog_url": (f"/b/{slug}/blog" if slug else ""),
+        },
+        "context": c,
+    }
 
 
 @router.post("/landing-audit", dependencies=[Depends(_GEN_LIMIT)])

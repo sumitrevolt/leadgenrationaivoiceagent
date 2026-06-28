@@ -1705,6 +1705,45 @@ async def mini_site_page(slug: str):
     return HTMLResponse(content=html)
 
 
+@app.get("/b/{slug}/blog", tags=["Frontend"], include_in_schema=False)
+async def client_blog_index(slug: str):
+    """Per-client blog (programmatic SEO) — customer ke generate kiye posts, live + indexable."""
+    from fastapi.responses import HTMLResponse, RedirectResponse
+
+    try:
+        from app.marketing import client_blog
+        from app.marketing.clients_store import get_by_slug
+
+        client = get_by_slug(slug)
+        if not client:
+            return RedirectResponse(url="/", status_code=302)
+        return HTMLResponse(content=client_blog.render_index(client, slug))
+    except Exception as e:
+        logger.warning(f"blog index failed for {slug!r}: {e}")
+        return RedirectResponse(url="/", status_code=302)
+
+
+@app.get("/b/{slug}/blog/{post_slug}", tags=["Frontend"], include_in_schema=False)
+async def client_blog_post(slug: str, post_slug: str):
+    """Ek blog post page — branded, indexable."""
+    from fastapi.responses import HTMLResponse, RedirectResponse
+
+    try:
+        from app.marketing import client_blog
+        from app.marketing.clients_store import get_by_slug
+
+        client = get_by_slug(slug)
+        if not client:
+            return RedirectResponse(url="/", status_code=302)
+        post = client_blog.get_post(str(client.get("id") or ""), post_slug)
+        if not post:
+            return RedirectResponse(url=f"/b/{slug}/blog", status_code=302)
+        return HTMLResponse(content=client_blog.render_post(client, slug, post))
+    except Exception as e:
+        logger.warning(f"blog post failed for {slug!r}/{post_slug!r}: {e}")
+        return RedirectResponse(url="/", status_code=302)
+
+
 @app.get("/b/{slug}/card", tags=["Frontend"], include_in_schema=False)
 async def client_card_page(slug: str):
     """Digital visiting card (AdBanao-parity) — mobile-first, .vcf save-contact + QR. Kabhi 500 nahi."""
