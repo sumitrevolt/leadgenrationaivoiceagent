@@ -299,6 +299,15 @@
         </div>
       </div>
 
+      <!-- 📋 Aapke kaam — consolidated pending approvals/actions (Admin Office). Hidden until something is pending. -->
+      <div class="card" id="adminTasksCard" style="display:none;margin-bottom:14px;border:1px solid #fcd34d;background:linear-gradient(135deg,#fffbeb 0%,#fef9c3 100%);scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid rgba(217,119,6,.22)">
+          <h3 style="color:#92400e;font-size:16px;letter-spacing:-.3px">📋 Aapke kaam — abhi action chahiye <span id="adminTasksCount" style="font-weight:600;color:#b45309;font-size:12px"></span></h3>
+          <button class="btn" onclick="loadAdminTasks()" aria-label="Refresh pending actions" style="background:#d97706;color:#fff;border:0;margin-left:10px;padding:6px 12px;font-size:12px">↻</button>
+        </div>
+        <div class="bd" id="adminTasksBody"></div>
+      </div>
+
       <!-- S.2 Add Customer — top of admin pane, single highest-volume operator action -->
       <div class="card" id="onboardCard" style="margin-bottom:14px;background:linear-gradient(90deg,#0f172a,#1e1b4b);border:1px solid #6366f1">
         <div class="hd" style="display:flex;justify-content:space-between;align-items:center">
@@ -1932,9 +1941,34 @@ async function loadTodayBiz(){
   }
 }
 
+function scrollToSec(id){ var e=document.getElementById(id); if(e) e.scrollIntoView({behavior:"smooth",block:"start"}); }
+function loadAdminTasks(){
+  // 📋 Aapke kaam — consolidated pending approvals (Admin Office). /api/admin/office = 4 queues ek jagah.
+  fetch("/api/admin/office",{headers:abAuthHdr()})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(j){
+      var card=document.getElementById("adminTasksCard"); if(!card) return;
+      var tasks=(j&&j.your_tasks)||[];
+      if(!j || j.enabled===false || !tasks.length){ card.style.display="none"; return; }
+      var sev={high:"#dc2626",medium:"#d97706",low:"#9ca3af"};
+      document.getElementById("adminTasksBody").innerHTML = tasks.map(function(t){
+        var col=sev[t.severity]||"#9ca3af";
+        return '<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.06)">'
+          +'<span style="font-size:20px;flex:0 0 auto">'+escH(t.icon||"•")+'</span>'
+          +'<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13.5px;color:#1e1b2e">'+escH(t.title)+'</div>'
+          +'<div style="font-size:12px;color:#6b7280">'+escH(t.why||"")+'</div></div>'
+          +'<button class="btn" style="flex:0 0 auto;background:'+col+';color:#fff;border:0;padding:8px 12px;font-size:12px;border-radius:8px;white-space:nowrap" onclick="scrollToSec(\''+escH(t.cta_target||"")+'\')">'+escH(t.cta_label||"Dekho")+' →</button>'
+          +'</div>';
+      }).join("");
+      var c=document.getElementById("adminTasksCount"); if(c) c.textContent="("+(j.total_pending||tasks.length)+")";
+      card.style.display="";
+    }).catch(function(){});
+}
+
 document.addEventListener("DOMContentLoaded", ()=>{
   adminAuthBoot();
   loadTodayBiz();
+  loadAdminTasks();
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026();
   loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadOutreachActivity(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail();
@@ -1948,7 +1982,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
    never paint fake demo numbers over real ones). Cosmetic random nudges removed. */
-setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadTodayBiz(); } }, 60000);
+setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadTodayBiz(); loadAdminTasks(); } }, 60000);
 
 /* ============================================================
    BILLING & SUBSCRIPTIONS — admin per-client lookup.

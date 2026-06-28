@@ -429,6 +429,103 @@ async def upi_pending(_user=Depends(require_admin)):
     return {"pending": _pending_upi_queue(30), "upi": _upi_info()}
 
 
+def _admin_office() -> dict:
+    """🏢 Admin Office — "Sumit ke kaam": 4 scattered pending-action queues (self-
+    improve / content / code-patch / UPI approvals) ONE jagah, plain Hinglish +
+    automation/revenue impact. Complements the existing 'Aaj ka business' overview
+    (today_overview) — yeh sirf the manual-action gap bharta hai. Never raises."""
+    tasks: list[dict] = []
+
+    def _safe(fn) -> int:
+        try:
+            return int(fn() or 0)
+        except Exception:
+            return 0
+
+    # 1) Self-improve approvals — agents waiting for the go-ahead
+    def _si() -> int:
+        from app.agents import self_improve
+
+        return int(self_improve.approval_status().get("pending_count") or 0)
+
+    n = _safe(_si)
+    if n > 0:
+        tasks.append({
+            "id": "selfimprove", "icon": "🤖", "severity": "medium", "count": n,
+            "title": f"{n} self-improve task approve karo",
+            "why": "Agents aapki OK ka wait kar rahe — tab tak loop ruka",
+            "cta_label": "Dekho", "cta_target": "sec-automation",
+        })
+
+    # 2) Content approvals — posts waiting for sign-off
+    def _ca() -> int:
+        from app.marketing import content_approval
+
+        return len(content_approval.pending("") or [])
+
+    n = _safe(_ca)
+    if n > 0:
+        tasks.append({
+            "id": "content", "icon": "✅", "severity": "high", "count": n,
+            "title": f"{n} post approve karo",
+            "why": "Posts taiyaar hain par approval ke bina ruke",
+            "impact": "approve karte hi auto-publish",
+            "cta_label": "Approve", "cta_target": "sec-automation",
+        })
+
+    # 3) Code-upgrader patches — Vikram's proposals need review
+    def _cp() -> int:
+        from app.agents import code_upgrader
+
+        return len(code_upgrader.list_patches("proposed", 200) or [])
+
+    n = _safe(_cp)
+    if n > 0:
+        tasks.append({
+            "id": "patches", "icon": "🩹", "severity": "medium", "count": n,
+            "title": f"{n} code patch review karo",
+            "why": "Vikram ne fixes propose kiye — core code kabhi auto-apply nahi hota",
+            "cta_label": "Review", "cta_target": "sec-automation",
+        })
+
+    # 4) UPI activations — customer paid, manual plan-activate pending (revenue!)
+    try:
+        upi_q = _pending_upi_queue(50) or []
+    except Exception:
+        upi_q = []
+    if upi_q:
+        n = len(upi_q)
+        tasks.append({
+            "id": "upi", "icon": "💳", "severity": "high", "count": n,
+            "title": f"{n} UPI payment activate karo",
+            "why": "Customer ne pay kiya — manually plan activate karo (revenue ruka)",
+            "impact": "activate karte hi customer ka product chalu",
+            "cta_label": "Activate", "cta_target": "sec-godmode",
+        })
+
+    _sev = {"high": 0, "medium": 1, "low": 2}
+    tasks.sort(key=lambda t: _sev.get(t.get("severity"), 9))
+    total = sum(int(t.get("count") or 0) for t in tasks)
+    high = sum(1 for t in tasks if t.get("severity") == "high")
+    if not tasks:
+        headline = "✅ Koi pending approval nahi — sab clear"
+    else:
+        headline = f"⚠️ {total} cheez aapki action maangti hai" + (f" ({high} urgent)" if high else "")
+    return {"ok": True, "enabled": True, "headline": headline,
+            "your_tasks": tasks, "total_pending": total}
+
+
+@router.get("/office", summary="Admin Office — consolidated 'Sumit ke kaam' pending actions")
+async def admin_office(_user=Depends(require_admin)):
+    """Admin-side virtual-office: the 4 pending approval/action queues in ONE place.
+    Read-only, never-500, gated ADMIN_OFFICE (default ON; '0' => disabled)."""
+    import os
+
+    if os.getenv("ADMIN_OFFICE", "1").strip().lower() in ("0", "false", "no", "off"):
+        return {"ok": True, "enabled": False, "your_tasks": [], "total_pending": 0}
+    return _admin_office()
+
+
 @router.post("/upi/configure", summary="Set platform UPI VPA (data file — no container restart)")
 async def upi_configure(body: UpiConfigureReq, _user=Depends(require_admin)):
     """Admin dashboard se UPI VPA save — ``data/platform_upi.json``. Env ``UPI_VPA`` still wins if set."""
