@@ -2980,6 +2980,29 @@ async function loadRecAudio(btn){
 
 /* ====== Web Test Calls (transcripts — no audio, /app/test-call) ====== */
 function escWC(s){ return escH(String(s==null?"":s)); }
+/* Per-turn reply latency — yahi "kitni der me reply diya" dikhata hai.
+   <2.5s green · 2.5-5s amber · >5s red. Stage breakdown (stt/llm/tts) bhi. */
+function wcLatColor(ms){ if(ms==null) return "var(--muted)"; if(ms<2500) return "#16a34a"; if(ms<5000) return "#d97706"; return "#dc2626"; }
+function wcSecs(ms){ return (ms==null) ? "—" : (ms/1000).toFixed(1)+"s"; }
+function wcLatBadge(t){
+  if(t.latency_ms==null && t.llm_ms==null) return "";
+  const stages=[];
+  if(t.stt_ms!=null) stages.push("stt "+(t.stt_ms/1000).toFixed(1));
+  if(t.llm_ms!=null) stages.push("llm "+(t.llm_ms/1000).toFixed(1));
+  if(t.tts_ms!=null) stages.push("tts "+(t.tts_ms/1000).toFixed(1));
+  const sub = stages.length ? " ("+stages.join(" · ")+")" : "";
+  const col = wcLatColor(t.latency_ms);
+  return `<span title="reply latency" style="display:inline-block;margin-left:6px;font-size:10px;font-family:monospace;font-weight:700;color:${col};background:${col}1a;border:1px solid ${col}40;border-radius:6px;padding:1px 6px">⏱ ${wcSecs(t.latency_ms)}${sub}</span>`;
+}
+/* Session-level latency rollup so user ko ek nazar me pata chale agent slow hai ya nahi. */
+function wcLatSummary(turns){
+  const lat=(turns||[]).filter(t=>t.role!=="user"&&t.latency_ms!=null).map(t=>t.latency_ms);
+  if(!lat.length) return "";
+  lat.sort((a,b)=>a-b);
+  const p50=lat[Math.floor(lat.length*0.5)], mx=lat[lat.length-1];
+  const col=wcLatColor(p50);
+  return `<span style="margin-left:6px;color:${col};font-weight:700">⏱ p50 ${wcSecs(p50)} · max ${wcSecs(mx)}</span>`;
+}
 async function loadWebCalls(){
   const body=$("wc-body"), summ=$("wc-summary");
   if(body) body.innerHTML='<div style="color:var(--muted);font-size:13px">Loading…</div>';
@@ -2999,16 +3022,30 @@ async function loadWebCalls(){
       const turns=s.turns||[];
       let convo="";
       for(const t of turns){
-        const role=(t.role==="user")?"👤 User":"🤖 Swara";
-        const col=(t.role==="user")?"#0f172a":"#6366f1";
-        convo+=`<div style="margin-bottom:6px"><span style="font-weight:700;font-size:11px;color:${col}">${role}:</span> <span style="font-size:13px">${escWC(t.text||t.content||"")}</span></div>`;
+        const isUser=(t.role==="user");
+        const role=isUser?"👤 User":"🤖 Swara";
+        const col=isUser?"#0f172a":"#6366f1";
+        const badge=isUser?"":wcLatBadge(t);
+        // heard = STT ne jo suna (Swara turn pe). User-text se MEL na khaye = STT-fault
+        // (galat suna); mel khaye par jawab off-topic = brain-fault. Diagnosis ka core.
+        let heardLine="";
+        if(!isUser && t.heard){
+          heardLine=`<div style="margin:1px 0 4px 0;font-size:11px;color:#64748b">🎧 <i>suna:</i> "${escWC(t.heard)}"</div>`;
+        }
+        convo+=`<div style="margin-bottom:6px"><span style="font-weight:700;font-size:11px;color:${col}">${role}:</span> <span style="font-size:13px">${escWC(t.text||t.content||"")}</span>${badge}${heardLine}</div>`;
       }
       if(!convo) convo='<div style="color:var(--muted);font-size:12px">Koi transcript turns nahi</div>';
+      // Mixed mic+Swara recording (agar browser ne upload kiya) — sunke quality judge karo.
+      let recHtml="";
+      if(s.recording_url){
+        recHtml=`<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);margin-bottom:3px">🎙️ Call recording</div><audio controls preload="none" style="width:100%;height:34px" src="${escWC(s.recording_url)}"></audio></div>`;
+      }
+      const recBadge = s.recording_url ? ' <span style="color:#16a34a">🎙️ rec</span>' : '';
       html+=`<details style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;overflow:hidden">
         <summary style="cursor:pointer;padding:11px 14px;font-size:12px;color:var(--muted);font-family:monospace">
-          🕐 ${escWC(when)} &nbsp;·&nbsp; ${escWC(s.niche||"-")} / ${escWC(s.flow||"-")} &nbsp;·&nbsp; ${Number(s.duration_s||0)}s &nbsp;·&nbsp; ${Number(s.turn_count||turns.length)} turns
+          🕐 ${escWC(when)} &nbsp;·&nbsp; ${escWC(s.niche||"-")} / ${escWC(s.flow||"-")} &nbsp;·&nbsp; ${Number(s.duration_s||0)}s &nbsp;·&nbsp; ${Number(s.turn_count||turns.length)} turns ${wcLatSummary(turns)}${recBadge}
         </summary>
-        <div style="padding:12px 16px;border-top:1px solid var(--line)">${convo}</div>
+        <div style="padding:12px 16px;border-top:1px solid var(--line)">${recHtml}${convo}</div>
       </details>`;
     }
     html+='</div>';
