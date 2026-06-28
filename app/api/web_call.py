@@ -502,11 +502,29 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
     if not text:
         return None
 
+    # PRO voice = Sarvam Bulbul v3 (India-native, Hinglish prosody + Indian name
+    # pronunciation, sub-250ms streaming) — the professional India-market TTS. Tried
+    # FIRST when TTS_PROVIDER=sarvam + SARVAM_API_KEY set. Returns WAV b64 (frontend
+    # auto-detects). INERT without key (paid ~Rs2/min) → falls through to free floor.
+    if (
+        os.environ.get("TTS_PROVIDER", "").strip().lower() == "sarvam"
+        and os.environ.get("SARVAM_API_KEY", "").strip()
+    ):
+        try:
+            import base64 as _b64
+
+            from app.voice_agent.indic_providers import SarvamTTS
+
+            _wav = await asyncio.wait_for(SarvamTTS().synthesize(text), timeout=6.0)
+            if _wav:
+                return _b64.b64encode(_wav).decode("ascii")
+        except Exception:
+            pass
+
     # PREMIUM voice = Gemini native TTS (free, reuses existing GEMINI_API_KEY) tried
-    # FIRST when enabled; any miss (no key / GEMINI_TTS=0 / quota / error) falls
+    # next when enabled; any miss (no key / GEMINI_TTS=0 / quota / error) falls
     # through to the free EdgeTTS floor below. Returns WAV b64 (frontend auto-detects
-    # WAV vs mp3). INERT without key = behaviour unchanged. (Council 2026-06-25:
-    # voice-swap = biggest "noob -> human" jump on Hindi demos; user: own free stack.)
+    # WAV vs mp3). INERT without key = behaviour unchanged.
     try:
         from app.voice_agent import gemini_tts
 
@@ -1576,6 +1594,28 @@ async def _transcribe_audio(
         return ""
     if not audio or len(audio) > 4_000_000:  # >4MB = kuch galat hai, skip
         return ""
+
+    # PRO STT = Sarvam Saaras v3 (India-native, Hinglish code-switching, 25k hrs Indian
+    # audio) — tried FIRST when STT_PROVIDER=sarvam + SARVAM_API_KEY. Real-call Hinglish
+    # accuracy >> Groq/Whisper (no Devanagari-garble, no CPU-whisper slowness). INERT
+    # without key (paid ~Rs2/min) → falls through to the free Groq path below.
+    if (
+        os.environ.get("STT_PROVIDER", "").strip().lower() == "sarvam"
+        and os.environ.get("SARVAM_API_KEY", "").strip()
+    ):
+        try:
+            from app.voice_agent.indic_providers import SarvamSTT
+
+            _sx = await asyncio.wait_for(
+                SarvamSTT().transcribe(
+                    audio, language=os.environ.get("DEFAULT_LANGUAGE", "hi-IN")
+                ),
+                timeout=12.0,
+            )
+            if (_sx or "").strip():
+                return _sx.strip()
+        except Exception as e:
+            logger.debug(f"web-call: Sarvam STT skip ({e}).")
 
     # 0) FORCE local Hinglish whisper FIRST (WEBCALL_STT_LOCAL_FIRST=1 + HINGLISH_STT=1)
     # — zero-cloud / verification mode: har web-call baked Hinglish model use kare
