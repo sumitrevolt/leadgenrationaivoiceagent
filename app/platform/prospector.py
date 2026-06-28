@@ -20,9 +20,9 @@ nahi. Scheduler (team_scheduler) roz 09:30 IST pe chalata hai.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
-import time
 import urllib.parse
 import urllib.request
 import uuid
@@ -679,9 +679,10 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
             rows: list[dict[str, Any]] = []
             try:
                 if use_osm:
-                    # Politeness: Overpass calls ke beech 1s sleep.
+                    # Politeness: Overpass calls ke beech 1s sleep. await (NOT time.sleep)
+                    # warna pura event-loop block hota — run_prospecting async hai.
                     if idx > 0:
-                        time.sleep(1)
+                        await asyncio.sleep(1)
                     for r in _osm_search(query, city, max_per):
                         rows.append(
                             {
