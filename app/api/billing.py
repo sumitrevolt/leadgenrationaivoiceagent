@@ -161,6 +161,7 @@ def _provision_usage(
     period_end: datetime | None,
     subscription_id: str | None,
     reset: bool = True,
+    amount_inr: float | None = None,
 ) -> None:
     """Provision/refresh the minute ledger after a successful pay/renew. Never raises."""
     try:
@@ -185,7 +186,9 @@ def _provision_usage(
 
             _ref = f"{subscription_id}:{datetime.utcnow():%Y-%m}" if subscription_id else ""
             _aio.get_running_loop().create_task(
-                gst_invoice.on_payment_success(client_id, plan_id, payment_ref=_ref)
+                gst_invoice.on_payment_success(
+                    client_id, plan_id, payment_ref=_ref, amount_inr=amount_inr
+                )
             )
     except RuntimeError:
         pass  # no running loop (sync caller) — invoice manual API se ban sakta
@@ -1171,6 +1174,9 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
                     plan_id or (sub.plan_id if sub else None),
                     sub.current_period_end if sub else None,
                     sub_id,
+                    # actual charged amount (paise->INR) so the GST invoice matches what
+                    # was paid — annual/voice/combo otherwise fell back to monthly/₹0.
+                    amount_inr=(get("amount_total") or get("amount_subtotal") or 0) / 100 or None,
                 )
                 _cid = client_id or (sub.client_id if sub else None)
                 _emit_billing_customer_webhook(
@@ -1222,6 +1228,8 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
                 plan_id or (sub.plan_id if sub else None),
                 period_end,
                 sub_id,
+                # invoice.paid carries the real amount_paid (paise->INR) for the GST invoice
+                amount_inr=(get("amount_paid") or get("amount_total") or 0) / 100 or None,
             )
             _cid = client_id or (sub.client_id if sub else None)
             _emit_billing_customer_webhook(
