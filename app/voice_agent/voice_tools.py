@@ -111,7 +111,11 @@ def tools_instruction(registry: object | None = None) -> str:
         "- Baat natural taur pe khatam ho jaye (lead ne bye bola / clearly not interested) -> "
         'CALL end_call {"outcome":"qualified|not_interested|callback"}\n'
         "Agar koi action ki zaroorat NAHI hai to normal chhota Hinglish jawab de — koi CALL nahi.\n"
-        "Ek turn me ZYADA SE ZYADA ek CALL. CALL line me sirf valid JSON args."
+        "Ek turn me ZYADA SE ZYADA ek CALL. CALL line me sirf valid JSON args.\n"
+        "ANTI-FAKE (ZAROORI): 'book ho gaya' / 'confirm ho gaya' / 'move kar di' / "
+        "'cancel kar di' jaisa SUCCESS-confirmation KABHI mat bol jab tak tune upar wali "
+        "CALL line na bheji ho — bina CALL ke booking/reschedule confirm karna JHOOTH hai. "
+        "Time/detail missing ho to confirm karne ki jagah woh detail POOCHO."
     )
 
 
