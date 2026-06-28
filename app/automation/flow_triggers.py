@@ -178,6 +178,8 @@ def run_cron_due(now: datetime | None = None) -> dict:
         now = now or datetime.now(_IST)
         state = _read_state()
         started = 0
+        per_owner: dict[str, int] = {}  # PER-OWNER flood cap (was a global break that
+        # permanently starved overflow single-slot crons — they don't re-match next tick)
         for flow in flow_store.list_flows_full():
             trig = flow.get("trigger") or {}
             if trig.get("type") != "cron":
@@ -188,13 +190,36 @@ def run_cron_due(now: datetime | None = None) -> dict:
             fid = flow.get("id")
             if not fid or state.get(fid) == slot:
                 continue                       # already fired this slot
+            owner = str(flow.get("owner_client_id") or "")
+            if per_owner.get(owner, 0) >= _MAX_STARTS_PER_TICK:
+                continue                       # this owner hit their cap — keep scanning OTHER tenants
             if not _compiles(flow):
                 continue                       # don't start an un-runnable flow
-            if started >= _MAX_STARTS_PER_TICK:
-                break                          # flood cap — extras fire next tick
-            if _fire(fid, {"_trigger": "cron", "fired_at": now.isoformat()}):
+            # Hydrate the owning tenant's client context so executors (brand_pulse needs
+            # business_name, client_report needs client_id) get their inputs — the cron
+            # path never did this; mirrors customer_flows.cf_run. Admin flows (owner "")
+            # keep empty context.
+            inputs = {"_trigger": "cron", "fired_at": now.isoformat()}
+            if owner:
+                try:
+                    from app.marketing import clients_store
+
+                    _c = clients_store.get_client(owner) or {}
+                    inputs.update(
+                        {
+                            "_owner_client_id": owner,
+                            "client_id": owner,
+                            "business_name": _c.get("business_name") or "",
+                            "niche": _c.get("niche") or "general",
+                            "city": _c.get("city") or "",
+                        }
+                    )
+                except Exception:
+                    pass
+            if _fire(fid, inputs):
                 state[fid] = slot              # success-marked dedupe
                 started += 1
+                per_owner[owner] = per_owner.get(owner, 0) + 1
         _write_state(state)
         return {"ok": True, "started": started}
     except Exception as e:

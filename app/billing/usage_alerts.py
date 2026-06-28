@@ -75,6 +75,8 @@ def _already_alerted(client_id: str, threshold: int, period: str) -> bool:
         r.get("client_id") == client_id
         and int(r.get("threshold") or 0) == threshold
         and r.get("period") == period
+        and bool(r.get("sent"))  # only a DELIVERED alert dedups — a recorded-but-unsent
+        # one (send failed, or recorded while the flag was OFF) must NOT suppress a real retry
         for r in _read()
     )
 
@@ -183,7 +185,10 @@ async def run_check() -> dict[str, Any]:
             try:
                 cid = str(cl.get("id") or "")
                 plan = str(cl.get("plan") or "").strip().lower()
-                cap = usage.plan_minutes(plan)
+                # Include purchased top-ups so the threshold denominator matches the real
+                # enforcement gate (usage.has_minutes() = plan + topups). Else the 100%
+                # "calls paused" email fires while top-up minutes (and service) remain.
+                cap = usage.plan_minutes(plan) + usage.topup_minutes(cid)
                 if not cid or cap <= 0:
                     continue
                 out["checked"] += 1
