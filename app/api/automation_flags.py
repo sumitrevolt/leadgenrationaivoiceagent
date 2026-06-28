@@ -75,6 +75,7 @@ AUTOMATION_FLAGS = [
     "SELF_IMPROVE_LOOP",
     "LEAD_HARVESTER",
     "GTM_TARGETING",  # systematic City x Niche coverage matrix for the lead-harvester (gtm_targeting.py) — OFF default
+    "UDYAM_PIPELINE",  # Udyam-primary acquisition: data.gov.in seed -> Maps+website enrich (udyam_pipeline.py) — OFF default
     "CALL_TRANSFER",
     "OUTREACH_AB",
     "OUTREACH_AUDIT_LED",  # cold-email leads with a personalized audit-gap hook (additive, no cap change) — OFF default

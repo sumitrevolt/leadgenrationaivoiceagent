@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (987 operations)
+## Endpoint Index — auto-generated from OpenAPI (988 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -927,7 +927,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/terms` — Terms Page
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (200)
+### Growth  (201)
 
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats
@@ -987,6 +987,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/harvest/run` — Harvest Run
 - `GET   ` `/api/growth/harvest/runs` — Harvest Runs
 - `GET   ` `/api/growth/harvest/sources` — Harvest Sources
+- `POST  ` `/api/growth/harvest/udyam-run` — Harvest Udyam Run
 - `POST  ` `/api/growth/icp/generate` — Icp Generate
 - `POST  ` `/api/growth/identity/backfill` — Identity Backfill
 - `GET   ` `/api/growth/identity/duplicates` — Identity Duplicates
