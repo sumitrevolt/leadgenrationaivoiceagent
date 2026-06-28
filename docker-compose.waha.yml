@@ -45,7 +45,10 @@ services:
       - waha_sessions:/app/.sessions
       - waha_media:/app/.media
     ports:
-      - "127.0.0.1:3000:3000"            # localhost only — reach via SSH tunnel for the dashboard
+      # localhost only, 3111 (NOT 3000 — Grafana owns 3000 on this VPS). App reaches WAHA
+      # in-network at waha:3000 regardless; this host port is just the optional dashboard
+      # (SSH tunnel). QR linking goes through the app at /api/wa/selfhost/qr, so this is optional.
+      - "127.0.0.1:3111:3000"
     logging:
       driver: json-file
       options: { max-size: "5m", max-file: "2" }
