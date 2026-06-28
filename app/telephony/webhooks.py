@@ -264,20 +264,27 @@ async def vobiz_answer_webhook(request: Request):
     call_sid = form_data.get("CallSid") or form_data.get("call_uuid") or ""
 
     if digits == "9":
-        caller = str(
-            form_data.get("From") or form_data.get("CallFrom") or form_data.get("from") or ""
-        ).strip()
-        if caller:
+        # SECURITY: suppress the number we SIGNED into the answer-url (call_manager),
+        # NOT the request 'From' (attacker-controllable). A valid signature proves this
+        # callback belongs to a call we placed; an unsigned/forged press-9 is ignored so
+        # an anonymous POST can't add arbitrary numbers to the do-not-call list.
+        from app.telephony.answer_token import verify as _verify_answer
+
+        _q = request.query_params
+        _signed_to = str(_q.get("to") or "").strip()
+        if _signed_to and _verify_answer(_signed_to, _q.get("exp", ""), _q.get("sig", "")):
             try:
                 from app.telephony.consent_ledger import record_opt_out
 
                 record_opt_out(
-                    caller, reason="ivr_press9", channel="voice", call_id=str(call_sid or "")
+                    _signed_to, reason="ivr_press9", channel="voice", call_id=str(call_sid or "")
                 )
             except Exception as _oe:
                 logger.error(f"press-9 opt-out persist failed: {_oe}")
         else:
-            logger.warning("press-9 opt-out: caller number missing in Vobiz payload")
+            logger.warning(
+                "press-9 opt-out IGNORED — unsigned/forged answer callback (no valid token)"
+            )
         xml = (
             '<?xml version="1.0" encoding="UTF-8"?>'
             "<Response><Speak>"

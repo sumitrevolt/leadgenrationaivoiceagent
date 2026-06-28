@@ -154,7 +154,7 @@ class CallManager:
         return f"{base}/api/webhooks/vobiz/status"
 
     @staticmethod
-    def _answer_url() -> str | None:
+    def _answer_url(to: str = "") -> str | None:
         """Public answer_url for Vobiz outbound calls.
 
         Vobiz fetches this URL when the call connects and expects VobizXML back.
@@ -166,7 +166,22 @@ class CallManager:
         base = (os.getenv("PUBLIC_BASE_URL") or os.getenv("SITE_BASE") or "").rstrip("/")
         if not base:
             return None
-        return f"{base}/api/webhooks/vobiz/answer"
+        url = f"{base}/api/webhooks/vobiz/answer"
+        # Sign the dialled number into the answer-url so the webhook can verify a
+        # press-9 opt-out belongs to a call WE placed (else any anon POST could
+        # suppress an arbitrary number). Best-effort: unsigned still returns a URL.
+        _to = str(to or "").strip()
+        if _to:
+            try:
+                from urllib.parse import urlencode
+
+                from app.telephony.answer_token import sign
+
+                sig, exp = sign(_to)
+                url += "?" + urlencode({"to": _to, "exp": exp, "sig": sig})
+            except Exception:
+                pass
+        return url
 
     async def queue_call(self, request: CallRequest) -> str:
         """
@@ -346,7 +361,11 @@ class CallManager:
                     # raises; success = status_code in 200/201/202, sid = body["id"].
                     # The compliance gate already ran in queue_call(), so skip the
                     # duplicate gate here (skip_compliance=True).
-                    answer_url = self._answer_url() or self._status_webhook_url() or ""
+                    answer_url = (
+                        self._answer_url(to=request.phone_number)
+                        or self._status_webhook_url()
+                        or ""
+                    )
                     result = await self.handler.place_call(
                         to=request.phone_number,
                         answer_url=answer_url,
