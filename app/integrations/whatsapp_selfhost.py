@@ -1,0 +1,275 @@
+"""Self-hosted WhatsApp stack client — WAHA Core (our own API, no Meta verification).
+
+WHY THIS EXISTS
+---------------
+The OFFICIAL Meta Cloud API (``app/integrations/whatsapp.py``) needs Meta **Business
+verification** + a registered phone number + template approval. That verification — not
+"having a number" — was the real blocker. A self-hosted WhatsApp-Web stack (WAHA Core,
+GPL, single Docker container) links an EXISTING WhatsApp account by QR scan and exposes a
+plain HTTP API, so we own the whole stack and skip Meta verification.
+
+⚠️  BAN RISK — read before enabling
+-----------------------------------
+A Web-session stack has NO template / 24-hour-window protection that the Cloud API gives
+you. So the ban-safety guards (suppression, daily cap, spacing, opt-out) matter MORE here,
+not less. Safe use = **inbound auto-reply + warm 1-to-1 + low-volume opt-in**. Bulk
+cold-blasting on a Web session is what gets a real number banned fast. Cloud API remains
+the only truly ban-proof path; this is a deliberate verification-vs-banrisk tradeoff.
+
+DESIGN
+------
+- Inert without ``WAHA_BASE_URL`` (returns ``{"error": "selfhost_not_configured"}``).
+- Never raises — every send/HTTP path returns a dict on error so campaign runners stay
+  crash-safe (same contract as the Cloud-API integration).
+- Thin HTTP client. WAHA wire-format is isolated in private helpers so swapping the engine
+  to Evolution API (AGPL drop-in: ``POST /message/sendText/{instance}``) is a small change.
+- A number can be on EITHER Cloud API OR this Web-session stack — never both at once.
+
+WAHA Core endpoints used (all free in Core):
+  POST {base}/api/sendText               {session, chatId, text}     -> send a text
+  GET  {base}/api/sessions/{session}     -> {"status": "WORKING"|"SCAN_QR_CODE"|...}
+  POST {base}/api/sessions/start         {name: session}             -> start/relink session
+  GET  {base}/api/{session}/auth/qr?format=image  -> image/png QR bytes (scan to link)
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any
+
+import httpx
+
+from app.config import settings
+from app.integrations.whatsapp import WhatsAppMessageMixin
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
+
+# --------------------------------------------------------------------------- #
+# Config helpers
+# --------------------------------------------------------------------------- #
+def _base_url() -> str:
+    return (
+        os.getenv("WAHA_BASE_URL", "") or getattr(settings, "waha_base_url", "") or ""
+    ).strip().rstrip("/")
+
+
+def _api_key() -> str:
+    return (os.getenv("WAHA_API_KEY", "") or getattr(settings, "waha_api_key", "") or "").strip()
+
+
+def _session() -> str:
+    return (
+        os.getenv("WAHA_SESSION", "") or getattr(settings, "waha_session", "") or "default"
+    ).strip() or "default"
+
+
+def is_configured() -> bool:
+    """True only if a self-hosted WAHA base URL is set (the stack is reachable)."""
+    return bool(_base_url())
+
+
+def is_active_provider() -> bool:
+    """True if the operator selected the self-host stack as the active WhatsApp provider."""
+    prov = (
+        os.getenv("WHATSAPP_PROVIDER", "") or getattr(settings, "whatsapp_provider", "") or "cloud"
+    ).strip().lower()
+    # Only "waha"/"selfhost" are wired (WAHA HTTP format). Evolution API is a documented
+    # drop-in alt but a different wire-format — don't claim it until its client is added.
+    return prov in ("waha", "selfhost", "self_host") and is_configured()
+
+
+def _headers() -> dict[str, str]:
+    h = {"Content-Type": "application/json"}
+    key = _api_key()
+    if key:
+        h["X-Api-Key"] = key
+    return h
+
+
+def _chat_id(number: str) -> str:
+    """WAHA personal-chat id: ``<digits>@c.us``. Adds India CC for bare 10-digit numbers."""
+    digits = "".join(c for c in (number or "") if c.isdigit())
+    if len(digits) == 10:
+        digits = "91" + digits
+    elif digits.startswith("0"):
+        digits = "91" + digits[1:]
+    return f"{digits}@c.us"
+
+
+def _render(body: str, params: list[str] | None) -> str:
+    """Fill ``{{1}}``, ``{{2}}`` ... placeholders (Web sessions have no Meta templates)."""
+    text = body or ""
+    for i, p in enumerate(params or [], start=1):
+        text = text.replace("{{%d}}" % i, str(p))
+    return text
+
+
+# --------------------------------------------------------------------------- #
+# Client — same method shape as WhatsAppIntegration (so the selector is drop-in)
+# --------------------------------------------------------------------------- #
+class SelfHostWhatsApp(WhatsAppMessageMixin):
+    """WAHA Core HTTP client. Mirrors ``WhatsAppIntegration`` send signatures.
+
+    Inherits the lead-alert / appointment / callback / daily-report helpers from the mixin,
+    so notification call-sites work identically on the self-hosted engine.
+    """
+
+    def __init__(self) -> None:
+        self.base_url = _base_url()
+        self.session = _session()
+
+    async def send_text_message(self, to_number: str, message: str) -> dict[str, Any]:
+        """Send a plain text message via the self-hosted session. Never raises."""
+        if not self.base_url:
+            return {"error": "selfhost_not_configured"}
+        payload = {
+            "session": self.session,
+            "chatId": _chat_id(to_number),
+            "text": message or "",
+        }
+        return await self._post("/api/sendText", payload)
+
+    async def send_template_message(
+        self,
+        to_number: str,
+        template_name: str,
+        template_params: list[str] | None = None,
+        language: str = "en",
+    ) -> dict[str, Any]:
+        """No real templates on a Web session — render the local template body to text.
+
+        Looks up the template record (registered in the WhatsApp panel) and substitutes
+        ``{{1}}`` params, then sends as a normal text message. Falls back to the raw
+        template name if no body is on record.
+        """
+        if not self.base_url:
+            return {"error": "selfhost_not_configured"}
+        body = ""
+        try:
+            from app.marketing import wa_campaign_runner as runner
+
+            tpl = runner.get_template(template_name, language)
+            body = (tpl or {}).get("body", "") if tpl else ""
+        except Exception:
+            body = ""
+        text = _render(body, template_params) if body else (template_name or "")
+        return await self.send_text_message(to_number, text)
+
+    async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        url = f"{self.base_url}{path}"
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(url, headers=_headers(), json=payload, timeout=30.0)
+                resp.raise_for_status()
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {"ok": True}
+                # Normalise to look like the Cloud-API success shape (id under messages[0].id)
+                mid = ""
+                if isinstance(data, dict):
+                    mid = str(data.get("id") or (data.get("_data") or {}).get("id") or "")
+                logger.info("waha send ok (%s) id=%s", self.session, mid[:40])
+                return {"messages": [{"id": mid}] if mid else [], "raw": data}
+        except httpx.HTTPStatusError as e:
+            body = ""
+            try:
+                body = e.response.text
+            except Exception:
+                pass
+            logger.error("waha API error: %s", body[:300])
+            return {
+                "error": "http_error",
+                "status": getattr(e.response, "status_code", 0),
+                "detail": body[:300],
+            }
+        except Exception as e:  # network / timeout / DNS
+            logger.warning("waha request failed: %s", e)
+            return {"error": "request_failed", "detail": str(e)[:200]}
+
+
+# --------------------------------------------------------------------------- #
+# Session management (link / status / QR) — used by admin endpoints
+# --------------------------------------------------------------------------- #
+async def session_status() -> dict[str, Any]:
+    """Return the linked-session state. Never raises.
+
+    status values (WAHA): STARTING / SCAN_QR_CODE / WORKING / FAILED / STOPPED.
+    """
+    base = _base_url()
+    if not base:
+        return {"configured": False, "status": "not_configured"}
+    sess = _session()
+    url = f"{base}/api/sessions/{sess}"
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=_headers(), timeout=15.0)
+            if resp.status_code == 404:
+                return {"configured": True, "session": sess, "status": "NOT_CREATED"}
+            resp.raise_for_status()
+            data = resp.json() if resp.content else {}
+            status = str((data or {}).get("status", "")).upper() or "UNKNOWN"
+            return {
+                "configured": True,
+                "session": sess,
+                "status": status,
+                "working": status == "WORKING",
+            }
+    except Exception as e:
+        logger.warning("waha session_status err: %s", e)
+        return {"configured": True, "session": sess, "status": "UNREACHABLE", "error": str(e)[:120]}
+
+
+async def start_session() -> dict[str, Any]:
+    """Best-effort start/relink of the session. Never raises.
+
+    After this the session goes to SCAN_QR_CODE — fetch the QR and scan it on the phone
+    holding the business number to link it.
+    """
+    base = _base_url()
+    if not base:
+        return {"ok": False, "error": "selfhost_not_configured"}
+    sess = _session()
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{base}/api/sessions/start",
+                headers=_headers(),
+                json={"name": sess},
+                timeout=20.0,
+            )
+            ok = resp.status_code < 400
+            return {"ok": ok, "session": sess, "status_code": resp.status_code}
+    except Exception as e:
+        logger.warning("waha start_session err: %s", e)
+        return {"ok": False, "session": sess, "error": str(e)[:160]}
+
+
+async def qr_image() -> tuple[bytes | None, str]:
+    """Fetch the link QR as image bytes. Returns ``(bytes_or_None, content_type)``. Never raises."""
+    base = _base_url()
+    if not base:
+        return None, "application/json"
+    sess = _session()
+    url = f"{base}/api/{sess}/auth/qr?format=image"
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=_headers(), timeout=20.0)
+            if resp.status_code >= 400:
+                return None, "application/json"
+            return resp.content, resp.headers.get("content-type", "image/png")
+    except Exception as e:
+        logger.warning("waha qr_image err: %s", e)
+        return None, "application/json"
+
+
+__all__ = [
+    "SelfHostWhatsApp",
+    "is_configured",
+    "is_active_provider",
+    "session_status",
+    "start_session",
+    "qr_image",
+]

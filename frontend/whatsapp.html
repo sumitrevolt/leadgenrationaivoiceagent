@@ -41,6 +41,8 @@
   .row{display:flex;gap:8px;flex-wrap:wrap;}
   .row > div{flex:1;min-width:120px;}
   pre{background:#0b1020;color:#e2e8f0;padding:10px;border-radius:8px;font-size:12px;overflow:auto;max-height:220px;}
+  code{background:#e2e8f0;padding:1px 5px;border-radius:5px;font-size:12px;}
+  .qrimg{max-width:240px;border:1px solid #cbd5e1;border-radius:8px;}
 </style>
 </head>
 <body>
@@ -125,6 +127,19 @@
         <button class="btn" id="sAdd">Suppress</button>
         <button class="btn ghost" id="sRemove">Un-suppress</button>
       </div>
+
+      <!-- Self-hosted WhatsApp stack (WAHA) -->
+      <div class="card">
+        <h3>🔌 Apna stack (WAHA self-host)</h3>
+        <p class="muted">Meta verification ke <b>bina</b> apna number link karo. VPS pe WAHA container chalao (<code>docker-compose.waha.yml</code>) + <code>WHATSAPP_PROVIDER=waha</code>, fir niche <b>Start session</b> → QR scan (phone → WhatsApp → Linked devices → Link a device). <b>⚠️ Inbound/warm replies ke liye — bulk cold mat bhejo (number ban).</b></p>
+        <div id="shStatus" class="muted">Status: —</div>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn" id="shStart">Start session</button>
+          <button class="btn ghost" id="shQr">Show QR</button>
+          <button class="btn ghost" id="shRefresh">↻ Status</button>
+        </div>
+        <div id="shQrBox" style="margin-top:10px;text-align:center;"></div>
+      </div>
     </div>
 
     <div>
@@ -194,7 +209,26 @@
       return '<tr><td>'+esc(x.phone)+'</td><td>'+esc(x.reason)+'</td><td class="muted">'+esc((x.at||"").slice(0,10))+'</td></tr>';
     }).join("") : '<tr><td colspan="3" class="muted">Koi suppressed number nahi.</td></tr>';
   }
-  async function loadAll(){ await loadStatus(); await loadTemplates(); await loadCampaigns(); await loadSuppression(); }
+  async function loadSelfhost(){
+    var el=document.getElementById("shStatus"); if(!el) return;
+    var s = await getJSON("/api/wa/selfhost/status");
+    if(!s){ el.textContent="Status: —"; return; }
+    if(!s.configured){ el.innerHTML='Status: <b>not configured</b> — VPS pe <code>WAHA_BASE_URL</code> set + container chalao.'; return; }
+    var st=s.status||"UNKNOWN", num=s.business_number?(" · "+esc(s.business_number)):"";
+    var em = st==="WORKING"?"✅":(st==="SCAN_QR_CODE"?"📷":(st==="UNREACHABLE"?"⚠️":"⏳"));
+    el.innerHTML='Status: '+em+' <b>'+esc(st)+'</b>'+num;
+  }
+  function shShowQr(){
+    var box=document.getElementById("shQrBox");
+    box.innerHTML='<span class="muted">QR load ho raha…</span>';
+    fetch("/api/wa/selfhost/qr",{headers:hdr()}).then(function(r){ return r.ok? r.blob() : null; })
+      .then(function(b){
+        if(!b){ box.innerHTML='<span class="muted">QR abhi nahi — pehle "Start session" + thoda ruko.</span>'; return; }
+        var u=URL.createObjectURL(b);
+        box.innerHTML='<img alt="WhatsApp link QR" src="'+u+'" class="qrimg"/><div class="muted">WhatsApp → Linked devices → Link a device → scan</div>';
+      }).catch(function(){ box.innerHTML='<span class="muted">QR load error</span>'; });
+  }
+  async function loadAll(){ await loadStatus(); await loadTemplates(); await loadCampaigns(); await loadSuppression(); await loadSelfhost(); }
 
   document.getElementById("tSave").addEventListener("click", async function(){
     var body={ name:val("tName"), language:val("tLang")||"en", category:val("tCat"), status:val("tStatus"), body:val("tBody") };
@@ -223,6 +257,12 @@
   });
   document.getElementById("tReload").addEventListener("click", loadTemplates);
   document.getElementById("reload").addEventListener("click", loadAll);
+  document.getElementById("shStart").addEventListener("click", async function(){
+    var r=await postJSON("/api/wa/selfhost/start", {}); setErr(r?"":"Start failed — config check karo");
+    setTimeout(loadSelfhost, 1500);
+  });
+  document.getElementById("shQr").addEventListener("click", shShowQr);
+  document.getElementById("shRefresh").addEventListener("click", loadSelfhost);
 
   function val(id){ var e=document.getElementById(id); return e? (e.value||"").trim() : ""; }
   function parseRecips(text){

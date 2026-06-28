@@ -27,7 +27,7 @@ import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
@@ -45,18 +45,24 @@ router = APIRouter(prefix="/wa", tags=["WhatsApp"])
 async def wa_status(current_user: User = Depends(require_admin)) -> dict[str, Any]:
     from app.marketing import whatsapp_campaign as wac
 
+    prov = wac.provider()
+    if wac.auto_ready():
+        note = f"Auto-send LIVE via {('self-host (WAHA)' if prov == 'waha' else 'Meta Cloud API')}."
+    elif prov == "waha":
+        note = "Self-host (WAHA) selected — link the number (scan QR) + set WHATSAPP_AUTO_SEND=1 to auto-send."
+    else:
+        note = "Ban-safe mode: campaigns return 1-click links (set WHATSAPP_AUTO_SEND=1 + a backend — Cloud API creds OR self-host WAHA — to auto-send)."
     return {
+        "provider": prov,  # "cloud" | "waha" — which backend is actually live
         "auto_send_flag": wac.auto_send_enabled(),
-        "creds_present": wac.creds_present(),
+        "creds_present": wac.creds_present(),  # any usable backend
+        "cloud_creds_present": wac.cloud_creds_present(),  # Meta Cloud API specifically
+        "selfhost_active": wac.selfhost_present(),  # WAHA selected + reachable-configured
         "auto_ready": wac.auto_ready(),
         "daily_cap": wac.daily_cap(),
         "sent_today": wac.sent_today_count(),
         "send_spacing_s": wac.send_spacing_s(),
-        "note": (
-            "Auto-send LIVE."
-            if wac.auto_ready()
-            else "Ban-safe mode: campaigns return 1-click links (set WHATSAPP_AUTO_SEND=1 + Cloud API creds to auto-send approved templates)."
-        ),
+        "note": note,
     }
 
 
@@ -294,6 +300,154 @@ async def webhook_inbound(request: Request) -> dict[str, Any]:
                         runner.record_failure(recipient, str(reason))
     except Exception as e:
         logger.info("wa webhook parse err: %s", e)
+    return res
+
+
+# --------------------------------------------------------------------------- #
+# Self-hosted stack (WAHA Core) — "apna khud ka" provider
+#   GET  /api/wa/selfhost/status   — linked-session state (WORKING/SCAN_QR_CODE/…) [admin]
+#   POST /api/wa/selfhost/start    — start/relink the session (then scan QR)       [admin]
+#   GET  /api/wa/selfhost/qr       — QR image to scan on the business phone        [admin]
+#   POST /api/wa/selfhost/webhook  — WAHA inbound messages (token-gated)           [PUBLIC]
+# A number is EITHER on Cloud API OR on this Web session — never both at once.
+# --------------------------------------------------------------------------- #
+@router.get("/selfhost/status")
+async def selfhost_status(current_user: User = Depends(require_admin)) -> dict[str, Any]:
+    from app.integrations import whatsapp_selfhost as wahost
+
+    st = await wahost.session_status()
+    try:
+        from app.config import settings as _s
+
+        st["business_number"] = (getattr(_s, "whatsapp_business_number", "") or "").strip()
+    except Exception:
+        pass
+    return st
+
+
+@router.post("/selfhost/start")
+async def selfhost_start(current_user: User = Depends(require_admin)) -> dict[str, Any]:
+    from app.integrations import whatsapp_selfhost as wahost
+
+    return await wahost.start_session()
+
+
+@router.get("/selfhost/qr")
+async def selfhost_qr(current_user: User = Depends(require_admin)):
+    """Return the link QR as an image (scan on the phone holding the business number)."""
+    from app.integrations import whatsapp_selfhost as wahost
+
+    data, ctype = await wahost.qr_image()
+    if not data:
+        return Response(
+            content=b'{"error":"qr_unavailable"}',
+            media_type="application/json",
+            status_code=503,
+        )
+    return Response(content=data, media_type=ctype or "image/png")
+
+
+def _webhook_token_ok(request: Request) -> bool:
+    """Path/query token gate for the public WAHA webhook (the route IS internet-exposed).
+
+    Configured URL = ``…/api/wa/selfhost/webhook?token=<WAHA_WEBHOOK_TOKEN>``.
+    Token set -> must match. Token unset -> fail-CLOSED in production (dev allowed).
+    """
+    try:
+        from app.config import settings as _s
+
+        expected = (getattr(_s, "waha_webhook_token", "") or "").strip()
+        if not expected:
+            return not bool(getattr(_s, "is_production", False))
+        got = (
+            request.query_params.get("token")
+            or request.headers.get("X-Webhook-Token")
+            or request.headers.get("x-webhook-token")
+            or ""
+        ).strip()
+        return bool(got) and got == expected
+    except Exception:
+        return False
+
+
+_SEEN_FILE = os.path.join("data", "wa_selfhost_seen.json")
+
+
+def _seen_message(message_id: str) -> bool:
+    """Dedupe on message id (WAHA/Evolution redeliver). Bounded json. Never raises."""
+    mid = (message_id or "").strip()
+    if not mid:
+        return False
+    try:
+        import json as _json
+
+        ids: list[str] = []
+        if os.path.exists(_SEEN_FILE):
+            with open(_SEEN_FILE, encoding="utf-8") as f:
+                ids = _json.load(f) or []
+        if mid in ids:
+            return True
+        ids.append(mid)
+        if len(ids) > 800:
+            ids = ids[-800:]
+        os.makedirs(os.path.dirname(_SEEN_FILE), exist_ok=True)
+        with open(_SEEN_FILE, "w", encoding="utf-8") as f:
+            _json.dump(ids, f)
+    except Exception:
+        pass
+    return False
+
+
+@router.post("/selfhost/webhook")
+async def selfhost_webhook(request: Request) -> dict[str, Any]:
+    """Inbound messages from the self-hosted WAHA stack.
+
+    WAHA payload shape (NOT Meta's): ``{"event":"message","session":...,"payload":{"from":
+    "918261…@c.us","body":"…","id":"…","fromMe":false}}``. Token-gated, deduped on id.
+    Same downstream as the Meta path: store + opt-out/suppress + reply_agent draft.
+    Always returns JSON, never raises.
+    """
+    if not _webhook_token_ok(request):
+        logger.warning("wa selfhost webhook: bad/missing token, ignoring")
+        return {"ok": False, "reason": "bad_token"}
+    try:
+        import json
+
+        payload = json.loads((await request.body()).decode("utf-8") or "{}")
+    except Exception:
+        payload = {}
+
+    res = {"ok": True, "messages": 0, "suppressed": 0, "drafted": 0, "dup": 0}
+    try:
+        from app.marketing import wa_campaign_runner as runner
+
+        event = str(payload.get("event", "")).lower()
+        body = payload.get("payload", {}) or {}
+        if not event.startswith("message") or body.get("fromMe"):
+            return res  # delivery acks / outbound echoes — ignore
+        mid = str(body.get("id", "")).strip()
+        if _seen_message(mid):
+            res["dup"] += 1
+            return res
+        frm = str(body.get("from", "")).split("@")[0].strip()
+        text = str(body.get("body", "")).strip()
+        if not frm:
+            return res
+        res["messages"] += 1
+        _store_inbound(frm, text, mid)
+        if text.lower() in ("stop", "unsubscribe", "stop promotions", "band karo"):
+            runner.suppress(frm, reason="opt_out_inbound")
+            res["suppressed"] += 1
+        elif text:
+            try:
+                from app.platform import reply_agent
+
+                await reply_agent.whatsapp_reply(frm, text, mid)
+                res["drafted"] += 1
+            except Exception as _e:
+                logger.info("wa selfhost reply_agent err: %s", _e)
+    except Exception as e:
+        logger.info("wa selfhost webhook parse err: %s", e)
     return res
 
 

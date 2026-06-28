@@ -51,6 +51,8 @@ AUTOMATION_FLAGS = [
     "DELIVERABILITY_MONITOR",
     "AUTOMATION_HEALTH_ALERTS",
     "WHATSAPP_AUTO_SEND",
+    "WHATSAPP_PROVIDER",  # "cloud" (Meta Cloud API, default) | "waha"/"selfhost" (own WAHA stack)
+    "WAHA_BASE_URL",  # self-hosted WhatsApp stack URL (set = reachable; sidesteps Meta verification)
     "MISSED_CALL_CALLBACK",
     "SMS_DLT_ENABLED",
     "USE_SILERO_VAD",

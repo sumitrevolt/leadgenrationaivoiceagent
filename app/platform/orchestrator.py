@@ -16,7 +16,7 @@ from datetime import datetime
 from app.automation.campaign_manager import CampaignManager
 from app.automation.scheduler import CallScheduler
 from app.integrations.email_sender import EmailSender
-from app.integrations.whatsapp import WhatsAppIntegration
+from app.integrations.whatsapp import get_whatsapp_sender
 from app.lead_scraper.scraper_manager import LeadScraperManager
 from app.platform import PLATFORM_CONFIG
 from app.platform.tenant_manager import Tenant, TenantManager, TenantStatus
@@ -97,7 +97,7 @@ class PlatformOrchestrator:
         self.call_manager = CallManager()
 
         # Notifications
-        self.whatsapp = WhatsAppIntegration()
+        self.whatsapp = get_whatsapp_sender()  # dual-engine: self-host (WAHA) or Cloud API
         self.email = EmailSender()
 
         # State

@@ -1,0 +1,61 @@
+# =============================================================================
+# docker-compose.waha.yml — SELF-HOSTED WhatsApp stack (WAHA Core, free/GPL).
+# -----------------------------------------------------------------------------
+# "Apna khud ka" WhatsApp API. Links an EXISTING WhatsApp account by QR scan and
+# exposes a plain HTTP API — sidesteps Meta Business VERIFICATION entirely (the real
+# Cloud-API blocker). The app talks to it via WAHA_BASE_URL=http://waha:3000.
+#
+#  A number is EITHER on Meta Cloud API OR on this Web session — NEVER both at once.
+#  ⚠️ BAN-RISK: a Web session has no template/24h protection. Use for INBOUND auto-reply
+#     + warm 1-to-1 + low-volume opt-in. Bulk cold-blasting bans the number fast.
+#
+# Prereq: main stack up (network `leadgen_leadgen_net` exists).
+# Setup (VPS):
+#   1) In .env set:  WAHA_API_KEY=<random>  WAHA_WEBHOOK_TOKEN=<random>
+#   2) docker compose -f docker-compose.waha.yml up -d
+#   3) In app .env:  WHATSAPP_PROVIDER=waha  WAHA_BASE_URL=http://waha:3000
+#                    WAHA_SESSION=default  WHATSAPP_BUSINESS_NUMBER=918261030181
+#      (WAHA_API_KEY / WAHA_WEBHOOK_TOKEN same as step 1) -> recreate app container.
+#   4) Open /app/whatsapp -> Self-host card -> "Start session" -> scan the QR on the
+#      phone holding 8261030181 (WhatsApp -> Linked devices -> Link a device).
+#   5) Status flips to WORKING. Leave WHATSAPP_AUTO_SEND=0 until you want auto-send.
+# RAM: NOWEB engine ~150-300MB (no headless Chromium). 16GB VPS = trivial.
+# =============================================================================
+
+name: leadgen-waha
+
+services:
+  waha:
+    image: devlikeapro/waha:latest        # Core (free/GPL). NOT waha-plus (paywalled).
+    container_name: leadgen_waha
+    restart: unless-stopped
+    environment:
+      # --- API auth: app sends this as X-Api-Key on every call ---
+      WHATSAPP_API_KEY: "${WAHA_API_KEY:-change-me-strong-key}"
+      # --- Lightest engine: Baileys-based, no Chromium. Text + webhook + QR all work. ---
+      WHATSAPP_DEFAULT_ENGINE: "NOWEB"
+      # --- Auto-start the saved session on boot (-> SCAN_QR_CODE / WORKING) ---
+      WHATSAPP_RESTART_ALL_SESSIONS: "True"
+      # --- Inbound -> app webhook (in-network; token-gated). 'message' = inbound texts. ---
+      WHATSAPP_HOOK_URL: "http://app:8000/api/wa/selfhost/webhook?token=${WAHA_WEBHOOK_TOKEN:-change-me-token}"
+      WHATSAPP_HOOK_EVENTS: "message"
+      # Keep session store on disk so a restart doesn't force a re-scan.
+      WHATSAPP_FILES_FOLDER: "/app/.media"
+    volumes:
+      - waha_sessions:/app/.sessions
+      - waha_media:/app/.media
+    ports:
+      - "127.0.0.1:3000:3000"            # localhost only — reach via SSH tunnel for the dashboard
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+    networks: [leadgen_net]
+
+volumes:
+  waha_sessions:
+  waha_media:
+
+networks:
+  leadgen_net:
+    external: true
+    name: leadgen_leadgen_net

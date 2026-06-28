@@ -118,9 +118,9 @@ async def request_review(
     )
     if want_auto and customer_phone:
         try:
-            from app.integrations.whatsapp import WhatsAppIntegration
+            from app.integrations.whatsapp import get_whatsapp_sender
 
-            wa = WhatsAppIntegration()
+            wa = get_whatsapp_sender()  # dual-engine: self-host (WAHA) or Cloud API
             res = await wa.send_text_message(customer_phone, message)
             auto_sent = bool(res and not res.get("error"))
         except Exception as e:

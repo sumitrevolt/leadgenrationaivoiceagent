@@ -71,7 +71,87 @@ class WhatsAppMessage:
     template_params: list[str] | None = None
 
 
-class WhatsAppIntegration:
+class WhatsAppMessageMixin:
+    """Pre-built business message helpers (lead alert / appointment / callback / report).
+
+    Each formats a message then calls ``self.send_text_message`` — so BOTH the Cloud-API
+    client (:class:`WhatsAppIntegration`) and the self-hosted WAHA client
+    (:class:`app.integrations.whatsapp_selfhost.SelfHostWhatsApp`) share one implementation.
+    That is what makes the dual-engine provider switch work *everywhere*, not just on the
+    campaign path. Never raises (delegates to a never-raise ``send_text_message``).
+    """
+
+    async def send_lead_alert(
+        self, sales_team_number: str, lead_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Send hot lead alert to sales team"""
+        message = (
+            "NEW HOT LEAD!\n\n"
+            f"Company: {lead_data.get('company_name', 'N/A')}\n"
+            f"Contact: {lead_data.get('contact_name', 'N/A')}\n"
+            f"Phone: {lead_data.get('phone', 'N/A')}\n"
+            f"City: {lead_data.get('city', 'N/A')}\n\n"
+            f"Lead Score: {lead_data.get('lead_score', 0)}/100\n"
+            f"Interest: {lead_data.get('detected_intent', 'N/A')}\n\n"
+            f"Notes: {lead_data.get('notes', 'No additional notes')}\n"
+            f"Call Time: {lead_data.get('call_time', 'N/A')}\n\n"
+            "Reply with 'CLAIM' to assign this lead to yourself."
+        )
+        return await self.send_text_message(sales_team_number, message)
+
+    async def send_appointment_confirmation(
+        self,
+        to_number: str,
+        client_name: str,
+        appointment_date: str,
+        appointment_time: str,
+        meeting_link: str | None = None,
+    ) -> dict[str, Any]:
+        """Send appointment confirmation to lead"""
+        message = (
+            "Appointment Confirmed!\n\n"
+            f"Thank you for scheduling a meeting with {client_name}.\n\n"
+            f"Date: {appointment_date}\n"
+            f"Time: {appointment_time}\n"
+        )
+        if meeting_link:
+            message += f"Meeting Link: {meeting_link}\n"
+        message += "\nWe look forward to speaking with you!"
+        return await self.send_text_message(to_number, message)
+
+    async def send_callback_reminder(
+        self, to_number: str, client_name: str, callback_time: str
+    ) -> dict[str, Any]:
+        """Send callback reminder to sales team"""
+        message = (
+            "CALLBACK REMINDER\n\n"
+            "A lead requested a callback:\n\n"
+            f"Client: {client_name}\n"
+            f"Number: {to_number}\n"
+            f"Requested Time: {callback_time}\n\n"
+            "Please call them back at the requested time."
+        )
+        return await self.send_text_message(settings.smtp_user, message)
+
+    async def send_daily_report(self, to_number: str, stats: dict[str, Any]) -> dict[str, Any]:
+        """Send daily campaign report"""
+        message = (
+            "DAILY CAMPAIGN REPORT\n\n"
+            f"Calls Made: {stats.get('calls_made', 0)}\n"
+            f"Connected: {stats.get('calls_connected', 0)}\n"
+            f"Connection Rate: {stats.get('connection_rate', 0):.1%}\n\n"
+            "Outcomes:\n"
+            f"  Interested: {stats.get('interested', 0)}\n"
+            f"  Appointments: {stats.get('appointments', 0)}\n"
+            f"  Callbacks: {stats.get('callbacks', 0)}\n"
+            f"  Not Interested: {stats.get('not_interested', 0)}\n\n"
+            f"Hot Leads Today: {stats.get('hot_leads', 0)}\n"
+            f"Estimated Value: Rs {stats.get('estimated_value', 0):,.0f}\n"
+        )
+        return await self.send_text_message(to_number, message)
+
+
+class WhatsAppIntegration(WhatsAppMessageMixin):
     """
     WhatsApp Business API Integration
 
@@ -149,75 +229,6 @@ class WhatsAppIntegration:
         }
 
         return await self._send_message(payload)
-
-    async def send_lead_alert(
-        self, sales_team_number: str, lead_data: dict[str, Any]
-    ) -> dict[str, Any]:
-        """Send hot lead alert to sales team"""
-        message = (
-            "NEW HOT LEAD!\n\n"
-            f"Company: {lead_data.get('company_name', 'N/A')}\n"
-            f"Contact: {lead_data.get('contact_name', 'N/A')}\n"
-            f"Phone: {lead_data.get('phone', 'N/A')}\n"
-            f"City: {lead_data.get('city', 'N/A')}\n\n"
-            f"Lead Score: {lead_data.get('lead_score', 0)}/100\n"
-            f"Interest: {lead_data.get('detected_intent', 'N/A')}\n\n"
-            f"Notes: {lead_data.get('notes', 'No additional notes')}\n"
-            f"Call Time: {lead_data.get('call_time', 'N/A')}\n\n"
-            "Reply with 'CLAIM' to assign this lead to yourself."
-        )
-        return await self.send_text_message(sales_team_number, message)
-
-    async def send_appointment_confirmation(
-        self,
-        to_number: str,
-        client_name: str,
-        appointment_date: str,
-        appointment_time: str,
-        meeting_link: str | None = None,
-    ) -> dict[str, Any]:
-        """Send appointment confirmation to lead"""
-        message = (
-            "Appointment Confirmed!\n\n"
-            f"Thank you for scheduling a meeting with {client_name}.\n\n"
-            f"Date: {appointment_date}\n"
-            f"Time: {appointment_time}\n"
-        )
-        if meeting_link:
-            message += f"Meeting Link: {meeting_link}\n"
-        message += "\nWe look forward to speaking with you!"
-        return await self.send_text_message(to_number, message)
-
-    async def send_callback_reminder(
-        self, to_number: str, client_name: str, callback_time: str
-    ) -> dict[str, Any]:
-        """Send callback reminder to sales team"""
-        message = (
-            "CALLBACK REMINDER\n\n"
-            "A lead requested a callback:\n\n"
-            f"Client: {client_name}\n"
-            f"Number: {to_number}\n"
-            f"Requested Time: {callback_time}\n\n"
-            "Please call them back at the requested time."
-        )
-        return await self.send_text_message(settings.smtp_user, message)
-
-    async def send_daily_report(self, to_number: str, stats: dict[str, Any]) -> dict[str, Any]:
-        """Send daily campaign report"""
-        message = (
-            "DAILY CAMPAIGN REPORT\n\n"
-            f"Calls Made: {stats.get('calls_made', 0)}\n"
-            f"Connected: {stats.get('calls_connected', 0)}\n"
-            f"Connection Rate: {stats.get('connection_rate', 0):.1%}\n\n"
-            "Outcomes:\n"
-            f"  Interested: {stats.get('interested', 0)}\n"
-            f"  Appointments: {stats.get('appointments', 0)}\n"
-            f"  Callbacks: {stats.get('callbacks', 0)}\n"
-            f"  Not Interested: {stats.get('not_interested', 0)}\n\n"
-            f"Hot Leads Today: {stats.get('hot_leads', 0)}\n"
-            f"Estimated Value: Rs {stats.get('estimated_value', 0):,.0f}\n"
-        )
-        return await self.send_text_message(to_number, message)
 
     async def _send_message(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Send message via WhatsApp Cloud API.
@@ -315,3 +326,25 @@ class WhatsAppWebhookHandler:
             "HELP - Show this message\n\n"
             "For detailed reports, visit the dashboard."
         )
+
+
+# --------------------------------------------------------------------------- #
+# Provider selector — the single source of truth for "which WhatsApp backend".
+# --------------------------------------------------------------------------- #
+def get_whatsapp_sender():
+    """Return the ACTIVE WhatsApp send client (dual-engine).
+
+    Self-hosted WAHA stack when it is the selected+configured provider
+    (``WHATSAPP_PROVIDER=waha`` + ``WAHA_BASE_URL``), else the official Meta Cloud API.
+    Both classes inherit :class:`WhatsAppMessageMixin`, so every caller — campaign sends
+    AND notification helpers (lead alerts, daily reports, appointment confirmations) — gets
+    the same method surface on either engine. Falls back to Cloud API if anything errors.
+    """
+    try:
+        from app.integrations import whatsapp_selfhost
+
+        if whatsapp_selfhost.is_active_provider():
+            return whatsapp_selfhost.SelfHostWhatsApp()
+    except Exception:
+        pass
+    return WhatsAppIntegration()
