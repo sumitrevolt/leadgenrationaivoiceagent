@@ -155,7 +155,22 @@ async def cf_run(flow_id: str, cid: str = Depends(require_customer)):
     _proc, errs, _kind = flow_compiler.compile_flow(flow_store.get_flow(flow_id), customer_safe=True)
     if errs:
         return {"ok": False, "error": "not runnable", "compile_errors": errs}
-    r = flow_dispatch.start(f"flow:{flow_id}", {"_owner_client_id": cid})
+    # Hydrate the calling tenant's client context into run inputs — executors read
+    # inputs.client_id/business_name/niche (e.g. brand_pulse needs business_name,
+    # client_report needs client_id); without these the shipped templates fail.
+    from app.marketing import clients_store
+
+    _c = clients_store.get_client(cid) or {}
+    r = flow_dispatch.start(
+        f"flow:{flow_id}",
+        {
+            "_owner_client_id": cid,
+            "client_id": cid,
+            "business_name": _c.get("business_name") or "",
+            "niche": _c.get("niche") or "general",
+            "city": _c.get("city") or "",
+        },
+    )
     if r.get("ok"):
         run_id = r.get("run_id") or ""
         try:
