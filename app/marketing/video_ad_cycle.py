@@ -146,8 +146,7 @@ def _eligible_clients() -> list[dict[str, Any]]:
 
 def _channels_for(client: dict[str, Any]) -> list[str]:
     ch: list[str] = []
-    if str(client.get("telegram_chat_id") or "").strip():
-        ch.append("telegram")
+    # telegram REMOVED 2026-06-28 (ban-risk) — never publish to telegram (publish code below now dead)
     try:
         from app.marketing import postiz_publish
 

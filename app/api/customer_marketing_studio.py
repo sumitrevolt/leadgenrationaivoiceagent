@@ -170,6 +170,11 @@ class ReviewKitReq(BaseModel):
     google_link: str = Field("", max_length=300)
 
 
+class CatalogReq(BaseModel):
+    items: str = Field("", max_length=2000)  # "Name:Price" comma-separated
+    vpa: str = Field("", max_length=80)  # customer's OWN UPI id for per-item pay-links
+
+
 # --------------------------------------------------------------------------- #
 # Generators (each wraps an existing app.marketing.* function)                 #
 # --------------------------------------------------------------------------- #
@@ -242,6 +247,47 @@ async def studio_review_kit(
             "tip": "Khush customer → 'happy' bhejo (Google review milega). Naraz → 'unhappy' "
             "(private feedback; 1-star public review se bachao).",
         },
+        "context": c,
+    }
+
+
+@router.post("/catalog", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_catalog(
+    req: CatalogReq = Body(default=CatalogReq()), client_id: str = Depends(require_customer)
+) -> dict:
+    """Service/product catalog (rate-list) + per-item UPI pay-link. Customer ka customer
+    seedha UPI pe pay kare — koi gateway nahi (UPI deep-link universal). Template-based."""
+    import urllib.parse as _u
+
+    c = _ctx(client_id)
+    biz = c.get("business_name") or "Business"
+    vpa = (req.vpa or "").strip()
+    items: list[dict] = []
+    for raw in (req.items or "").split(","):
+        raw = raw.strip()
+        if not raw:
+            continue
+        name, price = raw, ""
+        if ":" in raw:
+            name, price = raw.split(":", 1)
+        name = name.strip()
+        price = "".join(ch for ch in price if ch.isdigit())
+        pay = ""
+        if vpa and price:
+            pay = "upi://pay?" + _u.urlencode(
+                {"pa": vpa, "pn": biz, "am": price, "cu": "INR"}
+            )
+        items.append({"name": name, "price": price, "pay_link": pay})
+    lines = [f"*{biz} — Rate List* 📋", ""]
+    for it in items:
+        p = f" — ₹{it['price']}" if it["price"] else ""
+        lines.append(f"• {it['name']}{p}" + (f"\n  💳 Pay: {it['pay_link']}" if it["pay_link"] else ""))
+    if not vpa:
+        lines.append("\n(Apna UPI ID daalo to har item pe direct pay-link bhi aayega)")
+    return {
+        "ok": True,
+        "tool": "catalog",
+        "result": {"items": items, "share_text": "\n".join(lines), "vpa": vpa},
         "context": c,
     }
 

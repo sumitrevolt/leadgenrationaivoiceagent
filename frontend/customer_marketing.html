@@ -2214,6 +2214,8 @@ const STUDIO_TOOLS = [
    inputs:[{n:"count",l:"Kitne versions (2-4)",ph:"3",type:"number",def:"3"},{n:"occasion",l:"Mauka",ph:"Diwali offer"},{n:"offer",l:"Offer (optional)",ph:"20% off"}]},
   {key:"review-kit", icon:"🌟", title:"Review Kit", desc:"Khush→Google review, naraz→private feedback", method:"POST", path:"/api/customer/studio/review-kit",
    inputs:[{n:"google_link",l:"Aapka Google review link (optional)",ph:"https://g.page/r/..."}]},
+  {key:"catalog", icon:"🧾", title:"Catalog + UPI Pay", desc:"Rate-list + har item pe direct UPI pay-link", method:"POST", path:"/api/customer/studio/catalog",
+   inputs:[{n:"items",l:"Items (Name:Price, comma se)",ph:"Haircut:200, Facial:500",type:"textarea",req:true},{n:"vpa",l:"Aapka UPI ID (pay-link ke liye)",ph:"name@okhdfcbank"}]},
   {key:"gbp-text", icon:"🏪", title:"Google Business Text", desc:"GBP description + posts", method:"POST", path:"/api/customer/studio/gbp-text",
    inputs:[{n:"services",l:"Services (comma se)",ph:"Repair, Installation",csv:true},{n:"city",l:"City (optional)",ph:""}]},
   {key:"ads", icon:"📣", title:"Ad Copy Pack", desc:"Google + Meta ad headlines", method:"POST", path:"/api/customer/studio/ads",

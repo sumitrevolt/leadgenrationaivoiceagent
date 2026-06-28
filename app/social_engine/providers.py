@@ -292,7 +292,7 @@ class PostizProvider(SocialProvider):
 def default_providers() -> dict[str, SocialProvider]:
     """Registry: platform-key -> provider instance."""
     return {
-        "telegram": TelegramProvider(),
+        # telegram REMOVED 2026-06-28 (ban-risk; TelegramProvider class kept dead/unreferenced)
         "facebook": MetaProvider("facebook"),
         "instagram": MetaProvider("instagram"),
         "gbp": GBPProvider(),
