@@ -178,15 +178,30 @@ def claim_pending(limit: int = 20) -> list[dict[str, Any]]:
     """queued/retry jobs -> processing mark, return. Scheduler/worker drain."""
     claimed: list[dict[str, Any]] = []
     try:
-        rows = [r for r in _latest().values() if r.get("status") in ("queued", "retry")]
-        rows.sort(key=lambda r: str(r.get("created_at") or ""))
-        for r in rows[: max(1, int(limit))]:
-            jid = str(r.get("id") or "")
-            _append({"id": jid, "status": "processing", "claimed_at": time.strftime("%Y-%m-%dT%H:%M:%S")})
-            r2 = dict(r)
-            r2["status"] = "processing"
-            claimed.append(r2)
-            _mirror({"id": jid, "status": "processing"})
+        from app.utils.file_lock import file_lock
+
+        # Lock the read+mark so two concurrent drainers (immediate celery drain +
+        # inline run_cycle drain) can't both observe the same job as 'queued' and
+        # double-publish it. The 2nd drainer reads after the 1st's processing-marks
+        # are flushed and filters them out. _mirror (DB I/O) runs OUTSIDE to keep the
+        # lock hold short.
+        with file_lock(_PATH):
+            rows = [r for r in _latest().values() if r.get("status") in ("queued", "retry")]
+            rows.sort(key=lambda r: str(r.get("created_at") or ""))
+            for r in rows[: max(1, int(limit))]:
+                jid = str(r.get("id") or "")
+                _append(
+                    {
+                        "id": jid,
+                        "status": "processing",
+                        "claimed_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                    }
+                )
+                r2 = dict(r)
+                r2["status"] = "processing"
+                claimed.append(r2)
+        for c in claimed:
+            _mirror({"id": c.get("id"), "status": "processing"})
     except Exception as e:
         logger.warning(f"[store] claim failed: {e}")
     return claimed
