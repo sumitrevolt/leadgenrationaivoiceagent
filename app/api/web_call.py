@@ -521,6 +521,24 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
         except Exception:
             pass
 
+    # SELF-HOSTED voice (AI4Bharat IndicF5 on your own GPU) — FREE, no per-min cost.
+    # Tried when TTS_PROVIDER=ai4bharat + AI4BHARAT_ENDPOINT (your voice_stack server).
+    # INERT without the endpoint → free EdgeTTS floor. (voice_stack/README.md)
+    if (
+        os.environ.get("TTS_PROVIDER", "").strip().lower() == "ai4bharat"
+        and os.environ.get("AI4BHARAT_ENDPOINT", "").strip()
+    ):
+        try:
+            import base64 as _b64
+
+            from app.voice_agent.indic_providers import Ai4BharatTTS
+
+            _wav = await asyncio.wait_for(Ai4BharatTTS().synthesize(text), timeout=8.0)
+            if _wav:
+                return _b64.b64encode(_wav).decode("ascii")
+        except Exception:
+            pass
+
     # PREMIUM voice = Gemini native TTS (free, reuses existing GEMINI_API_KEY) tried
     # next when enabled; any miss (no key / GEMINI_TTS=0 / quota / error) falls
     # through to the free EdgeTTS floor below. Returns WAV b64 (frontend auto-detects
@@ -1616,6 +1634,27 @@ async def _transcribe_audio(
                 return _sx.strip()
         except Exception as e:
             logger.debug(f"web-call: Sarvam STT skip ({e}).")
+
+    # SELF-HOSTED STT (AI4Bharat IndicConformer on your own GPU) — FREE, no per-min.
+    # Tried when STT_PROVIDER=ai4bharat + AI4BHARAT_ENDPOINT (your voice_stack server).
+    # INERT without the endpoint → free Groq path below. (voice_stack/README.md)
+    if (
+        os.environ.get("STT_PROVIDER", "").strip().lower() == "ai4bharat"
+        and os.environ.get("AI4BHARAT_ENDPOINT", "").strip()
+    ):
+        try:
+            from app.voice_agent.indic_providers import Ai4BharatSTT
+
+            _ax = await asyncio.wait_for(
+                Ai4BharatSTT().transcribe(
+                    audio, language=os.environ.get("DEFAULT_LANGUAGE", "hi-IN")
+                ),
+                timeout=12.0,
+            )
+            if (_ax or "").strip():
+                return _ax.strip()
+        except Exception as e:
+            logger.debug(f"web-call: AI4Bharat STT skip ({e}).")
 
     # 0) FORCE local Hinglish whisper FIRST (WEBCALL_STT_LOCAL_FIRST=1 + HINGLISH_STT=1)
     # — zero-cloud / verification mode: har web-call baked Hinglish model use kare
