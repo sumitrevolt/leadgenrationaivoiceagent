@@ -417,6 +417,83 @@ def _ev_dict(r: Any) -> dict[str, Any]:
     }
 
 
+def stats(member: str | None = None, days: int = 7) -> dict[str, Any]:
+    """Per-agent KPI aggregate over last N days — success-rate + last-run, taaki
+    operator dekh sake kaunsa agent DEGRADE ho raha (recent_events = raw feed; yeh
+    = rollup). SQL GROUP BY (member,status); window-cap 90d. KABHI raise nahi —
+    failure pe empty. Observability-only, koi side-effect nahi."""
+    out: dict[str, Any] = {"window_days": int(days), "agents": [], "overall": {}}
+    try:
+        from sqlalchemy import func
+
+        from app.models.agent_event import AgentEvent
+
+        db = _db()
+        if db is None:
+            return out
+        try:
+            cutoff = datetime.utcnow() - timedelta(days=max(1, min(int(days), 90)))
+            q = db.query(
+                AgentEvent.member,
+                AgentEvent.status,
+                func.count(AgentEvent.id),
+                func.max(AgentEvent.created_at),
+            ).filter(AgentEvent.created_at >= cutoff)
+            if member:
+                q = q.filter(AgentEvent.member == member)
+            q = q.group_by(AgentEvent.member, AgentEvent.status)
+
+            agg: dict[str, dict[str, Any]] = {}
+            for mem, status, cnt, last in q.all():
+                mem = mem or "system"
+                rec = agg.setdefault(mem, {"total": 0, "ok": 0, "warn": 0, "error": 0, "last": None})
+                n = int(cnt or 0)
+                rec["total"] += n
+                key = (status or "ok").strip().lower()
+                if key == "ok":
+                    rec["ok"] += n
+                elif key in ("warn", "warning"):
+                    rec["warn"] += n
+                else:
+                    rec["error"] += n
+                if last and (rec["last"] is None or last > rec["last"]):
+                    rec["last"] = last
+
+            agents = []
+            t_total = t_ok = 0
+            for mem, rec in sorted(agg.items()):
+                tot = rec["total"] or 1
+                info = STAFF.get(mem, {})
+                last = rec["last"]
+                agents.append(
+                    {
+                        "member": mem,
+                        "name": info.get("name", mem.title()),
+                        "emoji": info.get("emoji", "🤖"),
+                        "total": rec["total"],
+                        "ok": rec["ok"],
+                        "warn": rec["warn"],
+                        "error": rec["error"],
+                        "success_rate": round(rec["ok"] / tot, 3),
+                        "last_run": (last.replace(tzinfo=timezone.utc).isoformat() if last else None),
+                    }
+                )
+                t_total += rec["total"]
+                t_ok += rec["ok"]
+            out["agents"] = agents
+            out["overall"] = {
+                "total": t_total,
+                "ok": t_ok,
+                "success_rate": round(t_ok / (t_total or 1), 3),
+                "agent_count": len(agents),
+            }
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug(f"[team] stats failed: {e}")
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Team status (dashboard ka main payload)
 # --------------------------------------------------------------------------- #

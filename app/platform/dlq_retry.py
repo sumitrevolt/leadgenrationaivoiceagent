@@ -31,8 +31,8 @@ logger = setup_logger(__name__)
 DLQ_KEY = "dlq:failed_tasks"
 DEAD_KEY = "dlq:dead"
 COUNTS_KEY = "dlq:retry_counts"
-COUNTS_TTL_S = 6 * 3600  # attempt-counts 6h baad reset (naya din, naya chance)
-MAX_ATTEMPTS = 2
+COUNTS_TTL_S = 12 * 3600  # attempt-counts 12h baad reset (transient-failure count zinda rahe)
+MAX_ATTEMPTS = 3  # 3 auto-retries before dead-queue — transient 429/500/timeout ko recover hone ka extra chance (tha 2)
 BACKOFF_BASE_S = 120  # attempt n → n*120s countdown (celery path)
 
 
