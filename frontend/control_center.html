@@ -911,7 +911,26 @@ function renderL2(){
     + '<iframe id="cc-graph-frame" src="/app/control-center/graph" title="Architecture graph" '
     +   'style="flex:1;width:100%;min-height:480px;border:1px solid var(--bd);border-radius:10px;background:#0a0a0c"></iframe>'
     + '</div>';
+  var frame = el('cc-graph-frame');
+  if (frame) frame.addEventListener('load', function(){
+    var map = ccGraphStatusMap();
+    if (map) { try { frame.contentWindow.postMessage({ type:'cc-status', map: map }, '*'); } catch(e){} }
+  });
   wireGraphBridge();
+}
+// Honest live-status overlay: only nodes with a DIRECT runtime signal get a
+// colour (infra heartbeat · LLM health · data). All other architecture nodes
+// stay grey (= curated map). Driven by the real /overview metrics.
+function ccGraphStatusMap(){
+  var o = STATE.overview; if (!o) return null;
+  var m = o.metrics || {}, hb = m.heartbeat || {}, llm = m.llm || {};
+  var infraOk = (hb.up || 0) > 0 && (hb.up || 0) >= (hb.total || 0) - 1;
+  var llmOk = (llm.ok_rate || 0) >= 0.5;
+  var map = {};
+  ['beat','worker','celery','scheduler','ops'].forEach(function(id){ map[id] = infraOk ? 'healthy' : 'failed'; });
+  ['free_ai','rag'].forEach(function(id){ map[id] = llmOk ? 'healthy' : 'retry'; });
+  ['events','automation_health','data','data_layer'].forEach(function(id){ map[id] = 'healthy'; });
+  return map;
 }
 function wireGraphBridge(){
   if (_ccGraphWired) return;

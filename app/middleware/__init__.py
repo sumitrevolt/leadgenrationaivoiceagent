@@ -637,6 +637,75 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
 
 
 # =============================================================================
+# ROUTE-HIT COUNTER MIDDLEWARE — "unused API" telemetry (Redis HINCRBY per path)
+# =============================================================================
+
+
+# Retain fire-and-forget increment tasks so the event loop doesn't GC them mid-run
+# (an un-referenced create_task() can be collected before it executes → low-traffic
+# routes would lose hits = the exact false "dead route" signal this feature avoids).
+_ROUTE_HIT_TASKS: set = set()
+
+
+class RouteHitMiddleware(BaseHTTPMiddleware):
+    """Best-effort per-route hit counter for the "unused API / dead route" view.
+
+    Increments a Redis hash `route_hits:{YYYYMMDD}` (UTC) keyed by the request's
+    ROUTE TEMPLATE (e.g. `/api/b/{slug}` not `/api/b/acme`) so per-id/per-slug
+    routes don't blow up cardinality. The route template only exists in
+    `request.scope["route"]` AFTER routing, so we read it AFTER call_next and
+    fire-and-forget the increment — ZERO added latency, response unchanged.
+
+    GATED `ROUTE_HIT_COUNTER=1` (default OFF): only registered in the stack at
+    boot when the flag is on, so OFF = the middleware isn't even present (zero
+    overhead). FAIL-SILENT: any error (redis down, no route) → skip, never raise.
+    BaseHTTPMiddleware doesn't dispatch WebSocket scopes → voice/WS untouched.
+    """
+
+    @staticmethod
+    def _route_path(request: Request) -> str:
+        # Route template (path_format) is populated only AFTER routing. Fall back
+        # to the raw path when no route matched (404s etc.).
+        try:
+            route = request.scope.get("route")
+            tmpl = getattr(route, "path_format", None)
+            if tmpl:
+                return str(tmpl)
+        except Exception:
+            pass
+        try:
+            return request.url.path
+        except Exception:
+            return "unknown"
+
+    @staticmethod
+    async def _record(path: str) -> None:
+        """Fire-and-forget Redis HINCRBY. Swallows ALL errors (best-effort)."""
+        try:
+            from app.cache import get_redis_client
+
+            r = await get_redis_client()
+            # UTC day key — MUST match the reader in control_center.route-hits.
+            day = time.strftime("%Y%m%d", time.gmtime())
+            await r.hincrby(f"route_hits:{day}", path, 1)
+        except Exception:
+            pass
+
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        response = await call_next(request)
+        # Increment AFTER call_next (route template now resolved) + fire-and-forget
+        # so the response returns immediately with no added latency.
+        try:
+            path = self._route_path(request)
+            task = asyncio.create_task(self._record(path))
+            _ROUTE_HIT_TASKS.add(task)
+            task.add_done_callback(_ROUTE_HIT_TASKS.discard)
+        except Exception:
+            pass
+        return response
+
+
+# =============================================================================
 # SETUP ALL MIDDLEWARE
 # =============================================================================
 
@@ -690,5 +759,11 @@ def setup_middleware(app: FastAPI, production: bool = False):
             os.environ.get("REQUEST_TIMEOUT_S", "55"),
             os.environ.get("REQUEST_MAX_INFLIGHT", "200"),
         )
+
+    # Route-hit counter ("unused API" telemetry) — GATED `ROUTE_HIT_COUNTER=1`,
+    # default OFF. Only added to the stack when on at boot → zero overhead off.
+    if os.getenv("ROUTE_HIT_COUNTER", "").strip().lower() in ("1", "true", "yes", "on"):
+        app.add_middleware(RouteHitMiddleware)
+        logger.info("✅ RouteHitCounter enabled (route_hits:{YYYYMMDD} HINCRBY)")
 
     logger.info(f"✅ Middleware stack configured (production={production})")

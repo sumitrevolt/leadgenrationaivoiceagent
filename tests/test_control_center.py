@@ -220,3 +220,77 @@ def test_agents_metrics_never_raises_when_team_status_breaks(monkeypatch):
     body = r.json()
     assert body["ok"] is True
     assert body["agents"] == []  # degraded-but-shaped
+
+
+# --------------------------------------------------------------------------- #
+# P4: cost-rollup surfaces REAL captured token data · route-hits read endpoint.
+# --------------------------------------------------------------------------- #
+def test_cost_rollup_new_contract_keys():
+    """cost-rollup exposes the budget_guard-sourced keys. With LLM_BUDGET_GUARD
+    off (test default) `available` stays False and tokens/calls are null — but
+    the keys are always present, and by_provider rows are calls-only (no money)."""
+    c = _client()
+    r = c.get("/api/control-center/cost-rollup")
+    assert r.status_code == 200
+    cr = r.json()
+    assert cr["ok"] is True
+    for key in (
+        "at",
+        "available",
+        "note",
+        "tokens_today",
+        "calls_today",
+        "budget_guard_enabled",
+        "by_provider",
+    ):
+        assert key in cr, f"missing cost-rollup key: {key}"
+    # guard off by default → not available, honest null counters, instrument note.
+    assert cr["available"] is False
+    assert cr["tokens_today"] is None and cr["calls_today"] is None
+    assert cr["budget_guard_enabled"] is False
+    assert "LLM_BUDGET_GUARD" in cr["note"]
+    assert isinstance(cr["by_provider"], list)
+    for row in cr["by_provider"]:
+        assert set(row.keys()) == {"provider", "calls"}  # calls only, never money
+
+
+def test_cost_rollup_never_raises_when_budget_guard_breaks(monkeypatch):
+    """If budget_guard.redis_stats raises, cost-rollup still returns 200/ok with
+    the full key shape intact (defaults-before-try → never a 500)."""
+    import app.llm.budget_guard as budget_guard
+
+    async def _boom():
+        raise RuntimeError("budget_guard exploded")
+
+    monkeypatch.setattr(budget_guard, "redis_stats", _boom)
+
+    c = _client()
+    r = c.get("/api/control-center/cost-rollup")
+    assert r.status_code == 200
+    cr = r.json()
+    assert cr["ok"] is True
+    # degraded-but-shaped: all keys present, available falls back to False.
+    for key in (
+        "available",
+        "tokens_today",
+        "calls_today",
+        "budget_guard_enabled",
+        "by_provider",
+    ):
+        assert key in cr
+    assert cr["available"] is False
+
+
+def test_route_hits_contract_disabled_by_default():
+    """route-hits returns 200 + contract keys; with ROUTE_HIT_COUNTER off (test
+    default) it reports enabled:false + an honest enable-note + empty top/total."""
+    c = _client()
+    r = c.get("/api/control-center/route-hits")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is True
+    for key in ("at", "enabled", "note", "top", "total_paths"):
+        assert key in body, f"missing route-hits key: {key}"
+    assert body["enabled"] is False
+    assert "ROUTE_HIT_COUNTER" in body["note"]
+    assert body["top"] == [] and body["total_paths"] == 0

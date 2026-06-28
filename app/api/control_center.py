@@ -474,23 +474,53 @@ async def control_center_rca(_user=Depends(require_admin)) -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Cost-rollup — HONEST view: the project has NO token/cost telemetry.
+# Cost-rollup — surfaces ALREADY-captured token/usage data (never fabricates).
 # --------------------------------------------------------------------------- #
 @router.get("/control-center/cost-rollup")
 async def control_center_cost_rollup(_user=Depends(require_admin)) -> dict[str, Any]:
-    """Honest cost view. The project has NO per-run token/cost capture, so
-    `available` stays False and we NEVER emit a money figure. If llm_metrics
-    exposes per-provider call counts we surface those (calls only). Never raises."""
+    """Honest token/usage view from EXISTING capture (no instrumentation added).
+
+    Token data is captured by budget_guard.record() in free_ai — but ONLY when
+    `LLM_BUDGET_GUARD=1` (off default → no counters). We READ those daily GLOBAL
+    counters via budget_guard.redis_stats(); `available` is True only when the
+    guard is enabled AND today's token total > 0. Per-provider CALL counts come
+    from llm_metrics (calls ONLY — these are free providers, NEVER a $/₹ figure).
+    All keys are initialised before the try blocks so a downstream raise still
+    returns the full shape (never-raise). require_admin-gated."""
     out: dict[str, Any] = {
         "ok": True,
         "at": _now_iso(),
         "available": False,
         "note": (
-            "instrument pending — per-run token capture not wired in "
-            "free_ai/llm_metrics yet"
+            "instrument pending — set LLM_BUDGET_GUARD=1 to capture per-day token usage"
         ),
+        "tokens_today": None,
+        "calls_today": None,
+        "budget_guard_enabled": False,
+        # Per-provider CALL counts only — free providers, NEVER a money figure.
         "by_provider": [],
     }
+
+    # 1) budget_guard daily GLOBAL token/call counters (already captured when the
+    #    guard flag is on). Module-attr call so tests can monkeypatch it to raise.
+    try:
+        from app.llm import budget_guard
+
+        bg = await budget_guard.redis_stats() or {}
+        enabled = bool(bg.get("enabled"))
+        gtokens = int(bg.get("global_tokens") or 0)
+        gcalls = int(bg.get("global_calls") or 0)
+        out["budget_guard_enabled"] = enabled
+        if enabled:
+            out["tokens_today"] = gtokens
+            out["calls_today"] = gcalls
+            if gtokens > 0:
+                out["available"] = True
+                out["note"] = ""
+    except Exception:
+        pass
+
+    # 2) llm_metrics per-provider call counts (calls ONLY — no money figure).
     try:
         from app.platform import llm_metrics
 
@@ -503,6 +533,53 @@ async def control_center_cost_rollup(_user=Depends(require_admin)) -> dict[str, 
             ]
             by_provider.sort(key=lambda d: d["calls"], reverse=True)
             out["by_provider"] = by_provider
+    except Exception:
+        pass
+
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Route-hits — "unused API / dead route" view (reads RouteHitMiddleware data).
+# --------------------------------------------------------------------------- #
+@router.get("/control-center/route-hits")
+async def control_center_route_hits(_user=Depends(require_admin)) -> dict[str, Any]:
+    """Top hit routes today, from the Redis hash `route_hits:{YYYYMMDD}` that
+    RouteHitMiddleware populates (GATED `ROUTE_HIT_COUNTER=1`). Honest empty
+    state when the flag is off or no data captured yet. Never raises;
+    require_admin-gated."""
+    enabled = os.getenv("ROUTE_HIT_COUNTER", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    out: dict[str, Any] = {
+        "ok": True,
+        "at": _now_iso(),
+        "enabled": enabled,
+        "note": "" if enabled else "enable ROUTE_HIT_COUNTER=1 to track",
+        "top": [],
+        "total_paths": 0,
+    }
+    if not enabled:
+        return out
+    try:
+        from app.cache import get_redis_client
+
+        r = await get_redis_client()
+        # UTC day key — MUST match RouteHitMiddleware._record (time.gmtime()).
+        day = datetime.now(timezone.utc).strftime("%Y%m%d")
+        raw = await r.hgetall(f"route_hits:{day}") or {}
+        rows = []
+        for path, hits in (raw or {}).items():
+            try:
+                rows.append({"path": str(path), "hits": int(hits or 0)})
+            except Exception:
+                pass
+        rows.sort(key=lambda d: d["hits"], reverse=True)
+        out["top"] = rows[:20]
+        out["total_paths"] = len(rows)
     except Exception:
         pass
 

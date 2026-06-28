@@ -156,10 +156,12 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
   Keyboard: plus and minus to zoom, f to fit. Click a node to inspect it.
 </p>
 
-<!-- CDN UMD libs (pinned). Loaded as classic scripts → globals available to the inline script below. -->
-<script src="https://cdn.jsdelivr.net/npm/graphology@0.25.4/dist/graphology.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sigma@3.0.0/dist/sigma.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
+<!-- Vendored UMD libs (offline/CSP hardened — no runtime CDN). Pinned versions:
+     graphology@0.25.4 · sigma@3.0.0 · elkjs@0.9.3. Served from frontend/design-system/ (/design-system mount).
+     Loaded as classic scripts → globals available to the inline script below. Load order preserved. -->
+<script src="/design-system/vendor/graphology.umd.min.js"></script>
+<script src="/design-system/vendor/sigma.min.js"></script>
+<script src="/design-system/vendor/elk.bundled.js"></script>
 
 <script>
 /* ============================================================================
