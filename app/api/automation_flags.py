@@ -130,6 +130,10 @@ AUTOMATION_FLAGS = [
     # F.3 eval_gate close-the-loop reward signal for self_improve + DeepEval CI
     "EVAL_GATE",  # records baseline + decides; observe-only until HARD set
     "EVAL_GATE_HARD",  # makes reject decisions actually block (after baseline trusted)
+    # 2026-06-28 agent/queue governance guards (INERT default — docs/WORKFLOW_IMPROVEMENT_BACKLOG.md)
+    "COORDINATOR_LLM_CAP_PER_MIN",  # coordinator LLM rate-cap/min (0=off) — over → call skipped fail-open
+    "QUEUE_DEPTH_BACKPRESSURE",  # DLQ retry-sweep defers when celery depth > QUEUE_DEPTH_CAP (retry-storm guard)
+    "QUEUE_DEPTH_CAP",  # default 800 — celery depth above which backpressure trips
     # F.5 engineer agents (Pranav SRE / Vidya FinOps / Arnav Security)
     "SRE_AGENT",  # Pranav reliability score (hourly :45)
     "FINOPS_AGENT",  # Vidya margin score + LiteLLM-attributed cost-per-tenant

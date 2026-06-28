@@ -115,6 +115,34 @@ async def _alert_dead(dead_jobs: list[str]) -> None:
         logger.warning(f"[dlq_retry] dead-alert email failed: {e}")
 
 
+def _queue_flooded(r=None) -> bool:
+    """D3: celery queue depth cap se zyada hai? Tab DLQ retry-sweep DEFER karo —
+    flooded queue pe rpop+re-enqueue = retry-storm (known 'llen celery >500 = del'
+    gotcha). Items DLQ me rehte (no loss), agla sweep retry karega. Gated
+    QUEUE_DEPTH_BACKPRESSURE; INERT (False) unset pe. Best-effort — error = not flooded."""
+    if os.environ.get("QUEUE_DEPTH_BACKPRESSURE", "0").strip().lower() not in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return False
+    try:
+        cap = int(os.environ.get("QUEUE_DEPTH_CAP", "800") or "800")
+        r = r or _redis()
+        if r is None:
+            return False
+        depth = int(r.llen("celery") or 0)
+        if depth > cap:
+            logger.warning(
+                f"[dlq_retry] queue backpressure: celery depth {depth} > {cap} — DLQ sweep deferred"
+            )
+            return True
+    except Exception:
+        return False
+    return False
+
+
 async def run_sweep(max_items: int = 20, r=None, force: bool = False) -> dict[str, Any]:
     """DLQ sweep: staff-jobs retry (backoff), exhausted/unknown → dlq:dead.
     KABHI raise nahi. Flag off = no-op summary (force=True manual API ke liye)."""
@@ -123,6 +151,11 @@ async def run_sweep(max_items: int = 20, r=None, force: bool = False) -> dict[st
         return out
     try:
         r = r or _redis()
+        # D3: agar celery queue flooded hai to retry-storm mat banao — DLQ items
+        # rehne do (no loss), manual force=True isko bypass karta.
+        if not force and _queue_flooded(r):
+            out["deferred"] = "queue_flooded"
+            return out
         dead_alerts: list[str] = []
         for _ in range(max(1, min(max_items, 100))):
             raw = r.rpop(DLQ_KEY)
