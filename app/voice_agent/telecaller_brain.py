@@ -1265,8 +1265,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 for w in (
                     "book", "appointment", "appoint", "visit", "meeting", "slot",
                     "schedule", "milne", "milunga", "kab mil", "demo fix",
+                    "reschedule", "postpone", "time badal", "din badal", "aage badha",
                 )
-            ) or any(w in ut for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट"))
+            ) or any(w in ut for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल"))
             if not _action_intent:
                 fast = self._fast_path_reply(history, ut)
                 if fast:

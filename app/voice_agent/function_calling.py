@@ -489,6 +489,70 @@ def build_default_registry(context: dict[str, Any] | None = None) -> ToolRegistr
         )
     )
 
+    # ---------------- reschedule_appointment ---------------- #
+    async def _reschedule_appointment(args: dict[str, Any]) -> ToolResult:
+        lead = ctx.get("lead", {}) or {}
+        phone = args.get("phone") or lead.get("phone") or ""
+        new_when = args.get("new_when_iso") or args.get("when_iso") or args.get("when") or ""
+        try:
+            from app.integrations.calendar_booking import get_calendar
+
+            cal = get_calendar()
+            res = await cal.reschedule(
+                new_when_iso=new_when,
+                phone=phone,
+                booking_id=args.get("booking_id") or "",
+                name=args.get("name") or lead.get("name") or "",
+                client_id=str(ctx.get("client_id") or ""),
+                niche=str(ctx.get("niche") or ""),
+            )
+            return ToolResult(
+                ok=res.ok,
+                data={
+                    "booking_id": res.booking_id,
+                    "when": res.when,
+                    "confirmation_text": res.confirmation_text,
+                    "provider": res.provider,
+                },
+                error=res.error,
+            )
+        except Exception as e:
+            logger.error(f"reschedule_appointment: calendar unavailable ({e})")
+            return ToolResult(
+                ok=False,
+                error=f"calendar unavailable: {e}",
+                data={
+                    "confirmation_text": (
+                        "Abhi reschedule system available nahi — main note kar leti hoon, "
+                        "team aapko call karke naya slot confirm kar degi."
+                    ),
+                },
+            )
+
+    reg.register(
+        Tool(
+            name="reschedule_appointment",
+            description=(
+                "Move an EXISTING appointment to a new time. Call when the lead asks "
+                "to reschedule/postpone/change their booked slot."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "new_when_iso": {
+                        "type": "string",
+                        "description": "New start time, ISO 8601 e.g. '2026-06-30T15:00'.",
+                    },
+                    "phone": {"type": "string", "description": "Lead's phone (to find their booking)."},
+                    "booking_id": {"type": "string", "description": "Existing booking id (optional)."},
+                    "name": {"type": "string", "description": "Lead's name (optional)."},
+                },
+                "required": ["new_when_iso"],
+            },
+            handler=_reschedule_appointment,
+        )
+    )
+
     # ---------------- transfer_to_human ---------------- #
     async def _transfer_to_human(args: dict[str, Any]) -> ToolResult:
         to_human = (

@@ -184,10 +184,19 @@ def _is_booking_intent(text: str) -> bool:
             "kab milen",
             "milne aa",
             "time de do",
+            "reschedule",
+            "postpone",
+            "time badal",
+            "din badal",
+            "change kar",
+            "aage badha",
         )
     ):
         return True
-    return any(w in (text or "") for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट"))
+    return any(
+        w in (text or "")
+        for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "टाइम बदल")
+    )
 
 
 def _history_from_session(session: dict[str, Any], *, exclude_last_user: str | None = None) -> list[dict[str, str]]:
