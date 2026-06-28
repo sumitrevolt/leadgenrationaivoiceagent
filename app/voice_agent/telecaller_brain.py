@@ -1254,6 +1254,23 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             from app.voice_agent.voice_tools import tools_instruction
 
             ut = (user_text or "").strip()
+            # ANSWER-FIRST SAFETY: deterministic fast-path (QA answers, objection
+            # lines, dodge-guards from reply()) MUST still win on NON-action turns —
+            # warna VOICE_TOOLS on hone pe "kitne features" jaisa sawaal tool-LLM pe
+            # ja ke dodge ho jaata (P1 regression). Sirf booking/action-intent turns
+            # ko tool-LLM pe bhejo (woh CALL book_appointment/check_availability kare).
+            _low = to_roman(ut).lower()
+            _action_intent = any(
+                w in _low
+                for w in (
+                    "book", "appointment", "appoint", "visit", "meeting", "slot",
+                    "schedule", "milne", "milunga", "kab mil", "demo fix",
+                )
+            ) or any(w in ut for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट"))
+            if not _action_intent:
+                fast = self._fast_path_reply(history, ut)
+                if fast:
+                    return fast, None
             facts = await self._kb_facts(ut)
             prompt = self._build_prompt(
                 history, ut, facts, extra_system=tools_instruction(registry)
