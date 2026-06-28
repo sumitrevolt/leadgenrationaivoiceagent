@@ -165,6 +165,31 @@ def _turn_meta(
     }
 
 
+def _is_booking_intent(text: str) -> bool:
+    """Booking/appointment ACTION-intent — sirf TAB agentic tool-path (real
+    calendar_booking) engage karo. Normal turns instrumented + streamed P1 reply
+    pe rahein (no regression). Roman + Devanagari dono."""
+    t = (text or "").lower()
+    if any(
+        w in t
+        for w in (
+            "book",
+            "appointment",
+            "appoint",
+            "visit",
+            "meeting",
+            "slot",
+            "schedule",
+            "demo fix",
+            "kab milen",
+            "milne aa",
+            "time de do",
+        )
+    ):
+        return True
+    return any(w in (text or "") for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट"))
+
+
 def _history_from_session(session: dict[str, Any], *, exclude_last_user: str | None = None) -> list[dict[str, str]]:
     """Turn log = source of truth — WS handler history desync se wrong jawab na aaye."""
     out: list[dict[str, str]] = []
@@ -1265,16 +1290,24 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         voice_tools_enabled,
                     )
 
-                    if voice_tools_enabled():
+                    # Sirf BOOKING-intent turns tool-path pe (real slot/persist) — baaki
+                    # sab normal instrumented + streamed reply pe (P1 answer-first intact).
+                    if voice_tools_enabled() and _is_booking_intent(user_text):
                         _reg = build_registry_for(
                             niche=session.get("niche", "general"),
                             client_id=session.get("client_id"),
+                            lead_phone=str(session.get("lead_key") or ""),
                             history=history,
                         )
                         _decision = await run_tool_turn(tcbrain, history, user_text, _reg)
                         if _decision.get("spoken"):
                             tc_reply = _decision["spoken"]
-                            _log_turn(session, "assistant", tc_reply)
+                            _log_turn(
+                                session,
+                                "assistant",
+                                tc_reply,
+                                meta=_turn_meta(_turn_timing, _t_recv, user_text),
+                            )
                             await _send_bot_message(
                                 websocket,
                                 tc_reply,
