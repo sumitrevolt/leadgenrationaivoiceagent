@@ -200,3 +200,39 @@ def lead_band(key: str) -> str:
     cfg = NICHES.get((key or "").strip().lower()) or {}
     b = str(cfg.get("lead_band") or "A").strip().upper()
     return b if b in ("A", "B", "C") else "A"
+
+
+def classify_from_text(text: str, default: str = "general") -> str:
+    """Best-match niche key for free text (e.g. Udyam MajorActivity + enterprise name).
+
+    Scores each niche by how many of its keyword TOKENS appear in `text` (longer
+    keyword phrases weigh more). Returns the top niche key, else `default`. Pure +
+    never-raise — lets the Udyam pipeline tag each lead with the RIGHT niche so scoring
+    + outreach pitch are accurate (was tagging everything 'general')."""
+    try:
+        refresh_custom_niches()
+        t = " " + (text or "").lower().strip() + " "
+        if not t.strip():
+            return default
+        best_key, best_score = default, 0
+        for nkey, cfg in (NICHES or {}).items():
+            score = 0
+            for kw in (cfg or {}).get("keywords") or []:
+                kwl = str(kw).lower().strip()
+                if not kwl:
+                    continue
+                if kwl in t:  # full phrase match = strong signal
+                    score += 3 + kwl.count(" ")
+                else:  # partial: count distinct significant tokens present
+                    toks = [w for w in kwl.split() if len(w) >= 4]
+                    score += sum(1 for w in toks if f" {w}" in t)
+            # also try the niche's own name/key as a weak signal
+            if str(nkey).replace("_", " ") in t:
+                score += 1
+            if score > best_score:
+                best_key, best_score = nkey, score
+        # require a reasonably strong signal (>=2) so a weak single-token overlap
+        # ("general trading") falls back to default instead of a wrong niche.
+        return best_key if best_score >= 2 else default
+    except Exception:
+        return default

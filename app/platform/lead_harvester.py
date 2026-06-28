@@ -278,6 +278,35 @@ def _ogd_city(rec: dict[str, Any], default: str) -> str:
     return _rec_ci(rec, "city", "district", "district_name", "location", "place", "town") or default
 
 
+def _ogd_activity(rec: dict[str, Any]) -> str:
+    """Udyam MajorActivity / NIC text — used to classify the lead's niche."""
+    return _rec_ci(rec, "majoractivity", "major_activity", "activity", "nic_name", "nic5digitcode")
+
+
+def _ogd_pincode(rec: dict[str, Any]) -> str:
+    return _rec_ci(rec, "pincode", "pin_code", "pin")
+
+
+# Metros where the Udyam District name != the common city name (else filter returns 0).
+_METRO_DISTRICT = {
+    "bengaluru": "BANGALORE URBAN",
+    "bangalore": "BANGALORE URBAN",
+    "mumbai": "MUMBAI",
+    "delhi": "NEW DELHI",
+    "new delhi": "NEW DELHI",
+    "hyderabad": "HYDERABAD",
+    "gurugram": "GURGAON",
+    "gurgaon": "GURGAON",
+    "prayagraj": "ALLAHABAD",
+    "vadodara": "VADODARA",
+}
+
+
+def _udyam_district(city: str) -> str:
+    c = (city or "").strip()
+    return _METRO_DISTRICT.get(c.lower(), c.upper())
+
+
 async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
     """data.gov.in OGD (gated DATA_GOV_IN_API_KEY + DATA_GOV_RESOURCE_ID) —
     Udyam/MSME unit names = seed leads (no phone; enrich baad me). Open license."""
@@ -296,7 +325,8 @@ async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
         # applies and pulls THAT city's units out of ~30 lakh (Udyam District = UPPERCASE).
         qs = f"api-key={key}&format=json&limit={min(limit, 20)}"
         if city.strip():
-            qs += f"&filters[District]={urllib.parse.quote(city.strip().upper())}"
+            # metro alias so e.g. Bengaluru -> BANGALORE URBAN actually matches the District
+            qs += f"&filters[District]={urllib.parse.quote(_udyam_district(city))}"
         url = f"https://api.data.gov.in/resource/{rid}?{qs}"
 
         def _fetch() -> dict[str, Any]:
@@ -315,6 +345,8 @@ async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
                         "email": "",
                         "website": "",
                         "city": _ogd_city(rec, city),
+                        "pincode": _ogd_pincode(rec),
+                        "major_activity": _ogd_activity(rec),
                         "niche": niche,
                         "source": "opendata",
                     }
