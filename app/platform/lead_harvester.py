@@ -287,31 +287,38 @@ async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
         return {"source": "opendata", "skipped": "no key/resource", "leads": []}
     leads: list[dict[str, Any]] = []
     try:
-        import httpx
+        import urllib.parse
+        import urllib.request
 
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
-            # filters[District] targets the rotation city directly (Udyam District is
-            # UPPERCASE) — pulls THAT city's units out of ~30 lakh records, not random.
-            _params: dict[str, Any] = {"api-key": key, "format": "json", "limit": min(limit, 20)}
-            if city.strip():
-                _params["filters[District]"] = city.strip().upper()
-            r = await client.get(f"https://api.data.gov.in/resource/{rid}", params=_params)
-            if r.status_code != 200:
-                return {"source": "opendata", "error": f"ogd {r.status_code}", "leads": []}
-            for rec in (r.json().get("records") or [])[:limit]:
-                name = _ogd_name(rec)
-                if name:
-                    leads.append(
-                        {
-                            "business_name": name[:150],
-                            "phone": "",
-                            "email": "",
-                            "website": "",
-                            "city": _ogd_city(rec, city),
-                            "niche": niche,
-                            "source": "opendata",
-                        }
-                    )
+        # IMPORTANT: build the query with LITERAL brackets — httpx percent-encodes
+        # filters[District] to filters%5BDistrict%5D, which data.gov.in does NOT match
+        # (returns 0). urllib sends the URL as-given, so the District filter actually
+        # applies and pulls THAT city's units out of ~30 lakh (Udyam District = UPPERCASE).
+        qs = f"api-key={key}&format=json&limit={min(limit, 20)}"
+        if city.strip():
+            qs += f"&filters[District]={urllib.parse.quote(city.strip().upper())}"
+        url = f"https://api.data.gov.in/resource/{rid}?{qs}"
+
+        def _fetch() -> dict[str, Any]:
+            req = urllib.request.Request(url, headers={"User-Agent": "leadgenai/1.0"})
+            with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:  # noqa: S310
+                return json.loads(resp.read().decode("utf-8", "replace")) or {}
+
+        data = await asyncio.to_thread(_fetch)
+        for rec in (data.get("records") or [])[:limit]:
+            name = _ogd_name(rec)
+            if name:
+                leads.append(
+                    {
+                        "business_name": name[:150],
+                        "phone": "",
+                        "email": "",
+                        "website": "",
+                        "city": _ogd_city(rec, city),
+                        "niche": niche,
+                        "source": "opendata",
+                    }
+                )
     except Exception as e:
         return {"source": "opendata", "error": str(e)[:120], "leads": leads}
     return {"source": "opendata", "leads": leads}
