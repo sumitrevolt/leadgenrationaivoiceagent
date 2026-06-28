@@ -13,11 +13,16 @@
 # --- install (Colab has fast datacenter net — no broken downloads) ---
 import subprocess, sys
 subprocess.run([sys.executable, "-m", "pip", "install", "-q",
-                "transformers", "torchaudio", "soundfile", "librosa", "edge-tts"], check=True)
+                "transformers", "torchaudio", "soundfile", "librosa", "edge-tts",
+                "nest_asyncio"], check=True)
 
 import asyncio, time
 import librosa, numpy as np, soundfile as sf, torch
+import nest_asyncio
 from transformers import AutoModel
+
+# Colab/Jupyter already runs an event loop → allow asyncio.run() inside it.
+nest_asyncio.apply()
 
 print("GPU:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else
       "*** NO GPU — Runtime > Change runtime type > T4 GPU ***")
@@ -44,8 +49,9 @@ async def _say(text, path):
 
 print("\n--- STT results (Hinglish accuracy + latency) ---")
 for i, text in enumerate(TESTS):
-    asyncio.get_event_loop().run_until_complete(_say(text, f"c{i}.mp3"))
+    asyncio.run(_say(text, f"c{i}.mp3"))
     y, _ = librosa.load(f"c{i}.mp3", sr=16000, mono=True)
+    sf.write(f"c{i}.wav", y, 16000)   # wav copy (IndicF5 ref needs wav)
     wav = torch.tensor(y).unsqueeze(0)
     if torch.cuda.is_available(): wav = wav.to("cuda")
     t = time.time()
@@ -66,7 +72,7 @@ if torch.cuda.is_available():
 print(f"  loaded in {time.time()-t:.1f}s")
 
 # reference voice = clip 0 we just made with EdgeTTS (or upload your own ref.wav)
-REF_AUDIO, REF_TEXT = "c0.mp3", TESTS[0]
+REF_AUDIO, REF_TEXT = "c0.wav", TESTS[0]
 say = "Bilkul sir, main aapki poori madad karungi. Aaj hi free trial set kar deti hoon."
 t = time.time()
 audio = tts(say, ref_audio_path=REF_AUDIO, ref_text=REF_TEXT)
