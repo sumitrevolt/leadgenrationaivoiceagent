@@ -145,6 +145,18 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
         report["steps"]["kb_website"] = await _seed_kb_from_website(cid, _website(client))
         report["steps"]["content_pack"] = await _first_content_pack(client)
 
+        # Day-1 value: customer-visible content QUEUE bhi bharo (portal_content
+        # isi list_queue se padhta — pehle sirf HTML pack banta tha jo portal me
+        # nahi dikhta tha, customer ko ~07:00 daily-sweep tak khaali queue dikhti).
+        # date+type DEDUPE = daily job ke saath idempotent. Best-effort, never raises.
+        try:
+            from app.marketing import auto_content
+
+            report["steps"]["content_queue"] = await auto_content.seed_client_content(client)
+        except Exception as exc:
+            logger.debug("onboard content_queue skip: %s", exc)
+            report["steps"]["content_queue"] = 0
+
         # GHL-style niche template — mini-site palette, journeys, festival schedule (best-effort)
         try:
             from app.platform import client_snapshots
