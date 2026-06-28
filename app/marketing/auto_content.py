@@ -451,6 +451,27 @@ async def run_daily_content() -> dict[str, Any]:
     return {"clients": n_clients, "items": total_items}
 
 
+async def seed_client_content(client: dict[str, Any]) -> int:
+    """EK client ka aaj ka content ABHI generate + queue me append (onboarding pe
+    instant day-1 value — daily 07:00 sweep ka wait nahi). Same generate→append→
+    recycle pattern as run_daily_content; date+type DEDUPE = daily job ke saath
+    idempotent (double content nahi banega). Added-count return. KABHI raise nahi."""
+    try:
+        if not isinstance(client, dict):
+            return 0
+        cid = str(client.get("id") or "")
+        if not cid:
+            return 0
+        items = await generate_for_client(client)
+        added = _append_items(cid, items)
+        if not added:
+            added = await _recycle_fallback(client)
+        return added
+    except Exception as e:  # pragma: no cover
+        logger.debug(f"[auto_content] seed_client_content skip: {e}")
+        return 0
+
+
 def list_queue(client_id: str, status: str | None = None, limit: int = 60) -> list[dict[str, Any]]:
     """Client ka content queue (newest first, optional status filter). Kabhi
     raise nahi karta."""
@@ -581,6 +602,7 @@ def _log_isha(action: str, detail: str, status: str = "ok") -> None:
 
 __all__ = [
     "generate_for_client",
+    "seed_client_content",
     "run_daily_content",
     "list_queue",
     "mark_item",
