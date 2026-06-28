@@ -1291,6 +1291,12 @@ async def control_center_page():
     return FileResponse(str(FRONTEND_DIR / "control_center.html"))
 
 
+@app.get("/app/control-center/graph", tags=["Frontend"])
+async def control_center_graph_page():
+    """Control Center L2 — Sigma.js + ELK WebGL architecture graph (iframe-embedded)."""
+    return FileResponse(str(FRONTEND_DIR / "control_center_graph.html"))
+
+
 @app.get("/audit", tags=["Frontend"])
 async def public_audit_page():
     """PUBLIC lead-magnet: FREE GBP audit funnel (questions → score → inquiry)."""
