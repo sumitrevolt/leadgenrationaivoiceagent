@@ -77,8 +77,24 @@ def tools_instruction(registry: object | None = None) -> str:
     except Exception:
         pass
     tool_line = ", ".join(available)
+    # Current IST date so the LLM resolves "kal"/"parso"/"Monday" → correct ISO date
+    # (warna woh galat saal/date hallucinate karta — real booking garbage date pe ban
+    # jaati). Defensive: clock error pe date-line skip.
+    date_hint = ""
+    try:
+        from datetime import datetime, timedelta, timezone
+
+        _ist = datetime.now(timezone.utc).astimezone(timezone(timedelta(hours=5, minutes=30)))
+        date_hint = (
+            f"AAJ ki date: {_ist.strftime('%Y-%m-%d (%A)')} (IST). "
+            "'kal'=+1 din, 'parso'=+2 din, weekday-naam isi se aage ka — when_iso me "
+            "HAMESHA isi se resolve kiya sahi ISO date+time do (kabhi purana saal nahi).\n"
+        )
+    except Exception:
+        pass
     return (
         "\n\nIN-CALL ACTIONS (agentic): tu sirf baat nahi karti — zaroorat pe action le sakti hai.\n"
+        f"{date_hint}"
         f"Available actions: {tool_line}.\n"
         "Action lene ke liye SIRF ek line output kar, bilkul is format me (aur kuch nahi):\n"
         '  CALL <action_name> {"arg": "value"}\n'
