@@ -23,6 +23,7 @@ Use:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from typing import Any, Optional
@@ -137,7 +138,10 @@ class AgenticRAG:
             rewrites = 0
             # corrective loop: grade, and rewrite+retry while weak
             while True:
-                hits = kb.retrieve(cur, k=k, namespace=namespace) or []
+                # off-loop: kb.retrieve is sync (embed+Qdrant); on the loop it blocks
+                # all concurrent requests and makes the callers' asyncio.wait_for deadline
+                # illusory (wait_for can't interrupt a sync section).
+                hits = await asyncio.to_thread(kb.retrieve, cur, k=k, namespace=namespace) or []
                 good = (
                     await self._grade(query, hits)
                     if self._enabled

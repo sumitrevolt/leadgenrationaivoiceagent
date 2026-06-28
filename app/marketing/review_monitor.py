@@ -149,7 +149,9 @@ async def run_check(max_clients: int = 15) -> dict[str, Any]:
                         from app.marketing import review_replies
 
                         res = await review_replies.generate_replies(
-                            biz, rv.get("text", ""), rv.get("rating")
+                            review_text=rv.get("text", ""),
+                            rating=rv.get("rating"),
+                            business_name=biz,
                         )
                         drafts = res.get("replies") or res.get("drafts") or []
                     except Exception:

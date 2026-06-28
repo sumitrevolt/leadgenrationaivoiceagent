@@ -308,7 +308,7 @@ async def optimize() -> dict[str, Any]:
             "reason": weak["reason"],
             "direct_actions": actions,
             "ideas": ideas,
-            "strategy_score": (strategy or {}).get("score"),
+            "strategy_score": (strategy or {}).get("final_score"),  # coordinate_advanced returns final_score, not score
             "at": _now().isoformat(),
         }
         _append(_RUNS, rec)

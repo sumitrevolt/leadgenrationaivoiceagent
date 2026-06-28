@@ -274,8 +274,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Cleanup old entries periodically
         if len(self._fallback_counts) > 10000:
+            # minute is the LAST colon-segment; rsplit (not split) so IPv6 client_ips
+            # (which contain colons) don't make int() raise ValueError -> 500 storm.
             old_keys = [
-                k for k in self._fallback_counts.keys() if int(k.split(":")[1]) < current_minute - 5
+                k
+                for k in self._fallback_counts.keys()
+                if k.rsplit(":", 1)[-1].isdigit() and int(k.rsplit(":", 1)[-1]) < current_minute - 5
             ]
             for k in old_keys:
                 del self._fallback_counts[k]

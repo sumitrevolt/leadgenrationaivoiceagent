@@ -163,7 +163,7 @@ async def _gather_inputs() -> dict[str, Any]:
     try:
         from app.agents import live_eval
 
-        snap["voice_eval"] = await live_eval.eval_recent_calls(10)
+        snap["voice_eval"] = live_eval.eval_recent_calls(10)  # sync fn — await here raised TypeError (swallowed), input always dropped
     except Exception:
         pass
     try:

@@ -332,6 +332,9 @@ _ALLOWED_FIELDS = {
     "trial",  # free-trial flag (bool) — conversion funnel
     "trial_expires",  # ISO timestamp — trial khatam kab
     "upi_vpa",  # client ka UPI ID (naam@bank) — payment QR poster (engage/upi-qr)
+    "setup_done",  # bool — onboarding complete (idempotency guard for AUTO_ONBOARD sweep)
+    "setup_at",  # ISO timestamp — onboarding kab hua
+    "crm",  # dict — per-client Zoho/HubSpot config (crm_sync.save_client_config)
 }
 
 
@@ -363,6 +366,11 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
                 found["niche"] = str(v or "").strip().lower()[:80] or found.get("niche", "general")
             elif k == "trial":
                 found["trial"] = bool(v)
+            elif k == "setup_done":
+                found["setup_done"] = bool(v)  # bool, NOT str("True") — idempotency guard
+            elif k == "crm":
+                # per-client CRM config dict — store as-is (generic else would str() it)
+                found["crm"] = dict(v) if isinstance(v, dict) else found.get("crm", {})
             else:
                 found[k] = str(v or "").strip()[:120]
         found["updated_at"] = _now()
