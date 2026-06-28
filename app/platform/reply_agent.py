@@ -244,6 +244,24 @@ async def _draft(
             except Exception:
                 pass
 
+        # Daily read-back: second-brain context (past replies/decisions for this niche)
+        # — reply-drafts ab brain-aware. to_thread (sync vault scan) + 3s deadline +
+        # fail-open; "" jab OBSIDIAN_SYNC off. (local asyncio import = NameError-safe.)
+        brain_ctx = ""
+        try:
+            import asyncio as _aio
+
+            from app.platform import obsidian_sync as _obs
+
+            brain_ctx = await _aio.wait_for(
+                _aio.to_thread(_obs.brain_context, f"{niche} {intent} {biz}".strip()),
+                timeout=3.0,
+            )
+            if brain_ctx:
+                brain_ctx = "\n\n" + brain_ctx
+        except Exception:
+            brain_ctx = ""
+
         reply, _ = await free_ai.chat(
             system="Tu LeadGen AI ka helpful sales rep hai. Is reply ka chhota, warm, "
             "professional Hinglish jawab likh (max 4 lines). Free Google audit + demo offer "
@@ -253,7 +271,7 @@ async def _draft(
                     "role": "user",
                     "content": (
                         f"Business: {biz}\nNiche: {niche}\nIntent: {intent}\n"
-                        f"Subject: {subject}\n\n{body[:1200]}{objection_ctx}"
+                        f"Subject: {subject}\n\n{body[:1200]}{objection_ctx}{brain_ctx}"
                     ),
                 }
             ],
