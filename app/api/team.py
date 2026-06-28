@@ -46,6 +46,21 @@ async def get_team_events(
         return {"events": [], "error": str(e)}
 
 
+@router.get("/stats")
+async def get_team_stats(
+    days: int = 7, member: str | None = None, current_user: User = Depends(require_admin)
+):
+    """Per-agent success-rate + last-run rollup (degrade-detection KPI). Feed =
+    /events; yeh = aggregate. Never raises — empty on failure."""
+    try:
+        from app.platform import team
+
+        return team.stats(member=member, days=days)
+    except Exception as e:
+        logger.warning(f"[team-api] stats failed: {e}")
+        return {"agents": [], "overall": {}, "error": str(e)}
+
+
 @router.post("/run/{member}")
 async def run_team_member(member: str, current_user: User = Depends(require_admin)):
     try:
