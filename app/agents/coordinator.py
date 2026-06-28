@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -155,7 +156,35 @@ def _log(member: str, action: str, detail: str) -> None:
         pass
 
 
+# --- D2: coordinator LLM cost guard (INERT unless COORDINATOR_LLM_CAP_PER_MIN>0) ---
+# self_improve ke paas SELFIMPROVE_COST_CAP hai; coordinator ke LLM calls (plan/
+# coordinate/fan_out/reflect/debate) ka koi cap nahi tha — recurring/public path me
+# unbounded cost risk. Yeh rolling 60s-window rate-cap deta: over-budget pe call SKIP
+# (fail-open — empty reply, callers already graceful). cap<=0 = default unchanged.
+_LLM_WINDOW: dict[str, float] = {"start": 0.0, "count": 0.0}
+
+
+def _llm_rate_ok() -> bool:
+    try:
+        cap = int(os.environ.get("COORDINATOR_LLM_CAP_PER_MIN", "0") or "0")
+    except Exception:
+        cap = 0
+    if cap <= 0:
+        return True  # INERT — behaviour unchanged
+    now = time.monotonic()
+    if now - _LLM_WINDOW["start"] >= 60.0:
+        _LLM_WINDOW["start"] = now
+        _LLM_WINDOW["count"] = 0.0
+    if _LLM_WINDOW["count"] >= cap:
+        return False
+    _LLM_WINDOW["count"] += 1.0
+    return True
+
+
 async def _llm(system: str, user: str, max_tokens: int = 260, temperature: float = 0.4):
+    if not _llm_rate_ok():
+        logger.info("coordinator LLM rate-cap reached — skipping call (fail-open)")
+        return "", "rate_capped"
     try:
         from app.voice_agent import free_ai
 

@@ -20,7 +20,22 @@ Tests: `tests/test_team_stats.py` (aggregation + graceful) · `validate_env.py` 
 
 ---
 
-## ⏸️ Deferred (M-risk — touches live hot-path; do as own careful change)
+## ✅ Deferred items — RESOLVED 2026-06-28 ("sab karo kuch mat chodo")
+
+**Outcome:** D1/D2/D3 shipped (each flag-gated INERT-by-default + tested). **D4 & D5 = FALSE POSITIVES** — measure-first caught them (don't re-flag):
+- **D4 (flow-revive):** flow runs go through `app/agents/flow_dispatch.start()` which routes linear→`process_engine` / dag→`dag_engine` + enqueues `process_tick`. BOTH engines' `ensure_alive()` are already in the watchdog (`team_scheduler.py:597,603`). Flows ARE covered. Agent even named the wrong module dir. **No fix — already handled.**
+- **D5 (restore-drill cron):** VERIFIED present on VPS crontab (`0 3 1 * * /opt/leadgen/scripts/pg_restore_drill.sh`), alongside nightly backup + pg_backup + offsite-mail + obsidian push. **No fix — already wired.**
+
+Shipped (gated, tested in `tests/test_workflow_guards.py`):
+- **D1** eval_gate→self_improve (`EVAL_GATE` / `EVAL_GATE_HARD`, observe-only then soft de-prioritize) — `app/agents/self_improve.py`
+- **D2** coordinator LLM rate-cap (`COORDINATOR_LLM_CAP_PER_MIN`, fail-open) — `app/agents/coordinator.py`
+- **D3** DLQ retry-storm guard (`QUEUE_DEPTH_BACKPRESSURE`/`QUEUE_DEPTH_CAP`, defers sweep on flooded queue, no job loss) — `app/platform/dlq_retry.py`
+
+Flags registered: `app/api/automation_flags.py` + `.env.example`. Broader API/scheduler-level submission backpressure (reject NEW tasks) remains the only un-done piece — genuinely M-risk hot-path, needs a load-test; left here intentionally.
+
+---
+
+## Original deferred detail (rationale, historical)
 
 ### D1 — `eval_gate` wired into self_improve loop  *(agent workflows)*
 - **Evidence:** `app/agents/eval_gate.py` exists (regression-detection) but `app/agents/self_improve.py` computes `outcome_value` deterministically and never calls `eval_gate.score_and_gate(...)`. The 2026-06-16 audit (eval_gate docstring) flagged this.

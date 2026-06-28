@@ -1371,6 +1371,32 @@ async def run_once() -> dict[str, Any]:
         }
         outcome_value = compute_outcome_value(outcome_dict)
 
+    # ===== D1: eval_gate reward signal (baseline-relative regression detect) =====
+    # Deterministic outcome_value slow-drift miss karta (0.85->0.62 har baar 0.6 pass).
+    # eval_gate median-baseline se regression pakadta. INERT unless EVAL_GATE=1 (tab
+    # bhi sirf logging) — EVAL_GATE_HARD=1 pe 'reject' action ko SOFT de-prioritize
+    # (outcome_value gira do → credit/skill_library kam, KOI destructive rollback nahi).
+    # Best-effort, kabhi raise nahi.
+    try:
+        from app.agents import eval_gate
+
+        if eval_gate.enabled():
+            _verdict = eval_gate.score_and_gate(
+                suite="self_improve",
+                metric="outcome_value",
+                current_score=float(outcome_value),
+                agent="boss",
+                artifact=str(action),
+            )
+            if _verdict.get("decision") == "reject" and eval_gate.hard_mode():
+                outcome_value = min(float(outcome_value), 0.2)
+                logger.info(
+                    f"[self-improve] eval_gate REJECT {action} ratio={_verdict.get('ratio')}"
+                    " — outcome de-prioritized (hard mode)"
+                )
+    except Exception as _eg_exc:
+        logger.debug(f"[self-improve] eval_gate hook skip: {_eg_exc}")
+
     # Learn — har run skill_library me (with outcome value)
     try:
         from app.platform import skill_library
