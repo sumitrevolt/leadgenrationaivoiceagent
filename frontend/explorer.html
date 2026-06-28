@@ -330,6 +330,39 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
 
 #mm-canvas{cursor:crosshair}
 #flowRunStatus{margin-left:6px;color:#9ca3af;font-size:12px}
+
+/* ===== Samajh Mode — plain-Hinglish admin guide overlay (additive, runtime-only) ===== */
+.tr-btn.samajh-btn{background:#0d2818;border-color:#15803d;color:#4ade80;font-weight:700}
+.tr-btn.samajh-btn:hover{background:#0f3d22;border-color:#22c55e;color:#86efac}
+#samajh-modal{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:1000;display:none;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px}
+#samajh-modal.vis{display:flex}
+.sj-box{background:#0e1014;border:1px solid #1e2630;border-radius:14px;max-width:760px;width:100%;padding:20px 22px;box-shadow:0 12px 48px rgba(0,0,0,.6);margin:auto}
+.sj-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.sj-h{font-size:18px;font-weight:800;color:#fff}
+.sj-tag{font-size:12px;color:#8a93a3;margin:6px 0 4px;line-height:1.6}
+.sj-x{cursor:pointer;color:#64748b;font-size:18px;line-height:1;border:none;background:transparent;padding:2px 6px;flex-shrink:0}
+.sj-x:hover{color:#e2e8f0}
+.sj-sec-h{font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:.6px;margin:16px 0 8px}
+.sj-legend{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:12px;color:#94a3b8}
+.sj-legend b{color:#e2e8f0;font-weight:600}
+.sj-flow{background:#13161c;border:1px solid #1e2630;border-radius:10px;padding:11px 13px;margin-bottom:9px}
+.sj-flow-hd{font-size:14px;font-weight:700;color:#fff;margin-bottom:2px}
+.sj-flow-sub{font-size:11.5px;color:#7c8696;margin-bottom:9px;line-height:1.5}
+.sj-chips{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.sj-chip{font-size:11px;padding:4px 9px;border-radius:14px;border:1px solid #2d3748;background:#1a1f29;color:#cbd5e1;cursor:pointer;white-space:nowrap;transition:all .12s}
+.sj-chip:hover{border-color:#22c55e;color:#86efac;background:#0f3d22}
+.sj-arrow{color:#475569;font-size:12px}
+.sj-live{background:#0c1a12;border:1px solid #14532d;border-radius:10px;padding:12px 14px;margin-top:4px}
+.sj-live-head{font-size:14px;font-weight:700;color:#e2e8f0;margin-bottom:4px;line-height:1.5}
+.sj-live-sub{font-size:11px;color:#94a3b8;margin:8px 0 4px}
+.sj-prob{margin:6px 0;padding:7px 9px;background:#1a1010;border:1px solid #4a1d1d;border-radius:7px}
+.sj-prob-k{font-size:12px;color:#fca5a5;line-height:1.5}
+.sj-prob-f{font-size:11px;color:#86efac;margin-top:3px;line-height:1.5}
+.sj-live-foot{font-size:11px;color:#64748b;margin-top:9px;border-top:1px solid #14532d;padding-top:8px;line-height:1.6}
+.sj-live-note{font-size:12px;color:#94a3b8;line-height:1.7}
+.sj-foot-btns{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.sj-foot-btns .action-btn{width:auto;margin-bottom:0}
+@media(max-width:560px){.sj-legend{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -344,6 +377,7 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
   </div>
   <div class="nav-div"></div>
   <div class="top-right">
+    <button class="tr-btn samajh-btn" onclick="openSamajh()" title="Sab kuch aasaan bhasha me samjho — connections, workflows, loops">💡 Samajh</button>
     <button class="tr-btn on" id="btn-play" onclick="toggleFlowPlay()">▶ Play Flow</button>
     <button class="tr-btn on" id="btn-edges" onclick="toggleEdges()">⟷ Connections</button>
     <button class="tr-btn on" id="btn-loops" onclick="toggleLoops()">↻ Loops</button>
@@ -458,6 +492,38 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <div class="help-row"><span class="help-kbd">?</span> This help &nbsp; Drag node = reposition (saved locally)</div>
     <div class="help-row"><span class="help-kbd">Dbl-click</span> node = copy file path to clipboard</div>
     <button class="action-btn primary help-close" onclick="hideHelp()">Got it</button>
+  </div>
+</div>
+
+<div id="samajh-modal" onclick="if(event.target===this)closeSamajh()">
+  <div class="sj-box">
+    <div class="sj-top">
+      <div class="sj-h">💡 Samajh — aapka system aasaan bhasha me</div>
+      <button class="sj-x" onclick="closeSamajh()" title="Band karo">✕</button>
+    </div>
+    <div class="sj-tag">Yeh page aapke poore business ka live naksha hai — har box ek kaam, teer (→) connection, purple wale baar-baar chalne wale loops. Neeche apne main kaam click karke graph par dekho.</div>
+
+    <div class="sj-sec-h">Naksha kaise padhein</div>
+    <div class="sj-legend">
+      <div>📦 <b>Box</b> = ek kaam / feature</div>
+      <div>➡️ <b>Teer</b> = kaam/data aage bhejta hai</div>
+      <div>🟣 <b>Purple (mota border)</b> = loop, khud baar-baar chalta</div>
+      <div>🕐 <b>SCHED</b> = fixed time par chalta (jaise roz 7 baje)</div>
+      <div>🟦 neela = platform · 🟧 narangi = voice</div>
+      <div>🟥 dashed laal = abhi planned / gap</div>
+    </div>
+
+    <div class="sj-sec-h">Aapke main kaam — click karke graph par dekho</div>
+    <div id="samajh-flows"></div>
+
+    <div class="sj-sec-h">Abhi kya chal raha hai</div>
+    <div id="samajh-live" class="sj-live"></div>
+
+    <div class="sj-foot-btns">
+      <button class="action-btn primary" onclick="closeSamajh()">✓ Theek hai, samajh gaya</button>
+      <button class="action-btn" onclick="closeSamajh();toggleTour()">🎬 Guided tour chalao</button>
+      <a class="action-btn" style="text-decoration:none" href="/app/automation">🏠 Aaj dashboard ↗</a>
+    </div>
   </div>
 </div>
 
@@ -672,7 +738,7 @@ const VIEWS = {
       {id:'revenue', type:'monitor', badge:'REVENUE', cx:'moderate', sched:'daily digest', title:'Revenue Ops (Nikhil)', desc:'Dunning · lifecycle nurture · client health · MRR digest', files:'dunning · lifecycle · client_health.py · revenue_digest.py · revenue_snapshots.py · reporting.py · winback.py', flag:'DUNNING_ENGINE', x:1760, y:560, w:240, h:100},
       {id:'growth_opt', type:'ai', badge:'OPTIMIZE', cx:'moderate', sched:'15min', title:'Growth Optimizer', desc:'Funnel snapshot · weakest stage · experiment suggestions', files:'growth_optimizer.py · growth_engine.py', flag:'GROWTH_OPTIMIZER', x:2040, y:560, w:240, h:100},
       {id:'channel_exp', type:'marketing', badge:'BANDIT', cx:'moderate', sched:'hourly', title:'Channel Experiments', desc:'17 legal channels · bandit drafts · no auto-post', files:'channel_experiments.py', flag:'CHANNEL_EXPERIMENTS', x:2320, y:560, w:240, h:100},
-      {id:'ops', type:'monitor', badge:'WATCHDOG', cx:'simple', sched:'hourly', title:'Ops Watchdog + Engineers', desc:'heartbeat · revive */20min · engineer_sre hourly :45 · engineer_finops 09:00 · engineer_security 09:30 · readiness_digest · integration_health probes', files:'ops_watchdog.py · engineer_agents · infra_handler.py · integration_health.py', flag:'OPS_WATCHDOG', x:2580, y:560, w:260, h:110},
+      {id:'ops', type:'monitor', badge:'WATCHDOG', cx:'simple', sched:'hourly', title:'Ops Watchdog + Engineers', desc:'heartbeat · revive */20min · engineer_sre hourly :45 · engineer_finops 09:00 · engineer_security 09:30 · engineer_dbre 10:00 · engineer_dataquality 10:30 · engineer_deps Sun 04:30 (gated) · readiness_digest · integration_health probes', files:'ops_watchdog.py · engineer_agents · infra_handler.py · integration_health.py', flag:'OPS_WATCHDOG', x:2580, y:560, w:260, h:110},
       {id:'whatsapp_wa', type:'external', badge:'WHATSAPP', cx:'moderate', sched:'1-click', title:'WhatsApp Campaigns', desc:'Official Cloud API only · 1-click links default · auto gated', files:'whatsapp_campaign.py · wa_campaign_runner.py', flag:'WHATSAPP_AUTO_SEND', x:40, y:720, w:240, h:95},
       {id:'seo_pages', type:'marketing', badge:'SEO', cx:'moderate', sched:'batch', title:'Programmatic SEO', desc:'Niche×city landing pages · FAQ schema · /audit CTA', files:'seo_pages.py', x:580, y:720, w:230, h:95},
       {id:'free_ai', type:'ai', badge:'LLM', cx:'complex', title:'Free AI Chain', desc:'Mistral PRIMARY → Groq → Cerebras. Circuit-breaker on 429', files:'free_ai.py', x:860, y:720, w:220, h:95},
@@ -2707,6 +2773,111 @@ async function fetchProductPricing() {
 function showHelp() { document.getElementById('help-modal').classList.add('vis'); }
 function hideHelp() { document.getElementById('help-modal').classList.remove('vis'); }
 
+// ════════════════════════════════════
+// SAMAJH MODE — plain-Hinglish admin guide (additive; reuses _jumpToNode + overview/today)
+// ════════════════════════════════════
+// Har step ek REAL node-id hai (graph par maujood) → click karne par _jumpToNode highlight karta.
+const SAMAJH_FLOWS = [
+  { icon:'🧲', title:'Naye leads aana (Marketing)',
+    sub:'AI khud business dhoondta, cold email bhejta, reply sambhalta — phir aapko deta.',
+    steps:[['prospect','Prospects dhoondo'],['score','AI score kare'],['outreach','Cold email bheje'],['reply','Reply padhe'],['journey','Follow-up sequence'],['sales','Deal banaye']] },
+  { icon:'📣', title:'Marketing content auto-banna',
+    sub:'Roz subah social posts, captions aur SEO blog khud ban jaate (aapke approve par publish).',
+    steps:[['content','Content banaye (Isha)'],['content_approve','Aap approve karo'],['content_distribute','Auto publish'],['blog','SEO blog']] },
+  { icon:'📞', title:'AI voice call (Voice agent)',
+    sub:'AI telecaller call karta, baat samajhta, lead qualify karta, recording rakhta.',
+    steps:[['fire_calls','Call shuru'],['voice_brain','AI baat kare'],['vobiz_stream','Live audio'],['post_call_hooks','Call ke baad'],['call_insights','Insights nikaale']] },
+  { icon:'🔁', title:'AI khud sudharna (Loops)',
+    sub:'Agents khud kaam uthate, result check karte, behtar hote — bina bole.',
+    steps:[['self_improve','Self-improve loop'],['eval_gate','Result check (eval)'],['coordinator','Multi-agent team'],['process','Process engine']] },
+  { icon:'❤️', title:'System ki sehat (Watchdog)',
+    sub:'Scheduler kaam baant-ta, kuch toote to phone par alert, sab live dikhta.',
+    steps:[['beat','Time-table (scheduler)'],['worker','Kaam chale (worker)'],['ops','Watchdog + engineers'],['automation_health','Health check'],['ntfy_alerts','Phone par alert']] },
+  { icon:'💰', title:'Paisa aana (Revenue)',
+    sub:'Inquiry se billing tak — UPI se payment, MRR track.',
+    steps:[['public_in','Inquiry aaye'],['billing','Billing & usage'],['revenue','Revenue ops'],['rm_upi','UPI payment']] },
+];
+
+function _renderSamajhFlows() {
+  const box = document.getElementById('samajh-flows');
+  if(!box || box.dataset.done) return;
+  let h = '';
+  SAMAJH_FLOWS.forEach(f => {
+    h += '<div class="sj-flow"><div class="sj-flow-hd">' + f.icon + ' ' + _escHtml(f.title) + '</div><div class="sj-flow-sub">' + _escHtml(f.sub) + '</div><div class="sj-chips">';
+    f.steps.forEach((s, i) => {
+      if(i) h += '<span class="sj-arrow">→</span>';
+      h += '<button class="sj-chip" onclick="_samajhGo(\'' + s[0] + '\')" title="Graph par dikhao">' + _escHtml(s[1]) + '</button>';
+    });
+    h += '</div></div>';
+  });
+  box.innerHTML = h;
+  box.dataset.done = '1';
+}
+
+function openSamajh() {
+  const m = document.getElementById('samajh-modal');
+  if(!m) return;
+  _renderSamajhFlows();
+  m.classList.add('vis');
+  try { localStorage.setItem('samajh_seen', '1'); } catch(e) {}
+  _loadSamajhLive();
+}
+
+function closeSamajh() {
+  const m = document.getElementById('samajh-modal');
+  if(m) m.classList.remove('vis');
+}
+
+function _samajhGo(id) {
+  closeSamajh();
+  if(typeof _jumpToNode === 'function') _jumpToNode(id);
+}
+
+function maybeAutoSamajh() {
+  // First-time admin: ek baar khud khol do (dismiss ke baad dobara nahi).
+  try { if(!localStorage.getItem('samajh_seen')) setTimeout(openSamajh, 700); } catch(e) {}
+}
+
+async function _loadSamajhLive() {
+  const box = document.getElementById('samajh-live');
+  if(!box) return;
+  const token = (typeof localStorage !== 'undefined' && (localStorage.getItem('accessToken') || localStorage.getItem('adminToken'))) || '';
+  if(!token) {
+    box.innerHTML = '<div class="sj-live-note">🔑 Live status (aaj kya chal raha hai) ke liye admin login chahiye — <a href="/app/admin-login" style="color:#60a5fa">/app/admin-login</a>. Login ke baad yeh box "sab theek / N problem + fix" dikhayega.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="sj-live-note">⏳ Live status load ho raha hai…</div>';
+  for(const base of getApiBases()) {
+    try {
+      const r = await fetch(base + '/api/growth/overview/today', {mode:'cors', credentials:'omit', headers:{Authorization:'Bearer ' + token}});
+      if(!r.ok) continue;
+      const d = await r.json();
+      _renderSamajhLive(d);
+      return;
+    } catch(e) {}
+  }
+  box.innerHTML = '<div class="sj-live-note">⚠️ Live status abhi nahi mila — API reachable nahi ya login expire ho gaya. <a href="/app/admin-login" style="color:#60a5fa">Dobara login</a> karke try karo.</div>';
+}
+
+function _renderSamajhLive(d) {
+  const box = document.getElementById('samajh-live');
+  if(!box) return;
+  d = d || {};
+  let h = '<div class="sj-live-head">' + _escHtml(d.headline || '—') + '</div>';
+  const probs = d.problems || [];
+  if(probs.length) {
+    h += '<div class="sj-live-sub">Dhyan maangti cheezein:</div>';
+    probs.slice(0, 6).forEach(p => {
+      h += '<div class="sj-prob"><div class="sj-prob-k">❗ ' + _escHtml(p.kya || '') + '</div><div class="sj-prob-f">✅ Fix: ' + _escHtml(p.fix || '') + '</div></div>';
+    });
+  } else {
+    h += '<div class="sj-live-sub" style="color:#4ade80">Koi problem nahi — sab theek chal raha hai 👍</div>';
+  }
+  const t = d.totals || {};
+  h += '<div class="sj-live-foot">Aaj ' + (t.events_today || 0) + ' kaam hue · ' + (t.working || 0) + '/' + (t.staff || 0) + ' agent abhi active · <a href="/app/automation" style="color:#60a5fa">Poora "Aaj" dashboard ↗</a></div>';
+  box.innerHTML = h;
+}
+
 function _escHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
@@ -3657,6 +3828,7 @@ function init() {
   setTimeout(fitView, 120);
   setInterval(fetchLiveHealth, 60000);
   if(startupNav.node) setTimeout(() => _jumpToNode(startupNav.node), 0);
+  else maybeAutoSamajh();  // first-time admin: Samajh guide ek baar khud khol do
 }
 
 init();
