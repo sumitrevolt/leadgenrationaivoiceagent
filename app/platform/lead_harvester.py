@@ -462,9 +462,35 @@ async def run_harvest(
 
 
 async def run_loop_sweep() -> dict[str, Any]:
-    """Loop hook (gated LEAD_HARVESTER) — daily prospect job / self_improve se."""
+    """Loop hook (gated LEAD_HARVESTER) — daily prospect job / self_improve se.
+
+    GTM_TARGETING=1: systematically work through the City x Niche coverage matrix
+    (least-recently-covered first), N pairs/run within the API budget — so over time
+    every city x niche gets covered "one by one". Else: single rotation pick (legacy)."""
     if not enabled():
         return {"enabled": False}
+    try:
+        from app.platform import gtm_targeting
+
+        if gtm_targeting.enabled():
+            import time
+
+            try:
+                n_pairs = int(os.environ.get("GTM_PAIRS_PER_RUN", "6") or "6")
+            except Exception:
+                n_pairs = 6
+            pairs = gtm_targeting.next_targets(max(1, n_pairs))
+            if pairs:
+                out: dict[str, Any] = {"enabled": True, "mode": "gtm_matrix", "new": 0, "pairs": []}
+                for p in pairs:
+                    r = await run_harvest(niche=p["niche"], city=p["city"])
+                    _new = int((r or {}).get("new") or 0)
+                    out["new"] += _new
+                    out["pairs"].append({"niche": p["niche"], "city": p["city"], "new": _new})
+                    gtm_targeting.mark_covered(p, yield_count=_new, ts=time.time())
+                return out
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("[harvester] gtm matrix sweep skipped: %s", e)
     return await run_harvest()
 
 
