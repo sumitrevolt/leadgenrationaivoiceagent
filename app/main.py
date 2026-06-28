@@ -891,10 +891,15 @@ try:
             auth = request.headers.get("authorization", "").strip()
             if _mcp_token and auth == f"Bearer {_mcp_token}":
                 return await call_next(request)
-            # IP allowlist check
+            # IP allowlist check. SECURITY: use the RIGHTMOST X-Forwarded-For entry —
+            # that is the value the trusted proxy (Caddy) appended = the real peer.
+            # The leftmost entry is fully client-controlled (an attacker can prepend an
+            # allowlisted IP), so it must NEVER drive an auth decision.
             client_ip = (request.client.host if request.client else "") or ""
-            xff = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
-            real_ip = xff or client_ip
+            _xff_parts = [
+                p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()
+            ]
+            real_ip = (_xff_parts[-1] if _xff_parts else "") or client_ip
             if _mcp_allowlist and real_ip in _mcp_allowlist:
                 return await call_next(request)
             # Reject — log to Arya's auth-failure tail-file
