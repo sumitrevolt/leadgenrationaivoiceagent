@@ -46,14 +46,17 @@ async def _udyam_seeds(city: str, limit: int) -> list[dict[str, Any]]:
         return []
 
 
-async def _maps_enrich(name: str, city: str) -> dict[str, Any]:
-    """ENRICH-1: Google Maps lookup by name+city -> phone/website/address/rating/email."""
+async def _maps_enrich(name: str, city: str, pincode: str = "") -> dict[str, Any]:
+    """ENRICH-1: Google Maps lookup (name+city+PINCODE for higher match-rate) ->
+    phone/website/address/rating/email. OSM (free, keyless) fallback when Maps finds no
+    contact, so coverage doesn't depend on a Maps match alone."""
     out: dict[str, Any] = {}
     try:
         from app.lead_scraper.google_maps import GoogleMapsClient
 
         client = GoogleMapsClient()
-        res = await client.search_businesses(name, city, max_results=1)
+        q = " ".join(x for x in (name, city, pincode) if x)
+        res = await client.search_businesses(q, city, max_results=1)
         if res:
             bl = res[0]
             out = {
@@ -65,24 +68,55 @@ async def _maps_enrich(name: str, city: str) -> dict[str, Any]:
             }
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("[udyam] maps enrich skip (%s): %s", name[:40], e)
+    if not (out.get("phone") or out.get("website")):  # OSM fallback (keyless)
+        try:
+            import asyncio
+
+            from app.platform.prospector import _osm_search
+
+            rows = await asyncio.to_thread(_osm_search, name, city, 1)
+            if rows:
+                r0 = rows[0]
+                out["phone"] = out.get("phone") or str(r0.get("phone") or "")
+                out["website"] = out.get("website") or str(r0.get("website") or "")
+                out["address"] = out.get("address") or str(r0.get("address") or "")
+        except Exception as e:  # pragma: no cover - defensive
+            logger.debug("[udyam] osm fallback skip: %s", e)
     return out
 
 
-async def _web_enrich(website: str) -> str:
-    """ENRICH-2: company website crawl -> first deliverable email (MX-verified)."""
+async def _web_enrich(website: str) -> dict[str, str]:
+    """ENRICH-2: company website crawl -> {email, phone} (find_contacts). SSRF-guarded
+    (only fetch a public-IP host, redirects off). Caller MX-verifies the email."""
+    out = {"email": "", "phone": ""}
     try:
         if not website:
-            return ""
-        from app.platform import email_finder
+            return out
+        import re
 
-        ef = await email_finder.find(website)
-        for em in ef.get("emails") or []:
-            e = str((em or {}).get("email") or "").strip()
-            if e:
-                return e
+        import httpx
+
+        from app.lead_scraper.web_extract import find_contacts
+        from app.marketing.website_auditor import _resolve_is_public
+
+        d = re.sub(r"^https?://", "", str(website)).split("/")[0].strip()
+        if not d or not _resolve_is_public(d):
+            return out
+        async with httpx.AsyncClient(
+            follow_redirects=False, headers={"User-Agent": "Mozilla/5.0"}
+        ) as client:
+            r = await client.get(f"https://{d}", timeout=10.0)
+            if r.status_code == 200:
+                info = find_contacts(r.text) or {}
+                emails = info.get("emails") or []
+                phones = info.get("phones") or []
+                if emails:
+                    out["email"] = str(emails[0]).lower()
+                if phones:
+                    out["phone"] = str(phones[0])
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("[udyam] web enrich skip: %s", e)
-    return ""
+    return out
 
 
 async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[str, Any]:
@@ -98,6 +132,7 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
 
     out = {"enabled": True, "seeds": len(seeds), "enriched": 0, "new": 0, "skipped": 0}
     try:
+        from app.niches import classify_from_text
         from app.platform import lead_harvester, prospector
 
         known_phones, known_emails = lead_harvester._existing_keys()
@@ -107,15 +142,24 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
             if not name:
                 out["skipped"] += 1
                 continue
+            pincode = str(s.get("pincode") or "").strip()
+            # classify the RIGHT niche from Udyam MajorActivity + name -> accurate scoring
+            # + pitch (was tagging every lead 'general').
+            lead_niche = classify_from_text(f"{s.get('major_activity') or ''} {name}", default=niche)
 
-            m = await _maps_enrich(name, c)
-            if m:
+            m = await _maps_enrich(name, c, pincode)
+            if m.get("phone") or m.get("website"):
                 out["enriched"] += 1
             phone = lead_harvester._valid_phone(str(m.get("phone") or ""))
             website = str(m.get("website") or "")
             email = await lead_harvester._valid_email(str(m.get("email") or ""))
-            if website and not email:
-                email = await lead_harvester._valid_email(await _web_enrich(website))
+            # website crawl fills any still-missing email/phone
+            if website and (not email or not phone):
+                wc = await _web_enrich(website)
+                if not email:
+                    email = await lead_harvester._valid_email(str(wc.get("email") or ""))
+                if not phone:
+                    phone = lead_harvester._valid_phone(str(wc.get("phone") or ""))
 
             p10 = phone[-10:] if phone else ""
             if (p10 and p10 in known_phones) or (email and email in known_emails):
@@ -131,7 +175,8 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
                 "website": website,
                 "address": str(m.get("address") or ""),
                 "city": c,
-                "niche": niche,
+                "pincode": pincode,
+                "niche": lead_niche,
                 "rating": m.get("rating"),
                 "reviews_count": None,
                 "source": "udyam_enriched",
