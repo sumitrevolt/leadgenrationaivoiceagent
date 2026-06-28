@@ -92,3 +92,50 @@
 ## Why this is "top 0.1%", honestly
 
 Not because of agent count — because of the **discipline**: independent specialist inspection → adversarial synthesis that rejects its own agents when the evidence says so (measure-first) → isolated parallel execution that can't truncate shared files → evidence-gated ship with explicit human authorization on anything irreversible. The roster is the easy part; the **measure-first + adversarial-verify + fail-open-by-default** loop is the moat.
+
+---
+
+## Voice Production Council — requested 30-agent architecture → THIS workforce (2026-06-28)
+
+A "production voice agent" exec/eng/voice council was requested (30 roles). Audit verdict: **~85% already exists** — formalized here as a council that USES the existing agents; only **2 were genuinely missing** and were added (Lekha, Raksha). NO duplication.
+
+### Executive Council (on-demand: `coordinator.py` / `POST /api/agents/council` / `executive-council` skill)
+| Role | Owner(s) |
+|------|----------|
+| CEO — strategy/product/pricing | `manager` (Boss) + **revenue-strategist** subagent |
+| CRO — conversion/objections/follow-up | `nikhil` (Revenue Ops) + `rohan` (Leads Mgr) + `sales_team.py` |
+| COO — workflow/queue/escalation | `kavya` (Ops Monitor) + `hermes` (Infra Handler) |
+
+### Engineering Council (runtime staff + dev-time subagents)
+| Role | Owner(s) |
+|------|----------|
+| Principal Voice AI Architect | `tara` (Voice Infra Ops) + voice_agent design |
+| Staff Backend | **staff-engineer** subagent |
+| Telephony/SIP | `tara` + `telephony/*` |
+| Conversation Designer | `meera` (Trainer) |
+| AI Evaluation | `arjun` (QA) + `eval_gate` + `voice_metrics`/`eval_suite` |
+| MLOps / Self-Improvement | `self_improve.py` loop + `vikram` (Code Upgrader) |
+| Security & Compliance | `arnav` + **security-auditor** subagent |
+| QA Automation | `arjun` + **qa-test-engineer** subagent |
+| Data / CRM | `diya` (Data-Integrity) + `dev` (KB) |
+| Product Reliability | `pranav` (SRE) + **infra-doctor** subagent |
+
+### Voice Product Agents (runtime)
+| Role | Owner |
+|------|-------|
+| Marketing Caller | `swara` (Telecaller) |
+| Appointment Booking | `ananya` + real `calendar_booking.py` (book + **reschedule**, VOICE_TOOLS=1) |
+| AI Receptionist | `riya` (inbound; interactive-stream pending an inbound DID — see below) |
+| Lead Qualification / Objection | `sales_team.py` (Veer qualify, Arjun objections) |
+| CRM Update | `post_call_hooks.apply_qualified_downstream` + `crm_sync` |
+| Follow-up | `nikhil` + `cadence.py` |
+| Call QA Supervisor | `arjun` + `meera` |
+| **Analytics** (was MISSING → NEW) | **`lekha`** — `app/voice_agent/call_analytics.py`, `GET /api/admin/web-calls/kpis` |
+| **Human Escalation** (was MISSING → NEW) | **`raksha`** — owns `app/telephony/call_transfer.py` (gated `CALL_TRANSFER`) |
+
+### Live workflow (lead → call → booking → CRM → follow-up → learn)
+`compliance gate (DND/9-19h, fail-closed)` → `carrier_router place_call (retry failover)` → **conversation** (`platform_pitch` answers questions first → `telecaller_brain` qualify/objection) → intent: **book/reschedule** (`calendar_booking`, persists `data/bookings/`) · **escalate** (`call_transfer`) · **not-now** (`cadence`) → `post_call_hooks` (recording+transcript+audit, qualify→CRM, metering, `call.completed` webhook) → `crm_sync` → `cadence` follow-up → **self-improve** (`web_call_learn` → eval_gate regression → promote IF score≥baseline; never blind-writes prod prompts).
+
+### Status (2026-06-28 program)
+- ✅ **LIVE+verified:** call-quality (pitch dodge fixed, STT turbo, EdgeTTS), **real booking + reschedule** (VOICE_TOOLS=1), Lekha analytics, Raksha (call_transfer).
+- ⏳ **Pending:** per-call self-improve promotion-gate formalization; interactive inbound receptionist is **EXTERNALLY BLOCKED** (needs an inbound DID + DLT) — until then the existing missed-call-capture + gated callback (`webhooks.py`) covers the realistic path.

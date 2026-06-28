@@ -103,6 +103,22 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "Call transcripts padh ke quality analysis (STT failures, repeats, latency), tuning suggestions nikalna",
         "schedule": "Roz raat 3:00 + on-demand",
     },
+    "lekha": {
+        "product": "voice",
+        "name": "Lekha",
+        "emoji": "📊",
+        "title": "Call Analytics Lead",
+        "duties": "Call-center KPIs — web+phone calls se duration, qualified-rate, booking-rate, reply-latency p50/p95, dead-air/repeat ratio nikal ke trend + admin digest (app/voice_agent/call_analytics.py)",
+        "schedule": "Roz subah + on-demand (/api/admin/web-calls/kpis)",
+    },
+    "raksha": {
+        "product": "voice",
+        "name": "Raksha",
+        "emoji": "🆘",
+        "title": "Human Escalation Manager",
+        "duties": "Jab AI unsure/confused ho ya customer gussa/insaan maange — call human ko route karna (app/telephony/call_transfer.py, gated CALL_TRANSFER) + context handover; escalation log + handback",
+        "schedule": "On-demand (live calls)",
+    },
     "kavya": {
         "product": "platform",
         "name": "Kavya",
