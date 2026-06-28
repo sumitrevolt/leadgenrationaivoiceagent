@@ -14,7 +14,7 @@ from typing import Any
 
 # Supported platforms (registry keys). "meta" ek hi adapter FB Page + Instagram dono.
 PLATFORMS = (
-    "telegram",
+    # telegram REMOVED 2026-06-28 (ban-risk; not advertised, not a delivery channel)
     "facebook",
     "instagram",
     "gbp",

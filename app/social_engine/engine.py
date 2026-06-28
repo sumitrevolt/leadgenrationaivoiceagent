@@ -54,9 +54,8 @@ def _default_platforms(client_id: str) -> list[str]:
     out: list[str] = []
     reg = registry()
     try:
-        if reg["telegram"].configured() and _resolve_account(client_id, "telegram", "").get("account_ref"):
-            out.append("telegram")
-        if reg["postiz"].configured():
+        # telegram REMOVED 2026-06-28 (ban-risk) — no longer a default platform
+        if reg.get("postiz") and reg["postiz"].configured():
             out.append("postiz")
         for a in vault.list_accounts(client_id):
             p = str(a.get("platform") or "")

@@ -56,3 +56,21 @@ async def test_studio_review_kit_failopen_without_link(monkeypatch: pytest.Monke
     out = await s.studio_review_kit(s.ReviewKitReq(), client_id="c1")
     assert out["ok"] is True
     assert out["result"]["happy_message"]  # never empty even without a link
+
+
+@pytest.mark.asyncio
+async def test_studio_catalog_upi_paylinks(monkeypatch: pytest.MonkeyPatch) -> None:
+    """#27: catalog generates per-item UPI deep-links (no gateway needed)."""
+    from app.api import customer_marketing_studio as s
+
+    monkeypatch.setattr(s, "_ctx", lambda cid: {"business_name": "Sharma Salon", "niche": "salon"})
+    out = await s.studio_catalog(
+        s.CatalogReq(items="Haircut:200, Facial:500", vpa="sharma@oksbi"), client_id="c1"
+    )
+    items = out["result"]["items"]
+    assert len(items) == 2
+    assert items[0]["pay_link"].startswith("upi://pay?")
+    assert "am=200" in items[0]["pay_link"] and "pa=sharma%40oksbi" in items[0]["pay_link"]
+    # no VPA → no pay-link, but still lists items (graceful)
+    out2 = await s.studio_catalog(s.CatalogReq(items="Haircut:200"), client_id="c1")
+    assert out2["result"]["items"][0]["pay_link"] == ""

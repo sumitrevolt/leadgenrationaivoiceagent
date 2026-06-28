@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1003 operations)
+## Endpoint Index — auto-generated from OpenAPI (1004 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -691,7 +691,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
 - `GET   ` `/api/customer/flows` — Cf List
 
-### Customer Marketing Studio  (86)
+### Customer Marketing Studio  (87)
 
 - `POST  ` `/api/customer/studio/ads` — Studio Ads
 - `GET   ` `/api/customer/studio/aeo-checklist` — Studio Aeo Checklist
@@ -708,6 +708,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/studio/calendar` — Studio Calendar
 - `POST  ` `/api/customer/studio/carousel` — Studio Carousel
 - `GET   ` `/api/customer/studio/case-study` — Studio Case Study
+- `POST  ` `/api/customer/studio/catalog` — Studio Catalog
 - `GET   ` `/api/customer/studio/click-to-whatsapp-ad` — Studio Click To Whatsapp Ad
 - `GET   ` `/api/customer/studio/community-content` — Studio Community Content
 - `POST  ` `/api/customer/studio/competitor` — Studio Competitor
