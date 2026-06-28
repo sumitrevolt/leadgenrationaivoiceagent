@@ -7,6 +7,7 @@ tests import `from app.api.growth import AUTOMATION_FLAGS`).
 
 # Saare gated automation flags ka registry — live env status ek jagah.
 AUTOMATION_FLAGS = [
+    "CONTROL_CENTER",  # enterprise Control Center cockpit (/app/control-center) — nav-surface gate, default OFF
     "FLOW_RUNNER",  # visual builder -> process-as-code execution (admin, linear+DAG, default OFF)
     "FLOW_AUTO_TRIGGERS",  # Phase 3: cron + event auto-fire for saved flows (needs FLOW_RUNNER too, default OFF)
     "FLOW_RUNNER_CUSTOMER",  # Phase 7: per-client flow builder in customer portal (needs FLOW_RUNNER too, draft-only, default OFF)
