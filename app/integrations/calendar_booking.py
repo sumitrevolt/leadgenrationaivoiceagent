@@ -104,6 +104,11 @@ def _setting(name: str, default: str = "") -> str:
     return (val or "").strip()
 
 
+def _digits(s: str) -> str:
+    """Phone → digits only (for cross-format last-10 matching). Never raises."""
+    return "".join(ch for ch in (s or "") if ch.isdigit())
+
+
 class CalendarBooking:
     """
     Calendar service facade for the voice agent.
@@ -301,6 +306,91 @@ class CalendarBooking:
 
         logger.warning(f"Cancel: booking_id {booking_id} not found.")
         return False
+
+    async def reschedule(
+        self,
+        *,
+        new_when_iso: str,
+        phone: str = "",
+        booking_id: str = "",
+        name: str = "",
+        notes: str = "",
+        client_id: str = "",
+        niche: str = "",
+        duration_min: int = DEFAULT_DURATION_MIN,
+    ) -> BookingResult:
+        """Move an existing appointment to `new_when_iso`. Finds the existing booking
+        by booking_id (same process) or by PHONE (durable ledger, cross-restart),
+        frees the old slot, and books the new one. Never raises."""
+        new_when = self._normalize_when(new_when_iso)
+        if not new_when:
+            return BookingResult(
+                ok=False,
+                provider=self.provider,
+                error=f"Invalid new time: {new_when_iso!r}",
+                confirmation_text="Naya time samajh nahi aaya — dobara batayein?",
+            )
+        old = self._find_active_booking(booking_id=booking_id, phone=phone)
+        if old:
+            old_when = old.get("when")
+            if old_when:
+                self._taken.discard(old_when)  # free the old slot
+            old_bid = old.get("booking_id") or booking_id
+            if old_bid and old_bid in self._bookings:
+                try:
+                    await self.cancel(old_bid)
+                except Exception:
+                    self._bookings.pop(old_bid, None)
+            name = name or str(old.get("name") or "")
+            phone = phone or str(old.get("phone") or "")
+        res = await self.book_slot(
+            new_when.isoformat(),
+            name=name,
+            phone=phone,
+            notes=(notes or "rescheduled via AI voice agent"),
+            duration_min=duration_min,
+            client_id=client_id,
+            niche=niche,
+        )
+        if res.ok:
+            res.confirmation_text = self._reschedule_text(new_when, name)
+            res.meta = {**(res.meta or {}), "rescheduled_from": (old or {}).get("when")}
+        return res
+
+    def _find_active_booking(
+        self, *, booking_id: str = "", phone: str = ""
+    ) -> dict[str, Any] | None:
+        """Locate an existing booking by id (in-process) or phone (durable ledger,
+        latest by booked_at). Returns the record dict (with booking_id/when) or None."""
+        if booking_id and booking_id in self._bookings:
+            r = dict(self._bookings[booking_id])
+            r["booking_id"] = booking_id
+            return r
+        ph = _digits(phone)
+        if not ph:
+            return None
+        tail = ph[-10:]
+        matches: list[dict[str, Any]] = []
+        today = datetime.now()
+        for d in range(0, 90):
+            day = (today - timedelta(days=d)).strftime("%Y-%m-%d")
+            for rec in self.list_bookings(limit=0, date_str=day):
+                rph = _digits(str(rec.get("phone") or ""))
+                if rph and (rph[-10:] == tail):
+                    matches.append(rec)
+        if not matches:
+            return None
+        matches.sort(key=lambda r: str(r.get("booked_at") or ""))
+        return matches[-1]  # most recently booked
+
+    @staticmethod
+    def _reschedule_text(when: datetime, name: str) -> str:
+        nice = when.strftime("%A, %d %b %Y %I:%M %p")
+        who = f"{name}, " if name else ""
+        return (
+            f"Theek hai {who}aapki appointment ab {nice} IST pe move kar di hai. "
+            f"Confirmation mil jayega."
+        )
 
     # ------------------------------------------------------------------ #
     # Google Calendar backend

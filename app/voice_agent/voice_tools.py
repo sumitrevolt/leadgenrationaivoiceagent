@@ -56,6 +56,7 @@ def voice_tools_enabled() -> bool:
 _SPEAKABLE_TOOLS = (
     "book_appointment",
     "check_availability",
+    "reschedule_appointment",
     "capture_lead_info",
     "transfer_to_human",
     "end_call",
@@ -101,6 +102,8 @@ def tools_instruction(registry: object | None = None) -> str:
         "Kab kya:\n"
         "- Lead specific date+time pe meeting/demo/visit ke liye haan kare -> "
         'CALL book_appointment {"when_iso":"YYYY-MM-DDTHH:MM","name":"...","phone":"..."}\n'
+        "- Lead apni PEHLE se booked appointment ka time badalna/postpone karna chahe -> "
+        'CALL reschedule_appointment {"new_when_iso":"YYYY-MM-DDTHH:MM","phone":"..."}\n'
         "- Lead budget / timeline / email / decision-maker bataye -> "
         'CALL capture_lead_info {"budget_range":"...","timeline":"...","interest_level":"high"}\n'
         "- Lead insaan se baat maange, ya high-value/complex case ho -> "
@@ -133,6 +136,8 @@ def confirmation_line(name: str, result: object) -> str:
                 if data.get("slots")
                 else "Main availability check kar rahi hoon, ek second."
             )
+        if name == "reschedule_appointment":
+            return "Theek hai, aapki appointment naye time pe move kar di hai. Confirmation mil jayega."
         if name == "capture_lead_info":
             return "Ji, aapki detail note kar li hai."
         if name == "transfer_to_human":
