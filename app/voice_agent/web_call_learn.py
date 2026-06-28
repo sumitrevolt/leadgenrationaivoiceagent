@@ -90,7 +90,20 @@ async def analyze_web_session(session: dict[str, Any]) -> dict[str, Any]:
             detail=f"score={score:.2f} turns={rec['user_turns']}",
             agent="swara",
         )
-        return {"ok": True, "score": score, "analysis": analysis[:200]}
+
+        # P3c — per-call self-improve GATE: failing calls ke liye structured proposal
+        # (better candidate reply + promotion-gate) store karo. NEVER auto-applies to
+        # prod; admin review karta. Clean calls = no-op. Never blocks the return.
+        proposal_id = None
+        try:
+            from app.voice_agent.voice_self_improve import propose_from_session
+
+            _p = await propose_from_session(session, rec["messages"], score, flags)
+            proposal_id = (_p or {}).get("id")
+        except Exception as e:
+            logger.debug("web_call_learn: self-improve proposal skip (%s)", e)
+
+        return {"ok": True, "score": score, "analysis": analysis[:200], "proposal_id": proposal_id}
     except Exception as e:
         logger.debug("web_call_learn failed: %s", e)
         return {"ok": False, "reason": str(e)[:80]}

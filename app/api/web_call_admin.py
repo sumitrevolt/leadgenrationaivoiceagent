@@ -74,6 +74,58 @@ async def web_call_kpis(_user=Depends(require_admin), days: int = Query(7, ge=1,
         return {"ok": False, "kpis": {}}
 
 
+@router.get("/proposals", summary="Self-improve proposals (per-call learn gate)")
+async def list_voice_proposals(
+    _user=Depends(require_admin),
+    limit: int = Query(50, ge=1, le=200),
+    status: str = Query("", description="proposed | promoted | rejected"),
+) -> dict:
+    """Per-call improvement proposals (failing calls). Each carries a candidate reply
+    + a deterministic promotion-gate verdict. NEVER auto-applied — admin reviews."""
+    try:
+        from app.voice_agent.voice_self_improve import list_proposals
+
+        rows = list_proposals(limit=limit, status=(status or None))
+        return {"ok": True, "total": len(rows), "proposals": rows}
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug(f"voice proposals list failed ({e})")
+        return {"ok": False, "total": 0, "proposals": []}
+
+
+@router.post("/proposals/{proposal_id}/promote", summary="Promote a proposal (GATED)")
+async def promote_voice_proposal(proposal_id: str, _user=Depends(require_admin)) -> dict:
+    """Promote ONLY if the promotion-gate passes (candidate out-scores the bad reply +
+    obeys telecaller rules). Flips status to 'promoted'; never blind-writes prod prompts."""
+    try:
+        from app.voice_agent.voice_self_improve import (
+            list_proposals,
+            promotion_gate,
+            set_proposal_status,
+        )
+
+        match = next((p for p in list_proposals(limit=200) if p.get("id") == proposal_id), None)
+        if not match:
+            return {"ok": False, "error": "not_found"}
+        gate = promotion_gate(match)
+        if not gate.get("pass"):
+            return {"ok": False, "error": "gate_failed", "gate": gate}
+        ok = set_proposal_status(proposal_id, "promoted")
+        return {"ok": ok, "gate": gate, "status": "promoted" if ok else "unchanged"}
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug(f"voice proposal promote failed ({e})")
+        return {"ok": False, "error": "internal"}
+
+
+@router.post("/proposals/{proposal_id}/reject", summary="Reject a proposal")
+async def reject_voice_proposal(proposal_id: str, _user=Depends(require_admin)) -> dict:
+    try:
+        from app.voice_agent.voice_self_improve import set_proposal_status
+
+        return {"ok": set_proposal_status(proposal_id, "rejected")}
+    except Exception:
+        return {"ok": False}
+
+
 @router.get("/{session_id}", summary="One web test-call + full transcript")
 async def web_call_detail(session_id: str, _user=Depends(require_admin)) -> dict:
     """Full transcript for one saved session (no lead_key required — admin view)."""
