@@ -389,6 +389,7 @@ async def generate_post(
     occasion: str = "",
     offer: str = "",
     language: str = "hinglish",
+    context: str = "",
 ) -> dict[str, Any]:
     """Ready-to-copy social post banao. KABHI empty return nahi karta.
 
@@ -425,7 +426,8 @@ async def generate_post(
                 f"Business: {business_name}\nCategory: {_niche_name(niche)}\n"
                 f"USP/angle: {_niche_pitch(niche)}\nOccasion: {occasion or 'koi nahi'}\n"
                 f"Offer: {offer or 'koi nahi'}\n"
-                "Fields: caption (2-3 chhoti lines + emojis), hashtags (8-12, har ek '#' ke saath), "
+                + (f"{context}\n" if context else "")
+                + "Fields: caption (2-3 chhoti lines + emojis), hashtags (8-12, har ek '#' ke saath), "
                 "image_idea (1-line creative)."
             )
             _obj = await aextract(_Post, _sys, _usr, max_tokens=400)
@@ -469,7 +471,8 @@ async def generate_post(
                 f"USP/angle: {_niche_pitch(niche)}\n"
                 f"Occasion: {occasion or 'koi nahi'}\n"
                 f"Offer: {offer or 'koi nahi'}\n"
-                "Ek Instagram/WhatsApp-ready promotional post banao."
+                + (f"{context}\n" if context else "")
+                + "Ek Instagram/WhatsApp-ready promotional post banao."
             )
             text, provider = await free_ai.chat(
                 system,

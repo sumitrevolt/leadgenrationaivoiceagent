@@ -825,6 +825,12 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Admin ops router not mounted: {_e}")
 try:
+    from app.api.brain import router as brain_router
+
+    app.include_router(brain_router)  # /api/admin/brain/* — operator second-brain search/browse
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Brain router not mounted: {_e}")
+try:
     from app.api.admin_db_explorer import router as admin_db_router
 
     app.include_router(admin_db_router)  # /api/admin/db/* (read-only DB explorer, ADMIN_DB_EXPLORER gated)
@@ -975,6 +981,12 @@ async def ops_page():
 async def team_access_page():
     """Team access management — sub-admins + module grants (super admin UI)."""
     return FileResponse(str(FRONTEND_DIR / "team_access.html"))
+
+
+@app.get("/app/brain", tags=["Frontend"])
+async def brain_page():
+    """Second Brain — operator search/browse over the Obsidian vault (agents' notes)."""
+    return FileResponse(str(FRONTEND_DIR / "brain.html"))
 
 
 @app.get("/app/admin-login", tags=["Frontend"])

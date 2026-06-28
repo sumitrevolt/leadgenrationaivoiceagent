@@ -30,6 +30,7 @@ empty (har piece ka fallback hai). Test-monkeypatch: `_QUEUE_DIR`.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import uuid
@@ -115,6 +116,20 @@ async def _make_post_item(
     name = str(client.get("business_name") or "Aapka Business")
     niche = str(client.get("niche") or "general")
     offer = _TYPE_OFFER_HINT.get(theme, "")
+    # Daily read-back: second-brain se is niche/theme ke past decisions/winning-angles
+    # le aao (Isha roz brain consult kare, sirf coordinator/council nahi). to_thread
+    # (sync vault scan) + 3s deadline + fail-open; "" jab OBSIDIAN_SYNC off.
+    brain = ""
+    try:
+        from app.platform import obsidian_sync as _obs
+
+        brain = await asyncio.wait_for(
+            asyncio.to_thread(_obs.brain_context, f"{niche} {theme} {occasion}".strip()),
+            timeout=3.0,
+        )
+    except Exception as e:
+        logger.debug(f"[auto_content] brain_context skip: {e}")
+        brain = ""
     caption, hashtags = "", []
     try:
         if post_generator is not None:
@@ -123,6 +138,7 @@ async def _make_post_item(
                 niche=niche,
                 occasion=occasion,
                 offer=offer,
+                context=brain,
             )
             caption = str((res or {}).get("caption") or "").strip()
             hashtags = list((res or {}).get("hashtags") or [])
