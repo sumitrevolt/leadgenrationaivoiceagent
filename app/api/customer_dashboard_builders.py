@@ -614,3 +614,273 @@ def _build_from_db(client_id: str, campaign: str | None) -> DashboardResponse | 
     except Exception as e:
         logger.warning("customer_dashboard: DB query failed, using sample (%s)", e)
         return None
+
+
+# --------------------------------------------------------------------------- #
+# Aapka Office — virtual-office aggregator (2026-06-28)                        #
+# Plain-Hinglish "kya ho raha · AI team ne kya kiya · customer ko khud kya     #
+# karna hai (+ automation-impact)" for the 3 customer dashboards. Reuses the   #
+# onboarding / approvals / trial / inquiry builders above — NO new store, no   #
+# LLM, never raises. Product-aware (marketing | voice | combo) so each         #
+# dashboard shows the RIGHT tasks. Drives frontend "🏢 Aapka Office" block.    #
+# --------------------------------------------------------------------------- #
+def _rel_time(dt: "datetime | None") -> str:
+    """datetime -> chhota Hinglish relative time ('abhi' / 'N min pehle' / 'kal')."""
+    if not dt:
+        return ""
+    try:
+        secs = (datetime.utcnow() - dt).total_seconds()
+    except Exception:
+        return ""
+    secs = max(secs, 0)
+    if secs < 90:
+        return "abhi"
+    mins = secs / 60
+    if mins < 60:
+        return f"{int(mins)} min pehle"
+    hrs = mins / 60
+    if hrs < 24:
+        return f"{int(hrs)} ghante pehle"
+    days = hrs / 24
+    if days < 2:
+        return "kal"
+    if days < 30:
+        return f"{int(days)} din pehle"
+    try:
+        return dt.strftime("%d %b")
+    except Exception:
+        return ""
+
+
+def _office_tasks(rec, product, onboarding, approvals_pending, trial, routing_set, hot_leads):
+    """Manual-action list with automation-impact, product-tailored + prioritized.
+
+    Har task: {id, icon, severity(high|medium|low), priority, title, why, impact,
+    cta_label, cta_target(existing card id) }. Lower priority = top."""
+    is_mkt = product in ("marketing", "combo")
+    is_voice = product in ("voice", "combo")
+    steps = {s.id: bool(s.done) for s in (onboarding.steps if onboarding else [])}
+
+    def _done(sid: str) -> bool:
+        return steps.get(sid, True)
+
+    tasks: list[dict] = []
+
+    # 0) Payment / trial — blocks ALL automation
+    if trial and getattr(trial, "show_pay_cta", False):
+        expired = bool(getattr(trial, "expired", False))
+        tasks.append({
+            "id": "pay", "icon": "💳", "severity": "high", "priority": 0,
+            "title": "Plan activate karo (UPI)" if expired else "Trial chal raha — abhi pay karke pakka karo",
+            "why": (
+                "Trial khatam — roz ka automation ruk jayega"
+                if expired
+                else f"Trial me {int(getattr(trial, 'days_left', 0))} din bache"
+            ),
+            "impact": "content + calls + leads — sab chalu rahega",
+            "cta_label": "Pay karo", "cta_target": "billingCard",
+        })
+
+    # 1) Business profile (naam + phone) — sab products
+    if not _done("profile"):
+        tasks.append({
+            "id": "profile", "icon": "🏢", "severity": "high", "priority": 1,
+            "title": "Business profile pura karo",
+            "why": "AI ke paas aapka naam/phone/detail nahi",
+            "impact": "sahi branding + lead pe turant contact",
+            "cta_label": "Profile bharo", "cta_target": "onboardWrap",
+        })
+
+    # 2) Website -> Knowledge Base (helps BOTH content + voice grounding)
+    if not _done("setup"):
+        tasks.append({
+            "id": "website", "icon": "🌐", "severity": "high", "priority": 2,
+            "title": "Website / business detail do",
+            "why": "AI ko aapka kaam abhi theek se samajh nahi",
+            "impact": "behtar content + accurate jawab (calls + chat)",
+            "cta_label": "Website do", "cta_target": "onboardWrap",
+        })
+
+    # 3) Mini-site live — lead capture (marketing/combo)
+    if is_mkt and not _done("minisite"):
+        tasks.append({
+            "id": "minisite", "icon": "🔗", "severity": "medium", "priority": 3,
+            "title": "Mini-site live karo",
+            "why": "Aapka lead-capture page abhi band hai",
+            "impact": "website visitors se direct enquiries",
+            "cta_label": "Live karo", "cta_target": "webToolsCard",
+        })
+
+    # 4) Pending content approvals (marketing/combo)
+    if is_mkt and approvals_pending > 0:
+        tasks.append({
+            "id": "approvals", "icon": "✅", "severity": "high", "priority": 1,
+            "title": f"{approvals_pending} post approve karo",
+            "why": "Posts taiyaar hain par approval ke bina ruke hain",
+            "impact": "approve karte hi auto-publish ho jayenge",
+            "cta_label": "Dekho + approve", "cta_target": "approvalCard",
+        })
+
+    # 5) Call routing (voice/combo) — kis team-member ko lead jaaye
+    if is_voice and not routing_set:
+        tasks.append({
+            "id": "routing", "icon": "👥", "severity": "medium", "priority": 3,
+            "title": "Call routing set karo (team numbers)",
+            "why": "Lead aane pe kise bheje — abhi set nahi",
+            "impact": "koi lead miss nahi hoga (round-robin)",
+            "cta_label": "Set karo", "cta_target": "routingCard",
+        })
+
+    # 6) Hot leads waiting (voice/combo) — abhi contact karo
+    if is_voice and hot_leads > 0:
+        tasks.append({
+            "id": "hotleads", "icon": "🔥", "severity": "high", "priority": 2,
+            "title": f"{hot_leads} hot lead{'s' if hot_leads > 1 else ''} — jaldi call/WhatsApp karo",
+            "why": "Inka intent high hai, der = customer chala jayega",
+            "impact": "fast contact = zyada deals close",
+            "cta_label": "Leads dekho", "cta_target": "leadsCard",
+        })
+
+    # 7) First test enquiry (brand-new, low priority nudge)
+    if not _done("leads"):
+        tasks.append({
+            "id": "testlead", "icon": "🧪", "severity": "low", "priority": 5,
+            "title": "Ek test enquiry bhej kar dekho",
+            "why": "Abhi tak koi lead/enquiry nahi aayi",
+            "impact": "poora flow (lead -> alert -> follow-up) confirm",
+            "cta_label": "Kaise?", "cta_target": "webToolsCard",
+        })
+
+    _sev = {"high": 0, "medium": 1, "low": 2}
+    tasks.sort(key=lambda t: (t.get("priority", 9), _sev.get(t.get("severity"), 9)))
+    return tasks
+
+
+def _office_activity(client_id: str, rec: dict | None, limit: int = 12) -> list[dict]:
+    """Derived "AI team ne aapke liye kya kiya" feed — inquiries + content posts,
+    real per-client data, chronological. No agent_events client-scoping needed."""
+    items: list[dict] = []
+    try:
+        for r in _inquiries_for_client(client_id, rec)[:40]:
+            dt = _parse_dt(r)
+            nm = str(r.get("name") or "Koi").strip()[:40] or "Koi"
+            city = str(r.get("city") or "").strip()
+            loc = f" ({city})" if city else ""
+            tier = _lead_score_from_inquiry(r)
+            items.append({
+                "_dt": dt, "when": _rel_time(dt), "who": "📥 Mini-site",
+                "did": f"Nayi enquiry: {nm}{loc}" + (" — 🔥 hot" if tier == "Hot" else ""),
+                "status": "ok",
+            })
+    except Exception:
+        pass
+    try:
+        from app.marketing.auto_content import list_queue
+
+        rid = str((rec or {}).get("id") or client_id or "").strip()
+        if rid:
+            for q in (list_queue(rid, limit=40) or []):
+                if not isinstance(q, dict):
+                    continue
+                dt = _parse_dt(q)
+                st = str(q.get("status") or "").lower()
+                if st in ("posted", "published"):
+                    verb = "publish hua"
+                elif st in ("approved",):
+                    verb = "approve hua"
+                elif st in ("pending", "draft", "awaiting"):
+                    verb = "approval ka wait"
+                else:
+                    verb = "taiyaar"
+                ch = str(q.get("channel") or q.get("platform") or "social").strip() or "social"
+                items.append({
+                    "_dt": dt, "when": _rel_time(dt), "who": "✍️ Isha",
+                    "did": f"{ch.title()} post {verb}", "status": "ok",
+                })
+    except Exception:
+        pass
+    items.sort(key=lambda x: x.get("_dt") or datetime.min, reverse=True)
+    for it in items:
+        it.pop("_dt", None)
+    return items[:limit]
+
+
+def _build_office(client_id: str) -> dict:
+    """Assemble the full "Aapka Office" payload (never raises). Product-aware."""
+    try:
+        rec = _client_record(client_id)
+        try:
+            from app.marketing.clients_store import resolve_product
+
+            product = resolve_product(rec or {})
+        except Exception:
+            product = "marketing"
+
+        inquiries = _inquiries_for_client(client_id, rec)
+        leads_count = len(inquiries)
+        content_count = _content_posts_count(client_id, rec)
+        onboarding = _build_onboarding_checklist(client_id, rec, leads_count, content_count)
+
+        approvals_pending = 0
+        try:
+            from app.marketing import content_approval
+
+            approvals_pending = len(content_approval.pending(client_id) or [])
+        except Exception:
+            approvals_pending = 0
+
+        plan = str((rec or {}).get("plan") or "").lower()
+        has_paid = plan not in ("", "trial", "free")
+        trial = _trial_banner(rec, has_paid_plan=has_paid)
+
+        routing_set = False
+        try:
+            from app.platform import lead_distribution as ld
+
+            cfg = ld.get_config(client_id) or {}
+            routing_set = bool(cfg.get("members"))
+        except Exception:
+            routing_set = False
+
+        hot_leads = sum(1 for r in inquiries if _lead_score_from_inquiry(r) == "Hot")
+
+        tasks = _office_tasks(
+            rec, product, onboarding, approvals_pending, trial, routing_set, hot_leads
+        )
+        activity = _office_activity(client_id, rec)
+        high = [t for t in tasks if t.get("severity") == "high"]
+
+        if not tasks:
+            headline = "✅ Sab set hai — aapki AI team kaam pe lagi hai"
+        elif high:
+            headline = f"⚠️ {len(high)} zaroori kaam aapke taraf — neeche dekho"
+        else:
+            headline = f"📋 {len(tasks)} chhota kaam baaki — baaki AI team sambhaal rahi"
+
+        return {
+            "ok": True,
+            "enabled": True,
+            "product": product,
+            "headline": headline,
+            "your_tasks": tasks,
+            "activity": activity,
+            "summary": {
+                "posts_ready": content_count,
+                "approvals_pending": approvals_pending,
+                "new_leads": leads_count,
+                "hot_leads": hot_leads,
+                "onboarding_pct": float(getattr(onboarding, "pct", 0) or 0),
+            },
+            "generated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        }
+    except Exception as e:
+        logger.debug("customer office build failed: %s", e)
+        return {
+            "ok": False,
+            "enabled": True,
+            "product": "marketing",
+            "headline": "",
+            "your_tasks": [],
+            "activity": [],
+            "summary": {},
+        }
