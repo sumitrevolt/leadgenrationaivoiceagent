@@ -295,6 +295,15 @@ async def harvest_enrich(limit: int = 10, _user=Depends(require_admin)):
     return await lead_harvester.enrich_missing_emails(limit)
 
 
+@router.get("/harvest/gtm-coverage")
+async def harvest_gtm_coverage(_user=Depends(require_admin)):
+    """GTM City x Niche coverage matrix status — total/covered pairs, %, leads harvested,
+    top uncovered (next up). Gated GTM_TARGETING (else enabled:false)."""
+    from app.platform import gtm_targeting
+
+    return gtm_targeting.coverage_summary()
+
+
 # Process-engine endpoints extracted to app/api/growth_process.py (2026-06-20);
 # included below so /api/growth/process/* paths stay unchanged.
 from app.api.growth_process import router as _process_router  # noqa: E402
