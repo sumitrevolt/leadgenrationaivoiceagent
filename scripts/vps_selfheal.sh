@@ -82,6 +82,9 @@ if [ "$code" != "200" ]; then
 fi
 
 # --- 3) disk space check (alert at 80%, emergency docker prune at 90%) ---
+# Build-cache note: Dockerfile.lock builds can transiently need tens of GB.
+# Keep .dockerignore excluding runtime data dirs (data/ollama, data/u2net, backups,
+# recordings) so image export does not bake bind-mounted state into /app/data.
 DISK_USED=$(df / --output=pcent 2>/dev/null | tail -1 | tr -d '% ')
 DISK_USED=${DISK_USED:-0}
 if [ "$DISK_USED" -ge 90 ]; then
@@ -92,7 +95,7 @@ elif [ "$DISK_USED" -ge 80 ]; then
   af="$STATE/last_disk_alert"; last=$(cat "$af" 2>/dev/null || echo 0)
   if [ $((now-last)) -ge 3600 ]; then
     echo "$(ts) DISK_HIGH=${DISK_USED}% -> alert sent" >> "$LOG"
-    curl -s -m 5 -H "Title: LeadsGenAI Disk High" -d "Disk ${DISK_USED}% used — manual cleanup needed (/opt/leadgen/logs, docker prune, old backups)." "$NTFY" >/dev/null 2>&1
+    curl -s -m 5 -H "Title: LeadsGenAI Disk High" -d "Disk ${DISK_USED}% used — manual cleanup needed (/opt/leadgen/logs, docker build cache, old backups). Before rebuild, verify .dockerignore excludes data/ollama + runtime media." "$NTFY" >/dev/null 2>&1
     echo "$now" > "$af"
   fi
 fi

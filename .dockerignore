@@ -64,9 +64,22 @@ docs
 # Include data directory but exclude large files
 !data
 !data/**
+# Runtime/generated data must never be baked into the app image. These are
+# bind-mounted or build-baked elsewhere, and can make Docker export fail.
+data/ai_images/
+data/backups/
+data/call_recordings/
+data/conversations/
+data/obsidian_staging/
+data/ollama/
+data/qdrant/
+data/u2net/
+data/vectorstore/
 data/leadgen_dev.db
 data/*.db
 data/*.sqlite
+data/**/*.db
+data/**/*.sqlite
 *.gguf
 *.bin
 *.pkl

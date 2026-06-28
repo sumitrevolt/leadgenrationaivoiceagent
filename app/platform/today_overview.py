@@ -188,6 +188,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Aryan dependency audit (Sun 04:30)",
         "kya": "Dependency/CVE hygiene report",
     },
+    "mcp_engineer": {
+        "label": "Arya — MCP engineer (hourly :40)",
+        "kya": "MCP health score + quota pressure + 90-din key rotation check",
+    },
     "readiness_digest": {
         "label": "Activation digest (08:30)",
         "kya": "First-paid-customer readiness ntfy",
