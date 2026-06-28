@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (993 operations)
+## Endpoint Index — auto-generated from OpenAPI (997 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -516,6 +516,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/booking/book` — Book Slot
 - `POST  ` `/api/booking/cancel` — Cancel Booking
 - `GET   ` `/api/booking/slots` — Get Slots
+
+### Brain  (3)
+
+- `GET   ` `/api/admin/brain/recent` — Recently-written brain notes (optional folder filter)
+- `GET   ` `/api/admin/brain/search` — Search the second brain (word-overlap over vault notes)
+- `GET   ` `/api/admin/brain/stats` — Brain health: note counts per folder + freshness
 
 ### Brand Assets  (9)
 
@@ -872,7 +878,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (54)
+### Frontend  (55)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
@@ -883,6 +889,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/assistant` — Assistant Page
 - `GET   ` `/app/automation` — Automation Page
 - `GET   ` `/app/battlecard` — Battlecard Page
+- `GET   ` `/app/brain` — Brain Page
 - `GET   ` `/app/calendar` — Calendar Page
 - `GET   ` `/app/clients` — Clients Page
 - `GET   ` `/app/command-center` — Command Center Page
