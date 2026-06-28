@@ -243,6 +243,41 @@ async def _src_websearch(niche: str, city: str, limit: int) -> dict[str, Any]:
     return {"source": "websearch", "provider": provider, "leads": leads}
 
 
+def _rec_ci(rec: dict[str, Any], *keys: str) -> str:
+    """Case-insensitive multi-key get (data.gov.in uses CamelCase EnterpriseName/District,
+    other datasets use snake_case enterprise_name — be agnostic to both)."""
+    low = {str(k).lower(): v for k, v in (rec or {}).items()}
+    for k in keys:
+        v = low.get(k.lower())
+        if v and str(v).strip():
+            return str(v).strip()
+    return ""
+
+
+def _ogd_name(rec: dict[str, Any]) -> str:
+    """Extract a business/unit name from a data.gov.in record — FIELD-NAME-AGNOSTIC.
+    (Udyam = `EnterpriseName`; other MSME datasets = name_of_unit/firm_name/... .)"""
+    n = _rec_ci(
+        rec, "enterprisename", "enterprise_name", "name_of_enterprise", "name_of_unit",
+        "unit_name", "firm_name", "company_name", "msme_name", "name",
+    )
+    if n:
+        return n
+    for k, v in (rec or {}).items():  # fuzzy fallback: any name/unit/enterprise/firm field
+        if (
+            any(t in str(k).lower() for t in ("name", "unit", "enterprise", "firm"))
+            and isinstance(v, str)
+            and v.strip()
+        ):
+            return v.strip()
+    return ""
+
+
+def _ogd_city(rec: dict[str, Any], default: str) -> str:
+    """Prefer the record's own district/city over the rotation default (Udyam = `District`)."""
+    return _rec_ci(rec, "city", "district", "district_name", "location", "place", "town") or default
+
+
 async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
     """data.gov.in OGD (gated DATA_GOV_IN_API_KEY + DATA_GOV_RESOURCE_ID) —
     Udyam/MSME unit names = seed leads (no phone; enrich baad me). Open license."""
@@ -255,19 +290,16 @@ async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
         import httpx
 
         async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
-            r = await client.get(
-                f"https://api.data.gov.in/resource/{rid}",
-                params={"api-key": key, "format": "json", "limit": min(limit, 20)},
-            )
+            # filters[District] targets the rotation city directly (Udyam District is
+            # UPPERCASE) — pulls THAT city's units out of ~30 lakh records, not random.
+            _params: dict[str, Any] = {"api-key": key, "format": "json", "limit": min(limit, 20)}
+            if city.strip():
+                _params["filters[District]"] = city.strip().upper()
+            r = await client.get(f"https://api.data.gov.in/resource/{rid}", params=_params)
             if r.status_code != 200:
                 return {"source": "opendata", "error": f"ogd {r.status_code}", "leads": []}
             for rec in (r.json().get("records") or [])[:limit]:
-                name = str(
-                    rec.get("enterprise_name")
-                    or rec.get("name_of_enterprise")
-                    or rec.get("name")
-                    or ""
-                ).strip()
+                name = _ogd_name(rec)
                 if name:
                     leads.append(
                         {
@@ -275,7 +307,7 @@ async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
                             "phone": "",
                             "email": "",
                             "website": "",
-                            "city": city,
+                            "city": _ogd_city(rec, city),
                             "niche": niche,
                             "source": "opendata",
                         }
