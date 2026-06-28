@@ -388,9 +388,14 @@ def is_suppressed(phone: str) -> bool:
         k = _key(phone)
         if not k:
             return False
+        # Read must honor the SAME or-contract as the write (record_opt_out persists if
+        # db_ok OR jsonl_ok). So: DB says suppressed -> True; DB says NOT suppressed (or
+        # DB unavailable) -> still consult JSONL, else a JSONL-only suppression (DB write
+        # failed, or rows written before CONSENT_DB was enabled) reads as callable =
+        # TCCCPR fail-OPEN. Fail-CLOSED: suppressed if EITHER store says so.
         db_result = _db_is_suppressed(k)
-        if db_result is not None:
-            return db_result
+        if db_result:
+            return True
         return any(it.get("phone") == k for it in _read(SUPPRESSION_FILE))
     except Exception:
         return False
