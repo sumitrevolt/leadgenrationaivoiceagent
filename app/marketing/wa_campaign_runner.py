@@ -398,6 +398,7 @@ async def _send_campaign_item(item: dict) -> dict[str, Any]:
         if res.get("sent"):
             summary["sent"] += 1
             sent_today += 1
+            wac._bump_sent_today()  # persist GLOBAL daily counter — else template sends bypass the ban-safety cap across campaigns/runs
         elif res.get("mode") == "suppressed":
             summary["skipped"] += 1
         else:
