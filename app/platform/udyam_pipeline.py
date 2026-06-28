@@ -136,6 +136,12 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
         from app.platform import lead_harvester, prospector
 
         known_phones, known_emails = lead_harvester._existing_keys()
+        try:
+            from app.integrations import opencorporates
+
+            _oc_on = opencorporates.enabled()
+        except Exception:
+            _oc_on = False
         for s in seeds:
             name = str(s.get("business_name") or "").strip()
             c = str(s.get("city") or city or "").strip()
@@ -183,6 +189,14 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
                 "status": "new",
                 "lead_score": 0,
             }
+            if _oc_on:  # OpenCorporates registry enrich (CIN/status) — adds B2B signal
+                try:
+                    from app.integrations import opencorporates
+
+                    co = await opencorporates.enrich(name)
+                    rec.update({k: v for k, v in co.items() if v})
+                except Exception:
+                    pass
             if prospector._append(rec):
                 out["new"] += 1
                 if p10:

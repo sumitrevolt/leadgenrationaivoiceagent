@@ -315,6 +315,24 @@ async def harvest_udyam_run(
     return await udyam_pipeline.run(limit=max(1, min(int(limit or 20), 50)), city=city, niche=niche)
 
 
+@router.post("/harvest/indiamart-run")
+async def harvest_indiamart_run(days: int = 1, niche: str = "general", _user=Depends(require_admin)):
+    """Pull the seller's own IndiaMART buyer-leads (official Lead Manager API) + persist.
+    Gated INDIAMART_CRM_KEY (seller account). Legal — NOT directory scraping."""
+    from app.integrations import indiamart_leads
+
+    return await indiamart_leads.fetch_and_persist(days=max(1, min(int(days or 1), 7)), niche=niche)
+
+
+@router.get("/enrich/opencorporates")
+async def enrich_opencorporates(name: str, _user=Depends(require_admin)):
+    """Company-registry lookup (CIN/status/incorporation) for a business name.
+    Gated OPENCORPORATES_API_TOKEN (else empty)."""
+    from app.integrations import opencorporates
+
+    return await opencorporates.enrich(name)
+
+
 # Process-engine endpoints extracted to app/api/growth_process.py (2026-06-20);
 # included below so /api/growth/process/* paths stay unchanged.
 from app.api.growth_process import router as _process_router  # noqa: E402
