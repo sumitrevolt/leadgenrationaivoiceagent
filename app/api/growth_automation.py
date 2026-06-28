@@ -304,6 +304,17 @@ async def harvest_gtm_coverage(_user=Depends(require_admin)):
     return gtm_targeting.coverage_summary()
 
 
+@router.post("/harvest/udyam-run")
+async def harvest_udyam_run(
+    city: str = "", niche: str = "general", limit: int = 20, _user=Depends(require_admin)
+):
+    """Run the Udyam-PRIMARY pipeline now: data.gov.in Udyam seeds -> Google-Maps +
+    website enrich -> dedup -> persist. Gated UDYAM_PIPELINE (+ DATA_GOV_IN_API_KEY)."""
+    from app.platform import udyam_pipeline
+
+    return await udyam_pipeline.run(limit=max(1, min(int(limit or 20), 50)), city=city, niche=niche)
+
+
 # Process-engine endpoints extracted to app/api/growth_process.py (2026-06-20);
 # included below so /api/growth/process/* paths stay unchanged.
 from app.api.growth_process import router as _process_router  # noqa: E402

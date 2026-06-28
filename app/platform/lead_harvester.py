@@ -508,6 +508,24 @@ async def run_loop_sweep() -> dict[str, Any]:
     every city x niche gets covered "one by one". Else: single rotation pick (legacy)."""
     if not enabled():
         return {"enabled": False}
+    # Udyam-PRIMARY pipeline (gated UDYAM_PIPELINE) — runs alongside the harvest in the
+    # daily sweep: data.gov.in Udyam seeds -> Maps + website enrich. Result merged in.
+    _udyam: dict[str, Any] | None = None
+    try:
+        from app.platform import udyam_pipeline
+
+        if udyam_pipeline.enabled():
+            from app.platform.niche_prospector import city_rotation
+
+            _udyam = {"new": 0, "cities": []}
+            for _c in (city_rotation() or [])[:2]:
+                _ur = await udyam_pipeline.run(limit=15, city=_c)
+                _udyam["new"] += int((_ur or {}).get("new") or 0)
+                _udyam["cities"].append(
+                    {"city": _c, "new": _ur.get("new"), "seeds": _ur.get("seeds")}
+                )
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("[harvester] udyam sweep skipped: %s", e)
     try:
         from app.platform import gtm_targeting
 
@@ -527,10 +545,15 @@ async def run_loop_sweep() -> dict[str, Any]:
                     out["new"] += _new
                     out["pairs"].append({"niche": p["niche"], "city": p["city"], "new": _new})
                     gtm_targeting.mark_covered(p, yield_count=_new, ts=time.time())
+                if _udyam is not None:
+                    out["udyam"] = _udyam
                 return out
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("[harvester] gtm matrix sweep skipped: %s", e)
-    return await run_harvest()
+    _h = await run_harvest()
+    if _udyam is not None and isinstance(_h, dict):
+        _h["udyam"] = _udyam
+    return _h
 
 
 def recent_runs(limit: int = 15) -> list[dict[str, Any]]:
