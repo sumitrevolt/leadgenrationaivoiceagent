@@ -139,6 +139,67 @@ def line_clarify() -> str:
     return "Ji sir — interested ho to haan, warna seedha nahi bata dijiye?"
 
 
+# Direct product questions ("kya kya features", "kitne ka", "price", "kaise kaam")
+# interest-gate ke yes/no me fit NAHI hote — inhe TelecallerBrain answer kare (uska
+# _customer_qa_reply seedha jawab deta). Warna "features BATAO" galti se YES-pattern
+# (batao/bolo/sunao) match kar ke discovery-sawaal de deta tha ("marketing khud karte
+# ho?") = dodge/noob (real-call 2026-06-28: user "ulta aap mere se puchh rahe ho").
+_PRODUCT_Q_WORDS: tuple[str, ...] = (
+    "feature",
+    "service",
+    "kitne",
+    "kitna",
+    "price",
+    "pricing",
+    "plan",
+    "package",
+    "cost",
+    "charge",
+    "paisa",
+    "paise",
+    "rupay",
+    "rupee",
+    "kaise kaam",
+    "kya karte",
+    "kya karoge",
+    "kya hota",
+    "kya milta",
+    "kya milega",
+    "kya provide",
+    "kya offer",
+    "kya deti",
+    "kya dete",
+    "matlab kya",
+    "demo",
+    "samjhao",
+    # Devanagari (Whisper hi script)
+    "फीचर",
+    "फ़ीचर",
+    "सर्विस",
+    "कितने",
+    "कितना",
+    "कीमत",
+    "दाम",
+    "प्लान",
+    "पैकेज",
+    "क्या करते",
+    "क्या होता",
+    "कैसे काम",
+    "क्या मिल",
+    "समझा",
+)
+
+
+def is_product_question(text: str) -> bool:
+    """User seedha product-sawaal puchh raha (yes/no nahi) — TelecallerBrain answer kare."""
+    low = re.sub(r"\s+", " ", (text or "").lower()).strip()
+    if not low:
+        return False
+    if "kya kya" in low or "क्या क्या" in low:  # "what all do you do" = feature ask
+        return True
+    return any(w in low for w in _PRODUCT_Q_WORDS)
+
+
 def classify_interest(text: str) -> InterestVerdict:
     """Fast yes/no/unclear for the platform interest gate."""
     t = (text or "").strip()
@@ -191,6 +252,13 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
     if state.phase == "await_interest_2" and any(
         w in low for w in ("agency", "mehenga", "mahnga", "soch ke", "pehle se", "trial")
     ):
+        state.phase = "discovery"
+        return None, state
+
+    # DIRECT PRODUCT QUESTION → TelecallerBrain ko do (answer-first). Interest gate ke
+    # yes/no classification SE PEHLE — warna "features batao"/"kitne features" galti se
+    # YES match kar ke discovery-sawaal de deta tha (dodge). Brain ab seedha jawab dega.
+    if is_product_question(user_text):
         state.phase = "discovery"
         return None, state
 
