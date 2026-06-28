@@ -35,8 +35,9 @@ from uuid import uuid4
 
 import asyncio
 import os
+import time
 
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, File, Form, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
 
 from app.utils.logger import setup_logger
 
@@ -118,12 +119,50 @@ def _memory_meta(session: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _log_turn(session: dict[str, Any], role: str, text: str) -> None:
+def _log_turn(
+    session: dict[str, Any],
+    role: str,
+    text: str,
+    meta: dict[str, Any] | None = None,
+) -> None:
     t = (text or "").strip()
     if not t:
         return
     turns = session.setdefault("turns", [])
-    turns.append({"ts": _now_iso(), "role": role, "text": t[:2000]})
+    turn: dict[str, Any] = {"ts": _now_iso(), "role": role, "text": t[:2000]}
+    if meta:
+        # Per-turn diagnostics (assistant turns): heard=STT text the bot replied
+        # to, + stage latencies (stt_ms/llm_ms/tts_ms) and perceived total
+        # latency_ms (user-msg-arrival -> bot-starts-speaking). Lets the admin
+        # viewer show "kitni der me reply diya" + STT-fault vs brain-fault.
+        for k in ("heard", "stt_ms", "llm_ms", "tts_ms", "latency_ms"):
+            v = meta.get(k)
+            if v is not None:
+                turn[k] = v
+    turns.append(turn)
+
+
+def _turn_meta(
+    timing: dict[str, Any], t_recv: float, heard: str
+) -> dict[str, Any]:
+    """Assemble assistant-turn diagnostics from the stage clocks.
+
+    latency_ms = PERCEIVED gap = user-message-arrival -> bot-starts-speaking
+    (first audio chunk send). first_chunk_at missing (no audio sent) => fall back
+    to elapsed-now. Pure arithmetic, never raises.
+    """
+    first = timing.get("first_chunk_at")
+    try:
+        total_ms = int(((first if first is not None else time.monotonic()) - t_recv) * 1000)
+    except Exception:
+        total_ms = None
+    return {
+        "heard": (heard or "").strip()[:300] or None,
+        "stt_ms": timing.get("stt_ms"),
+        "llm_ms": timing.get("llm_ms"),
+        "tts_ms": timing.get("tts_ms"),
+        "latency_ms": total_ms,
+    }
 
 
 def _history_from_session(session: dict[str, Any], *, exclude_last_user: str | None = None) -> list[dict[str, str]]:
@@ -356,36 +395,62 @@ async def _send_tcbrain_sentence_chunks(
     user_text: str,
     full_reply: str,
     llm_stream: bool = False,
+    timing: dict[str, Any] | None = None,
 ) -> None:
-    """EdgeTTS Swara + WS JSON — mp3 attached when synth succeeds (default ON)."""
-    import asyncio
+    """EdgeTTS Swara + WS JSON — mp3 attached when synth succeeds (default ON).
 
+    LATENCY FIX (2026-06-28): har sentence ka synth PARALLEL me chalta hai par
+    chunk 0 uska audio ready hote hi SEEDHA bhej deta — pehle `gather()` SAARE
+    sentences ka wait karta tha to first-word SABSE SLOW sentence ke synth pe atak
+    jaata (5-6s "noob" gap ka ek bada root). Ab chunk 0 = sirf apne synth (~1.5s)
+    ka wait; baaki sentences background me synth hote rehte (client unhe sequence
+    me bajata, koi drop nahi). Per-synth `wait_for` cap intact (bounded await).
+    """
     total = len(sentences)
-    audio_list: list[str | None] = [None] * total
-    if _web_call_edge_enabled():
+    edge_on = _web_call_edge_enabled()
 
-        async def _one(s: str) -> str | None:
-            try:
-                return await asyncio.wait_for(_edge_tts_mp3_b64(s), timeout=5.0)
-            except Exception:
-                return None
+    async def _one(s: str) -> str | None:
+        try:
+            return await asyncio.wait_for(_edge_tts_mp3_b64(s), timeout=5.0)
+        except Exception:
+            return None
 
-        audio_list = list(await asyncio.gather(*[_one(s) for s in sentences]))
-    for i, sentence in enumerate(sentences):
-        payload: dict[str, Any] = {
-            "type": "bot",
-            "text": sentence,
-            "audio_b64": audio_list[i] if _web_call_edge_enabled() else None,
-            "heard": user_text if i == 0 else None,
-            "chunk_index": i,
-            "test_mode": True,
-            "llm_stream": llm_stream,
-        }
-        if i == 0:
-            payload["full_text"] = full_reply
-        if total > 1:
-            payload["chunk_total"] = total
-        await websocket.send_json(payload)
+    # Launch ALL syntheses up-front so they run concurrently; await EACH in order
+    # right before sending its chunk (chunk 0 no longer blocked on the slowest).
+    tasks = [asyncio.create_task(_one(s)) for s in sentences] if edge_on else None
+
+    try:
+        for i, sentence in enumerate(sentences):
+            audio_b64: str | None = None
+            if edge_on and tasks is not None:
+                try:
+                    audio_b64 = await tasks[i]
+                except Exception:
+                    audio_b64 = None
+            # Perceived "bot starts speaking" = first chunk's send (audio ready).
+            if i == 0 and timing is not None and "first_chunk_at" not in timing:
+                timing["first_chunk_at"] = time.monotonic()
+            payload: dict[str, Any] = {
+                "type": "bot",
+                "text": sentence,
+                "audio_b64": audio_b64,
+                "heard": user_text if i == 0 else None,
+                "chunk_index": i,
+                "test_mode": True,
+                "llm_stream": llm_stream,
+            }
+            if i == 0:
+                payload["full_text"] = full_reply
+            if total > 1:
+                payload["chunk_total"] = total
+            await websocket.send_json(payload)
+    finally:
+        # Client disconnect / outer-turn cancel mid-loop => cancel pending synth
+        # tasks so no orphaned EdgeTTS connections leak (bounded already, but tidy).
+        if tasks:
+            for t in tasks:
+                if not t.done():
+                    t.cancel()
 
 
 async def _edge_tts_mp3_b64(text: str) -> str | None:
@@ -646,6 +711,114 @@ async def web_call_session_detail(
     except Exception as e:
         logger.debug(f"web-call: session detail failed ({e})")
         return {"ok": False, "session": None}
+
+
+# Audio-recording upload guard (PUBLIC endpoint — same abuse surface as the WS).
+try:
+    from app.cache import RateLimiter as _RecRateLimiter
+
+    _REC_LIMITER: Any = _RecRateLimiter(prefix="rl:webcallrec", max_requests=20, window_seconds=60)
+except Exception:  # pragma: no cover
+    _REC_LIMITER = None
+
+_REC_MAX_BYTES = 12_000_000  # ~12MB — test calls are short; bigger = reject
+
+
+def _rec_ext(blob: bytes) -> str:
+    """Container ext from magic bytes (MediaRecorder = webm Chrome / mp4 Safari /
+    ogg Firefox). Unknown => webm (Chrome default, our primary)."""
+    if blob[:4] == b"\x1aE\xdf\xa3":
+        return "webm"
+    if len(blob) > 8 and blob[4:8] == b"ftyp":
+        return "mp4"
+    if blob[:4] == b"OggS":
+        return "ogg"
+    return "webm"
+
+
+def _write_recording_sync(rec_dir: str, out_path: str, blob: bytes) -> None:
+    """Blocking mkdir+write — MUST run via asyncio.to_thread (12MB write on the
+    Docker overlay-fs can block a worker; project's #1 prod-down class)."""
+    os.makedirs(rec_dir, exist_ok=True)
+    with open(out_path, "wb") as f:
+        f.write(blob)
+
+
+@router.post("/recording", summary="Upload a web test-call audio recording (mixed mic+bot)")
+async def web_call_recording_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    session_id: str = Form(...),
+    lead_key: str = Form(""),
+) -> dict[str, Any]:
+    """
+    Browser ne poori test-call ka mixed audio (user mic + Swara TTS) record karke
+    yahan upload kiya. data/call_recordings/YYYY-MM-DD/webcall_{sid}.<ext> me save —
+    phone WAVs ki SAME jagah, taaki admin "Call Recordings" + Web Test Calls dono
+    me dikhe. Strict-validated + size-capped + per-IP rate-limited (public surface).
+    Never raises — failure pe {ok:false} (transcript abhi bhi safe hai).
+    """
+    # Per-IP abuse guard (FAIL-OPEN).
+    if _REC_LIMITER is not None:
+        try:
+            ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+                request.client.host if request.client else "unknown"
+            )
+            allowed, _ = await _REC_LIMITER.is_allowed(ip)
+            if not allowed:
+                return {"ok": False, "error": "rate_limited"}
+        except Exception:
+            pass
+
+    sid = _normalize_session_id_safe(session_id)
+    if not sid:
+        return {"ok": False, "error": "bad_session_id"}
+
+    try:
+        blob = await file.read(_REC_MAX_BYTES + 1)
+    except Exception:
+        return {"ok": False, "error": "read_failed"}
+    if not blob:
+        return {"ok": False, "error": "empty"}
+    if len(blob) > _REC_MAX_BYTES:
+        return {"ok": False, "error": "too_large"}
+    if len(blob) < 2000:  # < ~2KB = silence/no real audio
+        return {"ok": False, "error": "too_small"}
+
+    # Date dir = session's started_at (admin viewer isi se URL banata). PUBLIC
+    # surface hardening: recording sirf ek REAL persisted session ke liye save hoti
+    # (WS 'end' pe persist hota, upload uske baad) — random sid = disk-fill abuse block.
+    day = _now_iso()[:10]
+    try:
+        from app.voice_agent.web_call_store import get_session_any
+
+        row = get_session_any(sid)
+    except Exception:
+        row = None
+    if not row:
+        return {"ok": False, "error": "unknown_session"}
+    if str(row.get("started_at") or "")[:10]:
+        day = str(row["started_at"])[:10]
+
+    try:
+        ext = _rec_ext(blob)
+        rec_dir = os.path.join("data", "call_recordings", day)
+        out = os.path.join(rec_dir, f"webcall_{sid}.{ext}")
+        await asyncio.to_thread(_write_recording_sync, rec_dir, out, blob)
+        return {"ok": True, "date": day, "file": f"webcall_{sid}.{ext}", "bytes": len(blob)}
+    except Exception as e:
+        logger.debug(f"web-call: recording save failed ({e}).")
+        return {"ok": False, "error": "save_failed"}
+
+
+def _normalize_session_id_safe(session_id: str | None) -> str | None:
+    try:
+        from app.voice_agent.web_call_store import normalize_session_id
+
+        return normalize_session_id(session_id)
+    except Exception:
+        s = (session_id or "").strip()
+        return s if 8 <= len(s) <= 64 and s.replace("-", "").replace("_", "").isalnum() else None
 
 
 # ---------------------------------------------------------------------------- #
@@ -1005,6 +1178,12 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 )
                 continue
 
+            # Per-turn latency clock — message-arrival se bot-bolna-shuru tak ka
+            # PERCEIVED gap. Stages alag-alag bhi measure hote (stt/llm/tts) taaki
+            # admin viewer me dikhe "kahan time gaya" + loop ko objective target mile.
+            _t_recv = time.monotonic()
+            _turn_timing: dict[str, Any] = {}
+
             # Extract user text. Audio (jab client ne bheja ho) PEHLE server
             # STT se transcribe hota hai — Groq whisper-large-v3 Hinglish me
             # browser Web Speech API se kahin behtar sunta hai (phone-parity).
@@ -1012,9 +1191,11 @@ async def web_call_ws(websocket: WebSocket) -> None:
             browser_text = (data.get("text") or "").strip()
             user_text = ""
             if data.get("audio_b64"):
+                _t_stt = time.monotonic()
                 user_text = await _transcribe_audio(
                     pipeline, brain, data.get("audio_b64"), niche=session.get("niche", "")
                 )
+                _turn_timing["stt_ms"] = int((time.monotonic() - _t_stt) * 1000)
             if not user_text:
                 user_text = browser_text
 
@@ -1122,6 +1303,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     nonlocal tc_reply
                     if use_llm_stream:
                         return await _brain_turn_stream()
+                    _t_llm = time.monotonic()
                     try:
                         tc_reply = await tcbrain.reply(history, user_text)
                     except Exception as e:
@@ -1129,14 +1311,18 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         logger.warning(
                             f"web-call: TelecallerBrain reply failed, using fallback: {e}"
                         )
+                    _turn_timing["llm_ms"] = int((time.monotonic() - _t_llm) * 1000)
                     if tc_reply:
+                        _t_tts = time.monotonic()
                         await _send_tcbrain_sentence_chunks(
                             websocket,
                             sentences=_split_sentences(tc_reply),
                             user_text=user_text,
                             full_reply=tc_reply,
                             llm_stream=False,
+                            timing=_turn_timing,
                         )
+                        _turn_timing["tts_ms"] = int((time.monotonic() - _t_tts) * 1000)
                     return tc_reply
 
                 async def _brain_turn_stream() -> str:
@@ -1151,6 +1337,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                                 user_text=user_text,
                                 full_reply=" ".join(streamed).strip(),
                                 llm_stream=True,
+                                timing=_turn_timing,
                             )
                         tc_reply = " ".join(streamed).strip()
                     except Exception as e:
@@ -1177,15 +1364,20 @@ async def web_call_ws(websocket: WebSocket) -> None:
                             user_text=user_text,
                             full_reply=tc_reply,
                             llm_stream=False,
+                            timing=_turn_timing,
                         )
 
                 if tc_reply:
-                    _log_turn(session, "assistant", tc_reply)
+                    _log_turn(
+                        session, "assistant", tc_reply, meta=_turn_meta(_turn_timing, _t_recv, user_text)
+                    )
                     continue
 
                 # Never hang — customer ko hamesha kuch sunai de.
                 tc_reply = "Ji sir, sun rahi hoon — thoda detail me bataye?"
-                _log_turn(session, "assistant", tc_reply)
+                _log_turn(
+                    session, "assistant", tc_reply, meta=_turn_meta(_turn_timing, _t_recv, user_text)
+                )
                 await _send_bot_message(websocket, tc_reply, heard=user_text)
                 continue
 

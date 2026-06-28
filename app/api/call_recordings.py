@@ -50,7 +50,18 @@ _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _MERGED_RE = re.compile(r"^call_[A-Za-z0-9_\-]+\.wav$")
 # Legacy split tracks
 _LEGACY_RE = re.compile(r"^call_[A-Za-z0-9_\-]+_(caller|bot)\.wav$")
-_SERVE_RE = re.compile(r"^call_[A-Za-z0-9_\-]+(?:_(?:caller|bot))?\.wav$")
+# Web test-call recordings (mixed mic+bot, browser MediaRecorder) served by the
+# combined _SERVE_RE below — webm/mp4/ogg/wav. (Listed via the Web Test Calls
+# admin view's recording_url, not double-counted in the phone "Call Recordings" tab.)
+_SERVE_RE = re.compile(
+    r"^(?:call_[A-Za-z0-9_\-]+(?:_(?:caller|bot))?\.wav|webcall_[A-Za-z0-9_\-]+\.(?:webm|mp4|ogg|wav))$"
+)
+_MEDIA_BY_EXT = {
+    "wav": "audio/wav",
+    "webm": "audio/webm",
+    "mp4": "audio/mp4",
+    "ogg": "audio/ogg",
+}
 
 
 def _get_size_kb(path: str) -> int:
@@ -201,9 +212,10 @@ async def serve_recording(date: str, filename: str, _user=Depends(require_admin)
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="Recording not found")
 
+    ext = filename.rsplit(".", 1)[-1].lower()
     return FileResponse(
         path=path,
-        media_type="audio/wav",
+        media_type=_MEDIA_BY_EXT.get(ext, "audio/wav"),
         filename=filename,
         headers={"Accept-Ranges": "bytes"},
     )

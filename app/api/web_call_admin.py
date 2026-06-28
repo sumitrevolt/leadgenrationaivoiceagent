@@ -14,6 +14,8 @@ Import-safe: never raises at import time.
 
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Depends, Query
 
 from app.api.auth_deps import require_admin
@@ -22,6 +24,22 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/api/admin/web-calls", tags=["Web Test Calls (Admin)"])
+
+_REC_EXTS = ("webm", "mp4", "ogg", "wav")
+
+
+def _recording_url(session_id: str | None, started_at: str | None) -> str | None:
+    """Disk-check for an uploaded web-call recording (webcall_{sid}.<ext>) under the
+    session's date dir → admin /api/admin/call-recordings serve URL, or None."""
+    sid = (session_id or "").strip()
+    day = str(started_at or "")[:10]
+    if not sid or len(day) != 10:
+        return None
+    for ext in _REC_EXTS:
+        fn = f"webcall_{sid}.{ext}"
+        if os.path.isfile(os.path.join("data", "call_recordings", day, fn)):
+            return f"/api/admin/call-recordings/{day}/{fn}"
+    return None
 
 
 @router.get("", summary="List saved web test-call transcripts (all browsers)")
@@ -35,6 +53,8 @@ async def list_web_calls(
         from app.voice_agent.web_call_store import count_sessions, list_all_sessions
 
         sessions = list_all_sessions(limit=limit, include_turns=include_turns)
+        for s in sessions:
+            s["recording_url"] = _recording_url(s.get("session_id"), s.get("started_at"))
         return {"total": count_sessions(), "shown": len(sessions), "sessions": sessions}
     except Exception as e:  # pragma: no cover - defensive
         logger.debug(f"web-calls admin list failed ({e})")
@@ -63,6 +83,7 @@ async def web_call_detail(session_id: str, _user=Depends(require_admin)) -> dict
                 "client_name": row.get("client_name"),
                 "turn_count": row.get("turn_count") or len(row.get("turns") or []),
                 "turns": row.get("turns") or [],
+                "recording_url": _recording_url(row.get("session_id"), row.get("started_at")),
             },
         }
     except Exception as e:  # pragma: no cover - defensive

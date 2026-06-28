@@ -565,6 +565,7 @@
       var mime = (b64.indexOf("UklGR") === 0) ? "audio/wav" : "audio/mp3";
       var audio = new Audio("data:" + mime + ";base64," + b64);
       currentAudio = audio;
+      routeBotAudioToRecorder(audio);   // Swara ki awaaz recording-mix me bhi
       audio.onended = onEnded;
       audio.onerror = onFail;
       var p = audio.play();
@@ -643,9 +644,83 @@
     if(micStream || !navigator.mediaDevices || !window.MediaRecorder) return;
     try{
       navigator.mediaDevices.getUserMedia({audio:true})
-        .then(function(s){ micStream = s; if(callActive && recognizing) startRecorder(); })
+        .then(function(s){
+          micStream = s;
+          startCallRecording();              // poori call ka mixed (mic+Swara) audio
+          if(callActive && recognizing) startRecorder();
+        })
         .catch(function(){ micStream = null; });
     }catch(e){ micStream = null; }
+  }
+
+  // ---- Full-call recording (mixed mic + Swara) — WebAudio se ek hi stream me ----
+  // User mic + bot ki EdgeTTS awaaz dono ko ek AudioContext destination me mix karke
+  // poori call ka recording banta; call-end pe server pe upload (admin "Call Recordings"
+  // + Web Test Calls me sunai dega). FULLY fail-safe: koi bhi step toote = recording
+  // chup-chaap off, CALL kabhi affect nahi (bot ki awaaz har haal me sunai degi).
+  var callAudioCtx=null, callRecDest=null, callRecorder=null, callRecChunks=[], recOn=false;
+  function startCallRecording(){
+    if(recOn || !micStream || !window.MediaRecorder) return;
+    try{
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if(!Ctx) return;
+      callAudioCtx = new Ctx();
+      try{ callAudioCtx.resume(); }catch(e){}
+      callRecDest = callAudioCtx.createMediaStreamDestination();
+      // mic -> mix (Swara ki awaaz playBotTurn me route hogi)
+      try{ callAudioCtx.createMediaStreamSource(micStream).connect(callRecDest); }catch(e){}
+      callRecChunks=[];
+      callRecorder = new MediaRecorder(callRecDest.stream);
+      callRecorder.ondataavailable = function(e){ if(e.data && e.data.size) callRecChunks.push(e.data); };
+      callRecorder.start();
+      recOn=true;
+    }catch(e){ recOn=false; callAudioCtx=null; callRecDest=null; callRecorder=null; }
+  }
+  // Bot ki <audio> element ko mix-destination me bhi bhejo (taaki Swara ki awaaz
+  // recording me aaye). createMediaElementSource ke baad element ki awaaz WebAudio
+  // graph se jaati hai — isliye ctx.destination se bhi connect (warna user ko bot
+  // sunai nahi dega). Per-element ek hi baar route; koi error = normal playback.
+  function routeBotAudioToRecorder(audioEl){
+    if(!recOn || !callAudioCtx || !callRecDest || !audioEl || audioEl._routed) return;
+    // SAFETY: ctx suspended ho (autoplay policy) to route mat karo — warna
+    // createMediaElementSource ke baad element ki awaaz graph se jaayegi par
+    // ctx.destination output nahi degi = Swara CHUP. Tab tak recording skip karo
+    // (bot ki awaaz har haal me sunai de). Resume try karke agle turn pe capture.
+    if(callAudioCtx.state !== "running"){ try{ callAudioCtx.resume(); }catch(e){} return; }
+    try{
+      var src = callAudioCtx.createMediaElementSource(audioEl);
+      src.connect(callAudioCtx.destination);   // user abhi bhi sune
+      src.connect(callRecDest);                // recording me bhi aaye
+      audioEl._routed = true;
+    }catch(e){ /* route fail = element khud bajega (default output) */ }
+  }
+  function stopCallRecordingAndUpload(){
+    if(!recOn || !callRecorder){ recOn=false; return; }
+    var rec = callRecorder; callRecorder=null; recOn=false;
+    var sid = currentSessionId, lk = LEAD_KEY;
+    var done=false;
+    function finish(){
+      if(done) return; done=true;
+      var blob=null;
+      try{ if(callRecChunks.length) blob = new Blob(callRecChunks, {type: rec.mimeType || "audio/webm"}); }catch(e){}
+      callRecChunks=[];
+      try{ if(callAudioCtx) callAudioCtx.close(); }catch(e){}
+      callAudioCtx=null; callRecDest=null;
+      if(blob && blob.size>2000 && sid){ uploadRecording(blob, sid, lk); }
+    }
+    rec.onstop = finish;
+    try{ rec.stop(); }catch(e){ finish(); }
+    setTimeout(finish, 900);
+  }
+  function uploadRecording(blob, sid, lk){
+    try{
+      var fd = new FormData();
+      var ext = (blob.type && blob.type.indexOf("mp4")>=0) ? "mp4" : (blob.type && blob.type.indexOf("ogg")>=0 ? "ogg" : "webm");
+      fd.append("file", blob, "webcall."+ext);
+      fd.append("session_id", sid);
+      fd.append("lead_key", lk || "");
+      fetch("/api/web-call/recording", {method:"POST", body:fd}).catch(function(){});
+    }catch(e){}
   }
   function startRecorder(){
     if(!micStream || !window.MediaRecorder || recorder) return;
@@ -814,6 +889,11 @@
     endingCall = false;
     callActive = false;
     awaitingGreeting = false; pendingBot = false; botSpeaking = false; endAfterSpeak = false;
+    // Playback PEHLE rok do, fir recorder stop (jo ctx.close schedule karta) — taaki
+    // AudioContext band hote waqt Swara ki aakhri line na kate.
+    try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+    if(currentAudio){ try{ currentAudio.pause(); }catch(e){} currentAudio = null; }
+    stopCallRecordingAndUpload();   // currentSessionId clear hone se PEHLE upload
     currentSessionId = null;
     clearBotQueue();
     clearTimeout(kickTimer); clearTimeout(safetyTimer);
