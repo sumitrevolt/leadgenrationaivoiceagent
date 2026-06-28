@@ -316,8 +316,47 @@ async def enrich_missing_emails(limit: int = 8) -> dict[str, Any]:
     return {"tried": tried, "found": found}
 
 
+async def _src_osm(niche: str, city: str, limit: int) -> dict[str, Any]:
+    """FREE + keyless + ToS-clean: OpenStreetMap Overpass as a FIRST-CLASS source —
+    independent of Google-Maps quota (Places fallback skips OSM when it succeeds, so
+    this always-on source widens India-wide coverage). Off-loop (urllib is blocking),
+    polite (25s timeout, capped). Phone-less names get email-enriched downstream."""
+    leads: list[dict[str, Any]] = []
+    try:
+        from app.platform.prospector import _osm_search
+
+        # niche keywords make a better Overpass tag match than the raw key
+        try:
+            from app.niches import NICHES
+
+            _kws = (NICHES.get(niche) or {}).get("keywords") or []
+            query = str(_kws[0] if isinstance(_kws, list) and _kws else niche.replace("_", " "))
+        except Exception:
+            query = niche.replace("_", " ")
+        rows = await asyncio.to_thread(_osm_search, query, city, limit)
+        for r in rows or []:
+            nm = str(r.get("business_name") or r.get("name") or "").strip()
+            if not nm:
+                continue
+            leads.append(
+                {
+                    "business_name": nm[:200],
+                    "phone": str(r.get("phone") or ""),
+                    "email": "",
+                    "website": str(r.get("website") or ""),
+                    "city": city,
+                    "niche": niche,
+                    "source": "osm",
+                }
+            )
+    except Exception as e:
+        return {"source": "osm", "error": str(e)[:120], "leads": leads}
+    return {"source": "osm", "leads": leads}
+
+
 SOURCES = {
     "prospector": _src_prospector,
+    "osm": _src_osm,  # free keyless OSM Overpass — independent of Google-Maps quota
     "websearch": _src_websearch,
     "opendata": _src_opendata,
 }
