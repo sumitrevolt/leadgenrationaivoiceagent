@@ -1190,14 +1190,21 @@ async def web_call_ws(websocket: WebSocket) -> None:
             # STT fail/empty par browser ka text fallback hai (zero regression).
             browser_text = (data.get("text") or "").strip()
             user_text = ""
+            stt_text = ""
             if data.get("audio_b64"):
                 _t_stt = time.monotonic()
-                user_text = await _transcribe_audio(
+                stt_text = await _transcribe_audio(
                     pipeline, brain, data.get("audio_b64"), niche=session.get("niche", "")
                 )
                 _turn_timing["stt_ms"] = int((time.monotonic() - _t_stt) * 1000)
-            if not user_text:
-                user_text = browser_text
+                # STT-source diagnostic (next-iteration decision: kya browser-text —
+                # 0ms, free — Groq jitna accurate hai? Sirf divergence pe log = low noise).
+                if browser_text and stt_text and stt_text.strip().lower() != browser_text.strip().lower():
+                    logger.info(
+                        f"[web-call STT compare] groq={stt_text[:80]!r} browser={browser_text[:80]!r} "
+                        f"stt_ms={_turn_timing.get('stt_ms')}"
+                    )
+            user_text = stt_text or browser_text
 
             if not user_text:
                 await websocket.send_json(

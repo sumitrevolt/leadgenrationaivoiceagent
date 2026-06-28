@@ -642,7 +642,7 @@ ALLOWED NUMBERS/PRICES (sirf yehi bol sakti ho): {numbers_line}
 HARD RULES (har turn, bina exception):
 1. Tum phone par ho. Insaan ki tarah baat karo: CHHOTA, seedha, turant. EK reply = 1-2 chhote vakya, MAX ~22 shabd: pehle customer ke sawaal/baat ka seedha jawab, phir (zaroorat ho to) ek chhota sawaal. Monologue/3+ vakya KABHI nahi.
 2. KABHI apne baare me meta baat mat karo — "maine pehle poocha", "yeh maine nahi suna", "yeh detail nahi suni", "unclear hai", "thoda unclear", "maaf kijiye" jaisi cheezein BANNED. Bas aage badho.
-3. User ka jawab unclear/aadha lage to sirf chhota sa poocho: "ji, zara dobara boliye?" — bas. Lamba explanation kabhi nahi.
+3. "Ji, zara dobara boliye?" SIRF tab jab shabd hi clear na sune (garbled / aadha-word jaise "वटाने"). User ne POORA clear vakya, sawaal ya complaint bola ho to repeat KABHI mat maango — uske point ka seedha jawab do (rule 15). Lamba explanation kabhi nahi.
 4. Ek baar me EK hi sawaal. User ke 2-3 shabd mirror karke turant agla chhota sawaal. Sawaal reply ke END me.
 5. Discovery questions UPAR diye order me, ek-ek. Jo user PEHLE bata chuka (history padho) woh sawaal dobara mat poocho — agle pe badho.
 6. "Busy hoon" → ek line + do callback time options (jaise "shaam paanch ya kal subah gyarah?").
@@ -934,8 +934,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 )
             ):
                 return self._clean(
-                    "Simple sir — Instagram Facebook WhatsApp pe posts aur ads AI banati hai, "
-                    "Google pe upar aana, inquiry follow-up — sab automatic, aap dhanda pe focus."
+                    "Char main cheezein sir — (1) roz ke posts aur ads, (2) Google pe upar ranking, "
+                    "(3) festival posters, (4) inquiry ka auto follow-up. Sab AI se, aap dhanda pe focus."
                 )
             if any(w in low for w in ("free trial", "trial", "demo", "try karna")):
                 return self._clean("Haan sir — 7 din FREE trial, bina card. Aaj setup kar doon ya kal?")
@@ -984,9 +984,11 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         """Deterministic pro replies — LLM se pehle (latency + repeat guard)."""
         low = to_roman(ut or "").lower().strip()
         qa = self._customer_qa_reply(ut)
-        # Canned FAQ answer sirf tab do jab woh recent line repeat na kare; warna
-        # "" -> LLM us follow-up ko context se elaborate kare (repeat-loop fix).
-        if qa and not self._repeats_recent(qa, history):
+        # Canned FAQ answer normally repeat-guard se suppress hota (bin-maange
+        # robot-repeat rokne ke liye). PAR jab user ABHI sawaal puchh raha ho, jawab
+        # dena — chahe wahi line repeat ho — dodge/discovery-sawaal se kahin zyada
+        # professional hai (re-ask = "aur clear batao", silence/ulta-sawaal nahi).
+        if qa and (self._looks_like_question(ut) or not self._repeats_recent(qa, history)):
             return qa
         try:
             from app.voice_agent.niche_scripts import get_script
@@ -1145,6 +1147,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             text = self._fill(
                 self._clean(text)
             )  # brevity cap + placeholder fill ([Company] leak guard)
+            # CLARIFY GUARD — LLM ne CLEAR substantive utterance (poora vakya/sawaal/
+            # complaint) pe "dobara boliye" maang liya = "noob/jawab nahi deti" feel
+            # (real-call 2026-06-28: user ne complaint ki "jawab do" → bot bola "dobara
+            # boliye"). Aisa output discard → neeche graceful/script jawab pe gir jao.
+            if text and self._asks_to_repeat(text) and self._user_substantive(ut):
+                text = ""
             # RE-GREETING GUARD — LLM cold/first-turn pe niche opening PARROT kar deta
             # (user ke sawaal ka jawab nahi, sirf dobara greet → "reply nahi deta" feel).
             # Non-first turn pe greeting-like reply = chhodo, script ka asli
@@ -1281,6 +1289,21 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         "Ji sir, sun rahi hoon — boliye?",
     )
     _CLARIFY_LINE = "Ji sir, ek baar phir short me boliye?"
+
+    @staticmethod
+    def _asks_to_repeat(text: str) -> bool:
+        """Reply 'please repeat' / 'dobara boliye' type clarify-line hai? Clear
+        substantive utterance pe yeh KABHI nahi aana chahiye (user ne poora vakya/
+        sawaal bola = use repeat maangna = noob/insulting feel)."""
+        t = (text or "").lower()
+        return (
+            "dobara boliye" in t
+            or "dobara bol" in t
+            or "phir se bol" in t
+            or "phir short" in t
+            or "ek baar phir short" in t
+            or "repeat kar" in t
+        )
 
     def _safe_fallback(self, history: list[dict[str, str]]) -> str:
         try:
