@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (992 operations)
+## Endpoint Index — auto-generated from OpenAPI (993 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -412,7 +412,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/revenue-trend` — Get Revenue Trend
 - `GET   ` `/api/admin/sync-health` — Admin Sync Health
 
-### Admin Ops  (19)
+### Admin Ops  (20)
 
 - `GET   ` `/api/admin/calls/recent` — Recent call outcomes / qualified summary
 - `POST  ` `/api/admin/campaign/launch` — Launch outbound call campaign
@@ -420,6 +420,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/campaign/stop` — Stop the currently running campaign
 - `POST  ` `/api/admin/flow/seed-templates` — Apply all Flow Runner starter templates (FLOW_RUNNER=1)
 - `GET   ` `/api/admin/leads/ready` — Uncontacted leads ready to call (campaign pre-flight)
+- `GET   ` `/api/admin/office` — Admin Office — consolidated 'Sumit ke kaam' pending actions
 - `GET   ` `/api/admin/system/summary` — System snapshot for God Mode panel
 - `POST  ` `/api/admin/trust/configure-posthog` — Set PostHog API key + host (no restart)
 - `POST  ` `/api/admin/trust/configure-sentry` — Set Sentry DSN (lazy web init; worker restart recommended)
