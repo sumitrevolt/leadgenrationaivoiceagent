@@ -154,6 +154,35 @@ _STARTER_FEATURE_GROUPS: list[dict] = [
             "Best time to post/call/message — niche-wise optimal timing",
         ],
     },
+    {
+        # Hands-free: ye background me KHUD chalti hain (scheduler/event-driven), aapko
+        # kuch nahi karna. Har item ek real wired engine pe backed (surface, fabricate nahi).
+        # NOTE: outbound-send wali (cadence/WhatsApp) draft-pe-rukti — bulk auto-send OFF (ban-safe).
+        "title": "Hands-Free Automations",
+        "icon": "🤖",
+        "items": [
+            "Appointment/booking reminders — booking se pehle auto WhatsApp/SMS reminder (no-show kam)",
+            "Repeat-service due reminders — 'aapki service due hai' auto recurring nudge",
+            "Naye Google review pe auto AI reply-draft — review aate hi ready jawab",
+            "Brand & review mention monitoring (weekly) — net pe aapke naam ka zikr + reply drafts",
+            "Local Google rank tracking (weekly) — aapki keywords ki ranking auto-track + report",
+            "Birthday/anniversary auto-wishes — customers ko personalized wish draft",
+            "Monthly customer newsletter — har mahine email newsletter auto-draft",
+            "Cold-lead auto win-back — thande pade leads ko wapas laane ke drafts",
+            "Multi-channel follow-up cadence — WhatsApp+email+SMS sequenced auto-advance",
+            "Lifecycle nurture journeys — inquiry→engaged→loyal event-based auto-drafts",
+            "Hot-lead instant alert — naya high-intent lead aate hi turant aapko notify",
+            "Sales deal auto next-action — har deal ka agla step auto-suggest",
+            "Signup→paid nurture — naye signup ko paying customer banane ki auto-sequence",
+            "Email deliverability auto-watch — aapki emails spam me na jaayein (SPF/DMARC/blacklist auto-check)",
+            "Har inquiry auto-log + source attribution — kaunsa lead kahan se aaya, timeline auto-record",
+            "Weekly AI-staff work report — 'is hafte aapki AI team ne kya kiya' auto-summary",
+            "Evergreen content auto-repost — purane top posts auto-freshen + re-queue",
+            "NPS/CSAT auto-survey — customer satisfaction survey periodic auto-draft",
+            "Stale-inquiry auto-followup — 24h koi reply nahi → auto nudge draft",
+            "Roz-subah Owner Brief auto-tayar — naye leads + ready content + aaj ke kaam, bina click",
+        ],
+    },
 ]
 
 # Flat list (backward-compat: landing page, billing sync, tests) = groups se derive.
