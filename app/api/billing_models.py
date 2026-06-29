@@ -19,6 +19,7 @@ class PlanResponse(BaseModel):
     leads_per_month: int | str
     concurrent_campaigns: int | str
     features: list[str]
+    feature_groups: list[dict] = Field(default_factory=list)  # grouped view for collapsible UI
     quarterly_discount: float
     yearly_discount: float
 

@@ -78,6 +78,7 @@ class PricingPlan:
 
     # Features
     features: list[str] = field(default_factory=list)
+    feature_groups: list = field(default_factory=list)  # grouped view for collapsible pricing UI
 
     # Discounts
     quarterly_discount: float = 0.10  # 10% off
@@ -270,11 +271,13 @@ def _sync_plans_from_packages() -> None:
             if not key or price <= 0:
                 continue
             feats = list(pkg.get("features") or [])
+            fgroups = list(pkg.get("feature_groups") or [])
             existing = PRICING_PLANS.get(key)
             if existing is not None:
                 existing.monthly_price = price
                 existing.name = str(pkg.get("name") or existing.name)
                 existing.features = feats or existing.features
+                existing.feature_groups = fgroups or existing.feature_groups
                 existing.yearly_discount = float(Decimal(1) / Decimal(6))
             else:
                 PRICING_PLANS[key] = PricingPlan(
@@ -286,6 +289,7 @@ def _sync_plans_from_packages() -> None:
                     leads_per_month=0,
                     concurrent_campaigns=1,
                     features=feats,
+                    feature_groups=fgroups,
                     yearly_discount=float(Decimal(1) / Decimal(6)),
                 )
     except Exception:  # pragma: no cover - defensive (legacy prices se chalta rahe)

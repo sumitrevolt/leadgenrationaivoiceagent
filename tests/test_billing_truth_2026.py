@@ -135,3 +135,34 @@ def test_annual_plan_never_undercharged_by_cycle_arg(monkeypatch):
         # a monthly plan must NOT pick up the yearly discount even if asked for yearly
         monthly_as_yr = billing_manager.calculate_price(info["plan_monthly"], BillingCycle.YEARLY)
         assert round(float(monthly_as_yr["total"]), 2) == round(pm, 2)
+
+
+# ----------------------- starter feature catalog (2026-06-29: +40 features) ----------------------- #
+def test_starter_feature_groups_invariant():
+    """Main plan +40 features (33 core + 40 naye = 73). feature_groups grouped view,
+    flat `features` usi se DERIVE (single source — koi drift nahi)."""
+    from app.marketing.packages import PACKAGES
+
+    starter = next(p for p in PACKAGES if p["key"] == "starter")
+    groups = starter.get("feature_groups") or []
+    flat = starter.get("features") or []
+
+    assert len(groups) >= 6, "kam se kam 6 categories honi chahiye"
+    for g in groups:
+        assert g.get("title") and isinstance(g.get("items"), list) and g["items"], g
+    # flat == flatten(groups) — drift guard (yahi single-source invariant)
+    flattened = [it for g in groups for it in g["items"]]
+    assert flat == flattened, "features flat list groups se derive honi chahiye (drift)"
+    assert len(flat) >= 70, f"33 core + 40 naye expected, mila {len(flat)}"
+    assert len(flat) == len(set(flat)), "duplicate feature line nahi honi chahiye"
+
+
+def test_starter_feature_groups_synced_to_billing_plan():
+    """packages.py feature_groups -> PRICING_PLANS['starter'].feature_groups (sync)."""
+    from app.billing.subscription import PRICING_PLANS
+    from app.marketing.packages import PACKAGES
+
+    starter_pkg = next(p for p in PACKAGES if p["key"] == "starter")
+    plan = PRICING_PLANS["starter"]
+    assert getattr(plan, "feature_groups", None), "billing plan me feature_groups sync hone chahiye"
+    assert len(plan.feature_groups) == len(starter_pkg["feature_groups"])
