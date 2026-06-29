@@ -1249,6 +1249,19 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             obj = (s.get("objections") or {}).get("pehle_se_hai") or ""
             if obj:
                 return self._clean(str(obj))
+        # Component 4: universal objections (fraud-suspicion / decision-maker /
+        # tried-before) — deterministic so the LLM doesn't mismatch or ignore them
+        # (probe showed it gave the wrong rebuttal). Rebuttals from get_script (the
+        # common-objections set merged into every niche). Fire for ALL niches.
+        for _ok, _ow in (
+            ("fraud_suspicion", ("fraud", "scam", "spam", "dhoka", "thag", "fake", "genuine company", "asli company", "farzi")),
+            ("decision_maker", ("decide nahi", "owner se", "partner se", "boss se", "malik se", "sahab se", "main decide nahi", "main nahi decide")),
+            ("tried_before", ("pehle try", "pehle kiya", "pehle use", "pehle liya", "kaam nahi aaya", "fayda nahi", "faida nahi", "waste ho gaya")),
+        ):
+            if any(w in low for w in _ow):
+                obj = (s.get("objections") or {}).get(_ok) or ""
+                if obj:
+                    return self._clean(str(obj))
         if self._interest_confirmed or self.niche == "ai_marketing":
             for key, words in (
                 ("soch_ke", ("soch", "baad me", "kal baat")),
