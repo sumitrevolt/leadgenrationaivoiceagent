@@ -642,6 +642,56 @@ async def voice_gemini_keys_set(body: VoiceGeminiKeysReq, _user=Depends(require_
     }
 
 
+@router.get("/voice/self-test", summary="Built-in voice self-test (personas + stack + live)")
+async def voice_self_test(
+    _user=Depends(require_admin),
+    personas: bool = True,
+    stack: bool = True,
+    live: bool = True,
+    llm: bool = False,
+    niche: str = "solar",
+):
+    """On-demand voice self-test — ek scorecard, abhi chala ke dekho.
+
+    * ``personas`` — rule-based persona suite (FREE, no network, deterministic).
+    * ``stack``    — live TTS/STT probes (LLM ping bhi jab ``llm=1`` → free-tier
+      ka ek token jalega, isliye default OFF).
+    * ``live``     — pichhli real calls ki quality (local transcripts).
+
+    Network-probes off-loop + bounded; poora call ek hard deadline me wrapped hai
+    taaki ek dead provider bhi admin-request ko hang na kare. Read-only — koi
+    side-effect nahi (sirf ek best-effort team-event log hota hai)."""
+    try:
+        from app.voice_agent.self_test import run_voice_self_test
+
+        report = await asyncio.wait_for(
+            run_voice_self_test(
+                personas=personas,
+                stack=stack,
+                live=live,
+                llm=llm,
+                niche=(niche or "solar"),
+            ),
+            timeout=180.0,
+        )
+        try:
+            from app.platform.team import log_event
+
+            log_event(
+                "arjun",
+                "voice_self_test",
+                f"🩺 voice self-test {report.get('status')} score={report.get('score')}",
+                status="ok" if report.get("ok") else "warn",
+            )
+        except Exception:
+            pass
+        return {"ok": bool(report.get("ok")), "report": report}
+    except asyncio.TimeoutError:
+        return {"ok": False, "error": "self-test timed out"}
+    except Exception as e:  # pragma: no cover - defensive
+        return {"ok": False, "error": repr(e)[:200]}
+
+
 @router.post("/upi/activate", summary="Activate plan after UPI screenshot verified")
 async def upi_activate(body: UpiActivateReq, _user=Depends(require_admin)):
     """Admin ne WA screenshot dekha → plan activate."""
