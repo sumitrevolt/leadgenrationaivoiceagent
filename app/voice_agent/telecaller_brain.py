@@ -1084,7 +1084,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
                 if intent_softno.should_deescalate(history, ut):
                     logger.debug("[telecaller-brain] polite-no de-escalation (2nd soft refusal)")
-                    return intent_softno.deescalation_reply(self.niche, self.client_name)
+                    return intent_softno.deescalation_reply(self.niche, self.client_name, history, ut)
             except Exception:
                 pass
             fast = self._fast_path_reply(history, ut)
@@ -1199,7 +1199,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 from app.voice_agent import intent_softno
 
                 if intent_softno.should_deescalate(history, ut):
-                    yield intent_softno.deescalation_reply(self.niche, self.client_name)
+                    yield intent_softno.deescalation_reply(self.niche, self.client_name, history, ut)
                     return
             except Exception:
                 pass
