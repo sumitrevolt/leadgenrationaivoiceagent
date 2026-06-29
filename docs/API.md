@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1019 operations)
+## Endpoint Index — auto-generated from OpenAPI (1023 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1175,7 +1175,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/impersonate/stop` — Impersonation Stop
 - `GET   ` `/api/impersonate/targets` — Impersonation Targets
 
-### Infrastructure  (18)
+### Infrastructure  (22)
 
 - `GET   ` `/api/activation/readiness` — Activation Readiness
 - `GET   ` `/api/activation/summary` — Activation Summary Public
@@ -1195,6 +1195,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/h4/litellm-health` — Litellm Health
 - `GET   ` `/api/h4/litellm-spend` — Litellm Spend
 - `GET   ` `/api/h4/margin-alerts` — Margin Alerts
+- `GET   ` `/api/rl/arms` — Rl Arms
+- `GET   ` `/api/rl/dev` — Rl Dev
+- `GET   ` `/api/rl/recent` — Rl Recent
+- `GET   ` `/api/rl/summary` — Rl Summary
 
 ### Journeys  (7)
 

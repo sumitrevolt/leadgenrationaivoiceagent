@@ -71,6 +71,7 @@ a{color:var(--acc)}
   <button id="tab-process" onclick="show('process')">⚙️ Processes</button>
   <button id="tab-selfimp" onclick="show('selfimp')">🔁 Self-Improve</button>
   <button id="tab-upgrader" onclick="show('upgrader')">🛠️ Code Upgrader</button>
+  <button id="tab-rl" onclick="show('rl')">🎯 RL Flywheel</button>
   <button id="tab-drafters" onclick="show('drafters')">✍️ Drafters</button>
   <button id="tab-revenue" onclick="show('revenue')">💰 Revenue Ops</button>
   <button id="tab-growthlab" onclick="show('growthlab')">📈 Growth Lab</button>
@@ -316,6 +317,31 @@ a{color:var(--acc)}
     <select id="upFilter" style="max-width:200px"><option value="">— sab —</option><option>proposed</option><option>approved</option><option>rejected</option><option>applied</option></select>
     <div id="upScanOut"></div>
     <div id="upListOut"></div>
+  </div>
+</section>
+
+<!-- ============ 7b. RL Flywheel ============ -->
+<section class="tabsec" id="sec-rl">
+  <div class="card">
+    <h2>🎯 RL Flywheel — reward spine</h2>
+    <div class="mut">Phase 0: logging-only reward consolidation (voice/outreach/funnel/dev). Flag <b>RL_ENGINE</b>. Policy engine (Thompson/contextual) auto-graduates per-domain at <b>RL_GRADUATION_N</b> samples.</div>
+    <button class="btn2" onclick="loadRl()">📊 Status load</button>
+    <div id="rlGrad"></div>
+  </div>
+  <div class="card">
+    <h2>🎰 Per-arm reward</h2>
+    <label>Domain</label>
+    <select id="rlDomain" onchange="loadRlArms()" style="max-width:200px">
+      <option>voice</option><option>outreach</option><option>funnel</option><option>dev</option>
+    </select>
+    <button class="btn2" onclick="loadRlArms()">Arms load</button>
+    <div id="rlArmsOut"></div>
+  </div>
+  <div class="card">
+    <h2>🤖 Claude dev-feedback (Loop B)</h2>
+    <div class="mut">Dev-session reward (verify/tests/deploy − corrections). Stop hook → <code>claude_feedback.jsonl</code>.</div>
+    <button class="btn2" onclick="loadRlDev()">Dev feedback load</button>
+    <div id="rlDevOut"></div>
   </div>
 </section>
 
@@ -1161,6 +1187,43 @@ function show(tab){
   $('sec-'+tab).style.display='block';$('tab-'+tab).classList.add('act');
   try{location.hash=tab}catch(e){}
   if(tab==='launch') launchLoad();
+  if(tab==='rl') loadRl();
+}
+/* RL Flywheel (Phase 0) — read-only reward-spine views */
+async function loadRl(){
+  try{
+    var s=await api('/api/rl/summary');
+    var g=(s.graduation&&s.graduation.domains)||{};
+    var gn=(s.graduation&&s.graduation.graduation_n)||200;
+    var h='<div style="margin-top:8px"><span class="pill">engine: <b>'+(s.enabled?'ON':'OFF')+'</b></span> '
+      +'<span class="pill">rewards: <b>'+esc(s.total_rewards)+'</b></span> '
+      +'<span class="pill">dev-rows: <b>'+esc(s.total_dev_feedback)+'</b></span> '
+      +'<span class="pill">version: <b>'+esc(s.reward_version)+'</b></span></div><div style="margin-top:8px">';
+    Object.keys(g).forEach(function(d){var v=g[d];
+      h+='<div class="mut" style="margin:3px 0"><b>'+esc(d)+'</b>: '+esc(v.samples)+'/'+esc(gn)+' — '
+        +(v.graduated?'✅ graduated':(esc(v.samples_until_graduation)+' to go'))+'</div>';});
+    h+='</div>';
+    $('rlGrad').innerHTML=h;
+    loadRlArms();
+  }catch(e){$('rlGrad').innerHTML='<div class="warn">'+esc(e.message)+'</div>'}
+}
+async function loadRlArms(){
+  try{
+    var dom=$('rlDomain').value;
+    var r=await api('/api/rl/arms?domain='+encodeURIComponent(dom));
+    var arms=r.arms||{};var keys=Object.keys(arms);
+    if(!keys.length){$('rlArmsOut').innerHTML='<div class="mut">koi reward sample nahi ('+esc(dom)+')</div>';return}
+    var h='<table style="width:100%;margin-top:6px"><tr><th align="left">arm</th><th>n</th><th>mean</th><th>success</th></tr>';
+    keys.forEach(function(a){var v=arms[a];h+='<tr><td>'+esc(a)+'</td><td align="center">'+esc(v.n)+'</td><td align="center">'+esc(v.mean_reward)+'</td><td align="center">'+esc(v.success_rate)+'</td></tr>'});
+    h+='</table>';$('rlArmsOut').innerHTML=h;
+  }catch(e){$('rlArmsOut').innerHTML='<div class="warn">'+esc(e.message)+'</div>'}
+}
+async function loadRlDev(){
+  try{
+    var d=await api('/api/rl/dev?n=20');
+    if(!d.count){$('rlDevOut').innerHTML='<div class="mut">koi dev-feedback nahi (RL_ENGINE off ya abhi koi session nahi)</div>';return}
+    $('rlDevOut').innerHTML='<div class="mut">'+esc(d.count)+' dev-session rows</div><pre>'+esc(JSON.stringify(d.rows.slice(0,10),null,2))+'</pre>';
+  }catch(e){$('rlDevOut').innerHTML='<div class="warn">'+esc(e.message)+'</div>'}
 }
 /* generic renderers */
 function jpre(d){return '<pre>'+esc(JSON.stringify(d,null,2))+'</pre>'}
