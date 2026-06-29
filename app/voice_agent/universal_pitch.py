@@ -25,16 +25,18 @@ def _marketing_start_price() -> str:
 # (telephony-cheap + caller bore na ho). AI-disclosure helper (ensure_ai_disclosure)
 # iske aage "Main ek AI assistant hoon." prepend karta — isliye yahan dobara mat likho.
 UNIVERSAL_AGENT_INTRO = (
-    "Namaste! Leads Generation AI se bol rahi hoon — "
-    "aapke business ke liye Instagram, Facebook aur Google par AI se naye customers."
+    "Namaste! Main Leads Generation AI se bol rahi hoon — "
+    "hum aapke jaise business ko AI se naye customers dilate hain, "
+    "Instagram, Facebook aur Google se."
 )
 
 PITCH_SHORT = (
-    "Sab automatic — roz ke posts, ads aur Google boost; "
-    f"{_marketing_start_price()} mahine se, agency se sasta. 7 din FREE trial bhi."
+    "Aapko khud kuch nahi karna — roz ki posts, ads aur Google par upar aana, "
+    f"sab AI automatic karta hai. {_marketing_start_price()} mahine se, agency se kaafi sasta, "
+    "aur 7 din bilkul FREE trial."
 )
 
-INTEREST_ASK = "Aapke growth ke kaam ka lage to — interested hain?"
+INTEREST_ASK = "Ek baar free me try karke dekhna chahenge?"
 
 
 def platform_opening_segments() -> list[str]:
