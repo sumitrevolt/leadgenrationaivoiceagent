@@ -257,6 +257,17 @@ def _close_detect_enabled() -> bool:
     )
 
 
+def _anti_loop_enabled() -> bool:
+    """ANTI_LOOP gate (default ON). Set 0 to disable the acknowledge-bridge that
+    prefixes a scripted-fallback question with a short ack of the caller's turn."""
+    return (os.environ.get("ANTI_LOOP", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
 # High-precision: require a proceed VERB so a question ("kaise kar do?") or a bare
 # "haan" never trips it. `_KAR` = the many ways to say "do it" (karo / kar do /
 # karwa do / kar dijiye / kar lo). Matched on to_roman-normalised, lowercased text.
@@ -1459,6 +1470,19 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                         return gq
                 sc = self._script_fallback(history)
                 if sc:
+                    # ANTI-LOOP (gated ANTI_LOOP, default ON): the LLM was rejected so
+                    # we're about to emit the next scripted discovery question. If the
+                    # caller just said something real, prefix a SHORT (de-templated)
+                    # acknowledgement so it feels like we HEARD them — not a checklist
+                    # march ("loop / not listening"). clarify-once already handled the
+                    # unclear case; _mirror_ack is ~half-empty so many turns stay clean.
+                    try:
+                        if _anti_loop_enabled() and self._user_substantive(ut):
+                            _ack = self._mirror_ack(ut)
+                            if _ack and not sc.lower().startswith(_ack.lower().rstrip(" —")[:6]):
+                                return self._clean(f"{_ack} {sc}".strip())
+                    except Exception:
+                        pass
                     return sc
             if text:
                 logger.debug(f"[telecaller-brain] reply via {prov}")
