@@ -1406,6 +1406,20 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             # discovery-question do taaki conversation aage badhe.
             _spoken = sum(1 for m in (history or []) if (m.get("role") or "") == "assistant")
             _regreet = bool(text and _spoken >= 1 and self._looks_like_greeting(text))
+            # CLARIFY-ONCE — user ki baat NON-substantive thi (garbled / too-short
+            # STT) AUR LLM use samajh nahi paaya (repeat maanga YA khaali) => ek baar
+            # "sir thoda repeat karenge?" poochho, generic script-question ke bajaye
+            # (user feedback 2026-06-29: "nahi samjhe to sir thoda repeat karenge?").
+            # Loop-guard: pichhli line khud clarify thi to seedha script pe jao (do
+            # baar "repeat" = annoying). Substantive utterance pe yeh KABHI nahi (line
+            # ~1401 already aise repeat-asks discard karta).
+            if (
+                (not self._user_substantive(ut))
+                and (not text or self._asks_to_repeat(text))
+                and "repeat kar" not in (prev or "").lower()
+            ):
+                logger.info("[telecaller-brain] unclear utterance -> clarify once")
+                return self._clean("Sir, thoda repeat karenge? Aapki baat clear nahi aayi.")
             # SCRIPT FALLBACK: LLM throttled/slow/empty/re-greet -> niche-script ka
             # agla PROFESSIONAL sawaal (instant, niche-specific, kabhi repeat nahi).
             if not text or _regreet or (prev and self._too_similar(text, prev)):
