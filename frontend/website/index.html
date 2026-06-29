@@ -169,6 +169,13 @@
   .price ul{list-style:none;margin:22px 0 26px}
   .price li{display:flex;gap:11px;align-items:flex-start;padding:7px 0;font-size:.95rem;color:var(--ink-2)}
   .price li .ck{color:#16a34a;font-weight:800;flex-shrink:0}
+  .price .fgroup{border-top:1px solid var(--line)}
+  .price .fgroup:first-of-type{border-top:none;margin-top:18px}
+  .price .fgroup summary{cursor:pointer;list-style:none;padding:11px 0;font-size:.92rem;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .price .fgroup summary::-webkit-details-marker{display:none}
+  .price .fgroup summary::after{content:"▸";margin-left:auto;color:var(--muted);transition:transform .15s}
+  .price .fgroup[open] summary::after{transform:rotate(90deg)}
+  .price .fgroup ul{margin:2px 0 10px}
   .price .btn{width:100%}
 
   /* TESTIMONIALS */
@@ -944,14 +951,30 @@
           const note = document.createElement('p'); note.className = 'pnote'; note.textContent = p.price_note;
           card.appendChild(note);
         }
-        const ul = document.createElement('ul');
-        (p.features || []).forEach((f) => {
-          const li = document.createElement('li');
-          const ck = document.createElement('span'); ck.className = 'ck'; ck.textContent = '✓';
-          li.appendChild(ck); li.appendChild(document.createTextNode(' ' + f));
-          ul.appendChild(li);
-        });
-        card.appendChild(ul);
+        const buildList = (items) => {
+          const ul = document.createElement('ul');
+          (items || []).forEach((f) => {
+            const li = document.createElement('li');
+            const ck = document.createElement('span'); ck.className = 'ck'; ck.textContent = '✓';
+            li.appendChild(ck); li.appendChild(document.createTextNode(' ' + f));
+            ul.appendChild(li);
+          });
+          return ul;
+        };
+        const groups = Array.isArray(p.feature_groups) ? p.feature_groups : [];
+        if (groups.length) {
+          // Collapsible groups (avoid a 70+ bullet wall on the card)
+          groups.forEach((g, gi) => {
+            const d = document.createElement('details'); d.className = 'fgroup'; if (gi === 0) d.open = true;
+            const s = document.createElement('summary');
+            s.textContent = (g.icon ? g.icon + ' ' : '') + (g.title || 'Features') + ' (' + ((g.items || []).length) + ')';
+            d.appendChild(s);
+            d.appendChild(buildList(g.items));
+            card.appendChild(d);
+          });
+        } else {
+          card.appendChild(buildList(p.features));
+        }
         const a = document.createElement('a');
         a.className = 'btn ' + (p.highlight ? 'btn-primary' : 'btn-ghost');
         a.href = '#lead-form';

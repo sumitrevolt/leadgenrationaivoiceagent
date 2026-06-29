@@ -28,6 +28,137 @@ Pure-data module — koi heavy import nahi (import-safe, kabhi raise nahi karta)
 
 from __future__ import annotations
 
+# --------------------------------------------------------------------------- #
+# Main plan (AI Marketing Automation) feature CATALOG — grouped for the pricing
+# page's collapsible display. Flat `features` list isi se DERIVE hoti hai
+# (single source-of-truth → koi drift nahi). HAR bullet customer portal me ek
+# LIVE self-serve tool se backed hai (app/api/customer_marketing_studio.py
+# `_TOOLS` — live route + UI card) — koi fabricated/undelivered claim nahi.
+# --------------------------------------------------------------------------- #
+_STARTER_CORE: list[str] = [
+    "Roz AI social posts — Hinglish caption + hashtags (39 niches, aapki industry ke hisaab se)",
+    "Branded post frames — aapka logo + business naam har post pe",
+    "Customer portal — 1-click copy + WhatsApp/Insta share (roz subah ~7 baje content ready)",
+    "Festival calendar auto — Diwali, Holi, Rakhi, Independence Day sab covered",
+    "Tyohar/offer posts — sale day ke liye ready creatives + captions",
+    "Google Business Profile audit (0–100 score) + top 5 fix suggestions",
+    "Google reviews ke Hinglish reply drafts — copy-paste, rating bachao",
+    "4 branded posters/mo — naam, phone, offer ke saath (SVG, print-ready)",
+    "WhatsApp content pack — broadcast messages + status updates ready",
+    "Lead capture widget — 1-line script, form seedha dashboard me",
+    "AI website chatbot — FAQ + lead capture (widget mode)",
+    "CRM sync (Zoho/HubSpot) + programmable webhooks (lead/call events)",
+    "WhatsApp drip nurture — naye leads ko spaced follow-up messages",
+    "Database reactivation — purane customers ke liye win-back campaigns",
+    "Competitor analysis + monthly marketing report — kya chala, kya nahi",
+    "Referral tools + Ads copy pack + Reels script drafts",
+    "UPI Scan & Pay QR card — counter/display ke liye branded",
+    "Mini-site `/b/aapka-slug` — bio link + digital visiting card + booking page (ek link sab kuch)",
+    "Appointment booking page — customer khud calendar slot book kare, aapko auto-confirmation",
+    "AI image generation + Complete Post one-shot — caption + hashtags + AI image ek click me",
+    "AI video ads (Reels/Shorts) — har ~5 din naya video ready, SAB niches ke liye, 1-click share (koi extra charge nahi)",
+    "1-click publish to your channels — approved content seedha WhatsApp + social pe share (WhatsApp self-host pe auto-send bhi; bulk-spam nahi)",
+    "Content calendar + scheduler — mahine bhar ka plan + festival auto-schedule",
+    "Post variations A/B — ek idea se 2–4 alag versions, jo chale wo chuno",
+    "Review kit — khush customer ko Google review, naraz ko private feedback (rating bachao)",
+    "Team lead routing — members round-robin + WhatsApp handoff, koi lead miss nahi",
+    "Product/service catalog + UPI payment links — share karo, customer wahi se pay kare",
+    "Hot leads dashboard — score ke hisaab se priority leads upar, pehle kisko call karein",
+    "Per-client blog page — programmatic SEO, Google pe organic reach badhao",
+    "Sentiment + hashtag research — kya trend kar raha, kaunsa tone chal raha",
+    "Customer 2FA (TOTP) login security — account safe rakho",
+    "Post approval workflow — publish se pehle aapki OK (portal me)",
+    "GST invoice download portal se",
+]
+
+# 40 NAYE features (2026-06-29) — sab pehle se customer portal me LIVE (Studio _TOOLS).
+_STARTER_FEATURE_GROUPS: list[dict] = [
+    {
+        "title": "Core Marketing Automation",
+        "icon": "⚙️",
+        "items": _STARTER_CORE,
+    },
+    {
+        "title": "Content & Creative",
+        "icon": "🎨",
+        "items": [
+            "Carousel maker — Instagram multi-slide carousel posts (SVG ready)",
+            "Meme generator — niche-relevant Hinglish memes, viral-ready",
+            "Testimonial poster — customer review → branded poster + caption",
+            "Content repurpose — 1 topic/blog → 7 alag formats (post/reel/thread…)",
+            "Reel/Ad voiceover script — Hinglish VO record karne ke liye ready",
+            "YouTube metadata — title + tags + description optimized",
+            "Instagram 9-grid planner — cohesive feed layout",
+            "Story highlights planner — categories + cover ideas",
+            "Regional language post — caption Hindi/Marathi/Tamil/Telugu… me convert",
+            "Evergreen post ideas — kabhi bhi repost-able content bank",
+        ],
+    },
+    {
+        "title": "Local SEO & AI Discovery",
+        "icon": "📍",
+        "items": [
+            "Get-Found-by-AI (AEO) — ChatGPT/Gemini/Perplexity pe dikhne ka checklist",
+            "Schema markup generator — LocalBusiness JSON-LD (Google rich results)",
+            "FAQ page builder — website ke liye ready Q&A",
+            "'Service in city' SEO pages — local search ke liye landing pages",
+            "Listings / NAP consistency check — directories pe naam/phone/address audit",
+            "DIY rank-check guide — Google ranking khud track karne ka tareeka",
+            "Conversion tracking setup — GA4 / Meta pixel / UTM checklist",
+        ],
+    },
+    {
+        "title": "Leads & Conversion",
+        "icon": "🧲",
+        "items": [
+            "AI Inbox — saari inquiries intent + urgency ke hisaab se sorted",
+            "Lead magnet builder — free guide/checklist se leads capture",
+            "Speed-to-lead instant reply — naya lead aate hi ready message",
+            "Ad budget planner — niche + goal ke hisaab se daily ad spend suggestion",
+            "Lost-lead reasons + fix — kyu convert nahi hua, kaise sudhaarein",
+            "Newsletter builder — monthly email newsletter ka plan + content outline",
+            "Quote / estimate draft — inquiry se professional price quote",
+            "ROI calculator — spend vs revenue estimate dikhaao",
+        ],
+    },
+    {
+        "title": "Reviews & Reputation",
+        "icon": "⭐",
+        "items": [
+            "Bad-review rescue — naraz review ka polite damage-control reply",
+            "Reviews widget — website pe Google reviews showcase",
+            "Case study generator — customer success story (social-proof content)",
+            "NPS / CSAT survey builder — customer feedback survey ready",
+        ],
+    },
+    {
+        "title": "Sales & Retention",
+        "icon": "🤝",
+        "items": [
+            "Objection handler — 'mehenga hai / sochta hoon' ka best reply",
+            "Loyalty program design — points + rewards gamified plan",
+            "Coupon generator — code + expiry + WhatsApp text",
+            "Customer reminders — appointment/renewal/payment ke auto messages",
+            "Complaint recovery flow — angry customer ko wapas khush karna",
+            "UGC request kit — customers se photo/video testimonials maango",
+        ],
+    },
+    {
+        "title": "Planning & Coaching",
+        "icon": "🚀",
+        "items": [
+            "AI Growth Coach — har hafte 3 high-impact action suggestions",
+            "Next-Best-Action — aaj kya karna hai, priority task list",
+            "Daily Owner Brief — business ka ek-nazar daily summary",
+            "Customer avatar — ideal buyer profile + targeting guidance",
+            "Best time to post/call/message — niche-wise optimal timing",
+        ],
+    },
+]
+
+# Flat list (backward-compat: landing page, billing sync, tests) = groups se derive.
+_STARTER_FEATURES: list[str] = [it for g in _STARTER_FEATURE_GROUPS for it in g["items"]]
+
 PACKAGES: list[dict] = [
     {
         "key": "starter",
@@ -38,41 +169,8 @@ PACKAGES: list[dict] = [
         "annual_note": "Saal bhar ka ek saath: ₹19,990 (2 mahine FREE)",
         "price_note": "100% marketing automation — koi calling charge nahi · content + leads + CRM sab ek saath",
         "marketing_only": True,
-        "features": [
-            "Roz AI social posts — Hinglish caption + hashtags (39 niches, aapki industry ke hisaab se)",
-            "Branded post frames — aapka logo + business naam har post pe",
-            "Customer portal — 1-click copy + WhatsApp/Insta share (roz subah ~7 baje content ready)",
-            "Festival calendar auto — Diwali, Holi, Rakhi, Independence Day sab covered",
-            "Tyohar/offer posts — sale day ke liye ready creatives + captions",
-            "Google Business Profile audit (0–100 score) + top 5 fix suggestions",
-            "Google reviews ke Hinglish reply drafts — copy-paste, rating bachao",
-            "4 branded posters/mo — naam, phone, offer ke saath (SVG, print-ready)",
-            "WhatsApp content pack — broadcast messages + status updates ready",
-            "Lead capture widget — 1-line script, form seedha dashboard me",
-            "AI website chatbot — FAQ + lead capture (widget mode)",
-            "CRM sync (Zoho/HubSpot) + programmable webhooks (lead/call events)",
-            "WhatsApp drip nurture — naye leads ko spaced follow-up messages",
-            "Database reactivation — purane customers ke liye win-back campaigns",
-            "Competitor analysis + monthly marketing report — kya chala, kya nahi",
-            "Referral tools + Ads copy pack + Reels script drafts",
-            "UPI Scan & Pay QR card — counter/display ke liye branded",
-            "Mini-site `/b/aapka-slug` — bio link + digital visiting card + booking page (ek link sab kuch)",
-            "Appointment booking page — customer khud calendar slot book kare, aapko auto-confirmation",
-            "AI image generation + Complete Post one-shot — caption + hashtags + AI image ek click me",
-            "AI video ads (Reels/Shorts) — har ~5 din naya video ready, SAB niches ke liye, 1-click share (koi extra charge nahi)",
-            "1-click publish to your channels — approved content seedha WhatsApp + social pe share (WhatsApp self-host pe auto-send bhi; bulk-spam nahi)",
-            "Content calendar + scheduler — mahine bhar ka plan + festival auto-schedule",
-            "Post variations A/B — ek idea se 2–4 alag versions, jo chale wo chuno",
-            "Review kit — khush customer ko Google review, naraz ko private feedback (rating bachao)",
-            "Team lead routing — members round-robin + WhatsApp handoff, koi lead miss nahi",
-            "Product/service catalog + UPI payment links — share karo, customer wahi se pay kare",
-            "Hot leads dashboard — score ke hisaab se priority leads upar, pehle kisko call karein",
-            "Per-client blog page — programmatic SEO, Google pe organic reach badhao",
-            "Sentiment + hashtag research — kya trend kar raha, kaunsa tone chal raha",
-            "Customer 2FA (TOTP) login security — account safe rakho",
-            "Post approval workflow — publish se pehle aapki OK (portal me)",
-            "GST invoice download portal se",
-        ],
+        "feature_groups": _STARTER_FEATURE_GROUPS,
+        "features": _STARTER_FEATURES,
         "highlight": True,
         "badge": "POPULAR",
     },

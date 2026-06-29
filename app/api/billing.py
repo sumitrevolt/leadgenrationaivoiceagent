@@ -260,6 +260,7 @@ async def get_pricing_plans():
                     plan.concurrent_campaigns if plan.concurrent_campaigns > 0 else "Unlimited"
                 ),
                 features=plan.features,
+                feature_groups=getattr(plan, "feature_groups", []) or [],
                 quarterly_discount=plan.quarterly_discount * 100,
                 yearly_discount=plan.yearly_discount * 100,
             )
@@ -306,6 +307,7 @@ async def get_plan_details(plan_id: str):
             plan.concurrent_campaigns if plan.concurrent_campaigns > 0 else "Unlimited"
         ),
         features=plan.features,
+        feature_groups=getattr(plan, "feature_groups", []) or [],
         quarterly_discount=plan.quarterly_discount * 100,
         yearly_discount=plan.yearly_discount * 100,
     )

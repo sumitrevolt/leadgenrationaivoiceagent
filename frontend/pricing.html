@@ -60,6 +60,14 @@
   .features{list-style:none;padding:0;margin:18px 0 22px}
   .features li{position:relative;padding:7px 0 7px 26px;color:#dce4fb;font-size:14px;line-height:1.45}
   .features li::before{content:"✓";position:absolute;left:0;top:6px;color:var(--ok);font-weight:900}
+  .fgroup{border-top:1px solid rgba(255,255,255,.08)}
+  .fgroup:first-of-type{border-top:none}
+  .fgroup summary{cursor:pointer;list-style:none;padding:11px 0;font-size:13.5px;font-weight:700;color:#eef3ff;display:flex;align-items:center;gap:8px}
+  .fgroup summary::-webkit-details-marker{display:none}
+  .fgroup summary::after{content:"▸";margin-left:auto;color:#7e8cb8;transition:transform .15s}
+  .fgroup[open] summary::after{transform:rotate(90deg)}
+  .fgroup .fcount{font-size:11px;font-weight:700;color:#9fb0e0;background:rgba(255,255,255,.06);border-radius:10px;padding:1px 8px}
+  .fgroup .features{margin:2px 0 12px}
   .plan .actions{display:flex;gap:10px;flex-wrap:wrap}
   .plan .actions .btn{flex:1;min-width:180px}
   .fine{text-align:center;color:var(--mut);font-size:13px;margin-top:16px}
@@ -249,6 +257,19 @@ function priceFor(p){
   return { amt: m, suf: "/mo" };
 }
 
+function featuresHtml(p){
+  const groups = Array.isArray(p.feature_groups) ? p.feature_groups : [];
+  if(groups.length){
+    return groups.map((g, gi) => {
+      const items = (g.items || []).map(f => `<li>${f}</li>`).join("");
+      const icon = g.icon ? g.icon + " " : "";
+      const n = (g.items || []).length;
+      return `<details class="fgroup"${gi === 0 ? " open" : ""}><summary>${icon}${g.title || "Features"} <span class="fcount">${n}</span></summary><ul class="features">${items}</ul></details>`;
+    }).join("");
+  }
+  return `<ul class="features">${(p.features || []).map(f => `<li>${f}</li>`).join("")}</ul>`;
+}
+
 function render(){
   const el = document.getElementById("plans");
   el.innerHTML = "";
@@ -256,7 +277,6 @@ function render(){
     const featured = i === 0 || String(p.id || "").toLowerCase().includes("starter");
     const isAdv = String(p.id || "").toLowerCase().includes("advanced");
     const pr = priceFor(p);
-    const feats = (p.features || []).map(f => `<li>${f}</li>`).join("");
     el.insertAdjacentHTML("beforeend", `
       <div class="plan ${featured ? "featured" : ""}">
         ${featured ? '<div class="badge">POPULAR</div>' : ""}
@@ -264,7 +284,7 @@ function render(){
         <div class="desc">${featured ? "Main marketing plan" : "Voice-centric plan"}</div>
         <div class="price">${inr(pr.amt)}<small>${pr.suf}</small></div>
         <div class="note">${isAdv ? "telephony usage included up to 500 min/mo" : "100% marketing-only — koi calling charge nahi"}</div>
-        <ul class="features">${feats}</ul>
+        ${featuresHtml(p)}
         <div class="actions">
           <button class="btn primary" onclick='openModal(${JSON.stringify(JSON.stringify(p))})'>Shuru karo</button>
           <a class="btn ghost" href="#plans">Compare</a>
