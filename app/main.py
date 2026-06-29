@@ -511,6 +511,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Eval-gate router not mounted: {_e}")
 try:
+    from app.api.rl import router as _rl_router
+
+    # /api/rl/* — RL flywheel (Phase 0) read-only reward-spine visibility.
+    # Admin-only: graduation status + per-arm reward + dev-session feedback.
+    app.include_router(_rl_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"RL router not mounted: {_e}")
+try:
     from app.api.control_center import router as control_center_router
 
     # /api/control-center/overview — enterprise Control Center cockpit L1 (Executive).
