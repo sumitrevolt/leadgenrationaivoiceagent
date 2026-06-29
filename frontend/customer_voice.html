@@ -330,6 +330,50 @@
     { display:none !important; }
   /* one tile hidden -> remaining "Aaj ke liye" tile spans full width */
   .prod-marketing .today-grid, .prod-voice .today-grid { grid-template-columns:1fr; }
+
+  /* ===== Virtual AI Team office (agentic dashboard) ===== */
+  .team-office{position:relative;border-radius:16px;padding:16px 16px 18px;margin:0 0 16px;overflow:hidden;
+    background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 55%,#3b0764 100%);color:#f8fafc;box-shadow:0 10px 30px rgba(30,27,75,.28)}
+  .team-office::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(620px 200px at 12% -10%,rgba(168,85,247,.30),transparent 60%),radial-gradient(520px 220px at 100% 0%,rgba(56,189,248,.22),transparent 55%)}
+  .team-office>*{position:relative;z-index:1}
+  .team-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .team-head .tt{font-size:16px;font-weight:900;letter-spacing:.2px;display:flex;align-items:center;gap:8px}
+  .team-head .ts{font-size:12.5px;color:#c7d2fe;margin-top:2px}
+  .team-live{display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.5);
+    color:#6ee7b7;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+  .team-live .dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 0 0 rgba(52,211,153,.7);animation:teamPulse 1.8s infinite}
+  .team-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .agent{position:relative;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;
+    padding:14px;backdrop-filter:blur(6px);transition:transform .18s ease,border-color .18s ease,background .18s ease;min-height:172px;display:flex;flex-direction:column}
+  .agent:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.10)}
+  .agent .avwrap{position:relative;width:46px;height:46px;margin-bottom:10px}
+  .agent .av{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:23px;
+    background:linear-gradient(135deg,var(--ac,#6d28d9),rgba(255,255,255,.12))}
+  .agent.working .avwrap::before{content:"";position:absolute;inset:-4px;border-radius:16px;border:2px solid var(--ac,#6d28d9);
+    opacity:.65;animation:teamRing 1.6s ease-out infinite}
+  .agent .sdot{position:absolute;right:-3px;bottom:-3px;width:14px;height:14px;border-radius:50%;border:2px solid #1e1b4b;background:#94a3b8}
+  .agent.working .sdot{background:#34d399;animation:teamPulse 1.6s infinite}
+  .agent.active .sdot{background:#38bdf8}
+  .agent .nm{font-size:14px;font-weight:850;line-height:1.15}
+  .agent .rl{font-size:11.5px;color:#cbd5e1;margin-top:1px}
+  .agent .pill-s{display:inline-flex;align-items:center;gap:5px;margin-top:9px;align-self:flex-start;
+    font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;border-radius:999px;padding:3px 8px;
+    background:rgba(148,163,184,.18);color:#cbd5e1;border:1px solid rgba(148,163,184,.3)}
+  .agent.working .pill-s{background:rgba(16,185,129,.16);color:#6ee7b7;border-color:rgba(52,211,153,.4)}
+  .agent.active .pill-s{background:rgba(56,189,248,.14);color:#7dd3fc;border-color:rgba(56,189,248,.35)}
+  .agent .tsk{font-size:12px;color:#e2e8f0;line-height:1.4;margin-top:9px;flex:1}
+  .agent .mc{margin-top:10px;display:inline-flex;align-self:flex-start;font-size:11px;font-weight:800;
+    background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:4px 9px}
+  .agent .typing{display:inline-flex;gap:3px;margin-top:8px;height:8px}
+  .agent .typing i{width:5px;height:5px;border-radius:50%;background:var(--ac,#a78bfa);opacity:.4;animation:teamType 1.2s infinite}
+  .agent .typing i:nth-child(2){animation-delay:.18s}.agent .typing i:nth-child(3){animation-delay:.36s}
+  @keyframes teamPulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.6)}70%{box-shadow:0 0 0 7px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+  @keyframes teamRing{0%{transform:scale(1);opacity:.6}100%{transform:scale(1.35);opacity:0}}
+  @keyframes teamType{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+  @media(max-width:1080px){.team-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.team-grid{grid-template-columns:1fr}}
+  @media(prefers-reduced-motion:reduce){.team-live .dot,.agent.working .sdot,.agent.working .avwrap::before,.agent .typing i{animation:none}}
 </style>
 </head>
 <body class="prod-voice">
@@ -458,6 +502,18 @@
         </div>
       </div>
       <!-- (Next-step card folded into 🏢 Aapka Office above — JS setters stay null-safe) -->
+
+      <!-- ===== Virtual AI Voice Team — agentic live office (voice product) ===== -->
+      <div class="team-office" id="teamCard" aria-label="Aapki AI Voice Team — live">
+        <div class="team-head">
+          <div style="flex:1;min-width:180px">
+            <div class="tt">👥 Aapki AI Voice Team <span class="team-live"><span class="dot"></span> Live</span></div>
+            <div class="ts" id="teamSummary">Team ka kaam load ho raha hai…</div>
+          </div>
+        </div>
+        <div class="team-grid" id="teamAgents" aria-live="polite"></div>
+      </div>
+
       <div class="today-grid">
         <!-- Aaj ka post (AI-generated, 1-click copy/share) -->
         <div class="card" id="contentCard">
@@ -1294,6 +1350,51 @@ function boot(data){
 }
 boot(buildDemo());  // instant render, works offline
 
+/* ============================================================
+   VIRTUAL AI VOICE TEAM — live agent office.
+   /api/customer/team => per-client agent activity (IDOR-safe);
+   product-aware backend returns the VOICE roster for voice clients.
+   ============================================================ */
+function teamDemo(){
+  return { summary:"Team din-raat aapki calling pe kaam karti hai.", agents:[
+    {key:"swara",name:"Swara",emoji:"📞",title:"Telecaller",status:"working",status_label:"Call pe",task:"Naye leads ko call karke qualify kar rahi hoon.",metric:"Calls",accent:"#4f46e5"},
+    {key:"ananya",name:"Ananya",emoji:"📅",title:"Appointment Booker",status:"active",status_label:"Taiyaar",task:"Interested customers ke liye booking slots ready.",metric:"Slots ready",accent:"#0891b2"},
+    {key:"meera",name:"Meera",emoji:"🎓",title:"Call Quality",status:"active",status_label:"Monitor kar rahi",task:"Har call ki quality check — saaf, natural, fast awaaz.",metric:"Quality ✓",accent:"#7c3aed"},
+    {key:"manager",name:"Boss",emoji:"🧑‍💼",title:"Team Lead",status:"active",status_label:"Active",task:"Team ready hai — naya lead aate hi calling shuru.",metric:"4 member",accent:"#2563eb"}
+  ]};
+}
+function renderTeam(d){
+  const grid=document.getElementById("teamAgents");
+  if(!grid) return;
+  const data=d||teamDemo();
+  const sub=document.getElementById("teamSummary");
+  if(sub) sub.textContent=data.summary||"Team aapki calling pe kaam kar rahi hai.";
+  const agents=Array.isArray(data.agents)?data.agents:[];
+  grid.innerHTML=agents.map(function(a){
+    const st=(a.status==="working"||a.status==="active")?a.status:"idle";
+    const typing=st==="working"?'<span class="typing" aria-hidden="true"><i></i><i></i><i></i></span>':"";
+    return '<div class="agent '+st+'" style="--ac:'+escH(a.accent||"#6d28d9")+'">'
+      + '<div class="avwrap"><div class="av">'+escH(a.emoji||"🤖")+'</div><span class="sdot"></span></div>'
+      + '<div class="nm">'+escH(a.name||"Agent")+'</div>'
+      + '<div class="rl">'+escH(a.title||"")+'</div>'
+      + '<span class="pill-s">'+escH(a.status_label||st)+'</span>'
+      + '<div class="tsk">'+escH(a.task||a.duties||"")+'</div>'
+      + typing
+      + '<span class="mc">'+escH(a.metric||"")+'</span>'
+      + '</div>';
+  }).join("");
+}
+async function loadTeam(){
+  try{
+    const r=await fetch("/api/customer/team",{headers:Object.assign({Accept:"application/json"},billAuthHdr())});
+    if(!r.ok) throw new Error("bad status "+r.status);
+    const d=await r.json();
+    if(d&&Array.isArray(d.agents)&&d.agents.length){ renderTeam(d); return; }
+    renderTeam(null);
+  }catch(e){ renderTeam(null); }
+}
+renderTeam(null);   // instant virtual-team office (demo) until live data arrives
+
 /* Billing state — declared before tryLive (which reads BILL.cid). */
 const BILL = { cid: "demo", token: "" };
 
@@ -1310,6 +1411,9 @@ const BILL = { cid: "demo", token: "" };
     if(live&&live.kpis&&Array.isArray(live.calls)&&Array.isArray(live.leads)){
       boot(live);
       loadSpeedToLead();
+      loadTeam();
+      if(window._teamPoll) clearInterval(window._teamPoll);
+      window._teamPoll = setInterval(loadTeam, 25000);  // keep the office "live"
       if(!live.is_sample_data) toast("Live data ✅","Server se aapka asli data load ho gaya.");
     }
   }catch(e){
