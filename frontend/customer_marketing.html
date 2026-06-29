@@ -308,7 +308,7 @@
   body.dark .next-step-card{background:#1c1220;border-color:#713f12}
   body.dark .approve-card{background:#1a1200;border-color:#78350f}
   body.dark .onboard-card{background:linear-gradient(135deg,#1a1530,#2d1b69);border-color:#4c1d95}
-  body.dark #upiPayBox{background:linear-gradient(135deg,#0d2818,#052e16) !important;border-color:#14532d}
+  body.dark #upiPayBox{background:linear-gradient(135deg,#0d2818,#052e16) !important;border:1px solid #14532d !important}
 
   /* ===== Notification bell ===== */
   .notif-btn{position:relative;background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--muted);font-size:20px;display:flex;align-items:center;min-height:44px;min-width:44px;justify-content:center}
@@ -465,6 +465,7 @@
     <a class="navlink" href="#callsCard" onclick="scrollToId('callsCard');return false;" aria-label="Calls ka Hisaab section"><span class="ic" aria-hidden="true">📞</span> Calls ka Hisaab</a>
     <a class="navlink" href="#billingCard" onclick="scrollToId('billingCard');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
     <a class="navlink" href="#secCard" onclick="openAdvancedSettings();return false;" aria-label="Security aur advanced settings"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
+    <a class="navlink" id="navAutomations" href="/app/customer/flows" style="display:none" aria-label="My Automations flow builder"><span class="ic" aria-hidden="true">🧩</span> My Automations</a>
     <div class="side-foot" aria-label="Account info">
       Aapki AI marketing + voice agent team<br>din-raat kaam kar rahi hai.<br><br>
       <span id="sideClient">Client: demo</span>
@@ -2973,6 +2974,17 @@ setTimeout(()=>{
 },800);
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+<!-- My Automations nav reveal — shows flow-builder link only when the flow feature is live -->
+<script>
+(function(){
+  try{
+    var t=localStorage.getItem("lgai_token"); if(!t) return;
+    fetch("/api/customer/flow-templates",{headers:{Authorization:"Bearer "+t}})
+      .then(function(r){ if(r.status===200){ var el=document.getElementById("navAutomations"); if(el) el.style.display=""; } })
+      .catch(function(){});
+  }catch(e){}
+})();
+</script>
 <!-- 🏢 Aapka Office virtual-office widget (shared across all 3 customer dashboards) -->
 <script src="/design-system/customer_office.js" defer></script>
 </body>

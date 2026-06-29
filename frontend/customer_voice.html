@@ -54,6 +54,16 @@
   .main{flex:1;min-width:0;display:flex;flex-direction:column}
   .topbar{background:var(--card);border-bottom:1px solid var(--line);
     padding:14px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+  .trial-banner{
+    margin:0 24px 0;padding:12px 16px;border-radius:12px;display:none;align-items:center;
+    gap:12px;flex-wrap:wrap;border:1px solid #fcd34d;background:linear-gradient(90deg,#fffbeb,#fef3c7);
+  }
+  .trial-banner.show{display:flex}
+  .trial-banner.expired{border-color:#fca5a5;background:linear-gradient(90deg,#fef2f2,#fee2e2)}
+  .trial-banner .msg{flex:1;font-size:13px;font-weight:600;color:#78350f}
+  .trial-banner.expired .msg{color:#991b1b}
+  .trial-banner .btn-pay{background:#16a34a;color:#fff;border:none;padding:10px 14px;border-radius:9px;
+    font-weight:700;cursor:pointer;font-size:12px}
   .hi h1{font-size:18px;margin:0}
   .hi p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
   .spacer{flex:1}
@@ -227,7 +237,7 @@
   body.dark .next-step-card{background:#1c1220;border-color:#713f12}
   body.dark .approve-card{background:#1a1200;border-color:#78350f}
   body.dark .onboard-card{background:linear-gradient(135deg,#1a1530,#2d1b69);border-color:#4c1d95}
-  body.dark #upiPayBox{background:linear-gradient(135deg,#0d2818,#052e16) !important;border-color:#14532d}
+  body.dark #upiPayBox{background:linear-gradient(135deg,#0d2818,#052e16) !important;border:1px solid #14532d !important}
 
   /* ===== Notification bell ===== */
   .notif-btn{position:relative;background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--muted);font-size:20px;display:flex;align-items:center;min-height:44px;min-width:44px;justify-content:center}
@@ -357,6 +367,7 @@
     <a class="navlink" href="#callsCard" onclick="scrollToId('callsCard');return false;" aria-label="Calls ka Hisaab section"><span class="ic" aria-hidden="true">📞</span> Calls ka Hisaab</a>
     <a class="navlink" href="#billingCard" onclick="scrollToId('billingCard');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
     <a class="navlink" href="#secCard" onclick="openAdvancedSettings();return false;" aria-label="Security aur advanced settings"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
+    <a class="navlink" id="navAutomations" href="/app/customer/flows" style="display:none" aria-label="My Automations flow builder"><span class="ic" aria-hidden="true">🧩</span> My Automations</a>
     <div class="side-foot" aria-label="Account info">
       Aapki AI Voice Agent — din-raat calls kar rahi hai aapke liye.<br><br>
       <span id="sideClient">Client: demo</span>
@@ -400,6 +411,11 @@
       </div>
       <!-- Dark mode toggle -->
       <button class="btn" id="darkBtn" onclick="toggleDark()" aria-label="Toggle dark mode" aria-pressed="false" style="padding:8px 10px;font-size:16px;min-width:44px">🌙</button>
+    </div>
+
+    <div id="trialBanner" class="trial-banner" role="status" aria-live="polite">
+      <div class="msg" id="trialBannerMsg"></div>
+      <button type="button" class="btn-pay" id="trialBannerPay" onclick="scrollToId('billingCard')">💳 Ab pay karo</button>
     </div>
 
     <div class="content" role="main" id="mainContent">
@@ -691,6 +707,17 @@
             <div id="upiQrBox" style="max-width:180px;margin:0 auto 10px;background:#fff;padding:8px;border-radius:8px"></div>
             <div id="upiVpaLbl" style="font-weight:700;text-align:center;margin-bottom:8px;font-size:14px"></div>
             <a id="upiWaBtn" href="#" target="_blank" rel="noopener" class="btn primary" style="width:100%;justify-content:center;text-decoration:none">💬 Screenshot WhatsApp karo</a>
+            <div style="margin:12px 0 6px;text-align:center;color:var(--muted);font-size:11px">— ya turant submit (faster) —</div>
+            <div style="font-size:12px;font-weight:700;margin-bottom:6px">✅ Pay kar diya? UPI reference yahan daalo</div>
+            <select id="upiPlanSel" style="width:100%;margin-bottom:6px;padding:8px;border:1px solid #bbf7d0;border-radius:8px;font-size:13px">
+              <option value="">Plan chuno</option>
+              <option value="voice_a_monthly">Voice — Band A ₹4,999/mo</option>
+              <option value="voice_b_monthly">Voice — Band B ₹9,999/mo</option>
+              <option value="voice_c_monthly">Voice — Band C ₹19,999/mo</option>
+            </select>
+            <input id="upiRefInp" type="text" placeholder="UPI Transaction ID / Reference no." style="width:100%;margin-bottom:6px;padding:8px;border:1px solid #bbf7d0;border-radius:8px;font-size:13px"/>
+            <button id="upiSubmitBtn" onclick="submitUpiRef()" class="btn primary" style="width:100%;justify-content:center">✅ Maine Pay Kiya — Submit</button>
+            <div id="upiSubmitMsg" class="sm" style="margin-top:8px;text-align:center;display:none"></div>
           </div>
         </div>
         <div class="card-h" style="border-top:1px solid var(--line)">
@@ -1249,8 +1276,21 @@ function toast(t,m){
 /* ============================================================
    BOOT: render demo instantly, then try live fetch (fallback safe)
    ============================================================ */
+function renderTrialBanner(data){
+  const el=document.getElementById("trialBanner");
+  const msg=document.getElementById("trialBannerMsg");
+  if(!el||!msg) return;
+  const tb=(data&&data.trial_banner)||null;
+  if(!tb||!tb.show_pay_cta||data.is_sample_data){
+    el.classList.remove("show","expired");
+    return;
+  }
+  msg.textContent=tb.message||"Trial khatam hone wala hai — plan upgrade karo.";
+  el.classList.add("show");
+  el.classList.toggle("expired",!!tb.expired);
+}
 function boot(data){
-  DATA=data;setMeta(data);initCampaigns();renderAll();
+  DATA=data;setMeta(data);initCampaigns();renderAll();renderTrialBanner(data);
 }
 boot(buildDemo());  // instant render, works offline
 
@@ -1783,6 +1823,25 @@ async function loadUpiPayBox(showBox){
     if(wa) wa.href="https://wa.me/"+waNum+"?text="+msg;
   }catch(e){ if(box) box.style.display="none"; }
 }
+async function submitUpiRef(){
+  const plan=(document.getElementById("upiPlanSel")||{}).value||"";
+  const ref=((document.getElementById("upiRefInp")||{}).value||"").trim();
+  const msg=document.getElementById("upiSubmitMsg");
+  const btn=document.getElementById("upiSubmitBtn");
+  function showMsg(color,text){ if(msg){ msg.style.display=""; msg.style.color=color; msg.textContent=text; } }
+  if(!plan){ showMsg("#b45309","Pehle plan chuno."); return; }
+  if(!ref){ showMsg("#b45309","UPI Transaction ID / reference daalo."); return; }
+  if(btn){ btn.disabled=true; btn.textContent="Bhej raha hoon..."; }
+  try{
+    const r=await fetch("/api/upi/submit",{method:"POST",
+      headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
+      body:JSON.stringify({client_id:BILL.cid,plan:plan,upi_ref:ref})});
+    const j=await r.json();
+    if(j&&j.ok){ showMsg("var(--ok)","✅ "+(j.message||"Mil gaya! Verify ho raha hai, jaldi activate.")); const inp=document.getElementById("upiRefInp"); if(inp) inp.value=""; }
+    else{ showMsg("#dc2626",(j&&j.message)||"Submit fail — dobara try karo."); }
+  }catch(e){ showMsg("#dc2626","Network issue — thodi der baad try karo."); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent="✅ Maine Pay Kiya — Submit"; } }
+}
 function show(id,on){ const el=document.getElementById(id); if(el) el.style.display=on?"inline-flex":"none"; }
 
 async function openBillingPortal(){
@@ -2026,6 +2085,16 @@ setTimeout(()=>{
 },800);
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
+<script>
+(function(){
+  try{
+    var t=localStorage.getItem("lgai_token"); if(!t) return;
+    fetch("/api/customer/flow-templates",{headers:{Authorization:"Bearer "+t}})
+      .then(function(r){ if(r.status===200){ var el=document.getElementById("navAutomations"); if(el) el.style.display=""; } })
+      .catch(function(){});
+  }catch(e){}
+})();
+</script>
 <!-- 🏢 Aapka Office virtual-office widget (shared across all 3 customer dashboards) -->
 <script src="/design-system/customer_office.js" defer></script>
 </body>
