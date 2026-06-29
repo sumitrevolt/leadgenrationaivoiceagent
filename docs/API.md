@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1005 operations)
+## Endpoint Index — auto-generated from OpenAPI (1019 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -412,7 +412,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/revenue-trend` — Get Revenue Trend
 - `GET   ` `/api/admin/sync-health` — Admin Sync Health
 
-### Admin Ops  (20)
+### Admin Ops  (21)
 
 - `GET   ` `/api/admin/calls/recent` — Recent call outcomes / qualified summary
 - `POST  ` `/api/admin/campaign/launch` — Launch outbound call campaign
@@ -434,6 +434,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/voice/gemini-keys` — Voice Gemini key pool status (masked)
 - `POST  ` `/api/admin/voice/gemini-keys` — Validate + save voice Gemini keys (no restart)
 - `GET   ` `/api/admin/voice/latency` — Voice agent per-turn latency rollup (P50/P95) — proves call speed
+- `GET   ` `/api/admin/voice/self-test` — Built-in voice self-test (personas + stack + live)
 
 ### AgentCapacity  (2)
 
@@ -632,6 +633,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/contentplus/service-cycle` — Add Service Cycle
 - `GET   ` `/api/contentplus/service-due` — Service Due
 - `POST  ` `/api/contentplus/service-run` — Service Run
+
+### Control Center  (6)
+
+- `GET   ` `/api/control-center/agents/metrics` — Control Center Agents Metrics
+- `GET   ` `/api/control-center/cost-rollup` — Control Center Cost Rollup
+- `GET   ` `/api/control-center/node-stats` — Control Center Node Stats
+- `GET   ` `/api/control-center/overview` — Control Center Overview
+- `GET   ` `/api/control-center/rca` — Control Center Rca
+- `GET   ` `/api/control-center/route-hits` — Control Center Route Hits
 
 ### Conversion Admin  (2)
 
@@ -882,7 +892,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (55)
+### Frontend  (57)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
@@ -897,6 +907,8 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/calendar` — Calendar Page
 - `GET   ` `/app/clients` — Clients Page
 - `GET   ` `/app/command-center` — Command Center Page
+- `GET   ` `/app/control-center` — Control Center Page
+- `GET   ` `/app/control-center/graph` — Control Center Graph Page
 - `GET   ` `/app/conversations` — Conversations Page
 - `GET   ` `/app/customer` — Customer Dashboard Page
 - `GET   ` `/app/customer/flows` — Customer Flows Page
@@ -1530,15 +1542,20 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/voice/record-lead` — Record Lead
 - `POST  ` `/api/voice/topup-link` — Lead Topup Link
 
-### Web Call (Test Mode)  (3)
+### Web Call (Test Mode)  (4)
 
 - `GET   ` `/api/web-call/config` — Web Call Config
 - `GET   ` `/api/web-call/history` — Web Call History
+- `POST  ` `/api/web-call/recording` — Upload a web test-call audio recording (mixed mic+bot)
 - `GET   ` `/api/web-call/session/{session_id}` — Web Call Session Detail
 
-### Web Test Calls (Admin)  (2)
+### Web Test Calls (Admin)  (6)
 
 - `GET   ` `/api/admin/web-calls` — List saved web test-call transcripts (all browsers)
+- `GET   ` `/api/admin/web-calls/kpis` — Call-center KPIs (Lekha — Call Analytics)
+- `GET   ` `/api/admin/web-calls/proposals` — Self-improve proposals (per-call learn gate)
+- `POST  ` `/api/admin/web-calls/proposals/{proposal_id}/promote` — Promote a proposal (GATED)
+- `POST  ` `/api/admin/web-calls/proposals/{proposal_id}/reject` — Reject a proposal
 - `GET   ` `/api/admin/web-calls/{session_id}` — One web test-call + full transcript
 
 ### Webhooks  (5)
