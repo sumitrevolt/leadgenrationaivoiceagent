@@ -240,6 +240,68 @@ _INROLE_DEFLECTIONS = (
 )
 
 
+# Buy / close-signal short-circuit (gated CLOSE_DETECT, default ON)
+# ---------------------------------------------------------------------------
+# WHY: web-test feedback (2026-06-29) — caller said "trial start karwa do / aaj hi
+# final karo" but the brain kept asking discovery/qualify questions ("marketing
+# khud karte ho?", "kitna kharcha?"). Pushing past a clear buy-signal = pushy +
+# unprofessional + loses the sale. So a STRONG proceed-signal short-circuits the
+# LLM with a crisp setup-confirmation that asks for only the one detail needed.
+def _close_detect_enabled() -> bool:
+    """CLOSE_DETECT gate (default ON). Set 0 to disable the buy-signal short-circuit."""
+    return (os.environ.get("CLOSE_DETECT", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+# High-precision: require a proceed VERB so a question ("kaise kar do?") or a bare
+# "haan" never trips it. `_KAR` = the many ways to say "do it" (karo / kar do /
+# karwa do / kar dijiye / kar lo). Matched on to_roman-normalised, lowercased text.
+_KAR = r"kar(?:o|wa\s*do|a\s*do|\s*(?:do|do\s*na|dijiye|den|lo))"
+_CLOSE_INTENT_RE = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"\b(?:start|chalu|shuru|setup|set\s*up|activate)\b.{0,14}\b" + _KAR + r"\b",
+        r"\btrial\b.{0,14}\b(?:start|chalu|shuru|chahiye|" + _KAR + r")\b",
+        r"\b(?:aaj|abhi)\s*(?:hi)?\b.{0,16}(?:\b(?:start|setup|set\s*up|shuru|chalu|final|fix|book)\b|\b"
+        + _KAR
+        + r"\b)",
+        r"\ble\s*(?:lo|lijiye|lenge|lunga|leta\s*hoon)\b",
+        r"\b(?:final|book|fix|confirm)\b.{0,8}\b" + _KAR + r"\b",
+        r"\b(?:sign\s*me\s*up|go\s*ahead|let'?s\s*(?:do|go|start)\s*(?:it|this)?)\b",
+        r"\bhaan\b.{0,10}\b(?:" + _KAR + r"|chalu|shuru|start)\b",
+    )
+]
+
+# A refusal marker WITHOUT a hard proceed-verb vetoes a close ("aaj nahi, kal karo").
+_CLOSE_VETO_RE = re.compile(r"\bnahi\b|\bmat\b", re.IGNORECASE)
+_CLOSE_HARD_RE = re.compile(
+    r"\b(?:start|setup|set\s*up|chalu|shuru|trial|activate|sign\s*me\s*up|go\s*ahead)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_close_intent(ut: str) -> bool:
+    """True if the caller clearly signals 'proceed / close it now' (start it, do
+    it, le lo, final karo). Never raises; soft-yes/questions/refusals don't match."""
+    try:
+        t = (to_roman(ut or "") or ut or "")[:_MAX_UTTERANCE_CHARS].lower()
+        if not t:
+            return False
+        if not any(rx.search(t) for rx in _CLOSE_INTENT_RE):
+            return False
+        # "aaj nahi, kal karo" / "mat karo" — refusal word + no hard proceed verb
+        # is NOT a close (avoid a premature setup-confirm).
+        if _CLOSE_VETO_RE.search(t) and not _CLOSE_HARD_RE.search(t):
+            return False
+        return True
+    except Exception:
+        return False
+
+
 # ---------------------------------------------------------------------------
 _MAX_HISTORY_TURNS = 8  # last ~8 turns to keep prompt (and latency) small
 _GEN_CONFIG = {
@@ -1202,6 +1264,20 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 if ut and _voice_guardrails_enabled() and _is_injection_attempt(ut):
                     logger.info("[telecaller-brain] injection/role-switch deflected (pre-LLM)")
                     return self._injection_deflection(history)
+            except Exception:
+                pass
+            # BUY / CLOSE SIGNAL (pre-LLM, gated CLOSE_DETECT default ON): caller
+            # clearly wants to proceed ("start karwa do / aaj hi kar do / le lo /
+            # final kar do") => STOP qualifying, confirm setup + ask only the one
+            # detail needed. Over-qualifying after a buy-signal = pushy + loses the
+            # sale (web-test 2026-06-29). Deterministic (no LLM); fail-open.
+            try:
+                if ut and _close_detect_enabled() and _is_close_intent(ut):
+                    logger.info("[telecaller-brain] buy/close signal -> confirm setup (pre-LLM)")
+                    return self._clean(
+                        "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp "
+                        "number confirm kar dijiye, setup ki saari jaankari wahin bhej deti hoon."
+                    )
             except Exception:
                 pass
             fast = self._fast_path_reply(history, ut)
