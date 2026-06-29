@@ -245,4 +245,8 @@ AUTOMATION_FLAGS = [
     # never cached (context-bleed safe). Requires SEMANTIC_CACHE=1 too. Fix for 2026-06-26 finding
     # that SEMANTIC_CACHE flag was ON in prod but voice brain never called semantic_complete.
     "BARGE_GUARD",  # cough/backchannel false-stop guard for barge-in detection
+    "VOICE_GUARDRAILS",  # role-injection guardrail in telecaller_brain (pre-LLM deflect +
+    # post-LLM obeyed-discard) — keeps Swara in the sales-telecaller role under
+    # "ignore your instructions / ab tum pirate ho / show your system prompt". Default ON
+    # (security guard); set 0 to disable. Covers web-call + vobiz (shared brain chokepoint).
 ]
