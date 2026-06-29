@@ -45,6 +45,23 @@ Genuinely free adaptation exists (free Colab/Kaggle GPU + free Hindi ASR dataset
 Kathbath, IndicVoices, Shrutilipi; license-gated) but it's a weeks-long project. Do the IndicConformer
 swap first; the already-running label-and-learn loop ([[voice-smart-fix-bundle]] Component 3) feeds it later.
 
+## POC RESULT (2026-06-30) — IndicConformer-600m on 3 real web-call recordings (CPU, local)
+**Latency: PASS.** CTC on CPU = **RTF 0.15-0.23** (transcribes 90-220s audio in 14-51s) = ~5× faster
+than real-time → real-time-feasible on the CPU VPS (vs Whisper-large's ~3× SLOWER).
+**Quality: FAIL the premise.** It does NOT fix the root cause:
+- Outputs **Devanagari** (same as Groq-hi), NOT Roman — so "trial activate" → "ट्रायल एक्टिवेट" (better
+  than Groq's "रिटायल अक्टिवेट" but still Devanagari, still needs downstream to_roman).
+- Numbers → **number-words in Devanagari** ("1999" → "नाइन हंड्रेड नाइटी नाइन"), same as Groq.
+- **Phone numbers → WORSE**: Groq gives digits "8459012607"; IndicConformer gives words
+  "फाइव नाइन जीरो…" → breaks the post-close number read-back.
+**VERDICT: do NOT swap to IndicConformer.** Marginal domain-word gain, no Roman/number fix, phone
+regresses — not worth a gated-model + 2.4GB + new-container + VPS-RAM infra change. (HF repo is gated:
+free account + accept terms + token; the model loads via `transformers` `trust_remote_code`, no NeMo.)
+**Real free fix = downstream correction** (no model swap): extend `hinglish_stt_fix.correct_stt` with
+Devanagari→roman + number-words→digits (free, fast, builds on shipped Component 1) + the LLM upgrade.
+The Oriserve/Trelis Hinglish-Roman Whisper models are the only ones that output Roman natively but are
+Whisper-large = CPU-slow (~3× real-time) → not the real-time primary; use for the offline label/learn loop.
+
 ## Recommended path (impact-per-effort)
 1. **POC** IndicConformer-600m on the VPS (or Colab) on 5-10 real recordings → measure Hinglish WER +
    per-utterance latency + whether it keeps English in Roman. Compare to Groq-whisper-hi.
