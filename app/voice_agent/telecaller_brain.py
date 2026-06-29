@@ -1045,7 +1045,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "(3) festival posters, (4) inquiry ka auto follow-up. Sab AI se, aap dhanda pe focus."
                 )
             if any(w in low for w in ("free trial", "trial", "demo", "try karna")):
-                return self._clean("Haan sir — 7 din FREE trial, bina card. Aaj setup kar doon ya kal?")
+                return self._clean("7 din FREE trial, bina card. Aaj setup kar doon ya kal subah?")
             if any(w in low for w in ("google", "gbp", "listing", "profile", "search pe")):
                 return self._clean(
                     "Google Business audit + fix suggestions dete hain — search pe upar aane me madad, "
@@ -1110,7 +1110,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 "Aaj setup kar doon ya kal subah?"
             )
         if any(w in low for w in ("busy", "meeting", "abhi nahi", "time nahi")):
-            return self._clean("Samajh gayi sir — shaam paanch baje ya kal subah gyarah, kab theek rahega?")
+            return self._clean("Shaam paanch baje ya kal subah gyarah — kab theek rahega sir?")
         if any(w in low for w in ("mehenga", "mahnga", "costly", "zyada paisa", "budget zyada")):
             obj = (s.get("objections") or {}).get("mehenga") or ""
             if obj:
@@ -1462,7 +1462,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     # ek safe Hinglish clarify/ack line do (silence = worst UX; test me "NO REPLY" bug).
     _SAFE_LINES = (
         "Achha sir, thoda detail me bataaiye?",
-        "Samajh gayi sir — aage bataye?",
+        "Achha — aage bataye sir?",
         "Ji sir, sun rahi hoon — boliye?",
     )
     _CLARIFY_LINE = "Ji sir, ek baar phir short me boliye?"
