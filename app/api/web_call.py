@@ -1276,6 +1276,16 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         f"stt_ms={_turn_timing.get('stt_ms')}"
                     )
             user_text = stt_text or browser_text
+            # Post-STT Hinglish correction (smart-fix Component 1b) — fix high-confidence
+            # mis-hears on the FINAL user text (server-STT or browser fallback) before it
+            # reaches the NLU gates + the LLM. Gated STT_CORRECT (default ON); fail-open.
+            if user_text:
+                try:
+                    from app.voice_agent.hinglish_stt_fix import correct_stt as _correct_stt
+
+                    user_text = _correct_stt(user_text, session.get("niche", "") or "")
+                except Exception:
+                    pass
 
             if not user_text:
                 await websocket.send_json(

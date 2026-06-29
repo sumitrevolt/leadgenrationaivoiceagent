@@ -243,7 +243,14 @@ def stt_keyterms(niche: str = "", client_name: str = "") -> str:
         nm = (niche or "").replace("_", " ").strip()
         if nm and nm.lower() != "general":
             terms.append(nm)
-        hint = "Yeh ek Hindi-English (Hinglish) business call hai."
+        # Common business-call vocab that Whisper mangles in code-switched Hinglish
+        # ("Instagram"->"instagiram", "trial"->"ritail"). Priming these biases the
+        # recogniser to transcribe them right AT THE SOURCE (smart-fix Component 1a).
+        vocab = (
+            "trial, plan, price, rupees, WhatsApp, Instagram, Facebook, Google, "
+            "posts, ads, setup, booking, demo, marketing, leads"
+        )
+        hint = f"Yeh ek Hindi-English (Hinglish) business call hai. Aam shabd: {vocab}."
         return f"{hint} Vishay: {', '.join(terms)}." if terms else hint
     except Exception:
         return ""
