@@ -697,6 +697,20 @@ class TelecallerBrain:
                     self.system_prompt += f"\n\nTRAINER NOTE (Meera):\n{hint}"
         except Exception:
             pass
+        # Component 3 (close-the-loop): inject admin-PROMOTED learned good-replies for
+        # this niche so a human-approved correction from a REAL call reaches the live
+        # agent. Bounded top-N; gated VOICE_LEARNED_INJECT (default ON); never crashes init.
+        try:
+            from app.voice_agent import voice_learned as _vlearned
+
+            _lh = _vlearned.hint_for(self.niche)
+            if _lh:
+                self.system_prompt += (
+                    "\n\nLEARNED GOOD REPLIES (is niche ke real calls se, admin-approved) — "
+                    "inhe accha-jawab reference ki tarah follow karo:\n" + _lh
+                )
+        except Exception:
+            pass
         # Obsidian brain: past call patterns for this niche
         try:
             from app.platform import obsidian_sync as _obs

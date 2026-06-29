@@ -110,6 +110,18 @@ async def promote_voice_proposal(proposal_id: str, _user=Depends(require_admin))
         if not gate.get("pass"):
             return {"ok": False, "error": "gate_failed", "gate": gate}
         ok = set_proposal_status(proposal_id, "promoted")
+        if ok:
+            # Component 3 — close the learn-from-calls loop: feed the admin-approved
+            # correction to the LIVE agent (telecaller_brain injects top-N learned
+            # replies per niche). Gated + bounded inside voice_learned; never blocks.
+            try:
+                from app.voice_agent import voice_learned
+
+                voice_learned.record(
+                    match.get("niche"), match.get("user_question"), match.get("candidate")
+                )
+            except Exception:
+                pass
         return {"ok": ok, "gate": gate, "status": "promoted" if ok else "unchanged"}
     except Exception as e:  # pragma: no cover - defensive
         logger.debug(f"voice proposal promote failed ({e})")
