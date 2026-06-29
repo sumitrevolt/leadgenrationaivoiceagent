@@ -24,13 +24,34 @@ subprocess.run([sys.executable, "-m", "pip", "install", "-q",
                 "transformers", "torchaudio", "soundfile", "librosa", "edge-tts",
                 "nest_asyncio", "indic-transliteration", "jiwer"], check=True)
 
-import asyncio, time, re, warnings
+import asyncio, os, time, re, warnings
 import librosa, numpy as np, soundfile as sf, torch
 import nest_asyncio
 from transformers import AutoModel
 
 nest_asyncio.apply()            # Colab already runs a loop -> allow asyncio.run()
 warnings.filterwarnings("ignore")
+
+# --- Optional HuggingFace token (ONLY if a model is GATED, e.g. IndicF5) ---
+# Most of this proof needs NO key. If IndicF5 (TTS) download errors with
+# "gated"/401/403:  (1) make a token at huggingface.co/settings/tokens (read role),
+# (2) ACCEPT the model's terms on its HF page,  (3) Colab left sidebar 🔑 -> add a
+# secret named  HF_TOKEN = <your token>  (rename your "test" secret to HF_TOKEN),
+# enable "Notebook access", then re-run. The block below picks it up automatically.
+try:
+    from google.colab import userdata  # type: ignore
+    _hf = userdata.get("HF_TOKEN")
+    if _hf:
+        os.environ["HF_TOKEN"] = _hf
+        os.environ["HUGGING_FACE_HUB_TOKEN"] = _hf
+        try:
+            from huggingface_hub import login
+            login(_hf)
+        except Exception:
+            pass
+        print("HF token loaded from Colab secret HF_TOKEN.")
+except Exception:
+    pass  # not on Colab / no secret set -> fine for public models
 
 DEV = "cuda" if torch.cuda.is_available() else "cpu"
 print("GPU:", torch.cuda.get_device_name(0) if DEV == "cuda" else
