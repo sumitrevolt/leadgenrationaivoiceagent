@@ -132,6 +132,114 @@ def get_customer_office(client_id: str = Depends(require_customer)):
     return _build_office(client_id)
 
 
+def _voice_team_response(
+    client_id: str,
+    client_rec: dict | None,
+    total_leads: int,
+    hot: int,
+    has_profile: bool,
+    niche: str,
+) -> CustomerTeamResponse:
+    """Voice-product customer's AI team — Swara/Ananya/Meera + Boss, with
+    call-based activity derived ONLY from this client's own leads (IDOR-safe).
+
+    ADR-009 two-product split: a voice-only dashboard must NOT show the marketing
+    roster (Isha/Rohan/Dev). Mirrors get_customer_team's best-effort, never-500
+    contract — every value comes from already-validated, client-scoped inputs.
+    """
+    try:
+        from app.platform.team import STAFF
+    except Exception:
+        STAFF = {}
+
+    def _meta(key: str, fallback_name: str, fallback_emoji: str) -> tuple[str, str]:
+        info = STAFF.get(key) or {}
+        return (str(info.get("name") or fallback_name), str(info.get("emoji") or fallback_emoji))
+
+    agents: list[TeamAgentCard] = []
+
+    # 📞 Swara — Telecaller (calls + qualifies this client's leads)
+    sname, semoji = _meta("swara", "Swara", "📞")
+    if hot > 0:
+        s_status, s_label = "working", "Call pe"
+        s_task = f"{hot} hot lead ko call karke qualify kiya — ready to buy. 🔥"
+    elif total_leads > 0:
+        s_status, s_label = "active", "Active"
+        s_task = f"{total_leads} leads ko call karke qualify kiya."
+    else:
+        s_status, s_label = "active", "Taiyaar"
+        s_task = "Naya lead aate hi turant call karne ko taiyaar hoon."
+    agents.append(TeamAgentCard(
+        key="swara", name=sname, emoji=semoji, title="Telecaller",
+        duties="Aapke har lead ko call karke qualify karti hai",
+        status=s_status, status_label=s_label, task=s_task,
+        metric=f"{total_leads} call", accent="#4f46e5",
+    ))
+
+    # 📅 Ananya — Appointment Booker
+    aname, aemoji = _meta("ananya", "Ananya", "📅")
+    if hot > 0:
+        a_status, a_label = "working", "Slot book kar rahi"
+        a_task = f"{hot} interested customer ke liye appointment set kar rahi."
+    else:
+        a_status, a_label = "active", "Taiyaar"
+        a_task = "Interested customers ke liye booking slots ready hain."
+    agents.append(TeamAgentCard(
+        key="ananya", name=aname, emoji=aemoji, title="Appointment Booker",
+        duties="Qualified leads ke appointment/demo slot book karti hai",
+        status=a_status, status_label=a_label, task=a_task,
+        metric=(f"{hot} slot" if hot else "Slots ready"), accent="#0891b2",
+    ))
+
+    # 🎓 Meera — Call Quality Trainer (trust: calls sound human + fast)
+    mname, memoji = _meta("meera", "Meera", "🎓")
+    agents.append(TeamAgentCard(
+        key="meera", name=mname, emoji=memoji, title="Call Quality",
+        duties="Har call ki quality monitor karti hai",
+        status="active", status_label="Monitor kar rahi",
+        task="Har call ki quality check — saaf, natural aur fast awaaz.",
+        metric="Quality ✓", accent="#7c3aed",
+    ))
+
+    # 🧑‍💼 Boss — Team Lead (coordinator summary)
+    busy_count = sum(1 for a in agents if a.status == "working")
+    bname, bemoji = _meta("manager", "Boss", "🧑‍💼")
+    if busy_count > 0:
+        b_status, b_label = "working", "Coordinate kar raha hai"
+        b_task = f"{busy_count} agent abhi call/booking pe — main monitor kar raha hoon."
+    else:
+        b_status, b_label = "active", "Active"
+        b_task = "Team ready hai — naya lead aate hi calling shuru."
+    agents.append(TeamAgentCard(
+        key="manager", name=bname, emoji=bemoji, title="Team Lead",
+        duties="Poori voice team ko coordinate karta hai",
+        status=b_status, status_label=b_label, task=b_task,
+        metric=f"{len(agents) + 1} member", accent="#2563eb",
+    ))
+
+    total_today = total_leads
+    is_sample = bool(not client_rec and total_today == 0)
+    if total_today > 0:
+        headline = f"Aaj aapki AI voice team ne {total_today} lead handle kiye"
+    else:
+        headline = "Aapki AI voice team active hai — lead aate hi call shuru"
+    summary = (
+        f"{busy_count} agent abhi kaam pe · {total_leads} lead · {hot} hot"
+        if total_today
+        else "Team din-raat aapki calling pe kaam karti hai."
+    )
+    return CustomerTeamResponse(
+        client_id=client_id,
+        generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"),
+        is_sample_data=is_sample,
+        headline=headline,
+        summary=summary,
+        busy_count=busy_count,
+        total_today=total_today,
+        agents=agents,
+    )
+
+
 @router.get("/team", response_model=CustomerTeamResponse)
 def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTeamResponse:
     """Customer-facing **AI Marketing Team** — a virtual agentic office that shows
@@ -193,6 +301,12 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
         return (str(info.get("name") or fallback_name), str(info.get("emoji") or fallback_emoji))
 
     agents: list[TeamAgentCard] = []
+
+    # ADR-009 product split: a voice-only client gets the VOICE team (call-based);
+    # marketing/combo fall through to the marketing roster below (unchanged).
+    _product = str((client_rec or {}).get("product") or "marketing").strip().lower()
+    if _product == "voice":
+        return _voice_team_response(client_id, client_rec, total_leads, hot, has_profile, niche)
 
     # 📣 Isha — Content Writer
     iname, iemoji = _meta("isha", "Isha", "📣")
