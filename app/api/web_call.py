@@ -560,7 +560,8 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
             return None
         try:
             try:
-                comm = edge_tts.Communicate(text, "hi-IN-SwaraNeural", rate="+8%")
+                _wrate = os.environ.get("WEB_TTS_RATE", "+18%").strip() or "+18%"
+                comm = edge_tts.Communicate(text, "hi-IN-SwaraNeural", rate=_wrate)
             except TypeError:
                 # edge-tts build without the `rate` kwarg — synth at default rate.
                 comm = edge_tts.Communicate(text, "hi-IN-SwaraNeural")
