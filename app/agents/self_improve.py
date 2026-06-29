@@ -1441,6 +1441,16 @@ async def run_once() -> dict[str, Any]:
         "at": _now().isoformat(),
     }
     _append(_RUNS, rec)
+    # RL reward spine (Phase 0) — mirror outcome_value into the unified reward log.
+    try:
+        from app.agents.rl import reward as _rl_reward
+
+        _rl_reward.record_reward(
+            "funnel", action, float(rec["outcome_value"]),
+            ref=rec["id"], context={"source": rec["source"]},
+        )
+    except Exception:
+        pass
     # Trajectory record (Ruflo SONA / training-export #13) — gated TRAJECTORY_LEARN,
     # never-raise, low-volume (~max_per_day lines). Feeds trajectory.best_trajectories
     # + export_dataset with REAL run data. Replay-into-loop NOW WIRED via _reflect()
