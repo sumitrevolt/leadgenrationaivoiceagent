@@ -97,3 +97,12 @@ def test_channel_experiments_emits_reward(tmp_path, monkeypatch):
     assert out["ok"] is True
     rows = reward._read(reward._REWARDS)
     assert any(r["domain"] == "outreach" and r["arm"] == "quora" for r in rows)
+
+
+def test_rl_router_shape():
+    from app.api.rl import router
+    paths = {r.path for r in router.routes}
+    assert "/api/rl/summary" in paths
+    assert "/api/rl/arms" in paths
+    assert "/api/rl/recent" in paths
+    assert "/api/rl/dev" in paths
