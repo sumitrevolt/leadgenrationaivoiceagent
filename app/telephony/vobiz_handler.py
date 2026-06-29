@@ -119,7 +119,7 @@ class VobizClient:
         try:
             import httpx  # lazy — keep module import light
 
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
                 resp = await client.post(
                     f"{self.base_url}/Call/",
                     json=payload,
@@ -135,7 +135,7 @@ class VobizClient:
         try:
             import httpx  # lazy
 
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
                 resp = await client.get(f"{self.base_url}/", headers=self._headers())
             return {"status_code": resp.status_code, "body": self._safe_body(resp)}
         except Exception as e:
