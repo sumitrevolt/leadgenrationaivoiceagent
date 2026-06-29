@@ -66,6 +66,10 @@ _OBJ_HINT = {
     "soch_ke": "soch ke batata hoon",
     "pehle_se_hai": "pehle se hai / le rakha hai",
     "bharosa": "bharosa nahi / genuine ho kya",
+    "fraud_suspicion": "fraud / scam to nahi / genuine company hai?",
+    "decision_maker": "main decide nahi karta / owner-partner se baat karo",
+    "tried_before": "pehle try kiya tha, fayda nahi hua",
+    "details_bhejo": "abhi time nahi / WhatsApp pe bhej do",
 }
 
 # Default qualification flow when the niche is unknown/missing.

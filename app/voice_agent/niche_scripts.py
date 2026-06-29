@@ -97,15 +97,56 @@ _OBJ_LABELS: dict[str, str] = {
 # ========================================================================== #
 
 
+# Common Indian cold-call objections that per-niche scripts don't cover — merged
+# into EVERY script's grounding (a niche's own rebuttal always wins). Component 4
+# of the voice smart-fix bundle: deepens objection-handling across all 39 niches
+# (these used to fall through to the LLM ungrounded = "noob" fumbling).
+_COMMON_OBJECTIONS: dict[str, str] = {
+    "fraud_suspicion": (
+        "Bilkul valid sawaal sir — hum registered company hain, sab kuch likhit aur "
+        "verify-able hai, koi advance payment nahi. Aap khud check karke hi aage badhiye."
+    ),
+    "decision_maker": (
+        "Koi baat nahi sir, jiska decision hai unse discuss zaroori hai — main poori "
+        "detail WhatsApp pe bhej deti hoon, saath baith ke dekh lijiyega."
+    ),
+    "tried_before": (
+        "Samajhti hoon sir, pehle ka experience alag raha hoga — ek baar yeh dekh lijiye, "
+        "koi commitment nahi, farak khud mehsoos ho jayega."
+    ),
+    "details_bhejo": (
+        "Bilkul sir, WhatsApp pe abhi bhej deti hoon — bas 10 second me itna samajh "
+        "lijiye, phir aaram se dekhiyega. Aapka yahi number sahi hai na?"
+    ),
+}
+
+
+def _with_common_objections(script: dict) -> dict:
+    """Shallow-copy of the script with the common objection-types merged in (the
+    niche's own rebuttal wins). NICHE_SCRIPTS is never mutated. Never raises."""
+    try:
+        merged = dict(_COMMON_OBJECTIONS)
+        merged.update(script.get("objections") or {})  # niche-specific overrides win
+        out = dict(script)
+        out["objections"] = merged
+        return out
+    except Exception:
+        return script
+
+
 def get_script(niche_key: str) -> dict:
-    """Return the script-block for a niche, ya 'general' fallback.
+    """Return the script-block for a niche, ya 'general' fallback — with the common
+    objection-types merged in.
 
     Builtin priority niches ke liye custom script, baaki sab (incl. custom
     niches) ke liye general. Hamesha ek valid dict return karta hai.
     """
-    if niche_key and niche_key in NICHE_SCRIPTS:
-        return NICHE_SCRIPTS[niche_key]
-    return NICHE_SCRIPTS["general"]
+    base = (
+        NICHE_SCRIPTS[niche_key]
+        if (niche_key and niche_key in NICHE_SCRIPTS)
+        else NICHE_SCRIPTS["general"]
+    )
+    return _with_common_objections(base)
 
 
 def kb_documents(niche_key: str) -> list[str]:
