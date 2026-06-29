@@ -22,3 +22,8 @@ Ready to ship: YES/NO
 ```
 
 `$ARGUMENTS`: `quick` = prod_check + import only · `full` = sab (default).
+
+## Step 5 — RL marker (Loop B, INERT unless RL_ENGINE set)
+Report print karne ke BAAD `data/.claude_last_verify.json` likho (Windows file-tools):
+`{"pass": <bool>, "tests_pass": <bool>, "review_findings": <int|null>, "deploy_health": <str|null>}`.
+Ye marker `Stop` hook (`.claude/hooks/reward_capture.py`) padhta hai session ka dev-reward score karne ke liye. Sirf metadata — secrets/code NAHI. RL_ENGINE unset = hook no-op, marker harmless.
