@@ -25,5 +25,6 @@ Ready to ship: YES/NO
 
 ## Step 5 — RL marker (Loop B, INERT unless RL_ENGINE set)
 Report print karne ke BAAD `data/.claude_last_verify.json` likho (Windows file-tools):
-`{"pass": <bool>, "tests_pass": <bool>, "review_findings": <int|null>, "deploy_health": <str|null>}`.
+`{"ts": "<ISO-8601 UTC now>", "pass": <bool>, "tests_pass": <bool>, "review_findings": <int|null>, "deploy_health": <str|null>}`.
+`ts` zaroori — Stop hook stale marker (>2h purana) ko ignore karta hai aur read ke baad consume (delete) karta hai, taaki ek verify-result kai sessions pe misattribute na ho.
 Ye marker `Stop` hook (`.claude/hooks/reward_capture.py`) padhta hai session ka dev-reward score karne ke liye. Sirf metadata — secrets/code NAHI. RL_ENGINE unset = hook no-op, marker harmless.
