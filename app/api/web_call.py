@@ -1285,6 +1285,34 @@ async def web_call_ws(websocket: WebSocket) -> None:
 
             _log_turn(session, "user", user_text)
             history = _history_from_session(session, exclude_last_user=user_text)
+
+            # POLITE-NO 2-strike de-escalation (orchestration guard — fires BEFORE
+            # the pitch_state gate AND the brain). India-critical trust rule: a 2nd
+            # soft refusal => stop pitching, graceful async-exit. telecaller_brain.reply()
+            # already enforces this, but the pitch_state interest-gate below can answer
+            # the turn first (a discovery question = "pushy after soft-no") and bypass
+            # the brain entirely — so enforce the rule here, where every path converges.
+            # Gated SOFTNO_DEESCALATE (default ON, checked inside should_deescalate);
+            # deterministic (no LLM); fail-open (any error => normal flow continues).
+            try:
+                from app.voice_agent import intent_softno as _softno
+
+                if _softno.should_deescalate(history, user_text):
+                    _deesc = _softno.deescalation_reply(
+                        session.get("niche", "") or "",
+                        str(session.get("client_name", "") or ""),
+                        history,
+                        user_text,
+                    )
+                    if _deesc:
+                        history.append({"role": "user", "content": user_text})
+                        history.append({"role": "assistant", "content": _deesc})
+                        _log_turn(session, "assistant", _deesc)
+                        await _send_bot_message(websocket, _deesc, heard=user_text)
+                        continue
+            except Exception as e:
+                logger.debug(f"web-call: softno de-escalation skip ({e}).")
+
             pitch_raw = session.get("pitch_state")
             if pitch_raw:
                 try:
