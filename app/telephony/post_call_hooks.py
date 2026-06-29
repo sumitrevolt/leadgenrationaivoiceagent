@@ -280,6 +280,17 @@ async def auto_qualify_and_downstream(
         os.makedirs("data", exist_ok=True)
         with open(os.path.join("data", "call_qualifications.jsonl"), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        # RL reward spine (Phase 0) — voice outcome → unified reward log.
+        try:
+            from app.agents.rl import reward as _rl_reward
+
+            _rl_reward.record_reward(
+                "voice", niche or "general", _rl_reward.voice_reward(q),
+                ref=str(call_id or rec.get("ts", "")),
+                context={"niche": niche, "city": city},
+            )
+        except Exception:
+            pass
         emit_call_report(
             q,
             client_id=str(client_id or ""),

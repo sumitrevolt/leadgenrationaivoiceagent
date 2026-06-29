@@ -273,6 +273,16 @@ def record_outcome(
                 "at": _now().isoformat(),
             },
         )
+        # RL reward spine (Phase 0, logging-only) — INERT unless RL_ENGINE=1, never raises.
+        try:
+            from app.agents.rl import reward as _rl_reward
+
+            _rl_reward.record_reward(
+                "outreach", ch, _rl_reward.outreach_reward({"kind": kind}),
+                ref=f"chexp:{ch}:{kind}:{_now().isoformat()}",
+            )
+        except Exception:
+            pass
         return {"ok": True, "stats": stats()[ch]}
     except Exception as e:
         return {"ok": False, "error": str(e)}

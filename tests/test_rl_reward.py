@@ -84,3 +84,16 @@ def test_never_raises_on_garbage(rl):
     rl.record_reward("voice", None, float("nan"), ref=None)  # must not raise
     assert rl.voice_reward("not-a-dict") == 0.5
     assert rl.outreach_reward(None) == 0.0
+
+
+def test_channel_experiments_emits_reward(tmp_path, monkeypatch):
+    monkeypatch.setenv("RL_ENGINE", "1")
+    import app.agents.rl.reward as reward
+    importlib.reload(reward)
+    monkeypatch.setattr(reward, "_REWARDS", str(tmp_path / "rl_rewards.jsonl"))
+
+    import app.marketing.channel_experiments as ce
+    out = ce.record_outcome("quora", kind="reply")
+    assert out["ok"] is True
+    rows = reward._read(reward._REWARDS)
+    assert any(r["domain"] == "outreach" and r["arm"] == "quora" for r in rows)
