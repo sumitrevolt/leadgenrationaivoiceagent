@@ -752,17 +752,21 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         confirmer; agla sawaal _fast_path_reply jodta hai. Period MAT use karo —
         _clean() pehle sentence pe cut karta, warna sawaal kat jaaye (em-dash
         ek hi sentence rehta)."""
+        # De-templated for a PROFESSIONAL consultant feel: ~2/10 turns go straight
+        # to the question (no stock prefix = natural, not robotic), the rest are
+        # varied + lighter on the repetitive "ji" tell. Empty acks are safe — the
+        # caller does f"{ack} {nxt}".strip(), so "" yields just the question.
         acks = (
-            "Samajh gayi ji —",
-            "Bilkul ji —",
-            "Theek hai ji —",
+            "Samajh gayi —",
+            "",
+            "Theek hai —",
+            "Bilkul —",
+            "Achha —",
+            "",
             "Ji —",
-            "Achha ji —",
-            "Haan ji —",
-            "Bilkul samajh gayi —",
-            "Sahi baat hai ji —",
-            "Aapki baat clear hai —",
+            "Sahi baat hai —",
             "Bilkul sahi —",
+            "Samajh gayi, ji —",
         )
         return acks[len(ut) % len(acks)]
 
