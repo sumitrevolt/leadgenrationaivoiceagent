@@ -245,4 +245,8 @@ AUTOMATION_FLAGS = [
     # never cached (context-bleed safe). Requires SEMANTIC_CACHE=1 too. Fix for 2026-06-26 finding
     # that SEMANTIC_CACHE flag was ON in prod but voice brain never called semantic_complete.
     "BARGE_GUARD",  # cough/backchannel false-stop guard for barge-in detection
+    # --- RL self-improvement flywheel (Phase 0, 2026-06-29) — reward spine only ---
+    "RL_ENGINE",  # master gate for reward-log emission + Stop hook + /api/rl (default OFF = fully inert)
+    "RL_SUCCESS_THRESHOLD",  # reward >= this counts as a "success" for Beta/Laplace arm stats (default 0.5)
+    "RL_GRADUATION_N",  # per-domain samples before Phase-1 policy graduation (default 200; Phase-1 not built yet)
 ]
