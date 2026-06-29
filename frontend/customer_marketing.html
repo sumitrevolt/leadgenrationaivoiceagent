@@ -115,7 +115,7 @@
   .priority-item .name{font-weight:850;font-size:13.5px;line-height:1.25}
   .priority-item .meta{font-size:12px;color:var(--muted);line-height:1.35}
   .priority-item .action{margin-top:auto;display:flex;gap:6px;flex-wrap:wrap}
-  .priority-item .action a,.priority-item .action button{min-height:34px;padding:7px 9px;font-size:11.5px}
+  .priority-item .action a,.priority-item .action button{min-height:44px;padding:10px 12px;font-size:11.5px}
   .simple-note{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:12px;padding:11px 13px;font-size:12.5px;margin:0 0 14px}
   .details-hidden .grid-2,.details-hidden .grid-3{display:none}
   .details-toggle{margin:8px 0 16px;display:flex;justify-content:center}
@@ -304,6 +304,11 @@
   body.dark .filter-bar input[type=search]{background:#1a1530;color:var(--ink);border-color:var(--line)}
   body.dark .action-card:hover{background:#1e1540;border-color:#7c3aed}
   body.dark .btn{background:#1a1530;border-color:var(--line);color:var(--ink)}
+  body.dark .owner-hero,body.dark .priority-item{background:#1a1530;border-color:var(--line)}
+  body.dark .next-step-card{background:#1c1220;border-color:#713f12}
+  body.dark .approve-card{background:#1a1200;border-color:#78350f}
+  body.dark .onboard-card{background:linear-gradient(135deg,#1a1530,#2d1b69);border-color:#4c1d95}
+  body.dark #upiPayBox{background:linear-gradient(135deg,#0d2818,#052e16) !important;border-color:#14532d}
 
   /* ===== Notification bell ===== */
   .notif-btn{position:relative;background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--muted);font-size:20px;display:flex;align-items:center;min-height:44px;min-width:44px;justify-content:center}
@@ -358,8 +363,11 @@
   @media (max-width:820px){
     /* Mobile: sidebar gayab nahi — horizontal quick-nav ban jaata hai */
     .app{flex-direction:column}
-    .sidebar{width:100%;flex:none;height:auto;position:static;flex-direction:row;
-      align-items:center;gap:4px;padding:10px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .sidebar{width:100%;flex:none;height:auto;position:relative;flex-direction:row;
+      align-items:center;gap:4px;padding:10px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+      scroll-snap-type:x mandatory;scroll-padding-left:12px}
+    .sidebar::after{content:"";position:absolute;right:0;top:0;bottom:0;width:32px;
+      background:linear-gradient(to left,rgba(46,16,101,.9),transparent);pointer-events:none}
     .sidebar .brand{margin-bottom:0;font-size:14px;flex:0 0 auto}
     .sidebar .navlink{flex:0 0 auto;padding:10px 12px;font-size:12px;white-space:nowrap}
     .side-foot{display:none}
@@ -376,6 +384,9 @@
     .kpi .val{font-size:22px}
     .card-h{padding:13px 14px}
     .card-b{padding:14px}
+    /* sticky topbar single-row @ 380px — non-essential bits chhupao */
+    .badge-demo{display:none !important}
+    .hi p{display:none}
   }
 
   /* ===== Per-product view — body.prod-marketing / body.prod-voice; no class = combo (both) =====
@@ -450,6 +461,7 @@
     <a class="navlink" href="#webToolsCard" onclick="scrollToId('webToolsCard');return false;" aria-label="Website tools mini-site widget"><span class="ic" aria-hidden="true">🌐</span> Website Tools</a>
     <a class="navlink" href="#routingCard" onclick="scrollToId('routingCard');return false;" aria-label="Team routing"><span class="ic" aria-hidden="true">👥</span> Team Routing</a>
     <a class="navlink" href="#leadsCard" onclick="scrollToId('leadsCard');return false;" aria-label="Naye Leads section"><span class="ic" aria-hidden="true">🔥</span> Naye Leads</a>
+    <a class="navlink" href="/app/customer/pipeline" aria-label="Lead Pipeline Kanban board"><span class="ic" aria-hidden="true">📋</span> Pipeline</a>
     <a class="navlink" href="#callsCard" onclick="scrollToId('callsCard');return false;" aria-label="Calls ka Hisaab section"><span class="ic" aria-hidden="true">📞</span> Calls ka Hisaab</a>
     <a class="navlink" href="#billingCard" onclick="scrollToId('billingCard');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
     <a class="navlink" href="#secCard" onclick="openAdvancedSettings();return false;" aria-label="Security aur advanced settings"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
@@ -460,7 +472,7 @@
   </aside>
 
   <!-- Main -->
-  <div class="main" role="main" aria-label="Dashboard content">
+  <div class="main" aria-label="Dashboard content">
     <div class="topbar" role="banner">
       <div class="hi">
         <h1>Namaste 👋</h1>
@@ -505,7 +517,26 @@
 
     <div class="content" role="main" id="mainContent">
 
-      <!-- ===== 1) AAJ KE LIYE — sabse upar, sabse zaroori ===== -->
+      <!-- ===== 0) Owner hero — non-technical intro FIRST (parity with combo/voice:
+           human prompt + primary CTA before the small data cards) ===== -->
+      <div class="owner-hero" aria-label="Aapka dashboard">
+        <div>
+          <span class="owner-pill" id="ownerPill">AI Automated Marketing</span>
+          <h1 class="owner-title" id="ownerTitle">Aaj kya post/approve karna hai?</h1>
+          <p class="owner-subtitle" id="ownerSubtitle">Daily content, approvals aur website enquiry tools. Pehle priority cards follow karo.</p>
+        </div>
+        <div class="owner-actions">
+          <button class="btn primary" type="button" id="ownerPrimaryBtn" onclick="runNextStep()">Aaj ka post dekho</button>
+          <button class="btn" type="button" id="detailsBtn" onclick="toggleDetails()">Pura hisaab</button>
+        </div>
+      </div>
+
+      <!-- ===== 🏢 Aapka Office — virtual-office home (shared widget). Replaces old
+           Priority/Simple-note/Next-step clutter; /design-system/customer_office.js
+           → /api/customer/office (product=marketing). ===== -->
+      <div id="aapkaOffice"></div>
+
+      <!-- ===== 1) AAJ KE LIYE — owner-hero ke baad short summary cards ===== -->
       <div class="sec-title">☀️ Aaj ke liye</div>
       <div class="status-strip" aria-label="Aaj ka short summary">
         <div class="status-card">
@@ -525,24 +556,6 @@
         </div>
       </div>
       <!-- (Next-step card folded into 🏢 Aapka Office — JS setters stay null-safe) -->
-
-      <!-- ===== 0) Owner hero — non-technical intro (parity with combo/voice) ===== -->
-      <div class="owner-hero" aria-label="Aapka dashboard">
-        <div>
-          <span class="owner-pill" id="ownerPill">AI Automated Marketing</span>
-          <h1 class="owner-title" id="ownerTitle">Aaj kya post/approve karna hai?</h1>
-          <p class="owner-subtitle" id="ownerSubtitle">Daily content, approvals aur website enquiry tools. Pehle priority cards follow karo.</p>
-        </div>
-        <div class="owner-actions">
-          <button class="btn primary" type="button" id="ownerPrimaryBtn" onclick="runNextStep()">Aaj ka post dekho</button>
-          <button class="btn" type="button" id="detailsBtn" onclick="toggleDetails()">Pura hisaab</button>
-        </div>
-      </div>
-
-      <!-- ===== 🏢 Aapka Office — virtual-office home (shared widget). Replaces old
-           Priority/Simple-note/Next-step clutter; /design-system/customer_office.js
-           → /api/customer/office (product=marketing). ===== -->
-      <div id="aapkaOffice"></div>
 
       <!-- ===== Virtual AI Marketing Team — agentic live office ===== -->
       <div class="team-office marketing-only" id="teamCard" aria-label="Aapki AI Marketing Team — live">

@@ -105,7 +105,7 @@
   .priority-item .name{font-weight:850;font-size:13.5px;line-height:1.25}
   .priority-item .meta{font-size:12px;color:var(--muted);line-height:1.35}
   .priority-item .action{margin-top:auto;display:flex;gap:6px;flex-wrap:wrap}
-  .priority-item .action a,.priority-item .action button{min-height:34px;padding:7px 9px;font-size:11.5px}
+  .priority-item .action a,.priority-item .action button{min-height:44px;padding:10px 12px;font-size:11.5px}
   .simple-note{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:12px;padding:11px 13px;font-size:12.5px;margin:0 0 14px}
   .details-hidden .grid-2,.details-hidden .grid-3{display:none}
   .details-toggle{margin:8px 0 16px;display:flex;justify-content:center}
@@ -223,6 +223,11 @@
   body.dark .filter-bar input[type=search]{background:#1a1530;color:var(--ink);border-color:var(--line)}
   body.dark .action-card:hover{background:#1e1540;border-color:#7c3aed}
   body.dark .btn{background:#1a1530;border-color:var(--line);color:var(--ink)}
+  body.dark .owner-hero,body.dark .priority-item{background:#1a1530;border-color:var(--line)}
+  body.dark .next-step-card{background:#1c1220;border-color:#713f12}
+  body.dark .approve-card{background:#1a1200;border-color:#78350f}
+  body.dark .onboard-card{background:linear-gradient(135deg,#1a1530,#2d1b69);border-color:#4c1d95}
+  body.dark #upiPayBox{background:linear-gradient(135deg,#0d2818,#052e16) !important;border-color:#14532d}
 
   /* ===== Notification bell ===== */
   .notif-btn{position:relative;background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--muted);font-size:20px;display:flex;align-items:center;min-height:44px;min-width:44px;justify-content:center}
@@ -295,6 +300,8 @@
     .kpi .val{font-size:22px}
     .card-h{padding:13px 14px}
     .card-b{padding:14px}
+    .badge-demo{display:none}
+    .hi p{display:none}
   }
 
   /* ===== Per-product view — body.prod-marketing / body.prod-voice; no class = combo (both) =====
@@ -346,17 +353,18 @@
     <a class="navlink" href="#webToolsCard" onclick="scrollToId('webToolsCard');return false;" aria-label="Website tools mini-site widget"><span class="ic" aria-hidden="true">🌐</span> Website Tools</a>
     <a class="navlink" href="#routingCard" onclick="scrollToId('routingCard');return false;" aria-label="Team routing"><span class="ic" aria-hidden="true">👥</span> Team Routing</a>
     <a class="navlink" href="#leadsCard" onclick="scrollToId('leadsCard');return false;" aria-label="Naye Leads section"><span class="ic" aria-hidden="true">🔥</span> Naye Leads</a>
+    <a class="navlink" href="/app/customer/pipeline" aria-label="Lead Pipeline Kanban board"><span class="ic" aria-hidden="true">📋</span> Pipeline</a>
     <a class="navlink" href="#callsCard" onclick="scrollToId('callsCard');return false;" aria-label="Calls ka Hisaab section"><span class="ic" aria-hidden="true">📞</span> Calls ka Hisaab</a>
     <a class="navlink" href="#billingCard" onclick="scrollToId('billingCard');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
     <a class="navlink" href="#secCard" onclick="openAdvancedSettings();return false;" aria-label="Security aur advanced settings"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
     <div class="side-foot" aria-label="Account info">
-      Aapki AI marketing + voice agent team<br>din-raat kaam kar rahi hai.<br><br>
+      Aapki AI Voice Agent — din-raat calls kar rahi hai aapke liye.<br><br>
       <span id="sideClient">Client: demo</span>
     </div>
   </aside>
 
   <!-- Main -->
-  <div class="main" role="main" aria-label="Dashboard content">
+  <div class="main" aria-label="Dashboard content">
     <div class="topbar" role="banner">
       <div class="hi">
         <h1>Namaste 👋</h1>
@@ -919,7 +927,7 @@ function renderCalls(d){
 function renderLeads(d){
   document.getElementById("leadsCount").textContent=d.leads.length+" leads";
   if(!d.leads.length){
-    document.getElementById("leadsBody").innerHTML='<tr><td colspan="8" class="empty-row">Abhi koi lead nahi — aaj ka post daalo, leads aayengi 👍</td></tr>';
+    document.getElementById("leadsBody").innerHTML='<tr><td colspan="8" class="empty-row">Abhi koi lead nahi — AI calling shuru hote hi yahan leads dikhenge 📞</td></tr>';
     return;
   }
   document.getElementById("leadsBody").innerHTML=d.leads.map(l=>`
@@ -1866,7 +1874,7 @@ function _renderLeadsFiltered(){
   const body = document.getElementById("leadsBody");
   document.getElementById("leadsCount").textContent = rows.length+" leads";
   if(!rows.length){
-    body.innerHTML='<tr><td colspan="8" class="empty-row">'+(q||score||city||drFrom||drTo ? '🔍 Filter mein koi lead nahi mili — filter hatao.' : 'Abhi koi lead nahi — aaj ka post daalo, leads aayengi 👍')+'</td></tr>';
+    body.innerHTML='<tr><td colspan="8" class="empty-row">'+(q||score||city||drFrom||drTo ? '🔍 Filter mein koi lead nahi mili — filter hatao.' : 'Abhi koi lead nahi — AI calling shuru hote hi yahan leads dikhenge 📞')+'</td></tr>';
     return;
   }
   body.innerHTML=rows.map(l=>`
