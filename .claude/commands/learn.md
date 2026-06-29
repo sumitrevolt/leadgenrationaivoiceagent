@@ -56,3 +56,10 @@ summary: <1-line — symptom → fix/pattern>
 ```
 
 `$ARGUMENTS`: optional topic/hint (e.g. `learn telephony` = is session ka telephony-related sabak capture karo). Khaali = poora session scan.
+
+## Step 6 — RL dev-reward consumption (Loop B, optional)
+Agar `data/claude_feedback.jsonl` exist kare to last ~30 rows Read karo. Har row ka reward = `app.agents.rl.reward.dev_reward` (verify_pass + tests_pass + deploy_health, minus user_correction/review_findings) — **single source of truth, yahan dobara mat compute karo**.
+- **High-reward pattern** (verify+tests pass, deploy ok) → usko `memory/` feedback-note ya skill snippet me reinforce karo (jo upar Step 3 me already hota hai).
+- **Low-reward** (user_correction true / verify fail) → ek guardrail propose karo: `guard.py` ya `skill_reminder.py` me entry, taaki wo anti-pattern dobara na ho.
+- User ne is session me "galat tha" type correction diya ho to wo signal yahin capture hota — agar chaho to last `claude_feedback.jsonl` row me `user_correction: true` set karke wo negative reward record karo.
+Ye existing machinery (memory + skills + hooks) use karta — koi naya dashboard NAHI banana.

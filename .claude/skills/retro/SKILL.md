@@ -89,6 +89,15 @@ Kitne consecutive days commit kiya? Streak track karo — momentum matter karta 
 
 ---
 
+## Step 7: RL dev-reward review (Loop B, optional)
+
+Agar `data/claude_feedback.jsonl` exist kare to last week ki rows Read karo. Reward = `app.agents.rl.reward.dev_reward` (single source of truth — yahan recompute mat karo). Average dev-reward trend dekho:
+- **Up / high** → jo dev-patterns kaam kar rahe (verify+tests+deploy green) unhe reinforce (memory/skill).
+- **Down / negative** (user_correction, verify fail dohraye) → recurring anti-pattern ko ek `guard.py`/`skill_reminder.py` guardrail ya CLAUDE.md gotcha-line me convert karo.
+Ye Claude (dev-time agent) ke self-improvement ka closed loop hai — naya dashboard NAHI, existing machinery hi.
+
+---
+
 ## Output Format
 
 ```
