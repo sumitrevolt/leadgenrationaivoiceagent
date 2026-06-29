@@ -436,6 +436,15 @@ async def _run_job_inner(job: str) -> None:
             except Exception:
                 pass
             try:
+                from app.platform import customer_autopilot
+
+                # per-client hands-free drafts: evergreen recycle / NPS survey / stale-inquiry
+                # nudge / daily owner-brief. Har sub-job apne flag ke peeche (EVERGREEN_RECYCLE /
+                # NPS_AUTO / STALE_INQUIRY_NUDGE / OWNER_BRIEF_DAILY) — all DEFAULT-OFF, draft-only.
+                await customer_autopilot.run_all()
+            except Exception:
+                pass
+            try:
                 from app.platform import memory_vault
 
                 await memory_vault.sync_if_enabled()  # compounding memory tail-sync (gated MEMORY_VAULT, no LLM)

@@ -108,6 +108,11 @@ AUTOMATION_FLAGS = [
     "WINBACK_ENGINE",
     "BRAND_PULSE",
     "TEAM_REPORT",
+    # Customer Autopilot — per-client hands-free drafts (customer_autopilot.run_all), all DEFAULT-OFF, draft-only
+    "EVERGREEN_RECYCLE",  # purane top posts auto-freshen + content-queue re-append
+    "NPS_AUTO",  # periodic NPS/CSAT survey WhatsApp drafts (ban-safe, no auto-send)
+    "STALE_INQUIRY_NUDGE",  # untouched >24h inquiry -> follow-up nudge DRAFT
+    "OWNER_BRIEF_DAILY",  # roz-subah per-client owner-brief auto-prepare (scheduled studio owner-brief)
     "SKILL_PACK",
     "CODE_UPGRADER",
     "RECORDING_RETENTION",
