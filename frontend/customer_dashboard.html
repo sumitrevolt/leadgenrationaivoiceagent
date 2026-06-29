@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
 <title>LeadGen AI — Aapka Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -32,6 +32,8 @@
     font-family:var(--font-body);
     background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45;
     overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
   }
   a{color:inherit}
   .app{display:flex;min-height:100vh}
@@ -119,6 +121,19 @@
   .simple-note{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:12px;padding:11px 13px;font-size:12.5px;margin:0 0 14px}
   .details-hidden .grid-2,.details-hidden .grid-3{display:none}
   .details-toggle{margin:8px 0 16px;display:flex;justify-content:center}
+  .ai-command{display:grid;grid-template-columns:1.45fr .9fr auto;gap:12px;align-items:center;
+    background:#0f172a;color:#f8fafc;border-radius:14px;padding:14px 16px;margin:0 0 14px;
+    box-shadow:0 12px 28px rgba(15,23,42,.18);border:1px solid rgba(255,255,255,.08)}
+  .ai-command .eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;color:#93c5fd;font-weight:850}
+  .ai-command .decision{font-size:15px;font-weight:900;line-height:1.25;margin-top:3px}
+  .ai-command .reason{font-size:12px;color:#cbd5e1;margin-top:4px;line-height:1.35}
+  .ai-confidence{display:grid;gap:6px;min-width:150px}
+  .ai-confidence .row{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;color:#cbd5e1;font-weight:750}
+  .ai-meter{height:8px;border-radius:999px;background:rgba(148,163,184,.25);overflow:hidden}
+  .ai-meter span{display:block;height:100%;width:76%;border-radius:inherit;background:linear-gradient(90deg,#22c55e,#38bdf8)}
+  .ai-command .btn{background:#fff;color:#0f172a;border:none;justify-content:center;white-space:nowrap}
+  .mobile-app-nav{display:none}
+  .mobile-fab{display:none}
   .prod-marketing .date-range,.prod-marketing .ctl,.prod-voice .date-range,.prod-voice .ctl{display:none}
   .prod-marketing #callsCard,.prod-marketing #routingCard{display:none !important}
   .prod-voice #contentCard,.prod-voice #approvalCard,.prod-voice #webToolsCard{display:none !important}
@@ -238,6 +253,7 @@
   body.dark .approve-card{background:#1a1200;border-color:#78350f}
   body.dark .onboard-card{background:linear-gradient(135deg,#1a1530,#2d1b69);border-color:#4c1d95}
   body.dark #upiPayBox{background:linear-gradient(135deg,#0d2818,#052e16) !important;border:1px solid #14532d !important}
+  body.dark .mobile-app-nav{background:rgba(26,21,48,.96);border-color:var(--line)}
 
   /* ===== Virtual AI Team office (agentic dashboard) ===== */
   .team-office{position:relative;border-radius:16px;padding:16px 16px 18px;margin:0 0 16px;overflow:hidden;
@@ -342,12 +358,26 @@
     .sidebar .navlink{flex:0 0 auto;padding:10px 12px;font-size:12px;white-space:nowrap}
     .side-foot{display:none}
     .content{padding:16px}
+    .main{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
     .topbar{padding:12px 16px}
     .hi h1{font-size:16px}
     .actions{grid-template-columns:1fr}
     .hero-leads .big{font-size:38px}
     .next-step-card{align-items:flex-start;flex-wrap:wrap}
     .next-step-card .btn{width:100%;justify-content:center}
+    .ai-command{position:sticky;top:0;z-index:18;grid-template-columns:1fr;gap:10px;border-radius:13px;margin-left:-4px;margin-right:-4px}
+    .ai-command .btn{width:100%}
+    .mobile-app-nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(4,1fr);
+      gap:2px;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.96);
+      border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(15,23,42,.12);backdrop-filter:blur(10px)}
+    .mobile-app-nav button,.mobile-app-nav a{min-height:52px;border:0;background:transparent;border-radius:10px;color:var(--muted);
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;font-weight:800;text-decoration:none}
+    .mobile-app-nav .mi{font-size:18px;line-height:1}
+    .mobile-app-nav .active{background:var(--brand-soft);color:var(--brand)}
+    .mobile-fab{position:fixed;right:14px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:61;display:inline-flex;
+      border:none;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border-radius:999px;
+      min-height:48px;max-width:calc(100vw - 28px);padding:0 16px;align-items:center;gap:8px;font-size:12px;font-weight:900;
+      box-shadow:0 12px 28px rgba(79,70,229,.35)}
   }
   @media (max-width:560px){
     .kpis{grid-template-columns:1fr 1fr}
@@ -356,6 +386,10 @@
     .card-b{padding:14px}
     .badge-demo{display:none}
     .hi p{display:none}
+    .owner-hero{padding:15px;border-radius:12px}
+    .owner-actions .btn{width:100%;justify-content:center}
+    .status-card{min-height:76px;padding:12px}
+    .ai-command .decision{font-size:14px}
   }
 
   /* ===== Per-product view — body.prod-marketing / body.prod-voice; no class = combo (both) =====
@@ -501,6 +535,19 @@
           <div class="val" id="uxTeam">AI team active</div>
           <div class="hint" id="uxTeamHint">Content, leads aur calls yahan update honge.</div>
         </div>
+      </div>
+      <div class="ai-command" id="aiCommand" aria-label="AI command center">
+        <div>
+          <div class="eyebrow">AI Command Center</div>
+          <div class="decision" id="aiDecision">Aaj ka best next step choose ho raha hai.</div>
+          <div class="reason" id="aiReason">Dashboard live data dekh ke simple action recommend karega.</div>
+        </div>
+        <div class="ai-confidence" aria-label="AI confidence">
+          <div class="row"><span>Priority score</span><strong id="aiScore">76%</strong></div>
+          <div class="ai-meter" aria-hidden="true"><span id="aiMeter"></span></div>
+          <div class="row"><span>Mode</span><strong id="aiMode">Marketing</strong></div>
+        </div>
+        <button class="btn" type="button" id="aiCommandBtn" onclick="runNextStep()">Action kholo</button>
       </div>
       <!-- (Next-step card folded into 🏢 Aapka Office above — JS setters stay null-safe) -->
 
@@ -858,6 +905,21 @@
 </div>
 
 <div class="toast" id="toast" role="alert" aria-live="assertive" aria-atomic="true"><div class="t" id="toastT"></div><div id="toastM"></div></div>
+<nav class="mobile-app-nav" aria-label="Mobile app shortcuts">
+  <button type="button" class="active" onclick="scrollToId('mainContent')" aria-label="Home">
+    <span class="mi" aria-hidden="true">H</span><span>Home</span>
+  </button>
+  <button type="button" onclick="scrollToId('contentCard')" aria-label="Posts">
+    <span class="mi" aria-hidden="true">P</span><span>Post</span>
+  </button>
+  <button type="button" onclick="scrollToId('leadsCard')" aria-label="Leads">
+    <span class="mi" aria-hidden="true">L</span><span>Leads</span>
+  </button>
+  <button type="button" onclick="scrollToId('billingCard')" aria-label="Billing">
+    <span class="mi" aria-hidden="true">Rs</span><span>Plan</span>
+  </button>
+</nav>
+<button class="mobile-fab" type="button" id="mobileFab" onclick="runNextStep()">Action kholo</button>
 
 <script>
 /* ============================================================
@@ -1154,6 +1216,41 @@ function renderPriorityCards(view){
   setText("priorityPill", rows.length+" items");
 }
 let NEXT_STEP_TARGET = "contentCard";
+function updateCommandCenter(meta){
+  meta = meta || {};
+  const modeLabel = productMode()==="voice" ? "Voice" : (productMode()==="marketing" ? "Marketing" : "Combo");
+  const score = Math.max(42, Math.min(98, Number(meta.score || 76)));
+  setText("aiDecision", meta.title || "Aaj ka best next step ready hai.");
+  setText("aiReason", meta.sub || "AI ne dashboard data dekh kar next action choose kiya.");
+  setText("aiScore", score + "%");
+  setText("aiMode", modeLabel);
+  setText("aiCommandBtn", meta.label || "Action kholo");
+  setText("mobileFab", meta.label || "Action kholo");
+  const meter = document.getElementById("aiMeter");
+  if(meter) meter.style.width = score + "%";
+  const appNav = document.querySelector(".mobile-app-nav");
+  if(appNav){
+    const mode = productMode();
+    const items = mode==="voice"
+      ? [["mainContent","H","Home"],["leadsCard","L","Leads"],["callsCard","C","Calls"],["billingCard","Rs","Plan"]]
+      : mode==="marketing"
+        ? [["mainContent","H","Home"],["contentCard","P","Post"],["approvalCard","OK","Approve"],["webToolsCard","W","Tools"]]
+        : [["mainContent","H","Home"],["contentCard","P","Post"],["leadsCard","L","Leads"],["billingCard","Rs","Plan"]];
+    appNav.querySelectorAll("button").forEach(function(b,i){
+      const it = items[i] || items[0];
+      b.classList.remove("active");
+      b.onclick = function(){ scrollToId(it[0]); };
+      const icon = b.querySelector(".mi");
+      const labelEl = b.querySelector("span:last-child");
+      if(icon) icon.textContent = it[1];
+      if(labelEl) labelEl.textContent = it[2];
+      b.setAttribute("aria-label", it[2]);
+      b.dataset.target = it[0];
+    });
+    const btn = Array.from(appNav.querySelectorAll("button")).find(function(b){ return b.dataset.target === NEXT_STEP_TARGET; }) || appNav.querySelector("button");
+    if(btn) btn.classList.add("active");
+  }
+}
 function updateTodayGuide(view){
   const d = view || DATA || {};
   const leads = d.leads || [];
@@ -1166,8 +1263,8 @@ function updateTodayGuide(view){
   const isMarketing = document.body.classList.contains("prod-marketing");
 
   if(totalLeads > 0){
-    setText("uxStatus", hot>0 ? hot+" hot leads" : totalLeads+" leads ready");
-    setText("uxStatusHint", hot>0 ? "Inko aaj hi call karna best hai." : "Lead list me naam, phone aur need dikhegi.");
+    setText("uxStatus", isMarketing ? totalLeads+" enquiries" : (hot>0 ? hot+" hot leads" : totalLeads+" leads ready"));
+    setText("uxStatusHint", isMarketing ? "Website/mini-site se aaye interested log." : (hot>0 ? "Inko aaj hi call karna best hai." : "Lead list me naam, phone aur need dikhegi."));
   }else if(postsReady > 0){
     setText("uxStatus", postsReady+" posts ready");
     setText("uxStatusHint", "Aaj ka content share karne ke liye ready hai.");
@@ -1184,7 +1281,7 @@ function updateTodayGuide(view){
     title = pendingApprovals+" post approve karna hai";
     sub = "Approve karte hi content publish/share queue me chala jayega.";
     target = "approvalCard"; label = "Approve karo"; icon = "OK";
-  }else if(hot > 0 || (isVoice && totalLeads > 0)){
+  }else if(!isMarketing && (hot > 0 || (isVoice && totalLeads > 0))){
     title = hot>0 ? hot+" hot lead ko call karo" : "Naye leads follow-up karo";
     sub = "Sabse garam lead se shuru karo; phone aur context table me hai.";
     target = "leadsCard"; label = "Leads dekho"; icon = "!";
@@ -1208,6 +1305,7 @@ function updateTodayGuide(view){
   setText("nextStepSub", sub);
   setText("nextStepBtn", label);
   setText("nextStepIcon", icon);
+  updateCommandCenter({title:title, sub:sub, label:label, score: pendingApprovals>0 || hot>0 ? 94 : (postsReady>0 || totalLeads>0 ? 86 : 68)});
 }
 function runNextStep(){ scrollToId(NEXT_STEP_TARGET || "contentCard"); }
 function openAdvancedSettings(){
