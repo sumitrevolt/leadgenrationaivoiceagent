@@ -5,11 +5,16 @@ CPU-VPS-deployable** way to break the Hinglish voice agent's "noob / ignore / re
 mishear" ceiling. Companion to `docs/superpowers/specs/2026-06-29-voice-smart-fix-bundle-design.md`
 and the GPU-blocked fine-tune plan `docs/VOICE_SELFHOST_FINETUNE_PIPELINE.md`.
 
-## Verdict
-The #1 root cause is **STT**. The best free fix is to replace Groq cloud `whisper-large-v3`
-(language="hi", which mangles English loanwords + numbers and outputs Devanagari) with
-**AI4Bharat IndicConformer-600m, self-hosted on the CPU VPS**. The LLM side is already on the
-right approach (free cloud Gemini); only small quota-aware tweaks remain.
+## Verdict — UPDATED 2026-06-30 (after POC + live A/B)
+Two root causes, and **the LLM model was the bigger lever for the "noob / ignores questions"
+feel** — not STT. (a) STT mangles numbers → fixed downstream with `correct_stt` digit-collapse
+(IndicConformer swap POC-REJECTED, see below). (b) The voice LLM was `gemini-2.5-flash-lite`
+(picked for quota) which is too weak on Hindi instruction-following → it ignored direct product
+questions and marched its discovery script. **THE FIX (live): `VOICE_LLM_MODEL=gemini-2.5-flash`
+(full) on the VPS .env** — A/B-verified the agent now ANSWERS "kya features" with the feature
+list and handles objections, at **p50 3381ms ≈ the flash-lite 3.3s baseline (negligible latency
+cost)**, free (9-key Gemini pool absorbs the lower RPM). So the original "#1 root = STT" was
+incomplete; a stronger free cloud model fixed what structural fixes could not.
 
 ## STT — ranked free options
 | Option | Free? | CPU-feasible | Latency | License | Verdict |
