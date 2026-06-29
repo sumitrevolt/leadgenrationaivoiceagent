@@ -32,6 +32,27 @@ def test_word_boundary_only(mod):
     assert mod.correct_stt("xgugalx") == "xgugalx"
 
 
+def test_phone_digit_words_collapsed_roman(mod):
+    out = mod.correct_stt("mera number five nine zero one two six zero seven hai")
+    assert "59012607" in out and "five" not in out
+
+
+def test_phone_digit_words_collapsed_devanagari(mod):
+    out = mod.correct_stt("फाइव नाइन जीरो वन टू सिक्स जीरो सेवन")
+    assert "59012607" in out
+
+
+def test_short_digit_run_not_collapsed(mod):
+    # a stray "two" / short run must NOT become a digit
+    out = mod.correct_stt("haan two minute me baat karte hain")
+    assert "2" not in out and "two" in out
+
+
+def test_digit_collapse_and_mishear_together(mod):
+    out = mod.correct_stt("instagiram pe daalo number eight four five nine zero one two six")
+    assert "Instagram" in out and "84590126" in out
+
+
 def test_empty_and_none(mod):
     assert mod.correct_stt("") == ""
     assert mod.correct_stt("   ").strip() == ""
