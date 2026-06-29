@@ -279,8 +279,12 @@ _KAR = r"kar(?:o|wa\s*do|a\s*do|\s*(?:do|do\s*na|dijiye|den|lo))"
 _CLOSE_INTENT_RE = [
     re.compile(p, re.IGNORECASE)
     for p in (
-        r"\b(?:start|chalu|shuru|setup|set\s*up|activate)\b.{0,14}\b" + _KAR + r"\b",
-        r"\btrial\b.{0,14}\b(?:start|chalu|shuru|chahiye|" + _KAR + r")\b",
+        r"\b(?:start|chalu|chaalu|shuru|setup|set\s*up|activate|aktivet|aktiv|active|activet)\b.{0,14}\b"
+        + _KAR
+        + r"\b",
+        r"\b(?:trial|trayal|tryal|tarayal)\b.{0,16}\b(?:start|chalu|shuru|chahiye|activate|aktivet|aktiv|active|"
+        + _KAR
+        + r")\b",
         r"\b(?:aaj|abhi)\s*(?:hi)?\b.{0,16}(?:\b(?:start|setup|set\s*up|shuru|chalu|final|fix|book)\b|\b"
         + _KAR
         + r"\b)",
