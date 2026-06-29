@@ -34,6 +34,15 @@ warnings.filterwarnings("ignore")
 DEV = "cuda" if torch.cuda.is_available() else "cpu"
 print("GPU:", torch.cuda.get_device_name(0) if DEV == "cuda" else
       "*** NO GPU — Runtime > Change runtime type > T4 GPU, then re-run ***")
+print("TIP: if you ran an earlier version this session and hit CUDA OOM, do "
+      "Runtime > Restart session, then run this cell ONCE (frees leftover GPU mem).")
+
+import gc
+def _free():
+    try:
+        gc.collect(); torch.cuda.empty_cache()
+    except Exception:
+        pass
 
 # Devanagari ground-truth (apples-to-apples WER vs Hindi STT output); roman for reading.
 TESTS = [
@@ -114,10 +123,12 @@ def _build_whisper():
             return p
         except Exception as e:
             print(f"  {mid} unavailable ({str(e)[:70]}) -> next")
+            _free()  # release partial load so the next candidate / STT-B has room
     return None
 wh = _build_whisper()
 _ = _text(wh("c0.wav")) if wh else None  # warmup
 a_ms, a_wc, a_wp = _bench(wh, "STT-A IndicWhisper (accuracy)") if wh else (float("nan"),) * 3
+wh = None; _free()  # free the big whisper before loading STT-B (keep GPU peak low)
 
 # ---------------- STT-B: SPEED (wav2vec2-CTC = live-architecture proxy, fast) ----------
 print("\n[2/3] STT-B speed model (public wav2vec2-CTC = IndicConformer-like)...")
