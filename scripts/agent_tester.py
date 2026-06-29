@@ -1,17 +1,42 @@
 """
-Automated voice-agent QA tester — bugs dhoondta hai, report deta hai.
-Run on VPS: env PYTHONPATH=/opt/leadgen .venv/bin/python scripts/agent_tester.py
+Advanced voice-agent self-test — drives the FREE web-call brain over scripted
+conversations and returns a CI-gateable verdict.
+================================================================================
 
-Web-call WS (/api/web-call/ws) ko scripted conversations se drive karta hai
-(text mode — FREE, no phone, same TelecallerBrain). Har niche pe checks:
-  - DOUBLE REPLY: ek user turn pe >1 'bot' message? (double-voice ka root)
-  - EMPTY/ECHO: blank ya "[echo" ya "(no response)" reply
-  - REPEAT: lagataar same reply 2x
-  - TOO LONG: reply > 35 shabd (phone par bura)
-  - META junk: "maine pehle poocha / unclear / maaf kijiye" banned phrases
-  - LATENCY: reply aane me kitna time
-Scorecard print karta + har issue ki line.
+Runs the SAME TelecallerBrain the phone agent uses, over the web-call WebSocket
+(`/api/web-call/ws`) in text mode — FREE, no telephony, no paid STT/TTS/LLM key.
+
+What it checks per scenario (catalogue in app/voice_agent/voice_selftest.py):
+  MECHANICAL (gates the build, exit 1):
+    NO_REPLY / DOUBLE_REPLY / EMPTY / BANNED-phrase / SERVER_CLOSED / CRASH
+  SOFT mechanical (gates only with --strict):
+    TOO_LONG (>35w) / SLOW (>9s) / REPEAT
+  BEHAVIOURAL + GUARDRAIL + GOAL (advisory; --strict to gate):
+    pushy-after-soft-no / talk-listen-ratio / missing-permission /
+    missing-AI-disclosure (TRAI/DPDP) / literal-translation /
+    prompt-injection-obeyed / PII-leak / per-scenario goal misses
+
+Objective numbers in the scorecard:
+  * latency P50/P95/P99 (distribution, not average)
+  * quality_score = mean goal pass-rate (feeds eval_gate baseline when EVAL_GATE=1)
+  * roundtrip-WER/CER per Swara line (opt-in --audio; FREE via Groq-whisper) —
+    DIAGNOSTIC only, never gates (Devanagari↔roman folded via hinglish_normalize).
+
+Exit codes:
+  0 = pass (or SKIP when no server is reachable — a local box with no app running
+      is NOT a failure), 1 = a real run found a gating finding.
+
+Run:
+  local   : python scripts/agent_tester.py            # needs uvicorn on :8000
+  VPS box : AGENT_TESTER_WS=ws://127.0.0.1:8080/api/web-call/ws python scripts/agent_tester.py
+  live    : python scripts/agent_tester.py --url wss://leadsgenai.in/api/web-call/ws
+  strict  : python scripts/agent_tester.py --strict   # behavioural/guardrail also gate
+  audio   : python scripts/agent_tester.py --audio    # add roundtrip-WER (uses Groq quota)
+  ci/json : python scripts/agent_tester.py --json
 """
+from __future__ import annotations
+
+import argparse
 import asyncio
 import json
 import os
@@ -27,166 +52,404 @@ try:
 except Exception:  # pragma: no cover - older python
     pass
 
-try:  # D-13 conversation QA judges (pushy-after-softno / talk-listen / permission / literal)
+# In --json mode, ONLY the JSON object may reach stdout (CI runs json.loads on
+# it) — but the app logger writes INFO to stdout the moment app.* is imported.
+# Capture all import-time + runtime stdout into a buffer here (before importing
+# app.*) and emit the JSON to the saved real stdout at the very end.
+_JSON_MODE = "--json" in sys.argv
+_REAL_STDOUT = sys.stdout
+if _JSON_MODE:
+    import io
+
+    sys.stdout = io.StringIO()
+
+# Make `app...` importable when run as a bare script from the repo root.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app.voice_agent import voice_selftest as vs  # noqa: E402  (after sys.path tweak)
+
+try:  # D-13 conversation QA judges (pushy/talk-ratio/permission/literal)
     from app.voice_agent import qa_checks as _qc
-except Exception:  # pragma: no cover - script may run before path set
+except Exception:  # pragma: no cover
     _qc = None
 
-try:  # objective latency distribution (voice_metrics — pure stdlib, import-safe)
+try:  # objective latency distribution (pure stdlib, import-safe)
     from app.voice_agent import voice_metrics as _vm
 except Exception:  # pragma: no cover
     _vm = None
 
 # Host/local default. IN-CONTAINER the app listens on :8080 (compose maps host
-# 127.0.0.1:8000 -> container 8080), so run inside the container with:
-#   AGENT_TESTER_WS=ws://127.0.0.1:8080/api/web-call/ws python scripts/agent_tester.py
-WS = os.environ.get("AGENT_TESTER_WS") or "ws://127.0.0.1:8000/api/web-call/ws"
-
-SCRIPTS = {
-    "solar_residential": [
-        "haan boliye", "bijli ka bill bahut zyada aata hai",
-        "lekin solar mehenga hota hai na", "abhi nahi baad me sochenge",
-    ],
-    "real_estate": [
-        "haan", "2 BHK dhund raha hoon", "budget thoda kam hai",
-        "site visit kab ho sakta hai",
-    ],
-    "insurance": [
-        "haan bolo", "health insurance chahiye", "premium kitna hoga",
-        "abhi busy hoon",
-    ],
-    "ai_marketing": [
-        "haan", "khud post dalte hain", "Google pe dikhta hai kya",
-        "trial kaise milega",
-    ],
-}
+# 127.0.0.1:8000 -> container 8080) — set AGENT_TESTER_WS to ws://127.0.0.1:8080/...
+DEFAULT_WS = os.environ.get("AGENT_TESTER_WS") or "ws://127.0.0.1:8000/api/web-call/ws"
 
 BANNED = ["maine pehle", "pehle hi poocha", "unclear", "maaf kij", "[echo", "(no response)"]
 
-
-async def run_niche(session, niche, turns, report, latencies=None):
-    transcript: list[dict] = []  # role-tagged turns for D-13 conversation checks
-    async with session.ws_connect(WS, timeout=aiohttp.ClientWSTimeout(ws_close=60)) as ws:
-        # Server sends {"type":"ready"} before the client sends anything.
-        # Must drain this message BEFORE sending "start" — otherwise aiohttp
-        # treats the unread buffer as an error and marks the transport "closing".
-        try:
-            ready_msg = await asyncio.wait_for(ws.receive(), timeout=15.0)
-            if ready_msg.type != aiohttp.WSMsgType.TEXT:
-                report.append(f"[{niche}] NO READY (got type={ready_msg.type})")
-                return
-        except asyncio.TimeoutError:
-            report.append(f"[{niche}] TIMEOUT waiting for ready")
-            return
-        await ws.send_json({"type": "start", "niche": niche, "flow": "qualify"})
-        last_reply = ""
-        # drain greeting (ready + first bot) — keep it as the opener turn so the
-        # permission/missing-permission check sees the opener.
-        greeting, ws_closed = await _collect_bots(ws, settle=3.0)
-        if ws_closed:
-            report.append(f"[{niche}] SERVER CLOSED after start (no greeting sent)")
-            return
-        if greeting:
-            transcript.append({"role": "assistant", "content": (greeting[0] or "").strip()})
-        for turn in turns:
-            await ws.send_json({"type": "user", "text": turn, "niche": niche})
-            transcript.append({"role": "user", "content": turn})
-            t0 = time.time()
-            # Realistic: wait up to 12s for the FIRST reply, then 2.5s settle to
-            # catch any (buggy) second reply — matches phone's turn-based pacing.
-            bots, ws_closed = await _collect_bots(ws, first_timeout=12.0, settle=2.5)
-            if ws_closed:
-                report.append(f"[{niche}] SERVER CLOSED mid-turn for: {turn!r}")
-                break
-            dt = time.time() - t0
-            n = len(bots)
-            if latencies is not None and n > 0:
-                latencies.append(dt * 1000.0)  # ms, for P50/P95/P99 distribution
-            reply = (bots[0] if bots else "").strip()
-            if reply:
-                transcript.append({"role": "assistant", "content": reply})
-            # CHECKS
-            if n == 0:
-                report.append(f"[{niche}] NO REPLY for: {turn!r}")
-            if n > 1:
-                report.append(f"[{niche}] DOUBLE REPLY ({n}) for {turn!r}: {bots}")
-            if reply and not reply.strip():
-                report.append(f"[{niche}] EMPTY reply for {turn!r}")
-            low = reply.lower()
-            for b in BANNED:
-                if b in low:
-                    report.append(f"[{niche}] BANNED phrase '{b}' in: {reply!r}")
-            if reply and reply == last_reply:
-                report.append(f"[{niche}] REPEAT reply: {reply!r}")
-            if len(reply.split()) > 35:
-                report.append(f"[{niche}] TOO LONG ({len(reply.split())}w): {reply!r}")
-            if dt > 9:
-                report.append(f"[{niche}] SLOW {dt:.1f}s for {turn!r}")
-            last_reply = reply
-            print(f"  [{niche}] U: {turn}\n           B({n}, {dt:.1f}s): {reply[:90]}")
-        # Conversation-level D-13 checks over the whole transcript (pushy-after-
-        # softno / talk-listen-ratio / missing-permission / literal-translation).
-        if _qc is not None:
-            for finding in _qc.run_all(transcript):
-                report.append(f"[{niche}] {finding}")
+_SCN_BY_NAME = {s.name: s for s in vs.SCENARIOS}
 
 
-async def _collect_bots(ws, first_timeout=12.0, settle=2.5):
-    """Wait up to first_timeout for the FIRST bot msg, then settle for extras.
-    Returns (bots_list, ws_closed) — ws_closed=True means server closed the WS."""
-    bots = []
+# --------------------------------------------------------------------------- #
+# WS collection — one logical reply per bot turn (streaming chunks merged).
+# --------------------------------------------------------------------------- #
+async def _collect_replies(ws, first_timeout=12.0, settle=2.5):
+    """Collect bot replies in a window. Returns (replies, ws_closed) where each
+    reply is {"text", "audio_b64"}. Sentence-streamed replies (chunk_total>1)
+    count as ONE reply (text from full_text); their audio is per-chunk/partial so
+    we drop it for roundtrip (only clean single-message replies carry audio)."""
+    replies: list[dict] = []
     while True:
-        timeout = first_timeout if not bots else settle
+        timeout = first_timeout if not replies else settle
         try:
             msg = await asyncio.wait_for(ws.receive(), timeout=timeout)
         except asyncio.TimeoutError:
             break
-        if msg.type == aiohttp.WSMsgType.ERROR or msg.type == aiohttp.WSMsgType.CLOSED:
-            return bots, True  # server closed abnormally
+        if msg.type in (aiohttp.WSMsgType.ERROR, aiohttp.WSMsgType.CLOSED):
+            return replies, True
         if msg.type != aiohttp.WSMsgType.TEXT:
             break
         try:
             d = json.loads(msg.data)
         except Exception:
             continue
-        if d.get("type") == "bot":
-            # Sentence-split STREAMING: ek reply N chunks me aata (chunk_total>1) —
-            # ise EK reply gino (warna false "DOUBLE REPLY"). First chunk pe full_text.
-            ct = d.get("chunk_total")
-            if ct and ct > 1:
-                if d.get("chunk_index", 0) == 0:
-                    bots.append((d.get("full_text") or d.get("text") or "").strip())
-                # baaki chunks same reply ke — skip
-            else:
-                bots.append((d.get("text") or "").strip())
-    return bots, False
+        if d.get("type") != "bot":
+            continue
+        ct = d.get("chunk_total")
+        if ct and ct > 1:
+            if d.get("chunk_index", 0) == 0:
+                replies.append(
+                    {"text": (d.get("full_text") or d.get("text") or "").strip(), "audio_b64": None}
+                )
+            # later chunks of the same reply — skip
+        else:
+            replies.append({"text": (d.get("text") or "").strip(), "audio_b64": d.get("audio_b64")})
+    return replies, False
 
 
-async def main():
-    report = []
-    latencies: list[float] = []
-    async with aiohttp.ClientSession() as s:
-        for niche, turns in SCRIPTS.items():
-            print(f"\n=== TEST: {niche} ===")
+async def run_scenario(session, scenario, ws_url, *, collect_audio=False, verbose=True) -> dict:
+    """Drive one scenario over the WS. Returns a structured result:
+    {name, kind, status: ran|skip, skip_reason, transcript, mechanical[str],
+     latencies[ms], audio_pairs[(text, b64)]}."""
+    res = {
+        "name": scenario.name,
+        "kind": scenario.kind,
+        "status": "ran",
+        "skip_reason": None,
+        "transcript": [],
+        "mechanical": [],
+        "latencies": [],
+        "audio_pairs": [],
+    }
+    transcript: list[dict] = res["transcript"]
+    mech: list[str] = res["mechanical"]
+    lat: list[float] = res["latencies"]
+
+    connected = False
+    try:
+        async with session.ws_connect(
+            ws_url, timeout=aiohttp.ClientWSTimeout(ws_close=60)
+        ) as ws:
+            connected = True
+            # drain {"type":"ready"} before sending anything
             try:
-                await run_niche(s, niche, turns, report, latencies)
-            except Exception as e:
-                report.append(f"[{niche}] TEST CRASHED: {e}")
-    print("\n" + "=" * 50)
-    # Objective latency distribution (P50/P95/P99) — "distribution, not average" (ph06/17)
-    if _vm is not None and latencies:
-        lat = _vm.latency_summary(latencies)
-        print(
-            f"⏱  LATENCY ms  n={lat['n']}  p50={lat['p50']}  p95={lat['p95']}  "
-            f"p99={lat['p99']}  mean={lat['mean']}  max={lat['max']}"
+                ready = await asyncio.wait_for(ws.receive(), timeout=15.0)
+                if ready.type != aiohttp.WSMsgType.TEXT:
+                    mech.append(f"NO_READY: got type={ready.type}")
+                    return res
+            except asyncio.TimeoutError:
+                mech.append("NO_READY: timeout waiting for ready")
+                return res
+
+            await ws.send_json({"type": "start", "niche": scenario.niche, "flow": scenario.flow})
+            greeting, closed = await _collect_replies(ws, first_timeout=12.0, settle=3.0)
+            if closed:
+                mech.append("SERVER_CLOSED: closed after start (no greeting)")
+                return res
+            if greeting:
+                g = (greeting[0]["text"] or "").strip()
+                if g:
+                    transcript.append({"role": "assistant", "content": g})
+                if collect_audio and scenario.kind == "happy":
+                    for r in greeting:
+                        if r.get("audio_b64") and (r.get("text") or "").strip():
+                            res["audio_pairs"].append((r["text"], r["audio_b64"]))
+            else:
+                mech.append("NO_GREETING: opener never sent")
+
+            last_reply = ""
+            for turn in scenario.turns:
+                await ws.send_json({"type": "user", "text": turn, "niche": scenario.niche})
+                transcript.append({"role": "user", "content": turn})
+                t0 = time.time()
+                replies, closed = await _collect_replies(ws, first_timeout=12.0, settle=2.5)
+                if closed:
+                    mech.append(f"SERVER_CLOSED: closed mid-turn for {turn!r}")
+                    break
+                dt = time.time() - t0
+                bots = [r["text"] for r in replies]
+                n = len(bots)
+                if n > 0:
+                    lat.append(dt * 1000.0)
+                reply = (bots[0] if bots else "").strip()
+                if reply:
+                    transcript.append({"role": "assistant", "content": reply})
+                    if collect_audio and scenario.kind == "happy":
+                        for r in replies:
+                            if r.get("audio_b64") and (r.get("text") or "").strip():
+                                res["audio_pairs"].append((r["text"], r["audio_b64"]))
+
+                # MECHANICAL observations (kinds drive severity in voice_selftest)
+                if n == 0:
+                    mech.append(f"NO_REPLY for {turn!r}")
+                if n > 1:
+                    mech.append(f"DOUBLE_REPLY ({n}) for {turn!r}: {bots}")
+                if n > 0 and not reply:
+                    mech.append(f"EMPTY reply for {turn!r}")
+                low = reply.lower()
+                for b in BANNED:
+                    if b in low:
+                        mech.append(f"BANNED phrase '{b}' in: {reply!r}")
+                if reply and reply == last_reply:
+                    mech.append(f"REPEAT reply: {reply!r}")
+                if len(reply.split()) > 35:
+                    mech.append(f"TOO_LONG ({len(reply.split())}w): {reply!r}")
+                if dt > 9:
+                    mech.append(f"SLOW {dt:.1f}s for {turn!r}")
+                last_reply = reply
+                if verbose:
+                    print(f"  [{scenario.name}] U: {turn}\n           B({n}, {dt:.1f}s): {reply[:90]}")
+    except Exception as e:
+        conn_errs = (aiohttp.ClientConnectorError, OSError, asyncio.TimeoutError)
+        if not connected and isinstance(e, aiohttp.WSServerHandshakeError):
+            mech.append(f"PROTOCOL: WS handshake failed (status={getattr(e, 'status', '?')})")
+        elif not connected and isinstance(e, conn_errs):
+            res["status"] = "skip"
+            res["skip_reason"] = type(e).__name__
+        else:
+            mech.append(f"CRASH: {type(e).__name__}: {str(e)[:120]}")
+    return res
+
+
+# --------------------------------------------------------------------------- #
+# Roundtrip-WER (opt-in, diagnostic, FREE via Groq-whisper)
+# --------------------------------------------------------------------------- #
+async def roundtrip_block(audio_pairs, *, flag_cer=0.35) -> dict:
+    """text -> (already-synthesised Swara mp3) -> Groq-whisper -> WER/CER vs text.
+    Devanagari↔roman folded via hinglish_normalize so the score reflects Swara
+    intelligibility, not script mismatch. DIAGNOSTIC only — never gates."""
+    try:
+        import base64
+
+        from app.voice_agent import free_ai
+        from app.voice_agent import voice_metrics as vm
+    except Exception as e:  # pragma: no cover
+        return {"available": False, "reason": f"import: {e}"}
+    try:
+        from app.voice_agent.hinglish_normalize import to_roman
+    except Exception:  # pragma: no cover
+        def to_roman(x):  # type: ignore[misc]
+            return x
+
+    rows = []
+    for text, b64 in audio_pairs:
+        try:
+            audio = base64.b64decode(b64)
+            recog, _src = await free_ai.transcribe_audio(
+                audio, language="hi", filename="audio.mp3", mime="audio/mpeg"
+            )
+        except Exception as e:
+            rows.append({"text": text, "wer": None, "cer": None, "error": str(e)[:100]})
+            continue
+        if not (recog or "").strip():
+            rows.append({"text": text, "wer": None, "cer": None, "error": "empty transcription"})
+            continue
+        ref, hyp = to_roman(text), to_roman(recog)
+        w, c = vm.wer(ref, hyp), vm.cer(ref, hyp)
+        rows.append(
+            {"text": text, "recog": recog, "wer": round(w, 3), "cer": round(c, 3), "flagged": c > flag_cer}
         )
-    if report:
-        print(f"❌ {len(report)} ISSUE(S) FOUND:")
-        for r in report:
-            print("  -", r)
+    scored = [r for r in rows if r.get("cer") is not None]
+    return {
+        "available": True,
+        "n": len(scored),
+        "mean_wer": round(sum(r["wer"] for r in scored) / len(scored), 3) if scored else None,
+        "mean_cer": round(sum(r["cer"] for r in scored) / len(scored), 3) if scored else None,
+        "flagged": [r["text"] for r in scored if r.get("flagged")],
+        "rows": rows,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Aggregate one full run into a report dict
+# --------------------------------------------------------------------------- #
+def build_report(results, *, strict=False) -> dict:
+    findings: list[dict] = []
+    scenario_scores: list[dict] = []
+    latencies: list[float] = []
+    ran = [r for r in results if r["status"] == "ran"]
+    skipped = [r for r in results if r["status"] == "skip"]
+    skipped_all = bool(results) and not ran
+
+    for res in ran:
+        for txt in res["mechanical"]:
+            findings.append(vs.as_finding(txt, scenario=res["name"]))
+        if _qc is not None:
+            for txt in _qc.run_all(res["transcript"]):
+                findings.append(vs.as_finding(txt, scenario=res["name"]))
+        scn = _SCN_BY_NAME.get(res["name"])
+        if scn is not None:
+            sc = vs.score_scenario(scn, res["transcript"])
+            scenario_scores.append(sc)
+            findings.extend(sc["goal_findings"])
+        latencies.extend(res["latencies"])
+
+    agg = vs.aggregate(scenario_scores)
+    gateinfo = vs.gate(findings, strict=strict, skipped=skipped_all)
+    latency = _vm.latency_summary(latencies) if (_vm and latencies) else None
+    return {
+        "ran": [r["name"] for r in ran],
+        "skipped": [{"name": r["name"], "reason": r["skip_reason"]} for r in skipped],
+        "findings": findings,
+        "scenario_scores": scenario_scores,
+        "aggregate": agg,
+        "latency": latency,
+        "gate": gateinfo,
+    }
+
+
+def _maybe_eval_gate(quality_score) -> dict | None:
+    """Record quality into the rolling baseline + return the verdict when
+    EVAL_GATE=1; INERT (None) otherwise."""
+    if quality_score is None:
+        return None
+    try:
+        from app.agents import eval_gate
+
+        if not eval_gate.enabled():
+            return None
+        return eval_gate.score_and_gate(
+            suite="voice_selftest", metric="quality", current_score=float(quality_score), agent="ci"
+        )
+    except Exception:  # pragma: no cover - best-effort
+        return None
+
+
+# --------------------------------------------------------------------------- #
+# Output
+# --------------------------------------------------------------------------- #
+def print_human(report, roundtrip, gate_verdict, strict):
+    print("\n" + "=" * 60)
+    print(" VOICE AGENT SELF-TEST")
+    print("=" * 60)
+    if report["skipped"]:
+        for s in report["skipped"]:
+            print(f"  ⏭  SKIP {s['name']} ({s['reason']})")
+    agg = report["aggregate"]
+    if agg["quality_score"] is not None:
+        print(
+            f"  ⭐ quality_score={agg['quality_score']}  "
+            f"goals {agg['goals_passed']}/{agg['goals_total']}  "
+            f"(scenarios scored: {agg['scenarios_scored']})"
+        )
+        for kind, b in (agg.get("by_kind") or {}).items():
+            print(f"       - {kind:<12} goals {b['passed']}/{b['total']}")
+    lat = report["latency"]
+    if lat:
+        print(
+            f"  ⏱  latency ms  n={lat['n']}  p50={lat['p50']}  p95={lat['p95']}  "
+            f"p99={lat['p99']}  max={lat['max']}"
+        )
+    if roundtrip and roundtrip.get("available"):
+        print(
+            f"  🎙  roundtrip (DIAGNOSTIC, Swara intelligibility)  n={roundtrip['n']}  "
+            f"mean_cer={roundtrip['mean_cer']}  mean_wer={roundtrip['mean_wer']}"
+        )
+        if roundtrip.get("flagged"):
+            for t in roundtrip["flagged"][:5]:
+                print(f"       ⚠ unclear line: {t[:70]!r}")
+    if gate_verdict:
+        print(
+            f"  🚦 eval_gate: {gate_verdict.get('decision')} "
+            f"(current={gate_verdict.get('current')} baseline={gate_verdict.get('baseline')})"
+        )
+
+    g = report["gate"]
+    print("-" * 60)
+
+    def _dump(label, items):
+        if items:
+            print(f"  {label} ({len(items)}):")
+            for f in items:
+                print(f"    - [{f['scenario']}] {f['text']}")
+
+    _dump("❌ CRITICAL", g["critical"])
+    _dump("⚠ WARN", g["warn"])
+    _dump("· advisory", g["advisory"])
+    print("-" * 60)
+    if g["status"] == "skip":
+        print("  ⏭  SKIPPED — no server reachable (exit 0, not a failure).")
+    elif g["exit_code"] == 0:
+        n_adv = len(g["advisory"]) + len(g["warn"])
+        extra = f" ({n_adv} advisory/warn — informational)" if n_adv else ""
+        print(f"  ✅ PASS{extra}")
     else:
-        print("✅ NO ISSUES — all niches clean (no double/empty/repeat/long/slow/meta)")
+        mode = "strict" if strict else "default"
+        print(f"  ❌ FAIL ({mode} gate) — {len(g['critical'])} critical"
+              + (f", +{len(g['warn']) + len(g['advisory'])} promoted" if strict else ""))
+    print("=" * 60)
+
+
+async def main() -> int:
+    ap = argparse.ArgumentParser(description="Advanced voice-agent self-test (FREE).")
+    ap.add_argument("--url", default=DEFAULT_WS, help="web-call WS URL")
+    ap.add_argument("--strict", action="store_true", help="behavioural/guardrail/warn also gate")
+    ap.add_argument("--audio", action="store_true", help="add roundtrip-WER (uses Groq STT quota)")
+    ap.add_argument("--json", action="store_true", help="emit machine-readable JSON only")
+    ap.add_argument("--only", default="", help="comma-separated scenario names to run")
+    args = ap.parse_args()
+    verbose = not args.json
+
+    only = {x.strip() for x in args.only.split(",") if x.strip()}
+    scenarios = [s for s in vs.SCENARIOS if (not only or s.name in only)]
+
+    results = []
+    async with aiohttp.ClientSession() as session:
+        for scn in scenarios:
+            if verbose:
+                print(f"\n=== {scn.kind.upper()}: {scn.name} ===")
+            try:
+                r = await run_scenario(
+                    session, scn, args.url, collect_audio=args.audio, verbose=verbose
+                )
+            except Exception as e:  # never let one scenario abort the suite
+                r = {
+                    "name": scn.name, "kind": scn.kind, "status": "ran",
+                    "skip_reason": None, "transcript": [],
+                    "mechanical": [f"CRASH: {type(e).__name__}: {str(e)[:120]}"],
+                    "latencies": [], "audio_pairs": [],
+                }
+            results.append(r)
+
+    report = build_report(results, strict=args.strict)
+
+    roundtrip = None
+    if args.audio:
+        pairs = [p for r in results if r["status"] == "ran" for p in r["audio_pairs"]]
+        if pairs:
+            roundtrip = await roundtrip_block(pairs)
+
+    gate_verdict = _maybe_eval_gate(report["aggregate"]["quality_score"])
+
+    if args.json:
+        out = dict(report)
+        out["roundtrip"] = roundtrip
+        out["eval_gate"] = gate_verdict
+        out["strict"] = args.strict
+        # JSON ONLY -> the saved real stdout (import/runtime logging went to buffer)
+        print(json.dumps(out, ensure_ascii=False, indent=2, default=str), file=_REAL_STDOUT)
+    else:
+        print_human(report, roundtrip, gate_verdict, args.strict)
+
+    return int(report["gate"]["exit_code"])
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    sys.exit(asyncio.run(main()))
