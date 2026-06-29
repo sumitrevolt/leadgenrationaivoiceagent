@@ -323,6 +323,24 @@ def _is_post_close_reply(ut: str) -> bool:
         return False
 
 
+# Phone-number read-back — echo the WhatsApp number the caller gave so they can
+# catch an STT mistake. Returned digits get spaced at use-time so EdgeTTS reads
+# them one-by-one ("aath chaar paanch…") instead of as one giant number.
+_PHONE_DIGITS_RE = re.compile(r"\d[\d\s\-]{5,}\d")
+
+
+def _extract_phone(ut: str) -> str:
+    """Digits-only phone string (7-12 long) from the utterance, else ''. Never raises."""
+    try:
+        m = _PHONE_DIGITS_RE.search(ut or "")
+        if not m:
+            return ""
+        digits = re.sub(r"\D", "", m.group())
+        return digits if 7 <= len(digits) <= 12 else ""
+    except Exception:
+        return ""
+
+
 # ---------------------------------------------------------------------------
 _MAX_HISTORY_TURNS = 8  # last ~8 turns to keep prompt (and latency) small
 _GEN_CONFIG = {
@@ -1304,6 +1322,15 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     )
                     if "whatsapp number confirm" in _last_bot.lower() and _is_post_close_reply(ut):
                         logger.info("[telecaller-brain] post-close wrap -> WhatsApp pivot")
+                        _num = _extract_phone(ut)
+                        if _num:
+                            # Read the number back digit-by-digit so the caller can
+                            # catch any STT mistake before we send to WhatsApp.
+                            _spoken = " ".join(_num)
+                            return self._clean(
+                                f"Perfect sir! Aapka WhatsApp number {_spoken} — isi par abhi "
+                                "saari detail aur setup bhej rahi hoon. Dhanyavaad, aapka din shubh ho!"
+                            )
                         return self._clean(
                             "Perfect sir! Saari detail aur setup abhi WhatsApp pe bhej rahi "
                             "hoon — wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
