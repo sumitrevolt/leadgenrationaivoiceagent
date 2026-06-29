@@ -67,17 +67,25 @@ async def _say(text, path):
 # ---------------- STT: public Hindi Whisper ----------------
 print("\n[1/2] Loading STT (public IndicWhisper / Whisper)...")
 from transformers import pipeline
+# (model_id, generate_kwargs). Hindi-ONLY fine-tunes (vasista22) have no lang_to_id,
+# so they MUST be called WITHOUT a language/task kwarg (they always decode Hindi).
+# Only the multilingual whisper-large-v3 needs language="hi" to force Hindi.
+STT_MODELS = [
+    ("vasista22/whisper-hindi-large-v2", None),
+    ("openai/whisper-large-v3", {"language": "hi", "task": "transcribe"}),
+]
 def _build_stt():
-    for mid in ("vasista22/whisper-hindi-large-v2", "openai/whisper-large-v3"):
+    for mid, gen in STT_MODELS:
         try:
             t = time.time()
-            pipe = pipeline("automatic-speech-recognition", model=mid,
-                            device=0 if DEV == "cuda" else -1, chunk_length_s=20,
-                            generate_kwargs={"language": "hi", "task": "transcribe"})
+            kw = dict(model=mid, device=0 if DEV == "cuda" else -1)
+            if gen:
+                kw["generate_kwargs"] = gen
+            pipe = pipeline("automatic-speech-recognition", **kw)
             print(f"  STT model = {mid}  (loaded {time.time()-t:.1f}s)")
             return pipe
         except Exception as e:
-            print(f"  {mid} unavailable ({str(e)[:60]}) -> trying next")
+            print(f"  {mid} unavailable ({str(e)[:80]}) -> trying next")
     raise RuntimeError("no STT model could be loaded")
 stt = _build_stt()
 
