@@ -26,7 +26,7 @@ def _marketing_start_price() -> str:
 # iske aage "Main ek AI assistant hoon." prepend karta — isliye yahan dobara mat likho.
 UNIVERSAL_AGENT_INTRO = (
     "Namaste! Main Leads Generation AI se bol rahi hoon — "
-    "hum aapke jaise business ko AI se naye customers dilate hain, "
+    "hum aapke jaise business ko AI se naye customers dila dete hain, "
     "Instagram, Facebook aur Google se."
 )
 
