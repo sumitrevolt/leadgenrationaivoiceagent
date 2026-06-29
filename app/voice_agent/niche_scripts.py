@@ -142,7 +142,7 @@ def kb_documents(niche_key: str) -> list[str]:
 # --------------------------------------------------------------------------- #
 # TRAI up-front AI-disclosure (TCCCPR) — legal gate, ALWAYS-ON
 # --------------------------------------------------------------------------- #
-_AI_DISCLOSURE_TOKENS = ("ai assistant", "ai voice", "automated", "artificial", "a.i.", "ai-")
+_AI_DISCLOSURE_TOKENS = ("ai assistant", "ai agent", "ai voice", "automated", "artificial", "a.i.", "ai-")
 
 
 def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:
@@ -163,12 +163,13 @@ def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:
             return t
         import re
 
-        # Common case: "...main Swara bol rahi hoon..." -> insert ", ek AI assistant,".
+        # Common case: "...main Swara bol rahi hoon..." -> insert ", ek AI agent,".
         m = re.search(r"\bmain\s+" + re.escape(name), t, flags=re.IGNORECASE)
         if m:
-            return t[: m.end()] + ", ek AI assistant," + t[m.end() :]
-        # Fallback: prepend a short, clear disclosure sentence.
-        return f"Main ek AI assistant hoon. {t}"
+            return t[: m.end()] + ", ek AI agent jo aapki baat sun-samajh sakti hai," + t[m.end() :]
+        # Fallback: prepend a short, clear disclosure that also signals the call is
+        # two-way (web testers didn't realise they could just talk) — invites speech.
+        return f"Main ek AI agent hoon — aapki baat sun aur samajh sakti hoon, aap boliye. {t}"
     except Exception:
         return text or ""
 
