@@ -90,10 +90,19 @@ def should_deescalate(history: list[dict] | None, current_text: str) -> bool:
         return False
 
 
-def deescalation_reply(niche: str = "", client_name: str = "") -> str:
+def deescalation_reply(
+    niche: str = "",
+    client_name: str = "",
+    history: list[dict] | None = None,
+    current_text: str = "",
+) -> str:
     """A warm, non-pushy graceful close. Deterministic pick (no RNG) so it is
-    test-stable and varies a little per niche."""
-    idx = (len(str(niche)) + len(str(client_name))) % len(DEESCALATION_TEMPLATES)
+    test-stable and varies a little per niche. ROTATES by soft-no count so a
+    repeated graceful close (2nd then 3rd soft-no in one call) never says the
+    SAME line twice — consecutive closers are distinct (fixes REPEAT). Backward-
+    compatible: without history/current_text the rotation is 0 (old behaviour)."""
+    rotate = max(0, soft_no_count(history, current_text) - 2)  # 2nd soft-no→0, 3rd→1…
+    idx = (len(str(niche)) + len(str(client_name)) + rotate) % len(DEESCALATION_TEMPLATES)
     return DEESCALATION_TEMPLATES[idx]
 
 
