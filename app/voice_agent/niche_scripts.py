@@ -168,8 +168,8 @@ def ensure_ai_disclosure(text: str, name: str = "Swara") -> str:
         if m:
             return t[: m.end()] + ", ek AI agent jo aapki baat sun-samajh sakti hai," + t[m.end() :]
         # Fallback: prepend a short, clear disclosure that also signals the call is
-        # two-way (web testers didn't realise they could just talk) — invites speech.
-        return f"Main ek AI agent hoon — aapki baat sun aur samajh sakti hoon, aap boliye. {t}"
+        # two-way (web testers didn't realise they could just talk).
+        return f"Main ek AI agent hoon — aapki baat sun aur samajh sakti hoon. {t}"
     except Exception:
         return text or ""
 

@@ -302,6 +302,27 @@ def _is_close_intent(ut: str) -> bool:
         return False
 
 
+# Post-close wrap — the setup-confirm already asked for WhatsApp; the caller's
+# next reply (a number / "haan, yahi number") means the deal is done ON the call.
+# Wrap fast + move everything to WhatsApp (calls cost money — no more questions).
+_POST_CLOSE_NUM_RE = re.compile(r"\d{7,}")
+_POST_CLOSE_AFFIRM_RE = re.compile(
+    r"\b(haan|han|ha|ji|ok|okay|theek|thik|yahi|yhi|isi|wahi|same|confirm|kar\s*do|done|bilkul|sahi)\b",
+    re.IGNORECASE,
+)
+
+
+def _is_post_close_reply(ut: str) -> bool:
+    """After a setup-confirm, a number or an affirmation = wrap-and-pivot. Never raises."""
+    try:
+        t = (to_roman(ut or "") or ut or "")[:_MAX_UTTERANCE_CHARS].lower()
+        if not t:
+            return False
+        return bool(_POST_CLOSE_NUM_RE.search(t) or _POST_CLOSE_AFFIRM_RE.search(t))
+    except Exception:
+        return False
+
+
 # ---------------------------------------------------------------------------
 _MAX_HISTORY_TURNS = 8  # last ~8 turns to keep prompt (and latency) small
 _GEN_CONFIG = {
@@ -1264,6 +1285,29 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 if ut and _voice_guardrails_enabled() and _is_injection_attempt(ut):
                     logger.info("[telecaller-brain] injection/role-switch deflected (pre-LLM)")
                     return self._injection_deflection(history)
+            except Exception:
+                pass
+            # POST-CLOSE WRAP (pre-LLM, gated CLOSE_DETECT): a setup-confirm already
+            # went out (we asked for the WhatsApp number); the caller's reply — a
+            # number or "haan, yahi number" — means we're DONE on the call. Short
+            # goodbye + everything moves to WhatsApp (calls cost money => no more
+            # questions once committed; web-test feedback 2026-06-29). Fail-open.
+            try:
+                if ut and _close_detect_enabled() and history:
+                    _last_bot = next(
+                        (
+                            str(m.get("content", ""))
+                            for m in reversed(history)
+                            if isinstance(m, dict) and m.get("role") == "assistant"
+                        ),
+                        "",
+                    )
+                    if "whatsapp number confirm" in _last_bot.lower() and _is_post_close_reply(ut):
+                        logger.info("[telecaller-brain] post-close wrap -> WhatsApp pivot")
+                        return self._clean(
+                            "Perfect sir! Saari detail aur setup abhi WhatsApp pe bhej rahi "
+                            "hoon — wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
+                        )
             except Exception:
                 pass
             # BUY / CLOSE SIGNAL (pre-LLM, gated CLOSE_DETECT default ON): caller
