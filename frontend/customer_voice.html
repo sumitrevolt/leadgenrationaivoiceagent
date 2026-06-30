@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
-<title>LeadGen AI — Aapka Dashboard</title>
+<title>LeadGen AI — AI Voice Office</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="/design-system/styles.css" />
 <style>
@@ -401,19 +401,19 @@
   <!-- Sidebar -->
   <aside class="sidebar" role="navigation" aria-label="Main navigation">
     <div class="brand" aria-label="LeadGen AI"><img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="34" height="34" /> LeadGen AI</div>
+    <div class="nav-group">Overview</div>
     <a class="navlink active" href="#" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home</a>
-    <a class="navlink" href="#contentCard" onclick="scrollToId('contentCard');return false;" aria-label="Aaj ka Post section"><span class="ic" aria-hidden="true">📣</span> Aaj ka Post</a>
-    <a class="navlink" href="#approvalCard" onclick="scrollToId('approvalCard');return false;" aria-label="Post approvals"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
-    <a class="navlink" href="#webToolsCard" onclick="scrollToId('webToolsCard');return false;" aria-label="Website tools mini-site widget"><span class="ic" aria-hidden="true">🌐</span> Website Tools</a>
+    <div class="nav-group">Calls & Leads</div>
     <a class="navlink" href="#routingCard" onclick="scrollToId('routingCard');return false;" aria-label="Team routing"><span class="ic" aria-hidden="true">👥</span> Team Routing</a>
     <a class="navlink" href="#leadsCard" onclick="scrollToId('leadsCard');return false;" aria-label="Naye Leads section"><span class="ic" aria-hidden="true">🔥</span> Naye Leads</a>
     <a class="navlink" href="/app/customer/pipeline" aria-label="Lead Pipeline Kanban board"><span class="ic" aria-hidden="true">📋</span> Pipeline</a>
-    <a class="navlink" href="#callsCard" onclick="scrollToId('callsCard');return false;" aria-label="Calls ka Hisaab section"><span class="ic" aria-hidden="true">📞</span> Calls ka Hisaab</a>
+    <a class="navlink" href="#callsCard" onclick="scrollToId('callsCard');return false;" aria-label="Calls ka Hisaab section"><span class="ic" aria-hidden="true">📞</span> Calls</a>
+    <div class="nav-group">Account</div>
     <a class="navlink" href="#billingCard" onclick="scrollToId('billingCard');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
     <a class="navlink" href="#secCard" onclick="openAdvancedSettings();return false;" aria-label="Security aur advanced settings"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
-    <a class="navlink" id="navAutomations" href="/app/customer/flows" style="display:none" aria-label="My Automations flow builder"><span class="ic" aria-hidden="true">🧩</span> My Automations</a>
-    <div class="side-foot" aria-label="Account info">
-      Aapki AI Voice Agent — din-raat calls kar rahi hai aapke liye.<br><br>
+    <a class="navlink" id="navAutomations" href="/app/customer/flows" style="display:none" aria-label="My Automations flow builder"><span class="ic" aria-hidden="true">🧩</span> Automations</a>
+    <div class="ao-sb-live"><span class="dot"></span>AI calls din-raat chal rahi hain</div>
+    <div class="side-foot" aria-label="Account info" style="padding-top:8px">
       <span id="sideClient">Client: demo</span>
     </div>
   </aside>
@@ -426,6 +426,7 @@
         <p id="genAt">Aapke business ka pura haal — ek nazar me.</p>
       </div>
       <div class="spacer"></div>
+      <span class="ao-topbar-status" id="aoTopStatus"><span class="dot"></span>AI Calls Active</span>
       <span class="badge-demo" id="demoBadge" aria-label="Ye demo data hai">Demo Data</span>
       <!-- Date range filter -->
       <div class="date-range" role="group" aria-label="Date range filter">
@@ -467,9 +468,9 @@
       <!-- ===== 0) Owner hero — non-technical intro ===== -->
       <div class="owner-hero" aria-label="Aapka dashboard">
         <div>
-          <span class="owner-pill" id="ownerPill">AI Voice Calling Agent</span>
-          <h1 class="owner-title" id="ownerTitle">Aaj kis lead ko call karna hai?</h1>
-          <p class="owner-subtitle" id="ownerSubtitle">Hot leads, AI calls aur team handoff ek jagah.</p>
+          <span class="owner-pill" id="ownerPill">✦ AI Voice Office</span>
+          <h1 class="owner-title" id="ownerTitle">Aapki AI telecaller tayaar hai</h1>
+          <p class="owner-subtitle" id="ownerSubtitle">Hot leads pe AI call karta hai, aap sirf converted leads receive karo.</p>
         </div>
         <div class="owner-actions">
           <button class="btn primary" type="button" id="ownerPrimaryBtn" onclick="runNextStep()">Hot leads dekho</button>

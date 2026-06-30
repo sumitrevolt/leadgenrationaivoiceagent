@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LeadGen AI — Architecture Explorer</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none}
@@ -368,7 +369,7 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
 <body>
 
 <div id="topbar">
-  <div class="brand"><div class="dot"></div>leadsgenai · explorer</div>
+  <div class="brand"><div class="dot"></div>LeadGen AI · Explorer</div>
   <div class="nav-tabs">
     <button class="nav-tab" data-view="structural" onclick="switchView('structural',this)">Structural</button>
     <button class="nav-tab active" data-view="automation" onclick="switchView('automation',this)">Automation</button>
@@ -393,6 +394,7 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
     <button class="tr-btn" onclick="showHelp()" title="Shortcuts">?</button>
     <a class="tr-btn tr-link" href="/app/admin">↗ Admin Dashboard</a>
     <a class="tr-btn tr-link" href="/app/automation">↗ Mission Control</a>
+    <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
   </div>
 </div>
 

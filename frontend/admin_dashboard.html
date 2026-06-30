@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Admin Dashboard — LeadGen AI Marketing + Voice</title>
+<title>LeadGen AI — Command Center</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="/design-system/styles.css" />
 <style>
@@ -216,7 +216,7 @@
       <div><b>LeadGen AI</b><small>Admin Console</small></div>
     </div>
     <nav class="nav" role="menubar" aria-label="Main menu">
-      <div class="sec" role="presentation">Overview</div>
+      <div class="sec nav-group" role="presentation">Overview</div>
       <a href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic" aria-hidden="true">➕</span> Add Customer</a>
       <a href="/app/onboard" role="menuitem" aria-label="Onboarding Wizard"><span class="ic" aria-hidden="true">✦</span> Onboarding Wizard</a>
       <a class="active" href="#top" role="menuitem" aria-current="page" aria-label="Dashboard overview"><span class="ic" aria-hidden="true">▦</span> Dashboard</a>
@@ -229,11 +229,11 @@
       <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">8</span></a>
       <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">⚙</span> AI Agents <span class="badge" id="nav-ag">6</span></a>
       <a href="#sec-niches" role="menuitem" aria-label="Niches and Pricing"><span class="ic" aria-hidden="true">◆</span> Niches &amp; Pricing <span class="badge" id="nav-niche">25</span></a>
-      <div class="sec" role="presentation">Sales</div>
+      <div class="sec nav-group" role="presentation">Sales</div>
       <a href="/app/battlecard" role="menuitem" aria-label="Competitive Battlecard"><span class="ic" aria-hidden="true">⚔</span> Competitive Battlecard</a>
       <a href="/app/explorer" role="menuitem" aria-label="Architecture Explorer"><span class="ic" aria-hidden="true">🗺</span> Architecture Explorer</a>
       <a href="#sec-diff" role="menuitem" aria-label="P0 differentiators branded feed approvals routing"><span class="ic" aria-hidden="true">🎯</span> P0 Differentiators</a>
-      <div class="sec" role="presentation">Operations</div>
+      <div class="sec nav-group" role="presentation">Operations</div>
       <a href="/app/impersonate" role="menuitem" aria-label="Login as customer (support)"><span class="ic" aria-hidden="true">🕵️</span> Login as Customer</a>
       <a href="/app/team-access" role="menuitem" aria-label="Team RBAC"><span class="ic" aria-hidden="true">🔐</span> Team &amp; RBAC</a>
       <a href="/app/control-center" role="menuitem" aria-label="Control Center system observability"><span class="ic" aria-hidden="true">🖥</span> Control Center <span class="badge" style="background:#22c55e">NEW</span></a>
@@ -248,7 +248,7 @@
       <a href="#sec-prospects" role="menuitem" aria-label="Prospects and leads"><span class="ic" aria-hidden="true">⊞</span> Prospects / Leads</a>
       <a href="#sec-outreach-activity" role="menuitem" aria-label="Outreach activity emails sent and replies"><span class="ic" aria-hidden="true">📧</span> Email Activity</a>
       <a href="#sec-audit" role="menuitem" aria-label="Activity audit log"><span class="ic" aria-hidden="true">📜</span> Activity Log</a>
-      <div class="sec" role="presentation">Business</div>
+      <div class="sec nav-group" role="presentation">Business</div>
       <a href="#sec-revenue" role="menuitem" aria-label="Revenue analytics MRR churn"><span class="ic" aria-hidden="true">📈</span> Revenue Analytics</a>
       <a href="#sec-billing" role="menuitem" aria-label="Billing and Revenue"><span class="ic" aria-hidden="true">₹</span> Billing &amp; Revenue</a>
       <a href="#sec-api" role="menuitem" aria-label="API usage and infra flags"><span class="ic" aria-hidden="true">🔌</span> API &amp; Infra</a>
@@ -256,9 +256,10 @@
       <a href="/app/dashboards" role="menuitem" aria-label="Activation and integrations status"><span class="ic" aria-hidden="true">🔌</span> Activation &amp; Integrations</a>
       <a href="#sec-health" role="menuitem" aria-label="System Health"><span class="ic" aria-hidden="true">◐</span> System Health</a>
       <a href="/app/ops" role="menuitem" aria-label="Ops mission control"><span class="ic" aria-hidden="true">🛠</span> Ops Control</a>
-      <div class="sec" role="presentation">Account</div>
+      <div class="sec nav-group" role="presentation">Account</div>
       <a href="/app/admin-login" id="navAdminLogin" role="menuitem" aria-label="Admin login"><span class="ic" aria-hidden="true">🔑</span> Admin Login</a>
     </nav>
+    <div class="ao-sb-live"><span class="dot"></span>15 AI agents active</div>
     <div class="sb-foot" aria-label="Logged in admin user">
       <div class="av" id="sbAv" aria-hidden="true">A</div>
       <div style="flex:1;min-width:0">
@@ -279,6 +280,7 @@
         <div class="sub" aria-label="Page description">Saare clients ka overview &amp; control — ek hi jagah</div>
       </div>
       <div class="top-right" role="toolbar" aria-label="Dashboard actions">
+        <span class="ao-topbar-status" id="aoAdminStatus"><span class="dot"></span>Platform Live</span>
         <span class="pill" aria-live="polite" aria-label="Data source status"><span class="live-dot" id="src-dot" aria-hidden="true" style="background:#94a3b8;animation:none"></span> <span id="src-label">Connecting…</span></span>
         <span id="adminUserLbl" class="pill" style="background:#f8fafc;color:var(--slate);font-weight:500;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:none" title=""></span>
         <a href="/app/admin-login" id="adminLoginLink" class="btn btn-ghost" style="display:none">🔑 Login</a>
@@ -328,6 +330,8 @@
             <div><label for="onbBiz" style="font-size:11px;color:#94a3b8">Business name *</label><input id="onbBiz" placeholder="Sharma Solar" aria-required="true" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
             <div><label for="onbNiche" style="font-size:11px;color:#94a3b8">Niche</label>
               <select id="onbNiche" onchange="onbNicheChange()" aria-label="Client niche" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"><option value="general">Loading…</option></select>
+              <input id="onbCustomNiche" type="text" placeholder="Custom niche naam likhो (e.g. Aquarium Shop)" aria-label="Custom niche name" style="display:none;width:100%;margin-top:5px;padding:6px 10px;border:1px solid #f59e0b;background:#0f172a;color:#e2e8f0;border-radius:6px;font-size:13px" />
+              <div id="onbCustomNicheHint" style="display:none;font-size:11px;color:#f59e0b;margin-top:3px">⚠ Custom niche — admin review ke baad permanent list me add hogi</div>
             </div>
             <div><label for="onbPhone" style="font-size:11px;color:#94a3b8">Phone *</label><input id="onbPhone" placeholder="9876543210" aria-required="true" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
             <div><label for="onbCity" style="font-size:11px;color:#94a3b8">City</label><input id="onbCity" placeholder="Pune" style="width:100%;padding:6px 10px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;border-radius:6px"></div>
@@ -345,6 +349,15 @@
           </div>
           <div id="onbOut" style="margin-top:10px;font-size:12px"></div>
         </div>
+      </div>
+
+      <!-- ── Pending Niches Review ── -->
+      <div class="card" id="sec-pending-niches" style="margin-bottom:14px;display:none">
+        <div class="hd" style="display:flex;justify-content:space-between;align-items:center">
+          <h3>🕐 Pending Niches — Admin Review <span id="pendingNicheCount" style="font-size:11px;background:#f59e0b;color:#000;border-radius:999px;padding:2px 8px;margin-left:6px"></span></h3>
+          <button class="btn" onclick="loadPendingNiches()" style="padding:5px 12px;font-size:11px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="pendingNichesList" style="font-size:13px;color:var(--muted)">Loading…</div>
       </div>
 
       <!-- Assessment Scores Widget (hidden until API responds) -->
@@ -1971,7 +1984,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   adminAuthBoot();
   loadTodayBiz();
   loadAdminTasks();
-  loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026();
+  loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026(); loadPendingNiches();
   loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadOutreachActivity(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail();
   loadSyncHealth(); loadAgents();
@@ -2152,15 +2165,26 @@ function onbProductChange(){
   list.forEach(function(n){
     html += '<option value="'+escH(n.id)+'" data-band="'+escH(n.band)+'">'+escH(n.name)+(prod!=="marketing"?(" · Band "+escH(n.band)):"")+'</option>';
   });
+  html += '<option value="__custom__" data-band="A">➕ Other — Custom niche (listed nahi hai)</option>';
   sel.innerHTML = html;
+  onbNicheChange();
   onbRefreshPlans();
 }
 function onbSelectedBand(){
   var sel=document.getElementById("onbNiche"); if(!sel||sel.selectedIndex<0) return "A";
+  var v=sel.value; if(v==="__custom__") return "A";
   var b=(sel.options[sel.selectedIndex].getAttribute("data-band")||"A").toUpperCase();
   return (["A","B","C"].indexOf(b)>=0) ? b : "A";
 }
-function onbNicheChange(){ if(onbCurProduct()!=="marketing") onbRefreshPlans(); }
+function onbNicheChange(){
+  var sel=document.getElementById("onbNiche");
+  var isCustom = sel && sel.value === "__custom__";
+  var inp=document.getElementById("onbCustomNiche"), hint=document.getElementById("onbCustomNicheHint");
+  if(inp) inp.style.display = isCustom ? "block" : "none";
+  if(hint) hint.style.display = isCustom ? "block" : "none";
+  if(isCustom && inp) inp.focus();
+  if(onbCurProduct()!=="marketing") onbRefreshPlans();
+}
 function onbRefreshPlans(){
   var prod=onbCurProduct(), sel=document.getElementById("onbPlan"), hint=document.getElementById("onbPlanHint");
   if(!sel) return; var opts=[];
@@ -2188,11 +2212,19 @@ async function onbSubmit(){
   const biz = _onbVal("onbBiz");
   const phone = _onbVal("onbPhone");
   if(!biz || !phone){ out.innerHTML='<span style="color:#fca5a5">business_name + phone required</span>'; return; }
+  // custom niche handling
+  var nicheVal = _onbVal("onbNiche");
+  var customNicheName = "";
+  if(nicheVal === "__custom__"){
+    customNicheName = _onbVal("onbCustomNiche");
+    if(!customNicheName){ out.innerHTML='<span style="color:#fca5a5">Custom niche ka naam likhो (niche field ke niche)</span>'; return; }
+    nicheVal = "general"; // onboarding ke liye general use; pending me save hoga
+  }
   out.innerHTML='<span style="color:#94a3b8">Onboarding…</span>';
   const body = {
     product: onbCurProduct(),
     business_name: biz,
-    niche: _onbVal("onbNiche") || "general",
+    niche: nicheVal,
     city: _onbVal("onbCity"),
     phone: phone,
     plan: _onbVal("onbPlan") || "",
@@ -2224,16 +2256,83 @@ async function onbSubmit(){
         </div>`;
       }
     }
+    // If custom niche was entered — submit for pending review
+    if(customNicheName){
+      html += `<div style="margin-top:8px;background:#451a03;border:1px solid #f59e0b;padding:8px;border-radius:6px;font-size:11px;color:#fde68a">
+        ⏳ Custom niche "<b>${escH(customNicheName)}</b>" review ke liye submit ho rahi hai…</div>`;
+      out.innerHTML = html + '</div>';
+      try{
+        const pr = await fetch("/api/data/niches/pending", {
+          method:"POST", headers:{...abAuthHdr(),"Content-Type":"application/json"},
+          body: JSON.stringify({name: customNicheName, submitted_by: biz + " (" + (email||phone) + ")"})
+        });
+        const pd = await pr.json();
+        if(pr.ok){
+          html += `<div style="margin-top:8px;background:#14532d;border:1px solid #10b981;padding:8px;border-radius:6px;font-size:11px;color:#a7f3d0">
+            ✅ Niche "<b>${escH(customNicheName)}</b>" pending review me add ho gayi — Admin dashboard me jaake approve karo</div>`;
+        } else {
+          html += `<div style="margin-top:8px;font-size:11px;color:#f59e0b">⚠ Pending niche save: ${escH((pd&&pd.detail)||"check karo")}</div>`;
+        }
+      }catch(pe){ html += `<div style="margin-top:6px;font-size:11px;color:#f59e0b">⚠ Custom niche pending save nahi hua</div>`; }
+    }
     html += '</div>';
     out.innerHTML = html;
     // Clear form for next entry
-    for(const id of ["onbBiz","onbCity","onbPhone","onbEmail","onbPwd"]) document.getElementById(id).value = "";
+    for(const id of ["onbBiz","onbCity","onbPhone","onbEmail","onbPwd","onbCustomNiche"]) { var el=document.getElementById(id); if(el) el.value=""; }
+    var cn=document.getElementById("onbCustomNiche"), ch=document.getElementById("onbCustomNicheHint");
+    if(cn) cn.style.display="none"; if(ch) ch.style.display="none";
   }catch(e){ out.innerHTML='<span style="color:#fca5a5">'+escH(String(e))+'</span>'; }
 }
 function escH(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c])}
 function abDate(iso){ if(!iso) return "—"; try{ return new Date(iso).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ return iso; } }
 function abMoney(n,cur){ const c=cur==="USD"?"$":(cur==="EUR"?"€":"₹"); return c+Number(n||0).toLocaleString("en-IN"); }
 function abShow(id,on){ const el=$(id); if(el) el.style.display=on?"inline-flex":"none"; }
+
+async function loadPendingNiches(){
+  const wrap=document.getElementById("sec-pending-niches");
+  const list=document.getElementById("pendingNichesList");
+  const badge=document.getElementById("pendingNicheCount");
+  if(!list) return;
+  try{
+    const r = await fetch("/api/data/niches/pending", {headers: abAuthHdr()});
+    if(r.status===401||r.status===403){ return; }
+    const d = await r.json();
+    const items = d.pending || [];
+    if(badge) badge.textContent = items.length ? items.length : "";
+    if(wrap) wrap.style.display = items.length ? "block" : "none";
+    if(!items.length){ list.innerHTML='<span style="color:#64748b;font-size:12px">Koi pending niche nahi hai abhi.</span>'; return; }
+    list.innerHTML = items.map(function(it){
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #1e293b">
+        <div>
+          <span style="color:#e2e8f0;font-weight:600">${escH(it.name)}</span>
+          <span style="font-size:11px;color:#94a3b8;margin-left:8px">by ${escH(it.submitted_by||"—")} · ${(it.submitted_at||"").slice(0,10)}</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="approvePendingNiche('${escH(it.id)}','${escH(it.name)}')" style="background:#10b981;color:#fff;border:0;padding:4px 12px;border-radius:5px;font-size:12px;cursor:pointer">✓ Approve</button>
+          <button onclick="rejectPendingNiche('${escH(it.id)}','${escH(it.name)}')" style="background:#ef4444;color:#fff;border:0;padding:4px 10px;border-radius:5px;font-size:12px;cursor:pointer">✗ Reject</button>
+        </div>
+      </div>`;
+    }).join("");
+  }catch(e){ if(list) list.innerHTML='<span style="color:#f87171;font-size:12px">Error: '+escH(String(e))+'</span>'; }
+}
+async function approvePendingNiche(id, name){
+  if(!confirm('Approve niche "'+name+'" — permanent list me add kar do?')) return;
+  try{
+    const r = await fetch("/api/data/niches/pending/"+encodeURIComponent(id)+"/approve", {method:"POST", headers:abAuthHdr()});
+    const d = await r.json();
+    alert(r.ok ? ("✅ "+d.message) : ("❌ "+(d.detail||"Failed")));
+    loadPendingNiches();
+  }catch(e){ alert("Error: "+e); }
+}
+async function rejectPendingNiche(id, name){
+  if(!confirm('Reject niche "'+name+'"?')) return;
+  try{
+    const r = await fetch("/api/data/niches/pending/"+encodeURIComponent(id), {method:"DELETE", headers:abAuthHdr()});
+    const d = await r.json();
+    alert(r.ok ? "Niche reject kar di." : ("❌ "+(d.detail||"Failed")));
+    loadPendingNiches();
+  }catch(e){ alert("Error: "+e); }
+}
 
 async function adminLoadBilling(){
   const cid=($("billCid").value||"").trim();
