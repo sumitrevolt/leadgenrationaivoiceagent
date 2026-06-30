@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>WhatsApp Campaigns — LeadsGenAI</title>
+<title>LeadGen AI — WhatsApp Campaigns</title>
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<link rel="stylesheet" href="/design-system/styles.css" />
 <style>
   :root{--pri:#16a34a;--ink:#0f172a;--mut:#64748b;--bg:#f1f5f9;--card:#fff;--bad:#b91c1c;--amber:#b45309;}
   *{box-sizing:border-box;}
@@ -47,10 +48,11 @@
 </head>
 <body>
 <header>
-  <h1>📲 WhatsApp Campaigns</h1>
+  <h1>WhatsApp Campaigns</h1>
   <div class="sp"></div>
   <input id="tok" type="password" placeholder="Admin token (paste once)" />
   <button id="reload">Reload</button>
+  <span class="ao-topbar-status" style="margin-left:8px"><span class="dot"></span>AI Active</span>
 </header>
 <div class="wrap">
   <div class="err" id="err"></div>
@@ -258,8 +260,12 @@
   document.getElementById("tReload").addEventListener("click", loadTemplates);
   document.getElementById("reload").addEventListener("click", loadAll);
   document.getElementById("shStart").addEventListener("click", async function(){
-    var r=await postJSON("/api/wa/selfhost/start", {}); setErr(r?"":"Start failed — config check karo");
-    setTimeout(loadSelfhost, 1500);
+    var btn=this; btn.disabled=true; btn.textContent="Starting…";
+    var r=await postJSON("/api/wa/selfhost/start", {});
+    btn.disabled=false; btn.textContent="Start session";
+    if(!r){ setErr("Start failed — config check karo (token sahi hai?)"); return; }
+    setErr("");
+    setTimeout(function(){ loadSelfhost(); shShowQr(); }, 1800);
   });
   document.getElementById("shQr").addEventListener("click", shShowQr);
   document.getElementById("shRefresh").addEventListener("click", loadSelfhost);
@@ -276,6 +282,11 @@
   }
 
   loadAll();
+  // Auto-show QR if session already in SCAN_QR_CODE on page load
+  setTimeout(async function(){
+    var s = await getJSON("/api/wa/selfhost/status");
+    if(s && s.status === "SCAN_QR_CODE"){ shShowQr(); }
+  }, 1000);
 })();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>

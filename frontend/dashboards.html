@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Activation &amp; Integrations — LeadsGenAI</title>
+<title>LeadGen AI — Activation &amp; Integrations</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
 <style>
 :root{--bg:#0f172a;--card:#1e293b;--border:#334155;--text:#e2e8f0;--mut:#94a3b8;
       --ok:#10b981;--warn:#f59e0b;--bad:#ef4444;--accent:#6366f1;--neutral:#64748b}
@@ -69,6 +70,7 @@ a:hover{text-decoration:underline}
     <div class="muted">Feature/integration status (activation · eval-gate · MCP · webhooks · DR/cost) · auto-refresh 30s · live health → <a href="/app/control-center" style="color:var(--accent)">Control Center</a></div>
   </div>
   <button class="refresh" onclick="refreshAll()">⟳ Refresh all</button>
+  <span class="ao-topbar-status" style="margin-left:12px"><span class="dot"></span>AI Active</span>
 </header>
 
 <!-- R.1 wizard banner — single highest-priority next action -->

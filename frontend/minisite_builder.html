@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Mini-site Builder — LeadsGenAI</title>
+<title>LeadGen AI — Mini-site Builder</title>
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<link rel="stylesheet" href="/design-system/styles.css" />
 <style>
   :root{--pri:#6d28d9;--ink:#0f172a;--mut:#64748b;--bg:#f1f5f9;--card:#fff;--line:#e2e8f0;}
   *{box-sizing:border-box;}
@@ -51,11 +52,12 @@
 </head>
 <body>
 <header>
-  <h1>🎨 Mini-site Builder</h1>
+  <h1>Mini-site Builder</h1>
   <input id="slug" type="text" placeholder="client slug (e.g. sharma-solar-7b6f)" style="width:260px;color:#fff;" />
   <div class="sp"></div>
   <input id="tok" type="password" placeholder="Admin token (paste once)" />
   <button id="reload">Load</button>
+  <span class="ao-topbar-status" style="margin-left:8px"><span class="dot"></span>AI Active</span>
 </header>
 <div class="wrap">
   <div class="left">
