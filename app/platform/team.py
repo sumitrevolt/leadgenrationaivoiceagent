@@ -883,7 +883,11 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
             score = snap.get("score")
             if score is None:
                 return "MCP watch · awaiting first health pass"
-            return f"MCP health {score:.0f}/100 · {snap.get('summary', 'watch')[:60]}"
+            # snap["summary"] (mcp_engineer.health_score) already reads
+            # "MCP health {score}/100 — all green/attention needed" — do NOT
+            # re-prepend the same prefix here (was producing "MCP health
+            # 90/100 · MCP health 90/100 — all green" in the live feed).
+            return str(snap.get("summary") or f"MCP health {score:.0f}/100")[:80]
         except Exception:
             return "MCP engineer standby"
 
