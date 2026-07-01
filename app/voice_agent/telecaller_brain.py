@@ -234,14 +234,28 @@ def _obeyed_injection(text: str) -> bool:
 
 # Safe, in-role deflections for an injection/role-switch turn. MUST avoid every
 # _META_BANNED phrase (esp. "maaf kij" — _clean() would blank it) and must never
-# contain an _INJECTION_OBEYED_MARKER. Each stays Swara the sales-telecaller,
-# refuses the hijack in one breath, then redirects to a business question so the
-# call keeps moving. {client} filled at use-time.
-_INROLE_DEFLECTIONS = (
-    "Sorry sir, woh main nahi kar paungi — main {client} ki taraf se sirf aapke business ki baat karti hoon. Abhi naye customers kaise laate hain aap?",
-    "Yeh main nahi kar sakti sir — main {client} ki telecaller Swara hoon, aapke business me madad ke liye. Aapke yahan abhi sabse badi dikkat kya hai?",
-    "Woh possible nahi sir — main aapke business ki growth ke liye baat kar rahi hoon. Abhi marketing aur leads ke liye kya kar rahe hain aap?",
-)
+# contain an _INJECTION_OBEYED_MARKER. Each stays IN the caller's actual persona
+# (telecaller/booking_agent/receptionist — NOT hardcoded to Swara/telecaller, so
+# an Ananya/Riya call doesn't break character mid-deflection), refuses the
+# hijack in one breath, then redirects to a role-appropriate question so the
+# call keeps moving. {client}/{agent} filled at use-time.
+_INROLE_DEFLECTIONS: dict[str, tuple[str, ...]] = {
+    "telecaller": (
+        "Sorry sir, woh main nahi kar paungi — main {client} ki taraf se sirf aapke business ki baat karti hoon. Abhi naye customers kaise laate hain aap?",
+        "Yeh main nahi kar sakti sir — main {client} ki telecaller {agent} hoon, aapke business me madad ke liye. Aapke yahan abhi sabse badi dikkat kya hai?",
+        "Woh possible nahi sir — main aapke business ki growth ke liye baat kar rahi hoon. Abhi marketing aur leads ke liye kya kar rahe hain aap?",
+    ),
+    "booking_agent": (
+        "Sorry sir, woh main nahi kar paungi — main {client} ki taraf se sirf appointment book karne aayi hoon. Kaunsa din aapko theek rahega?",
+        "Yeh main nahi kar sakti sir — main {client} ki appointment coordinator {agent} hoon. Aapki booking ke liye naam aur time confirm kar doon?",
+        "Woh possible nahi sir — main sirf aapki appointment schedule karne ke liye hoon. Kaunsa slot aapko suit karega?",
+    ),
+    "receptionist": (
+        "Sorry sir, woh main nahi kar paungi — main {client} ki reception se {agent} bol rahi hoon. Aapki kaise madad kar sakti hoon?",
+        "Yeh main nahi kar sakti sir — main {client} ki front-desk assistant {agent} hoon. Aapko kis department se baat karni hai?",
+        "Woh possible nahi sir — main sirf aapki call route/help karne ke liye hoon. Bataiye kya chahiye?",
+    ),
+}
 
 
 # Buy / close-signal short-circuit (gated CLOSE_DETECT, default ON)
@@ -580,11 +594,13 @@ class TelecallerBrain:
         self.client_name = (client_name or "Demo Co").strip() or "Demo Co"
         self.client_id = (str(client_id).strip() or None) if client_id else None
         try:
-            from app.voice_agent.voice_roles import normalize_role
+            from app.voice_agent.voice_roles import VOICE_ROLES, normalize_role
 
             self.voice_role = normalize_role(voice_role)
+            self.agent_name = VOICE_ROLES.get(self.voice_role, VOICE_ROLES["telecaller"])["name"]
         except Exception:
             self.voice_role = "telecaller"
+            self.agent_name = "Swara"
         # Agent memory (cross-session lead recall) subject — None by DEFAULT.
         # 🔒 SECURITY: client_id ko default subject MAT banao — warna ek client ke
         # SAARE leads ek hi bucket (lead:<client_id>) share karte => Lead A ka PII
@@ -1089,15 +1105,45 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         )
         return any(w in (ut or "") for w in dev_q)
 
+    def _ai_disclosure_qa_line(self) -> str:
+        """Role-aware 'ai ho/bot ho?' answer — purpose must match the actual
+        call goal (qualify vs book vs reception), not hardcoded telecaller copy."""
+        role = getattr(self, "voice_role", None) or "telecaller"
+        purpose = {
+            "booking_agent": "aapki appointment book karne ke liye",
+            "receptionist": "aapki call route/help karne ke liye",
+        }.get(role, "aapke business leads qualify karne ke liye")
+        agent = getattr(self, "agent_name", None) or "Swara"
+        return f"Haan sir, main AI assistant {agent} hoon — {purpose}."
+
+    def _who_am_i_line(self) -> str:
+        """Role/niche-aware 'kaun ho?' answer. The ai_marketing product-pitch is
+        ONLY correct when this call is actually selling that product — every
+        other niche/role must not claim to be an AI-marketing platform."""
+        agent = getattr(self, "agent_name", None) or "Swara"
+        client = getattr(self, "client_name", None) or "hamari company"
+        role = getattr(self, "voice_role", None) or "telecaller"
+        if self.niche == "ai_marketing":
+            return (
+                f"Main {agent} hoon LeadGen AI se — chhote business ke liye "
+                "AI marketing platform, posts aur Google profile automatic."
+            )
+        if role == "booking_agent":
+            return (
+                f"Main {agent} hoon, {client} ki taraf se — "
+                "aapki appointment book karne ke liye call kar rahi hoon."
+            )
+        if role == "receptionist":
+            return f"Main {agent} hoon, {client} ki reception se — aapki madad karne ke liye."
+        return f"Main {agent} hoon, {client} ki taraf se baat kar rahi hoon."
+
     def _customer_qa_reply(self, ut: str) -> str:
         """Customer ke sawaal ka seedha jawab — LLM se pehle (free, instant)."""
         low = to_roman(ut or "").lower().strip()
         if not low or not self._looks_like_question(ut):
             return ""
         if any(w in low for w in ("ai ho", "bot ho", "robot", "machine", "real ho")):
-            return self._clean(
-                "Haan sir, main AI assistant Swara hoon — aapke business leads qualify karne ke liye."
-            )
+            return self._clean(self._ai_disclosure_qa_line())
         platform = self.niche == "ai_marketing" or self._interest_confirmed
         if platform:
             if any(
@@ -1281,13 +1327,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     if obj:
                         return self._clean(str(obj))
         if "kaun ho" in low or "aap kaun" in low or "who are you" in low:
-            return self._clean(
-                "Main Swara hoon LeadGen AI se — chhote business ke liye AI marketing platform, posts aur Google profile automatic."
-            )
+            return self._clean(self._who_am_i_line())
         if any(w in low for w in ("ai ho", "bot ho", "robot", "machine", "real ho")):
-            return self._clean(
-                "Haan sir, main AI assistant Swara hoon — aapke business leads qualify karne ke liye."
-            )
+            return self._clean(self._ai_disclosure_qa_line())
         if any(w in low for w in ("whatsapp", "send kar", "bhej do", "message kar")):
             return self._clean(
                 "Bilkul sir, WhatsApp pe bhej dungi — pehle bataiye aapko leads chahiye ya content?"
@@ -1469,6 +1511,37 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 if text and _voice_guardrails_enabled() and _obeyed_injection(text):
                     logger.warning("[telecaller-brain] LLM output obeyed injection — deflecting")
                     return self._injection_deflection(history)
+            except Exception:
+                pass
+            # COMPLIANCE BACKSTOP (post-LLM): qa_checks' PII/AI-disclosure gates were
+            # audit-confirmed to only run offline (eval_suite/self-test), never on
+            # the live per-turn path — a free-tier LLM hallucination could echo a
+            # caller's own number/email or skip disclosure with nothing catching it
+            # in the moment. Cheap, advisory-shaped, fail-open; mirrors the
+            # injection-obeyed backstop above.
+            try:
+                if text and _voice_guardrails_enabled():
+                    from app.voice_agent import qa_checks as _qc2
+
+                    if _qc2.check_pii_leak([{"role": "assistant", "content": text}]):
+                        logger.warning("[telecaller-brain] PII leak in reply, discarding")
+                        text = ""
+                    else:
+                        _spoken_so_far = sum(
+                            1 for m in (history or []) if (m.get("role") or "") == "assistant"
+                        )
+                        # Advisory only (log, don't rewrite): the opener path already
+                        # forces disclosure via niche_scripts.ensure_ai_disclosure, so
+                        # this is a visibility signal for the rare bypass case, not a
+                        # gate — replacing a legit first-turn reply with a canned
+                        # opener would clobber real answers (e.g. opener-cache tests).
+                        if _spoken_so_far == 0 and _qc2.check_missing_ai_disclosure(
+                            [{"role": "assistant", "content": text}]
+                        ):
+                            logger.warning(
+                                "[telecaller-brain] first bot turn missing AI disclosure "
+                                "(opener path should have covered this)"
+                            )
             except Exception:
                 pass
             # CLARIFY GUARD — LLM ne CLEAR substantive utterance (poora vakya/sawaal/
@@ -1727,8 +1800,11 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         hijack and redirects to business. Rotates + avoids repeating the last bot
         line. Never raises; always returns a non-empty spoken line."""
         try:
-            client = self.client_name or "hamari company"
-            lines = [s.format(client=client) for s in _INROLE_DEFLECTIONS]
+            client = getattr(self, "client_name", None) or "hamari company"
+            agent = getattr(self, "agent_name", None) or "Swara"
+            role = getattr(self, "voice_role", None) or "telecaller"
+            pool = _INROLE_DEFLECTIONS.get(role) or _INROLE_DEFLECTIONS["telecaller"]
+            lines = [s.format(client=client, agent=agent) for s in pool]
             n = sum(1 for m in (history or []) if (m.get("role") or "") == "assistant")
             pick = lines[n % len(lines)]
             last = self._last_bot_line(history)
@@ -1810,8 +1886,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             if "[" not in t:
                 return t
             t = (
-                t.replace("[Company]", self.client_name or "hamari company")
-                .replace("[Name]", "Swara")
+                t.replace("[Company]", getattr(self, "client_name", None) or "hamari company")
+                .replace("[Name]", getattr(self, "agent_name", None) or "Swara")
                 .replace("[Project]", "hamare project")
                 .replace("[City]", "aapke area")
             )
@@ -2178,9 +2254,10 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             joined = " | ".join(f.strip() for f in facts if f and f.strip())
             if joined:
                 lines.append(f"FACTS (relevant ho to hi use karo): {joined[:220]}")
+        agent = getattr(self, "agent_name", None) or "Swara"
         lines += ["", "CALL ABHI TAK:"]
         for m in turns:
-            role = "User" if (m.get("role") == "user") else "Swara"
+            role = "User" if (m.get("role") == "user") else agent
             content = str(m.get("content") or "").strip()
             if content:
                 lines.append(f"{role}: {content}")
@@ -2195,7 +2272,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             and str(turns[-1].get("content", "")).strip() == ut
         ):
             lines.append(f"User: {ut}")
-        lines.append("Swara:")
+        lines.append(f"{agent}:")
         return "\n".join(lines)
 
     # ------------------------------------------------------------------ #
@@ -2360,18 +2437,20 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         low = (text or "").lower()
         return any(b in low for b in _META_BANNED)
 
-    @staticmethod
-    def _clean(text: str) -> str:
+    def _clean(self, text: str) -> str:
         """TTS-safe + HARD BREVITY: strip role prefixes/markdown, collapse
         whitespace, cap to 1–2 COMPLETE sentences / ~28 words (phone par lambi reply =
         bura UX). Meta/noob phrases => '' (caller uses script_fallback)."""
         t = (text or "").strip()
-        t = re.sub(r"^(swara|agent|assistant)\s*:\s*", "", t, flags=re.IGNORECASE)
+        agent = re.escape(getattr(self, "agent_name", None) or "Swara")
+        t = re.sub(rf"^({agent}|agent|assistant)\s*:\s*", "", t, flags=re.IGNORECASE)
         # Small models kabhi poora transcript continue kar dete hain ("...kya?
-        # User: ... Swara: ..."). Pehle embedded role-marker pe kaat do — Swara ka
-        # sirf PEHLA turn spoken hota hai (warna TTS dono side bol dega = noob).
+        # User: ... {agent}: ..."). Pehle embedded role-marker pe kaat do — is turn
+        # ka sirf PEHLA turn spoken hota hai (warna TTS dono side bol dega = noob).
+        # {agent} covers Ananya/Riya too (not just the "swara" literal), so
+        # role-switched calls (booking_agent/receptionist) get the same guard.
         t = re.split(
-            r"\b(?:user|swara|agent|assistant|customer|client|caller)\s*:",
+            rf"\b(?:user|{agent}|agent|assistant|customer|client|caller)\s*:",
             t,
             maxsplit=1,
             flags=re.IGNORECASE,

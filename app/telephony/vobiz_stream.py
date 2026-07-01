@@ -1158,6 +1158,17 @@ class VobizStreamSession:
             _t_stt = _now_ms()
             text = (await self._stt(pcm16) or "").strip()
             _stt_ms = _now_ms() - _t_stt
+            # Post-STT Hinglish correction (smart-fix Component 1b) — was only wired
+            # on the free web-call path (web_call.py); paying Vobiz phone calls got
+            # uncorrected STT into the NLU gates + LLM. Gated STT_CORRECT (default
+            # ON) inside correct_stt itself; fail-open on any error.
+            if text:
+                try:
+                    from app.voice_agent.hinglish_stt_fix import correct_stt as _correct_stt
+
+                    text = _correct_stt(text, self.niche or "")
+                except Exception:
+                    pass
             if not text:
                 _outcome = "empty_stt"
                 _record = True

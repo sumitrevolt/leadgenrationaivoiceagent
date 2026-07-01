@@ -64,6 +64,21 @@ class _TwilioAdapter:
 
     async def place_call(self, to: str, from_: str, **kw: Any) -> dict:
         try:
+            # India-domestic calls over a foreign trunk (Twilio) are illegal
+            # (Telegraph Act) — refuse +91 numbers here even if Vobiz failed
+            # over to us, unless explicitly overridden. Checked at dial-time
+            # (not available()) since availability doesn't see the number.
+            digits = "".join(ch for ch in (to or "") if ch.isdigit() or ch == "+")
+            is_india = digits.startswith("+91") or (
+                not digits.startswith("+") and digits.startswith("91") and len(digits) == 12
+            )
+            if is_india and _env("ALLOW_TWILIO_INDIA") != "1":
+                return {
+                    "ok": False,
+                    "reason": "twilio: refused for India-domestic number (foreign trunk, "
+                    "set ALLOW_TWILIO_INDIA=1 to override)",
+                }
+
             from app.telephony.twilio_handler import TwilioHandler
 
             h = TwilioHandler()

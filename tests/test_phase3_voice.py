@@ -85,7 +85,7 @@ def test_smart_turn_threshold_env(monkeypatch):
 
 def test_stream_and_pipeline_imports_clean():
     from app.telephony import vobiz_stream  # noqa: F401
-    from app.voice_agent import phone_stream, pipeline  # noqa: F401
+    from app.voice_agent import pipeline  # noqa: F401
 
     assert True
 
@@ -101,13 +101,6 @@ def test_stream_constants_use_shared_defaults(monkeypatch):
     vs = importlib.reload(vs)
     assert vs._VAD_RMS == 350  # picked up shared TURN_VAD_RMS default
     assert vs.BARGE_MIN_FRAMES >= 1
-
-    import app.voice_agent.phone_stream as ps
-
-    ps = importlib.reload(ps)
-    assert ps.VAD_RMS_THRESHOLD == 350
-    assert ps.VAD_SILENCE_FRAMES >= 1
-    assert ps.VAD_BARGE_FRAMES >= 1
 
 
 def test_pipeline_default_knobs_unchanged(monkeypatch):
