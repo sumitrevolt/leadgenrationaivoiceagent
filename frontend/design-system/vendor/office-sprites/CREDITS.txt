@@ -1,0 +1,8 @@
+Character sprites (char_01.png .. char_10.png) are individual 16x16px tiles
+cropped from Kenney's "RPG Urban Pack" (https://kenney.nl/assets/rpg-urban-pack).
+
+License: Creative Commons CC0 1.0 (public domain) -- https://creativecommons.org/publicdomain/zero/1.0/
+Free to use in personal, educational and commercial projects. Attribution not
+required, but Kenney (www.kenney.nl) is credited here as a courtesy.
+
+Used by: frontend/office_map.html (admin virtual-office map, staff avatars).
