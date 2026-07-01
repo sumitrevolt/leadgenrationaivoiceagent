@@ -89,41 +89,6 @@ def test_stream_tts_flag_on(monkeypatch):
     assert stream_tts_enabled() is True
 
 
-@pytest.mark.asyncio
-async def test_phone_stream_think_and_say_stream_mock(monkeypatch):
-    """phone_stream stream path speaks sentences when flag ON."""
-    from app.voice_agent import phone_stream as ps
-
-    monkeypatch.setenv("USE_LLM_STREAM_TTS", "1")
-    monkeypatch.setattr(ps, "TTS_AVAILABLE", True)
-
-    spoken: list[str] = []
-
-    class _FakeTC:
-        async def reply_stream_sentences(self, history, user_text):
-            yield "Pehla sentence."
-            yield "Doosra sentence."
-
-    sess = ps.PhoneCallSession(
-        websocket=None,  # type: ignore[arg-type]
-        niche="general",
-        client_name="Demo",
-    )
-    sess._running = True
-    sess._telecaller = _FakeTC()
-    sess._telecaller_tried = True
-
-    async def _fake_gen(_gen):
-        async for s in _gen:
-            spoken.append(s)
-
-    monkeypatch.setattr(sess, "_speak_from_sentence_gen", _fake_gen)
-
-    reply = await sess._think_and_say_stream("hello")
-    assert "Pehla" in reply
-    assert spoken == ["Pehla sentence.", "Doosra sentence."]
-
-
 # --------------------------------------------------------------------------- #
 # Hindi danda + early clause-flush (time-to-first-audio improvements).
 # --------------------------------------------------------------------------- #

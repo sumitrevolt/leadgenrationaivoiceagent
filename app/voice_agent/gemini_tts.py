@@ -50,7 +50,11 @@ def _voice() -> str:
 
 
 def _flag_on() -> bool:
-    return (os.environ.get("GEMINI_TTS", "1") or "1").strip().lower() not in (
+    # Default OFF (2026-06-28 latency finding: gemini-tts ~5s/sentence vs EdgeTTS
+    # p50 3.3s) — the 2026-06-25 quality-motivated default-ON was superseded by
+    # this data but only ever flipped via VPS .env, never here. Set GEMINI_TTS=1
+    # to opt back in.
+    return (os.environ.get("GEMINI_TTS", "0") or "0").strip().lower() not in (
         "0",
         "false",
         "no",

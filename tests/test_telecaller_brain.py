@@ -56,7 +56,7 @@ def test_script_fallback_starts_at_first_discovery() -> None:
         {"role": "user", "content": "haan boliye"},
     ]
     # Fix => idx = max(0, spoken-1) = 0 => discovery[0]. Bug returned discovery[1].
-    assert b._script_fallback(hist) == TelecallerBrain._clean(disc[0])
+    assert b._script_fallback(hist) == TelecallerBrain._clean(b, disc[0])
 
 
 def test_script_fallback_advances_each_turn() -> None:
@@ -78,10 +78,11 @@ def test_script_fallback_advances_each_turn() -> None:
 
 
 def test_clean_rejects_meta_junk() -> None:
+    b = _brain("general")
     bad = "Yeh thoda unclear hai, maaf kijiye main phir se poochti hoon?"
-    assert TelecallerBrain._clean(bad) == ""
+    assert TelecallerBrain._clean(b, bad) == ""
     ok = "Google pe upar dikhta hai kya?"
-    assert TelecallerBrain._clean(ok) == ok
+    assert TelecallerBrain._clean(b, ok) == ok
 
 
 def test_terminal_kya_question_is_detected() -> None:
@@ -131,7 +132,8 @@ def test_fast_path_whatsapp_gate_qualifies_first() -> None:
 def test_clean_cuts_hallucinated_transcript() -> None:
     # Small free models kabhi poora dialogue continue kar dete hain — Swara ka
     # sirf pehla turn bolna chahiye, "User:"/"Swara:" leak nahi.
-    out = TelecallerBrain._clean("Ji theek hai sir. User: aur batao Swara: haan ji")
+    b = _brain("general")
+    out = TelecallerBrain._clean(b, "Ji theek hai sir. User: aur batao Swara: haan ji")
     low = out.lower()
     assert "user:" not in low and "swara:" not in low
     assert out.startswith("Ji theek hai")
@@ -139,14 +141,16 @@ def test_clean_cuts_hallucinated_transcript() -> None:
 
 def test_clean_strips_unclosed_paren_leak() -> None:
     # Reasoning/meta leak ek un-closed parenthetical me — cut ho jaaye.
-    out = TelecallerBrain._clean("Aap yeh kaise manage karte ho? (Lagta hai ki user")
+    b = _brain("general")
+    out = TelecallerBrain._clean(b, "Aap yeh kaise manage karte ho? (Lagta hai ki user")
     assert "(" not in out
     assert out.endswith("?")
 
 
 def test_clean_allows_two_short_sentences() -> None:
     # Answer-then-question ek hi reply me (pehle 1-sentence cap clip kar deta tha).
-    out = TelecallerBrain._clean("Haan ji, loan ho jaata hai. Aap salaried hain ya business?")
+    b = _brain("general")
+    out = TelecallerBrain._clean(b, "Haan ji, loan ho jaata hai. Aap salaried hain ya business?")
     low = out.lower()
     assert "loan ho jaata hai" in low
     assert "salaried" in low

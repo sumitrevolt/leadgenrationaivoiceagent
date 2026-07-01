@@ -123,10 +123,27 @@ def test_guardrails_kill_switch(monkeypatch, val):
 # --------------------------------------------------------------------------- #
 # Deflection lines are safe + TTS-clean (regression guards on the constants)
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("tmpl", _INROLE_DEFLECTIONS)
-def test_deflection_lines_are_safe(tmpl):
-    line = tmpl.format(client="Demo Co")
-    cleaned = TelecallerBrain._clean(line)
+_AGENT_NAMES = {"telecaller": "Swara", "booking_agent": "Ananya", "receptionist": "Riya"}
+
+
+def _bare_brain(voice_role: str = "telecaller") -> TelecallerBrain:
+    """A TelecallerBrain that skips __init__ (which needs an LLM key). The
+    pre-LLM guard returns before any attribute beyond these is touched."""
+    b = TelecallerBrain.__new__(TelecallerBrain)
+    b.client_name = "Demo Co"
+    b.niche = "ai_marketing"
+    b.voice_role = voice_role
+    b.agent_name = _AGENT_NAMES[voice_role]
+    return b
+
+
+@pytest.mark.parametrize(
+    "role,tmpl",
+    [(role, tmpl) for role, pool in _INROLE_DEFLECTIONS.items() for tmpl in pool],
+)
+def test_deflection_lines_are_safe(role, tmpl):
+    line = tmpl.format(client="Demo Co", agent=_AGENT_NAMES[role])
+    cleaned = _bare_brain(role)._clean(line)
     # _clean must NOT blank it (would happen if it contained a _META_BANNED phrase
     # like "maaf kij") and must keep the redirect question.
     assert cleaned.strip(), f"deflection blanked by _clean: {line!r}"
@@ -135,18 +152,6 @@ def test_deflection_lines_are_safe(tmpl):
     assert qc.check_prompt_injection_obeyed([{"role": "assistant", "content": cleaned}]) == []
     low = cleaned.lower()
     assert not any(b in low for b in _AGENT_TESTER_BANNED), f"deflection trips a BANNED phrase: {cleaned!r}"
-
-
-# --------------------------------------------------------------------------- #
-# End-to-end: reply() deflects injection with NO LLM/key (pre-LLM short-circuit)
-# --------------------------------------------------------------------------- #
-def _bare_brain() -> TelecallerBrain:
-    """A TelecallerBrain that skips __init__ (which needs an LLM key). The
-    pre-LLM guard returns before any attribute beyond client_name is touched."""
-    b = TelecallerBrain.__new__(TelecallerBrain)
-    b.client_name = "Demo Co"
-    b.niche = "ai_marketing"
-    return b
 
 
 @pytest.mark.parametrize("turn", _INJECTION_TURNS)
@@ -188,10 +193,12 @@ def test_held_role_passes_with_deflected_transcript():
     scn = next(s for s in vs.SCENARIOS if s.name == "prompt_injection")
     # Simulate the run the guard produces: every injection turn answered by a deflection.
     transcript = [{"role": "assistant", "content": "Namaste, main Swara — ek AI assistant."}]
+    b = _bare_brain("telecaller")
+    pool = _INROLE_DEFLECTIONS["telecaller"]
     for i, turn in enumerate(scn.turns):
         transcript.append({"role": "user", "content": turn})
-        deflection = _INROLE_DEFLECTIONS[i % len(_INROLE_DEFLECTIONS)].format(client="Demo Co")
-        transcript.append({"role": "assistant", "content": TelecallerBrain._clean(deflection)})
+        deflection = pool[i % len(pool)].format(client="Demo Co", agent="Swara")
+        transcript.append({"role": "assistant", "content": b._clean(deflection)})
 
     score = vs.score_scenario(scn, transcript)
     assert score["score"] == 1.0, f"held_role still failing: {score['goal_findings']}"
