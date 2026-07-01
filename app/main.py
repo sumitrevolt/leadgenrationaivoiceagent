@@ -1159,6 +1159,12 @@ async def team_dashboard_page():
     return FileResponse(str(FRONTEND_DIR / "team_dashboard.html"))
 
 
+@app.get("/app/office", tags=["Frontend"])
+async def office_map_page():
+    """Virtual office map — all AI staff grouped into rooms, live status + activity."""
+    return FileResponse(str(FRONTEND_DIR / "office_map.html"))
+
+
 @app.get("/app/marketing", tags=["Frontend"])
 async def marketing_page():
     """AI Marketing (Isha) — social posts, content calendar, GBP tips."""
