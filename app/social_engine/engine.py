@@ -171,6 +171,20 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                 else:
                     store.mark(jid, "retry", attempts=attempts, last_error=res.error)
                     retried += 1
+        if jobs:
+            # Staff-visibility (2026-07-01): social posting ran completely invisibly on
+            # /app/team today — attribute to "zara" (Social Media Manager).
+            try:
+                from app.platform import team
+
+                team.log_event(
+                    "zara",
+                    "social_published" if published else "social_run",
+                    f"{published} published, {retried} retry, {dead} dead, {skipped} skipped",
+                    status="ok" if not dead else "warn",
+                )
+            except Exception:
+                pass
         return {"ran": True, "claimed": len(jobs), "published": published,
                 "retried": retried, "dead": dead, "skipped": skipped}
     except Exception as e:

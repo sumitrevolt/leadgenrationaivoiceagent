@@ -80,6 +80,18 @@ def _log(rec: dict[str, Any]) -> None:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception:
         pass
+    # Staff-visibility (2026-07-01): CRM push runs completely invisibly on /app/team
+    # today — no STAFF member ever logs it. Attribute to "priya" (CRM Sync Specialist).
+    try:
+        from app.platform import team
+
+        ok = bool(rec.get("ok"))
+        provider = rec.get("provider") or "?"
+        ref = rec.get("lead_ref") or ""
+        detail = f"{provider}: {ref}" + ("" if ok else f" — {rec.get('skipped') or rec.get('error') or 'failed'}")
+        team.log_event("priya", "crm_synced" if ok else "crm_sync_failed", detail, status="ok" if ok else "warn")
+    except Exception:
+        pass
 
 
 def recent(limit: int = 50) -> list[dict[str, Any]]:

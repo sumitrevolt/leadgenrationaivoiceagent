@@ -45,10 +45,20 @@ No new DB tables, no new endpoints, no new query params (the one used, `member=`
    because Boss's role IS literally "team coordination" (duties field).
 2. 📞 **Voice Team Room** — remaining `product:"voice"` members (8 today: Swara, Ananya, Riya,
    Arjun, Meera, Lekha, Raksha, Tara).
-3. 📣 **Marketing Team Room** — `product:"marketing"` members (6 today: Dev, Rohan, Isha, Ravi,
-   Neha, Kiran).
+3. 📣 **Marketing Team Room** — `product:"marketing"` members (8 today: Dev, Rohan, Isha, Ravi,
+   Neha, Kiran, **Priya** — CRM Sync Specialist, **Zara** — Social Media Manager).
 4. 🛠️ **Platform / Engineering Room** — remaining `product:"platform"` members (12 today: Kavya,
    Hermes, Nikhil, Vikram, Guru, Pranav, Vidya, Arnav, Kabir, Diya, Aryan, Arya).
+
+**2026-07-01 roster audit (real workers, not decoration):** before drawing the map, audited every
+automation module for `team.log_event()` attribution. Found `app/platform/crm_sync.py` and
+`app/social_engine/engine.py` run real, already-scheduled/queue-driven automation with **zero**
+staff attribution — invisible on `/app/team` and thus would have been invisible on the office map
+too. Wired `team.log_event()` into both (Priya / Zara above) instead of inventing decorative
+personas. Also fixed a pre-existing bug: `team_scheduler.py` logged the speed-to-lead digest under
+member key `"boss"`, which is not a `STAFF` key (`"manager"` is) — that event was silently
+invisible in `team_status()` for as long as it existed; now logs under `"manager"`. Total roster:
+**29** (was 27).
 
 **Scalability**: room membership is computed at render time from the live roster response, not
 hardcoded per name. Each room auto-lays-out its members in a grid (fixed desk-slot per member,

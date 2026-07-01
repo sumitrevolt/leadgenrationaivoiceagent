@@ -268,6 +268,26 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "Har 100 interactions pe campaign analyze karo — winning openings, objections, A/B proposals; eval_gate ke baad hi promote",
         "schedule": "Weekly + threshold (gated CAMPAIGN_OPTIMIZER)",
     },
+    # 2026-07-01: audit found these 2 engines already run real automation but had
+    # ZERO staff attribution — invisible on /app/team + agent_events. Named + wired
+    # (app/platform/crm_sync.py, app/social_engine/engine.py) so the office/team view
+    # actually reflects what's running, not just what has a persona.
+    "priya": {
+        "product": "marketing",
+        "name": "Priya",
+        "emoji": "🔗",
+        "title": "CRM Sync Specialist",
+        "duties": "Qualified leads client ke apne Zoho/HubSpot CRM me auto-push (gated CRM_SYNC) — 'apna CRM chhodna nahi padega'",
+        "schedule": "On-demand (har qualified lead pe, jab client ne CRM connect kiya ho)",
+    },
+    "zara": {
+        "product": "marketing",
+        "name": "Zara",
+        "emoji": "📱",
+        "title": "Social Media Manager",
+        "duties": "Approved content queue drain karke per-client social channels (Telegram/Postiz/Meta) pe publish karna (gated SOCIAL_ENGINE)",
+        "schedule": "Queue-driven (jab bhi approved content publish ke liye ready ho)",
+    },
 }
 
 
