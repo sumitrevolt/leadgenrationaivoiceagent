@@ -95,11 +95,13 @@
   };
 
   // ---- Room layout (2x2-ish: Coordinator strip on top, 3 rooms below) -----
+  // floor/rug reference real Kenney "Roguelike/RPG Pack" tiles (CC0) — see
+  // office-sprites/CREDITS.txt. rug keeps each room's original identity color.
   OFFICE.ROOMS = [
-    { id: "coordinator", label: "🧑‍💼 Coordinator Room", x: 0,   y: 0,   w: 1200, h: 130, fill: 0xede9fe, stroke: 0x8b5cf6 },
-    { id: "voice",       label: "📞 Voice Team",              x: 0,   y: 130, w: 400,  h: 690, fill: 0xdbeafe, stroke: 0x3b82f6 },
-    { id: "marketing",   label: "📣 Marketing Team",          x: 400, y: 130, w: 400,  h: 690, fill: 0xfce7f3, stroke: 0xec4899 },
-    { id: "platform",    label: "🛠️ Platform / Engineering",  x: 800, y: 130, w: 400,  h: 690, fill: 0xd1fae5, stroke: 0x10b981 }
+    { id: "coordinator", label: "🧑‍💼 Coordinator Room", x: 0,   y: 0,   w: 1200, h: 130, stroke: 0x8b5cf6, floor: "floor_stone_cream", rug: "rug_purple" },
+    { id: "voice",       label: "📞 Voice Team",              x: 0,   y: 130, w: 400,  h: 690, stroke: 0x3b82f6, floor: "floor_stone_grey",  rug: "rug_cyan" },
+    { id: "marketing",   label: "📣 Marketing Team",          x: 400, y: 130, w: 400,  h: 690, stroke: 0xec4899, floor: "floor_stone_grey",  rug: "rug_orange" },
+    { id: "platform",    label: "🛠️ Platform / Engineering",  x: 800, y: 130, w: 400,  h: 690, stroke: 0x10b981, floor: "floor_stone_grey",  rug: "rug_teal" }
   ];
 
   OFFICE.roomForMember = function(m){
@@ -109,18 +111,38 @@
     return "platform";
   };
 
+  // Shared scale for every furniture/floor/character tile (native 16x16px) so
+  // desks, rugs and avatars all read as the same art scale.
+  OFFICE.TILE_SCALE = 2.4;
+
   OFFICE.drawRooms = function(){
     var scene = OFFICE.scene;
+    var s = OFFICE.TILE_SCALE;
     OFFICE.ROOMS.forEach(function(room){
-      var g = scene.add.graphics();
-      g.fillStyle(room.fill, 1);
-      g.fillRoundedRect(room.x + 6, room.y + 6, room.w - 12, room.h - 12, 14);
-      g.lineStyle(3, room.stroke, 1);
-      g.strokeRoundedRect(room.x + 6, room.y + 6, room.w - 12, room.h - 12, 14);
+      var ix = room.x + 6, iy = room.y + 6, iw = room.w - 12, ih = room.h - 12;
+      // Real tiled floor texture (not a flat color fill).
+      scene.add.tileSprite(ix, iy, iw, ih, room.floor).setOrigin(0, 0).setTileScale(s, s);
+      // Colored rug band under the room label — carries each room's identity color.
+      var rugH = Math.min(34, ih * 0.22);
+      scene.add.tileSprite(ix, iy, iw, rugH, room.rug).setOrigin(0, 0).setTileScale(s, s).setAlpha(0.5);
+      // Wall border (square corners to match the tile grid, not a rounded rect).
+      var border = scene.add.graphics();
+      border.lineStyle(4, room.stroke, 1);
+      border.strokeRect(ix, iy, iw, ih);
       scene.add.text(room.x + 20, room.y + 16, room.label, {
         fontSize: "16px", fontFamily: "sans-serif", fontStyle: "bold", color: "#1e1b2e"
-      });
+      }).setShadow(0, 1, "#ffffff", 2, false, true);
+      OFFICE.drawRoomDecor(room, ix, iy, iw, ih);
     });
+  };
+
+  // A few static furniture pieces per room (plant + wall painting) so rooms
+  // read as furnished spaces, not empty colored boxes — placed in the corners
+  // so they never collide with the avatar/desk grid computed by layoutSlots().
+  OFFICE.drawRoomDecor = function(room, ix, iy, iw, ih){
+    var scene = OFFICE.scene;
+    scene.add.image(ix + iw - 20, iy + 22, "painting").setScale(OFFICE.TILE_SCALE * 0.9);
+    scene.add.image(ix + 16, iy + ih - 16, "plant").setScale(OFFICE.TILE_SCALE * 0.9);
   };
 
   // ---- Staff avatars: real pixel-art character sprites -----------------------
@@ -163,17 +185,17 @@
   OFFICE.drawAvatar = function(m, slot){
     var scene = OFFICE.scene;
     var color = OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline;
-    // Desk (simple procedural shape — no matching free desk sprite found).
-    var desk = scene.add.graphics();
-    desk.fillStyle(0x92613a, 1);
-    desk.fillRoundedRect(slot.x - 24, slot.y + 14, 48, 12, 3);
+    var s = OFFICE.TILE_SCALE;
+    // Desk — real Kenney furniture tile (Roguelike/RPG Pack, CC0), not a flat
+    // procedural rectangle. Character stands just behind/above it.
+    var desk = scene.add.image(slot.x, slot.y + 15, "desk_1").setScale(s);
     // Character sprite (16x16 native, scaled up; pixelArt:true keeps it crisp).
-    var sprite = scene.add.image(slot.x, slot.y, OFFICE.charKeyFor(m.key)).setScale(2.4);
+    var sprite = scene.add.image(slot.x, slot.y - 4, OFFICE.charKeyFor(m.key)).setScale(s);
     sprite.setInteractive({ useHandCursor: true });
     sprite.on("pointerdown", function(){ OFFICE.openAgentPanel(m.key); }); // Task 4 defines this
     // Status-color badge (small dot, bottom-right of sprite) instead of a full ring.
-    var badge = scene.add.circle(slot.x + 14, slot.y + 14, 6, color).setStrokeStyle(2, 0xffffff);
-    var label = scene.add.text(slot.x, slot.y + 30, m.name, {
+    var badge = scene.add.circle(slot.x + 14, slot.y + 6, 6, color).setStrokeStyle(2, 0xffffff);
+    var label = scene.add.text(slot.x, slot.y + 34, m.name, {
       fontSize: "11px", fontFamily: "sans-serif", color: "#1e293b"
     }).setOrigin(0.5, 0);
     return { desk: desk, sprite: sprite, badge: badge, label: label };
@@ -266,6 +288,12 @@
           var n = i < 10 ? "0" + i : "" + i;
           this.load.image("char" + i, "/design-system/vendor/office-sprites/char_" + n + ".png");
         }
+        // Room/furniture tiles — Kenney "Roguelike/RPG Pack" (CC0), see CREDITS.txt.
+        ["floor_stone_grey", "floor_stone_cream", "rug_teal", "rug_orange", "rug_purple",
+         "rug_cyan", "desk_1", "desk_2", "desk_corner", "chair", "bookshelf", "cabinet",
+         "plant", "plant_flower", "painting", "door_arch"].forEach(function(name){
+          this.load.image(name, "/design-system/vendor/office-sprites/" + name + ".png");
+        }, this);
       },
       create: function(){
         OFFICE.scene = this;
