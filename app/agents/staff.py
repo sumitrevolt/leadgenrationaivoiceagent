@@ -635,8 +635,30 @@ async def run_growth() -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 async def run_member(member: str) -> dict[str, Any]:
     """Staff member ya job-name se kaam dispatch karo. Unknown -> {"error":...}.
-    KABHI raise nahi karta."""
+    KABHI raise nahi karta.
+
+    NOTE: this is the manual "Run now" path (called from app.api.team's
+    `POST /run/{member}`) ONLY. team_scheduler.py's `_run_job_inner` calls the
+    individual `run_qa()`/`run_ops()`/etc. functions DIRECTLY and never goes
+    through this dispatcher — so the pause-check below cannot and does not
+    affect scheduled/automatic runs, only this manual trigger."""
     key = (member or "").strip().lower()
+    try:
+        from app.platform import agent_controls
+
+        if agent_controls.is_paused(key):
+            logger.info(f"[staff] run_member({key}) skipped — paused by admin")
+            try:
+                from app.platform import team
+
+                team.log_event(
+                    key, "run_skipped_paused", "Manual run blocked — paused by admin", status="warn"
+                )
+            except Exception:
+                pass
+            return {"skipped": True, "reason": "paused_by_admin"}
+    except Exception:
+        pass
     table = {
         "arjun": run_qa,
         "qa": run_qa,

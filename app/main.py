@@ -409,6 +409,12 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Team router not mounted: {_e}")
 try:
+    from app.api.office_hq import router as office_hq_router
+
+    app.include_router(office_hq_router, prefix="/api")  # /api/platform/office/*
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Office HQ router not mounted: {_e}")
+try:
     from app.api.marketing import router as marketing_router
 
     app.include_router(marketing_router, prefix="/api", tags=["Marketing"])  # /api/marketing/*
