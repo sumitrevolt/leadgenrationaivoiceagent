@@ -225,6 +225,88 @@ async def test_build_metrics_accepts_prefetched_live_stats_without_refetching(mo
     assert calls["n"] == 0  # never called _safe_collect_live_stats — used the pre-fetched dict
 
 
+class _FakeCache:
+    """Minimal async in-memory stand-in for app.cache.CacheService, so caching
+    logic is testable without a real Redis instance."""
+
+    def __init__(self):
+        self.store: dict[str, Any] = {}
+
+    async def get(self, key):
+        return self.store.get(key)
+
+    async def set(self, key, value, ttl=None):
+        import json
+
+        self.store[key] = json.loads(json.dumps(value))  # deep-copy like real JSON round-trip
+        return True
+
+    async def delete(self, key):
+        self.store.pop(key, None)
+        return 1
+
+
+async def test_build_snapshot_second_call_is_cached(monkeypatch):
+    """Regression: 8s felt slow on every refresh — a repeat call within the
+    TTL window must return the SAME data without recomputing."""
+    import app.cache as cache_mod
+
+    fake = _FakeCache()
+    monkeypatch.setattr(cache_mod, "cache", fake)
+
+    calls = {"n": 0}
+    orig_rooms = office_hq.build_rooms_and_agents
+
+    def _counting_rooms():
+        calls["n"] += 1
+        return orig_rooms()
+
+    monkeypatch.setattr(office_hq, "build_rooms_and_agents", _counting_rooms)
+
+    first = await office_hq.build_snapshot()
+    assert first["cached"] is False
+    assert calls["n"] == 1
+
+    second = await office_hq.build_snapshot()
+    assert second["cached"] is True
+    assert calls["n"] == 1  # NOT recomputed — served from cache
+
+
+async def test_invalidate_snapshot_cache_forces_recompute(monkeypatch):
+    import app.cache as cache_mod
+
+    fake = _FakeCache()
+    monkeypatch.setattr(cache_mod, "cache", fake)
+
+    await office_hq.build_snapshot()
+    assert fake.store  # something cached
+    await office_hq.invalidate_snapshot_cache()
+    assert not fake.store  # cleared
+
+    second = await office_hq.build_snapshot()
+    assert second["cached"] is False  # recomputed, not served stale
+
+
+async def test_build_snapshot_works_when_cache_backend_is_broken(monkeypatch):
+    """Cache is a pure perf optimization — a broken Redis must never break the page."""
+    import app.cache as cache_mod
+
+    class _BrokenCache:
+        async def get(self, key):
+            raise ConnectionError("redis down")
+
+        async def set(self, key, value, ttl=None):
+            raise ConnectionError("redis down")
+
+        async def delete(self, key):
+            raise ConnectionError("redis down")
+
+    monkeypatch.setattr(cache_mod, "cache", _BrokenCache())
+    snap = await office_hq.build_snapshot()
+    assert snap["ok"] is True
+    await office_hq.invalidate_snapshot_cache()  # must not raise either
+
+
 async def test_build_snapshot_calls_collect_live_stats_only_once(monkeypatch):
     calls = {"n": 0}
     orig = office_hq._safe_collect_live_stats
