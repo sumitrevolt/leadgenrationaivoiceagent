@@ -225,6 +225,16 @@ async def test_build_metrics_accepts_prefetched_live_stats_without_refetching(mo
     assert calls["n"] == 0  # never called _safe_collect_live_stats — used the pre-fetched dict
 
 
+def test_snapshot_cache_ttl_exceeds_frontend_poll_interval():
+    """Regression 2026-07-01: TTL was 15s while office_map.html polls every
+    25s (setInterval(refreshSnapshot, 25000)) — every periodic auto-refresh
+    was ALWAYS a cache miss since the cache had already expired by the time
+    the next poll fired. TTL must stay strictly greater than the poll
+    interval for the periodic refresh itself to ever be fast."""
+    FRONTEND_POLL_INTERVAL_SEC = 25
+    assert office_hq._SNAPSHOT_CACHE_TTL > FRONTEND_POLL_INTERVAL_SEC
+
+
 class _FakeCache:
     """Minimal async in-memory stand-in for app.cache.CacheService, so caching
     logic is testable without a real Redis instance."""
