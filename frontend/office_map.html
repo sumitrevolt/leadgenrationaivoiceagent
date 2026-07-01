@@ -32,6 +32,22 @@
     padding:8px 14px;font-size:12.5px;font-weight:600}
   #wrap{max-width:1200px;margin:16px auto;padding:0 16px}
   #stage{width:100%;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05)}
+
+  #agentPanel{position:fixed;inset:0;background:rgba(15,17,35,.35);z-index:50;display:flex;
+    justify-content:flex-end}
+  #agentPanel.panel-hidden{display:none}
+  .panel-card{width:340px;max-width:92vw;height:100%;background:#fff;box-shadow:-8px 0 30px rgba(24,16,55,.18);
+    padding:18px;overflow-y:auto;position:relative}
+  .panel-card #panelClose{position:absolute;top:12px;right:12px;border:none;background:var(--bg);
+    width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px}
+  .panel-title{font-size:17px;font-weight:800;margin:4px 0 2px;padding-right:34px}
+  .panel-sub{color:var(--muted);font-size:12.5px;margin-bottom:12px}
+  .panel-stats{display:flex;gap:8px;margin:10px 0}
+  .panel-stat{background:var(--bg);border-radius:9px;padding:8px 10px;font-size:11.5px;color:var(--muted);flex:1}
+  .panel-stat b{display:block;font-size:16px;color:var(--ink)}
+  .panel-events{margin-top:14px;font-size:12.5px}
+  .panel-event{border-left:3px solid var(--brand-2);padding:6px 10px;margin-bottom:6px;background:var(--bg);border-radius:0 8px 8px 0}
+  .panel-event .pe-when{color:var(--muted);font-size:10.5px}
 </style>
 </head>
 <body>
@@ -42,6 +58,12 @@
   </div>
   <div id="banner"><div class="b" id="bannerMsg"></div></div>
   <div id="wrap"><div id="stage"></div></div>
+  <div id="agentPanel" class="panel-hidden">
+    <div class="panel-card">
+      <button id="panelClose" aria-label="Close">✕</button>
+      <div id="panelBody">Loading…</div>
+    </div>
+  </div>
 <script>
   var OFFICE = {};
 
@@ -175,6 +197,59 @@
         }
       });
     });
+  };
+
+  // ---- Click-to-expand agent panel ------------------------------------------
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function relTime(iso){
+    if (!iso) return "";
+    var t = new Date(iso).getTime();
+    if (isNaN(t)) return "";
+    var s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    if (s < 60) return "abhi";
+    if (s < 3600) return Math.floor(s / 60) + " min pehle";
+    if (s < 86400) return Math.floor(s / 3600) + " ghante pehle";
+    return Math.floor(s / 86400) + " din pehle";
+  }
+
+  OFFICE.lastData = null;
+
+  OFFICE.openAgentPanel = async function(key){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    panel.classList.remove("panel-hidden");
+    body.innerHTML = "Loading…";
+    var member = (OFFICE.lastData && OFFICE.lastData.members || []).filter(function(m){ return m.key === key; })[0];
+    var eventsHtml = "";
+    try {
+      var r = await fetch("/api/platform/team/events?member=" + encodeURIComponent(key) + "&limit=8", { headers: hdrs() });
+      var d = r.ok ? await r.json() : { events: [] };
+      eventsHtml = (d.events || []).map(function(e){
+        return '<div class="panel-event"><div>' + esc(e.detail || e.action) + '</div>' +
+          '<div class="pe-when">' + esc(e.action) + ' · ' + relTime(e.at) + '</div></div>';
+      }).join("") || '<div class="pe-when">Koi recent activity nahi mili.</div>';
+    } catch (e) {
+      eventsHtml = '<div class="pe-when">Events load nahi ho paye.</div>';
+    }
+    if (!member) { body.innerHTML = "Agent nahi mila."; return; }
+    body.innerHTML =
+      '<div class="panel-title">' + esc(member.emoji) + ' ' + esc(member.name) + '</div>' +
+      '<div class="panel-sub">' + esc(member.title) + '</div>' +
+      '<div class="panel-sub">' + esc(member.duties) + '</div>' +
+      '<div class="panel-stats">' +
+        '<div class="panel-stat">State<br><b>' + esc(member.state) + '</b></div>' +
+        '<div class="panel-stat">Aaj actions<br><b>' + esc(member.today_actions) + '</b></div>' +
+        '<div class="panel-stat">Aaj errors<br><b>' + esc(member.today_errors) + '</b></div>' +
+      '</div>' +
+      '<div class="panel-events">' + eventsHtml + '</div>';
+  };
+
+  document.getElementById("panelClose").onclick = function(){
+    document.getElementById("agentPanel").classList.add("panel-hidden");
   };
 
   OFFICE.game = new Phaser.Game({
