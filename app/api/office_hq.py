@@ -59,14 +59,18 @@ async def office_pause_agent(member: str, current_user=Depends(require_admin)):
 
     if member not in office_hq.RUNNABLE_MEMBERS:
         return {"ok": False, "error": f"pause has no real effect on '{member}' (no manual-run wiring) — refused"}
-    return agent_controls.pause(member, by=getattr(current_user, "email", "admin") or "admin")
+    result = agent_controls.pause(member, by=getattr(current_user, "email", "admin") or "admin")
+    await office_hq.invalidate_snapshot_cache()
+    return result
 
 
 @router.post("/agents/{member}/resume")
 async def office_resume_agent(member: str, current_user=Depends(require_admin)):
-    from app.platform import agent_controls
+    from app.platform import agent_controls, office_hq
 
-    return agent_controls.resume(member, by=getattr(current_user, "email", "admin") or "admin")
+    result = agent_controls.resume(member, by=getattr(current_user, "email", "admin") or "admin")
+    await office_hq.invalidate_snapshot_cache()
+    return result
 
 
 # --------------------------------------------------------------------------- #
@@ -89,27 +93,35 @@ class MoveItemIn(BaseModel):
 async def office_assign_owner(item_id: str, body: AssignOwnerIn, current_user=Depends(require_admin)):
     from app.platform import office_hq
 
-    return office_hq.assign_item_owner(item_id, body.agent_key, by=getattr(current_user, "email", "admin") or "admin")
+    result = office_hq.assign_item_owner(item_id, body.agent_key, by=getattr(current_user, "email", "admin") or "admin")
+    await office_hq.invalidate_snapshot_cache()
+    return result
 
 
 @router.post("/pipeline/item/{item_id}/next-action")
 async def office_set_next_action(item_id: str, body: NextActionIn, current_user=Depends(require_admin)):
     from app.platform import office_hq
 
-    return office_hq.set_item_next_action(item_id, body.note, by=getattr(current_user, "email", "admin") or "admin")
+    result = office_hq.set_item_next_action(item_id, body.note, by=getattr(current_user, "email", "admin") or "admin")
+    await office_hq.invalidate_snapshot_cache()
+    return result
 
 
 @router.post("/pipeline/item/{item_id}/resolve-stuck")
 async def office_resolve_stuck(item_id: str, current_user=Depends(require_admin)):
     from app.platform import office_hq
 
-    return office_hq.resolve_item_stuck(item_id, by=getattr(current_user, "email", "admin") or "admin")
+    result = office_hq.resolve_item_stuck(item_id, by=getattr(current_user, "email", "admin") or "admin")
+    await office_hq.invalidate_snapshot_cache()
+    return result
 
 
 @router.post("/pipeline/item/{item_id}/move")
 async def office_move_item(item_id: str, body: MoveItemIn, current_user=Depends(require_admin)):
     from app.platform import office_hq
 
-    return office_hq.move_item(
+    result = office_hq.move_item(
         item_id, body.item_type, body.next_stage, by=getattr(current_user, "email", "admin") or "admin"
     )
+    await office_hq.invalidate_snapshot_cache()
+    return result

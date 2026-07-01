@@ -141,6 +141,13 @@ PIPELINE_STAGE_META: list[dict[str, Any]] = [
     {"id": "retention_growth", "name": "Retention / Growth", "order": 12},
 ]
 
+# Short Redis-backed cache for build_snapshot() — a browser refresh within
+# this window returns instantly instead of recomputing (see build_snapshot
+# docstring "Perf note #2"). Shared across uvicorn workers (unlike a plain
+# in-process dict), invalidated early by any real mutation.
+_SNAPSHOT_CACHE_KEY = "office_hq:snapshot"
+_SNAPSHOT_CACHE_TTL = 15
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
@@ -856,7 +863,25 @@ async def build_snapshot() -> dict[str, Any]:
     instead of the sum of all of them, and every DB/sync call inside those
     sections is individually timeout-bounded (see _safe_db_call /
     _safe_collect_live_stats) so one slow query degrades that field to a
-    default instead of hanging the whole page again."""
+    default instead of hanging the whole page again.
+
+    Perf note #2 (same day): even at ~8s a browser refresh still felt slow —
+    added a short Redis-backed cache (app.cache.cache, shared across all
+    uvicorn workers, unlike an in-process dict) so a repeat load within the
+    TTL window returns near-instantly instead of recomputing. Mutation
+    endpoints (assign/next-action/resolve-stuck/move/pause/resume) call
+    invalidate_snapshot_cache() so an admin's own action is reflected on their
+    very next fetch rather than waiting out the TTL."""
+    try:
+        from app.cache import cache
+
+        cached = await cache.get(_SNAPSHOT_CACHE_KEY)
+        if cached is not None:
+            cached["cached"] = True
+            return cached
+    except Exception as e:
+        logger.debug(f"[office_hq] snapshot cache read skipped: {e}")
+
     rooms, agents = build_rooms_and_agents()
     live_stats = await _safe_collect_live_stats()
     metrics, pipeline, approvals = await asyncio.gather(
@@ -874,9 +899,30 @@ async def build_snapshot() -> dict[str, Any]:
         "approvals": approvals,
         "system_health": system_health,
         "generated_at": _now().isoformat(),
+        "cached": False,
     }
     snapshot["next_best_actions"] = next_best_actions(snapshot)
+
+    try:
+        from app.cache import cache
+
+        await cache.set(_SNAPSHOT_CACHE_KEY, snapshot, ttl=_SNAPSHOT_CACHE_TTL)
+    except Exception as e:
+        logger.debug(f"[office_hq] snapshot cache write skipped: {e}")
+
     return snapshot
+
+
+async def invalidate_snapshot_cache() -> None:
+    """Call after any real mutation so the admin's own action shows up on
+    their very next fetch instead of waiting out _SNAPSHOT_CACHE_TTL. Never
+    raises — a failed invalidation just means the old TTL runs its course."""
+    try:
+        from app.cache import cache
+
+        await cache.delete(_SNAPSHOT_CACHE_KEY)
+    except Exception as e:
+        logger.debug(f"[office_hq] snapshot cache invalidate skipped: {e}")
 
 
 async def pipeline_stage_detail(stage_id: str) -> dict[str, Any]:
