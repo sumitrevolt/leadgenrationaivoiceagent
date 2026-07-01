@@ -64,6 +64,46 @@ def test_team_pulse_monitor_failure_isolated(monkeypatch):
     assert isinstance(res, dict) and "pulsed" in res
 
 
+@pytest.mark.timeout(10)
+def test_arya_pulse_does_not_duplicate_mcp_health_prefix(monkeypatch):
+    """Regression 2026-07-01: live feed showed "MCP health 90/100 · MCP health
+    90/100 — all green" — _arya() was re-prepending "MCP health X/100 · " onto
+    a summary string that already starts with the exact same phrase."""
+    from app.platform import team
+
+    logged: list[tuple] = []
+    monkeypatch.setattr(
+        team, "log_event", lambda m, a, d="", status="ok", meta=None: logged.append((m, a, d))
+    )
+    monkeypatch.setattr(
+        team,
+        "team_status",
+        lambda: {"members": [{"key": "arya", "last_active_mins": None}]},
+    )
+    monkeypatch.setenv("MCP_ENGINEER", "1")
+
+    from app.platform import automation_health, mcp_engineer
+
+    monkeypatch.setattr(
+        mcp_engineer, "health_score", lambda: {"score": 90.0, "summary": "MCP health 90/100 — all green"}
+    )
+    # _kavya (also in the rotation) hits automation_health.health() (DB) — stub
+    # it so this test stays hermetic/fast, same as the file's other tests.
+    monkeypatch.setattr(
+        automation_health, "health", lambda: {"ok": True, "overdue": [], "never_ran": [], "jobs": []}
+    )
+
+    # max_members large enough to cover the whole rotation (23 monitors today)
+    # regardless of tie-break order — every unlisted member defaults to the
+    # SAME recency as arya here, and arya is last in the list literal.
+    team.team_pulse(max_members=30)
+    arya_events = [d for m, a, d in logged if m == "arya"]
+    assert arya_events, "arya monitor did not fire"
+    detail = arya_events[0]
+    assert detail.count("MCP health") == 1, f"prefix duplicated: {detail!r}"
+    assert detail == "MCP health 90/100 — all green"
+
+
 def test_status_window_constants():
     from app.platform import team
 

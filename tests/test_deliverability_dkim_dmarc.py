@@ -140,6 +140,74 @@ def test_run_check_problems_weak_dmarc_and_no_dkim(monkeypatch):
     assert "SPF" not in probs  # spf present
 
 
+def test_recommend_fixes_spf_missing_gives_exact_record():
+    rec = {"domain": "leadsgenai.in", "spf_ok": False, "dmarc_ok": True, "dmarc_strong": True,
+           "dkim_ok": True, "blacklist": {}}
+    out = dm.recommend_fixes(rec)
+    assert len(out) == 1
+    assert "SPF" in out[0]["issue"]
+    assert out[0]["value"] == "v=spf1 include:_spf.hostinger.com ~all"
+    assert "leadsgenai.in" in out[0]["where"]
+
+
+def test_recommend_fixes_weak_dmarc_suggests_quarantine_not_reject():
+    rec = {"domain": "leadsgenai.in", "spf_ok": True, "dmarc_ok": True, "dmarc_strong": False,
+           "dmarc_policy": "none", "dkim_ok": True, "blacklist": {}}
+    out = dm.recommend_fixes(rec)
+    assert len(out) == 1
+    assert "p=none" in out[0]["issue"]
+    assert "p=quarantine" in out[0]["value"]
+    assert "_dmarc.leadsgenai.in" in out[0]["where"]
+
+
+def test_recommend_fixes_dkim_missing_points_to_provider_toggle_not_a_dns_value():
+    rec = {"domain": "leadsgenai.in", "spf_ok": True, "dmarc_ok": True, "dmarc_strong": True,
+           "dkim_ok": False, "blacklist": {}}
+    out = dm.recommend_fixes(rec)
+    assert len(out) == 1
+    assert "DKIM" in out[0]["issue"]
+    assert "Hostinger" in out[0]["how"]
+
+
+def test_recommend_fixes_blacklist_gives_spamhaus_lookup_url():
+    rec = {"domain": "leadsgenai.in", "spf_ok": True, "dmarc_ok": True, "dmarc_strong": True,
+           "dkim_ok": True, "blacklist": {"listed_on": ["zen.spamhaus.org"], "ip": "1.2.3.4"}}
+    out = dm.recommend_fixes(rec)
+    assert len(out) == 1
+    assert "zen.spamhaus.org" in out[0]["issue"]
+    assert "1.2.3.4" in out[0]["value"]
+    assert "spamhaus.org/lookup" in out[0]["value"]
+
+
+def test_recommend_fixes_empty_when_everything_ok():
+    rec = {"domain": "leadsgenai.in", "spf_ok": True, "dmarc_ok": True, "dmarc_strong": True,
+           "dkim_ok": True, "blacklist": {"listed_on": []}}
+    assert dm.recommend_fixes(rec) == []
+
+
+def test_run_check_includes_recommendations_when_problems_found(monkeypatch):
+    import asyncio
+
+    monkeypatch.delenv("DKIM_SELECTOR", raising=False)
+    monkeypatch.setattr(
+        dm, "check_blacklists", lambda ip="": {"ip": "", "listed_on": [], "checked": []}
+    )
+    monkeypatch.setattr(dm, "_enabled_alerts", lambda: False)
+    monkeypatch.setattr(dm, "_LOG", "data/_test_deliverability_check.jsonl")
+    _patch_txt(
+        monkeypatch,
+        {
+            "leadsgenai.in": ["v=spf1 ~all"],
+            "_dmarc.leadsgenai.in": ["v=DMARC1; p=none"],
+        },
+    )
+    rec = asyncio.run(dm.run_check())
+    assert len(rec["recommendations"]) == 2  # weak DMARC + missing DKIM
+    issues = {r["issue"] for r in rec["recommendations"]}
+    assert any("DMARC" in i for i in issues)
+    assert any("DKIM" in i for i in issues)
+
+
 def test_run_check_no_problems_when_all_strong(monkeypatch):
     import asyncio
 
