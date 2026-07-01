@@ -288,6 +288,25 @@ STAFF: dict[str, dict[str, Any]] = {
         "duties": "Approved content queue drain karke per-client social channels (Telegram/Postiz/Meta) pe publish karna (gated SOCIAL_ENGINE)",
         "schedule": "Queue-driven (jab bhi approved content publish ke liye ready ho)",
     },
+    # 2026-07-01: 2nd audit pass ("2 more workers") — same rule, real engines only.
+    # cadence.py + journeys.py already run scheduled/hook-driven automation (wired
+    # into inquiry/booking/reply-triage/pipeline-ops) with zero staff attribution.
+    "anika": {
+        "product": "marketing",
+        "name": "Anika",
+        "emoji": "🔁",
+        "title": "Cadence Manager",
+        "duties": "Enrolled leads ko per-day omnichannel sequence (email/SMS/WhatsApp/LinkedIn draft) me aage badhana (gated CADENCE_ENGINE)",
+        "schedule": "Roz scheduled (team_scheduler.py cadence.run_due())",
+    },
+    "ira": {
+        "product": "marketing",
+        "name": "Ira",
+        "emoji": "🧩",
+        "title": "Journey Automation Manager",
+        "duties": "Event-trigger rules (inquiry/booking/reply/pipeline hooks) → matching journey ke actions/drafts chalana (gated JOURNEY_ENGINE)",
+        "schedule": "Event-driven (jab bhi koi wired hook trigger fire kare)",
+    },
 }
 
 

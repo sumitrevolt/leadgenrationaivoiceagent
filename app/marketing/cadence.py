@@ -203,6 +203,20 @@ async def run_due(limit: int = 100) -> dict[str, Any]:
     if advanced:
         _write_all(_LEADS, rows)
     active = sum(1 for r in rows if r.get("status") == "active")
+    if advanced:
+        # Staff-visibility (2026-07-01): omnichannel cadence runs on a schedule
+        # (team_scheduler.py) with zero staff attribution today — invisible on
+        # /app/team. Attribute to "anika" (Cadence Manager).
+        try:
+            from app.platform import team
+
+            team.log_event(
+                "anika",
+                "cadence_advanced",
+                f"{advanced} leads progressed, {active} active in sequence",
+            )
+        except Exception:
+            pass
     return {"ok": True, "advanced": advanced, "active": active, "total": len(rows)}
 
 

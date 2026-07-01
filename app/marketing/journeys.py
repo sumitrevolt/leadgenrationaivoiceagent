@@ -361,6 +361,19 @@ async def emit_event(event: str, context: dict[str, Any] | None = None) -> list[
             logger.info(f"[journeys] '{rule.get('name')}' ran on {event} ({len(results)} actions)")
     except Exception as e:
         logger.warning(f"[journeys] emit '{event}' failed: {e}")
+    if runs:
+        # Staff-visibility (2026-07-01): journey/rule automation fires from many real
+        # hooks (inquiry, booking-reminder, reply-triage, pipeline-ops...) with zero
+        # staff attribution today — invisible on /app/team. Attribute to "ira"
+        # (Journey Automation Manager). Only logged when a rule actually matched
+        # (not every emit_event no-op call) to avoid noise.
+        try:
+            from app.platform import team
+
+            names = ", ".join(r.get("journey_name") or "?" for r in runs)
+            team.log_event("ira", "journey_triggered", f"{event} → {names}")
+        except Exception:
+            pass
     return runs
 
 
