@@ -223,7 +223,7 @@
       <a href="#sec-today-biz" role="menuitem" aria-label="Aaj ka business summary"><span class="ic" aria-hidden="true">🏠</span> Aaj ka business</a>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">10</span></a>
       <a href="#sec-ops2026" role="menuitem" aria-label="Deliverability and eval"><span class="ic" aria-hidden="true">📬</span> Deliverability & Eval</a>
-      <a href="#sec-godmode" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> God Mode <span class="badge" style="background:#ef4444">NEW</span></a>
+      <a href="#sec-godmode" onclick="expandAdvTech()" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> God Mode <span class="badge" style="background:#ef4444">NEW</span></a>
       <a href="#sec-automation" role="menuitem" aria-label="Automation workflows hub"><span class="ic" aria-hidden="true">🎛</span> Automation Hub <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
       <a href="#sec-launch-calls" role="menuitem" aria-label="Launch outbound campaign"><span class="ic" aria-hidden="true">🚀</span> Launch Campaign</a>
       <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">8</span></a>
@@ -375,8 +375,22 @@
       </div>
 
       <!-- ══════════════════════════════════════════════════════
-           GOD MODE — Production Readiness + Quick Control
+           TECHNICAL / OPS DETAILS — collapsed by default (2026-07-01
+           admin-friendly-ux pass). God Mode / hourly-job-timeline / LLM-provider
+           health raw ops data hai — non-technical admin ke liye "Aaj ka business"
+           (upar) hi kaafi hai roz ke liye. Sidebar "God Mode" link click pe
+           expandAdvTech() se auto-open + scroll hota hai; state localStorage me
+           yaad rehta hai. Sab child load*() calls DOMContentLoaded me unchanged
+           chalte hain (display:none sirf visual — data hamesha fresh rehta hai).
            ══════════════════════════════════════════════════════ -->
+      <div class="card" id="sec-advtech-wrap" style="margin-bottom:14px;border:1px dashed #cbd5e1;background:#f8fafc">
+        <div class="hd" style="cursor:pointer" onclick="toggleAdvTech()" role="button" tabindex="0" aria-expanded="false" aria-controls="advTechBody" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAdvTech();}">
+          <h3 style="color:#475569;font-size:14px">🔧 Technical / Ops Details <span style="font-weight:400;color:#94a3b8;font-size:12px">— God Mode, hourly jobs, AI brain health (developer/ops ke liye; business summary upar hai)</span></h3>
+          <button class="btn" id="advTechToggle" onclick="event.stopPropagation();toggleAdvTech()" aria-label="Toggle technical ops details" style="padding:6px 14px;font-size:12px">Dikhao ▾</button>
+        </div>
+        <div class="bd" id="advTechBody" style="display:none;padding:0">
+
+      <!-- GOD MODE — Production Readiness + Quick Control -->
       <div class="card" id="sec-godmode" style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%);border:1px solid #6366f1;margin-bottom:14px;scroll-margin-top:80px">
         <div class="hd" style="border-bottom:1px solid rgba(255,255,255,.1)">
           <h3 style="color:#e0e7ff;font-size:16px;letter-spacing:-.3px">⚡ God Mode — Production Control</h3>
@@ -388,7 +402,7 @@
         </div>
       </div>
 
-      <!-- KPIs -->
+      <!-- Hourly job timeline -->
       <div class="card" id="sec-hourly-ops" style="margin-bottom:14px;scroll-margin-top:80px">
         <div class="hd">
           <h3>🕐 Aaj ki automation — hourly jobs</h3>
@@ -424,6 +438,9 @@
         </div>
         <div class="bd" id="llmHealth" style="font-size:12px;color:var(--muted)">Loading brain health…</div>
       </div>
+
+        </div><!-- /advTechBody -->
+      </div><!-- /sec-advtech-wrap -->
 
       <div class="kpis" id="kpis" role="list" aria-label="Key performance indicators"></div>
 
@@ -1981,6 +1998,7 @@ function loadAdminTasks(){
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
+  try{ if(localStorage.getItem("admin_advTechOpen") === "1") _advTechSetOpen(true); }catch(e){}
   adminAuthBoot();
   loadTodayBiz();
   loadAdminTasks();
@@ -2093,6 +2111,30 @@ function onbToggle(){
   f.style.display = open ? "block" : "none";
   b.textContent = open ? "Hide form" : "Show form";
 }
+
+/* 🔧 Technical/Ops details (God Mode + hourly jobs + LLM health) — collapsed by
+   default so a non-technical admin sees business content first. State persists
+   per-browser via localStorage; sidebar "God Mode" link force-expands + scrolls. */
+function _advTechSetOpen(open){
+  const wrap = document.getElementById("advTechBody");
+  const btn = document.getElementById("advTechToggle");
+  const hd = document.getElementById("sec-advtech-wrap")?.querySelector(".hd");
+  if(wrap) wrap.style.display = open ? "block" : "none";
+  if(btn) btn.textContent = open ? "Chhupao ▲" : "Dikhao ▾";
+  if(hd) hd.setAttribute("aria-expanded", open ? "true" : "false");
+  try{ localStorage.setItem("admin_advTechOpen", open ? "1" : "0"); }catch(e){}
+}
+function toggleAdvTech(){
+  const wrap = document.getElementById("advTechBody");
+  _advTechSetOpen(wrap ? wrap.style.display === "none" : true);
+}
+function expandAdvTech(){
+  _advTechSetOpen(true);
+  const sb = document.getElementById("sidebar");
+  if(sb) sb.classList.remove("open");   // mobile: menu band karo
+  setTimeout(()=>{ const el = document.getElementById("sec-godmode"); if(el) el.scrollIntoView({behavior:"smooth", block:"start"}); }, 50);
+}
+
 /* ---- product -> niche -> plan wiring (prices mirror voice_packages.py / combo_packages.py) ---- */
 /* Embedded niche fallback (niches.py ka mirror). API (/api/data/niches) chale to
    override ho jata — custom + fresh. API fail/empty pe bhi dropdown product-wise
