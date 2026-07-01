@@ -145,8 +145,16 @@ PIPELINE_STAGE_META: list[dict[str, Any]] = [
 # this window returns instantly instead of recomputing (see build_snapshot
 # docstring "Perf note #2"). Shared across uvicorn workers (unlike a plain
 # in-process dict), invalidated early by any real mutation.
+#
+# BUG (2026-07-01, found same day): TTL was 15s while office_map.html's
+# auto-refresh polls every 25s (setInterval(refreshSnapshot, 25000)) — since
+# 25 > 15, the cache had ALREADY expired before every single periodic poll,
+# so the auto-refresh never once hit the cache; only a rapid manual
+# double-refresh within 15s ever benefited. TTL must exceed the poll
+# interval for the periodic refresh itself to be fast. 35s comfortably
+# covers the 25s poll interval + the ~8-9s it takes to compute a fresh one.
 _SNAPSHOT_CACHE_KEY = "office_hq:snapshot"
-_SNAPSHOT_CACHE_TTL = 15
+_SNAPSHOT_CACHE_TTL = 35
 
 
 def _now() -> datetime:

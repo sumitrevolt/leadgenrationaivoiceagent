@@ -145,6 +145,9 @@
   #roomTooltip{position:fixed;z-index:60;background:#111827;color:#e5e7eb;font-size:11.5px;
     padding:6px 10px;border-radius:8px;pointer-events:none;display:none;max-width:220px;line-height:1.5}
 
+  .loading-note{color:var(--muted);font-size:12.5px;padding:14px 4px;animation:loadingPulse 1.4s ease-in-out infinite}
+  @keyframes loadingPulse{0%,100%{opacity:.5}50%{opacity:1}}
+
   @media (max-width:900px){ .two-col{grid-template-columns:1fr} }
   @media (max-width:760px){
     #stageWrap{display:none}
@@ -169,31 +172,31 @@
   </div>
   <div id="banner"><div class="b"><span id="bannerMsg"></span><button id="bannerRetry">Retry</button></div></div>
   <div id="page">
-    <div class="kpi-row" id="kpiRow"></div>
+    <div class="kpi-row" id="kpiRow"><div class="loading-note">⏳ HQ data load ho raha hai (pehli baar ~8-9s lag sakta hai)…</div></div>
     <div id="nbaCard"><div class="nba-head">🧭 Next best actions</div><div id="nbaList"></div></div>
 
     <div id="stageWrap"><div id="stage"></div></div>
-    <div id="roomListCompact"></div>
+    <div id="roomListCompact"><div class="loading-note">⏳ Loading rooms…</div></div>
 
     <div class="feed-card">
       <div class="feed-head"><span class="ticker-dot"></span> Live automation feed — poora project ka feed</div>
       <div class="filter-row" id="filterRow"></div>
-      <div id="tickerList"></div>
+      <div id="tickerList"><div class="loading-note">⏳ Loading feed…</div></div>
     </div>
 
     <div id="pipelineBoard">
       <div class="board-head"><div class="board-title">📈 Lead → Renewal Pipeline</div></div>
-      <div class="board-row" id="boardRow"></div>
+      <div class="board-row" id="boardRow"><div class="loading-note">⏳ Loading pipeline…</div></div>
     </div>
 
     <div class="two-col">
       <div class="panel-box" id="approvalsPanel">
         <h3>🗂️ Approvals needed</h3>
-        <div id="approvalsList"></div>
+        <div id="approvalsList"><div class="loading-note">⏳ Loading…</div></div>
       </div>
       <div class="panel-box" id="systemHealthPanel">
         <h3>🛠️ System health</h3>
-        <div id="healthList"></div>
+        <div id="healthList"><div class="loading-note">⏳ Loading…</div></div>
       </div>
     </div>
   </div>
@@ -1014,7 +1017,12 @@
       create: function(){
         OFFICE.scene = this;
         OFFICE.drawRooms();
+        var loadingTxt = this.add.text(600, 410, "⏳ Loading agents…", {
+          fontSize: "18px", fontFamily: "sans-serif", color: "#1e1b2e",
+          backgroundColor: "#ffffff", padding: { x: 12, y: 8 }
+        }).setOrigin(0.5).setDepth(100);
         OFFICE.refreshSnapshot().then(function(){
+          loadingTxt.destroy();
           OFFICE.pollEvents(); // avatars must exist first (bubbles/tokens anchor to them)
         });
       }
