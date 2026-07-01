@@ -223,19 +223,65 @@
     var scene = OFFICE.scene;
     var color = OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline;
     var s = OFFICE.TILE_SCALE;
-    // Desk — real Kenney furniture tile (Roguelike/RPG Pack, CC0), not a flat
-    // procedural rectangle. Character stands just behind/above it.
+    // Desk stays fixed — real Kenney furniture tile (Roguelike/RPG Pack, CC0),
+    // not a flat procedural rectangle.
     var desk = scene.add.image(slot.x, slot.y + 15, "desk_1").setScale(s);
-    // Character sprite (16x16 native, scaled up; pixelArt:true keeps it crisp).
-    var sprite = scene.add.image(slot.x, slot.y - 4, OFFICE.charKeyFor(m.key)).setScale(s);
+    // Character + badge + label ride together in a container so idle "wander"
+    // (scheduleWander below) moves all three as one unit, while the desk stays
+    // anchored — local coords below are relative to the container's origin.
+    var sprite = scene.add.image(0, -4, OFFICE.charKeyFor(m.key)).setScale(s);
     sprite.setInteractive({ useHandCursor: true });
     sprite.on("pointerdown", function(){ OFFICE.openAgentPanel(m.key); }); // Task 4 defines this
     // Status-color badge (small dot, bottom-right of sprite) instead of a full ring.
-    var badge = scene.add.circle(slot.x + 14, slot.y + 6, 6, color).setStrokeStyle(2, 0xffffff);
-    var label = scene.add.text(slot.x, slot.y + 34, m.name, {
+    var badge = scene.add.circle(14, 6, 6, color).setStrokeStyle(2, 0xffffff);
+    var label = scene.add.text(0, 34, m.name, {
       fontSize: "11px", fontFamily: "sans-serif", color: "#1e293b"
     }).setOrigin(0.5, 0);
-    return { desk: desk, sprite: sprite, badge: badge, label: label };
+    var group = scene.add.container(slot.x, slot.y, [sprite, badge, label]);
+    var av = {
+      desk: desk, sprite: sprite, badge: badge, label: label, group: group,
+      homeX: slot.x, homeY: slot.y, wandering: false
+    };
+    OFFICE.scheduleWander(m.key);
+    return av;
+  };
+
+  // ---- Idle "walk around the desk" wander. Per the original design decision,
+  // this is a position-tween (not a real walk-cycle — these sprites only have
+  // one static pose each) so it reads as gentle movement without needing
+  // per-character animation frames for all 31 staff.
+  OFFICE.scheduleWander = function(key){
+    setTimeout(function(){
+      var av = OFFICE.avatars[key];
+      if (!av || !OFFICE.scene) return;
+      OFFICE.wanderOnce(av);
+      OFFICE.scheduleWander(key);
+    }, 4000 + Math.random() * 10000);
+  };
+
+  OFFICE.wanderOnce = function(av){
+    // Guard against two overlapping tweens ever fighting over av.group's
+    // x/y (would otherwise risk compounding drift away from the desk).
+    if (av.wandering) return;
+    av.wandering = true;
+    var scene = OFFICE.scene;
+    var dx = (Math.random() - 0.5) * 44;
+    var dy = (Math.random() - 0.5) * 26;
+    av.sprite.setFlipX(dx < 0);
+    scene.tweens.add({
+      targets: av.group,
+      x: av.homeX + dx, y: av.homeY + dy,
+      duration: 850 + Math.random() * 350,
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      hold: 700 + Math.random() * 900,
+      onYoyo: function(){ av.sprite.setFlipX(dx >= 0); },
+      onComplete: function(){
+        av.sprite.setFlipX(false);
+        av.group.setPosition(av.homeX, av.homeY); // snap-correct any float drift
+        av.wandering = false;
+      }
+    });
   };
 
   // ---- Ticker: readable HTML feed of every recent automation event ---------
@@ -253,12 +299,15 @@
   };
 
   // ---- Speech bubble: transient in-canvas text above an avatar on a fresh event.
+  // Anchored to the avatar's home desk position (not live sprite position) since
+  // the character may be mid-wander (see scheduleWander below) — home is stable
+  // and visually close enough for a bubble that only lives a few seconds.
   OFFICE.spawnBubble = function(memberKey, text){
     var av = OFFICE.avatars[memberKey];
     if (!av || !OFFICE.scene) return;
     var scene = OFFICE.scene;
     var short = String(text || "").slice(0, 36);
-    var t = scene.add.text(av.sprite.x, av.sprite.y - 30, short, {
+    var t = scene.add.text(av.homeX, av.homeY - 30, short, {
       fontSize: "10px", fontFamily: "sans-serif", color: "#1e1b2e",
       backgroundColor: "#ffffff", padding: { x: 6, y: 3 }
     }).setOrigin(0.5, 1).setDepth(50);
@@ -279,15 +328,15 @@
     var from = OFFICE.avatars[fromKey], to = OFFICE.avatars[toKey];
     if (!from || !to || !OFFICE.scene) return;
     var scene = OFFICE.scene;
-    var dot = scene.add.circle(from.sprite.x, from.sprite.y - 20, 6, 0xfbbf24).setStrokeStyle(2, 0x92400e).setDepth(60);
-    var pulse = scene.add.circle(from.sprite.x, from.sprite.y - 20, 10, 0xfbbf24, 0.35).setDepth(59);
+    var dot = scene.add.circle(from.homeX, from.homeY - 20, 6, 0xfbbf24).setStrokeStyle(2, 0x92400e).setDepth(60);
+    var pulse = scene.add.circle(from.homeX, from.homeY - 20, 10, 0xfbbf24, 0.35).setDepth(59);
     scene.tweens.add({ targets: pulse, radius: 20, alpha: 0, duration: 500, onComplete: function(){ pulse.destroy(); } });
     scene.tweens.add({
       targets: dot,
-      x: to.sprite.x, y: to.sprite.y - 20,
+      x: to.homeX, y: to.homeY - 20,
       duration: 900, ease: "Cubic.easeInOut",
       onComplete: function(){
-        var ring = scene.add.circle(to.sprite.x, to.sprite.y - 20, 8, 0xfbbf24, 0.4).setDepth(59);
+        var ring = scene.add.circle(to.homeX, to.homeY - 20, 8, 0xfbbf24, 0.4).setDepth(59);
         scene.tweens.add({ targets: ring, radius: 18, alpha: 0, duration: 450, onComplete: function(){ ring.destroy(); } });
         dot.destroy();
       }
