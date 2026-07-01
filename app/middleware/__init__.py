@@ -23,16 +23,19 @@ logger = setup_logger(__name__)
 
 
 def _real_client_ip(request: Request) -> str:
-    """Real client IP — proxy headers first (Caddy), warna socket peer.
+    """Real client IP — rightmost trusted proxy entry, then socket peer.
 
-    App Caddy ke peeche hai. uvicorn --proxy-headers ke saath request.client.host
-    already real IP hota; yeh helper defense-in-depth hai (agar proxy-headers config
-    badle to bhi rate-limit per-IP rahe, na ki sab ek gateway-IP bucket me). Mirror
-    of app.api.ratelimit._client_ip — dono limiters consistent.
+    SECURITY: use the RIGHTMOST X-Forwarded-For entry — that is the value the
+    trusted proxy (Caddy/Nginx) appended = the real peer IP. The leftmost entry
+    is fully client-controlled (an attacker can prepend any IP to bypass
+    rate-limiting), so it MUST NEVER drive an auth/rate decision (CWE-20).
+    X-Real-IP from a trusted proxy is also acceptable (single upstream hop).
     """
     xff = request.headers.get("x-forwarded-for")
     if xff:
-        return xff.split(",")[0].strip()
+        parts = [p.strip() for p in xff.split(",") if p.strip()]
+        if parts:
+            return parts[-1]  # rightmost = trusted proxy's appended value
     xri = request.headers.get("x-real-ip")
     if xri:
         return xri.strip()
@@ -65,8 +68,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         embeddable = False
         try:
             embeddable = self._is_embeddable(request.url.path)
-        except Exception:
-            pass
+        except (AttributeError, TypeError) as _e:
+            logger.debug("SecurityHeadersMiddleware embeddable check failed: %s", _e)
 
         # Security headers
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -103,8 +106,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             if request.method == "GET" and (path.startswith("/app/") or path == "/sw.js"):
                 response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
                 response.headers["Pragma"] = "no-cache"
-        except Exception:
-            pass
+        except (AttributeError, TypeError) as _e:
+            logger.debug("SecurityHeadersMiddleware cache-control failed: %s", _e)
 
         # Remove server header
         if "server" in response.headers:
@@ -301,14 +304,12 @@ async def verify_api_key(api_key: str | None = Depends(API_KEY_HEADER)) -> dict 
     if not api_key:
         return None
 
-    # In production, lookup API key in database
-    # For now, check against configured keys
-    if api_key == settings.secret_key:
+    import hmac
+    # Use a dedicated API key env var — NEVER compare against secret_key
+    # (session-signing key). Use hmac.compare_digest to prevent timing attacks.
+    _admin_api_key = os.environ.get("ADMIN_API_KEY", "").strip()
+    if _admin_api_key and hmac.compare_digest(api_key, _admin_api_key):
         return {"client": "admin", "permissions": ["all"]}
-
-    # Could also check tenant API keys here
-    # from app.models.client import Client
-    # client = await get_client_by_api_key(api_key)
 
     return None
 
@@ -554,7 +555,11 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
                 return _PLAN_LIMITS["admin"]
             if role == "customer":
                 return _DEFAULT_RPM_AUTHED
-        except Exception:
+        except (ImportError, AttributeError, KeyError) as _e:
+            logger.debug("PlanTierRateLimit bearer JWT decode skipped: %s", _e)
+            return None
+        except Exception as _e:
+            logger.debug("PlanTierRateLimit bearer parse error: %s", _e)
             return None
         return None
 
@@ -573,8 +578,10 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
 
                 c = get_client(cid)
                 return cid, str((c or {}).get("plan") or "")
-        except Exception:
-            pass
+        except (ImportError, AttributeError) as _e:
+            logger.debug("PlanTierRateLimit plan store unavailable: %s", _e)
+        except Exception as _e:
+            logger.debug("PlanTierRateLimit plan resolve error: %s", _e)
         return None, None
 
     async def _redis_check(self, key: str, limit: int) -> tuple[bool, int]:
@@ -587,7 +594,8 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
             pipe.expire(key, 62)
             count = int((await pipe.execute())[0])
             return (count <= limit, max(0, limit - count))
-        except Exception:
+        except Exception as _e:
+            logger.debug("PlanTierRateLimit redis check fail-open: %s", _e)
             return (True, limit)
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
@@ -604,36 +612,44 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         try:
             bearer_rpm = self._rpm_from_bearer(request)
+        except Exception as _e:
+            logger.debug("PlanTierRateLimit bearer parse failed: %s", _e)
+            bearer_rpm = None
+        try:
             client_id, plan = await self._resolve_plan(request)
-            rpm = bearer_rpm if bearer_rpm is not None else _rpm_for_plan(plan, client_id)
-            identity = client_id or _real_client_ip(request)
-            minute = int(time.time() / 60)
-            key = f"plantier:{identity}:{minute}"
-            allowed, remaining = await self._redis_check(key, rpm)
-            if not allowed:
-                return JSONResponse(
-                    status_code=429,
-                    content={
-                        "detail": f"Plan rate limit ({rpm} req/min) exceeded. Upgrade plan for higher limits.",
-                        "limit_rpm": rpm,
-                        "plan": plan or "anon",
-                        "retry_after": 60,
-                    },
-                    headers={
-                        "Retry-After": "60",
-                        "X-RateLimit-Limit": str(rpm),
-                        "X-RateLimit-Remaining": "0",
-                        "X-RateLimit-Plan": str(plan or "anon"),
-                    },
-                )
+        except Exception as _e:
+            logger.debug("PlanTierRateLimit plan resolve failed: %s", _e)
+            client_id, plan = None, None
+        rpm = bearer_rpm if bearer_rpm is not None else _rpm_for_plan(plan, client_id)
+        identity = client_id or _real_client_ip(request)
+        minute = int(time.time() / 60)
+        key = f"plantier:{identity}:{minute}"
+        allowed, remaining = await self._redis_check(key, rpm)
+        if not allowed:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "detail": f"Plan rate limit ({rpm} req/min) exceeded. Upgrade plan for higher limits.",
+                    "limit_rpm": rpm,
+                    "plan": plan or "anon",
+                    "retry_after": 60,
+                },
+                headers={
+                    "Retry-After": "60",
+                    "X-RateLimit-Limit": str(rpm),
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Plan": str(plan or "anon"),
+                },
+            )
+        try:
             response = await call_next(request)
-            response.headers["X-RateLimit-Limit"] = str(rpm)
-            response.headers["X-RateLimit-Remaining"] = str(remaining)
-            response.headers["X-RateLimit-Plan"] = str(plan or "anon")
-            return response
-        except Exception as e:
-            logger.debug("PlanTierRateLimit fail-open: %s", e)
-            return await call_next(request)
+        except Exception as _e:
+            logger.error("PlanTierRateLimit call_next failed: %s", _e)
+            raise
+        response.headers["X-RateLimit-Limit"] = str(rpm)
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
+        response.headers["X-RateLimit-Plan"] = str(plan or "anon")
+        return response
 
 
 # =============================================================================
@@ -671,11 +687,12 @@ class RouteHitMiddleware(BaseHTTPMiddleware):
             tmpl = getattr(route, "path_format", None)
             if tmpl:
                 return str(tmpl)
-        except Exception:
-            pass
+        except (KeyError, AttributeError, TypeError) as _e:
+            logger.debug("RouteHitMiddleware route template lookup failed: %s", _e)
         try:
             return request.url.path
-        except Exception:
+        except (AttributeError, TypeError) as _e:
+            logger.debug("RouteHitMiddleware url.path lookup failed: %s", _e)
             return "unknown"
 
     @staticmethod
@@ -685,23 +702,20 @@ class RouteHitMiddleware(BaseHTTPMiddleware):
             from app.cache import get_redis_client
 
             r = await get_redis_client()
-            # UTC day key — MUST match the reader in control_center.route-hits.
             day = time.strftime("%Y%m%d", time.gmtime())
             await r.hincrby(f"route_hits:{day}", path, 1)
-        except Exception:
-            pass
+        except (ImportError, ConnectionError, OSError, ValueError) as _e:
+            logger.debug("RouteHitMiddleware redis record failed: %s", _e)
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         response = await call_next(request)
-        # Increment AFTER call_next (route template now resolved) + fire-and-forget
-        # so the response returns immediately with no added latency.
         try:
             path = self._route_path(request)
             task = asyncio.create_task(self._record(path))
             _ROUTE_HIT_TASKS.add(task)
             task.add_done_callback(_ROUTE_HIT_TASKS.discard)
-        except Exception:
-            pass
+        except (RuntimeError, AttributeError, TypeError) as _e:
+            logger.debug("RouteHitMiddleware task create failed: %s", _e)
         return response
 
 
@@ -730,8 +744,10 @@ def setup_middleware(app: FastAPI, production: bool = False):
         from app.middleware.tenant import TenantBrandingMiddleware
 
         app.add_middleware(TenantBrandingMiddleware)
-    except Exception:
+    except ImportError:
         pass
+    except Exception as _e:
+        logger.warning("TenantBrandingMiddleware not loaded: %s", _e)
 
     # Plan-tier aware rate limiting (GATED: PLAN_RATE_LIMIT=1, default OFF).
     # Run BEFORE flat IP limiter so plan limits apply first.

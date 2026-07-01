@@ -14,6 +14,17 @@ from sqlalchemy.orm import relationship, validates
 from app.models.base import Base
 
 
+def _enum_values(enum_cls):
+    """values_callable for SQLAlchemy Enum columns so the DB stores the enum's
+    .value (e.g. "qualified") not its .name (e.g. "QUALIFIED") — VARCHAR-backed,
+    not a Postgres native-ENUM type (native_enum=False). Matches app/models/
+    payment.py's pattern (production audit 2026-07-01, F-DB4: retrofitted after
+    confirming via alembic/versions/010_enum_columns_to_varchar.py that existing
+    columns already store .value post-migration, so this is consistent not a
+    behavior change)."""
+    return [member.value for member in enum_cls]
+
+
 class LeadStatus(enum.Enum):
     """Lead status enum"""
 
@@ -42,6 +53,26 @@ class LeadSource(enum.Enum):
     REFERRAL = "referral"
 
 
+class LeadStatusHistory(Base):
+    """Audit trail of Lead.status transitions — who/what changed a lead and when.
+
+    Forward-only (no backfill of pre-existing rows): populated by
+    Lead._record_transition(), called from every status-mutating method below.
+    """
+
+    __tablename__ = "lead_status_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lead_id = Column(String(36), ForeignKey("leads.id"), nullable=False, index=True)
+    old_status = Column(String(30), nullable=True)
+    new_status = Column(String(30), nullable=False)
+    changed_by = Column(String(100), nullable=True)  # e.g. "system:mark_called", agent name
+    changed_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    def __repr__(self) -> str:
+        return f"<LeadStatusHistory {self.lead_id}: {self.old_status}->{self.new_status}>"
+
+
 class Lead(Base):
     """Lead database model"""
 
@@ -65,6 +96,14 @@ class Lead(Base):
 
     # Contact information
     contact_name = Column(String(255))
+    # Uniqueness NOT declared here (unique=True would apply on every fresh
+    # create_all()-based test DB, and many tests share a placeholder phone
+    # across unrelated Lead rows in the same DB). DB-level enforcement lives
+    # in alembic/versions/009_leads_phone_unique_if_clean.py instead — applies
+    # only in migration-managed envs (staging/prod), and only once existing
+    # data has no duplicates. App-level dedup-by-phone (the actual guarantee
+    # today) is in app/api/public_site.py, app/platform/prospector.py, and
+    # app/tasks/sync.py.
     phone = Column(String(20), nullable=False, index=True)
     email = Column(String(255))
     designation = Column(String(100))
@@ -89,8 +128,15 @@ class Lead(Base):
     qualification_data = Column(Text)
 
     # Status tracking
-    status = Column(Enum(LeadStatus), default=LeadStatus.NEW, index=True)
-    source = Column(Enum(LeadSource), default=LeadSource.MANUAL)
+    status = Column(
+        Enum(LeadStatus, native_enum=False, values_callable=_enum_values),
+        default=LeadStatus.NEW,
+        index=True,
+    )
+    source = Column(
+        Enum(LeadSource, native_enum=False, values_callable=_enum_values),
+        default=LeadSource.MANUAL,
+    )
 
     # Verification
     verified = Column(Boolean, default=False)
@@ -277,24 +323,53 @@ class Lead(Base):
 
         return min(100, score)
 
+    def _record_transition(self, old_status: "LeadStatus | None", changed_by: str) -> None:
+        """Best-effort audit row for a status change. Never raises — a session-less
+        or detached Lead (e.g. in a unit test) just skips the write."""
+        try:
+            from sqlalchemy.orm import object_session
+
+            sess = object_session(self)
+            if sess is None:
+                return
+            old_val = getattr(old_status, "value", old_status)
+            new_val = getattr(self.status, "value", self.status)
+            if old_val == new_val:
+                return
+            sess.add(
+                LeadStatusHistory(
+                    lead_id=self.id,
+                    old_status=old_val,
+                    new_status=new_val,
+                    changed_by=changed_by,
+                )
+            )
+        except Exception:
+            pass
+
     def mark_called(self) -> None:
         """Mark lead as called"""
+        old_status = self.status
         self.call_attempts += 1
         self.last_called_at = datetime.utcnow()
         if self.status == LeadStatus.NEW:
             self.status = LeadStatus.CONTACTED
         self.updated_at = datetime.utcnow()
+        self._record_transition(old_status, "system:mark_called")
 
     def schedule_callback(self, callback_time: datetime, notes: str | None = None) -> None:
         """Schedule a callback for this lead"""
+        old_status = self.status
         self.status = LeadStatus.CALLBACK
         self.next_call_at = callback_time
         if notes:
             self.notes = f"{self.notes or ''}\n[Callback scheduled: {callback_time.isoformat()}] {notes}".strip()
         self.updated_at = datetime.utcnow()
+        self._record_transition(old_status, "system:schedule_callback")
 
     def schedule_appointment(self, appointment_time: datetime, notes: str | None = None) -> None:
         """Schedule an appointment for this lead"""
+        old_status = self.status
         self.status = LeadStatus.APPOINTMENT
         self.appointment_date = appointment_time
         if notes:
@@ -302,19 +377,24 @@ class Lead(Base):
         self.is_hot_lead = True
         self.update_score(max(self.lead_score, 80))
         self.updated_at = datetime.utcnow()
+        self._record_transition(old_status, "system:schedule_appointment")
 
     def mark_not_interested(self, reason: str | None = None) -> None:
         """Mark lead as not interested"""
+        old_status = self.status
         self.status = LeadStatus.NOT_INTERESTED
         if reason:
             self.notes = f"{self.notes or ''}\n[Not interested: {datetime.utcnow().isoformat()}] {reason}".strip()
         self.updated_at = datetime.utcnow()
+        self._record_transition(old_status, "system:mark_not_interested")
 
     def mark_dnd(self) -> None:
         """Mark lead as Do Not Disturb"""
+        old_status = self.status
         self.status = LeadStatus.DND
         self.add_tag("dnd")
         self.updated_at = datetime.utcnow()
+        self._record_transition(old_status, "system:mark_dnd")
 
     def can_be_called(self) -> bool:
         """Check if lead can be called"""

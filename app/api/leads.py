@@ -286,7 +286,7 @@ async def scrape_leads(
 
 
 @router.get("/scrape/{task_id}")
-async def get_scrape_status(task_id: str):
+async def get_scrape_status(task_id: str, current_user: User = Depends(get_current_user)):
     """
     Get scraping task status
     """
@@ -297,7 +297,7 @@ async def get_scrape_status(task_id: str):
 
 
 @router.get("/stats/summary")
-async def get_leads_summary():
+async def get_leads_summary(current_user: User = Depends(get_current_user)):
     """
     Get leads summary statistics
     """

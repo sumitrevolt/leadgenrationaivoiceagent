@@ -3,9 +3,10 @@ ML Training API Endpoints
 Manage and monitor ML training for the voice agent
 """
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.api.auth_deps import require_admin
 from app.ml import (
     get_training_scheduler,
     stop_training_scheduler,
@@ -16,7 +17,13 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-router = APIRouter(prefix="/ml", tags=["ML Training"])
+# Whole router is admin-only: every route controls or feeds the voice-agent
+# training pipeline (Vertex/brain train-now, scheduler start/stop, feedback
+# ingestion) — synchronous heavy-compute + billed GCP calls + data-poisoning
+# risk if reachable anonymously (production audit 2026-07-01, security batch 4).
+router = APIRouter(
+    prefix="/ml", tags=["ML Training"], dependencies=[Depends(require_admin)]
+)
 
 
 from app.api.ml_training_models import (  # noqa: F401

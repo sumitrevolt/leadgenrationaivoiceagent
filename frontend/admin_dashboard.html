@@ -2207,20 +2207,43 @@ function onbRefreshPlans(){
   sel.innerHTML = opts.map(function(o){ return '<option value="'+escH(o[0])+'">'+escH(o[1])+'</option>'; }).join("");
 }
 function _onbVal(id){ return (document.getElementById(id).value || "").trim(); }
+function _onbErrMsg(d){
+  // Backend wraps errors as {error:{message:"..."}} OR FastAPI validation as {error:{details:{errors:[]}}}
+  if(!d) return "Request failed — check console";
+  if(d.detail) return d.detail;
+  if(d.error){
+    if(d.error.details && d.error.details.errors && d.error.details.errors.length)
+      return d.error.details.errors.map(function(e){ return (e.loc||[]).join(".")+": "+(e.msg||e.message||"invalid"); }).join(" | ");
+    return d.error.message || ("Error "+d.error.code);
+  }
+  return JSON.stringify(d);
+}
 async function onbSubmit(){
   const out = document.getElementById("onbOut");
+  const btn = document.querySelector("#onboardCard button.btn[onclick*='onbSubmit']") ||
+              document.querySelector("button[onclick='onbSubmit()']");
   const biz = _onbVal("onbBiz");
   const phone = _onbVal("onbPhone");
-  if(!biz || !phone){ out.innerHTML='<span style="color:#fca5a5">business_name + phone required</span>'; return; }
+  if(!biz || !phone){ out.innerHTML='<span style="color:#fca5a5">❌ Business name aur Phone required hai</span>'; return; }
+  // auth guard
+  const hdr = abAuthHdr();
+  if(!hdr.Authorization){ out.innerHTML='<span style="color:#fca5a5">❌ Pehle admin login karo — <a href="/app/admin-login" style="color:#a5b4fc">Login page</a></span>'; return; }
   // custom niche handling
   var nicheVal = _onbVal("onbNiche");
   var customNicheName = "";
   if(nicheVal === "__custom__"){
     customNicheName = _onbVal("onbCustomNiche");
-    if(!customNicheName){ out.innerHTML='<span style="color:#fca5a5">Custom niche ka naam likhो (niche field ke niche)</span>'; return; }
-    nicheVal = "general"; // onboarding ke liye general use; pending me save hoga
+    if(!customNicheName){ out.innerHTML='<span style="color:#fca5a5">❌ Custom niche ka naam likhो (yellow box me)</span>'; return; }
+    nicheVal = "general";
   }
-  out.innerHTML='<span style="color:#94a3b8">Onboarding…</span>';
+  // loading state
+  if(btn){ btn.disabled=true; btn.textContent="Creating…"; }
+  out.innerHTML='<span style="color:#94a3b8">⏳ Customer create ho raha hai…</span>';
+  // timeout guard
+  const timer = setTimeout(function(){
+    out.innerHTML='<span style="color:#fca5a5">❌ Request timeout — server ne jawaab nahi diya (30s). Dobara try karo.</span>';
+    if(btn){ btn.disabled=false; btn.textContent="Create + Issue Login"; }
+  }, 30000);
   const body = {
     product: onbCurProduct(),
     business_name: biz,
@@ -2236,52 +2259,59 @@ async function onbSubmit(){
   try{
     const r = await fetch("/api/admin/customers/onboard", {
       method:"POST",
-      headers:{...abAuthHdr(), "Content-Type":"application/json"},
+      headers:{...hdr, "Content-Type":"application/json"},
       body: JSON.stringify(body),
     });
-    const d = await r.json();
-    if(!r.ok){ out.innerHTML='<span style="color:#fca5a5">'+escH(d.detail||"failed")+'</span>'; return; }
-    let html = `<div style="background:#1e1b4b;border:1px dashed #10b981;padding:12px;border-radius:8px">
-      <div style="color:#10b981;font-weight:600;margin-bottom:6px">✓ Customer created</div>
-      <div style="font-size:11px;color:#cbd5e1">client_id: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">${escH(d.client_id)}</code></div>
-      <div style="font-size:11px;color:#cbd5e1;margin-top:4px">Product: <b style="color:#a5b4fc">${escH(d.product||body.product)}</b> · Plan: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">${escH(d.plan||body.plan)}</code></div>
-      <div style="font-size:11px;color:#cbd5e1;margin-top:4px">Dashboard: <a href="${escH(d.customer_dashboard)}" style="color:#a5b4fc" target="_blank">${escH(d.customer_dashboard)}</a></div>`;
-    if(d.login_email){
-      html += `<div style="font-size:11px;color:#cbd5e1;margin-top:4px">Login: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">${escH(d.login_email)}</code></div>`;
-      if(d.password){
-        html += `<div style="margin-top:8px;background:#0f172a;padding:8px;border-radius:6px">
-          <div style="font-size:11px;color:#f59e0b;font-weight:600">⚠ Password — shown ONCE${d.password_generated?" (auto-generated)":""}:</div>
-          <div style="font-family:monospace;font-size:13px;color:#e2e8f0;margin:4px 0">${escH(d.password)}</div>
-          <button onclick="navigator.clipboard.writeText('${escH(d.password)}');this.textContent='✓ copied'" style="background:#6366f1;color:#fff;border:0;padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px">Copy</button>
-        </div>`;
-      }
+    clearTimeout(timer);
+    const d = await r.json().catch(function(){ return {}; });
+    if(!r.ok){
+      const msg = _onbErrMsg(d);
+      out.innerHTML='<span style="color:#fca5a5">❌ '+escH(msg)+'</span>';
+      if(btn){ btn.disabled=false; btn.textContent="Create + Issue Login"; }
+      return;
     }
-    // If custom niche was entered — submit for pending review
-    if(customNicheName){
-      html += `<div style="margin-top:8px;background:#451a03;border:1px solid #f59e0b;padding:8px;border-radius:6px;font-size:11px;color:#fde68a">
-        ⏳ Custom niche "<b>${escH(customNicheName)}</b>" review ke liye submit ho rahi hai…</div>`;
-      out.innerHTML = html + '</div>';
-      try{
-        const pr = await fetch("/api/data/niches/pending", {
-          method:"POST", headers:{...abAuthHdr(),"Content-Type":"application/json"},
-          body: JSON.stringify({name: customNicheName, submitted_by: biz + " (" + (email||phone) + ")"})
-        });
-        const pd = await pr.json();
-        if(pr.ok){
-          html += `<div style="margin-top:8px;background:#14532d;border:1px solid #10b981;padding:8px;border-radius:6px;font-size:11px;color:#a7f3d0">
-            ✅ Niche "<b>${escH(customNicheName)}</b>" pending review me add ho gayi — Admin dashboard me jaake approve karo</div>`;
-        } else {
-          html += `<div style="margin-top:8px;font-size:11px;color:#f59e0b">⚠ Pending niche save: ${escH((pd&&pd.detail)||"check karo")}</div>`;
-        }
-      }catch(pe){ html += `<div style="margin-top:6px;font-size:11px;color:#f59e0b">⚠ Custom niche pending save nahi hua</div>`; }
+    // store password separately (avoids onclick injection risk)
+    const plainPwd = d.password || "";
+    let html = '<div style="background:#1e1b4b;border:1px dashed #10b981;padding:12px;border-radius:8px">'
+      +'<div style="color:#10b981;font-weight:700;margin-bottom:8px;font-size:14px">✅ Customer Created!</div>'
+      +'<div style="font-size:12px;color:#cbd5e1">client_id: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">'+escH(d.client_id)+'</code></div>'
+      +'<div style="font-size:12px;color:#cbd5e1;margin-top:4px">Product: <b style="color:#a5b4fc">'+escH(d.product||body.product)+'</b> &nbsp;·&nbsp; Plan: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">'+escH(d.plan||body.plan)+'</code></div>'
+      +'<div style="font-size:12px;color:#cbd5e1;margin-top:4px">Dashboard: <a href="'+escH(d.customer_dashboard)+'" style="color:#a5b4fc" target="_blank">'+escH(d.customer_dashboard)+'</a></div>';
+    if(d.login_email){
+      html += '<div style="font-size:12px;color:#cbd5e1;margin-top:4px">Login email: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">'+escH(d.login_email)+'</code></div>';
+      if(plainPwd){
+        const pwdId = "onbPwdDisp_"+Math.random().toString(36).slice(2,8);
+        html += '<div style="margin-top:8px;background:#0f172a;padding:10px;border-radius:6px">'
+          +'<div style="font-size:11px;color:#f59e0b;font-weight:600;margin-bottom:4px">🔑 Password — ek baar hi dikhega'+(d.password_generated?" (auto-generated)":"")+':</div>'
+          +'<code id="'+pwdId+'" style="font-size:14px;color:#e2e8f0;display:block;margin-bottom:6px;word-break:break-all">'+escH(plainPwd)+'</code>'
+          +'<button onclick="var el=document.getElementById(\''+pwdId+'\');navigator.clipboard.writeText(el.textContent);this.textContent=\'✓ Copied!\'" '
+          +'style="background:#6366f1;color:#fff;border:0;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px">Copy Password</button>'
+          +'</div>';
+      }
+    } else {
+      html += '<div style="font-size:12px;color:#94a3b8;margin-top:4px">ℹ Email nahi diya — login credentials issue nahi hui (baad me set kar sakte ho)</div>';
     }
     html += '</div>';
     out.innerHTML = html;
-    // Clear form for next entry
-    for(const id of ["onbBiz","onbCity","onbPhone","onbEmail","onbPwd","onbCustomNiche"]) { var el=document.getElementById(id); if(el) el.value=""; }
+    // custom niche pending submit
+    if(customNicheName){
+      fetch("/api/data/niches/pending", {
+        method:"POST", headers:{...hdr,"Content-Type":"application/json"},
+        body: JSON.stringify({name: customNicheName, submitted_by: biz+" ("+(email||phone)+")"})
+      }).then(function(pr){ return pr.json(); }).then(function(pd){
+        out.insertAdjacentHTML("beforeend",'<div style="margin-top:6px;font-size:11px;color:#a7f3d0">✅ Custom niche "'+escH(customNicheName)+'" pending review me add ho gayi</div>');
+      }).catch(function(){});
+    }
+    // clear form
+    for(const id of ["onbBiz","onbCity","onbPhone","onbEmail","onbPwd","onbCustomNiche"]){ const el=document.getElementById(id); if(el) el.value=""; }
     var cn=document.getElementById("onbCustomNiche"), ch=document.getElementById("onbCustomNicheHint");
     if(cn) cn.style.display="none"; if(ch) ch.style.display="none";
-  }catch(e){ out.innerHTML='<span style="color:#fca5a5">'+escH(String(e))+'</span>'; }
+    if(btn){ btn.disabled=false; btn.textContent="Create + Issue Login"; }
+  }catch(e){
+    clearTimeout(timer);
+    out.innerHTML='<span style="color:#fca5a5">❌ Network error: '+escH(String(e))+'</span>';
+    if(btn){ btn.disabled=false; btn.textContent="Create + Issue Login"; }
+  }
 }
 function escH(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c])}
 function abDate(iso){ if(!iso) return "—"; try{ return new Date(iso).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ return iso; } }
