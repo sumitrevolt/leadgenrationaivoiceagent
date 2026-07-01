@@ -311,8 +311,11 @@ def decide(source: str, item_id: str, decision: str, by: str = "admin") -> dict[
     try:
         from app.platform import team
 
+        # "system" is not a STAFF key -- was silently invisible in team_status().
+        # Approval/audit-trail tracking fits Arnav's Security/Compliance domain.
+        # Fixed 2026-07-01.
         team.log_event(
-            "system",
+            "arnav",
             f"approval_{status}",
             f"{source} {item_id[:24]} {status} by {by}" + (f" — {action}" if action else ""),
         )
