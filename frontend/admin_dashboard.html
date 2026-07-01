@@ -241,6 +241,7 @@
       <a href="/app/agent-tools" role="menuitem" aria-label="Agent Tools admin cockpit"><span class="ic" aria-hidden="true">🛠</span> Agent Tools</a>
       <a href="/app/brain" role="menuitem" aria-label="Second Brain agent memory search"><span class="ic" aria-hidden="true">🧠</span> Second Brain</a>
       <a href="/app/team" role="menuitem" aria-label="AI staff team"><span class="ic" aria-hidden="true">👥</span> AI Staff Team</a>
+      <a href="/app/office" role="menuitem" aria-label="Virtual office map"><span class="ic" aria-hidden="true">🏢</span> Virtual Office</a>
       <a href="/app/outreach" role="menuitem" aria-label="Outreach pipeline"><span class="ic" aria-hidden="true">📧</span> Outreach</a>
       <a href="#sec-speed" role="menuitem" aria-label="Speed to lead"><span class="ic" aria-hidden="true">⚡</span> Speed-to-Lead</a>
       <a href="#sec-recordings" role="menuitem" aria-label="Call Recordings player"><span class="ic" aria-hidden="true">🎙</span> Call Recordings</a>
@@ -441,6 +442,15 @@
 
         </div><!-- /advTechBody -->
       </div><!-- /sec-advtech-wrap -->
+
+      <div class="card" id="officeTeaser" style="margin-bottom:14px;padding:14px 18px;display:flex;align-items:center;gap:12px;background:linear-gradient(90deg,#ede9fe,#dbeafe);border:1px solid #c7d2fe">
+        <div style="font-size:26px">🏢</div>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:14px;color:#1e1b2e">Virtual Office</div>
+          <div style="font-size:12px;color:#6b7280" id="officeTeaserLine">Loading team status…</div>
+        </div>
+        <a href="/app/office" class="btn" style="background:#6366f1;color:#fff;text-decoration:none;padding:8px 16px;font-size:12.5px;font-weight:700;border-radius:9px">Poora office dekho →</a>
+      </div>
 
       <div class="kpis" id="kpis" role="list" aria-label="Key performance indicators"></div>
 
@@ -1836,6 +1846,19 @@ async function loadAgents(){
     if(d && Array.isArray(d.agents) && d.agents.length){ renderAgents(d.agents); }
   }catch(e){}
 }
+async function loadOfficeTeaser(){
+  const el = document.getElementById("officeTeaserLine");
+  if (!el) return;
+  try{
+    const r = await fetch("/api/platform/team", {headers: abAuthHdr(), cache: "no-store"});
+    if (!r.ok) { el.textContent = "Office status abhi load nahi ho paya."; return; }
+    const d = await r.json();
+    const t = (d && d.totals) || {};
+    el.textContent = (t.working_members || 0) + "/" + (t.staff_count || 0) + " agents working abhi";
+  }catch(e){
+    el.textContent = "Office status abhi load nahi ho paya.";
+  }
+}
 async function dedupeClients(){
   if(!confirm("Exact-duplicate clients (same phone) hata du? Newest record rahega.")) return;
   try{
@@ -1999,6 +2022,7 @@ function loadAdminTasks(){
 
 document.addEventListener("DOMContentLoaded", ()=>{
   try{ if(localStorage.getItem("admin_advTechOpen") === "1") _advTechSetOpen(true); }catch(e){}
+  loadOfficeTeaser();
   adminAuthBoot();
   loadTodayBiz();
   loadAdminTasks();
