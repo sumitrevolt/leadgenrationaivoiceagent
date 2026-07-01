@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
-<title>LeadGen AI — Virtual Office</title>
+<title>LeadGen AI — Operating HQ</title>
 <link rel="stylesheet" href="/design-system/styles.css" />
 <!-- Vendored (not CDN) — phaser@3.80.1, MIT license, served from frontend/design-system/
      (/design-system mount), same pattern as sigma/graphology/elkjs in control_center_graph.html.
@@ -14,7 +14,7 @@
   :root{
     --brand:#6d28d9; --brand-2:#4f46e5; --brand-soft:#ede9fe;
     --ink:#1e1b2e; --muted:#6b7280; --line:#e9e7f2; --bg:#f6f5fb; --card:#ffffff;
-    --ok:#10b981; --warn:#f59e0b; --err:#ef4444;
+    --ok:#10b981; --warn:#f59e0b; --err:#ef4444; --info:#3b82f6;
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
@@ -27,59 +27,178 @@
     display:grid;place-items:center;font-size:16px;color:#fff}
   .back{font-size:12.5px;color:var(--muted);text-decoration:none;font-weight:600}
   .spacer{flex:1}
-  #banner{display:none;max-width:1200px;margin:10px auto 0;padding:0 16px}
+  #banner{display:none;max-width:1280px;margin:10px auto 0;padding:0 16px}
   #banner .b{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:10px;
-    padding:8px 14px;font-size:12.5px;font-weight:600}
-  #wrap{max-width:1200px;margin:16px auto;padding:0 16px}
-  #stage{width:100%;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05)}
+    padding:8px 14px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:10px}
+  #banner button{border:1px solid #fecaca;background:#fff;color:#991b1b;border-radius:7px;
+    padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer}
+  #page{max-width:1280px;margin:16px auto;padding:0 16px;display:flex;flex-direction:column;gap:16px}
 
-  #agentPanel{position:fixed;inset:0;background:rgba(15,17,35,.35);z-index:50;display:flex;
-    justify-content:flex-end}
-  #agentPanel.panel-hidden{display:none}
-  .panel-card{width:340px;max-width:92vw;height:100%;background:#fff;box-shadow:-8px 0 30px rgba(24,16,55,.18);
-    padding:18px;overflow-y:auto;position:relative}
-  .panel-card #panelClose{position:absolute;top:12px;right:12px;border:none;background:var(--bg);
-    width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px}
-  .panel-title{font-size:17px;font-weight:800;margin:4px 0 2px;padding-right:34px}
-  .panel-sub{color:var(--muted);font-size:12.5px;margin-bottom:12px}
-  .panel-stats{display:flex;gap:8px;margin:10px 0}
-  .panel-stat{background:var(--bg);border-radius:9px;padding:8px 10px;font-size:11.5px;color:var(--muted);flex:1}
-  .panel-stat b{display:block;font-size:16px;color:var(--ink)}
-  .panel-events{margin-top:14px;font-size:12.5px}
-  .panel-event{border-left:3px solid var(--brand-2);padding:6px 10px;margin-bottom:6px;background:var(--bg);border-radius:0 8px 8px 0}
-  .panel-event .pe-when{color:var(--muted);font-size:10.5px}
+  /* ---- KPI summary row ---- */
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .kpi .k-label{font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .kpi .k-val{font-size:21px;font-weight:800;margin-top:2px}
+  .kpi.k-warn .k-val{color:var(--warn)} .kpi.k-err .k-val{color:var(--err)} .kpi.k-ok .k-val{color:var(--ok)}
 
-  #ticker{max-width:1200px;margin:14px auto 0;padding:0 16px}
-  .ticker-card{background:#111827;color:#e5e7eb;border-radius:12px;padding:10px 14px;
-    max-height:172px;overflow:hidden}
-  .ticker-head{display:flex;align-items:center;gap:7px;font-weight:700;margin-bottom:6px;
-    color:#f9fafb;font-size:12.5px}
+  /* ---- Next best actions ---- */
+  #nbaCard{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px 14px;display:none}
+  #nbaCard.show{display:block}
+  #nbaCard .nba-head{font-weight:800;font-size:12.5px;margin-bottom:6px;color:#9a3412}
+  .nba-item{font-size:12.5px;padding:5px 0;border-top:1px dashed #fed7aa;cursor:pointer}
+  .nba-item:first-of-type{border-top:none}
+  .nba-item:hover{text-decoration:underline}
+
+  /* ---- Office stage (Phaser) — desktop/tablet only ---- */
+  #stageWrap{width:100%;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05)}
+  #roomListCompact{display:none}
+
+  /* ---- Filterable live feed ---- */
+  .feed-card{background:#111827;color:#e5e7eb;border-radius:12px;padding:10px 14px}
+  .feed-head{display:flex;align-items:center;gap:7px;font-weight:700;margin-bottom:8px;color:#f9fafb;font-size:12.5px;flex-wrap:wrap}
   .ticker-dot{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:tickerPulse 1.4s infinite}
   @keyframes tickerPulse{0%,100%{opacity:1}50%{opacity:.3}}
-  .ticker-row{display:flex;gap:9px;padding:3.5px 0;border-bottom:1px solid rgba(255,255,255,.07);
-    font-size:12px;animation:tickerIn .3s ease-out}
+  .filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .filter-btn{background:#1f2937;color:#cbd5e1;border:1px solid #374151;border-radius:999px;
+    padding:3px 11px;font-size:11px;font-weight:700;cursor:pointer}
+  .filter-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  #tickerList{max-height:220px;overflow-y:auto}
+  .ticker-row{display:flex;gap:9px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.07);
+    font-size:12px;animation:tickerIn .3s ease-out;cursor:default}
   .ticker-row:last-child{border-bottom:none}
   .ticker-time{flex:0 0 auto;color:#9ca3af;font-variant-numeric:tabular-nums;width:78px}
   .ticker-who{flex:0 0 auto;font-weight:700;color:#c4b5fd;max-width:130px;overflow:hidden;
     text-overflow:ellipsis;white-space:nowrap}
   .ticker-what{color:#e5e7eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .sev-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;margin-top:4px}
   @keyframes tickerIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ---- Pipeline board ---- */
+  #pipelineBoard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .board-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .board-title{font-weight:800;font-size:13.5px}
+  .board-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+  .stage-card{flex:0 0 168px;background:var(--bg);border:1px solid var(--line);border-radius:10px;
+    padding:9px 10px;cursor:pointer}
+  .stage-card:hover{border-color:var(--brand-2)}
+  .stage-name{font-size:11px;font-weight:700;color:var(--muted);min-height:28px}
+  .stage-count{font-size:22px;font-weight:800;margin:2px 0}
+  .stage-badges{display:flex;gap:5px;flex-wrap:wrap;font-size:10px}
+  .badge{border-radius:999px;padding:1.5px 6px;font-weight:700}
+  .badge-stuck{background:#fef3c7;color:#92400e}
+  .badge-err{background:#fee2e2;color:#991b1b}
+  .badge-sample{background:#e5e7eb;color:#4b5563}
+
+  /* ---- Approvals + system health strip ---- */
+  .two-col{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}
+  .panel-box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .panel-box h3{margin:0 0 8px;font-size:13px}
+  .appr-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12px}
+  .appr-row:first-of-type{border-top:none}
+  .appr-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .appr-btn{border:none;border-radius:7px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer}
+  .appr-approve{background:var(--ok);color:#fff}
+  .appr-reject{background:#fee2e2;color:#991b1b}
+  .health-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px}
+  .health-dot{width:8px;height:8px;border-radius:50%}
+  .empty-note{color:var(--muted);font-size:12px;padding:8px 0}
+
+  #agentPanel{position:fixed;inset:0;background:rgba(15,17,35,.35);z-index:50;display:flex;
+    justify-content:flex-end}
+  #agentPanel.panel-hidden{display:none}
+  .panel-card{width:360px;max-width:92vw;height:100%;background:#fff;box-shadow:-8px 0 30px rgba(24,16,55,.18);
+    padding:18px;overflow-y:auto;position:relative}
+  .panel-card #panelClose{position:absolute;top:12px;right:12px;border:none;background:var(--bg);
+    width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px}
+  .panel-title{font-size:17px;font-weight:800;margin:4px 0 2px;padding-right:34px}
+  .panel-sub{color:var(--muted);font-size:12.5px;margin-bottom:12px}
+  .panel-stats{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+  .panel-stat{background:var(--bg);border-radius:9px;padding:8px 10px;font-size:11.5px;color:var(--muted);flex:1;min-width:70px}
+  .panel-stat b{display:block;font-size:16px;color:var(--ink)}
+  .panel-events{margin-top:14px;font-size:12.5px}
+  .panel-event{border-left:3px solid var(--brand-2);padding:6px 10px;margin-bottom:6px;background:var(--bg);border-radius:0 8px 8px 0}
+  .panel-event .pe-when{color:var(--muted);font-size:10.5px}
+  .panel-actions{display:flex;gap:8px;margin:12px 0}
+  .panel-actions button{border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;background:var(--brand);color:#fff}
+  .panel-actions button:disabled{background:#e5e7eb;color:#9ca3af;cursor:not-allowed}
+  .item-row{border-top:1px solid var(--line);padding:8px 0;font-size:12.5px}
+  .item-row:first-of-type{border-top:none}
+  .item-row .ir-name{font-weight:700}
+  .item-row .ir-meta{color:var(--muted);font-size:11px}
+  .sla-risk{color:var(--err);font-weight:700}
+  .needs-approval{color:#7c3aed;font-weight:700}
+
+  .stage-toolbar{margin:8px 0}
+  .stage-search{width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;margin-bottom:8px;box-sizing:border-box}
+  .stage-filter-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+  .sf-btn{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:999px;
+    padding:3px 10px;font-size:10.5px;font-weight:700;cursor:pointer}
+  .sf-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .item-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+  .ia-btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:2px 7px;font-size:10.5px;cursor:pointer}
+  .ia-btn:hover{border-color:var(--brand-2)}
+  .appr-row{cursor:pointer}
+  .health-row.clickable{cursor:pointer}
+  .ticker-row.clickable{cursor:pointer}
+  .ticker-row.clickable:hover{background:rgba(255,255,255,.04)}
+
+  #roomTooltip{position:fixed;z-index:60;background:#111827;color:#e5e7eb;font-size:11.5px;
+    padding:6px 10px;border-radius:8px;pointer-events:none;display:none;max-width:220px;line-height:1.5}
+
+  @media (max-width:900px){ .two-col{grid-template-columns:1fr} }
+  @media (max-width:760px){
+    #stageWrap{display:none}
+    #roomListCompact{display:flex;flex-direction:column;gap:8px}
+    .board-row{flex-direction:column}
+    .stage-card{flex:1 1 auto}
+    .panel-card{width:100vw;max-width:100vw}
+  }
+  .rc-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+  .rc-head{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13px}
+  .rc-status{width:8px;height:8px;border-radius:50%;margin-left:auto}
+  .rc-agents{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .rc-chip{font-size:15px}
+  .rc-meta{font-size:10.5px;color:var(--muted);margin-top:4px}
 </style>
 </head>
 <body>
   <div class="topbar">
-    <a class="brand" href="/app/admin"><span class="logo">🏢</span> Virtual Office</a>
+    <a class="brand" href="/app/admin"><span class="logo">🏢</span> Operating HQ</a>
     <a class="back" href="/app/team">AI Staff Team (list view) →</a>
     <div class="spacer"></div>
   </div>
-  <div id="banner"><div class="b" id="bannerMsg"></div></div>
-  <div id="wrap"><div id="stage"></div></div>
-  <div id="ticker">
-    <div class="ticker-card">
-      <div class="ticker-head"><span class="ticker-dot"></span> Live automation — poora project ka feed (har agent ka kaam yahan aata hai)</div>
+  <div id="banner"><div class="b"><span id="bannerMsg"></span><button id="bannerRetry">Retry</button></div></div>
+  <div id="page">
+    <div class="kpi-row" id="kpiRow"></div>
+    <div id="nbaCard"><div class="nba-head">🧭 Next best actions</div><div id="nbaList"></div></div>
+
+    <div id="stageWrap"><div id="stage"></div></div>
+    <div id="roomListCompact"></div>
+
+    <div class="feed-card">
+      <div class="feed-head"><span class="ticker-dot"></span> Live automation feed — poora project ka feed</div>
+      <div class="filter-row" id="filterRow"></div>
       <div id="tickerList"></div>
     </div>
+
+    <div id="pipelineBoard">
+      <div class="board-head"><div class="board-title">📈 Lead → Renewal Pipeline</div></div>
+      <div class="board-row" id="boardRow"></div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel-box" id="approvalsPanel">
+        <h3>🗂️ Approvals needed</h3>
+        <div id="approvalsList"></div>
+      </div>
+      <div class="panel-box" id="systemHealthPanel">
+        <h3>🛠️ System health</h3>
+        <div id="healthList"></div>
+      </div>
+    </div>
   </div>
+
+  <div id="roomTooltip"></div>
   <div id="agentPanel" class="panel-hidden">
     <div class="panel-card">
       <button id="panelClose" aria-label="Close">✕</button>
@@ -91,10 +210,11 @@
 
   // ---- Auth (same localStorage key as every other admin page) -------------
   function token(){ return localStorage.getItem("accessToken") || ""; }
-  function hdrs(){
+  function hdrs(json){
     var h = {};
     var t = token();
     if (t) h["Authorization"] = "Bearer " + t;
+    if (json) h["Content-Type"] = "application/json";
     return h;
   }
   function showBanner(msg){
@@ -102,292 +222,6 @@
     document.getElementById("banner").style.display = "block";
   }
   function hideBanner(){ document.getElementById("banner").style.display = "none"; }
-
-  OFFICE.fetchTeam = async function(){
-    try {
-      var r = await fetch("/api/platform/team", { headers: hdrs() });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      var data = await r.json();
-      hideBanner();
-      return data;
-    } catch (e) {
-      showBanner("Office data load nahi ho paya — retry karega automatically (25s me)");
-      return null;
-    }
-  };
-
-  // ---- Live project-wide automation feed (no `member` filter = every agent,
-  // every automation job across the whole project — not just the 31 STAFF's
-  // idle/working status). Drives the ticker + per-avatar speech bubbles +
-  // the coordinator workflow-token animation below.
-  OFFICE.fetchEvents = async function(limit){
-    try {
-      var r = await fetch("/api/platform/team/events?limit=" + (limit || 20), { headers: hdrs() });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      var d = await r.json();
-      return (d && d.events) || [];
-    } catch (e) {
-      return [];
-    }
-  };
-
-  // ---- Room layout (2x2-ish: Coordinator strip on top, 3 rooms below) -----
-  // floor/rug reference real Kenney "Roguelike/RPG Pack" tiles (CC0) — see
-  // office-sprites/CREDITS.txt. rug keeps each room's original identity color.
-  OFFICE.ROOMS = [
-    { id: "coordinator", label: "🧑‍💼 Coordinator Room", x: 0,   y: 0,   w: 1200, h: 130, stroke: 0x8b5cf6, floor: "floor_stone_cream", rug: "rug_purple" },
-    { id: "voice",       label: "📞 Voice Team",              x: 0,   y: 130, w: 400,  h: 690, stroke: 0x3b82f6, floor: "floor_stone_grey",  rug: "rug_cyan" },
-    { id: "marketing",   label: "📣 Marketing Team",          x: 400, y: 130, w: 400,  h: 690, stroke: 0xec4899, floor: "floor_stone_grey",  rug: "rug_orange" },
-    { id: "platform",    label: "🛠️ Platform / Engineering",  x: 800, y: 130, w: 400,  h: 690, stroke: 0x10b981, floor: "floor_stone_grey",  rug: "rug_teal" }
-  ];
-
-  OFFICE.roomForMember = function(m){
-    if (m.key === "manager") return "coordinator";
-    if (m.product === "voice") return "voice";
-    if (m.product === "marketing") return "marketing";
-    return "platform";
-  };
-
-  // Shared scale for every furniture/floor/character tile (native 16x16px) so
-  // desks, rugs and avatars all read as the same art scale.
-  OFFICE.TILE_SCALE = 2.4;
-
-  OFFICE.drawRooms = function(){
-    var scene = OFFICE.scene;
-    var s = OFFICE.TILE_SCALE;
-    OFFICE.ROOMS.forEach(function(room){
-      var ix = room.x + 6, iy = room.y + 6, iw = room.w - 12, ih = room.h - 12;
-      // Real tiled floor texture (not a flat color fill).
-      scene.add.tileSprite(ix, iy, iw, ih, room.floor).setOrigin(0, 0).setTileScale(s, s);
-      // Colored rug band under the room label — carries each room's identity color.
-      var rugH = Math.min(34, ih * 0.22);
-      scene.add.tileSprite(ix, iy, iw, rugH, room.rug).setOrigin(0, 0).setTileScale(s, s).setAlpha(0.5);
-      // Wall border (square corners to match the tile grid, not a rounded rect).
-      var border = scene.add.graphics();
-      border.lineStyle(4, room.stroke, 1);
-      border.strokeRect(ix, iy, iw, ih);
-      scene.add.text(room.x + 20, room.y + 16, room.label, {
-        fontSize: "16px", fontFamily: "sans-serif", fontStyle: "bold", color: "#1e1b2e"
-      }).setShadow(0, 1, "#ffffff", 2, false, true);
-      OFFICE.drawRoomDecor(room, ix, iy, iw, ih);
-    });
-  };
-
-  // A few static furniture pieces per room (plant + wall painting) so rooms
-  // read as furnished spaces, not empty colored boxes — placed in the corners
-  // so they never collide with the avatar/desk grid computed by layoutSlots().
-  OFFICE.drawRoomDecor = function(room, ix, iy, iw, ih){
-    var scene = OFFICE.scene;
-    scene.add.image(ix + iw - 20, iy + 22, "painting").setScale(OFFICE.TILE_SCALE * 0.9);
-    scene.add.image(ix + 16, iy + ih - 16, "plant").setScale(OFFICE.TILE_SCALE * 0.9);
-  };
-
-  // ---- Staff avatars: real pixel-art character sprites -----------------------
-  // Kenney "RPG Urban Pack" (CC0, public domain) — 10 distinct character tiles,
-  // vendored at frontend/design-system/vendor/office-sprites/ (see CREDITS.txt).
-  // 31 staff cycle deterministically across these 10 looks (same person always
-  // gets the same look, but looks repeat — this is a real-asset compromise, not
-  // 31 unique custom sprites).
-  OFFICE.CHAR_COUNT = 10;
-  OFFICE.STATE_COLOR = { working: 0x10b981, active: 0xf59e0b, offline: 0x94a3b8 };
-  OFFICE.avatars = {};
-
-  OFFICE.charKeyFor = function(memberKey){
-    var h = 0;
-    for (var i = 0; i < memberKey.length; i++) h = (h * 31 + memberKey.charCodeAt(i)) >>> 0;
-    return "char" + ((h % OFFICE.CHAR_COUNT) + 1);
-  };
-
-  // Deterministic grid slots inside a room — scales to any member count so a
-  // 32nd STAFF entry later needs zero layout-code changes.
-  OFFICE.layoutSlots = function(room, count){
-    var padX = 24, padTop = 56, padBottom = 20;
-    var usableW = room.w - padX * 2;
-    var usableH = room.h - padTop - padBottom;
-    var cols = Math.max(1, Math.min(count, Math.floor(usableW / 72)));
-    var rows = Math.max(1, Math.ceil(count / cols));
-    var pitchX = usableW / cols;
-    var pitchY = Math.min(90, usableH / rows);
-    var slots = [];
-    for (var i = 0; i < count; i++){
-      var r = Math.floor(i / cols), c = i % cols;
-      slots.push({
-        x: room.x + padX + pitchX * c + pitchX / 2,
-        y: room.y + padTop + pitchY * r + pitchY / 2
-      });
-    }
-    return slots;
-  };
-
-  OFFICE.drawAvatar = function(m, slot){
-    var scene = OFFICE.scene;
-    var color = OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline;
-    var s = OFFICE.TILE_SCALE;
-    // Desk stays fixed — real Kenney furniture tile (Roguelike/RPG Pack, CC0),
-    // not a flat procedural rectangle.
-    var desk = scene.add.image(slot.x, slot.y + 15, "desk_1").setScale(s);
-    // Character + badge + label ride together in a container so idle "wander"
-    // (scheduleWander below) moves all three as one unit, while the desk stays
-    // anchored — local coords below are relative to the container's origin.
-    var sprite = scene.add.image(0, -4, OFFICE.charKeyFor(m.key)).setScale(s);
-    sprite.setInteractive({ useHandCursor: true });
-    sprite.on("pointerdown", function(){ OFFICE.openAgentPanel(m.key); }); // Task 4 defines this
-    // Status-color badge (small dot, bottom-right of sprite) instead of a full ring.
-    var badge = scene.add.circle(14, 6, 6, color).setStrokeStyle(2, 0xffffff);
-    var label = scene.add.text(0, 34, m.name, {
-      fontSize: "11px", fontFamily: "sans-serif", color: "#1e293b"
-    }).setOrigin(0.5, 0);
-    var group = scene.add.container(slot.x, slot.y, [sprite, badge, label]);
-    var av = {
-      desk: desk, sprite: sprite, badge: badge, label: label, group: group,
-      homeX: slot.x, homeY: slot.y, wandering: false
-    };
-    OFFICE.scheduleWander(m.key);
-    return av;
-  };
-
-  // ---- Idle "walk around the desk" wander. Per the original design decision,
-  // this is a position-tween (not a real walk-cycle — these sprites only have
-  // one static pose each) so it reads as gentle movement without needing
-  // per-character animation frames for all 31 staff.
-  OFFICE.scheduleWander = function(key){
-    setTimeout(function(){
-      var av = OFFICE.avatars[key];
-      if (!av || !OFFICE.scene) return;
-      OFFICE.wanderOnce(av);
-      OFFICE.scheduleWander(key);
-    }, 4000 + Math.random() * 10000);
-  };
-
-  OFFICE.wanderOnce = function(av){
-    // Guard against two overlapping tweens ever fighting over av.group's
-    // x/y (would otherwise risk compounding drift away from the desk).
-    if (av.wandering) return;
-    av.wandering = true;
-    var scene = OFFICE.scene;
-    var dx = (Math.random() - 0.5) * 44;
-    var dy = (Math.random() - 0.5) * 26;
-    av.sprite.setFlipX(dx < 0);
-    scene.tweens.add({
-      targets: av.group,
-      x: av.homeX + dx, y: av.homeY + dy,
-      duration: 850 + Math.random() * 350,
-      ease: "Sine.easeInOut",
-      yoyo: true,
-      hold: 700 + Math.random() * 900,
-      onYoyo: function(){ av.sprite.setFlipX(dx >= 0); },
-      onComplete: function(){
-        av.sprite.setFlipX(false);
-        av.group.setPosition(av.homeX, av.homeY); // snap-correct any float drift
-        av.wandering = false;
-      }
-    });
-  };
-
-  // ---- Ticker: readable HTML feed of every recent automation event ---------
-  OFFICE.renderTicker = function(events){
-    var list = document.getElementById("tickerList");
-    if (!list) return;
-    var top = events.slice(0, 8);
-    list.innerHTML = top.map(function(e){
-      return '<div class="ticker-row">' +
-        '<div class="ticker-time">' + esc(relTime(e.at)) + '</div>' +
-        '<div class="ticker-who">' + esc(e.emoji || "🤖") + ' ' + esc(e.name || e.member) + '</div>' +
-        '<div class="ticker-what">' + esc(e.detail || e.action) + '</div>' +
-      '</div>';
-    }).join("") || '<div class="ticker-row"><div class="ticker-what">Abhi koi activity nahi record hui.</div></div>';
-  };
-
-  // ---- Speech bubble: transient in-canvas text above an avatar on a fresh event.
-  // Anchored to the avatar's home desk position (not live sprite position) since
-  // the character may be mid-wander (see scheduleWander below) — home is stable
-  // and visually close enough for a bubble that only lives a few seconds.
-  OFFICE.spawnBubble = function(memberKey, text){
-    var av = OFFICE.avatars[memberKey];
-    if (!av || !OFFICE.scene) return;
-    var scene = OFFICE.scene;
-    var short = String(text || "").slice(0, 36);
-    var t = scene.add.text(av.homeX, av.homeY - 30, short, {
-      fontSize: "10px", fontFamily: "sans-serif", color: "#1e1b2e",
-      backgroundColor: "#ffffff", padding: { x: 6, y: 3 }
-    }).setOrigin(0.5, 1).setDepth(50);
-    scene.tweens.add({
-      targets: t, alpha: 0, y: t.y - 14, duration: 1200, delay: 4200,
-      onComplete: function(){ t.destroy(); }
-    });
-  };
-
-  // ---- Workflow token: coordinator.py attributes coordinated_step/fanout_step/
-  // hier_step/adv_step/av_contrib events under the ACTUAL delegated staff key
-  // (not "manager") — so seeing one of these fire for member X means the
-  // Coordinator genuinely just dispatched work to X. Animate a token traveling
-  // Coordinator -> X to make that real dispatch visible, not just implied.
-  OFFICE.COORD_ACTIONS = { coordinated_step: 1, fanout_step: 1, hier_step: 1, adv_step: 1, av_contrib: 1 };
-
-  OFFICE.spawnWorkflowToken = function(fromKey, toKey){
-    var from = OFFICE.avatars[fromKey], to = OFFICE.avatars[toKey];
-    if (!from || !to || !OFFICE.scene) return;
-    var scene = OFFICE.scene;
-    var dot = scene.add.circle(from.homeX, from.homeY - 20, 6, 0xfbbf24).setStrokeStyle(2, 0x92400e).setDepth(60);
-    var pulse = scene.add.circle(from.homeX, from.homeY - 20, 10, 0xfbbf24, 0.35).setDepth(59);
-    scene.tweens.add({ targets: pulse, radius: 20, alpha: 0, duration: 500, onComplete: function(){ pulse.destroy(); } });
-    scene.tweens.add({
-      targets: dot,
-      x: to.homeX, y: to.homeY - 20,
-      duration: 900, ease: "Cubic.easeInOut",
-      onComplete: function(){
-        var ring = scene.add.circle(to.homeX, to.homeY - 20, 8, 0xfbbf24, 0.4).setDepth(59);
-        scene.tweens.add({ targets: ring, radius: 18, alpha: 0, duration: 450, onComplete: function(){ ring.destroy(); } });
-        dot.destroy();
-      }
-    });
-  };
-
-  // First poll only seeds the seen-set + fills the ticker — doesn't replay
-  // history as if it just happened (same seed-then-diff pattern events.py
-  // already uses for its own SSE poll-fallback).
-  OFFICE.seenEventIds = {};
-  OFFICE.eventsSeeded = false;
-
-  OFFICE.pollEvents = async function(){
-    var events = await OFFICE.fetchEvents(20);
-    OFFICE.renderTicker(events);
-    if (!OFFICE.eventsSeeded){
-      events.forEach(function(e){ OFFICE.seenEventIds[e.id] = true; });
-      OFFICE.eventsSeeded = true;
-      return;
-    }
-    var fresh = events.filter(function(e){ return !OFFICE.seenEventIds[e.id]; });
-    fresh.slice().reverse().forEach(function(e){ // oldest-first = feels sequential, not all-at-once
-      OFFICE.seenEventIds[e.id] = true;
-      OFFICE.spawnBubble(e.member, e.detail || e.action);
-      if (OFFICE.COORD_ACTIONS[e.action] && e.member !== "manager") {
-        OFFICE.spawnWorkflowToken("manager", e.member);
-      }
-    });
-  };
-
-  OFFICE.renderMembers = function(data){
-    if (!data || !data.members) return;
-    var byRoom = {};
-    OFFICE.ROOMS.forEach(function(r){ byRoom[r.id] = []; });
-    data.members.forEach(function(m){ byRoom[OFFICE.roomForMember(m)].push(m); });
-    OFFICE.ROOMS.forEach(function(room){
-      var members = byRoom[room.id];
-      var slots = OFFICE.layoutSlots(room, members.length);
-      members.forEach(function(m, i){
-        var existing = OFFICE.avatars[m.key];
-        if (existing) {
-          // Refresh path: just update the status-badge color, don't redraw.
-          existing.badge.setFillStyle(OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline);
-        } else {
-          OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, slots[i]);
-        }
-      });
-    });
-  };
-
-  // ---- Click-to-expand agent panel ------------------------------------------
   function esc(s){
     return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
       return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
@@ -404,14 +238,683 @@
     return Math.floor(s / 86400) + " din pehle";
   }
 
-  OFFICE.lastData = null;
+  // ---- Snapshot (rooms + agents + metrics + pipeline + approvals + health) --
+  OFFICE.fetchSnapshot = async function(){
+    try {
+      var r = await fetch("/api/platform/office/snapshot", { headers: hdrs() });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var data = await r.json();
+      hideBanner();
+      return data;
+    } catch (e) {
+      showBanner("HQ snapshot load nahi ho paya — 25s me retry hoga.");
+      return null;
+    }
+  };
 
+  OFFICE.fetchEvents = async function(limit){
+    try {
+      var r = await fetch("/api/platform/team/events?limit=" + (limit || 60), { headers: hdrs() });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var d = await r.json();
+      return (d && d.events) || [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  // ---- 8-room layout (frontend-owned pixel geometry; room IDENTITY + agent
+  // membership + counts come from the backend snapshot so there is one source
+  // of truth for "who is in which room"). ----------------------------------
+  OFFICE.ROOMS = [
+    { id: "coordinator",           label: "🧑‍💼 Coordinator Room",        x: 0,   y: 0,   w: 1200, h: 120, stroke: 0x8b5cf6, floor: "floor_stone_cream", rug: "rug_purple" },
+    { id: "lead_lab",               label: "🧹 Data / Lead Lab",           x: 0,   y: 120, w: 300,  h: 350, stroke: 0x0ea5e9, floor: "floor_stone_grey",  rug: "rug_cyan" },
+    { id: "sales_crm",              label: "🤝 Sales / CRM",               x: 300, y: 120, w: 300,  h: 350, stroke: 0xf97316, floor: "floor_stone_grey",  rug: "rug_orange" },
+    { id: "voice_team",             label: "📞 Voice Team",                x: 600, y: 120, w: 300,  h: 350, stroke: 0x3b82f6, floor: "floor_stone_grey",  rug: "rug_cyan" },
+    { id: "marketing_team",         label: "📣 Marketing Team",            x: 900, y: 120, w: 300,  h: 350, stroke: 0xec4899, floor: "floor_stone_grey",  rug: "rug_orange" },
+    { id: "qa_audit",               label: "🧪 QA / Audit",                x: 0,   y: 470, w: 250,  h: 350, stroke: 0xeab308, floor: "floor_stone_grey",  rug: "rug_purple" },
+    { id: "platform_engineering",   label: "🛠️ Platform / Engineering",   x: 250, y: 470, w: 700,  h: 350, stroke: 0x10b981, floor: "floor_stone_grey",  rug: "rug_teal" },
+    { id: "admin_finance",          label: "💰 Admin / Finance",           x: 950, y: 470, w: 250,  h: 350, stroke: 0x64748b, floor: "floor_stone_grey",  rug: "rug_teal" }
+  ];
+  OFFICE.roomById = {};
+  OFFICE.ROOMS.forEach(function(r){ OFFICE.roomById[r.id] = r; });
+
+  // Shared scale for every furniture/floor/character tile (native 16x16px) so
+  // desks, rugs and avatars all read as the same art scale.
+  OFFICE.TILE_SCALE = 2.0;
+
+  OFFICE.worldToPage = function(x, y){
+    try {
+      var sm = OFFICE.game.scale;
+      var b = sm.canvasBounds || sm.canvas.getBoundingClientRect();
+      return { x: b.x + x * sm.displayScale.x, y: b.y + y * sm.displayScale.y };
+    } catch (e) { return { x: 0, y: 0 }; }
+  };
+
+  OFFICE.drawRooms = function(){
+    var scene = OFFICE.scene;
+    var s = OFFICE.TILE_SCALE;
+    OFFICE.ROOMS.forEach(function(room){
+      var ix = room.x + 6, iy = room.y + 6, iw = room.w - 12, ih = room.h - 12;
+      scene.add.tileSprite(ix, iy, iw, ih, room.floor).setOrigin(0, 0).setTileScale(s, s);
+      var rugH = Math.min(30, ih * 0.2);
+      scene.add.tileSprite(ix, iy, iw, rugH, room.rug).setOrigin(0, 0).setTileScale(s, s).setAlpha(0.5);
+      var border = scene.add.graphics();
+      border.lineStyle(4, room.stroke, 1);
+      border.strokeRect(ix, iy, iw, ih);
+      var lbl = scene.add.text(room.x + 14, room.y + 12, room.label, {
+        fontSize: "14px", fontFamily: "sans-serif", fontStyle: "bold", color: "#1e1b2e"
+      }).setShadow(0, 1, "#ffffff", 2, false, true);
+      lbl.setInteractive({ useHandCursor: true });
+      lbl.on("pointerdown", function(){ OFFICE.openRoomPanel(room.id); });
+      lbl.on("pointerover", function(p){ OFFICE.showRoomTooltip(room.id, p); });
+      lbl.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
+      lbl.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
+      OFFICE.drawRoomDecor(room, ix, iy, iw, ih);
+    });
+  };
+
+  OFFICE.drawRoomDecor = function(room, ix, iy, iw, ih){
+    var scene = OFFICE.scene;
+    scene.add.image(ix + iw - 16, iy + 20, "painting").setScale(OFFICE.TILE_SCALE * 0.8);
+    scene.add.image(ix + 14, iy + ih - 14, "plant").setScale(OFFICE.TILE_SCALE * 0.8);
+  };
+
+  OFFICE.showRoomTooltip = function(roomId, pointer){
+    var room = OFFICE.roomStats && OFFICE.roomStats[roomId];
+    var tip = document.getElementById("roomTooltip");
+    if (!room) { tip.style.display = "none"; return; }
+    tip.innerHTML = "<b>" + esc(room.name) + "</b><br>" + esc(room.purpose) + "<br>" +
+      "Active: " + room.activeTaskCount + " · Blocked: " + room.blockedTaskCount +
+      " · Errors: " + room.errorCount + " · Approvals: " + room.approvalCount;
+    tip.style.display = "block";
+    OFFICE.moveRoomTooltip(pointer);
+  };
+  OFFICE.moveRoomTooltip = function(pointer){
+    var tip = document.getElementById("roomTooltip");
+    if (tip.style.display !== "block") return;
+    var p = OFFICE.worldToPage(pointer.x, pointer.y);
+    tip.style.left = (p.x + 12) + "px";
+    tip.style.top = (p.y + 12) + "px";
+  };
+  OFFICE.hideRoomTooltip = function(){ document.getElementById("roomTooltip").style.display = "none"; };
+
+  // ---- Staff avatars: real pixel-art character sprites -----------------------
+  OFFICE.CHAR_COUNT = 10;
+  OFFICE.STATE_COLOR = { working: 0x10b981, active: 0xf59e0b, offline: 0x94a3b8 };
+  OFFICE.avatars = {};
+  OFFICE.agentRoom = {};   // member key -> room id (single source: backend snapshot)
+  OFFICE.agentByKey = {};  // member key -> full agent object (for drawer/tooltip)
+
+  OFFICE.charKeyFor = function(memberKey){
+    var h = 0;
+    for (var i = 0; i < memberKey.length; i++) h = (h * 31 + memberKey.charCodeAt(i)) >>> 0;
+    return "char" + ((h % OFFICE.CHAR_COUNT) + 1);
+  };
+
+  OFFICE.layoutSlots = function(room, count){
+    var padX = 20, padTop = 46, padBottom = 16;
+    var usableW = room.w - padX * 2;
+    var usableH = room.h - padTop - padBottom;
+    var cols = Math.max(1, Math.min(count, Math.floor(usableW / 62)));
+    var rows = Math.max(1, Math.ceil(count / cols));
+    var pitchX = usableW / cols;
+    var pitchY = Math.min(74, usableH / rows);
+    var slots = [];
+    for (var i = 0; i < count; i++){
+      var r = Math.floor(i / cols), c = i % cols;
+      slots.push({
+        x: room.x + padX + pitchX * c + pitchX / 2,
+        y: room.y + padTop + pitchY * r + pitchY / 2
+      });
+    }
+    return slots;
+  };
+
+  OFFICE.drawAvatar = function(m, slot){
+    var scene = OFFICE.scene;
+    var color = OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline;
+    var s = OFFICE.TILE_SCALE;
+    var desk = scene.add.image(slot.x, slot.y + 13, "desk_1").setScale(s);
+    var sprite = scene.add.image(0, -4, OFFICE.charKeyFor(m.key)).setScale(s);
+    sprite.setInteractive({ useHandCursor: true });
+    sprite.on("pointerdown", function(){ OFFICE.openAgentPanel(m.key); });
+    var badge = scene.add.circle(12, 6, 5.5, color).setStrokeStyle(2, 0xffffff);
+    var label = scene.add.text(0, 30, m.name, {
+      fontSize: "10px", fontFamily: "sans-serif", color: "#1e293b"
+    }).setOrigin(0.5, 0);
+    var group = scene.add.container(slot.x, slot.y, [sprite, badge, label]);
+    var av = {
+      desk: desk, sprite: sprite, badge: badge, label: label, group: group,
+      homeX: slot.x, homeY: slot.y, wandering: false
+    };
+    OFFICE.scheduleWander(m.key);
+    return av;
+  };
+
+  OFFICE.scheduleWander = function(key){
+    setTimeout(function(){
+      var av = OFFICE.avatars[key];
+      if (!av || !OFFICE.scene) return;
+      OFFICE.wanderOnce(av);
+      OFFICE.scheduleWander(key);
+    }, 4000 + Math.random() * 10000);
+  };
+
+  OFFICE.wanderOnce = function(av){
+    if (av.wandering) return;
+    av.wandering = true;
+    var scene = OFFICE.scene;
+    var dx = (Math.random() - 0.5) * 34;
+    var dy = (Math.random() - 0.5) * 20;
+    av.sprite.setFlipX(dx < 0);
+    scene.tweens.add({
+      targets: av.group,
+      x: av.homeX + dx, y: av.homeY + dy,
+      duration: 850 + Math.random() * 350,
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      hold: 700 + Math.random() * 900,
+      onYoyo: function(){ av.sprite.setFlipX(dx >= 0); },
+      onComplete: function(){
+        av.sprite.setFlipX(false);
+        av.group.setPosition(av.homeX, av.homeY);
+        av.wandering = false;
+      }
+    });
+  };
+
+  // ---- Render agents into rooms (Phaser desktop + compact mobile list) -----
+  OFFICE.renderMembers = function(snapshot){
+    if (!snapshot || !snapshot.agents) return;
+    OFFICE.agentRoom = {};
+    OFFICE.agentByKey = {};
+    snapshot.agents.forEach(function(a){ OFFICE.agentRoom[a.key] = a.room; OFFICE.agentByKey[a.key] = a; });
+    OFFICE.roomStats = {};
+    (snapshot.rooms || []).forEach(function(r){ OFFICE.roomStats[r.id] = r; });
+
+    if (OFFICE.scene) {
+      var byRoom = {};
+      OFFICE.ROOMS.forEach(function(r){ byRoom[r.id] = []; });
+      snapshot.agents.forEach(function(a){
+        var m = { key: a.key, name: a.name, emoji: a.emoji, title: a.title, duties: a.duties, state: a.status };
+        (byRoom[a.room] || byRoom.platform_engineering).push(m);
+      });
+      OFFICE.ROOMS.forEach(function(room){
+        var members = byRoom[room.id];
+        var slots = OFFICE.layoutSlots(room, members.length);
+        members.forEach(function(m, i){
+          var existing = OFFICE.avatars[m.key];
+          if (existing) {
+            existing.badge.setFillStyle(OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline);
+          } else {
+            OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, slots[i]);
+          }
+        });
+      });
+    }
+    OFFICE.renderRoomListCompact(snapshot.rooms || []);
+  };
+
+  var ROOM_STATUS_COLOR = { idle: "#94a3b8", active: "#f59e0b", blocked: "#f97316", error: "#ef4444" };
+  OFFICE.renderRoomListCompact = function(rooms){
+    var el = document.getElementById("roomListCompact");
+    el.innerHTML = rooms.map(function(r){
+      var chips = (r.agent_keys || []).slice(0, 12).map(function(k){
+        var a = OFFICE.agentByKey[k];
+        return '<span class="rc-chip" title="' + esc(a ? a.name : k) + '">' + esc(a ? a.emoji : "🤖") + '</span>';
+      }).join("");
+      return '<div class="rc-card" data-room="' + esc(r.id) + '">' +
+        '<div class="rc-head">' + esc(r.emoji) + ' ' + esc(r.name) +
+          '<span class="rc-status" style="background:' + (ROOM_STATUS_COLOR[r.status] || "#94a3b8") + '"></span></div>' +
+        '<div class="rc-agents">' + chips + '</div>' +
+        '<div class="rc-meta">Active ' + r.activeTaskCount + ' · Blocked ' + r.blockedTaskCount +
+          ' · Errors ' + r.errorCount + ' · Approvals ' + r.approvalCount + '</div>' +
+      '</div>';
+    }).join("") || '<div class="empty-note">Koi room data nahi mila.</div>';
+    Array.prototype.forEach.call(el.querySelectorAll(".rc-card"), function(card){
+      card.onclick = function(){ OFFICE.openRoomPanel(card.getAttribute("data-room")); };
+    });
+  };
+
+  // ---- KPI summary row -------------------------------------------------------
+  OFFICE.KPI_DEFS = [
+    { key: "new_leads_today", label: "New leads (aaj)" },
+    { key: "qualified_leads_today", label: "Qualified (aaj)" },
+    { key: "calls_completed_today", label: "Calls done (aaj)" },
+    { key: "appointments_booked", label: "Appointments" },
+    { key: "campaigns_ready", label: "Content ready" },
+    { key: "payments_pending", label: "Payments pending", warnIfPositive: true },
+    { key: "active_customers", label: "Active customers" },
+    { key: "failed_automations", label: "Failed automations", errIfPositive: true },
+    { key: "approvals_needed", label: "Approvals needed", warnIfPositive: true },
+    { key: "system_issues", label: "System issues", errIfPositive: true },
+  ];
+  OFFICE.renderMetrics = function(metrics){
+    metrics = metrics || {};
+    var el = document.getElementById("kpiRow");
+    el.innerHTML = OFFICE.KPI_DEFS.map(function(d){
+      var v = metrics[d.key] || 0;
+      var cls = "kpi";
+      if (d.errIfPositive && v > 0) cls += " k-err";
+      else if (d.warnIfPositive && v > 0) cls += " k-warn";
+      return '<div class="' + cls + '"><div class="k-label">' + esc(d.label) + '</div><div class="k-val">' + esc(v) + '</div></div>';
+    }).join("") + '<div class="kpi k-ok"><div class="k-label">MRR (est.)</div><div class="k-val">₹' + esc(metrics.mrr || 0) + '</div></div>';
+  };
+
+  OFFICE.renderNextActions = function(actions){
+    var card = document.getElementById("nbaCard");
+    var list = document.getElementById("nbaList");
+    actions = actions || [];
+    if (!actions.length) { card.classList.remove("show"); return; }
+    card.classList.add("show");
+    list.innerHTML = actions.map(function(a){
+      return '<div class="nba-item" data-cta="' + esc(a.cta_target || "") + '">' + esc(a.label) + '</div>';
+    }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll(".nba-item"), function(row){
+      row.onclick = function(){ OFFICE.jumpToCta(row.getAttribute("data-cta")); };
+    });
+  };
+  OFFICE.jumpToCta = function(cta){
+    if (!cta) return;
+    if (cta === "approvals") { document.getElementById("approvalsPanel").scrollIntoView({behavior:"smooth"}); return; }
+    if (cta === "system_health") { document.getElementById("systemHealthPanel").scrollIntoView({behavior:"smooth"}); return; }
+    OFFICE.openStagePanel(cta);
+  };
+
+  // ---- Pipeline board --------------------------------------------------------
+  OFFICE.renderPipeline = function(stages){
+    var el = document.getElementById("boardRow");
+    el.innerHTML = (stages || []).map(function(s){
+      var badges = "";
+      if (s.stuckCount) badges += '<span class="badge badge-stuck">' + s.stuckCount + ' stuck</span>';
+      if (s.errorCount) badges += '<span class="badge badge-err">' + s.errorCount + ' error</span>';
+      if (s.source !== "real") badges += '<span class="badge badge-sample">◌ ' + esc(s.source) + '</span>';
+      return '<div class="stage-card" data-stage="' + esc(s.id) + '">' +
+        '<div class="stage-name">' + esc(s.order) + '. ' + esc(s.name) + '</div>' +
+        '<div class="stage-count">' + esc(s.count) + '</div>' +
+        '<div class="stage-badges">' + badges + '</div>' +
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll(".stage-card"), function(card){
+      card.onclick = function(){ OFFICE.openStagePanel(card.getAttribute("data-stage")); };
+    });
+  };
+
+  // Stage-detail drawer: filters (Today/This week/All/Hot leads/Errors/
+  // Needs approval/Stuck/No owner) + search (name/phone/city/category/source),
+  // operating client-side on the FULL item list the drill-down endpoint
+  // returns (up to 50, vs the 3 embedded in the board mini-card).
+  OFFICE.STAGE_FILTERS = ["All", "Today", "This week", "Hot leads", "Stuck", "Needs approval", "No owner"];
+  OFFICE.stageFilter = "All";
+  OFFICE.stageSearch = "";
+  OFFICE.currentStage = null;
+
+  OFFICE.stageItemMatches = function(it){
+    var f = OFFICE.stageFilter;
+    if (f === "Hot leads" && it.priority !== "hot") return false;
+    if (f === "Stuck" && !it.slaRisk) return false;
+    if (f === "Needs approval" && !it.needsApproval) return false;
+    if (f === "No owner" && it.assignedAgentId) return false;
+    if (f === "Today" || f === "This week") {
+      if (!it.lastActivityAt) return false;
+      var ageMs = Date.now() - new Date(it.lastActivityAt).getTime();
+      if (isNaN(ageMs)) return false;
+      if (f === "Today" && ageMs > 24 * 3600 * 1000) return false;
+      if (f === "This week" && ageMs > 7 * 24 * 3600 * 1000) return false;
+    }
+    var q = OFFICE.stageSearch.trim().toLowerCase();
+    if (q) {
+      var hay = [it.name, it.city, it.category, it.source, it.status].filter(Boolean).join(" ").toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  };
+
+  OFFICE.renderStageItems = function(){
+    var stage = OFFICE.currentStage;
+    if (!stage) return;
+    var filterRow = document.getElementById("stageFilterRow");
+    if (filterRow) {
+      filterRow.innerHTML = OFFICE.STAGE_FILTERS.map(function(f){
+        return '<button class="sf-btn' + (f === OFFICE.stageFilter ? " active" : "") + '" data-sf="' + f + '">' + f + '</button>';
+      }).join("");
+      Array.prototype.forEach.call(filterRow.querySelectorAll(".sf-btn"), function(btn){
+        btn.onclick = function(){ OFFICE.stageFilter = btn.getAttribute("data-sf"); OFFICE.renderStageItems(); };
+      });
+    }
+    var list = document.getElementById("stageItemsList");
+    if (!list) return;
+    var filtered = (stage.items || []).filter(OFFICE.stageItemMatches);
+    var agentOptions = Object.keys(OFFICE.agentByKey).map(function(k){
+      var a = OFFICE.agentByKey[k];
+      return '<option value="' + esc(k) + '">' + esc(a.emoji) + ' ' + esc(a.name) + '</option>';
+    }).join("");
+    list.innerHTML = filtered.map(function(it, idx){
+      var canMove = it.type === "deal" || it.type === "lead";
+      return '<div class="item-row" data-idx="' + idx + '">' +
+        '<div class="ir-name">' + esc(it.name) +
+          (it.slaRisk ? ' <span class="sla-risk">⚠ SLA risk</span>' : "") +
+          (it.needsApproval ? ' <span class="needs-approval">🗂 needs approval</span>' : "") +
+        '</div>' +
+        '<div class="ir-meta">' + [it.city, it.category, it.source, it.status].filter(Boolean).map(esc).join(" · ") + '</div>' +
+        '<div class="ir-meta">Owner: ' + esc(it.assignedAgentId ? (OFFICE.agentByKey[it.assignedAgentId] || {}).name || it.assignedAgentId : "— none —") +
+          ' · Next: ' + esc(it.nextAction || "-") + '</div>' +
+        '<div class="item-actions">' +
+          '<select class="ia-assign">' + '<option value="">Assign to…</option>' + agentOptions + '</select>' +
+          '<button class="ia-btn ia-next">📝 Next action</button>' +
+          (it.slaRisk ? '<button class="ia-btn ia-resolve">✓ Resolve stuck</button>' : "") +
+          (canMove ? '<button class="ia-btn ia-move">➡ Move stage</button>' : "") +
+        '</div>' +
+      '</div>';
+    }).join("") || '<div class="empty-note">"' + esc(OFFICE.stageFilter) + '" filter/search me abhi koi item nahi hai.</div>';
+
+    Array.prototype.forEach.call(list.querySelectorAll(".item-row"), function(row){
+      var it = filtered[parseInt(row.getAttribute("data-idx"), 10)];
+      var assignSel = row.querySelector(".ia-assign");
+      if (assignSel) assignSel.onchange = async function(){
+        if (!assignSel.value) return;
+        await fetch("/api/platform/office/pipeline/item/" + encodeURIComponent(it.id) + "/assign", {
+          method: "POST", headers: hdrs(true), body: JSON.stringify({ agent_key: assignSel.value })
+        });
+        OFFICE.openStagePanel(stage.id);
+      };
+      var nextBtn = row.querySelector(".ia-next");
+      if (nextBtn) nextBtn.onclick = async function(){
+        var note = window.prompt("Next action note:", it.nextAction || "");
+        if (note == null) return;
+        await fetch("/api/platform/office/pipeline/item/" + encodeURIComponent(it.id) + "/next-action", {
+          method: "POST", headers: hdrs(true), body: JSON.stringify({ note: note })
+        });
+        OFFICE.openStagePanel(stage.id);
+      };
+      var resolveBtn = row.querySelector(".ia-resolve");
+      if (resolveBtn) resolveBtn.onclick = async function(){
+        await fetch("/api/platform/office/pipeline/item/" + encodeURIComponent(it.id) + "/resolve-stuck", {
+          method: "POST", headers: hdrs()
+        });
+        OFFICE.openStagePanel(stage.id);
+      };
+      var moveBtn = row.querySelector(".ia-move");
+      if (moveBtn) moveBtn.onclick = async function(){
+        var next = window.prompt(
+          it.type === "deal" ? "Next deal stage (new/contacted/interested/demo_sent/proposal_sent/negotiating/won/lost):"
+                              : "Next lead status (new/contacted/qualified/appointment/callback/not_interested/wrong_number/dnd/converted/lost):"
+        );
+        if (!next) return;
+        await fetch("/api/platform/office/pipeline/item/" + encodeURIComponent(it.id) + "/move", {
+          method: "POST", headers: hdrs(true), body: JSON.stringify({ item_type: it.type, next_stage: next.trim() })
+        });
+        OFFICE.openStagePanel(stage.id);
+      };
+    });
+  };
+
+  OFFICE.openStagePanel = async function(stageId){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    panel.classList.remove("panel-hidden");
+    body.innerHTML = "Loading…";
+    var stage;
+    try {
+      var r = await fetch("/api/platform/office/pipeline/" + encodeURIComponent(stageId), { headers: hdrs() });
+      stage = r.ok ? await r.json() : null;
+    } catch (e) { stage = null; }
+    if (!stage) { body.innerHTML = "Stage load nahi ho paya."; return; }
+    OFFICE.currentStage = stage;
+    OFFICE.stageFilter = "All";
+    body.innerHTML =
+      '<div class="panel-title">' + esc(stage.order) + '. ' + esc(stage.name) + '</div>' +
+      '<div class="panel-sub">' + (stage.source !== "real" ? '<span class="badge badge-sample">◌ ' + esc(stage.source) + '</span> ' : '') + esc(stage.note || "") + '</div>' +
+      '<div class="panel-stats">' +
+        '<div class="panel-stat">Count<br><b>' + esc(stage.count) + '</b></div>' +
+        '<div class="panel-stat">Stuck<br><b>' + esc(stage.stuckCount || 0) + '</b></div>' +
+        '<div class="panel-stat">Errors<br><b>' + esc(stage.errorCount || 0) + '</b></div>' +
+      '</div>' +
+      '<div class="stage-toolbar">' +
+        '<input class="stage-search" id="stageSearchInput" placeholder="Search name/city/category/source…" />' +
+        '<div class="stage-filter-row" id="stageFilterRow"></div>' +
+      '</div>' +
+      '<div class="panel-events" id="stageItemsList"></div>';
+    var searchInput = document.getElementById("stageSearchInput");
+    searchInput.oninput = function(){ OFFICE.stageSearch = searchInput.value; OFFICE.renderStageItems(); };
+    OFFICE.renderStageItems();
+  };
+
+  // ---- Room detail panel ------------------------------------------------------
+  OFFICE.openRoomPanel = function(roomId){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    panel.classList.remove("panel-hidden");
+    var room = (OFFICE.roomStats || {})[roomId];
+    if (!room) { body.innerHTML = "Room nahi mila."; return; }
+    var agentsHtml = (room.agent_keys || []).map(function(k){
+      var a = OFFICE.agentByKey[k];
+      if (!a) return "";
+      return '<div class="item-row"><div class="ir-name">' + esc(a.emoji) + ' ' + esc(a.name) + ' — ' + esc(a.title) + '</div>' +
+        '<div class="ir-meta">' + esc(a.status) + ' · aaj ' + esc(a.todayActions) + ' actions, ' + esc(a.todayErrors) + ' errors</div></div>';
+    }).join("") || '<div class="empty-note">Is room me koi agent nahi.</div>';
+    body.innerHTML =
+      '<div class="panel-title">' + esc(room.emoji) + ' ' + esc(room.name) + '</div>' +
+      '<div class="panel-sub">' + esc(room.purpose) + '</div>' +
+      '<div class="panel-stats">' +
+        '<div class="panel-stat">Active<br><b>' + esc(room.activeTaskCount) + '</b></div>' +
+        '<div class="panel-stat">Blocked<br><b>' + esc(room.blockedTaskCount) + '</b></div>' +
+        '<div class="panel-stat">Errors<br><b>' + esc(room.errorCount) + '</b></div>' +
+        '<div class="panel-stat">Approvals<br><b>' + esc(room.approvalCount) + '</b></div>' +
+      '</div>' +
+      '<div class="panel-events">' + agentsHtml + '</div>';
+  };
+
+  // ---- Approvals panel (reuses the EXISTING growth-approvals cockpit API) --
+  OFFICE.lastApprovals = [];
+  OFFICE.renderApprovals = function(approvals){
+    var el = document.getElementById("approvalsList");
+    var drafts = (approvals && approvals.drafts) || [];
+    OFFICE.lastApprovals = drafts;
+    if (!drafts.length) { el.innerHTML = '<div class="empty-note">Koi approval pending nahi hai.</div>'; return; }
+    el.innerHTML = drafts.slice(0, 8).map(function(d){
+      return '<div class="appr-row" data-source="' + esc(d.source) + '" data-id="' + esc(d.id) + '">' +
+        '<div class="appr-title">' + esc(d.title || d.id) + '</div>' +
+        '<button class="appr-btn appr-approve" data-decision="approve">✓</button>' +
+        '<button class="appr-btn appr-reject" data-decision="reject">✕</button>' +
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll(".appr-row"), function(row){
+      row.onclick = function(){ OFFICE.openApprovalPanel(row.getAttribute("data-source"), row.getAttribute("data-id")); };
+    });
+    Array.prototype.forEach.call(el.querySelectorAll(".appr-btn"), function(btn){
+      btn.onclick = async function(evt){
+        evt.stopPropagation();
+        var row = btn.closest(".appr-row");
+        var source = row.getAttribute("data-source"), id = row.getAttribute("data-id");
+        var decision = btn.getAttribute("data-decision");
+        btn.disabled = true;
+        try {
+          await fetch("/api/growth/approvals/drafts/" + encodeURIComponent(source) + "/" + encodeURIComponent(id) + "/decide", {
+            method: "POST", headers: hdrs(true), body: JSON.stringify({ decision: decision })
+          });
+        } catch (e) { /* best-effort — snapshot refresh will show the true state */ }
+        OFFICE.refreshSnapshot();
+      };
+    });
+  };
+
+  // ---- Approval detail drawer (full body/meta + approve/reject) ------------
+  OFFICE.openApprovalPanel = function(source, id){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    panel.classList.remove("panel-hidden");
+    var draft = OFFICE.lastApprovals.filter(function(d){ return d.source === source && String(d.id) === String(id); })[0];
+    if (!draft) { body.innerHTML = "Approval draft nahi mila."; return; }
+    body.innerHTML =
+      '<div class="panel-title">' + esc(draft.title || draft.id) + '</div>' +
+      '<div class="panel-sub">Source: ' + esc(draft.source) + ' · Status: ' + esc(draft.status || "pending") + '</div>' +
+      '<div class="panel-events"><div class="item-row">' + esc(draft.body || "(no preview available)").slice(0, 2000) + '</div></div>' +
+      '<div class="panel-actions">' +
+        '<button id="apprApproveBtn">✓ Approve</button>' +
+        '<button id="apprRejectBtn" style="background:#ef4444">✕ Reject</button>' +
+      '</div>';
+    var mkHandler = function(decision){
+      return async function(){
+        await fetch("/api/growth/approvals/drafts/" + encodeURIComponent(source) + "/" + encodeURIComponent(id) + "/decide", {
+          method: "POST", headers: hdrs(true), body: JSON.stringify({ decision: decision })
+        });
+        document.getElementById("agentPanel").classList.add("panel-hidden");
+        OFFICE.refreshSnapshot();
+      };
+    };
+    document.getElementById("apprApproveBtn").onclick = mkHandler("approve");
+    document.getElementById("apprRejectBtn").onclick = mkHandler("reject");
+  };
+
+  var HEALTH_COLOR = { ok: "#10b981", overdue: "#f59e0b", last_failed: "#ef4444", never_ran: "#94a3b8", scheduled_off: "#cbd5e1" };
+  OFFICE.lastHealthJobs = [];
+  OFFICE.renderSystemHealth = function(health){
+    var el = document.getElementById("healthList");
+    var jobs = (health && health.jobs) || [];
+    OFFICE.lastHealthJobs = jobs;
+    var problems = jobs.filter(function(j){ return j.status === "overdue" || j.status === "last_failed"; });
+    var q = (health && health.queue) || {};
+    var rows = problems.slice(0, 8).map(function(j){
+      return '<div class="health-row clickable" data-job="' + esc(j.job) + '"><span class="health-dot" style="background:' + (HEALTH_COLOR[j.status] || "#94a3b8") + '"></span>' +
+        esc(j.job) + ' — ' + esc(j.status) + '</div>';
+    }).join("");
+    var queueLine = '<div class="health-row"><span class="health-dot" style="background:' + ((q.dlq || 0) > 0 ? "#ef4444" : "#10b981") + '"></span>' +
+      'Queue: celery=' + esc(q.celery != null ? q.celery : "-") + ' · dlq=' + esc(q.dlq != null ? q.dlq : "-") + '</div>';
+    el.innerHTML = queueLine + (rows || '<div class="empty-note">Koi overdue/failed job nahi — sab healthy hai.</div>');
+    Array.prototype.forEach.call(el.querySelectorAll(".health-row.clickable"), function(row){
+      row.onclick = function(){ OFFICE.openHealthPanel(row.getAttribute("data-job")); };
+    });
+  };
+
+  OFFICE.openHealthPanel = function(job){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    panel.classList.remove("panel-hidden");
+    var j = OFFICE.lastHealthJobs.filter(function(x){ return x.job === job; })[0];
+    if (!j) { body.innerHTML = "Job nahi mila."; return; }
+    body.innerHTML =
+      '<div class="panel-title">🛠️ ' + esc(job) + '</div>' +
+      '<div class="panel-sub">Status: ' + esc(j.status) + (j.last_run ? (" · Last run: " + esc(relTime(j.last_run))) : "") + '</div>' +
+      '<div class="empty-note">Yeh scheduled automation job hai (team_scheduler.py). Overdue/failed hone par worker/scheduler container check karo (/app/automation).</div>';
+  };
+
+  // ---- Live event feed: filters (All/Leads/Voice/Marketing/Sales/Billing/
+  // Approvals/Errors/System) computed client-side from each event's room. ----
+  OFFICE.FILTERS = ["All", "Leads", "Voice", "Marketing", "Sales", "Billing", "Approvals", "Errors", "System"];
+  OFFICE.activeFilter = "All";
+  OFFICE.allEvents = [];
+
+  OFFICE.eventCategory = function(e){
+    if (e.status === "error") return "Errors";
+    if (/approv/i.test((e.action || "") + " " + (e.detail || ""))) return "Approvals";
+    var room = OFFICE.agentRoom[e.member] || "";
+    if (room === "lead_lab") return "Leads";
+    if (room === "voice_team") return "Voice";
+    if (room === "marketing_team") return "Marketing";
+    if (room === "sales_crm") return "Sales";
+    if (room === "admin_finance") return "Billing";
+    return "System";
+  };
+
+  OFFICE.renderFilters = function(){
+    var el = document.getElementById("filterRow");
+    el.innerHTML = OFFICE.FILTERS.map(function(f){
+      return '<button class="filter-btn' + (f === OFFICE.activeFilter ? " active" : "") + '" data-f="' + f + '">' + f + '</button>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll(".filter-btn"), function(btn){
+      btn.onclick = function(){ OFFICE.activeFilter = btn.getAttribute("data-f"); OFFICE.renderTicker(OFFICE.allEvents); };
+    });
+  };
+
+  OFFICE.renderTicker = function(events){
+    OFFICE.renderFilters();
+    var list = document.getElementById("tickerList");
+    var filtered = OFFICE.activeFilter === "All" ? events : events.filter(function(e){ return OFFICE.eventCategory(e) === OFFICE.activeFilter; });
+    var top = filtered.slice(0, 25);
+    list.innerHTML = top.map(function(e, idx){
+      var sevColor = e.status === "error" ? "#ef4444" : (e.status === "warn" ? "#f59e0b" : "#10b981");
+      return '<div class="ticker-row clickable" data-idx="' + idx + '"><div class="sev-dot" style="background:' + sevColor + '"></div>' +
+        '<div class="ticker-time">' + esc(relTime(e.at)) + '</div>' +
+        '<div class="ticker-who">' + esc(e.emoji || "🤖") + ' ' + esc(e.name || e.member) + '</div>' +
+        '<div class="ticker-what">' + esc(e.detail || e.action) + '</div>' +
+      '</div>';
+    }).join("") || '<div class="ticker-row"><div class="ticker-what">"' + esc(OFFICE.activeFilter) + '" me abhi koi activity nahi.</div></div>';
+    Array.prototype.forEach.call(list.querySelectorAll(".ticker-row.clickable"), function(row){
+      row.onclick = function(){
+        var e = top[parseInt(row.getAttribute("data-idx"), 10)];
+        if (e && e.member) OFFICE.openAgentPanel(e.member);
+      };
+    });
+  };
+
+  // ---- Speech bubble + workflow token (unchanged behaviour) ------------------
+  OFFICE.spawnBubble = function(memberKey, text){
+    var av = OFFICE.avatars[memberKey];
+    if (!av || !OFFICE.scene) return;
+    var scene = OFFICE.scene;
+    var short = String(text || "").slice(0, 36);
+    var t = scene.add.text(av.homeX, av.homeY - 26, short, {
+      fontSize: "10px", fontFamily: "sans-serif", color: "#1e1b2e",
+      backgroundColor: "#ffffff", padding: { x: 6, y: 3 }
+    }).setOrigin(0.5, 1).setDepth(50);
+    scene.tweens.add({
+      targets: t, alpha: 0, y: t.y - 14, duration: 1200, delay: 4200,
+      onComplete: function(){ t.destroy(); }
+    });
+  };
+
+  OFFICE.COORD_ACTIONS = { coordinated_step: 1, fanout_step: 1, hier_step: 1, adv_step: 1, av_contrib: 1 };
+
+  OFFICE.spawnWorkflowToken = function(fromKey, toKey){
+    var from = OFFICE.avatars[fromKey], to = OFFICE.avatars[toKey];
+    if (!from || !to || !OFFICE.scene) return;
+    var scene = OFFICE.scene;
+    var dot = scene.add.circle(from.homeX, from.homeY - 18, 6, 0xfbbf24).setStrokeStyle(2, 0x92400e).setDepth(60);
+    var pulse = scene.add.circle(from.homeX, from.homeY - 18, 10, 0xfbbf24, 0.35).setDepth(59);
+    scene.tweens.add({ targets: pulse, radius: 20, alpha: 0, duration: 500, onComplete: function(){ pulse.destroy(); } });
+    scene.tweens.add({
+      targets: dot,
+      x: to.homeX, y: to.homeY - 18,
+      duration: 900, ease: "Cubic.easeInOut",
+      onComplete: function(){
+        var ring = scene.add.circle(to.homeX, to.homeY - 18, 8, 0xfbbf24, 0.4).setDepth(59);
+        scene.tweens.add({ targets: ring, radius: 18, alpha: 0, duration: 450, onComplete: function(){ ring.destroy(); } });
+        dot.destroy();
+      }
+    });
+  };
+
+  OFFICE.seenEventIds = {};
+  OFFICE.eventsSeeded = false;
+
+  OFFICE.pollEvents = async function(){
+    var events = await OFFICE.fetchEvents(60);
+    OFFICE.allEvents = events;
+    OFFICE.renderTicker(events);
+    if (!OFFICE.eventsSeeded){
+      events.forEach(function(e){ OFFICE.seenEventIds[e.id] = true; });
+      OFFICE.eventsSeeded = true;
+      return;
+    }
+    var fresh = events.filter(function(e){ return !OFFICE.seenEventIds[e.id]; });
+    fresh.slice().reverse().forEach(function(e){
+      OFFICE.seenEventIds[e.id] = true;
+      OFFICE.spawnBubble(e.member, e.detail || e.action);
+      if (OFFICE.COORD_ACTIONS[e.action] && e.member !== "manager") {
+        OFFICE.spawnWorkflowToken("manager", e.member);
+      }
+    });
+  };
+
+  // ---- Click-to-expand agent panel (incl. real "Run now" for wired agents) --
   OFFICE.openAgentPanel = async function(key){
     var panel = document.getElementById("agentPanel");
     var body = document.getElementById("panelBody");
     panel.classList.remove("panel-hidden");
     body.innerHTML = "Loading…";
-    var member = (OFFICE.lastData && OFFICE.lastData.members || []).filter(function(m){ return m.key === key; })[0];
+    var member = OFFICE.agentByKey[key];
     var eventsHtml = "";
     try {
       var r = await fetch("/api/platform/team/events?member=" + encodeURIComponent(key) + "&limit=8", { headers: hdrs() });
@@ -429,15 +932,63 @@
       '<div class="panel-sub">' + esc(member.title) + '</div>' +
       '<div class="panel-sub">' + esc(member.duties) + '</div>' +
       '<div class="panel-stats">' +
-        '<div class="panel-stat">State<br><b>' + esc(member.state) + '</b></div>' +
-        '<div class="panel-stat">Aaj actions<br><b>' + esc(member.today_actions) + '</b></div>' +
-        '<div class="panel-stat">Aaj errors<br><b>' + esc(member.today_errors) + '</b></div>' +
+        '<div class="panel-stat">State<br><b>' + esc(member.status) + '</b></div>' +
+        '<div class="panel-stat">Aaj actions<br><b>' + esc(member.todayActions) + '</b></div>' +
+        '<div class="panel-stat">Aaj errors<br><b>' + esc(member.todayErrors) + '</b></div>' +
       '</div>' +
+      '<div class="panel-actions">' +
+        '<button id="runNowBtn"' + (member.runnable && !member.paused ? "" : " disabled") +
+          (member.runnable ? "" : ' title="Manual run wired nahi hai is agent ke liye"') +
+          (member.paused ? ' title="Paused — resume karo pehle"' : "") + '>▶ Run now</button>' +
+        (member.runnable ?
+          '<button id="pauseResumeBtn">' + (member.paused ? "▶ Resume" : "⏸ Pause") + '</button>' :
+          '<button disabled title="Pause sirf manual-run-wired agents ke liye hai">⏸ Pause</button>') +
+      '</div>' +
+      (member.runnable ? '<div class="panel-sub">Pause = sirf "Run now" block karta hai (scheduled automation par asar nahi — scheduler alag path use karta hai).</div>' : '') +
       '<div class="panel-events">' + eventsHtml + '</div>';
+    var runBtn = document.getElementById("runNowBtn");
+    if (runBtn && member.runnable && !member.paused) {
+      runBtn.onclick = async function(){
+        runBtn.disabled = true; runBtn.textContent = "Running…";
+        try {
+          await fetch("/api/platform/team/run/" + encodeURIComponent(key), { method: "POST", headers: hdrs() });
+        } catch (e) { /* best-effort */ }
+        runBtn.textContent = "✓ Triggered";
+        OFFICE.pollEvents();
+      };
+    }
+    var pauseBtn = document.getElementById("pauseResumeBtn");
+    if (pauseBtn) {
+      pauseBtn.onclick = async function(){
+        pauseBtn.disabled = true;
+        var action = member.paused ? "resume" : "pause";
+        try {
+          await fetch("/api/platform/office/agents/" + encodeURIComponent(key) + "/" + action, {
+            method: "POST", headers: hdrs()
+          });
+        } catch (e) { /* best-effort */ }
+        await OFFICE.refreshSnapshot();
+        OFFICE.openAgentPanel(key);
+      };
+    }
   };
 
   document.getElementById("panelClose").onclick = function(){
     document.getElementById("agentPanel").classList.add("panel-hidden");
+  };
+  document.getElementById("bannerRetry").onclick = function(){ OFFICE.refreshSnapshot(); };
+
+  OFFICE.lastSnapshot = null;
+  OFFICE.refreshSnapshot = async function(){
+    var data = await OFFICE.fetchSnapshot();
+    if (!data) return;
+    OFFICE.lastSnapshot = data;
+    OFFICE.renderMembers(data);
+    OFFICE.renderMetrics(data.metrics);
+    OFFICE.renderNextActions(data.next_best_actions);
+    OFFICE.renderPipeline(data.pipeline);
+    OFFICE.renderApprovals(data.approvals);
+    OFFICE.renderSystemHealth(data.system_health);
   };
 
   OFFICE.game = new Phaser.Game({
@@ -454,7 +1005,6 @@
           var n = i < 10 ? "0" + i : "" + i;
           this.load.image("char" + i, "/design-system/vendor/office-sprites/char_" + n + ".png");
         }
-        // Room/furniture tiles — Kenney "Roguelike/RPG Pack" (CC0), see CREDITS.txt.
         ["floor_stone_grey", "floor_stone_cream", "rug_teal", "rug_orange", "rug_purple",
          "rug_cyan", "desk_1", "desk_2", "desk_corner", "chair", "bookshelf", "cabinet",
          "plant", "plant_flower", "painting", "door_arch"].forEach(function(name){
@@ -464,25 +1014,14 @@
       create: function(){
         OFFICE.scene = this;
         OFFICE.drawRooms();
-        OFFICE.fetchTeam().then(function(data){
-          OFFICE.lastData = data;
-          OFFICE.renderMembers(data);
+        OFFICE.refreshSnapshot().then(function(){
           OFFICE.pollEvents(); // avatars must exist first (bubbles/tokens anchor to them)
         });
       }
     }
   });
 
-  setInterval(function(){
-    OFFICE.fetchTeam().then(function(data){
-      if (!data) return; // fetchTeam already showed the error banner
-      OFFICE.lastData = data;
-      OFFICE.renderMembers(data);
-    });
-  }, 25000);
-
-  // Faster cadence than the roster poll — roster composition rarely changes,
-  // but "what's happening right now" (the whole point of this ask) should feel live.
+  setInterval(function(){ OFFICE.refreshSnapshot(); }, 25000);
   setInterval(function(){ OFFICE.pollEvents(); }, 8000);
 </script>
 </body>

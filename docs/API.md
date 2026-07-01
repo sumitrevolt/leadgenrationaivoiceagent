@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1027 operations)
+## Endpoint Index — auto-generated from OpenAPI (1036 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -896,7 +896,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (57)
+### Frontend  (58)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
@@ -930,6 +930,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/login` — Customer Login Page
 - `GET   ` `/app/marketing` — Marketing Page
 - `GET   ` `/app/minisite-builder` — Minisite Builder Page
+- `GET   ` `/app/office` — Office Map Page
 - `GET   ` `/app/onboard` — Onboard Page
 - `GET   ` `/app/ops` — Ops Page
 - `GET   ` `/app/outreach` — Outreach Page
@@ -1396,6 +1397,17 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/niche/schemas` — All niche schemas
 - `GET   ` `/api/niche/stats` — Niche prospects stats
 - `GET   ` `/api/niche/voice-niches` — All voice niches list
+
+### Operating HQ  (8)
+
+- `POST  ` `/api/platform/office/agents/{member}/pause` — Office Pause Agent
+- `POST  ` `/api/platform/office/agents/{member}/resume` — Office Resume Agent
+- `POST  ` `/api/platform/office/pipeline/item/{item_id}/assign` — Office Assign Owner
+- `POST  ` `/api/platform/office/pipeline/item/{item_id}/move` — Office Move Item
+- `POST  ` `/api/platform/office/pipeline/item/{item_id}/next-action` — Office Set Next Action
+- `POST  ` `/api/platform/office/pipeline/item/{item_id}/resolve-stuck` — Office Resolve Stuck
+- `GET   ` `/api/platform/office/pipeline/{stage_id}` — Office Pipeline Stage
+- `GET   ` `/api/platform/office/snapshot` — Office Snapshot
 
 ### OrchestrationExt  (4)
 
