@@ -12,6 +12,13 @@ from sqlalchemy.orm import relationship
 from app.models.base import Base
 
 
+def _enum_values(enum_cls):
+    """values_callable so the DB stores .value not .name — VARCHAR-backed
+    (native_enum=False), matching app/models/payment.py (production audit
+    2026-07-01, F-DB4)."""
+    return [member.value for member in enum_cls]
+
+
 class SubscriptionPlan(enum.Enum):
     """Subscription plan enum"""
 
@@ -59,8 +66,14 @@ class Client(Base):
     gst_number = Column(String(20))
 
     # Subscription
-    plan = Column(Enum(SubscriptionPlan), default=SubscriptionPlan.STARTER)
-    status = Column(Enum(ClientStatus), default=ClientStatus.TRIAL)
+    plan = Column(
+        Enum(SubscriptionPlan, native_enum=False, values_callable=_enum_values),
+        default=SubscriptionPlan.STARTER,
+    )
+    status = Column(
+        Enum(ClientStatus, native_enum=False, values_callable=_enum_values),
+        default=ClientStatus.TRIAL,
+    )
 
     # Plan limits
     monthly_call_limit = Column(Integer, default=1000)

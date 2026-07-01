@@ -4,8 +4,10 @@
 #
 #   * pg_dump (custom format, compressed) from the leadgen_db container
 #   * keeps 30 days locally in /opt/leadgen/backups
-#   * OPTIONAL offsite copy to free object storage (Cloudflare R2 / Backblaze B2)
-#     via rclone — only runs if an rclone remote is configured.
+#   * OPTIONAL offsite copy via rclone — only runs if an rclone remote is
+#     configured. Any rclone remote works (Cloudflare R2 / Backblaze B2 /
+#     Google Drive / etc.) — see deploy/offsite/rclone.conf.example for setup
+#     of all three, including the Google Drive OAuth steps.
 #
 # Cron (run as root on the VPS):
 #   30 2 * * *  /opt/leadgen/scripts/pg_backup.sh >> /var/log/leadgen_backup.log 2>&1
@@ -21,7 +23,7 @@ PG_USER="${POSTGRES_USER:-leadgen}"
 PG_DB="${POSTGRES_DB:-leadgen}"
 BACKUP_DIR="${BACKUP_DIR:-/opt/leadgen/backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
-# Set RCLONE_REMOTE (e.g. "r2:leadgen-backups") to enable offsite copy.
+# Set RCLONE_REMOTE (e.g. "r2:leadgen-backups" / "gdrive:leadgen-backups") to enable offsite copy.
 RCLONE_REMOTE="${RCLONE_REMOTE:-}"
 
 STAMP="$(date +%Y%m%d_%H%M)"
@@ -44,8 +46,12 @@ echo "[$(date -Is)] pruned local backups older than ${RETENTION_DAYS}d"
 if [[ -n "${RCLONE_REMOTE}" ]] && command -v rclone >/dev/null 2>&1; then
   echo "[$(date -Is)] offsite copy -> ${RCLONE_REMOTE}"
   rclone copy "${OUT}" "${RCLONE_REMOTE}/" --no-traverse
-  # Mirror retention offsite (best-effort)
-  rclone delete "${RCLONE_REMOTE}/" --min-age "${RETENTION_DAYS}d" || true
+  # Mirror retention offsite (best-effort). --include scopes this to ONLY DB
+  # dumps — scripts/data_backup_rclone.sh shares this same RCLONE_REMOTE with
+  # a shorter 7-day retention; an unscoped delete here would be harmless (30d
+  # cap is looser), but the reverse direction is a real bug — kept scoped on
+  # both sides for symmetry/clarity.
+  rclone delete "${RCLONE_REMOTE}/" --min-age "${RETENTION_DAYS}d" --include "leadgen_*.dump.gz" || true
   echo "[$(date -Is)] offsite ok"
 else
   echo "[$(date -Is)] offsite skipped (set RCLONE_REMOTE + install rclone to enable)"

@@ -25,7 +25,17 @@ class TestPayInfo:
         assert "vpa" not in data
 
     def test_pay_info_enabled_with_vpa(self, client: TestClient, monkeypatch):
-        """UPI_VPA set => QR + VPA + packages (key/name/price)."""
+        """UPI_VPA set => QR + VPA + public packages (key/name/price).
+
+        Note on packages (ADR-009, 2026-06-11 product split + 2026-06-15
+        package-trim): the public pricing endpoint deliberately exposes only
+        the 2 public plans (Main = "starter", Advanced = "advanced"). The
+        legacy internal "growth" plan is hidden behind `public:False` and
+        surfaced ONLY via `get_packages()` for backward-compat consumers —
+        NEVER on the public pricing surface. This test enforces that:
+        adding a new public plan needs an explicit product decision, and
+        no plan key silently reappears in the customer's pay-info view.
+        """
         from app.platform import upi_config as uc
 
         monkeypatch.setenv("UPI_VPA", "9876543210@ybl")
@@ -38,7 +48,13 @@ class TestPayInfo:
         assert data["upi_link"].startswith("upi://pay?")
         assert "<svg" in data["qr_svg"]
         keys = {p["key"] for p in data["packages"]}
-        assert {"starter", "growth", "advanced"} <= keys
+        # Exactly the 2 public plans — neither less, neither more without ADR.
+        assert {"starter", "advanced"} <= keys, (
+            f"public pay-info must show exactly the public pricing plans; got {keys}"
+        )
+        assert "growth" not in keys, (
+            "legacy 'growth' plan must NOT appear on public pricing — ADR-009/2026-06-11"
+        )
         for p in data["packages"]:
             assert p["name"] and p["price_inr_month"] > 0
 

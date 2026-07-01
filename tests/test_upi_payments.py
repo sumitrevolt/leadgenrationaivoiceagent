@@ -62,7 +62,7 @@ def test_decide_approve_flips_to_approved(up, monkeypatch):
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: calls.append((cid, plan)) or True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
 
-    sub = up.submit_payment("cli_9", "advanced", "TXN999")
+    sub = up.submit_payment("cli_9", "advanced", "TXN999", amount=5999)
     rec = up.decide(sub["id"], True, decided_by="boss")
     assert rec["status"] == "approved"
     assert rec["decided_by"] == "boss"
@@ -90,7 +90,7 @@ def test_auto_activate_flag(up, monkeypatch):
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
 
-    out = up.submit_payment("cli_auto", "growth", "TXNAUTO")
+    out = up.submit_payment("cli_auto", "growth", "TXNAUTO", amount=2999)
     assert out["ok"] is True
     assert out["status"] == "auto_activated"
     assert out["auto_activated"] is True
@@ -113,7 +113,7 @@ def test_auto_activate_skipped_without_client(up, monkeypatch):
 
 def test_decide_approve_triggers_onboarding(up, monkeypatch):
     """Admin approve → plan activates → onboarding is front-run (no <=1h wait)."""
-    monkeypatch.setattr(up, "_try_activate", lambda cid, plan: True)
+    monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0: True)
     fired: list[int] = []
     monkeypatch.setattr(up, "_trigger_onboarding", lambda: fired.append(1))
 
@@ -124,7 +124,7 @@ def test_decide_approve_triggers_onboarding(up, monkeypatch):
 
 def test_decide_reject_no_onboarding(up, monkeypatch):
     """Reject must NOT trigger onboarding."""
-    monkeypatch.setattr(up, "_try_activate", lambda cid, plan: True)
+    monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0: True)
     fired: list[int] = []
     monkeypatch.setattr(up, "_trigger_onboarding", lambda: fired.append(1))
 
@@ -143,7 +143,7 @@ def test_auto_activate_triggers_onboarding(up, monkeypatch):
     fired: list[int] = []
     monkeypatch.setattr(up, "_trigger_onboarding", lambda: fired.append(1))
 
-    out = up.submit_payment("cli_auto_ob", "growth", "TXNAUTOOB")
+    out = up.submit_payment("cli_auto_ob", "growth", "TXNAUTOOB", amount=2999)
     assert out["status"] == "auto_activated"
     assert fired == [1]
 
@@ -186,6 +186,39 @@ def test_decide_approve_resets_usage_period(up, monkeypatch):
     resets: list[str] = []
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: resets.append(cid) or True)
 
-    sub = up.submit_payment("cli_reset", "advanced", "TXNRESET")
+    sub = up.submit_payment("cli_reset", "advanced", "TXNRESET", amount=5999)
     up.decide(sub["id"], True, decided_by="boss")
     assert resets == ["cli_reset"]
+
+
+def test_auto_activate_rejects_fabricated_low_amount(up, monkeypatch):
+    """Production audit 2026-07-01: UPI_AUTO_ACTIVATE only checked the plan key,
+    not the paid amount — a self-serve submission claiming amount:0 (or any
+    amount below the plan's real price) could auto-activate a paid plan for
+    free. Must stay pending, not silently provision."""
+    from app.billing import usage
+
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    calls: list[tuple] = []
+    monkeypatch.setattr(
+        usage, "activate_plan", lambda cid, plan, **kw: calls.append((cid, plan)) or True
+    )
+
+    # advanced plan costs ₹5999 — submitting ₹0 must NOT activate it.
+    out = up.submit_payment("cli_cheap", "advanced", "TXNCHEAP", amount=0)
+    assert out["status"] == "pending"
+    assert out["auto_activated"] is False
+    assert calls == [], "activate_plan must NEVER be called for a below-price amount"
+
+
+def test_auto_activate_accepts_real_amount(up, monkeypatch):
+    """Sanity check: the fix doesn't break the legitimate case — a real,
+    at-or-above-price amount still auto-activates."""
+    from app.billing import usage
+
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
+    monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
+
+    out = up.submit_payment("cli_real", "advanced", "TXNREAL", amount=5999)
+    assert out["status"] == "auto_activated"

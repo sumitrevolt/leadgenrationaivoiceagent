@@ -4,12 +4,13 @@ Production monitoring and health checks
 """
 
 import asyncio
+import hmac
 import os
 import sys
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from app.config import settings
 from app.utils.logger import setup_logger
@@ -20,6 +21,32 @@ router = APIRouter(tags=["Health"])
 
 # Track startup time
 _startup_time = datetime.utcnow()
+
+
+async def _require_metrics_auth(request: Request) -> None:
+    """Optional bearer-token gate for /metrics + /health/deep.
+
+    ARMED only when METRICS_TOKEN is set — default unset means today's open
+    behavior is UNCHANGED (internal Prometheus scraping, monitoring/prometheus.yml,
+    has no auth token configured, so locking this down unconditionally would break
+    it). Both endpoints return real business/operational counts with no auth, and
+    whether they're reachable from outside the Docker network depends on the
+    reverse-proxy config, which this audit could not verify (production audit
+    2026-07-01, low-severity finding). To lock down: set METRICS_TOKEN in .env AND
+    add the same value as a bearer_token in monitoring/prometheus.yml's scrape
+    config for the `leadgen_app` job, so internal scraping keeps working.
+    """
+    token = (os.environ.get("METRICS_TOKEN") or "").strip()
+    if not token:
+        return  # inert until armed — zero behavior change by default
+    auth_header = request.headers.get("authorization", "")
+    provided = (
+        auth_header[7:]
+        if auth_header.lower().startswith("bearer ")
+        else request.headers.get("x-metrics-token", "")
+    )
+    if not hmac.compare_digest((provided or "").strip(), token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 def _get_uptime() -> str:
@@ -109,7 +136,7 @@ async def readiness_check(response: Response) -> dict[str, Any]:
     return result
 
 
-@router.get("/health/deep")
+@router.get("/health/deep", dependencies=[Depends(_require_metrics_auth)])
 async def deep_health_check() -> dict[str, Any]:
     """
     Deep health check with detailed diagnostics
@@ -314,7 +341,7 @@ async def api_status() -> dict[str, Any]:
     }
 
 
-@router.get("/metrics")
+@router.get("/metrics", dependencies=[Depends(_require_metrics_auth)])
 async def prometheus_metrics():
     """
     Prometheus-compatible metrics endpoint

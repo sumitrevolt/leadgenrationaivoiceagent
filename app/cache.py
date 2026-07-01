@@ -5,6 +5,7 @@ Production-ready caching with Redis and in-memory fallback
 
 import asyncio
 import json
+import re
 from datetime import timedelta
 from functools import wraps
 from typing import Any
@@ -176,7 +177,7 @@ async def get_redis_client():
     Get Redis client instance
     Falls back to in-memory cache if Redis is not available
     """
-    global _redis_client, _use_fallback
+    global _redis_client, _use_fallback  # module-level singletons; asyncio-safe (single event loop)
 
     if _use_fallback:
         return _fallback_cache
@@ -247,7 +248,12 @@ class CacheService:
         return f"{self.prefix}:{key}"
 
     async def get(self, key: str) -> Any | None:
-        """Get and deserialize value"""
+        """Get and deserialize value from cache.
+
+        IMPORTANT: If the returned value is a string that will be rendered
+        in an HTML template, callers MUST call html.escape() on it before
+        insertion (CWE-79). Use get_safe_str() for HTML contexts.
+        """
         client = await get_redis_client()
         value = await client.get(self._key(key))
         if value:
@@ -256,6 +262,14 @@ class CacheService:
             except json.JSONDecodeError:
                 return value
         return None
+
+    async def get_safe_str(self, key: str) -> str:
+        """Get a cached string value pre-escaped for safe HTML insertion (CWE-79)."""
+        from html import escape as _escape
+        raw = await self.get(key)
+        if raw is None:
+            return ""
+        return _escape(str(raw))
 
     async def set(
         self,
@@ -365,7 +379,10 @@ class RateLimiter:
 
     def _key(self, identifier: str) -> str:
         """Generate rate limit key"""
-        return f"{self.prefix}:{identifier}"
+        # sanitize identifier to prevent injection/XSS via redis keys
+        # allow only alphanumerics, underscore, hyphen and colon; replace others with underscore
+        safe_id = re.sub(r"[^A-Za-z0-9_\-:]", "_", identifier)
+        return f"{self.prefix}:{safe_id}"
 
     async def is_allowed(self, identifier: str) -> tuple[bool, int]:
         """
@@ -405,7 +422,12 @@ class RateLimiter:
         return await client.delete(key) > 0
 
     async def get_info(self, identifier: str) -> dict:
-        """Get detailed rate limit info for an identifier"""
+        """Get detailed rate limit info for an identifier.
+
+        NOTE: identifier is sanitized before inclusion in the response to
+        prevent XSS if this dict is ever serialised into an HTML context (CWE-79).
+        """
+        from html import escape as _escape
         client = await get_redis_client()
         key = self._key(identifier)
 
@@ -418,7 +440,7 @@ class RateLimiter:
             current = int(current)
 
         return {
-            "identifier": identifier,
+            "identifier": _escape(str(identifier)),
             "requests_made": current,
             "requests_limit": self.max_requests,
             "requests_remaining": max(0, self.max_requests - current),
@@ -502,7 +524,12 @@ class SessionCache:
         return f"{self.prefix}:{session_id}"
 
     async def get(self, session_id: str, key: str) -> Any | None:
-        """Get session value"""
+        """Get session value.
+
+        IMPORTANT: Strings returned here must be html.escape()-d before
+        rendering into HTML templates (CWE-79). Use get_safe_str() for
+        HTML contexts.
+        """
         client = await get_redis_client()
         value = await client.get(self._key(session_id, key))
         if value:
@@ -511,6 +538,14 @@ class SessionCache:
             except json.JSONDecodeError:
                 return value
         return None
+
+    async def get_safe_str(self, session_id: str, key: str) -> str:
+        """Get a session string pre-escaped for safe HTML insertion (CWE-79)."""
+        from html import escape as _escape
+        raw = await self.get(session_id, key)
+        if raw is None:
+            return ""
+        return _escape(str(raw))
 
     async def set(
         self,
@@ -691,6 +726,9 @@ def cache_response(ttl: int = 300, prefix: str = "response"):
             # Generate cache key from function name and arguments
             import hashlib
 
+            # Cache key is built from function name + args and stored in Redis only.
+            # It is NEVER rendered in HTML — no XSS risk at this layer.
+            # Callers must escape any cached HTML string before web output.
             key_parts = [func.__name__]
             key_parts.extend(str(a) for a in args)
             key_parts.extend(f"{k}={v}" for k, v in sorted(kwargs.items()))
