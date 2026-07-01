@@ -315,8 +315,12 @@ async def optimize() -> dict[str, Any]:
         try:
             from app.platform import team
 
+            # "boss" is not a STAFF key ("manager" is) -- was silently invisible in
+            # team_status(). This IS genuinely manager-level work (whole-funnel
+            # strategy, calls coordinator.coordinate_advanced), so the owner stays
+            # Boss -- just the key needed fixing. Fixed 2026-07-01.
             team.log_event(
-                "boss",
+                "manager",
                 "growth_optimizer",
                 f"weakest={weak['stage']} | actions: {', '.join(actions) or 'none'} | {len(ideas)} new ideas",
                 meta={"reason": weak["reason"]},
