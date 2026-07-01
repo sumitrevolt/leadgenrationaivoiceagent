@@ -346,7 +346,10 @@ async def _run_job_inner(job: str) -> None:
 
                 _stl = speed_to_lead.summary(7)
                 if _stl.get("ok") and _stl.get("verdict"):
-                    team.log_event("boss", "speed_to_lead", f"⚡ {_stl['verdict']}")
+                    # STAFF key is "manager" (display name "Boss") — "boss" is not a
+                    # registered key, so this event was previously invisible on /app/team
+                    # (team_status() only looks up last_event by STAFF key). Fixed 2026-07-01.
+                    team.log_event("manager", "speed_to_lead", f"⚡ {_stl['verdict']}")
             except Exception:
                 pass
             try:
