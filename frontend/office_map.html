@@ -6,7 +6,10 @@
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
 <title>LeadGen AI — Virtual Office</title>
 <link rel="stylesheet" href="/design-system/styles.css" />
-<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+<!-- Vendored (not CDN) — phaser@3.80.1, MIT license, served from frontend/design-system/
+     (/design-system mount), same pattern as sigma/graphology/elkjs in control_center_graph.html.
+     Avoids a third-party CDN runtime dependency for a core admin page. -->
+<script src="/design-system/vendor/phaser.min.js"></script>
 <style>
   :root{
     --brand:#6d28d9; --brand-2:#4f46e5; --brand-soft:#ede9fe;
@@ -41,14 +44,160 @@
   <div id="wrap"><div id="stage"></div></div>
 <script>
   var OFFICE = {};
+
+  // ---- Auth (same localStorage key as every other admin page) -------------
+  function token(){ return localStorage.getItem("accessToken") || ""; }
+  function hdrs(){
+    var h = {};
+    var t = token();
+    if (t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+  function showBanner(msg){
+    document.getElementById("bannerMsg").textContent = msg;
+    document.getElementById("banner").style.display = "block";
+  }
+  function hideBanner(){ document.getElementById("banner").style.display = "none"; }
+
+  OFFICE.fetchTeam = async function(){
+    try {
+      var r = await fetch("/api/platform/team", { headers: hdrs() });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var data = await r.json();
+      hideBanner();
+      return data;
+    } catch (e) {
+      showBanner("Office data load nahi ho paya — retry karega automatically (25s me)");
+      return null;
+    }
+  };
+
+  // ---- Room layout (2x2-ish: Coordinator strip on top, 3 rooms below) -----
+  OFFICE.ROOMS = [
+    { id: "coordinator", label: "🧑‍💼 Coordinator Room", x: 0,   y: 0,   w: 1200, h: 130, fill: 0xede9fe, stroke: 0x8b5cf6 },
+    { id: "voice",       label: "📞 Voice Team",              x: 0,   y: 130, w: 400,  h: 690, fill: 0xdbeafe, stroke: 0x3b82f6 },
+    { id: "marketing",   label: "📣 Marketing Team",          x: 400, y: 130, w: 400,  h: 690, fill: 0xfce7f3, stroke: 0xec4899 },
+    { id: "platform",    label: "🛠️ Platform / Engineering",  x: 800, y: 130, w: 400,  h: 690, fill: 0xd1fae5, stroke: 0x10b981 }
+  ];
+
+  OFFICE.roomForMember = function(m){
+    if (m.key === "manager") return "coordinator";
+    if (m.product === "voice") return "voice";
+    if (m.product === "marketing") return "marketing";
+    return "platform";
+  };
+
+  OFFICE.drawRooms = function(){
+    var scene = OFFICE.scene;
+    OFFICE.ROOMS.forEach(function(room){
+      var g = scene.add.graphics();
+      g.fillStyle(room.fill, 1);
+      g.fillRoundedRect(room.x + 6, room.y + 6, room.w - 12, room.h - 12, 14);
+      g.lineStyle(3, room.stroke, 1);
+      g.strokeRoundedRect(room.x + 6, room.y + 6, room.w - 12, room.h - 12, 14);
+      scene.add.text(room.x + 20, room.y + 16, room.label, {
+        fontSize: "16px", fontFamily: "sans-serif", fontStyle: "bold", color: "#1e1b2e"
+      });
+    });
+  };
+
+  // ---- Staff avatars: real pixel-art character sprites -----------------------
+  // Kenney "RPG Urban Pack" (CC0, public domain) — 10 distinct character tiles,
+  // vendored at frontend/design-system/vendor/office-sprites/ (see CREDITS.txt).
+  // 31 staff cycle deterministically across these 10 looks (same person always
+  // gets the same look, but looks repeat — this is a real-asset compromise, not
+  // 31 unique custom sprites).
+  OFFICE.CHAR_COUNT = 10;
+  OFFICE.STATE_COLOR = { working: 0x10b981, active: 0xf59e0b, offline: 0x94a3b8 };
+  OFFICE.avatars = {};
+
+  OFFICE.charKeyFor = function(memberKey){
+    var h = 0;
+    for (var i = 0; i < memberKey.length; i++) h = (h * 31 + memberKey.charCodeAt(i)) >>> 0;
+    return "char" + ((h % OFFICE.CHAR_COUNT) + 1);
+  };
+
+  // Deterministic grid slots inside a room — scales to any member count so a
+  // 32nd STAFF entry later needs zero layout-code changes.
+  OFFICE.layoutSlots = function(room, count){
+    var padX = 24, padTop = 56, padBottom = 20;
+    var usableW = room.w - padX * 2;
+    var usableH = room.h - padTop - padBottom;
+    var cols = Math.max(1, Math.min(count, Math.floor(usableW / 72)));
+    var rows = Math.max(1, Math.ceil(count / cols));
+    var pitchX = usableW / cols;
+    var pitchY = Math.min(90, usableH / rows);
+    var slots = [];
+    for (var i = 0; i < count; i++){
+      var r = Math.floor(i / cols), c = i % cols;
+      slots.push({
+        x: room.x + padX + pitchX * c + pitchX / 2,
+        y: room.y + padTop + pitchY * r + pitchY / 2
+      });
+    }
+    return slots;
+  };
+
+  OFFICE.drawAvatar = function(m, slot){
+    var scene = OFFICE.scene;
+    var color = OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline;
+    // Desk (simple procedural shape — no matching free desk sprite found).
+    var desk = scene.add.graphics();
+    desk.fillStyle(0x92613a, 1);
+    desk.fillRoundedRect(slot.x - 24, slot.y + 14, 48, 12, 3);
+    // Character sprite (16x16 native, scaled up; pixelArt:true keeps it crisp).
+    var sprite = scene.add.image(slot.x, slot.y, OFFICE.charKeyFor(m.key)).setScale(2.4);
+    sprite.setInteractive({ useHandCursor: true });
+    sprite.on("pointerdown", function(){ OFFICE.openAgentPanel(m.key); }); // Task 4 defines this
+    // Status-color badge (small dot, bottom-right of sprite) instead of a full ring.
+    var badge = scene.add.circle(slot.x + 14, slot.y + 14, 6, color).setStrokeStyle(2, 0xffffff);
+    var label = scene.add.text(slot.x, slot.y + 30, m.name, {
+      fontSize: "11px", fontFamily: "sans-serif", color: "#1e293b"
+    }).setOrigin(0.5, 0);
+    return { desk: desk, sprite: sprite, badge: badge, label: label };
+  };
+
+  OFFICE.renderMembers = function(data){
+    if (!data || !data.members) return;
+    var byRoom = {};
+    OFFICE.ROOMS.forEach(function(r){ byRoom[r.id] = []; });
+    data.members.forEach(function(m){ byRoom[OFFICE.roomForMember(m)].push(m); });
+    OFFICE.ROOMS.forEach(function(room){
+      var members = byRoom[room.id];
+      var slots = OFFICE.layoutSlots(room, members.length);
+      members.forEach(function(m, i){
+        var existing = OFFICE.avatars[m.key];
+        if (existing) {
+          // Refresh path: just update the status-badge color, don't redraw.
+          existing.badge.setFillStyle(OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline);
+        } else {
+          OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, slots[i]);
+        }
+      });
+    });
+  };
+
   OFFICE.game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: "stage",
     width: 1200,
     height: 820,
     backgroundColor: "#f6f5fb",
+    pixelArt: true,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-    scene: { create: function(){ OFFICE.scene = this; } }
+    scene: {
+      preload: function(){
+        for (var i = 1; i <= OFFICE.CHAR_COUNT; i++){
+          var n = i < 10 ? "0" + i : "" + i;
+          this.load.image("char" + i, "/design-system/vendor/office-sprites/char_" + n + ".png");
+        }
+      },
+      create: function(){
+        OFFICE.scene = this;
+        OFFICE.drawRooms();
+        OFFICE.fetchTeam().then(function(data){ OFFICE.lastData = data; OFFICE.renderMembers(data); });
+      }
+    }
   });
 </script>
 </body>
