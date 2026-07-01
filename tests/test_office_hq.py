@@ -171,6 +171,73 @@ def test_pipeline_item_mutation_helpers_roundtrip(monkeypatch, tmp_path):
     assert "stuck_resolved_at" in ov
 
 
+async def test_safe_collect_live_stats_degrades_on_timeout(monkeypatch):
+    """Regression: _collect_live_stats() is SYNC and took 45s+ against real
+    prod data (2026-07-01 incident) — confirmed via a live VPS timing probe.
+    A slow/hanging call must degrade to {} within the timeout budget, never
+    hang the whole snapshot again."""
+    import time as _time
+
+    def _slow():
+        _time.sleep(2)
+        return {"real_calls_today": 5}
+
+    import app.api.admin_dashboard_builders as adb
+
+    monkeypatch.setattr(adb, "_collect_live_stats", _slow)
+    out = await office_hq._safe_collect_live_stats(timeout=0.2)
+    assert out == {}
+
+
+async def test_safe_collect_live_stats_returns_value_when_fast(monkeypatch):
+    import app.api.admin_dashboard_builders as adb
+
+    monkeypatch.setattr(adb, "_collect_live_stats", lambda: {"real_calls_today": 7})
+    out = await office_hq._safe_collect_live_stats(timeout=5)
+    assert out == {"real_calls_today": 7}
+
+
+async def test_safe_db_call_times_out_and_returns_none():
+    import asyncio
+
+    async def _slow():
+        await asyncio.sleep(2)
+        return "never"
+
+    out = await office_hq._safe_db_call(_slow(), timeout=0.2, label="test")
+    assert out is None
+
+
+async def test_build_metrics_accepts_prefetched_live_stats_without_refetching(monkeypatch):
+    """Regression: build_metrics/build_pipeline used to each call
+    _collect_live_stats() independently (2x cost). Passing a pre-fetched
+    live_stats dict must be used as-is, with zero additional calls."""
+    calls = {"n": 0}
+
+    async def _tracking_safe_collect(*a, **kw):
+        calls["n"] += 1
+        return {}
+
+    monkeypatch.setattr(office_hq, "_safe_collect_live_stats", _tracking_safe_collect)
+    out = await office_hq.build_metrics(live_stats={"real_calls_today": 9, "estimated_mrr": 500})
+    assert out["calls_completed_today"] == 9
+    assert out["mrr"] == 500
+    assert calls["n"] == 0  # never called _safe_collect_live_stats — used the pre-fetched dict
+
+
+async def test_build_snapshot_calls_collect_live_stats_only_once(monkeypatch):
+    calls = {"n": 0}
+    orig = office_hq._safe_collect_live_stats
+
+    async def _counting(*a, **kw):
+        calls["n"] += 1
+        return await orig(*a, **kw)
+
+    monkeypatch.setattr(office_hq, "_safe_collect_live_stats", _counting)
+    await office_hq.build_snapshot()
+    assert calls["n"] == 1
+
+
 def test_enum_value_unwraps_enum_member_not_str_repr():
     """Regression: str(SomeEnum.MEMBER) is 'ClassName.MEMBER' in Python, not the
     value — a real footgun for status/source comparisons. This locks the fix in."""

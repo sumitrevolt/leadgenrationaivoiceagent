@@ -20,6 +20,7 @@ Hard rules followed here (per user spec + advisor review):
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -149,6 +150,34 @@ def _today_start_utc() -> datetime:
     n = datetime.now(_IST)
     start_ist = n.replace(hour=0, minute=0, second=0, microsecond=0)
     return start_ist.astimezone(timezone.utc)
+
+
+async def _safe_collect_live_stats(timeout: float = 8.0) -> dict[str, Any]:
+    """`admin_dashboard_builders._collect_live_stats()` is SYNC and, against real
+    production data volume, can take 45s+ (confirmed 2026-07-01 prod incident —
+    it does a prospector scan + a per-client content-queue file-read loop).
+    Calling it directly blocks the event loop AND can hang the whole snapshot
+    indefinitely. Run it in a thread with a hard deadline — on timeout/failure
+    the snapshot degrades to zeros for these fields rather than never loading.
+    Called ONCE per snapshot (not once per build_metrics + once per
+    build_pipeline like before) — that alone halved the real cost."""
+    try:
+        from app.api.admin_dashboard_builders import _collect_live_stats
+
+        return await asyncio.wait_for(asyncio.to_thread(_collect_live_stats), timeout=timeout)
+    except Exception as e:
+        logger.warning(f"[office_hq] _collect_live_stats timed out/failed ({timeout}s budget): {e}")
+        return {}
+
+
+async def _safe_db_call(coro: Any, timeout: float = 8.0, label: str = "") -> Any:
+    """Bound any single DB round-trip so it can never hang the whole snapshot.
+    Returns None on timeout/failure (callers already treat None/empty as ok)."""
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout)
+    except Exception as e:
+        logger.warning(f"[office_hq] db call '{label}' timed out/failed ({timeout}s budget): {e}")
+        return None
 
 
 def room_for_member(key: str, product: str | None = None) -> str:
@@ -312,7 +341,7 @@ def build_rooms_and_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]
 # admin surface uses (admin_dashboard._collect_live_stats, sales_pipeline,
 # approvals_bridge, automation_health) rather than re-deriving any of them.
 # --------------------------------------------------------------------------- #
-async def build_metrics() -> dict[str, Any]:
+async def build_metrics(live_stats: dict[str, Any] | None = None) -> dict[str, Any]:
     out: dict[str, Any] = {
         "new_leads_today": 0, "qualified_leads_today": 0, "calls_completed_today": 0,
         "appointments_booked": 0, "campaigns_ready": 0, "payments_pending": 0,
@@ -320,9 +349,7 @@ async def build_metrics() -> dict[str, Any]:
         "system_issues": 0, "mrr": 0,
     }
     try:
-        from app.api.admin_dashboard_builders import _collect_live_stats
-
-        live = _collect_live_stats() or {}
+        live = live_stats if live_stats is not None else await _safe_collect_live_stats()
         out["calls_completed_today"] = int(live.get("real_calls_today") or 0)
         out["campaigns_ready"] = int(live.get("content_items_generated") or 0)
         out["active_customers"] = int(live.get("marketing_clients_active") or 0)
@@ -337,24 +364,27 @@ async def build_metrics() -> dict[str, Any]:
         from app.models.base import get_async_session
         from app.models.lead import Lead
 
+        async def _q():
+            async with get_async_session() as session:  # type: ignore
+                res = await session.execute(select(Lead).limit(3000))
+                return res.scalars().all()
+
+        rows = await _safe_db_call(_q(), timeout=8.0, label="metrics.lead_select") or []
         today = _today_start_utc().replace(tzinfo=None)
-        async with get_async_session() as session:  # type: ignore
-            res = await session.execute(select(Lead).limit(3000))
-            rows = res.scalars().all()
-            new_today = 0
-            qualified_today = 0
-            appts = 0
-            for lead in rows:
-                created = getattr(lead, "created_at", None)
-                if created and created >= today:
-                    new_today += 1
-                    if int(getattr(lead, "lead_score", 0) or 0) >= 70:
-                        qualified_today += 1
-                if _enum_value(lead, "status") == "appointment":
-                    appts += 1
-            out["new_leads_today"] = new_today
-            out["qualified_leads_today"] = qualified_today
-            out["appointments_booked"] = appts
+        new_today = 0
+        qualified_today = 0
+        appts = 0
+        for lead in rows:
+            created = getattr(lead, "created_at", None)
+            if created and created >= today:
+                new_today += 1
+                if int(getattr(lead, "lead_score", 0) or 0) >= 70:
+                    qualified_today += 1
+            if _enum_value(lead, "status") == "appointment":
+                appts += 1
+        out["new_leads_today"] = new_today
+        out["qualified_leads_today"] = qualified_today
+        out["appointments_booked"] = appts
     except Exception as e:
         logger.debug(f"[office_hq] metrics lead-query skipped: {e}")
 
@@ -390,7 +420,7 @@ async def build_metrics() -> dict[str, Any]:
 # the stage-detail drawer (pipeline_stage_detail) asks for a fuller list so its
 # filter/search controls have something real to operate on.
 # --------------------------------------------------------------------------- #
-async def build_pipeline(items_limit: int = 3) -> list[dict[str, Any]]:
+async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     stages: dict[str, dict[str, Any]] = {
         m["id"]: {**m, "count": 0, "stuckCount": 0, "errorCount": 0, "items": [],
                   "source": "mock", "note": "Backend data not wired yet."}
@@ -417,9 +447,12 @@ async def build_pipeline(items_limit: int = 3) -> list[dict[str, Any]]:
         from app.models.base import get_async_session
         from app.models.lead import Lead
 
-        async with get_async_session() as session:  # type: ignore
-            res = await session.execute(select(Lead).order_by(Lead.created_at.desc()).limit(500))
-            rows = list(res.scalars().all())
+        async def _q():
+            async with get_async_session() as session:  # type: ignore
+                res = await session.execute(select(Lead).order_by(Lead.created_at.desc()).limit(500))
+                return list(res.scalars().all())
+
+        rows = await _safe_db_call(_q(), timeout=8.0, label="pipeline.lead_select") or []
         s = stages["lead_source"]
         s["count"] = len(rows)
         s["source"] = "real"
@@ -488,11 +521,12 @@ async def build_pipeline(items_limit: int = 3) -> list[dict[str, Any]]:
 
     # 4) Campaign Planning — PARTIAL: total content-queue depth is real
     # (reused from admin_dashboard_builders), per-item drill-down is not
-    # cheaply available across all clients in one pass.
+    # cheaply available across all clients in one pass. Reuses the SAME
+    # live_stats fetch as build_metrics (see _safe_collect_live_stats) — this
+    # used to call _collect_live_stats() a SECOND time here, doubling an
+    # already-expensive sync scan (confirmed 2026-07-01 prod timeout).
     try:
-        from app.api.admin_dashboard_builders import _collect_live_stats
-
-        live = _collect_live_stats() or {}
+        live = live_stats if live_stats is not None else await _safe_collect_live_stats()
         s4 = stages["campaign_planning"]
         s4["count"] = int(live.get("content_items_generated") or 0)
         s4["source"] = "partial"
@@ -536,15 +570,21 @@ async def build_pipeline(items_limit: int = 3) -> list[dict[str, Any]]:
     # 9) Customer Onboarding — PARTIAL: no bulk-queryable JourneyStage table
     # (ClientJourneyTracker is an in-memory/per-lead dataclass, not a DB
     # table) — approximated via Subscription status=TRIAL as "onboarding".
+    # Fetched ONCE here and reused by stage 11 (billing_subscription) below —
+    # used to be two separate Subscription queries, doubling DB round-trips.
+    subs: list[Any] = []
     try:
         from sqlalchemy import select
 
         from app.models.base import get_async_session
         from app.models.payment import Subscription
 
-        async with get_async_session() as session:  # type: ignore
-            res = await session.execute(select(Subscription).limit(1000))
-            subs = res.scalars().all()
+        async def _subq():
+            async with get_async_session() as session:  # type: ignore
+                res = await session.execute(select(Subscription).limit(1000))
+                return res.scalars().all()
+
+        subs = await _safe_db_call(_subq(), timeout=8.0, label="pipeline.subscription_select") or []
         trial = sum(1 for s in subs if "trial" in str(getattr(s, "status", "")).lower())
         s9 = stages["customer_onboarding"]
         s9["count"] = trial
@@ -569,17 +609,11 @@ async def build_pipeline(items_limit: int = 3) -> list[dict[str, Any]]:
     except Exception as e:
         logger.debug(f"[office_hq] service_delivery skipped: {e}")
 
-    # 11) Billing / Subscription — real (Subscription + dunning).
+    # 11) Billing / Subscription — real (Subscription + dunning). Reuses `subs`
+    # fetched once above (stage 9) instead of a second Subscription query.
     try:
-        from sqlalchemy import select
-
         from app.billing import dunning
-        from app.models.base import get_async_session
-        from app.models.payment import Subscription
 
-        async with get_async_session() as session:  # type: ignore
-            res = await session.execute(select(Subscription).limit(1000))
-            subs = res.scalars().all()
         active = sum(1 for s in subs if "active" in str(getattr(s, "status", "")).lower())
         past_due = sum(1 for s in subs if "past_due" in str(getattr(s, "status", "")).lower())
         dstats = dunning.stats() or {}
@@ -597,7 +631,7 @@ async def build_pipeline(items_limit: int = 3) -> list[dict[str, Any]]:
     try:
         from app.platform import client_health
 
-        rep = await client_health.health_report()
+        rep = await _safe_db_call(client_health.health_report(), timeout=8.0, label="pipeline.client_health") or []
         red = [r for r in rep if r.get("band") == "red"]
         s12 = stages["retention_growth"]
         s12["count"] = len(rep)
@@ -811,11 +845,25 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 async def build_snapshot() -> dict[str, Any]:
-    """Top-level composer — the ONE call the frontend needs. Never raises."""
+    """Top-level composer — the ONE call the frontend needs. Never raises.
+
+    Perf note (2026-07-01 prod incident): this used to call build_metrics()
+    then build_pipeline() then build_approvals() sequentially, and BOTH
+    build_metrics and build_pipeline independently called the slow sync
+    `_collect_live_stats()` (confirmed 45s+ against real prod data). Fixed by
+    fetching live_stats ONCE and running the three independent sections
+    concurrently — wall time is now roughly the slowest single section
+    instead of the sum of all of them, and every DB/sync call inside those
+    sections is individually timeout-bounded (see _safe_db_call /
+    _safe_collect_live_stats) so one slow query degrades that field to a
+    default instead of hanging the whole page again."""
     rooms, agents = build_rooms_and_agents()
-    metrics = await build_metrics()
-    pipeline = await build_pipeline()
-    approvals = await build_approvals()
+    live_stats = await _safe_collect_live_stats()
+    metrics, pipeline, approvals = await asyncio.gather(
+        build_metrics(live_stats=live_stats),
+        build_pipeline(items_limit=3, live_stats=live_stats),
+        build_approvals(),
+    )
     system_health = build_system_health()
     snapshot = {
         "ok": True,
