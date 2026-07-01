@@ -48,6 +48,22 @@
   .panel-events{margin-top:14px;font-size:12.5px}
   .panel-event{border-left:3px solid var(--brand-2);padding:6px 10px;margin-bottom:6px;background:var(--bg);border-radius:0 8px 8px 0}
   .panel-event .pe-when{color:var(--muted);font-size:10.5px}
+
+  #ticker{max-width:1200px;margin:14px auto 0;padding:0 16px}
+  .ticker-card{background:#111827;color:#e5e7eb;border-radius:12px;padding:10px 14px;
+    max-height:172px;overflow:hidden}
+  .ticker-head{display:flex;align-items:center;gap:7px;font-weight:700;margin-bottom:6px;
+    color:#f9fafb;font-size:12.5px}
+  .ticker-dot{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:tickerPulse 1.4s infinite}
+  @keyframes tickerPulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .ticker-row{display:flex;gap:9px;padding:3.5px 0;border-bottom:1px solid rgba(255,255,255,.07);
+    font-size:12px;animation:tickerIn .3s ease-out}
+  .ticker-row:last-child{border-bottom:none}
+  .ticker-time{flex:0 0 auto;color:#9ca3af;font-variant-numeric:tabular-nums;width:78px}
+  .ticker-who{flex:0 0 auto;font-weight:700;color:#c4b5fd;max-width:130px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .ticker-what{color:#e5e7eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  @keyframes tickerIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -58,6 +74,12 @@
   </div>
   <div id="banner"><div class="b" id="bannerMsg"></div></div>
   <div id="wrap"><div id="stage"></div></div>
+  <div id="ticker">
+    <div class="ticker-card">
+      <div class="ticker-head"><span class="ticker-dot"></span> Live automation — poora project ka feed (har agent ka kaam yahan aata hai)</div>
+      <div id="tickerList"></div>
+    </div>
+  </div>
   <div id="agentPanel" class="panel-hidden">
     <div class="panel-card">
       <button id="panelClose" aria-label="Close">✕</button>
@@ -91,6 +113,21 @@
     } catch (e) {
       showBanner("Office data load nahi ho paya — retry karega automatically (25s me)");
       return null;
+    }
+  };
+
+  // ---- Live project-wide automation feed (no `member` filter = every agent,
+  // every automation job across the whole project — not just the 31 STAFF's
+  // idle/working status). Drives the ticker + per-avatar speech bubbles +
+  // the coordinator workflow-token animation below.
+  OFFICE.fetchEvents = async function(limit){
+    try {
+      var r = await fetch("/api/platform/team/events?limit=" + (limit || 20), { headers: hdrs() });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var d = await r.json();
+      return (d && d.events) || [];
+    } catch (e) {
+      return [];
     }
   };
 
@@ -201,6 +238,86 @@
     return { desk: desk, sprite: sprite, badge: badge, label: label };
   };
 
+  // ---- Ticker: readable HTML feed of every recent automation event ---------
+  OFFICE.renderTicker = function(events){
+    var list = document.getElementById("tickerList");
+    if (!list) return;
+    var top = events.slice(0, 8);
+    list.innerHTML = top.map(function(e){
+      return '<div class="ticker-row">' +
+        '<div class="ticker-time">' + esc(relTime(e.at)) + '</div>' +
+        '<div class="ticker-who">' + esc(e.emoji || "🤖") + ' ' + esc(e.name || e.member) + '</div>' +
+        '<div class="ticker-what">' + esc(e.detail || e.action) + '</div>' +
+      '</div>';
+    }).join("") || '<div class="ticker-row"><div class="ticker-what">Abhi koi activity nahi record hui.</div></div>';
+  };
+
+  // ---- Speech bubble: transient in-canvas text above an avatar on a fresh event.
+  OFFICE.spawnBubble = function(memberKey, text){
+    var av = OFFICE.avatars[memberKey];
+    if (!av || !OFFICE.scene) return;
+    var scene = OFFICE.scene;
+    var short = String(text || "").slice(0, 36);
+    var t = scene.add.text(av.sprite.x, av.sprite.y - 30, short, {
+      fontSize: "10px", fontFamily: "sans-serif", color: "#1e1b2e",
+      backgroundColor: "#ffffff", padding: { x: 6, y: 3 }
+    }).setOrigin(0.5, 1).setDepth(50);
+    scene.tweens.add({
+      targets: t, alpha: 0, y: t.y - 14, duration: 1200, delay: 4200,
+      onComplete: function(){ t.destroy(); }
+    });
+  };
+
+  // ---- Workflow token: coordinator.py attributes coordinated_step/fanout_step/
+  // hier_step/adv_step/av_contrib events under the ACTUAL delegated staff key
+  // (not "manager") — so seeing one of these fire for member X means the
+  // Coordinator genuinely just dispatched work to X. Animate a token traveling
+  // Coordinator -> X to make that real dispatch visible, not just implied.
+  OFFICE.COORD_ACTIONS = { coordinated_step: 1, fanout_step: 1, hier_step: 1, adv_step: 1, av_contrib: 1 };
+
+  OFFICE.spawnWorkflowToken = function(fromKey, toKey){
+    var from = OFFICE.avatars[fromKey], to = OFFICE.avatars[toKey];
+    if (!from || !to || !OFFICE.scene) return;
+    var scene = OFFICE.scene;
+    var dot = scene.add.circle(from.sprite.x, from.sprite.y - 20, 6, 0xfbbf24).setStrokeStyle(2, 0x92400e).setDepth(60);
+    var pulse = scene.add.circle(from.sprite.x, from.sprite.y - 20, 10, 0xfbbf24, 0.35).setDepth(59);
+    scene.tweens.add({ targets: pulse, radius: 20, alpha: 0, duration: 500, onComplete: function(){ pulse.destroy(); } });
+    scene.tweens.add({
+      targets: dot,
+      x: to.sprite.x, y: to.sprite.y - 20,
+      duration: 900, ease: "Cubic.easeInOut",
+      onComplete: function(){
+        var ring = scene.add.circle(to.sprite.x, to.sprite.y - 20, 8, 0xfbbf24, 0.4).setDepth(59);
+        scene.tweens.add({ targets: ring, radius: 18, alpha: 0, duration: 450, onComplete: function(){ ring.destroy(); } });
+        dot.destroy();
+      }
+    });
+  };
+
+  // First poll only seeds the seen-set + fills the ticker — doesn't replay
+  // history as if it just happened (same seed-then-diff pattern events.py
+  // already uses for its own SSE poll-fallback).
+  OFFICE.seenEventIds = {};
+  OFFICE.eventsSeeded = false;
+
+  OFFICE.pollEvents = async function(){
+    var events = await OFFICE.fetchEvents(20);
+    OFFICE.renderTicker(events);
+    if (!OFFICE.eventsSeeded){
+      events.forEach(function(e){ OFFICE.seenEventIds[e.id] = true; });
+      OFFICE.eventsSeeded = true;
+      return;
+    }
+    var fresh = events.filter(function(e){ return !OFFICE.seenEventIds[e.id]; });
+    fresh.slice().reverse().forEach(function(e){ // oldest-first = feels sequential, not all-at-once
+      OFFICE.seenEventIds[e.id] = true;
+      OFFICE.spawnBubble(e.member, e.detail || e.action);
+      if (OFFICE.COORD_ACTIONS[e.action] && e.member !== "manager") {
+        OFFICE.spawnWorkflowToken("manager", e.member);
+      }
+    });
+  };
+
   OFFICE.renderMembers = function(data){
     if (!data || !data.members) return;
     var byRoom = {};
@@ -298,7 +415,11 @@
       create: function(){
         OFFICE.scene = this;
         OFFICE.drawRooms();
-        OFFICE.fetchTeam().then(function(data){ OFFICE.lastData = data; OFFICE.renderMembers(data); });
+        OFFICE.fetchTeam().then(function(data){
+          OFFICE.lastData = data;
+          OFFICE.renderMembers(data);
+          OFFICE.pollEvents(); // avatars must exist first (bubbles/tokens anchor to them)
+        });
       }
     }
   });
@@ -310,6 +431,10 @@
       OFFICE.renderMembers(data);
     });
   }, 25000);
+
+  // Faster cadence than the roster poll — roster composition rarely changes,
+  // but "what's happening right now" (the whole point of this ask) should feel live.
+  setInterval(function(){ OFFICE.pollEvents(); }, 8000);
 </script>
 </body>
 </html>
