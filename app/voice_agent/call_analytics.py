@@ -18,6 +18,10 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
 
 def _web_sessions() -> list[dict[str, Any]]:
     try:
@@ -133,4 +137,28 @@ def compute_call_kpis(days: int = 7) -> dict[str, Any]:
     }
 
 
-__all__ = ["compute_call_kpis"]
+def run_daily_digest() -> dict[str, Any]:
+    """Lekha's daily call-KPI digest — the missing piece that makes her show
+    'working' on the office map. compute_call_kpis() itself is only called
+    on-demand from the admin dashboard today (app/api/web_call_admin.py) and
+    never logs a team event; this wrapper is what a scheduled job calls.
+    Never raises — degrades to {} on any failure so a scheduler tick can't
+    break on this job."""
+    try:
+        kpis = compute_call_kpis(days=1)
+    except Exception as e:
+        logger.warning(f"[call_analytics] run_daily_digest compute failed: {e}")
+        return {}
+    try:
+        from app.platform import team
+
+        total = kpis.get("total_calls", 0)
+        qrate = kpis.get("qualified_rate", 0)
+        detail = f"Aaj {total} calls · qualified-rate {qrate:.0%}" if isinstance(qrate, (int, float)) else f"Aaj {total} calls"
+        team.log_event("lekha", "call_kpi_digest", detail, status="ok")
+    except Exception as e:
+        logger.debug(f"[call_analytics] run_daily_digest log_event skipped: {e}")
+    return kpis
+
+
+__all__ = ["compute_call_kpis", "run_daily_digest"]

@@ -123,6 +123,7 @@ _last_ran: dict[str, str | None] = {
     "kb_refresh": None,  # weekly Sun: contextual KB re-ingest (gated)
     "midday_prospect": None,  # daily 14:30: 2nd free lead-supply pass (gated MIDDAY_PROSPECT)
     "evening_wrap": None,  # daily 18:30: EOD summary + hot recap
+    "call_kpi_digest": None,  # daily 19:30: Lekha call-KPI digest (fixes missing log_event wiring)
     "weekly_marketing": None,  # Wed 12:30: S-tier niche pack bank
     "saturday_hygiene": None,  # Sat 04:00: DLQ + celery trim (gated SCHEDULER_HYGIENE)
     "meter_watch": None,  # hourly :55: billing meter-failure watcher (gated METER_ALERTS)
@@ -364,6 +365,10 @@ async def _run_job_inner(job: str) -> None:
                 await team_report.run_weekly_if_enabled()  # client-facing AI-staff weekly narrative (gated TEAM_REPORT)
             except Exception:
                 pass
+        elif job == "call_kpi_digest":
+            from app.voice_agent import call_analytics
+
+            call_analytics.run_daily_digest()
         elif job == "content":
             from app.marketing import auto_content
 
@@ -905,6 +910,9 @@ async def scheduler_loop() -> None:
             if (18, 30) <= hm < (19, 30) and _last_ran["evening_wrap"] != day_key:
                 _last_ran["evening_wrap"] = day_key
                 await _run_job("evening_wrap")
+            if (19, 30) <= hm < (20, 30) and _last_ran["call_kpi_digest"] != day_key:
+                _last_ran["call_kpi_digest"] = day_key
+                await _run_job("call_kpi_digest")
             if (
                 now.weekday() == 2
                 and (12, 30) <= hm < (13, 30)
