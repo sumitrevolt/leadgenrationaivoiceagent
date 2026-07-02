@@ -253,6 +253,77 @@ async def social_batch(body: SocialBatchIn, _user=Depends(require_admin)):
     )
 
 
+# ------------- Postiz auto-posting config (no-restart, vault-backed) ------------- #
+class PostizConfigIn(BaseModel):
+    api_key: str = ""  # Postiz Settings -> API se; khali = existing key rakho
+    api_url: str = ""  # self-host = https://postiz.<domain>/api; khali = cloud default
+    integrations: str = ""  # channel ids csv (Postiz UI se); khali = existing rakho
+    enable_engine: bool | None = None  # true/false = data/social_engine.json toggle
+
+
+@router.post("/social/postiz/configure")
+async def social_postiz_configure(body: PostizConfigIn, _user=Depends(require_admin)):
+    """Postiz key/url/channel-ids RUNTIME pe set karo (encrypted vault, client
+    '_global') — container recreate ki zaroorat nahi (upi_config pattern). Key
+    response me kabhi wapas nahi aati."""
+    from app.social_engine import vault
+
+    existing = vault.get("_global", "postiz") or {}
+    existing_meta = existing.get("meta") or {}
+    token = (body.api_key or "").strip() or str(existing.get("token") or "")
+    meta = {
+        "api_url": (body.api_url or "").strip() or str(existing_meta.get("api_url") or ""),
+        "integrations": (body.integrations or "").strip()
+        or str(existing_meta.get("integrations") or ""),
+    }
+    saved = False
+    if token or meta["api_url"] or meta["integrations"]:
+        saved = bool(vault.put("_global", "postiz", token, meta=meta))
+
+    engine_result: bool | None = None
+    if body.enable_engine is not None:
+        try:
+            import json as _json
+            import os as _os
+
+            path = _os.getenv("SOCIAL_ENGINE_CONFIG", "data/social_engine.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                _json.dump({"enabled": bool(body.enable_engine)}, fh)
+            engine_result = bool(body.enable_engine)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"engine toggle write failed: {e}")
+
+    from app.marketing import postiz_publish
+    from app.social_engine import engine as social_engine
+
+    return {
+        "ok": True,
+        "saved": saved,
+        "postiz_configured": postiz_publish.enabled(),
+        "api_url": meta["api_url"] or "https://api.postiz.com",
+        "integrations_count": len([x for x in meta["integrations"].split(",") if x.strip()]),
+        "social_engine_enabled": social_engine.enabled() if engine_result is None else engine_result,
+    }
+
+
+@router.get("/social/postiz/status")
+async def social_postiz_status(_user=Depends(require_admin)):
+    """Postiz + social-engine readiness (key kabhi expose nahi hoti)."""
+    from app.marketing import postiz_publish
+    from app.social_engine import engine as social_engine
+    from app.social_engine import vault
+
+    rec = vault.get("_global", "postiz") or {}
+    meta = rec.get("meta") or {}
+    integrations = str(meta.get("integrations") or "")
+    return {
+        "postiz_configured": postiz_publish.enabled(),
+        "api_url_set": bool(meta.get("api_url")),
+        "integrations_count": len([x for x in integrations.split(",") if x.strip()]),
+        "social_engine_enabled": social_engine.enabled(),
+    }
+
+
 # ------------- Lead harvester (multi-source, legal-only, automated loop) ------------- #
 class HarvestIn(BaseModel):
     niche: str = ""

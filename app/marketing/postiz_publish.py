@@ -23,8 +23,29 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+def _vault_cfg() -> dict[str, Any]:
+    """Global Postiz config from the encrypted social vault (client '_global').
+
+    Env vars still win (below) — this fallback exists so the key can be set at
+    RUNTIME via the admin configure endpoint without a container recreate
+    (running containers carry docker-cp drift; recreate = hotfix loss).
+    Never raises."""
+    try:
+        from app.social_engine import vault
+
+        rec = vault.get("_global", "postiz") or {}
+        meta = rec.get("meta") or {}
+        return {
+            "api_key": str(rec.get("token") or "").strip(),
+            "api_url": str(meta.get("api_url") or "").strip(),
+            "integrations": str(meta.get("integrations") or "").strip(),
+        }
+    except Exception:
+        return {}
+
+
 def _key() -> str:
-    return (os.getenv("POSTIZ_API_KEY") or "").strip()
+    return (os.getenv("POSTIZ_API_KEY") or "").strip() or _vault_cfg().get("api_key", "")
 
 
 def enabled() -> bool:
@@ -32,7 +53,8 @@ def enabled() -> bool:
 
 
 def _base() -> str:
-    return (os.getenv("POSTIZ_API_URL") or "https://api.postiz.com").rstrip("/")
+    url = (os.getenv("POSTIZ_API_URL") or "").strip() or _vault_cfg().get("api_url", "")
+    return (url or "https://api.postiz.com").rstrip("/")
 
 
 def _headers() -> dict[str, str]:
@@ -41,10 +63,11 @@ def _headers() -> dict[str, str]:
 
 
 def _integration_ids(client: dict[str, Any] | None) -> list[str]:
-    """Channel ids — client.postiz_integrations (list ya csv) warna env csv."""
+    """Channel ids — client.postiz_integrations (list ya csv) warna env csv,
+    warna vault global config."""
     raw: Any = (client or {}).get("postiz_integrations") if client else None
     if not raw:
-        raw = os.getenv("POSTIZ_INTEGRATIONS") or ""
+        raw = os.getenv("POSTIZ_INTEGRATIONS") or _vault_cfg().get("integrations", "")
     if isinstance(raw, str):
         ids = [x.strip() for x in raw.split(",")]
     elif isinstance(raw, (list, tuple)):
