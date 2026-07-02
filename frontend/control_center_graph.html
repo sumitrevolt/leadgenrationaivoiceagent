@@ -927,7 +927,16 @@ const EDGE_COLORS = { sync:'#3a4453', async:'#3b6fa8', loop:'#8a5fc0', opt:'#5a4
     Promise.all(keys.map(k => layoutGraph(graphCache[k], k).then(pos => { layoutCache[k] = pos; })))
       .then(() => {
         loadingEl.classList.add('hidden');
-        renderView('structural');
+        // Optional ?view=automation|structural|products — lets an embedder
+        // (e.g. /app/office's System Map panel) open directly on a specific
+        // view. Unknown/absent -> unchanged default 'structural' behavior.
+        const params = new URLSearchParams(window.location.search);
+        const requestedView = params.get('view');
+        if (requestedView && VIEWS[requestedView]) {
+          switchTo(requestedView);
+        } else {
+          renderView('structural');
+        }
       })
       .catch(err => fail('Layout error: ' + (err && err.message ? err.message : err)));
   }

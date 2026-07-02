@@ -189,6 +189,20 @@
       <div class="board-row" id="boardRow"><div class="loading-note">⏳ Loading pipeline…</div></div>
     </div>
 
+    <div id="systemMapCard" class="panel-box">
+      <h3 id="systemMapToggle" style="cursor:pointer;user-select:none">
+        🏗️ System Map <span id="systemMapChevron">▸</span>
+        <span style="font-weight:400;font-size:12px;color:var(--muted)">— live architecture (click to expand)</span>
+      </h3>
+      <div id="systemMapBody" style="display:none">
+        <iframe id="systemMapFrame" src="" style="width:100%;height:520px;border:1px solid var(--line);border-radius:10px;background:#0f1117"
+          title="Live architecture map"></iframe>
+        <div style="margin-top:8px;font-size:12.5px">
+          <a href="/app/control-center" target="_blank" rel="noopener">Open full Control Center →</a>
+        </div>
+      </div>
+    </div>
+
     <div class="two-col">
       <div class="panel-box" id="approvalsPanel">
         <h3>🗂️ Approvals needed</h3>
@@ -980,6 +994,19 @@
     document.getElementById("agentPanel").classList.add("panel-hidden");
   };
   document.getElementById("bannerRetry").onclick = function(){ OFFICE.refreshSnapshot(); };
+
+  var systemMapLoaded = false;
+  document.getElementById("systemMapToggle").onclick = function(){
+    var body = document.getElementById("systemMapBody");
+    var chevron = document.getElementById("systemMapChevron");
+    var expanded = body.style.display !== "none";
+    body.style.display = expanded ? "none" : "block";
+    chevron.textContent = expanded ? "▸" : "▾";
+    if (!expanded && !systemMapLoaded) {
+      systemMapLoaded = true;
+      document.getElementById("systemMapFrame").src = "/app/control-center/graph?view=automation";
+    }
+  };
 
   OFFICE.lastSnapshot = null;
   OFFICE.refreshSnapshot = async function(){
