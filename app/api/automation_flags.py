@@ -41,6 +41,7 @@ AUTOMATION_FLAGS = [
     "GROWTH_OPTIMIZER",
     "CHANNEL_EXPERIMENTS",
     "CAMPAIGN_OPTIMIZER",  # Kiran: orchestrates optimizer+bandit+feedback every 100 interactions
+    "PLATFORM_DIAL_DAILY",  # daily 11:30 IST self-sale AI cold-call batch (Swara; limit=PLATFORM_DIAL_LIMIT, niche=PLATFORM_DIAL_NICHE)
     "OUTREACH_CAMPAIGN_VARIANTS",  # cold email uses Kiran champion/challenger copy (impression/reply tracked)
     "VOICE_CAMPAIGN_VARIANTS",  # Swara phone/web greeting uses voice_opening champion/challenger
     "PROCESS_ENGINE",  # deterministic process-as-code workflows (complement to PROCESS_AUTOSTART)

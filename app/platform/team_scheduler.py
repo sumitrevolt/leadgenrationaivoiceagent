@@ -133,6 +133,7 @@ _last_ran: dict[str, str | None] = {
     "afternoon_content": None,  # daily 15:00: 2nd content-gen pass (gated AFTERNOON_CONTENT)
     "evening_prospect": None,  # daily 17:00: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
     "obsidian_push": None,  # daily 02:15 IST: compact + git push to Obsidian vault (gated OBSIDIAN_SYNC)
+    "platform_dial": None,  # daily 11:30 IST: LeadGen AI self-sale outbound calls (gated PLATFORM_DIAL_DAILY)
 }
 
 
@@ -715,6 +716,54 @@ async def _run_job_inner(job: str) -> None:
                         f"🌾 midday +{_h.get('new_leads', 0)} leads (dedup {_h.get('deduped', 0)})",
                         status="ok",
                     )
+        elif job == "platform_dial":
+            # Own-product outbound (2026-07-02): Product-2 voice agent Product-1 bechta
+            # hai — daily batch of AI cold-calls with the ai_marketing platform pitch.
+            # Gated PLATFORM_DIAL_DAILY (default OFF). Single-flight = the SAME campaign
+            # lock the admin launch uses (double-dial impossible); TRAI window / DND /
+            # readiness gates enforce inside run_campaign_task + VobizClient per call.
+            if os.environ.get("PLATFORM_DIAL_DAILY", "0").strip().lower() in ("1", "true", "yes"):
+                from app.platform import team
+                from app.tasks.calling import (
+                    acquire_campaign_lock,
+                    campaign_lock_held,
+                    release_campaign_lock,
+                )
+
+                _limit = max(1, min(int(os.environ.get("PLATFORM_DIAL_LIMIT", "15") or 15), 200))
+                _dial_niche = (os.environ.get("PLATFORM_DIAL_NICHE", "all") or "all").strip()
+                if campaign_lock_held():
+                    team.log_event(
+                        "swara",
+                        "platform_campaign",
+                        "⏸️ daily self-sale dial skipped — ek campaign pehle se chal rahi",
+                        status="warn",
+                    )
+                elif acquire_campaign_lock(ttl_s=max(400, _limit * 8 + 120)):
+                    try:
+                        from app.worker import celery_app
+
+                        celery_app.send_task(
+                            "app.tasks.calling.run_campaign_task",
+                            kwargs={
+                                "limit": _limit,
+                                "dry_run": False,
+                                "niche": _dial_niche,
+                                "client_id": "",
+                                "platform": True,
+                                "transactional": False,
+                            },
+                        )
+                        team.log_event(
+                            "swara",
+                            "platform_campaign",
+                            f"📞 Swara ki daily self-sale campaign queue hui — {_limit} calls (niche={_dial_niche})",
+                            status="ok",
+                        )
+                    except Exception:
+                        # enqueue fail → lock turant chhodo, warna TTL tak manual launch bhi blocked
+                        release_campaign_lock()
+                        raise
         elif job == "evening_wrap":
             from app.platform import scheduled_ops
 
@@ -895,6 +944,10 @@ async def scheduler_loop() -> None:
             if 9 <= now.hour <= 19 and hm[1] >= 20 and _last_ran["email_followup"] != _email_hour_key:
                 _last_ran["email_followup"] = _email_hour_key
                 await _run_job("email_followup")
+            # 11:30–12:30 IST — daily self-sale AI cold-call batch. Gated PLATFORM_DIAL_DAILY.
+            if (11, 30) <= hm < (12, 30) and _last_ran["platform_dial"] != day_key:
+                _last_ran["platform_dial"] = day_key
+                await _run_job("platform_dial")
             # 14:30–15:30 IST — 2nd free lead-supply pass (harvest). Gated MIDDAY_PROSPECT.
             if (14, 30) <= hm < (15, 30) and _last_ran["midday_prospect"] != day_key:
                 _last_ran["midday_prospect"] = day_key
