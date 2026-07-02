@@ -33,23 +33,37 @@ def _host() -> str:
 def _posthog_head() -> str:
     key = _key()
     host = _host()
-    # Full official loader (array-stub) — autocapture + session replay ON by default.
+    # Official PostHog array-stub loader, VERBATIM (posthog.com JS web snippet).
+    # BUGFIX 2026-07-02: the previous hand-transcribed variant renamed init's
+    # params to (t,e,a), shadowing the outer stub-array `e` — so
+    # `u._i.push([t,e,a])` ran against the CONFIG OBJECT (which has no `_i`)
+    # and threw `TypeError: Cannot read properties of undefined (reading
+    # 'push') at r.init` on EVERY injected page load (seen live on /app/office
+    # at minified lines 225-227). It also never created the <script> tag that
+    # loads /static/array.js, so analytics silently captured nothing. The
+    # official snippet below keeps init params as (i,s,a) (no shadowing),
+    # pushes to the outer `e._i`, and actually loads array.js.
     return (
         "\n<script>\n"
-        "!function(t,e){var o,n,p,r=e.__SV;if(window.posthog||(window.posthog=[]),!r){"
-        'r=window.posthog,r.toString=function(t){var e="posthog";return"posthog"!==t&&(e+="."+t),e},'
-        'r.people=r.people||[],r.people.toString=function(){return r.toString(1)+".people (stub)"},'
-        'o="capture identify alias people.set people.set_once set_config register register_once '
-        "unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureEnabled "
-        "onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment "
-        "getEarlyAccessFeatures getActiveMatchingSurveys getSurveys captureException loadToolbar get_distinct_id "
-        'getGroups get_session_id get_session_replay_url alias set_config".split(" "),'
-        "n=function(t){var e=r;for(var a=0;a<o.length;a++)e[o[a]]=function(t){return function(){"
-        "e.push([t].concat(Array.prototype.slice.call(arguments,0)))}}(o[a])}}(0),r._i=[],"
-        'r.init=function(t,e,a){function s(t,e){var a=e.split(".");2==a.length&&(t=t[a[0]],e=a[1]),'
-        't[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}var u=e;void 0!==a?u=r[a]=[]:a="posthog",'
-        'u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),'
-        't||(e+=" (stub)"),e},u._i.push([t,e,a]),r.__SV=1}}(document,window.posthog||[]);\n'
+        "!function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){"
+        'function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),'
+        "t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}"
+        '(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,'
+        'p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",'
+        '(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;'
+        'for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],'
+        'u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},'
+        'u.people.toString=function(){return u.toString(1)+".people (stub)"},'
+        'o="init capture register register_once register_for_session unregister unregister_for_session '
+        "getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment "
+        "getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys "
+        "identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags "
+        "setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id "
+        "get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted "
+        "captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing "
+        'opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),'
+        "n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}"
+        "(document,window.posthog=window.posthog||[]);\n"
         f"posthog.init('{key}',{{api_host:'{host}',person_profiles:'identified_only',"
         "capture_pageview:true,session_recording:{maskAllInputs:true}});\n"
         "</script>\n"
