@@ -610,6 +610,11 @@ class TelecallerBrain:
         self.memory_subject: str | None = None
         self._interest_confirmed = False
         self._discovery_skip = 0
+        # The number this call was PLACED TO (outbound) or received FROM (inbound)
+        # — reliable phone source-of-truth for close-signal side-effects (CRM
+        # entry, WhatsApp send). Deliberately separate from memory_subject (which
+        # is AGENT_MEMORY-gated and prefixed differently per caller e.g. "web:...").
+        self.caller_phone: str = ""
 
         # Multi-key rotation pool (free-AI resilience): STT + LLM share a Gemini
         # quota PER KEY, so we rotate to the next key on a quota/429 error. The
@@ -759,6 +764,84 @@ class TelecallerBrain:
         AGENT_MEMORY flag OFF ho to iska koi asar nahi (recall/remember no-op)."""
         if subject_id:
             self.memory_subject = str(subject_id).strip() or self.memory_subject
+
+    def set_caller_phone(self, phone: str) -> None:
+        """Reliable dialed/caller number for close-signal side-effects. Unconditional
+        (not gated behind any flag) — cheap string set, no PII computation."""
+        p = "".join(c for c in str(phone or "") if c.isdigit())
+        if p:
+            self.caller_phone = p
+
+    def _on_close_signal(self) -> None:
+        """Customer ne close/proceed-signal diya (haan chalu karo / le lo) —
+        the bot's spoken promise ("abhi shuru kar deti hoon / WhatsApp bhej rahi
+        hoon") must become REAL, not just dialogue. Two deterministic actions:
+
+        1. Sales-pipeline deal recorded IMMEDIATELY (sync, cheap jsonl write) —
+           does NOT wait for the separate post-call qualify_transcript LLM
+           judgment (app.telephony.post_call_hooks._auto_qualify), which is a
+           SEPARATE non-deterministic opinion that may disagree with what just
+           happened on the call. This was the root cause of "customer haan
+           bolta hai to onboard nahi hota": the close moment had ZERO durable
+           side-effect — it was pure text.
+        2. Real WhatsApp send (fire-and-forget, gated WHATSAPP_AUTO_SEND) to
+           self.caller_phone — the number we ALREADY dialed (reliable), not an
+           STT-transcribed digit string (fragile). Never raises, never blocks
+           the voice reply (asyncio.create_task).
+        """
+        try:
+            from app.marketing import sales_pipeline
+
+            sales_pipeline.upsert_deal(
+                {
+                    "phone": self.caller_phone,
+                    "business_name": self.client_name if self.niche != "ai_marketing" else "",
+                    "niche": self.niche,
+                    "source": "AI Voice Call",
+                },
+                stage="negotiating",
+            )
+        except Exception as e:
+            logger.debug(f"[telecaller-brain] close-signal sales_pipeline skip: {e}")
+        if not self.caller_phone:
+            return
+        try:
+            import asyncio
+
+            _t = asyncio.create_task(self._send_close_whatsapp())
+            _t.add_done_callback(lambda t: t.cancelled() or t.exception())
+        except Exception as e:
+            logger.debug(f"[telecaller-brain] close-signal whatsapp-task skip: {e}")
+
+    async def _send_close_whatsapp(self) -> None:
+        """Actual WhatsApp send for a voice-call close-signal. GATED by its OWN
+        dedicated flag VOICE_CLOSE_WHATSAPP=1 (default OFF) — deliberately NOT
+        the shared WHATSAPP_AUTO_SEND flag (that one is already ON for unrelated
+        campaign sends; reusing it would silently activate this NEW behaviour —
+        an AI-judged autonomous message to a real customer — without a distinct
+        explicit opt-in). Needs BOTH flags: WHATSAPP_AUTO_SEND (existing global
+        compliance gate) AND VOICE_CLOSE_WHATSAPP (this specific feature).
+        Never raises, best-effort — a failed/inert send does not undo the
+        sales_pipeline record already written in _on_close_signal."""
+        if os.environ.get("VOICE_CLOSE_WHATSAPP", "0").strip().lower() not in ("1", "true", "yes"):
+            return
+        if os.environ.get("WHATSAPP_AUTO_SEND", "0").strip().lower() not in ("1", "true", "yes"):
+            return
+        try:
+            from app.integrations.whatsapp import get_whatsapp_sender
+
+            link = "https://leadsgenai.in/start"
+            msg = (
+                "Namaste! LeadGen AI se Swara 🙂 Aapne call pe interest dikhaya — "
+                f"7-din FREE trial yahan shuru karein: {link}\n"
+                "Koi sawaal ho to isi number pe reply kar dijiye."
+            )
+            sender = get_whatsapp_sender()
+            res = await sender.send_text_message(self.caller_phone, msg)
+            if isinstance(res, dict) and res.get("error"):
+                logger.info(f"[telecaller-brain] close-whatsapp send skipped: {res.get('error')}")
+        except Exception as e:
+            logger.debug(f"[telecaller-brain] close-whatsapp send failed: {e}")
 
     def confirm_interest(self) -> None:
         """Platform pitch: customer ne interest confirm kar diya — discovery-only mode."""
@@ -1437,6 +1520,11 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             try:
                 if ut and _close_detect_enabled() and _is_close_intent(ut):
                     logger.info("[telecaller-brain] buy/close signal -> confirm setup (pre-LLM)")
+                    # Real side-effects NOW (not text-only) — see _on_close_signal
+                    # docstring: sales_pipeline deal + WhatsApp send to the number
+                    # we already dialed. Fixes "customer haan bolta hai to onboard
+                    # nahi hota" — the close moment used to have zero durable action.
+                    self._on_close_signal()
                     return self._clean(
                         "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp "
                         "number confirm kar dijiye, setup ki saari jaankari wahin bhej deti hoon."

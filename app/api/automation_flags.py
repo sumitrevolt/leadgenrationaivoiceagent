@@ -54,6 +54,7 @@ AUTOMATION_FLAGS = [
     "DELIVERABILITY_MONITOR",
     "AUTOMATION_HEALTH_ALERTS",
     "WHATSAPP_AUTO_SEND",
+    "VOICE_CLOSE_WHATSAPP",  # voice-call close-signal auto WhatsApp (needs WHATSAPP_AUTO_SEND too) — default OFF, separate opt-in
     "WHATSAPP_PROVIDER",  # "cloud" (Meta Cloud API, default) | "waha"/"selfhost" (own WAHA stack)
     "WAHA_BASE_URL",  # self-hosted WhatsApp stack URL (set = reachable; sidesteps Meta verification)
     "MISSED_CALL_CALLBACK",
