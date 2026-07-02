@@ -404,7 +404,10 @@ def _get_campaign_prospects(db, limit: int, niche: str) -> list:
 
     q = db.query(Lead).filter(Lead.phone.isnot(None), Lead.phone != "")
     q = q.filter(or_(Lead.call_attempts.is_(None), Lead.call_attempts == 0))
-    if niche:
+    # "all"/"any"/"*" = no niche filter — platform (self-sale) campaigns can dial
+    # the whole harvested pool, not just leads already tagged 'ai_marketing'
+    # (the pitch itself is chosen per-call in _dial_vobiz_campaign, not here).
+    if niche and niche.strip().lower() not in ("all", "any", "*"):
         q = q.filter(func.lower(Lead.niche) == niche.strip().lower())
     q = q.order_by(Lead.lead_score.desc(), Lead.created_at.desc())
     return q.limit(max(1, min(limit, 200))).all()
@@ -531,7 +534,10 @@ def run_campaign_task(
                 return {"status": "blocked", "reason": reason}
 
         with get_db_session() as db:
-            niche_filter = "ai_marketing" if platform else niche
+            # platform default stays 'ai_marketing' (tagged/warm leads) — but an
+            # explicit niche ("coaching", or "all" for the whole pool) now overrides
+            # it, so the self-sale pitch can reach every harvested prospect.
+            niche_filter = (niche or "ai_marketing") if platform else niche
             prospects = _get_campaign_prospects(db, limit, niche_filter)
 
             if not prospects:
@@ -545,6 +551,17 @@ def run_campaign_task(
                         "via": "celery",
                     }
                 )
+                try:
+                    from app.platform import team
+
+                    team.log_event(
+                        "swara",
+                        "platform_campaign" if platform else "outbound_campaign",
+                        f"📞 campaign — 0 uncontacted leads (niche={niche_filter or 'all'})",
+                        status="warn",
+                    )
+                except Exception:
+                    pass
                 return {"status": "done", "ok": 0, "skip": 0, "fail": 0}
 
             result = _run_async(
@@ -559,6 +576,20 @@ def run_campaign_task(
         )
         if result.get("error"):
             output = result["error"]
+        # Office/team visibility (2026-07-02): campaign runs were invisible on
+        # /app/office & /app/team — attribute to Swara (telecaller). Never raises.
+        try:
+            from app.platform import team
+
+            team.log_event(
+                "swara",
+                "platform_campaign" if platform else "outbound_campaign",
+                ("🧪 dry-run: " if dry_run else "📞 ")
+                + f"campaign — {output} (niche={niche_filter or 'all'})",
+                status="warn" if result.get("error") else "ok",
+            )
+        except Exception:
+            pass
         _campaign_status_set(
             {
                 "status": "done",

@@ -441,6 +441,13 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(hour=5, minute=0, day_of_week=0),
         "args": ("kb_refresh",),
     },
+    "staff-platform-dial-daily": {
+        # 11:30 IST: self-sale AI cold-call batch — job body no-ops unless
+        # PLATFORM_DIAL_DAILY=1 (TRAI window/DND gates live inside the call path).
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=11, minute=30),
+        "args": ("platform_dial",),
+    },
     "staff-midday-prospect-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=14, minute=30),
