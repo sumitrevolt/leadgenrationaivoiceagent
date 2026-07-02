@@ -104,13 +104,20 @@ bug, just no data today, add a clearer idle-reason instead" for some of them —
 
 ### 6. Real-time tightening
 - Snapshot poll: 25s → 15s.
-- Redis cache TTL: 35s → 12s (must stay *below* the new poll interval, same lesson as the
-  2026-07-01 cache-TTL bug — cache should speed up bursts of concurrent admin views, not make
-  polling pointless).
+- Redis cache TTL: 35s → **18s** (**correction, post-implementation review 2026-07-02**: an
+  earlier draft of this spec said TTL must stay *below* the poll interval — that is backwards
+  and was caught during implementation. The 2026-07-01 cache-TTL bug's actual lesson is the
+  opposite: TTL must *exceed* the poll interval, or a cache write from poll N has always expired
+  before poll N+1 fires, making the cache a permanent no-op for periodic refreshes — exactly what
+  happened when TTL=15s/poll=25s. 18s keeps a comfortable margin above the tightened 15s poll,
+  same invariant as the original 35s-over-25s fix, just retuned to the new cadence).
 - Visible **"Updated Xs ago"** badge near the top of the page, ticking client-side between
   polls.
-- Manual **"🔄 Refresh now"** button that bypasses cache (calls snapshot with a cache-bust
-  param) — for an admin who wants to force-check right now.
+- Manual **"🔄 Refresh now"** button — currently calls the same (cached) snapshot endpoint rather
+  than bypassing the cache; with TTL=18s this can return data up to ~18s stale on a manual click,
+  which undersells the "force-check right now" framing below. Follow-up, not blocking: either add
+  a cache-bust param, or key the freshness badge off the snapshot's own `generated_at` timestamp
+  instead of client-side `Date.now()` so the badge honestly reflects data age, not fetch-recency.
 
 ### 7. Admin-friendly clarity
 - **Legend**: a small `(?)` icon opening a one-time/toggleable popover explaining status-dot
