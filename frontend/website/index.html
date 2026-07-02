@@ -156,8 +156,6 @@
 
   /* PRICING */
   .pricing-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;max-width:780px;margin:0 auto}
-  .pricing-grid.has-growth{grid-template-columns:repeat(3,1fr);max-width:1080px}
-  .price.growth-static{display:none}
   .price .pnote{font-size:.82rem;color:var(--muted);margin-top:6px}
   .price{position:relative;background:#fff;border:1.5px solid var(--line);border-radius:22px;padding:34px 30px;transition:transform .25s,box-shadow .25s}
   .price.featured{border-color:var(--indigo);box-shadow:var(--shadow)}
@@ -620,7 +618,7 @@
           <li><span class="ck">✓</span> 100% marketing-only — koi calling charge / minute limit nahi</li>
         </ul>
         <a class="btn btn-ghost" href="#lead-form">FREE trial se shuru karo</a>
-        <button type="button" class="btn btn-primary paynow" data-pkg="Starter" style="margin-top:10px">🚀 Shuru karo</button>
+        <button type="button" class="btn btn-primary paynow" data-pkg="Starter" data-plan-key="starter" style="margin-top:10px">🚀 Shuru karo</button>
       </div>
       <div class="price featured reveal">
         <span class="tag">🔥 COMBO — India me sirf hamare paas</span>
@@ -646,7 +644,7 @@
           <li><span class="ck">✓</span> Minute usage tracker — kitna use hua, kitna bacha, renewal date</li>
         </ul>
         <a class="btn btn-primary" href="#lead-form">🚀 FREE demo + audit se shuru karo</a>
-        <button type="button" class="btn btn-ghost paynow" data-pkg="Advanced" style="margin-top:10px">🚀 Shuru karo</button>
+        <button type="button" class="btn btn-ghost paynow" data-pkg="Advanced" data-plan-key="advanced" style="margin-top:10px">🚀 Shuru karo</button>
       </div>
     </div>
     <p class="niche-more" style="margin-top:24px">Voice agent nahi chahiye? <b>Starter plan 100% marketing-only hai — koi calling charge nahi.</b></p>
@@ -796,8 +794,16 @@
     <p style="font-size:.9rem;color:var(--muted)">Kisi bhi UPI app se QR scan karke pay karein — GPay/PhonePe/Paytm sab chalega</p>
     <div class="pm-qr" id="payQr"></div>
     <div class="pm-vpa" id="payVpa"></div>
-    <p class="pm-note">Payment ke baad WhatsApp pe screenshot bhejo: <a href="https://wa.me/918459012607" target="_blank" rel="noopener" style="color:var(--indigo);font-weight:600">wa.me/918459012607</a> — hum turant aapka plan activate kar denge.</p>
-    <a class="btn btn-wa" id="payWa" href="https://wa.me/918459012607" target="_blank" rel="noopener" style="margin-top:14px;width:100%">💬 Screenshot WhatsApp karo</a>
+    <p class="pm-note">Pay karne ke baad neeche transaction ID/reference daal ke submit karo — hum verify karke plan activate kar denge.</p>
+    <form id="payRefForm" style="text-align:left;margin-top:10px">
+      <div class="fld" style="margin-bottom:8px"><label for="pay-ref">UPI Transaction ID / Reference *</label><input id="pay-ref" type="text" required placeholder="e.g. 123456789012" /></div>
+      <div class="fld" style="margin-bottom:8px"><label for="pay-name">Aapka naam (optional)</label><input id="pay-name" type="text" placeholder="Rohan Sharma" /></div>
+      <div class="fld" style="margin-bottom:2px"><label for="pay-contact">Phone/WhatsApp (optional, agar naya account nahi hai)</label><input id="pay-contact" type="tel" placeholder="98765 43210" /></div>
+      <button type="submit" class="btn btn-primary" id="payRefSubmit" style="width:100%;margin-top:10px">✅ Maine Pay Kiya — Submit karo</button>
+      <p class="msg" id="payRefMsg" style="font-size:.82rem;margin-top:8px"></p>
+    </form>
+    <p class="pm-note" style="margin-top:12px">Ya seedha WhatsApp pe screenshot bhejo:</p>
+    <a class="btn btn-wa" id="payWa" href="https://wa.me/918459012607" target="_blank" rel="noopener" style="margin-top:4px;width:100%">💬 Screenshot WhatsApp karo</a>
   </div>
 </div>
 
@@ -923,8 +929,6 @@
       const data = await res.json();
       const pkgs = (data && data.packages) || [];
       if (!pkgs.length) return;
-      const hasGrowth = pkgs.some(p => p.key === 'growth');
-      if (hasGrowth) grid.classList.add('has-growth');
       grid.innerHTML = '';
       pkgs.forEach((p) => {
         const card = document.createElement('div');
@@ -984,8 +988,9 @@
         payBtn.type = 'button';
         payBtn.className = 'btn paynow ' + (p.highlight ? 'btn-ghost' : 'btn-primary');
         payBtn.style.marginTop = '10px';
-        const pkgNames = { starter: 'Starter', growth: 'Growth', advanced: 'Advanced' };
+        const pkgNames = { starter: 'Starter', advanced: 'Advanced' };
         payBtn.dataset.pkg = pkgNames[p.key] || p.name || 'Starter';
+        payBtn.dataset.planKey = p.key || 'starter';
         payBtn.textContent = '🚀 Shuru karo';
         card.appendChild(payBtn);
         grid.appendChild(card);
@@ -995,13 +1000,19 @@
 
   // ---------- "🚀 Shuru karo" → UPI pay modal (UPI_VPA set) ya WhatsApp ----------
   const payModal = document.getElementById('payModal');
-  function openPayModal(info, pkg){
+  let CURRENT_PLAN_KEY = 'starter';
+  function openPayModal(info, pkg, planKey){
+    CURRENT_PLAN_KEY = planKey || 'starter';
     document.getElementById('payPkg').textContent = pkg + ' plan — payment';
     // qr_svg hamara hi backend banata hai (pure-python encoder) — trusted markup
     document.getElementById('payQr').innerHTML = info.qr_svg || '';
     document.getElementById('payVpa').textContent = 'UPI ID: ' + (info.vpa || '');
     const waMsg = 'Maine ' + pkg + ' plan ki payment ki hai — screenshot bhej raha hoon. Plan activate kar dijiye.';
     document.getElementById('payWa').href = 'https://wa.me/918459012607?text=' + encodeURIComponent(waMsg);
+    const refForm = document.getElementById('payRefForm');
+    if (refForm) refForm.reset();
+    const refMsg = document.getElementById('payRefMsg');
+    if (refMsg) { refMsg.textContent = ''; refMsg.className = 'msg'; }
     payModal.classList.add('open');
   }
   document.getElementById('payClose').addEventListener('click', () => payModal.classList.remove('open'));
@@ -1013,6 +1024,7 @@
     if (!btn) return;
     e.preventDefault();
     const pkg = btn.dataset.pkg || 'Starter';
+    const planKey = btn.dataset.planKey || 'starter';
     const old = btn.textContent;
     btn.disabled = true; btn.textContent = 'Ek second…';
     let info = null;
@@ -1021,10 +1033,56 @@
       if (res.ok) info = await res.json();
     } catch (err) { info = null; }
     btn.disabled = false; btn.textContent = old;
-    if (info && info.enabled && info.vpa) { openPayModal(info, pkg); return; }
+    if (info && info.enabled && info.vpa) { openPayModal(info, pkg, planKey); return; }
     // UPI configured nahi — WhatsApp pe baat shuru karo.
     window.open('https://wa.me/918459012607?text=' + encodeURIComponent('Mujhe ' + pkg + ' plan chahiye'), '_blank', 'noopener');
   });
+
+  // ---------- Pay modal: "maine pay kiya" ref submit (self-serve, no WhatsApp needed) ----------
+  const payRefForm = document.getElementById('payRefForm');
+  if (payRefForm) {
+    payRefForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const ref = (document.getElementById('pay-ref') || {}).value?.trim() || '';
+      const name = (document.getElementById('pay-name') || {}).value?.trim() || '';
+      const contact = (document.getElementById('pay-contact') || {}).value?.trim() || '';
+      const msgEl = document.getElementById('payRefMsg');
+      const setMsg = (t, ok) => { if (!msgEl) return; msgEl.textContent = t; msgEl.className = 'msg ' + (ok ? '' : 'err'); msgEl.style.color = ok ? 'var(--ok, #16a34a)' : '#dc2626'; };
+      if (!ref) { setMsg('Transaction ID/reference daalo.', false); return; }
+      // Not-logged-in visitor => no client_id yet; backend stores it as an unresolved
+      // pending record (payer_contact se admin manually reach out karta hai) — never
+      // silently "activates" a plan for an account that doesn't exist.
+      let clientId = '';
+      try { clientId = localStorage.getItem('lgai_cid') || ''; } catch (err) {}
+      const btn = document.getElementById('payRefSubmit');
+      const oldTxt = btn.textContent;
+      btn.disabled = true; btn.textContent = 'Submit ho raha hai…';
+      try {
+        const res = await fetch('/api/upi/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            // amount:0 always — this is an unverified self-report (no receipt/screenshot
+            // check here). Admin reviews + fills the real amount before approving; never
+            // let a homepage submission auto-activate a paid plan on a claimed amount.
+            plan: CURRENT_PLAN_KEY, upi_ref: ref, amount: 0,
+            payer_name: name, payer_contact: contact, client_id: clientId
+          })
+        });
+        const d = await res.json();
+        btn.disabled = false; btn.textContent = oldTxt;
+        if (res.status === 429) { setMsg('Thoda ruk ke dobara try karo.', false); return; }
+        if (!d.ok) { setMsg(d.message || 'Submit fail — dobara try karo ya WhatsApp karo.', false); return; }
+        setMsg(clientId
+          ? '✅ Mil gaya! Verify ho raha hai, jaldi activate.'
+          : '✅ Mil gaya! Team aapse contact karke account setup + activate karegi.', true);
+        payRefForm.reset();
+      } catch (err) {
+        btn.disabled = false; btn.textContent = oldTxt;
+        setMsg('Network error — dobara try karo ya WhatsApp karo.', false);
+      }
+    });
+  }
 </script>
 
 <!-- Lucide icons (jsDelivr — CSP-allowed). Graceful: if it fails, .ic stays empty. -->
