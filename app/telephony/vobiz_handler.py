@@ -187,9 +187,25 @@ def build_stream_xml(ws_url: str, greeting: str = "") -> str:
     """
     speak = f"<Speak>{escape(greeting.strip())}</Speak>" if (greeting and greeting.strip()) else ""
     # audioTrack env-overridable (VOBIZ_AUDIO_TRACK): "inbound" = caller's audio only
-    # (correct per docs, default). If Vobiz delivers ZERO inbound media frames despite
-    # ACKing tracks:['inbound'] (observed 2026-06-22: inbound_frames=0 on a 54s answered
-    # call), try "both" to confirm whether media can flow at all. Valid: inbound|both.
+    # (correct per docs, default).
+    #
+    # 2026-06-22: observed inbound_frames=0 on a 54s answered call despite Vobiz
+    # ACKing tracks:['inbound'] in the start event (bot connects + speaks fine,
+    # never hears the caller).
+    # 2026-07-02 REAL-CALL TEST (do not retry): audioTrack="both" was tried live
+    # against 8261030181 — made it STRICTLY WORSE. Vobiz's own call-detail API
+    # (GET {base}/Call/{uuid}/) showed answer_time == end_time, bill_duration=0,
+    # hangup_source="Vobiz" — Vobiz answers the call then immediately hangs up
+    # itself, i.e. it does not accept/like audioTrack="both" at all (2 calls in a
+    # row, 100% reproduction). Reverted to "inbound" same session (restores the
+    # "connects but deaf" baseline). DO NOT set VOBIZ_AUDIO_TRACK=both again
+    # without confirming with Vobiz support first — it is confirmed harmful, not
+    # just untested. The inbound-deaf root cause is still OPEN; next diagnostic
+    # step is inspecting raw WS frames on a live call for non-JSON/malformed
+    # media frames (see _on_event's "non-JSON frame" warning), or escalating to
+    # Vobiz support with the start-event tracks:['inbound'] ACK + zero-frames
+    # evidence — not further guessing at XML attribute values (costs a real call
+    # each time).
     track = (os.environ.get("VOBIZ_AUDIO_TRACK", "inbound") or "inbound").strip() or "inbound"
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
