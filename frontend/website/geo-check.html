@@ -48,6 +48,7 @@ a{color:var(--acc)} .badge{display:inline-block;background:#ede9fe;color:#5b21b6
   <input id="city" type="text" placeholder="Pune">
   <label>Niche (optional — better probes)</label>
   <input id="niche" type="text" placeholder="solar / dentist / coaching…">
+  <div data-turnstile-host></div>
   <button id="go" onclick="run()">GEO Check Karo (FREE)</button>
   <div id="err" class="err"></div>
 </div>
@@ -72,9 +73,11 @@ async function run(){
   if(!biz||!city){$('err').textContent='Business naam + shehar dono chahiye';return}
   $('go').disabled=true;$('go').textContent='AI probes chal rahe…';$('err').textContent='';
   try{
-    const r=await fetch('/api/localseo/geo-check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business_name:biz,city,niche})});
+    const tok=window.turnstileToken?await window.turnstileToken():'';
+    const r=await fetch('/api/localseo/geo-check',{method:'POST',headers:{'Content-Type':'application/json','X-Turnstile-Token':tok},body:JSON.stringify({business_name:biz,city,niche})});
     const d=await r.json();
-    if(!d.ok){$('err').textContent=d.message||d.error||'Abhi check nahi ho paya — thodi der baad try karo';return}
+    if(r.status===429){$('err').textContent='Thoda ruk ke dobara try karo';return}
+    if(!d.ok){$('err').textContent=d.message||d.error||d.detail||'Abhi check nahi ho paya — thodi der baad try karo';return}
     $('res').style.display='block';
     const sc=d.score||0;
     $('score').textContent=sc+'/100';
@@ -88,6 +91,7 @@ async function run(){
 }
 ['biz','city','niche'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')run()}));
 </script>
+<script src="/site/turnstile.js" defer></script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});</script>
 </body>
 </html>

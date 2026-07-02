@@ -29,6 +29,11 @@
       ".lgo-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}" +
       ".lgo-title{font-size:16px;font-weight:800;color:var(--ink,#1e1b2e)}" +
       ".lgo-headline{font-size:13px;font-weight:700;color:var(--muted,#6b7280)}" +
+      ".lgo-stats{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}" +
+      ".lgo-stat{flex:1 1 110px;min-width:100px;background:#f8f8fc;border:1px solid var(--line,#e5e7eb);" +
+      "border-radius:11px;padding:9px 12px;text-align:center}" +
+      ".lgo-stat b{display:block;font-size:19px;font-weight:800;color:var(--ink,#1e1b2e)}" +
+      ".lgo-stat span{font-size:10.5px;font-weight:700;color:var(--muted,#6b7280);text-transform:uppercase;letter-spacing:.3px}" +
       ".lgo-cols{display:grid;grid-template-columns:1.25fr 1fr;gap:18px;margin-top:10px}" +
       ".lgo-subh{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;" +
       "color:var(--muted,#6b7280);margin:2px 0 9px}" +
@@ -100,6 +105,29 @@
     );
   }
 
+  function stat(n, label) {
+    return '<div class="lgo-stat"><b>' + esc(n) + '</b><span>' + esc(label) + "</span></div>";
+  }
+
+  function statsHtml(summary, product) {
+    if (!summary) return "";
+    var isVoice = product === "voice" || product === "combo";
+    var items = [
+      stat(summary.posts_ready || 0, "Posts taiyaar"),
+      stat(summary.approvals_pending || 0, "Approval pending"),
+      stat(summary.new_leads || 0, "Naye leads"),
+      stat(summary.hot_leads || 0, "🔥 Hot leads"),
+    ];
+    // voice/combo only — calls/bookings are meaningless (always 0) for a pure
+    // marketing plan, so hiding them avoids a confusing "0 calls" on a plan
+    // that never makes calls.
+    if (isVoice) {
+      items.push(stat(summary.calls_completed || 0, "Calls complete"));
+      items.push(stat(summary.bookings || 0, "Bookings"));
+    }
+    return '<div class="lgo-stats" aria-label="Aaj tak ka kaam">' + items.join("") + "</div>";
+  }
+
   function render(mount, data) {
     if (!data || data.enabled === false) { mount.innerHTML = ""; return; }
     injectStyles();
@@ -117,6 +145,7 @@
       '<section class="lgo-wrap" aria-label="Aapka Office">' +
       '<div class="lgo-head"><div class="lgo-title">🏢 Aapka Office</div>' +
       '<div class="lgo-headline">' + esc(data.headline || "") + "</div></div>" +
+      statsHtml(data.summary, data.product) +
       '<div class="lgo-cols">' +
       '<div class="lgo-col"><div class="lgo-subh">📋 Aapke kaam' +
       (tasks.length ? " (" + tasks.length + ")" : "") + "</div>" + tasksHtml + "</div>" +

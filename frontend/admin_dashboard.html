@@ -403,6 +403,35 @@
         </div>
       </div>
 
+      <!-- UPI Self-Serve Submissions — customer "maine pay kiya" ref queue (DISTINCT
+           from the God Mode "UPI Payment (screenshot → activate)" box above, which
+           scans trial clients waiting for a WhatsApp screenshot. This queue is the
+           customer-typed self-serve submissions from /api/upi/submit — public pay
+           modal + customer portal both write here via POST /api/upi/submit.) -->
+      <div class="card" id="sec-upi-selfserve" style="border:1px solid rgba(99,102,241,.3);margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd">
+          <h3 style="font-size:15px">📥 UPI Self-Serve Submissions <span style="font-weight:400;color:#94a3b8;font-size:11px">(customer ne ref bheja)</span></h3>
+          <button class="btn" onclick="loadUpiSelfServe()" style="margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="upiSelfServeBody" style="color:#e2e8f0">
+          <span style="color:#818cf8;font-size:13px">Loading…</span>
+        </div>
+      </div>
+
+      <!-- MCP Server Status — /mcp mount is gate-refused in prod without
+           FASTAPI_MCP_TOKEN/MCP_IP_ALLOWLIST (app/main.py). Previously only a
+           log-line warning + hourly Arya pulse file; no admin UI visibility. -->
+      <div class="card" id="sec-mcp-status" style="border:1px solid rgba(99,102,241,.3);margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd">
+          <h3 style="font-size:15px">🔌 MCP Server Status</h3>
+          <button class="btn" onclick="mcpHealthRun()" style="margin-left:10px;padding:6px 12px;font-size:12px">▶ Health check chalao</button>
+          <button class="btn" onclick="loadMcpStatus()" style="margin-left:6px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="mcpStatusBody" style="color:#e2e8f0">
+          <span style="color:#818cf8;font-size:13px">Loading…</span>
+        </div>
+      </div>
+
       <!-- Hourly job timeline -->
       <div class="card" id="sec-hourly-ops" style="margin-bottom:14px;scroll-margin-top:80px">
         <div class="hd">
@@ -2035,6 +2064,8 @@ document.addEventListener("DOMContentLoaded", ()=>{
   loadWebCalls();
   loadGodMode();
   loadCampaignStatus();
+  loadUpiSelfServe();
+  loadMcpStatus();
 });
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
@@ -2890,6 +2921,106 @@ function renderCampaignPrereq(sys){
   const prov = (sys.telephony_provider || 'vobiz').toLowerCase();
   el.innerHTML = `<div style="font-size:11px;color:#64748b;margin-bottom:6px">Phone campaigns optional — marketing launch alag se ready hai.</div>
     <div style="font-size:11px;color:#94a3b8">Telephony score: <b>${telScore}/100</b> · provider: ${escH(prov)}</div>`;
+}
+
+async function loadUpiSelfServe(){
+  const el=document.getElementById('upiSelfServeBody');
+  if(!el) return;
+  try{
+    const r=await fetch('/api/upi/pending',{headers:abAuthHdr(),cache:'no-store'});
+    const d=await r.json();
+    const rows=(d&&d.pending)||[];
+    if(!rows.length){
+      el.innerHTML='<div style="font-size:11px;color:#64748b">Koi pending self-serve submission nahi.</div>';
+      return;
+    }
+    el.innerHTML=rows.map(function(p){
+      const hasClient = !!(p.client_id||'').trim();
+      const noClientNote = hasClient ? '' :
+        '<div style="font-size:10px;color:#fbbf24;margin-top:3px">⚠️ Koi account nahi — payer_contact pe manually reach out karo, approve se auto-activate nahi hoga</div>';
+      return '<div style="padding:8px 10px;margin-bottom:6px;background:rgba(0,0,0,.2);border-radius:6px;font-size:11px">'
+        + '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+        + '<span style="flex:1;color:#e2e8f0"><b>'+escH(p.plan||'')+'</b> · ref: '+escH(p.upi_ref||'')
+        + (p.amount?(' · ₹'+escH(String(p.amount))):'')
+        + (p.payer_name?(' · '+escH(p.payer_name)):'')
+        + (p.payer_contact?(' · '+escH(p.payer_contact)):'')
+        + (hasClient?(' · client: '+escH(p.client_id)):' · client: none (lead only)')
+        + '</span>'
+        + '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',true)" style="font-size:10px;padding:4px 8px;background:#10b981">✓ Approve</button>'
+        + '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',false)" style="font-size:10px;padding:4px 8px;background:#dc2626">✕ Reject</button>'
+        + '</div>' + noClientNote + '</div>';
+    }).join('');
+  }catch(e){
+    el.innerHTML='<div style="font-size:11px;color:#f87171">Load fail: '+escH(e.message)+'</div>';
+  }
+}
+
+async function upiSelfServeDecide(pid, approve){
+  if(approve && !confirm('UPI ref verify ho gaya? Approve + activate karein (agar client account hai)?')) return;
+  if(!approve && !confirm('Yeh submission reject karein?')) return;
+  try{
+    const r=await fetch('/api/upi/pending/'+encodeURIComponent(pid)+'/'+(approve?'approve':'reject'),{
+      method:'POST', headers:abAuthHdr()
+    });
+    const d=await r.json();
+    if(d && d.ok!==false){ loadUpiSelfServe(); }
+    else alert('Fail: '+(d.error||r.status));
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+// — MCP server status (secure-off visibility) ──────────────────────
+function renderMcpStatus(d){
+  const el=document.getElementById('mcpStatusBody');
+  if(!el) return;
+  if(!d || d.status==='never_ran'){
+    el.innerHTML='<div style="font-size:11px;color:#64748b">Koi health data nahi abhi tak — "Health check chalao" dabao.</div>';
+    return;
+  }
+  const kpis=d.kpis||{};
+  const gate=kpis.expose_gate||{};
+  const dep=kpis.dependency||{};
+  let stateLabel, stateColor;
+  if(!dep.fastapi_mcp_installed){
+    stateLabel='⚠️ fastapi-mcp not installed — /mcp mount nahi ho sakta'; stateColor='#fbbf24';
+  } else if(gate.mcp_endpoint_gated){
+    stateLabel='✅ Mounted (gated: '+(gate.token_configured?'token':'ip-allowlist')+')'; stateColor='#4ade80';
+  } else {
+    stateLabel='🔒 Secure-off — production me REFUSED (koi token/allowlist set nahi)'; stateColor='#f87171';
+  }
+  const score = (typeof d.score === 'number') ? d.score.toFixed(0) : '—';
+  const ageMin = d.last_run_age_s!=null ? Math.round(d.last_run_age_s/60) : null;
+  let html = `<div style="font-size:14px;font-weight:700;color:${stateColor};margin-bottom:6px">${stateLabel}</div>`;
+  html += `<div style="font-size:12px;color:#cbd5e1;margin-bottom:8px">Score: <b>${escH(score)}/100</b>${ageMin!=null?(' · last check '+ageMin+' min pehle'):''}</div>`;
+  const actions=d.actions||[];
+  if(actions.length){
+    html += '<div style="font-size:11px;font-weight:700;color:#fbbf24;margin-bottom:4px">Actions:</div>';
+    html += '<ul style="margin:0 0 8px 18px;padding:0;font-size:11px;color:#e2e8f0">' + actions.map(a=>'<li>'+escH(a)+'</li>').join('') + '</ul>';
+  }
+  const authFails=(kpis.auth_failures||{}).auth_failures_24h;
+  html += `<div style="font-size:10px;color:#94a3b8">Token configured: ${gate.token_configured?'✓':'✗'} · IP allowlist: ${gate.ip_allowlist_set?'✓':'✗'} · Auth failures (24h): ${authFails==null?'—':escH(String(authFails))}</div>`;
+  el.innerHTML = html;
+}
+
+async function loadMcpStatus(){
+  const el=document.getElementById('mcpStatusBody');
+  if(!el) return;
+  try{
+    const r=await fetch('/api/admin/mcp/health',{headers:abAuthHdr(),cache:'no-store'});
+    renderMcpStatus(await r.json());
+  }catch(e){
+    el.innerHTML='<div style="font-size:11px;color:#f87171">Load fail: '+escH(e.message)+'</div>';
+  }
+}
+
+async function mcpHealthRun(){
+  const el=document.getElementById('mcpStatusBody');
+  if(el) el.innerHTML='<span style="color:#818cf8;font-size:13px">Health check chal raha…</span>';
+  try{
+    const r=await fetch('/api/admin/mcp/health/run',{method:'POST',headers:abAuthHdr()});
+    renderMcpStatus(await r.json());
+  }catch(e){
+    if(el) el.innerHTML='<div style="font-size:11px;color:#f87171">Run fail: '+escH(e.message)+'</div>';
+  }
 }
 
 async function upiActivate(clientId){
