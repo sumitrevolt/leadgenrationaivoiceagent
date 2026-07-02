@@ -159,6 +159,68 @@ JOB_ROOM: dict[str, str] = {
 # 3 sources that engine supports today).
 APPROVAL_ROOM = {"sales": "sales_crm", "coordinator": "coordinator", "fde": "sales_crm"}
 
+# --------------------------------------------------------------------------- #
+# Aaj-ka-Schedule — static mirror of team_scheduler.py's IST job windows so the
+# office map can show a real day-plan timeline ("kya kab chalega / chala").
+# DISPLAY-ONLY: nothing here triggers a job. Drift-locked by
+# tests/test_office_hq.py::test_schedule_defs_windows_match_team_scheduler_source,
+# which asserts each window tuple string still exists verbatim in
+# team_scheduler.py — change a window there and this list (+ test) fails loudly
+# until both are updated together.
+#   type "daily":  window = [start_h, start_m, end_h, end_m] (IST)
+#   type "weekly": window + weekday (0=Mon .. 6=Sun)
+#   type "recurring": cadence = human-readable repeat rule (no single window)
+# --------------------------------------------------------------------------- #
+SCHEDULE_DEFS: list[dict[str, Any]] = [
+    {"job": "revenue_snapshot", "label": "MRR snapshot", "type": "daily", "window": [0, 5, 0, 35]},
+    {"job": "obsidian_push", "label": "Obsidian brain push", "type": "daily", "window": [2, 15, 3, 0]},
+    {"job": "qa", "label": "Voice QA (Arjun)", "type": "daily", "window": [2, 30, 4, 0]},
+    {"job": "trainer", "label": "Trainer + ML (Meera)", "type": "daily", "window": [3, 0, 4, 30]},
+    {"job": "blog", "label": "SEO blog (Dev)", "type": "daily", "window": [6, 30, 8, 30]},
+    {"job": "content", "label": "Content generation (Isha)", "type": "daily", "window": [7, 0, 9, 0]},
+    {"job": "standup", "label": "Boss standup", "type": "daily", "window": [8, 0, 9, 30]},
+    {"job": "digest", "label": "Morning digest", "type": "daily", "window": [8, 30, 10, 30]},
+    {"job": "readiness_digest", "label": "Readiness digest", "type": "daily", "window": [8, 30, 9, 30]},
+    {"job": "engineer_finops", "label": "FinOps score (Vidya)", "type": "daily", "window": [9, 0, 10, 0]},
+    {"job": "prospect", "label": "Lead prospecting (Rohan)", "type": "daily", "window": [9, 30, 11, 30]},
+    {"job": "engineer_security", "label": "Security posture (Arnav)", "type": "daily", "window": [9, 30, 10, 30]},
+    {"job": "engineer_dbre", "label": "DB reliability (Kabir)", "type": "daily", "window": [10, 0, 11, 0]},
+    {"job": "engineer_dataquality", "label": "Data integrity (Diya)", "type": "daily", "window": [10, 30, 11, 30]},
+    {"job": "pipeline", "label": "Pipeline rescore (Neha)", "type": "daily", "window": [11, 0, 12, 0]},
+    {"job": "platform_dial", "label": "Self-sale cold-call batch", "type": "daily", "window": [11, 30, 12, 30]},
+    {"job": "process_autostart", "label": "Process auto-start", "type": "daily", "window": [11, 30, 13, 0]},
+    {"job": "midday_prospect", "label": "Midday lead harvest", "type": "daily", "window": [14, 30, 15, 30]},
+    {"job": "afternoon_content", "label": "Afternoon content (Isha)", "type": "daily", "window": [15, 0, 16, 0]},
+    {"job": "evening_prospect", "label": "Evening lead harvest", "type": "daily", "window": [17, 0, 18, 0]},
+    {"job": "evening_wrap", "label": "Evening wrap", "type": "daily", "window": [18, 30, 19, 30]},
+    {"job": "call_kpi_digest", "label": "Call KPI digest (Lekha)", "type": "daily", "window": [19, 30, 20, 30]},
+    {"job": "weekly_marketing", "label": "Weekly marketing packs", "type": "weekly", "weekday": 2, "window": [12, 30, 13, 30]},
+    {"job": "saturday_hygiene", "label": "Hygiene sweep (DLQ+trim)", "type": "weekly", "weekday": 5, "window": [4, 0, 5, 30]},
+    {"job": "kb_refresh", "label": "KB refresh", "type": "weekly", "weekday": 6, "window": [5, 0, 6, 30]},
+    {"job": "engineer_deps", "label": "Dependency CVE audit (Aryan)", "type": "weekly", "weekday": 6, "window": [4, 30, 5, 0]},
+    {"job": "growth", "label": "Growth pulse", "type": "recurring", "cadence": "har 15 min"},
+    {"job": "flow_cron", "label": "Flow Runner cron", "type": "recurring", "cadence": "har 5 min"},
+    {"job": "ops", "label": "Ops health (Kavya)", "type": "recurring", "cadence": "hourly :05"},
+    {"job": "email_outreach", "label": "Email outreach (Rohan)", "type": "recurring", "cadence": "9am-7pm hourly"},
+    {"job": "email_followup", "label": "Email follow-ups", "type": "recurring", "cadence": "9am-7pm hourly (:20+)"},
+    {"job": "reply_triage", "label": "Reply triage", "type": "recurring", "cadence": "hourly :20"},
+    {"job": "watchdog", "label": "Ops watchdog", "type": "recurring", "cadence": "hourly :35"},
+    {"job": "mcp_engineer", "label": "MCP health (Arya)", "type": "recurring", "cadence": "hourly :40"},
+    {"job": "engineer_sre", "label": "SRE score (Pranav)", "type": "recurring", "cadence": "hourly :45"},
+    {"job": "onboard", "label": "Auto onboarding", "type": "recurring", "cadence": "hourly :50"},
+    {"job": "meter_watch", "label": "Meter watch", "type": "recurring", "cadence": "hourly :55"},
+]
+
+
+def build_schedule() -> list[dict[str, Any]]:
+    """Static day-plan for the office map's "Aaj ka Schedule" panel. Pure data,
+    zero IO — run-status (done/overdue/off) is merged CLIENT-side from the
+    system_health.jobs beats already present in the same snapshot. Never raises."""
+    try:
+        return [dict(d) for d in SCHEDULE_DEFS]
+    except Exception:
+        return []
+
 PIPELINE_STAGE_META: list[dict[str, Any]] = [
     {"id": "lead_source", "name": "Lead Source / Import", "order": 1},
     {"id": "cleaning_enrichment", "name": "Lead Cleaning & Enrichment", "order": 2},
@@ -949,6 +1011,7 @@ async def build_snapshot() -> dict[str, Any]:
         "pipeline": pipeline,
         "approvals": approvals,
         "system_health": system_health,
+        "schedule": build_schedule(),
         "generated_at": _now().isoformat(),
         "cached": False,
     }

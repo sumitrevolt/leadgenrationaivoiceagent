@@ -447,3 +447,68 @@ def test_snapshot_cache_ttl_exceeds_frontend_poll_interval():
     FRONTEND_POLL_INTERVAL_S = 15  # frontend/office_map.html setInterval(...,15000)
     assert office_hq._SNAPSHOT_CACHE_TTL == 18
     assert office_hq._SNAPSHOT_CACHE_TTL > FRONTEND_POLL_INTERVAL_S
+
+
+# --- Aaj-ka-Schedule (SCHEDULE_DEFS + build_schedule) ------------------------
+
+
+def test_schedule_defs_contract():
+    """Every entry is display-complete: job key, Hinglish-friendly label, and a
+    valid type-specific shape (daily/weekly = 4-int IST window with start<end;
+    weekly also a 0-6 weekday; recurring = human cadence string)."""
+    jobs = [d["job"] for d in office_hq.SCHEDULE_DEFS]
+    assert len(jobs) == len(set(jobs)), "duplicate job key in SCHEDULE_DEFS"
+    for d in office_hq.SCHEDULE_DEFS:
+        assert d["job"] and d["label"]
+        assert d["type"] in ("daily", "weekly", "recurring")
+        if d["type"] in ("daily", "weekly"):
+            w = d["window"]
+            assert len(w) == 4 and all(isinstance(x, int) for x in w)
+            assert (w[0], w[1]) < (w[2], w[3]), f"{d['job']} window start !< end"
+            assert 0 <= w[0] <= 23 and 0 <= w[2] <= 23
+        if d["type"] == "weekly":
+            assert 0 <= d["weekday"] <= 6
+        if d["type"] == "recurring":
+            assert d["cadence"]
+
+
+def test_schedule_defs_windows_match_team_scheduler_source():
+    """Drift-lock: SCHEDULE_DEFS is a static DISPLAY mirror of the real windows
+    in team_scheduler.py — if a window there changes without updating the
+    mirror (or vice versa), this fails loudly. Window tuples are asserted
+    verbatim against the scheduler source; recurring jobs assert their
+    _last_ran wiring still exists."""
+    import inspect
+
+    from app.platform import team_scheduler
+
+    src = inspect.getsource(team_scheduler)
+    for d in office_hq.SCHEDULE_DEFS:
+        job = d["job"]
+        assert (f'_last_ran["{job}"]' in src) or (f'_last_ran.get("{job}")' in src), (
+            f"{job}: no _last_ran wiring found in team_scheduler.py"
+        )
+        if d["type"] in ("daily", "weekly"):
+            w = d["window"]
+            window_str = f"({w[0]}, {w[1]}) <= hm < ({w[2]}, {w[3]})"
+            assert window_str in src, (
+                f"{job}: window {window_str} not found verbatim in team_scheduler.py "
+                "— scheduler window changed? Update SCHEDULE_DEFS to match."
+            )
+        if d["type"] == "weekly":
+            assert f"now.weekday() == {d['weekday']}" in src, (
+                f"{job}: weekday {d['weekday']} not found in team_scheduler.py"
+            )
+
+
+def test_build_schedule_returns_copies_and_never_raises():
+    out = office_hq.build_schedule()
+    assert len(out) == len(office_hq.SCHEDULE_DEFS)
+    out[0]["label"] = "mutated"
+    assert office_hq.SCHEDULE_DEFS[0]["label"] != "mutated"  # copies, not references
+
+
+async def test_build_snapshot_includes_schedule():
+    snap = await office_hq.build_snapshot()
+    assert isinstance(snap.get("schedule"), list)
+    assert len(snap["schedule"]) == len(office_hq.SCHEDULE_DEFS)

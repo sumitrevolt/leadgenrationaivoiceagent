@@ -148,9 +148,67 @@
   .loading-note{color:var(--muted);font-size:12.5px;padding:14px 4px;animation:loadingPulse 1.4s ease-in-out infinite}
   @keyframes loadingPulse{0%,100%{opacity:.5}50%{opacity:1}}
 
+  /* ---- Quick-nav chips (sticky section jumper) ---- */
+  #quickNav{position:sticky;top:57px;z-index:19;background:var(--bg);padding:6px 0 2px;
+    display:flex;gap:6px;flex-wrap:wrap}
+  .qn-chip{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;
+    padding:4px 12px;font-size:11.5px;font-weight:700;cursor:pointer}
+  .qn-chip:hover{border-color:var(--brand-2);color:var(--brand-2)}
+
+  /* ---- Map toolbar (search + zoom controls) ---- */
+  #mapToolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  #agentSearchWrap{position:relative;flex:1;min-width:180px;max-width:320px}
+  #agentSearch{width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 10px;
+    font-size:12.5px;box-sizing:border-box}
+  #agentSearchResults{position:absolute;top:34px;left:0;right:0;background:#fff;border:1px solid var(--line);
+    border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:25;display:none;max-height:240px;overflow-y:auto}
+  .asr-row{padding:7px 10px;font-size:12.5px;cursor:pointer;display:flex;gap:7px;align-items:center}
+  .asr-row:hover{background:var(--brand-soft)}
+  .asr-row .asr-title{color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .map-btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 10px;
+    font-size:12.5px;font-weight:700;cursor:pointer}
+  .map-btn:hover{border-color:var(--brand-2)}
+  #mapHint{font-size:11px;color:var(--muted)}
+
+  /* ---- Aaj ka Schedule ---- */
+  .sched-row{display:flex;align-items:center;gap:9px;padding:5px 0;border-top:1px dashed var(--line);font-size:12.5px}
+  .sched-row:first-of-type{border-top:none}
+  .sched-time{flex:0 0 auto;width:96px;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+  .sched-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sched-chip{flex:0 0 auto;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:700}
+  .sc-done{background:#d1fae5;color:#065f46}
+  .sc-open{background:#dbeafe;color:#1e40af}
+  .sc-pending{background:#f3f4f6;color:#4b5563}
+  .sc-miss{background:#fee2e2;color:#991b1b}
+  .sc-off{background:#e5e7eb;color:#6b7280}
+  .sc-na{background:#f3f4f6;color:#9ca3af}
+  #scheduleNowLine{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:var(--brand);margin:4px 0}
+  #scheduleNowLine .now-rule{flex:1;height:2px;background:var(--brand);opacity:.35;border-radius:2px}
+  #recurringStrip{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+  .rec-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;
+    padding:3px 10px;font-size:10.5px;font-weight:600;color:var(--ink);background:var(--bg)}
+  .rec-dot{width:7px;height:7px;border-radius:50%}
+
+  /* ---- Leaderboard + activity chart ---- */
+  .lb-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px;cursor:pointer}
+  .lb-row:hover .lb-name{color:var(--brand-2)}
+  .lb-rank{flex:0 0 20px;font-weight:800;color:var(--muted)}
+  .lb-name{flex:0 0 132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+  .lb-bar-wrap{flex:1;background:var(--bg);border-radius:6px;height:14px;overflow:hidden}
+  .lb-bar{height:100%;background:linear-gradient(90deg,#a78bfa,#6366f1);border-radius:6px}
+  .lb-count{flex:0 0 auto;font-weight:800;font-size:11.5px}
+  .lb-err{color:var(--err);font-size:10.5px;font-weight:700}
+  #activityChart{display:flex;align-items:flex-end;gap:2px;height:90px;padding:4px 0}
+  .act-bar{flex:1;background:linear-gradient(180deg,#a78bfa,#6366f1);border-radius:2px 2px 0 0;min-height:2px;opacity:.85}
+  .act-bar.act-now{background:linear-gradient(180deg,#f59e0b,#d97706)}
+  #activityHours{display:flex;gap:2px;font-size:9px;color:var(--muted)}
+  #activityHours span{flex:1;text-align:center}
+
   @media (max-width:900px){ .two-col{grid-template-columns:1fr} }
   @media (max-width:760px){
     #stageWrap{display:none}
+    #mapToolbar{display:none}
+    #quickNav{top:auto;position:static}
     #roomListCompact{display:flex;flex-direction:column;gap:8px}
     .board-row{flex-direction:column}
     .stage-card{flex:1 1 auto}
@@ -172,6 +230,7 @@
       display:inline-flex;align-items:center;justify-content:center" title="Legend">?</span>
     <a class="back" href="/app/team">AI Staff Team (list view) →</a>
     <div class="spacer"></div>
+    <span id="istClock" style="font-size:11.5px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums"></span>
     <span id="freshnessBadge" style="font-size:11.5px;color:var(--muted)"></span>
     <button id="manualRefreshBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
       padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer">🔄 Refresh now</button>
@@ -185,27 +244,70 @@
     <div>⚪ <b>Offline</b> — aaj kuch nahi (hover karke reason dekho)</div>
     <div style="margin-top:6px">🟡 Golden dot — Coordinator ne kisi agent ko task diya</div>
     <div style="margin-top:6px">🏗️ System Map — live architecture, click to expand</div>
+    <div style="margin-top:6px">🔎 Map: Ctrl+scroll ya ➕/➖ = zoom · zoom me drag = pan · poora room clickable</div>
+    <div style="margin-top:6px">🕒 Schedule — aaj kaunsa automation kab chalega/chala (green pulse ring = abhi working)</div>
     <button id="legendClose" style="margin-top:10px;border:1px solid var(--line);background:#fff;
       border-radius:6px;padding:3px 10px;font-size:11.5px;cursor:pointer">Band karo</button>
   </div>
   <div id="banner"><div class="b"><span id="bannerMsg"></span><button id="bannerRetry">Retry</button></div></div>
   <div id="page">
+    <div id="quickNav">
+      <button class="qn-chip" data-jump="stageWrap">🏢 Map</button>
+      <button class="qn-chip" data-jump="feedCard">📰 Feed</button>
+      <button class="qn-chip" data-jump="leaderboardPanel">🏆 Team</button>
+      <button class="qn-chip" data-jump="pipelineBoard">📈 Pipeline</button>
+      <button class="qn-chip" data-jump="schedulePanel">🕒 Schedule</button>
+      <button class="qn-chip" data-jump="approvalsPanel">🗂️ Approvals</button>
+      <button class="qn-chip" data-jump="systemHealthPanel">🛠️ Health</button>
+      <button class="qn-chip" data-jump="failureConsoleCard">🚨 Reliability</button>
+    </div>
     <div id="statusSummary" style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px"></div>
     <div class="kpi-row" id="kpiRow"><div class="loading-note">⏳ HQ data load ho raha hai (pehli baar ~8-9s lag sakta hai)…</div></div>
     <div id="nbaCard"><div class="nba-head">🧭 Next best actions</div><div id="nbaList"></div></div>
 
+    <div id="mapToolbar">
+      <div id="agentSearchWrap">
+        <input id="agentSearch" placeholder="🔎 Agent dhundo (naam/role)…" autocomplete="off" />
+        <div id="agentSearchResults"></div>
+      </div>
+      <button class="map-btn" id="zoomInBtn" title="Zoom in">➕</button>
+      <button class="map-btn" id="zoomOutBtn" title="Zoom out">➖</button>
+      <button class="map-btn" id="zoomResetBtn" title="Reset view">🔄 Reset</button>
+      <span id="mapHint">Ctrl+scroll = zoom · zoom me drag = pan · room/agent pe click = detail</span>
+    </div>
     <div id="stageWrap"><div id="stage"></div></div>
     <div id="roomListCompact"><div class="loading-note">⏳ Loading rooms…</div></div>
 
-    <div class="feed-card">
+    <div class="feed-card" id="feedCard">
       <div class="feed-head"><span class="ticker-dot"></span> Live automation feed — poora project ka feed</div>
       <div class="filter-row" id="filterRow"></div>
       <div id="tickerList"><div class="loading-note">⏳ Loading feed…</div></div>
     </div>
 
+    <div class="two-col">
+      <div class="panel-box" id="leaderboardPanel">
+        <h3>🏆 Top performers (aaj)</h3>
+        <div id="leaderboardList"><div class="loading-note">⏳ Loading…</div></div>
+      </div>
+      <div class="panel-box" id="activityPanel">
+        <h3>📊 Team activity — last 24h (IST)</h3>
+        <div id="activityChart"><div class="loading-note">⏳ Loading…</div></div>
+        <div id="activityHours"></div>
+        <div id="activityMeta" class="empty-note"></div>
+      </div>
+    </div>
+
     <div id="pipelineBoard">
       <div class="board-head"><div class="board-title">📈 Lead → Renewal Pipeline</div></div>
       <div class="board-row" id="boardRow"><div class="loading-note">⏳ Loading pipeline…</div></div>
+    </div>
+
+    <div id="schedulePanel" class="panel-box">
+      <h3>🕒 Aaj ka Schedule (IST)
+        <span style="font-weight:400;font-size:12px;color:var(--muted)">— automation day-plan, live status ke saath</span>
+      </h3>
+      <div id="scheduleList"><div class="loading-note">⏳ Loading…</div></div>
+      <div id="recurringStrip"></div>
     </div>
 
     <div id="systemMapCard" class="panel-box">
@@ -344,7 +446,9 @@
   // desks, rugs and avatars all read as the same art scale.
   OFFICE.TILE_SCALE = 2.0;
 
-  OFFICE.worldToPage = function(x, y){
+  // Canvas-space (pointer) coords -> page coords. Pointer.x/y are already in
+  // game/canvas space regardless of camera zoom, so NO camera transform here.
+  OFFICE.canvasToPage = function(x, y){
     try {
       var sm = OFFICE.game.scale;
       var b = sm.canvasBounds || sm.canvas.getBoundingClientRect();
@@ -352,6 +456,30 @@
     } catch (e) { return { x: 0, y: 0 }; }
   };
 
+  // WORLD coords -> page coords — camera-aware (zoom/pan supported). Used for
+  // overlays anchored to world positions (coordinator ticker box).
+  OFFICE.worldToPage = function(x, y){
+    try {
+      var cam = OFFICE.scene && OFFICE.scene.cameras.main;
+      if (cam) {
+        x = (x - cam.midPoint.x) * cam.zoom + cam.width / 2;
+        y = (y - cam.midPoint.y) * cam.zoom + cam.height / 2;
+      }
+      return OFFICE.canvasToPage(x, y);
+    } catch (e) { return { x: 0, y: 0 }; }
+  };
+
+  // Reposition world-anchored DOM overlays after any camera change.
+  OFFICE.updateTickerBoxPos = function(){
+    var tickerBox = document.getElementById("coordinatorTickerBox");
+    if (!tickerBox || tickerBox.style.display === "none") return;
+    var room = OFFICE.roomById.coordinator;
+    var pagePos = OFFICE.worldToPage(room.x + room.w - 290, room.y + 30);
+    tickerBox.style.left = pagePos.x + "px";
+    tickerBox.style.top = pagePos.y + "px";
+  };
+
+  OFFICE.roomDots = {};   // room id -> Phaser circle (live status dot on the map)
   OFFICE.drawRooms = function(){
     var scene = OFFICE.scene;
     var s = OFFICE.TILE_SCALE;
@@ -363,21 +491,32 @@
       var border = scene.add.graphics();
       border.lineStyle(4, room.stroke, 1);
       border.strokeRect(ix, iy, iw, ih);
+      // Whole-room click/hover zone (invisible, created BEFORE avatars so
+      // avatars stay on top for input priority). Click = room panel; drag = pan.
+      var zone = scene.add.rectangle(ix, iy, iw, ih, 0xffffff, 0.001).setOrigin(0, 0);
+      zone.setInteractive({ useHandCursor: true });
+      zone.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openRoomPanel(room.id); });
+      zone.on("pointerover", function(p){ OFFICE.showRoomTooltip(room.id, p); });
+      zone.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
+      zone.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
       var lbl = scene.add.text(room.x + 14, room.y + 12, room.label, {
         fontSize: "14px", fontFamily: "sans-serif", fontStyle: "bold", color: "#1e1b2e"
       }).setShadow(0, 1, "#ffffff", 2, false, true);
       lbl.setInteractive({ useHandCursor: true });
-      lbl.on("pointerdown", function(){ OFFICE.openRoomPanel(room.id); });
+      lbl.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openRoomPanel(room.id); });
       lbl.on("pointerover", function(p){ OFFICE.showRoomTooltip(room.id, p); });
       lbl.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
       lbl.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
+      // Live status dot next to the label — colored from the backend snapshot
+      // (idle/active/blocked/error) on every refresh, so the map itself shows
+      // room health at a glance, not just the compact list.
+      var dot = scene.add.circle(room.x + 14 + lbl.width + 12, room.y + 21, 5, 0x94a3b8)
+        .setStrokeStyle(1.5, 0xffffff);
+      OFFICE.roomDots[room.id] = dot;
       OFFICE.drawRoomDecor(room, ix, iy, iw, ih);
       if (room.id === "coordinator") {
-        var tickerBox = document.getElementById("coordinatorTickerBox");
-        var pagePos = OFFICE.worldToPage(room.x + room.w - 290, room.y + 30);
-        tickerBox.style.left = pagePos.x + "px";
-        tickerBox.style.top = pagePos.y + "px";
-        tickerBox.style.display = "block";
+        document.getElementById("coordinatorTickerBox").style.display = "block";
+        OFFICE.updateTickerBoxPos();
       }
     });
   };
@@ -401,7 +540,8 @@
   OFFICE.moveRoomTooltip = function(pointer){
     var tip = document.getElementById("roomTooltip");
     if (tip.style.display !== "block") return;
-    var p = OFFICE.worldToPage(pointer.x, pointer.y);
+    // pointer.x/y are canvas-space — canvasToPage (NOT the camera-aware worldToPage).
+    var p = OFFICE.canvasToPage(pointer.x, pointer.y);
     tip.style.left = (p.x + 12) + "px";
     tip.style.top = (p.y + 12) + "px";
   };
@@ -457,17 +597,20 @@
     var desk = scene.add.image(slot.x, slot.y + 13, "desk_1").setScale(s);
     var sprite = scene.add.image(0, -4, OFFICE.charKeyFor(m.key)).setScale(s);
     sprite.setInteractive({ useHandCursor: true });
-    sprite.on("pointerdown", function(){ OFFICE.openAgentPanel(m.key); });
-    if (m.state === "offline" && m.offlineReason) {
-      sprite.on("pointerover", function(p){
-        var tip = document.getElementById("roomTooltip");
-        tip.innerHTML = "<b>" + esc(m.name) + " — offline</b><br>" + esc(OFFICE.offlineReasonText(m.offlineReason));
-        tip.style.display = "block";
-        OFFICE.moveRoomTooltip(p);
-      });
-      sprite.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
-      sprite.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
-    }
+    sprite.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openAgentPanel(m.key); });
+    sprite.on("pointerover", function(p){
+      var tip = document.getElementById("roomTooltip");
+      var a = OFFICE.agentByKey[m.key] || m;
+      var reason = a.offlineReason || a.offline_reason;
+      var extra = (a.state || a.status) === "offline" && reason
+        ? esc(OFFICE.offlineReasonText(reason))
+        : "Aaj " + esc(a.todayActions != null ? a.todayActions : "?") + " action(s)";
+      tip.innerHTML = "<b>" + esc(a.name || m.name) + " — " + esc(a.state || a.status || "?") + "</b><br>" + extra;
+      tip.style.display = "block";
+      OFFICE.moveRoomTooltip(p);
+    });
+    sprite.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
+    sprite.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
     var badge = scene.add.circle(12, 6, 5.5, color).setStrokeStyle(2, 0xffffff);
     var label = scene.add.text(0, 30, m.name, {
       fontSize: "10px", fontFamily: "sans-serif", color: "#1e293b"
@@ -475,10 +618,31 @@
     var group = scene.add.container(slot.x, slot.y, [sprite, badge, label]);
     var av = {
       desk: desk, sprite: sprite, badge: badge, label: label, group: group,
-      homeX: slot.x, homeY: slot.y, wandering: false
+      homeX: slot.x, homeY: slot.y, wandering: false, pulse: null, pulseTween: null
     };
+    OFFICE.setAvatarState(av, m.state);
     OFFICE.scheduleWander(m.key);
     return av;
+  };
+
+  // Status ko map par turant readable banao: working = green pulse ring,
+  // offline = dimmed avatar (dot ke alawa). Idempotent — har refresh pe call hota.
+  OFFICE.setAvatarState = function(av, state){
+    var scene = OFFICE.scene;
+    if (!av || !scene) return;
+    av.badge.setFillStyle(OFFICE.STATE_COLOR[state] || OFFICE.STATE_COLOR.offline);
+    av.group.setAlpha(state === "offline" ? 0.55 : 1);
+    if (state === "working" && !av.pulse) {
+      av.pulse = scene.add.circle(0, -2, 16, 0x10b981, 0.22);
+      av.group.addAt(av.pulse, 0);  // ring stays BEHIND the sprite
+      av.pulseTween = scene.tweens.add({
+        targets: av.pulse, scale: 1.45, alpha: 0.05,
+        duration: 950, yoyo: true, repeat: -1, ease: "Sine.easeInOut"
+      });
+    } else if (state !== "working" && av.pulse) {
+      try { av.pulseTween && av.pulseTween.stop(); av.pulse.destroy(); } catch (e) {}
+      av.pulse = null; av.pulseTween = null;
+    }
   };
 
   OFFICE.scheduleWander = function(key){
@@ -535,17 +699,23 @@
         members.forEach(function(m, i){
           var existing = OFFICE.avatars[m.key];
           if (existing) {
-            existing.badge.setFillStyle(OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline);
+            OFFICE.setAvatarState(existing, m.state);
           } else {
             OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, slots[i]);
           }
         });
+      });
+      // Live room-status dots on the map itself (same colors as compact list).
+      (snapshot.rooms || []).forEach(function(r){
+        var dot = OFFICE.roomDots[r.id];
+        if (dot) dot.setFillStyle(ROOM_STATUS_COLOR_HEX[r.status] != null ? ROOM_STATUS_COLOR_HEX[r.status] : 0x94a3b8);
       });
     }
     OFFICE.renderRoomListCompact(snapshot.rooms || []);
   };
 
   var ROOM_STATUS_COLOR = { idle: "#94a3b8", active: "#f59e0b", blocked: "#f97316", error: "#ef4444" };
+  var ROOM_STATUS_COLOR_HEX = { idle: 0x94a3b8, active: 0xf59e0b, blocked: 0xf97316, error: 0xef4444 };
   OFFICE.renderRoomListCompact = function(rooms){
     var el = document.getElementById("roomListCompact");
     el.innerHTML = rooms.map(function(r){
@@ -1248,8 +1418,268 @@
     OFFICE.renderPipeline(data.pipeline);
     OFFICE.renderApprovals(data.approvals);
     OFFICE.renderSystemHealth(data.system_health);
+    OFFICE.renderSchedule(data);
+    OFFICE.renderLeaderboard(data);
     OFFICE.renderFailureConsole();
   };
+
+  // ---- IST clock + helpers ---------------------------------------------------
+  function pad2(n){ return (n < 10 ? "0" : "") + n; }
+  function istTimeParts(){
+    // {h, m, wd} in IST; wd = python-style weekday (0=Mon .. 6=Sun) to match
+    // the backend SCHEDULE_DEFS weekday convention.
+    var parts = {};
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour12: false,
+      hour: "2-digit", minute: "2-digit", weekday: "short"
+    }).formatToParts(new Date()).forEach(function(p){ parts[p.type] = p.value; });
+    var dayMap = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+    return { h: (parseInt(parts.hour, 10) || 0) % 24, m: parseInt(parts.minute, 10) || 0,
+             wd: dayMap[parts.weekday] != null ? dayMap[parts.weekday] : 0 };
+  }
+  function renderIstClock(){
+    var el = document.getElementById("istClock");
+    if (!el) return;
+    var t = istTimeParts();
+    el.textContent = "🕐 " + pad2(t.h) + ":" + pad2(t.m) + " IST";
+  }
+  renderIstClock();
+  setInterval(renderIstClock, 15000);
+
+  // ---- Quick-nav chips ---------------------------------------------------------
+  Array.prototype.forEach.call(document.querySelectorAll(".qn-chip"), function(btn){
+    btn.onclick = function(){
+      var el = document.getElementById(btn.getAttribute("data-jump"));
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  });
+
+  // ---- Map camera: zoom / drag-pan / focus ----------------------------------
+  OFFICE.dragMoved = false;
+  OFFICE.zoomLevel = 1;
+  OFFICE.setZoomLevel = function(z){
+    if (!OFFICE.scene) return;
+    z = Math.max(1, Math.min(2.2, z));
+    OFFICE.zoomLevel = z;
+    var cam = OFFICE.scene.cameras.main;
+    cam.setZoom(z);
+    if (z === 1) cam.centerOn(600, 410);
+    OFFICE.updateTickerBoxPos();
+  };
+  OFFICE.setupCameraControls = function(scene){
+    var cam = scene.cameras.main;
+    cam.setBounds(0, 0, 1200, 820);
+    var downX = 0, downY = 0, panning = false;
+    scene.input.on("pointerdown", function(p){
+      downX = p.x; downY = p.y; panning = true; OFFICE.dragMoved = false;
+    });
+    scene.input.on("pointermove", function(p){
+      if (!panning || !p.isDown) return;
+      if (Math.abs(p.x - downX) + Math.abs(p.y - downY) > 8) OFFICE.dragMoved = true;
+      if (OFFICE.zoomLevel > 1 && OFFICE.dragMoved) {
+        cam.scrollX -= (p.x - p.prevPosition.x) / cam.zoom;
+        cam.scrollY -= (p.y - p.prevPosition.y) / cam.zoom;
+      }
+    });
+    scene.input.on("pointerup", function(){
+      panning = false;
+      // Delay the reset so object-level pointerup handlers (avatar/room click)
+      // still see dragMoved=true after an actual drag.
+      setTimeout(function(){ OFFICE.dragMoved = false; }, 30);
+    });
+    var wrap = document.getElementById("stageWrap");
+    if (wrap) wrap.addEventListener("wheel", function(e){
+      if (!e.ctrlKey) return;  // plain scroll = page scroll (map hijack nahi)
+      e.preventDefault();
+      OFFICE.setZoomLevel(OFFICE.zoomLevel + (e.deltaY < 0 ? 0.15 : -0.15));
+    }, { passive: false });
+  };
+  document.getElementById("zoomInBtn").onclick = function(){ OFFICE.setZoomLevel(OFFICE.zoomLevel + 0.25); };
+  document.getElementById("zoomOutBtn").onclick = function(){ OFFICE.setZoomLevel(OFFICE.zoomLevel - 0.25); };
+  document.getElementById("zoomResetBtn").onclick = function(){ OFFICE.setZoomLevel(1); };
+
+  OFFICE.focusAgent = function(key){
+    var av = OFFICE.avatars[key];
+    if (!av || !OFFICE.scene) return;
+    var cam = OFFICE.scene.cameras.main;
+    OFFICE.zoomLevel = 1.8;
+    cam.zoomTo(1.8, 350);
+    cam.pan(av.homeX, av.homeY, 450, "Sine.easeInOut");
+    var ring = OFFICE.scene.add.circle(av.homeX, av.homeY - 4, 30)
+      .setStrokeStyle(4, 0x6d28d9).setDepth(70);
+    OFFICE.scene.tweens.add({ targets: ring, scale: 1.6, alpha: 0, duration: 1600,
+      onComplete: function(){ ring.destroy(); } });
+  };
+
+  // ---- Agent finder (search -> pan camera + open panel) ----------------------
+  (function(){
+    var input = document.getElementById("agentSearch");
+    var results = document.getElementById("agentSearchResults");
+    function hide(){ results.style.display = "none"; }
+    input.oninput = function(){
+      var q = input.value.trim().toLowerCase();
+      if (!q) { hide(); return; }
+      var matches = Object.keys(OFFICE.agentByKey).map(function(k){ return OFFICE.agentByKey[k]; })
+        .filter(function(a){
+          return (a.name || "").toLowerCase().indexOf(q) >= 0 ||
+                 (a.title || "").toLowerCase().indexOf(q) >= 0 ||
+                 (a.key || "").toLowerCase().indexOf(q) >= 0;
+        }).slice(0, 8);
+      results.style.display = "block";
+      if (!matches.length) { results.innerHTML = '<div class="asr-row">Koi agent nahi mila.</div>'; return; }
+      results.innerHTML = matches.map(function(a){
+        return '<div class="asr-row" data-key="' + esc(a.key) + '">' + esc(a.emoji) + ' <b>' + esc(a.name) + '</b>' +
+          ' <span class="asr-title">' + esc(a.title) + '</span></div>';
+      }).join("");
+      Array.prototype.forEach.call(results.querySelectorAll(".asr-row[data-key]"), function(row){
+        row.onclick = function(){
+          var k = row.getAttribute("data-key");
+          hide(); input.value = "";
+          OFFICE.focusAgent(k);
+          OFFICE.openAgentPanel(k);
+        };
+      });
+    };
+    document.addEventListener("click", function(e){
+      var wrap = document.getElementById("agentSearchWrap");
+      if (wrap && !wrap.contains(e.target)) hide();
+    });
+  })();
+
+  // ---- Aaj ka Schedule (IST day-plan; status merged from system_health beats) --
+  var WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  function fmtIstDate(d){ return d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); }
+  function fmtIstTime(d){
+    return d.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+  function lastRunTodayIst(beat){
+    // "HH:MM" agar job ka heartbeat AAJ (IST) ka hai, warna null.
+    try {
+      if (!beat || !beat.last_run) return null;
+      var d = new Date(beat.last_run);
+      if (isNaN(d.getTime())) return null;
+      if (fmtIstDate(d) !== fmtIstDate(new Date())) return null;
+      return fmtIstTime(d);
+    } catch (e) { return null; }
+  }
+
+  OFFICE.renderSchedule = function(snapshot){
+    var list = document.getElementById("scheduleList");
+    var strip = document.getElementById("recurringStrip");
+    if (!list || !strip) return;
+    var sched = (snapshot && snapshot.schedule) || [];
+    if (!sched.length) {
+      // Deploy-race safety: purana cached snapshot bina `schedule` key ke aa
+      // sakta hai (18s TTL) — panel gracefully wait kare, error na dikhaye.
+      list.innerHTML = '<div class="empty-note">Schedule data abhi nahi mila…</div>';
+      strip.innerHTML = "";
+      return;
+    }
+    var beats = {};
+    (((snapshot || {}).system_health || {}).jobs || []).forEach(function(j){ if (j && j.job) beats[j.job] = j; });
+    var t = istTimeParts();
+    var nowMin = t.h * 60 + t.m;
+    var nowLine = '<div id="scheduleNowLine"><span>ABHI ' + pad2(t.h) + ':' + pad2(t.m) + ' IST</span><span class="now-rule"></span></div>';
+
+    var daily = sched.filter(function(s){ return s.type === "daily" || s.type === "weekly"; })
+      .sort(function(a, b){ return (a.window[0] * 60 + a.window[1]) - (b.window[0] * 60 + b.window[1]); });
+    var rows = [];
+    var nowInserted = false;
+    daily.forEach(function(s){
+      var startMin = s.window[0] * 60 + s.window[1];
+      var endMin = s.window[2] * 60 + s.window[3];
+      var timeStr = pad2(s.window[0]) + ":" + pad2(s.window[1]) + "–" + pad2(s.window[2]) + ":" + pad2(s.window[3]);
+      var beat = beats[s.job];
+      var ranAt = lastRunTodayIst(beat);
+      var notToday = s.type === "weekly" && s.weekday !== t.wd;
+      var chip;
+      if (notToday) chip = '<span class="sched-chip sc-na">sirf ' + WEEKDAY_NAMES[s.weekday] + '</span>';
+      else if (beat && beat.status === "scheduled_off") chip = '<span class="sched-chip sc-off">OFF (flag)</span>';
+      else if (ranAt) chip = '<span class="sched-chip sc-done">✓ ho gaya · ' + ranAt + '</span>';
+      else if (nowMin >= startMin && nowMin < endMin) chip = '<span class="sched-chip sc-open">🟢 window khula</span>';
+      else if (nowMin < startMin) chip = '<span class="sched-chip sc-pending">⏳ aayega</span>';
+      else if (beat && beat.status === "last_failed") chip = '<span class="sched-chip sc-miss">✕ fail hua</span>';
+      else if (beat) chip = '<span class="sched-chip sc-miss">aaj nahi chala</span>';
+      else chip = '<span class="sched-chip sc-na">no heartbeat</span>';
+      if (!nowInserted && startMin > nowMin) { rows.push(nowLine); nowInserted = true; }
+      rows.push('<div class="sched-row"' + (notToday ? ' style="opacity:.55"' : '') + '>' +
+        '<div class="sched-time">' + timeStr + '</div>' +
+        '<div class="sched-label" title="' + esc(s.job) + '">' + esc(s.label) + '</div>' + chip + '</div>');
+    });
+    if (!nowInserted) rows.push(nowLine);
+    list.innerHTML = rows.join("");
+
+    var recDot = { ok: "#10b981", overdue: "#f59e0b", last_failed: "#ef4444", never_ran: "#94a3b8", scheduled_off: "#cbd5e1" };
+    strip.innerHTML = sched.filter(function(s){ return s.type === "recurring"; }).map(function(s){
+      var beat = beats[s.job];
+      var color = beat ? (recDot[beat.status] || "#94a3b8") : "#e5e7eb";
+      var title = esc(s.job) + (beat && beat.last_run ? " · last: " + esc(relTime(beat.last_run)) : " · no heartbeat");
+      return '<span class="rec-chip" title="' + title + '">' +
+        '<span class="rec-dot" style="background:' + color + '"></span>' + esc(s.label) + ' · ' + esc(s.cadence) + '</span>';
+    }).join("");
+  };
+
+  // ---- Leaderboard (aaj ke todayActions se — snapshot ka hi data) -------------
+  OFFICE.renderLeaderboard = function(snapshot){
+    var el = document.getElementById("leaderboardList");
+    if (!el) return;
+    var agents = ((snapshot || {}).agents || []).slice()
+      .sort(function(a, b){ return (b.todayActions || 0) - (a.todayActions || 0); });
+    var top = agents.filter(function(a){ return (a.todayActions || 0) > 0; }).slice(0, 5);
+    if (!top.length) { el.innerHTML = '<div class="empty-note">Aaj abhi tak kisi agent ka action record nahi hua.</div>'; return; }
+    var max = top[0].todayActions || 1;
+    el.innerHTML = top.map(function(a, i){
+      var pct = Math.max(6, Math.round((a.todayActions / max) * 100));
+      return '<div class="lb-row" data-key="' + esc(a.key) + '">' +
+        '<div class="lb-rank">' + (i + 1) + '</div>' +
+        '<div class="lb-name">' + esc(a.emoji) + ' ' + esc(a.name) + '</div>' +
+        '<div class="lb-bar-wrap"><div class="lb-bar" style="width:' + pct + '%"></div></div>' +
+        '<div class="lb-count">' + esc(a.todayActions) +
+          (a.todayErrors ? ' <span class="lb-err">(' + esc(a.todayErrors) + ' err)</span>' : '') + '</div>' +
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll(".lb-row"), function(row){
+      row.onclick = function(){ OFFICE.openAgentPanel(row.getAttribute("data-key")); };
+    });
+  };
+
+  // ---- 24h activity histogram (agent_events, client-side hourly buckets) ------
+  OFFICE.renderActivityChart = async function(){
+    var chart = document.getElementById("activityChart");
+    var hoursEl = document.getElementById("activityHours");
+    var meta = document.getElementById("activityMeta");
+    if (!chart) return;
+    var events = await OFFICE.fetchEvents(250);
+    if (!events.length) {
+      chart.innerHTML = "";
+      hoursEl.innerHTML = "";
+      meta.textContent = "Events data abhi load nahi hua.";
+      return;
+    }
+    var now = Date.now();
+    var buckets = new Array(24).fill(0);  // index 23 = current hour, 0 = 23h pehle
+    var counted = 0;
+    events.forEach(function(e){
+      var ts = new Date(e.at).getTime();
+      if (isNaN(ts)) return;
+      var ageH = (now - ts) / 3600000;
+      if (ageH < 0 || ageH >= 24) return;
+      buckets[23 - Math.floor(ageH)]++;
+      counted++;
+    });
+    var max = Math.max.apply(null, buckets) || 1;
+    chart.innerHTML = buckets.map(function(n, i){
+      var hPct = Math.max(2, Math.round((n / max) * 100));
+      return '<div class="act-bar' + (i === 23 ? " act-now" : "") + '" style="height:' + hPct + '%" title="' + n + ' event(s)"></div>';
+    }).join("");
+    var tNow = istTimeParts();
+    hoursEl.innerHTML = buckets.map(function(_, i){
+      var h = ((tNow.h - (23 - i)) % 24 + 24) % 24;
+      return '<span>' + (i % 4 === 3 ? pad2(h) : "") + '</span>';
+    }).join("");
+    meta.textContent = counted + " event(s) last 24h me" +
+      (events.length >= 250 ? " (250-event cap — busy hours undercount ho sakte)" : "");
+  };
+  setInterval(function(){ OFFICE.renderActivityChart(); }, 60000);
 
   OFFICE.game = new Phaser.Game({
     type: Phaser.AUTO,
@@ -1274,6 +1704,7 @@
       create: function(){
         OFFICE.scene = this;
         OFFICE.drawRooms();
+        OFFICE.setupCameraControls(this);
         var loadingTxt = this.add.text(600, 410, "⏳ Loading agents…", {
           fontSize: "18px", fontFamily: "sans-serif", color: "#1e1b2e",
           backgroundColor: "#ffffff", padding: { x: 12, y: 8 }
@@ -1281,7 +1712,20 @@
         OFFICE.refreshSnapshot().then(function(){
           loadingTxt.destroy();
           OFFICE.pollEvents(); // avatars must exist first (bubbles/tokens anchor to them)
+          OFFICE.renderActivityChart();
         });
+      },
+      update: function(){
+        // Keep world-anchored DOM overlays glued during camera pan/zoom tweens
+        // (zoomTo/pan are async effects — one check per frame, only acts on change).
+        try {
+          var cam = this.cameras.main;
+          var sig = cam.scrollX + "," + cam.scrollY + "," + cam.zoom;
+          if (sig !== OFFICE._camSig) {
+            OFFICE._camSig = sig;
+            OFFICE.updateTickerBoxPos();
+          }
+        } catch (e) {}
       }
     }
   });
