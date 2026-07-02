@@ -38,18 +38,44 @@ def test_platform_dial_flag_registered():
 
 
 @pytest.mark.asyncio
-async def test_platform_dial_noop_when_flag_off(monkeypatch):
-    """Flag OFF (default) -> branch no-ops: no lock check, no enqueue, never raises."""
+async def test_platform_dial_noop_when_flag_off(monkeypatch, tmp_path):
+    """Flag OFF (default, no config file) -> branch no-ops: no lock check, no enqueue."""
     import app.tasks.calling as calling
     from app.platform import team_scheduler
 
     monkeypatch.delenv("PLATFORM_DIAL_DAILY", raising=False)
+    monkeypatch.setenv("PLATFORM_DIAL_CONFIG", str(tmp_path / "absent.json"))
     touched = {}
     monkeypatch.setattr(
         calling, "campaign_lock_held", lambda: touched.setdefault("lock", True)
     )
     await team_scheduler._run_job("platform_dial")
     assert "lock" not in touched
+
+
+def test_platform_dial_config_file_fallback(monkeypatch, tmp_path):
+    """Env unset -> data-file enables (recreate-proof toggle); env '0' = hard kill."""
+    import json
+
+    from app.platform import platform_dial as pd
+
+    cfg = tmp_path / "platform_dial.json"
+    cfg.write_text(json.dumps({"enabled": True, "limit": 9, "niche": "coaching"}))
+    monkeypatch.setenv("PLATFORM_DIAL_CONFIG", str(cfg))
+    monkeypatch.delenv("PLATFORM_DIAL_DAILY", raising=False)
+    monkeypatch.delenv("PLATFORM_DIAL_LIMIT", raising=False)
+    monkeypatch.delenv("PLATFORM_DIAL_NICHE", raising=False)
+    assert pd.enabled() is True
+    assert pd.dial_limit() == 9
+    assert pd.dial_niche() == "coaching"
+    # env explicit "0" beats the file — hard kill-switch
+    monkeypatch.setenv("PLATFORM_DIAL_DAILY", "0")
+    assert pd.enabled() is False
+    # env limit/niche override the file when set
+    monkeypatch.setenv("PLATFORM_DIAL_LIMIT", "3")
+    monkeypatch.setenv("PLATFORM_DIAL_NICHE", "all")
+    assert pd.dial_limit() == 3
+    assert pd.dial_niche() == "all"
 
 
 @pytest.mark.asyncio
