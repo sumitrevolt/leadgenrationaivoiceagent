@@ -167,14 +167,30 @@
 <body>
   <div class="topbar">
     <a class="brand" href="/app/admin"><span class="logo">🏢</span> Operating HQ</a>
+    <span id="legendToggle" style="cursor:pointer;font-size:13px;color:var(--muted);
+      border:1px solid var(--line);border-radius:50%;width:18px;height:18px;
+      display:inline-flex;align-items:center;justify-content:center" title="Legend">?</span>
     <a class="back" href="/app/team">AI Staff Team (list view) →</a>
     <div class="spacer"></div>
     <span id="freshnessBadge" style="font-size:11.5px;color:var(--muted)"></span>
     <button id="manualRefreshBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
       padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer">🔄 Refresh now</button>
   </div>
+  <div id="legendPopover" style="display:none;position:fixed;top:50px;left:16px;background:#fff;
+    border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:12.5px;
+    box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:30;max-width:320px">
+    <div style="font-weight:800;margin-bottom:8px">Kaise padhein</div>
+    <div>🟢 <b>Working</b> — abhi active</div>
+    <div>🟡 <b>Active</b> — aaj kaam kiya, abhi rest</div>
+    <div>⚪ <b>Offline</b> — aaj kuch nahi (hover karke reason dekho)</div>
+    <div style="margin-top:6px">🟡 Golden dot — Coordinator ne kisi agent ko task diya</div>
+    <div style="margin-top:6px">🏗️ System Map — live architecture, click to expand</div>
+    <button id="legendClose" style="margin-top:10px;border:1px solid var(--line);background:#fff;
+      border-radius:6px;padding:3px 10px;font-size:11.5px;cursor:pointer">Band karo</button>
+  </div>
   <div id="banner"><div class="b"><span id="bannerMsg"></span><button id="bannerRetry">Retry</button></div></div>
   <div id="page">
+    <div id="statusSummary" style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px"></div>
     <div class="kpi-row" id="kpiRow"><div class="loading-note">⏳ HQ data load ho raha hai (pehli baar ~8-9s lag sakta hai)…</div></div>
     <div id="nbaCard"><div class="nba-head">🧭 Next best actions</div><div id="nbaList"></div></div>
 
@@ -384,6 +400,17 @@
   // ---- Staff avatars: real pixel-art character sprites -----------------------
   OFFICE.CHAR_COUNT = 10;
   OFFICE.STATE_COLOR = { working: 0x10b981, active: 0xf59e0b, offline: 0x94a3b8 };
+  OFFICE.OFFLINE_REASON_LABEL = {
+    "no_data_today": "Koi matching data aaj nahi mila — flag ON hai, bas kaam nahi aaya",
+    "unknown": "Wajah pata nahi — dekho logs",
+  };
+  OFFICE.offlineReasonText = function(reason){
+    if (!reason) return "";
+    if (reason.indexOf("flag_off:") === 0) {
+      return "Flag " + reason.slice(9) + " OFF hai (design se — enable nahi kiya gaya)";
+    }
+    return OFFICE.OFFLINE_REASON_LABEL[reason] || OFFICE.OFFLINE_REASON_LABEL.unknown;
+  };
   OFFICE.avatars = {};
   OFFICE.agentRoom = {};   // member key -> room id (single source: backend snapshot)
   OFFICE.agentByKey = {};  // member key -> full agent object (for drawer/tooltip)
@@ -421,6 +448,16 @@
     var sprite = scene.add.image(0, -4, OFFICE.charKeyFor(m.key)).setScale(s);
     sprite.setInteractive({ useHandCursor: true });
     sprite.on("pointerdown", function(){ OFFICE.openAgentPanel(m.key); });
+    if (m.state === "offline" && m.offlineReason) {
+      sprite.on("pointerover", function(p){
+        var tip = document.getElementById("roomTooltip");
+        tip.innerHTML = "<b>" + esc(m.name) + " — offline</b><br>" + esc(OFFICE.offlineReasonText(m.offlineReason));
+        tip.style.display = "block";
+        OFFICE.moveRoomTooltip(p);
+      });
+      sprite.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
+      sprite.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
+    }
     var badge = scene.add.circle(12, 6, 5.5, color).setStrokeStyle(2, 0xffffff);
     var label = scene.add.text(0, 30, m.name, {
       fontSize: "10px", fontFamily: "sans-serif", color: "#1e293b"
@@ -479,7 +516,7 @@
       var byRoom = {};
       OFFICE.ROOMS.forEach(function(r){ byRoom[r.id] = []; });
       snapshot.agents.forEach(function(a){
-        var m = { key: a.key, name: a.name, emoji: a.emoji, title: a.title, duties: a.duties, state: a.status };
+        var m = { key: a.key, name: a.name, emoji: a.emoji, title: a.title, duties: a.duties, state: a.status, offlineReason: a.offline_reason };
         (byRoom[a.room] || byRoom.platform_engineering).push(m);
       });
       OFFICE.ROOMS.forEach(function(room){
@@ -542,6 +579,19 @@
       else if (d.warnIfPositive && v > 0) cls += " k-warn";
       return '<div class="' + cls + '"><div class="k-label">' + esc(d.label) + '</div><div class="k-val">' + esc(v) + '</div></div>';
     }).join("") + '<div class="kpi k-ok"><div class="k-label">MRR (est.)</div><div class="k-val">₹' + esc(metrics.mrr || 0) + '</div></div>';
+  };
+
+  OFFICE.renderStatusSummary = function(snapshot){
+    var el = document.getElementById("statusSummary");
+    if (!el || !snapshot) return;
+    var agents = snapshot.agents || [];
+    var activeCount = agents.filter(function(a){ return a.status !== "offline"; }).length;
+    var metrics = snapshot.metrics || {};
+    var pending = metrics.approvals_needed || 0;
+    var issues = metrics.system_issues || 0;
+    var healthLine = issues > 0 ? issues + " automation issue(s)" : "sab automation healthy";
+    el.textContent = activeCount + "/" + agents.length + " agents active · " +
+      pending + " approvals pending · " + healthLine;
   };
 
   OFFICE.renderNextActions = function(actions){
@@ -1144,6 +1194,7 @@
     OFFICE.lastRefreshAt = Date.now();
     OFFICE.updateFreshnessBadge();
     OFFICE.renderMembers(data);
+    OFFICE.renderStatusSummary(data);
     OFFICE.renderMetrics(data.metrics);
     OFFICE.renderNextActions(data.next_best_actions);
     OFFICE.renderPipeline(data.pipeline);
@@ -1195,6 +1246,13 @@
     OFFICE.refreshSnapshot().finally(function(){
       btn.disabled = false; btn.textContent = "🔄 Refresh now";
     });
+  };
+
+  document.getElementById("legendToggle").onclick = function(){
+    document.getElementById("legendPopover").style.display = "block";
+  };
+  document.getElementById("legendClose").onclick = function(){
+    document.getElementById("legendPopover").style.display = "none";
   };
 </script>
 </body>
