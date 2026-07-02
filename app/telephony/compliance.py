@@ -32,7 +32,11 @@ Config (env, all optional with safe defaults):
   DND_FAIL_OPEN           "1" to treat a failed DND lookup as "not on DND".
                          DANGER: this turns the TRAI DND gate fail-OPEN. There is NO
                          legitimate prod use — keep UNSET (default = fail-CLOSED).
-                         prod_check.py emits a BLOCKER if it is set in production.
+                         In PRODUCTION the flag is IGNORED at runtime (treated
+                         fail-CLOSED) with a one-time CRITICAL log; prod_check.py
+                         also emits a BLOCKER if it is set in production.
+  COMPLIANCE_PROMO_START/END overrides are CLAMPED into TRAI's legal 09:00–21:00
+                         IST ceiling (a bad value can never breach 21:00).
   (caller-id is read from settings.vobiz_caller_id, else VOBIZ_CALLER_ID env)
 
 Usage:
@@ -108,6 +112,85 @@ def _parse_hhmm(value: str, default: time) -> time:
     return default
 
 
+# TRAI telemarketing legal ceiling for the promotional window: 09:00–21:00 IST.
+# Any COMPLIANCE_PROMO_START/END override is CLAMPED into this range so a bad env
+# value (e.g. END=23:00) can never breach the 21:00 legal ceiling. The default
+# promo window (09:00–19:00) is a conservative subset already inside the ceiling.
+_PROMO_LEGAL_START = time(9, 0)
+_PROMO_LEGAL_END = time(21, 0)
+_PROMO_DEFAULT = (time(9, 0), time(19, 0))
+
+
+def _clamp_promo_window(start: time, end: time) -> tuple[time, time]:
+    """Keep the promotional window within TRAI's legal 09:00–21:00 IST ceiling.
+
+    start is floored to 09:00, end is capped at 21:00. A degenerate result
+    (start >= end, e.g. both overrides sit above the ceiling) falls back to the
+    safe default (09:00–19:00). Never raises."""
+    try:
+        s = max(start, _PROMO_LEGAL_START)
+        e = min(end, _PROMO_LEGAL_END)
+        if s >= e:
+            return _PROMO_DEFAULT
+        return s, e
+    except Exception:
+        return _PROMO_DEFAULT
+
+
+def effective_promo_window() -> tuple[str, str]:
+    """Effective (post-clamp) promotional calling window as ('HH:MM', 'HH:MM').
+
+    Single source of truth for surfacing the window elsewhere (e.g. activation
+    readiness). Reads the same env overrides as ComplianceGate._window and
+    applies the identical clamp. Never raises."""
+    try:
+        start = _parse_hhmm(_env("COMPLIANCE_PROMO_START"), time(9, 0))
+        end = _parse_hhmm(_env("COMPLIANCE_PROMO_END"), time(19, 0))
+        s, e = _clamp_promo_window(start, end)
+        return s.strftime("%H:%M"), e.strftime("%H:%M")
+    except Exception:
+        return "09:00", "19:00"
+
+
+# One-time CRITICAL log guard for a production DND_FAIL_OPEN refusal (below).
+_dnd_fail_open_refused_logged = False
+
+
+def _is_production() -> bool:
+    """True when running in production (settings first, ENVIRONMENT/APP_ENV env
+    fallback for cached-settings mismatch). Never raises."""
+    try:
+        from app.config import settings
+
+        if bool(getattr(settings, "is_production", False)):
+            return True
+    except Exception:
+        pass
+    return (_env("ENVIRONMENT") or _env("APP_ENV")).lower() == "production"
+
+
+def _dnd_fail_open() -> bool:
+    """Whether DND_FAIL_OPEN should be honoured.
+
+    DND_FAIL_OPEN=1 turns the TRAI DND gate fail-OPEN (unverified lookup treated
+    as "not on DND"). There is NO legitimate production use — mirroring how the
+    MCP mount refuses prod without a token, in production the flag is IGNORED
+    (treated fail-CLOSED) and a one-time CRITICAL line is logged. Never raises."""
+    if _env("DND_FAIL_OPEN", "0") not in ("1", "true", "yes"):
+        return False
+    if _is_production():
+        global _dnd_fail_open_refused_logged
+        if not _dnd_fail_open_refused_logged:
+            _dnd_fail_open_refused_logged = True
+            logger.error(
+                "🚨 DND_FAIL_OPEN=1 IGNORED in production — the TRAI DND gate stays "
+                "fail-CLOSED (unverified DND lookup => promotional call BLOCKED). "
+                "There is NO legitimate prod use; unset DND_FAIL_OPEN."
+            )
+        return False
+    return True
+
+
 class ComplianceGate:
     """Single pre-dial gate. ``check()`` returns a ComplianceDecision; never raises."""
 
@@ -157,6 +240,9 @@ class ComplianceGate:
             # (not 10:00) restores the legal 9–10am hour while staying safe.
             start = _parse_hhmm(_env("COMPLIANCE_PROMO_START"), time(9, 0))
             end = _parse_hhmm(_env("COMPLIANCE_PROMO_END"), time(19, 0))
+            # TRAI legal ceiling: clamp any override into 09:00–21:00 IST so a bad
+            # env value can never push the promotional window past 21:00.
+            start, end = _clamp_promo_window(start, end)
         else:
             start = _parse_hhmm(_env("COMPLIANCE_TXN_START"), time(9, 0))
             end = _parse_hhmm(_env("COMPLIANCE_TXN_END"), time(21, 0))
@@ -179,8 +265,9 @@ class ComplianceGate:
     async def _is_dnd(self, phone: str) -> bool | None:
         """True/False if verifiable, None if it could not be checked.
         When DND_FAIL_OPEN=1 and the lookup fails/unverified, returns False
-        (caller accepts the risk — e.g. Exotel KYC pending)."""
-        _fail_open = _env("DND_FAIL_OPEN", "0") in ("1", "true", "yes")
+        (caller accepts the risk — e.g. KYC pending). In PRODUCTION the flag is
+        refused (see _dnd_fail_open) so this stays fail-CLOSED."""
+        _fail_open = _dnd_fail_open()
         checker = self._get_dnd()
         if checker is None:
             return False if _fail_open else None
@@ -339,4 +426,11 @@ def get_compliance_gate() -> ComplianceGate:
     return _gate
 
 
-__all__ = ["ComplianceGate", "ComplianceDecision", "CallType", "get_compliance_gate", "IST"]
+__all__ = [
+    "ComplianceGate",
+    "ComplianceDecision",
+    "CallType",
+    "get_compliance_gate",
+    "effective_promo_window",
+    "IST",
+]

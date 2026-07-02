@@ -8,7 +8,9 @@
 # Build context MUST contain requirements.lock.txt (run scripts/vps_freeze.sh on
 # the VPS first; for CI, commit the lockfile).
 # =============================================================================
-FROM python:3.12-slim AS builder
+# Base pinned by multi-arch manifest-LIST digest (linux/amd64 VPS builds). Tag kept
+# for readability. Bump via dependabot/manual re-fetch of the 3.12-slim index digest.
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS builder
 WORKDIR /build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc libffi-dev libssl-dev \
@@ -59,7 +61,7 @@ RUN (pip install --no-cache-dir --retries 10 "rembg>=2.0.50,<2.1" "onnxruntime==
     && python -c "from rembg import new_session; new_session('u2net')") \
     || echo "WARN: rembg bake failed — img-bgremove stays inert"
 
-FROM python:3.12-slim AS production
+FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS production
 ARG APP_VERSION=latest
 ENV APP_VERSION=${APP_VERSION}
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser

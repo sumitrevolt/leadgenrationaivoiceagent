@@ -185,3 +185,94 @@ def test_gate_never_raises_on_bad_dnd(monkeypatch):
     assert "dnd_lookup_failed" in d.reasons
     assert d.checks.get("dnd") is None
     assert d.checks.get("dnd_note") == "lookup_failed"
+
+
+# --------------------------------------------------------------------------- #
+# TRAI legal-ceiling clamp on promotional window override (2026-07 audit fix)  #
+# --------------------------------------------------------------------------- #
+class _UnverifiedDND:
+    """DND backend that answers but cannot verify — exercises the fail-open path."""
+
+    async def check_single(self, phone: str):
+        return SimpleNamespace(is_dnd=False, verified=False)
+
+
+def test_promo_window_override_clamped_to_2100(monkeypatch):
+    """A promo-END override past 21:00 is clamped to the TRAI 21:00 ceiling."""
+    monkeypatch.setenv("DLT_APPROVED", "1")
+    monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
+    monkeypatch.setenv("COMPLIANCE_PROMO_END", "23:00")  # breaches 21:00 ceiling
+    g = ComplianceGate(dnd_checker=_FakeDND(False))
+    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
+    assert d.checks.get("window") == "09:00-21:00"  # clamped, not 09:00-23:00
+    assert d.allowed, d.reasons
+
+
+def test_promo_window_start_override_floored_to_0900(monkeypatch):
+    """A promo-START override before 09:00 is floored to 09:00."""
+    monkeypatch.setenv("DLT_APPROVED", "1")
+    monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
+    monkeypatch.setenv("COMPLIANCE_PROMO_START", "06:00")  # before 09:00 floor
+    g = ComplianceGate(dnd_checker=_FakeDND(False))
+    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
+    assert d.checks.get("window") == "09:00-19:00"  # floored to 09:00
+
+
+def test_promo_window_garbage_env_falls_back_to_default(monkeypatch):
+    """Un-parseable overrides fall back to the safe default 09:00-19:00."""
+    monkeypatch.setenv("DLT_APPROVED", "1")
+    monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
+    monkeypatch.setenv("COMPLIANCE_PROMO_START", "banana")
+    monkeypatch.setenv("COMPLIANCE_PROMO_END", "99:99")
+    g = ComplianceGate(dnd_checker=_FakeDND(False))
+    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
+    assert d.checks.get("window") == "09:00-19:00"
+
+
+def test_promo_window_degenerate_override_falls_back(monkeypatch):
+    """Both overrides above the ceiling (start>=end after clamp) -> safe default."""
+    monkeypatch.setenv("DLT_APPROVED", "1")
+    monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
+    monkeypatch.setenv("COMPLIANCE_PROMO_START", "22:00")
+    monkeypatch.setenv("COMPLIANCE_PROMO_END", "23:00")
+    g = ComplianceGate(dnd_checker=_FakeDND(False))
+    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
+    assert d.checks.get("window") == "09:00-19:00"
+
+
+def test_effective_promo_window_helper_clamps(monkeypatch):
+    """effective_promo_window() is the single source of truth (clamped)."""
+    from app.telephony.compliance import effective_promo_window
+
+    monkeypatch.setenv("COMPLIANCE_PROMO_END", "23:00")
+    assert effective_promo_window() == ("09:00", "21:00")
+    monkeypatch.setenv("COMPLIANCE_PROMO_START", "banana")
+    monkeypatch.delenv("COMPLIANCE_PROMO_END", raising=False)
+    assert effective_promo_window() == ("09:00", "19:00")
+
+
+def test_dnd_fail_open_ignored_in_production(monkeypatch):
+    """DND_FAIL_OPEN=1 in production is REFUSED -> gate stays fail-CLOSED, so an
+    unverifiable DND lookup still BLOCKS the promotional call (TRAI-safe)."""
+    monkeypatch.setenv("DLT_APPROVED", "1")
+    monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
+    monkeypatch.setenv("DND_FAIL_OPEN", "1")
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    g = ComplianceGate(dnd_checker=_UnverifiedDND())
+    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
+    assert not d.allowed
+    assert "dnd_lookup_failed" in d.reasons  # fail-CLOSED despite DND_FAIL_OPEN=1
+
+
+def test_dnd_fail_open_honoured_outside_production(monkeypatch):
+    """Outside production, DND_FAIL_OPEN=1 is honoured (unverified -> not on DND),
+    so with DLT + caller-id the promotional call is allowed."""
+    monkeypatch.setenv("DLT_APPROVED", "1")
+    monkeypatch.setenv("VOBIZ_CALLER_ID", "+911140000000")
+    monkeypatch.setenv("DND_FAIL_OPEN", "1")
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    monkeypatch.delenv("APP_ENV", raising=False)
+    g = ComplianceGate(dnd_checker=_UnverifiedDND())
+    d = _run(g.check("+919876543210", CallType.PROMOTIONAL, now=IN_HOURS))
+    assert d.allowed, d.reasons
+    assert d.checks.get("dnd") is False

@@ -43,7 +43,7 @@ jobs:
       - name: Install Trivy (latest)
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin
+            | sh -s -- -b /usr/local/bin v0.72.0
           trivy --version
 
       # Trivy by-default sirf "requirements.txt" naam ko pip-deps maanta. Tera
@@ -126,7 +126,7 @@ jobs:
       - name: Install Trivy (latest)
         run: |
           curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin
+            | sh -s -- -b /usr/local/bin v0.72.0
 
       - name: Scan latest image (table, advisory)
         run: |

@@ -137,6 +137,22 @@ def test_annual_plan_never_undercharged_by_cycle_arg(monkeypatch):
         assert round(float(monthly_as_yr["total"]), 2) == round(pm, 2)
 
 
+# ----------------------- voice band literal price pins (2026-07-02) ----------------------- #
+def test_voice_band_literal_prices():
+    """The other voice tests only assert INTERNAL consistency vs BANDS, so an
+    accidental BANDS edit would pass silently. Pin the LITERAL ₹ figures from
+    voice_packages.py (source-of-truth): A 4999 / B 9999 / C 19999 monthly,
+    annual = 10x (2 months free) = 49990 / 99990 / 199990."""
+    from app.marketing.voice_packages import BANDS
+
+    assert BANDS["A"]["price_month"] == 4999, "Band A monthly must stay ₹4,999"
+    assert BANDS["B"]["price_month"] == 9999, "Band B monthly must stay ₹9,999"
+    assert BANDS["C"]["price_month"] == 19999, "Band C monthly must stay ₹19,999"
+    assert BANDS["A"]["price_year"] == 49990, "Band A annual must stay ₹49,990 (10x)"
+    assert BANDS["B"]["price_year"] == 99990, "Band B annual must stay ₹99,990 (10x)"
+    assert BANDS["C"]["price_year"] == 199990, "Band C annual must stay ₹1,99,990 (10x)"
+
+
 # ----------------------- starter feature catalog (2026-06-29: +40 features) ----------------------- #
 def test_starter_feature_groups_invariant():
     """Main plan +40 features (33 core + 40 naye = 73). feature_groups grouped view,

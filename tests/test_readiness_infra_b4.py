@@ -36,10 +36,14 @@ def test_patch_requires_auth():
 def test_patch_records_under_authed_client_only(tmp_path, monkeypatch):
     """IDOR guard: override is recorded under the JWT-resolved client_id, never
     a body/query value — so client A can never write under client B's id."""
+    from app.api import customer_dashboard as cd
     from app.api.customer_auth import require_customer
     from app.platform import lead_overrides as lo
 
     monkeypatch.setattr(lo, "_OVR_FILE", str(tmp_path / "ovr.jsonl"))
+    # ownership gate has its own suite (test_lead_override_ownership.py);
+    # stub it owned=True so this test keeps proving the JWT-client_id contract
+    monkeypatch.setattr(cd, "_client_owns_lead", lambda c, l: (True, False))
     app.dependency_overrides[require_customer] = lambda: "client_AUTH"
     try:
         r = client.patch("/api/customer/leads/lead9", json={"status": "Won"})

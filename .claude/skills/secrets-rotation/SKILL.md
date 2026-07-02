@@ -8,19 +8,21 @@ description: Secrets inventory + rotation cadence + leak-response runbook — .e
 > Enterprise audit skill. Rule of house: **secrets SIRF `.env`** (gitignored), kabhi committed file/CLAUDE.md/scripts me nahi. `scripts/check_secrets.py` `/verify` step-4 me wired (false-positive = line pe `nosecret`). Pehle `context-first`.
 
 ## Secrets inventory (rotation cadence)
-| Secret | Rotation | No-restart path? |
-|---|---|---|
-| LLM keys: `MISTRAL/GROQ/CEREBRAS/GEMINI/SAMBANOVA/NVIDIA/OPENROUTER_API_KEY` | 90d ya leak pe | NAHI — .env + app recreate |
-| **Gemini voice pool (9 keys)** | rolling — 429 pe auto `advance_key` | HAAN — admin "Voice Keys" page / `POST /api/admin/voice/gemini-keys` (per-key Google-validate, `data/voice_gemini_keys.json`) |
-| SMTP `admin@leadsgenai.in` (Hostinger) | 180d | NAHI |
-| `VOBIZ_AUTH_ID/TOKEN` | provider dashboard se | NAHI |
-| Stripe keys + webhook secret | 90d (webhook secret SAATH rotate) | NAHI |
-| Google Maps (Places New) | 90d + API-restriction check | NAHI |
-| `FASTAPI_MCP_TOKEN` | 90d — **Arya MCP-engineer hourly :40 me 90d rotation reminder wired** | NAHI |
-| UPI VPA (`upi_config`) | change pe | HAAN — `POST /api/admin/upi/configure` |
-| VPS SSH key (`id_rsa`) + GitHub deploy-key `VPS-LeadsGen` | yearly ya staff change | NAHI |
-| Customer webhook HMAC (H.1) | customer-initiated re-key | HAAN — customer portal |
-| `SENTRY_DSN`, `POLLINATIONS_API_KEY` (`pk_`=client-safe, `sk_`=server-only proxy!) | leak pe | NAHI |
+| Secret | Rotation | Last-rotated | No-restart path? |
+|---|---|---|---|
+| LLM keys: `MISTRAL/GROQ/CEREBRAS/GEMINI/SAMBANOVA/NVIDIA/OPENROUTER_API_KEY` | 90d ya leak pe | unknown (baseline 2026-07-02) | NAHI — .env + app recreate |
+| **Gemini voice pool (9 keys)** | rolling — 429 pe auto `advance_key` | unknown (baseline 2026-07-02) | HAAN — admin "Voice Keys" page / `POST /api/admin/voice/gemini-keys` (per-key Google-validate, `data/voice_gemini_keys.json`) |
+| SMTP `admin@leadsgenai.in` (Hostinger) | 180d | unknown (baseline 2026-07-02) | NAHI |
+| `VOBIZ_AUTH_ID/TOKEN` | provider dashboard se | unknown (baseline 2026-07-02) | NAHI |
+| Stripe keys + webhook secret | 90d (webhook secret SAATH rotate) | unknown (baseline 2026-07-02) | NAHI |
+| Google Maps (Places New) | 90d + API-restriction check | unknown (baseline 2026-07-02) | NAHI |
+| `FASTAPI_MCP_TOKEN` | 90d — **Arya MCP-engineer hourly :40 me 90d rotation reminder wired** | unknown (baseline 2026-07-02) | NAHI |
+| UPI VPA (`upi_config`) | change pe | unknown (baseline 2026-07-02) | HAAN — `POST /api/admin/upi/configure` |
+| VPS SSH key (`id_rsa`) + GitHub deploy-key `VPS-LeadsGen` | yearly ya staff change | unknown (baseline 2026-07-02) | NAHI |
+| Customer webhook HMAC (H.1) | customer-initiated re-key | unknown (baseline 2026-07-02) | HAAN — customer portal |
+| `SENTRY_DSN`, `POLLINATIONS_API_KEY` (`pk_`=client-safe, `sk_`=server-only proxy!) | leak pe | unknown (baseline 2026-07-02) | NAHI |
+
+> **Rotation evidence** = jab bhi koi key rotate ho, SESSION_LOG me 1-liner (key naam + date; VALUE kabhi nahi) + is table ka `Last-rotated` column update karo. `unknown (baseline 2026-07-02)` = honest starting state (koi verified rotation-date record nahi tha).
 
 ## Rotation loop (per key)
 1. Naya key provider console me banao (purana ABHI revoke mat karo — overlap window).

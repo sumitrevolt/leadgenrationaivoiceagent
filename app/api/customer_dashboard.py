@@ -550,6 +550,50 @@ def customer_speed_to_lead(
     return speed_to_lead.summary_for_client(client_id, client_rec, days)
 
 
+def _client_owns_lead(client_id: str, lead_id: str) -> tuple[bool, bool]:
+    """Verify lead_id belongs to client_id, mirroring how the dashboard scopes
+    leads (inquiries.jsonl + DB Lead.assigned_to).
+
+    Returns (owned, infra_error):
+      owned=True       -> confirmed this client's lead (inquiry OR DB row).
+      owned=False      -> not confirmed to belong to this client.
+      infra_error=True -> a lookup backend errored, so ownership is UNKNOWN
+                          (caller must fail-CLOSED: refuse the write).
+    Never raises. Cheap: file path is an in-memory scan of this client's
+    inquiries; DB path is a single indexed lookup and only runs when the
+    inquiry path did not already confirm ownership."""
+    lid = str(lead_id or "").strip()
+    if not lid:
+        return False, False
+    infra_error = False
+    # 1) File/inquiry path — same scoping as _build_from_files. Never raises.
+    try:
+        rec = _client_record(client_id)
+        for r in _inquiries_for_client(client_id, rec):
+            if str(r.get("id") or "") == lid:
+                return True, False
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("lead ownership: inquiry lookup failed (%s)", e)
+        infra_error = True
+    # 2) DB path — same scoping as _build_from_db (Lead.assigned_to == client_id).
+    try:
+        from app.models.base import get_db_session
+        from app.models.lead import Lead
+
+        with get_db_session() as db:
+            row = (
+                db.query(Lead.id)
+                .filter(Lead.assigned_to == client_id, Lead.id == lid)
+                .first()
+            )
+            if row is not None:
+                return True, False
+    except Exception as e:
+        logger.warning("lead ownership: DB lookup failed (%s)", e)
+        infra_error = True
+    return False, infra_error
+
+
 @router.patch("/leads/{lead_id}")
 async def patch_lead_status(
     lead_id: str,
@@ -558,13 +602,28 @@ async def patch_lead_status(
 ) -> dict:
     """B4: customer updates a lead's status inline. require_customer resolves
     client_id from the JWT, so a client can only ever record an override under
-    its own id (IDOR-safe). Override applies only to this client's leads."""
+    its own id (IDOR-safe).
+
+    Cross-tenant eviction guard (2026-07): overrides are stored append-only and
+    read collapses to one record per lead_id (latest wins). Without an ownership
+    check, client B could PATCH client A's lead_id and silently EVICT A's own
+    override (A's Kanban edit would revert). So we verify the lead belongs to the
+    authenticated client BEFORE recording — non-owned lead_id => 404 (generic, no
+    existence leak, matching customer_flows). Ownership-lookup infra error =>
+    fail-CLOSED (503, write refused), never a blind unverified write."""
     from app.platform.lead_overrides import ALLOWED_STATUSES, set_status
 
     if status not in ALLOWED_STATUSES:
         raise HTTPException(
             status_code=422, detail=f"status must be one of {sorted(ALLOWED_STATUSES)}"
         )
+    owned, infra_error = _client_owns_lead(client_id, lead_id)
+    if not owned:
+        if infra_error:
+            # Could not verify ownership (backend error) — refuse rather than risk
+            # evicting another tenant's override.
+            raise HTTPException(status_code=503, detail="lead ownership check unavailable")
+        raise HTTPException(status_code=404, detail="not found")
     ok = set_status(lead_id, client_id, status)
     return {"ok": ok, "lead_id": lead_id, "status": status}
 

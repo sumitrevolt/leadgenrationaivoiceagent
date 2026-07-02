@@ -500,6 +500,70 @@ def _upi() -> dict[str, Any]:
     }
 
 
+def _compliance_env() -> dict[str, Any]:
+    """TRAI/DPDP compliance-env readiness — an ADVISORY section only.
+
+    Deliberately NOT part of _PROBES: these do NOT feed blockers/warns and MUST
+    NOT flip ``ready_for_first_paid_customer`` (existing consumers unchanged).
+    Surfaces three signals for the operator:
+      (a) recording_retention_armed — RECORDING_RETENTION=1 => the 90-day DPDP
+          recording purge actually deletes (not dry-run/observe-only).
+      (b) dnd_fail_closed — WARNs loudly when DND_FAIL_OPEN=1 (a TRAI risk: it
+          would turn the promotional DND gate fail-OPEN; prod ignores it at
+          runtime but it should be unset).
+      (c) the effective (post-clamp) promotional calling window (09:00–21:00
+          IST ceiling), informationally.
+    Never raises."""
+    retention_on = _v("RECORDING_RETENTION").lower() in ("1", "true", "yes", "on")
+    dnd_fail_open = _v("DND_FAIL_OPEN").lower() in ("1", "true", "yes", "on")
+    try:
+        from app.telephony.compliance import effective_promo_window
+
+        win_start, win_end = effective_promo_window()
+    except Exception:
+        win_start, win_end = "09:00", "19:00"
+
+    probes = [
+        {
+            "key": "recording_retention_armed",
+            "label": "Recording retention purge (DPDP 90-day delete)",
+            "category": "compliance",
+            "status": _OK if retention_on else _WARN,
+            "env_vars": ["RECORDING_RETENTION"],
+            "checks": {"enabled": retention_on},
+            "action": (
+                "Set RECORDING_RETENTION=1 so the 90-day DPDP recording purge "
+                "deletes (currently dry-run/observe-only)"
+                if not retention_on
+                else ""
+            ),
+            "doc": "docs/SWARA_HANDOFF_SOP.md#E",
+        },
+        {
+            "key": "dnd_fail_closed",
+            "label": "DND gate fail-CLOSED (TRAI)",
+            "category": "compliance",
+            "status": _OK if not dnd_fail_open else _WARN,
+            "env_vars": ["DND_FAIL_OPEN"],
+            "checks": {"dnd_fail_open": dnd_fail_open},
+            "action": (
+                "TRAI RISK: DND_FAIL_OPEN=1 turns the promotional DND gate "
+                "fail-OPEN — unset it. (Production ignores the flag at runtime, "
+                "but leave it UNSET so the intent is explicit.)"
+                if dnd_fail_open
+                else ""
+            ),
+            "doc": "app/telephony/compliance.py",
+        },
+    ]
+    return {
+        "ok": all(p["status"] == _OK for p in probes),
+        "warn_count": sum(1 for p in probes if p["status"] == _WARN),
+        "probes": probes,
+        "promo_calling_window": {"start": win_start, "end": win_end, "tz": "IST"},
+    }
+
+
 _PROBES = (
     # Phase 1: Survival (visibility + trust + edge) + first-revenue UPI. Razorpay removed 2026-06-18.
     _sentry,
@@ -686,6 +750,13 @@ async def activation_readiness(_user=Depends(require_admin)) -> dict[str, Any]:
     except Exception as exc:
         telephony = {"score": 0, "error": str(exc)[:120]}
 
+    # Advisory compliance section (TRAI/DPDP). Separate from `items`/blockers so
+    # it never flips ready_for_first_paid_customer for existing consumers.
+    try:
+        compliance = _compliance_env()
+    except Exception as exc:  # pragma: no cover - defensive
+        compliance = {"ok": False, "error": str(exc)[:120]}
+
     return {
         "ready_for_launch": launch_ready,
         "production_ready": launch_ready,
@@ -700,6 +771,7 @@ async def activation_readiness(_user=Depends(require_admin)) -> dict[str, Any]:
         "telephony": telephony,
         "ready_for_calling": int(telephony.get("score") or 0) >= 70,
         "calling_optional": True,
+        "compliance": compliance,
     }
 
 

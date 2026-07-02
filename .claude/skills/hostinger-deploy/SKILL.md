@@ -35,12 +35,19 @@ Live server facts (memorize):
 - Health: `curl -s http://127.0.0.1:8000/health` (on VPS) or `https://leadsgenai.in/health` (anywhere) → `environment:production`.
 - App logs: `docker logs leadgen_app -n 60` (NOT journalctl — app is a container now).
 - **Deploy / restart after code change**:
+  **STEP 0 — DRIFT CHECK (MANDATORY, kabhi skip mat karo):** VPS tree chronically dirty rehta (live hotfixes + docker-cp drift); blind `reset --hard` ne 2026-07-01/02 me kaam KHOYA. Reset se PEHLE:
+  ```
+  git -C /opt/leadgen status --porcelain   # uncommitted files?
+  docker diff leadgen_app                    # docker-cp hotfix drift container me?
+  ```
+  Dono khaali → clean, aage badho. KOI drift dikhe → pehle PRESERVE karo (`git stash` / preserve-branch, ya proven surgical path `git checkout origin/main -- <files>` + `docker cp`); `reset --hard` SIRF tab jab drift consciously reconcile ho chuki ho.
   ```
   cd /opt/leadgen && git fetch --all -q && git reset --hard origin/main -q && \
   docker compose -f docker-compose.vps.yml build app && \
+  bash scripts/migration_preflight.sh && \
   docker compose -f docker-compose.vps.yml up -d --no-deps app
   ```
-  Then `sleep 16` + 2x health-check.
+  `migration_preflight.sh` = recreate se pehle DB revision == code head verify (enum/migration-010 coupling; mismatch pe `&&` chain rukega → pehle `alembic upgrade head` chalao). Then `sleep 16` + 2x health-check.
 - Caddy logs: `journalctl -u caddy -n 30 --no-pager` (Caddy IS still host-level systemd).
 - Worker/scheduler restart: `docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps worker scheduler`. **After worker recreate**: `redis-cli llen celery` — if >500, `del celery` (tasks transient, beat re-schedules).
 - Self-heal cron `scripts/vps_selfheal.sh` runs */10 (restarts unhealthy containers).
