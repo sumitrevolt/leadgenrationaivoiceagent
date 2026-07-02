@@ -12,7 +12,17 @@ def test_universal_intro_has_identity_and_cta():
     t = UNIVERSAL_AGENT_INTRO.lower()
     assert "leads generation ai" in t
     assert any(w in t for w in ("instagram", "facebook", "google", "customers"))
-    assert len(UNIVERSAL_AGENT_INTRO.split()) <= 26  # opener must stay short
+    # 2026-07-02: +permission-ask ("do minute baat kar sakti hoon?") — cap 26->34
+    # (still ~one breath / ~13 sec). Bloat guard stays.
+    assert len(UNIVERSAL_AGENT_INTRO.split()) <= 34
+
+
+def test_universal_intro_has_permission_ask():
+    # Self-test MISSING_PERMISSION fix (Gong: permission-opener ~5-10x convert).
+    # qa_checks.has_permission_ask must recognise the timing ask in the opener.
+    from app.voice_agent.qa_checks import has_permission_ask
+
+    assert has_permission_ask(UNIVERSAL_AGENT_INTRO)
 
 
 def test_pitch_short_carries_price_and_trial():
@@ -56,4 +66,5 @@ def test_platform_opening_segments_wired():
     assert segs[0] == UNIVERSAL_AGENT_INTRO
     assert "1,999" in segs[1]
     assert "social" in segs[1].lower() or "posts" in segs[1].lower()
-    assert "interested" in segs[2].lower()
+    # INTEREST_ASK is Hinglish ("…try karke dekhna chahenge?") — no English "interested".
+    assert any(w in segs[2].lower() for w in ("try", "free", "chahenge", "dekh"))
