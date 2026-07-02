@@ -396,3 +396,40 @@ def test_build_rooms_and_agents_includes_offline_reason_only_when_offline():
             assert isinstance(a["offline_reason"], str)
         else:
             assert a["offline_reason"] is None
+
+
+def test_priya_downstream_hook_exists():
+    """Regression guard: apply_qualified_downstream (which pushes to CRM as
+    'priya') must still be called from the live Vobiz call-completion path.
+    Confirmed present 2026-07-02 (app/telephony/vobiz_stream.py:2691) — this
+    test fails loudly if that call site is ever removed/renamed, since a
+    prior incident (2026-06-18) had exactly this class of cross-path-parity
+    regression (AUTO_QUALIFY wired in call_manager but not vobiz_stream)."""
+    import inspect
+
+    from app.telephony import vobiz_stream
+
+    src = inspect.getsource(vobiz_stream)
+    assert "apply_qualified_downstream" in src
+
+
+def test_anika_cadence_scheduler_wiring_exists():
+    """Regression guard: cadence.run_due() must still be called from the
+    scheduler. Confirmed present 2026-07-02 (team_scheduler.py:390)."""
+    import inspect
+
+    from app.platform import team_scheduler
+
+    src = inspect.getsource(team_scheduler)
+    assert "cadence.run_due" in src or "await cadence.run_due()" in src
+
+
+def test_ira_journey_hook_wiring_exists():
+    """Regression guard: journeys.emit_event() must still be called from the
+    inquiry hook. Confirmed present 2026-07-02 (inquiry_hooks.py:229)."""
+    import inspect
+
+    from app.platform import inquiry_hooks
+
+    src = inspect.getsource(inquiry_hooks)
+    assert "journeys.emit_event" in src or "emit_event(" in src
