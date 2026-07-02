@@ -203,6 +203,11 @@
       </div>
     </div>
 
+    <div id="workflowRunsCard" class="panel-box" style="margin-top:14px;display:none">
+      <h3>⚙️ Recent Workflow Runs</h3>
+      <div id="workflowRunsList"><div class="loading-note">⏳ Loading…</div></div>
+    </div>
+
     <div class="two-col">
       <div class="panel-box" id="approvalsPanel">
         <h3>🗂️ Approvals needed</h3>
@@ -1008,9 +1013,47 @@
     }
   };
 
+  // ---- Recent Workflow Runs (process-engine, /api/growth/process/runs) ----
+  // Real response shape (confirmed from app/api/growth_process.py + app/agents/flow_dispatch.py
+  // list_runs()): {"runs": [{run_id, process, status, engine, step_index, nodes, last_error,
+  // started_at}]} — there is no "mode" or "agents" field; "process" is the workflow name and
+  // "engine" is "linear"|"dag". "nodes" is an int (dag step count) or null (linear).
+  OFFICE.fetchWorkflowRuns = async function(){
+    try {
+      var r = await fetch("/api/growth/process/runs?limit=5", { headers: hdrs() });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var d = await r.json();
+      return (d && d.runs) || [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  OFFICE.renderWorkflowRuns = function(runs){
+    var card = document.getElementById("workflowRunsCard");
+    var list = document.getElementById("workflowRunsList");
+    if (!runs || !runs.length) { card.style.display = "none"; return; }
+    card.style.display = "block";
+    list.innerHTML = runs.slice(0, 5).map(function(run){
+      var nodeCount = (typeof run.nodes === "number") ? run.nodes + " nodes · " : "";
+      return '<div class="panel-event" data-run="' + esc(run.run_id || "") + '">' +
+        '<div><b>' + esc(run.process || "run") + '</b> — ' + esc(run.status || "?") +
+          ' <span style="color:var(--muted);font-size:10.5px">(' + esc(run.engine || "linear") + ')</span></div>' +
+        '<div class="pe-when">' + nodeCount + relTime(run.started_at) + '</div>' +
+      '</div>';
+    }).join("");
+    list.querySelectorAll("[data-run]").forEach(function(el){
+      el.style.cursor = "pointer";
+      el.onclick = function(){
+        window.open("/app/control-center#workflow?run=" + encodeURIComponent(el.getAttribute("data-run")), "_blank");
+      };
+    });
+  };
+
   OFFICE.lastSnapshot = null;
   OFFICE.refreshSnapshot = async function(){
     var data = await OFFICE.fetchSnapshot();
+    OFFICE.fetchWorkflowRuns().then(OFFICE.renderWorkflowRuns);
     if (!data) return;
     OFFICE.lastSnapshot = data;
     OFFICE.renderMembers(data);
