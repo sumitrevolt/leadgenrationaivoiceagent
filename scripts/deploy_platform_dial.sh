@@ -11,7 +11,7 @@
 set -euo pipefail
 cd /opt/leadgen
 
-FILES="app/tasks/calling.py app/platform/team_scheduler.py app/tasks/staff_jobs.py app/worker.py app/platform/automation_health.py app/api/automation_flags.py app/platform/platform_dial.py"
+FILES="app/tasks/calling.py app/platform/team_scheduler.py app/tasks/staff_jobs.py app/worker.py app/platform/automation_health.py app/api/automation_flags.py app/platform/platform_dial.py app/marketing/postiz_publish.py app/social_engine/engine.py app/api/growth_automation.py"
 # Office frontend (Reliability Console panel) — static file, leadgen_app only.
 APP_ONLY_FILES="frontend/office_map.html"
 
