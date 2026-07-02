@@ -26,7 +26,10 @@ RETENTION_DAYS="${DATA_RETENTION_DAYS:-7}"
 # Same remote as pg_backup.sh — set once, both scripts use it.
 RCLONE_REMOTE="${RCLONE_REMOTE:-}"
 # Kept in sync with scripts/offsite_email_backup.py's EXCLUDE_DIRS.
-EXCLUDE_DIRS=(ai_images reels jingles bg_removed vectorstore conversations logos)
+# ollama (1.8G) + u2net (168M) = re-downloadable ML assets; backups = nested
+# backup dir (redundant — pg dumps go offsite separately). Without these the
+# nightly tar is ~2GB and fills a 15GB free Drive in a week (2026-07-02 drill).
+EXCLUDE_DIRS=(ai_images reels jingles bg_removed vectorstore conversations logos ollama u2net backups)
 
 STAMP="$(date +%Y%m%d_%H%M)"
 OUT="${BACKUP_DIR}/leadgen_data_${STAMP}.tar.gz"
