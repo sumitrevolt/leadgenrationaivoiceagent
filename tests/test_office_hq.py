@@ -229,9 +229,11 @@ async def test_build_metrics_accepts_prefetched_live_stats_without_refetching(mo
 
 # NOTE: the 2026-07-01 version of this guard (test_snapshot_cache_ttl_exceeds_
 # frontend_poll_interval, asserting TTL > poll against the then-25s poll) was
-# superseded 2026-07-02 by Task 8's deliberate retune to TTL=12s < poll=15s
-# (see test_snapshot_cache_ttl_tightened_for_realtime_view below) and removed
-# here rather than left alongside a contradictory assertion.
+# briefly replaced 2026-07-02 by a test asserting the opposite (TTL < poll),
+# based on a flawed premise that TTL should sit below the poll interval. That
+# was backwards and reintroduced the exact 2026-07-01 cache-defeat risk; fixed
+# same day by restoring the TTL > poll invariant below with the retuned
+# values (TTL=18s, poll=15s).
 
 
 class _FakeCache:
@@ -432,16 +434,16 @@ def test_ira_journey_hook_wiring_exists():
     assert "journeys.emit_event" in src or "emit_event(" in src
 
 
-def test_snapshot_cache_ttl_tightened_for_realtime_view():
-    """Task 8 (2026-07-02) deliberately retunes cadence for freshness on this
-    real-time view: poll interval 25s->15s (frontend/office_map.html
-    setInterval) and cache TTL 35s->12s (this file). TTL still stays below
-    poll (12 < 15) rather than above it -- unlike the 2026-07-01 incident
-    (TTL 15s vs poll 25s, TTL expired before every poll), here the ~8-9s
-    snapshot-compute time means two *consecutive* polls can still land
-    inside one cache window (12 > 15 - 9), so the cache keeps helping without
-    letting data go stale for more than one poll cycle. This test just pins
-    the tightened value so it isn't silently loosened again."""
+def test_snapshot_cache_ttl_exceeds_frontend_poll_interval():
+    """Task 8 (2026-07-02) retuned cadence for freshness on this real-time
+    view: poll interval 25s->15s (frontend/office_map.html setInterval) and
+    cache TTL 35s->18s (this file). TTL must stay ABOVE the poll interval --
+    same invariant as the 2026-07-01 incident fix (TTL 15s vs poll 25s meant
+    the cache expired before every single poll, defeating it entirely; fixed
+    by raising TTL comfortably above the poll interval). This test pins that
+    invariant so a future retune can't silently invert it again by relying on
+    build_snapshot()'s compute time as coincidental slack instead of a real
+    margin."""
     FRONTEND_POLL_INTERVAL_S = 15  # frontend/office_map.html setInterval(...,15000)
-    assert office_hq._SNAPSHOT_CACHE_TTL == 12
-    assert office_hq._SNAPSHOT_CACHE_TTL < FRONTEND_POLL_INTERVAL_S
+    assert office_hq._SNAPSHOT_CACHE_TTL == 18
+    assert office_hq._SNAPSHOT_CACHE_TTL > FRONTEND_POLL_INTERVAL_S
