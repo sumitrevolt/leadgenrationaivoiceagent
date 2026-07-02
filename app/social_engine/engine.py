@@ -30,8 +30,24 @@ def registry() -> dict[str, Any]:
 
 
 def enabled() -> bool:
-    """Master gate. OFF = video_ad_cycle current inline path use karta (engine inert)."""
-    return os.getenv("SOCIAL_ENGINE", "0").strip().lower() in ("1", "true", "yes")
+    """Master gate. OFF = video_ad_cycle current inline path use karta (engine inert).
+
+    Env explicit = final (0 = hard kill-switch); env UNSET par bind-mounted
+    data/social_engine.json {"enabled": true} bhi chalega — running containers
+    docker-cp drift carry karte (recreate = hotfix loss), isliye naya env var
+    recreate ke bina inject nahi hota (same pattern: platform_dial/upi_config)."""
+    v = os.getenv("SOCIAL_ENGINE", "").strip().lower()
+    if v in ("1", "true", "yes"):
+        return True
+    if v in ("0", "false", "no"):
+        return False
+    try:
+        import json as _json
+
+        with open(os.getenv("SOCIAL_ENGINE_CONFIG", "data/social_engine.json"), encoding="utf-8") as fh:
+            return bool((_json.load(fh) or {}).get("enabled"))
+    except Exception:
+        return False
 
 
 def _resolve_account(client_id: str, platform: str, account_ref: str) -> dict[str, Any]:
