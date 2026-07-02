@@ -208,6 +208,11 @@
       <div id="workflowRunsList"><div class="loading-note">⏳ Loading…</div></div>
     </div>
 
+    <div id="activeCoordCard" class="panel-box" style="margin-top:14px;display:none">
+      <h3>🔗 Active Coordination</h3>
+      <div id="activeCoordList"></div>
+    </div>
+
     <div class="two-col">
       <div class="panel-box" id="approvalsPanel">
         <h3>🗂️ Approvals needed</h3>
@@ -920,6 +925,23 @@
     }
   };
 
+  // In-flight multi-agent session tracker — sessionId (start event's id) -> {mode, startedAt, agentsInvolved: Set}.
+  // Best-effort: action tags don't carry a session id, so close-pairing is a heuristic
+  // (oldest open session of matching mode), same honesty caveat as the workflow-token above.
+  OFFICE.activeCoordinations = {};
+
+  OFFICE.renderActiveCoordinations = function(){
+    var el = document.getElementById("activeCoordList");
+    var card = document.getElementById("activeCoordCard");
+    var sessions = Object.keys(OFFICE.activeCoordinations).map(function(k){ return OFFICE.activeCoordinations[k]; });
+    if (!sessions.length) { card.style.display = "none"; return; }
+    card.style.display = "block";
+    el.innerHTML = sessions.map(function(s){
+      return '<div class="panel-event"><div><b>' + esc(s.mode) + '</b> — ' + s.agentsInvolved.size + ' agent(s) so far</div>' +
+        '<div class="pe-when">Shuru hua ' + relTime(s.startedAt) + '</div></div>';
+    }).join("");
+  };
+
   OFFICE.spawnWorkflowToken = function(fromKey, toKey){
     var from = OFFICE.avatars[fromKey], to = OFFICE.avatars[toKey];
     if (!from || !to || !OFFICE.scene) return;
@@ -955,13 +977,27 @@
     fresh.slice().reverse().forEach(function(e){
       OFFICE.seenEventIds[e.id] = true;
       OFFICE.spawnBubble(e.member, e.detail || e.action);
-      if (OFFICE.COORD_ACTIONS[e.action] && e.member !== "manager") {
-        OFFICE.spawnWorkflowToken("manager", e.member);
-      }
       if (e.member === "manager" && OFFICE.MANAGER_START_ACTIONS[e.action]) {
         OFFICE.pushCoordinatorTicker("▶ " + (e.detail || e.action));
+        OFFICE.activeCoordinations[e.id] = { mode: e.action.replace("_start", ""), startedAt: e.at, agentsInvolved: new Set() };
+        OFFICE.renderActiveCoordinations();
       } else if (e.member === "manager" && OFFICE.MANAGER_DONE_ACTIONS[e.action]) {
         OFFICE.pushCoordinatorTicker("✓ " + (e.detail || e.action));
+        // Close the OLDEST open session of a matching mode (best-effort pairing
+        // — action tags don't carry a session id, so this is a heuristic, same
+        // honesty caveat as the existing workflow-token: approximate, not a
+        // guaranteed-accurate process graph).
+        var doneMode = e.action.replace("_done", "");
+        var openKey = Object.keys(OFFICE.activeCoordinations).find(function(k){
+          return OFFICE.activeCoordinations[k].mode === doneMode;
+        });
+        if (openKey) delete OFFICE.activeCoordinations[openKey];
+        OFFICE.renderActiveCoordinations();
+      } else if (OFFICE.COORD_ACTIONS[e.action] && e.member !== "manager") {
+        OFFICE.spawnWorkflowToken("manager", e.member);
+        Object.keys(OFFICE.activeCoordinations).forEach(function(k){
+          OFFICE.activeCoordinations[k].agentsInvolved.add(e.member);
+        });
       }
     });
   };
