@@ -69,10 +69,15 @@ jobs:
         run: bandit -r app/ -ll --skip B101
 
       - name: Audit dependencies
-        run: pip-audit --requirement requirements.txt --ignore-vuln GHSA-xxx || true
+        # Audit the LOCK that actually ships (requirements.lock.txt via --no-deps),
+        # not requirements.txt. Blocking (no `|| true`) so a new HIGH/CRITICAL in
+        # shipped deps fails the run.
+        run: pip-audit --requirement requirements.lock.txt --ignore-vuln GHSA-xxx
 
       - name: Check for secrets
-        uses: trufflesecurity/trufflehog@main
+        # Pinned (was @main — mutable ref for a security tool). Dependabot github-actions
+        # weekly keeps it fresh. TODO: bump via dependabot.
+        uses: trufflesecurity/trufflehog@v3.95.7
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}

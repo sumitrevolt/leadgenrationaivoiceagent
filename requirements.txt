@@ -5,11 +5,11 @@
 # Core Framework
 # =============================================================================
 fastapi==0.109.0
-uvicorn[standard]==0.27.0
+uvicorn[standard]==0.49.0
 pydantic>=2.7.4,<3
-pydantic-settings==2.1.0
+pydantic-settings==2.14.1
 email-validator==2.3.0
-python-multipart==0.0.7
+python-multipart==0.0.32
 
 # =============================================================================
 # Database
@@ -25,7 +25,7 @@ aioredis==2.0.1
 # =============================================================================
 # AI/ML - Cloud-based APIs
 # =============================================================================
-openai==1.12.0  # also drives Groq/Cerebras/OpenRouter free LLMs (OpenAI-compatible base_url) — see app/voice_agent/free_ai.py
+openai==2.41.0  # also drives Groq/Cerebras/OpenRouter free LLMs (OpenAI-compatible base_url) — see app/voice_agent/free_ai.py
 anthropic==0.18.0
 # langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=0.3 (langgraph)
 # langchain-openai==0.0.5 # unused in codebase; same conflict
@@ -77,9 +77,9 @@ googlemaps==4.10.0
 # =============================================================================
 # HTTP Clients & Email
 # =============================================================================
-requests==2.31.0
+requests==2.34.2
 aiohttp==3.9.3
-httpx==0.26.0
+httpx==0.28.1
 aiosmtplib==3.0.1
 
 # =============================================================================

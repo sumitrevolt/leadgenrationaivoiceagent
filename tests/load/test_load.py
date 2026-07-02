@@ -6,13 +6,30 @@ but verifies basic throughput gates. Run: pytest tests/load/ -v -s
 from __future__ import annotations
 
 import concurrent.futures
+import os
 import time
 from urllib.parse import urljoin
 
 import pytest
 import requests
 
-BASE_URL = "https://leadsgenai.in"  # change to staging if needed
+# Default to LOCAL — never prod. Override via env (same var name as tests/load/run.sh).
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
+
+# --- Safety guards (module-level) ------------------------------------------------
+# 1) OFF by default: a stray `pytest tests/` full-suite run must NEVER fire these
+#    100-concurrent / 1000-task / 100-login load tests. Opt in with RUN_LOAD_TESTS=1.
+if os.environ.get("RUN_LOAD_TESTS") != "1":
+    pytest.skip(
+        "load tests off by default — set RUN_LOAD_TESTS=1 to run",
+        allow_module_level=True,
+    )
+# 2) Never hammer PROD (same discipline as tests/load/run.sh — leadsgenai.in / VPS IP).
+if ("leadsgenai.in" in BASE_URL or "72.61.245.204" in BASE_URL) and os.environ.get("CONFIRM_PROD") != "1":
+    pytest.skip(
+        f"refusing to load-test prod ({BASE_URL}) — set CONFIRM_PROD=1 to override",
+        allow_module_level=True,
+    )
 
 
 def _get(path: str) -> tuple[int, float]:
