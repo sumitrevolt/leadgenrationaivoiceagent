@@ -719,10 +719,14 @@ async def _run_job_inner(job: str) -> None:
         elif job == "platform_dial":
             # Own-product outbound (2026-07-02): Product-2 voice agent Product-1 bechta
             # hai — daily batch of AI cold-calls with the ai_marketing platform pitch.
-            # Gated PLATFORM_DIAL_DAILY (default OFF). Single-flight = the SAME campaign
-            # lock the admin launch uses (double-dial impossible); TRAI window / DND /
-            # readiness gates enforce inside run_campaign_task + VobizClient per call.
-            if os.environ.get("PLATFORM_DIAL_DAILY", "0").strip().lower() in ("1", "true", "yes"):
+            # Gated PLATFORM_DIAL_DAILY env OR data/platform_dial.json (default OFF;
+            # env "0" = hard kill-switch — see app/platform/platform_dial.py).
+            # Single-flight = the SAME campaign lock the admin launch uses (double-dial
+            # impossible); TRAI window / DND / readiness gates enforce inside
+            # run_campaign_task + VobizClient per call.
+            from app.platform import platform_dial as _pd
+
+            if _pd.enabled():
                 from app.platform import team
                 from app.tasks.calling import (
                     acquire_campaign_lock,
@@ -730,8 +734,8 @@ async def _run_job_inner(job: str) -> None:
                     release_campaign_lock,
                 )
 
-                _limit = max(1, min(int(os.environ.get("PLATFORM_DIAL_LIMIT", "15") or 15), 200))
-                _dial_niche = (os.environ.get("PLATFORM_DIAL_NICHE", "all") or "all").strip()
+                _limit = _pd.dial_limit()
+                _dial_niche = _pd.dial_niche()
                 if campaign_lock_held():
                     team.log_event(
                         "swara",
