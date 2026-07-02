@@ -12,10 +12,12 @@ set -euo pipefail
 cd /opt/leadgen
 
 FILES="app/tasks/calling.py app/platform/team_scheduler.py app/tasks/staff_jobs.py app/worker.py app/platform/automation_health.py app/api/automation_flags.py app/platform/platform_dial.py"
+# Office frontend (Reliability Console panel) — static file, leadgen_app only.
+APP_ONLY_FILES="frontend/office_map.html"
 
 git fetch origin -q
 # shellcheck disable=SC2086
-git checkout origin/main -- $FILES tests/test_platform_dial.py scripts/deploy_platform_dial.sh
+git checkout origin/main -- $FILES $APP_ONLY_FILES tests/test_platform_dial.py scripts/deploy_platform_dial.sh
 
 # Daily auto-dial config (bind-mounted -> har container me live, recreate-proof).
 # limit=15 calls/day conservative start; niche=all -> poora harvested pool.
@@ -30,6 +32,12 @@ for c in leadgen_app leadgen_worker leadgen_worker_heavy leadgen_scheduler; do
   done
   echo "copied -> $c"
 done
+
+# Office frontend -> leadgen_app only (worker/scheduler don't serve HTTP).
+for f in $APP_ONLY_FILES; do
+  docker cp "/opt/leadgen/$f" "leadgen_app:/app/$f"
+done
+echo "copied office frontend -> leadgen_app"
 
 docker restart leadgen_worker leadgen_worker_heavy leadgen_scheduler
 docker restart leadgen_app
