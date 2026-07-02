@@ -199,6 +199,61 @@ async def test_safe_collect_live_stats_returns_value_when_fast(monkeypatch):
     assert out == {"real_calls_today": 7}
 
 
+# ---- Phase 3: unified approvals queue + boss finalizer + coordination ------ #
+
+def test_build_approval_queue_never_raises_and_items_well_formed():
+    q = office_hq.build_approval_queue()
+    assert isinstance(q, list)
+    for it in q:
+        assert it["kind"] in ("draft", "patch", "selfimprove")
+        assert it["id"]
+        for key in ("title", "summary", "created_at", "source"):
+            assert key in it
+
+
+async def test_build_approvals_keeps_legacy_shape_and_adds_queue():
+    out = await office_hq.build_approvals()
+    # Drift-lock: original consumers (rooms/metrics/NBA) still read these.
+    assert "drafts" in out and "counts" in out
+    # Additive unified queue for the actionable Approvals panel.
+    assert isinstance(out.get("queue"), list)
+
+
+def test_parse_boss_reply_formats():
+    v, r = office_hq._parse_boss_reply("VERDICT: approve | REASON: sab theek hai")
+    assert v == "approve"
+    assert "sab theek" in r
+    v2, _ = office_hq._parse_boss_reply("VERDICT: reject | REASON: risky change")
+    assert v2 == "reject"
+    v3, _ = office_hq._parse_boss_reply("")
+    assert v3 == ""
+
+
+async def test_boss_review_never_raises_and_is_recommend_only(monkeypatch):
+    """No LLM keys / dead chain must degrade to skip-verdicts, never raise.
+    boss_review must NOT call any decide/approve API (recommend-only by spec)."""
+    out = await office_hq.boss_review(max_items=2, per_item_timeout=0.5)
+    assert out["ok"] is True
+    assert isinstance(out["verdicts"], list)
+    for v in out["verdicts"]:
+        assert v["verdict"] in ("approve", "reject", "skip")
+
+
+def test_build_coordination_never_raises_and_is_bounded():
+    runs = office_hq.build_coordination(limit=5)
+    assert isinstance(runs, list)
+    assert len(runs) <= 5
+    for r in runs:
+        for key in ("goal", "mode", "executed", "outcome", "at"):
+            assert key in r
+
+
+async def test_snapshot_includes_coordination_and_approval_queue():
+    snap = await office_hq.build_snapshot()
+    assert "coordination" in snap
+    assert "queue" in (snap.get("approvals") or {})
+
+
 async def test_safe_db_call_times_out_and_returns_none():
     import asyncio
 

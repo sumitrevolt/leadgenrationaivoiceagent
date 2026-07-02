@@ -464,6 +464,7 @@ def build_rooms_and_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]
 async def build_metrics(live_stats: dict[str, Any] | None = None) -> dict[str, Any]:
     out: dict[str, Any] = {
         "new_leads_today": 0, "qualified_leads_today": 0, "calls_completed_today": 0,
+        "emails_sent_today": 0,
         "appointments_booked": 0, "campaigns_ready": 0, "payments_pending": 0,
         "active_customers": 0, "failed_automations": 0, "approvals_needed": 0,
         "system_issues": 0, "mrr": 0,
@@ -471,6 +472,7 @@ async def build_metrics(live_stats: dict[str, Any] | None = None) -> dict[str, A
     try:
         live = live_stats if live_stats is not None else await _safe_collect_live_stats()
         out["calls_completed_today"] = int(live.get("real_calls_today") or 0)
+        out["emails_sent_today"] = int(live.get("emails_sent_today") or 0)
         out["campaigns_ready"] = int(live.get("content_items_generated") or 0)
         out["active_customers"] = int(live.get("marketing_clients_active") or 0)
         out["mrr"] = int(live.get("estimated_mrr") or 0)
@@ -884,6 +886,13 @@ def _health_item(r: dict[str, Any], overrides: dict[str, dict[str, Any]] | None 
 
 
 async def build_approvals() -> dict[str, Any]:
+    """Approvals section. `drafts`+`counts` keep their original approvals_bridge
+    shape (drift-locked consumers: rooms approvalCount, metrics.approvals_needed,
+    next_best_actions). ADDITIVE `queue` key = the UNIFIED actionable list the
+    Approvals panel renders: bridge drafts + code-upgrader patch proposals +
+    self-improve approval gates — every entry decided via its EXISTING admin API
+    (documented per-kind in `decide` hints below); nothing new is stored here."""
+    out: dict[str, Any] = {"drafts": [], "counts": {"by_source": {}, "pending": 0}}
     try:
         from app.platform import approvals_bridge
 
@@ -891,10 +900,178 @@ async def build_approvals() -> dict[str, Any]:
         drafts = d.get("drafts") or []
         for item in drafts:
             item["room"] = APPROVAL_ROOM.get(item.get("source"), "coordinator")
-        return {"drafts": drafts, "counts": d.get("counts") or {}}
+        out["drafts"] = drafts
+        out["counts"] = d.get("counts") or {}
     except Exception as e:
         logger.debug(f"[office_hq] build_approvals failed: {e}")
-        return {"drafts": [], "counts": {"by_source": {}, "pending": 0}}
+    out["queue"] = build_approval_queue(drafts=out["drafts"])
+    try:
+        out["counts"]["total_pending"] = len(out["queue"])
+    except Exception:
+        pass
+    return out
+
+
+def build_approval_queue(drafts: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    """Unified pending-approvals list across the three EXISTING queues.
+
+    Kinds + their existing decide APIs (frontend/boss-review reuse these — no
+    parallel approve endpoints were created):
+      - draft       -> POST  /api/growth/approvals/drafts/{source}/{id}/decide
+      - patch       -> POST  /api/growth/upgrader/patches/{id}/status  (SUPER_ADMIN)
+      - selfimprove -> PATCH /api/growth/selfimprove/approval/{id}/approve|reject
+
+    Read-only aggregation; each source degrades to [] independently. Never raises."""
+    queue: list[dict[str, Any]] = []
+    # 1) approvals_bridge drafts (sales/coordinator/fde)
+    try:
+        if drafts is None:
+            from app.platform import approvals_bridge
+
+            drafts = (approvals_bridge.list_drafts(include_decided=False) or {}).get("drafts") or []
+        for d in drafts:
+            queue.append({
+                "kind": "draft",
+                "source": d.get("source") or "",
+                "id": str(d.get("id") or ""),
+                "title": str(d.get("title") or d.get("id") or "")[:160],
+                "summary": str(d.get("body") or "")[:400],
+                "created_at": d.get("created_at") or "",
+            })
+    except Exception as e:
+        logger.debug(f"[office_hq] approval_queue drafts skipped: {e}")
+    # 2) code-upgrader patch proposals (Vikram) — approve is a MARKER only;
+    # patches are NEVER auto-applied (apply stays in the manual deploy loop).
+    try:
+        from app.agents import code_upgrader
+
+        for p in code_upgrader.list_patches("proposed", 20) or []:
+            queue.append({
+                "kind": "patch",
+                "source": "code_upgrader",
+                "id": str(p.get("id") or ""),
+                "title": str(p.get("title") or p.get("issue") or p.get("id") or "")[:160],
+                "summary": str(p.get("rationale") or p.get("issue") or "")[:400],
+                "created_at": p.get("at") or "",
+            })
+    except Exception as e:
+        logger.debug(f"[office_hq] approval_queue patches skipped: {e}")
+    # 3) self-improve approval gates (SELF_IMPROVE_APPROVAL)
+    try:
+        from app.agents import self_improve
+
+        for t in (self_improve.approval_status() or {}).get("pending") or []:
+            queue.append({
+                "kind": "selfimprove",
+                "source": "self_improve",
+                "id": str(t.get("id") or ""),
+                "title": str(t.get("task") or t.get("id") or "")[:160],
+                "summary": (str(t.get("reason") or "")
+                            + (f" (est. cost ${t.get('cost')})" if t.get("cost") else ""))[:400],
+                "created_at": t.get("timestamp") or "",
+            })
+    except Exception as e:
+        logger.debug(f"[office_hq] approval_queue selfimprove skipped: {e}")
+    return [q for q in queue if q["id"]]
+
+
+def build_coordination(limit: int = 5) -> list[dict[str, Any]]:
+    """Last N coordinator/council runs (read-only) from the EXISTING persisted
+    run history data/coordination_runs.jsonl (same file approvals_bridge reads).
+    Never raises; [] when the file is absent/empty."""
+    out: list[dict[str, Any]] = []
+    try:
+        from app.platform import approvals_bridge
+
+        rows = approvals_bridge._read_jsonl(approvals_bridge._COORD_RUNS)
+        for r in rows[-max(1, min(20, limit)):][::-1]:
+            outcome = str(
+                r.get("summary") or r.get("solution") or r.get("design")
+                or r.get("implementation_plan") or r.get("verdict") or ""
+            )[:220]
+            out.append({
+                "goal": str(r.get("goal") or r.get("query") or "coordination run")[:140],
+                "mode": str(r.get("pattern") or r.get("mode") or "sequential"),
+                "executed": bool(r.get("execute")),
+                "outcome": outcome,
+                "at": r.get("at") or "",
+            })
+    except Exception as e:
+        logger.debug(f"[office_hq] build_coordination skipped: {e}")
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Boss Finalizer — the office "manager agent". For each pending approval item
+# it asks the FREE LLM chain (same app.voice_agent.free_ai chain the council
+# uses) for a short verdict + reason. RECOMMEND-ONLY by design:
+#   - stores nothing (verdicts returned in the response only),
+#   - never calls any approve/reject API itself — the HUMAN still clicks,
+#   - code patches stay NEVER-auto-applied (CLAUDE.md hard rule intact).
+# Cap 10 items, one LLM call per item, per-call hard timeout, never raises.
+# --------------------------------------------------------------------------- #
+_BOSS_SYSTEM = (
+    "Tu LeadGenAI platform ka operations Boss hai. Ek pending approval item diya "
+    "jayega (type + title + summary). Decide karo: approve ya reject. "
+    "Sirf isi format me jawab do, ek line: VERDICT: approve|reject | REASON: <1 short Hinglish sentence>. "
+    "Conservative raho — risky/unclear/irreversible lage to reject bolo."
+)
+
+
+def _parse_boss_reply(text: str) -> tuple[str, str]:
+    """'VERDICT: approve | REASON: ...' -> ("approve"|"reject", reason). Lenient."""
+    t = (text or "").strip()
+    low = t.lower()
+    verdict = "reject" if ("reject" in low and low.find("reject") < (low.find("approve") if "approve" in low else 10**9)) else ("approve" if "approve" in low else "")
+    reason = t
+    if "reason" in low:
+        try:
+            reason = t[low.index("reason") + len("reason"):].lstrip(":| ").strip()
+        except Exception:
+            reason = t
+    return verdict, reason[:200]
+
+
+async def boss_review(max_items: int = 10, per_item_timeout: float = 20.0) -> dict[str, Any]:
+    """Verdict + reason for each pending approval item (cap `max_items`).
+    Read-only, never raises; a failed/timed-out LLM call yields verdict="skip"."""
+    items = build_approval_queue()[: max(1, min(10, max_items))]
+    if not items:
+        return {"ok": True, "verdicts": [], "reviewed": 0, "note": "koi pending approval nahi"}
+
+    async def _one(it: dict[str, Any]) -> dict[str, Any]:
+        base = {"kind": it["kind"], "id": it["id"]}
+        try:
+            from app.voice_agent import free_ai
+
+            user = (
+                f"Type: {it['kind']} ({it.get('source')})\nTitle: {it['title']}\n"
+                f"Summary: {it.get('summary') or '(none)'}\n"
+                + ("NOTE: code patch approve = sirf review-marker; apply hamesha manual deploy-loop me hota hai."
+                   if it["kind"] == "patch" else "")
+            )
+            text, provider = await asyncio.wait_for(
+                free_ai.chat(_BOSS_SYSTEM, [{"role": "user", "content": user}],
+                             max_tokens=120, temperature=0.3, scope="office_boss"),
+                timeout=per_item_timeout,
+            )
+            verdict, reason = _parse_boss_reply(text)
+            if not verdict:
+                return {**base, "verdict": "skip", "reason": "LLM se clear verdict nahi mila", "provider": provider}
+            return {**base, "verdict": verdict, "reason": reason, "provider": provider}
+        except Exception as e:
+            logger.debug(f"[office_hq] boss_review item {it.get('id')} skipped: {e}")
+            return {**base, "verdict": "skip", "reason": "LLM unavailable/timeout"}
+
+    try:
+        results = await asyncio.gather(*[_one(it) for it in items], return_exceptions=True)
+        verdicts = [r for r in results if isinstance(r, dict)]
+    except Exception as e:
+        logger.warning(f"[office_hq] boss_review failed: {e}")
+        verdicts = []
+    return {"ok": True, "verdicts": verdicts, "reviewed": len(verdicts),
+            "note": "Boss sirf RECOMMEND karta hai — final Approve/Reject HUMAN click se hi hota hai.",
+            "generated_at": _now().isoformat()}
 
 
 def build_system_health() -> dict[str, Any]:
@@ -1012,6 +1189,7 @@ async def build_snapshot() -> dict[str, Any]:
         "approvals": approvals,
         "system_health": system_health,
         "schedule": build_schedule(),
+        "coordination": build_coordination(),
         "generated_at": _now().isoformat(),
         "cached": False,
     }

@@ -35,6 +35,20 @@ async def office_snapshot(current_user=Depends(require_admin)):
                 "system_health": {}, "next_best_actions": []}
 
 
+@router.post("/boss-review")
+async def office_boss_review(current_user=Depends(require_admin)):
+    """Boss Finalizer (manager agent) — FREE-LLM verdict + reason per pending
+    approval item (cap 10, per-item timeout, never raises). RECOMMEND-ONLY:
+    stores nothing, approves nothing — the human still clicks Approve/Reject
+    on the existing decide endpoints. Code patches stay never-auto-applied."""
+    from app.platform import office_hq
+
+    try:
+        return await office_hq.boss_review()
+    except Exception as e:  # pragma: no cover — builder never raises
+        return {"ok": False, "error": str(e), "verdicts": [], "reviewed": 0}
+
+
 @router.get("/pipeline/{stage_id}")
 async def office_pipeline_stage(stage_id: str, current_user=Depends(require_admin)):
     """Drill-down for one pipeline stage (full item list, not just top-3)."""

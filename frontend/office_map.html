@@ -105,6 +105,9 @@
   .appr-row:first-of-type{border-top:none}
   .appr-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .appr-btn{border:none;border-radius:7px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer}
+  .appr-meta{color:var(--muted);font-size:10.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .appr-main{flex:1;min-width:0}
+  .boss-chip{font-size:10.5px;font-weight:700;margin-top:2px}
   .appr-approve{background:var(--ok);color:#fff}
   .appr-reject{background:#fee2e2;color:#991b1b}
   .health-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px}
@@ -301,6 +304,10 @@
       <div class="feed-head"><span class="ticker-dot"></span> Live automation feed — poora project ka feed</div>
       <div class="filter-row" id="filterRow"></div>
       <div id="tickerList"><div class="loading-note">⏳ Loading feed…</div></div>
+      <div id="coordHistoryWrap" style="display:none;margin-top:10px;border-top:1px solid var(--line);padding-top:8px">
+        <div style="font-weight:800;font-size:12.5px;margin-bottom:4px">🧑‍💼 Coordination — last runs (coordinator/council)</div>
+        <div id="coordHistoryList"></div>
+      </div>
     </div>
 
     <div class="two-col">
@@ -355,7 +362,12 @@
 
     <div class="two-col">
       <div class="panel-box" id="approvalsPanel">
-        <h3>🗂️ Approvals needed</h3>
+        <h3 style="display:flex;align-items:center;gap:8px">🗂️ Approvals needed
+          <button id="bossReviewBtn" style="margin-left:auto;border:1px solid var(--line);background:#fff;
+            border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
+            title="Boss (manager agent) har pending item par recommend karega — final click aapka">🧠 Boss se review karao</button>
+        </h3>
+        <div id="bossReviewNote" class="empty-note" style="display:none"></div>
         <div id="approvalsList"><div class="loading-note">⏳ Loading…</div></div>
       </div>
       <div class="panel-box" id="systemHealthPanel">
@@ -1021,6 +1033,8 @@
     { key: "new_leads_today", label: "New leads (aaj)" },
     { key: "qualified_leads_today", label: "Qualified (aaj)" },
     { key: "calls_completed_today", label: "Calls done (aaj)" },
+    { key: "emails_sent_today", label: "Emails sent (aaj)" },
+    { key: "active_agents", label: "Active agents" },
     { key: "appointments_booked", label: "Appointments" },
     { key: "campaigns_ready", label: "Content ready" },
     { key: "payments_pending", label: "Payments pending", warnIfPositive: true },
@@ -1258,39 +1272,115 @@
       '<div class="panel-events">' + agentsHtml + '</div>';
   };
 
-  // ---- Approvals panel (reuses the EXISTING growth-approvals cockpit API) --
+  // ---- Approvals panel — UNIFIED actionable queue (bridge drafts + code
+  // patches + self-improve gates). Every decide call goes to the item-kind's
+  // EXISTING admin API — no parallel approve endpoints. Boss verdict chips are
+  // recommend-only (backend stores nothing; human still clicks ✓/✕).
   OFFICE.lastApprovals = [];
+  OFFICE.lastQueue = [];
+  OFFICE.bossVerdicts = {};  // "kind:id" -> {verdict, reason}
+  OFFICE.APPR_KIND_META = { draft: "📝 draft", patch: "🩹 code patch", selfimprove: "🤖 self-improve" };
+
+  OFFICE.decideApproval = async function(it, decision){
+    var url, opts;
+    if (it.kind === "patch") {
+      // SUPER_ADMIN-gated existing endpoint; approve = review-marker only (never auto-applied).
+      url = "/api/growth/upgrader/patches/" + encodeURIComponent(it.id) + "/status";
+      opts = { method: "POST", headers: hdrs(true),
+               body: JSON.stringify({ status: decision === "approve" ? "approved" : "rejected", note: "office HQ approvals panel" }) };
+    } else if (it.kind === "selfimprove") {
+      url = "/api/growth/selfimprove/approval/" + encodeURIComponent(it.id) + "/" + (decision === "approve" ? "approve" : "reject");
+      opts = { method: "PATCH", headers: hdrs(true), body: JSON.stringify({ reason: "office HQ approvals panel" }) };
+    } else {
+      url = "/api/growth/approvals/drafts/" + encodeURIComponent(it.source) + "/" + encodeURIComponent(it.id) + "/decide";
+      opts = { method: "POST", headers: hdrs(true), body: JSON.stringify({ decision: decision }) };
+    }
+    try {
+      var r = await fetch(url, opts);
+      if (r.status === 403) showBanner("🔒 Code-patch decide SUPER_ADMIN only hai — is account se allowed nahi.");
+    } catch (e) { /* best-effort — snapshot refresh will show the true state */ }
+    OFFICE.refreshSnapshot();
+  };
+
   OFFICE.renderApprovals = function(approvals){
     var el = document.getElementById("approvalsList");
-    var drafts = (approvals && approvals.drafts) || [];
-    OFFICE.lastApprovals = drafts;
-    if (!drafts.length) { el.innerHTML = '<div class="empty-note">Koi approval pending nahi hai.</div>'; return; }
-    el.innerHTML = drafts.slice(0, 8).map(function(d){
-      return '<div class="appr-row" data-source="' + esc(d.source) + '" data-id="' + esc(d.id) + '">' +
-        '<div class="appr-title">' + esc(d.title || d.id) + '</div>' +
+    OFFICE.lastApprovals = (approvals && approvals.drafts) || [];
+    var queue = (approvals && approvals.queue) || null;
+    if (!queue) {
+      // Older backend snapshot shape — degrade to bridge drafts only.
+      queue = OFFICE.lastApprovals.map(function(d){
+        return { kind: "draft", source: d.source, id: String(d.id), title: d.title || d.id,
+                 summary: d.body || "", created_at: d.created_at || "" };
+      });
+    }
+    OFFICE.lastQueue = queue;
+    if (!queue.length) { el.innerHTML = '<div class="empty-note">Koi approval pending nahi hai.</div>'; return; }
+    el.innerHTML = queue.slice(0, 10).map(function(d, i){
+      var v = OFFICE.bossVerdicts[d.kind + ":" + d.id];
+      var chip = "";
+      if (v) {
+        var col = v.verdict === "approve" ? "#047857" : (v.verdict === "reject" ? "#b91c1c" : "#64748b");
+        var icon = v.verdict === "approve" ? "✅ approve" : (v.verdict === "reject" ? "❌ reject" : "⏭ skip");
+        chip = '<div class="boss-chip" style="color:' + col + '">Boss: ' + icon +
+               (v.reason ? " — " + esc(v.reason) : "") + '</div>';
+      }
+      var age = d.created_at ? relTime(d.created_at) : "";
+      return '<div class="appr-row" data-idx="' + i + '">' +
+        '<div class="appr-main">' +
+          '<div class="appr-title">' + esc(d.title || d.id) + '</div>' +
+          '<div class="appr-meta">' + esc(OFFICE.APPR_KIND_META[d.kind] || d.kind) +
+            (d.source && d.kind === "draft" ? ' · ' + esc(d.source) : '') + (age ? ' · ' + esc(age) : '') + '</div>' +
+          (d.summary ? '<div class="appr-meta">' + esc(String(d.summary).slice(0, 140)) + '</div>' : '') +
+          chip +
+        '</div>' +
         '<button class="appr-btn appr-approve" data-decision="approve">✓</button>' +
         '<button class="appr-btn appr-reject" data-decision="reject">✕</button>' +
       '</div>';
     }).join("");
     Array.prototype.forEach.call(el.querySelectorAll(".appr-row"), function(row){
-      row.onclick = function(){ OFFICE.openApprovalPanel(row.getAttribute("data-source"), row.getAttribute("data-id")); };
+      row.onclick = function(){
+        var it = OFFICE.lastQueue[parseInt(row.getAttribute("data-idx"), 10)];
+        if (it && it.kind === "draft") OFFICE.openApprovalPanel(it.source, it.id);
+      };
     });
     Array.prototype.forEach.call(el.querySelectorAll(".appr-btn"), function(btn){
       btn.onclick = async function(evt){
         evt.stopPropagation();
         var row = btn.closest(".appr-row");
-        var source = row.getAttribute("data-source"), id = row.getAttribute("data-id");
-        var decision = btn.getAttribute("data-decision");
+        var it = OFFICE.lastQueue[parseInt(row.getAttribute("data-idx"), 10)];
+        if (!it) return;
         btn.disabled = true;
-        try {
-          await fetch("/api/growth/approvals/drafts/" + encodeURIComponent(source) + "/" + encodeURIComponent(id) + "/decide", {
-            method: "POST", headers: hdrs(true), body: JSON.stringify({ decision: decision })
-          });
-        } catch (e) { /* best-effort — snapshot refresh will show the true state */ }
-        OFFICE.refreshSnapshot();
+        await OFFICE.decideApproval(it, btn.getAttribute("data-decision"));
       };
     });
   };
+
+  // ---- Boss Finalizer — "Boss se review karao" (manager agent, recommend-only)
+  OFFICE.runBossReview = async function(){
+    var btn = document.getElementById("bossReviewBtn");
+    var note = document.getElementById("bossReviewNote");
+    if (!OFFICE.lastQueue.length) {
+      note.style.display = "block"; note.textContent = "Koi pending item nahi — Boss ke paas review karne ko kuch nahi.";
+      return;
+    }
+    btn.disabled = true; btn.textContent = "🧠 Boss soch raha hai…";
+    note.style.display = "block"; note.textContent = "Har pending item par free-LLM verdict aa raha hai (max 10 items)…";
+    try {
+      var r = await fetch("/api/platform/office/boss-review", { method: "POST", headers: hdrs(true) });
+      var d = r.ok ? await r.json() : null;
+      if (d && d.ok) {
+        (d.verdicts || []).forEach(function(v){ OFFICE.bossVerdicts[v.kind + ":" + v.id] = v; });
+        note.textContent = "Boss ne " + (d.reviewed || 0) + " item review kiye — yeh sirf RECOMMENDATION hai, final ✓/✕ aap hi click karoge.";
+        if (OFFICE.lastSnapshot) OFFICE.renderApprovals(OFFICE.lastSnapshot.approvals);
+      } else {
+        note.textContent = "Boss review nahi ho paya" + (d && d.error ? " — " + d.error : " (endpoint error).");
+      }
+    } catch (e) {
+      note.textContent = "Boss review call fail hua — network/auth check karo.";
+    }
+    btn.disabled = false; btn.textContent = "🧠 Boss se review karao";
+  };
+  document.getElementById("bossReviewBtn").onclick = OFFICE.runBossReview;
 
   // ---- Approval detail drawer (full body/meta + approve/reject) ------------
   OFFICE.openApprovalPanel = function(source, id){
@@ -1338,6 +1428,26 @@
     Array.prototype.forEach.call(el.querySelectorAll(".health-row.clickable"), function(row){
       row.onclick = function(){ OFFICE.openHealthPanel(row.getAttribute("data-job")); };
     });
+  };
+
+  // ---- Coordination history — last coordinator/council runs (read-only,
+  // from the backend snapshot's persisted run history data/coordination_runs.jsonl).
+  OFFICE.renderCoordination = function(runs){
+    var wrap = document.getElementById("coordHistoryWrap");
+    var list = document.getElementById("coordHistoryList");
+    if (!wrap || !list) return;
+    runs = runs || [];
+    if (!runs.length) { wrap.style.display = "none"; return; }
+    wrap.style.display = "block";
+    list.innerHTML = runs.slice(0, 5).map(function(r){
+      return '<div class="item-row">' +
+        '<div class="ir-name">' + esc(r.goal || "coordination run") +
+          ' <span style="color:var(--muted);font-weight:400;font-size:10.5px">(' + esc(r.mode || "?") +
+          (r.executed ? " · executed" : " · draft") + ')</span></div>' +
+        (r.outcome ? '<div class="ir-meta">' + esc(String(r.outcome).slice(0, 160)) + '</div>' : '') +
+        (r.at ? '<div class="ir-meta">' + esc(relTime(r.at)) + '</div>' : '') +
+      '</div>';
+    }).join("");
   };
 
   // ---- Reliability Console: DLQ failed/dead jobs + one-click retry-sweep -----
@@ -1708,11 +1818,20 @@
     OFFICE.updateFreshnessBadge();
     OFFICE.renderMembers(data);
     OFFICE.renderStatusSummary(data);
+    // Client-side derived KPI chips (no extra fetch): active agents from the
+    // roster; Approvals chip upgraded to the UNIFIED pending total (drafts +
+    // patches + self-improve) when the backend provides it.
+    data.metrics = data.metrics || {};
+    data.metrics.active_agents = (data.agents || []).filter(function(a){ return a.status !== "offline"; }).length;
+    if (data.approvals && data.approvals.counts && data.approvals.counts.total_pending != null) {
+      data.metrics.approvals_needed = data.approvals.counts.total_pending;
+    }
     OFFICE.renderMetrics(data.metrics);
     OFFICE.renderNextActions(data.next_best_actions);
     OFFICE.renderPipeline(data.pipeline);
     OFFICE.renderApprovals(data.approvals);
     OFFICE.renderSystemHealth(data.system_health);
+    OFFICE.renderCoordination(data.coordination);
     OFFICE.renderSchedule(data);
     OFFICE.renderLeaderboard(data);
     OFFICE.renderFailureConsole();
