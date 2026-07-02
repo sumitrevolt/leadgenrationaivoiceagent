@@ -27,6 +27,12 @@ _DNSBLS = ["zen.spamhaus.org", "bl.spamcop.net"]
 # Common DKIM selectors to probe (env DKIM_SELECTOR can be CSV to override/extend).
 # Hostinger uses "hostingermail" style; default list covers the usual ESPs too.
 _DEFAULT_DKIM_SELECTORS = [
+    # Hostinger's REAL selectors are hostingermail-a/-b/-c (CNAME -> dkim.mail.
+    # hostinger.com). Bare "hostingermail" kabhi exist nahi karta — usi se
+    # 2026-07-02 ka "DKIM record missing" FALSE alarm aya (DNS pe -a live tha).
+    "hostingermail-a",
+    "hostingermail-b",
+    "hostingermail-c",
     "hostingermail",
     "default",
     "dkim",
