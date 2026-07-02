@@ -152,9 +152,9 @@ def run_daily_digest() -> dict[str, Any]:
     try:
         from app.platform import team
 
-        total = kpis.get("total_calls", 0)
-        qrate = kpis.get("qualified_rate", 0)
-        detail = f"Aaj {total} calls · qualified-rate {qrate:.0%}" if isinstance(qrate, (int, float)) else f"Aaj {total} calls"
+        total = kpis.get("web_calls", 0)
+        qualified = kpis.get("qualified_phone", 0)
+        detail = f"Aaj {total} calls · {qualified} qualified" if total else f"Aaj {total} calls"
         team.log_event("lekha", "call_kpi_digest", detail, status="ok")
     except Exception as e:
         logger.debug(f"[call_analytics] run_daily_digest log_event skipped: {e}")
