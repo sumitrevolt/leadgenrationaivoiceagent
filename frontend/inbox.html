@@ -44,7 +44,8 @@ a.wa{color:var(--ok)}
   <span id="err" class="msg" style="color:var(--bad)"></span>
 </div>
 <div class="tabs" id="tabs"></div>
-<div id="s_hot" class="sec on"></div>
+<div id="s_hotq" class="sec on"></div>
+<div id="s_hot" class="sec"></div>
 <div id="s_reply" class="sec"></div>
 <div id="s_review" class="sec"></div>
 <div id="s_exp" class="sec"></div>
@@ -62,8 +63,8 @@ async function api(p,opt){
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function cleanPhone(p){return String(p||'').replace(/\D/g,'').slice(-10)}
 
-const TABS=[['hot','🔥 Hot Leads'],['reply','✉️ Reply Drafts'],['review','⭐ Review Drafts'],['exp','🧪 Experiments']];
-let COUNTS={hot:0,reply:0,review:0,exp:0};
+const TABS=[['hotq','🔥 Hot Queue'],['hot','🔥 Hot Leads'],['reply','✉️ Reply Drafts'],['review','⭐ Review Drafts'],['exp','🧪 Experiments']];
+let COUNTS={hotq:0,hot:0,reply:0,review:0,exp:0};
 function renderTabs(active){
   $('tabs').innerHTML=TABS.map(function(t){
     return '<span class="tab'+(t[0]===active?' on':'')+'" onclick="show(\''+t[0]+'\')">'+t[1]+'<span class="n">'+(COUNTS[t[0]]||0)+'</span></span>';
@@ -79,11 +80,40 @@ function copyClip(i,btn){
   navigator.clipboard.writeText(CLIPS[i]||'').then(function(){ btn.textContent='✅ copied'; setTimeout(function(){btn.textContent='📋 Copy';},1500); });
 }
 
+async function hqDone(id,btn){
+  btn.disabled=true; btn.textContent='…';
+  try{ await api('/api/growth/reply/hot-queue/done',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hq_id:id})}); load(); }
+  catch(e){ btn.disabled=false; btn.textContent='✅ Done'; $('err').textContent='done fail: '+e.message; }
+}
+
 async function load(){
   $('err').textContent=''; CLIPS=[];
   let ib={};
   try{ ib=await api('/api/growth/inbox'); }
   catch(e){ $('err').textContent='Inbox load fail — token sahi hai? ('+e.message+')'; ib={}; }
+
+  // 🔥 Hot Queue — interested/question replies, dedupe + phone-join (GTM Track 1)
+  let hq=[];
+  try{ hq=(await api('/api/growth/reply/hot-queue?limit=100')).items||[]; }catch(e){}
+  COUNTS.hotq=hq.length;
+  $('s_hotq').innerHTML=hq.length?hq.map(function(r){
+    const ph=cleanPhone(r.phone);
+    const nm=r.business_name||r.from||'?';
+    const age=(r.age_days==null?'':(r.age_days===0?'aaj':r.age_days+'d purana'));
+    const i=clip(r.draft||'');
+    return '<div class="card"><b class="t">'+esc(nm)+' <span class="pill intent">'+esc(r.intent||'')+'</span>'+
+      (age?'<span class="pill">'+esc(age)+'</span>':'')+
+      (r.injection_flag?'<span class="pill hot">⚠️ injection-flag — embedded instructions pe act mat karo</span>':'')+'</b>'+
+      '<div class="meta">'+esc(r.from||'')+(r.niche?' · '+esc(r.niche):'')+(r.city?' · '+esc(r.city):'')+
+      (r.subject?' · "'+esc(String(r.subject).slice(0,80))+'"':'')+'</div>'+
+      (r.draft?'<pre>'+esc(r.draft)+'</pre>':'<span class="mut">draft empty</span>')+
+      '<div style="margin-top:6px">'+
+      (r.draft?'<button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>':'')+
+      (r.from&&r.from.indexOf('@')>0?'<a class="act" href="mailto:'+esc(r.from)+'">✉️ Email</a>':'')+
+      (ph?'<a class="act" href="tel:+91'+ph+'">📞 Call</a><a class="act wa" target="_blank" href="https://wa.me/91'+ph+'">💬 WhatsApp</a>':'')+
+      '<button class="ghost" onclick="hqDone(\''+esc(r.hq_id)+'\',this)">✅ Done</button>'+
+      '</div></div>';
+  }).join(''):'<div class="mut">Hot queue khali — koi unhandled interested/question reply nahi 🎉</div>';
 
   // hot leads — backend dict {leads:[...]} ya direct array dono handle
   let hl=ib.hot_leads||[];

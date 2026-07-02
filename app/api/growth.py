@@ -1208,6 +1208,38 @@ async def reply_feedback_stats(_user=Depends(require_admin)):
     }
 
 
+@router.get("/reply/hot-queue")
+async def reply_hot_queue(
+    limit: int = 50,
+    _user=Depends(require_admin),
+):
+    """Hot Queue (GTM): interested/question replies — dedupe + prospect
+    phone-join + freshness sort. Roz subah isse kaam karo (call/WhatsApp/send)."""
+    from app.platform import reply_agent
+
+    rows = reply_agent.hot_queue(limit=max(1, min(200, limit)))
+    return {"ok": True, "count": len(rows), "items": rows}
+
+
+class HotQueueDoneIn(BaseModel):
+    hq_id: str
+
+
+@router.post("/reply/hot-queue/done")
+async def reply_hot_queue_done(
+    body: HotQueueDoneIn,
+    _rl=Depends(rate_limit("hot_queue_done", 60, 60)),
+    _user=Depends(require_admin),
+):
+    """1-click Done — queue se hatao (draft row pe hq_status=done)."""
+    from app.platform import reply_agent
+
+    ok = reply_agent.mark_handled(body.hq_id)
+    if not ok:
+        raise HTTPException(404, "hq_id not found (ya already done)")
+    return {"ok": True, "hq_id": body.hq_id}
+
+
 @router.get("/speed-to-lead/summary")
 async def speed_to_lead_summary(
     days: int = 7,

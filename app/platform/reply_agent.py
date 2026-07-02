@@ -639,4 +639,116 @@ def list_drafts(limit: int = 50) -> list[dict]:
     return out[-limit:][::-1]
 
 
-__all__ = ["run_reply_triage", "whatsapp_reply", "list_drafts"]
+# --- Hot Queue (GTM 2026-07-02): interested/question replies = sabse garam
+# sales moments. Drafts file me pade rehte the; yeh unhe dedupe + phone-join
+# karke ek workable daily queue banata hai (admin /app/inbox "Hot Queue" tab).
+
+_HOT_INTENTS = ("interested", "question")
+
+
+def _hq_id(row: dict) -> str:
+    """Stable id for a draft row (email recs have no id field): sha1(from+at)."""
+    import hashlib
+
+    key = f"{row.get('from') or ''}|{row.get('at') or ''}"
+    return hashlib.sha1(key.encode("utf-8", "ignore")).hexdigest()[:12]
+
+
+def _full_prospect_map() -> dict[str, dict]:
+    """email -> prospect over the FULL store (list_prospects newest-cap hides
+    old rows — same lesson as auto_outreach pending backlog)."""
+    out: dict[str, dict] = {}
+    try:
+        from app.platform import prospector
+
+        rows = []
+        try:
+            rows = prospector._read_all()
+        except Exception:
+            rows = prospector.list_prospects(status=None, limit=2000)
+        for p in rows:
+            e = str((p or {}).get("email") or "").strip().lower()
+            if e:
+                out[e] = p
+    except Exception as exc:
+        logger.debug("full_prospect_map err: %s", exc)
+    return out
+
+
+def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
+    """Prioritized reply queue: filter hot intents, drop handled, dedupe by
+    sender (latest wins), newest-first, prospect phone/business joined in.
+    NEVER raises — [] on any failure."""
+    try:
+        rows = [r for r in list_drafts(limit=100000) if r.get("intent") in intents]
+        rows = [r for r in rows if (r.get("hq_status") or "") != "done"]
+        latest: dict[str, dict] = {}
+        for r in sorted(rows, key=lambda x: str(x.get("at") or "")):
+            sender = str(r.get("from") or "").strip().lower() or _hq_id(r)
+            latest[sender] = r
+        out = sorted(latest.values(), key=lambda x: str(x.get("at") or ""), reverse=True)[
+            : max(1, limit)
+        ]
+        pmap = _full_prospect_map()
+        now = datetime.now(timezone.utc)
+        for r in out:
+            r["hq_id"] = _hq_id(r)
+            p = pmap.get(str(r.get("from") or "").strip().lower()) or {}
+            r["phone"] = r.get("phone") or p.get("phone") or ""
+            if not r["phone"] and r.get("channel") == "whatsapp":
+                r["phone"] = str(r.get("from") or "")  # WA recs: from = phone number
+            r["business_name"] = r.get("business_name") or p.get("business_name") or ""
+            r["niche"] = r.get("niche") or p.get("niche") or ""
+            r["city"] = r.get("city") or p.get("city") or ""
+            try:
+                at = datetime.fromisoformat(str(r.get("at") or "").replace("Z", "+00:00"))
+                if at.tzinfo is None:
+                    at = at.replace(tzinfo=timezone.utc)
+                r["age_days"] = max(0, (now - at).days)
+            except Exception:
+                r["age_days"] = None
+        return out
+    except Exception as exc:
+        logger.debug("hot_queue err: %s", exc)
+        return []
+
+
+def mark_handled(hq_id: str) -> bool:
+    """1-click 'Done' — set hq_status=done on the matching draft row (in-place
+    rewrite, temp-file + atomic replace). False if id not found / any error."""
+    hq_id = (hq_id or "").strip()
+    if not hq_id or not os.path.exists(_DRAFTS_FILE):
+        return False
+    try:
+        found = False
+        lines: list[str] = []
+        with open(_DRAFTS_FILE, encoding="utf-8") as f:
+            for line in f:
+                raw = line.rstrip("\n")
+                if not raw.strip():
+                    continue
+                try:
+                    row = json.loads(raw)
+                except Exception:
+                    lines.append(raw)
+                    continue
+                if _hq_id(row) == hq_id and (row.get("hq_status") or "") != "done":
+                    row["hq_status"] = "done"
+                    row["hq_done_at"] = datetime.now(timezone.utc).isoformat()
+                    found = True
+                    lines.append(json.dumps(row, ensure_ascii=False))
+                else:
+                    lines.append(raw)
+        if not found:
+            return False
+        tmp = _DRAFTS_FILE + ".hq_tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+        os.replace(tmp, _DRAFTS_FILE)
+        return True
+    except Exception as exc:
+        logger.debug("mark_handled err: %s", exc)
+        return False
+
+
+__all__ = ["run_reply_triage", "whatsapp_reply", "list_drafts", "hot_queue", "mark_handled"]
