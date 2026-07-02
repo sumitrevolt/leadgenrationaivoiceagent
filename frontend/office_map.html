@@ -50,8 +50,16 @@
   .nba-item:hover{text-decoration:underline}
 
   /* ---- Office stage (Phaser) — desktop/tablet only ---- */
-  #stageWrap{width:100%;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05)}
+  #stageWrap{width:100%;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05)}
   #roomListCompact{display:none}
+  /* ---- Preview mode watermark (bina login demo roster ke upar) ---- */
+  #previewOverlay{display:none;position:absolute;inset:0;z-index:5;pointer-events:none}
+  #previewOverlay .pv-badge{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);
+    pointer-events:auto;background:rgba(255,255,255,.93);border:2px dashed var(--brand);
+    border-radius:14px;padding:14px 22px;text-align:center;font-weight:800;font-size:14.5px;
+    box-shadow:0 8px 28px rgba(24,16,55,.18);line-height:1.7}
+  #previewOverlay .pv-badge a{color:var(--brand);text-decoration:underline;font-size:13px}
+  #previewOverlay .pv-sub{font-weight:600;font-size:11.5px;color:var(--muted)}
 
   /* ---- Filterable live feed ---- */
   .feed-card{background:#111827;color:#e5e7eb;border-radius:12px;padding:10px 14px}
@@ -248,6 +256,8 @@
     <div style="margin-top:6px">🕒 Schedule — aaj kaunsa automation kab chalega/chala (green pulse ring = abhi working)</div>
     <div style="margin-top:6px">💬 Bubble — agent ki recent activity (max 3 ek saath)</div>
     <div style="margin-top:6px">🌙 19:00–07:00 IST — office night-mode (dim + desk lamps)</div>
+    <div style="margin-top:6px">🧍 Har ghante minute 0-2 — standup (sab Coordinator Room tak walk)</div>
+    <div style="margin-top:6px">👀 Bina login — preview mode (demo roster, grey/neutral, live data nahi)</div>
     <button id="legendClose" style="margin-top:10px;border:1px solid var(--line);background:#fff;
       border-radius:6px;padding:3px 10px;font-size:11.5px;cursor:pointer">Band karo</button>
   </div>
@@ -277,7 +287,14 @@
       <button class="map-btn" id="zoomResetBtn" title="Reset view">🔄 Reset</button>
       <span id="mapHint">Ctrl+scroll = zoom · zoom me drag = pan · room/agent pe click = detail</span>
     </div>
-    <div id="stageWrap"><div id="stage"></div></div>
+    <div id="stageWrap"><div id="stage"></div>
+      <div id="previewOverlay">
+        <div class="pv-badge">👀 PREVIEW — demo roster, live data nahi<br>
+          <span class="pv-sub">Statuses neutral hain (grey) — koi live activity nahi dikh rahi</span><br>
+          <a href="/app/admin-login">🔑 Live data ke liye login karo →</a>
+        </div>
+      </div>
+    </div>
     <div id="roomListCompact"><div class="loading-note">⏳ Loading rooms…</div></div>
 
     <div class="feed-card" id="feedCard">
@@ -542,6 +559,52 @@
     scene.add.image(ix + 14, iy + ih - 14, "plant").setScale(OFFICE.TILE_SCALE * 0.8);
   };
 
+  // ---- PHASE-2 furniture: static room props, one-time draw in create() ------
+  // Creation-order = depth-order (same convention as the existing desk image /
+  // room decor): furniture is created BEFORE any avatar, so it always renders
+  // underneath. Sab static graphics/images — koi per-frame cost nahi.
+  OFFICE.drawRoomFurniture = function(){
+    var scene = OFFICE.scene;
+    if (!scene) return;
+    var s = OFFICE.TILE_SCALE;
+    // Coordinator Room: rug + long meeting table + chairs around it.
+    var co = OFFICE.roomById.coordinator;
+    if (co) {
+      var tcx = co.x + co.w / 2, tcy = co.y + 72, tw = 240, th = 34;
+      scene.add.tileSprite(tcx - tw / 2 - 18, tcy - th / 2 - 13, tw + 36, th + 26, co.rug)
+        .setOrigin(0, 0).setTileScale(s, s).setAlpha(0.55);
+      var table = scene.add.graphics();
+      table.fillStyle(0x8a6642, 1); table.fillRoundedRect(tcx - tw / 2, tcy - th / 2, tw, th, 8);
+      table.lineStyle(2, 0x5f4630, 1); table.strokeRoundedRect(tcx - tw / 2, tcy - th / 2, tw, th, 8);
+      table.fillStyle(0xa07d55, 1); table.fillRoundedRect(tcx - tw / 2 + 8, tcy - th / 2 + 6, tw - 16, th - 12, 6);
+      for (var ci = 0; ci < 5; ci++) {
+        var chx = tcx - tw / 2 + 24 + ci * ((tw - 48) / 4);
+        scene.add.circle(chx, tcy - th / 2 - 10, 6, 0x64748b).setStrokeStyle(1.5, 0x334155);
+        scene.add.circle(chx, tcy + th / 2 + 10, 6, 0x64748b).setStrokeStyle(1.5, 0x334155);
+      }
+      scene.add.circle(tcx - tw / 2 - 14, tcy, 6, 0x64748b).setStrokeStyle(1.5, 0x334155);
+      scene.add.circle(tcx + tw / 2 + 14, tcy, 6, 0x64748b).setStrokeStyle(1.5, 0x334155);
+    }
+    // Har work-room: bookshelf strip (top wall) + water-cooler / cabinet corner.
+    OFFICE.ROOMS.forEach(function(room, ri){
+      if (room.id === "coordinator") return;
+      var ix = room.x + 6, iy = room.y + 6, iw = room.w - 12, ih = room.h - 12;
+      var shelves = room.w > 400 ? 3 : 2;
+      for (var bi = 0; bi < shelves; bi++) {
+        scene.add.image(ix + iw - 46 - bi * 34, iy + 42, "bookshelf").setScale(s);
+      }
+      if (ri % 2 === 0) {
+        // Water-cooler: body + blue bottle + base (bottom-left, plant ke paas).
+        var wx = ix + 44, wy = iy + ih - 30;
+        scene.add.rectangle(wx, wy + 8, 14, 20, 0xd7dde6).setStrokeStyle(1, 0x94a3b8);
+        scene.add.rectangle(wx, wy - 6, 12, 12, 0x60a5fa, 0.9).setStrokeStyle(1, 0x2563eb);
+        scene.add.rectangle(wx, wy + 19, 18, 4, 0x94a3b8);
+      } else {
+        scene.add.image(ix + 44, iy + ih - 24, "cabinet").setScale(s);
+      }
+    });
+  };
+
   // ---- Ambience: IST day/night tint + desk lamps + server LEDs + coffee steam --
   // 19:00–07:00 IST = subtle dark-blue overlay (depth 40, non-interactive so
   // clicks pass through) + har room me ek warm desk-lamp glow. Lightweight:
@@ -668,7 +731,13 @@
     var scene = OFFICE.scene;
     var color = OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline;
     var s = OFFICE.TILE_SCALE;
+    // PHASE-2 desk-set: chair (avatar ke peeche) + desk + monitor with blue
+    // glow — created BEFORE the avatar container so creation-order keeps them
+    // underneath (same convention as room decor). Refs in av.extras for teardown.
+    var chair = scene.add.circle(slot.x, slot.y - 13, 6.5, 0x64748b).setStrokeStyle(1.5, 0x334155);
     var desk = scene.add.image(slot.x, slot.y + 13, "desk_1").setScale(s);
+    var monitor = scene.add.rectangle(slot.x, slot.y + 9, 11, 8, 0x0f172a).setStrokeStyle(1, 0x334155);
+    var monitorGlow = scene.add.rectangle(slot.x, slot.y + 9, 8, 5, 0x38bdf8, 0.95);
     var sprite = scene.add.image(0, -4, OFFICE.charKeyFor(m.key)).setScale(s);
     sprite.setInteractive({ useHandCursor: true });
     sprite.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openAgentPanel(m.key); });
@@ -686,7 +755,8 @@
     sprite.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
     sprite.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
     var badge = scene.add.circle(12, 6, 5.5, color).setStrokeStyle(2, 0xffffff);
-    var label = scene.add.text(0, 30, m.name, {
+    // Always-visible name label (10-char cap, cluttered rooms me overflow na ho).
+    var label = scene.add.text(0, 30, String(m.name || "").slice(0, 10), {
       fontSize: "10px", fontFamily: "sans-serif", color: "#1e293b"
     }).setOrigin(0.5, 0);
     var group = scene.add.container(slot.x, slot.y, [sprite, badge, label]);
@@ -698,6 +768,7 @@
     });
     var av = {
       desk: desk, sprite: sprite, badge: badge, label: label, group: group,
+      extras: [chair, monitor, monitorGlow],
       homeX: slot.x, homeY: slot.y, wandering: false, pulse: null, pulseTween: null,
       bobTween: bobTween, room: room || null, state: m.state
     };
@@ -714,6 +785,7 @@
     av.state = state;
     av.badge.setFillStyle(OFFICE.STATE_COLOR[state] || OFFICE.STATE_COLOR.offline);
     av.group.setAlpha(state === "offline" ? 0.55 : 1);
+    if (av.label) av.label.setAlpha(state === "offline" ? 0.65 : 1);  // name label offline = extra dim
     if (av.bobTween) {
       // Offline = no breathing bob (dimmed + bilkul still).
       if (state === "offline") { av.bobTween.pause(); av.sprite.y = -4; }
@@ -734,15 +806,20 @@
 
   // State-aware movement: working = room ke andar chhota walk-path (waypoints),
   // active = desk ke paas subtle wander, offline = bilkul still (dimmed).
+  OFFICE._wanderScheduled = {};   // ek hi loop per member (preview->live re-draw pe duplicate na bane)
   OFFICE.scheduleWander = function(key){
-    setTimeout(function(){
-      var av = OFFICE.avatars[key];
-      if (av && OFFICE.scene) {
-        if (av.state === "working") OFFICE.walkRoomPath(av);
-        else if (av.state !== "offline") OFFICE.wanderOnce(av);
-      }
-      OFFICE.scheduleWander(key);
-    }, 4000 + Math.random() * 10000);
+    if (OFFICE._wanderScheduled[key]) return;
+    OFFICE._wanderScheduled[key] = true;
+    (function loop(){
+      setTimeout(function(){
+        var av = OFFICE.avatars[key];
+        if (av && OFFICE.scene) {
+          if (av.state === "working") OFFICE.walkRoomPath(av);
+          else if (av.state !== "offline") OFFICE.wanderOnce(av);
+        }
+        loop();
+      }, 4000 + Math.random() * 10000);
+    })();
   };
 
   // Working agent apne room ke ANDAR 2-3 waypoints tak chal ke wapas desk pe
@@ -805,6 +882,79 @@
         av.wandering = false;
       }
     });
+  };
+
+  // ---- PHASE-2 preview mode: bina login office khali/dead na dikhe ----------
+  // 401/403 (authExpired) pe static demo roster render hota hai — REAL staff,
+  // sahi rooms (office_hq.py MEMBER_ROOM + team.py se copy), sab neutral grey
+  // "preview" state (STATE_COLOR fallback = offline-grey, par "offline" string
+  // nahi — isliye idle bob/wander ON, koi fake working/active status nahi).
+  // Fake activity bubbles bhi nahi (saare event intervals authExpired-gated).
+  // Watermark badge clearly bolta hai ki yeh live data NAHI hai. Login ke baad
+  // pehla successful snapshot poora teardown karke real avatars banata hai.
+  OFFICE.DEMO_ROSTER = [
+    { key: "manager", name: "Boss",   emoji: "🧑‍💼", title: "Manager (Supervisor)",     room: "coordinator" },
+    { key: "neha",    name: "Neha",   emoji: "♻️",  title: "Pipeline Ops",              room: "lead_lab" },
+    { key: "diya",    name: "Diya",   emoji: "🧹",  title: "Data-Integrity Engineer",   room: "lead_lab" },
+    { key: "rohan",   name: "Rohan",  emoji: "🎯",  title: "Leads Manager",             room: "sales_crm" },
+    { key: "swara",   name: "Swara",  emoji: "📞",  title: "Telecaller",                room: "voice_team" },
+    { key: "ananya",  name: "Ananya", emoji: "📅",  title: "Appointment Booker",        room: "voice_team" },
+    { key: "riya",    name: "Riya",   emoji: "🛎️", title: "AI Receptionist",           room: "voice_team" },
+    { key: "isha",    name: "Isha",   emoji: "📣",  title: "Marketing Executive",       room: "marketing_team" },
+    { key: "dev",     name: "Dev",    emoji: "📚",  title: "Data Analyst",              room: "marketing_team" },
+    { key: "ravi",    name: "Ravi",   emoji: "🌐",  title: "SEO Scout",                 room: "marketing_team" },
+    { key: "arjun",   name: "Arjun",  emoji: "🧪",  title: "QA Engineer",               room: "qa_audit" },
+    { key: "meera",   name: "Meera",  emoji: "🎓",  title: "Trainer",                   room: "qa_audit" },
+    { key: "kavya",   name: "Kavya",  emoji: "🛡️", title: "Ops Monitor",               room: "platform_engineering" },
+    { key: "tara",    name: "Tara",   emoji: "🎙️", title: "Voice Infra Ops",           room: "platform_engineering" },
+    { key: "vikram",  name: "Vikram", emoji: "🛠️", title: "Code Upgrader",             room: "platform_engineering" },
+    { key: "arya",    name: "Arya",   emoji: "🔌",  title: "MCP Engineer",              room: "platform_engineering" },
+    { key: "hermes",  name: "Hermes", emoji: "🛰️", title: "Infrastructure Handler",    room: "platform_engineering" },
+    { key: "nikhil",  name: "Nikhil", emoji: "💰",  title: "Revenue Ops",               room: "admin_finance" },
+    { key: "vidya",   name: "Vidya",  emoji: "💹",  title: "FinOps / Cost",             room: "admin_finance" }
+  ];
+  OFFICE.previewMode = false;
+  OFFICE.enterPreviewMode = function(){
+    if (OFFICE.previewMode || !OFFICE.scene) return;
+    if (Object.keys(OFFICE.avatars).length) return;   // live avatars already on map — untouched
+    OFFICE.previewMode = true;
+    var ov = document.getElementById("previewOverlay");
+    if (ov) ov.style.display = "block";
+    var rc = document.getElementById("roomListCompact");
+    if (rc) rc.innerHTML = '<div class="empty-note">👀 Preview — live rooms ke liye <a href="/app/admin-login">login karo</a>.</div>';
+    var byRoom = {};
+    OFFICE.DEMO_ROSTER.forEach(function(d){ (byRoom[d.room] = byRoom[d.room] || []).push(d); });
+    OFFICE.ROOMS.forEach(function(room){
+      var members = byRoom[room.id] || [];
+      var slots = OFFICE.layoutSlots(room, members.length);
+      members.forEach(function(d, i){
+        var m = { key: d.key, name: d.name, emoji: d.emoji, title: d.title, duties: "(preview)", state: "preview" };
+        OFFICE.agentByKey[d.key] = { key: d.key, name: d.name, emoji: d.emoji, title: d.title,
+          duties: "(preview — live data ke liye login karo)", status: "preview",
+          todayActions: "—", todayErrors: "—" };
+        OFFICE.avatars[d.key] = OFFICE.drawAvatar(m, slots[i], room);
+      });
+    });
+  };
+  OFFICE.exitPreviewMode = function(){
+    if (!OFFICE.previewMode) return;
+    OFFICE.previewMode = false;
+    var ov = document.getElementById("previewOverlay");
+    if (ov) ov.style.display = "none";
+    Object.keys(OFFICE.avatars).forEach(function(k){
+      var av = OFFICE.avatars[k];
+      try {
+        if (OFFICE.scene) OFFICE.scene.tweens.killTweensOf(av.group);
+        if (av.bobTween) av.bobTween.stop();
+        if (av.pulseTween) av.pulseTween.stop();
+        if (av.pulse) av.pulse.destroy();
+        (av.extras || []).forEach(function(o){ o.destroy(); });
+        av.desk.destroy();
+        av.group.destroy(true);
+      } catch (e) {}
+    });
+    OFFICE.avatars = {};
+    OFFICE.agentByKey = {};
   };
 
   // ---- Render agents into rooms (Phaser desktop + compact mobile list) -----
@@ -1546,7 +1696,13 @@
   OFFICE.refreshSnapshot = async function(){
     var data = await OFFICE.fetchSnapshot();
     OFFICE.fetchWorkflowRuns().then(OFFICE.renderWorkflowRuns);
-    if (!data) return;
+    if (!data) {
+      // Auth-expired + khali map = clearly-watermarked demo roster (dead office
+      // se better). Live data aate hi exitPreviewMode teardown karta hai.
+      if (OFFICE.authExpired) OFFICE.enterPreviewMode();
+      return;
+    }
+    if (OFFICE.previewMode) OFFICE.exitPreviewMode();  // real snapshot wapas — demo hatao
     OFFICE.lastSnapshot = data;
     OFFICE.lastRefreshAt = Date.now();
     OFFICE.updateFreshnessBadge();
@@ -1843,6 +1999,7 @@
       create: function(){
         OFFICE.scene = this;
         OFFICE.drawRooms();
+        OFFICE.drawRoomFurniture();
         OFFICE.drawAmbience();
         OFFICE.applyDayNight();
         OFFICE.setupCameraControls(this);
@@ -1874,6 +2031,53 @@
   setInterval(function(){ if (!OFFICE.authExpired) OFFICE.refreshSnapshot(); }, 15000);
   setInterval(function(){ if (!OFFICE.authExpired) OFFICE.pollEvents(); }, 8000);
   setInterval(function(){ OFFICE.applyDayNight(); }, 60000);
+
+  // ---- PHASE-2 standup moment: har ghante minute 0-2 (IST) pe sab non-offline
+  // agents Coordinator Room border tak walk karke ~20s me wapas desk pe. Sirf
+  // LIVE data mode me (preview me fake activity nahi dikhani). Wander loop
+  // av.wandering flag se standup ke dauran block rehta hai.
+  OFFICE._lastStandupHour = null;
+  OFFICE.runStandup = function(){
+    if (!OFFICE.scene || OFFICE.previewMode || OFFICE.authExpired) return;
+    var co = OFFICE.roomById.coordinator;
+    var keys = Object.keys(OFFICE.avatars);
+    if (!co || !keys.length) return;
+    OFFICE.pushCoordinatorTicker("🧍 Standup ho raha hai — team Coordinator Room me (~20s)");
+    var idx = 0;
+    keys.forEach(function(k){
+      var av = OFFICE.avatars[k];
+      if (!av || av.state === "offline" || av.wandering) return;
+      av.wandering = true;
+      var i = idx++;
+      var tx = co.x + 90 + (i % 14) * 74 + Math.random() * 18;
+      var ty = co.y + co.h + 16 + Math.floor(i / 14) * 24;   // coordinator border ke bilkul neeche line-up
+      av.sprite.setFlipX(tx < av.group.x);
+      OFFICE.scene.tweens.add({
+        targets: av.group, x: tx, y: ty,
+        duration: 2400 + Math.random() * 1000, ease: "Sine.easeInOut",
+        onComplete: function(){
+          if (!OFFICE.scene) { av.wandering = false; return; }
+          try { av.sprite.setFlipX(false); } catch (e) {}
+          OFFICE.scene.tweens.add({
+            targets: av.group, x: av.homeX, y: av.homeY,
+            duration: 2400 + Math.random() * 800, delay: 11500 + Math.random() * 2500,
+            ease: "Sine.easeInOut",
+            onComplete: function(){
+              try { av.group.setPosition(av.homeX, av.homeY); av.sprite.setFlipX(false); } catch (e) {}
+              av.wandering = false;
+            }
+          });
+        }
+      });
+    });
+  };
+  setInterval(function(){
+    var t = istTimeParts();
+    if (t.m <= 2 && OFFICE._lastStandupHour !== t.h) {
+      OFFICE._lastStandupHour = t.h;
+      OFFICE.runStandup();
+    }
+  }, 30000);
   // Ambient bubble rotation — fresh events na aa rahe ho tab bhi office "zinda"
   // dikhe: har 15s me ek recent event ki bubble (max 2 concurrent is path se).
   OFFICE.bubbleRotateIdx = 0;
