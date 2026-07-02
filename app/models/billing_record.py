@@ -12,6 +12,13 @@ from sqlalchemy import Column, DateTime, Enum, ForeignKey, Index, Integer, Strin
 from app.models.base import Base
 
 
+def _enum_values(enum_cls):
+    """values_callable so the DB stores .value not .name — VARCHAR-backed
+    (native_enum=False), matching app/models/payment.py (production audit
+    2026-07-01, F-DB4)."""
+    return [member.value for member in enum_cls]
+
+
 class BillingRecordType(enum.Enum):
     """Type of billing record"""
 
@@ -52,9 +59,15 @@ class BillingRecord(Base):
 
     # Classification
     record_type = Column(
-        Enum(BillingRecordType), default=BillingRecordType.SUBSCRIPTION, index=True
+        Enum(BillingRecordType, native_enum=False, values_callable=_enum_values),
+        default=BillingRecordType.SUBSCRIPTION,
+        index=True,
     )
-    status = Column(Enum(BillingRecordStatus), default=BillingRecordStatus.PENDING, index=True)
+    status = Column(
+        Enum(BillingRecordStatus, native_enum=False, values_callable=_enum_values),
+        default=BillingRecordStatus.PENDING,
+        index=True,
+    )
 
     # Billing period
     period_year = Column(Integer, index=True)

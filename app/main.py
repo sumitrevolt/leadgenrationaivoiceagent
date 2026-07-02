@@ -228,8 +228,8 @@ async def lifespan(app: FastAPI):
                 logger.debug(f"Obsidian startup mirror skip: {_e}")
 
         _aio2.create_task(_obsidian_startup_mirror())
-    except Exception:
-        pass
+    except Exception as _obs_e:
+        logger.debug("Obsidian mirror task creation skipped: %s", _obs_e)
 
     logger.info("✅ Startup complete - application ready")
 
@@ -927,12 +927,9 @@ try:
             # Reject — log to Arya's auth-failure tail-file
             try:
                 from app.platform import mcp_engineer as _arya
-
-                _arya.log_auth_failure(
-                    "unauthorized", ip=real_ip, path=path[:120]
-                )
-            except Exception:
-                pass
+                _arya.log_auth_failure("unauthorized", ip=real_ip, path=path[:120])
+            except (ImportError, AttributeError) as _arya_e:
+                logger.debug("MCP auth failure log skipped: %s", _arya_e)
             from fastapi.responses import JSONResponse
 
             return JSONResponse(
@@ -1058,7 +1055,10 @@ async def studio_page():
 @app.get("/app/onboard", tags=["Frontend"])
 async def onboard_page():
     """Naya client onboarding wizard (4 steps, self-serve)."""
-    return FileResponse(str(FRONTEND_DIR / "onboard.html"))
+    return FileResponse(
+        str(FRONTEND_DIR / "onboard.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+    )
 
 
 @app.get("/status", tags=["Frontend"])
@@ -1073,7 +1073,8 @@ async def pwa_icon(size: int):
     from fastapi.responses import Response as _Resp
 
     size = 192 if int(size) not in (192, 512) else int(size)
-    icon_path = Path("data") / f"pwa_icon_{size}.png"
+    # Use absolute path anchored to repo root — reliable in any working directory
+    icon_path = Path(__file__).resolve().parent.parent / "data" / f"pwa_icon_{size}.png"
     try:
         if not icon_path.exists():
             from PIL import Image, ImageDraw, ImageFont
@@ -1094,7 +1095,8 @@ async def pwa_icon(size: int):
             icon_path.parent.mkdir(parents=True, exist_ok=True)
             img.save(icon_path)
         return FileResponse(str(icon_path), media_type="image/png")
-    except Exception:
+    except (OSError, IOError) as _e:
+        logger.debug("pwa_icon render failed: %s", _e)
         return _Resp(status_code=404)
 
 
@@ -1126,7 +1128,10 @@ async def customer_voice_page():
 @app.get("/app/admin", tags=["Frontend"])
 async def admin_dashboard_page():
     """Admin dashboard (clients, agents, campaigns, revenue, health)."""
-    return FileResponse(str(FRONTEND_DIR / "admin_dashboard.html"))
+    return FileResponse(
+        str(FRONTEND_DIR / "admin_dashboard.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+    )
 
 
 @app.get("/app/admin/db", tags=["Frontend"])
@@ -1393,7 +1398,7 @@ def _seo_base_url() -> str:
         for o in settings.cors_origins or []:
             if o and o.startswith("http") and "*" not in o:
                 return o.rstrip("/")
-    except Exception:
+    except (AttributeError, TypeError):
         pass
     return base
 
@@ -1442,7 +1447,7 @@ async def sitemap_xml():
             if o and o.startswith("http") and "*" not in o:
                 base = o.rstrip("/")
                 break
-    except Exception:
+    except (AttributeError, TypeError):
         pass
 
     try:
@@ -1465,16 +1470,16 @@ async def sitemap_xml():
             for slug in seo_blog.all_slugs():
                 if slug:
                     urls.append(f"/blog/{slug}")
-        except Exception:
-            pass
+        except (ImportError, AttributeError) as _e:
+            logger.debug("sitemap seo_blog slugs failed: %s", _e)
         try:
             from app.marketing.clients_store import list_clients
             for c in list_clients(status="active"):
                 slug = str(c.get("slug") or "").strip()
                 if slug:
                     urls.append(f"/b/{slug}")
-        except Exception:
-            pass
+        except (ImportError, AttributeError) as _e:
+            logger.debug("sitemap clients_store failed: %s", _e)
         _SITEMAP_NICHES = [
             "real-estate", "solar", "coaching", "dental",
             "insurance", "home-loans", "interior-design", "restaurant",
@@ -1528,6 +1533,7 @@ async def blog_index():
         niche = _h(str(a.get("niche") or "").replace("_", " ").title())
         city = _h(str(a.get("city") or ""))
         tag = f"{niche}{(' · ' + city) if city else ''}" or "Marketing"
+        # slug already html-escaped via _h() above — safe to embed in href
         cards.append(
             f'<a class="card" href="/blog/{slug}">'
             f'<span class="tag">{tag}</span>'
@@ -1556,7 +1562,7 @@ async def blog_index():
         f'<div class="cardlist">{body}</div>'
         f"{_cta_box()}</div>{_blog_footer()}</body></html>"
     )
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=html, headers={"X-Content-Type-Options": "nosniff"})
 
 
 @app.get("/blog/{slug}", tags=["Frontend"], include_in_schema=False)
@@ -1581,7 +1587,12 @@ async def blog_article(slug: str):
     niche = _h(str(article.get("niche") or "").replace("_", " ").title())
     city = _h(str(article.get("city") or ""))
     created = _h(str(article.get("created_at") or "")[:10])
-    body_html = str(article.get("html_body") or "")  # trusted: our generator, clean <h2>/<p>
+    import re as _re
+    _raw_body = str(article.get("html_body") or "")
+    # Strip all tags except a safe allowlist — prevents XSS if DB content is
+    # ever poisoned (CWE-79/80). Allowlist: structural + text formatting only.
+    _ALLOWED = r"<(/?(h[1-6]|p|ul|ol|li|blockquote|strong|em|b|i|br|hr))(\s[^>]*)?>|<!--.*?-->"
+    body_html = _re.sub(r"<[^>]+>", lambda m: m.group(0) if _re.fullmatch(_ALLOWED, m.group(0), _re.I | _re.S) else "", _raw_body)
     crumb = f"{niche}{(' · ' + city) if city else ''}"
 
     html = (
@@ -1599,7 +1610,7 @@ async def blog_article(slug: str):
         f"<article>{body_html}</article>"
         f"{_cta_box()}</div>{_blog_footer()}</body></html>"
     )
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=html, headers={"X-Content-Type-Options": "nosniff"})
 
 
 # ---------------------------------------------------------------------------
@@ -1652,6 +1663,12 @@ async def niche_landing(slug: str):
         f"Automate {hook} for your {niche_label} business {city_phrase}. "
         "AI-powered marketing + lead generation starting ₹1,999/month."
     )
+    # Validate slug contains only safe URL chars — prevents injecting quotes/tags
+    # into canonical href and JSON-LD (CWE-79/80 via path parameter).
+    import re as _re_slug
+    if not _re_slug.match(r'^[a-z0-9\-]{1,120}$', slug.lower()):
+        from fastapi.responses import HTMLResponse as _HR
+        return _HR(content="<h1>Not Found</h1>", status_code=404)
     canonical = f"/for/{_h(slug)}"
 
     html = (
@@ -1698,7 +1715,7 @@ async def niche_landing(slug: str):
         '<footer>© LeadsGenAI · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>'
         '</body></html>'
     )
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=html, headers={"X-Content-Type-Options": "nosniff"})
 
 
 # ---------------------------------------------------------------------------
@@ -1851,11 +1868,11 @@ async def twilio_media_stream(websocket: WebSocket):
         bridge = TwilioMediaStreamBridge()
         await bridge.handle(websocket)
     except Exception as e:
-        logger.warning(f"Media-stream bridge error: {e}")
+        logger.warning("Media-stream bridge error: %s", e)
         try:
             await websocket.close()
-        except Exception:
-            pass
+        except Exception as _ws_e:
+            logger.debug("Media-stream websocket close error: %s", _ws_e)
 
 
 @app.websocket("/ws/exotel-voicebot")
@@ -1869,12 +1886,13 @@ async def exotel_voicebot_ws(websocket: WebSocket):
     """
     try:
         await websocket.accept()
-    except Exception:
+    except Exception as _acc_e:
+        logger.debug("exotel-voicebot ws accept failed: %s", _acc_e)
         return
     try:
         await websocket.close(code=1000, reason="exotel-voicebot retired; use Vobiz stream")
-    except Exception:
-        pass
+    except Exception as _cls_e:
+        logger.debug("exotel-voicebot ws close failed: %s", _cls_e)
 
 
 @app.get("/manifest.json", tags=["Frontend"])
@@ -1885,8 +1903,8 @@ async def pwa_manifest():
         return FileResponse(str(mf))
     return JSONResponse(
         {
-            "name": "LeadGen AI",
-            "short_name": "LeadGen AI",
+            "name": "LeadsGen AI",
+            "short_name": "LeadsGen AI",
             "start_url": "/site/",
             "display": "standalone",
             "background_color": "#4f46e5",

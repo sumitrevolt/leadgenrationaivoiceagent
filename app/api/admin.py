@@ -781,7 +781,8 @@ async def delete_profile_picture(
     user.profile_picture_bucket = None
     user.profile_picture_path = None
 
-    log_audit(admin.id, "user.picture.delete", "user", user_id)
+    await db.commit()
+    await log_audit(db, admin.id, "user.picture.delete", "user", user_id)
 
     return {"message": "Profile picture deleted"}
 

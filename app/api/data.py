@@ -487,6 +487,115 @@ async def delete_custom_niche(
     return {"id": niche_key, "message": "Custom niche removed"}
 
 
+# ── Pending Niches (admin review queue) ──────────────────────────────────── #
+
+import json as _json_pending
+from pathlib import Path as _Path_pending
+import re as _re_pending
+import uuid as _uuid_pending
+
+_PENDING_FILE = _Path_pending(__file__).resolve().parent.parent.parent / "data" / "pending_niches.json"
+
+
+def _slugify_pending(name: str) -> str:
+    s = _re_pending.sub(r"[^a-z0-9]+", "_", (name or "").strip().lower()).strip("_")
+    return (s[:50] or "custom") + "_" + _uuid_pending.uuid4().hex[:4]
+
+
+def _read_pending() -> list:
+    try:
+        if _PENDING_FILE.exists():
+            return _json_pending.loads(_PENDING_FILE.read_text(encoding="utf-8")) or []
+    except Exception:
+        pass
+    return []
+
+
+def _write_pending(items: list) -> None:
+    try:
+        _PENDING_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _PENDING_FILE.write_text(_json_pending.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
+class PendingNicheIn(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    submitted_by: str = Field("", max_length=80)  # admin email / client context
+
+
+@router.post("/niches/pending")
+async def submit_pending_niche(payload: PendingNicheIn, current_user=Depends(require_admin)):
+    """Admin ne koi nayi niche submit ki — review queue me save karo."""
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name required")
+    items = _read_pending()
+    # dedupe by normalized name
+    norm = name.lower()
+    if any(i.get("name", "").lower() == norm for i in items):
+        raise HTTPException(status_code=409, detail="Yeh niche pehle se pending me hai")
+    item = {
+        "id": _slugify_pending(name),
+        "name": name,
+        "submitted_by": payload.submitted_by or getattr(current_user, "email", "admin"),
+        "status": "pending",
+        "submitted_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+    }
+    items.append(item)
+    _write_pending(items)
+    return {"ok": True, "id": item["id"], "name": name, "status": "pending",
+            "message": "Niche review queue me add ho gayi — admin approve karne ke baad permanent list me aayegi"}
+
+
+@router.get("/niches/pending")
+async def list_pending_niches(current_user=Depends(require_admin)):
+    """Admin: review queue ki sabhi pending niches."""
+    return {"pending": _read_pending(), "count": len(_read_pending())}
+
+
+@router.post("/niches/pending/{pending_id}/approve")
+async def approve_pending_niche(pending_id: str, current_user=Depends(require_admin)):
+    """Admin: pending niche approve karo → custom niches permanent list me add ho jaati hai."""
+    items = _read_pending()
+    item = next((i for i in items if i.get("id") == pending_id), None)
+    if not item:
+        raise HTTPException(status_code=404, detail="Pending niche nahi mili")
+    from app.niches import add_custom_niche, NICHES, _BUILTIN_KEYS
+    name = item["name"]
+    # check already exists
+    from app.niches import refresh_custom_niches
+    refresh_custom_niches()
+    slug = _re_pending.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")[:50]
+    if slug in NICHES:
+        # already added — just remove from pending
+        items = [i for i in items if i.get("id") != pending_id]
+        _write_pending(items)
+        return {"ok": True, "message": "Niche pehle se exist karti hai — pending se remove kiya"}
+    try:
+        key, cfg = add_custom_niche(name=name, lead_band="A")
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    # remove from pending
+    items = [i for i in items if i.get("id") != pending_id]
+    _write_pending(items)
+    await _invalidate_niches_cache()
+    return {"ok": True, "niche_key": key, "name": name,
+            "message": f"'{name}' approve ho gayi — ab permanently niches list me hai"}
+
+
+@router.delete("/niches/pending/{pending_id}")
+async def reject_pending_niche(pending_id: str, current_user=Depends(require_admin)):
+    """Admin: pending niche reject/delete karo."""
+    items = _read_pending()
+    before = len(items)
+    items = [i for i in items if i.get("id") != pending_id]
+    if len(items) == before:
+        raise HTTPException(status_code=404, detail="Pending niche nahi mili")
+    _write_pending(items)
+    return {"ok": True, "message": "Pending niche reject kar di"}
+
+
 @router.get("/cities")
 async def get_available_cities(
     db: AsyncSession = Depends(get_async_db),

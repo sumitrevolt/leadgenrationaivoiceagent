@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1023 operations)
+## Endpoint Index — auto-generated from OpenAPI (1027 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -844,7 +844,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/assessment/run` — Run Assessment
 - `GET   ` `/api/assessment/scores` — Get Scores
 
-### Data Intelligence  (14)
+### Data Intelligence  (18)
 
 - `GET   ` `/api/data/api-keys` — List Api Keys
 - `POST  ` `/api/data/api-keys` — Create Api Key
@@ -857,6 +857,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/data/credits/pricing` — Get Credit Pricing
 - `GET   ` `/api/data/niches` — Get Available Niches
 - `POST  ` `/api/data/niches` — Create Custom Niche
+- `GET   ` `/api/data/niches/pending` — List Pending Niches
+- `POST  ` `/api/data/niches/pending` — Submit Pending Niche
+- `DELETE` `/api/data/niches/pending/{pending_id}` — Reject Pending Niche
+- `POST  ` `/api/data/niches/pending/{pending_id}/approve` — Approve Pending Niche
 - `DELETE` `/api/data/niches/{niche_key}` — Delete Custom Niche
 - `POST  ` `/api/data/reports` — Generate Report
 - `GET   ` `/api/data/usage` — Get Usage Stats

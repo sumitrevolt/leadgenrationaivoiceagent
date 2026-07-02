@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Naya Client Onboard — LeadsGenAI</title>
+<title>LeadGen AI — Naya Client Onboard</title>
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#0f1117">
+<link rel="stylesheet" href="/design-system/styles.css" />
 <style>
   :root{--pri:#2563eb;--ink:#e2e8f0;--mut:#94a3b8;--bg:#0b1020;--card:#141b2e;--bord:#26314d;--ok:#22c55e;--bad:#f87171;}
   *{box-sizing:border-box;}
@@ -44,9 +45,10 @@
 </head>
 <body>
 <header>
-  <h1>🚀 Naya Client Onboard</h1>
+  <h1>Naya Client Onboard</h1>
   <div class="sp"></div>
   <input id="tok" type="password" placeholder="Admin token paste karo (ek baar)" />
+  <span class="ao-topbar-status" style="margin-left:8px"><span class="dot"></span>AI Active</span>
 </header>
 <div class="wrap">
   <div class="steps">
@@ -67,7 +69,11 @@
         <option value="combo">Both — Marketing + Voice (optional combo)</option>
       </select></div>
       <div><label>Business naam *</label><input type="text" id="b-name" placeholder="Sharma Solar" /></div>
-      <div><label>Niche</label><select id="b-niche"><option value="general">Loading…</option></select></div>
+      <div><label>Niche</label>
+        <select id="b-niche" onchange="wzNicheChange()"><option value="general">Loading…</option></select>
+        <input id="b-custom-niche" type="text" placeholder="Custom niche naam (e.g. Aquarium Shop)" style="display:none;width:100%;margin-top:5px;padding:6px 10px;border:1px solid #f59e0b;border-radius:6px;font-size:13px" />
+        <div id="b-custom-niche-hint" style="display:none;font-size:11px;color:#f59e0b;margin-top:3px">⚠ Custom niche — admin review ke baad list me add hogi</div>
+      </div>
       <div><label>City</label><input type="text" id="b-city" placeholder="Pune" /></div>
       <div><label>Phone</label><input type="text" id="b-phone" placeholder="98xxxxxxxx" /></div>
       <div><label>Website (optional)</label><input type="text" id="b-web" placeholder="https://..." /></div>
@@ -214,6 +220,7 @@
   function wzCurProduct(){ var e=document.getElementById("b-product"); return e?e.value:"marketing"; }
   function wzSelectedBand(){
     var sel=document.getElementById("b-niche"); if(!sel||sel.selectedIndex<0) return "A";
+    if(sel.value==="__custom__") return "A";
     var b=(sel.options[sel.selectedIndex].getAttribute("data-band")||"A").toUpperCase();
     return (["A","B","C"].indexOf(b)>=0)?b:"A";
   }
@@ -221,14 +228,24 @@
     var prod=wzCurProduct(), sel=document.getElementById("b-niche"); if(!sel) return;
     var list=WZ_NICHES.filter(function(n){
       if(prod==="marketing") return n.products.indexOf("marketing")>=0;
-      return n.products.indexOf("voice")>=0;   // voice & combo dono ko voice-capable niche chahiye
+      return n.products.indexOf("voice")>=0;
     });
     var html='<option value="general" data-band="A">General</option>';
     list.forEach(function(n){ html+='<option value="'+esc(n.id)+'" data-band="'+esc(n.band)+'">'+esc(n.name)+(prod!=="marketing"?(" · Band "+esc(n.band)):"")+'</option>'; });
+    html+='<option value="__custom__" data-band="A">➕ Other — Custom niche (listed nahi hai)</option>';
     sel.innerHTML=html;
+    wzNicheChange();
     wzRefreshPlans();
   }
-  function wzNicheChange(){ if(wzCurProduct()!=="marketing") wzRefreshPlans(); }
+  function wzNicheChange(){
+    var sel=document.getElementById("b-niche");
+    var isCustom=sel&&sel.value==="__custom__";
+    var inp=document.getElementById("b-custom-niche"), hint=document.getElementById("b-custom-niche-hint");
+    if(inp) inp.style.display=isCustom?"block":"none";
+    if(hint) hint.style.display=isCustom?"block":"none";
+    if(isCustom&&inp) inp.focus();
+    if(wzCurProduct()!=="marketing") wzRefreshPlans();
+  }
   function wzRefreshPlans(){
     var prod=wzCurProduct(), sel=document.getElementById("b-plan"), hint=document.getElementById("b-plan-hint");
     if(!sel) return; var opts=[];
@@ -266,10 +283,22 @@
     var name=(document.getElementById("b-name").value||"").trim();
     if(!name){ err.textContent="Business naam zaroori hai."; return; }
     state.name=name;
-    state.niche=document.getElementById("b-niche").value||"general";
+    var nicheRaw=document.getElementById("b-niche").value||"general";
+    var customNicheName="";
+    if(nicheRaw==="__custom__"){
+      customNicheName=(document.getElementById("b-custom-niche").value||"").trim();
+      if(!customNicheName){ err.textContent="Custom niche ka naam likhо."; return; }
+      nicheRaw="general";
+    }
+    state.niche=nicheRaw;
     state.phone=(document.getElementById("b-phone").value||"").trim();
     btn.disabled=true;
     try{
+      // if custom niche — submit for pending review (fire and forget)
+      if(customNicheName){
+        try{ await api("POST","/api/data/niches/pending",{name:customNicheName, submitted_by: name}); }catch(pe){ /* non-fatal */ }
+        ok.textContent="Custom niche '"+customNicheName+"' review ke liye submit ho gayi.";
+      }
       var j=await api("POST","/api/clients",{
         product:wzCurProduct(),
         business_name:name, niche:state.niche,

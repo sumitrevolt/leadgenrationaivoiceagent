@@ -357,6 +357,22 @@ async def _deliver_one(
     last_error = ""
     for attempt_idx, _backoff in enumerate(schedule):
         try:
+            # Re-check host safety immediately before EACH connect attempt, not just
+            # at registration time — closes the DNS-rebinding TOCTOU (customer points
+            # a hostname at a public IP to register, then repoints it to
+            # 127.0.0.1/169.254.169.254/etc. before delivery or a later retry fires).
+            # Same "re-check right before fetch" pattern as the /site-audit SSRF fix
+            # (app/marketing/website_auditor.py), not IP-pinning — accepted precedent
+            # in this codebase. Production audit 2026-07-01, security batch 2.
+            ok, reason = _is_url_safe(row["url"])
+            if not ok:
+                last_error = f"url_unsafe:{reason}"
+                logger.warning(
+                    "customer_webhooks: delivery blocked, url now unsafe (%s) for webhook %s",
+                    reason,
+                    row.get("id"),
+                )
+                break
             async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT_S) as client:
                 resp = await client.post(row["url"], content=body_bytes, headers=headers)
                 last_status = resp.status_code

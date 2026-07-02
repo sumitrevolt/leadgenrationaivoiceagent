@@ -12,6 +12,13 @@ from sqlalchemy.orm import relationship
 from app.models.base import Base
 
 
+def _enum_values(enum_cls):
+    """values_callable so the DB stores .value not .name — VARCHAR-backed
+    (native_enum=False), matching app/models/payment.py (production audit
+    2026-07-01, F-DB4)."""
+    return [member.value for member in enum_cls]
+
+
 class CallOutcome(enum.Enum):
     """Call outcome enum"""
 
@@ -49,7 +56,10 @@ class CallLog(Base):
     # Call identification
     call_sid = Column(String(100), index=True)  # Twilio/Exotel call ID
     provider = Column(String(20))  # twilio, exotel
-    direction = Column(Enum(CallDirection), default=CallDirection.OUTBOUND)
+    direction = Column(
+        Enum(CallDirection, native_enum=False, values_callable=_enum_values),
+        default=CallDirection.OUTBOUND,
+    )
 
     # Associations
     lead_id = Column(String(36), ForeignKey("leads.id"), index=True)
@@ -70,7 +80,9 @@ class CallLog(Base):
 
     # Status and outcome
     status = Column(String(20))  # initiated, ringing, answered, completed, failed
-    outcome = Column(Enum(CallOutcome), index=True)
+    outcome = Column(
+        Enum(CallOutcome, native_enum=False, values_callable=_enum_values), index=True
+    )
 
     # Lead scoring
     lead_score = Column(Integer, default=0)

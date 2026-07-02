@@ -1,5 +1,10 @@
 # Production Docker Compose Override
 # Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# NOT the live deploy path (production audit 2026-07-01, F-INF1) — the live VPS
+# uses docker-compose.vps.yml + Dockerfile.lock exclusively (see
+# .github/workflows/deploy-vps.yml + scripts/vps_*). Edits here have zero effect
+# on https://leadsgenai.in until something explicitly repoints the deploy path.
 
 version: '3.8'
 
@@ -14,6 +19,9 @@ services:
       - APP_ENV=production
       - LOG_LEVEL=INFO
       - AUTO_START_PLATFORM=true
+      # Disable in-process scheduler on web replicas — scheduler container runs it.
+      # With replicas: 3, leaving this ON fires every job 3x (duplicate calls/emails).
+      - RUN_IN_PROCESS_SCHEDULER=0
     deploy:
       replicas: 3
       resources:
@@ -28,6 +36,8 @@ services:
         delay: 5s
         max_attempts: 3
         window: 120s
+    volumes:
+      - leadgen_data:/app/data
     logging:
       driver: "json-file"
       options:
@@ -73,6 +83,8 @@ services:
       context: .
       dockerfile: Dockerfile.production
     command: celery -A app.worker worker --loglevel=info --concurrency=8
+    volumes:
+      - leadgen_data:/app/data
     deploy:
       replicas: 2
       resources:
@@ -84,6 +96,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.production
+    environment:
+      - RUN_IN_PROCESS_SCHEDULER=1
+    volumes:
+      - leadgen_data:/app/data
     deploy:
       resources:
         limits:
@@ -110,3 +126,7 @@ services:
         limits:
           cpus: '0.5'
           memory: 256M
+
+volumes:
+  leadgen_data:
+    driver: local

@@ -123,6 +123,7 @@ _last_ran: dict[str, str | None] = {
     "kb_refresh": None,  # weekly Sun: contextual KB re-ingest (gated)
     "midday_prospect": None,  # daily 14:30: 2nd free lead-supply pass (gated MIDDAY_PROSPECT)
     "evening_wrap": None,  # daily 18:30: EOD summary + hot recap
+    "call_kpi_digest": None,  # daily 19:30: Lekha call-KPI digest (fixes missing log_event wiring)
     "weekly_marketing": None,  # Wed 12:30: S-tier niche pack bank
     "saturday_hygiene": None,  # Sat 04:00: DLQ + celery trim (gated SCHEDULER_HYGIENE)
     "meter_watch": None,  # hourly :55: billing meter-failure watcher (gated METER_ALERTS)
@@ -132,6 +133,7 @@ _last_ran: dict[str, str | None] = {
     "afternoon_content": None,  # daily 15:00: 2nd content-gen pass (gated AFTERNOON_CONTENT)
     "evening_prospect": None,  # daily 17:00: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
     "obsidian_push": None,  # daily 02:15 IST: compact + git push to Obsidian vault (gated OBSIDIAN_SYNC)
+    "platform_dial": None,  # daily 11:30 IST: LeadGen AI self-sale outbound calls (gated PLATFORM_DIAL_DAILY)
 }
 
 
@@ -346,7 +348,10 @@ async def _run_job_inner(job: str) -> None:
 
                 _stl = speed_to_lead.summary(7)
                 if _stl.get("ok") and _stl.get("verdict"):
-                    team.log_event("boss", "speed_to_lead", f"⚡ {_stl['verdict']}")
+                    # STAFF key is "manager" (display name "Boss") — "boss" is not a
+                    # registered key, so this event was previously invisible on /app/team
+                    # (team_status() only looks up last_event by STAFF key). Fixed 2026-07-01.
+                    team.log_event("manager", "speed_to_lead", f"⚡ {_stl['verdict']}")
             except Exception:
                 pass
             try:
@@ -361,6 +366,10 @@ async def _run_job_inner(job: str) -> None:
                 await team_report.run_weekly_if_enabled()  # client-facing AI-staff weekly narrative (gated TEAM_REPORT)
             except Exception:
                 pass
+        elif job == "call_kpi_digest":
+            from app.voice_agent import call_analytics
+
+            call_analytics.run_daily_digest()
         elif job == "content":
             from app.marketing import auto_content
 
@@ -707,6 +716,58 @@ async def _run_job_inner(job: str) -> None:
                         f"🌾 midday +{_h.get('new_leads', 0)} leads (dedup {_h.get('deduped', 0)})",
                         status="ok",
                     )
+        elif job == "platform_dial":
+            # Own-product outbound (2026-07-02): Product-2 voice agent Product-1 bechta
+            # hai — daily batch of AI cold-calls with the ai_marketing platform pitch.
+            # Gated PLATFORM_DIAL_DAILY env OR data/platform_dial.json (default OFF;
+            # env "0" = hard kill-switch — see app/platform/platform_dial.py).
+            # Single-flight = the SAME campaign lock the admin launch uses (double-dial
+            # impossible); TRAI window / DND / readiness gates enforce inside
+            # run_campaign_task + VobizClient per call.
+            from app.platform import platform_dial as _pd
+
+            if _pd.enabled():
+                from app.platform import team
+                from app.tasks.calling import (
+                    acquire_campaign_lock,
+                    campaign_lock_held,
+                    release_campaign_lock,
+                )
+
+                _limit = _pd.dial_limit()
+                _dial_niche = _pd.dial_niche()
+                if campaign_lock_held():
+                    team.log_event(
+                        "swara",
+                        "platform_campaign",
+                        "⏸️ daily self-sale dial skipped — ek campaign pehle se chal rahi",
+                        status="warn",
+                    )
+                elif acquire_campaign_lock(ttl_s=max(400, _limit * 8 + 120)):
+                    try:
+                        from app.worker import celery_app
+
+                        celery_app.send_task(
+                            "app.tasks.calling.run_campaign_task",
+                            kwargs={
+                                "limit": _limit,
+                                "dry_run": False,
+                                "niche": _dial_niche,
+                                "client_id": "",
+                                "platform": True,
+                                "transactional": False,
+                            },
+                        )
+                        team.log_event(
+                            "swara",
+                            "platform_campaign",
+                            f"📞 Swara ki daily self-sale campaign queue hui — {_limit} calls (niche={_dial_niche})",
+                            status="ok",
+                        )
+                    except Exception:
+                        # enqueue fail → lock turant chhodo, warna TTL tak manual launch bhi blocked
+                        release_campaign_lock()
+                        raise
         elif job == "evening_wrap":
             from app.platform import scheduled_ops
 
@@ -887,6 +948,10 @@ async def scheduler_loop() -> None:
             if 9 <= now.hour <= 19 and hm[1] >= 20 and _last_ran["email_followup"] != _email_hour_key:
                 _last_ran["email_followup"] = _email_hour_key
                 await _run_job("email_followup")
+            # 11:30–12:30 IST — daily self-sale AI cold-call batch. Gated PLATFORM_DIAL_DAILY.
+            if (11, 30) <= hm < (12, 30) and _last_ran["platform_dial"] != day_key:
+                _last_ran["platform_dial"] = day_key
+                await _run_job("platform_dial")
             # 14:30–15:30 IST — 2nd free lead-supply pass (harvest). Gated MIDDAY_PROSPECT.
             if (14, 30) <= hm < (15, 30) and _last_ran["midday_prospect"] != day_key:
                 _last_ran["midday_prospect"] = day_key
@@ -902,6 +967,9 @@ async def scheduler_loop() -> None:
             if (18, 30) <= hm < (19, 30) and _last_ran["evening_wrap"] != day_key:
                 _last_ran["evening_wrap"] = day_key
                 await _run_job("evening_wrap")
+            if (19, 30) <= hm < (20, 30) and _last_ran["call_kpi_digest"] != day_key:
+                _last_ran["call_kpi_digest"] = day_key
+                await _run_job("call_kpi_digest")
             if (
                 now.weekday() == 2
                 and (12, 30) <= hm < (13, 30)

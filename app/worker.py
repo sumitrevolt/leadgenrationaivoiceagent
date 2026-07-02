@@ -56,8 +56,8 @@ def _route_staff_task(name, args, kwargs, options, task=None, **kw):
             and str(args[0]) in HEAVY_STAFF_JOBS
         ):
             return {"queue": "heavy"}
-    except Exception:
-        pass
+    except (TypeError, IndexError) as _e:
+        logger.debug("_route_staff_task routing failed, using default queue: %s", _e)
     return None
 
 
@@ -159,17 +159,15 @@ def on_task_failure(task_id, exception, args, kwargs, traceback, einfo, **kw):
     if settings.sentry_dsn:
         try:
             import sentry_sdk
-
             sentry_sdk.capture_exception(exception)
-        except Exception:
-            pass
+        except (ImportError, AttributeError) as _e:
+            logger.debug("Sentry capture skipped: %s", _e)
 
     # Dead-letter recorder: failed task ka record Redis list me (inspection/replay).
     # Best-effort + bounded (last 1000). Redis down ho to silent skip.
     try:
         import json as _json
-        from datetime import datetime as _dt
-
+        from datetime import datetime as _dt, timezone as _tz
         import redis as _redis
 
         _r = _redis.from_url(settings.redis_url, socket_timeout=2)
@@ -181,13 +179,13 @@ def on_task_failure(task_id, exception, args, kwargs, traceback, einfo, **kw):
                     "error": str(exception)[:500],
                     "args": str(args)[:400],
                     "kwargs": str(kwargs)[:400],
-                    "ts": _dt.utcnow().isoformat() + "Z",
+                    "ts": _dt.now(_tz.utc).isoformat(),
                 }
             ),
         )
         _r.ltrim("dlq:failed_tasks", 0, 999)
-    except Exception:
-        pass
+    except (ImportError, ConnectionError, OSError, ValueError) as _e:
+        logger.debug("DLQ record skipped: %s", _e)
 
 
 @signals.task_retry.connect
@@ -442,6 +440,13 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=5, minute=0, day_of_week=0),
         "args": ("kb_refresh",),
+    },
+    "staff-platform-dial-daily": {
+        # 11:30 IST: self-sale AI cold-call batch — job body no-ops unless
+        # PLATFORM_DIAL_DAILY=1 (TRAI window/DND gates live inside the call path).
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=11, minute=30),
+        "args": ("platform_dial",),
     },
     "staff-midday-prospect-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",

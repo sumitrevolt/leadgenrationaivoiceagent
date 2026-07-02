@@ -1,0 +1,468 @@
+/* ================================================================
+   LeadGen AI — "AI Office" visual upgrade layer
+   Import AFTER base tokens. Adds:
+     • Deeper navy sidebar tokens
+     • Glass-effect card system
+     • AI status / pulse animation tokens
+     • Upgraded section-header, KPI and action-card classes
+     • No JS changes needed — pure CSS overlay
+   ================================================================ */
+
+:root {
+  /* ── Sidebar: deep-space navy (replaces violet gradient) ── */
+  --ao-sb-top:    #080c18;
+  --ao-sb-bot:    #0d1629;
+  --ao-sb-grad:   linear-gradient(180deg, var(--ao-sb-top), var(--ao-sb-bot));
+  --ao-sb-text:   #c5cfe8;
+  --ao-sb-muted:  #5a6a8a;
+  --ao-sb-hover:  rgba(99,102,241,.14);
+  --ao-sb-active: rgba(99,102,241,.28);
+  --ao-sb-border: rgba(255,255,255,.06);
+  --ao-sb-group:  #3a4a6a;   /* section-label color */
+
+  /* ── AI live indicators ── */
+  --ao-live:       #22c55e;
+  --ao-live-glow:  rgba(34,197,94,.5);
+  --ao-live-ring:  rgba(34,197,94,.2);
+  --ao-thinking:   #38bdf8;
+  --ao-warn:       #f59e0b;
+
+  /* ── Card upgrades ── */
+  --ao-card-bg:    #ffffff;
+  --ao-card-border:#e8eaf2;
+  --ao-card-shadow:0 1px 4px rgba(0,0,0,.05), 0 4px 20px rgba(79,70,229,.07);
+  --ao-card-hover: 0 6px 28px rgba(79,70,229,.13);
+
+  /* ── KPI gradient tops ── */
+  --ao-kpi-1: linear-gradient(90deg, #4f46e5, #7c3aed);
+  --ao-kpi-2: linear-gradient(90deg, #0ea5e9, #38bdf8);
+  --ao-kpi-3: linear-gradient(90deg, #10b981, #34d399);
+  --ao-kpi-4: linear-gradient(90deg, #f59e0b, #fbbf24);
+  --ao-kpi-5: linear-gradient(90deg, #ec4899, #f472b6);
+
+  /* ── Topbar AI status pill ── */
+  --ao-status-bg:  rgba(34,197,94,.1);
+  --ao-status-bdr: rgba(34,197,94,.35);
+  --ao-status-ink: #15803d;
+
+  /* ── Section header ── */
+  --ao-sec-color:  #7c8db0;
+  --ao-sec-line:   #e8eaf2;
+
+  /* ── Backdrop blur (progressive) ── */
+  --ao-blur: blur(12px) saturate(160%);
+}
+
+/* ================================================================
+   SIDEBAR — "AI Office" deep-space upgrade
+   ================================================================ */
+.sidebar {
+  background: var(--ao-sb-grad) !important;
+  border-right: 1px solid var(--ao-sb-border);
+}
+
+/* Navigation group labels */
+.nav-group {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ao-sb-group);
+  padding: 18px 14px 5px;
+  margin-top: 4px;
+}
+.nav-group:first-of-type { padding-top: 6px; }
+
+/* Navlink upgrades — overrides existing purple tints */
+.navlink, .nav a {
+  color: var(--ao-sb-text) !important;
+  border-radius: 9px;
+  transition: background .15s, color .15s;
+}
+.navlink:hover, .nav a:hover {
+  background: var(--ao-sb-hover) !important;
+  color: #fff !important;
+}
+.navlink.active, .nav a.active {
+  background: var(--ao-sb-active) !important;
+  color: #fff !important;
+  box-shadow: inset 0 0 0 1px rgba(99,102,241,.4);
+}
+
+/* Brand strip */
+.sidebar .brand, .sidebar .brand b { color: #fff !important; }
+.sidebar .brand small          { color: var(--ao-sb-text) !important; }
+
+/* Sidebar footer text */
+.side-foot, .sb-foot small { color: var(--ao-sb-muted) !important; }
+
+/* ── AI liveness indicator in sidebar footer ── */
+.ao-sb-live {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ao-live);
+  padding: 10px 14px 8px;
+  border-top: 1px solid var(--ao-sb-border);
+  margin-top: auto;
+}
+.ao-sb-live .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--ao-live);
+  box-shadow: 0 0 0 0 var(--ao-live-glow);
+  animation: aoPulse 2s ease-out infinite;
+  flex: 0 0 8px;
+}
+@keyframes aoPulse {
+  0%   { box-shadow: 0 0 0 0 var(--ao-live-glow); }
+  70%  { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+  100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+}
+
+/* ================================================================
+   TOPBAR — "AI is working" status pill
+   ================================================================ */
+.ao-topbar-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ao-status-bg);
+  border: 1px solid var(--ao-status-bdr);
+  color: var(--ao-status-ink);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ao-topbar-status .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--ao-live);
+  animation: aoPulse 2s ease-out infinite;
+}
+
+/* ================================================================
+   SECTION HEADERS — cleaner hierarchy
+   ================================================================ */
+.sec-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  color: var(--ao-sec-color) !important;
+  text-transform: uppercase !important;
+  letter-spacing: .09em !important;
+  margin: 28px 0 14px !important;
+  padding-bottom: 9px !important;
+  border-bottom: 1px solid var(--ao-sec-line) !important;
+}
+.sec-title::after {
+  content: "";
+  flex: 1;
+  /* line already from border-bottom */
+}
+
+/* ================================================================
+   KPI CARDS — upgraded with gradient accent tops
+   ================================================================ */
+.kpi {
+  border-radius: 14px !important;
+  box-shadow: var(--ao-card-shadow) !important;
+  border: 1px solid var(--ao-card-border) !important;
+  padding: 18px 16px 15px !important;
+  transition: box-shadow .2s, transform .2s;
+  overflow: hidden;
+  position: relative;
+}
+.kpi:hover {
+  box-shadow: var(--ao-card-hover) !important;
+  transform: translateY(-2px);
+}
+/* Upgrade the left-border to a top gradient band */
+.kpi::before {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 3px;
+  background: var(--ao-kpi-1);
+  border-radius: 14px 14px 0 0;
+}
+.kpi.k2::before { background: var(--ao-kpi-2); }
+.kpi.k3::before { background: var(--ao-kpi-3); }
+.kpi.k4::before { background: var(--ao-kpi-4); }
+.kpi.k5::before { background: var(--ao-kpi-5); }
+/* Remove old left-side ::before strip position override */
+.kpi::after { display: none; }
+
+.kpi .lab {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #7c8db0 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .06em !important;
+}
+.kpi .val {
+  font-size: 30px !important;
+  font-weight: 900 !important;
+  color: #0f1629 !important;
+  margin-top: 10px !important;
+  letter-spacing: -.02em !important;
+  line-height: 1 !important;
+}
+.kpi .sub {
+  font-size: 11.5px !important;
+  color: #7c8db0 !important;
+  margin-top: 7px !important;
+}
+
+/* ================================================================
+   STATUS STRIP CARDS — "Aaj ke liye" hero
+   ================================================================ */
+.status-card {
+  border-radius: 14px !important;
+  border: 1px solid var(--ao-card-border) !important;
+  box-shadow: var(--ao-card-shadow) !important;
+  padding: 18px !important;
+  min-height: 96px !important;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow .2s;
+}
+.status-card:hover { box-shadow: var(--ao-card-hover) !important; }
+.status-card .lab {
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: .1em !important;
+  color: #9aabcc !important;
+}
+.status-card .val {
+  font-size: 22px !important;
+  font-weight: 900 !important;
+  color: #0f1629 !important;
+  margin-top: 8px !important;
+  line-height: 1.2 !important;
+}
+.status-card .hint {
+  font-size: 12px !important;
+  color: #7c8db0 !important;
+  margin-top: 5px !important;
+}
+
+/* ================================================================
+   CARDS — unified upgrade
+   ================================================================ */
+.card {
+  border-radius: 16px !important;
+  box-shadow: var(--ao-card-shadow) !important;
+  border: 1px solid var(--ao-card-border) !important;
+  transition: box-shadow .2s;
+}
+.card-h {
+  padding: 15px 20px !important;
+  border-bottom: 1px solid #f0f2f8 !important;
+}
+.card-h h2 {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #1a2040 !important;
+}
+.card-b { padding: 18px 20px !important; }
+
+/* Admin card headers */
+.card .hd { padding: 14px 20px !important; }
+.card .hd h3 { font-size: 14px !important; font-weight: 700 !important; color: #1a2040 !important; }
+.card .bd  { padding: 16px 20px !important; }
+
+/* ================================================================
+   ACTION CARDS — "Jaldi se" quick-action grid
+   ================================================================ */
+.action-card {
+  border-radius: 14px !important;
+  border: 1px solid var(--ao-card-border) !important;
+  box-shadow: var(--ao-card-shadow) !important;
+  transition: all .18s ease !important;
+  padding: 16px 14px !important;
+  background: #fff !important;
+}
+.action-card:hover {
+  border-color: #a5b4fc !important;
+  box-shadow: var(--ao-card-hover) !important;
+  transform: translateY(-2px) !important;
+  background: #faf9ff !important;
+}
+.action-card .ic {
+  background: linear-gradient(135deg, #eef0ff, #ede9fe) !important;
+  border-radius: 12px !important;
+}
+.action-card .t { font-size: 13px !important; font-weight: 700 !important; color: #1a2040 !important; }
+.action-card .s { font-size: 11.5px !important; color: #7c8db0 !important; }
+
+/* ================================================================
+   AI COMMAND BAR — more dramatic + readable
+   ================================================================ */
+.ai-command {
+  background: linear-gradient(135deg, #08111f 0%, #111b3a 50%, #1a0a38 100%) !important;
+  border: 1px solid rgba(99,102,241,.2) !important;
+  box-shadow: 0 8px 32px rgba(15,23,42,.22), inset 0 1px 0 rgba(255,255,255,.04) !important;
+  border-radius: 16px !important;
+  padding: 18px 20px !important;
+  position: relative;
+  overflow: hidden;
+}
+.ai-command::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, #4f46e5, #7c3aed, #38bdf8);
+}
+.ai-command .eyebrow { color: #93c5fd !important; font-size: 10px !important; }
+.ai-command .decision { font-size: 16px !important; font-weight: 900 !important; }
+.ai-command .reason { font-size: 12px !important; color: #94a3b8 !important; }
+
+/* ================================================================
+   OWNER HERO — welcome card
+   ================================================================ */
+.owner-hero {
+  border-radius: 16px !important;
+  border: 1px solid var(--ao-card-border) !important;
+  box-shadow: var(--ao-card-shadow) !important;
+  background: linear-gradient(120deg, #fff 60%, #f6f4ff) !important;
+  padding: 22px 22px !important;
+}
+.owner-title {
+  font-size: 26px !important;
+  font-weight: 900 !important;
+  color: #0f1629 !important;
+  letter-spacing: -.02em !important;
+}
+.owner-subtitle { font-size: 14px !important; color: #7c8db0 !important; line-height: 1.5 !important; }
+
+/* ================================================================
+   TEAM OFFICE — enhanced glassmorphism (already good, tweak only)
+   ================================================================ */
+.team-office {
+  border-radius: 18px !important;
+  border: 1px solid rgba(99,102,241,.18) !important;
+}
+
+/* ================================================================
+   BUTTONS — sharper primary
+   ================================================================ */
+.btn.primary {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+  box-shadow: 0 4px 14px rgba(99,102,241,.35) !important;
+  border: none !important;
+  font-weight: 700 !important;
+  letter-spacing: .01em;
+}
+.btn.primary:hover { filter: brightness(1.08) !important; }
+
+/* ================================================================
+   TOPBAR — cleaner, more air
+   ================================================================ */
+.topbar {
+  background: #fff !important;
+  border-bottom: 1px solid #edeef5 !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04) !important;
+  padding: 12px 24px !important;
+}
+.hi h1 {
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  color: #0f1629 !important;
+}
+.hi p { color: #7c8db0 !important; font-size: 12.5px !important; }
+
+/* ================================================================
+   TABLES — cleaner rows
+   ================================================================ */
+thead th {
+  background: #f7f8fc !important;
+  color: #7c8db0 !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: .06em !important;
+  text-transform: uppercase !important;
+  padding: 11px 16px !important;
+}
+tbody td { padding: 11px 16px !important; font-size: 13px !important; }
+tbody tr:hover { background: #faf9ff !important; }
+
+/* ================================================================
+   REVENUE / ADMIN KPI CARDS
+   ================================================================ */
+.kpi.ok::before  { background: var(--ao-kpi-3); }
+.kpi.warn::before { background: var(--ao-kpi-4); }
+.kpi.rev::before  { background: var(--ao-kpi-1); }
+
+/* Rev-kpi (admin small cards) */
+.rev-kpi {
+  border-radius: 12px !important;
+  border: 1px solid var(--ao-card-border) !important;
+  box-shadow: var(--ao-card-shadow) !important;
+}
+.rev-kpi .rk-val { font-size: 24px !important; font-weight: 900 !important; color: #0f1629 !important; }
+
+/* ================================================================
+   ADMIN AGENT CARDS
+   ================================================================ */
+.agent.admin-agent {
+  border: 1px solid var(--ao-card-border) !important;
+  border-radius: 14px !important;
+  background: #fafbff !important;
+  box-shadow: var(--ao-card-shadow) !important;
+}
+.agent.admin-agent:hover {
+  box-shadow: var(--ao-card-hover) !important;
+  transform: translateY(-2px);
+  border-color: #c7d2fe !important;
+}
+
+/* ================================================================
+   MOBILE — bottom-nav upgrade
+   ================================================================ */
+.mobile-app-nav {
+  background: rgba(255,255,255,.95) !important;
+  border-top: 1px solid #edeef5 !important;
+  box-shadow: 0 -4px 20px rgba(15,23,42,.08) !important;
+}
+
+/* ================================================================
+   DARK MODE — carry ao-vars through
+   ================================================================ */
+body.dark {
+  --ao-card-bg:    #1a1530;
+  --ao-card-border:#2a2050;
+  --ao-card-shadow:0 1px 4px rgba(0,0,0,.3), 0 4px 20px rgba(0,0,0,.2);
+  --ao-sec-color:  #5a6a8a;
+  --ao-sec-line:   #252040;
+}
+body.dark .kpi .val,
+body.dark .status-card .val,
+body.dark .owner-title,
+body.dark .card-h h2,
+body.dark .card .hd h3 { color: #e0e4f4 !important; }
+body.dark .kpi,
+body.dark .status-card,
+body.dark .card,
+body.dark .action-card { background: #1a1530 !important; border-color: var(--ao-card-border) !important; }
+body.dark .owner-hero   { background: linear-gradient(120deg, #1a1530 60%, #1c1040) !important; }
+body.dark .topbar       { background: #110e22 !important; border-color: #252040 !important; }
+body.dark thead th      { background: #1a1530 !important; }
+body.dark tbody tr:hover{ background: #1e1840 !important; }
+body.dark .action-card:hover { background: #211a44 !important; border-color: #6366f1 !important; }
+
+/* ================================================================
+   PRINT / REDUCED-MOTION
+   ================================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .ao-sb-live .dot,
+  .ao-topbar-status .dot { animation: none !important; }
+  .kpi:hover, .card:hover, .action-card:hover { transform: none !important; }
+}

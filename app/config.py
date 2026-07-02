@@ -16,10 +16,13 @@ class Settings(BaseSettings):
     app_name: str = "AI Voice Agent"
     app_env: str = "development"
     debug: bool = True
-    secret_key: str = "change-this-in-production"
+    # Placeholder default so dev/CI boots without a .env; production is blocked
+    # from running on this default by validate_production_settings() below.
+    # Generate a real one: python -c "import secrets; print(secrets.token_urlsafe(64))"
+    secret_key: str = "change-this-in-production-min-32-chars-xxxxx"
 
     # Database
-    database_url: str = "postgresql+asyncpg://user:password@localhost:5432/voice_agent_db"
+    database_url: str = "sqlite+aiosqlite:///./data/leadgen_dev.db"  # dev-only default; prod uses env
     redis_url: str = "redis://localhost:6379/0"
 
     # Vector RAG (Qdrant) — empty = disabled; KB falls back to Chroma/keyword
@@ -226,7 +229,10 @@ class Settings(BaseSettings):
     gcs_profile_pictures_bucket: str = "auraleads-profile-pictures"
 
     # JWT Settings
-    jwt_secret_key: str = "change-this-jwt-secret-in-production"
+    # Placeholder default so dev/CI boots without a .env; production is blocked
+    # from running on this default by validate_production_settings() below.
+    # Generate a real one: python -c "import secrets; print(secrets.token_urlsafe(64))"
+    jwt_secret_key: str = "change-this-jwt-secret-in-production-xxxxxxx"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60
     jwt_refresh_token_expire_days: int = 7
@@ -284,12 +290,12 @@ class Settings(BaseSettings):
     def validate_production_settings(self) -> "Settings":
         """Validate critical settings in production"""
         if self.app_env == "production":
-            if self.secret_key == "change-this-in-production":
-                raise ValueError("secret_key must be changed in production")
-            if self.jwt_secret_key == "change-this-jwt-secret-in-production":
-                raise ValueError("jwt_secret_key must be changed in production")
             if self.debug:
-                raise ValueError("debug must be False in production")
+                raise ValueError("DEBUG must be False in production")
+            if self.secret_key == "change-this-in-production-min-32-chars-xxxxx":
+                raise ValueError("SECRET_KEY must be set to a real value in production")
+            if self.jwt_secret_key == "change-this-jwt-secret-in-production-xxxxxxx":
+                raise ValueError("JWT_SECRET_KEY must be set to a real value in production")
         return self
 
     @property

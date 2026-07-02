@@ -204,7 +204,16 @@ async def twilio_status_webhook(
 async def vobiz_status_webhook(request: Request):
     """Vobiz status callback — marks a completed call done (minute-metering +
     qualified-lead billing run via CallManager.handle_call_completed). Idempotent
-    on call_id. Best-effort; never raises a 500."""
+    on call_id. Best-effort; never raises a 500.
+
+    Security note: Vobiz does not sign this callback, and the status-callback URL
+    is configured account-wide (not per-call), so it cannot carry a per-call HMAC
+    token the way /vobiz/answer does. The real defenses are: (1) call_id is a
+    random UUID (128-bit, unguessable) and handle_call_completed() no-ops if it
+    isn't a call WE placed and is still tracked in active_calls; (2) the duration
+    clamp below bounds how much a forged/replayed POST can inflate billed minutes
+    even if an attacker did learn a live call_id.
+    """
     try:
         form_data = await request.form()
     except Exception:
@@ -212,7 +221,7 @@ async def vobiz_status_webhook(request: Request):
 
     call_sid = form_data.get("CallSid") or form_data.get("call_uuid") or form_data.get("id")
     status = (form_data.get("Status") or form_data.get("call_status") or "").lower()
-    duration = form_data.get("Duration") or form_data.get("duration")
+    duration_raw = form_data.get("Duration") or form_data.get("duration")
     recording_url = form_data.get("RecordingUrl") or form_data.get("recording_url")
     call_id = form_data.get("CallbackData") or form_data.get("call_id") or call_sid
 
@@ -230,12 +239,28 @@ async def vobiz_status_webhook(request: Request):
             except Exception:
                 pass
 
+            # Clamp an implausible/forged duration to the configured call-length
+            # ceiling — bounds billing-inflation blast-radius from a guessed call_id.
+            try:
+                from app.config import settings
+
+                duration = max(0, int(duration_raw)) if duration_raw else 0
+                cap = int(getattr(settings, "max_call_duration_seconds", 300) or 300)
+                if duration > cap:
+                    logger.warning(
+                        f"Vobiz status duration {duration}s exceeds cap {cap}s for "
+                        f"call {call_id} — clamping."
+                    )
+                    duration = cap
+            except Exception:
+                duration = 0
+
             cm = _get_call_manager()
             result = None
             if cm is not None and call_id:
                 result = await cm.handle_call_completed(
                     call_id=call_id,
-                    duration=int(duration) if duration else 0,
+                    duration=duration,
                     recording_url=recording_url,
                 )
             if result:

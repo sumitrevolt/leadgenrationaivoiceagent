@@ -72,9 +72,10 @@ def rate_limit(prefix: str, max_requests: int = 30, window_seconds: int = 60):
 
 # --------------------------------------------------------------------------- #
 # Tier-aware rate limiting (R1#1) — per client-tier budget. Higher tiers = more
-# headroom. Tier resolve hota hai: X-Client-Tier header → request.state.tenant →
-# default "free". Base limit ko tier-multiplier se scale karte. FAIL-OPEN, additive
-# (existing rate_limit untouched). Routes opt-in karein:
+# headroom. Tier resolve hota hai: request.state.tenant (server-derived) → default
+# "free" — client-supplied header REMOVED 2026-07-01 (self-report spoofing risk,
+# see _client_tier docstring). Base limit ko tier-multiplier se scale karte.
+# FAIL-OPEN, additive (existing rate_limit untouched). Routes opt-in karein:
 #   dependencies=[Depends(tier_rate_limit("ai", base_max=20, window=60))]
 # --------------------------------------------------------------------------- #
 _TIER_MULT: dict[str, float] = {
@@ -89,11 +90,15 @@ _TIER_MULT: dict[str, float] = {
 
 
 def _client_tier(request: Request) -> str:
-    """Requester ka tier — header > tenant state > 'free'. Never-raise."""
+    """Requester ka tier — server-derived tenant state only, never 'free'.
+
+    A client-supplied X-Client-Tier header was previously trusted here (checked
+    before the tenant state) — any caller could self-report "admin" for a 20x
+    rate-limit budget. Header is never set anywhere in this codebase (grepped),
+    so there was no legitimate internal use to preserve. Removed entirely
+    (production audit 2026-07-01, security batch 4). Never-raise.
+    """
     try:
-        h = (request.headers.get("x-client-tier") or "").strip().lower()
-        if h in _TIER_MULT:
-            return h
         tenant = getattr(request.state, "tenant", None)
         if tenant:
             t = str(

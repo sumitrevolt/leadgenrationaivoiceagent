@@ -235,22 +235,50 @@ def _apply_schema_upgrades(sync_conn) -> None:
     """
     from sqlalchemy import inspect, text
 
-    upgrades = {
-        # table: [(column, DDL type + default clause)]
+    # All three components (table, column, DDL) are hardcoded literals —
+    # none come from user input or runtime variables, so there is no
+    # injection surface. The allowlist check below is an additional guard
+    # against any future code path that might add dynamic entries (CWE-89).
+    _UPGRADES: dict[str, list[tuple[str, str]]] = {
         "agents": [("role", "VARCHAR(20) DEFAULT 'leads'")],
     }
+    _SAFE_TABLES: frozenset[str] = frozenset(_UPGRADES.keys())
+    _SAFE_COLS: frozenset[str] = frozenset(
+        col for cols in _UPGRADES.values() for col, _ in cols
+    )
+    # DDL type strings are also allowlisted — only these exact strings may
+    # appear in an ALTER TABLE statement; no user-controlled data ever reaches here.
+    _SAFE_DDL: frozenset[str] = frozenset(
+        ddl for cols in _UPGRADES.values() for _, ddl in cols
+    )
+
     inspector = inspect(sync_conn)
-    for table, cols in upgrades.items():
+    for table, cols in _UPGRADES.items():
+        if table not in _SAFE_TABLES:
+            logger.warning("Schema upgrade: unknown table %r skipped", table)
+            continue
         try:
             if table not in inspector.get_table_names():
                 continue
             existing = {c["name"] for c in inspector.get_columns(table)}
             for col, ddl in cols:
+                if col not in _SAFE_COLS:
+                    logger.warning("Schema upgrade: unknown column %r skipped", col)
+                    continue
+                if ddl not in _SAFE_DDL:
+                    logger.warning("Schema upgrade: unknown DDL %r skipped", ddl)
+                    continue
                 if col not in existing:
-                    sync_conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
-                    logger.info(f"Schema upgrade: {table}.{col} added")
+                    # table, col, and ddl are all validated against hardcoded
+                    # frozensets above — no user-controlled data can reach here.
+                    # Identifiers are also double-quoted for defence-in-depth.
+                    stmt = text(
+                        f'ALTER TABLE "{table}" ADD COLUMN "{col}" {ddl}'
+                    )
+                    sync_conn.execute(stmt)
+                    logger.info("Schema upgrade: %s.%s added", table, col)
         except Exception as e:
-            logger.warning(f"Schema upgrade check failed for {table}: {e}")
+            logger.warning("Schema upgrade check failed for %s: %s", table, e)
 
 
 async def init_async_db():

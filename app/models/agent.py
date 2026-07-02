@@ -12,6 +12,13 @@ from sqlalchemy import Column, DateTime, Enum, ForeignKey, Index, Integer, Strin
 from app.models.base import Base
 
 
+def _enum_values(enum_cls):
+    """values_callable so the DB stores .value not .name — VARCHAR-backed
+    (native_enum=False), matching app/models/payment.py (production audit
+    2026-07-01, F-DB4)."""
+    return [member.value for member in enum_cls]
+
+
 class AgentStatus(enum.Enum):
     """Agent / worker live status enum"""
 
@@ -45,7 +52,10 @@ class Agent(Base):
     current_campaign_id = Column(String(36), ForeignKey("campaigns.id"))
 
     # Live status (index defined explicitly in __table_args__ as ix_agents_status)
-    status = Column(Enum(AgentStatus), default=AgentStatus.IDLE)
+    status = Column(
+        Enum(AgentStatus, native_enum=False, values_callable=_enum_values),
+        default=AgentStatus.IDLE,
+    )
 
     # Capabilities / config
     # role: "data" (client business data/KB) | "leads" (end-customer calling)

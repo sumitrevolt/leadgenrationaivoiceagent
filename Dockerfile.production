@@ -1,6 +1,10 @@
 # ============================================================================
 # LeadGen AI Voice Agent - Production Dockerfile
 # Minimal build for Cloud Run deployment (NO Playwright/Browser dependencies)
+#
+# NOT the live deploy path (production audit 2026-07-01, F-INF1) — the live VPS
+# builds from Dockerfile.lock via docker-compose.vps.yml exclusively. This file
+# is the (currently unused) Cloud Run alternative build.
 # ============================================================================
 
 # Stage 1: Build dependencies
@@ -63,10 +67,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 
 # Create necessary directories FIRST (before copying)
-RUN mkdir -p /app/logs /app/data/conversations /app/data/feedback \
-    /app/data/vectorstore /app/data/agent_brain /app/data/voice_brain \
-    /app/data/production_brain /app/data/brain_training /app/data/training_reports \
-    /app/data/optimizer /app/scripts /app/alembic
+# data/ is intentionally NOT pre-created here — it is mounted as a named
+# volume at runtime so runtime state (JSONL, locks, DB snapshots) is never
+# baked into image layers (CWE-538: sensitive data in image).
+RUN mkdir -p /app/logs /app/scripts /app/alembic
 
 # Copy application code (app/ is required)
 COPY --chown=appuser:appgroup app/ ./app/
@@ -80,9 +84,6 @@ COPY --chown=appuser:appgroup scripts/ ./scripts/
 
 # Copy frontend (dashboards + marketing website + PWA served by FastAPI)
 COPY --chown=appuser:appgroup frontend/ ./frontend/
-
-# Copy data directory structure (empty dirs ok, .dockerignore handles exclusions)
-COPY --chown=appuser:appgroup data/ ./data/
 
 # Copy project skills for runtime agent skill_pack
 COPY --chown=appuser:appgroup .claude/skills/ ./.claude/skills/
@@ -116,5 +117,6 @@ EXPOSE 8080
 LABEL org.opencontainers.image.title="LeadGen AI Voice Agent" \
       org.opencontainers.image.version="${APP_VERSION}"
 
-# Simplified startup - skip startup_check.py if it fails, uvicorn handles health
+# data/ volume must be mounted at runtime:
+# docker-compose.prod.yml → volumes: leadgen_data:/app/data
 CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers ${WEB_CONCURRENCY:-2} --timeout-keep-alive 30"]

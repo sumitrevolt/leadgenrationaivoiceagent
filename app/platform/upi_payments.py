@@ -111,13 +111,53 @@ def _valid_plan_keys() -> set[str]:
     return keys
 
 
-def _try_activate(client_id: str, plan: str) -> bool:
+def _min_plan_price(plan_key: str) -> float | None:
+    """Cheapest legitimate amount (INR) for `plan_key` — the monthly price, which
+    is always <= the annual price, so `amount >= this` accepts either billing
+    period without needing to know which one was submitted. Returns None if the
+    plan isn't found in any pricing source (caller must not block on None — same
+    fail-open-on-missing-data posture as `_valid_plan_keys()`)."""
+    try:
+        from app.marketing.packages import get_packages
+
+        for p in get_packages(include_trial=True) or []:
+            if str((p or {}).get("key") or "").strip().lower() == plan_key:
+                return float(p.get("price_inr_month") or 0)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upi_payments min-price packages skipped: %s", e)
+    try:
+        from app.marketing.voice_packages import get_voice_packages
+
+        for band_plans in (get_voice_packages() or {}).values():
+            if not isinstance(band_plans, list):
+                continue
+            for p in band_plans:
+                if str((p or {}).get("key") or "").strip().lower() == plan_key:
+                    return float(p.get("price_inr_month") or 0)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upi_payments min-price voice skipped: %s", e)
+    try:
+        from app.marketing.combo_packages import get_combo_packages
+
+        for p in (get_combo_packages() or {}).get("plans", []) or []:
+            if str((p or {}).get("key") or "").strip().lower() == plan_key:
+                return float(p.get("price_inr_month") or 0)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upi_payments min-price combo skipped: %s", e)
+    return None
+
+
+def _try_activate(client_id: str, plan: str, amount: float = 0) -> bool:
     """Best-effort plan activation. Never raises — returns activation success bool.
 
     Validates the plan against the canonical activatable set BEFORE provisioning so a
-    typo/retired/unknown plan can never silently activate (record stays pending). On a
-    successful activation also drops the renewal usage watermark (parity with the
-    Stripe webhook path) so a renew/upgrade zeroes the minute counter for the period.
+    typo/retired/unknown plan can never silently activate (record stays pending). Also
+    rejects if `amount` is below the plan's real listed price (production audit
+    2026-07-01: UPI_AUTO_ACTIVATE previously only checked the plan key, not the paid
+    amount — a fabricated amount:0 self-serve submission could auto-activate the
+    highest paid tier for free). On a successful activation also drops the renewal
+    usage watermark (parity with the Stripe webhook path) so a renew/upgrade zeroes
+    the minute counter for the period.
     """
     cid = (client_id or "").strip()
     if not cid:
@@ -133,6 +173,17 @@ def _try_activate(client_id: str, plan: str) -> bool:
             "upi_payments activation REJECTED — unknown plan %r (not in %d known plans)",
             plan,
             len(valid),
+        )
+        return False
+    min_price = _min_plan_price(plan_k)
+    # Only enforce when we actually resolved a real price — same fail-open-on-missing-
+    # data posture as the plan-key check above (never block on our own lookup failure).
+    if min_price and float(amount or 0) < min_price:
+        logger.warning(
+            "upi_payments activation REJECTED — amount %r below plan %r price floor %r",
+            amount,
+            plan,
+            min_price,
         )
         return False
     try:
@@ -216,7 +267,7 @@ def submit_payment(
 
         # Optional instant activation (flag-gated, default OFF).
         if os.environ.get("UPI_AUTO_ACTIVATE") == "1" and cid:
-            if _try_activate(cid, plan_s):
+            if _try_activate(cid, plan_s, amount):
                 record["status"] = "auto_activated"
                 record["auto_activated"] = True
                 record["decided_at"] = _now_iso()
@@ -277,7 +328,9 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
             and not record.get("auto_activated")
             and record.get("client_id")
         ):
-            if _try_activate(record.get("client_id", ""), record.get("plan", "")):
+            if _try_activate(
+                record.get("client_id", ""), record.get("plan", ""), record.get("amount", 0)
+            ):
                 record["activated"] = True
                 # Activation succeeded → front-run onboarding (KB seed + first content
                 # pack) instead of waiting for the hourly sweep.
