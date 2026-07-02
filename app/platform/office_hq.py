@@ -187,15 +187,16 @@ PIPELINE_STAGE_META: list[dict[str, Any]] = [
 # 35s (comfortably above the then-25s poll interval).
 #
 # RETUNE (2026-07-02, Task 8 "real-time tightening"): poll interval tightened
-# 25s -> 15s and TTL tightened 35s -> 12s, deliberately trading some cache-hit
-# rate for fresher data on this real-time view. TTL (12s) is now BELOW the
-# poll interval (15s), unlike the 2026-07-01 fix above — but build_snapshot()
-# still takes ~8-9s to compute, so two *consecutive* polls 15s apart can still
-# land inside one cache window (12s > 15s - 9s slack), meaning back-to-back
-# refreshes (e.g. manual-refresh-right-after-auto-poll) still often hit the
-# cache, while no single value can go stale for more than ~1 poll cycle.
+# 25s -> 15s. TTL retuned 35s -> 18s to match — same invariant as the
+# 2026-07-01 fix above (TTL must stay ABOVE the poll interval, with a
+# comfortable margin), just recalibrated to the new faster poll cadence.
+# Do NOT drop TTL below the poll interval and rely on build_snapshot()'s
+# compute time (~8-9s) as slack to compensate — that coincidence breaks the
+# moment compute time is optimized down, silently reintroducing the exact
+# 2026-07-01 cache-defeat bug where every poll misses because the cache
+# already expired.
 _SNAPSHOT_CACHE_KEY = "office_hq:snapshot"
-_SNAPSHOT_CACHE_TTL = 12
+_SNAPSHOT_CACHE_TTL = 18
 
 
 def _now() -> datetime:
