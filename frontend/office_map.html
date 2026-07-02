@@ -221,6 +221,11 @@
   </div>
 
   <div id="roomTooltip"></div>
+  <div id="coordinatorTickerBox" style="position:absolute;display:none;background:#fff;border:1px solid var(--line);
+    border-radius:8px;padding:6px 10px;max-width:280px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.08);z-index:15">
+    <div style="font-weight:700;margin-bottom:3px">🧑‍💼 Coordinator log</div>
+    <div id="coordinatorTicker"></div>
+  </div>
   <div id="agentPanel" class="panel-hidden">
     <div class="panel-card">
       <button id="panelClose" aria-label="Close">✕</button>
@@ -333,6 +338,13 @@
       lbl.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
       lbl.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
       OFFICE.drawRoomDecor(room, ix, iy, iw, ih);
+      if (room.id === "coordinator") {
+        var tickerBox = document.getElementById("coordinatorTickerBox");
+        var pagePos = OFFICE.worldToPage(room.x + room.w - 290, room.y + 30);
+        tickerBox.style.left = pagePos.x + "px";
+        tickerBox.style.top = pagePos.y + "px";
+        tickerBox.style.display = "block";
+      }
     });
   };
 
@@ -889,6 +901,25 @@
 
   OFFICE.COORD_ACTIONS = { coordinated_step: 1, fanout_step: 1, hier_step: 1, adv_step: 1, av_contrib: 1 };
 
+  // Session bookends — manager-only events marking a multi-agent run's start/end.
+  // These were spec'd (2026-07-01 design, "Coordinator Room ticker") but never
+  // shipped — the office map only ever showed individual step-tokens with no
+  // "this is one run" framing. Confirmed live in app/agents/coordinator.py.
+  OFFICE.MANAGER_START_ACTIONS = { coordinate_start: 1, hier_start: 1, advanced_start: 1, council_start: 1 };
+  OFFICE.MANAGER_DONE_ACTIONS = { coordinate_done: 1, hier_done: 1, advanced_done: 1, council_done: 1 };
+  OFFICE.coordinatorTickerLines = [];  // most-recent-first, capped at 6
+
+  OFFICE.pushCoordinatorTicker = function(text){
+    OFFICE.coordinatorTickerLines.unshift(text);
+    OFFICE.coordinatorTickerLines = OFFICE.coordinatorTickerLines.slice(0, 6);
+    var el = document.getElementById("coordinatorTicker");
+    if (el) {
+      el.innerHTML = OFFICE.coordinatorTickerLines.map(function(l){
+        return '<div class="pe-when">' + esc(l) + '</div>';
+      }).join("");
+    }
+  };
+
   OFFICE.spawnWorkflowToken = function(fromKey, toKey){
     var from = OFFICE.avatars[fromKey], to = OFFICE.avatars[toKey];
     if (!from || !to || !OFFICE.scene) return;
@@ -926,6 +957,11 @@
       OFFICE.spawnBubble(e.member, e.detail || e.action);
       if (OFFICE.COORD_ACTIONS[e.action] && e.member !== "manager") {
         OFFICE.spawnWorkflowToken("manager", e.member);
+      }
+      if (e.member === "manager" && OFFICE.MANAGER_START_ACTIONS[e.action]) {
+        OFFICE.pushCoordinatorTicker("▶ " + (e.detail || e.action));
+      } else if (e.member === "manager" && OFFICE.MANAGER_DONE_ACTIONS[e.action]) {
+        OFFICE.pushCoordinatorTicker("✓ " + (e.detail || e.action));
       }
     });
   };
