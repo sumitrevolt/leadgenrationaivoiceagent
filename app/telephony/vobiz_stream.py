@@ -2554,6 +2554,10 @@ class VobizStreamSession:
         try:
             from app.telephony.post_call_hooks import persist_call_log
 
+            # Phone-less vobiz session = WS test/dev connection, real call nahi —
+            # analytics row ko "test_session" outcome do taaki dashboards filter
+            # kar saken (warna no_answer/interested jaise jhoothe outcomes bante).
+            _phoneless = not (getattr(self, "_lead_phone", "") or "").strip()
             await persist_call_log(
                 call_id=str(self.stream_sid or ""),
                 provider="vobiz",
@@ -2563,7 +2567,7 @@ class VobizStreamSession:
                 niche=self.niche or "",
                 duration_s=dur,
                 user_turns=turns,
-                outcome=stream_outcome,
+                outcome=("test_session" if _phoneless else stream_outcome),
                 started_at=self._started_at,
                 ended_at=ended,
                 q=getattr(self, "_last_qual", None),
@@ -2573,15 +2577,23 @@ class VobizStreamSession:
         try:  # Team activity: Swara ki call khatam — dashboard feed ke liye
             from app.platform.team import log_event
 
+            # Real vobiz call me lead-phone HAMESHA hota hai. Phone-less session
+            # = direct WS test/dev connection (agent_tester / pytest / manual WS)
+            # — usko TEST label do warna feed me "0 user turns" jhootha quality-
+            # alarm banta hai (2026-07-02: 4 aisi test-sessions se investigation
+            # trigger hua tha; asli calls thi hi nahi, Vobiz recharge pending).
+            _is_test_session = not (getattr(self, "_lead_phone", "") or "").strip()
+            _label = "TEST/WS session (no phone)" if _is_test_session else "Call"
             log_event(
                 "swara",
                 "call_finished",
-                f"Call done ({dur:.0f}s, {turns} user turns, niche {self.niche})",
-                status="ok" if turns > 0 else "warn",
+                f"{_label} done ({dur:.0f}s, {turns} user turns, niche {self.niche})",
+                status="ok" if (turns > 0 or _is_test_session) else "warn",
                 meta={
                     "stt_counts": dict(self._stt_counts),
                     "duration_s": round(dur, 1),
                     "client_id": str(self.client_id or ""),
+                    "test_session": _is_test_session,
                 },
             )
         except Exception:
