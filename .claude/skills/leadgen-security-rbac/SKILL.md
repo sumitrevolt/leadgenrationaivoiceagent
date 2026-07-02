@@ -39,4 +39,4 @@ Customer accounts, admin actions, lead data, payments, voice-compliance-state pr
 Security/RBAC gap report · critical-route risk table · access-control test cases · secret+PII remediation · readiness /100.
 
 ## Related repo skills (duplicate mat banao)
-`backend-rbac` (roles/grants model) · `team-access-ops` (RBAC ops) · `llm-security` (prompt/LLM security) · `security-review` + `self-code-review` (code-level) · `leadgen-billing-upi` (entitlement) · `leadgen-voice-compliance` (consent/PII).
+`backend-rbac` (roles/grants model) · `team-access-ops` (RBAC ops) · `llm-security` (prompt/LLM security) · `security-review` + `self-code-review` (code-level) · `leadgen-billing-upi` (entitlement) · `leadgen-voice-compliance` (consent/PII) · `tenant-isolation-audit` (tenant-boundary deep-dive) · `secrets-rotation` (key inventory/rotation) · `data-retention-dpdp` (PII retention/delete).
