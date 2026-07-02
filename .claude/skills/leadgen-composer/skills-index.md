@@ -49,6 +49,20 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 | observability-ops | `.claude/skills/observability-ops/SKILL.md` | Prometheus/Grafana/Loki |
 | genai-observability | `.claude/skills/genai-observability/SKILL.md` | LLM/agent OTel GenAI traces |
 
+## Enterprise-grade SaaS (audit + hardening — NEW 2026-07-02)
+
+| Skill | Path | When |
+|-------|------|------|
+| **enterprise-readiness-audit** | `.claude/skills/enterprise-readiness-audit/SKILL.md` | "enterprise grade?" / due-diligence / quarterly deep-review — 12-domain matrix, dispatches below |
+| dr-restore-drill | `.claude/skills/dr-restore-drill/SKILL.md` | backup verify / restore drill / VPS rebuild / RTO-RPO |
+| tenant-isolation-audit | `.claude/skills/tenant-isolation-audit/SKILL.md` | cross-tenant leak audit / naya customer-facing route |
+| slo-error-budget | `.claude/skills/slo-error-budget/SKILL.md` | SLO define / burn-rate alerts / freeze-vs-velocity |
+| secrets-rotation | `.claude/skills/secrets-rotation/SKILL.md` | key rotate / leak response / quarterly hygiene |
+| data-retention-dpdp | `.claude/skills/data-retention-dpdp/SKILL.md` | "mera data delete karo" / DPDP / retention audit |
+| load-capacity-testing | `.claude/skills/load-capacity-testing/SKILL.md` | "kitna handle hoga" / spike prep / 2nd-server decision |
+| db-migration-safety | `.claude/skills/db-migration-safety/SKILL.md` | koi bhi schema change / backfill / rollback plan |
+| supply-chain-security | `.claude/skills/supply-chain-security/SKILL.md` | naya package / CVE news / lock refresh / base-image age |
+
 ## Agents & decisions
 
 | Skill | Path | When |
@@ -141,7 +155,7 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 
 ---
 
-## Complete Catalog (all 175 skills — auto-generated 2026-06-28, none invisible)
+## Complete Catalog (all 184 skills — updated 2026-07-02: +9 enterprise-grade, none invisible)
 
 > Curated routing tables upar = 'kab kaun'. Yeh section = **poora index** (pehle 93/175 missing the). Categories sirt-organizational; ek skill multiple jagah fit kar sakti.
 
@@ -165,6 +179,20 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 | `leadgen-start` | Session bootstrap for LeadGen AI — token-efficient way to start ANY task on this project. Use at the start of a new chat… |
 | `leadgen-test-guardian` | Testing discipline enforce karo — unit/integration/route-smoke/Celery-task/scheduler/E2E tests, Docker health-checks, re… |
 | `leadgen-voice-compliance` | P2 voice-calling readiness + compliance gate audit — Vobiz/FreeSWITCH, STT/LLM/TTS, DND, consent, opt-out, AI-disclosure… |
+
+### 1b. Enterprise-grade SaaS (NEW 2026-07-02)  ·  9
+
+| Skill | When |
+|-------|------|
+| `enterprise-readiness-audit` | Master 12-domain scored audit (security, tenant, DR, SLO, secrets, DPDP, capacity, migrations, supply-chain, billing, compliance, ops) — dispatches specialist skills |
+| `dr-restore-drill` | Backup + RESTORE drill — pg_backup/rclone offsite verify, quarterly restore rehearsal, measured RTO/RPO, full-VPS rebuild runbook |
+| `tenant-isolation-audit` | Tenant-boundary microscope — FAIL-OPEN middleware risk, IDOR sweep beyond billing, Qdrant ns filters, wrong-tenant tests |
+| `slo-error-budget` | SLO table + error-budget policy + burn-rate alerts — reliability ko number do, freeze-vs-velocity rule |
+| `secrets-rotation` | Secrets inventory table + rotation cadence + leak-response runbook (revoke-first) |
+| `data-retention-dpdp` | Data-map (har store) + DPDP deletion runbook + 90d recording purge + consent-record exemption |
+| `load-capacity-testing` | Ceiling napo (hey/wrk ramp, voice concurrency) — knee-point, 60% safe-limit, scale triggers |
+| `db-migration-safety` | Expand-contract, PgBouncer gotchas, CONCURRENTLY index, worker backfill, rollback SQL mandatory |
+| `supply-chain-security` | pip-audit CVE triage, base-image age, typosquat gate, Actions pinning, lock-diff review |
 
 ### 2. Voice / Telephony  ·  7
 

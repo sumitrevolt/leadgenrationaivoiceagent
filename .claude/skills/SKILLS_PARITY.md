@@ -2,7 +2,7 @@
 
 > **Goal:** Claude Code is **PRIMARY** for this repo — skills encode Cursor's parallel context-first edge explicitly.
 > **Start every code task:** `context-first` → `leadgen-composer` → one domain skill.
-> **Project skills:** ~94 folders in `.claude/skills/` + ~181 in `data/skills_extra/`.
+> **Project skills:** ~103 folders in `.claude/skills/` + ~181 in `data/skills_extra/`.
 
 ## Claude loading protocol (MANDATORY)
 
@@ -49,6 +49,22 @@
 | 11 | `leadgen-voice-compliance` | P2 DLT/DND/consent/window gates (gate INTACT) | `voice-agent-kb`, `telephony-engineering`, `voice-roles` |
 | 12 | `leadgen-test-guardian` | risk-matched coverage, `prod_check`+`run_tests` | `test-driven-development`, `verify-ship` |
 | 13 | `leadgen-repo-learning-governance` | OSS pattern-extract, license-safe, native plan | `memory-vault`, `self-improve-control` |
+
+## Enterprise-Grade SaaS Pack (9) — installed 2026-07-02
+
+> Launch-gate se AAGE ka bar: due-diligence/bade-customer survive karne wale domains jo pehle UNCOVERED the. Master = `enterprise-readiness-audit` (12-domain scored matrix, baaki 8 + audit-pack pe dispatch). Har skill: repo-truth table + workflow + enterprise bar + evidence-mandatory output.
+
+| # | Skill | Covers (pehle gap tha) | Related existing (don't dup) |
+|---|-------|------------------------|------------------------------|
+| 1 | `enterprise-readiness-audit` | 12-domain matrix + verdict /120 | `production-ready` (launch gate) |
+| 2 | `dr-restore-drill` | restore-PROVEN backups, RTO/RPO, VPS rebuild | `leadgen-infra-doctor`, `hostinger-deploy` |
+| 3 | `tenant-isolation-audit` | tenant-boundary microscope, Qdrant ns, wrong-tenant tests | `leadgen-security-rbac`, `api-design` |
+| 4 | `slo-error-budget` | SLO targets + burn-rate + freeze policy | `observability-ops`, `prod-incident-triage` |
+| 5 | `secrets-rotation` | key inventory/cadence/leak-response | `leadgen-security-rbac`, `mcp-engineer` |
+| 6 | `data-retention-dpdp` | data-map har store + deletion runbook + 90d purge | `leadgen-voice-compliance`, `cso-audit` |
+| 7 | `load-capacity-testing` | measured ceilings + scale triggers | `leadgen-infra-doctor`, `llm-quota-ops` |
+| 8 | `db-migration-safety` | expand-contract, PgBouncer, rollback SQL | `supabase-postgres-best-practices`, `verify-ship` |
+| 9 | `supply-chain-security` | pip-audit, base-image age, typosquat, Actions pinning | `security-review`, `model-asset-bake` |
 
 ## Cursor built-in → Claude repo skill
 

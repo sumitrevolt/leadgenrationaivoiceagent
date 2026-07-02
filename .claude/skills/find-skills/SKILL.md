@@ -1,6 +1,6 @@
 ---
 name: find-skills
-description: Discover skills — FIRST LeadGen's own ~247 skills (66 in .claude/skills + 181 in data/skills_extra via skill_pack), then the open `npx skills` ecosystem. Use when the user asks "how do I do X", "find a skill for X", "is there a skill that can...", "koi skill hai iske liye", or wants to extend capabilities / look up an existing workflow.
+description: Discover skills — FIRST LeadGen's own ~284 skills (~103 in .claude/skills + 181 in data/skills_extra via skill_pack), then the open `npx skills` ecosystem. Use when the user asks "how do I do X", "find a skill for X", "is there a skill that can...", "koi skill hai iske liye", or wants to extend capabilities / look up an existing workflow.
 ---
 
 # Find Skills
@@ -10,7 +10,7 @@ This skill helps you discover skills — FIRST the LeadGen project's own skill l
 ## FIRST: check LeadGen's OWN skills (this repo)
 
 Iss project ke paas pehle se **~270+ skills** hain — public ecosystem reach karne se pehle YAHAN dekho:
-- **~94 project skills** → `.claude/skills/<name>/SKILL.md` (context-first + executive-council + domain)
+- **~103 project skills** → `.claude/skills/<name>/SKILL.md` (context-first + executive-council + enterprise-readiness-audit + domain)
 - **Cursor parity map** → `.claude/skills/SKILLS_PARITY.md`
 - **181 packed skills** → `data/skills_extra/*.md` (agency-agents + ECC — git pull pe live)
 
