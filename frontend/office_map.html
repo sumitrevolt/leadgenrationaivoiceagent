@@ -998,6 +998,7 @@
         Object.keys(OFFICE.activeCoordinations).forEach(function(k){
           OFFICE.activeCoordinations[k].agentsInvolved.add(e.member);
         });
+        OFFICE.renderActiveCoordinations();
       }
     });
   };
