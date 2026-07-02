@@ -23,9 +23,14 @@ def test_opening_segments_three_parts():
     segs = opening_segments()
     assert len(segs) == 3
     assert "Leads Generation AI" in segs[0]
-    assert len(segs[0].split()) <= 28  # lean opener (2026-06-27): intro stays short
+    # segs[0] = mandatory TRAI AI-disclosure prefix ("Main ek AI agent hoon…")
+    # + lean intro + permission-ask (2026-07-02). Compliance prefix legitimately
+    # makes it longer than the bare intro — cap accommodates disclosure, still ~one
+    # breath. Bloat guard stays (was a stale 28 that pre-dated the disclosure prefix).
+    assert len(segs[0].split()) <= 48
     assert "1,999" in segs[1] or "1999" in segs[1]
-    assert "interested" in segs[2].lower()
+    # INTEREST_ASK is Hinglish now ("…try karke dekhna chahenge?") — no English "interested".
+    assert any(w in segs[2].lower() for w in ("try", "free", "chahenge", "dekh"))
 
 
 def test_classify_interest_yes_no_unclear():

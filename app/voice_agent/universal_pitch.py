@@ -24,10 +24,15 @@ def _marketing_start_price() -> str:
 # identity + ek hook; price/trial pitch-segment me; ask chhota. Total ~90→~50 shabd
 # (telephony-cheap + caller bore na ho). AI-disclosure helper (ensure_ai_disclosure)
 # iske aage "Main ek AI assistant hoon." prepend karta — isliye yahan dobara mat likho.
+# Permission-opener (2026-07-02): self-test ne har platform-opener pe
+# MISSING_PERMISSION flag kiya — intro kabhi "do minute hai?" nahi poochta tha.
+# Gong-research: permission/timing ask se cold-call ~5-10x behtar convert hoti +
+# caller ko control deta (kam pushy). Ek chhota timing-ask turn-1 me add — segment
+# lean rehta (telephony-cheap), qa_checks.has_permission_ask ab pass karta.
 UNIVERSAL_AGENT_INTRO = (
     "Namaste! Main Leads Generation AI se bol rahi hoon — "
     "hum aapke jaise business ko AI se naye customers dila dete hain, "
-    "Instagram, Facebook aur Google se."
+    "Instagram, Facebook aur Google se. Do minute baat kar sakti hoon?"
 )
 
 PITCH_SHORT = (
