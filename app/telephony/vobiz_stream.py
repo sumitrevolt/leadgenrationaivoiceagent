@@ -1804,6 +1804,14 @@ class VobizStreamSession:
                     )
             except Exception:
                 pass
+            # Caller phone — UNCONDITIONAL (not gated behind AGENT_MEMORY): close-
+            # signal side-effects (sales_pipeline + WhatsApp send) need the reliable
+            # dialed number regardless of the memory feature flag.
+            try:
+                if self._lead_phone:
+                    self._telecaller.set_caller_phone(self._lead_phone)
+            except Exception:
+                pass
         except Exception as e:
             logger.warning(f"[vobiz-stream] TelecallerBrain unavailable: {e}")
             self._telecaller = None
