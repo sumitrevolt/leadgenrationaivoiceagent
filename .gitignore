@@ -202,3 +202,4 @@ scripts/_mcp_*
 !/start_server.bat
 /gemini_vertex
 /55-min
+.codex/config.toml 
