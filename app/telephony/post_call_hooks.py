@@ -329,11 +329,17 @@ def _map_call_outcome(stream_outcome: str, q: dict[str, Any] | None, user_turns:
         from app.models.call_log import CallOutcome
     except Exception:
         return None
+    so = (stream_outcome or "").strip().lower()
+    if so == "test_session":
+        # WS test/dev session (no lead phone) — koi real outcome mat gadho
+        # (qualifier agent-monologue se "interested" tak hallucinate kar deta —
+        # 2026-07-02 me hua); column nullable hai, analytics phone='unknown' +
+        # null-outcome se filter kare. Yeh check appointment/qualified se PEHLE.
+        return None
     if q and q.get("appointment_requested"):
         return CallOutcome.APPOINTMENT
     if q and q.get("qualified"):
         return CallOutcome.INTERESTED
-    so = (stream_outcome or "").strip().lower()
     if so == "no_answer" or int(user_turns or 0) <= 0:
         return CallOutcome.NO_ANSWER
     if so == "failed":
