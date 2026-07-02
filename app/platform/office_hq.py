@@ -152,6 +152,7 @@ JOB_ROOM: dict[str, str] = {
     "readiness_digest": "platform_engineering", "saturday_hygiene": "platform_engineering",
     "obsidian_push": "platform_engineering", "flow_cron": "platform_engineering",
     "evening_wrap": "platform_engineering",
+    "call_kpi_digest": "voice_team",
 }
 
 # approvals_bridge source -> owning room (sales/coordinator/fde are the only
