@@ -292,10 +292,29 @@ class Settings(BaseSettings):
         if self.app_env == "production":
             if self.debug:
                 raise ValueError("DEBUG must be False in production")
-            if self.secret_key == "change-this-in-production-min-32-chars-xxxxx":
-                raise ValueError("SECRET_KEY must be set to a real value in production")
-            if self.jwt_secret_key == "change-this-jwt-secret-in-production-xxxxxxx":
-                raise ValueError("JWT_SECRET_KEY must be set to a real value in production")
+
+            # Sirf exact-default check kaafi NAHI tha — 2026-07-02 me prod
+            # months tak `JWT_SECRET_KEY=your-jwt-secret...` placeholder pe
+            # chala (guard paas ho gaya, tokens guessable-key se signed).
+            # Ab koi bhi placeholder-pattern ya chhota secret = boot REFUSED.
+            def _weak(val: str) -> bool:
+                v = (val or "").strip().lower()
+                return (
+                    len(v) < 32
+                    or v.startswith(("your-", "change-this", "changeme", "xxx", "placeholder"))
+                    or "example" in v
+                )
+
+            if _weak(self.secret_key):
+                raise ValueError(
+                    "SECRET_KEY weak/placeholder in production — set a real random value "
+                    "(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+                )
+            if _weak(self.jwt_secret_key):
+                raise ValueError(
+                    "JWT_SECRET_KEY weak/placeholder in production — set a real random value "
+                    "(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+                )
         return self
 
     @property
