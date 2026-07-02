@@ -21,9 +21,11 @@ Hard rules followed here (per user spec + advisor review):
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from app.platform.team import STAFF
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -101,6 +103,36 @@ MEMBER_ROOM: dict[str, str] = {
 # (app/agents/staff.py run_member() dispatch table). Everyone else's "retry"
 # button must stay disabled/omitted rather than lie about doing something.
 RUNNABLE_MEMBERS = {"arjun", "meera", "kavya", "manager", "isha", "rohan"}
+
+# Member key -> the single env flag that gates their underlying automation
+# engine, for offline_reason classification. Only members whose "offline"
+# state is EXPLAINED by a known off-by-design flag go here — everyone else
+# offline is either genuinely idle (no matching data today) or unknown.
+_MEMBER_GATING_FLAG: dict[str, str] = {
+    "priya": "CRM_SYNC",
+    "zara": "SOCIAL_ENGINE",
+    "anika": "CADENCE_ENGINE",
+    "ira": "JOURNEY_ENGINE",
+    "raksha": "CALL_TRANSFER",
+}
+
+
+def classify_offline_reason(key: str) -> str:
+    """Why a member shows offline — 'flag_off:X' / 'no_data_today' / 'unknown'.
+
+    Never raises (env read wrapped). Pure function, no IO beyond os.environ."""
+    try:
+        flag = _MEMBER_GATING_FLAG.get(key)
+        if flag:
+            val = (os.environ.get(flag) or "").strip().lower()
+            if val not in ("1", "true", "yes"):
+                return f"flag_off:{flag}"
+            return "no_data_today"
+        if key in STAFF:
+            return "no_data_today"
+        return "unknown"
+    except Exception:
+        return "unknown"
 
 # automation_health job-key -> owning room, for blocked/error badges per room.
 JOB_ROOM: dict[str, str] = {
@@ -269,7 +301,7 @@ def build_rooms_and_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]
     agents: list[dict[str, Any]] = []
     try:
         from app.platform import agent_controls
-        from app.platform.team import STAFF, team_status
+        from app.platform.team import team_status
 
         ts = team_status() or {}
         members = {m.get("key"): m for m in (ts.get("members") or [])}
@@ -287,6 +319,7 @@ def build_rooms_and_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]
                 "duties": meta.get("duties", ""),
                 "room": room_id,
                 "status": state,  # working|active|offline (see team.py windows)
+                "offline_reason": classify_offline_reason(key) if state == "offline" else None,
                 "todayActions": int(live.get("today_actions") or 0),
                 "todayErrors": int(live.get("today_errors") or 0),
                 "lastActivityAt": live.get("last_activity"),
