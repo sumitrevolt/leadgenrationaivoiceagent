@@ -241,7 +241,17 @@ services:
     mem_reservation: 512m
     cpus: "1.5"
     user: "0:0"   # root — bind-mounted root-owned ./data writable (app jaisa)
-    command: celery -A app.worker worker --loglevel=info --concurrency=4
+    # -Q explicit (2026-07-02): a bare `celery worker` with no -Q only drains
+    # the default "celery" queue. task_routes in app/worker.py sends
+    # app.tasks.{scraping,calling,reporting,sync,brain_training}.* to their
+    # OWN named queues — without listing them here those tasks enqueue
+    # successfully (send_task/beat succeeds, status shows "running"/queued)
+    # but NO worker ever consumes them; they sit in Redis forever. Found while
+    # wiring the durable Celery campaign-launch task (app.tasks.calling.*
+    # routes to "calling") — same gap silently affected the pre-existing
+    # beat-scheduled process-call-queue task too. "heavy" stays exclusive to
+    # worker-heavy below (starve-prevention), so it's deliberately omitted here.
+    command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training --loglevel=info --concurrency=4
     env_file: .env
     environment:
       # In-network URLs HARDCODED (app jaisa) — .env ke 127.0.0.1 URLs container

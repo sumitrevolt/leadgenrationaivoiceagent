@@ -2570,7 +2570,11 @@ class VobizStreamSession:
                 "call_finished",
                 f"Call done ({dur:.0f}s, {turns} user turns, niche {self.niche})",
                 status="ok" if turns > 0 else "warn",
-                meta={"stt_counts": dict(self._stt_counts), "duration_s": round(dur, 1)},
+                meta={
+                    "stt_counts": dict(self._stt_counts),
+                    "duration_s": round(dur, 1),
+                    "client_id": str(self.client_id or ""),
+                },
             )
         except Exception:
             pass

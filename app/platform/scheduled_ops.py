@@ -100,18 +100,60 @@ async def run_saturday_hygiene() -> dict[str, Any]:
         from app.platform import team
 
         r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
-        depth = int(r.llen("celery") or 0)
-        out["celery_depth"] = depth
         min_depth = int(os.environ.get("CELERY_TRIM_MIN_DEPTH", "800") or 800)
-        if depth >= min_depth:
-            r.delete("celery")
+        # Every queue app/worker.py's task_routes can send work to (2026-07-02)
+        # — not just the default "celery" queue. leadgen_worker previously had
+        # no -Q flag and silently never consumed calling/scraping/reporting/
+        # sync/training/heavy, so those are equally capable of building an
+        # unbounded backlog now that a worker actually drains them. BUT: only
+        # celery/scraping/reporting/sync/training/heavy are safe to
+        # auto-delete unattended — every task on them is beat-driven and
+        # re-enqueued on its own schedule regardless. "calling" is NOT: it
+        # carries run_campaign_task (admin-launched, never beat-regenerated —
+        # deleting a queued one silently drops the campaign AND leaks its
+        # launch lock, since the delete skips the task's own `finally:
+        # release_campaign_lock()`) and process_callbacks' make_call_task
+        # (only re-enqueued while the lead is still inside its 1-hour
+        # next_call_at window — past that, gone for good). So "calling" is
+        # ALERT-ONLY here; an oversized backlog there needs a human decision,
+        # via the one-time `scripts/vps_celery_trim.py` (which does include
+        # it, deliberately, as a reviewed manual action) — not an unattended
+        # weekly auto-delete.
+        trim_queues = ["celery", "scraping", "reporting", "sync", "training", "heavy"]
+        alert_only_queues = ["calling"]
+        depths: dict[str, int] = {}
+        trimmed: dict[str, int] = {}
+        alerts: dict[str, int] = {}
+        for q in trim_queues:
+            depth = int(r.llen(q) or 0)
+            depths[q] = depth
+            if depth >= min_depth:
+                r.delete(q)
+                trimmed[q] = depth
+        for q in alert_only_queues:
+            depth = int(r.llen(q) or 0)
+            depths[q] = depth
+            if depth >= min_depth:
+                alerts[q] = depth
+        out["queue_depths"] = depths
+        if trimmed:
             team.log_event(
                 "kavya",
                 "hygiene_queue",
-                f"✂️ celery queue trimmed ({depth} stale tasks — beat re-schedules)",
+                f"✂️ queues trimmed: {trimmed} (all beat re-scheduled — safe)",
                 status="warn",
             )
-            out["celery_trimmed"] = depth
+            out["queues_trimmed"] = trimmed
+        if alerts:
+            team.log_event(
+                "kavya",
+                "hygiene_queue_alert",
+                f"⚠️ calling queue backlog {alerts} — NOT auto-trimmed (carries "
+                f"admin campaigns + callbacks); review + run "
+                f"scripts/vps_celery_trim.py manually if stale",
+                status="warn",
+            )
+            out["queues_alerted"] = alerts
     except Exception as e:
         logger.debug(f"[scheduled_ops] celery trim skip: {e}")
 

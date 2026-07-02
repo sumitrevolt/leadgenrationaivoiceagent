@@ -84,8 +84,13 @@ async def handle_missed_call(
                 "reason": "telephony start_stream_call unavailable",
             }
         _RECENT[num] = time.time()
-        # transactional callback to a number that rang us
-        await starter(num, niche or "general", business or "Aapki missed call")
+        # transactional callback to a number that rang us. NOTE: positional call
+        # here previously stuffed `business` (free text) into start_stream_call's
+        # 3rd positional param, which is `client_id` — not a display name (there
+        # is no client_name param; the callee resolves the real business name
+        # from a genuine client_id via clients_store, if one is ever threaded
+        # through here). Keyword args prevent that class of bug from recurring.
+        await starter(num, niche=niche or "general", call_type="transactional")
         logger.info(f"[missed_call] AI callback triggered -> {num}")
         return {"ok": True, "callback": True, "number": num}
     except Exception as e:

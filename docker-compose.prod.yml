@@ -82,7 +82,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.production
-    command: celery -A app.worker worker --loglevel=info --concurrency=8
+    # -Q explicit: task_routes (app/worker.py) sends scraping/calling/reporting/
+    # sync/brain_training/heavy tasks to their own named queues — a bare
+    # `worker` with no -Q only drains the default "celery" queue, so those
+    # tasks would enqueue but never run. No separate heavy worker in this
+    # compose file, so "heavy" is included here (unlike docker-compose.vps.yml,
+    # which isolates it onto worker-heavy).
+    command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training,heavy --loglevel=info --concurrency=8
     volumes:
       - leadgen_data:/app/data
     deploy:

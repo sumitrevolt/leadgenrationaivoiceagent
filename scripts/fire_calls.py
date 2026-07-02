@@ -249,40 +249,24 @@ async def fire(prospects: list[dict], dry_run: bool, call_type: str, client_id: 
 
 async def main() -> None:
     args = parser.parse_args()
-    import datetime
+    from app.telephony.campaign_compliance import call_type_for, readiness_ok, trai_window_ok
 
-    ist = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
-    trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "10").split(":")[0])
-    trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "19").split(":")[0])
-    txn_end = int(os.environ.get("COMPLIANCE_TXN_END", "21").split(":")[0])
-    call_type = "transactional" if args.transactional else "promotional"
-    end_hour = txn_end if args.transactional else trai_end
-    start_hour = (
-        int(os.environ.get("COMPLIANCE_TXN_START", "9").split(":")[0])
-        if args.transactional
-        else trai_start
-    )
-    if not args.dry_run and not (start_hour <= ist.hour < end_hour):
-        print(
-            f"ERROR: TRAI window CLOSED (IST {ist.hour}:xx). "
-            f"Allowed {start_hour:02d}:00–{end_hour:02d}:00 IST for {call_type}."
-        )
-        return
+    call_type = call_type_for(args.transactional)
 
     if not args.dry_run:
-        try:
-            from app.telephony.telephony_readiness import run_checks
+        ok, reason = trai_window_ok(args.transactional)
+        if not ok:
+            print(f"ERROR: {reason}")
+            return
 
-            tr = run_checks()
-            score = int(tr.get("score") or 0)
-            if score < 70:
-                print(f"ERROR: Telephony readiness {score}/100 — fix before live calls:")
-                for act in tr.get("actions") or []:
-                    print(f"  → {act}")
-                return
-            print(f"Telephony readiness OK ({score}/100, provider={tr.get('provider')})")
-        except Exception as e:
-            print(f"WARN: readiness check skip: {e}")
+    if not args.dry_run:
+        ready, score, actions = readiness_ok()
+        if not ready:
+            print(f"ERROR: Telephony readiness {score}/100 — fix before live calls:")
+            for act in actions:
+                print(f"  → {act}")
+            return
+        print(f"Telephony readiness OK ({score}/100)")
 
     niche_filter = "ai_marketing" if args.platform else args.niche
     prospects = get_prospects(args.limit, niche_filter)

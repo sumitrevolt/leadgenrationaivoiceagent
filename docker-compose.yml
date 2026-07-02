@@ -63,7 +63,12 @@ services:
   worker:
     build: .
     container_name: voice_agent_worker
-    command: celery -A app.worker worker --loglevel=info --concurrency=4
+    # -Q explicit: task_routes (app/worker.py) sends scraping/calling/reporting/
+    # sync/brain_training/heavy tasks to their own named queues — a bare
+    # `worker` with no -Q only drains the default "celery" queue, so those
+    # tasks would enqueue but never run. No separate heavy worker in this
+    # compose file, so "heavy" is included here.
+    command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training,heavy --loglevel=info --concurrency=4
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/voice_agent
       - REDIS_URL=redis://redis:6379/0

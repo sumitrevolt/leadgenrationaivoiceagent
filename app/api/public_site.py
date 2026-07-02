@@ -240,12 +240,22 @@ def _read_jsonl(limit: int = 300) -> list[dict[str, Any]]:
 _BG_TASKS: set = set()
 
 
-async def _auto_callback(phone: str, niche: str, business: str) -> None:
-    """Fire-and-forget: inquiry phone pe conversational AI call try karo."""
+async def _auto_callback(phone: str, niche: str, business: str, client_id: str = "") -> None:
+    """Fire-and-forget: inquiry phone pe conversational AI call try karo.
+
+    client_id (2026-07-02): a mini-site inquiry belongs to a specific paying
+    client — without it, the call greeted as generic "Demo Co"/"LeadGen AI"
+    instead of that business, skipped KB grounding (TelecallerBrain uses
+    client_id for RAG), never showed up in that client's own CallLog/dashboard,
+    and skipped the auto-qualify->CRM/sales downstream wiring (gated on
+    `self.client_id` in vobiz_stream.py). Platform-level leads (no client yet,
+    e.g. leadsgenai.in's own /audit funnel) correctly pass "" — unchanged."""
     try:
         from app.api.telephony_vobiz import start_stream_call
 
-        result = await start_stream_call(to=phone, niche=niche or "general")
+        result = await start_stream_call(
+            to=phone, niche=niche or "general", client_id=client_id or None
+        )
         placed = bool(result.get("placed"))
         try:
             from app.platform.team import log_event
@@ -261,6 +271,7 @@ async def _auto_callback(phone: str, niche: str, business: str) -> None:
                     "placed": placed,
                     "error": result.get("error"),
                     "stream_token": result.get("stream_token"),
+                    "client_id": client_id or "",
                 },
             )
         except Exception:

@@ -27,6 +27,7 @@ from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
 from app.api.ratelimit import rate_limit
+from app.security.turnstile import verify_turnstile
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -43,11 +44,16 @@ class GeoCheckIn(BaseModel):
     city: str = Field(..., min_length=2, max_length=60)
 
 
-@router.post("/geo-check", dependencies=[Depends(rate_limit("geo", 5, 60))])
+@router.post(
+    "/geo-check",
+    dependencies=[Depends(rate_limit("geo", 5, 60)), Depends(verify_turnstile)],
+)
 async def geo_check(body: GeoCheckIn):
     """PUBLIC: 'AI search me aapka business dikh raha hai?' — score+verdict+tips.
 
-    Cache-first (1 hr); LLM probes hard 20s timeout me (event loop safe)."""
+    Cache-first (1 hr); LLM probes hard 20s timeout me (event loop safe). Turnstile-
+    gated (2026-07-01) — this fans out multiple free-LLM calls per request, same
+    abuse class as /api/public/ai-demo; INERT when TURNSTILE_SECRET_KEY unset."""
     from app.marketing import geo_visibility
 
     try:

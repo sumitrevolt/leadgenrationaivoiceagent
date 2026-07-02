@@ -134,6 +134,7 @@ async def run_after_inquiry(
                     str(rec.get("phone") or ""),
                     str(rec.get("niche") or "general"),
                     str(rec.get("business_name") or ""),
+                    client_id=cid or "",
                 )
             )
     except Exception as e:
